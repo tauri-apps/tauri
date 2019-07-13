@@ -1,14 +1,14 @@
 # quasar-proton [WIP]
 ## A fresh take on creating cross-platform apps.
-[![official icon](https://img.shields.io/badge/Quasar%201.0-Official-blue.svg)](https://quasar.dev) 
+[![official icon](https://img.shields.io/badge/Quasar%201.0-Official-blue.svg)](https://quasar.dev)
 [![status](https://img.shields.io/badge/Status-Internal%20Review-yellow.svg)](https://github.com/quasarframework/quasar/tree/proton)
-[![version](https://img.shields.io/badge/Version-unreleased-yellow.svg)](https://github.com/quasarframework/quasar/tree/proton)
+[![version](https://img.shields.io/badge/Version-unreleased-yellow.svg)](https://github.com/quasarframework/quasar/tree/proton) <img align="right" src="https://cdn.quasar.dev/logo/proton/proton-logo-240x240.png">
 
 [![Join the chat at https://chat.quasar.dev](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://chat.quasar.dev)
 <a href="https://forum.quasar.dev" target="_blank"><img src="https://img.shields.io/badge/community-forum-brightgreen.svg"></a>
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
 
-**Proton** brings a mode to build Quasar Apps that creates tiny, blazing  <img align="right" src="https://cdn.quasar.dev/logo/proton/proton-logo-240x240.png">
+**Proton** brings a mode to build Quasar Apps that creates tiny, blazing 
 fast binaries for all major desktop platforms. In Quasar's 
 [neverending quest](https://quasar.dev/introduction-to-quasar#Why-Quasar%3F) 
 for performance and security, the core team is proud to offer an

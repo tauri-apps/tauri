@@ -1,6 +1,6 @@
 # Quasar Contributing Guide
 
-Hi! I’m really excited that you are interested in contributing to Quasar. Before submitting your contribution though, please make sure to take a moment and read through the following guidelines.
+Hi! We, the maintainers, are really excited that you are interested in contributing to Quasar Proton. Before submitting your contribution though, please make sure to take a moment and read through the following guidelines.
 
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Issue Reporting Guidelines](#issue-reporting-guidelines)
@@ -49,61 +49,7 @@ Hi! I’m really excited that you are interested in contributing to Quasar. Befo
   - Provide detailed description of the bug in the PR. Live demo preferred.
 
 ## Development Setup
-
-You will need [Node.js](http://nodejs.org) **version 8.9+** along [Yarn](https://yarnpkg.com/) or [NPM](https://docs.npmjs.com/getting-started/installing-node). Read `package.json` and take notice of the scripts you can use.
-
-After cloning the repo, in each subfolder run:
-
-``` bash
-$ yarn # or: npm install
-```
-
-### Commonly used NPM scripts
-
-``` bash
-# Start dev server with a demo app. This app has Quasar source code linked directly so any change will trigger HMR (Hot Module Reload) on the dev server.
-# There's a section for each feature where tests are made.
-$ yarn dev [theme] # or: npm run dev [theme]
-
-# build all dist files, including npm packages
-$ yarn build      # or: npm run build
-# build only js dist files
-$ yarn build js   # or: npm run build js
-# build only css dist files
-$ yarn build css  # or: npm run build css
-
-# lint sources
-$ yarn lint # or: npm run lint
-```
-
-## Project Structure (/ui)
-
-- **`build`**: contains build-related configuration files. In most cases you don't need to touch them.
-
-- **`src`**: contains the source code, obviously. The codebase is written in ES2015.
-
-  - **`components`**: JS and Stylus files (one for each theme) for Quasar Vue components
-
-  - **`directives`**: Vue directives supplied by Quasar
-
-  - **`features`**: code for global features outside of the components
-
-  - **`css`**: Stylus definitions and core code for Quasar themes
-
-  - **`utils`**: utilities used by the framework and exported to the public API
-
-  - **`index.js`**: starting point for Quasar
-
-- **`lang`**: Quasar language packs
-
-- **`icon-set`**: Quasar icon sets
-
-- **`dist`**: contains built files for distribution (only after a build). Note this directory is only updated when a release happens; they do not reflect the latest changes in development branches.
-
-- **`dev`**: app with Quasar sources linked directly used for testing purposes. Each feature/component has its own `*.vue` file. Adding a new file automatically creates a route for it and adds it to the "homepage" list (based on the file name).
-
-## Dev Server for Quasar (/ui)
-Running `yarn dev` (or `npm run dev`) starts up a dev server which uses HMR (Hot Module Reload) for Quasar source code. You can easily test your changes by making necessary changes to `/dev` `*.vue` files.
+TO BE UPDATED. 
 
 ## Financial Contribution
 

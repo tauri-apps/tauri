@@ -1,7 +1,12 @@
 # quasar-proton [WIP]
 ## A fresh take on creating cross-platform apps.
 [![official icon](https://img.shields.io/badge/Quasar%201.0-Official-blue.svg)](https://quasar.dev) 
-[![official icon](https://img.shields.io/badge/Status-Internal%20Review-yellow.svg)](https://github.com/quasarframework/quasar/tree/proton)
+[![status](https://img.shields.io/badge/Status-Internal%20Review-yellow.svg)](https://github.com/quasarframework/quasar/tree/proton)
+[![version](https://img.shields.io/badge/Version-unreleased-yellow.svg)](https://github.com/quasarframework/quasar/tree/proton)
+
+[![Join the chat at https://chat.quasar.dev](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://chat.quasar.dev)
+<a href="https://forum.quasar.dev" target="_blank"><img src="https://img.shields.io/badge/community-forum-brightgreen.svg"></a>
+[![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
 
 **Proton** brings a mode to build Quasar Apps that creates tiny, blazing  <img align="right" src="https://cdn.quasar.dev/logo/proton/proton-logo-240x240.png">
 fast binaries for all major desktop platforms. In Quasar's 
@@ -39,9 +44,6 @@ you through the process.
 | FLOSS | Yes | No |
 | Multithreading | Yes | No |
 | Bytecode Delivery | Yes | No |
-| GPU Support | Yes | No |
-| Geolocation | Yes | No |
-| WebAPI | Yes | No |
 | Multiple Windows | Yes | Yes |
 | Can Render PDF | Yes | No |
 | Updater | Yes | Yes |
@@ -64,6 +66,27 @@ been possible without your amazing contribution to open-source and we are
 honoured to carry the torch further. Of special note:
 - [zserge](https://github.com/zserge) for the original webview approach
 - [Boscop](https://github.com/Boscop) for the Rust Bindings
+
+## Documentation
+Head over to the Quasar Framework official website: [https://quasar.dev](https://quasar.dev)
+
+## Stay in Touch
+For latest releases and announcements, follow on Twitter: [@quasarframework](https://twitter.com/quasarframework)
+
+## Chat Support
+Get realtime help at the official community Discord server: [https://chat.quasar.dev](https://chat.quasar.dev)
+
+## Community Forum
+Ask complicated questions at the official community forum: [https://forum.quasar.dev](https://forum.quasar.dev)
+
+## Contributing
+
+Please make sure to read the [Contributing Guide](./.github/CONTRIBUTING.md) before making a pull request. If you have a Quasar-related project/component/tool, add it with a pull request to [this curated list](https://github.com/quasarframework/quasar-awesome)!
+
+Thank you to all the people who already <a href="https://github.com/quasarframework/quasar/graphs/contributors">contributed to Proton</a>!
+
+## Semver
+Quasar is following [Semantic Versioning 2.0](https://semver.org/).
 
 ## Licenses
 Code: (c) 2019 - Daniel Thompson-Yvetot, Razvan Stoenescu, Lucas Nogueira.

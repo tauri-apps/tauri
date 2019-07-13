@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Create a report to help us improve Quasar
+about: Create a report to help us improve Proton
 title: ''
 labels: bug
 assignees: ''
@@ -9,9 +9,6 @@ assignees: ''
 
 **Describe the bug**
 A clear and concise description of what the bug is.
-
-**Codepen/jsFiddle/Codesandbox (required)**
-Fork a Codepen (https://codepen.quasar.dev) or a jsFiddle (https://jsfiddle.quasar.dev) or a Codesandbox (https://codesandbox.quasar.dev) and hit save then copy-paste link here.
 
 **To Reproduce**
 Steps to reproduce the behavior:
@@ -35,6 +32,7 @@ Browsers:
 iOS:
 Android:
 Electron:
+Proton Binding:
 
 **Additional context**
 Add any other context about the problem here.

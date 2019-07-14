@@ -117,7 +117,8 @@ This has been done with our best attempt at due diligence and in
 respect of the original authors. Thankyou - this project would never have
 been possible without your amazing contribution to open-source and we are
 honoured to carry the torch further. Of special note:
-- [zserge](https://github.com/zserge) for the original webview approach
+- [zserge](https://github.com/zserge) for the original webview approach and 
+go bindings
 - [Boscop](https://github.com/Boscop) for the Rust Bindings
 
 ## Documentation
@@ -149,13 +150,9 @@ Thank you to all the people who already <a href="https://github.com/quasarframew
 quasarframework/proton is following [Semantic Versioning 2.0](https://semver.org/).
 
 ## Licenses
-Code: (c) 2019 - Daniel Thompson-Yvetot, Razvan Stoenescu, Lucas Nogueira.
-MIT and where applicable Apache
+Code: (c) 2019 - Daniel Thompson-Yvetot, Razvan Stoenescu, Lucas Nogueira, Boscop, Serge Zaitsev.
+MIT
 
 Logo: CC-BY-NC-ND
 - Original Proton Logo Design by [Daniel Thompson-Yvetot](https://github.com/nothingismagick)
 - Based on the prior work by [Emanuele Bertoldi](https://github.com/zuck)
-
-Note: This license notice will not be complete until we have performed an 
-upstream audit. If you feel that your name should be listed here, please
-create a PR to this file and provide references so we can fact-check. Thanks!

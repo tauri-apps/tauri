@@ -1,0 +1,19 @@
+{
+  "name": "proton",
+  "version": "1.0.0-alpha.1",
+  "description": "Multi-binding collection of libraries for building Proton",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/quasarframework/proton.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/quasarframework/proton/issues"
+  },
+  "homepage": "https://github.com/quasarframework/proton#readme"
+}

@@ -11,44 +11,44 @@ use error::*;
 /// * Errors:
 ///     * Unexpected system config
 pub fn target_triple() -> Result<String, Error> {
-    let arch = if cfg!(target_arch = "x86") {
-        "i686"
-    } else if cfg!(target_arch = "x86_64") {
-        "x86_64"
-    } else if cfg!(target_arch = "arm") {
-        "armv7"
-    } else {
-        bail!(Error::Arch, "Unable to determine target-architecture")
-    };
+  let arch = if cfg!(target_arch = "x86") {
+    "i686"
+  } else if cfg!(target_arch = "x86_64") {
+    "x86_64"
+  } else if cfg!(target_arch = "arm") {
+    "armv7"
+  } else {
+    bail!(Error::Arch, "Unable to determine target-architecture")
+  };
 
-    let os = if cfg!(target_os = "linux") {
-        "unknown-linux"
-    } else if cfg!(target_os = "macos") {
-        "apple-darwin"
-    } else if cfg!(target_os = "windows") {
-        "pc-windows"
-    } else if cfg!(target_os = "freebsd") {
-        "unknown-freebsd"
-    } else {
-        bail!(Error::Target, "Unable to determine target-os");
-    };
+  let os = if cfg!(target_os = "linux") {
+    "unknown-linux"
+  } else if cfg!(target_os = "macos") {
+    "apple-darwin"
+  } else if cfg!(target_os = "windows") {
+    "pc-windows"
+  } else if cfg!(target_os = "freebsd") {
+    "unknown-freebsd"
+  } else {
+    bail!(Error::Target, "Unable to determine target-os");
+  };
 
-    let s;
-    let os = if cfg!(target_os = "macos") || cfg!(target_os = "freebsd") {
-        os
+  let s;
+  let os = if cfg!(target_os = "macos") || cfg!(target_os = "freebsd") {
+    os
+  } else {
+    let env = if cfg!(target_env = "gnu") {
+      "gnu"
+    } else if cfg!(target_env = "gnu") {
+      "musl"
+    } else if cfg!(target_env = "msvc") {
+      "msvc"
     } else {
-        let env = if cfg!(target_env = "gnu") {
-            "gnu"
-        } else if cfg!(target_env = "gnu") {
-            "musl"
-        } else if cfg!(target_env = "msvc") {
-            "msvc"
-        } else {
-            bail!(Error::Abi, "Unable to determine target-environment")
-        };
-        s = format!("{}-{}", os, env);
-        &s
+      bail!(Error::Abi, "Unable to determine target-environment")
     };
+    s = format!("{}-{}", os, env);
+    &s
+  };
 
-    Ok(format!("{}-{}", arch, os))
+  Ok(format!("{}-{}", arch, os))
 }

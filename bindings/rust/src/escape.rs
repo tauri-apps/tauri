@@ -17,7 +17,7 @@ use std::fmt::{self, Write};
 /// view.eval(&format!("callback({});", web_view::escape(string)));
 /// ```
 pub fn escape(string: &str) -> Escaper {
-    Escaper(string)
+  Escaper(string)
 }
 
 // "All code points may appear literally in a string literal except for the
@@ -28,54 +28,54 @@ pub fn escape(string: &str) -> Escaper {
 pub struct Escaper<'a>(&'a str);
 
 const SPECIAL: &[char] = &[
-    '\n',       // U+000A (LINE FEED)
-    '\r',       // U+000D (CARRIAGE RETURN)
-    '\'',       // U+0027 (APOSTROPHE)
-    '\\',       // U+005C (REVERSE SOLIDUS)
-    '\u{2028}', // U+2028 (LINE SEPARATOR)
-    '\u{2029}', // U+2029 (PARAGRAPH SEPARATOR)
+  '\n',       // U+000A (LINE FEED)
+  '\r',       // U+000D (CARRIAGE RETURN)
+  '\'',       // U+0027 (APOSTROPHE)
+  '\\',       // U+005C (REVERSE SOLIDUS)
+  '\u{2028}', // U+2028 (LINE SEPARATOR)
+  '\u{2029}', // U+2029 (PARAGRAPH SEPARATOR)
 ];
 
 impl<'a> fmt::Display for Escaper<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let &Escaper(mut string) = self;
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    let &Escaper(mut string) = self;
 
-        f.write_char('\'')?;
+    f.write_char('\'')?;
 
-        while !string.is_empty() {
-            if let Some(i) = string.find(SPECIAL) {
-                if i > 0 {
-                    f.write_str(&string[..i])?;
-                }
-
-                let mut chars = string[i..].chars();
-
-                f.write_str(match chars.next().unwrap() {
-                    '\n' => "\\n",
-                    '\r' => "\\r",
-                    '\'' => "\\'",
-                    '\\' => "\\\\",
-                    '\u{2028}' => "\\u2028",
-                    '\u{2029}' => "\\u2029",
-                    _ => unreachable!(),
-                })?;
-
-                string = chars.as_str();
-            } else {
-                f.write_str(string)?;
-                break;
-            }
+    while !string.is_empty() {
+      if let Some(i) = string.find(SPECIAL) {
+        if i > 0 {
+          f.write_str(&string[..i])?;
         }
 
-        f.write_char('\'')?;
+        let mut chars = string[i..].chars();
 
-        Ok(())
+        f.write_str(match chars.next().unwrap() {
+          '\n' => "\\n",
+          '\r' => "\\r",
+          '\'' => "\\'",
+          '\\' => "\\\\",
+          '\u{2028}' => "\\u2028",
+          '\u{2029}' => "\\u2029",
+          _ => unreachable!(),
+        })?;
+
+        string = chars.as_str();
+      } else {
+        f.write_str(string)?;
+        break;
+      }
     }
+
+    f.write_char('\'')?;
+
+    Ok(())
+  }
 }
 
 #[test]
 fn test() {
-    let plain = "ABC \n\r' abc \\  \u{2028}   \u{2029}123";
-    let escaped = escape(plain).to_string();
-    assert!(escaped == "'ABC \\n\\r\\' abc \\\\  \\u2028   \\u2029123'");
+  let plain = "ABC \n\r' abc \\  \u{2028}   \u{2029}123";
+  let escaped = escape(plain).to_string();
+  assert!(escaped == "'ABC \\n\\r\\' abc \\\\  \\u2028   \\u2029123'");
 }

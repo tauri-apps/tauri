@@ -1,6 +1,6 @@
 max_width = 100
 hard_tabs = false
-tab_spaces = 4
+tab_spaces = 2
 newline_style = "Auto"
 use_small_heuristics = "Default"
 indent_style = "Block"

@@ -1,0 +1,11 @@
+test
+bindings
+docs
+lib
+node_modules
+spec
+ui
+.git
+.github
+.idea
+SECURITY.md

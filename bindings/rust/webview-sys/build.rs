@@ -8,7 +8,7 @@ use std::{
 };
 
 fn main() {
-    let webview_path = PathBuf::from("../../webview");
+    let webview_path = PathBuf::from("../../../ui");
 
     let mut build = cc::Build::new();
 

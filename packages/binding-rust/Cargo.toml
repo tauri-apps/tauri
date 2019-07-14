@@ -1,0 +1,25 @@
+[package]
+name = "web-view"
+version = "0.4.1"
+authors = ["Boscop"]
+readme = "README.md"
+license = "MIT"
+repository = "https://github.com/Boscop/web-view"
+description = "Rust bindings for webview, a tiny cross-platform library to render web-based GUIs for desktop applications"
+keywords = ["web", "gui", "desktop", "electron", "webkit"]
+categories = ["gui", "web-programming", "api-bindings", "rendering", "visualization"]
+exclude = ["examples/todo-ps/dist/**/*", "examples/elm-counter/index.html"]
+
+[dependencies]
+urlencoding = "1.0"
+webview-sys = { path = "webview-sys", version = "0.1.1" }
+boxfnonce = "0.1"
+
+[features]
+default = ["V1_30"]
+V1_30 = []
+
+[dev-dependencies]
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"

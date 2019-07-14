@@ -1,0 +1,100 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-size: 28px;
+  font-family: sans-serif;
+}
+
+html, body {
+  height: 100%;
+  overflow: none;
+}
+
+.ie-upgrade-container {
+  width: 100%;
+  height: 100%;
+  font-family: Arial, sans-serif;
+  font-size: 32px;
+  color: #ffffff;
+  background-color: #1ebbee;
+  padding: 3em 1em 1em 1em;
+}
+.ie-upgrade-link {
+  margin: 2em 0em;
+  padding: 0 1em;
+  color: #1ebbee;
+  background-color: #ffffff;
+  font-weight: bold;
+  text-align: center;
+  display: block;
+  width: 100%;
+  height: 2em;
+  line-height: 2em;
+  text-transform: uppercase;
+}
+
+.container {
+  width: 100%;
+  height: 100%;
+  background-color: #9c27b0;
+}
+
+.text-input-wrapper {
+  padding: 0.5em;
+  position: fixed;
+  top: 0;
+  left: 0;
+  righ: 0;
+}
+
+.text-input {
+  width: 100%;
+  line-height: 1.5em;
+  padding: 0 0.2em;
+  height: 1.5em;
+  outline: none;
+  border: none;
+  color: #4a148c;
+  background-color: rgba(255, 255, 255, 0.87);
+}
+.text-input:focus {
+  background-color: #ffffff;
+}
+
+.task-list {
+  overflow-y: auto;
+  position: fixed;
+  top: 2.5em;
+  bottom: 1.2em;
+  left: 0;
+  right: 0;
+}
+
+.task-item {
+  height: 1.5em;
+  color: rgba(255, 255, 255, 0.87);
+  padding: 0.5em;
+  cursor: pointer;
+}
+.task-item.checked {
+  text-decoration: line-through;
+  color: rgba(255, 255, 255, 0.38);
+}
+.footer {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background-color: #ffffff;
+  color: #9c27b0;
+}
+.btn-clear-tasks {
+  width: 100%;
+  text-align: center;
+  font-size: 18px;
+  height: 2.5em;
+  line-height: 2.5em;
+  text-transform: uppercase;
+  cursor: pointer;
+}

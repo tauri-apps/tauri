@@ -128,6 +128,9 @@ honoured to carry the torch further. Of special note:
 go bindings
 - [Boscop](https://github.com/Boscop) for the Rust Bindings
 
+## But there is already a project called Proton...
+But aren't there other projects with the same name that do something similar? If you search Github, you will find 1,500 repositories with proton in their name. There are also many, many Quasar projects out there - and that is indeed a bit of a risk when you use a word from science to name your project. But Quasar Proton is the official name of this project now, we think its fitting and good for us, especially because no one can trademark the word proton and tell us to stop using it. This protects the project's longevity at the minor cost of needing disambiguation. C'est la vie.
+
 ## Documentation
 Head over to the Quasar Framework official website: 
 [https://quasar.dev](https://quasar.dev)
@@ -163,3 +166,5 @@ MIT
 Logo: CC-BY-NC-ND
 - Original Proton Logo Design by [Daniel Thompson-Yvetot](https://github.com/nothingismagick)
 - Based on the prior work by [Emanuele Bertoldi](https://github.com/zuck)
+
+Name: The proper name of this project is "Quasar Proton", and is to be used in all citations.

@@ -1,5 +1,5 @@
 #define WEBVIEW_IMPLEMENTATION
-#include "webview.h"
+#include "proton.h"
 
 void wrapper_webview_free(struct webview* w) {
 	free(w);

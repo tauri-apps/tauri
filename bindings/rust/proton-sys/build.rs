@@ -8,13 +8,13 @@ use std::{
 };
 
 fn main() {
-    let webview_path = PathBuf::from("../../../ui");
+    let proton_path = PathBuf::from("../../../ui");
 
     let mut build = cc::Build::new();
 
     build
-        .include(&webview_path)
-        .file("webview.c")
+        .include(&proton_path)
+        .file("proton.c")
         .flag_if_supported("-std=c11")
         .flag_if_supported("-w");
 
@@ -52,5 +52,5 @@ fn main() {
         panic!("unsupported target");
     }
 
-    build.compile("webview");
+    build.compile("proton");
 }

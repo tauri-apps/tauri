@@ -1,4 +1,4 @@
-package webview
+package proton
 
 import (
 	"image"

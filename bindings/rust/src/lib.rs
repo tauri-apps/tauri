@@ -1,29 +1,6 @@
-//! [![Build Status]][travis] [![Latest Version]][crates.io]
-//!
-//! [Build Status]: https://api.travis-ci.org/Boscop/web-view.svg?branch=master
-//! [travis]: https://travis-ci.org/Boscop/web-view
-//! [Latest Version]: https://img.shields.io/crates/v/web-view.svg
-//! [crates.io]: https://crates.io/crates/web-view
-//!
-//! This library provides Rust bindings for the [webview](https://github.com/zserge/webview) library
-//! to allow easy creation of cross-platform Rust desktop apps with GUIs based on web technologies.
-//!
-//! It supports two-way bindings for communication between the Rust backend and JavaScript frontend.
-//!
-//! It uses Cocoa/WebKit on macOS, gtk-webkit2 on Linux and MSHTML (IE10/11) on Windows, so your app
-//! will be **much** leaner than with Electron.
-//!
-//! To use a custom version of webview, define an environment variable WEBVIEW_DIR with the path to
-//! its source directory.
-//!
-//! For usage info please check out [the examples] and the [original readme].
-//!
-//! [the examples]: https://github.com/Boscop/web-view/tree/master/examples
-//! [original readme]: https://github.com/zserge/webview/blob/master/README.md
-
 extern crate boxfnonce;
 extern crate urlencoding;
-extern crate webview_sys as ffi;
+extern crate proton_sys as ffi;
 
 mod color;
 mod dialog;

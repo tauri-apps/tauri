@@ -1,5 +1,5 @@
 //
-// Package webview implements Go bindings to https://github.com/zserge/webview C library.
+// Package proton implements Go bindings to Proton UI.
 //
 // Bindings closely repeat the C APIs and include both, a simplified
 // single-function API to just open a full-screen webview window, and a more
@@ -8,7 +8,7 @@
 // The library uses gtk-webkit, Cocoa/Webkit and MSHTML (IE8..11) as a browser
 // engine and supports Linux, MacOS and Windows 7..10 respectively.
 //
-package webview
+package proton
 
 /*
 #cgo linux openbsd freebsd CFLAGS: -DWEBVIEW_GTK=1

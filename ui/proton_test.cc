@@ -10,7 +10,7 @@
 #include <vector>
 
 #define WEBVIEW_IMPLEMENTATION
-#include "webview.h"
+#include "proton.h"
 
 extern "C" void webview_dispatch_proxy(struct webview *w, void *arg) {
   (*static_cast<std::function<void(struct webview *)> *>(arg))(w);

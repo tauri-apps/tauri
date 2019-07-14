@@ -1,9 +1,4 @@
-//! Raw FFI bindings to [webview].
-//!
-//! To use a custom version of webview, define an environment variable `WEBVIEW_DIR` with the path
-//! to its source directory.
-//!
-//! [webview]: https://github.com/zserge/webview
+//! Raw FFI bindings to proton UI.
 
 #[macro_use]
 extern crate bitflags;

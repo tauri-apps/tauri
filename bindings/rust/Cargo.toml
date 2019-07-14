@@ -1,18 +1,17 @@
 [package]
-name = "web-view"
-version = "0.4.1"
-authors = ["Boscop"]
+name = "proton-ui"
+version = "0.1.0"
+authors = ["Boscop", "rstoenescu", "nothingismagick", "lucasfernog"]
 readme = "README.md"
 license = "MIT"
-repository = "https://github.com/Boscop/web-view"
-description = "Rust bindings for webview, a tiny cross-platform library to render web-based GUIs for desktop applications"
-keywords = ["web", "gui", "desktop", "electron", "webkit"]
-categories = ["gui", "web-programming", "api-bindings", "rendering", "visualization"]
-exclude = ["examples/todo-ps/dist/**/*", "examples/elm-counter/index.html"]
+repository = "https://github.com/quasarframework/proton"
+description = "Rust bindings for proton, a toolchain for building more secure native apps that have tiny binaries and are very fast."
+keywords = ["quasar", "web", "gui", "desktop", "webkit"]
+categories = ["quasar", "gui", "web-programming", "api-bindings", "rendering", "visualization"]
 
 [dependencies]
 urlencoding = "1.0"
-webview-sys = { path = "webview-sys", version = "0.1.1" }
+proton-sys = { path = "proton-sys", version = "0.1.0" }
 boxfnonce = "0.1"
 
 [features]

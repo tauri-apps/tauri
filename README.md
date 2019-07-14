@@ -77,10 +77,14 @@ you through the process. Here is a bit of a status report.
 - [x] Build on Linux
 - [ ] Build on Windows
 - [x] STDOUT Passthrough with Command Invocation
-- [x]  Self Updater
-- [x]  Inter Process Communication (IPC)
-- [x]  Documentation
-
+- [x] Self Updater
+- [x] Inter Process Communication (IPC)
+- [x] Documentation
+- [x] Filesystem R/W (scoped to permissions)
+- [ ] Secure Cryptographic Enclave
+- [ ] Message Bus
+- [x] Copy Buffer
+- [ ] API Spec (in progress)
 
 ### Comparison between Proton 1 and Electron 5
 
@@ -99,10 +103,13 @@ you through the process. Here is a bit of a status report.
 | Can Render PDF | Yes | No |
 | Multiple Windows | Yes | Yes |
 | GPU Access | Yes | Yes |
-| Updater | Yes | Yes |
+| Auto Updater | Yes | Yes (1) |
 | Inter Process Communication (IPC) | Yes | Yes |
 | Cross Platform | Yes | Yes |
 | Custom App Icon | Yes | Yes |
+
+#### Notes
+1) Electron has no native auto updater on Linux
 
 ## Relation to Upstream Origins
 We have made the decision to fork, enhance and maintain several upstream

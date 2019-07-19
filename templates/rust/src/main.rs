@@ -17,11 +17,13 @@ use std::thread;
 mod cmd;
 
 #[cfg(not(feature = "dev"))]
+#[cfg(not(feature = "serverless"))]
 mod server;
 
 fn main() {
   let debug;
   let content;
+  let _server_url: String;
   let _matches: clap::ArgMatches;
 
   #[cfg(not(feature = "dev"))]
@@ -56,25 +58,22 @@ fn main() {
     content = proton_ui::Content::Url(_matches.value_of("url").unwrap());
     debug = true;
   }
+
   #[cfg(not(feature = "dev"))]
   {
-    if let Some(available_port) = proton::tcp::get_available_port() {
-      let server_url = format!("{}:{}", "127.0.0.1", available_port);
-      content = proton_ui::Content::Url(format!("http://{}", server_url));
-      debug = cfg!(debug_assertions);
-
-      thread::spawn(move || {
-        let server = tiny_http::Server::http(server_url).unwrap();
-        for request in server.incoming_requests() {
-          let mut url = request.url().to_string();
-          if url == "/" {
-            url = "/index.html".to_string();
-          }
-          request.respond(server::asset_response(&url)).unwrap();
-        }
-      });
-    } else {
-      panic!("Could not find an open port");
+    debug = cfg!(debug_assertions);
+    #[cfg(feature = "serverless")]
+    {
+      content = proton_ui::Content::Html(include_str!("../target/compiled-web/index.html"));
+    }
+    #[cfg(not(feature = "serverless"))]
+    {
+      if let Some(available_port) = proton::tcp::get_available_port() {
+        _server_url = format!("{}:{}", "127.0.0.1", available_port);
+        content = proton_ui::Content::Url(format!("http://{}", _server_url));
+      } else {
+        panic!("Could not find an open port");
+      }
     }
   }
 
@@ -107,6 +106,32 @@ fn main() {
     })
     .build()
     .unwrap();
+
+  #[cfg(not(feature = "dev"))]
+  {
+    #[cfg(feature = "serverless")]
+    {
+      let handle = webview.handle();
+      handle.dispatch(move |_webview| {
+        _webview.inject_css(include_str!("../target/compiled-web/css/app.css")).unwrap();
+        _webview.eval(include_str!("../target/compiled-web/js/app.js"))
+      }).unwrap();
+    }
+
+    #[cfg(not(feature = "serverless"))]
+    {
+      thread::spawn(move || {
+        let server = tiny_http::Server::http(_server_url).unwrap();
+        for request in server.incoming_requests() {
+          let mut url = request.url().to_string();
+          if url == "/" {
+            url = "/index.html".to_string();
+          }
+          request.respond(server::asset_response(&url)).unwrap();
+        }
+      });
+    }
+  }
 
   webview.run().unwrap();
 }

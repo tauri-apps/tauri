@@ -12,7 +12,7 @@ edition = "2018"
 
 [dependencies]
 urlencoding = "1.0"
-proton-sys = { path = "proton-sys", version = "0.1.0" }
+proton-sys = { path = "proton-sys", version = "1.0.0" }
 boxfnonce = "0.1"
 
 [features]

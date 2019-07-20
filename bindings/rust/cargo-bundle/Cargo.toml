@@ -1,0 +1,35 @@
+[package]
+name = "cargo-bundle"
+version = "0.4.0"
+authors = ["George Burton <burtonageo@gmail.com>", "Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>"]
+license = "MIT/Apache-2.0"
+keywords = ["bundle", "cargo", "proton", "quasar"]
+repository = "https://github.com/quasarframework/proton"
+description = "Wrap rust executables in OS-specific app bundles"
+
+[dependencies]
+ar = "0.3"
+cab = "0.1"
+chrono = "0.4"
+clap = "^2"
+dirs = "1.0"
+error-chain = "0.12"
+glob = "0.2"
+icns = "^0.2"
+image = "0.12"
+libflate = "0.1"
+md5 = "0.3"
+msi = "0.2"
+serde = "1.0"
+serde_derive = "1.0"
+strsim = "0.7"
+tar = "0.4"
+target_build_utils = "0.3"
+term = "0.4"
+toml = "0.4"
+uuid = { version = "0.5", features = ["v5"] }
+walkdir = "2"
+
+[dev-dependencies]
+tempfile = "3"
+winit = "0.11"

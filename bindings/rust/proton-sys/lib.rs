@@ -5,7 +5,8 @@ extern crate bitflags;
 
 use std::os::raw::*;
 
-pub enum CWebView {} // opaque type, only used in ffi pointers
+// https://doc.rust-lang.org/nomicon/ffi.html#representing-opaque-structs
+#[repr(C)] pub struct CWebView { _private: [u8; 0] }
 
 type ErasedExternalInvokeFn = extern "C" fn(webview: *mut CWebView, arg: *const c_char);
 type ErasedDispatchFn = extern "C" fn(webview: *mut CWebView, arg: *mut c_void);

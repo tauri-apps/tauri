@@ -1,7 +1,7 @@
 [package]
 name = "proton-sys"
-version = "0.1.0"
-authors = ["Boscop", "rstoenescu", "nothingismagick", "lucasfernog"]
+version = "1.0.0"
+authors = ["Boscop", "Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@quasar.dev>"]
 license = "MIT"
 repository = "https://github.com/quasarframework/proton"
 description = "Rust native ffi bindings for proton UI"

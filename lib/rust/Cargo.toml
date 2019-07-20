@@ -1,8 +1,9 @@
 [package]
 name = "proton"
-version = "0.1.0"
-authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>"]
-edition = "2018"
+version = "1.0.0"
+authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@quasar.dev>"]
+edition = "2019"
+license = "MIT"
 
 [dependencies]
 proton-ui = { path = "../../bindings/rust" }

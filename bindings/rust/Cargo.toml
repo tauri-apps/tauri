@@ -1,13 +1,14 @@
 [package]
 name = "proton-ui"
-version = "0.1.0"
-authors = ["Boscop", "rstoenescu", "nothingismagick", "lucasfernog"]
+version = "1.0.0"
+authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@quasar.dev>"]
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/quasarframework/proton"
 description = "Rust bindings for proton, a toolchain for building more secure native apps that have tiny binaries and are very fast."
 keywords = ["quasar", "web", "gui", "desktop", "webkit"]
 categories = ["quasar", "gui", "web-programming", "api-bindings", "rendering", "visualization"]
+edition = "2018"
 
 [dependencies]
 urlencoding = "1.0"

@@ -58,7 +58,7 @@ fn main() {
       );
 
     _matches = app.get_matches();
-    content = proton_ui::Content::Url(_matches.value_of("url").unwrap());
+    content = proton_ui::Content::Url(_matches.value_of("url").unwrap().to_owned());
     debug = true;
   }
   #[cfg(not(feature = "dev"))]

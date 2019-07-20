@@ -6,13 +6,13 @@ mod color;
 mod dialog;
 mod error;
 mod escape;
-pub use color::Color;
-pub use dialog::DialogBuilder;
-pub use error::{CustomError, Error, WVResult};
-pub use escape::escape;
+pub use crate::color::Color;
+pub use crate::dialog::DialogBuilder;
+pub use crate::error::{CustomError, Error, WVResult};
+pub use crate::escape::escape;
 
 use boxfnonce::SendBoxFnOnce;
-use ffi::*;
+use crate::ffi::*;
 use std::{
   ffi::{CStr, CString},
   marker::PhantomData,

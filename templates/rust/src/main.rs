@@ -6,6 +6,11 @@ extern crate proton_ui;
 extern crate serde_json;
 
 #[cfg(not(feature = "dev"))]
+extern crate includedir;
+#[cfg(not(feature = "dev"))]
+extern crate phf;
+
+#[cfg(not(feature = "dev"))]
 extern crate tiny_http;
 
 #[cfg(feature = "dev")]
@@ -22,7 +27,7 @@ mod server;
 fn main() {
   let debug;
   let content;
-  let _matches: clap::ArgMatches;
+  
 
   #[cfg(not(feature = "dev"))]
   {
@@ -52,8 +57,8 @@ fn main() {
           .takes_value(true),
       );
 
-    _matches = app.get_matches();
-    content = proton_ui::Content::Url(_matches.value_of("url").unwrap());
+    let matches = app.get_matches();
+    content = proton_ui::Content::Url(matches.value_of("url").unwrap().to_owned());
     debug = true;
   }
   #[cfg(not(feature = "dev"))]

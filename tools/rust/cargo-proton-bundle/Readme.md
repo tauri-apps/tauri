@@ -23,10 +23,6 @@ bundle a release build, you must add the `--release` flag to your call.  To
 cross-compile and bundle an application for another OS, add an appropriate
 `--target` flag, just as you would for `cargo build`.
 
-## Flags
-
- TODO(burtonageo): Write this
-
 ## Bundle manifest format
 
 There are several fields in the `[package.metadata.bundle]` section.
@@ -133,6 +129,7 @@ Very early alpha. Expect the format of the `[package.metadata.bundle]` section t
 stability.
 
 ## License
+(c) 2017 - present, George Burton, Lucas Fernandes Gonçalves Nogueira, Daniel Thompson-Yvetot, Razvan Stoenescu
 
 This program is licensed either under the terms of the
 [Apache Software License](http://www.apache.org/licenses/LICENSE-2.0), or the

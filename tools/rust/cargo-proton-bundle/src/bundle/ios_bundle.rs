@@ -17,9 +17,9 @@ use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use {ResultExt, Settings};
+use crate::{ResultExt, Settings};
 
-pub fn bundle_project(settings: &Settings) -> ::Result<Vec<PathBuf>> {
+pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   common::print_warning("iOS bundle support is still experimental.")?;
 
   let app_bundle_name = format!("{}.app", settings.bundle_name());
@@ -53,7 +53,7 @@ pub fn bundle_project(settings: &Settings) -> ::Result<Vec<PathBuf>> {
 }
 
 /// Generate the icon files and store them under the `bundle_dir`.
-fn generate_icon_files(bundle_dir: &Path, settings: &Settings) -> ::Result<Vec<String>> {
+fn generate_icon_files(bundle_dir: &Path, settings: &Settings) -> crate::Result<Vec<String>> {
   let mut filenames = Vec::new();
   {
     let mut get_dest_path = |width: u32, height: u32, is_retina: bool| {
@@ -102,7 +102,7 @@ fn generate_icon_files(bundle_dir: &Path, settings: &Settings) -> ::Result<Vec<S
           }
         }
       } else {
-        let icon = try!(image::open(&icon_path));
+        let icon = r#try!(image::open(&icon_path));
         let (width, height) = icon.dimensions();
         let is_retina = common::is_retina(&icon_path);
         if !sizes.contains(&(width, height, is_retina)) {
@@ -121,7 +121,7 @@ fn generate_info_plist(
   bundle_dir: &Path,
   settings: &Settings,
   icon_filenames: &Vec<String>,
-) -> ::Result<()> {
+) -> crate::Result<()> {
   let file = &mut common::create_file(&bundle_dir.join("Info.plist"))?;
   write!(
     file,

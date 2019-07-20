@@ -28,9 +28,9 @@ use std::fs::{self, File};
 use std::io::prelude::*;
 use std::io::{self, BufWriter};
 use std::path::{Path, PathBuf};
-use {ResultExt, Settings};
+use crate::{ResultExt, Settings};
 
-pub fn bundle_project(settings: &Settings) -> ::Result<Vec<PathBuf>> {
+pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let app_bundle_name = format!("{}.app", settings.bundle_name());
   common::print_bundling(&app_bundle_name)?;
   let app_bundle_path = settings
@@ -73,7 +73,7 @@ pub fn bundle_project(settings: &Settings) -> ::Result<Vec<PathBuf>> {
   Ok(vec![app_bundle_path])
 }
 
-fn copy_binary_to_bundle(bundle_directory: &Path, settings: &Settings) -> ::Result<()> {
+fn copy_binary_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
   let dest_dir = bundle_directory.join("MacOS");
   common::copy_file(
     settings.binary_path(),
@@ -85,7 +85,7 @@ fn create_info_plist(
   bundle_dir: &Path,
   bundle_icon_file: Option<PathBuf>,
   settings: &Settings,
-) -> ::Result<()> {
+) -> crate::Result<()> {
   let build_number = chrono::Utc::now().format("%Y%m%d.%H%M%S");
   let file = &mut common::create_file(&bundle_dir.join("Info.plist"))?;
   write!(
@@ -179,7 +179,7 @@ fn create_info_plist(
   Ok(())
 }
 
-fn copy_framework_from(dest_dir: &Path, framework: &str, src_dir: &Path) -> ::Result<bool> {
+fn copy_framework_from(dest_dir: &Path, framework: &str, src_dir: &Path) -> crate::Result<bool> {
   let src_name = format!("{}.framework", framework);
   let src_path = src_dir.join(&src_name);
   if src_path.exists() {
@@ -190,7 +190,7 @@ fn copy_framework_from(dest_dir: &Path, framework: &str, src_dir: &Path) -> ::Re
   }
 }
 
-fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> ::Result<()> {
+fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
   let frameworks = settings.osx_frameworks();
   if frameworks.is_empty() {
     return Ok(());
@@ -232,7 +232,7 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> ::
 /// Given a list of icon files, try to produce an ICNS file in the resources
 /// directory and return the path to it.  Returns `Ok(None)` if no usable icons
 /// were provided.
-fn create_icns_file(resources_dir: &PathBuf, settings: &Settings) -> ::Result<Option<PathBuf>> {
+fn create_icns_file(resources_dir: &PathBuf, settings: &Settings) -> crate::Result<Option<PathBuf>> {
   if settings.icon_files().count() == 0 {
     return Ok(None);
   }
@@ -262,8 +262,8 @@ fn create_icns_file(resources_dir: &PathBuf, settings: &Settings) -> ::Result<Op
     match icns::IconType::from_pixel_size_and_density(icon.width(), icon.height(), density) {
       Some(icon_type) => {
         if !family.has_icon_with_type(icon_type) {
-          let icon = try!(make_icns_image(icon));
-          try!(family.add_icon_with_type(&icon, icon_type));
+          let icon = r#try!(make_icns_image(icon));
+          r#try!(family.add_icon_with_type(&icon, icon_type));
         }
         Ok(())
       }
@@ -277,7 +277,7 @@ fn create_icns_file(resources_dir: &PathBuf, settings: &Settings) -> ::Result<Op
   let mut images_to_resize: Vec<(image::DynamicImage, u32, u32)> = vec![];
   for icon_path in settings.icon_files() {
     let icon_path = icon_path?;
-    let icon = try!(image::open(&icon_path));
+    let icon = r#try!(image::open(&icon_path));
     let density = if common::is_retina(&icon_path) { 2 } else { 1 };
     let (w, h) = icon.dimensions();
     let orig_size = min(w, h);
@@ -285,22 +285,22 @@ fn create_icns_file(resources_dir: &PathBuf, settings: &Settings) -> ::Result<Op
     if orig_size > next_size_down {
       images_to_resize.push((icon, next_size_down, density));
     } else {
-      try!(add_icon_to_family(icon, density, &mut family));
+      r#try!(add_icon_to_family(icon, density, &mut family));
     }
   }
 
   for (icon, next_size_down, density) in images_to_resize {
     let icon = icon.resize_exact(next_size_down, next_size_down, image::Lanczos3);
-    try!(add_icon_to_family(icon, density, &mut family));
+    r#try!(add_icon_to_family(icon, density, &mut family));
   }
 
   if !family.is_empty() {
-    try!(fs::create_dir_all(resources_dir));
+    r#try!(fs::create_dir_all(resources_dir));
     let mut dest_path = resources_dir.clone();
     dest_path.push(settings.bundle_name());
     dest_path.set_extension("icns");
-    let icns_file = BufWriter::new(try!(File::create(&dest_path)));
-    try!(family.write(icns_file));
+    let icns_file = BufWriter::new(r#try!(File::create(&dest_path)));
+    r#try!(family.write(icns_file));
     return Ok(Some(dest_path));
   }
 

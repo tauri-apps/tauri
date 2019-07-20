@@ -28,7 +28,7 @@ extern crate tempfile;
 
 mod bundle;
 
-use bundle::{bundle_project, BuildArtifact, PackageType, Settings};
+use crate::bundle::{bundle_project, BuildArtifact, PackageType, Settings};
 use clap::{App, AppSettings, Arg, SubCommand};
 use std::env;
 use std::process;
@@ -48,7 +48,7 @@ error_chain! {
 }
 
 /// Runs `cargo build` to make sure the binary file is up-to-date.
-fn build_project_if_unbuilt(settings: &Settings) -> ::Result<()> {
+fn build_project_if_unbuilt(settings: &Settings) -> crate::Result<()> {
   let mut args = vec!["build".to_string()];
   if let Some(triple) = settings.target_triple() {
     args.push(format!("--target={}", triple));
@@ -83,7 +83,7 @@ fn build_project_if_unbuilt(settings: &Settings) -> ::Result<()> {
   Ok(())
 }
 
-fn run() -> ::Result<()> {
+fn run() -> crate::Result<()> {
   let all_formats: Vec<&str> = PackageType::all()
     .iter()
     .map(PackageType::short_name)
@@ -95,7 +95,7 @@ fn run() -> ::Result<()> {
     .setting(AppSettings::SubcommandRequired)
     .subcommand(
       SubCommand::with_name("proton-bundle")
-        .authors(["George Burton <burtonageo@gmail.com>", "Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@quasar.dev>"])
+        .author("George Burton <burtonageo@gmail.com>, Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>, Daniel Thompson-Yvetot <denjell@quasar.dev>")
         .about("Bundle Rust executables into OS bundles")
         .setting(AppSettings::DisableVersion)
         .setting(AppSettings::UnifiedHelpMessage)
@@ -145,7 +145,7 @@ fn run() -> ::Result<()> {
       .map_err(From::from)
       .and_then(|d| Settings::new(d, m))
       .and_then(|s| {
-        try!(build_project_if_unbuilt(&s));
+        r#try!(build_project_if_unbuilt(&s));
         Ok(s)
       })
       .and_then(bundle_project)?;

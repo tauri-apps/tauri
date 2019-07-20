@@ -6,6 +6,7 @@ license = "MIT/Apache-2.0"
 keywords = ["bundle", "cargo", "proton", "quasar"]
 repository = "https://github.com/quasarframework/proton"
 description = "Wrap rust executables in OS-specific app bundles for Quasar-Proton"
+edition = "2018"
 
 [dependencies]
 ar = "0.3"

@@ -9,7 +9,7 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
-use ResultExt;
+use crate::ResultExt;
 
 type Package = msi::Package<fs::File>;
 
@@ -66,7 +66,7 @@ struct CabinetInfo {
   resources: Vec<ResourceInfo>,
 }
 
-pub fn bundle_project(settings: &Settings) -> ::Result<Vec<PathBuf>> {
+pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   common::print_warning("MSI bundle support is still experimental.")?;
 
   let msi_name = format!("{}.msi", settings.bundle_name());
@@ -126,7 +126,7 @@ pub fn bundle_project(settings: &Settings) -> ::Result<Vec<PathBuf>> {
   Ok(vec![msi_path])
 }
 
-fn new_empty_package(msi_path: &Path) -> ::Result<Package> {
+fn new_empty_package(msi_path: &Path) -> crate::Result<Package> {
   if let Some(parent) = msi_path.parent() {
     fs::create_dir_all(&parent).chain_err(|| format!("Failed to create directory {:?}", parent))?;
   }
@@ -166,7 +166,7 @@ fn create_property_table(
   package: &mut Package,
   package_guid: Uuid,
   settings: &Settings,
-) -> ::Result<()> {
+) -> crate::Result<()> {
   let authors = settings.authors_comma_separated().unwrap_or(String::new());
   package.create_table(
     "Property",
@@ -203,7 +203,7 @@ fn create_property_table(
 
 // Returns a list of `ResourceInfo` structs for the binary executable and all
 // the resource files that should be included in the package.
-fn collect_resource_info(settings: &Settings) -> ::Result<Vec<ResourceInfo>> {
+fn collect_resource_info(settings: &Settings) -> crate::Result<Vec<ResourceInfo>> {
   let mut resources = Vec::<ResourceInfo>::new();
   resources.push(ResourceInfo {
     source_path: settings.binary_path().to_path_buf(),
@@ -239,7 +239,7 @@ fn collect_resource_info(settings: &Settings) -> ::Result<Vec<ResourceInfo>> {
 fn collect_directory_info(
   settings: &Settings,
   resources: &mut Vec<ResourceInfo>,
-) -> ::Result<Vec<DirectoryInfo>> {
+) -> crate::Result<Vec<DirectoryInfo>> {
   let mut dir_map = BTreeMap::<PathBuf, DirectoryInfo>::new();
   let mut dir_index: i32 = 0;
   dir_map.insert(
@@ -319,7 +319,7 @@ fn divide_resources_into_cabinets(mut resources: Vec<ResourceInfo>) -> Vec<Cabin
 
 // Creates the CAB archives within the package that contain the binary
 // execuable and all the resource files.
-fn generate_resource_cabinets(package: &mut Package, cabinets: &[CabinetInfo]) -> ::Result<()> {
+fn generate_resource_cabinets(package: &mut Package, cabinets: &[CabinetInfo]) -> crate::Result<()> {
   for cabinet_info in cabinets.iter() {
     let mut builder = cab::CabinetBuilder::new();
     let mut file_map = HashMap::<String, &Path>::new();
@@ -351,7 +351,7 @@ fn generate_resource_cabinets(package: &mut Package, cabinets: &[CabinetInfo]) -
 }
 
 // Creates and populates the `Directory` database table for the package.
-fn create_directory_table(package: &mut Package, directories: &[DirectoryInfo]) -> ::Result<()> {
+fn create_directory_table(package: &mut Package, directories: &[DirectoryInfo]) -> crate::Result<()> {
   package.create_table(
     "Directory",
     vec![
@@ -392,7 +392,7 @@ fn create_directory_table(package: &mut Package, directories: &[DirectoryInfo]) 
 
 // Creates and populates the `Feature` database table for the package.  The
 // package will have a single main feature that installs everything.
-fn create_feature_table(package: &mut Package, settings: &Settings) -> ::Result<()> {
+fn create_feature_table(package: &mut Package, settings: &Settings) -> crate::Result<()> {
   package.create_table(
     "Feature",
     vec![
@@ -436,7 +436,7 @@ fn create_component_table(
   package: &mut Package,
   package_guid: Uuid,
   directories: &[DirectoryInfo],
-) -> ::Result<()> {
+) -> crate::Result<()> {
   package.create_table(
     "Component",
     vec![
@@ -480,7 +480,7 @@ fn create_component_table(
 fn create_feature_components_table(
   package: &mut Package,
   directories: &[DirectoryInfo],
-) -> ::Result<()> {
+) -> crate::Result<()> {
   package.create_table(
     "FeatureComponents",
     vec![
@@ -509,7 +509,7 @@ fn create_feature_components_table(
 
 // Creates and populates the `Media` database table for the package, with one
 // entry for each CAB archive within the package.
-fn create_media_table(package: &mut Package, cabinets: &[CabinetInfo]) -> ::Result<()> {
+fn create_media_table(package: &mut Package, cabinets: &[CabinetInfo]) -> crate::Result<()> {
   package.create_table(
     "Media",
     vec![
@@ -552,7 +552,7 @@ fn create_media_table(package: &mut Package, cabinets: &[CabinetInfo]) -> ::Resu
 // Creates and populates the `File` database table for the package, with one
 // entry for each resource file to be installed (including the main
 // executable).
-fn create_file_table(package: &mut Package, cabinets: &[CabinetInfo]) -> ::Result<()> {
+fn create_file_table(package: &mut Package, cabinets: &[CabinetInfo]) -> crate::Result<()> {
   package.create_table(
     "File",
     vec![
@@ -600,7 +600,7 @@ fn create_file_table(package: &mut Package, cabinets: &[CabinetInfo]) -> ::Resul
   Ok(())
 }
 
-fn create_app_icon<W: Write>(writer: &mut W, settings: &Settings) -> ::Result<()> {
+fn create_app_icon<W: Write>(writer: &mut W, settings: &Settings) -> crate::Result<()> {
   // Prefer ICO files.
   for icon_path in settings.icon_files() {
     let icon_path = icon_path?;

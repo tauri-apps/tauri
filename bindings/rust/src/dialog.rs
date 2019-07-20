@@ -1,6 +1,6 @@
 use ffi::{self, DialogFlags, DialogType};
 use std::{ffi::CString, path::PathBuf};
-use {read_str, WVResult, WebView};
+use super::{read_str, WVResult, WebView};
 
 const STR_BUF_SIZE: usize = 4096;
 

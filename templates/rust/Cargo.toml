@@ -1,9 +1,10 @@
 [package]
 name = "app"
 version = "0.1.0"
-description = "A Quasar app"
-authors = ["Lucas Fernandes Nogueira <lucasfernandesnog@gmail.com>"]
-edition = "2018"
+description = "A Quasar Proton App"
+author = []
+license = ""
+repository = ""
 build = "build.rs"
 include = ["data"]
 

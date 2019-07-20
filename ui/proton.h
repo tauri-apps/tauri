@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Serge Zaitsev
+ * Copyright (c) 2017 Serge Zaitsev, (c) 2019 Quasar Framework
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -1575,7 +1575,7 @@ WEBVIEW_API void webview_dialog(struct webview *w,
     IShellItem *res = NULL;
     WCHAR *ws = NULL;
     char *s = NULL;
-    FILEOPENDIALOGOPTIONS opts, add_opts;
+    FILEOPENDIALOGOPTIONS opts = 0, add_opts = 0;
     if (dlgtype == WEBVIEW_DIALOG_TYPE_OPEN) {
       if (CoCreateInstance(
               iid_unref(&CLSID_FileOpenDialog), NULL, CLSCTX_INPROC_SERVER,
@@ -2062,6 +2062,49 @@ WEBVIEW_API int webview_init(struct webview *w) {
   item = create_menu_item(title, "terminate:", "q");
   objc_msgSend(appMenu, sel_registerName("addItem:"), item);
 
+id editMenuItem =
+      objc_msgSend((id)objc_getClass("NSMenuItem"), sel_registerName("alloc"));
+  objc_msgSend(editMenuItem,
+               sel_registerName("initWithTitle:action:keyEquivalent:"), get_nsstring("Edit"),
+               NULL, get_nsstring(""));
+
+  /***
+   Edit menu
+  ***/
+
+id editMenu =
+  objc_msgSend((id)objc_getClass("NSMenu"), sel_registerName("alloc"));
+  objc_msgSend(editMenu, sel_registerName("initWithTitle:"), get_nsstring("Edit"));
+  objc_msgSend(editMenu, sel_registerName("autorelease"));
+
+  objc_msgSend(editMenuItem, sel_registerName("setSubmenu:"), editMenu);
+  objc_msgSend(menubar, sel_registerName("addItem:"), editMenuItem);
+
+  item = create_menu_item(get_nsstring("Undo"), "undo:", "z");
+  objc_msgSend(editMenu, sel_registerName("addItem:"), item);
+
+  item = create_menu_item(get_nsstring("Redo"), "redo:", "y");
+  objc_msgSend(editMenu, sel_registerName("addItem:"), item);
+
+  item = objc_msgSend((id)objc_getClass("NSMenuItem"), sel_registerName("separatorItem"));
+  objc_msgSend(editMenu, sel_registerName("addItem:"), item);
+
+  item = create_menu_item(get_nsstring("Cut"), "cut:", "x");
+  objc_msgSend(editMenu, sel_registerName("addItem:"), item);
+
+  item = create_menu_item(get_nsstring("Copy"), "copy:", "c");
+  objc_msgSend(editMenu, sel_registerName("addItem:"), item);
+
+  item = create_menu_item(get_nsstring("Paste"), "paste:", "v");
+  objc_msgSend(editMenu, sel_registerName("addItem:"), item);
+
+  item = create_menu_item(get_nsstring("Select All"), "selectAll:", "a");
+  objc_msgSend(editMenu, sel_registerName("addItem:"), item);
+
+  /***
+   Finalize menubar
+  ***/
+
   objc_msgSend(objc_msgSend((id)objc_getClass("NSApplication"),
                             sel_registerName("sharedApplication")),
                sel_registerName("setMainMenu:"), menubar);
@@ -2145,6 +2188,7 @@ WEBVIEW_API void webview_set_color(struct webview *w, uint8_t r, uint8_t g,
   objc_msgSend(w->priv.window, sel_registerName("setOpaque:"), 0);
   objc_msgSend(w->priv.window,
                sel_registerName("setTitlebarAppearsTransparent:"), 1);
+               objc_msgSend(w->priv.webview, sel_registerName("_setDrawsBackground:"), 0);
 }
 
 WEBVIEW_API void webview_dialog(struct webview *w,

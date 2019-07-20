@@ -163,7 +163,6 @@ impl Settings {
     } else {
       None
     };
-    println!("{:?}", features);
     let cargo_settings = CargoSettings::load(&current_dir)?;
     let package = match cargo_settings.package {
       Some(package_info) => package_info,

@@ -1,5 +1,5 @@
 [package]
-name = "cargo-bundle"
+name = "cargo-proton-bundle"
 version = "0.4.0"
 authors = ["George Burton <burtonageo@gmail.com>", "Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>"]
 license = "MIT/Apache-2.0"

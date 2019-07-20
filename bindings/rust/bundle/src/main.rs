@@ -88,13 +88,13 @@ fn run() -> ::Result<()> {
     .iter()
     .map(PackageType::short_name)
     .collect();
-  let m = App::new("cargo-bundle")
+  let m = App::new("cargo-proton-bundle")
     .version(format!("v{}", crate_version!()).as_str())
     .bin_name("cargo")
     .setting(AppSettings::GlobalVersion)
     .setting(AppSettings::SubcommandRequired)
     .subcommand(
-      SubCommand::with_name("bundle")
+      SubCommand::with_name("proton-bundle")
         .author("George Burton <burtonageo@gmail.com>")
         .about("Bundle Rust executables into OS bundles")
         .setting(AppSettings::DisableVersion)
@@ -140,7 +140,7 @@ fn run() -> ::Result<()> {
     )
     .get_matches();
 
-  if let Some(m) = m.subcommand_matches("bundle") {
+  if let Some(m) = m.subcommand_matches("proton-bundle") {
     let output_paths = env::current_dir()
       .map_err(From::from)
       .and_then(|d| Settings::new(d, m))

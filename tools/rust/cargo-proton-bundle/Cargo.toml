@@ -1,6 +1,6 @@
 [package]
 name = "cargo-proton-bundle"
-version = "0.4.0"
+version = "1.0.0"
 authors = ["George Burton <burtonageo@gmail.com>", "Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@quasar.dev>"]
 license = "MIT/Apache-2.0"
 keywords = ["bundle", "cargo", "proton", "quasar"]

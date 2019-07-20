@@ -1,4 +1,4 @@
-use ffi::{self, DialogFlags, DialogType};
+use crate::ffi::{self, DialogFlags, DialogType};
 use std::{ffi::CString, path::PathBuf};
 use super::{read_str, WVResult, WebView};
 

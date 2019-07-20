@@ -9,6 +9,7 @@ keywords = ["quasar", "web", "gui", "desktop", "webkit"]
 categories = ["quasar", "gui", "web-programming", "api-bindings", "rendering", "visualization"]
 build = "build.rs"
 links = "proton"
+edition = "2018"
 
 [lib]
 name = "proton_sys"

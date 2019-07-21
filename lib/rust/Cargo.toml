@@ -36,5 +36,5 @@ write = []
 list = []
 listDirs = []
 setTitle = []
-call = []
+execute = []
 

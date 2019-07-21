@@ -35,8 +35,8 @@ pub enum Cmd {
   },
   #[cfg(any(feature = "all-api", feature = "setTitle"))]
   SetTitle { title: String },
-  #[cfg(any(feature = "all-api", feature = "call"))]
-  Call {
+  #[cfg(any(feature = "all-api", feature = "execute"))]
+  Execute {
     command: String,
     args: Vec<String>,
     callback: String,

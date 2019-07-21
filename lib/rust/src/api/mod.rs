@@ -54,10 +54,11 @@ pub fn handler<T: 'static>(webview: &mut WebView<T>, arg: &str) -> bool {
           }
           #[cfg(any(feature = "all-api", feature = "setTitle"))]
           SetTitle { title } => {
+            x;
             webview.set_title(&title).unwrap();
           }
-          #[cfg(any(feature = "all-api", feature = "call"))]
-          Call {
+          #[cfg(any(feature = "all-api", feature = "execute"))]
+          Execute {
             command,
             args,
             callback,

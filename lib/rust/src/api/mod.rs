@@ -11,24 +11,24 @@ pub fn handler<T: 'static>(webview: &mut WebView<T>, arg: &str) -> bool {
       Err(_) => false,
       Ok(command) => {
         match command {
-          #[cfg(any(feature = "all-api", feature = "readAsString"))]
-          ReadAsString {
+          #[cfg(any(feature = "all-api", feature = "readTextFile"))]
+          ReadTextFile {
             path,
             callback,
             error,
           } => {
             super::file_system::read_text_file(webview, path, callback, error);
           }
-          #[cfg(any(feature = "all-api", feature = "readAsBinary"))]
-          ReadAsBinary {
+          #[cfg(any(feature = "all-api", feature = "readBinaryFile"))]
+          ReadBinaryFile {
             path,
             callback,
             error,
           } => {
             super::file_system::read_binary_file(webview, path, callback, error);
           }
-          #[cfg(any(feature = "all-api", feature = "write"))]
-          Write {
+          #[cfg(any(feature = "all-api", feature = "writeFile"))]
+          WriteFile {
             file,
             contents,
             callback,
@@ -44,8 +44,8 @@ pub fn handler<T: 'static>(webview: &mut WebView<T>, arg: &str) -> bool {
           } => {
             super::file_system::list_dirs(webview, path, callback, error);
           }
-          #[cfg(any(feature = "all-api", feature = "list"))]
-          List {
+          #[cfg(any(feature = "all-api", feature = "listFiles"))]
+          ListFiles {
             path,
             callback,
             error,
@@ -54,7 +54,6 @@ pub fn handler<T: 'static>(webview: &mut WebView<T>, arg: &str) -> bool {
           }
           #[cfg(any(feature = "all-api", feature = "setTitle"))]
           SetTitle { title } => {
-            x;
             webview.set_title(&title).unwrap();
           }
           #[cfg(any(feature = "all-api", feature = "execute"))]

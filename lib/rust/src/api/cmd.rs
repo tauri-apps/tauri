@@ -2,27 +2,27 @@
 #[serde(tag = "cmd", rename_all = "camelCase")]
 #[cfg(feature = "api")]
 pub enum Cmd {
-  #[cfg(any(feature = "all-api", feature = "readAsString"))]
-  ReadAsString {
+  #[cfg(any(feature = "all-api", feature = "readTextFile"))]
+  ReadTextFile {
     path: String,
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "readAsBinary"))]
-  ReadAsBinary {
+  #[cfg(any(feature = "all-api", feature = "readBinaryFile"))]
+  ReadBinaryFile {
     path: String,
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "write"))]
-  Write {
+  #[cfg(any(feature = "all-api", feature = "writeFile"))]
+  WriteFile {
     file: String,
     contents: String,
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "list"))]
-  List {
+  #[cfg(any(feature = "all-api", feature = "listFiles"))]
+  ListFiles {
     path: String,
     callback: String,
     error: String,

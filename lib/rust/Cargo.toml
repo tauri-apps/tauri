@@ -26,3 +26,15 @@ tar = "0.4"
 flate2 = "1"
 hyper-old-types = "0.11.0"
 sysinfo = "0.9"
+
+[features]
+api = []
+all-api = []
+readAsString = []
+readAsBinary = []
+write = []
+list = []
+listDirs = []
+setTitle = []
+call = []
+

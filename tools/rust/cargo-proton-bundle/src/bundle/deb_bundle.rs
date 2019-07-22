@@ -19,6 +19,7 @@
 // generate postinst or prerm files.
 
 use super::common;
+use crate::{ResultExt, Settings};
 use ar;
 use icns;
 use image::png::{PNGDecoder, PNGEncoder};
@@ -32,7 +33,6 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use tar;
 use walkdir::WalkDir;
-use crate::{ResultExt, Settings};
 
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let arch = match settings.binary_arch() {

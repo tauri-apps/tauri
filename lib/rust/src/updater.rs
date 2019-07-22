@@ -2,8 +2,8 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-use super::file::{Extract, Move};
-use super::http;
+use crate::file::{Extract, Move};
+use crate::http;
 
 pub mod github;
 

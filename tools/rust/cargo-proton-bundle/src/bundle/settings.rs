@@ -138,7 +138,7 @@ impl CargoSettings {
 }
 
 impl Settings {
-  pub fn new(current_dir: PathBuf, matches: & ArgMatches<'_>) -> crate::Result<Self> {
+  pub fn new(current_dir: PathBuf, matches: &ArgMatches<'_>) -> crate::Result<Self> {
     let package_type = match matches.value_of("format") {
       Some(name) => match PackageType::from_short_name(name) {
         Some(package_type) => Some(package_type),
@@ -159,7 +159,13 @@ impl Settings {
       None => None,
     };
     let features = if matches.is_present("features") {
-      Some(matches.values_of("features").unwrap().map(|s| s.to_string()).collect())
+      Some(
+        matches
+          .values_of("features")
+          .unwrap()
+          .map(|s| s.to_string())
+          .collect(),
+      )
     } else {
       None
     };

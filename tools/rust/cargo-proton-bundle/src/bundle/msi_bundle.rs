@@ -1,5 +1,6 @@
 use super::common;
 use super::settings::Settings;
+use crate::ResultExt;
 use cab;
 use msi;
 use std;
@@ -9,7 +10,6 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
-use crate::ResultExt;
 
 type Package = msi::Package<fs::File>;
 
@@ -319,7 +319,10 @@ fn divide_resources_into_cabinets(mut resources: Vec<ResourceInfo>) -> Vec<Cabin
 
 // Creates the CAB archives within the package that contain the binary
 // execuable and all the resource files.
-fn generate_resource_cabinets(package: &mut Package, cabinets: &[CabinetInfo]) -> crate::Result<()> {
+fn generate_resource_cabinets(
+  package: &mut Package,
+  cabinets: &[CabinetInfo],
+) -> crate::Result<()> {
   for cabinet_info in cabinets.iter() {
     let mut builder = cab::CabinetBuilder::new();
     let mut file_map = HashMap::<String, &Path>::new();
@@ -351,7 +354,10 @@ fn generate_resource_cabinets(package: &mut Package, cabinets: &[CabinetInfo]) -
 }
 
 // Creates and populates the `Directory` database table for the package.
-fn create_directory_table(package: &mut Package, directories: &[DirectoryInfo]) -> crate::Result<()> {
+fn create_directory_table(
+  package: &mut Package,
+  directories: &[DirectoryInfo],
+) -> crate::Result<()> {
   package.create_table(
     "Directory",
     vec![

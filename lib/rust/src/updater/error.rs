@@ -1,6 +1,6 @@
-use super::super::file;
-use super::super::http;
-use super::super::version;
+use crate::file;
+use crate::http;
+use crate::version;
 use reqwest;
 use std;
 use zip::result::ZipError;

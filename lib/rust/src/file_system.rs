@@ -1,8 +1,8 @@
 use proton_ui::WebView;
 
-use super::dir;
-use super::file;
-use super::run_async;
+use crate::dir;
+use crate::file;
+use crate::run_async;
 
 use std::fs::File;
 use std::io::Write;

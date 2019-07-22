@@ -3,7 +3,7 @@ use flate2;
 use tar;
 use zip;
 
-use super::error::*;
+use crate::file::error::*;
 use either::Either;
 use std::fs;
 use std::io;

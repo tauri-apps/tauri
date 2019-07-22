@@ -1,7 +1,7 @@
 use std::fs;
 use std::path;
 
-use super::error::*;
+use crate::file::error::*;
 
 /// Moves a file from the given path to the specified destination.
 ///

@@ -236,7 +236,7 @@ struct AppCategoryVisitor {
 impl<'d> serde::de::Visitor<'d> for AppCategoryVisitor {
   type Value = AppCategory;
 
-  fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+  fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self.did_you_mean {
       Some(string) => write!(
         formatter,

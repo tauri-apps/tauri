@@ -1,4 +1,4 @@
-use super::super::error::*;
+use crate::updater::error::*;
 use hyper_old_types::header::{LinkValue, RelationType};
 use serde_json;
 

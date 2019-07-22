@@ -1,8 +1,8 @@
 mod release;
-pub use super::error::Error;
+pub use crate::updater::error::Error;
 pub use release::*;
 
-use super::super::http;
+use crate::http;
 
 pub fn get_latest_release(repo_owner: &str, repo_name: &str) -> Result<Release, Error> {
   set_ssl_vars!();

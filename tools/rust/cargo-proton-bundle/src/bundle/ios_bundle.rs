@@ -9,6 +9,7 @@
 // explanation.
 
 use super::common;
+use crate::{ResultExt, Settings};
 use icns;
 use image::png::{PNGDecoder, PNGEncoder};
 use image::{self, GenericImage, ImageDecoder};
@@ -17,7 +18,6 @@ use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use crate::{ResultExt, Settings};
 
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   common::print_warning("iOS bundle support is still experimental.")?;

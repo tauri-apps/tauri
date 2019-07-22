@@ -1,6 +1,6 @@
-extern crate boxfnonce;
+
 extern crate proton_sys as ffi;
-extern crate urlencoding;
+
 
 mod color;
 mod dialog;
@@ -75,7 +75,7 @@ pub struct WebViewBuilder<'a, T: 'a, I, C> {
 
 impl<'a, T: 'a, I, C> Default for WebViewBuilder<'a, T, I, C>
 where
-  I: FnMut(&mut WebView<T>, &str) -> WVResult + 'a,
+  I: FnMut(&mut WebView<'_, T>, &str) -> WVResult + 'a,
   C: AsRef<str>,
 {
   fn default() -> Self {
@@ -99,7 +99,7 @@ where
 
 impl<'a, T: 'a, I, C> WebViewBuilder<'a, T, I, C>
 where
-  I: FnMut(&mut WebView<T>, &str) -> WVResult + 'a,
+  I: FnMut(&mut WebView<'_, T>, &str) -> WVResult + 'a,
   C: AsRef<str>,
 {
   /// Alias for [`WebViewBuilder::default()`].
@@ -215,7 +215,7 @@ where
 /// [`WebViewBuilder::default()`]: struct.WebviewBuilder.html#impl-Default
 pub fn builder<'a, T, I, C>() -> WebViewBuilder<'a, T, I, C>
 where
-  I: FnMut(&mut WebView<T>, &str) -> WVResult + 'a,
+  I: FnMut(&mut WebView<'_, T>, &str) -> WVResult + 'a,
   C: AsRef<str>,
 {
   WebViewBuilder::new()
@@ -224,7 +224,7 @@ where
 struct UserData<'a, T> {
   inner: T,
   live: Arc<RwLock<()>>,
-  invoke_handler: Box<FnMut(&mut WebView<T>, &str) -> WVResult + 'a>,
+  invoke_handler: Box<dyn FnMut(&mut WebView<'_, T>, &str) -> WVResult + 'a>,
   result: WVResult,
 }
 
@@ -234,7 +234,7 @@ struct UserData<'a, T> {
 ///
 /// [`WebViewBuilder`]: struct.WebViewBuilder.html
 #[derive(Debug)]
-pub struct WebView<'a, T: 'a> {
+pub struct WebView<'a, T> {
   inner: *mut CWebView,
   _phantom: PhantomData<&'a mut T>,
 }
@@ -252,7 +252,7 @@ impl<'a, T> WebView<'a, T> {
     invoke_handler: I,
   ) -> WVResult<WebView<'a, T>>
   where
-    I: FnMut(&mut WebView<T>, &str) -> WVResult + 'a,
+    I: FnMut(&mut WebView<'_, T>, &str) -> WVResult + 'a,
   {
     let user_data = Box::new(UserData {
       inner: user_data,
@@ -275,7 +275,7 @@ impl<'a, T> WebView<'a, T> {
       );
 
       if inner.is_null() {
-        Box::<UserData<T>>::from_raw(user_data_ptr);
+        Box::<UserData<'_, T>>::from_raw(user_data_ptr);
         Err(Error::Initialization)
       } else {
         Ok(WebView::from_ptr(inner))
@@ -473,7 +473,7 @@ impl<T> Handle<T> {
   /// [`step()`]: struct.WebView.html#method.step
   pub fn dispatch<F>(&self, f: F) -> WVResult
   where
-    F: FnOnce(&mut WebView<T>) -> WVResult + Send + 'static,
+    F: FnOnce(&mut WebView<'_, T>) -> WVResult + Send + 'static,
   {
     // Abort if WebView has been dropped. Otherwise, keep it alive until closure has been
     // dispatched.
@@ -509,7 +509,7 @@ extern "C" fn ffi_dispatch_handler<T>(webview: *mut CWebView, arg: *mut c_void) 
     let mut handle = mem::ManuallyDrop::new(WebView::<T>::from_ptr(webview));
     let result = {
       let callback =
-        Box::<SendBoxFnOnce<'static, (&mut WebView<T>,), WVResult>>::from_raw(arg as _);
+        Box::<SendBoxFnOnce<'static, (&mut WebView<'_, T>,), WVResult>>::from_raw(arg as _);
       callback.call(&mut handle)
     };
     handle.user_data_wrapper_mut().result = result;

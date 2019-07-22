@@ -1,7 +1,5 @@
 use std::fs;
 
-extern crate serde_json;
-
 mod error;
 mod extract;
 mod file_move;

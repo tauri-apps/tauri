@@ -1,6 +1,6 @@
 use std::net::TcpListener;
 
-extern crate rand;
+use rand;
 
 use rand::distributions::{Distribution, Uniform};
 

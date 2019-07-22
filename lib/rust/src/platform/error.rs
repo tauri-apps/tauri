@@ -8,7 +8,7 @@ pub enum Error {
 }
 
 impl std::fmt::Display for Error {
-  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     use Error::*;
     match *self {
       Arch(ref s) => write!(f, "ArchError: {}", s),
@@ -23,7 +23,7 @@ impl std::error::Error for Error {
     "Platform Error"
   }
 
-  fn cause(&self) -> Option<&std::error::Error> {
+  fn cause(&self) -> Option<&dyn std::error::Error> {
     return None;
   }
 }

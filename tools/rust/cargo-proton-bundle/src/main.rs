@@ -1,27 +1,11 @@
-extern crate ar;
-extern crate cab;
-extern crate chrono;
 #[macro_use]
 extern crate clap;
-extern crate dirs;
+
 #[macro_use]
 extern crate error_chain;
-extern crate glob;
-extern crate icns;
-extern crate image;
-extern crate libflate;
-extern crate md5;
-extern crate msi;
-extern crate serde;
+
 #[macro_use]
 extern crate serde_derive;
-extern crate strsim;
-extern crate tar;
-extern crate target_build_utils;
-extern crate term;
-extern crate toml;
-extern crate uuid;
-extern crate walkdir;
 
 #[cfg(test)]
 extern crate tempfile;
@@ -69,7 +53,7 @@ fn build_project_if_unbuilt(settings: &Settings) -> crate::Result<()> {
   match settings.build_features() {
     Some(features) => {
       args.push(format!("--features={}", features.join(" ")));
-    },
+    }
     None => {}
   }
 

@@ -59,7 +59,7 @@ pub fn spawn_relative_command(
 }
 
 pub fn call<T: 'static>(
-  webview: &mut WebView<T>,
+  webview: &mut WebView<'_, T>,
   command: String,
   args: Vec<String>,
   callback: String,

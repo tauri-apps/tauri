@@ -1,6 +1,6 @@
-use super::super::file;
-use super::super::http;
-use super::super::version;
+use crate::file;
+use crate::http;
+use crate::version;
 use reqwest;
 use std;
 use zip::result::ZipError;
@@ -18,7 +18,7 @@ pub enum Error {
 }
 
 impl std::fmt::Display for Error {
-  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     use Error::*;
     match *self {
       Updater(ref s) => write!(f, "UpdaterError: {}", s),
@@ -38,7 +38,7 @@ impl std::error::Error for Error {
     "Updater Error"
   }
 
-  fn cause(&self) -> Option<&std::error::Error> {
+  fn cause(&self) -> Option<&dyn std::error::Error> {
     use Error::*;
     Some(match *self {
       Io(ref e) => e,

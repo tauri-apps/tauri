@@ -1,27 +1,11 @@
-
-
-
 #[macro_use]
 extern crate clap;
 
 #[macro_use]
 extern crate error_chain;
 
-
-
-
-
-
-
 #[macro_use]
 extern crate serde_derive;
-
-
-
-
-
-
-
 
 #[cfg(test)]
 extern crate tempfile;
@@ -69,7 +53,7 @@ fn build_project_if_unbuilt(settings: &Settings) -> crate::Result<()> {
   match settings.build_features() {
     Some(features) => {
       args.push(format!("--features={}", features.join(" ")));
-    },
+    }
     None => {}
   }
 

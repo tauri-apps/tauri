@@ -7,7 +7,7 @@ pub enum Error {
 }
 
 impl std::fmt::Display for Error {
-  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     use Error::*;
     match *self {
       SemVer(ref e) => write!(f, "SemVerError: {}", e),
@@ -20,7 +20,7 @@ impl std::error::Error for Error {
     "Version Error"
   }
 
-  fn cause(&self) -> Option<&std::error::Error> {
+  fn cause(&self) -> Option<&dyn std::error::Error> {
     use Error::*;
     Some(match *self {
       SemVer(ref e) => e,

@@ -3,7 +3,7 @@ mod cmd;
 use proton_ui::WebView;
 
 #[allow(unused_variables)]
-pub fn handler<T: 'static>(webview: &mut WebView<T>, arg: &str) -> bool {
+pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
   #[cfg(feature = "api")]
   {
     use cmd::Cmd::*;

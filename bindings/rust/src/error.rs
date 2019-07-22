@@ -25,7 +25,7 @@ pub enum Error {
   /// WebView was dropped.
   Dispatch,
   /// An user-specified error occurred. For use inside invoke and dispatch closures.
-  Custom(Box<CustomError>),
+  Custom(Box<dyn CustomError>),
 }
 
 impl Error {
@@ -36,7 +36,7 @@ impl Error {
 }
 
 impl error::Error for Error {
-  fn cause(&self) -> Option<&error::Error> {
+  fn cause(&self) -> Option<&dyn error::Error> {
     match self {
       Error::NulByte(cause) => Some(cause),
       _ => None,
@@ -53,7 +53,7 @@ impl error::Error for Error {
 }
 
 impl Display for Error {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       Error::UninitializedField(field) => write!(f, "Required field uninitialized: {}.", field),
       Error::Initialization => write!(f, "Webview failed to initialize."),

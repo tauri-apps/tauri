@@ -7,7 +7,12 @@ use super::run_async;
 use std::fs::File;
 use std::io::Write;
 
-pub fn list<T: 'static>(webview: &mut WebView<T>, path: String, callback: String, error: String) {
+pub fn list<T: 'static>(
+  webview: &mut WebView<'_, T>,
+  path: String,
+  callback: String,
+  error: String,
+) {
   run_async(
     webview,
     move || {
@@ -20,7 +25,7 @@ pub fn list<T: 'static>(webview: &mut WebView<T>, path: String, callback: String
 }
 
 pub fn list_dirs<T: 'static>(
-  webview: &mut WebView<T>,
+  webview: &mut WebView<'_, T>,
   path: String,
   callback: String,
   error: String,
@@ -37,7 +42,7 @@ pub fn list_dirs<T: 'static>(
 }
 
 pub fn write_file<T: 'static>(
-  webview: &mut WebView<T>,
+  webview: &mut WebView<'_, T>,
   file: String,
   contents: String,
   callback: String,
@@ -60,7 +65,7 @@ pub fn write_file<T: 'static>(
 }
 
 pub fn read_text_file<T: 'static>(
-  webview: &mut WebView<T>,
+  webview: &mut WebView<'_, T>,
   path: String,
   callback: String,
   error: String,
@@ -80,7 +85,7 @@ pub fn read_text_file<T: 'static>(
 }
 
 pub fn read_binary_file<T: 'static>(
-  webview: &mut WebView<T>,
+  webview: &mut WebView<'_, T>,
   path: String,
   callback: String,
   error: String,

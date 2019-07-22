@@ -1,4 +1,3 @@
-extern crate threadpool;
 #[macro_use]
 extern crate serde_derive;
 
@@ -18,7 +17,6 @@ pub mod tcp;
 pub mod updater;
 pub mod version;
 
-extern crate proton_ui;
 use proton_ui::WebView;
 
 use threadpool::ThreadPool;
@@ -26,7 +24,7 @@ use threadpool::ThreadPool;
 thread_local!(static POOL: ThreadPool = ThreadPool::new(4));
 
 pub fn run_async<T: 'static, F: FnOnce() -> Result<String, String> + Send + 'static>(
-  webview: &mut WebView<T>,
+  webview: &mut WebView<'_, T>,
   what: F,
   callback: String,
   error: String,

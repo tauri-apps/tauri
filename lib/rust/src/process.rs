@@ -1,4 +1,4 @@
-extern crate sysinfo;
+use sysinfo;
 
 pub use sysinfo::{Process, ProcessExt, Signal, System, SystemExt};
 

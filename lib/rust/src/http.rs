@@ -1,5 +1,5 @@
-extern crate pbr;
-extern crate reqwest;
+use pbr;
+use reqwest;
 
 use serde::Serialize;
 use std::io;

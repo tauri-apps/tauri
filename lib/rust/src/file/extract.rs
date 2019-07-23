@@ -1,9 +1,9 @@
-extern crate either;
-extern crate flate2;
-extern crate tar;
-extern crate zip;
+use either;
+use flate2;
+use tar;
+use zip;
 
-use super::error::*;
+use crate::file::error::*;
 use either::Either;
 use std::fs;
 use std::io;

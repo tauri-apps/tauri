@@ -1,3 +1,4 @@
+use crate::ResultExt;
 use std;
 use std::ffi::OsStr;
 use std::fs::{self, File};
@@ -5,7 +6,6 @@ use std::io::{self, BufWriter, Write};
 use std::path::{Component, Path, PathBuf};
 use term;
 use walkdir;
-use crate::ResultExt;
 
 /// Returns true if the path has a filename indicating that it is a high-desity
 /// "retina" icon.  Specifically, returns true the the file stem ends with

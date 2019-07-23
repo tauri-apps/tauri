@@ -18,6 +18,7 @@
 // files into the `Contents` directory of the bundle.
 
 use super::common;
+use crate::{ResultExt, Settings};
 use chrono;
 use dirs;
 use icns;
@@ -28,7 +29,6 @@ use std::fs::{self, File};
 use std::io::prelude::*;
 use std::io::{self, BufWriter};
 use std::path::{Path, PathBuf};
-use crate::{ResultExt, Settings};
 
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let app_bundle_name = format!("{}.app", settings.bundle_name());
@@ -232,7 +232,10 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
 /// Given a list of icon files, try to produce an ICNS file in the resources
 /// directory and return the path to it.  Returns `Ok(None)` if no usable icons
 /// were provided.
-fn create_icns_file(resources_dir: &PathBuf, settings: &Settings) -> crate::Result<Option<PathBuf>> {
+fn create_icns_file(
+  resources_dir: &PathBuf,
+  settings: &Settings,
+) -> crate::Result<Option<PathBuf>> {
   if settings.icon_files().count() == 0 {
     return Ok(None);
   }

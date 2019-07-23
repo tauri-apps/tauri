@@ -16,7 +16,7 @@ use std::fmt::{self, Write};
 ///
 /// view.eval(&format!("callback({});", web_view::escape(string)));
 /// ```
-pub fn escape(string: &str) -> Escaper {
+pub fn escape(string: &str) -> Escaper<'_> {
   Escaper(string)
 }
 
@@ -37,7 +37,7 @@ const SPECIAL: &[char] = &[
 ];
 
 impl<'a> fmt::Display for Escaper<'a> {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let &Escaper(mut string) = self;
 
     f.write_char('\'')?;

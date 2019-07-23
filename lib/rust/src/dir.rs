@@ -1,5 +1,5 @@
-extern crate dirs;
-extern crate tempfile;
+
+use tempfile;
 
 mod utils;
 use ignore::Walk;

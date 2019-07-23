@@ -64,6 +64,13 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
             error,
           } => {
             super::command::call(webview, command, args, callback, error);
+          },
+          #[cfg(any(feature = "all-api", feature = "answer"))]
+          Answer {
+            event_id,
+            payload
+          } => {
+            crate::event::answer(event_id, payload);
           }
         }
         true

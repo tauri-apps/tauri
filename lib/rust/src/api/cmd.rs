@@ -42,4 +42,6 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
+  #[cfg(any(feature = "all-api", feature = "open"))]
+  Open { uri: String }
 }

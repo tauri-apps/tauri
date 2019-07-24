@@ -64,6 +64,12 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
             error,
           } => {
             super::command::call(webview, command, args, callback, error);
+          },
+          #[cfg(any(feature = "all-api", feature = "open"))]
+          Open { uri } => {
+            super::spawn(move || {
+              webbrowser::open(&uri).unwrap();
+            }); 
           }
         }
         true

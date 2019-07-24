@@ -26,6 +26,7 @@ tar = "0.4"
 flate2 = "1"
 hyper-old-types = "0.11.0"
 sysinfo = "0.9"
+webbrowser = "0.5.1"
 
 [features]
 api = []
@@ -37,4 +38,4 @@ listFiles = []
 listDirs = []
 setTitle = []
 execute = []
-
+open = []

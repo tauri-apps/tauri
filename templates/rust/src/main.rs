@@ -17,7 +17,8 @@ extern crate tiny_http;
 use clap::{App, Arg};
 
 #[cfg(not(feature = "dev"))]
-/// use std::thread;
+#[cfg(not(feature = "serverless"))]
+use std::thread;
 
 mod cmd;
 
@@ -68,6 +69,13 @@ fn main() {
     debug = cfg!(debug_assertions);
     #[cfg(feature = "serverless")]
     {
+   fn inline_style(s: &str) -> String {
+        format!(r#"<style type="text/css">{}</style>"#, s)
+    }
+
+    fn inline_script(s: &str) -> String {
+        format!(r#"<script type="text/javascript">{}</script>"#, s)
+    }
     let html = format!(r#"<!DOCTYPE html><html><head><meta http-equiv="Content-Security-Policy" content="default-src data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'">{styles}</head><body><div id="q-app"></div>{scripts}</body></html>"#,
     styles = inline_style(include_str!("../target/compiled-web/css/app.css")),
     scripts = inline_script(include_str!("../target/compiled-web/js/app.js")),
@@ -134,12 +142,4 @@ fn main() {
   }
 
   webview.run().unwrap();
-}
-
-fn inline_style(s: &str) -> String {
-    format!(r#"<style type="text/css">{}</style>"#, s)
-}
-
-fn inline_script(s: &str) -> String {
-    format!(r#"<script type="text/javascript">{}</script>"#, s)
 }

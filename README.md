@@ -62,7 +62,16 @@ more. - [https://www.rust-lang.org/](https://www.rust-lang.org/)
 This combination of power, safety and usability are why we chose Rust to be
 the default binding for Proton. It is our intention to provide the most safe
 and performant native app experience (for devs and app consumers), out of 
-the box.
+the box. 
+
+To this end, we have spent a great deal of time creating an especially secure 
+localhost-free backend for the security conscious application-artisans. This 
+means that your app does not use a localhost server, as is generally the case with 
+cordova apps. This also has the positive side effect, that less code is needed
+and the final binaries are smaller.
+
+> Less code doesn't always mean something is safer, but it does mean that
+> there is less surface area for attackers to barnacle themselves.  - Denjell
 
 ### Current Status
 We are in the process of vetting this new mode. It is not yet available to
@@ -75,22 +84,23 @@ you through the process. Here is a bit of a status report.
 - [ ] Frameless Mode
 - [x] Build on MacOS
 - [x] Build on Linux
-- [ ] Build on Windows
+- [x] Build on Windows
 - [x] STDOUT Passthrough with Command Invocation
 - [x] Self Updater
 - [x] Inter Process Communication (IPC)
 - [x] Documentation
 - [x] Filesystem R/W (scoped to permissions)
 - [ ] Secure Cryptographic Enclave
-- [ ] Message Bus
+- [x] Message Bus
 - [x] Copy Buffer
 - [ ] API Spec (in progress)
+- [x] localhost-free mode (:fire:)
 
 ### Comparison between Proton 1 and Electron 5
 
 |  | Proton | Electron |
 |--|--------|----------|
-| Binary Size MacOS | 3.6 MB | 148.7 MB |
+| Binary Size MacOS | 2.6 MB | 147.7 MB |
 | Memory Consumption MacOS | 13 MB | 34.1 MB |
 | Benchmark FPS | TODO | TODO |
 | Interface Service Provider | Varies | Chromium |
@@ -107,6 +117,13 @@ you through the process. Here is a bit of a status report.
 | Inter Process Communication (IPC) | Yes | Yes |
 | Cross Platform | Yes | Yes |
 | Custom App Icon | Yes | Yes |
+| Windows Binary | Yes | Yes |
+| MacOS Binary | Yes | Yes |
+| Linux Binary | Yes | Yes |
+| iOS Binary | Soon | No |
+| Android Binary | Soon | No |
+| Localhost Server | Yes | Yes |
+| No localhost option | Yes | No |
 
 #### Notes
 1) Electron has no native auto updater on Linux
@@ -127,9 +144,7 @@ honoured to carry the torch further. Of special note:
 - [zserge](https://github.com/zserge) for the original webview approach and 
 go bindings
 - [Boscop](https://github.com/Boscop) for the Rust Bindings
-
-## But there is already a project called Proton...
-But aren't there other projects with the same name that do something similar? If you search Github, you will find 1,500 repositories with proton in their name. There are also many, many Quasar projects out there - and that is indeed a bit of a risk when you use a word from science to name your project. But Quasar Proton is the official name of this project now, we think its fitting and good for us, especially because no one can trademark the word proton and tell us to stop using it. This protects the project's longevity at the minor cost of needing disambiguation. C'est la vie.
+- [Burtonago](https://github.com/burtonageo) for the Cargo Bundle prototype
 
 ## Documentation
 Head over to the Quasar Framework official website: 
@@ -160,8 +175,9 @@ Thank you to all the people who already <a href="https://github.com/quasarframew
 quasarframework/proton is following [Semantic Versioning 2.0](https://semver.org/).
 
 ## Licenses
-Code: (c) 2019 - Daniel Thompson-Yvetot, Razvan Stoenescu, Lucas Nogueira, Boscop, Serge Zaitsev.
-MIT
+Code: (c) 2015- 2019 - Daniel Thompson-Yvetot, Razvan Stoenescu, Lucas Nogueira, Boscop, Serge Zaitsev, George Burton and contributors.
+
+MIT or MIT/Apache where applicable.
 
 Logo: CC-BY-NC-ND
 - Original Proton Logo Design by [Daniel Thompson-Yvetot](https://github.com/nothingismagick)

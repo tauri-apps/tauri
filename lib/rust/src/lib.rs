@@ -16,6 +16,7 @@ pub mod rpc;
 pub mod tcp;
 pub mod updater;
 pub mod version;
+pub mod config;
 
 use proton_ui::WebView;
 

@@ -69,17 +69,16 @@ fn main() {
     debug = cfg!(debug_assertions);
     #[cfg(feature = "serverless")]
     {
-   fn inline_style(s: &str) -> String {
+      fn inline_style(s: &str) -> String {
         format!(r#"<style type="text/css">{}</style>"#, s)
-    }
-
-    fn inline_script(s: &str) -> String {
+      }
+      fn inline_script(s: &str) -> String {
         format!(r#"<script type="text/javascript">{}</script>"#, s)
-    }
-    let html = format!(r#"<!DOCTYPE html><html><head><meta http-equiv="Content-Security-Policy" content="default-src data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'">{styles}</head><body><div id="q-app"></div>{scripts}</body></html>"#,
-    styles = inline_style(include_str!("../target/compiled-web/css/app.css")),
-    scripts = inline_script(include_str!("../target/compiled-web/js/app.js")),
-  );
+      }
+      let html = format!(r#"<!DOCTYPE html><html><head><meta http-equiv="Content-Security-Policy" content="default-src data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'">{styles}</head><body><div id="q-app"></div>{scripts}</body></html>"#,
+        styles = inline_style(include_str!("../target/compiled-web/css/app.css")),
+        scripts = inline_script(include_str!("../target/compiled-web/js/app.js")),
+      );
       content = proton_ui::Content::Html(html);
     }
     #[cfg(not(feature = "serverless"))]
@@ -93,10 +92,13 @@ fn main() {
     }
   }
 
+  let config = proton::config::get();
+
   let webview = proton_ui::builder()
-    .title("MyApp - Serverless")
-    .size(800, 600) // TODO:Resolution is fixed right now, change this later to be dynamic
-    .resizable(true)
+    .title(&config.title)
+    .content(content)
+    .size(config.width, config.height)
+    .resizable(config.resizable)
     .debug(debug)
     .user_data(())
     .invoke_handler(|webview, arg| {

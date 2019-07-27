@@ -80,10 +80,12 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
         AddEventListener {
           event,
           handler,
-          once
+          on_answer,
+          on_failed_answer,
+          once,
         } => {
-          webview.eval(
-            &format!(
+          webview
+            .eval(&format!(
               "
                 if (window['{obj}'] === void 0) {{ 
                   window['{obj}'] = {{}}
@@ -93,23 +95,29 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
                 }}
                 window['{obj}']['{evt}'].push({{
                   handler: window['{handler}'],
+                  onAnswer: window['{onAnswer}'],
+                  onFailedAnswer: window['{onFailedAnswer}'],
                   once: {once_flag}
                 }})
-              ", 
+              ",
               obj = crate::event::event_listeners_object_name(),
               evt = event,
               handler = handler,
-              once_flag = if once {
-                "true"
-              } else {
-                "false"
-              }
-            )
-          ).unwrap();
+              onAnswer = on_answer,
+              onFailedAnswer = on_failed_answer,
+              once_flag = if once { "true" } else { "false" }
+            ))
+            .unwrap();
         }
         #[cfg(any(feature = "all-api", feature = "answer"))]
-        Answer { event_id, payload } => {
-          crate::event::answer(event_id, payload);
+        Answer {
+          event_id,
+          payload,
+          salt,
+          callback,
+          error,
+        } => {
+          crate::event::answer(webview, event_id, payload, salt, callback, error);
         }
       }
       true

@@ -124,28 +124,38 @@ fn main() {
     .unwrap();
 
   webview.handle().dispatch(move |_webview| {
-   _webview.eval(
-      &format!("window['{fn}'] = (payload, salt) => {{
-        window.proton.promisified({{
-          cmd: 'validateSalt',
-          salt
-        }}).then(() => {{
-          const listeners = (window['{obj}'] && window['{obj}'][payload.type]) || []
-          for (let i = listeners.length - 1; i >= 0; i--) {{ 
-            const listener = listeners[i]
-            if (listener.once)
-              listeners.splice(i, 1)
-            listener.handler(payload)
-              .then(result => {{
-                window.proton.invoke({{
-                  cmd: 'answer',
-                  event_id: payload.type,
-                  payload: result
-                }})
-              }})
-           }}
-        }})
-      }}", fn = proton::event::prompt_function_name(), obj = proton::event::event_listeners_object_name())).unwrap();
+    _webview.eval(
+      &format!(
+          "window['{fn}'] = (payload, salt) => {{
+            window.proton.promisified({{
+              cmd: 'validateSalt',
+              salt
+            }}).then(() => {{
+              const listeners = (window['{obj}'] && window['{obj}'][payload.type]) || []
+              for (let i = listeners.length - 1; i >= 0; i--) {{ 
+                const listener = listeners[i]
+                if (listener.once)
+                  listeners.splice(i, 1)
+                listener.handler(payload)
+                  .then(result => {{
+                    window.proton.promisified({{
+                      cmd: 'answer',
+                      event_id: payload.type,
+                      payload: result,
+                      salt: '{salt}'
+                    }})
+                  }})
+                  .then(listener.onAnswer)
+                  .catch(listener.onFailedAnswer)
+              }}
+            }})
+          }}", 
+          fn = proton::event::prompt_function_name(),
+          obj = proton::event::event_listeners_object_name(),
+          salt = proton::salt::generate_static()
+        )
+      ).unwrap();
+
       Ok(())
   }).unwrap();
 

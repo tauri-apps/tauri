@@ -36,7 +36,13 @@ pub fn spawn<F: FnOnce() -> () + Send + 'static>(what: F) {
   });
 }
 
-pub fn run_async<T: 'static, F: FnOnce() -> Result<String, String> + Send + 'static>(
+pub fn run_async<F: FnOnce() -> () + Send + 'static>(what: F) {
+  POOL.with(|thread| {
+    thread.execute(move || what());
+  });
+}
+
+pub fn execute_promise<T: 'static, F: FnOnce() -> Result<String, String> + Send + 'static>(
   webview: &mut WebView<'_, T>,
   what: F,
   callback: String,

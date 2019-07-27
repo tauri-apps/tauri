@@ -1,8 +1,8 @@
 use proton_ui::WebView;
 
 use crate::dir;
+use crate::execute_promise;
 use crate::file;
-use crate::run_async;
 
 use std::fs::File;
 use std::io::Write;
@@ -13,7 +13,7 @@ pub fn list<T: 'static>(
   callback: String,
   error: String,
 ) {
-  run_async(
+  execute_promise(
     webview,
     move || {
       dir::walk_dir(path.to_string())
@@ -30,7 +30,7 @@ pub fn list_dirs<T: 'static>(
   callback: String,
   error: String,
 ) {
-  run_async(
+  execute_promise(
     webview,
     move || {
       dir::list_dir_contents(&path)
@@ -48,7 +48,7 @@ pub fn write_file<T: 'static>(
   callback: String,
   error: String,
 ) {
-  run_async(
+  execute_promise(
     webview,
     move || {
       File::create(file)
@@ -70,7 +70,7 @@ pub fn read_text_file<T: 'static>(
   callback: String,
   error: String,
 ) {
-  run_async(
+  execute_promise(
     webview,
     move || {
       file::read_string(path).and_then(|f| {
@@ -90,7 +90,7 @@ pub fn read_binary_file<T: 'static>(
   callback: String,
   error: String,
 ) {
-  run_async(
+  execute_promise(
     webview,
     move || {
       file::read_binary(path).and_then(|f| {

@@ -1,14 +1,15 @@
-use proton_ui::WebView;
+use proton_ui::{Handle, WebView};
 use std::boxed::Box;
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 struct EventHandler {
-  on_event: Box<Fn(String) -> String + Send>,
+  on_event: Box<dyn FnOnce(String)>,
 }
 
+thread_local!(static LISTENERS: Arc<Mutex<HashMap<String, EventHandler>>> = Arc::new(Mutex::new(HashMap::new())));
+
 lazy_static! {
-  static ref LISTENERS: Mutex<HashMap<String, EventHandler>> = Mutex::new(HashMap::new());
   static ref PROMPT_FUNCTION_NAME: String = uuid::Uuid::new_v4().to_string();
   static ref EVENT_LISTENERS_OBJECT_NAME: String = uuid::Uuid::new_v4().to_string();
 }
@@ -21,26 +22,32 @@ pub fn event_listeners_object_name() -> String {
   EVENT_LISTENERS_OBJECT_NAME.to_string()
 }
 
-pub fn prompt<T: 'static, F: Fn(String) -> String + 'static + Send>(
+pub fn prompt<T: 'static, F: FnOnce(String) + 'static>(
   webview: &mut WebView<'_, T>,
   id: &'static str,
-  mut payload: String,
+  payload: String,
   handler: F,
 ) {
-  LISTENERS.lock().unwrap().insert(
-    id.to_string(),
-    EventHandler {
-      on_event: Box::new(handler),
-    },
-  );
+  LISTENERS.with(|listeners| {
+    let mut l = listeners.lock().unwrap();
+    l.insert(
+      id.to_string(),
+      EventHandler {
+        on_event: Box::new(handler),
+      },
+    );
+  });
 
+  trigger(webview.handle(), id, payload);
+}
+
+pub fn trigger<T: 'static>(webview_handle: Handle<T>, id: &'static str, mut payload: String) {
   let salt = crate::salt::generate();
   if payload == "" {
     payload = "void 0".to_string();
   }
 
-  webview
-    .handle()
+  webview_handle
     .dispatch(move |_webview| {
       _webview.eval(&format!(
         "window['{}']({{type: '{}', payload: {}}}, '{}')",
@@ -53,32 +60,19 @@ pub fn prompt<T: 'static, F: Fn(String) -> String + 'static + Send>(
     .unwrap();
 }
 
-pub fn answer<T: 'static>(
-  webview: &mut WebView<'_, T>,
-  id: String,
-  data: String,
-  salt: String,
-  callback: String,
-  error: String,
-) {
-  crate::run_async(
-    webview,
-    move || {
-      if !crate::salt::is_valid(salt) {
-        Err("Invalid salt".to_string())
-      } else {
-        let mut listeners = LISTENERS.lock().unwrap();
-        match listeners.get(&id) {
-          Some(handler) => {
-            let response = (handler.on_event)(data);
-            listeners.remove(&id);
-            Ok(response)
-          }
-          None => Err("Handler not found".to_string()),
-        }
+pub fn answer(id: String, data: String, salt: String) {
+  if crate::salt::is_valid(salt) {
+    LISTENERS.with(|l| {
+      let mut listeners = l.lock().unwrap();
+
+      let key = id.clone();
+
+      if listeners.contains_key(&id) {
+        let handler = listeners.remove(&id).unwrap();
+        (handler.on_event)(data);
       }
-    },
-    callback,
-    error,
-  );
+
+      listeners.remove(&key);
+    });
+  }
 }

@@ -1,6 +1,5 @@
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
-#[cfg(feature = "api")]
 pub enum Cmd {
   #[cfg(any(feature = "all-api", feature = "readTextFile"))]
   ReadTextFile {
@@ -34,7 +33,9 @@ pub enum Cmd {
     error: String,
   },
   #[cfg(any(feature = "all-api", feature = "setTitle"))]
-  SetTitle { title: String },
+  SetTitle {
+    title: String,
+  },
   #[cfg(any(feature = "all-api", feature = "execute"))]
   Execute {
     command: String,
@@ -42,9 +43,14 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
+  ValidateSalt {
+    salt: String,
+    callback: String,
+    error: String,
+  },
   #[cfg(any(feature = "all-api", feature = "answer"))]
   Answer {
     event_id: String,
-    payload: String
+    payload: String,
   },
 }

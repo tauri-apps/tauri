@@ -26,9 +26,10 @@ tar = "0.4"
 flate2 = "1"
 hyper-old-types = "0.11.0"
 sysinfo = "0.9"
+uuid = { version = "0.7", features = ["v4"] }
+lazy_static = "1.3.0"
 
 [features]
-api = []
 all-api = []
 readTextFile = []
 readBinaryFile = []

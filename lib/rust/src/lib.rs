@@ -4,19 +4,23 @@ extern crate serde_derive;
 #[macro_use]
 mod macros;
 
+#[macro_use]
+extern crate lazy_static;
+
 pub mod api;
 pub mod command;
 pub mod dir;
+pub mod event;
 pub mod file;
 pub mod file_system;
 pub mod http;
 pub mod platform;
 pub mod process;
 pub mod rpc;
+pub mod salt;
 pub mod tcp;
 pub mod updater;
 pub mod version;
-pub mod event;
 
 use proton_ui::WebView;
 

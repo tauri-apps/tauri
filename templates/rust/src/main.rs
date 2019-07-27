@@ -111,6 +111,27 @@ fn main() {
     .build()
     .unwrap();
 
+  webview.handle().dispatch(move |_webview| {
+    _webview.eval(
+      "window.protonPrompt = (payload, salt) => {
+        window.proton.promisified({
+          cmd: 'validateSalt',
+          salt
+        }).then(() => {
+          const listeners = window.protonEventHandlers[payload.type] || []
+          for (const listener of listeners)
+            listener(payload)
+              .then(result => {
+                window.proton.invoke({
+                  cmd: 'answer',
+                  event_id: payload.type,
+                  payload: result
+                })
+              })
+        })
+      }")
+  }).unwrap();
+
   #[cfg(not(feature = "dev"))]
   {
     #[cfg(feature = "serverless")]

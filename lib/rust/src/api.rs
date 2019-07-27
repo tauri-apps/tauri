@@ -77,6 +77,36 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
         } => {
           crate::salt::validate(webview, salt, callback, error);
         }
+        AddEventListener {
+          event,
+          handler,
+          once
+        } => {
+          webview.eval(
+            &format!(
+              "
+                if (window['{obj}'] === void 0) {{ 
+                  window['{obj}'] = {{}}
+                 }}
+                if (window['{obj}']['{evt}'] === void 0) {{
+                  window['{obj}']['{evt}'] = []
+                }}
+                window['{obj}']['{evt}'].push({{
+                  handler: window['{handler}'],
+                  once: {once_flag}
+                }})
+              ", 
+              obj = crate::event::event_listeners_object_name(),
+              evt = event,
+              handler = handler,
+              once_flag = if once {
+                "true"
+              } else {
+                "false"
+              }
+            )
+          ).unwrap();
+        }
         #[cfg(any(feature = "all-api", feature = "answer"))]
         Answer { event_id, payload } => {
           crate::event::answer(event_id, payload);

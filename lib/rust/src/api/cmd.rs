@@ -48,6 +48,11 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
+  AddEventListener {
+    event: String,
+    handler: String,
+    once: bool
+  },
   #[cfg(any(feature = "all-api", feature = "answer"))]
   Answer { event_id: String, payload: String },
 }

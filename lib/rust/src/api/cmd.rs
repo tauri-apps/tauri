@@ -33,9 +33,7 @@ pub enum Cmd {
     error: String,
   },
   #[cfg(any(feature = "all-api", feature = "setTitle"))]
-  SetTitle {
-    title: String,
-  },
+  SetTitle { title: String },
   #[cfg(any(feature = "all-api", feature = "execute"))]
   Execute {
     command: String,
@@ -43,14 +41,13 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
+  #[cfg(any(feature = "all-api", feature = "open"))]
+  Open { uri: String },
   ValidateSalt {
     salt: String,
     callback: String,
     error: String,
   },
   #[cfg(any(feature = "all-api", feature = "answer"))]
-  Answer {
-    event_id: String,
-    payload: String,
-  },
+  Answer { event_id: String, payload: String },
 }

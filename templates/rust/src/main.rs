@@ -17,6 +17,7 @@ extern crate tiny_http;
 use clap::{App, Arg};
 
 #[cfg(not(feature = "dev"))]
+#[cfg(not(feature = "serverless"))]
 use std::thread;
 
 mod cmd;
@@ -30,7 +31,7 @@ fn main() {
   let content;
   let _server_url: String;
 
-  #[cfg(not(feature = "dev"))]
+  #[cfg(feature = "updater")]
   {
     thread::spawn(|| {
       proton::command::spawn_relative_command(
@@ -68,7 +69,18 @@ fn main() {
     debug = cfg!(debug_assertions);
     #[cfg(feature = "serverless")]
     {
-      content = proton_ui::Content::Html(include_str!("../target/compiled-web/index.html"));
+   fn inline_style(s: &str) -> String {
+        format!(r#"<style type="text/css">{}</style>"#, s)
+    }
+
+    fn inline_script(s: &str) -> String {
+        format!(r#"<script type="text/javascript">{}</script>"#, s)
+    }
+    let html = format!(r#"<!DOCTYPE html><html><head><meta http-equiv="Content-Security-Policy" content="default-src data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'">{styles}</head><body><div id="q-app"></div>{scripts}</body></html>"#,
+    styles = inline_style(include_str!("../target/compiled-web/css/app.css")),
+    scripts = inline_script(include_str!("../target/compiled-web/js/app.js")),
+  );
+      content = proton_ui::Content::Html(html);
     }
     #[cfg(not(feature = "serverless"))]
     {
@@ -82,15 +94,14 @@ fn main() {
   }
 
   let webview = proton_ui::builder()
-    .title("MyAppTitle")
-    .content(content)
+    .title("MyApp - Serverless")
     .size(800, 600) // TODO:Resolution is fixed right now, change this later to be dynamic
     .resizable(true)
     .debug(debug)
     .user_data(())
-    .invoke_handler(|_webview, arg| {
+    .invoke_handler(|webview, arg| {
       // leave this as is to use the proton API from your JS code
-      if !proton::api::handler(_webview, arg) {
+      if !proton::api::handler(webview, arg) {
         use cmd::Cmd::*;
         match serde_json::from_str(arg) {
           Err(_) => {}
@@ -108,6 +119,7 @@ fn main() {
 
       Ok(())
     })
+    .content(content)
     .build()
     .unwrap();
 
@@ -134,14 +146,6 @@ fn main() {
 
   #[cfg(not(feature = "dev"))]
   {
-    #[cfg(feature = "serverless")]
-    {
-      let handle = webview.handle();
-      handle.dispatch(move |_webview| {
-        _webview.inject_css(include_str!("../target/compiled-web/css/app.css")).unwrap();
-        _webview.eval(include_str!("../target/compiled-web/js/app.js"))
-      }).unwrap();
-    }
 
     #[cfg(not(feature = "serverless"))]
     {

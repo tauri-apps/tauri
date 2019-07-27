@@ -28,6 +28,14 @@ use threadpool::ThreadPool;
 
 thread_local!(static POOL: ThreadPool = ThreadPool::new(4));
 
+pub fn spawn<F: FnOnce() -> () + Send + 'static>(what: F) {
+  POOL.with(|thread| {
+    thread.execute(move || {
+      what();
+    });
+  });
+}
+
 pub fn run_async<T: 'static, F: FnOnce() -> Result<String, String> + Send + 'static>(
   webview: &mut WebView<'_, T>,
   what: F,

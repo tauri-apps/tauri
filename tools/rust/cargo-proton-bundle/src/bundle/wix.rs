@@ -167,9 +167,9 @@ fn run_candle(
   let candle_exe = wix_toolset_path.join("candle.exe");
   info!(logger, "running candle for {}", wxs_file_name);
 
-  let mut cmd = std::process::Command::new(&candle_exe)
+  let mut cmd = Command::new(&candle_exe)
     .args(&args)
-    .stdout(std::process::Stdio::piped())
+    .stdout(Stdio::piped())
     .current_dir(build_path)
     .spawn()
     .expect("error running candle.exe");
@@ -187,5 +187,45 @@ fn run_candle(
     Ok(())
   } else {
     Err("error running candle.exe".to_string())
+  }
+}
+
+fn run_light(
+  logger: &Logger,
+  wix_toolset_path: &Path,
+  build_path: &Path,
+  wixobjs: &[&str],
+  output_path: &Path,
+) -> Result<(), String> {
+  let light_exe = wix_toolset_path.join("light.exe");
+
+  let mut args: Vec<String> = vec!["-o".to_string(), output_path.display().to_string()];
+
+  for p in wixobjs {
+    args.push(p.to_string());
+  }
+
+  info!(logger, "running light to produce {}", output_path.display());
+
+  let mut cmd = Command::new(&light_exe)
+    .args(&args)
+    .stdout(Stdio::piped())
+    .current_dir(build_path)
+    .spawn()
+    .expect("error running light.exe");
+  {
+    let stdout = cmd.stdout.as_mut().unwrap();
+    let reader = BufReader::new(stdout);
+
+    for line in reader.lines() {
+      info!(logger, "{}", line.unwrap());
+    }
+  }
+
+  let status = cmd.wait().unwrap();
+  if status.success() {
+    Ok(())
+  } else {
+    Err("error running light.exe".to_string())
   }
 }

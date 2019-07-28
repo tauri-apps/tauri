@@ -32,3 +32,29 @@ lazy_static! {
     handlebars
   };
 }
+
+fn download_and_verify(logger: &slog::Logger, url: &str, hash: &str) -> Result<Vec<u8>, String> {
+  info!(logger, "Downloading {}", url);
+
+  let mut response = reqwest::get(url).or_else(|e| Err(e.to_string()))?;
+
+  let mut data: Vec<u8> = Vec::new();
+
+  response
+    .read_to_end(&mut data)
+    .or_else(|e| Err(e.to_string()))?;
+
+  info!(logger, "validating hash...");
+
+  let mut hasher = sha2::Sha256::new();
+  hasher.input(&data);
+
+  let url_hash = hasher.result().to_vec();
+  let expected_hash = hex::decode(hash).or_else(|e| Err(e.to_string()))?;
+
+  if expected_hash == url_hash {
+    Ok(data)
+  } else {
+    Err("hash mismatch of downloaded file".to_string())
+  }
+}

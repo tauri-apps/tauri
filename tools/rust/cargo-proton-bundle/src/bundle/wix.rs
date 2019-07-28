@@ -149,3 +149,43 @@ fn run_heat_exe(
     Err("error running heat.exe".to_string())
   }
 }
+
+fn run_candle(
+  logger: &Logger,
+  wix_toolset_path: &Path,
+  build_path: &Path,
+  wxs_file_name: &str,
+) -> Result<(), String> {
+  let arch = "x64";
+
+  let args = vec![
+    "-arch".to_string(),
+    arch.to_string(),
+    wxs_file_name.to_string(),
+  ];
+
+  let candle_exe = wix_toolset_path.join("candle.exe");
+  info!(logger, "running candle for {}", wxs_file_name);
+
+  let mut cmd = std::process::Command::new(&candle_exe)
+    .args(&args)
+    .stdout(std::process::Stdio::piped())
+    .current_dir(build_path)
+    .spawn()
+    .expect("error running candle.exe");
+  {
+    let stdout = cmd.stdout.as_mut().unwrap();
+    let reader = BufReader::new(stdout);
+
+    for line in reader.lines() {
+      info!(logger, "{}", line.unwrap());
+    }
+  }
+
+  let status = cmd.wait().unwrap();
+  if status.success() {
+    Ok(())
+  } else {
+    Err("error running candle.exe".to_string())
+  }
+}

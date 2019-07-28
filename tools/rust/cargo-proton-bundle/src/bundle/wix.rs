@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 use std::fs::{create_dir_all, File};
 use std::io::{BufRead, BufReader, Cursor, Read, Write};
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use zip::ZipArchive;
 
 const WIX_URL: &str =
@@ -96,4 +97,55 @@ fn get_and_extract_wix(logger: &Logger, path: &Path) -> Result<(), String> {
   info!(logger, "extracting WIX");
 
   extract_zip(&data, path)
+}
+
+fn run_heat_exe(
+  logger: &Logger,
+  wix_toolset_path: &Path,
+  build_path: &Path,
+  harvest_dir: &Path,
+  platform: &str,
+) -> Result<(), String> {
+  let mut args = vec!["dir"];
+
+  let harvest_str = harvest_dir.display().to_string();
+
+  args.push(&harvest_str);
+  args.push("-platform");
+  args.push(platform);
+  args.push("-cg");
+  args.push("AppFiles");
+  args.push("-dr");
+  args.push("APPLICATIONFOLDER");
+  args.push("-gg");
+  args.push("-srd");
+  args.push("-out");
+  args.push("appdir.wxs");
+  args.push("-var");
+  args.push("var.SourceDir");
+
+  let heat_exe = wix_toolset_path.join("head.exe");
+
+  let mut cmd = Command::new(&heat_exe)
+    .args(&args)
+    .stdout(Stdio::piped())
+    .current_dir(build_path)
+    .spawn()
+    .expect("error running heat.exe");
+
+  {
+    let stdout = cmd.stdout.as_mut().unwrap();
+    let reader = BufReader::new(stdout);
+
+    for line in reader.lines() {
+      info!(logger, "{}", line.unwrap());
+    }
+  }
+
+  let status = cmd.wait().unwrap();
+  if status.success() {
+    Ok(())
+  } else {
+    Err("error running heat.exe".to_string())
+  }
 }

@@ -196,6 +196,11 @@ impl Settings {
         name.clone(),
       ),
     };
+    let binary_name = if cfg!(windows) {
+      format!("{}.{}", &binary_name, "exe")
+    } else {
+      binary_name
+    };
     let binary_path = target_dir.join(&binary_name);
     Ok(Settings {
       package,

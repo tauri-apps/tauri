@@ -1,10 +1,13 @@
 use handlebars::Handlebars;
 use lazy_static::lazy_static;
 use sha2::Digest;
-use slog::warn;
+use slog::info;
+use slog::Logger;
 use std::collections::BTreeMap;
-use std::io::{BufRead, BufReader, Read, Write};
+use std::fs::{create_dir_all, File};
+use std::io::{BufRead, BufReader, Cursor, Read, Write};
 use std::path::{Path, PathBuf};
+use zip::ZipArchive;
 
 const WIX_URL: &str =
   "https://github.com/wixtoolset/wix3/releases/download/wix3111rtm/wix311-binaries.zip";
@@ -33,7 +36,7 @@ lazy_static! {
   };
 }
 
-fn download_and_verify(logger: &slog::Logger, url: &str, hash: &str) -> Result<Vec<u8>, String> {
+fn download_and_verify(logger: &Logger, url: &str, hash: &str) -> Result<Vec<u8>, String> {
   info!(logger, "Downloading {}", url);
 
   let mut response = reqwest::get(url).or_else(|e| Err(e.to_string()))?;
@@ -57,4 +60,40 @@ fn download_and_verify(logger: &slog::Logger, url: &str, hash: &str) -> Result<V
   } else {
     Err("hash mismatch of downloaded file".to_string())
   }
+}
+
+fn extract_zip(data: &Vec<u8>, path: &Path) -> Result<(), String> {
+  let cursor = Cursor::new(data);
+
+  let mut zipa = ZipArchive::new(cursor).or_else(|e| Err(e.to_string()))?;
+
+  for i in 0..zipa.len() {
+    let mut file = zipa.by_index(i).or_else(|e| Err(e.to_string()))?;
+    let dest_path = path.join(file.name());
+    let parent = dest_path.parent().unwrap();
+
+    if !parent.exists() {
+      create_dir_all(parent).or_else(|e| Err(e.to_string()))?;
+    }
+
+    let mut buff: Vec<u8> = Vec::new();
+    file
+      .read_to_end(&mut buff)
+      .or_else(|e| Err(e.to_string()))?;
+    let mut fileout = File::create(dest_path).unwrap();
+
+    fileout.write_all(&buff).or_else(|e| Err(e.to_string()))?;
+  }
+
+  Ok(())
+}
+
+fn get_and_extract_wix(logger: &Logger, path: &Path) -> Result<(), String> {
+  info!(logger, "downloading WIX Toolkit...");
+
+  let data = download_and_verify(logger, WIX_URL, WIX_SHA256)?;
+
+  info!(logger, "extracting WIX");
+
+  extract_zip(&data, path)
 }

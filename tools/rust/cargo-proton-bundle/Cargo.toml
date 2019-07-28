@@ -37,6 +37,7 @@ handlebars = "1.1"
 slog = "2.5.2"
 reqwest = "0.9.19"
 hex = "0.3"
+zip = "0.5"
 
 [dev-dependencies]
 tempfile = "3"

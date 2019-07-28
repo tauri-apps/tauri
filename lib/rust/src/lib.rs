@@ -4,15 +4,20 @@ extern crate serde_derive;
 #[macro_use]
 mod macros;
 
+#[macro_use]
+extern crate lazy_static;
+
 pub mod api;
 pub mod command;
 pub mod dir;
+pub mod event;
 pub mod file;
 pub mod file_system;
 pub mod http;
 pub mod platform;
 pub mod process;
 pub mod rpc;
+pub mod salt;
 pub mod tcp;
 pub mod updater;
 pub mod version;
@@ -23,9 +28,7 @@ use threadpool::ThreadPool;
 
 thread_local!(static POOL: ThreadPool = ThreadPool::new(4));
 
-pub fn spawn<F: FnOnce() -> () + Send + 'static>(
-  what: F
-) {
+pub fn spawn<F: FnOnce() -> () + Send + 'static>(what: F) {
   POOL.with(|thread| {
     thread.execute(move || {
       what();
@@ -33,7 +36,13 @@ pub fn spawn<F: FnOnce() -> () + Send + 'static>(
   });
 }
 
-pub fn run_async<T: 'static, F: FnOnce() -> Result<String, String> + Send + 'static>(
+pub fn run_async<F: FnOnce() -> () + Send + 'static>(what: F) {
+  POOL.with(|thread| {
+    thread.execute(move || what());
+  });
+}
+
+pub fn execute_promise<T: 'static, F: FnOnce() -> Result<String, String> + Send + 'static>(
   webview: &mut WebView<'_, T>,
   what: F,
   callback: String,

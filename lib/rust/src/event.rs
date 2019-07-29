@@ -10,9 +10,9 @@ struct EventHandler {
 thread_local!(static LISTENERS: Arc<Mutex<HashMap<String, EventHandler>>> = Arc::new(Mutex::new(HashMap::new())));
 
 lazy_static! {
-  static ref EMIT_FUNCTION_NAME: String = uuid::Uuid::new_v4().to_string();
-  static ref EVENT_LISTENERS_OBJECT_NAME: String = uuid::Uuid::new_v4().to_string();
-  static ref EVENT_QUEUE_OBJECT_NAME: String = uuid::Uuid::new_v4().to_string();
+  static ref EMIT_FUNCTION_NAME: String = "emit".to_string();
+  static ref EVENT_LISTENERS_OBJECT_NAME: String = "listeners".to_string();
+  static ref EVENT_QUEUE_OBJECT_NAME: String = "queue".to_string();
 }
 
 pub fn emit_function_name() -> String {

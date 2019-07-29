@@ -85,6 +85,9 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
           webview
             .eval(&format!(
               "
+                if (window['{listeners}'] === void 0) {{ 
+                  window['{listeners}'] = {{}}
+                 }}
                 if (window['{listeners}']['{evt}'] === void 0) {{
                   window['{listeners}']['{evt}'] = []
                 }}

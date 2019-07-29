@@ -128,32 +128,32 @@ fn main() {
     .dispatch(move |_webview| {
       _webview
         .eval(&format!(
-          "window['{fn}'] = (payload, salt) => {{
+          "window['{queue}'] = [];
+          window['{fn}'] = function (payload, salt, ignoreQueue) {{
             window.proton.promisified({{
               cmd: 'validateSalt',
               salt
-            }}).then(() => {{
-              const listeners = (window['{obj}'] && window['{obj}'][payload.type]) || []
+            }}).then(function () {{
+              const listeners = (window['{listeners}'] && window['{listeners}'][payload.type]) || []
+
+              if (!ignoreQueue && listeners.length === 0) {{ 
+                window['{queue}'].push({{ 
+                  payload: payload,
+                  salt: salt
+                 }})
+              }}
+
               for (let i = listeners.length - 1; i >= 0; i--) {{ 
                 const listener = listeners[i]
                 if (listener.once)
                   listeners.splice(i, 1)
-                const response = listener.handler(payload)
-                response && response
-                  .then(result => {{
-                    window.proton.invoke({{
-                      cmd: 'answer',
-                      event_id: payload.type,
-                      payload: result,
-                      salt: '{salt}'
-                    }})
-                  }})
+                listener.handler(payload)
               }}
             }})
           }}", 
-          fn = proton::event::prompt_function_name(),
-          obj = proton::event::event_listeners_object_name(),
-          salt = proton::salt::generate_static()
+          fn = proton::event::emit_function_name(),
+          listeners = proton::event::event_listeners_object_name(),
+          queue = proton::event::event_queue_object_name()
         ))
         .unwrap();
 

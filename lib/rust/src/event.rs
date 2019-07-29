@@ -1,4 +1,4 @@
-use proton_ui::{Handle, WebView};
+use proton_ui::Handle;
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -10,24 +10,24 @@ struct EventHandler {
 thread_local!(static LISTENERS: Arc<Mutex<HashMap<String, EventHandler>>> = Arc::new(Mutex::new(HashMap::new())));
 
 lazy_static! {
-  static ref PROMPT_FUNCTION_NAME: String = uuid::Uuid::new_v4().to_string();
+  static ref EMIT_FUNCTION_NAME: String = uuid::Uuid::new_v4().to_string();
   static ref EVENT_LISTENERS_OBJECT_NAME: String = uuid::Uuid::new_v4().to_string();
+  static ref EVENT_QUEUE_OBJECT_NAME: String = uuid::Uuid::new_v4().to_string();
 }
 
-pub fn prompt_function_name() -> String {
-  PROMPT_FUNCTION_NAME.to_string()
+pub fn emit_function_name() -> String {
+  EMIT_FUNCTION_NAME.to_string()
 }
 
 pub fn event_listeners_object_name() -> String {
   EVENT_LISTENERS_OBJECT_NAME.to_string()
 }
 
-pub fn prompt<T: 'static, F: FnOnce(String) + 'static>(
-  webview: &mut WebView<'_, T>,
-  id: &'static str,
-  payload: String,
-  handler: F,
-) {
+pub fn event_queue_object_name() -> String {
+  EVENT_QUEUE_OBJECT_NAME.to_string()
+}
+
+pub fn listen<F: FnOnce(String) + 'static>(id: &'static str, handler: F) {
   LISTENERS.with(|listeners| {
     let mut l = listeners.lock().unwrap();
     l.insert(
@@ -37,11 +37,9 @@ pub fn prompt<T: 'static, F: FnOnce(String) + 'static>(
       },
     );
   });
-
-  trigger(webview.handle(), id, payload);
 }
 
-pub fn trigger<T: 'static>(webview_handle: Handle<T>, id: &'static str, mut payload: String) {
+pub fn emit<T: 'static>(webview_handle: Handle<T>, event: &'static str, mut payload: String) {
   let salt = crate::salt::generate();
   if payload == "" {
     payload = "void 0".to_string();
@@ -51,8 +49,8 @@ pub fn trigger<T: 'static>(webview_handle: Handle<T>, id: &'static str, mut payl
     .dispatch(move |_webview| {
       _webview.eval(&format!(
         "window['{}']({{type: '{}', payload: {}}}, '{}')",
-        prompt_function_name(),
-        id,
+        emit_function_name(),
+        event,
         payload,
         salt
       ))
@@ -60,19 +58,17 @@ pub fn trigger<T: 'static>(webview_handle: Handle<T>, id: &'static str, mut payl
     .unwrap();
 }
 
-pub fn answer(id: String, data: String, salt: String) {
-  if crate::salt::is_valid(salt) {
-    LISTENERS.with(|l| {
-      let mut listeners = l.lock().unwrap();
+pub fn on_event(event: String, data: String) {
+  LISTENERS.with(|l| {
+    let mut listeners = l.lock().unwrap();
 
-      let key = id.clone();
+    let key = event.clone();
 
-      if listeners.contains_key(&id) {
-        let handler = listeners.remove(&id).unwrap();
-        (handler.on_event)(data);
-      }
+    if listeners.contains_key(&event) {
+      let handler = listeners.remove(&event).unwrap();
+      (handler.on_event)(data);
+    }
 
-      listeners.remove(&key);
-    });
-  }
+    listeners.remove(&key);
+  });
 }

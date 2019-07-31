@@ -85,18 +85,25 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
           webview
             .eval(&format!(
               "
-                if (window['{obj}'] === void 0) {{ 
-                  window['{obj}'] = {{}}
+                if (window['{listeners}'] === void 0) {{ 
+                  window['{listeners}'] = {{}}
                  }}
-                if (window['{obj}']['{evt}'] === void 0) {{
-                  window['{obj}']['{evt}'] = []
+                if (window['{listeners}']['{evt}'] === void 0) {{
+                  window['{listeners}']['{evt}'] = []
                 }}
-                window['{obj}']['{evt}'].push({{
+                window['{listeners}']['{evt}'].push({{
                   handler: window['{handler}'],
                   once: {once_flag}
-                }})
+                }});
+
+                for (let i = 0; i < window['{queue}'].length; i++) {{ 
+                  const e = window['{queue}'][i];
+                  window['{emit}'](e.payload, e.salt, true)
+                }}
               ",
-              obj = crate::event::event_listeners_object_name(),
+              listeners = crate::event::event_listeners_object_name(),
+              queue = crate::event::event_queue_object_name(),
+              emit = crate::event::emit_function_name(),
               evt = event,
               handler = handler,
               once_flag = if once { "true" } else { "false" }
@@ -104,12 +111,8 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
             .unwrap();
         }
         #[cfg(any(feature = "all-api", feature = "answer"))]
-        Answer {
-          event_id,
-          payload,
-          salt,
-        } => {
-          crate::event::answer(event_id, payload, salt);
+        Emit { event, payload } => {
+          crate::event::on_event(event, payload);
         }
       }
       true

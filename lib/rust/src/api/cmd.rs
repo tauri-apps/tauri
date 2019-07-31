@@ -53,10 +53,9 @@ pub enum Cmd {
     handler: String,
     once: bool,
   },
-  #[cfg(any(feature = "all-api", feature = "answer"))]
-  Answer {
-    event_id: String,
+  #[cfg(any(feature = "all-api", feature = "emit"))]
+  Emit {
+    event: String,
     payload: String,
-    salt: String,
   },
 }

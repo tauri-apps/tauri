@@ -115,7 +115,6 @@ you through the process. Here is a bit of a status report.
 - [x] Dynamic ahead of Time Compilation (dAoT) with functional tree-shaking
 - [x] functional Address Space Layout Randomization
 - [x] OTP salting of function names and messages
-- 
 
 ### Comparison between Proton 1 and Electron 5
 

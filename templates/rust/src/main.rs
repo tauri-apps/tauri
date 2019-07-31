@@ -29,7 +29,9 @@ mod server;
 fn main() {
   let debug;
   let content;
-  let _server_url: String;
+  let config;
+  #[cfg(feature = "embedded-server")]
+  let server_url: String;
 
   #[cfg(feature = "updater")]
   {
@@ -66,6 +68,7 @@ fn main() {
 
   #[cfg(not(feature = "dev"))]
   {
+    config = proton::config::get();
     debug = cfg!(debug_assertions);
     #[cfg(not(feature = "embedded-server"))]
     {
@@ -84,16 +87,31 @@ fn main() {
     }
     #[cfg(feature = "embedded-server")]
     {
-      if let Some(available_port) = proton::tcp::get_available_port() {
-        _server_url = format!("{}:{}", "127.0.0.1", available_port);
-        content = proton_ui::Content::Url(format!("http://{}", _server_url));
+      let port;
+      let port_valid;
+      if config.embedded_server.port == "random" {
+        match proton::tcp::get_available_port() {
+          Some(available_port) => {
+            port = available_port.to_string();
+            port_valid = true;
+          }
+          None => {
+            port = "0".to_string();
+            port_valid = false;
+          }
+        }
       } else {
-        panic!("Could not find an open port");
+        port = config.embedded_server.port;
+        port_valid = proton::tcp::port_is_available(port.parse::<u16>().expect(&format!("Invalid port {}", port)));
+      }
+      if port_valid {
+        server_url = format!("{}:{}", config.embedded_server.host, port);
+        content = proton_ui::Content::Url(server_url.clone());
+      } else {
+        panic!(format!("Port {} is not valid or not open", port));
       }
     }
   }
-
-  let config = proton::config::get();
 
   let webview = proton_ui::builder()
     .title(&config.window.title)
@@ -168,7 +186,7 @@ fn main() {
     #[cfg(feature = "embedded-server")]
     {
       thread::spawn(move || {
-        let server = tiny_http::Server::http(_server_url).unwrap();
+        let server = tiny_http::Server::http(server_url.clone()).expect(&format!("Could not start embedded server with the specified url: {}", server_url));
         for request in server.incoming_requests() {
           let mut url = request.url().to_string();
           if url == "/" {

@@ -11,13 +11,6 @@ pub struct WindowConfig {
   pub title: String,
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Config {
-  #[serde(default = "default_window")]
-  pub window: WindowConfig,
-}
-
 fn default_width() -> i32 {
   800
 }
@@ -41,6 +34,39 @@ fn default_window() -> WindowConfig {
     resizable: default_resizable(),
     title: default_title(),
   };
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "embeddedServer", rename_all = "camelCase")]
+pub struct EmbeddedServerConfig {
+  #[serde(default = "default_host")]
+  pub host: String,
+  #[serde(default = "default_port")]
+  pub port: String
+}
+
+fn default_host() -> String {
+  "http://127.0.0.1".to_string()
+}
+
+fn default_port() -> String {
+  "random".to_string()
+}
+
+fn default_embedded_server() -> EmbeddedServerConfig {
+  EmbeddedServerConfig {
+    host: default_host(),
+    port: default_port()
+  }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Config {
+  #[serde(default = "default_window")]
+  pub window: WindowConfig,
+  #[serde(default = "default_embedded_server")]
+  pub embedded_server: EmbeddedServerConfig
 }
 
 pub fn get() -> Config {

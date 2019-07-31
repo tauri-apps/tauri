@@ -96,10 +96,9 @@ fn main() {
   let config = proton::config::get();
 
   let webview = proton_ui::builder()
-    .title(&config.title)
-    .content(content)
-    .size(config.width, config.height)
-    .resizable(config.resizable)
+    .title(&config.window.title)
+    .size(config.window.width, config.window.height)
+    .resizable(config.window.resizable)
     .debug(debug)
     .user_data(())
     .invoke_handler(|webview, arg| {

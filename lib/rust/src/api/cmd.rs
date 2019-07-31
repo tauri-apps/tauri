@@ -54,8 +54,5 @@ pub enum Cmd {
     once: bool,
   },
   #[cfg(any(feature = "all-api", feature = "emit"))]
-  Emit {
-    event: String,
-    payload: String,
-  },
+  Emit { event: String, payload: String },
 }

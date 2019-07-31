@@ -9,6 +9,7 @@ extern crate lazy_static;
 
 pub mod api;
 pub mod command;
+pub mod config;
 pub mod dir;
 pub mod event;
 pub mod file;
@@ -21,7 +22,6 @@ pub mod salt;
 pub mod tcp;
 pub mod updater;
 pub mod version;
-pub mod config;
 
 use proton_ui::WebView;
 

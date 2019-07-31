@@ -2,7 +2,7 @@ use proton_ui::WebView;
 
 use std::process::{Child, Command, Stdio};
 
-use super::run_async;
+use crate::execute_promise;
 
 pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> Result<String, String> {
   Command::new(cmd)
@@ -65,7 +65,7 @@ pub fn call<T: 'static>(
   callback: String,
   error: String,
 ) {
-  run_async(
+  execute_promise(
     webview,
     || {
       get_output(command, args, Stdio::piped())

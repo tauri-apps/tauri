@@ -72,13 +72,14 @@ fn main() {
       fn inline_style(s: &str) -> String {
         format!(r#"<style type="text/css">{}</style>"#, s)
       }
+
       fn inline_script(s: &str) -> String {
         format!(r#"<script type="text/javascript">{}</script>"#, s)
       }
       let html = format!(r#"<!DOCTYPE html><html><head><meta http-equiv="Content-Security-Policy" content="default-src data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'">{styles}</head><body><div id="q-app"></div>{scripts}</body></html>"#,
-        styles = inline_style(include_str!("../target/compiled-web/css/app.css")),
-        scripts = inline_script(include_str!("../target/compiled-web/js/app.js")),
-      );
+    styles = inline_style(include_str!("../target/compiled-web/css/app.css")),
+    scripts = inline_script(include_str!("../target/compiled-web/js/app.js")),
+  );
       content = proton_ui::Content::Html(html);
     }
     #[cfg(not(feature = "serverless"))]
@@ -125,9 +126,46 @@ fn main() {
     .build()
     .unwrap();
 
+  webview
+    .handle()
+    .dispatch(move |_webview| {
+      _webview
+        .eval(&format!(
+          "window['{queue}'] = [];
+          window['{fn}'] = function (payload, salt, ignoreQueue) {{
+            window.proton.promisified({{
+              cmd: 'validateSalt',
+              salt
+            }}).then(function () {{
+              const listeners = (window['{listeners}'] && window['{listeners}'][payload.type]) || []
+
+              if (!ignoreQueue && listeners.length === 0) {{ 
+                window['{queue}'].push({{ 
+                  payload: payload,
+                  salt: salt
+                 }})
+              }}
+
+              for (let i = listeners.length - 1; i >= 0; i--) {{ 
+                const listener = listeners[i]
+                if (listener.once)
+                  listeners.splice(i, 1)
+                listener.handler(payload)
+              }}
+            }})
+          }}", 
+          fn = proton::event::emit_function_name(),
+          listeners = proton::event::event_listeners_object_name(),
+          queue = proton::event::event_queue_object_name()
+        ))
+        .unwrap();
+
+      Ok(())
+    })
+    .unwrap();
+
   #[cfg(not(feature = "dev"))]
   {
-
     #[cfg(not(feature = "serverless"))]
     {
       thread::spawn(move || {

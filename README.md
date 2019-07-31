@@ -79,22 +79,42 @@ use without jumping through some development hurdles. If you don't care,
 please reach out to the team at https://chat.quasar.dev and we'll guide
 you through the process. Here is a bit of a status report.
 
-- [x] Promise based File System Access
+#### App Bundles
 - [x] App Icons and integration with Icon-Genie
+- [x] Build on MacOS (.app, .dmg coming soon)
+- [x] Build on Linux (.deb, AppImage coming soon)
+- [x] Build on Windows (.exe, .msi coming soon)
+- [ ] App Signing
+- [x] Self Updater (WIP)
 - [ ] Frameless Mode
-- [x] Build on MacOS
-- [x] Build on Linux
-- [x] Build on Windows
-- [x] STDOUT Passthrough with Command Invocation
-- [x] Self Updater
-- [x] Inter Process Communication (IPC)
-- [x] Documentation
-- [x] Filesystem R/W (scoped to permissions)
-- [ ] Secure Cryptographic Enclave
-- [x] Message Bus
+- [ ] Transparent Mode
+- [ ] Multiwindow Mode
+- [ ] Tray (coming soon)
 - [x] Copy Buffer
-- [ ] API Spec (in progress)
+- [x] CSP Injection
+
+#### API 
+- [ ] answer - enable rust to direct the UI
+- [ ] bridge - enable Quasar Bridge
+- [x] event - enable binding to message
+- [x] execute - STDOUT Passthrough with Command Invocation
+- [x] listFiles - list files in a directory 
+- [x] open - open link in a browser
+- [x] readBinaryFile - read binary file from local filesystem
+- [x] readTextFile - read text file from local filesystem
+- [x] setTitle - set the window title
+- [x] writeFile - write file to local filesystem
+- [x] API Spec
+- [x] Inter Process Communication (IPC)
+- [x] Documentation (WIP)
+- [x] Message Bus
+
+### Security Features
 - [x] localhost-free mode (:fire:)
+- [x] Secure Cryptographic Enclave
+- [x] Dynamic ahead of Time Compilation (dAoT) with functional tree-shaking
+- [x] functional Address Space Layout Randomization
+- [x] OTP salting of function names and messages
 
 ### Comparison between Proton 1 and Electron 5
 
@@ -106,7 +126,7 @@ you through the process. Here is a bit of a status report.
 | Interface Service Provider | Varies | Chromium |
 | Quasar UI | VueJS | VueJS |
 | Backend Binding | Rust | Node.js (ECMAScript) |
-| Underlying Engine | C++ | V8 (C/C++) |
+| Underlying Engine | C/C++ | V8 (C/C++) |
 | FLOSS | Yes | No |
 | Multithreading | Yes | No |
 | Bytecode Delivery | Yes | No |
@@ -124,9 +144,10 @@ you through the process. Here is a bit of a status report.
 | Android Binary | Soon | No |
 | Localhost Server | Yes | Yes |
 | No localhost option | Yes | No |
+| Desktop Tray | Soon | No |
 
 #### Notes
-1) Electron has no native auto updater on Linux
+1) Electron has no native auto updater on Linux, but is offered by electron-packager
 
 ## Relation to Upstream Origins
 We have made the decision to fork, enhance and maintain several upstream

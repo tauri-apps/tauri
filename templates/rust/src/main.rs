@@ -17,13 +17,13 @@ extern crate tiny_http;
 use clap::{App, Arg};
 
 #[cfg(not(feature = "dev"))]
-#[cfg(not(feature = "serverless"))]
+#[cfg(feature = "embedded-server")]
 use std::thread;
 
 mod cmd;
 
 #[cfg(not(feature = "dev"))]
-#[cfg(not(feature = "serverless"))]
+#[cfg(feature = "embedded-server")]
 mod server;
 
 fn main() {
@@ -67,7 +67,7 @@ fn main() {
   #[cfg(not(feature = "dev"))]
   {
     debug = cfg!(debug_assertions);
-    #[cfg(feature = "serverless")]
+    #[cfg(not(feature = "embedded-server"))]
     {
       fn inline_style(s: &str) -> String {
         format!(r#"<style type="text/css">{}</style>"#, s)
@@ -82,7 +82,7 @@ fn main() {
   );
       content = proton_ui::Content::Html(html);
     }
-    #[cfg(not(feature = "serverless"))]
+    #[cfg(feature = "embedded-server")]
     {
       if let Some(available_port) = proton::tcp::get_available_port() {
         _server_url = format!("{}:{}", "127.0.0.1", available_port);
@@ -165,7 +165,7 @@ fn main() {
 
   #[cfg(not(feature = "dev"))]
   {
-    #[cfg(not(feature = "serverless"))]
+    #[cfg(feature = "embedded-server")]
     {
       thread::spawn(move || {
         let server = tiny_http::Server::http(_server_url).unwrap();

@@ -39,6 +39,13 @@ passing ecosystems - the bar has been raised and gauntlet thrown.
 
 What will you make?
 
+## 5 Reasons to consider Proton
+- **BUNDLE SIZE** of a vanilla Proton app is less than 3 MB - about 140 MB smaller than what you get with Electron.
+- **MEMORY FOOTPRINT** is less than half of the size of an Electron app built from the same codebase. 
+- **SECURITY** is Proton's biggest priority and we take it so seriously that we innovate to keep hackers out of your apps. 
+- **RELIABILITY** of the underlying code base is why critical libraries have been forked and will be perpetually maintained.
+- **FLOSS** licensing is regretfully impossible with downstream Chromium consumers, like Electron.
+
 ## Technical Details
 The user interface in Proton apps currently leverages Cocoa/WebKit on macOS, 
 gtk-webkit2 on Linux and MSHTML (IE10/11) or Webkit via Edge on Windows. 
@@ -91,7 +98,6 @@ you through the process. Here is a bit of a status report.
 - [ ] Multiwindow Mode
 - [ ] Tray (coming soon)
 - [x] Copy Buffer
-- [x] CSP Injection
 
 #### API 
 - [ ] answer - enable rust to direct the UI
@@ -111,10 +117,11 @@ you through the process. Here is a bit of a status report.
 
 ### Security Features
 - [x] localhost-free mode (:fire:)
-- [x] Secure Cryptographic Enclave
+- [x] Secure Cryptographic Enclave (devland implementation)
 - [x] Dynamic ahead of Time Compilation (dAoT) with functional tree-shaking
 - [x] functional Address Space Layout Randomization
 - [x] OTP salting of function names and messages
+- [x] CSP Injection
 
 ### Comparison between Proton 1 and Electron 5
 
@@ -131,7 +138,7 @@ you through the process. Here is a bit of a status report.
 | Multithreading | Yes | No |
 | Bytecode Delivery | Yes | No |
 | Can Render PDF | Yes | No |
-| Multiple Windows | Yes | Yes |
+| Multiple Windows | Soon | Yes |
 | GPU Access | Yes | Yes |
 | Auto Updater | Yes | Yes (1) |
 | Inter Process Communication (IPC) | Yes | Yes |

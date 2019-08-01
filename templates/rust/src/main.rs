@@ -72,18 +72,7 @@ fn main() {
     debug = cfg!(debug_assertions);
     #[cfg(not(feature = "embedded-server"))]
     {
-      fn inline_style(s: &str) -> String {
-        format!(r#"<style type="text/css">{}</style>"#, s)
-      }
-
-      fn inline_script(s: &str) -> String {
-        format!(r#"<script type="text/javascript">{}</script>"#, s)
-      }
-      let html = format!(r#"<!DOCTYPE html><html><head><meta http-equiv="Content-Security-Policy" content="default-src data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'">{styles}</head><body><div id="q-app"></div>{scripts}</body></html>"#,
-    styles = inline_style(include_str!("../target/compiled-web/css/app.css")),
-    scripts = inline_script(include_str!("../target/compiled-web/js/app.js")),
-  );
-      content = proton_ui::Content::Html(html);
+      content = proton_ui::Content::Html(include_str!("../target/compiled-web/index.html"));
     }
     #[cfg(feature = "embedded-server")]
     {

@@ -6,11 +6,6 @@ extern crate proton_ui;
 extern crate serde_json;
 
 #[cfg(not(feature = "dev"))]
-extern crate includedir;
-#[cfg(not(feature = "dev"))]
-extern crate phf;
-
-#[cfg(not(feature = "dev"))]
 extern crate tiny_http;
 
 #[cfg(feature = "dev")]
@@ -181,7 +176,7 @@ fn main() {
           if url == "/" {
             url = "/index.html".to_string();
           }
-          request.respond(server::asset_response(&url)).unwrap();
+          request.respond(proton::server::asset_response(&url)).unwrap();
         }
       });
     }

@@ -84,7 +84,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // Copy resource files into package:
   let mut resources =
     collect_resource_info(settings).chain_err(|| "Failed to collect resource file information")?;
-  let directories = collect_directory_info(settings, &mut resources)
+  let _directories = collect_directory_info(settings, &mut resources)
     .chain_err(|| "Failed to collect resource directory information")?;
   let cabinets = divide_resources_into_cabinets(resources);
   generate_resource_cabinets(&mut package, &cabinets)
@@ -94,7 +94,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let drain = std::sync::Mutex::new(drain).fuse();
   let logger = slog::Logger::root(drain, o!());
 
-  wix::get_and_extract_wix(&logger, &dirs::home_dir().unwrap());
+  wix::get_and_extract_wix(&logger, &PathBuf::from("./WixTools"));
 
   // Set up installer database tables:
   // create_directory_table(&mut package, &directories)

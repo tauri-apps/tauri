@@ -93,8 +93,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let drain = slog_term::CompactFormat::new(decorator).build();
   let drain = std::sync::Mutex::new(drain).fuse();
   let logger = slog::Logger::root(drain, o!());
+  let wix_path = PathBuf::from("./WixTools");
 
-  wix::get_and_extract_wix(&logger, &PathBuf::from("./WixTools"));
+  wix::get_and_extract_wix(&logger, &wix_path)?;
+
+  wix::build_wix_app_installer(&logger, &settings, &wix_path, PathBuf::from("."))?;
 
   // Set up installer database tables:
   // create_directory_table(&mut package, &directories)

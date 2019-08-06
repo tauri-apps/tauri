@@ -3,6 +3,7 @@ use super::settings::Settings;
 use super::wix;
 use crate::ResultExt;
 use cab;
+use dirs;
 use msi;
 use slog::Drain;
 use slog_term;
@@ -29,12 +30,6 @@ const FILE_ATTR_VITAL: u16 = 0x200;
 
 // The name of the installer package's sole Feature:
 const MAIN_FEATURE_NAME: &str = "MainFeature";
-
-// A v4 UUID that was generated specifically for cargo-bundle, to be used as a
-// namespace for generating v5 UUIDs from bundle identifier strings.
-const UUID_NAMESPACE: [u8; 16] = [
-  0xfd, 0x85, 0x95, 0xa8, 0x17, 0xa3, 0x47, 0x4e, 0xa6, 0x16, 0x76, 0x14, 0x8d, 0xfa, 0x0c, 0x7b,
-];
 
 // Info about a resource file (including the main executable) in the bundle.
 struct ResourceInfo {
@@ -81,10 +76,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     new_empty_package(&msi_path).chain_err(|| "Failed to initialize MSI package")?;
 
   // Generate package metadata:
-  let guid = generate_package_guid(settings);
-  set_summary_info(&mut package, guid, settings);
-  create_property_table(&mut package, guid, settings)
-    .chain_err(|| "Failed to generate Property table")?;
+  // let guid = generate_package_guid(settings);
+  // set_summary_info(&mut package, guid, settings);
+  // create_property_table(&mut package, guid, settings)
+  //   .chain_err(|| "Failed to generate Property table")?;
 
   // Copy resource files into package:
   let mut resources =
@@ -99,7 +94,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let drain = std::sync::Mutex::new(drain).fuse();
   let logger = slog::Logger::root(drain, o!());
 
-  wix::get_and_extract_wix(&logger, &env::home_dir().unwrap());
+  wix::get_and_extract_wix(&logger, &dirs::home_dir().unwrap());
 
   // Set up installer database tables:
   // create_directory_table(&mut package, &directories)
@@ -149,12 +144,6 @@ fn new_empty_package(msi_path: &Path) -> crate::Result<Package> {
     .chain_err(|| format!("Failed to create file {:?}", msi_path))?;
   let package = msi::Package::create(msi::PackageType::Installer, msi_file)?;
   Ok(package)
-}
-
-// Generates a GUID for the package, based on `settings.bundle_identifier()`.
-fn generate_package_guid(settings: &Settings) -> Uuid {
-  let namespace = Uuid::from_bytes(&UUID_NAMESPACE).unwrap();
-  Uuid::new_v5(&namespace, &settings.bundle_identifier())
 }
 
 // Populates the summary metadata for the package from the bundle settings.

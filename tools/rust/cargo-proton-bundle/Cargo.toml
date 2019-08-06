@@ -28,7 +28,7 @@ tar = "0.4"
 target_build_utils = "0.3"
 term = "0.4"
 toml = "0.4"
-uuid = { version = "0.5", features = ["v5", "v4"] }
+uuid = { version = "0.5", features = ["v5"] }
 walkdir = "2"
 
 slog-term = "2.4.1"
@@ -39,6 +39,7 @@ slog = "2.5.2"
 reqwest = "0.9.19"
 hex = "0.3"
 zip = "0.5"
+
 
 [dev-dependencies]
 tempfile = "3"

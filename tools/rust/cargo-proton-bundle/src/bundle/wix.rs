@@ -28,6 +28,12 @@ const VC_REDIST_X64_URL: &str =
 const VC_REDIST_X64_SHA256: &str =
   "d6cd2445f68815fe02489fafe0127819e44851e26dfbe702612bc0d223cbbc2b";
 
+// A v4 UUID that was generated specifically for cargo-bundle, to be used as a
+// namespace for generating v5 UUIDs from bundle identifier strings.
+const UUID_NAMESPACE: [u8; 16] = [
+  0xfd, 0x85, 0x95, 0xa8, 0x17, 0xa3, 0x47, 0x4e, 0xa6, 0x16, 0x76, 0x14, 0x8d, 0xfa, 0x0c, 0x7b,
+];
+
 lazy_static! {
   static ref HANDLEBARS: Handlebars = {
     let mut handlebars = Handlebars::new();
@@ -103,6 +109,11 @@ fn extract_zip(data: &Vec<u8>, path: &Path) -> Result<(), String> {
   }
 
   Ok(())
+}
+
+fn generate_package_guid(settings: &Settings) -> Uuid {
+  let namespace = Uuid::from_bytes(&UUID_NAMESPACE).unwrap();
+  Uuid::new_v5(&namespace, &settings.bundle_identifier())
 }
 
 pub fn get_and_extract_wix(logger: &Logger, path: &Path) -> Result<(), String> {
@@ -288,8 +299,8 @@ pub fn build_wix_app_installer(
 
   data.insert("upgrade_code", &upgrade_code);
 
-  let path_guid = Uuid::new_v4().to_string();
-  data.insert("path_component_guid", &path_guid);
+  let path_guid = generate_package_guid(settings).to_string();
+  data.insert("path_component_guid", &path_guid.as_str());
 
   let app_exe_name = settings
     .binary_path()

@@ -1,18 +1,20 @@
+use super::settings::Settings;
 use handlebars::Handlebars;
 use lazy_static::lazy_static;
 use sha2::Digest;
 use slog::info;
 use slog::Logger;
 use std::collections::BTreeMap;
-use std::fs::{create_dir_all, File};
+use std::fs::{create_dir_all, remove_dir_all, write, File};
 use std::io::{BufRead, BufReader, Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use uuid::Uuid;
 use zip::ZipArchive;
 
-const WIX_URL: &str =
+pub const WIX_URL: &str =
   "https://github.com/wixtoolset/wix3/releases/download/wix3111rtm/wix311-binaries.zip";
-const WIX_SHA256: &str = "37f0a533b0978a454efb5dc3bd3598becf9660aaf4287e55bf68ca6b527d051d";
+pub const WIX_SHA256: &str = "37f0a533b0978a454efb5dc3bd3598becf9660aaf4287e55bf68ca6b527d051d";
 
 const VC_REDIST_X86_URL: &str =
     "https://download.visualstudio.microsoft.com/download/pr/c8edbb87-c7ec-4500-a461-71e8912d25e9/99ba493d660597490cbb8b3211d2cae4/vc_redist.x86.exe";
@@ -63,6 +65,20 @@ fn download_and_verify(logger: &Logger, url: &str, hash: &str) -> Result<Vec<u8>
   }
 }
 
+fn app_installer_dir(settings: &Settings) -> PathBuf {
+  let arch = match settings.binary_arch() {
+    "i686-pc-windows-msvc" => "x86",
+    "x86_64-pc-windows-msvc" => "amd64",
+    target => panic!("unsupported target: {}", target),
+  };
+
+  settings.project_out_directory().to_path_buf().join(format!(
+    "{}.{}.msi",
+    settings.bundle_name(),
+    arch
+  ))
+}
+
 fn extract_zip(data: &Vec<u8>, path: &Path) -> Result<(), String> {
   let cursor = Cursor::new(data);
 
@@ -89,7 +105,7 @@ fn extract_zip(data: &Vec<u8>, path: &Path) -> Result<(), String> {
   Ok(())
 }
 
-fn get_and_extract_wix(logger: &Logger, path: &Path) -> Result<(), String> {
+pub fn get_and_extract_wix(logger: &Logger, path: &Path) -> Result<(), String> {
   info!(logger, "downloading WIX Toolkit...");
 
   let data = download_and_verify(logger, WIX_URL, WIX_SHA256)?;
@@ -151,6 +167,7 @@ fn run_heat_exe(
 }
 
 fn run_candle(
+  settings: &Settings,
   logger: &Logger,
   wix_toolset_path: &Path,
   build_path: &Path,
@@ -159,9 +176,14 @@ fn run_candle(
   let arch = "x64";
 
   let args = vec![
+    "-ext".to_string(),
+    "WixBalExtension".to_string(),
+    "-ext".to_string(),
+    "WixUtilExtension".to_string(),
     "-arch".to_string(),
     arch.to_string(),
     wxs_file_name.to_string(),
+    format!("-dSourceDir={}", settings.binary_path().display()),
   ];
 
   let candle_exe = wix_toolset_path.join("candle.exe");
@@ -228,4 +250,94 @@ fn run_light(
   } else {
     Err("error running light.exe".to_string())
   }
+}
+
+pub fn build_wix_app_installer(
+  logger: &Logger,
+  settings: &Settings,
+  wix_toolset_path: &Path,
+  current_dir: PathBuf,
+) -> Result<(), String> {
+  let arch = match settings.binary_arch() {
+    "i686-pc-windows-msvc" => "x86",
+    "x86_64-pc-windows-msvc" => "amd64",
+    target => return Err(format!("unsupported target: {}", target)),
+  };
+
+  let output_path = settings.project_out_directory().join("wix").join(arch);
+
+  let mut data = BTreeMap::new();
+
+  data.insert("product_name", settings.bundle_name());
+  data.insert("version", settings.version_string());
+  let upgrade_code = if arch == "x86" {
+    Uuid::new_v5(
+      &uuid::NAMESPACE_DNS,
+      format!("{}.app.x64", &settings.bundle_name()).as_str(),
+    )
+    .to_string()
+  } else if arch == "x64" {
+    Uuid::new_v5(
+      &uuid::NAMESPACE_DNS,
+      format!("{}.app.x64", &settings.bundle_name()).as_str(),
+    )
+    .to_string()
+  } else {
+    panic!("unsupported target: {}");
+  };
+
+  data.insert("upgrade_code", &upgrade_code);
+
+  let path_guid = Uuid::new_v4().to_string();
+  data.insert("path_component_guid", &path_guid);
+
+  let app_exe_name = settings
+    .binary_path()
+    .file_name()
+    .unwrap()
+    .to_string_lossy()
+    .to_string();
+  data.insert("app_exe_name", &app_exe_name);
+
+  let app_exe_source = settings.binary_path().display().to_string();
+  data.insert("app_exe_source", &app_exe_source);
+
+  let temp = HANDLEBARS
+    .render("main.wxs", &data)
+    .or_else(|e| Err(e.to_string()))?;
+
+  if output_path.exists() {
+    remove_dir_all(&output_path).or_else(|e| Err(e.to_string()))?;
+  }
+
+  create_dir_all(&output_path).or_else(|e| Err(e.to_string()))?;
+
+  let main_wxs_path = output_path.join("main.wxs");
+  write(&main_wxs_path, temp).or_else(|e| Err(e.to_string()))?;
+
+  run_heat_exe(
+    logger,
+    &wix_toolset_path,
+    &output_path,
+    &Settings::get_workspace_dir(&current_dir),
+    arch,
+  )?;
+
+  let input_basenames = vec!["main", "appdir"];
+
+  for basename in &input_basenames {
+    let wxs = format!("{}.wxs", basename);
+    run_candle(settings, logger, &wix_toolset_path, &output_path, &wxs)?;
+  }
+
+  let wixobjs = vec!["main.wixobj", "appdir.wixobj"];
+  run_light(
+    logger,
+    &wix_toolset_path,
+    &output_path,
+    &wixobjs,
+    &app_installer_dir(settings),
+  )?;
+
+  Ok(())
 }

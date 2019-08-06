@@ -1,10 +1,14 @@
 use super::common;
 use super::settings::Settings;
+use super::wix;
 use crate::ResultExt;
 use cab;
 use msi;
+use slog::Drain;
+use slog_term;
 use std;
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::env;
 use std::ffi::OsStr;
 use std::fs;
 use std::io::{self, Write};
@@ -90,39 +94,45 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let cabinets = divide_resources_into_cabinets(resources);
   generate_resource_cabinets(&mut package, &cabinets)
     .chain_err(|| "Failed to generate resource cabinets")?;
+  let decorator = slog_term::TermDecorator::new().build();
+  let drain = slog_term::CompactFormat::new(decorator).build();
+  let drain = std::sync::Mutex::new(drain).fuse();
+  let logger = slog::Logger::root(drain, o!());
+
+  wix::get_and_extract_wix(&logger, &env::home_dir().unwrap());
 
   // Set up installer database tables:
-  create_directory_table(&mut package, &directories)
-    .chain_err(|| "Failed to generate Directory table")?;
-  create_feature_table(&mut package, settings).chain_err(|| "Failed to generate Feature table")?;
-  create_component_table(&mut package, guid, &directories)
-    .chain_err(|| "Failed to generate Component table")?;
-  create_feature_components_table(&mut package, &directories)
-    .chain_err(|| "Failed to generate FeatureComponents table")?;
-  create_media_table(&mut package, &cabinets).chain_err(|| "Failed to generate Media table")?;
-  create_file_table(&mut package, &cabinets).chain_err(|| "Failed to generate File table")?;
-  // TODO: Create other needed tables.
+  // create_directory_table(&mut package, &directories)
+  //   .chain_err(|| "Failed to generate Directory table")?;
+  // create_feature_table(&mut package, settings).chain_err(|| "Failed to generate Feature table")?;
+  // create_component_table(&mut package, guid, &directories)
+  //   .chain_err(|| "Failed to generate Component table")?;
+  // create_feature_components_table(&mut package, &directories)
+  //   .chain_err(|| "Failed to generate FeatureComponents table")?;
+  // create_media_table(&mut package, &cabinets).chain_err(|| "Failed to generate Media table")?;
+  // create_file_table(&mut package, &cabinets).chain_err(|| "Failed to generate File table")?;
+  // // TODO: Create other needed tables.
 
-  // Create app icon:
-  package.create_table(
-    "Icon",
-    vec![
-      msi::Column::build("Name").primary_key().id_string(72),
-      msi::Column::build("Data").binary(),
-    ],
-  )?;
-  let icon_name = format!("{}.ico", settings.binary_name());
-  {
-    let stream_name = format!("Icon.{}", icon_name);
-    let mut stream = package.write_stream(&stream_name)?;
-    create_app_icon(&mut stream, settings)?;
-  }
-  package.insert_rows(msi::Insert::into("Icon").row(vec![
-    msi::Value::Str(icon_name.clone()),
-    msi::Value::from("Name"),
-  ]))?;
+  // // Create app icon:
+  // package.create_table(
+  //   "Icon",
+  //   vec![
+  //     msi::Column::build("Name").primary_key().id_string(72),
+  //     msi::Column::build("Data").binary(),
+  //   ],
+  // )?;
+  // let icon_name = format!("{}.ico", settings.binary_name());
+  // {
+  //   let stream_name = format!("Icon.{}", icon_name);
+  //   let mut stream = package.write_stream(&stream_name)?;
+  //   create_app_icon(&mut stream, settings)?;
+  // }
+  // package.insert_rows(msi::Insert::into("Icon").row(vec![
+  //   msi::Value::Str(icon_name.clone()),
+  //   msi::Value::from("Name"),
+  // ]))?;
 
-  package.flush()?;
+  // package.flush()?;
   Ok(vec![msi_path])
 }
 

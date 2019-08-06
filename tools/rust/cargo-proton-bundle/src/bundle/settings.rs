@@ -252,7 +252,7 @@ impl Settings {
           - Stop at the first one found.
           - If one is found before reaching "/" then this folder belongs to that parent workspace
   */
-  fn get_workspace_dir(current_dir: &PathBuf) -> PathBuf {
+  pub fn get_workspace_dir(current_dir: &PathBuf) -> PathBuf {
     let mut dir = current_dir.clone();
     while dir.pop() {
       let set = CargoSettings::load(&dir);

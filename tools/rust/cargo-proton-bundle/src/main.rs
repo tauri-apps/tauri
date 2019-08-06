@@ -10,6 +10,9 @@ extern crate serde_derive;
 #[cfg(test)]
 extern crate tempfile;
 
+#[macro_use]
+extern crate slog;
+
 mod bundle;
 
 use crate::bundle::{bundle_project, BuildArtifact, PackageType, Settings};

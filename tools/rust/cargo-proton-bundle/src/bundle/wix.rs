@@ -271,9 +271,11 @@ pub fn build_wix_app_installer(
 ) -> Result<(), String> {
   let arch = match settings.binary_arch() {
     "i686-pc-windows-msvc" => "x86",
-    "x86_64-pc-windows-msvc" => "amd64",
+    "x86_64-pc-windows-msvc" => "x64",
     target => return Err(format!("unsupported target: {}", target)),
   };
+
+  info!(logger, "Target: {}", settings.binary_arch());
 
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
@@ -294,7 +296,7 @@ pub fn build_wix_app_installer(
     )
     .to_string()
   } else {
-    panic!("unsupported target: {}");
+    return Err(format!("unsupported target: {}", arch));
   };
 
   data.insert("upgrade_code", &upgrade_code);

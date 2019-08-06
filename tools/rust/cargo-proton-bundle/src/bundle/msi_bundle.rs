@@ -97,7 +97,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   wix::get_and_extract_wix(&logger, &wix_path)?;
 
-  wix::build_wix_app_installer(&logger, &settings, &wix_path, PathBuf::from("."))?;
+  wix::build_wix_app_installer(&logger, &settings, &wix_path, base_dir)?;
 
   // Set up installer database tables:
   // create_directory_table(&mut package, &directories)

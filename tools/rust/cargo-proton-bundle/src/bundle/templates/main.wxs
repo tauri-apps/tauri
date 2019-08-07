@@ -20,30 +20,20 @@
 
         <Package Id="*"
                  Keywords="Installer"
-                 InstallerVersion="450"
+                 InstallerVersion="200"
                  Languages="1033"
                  Compressed="yes"
                  InstallScope="perMachine"
                  SummaryCodepage="1252"/>
 
-        <MajorUpgrade
-                Schedule="afterInstallInitialize"
-                DowngradeErrorMessage="A newer version of [ProductName] is already installed. Setup will now exit."/>
+        <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
 
-        <Media Id="1" Cabinet="media1.cab" EmbedCab="yes"/>
 
         <Directory Id="TARGETDIR" Name="SourceDir">
             <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">
                 <Directory Id="APPLICATIONFOLDER" Name="{{{product_name}}}">
                     <Component Id="Path" Guid="{{{path_component_guid}}}" Win64="$(var.Win64)" KeyPath="yes">
-                        <Environment
-                                Id="PATH"
-                                Name="PATH"
-                                Value="[Bin]"
-                                Permanent="no"
-                                Part="last"
-                                Action="set"
-                                System="yes"/>
+                        <File Id="PathFile" Source="{{{app_exe_source}}}" />
                     </Component>
                 </Directory>
             </Directory>
@@ -58,7 +48,7 @@
                 AllowAdvertise="no"
                 Display="expand"
                 Absent="disallow">
-            <ComponentGroupRef Id="AppFiles"/>
+
             <Feature
                     Id="Environment"
                     Title="PATH Environment Variable"
@@ -70,10 +60,6 @@
         </Feature>
 
         <SetProperty Id="ARPINSTALLLOCATION" Value="[APPLICATIONFOLDER]" After="CostFinalize"/>
-
-        <UI>
-            <UIRef Id="WixUI_FeatureTree"/>
-        </UI>
 
     </Product>
 </Wix>

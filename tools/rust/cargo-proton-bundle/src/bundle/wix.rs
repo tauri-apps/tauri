@@ -16,17 +16,19 @@ pub const WIX_URL: &str =
   "https://github.com/wixtoolset/wix3/releases/download/wix3111rtm/wix311-binaries.zip";
 pub const WIX_SHA256: &str = "37f0a533b0978a454efb5dc3bd3598becf9660aaf4287e55bf68ca6b527d051d";
 
-const VC_REDIST_X86_URL: &str =
-    "https://download.visualstudio.microsoft.com/download/pr/c8edbb87-c7ec-4500-a461-71e8912d25e9/99ba493d660597490cbb8b3211d2cae4/vc_redist.x86.exe";
+// For Cross Platform Complilation.
 
-const VC_REDIST_X86_SHA256: &str =
-  "3a43e8a55a3f3e4b73d01872c16d47a19dd825756784f4580187309e7d1fcb74";
+// const VC_REDIST_X86_URL: &str =
+//     "https://download.visualstudio.microsoft.com/download/pr/c8edbb87-c7ec-4500-a461-71e8912d25e9/99ba493d660597490cbb8b3211d2cae4/vc_redist.x86.exe";
 
-const VC_REDIST_X64_URL: &str =
-    "https://download.visualstudio.microsoft.com/download/pr/9e04d214-5a9d-4515-9960-3d71398d98c3/1e1e62ab57bbb4bf5199e8ce88f040be/vc_redist.x64.exe";
+// const VC_REDIST_X86_SHA256: &str =
+//   "3a43e8a55a3f3e4b73d01872c16d47a19dd825756784f4580187309e7d1fcb74";
 
-const VC_REDIST_X64_SHA256: &str =
-  "d6cd2445f68815fe02489fafe0127819e44851e26dfbe702612bc0d223cbbc2b";
+// const VC_REDIST_X64_URL: &str =
+//     "https://download.visualstudio.microsoft.com/download/pr/9e04d214-5a9d-4515-9960-3d71398d98c3/1e1e62ab57bbb4bf5199e8ce88f040be/vc_redist.x64.exe";
+
+// const VC_REDIST_X64_SHA256: &str =
+//   "d6cd2445f68815fe02489fafe0127819e44851e26dfbe702612bc0d223cbbc2b";
 
 // A v4 UUID that was generated specifically for cargo-bundle, to be used as a
 // namespace for generating v5 UUIDs from bundle identifier strings.
@@ -72,11 +74,7 @@ fn download_and_verify(logger: &Logger, url: &str, hash: &str) -> Result<Vec<u8>
 }
 
 fn app_installer_dir(settings: &Settings) -> PathBuf {
-  let arch = match settings.binary_arch() {
-    "i686-pc-windows-msvc" => "x86",
-    "x86_64-pc-windows-msvc" => "amd64",
-    target => panic!("unsupported target: {}", target),
-  };
+  let arch = "x64";
 
   settings.project_out_directory().to_path_buf().join(format!(
     "{}.{}.msi",
@@ -126,56 +124,58 @@ pub fn get_and_extract_wix(logger: &Logger, path: &Path) -> Result<(), String> {
   extract_zip(&data, path)
 }
 
-fn run_heat_exe(
-  logger: &Logger,
-  wix_toolset_path: &Path,
-  build_path: &Path,
-  harvest_dir: &Path,
-  platform: &str,
-) -> Result<(), String> {
-  let mut args = vec!["dir"];
+// For if bundler needs DLL files.
 
-  let harvest_str = harvest_dir.display().to_string();
+// fn run_heat_exe(
+//   logger: &Logger,
+//   wix_toolset_path: &Path,
+//   build_path: &Path,
+//   harvest_dir: &Path,
+//   platform: &str,
+// ) -> Result<(), String> {
+//   let mut args = vec!["dir"];
 
-  args.push(&harvest_str);
-  args.push("-platform");
-  args.push(platform);
-  args.push("-cg");
-  args.push("AppFiles");
-  args.push("-dr");
-  args.push("APPLICATIONFOLDER");
-  args.push("-gg");
-  args.push("-srd");
-  args.push("-out");
-  args.push("appdir.wxs");
-  args.push("-var");
-  args.push("var.SourceDir");
+//   let harvest_str = harvest_dir.display().to_string();
 
-  let heat_exe = wix_toolset_path.join("head.exe");
+//   args.push(&harvest_str);
+//   args.push("-platform");
+//   args.push(platform);
+//   args.push("-cg");
+//   args.push("AppFiles");
+//   args.push("-dr");
+//   args.push("APPLICATIONFOLDER");
+//   args.push("-gg");
+//   args.push("-srd");
+//   args.push("-out");
+//   args.push("appdir.wxs");
+//   args.push("-var");
+//   args.push("var.SourceDir");
 
-  let mut cmd = Command::new(&heat_exe)
-    .args(&args)
-    .stdout(Stdio::piped())
-    .current_dir(build_path)
-    .spawn()
-    .expect("error running heat.exe");
+//   let heat_exe = wix_toolset_path.join("heat.exe");
 
-  {
-    let stdout = cmd.stdout.as_mut().unwrap();
-    let reader = BufReader::new(stdout);
+//   let mut cmd = Command::new(&heat_exe)
+//     .args(&args)
+//     .stdout(Stdio::piped())
+//     .current_dir(build_path)
+//     .spawn()
+//     .expect("error running heat.exe");
 
-    for line in reader.lines() {
-      info!(logger, "{}", line.unwrap());
-    }
-  }
+//   {
+//     let stdout = cmd.stdout.as_mut().unwrap();
+//     let reader = BufReader::new(stdout);
 
-  let status = cmd.wait().unwrap();
-  if status.success() {
-    Ok(())
-  } else {
-    Err("error running heat.exe".to_string())
-  }
-}
+//     for line in reader.lines() {
+//       info!(logger, "{}", line.unwrap());
+//     }
+//   }
+
+//   let status = cmd.wait().unwrap();
+//   if status.success() {
+//     Ok(())
+//   } else {
+//     Err("error running heat.exe".to_string())
+//   }
+// }
 
 fn run_candle(
   settings: &Settings,
@@ -187,10 +187,6 @@ fn run_candle(
   let arch = "x64";
 
   let args = vec![
-    "-ext".to_string(),
-    "WixBalExtension".to_string(),
-    "-ext".to_string(),
-    "WixUtilExtension".to_string(),
     "-arch".to_string(),
     arch.to_string(),
     wxs_file_name.to_string(),
@@ -229,7 +225,7 @@ fn run_light(
   build_path: &Path,
   wixobjs: &[&str],
   output_path: &Path,
-) -> Result<(), String> {
+) -> Result<PathBuf, String> {
   let light_exe = wix_toolset_path.join("light.exe");
 
   let mut args: Vec<String> = vec!["-o".to_string(), output_path.display().to_string()];
@@ -257,7 +253,7 @@ fn run_light(
 
   let status = cmd.wait().unwrap();
   if status.success() {
-    Ok(())
+    Ok(output_path.to_path_buf())
   } else {
     Err("error running light.exe".to_string())
   }
@@ -267,15 +263,10 @@ pub fn build_wix_app_installer(
   logger: &Logger,
   settings: &Settings,
   wix_toolset_path: &Path,
-  current_dir: PathBuf,
-) -> Result<(), String> {
-  let arch = match settings.binary_arch() {
-    "i686-pc-windows-msvc" => "x86",
-    "x86_64-pc-windows-msvc" => "x64",
-    target => return Err(format!("unsupported target: {}", target)),
-  };
+) -> Result<PathBuf, String> {
+  let arch = "x64";
 
-  info!(logger, "Target: {}", settings.binary_arch());
+  info!(logger, "Target: {}", arch);
 
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
@@ -283,36 +274,24 @@ pub fn build_wix_app_installer(
 
   data.insert("product_name", settings.bundle_name());
   data.insert("version", settings.version_string());
-  let upgrade_code = if arch == "x86" {
-    Uuid::new_v5(
-      &uuid::NAMESPACE_DNS,
-      format!("{}.app.x64", &settings.bundle_name()).as_str(),
-    )
-    .to_string()
-  } else if arch == "x64" {
-    Uuid::new_v5(
-      &uuid::NAMESPACE_DNS,
-      format!("{}.app.x64", &settings.bundle_name()).as_str(),
-    )
-    .to_string()
-  } else {
-    return Err(format!("unsupported target: {}", arch));
-  };
+  let manufacturer = settings.bundle_identifier().to_string();
+  data.insert("manufacturer", manufacturer.as_str());
+  let upgrade_code = Uuid::new_v5(
+    &uuid::NAMESPACE_DNS,
+    format!("{}.app.x64", &settings.binary_name()).as_str(),
+  )
+  .to_string();
 
-  data.insert("upgrade_code", &upgrade_code);
+  data.insert("upgrade_code", &upgrade_code.as_str());
 
   let path_guid = generate_package_guid(settings).to_string();
   data.insert("path_component_guid", &path_guid.as_str());
 
-  let app_exe_name = settings
-    .binary_path()
-    .file_name()
-    .unwrap()
-    .to_string_lossy()
-    .to_string();
+  let app_exe_name = settings.binary_name().to_string();
   data.insert("app_exe_name", &app_exe_name);
 
   let app_exe_source = settings.binary_path().display().to_string();
+
   data.insert("app_exe_source", &app_exe_source);
 
   let temp = HANDLEBARS
@@ -328,23 +307,15 @@ pub fn build_wix_app_installer(
   let main_wxs_path = output_path.join("main.wxs");
   write(&main_wxs_path, temp).or_else(|e| Err(e.to_string()))?;
 
-  run_heat_exe(
-    logger,
-    &wix_toolset_path,
-    &output_path,
-    &Settings::get_workspace_dir(&current_dir),
-    arch,
-  )?;
-
-  let input_basenames = vec!["main", "appdir"];
+  let input_basenames = vec!["main"];
 
   for basename in &input_basenames {
     let wxs = format!("{}.wxs", basename);
     run_candle(settings, logger, &wix_toolset_path, &output_path, &wxs)?;
   }
 
-  let wixobjs = vec!["main.wixobj", "appdir.wixobj"];
-  run_light(
+  let wixobjs = vec!["main.wixobj"];
+  let target = run_light(
     logger,
     &wix_toolset_path,
     &output_path,
@@ -352,5 +323,5 @@ pub fn build_wix_app_installer(
     &app_installer_dir(settings),
   )?;
 
-  Ok(())
+  Ok(target)
 }

@@ -12,6 +12,7 @@ use std::process::{Command, Stdio};
 use uuid::Uuid;
 use zip::ZipArchive;
 
+// URLS for the WIX toolchain.  Can be used for crossplatform compilation.
 pub const WIX_URL: &str =
   "https://github.com/wixtoolset/wix3/releases/download/wix3111rtm/wix311-binaries.zip";
 pub const WIX_SHA256: &str = "37f0a533b0978a454efb5dc3bd3598becf9660aaf4287e55bf68ca6b527d051d";
@@ -36,6 +37,7 @@ const UUID_NAMESPACE: [u8; 16] = [
   0xfd, 0x85, 0x95, 0xa8, 0x17, 0xa3, 0x47, 0x4e, 0xa6, 0x16, 0x76, 0x14, 0x8d, 0xfa, 0x0c, 0x7b,
 ];
 
+// setup for the main.wxs template file using handlebars. Dynamically changes the template on compilation based on the application metadata.
 lazy_static! {
   static ref HANDLEBARS: Handlebars = {
     let mut handlebars = Handlebars::new();
@@ -47,6 +49,7 @@ lazy_static! {
   };
 }
 
+// Function used to download Wix and VC_REDIST. Checks SHA256 to verify the download.
 fn download_and_verify(url: &str, hash: &str) -> crate::Result<Vec<u8>> {
   common::print_info(format!("Downloading {}", url).as_str())?;
 
@@ -83,6 +86,7 @@ fn app_installer_dir(settings: &Settings) -> PathBuf {
   ))
 }
 
+// Extracts the zips from Wix and VC_REDIST into a useable path.
 fn extract_zip(data: &Vec<u8>, path: &Path) -> crate::Result<()> {
   let cursor = Cursor::new(data);
 
@@ -109,10 +113,13 @@ fn extract_zip(data: &Vec<u8>, path: &Path) -> crate::Result<()> {
   Ok(())
 }
 
+// Generates the UUID for the Wix template.
 fn generate_package_guid(settings: &Settings) -> Uuid {
   let namespace = Uuid::from_bytes(&UUID_NAMESPACE).unwrap();
   Uuid::new_v5(&namespace, &settings.bundle_identifier())
 }
+
+// Specifically goes and gets Wix and verifies the download via Sha256
 
 pub fn get_and_extract_wix(path: &Path) -> crate::Result<()> {
   common::print_info("Verifying wix package")?;
@@ -176,6 +183,7 @@ pub fn get_and_extract_wix(path: &Path) -> crate::Result<()> {
 //   }
 // }
 
+// Runs the Candle.exe executable for Wix.  Candle parses the wxs file and generates the code for building the installer.
 fn run_candle(
   settings: &Settings,
   wix_toolset_path: &Path,
@@ -217,6 +225,7 @@ fn run_candle(
   }
 }
 
+// Runs the Light.exe file.  Light takes the generated code from Candle and produces an MSI Installer.
 fn run_light(
   wix_toolset_path: &Path,
   build_path: &Path,
@@ -256,12 +265,13 @@ fn run_light(
   }
 }
 
+// Entry point for bundling and creating the MSI installer.  For now the only supported platform is Windows x64.
 pub fn build_wix_app_installer(
   settings: &Settings,
   wix_toolset_path: &Path,
 ) -> crate::Result<PathBuf> {
   let arch = "x64";
-  common::print_warning("Only x64 supported");
+  common::print_warning("Only x64 supported")?;
   // target only supports x64.
   // common::print_info(format!("Target: {}", arch).as_str());
 

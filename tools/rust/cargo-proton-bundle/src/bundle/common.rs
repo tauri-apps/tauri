@@ -189,6 +189,25 @@ pub fn print_warning(message: &str) -> crate::Result<()> {
   }
 }
 
+/// Prints a Info message to stderr.
+pub fn print_info(message: &str) -> crate::Result<()> {
+  if let Some(mut output) = term::stderr() {
+    safe_term_attr(&mut output, term::Attr::Bold)?;
+    output.fg(term::color::GREEN)?;
+    write!(output, "Info:")?;
+    output.reset()?;
+    write!(output, " {}\n", message)?;
+    output.flush()?;
+    Ok(())
+  } else {
+    let mut output = io::stderr();
+    write!(output, "Info:")?;
+    write!(output, " {}\n", message)?;
+    output.flush()?;
+    Ok(())
+  }
+}
+
 /// Prints an error to stderr, in the same format that `cargo` uses.
 pub fn print_error(error: &crate::Error) -> crate::Result<()> {
   if let Some(mut output) = term::stderr() {

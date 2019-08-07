@@ -3,9 +3,6 @@ use super::common;
 use super::settings::Settings;
 use super::wix;
 use crate::ResultExt;
-
-use slog::Drain;
-use slog_term;
 use std;
 use std::collections::BTreeMap;
 
@@ -44,17 +41,14 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     collect_resource_info(settings).chain_err(|| "Failed to collect resource file information")?;
   let _directories = collect_directory_info(settings, &mut resources)
     .chain_err(|| "Failed to collect resource directory information")?;
-  let decorator = slog_term::TermDecorator::new().build();
-  let drain = slog_term::CompactFormat::new(decorator).build();
-  let drain = std::sync::Mutex::new(drain).fuse();
-  let logger = slog::Logger::root(drain, o!());
+
   let wix_path = PathBuf::from("./WixTools");
 
   if !wix_path.exists() {
-    wix::get_and_extract_wix(&logger, &wix_path)?;
+    wix::get_and_extract_wix(&wix_path)?;
   }
 
-  let msi_path = wix::build_wix_app_installer(&logger, &settings, &wix_path)?;
+  let msi_path = wix::build_wix_app_installer(&settings, &wix_path)?;
 
   Ok(vec![msi_path])
 }

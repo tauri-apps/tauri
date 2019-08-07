@@ -31,11 +31,9 @@ toml = "0.4"
 uuid = { version = "0.5", features = ["v5"] }
 walkdir = "2"
 
-slog-term = "2.4.1"
 sha2 = "0.8"
 lazy_static = "1.3"
 handlebars = "1.1"
-slog = "2.5.2"
 reqwest = "0.9.19"
 hex = "0.3"
 zip = "0.5"

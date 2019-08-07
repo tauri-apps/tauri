@@ -1,9 +1,9 @@
+use super::common;
 use super::settings::Settings;
 use handlebars::Handlebars;
 use lazy_static::lazy_static;
 use sha2::Digest;
-use slog::info;
-use slog::Logger;
+
 use std::collections::BTreeMap;
 use std::fs::{create_dir_all, remove_dir_all, write, File};
 use std::io::{BufRead, BufReader, Cursor, Read, Write};
@@ -47,8 +47,8 @@ lazy_static! {
   };
 }
 
-fn download_and_verify(logger: &Logger, url: &str, hash: &str) -> Result<Vec<u8>, String> {
-  info!(logger, "Downloading {}", url);
+fn download_and_verify(url: &str, hash: &str) -> crate::Result<Vec<u8>> {
+  common::print_info(format!("Downloading {}", url).as_str())?;
 
   let mut response = reqwest::get(url).or_else(|e| Err(e.to_string()))?;
 
@@ -58,7 +58,7 @@ fn download_and_verify(logger: &Logger, url: &str, hash: &str) -> Result<Vec<u8>
     .read_to_end(&mut data)
     .or_else(|e| Err(e.to_string()))?;
 
-  info!(logger, "validating hash...");
+  common::print_info("validating hash")?;
 
   let mut hasher = sha2::Sha256::new();
   hasher.input(&data);
@@ -69,7 +69,7 @@ fn download_and_verify(logger: &Logger, url: &str, hash: &str) -> Result<Vec<u8>
   if expected_hash == url_hash {
     Ok(data)
   } else {
-    Err("hash mismatch of downloaded file".to_string())
+    Err(crate::Error::from("hash mismatch of downloaded file"))
   }
 }
 
@@ -83,7 +83,7 @@ fn app_installer_dir(settings: &Settings) -> PathBuf {
   ))
 }
 
-fn extract_zip(data: &Vec<u8>, path: &Path) -> Result<(), String> {
+fn extract_zip(data: &Vec<u8>, path: &Path) -> crate::Result<()> {
   let cursor = Cursor::new(data);
 
   let mut zipa = ZipArchive::new(cursor).or_else(|e| Err(e.to_string()))?;
@@ -114,12 +114,12 @@ fn generate_package_guid(settings: &Settings) -> Uuid {
   Uuid::new_v5(&namespace, &settings.bundle_identifier())
 }
 
-pub fn get_and_extract_wix(logger: &Logger, path: &Path) -> Result<(), String> {
-  info!(logger, "downloading WIX Toolkit...");
+pub fn get_and_extract_wix(path: &Path) -> crate::Result<()> {
+  common::print_info("Verifying wix package")?;
 
-  let data = download_and_verify(logger, WIX_URL, WIX_SHA256)?;
+  let data = download_and_verify(WIX_URL, WIX_SHA256)?;
 
-  info!(logger, "extracting WIX");
+  common::print_info("extracting WIX")?;
 
   extract_zip(&data, path)
 }
@@ -127,7 +127,6 @@ pub fn get_and_extract_wix(logger: &Logger, path: &Path) -> Result<(), String> {
 // For if bundler needs DLL files.
 
 // fn run_heat_exe(
-//   logger: &Logger,
 //   wix_toolset_path: &Path,
 //   build_path: &Path,
 //   harvest_dir: &Path,
@@ -179,11 +178,10 @@ pub fn get_and_extract_wix(logger: &Logger, path: &Path) -> Result<(), String> {
 
 fn run_candle(
   settings: &Settings,
-  logger: &Logger,
   wix_toolset_path: &Path,
   build_path: &Path,
   wxs_file_name: &str,
-) -> Result<(), String> {
+) -> crate::Result<()> {
   let arch = "x64";
 
   let args = vec![
@@ -194,7 +192,7 @@ fn run_candle(
   ];
 
   let candle_exe = wix_toolset_path.join("candle.exe");
-  info!(logger, "running candle for {}", wxs_file_name);
+  common::print_info(format!("running candle for {}", wxs_file_name).as_str())?;
 
   let mut cmd = Command::new(&candle_exe)
     .args(&args)
@@ -207,7 +205,7 @@ fn run_candle(
     let reader = BufReader::new(stdout);
 
     for line in reader.lines() {
-      info!(logger, "{}", line.unwrap());
+      common::print_info(line.unwrap().as_str())?;
     }
   }
 
@@ -215,17 +213,16 @@ fn run_candle(
   if status.success() {
     Ok(())
   } else {
-    Err("error running candle.exe".to_string())
+    Err(crate::Error::from("error running candle.exe"))
   }
 }
 
 fn run_light(
-  logger: &Logger,
   wix_toolset_path: &Path,
   build_path: &Path,
   wixobjs: &[&str],
   output_path: &Path,
-) -> Result<PathBuf, String> {
+) -> crate::Result<PathBuf> {
   let light_exe = wix_toolset_path.join("light.exe");
 
   let mut args: Vec<String> = vec!["-o".to_string(), output_path.display().to_string()];
@@ -234,7 +231,7 @@ fn run_light(
     args.push(p.to_string());
   }
 
-  info!(logger, "running light to produce {}", output_path.display());
+  common::print_info(format!("running light to produce {}", output_path.display()).as_str())?;
 
   let mut cmd = Command::new(&light_exe)
     .args(&args)
@@ -247,7 +244,7 @@ fn run_light(
     let reader = BufReader::new(stdout);
 
     for line in reader.lines() {
-      info!(logger, "{}", line.unwrap());
+      common::print_info(line.unwrap().as_str())?;
     }
   }
 
@@ -255,18 +252,18 @@ fn run_light(
   if status.success() {
     Ok(output_path.to_path_buf())
   } else {
-    Err("error running light.exe".to_string())
+    Err(crate::Error::from("error running light.exe"))
   }
 }
 
 pub fn build_wix_app_installer(
-  logger: &Logger,
   settings: &Settings,
   wix_toolset_path: &Path,
-) -> Result<PathBuf, String> {
+) -> crate::Result<PathBuf> {
   let arch = "x64";
-
-  info!(logger, "Target: {}", arch);
+  common::print_warning("Only x64 supported");
+  // target only supports x64.
+  // common::print_info(format!("Target: {}", arch).as_str());
 
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
@@ -311,12 +308,11 @@ pub fn build_wix_app_installer(
 
   for basename in &input_basenames {
     let wxs = format!("{}.wxs", basename);
-    run_candle(settings, logger, &wix_toolset_path, &output_path, &wxs)?;
+    run_candle(settings, &wix_toolset_path, &output_path, &wxs)?;
   }
 
   let wixobjs = vec!["main.wixobj"];
   let target = run_light(
-    logger,
     &wix_toolset_path,
     &output_path,
     &wixobjs,

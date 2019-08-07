@@ -194,14 +194,14 @@ pub fn print_info(message: &str) -> crate::Result<()> {
   if let Some(mut output) = term::stderr() {
     safe_term_attr(&mut output, term::Attr::Bold)?;
     output.fg(term::color::GREEN)?;
-    write!(output, "Info:")?;
+    write!(output, "info:")?;
     output.reset()?;
     write!(output, " {}\n", message)?;
     output.flush()?;
     Ok(())
   } else {
     let mut output = io::stderr();
-    write!(output, "Info:")?;
+    write!(output, "info:")?;
     write!(output, " {}\n", message)?;
     output.flush()?;
     Ok(())

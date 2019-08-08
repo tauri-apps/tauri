@@ -76,14 +76,23 @@ fn download_and_verify(url: &str, hash: &str) -> crate::Result<Vec<u8>> {
   }
 }
 
-fn app_installer_dir(settings: &Settings) -> PathBuf {
-  let arch = "x64";
+fn app_installer_dir(settings: &Settings) -> crate::Result<PathBuf> {
+  let arch = match settings.binary_arch() {
+    "x86_64" => "x86",
+    "x64" => "x64",
+    target => {
+      return Err(crate::Error::from(format!(
+        "Unsupported architecture: {}",
+        target
+      )))
+    }
+  };
 
-  settings.project_out_directory().to_path_buf().join(format!(
+  Ok(settings.project_out_directory().to_path_buf().join(format!(
     "{}.{}.msi",
     settings.bundle_name(),
     arch
-  ))
+  )))
 }
 
 // Extracts the zips from Wix and VC_REDIST into a useable path.
@@ -270,10 +279,20 @@ pub fn build_wix_app_installer(
   settings: &Settings,
   wix_toolset_path: &Path,
 ) -> crate::Result<PathBuf> {
-  let arch = "x64";
-  common::print_warning("Only x64 supported")?;
+  let arch = match settings.binary_arch() {
+    "x86_64" => "x64",
+    "x86" => "x86",
+    target => {
+      return Err(crate::Error::from(format!(
+        "unsupported target: {}",
+        target
+      )))
+    }
+  };
+
+  // common::print_warning("Only x64 supported")?;
   // target only supports x64.
-  // common::print_info(format!("Target: {}", arch).as_str());
+  common::print_info(format!("Target: {}", arch).as_str())?;
 
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
@@ -326,7 +345,7 @@ pub fn build_wix_app_installer(
     &wix_toolset_path,
     &output_path,
     &wixobjs,
-    &app_installer_dir(settings),
+    &app_installer_dir(settings)?,
   )?;
 
   Ok(target)

@@ -199,7 +199,16 @@ fn run_candle(
   build_path: &Path,
   wxs_file_name: &str,
 ) -> crate::Result<()> {
-  let arch = "x64";
+  let arch = match settings.binary_arch() {
+    "x86_64" => "x64",
+    "x86" => "x86",
+    target => {
+      return Err(crate::Error::from(format!(
+        "unsupported target: {}",
+        target
+      )))
+    }
+  };
 
   let args = vec![
     "-arch".to_string(),
@@ -274,6 +283,10 @@ fn run_light(
   }
 }
 
+// fn get_icon_data() -> crate::Result<()> {
+//   Ok(())
+// }
+
 // Entry point for bundling and creating the MSI installer.  For now the only supported platform is Windows x64.
 pub fn build_wix_app_installer(
   settings: &Settings,
@@ -319,6 +332,12 @@ pub fn build_wix_app_installer(
   let app_exe_source = settings.binary_path().display().to_string();
 
   data.insert("app_exe_source", &app_exe_source);
+
+  let image_path = PathBuf::from("../../../../icons/icon.ico")
+    .display()
+    .to_string();
+
+  data.insert("icon_path", &image_path);
 
   let temp = HANDLEBARS
     .render("main.wxs", &data)

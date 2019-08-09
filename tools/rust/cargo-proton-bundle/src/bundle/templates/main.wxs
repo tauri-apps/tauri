@@ -9,6 +9,7 @@
 <?endif?>
 
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
     <Product
             Id="*"
             Name="{{{product_name}}}"
@@ -27,7 +28,10 @@
                  SummaryCodepage="1252"/>
 
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
-
+        <Icon Id="ProductIcon" SourceFile="{{{icon_path}}}"/>
+        <Property Id="ARPPRODUCTICON" Value="ProductIcon"/>
+        <Property Id="ARPNOREPAIR" Value="1"/>
+        <Property Id="ARPNOMODIFY" Value="1"/>
 
         <Directory Id="TARGETDIR" Name="SourceDir">
             <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">

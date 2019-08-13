@@ -22,7 +22,7 @@ pub mod tcp;
 pub mod updater;
 pub mod version;
 
-use proton_ui::WebView;
+use tauri_ui::WebView;
 
 use threadpool::ThreadPool;
 

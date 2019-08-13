@@ -1,5 +1,5 @@
 //
-// Package proton implements Go bindings to Proton UI.
+// Package tauri implements Go bindings to Tauri UI.
 //
 // Bindings closely repeat the C APIs and include both, a simplified
 // single-function API to just open a full-screen webview window, and a more
@@ -8,7 +8,7 @@
 // The library uses gtk-webkit, Cocoa/Webkit and MSHTML (IE8..11) as a browser
 // engine and supports Linux, MacOS and Windows 7..10 respectively.
 //
-package proton
+package tauri
 
 /*
 #cgo linux openbsd freebsd CFLAGS: -DWEBVIEW_GTK=1

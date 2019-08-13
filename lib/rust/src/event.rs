@@ -1,4 +1,4 @@
-use proton_ui::Handle;
+use tauri_ui::Handle;
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

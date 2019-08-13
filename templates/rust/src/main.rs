@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate serde_derive;
 extern crate clap;
-extern crate proton;
-extern crate proton_ui;
+extern crate tauri;
+extern crate tauri_ui;
 extern crate serde_json;
 
 #[cfg(not(feature = "dev"))]
@@ -34,7 +34,7 @@ fn main() {
   #[cfg(feature = "updater")]
   {
     thread::spawn(|| {
-      proton::command::spawn_relative_command(
+      tauri::command::spawn_relative_command(
         "updater".to_string(),
         Vec::new(),
         std::process::Stdio::inherit(),
@@ -60,7 +60,7 @@ fn main() {
       );
 
     let matches = app.get_matches();
-    content = proton_ui::Content::Url(matches.value_of("url").unwrap().to_owned());
+    content = tauri_ui::Content::Url(matches.value_of("url").unwrap().to_owned());
     debug = true;
   }
 
@@ -80,28 +80,28 @@ fn main() {
     styles = inline_style(include_str!("../target/compiled-web/css/app.css")),
     scripts = inline_script(include_str!("../target/compiled-web/js/app.js")),
   );
-      content = proton_ui::Content::Html(html);
+      content = tauri_ui::Content::Html(html);
     }
     #[cfg(not(feature = "serverless"))]
     {
-      if let Some(available_port) = proton::tcp::get_available_port() {
+      if let Some(available_port) = tauri::tcp::get_available_port() {
         _server_url = format!("{}:{}", "127.0.0.1", available_port);
-        content = proton_ui::Content::Url(format!("http://{}", _server_url));
+        content = tauri_ui::Content::Url(format!("http://{}", _server_url));
       } else {
         panic!("Could not find an open port");
       }
     }
   }
 
-  let webview = proton_ui::builder()
+  let webview = tauri_ui::builder()
     .title("MyApp - Serverless")
     .size(800, 600) // TODO:Resolution is fixed right now, change this later to be dynamic
     .resizable(true)
     .debug(debug)
     .user_data(())
     .invoke_handler(|webview, arg| {
-      // leave this as is to use the proton API from your JS code
-      if !proton::api::handler(webview, arg) {
+      // leave this as is to use the tauri API from your JS code
+      if !tauri::api::handler(webview, arg) {
         use cmd::Cmd::*;
         match serde_json::from_str(arg) {
           Err(_) => {}
@@ -130,7 +130,7 @@ fn main() {
         .eval(&format!(
           "window['{queue}'] = [];
           window['{fn}'] = function (payload, salt, ignoreQueue) {{
-            window.proton.promisified({{
+            window.tauri.promisified({{
               cmd: 'validateSalt',
               salt
             }}).then(function () {{
@@ -151,9 +151,9 @@ fn main() {
               }}
             }})
           }}", 
-          fn = proton::event::emit_function_name(),
-          listeners = proton::event::event_listeners_object_name(),
-          queue = proton::event::event_queue_object_name()
+          fn = tauri::event::emit_function_name(),
+          listeners = tauri::event::event_listeners_object_name(),
+          queue = tauri::event::event_queue_object_name()
         ))
         .unwrap();
 

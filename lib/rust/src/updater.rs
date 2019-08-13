@@ -128,7 +128,7 @@ impl UpdateBuilder {
   /// The path provided should be:
   ///
   /// ```
-  /// # use proton::updater::Update;
+  /// # use tauri::updater::Update;
   /// # fn run() -> Result<(), Box<::std::error::Error>> {
   /// Update::configure()?
   ///     .bin_path_in_archive("bin/myapp")

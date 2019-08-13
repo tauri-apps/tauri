@@ -1,5 +1,5 @@
 
-extern crate proton_sys as ffi;
+extern crate tauri_sys as ffi;
 
 
 mod color;

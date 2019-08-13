@@ -1,6 +1,6 @@
 mod cmd;
 
-use proton_ui::WebView;
+use tauri_ui::WebView;
 
 #[allow(unused_variables)]
 pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {

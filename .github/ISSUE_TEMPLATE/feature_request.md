@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for Proton
+about: Suggest an idea for Tauri
 title: ''
 labels: feature request
 assignees: ''

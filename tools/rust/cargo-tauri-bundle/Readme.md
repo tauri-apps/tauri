@@ -1,23 +1,23 @@
-# Cargo Proton Bundle
+# Cargo Tauri Bundle
 
 Wrap Rust executables in OS-specific app bundles
 
 ## About
 
-`cargo proton-bundle` is a tool used to generate installers or app bundles for GUI
+`cargo tauri-bundle` is a tool used to generate installers or app bundles for GUI
 executables built with `cargo`.  It can create `.app` bundles for Mac OS X and
 iOS, `.deb` packages for Linux, and `.msi` installers for Windows (note however
 that iOS and Windows support is still experimental).  Support for creating
 `.rpm` packages (for Linux) and `.apk` packages (for Android) is still pending.
 
-To install `cargo proton-bundle`, run `cargo install cargo-proton-bundle`. This will add the most recent version of `cargo-bundle`
+To install `cargo tauri-bundle`, run `cargo install cargo-tauri-bundle`. This will add the most recent version of `cargo-bundle`
 published to [crates.io](https://crates.io/crates/cargo-bundle) as a subcommand to your default `cargo` installation.
 
-To start using `cargo proton-bundle`, add a `[package.metadata.bundle]` section to your project's `Cargo.toml` file.  This
+To start using `cargo tauri-bundle`, add a `[package.metadata.bundle]` section to your project's `Cargo.toml` file.  This
 section describes various attributes of the generated bundle, such as its name, icon, description, copyright, as well
 as any packaging scripts you need to generate extra data.  The full manifest format is described below.
 
-To build a bundle for the OS you're on, simply run `cargo proton-bundle` in your
+To build a bundle for the OS you're on, simply run `cargo tauri-bundle` in your
 project's directory (where the `Cargo.toml` is placed).  If you would like to
 bundle a release build, you must add the `--release` flag to your call.  To
 cross-compile and bundle an application for another OS, add an appropriate
@@ -120,7 +120,7 @@ osx_frameworks = ["SDL2"]
 
 ## Contributing
 
-`cargo-proton-bundle` has ambitions to be inclusive project and welcome contributions from anyone.  Please abide by the Rust
+`cargo-tauri-bundle` has ambitions to be inclusive project and welcome contributions from anyone.  Please abide by the Rust
 code of conduct.
 
 ## Status

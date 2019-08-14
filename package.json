@@ -1,21 +1,21 @@
 {
-  "name": "@quasar/proton",
+  "name": "@quasar/tauri",
   "version": "1.0.0-alpha.1",
-  "description": "Multi-binding collection of libraries and templates for building Proton",
+  "description": "Multi-binding collection of libraries and templates for building Tauri",
   "main": "templates/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/quasarframework/proton.git"
+    "url": "git+https://github.com/quasarframework/tauri.git"
   },
   "author": "Quasar Framework",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/quasarframework/proton/issues"
+    "url": "https://github.com/quasarframework/tauri/issues"
   },
-  "homepage": "https://github.com/quasarframework/proton#readme",
+  "homepage": "https://github.com/quasarframework/tauri#readme",
   "publishConfig": {
     "access": "public"
   },

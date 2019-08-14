@@ -34,7 +34,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "proton-sys"
+name = "tauri-sys"
 version = "1.0.0"
 dependencies = [
  "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -43,11 +43,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "proton-ui"
+name = "tauri-ui"
 version = "1.0.0"
 dependencies = [
  "boxfnonce 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "proton-sys 1.0.0",
+ "tauri-sys 1.0.0",
  "serde 1.0.97 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.97 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",

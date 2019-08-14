@@ -1,18 +1,18 @@
 [package]
-name = "proton-sys"
+name = "tauri-sys"
 version = "1.0.0"
 authors = ["Boscop", "Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@quasar.dev>"]
 license = "MIT"
-repository = "https://github.com/quasarframework/proton"
-description = "Rust native ffi bindings for proton UI"
+repository = "https://github.com/quasarframework/tauri"
+description = "Rust native ffi bindings for tauri UI"
 keywords = ["quasar", "web", "gui", "desktop", "webkit"]
 categories = ["quasar", "gui", "web-programming", "api-bindings", "rendering", "visualization"]
 build = "build.rs"
-links = "proton"
+links = "tauri"
 edition = "2018"
 
 [lib]
-name = "proton_sys"
+name = "tauri_sys"
 path = "lib.rs"
 
 [dependencies]

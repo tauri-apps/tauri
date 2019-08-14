@@ -1,4 +1,4 @@
-use proton_ui::WebView;
+use tauri_ui::WebView;
 
 use std::process::{Child, Command, Stdio};
 

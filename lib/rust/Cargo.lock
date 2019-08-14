@@ -897,7 +897,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "proton"
+name = "tauri"
 version = "1.0.0"
 dependencies = [
  "dirs 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -907,7 +907,7 @@ dependencies = [
  "ignore 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "pbr 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "phf 0.7.24 (registry+https://github.com/rust-lang/crates.io-index)",
- "proton-ui 1.0.0",
+ "tauri-ui 1.0.0",
  "rand 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.9.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -923,7 +923,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "proton-sys"
+name = "tauri-sys"
 version = "1.0.0"
 dependencies = [
  "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -932,11 +932,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "proton-ui"
+name = "tauri-ui"
 version = "1.0.0"
 dependencies = [
  "boxfnonce 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "proton-sys 1.0.0",
+ "tauri-sys 1.0.0",
  "urlencoding 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

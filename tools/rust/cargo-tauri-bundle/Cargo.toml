@@ -1,11 +1,11 @@
 [package]
-name = "cargo-proton-bundle"
+name = "cargo-tauri-bundle"
 version = "1.0.0"
 authors = ["George Burton <burtonageo@gmail.com>", "Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@quasar.dev>"]
 license = "MIT/Apache-2.0"
-keywords = ["bundle", "cargo", "proton", "quasar"]
-repository = "https://github.com/quasarframework/proton"
-description = "Wrap rust executables in OS-specific app bundles for Quasar-Proton"
+keywords = ["bundle", "cargo", "tauri", "quasar"]
+repository = "https://github.com/quasarframework/tauri"
+description = "Wrap rust executables in OS-specific app bundles for Quasar-Tauri"
 edition = "2018"
 
 [dependencies]

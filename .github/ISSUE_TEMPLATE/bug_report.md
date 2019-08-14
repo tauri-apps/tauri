@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Create a report to help us improve Proton
+about: Create a report to help us improve Tauri
 title: ''
 labels: bug
 assignees: ''
@@ -32,7 +32,7 @@ Browsers:
 iOS:
 Android:
 Electron:
-Proton Binding:
+Tauri Binding:
 
 **Additional context**
 Add any other context about the problem here.

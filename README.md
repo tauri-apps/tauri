@@ -1,14 +1,14 @@
-# quasar-proton [WIP]
+# quasar-tauri [WIP]
 ## A fresh take on creating cross-platform apps.
 [![official icon](https://img.shields.io/badge/Quasar%201.0-Official-blue.svg)](https://quasar.dev)
-[![status](https://img.shields.io/badge/Status-Internal%20Review-yellow.svg)](https://github.com/quasarframework/quasar/tree/proton)
-[![version](https://img.shields.io/badge/Version-unreleased-yellow.svg)](https://github.com/quasarframework/quasar/tree/proton) <img align="right" src="https://cdn.quasar.dev/logo/proton/proton-logo-240x240.png">
+[![status](https://img.shields.io/badge/Status-Internal%20Review-yellow.svg)](https://github.com/quasarframework/quasar/tree/tauri)
+[![version](https://img.shields.io/badge/Version-unreleased-yellow.svg)](https://github.com/quasarframework/quasar/tree/tauri) <img align="right" src="https://cdn.quasar.dev/logo/tauri/tauri-logo-240x240.png">
 
 [![Join the chat at https://chat.quasar.dev](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://chat.quasar.dev)
 <a href="https://forum.quasar.dev" target="_blank"><img src="https://img.shields.io/badge/community-forum-brightgreen.svg"></a>
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
 
-**Proton** brings a mode to build Quasar Apps that creates tiny, blazing 
+**Tauri** brings a mode to build Quasar Apps that creates tiny, blazing 
 fast binaries for all major desktop platforms. In Quasar's 
 [neverending quest](https://quasar.dev/introduction-to-quasar#Why-Quasar%3F) 
 for performance and security, the core team is proud to offer an
@@ -16,15 +16,15 @@ alternative to Electron.
 
 Whether you are just starting out making apps for your meetup or 
 regularly crunch terabyte datasets, we are absolutely confident that 
-you will love using Proton as much as we love making and maintaining it.
+you will love using Tauri as much as we love making and maintaining it.
 
-## Who Proton is For
-Anyone who can create a Quasar app can use Proton, as it is *merely* a new 
+## Who Tauri is For
+Anyone who can create a Quasar app can use Tauri, as it is *merely* a new 
 build target. All components and plugins (suitable for Native Desktop) can
 be used. For the User Interface, nothing has changed, except you will 
 probably notice that everything seems much faster.
 
-Because of the way Proton has been built and can be extended, developers 
+Because of the way Tauri has been built and can be extended, developers 
 are able to interface not only with the entire Rust ecosystem, but also 
 with many other programming languages. Being freed of the heaviest thing 
 in the universe and the many shortcomings of server-side Javascript 
@@ -33,16 +33,23 @@ applications that need the purebred power, agility and community
 acceptance of a low-level language.
 
 We expect to witness an entire new class of applications being built with 
-Quasar Proton. From a simple calender to locally crunching massive realtime 
+Quasar Tauri. From a simple calender to locally crunching massive realtime 
 feeds at particle colliders or even mesh-network based distributed message-
 passing ecosystems - the bar has been raised and gauntlet thrown. 
 
 What will you make?
 
+## 5 Reasons to consider Tauri
+- **BUNDLE SIZE** of a vanilla Tauri app is less than 3 MB - about 140 MB smaller than what you get with Electron.
+- **MEMORY FOOTPRINT** is less than half of the size of an Electron app built from the same codebase. 
+- **SECURITY** is Tauri's biggest priority and we take it so seriously that we innovate to keep hackers out of your apps. 
+- **RELIABILITY** of the underlying code base is why critical libraries have been forked and will be perpetually maintained.
+- **FLOSS** licensing is regretfully impossible with downstream Chromium consumers, like Electron.
+
 ## Technical Details
-The user interface in Proton apps currently leverages Cocoa/WebKit on macOS, 
+The user interface in Tauri apps currently leverages Cocoa/WebKit on macOS, 
 gtk-webkit2 on Linux and MSHTML (IE10/11) or Webkit via Edge on Windows. 
-**Proton** is based on the MIT licensed prior work known as 
+**Tauri** is based on the MIT licensed prior work known as 
 [webview](https://github.com/zserge/webview).
 
 The default binding to the underlying webview library currently uses Rust,
@@ -60,7 +67,7 @@ support with auto-completion and type inspections, an auto-formatter, and
 more. - [https://www.rust-lang.org/](https://www.rust-lang.org/)
 
 This combination of power, safety and usability are why we chose Rust to be
-the default binding for Proton. It is our intention to provide the most safe
+the default binding for Tauri. It is our intention to provide the most safe
 and performant native app experience (for devs and app consumers), out of 
 the box. 
 
@@ -91,7 +98,6 @@ you through the process. Here is a bit of a status report.
 - [ ] Multiwindow Mode
 - [ ] Tray (coming soon)
 - [x] Copy Buffer
-- [x] CSP Injection
 
 #### API 
 - [ ] answer - enable rust to direct the UI
@@ -111,14 +117,15 @@ you through the process. Here is a bit of a status report.
 
 ### Security Features
 - [x] localhost-free mode (:fire:)
-- [x] Secure Cryptographic Enclave
+- [x] Secure Cryptographic Enclave (devland implementation)
 - [x] Dynamic ahead of Time Compilation (dAoT) with functional tree-shaking
 - [x] functional Address Space Layout Randomization
 - [x] OTP salting of function names and messages
+- [x] CSP Injection
 
-### Comparison between Proton 1 and Electron 5
+### Comparison between Tauri 1 and Electron 5
 
-|  | Proton | Electron |
+|  | Tauri | Electron |
 |--|--------|----------|
 | Binary Size MacOS | 2.6 MB | 147.7 MB |
 | Memory Consumption MacOS | 13 MB | 34.1 MB |
@@ -131,7 +138,7 @@ you through the process. Here is a bit of a status report.
 | Multithreading | Yes | No |
 | Bytecode Delivery | Yes | No |
 | Can Render PDF | Yes | No |
-| Multiple Windows | Yes | Yes |
+| Multiple Windows | Soon | Yes |
 | GPU Access | Yes | Yes |
 | Auto Updater | Yes | Yes (1) |
 | Inter Process Communication (IPC) | Yes | Yes |
@@ -190,10 +197,10 @@ before making a pull request. If you have a Quasar-related
 project/component/tool, add it with a pull request to 
 [this curated list](https://github.com/quasarframework/quasar-awesome)!
 
-Thank you to all the people who already <a href="https://github.com/quasarframework/proton/graphs/contributors">contributed to Proton</a>!
+Thank you to all the people who already <a href="https://github.com/quasarframework/tauri/graphs/contributors">contributed to Tauri</a>!
 
 ## Semver
-quasarframework/proton is following [Semantic Versioning 2.0](https://semver.org/).
+quasarframework/tauri is following [Semantic Versioning 2.0](https://semver.org/).
 
 ## Licenses
 Code: (c) 2015- 2019 - Daniel Thompson-Yvetot, Razvan Stoenescu, Lucas Nogueira, Boscop, Serge Zaitsev, George Burton and contributors.
@@ -201,7 +208,7 @@ Code: (c) 2015- 2019 - Daniel Thompson-Yvetot, Razvan Stoenescu, Lucas Nogueira,
 MIT or MIT/Apache where applicable.
 
 Logo: CC-BY-NC-ND
-- Original Proton Logo Design by [Daniel Thompson-Yvetot](https://github.com/nothingismagick)
+- Original Tauri Logo Design by [Daniel Thompson-Yvetot](https://github.com/nothingismagick)
 - Based on the prior work by [Emanuele Bertoldi](https://github.com/zuck)
 
-Name: The proper name of this project is "Quasar Proton", and is to be used in all citations.
+Name: The proper name of this project is "Quasar Tauri", and is to be used in all citations.

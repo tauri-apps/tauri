@@ -1,7 +1,7 @@
 [package]
 name = "app"
 version = "0.1.0"
-description = "A Quasar Proton App"
+description = "A Quasar Tauri App"
 author = []
 license = ""
 repository = ""
@@ -9,13 +9,15 @@ repository = ""
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-proton-ui = { path = "../../proton/bindings/rust" }
+tauri-ui = { path = "../../tauri/bindings/rust" }
 serde_json = "1.0.39"
 serde = "1.0"
 serde_derive = "1.0"
 tiny_http = "0.6"
 clap = {version = "2.33", features = ["yaml"]}
-proton = { path = "../../proton/lib/rust" }
+phf = "0.7.21"
+includedir = "0.5.0"
+tauri = { path = "../../tauri/lib/rust" }
 
 [features]
 dev = [] # has no explicit dependencies

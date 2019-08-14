@@ -27,7 +27,7 @@ pub mod updater;
 pub mod version;
 pub mod server;
 
-use proton_ui::WebView;
+use tauri_ui::WebView;
 
 use threadpool::ThreadPool;
 

@@ -72,13 +72,13 @@ fn run() -> crate::Result<()> {
     .iter()
     .map(PackageType::short_name)
     .collect();
-  let m = App::new("cargo-proton-bundle")
+  let m = App::new("cargo-tauri-bundle")
     .version(format!("v{}", crate_version!()).as_str())
     .bin_name("cargo")
     .setting(AppSettings::GlobalVersion)
     .setting(AppSettings::SubcommandRequired)
     .subcommand(
-      SubCommand::with_name("proton-bundle")
+      SubCommand::with_name("tauri-bundle")
         .author("George Burton <burtonageo@gmail.com>, Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>, Daniel Thompson-Yvetot <denjell@quasar.dev>")
         .about("Bundle Rust executables into OS bundles")
         .setting(AppSettings::DisableVersion)
@@ -124,7 +124,7 @@ fn run() -> crate::Result<()> {
     )
     .get_matches();
 
-  if let Some(m) = m.subcommand_matches("proton-bundle") {
+  if let Some(m) = m.subcommand_matches("tauri-bundle") {
     let output_paths = env::current_dir()
       .map_err(From::from)
       .and_then(|d| Settings::new(d, m))

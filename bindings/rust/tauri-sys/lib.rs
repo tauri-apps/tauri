@@ -1,4 +1,4 @@
-//! Raw FFI bindings to proton UI.
+//! Raw FFI bindings to tauri UI.
 
 #[macro_use]
 extern crate bitflags;

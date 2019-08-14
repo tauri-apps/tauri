@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate serde_derive;
 extern crate clap;
-extern crate proton;
-extern crate proton_ui;
+extern crate tauri;
+extern crate tauri_ui;
 extern crate serde_json;
 
 #[cfg(not(feature = "dev"))]
@@ -31,7 +31,7 @@ fn main() {
   #[cfg(feature = "updater")]
   {
     thread::spawn(|| {
-      proton::command::spawn_relative_command(
+      tauri::command::spawn_relative_command(
         "updater".to_string(),
         Vec::new(),
         std::process::Stdio::inherit(),
@@ -57,7 +57,7 @@ fn main() {
       );
 
     let matches = app.get_matches();
-    content = proton_ui::Content::Url(matches.value_of("url").unwrap().to_owned());
+    content = tauri_ui::Content::Url(matches.value_of("url").unwrap().to_owned());
     debug = true;
   }
 
@@ -104,8 +104,8 @@ fn main() {
     .debug(debug)
     .user_data(())
     .invoke_handler(|webview, arg| {
-      // leave this as is to use the proton API from your JS code
-      if !proton::api::handler(webview, arg) {
+      // leave this as is to use the tauri API from your JS code
+      if !tauri::api::handler(webview, arg) {
         use cmd::Cmd::*;
         match serde_json::from_str(arg) {
           Err(_) => {}
@@ -134,7 +134,7 @@ fn main() {
         .eval(&format!(
           "window['{queue}'] = [];
           window['{fn}'] = function (payload, salt, ignoreQueue) {{
-            window.proton.promisified({{
+            window.tauri.promisified({{
               cmd: 'validateSalt',
               salt
             }}).then(function () {{
@@ -155,9 +155,9 @@ fn main() {
               }}
             }})
           }}", 
-          fn = proton::event::emit_function_name(),
-          listeners = proton::event::event_listeners_object_name(),
-          queue = proton::event::event_queue_object_name()
+          fn = tauri::event::emit_function_name(),
+          listeners = tauri::event::event_listeners_object_name(),
+          queue = tauri::event::event_queue_object_name()
         ))
         .unwrap();
 

@@ -123,7 +123,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "cargo-proton-bundle"
+name = "cargo-tauri-bundle"
 version = "1.0.0"
 dependencies = [
  "ar 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",

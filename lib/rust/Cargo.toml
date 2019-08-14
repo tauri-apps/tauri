@@ -1,12 +1,12 @@
 [package]
-name = "proton"
+name = "tauri"
 version = "1.0.0"
 authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@quasar.dev>"]
 license = "MIT"
 edition = "2018"
 
 [dependencies]
-proton-ui = { path = "../../bindings/rust" }
+tauri-ui = { path = "../../bindings/rust" }
 serde_json = "1.0.39"
 serde = "1.0"
 serde_derive = "1.0"

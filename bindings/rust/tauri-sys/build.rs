@@ -1,13 +1,13 @@
 use std::{env, path::PathBuf};
 
 fn main() {
-  let proton_path = PathBuf::from("../../../ui");
+  let tauri_path = PathBuf::from("../../../ui");
 
   let mut build = cc::Build::new();
 
   build
-    .include(&proton_path)
-    .file("proton.c")
+    .include(&tauri_path)
+    .file("tauri.c")
     .flag_if_supported("-std=c11")
     .flag_if_supported("-w");
 
@@ -45,5 +45,5 @@ fn main() {
     panic!("unsupported target");
   }
 
-  build.compile("proton");
+  build.compile("tauri");
 }

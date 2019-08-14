@@ -1,6 +1,6 @@
 # Quasar Contributing Guide
 
-Hi! We, the maintainers, are really excited that you are interested in contributing to Quasar Proton. Before submitting your contribution though, please make sure to take a moment and read through the following guidelines.
+Hi! We, the maintainers, are really excited that you are interested in contributing to Quasar Tauri. Before submitting your contribution though, please make sure to take a moment and read through the following guidelines.
 
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Issue Reporting Guidelines](#issue-reporting-guidelines)

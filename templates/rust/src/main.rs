@@ -17,14 +17,10 @@ use std::thread;
 
 mod cmd;
 
-#[cfg(not(feature = "dev"))]
-#[cfg(feature = "embedded-server")]
-mod server;
-
 fn main() {
   let debug;
   let content;
-  let config;
+  let config = tauri::config::get();
   #[cfg(feature = "embedded-server")]
   let server_url: String;
 
@@ -63,18 +59,17 @@ fn main() {
 
   #[cfg(not(feature = "dev"))]
   {
-    config = proton::config::get();
     debug = cfg!(debug_assertions);
     #[cfg(not(feature = "embedded-server"))]
     {
-      content = proton_ui::Content::Html(include_str!("../target/compiled-web/index.html"));
+      content = tauri_ui::Content::Html(include_str!("../target/compiled-web/index.html"));
     }
     #[cfg(feature = "embedded-server")]
     {
       let port;
       let port_valid;
       if config.embedded_server.port == "random" {
-        match proton::tcp::get_available_port() {
+        match tauri::tcp::get_available_port() {
           Some(available_port) => {
             port = available_port.to_string();
             port_valid = true;
@@ -86,18 +81,18 @@ fn main() {
         }
       } else {
         port = config.embedded_server.port;
-        port_valid = proton::tcp::port_is_available(port.parse::<u16>().expect(&format!("Invalid port {}", port)));
+        port_valid = tauri::tcp::port_is_available(port.parse::<u16>().expect(&format!("Invalid port {}", port)));
       }
       if port_valid {
         server_url = format!("{}:{}", config.embedded_server.host, port);
-        content = proton_ui::Content::Url(server_url.clone());
+        content = tauri_ui::Content::Url(server_url.clone());
       } else {
         panic!(format!("Port {} is not valid or not open", port));
       }
     }
   }
 
-  let webview = proton_ui::builder()
+  let webview = tauri_ui::builder()
     .title(&config.window.title)
     .size(config.window.width, config.window.height)
     .resizable(config.window.resizable)
@@ -176,7 +171,7 @@ fn main() {
           if url == "/" {
             url = "/index.html".to_string();
           }
-          request.respond(proton::server::asset_response(&url)).unwrap();
+          request.respond(tauri::server::asset_response(&url)).unwrap();
         }
       });
     }

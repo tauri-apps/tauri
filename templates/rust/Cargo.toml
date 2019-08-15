@@ -5,6 +5,7 @@ description = "A Quasar Tauri App"
 author = []
 license = ""
 repository = ""
+default-run = "app"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

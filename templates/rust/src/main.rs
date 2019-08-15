@@ -6,30 +6,23 @@ extern crate tauri_ui;
 extern crate serde_json;
 
 #[cfg(not(feature = "dev"))]
-extern crate includedir;
-#[cfg(not(feature = "dev"))]
-extern crate phf;
-
-#[cfg(not(feature = "dev"))]
 extern crate tiny_http;
 
 #[cfg(feature = "dev")]
 use clap::{App, Arg};
 
 #[cfg(not(feature = "dev"))]
-#[cfg(not(feature = "serverless"))]
+#[cfg(feature = "embedded-server")]
 use std::thread;
 
 mod cmd;
 
-#[cfg(not(feature = "dev"))]
-#[cfg(not(feature = "serverless"))]
-mod server;
-
 fn main() {
   let debug;
   let content;
-  let _server_url: String;
+  let config = tauri::config::get();
+  #[cfg(feature = "embedded-server")]
+  let server_url: String;
 
   #[cfg(feature = "updater")]
   {
@@ -67,36 +60,42 @@ fn main() {
   #[cfg(not(feature = "dev"))]
   {
     debug = cfg!(debug_assertions);
-    #[cfg(feature = "serverless")]
+    #[cfg(not(feature = "embedded-server"))]
     {
-      fn inline_style(s: &str) -> String {
-        format!(r#"<style type="text/css">{}</style>"#, s)
-      }
-
-      fn inline_script(s: &str) -> String {
-        format!(r#"<script type="text/javascript">{}</script>"#, s)
-      }
-      let html = format!(r#"<!DOCTYPE html><html><head><meta http-equiv="Content-Security-Policy" content="default-src data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'">{styles}</head><body><div id="q-app"></div>{scripts}</body></html>"#,
-    styles = inline_style(include_str!("../target/compiled-web/css/app.css")),
-    scripts = inline_script(include_str!("../target/compiled-web/js/app.js")),
-  );
-      content = tauri_ui::Content::Html(html);
+      content = tauri_ui::Content::Html(include_str!("../target/compiled-web/index.html"));
     }
-    #[cfg(not(feature = "serverless"))]
+    #[cfg(feature = "embedded-server")]
     {
-      if let Some(available_port) = tauri::tcp::get_available_port() {
-        _server_url = format!("{}:{}", "127.0.0.1", available_port);
-        content = tauri_ui::Content::Url(format!("http://{}", _server_url));
+      let port;
+      let port_valid;
+      if config.embedded_server.port == "random" {
+        match tauri::tcp::get_available_port() {
+          Some(available_port) => {
+            port = available_port.to_string();
+            port_valid = true;
+          }
+          None => {
+            port = "0".to_string();
+            port_valid = false;
+          }
+        }
       } else {
-        panic!("Could not find an open port");
+        port = config.embedded_server.port;
+        port_valid = tauri::tcp::port_is_available(port.parse::<u16>().expect(&format!("Invalid port {}", port)));
+      }
+      if port_valid {
+        server_url = format!("{}:{}", config.embedded_server.host, port);
+        content = tauri_ui::Content::Url(server_url.clone());
+      } else {
+        panic!(format!("Port {} is not valid or not open", port));
       }
     }
   }
 
   let webview = tauri_ui::builder()
-    .title("MyApp - Serverless")
-    .size(800, 600) // TODO:Resolution is fixed right now, change this later to be dynamic
-    .resizable(true)
+    .title(&config.window.title)
+    .size(config.window.width, config.window.height)
+    .resizable(config.window.resizable)
     .debug(debug)
     .user_data(())
     .invoke_handler(|webview, arg| {
@@ -163,16 +162,16 @@ fn main() {
 
   #[cfg(not(feature = "dev"))]
   {
-    #[cfg(not(feature = "serverless"))]
+    #[cfg(feature = "embedded-server")]
     {
       thread::spawn(move || {
-        let server = tiny_http::Server::http(_server_url).unwrap();
+        let server = tiny_http::Server::http(server_url.clone()).expect(&format!("Could not start embedded server with the specified url: {}", server_url));
         for request in server.incoming_requests() {
           let mut url = request.url().to_string();
           if url == "/" {
             url = "/index.html".to_string();
           }
-          request.respond(server::asset_response(&url)).unwrap();
+          request.respond(tauri::server::asset_response(&url)).unwrap();
         }
       });
     }

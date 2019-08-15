@@ -7,8 +7,12 @@ mod macros;
 #[macro_use]
 extern crate lazy_static;
 
+extern crate includedir;
+extern crate phf;
+
 pub mod api;
 pub mod command;
+pub mod config;
 pub mod dir;
 pub mod event;
 pub mod file;
@@ -21,6 +25,7 @@ pub mod salt;
 pub mod tcp;
 pub mod updater;
 pub mod version;
+pub mod server;
 
 use tauri_ui::WebView;
 
@@ -33,12 +38,6 @@ pub fn spawn<F: FnOnce() -> () + Send + 'static>(what: F) {
     thread.execute(move || {
       what();
     });
-  });
-}
-
-pub fn run_async<F: FnOnce() -> () + Send + 'static>(what: F) {
-  POOL.with(|thread| {
-    thread.execute(move || what());
   });
 }
 

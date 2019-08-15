@@ -5,8 +5,6 @@ description = "A Quasar Tauri App"
 author = []
 license = ""
 repository = ""
-build = "build.rs"
-include = ["data"]
 default-run = "app"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -22,12 +20,9 @@ phf = "0.7.21"
 includedir = "0.5.0"
 tauri = { path = "../../tauri/lib/rust" }
 
-[build-dependencies]
-includedir_codegen = "0.5.0"
-
 [features]
 dev = [] # has no explicit dependencies
-serverless = [] # has no explicit dependencies
+embedded-server = [] # has no explicit dependencies
 
 [package.metadata.bundle]
 identifier = "com.quasar.dev"

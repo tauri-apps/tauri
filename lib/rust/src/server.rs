@@ -4,7 +4,7 @@ include!(concat!(env!("OUT_DIR"), "/data.rs"));
 
 pub fn asset_response(path: &str) -> Response<std::io::Cursor<Vec<u8>>> {
   let asset = ASSETS
-    .get(&format!("./target/compiled-web{}", path))
+    .get(&format!("{}{}", env!("TAURI_DIST_DIR"), path))
     .unwrap()
     .into_owned();
   let mut response = Response::from_data(asset);

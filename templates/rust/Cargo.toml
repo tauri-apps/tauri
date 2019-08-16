@@ -15,14 +15,13 @@ serde_json = "1.0.39"
 serde = "1.0"
 serde_derive = "1.0"
 tiny_http = "0.6"
-clap = {version = "2.33", features = ["yaml"]}
 phf = "0.7.21"
 includedir = "0.5.0"
 tauri = { path = "../../tauri/lib/rust" }
 
 [features]
-dev = [] # has no explicit dependencies
-embedded-server = [] # has no explicit dependencies
+dev = ["tauri/dev"] # has no explicit dependencies
+embedded-server = ["tauri/embedded-server"] # has no explicit dependencies
 
 [package.metadata.bundle]
 identifier = "com.quasar.dev"

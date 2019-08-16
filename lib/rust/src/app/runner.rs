@@ -80,15 +80,15 @@ pub(crate) fn run(application: &mut crate::App) {
     }
   }
 
-  let webview = tauri_ui::builder()
+  let mut webview = tauri_ui::builder()
     .title(&config.window.title)
     .size(config.window.width, config.window.height)
     .resizable(config.window.resizable)
     .debug(debug)
     .user_data(())
     .invoke_handler(|webview, arg| {
-      // leave this as is to use the tauri API from your JS code
       if !crate::api::handler(webview, arg) {
+        crate::extension::extend_api(webview, arg);
         application.run_invoke_handler(webview, arg);
       }
 
@@ -131,6 +131,7 @@ pub(crate) fn run(application: &mut crate::App) {
           queue = crate::event::event_queue_object_name()
         ))
         .unwrap();
+      crate::extension::ready(_webview);      
 
       Ok(())
     })
@@ -152,6 +153,8 @@ pub(crate) fn run(application: &mut crate::App) {
       });
     }
   }
+
+  crate::extension::created(&mut webview);
 
   webview.run().unwrap();
 }

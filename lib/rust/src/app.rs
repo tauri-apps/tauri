@@ -33,6 +33,11 @@ impl AppBuilder {
     }
   }
 
+  pub fn extension(self, ext: impl crate::extension::Extension + 'static) -> Self {
+    crate::extension::register(ext);
+    self
+  }
+
   pub fn invoke_handler<F: FnMut(&mut WebView<'_, ()>, &str) + 'static>(mut self, invoke_handler: F) -> Self {
     self.invoke_handler = Some(Box::new(invoke_handler));
     self

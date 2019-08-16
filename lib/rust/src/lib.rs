@@ -29,6 +29,7 @@ pub mod version;
 pub mod server;
 mod app;
 pub use app::*;
+pub mod extension;
 
 use tauri_ui::WebView;
 

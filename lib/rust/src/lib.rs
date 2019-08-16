@@ -25,7 +25,10 @@ pub mod salt;
 pub mod tcp;
 pub mod updater;
 pub mod version;
+#[cfg(feature = "embedded-server")]
 pub mod server;
+mod app;
+pub use app::*;
 
 use tauri_ui::WebView;
 

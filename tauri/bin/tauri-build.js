@@ -33,10 +33,10 @@ const appPaths = require('../helpers/app-paths'),
       debug: argv.debug
     }
   })
-
 const {bundle, ...cfg} = tauriConfig.tauri,
   cfgDir = injector.configDir()
 fse.writeFileSync(path.join(cfgDir, 'config.json'), JSON.stringify(cfg))
 fse.writeFileSync(path.join(cfgDir, 'bundle.json'), JSON.stringify(bundle))
 
+require('../helpers/generator')(tauriConfig)
 tauri.build(tauriConfig)

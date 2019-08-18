@@ -1,8 +1,9 @@
-const appPaths = require('./app-paths')
+const appPaths = require('./app-paths'),
+  merge = require('webpack-merge')
 
 module.exports = cfg => {
   const tauriConf = require(appPaths.resolve.app('tauri.conf.js'))(cfg.ctx)
-  return Object.assign({
+  const config = merge({
     build: {},
     ctx: {},
     tauri: {
@@ -21,4 +22,8 @@ module.exports = cfg => {
       }
     }
   }, tauriConf, cfg)
+
+  process.env.TAURI_DIST_DIR = appPaths.resolve.app(config.build.distDir)
+
+  return config
 }

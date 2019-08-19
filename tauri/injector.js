@@ -1,5 +1,4 @@
-const { mkdirSync } = require('fs'),
-  { copySync, renameSync, existsSync } = require('fs-extra'),
+const { copySync, renameSync, existsSync, mkdirSync } = require('fs-extra'),
   path = require('path')
 
 class TauriInjector {

@@ -1,5 +1,5 @@
 const { mkdirSync } = require('fs'),
-  { copySync, renameSync } = require('fs-extra'),
+  { copySync, renameSync, existsSync } = require('fs-extra'),
   path = require('path')
 
 class TauriInjector {
@@ -12,6 +12,10 @@ class TauriInjector {
   }
 
   injectTemplate() {
+    if (existsSync(this.appPaths.tauriDir)) {
+      console.log(`Tauri dir (${this.appPaths.tauriDir}) not empty.`)
+      return
+    }
     mkdirSync(this.appPaths.tauriDir)
     copySync(path.resolve(__dirname, '../templates/rust'), this.appPaths.tauriDir)
     const files = require('fast-glob').sync(['**/_*'], {

@@ -6,7 +6,7 @@ const
   { spawn } = require('./helpers/spawn'),
   log = require('./helpers/logger')('app:tauri')
   onShutdown = require('./helpers/on-shutdown'),
-  fse = require('fs-extra')
+  { readFileSync, writeFileSync } = require('fs-extra')
 
 class TauriRunner {
   constructor(appPaths) {
@@ -161,13 +161,13 @@ class TauriRunner {
   __manipulateToml(callback) {
     const toml = require('@iarna/toml'),
       tomlPath = this.appPaths.resolve.tauri('Cargo.toml'),
-      tomlFile = fse.readFileSync(tomlPath),
+      tomlFile = readFileSync(tomlPath),
       tomlContents = toml.parse(tomlFile)
 
     callback(tomlContents)
 
     const output = toml.stringify(tomlContents)
-    fse.writeFileSync(tomlPath, output)
+    writeFileSync(tomlPath, output)
   }
 
   __whitelistApi(cfg, tomlContents) {

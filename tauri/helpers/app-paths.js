@@ -1,5 +1,5 @@
 const
-  fs = require('fs'),
+  { existsSync } = require('fs'),
   path = require('path'),
   resolve = path.resolve,
   join = path.join
@@ -8,7 +8,7 @@ function getAppDir() {
   let dir = process.cwd()
 
   while (dir.length && dir[dir.length - 1] !== path.sep) {
-    if (fs.existsSync(join(dir, 'tauri.conf.js'))) {
+    if (existsSync(join(dir, 'tauri.conf.js'))) {
       return dir
     }
 

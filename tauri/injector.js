@@ -1,5 +1,5 @@
-const fs = require('fs'),
-  fse = require('fs-extra'),
+const { mkdirSync } = require('fs'),
+  { copySync, renameSync } = require('fs-extra'),
   path = require('path')
 
 class TauriInjector {
@@ -12,8 +12,8 @@ class TauriInjector {
   }
 
   injectTemplate() {
-    fs.mkdirSync(this.appPaths.tauriDir)
-    fse.copySync(path.resolve(__dirname, '../templates/rust'), this.appPaths.tauriDir)
+    mkdirSync(this.appPaths.tauriDir)
+    copySync(path.resolve(__dirname, '../templates/rust'), this.appPaths.tauriDir)
     const files = require('fast-glob').sync(['**/_*'], {
       cwd: this.appPaths.tauriDir
     })
@@ -29,7 +29,7 @@ class TauriInjector {
         }
         return name
       }).join('/')
-      fse.renameSync(this.appPaths.resolve.tauri(rawPath), this.appPaths.resolve.tauri(targetRelativePath))
+      renameSync(this.appPaths.resolve.tauri(rawPath), this.appPaths.resolve.tauri(targetRelativePath))
     }
   }
 }

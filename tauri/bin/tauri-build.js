@@ -1,6 +1,6 @@
 const
   parseArgs = require('minimist'),
-  fse = require('fs-extra'),
+  { writeFileSync } = require('fs-extra'),
   path = require('path')
 
 const argv = parseArgs(process.argv.slice(2), {
@@ -35,8 +35,8 @@ const appPaths = require('../helpers/app-paths'),
   })
 const {bundle, ...cfg} = tauriConfig.tauri,
   cfgDir = injector.configDir()
-fse.writeFileSync(path.join(cfgDir, 'config.json'), JSON.stringify(cfg))
-fse.writeFileSync(path.join(cfgDir, 'bundle.json'), JSON.stringify(bundle))
+writeFileSync(path.join(cfgDir, 'config.json'), JSON.stringify(cfg))
+writeFileSync(path.join(cfgDir, 'bundle.json'), JSON.stringify(bundle))
 
 require('../helpers/generator')(tauriConfig)
 tauri.build(tauriConfig)

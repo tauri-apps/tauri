@@ -14,7 +14,7 @@ class TauriInjector {
   injectTemplate() {
     if (existsSync(this.appPaths.tauriDir)) {
       console.log(`Tauri dir (${this.appPaths.tauriDir}) not empty.`)
-      return
+      return false
     }
     mkdirSync(this.appPaths.tauriDir)
     copySync(path.resolve(__dirname, '../templates/rust'), this.appPaths.tauriDir)
@@ -35,6 +35,7 @@ class TauriInjector {
       }).join('/')
       renameSync(this.appPaths.resolve.tauri(rawPath), this.appPaths.resolve.tauri(targetRelativePath))
     }
+    return true
   }
 }
 

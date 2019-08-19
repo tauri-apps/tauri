@@ -24,5 +24,6 @@ if (argv.help) {
 
 const Injector = require('../injector'),
   injector = new Injector(appPaths)
-injector.injectTemplate()
-log('Tauri template successfully installed')
+if (injector.injectTemplate()) {
+  log('Tauri template successfully installed')
+}

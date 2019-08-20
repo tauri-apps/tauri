@@ -31,6 +31,14 @@ toml = "0.4"
 uuid = { version = "0.5", features = ["v5"] }
 walkdir = "2"
 
+sha2 = "0.8"
+lazy_static = "1.3"
+handlebars = "1.1"
+reqwest = "0.9.19"
+hex = "0.3"
+zip = "0.5"
+
+
 [dev-dependencies]
 tempfile = "3"
 winit = "0.11"

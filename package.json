@@ -3,7 +3,7 @@
   "version": "1.0.0-alpha.0",
   "description": "Multi-binding collection of libraries and templates for building Tauri",
   "bin": {
-    "tauri": "tauri/bin/tauri.js"
+    "tauri": "mode/bin/tauri.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

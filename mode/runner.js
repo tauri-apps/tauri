@@ -1,16 +1,18 @@
 const
   chokidar = require('chokidar'),
-  debounce = require('lodash.debounce')
+  debounce = require('lodash.debounce'),
+  path = require('path')
 
 const
   { spawn } = require('./helpers/spawn'),
   log = require('./helpers/logger')('app:tauri')
   onShutdown = require('./helpers/on-shutdown'),
-  { readFileSync, writeFileSync } = require('fs-extra')
+  { readFileSync, writeFileSync } = require('fs-extra'),
+  generator = require('./generator')
 
 class TauriRunner {
-  constructor(appPaths) {
-    this.appPaths = appPaths
+  constructor({ modeDir }) {
+    this.modeDir = modeDir
     this.pid = 0
     this.tauriWatcher = null
 
@@ -35,6 +37,8 @@ class TauriRunner {
       this.__whitelistApi(cfg, toml)
     })
 
+    generator.generate(cfg.tauri)
+
     this.url = url
 
     const args = ['--url', url]
@@ -49,9 +53,9 @@ class TauriRunner {
     // Start watching for tauri app changes
     this.tauriWatcher = chokidar
       .watch([
-        this.appPaths.resolve.tauri('src'),
-        this.appPaths.resolve.tauri('Cargo.toml'),
-        this.appPaths.resolve.tauri('build.rs')
+        path.join(this.modeDir, 'src'),
+        path.join(this.modeDir, 'Cargo.toml'),
+        path.join(this.modeDir, 'build.rs')
       ], {
         watchers: {
           chokidar: {
@@ -71,6 +75,8 @@ class TauriRunner {
     this.__manipulateToml(toml => {
       this.__whitelistApi(cfg, toml)
     })
+
+    generator.generate(cfg.tauri)
 
     const features = []
     if (cfg.tauri.embeddedServer.active) {
@@ -116,7 +122,7 @@ class TauriRunner {
         cargoArgs.concat(['--']).concat(extraArgs) :
         cargoArgs,
 
-        this.appPaths.tauriDir,
+        this.modeDir,
 
         code => {
           if (code) {
@@ -160,7 +166,7 @@ class TauriRunner {
 
   __manipulateToml(callback) {
     const toml = require('@iarna/toml'),
-      tomlPath = this.appPaths.resolve.tauri('Cargo.toml'),
+      tomlPath = path.join(this.modeDir, 'Cargo.toml'),
       tomlFile = readFileSync(tomlPath),
       tomlContents = toml.parse(tomlFile)
 

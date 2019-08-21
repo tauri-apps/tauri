@@ -22,8 +22,7 @@ if (argv.help) {
     process.exit(0)
 }
 
-const Injector = require('../injector'),
-  injector = new Injector(appPaths)
+require('../template').inject(appPaths.tauriDir)
 if (injector.injectTemplate()) {
   log('Tauri template successfully installed')
 }

@@ -70,6 +70,13 @@ We plan on automating the installation of Frida,
 ## Recompilation
 > TODO
 
+## Resources
+
+### Inspirations
+- https://github.com/nowsecure/frida-uikit
+- https://github.com/frida/cryptoshark
+- https://github.com/dweinstein/awesome-frida
+
 ### Notes
 Some of the documentation on this page recycled from [frida.re](https://frida.re/docs/hacking/)
 

@@ -191,7 +191,6 @@ Ask complicated questions at the official community forum:
 [https://forum.quasar.dev](https://forum.quasar.dev)
 
 ## Contributing
-
 Please make sure to read the [Contributing Guide](./.github/CONTRIBUTING.md) 
 before making a pull request. If you have a Quasar-related 
 project/component/tool, add it with a pull request to 
@@ -199,11 +198,13 @@ project/component/tool, add it with a pull request to
 
 Thank you to all the people who already <a href="https://github.com/quasarframework/tauri/graphs/contributors">contributed to Tauri</a>!
 
+Special thanks to the development team at Volentix Labs for the encouragement and support in the early phases of Tauri, notably Rhys Parry and Gregory Luneau.
+
 ## Semver
 quasarframework/tauri is following [Semantic Versioning 2.0](https://semver.org/).
 
 ## Licenses
-Code: (c) 2015- 2019 - Daniel Thompson-Yvetot, Razvan Stoenescu, Lucas Nogueira, Boscop, Serge Zaitsev, George Burton and contributors.
+Code: (c) 2015 - 2019 - Daniel Thompson-Yvetot, Razvan Stoenescu, Lucas Nogueira, Tensor, Boscop, Serge Zaitsev, George Burton and all the other amazing contributors.
 
 MIT or MIT/Apache where applicable.
 

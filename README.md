@@ -122,6 +122,7 @@ you through the process. Here is a bit of a status report.
 - [x] functional Address Space Layout Randomization
 - [x] OTP salting of function names and messages
 - [x] CSP Injection
+- [ ] Frida-based harness for Post-Binary Analysis
 
 ### Comparison between Tauri 1 and Electron 5
 

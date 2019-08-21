@@ -57,6 +57,7 @@ We plan on automating the installation of Frida,
 - CPU Throttle
 
 ## Report Generation
+> TODO
 
 ## Binary Pruning
 > TODO

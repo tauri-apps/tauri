@@ -29,11 +29,13 @@
   },
   "dependencies": {
     "@iarna/toml": "^2.2.3",
+    "babel-plugin-system-import-transformer": "^4.0.0",
     "chalk": "^2.4.2",
     "chokidar": "^3.0.2",
     "cross-spawn": "^6.0.5",
     "fast-glob": "^3.0.4",
     "fs-extra": "^8.1.0",
+    "html-webpack-inline-source-plugin": "^0.0.10",
     "lodash.debounce": "^4.0.8",
     "lodash.template": "^4.5.0",
     "minimist": "^1.2.0",

@@ -1,6 +1,6 @@
 {
   "name": "@quasar/tauri",
-  "version": "0.0.1-utility.0",
+  "version": "0.0.1-utility.1",
   "description": "Multi-binding collection of libraries and templates for building Tauri",
   "bin": {
     "tauri": "mode/bin/tauri.js"

@@ -11,6 +11,7 @@ extern crate includedir;
 extern crate phf;
 
 pub mod api;
+mod app;
 pub mod command;
 pub mod config;
 pub mod dir;
@@ -22,12 +23,11 @@ pub mod platform;
 pub mod process;
 pub mod rpc;
 pub mod salt;
+#[cfg(feature = "embedded-server")]
+pub mod server;
 pub mod tcp;
 pub mod updater;
 pub mod version;
-#[cfg(feature = "embedded-server")]
-pub mod server;
-mod app;
 pub use app::*;
 
 use tauri_ui::WebView;

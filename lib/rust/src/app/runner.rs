@@ -10,7 +10,7 @@ pub(crate) fn run(application: &mut crate::App) {
   let content;
   let config = crate::config::get();
   #[cfg(feature = "embedded-server")]
-  let server_url: String;
+  let mut server_url: String;
 
   #[cfg(feature = "updater")]
   {
@@ -50,7 +50,8 @@ pub(crate) fn run(application: &mut crate::App) {
     debug = cfg!(debug_assertions);
     #[cfg(not(feature = "embedded-server"))]
     {
-      content = tauri_ui::Content::Html(include_str!(concat!(env!("TAURI_DIST_DIR"), "/index.html")));
+      content =
+        tauri_ui::Content::Html(include_str!(concat!(env!("TAURI_DIST_DIR"), "/index.html")));
     }
     #[cfg(feature = "embedded-server")]
     {
@@ -69,10 +70,17 @@ pub(crate) fn run(application: &mut crate::App) {
         }
       } else {
         port = config.embedded_server.port;
-        port_valid = crate::tcp::port_is_available(port.parse::<u16>().expect(&format!("Invalid port {}", port)));
+        port_valid = crate::tcp::port_is_available(
+          port
+            .parse::<u16>()
+            .expect(&format!("Invalid port {}", port)),
+        );
       }
       if port_valid {
         server_url = format!("{}:{}", config.embedded_server.host, port);
+        if !server_url.starts_with("http") {
+          server_url = format!("http://{}", server_url);
+        }
         content = tauri_ui::Content::Url(server_url.clone());
       } else {
         panic!(format!("Port {} is not valid or not open", port));
@@ -141,13 +149,24 @@ pub(crate) fn run(application: &mut crate::App) {
     #[cfg(feature = "embedded-server")]
     {
       thread::spawn(move || {
-        let server = tiny_http::Server::http(server_url.clone()).expect(&format!("Could not start embedded server with the specified url: {}", server_url));
+        let server = tiny_http::Server::http(
+          server_url
+            .clone()
+            .replace("http://", "")
+            .replace("https://", ""),
+        )
+        .expect(&format!(
+          "Could not start embedded server with the specified url: {}",
+          server_url
+        ));
         for request in server.incoming_requests() {
           let mut url = request.url().to_string();
           if url == "/" {
             url = "/index.html".to_string();
           }
-          request.respond(crate::server::asset_response(&url)).unwrap();
+          request
+            .respond(crate::server::asset_response(&url))
+            .unwrap();
         }
       });
     }

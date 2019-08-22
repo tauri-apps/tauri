@@ -42,7 +42,7 @@ pub struct EmbeddedServerConfig {
   #[serde(default = "default_host")]
   pub host: String,
   #[serde(default = "default_port")]
-  pub port: String
+  pub port: String,
 }
 
 fn default_host() -> String {
@@ -56,7 +56,7 @@ fn default_port() -> String {
 fn default_embedded_server() -> EmbeddedServerConfig {
   EmbeddedServerConfig {
     host: default_host(),
-    port: default_port()
+    port: default_port(),
   }
 }
 
@@ -66,7 +66,7 @@ pub struct Config {
   #[serde(default = "default_window")]
   pub window: WindowConfig,
   #[serde(default = "default_embedded_server")]
-  pub embedded_server: EmbeddedServerConfig
+  pub embedded_server: EmbeddedServerConfig,
 }
 
 pub fn get() -> Config {

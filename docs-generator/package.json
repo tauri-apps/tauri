@@ -7,7 +7,7 @@
   "author": "Daniel Thompson-Yvetot <denjell@quasar.dev>",
   "private": true,
   "scripts": {
-    "build": "quasar build && cp ./src/404.html ./dist/spa && cp .dist/spa ../docs",
+    "build": "quasar build && cp ./src/404.html ./dist/spa && cp -r ./dist/spa/. ../docs",
     "lint": "eslint --ext .js,.vue src",
     "lint-fix": "eslint --ext .js,.vue src --fix",
     "test": "echo \"No test specified\" && exit 0"

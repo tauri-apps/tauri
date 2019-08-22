@@ -17,5 +17,6 @@ $ cd app && yarn
 $ cd ../ui
 $ yarn && yarn build
 $ cd ../../test/cloudish 
-$ yarn add ../../quasar/app ../../quasar/ui  # or yarn install if a previous version of yarn
+$ yarn add @quasar/app@link:../../../quasar/app ../../quasar/ui  # or yarn install if a previous version of yarn
+$ quasar dev -m tauri
 ```

@@ -8,7 +8,8 @@
   "private": true,
   "scripts": {
     "lint": "eslint --ext .js,.vue src",
-    "test": "echo \"No test specified\" && exit 0"
+    "test": "echo \"No test specified\" && exit 0",
+    "devMode": "yarn add quasar"
   },
   "dependencies": {
     "@quasar/extras": "^1.0.0",
@@ -16,7 +17,6 @@
   },
   "devDependencies": {
     "@quasar/app": "^1.0.0",
-    "@quasar/tauri": "link:../../.",
     "@vue/eslint-config-standard": "^4.0.0",
     "babel-eslint": "^10.0.1",
     "eslint": "^5.10.0",

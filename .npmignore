@@ -1,5 +1,6 @@
 test
 docs
+docs-generator
 node_modules
 .git
 .github

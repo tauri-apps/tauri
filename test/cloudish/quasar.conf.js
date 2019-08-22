@@ -43,7 +43,8 @@ module.exports = function (ctx) {
         'QList',
         'QItem',
         'QItemSection',
-        'QItemLabel'
+        'QItemLabel',
+        'QForm'
       ],
 
       directives: [
@@ -131,7 +132,11 @@ module.exports = function (ctx) {
         ]
       }
     },
-
+    tauri: {
+      window: {
+        title: 'Quasar Tauri App set by quasar.conf.js'
+      }
+    },
     cordova: {
       // id: 'org.cordova.quasar.app',
       // noIosLegacyBuildFlag: true, // uncomment only if you know what you are doing

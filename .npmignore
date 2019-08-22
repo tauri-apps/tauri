@@ -1,8 +1,13 @@
 test
 docs
+docs-generator
 node_modules
-spec
 .git
 .github
 .idea
 SECURITY.md
+
+# Quasar output
+quasar
+bundle.json
+config.json

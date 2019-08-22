@@ -1,12 +1,13 @@
 {
   "name": "@quasar/tauri",
-  "version": "0.0.1-utility.2",
+  "version": "0.0.1-utility.3",
   "description": "Multi-binding collection of libraries and templates for building Tauri",
   "bin": {
     "tauri": "mode/bin/tauri.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "devUp": ""
   },
   "repository": {
     "type": "git",

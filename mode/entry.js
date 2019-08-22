@@ -1,5 +1,5 @@
 const compileTemplate = require('lodash.template'),
-  { readFileSync, writeFileSync } = require('fs-extra'),
+  { readFileSync, writeFileSync, ensureDir } = require('fs-extra'),
   path = require('path')
 
 module.exports.generate = (outDir, cfg, ctx, tauri = false) => {
@@ -9,5 +9,7 @@ module.exports.generate = (outDir, cfg, ctx, tauri = false) => {
     ctx: ctx,
     confName: `${tauri ? 'tauri' : 'quasar'}.conf.js`
   })
-  writeFileSync(path.join(outDir, 'tauri.js'), apiContent, 'utf-8')
+  ensureDir(outDir).then(() => {
+    writeFileSync(path.join(outDir, 'tauri.js'), apiContent, 'utf-8')
+  })
 }

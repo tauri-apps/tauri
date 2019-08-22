@@ -22,8 +22,9 @@ class TauriRunner {
   }
 
   async run(cfg) {
-    const
-      url = cfg.build.APP_URL
+    process.env.TAURI_DIST_DIR = cfg.build.distDir
+
+    const url = cfg.build.APP_URL
 
     if (this.pid) {
       if (this.url !== url) {
@@ -72,6 +73,8 @@ class TauriRunner {
   }
 
   async build(cfg) {
+    process.env.TAURI_DIST_DIR = cfg.build.distDir
+
     this.__manipulateToml(toml => {
       this.__whitelistApi(cfg, toml)
     })

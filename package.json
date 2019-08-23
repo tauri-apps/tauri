@@ -40,6 +40,7 @@
     "lodash.template": "^4.5.0",
     "minimist": "^1.2.0",
     "ms": "^2.1.2",
+    "strip-ansi": "=3.0.1",
     "webpack-merge": "^4.2.1"
   }
 }

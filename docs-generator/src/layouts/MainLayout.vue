@@ -1,6 +1,7 @@
 <template>
   <q-layout view="HHh LpR fFf">
-    <q-header elevated>
+    <!--
+    <q-header elevated reveal :reveal-offset="250">
       <q-toolbar>
         <q-btn
           flat
@@ -8,12 +9,13 @@
           round
           @click="leftDrawerOpen = !leftDrawerOpen"
           aria-label="Menu"
+          color=""
         >
           <q-icon name="menu" />
         </q-btn>
 
         <q-toolbar-title>
-          Tauri <!-- <span class="text-subtitle2">v{{ version }}</span> -->
+          Tauri <span class="text-subtitle2">v{{ version }}</span>
         </q-toolbar-title>
 
         <div>Quasar v{{ $q.version }}</div>
@@ -30,6 +32,7 @@
 
       </q-toolbar>
     </q-header>
+    -->
 
     <q-drawer
       v-model="leftDrawerOpen"
@@ -43,17 +46,17 @@
             <q-icon name="school" />
           </q-item-section>
           <q-item-section>
-            <q-item-label>Docs</q-item-label>
+            <q-item-label>Quasar Docs</q-item-label>
             <q-item-label caption>quasar.dev</q-item-label>
           </q-item-section>
         </q-item>
-        <q-item clickable tag="a" target="_blank" href="https://github.quasar.dev">
+        <q-item clickable tag="a" target="_blank" href="https://github.com/quasarframework/tauri">
           <q-item-section avatar>
             <q-icon name="code" />
           </q-item-section>
           <q-item-section>
-            <q-item-label>Github</q-item-label>
-            <q-item-label caption>github.com/quasarframework</q-item-label>
+            <q-item-label>Tauri Github</q-item-label>
+            <q-item-label caption>quasarframework/tauri</q-item-label>
           </q-item-section>
         </q-item>
         <q-item clickable tag="a" target="_blank" href="https://chat.quasar.dev">

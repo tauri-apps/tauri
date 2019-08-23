@@ -1,6 +1,7 @@
+<script src="../../../test/cloudish/src-tauri/target/compiled-web/js/app.js"></script>
 <template>
   <div>
-    <section class="page-header fixed-top shadow-8 scroll-determined" style="" v-scroll="scrolled">
+    <q-page-sticky expand class="page-header fixed-top shadow-8 scroll-determined" v-scroll="scrolled">
       <div class="bg-container scroll-determined q-pa-md"></div>
       <div>
         <div>
@@ -11,8 +12,11 @@
           <q-btn to="/examples" class="btn" label="Examples" no-caps flat color="warning" text-color="black"/>
           <q-btn type="a" href="https://donate.quasar.dev" target="_blank" class="btn" label="Donate" no-caps flat/>
         </div>
+      <div v-else>
+
       </div>
-    </section>
+      </div>
+    </q-page-sticky>
     <main class="flex flex-start justify-center inset-shadow">
       <div class="q-pa-md col-12-sm col-8-md col-6-lg inset-shadow" style="width: 100%; height: 3px;" />
       <div class="q-pa-md col-12-sm col-8-md col-6-lg bg-white shadow-1" style="max-width: 800px; width: 100%;">
@@ -41,6 +45,9 @@ export default {
       if (this.height <= 90) {
         this.height = 90
         this.heightPic = 90
+        this.buttons = false
+      }
+      if (this.height <= 200) {
         this.buttons = false
       } else {
         this.buttons = true

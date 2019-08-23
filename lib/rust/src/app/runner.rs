@@ -106,44 +106,6 @@ pub(crate) fn run(application: &mut crate::App) {
     .build()
     .unwrap();
 
-  webview
-    .handle()
-    .dispatch(move |_webview| {
-      _webview
-        .eval(&format!(
-          "window['{queue}'] = [];
-          window['{fn}'] = function (payload, salt, ignoreQueue) {{
-            window.tauri.promisified({{
-              cmd: 'validateSalt',
-              salt
-            }}).then(function () {{
-              const listeners = (window['{listeners}'] && window['{listeners}'][payload.type]) || []
-
-              if (!ignoreQueue && listeners.length === 0) {{ 
-                window['{queue}'].push({{ 
-                  payload: payload,
-                  salt: salt
-                 }})
-              }}
-
-              for (let i = listeners.length - 1; i >= 0; i--) {{ 
-                const listener = listeners[i]
-                if (listener.once)
-                  listeners.splice(i, 1)
-                listener.handler(payload)
-              }}
-            }})
-          }}", 
-          fn = crate::event::emit_function_name(),
-          listeners = crate::event::event_listeners_object_name(),
-          queue = crate::event::event_queue_object_name()
-        ))
-        .unwrap();
-
-      Ok(())
-    })
-    .unwrap();
-
   #[cfg(not(feature = "dev"))]
   {
     #[cfg(feature = "embedded-server")]

@@ -1,6 +1,7 @@
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
+  Init {},
   #[cfg(any(feature = "all-api", feature = "readTextFile"))]
   ReadTextFile {
     path: String,

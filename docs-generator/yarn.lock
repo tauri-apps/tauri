@@ -954,6 +954,20 @@
     raw-loader "^3.1.0"
     ware-loader "^0.2.4"
 
+"@quasar/quasar-app-extension-qpublish@^1.0.0-alpha.5":
+  version "1.0.0-alpha.5"
+  resolved "https://registry.yarnpkg.com/@quasar/quasar-app-extension-qpublish/-/quasar-app-extension-qpublish-1.0.0-alpha.5.tgz#ee4ade92b69b41114d94d9dff9c99d113fab6d8d"
+  integrity sha512-Ity//otADASULVdgqn4lXtFavg8dHssrnLQ6n5/FWSAs3O7PtHqvUGklU0dzgxv+j+2sbTV4Bi+XFg4gKpKqPQ==
+  dependencies:
+    quasar-mixin-colorize "^1.0.0-alpha.6"
+
+"@quasar/quasar-app-extension-qribbon@^1.0.0-beta.3":
+  version "1.0.0-beta.3"
+  resolved "https://registry.yarnpkg.com/@quasar/quasar-app-extension-qribbon/-/quasar-app-extension-qribbon-1.0.0-beta.3.tgz#4c49b0020b039668d08291a7e21cf1efdc4aa578"
+  integrity sha512-jSRHzY3t6Bl64XlWfpe2CQdvrhTvSxxZSQ6t7qVMFKsIxp2C0wCM0aLO9lvIcWB6Q6m+iYs1ZKUhQj7FKTcBAw==
+  dependencies:
+    quasar-mixin-colorize "^1.0.0-alpha.4"
+
 "@types/events@*":
   version "3.0.0"
   resolved "https://registry.npmjs.org/@types/events/-/events-3.0.0.tgz#2862f3f58a9a7f7c3e78d79f130dd4d71c25c2a7"
@@ -3550,7 +3564,7 @@ front-matter@^3.0.2:
   dependencies:
     js-yaml "^3.13.1"
 
-fs-extra@8.1.0:
+fs-extra@8.1.0, fs-extra@^8.1.0:
   version "8.1.0"
   resolved "https://registry.npmjs.org/fs-extra/-/fs-extra-8.1.0.tgz#49d43c45a88cd9677668cb7be1b46efdb8d2e1c0"
   integrity sha512-yhlQgA6mnOJUKOsRUFsgJdQCvkKhcz8tlZG5HBQfReYZy46OwLcY+Zia0mtdHsOo9y/hP+CxMN0TU9QxoOtG4g==
@@ -4144,7 +4158,7 @@ inquirer@6.5.0:
     strip-ansi "^5.1.0"
     through "^2.3.6"
 
-inquirer@^6.2.2:
+inquirer@^6.2.2, inquirer@^6.4.1:
   version "6.5.1"
   resolved "https://registry.npmjs.org/inquirer/-/inquirer-6.5.1.tgz#8bfb7a5ac02dac6ff641ac4c5ff17da112fcdb42"
   integrity sha512-uxNHBeQhRXIoHWTSNYUFhQVrHYFThIt6IVo2fFmSe8aBwdR3/w6b58hJpiL/fMukFkvGzjg+hSxFtwvVmKZmXw==
@@ -6452,6 +6466,22 @@ qs@6.7.0:
   version "6.7.0"
   resolved "https://registry.npmjs.org/qs/-/qs-6.7.0.tgz#41dc1a015e3d581f1621776be31afb2876a9b1bc"
   integrity sha512-VCdBRNFTX1fyE7Nb6FYoURo/SPe62QCaAyzJvUjwRaIsc+NePBEniHlvxFmmX56+HZphIGtV0XeCirBtpDrTyQ==
+
+quasar-app-extension-qautomate@^1.0.0-alpha.5:
+  version "1.0.0-alpha.5"
+  resolved "https://registry.yarnpkg.com/quasar-app-extension-qautomate/-/quasar-app-extension-qautomate-1.0.0-alpha.5.tgz#05c3ba95d17b78d180d2dae043c86a6b60629d99"
+  integrity sha512-VjClH4OJWEHOR3/rVj2jAl4pT/Mg/UBRtAruGDtbOtq09bmEiKEcbzET2tHOC2cMn3GjYA/7HQQpXBCC82ZSOQ==
+  dependencies:
+    chalk "^2.4.2"
+    fs-extra "^8.1.0"
+    inquirer "^6.4.1"
+    param-case "^2.1.1"
+    ware-loader "^0.2.4"
+
+quasar-mixin-colorize@^1.0.0-alpha.4, quasar-mixin-colorize@^1.0.0-alpha.6:
+  version "1.0.0-alpha.9"
+  resolved "https://registry.yarnpkg.com/quasar-mixin-colorize/-/quasar-mixin-colorize-1.0.0-alpha.9.tgz#e19c433a5b3f40c4ce4ab5c6e8506f7cb6eb83bb"
+  integrity sha512-xg49b7Z68D2+zdDOgq/XntKKAd2Anl1kIsLI3dKS26CCNGARB1JjPH9+tKd+r2MCcMf3R6qf775/vPKbsDZ4BQ==
 
 quasar@^1.0.0:
   version "1.0.5"

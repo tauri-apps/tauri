@@ -1,5 +1,5 @@
 <template>
-  <q-layout view="lHh Lpr lFf">
+  <q-layout view="HHh LpR fFf">
     <q-header elevated>
       <q-toolbar>
         <q-btn
@@ -13,17 +13,28 @@
         </q-btn>
 
         <q-toolbar-title>
-          Quasar App
+          Tauri <!-- <span class="text-subtitle2">v{{ version }}</span> -->
         </q-toolbar-title>
 
         <div>Quasar v{{ $q.version }}</div>
+
+        <q-btn
+          flat
+          dense
+          round
+          @click="rightDrawerOpen = !rightDrawerOpen"
+          aria-label="Table of Contents"
+        >
+          <q-icon name="menu" />
+        </q-btn>
+
       </q-toolbar>
     </q-header>
 
     <q-drawer
       v-model="leftDrawerOpen"
       bordered
-      content-class="bg-grey-2"
+      content-style="background-color: #f8f8ff"
     >
       <q-list>
         <q-item-label header>Essential Links</q-item-label>
@@ -84,6 +95,32 @@
       </q-list>
     </q-drawer>
 
+    <q-drawer
+      v-model="rightDrawerOpen"
+      side="right"
+      bordered
+      content-style="background-color: #f8f8ff"
+    >
+      <q-scroll-area class="fit">
+        <q-list dense>
+          <q-item
+            v-for="item in toc"
+            :key="item.id"
+            clickable
+            v-ripple
+            dense
+            @click="scrollTo(item.id)"
+            :active="activeToc === item.id"
+          >
+          <q-item-section v-if="item.level > 1" side> • </q-item-section>
+            <q-item-section
+              :class="`toc-item toc-level-${item.level}`"
+            >{{ item.label }}</q-item-section>
+          </q-item>
+        </q-list>
+      </q-scroll-area>
+    </q-drawer>
+
     <q-page-container>
       <router-view />
     </q-page-container>
@@ -91,20 +128,57 @@
 </template>
 
 <script>
-import { openURL } from 'quasar'
+import { mapGetters } from 'vuex'
+import { scroll } from 'quasar'
 
 export default {
-  name: 'MyLayout',
+  name: 'MainLayout',
+
   data () {
     return {
-      leftDrawerOpen: this.$q.platform.is.desktop
+      leftDrawerOpen: this.$q.platform.is.desktop,
+      rightDrawerOpen: this.$q.platform.is.desktop,
+      activeToc: 0
     }
   },
+
+  computed: {
+    ...mapGetters({
+      toc: 'common/toc'
+    })
+  },
+
+  mounted () {
+    // code to handle anchor link on refresh/new page, etc
+    if (location.hash !== '') {
+      const id = location.hash.substring(1, location.hash.length)
+      setTimeout(() => {
+        this.scrollTo(id)
+      }, 200)
+    }
+  },
+
   methods: {
-    openURL
+    scrollTo (id) {
+      this.activeToc = id
+      const el = document.getElementById(id)
+
+      if (el) {
+        this.scrollPage(el)
+      }
+    },
+    scrollPage (el) {
+      const offset = el.offsetTop - 50
+      scroll.setScrollPosition(window, offset, 500)
+    }
   }
 }
 </script>
 
-<style>
+<style lang="stylus">
+.toc-level
+  &-2
+    margin-left 0
+  &-3
+    margin-left 10px
 </style>

@@ -31,6 +31,8 @@ module.exports = function (ctx) {
       // all: true, // --- includes everything; for dev only!
 
       components: [
+        'QCard',
+        'QExpansionItem',
         'QLayout',
         'QHeader',
         'QDrawer',
@@ -43,7 +45,14 @@ module.exports = function (ctx) {
         'QList',
         'QItem',
         'QItemSection',
-        'QItemLabel'
+        'QItemLabel',
+        'QPageScroller',
+        'QScrollArea',
+        'QSeparator',
+        'QTabs',
+        'QTab',
+        'QTabPanels',
+        'QTabPanel'
       ],
 
       directives: [
@@ -56,11 +65,12 @@ module.exports = function (ctx) {
       ]
     },
 
-    supportIE: false,
+    supportIE: true,
 
     build: {
       scopeHoisting: true,
-      // vueRouterMode: 'history',
+      vueRouterMode: 'history',
+      publicPath: 'tauri',
       // vueCompiler: true,
       // gzip: true,
       // analyze: true,

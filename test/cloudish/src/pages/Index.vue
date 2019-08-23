@@ -1,7 +1,9 @@
 <template>
   <q-page class="flex flex-center">
-    <h3>2nd Build from link: served TAURI</h3>
-    <p>Sourcing default quasar.conf.js from NPM too</p>
+    <pre style="font-size:2em">
+      - @quasar/app (via dev branch of git)
+      - @quasar/tauri (via NPM)
+    </pre>
   </q-page>
 </template>
 

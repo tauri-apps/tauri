@@ -89,7 +89,7 @@ module.exports = function (ctx) {
     animations: [],
 
     ssr: {
-      pwa: false
+      pwa: true
     },
 
     pwa: {
@@ -133,6 +133,10 @@ module.exports = function (ctx) {
       }
     },
     tauri: {
+      embeddedServer: { active: false },
+      whitelist: {
+        all: true
+      },
       window: {
         title: 'Quasar Tauri App set by quasar.conf.js'
       }

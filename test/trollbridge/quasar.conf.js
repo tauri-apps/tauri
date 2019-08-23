@@ -132,6 +132,7 @@ module.exports = function (ctx) {
       }
     },
 
+
     cordova: {
       // id: 'org.cordova.quasar.app',
       // noIosLegacyBuildFlag: true, // uncomment only if you know what you are doing

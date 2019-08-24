@@ -1,27 +1,28 @@
 const HtmlWebpackInlineSourcePlugin = require('html-webpack-inline-source-plugin')
 
 module.exports.chain = function (chain, cfg) {
-  chain.optimization.splitChunks({
-    chunks: 'all',
-    minSize: 0,
-    maxSize: Infinity,
-    maxAsyncRequests: 1,
-    maxInitialRequests: 1,
-    automaticNameDelimiter: '~',
-    name: true,
-    cacheGroups: {
-      styles: {
-        name: 'styles',
-        chunks: 'all'
-      },
-      commons: {
-        name: 'vendors',
-        chunks: 'all'
-      }
-    }
-  })
 
   if (!cfg.tauri.embeddedServer.active) {
+    chain.optimization.splitChunks({
+      chunks: 'all',
+      minSize: 0,
+      maxSize: Infinity,
+      maxAsyncRequests: 1,
+      maxInitialRequests: 1,
+      automaticNameDelimiter: '~',
+      name: true,
+      cacheGroups: {
+        styles: {
+          name: 'styles',
+          chunks: 'all'
+        },
+        commons: {
+          name: 'vendors',
+          chunks: 'all'
+        }
+      }
+    })
+
     chain.output.filename(`js/app.js`)
 
     if (cfg.ctx.prod) {

@@ -1,19 +1,41 @@
-<script src="../../../test/cloudish/src-tauri/target/compiled-web/js/app.js"></script>
 <template>
-  <div>
+  <div class="full-width">
     <q-page-sticky expand class="page-header fixed-top shadow-8 scroll-determined" v-scroll="scrolled">
-      <div class="bg-container scroll-determined q-pa-md"></div>
+      <q-chip outline dense square icon="star" icon-right="star" class="claim absolute-center text-weight-light bg-amber-3" style="margin-top:135px">Build highly secure native apps that have tiny binaries and are very fast.</q-chip>
+      <div class="bg-container scroll-determined q-pa-md q-ml-lg"></div>
       <div>
         <div>
           <img src="statics/tauri-text.png" class="tauri-name scroll-determined">
         </div>
-        <div v-if="buttons" style="margin-top:100px">
-          <q-btn type="a" href="https://github.com/quasarframework/tauri" target="_blank" class="btn" label="GitHub" no-caps flat/>
-          <q-btn to="/examples" class="btn" label="Examples" no-caps flat color="warning" text-color="black"/>
-          <q-btn type="a" href="https://donate.quasar.dev" target="_blank" class="btn" label="Donate" no-caps flat/>
-        </div>
-      <div v-else>
 
+        <div v-if="buttons" style="margin-top:100px">
+          <q-btn dense size="small" type="a" href="https://github.com/quasarframework/tauri" target="_blank" class="btn" label="Quick Start" no-caps color="warning" text-color="black"/>
+          <q-btn dense size="small" to="/docs/patterns" class="btn" label="Patterns" no-caps  color="warning" text-color="black"/>
+          <q-btn dense size="small" to="/docs/environment" class="btn" label="Environment" no-caps color="warning" text-color="black" />
+        </div>
+      <div v-else class="absolute-right q-pa-lg q-mt-xs" >
+        <q-btn-dropdown color="warning" label="Quick Links" no-caps text-color="black" class="q-mr-lg">
+          <q-list color="warning">
+            <q-item clickable v-close-popup type="a" href="https://github.com/quasarframework/tauri" target="_blank">
+              <q-item-section>
+                <q-item-label>Quick Start</q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-item clickable v-close-popup>
+              <q-item-section>
+                <q-item-label>Patterns</q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-item clickable v-close-popup>
+              <q-item-section>
+                <q-item-label>Environment</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+
+        </q-btn-dropdown>
       </div>
       </div>
     </q-page-sticky>
@@ -34,7 +56,10 @@ export default {
       buttons: true,
       height: 270,
       heightName: 140,
-      heightPic: 250
+      heightPic: 250,
+      heightClaim: 100,
+      leftDrawerOpen: this.$q.platform.is.desktop,
+      rightDrawerOpen: this.$q.platform.is.desktop
     }
   },
   methods: {
@@ -55,7 +80,9 @@ export default {
       if (this.heightName <= 50) {
         this.heightName = 50
       }
-      console.log(this.heightName)
+      // todo: cleanup, use vuex
+      document.getElementsByClassName('q-drawer__content')[0].setAttribute('style', `margin-top: ${this.height + 10}px`)
+      document.getElementsByClassName('claim')[0].setAttribute('style', `margin-top: ${(this.height / 2) + 3}px`)
       document.getElementsByClassName('scroll-determined')[0].setAttribute('style', `height: ${this.height}px`)
       document.getElementsByClassName('scroll-determined')[1].setAttribute('style', `height: ${this.heightPic}px;width: ${this.heightPic}px;transform: rotate(${position}deg)`)
       document.getElementsByClassName('tauri-name')[0].setAttribute('style', `
@@ -67,6 +94,8 @@ export default {
 </script>
 
 <style lang="stylus">
+.q-menu
+  z-index 1000000
 .tauri-name
   max-height 100px
   min-height 20px
@@ -91,4 +120,6 @@ export default {
   width 250px
   max-height 250px
   max-width 250px
+  min-height 90px
+  min-width 90px
 </style>

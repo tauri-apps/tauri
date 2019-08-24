@@ -17,7 +17,7 @@ pub fn asset_response(path: &str) -> Response<std::io::Cursor<Vec<u8>>> {
   } else if path.ends_with(".html") {
     header = Header::from_bytes(&b"Content-Type"[..], &b"text/html"[..]).unwrap();
   } else {
-    header = Header::from_bytes(&b"Content-Type"[..], &b"appication/octet-stream"[..]).unwrap();
+    header = Header::from_bytes(&b"Content-Type"[..], &b"application/octet-stream"[..]).unwrap();
   }
 
   response.add_header(header);

@@ -8,7 +8,7 @@
       aria-label="Menu"
       color="black"
       class="fixed-right"
-      style="margin:30px 5px 0 0;z-index:10000000"
+      style="margin:15px 5px 0 0;z-index:10000000"
     >
       <q-icon name="menu" />
     </q-btn>

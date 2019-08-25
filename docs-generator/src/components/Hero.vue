@@ -1,40 +1,40 @@
 <template>
   <div class="full-width">
     <q-page-sticky expand class="page-header fixed-top shadow-8 scroll-determined" v-scroll="scrolled">
-      <q-chip outline dense square icon="star" icon-right="star" class="claim absolute-center text-weight-light bg-amber-3" style="margin-top:135px">Build highly secure native apps that have tiny binaries and are very fast.</q-chip>
+      <q-chip id="claim" outline dense square icon="star" icon-right="star" class="claim text-weight-light bg-amber-3" style="top: 220px">Build more secure native apps with fast,  tiny binaries.</q-chip>
       <div class="bg-container scroll-determined q-pa-md q-ml-lg"></div>
       <div>
         <div>
           <img src="statics/tauri-text.png" class="tauri-name scroll-determined">
         </div>
-
-        <div v-if="buttons" style="margin-top:100px">
-          <q-btn dense size="small" type="a" href="https://github.com/quasarframework/tauri" target="_blank" class="btn" label="Quick Start" no-caps color="warning" text-color="black"/>
+        <div v-if="buttons" class="row" style="margin-top:90px">
+          <q-btn dense size="small" type="a" href="https://github.com/quasarframework/tauri" target="_blank" class="btn " label="Quick Start" no-caps color="warning" text-color="black"/>
           <q-btn dense size="small" to="/docs/patterns" class="btn" label="Patterns" no-caps  color="warning" text-color="black"/>
-          <q-btn dense size="small" to="/docs/environment" class="btn" label="Environment" no-caps color="warning" text-color="black" />
         </div>
-      <div v-else class="absolute-right q-pa-lg q-mt-xs" >
-        <q-btn-dropdown color="warning" label="Quick Links" no-caps text-color="black" class="q-mr-lg">
+      <div v-else class="absolute-right" style="margin:15px 30px 0 0;z-index:10000000">
+        <q-btn-dropdown dense color="warning" label="Docs" no-caps text-color="black" class="q-mr-lg">
           <q-list color="warning">
-            <q-item clickable v-close-popup type="a" href="https://github.com/quasarframework/tauri" target="_blank">
+            <q-item clickable v-close-popup to="/docs/quick-start">
               <q-item-section>
                 <q-item-label>Quick Start</q-item-label>
               </q-item-section>
             </q-item>
-
-            <q-item clickable v-close-popup>
+            <q-item clickable v-close-popup to="/docs/patterns">
               <q-item-section>
                 <q-item-label>Patterns</q-item-label>
               </q-item-section>
             </q-item>
-
-            <q-item clickable v-close-popup>
+            <q-item clickable v-close-popup to="/docs/environment">
               <q-item-section>
                 <q-item-label>Environment</q-item-label>
               </q-item-section>
             </q-item>
+            <q-item clickable v-close-popup to="/docs/api">
+              <q-item-section>
+                <q-item-label>API</q-item-label>
+              </q-item-section>
+            </q-item>
           </q-list>
-
         </q-btn-dropdown>
       </div>
       </div>
@@ -62,32 +62,48 @@ export default {
       rightDrawerOpen: this.$q.platform.is.desktop
     }
   },
+  nounted () {
+    this.scrolled(document.offset().top)
+  },
   methods: {
     scrolled (position) {
-      this.height = 270 - (position / 4)
-      this.heightName = 140 - (position / 4)
-      this.heightPic = 250 - (position / 4)
-      if (this.height <= 90) {
-        this.height = 90
-        this.heightPic = 90
+      const pos = position / 4
+      this.height = 270 - (pos)
+      this.heightName = 140 - (pos)
+      this.heightPic = 250 - (pos)
+      this.heightClaim = 220 - (pos)
+      console.log(this.heightPic)
+      if (this.height <= 70) {
+        this.height = 70
         this.buttons = false
       }
-      if (this.height <= 200) {
+      if (this.heightPic <= 60) {
+        this.heightPic = 60
+      }
+      if (this.height <= 220) {
         this.buttons = false
       } else {
         this.buttons = true
       }
-      if (this.heightName <= 50) {
-        this.heightName = 50
+      if (this.heightName <= 35) {
+        this.heightName = 35
       }
-      // todo: cleanup, use vuex
-      document.getElementsByClassName('q-drawer__content')[0].setAttribute('style', `margin-top: ${this.height + 10}px`)
-      document.getElementsByClassName('claim')[0].setAttribute('style', `margin-top: ${(this.height / 2) + 3}px`)
+      if (this.heightClaim <= 58) {
+        this.heightClaim = 58
+      }
+      // todo: cleanup, use vuex, be faster!
+      // the buttons
       document.getElementsByClassName('scroll-determined')[0].setAttribute('style', `height: ${this.height}px`)
-      document.getElementsByClassName('scroll-determined')[1].setAttribute('style', `height: ${this.heightPic}px;width: ${this.heightPic}px;transform: rotate(${position}deg)`)
+      // the icon
+      document.getElementsByClassName('scroll-determined')[1].setAttribute('style', `height: ${this.heightPic - 5}px;width: ${this.heightPic}px;transform: rotate(${position}deg)`)
+      // the name
       document.getElementsByClassName('tauri-name')[0].setAttribute('style', `
       height: ${this.heightName}px;
       `)
+      // claim
+      document.getElementById('claim').setAttribute('style', `top: ${this.heightClaim}px`)
+      // the sidebar
+      document.getElementsByClassName('q-drawer__content')[0].setAttribute('style', `margin-top: ${this.height + 10}px`)
     }
   }
 }
@@ -99,10 +115,12 @@ export default {
 .tauri-name
   max-height 100px
   min-height 20px
+  max-width 50%
+  height inherit
   position fixed
   margin auto
-  top 25px
-  left -10px
+  top 15px
+  left 0
   right 0
 .page-header
   height 270px
@@ -120,6 +138,16 @@ export default {
   width 250px
   max-height 250px
   max-width 250px
-  min-height 90px
-  min-width 90px
+  min-height 60px
+  min-width 60px
+.claim
+  position absolute
+  margin 0 auto
+  left 20px
+  right 20px
+  width 330px
+  text-align center
+  color darkred
+  i
+    color darkred
 </style>

@@ -120,20 +120,31 @@ fn run() -> crate::Result<()> {
             .value_name("FEATURES")
             .multiple(true)
             .help("Which features to build"),
+        )
+        .arg(
+          Arg::with_name("version")
+            .long("version")
+            .short("v")
+            .help("Read the version of the CLI"),
         ),
     )
     .get_matches();
 
   if let Some(m) = m.subcommand_matches("tauri-bundle") {
-    let output_paths = env::current_dir()
-      .map_err(From::from)
-      .and_then(|d| Settings::new(d, m))
-      .and_then(|s| {
-        r#try!(build_project_if_unbuilt(&s));
-        Ok(s)
-      })
-      .and_then(bundle_project)?;
-    bundle::print_finished(&output_paths)?;
+    if m.is_present("version") {
+      println!("{}", crate_version!());
+    }
+    else {
+      let output_paths = env::current_dir()
+        .map_err(From::from)
+        .and_then(|d| Settings::new(d, m))
+        .and_then(|s| {
+          r#try!(build_project_if_unbuilt(&s));
+          Ok(s)
+        })
+        .and_then(bundle_project)?;
+      bundle::print_finished(&output_paths)?;
+    }
   }
   Ok(())
 }

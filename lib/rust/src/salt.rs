@@ -1,5 +1,5 @@
-use tauri_ui::WebView;
 use std::sync::Mutex;
+use tauri_ui::WebView;
 use uuid::Uuid;
 
 struct Salt {

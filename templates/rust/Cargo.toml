@@ -10,14 +10,14 @@ default-run = "app"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tauri-ui = { path = "../../tauri/bindings/rust" }
+tauri-ui = { path = "../node_modules/@quasar/tauri/bindings/rust" }
 serde_json = "1.0.39"
 serde = "1.0"
 serde_derive = "1.0"
 tiny_http = "0.6"
 phf = "0.7.21"
 includedir = "0.5.0"
-tauri = { path = "../../tauri/lib/rust" }
+tauri = { path = "../node_modules/@quasar/tauri/lib/rust" }
 
 [features]
 dev = ["tauri/dev"] # has no explicit dependencies

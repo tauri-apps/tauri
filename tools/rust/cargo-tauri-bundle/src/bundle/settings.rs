@@ -196,6 +196,11 @@ impl Settings {
         name.clone(),
       ),
     };
+    let binary_name = if cfg!(windows) {
+      format!("{}.{}", &binary_name, "exe")
+    } else {
+      binary_name
+    };
     let binary_path = target_dir.join(&binary_name);
     Ok(Settings {
       package,
@@ -247,7 +252,7 @@ impl Settings {
           - Stop at the first one found.
           - If one is found before reaching "/" then this folder belongs to that parent workspace
   */
-  fn get_workspace_dir(current_dir: &PathBuf) -> PathBuf {
+  pub fn get_workspace_dir(current_dir: &PathBuf) -> PathBuf {
     let mut dir = current_dir.clone();
     while dir.pop() {
       let set = CargoSettings::load(&dir);

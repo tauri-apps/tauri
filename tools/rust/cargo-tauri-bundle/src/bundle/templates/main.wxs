@@ -1,0 +1,69 @@
+<?if $(sys.BUILDARCH)="x86"?>
+    <?define Win64 = "no" ?>
+    <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
+<?elseif $(sys.BUILDARCH)="x64"?>
+    <?define Win64 = "yes" ?>
+    <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+<?else?>
+    <?error Unsupported value of sys.BUILDARCH=$(sys.BUILDARCH)?>
+<?endif?>
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
+    <Product
+            Id="*"
+            Name="{{{product_name}}}"
+            UpgradeCode="{{{upgrade_code}}}"
+            Language="1033"
+            Codepage="1252"
+            Manufacturer="{{{manufacturer}}}"
+            Version="{{{version}}}">
+
+        <Package Id="*"
+                 Keywords="Installer"
+                 InstallerVersion="200"
+                 Languages="1033"
+                 Compressed="yes"
+                 InstallScope="perMachine"
+                 SummaryCodepage="1252"/>
+
+        <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
+        <Icon Id="ProductIcon" SourceFile="{{{icon_path}}}"/>
+        <Property Id="ARPPRODUCTICON" Value="ProductIcon"/>
+        <Property Id="ARPNOREPAIR" Value="1"/>
+        <Property Id="ARPNOMODIFY" Value="1"/>
+
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">
+                <Directory Id="APPLICATIONFOLDER" Name="{{{product_name}}}">
+                    <Component Id="Path" Guid="{{{path_component_guid}}}" Win64="$(var.Win64)" KeyPath="yes">
+                        <File Id="PathFile" Source="{{{app_exe_source}}}" />
+                    </Component>
+                </Directory>
+            </Directory>
+        </Directory>
+
+        <Feature
+                Id="MainProgram"
+                Title="Application"
+                Description="Installs the executable."
+                Level="1"
+                ConfigurableDirectory="APPLICATIONFOLDER"
+                AllowAdvertise="no"
+                Display="expand"
+                Absent="disallow">
+
+            <Feature
+                    Id="Environment"
+                    Title="PATH Environment Variable"
+                    Description="Add the install location of the [ProductName] executable to the PATH system environment variable. This allows the [ProductName] executable to be called from any location."
+                    Level="1"
+                    Absent="allow">
+                <ComponentRef Id="Path"/>
+            </Feature>
+        </Feature>
+
+        <SetProperty Id="ARPINSTALLLOCATION" Value="[APPLICATIONFOLDER]" After="CostFinalize"/>
+
+    </Product>
+</Wix>

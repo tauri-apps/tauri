@@ -95,7 +95,15 @@ pub(crate) fn run(application: &mut crate::App) {
     .debug(debug)
     .user_data(())
     .invoke_handler(|webview, arg| {
-      if !crate::api::handler(webview, arg) {
+      let handle = webview.handle();
+      if !crate::api::handler(webview, arg, move |command| {
+        if command == "init" {
+          handle.dispatch(|_webview| {
+            crate::extension::ready(_webview);
+            Ok(())
+          }).unwrap();
+        }
+      }) {
         crate::extension::extend_api(webview, arg);
         application.run_invoke_handler(webview, arg);
       }

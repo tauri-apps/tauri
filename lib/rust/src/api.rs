@@ -3,7 +3,7 @@ mod cmd;
 use tauri_ui::WebView;
 
 #[allow(unused_variables)]
-pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
+pub fn handler<T: 'static, F: Fn(&str) + Send + 'static>(webview: &mut WebView<'_, T>, arg: &str, after_command: F) -> bool {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
     Err(_) => false,
@@ -44,7 +44,7 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
                 ))
                 .unwrap();
 
-                crate::extension::ready(webview);
+                after_command("init");
 
                 Ok(())
             })

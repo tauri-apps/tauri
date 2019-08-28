@@ -1,29 +1,21 @@
-# quasar-tauri [WIP]
+# tauri [WIP]
 ## A fresh take on creating cross-platform apps.
-[![official icon](https://img.shields.io/badge/Quasar%201.0-Official-blue.svg)](https://quasar.dev)
 [![status](https://img.shields.io/badge/Status-Internal%20Review-yellow.svg)](https://github.com/quasarframework/quasar/tree/tauri)
-[![version](https://img.shields.io/badge/Version-unreleased-yellow.svg)](https://github.com/quasarframework/quasar/tree/tauri) <img align="right" src="https://cdn.quasar.dev/logo/tauri/tauri-logo-240x240.png">
+[![version](https://img.shields.io/badge/Version-unreleased-yellow.svg)](https://github.com/tauri-apps/tauri/tree/dev) <img align="right" src="https://cdn.quasar.dev/logo/tauri/tauri-logo-240x240.png">
 
-[![Join the chat at https://chat.quasar.dev](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://chat.quasar.dev)
-<a href="https://forum.quasar.dev" target="_blank"><img src="https://img.shields.io/badge/community-forum-brightgreen.svg"></a>
+[![Chat Server](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/SpmNs4S)
+<img src="https://img.shields.io/badge/community-forum-brightgreen.svg">
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
+[![support](https://img.shields.io/badge/Sponsor-Opencollective-blue.svg)](https://opencollective.com/tauri)
 
-**Tauri** brings a mode to build Quasar Apps that creates tiny, blazing 
-fast binaries for all major desktop platforms. In Quasar's 
-[neverending quest](https://quasar.dev/introduction-to-quasar#Why-Quasar%3F) 
-for performance and security, the core team is proud to offer an
-alternative to Electron.
+**Tauri** is a tool for building tiny, blazing fast binaries for all 
+major desktop platforms. It was incubated at Quasar Framework.
 
 Whether you are just starting out making apps for your meetup or 
 regularly crunch terabyte datasets, we are absolutely confident that 
 you will love using Tauri as much as we love making and maintaining it.
 
 ## Who Tauri is For
-Anyone who can create a Quasar app can use Tauri, as it is *merely* a new 
-build target. All components and plugins (suitable for Native Desktop) can
-be used. For the User Interface, nothing has changed, except you will 
-probably notice that everything seems much faster.
-
 Because of the way Tauri has been built and can be extended, developers 
 are able to interface not only with the entire Rust ecosystem, but also 
 with many other programming languages. Being freed of the heaviest thing 
@@ -33,7 +25,7 @@ applications that need the purebred power, agility and community
 acceptance of a low-level language.
 
 We expect to witness an entire new class of applications being built with 
-Quasar Tauri. From a simple calender to locally crunching massive realtime 
+Tauri. From a simple calender to locally crunching massive realtime 
 feeds at particle colliders or even mesh-network based distributed message-
 passing ecosystems - the bar has been raised and gauntlet thrown. 
 
@@ -83,7 +75,7 @@ and the final binaries are smaller.
 ### Current Status
 We are in the process of vetting this new mode. It is not yet available to
 use without jumping through some development hurdles. If you don't care,
-please reach out to the team at https://chat.quasar.dev and we'll guide
+please [reach out to the team](https://discord.gg/SpmNs4S) and we'll guide
 you through the process. Here is a bit of a status report.
 
 #### App Bundles
@@ -157,6 +149,10 @@ you through the process. Here is a bit of a status report.
 #### Notes
 1) Electron has no native auto updater on Linux, but is offered by electron-packager
 
+## Organization
+Tauri aims to be a sustainable collective based on principles that guide [sustainable
+free and open software communities](https://sfosc.org). You can get involved in many ways.
+
 ## Relation to Upstream Origins
 We have made the decision to fork, enhance and maintain several upstream
 projects here in this repository, in order to guarantee the security of the
@@ -175,42 +171,22 @@ go bindings
 - [Boscop](https://github.com/Boscop) for the Rust Bindings
 - [Burtonago](https://github.com/burtonageo) for the Cargo Bundle prototype
 
-## Documentation
-Head over to the Quasar Framework official website: 
-[https://quasar.dev](https://quasar.dev)
-
-## Stay in Touch
-For latest releases and announcements, follow on Twitter: 
-[@quasarframework](https://twitter.com/quasarframework)
-
-## Chat Support
-Get realtime help at the official community Discord server: 
-[https://chat.quasar.dev](https://chat.quasar.dev)
-
-## Community Forum
-Ask complicated questions at the official community forum: 
-[https://forum.quasar.dev](https://forum.quasar.dev)
-
 ## Contributing
 Please make sure to read the [Contributing Guide](./.github/CONTRIBUTING.md) 
-before making a pull request. If you have a Quasar-related 
-project/component/tool, add it with a pull request to 
-[this curated list](https://github.com/quasarframework/quasar-awesome)!
+before making a pull request.
 
-Thank you to all the people who already <a href="https://github.com/quasarframework/tauri/graphs/contributors">contributed to Tauri</a>!
+Thank you to all the people who already contributed to Tauri!
 
-Special thanks to the development team at Volentix Labs for the encouragement and support in the early phases of Tauri, notably Rhys Parry and Gregory Luneau.
+Special thanks to the development team at Volentix Labs for the encouragement and support in the early phases of Tauri, notably Rhys Parry and Gregory Luneau. Also a warm thanks to the incubation period at the Quasar Framework and specifically Razvan Stoenescu for believing in Tauri from the beginning.
 
 ## Semver
-quasarframework/tauri is following [Semantic Versioning 2.0](https://semver.org/).
+**tauri** is following [Semantic Versioning 2.0](https://semver.org/).
 
 ## Licenses
-Code: (c) 2015 - 2019 - Daniel Thompson-Yvetot, Razvan Stoenescu, Lucas Nogueira, Tensor, Boscop, Serge Zaitsev, George Burton and all the other amazing contributors.
+Code: (c) 2015 - present - Daniel Thompson-Yvetot, Lucas Nogueira, Tensor, Boscop, Serge Zaitsev, George Burton and all the other amazing contributors.
 
 MIT or MIT/Apache where applicable.
 
 Logo: CC-BY-NC-ND
 - Original Tauri Logo Design by [Daniel Thompson-Yvetot](https://github.com/nothingismagick)
 - Based on the prior work by [Emanuele Bertoldi](https://github.com/zuck)
-
-Name: The proper name of this project is "Quasar Tauri", and is to be used in all citations.

@@ -28,11 +28,8 @@ OS:
 Node:
 NPM:
 Yarn:
-Browsers:
-iOS:
-Android:
-Electron:
 Tauri Binding:
+Bundle Target:
 
 **Additional context**
 Add any other context about the problem here.

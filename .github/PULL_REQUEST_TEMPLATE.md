@@ -1,6 +1,6 @@
 <!--
 Please make sure to read the Pull Request Guidelines:
-https://github.com/quasarframework/tauri/blob/dev/.github/CONTRIBUTING.md#pull-request-guidelines
+https://github.com/tauri-apps/tauri/blob/dev/.github/CONTRIBUTING.md#pull-request-guidelines
 -->
 
 <!-- PULL REQUEST TEMPLATE -->
@@ -32,7 +32,6 @@ If yes, please describe the impact and migration path for existing applications 
 
 - [ ] It's submitted to the `dev` branch and _not_ the `master` branch
 - [ ] When resolving a specific issue, it's referenced in the PR's title (e.g. `fix: #xxx[,#xxx]`, where "xxx" is the issue number)
-- [ ] Any necessary documentation has been added or updated [in the docs](https://github.com/quasarframework/tauri/tree/dev/docs) (for faster update click on "Suggest an edit on GitHub" at bottom of page) or explained in the PR's description.
 
 If adding a **new feature**, the PR's description includes:
 - [ ] A convincing reason for adding this feature (to avoid wasting your time, it's best to open a suggestion issue first and wait for approval before working on it)

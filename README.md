@@ -4,9 +4,11 @@
 [![version](https://img.shields.io/badge/Version-unreleased-yellow.svg)](https://github.com/tauri-apps/tauri/tree/dev) <img align="right" src="https://cdn.quasar.dev/logo/tauri/tauri-logo-240x240.png">
 
 [![Chat Server](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/SpmNs4S)
-<img src="https://img.shields.io/badge/community-forum-brightgreen.svg">
+[![devto](https://img.shields.io/badge/dev.to-blog-black.svg)](https://dev.to/tauri)
+
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
 [![support](https://img.shields.io/badge/Sponsor-Opencollective-blue.svg)](https://opencollective.com/tauri)
+
 
 **Tauri** is a tool for building tiny, blazing fast binaries for all 
 major desktop platforms. It was incubated at Quasar Framework.

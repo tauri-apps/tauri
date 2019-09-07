@@ -24,6 +24,6 @@ module.exports = cfg => {
   }, tauriConf, cfg)
 
   process.env.TAURI_DIST_DIR = appPaths.resolve.app(config.build.distDir)
-
+  console.log(tauriConf)
   return config
 }

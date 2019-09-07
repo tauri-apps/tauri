@@ -6,7 +6,7 @@ const cmd = process.argv[2]
 if (!cmd || cmd === '-h' || cmd === '--help' || cmd === 'help') {
   console.log(`
   Description
-    Tauri CLI.
+    This is the Tauri CLI.
   Usage
     $ tauri ${cmds.join('|')}
   Options

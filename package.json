@@ -1,9 +1,9 @@
 {
-  "name": "@quasar/tauri",
-  "version": "0.0.1-utility.8",
+  "name": "@tauri-apps/tauri",
+  "version": "0.0.1-utility.9",
   "description": "Multi-binding collection of libraries and templates for building Tauri",
   "bin": {
-    "tauri": "mode/bin/tauri.js"
+    "tauri": "./mode/bin/tauri.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -11,14 +11,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/quasarframework/tauri.git"
+    "url": "git+https://github.com/tauri-apps/tauri.git"
   },
-  "author": "Quasar Framework",
+  "author": "Tauri Apps",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/quasarframework/tauri/issues"
+    "url": "https://github.com/tauri-apps/tauri/issues"
   },
-  "homepage": "https://github.com/quasarframework/tauri#readme",
+  "homepage": "https://github.com/tauri-apps/tauri#readme",
   "publishConfig": {
     "access": "public"
   },

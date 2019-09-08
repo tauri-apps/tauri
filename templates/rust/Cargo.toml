@@ -2,7 +2,7 @@
 name = "app"
 version = "0.1.0"
 description = "A Tauri App"
-author = []
+author = ["you"]
 license = ""
 repository = ""
 default-run = "app"
@@ -24,7 +24,7 @@ dev = ["tauri/dev"] # has no explicit dependencies
 embedded-server = ["tauri/embedded-server"] # has no explicit dependencies
 
 [package.metadata.bundle]
-identifier = "com.quasar.dev"
+identifier = "com.tauri.dev"
 icon = ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
 
 [[bin]]

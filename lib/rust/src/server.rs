@@ -8,7 +8,7 @@ pub fn asset_response(path: &str) -> Response<std::io::Cursor<Vec<u8>>> {
     .unwrap()
     .into_owned();
   let mut response = Response::from_data(asset);
-  let mut header = ();
+  let header;
 
   if path.ends_with(".svg") {
     header = Header::from_bytes(&b"Content-Type"[..], &b"image/svg+xml"[..]).unwrap();

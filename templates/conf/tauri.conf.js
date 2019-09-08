@@ -1,7 +1,8 @@
 module.exports = function () {
   return {
     build: {
-      distDir: './dist'
+      distDir: '', // must be an absolute folder path for now
+      APP_URL: ''  // assumes an localhost server for now
     },
     ctx: {},
     tauri: {
@@ -18,7 +19,7 @@ module.exports = function () {
         title: 'Tauri App'
       },
       security: {
-        csp: 'default-src data: filesystem: ws: http: https: \'unsafe-eval\' \'unsafe-inline\''
+        csp: 'default-src data: filesystem: ws: \'unsafe-eval\' \'unsafe-inline\''
       }
     }
   }

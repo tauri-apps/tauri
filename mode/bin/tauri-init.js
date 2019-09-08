@@ -23,7 +23,6 @@ const argv = parseArgs(process.argv.slice(2), {
     boolean: ['h', 'l']
 })
 
-console.log(argv)
 if (argv.help) {
     console.log(`
   Description

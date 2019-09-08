@@ -93,7 +93,7 @@ class Runner {
     })
 
     if (cfg.ctx.debug || !cfg.ctx.targetName) {
-      // on debug mode or if not arget specified,
+      // on debug mode or if no target specified,
       // build only for the current platform
       return buildFn()
     }

@@ -5,13 +5,25 @@ const
     log = logger('app:tauri'),
     warn = logger('app:tauri (init)', 'red')
 
+/**
+ * @type {object}
+ * @property {boolean} h
+ * @property {boolean} help
+ * @property {string|boolean} f
+ * @property {string|boolean} force
+ * @property {boolean} l
+ * @property {boolean} log
+ */
 const argv = parseArgs(process.argv.slice(2), {
     alias: {
-        h: 'help'
+        h: 'help',
+        f: 'force',
+        l: 'log'
     },
-    boolean: ['h']
+    boolean: ['h', 'l']
 })
 
+console.log(argv)
 if (argv.help) {
     console.log(`
   Description
@@ -21,6 +33,8 @@ if (argv.help) {
     $ tauri init
   Options
     --help, -h     Displays this message
+    --force, -f    Force init to overwrite [conf|template|all]  
+    --log, l       Logging [boolean]
   `)
     process.exit(0)
 }
@@ -30,14 +44,8 @@ const { inject } = require('../template')
 const target = appPaths.tauriDir
 
 // if (!target) { // do it right here
-if (inject(target, 'conf')) {
-  log('tauri.conf.js successfully created')
+if (inject(target, 'all', argv.f, argv.l)) {
+  log('tauri init successful')
 } else {
-  warn('tauri.conf.js exists, not overwriting')
-}
-
-if (inject(target, 'template')) {
-  log('Tauri template successfully installed')
-} else {
-  warn('Tauri template exists, not overwriting')
+  warn('tauri init unsuccessful')
 }

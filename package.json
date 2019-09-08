@@ -1,7 +1,7 @@
 {
   "name": "@tauri-apps/tauri",
-  "version": "0.0.1-utility.9",
-  "description": "Multi-binding collection of libraries and templates for building Tauri",
+  "version": "0.0.1-utility.11",
+  "description": "Multi-binding collection of libraries and templates for building Tauri apps",
   "bin": {
     "tauri": "./mode/bin/tauri.js"
   },

@@ -15,7 +15,7 @@ const defaultObject = {
   },
   whitelist: {},
   window: {
-    title: 'Quasar Tauri App'
+    title: 'Tauri App'
   },
   security: {
     csp: 'default-src data: filesystem: ws: http: https: \'unsafe-eval\' \'unsafe-inline\''

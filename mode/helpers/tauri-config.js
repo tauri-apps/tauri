@@ -4,7 +4,9 @@ const appPaths = require('./app-paths'),
 module.exports = cfg => {
   const tauriConf = require(appPaths.resolve.app('tauri.conf.js'))(cfg.ctx)
   const config = merge({
-    build: {},
+    build: {
+      distDir: './dist'
+    },
     ctx: {},
     tauri: {
       embeddedServer: {
@@ -13,7 +15,9 @@ module.exports = cfg => {
       bundle: {
         active: true
       },
-      whitelist: {},
+      whitelist: {
+        all: false
+      },
       window: {
         title: require(appPaths.resolve.app('package.json')).productName
       },
@@ -24,6 +28,5 @@ module.exports = cfg => {
   }, tauriConf, cfg)
 
   process.env.TAURI_DIST_DIR = appPaths.resolve.app(config.build.distDir)
-  console.log(tauriConf)
   return config
 }

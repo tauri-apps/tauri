@@ -20,6 +20,7 @@ function getAppDir() {
   }
 
   // just return the current directory
+  console.log(dir)
   return process.cwd()
 }
 

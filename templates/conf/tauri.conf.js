@@ -1,6 +1,8 @@
 module.exports = function () {
   return {
-    build: {},
+    build: {
+      distDir: './dist'
+    },
     ctx: {},
     tauri: {
       embeddedServer: {
@@ -9,9 +11,11 @@ module.exports = function () {
       bundle: {
         active: true
       },
-      whitelist: {},
+      whitelist: {
+        all: 'false'
+      },
       window: {
-        title: "Tauri App"
+        title: 'Tauri App'
       },
       security: {
         csp: 'default-src data: filesystem: ws: http: https: \'unsafe-eval\' \'unsafe-inline\''

@@ -24,7 +24,7 @@ fn default_resizable() -> bool {
 }
 
 fn default_title() -> String {
-  "Quasar Tauri App".to_string()
+  "Tauri App".to_string()
 }
 
 fn default_window() -> WindowConfig {

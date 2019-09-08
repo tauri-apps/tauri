@@ -1,21 +1,21 @@
 const
   chokidar = require('chokidar'),
   debounce = require('lodash.debounce'),
-  path = require('path')
+  path = require('path'),
+ { readFileSync, writeFileSync } = require('fs-extra')
+
 
 const
   { spawn } = require('./helpers/spawn'),
-  log = require('./helpers/logger')('app:tauri')
+  log = require('./helpers/logger')('app:tauri'),
   onShutdown = require('./helpers/on-shutdown'),
-  { readFileSync, writeFileSync } = require('fs-extra'),
   generator = require('./generator')
 
-class TauriRunner {
+class Runner {
   constructor({ modeDir }) {
     this.modeDir = modeDir
     this.pid = 0
     this.tauriWatcher = null
-
     onShutdown(() => {
       this.stop()
     })
@@ -23,7 +23,6 @@ class TauriRunner {
 
   async run(cfg) {
     process.env.TAURI_DIST_DIR = cfg.build.distDir
-
     const url = cfg.build.APP_URL
 
     if (this.pid) {
@@ -195,4 +194,4 @@ class TauriRunner {
   }
 }
 
-module.exports = TauriRunner
+module.exports = Runner

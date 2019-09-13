@@ -333,8 +333,53 @@ inline int json_parse_c(const char *s, size_t sz, const char *key, size_t keysz,
 
 inline std::string json_escape(std::string s)
 {
-    // TODO: implement
-    return '"' + s + '"';
+    std::string r = "\"";
+
+    r.reserve(s.size() + 4);
+
+    static const char *h = "0123456789abcdef";
+
+    const unsigned char *d = reinterpret_cast<const unsigned char *>(s.data());
+
+    for (size_t i = 0; i < s.size(); ++i)
+    {
+        switch (const auto c = d[i])
+        {
+        case '\b':
+            r += "\\b";
+            break;
+        case '\f':
+            r += "\\f";
+            break;
+        case '\n':
+            r += "\\n";
+            break;
+        case '\r':
+            r += "\\r";
+            break;
+        case '\t':
+            r += "\\t";
+            break;
+        case '\\':
+            r += "\\\\";
+            break;
+        case '\"':
+            r += "\\\"";
+            break;
+        default:
+            if ((c < 32) || (c == 127))
+            {
+                r += "\\u00";
+                r += h[(c & 0xf0) >> 4];
+                r += h[c & 0x0f];
+                continue;
+            }
+            r += c; // Assume valid UTF-8.
+            break;
+        }
+    }
+    r += '"';
+    return r;
 }
 
 inline int json_unescape(const char *s, size_t n, char *out)

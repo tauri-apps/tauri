@@ -112,7 +112,7 @@ inline std::string url_decode(std::string s)
         if (s[i] == '%')
         {
             int n;
-            sscanf(s.substr(i + 1, 2).c_str(), "%x", &n);
+            sscanf_s(s.substr(i + 1, 2).c_str(), "%x", &n);
             decoded = decoded + static_cast<char>(n);
             i = i + 2;
         }

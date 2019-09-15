@@ -1,2 +1,0 @@
-export function someMutation (/* state */) {
-}

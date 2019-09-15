@@ -1,7 +1,7 @@
 # tauri [WIP]
 ## A fresh take on creating cross-platform apps.
 [![status](https://img.shields.io/badge/Status-Internal%20Review-yellow.svg)](https://github.com/quasarframework/quasar/tree/tauri)
-[![version](https://img.shields.io/badge/Version-unreleased-yellow.svg)](https://github.com/tauri-apps/tauri/tree/dev) <img align="right" src="/tauri-logo.png">
+[![version](https://img.shields.io/badge/Version-unreleased-yellow.svg)](https://github.com/tauri-apps/tauri/tree/dev) <img align="right" src="/tauri-logo.png" height="240" width="240>
 
 [![Chat Server](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/SpmNs4S)
 [![devto](https://img.shields.io/badge/dev.to-blog-black.svg)](https://dev.to/tauri)

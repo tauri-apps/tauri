@@ -1,6 +1,5 @@
 const
   parseArgs = require('minimist')
-console.log('BLEEDING_EDGE')
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {

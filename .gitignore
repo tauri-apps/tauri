@@ -59,7 +59,3 @@ typings/
 debug.log
 package-lock.json
 .vscode/settings.json
-
-# Quasar output
-bundle.json
-config.json

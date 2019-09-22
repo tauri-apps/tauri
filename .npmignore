@@ -6,8 +6,3 @@ node_modules
 .github
 .idea
 SECURITY.md
-
-# Quasar output
-quasar
-bundle.json
-config.json

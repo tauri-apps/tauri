@@ -1,3 +1,4 @@
+mod appimage_bundle;
 mod category;
 mod common;
 mod deb_bundle;
@@ -21,6 +22,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
       PackageType::WindowsMsi => msi_bundle::bundle_project(&settings)?,
       PackageType::Deb => deb_bundle::bundle_project(&settings)?,
       PackageType::Rpm => rpm_bundle::bundle_project(&settings)?,
+      PackageType::AppImage => appimage_bundle::bundle_project(&settings)?,
     });
   }
   Ok(paths)

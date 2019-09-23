@@ -17,6 +17,7 @@ pub enum PackageType {
   WindowsMsi,
   Deb,
   Rpm,
+  AppImage,
 }
 
 impl PackageType {

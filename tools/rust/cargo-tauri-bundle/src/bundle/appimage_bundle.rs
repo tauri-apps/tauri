@@ -35,5 +35,8 @@ fn get_write_pkg2appimage_sh(path: &Path) -> crate::Result<()> {
 
 #[test]
 fn check_download() {
-  get_write_pkg2appimage_sh(Path::new("./"));
+  let path = Path::new("./target/appimage/");
+  fs::create_dir(&path).unwrap();
+  let result = get_write_pkg2appimage_sh(&path).unwrap();
+  assert_eq!(result, ());
 }

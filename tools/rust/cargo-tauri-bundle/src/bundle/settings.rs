@@ -29,6 +29,7 @@ impl PackageType {
       "msi" => Some(PackageType::WindowsMsi),
       "osx" => Some(PackageType::OsxBundle),
       "rpm" => Some(PackageType::Rpm),
+      "appimage" => Some(PackageType::AppImage),
       _ => None,
     }
   }
@@ -40,6 +41,7 @@ impl PackageType {
       PackageType::WindowsMsi => "msi",
       PackageType::OsxBundle => "osx",
       PackageType::Rpm => "rpm",
+      PackageType::AppImage => "appimage",
     }
   }
 

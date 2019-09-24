@@ -1,42 +1,68 @@
 use super::common;
 use super::deb_bundle;
-use crate::{ResultExt, Settings};
-use std::ffi::OsStr;
-use std::fs::{self, File};
-use std::io::{self, Write};
-use std::io::{BufRead, BufReader, Cursor, Read};
+use crate::Settings;
 
-use std::path::{Path, PathBuf};
+use handlebars::Handlebars;
+use lazy_static::lazy_static;
 
-pub const SH_URL: &str =
-  "https://raw.githubusercontent.com/AppImage/pkg2appimage/master/pkg2appimage";
+use std::collections::BTreeMap;
+use std::fs::write;
+use std::path::PathBuf;
+use std::process::{Command, Stdio};
+
+lazy_static! {
+  static ref HANDLEBARS: Handlebars = {
+    let mut handlebars = Handlebars::new();
+
+    handlebars
+      .register_template_string("appimage", include_str!("templates/appimage"))
+      .unwrap();
+    handlebars
+  };
+}
 
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // execute deb bundler
-  let package_path = deb_bundle::bundle_project(&settings);
-  package_path
-}
+  let arch = match settings.binary_arch() {
+    "x86" => "i386",
+    "x86_64" => "amd64",
+    other => other,
+  };
+  let package_base_name = format!(
+    "{}_{}_{}",
+    settings.binary_name(),
+    settings.version_string(),
+    arch
+  );
+  deb_bundle::bundle_project(&settings)?;
 
-fn get_write_pkg2appimage_sh(path: &Path) -> crate::Result<()> {
-  common::print_info("Downloading and writing pkg2appimage.sh")?;
+  let upcase = settings.binary_name().to_uppercase();
+  let mut sh_map = BTreeMap::new();
+  sh_map.insert("app_name", settings.binary_name());
+  sh_map.insert("bundle_name", package_base_name.as_str());
+  sh_map.insert("app_name_uppercase", upcase.as_str());
 
-  let mut data: Vec<u8> = Vec::new();
-  let mut response = reqwest::get(SH_URL).or_else(|e| Err(e.to_string()))?;
-
-  response
-    .read_to_end(&mut data)
+  let temp = HANDLEBARS
+    .render("appimage", &sh_map)
     .or_else(|e| Err(e.to_string()))?;
+  let output_path = settings.project_out_directory();
 
-  let mut sh_script = File::create(path.join(Path::new("pkg2appimage.sh")))?;
-  sh_script.write_all(&data)?;
+  let sh_file = output_path.join("build_appimage");
+  common::print_bundling(
+    format!(
+      "{:?}",
+      &output_path.join(format!("{}.AppImage", settings.binary_name()))
+    )
+    .as_str(),
+  )?;
+  write(&sh_file, temp).or_else(|e| Err(e.to_string()))?;
 
-  Ok(())
-}
+  Command::new(&sh_file)
+    .current_dir(output_path)
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .output()
+    .expect("Failed to execute shell script");
 
-#[test]
-fn check_download() {
-  let path = Path::new("./target/appimage/");
-  fs::create_dir(&path).unwrap();
-  let result = get_write_pkg2appimage_sh(&path).unwrap();
-  assert_eq!(result, ());
+  Ok(vec![sh_file])
 }

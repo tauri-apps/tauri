@@ -1,9 +1,9 @@
 mod cmd;
 
-extern crate tauri;
-
 #[macro_use]
 extern crate serde_derive;
+
+use tauri;
 
 fn main() {
   tauri::AppBuilder::new()

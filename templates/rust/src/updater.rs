@@ -1,8 +1,4 @@
-extern crate tauri;
-extern crate serde_derive;
-extern crate serde_json;
-
-use crate::tauri::process::{ProcessExt, Signal, SystemExt};
+use tauri::process::{ProcessExt, Signal, SystemExt};
 
 fn update() -> Result<(), String> {
   let target = tauri::platform::target_triple().map_err(|_| "Could not determine target")?;

@@ -27,7 +27,7 @@ lazy_static! {
 }
 
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  let bundle_path = osx_bundle::bundle_project(settings)?;
+  osx_bundle::bundle_project(settings)?;
 
   let upcase = settings.binary_name().to_uppercase();
 
@@ -53,5 +53,12 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   write(&launch_sh, launch_temp).or_else(|e| Err(e.to_string()))?;
   write(&bundle_sh, bundle_temp).or_else(|e| Err(e.to_string()))?;
 
-  Ok(bundle_path)
+  Command::new(&bundle_sh)
+    .current_dir(output_path)
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .output()
+    .expect("Failed to execute shell script");
+
+  Ok(vec![bundle_sh])
 }

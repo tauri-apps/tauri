@@ -1,7 +1,7 @@
 [package]
 name = "tauri"
 version = "1.0.0"
-authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@quasar.dev>"]
+authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot"]
 license = "MIT"
 edition = "2018"
 

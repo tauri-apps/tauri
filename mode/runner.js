@@ -1,21 +1,20 @@
 const
   chokidar = require('chokidar'),
   debounce = require('lodash.debounce'),
-  path = require('path')
+  path = require('path'),
+ { readFileSync, writeFileSync } = require('fs-extra')
 
 const
   { spawn } = require('./helpers/spawn'),
-  log = require('./helpers/logger')('app:tauri')
+  log = require('./helpers/logger')('app:tauri'),
   onShutdown = require('./helpers/on-shutdown'),
-  { readFileSync, writeFileSync } = require('fs-extra'),
-  generator = require('./generator')
+  generator = require('./generator'),
+  { tauriDir } = require('./helpers/app-paths')
 
-class TauriRunner {
-  constructor({ modeDir }) {
-    this.modeDir = modeDir
+class Runner {
+  constructor() {
     this.pid = 0
     this.tauriWatcher = null
-
     onShutdown(() => {
       this.stop()
     })
@@ -23,7 +22,7 @@ class TauriRunner {
 
   async run(cfg) {
     process.env.TAURI_DIST_DIR = cfg.build.distDir
-
+    process.env.TAURI_CONFIG_DIR = tauriDir
     const url = cfg.build.APP_URL
 
     if (this.pid) {
@@ -54,9 +53,9 @@ class TauriRunner {
     // Start watching for tauri app changes
     this.tauriWatcher = chokidar
       .watch([
-        path.join(this.modeDir, 'src'),
-        path.join(this.modeDir, 'Cargo.toml'),
-        path.join(this.modeDir, 'build.rs')
+        path.join(tauriDir, 'src'),
+        path.join(tauriDir, 'Cargo.toml'),
+        path.join(tauriDir, 'build.rs')
       ], {
         watchers: {
           chokidar: {
@@ -74,6 +73,7 @@ class TauriRunner {
 
   async build(cfg) {
     process.env.TAURI_DIST_DIR = cfg.build.distDir
+    process.env.TAURI_CONFIG_DIR = tauriDir
 
     this.__manipulateToml(toml => {
       this.__whitelistApi(cfg, toml)
@@ -94,7 +94,7 @@ class TauriRunner {
     })
 
     if (cfg.ctx.debug || !cfg.ctx.targetName) {
-      // on debug mode or if not arget specified,
+      // on debug mode or if no target specified,
       // build only for the current platform
       return buildFn()
     }
@@ -125,7 +125,7 @@ class TauriRunner {
         cargoArgs.concat(['--']).concat(extraArgs) :
         cargoArgs,
 
-        this.modeDir,
+        tauriDir,
 
         code => {
           if (code) {
@@ -169,7 +169,7 @@ class TauriRunner {
 
   __manipulateToml(callback) {
     const toml = require('@iarna/toml'),
-      tomlPath = path.join(this.modeDir, 'Cargo.toml'),
+      tomlPath = path.join(tauriDir, 'Cargo.toml'),
       tomlFile = readFileSync(tomlPath),
       tomlContents = toml.parse(tomlFile)
 
@@ -195,4 +195,4 @@ class TauriRunner {
   }
 }
 
-module.exports = TauriRunner
+module.exports = Runner

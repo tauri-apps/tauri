@@ -1,0 +1,20 @@
+#!/bin/bash
+
+set -e
+
+MACOS_APP_NAME={{app_name_upcase}}
+MACOS_APP_DIR={{app_name}}.app
+
+cp bundle/osx/$MACOS_APP_DIR/Contents/MacOS/{{app_name}} bundle/osx/$MACOS_APP_DIR/Contents/MacOS/{{app_name}}-bin
+echo "creating launcher and copying"
+cp ../macos_launch.sh bundle/osx/$MACOS_APP_DIR/Contents/MacOS/{{app_name}}
+
+echo "Creating dmg"
+mkdir -p $MACOS_APP_NAME
+cp -r $MACOS_APP_DIR $MACOS_APP_NAME/
+rm -rf $MACOS_APP_NAME/.Trashes
+
+FULL_NAME=$MACOS_APP_NAME
+
+hdiutil create $FULL_NAME.dmg -srcfolder $MACOS_APP_NAME -ov
+rm -rf $MACOS_APP_NAME

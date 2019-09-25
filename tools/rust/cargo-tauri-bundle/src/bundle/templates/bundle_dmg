@@ -7,7 +7,7 @@ MACOS_APP_DIR={{app_name}}.app
 
 cp bundle/osx/$MACOS_APP_DIR/Contents/MacOS/{{app_name}} bundle/osx/$MACOS_APP_DIR/Contents/MacOS/{{app_name}}-bin
 echo "creating launcher and copying"
-cp ../macos_launch.sh bundle/osx/$MACOS_APP_DIR/Contents/MacOS/{{app_name}}
+cp macos_launch.sh bundle/osx/$MACOS_APP_DIR/Contents/MacOS/{{app_name}}
 
 echo "Creating dmg"
 mkdir -p $MACOS_APP_NAME

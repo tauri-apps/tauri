@@ -1,7 +1,5 @@
 const
-  parseArgs = require('minimist'),
-  path = require('path'),
-  { writeFileSync } = require('fs-extra')
+  parseArgs = require('minimist')
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
@@ -24,15 +22,12 @@ if (argv.help) {
 
 const { tauriDir } = require('../helpers/app-paths'),
   Runner = require('../runner'),
-  tauri = new Runner({modeDir: tauriDir}),
+  tauri = new Runner(),
   tauriConfig = require('../helpers/tauri-config')({
     ctx: {
       debug: true
     }
   })
-
-const { bundle, ...cfg } = tauriConfig.tauri
-  // cfgDir = tauriConfig.configDir()
 
 require('../generator').generate(tauriConfig.tauri)
 require('../entry').generate(tauriDir, tauriConfig)

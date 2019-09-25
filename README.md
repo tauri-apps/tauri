@@ -38,7 +38,7 @@ What will you make?
 - **MEMORY FOOTPRINT** is less than half of the size of an Electron app built from the same codebase. 
 - **SECURITY** is Tauri's biggest priority and we take it so seriously that we innovate to keep hackers out of your apps. 
 - **RELIABILITY** of the underlying code base is why critical libraries have been forked and will be perpetually maintained.
-- **FLOSS** licensing is regretfully impossible with downstream Chromium consumers, like Electron.
+- **FLOSS** licensing is regretfully impossible with downstream Chromium consumers, like Electron. Sources: [0](https://lists.gnu.org/archive/html/libreplanet-discuss/2017-01/msg00056.html) [1](https://lists.gnu.org/archive/html/directory-discuss/2017-12/msg00008.html) [2](https://lists.gnu.org/archive/html/libreplanet-discuss/2019-02/msg00001.html)
 
 ## Technical Details
 The user interface in Tauri apps currently leverages Cocoa/WebKit on macOS, 

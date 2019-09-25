@@ -42,7 +42,6 @@ const { inject } = require('../template')
 
 const target = appPaths.tauriDir
 
-// if (!target) { // do it right here
 if (inject(target, 'all', argv.f, argv.l)) {
   log('tauri init successful')
 } else {

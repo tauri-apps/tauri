@@ -1,7 +1,5 @@
 const
-  parseArgs = require('minimist'),
-  { writeFileSync } = require('fs-extra'),
-  path = require('path')
+  parseArgs = require('minimist')
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {

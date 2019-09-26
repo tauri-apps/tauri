@@ -18,6 +18,8 @@ echo 'Terminal=false' >> {{app_name}}.desktop
 echo 'Type=Application' >> {{app_name}}.desktop
 echo 'Categories=X-Web;' >> {{app_name}}.desktop
 
+cp {{app_name}}.desktop {{app_name}}.AppDir/usr/share/applications/{{app_name}}.desktop
+
 cd ..
 
 mksquashfs {{app_name}}.AppDir {{app_name}}.squashfs -root-owned -noappend

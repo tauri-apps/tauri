@@ -66,7 +66,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // chmod script for execution
   Command::new("chmod")
-    .arg("775")
+    .arg("777")
     .arg(&sh_file)
     .current_dir(output_path)
     .stdout(Stdio::piped())

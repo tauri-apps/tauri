@@ -134,3 +134,7 @@ stability.
 This program is licensed either under the terms of the
 [Apache Software License](http://www.apache.org/licenses/LICENSE-2.0), or the
 [MIT License](https://opensource.org/licenses/MIT).
+
+-> note, for bundle_dmg we have included a BSD 3 licenced binary `seticon`.
+https://github.com/sveinbjornt/osxiconutils/blob/master/seticon.m
+`tools/rust/cargo-tauri-bundle/src/bundle/templates/seticon`

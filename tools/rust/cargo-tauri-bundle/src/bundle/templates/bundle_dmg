@@ -1,20 +1,144 @@
-#!/bin/bash
+#!/usr/bin/env sh
+# using sh because modern MacOS ships with zsh not bash
+# some patterns "lifted" from:
+#  - https://github.com/andreyvit/create-dmg/blob/master/create-dmg
+#  - https://stackoverflow.com/a/97025
+#  - https://github.com/sindresorhus/create-dmg/blob/master/cli.js
 
 set -e
+MACOS_APP_NAME="{{app_name_upcase}}"
+MACOS_APP_DIR="bundle/osx/{{app_name}}.app"
+ICNS_FILE="app.app/Contents/Resources/icon.icns"
+DMG_TEMP_NAME=/tmp/temp.dmg
+MOUNT_DIR="/Volumes/${MACOS_APP_NAME}"
 
-MACOS_APP_NAME={{app_name_upcase}}
-MACOS_APP_DIR={{app_name}}.app
+# Create the image
+echo "Creating disk image..."
+test -f "${DMG_TEMP_NAME}" && rm -f "${DMG_TEMP_NAME}"
+test -f "${MACOS_APP_NAME}.dmg" && rm -f "${MACOS_APP_NAME}.dmg"
 
-cp bundle/osx/$MACOS_APP_DIR/Contents/MacOS/{{app_name}} bundle/osx/$MACOS_APP_DIR/Contents/MacOS/{{app_name}}-bin
-echo "creating launcher and copying"
-cp macos_launch.sh bundle/osx/$MACOS_APP_DIR/Contents/MacOS/{{app_name}}
+hdiutil create ${DMG_TEMP_NAME} -srcfolder bundle/osx -volname "${MACOS_APP_NAME}" -ov -format UDRW -size 10000k -fs HFS+ -fsargs "-c c=64,a=16,e=16" -anyowners -nospotlight
 
-echo "Creating dmg"
-mkdir -p $MACOS_APP_NAME
-cp -r $MACOS_APP_DIR $MACOS_APP_NAME/
-rm -rf $MACOS_APP_NAME/.Trashes
+# mount it
+echo "Mounting disk image..."
+# try unmount dmg if it was mounted previously (e.g. developer mounted dmg, installed app and forgot to unmount it)
+DEV_NAME=$(hdiutil info | egrep --color=never '^/dev/' | sed 1q | awk '{print $1}')
+test -d "${MOUNT_DIR}" && hdiutil detach "${DEV_NAME}"
 
-FULL_NAME=$MACOS_APP_NAME
+device=$(hdiutil attach -readwrite -noverify -noautoopen "${DMG_TEMP_NAME}" | \
+         egrep '^/dev/' | sed 1q | awk '{print $1}')
 
-hdiutil create $FULL_NAME.dmg -srcfolder $MACOS_APP_NAME -ov
-rm -rf $MACOS_APP_NAME
+sleep 5
+
+
+bless --folder "${MOUNT_DIR}" -label "${MACOS_APP_NAME}"
+
+test -d "${MOUNT_DIR}/.background" || mkdir "${MOUNT_DIR}/.background"
+cp ../../icons/bg.png "${MOUNT_DIR}"/.background/bg.png
+
+# I couldn't get DeRez and Rez to work. Leaving it here in case its helpful in the future.
+### DeRez -only icns "${MOUNT_DIR}/.VolumeIcon.icns" > "${MOUNT_DIR}/.VolumeIcon.rsrc"
+### Rez -append "${MOUNT_DIR}/.VolumeIcon.rsrc" -o my_app.dmg
+
+# This Works
+cp '../../icons/icon.icns' "${MOUNT_DIR}/.VolumeIcon.icns"
+VERSION=$(sw_vers -productVersion | cut -d'.' -f2)
+
+if [ "$VERSION" -gt 12 ]; then
+  echo "Using SIPS v10.13+"
+  sips --i "${MOUNT_DIR}/.VolumeIcon.icns" # 10.13+
+else
+    echo "Using SIPS v10.12-"
+  sips --addIcon "${MOUNT_DIR}/.VolumeIcon.icns"
+fi
+
+SetFile -c icnC "${MOUNT_DIR}/.VolumeIcon.icns"
+SetFile -a C "${MOUNT_DIR}"
+
+# Doesn't stick after the renaming
+### ./seticon "${MOUNT_DIR}/${ICNS_FILE}" "${DMG_TEMP_NAME}"
+
+# This does not work
+### echo "read 'icns' (-16455) \"${MOUNT_DIR}/.VolumeIcon.icns\";" >> Icon.rsrc
+### Rez -a Icon.rsrc -o FileName.ext
+### DeRez -only icns "${MOUNT_DIR}/.VolumeIcon.icns" > "${MOUNT_DIR}/.Icon.rsrc"
+### Rez -a Icon.rsrc -o "${MOUNT_DIR}/Icon$'\r'"
+### SetFile -c icnC "${MOUNT_DIR}/.Icon.rsrc"
+### SetFile -a C "${MOUNT_DIR}"
+### SetFile -a "${MOUNT_DIR}/Icon$'\r'"
+
+
+# this is from
+# https://stackoverflow.com/questions/8371790/how-to-set-icon-on-file-or-directory-using-cli-on-os-x#8375093
+### iconSource='../../icons/icon.icns'
+### iconDestination="${MOUNT_DIR}"
+### icon=/tmp/$(basename $iconSource)
+### rsrc=/tmp/icon.rsrc
+
+# Create icon from the iconSource
+### cp $iconSource $icon
+
+# Add icon to image file, meaning use itself as the icon
+### sips -i $icon
+
+# Take that icon and put it into a rsrc file
+### DeRez -only icns $icon > $rsrc
+
+# Apply the rsrc file to
+### SetFile -a C "${iconDestination}"
+
+# Create the magical Icon\r file
+### touch "${iconDestination}/Icon$'\r'"
+### Rez -append $rsrc -o "${iconDestination}/Icon?"
+### SetFile -a V "${iconDestination}/Icon$'\r'"
+
+echo '
+   tell application "Finder"
+     tell disk "'${MACOS_APP_NAME}'"
+           open
+           set current view of container window to icon view
+           set toolbar visible of container window to false
+           set statusbar visible of container window to false
+           set the bounds of container window to {400, 100, 885, 430}
+           set theViewOptions to the icon view options of container window
+           set arrangement of theViewOptions to not arranged
+           set icon size of theViewOptions to 110
+           set background picture of theViewOptions to file ".background:'bg.png'"
+           make new alias file at container window to POSIX file "/Applications" with properties {name:"Applications"}
+           set position of item "'app.app'" of container window to {100, 100}
+           set position of item "Applications" of container window to {375, 100}
+           update without registering applications
+           delay 5
+           close
+     end tell
+   end tell
+' | osascript
+chmod -Rf go-w /Volumes/"${MACOS_APP_NAME}"
+
+sync
+sync
+
+hdiutil detach ${device}
+
+# Some variations on format:
+## UDZO – Compressed image (default)
+## UDRO – Read-only image
+## UDBZ – Better compressed image
+## UDRW – Read/Write image
+
+hdiutil convert "${DMG_TEMP_NAME}" -format UDBZ -imagekey zlib-level=9 -o "${MACOS_APP_NAME}"
+
+./seticon ../../icons/icon.icns "${MACOS_APP_NAME}.dmg"
+
+rm -f ${DMG_TEMP_NAME}
+
+# This seems not to work as well at maintaining the icons :(
+zip -r "${MACOS_APP_NAME}.dmg.zip" "${MACOS_APP_NAME}.dmg"
+
+
+# FUTURE WORK
+# SIGNER=$(security find-identity -v -p codesigning)
+# codesign --sign 'Mac Developer' "${DMG_TEMP_NAME}"
+
+# Add a license with Rez
+# http://www.owsiak.org/adding-license-to-a-dmg-file-in-5-minutes-or-less/

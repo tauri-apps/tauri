@@ -21,6 +21,6 @@ echo 'Categories=X-Web;' >> {{app_name}}.desktop
 cd ..
 
 mksquashfs {{app_name}}.AppDir {{app_name}}.squashfs -root-owned -noappend
-cat runtime >> {{app_name}}.AppImage
+# cat runtime >> {{app_name}}.AppImage
 cat {{app_name}}.squashfs >> {{app_name}}.AppImage
 chmod a+x {{app_name}}.AppImage

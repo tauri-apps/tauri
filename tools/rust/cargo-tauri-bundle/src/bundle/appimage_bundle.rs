@@ -64,12 +64,22 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   )?;
   write(&sh_file, temp).or_else(|e| Err(e.to_string()))?;
 
+  // chmod script for execution
+  Command::new("chmod")
+    .arg("775")
+    .arg(&sh_file)
+    .current_dir(output_path)
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .spawn()
+    .expect("Failed to chmod script");
+
   // execute the shell script to build the appimage.
   Command::new(&sh_file)
     .current_dir(output_path)
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
-    .output()
+    .spawn()
     .expect("Failed to execute shell script");
 
   Ok(vec![sh_file])

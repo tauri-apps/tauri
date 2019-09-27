@@ -63,3 +63,6 @@ package-lock.json
 # Quasar output
 bundle.json
 config.json
+
+# rust compiled folders
+target

@@ -22,6 +22,12 @@ pub struct Options {
   pub depth: u64,
 }
 
+pub struct DirInfo {
+  pub size: u64,
+  pub files: Vec<String>,
+  pub directories: Vec<String>,
+}
+
 impl Options {
   pub fn new() -> Options {
     Options {
@@ -48,5 +54,33 @@ impl FileOpts {
       skip: false,
       buffer_size: 64000,
     }
+  }
+}
+
+pub fn create<P>(path: P, erase: bool) -> crate::Result<()>
+where
+  P: AsRef<Path>,
+{
+  if erase && path.as_ref().exists() {
+    remove(&path)?;
+  }
+  Ok(create_dir(&path)?)
+}
+
+pub fn create_all<P>(path: P, erase: bool) -> crate::Result<()>
+where
+  P: AsRef<Path>,
+{
+  if erase && path.as_ref().exists() {
+    remove(&path)?;
+  }
+  Ok(create_dir_all(&path)?)
+}
+
+pub fn remove<P: AsRef<Path>>(path: P) -> crate::Result<()> {
+  if path.as_ref().exists() {
+    Ok(remove_dir_all(path)?)
+  } else {
+    Ok(())
   }
 }

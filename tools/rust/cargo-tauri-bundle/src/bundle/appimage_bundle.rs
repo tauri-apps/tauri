@@ -1,6 +1,7 @@
 use super::common;
 use super::deb_bundle;
 use crate::Settings;
+use super::path_utils;
 
 use handlebars::Handlebars;
 use lazy_static::lazy_static;
@@ -36,8 +37,21 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     settings.version_string(),
     arch
   );
+  let base_dir = settings.project_out_directory().join("bundle/deb");
+  let package_dir = base_dir.join(&package_base_name);
+  if package_dir.exists() {
+    fs::remove_dir_all(&package_dir)
+      .chain_err(|| format!("Failed to remove old {}", package_base_name))?;
+  }
+
   // generate deb_folder structure
-  deb_bundle::generate_folders(settings)?;
+  deb_bundle::generate_folders(settings, &package_dir)?;
+
+  let app_dir_path = path_utils::create(
+    settings
+      .project_out_directory()
+      .join(format!("{}.AppDir", settings.binary_name())), true
+  );
 
   let upcase = settings.binary_name().to_uppercase();
 

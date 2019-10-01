@@ -35,8 +35,28 @@ use tar;
 use walkdir::WalkDir;
 
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  let data_dir = generate_folders(settings).chain_err(|| "Failed to build folders")?;
+  let arch = match settings.binary_arch() {
+    "x86" => "i386",
+    "x86_64" => "amd64",
+    other => other,
+  };
+  let package_base_name = format!(
+    "{}_{}_{}",
+    settings.binary_name(),
+    settings.version_string(),
+    arch
+  );
+  let package_name = format!("{}.deb", package_base_name);
+  common::print_bundling(&package_name)?;
+  let base_dir = settings.project_out_directory().join("bundle/deb");
+  let package_dir = base_dir.join(&package_base_name);
+  if package_dir.exists() {
+    fs::remove_dir_all(&package_dir)
+      .chain_err(|| format!("Failed to remove old {}", package_base_name))?;
+  }
+  let package_path = base_dir.join(package_name);
 
+  let data_dir = generate_folders(settings, &package_dir).chain_err(|| "Failed to build folders")?;
   // Generate control files.
   let control_dir = package_dir.join("control");
   generate_control_file(settings, arch, &control_dir, &data_dir)
@@ -62,28 +82,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   Ok(vec![package_path])
 }
 
-pub fn generate_folders(settings: &Settings) -> crate::Result<PathBuf> {
-  let arch = match settings.binary_arch() {
-    "x86" => "i386",
-    "x86_64" => "amd64",
-    other => other,
-  };
-  let package_base_name = format!(
-    "{}_{}_{}",
-    settings.binary_name(),
-    settings.version_string(),
-    arch
-  );
-  let package_name = format!("{}.deb", package_base_name);
-  common::print_bundling(&package_name)?;
-  let base_dir = settings.project_out_directory().join("bundle/deb");
-  let package_dir = base_dir.join(&package_base_name);
-  if package_dir.exists() {
-    fs::remove_dir_all(&package_dir)
-      .chain_err(|| format!("Failed to remove old {}", package_base_name))?;
-  }
-  let package_path = base_dir.join(package_name);
-
+pub fn generate_folders(settings: &Settings, package_dir: &Path) -> crate::Result<PathBuf> {
+  
   // Generate data files.
   let data_dir = package_dir.join("data");
   let binary_dest = data_dir.join("usr/bin").join(settings.binary_name());

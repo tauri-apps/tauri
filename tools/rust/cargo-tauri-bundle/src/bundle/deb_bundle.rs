@@ -35,6 +35,34 @@ use tar;
 use walkdir::WalkDir;
 
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
+  let data_dir = generate_folders(settings).chain_err(|| "Failed to build folders")?;
+
+  // Generate control files.
+  let control_dir = package_dir.join("control");
+  generate_control_file(settings, arch, &control_dir, &data_dir)
+    .chain_err(|| "Failed to create control file")?;
+  generate_md5sums(&control_dir, &data_dir).chain_err(|| "Failed to create md5sums file")?;
+
+  // Generate `debian-binary` file; see
+  // http://www.tldp.org/HOWTO/Debian-Binary-Package-Building-HOWTO/x60.html#AEN66
+  let debian_binary_path = package_dir.join("debian-binary");
+  create_file_with_data(&debian_binary_path, "2.0\n")
+    .chain_err(|| "Failed to create debian-binary file")?;
+
+  // Apply tar/gzip/ar to create the final package file.
+  let control_tar_gz_path =
+    tar_and_gzip_dir(control_dir).chain_err(|| "Failed to tar/gzip control directory")?;
+  let data_tar_gz_path =
+    tar_and_gzip_dir(data_dir).chain_err(|| "Failed to tar/gzip data directory")?;
+  create_archive(
+    vec![debian_binary_path, control_tar_gz_path, data_tar_gz_path],
+    &package_path,
+  )
+  .chain_err(|| "Failed to create package archive")?;
+  Ok(vec![package_path])
+}
+
+pub fn generate_folders(settings: &Settings) -> crate::Result<PathBuf> {
   let arch = match settings.binary_arch() {
     "x86" => "i386",
     "x86_64" => "amd64",
@@ -65,29 +93,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   generate_icon_files(settings, &data_dir).chain_err(|| "Failed to create icon files")?;
   generate_desktop_file(settings, &data_dir).chain_err(|| "Failed to create desktop file")?;
 
-  // Generate control files.
-  let control_dir = package_dir.join("control");
-  generate_control_file(settings, arch, &control_dir, &data_dir)
-    .chain_err(|| "Failed to create control file")?;
-  generate_md5sums(&control_dir, &data_dir).chain_err(|| "Failed to create md5sums file")?;
-
-  // Generate `debian-binary` file; see
-  // http://www.tldp.org/HOWTO/Debian-Binary-Package-Building-HOWTO/x60.html#AEN66
-  let debian_binary_path = package_dir.join("debian-binary");
-  create_file_with_data(&debian_binary_path, "2.0\n")
-    .chain_err(|| "Failed to create debian-binary file")?;
-
-  // Apply tar/gzip/ar to create the final package file.
-  let control_tar_gz_path =
-    tar_and_gzip_dir(control_dir).chain_err(|| "Failed to tar/gzip control directory")?;
-  let data_tar_gz_path =
-    tar_and_gzip_dir(data_dir).chain_err(|| "Failed to tar/gzip data directory")?;
-  create_archive(
-    vec![debian_binary_path, control_tar_gz_path, data_tar_gz_path],
-    &package_path,
-  )
-  .chain_err(|| "Failed to create package archive")?;
-  Ok(vec![package_path])
+  Ok(data_dir)
 }
 
 /// Generate the application desktop file and store it under the `data_dir`.

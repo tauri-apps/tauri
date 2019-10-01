@@ -36,8 +36,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     settings.version_string(),
     arch
   );
-  // execute deb bundler to create the AppDir
-  deb_bundle::bundle_project(&settings)?;
+  // generate deb_folder structure
+  deb_bundle::generate_folders(settings)?;
 
   let upcase = settings.binary_name().to_uppercase();
 

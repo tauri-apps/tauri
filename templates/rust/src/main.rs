@@ -1,7 +1,5 @@
 mod cmd;
 
-extern crate tauri;
-
 #[macro_use]
 extern crate serde_derive;
 

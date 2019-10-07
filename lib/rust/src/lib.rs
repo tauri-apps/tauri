@@ -7,9 +7,6 @@ mod macros;
 #[macro_use]
 extern crate lazy_static;
 
-extern crate includedir;
-extern crate phf;
-
 pub mod api;
 mod app;
 pub mod command;

@@ -1,7 +1,3 @@
-extern crate tauri;
-extern crate serde_derive;
-extern crate serde_json;
-
 use crate::tauri::process::{ProcessExt, Signal, SystemExt};
 
 fn update() -> Result<(), String> {

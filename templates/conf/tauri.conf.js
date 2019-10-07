@@ -17,7 +17,7 @@ module.exports = function () {
         active: true
       },
       whitelist: {
-        all: 'false'
+        all: false
       },
       window: {
         title: 'Tauri App'

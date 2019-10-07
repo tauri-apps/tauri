@@ -1,6 +1,7 @@
 mod category;
 mod common;
 mod deb_bundle;
+mod dmg_bundle;
 mod ios_bundle;
 mod msi_bundle;
 mod osx_bundle;
@@ -18,9 +19,12 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
     paths.append(&mut match package_type {
       PackageType::OsxBundle => osx_bundle::bundle_project(&settings)?,
       PackageType::IosBundle => ios_bundle::bundle_project(&settings)?,
+      // use dmg bundler
+      // PackageType::OsxBundle => dmg_bundle::bundle_project(&settings)?,
       PackageType::WindowsMsi => msi_bundle::bundle_project(&settings)?,
       PackageType::Deb => deb_bundle::bundle_project(&settings)?,
       PackageType::Rpm => rpm_bundle::bundle_project(&settings)?,
+      PackageType::Dmg => dmg_bundle::bundle_project(&settings)?,
     });
   }
   Ok(paths)

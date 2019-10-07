@@ -1,3 +1,14 @@
+#if defined(WEBVIEW_GTK)
+#include "tauri-gtk-webview.h"
+#elif defined(WEBVIEW_WINAPI)
+#define CINTERFACE
+#include "tauri-windows-webview.h"
+#elif defined(WEBVIEW_COCOA)
+#include "tauri-cocoa-webview.h"
+#else
+#error "Define one of: WEBVIEW_GTK, WEBVIEW_COCOA or WEBVIEW_WINAPI"
+#endif
+
 #define WEBVIEW_IMPLEMENTATION
 #include "tauri.h"
 

@@ -1,9 +1,9 @@
 [package]
 name = "tauri-sys"
 version = "1.0.0"
-authors = ["Boscop", "Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@quasar.dev>"]
+authors = ["Boscop", "Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot"]
 license = "MIT"
-repository = "https://github.com/quasarframework/tauri"
+repository = "https://github.com/tauri-apps/tauri"
 description = "Rust native ffi bindings for tauri UI"
 keywords = ["quasar", "web", "gui", "desktop", "webkit"]
 categories = ["quasar", "gui", "web-programming", "api-bindings", "rendering", "visualization"]

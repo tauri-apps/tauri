@@ -79,7 +79,7 @@ fn run() -> crate::Result<()> {
     .setting(AppSettings::SubcommandRequired)
     .subcommand(
       SubCommand::with_name("tauri-bundle")
-        .author("George Burton <burtonageo@gmail.com>, Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>, Daniel Thompson-Yvetot <denjell@quasar.dev>")
+        .author("George Burton <burtonageo@gmail.com>, Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>, Daniel Thompson-Yvetot <denjell@sfosc.org>")
         .about("Bundle Rust executables into OS bundles")
         .setting(AppSettings::DisableVersion)
         .setting(AppSettings::UnifiedHelpMessage)

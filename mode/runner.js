@@ -9,7 +9,7 @@ const
   log = require('./helpers/logger')('app:tauri'),
   onShutdown = require('./helpers/on-shutdown'),
   generator = require('./generator'),
-  { tauriDir } = require('./helpers/app-paths')
+  { appDir, tauriDir } = require('./helpers/app-paths')
 
 class Runner {
   constructor() {
@@ -56,7 +56,7 @@ class Runner {
         path.join(tauriDir, 'src'),
         path.join(tauriDir, 'Cargo.toml'),
         path.join(tauriDir, 'build.rs'),
-        path.join(tauriDir, 'tauri.conf.js')
+        path.join(appDir, 'tauri.conf.js')
       ], {
         watchers: {
           chokidar: {

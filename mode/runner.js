@@ -55,7 +55,8 @@ class Runner {
       .watch([
         path.join(tauriDir, 'src'),
         path.join(tauriDir, 'Cargo.toml'),
-        path.join(tauriDir, 'build.rs')
+        path.join(tauriDir, 'build.rs'),
+        path.join(tauriDir, 'tauri.conf.js')
       ], {
         watchers: {
           chokidar: {

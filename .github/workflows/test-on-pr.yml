@@ -1,0 +1,72 @@
+name: test library
+
+on: [pull_request]
+
+jobs:
+  build-lib:
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        fetch-depth: 3
+    - name: build
+      run: |
+           cd ./lib/rust
+           cargo build
+
+  build-bindings:
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        fetch-depth: 3
+    - name: build
+      run: |
+           cd ./bindings/rust
+           cargo build
+
+  build-templates:
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        fetch-depth: 3
+    - name: build
+      run: |
+           cd ./templates/rust
+           cargo build
+
+  build-tools-cargo-tauri-bundle:
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        fetch-depth: 3
+    - name: build
+      run: |
+           cd ./tools/rust/cargo-tauri-bundle
+           cargo build

@@ -1,8 +1,8 @@
 const
-  logger = require('./logger'),
-  log = logger('app:spawn'),
-  warn = logger('app:spawn', 'red'),
-  crossSpawn = require('cross-spawn')
+  logger = require('./logger')
+const log = logger('app:spawn')
+const warn = logger('app:spawn', 'red')
+const crossSpawn = require('cross-spawn')
 
 /*
  Returns pid, takes onClose

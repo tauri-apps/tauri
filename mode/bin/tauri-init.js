@@ -1,9 +1,9 @@
 const
-    parseArgs = require('minimist'),
-    appPaths = require('../helpers/app-paths'),
-    logger = require('../helpers/logger'),
-    log = logger('app:tauri'),
-    warn = logger('app:tauri (init)', 'red')
+  parseArgs = require('minimist')
+const appPaths = require('../helpers/app-paths')
+const logger = require('../helpers/logger')
+const log = logger('app:tauri')
+const warn = logger('app:tauri (init)', 'red')
 
 /**
  * @type {object}
@@ -15,17 +15,17 @@ const
  * @property {boolean} log
  */
 const argv = parseArgs(process.argv.slice(2), {
-    alias: {
-        h: 'help',
-        f: 'force',
-        l: 'log',
-        d: 'directory'
-    },
-    boolean: ['h', 'l']
+  alias: {
+    h: 'help',
+    f: 'force',
+    l: 'log',
+    d: 'directory'
+  },
+  boolean: ['h', 'l']
 })
 
 if (argv.help) {
-    console.log(`
+  console.log(`
   Description
     Inits the Tauri template. If Tauri cannot find the tauri.conf.js
     it will create one.
@@ -37,7 +37,7 @@ if (argv.help) {
     --log, l         Logging [boolean]
     --directory, d   Set target directory for init
     `)
-    process.exit(0)
+  process.exit(0)
 }
 
 const { inject } = require('../template')

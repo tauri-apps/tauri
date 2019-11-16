@@ -1,8 +1,8 @@
-const { copySync, renameSync, existsSync, mkdirSync, removeSync } = require('fs-extra'),
-  { resolve, join, normalize } = require('path'),
-  logger = require('./helpers/logger'),
-  log = logger('app:tauri', 'green'),
-  warn = logger('app:tauri (template)', 'red')
+const { copySync, renameSync, existsSync, mkdirSync, removeSync } = require('fs-extra')
+const { resolve, join, normalize } = require('path')
+const logger = require('./helpers/logger')
+const log = logger('app:tauri', 'green')
+const warn = logger('app:tauri (template)', 'red')
 
 const injectConfFile = (injectPath, force, logging, directory) => {
   const dir = normalize(join(injectPath, '..'))

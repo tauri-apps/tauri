@@ -6,7 +6,8 @@
     "tauri": "./mode/bin/tauri.js"
   },
   "scripts": {
-    "test": "jest --coverage"
+    "test": "jest --coverage",
+    "lint-fix": "eslint --ext .js mode --fix"
   },
   "repository": {
     "type": "git",

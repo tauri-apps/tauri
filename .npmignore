@@ -6,3 +6,5 @@ node_modules
 .github
 .idea
 SECURITY.md
+
+src-tauri

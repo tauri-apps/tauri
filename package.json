@@ -6,8 +6,7 @@
     "tauri": "./mode/bin/tauri.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "devUp": ""
+    "test": "jest --coverage"
   },
   "repository": {
     "type": "git",
@@ -25,7 +24,7 @@
   "engines": {
     "node": ">= 10.16.3",
     "npm": ">= 6.6.0",
-    "yarn": ">= 1.17.3"
+    "yarn": ">= 1.19.1"
   },
   "dependencies": {
     "@iarna/toml": "^2.2.3",
@@ -41,5 +40,28 @@
     "minimist": "^1.2.0",
     "ms": "^2.1.2",
     "webpack-merge": "^4.2.1"
-  }
+  },
+  "devDependencies": {
+    "dotenv": "^8.2.0",
+    "eslint": "^6.5.1",
+    "eslint-config-standard": "^14.1.0",
+    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-node": "8.0.0",
+    "eslint-plugin-promise": "4.0.1",
+    "eslint-plugin-standard": "4.0.0",
+    "husky": "1.2.0",
+    "jest": "24.9.0",
+    "jest-mock-process": "^1.2.0",
+    "lint-staged": "^9.4.2",
+    "promise": "^8.0.3"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": [
+    "eslint --fix",
+    "git add"
+  ]
 }

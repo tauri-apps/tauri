@@ -4,7 +4,7 @@ const { copySync, renameSync, existsSync, mkdirSync, removeSync } = require('fs-
   log = logger('app:tauri', 'green'),
   warn = logger('app:tauri (template)', 'red')
 
-const injectConfFile = (injectPath, force, logging) => {
+const injectConfFile = (injectPath, force, logging, directory) => {
   const dir = normalize(join(injectPath, '..'))
   const path = join(dir, 'tauri.conf.js')
   if (existsSync(path) && force !== 'conf' && force !== 'all') {
@@ -24,7 +24,7 @@ const injectConfFile = (injectPath, force, logging) => {
   }
 }
 
-const injectTemplate = (injectPath, force, logging) => {
+const injectTemplate = (injectPath, force, logging, directory) => {
   if (existsSync(injectPath) && force !== 'template' && force !== 'all') {
     warn(`Tauri dir (${injectPath}) not empty.
 Run \`tauri init --force template\` to overwrite.`)
@@ -70,18 +70,19 @@ Run \`tauri init --force template\` to overwrite.`)
  * @param {string} type ['conf'|'template'|'all']
  * @param {string|boolean} [force=false] - One of[false|'conf'|'template'|'all']
  * @param {boolean} [logging=false]
+ * @param {string} directory
  * @returns {boolean}
  */
-const inject = (injectPath, type, force = false, logging = false) => {
+const inject = (injectPath, type, force = false, logging = false, directory) => {
   if (typeof type !== 'string' || typeof injectPath !== 'string') {
     warn('- internal error. Required params missing.')
     return false
   }
   if (type === 'conf' || type === 'all') {
-    injectConfFile(injectPath, force, logging)
+    injectConfFile(injectPath, force, logging, directory)
   }
   if (type === 'template' || type === 'all') {
-    injectTemplate(injectPath, force, logging)
+    injectTemplate(injectPath, force, logging, directory)
   }
   return true
 }

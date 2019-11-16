@@ -1,7 +1,7 @@
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tauri_ui::Handle;
+use web_view::Handle;
 
 struct EventHandler {
   on_event: Box<dyn FnOnce(String)>,

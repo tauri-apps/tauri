@@ -1,6 +1,6 @@
 mod cmd;
 
-use tauri_ui::WebView;
+use web_view::WebView;
 
 #[allow(unused_variables)]
 pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
@@ -23,21 +23,21 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
                     }}).then(function () {{
                       const listeners = (window['{listeners}'] && window['{listeners}'][payload.type]) || []
 
-                      if (!ignoreQueue && listeners.length === 0) {{ 
-                        window['{queue}'].push({{ 
+                      if (!ignoreQueue && listeners.length === 0) {{
+                        window['{queue}'].push({{
                           payload: payload,
                           salt: salt
                         }})
                       }}
 
-                      for (let i = listeners.length - 1; i >= 0; i--) {{ 
+                      for (let i = listeners.length - 1; i >= 0; i--) {{
                         const listener = listeners[i]
                         if (listener.once)
                           listeners.splice(i, 1)
                         listener.handler(payload)
                       }}
                     }})
-                  }}", 
+                  }}",
                   fn = crate::event::emit_function_name(),
                   listeners = crate::event::event_listeners_object_name(),
                   queue = crate::event::event_queue_object_name()
@@ -125,7 +125,7 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
           webview
             .eval(&format!(
               "
-                if (window['{listeners}'] === void 0) {{ 
+                if (window['{listeners}'] === void 0) {{
                   window['{listeners}'] = {{}}
                  }}
                 if (window['{listeners}']['{evt}'] === void 0) {{
@@ -136,7 +136,7 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
                   once: {once_flag}
                 }});
 
-                for (let i = 0; i < window['{queue}'].length; i++) {{ 
+                for (let i = 0; i < window['{queue}'].length; i++) {{
                   const e = window['{queue}'][i];
                   window['{emit}'](e.payload, e.salt, true)
                 }}

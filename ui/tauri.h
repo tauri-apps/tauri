@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Serge Zaitsev, (c) 2019 Quasar Framework
+ * Copyright (c) 2017 Serge Zaitsev, (c) 2019 Tauri Apps
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

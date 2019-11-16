@@ -1,4 +1,4 @@
-use tauri_ui::WebView;
+use web_view::WebView;
 
 use std::process::{Child, Command, Stdio};
 

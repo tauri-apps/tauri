@@ -15,6 +15,10 @@ jobs:
     - uses: actions/checkout@v1
       with:
         fetch-depth: 3
+    - name: install stable
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: stable
     - name: build
       run: |
            cd ./lib/rust
@@ -32,6 +36,10 @@ jobs:
     - uses: actions/checkout@v1
       with:
         fetch-depth: 3
+    - name: install stable
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: stable
     - name: build
       run: |
            cd ./bindings/rust
@@ -49,6 +57,10 @@ jobs:
     - uses: actions/checkout@v1
       with:
         fetch-depth: 3
+    - name: install stable
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: stable
     - name: build
       run: |
            cd ./templates/rust
@@ -66,6 +78,10 @@ jobs:
     - uses: actions/checkout@v1
       with:
         fetch-depth: 3
+    - name: install stable
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: stable
     - name: build
       run: |
            cd ./tools/rust/cargo-tauri-bundle

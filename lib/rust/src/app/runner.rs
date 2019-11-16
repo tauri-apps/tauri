@@ -41,7 +41,7 @@ pub(crate) fn run(application: &mut crate::App) {
       );
 
     let matches = app.get_matches();
-    content = tauri_ui::Content::Url(matches.value_of("url").unwrap().to_owned());
+    content = web_view::Content::Url(matches.value_of("url").unwrap().to_owned());
     debug = true;
   }
 
@@ -51,7 +51,7 @@ pub(crate) fn run(application: &mut crate::App) {
     #[cfg(not(feature = "embedded-server"))]
     {
       content =
-        tauri_ui::Content::Html(include_str!(concat!(env!("TAURI_DIST_DIR"), "/index.html")));
+        web_view::Content::Html(include_str!(concat!(env!("TAURI_DIST_DIR"), "/index.html")));
     }
     #[cfg(feature = "embedded-server")]
     {
@@ -81,14 +81,14 @@ pub(crate) fn run(application: &mut crate::App) {
         if !server_url.starts_with("http") {
           server_url = format!("http://{}", server_url);
         }
-        content = tauri_ui::Content::Url(server_url.clone());
+        content = web_view::Content::Url(server_url.clone());
       } else {
         panic!(format!("Port {} is not valid or not open", port));
       }
     }
   }
 
-  let webview = tauri_ui::builder()
+  let webview = web_view::builder()
     .title(&config.window.title)
     .size(config.window.width, config.window.height)
     .resizable(config.window.resizable)

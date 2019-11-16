@@ -1,5 +1,5 @@
 mod runner;
-use tauri_ui::WebView;
+use web_view::WebView;
 
 //type FnMut(&mut InvokeHandler<WebView<'_, ()>>, &str) = FnMut(&mut FnMut(&mut InvokeHandler<WebView<'_, ()>>, &str)<WebView<'_, ()>>, &str);
 

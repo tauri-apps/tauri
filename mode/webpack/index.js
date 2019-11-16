@@ -1,7 +1,6 @@
 const HtmlWebpackInlineSourcePlugin = require('html-webpack-inline-source-plugin')
 
 module.exports.chain = function (chain, cfg) {
-
   if (!cfg.tauri.embeddedServer.active) {
     chain.optimization.splitChunks({
       chunks: 'all',
@@ -23,7 +22,7 @@ module.exports.chain = function (chain, cfg) {
       }
     })
 
-    chain.output.filename(`js/app.js`)
+    chain.output.filename('js/app.js')
 
     if (cfg.ctx.prod) {
       if (cfg.build.extractCSS) {

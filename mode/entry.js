@@ -1,6 +1,6 @@
-const compileTemplate = require('lodash.template'),
-  { readFileSync, writeFileSync, ensureDir } = require('fs-extra'),
-  path = require('path')
+const compileTemplate = require('lodash.template')
+const { readFileSync, writeFileSync, ensureDir } = require('fs-extra')
+const path = require('path')
 
 module.exports.generate = (outDir, cfg) => {
   const apiTemplate = readFileSync(path.resolve(__dirname, '../lib/tauri.js'), 'utf-8')

@@ -7,6 +7,8 @@ mod macros;
 #[macro_use]
 extern crate lazy_static;
 
+extern crate web_view;
+
 pub mod api;
 mod app;
 pub mod command;
@@ -27,7 +29,7 @@ pub mod updater;
 pub mod version;
 pub use app::*;
 
-use tauri_ui::WebView;
+use web_view::*;
 
 use threadpool::ThreadPool;
 

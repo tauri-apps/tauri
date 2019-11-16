@@ -1,12 +1,12 @@
 const
-  { existsSync } = require('fs'),
-  { resolve, join, normalize, sep } = require('path')
+  { existsSync } = require('fs')
+const { resolve, join, normalize, sep } = require('path')
 
 /**
  *
  * @returns {{length}|*}
  */
-function getAppDir() {
+function getAppDir () {
   let dir = process.cwd()
   let count = 0
 
@@ -24,8 +24,8 @@ function getAppDir() {
   return process.cwd()
 }
 
-const appDir = getAppDir(),
-  tauriDir = resolve(appDir, 'src-tauri')
+const appDir = getAppDir()
+const tauriDir = resolve(appDir, 'src-tauri')
 
 module.exports = {
   appDir,

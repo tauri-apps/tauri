@@ -1,5 +1,5 @@
-const appPaths = require('./app-paths'),
-  merge = require('webpack-merge')
+const appPaths = require('./app-paths')
+const merge = require('webpack-merge')
 
 module.exports = cfg => {
   const tauriConf = require(appPaths.resolve.app('tauri.conf.js'))(cfg.ctx)

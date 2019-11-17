@@ -1,7 +1,7 @@
 # tauri [WIP]
 ## A fresh take on creating cross-platform apps.
 [![status](https://img.shields.io/badge/Status-Internal%20Review-yellow.svg)](https://github.com/quasarframework/quasar/tree/tauri)
-[![version](https://img.shields.io/badge/Version-unreleased-yellow.svg)](https://github.com/tauri-apps/tauri/tree/dev) <img align="right" src="/tauri-logo.png" height="240" width="240">
+[![version](https://img.shields.io/badge/Version-unreleased-yellow.svg)](https://github.com/tauri-apps/tauri/tree/dev) <img align="right" src="/app-icon.png" height="240" width="240">
 
 [![Chat Server](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/SpmNs4S)
 [![devto](https://img.shields.io/badge/dev.to-blog-black.svg)](https://dev.to/tauri)
@@ -10,64 +10,64 @@
 [![support](https://img.shields.io/badge/Sponsor-Opencollective-blue.svg)](https://opencollective.com/tauri)
 
 
-**Tauri** is a tool for building tiny, blazing fast binaries for all 
+**Tauri** is a tool for building tiny, blazing fast binaries for all
 major desktop platforms. It was incubated at Quasar Framework.
 
-Whether you are just starting out making apps for your meetup or 
-regularly crunch terabyte datasets, we are absolutely confident that 
+Whether you are just starting out making apps for your meetup or
+regularly crunch terabyte datasets, we are absolutely confident that
 you will love using Tauri as much as we love making and maintaining it.
 
 ## Who Tauri is For
-Because of the way Tauri has been built and can be extended, developers 
-are able to interface not only with the entire Rust ecosystem, but also 
-with many other programming languages. Being freed of the heaviest thing 
-in the universe and the many shortcomings of server-side Javascript 
+Because of the way Tauri has been built and can be extended, developers
+are able to interface not only with the entire Rust ecosystem, but also
+with many other programming languages. Being freed of the heaviest thing
+in the universe and the many shortcomings of server-side Javascript
 suddenly opens up whole new avenues for high-performance, security-focused
-applications that need the purebred power, agility and community 
+applications that need the purebred power, agility and community
 acceptance of a low-level language.
 
-We expect to witness an entire new class of applications being built with 
-Tauri. From a simple calender to locally crunching massive realtime 
+We expect to witness an entire new class of applications being built with
+Tauri. From a simple calender to locally crunching massive realtime
 feeds at particle colliders or even mesh-network based distributed message-
-passing ecosystems - the bar has been raised and gauntlet thrown. 
+passing ecosystems - the bar has been raised and gauntlet thrown.
 
 What will you make?
 
 ## 5 Reasons to consider Tauri
 - **BUNDLE SIZE** of a vanilla Tauri app is less than 3 MB - about 140 MB smaller than what you get with Electron.
-- **MEMORY FOOTPRINT** is less than half of the size of an Electron app built from the same codebase. 
-- **SECURITY** is Tauri's biggest priority and we take it so seriously that we innovate to keep hackers out of your apps. 
+- **MEMORY FOOTPRINT** is less than half of the size of an Electron app built from the same codebase.
+- **SECURITY** is Tauri's biggest priority and we take it so seriously that we innovate to keep hackers out of your apps.
 - **RELIABILITY** of the underlying code base is why critical libraries have been forked and will be perpetually maintained.
 - **FLOSS** licensing is regretfully impossible with downstream Chromium consumers, like Electron. Sources: [0](https://lists.gnu.org/archive/html/libreplanet-discuss/2017-01/msg00056.html) [1](https://lists.gnu.org/archive/html/directory-discuss/2017-12/msg00008.html) [2](https://lists.gnu.org/archive/html/libreplanet-discuss/2019-02/msg00001.html)
 
 ## Technical Details
-The user interface in Tauri apps currently leverages Cocoa/WebKit on macOS, 
-gtk-webkit2 on Linux and MSHTML (IE10/11) or Webkit via Edge on Windows. 
-**Tauri** is based on the MIT licensed prior work known as 
+The user interface in Tauri apps currently leverages Cocoa/WebKit on macOS,
+gtk-webkit2 on Linux and MSHTML (IE10/11) or Webkit via Edge on Windows.
+**Tauri** is based on the MIT licensed prior work known as
 [webview](https://github.com/zserge/webview).
 
 The default binding to the underlying webview library currently uses Rust,
-but other languages like Golang or Python (and many others) are possible 
+but other languages like Golang or Python (and many others) are possible
 (and only a PR away).
 
-> Rust is blazingly fast and memory-efficient: with no runtime or garbage 
-collector, it can power performance-critical services, run on embedded 
+> Rust is blazingly fast and memory-efficient: with no runtime or garbage
+collector, it can power performance-critical services, run on embedded
 devices, and easily integrate with other languages. Rust’s rich type system
 and ownership model guarantee memory-safety and thread-safety — and enable
-you to eliminate many classes of bugs at compile-time. Rust has great 
+you to eliminate many classes of bugs at compile-time. Rust has great
 documentation, a friendly compiler with useful error messages, and top-notch
 tooling — an integrated package manager and build tool, smart multi-editor
-support with auto-completion and type inspections, an auto-formatter, and 
+support with auto-completion and type inspections, an auto-formatter, and
 more. - [https://www.rust-lang.org/](https://www.rust-lang.org/)
 
 This combination of power, safety and usability are why we chose Rust to be
 the default binding for Tauri. It is our intention to provide the most safe
-and performant native app experience (for devs and app consumers), out of 
-the box. 
+and performant native app experience (for devs and app consumers), out of
+the box.
 
-To this end, we have spent a great deal of time creating an especially secure 
-localhost-free backend for the security conscious application-artisans. This 
-means that your app does not use a localhost server, as is generally the case with 
+To this end, we have spent a great deal of time creating an especially secure
+localhost-free backend for the security conscious application-artisans. This
+means that your app does not use a localhost server, as is generally the case with
 cordova apps. This also has the positive side effect, that less code is needed
 and the final binaries are smaller.
 
@@ -93,12 +93,12 @@ you through the process. Here is a bit of a status report.
 - [ ] Tray (coming soon)
 - [x] Copy Buffer
 
-#### API 
+#### API
 - [ ] answer - enable rust to direct the UI
 - [ ] bridge - enable Quasar Bridge
 - [x] event - enable binding to message
 - [x] execute - STDOUT Passthrough with Command Invocation
-- [x] listFiles - list files in a directory 
+- [x] listFiles - list files in a directory
 - [x] open - open link in a browser
 - [x] readBinaryFile - read binary file from local filesystem
 - [x] readTextFile - read text file from local filesystem
@@ -161,20 +161,20 @@ projects here in this repository, in order to guarantee the security of the
 code and our ability to enhance it with features that may not be needed for
 other consumers.
 
-We hope that this code is useful, but make no claims to suitability or 
+We hope that this code is useful, but make no claims to suitability or
 guarantees that it will work outside of the Quasar ecosystem.
 
 This has been done with our best attempt at due diligence and in
 respect of the original authors. Thankyou - this project would never have
 been possible without your amazing contribution to open-source and we are
 honoured to carry the torch further. Of special note:
-- [zserge](https://github.com/zserge) for the original webview approach and 
+- [zserge](https://github.com/zserge) for the original webview approach and
 go bindings
 - [Boscop](https://github.com/Boscop) for the Rust Bindings
 - [Burtonago](https://github.com/burtonageo) for the Cargo Bundle prototype
 
 ## Contributing
-Please make sure to read the [Contributing Guide](./.github/CONTRIBUTING.md) 
+Please make sure to read the [Contributing Guide](./.github/CONTRIBUTING.md)
 before making a pull request.
 
 Thank you to all the people who already contributed to Tauri!

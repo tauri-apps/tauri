@@ -1,5 +1,4 @@
-const
-  { existsSync } = require('fs')
+const { existsSync } = require('fs')
 const { resolve, join, normalize, sep } = require('path')
 
 /**

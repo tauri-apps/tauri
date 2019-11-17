@@ -1,10 +1,18 @@
 #!/usr/bin/env node
 
-const cmds = ['init', 'dev', 'build', 'help']
+const cmds = ['init', 'dev', 'build', 'help', 'icon']
 
 const cmd = process.argv[2]
-
+/**
+ * @description This is the bootstrapper that in turn calls subsequent
+ * Tauri Commands
+ *
+ * @param {string|array} command
+ */
 const tauri = function (command) {
+  if (typeof command === 'object') { // technically we just care about an array
+    command = command[0]
+  }
   if (!command || command === '-h' || command === '--help' || command === 'help') {
     console.log(`
     Description

@@ -1,5 +1,4 @@
-const
-  parseArgs = require('minimist')
+const parseArgs = require('minimist')
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {

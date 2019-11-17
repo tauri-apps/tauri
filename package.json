@@ -36,10 +36,18 @@
     "fast-glob": "^3.0.4",
     "fs-extra": "^8.1.0",
     "html-webpack-inline-source-plugin": "^0.0.10",
+    "imagemin": "^7.0.1",
+    "imagemin-optipng": "^7.1.0",
+    "imagemin-pngquant": "^8.0.0",
+    "imagemin-zopfli": "^6.0.0",
+    "is-png": "^2.0.0",
     "lodash.debounce": "^4.0.8",
     "lodash.template": "^4.5.0",
     "minimist": "^1.2.0",
     "ms": "^2.1.2",
+    "png2icons": "^2.0.1",
+    "read-chunk": "^3.2.0",
+    "sharp": "^0.23.2",
     "webpack-merge": "^4.2.1"
   },
   "devDependencies": {

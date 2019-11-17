@@ -1,5 +1,4 @@
-const
-  parseArgs = require('minimist')
+const parseArgs = require('minimist')
 const appPaths = require('../helpers/app-paths')
 const logger = require('../helpers/logger')
 const log = logger('app:tauri')
@@ -13,6 +12,8 @@ const warn = logger('app:tauri (init)', 'red')
  * @property {string|boolean} force
  * @property {boolean} l
  * @property {boolean} log
+ * @property {boolean} d
+ * @property {boolean} directory
  */
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
@@ -44,7 +45,7 @@ const { inject } = require('../template')
 
 const target = appPaths.tauriDir
 
-if (inject(target, 'all', argv.f, argv.l, argv.d)) {
+if (inject(target, 'all', argv.f || null, argv.l || null, argv.d || null)) {
   log('tauri init successful')
 } else {
   warn('tauri init unsuccessful')

@@ -11,7 +11,7 @@ module.exports = {
   collectCoverage: true,
   coverageDirectory: '<rootDir>/test/jest/coverage',
   collectCoverageFrom: [
-    '<rootDir>/mode/**/*.js',
+    '<rootDir>/mode/**/*.js'
   ],
   coverageReporters: ['json-summary', 'text', 'lcov'],
   coverageThreshold: {
@@ -29,7 +29,8 @@ module.exports = {
   moduleFileExtensions: ['js', 'json'],
   moduleNameMapper: {
     '^~/(.*)$': '<rootDir>/$1',
-    '^mode/(.*)$': '<rootDir>/mode/$1'
+    '^mode/(.*)$': '<rootDir>/mode/$1',
+    '^test/(.*)$': '<rootDir>/test/$1'
   },
   transform: {}
 }

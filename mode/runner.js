@@ -45,10 +45,14 @@ class Runner {
     this.url = url
 
     const args = ['--url', url]
+    const features = ['dev']
+    if (cfg.tauri.edge) {
+      features.push('edge')
+    }
 
     const startDevTauri = () => {
       return this.__runCargoCommand({
-        cargoArgs: ['run', '--features', 'dev'],
+        cargoArgs: ['run', '--features', ...features],
         extraArgs: args
       })
     }

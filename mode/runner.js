@@ -12,7 +12,7 @@ const { appDir, tauriDir } = require('./helpers/app-paths')
 
 const logger = require('./helpers/logger')
 const log = logger('app:tauri', 'green')
-const warn = log('app:tauri (template)', 'red')
+const warn = logger('app:tauri (template)', 'red')
 
 class Runner {
   constructor () {

@@ -1,5 +1,6 @@
 const HtmlWebpackInlineSourcePlugin = require('html-webpack-inline-source-plugin')
 const tauriConfig = require('../helpers/tauri-config')
+const WebpackShellPlugin = require('webpack-shell-plugin')
 
 const safeTap = (options, cb) => {
   if (options !== undefined) {
@@ -81,5 +82,16 @@ module.exports.chain = function (chain) {
   if (cfg.ctx.prod && !cfg.tauri.embeddedServer.active) {
     chain.plugin('html-webpack-inline-source')
       .use(HtmlWebpackInlineSourcePlugin)
+  }
+
+  if (cfg.tauri.automaticStart.active) {
+    chain.plugin('webpack-shell-plugin')
+      .use(WebpackShellPlugin, [{
+        onBuildEnd: [
+          cfg.ctx.prod
+            ? `tauri build${cfg.tauri.automaticStart.buildArgs.join(' ')}`
+            : `tauri dev${cfg.tauri.automaticStart.devArgs.join(' ')}`
+        ]
+      }])
   }
 }

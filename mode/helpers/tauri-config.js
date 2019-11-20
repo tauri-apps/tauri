@@ -23,6 +23,11 @@ module.exports = cfg => {
       },
       security: {
         csp: 'default-src data: filesystem: ws: http: https: \'unsafe-eval\' \'unsafe-inline\''
+      },
+      automaticStart: {
+        active: false,
+        devArgs: [],
+        buildArgs: []
       }
     }
   }, tauriConf, cfg)

@@ -62,7 +62,8 @@
     "jest": "24.9.0",
     "jest-mock-process": "^1.2.0",
     "lint-staged": "^9.4.2",
-    "promise": "^8.0.3"
+    "promise": "^8.0.3",
+    "webpack-shell-plugin": "^0.5.0"
   },
   "husky": {
     "hooks": {

@@ -8,3 +8,4 @@ node_modules
 SECURITY.md
 
 src-tauri
+/tauri.conf.js

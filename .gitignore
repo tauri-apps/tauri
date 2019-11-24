@@ -63,3 +63,4 @@ package-lock.json
 
 src-tauri
 test/jest/tmp
+/tauri.conf.js

@@ -50,6 +50,7 @@ describe('[CLI] tauri-icon builder', () => {
   })
 
   it('makes a set of icons with zopfli', async () => {
+    jest.setTimeout(120000)
     const valid = await tauricon.make('test/jest/fixtures/tauri-logo.png', 'test/jest/tmp/zopfli', 'zopfli')
     expect(valid).toBe(true)
   })

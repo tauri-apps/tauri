@@ -6307,6 +6307,11 @@ webpack-merge@^4.2.1:
   dependencies:
     lodash "^4.17.5"
 
+webpack-shell-plugin@^0.5.0:
+  version "0.5.0"
+  resolved "https://registry.yarnpkg.com/webpack-shell-plugin/-/webpack-shell-plugin-0.5.0.tgz#29b8a1d80ddeae0ddb10e729667f728653c2c742"
+  integrity sha1-Kbih2A3erg3bEOcpZn9yhlPCx0I=
+
 whatwg-encoding@^1.0.1, whatwg-encoding@^1.0.3:
   version "1.0.5"
   resolved "https://registry.npmjs.org/whatwg-encoding/-/whatwg-encoding-1.0.5.tgz#5abacf777c32166a51d085d6b4f3e7d27113ddb0"

@@ -26,7 +26,8 @@ const Runner = require('../runner')
 const tauri = new Runner({ modeDir: tauriDir })
 const tauriConfig = require('../helpers/tauri-config')({
   ctx: {
-    debug: argv.debug
+    debug: argv.debug,
+    prod: true
   }
 })
 

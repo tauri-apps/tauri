@@ -5,6 +5,10 @@
   "bin": {
     "tauri": "./mode/bin/tauri.js"
   },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/tauri"
+  },
   "scripts": {
     "test": "jest --coverage",
     "lint-fix": "eslint --ext .js mode --fix"

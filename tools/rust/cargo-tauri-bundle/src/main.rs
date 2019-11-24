@@ -139,7 +139,7 @@ fn run() -> crate::Result<()> {
         .map_err(From::from)
         .and_then(|d| Settings::new(d, m))
         .and_then(|s| {
-          r#try!(build_project_if_unbuilt(&s));
+          build_project_if_unbuilt(&s)?;
           Ok(s)
         })
         .and_then(bundle_project)?;

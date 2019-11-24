@@ -102,7 +102,7 @@ fn generate_icon_files(bundle_dir: &Path, settings: &Settings) -> crate::Result<
           }
         }
       } else {
-        let icon = r#try!(image::open(&icon_path));
+        let icon = image::open(&icon_path)?;
         let (width, height) = icon.dimensions();
         let is_retina = common::is_retina(&icon_path);
         if !sizes.contains(&(width, height, is_retina)) {

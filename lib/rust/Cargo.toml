@@ -7,7 +7,7 @@ edition = "2018"
 
 [dependencies]
 # tauri-ui = { path = "../../bindings/rust" }
-web-view = "0.5.3"
+web-view = "0.5.4"
 serde_json = "1.0.41"
 serde = "1.0"
 serde_derive = "1.0"

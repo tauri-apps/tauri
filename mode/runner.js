@@ -12,7 +12,7 @@ const { appDir, tauriDir } = require('./helpers/app-paths')
 
 const logger = require('./helpers/logger')
 const log = logger('app:tauri', 'green')
-const warn = log('app:tauri (template)', 'red')
+const warn = logger('app:tauri (template)', 'red')
 
 class Runner {
   constructor () {
@@ -45,10 +45,14 @@ class Runner {
     this.url = url
 
     const args = ['--url', url]
+    const features = ['dev']
+    if (cfg.tauri.edge) {
+      features.push('edge')
+    }
 
     const startDevTauri = () => {
       return this.__runCargoCommand({
-        cargoArgs: ['run', '--features', 'dev'],
+        cargoArgs: ['run', '--features', ...features],
         extraArgs: args
       })
     }

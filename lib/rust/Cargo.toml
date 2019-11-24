@@ -38,7 +38,7 @@ clap = {version = "2.33", features = ["yaml"]}
 includedir_codegen = "0.5.0"
 
 [features]
-# edge = ["webview-sys/edge"]
+edge = ["web-view/edge"]
 dev = []
 embedded-server = []
 all-api = []

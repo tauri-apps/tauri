@@ -1,5 +1,6 @@
-const path = require('path')
-const distDir = path.resolve(__dirname, './dist')
+const
+  path = require('path');
+  const distDir = path.resolve(__dirname, './dist')
 
 module.exports = function () {
   return {

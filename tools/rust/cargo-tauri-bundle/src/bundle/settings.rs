@@ -17,6 +17,7 @@ pub enum PackageType {
   WindowsMsi,
   Deb,
   Rpm,
+  AppImage,
   Dmg,
 }
 
@@ -29,6 +30,7 @@ impl PackageType {
       "msi" => Some(PackageType::WindowsMsi),
       "osx" => Some(PackageType::OsxBundle),
       "rpm" => Some(PackageType::Rpm),
+      "appimage" => Some(PackageType::AppImage),
       "dmg" => Some(PackageType::Dmg),
       _ => None,
     }
@@ -41,6 +43,7 @@ impl PackageType {
       PackageType::WindowsMsi => "msi",
       PackageType::OsxBundle => "osx",
       PackageType::Rpm => "rpm",
+      PackageType::AppImage => "appimage",
       PackageType::Dmg => "dmg",
     }
   }

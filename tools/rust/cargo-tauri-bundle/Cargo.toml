@@ -21,6 +21,7 @@ image = "0.12"
 libflate = "0.1"
 md5 = "0.3"
 msi = "0.2"
+
 serde = "1.0"
 serde_derive = "1.0"
 strsim = "0.7"

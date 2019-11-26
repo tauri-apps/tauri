@@ -56,15 +56,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }
   let package_path = base_dir.join(package_name);
 
-  // Generate data files.
-  let data_dir = package_dir.join("data");
-  let binary_dest = data_dir.join("usr/bin").join(settings.binary_name());
-  common::copy_file(settings.binary_path(), &binary_dest)
-    .chain_err(|| "Failed to copy binary file")?;
-  transfer_resource_files(settings, &data_dir).chain_err(|| "Failed to copy resource files")?;
-  generate_icon_files(settings, &data_dir).chain_err(|| "Failed to create icon files")?;
-  generate_desktop_file(settings, &data_dir).chain_err(|| "Failed to create desktop file")?;
-
+  let data_dir = generate_folders(settings, &package_dir).chain_err(|| "Failed to build folders")?;
   // Generate control files.
   let control_dir = package_dir.join("control");
   generate_control_file(settings, arch, &control_dir, &data_dir)
@@ -88,6 +80,20 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   )
   .chain_err(|| "Failed to create package archive")?;
   Ok(vec![package_path])
+}
+
+pub fn generate_folders(settings: &Settings, package_dir: &Path) -> crate::Result<PathBuf> {
+  
+  // Generate data files.
+  let data_dir = package_dir.join("data");
+  let binary_dest = data_dir.join("usr/bin").join(settings.binary_name());
+  common::copy_file(settings.binary_path(), &binary_dest)
+    .chain_err(|| "Failed to copy binary file")?;
+  transfer_resource_files(settings, &data_dir).chain_err(|| "Failed to copy resource files")?;
+  generate_icon_files(settings, &data_dir).chain_err(|| "Failed to create icon files")?;
+  generate_desktop_file(settings, &data_dir).chain_err(|| "Failed to create desktop file")?;
+
+  Ok(data_dir)
 }
 
 /// Generate the application desktop file and store it under the `data_dir`.

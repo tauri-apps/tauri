@@ -18,7 +18,7 @@ use std::env;
 use std::process;
 
 error_chain! {
-    foreign_links {
+  foreign_links {
         Glob(::glob::GlobError);
         GlobPattern(::glob::PatternError);
         Io(::std::io::Error);
@@ -27,8 +27,9 @@ error_chain! {
         Term(::term::Error);
         Toml(::toml::de::Error);
         Walkdir(::walkdir::Error);
+        StripError(std::path::StripPrefixError);
     }
-    errors { }
+    errors {}
 }
 
 /// Runs `cargo build` to make sure the binary file is up-to-date.
@@ -133,8 +134,7 @@ fn run() -> crate::Result<()> {
   if let Some(m) = m.subcommand_matches("tauri-bundle") {
     if m.is_present("version") {
       println!("{}", crate_version!());
-    }
-    else {
+    } else {
       let output_paths = env::current_dir()
         .map_err(From::from)
         .and_then(|d| Settings::new(d, m))

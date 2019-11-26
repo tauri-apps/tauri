@@ -1,6 +1,9 @@
 name: test library
 
-on: [pull_request]
+on:
+  push:
+    branches:
+      - doesnotexist
 
 jobs:
   build-lib:

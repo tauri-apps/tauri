@@ -1,31 +1,29 @@
-const
-  { existsSync } = require('fs'),
-  path = require('path'),
-  resolve = path.resolve,
-  join = path.join
+const { existsSync } = require('fs')
+const { resolve, join, normalize, sep } = require('path')
 
-function getAppDir() {
+/**
+ *
+ * @returns {{length}|*}
+ */
+function getAppDir () {
   let dir = process.cwd()
+  let count = 0
 
-  while (dir.length && dir[dir.length - 1] !== path.sep) {
+  // only go up three folders max
+  while (dir.length && dir[dir.length - 1] !== sep && count <= 2) {
     if (existsSync(join(dir, 'tauri.conf.js'))) {
       return dir
     }
-
-    dir = path.normalize(join(dir, '..'))
+    count++
+    dir = normalize(join(dir, '..'))
   }
 
-  const
-    logger = require('./logger')
-  warn = logger('app:paths', 'red')
-
-  warn(`⚠️  Error. This command must be executed inside a Tauri project folder.`)
-  warn()
-  process.exit(1)
+  // just return the current directory
+  return process.cwd()
 }
 
-const appDir = getAppDir(),
-  tauriDir = resolve(appDir, 'src-tauri')
+const appDir = getAppDir()
+const tauriDir = resolve(appDir, 'src-tauri')
 
 module.exports = {
   appDir,

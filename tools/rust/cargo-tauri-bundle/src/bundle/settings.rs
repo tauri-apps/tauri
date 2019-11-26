@@ -18,6 +18,7 @@ pub enum PackageType {
   Deb,
   Rpm,
   AppImage,
+  Dmg,
 }
 
 impl PackageType {
@@ -30,6 +31,7 @@ impl PackageType {
       "osx" => Some(PackageType::OsxBundle),
       "rpm" => Some(PackageType::Rpm),
       "appimage" => Some(PackageType::AppImage),
+      "dmg" => Some(PackageType::Dmg),
       _ => None,
     }
   }
@@ -42,6 +44,7 @@ impl PackageType {
       PackageType::OsxBundle => "osx",
       PackageType::Rpm => "rpm",
       PackageType::AppImage => "appimage",
+      PackageType::Dmg => "dmg",
     }
   }
 

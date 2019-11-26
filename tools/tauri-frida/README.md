@@ -82,6 +82,6 @@ We plan on automating the installation of Frida,
 Some of the documentation on this page recycled from [frida.re](https://frida.re/docs/hacking/)
 
 ### License
-(c) 2019 Daniel Thompson-Yvetot and Quasar Tauri Team Contributors
+(c) 2019 Daniel Thompson-Yvetot and Tauri Team Contributors
 
 MIT

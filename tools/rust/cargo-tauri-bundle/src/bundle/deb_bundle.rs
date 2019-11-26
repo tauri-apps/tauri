@@ -258,7 +258,7 @@ fn generate_icon_files(settings: &Settings, data_dir: &PathBuf) -> crate::Result
         }
       }
     } else {
-      let icon = r#try!(image::open(&icon_path));
+      let icon = image::open(&icon_path)?;
       let (width, height) = icon.dimensions();
       let is_high_density = common::is_retina(&icon_path);
       if !sizes.contains(&(width, height, is_high_density)) {

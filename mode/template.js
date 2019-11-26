@@ -1,13 +1,43 @@
-const { copySync, renameSync, existsSync, mkdirSync } = require('fs-extra'),
-  path = require('path')
+const { copySync, renameSync, existsSync, mkdirSync, removeSync } = require('fs-extra')
+const { resolve, join, normalize } = require('path')
+const logger = require('./helpers/logger')
+const log = logger('app:tauri', 'green')
+const warn = logger('app:tauri (template)', 'red')
 
-module.exports.inject = injectPath => {
-  if (existsSync(injectPath)) {
-    console.log(`Tauri dir (${injectPath}) not empty.`)
+const injectConfFile = (injectPath, force, logging, directory) => {
+  const dir = normalize(join(injectPath, '..'))
+  const path = join(dir, 'tauri.conf.js')
+  if (existsSync(path) && force !== 'conf' && force !== 'all') {
+    warn(`tauri.conf.js found in ${path}
+  Run \`tauri init --force conf\` to overwrite.`)
+    if (!force) return false
+  } else {
+    try {
+      removeSync(path)
+      copySync(resolve(__dirname, '../templates/conf/tauri.conf.js'), path)
+    } catch (e) {
+      if (logging) console.log(e)
+      return false
+    } finally {
+      if (logging) log('Successfully wrote tauri.conf.js')
+    }
+  }
+}
+
+const injectTemplate = (injectPath, force, logging, directory) => {
+  if (existsSync(injectPath) && force !== 'template' && force !== 'all') {
+    warn(`Tauri dir (${injectPath}) not empty.
+Run \`tauri init --force template\` to overwrite.`)
+    if (!force) return false
+  }
+  try {
+    removeSync(injectPath)
+    mkdirSync(injectPath)
+    copySync(resolve(__dirname, '../templates/rust'), injectPath)
+  } catch (e) {
+    if (logging) console.log(e)
     return false
   }
-  mkdirSync(injectPath)
-  copySync(path.resolve(__dirname, '../templates/rust'), injectPath)
   const files = require('fast-glob').sync(['**/_*'], {
     cwd: injectPath
   })
@@ -23,7 +53,40 @@ module.exports.inject = injectPath => {
       }
       return name
     }).join('/')
-    renameSync(path.join(injectPath, rawPath), path.join(injectPath, targetRelativePath))
+    try {
+      renameSync(join(injectPath, rawPath), join(injectPath, targetRelativePath))
+    } catch (e) {
+      if (logging) console.log(e)
+      return false
+    } finally {
+      if (logging) log('Successfully wrote tauri template files')
+    }
+  }
+}
+
+/**
+ *
+ * @param {string} injectPath
+ * @param {string} type ['conf'|'template'|'all']
+ * @param {string|boolean} [force=false] - One of[false|'conf'|'template'|'all']
+ * @param {boolean} [logging=false]
+ * @param {string} directory
+ * @returns {boolean}
+ */
+const inject = (injectPath, type, force = false, logging = false, directory) => {
+  if (typeof type !== 'string' || typeof injectPath !== 'string') {
+    warn('- internal error. Required params missing.')
+    return false
+  }
+  if (type === 'conf' || type === 'all') {
+    injectConfFile(injectPath, force, logging, directory)
+  }
+  if (type === 'template' || type === 'all') {
+    injectTemplate(injectPath, force, logging, directory)
   }
   return true
+}
+
+module.exports = {
+  inject
 }

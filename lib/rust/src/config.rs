@@ -24,7 +24,7 @@ fn default_resizable() -> bool {
 }
 
 fn default_title() -> String {
-  "Quasar Tauri App".to_string()
+  "Tauri App".to_string()
 }
 
 fn default_window() -> WindowConfig {
@@ -70,5 +70,5 @@ pub struct Config {
 }
 
 pub fn get() -> Config {
-  serde_json::from_str(include_str!("../../../config.json")).unwrap()
+  serde_json::from_str(include_str!(concat!(env!("TAURI_CONFIG_DIR"), "/config.json"))).unwrap()
 }

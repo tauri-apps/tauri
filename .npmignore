@@ -7,7 +7,5 @@ node_modules
 .idea
 SECURITY.md
 
-# Quasar output
-quasar
-bundle.json
-config.json
+src-tauri
+/tauri.conf.js

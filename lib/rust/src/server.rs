@@ -16,6 +16,8 @@ pub fn asset_response(path: &str) -> Response<std::io::Cursor<Vec<u8>>> {
     header = Header::from_bytes(&b"Content-Type"[..], &b"text/css"[..]).unwrap();
   } else if path.ends_with(".html") {
     header = Header::from_bytes(&b"Content-Type"[..], &b"text/html"[..]).unwrap();
+  } else if path.ends_with(".js") {
+    header = Header::from_bytes(&b"Content-Type"[..], &b"text/javascript"[..]).unwrap();
   } else {
     header = Header::from_bytes(&b"Content-Type"[..], &b"application/octet-stream"[..]).unwrap();
   }

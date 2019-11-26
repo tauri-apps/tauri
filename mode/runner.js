@@ -1,29 +1,31 @@
 const
-  chokidar = require('chokidar'),
-  debounce = require('lodash.debounce'),
-  path = require('path')
+  chokidar = require('chokidar')
+const debounce = require('lodash.debounce')
+const path = require('path')
+const { readFileSync, writeFileSync } = require('fs-extra')
 
 const
-  { spawn } = require('./helpers/spawn'),
-  log = require('./helpers/logger')('app:tauri')
-  onShutdown = require('./helpers/on-shutdown'),
-  { readFileSync, writeFileSync } = require('fs-extra'),
-  generator = require('./generator')
+  { spawn } = require('./helpers/spawn')
+const onShutdown = require('./helpers/on-shutdown')
+const generator = require('./generator')
+const { appDir, tauriDir } = require('./helpers/app-paths')
 
-class TauriRunner {
-  constructor({ modeDir }) {
-    this.modeDir = modeDir
+const logger = require('./helpers/logger')
+const log = logger('app:tauri', 'green')
+const warn = logger('app:tauri (template)', 'red')
+
+class Runner {
+  constructor () {
     this.pid = 0
     this.tauriWatcher = null
-
     onShutdown(() => {
       this.stop()
     })
   }
 
-  async run(cfg) {
+  async run (cfg) {
     process.env.TAURI_DIST_DIR = cfg.build.distDir
-
+    process.env.TAURI_CONFIG_DIR = tauriDir
     const url = cfg.build.APP_URL
 
     if (this.pid) {
@@ -43,10 +45,14 @@ class TauriRunner {
     this.url = url
 
     const args = ['--url', url]
+    const features = ['dev']
+    if (cfg.tauri.edge) {
+      features.push('edge')
+    }
 
     const startDevTauri = () => {
       return this.__runCargoCommand({
-        cargoArgs: ['run', '--features', 'dev'],
+        cargoArgs: ['run', '--features', ...features],
         extraArgs: args
       })
     }
@@ -54,9 +60,10 @@ class TauriRunner {
     // Start watching for tauri app changes
     this.tauriWatcher = chokidar
       .watch([
-        path.join(this.modeDir, 'src'),
-        path.join(this.modeDir, 'Cargo.toml'),
-        path.join(this.modeDir, 'build.rs')
+        path.join(tauriDir, 'src'),
+        path.join(tauriDir, 'Cargo.toml'),
+        path.join(tauriDir, 'build.rs'),
+        path.join(appDir, 'tauri.conf.js')
       ], {
         watchers: {
           chokidar: {
@@ -72,8 +79,9 @@ class TauriRunner {
     return startDevTauri()
   }
 
-  async build(cfg) {
+  async build (cfg) {
     process.env.TAURI_DIST_DIR = cfg.build.distDir
+    process.env.TAURI_CONFIG_DIR = tauriDir
 
     this.__manipulateToml(toml => {
       this.__whitelistApi(cfg, toml)
@@ -94,7 +102,7 @@ class TauriRunner {
     })
 
     if (cfg.ctx.debug || !cfg.ctx.targetName) {
-      // on debug mode or if not arget specified,
+      // on debug mode or if no target specified,
       // build only for the current platform
       return buildFn()
     }
@@ -106,14 +114,14 @@ class TauriRunner {
     }
   }
 
-  stop() {
+  stop () {
     return new Promise((resolve, reject) => {
       this.tauriWatcher && this.tauriWatcher.close()
       this.__stopCargo().then(resolve)
     })
   }
 
-  __runCargoCommand({
+  __runCargoCommand ({
     cargoArgs,
     extraArgs
   }) {
@@ -121,16 +129,16 @@ class TauriRunner {
       this.pid = spawn(
         'cargo',
 
-        extraArgs ?
-        cargoArgs.concat(['--']).concat(extraArgs) :
-        cargoArgs,
+        extraArgs
+          ? cargoArgs.concat(['--']).concat(extraArgs)
+          : cargoArgs,
 
-        this.modeDir,
+        tauriDir,
 
         code => {
           if (code) {
             warn()
-            warn(`⚠️  [FAIL] Cargo CLI has failed`)
+            warn('⚠️  [FAIL] Cargo CLI has failed')
             warn()
             process.exit(1)
           }
@@ -151,7 +159,7 @@ class TauriRunner {
     })
   }
 
-  __stopCargo() {
+  __stopCargo () {
     const pid = this.pid
 
     if (!pid) {
@@ -167,11 +175,11 @@ class TauriRunner {
     })
   }
 
-  __manipulateToml(callback) {
-    const toml = require('@iarna/toml'),
-      tomlPath = path.join(this.modeDir, 'Cargo.toml'),
-      tomlFile = readFileSync(tomlPath),
-      tomlContents = toml.parse(tomlFile)
+  __manipulateToml (callback) {
+    const toml = require('@iarna/toml')
+    const tomlPath = path.join(tauriDir, 'Cargo.toml')
+    const tomlFile = readFileSync(tomlPath)
+    const tomlContents = toml.parse(tomlFile)
 
     callback(tomlContents)
 
@@ -179,7 +187,7 @@ class TauriRunner {
     writeFileSync(tomlPath, output)
   }
 
-  __whitelistApi(cfg, tomlContents) {
+  __whitelistApi (cfg, tomlContents) {
     if (!tomlContents.dependencies.tauri.features) {
       tomlContents.dependencies.tauri.features = []
     }
@@ -195,4 +203,4 @@ class TauriRunner {
   }
 }
 
-module.exports = TauriRunner
+module.exports = Runner

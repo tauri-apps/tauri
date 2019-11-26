@@ -1,7 +1,21 @@
 const HtmlWebpackInlineSourcePlugin = require('html-webpack-inline-source-plugin')
+const tauriConfig = require('../helpers/tauri-config')
+const WebpackShellPlugin = require('webpack-shell-plugin')
 
-module.exports.chain = function (chain, cfg) {
+const safeTap = (options, cb) => {
+  if (options !== undefined) {
+    cb()
+  }
+  return options
+}
 
+module.exports.chain = function (chain) {
+  const cfg = tauriConfig({
+    ctx: {
+      debug: process.env.NODE_ENV !== 'production',
+      prod: process.env.NODE_ENV === 'production'
+    }
+  })
   if (!cfg.tauri.embeddedServer.active) {
     chain.optimization.splitChunks({
       chunks: 'all',
@@ -23,7 +37,7 @@ module.exports.chain = function (chain, cfg) {
       }
     })
 
-    chain.output.filename(`js/app.js`)
+    chain.output.filename('js/app.js')
 
     if (cfg.ctx.prod) {
       if (cfg.build.extractCSS) {
@@ -42,14 +56,13 @@ module.exports.chain = function (chain, cfg) {
 
       chain.module.rule('babel')
         .use('babel-loader')
-        .tap(options => {
+        .tap(options => safeTap(() => {
           options.plugins.push([
             'system-import-transformer', { // needs constant attention
               modules: 'common'
             }
           ])
-          return options
-        })
+        }))
     }
 
     const modules = {
@@ -60,15 +73,25 @@ module.exports.chain = function (chain, cfg) {
     for (const module in modules) {
       chain.module.rule(module)
         .use(modules[module])
-        .tap(options => {
+        .tap(options => safeTap(options, () => {
           options.limit = undefined
-          return options
-        })
+        }))
     }
   }
 
   if (cfg.ctx.prod && !cfg.tauri.embeddedServer.active) {
     chain.plugin('html-webpack-inline-source')
       .use(HtmlWebpackInlineSourcePlugin)
+  }
+
+  if (cfg.tauri.automaticStart.active) {
+    chain.plugin('webpack-shell-plugin')
+      .use(WebpackShellPlugin, [{
+        onBuildEnd: [
+          cfg.ctx.prod
+            ? `tauri build${cfg.tauri.automaticStart.buildArgs.join(' ')}`
+            : `tauri dev${cfg.tauri.automaticStart.devArgs.join(' ')}`
+        ]
+      }])
   }
 }

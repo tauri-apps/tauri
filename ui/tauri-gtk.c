@@ -83,6 +83,13 @@ WEBVIEW_API int webview_init(struct webview *w) {
                    G_CALLBACK(webview_load_changed_cb), w);
   gtk_container_add(GTK_CONTAINER(w->priv.scroller), w->priv.webview);
 
+  WebKitSettings *settings =
+      webkit_web_view_get_settings(WEBKIT_WEB_VIEW(w->priv.webview));
+
+  // Enable webgl and canvas features.
+  webkit_settings_set_enable_webgl(settings, true);
+  webkit_settings_set_enable_accelerated_2d_canvas(settings, true);
+
   if (w->debug) {
     WebKitSettings *settings =
         webkit_web_view_get_settings(WEBKIT_WEB_VIEW(w->priv.webview));

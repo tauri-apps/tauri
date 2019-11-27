@@ -1,5 +1,6 @@
 use super::common;
 use super::deb_bundle;
+use crate::ResultExt;
 use crate::Settings;
 use super::path_utils;
 
@@ -8,6 +9,7 @@ use lazy_static::lazy_static;
 
 use std::collections::BTreeMap;
 use std::fs::write;
+use std::fs::remove_dir_all;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
@@ -40,7 +42,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let base_dir = settings.project_out_directory().join("bundle/deb");
   let package_dir = base_dir.join(&package_base_name);
   if package_dir.exists() {
-    fs::remove_dir_all(&package_dir)
+    remove_dir_all(&package_dir)
       .chain_err(|| format!("Failed to remove old {}", package_base_name))?;
   }
 

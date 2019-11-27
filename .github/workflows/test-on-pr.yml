@@ -2,8 +2,8 @@ name: test library
 
 on:
   push:
-   branches:
-     - doesnotexist
+    branches:
+      - doesnotexist
 
 jobs:
   build-lib:

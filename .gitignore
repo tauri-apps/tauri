@@ -67,7 +67,4 @@ config.json
 # rust compiled folders
 target
 
-src-tauri
-test/jest/tmp
-/tauri.conf.js
-
+/cli/tauri.js/test/jest/tmp

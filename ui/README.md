@@ -1,3 +1,0 @@
-# TAURI WEBVIEW
-
-Documentation forthcoming.

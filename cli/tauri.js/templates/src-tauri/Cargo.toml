@@ -11,14 +11,13 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# tauri-ui = { path = "../node_modules/@tauri-apps/tauri/bindings/rust" }
 serde_json = "1.0.41"
 serde = "1.0"
 serde_derive = "1.0"
 tiny_http = "0.6"
 phf = "0.8.0"
 includedir = "0.5.0"
-tauri = { path = "../node_modules/@tauri-apps/tauri/lib/rust" }
+tauri = <%= tauriDep %>
 
 [features]
 dev = ["tauri/dev"] # has no explicit dependencies

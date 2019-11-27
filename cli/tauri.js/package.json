@@ -45,6 +45,7 @@
     "imagemin-pngquant": "^8.0.0",
     "imagemin-zopfli": "^6.0.0",
     "is-png": "^2.0.0",
+    "isbinaryfile": "^4.0.2",
     "lodash.debounce": "^4.0.8",
     "lodash.template": "^4.5.0",
     "minimist": "^1.2.0",

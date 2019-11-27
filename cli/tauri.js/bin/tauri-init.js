@@ -43,10 +43,8 @@ if (argv.help) {
 
 const { inject } = require('../template')
 
-const target = appPaths.tauriDir
-
-if (inject(target, 'all', argv.f || null, argv.l || null, argv.d || null)) {
-  log('tauri init successful')
+if (inject(argv.d || appPaths.appDir, 'all', argv.f || null, argv.l || null)) {
+  log('tauri init succeded')
 } else {
-  warn('tauri init unsuccessful')
+  warn('tauri init failed')
 }

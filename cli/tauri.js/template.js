@@ -4,9 +4,8 @@ const logger = require('./helpers/logger')
 const log = logger('app:tauri', 'green')
 const warn = logger('app:tauri (template)', 'red')
 
-const injectConfFile = (injectPath, force, logging, directory) => {
-  const dir = normalize(join(injectPath, '..'))
-  const path = join(dir, 'tauri.conf.js')
+const injectConfFile = (injectPath, force, logging) => {
+  const path = join(injectPath, 'tauri.conf.js')
   if (existsSync(path) && force !== 'conf' && force !== 'all') {
     warn(`tauri.conf.js found in ${path}
   Run \`tauri init --force conf\` to overwrite.`)
@@ -14,7 +13,7 @@ const injectConfFile = (injectPath, force, logging, directory) => {
   } else {
     try {
       removeSync(path)
-      copySync(resolve(__dirname, '../templates/conf/tauri.conf.js'), path)
+      copySync(resolve(__dirname, './templates/tauri.conf.js'), path)
     } catch (e) {
       if (logging) console.log(e)
       return false
@@ -24,16 +23,17 @@ const injectConfFile = (injectPath, force, logging, directory) => {
   }
 }
 
-const injectTemplate = (injectPath, force, logging, directory) => {
-  if (existsSync(injectPath) && force !== 'template' && force !== 'all') {
-    warn(`Tauri dir (${injectPath}) not empty.
+const injectTemplate = (injectPath, force, logging) => {
+  const dir = normalize(join(injectPath, 'src-tauri'))
+  if (existsSync(dir) && force !== 'template' && force !== 'all') {
+    warn(`Tauri dir (${dir}) not empty.
 Run \`tauri init --force template\` to overwrite.`)
     if (!force) return false
   }
   try {
-    removeSync(injectPath)
-    mkdirSync(injectPath)
-    copySync(resolve(__dirname, '../templates/rust'), injectPath)
+    removeSync(dir)
+    mkdirSync(dir)
+    copySync(resolve(__dirname, './templates/src-tauri'), dir)
   } catch (e) {
     if (logging) console.log(e)
     return false
@@ -70,19 +70,18 @@ Run \`tauri init --force template\` to overwrite.`)
  * @param {string} type ['conf'|'template'|'all']
  * @param {string|boolean} [force=false] - One of[false|'conf'|'template'|'all']
  * @param {boolean} [logging=false]
- * @param {string} directory
  * @returns {boolean}
  */
-const inject = (injectPath, type, force = false, logging = false, directory) => {
+const inject = (injectPath, type, force = false, logging = false) => {
   if (typeof type !== 'string' || typeof injectPath !== 'string') {
     warn('- internal error. Required params missing.')
     return false
   }
   if (type === 'conf' || type === 'all') {
-    injectConfFile(injectPath, force, logging, directory)
+    injectConfFile(injectPath, force, logging)
   }
   if (type === 'template' || type === 'all') {
-    injectTemplate(injectPath, force, logging, directory)
+    injectTemplate(injectPath, force, logging)
   }
   return true
 }

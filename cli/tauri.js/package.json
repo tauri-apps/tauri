@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Multi-binding collection of libraries and templates for building Tauri apps",
   "bin": {
-    "tauri": "./mode/bin/tauri.js"
+    "tauri": "./bin/tauri.js"
   },
   "funding": {
     "type": "opencollective",

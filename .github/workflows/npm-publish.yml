@@ -1,0 +1,19 @@
+name: NPM Publish
+
+on:
+  push:
+   branches:
+     - doesnotexist
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Login to NPM
+      run: npm login ${{ secrets.CratesIO }}
+    - name: Publish package
+      run: |
+        cd packages/tauri-js
+        npm publish
+        cd ../..

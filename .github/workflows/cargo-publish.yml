@@ -1,0 +1,29 @@
+name: Cargo Publish
+
+on:
+  push:
+   branches:
+     - doesnotexist
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Login to Crates.IO
+      run: cargo login ${{ secrets.CratesIO }}
+    - name: Publish macros
+      run: |
+        cd src/cmd_wrk_macros
+        cargo publish
+        cd ../..
+    - name: Publish parser
+      run: |
+        cd src/cmd_wrk_parser
+        cargo publish
+        cd ../..
+    - name: Publish root
+      run: |
+        cd src/cmd_wrk
+        cargo publish
+        cd ../..

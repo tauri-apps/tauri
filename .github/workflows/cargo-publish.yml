@@ -1,9 +1,8 @@
 name: Cargo Publish
 
 on:
-  push:
-   branches:
-     - doesnotexist
+  release:
+    types: [published]
 
 jobs:
   publish:
@@ -15,15 +14,15 @@ jobs:
     - name: Publish macros
       run: |
         cd src/cmd_wrk_macros
-        cargo publish
-        cd ../..
+        echo "We will publish this directory."
+        ls # cargo publish
     - name: Publish parser
       run: |
         cd src/cmd_wrk_parser
-        cargo publish
-        cd ../..
+        echo "We will publish this directory."
+        ls # cargo publish
     - name: Publish root
       run: |
         cd src/cmd_wrk
-        cargo publish
-        cd ../..
+        echo "We will publish this directory."
+        ls # cargo publish

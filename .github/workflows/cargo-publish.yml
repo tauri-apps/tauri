@@ -1,0 +1,28 @@
+name: Cargo Publish
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Login to Crates.IO
+      run: cargo login ${{ secrets.CratesIO }}
+    - name: Publish macros
+      run: |
+        cd src/cmd_wrk_macros
+        echo "We will publish this directory."
+        ls # cargo publish
+    - name: Publish parser
+      run: |
+        cd src/cmd_wrk_parser
+        echo "We will publish this directory."
+        ls # cargo publish
+    - name: Publish root
+      run: |
+        cd src/cmd_wrk
+        echo "We will publish this directory."
+        ls # cargo publish

@@ -1,9 +1,8 @@
 name: NPM Publish
 
 on:
-  push:
-   branches:
-     - doesnotexist
+  release:
+    types: [published]
 
 jobs:
   publish:
@@ -15,5 +14,5 @@ jobs:
     - name: Publish package
       run: |
         cd packages/tauri-js
-        npm publish
-        cd ../..
+        echo "We will publish this directory."
+        ls # npm publish

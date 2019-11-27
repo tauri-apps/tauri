@@ -22,7 +22,7 @@ jobs:
     - name: build
       run: |
            cd ./tauri
-           cargo build
+           cargo build -Dwarnings
 
   build-tauri-cli:
     runs-on: ${{ matrix.platform }}
@@ -43,7 +43,7 @@ jobs:
     - name: build
       run: |
            cd ./cli/tauri-cli
-           cargo build
+           cargo build -Dwarnings
 
   test-tauri-js:
     runs-on: ${{ matrix.platform }}

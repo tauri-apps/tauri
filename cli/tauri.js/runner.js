@@ -69,9 +69,13 @@ class Runner {
           }
         }
       })
-      .on('change', debounce(async () => {
+      .on('change', debounce(async (path) => {
         await this.__stopCargo()
-        startDevTauri()
+        if (path.includes('tauri.conf.js')) {
+          this.run(require('./helpers/tauri-config')(cfg.ctx))
+        } else {
+          startDevTauri()
+        }
       }, 1000))
 
     return startDevTauri()

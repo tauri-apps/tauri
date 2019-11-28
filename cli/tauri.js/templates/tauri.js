@@ -3,7 +3,7 @@
  *  * THIS FILE IS GENERATED AUTOMATICALLY.
  * DO NOT EDIT.
  *
- * Please whitelist these API functions in <% confName %>
+ * Please whitelist these API functions in tauri.conf.js
  *
  **/
 
@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function () {
  * @module tauri
  * @description This API interface makes powerful interactions available
  * to be run on client side applications. They are opt-in features, and
- * must be enabled in <% confName %>
+ * must be enabled in tauri.conf.js
  *
  * Each binding MUST provide these interfaces in order to be compliant,
  * and also whitelist them based upon the developer's settings.
@@ -48,12 +48,12 @@ const uid = function () {
 /**
  * @name __whitelistWarning
  * @description Present a stylish warning to the developer that their API
- * call has not been whitelisted in <% confName %>
+ * call has not been whitelisted in tauri.conf.js
  * @param {String} func - function name to warn
  * @private
  */
 const __whitelistWarning = function (func) {
-  console.warn('%c[Tauri] Danger \ntauri.' + func + ' not whitelisted 💣\n%c\nAdd to <% confName %>: \n\ntauri: \n  whitelist: { \n    ' + func + ': true \n\nReference: https://tauri-apps.org/docs/api#' + func , 'background: red; color: white; font-weight: 800; padding: 2px; font-size:1.5em', ' ')
+  console.warn('%c[Tauri] Danger \ntauri.' + func + ' not whitelisted 💣\n%c\nAdd to tauri.conf.js: \n\ntauri: \n  whitelist: { \n    ' + func + ': true \n\nReference: https://tauri-apps.org/docs/api#' + func , 'background: red; color: white; font-weight: 800; padding: 2px; font-size:1.5em', ' ')
 }
 <% } %>
 

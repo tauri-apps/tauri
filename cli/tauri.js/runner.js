@@ -24,12 +24,10 @@ class Runner {
   }
 
   async run (cfg) {
-    process.env.TAURI_DIST_DIR = cfg.build.distDir
-    process.env.TAURI_CONFIG_DIR = tauriDir
-    const url = cfg.build.APP_URL
+    const devPath = cfg.build.devPath
 
     if (this.pid) {
-      if (this.url !== url) {
+      if (this.devPath !== devPath) {
         await this.stop()
       } else {
         return
@@ -42,9 +40,9 @@ class Runner {
 
     generator.generate(cfg.tauri)
 
-    this.url = url
+    this.devPath = devPath
 
-    const args = ['--url', url]
+    const args = ['--path', path.resolve(appDir, devPath)]
     const features = ['dev']
     if (cfg.tauri.edge) {
       features.push('edge')
@@ -80,9 +78,6 @@ class Runner {
   }
 
   async build (cfg) {
-    process.env.TAURI_DIST_DIR = cfg.build.distDir
-    process.env.TAURI_CONFIG_DIR = tauriDir
-
     this.__manipulateToml(toml => {
       this.__whitelistApi(cfg, toml)
     })

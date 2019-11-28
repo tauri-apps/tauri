@@ -1,4 +1,4 @@
-const { tauri } = require('mode/bin/tauri')
+const { tauri } = require('bin/tauri')
 
 describe('[CLI] tauri.js', () => {
   it('displays a help message', async () => {

@@ -1,5 +1,5 @@
-const { tauricon } = require('mode/helpers/tauricon')
-const { tauri } = require('mode/bin/tauri')
+const { tauricon } = require('helpers/tauricon')
+const { tauri } = require('bin/tauri')
 
 describe('[CLI] tauri-icon internals', () => {
   it('tells you the version', () => {

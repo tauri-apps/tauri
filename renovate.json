@@ -1,5 +1,6 @@
 {
   "extends": [
     "config:base"
-  ]
+  ],
+  "enabledManagers": ["cargo", "npm"]
 }

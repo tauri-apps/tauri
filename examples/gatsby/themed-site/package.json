@@ -1,0 +1,37 @@
+{
+  "name": "personal-themed-site",
+  "version": "0.0.0",
+  "author": "Jacob Bolda <me@jacobbolda.com>",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "gatsby build",
+    "build:hard": "gatsby clean && gatsby build",
+    "develop": "gatsby develop",
+    "dev:hard": "gatsby clean && gatsby develop",
+    "format": "prettier --write \"**/*.{js,jsx,json,md}\"",
+    "test": "echo \"Error: run tests from root\" && exit 1"
+  },
+  "dependencies": {
+    "@emotion/core": "^10.0.22",
+    "@jbolda/gatsby-theme-articles": "^0.0.1",
+    "@jbolda/gatsby-theme-homepage": "^0.0.1",
+    "@jbolda/gatsby-theme-layout": "^0.0.1",
+    "@mdx-js/mdx": "^1.5.1",
+    "@mdx-js/react": "^1.5.1",
+    "gatsby": "^2.18.1",
+    "gatsby-image": "^2.2.33",
+    "gatsby-plugin-mdx": "^1.0.57",
+    "gatsby-plugin-netlify": "^2.1.25",
+    "gatsby-plugin-react-helmet": "^3.1.15",
+    "gatsby-plugin-sharp": "^2.3.2",
+    "gatsby-plugin-theme-ui": "^0.2.43",
+    "gatsby-source-airtable": "^2.0.11",
+    "gatsby-source-filesystem": "^2.1.38",
+    "gatsby-transformer-sharp": "^2.3.5",
+    "react": "^16.12.0",
+    "react-dom": "^16.12.0",
+    "react-helmet": "^5.2.1",
+    "theme-ui": "^0.2.49"
+  }
+}

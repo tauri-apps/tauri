@@ -1,0 +1,9 @@
+{
+  "extends": [
+    "config:base"
+  ],
+  "enabledManagers": ["cargo", "npm"],
+  "cargo": {
+    "enabled": true
+  }
+}

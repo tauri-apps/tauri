@@ -2,5 +2,8 @@
   "extends": [
     "config:base"
   ],
-  "enabledManagers": ["cargo", "npm"]
+  "enabledManagers": ["cargo", "npm"],
+  "cargo": {
+    "enabled": true
+  }
 }

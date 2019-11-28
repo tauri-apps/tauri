@@ -10,7 +10,7 @@
     "url": "https://opencollective.com/tauri"
   },
   "scripts": {
-    "test": "jest --coverage",
+    "test": "jest --coverage --runInBand",
     "lint-fix": "eslint --ext .js mode --fix"
   },
   "repository": {

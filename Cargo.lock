@@ -202,7 +202,7 @@ dependencies = [
 
 [[package]]
 name = "cab"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "byteorder 1.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2047,7 +2047,7 @@ name = "tauri-cli"
 version = "0.1.0"
 dependencies = [
  "ar 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "cab 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cab 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "dirs 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2697,7 +2697,7 @@ dependencies = [
 "checksum bzip2 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "42b7c3cbf0fa9c1b82308d57191728ca0256cb821220f4e2fd410a72ade26e3b"
 "checksum bzip2-sys 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "6584aa36f5ad4c9247f5323b0a42f37802b37a836f0ad87084d7a33961abe25f"
 "checksum c2-chacha 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "214238caa1bf3a496ec3392968969cab8549f96ff30652c9e56885329315f6bb"
-"checksum cab 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a9edc5cbf053f06eff0700c840a4e8ef14c6d3c39f277b8340f03481ebac99d0"
+"checksum cab 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "398bd970880c9b8f34539efdc4a7b86844b48863f98e53e540de49b92315f42e"
 "checksum cc 1.0.47 (registry+https://github.com/rust-lang/crates.io-index)" = "aa87058dce70a3ff5621797f1506cb837edd02ac4c0ae642b4542dce802908b8"
 "checksum cfb 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "8e7fb075b9b54e939006aa12e1f6cd2d3194041ff4ebe7f2efcbedf18f25b667"
 "checksum cfg-if 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)" = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"

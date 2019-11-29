@@ -10,7 +10,7 @@ edition = "2018"
 
 [dependencies]
 ar = "0.3"
-cab = "0.1"
+cab = "0.2"
 chrono = "0.4"
 clap = "^2"
 dirs = "1.0"

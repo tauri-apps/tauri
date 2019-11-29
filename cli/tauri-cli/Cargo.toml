@@ -19,7 +19,7 @@ glob = "0.2"
 icns = "^0.2"
 image = "0.12"
 libflate = "0.1"
-md5 = "0.3"
+md5 = "0.7"
 msi = "0.2"
 
 serde = "1.0"

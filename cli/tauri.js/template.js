@@ -14,7 +14,7 @@ const injectConfFile = (injectPath, force, logging, directory) => {
   } else {
     try {
       removeSync(path)
-      copySync(resolve(__dirname, '../templates/conf/tauri.conf.js'), path)
+      copySync(resolve(__dirname, './templates/tauri.conf.js'), path)
     } catch (e) {
       if (logging) console.log(e)
       return false
@@ -33,7 +33,7 @@ Run \`tauri init --force template\` to overwrite.`)
   try {
     removeSync(injectPath)
     mkdirSync(injectPath)
-    copySync(resolve(__dirname, '../templates/rust'), injectPath)
+    copySync(resolve(__dirname, './templates/rust'), injectPath)
   } catch (e) {
     if (logging) console.log(e)
     return false

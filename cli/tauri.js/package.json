@@ -1,9 +1,9 @@
 {
   "name": "tauri",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Multi-binding collection of libraries and templates for building Tauri apps",
   "bin": {
-    "tauri": "./mode/bin/tauri.js"
+    "tauri": "./bin/tauri.js"
   },
   "funding": {
     "type": "opencollective",
@@ -27,7 +27,7 @@
     "access": "public"
   },
   "engines": {
-    "node": ">= 10.16.3",
+    "node": ">= 10.17.0",
     "npm": ">= 6.6.0",
     "yarn": ">= 1.19.1"
   },

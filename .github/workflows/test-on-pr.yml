@@ -58,6 +58,7 @@ jobs:
       with:
         fetch-depth: 3
     - name: test
+      timeout-minutes: 15
       run: |
            cd ./cli/tauri.js
            yarn

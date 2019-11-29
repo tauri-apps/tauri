@@ -20,4 +20,4 @@ jobs:
       run: |
         cd tauri
         echo "We will publish this directory."
-        ls # TAURI_DIST_DIR=../../test cargo publish
+        ls # TAURI_DIST_DIR=../../test/fixture/dist cargo publish

@@ -35,7 +35,7 @@ walkdir = "2"
 sha2 = "0.8"
 lazy_static = "1.3"
 handlebars = "1.1"
-reqwest = "0.9.19"
+reqwest = "0.9.22"
 hex = "0.3"
 zip = "0.5"
 

@@ -23,7 +23,7 @@ use crate::{ResultExt, Settings};
 use ar;
 use icns;
 use image::png::{PNGDecoder, PNGEncoder};
-use image::{self, GenericImage, ImageDecoder};
+use image::{self, GenericImageView, ImageDecoder};
 use libflate::gzip;
 use md5;
 use std::collections::BTreeSet;
@@ -31,6 +31,7 @@ use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use std::convert::TryInto;
 use tar;
 use walkdir::WalkDir;
 
@@ -230,8 +231,9 @@ fn generate_icon_files(settings: &Settings, data_dir: &PathBuf) -> crate::Result
     if icon_path.extension() != Some(OsStr::new("png")) {
       continue;
     }
-    let mut decoder = PNGDecoder::new(File::open(&icon_path)?);
-    let (width, height) = decoder.dimensions()?;
+    let mut decoder = PNGDecoder::new(File::open(&icon_path)?)?;
+    let width = decoder.dimensions().0.try_into().unwrap();
+    let height = decoder.dimensions().1.try_into().unwrap();
     let is_high_density = common::is_retina(&icon_path);
     if !sizes.contains(&(width, height, is_high_density)) {
       sizes.insert((width, height, is_high_density));

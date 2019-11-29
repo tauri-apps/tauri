@@ -9,7 +9,7 @@ description = "Wrap rust executables in OS-specific app bundles for Tauri"
 edition = "2018"
 
 [dependencies]
-ar = "0.3"
+ar = "0.8"
 cab = "0.1"
 chrono = "0.4"
 clap = "^2"

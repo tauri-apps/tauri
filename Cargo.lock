@@ -28,7 +28,7 @@ dependencies = [
 
 [[package]]
 name = "ar"
-version = "0.3.1"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -2046,7 +2046,7 @@ dependencies = [
 name = "tauri-cli"
 version = "0.1.0"
 dependencies = [
- "ar 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ar 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cab 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2673,7 +2673,7 @@ dependencies = [
 "checksum aho-corasick 0.7.6 (registry+https://github.com/rust-lang/crates.io-index)" = "58fb5e95d83b38284460a5fda7d6470aa0b8844d283a0b614b8535e880800d2d"
 "checksum android_glue 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "000444226fcff248f2bc4c7625be32c63caccfecc2723a2b9f78a7487a49c407"
 "checksum ansi_term 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ee49baf6cb617b853aa8d93bf420db2383fab46d314482ca2803b40d5fde979b"
-"checksum ar 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "35c7a5669cb64f085739387e1308b74e6d44022464b7f1b63bbd4ceb6379ec31"
+"checksum ar 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "450575f58f7bee32816abbff470cbc47797397c2a81e0eaced4b98436daf52e1"
 "checksum arrayref 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)" = "0d382e583f07208808f6b1249e60848879ba3543f57c32277bf52d69c2f0f0ee"
 "checksum arrayvec 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "cff77d8686867eceff3105329d4698d96c2391c176d5d03adc90c7389162b5b8"
 "checksum ascii 0.8.7 (registry+https://github.com/rust-lang/crates.io-index)" = "97be891acc47ca214468e09425d02cef3af2c94d0d82081cd02061f996802f14"

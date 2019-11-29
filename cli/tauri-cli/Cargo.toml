@@ -36,7 +36,7 @@ sha2 = "0.8"
 lazy_static = "1.3"
 handlebars = "1.1"
 reqwest = "0.9.19"
-hex = "0.3"
+hex = "0.4"
 zip = "0.5"
 
 

@@ -33,7 +33,7 @@ uuid = { version = "0.5", features = ["v5"] }
 walkdir = "2"
 
 sha2 = "0.8"
-lazy_static = "1.3"
+lazy_static = "1.4"
 handlebars = "1.1"
 reqwest = "0.9.19"
 hex = "0.3"

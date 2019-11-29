@@ -35,9 +35,5 @@ dev = [ "tauri/dev" ]
 embedded-server = [ "tauri/embedded-server" ]
 
 [[bin]]
-name = "updater"
-path = "src/updater.rs"
-
-[[bin]]
 name = "app"
 path = "src/main.rs"

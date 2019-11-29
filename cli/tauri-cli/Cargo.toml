@@ -29,7 +29,7 @@ tar = "0.4"
 target_build_utils = "0.3"
 term = "0.4"
 toml = "0.4"
-uuid = { version = "0.5", features = ["v5"] }
+uuid = { version = "0.8", features = ["v5"] }
 walkdir = "2"
 
 sha2 = "0.8"

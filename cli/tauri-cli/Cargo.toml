@@ -42,4 +42,4 @@ zip = "0.5"
 
 [dev-dependencies]
 tempfile = "3"
-winit = "0.11"
+winit = "0.19"

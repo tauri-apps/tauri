@@ -68,3 +68,7 @@ config.json
 target
 
 /cli/tauri.js/test/jest/tmp
+
+# example specific ignores
+examples/**/.cache
+examples/**/public

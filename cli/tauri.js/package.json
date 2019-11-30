@@ -10,7 +10,7 @@
     "url": "https://opencollective.com/tauri"
   },
   "scripts": {
-    "test": "jest --coverage",
+    "test": "jest --coverage --runInBand",
     "lint-fix": "eslint --ext .js mode --fix"
   },
   "repository": {
@@ -45,6 +45,7 @@
     "imagemin-pngquant": "^8.0.0",
     "imagemin-zopfli": "^6.0.0",
     "is-png": "^2.0.0",
+    "isbinaryfile": "^4.0.2",
     "lodash.debounce": "^4.0.8",
     "lodash.template": "^4.5.0",
     "minimist": "^1.2.0",
@@ -60,10 +61,10 @@
     "eslint": "^6.5.1",
     "eslint-config-standard": "^14.1.0",
     "eslint-plugin-import": "^2.18.2",
-    "eslint-plugin-node": "8.0.0",
-    "eslint-plugin-promise": "4.0.1",
-    "eslint-plugin-standard": "4.0.0",
-    "husky": "1.2.0",
+    "eslint-plugin-node": "10.0.0",
+    "eslint-plugin-promise": "4.2.1",
+    "eslint-plugin-standard": "4.0.1",
+    "husky": "^3.1.0",
     "jest": "24.9.0",
     "jest-mock-process": "^1.2.0",
     "lint-staged": "^9.4.2",

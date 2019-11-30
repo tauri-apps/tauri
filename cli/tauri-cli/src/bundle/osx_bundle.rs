@@ -22,7 +22,7 @@ use crate::{ResultExt, Settings};
 use chrono;
 use dirs;
 use icns;
-use image::{self, GenericImage};
+use image::{self, GenericImageView};
 use std::cmp::min;
 use std::ffi::OsStr;
 use std::fs::{self, File};

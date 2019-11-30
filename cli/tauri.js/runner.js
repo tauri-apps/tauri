@@ -44,9 +44,6 @@ class Runner {
 
     const args = ['--path', path.resolve(appDir, devPath)]
     const features = ['dev']
-    if (cfg.tauri.edge) {
-      features.push('edge')
-    }
 
     const startDevTauri = () => {
       return this.__runCargoCommand({
@@ -103,13 +100,13 @@ class Runner {
     if (cfg.ctx.debug || !cfg.ctx.targetName) {
       // on debug mode or if no target specified,
       // build only for the current platform
-      return buildFn()
-    }
+      await buildFn()
+    } else {
+      const targets = cfg.ctx.target.split(',')
 
-    const targets = cfg.ctx.target.split(',')
-
-    for (const target of targets) {
-      await buildFn(target)
+      for (const target of targets) {
+        await buildFn(target)
+      }
     }
   }
 
@@ -145,7 +142,7 @@ class Runner {
           if (this.killPromise) {
             this.killPromise()
             this.killPromise = null
-          } else { // else it wasn't killed by us
+          } else if (cargoArgs.some(arg => arg === 'dev')) { // else it wasn't killed by us
             warn()
             warn('Cargo process was killed. Exiting...')
             warn()
@@ -187,18 +184,20 @@ class Runner {
   }
 
   __whitelistApi (cfg, tomlContents) {
-    if (!tomlContents.dependencies.tauri.features) {
-      tomlContents.dependencies.tauri.features = []
-    }
+    const tomlFeatures = []
 
     if (cfg.tauri.whitelist.all) {
-      if (!tomlContents.dependencies.tauri.features.includes('all-api')) {
-        tomlContents.dependencies.tauri.features.push('all-api')
-      }
+      tomlFeatures.push('all-api')
     } else {
       const whitelist = Object.keys(cfg.tauri.whitelist).filter(w => cfg.tauri.whitelist[w] === true)
-      tomlContents.dependencies.tauri.features = whitelist.concat(tomlContents.dependencies.tauri.features.filter(f => f !== 'api' && cfg.tauri.whitelist[f] !== true))
+      tomlFeatures.push(...whitelist)
     }
+
+    if (cfg.tauri.edge) {
+      tomlFeatures.push('edge')
+    }
+
+    tomlContents.dependencies.tauri.features = tomlFeatures
   }
 }
 

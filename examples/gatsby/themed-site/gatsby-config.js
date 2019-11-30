@@ -67,7 +67,7 @@ module.exports = {
         apiKey: process.env.EXAMPLE_GATSBY_AIRTABLE_API_KEY,
         tables: [
           {
-            baseId: `appyi6XMs9Kowv84G`,
+            baseId: `appcL6Jdj7ZrhTg4q`,
             tableName: `Recipes`,
             tableView: `List`,
             queryName: `Recipes`,
@@ -85,9 +85,12 @@ module.exports = {
     `gatsby-plugin-sharp`,
     `gatsby-transformer-sharp`,
     `@jbolda/gatsby-theme-homepage`,
+    `@jbolda/gatsby-theme-articles`,
     {
-      resolve: `@jbolda/gatsby-theme-articles`,
-      options: { contentPath: "articles" }
+      resolve: `gatsby-theme-recipes`,
+      options: {
+        sources: ["Airtable"]
+      }
     },
     {
       resolve: `gatsby-plugin-mdx`,

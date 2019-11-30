@@ -29,6 +29,7 @@
     "gatsby-plugin-theme-ui": "0.2.43",
     "gatsby-source-airtable": "2.1.0-alpha.0",
     "gatsby-source-filesystem": "2.1.39",
+    "gatsby-theme-recipes": "^0.0.9",
     "gatsby-transformer-sharp": "2.3.6",
     "react": "16.12.0",
     "react-dom": "16.12.0",

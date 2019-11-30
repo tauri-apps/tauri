@@ -62,7 +62,7 @@
     "eslint-plugin-import": "^2.18.2",
     "eslint-plugin-node": "8.0.0",
     "eslint-plugin-promise": "4.0.1",
-    "eslint-plugin-standard": "4.0.0",
+    "eslint-plugin-standard": "4.0.1",
     "husky": "1.2.0",
     "jest": "24.9.0",
     "jest-mock-process": "^1.2.0",

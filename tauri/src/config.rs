@@ -72,7 +72,5 @@ pub struct Config {
 }
 
 pub fn get() -> Config {
-  let tauri_config_dir = env::var("TAURI_CONFIG_DIR").is_err();
-  let target = format!("{}/config.json", tauri_config_dir).to_string();
-  serde_json::from_str(&target).unwrap()
+  serde_json::from_str(include_str!(concat!(env!("TAURI_CONFIG_DIR"), "/config.json"))).unwrap()
 }

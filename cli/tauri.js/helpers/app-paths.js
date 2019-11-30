@@ -30,7 +30,7 @@ module.exports = {
   tauriDir,
 
   resolve: {
-    app: dir => join(appDir, dir),
-    tauri: dir => join(tauriDir, dir)
+    app: dir => resolve(appDir, dir),
+    tauri: dir => resolve(tauriDir, dir)
   }
 }

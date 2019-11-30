@@ -10,19 +10,14 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Login to Crates.IO
-      run: cargo login ${{ secrets.CratesIO }}
-    - name: Publish macros
+      run: cargo login ${{ secrets.crate_token }}
+    - name: Publish CLI
       run: |
-        cd src/cmd_wrk_macros
+        cd cli/tauri-cli
         echo "We will publish this directory."
         ls # cargo publish
-    - name: Publish parser
+    - name: Publish TAURI
       run: |
-        cd src/cmd_wrk_parser
+        cd tauri
         echo "We will publish this directory."
-        ls # cargo publish
-    - name: Publish root
-      run: |
-        cd src/cmd_wrk
-        echo "We will publish this directory."
-        ls # cargo publish
+        ls # TAURI_DIST_DIR=../../test/fixture/dist cargo publish

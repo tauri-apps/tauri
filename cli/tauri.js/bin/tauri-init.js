@@ -20,7 +20,8 @@ const argv = parseArgs(process.argv.slice(2), {
     h: 'help',
     f: 'force',
     l: 'log',
-    d: 'directory'
+    d: 'directory',
+    t: 'tauriPath'
   },
   boolean: ['h', 'l']
 })
@@ -33,20 +34,19 @@ if (argv.help) {
   Usage
     $ tauri init
   Options
-    --help, -h       Displays this message
-    --force, -f      Force init to overwrite [conf|template|all]
-    --log, l         Logging [boolean]
-    --directory, d   Set target directory for init
+    --help, -h        Displays this message
+    --force, -f       Force init to overwrite [conf|template|all]
+    --log, -l         Logging [boolean]
+    --directory, -d   Set target directory for init
+    --tauriPath, -t   Path of the Tauri project to use (relative to the cwd)
     `)
   process.exit(0)
 }
 
 const { inject } = require('../template')
 
-const target = appPaths.tauriDir
-
-if (inject(target, 'all', argv.f || null, argv.l || null, argv.d || null)) {
-  log('tauri init successful')
-} else {
-  warn('tauri init unsuccessful')
-}
+inject(argv.d || appPaths.appDir, 'all', {
+  force: argv.f || null,
+  logging: argv.l || null,
+  tauriPath: argv.t || null
+})

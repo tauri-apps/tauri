@@ -39,7 +39,10 @@ reqwest = "0.9.19"
 hex = "0.3"
 zip = "0.5"
 
-
 [dev-dependencies]
 tempfile = "3"
 winit = "0.11"
+
+[[bin]]
+name = "cargo-tauri-cli"
+path = "src/main.rs"

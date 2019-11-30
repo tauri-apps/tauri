@@ -94,7 +94,7 @@ class Runner {
     }
 
     const buildFn = target => this.__runCargoCommand({
-      cargoArgs: [cfg.tauri.bundle.active ? 'tauri-bundle' : 'build']
+      cargoArgs: [cfg.tauri.bundle.active ? 'tauri-cli' : 'build']
         .concat(features.length ? ['--features', ...features] : [])
         .concat(cfg.ctx.debug ? [] : ['--release'])
         .concat(target ? ['--target', target] : [])

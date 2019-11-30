@@ -23,6 +23,9 @@ jobs:
       run: |
            cd ./tauri
            cargo build
+      env:
+        TAURI_DIST_DIR: ../../test/fixture/dist
+
 
   build-tauri-ubuntu-latest:
     runs-on: ubuntu-latest

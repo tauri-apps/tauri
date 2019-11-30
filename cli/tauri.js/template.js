@@ -41,7 +41,7 @@ Run \`tauri init --force template\` to overwrite.`)
     const tomlPath = join(__dirname, '../../tauri/Cargo.toml')
     const tomlFile = readFileSync(tomlPath)
     const tomlContents = toml.parse(tomlFile)
-    tauriDep = `"${tomlContents.package.version}"`
+    tauriDep = `{ version = "${tomlContents.package.version}" }`
   }
 
   try {

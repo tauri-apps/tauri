@@ -12,7 +12,8 @@
   "scripts": {
     "test": "jest --runInBand --no-cache",
     "test:mac-local": "jest --runInBand",
-    "lint-fix": "eslint --ext .js mode --fix"
+    "lint-fix": "eslint --ext .js mode --fix",
+    "build:tauri[rust]": "cd ../tauri && TAURI_DIST_DIR=../../test/fixture/dist TAURI_CONFIG_DIR=../test/fixture cargo publish --dry-run --allow-dirty"
   },
   "repository": {
     "type": "git",
@@ -37,7 +38,7 @@
     "babel-plugin-system-import-transformer": "4.0.0",
     "chalk": "3.0.0",
     "chokidar": "3.3.0",
-    "cross-spawn": "6.0.5",
+    "cross-spawn": "7.0.1",
     "fast-glob": "3.0.4",
     "fs-extra": "8.1.0",
     "html-webpack-inline-source-plugin": "0.0.10",
@@ -59,7 +60,7 @@
   },
   "devDependencies": {
     "dotenv": "8.2.0",
-    "eslint": "6.7.1",
+    "eslint": "6.7.2",
     "eslint-config-standard": "14.1.0",
     "eslint-plugin-import": "2.18.2",
     "eslint-plugin-node": "10.0.0",

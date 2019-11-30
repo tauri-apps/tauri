@@ -28,8 +28,8 @@ pub struct DirInfo {
   pub directories: Vec<String>,
 }
 
-impl Options {
-  pub fn new() -> Options {
+impl Default for Options {
+  fn default() -> Options {
     Options {
       overwrite: false,
       skip: false,
@@ -41,14 +41,14 @@ impl Options {
   }
 }
 
-impl DirOpts {
-  pub fn new() -> DirOpts {
+impl Default for DirOpts {
+  fn default() -> DirOpts {
     DirOpts { depth: 0 }
   }
 }
 
-impl FileOpts {
-  pub fn new() -> FileOpts {
+impl Default for FileOpts {
+  fn default() -> FileOpts {
     FileOpts {
       overwrite: false,
       skip: false,
@@ -120,6 +120,7 @@ where
   Ok(std::fs::copy(from, to)?)
 }
 
+#[allow(dead_code)]
 pub fn copy<P, Q>(from: P, to: Q, options: &Options) -> crate::Result<u64>
 where
   P: AsRef<Path>,
@@ -147,11 +148,11 @@ where
     return Err("Invalid folder from".into());
   }
   let mut to: PathBuf = to.as_ref().to_path_buf();
-  if !options.content_only && ((options.copy_files && to.exists()) || !options.copy_files) {
+  if !options.content_only && (!options.copy_files || to.exists()) {
     to.push(dir_name);
   }
 
-  let mut read_options = DirOpts::new();
+  let mut read_options = DirOpts::default();
   if options.depth > 0 {
     read_options.depth = options.depth;
   }
@@ -203,10 +204,9 @@ pub fn get_dir_info<P>(path: P, options: &DirOpts) -> crate::Result<DirInfo>
 where
   P: AsRef<Path>,
 {
-  let mut depth = 0;
-  if options.depth != 0 {
-    depth = options.depth + 1;
-  }
+
+  let depth = if options.depth==0 { 0 } else { options.depth + 1 };
+
   _get_dir_info(path, depth)
 }
 
@@ -218,7 +218,7 @@ where
   let mut files = Vec::new();
   let mut size = 0;
   let item = path.as_ref().to_str();
-  if !item.is_some() {
+  if item.is_none() {
     return Err("Invalid path".into());
   }
   let item = item.unwrap().to_string();
@@ -235,10 +235,10 @@ where
         match _get_dir_info(_path, depth) {
           Ok(items) => {
             let mut _files = items.files;
-            let mut _dirrectories = items.directories;
+            let mut _directories = items.directories;
             size += items.size;
             files.append(&mut _files);
-            directories.append(&mut _dirrectories);
+            directories.append(&mut _directories);
           }
           Err(err) => return Err(err),
         }
@@ -249,8 +249,8 @@ where
     files.push(item);
   }
   Ok(DirInfo {
-    size: size,
-    files: files,
-    directories: directories,
+    size,
+    files,
+    directories,
   })
 }

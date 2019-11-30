@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-latest, macos-latest, windows-latest]
+        platform: [macos-latest, windows-latest]
 
     steps:
     - uses: actions/checkout@v1
@@ -19,6 +19,26 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
           toolchain: stable
+    - name: build
+      run: |
+           cd ./tauri
+           cargo build
+
+  build-tauri-ubuntu-latest:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        fetch-depth: 3
+    - name: install stable
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: stable
+    - name: install webkit2gtk
+      run: |
+           sudo apt-get update
+           sudo apt-get install -y webkit2gtk-4.0
     - name: build
       run: |
            cd ./tauri
@@ -58,6 +78,7 @@ jobs:
       with:
         fetch-depth: 3
     - name: test
+      timeout-minutes: 15
       run: |
            cd ./cli/tauri.js
            yarn

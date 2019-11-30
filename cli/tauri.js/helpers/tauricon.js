@@ -21,9 +21,13 @@ const zopfli = require('imagemin-zopfli')
 const png2icons = require('png2icons')
 const readChunk = require('read-chunk')
 const isPng = require('is-png')
+const logger = require('./logger')
+const log = logger('app:spawn')
+const warn = logger('app:spawn', 'red')
 
 const settings = require('./tauricon.config.js')
 let image = false
+let spinnerInterval = false
 
 const {
   access,
@@ -56,17 +60,18 @@ const checkSrc = async function (src) {
     const srcExists = await exists(src)
     if (!srcExists) {
       image = false
-      throw new Error('[ERROR] Source image for tauricon not found')
+      if (spinnerInterval) clearInterval(spinnerInterval)
+      warn('[ERROR] Source image for tauricon not found')
+      process.exit(1)
     } else {
       const buffer = await readChunk(src, 0, 8)
       if (isPng(buffer) === true) {
         return (image = sharp(src))
       } else {
         image = false
-        throw new Error('[ERROR] Source image for tauricon is not a png')
-        // exit because this is BAD!
-        // Developers should catch () { } this as it is
-        // the last chance to stop bad things happening.
+        if (spinnerInterval) clearInterval(spinnerInterval)
+        warn('[ERROR] Source image for tauricon is not a png')
+        process.exit(1)
       }
     }
   }
@@ -133,8 +138,7 @@ const validate = async function (src, target) {
  * @param {boolean} end
  */
 const progress = function (msg) {
-  console.log(msg)
-  // process.stdout.write(`  ${msg}                       \r`)
+  process.stdout.write(`  ${msg}                       \r`)
 }
 
 /**
@@ -181,11 +185,6 @@ const tauricon = exports.tauricon = {
     const spinnerInterval = spinner()
     options = options || settings.options.tauri
     const valid = await this.validate(src, target)
-    if (!valid) {
-      console.log('Image not valid')
-      clearInterval(spinnerInterval)
-      return false
-    }
     progress('Building Tauri icns and ico')
     await this.icns(src, target, options, strategy)
     progress('Building Tauri png icons')
@@ -194,7 +193,7 @@ const tauricon = exports.tauricon = {
       progress(`Minifying assets with ${strategy}`)
       await this.minify(target, options, strategy, 'batch')
     } else {
-      console.log('no minify strategy')
+      log('no minify strategy')
     }
     progress('Tauricon Finished')
     clearInterval(spinnerInterval)
@@ -209,10 +208,11 @@ const tauricon = exports.tauricon = {
    * @param {object} options - js object that defines path and sizes
    */
   build: async function (src, target, options) {
-    await this.validate(src, target) // creates the image object
+    await this.validate(src, target)
+    const sharpSrc = sharp(src) // creates the image object
     const buildify2 = async function (pvar) {
       try {
-        const pngImage = image.resize(pvar[1], pvar[1])
+        const pngImage = sharpSrc.resize(pvar[1], pvar[1])
         if (pvar[2]) {
           const rgb = hexToRgb(options.background_color)
           pngImage.flatten({
@@ -222,7 +222,7 @@ const tauricon = exports.tauricon = {
         pngImage.png()
         await pngImage.toFile(pvar[0])
       } catch (err) {
-        console.log(err)
+        warn(err)
       }
     }
 
@@ -320,7 +320,6 @@ const tauricon = exports.tauricon = {
           } else {
             output = `${dest}${path.sep}${option.prefix}${option.suffix}`
           }
-          // console.log('p1', output, size)
           const pvar = [output, size]
           let sharpData = sharp(data)
           sharpData = sharpData.resize(pvar[1][0], pvar[1][1])
@@ -361,7 +360,7 @@ const tauricon = exports.tauricon = {
         destination: pvar[1],
         plugins: [cmd]
       }).catch(err => {
-        console.log(err)
+        warn(err)
       })
     }
     switch (mode) {
@@ -372,7 +371,7 @@ const tauricon = exports.tauricon = {
         // eslint-disable-next-line no-case-declarations
         const folders = uniqueFolders(options)
         for (const n in folders) {
-          console.log('batch minify:', folders[n])
+          log('batch minify:', folders[n])
           await __minifier([
             `${target}${path.sep}${folders[n]}${path.sep}*.png`,
             `${target}${path.sep}${folders[n]}`
@@ -380,7 +379,7 @@ const tauricon = exports.tauricon = {
         }
         break
       default:
-        console.error('* [ERROR] Minify mode must be one of [ singlefile | batch]')
+        warn('[ERROR] Minify mode must be one of [ singlefile | batch]')
         process.exit(1)
     }
     return 'minified'

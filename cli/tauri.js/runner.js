@@ -193,7 +193,7 @@ class Runner {
       tomlFeatures.push(...whitelist)
     }
 
-    if (cfg.tauri.edge) {
+    if (cfg.tauri.edge.active) {
       tomlFeatures.push('edge')
     }
 

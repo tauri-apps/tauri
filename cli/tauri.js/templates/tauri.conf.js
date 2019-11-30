@@ -26,8 +26,10 @@ module.exports = function () {
       },
       security: {
         csp: 'default-src data: filesystem: ws: http: https: \'unsafe-eval\' \'unsafe-inline\''
+      },
+      edge: {
+        active: true
       }
-    },
-    edge: true
+    }
   }
 }

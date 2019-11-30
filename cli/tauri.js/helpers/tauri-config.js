@@ -28,6 +28,9 @@ module.exports = cfg => {
         active: false,
         devArgs: [],
         buildArgs: []
+      },
+      edge: {
+        active: true
       }
     }
   }, tauriConf, cfg)

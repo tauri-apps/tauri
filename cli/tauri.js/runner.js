@@ -172,7 +172,7 @@ class Runner {
   }
 
   __manipulateToml (callback) {
-    const toml = require('@iarna/toml')
+    const toml = require('@tauri-apps/toml')
     const tomlPath = path.join(tauriDir, 'Cargo.toml')
     const tomlFile = readFileSync(tomlPath)
     const tomlContents = toml.parse(tomlFile)

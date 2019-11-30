@@ -10,8 +10,10 @@
     "url": "https://opencollective.com/tauri"
   },
   "scripts": {
-    "test": "jest --coverage --runInBand",
-    "lint-fix": "eslint --ext .js mode --fix"
+    "test": "jest --runInBand --no-cache",
+    "test:mac-local": "jest --runInBand",
+    "lint-fix": "eslint --ext .js mode --fix",
+    "build:tauri[rust]": "cd ../tauri && TAURI_DIST_DIR=../../test/fixture/dist TAURI_CONFIG_DIR=../test/fixture cargo publish --dry-run --allow-dirty"
   },
   "repository": {
     "type": "git",
@@ -32,11 +34,11 @@
     "yarn": ">= 1.19.1"
   },
   "dependencies": {
-    "@iarna/toml": "2.2.3",
+    "@tauri-apps/toml": "2.2.3",
     "babel-plugin-system-import-transformer": "4.0.0",
-    "chalk": "2.4.2",
-    "chokidar": "3.0.2",
-    "cross-spawn": "6.0.5",
+    "chalk": "3.0.0",
+    "chokidar": "3.3.0",
+    "cross-spawn": "7.0.1",
     "fast-glob": "3.0.4",
     "fs-extra": "8.1.0",
     "html-webpack-inline-source-plugin": "0.0.10",
@@ -52,13 +54,13 @@
     "ms": "2.1.2",
     "png2icons": "2.0.1",
     "read-chunk": "3.2.0",
-    "sharp": "0.23.2",
-    "webpack-merge": "4.2.1",
+    "sharp": "0.23.3",
+    "webpack-merge": "4.2.2",
     "webpack-shell-plugin": "0.5.0"
   },
   "devDependencies": {
     "dotenv": "8.2.0",
-    "eslint": "6.6.0",
+    "eslint": "6.7.2",
     "eslint-config-standard": "14.1.0",
     "eslint-plugin-import": "2.18.2",
     "eslint-plugin-node": "10.0.0",
@@ -67,7 +69,7 @@
     "husky": "3.1.0",
     "jest": "24.9.0",
     "jest-mock-process": "1.2.0",
-    "lint-staged": "9.4.3",
+    "lint-staged": "9.5.0",
     "promise": "8.0.3"
   },
   "husky": {

@@ -61,15 +61,14 @@ package-lock.json
 .vscode/settings.json
 
 # Tauri output
-/bundle.json
-/config.json
-/src-tauri
+bundle.json
+config.json
 
 # rust compiled folders
 target
 
-/cli/tauri.js/test/jest/tmp
 
 # doing this because of how our tests currently (naively) drop the tauri.conf.js in that folder
 # todo: needs a proper fic
-/cli/tauri.js/tauri.conf.js
+tauri.conf.js
+src-tauri

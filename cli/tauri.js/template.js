@@ -37,7 +37,7 @@ Run \`tauri init --force template\` to overwrite.`)
   if (tauriPath) {
     tauriDep = `{ path = "${resolve(process.cwd(), tauriPath, 'tauri')}" }`
   } else {
-    const toml = require('@iarna/toml')
+    const toml = require('@tauri-apps/toml')
     const tomlPath = join(__dirname, '../../tauri/Cargo.toml')
     const tomlFile = readFileSync(tomlPath)
     const tomlContents = toml.parse(tomlFile)

@@ -1,5 +1,4 @@
-const
-  logger = require('./logger')
+const logger = require('./logger')
 const log = logger('app:spawn')
 const warn = logger('app:spawn', 'red')
 const crossSpawn = require('cross-spawn')

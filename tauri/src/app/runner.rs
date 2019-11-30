@@ -55,8 +55,13 @@ pub(crate) fn run(application: &mut crate::App) {
     debug = cfg!(debug_assertions);
     #[cfg(not(feature = "embedded-server"))]
     {
-      content =
-        web_view::Content::Html(include_str!(concat!(env!("TAURI_DIST_DIR"), "/index.html")));
+      let html = base64::encode(include_str!(concat!(env!("TAURI_DIST_DIR"), "/index.html")));
+      let template = include_str!("../../template.html");
+      content = web_view::Content::Html(
+        template
+          .replace("__TAURI_IFRAME_BASE64", &html)
+          .replace("__TAURI_API", include_str!(concat!(env!("TAURI_DIR"), "/tauri.js")))
+      );
     }
     #[cfg(feature = "embedded-server")]
     {

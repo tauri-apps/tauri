@@ -7,22 +7,6 @@
  *
  **/
 
-// open <a href="..."> links with the Tauri API
-document.querySelector('body').addEventListener('click', function (e) {
-  let target = e.target
-  while (target != null) {
-    if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
-      tauri.open(target.href)
-      break
-    }
-    target = target.parentElement
-  }
-}, true)
-
-document.addEventListener('DOMContentLoaded', function () {
-  tauri.invoke({ cmd: 'init' })
-})
-
 /**
  * @module tauri
  * @description This API interface makes powerful interactions available
@@ -39,7 +23,7 @@ function s4() {
     .substring(1)
 }
 
-const uid = function () {
+var uid = function () {
   return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
     s4() + '-' + s4() + s4() + s4()
 }
@@ -52,7 +36,7 @@ const uid = function () {
  * @param {String} func - function name to warn
  * @private
  */
-const __whitelistWarning = function (func) {
+var __whitelistWarning = function (func) {
   console.warn('%c[Tauri] Danger \ntauri.' + func + ' not whitelisted 💣\n%c\nAdd to tauri.conf.js: \n\ntauri: \n  whitelist: { \n    ' + func + ': true \n\nReference: https://tauri-apps.org/docs/api#' + func , 'background: red; color: white; font-weight: 800; padding: 2px; font-size:1.5em', ' ')
 }
 <% } %>
@@ -65,9 +49,9 @@ const __whitelistWarning = function (func) {
  *  * @type {Promise<any>}
  * @private
  */
-const __reject = new Promise((reject) => { reject })
+var __reject = new Promise((reject) => { reject })
 
-export default class Tauri {
+var tauri = {
 <% if (ctx.dev) { %>
   /**
    * @name invoke
@@ -75,10 +59,10 @@ export default class Tauri {
    * @param {Object} args
    */
 <% } %>
-  static invoke (args) {
+  invoke: function (args) {
     Object.freeze(args)
     window.external.invoke(JSON.stringify(args))
-  }
+  },
 
 <% if (ctx.dev) { %>
   /**
@@ -89,14 +73,14 @@ export default class Tauri {
    * @param {Boolean} once
    */
 <% } %>
-  static addEventListener (evt, handler, once = false) {
+  addEventListener: function (evt, handler, once = false) {
     this.invoke({
       cmd: 'addEventListener',
       evt,
       handler: this.transformCallback(handler, once),
       once
     })
-  }
+  },
 
 <% if (ctx.dev) { %>
   /**
@@ -106,13 +90,13 @@ export default class Tauri {
    * @param {Object} payload
    */
 <% } %>
-  static emit(evt, payload) {
+  emit: function (evt, payload) {
     this.invoke({
       cmd: 'emit',
       event: evt,
       payload
     })
-  }
+  },
 
 <% if (ctx.dev) { %>
   /**
@@ -123,8 +107,8 @@ export default class Tauri {
    * @returns {*}
    */
 <% } %>
-  static transformCallback (callback, once = true) {
-    const identifier = Object.freeze(uid())
+  transformCallback: function (callback, once = true) {
+    var identifier = Object.freeze(uid())
     window[identifier] = (result) => {
       if (once) {
         delete window[identifier]
@@ -132,7 +116,7 @@ export default class Tauri {
       return callback && callback(result)
     }
     return identifier
-  }
+  },
 
 <% if (ctx.dev) { %>
   /**
@@ -142,7 +126,7 @@ export default class Tauri {
    * @returns {Promise<any>}
    */
 <% } %>
-  static promisified (args) {
+  promisified: function (args) {
     return new Promise((resolve, reject) => {
       this.invoke({
         callback: this.transformCallback(resolve),
@@ -150,7 +134,7 @@ export default class Tauri {
         ...args
       })
     })
-  }
+  },
 
 <% if (ctx.dev) { %>
   /**
@@ -161,7 +145,7 @@ export default class Tauri {
    * @returns {*|Promise<any>|Promise}
    */
 <% } %>
-  static readTextFile (path) {
+  readTextFile: function (path) {
   <% if (tauri.whitelist.readTextFile === true || tauri.whitelist.all === true) { %>
     Object.freeze(path)
     return this.promisified({ cmd: 'readTextFile', path })
@@ -171,7 +155,7 @@ export default class Tauri {
       <% } %>
     return __reject
       <% } %>
-  }
+  },
 
 <% if (ctx.dev) { %>
   /**
@@ -182,7 +166,7 @@ export default class Tauri {
    * @returns {*|Promise<any>|Promise}
    */
 <% } %>
-  static readBinaryFile (path) {
+  readBinaryFile: function (path) {
   <% if (tauri.whitelist.readBinaryFile === true || tauri.whitelist.all === true) { %>
     Object.freeze(path)
     return this.promisified({ cmd: 'readBinaryFile', path })
@@ -192,7 +176,7 @@ export default class Tauri {
       <% } %>
     return __reject
       <% } %>
-  }
+  },
 
 <% if (ctx.dev) { %>
   /**
@@ -204,8 +188,8 @@ export default class Tauri {
    * @param {String|Binary} cfg.contents
    */
 <% } %>
-  static writeFile (cfg) {
-  Object.freeze(cfg)
+  writeFile: function (cfg) {
+    Object.freeze(cfg)
   <% if (tauri.whitelist.writeFile === true || tauri.whitelist.all === true) { %>
     this.invoke({ cmd: 'writeFile', file: cfg.file, contents: cfg.contents })
     <% } else { %>
@@ -213,7 +197,8 @@ export default class Tauri {
       __whitelistWarning('writeFile')
       <% } %>
     return __reject
-      <% } %>  }
+      <% } %>
+  },
 
 <% if (ctx.dev) { %>
   /**
@@ -224,7 +209,7 @@ export default class Tauri {
    * @returns {*|Promise<any>|Promise}
    */
 <% } %>
-  static listFiles (path) {
+  listFiles: function (path) {
   <% if (tauri.whitelist.listFiles === true || tauri.whitelist.all === true) { %>
     Object.freeze(path)
     return this.promisified({ cmd: 'listFiles', path })
@@ -234,7 +219,7 @@ export default class Tauri {
       <% } %>
     return __reject
       <% } %>
-  }
+  },
 
 <% if (ctx.dev) { %>
   /**
@@ -245,7 +230,7 @@ export default class Tauri {
    * @returns {*|Promise<any>|Promise}
    */
 <% } %>
-  static listDirs (path) {
+  listDirs: function (path) {
   <% if (tauri.whitelist.listDirs === true || tauri.whitelist.all === true) { %>
     Object.freeze(path)
     return this.promisified({ cmd: 'listDirs', path })
@@ -255,7 +240,7 @@ export default class Tauri {
       <% } %>
     return __reject
       <% } %>
-  }
+  },
 
 <% if (ctx.dev) { %>
   /**
@@ -264,7 +249,7 @@ export default class Tauri {
    * @param {String} title
    */
 <% } %>
-  static setTitle (title) {
+  setTitle: function (title) {
     <% if (tauri.whitelist.setTitle === true || tauri.whitelist.all === true) { %>
     Object.freeze(title)
     this.invoke({ cmd: 'setTitle', title })
@@ -274,7 +259,7 @@ export default class Tauri {
       <% } %>
     return __reject
       <% } %>
-  }
+  },
 
   <% if (ctx.dev) { %>
   /**
@@ -283,7 +268,7 @@ export default class Tauri {
    * @param {String} uri
    */
 <% } %>
-  static open (uri) {
+  open: function (uri) {
     <% if (tauri.whitelist.open === true || tauri.whitelist.all === true) { %>
     Object.freeze(uri)
     this.invoke({ cmd: 'open', uri })
@@ -293,7 +278,7 @@ export default class Tauri {
       <% } %>
     return __reject
       <% } %>
-  }
+  },
 
 <% if (ctx.dev) { %>
   /**
@@ -305,7 +290,7 @@ export default class Tauri {
    * @returns {*|Promise<any>|Promise}
    */
 <% } %>
-  static execute (command, args) {
+  execute: function (command, args) {
     <% if (tauri.whitelist.execute === true || tauri.whitelist.all === true) { %>
     Object.freeze(command)
     if (typeof args === 'string' || typeof args === 'object') {
@@ -318,7 +303,7 @@ export default class Tauri {
     <% } %>
     return __reject
       <% } %>
-  }
+  },
 
 <% if (ctx.dev) { %>
   /**
@@ -332,7 +317,7 @@ export default class Tauri {
    * @returns {*|Promise<any>|Promise}
    */
 <% } %>
-  static bridge (command, payload) {
+  bridge: function (command, payload) {
 <% if (tauri.whitelist.bridge === true || tauri.whitelist.all === true) { %>
     Object.freeze(command)
     if (typeof payload === 'string' || typeof payload === 'object') {
@@ -347,3 +332,23 @@ export default class Tauri {
 <% } %>
   }
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+  document.getElementById('__TAURI_IFRAME').contentWindow.a = 5
+  window.alert('bb' + window.frames.length)
+  // open <a href="..."> links with the Tauri API
+  document.querySelector('body').addEventListener('click', function (e) {
+    var target = e.target
+    while (target != null) {
+      if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
+        tauri.open(target.href)
+        break
+      }
+      target = target.parentElement
+    }
+  }, true)
+  // init tauri API
+  tauri.invoke({
+    cmd: 'init'
+  })
+})

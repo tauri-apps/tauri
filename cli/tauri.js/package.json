@@ -13,7 +13,7 @@
     "test": "jest --runInBand --no-cache",
     "test:mac-local": "jest --runInBand",
     "lint-fix": "eslint --ext .js mode --fix",
-    "build:tauri[rust]": "cd ../tauri && TAURI_DIST_DIR=../../test/fixture/dist TAURI_CONFIG_DIR=../test/fixture cargo publish --dry-run --allow-dirty"
+    "build:tauri[rust]": "cd ../tauri && TAURI_DIST_DIR=../../test/fixture/dist TAURI_DIR=../test/fixture cargo publish --dry-run --allow-dirty"
   },
   "repository": {
     "type": "git",

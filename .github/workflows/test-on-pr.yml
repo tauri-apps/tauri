@@ -25,7 +25,7 @@ jobs:
            cargo build
       env:
         TAURI_DIST_DIR: ../../test/fixture/dist
-        TAURI_CONFIG_DIR: ../test/fixture/
+        TAURI_DIR: ../test/fixture/
 
   build-tauri-ubuntu-latest:
     runs-on: ubuntu-latest
@@ -48,7 +48,7 @@ jobs:
            cargo build
       env:
         TAURI_DIST_DIR: ../../test/fixture/dist
-        TAURI_CONFIG_DIR: ../test/fixture
+        TAURI_DIR: ../test/fixture
 
   build-tauri-cli:
     runs-on: ${{ matrix.platform }}

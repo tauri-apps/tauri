@@ -30,4 +30,10 @@ describe('[CLI] tauri.js', () => {
     expect(console.log.mock.calls[0][0].split('.')[0]).toBe('[tauri]: running init')
     jest.clearAllMocks()
   })
+  it('gets you help', async () => {
+    jest.spyOn(console, 'log')
+    tauri(['icon'])
+    expect(!!console.log.mock.calls[0][0]).toBe(true)
+    jest.clearAllMocks()
+  })
 })

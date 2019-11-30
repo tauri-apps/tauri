@@ -22,7 +22,7 @@ const png2icons = require('png2icons')
 const readChunk = require('read-chunk')
 const isPng = require('is-png')
 
-const settings = require('./tauricon.config')
+const settings = require('./tauricon.config.js')
 let image = false
 
 const {
@@ -180,7 +180,12 @@ const tauricon = exports.tauricon = {
   make: async function (src, target, strategy, options) {
     const spinnerInterval = spinner()
     options = options || settings.options.tauri
-    await this.validate(src, target)
+    const valid = await this.validate(src, target)
+    if (!valid) {
+      console.log('Image not valid')
+      clearInterval(spinnerInterval)
+      return false
+    }
     progress('Building Tauri icns and ico')
     await this.icns(src, target, options, strategy)
     progress('Building Tauri png icons')

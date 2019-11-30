@@ -34,7 +34,7 @@
   "dependencies": {
     "@iarna/toml": "2.2.3",
     "babel-plugin-system-import-transformer": "4.0.0",
-    "chalk": "2.4.2",
+    "chalk": "3.0.0",
     "chokidar": "3.0.2",
     "cross-spawn": "6.0.5",
     "fast-glob": "3.0.4",

@@ -11,9 +11,10 @@
     "dev:hard": "gatsby clean && gatsby develop",
     "format": "prettier --write \"**/*.{js,jsx,json,md}\"",
     "tauri": "tauri",
-    "tauri:init": "tauri init",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri dev",
+    "tauri:source": "node ../../../cli/tauri.js/bin/tauri",
+    "tauri:init": "node ../../../cli/tauri.js/bin/tauri init",
+    "tauri:dev": "node ../../../cli/tauri.js/bin/tauri dev",
+    "tauri:build": "node ../../../cli/tauri.js/bin/tauri build",
     "test": "echo \"Error: run tests from root\" && exit 1"
   },
   "dependencies": {
@@ -39,8 +40,5 @@
     "react-dom": "16.12.0",
     "react-helmet": "5.2.1",
     "theme-ui": "0.2.49"
-  },
-  "devDependencies": {
-    "tauri": "^0.1.0"
   }
 }

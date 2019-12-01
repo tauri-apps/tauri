@@ -24,12 +24,10 @@ class Runner {
   }
 
   async run (cfg) {
-    process.env.TAURI_DIST_DIR = cfg.build.distDir
-    process.env.TAURI_CONFIG_DIR = tauriDir
-    const url = cfg.build.APP_URL
+    const devPath = cfg.build.devPath
 
     if (this.pid) {
-      if (this.url !== url) {
+      if (this.devPath !== devPath) {
         await this.stop()
       } else {
         return
@@ -42,13 +40,10 @@ class Runner {
 
     generator.generate(cfg.tauri)
 
-    this.url = url
+    this.devPath = devPath
 
-    const args = ['--url', url]
+    const args = ['--path', path.resolve(appDir, devPath)]
     const features = ['dev']
-    if (cfg.tauri.edge) {
-      features.push('edge')
-    }
 
     const startDevTauri = () => {
       return this.__runCargoCommand({
@@ -71,18 +66,19 @@ class Runner {
           }
         }
       })
-      .on('change', debounce(async () => {
+      .on('change', debounce(async (path) => {
         await this.__stopCargo()
-        startDevTauri()
+        if (path.includes('tauri.conf.js')) {
+          this.run(require('./helpers/tauri-config')(cfg.ctx))
+        } else {
+          startDevTauri()
+        }
       }, 1000))
 
     return startDevTauri()
   }
 
   async build (cfg) {
-    process.env.TAURI_DIST_DIR = cfg.build.distDir
-    process.env.TAURI_CONFIG_DIR = tauriDir
-
     this.__manipulateToml(toml => {
       this.__whitelistApi(cfg, toml)
     })
@@ -95,7 +91,7 @@ class Runner {
     }
 
     const buildFn = target => this.__runCargoCommand({
-      cargoArgs: [cfg.tauri.bundle.active ? 'tauri-bundle' : 'build']
+      cargoArgs: [cfg.tauri.bundle.active ? 'tauri-cli' : 'build']
         .concat(features.length ? ['--features', ...features] : [])
         .concat(cfg.ctx.debug ? [] : ['--release'])
         .concat(target ? ['--target', target] : [])
@@ -104,13 +100,13 @@ class Runner {
     if (cfg.ctx.debug || !cfg.ctx.targetName) {
       // on debug mode or if no target specified,
       // build only for the current platform
-      return buildFn()
-    }
+      await buildFn()
+    } else {
+      const targets = cfg.ctx.target.split(',')
 
-    const targets = cfg.ctx.target.split(',')
-
-    for (const target of targets) {
-      await buildFn(target)
+      for (const target of targets) {
+        await buildFn(target)
+      }
     }
   }
 
@@ -146,7 +142,7 @@ class Runner {
           if (this.killPromise) {
             this.killPromise()
             this.killPromise = null
-          } else { // else it wasn't killed by us
+          } else if (cargoArgs.some(arg => arg === 'dev')) { // else it wasn't killed by us
             warn()
             warn('Cargo process was killed. Exiting...')
             warn()
@@ -176,7 +172,7 @@ class Runner {
   }
 
   __manipulateToml (callback) {
-    const toml = require('@iarna/toml')
+    const toml = require('@tauri-apps/toml')
     const tomlPath = path.join(tauriDir, 'Cargo.toml')
     const tomlFile = readFileSync(tomlPath)
     const tomlContents = toml.parse(tomlFile)
@@ -188,18 +184,20 @@ class Runner {
   }
 
   __whitelistApi (cfg, tomlContents) {
-    if (!tomlContents.dependencies.tauri.features) {
-      tomlContents.dependencies.tauri.features = []
-    }
+    const tomlFeatures = []
 
     if (cfg.tauri.whitelist.all) {
-      if (!tomlContents.dependencies.tauri.features.includes('all-api')) {
-        tomlContents.dependencies.tauri.features.push('all-api')
-      }
+      tomlFeatures.push('all-api')
     } else {
       const whitelist = Object.keys(cfg.tauri.whitelist).filter(w => cfg.tauri.whitelist[w] === true)
-      tomlContents.dependencies.tauri.features = whitelist.concat(tomlContents.dependencies.tauri.features.filter(f => f !== 'api' && cfg.tauri.whitelist[f] !== true))
+      tomlFeatures.push(...whitelist)
     }
+
+    if (cfg.tauri.edge.active) {
+      tomlFeatures.push('edge')
+    }
+
+    tomlContents.dependencies.tauri.features = tomlFeatures
   }
 }
 

@@ -56,7 +56,7 @@ module.exports.chain = function (chain) {
 
       chain.module.rule('babel')
         .use('babel-loader')
-        .tap(options => safeTap(() => {
+        .tap(options => safeTap(options, () => {
           options.plugins.push([
             'system-import-transformer', { // needs constant attention
               modules: 'common'

@@ -1,12 +1,13 @@
-const { copySync, renameSync, existsSync, mkdirSync, removeSync } = require('fs-extra')
+const { copySync, existsSync, removeSync, readFileSync } = require('fs-extra')
 const { resolve, join, normalize } = require('path')
+const copyTemplates = require('./helpers/copy-templates')
+
 const logger = require('./helpers/logger')
 const log = logger('app:tauri', 'green')
 const warn = logger('app:tauri (template)', 'red')
 
-const injectConfFile = (injectPath, force, logging, directory) => {
-  const dir = normalize(join(injectPath, '..'))
-  const path = join(dir, 'tauri.conf.js')
+const injectConfFile = (injectPath, { force, logging }) => {
+  const path = join(injectPath, 'tauri.conf.js')
   if (existsSync(path) && force !== 'conf' && force !== 'all') {
     warn(`tauri.conf.js found in ${path}
   Run \`tauri init --force conf\` to overwrite.`)
@@ -14,7 +15,7 @@ const injectConfFile = (injectPath, force, logging, directory) => {
   } else {
     try {
       removeSync(path)
-      copySync(resolve(__dirname, '../templates/conf/tauri.conf.js'), path)
+      copySync(resolve(__dirname, './templates/tauri.conf.js'), path)
     } catch (e) {
       if (logging) console.log(e)
       return false
@@ -24,43 +25,37 @@ const injectConfFile = (injectPath, force, logging, directory) => {
   }
 }
 
-const injectTemplate = (injectPath, force, logging, directory) => {
-  if (existsSync(injectPath) && force !== 'template' && force !== 'all') {
-    warn(`Tauri dir (${injectPath}) not empty.
+const injectTemplate = (injectPath, { force, logging, tauriPath }) => {
+  const dir = normalize(join(injectPath, 'src-tauri'))
+  if (existsSync(dir) && force !== 'template' && force !== 'all') {
+    warn(`Tauri dir (${dir}) not empty.
 Run \`tauri init --force template\` to overwrite.`)
     if (!force) return false
   }
+
+  let tauriDep
+  if (tauriPath) {
+    tauriDep = `{ path = "${resolve(process.cwd(), tauriPath, 'tauri')}" }`
+  } else {
+    const toml = require('@tauri-apps/toml')
+    const tomlPath = join(__dirname, '../../tauri/Cargo.toml')
+    const tomlFile = readFileSync(tomlPath)
+    const tomlContents = toml.parse(tomlFile)
+    tauriDep = `{ version = "${tomlContents.package.version}" }`
+  }
+
   try {
-    removeSync(injectPath)
-    mkdirSync(injectPath)
-    copySync(resolve(__dirname, '../templates/rust'), injectPath)
+    removeSync(dir)
+    copyTemplates({
+      source: resolve(__dirname, './templates/src-tauri'),
+      scope: {
+        tauriDep
+      },
+      target: dir
+    })
   } catch (e) {
     if (logging) console.log(e)
     return false
-  }
-  const files = require('fast-glob').sync(['**/_*'], {
-    cwd: injectPath
-  })
-  for (const rawPath of files) {
-    const targetRelativePath = rawPath.split('/').map(name => {
-      // dotfiles are ignored when published to npm, therefore in templates
-      // we need to use underscore instead (e.g. "_gitignore")
-      if (name.charAt(0) === '_' && name.charAt(1) !== '_') {
-        return `.${name.slice(1)}`
-      }
-      if (name.charAt(0) === '_' && name.charAt(1) === '_') {
-        return `${name.slice(1)}`
-      }
-      return name
-    }).join('/')
-    try {
-      renameSync(join(injectPath, rawPath), join(injectPath, targetRelativePath))
-    } catch (e) {
-      if (logging) console.log(e)
-      return false
-    } finally {
-      if (logging) log('Successfully wrote tauri template files')
-    }
   }
 }
 
@@ -70,19 +65,19 @@ Run \`tauri init --force template\` to overwrite.`)
  * @param {string} type ['conf'|'template'|'all']
  * @param {string|boolean} [force=false] - One of[false|'conf'|'template'|'all']
  * @param {boolean} [logging=false]
- * @param {string} directory
+ * @param {string} [tauriPath=null]
  * @returns {boolean}
  */
-const inject = (injectPath, type, force = false, logging = false, directory) => {
+const inject = (injectPath, type, { force = false, logging = false, tauriPath = null }) => {
   if (typeof type !== 'string' || typeof injectPath !== 'string') {
     warn('- internal error. Required params missing.')
     return false
   }
   if (type === 'conf' || type === 'all') {
-    injectConfFile(injectPath, force, logging, directory)
+    injectConfFile(injectPath, { force, logging })
   }
   if (type === 'template' || type === 'all') {
-    injectTemplate(injectPath, force, logging, directory)
+    injectTemplate(injectPath, { force, logging, tauriPath })
   }
   return true
 }

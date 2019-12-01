@@ -26,7 +26,7 @@ const tauri = function (command) {
     return false// do this for node consumers and tests
   }
   if (cmds.includes(command)) {
-    if (process.argv) {
+    if (process.argv && !process.env.test) {
       process.argv.splice(2, 1)
     }
     console.log(`[tauri]: running ${command}`)

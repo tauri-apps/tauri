@@ -31,17 +31,22 @@ pub(crate) fn run(application: &mut crate::App) {
       .author("Author")
       .about("About")
       .arg(
-        Arg::with_name("url")
-          .short("u")
-          .long("url")
-          .value_name("URL")
-          .help("Loads the specified URL into webview")
+        Arg::with_name("path")
+          .short("p")
+          .long("path")
+          .value_name("PATH")
+          .help("Loads the specified URL/HTML into webview")
           .required(true)
           .takes_value(true),
       );
 
     let matches = app.get_matches();
-    content = web_view::Content::Url(matches.value_of("url").unwrap().to_owned());
+    let dev_path = matches.value_of("path").unwrap().to_owned();
+    content = if dev_path.starts_with("http") {
+      web_view::Content::Url(dev_path)
+    } else {
+      web_view::Content::Html(std::fs::read_to_string(dev_path).unwrap())
+    };
     debug = true;
   }
 

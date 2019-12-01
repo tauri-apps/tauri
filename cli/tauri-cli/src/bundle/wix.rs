@@ -124,8 +124,8 @@ fn extract_zip(data: &Vec<u8>, path: &Path) -> crate::Result<()> {
 
 // Generates the UUID for the Wix template.
 fn generate_package_guid(settings: &Settings) -> Uuid {
-  let namespace = Uuid::from_bytes(&UUID_NAMESPACE).unwrap();
-  Uuid::new_v5(&namespace, &settings.bundle_identifier())
+  let namespace = Uuid::from_bytes(UUID_NAMESPACE);
+  Uuid::new_v5(&namespace, settings.bundle_identifier().as_bytes())
 }
 
 // Specifically goes and gets Wix and verifies the download via Sha256
@@ -316,8 +316,8 @@ pub fn build_wix_app_installer(
   let manufacturer = settings.bundle_identifier().to_string();
   data.insert("manufacturer", manufacturer.as_str());
   let upgrade_code = Uuid::new_v5(
-    &uuid::NAMESPACE_DNS,
-    format!("{}.app.x64", &settings.binary_name()).as_str(),
+    &Uuid::NAMESPACE_DNS,
+    format!("{}.app.x64", &settings.binary_name()).as_bytes(),
   )
   .to_string();
 

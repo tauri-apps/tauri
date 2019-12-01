@@ -3,15 +3,17 @@
   "version": "0.1.0",
   "description": "Multi-binding collection of libraries and templates for building Tauri apps",
   "bin": {
-    "tauri": "./mode/bin/tauri.js"
+    "tauri": "./bin/tauri.js"
   },
   "funding": {
     "type": "opencollective",
     "url": "https://opencollective.com/tauri"
   },
   "scripts": {
-    "test": "jest --coverage",
-    "lint-fix": "eslint --ext .js mode --fix"
+    "test": "jest --runInBand --no-cache",
+    "test:mac-local": "jest --runInBand",
+    "lint-fix": "eslint --ext .js mode --fix",
+    "build:tauri[rust]": "cd ../tauri && TAURI_DIST_DIR=../../test/fixture/dist TAURI_CONFIG_DIR=../test/fixture cargo publish --dry-run --allow-dirty"
   },
   "repository": {
     "type": "git",
@@ -27,47 +29,48 @@
     "access": "public"
   },
   "engines": {
-    "node": ">= 10.16.3",
+    "node": ">= 10.17.0",
     "npm": ">= 6.6.0",
     "yarn": ">= 1.19.1"
   },
   "dependencies": {
-    "@iarna/toml": "^2.2.3",
-    "babel-plugin-system-import-transformer": "^4.0.0",
-    "chalk": "^2.4.2",
-    "chokidar": "^3.0.2",
-    "cross-spawn": "^6.0.5",
-    "fast-glob": "^3.0.4",
-    "fs-extra": "^8.1.0",
-    "html-webpack-inline-source-plugin": "^0.0.10",
-    "imagemin": "^7.0.1",
-    "imagemin-optipng": "^7.1.0",
-    "imagemin-pngquant": "^8.0.0",
-    "imagemin-zopfli": "^6.0.0",
-    "is-png": "^2.0.0",
-    "lodash.debounce": "^4.0.8",
-    "lodash.template": "^4.5.0",
-    "minimist": "^1.2.0",
-    "ms": "^2.1.2",
-    "png2icons": "^2.0.1",
-    "read-chunk": "^3.2.0",
-    "sharp": "^0.23.2",
-    "webpack-merge": "^4.2.1",
-    "webpack-shell-plugin": "^0.5.0"
+    "@tauri-apps/toml": "2.2.3",
+    "babel-plugin-system-import-transformer": "4.0.0",
+    "chalk": "3.0.0",
+    "chokidar": "3.3.0",
+    "cross-spawn": "7.0.1",
+    "fast-glob": "3.0.4",
+    "fs-extra": "8.1.0",
+    "html-webpack-inline-source-plugin": "0.0.10",
+    "imagemin": "7.0.1",
+    "imagemin-optipng": "7.1.0",
+    "imagemin-pngquant": "8.0.0",
+    "imagemin-zopfli": "6.0.0",
+    "is-png": "2.0.0",
+    "isbinaryfile": "4.0.2",
+    "lodash.debounce": "4.0.8",
+    "lodash.template": "4.5.0",
+    "minimist": "1.2.0",
+    "ms": "2.1.2",
+    "png2icons": "2.0.1",
+    "read-chunk": "3.2.0",
+    "sharp": "0.23.3",
+    "webpack-merge": "4.2.2",
+    "webpack-shell-plugin": "0.5.0"
   },
   "devDependencies": {
-    "dotenv": "^8.2.0",
-    "eslint": "^6.5.1",
-    "eslint-config-standard": "^14.1.0",
-    "eslint-plugin-import": "^2.18.2",
-    "eslint-plugin-node": "8.0.0",
-    "eslint-plugin-promise": "4.0.1",
-    "eslint-plugin-standard": "4.0.0",
-    "husky": "1.2.0",
+    "dotenv": "8.2.0",
+    "eslint": "6.7.2",
+    "eslint-config-standard": "14.1.0",
+    "eslint-plugin-import": "2.18.2",
+    "eslint-plugin-node": "10.0.0",
+    "eslint-plugin-promise": "4.2.1",
+    "eslint-plugin-standard": "4.0.1",
+    "husky": "3.1.0",
     "jest": "24.9.0",
-    "jest-mock-process": "^1.2.0",
-    "lint-staged": "^9.4.2",
-    "promise": "^8.0.3"
+    "jest-mock-process": "1.2.0",
+    "lint-staged": "9.5.0",
+    "promise": "8.0.3"
   },
   "husky": {
     "hooks": {

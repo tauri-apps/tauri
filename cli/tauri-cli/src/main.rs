@@ -73,13 +73,13 @@ fn run() -> crate::Result<()> {
     .iter()
     .map(PackageType::short_name)
     .collect();
-  let m = App::new("cargo-tauri-bundle")
+  let m = App::new("cargo-tauri-cli")
     .version(format!("v{}", crate_version!()).as_str())
     .bin_name("cargo")
     .setting(AppSettings::GlobalVersion)
     .setting(AppSettings::SubcommandRequired)
     .subcommand(
-      SubCommand::with_name("tauri-bundle")
+      SubCommand::with_name("tauri-cli")
         .author("George Burton <burtonageo@gmail.com>, Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>, Daniel Thompson-Yvetot <denjell@sfosc.org>")
         .about("Bundle Rust executables into OS bundles")
         .setting(AppSettings::DisableVersion)
@@ -131,7 +131,7 @@ fn run() -> crate::Result<()> {
     )
     .get_matches();
 
-  if let Some(m) = m.subcommand_matches("tauri-bundle") {
+  if let Some(m) = m.subcommand_matches("tauri-cli") {
     if m.is_present("version") {
       println!("{}", crate_version!());
     } else {

@@ -42,7 +42,7 @@ class Runner {
 
     this.devPath = devPath
 
-    const args = ['--path', path.resolve(appDir, devPath)]
+    const args = ['--path', devPath.startsWith('http') ? devPath : path.resolve(appDir, devPath)]
     const features = ['dev']
 
     const startDevTauri = () => {

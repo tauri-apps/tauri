@@ -1,8 +1,8 @@
 use super::common;
 use super::deb_bundle;
+use super::path_utils;
 use crate::ResultExt;
 use crate::Settings;
-use super::path_utils;
 
 use handlebars::Handlebars;
 use lazy_static::lazy_static;
@@ -48,10 +48,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // generate deb_folder structure
   deb_bundle::generate_folders(settings, &package_dir)?;
 
-  let app_dir_path = path_utils::create(
+  let _app_dir_path = path_utils::create(
     settings
       .project_out_directory()
-      .join(format!("{}.AppDir", settings.binary_name())), true
+      .join(format!("{}.AppDir", settings.binary_name())),
+    true,
   );
 
   let upcase = settings.binary_name().to_uppercase();

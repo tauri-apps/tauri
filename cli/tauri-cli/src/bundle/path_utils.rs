@@ -204,8 +204,11 @@ pub fn get_dir_info<P>(path: P, options: &DirOpts) -> crate::Result<DirInfo>
 where
   P: AsRef<Path>,
 {
-
-  let depth = if options.depth==0 { 0 } else { options.depth + 1 };
+  let depth = if options.depth == 0 {
+    0
+  } else {
+    options.depth + 1
+  };
 
   _get_dir_info(path, depth)
 }

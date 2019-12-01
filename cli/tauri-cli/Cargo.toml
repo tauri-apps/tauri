@@ -1,6 +1,6 @@
 [package]
 name = "tauri-cli"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["George Burton <burtonageo@gmail.com>", "Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>"]
 license = "MIT/Apache-2.0"
 keywords = ["bundle", "cargo", "tauri"]

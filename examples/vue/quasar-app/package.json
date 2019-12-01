@@ -12,7 +12,7 @@
     "test": "echo \"No test specified\" && exit 0",
     "tauri": "node ../../../cli/tauri.js/bin/tauri",
     "tauri:source": "node ../../../cli/tauri.js/bin/tauri",
-    "tauri:init": "node ../../../cli/tauri.js/bin/tauri init --tauri-path ../../../tauri",
+    "tauri:init": "node ../../../cli/tauri.js/bin/tauri init --tauriPath ../../../tauri",
     "tauri:dev": "node ../../../cli/tauri.js/bin/tauri dev",
     "tauri:build": "node ../../../cli/tauri.js/bin/tauri build"
   },

@@ -4,13 +4,14 @@
   "author": "Jacob Bolda <me@jacobbolda.com>",
   "license": "MIT",
   "private": true,
+  "browserslist": {"ie": "9"},
   "scripts": {
     "build": "gatsby build",
     "build:hard": "gatsby clean && gatsby build",
     "develop": "gatsby develop",
     "dev:hard": "gatsby clean && gatsby develop",
     "format": "prettier --write \"**/*.{js,jsx,json,md}\"",
-    "tauri": "tauri",
+    "tauri": "node ../../../cli/tauri.js/bin/tauri",
     "tauri:source": "node ../../../cli/tauri.js/bin/tauri",
     "tauri:init": "node ../../../cli/tauri.js/bin/tauri init --tauri-path ../../../tauri",
     "tauri:dev": "node ../../../cli/tauri.js/bin/tauri dev",
@@ -40,5 +41,10 @@
     "react-dom": "16.12.0",
     "react-helmet": "5.2.1",
     "theme-ui": "0.2.49"
+  },
+  "devDependencies": {
+    "@babel/plugin-proposal-optional-chaining": "^7.7.4",
+    "@babel/preset-env": "^7.7.4",
+    "babel-preset-gatsby": "^0.2.23"
   }
 }

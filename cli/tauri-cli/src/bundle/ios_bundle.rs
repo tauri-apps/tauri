@@ -14,11 +14,11 @@ use icns;
 use image::png::{PNGDecoder, PNGEncoder};
 use image::{self, GenericImageView, ImageDecoder};
 use std::collections::BTreeSet;
+use std::convert::TryInto;
 use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::convert::TryInto;
 
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   common::print_warning("iOS bundle support is still experimental.")?;
@@ -75,7 +75,7 @@ fn generate_icon_files(bundle_dir: &Path, settings: &Settings) -> crate::Result<
       if icon_path.extension() != Some(OsStr::new("png")) {
         continue;
       }
-      let mut decoder = PNGDecoder::new(File::open(&icon_path)?)?;
+      let decoder = PNGDecoder::new(File::open(&icon_path)?)?;
       let width = decoder.dimensions().0.try_into().unwrap();
       let height = decoder.dimensions().1.try_into().unwrap();
       let is_retina = common::is_retina(&icon_path);

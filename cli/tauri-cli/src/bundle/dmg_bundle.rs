@@ -61,7 +61,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .spawn()
     .expect("Failed to chmod script");
 
-    // execute the bundle script
+  // execute the bundle script
   Command::new(&bundle_sh)
     .current_dir(output_path)
     .stdout(Stdio::piped())

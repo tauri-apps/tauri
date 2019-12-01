@@ -27,11 +27,11 @@ use image::{self, GenericImageView, ImageDecoder};
 use libflate::gzip;
 use md5;
 use std::collections::BTreeSet;
+use std::convert::TryInto;
 use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::convert::TryInto;
 use tar;
 use walkdir::WalkDir;
 
@@ -57,7 +57,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }
   let package_path = base_dir.join(package_name);
 
-  let data_dir = generate_folders(settings, &package_dir).chain_err(|| "Failed to build folders")?;
+  let data_dir =
+    generate_folders(settings, &package_dir).chain_err(|| "Failed to build folders")?;
   // Generate control files.
   let control_dir = package_dir.join("control");
   generate_control_file(settings, arch, &control_dir, &data_dir)
@@ -84,7 +85,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 }
 
 pub fn generate_folders(settings: &Settings, package_dir: &Path) -> crate::Result<PathBuf> {
-  
   // Generate data files.
   let data_dir = package_dir.join("data");
   let binary_dest = data_dir.join("usr/bin").join(settings.binary_name());
@@ -231,7 +231,7 @@ fn generate_icon_files(settings: &Settings, data_dir: &PathBuf) -> crate::Result
     if icon_path.extension() != Some(OsStr::new("png")) {
       continue;
     }
-    let mut decoder = PNGDecoder::new(File::open(&icon_path)?)?;
+    let decoder = PNGDecoder::new(File::open(&icon_path)?)?;
     let width = decoder.dimensions().0.try_into().unwrap();
     let height = decoder.dimensions().1.try_into().unwrap();
     let is_high_density = common::is_retina(&icon_path);

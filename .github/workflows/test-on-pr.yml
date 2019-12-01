@@ -20,7 +20,7 @@ jobs:
       with:
           toolchain: stable
     - name: install webkit2gtk (ubuntu only)
-      if: matrix.platform === 'ubuntu-latest'
+      if: matrix.platform == 'ubuntu-latest'
       run: |
            sudo apt-get update
            sudo apt-get install -y webkit2gtk-4.0

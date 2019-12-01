@@ -16,15 +16,13 @@ jobs:
     - uses: actions/checkout@v1
       with:
         fetch-depth: 3
-    - name: install stable
-      uses: actions-rs/toolchain@v1
-      with:
-          toolchain: stable
     - name: install via yarn
       run: |
            cd ./examples/${{ matrix.example }}
            yarn
     - name: build example
+      env:
+        EXAMPLE_GATSBY_AIRTABLE_API_KEY: ${{ secrets.EXAMPLE_GATSBY_AIRTABLE_API_KEY }}
       run: |
            cd ./examples/${{ matrix.example }}
            yarn build

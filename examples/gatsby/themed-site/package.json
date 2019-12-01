@@ -12,7 +12,7 @@
     "format": "prettier --write \"**/*.{js,jsx,json,md}\"",
     "tauri": "tauri",
     "tauri:source": "node ../../../cli/tauri.js/bin/tauri",
-    "tauri:init": "node ../../../cli/tauri.js/bin/tauri init",
+    "tauri:init": "node ../../../cli/tauri.js/bin/tauri init --tauri-path ../../../tauri",
     "tauri:dev": "node ../../../cli/tauri.js/bin/tauri dev",
     "tauri:build": "node ../../../cli/tauri.js/bin/tauri build",
     "test": "echo \"Error: run tests from root\" && exit 1"

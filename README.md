@@ -22,6 +22,22 @@ Tauri is a tool for building tiny, blazing fast binaries for all major desktop p
 | tauri     | ![](https://img.shields.io/crates/v/tauri.svg)      |✅|✅|✅|
 | tauri CLI | ![](https://img.shields.io/crates/v/tauri-cli.svg)  |✅|✅|✅ |
 
+## Who Tauri is For
+Because of the way Tauri has been built and can be extended, developers
+are able to interface not only with the entire Rust ecosystem, but also
+with many other programming languages. Being freed of the heaviest thing
+in the universe and the many shortcomings of server-side Javascript
+suddenly opens up whole new avenues for high-performance, security-focused
+applications that need the purebred power, agility and community
+acceptance of a low-level language.
+
+We expect to witness an entire new class of applications being built with
+Tauri. From a simple calender to locally crunching massive realtime
+feeds at particle colliders or even mesh-network based distributed message-
+passing ecosystems - the bar has been raised and gauntlet thrown.
+
+What will you make?
+
 ## 4 Reasons to consider Tauri
 - **BUNDLE SIZE** of a vanilla Tauri app is less than 3 MB - about 140 MB smaller than what you get with Electron.
 - **MEMORY FOOTPRINT** is less than half of the size of an Electron app built from the same codebase.

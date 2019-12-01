@@ -25,6 +25,14 @@ jobs:
            cd ./examples/${{ matrix.example }}
            yarn
     - name: build example
-      run: yarn build
-    - run: yarn tauri:init
-    - run: yarn tauri:build
+      run: |
+           cd ./examples/${{ matrix.example }}
+           yarn build
+    - name: yarn tauri init
+      run: |
+           cd ./examples/${{ matrix.example }}
+           yarn tauri:init
+    - name: yarn tauri build
+      run: |
+           cd ./examples/${{ matrix.example }}
+           yarn tauri:build

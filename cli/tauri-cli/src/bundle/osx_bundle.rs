@@ -265,7 +265,7 @@ fn create_icns_file(
     match icns::IconType::from_pixel_size_and_density(icon.width(), icon.height(), density) {
       Some(icon_type) => {
         if !family.has_icon_with_type(icon_type) {
-          let icon =make_icns_image(icon)?;
+          let icon = make_icns_image(icon)?;
           family.add_icon_with_type(&icon, icon_type)?;
         }
         Ok(())

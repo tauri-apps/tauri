@@ -1958,7 +1958,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ar 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -26,7 +26,7 @@ jobs:
       uses: actions/cache@v1
       with:
         path: node_modules
-        key: ${{ runner.OS }}-build-${{ hashFiles('./examples/'+ matrix.example +'/yarn.lock') }}
+        key: ${{ runner.OS }}-build-${{ hashFiles(join(['./examples/', matrix.example, '/yarn.lock'])) }}
         restore-keys: |
           ${{ runner.OS }}-build-${{ env.cache-name }}-
           ${{ runner.OS }}-build-
@@ -92,7 +92,7 @@ jobs:
       uses: actions/cache@v1
       with:
         path: node_modules
-        key: ${{ runner.OS }}-build-${{ hashFiles('./examples/'+ matrix.example +'/yarn.lock') }}
+        key: ${{ runner.OS }}-build-${{ hashFiles(join(['./examples/', matrix.example, '/yarn.lock'])) }}
         restore-keys: |
           ${{ runner.OS }}-build-${{ env.cache-name }}-
           ${{ runner.OS }}-build-

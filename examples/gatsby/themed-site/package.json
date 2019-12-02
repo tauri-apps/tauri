@@ -4,7 +4,9 @@
   "author": "Jacob Bolda <me@jacobbolda.com>",
   "license": "MIT",
   "private": true,
-  "browserslist": {"ie": "9"},
+  "browserslist": {
+    "ie": "9"
+  },
   "scripts": {
     "build": "gatsby build",
     "build:hard": "gatsby clean && gatsby build",
@@ -30,7 +32,6 @@
     "@mdx-js/react": "1.5.1",
     "gatsby": "2.18.5",
     "gatsby-image": "2.2.34",
-    "gatsby-plugin-compile-es6-packages": "^2.1.0",
     "gatsby-plugin-mdx": "1.0.58",
     "gatsby-plugin-netlify": "2.1.27",
     "gatsby-plugin-react-helmet": "3.1.16",
@@ -46,8 +47,6 @@
     "theme-ui": "0.2.49"
   },
   "devDependencies": {
-    "@babel/plugin-proposal-optional-chaining": "^7.7.4",
-    "@babel/preset-env": "^7.7.4",
-    "babel-preset-gatsby": "^0.2.23"
+    "tauri": "^0.1.3"
   }
 }

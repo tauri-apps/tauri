@@ -11,7 +11,6 @@
     "develop": "gatsby develop",
     "dev:hard": "gatsby clean && gatsby develop",
     "format": "prettier --write \"**/*.{js,jsx,json,md}\"",
-    "tauri": "tauri",
     "tauri:prod": "tauri",
     "tauri:source": "node ../../../cli/tauri.js/bin/tauri",
     "tauri:source:init": "tauri:source init --tauri-path ../../../tauri",

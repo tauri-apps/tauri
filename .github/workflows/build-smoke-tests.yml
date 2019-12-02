@@ -48,7 +48,7 @@ jobs:
         example:
           - name : GatsbyThemedSite
             folder: gatsby/themed-site
-            executable: GatsbyThemedSiteApp.exe
+            executable: GatsbyThemedSiteApp
 
     steps:
     - uses: actions/checkout@v1
@@ -90,5 +90,5 @@ jobs:
     - uses: actions/upload-artifact@v1
       if: success()
       with:
-        name: tauri built ${{ matrix.example.folder }} on ${{ matrix.platform }}
+        name: tauri built ${{ matrix.example.name }} on ${{ matrix.platform }}
         path: ./examples/${{ matrix.example.folder }}/src-tauri/target/release/${{ matrix.example.executable }}

@@ -26,10 +26,6 @@ jobs:
       run: |
            cd ./examples/${{ matrix.example }}
            yarn build
-    - name: yarn tauri init
-      run: |
-           cd ./examples/${{ matrix.example }}
-           yarn tauri:prod:init
     - name: yarn tauri build
       run: |
            cd ./examples/${{ matrix.example }}
@@ -60,10 +56,6 @@ jobs:
       run: |
            cd ./examples/${{ matrix.example.folder }}
            yarn build
-    - name: yarn tauri init
-      run: |
-           cd ./examples/${{ matrix.example.folder }}
-           yarn tauri:source:init
     - name: yarn tauri build
       run: |
            cd ./examples/${{ matrix.example.folder }}

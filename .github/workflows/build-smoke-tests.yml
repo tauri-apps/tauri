@@ -17,6 +17,7 @@ jobs:
     - uses: actions/checkout@v1
       with:
         fetch-depth: 3
+    - run: cargo install tauri-cli
     - name: install via yarn
       run: |
            cd ./examples/${{ matrix.example }}
@@ -63,6 +64,7 @@ jobs:
       env:
         TAURI_DIST_DIR: ../../test/fixture/dist
         TAURI_CONFIG_DIR: ../test/fixture/
+    - run: cargo install --path ./cli/tauri-cli --force
     - name: install cli deps via yarn
       run: |
            cd ./cli/tauri.js

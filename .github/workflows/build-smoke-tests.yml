@@ -5,7 +5,7 @@ on: pull_request
 jobs:
   via-prod:
     runs-on: ${{ matrix.platform }}
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     strategy:
       fail-fast: false
@@ -39,7 +39,7 @@ jobs:
 
   via-source:
     runs-on: ${{ matrix.platform }}
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     strategy:
       fail-fast: false

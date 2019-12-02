@@ -47,6 +47,24 @@ jobs:
     - uses: actions/checkout@v1
       with:
         fetch-depth: 3
+    - name: install stable
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: stable
+    - name: install webkit2gtk (ubuntu only)
+      if: matrix.platform == 'ubuntu-latest'
+      run: |
+           sudo apt-get update
+           sudo apt-get install -y webkit2gtk-4.0
+    - name: build rust
+      run: cargo build
+      env:
+        TAURI_DIST_DIR: ../../test/fixture/dist
+        TAURI_CONFIG_DIR: ../test/fixture/
+    - name: install cli deps via yarn
+      run: |
+           cd ./cli/tauri.js
+           yarn
     - name: install via yarn
       run: |
            cd ./examples/${{ matrix.example.folder }}

@@ -3,7 +3,7 @@ name: build smoke tests
 on: pull_request
 
 jobs:
-  build-examples-via-prod:
+  via-prod:
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 30
 
@@ -33,7 +33,7 @@ jobs:
            cd ./examples/${{ matrix.example }}
            yarn tauri:prod:build
 
-  build-examples-via-source:
+  via-source:
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 30
 

@@ -5,7 +5,7 @@ module.exports = function () {
   return {
     build: {
       distDir: distDir,
-      devPath: 'http://localhost:4000' // devServer URL or path to html file
+      devPath: 'http://localhost:7333' // devServer URL or path to html file
     },
     ctx: {},
     tauri: {
@@ -16,7 +16,7 @@ module.exports = function () {
         active: true
       },
       whitelist: {
-        all: false
+        all: true
       },
       window: {
         title: 'Tauri App'

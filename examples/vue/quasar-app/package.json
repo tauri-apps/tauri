@@ -10,6 +10,7 @@
   "scripts": {
     "lint": "eslint --ext .js,.vue src",
     "test": "echo \"No test specified\" && exit 0",
+    "build": "quasar build",
     "tauri:prod": "tauri",
     "tauri:source": "node ../../../cli/tauri.js/bin/tauri",
     "tauri:source:init": "yarn tauri:source init --tauriPath ../../../tauri",

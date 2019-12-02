@@ -1,13 +1,13 @@
 workspace = { }
 
 [package]
-name = "app"
+name = "GatsbyThemedSiteApp"
 version = "0.1.0"
-description = "A Tauri App"
+description = "Gatsby themed site built by Tauri"
 author = [ "you" ]
 license = ""
 repository = ""
-default-run = "app"
+default-run = "GatsbyThemedSiteApp"
 edition = "2018"
 
 [package.metadata.bundle]
@@ -37,5 +37,5 @@ dev = [ "tauri/dev" ]
 embedded-server = [ "tauri/embedded-server" ]
 
 [[bin]]
-name = "app"
+name = "GatsbyThemedSiteApp"
 path = "src/main.rs"

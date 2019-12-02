@@ -3,7 +3,7 @@ name: build smoke tests
 on: pull_request
 
 jobs:
-  build-examples:
+  build-examples-via-prod:
     runs-on: ${{ matrix.platform }}
 
     strategy:
@@ -29,8 +29,47 @@ jobs:
     - name: yarn tauri init
       run: |
            cd ./examples/${{ matrix.example }}
-           yarn tauri:init
+           yarn tauri:prod:init
     - name: yarn tauri build
       run: |
            cd ./examples/${{ matrix.example }}
-           yarn tauri:build
+           yarn tauri:prod:build
+
+  build-examples-via-source:
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+        example:
+          - name : GatsbyThemedSite
+            folder: gatsby/themed-site
+
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        fetch-depth: 3
+    - name: install via yarn
+      run: |
+           cd ./examples/${{ matrix.example.folder }}
+           yarn
+    - name: build example
+      env:
+        EXAMPLE_GATSBY_AIRTABLE_API_KEY: ${{ secrets.EXAMPLE_GATSBY_AIRTABLE_API_KEY }}
+      run: |
+           cd ./examples/${{ matrix.example.folder }}
+           yarn build
+    - name: yarn tauri init
+      run: |
+           cd ./examples/${{ matrix.example.folder }}
+           yarn tauri:source:init
+    - name: yarn tauri build
+      run: |
+           cd ./examples/${{ matrix.example.folder }}
+           yarn tauri:source:build
+    - uses: actions/upload-artifact@v1
+      if: success()
+      with:
+        name: tauri built ${{ matrix.example.folder }} on ${{ matrix.platform }}
+        path: ./examples/${{ matrix.example.folder }}/src-tauri/target/release/bundle/${{ matrix.example.name }}

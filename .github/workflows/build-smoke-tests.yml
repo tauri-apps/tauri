@@ -22,6 +22,15 @@ jobs:
       with:
           toolchain: stable
     - run: cargo install tauri-cli
+    - name: cache node modules
+      uses: actions/cache@v1
+      with:
+        path: node_modules
+        key: ${{ runner.OS }}-build-${{ hashFiles('./examples/${{ matrix.example }}/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.OS }}-build-${{ env.cache-name }}-
+          ${{ runner.OS }}-build-
+          ${{ runner.OS }}-
     - name: install via yarn
       run: |
            cd ./examples/${{ matrix.example }}
@@ -79,6 +88,15 @@ jobs:
       run: |
            cd ./cli/tauri.js
            yarn
+    - name: cache node modules
+      uses: actions/cache@v1
+      with:
+        path: node_modules
+        key: ${{ runner.OS }}-build-${{ hashFiles('./examples/${{ matrix.example }}/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.OS }}-build-${{ env.cache-name }}-
+          ${{ runner.OS }}-build-
+          ${{ runner.OS }}-
     - name: install via yarn
       run: |
            cd ./examples/${{ matrix.example.folder }}

@@ -11,6 +11,7 @@
     "lint": "eslint --ext .js,.vue src",
     "test": "echo \"No test specified\" && exit 0",
     "tauri": "node ../../../cli/tauri.js/bin/tauri",
+    "build": "quasar build",
     "tauri:source": "node ../../../cli/tauri.js/bin/tauri",
     "tauri:init": "node ../../../cli/tauri.js/bin/tauri init --tauriPath ../../../tauri",
     "tauri:dev": "node ../../../cli/tauri.js/bin/tauri dev",

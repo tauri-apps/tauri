@@ -42,6 +42,10 @@ class Runner {
 
     this.devPath = devPath
 
+    if (!devPath) {
+      return Promise.reject(Error('devPath not specified, please check your tauri.conf.js'))
+    }
+
     const args = ['--path', devPath.startsWith('http') ? devPath : path.resolve(appDir, devPath)]
     const features = ['dev']
 

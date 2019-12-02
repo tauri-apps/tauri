@@ -17,6 +17,10 @@ jobs:
     - uses: actions/checkout@v1
       with:
         fetch-depth: 3
+    - name: install stable
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: stable
     - run: cargo install tauri-cli
     - name: install via yarn
       run: |

@@ -15,12 +15,12 @@
     "format": "prettier --write \"**/*.{js,jsx,json,md}\"",
     "tauri:prod": "tauri",
     "tauri:source": "node ../../../cli/tauri.js/bin/tauri",
-    "tauri:source:init": "tauri:source init --tauri-path ../../../tauri",
-    "tauri:prod:init": "tauri:prod:init",
-    "tauri:source:dev": "tauri:source dev",
-    "tauri:prod:dev": "tauri:prod dev",
-    "tauri:source:build": "tauri:source build",
-    "tauri:prod:build": "tauri:prod build",
+    "tauri:source:init": "yarn tauri:source init --tauri-path ../../../tauri",
+    "tauri:prod:init": "yarn tauri:prod:init",
+    "tauri:source:dev": "yarn tauri:source dev",
+    "tauri:prod:dev": "yarn tauri:prod dev",
+    "tauri:source:build": "yarn tauri:source build",
+    "tauri:prod:build": "yarn tauri:prod build",
     "test": "echo \"Error: run tests from root\" && exit 1"
   },
   "dependencies": {

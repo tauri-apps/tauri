@@ -5,6 +5,7 @@ on: pull_request
 jobs:
   build-examples-via-prod:
     runs-on: ${{ matrix.platform }}
+    timeout-minutes: 30
 
     strategy:
       fail-fast: false
@@ -33,6 +34,7 @@ jobs:
 
   build-examples-via-source:
     runs-on: ${{ matrix.platform }}
+    timeout-minutes: 30
 
     strategy:
       fail-fast: false

@@ -10,11 +10,14 @@
   "scripts": {
     "lint": "eslint --ext .js,.vue src",
     "test": "echo \"No test specified\" && exit 0",
-    "tauri": "node ../../../cli/tauri.js/bin/tauri",
+    "tauri:prod": "tauri",
     "tauri:source": "node ../../../cli/tauri.js/bin/tauri",
-    "tauri:init": "node ../../../cli/tauri.js/bin/tauri init --tauriPath ../../../tauri",
-    "tauri:dev": "node ../../../cli/tauri.js/bin/tauri dev",
-    "tauri:prod:build": "node ../../../cli/tauri.js/bin/tauri build"
+    "tauri:source:init": "yarn tauri:source init --tauriPath ../../../tauri",
+    "tauri:prod:init": "yarn tauri:prod init",
+    "tauri:source:dev": "yarn tauri:source dev",
+    "tauri:prod:dev": "yarn tauri:prod dev",
+    "tauri:source:build": "yarn tauri:source build",
+    "tauri:prod:build": "yarn tauri:prod build",
   },
   "dependencies": {
     "@quasar/extras": "^1.0.0",

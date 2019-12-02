@@ -25,12 +25,9 @@ jobs:
     - name: cache node modules
       uses: actions/cache@v1
       with:
-        path: node_modules
+        path: ${{ format('examples/{0}/node_modules', matrix.example) }}
         key: ${{ runner.OS }}-build-${{ hashFiles(format('examples/{0}/yarn.lock', matrix.example)) }}
-        restore-keys: |
-          ${{ runner.OS }}-build-${{ env.cache-name }}-
-          ${{ runner.OS }}-build-
-          ${{ runner.OS }}-
+        restore-keys: ${{ runner.OS }}-build-${{ env.cache-name }}-
     - name: install via yarn
       run: |
            cd ./examples/${{ matrix.example }}
@@ -91,12 +88,9 @@ jobs:
     - name: cache node modules
       uses: actions/cache@v1
       with:
-        path: node_modules
-        key: ${{ runner.OS }}-build-${{ hashFiles(format('examples/{0}/yarn.lock', matrix.example.folder)) }}
-        restore-keys: |
-          ${{ runner.OS }}-build-${{ env.cache-name }}-
-          ${{ runner.OS }}-build-
-          ${{ runner.OS }}-
+        path: ${{ format('examples/{0}/node_modules', matrix.example) }}
+        key: ${{ runner.OS }}-build-${{ hashFiles(format('examples/{0}/yarn.lock', matrix.example)) }}
+        restore-keys: ${{ runner.OS }}-build-${{ env.cache-name }}-
     - name: install via yarn
       run: |
            cd ./examples/${{ matrix.example.folder }}

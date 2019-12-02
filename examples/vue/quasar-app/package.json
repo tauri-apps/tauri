@@ -17,7 +17,7 @@
     "tauri:source:dev": "yarn tauri:source dev",
     "tauri:prod:dev": "yarn tauri:prod dev",
     "tauri:source:build": "yarn tauri:source build",
-    "tauri:prod:build": "yarn tauri:prod build",
+    "tauri:prod:build": "yarn tauri:prod build"
   },
   "dependencies": {
     "@quasar/extras": "^1.0.0",

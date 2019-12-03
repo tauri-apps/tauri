@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>"]
 license = "MIT"
 homepage = "https://tauri-apps.org"

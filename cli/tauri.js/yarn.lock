@@ -1728,6 +1728,14 @@ eslint-plugin-import@2.18.2:
     read-pkg-up "^2.0.0"
     resolve "^1.11.0"
 
+eslint-plugin-lodash-template@^0.15.0:
+  version "0.15.0"
+  resolved "https://registry.npmjs.org/eslint-plugin-lodash-template/-/eslint-plugin-lodash-template-0.15.0.tgz#649265456a3ad5345d5bb3a3eeb8995d1d31c877"
+  integrity sha512-OXfUJz3udNAbhOJknp2RGJp1xf3A3CrwHoP31B0sWWrsKEK1fGcoTN8KtUvEenni+oNWe0RFw3sT1cl+/A0oRw==
+  dependencies:
+    esquery "^1.0.1"
+    parse5 "^5.0.0"
+
 eslint-plugin-node@10.0.0:
   version "10.0.0"
   resolved "https://registry.npmjs.org/eslint-plugin-node/-/eslint-plugin-node-10.0.0.tgz#fd1adbc7a300cf7eb6ac55cf4b0b6fc6e577f5a6"
@@ -4682,6 +4690,11 @@ parse5@4.0.0:
   version "4.0.0"
   resolved "https://registry.npmjs.org/parse5/-/parse5-4.0.0.tgz#6d78656e3da8d78b4ec0b906f7c08ef1dfe3f608"
   integrity sha512-VrZ7eOd3T1Fk4XWNXMgiGBK/z0MG48BWG2uQNU4I72fkQuKUTZpl+u9k+CxEG0twMVzSmXEEz12z5Fnw1jIQFA==
+
+parse5@^5.0.0:
+  version "5.1.1"
+  resolved "https://registry.npmjs.org/parse5/-/parse5-5.1.1.tgz#f68e4e5ba1852ac2cadc00f4555fff6c2abb6178"
+  integrity sha512-ugq4DFI0Ptb+WWjAdOK16+u/nHfiIrcE+sh8kZMaM0WllQKLI9rOUq6c2b7cwPkXdzfQESqvoqK6ug7U/Yyzug==
 
 pascalcase@^0.1.1:
   version "0.1.1"

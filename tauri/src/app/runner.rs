@@ -93,6 +93,8 @@ pub(crate) fn run(application: &mut crate::App) {
     }
   }
 
+  let mut ran_setup = false;
+
   let webview = web_view::builder()
     .title(&config.window.title)
     .size(config.window.width, config.window.height)
@@ -100,9 +102,13 @@ pub(crate) fn run(application: &mut crate::App) {
     .debug(debug)
     .user_data(())
     .invoke_handler(|webview, arg| {
-      // leave this as is to use the tauri API from your JS code
       if !crate::api::handler(webview, arg) {
         application.run_invoke_handler(webview, arg);
+      }
+      // the first command is always the `init`, so we can safely run the setup hook here
+      if !ran_setup {
+        ran_setup = true;
+        application.run_setup(webview);
       }
 
       Ok(())

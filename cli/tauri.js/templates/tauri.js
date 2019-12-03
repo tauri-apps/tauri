@@ -1,4 +1,5 @@
 /* eslint-disable */
+
 /**
  *  * THIS FILE IS GENERATED AUTOMATICALLY.
  * DO NOT EDIT.
@@ -8,20 +9,6 @@
  **/
 
 // open <a href="..."> links with the Tauri API
-document.querySelector('body').addEventListener('click', function (e) {
-  let target = e.target
-  while (target != null) {
-    if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
-      tauri.open(target.href)
-      break
-    }
-    target = target.parentElement
-  }
-}, true)
-
-document.addEventListener('DOMContentLoaded', function () {
-  tauri.invoke({ cmd: 'init' })
-})
 
 /**
  * @module tauri
@@ -44,306 +31,363 @@ const uid = function () {
     s4() + '-' + s4() + s4() + s4()
 }
 
-<% if (ctx.dev) { %>
-/**
- * @name __whitelistWarning
- * @description Present a stylish warning to the developer that their API
- * call has not been whitelisted in tauri.conf.js
- * @param {String} func - function name to warn
- * @private
- */
-const __whitelistWarning = function (func) {
-  console.warn('%c[Tauri] Danger \ntauri.' + func + ' not whitelisted 💣\n%c\nAdd to tauri.conf.js: \n\ntauri: \n  whitelist: { \n    ' + func + ': true \n\nReference: https://tauri-apps.org/docs/api#' + func , 'background: red; color: white; font-weight: 800; padding: 2px; font-size:1.5em', ' ')
-}
-<% } %>
+function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); if (enumerableOnly) symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; }); keys.push.apply(keys, symbols); } return keys; }
 
-/**
- * @name __reject
- * @description is a private promise used to deflect un-whitelisted tauri API calls
- * Its only purpose is to maintain thenable structure in client code without
- * breaking the application
- *  * @type {Promise<any>}
- * @private
- */
-const __reject = new Promise((reject) => { reject })
+function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i] != null ? arguments[i] : {}; if (i % 2) { ownKeys(source, true).forEach(function (key) { _defineProperty(target, key, source[key]); }); } else if (Object.getOwnPropertyDescriptors) { Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)); } else { ownKeys(source).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } } return target; }
 
-export default class Tauri {
-<% if (ctx.dev) { %>
-  /**
-   * @name invoke
-   * @description Calls a Tauri Core feature, such as setTitle
-   * @param {Object} args
-   */
-<% } %>
-  static invoke (args) {
-    Object.freeze(args)
-    window.external.invoke(JSON.stringify(args))
-  }
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
+
+function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
 
 <% if (ctx.dev) { %>
   /**
-   * @name addEventListener
-   * @description Add an evt listener to Tauri back end
-   * @param {String} evt
-   * @param {Function} handler
-   * @param {Boolean} once
+   * @name __reject
+   * @description is a private promise used to deflect un-whitelisted tauri API calls
+   * Its only purpose is to maintain thenable structure in client code without
+   * breaking the application
+   *  * @type {Promise<any>}
+   * @private
    */
 <% } %>
-  static addEventListener (evt, handler, once = false) {
+var __reject = new Promise(function (reject) {
+  reject;
+});
+
+window.tauri = {
+  <% if (ctx.dev) { %>
+    /**
+     * @name invoke
+     * @description Calls a Tauri Core feature, such as setTitle
+     * @param {Object} args
+     */
+  <% } %>
+  invoke: function invoke(args) {
+    Object.freeze(args);
+    window.external.invoke(JSON.stringify(args));
+  },
+
+  <% if (ctx.dev) { %>
+    /**
+     * @name listen
+     * @description Add an event listener to Tauri backend
+     * @param {String} event
+     * @param {Function} handler
+     * @param {Boolean} once
+     */
+  <% } %>
+  listen: function listen(event, handler) {
+    var once = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
     this.invoke({
-      cmd: 'addEventListener',
-      evt,
+      cmd: 'listen',
+      event: event,
       handler: this.transformCallback(handler, once),
-      once
-    })
-  }
+      once: once
+    });
+  },
 
-<% if (ctx.dev) { %>
-  /**
-   * @name emit
-   * @description Emits an evt to the Tauri back end
-   * @param {String} evt
-   * @param {Object} payload
-   */
-<% } %>
-  static emit(evt, payload) {
+  <% if (ctx.dev) { %>
+    /**
+     * @name emit
+     * @description Emits an evt to the Tauri back end
+     * @param {String} evt
+     * @param {Object} payload
+     */
+  <% } %>
+  emit: function emit(evt, payload) {
     this.invoke({
       cmd: 'emit',
       event: evt,
-      payload
-    })
-  }
+      payload: payload
+    });
+  },
 
-<% if (ctx.dev) { %>
-  /**
-   * @name transformCallback
-   * @description Registers a callback with a uid
-   * @param {Function} callback
-   * @param {Boolean} once
-   * @returns {*}
-   */
-<% } %>
-  static transformCallback (callback, once = true) {
-    const identifier = Object.freeze(uid())
-    window[identifier] = (result) => {
+  <% if (ctx.dev) { %>
+    /**
+     * @name transformCallback
+     * @description Registers a callback with a uid
+     * @param {Function} callback
+     * @param {Boolean} once
+     * @returns {*}
+     */
+  <% } %>
+  transformCallback: function transformCallback(callback) {
+    var once = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+    var identifier = Object.freeze(uid());
+
+    window[identifier] = function (result) {
       if (once) {
-        delete window[identifier]
+        delete window[identifier];
       }
-      return callback && callback(result)
-    }
-    return identifier
-  }
 
-<% if (ctx.dev) { %>
-  /**
-   * @name promisified
-   * @description Turns a request into a chainable promise
-   * @param {Object} args
-   * @returns {Promise<any>}
-   */
-<% } %>
-  static promisified (args) {
-    return new Promise((resolve, reject) => {
-      this.invoke({
-        callback: this.transformCallback(resolve),
-        error: this.transformCallback(reject),
-        ...args
-      })
-    })
-  }
+      return callback && callback(result);
+    };
 
-<% if (ctx.dev) { %>
-  /**
-   * @name readTextFile
-   * @description Accesses a non-binary file on the user's filesystem
-   * and returns the content. Permissions based on the app's PID owner
-   * @param {String} path
-   * @returns {*|Promise<any>|Promise}
-   */
-<% } %>
-  static readTextFile (path) {
-  <% if (tauri.whitelist.readTextFile === true || tauri.whitelist.all === true) { %>
-    Object.freeze(path)
-    return this.promisified({ cmd: 'readTextFile', path })
-      <% } else { %>
+    return identifier;
+  },
+
   <% if (ctx.dev) { %>
-      __whitelistWarning('readTextFile')
-      <% } %>
-    return __reject
-      <% } %>
-  }
+    /**
+     * @name promisified
+     * @description Turns a request into a chainable promise
+     * @param {Object} args
+     * @returns {Promise<any>}
+     */
+  <% } %>
+  promisified: function promisified(args) {
+    var _this = this;
 
-<% if (ctx.dev) { %>
-  /**
-   * @name readBinaryFile
-   * @description Accesses a binary file on the user's filesystem
-   * and returns the content. Permissions based on the app's PID owner
-   * @param {String} path
-   * @returns {*|Promise<any>|Promise}
-   */
-<% } %>
-  static readBinaryFile (path) {
-  <% if (tauri.whitelist.readBinaryFile === true || tauri.whitelist.all === true) { %>
-    Object.freeze(path)
-    return this.promisified({ cmd: 'readBinaryFile', path })
-      <% } else { %>
+    return new Promise(function (resolve, reject) {
+      _this.invoke(_objectSpread({
+        callback: _this.transformCallback(resolve),
+        error: _this.transformCallback(reject)
+      }, args));
+    });
+  },
+
   <% if (ctx.dev) { %>
-      __whitelistWarning('readBinaryFile')
-      <% } %>
-    return __reject
-      <% } %>
-  }
-
-<% if (ctx.dev) { %>
-  /**
-   * @name writeFile
-   * @description Write a file to the Local Filesystem.
-   * Permissions based on the app's PID owner
-   * @param {Object} cfg
-   * @param {String} cfg.file
-   * @param {String|Binary} cfg.contents
-   */
-<% } %>
-  static writeFile (cfg) {
-  Object.freeze(cfg)
-  <% if (tauri.whitelist.writeFile === true || tauri.whitelist.all === true) { %>
-    this.invoke({ cmd: 'writeFile', file: cfg.file, contents: cfg.contents })
+    /**
+     * @name readTextFile
+     * @description Accesses a non-binary file on the user's filesystem
+     * and returns the content. Permissions based on the app's PID owner
+     * @param {String} path
+     * @returns {*|Promise<any>|Promise}
+     */
+  <% } %>
+  readTextFile: function readTextFile(path) {
+    <% if (tauri.whitelist.readTextFile === true || tauri.whitelist.all === true) { %>
+    Object.freeze(path);
+    return this.promisified({
+      cmd: 'readTextFile',
+      path: path
+    });
     <% } else { %>
-  <% if (ctx.dev) { %>
-      __whitelistWarning('writeFile')
-      <% } %>
-    return __reject
-      <% } %>  }
+      <% if (ctx.dev) { %>
+          __whitelistWarning('readTextFile')
+          <% } %>
+        return __reject
+    <% } %>
+  },
 
-<% if (ctx.dev) { %>
-  /**
-   * @name listFiles
-   * @description Get the files in a path.
-   * Permissions based on the app's PID owner
-   * @param {String} path
-   * @returns {*|Promise<any>|Promise}
-   */
-<% } %>
-  static listFiles (path) {
-  <% if (tauri.whitelist.listFiles === true || tauri.whitelist.all === true) { %>
-    Object.freeze(path)
-    return this.promisified({ cmd: 'listFiles', path })
-      <% } else { %>
   <% if (ctx.dev) { %>
-      __whitelistWarning('listFiles')
-      <% } %>
-    return __reject
-      <% } %>
-  }
+    /**
+     * @name readBinaryFile
+     * @description Accesses a binary file on the user's filesystem
+     * and returns the content. Permissions based on the app's PID owner
+     * @param {String} path
+     * @returns {*|Promise<any>|Promise}
+     */
+  <% } %>
+  readBinaryFile: function readBinaryFile(path) {
+    <% if (tauri.whitelist.readBinaryFile === true || tauri.whitelist.all === true) { %>
+    Object.freeze(path);
+    return this.promisified({
+      cmd: 'readBinaryFile',
+      path: path
+    });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+          __whitelistWarning('readBinaryFile')
+          <% } %>
+        return __reject
+    <% } %>
+  },
 
-<% if (ctx.dev) { %>
-  /**
-   * @name listDirs
-   * @description Get the directories in a path.
-   * Permissions based on the app's PID owner
-   * @param {String} path
-   * @returns {*|Promise<any>|Promise}
-   */
-<% } %>
-  static listDirs (path) {
-  <% if (tauri.whitelist.listDirs === true || tauri.whitelist.all === true) { %>
-    Object.freeze(path)
-    return this.promisified({ cmd: 'listDirs', path })
-      <% } else { %>
   <% if (ctx.dev) { %>
-      __whitelistWarning('listDirs')
-      <% } %>
-    return __reject
-      <% } %>
-  }
+    /**
+     * @name writeFile
+     * @description Write a file to the Local Filesystem.
+     * Permissions based on the app's PID owner
+     * @param {Object} cfg
+     * @param {String} cfg.file
+     * @param {String|Binary} cfg.contents
+     */
+  <% } %>
+  writeFile: function writeFile(cfg) {
+    <% if (tauri.whitelist.writeFile === true || tauri.whitelist.all === true) { %>
+    Object.freeze(cfg);
+    this.invoke({
+      cmd: 'writeFile',
+      file: cfg.file,
+      contents: cfg.contents
+    });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+          __whitelistWarning('writeFile')
+          <% } %>
+        return __reject
+    <% } %>
+  },
 
-<% if (ctx.dev) { %>
-  /**
-   * @name setTitle
-   * @description Set the application's title
-   * @param {String} title
-   */
-<% } %>
-  static setTitle (title) {
+  <% if (ctx.dev) { %>
+    /**
+     * @name listFiles
+     * @description Get the files in a path.
+     * Permissions based on the app's PID owner
+     * @param {String} path
+     * @returns {*|Promise<any>|Promise}
+     */
+  <% } %>
+  listFiles: function listFiles(path) {
+    <% if (tauri.whitelist.listFiles === true || tauri.whitelist.all === true) { %>
+
+    Object.freeze(path);
+    return this.promisified({
+      cmd: 'listFiles',
+      path: path
+    });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+          __whitelistWarning('listDirs')
+          <% } %>
+        return __reject
+    <% } %>
+  },
+
+  <% if (ctx.dev) { %>
+    /**
+     * @name listDirs
+     * @description Get the directories in a path.
+     * Permissions based on the app's PID owner
+     * @param {String} path
+     * @returns {*|Promise<any>|Promise}
+     */
+  <% } %>
+  listDirs: function listDirs(path) {
+    <% if (tauri.whitelist.listDirs === true || tauri.whitelist.all === true) { %>
+    Object.freeze(path);
+    return this.promisified({
+      cmd: 'listDirs',
+      path: path
+    });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+          __whitelistWarning('listDirs')
+          <% } %>
+        return __reject
+    <% } %>
+  },
+
+  <% if (ctx.dev) { %>
+    /**
+     * @name setTitle
+     * @description Set the application's title
+     * @param {String} title
+     */
+  <% } %>
+  setTitle: function setTitle(title) {
     <% if (tauri.whitelist.setTitle === true || tauri.whitelist.all === true) { %>
-    Object.freeze(title)
-    this.invoke({ cmd: 'setTitle', title })
-      <% } else { %>
-  <% if (ctx.dev) { %>
-      __whitelistWarning('setTitle')
+    Object.freeze(title);
+    this.invoke({
+      cmd: 'setTitle',
+      title: title
+    });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+    __whitelistWarning('setTitle')
       <% } %>
     return __reject
-      <% } %>
-  }
+    <% } %>
+  },
 
   <% if (ctx.dev) { %>
-  /**
-   * @name open
-   * @description Open an URI
-   * @param {String} uri
-   */
-<% } %>
-  static open (uri) {
+    /**
+     * @name open
+     * @description Open an URI
+     * @param {String} uri
+     */
+  <% } %>
+  open: function open(uri) {
     <% if (tauri.whitelist.open === true || tauri.whitelist.all === true) { %>
-    Object.freeze(uri)
-    this.invoke({ cmd: 'open', uri })
-      <% } else { %>
-  <% if (ctx.dev) { %>
+    Object.freeze(uri);
+    this.invoke({
+      cmd: 'open',
+      uri: uri
+    });
+    <% } else { %>
+    <% if (ctx.dev) { %>
       __whitelistWarning('open')
       <% } %>
     return __reject
       <% } %>
-  }
+  },
 
-<% if (ctx.dev) { %>
-  /**
-   * @name execute
-   * @description Execute a program with arguments.
-   * Permissions based on the app's PID owner
-   * @param {String} command
-   * @param {String|Array} args
-   * @returns {*|Promise<any>|Promise}
-   */
-<% } %>
-  static execute (command, args) {
-    <% if (tauri.whitelist.execute === true || tauri.whitelist.all === true) { %>
-    Object.freeze(command)
-    if (typeof args === 'string' || typeof args === 'object') {
-      Object.freeze(args)
-    }
-    return this.promisified({ cmd: 'execute', command, args: typeof (args) === 'string' ? [args] : args })
-  <% } else { %>
   <% if (ctx.dev) { %>
-    __whitelistWarning('execute')
-    <% } %>
-    return __reject
-      <% } %>
-  }
+    /**
+     * @name execute
+     * @description Execute a program with arguments.
+     * Permissions based on the app's PID owner
+     * @param {String} command
+     * @param {String|Array} args
+     * @returns {*|Promise<any>|Promise}
+     */
+  <% } %>
+  execute: function execute(command, args) {
+    <% if (tauri.whitelist.execute === true || tauri.whitelist.all === true) { %>
 
-<% if (ctx.dev) { %>
-  /**
-   * @name bridge
-   * @description Securely pass a message to the backend.
-   * @example
-   *  this.$q.tauri.bridge('QBP/1/ping/client-1', 'pingback')
-   * @param {String} command - a compressed, slash-delimited and
-   * versioned API call to the backend.
-   * @param {String|Object}payload
-   * @returns {*|Promise<any>|Promise}
-   */
-<% } %>
-  static bridge (command, payload) {
-<% if (tauri.whitelist.bridge === true || tauri.whitelist.all === true) { %>
-    Object.freeze(command)
-    if (typeof payload === 'string' || typeof payload === 'object') {
-      Object.freeze(payload)
+    Object.freeze(command);
+
+    if (typeof args === 'string' || _typeof(args) === 'object') {
+      Object.freeze(args);
     }
-    return this.promisified({ cmd: 'bridge', command, payload: typeof (payload) === 'object' ? [payload] : payload })
-<% } else { %>
-<% if (ctx.dev) { %>
-    __whitelistWarning('bridge')
-<% } %>
-      return __reject
-<% } %>
+
+    return this.promisified({
+      cmd: 'execute',
+      command: command,
+      args: typeof args === 'string' ? [args] : args
+    });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+        __whitelistWarning('execute')
+        <% } %>
+        return __reject
+    <% } %>
+  },
+
+  bridge: function bridge(command, payload) {
+    <% if (tauri.whitelist.bridge === true || tauri.whitelist.all === true) { %>
+
+    Object.freeze(command);
+
+    if (typeof payload === 'string' || _typeof(payload) === 'object') {
+      Object.freeze(payload);
+    }
+
+    return this.promisified({
+      cmd: 'bridge',
+      command: command,
+      payload: _typeof(payload) === 'object' ? [payload] : payload
+    });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+          __whitelistWarning('bridge')
+      <% } %>
+            return __reject
+    <% } %>
+  },
+
+  <% if (ctx.dev) { %>
+  /**
+   * @name setup
+   * @description Inform Rust that the webview has initialized and is
+   * ready for communication
+     */
+  <% } %>
+  setup: function setup() {
+    document.querySelector('body').addEventListener('click', function (e) {
+      var target = e.target;
+
+      while (target != null) {
+        if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
+          tauri.open(target.href);
+          break;
+        }
+
+        target = target.parentElement;
+      }
+    }, true);
+    window.tauri.invoke({
+      cmd: 'init'
+    });
   }
-}
+};

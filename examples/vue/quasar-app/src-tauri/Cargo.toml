@@ -30,7 +30,7 @@ includedir = "0.5.0"
 
   [dependencies.tauri]
   path = "../../../../tauri"
-  features = [ "edge" ]
+  features = [ "all-api", "edge" ]
 
 [features]
 dev = [ "tauri/dev" ]

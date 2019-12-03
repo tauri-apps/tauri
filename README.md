@@ -2,7 +2,7 @@
  <img align="right" src="app-icon.png" height="200" width="200">
 
 ## A fresh take on creating cross-platform apps.
-[![status](https://img.shields.io/badge/Status-Early%20Alpha-yellow.svg)](https://github.com/quasarframework/quasar/tree/tauri)
+[![status](https://img.shields.io/badge/Status-Early%20Alpha-yellow.svg)](https://github.com/tauri-apps/tauri/tree/dev)
 [![Chat Server](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/SpmNs4S)
 [![devto](https://img.shields.io/badge/blog-dev.to-black.svg)](https://dev.to/tauri)
 
@@ -134,9 +134,6 @@ the box.
 ## Organization
 Tauri aims to be a sustainable collective based on principles that guide [sustainable
 free and open software communities](https://sfosc.org). You can get involved in many ways.
-
-We hope that this code is useful, but make no claims to suitability or
-guarantees that it will work outside of the Quasar ecosystem.
 
 This has been done with our best attempt at due diligence and in
 respect of the original authors. Thankyou - this project would never have

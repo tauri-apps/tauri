@@ -70,11 +70,11 @@ jobs:
             executable: app
         include:
           - platform: ubuntu-latest
-            ext: .debs
+            ext: .deb
           - platform: macos-latest
             ext: .app
           - platform: windows-latest
-            ext: .x86.msi
+            ext: .msi
 
     steps:
     - uses: actions/checkout@v1
@@ -93,10 +93,10 @@ jobs:
       uses: actions/cache@v1
       with:
         path: |
-          bin/
-          registry/index/
-          registry/cache/
-          git/db/
+          ./bin/
+          ./registry/index/
+          ./registry/cache/
+          ./git/db/
         key: ${{ runner.OS }}-build-
         restore-keys: ${{ runner.OS }}-build-
     - name: build rust
@@ -133,4 +133,4 @@ jobs:
       if: success()
       with:
         name: ${{ matrix.example.folder }}(${{ matrix.platform }})
-        path: ./examples/${{ matrix.example.folder }}/src-tauri/target/release/${{ matrix.example.executable }}${{ matrix.ext }}
+        path: ./examples/${{ matrix.example.folder }}/src-tauri/target/release/${{ matrix.example.executable }}**${{ matrix.ext }}

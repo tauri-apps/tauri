@@ -10,7 +10,7 @@ module.exports = function () {
     ctx: {},
     tauri: {
       embeddedServer: {
-        active: false
+        active: true
       },
       bundle: {
         active: true

@@ -25,20 +25,20 @@ jobs:
       uses: actions/cache@v1
       with:
         path: ./bin/
-        key: ${{ runner.OS }}-build-
-        restore-keys: ${{ runner.OS }}-build-
+        key: ${{ runner.OS }}-build-bin-
+        restore-keys: ${{ runner.OS }}-build-bin-
     - name: cache rust registry/index
       uses: actions/cache@v1
       with:
         path: ./registry/index/
-        key: ${{ runner.OS }}-build-
-        restore-keys: ${{ runner.OS }}-build-
+        key: ${{ runner.OS }}-build-reg-index-
+        restore-keys: ${{ runner.OS }}-build-reg-index-
     - name: cache rust registry/cache
       uses: actions/cache@v1
       with:
         path: ./registry/cache/
-        key: ${{ runner.OS }}-build-
-        restore-keys: ${{ runner.OS }}-build-
+        key: ${{ runner.OS }}-build-reg-cache-
+        restore-keys: ${{ runner.OS }}-build-reg-cache-
     - run: cargo install tauri-cli
     - name: cache node modules
       uses: actions/cache@v1
@@ -101,20 +101,20 @@ jobs:
       uses: actions/cache@v1
       with:
         path: ./bin/
-        key: ${{ runner.OS }}-build-
-        restore-keys: ${{ runner.OS }}-build-
+        key: ${{ runner.OS }}-build-bin-
+        restore-keys: ${{ runner.OS }}-build-bin-
     - name: cache rust registry/index
       uses: actions/cache@v1
       with:
         path: ./registry/index/
-        key: ${{ runner.OS }}-build-
-        restore-keys: ${{ runner.OS }}-build-
+        key: ${{ runner.OS }}-build-reg-index-
+        restore-keys: ${{ runner.OS }}-build-reg-index-
     - name: cache rust registry/cache
       uses: actions/cache@v1
       with:
         path: ./registry/cache/
-        key: ${{ runner.OS }}-build-
-        restore-keys: ${{ runner.OS }}-build-
+        key: ${{ runner.OS }}-build-reg-cache-
+        restore-keys: ${{ runner.OS }}-build-reg-cache-
     - name: build rust
       run: cargo build
       env:

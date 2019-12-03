@@ -6,9 +6,9 @@ mod dmg_bundle;
 mod ios_bundle;
 mod msi_bundle;
 mod osx_bundle;
+mod path_utils;
 mod rpm_bundle;
 mod settings;
-mod path_utils;
 mod wix;
 
 pub use self::common::{print_error, print_finished};

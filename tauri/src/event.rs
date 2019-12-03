@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use web_view::Handle;
 
 struct EventHandler {
-  on_event: Box<dyn FnOnce(String)>,
+  on_event: Box<dyn FnMut(String)>,
 }
 
 thread_local!(static LISTENERS: Arc<Mutex<HashMap<String, EventHandler>>> = Arc::new(Mutex::new(HashMap::new())));
@@ -27,19 +27,19 @@ pub fn event_queue_object_name() -> String {
   EVENT_QUEUE_OBJECT_NAME.to_string()
 }
 
-pub fn listen<F: FnOnce(String) + 'static>(id: &'static str, handler: F) {
+pub fn listen<F: FnMut(String) + 'static>(id: &'static str, handler: F) {
   LISTENERS.with(|listeners| {
     let mut l = listeners.lock().unwrap();
     l.insert(
       id.to_string(),
       EventHandler {
         on_event: Box::new(handler),
-      },
+      }
     );
   });
 }
 
-pub fn emit<T: 'static>(webview_handle: Handle<T>, event: &'static str, mut payload: String) {
+pub fn emit<T: 'static>(webview_handle: &Handle<T>, event: &'static str, mut payload: String) {
   let salt = crate::salt::generate();
   if payload == "" {
     payload = "void 0".to_string();
@@ -59,16 +59,14 @@ pub fn emit<T: 'static>(webview_handle: Handle<T>, event: &'static str, mut payl
 }
 
 pub fn on_event(event: String, data: String) {
-  LISTENERS.with(|l| {
-    let mut listeners = l.lock().unwrap();
+  LISTENERS.with(|listeners| {
+    let mut l = listeners.lock().unwrap();
 
     let key = event.clone();
 
-    if listeners.contains_key(&event) {
-      let handler = listeners.remove(&event).unwrap();
+    if l.contains_key(&key) {
+      let handler = l.get_mut(&key).unwrap();
       (handler.on_event)(data);
     }
-
-    listeners.remove(&key);
   });
 }

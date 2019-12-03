@@ -53,7 +53,7 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
-  AddEventListener {
+  Listen {
     event: String,
     handler: String,
     once: bool,

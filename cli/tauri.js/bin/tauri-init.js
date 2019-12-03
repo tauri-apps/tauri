@@ -45,7 +45,7 @@ if (argv.help) {
 
 const { inject } = require('../template')
 
-inject(argv.d || appPaths.appDir, 'all', {
+inject(argv.d || process.cwd(), 'all', {
   force: argv.f || null,
   logging: argv.l || null,
   tauriPath: argv.t || null

@@ -116,7 +116,7 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
         } => {
           crate::salt::validate(webview, salt, callback, error);
         }
-        AddEventListener {
+        Listen {
           event,
           handler,
           once,

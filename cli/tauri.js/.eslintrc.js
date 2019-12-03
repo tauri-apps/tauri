@@ -4,7 +4,10 @@ module.exports = {
     jest: true
   },
 
-  extends: ["standard"],
+  extends: [
+    "standard",
+    "plugin:lodash-template/recommended"
+  ],
 
   plugins: [],
 

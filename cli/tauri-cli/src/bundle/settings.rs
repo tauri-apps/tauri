@@ -256,14 +256,30 @@ impl Settings {
       Determining if the current project folder is part of a workspace:
           - Walk up the file system, looking for a Cargo.toml file.
           - Stop at the first one found.
-          - If one is found before reaching "/" then this folder belongs to that parent workspace
+          - If one is found before reaching "/" then this folder belongs to that parent workspace,
+            if it contains a [workspace] entry and the project crate name is listed on the "members" array
   */
   pub fn get_workspace_dir(current_dir: &PathBuf) -> PathBuf {
     let mut dir = current_dir.clone();
+    let project_name = CargoSettings::load(&dir).unwrap().package.unwrap().name;
+
     while dir.pop() {
-      let set = CargoSettings::load(&dir);
-      if set.is_ok() {
-        return dir;
+      match CargoSettings::load(&dir) {
+        Ok(cargo_settings) => match cargo_settings.workspace {
+          Some(workspace_settings) => {
+            if workspace_settings.members.is_some()
+              && workspace_settings
+                .members
+                .unwrap()
+                .iter()
+                .any(|member| member.as_str() == project_name)
+            {
+              return dir;
+            }
+          }
+          None => {}
+        },
+        Err(_) => {}
       }
     }
 

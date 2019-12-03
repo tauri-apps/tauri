@@ -1,0 +1,13 @@
+{
+  "plugins": ["@babel/plugin-proposal-optional-chaining"],
+  "presets": [
+    [
+      "babel-preset-gatsby",
+      {
+        "targets": {
+          "browsers": ["defaults", "not dead"]
+        }
+      }
+    ]
+  ]
+}

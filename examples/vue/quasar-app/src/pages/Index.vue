@@ -6,8 +6,8 @@
 </template>
 
 <script>
-import Tauri from '../../src-tauri/tauri.js'
-window.tauri = Tauri
+require('../../src-tauri/tauri.js')
+import { uid } from 'quasar'
 
 export default {
   name: 'HelloWorld',
@@ -16,16 +16,16 @@ export default {
       msg: 'waiting for rust'
     }
   },
-  mounted () {
+  created () {
     window.tauri.setup()
-    window.tauri.addEventListener('reply', res => {
+    window.tauri.listen('reply', res => {
       this.msg = res.payload.msg
-    })
+    }, false)
   },
   methods: {
     // set up an event listener
     eventToRust () {
-      window.tauri.emit('hello', 'passthrough message')
+      window.tauri.emit('hello', uid())
     }
   }
 }

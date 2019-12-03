@@ -8,7 +8,7 @@ fn main() {
   tauri::AppBuilder::new()
     .setup(|_webview| {
       let handle = _webview.handle();
-      tauri::event::listen("hello", |msg| {
+      tauri::event::listen("hello", move |msg| {
         #[derive(Serialize)]
         pub struct Reply {
           pub msg: String,
@@ -20,7 +20,7 @@ fn main() {
           rep: "something else".to_string()
         };
 
-        tauri::event::emit(handle, "reply",  serde_json::to_string(&reply).unwrap());
+        tauri::event::emit(&handle, "reply",  serde_json::to_string(&reply).unwrap());
 
         println!("Message from emit:hello => {}", msg);
       });

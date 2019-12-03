@@ -34,7 +34,7 @@ pub fn listen<F: FnMut(String) + 'static>(id: &'static str, handler: F) {
       id.to_string(),
       EventHandler {
         on_event: Box::new(handler),
-      },
+      }
     );
   });
 }
@@ -59,16 +59,16 @@ pub fn emit<T: 'static>(webview_handle: &Handle<T>, event: &'static str, mut pay
 }
 
 pub fn on_event(event: String, data: String) {
-  LISTENERS.with(|l| {
-    let mut listeners = l.lock().unwrap();
+  LISTENERS.with(|listeners| {
+    let mut l = listeners.lock().unwrap();
 
     let key = event.clone();
 
-    if listeners.contains_key(&event) {
-      let mut handler = listeners.remove(&event).unwrap();
+    if l.contains_key(&key) {
+      let handler = l.get_mut(&key).unwrap();
       (handler.on_event)(data);
     }
 
-    listeners.remove(&key);
+    // l.remove(&key);
   });
 }

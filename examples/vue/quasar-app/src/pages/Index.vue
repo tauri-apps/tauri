@@ -1,7 +1,9 @@
 <template>
-  <q-page class="flex flex-center">
-    <h1>{{ msg }}</h1>
-    <q-btn @click="eventToRust()">SEND MSG</q-btn>
+  <q-page class="flex flex-center column">
+    <h3 class="row text-center">{{ msg }}</h3>
+    <div class="row">
+      <q-btn @click="eventToRust()">SEND MSG</q-btn>
+    </div>
   </q-page>
 </template>
 
@@ -16,7 +18,7 @@ export default {
       msg: 'waiting for rust'
     }
   },
-  created () {
+  mounted () {
     window.tauri.setup()
     window.tauri.listen('reply', res => {
       this.msg = res.payload.msg

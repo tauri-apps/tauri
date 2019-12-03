@@ -5,12 +5,12 @@ module.exports = function () {
   return {
     build: {
       distDir: distDir,
-      devPath: 'http://localhost:7333' // devServer URL or path to html file
+      devPath: 'http://localhost:7334' // devServer URL or path to html file
     },
     ctx: {},
     tauri: {
       embeddedServer: {
-        active: true
+        active: false
       },
       bundle: {
         active: true

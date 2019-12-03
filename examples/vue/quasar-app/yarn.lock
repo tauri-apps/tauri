@@ -845,10 +845,10 @@
   resolved "https://registry.npmjs.org/@positron/stack-trace/-/stack-trace-1.0.0.tgz#14fcc712a530038ef9be1ce6952315a839f466a8"
   integrity sha1-FPzHEqUwA475vhzmlSMVqDn0Zqg=
 
-"@quasar/app@^1.3.1":
-  version "1.3.1"
-  resolved "https://registry.npmjs.org/@quasar/app/-/app-1.3.1.tgz#e1ec9f585054d87f12451f98d902100dc17b02f0"
-  integrity sha512-dnR5K+d51y4+xIwatUj+ETEFXtwr/cqESmhJXvwAH569YSAz+1Ic2vS9RY7aHQm3MJpQvIkR7VQI0FMaJK5dEA==
+"@quasar/app@1.3.2":
+  version "1.3.2"
+  resolved "https://registry.npmjs.org/@quasar/app/-/app-1.3.2.tgz#c4e419dbafaba584ea22ea22fca77f43340144e3"
+  integrity sha512-AlZtUtcCFv8AV32bkKauc3+r9dqPUsj1846JC4ceKMFBqFV1o1q3Hv6Wlv9m0TG+JIKjLNrVBL889brMqljNmg==
   dependencies:
     "@quasar/babel-preset-app" "1.1.7"
     "@quasar/fastclick" "1.1.4"

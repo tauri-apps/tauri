@@ -61,7 +61,10 @@ var tauri = {
 <% } %>
   invoke: function (args) {
     Object.freeze(args)
-    window.external.invoke(JSON.stringify(args))
+    window.parent.postMessage({
+      type: 'tauri-invoke',
+      payload: JSON.stringify(args)
+    }, '*')
   },
 
 <% if (ctx.dev) { %>
@@ -73,12 +76,12 @@ var tauri = {
    * @param {Boolean} once
    */
 <% } %>
-  addEventListener: function (evt, handler, once = false) {
+  addEventListener: function (evt, handler, once) {
     this.invoke({
       cmd: 'addEventListener',
-      evt,
+      evt: evt,
       handler: this.transformCallback(handler, once),
-      once
+      once: once || false
     })
   },
 
@@ -94,7 +97,7 @@ var tauri = {
     this.invoke({
       cmd: 'emit',
       event: evt,
-      payload
+      payload: payload
     })
   },
 
@@ -128,11 +131,10 @@ var tauri = {
 <% } %>
   promisified: function (args) {
     return new Promise((resolve, reject) => {
-      this.invoke({
+      this.invoke(Object.assign({
         callback: this.transformCallback(resolve),
-        error: this.transformCallback(reject),
-        ...args
-      })
+        error: this.transformCallback(reject)
+      }, args))
     })
   },
 
@@ -291,6 +293,9 @@ var tauri = {
    */
 <% } %>
   execute: function (command, args) {
+    if (args === undefined) {
+      args = []
+    }
     <% if (tauri.whitelist.execute === true || tauri.whitelist.all === true) { %>
     Object.freeze(command)
     if (typeof args === 'string' || typeof args === 'object') {
@@ -333,9 +338,18 @@ var tauri = {
   }
 }
 
+window.tauri = tauri
+
+window.addEventListener('message', function (event) {
+  event.data.type === 'tauri-callback' && window[event.data.callback](event.data.payload)
+})
+
+// init tauri API
+tauri.invoke({
+  cmd: 'init'
+})
+
 document.addEventListener('DOMContentLoaded', function () {
-  document.getElementById('__TAURI_IFRAME').contentWindow.a = 5
-  window.alert('bb' + window.frames.length)
   // open <a href="..."> links with the Tauri API
   document.querySelector('body').addEventListener('click', function (e) {
     var target = e.target
@@ -347,8 +361,4 @@ document.addEventListener('DOMContentLoaded', function () {
       target = target.parentElement
     }
   }, true)
-  // init tauri API
-  tauri.invoke({
-    cmd: 'init'
-  })
 })

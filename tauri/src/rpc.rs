@@ -1,5 +1,9 @@
 pub fn format_callback(function_name: String, arg: String) -> String {
-  let formatted_string = &format!("window[\"{}\"]({})", function_name, arg);
+  let formatted_string = &format!(
+    r#"window.frames[0].postMessage({{ type: "tauri-callback", callback: "{}", payload: {} }}, '*')"#,
+    function_name,
+    arg
+  );
   return formatted_string.to_string();
 }
 

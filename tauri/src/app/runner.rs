@@ -55,13 +55,7 @@ pub(crate) fn run(application: &mut crate::App) {
     debug = cfg!(debug_assertions);
     #[cfg(not(feature = "embedded-server"))]
     {
-      let html = base64::encode(include_str!(concat!(env!("TAURI_DIST_DIR"), "/index.html")));
-      let template = include_str!("../../template.html");
-      content = web_view::Content::Html(
-        template
-          .replace("__TAURI_IFRAME_BASE64", &html)
-          .replace("__TAURI_API", include_str!(concat!(env!("TAURI_DIR"), "/tauri.js")))
-      );
+      content = web_view::Content::Html(include_str!(concat!(env!("OUT_DIR"), "/index.html")));
     }
     #[cfg(feature = "embedded-server")]
     {
@@ -105,7 +99,6 @@ pub(crate) fn run(application: &mut crate::App) {
     .debug(debug)
     .user_data(())
     .invoke_handler(|webview, arg| {
-      // leave this as is to use the tauri API from your JS code
       if !crate::api::handler(webview, arg) {
         application.run_invoke_handler(webview, arg);
       }

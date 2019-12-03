@@ -47,8 +47,7 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
                 Ok(())
             })
             .unwrap();
-
-        },
+        }
         #[cfg(any(feature = "all-api", feature = "readTextFile"))]
         ReadTextFile {
           path,

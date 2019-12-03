@@ -25,10 +25,10 @@ jobs:
       uses: actions/cache@v1
       with:
         path: |
-          bin/
-          registry/index/
-          registry/cache/
-          git/db/
+          ./bin/
+          ./registry/index/
+          ./registry/cache/
+          ./git/db/
         key: ${{ runner.OS }}-build-
         restore-keys: ${{ runner.OS }}-build-
     - run: cargo install tauri-cli

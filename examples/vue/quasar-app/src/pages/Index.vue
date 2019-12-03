@@ -8,6 +8,7 @@
 <script>
 import Tauri from '../../src-tauri/tauri.js'
 window.tauri = Tauri
+
 export default {
   name: 'HelloWorld',
   data () {
@@ -16,13 +17,10 @@ export default {
     }
   },
   mounted () {
-    // this.$nextTick(() => {
-    setTimeout(() => {
-      window.tauri.addEventListener('reply', res => {
-        this.msg = res.payload.msg
-      })
-    }, 2000)
-    // })
+    window.tauri.setup()
+    window.tauri.addEventListener('reply', res => {
+      this.msg = res.payload.msg
+    })
   },
   methods: {
     // set up an event listener

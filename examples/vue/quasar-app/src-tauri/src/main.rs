@@ -6,11 +6,9 @@ extern crate serde_json;
 
 fn main() {
   tauri::AppBuilder::new()
-    .invoke_handler(|_webview, _arg| {
-      // use cmd::Cmd::*;
+    .setup(|_webview| {
       let handle = _webview.handle();
       tauri::event::listen("hello", |msg| {
-
         #[derive(Serialize)]
         pub struct Reply {
           pub msg: String,
@@ -25,7 +23,7 @@ fn main() {
         tauri::event::emit(handle, "reply",  serde_json::to_string(&reply).unwrap());
 
         println!("Message from emit:hello => {}", msg);
-      })
+      });
     })
     .build()
     .run();

@@ -8,20 +8,6 @@
  **/
 
 // open <a href="..."> links with the Tauri API
-document.querySelector('body').addEventListener('click', function (e) {
-  let target = e.target
-  while (target != null) {
-    if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
-      tauri.open(target.href)
-      break
-    }
-    target = target.parentElement
-  }
-}, true)
-
-document.addEventListener('DOMContentLoaded', function () {
-  tauri.invoke({ cmd: 'init' })
-})
 
 /**
  * @module tauri
@@ -83,16 +69,16 @@ export default class Tauri {
 <% if (ctx.dev) { %>
   /**
    * @name addEventListener
-   * @description Add an evt listener to Tauri back end
-   * @param {String} evt
+   * @description Add an event listener to Tauri back end
+   * @param {String} event
    * @param {Function} handler
    * @param {Boolean} once
    */
 <% } %>
-  static addEventListener (evt, handler, once = false) {
+  static addEventListener(event, handler, once = false) {
     this.invoke({
       cmd: 'addEventListener',
-      evt,
+      event,
       handler: this.transformCallback(handler, once),
       once
     })
@@ -345,5 +331,22 @@ export default class Tauri {
 <% } %>
       return __reject
 <% } %>
+  }
+
+  static setup () {
+    document.querySelector('body').addEventListener('click', function (e) {
+      let target = e.target
+      while (target != null) {
+        if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
+          tauri.open(target.href)
+          break
+        }
+        target = target.parentElement
+      }
+    }, true)
+
+    tauri.invoke({
+      cmd: 'init'
+    })
   }
 }

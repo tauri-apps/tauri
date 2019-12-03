@@ -59,8 +59,12 @@ jobs:
             folder: vue/quasar-app
             executable: app
         include:
+          - platform: ubuntu-latest
+            ext: .debs
+          - platform: macos-latest
+            ext: .app
           - platform: windows-latest
-            ext: .exe
+            ext: .x86.msi
 
     steps:
     - uses: actions/checkout@v1

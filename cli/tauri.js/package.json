@@ -1,6 +1,6 @@
 {
   "name": "tauri",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Multi-binding collection of libraries and templates for building Tauri apps",
   "bin": {
     "tauri": "./bin/tauri.js"
@@ -19,7 +19,11 @@
     "type": "git",
     "url": "git+https://github.com/tauri-apps/tauri.git"
   },
-  "author": "Tauri Apps",
+  "contributors": [
+    "Tauri Team <team@tauri-apps.org> (https://tauri-apps.org)",
+    "Daniel Thompson-Yvetot <denjell@sfosc.org>",
+    "Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>"
+  ],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/tauri-apps/tauri/issues"

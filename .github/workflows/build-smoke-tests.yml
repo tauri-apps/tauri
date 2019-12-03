@@ -21,14 +21,22 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
           toolchain: stable
-    - name: cache rust
+    - name: cache rust bin
       uses: actions/cache@v1
       with:
-        path: |
-          ./bin/
-          ./registry/index/
-          ./registry/cache/
-          ./git/db/
+        path: ./bin/
+        key: ${{ runner.OS }}-build-
+        restore-keys: ${{ runner.OS }}-build-
+    - name: cache rust registry/index
+      uses: actions/cache@v1
+      with:
+        path: ./registry/index/
+        key: ${{ runner.OS }}-build-
+        restore-keys: ${{ runner.OS }}-build-
+    - name: cache rust registry/cache
+      uses: actions/cache@v1
+      with:
+        path: ./registry/cache/
         key: ${{ runner.OS }}-build-
         restore-keys: ${{ runner.OS }}-build-
     - run: cargo install tauri-cli
@@ -89,14 +97,22 @@ jobs:
       run: |
            sudo apt-get update
            sudo apt-get install -y webkit2gtk-4.0
-    - name: cache rust
+    - name: cache rust bin
       uses: actions/cache@v1
       with:
-        path: |
-          ./bin/
-          ./registry/index/
-          ./registry/cache/
-          ./git/db/
+        path: ./bin/
+        key: ${{ runner.OS }}-build-
+        restore-keys: ${{ runner.OS }}-build-
+    - name: cache rust registry/index
+      uses: actions/cache@v1
+      with:
+        path: ./registry/index/
+        key: ${{ runner.OS }}-build-
+        restore-keys: ${{ runner.OS }}-build-
+    - name: cache rust registry/cache
+      uses: actions/cache@v1
+      with:
+        path: ./registry/cache/
         key: ${{ runner.OS }}-build-
         restore-keys: ${{ runner.OS }}-build-
     - name: build rust

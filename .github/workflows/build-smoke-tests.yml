@@ -112,5 +112,5 @@ jobs:
     - uses: actions/upload-artifact@v1
       if: success()
       with:
-        name: tauri built ${{ matrix.example.name }} on ${{ matrix.platform }}
+        name: ${{ matrix.example.folder }}(${{ matrix.platform }})
         path: ./examples/${{ matrix.example.folder }}/src-tauri/target/release/${{ matrix.example.executable }}${{ matrix.ext }}

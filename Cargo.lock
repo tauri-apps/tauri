@@ -1925,7 +1925,7 @@ dependencies = [
 
 [[package]]
 name = "tauri"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "dirs 2.0.2 (registry+https://github.com/rust-lang/crates.io-index)",

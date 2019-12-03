@@ -21,6 +21,16 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
           toolchain: stable
+    - name: cache rust
+      uses: actions/cache@v1
+      with:
+        path: |
+          bin/
+          registry/index/
+          registry/cache/
+          git/db/
+        key: ${{ runner.OS }}-build-
+        restore-keys: ${{ runner.OS }}-build-
     - run: cargo install tauri-cli
     - name: cache node modules
       uses: actions/cache@v1
@@ -79,6 +89,16 @@ jobs:
       run: |
            sudo apt-get update
            sudo apt-get install -y webkit2gtk-4.0
+    - name: cache rust
+      uses: actions/cache@v1
+      with:
+        path: |
+          bin/
+          registry/index/
+          registry/cache/
+          git/db/
+        key: ${{ runner.OS }}-build-
+        restore-keys: ${{ runner.OS }}-build-
     - name: build rust
       run: cargo build
       env:

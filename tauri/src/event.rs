@@ -68,7 +68,5 @@ pub fn on_event(event: String, data: String) {
       let handler = l.get_mut(&key).unwrap();
       (handler.on_event)(data);
     }
-
-    // l.remove(&key);
   });
 }

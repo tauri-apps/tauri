@@ -17,26 +17,26 @@ jobs:
     - uses: actions/checkout@v1
       with:
         fetch-depth: 3
-    - name: install stable
+    - name: install rust stable
       uses: actions-rs/toolchain@v1
       with:
           toolchain: stable
     - name: cache rust bin
       uses: actions/cache@v1
       with:
-        path: ./bin/
+        path: ${{ format('{0}/bin/', $CARGO_HOME) }}
         key: ${{ runner.OS }}-build-bin-
         restore-keys: ${{ runner.OS }}-build-bin-
     - name: cache rust registry/index
       uses: actions/cache@v1
       with:
-        path: ./registry/index/
+        path: ${{ format('{0}/registry/index/', $CARGO_HOME) }}
         key: ${{ runner.OS }}-build-reg-index-
         restore-keys: ${{ runner.OS }}-build-reg-index-
     - name: cache rust registry/cache
       uses: actions/cache@v1
       with:
-        path: ./registry/cache/
+        path: ${{ format('{0}/registry/cache/', $CARGO_HOME) }}
         key: ${{ runner.OS }}-build-reg-cache-
         restore-keys: ${{ runner.OS }}-build-reg-cache-
     - run: cargo install tauri-cli
@@ -91,7 +91,7 @@ jobs:
     - uses: actions/checkout@v1
       with:
         fetch-depth: 3
-    - name: install stable
+    - name: install rust stable
       uses: actions-rs/toolchain@v1
       with:
           toolchain: stable
@@ -103,19 +103,19 @@ jobs:
     - name: cache rust bin
       uses: actions/cache@v1
       with:
-        path: ./bin/
+        path: ${{ format('{0}/bin/', $CARGO_HOME) }}
         key: ${{ runner.OS }}-build-bin-
         restore-keys: ${{ runner.OS }}-build-bin-
     - name: cache rust registry/index
       uses: actions/cache@v1
       with:
-        path: ./registry/index/
+        path: ${{ format('{0}/registry/index/', $CARGO_HOME) }}
         key: ${{ runner.OS }}-build-reg-index-
         restore-keys: ${{ runner.OS }}-build-reg-index-
     - name: cache rust registry/cache
       uses: actions/cache@v1
       with:
-        path: ./registry/cache/
+        path: ${{ format('{0}/registry/cache/', $CARGO_HOME) }}
         key: ${{ runner.OS }}-build-reg-cache-
         restore-keys: ${{ runner.OS }}-build-reg-cache-
     - name: build rust

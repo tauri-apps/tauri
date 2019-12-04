@@ -7,7 +7,7 @@ jobs:
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 40
     env:
-      CARGO_HOME: .cargo
+      CARGO_HOME: ./.cargo
 
     strategy:
       fail-fast: false
@@ -67,7 +67,7 @@ jobs:
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 40
     env:
-      CARGO_HOME: .cargo
+      CARGO_HOME: ./.cargo
 
     strategy:
       fail-fast: false

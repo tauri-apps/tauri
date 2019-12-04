@@ -53,10 +53,7 @@ impl AppBuilder {
     self
   }
 
-  pub fn setup<F: FnMut(&mut WebView<'_, ()>) + 'static>(
-    mut self,
-    setup: F,
-  ) -> Self {
+  pub fn setup<F: FnMut(&mut WebView<'_, ()>) + 'static>(mut self, setup: F) -> Self {
     self.setup = Some(Box::new(setup));
     self
   }
@@ -64,7 +61,7 @@ impl AppBuilder {
   pub fn build(self) -> App {
     App {
       invoke_handler: self.invoke_handler,
-      setup: self.setup
+      setup: self.setup,
     }
   }
 }

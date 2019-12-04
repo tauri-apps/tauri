@@ -18,18 +18,15 @@ export default {
     }
   },
   mounted () {
-    console.log(window.tauri)
-    window.tauri.invoke({
-      cmd: 'init'
-    })
-    window.tauri.listen('reply', res => {
-      this.msg = res.payload.msg
-    }, false)
+    window.onTauriInit = () => {
+      window.tauri.listen('reply', res => {
+        this.msg = res.payload.msg
+      })
+    }
   },
   methods: {
     // set up an event listener
     eventToRust () {
-      console.log('event')
       window.tauri.emit('hello', uid())
     }
   }

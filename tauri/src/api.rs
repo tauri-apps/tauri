@@ -10,10 +10,10 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
     Ok(command) => {
       match command {
         Init {} => {
-          #[cfg(feature = "dev")]
+          #[cfg(feature = "dev-server")]
           let handler_call = "window[listener.handler](payload)";
-          #[cfg(not(feature = "dev"))]
-          let handler_call = "window.frames[0].postMessage({ type: 'tauri-callback', payload: payload, callback: window.frames[0][listener.handler] }, '*')";
+          #[cfg(not(feature = "dev-server"))]
+          let handler_call = "window.frames[0].postMessage({ type: 'tauri-callback', payload: payload, callback: listener.handler }, '*')";
           webview
             .handle()
             .dispatch(move |_webview| {

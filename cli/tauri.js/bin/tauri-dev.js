@@ -23,7 +23,8 @@ const Runner = require('../runner')
 const tauri = new Runner()
 const tauriConfig = require('../helpers/tauri-config')({
   ctx: {
-    debug: true
+    debug: true,
+    dev: true
   }
 })
 

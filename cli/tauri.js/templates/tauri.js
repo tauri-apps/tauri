@@ -61,7 +61,7 @@ window.tauri = {
      */
   <% } %>
   invoke: function invoke(args) {
-    <% if (ctx.dev) { %>
+    <% if (ctx.dev && build.devPath.startsWith('http')) { %>
     window.external.invoke(JSON.stringify(args));
     <% } else { %>
       window.parent.postMessage({
@@ -377,37 +377,24 @@ window.addEventListener('message', function (event) {
 
 // init tauri API
 
-window.onTauriInit = function () {
-  alert('mounted')
-  console.log(window.tauri)
-}
+window.tauri.invoke({
+  cmd: 'init'
+})
 
 function __initTauri () {
   if (window.onTauriInit !== void 0) {
     window.onTauriInit()
   }
-  alert('INIT')
 }
 
-if (window.top === window.self) {
-  // detect if we are in an iframe
-  // technically "dev mode"
-  window.addEventListener('message', function (event) {
-    alert(JSON.stringify(event.data.payload))
-    if (event.data.type === 'tauri-invoke') {
-      window.external.invoke(event.data.payload)
-    }
-  }, true)
-} else {
-  // this is an iframe
-  window.addEventListener('message', function (event) {
-    alert(JSON.stringify(event))
-    alert(JSON.stringify(event.data))
-    alert(JSON.stringify(event.data.payload))
-  }, true)
+if (window.top === window.self) { // detect if we are not in an iframe
+  __initTauri()
 }
 
 window.addEventListener('DOMContentLoaded', function () {
+  if (window.top !== window.self) { // detect if we are in an iframe
+    setTimeout(__initTauri)
+  }
   // open <a href="..."> links with the Tauri API
   document.querySelector('body').addEventListener('click', function (e) {
     var target = e.target

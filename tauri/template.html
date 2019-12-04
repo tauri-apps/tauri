@@ -2,7 +2,6 @@
   <body style="margin:0px; padding:0px;">
     <script>
       window.addEventListener('message', function (event) {
-        alert(JSON.stringify(event.data.payload))
         if (event.data.type === 'tauri-invoke') {
           window.external.invoke(event.data.payload)
         }

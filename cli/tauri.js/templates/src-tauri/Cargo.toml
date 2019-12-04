@@ -20,8 +20,9 @@ includedir = "0.5.0"
 tauri = <%= tauriDep %>
 
 [features]
-dev = ["tauri/dev"] # has no explicit dependencies
-embedded-server = ["tauri/embedded-server"] # has no explicit dependencies
+dev-server = [ "tauri/dev-server" ]
+embedded-server = [ "tauri/embedded-server" ]
+no-server = [ "tauri/no-server" ]
 
 [package.metadata.bundle]
 identifier = "com.tauri.dev"

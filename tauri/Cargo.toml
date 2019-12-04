@@ -17,7 +17,6 @@ dirs = "2.0.2"
 ignore = "0.4.10"
 phf = "0.7.24"
 threadpool = "1.7"
-rand = "0.7"
 reqwest = "0.9"
 pbr = "1"
 zip = "0.5.3"
@@ -46,8 +45,9 @@ rand = "0.7"
 
 [features]
 edge = ["web-view/edge"]
-dev = []
+dev-server = []
 embedded-server = []
+no-server = []
 all-api = []
 readTextFile = []
 readBinaryFile = []

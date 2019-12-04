@@ -152,4 +152,4 @@ jobs:
       if: success()
       with:
         name: ${{ matrix.example.name }}(${{ matrix.platform }})
-        path: ${{ format('./examples/{0}/src-tauri/{1}/{2}{3}, matrix.example.folder, matrix.releaseFolder, matrix.example.executable, matrix.ext ) }}
+        path: ${{ format('./examples/{0}/src-tauri/{1}/{2}{3}', matrix.example.folder, matrix.releaseFolder, matrix.example.executable, matrix.ext ) }}

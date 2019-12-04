@@ -13,7 +13,12 @@ jobs:
         platform: [ubuntu-latest, macos-latest, windows-latest]
         example: [gatsby/themed-site, vue/quasar-app]
         include:
-          - CARGO_HOME: ./.cargo
+          - platform: ubuntu-latest
+            CARGO_HOME: ./.cargo
+          - platform: macos-latest
+            CARGO_HOME: ./.cargo
+          - platform: windows-latest
+            CARGO_HOME: ./.cargo
 
     steps:
     - uses: actions/checkout@v1

@@ -1,8 +1,4 @@
 const parseArgs = require('minimist')
-const appPaths = require('../helpers/app-paths')
-const logger = require('../helpers/logger')
-const log = logger('app:tauri')
-const warn = logger('app:tauri (init)', 'red')
 
 /**
  * @type {object}

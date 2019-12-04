@@ -12,8 +12,9 @@
   "scripts": {
     "test": "jest --runInBand --no-cache",
     "test:mac-local": "jest --runInBand",
-    "lint-fix": "eslint --ext .js mode --fix",
-    "build:tauri[rust]": "cd ../tauri && TAURI_DIST_DIR=../../test/fixture/dist TAURI_CONFIG_DIR=../test/fixture cargo publish --dry-run --allow-dirty"
+    "lint-fix": "eslint --fix ./bin/*.js ./*.js ./helpers/*.js",
+    "lint:lockfile": "lockfile-lint --path yarn.lock --type yarn --validate-https --allowed-hosts npm yarn",
+    "build:tauri[rust]": "cd ../tauri && TAURI_DIST_DIR=../../test/fixture/dist TAURI_DIR=../test/fixture cargo publish --dry-run --allow-dirty"
   },
   "repository": {
     "type": "git",
@@ -70,11 +71,13 @@
     "eslint-plugin-lodash-template": "0.15.0",
     "eslint-plugin-node": "10.0.0",
     "eslint-plugin-promise": "4.2.1",
+    "eslint-plugin-security": "1.4.0",
     "eslint-plugin-standard": "4.0.1",
     "husky": "3.1.0",
     "jest": "24.9.0",
     "jest-mock-process": "1.2.0",
     "lint-staged": "9.5.0",
+    "lockfile-lint": "2.0.1",
     "promise": "8.0.3"
   },
   "husky": {

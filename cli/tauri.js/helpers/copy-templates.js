@@ -1,11 +1,11 @@
 // forked from https://github.com/quasarframework/quasar/blob/master/app/lib/app-extension/Extension.js
-function renderFolders({ source, target, scope }) {
+function renderFolders ({ source, target, scope }) {
   const
-    fs = require('fs-extra'),
-    { join, resolve } = require('path')
-    fglob = require('fast-glob'),
-    isBinary = require('isbinaryfile').isBinaryFileSync,
-    compileTemplate = require('lodash.template')
+    fs = require('fs-extra')
+  const { join, resolve } = require('path')
+  const fglob = require('fast-glob')
+  const isBinary = require('isbinaryfile').isBinaryFileSync
+  const compileTemplate = require('lodash.template')
 
   const files = fglob.sync(['**/*'], {
     cwd: source
@@ -34,7 +34,7 @@ function renderFolders({ source, target, scope }) {
     } else {
       const rawContent = fs.readFileSync(sourcePath, 'utf-8')
       const template = compileTemplate(rawContent, {
-        'interpolate': /<%=([\s\S]+?)%>/g
+        interpolate: /<%=([\s\S]+?)%>/g
       })
       fs.writeFileSync(targetPath, template(scope), 'utf-8')
     }

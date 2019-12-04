@@ -27,7 +27,7 @@ const warn = logger('app:spawn', 'red')
 
 const settings = require('./tauricon.config.js')
 let image = false
-let spinnerInterval = false
+const spinnerInterval = false
 
 const {
   access,
@@ -172,7 +172,7 @@ const tauricon = exports.tauricon = {
     return typeof image === 'object'
   },
   version: function () {
-    return require('../../package.json').version
+    return require('../package.json').version
   },
   /**
    *
@@ -184,7 +184,7 @@ const tauricon = exports.tauricon = {
   make: async function (src, target, strategy, options) {
     const spinnerInterval = spinner()
     options = options || settings.options.tauri
-    const valid = await this.validate(src, target)
+    await this.validate(src, target)
     progress('Building Tauri icns and ico')
     await this.icns(src, target, options, strategy)
     progress('Building Tauri png icons')

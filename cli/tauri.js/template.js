@@ -1,4 +1,4 @@
-const { copySync, existsSync, removeSync, readFileSync } = require('fs-extra')
+const { copySync, existsSync, removeSync } = require('fs-extra')
 const { resolve, join, normalize } = require('path')
 const copyTemplates = require('./helpers/copy-templates')
 
@@ -33,7 +33,7 @@ Run \`tauri init --force template\` to overwrite.`)
     if (!force) return false
   }
 
-  let tauriDep = tauriPath ? `{ path = "${join('..', tauriPath, 'tauri')}" }` : null
+  const tauriDep = tauriPath ? `{ path = "${join('..', tauriPath, 'tauri')}" }` : null
 
   try {
     removeSync(dir)

@@ -435,6 +435,11 @@
   dependencies:
     "@types/yargs-parser" "*"
 
+"@yarnpkg/lockfile@^1.1.0":
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/@yarnpkg/lockfile/-/lockfile-1.1.0.tgz#e77a97fbd345b76d83245edcd17d393b1b41fb31"
+  integrity sha512-GpSwvyXOcOOlV70vbnzjj4fW5xW/FdUF6nQEt1ENy7m4ZCczi1+/buVUPAqmGfqznsORNFzUMjctTIp8a9tuCQ==
+
 abab@^2.0.0:
   version "2.0.3"
   resolved "https://registry.npmjs.org/abab/-/abab-2.0.3.tgz#623e2075e02eb2d3f2475e49f99c91846467907a"
@@ -1728,9 +1733,9 @@ eslint-plugin-import@2.18.2:
     read-pkg-up "^2.0.0"
     resolve "^1.11.0"
 
-eslint-plugin-lodash-template@^0.15.0:
+eslint-plugin-lodash-template@0.15.0:
   version "0.15.0"
-  resolved "https://registry.npmjs.org/eslint-plugin-lodash-template/-/eslint-plugin-lodash-template-0.15.0.tgz#649265456a3ad5345d5bb3a3eeb8995d1d31c877"
+  resolved "https://registry.yarnpkg.com/eslint-plugin-lodash-template/-/eslint-plugin-lodash-template-0.15.0.tgz#649265456a3ad5345d5bb3a3eeb8995d1d31c877"
   integrity sha512-OXfUJz3udNAbhOJknp2RGJp1xf3A3CrwHoP31B0sWWrsKEK1fGcoTN8KtUvEenni+oNWe0RFw3sT1cl+/A0oRw==
   dependencies:
     esquery "^1.0.1"
@@ -1752,6 +1757,13 @@ eslint-plugin-promise@4.2.1:
   version "4.2.1"
   resolved "https://registry.npmjs.org/eslint-plugin-promise/-/eslint-plugin-promise-4.2.1.tgz#845fd8b2260ad8f82564c1222fce44ad71d9418a"
   integrity sha512-VoM09vT7bfA7D+upt+FjeBO5eHIJQBUWki1aPvB+vbNiHS3+oGIJGIeyBtKQTME6UPXXy3vV07OL1tHd3ANuDw==
+
+eslint-plugin-security@1.4.0:
+  version "1.4.0"
+  resolved "https://registry.yarnpkg.com/eslint-plugin-security/-/eslint-plugin-security-1.4.0.tgz#d4f314484a80b1b613b8c8886e84f52efe1526c2"
+  integrity sha512-xlS7P2PLMXeqfhyf3NpqbvbnW04kN8M9NtmhpR3XGyOvt/vNKS7XPXT5EDbwKW9vCjWH4PpfQvgD/+JgN0VJKA==
+  dependencies:
+    safe-regex "^1.1.0"
 
 eslint-plugin-standard@4.0.1:
   version "4.0.1"
@@ -3850,6 +3862,23 @@ locate-path@^5.0.0:
   integrity sha512-t7hw9pI+WvuwNJXwk5zVHpyhIqzg2qTlklJOf0mVxGSbe3Fp2VieZcduNYjaLDoy6p9uGpQEGWG87WpMKlNq8g==
   dependencies:
     p-locate "^4.1.0"
+
+lockfile-lint-api@^2.0.0:
+  version "2.3.0"
+  resolved "https://registry.yarnpkg.com/lockfile-lint-api/-/lockfile-lint-api-2.3.0.tgz#c200de37f07bee35eca2a52a8e560f013c87910c"
+  integrity sha512-4jp8ULItLgsaPgPjxm/nuupIiBbxWf/nA05gRGMtvJQxGoSOOYA1LxSunY5p1b4kw7u6ZW5TZNgcIs4cFvp9lw==
+  dependencies:
+    "@yarnpkg/lockfile" "^1.1.0"
+    debug "^4.1.0"
+
+lockfile-lint@2.0.1:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/lockfile-lint/-/lockfile-lint-2.0.1.tgz#b2ccd71530f2861a433cfec3b9deb18b01a2c5e0"
+  integrity sha512-hT6Nrx2ewTtmZ/N3KjaEpLaXujHmIjcKU32pcuX20JhGgkTVWBlU3bDkIh+Lob7NG6zD96ASOUL6t/dQUa89WQ==
+  dependencies:
+    debug "^4.1.0"
+    lockfile-lint-api "^2.0.0"
+    yargs "^13.2.4"
 
 lodash._reinterpolate@^3.0.0:
   version "3.0.0"
@@ -6446,7 +6475,7 @@ yargs-parser@^13.1.1:
     camelcase "^5.0.0"
     decamelize "^1.2.0"
 
-yargs@^13.3.0:
+yargs@^13.2.4, yargs@^13.3.0:
   version "13.3.0"
   resolved "https://registry.npmjs.org/yargs/-/yargs-13.3.0.tgz#4c657a55e07e5f2cf947f8a366567c04a0dedc83"
   integrity sha512-2eehun/8ALW8TLoIl7MVaRUrg+yCnenu8B4kBlRxj3GJGDKU1Og7sMXPNm1BYyM1DOJmTZ4YeN/Nwxv+8XJsUA==

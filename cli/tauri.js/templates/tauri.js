@@ -61,7 +61,6 @@ window.tauri = {
      */
   <% } %>
   invoke: function invoke(args) {
-    Object.freeze(args);
     <% if (ctx.dev) { %>
     window.external.invoke(JSON.stringify(args));
     <% } else { %>
@@ -86,7 +85,7 @@ window.tauri = {
     this.invoke({
       cmd: 'listen',
       event: event,
-      handler: this.transformCallback(handler, once),
+      handler: window.tauri.transformCallback(handler, once),
       once: once
     });
   },
@@ -372,40 +371,52 @@ window.tauri = {
   }
 };
 
-window.tauri = tauri
-
 window.addEventListener('message', function (event) {
   event.data.type === 'tauri-callback' && window[event.data.callback](event.data.payload)
 })
 
 // init tauri API
-tauri.invoke({
-  cmd: 'init'
-})
+
+window.onTauriInit = function () {
+  alert('mounted')
+  console.log(window.tauri)
+}
 
 function __initTauri () {
   if (window.onTauriInit !== void 0) {
     window.onTauriInit()
   }
+  alert('INIT')
 }
 
-<% if (ctx.dev) { %>
-  __initTauri()
-<% } %>
+if (window.top === window.self) {
+  // detect if we are in an iframe
+  // technically "dev mode"
+  window.addEventListener('message', function (event) {
+    alert(JSON.stringify(event.data.payload))
+    if (event.data.type === 'tauri-invoke') {
+      window.external.invoke(event.data.payload)
+    }
+  }, true)
+} else {
+  // this is an iframe
+  window.addEventListener('message', function (event) {
+    alert(JSON.stringify(event))
+    alert(JSON.stringify(event.data))
+    alert(JSON.stringify(event.data.payload))
+  }, true)
+}
 
-document.addEventListener('DOMContentLoaded', function () {
-  <% if (!ctx.dev) { %>
-    setTimeout(__initTauri)
-  <% } %>
+window.addEventListener('DOMContentLoaded', function () {
   // open <a href="..."> links with the Tauri API
   document.querySelector('body').addEventListener('click', function (e) {
     var target = e.target
     while (target != null) {
       if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
-        tauri.open(target.href)
+        window.tauri.open(target.href)
         break
       }
       target = target.parentElement
     }
   }, true)
-})
+}, true)

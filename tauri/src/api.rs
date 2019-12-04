@@ -11,9 +11,9 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
       match command {
         Init {} => {
           #[cfg(feature = "dev")]
-          let handler_call = "listener.handler(payload)";
+          let handler_call = "window[listener.handler](payload)";
           #[cfg(not(feature = "dev"))]
-          let handler_call = "window.frames[0].postMessage({ type: 'tauri-callback', payload: payload, callback: listener.handler }, '*')";
+          let handler_call = "window.frames[0].postMessage({ type: 'tauri-callback', payload: payload, callback: window.frames[0][listener.handler] }, '*')";
           webview
             .handle()
             .dispatch(move |_webview| {

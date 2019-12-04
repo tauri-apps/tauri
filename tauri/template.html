@@ -2,10 +2,13 @@
   <body style="margin:0px; padding:0px;">
     <script>
       window.addEventListener('message', function (event) {
-        event.data.type === 'tauri-invoke' && window.external.invoke(event.data.payload)
-      })
+        alert(JSON.stringify(event.data.payload))
+        if (event.data.type === 'tauri-invoke') {
+          window.external.invoke(event.data.payload)
+        }
+      }, true)
     </script>
-    <iframe src="__TAURI_SRC" sandbox="allow-same-origin allow-scripts"
+    <iframe name="tauri" src="__TAURI_SRC"
       frameborder="0" height="100%" width="100%">
     </iframe>
   </body>

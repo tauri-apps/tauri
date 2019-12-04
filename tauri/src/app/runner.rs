@@ -1,5 +1,5 @@
 pub(crate) fn run(application: &mut crate::App) {
-  let debug = cfg!(feature = "dev") || cfg!(debug_assertions);
+  let debug = true; //cfg!(feature = "dev") || cfg!(debug_assertions);
   let config = crate::config::get();
   let content;
   #[cfg(feature = "dev")]
@@ -36,6 +36,7 @@ pub(crate) fn run(application: &mut crate::App) {
     .debug(debug)
     .user_data(())
     .invoke_handler(|webview, arg| {
+      println!("{}", arg);
       if !crate::api::handler(webview, arg) {
         application.run_invoke_handler(webview, arg);
       }

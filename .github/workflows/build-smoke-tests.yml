@@ -32,20 +32,17 @@ jobs:
       uses: actions/cache@v1
       with:
         path: ${{ format('{0}/bin/', matrix.CARGO_HOME) }}
-        key: ${{ runner.OS }}-build-bin-
-        restore-keys: ${{ runner.OS }}-build-bin-
+        key: ${{ runner.OS }}-build-bin-${{ hashFiles('**/Cargo.lock') }}-
     - name: cache rust registry/index
       uses: actions/cache@v1
       with:
         path: ${{ format('{0}/registry/index/', matrix.CARGO_HOME) }}
-        key: ${{ runner.OS }}-build-reg-index-
-        restore-keys: ${{ runner.OS }}-build-reg-index-
+        key: ${{ runner.OS }}-build-reg-index-${{ hashFiles('**/Cargo.lock') }}-
     - name: cache rust registry/cache
       uses: actions/cache@v1
       with:
         path: ${{ format('{0}/registry/cache/', matrix.CARGO_HOME) }}
-        key: ${{ runner.OS }}-build-reg-cache-
-        restore-keys: ${{ runner.OS }}-build-reg-cache-
+        key: ${{ runner.OS }}-build-reg-cache-${{ hashFiles('**/Cargo.lock') }}-
     - run: cargo install tauri-cli
     - name: cache node modules
       uses: actions/cache@v1
@@ -114,20 +111,17 @@ jobs:
       uses: actions/cache@v1
       with:
         path: ${{ format('{0}/bin/', matrix.CARGO_HOME) }}
-        key: ${{ runner.OS }}-build-bin-
-        restore-keys: ${{ runner.OS }}-build-bin-
+        key: ${{ runner.OS }}-build-bin-${{ hashFiles('**/Cargo.lock') }}-
     - name: cache rust registry/index
       uses: actions/cache@v1
       with:
         path: ${{ format('{0}/registry/index/', matrix.CARGO_HOME) }}
-        key: ${{ runner.OS }}-build-reg-index-
-        restore-keys: ${{ runner.OS }}-build-reg-index-
+        key: ${{ runner.OS }}-build-reg-index-${{ hashFiles('**/Cargo.lock') }}-
     - name: cache rust registry/cache
       uses: actions/cache@v1
       with:
         path: ${{ format('{0}/registry/cache/', matrix.CARGO_HOME) }}
-        key: ${{ runner.OS }}-build-reg-cache-
-        restore-keys: ${{ runner.OS }}-build-reg-cache-
+        key: ${{ runner.OS }}-build-reg-cache-${{ hashFiles('**/Cargo.lock') }}-
     - name: build rust
       run: cargo build
       env:

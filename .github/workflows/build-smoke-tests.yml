@@ -6,6 +6,8 @@ jobs:
   via-prod:
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 40
+    env:
+      CARGO_HOME: .cargo
 
     strategy:
       fail-fast: false
@@ -64,6 +66,8 @@ jobs:
   via-source:
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 40
+    env:
+      CARGO_HOME: .cargo
 
     strategy:
       fail-fast: false

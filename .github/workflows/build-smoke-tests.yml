@@ -14,11 +14,11 @@ jobs:
         example: [gatsby/themed-site, vue/quasar-app]
         include:
           - platform: ubuntu-latest
-            CARGO_HOME: ./.cargo
+            CARGO_HOME: ~/.cargo
           - platform: macos-latest
-            CARGO_HOME: ./.cargo
+            CARGO_HOME: ~/.cargo
           - platform: windows-latest
-            CARGO_HOME: ./.cargo
+            CARGO_HOME: ~/.cargo
 
     steps:
     - uses: actions/checkout@v1
@@ -85,15 +85,15 @@ jobs:
             executable: app
         include:
           - platform: ubuntu-latest
-            CARGO_HOME: ./.cargo
+            CARGO_HOME: ~/.cargo
             releaseFolder: target/release/bundle/deb
             ext: _0.1.0_amd64.deb
           - platform: macos-latest
-            CARGO_HOME: ./.cargo
+            CARGO_HOME: ~/.cargo
             releaseFolder: target/release/bundle/osx
             ext: .app
           - platform: windows-latest
-            CARGO_HOME: ./.cargo
+            CARGO_HOME: ~/.cargo
             releaseFolder: target/release
             ext: .x86.msi
 

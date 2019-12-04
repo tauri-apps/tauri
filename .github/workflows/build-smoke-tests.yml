@@ -78,10 +78,13 @@ jobs:
             executable: app
         include:
           - platform: ubuntu-latest
+            releaseFolder: target/release
             ext: _0.1.0_amd64.deb
           - platform: macos-latest
+            releaseFolder: target/release/bundle/osx
             ext: .app
           - platform: windows-latest
+            releaseFolder: target/release
             ext: .x86.msi
 
     steps:
@@ -149,4 +152,4 @@ jobs:
       if: success()
       with:
         name: ${{ matrix.example.name }}(${{ matrix.platform }})
-        path: ./examples/${{ matrix.example.folder }}/src-tauri/target/release/${{ matrix.example.executable }}${{ matrix.ext }}
+        path: ${{ format('./examples/{0}/src-tauri/{1}/{2}{3}, matrix.example.folder, matrix.releaseFolder, matrix.example.executable, matrix.ext ) }}

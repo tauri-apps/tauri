@@ -33,16 +33,7 @@ Run \`tauri init --force template\` to overwrite.`)
     if (!force) return false
   }
 
-  let tauriDep
-  if (tauriPath) {
-    tauriDep = `{ path = "${resolve(process.cwd(), tauriPath, 'tauri')}" }`
-  } else {
-    const toml = require('@tauri-apps/toml')
-    const tomlPath = join(__dirname, '../../tauri/Cargo.toml')
-    const tomlFile = readFileSync(tomlPath)
-    const tomlContents = toml.parse(tomlFile)
-    tauriDep = `{ version = "${tomlContents.package.version}" }`
-  }
+  let tauriDep = tauriPath ? `{ path = "${join('..', tauriPath, 'tauri')}" }` : null
 
   try {
     removeSync(dir)

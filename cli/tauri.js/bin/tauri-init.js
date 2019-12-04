@@ -21,7 +21,7 @@ const argv = parseArgs(process.argv.slice(2), {
     f: 'force',
     l: 'log',
     d: 'directory',
-    t: 'tauriPath'
+    t: 'tauri-path'
   },
   boolean: ['h', 'l']
 })
@@ -38,7 +38,7 @@ if (argv.help) {
     --force, -f       Force init to overwrite [conf|template|all]
     --log, -l         Logging [boolean]
     --directory, -d   Set target directory for init
-    --tauriPath, -t   Path of the Tauri project to use (relative to the cwd)
+    --tauri-path, -t   Path of the Tauri project to use (relative to the cwd)
     `)
   process.exit(0)
 }

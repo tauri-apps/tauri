@@ -6,14 +6,14 @@ jobs:
   via-prod:
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 40
-    env:
-      CARGO_HOME: ./.cargo
 
     strategy:
       fail-fast: false
       matrix:
         platform: [ubuntu-latest, macos-latest, windows-latest]
         example: [gatsby/themed-site, vue/quasar-app]
+        include:
+          - CARGO_HOME: ./.cargo
 
     steps:
     - uses: actions/checkout@v1
@@ -26,19 +26,19 @@ jobs:
     - name: cache rust bin
       uses: actions/cache@v1
       with:
-        path: ${{ format('{0}/bin/', $CARGO_HOME) }}
+        path: ${{ format('{0}/bin/', matrix.CARGO_HOME) }}
         key: ${{ runner.OS }}-build-bin-
         restore-keys: ${{ runner.OS }}-build-bin-
     - name: cache rust registry/index
       uses: actions/cache@v1
       with:
-        path: ${{ format('{0}/registry/index/', $CARGO_HOME) }}
+        path: ${{ format('{0}/registry/index/', matrix.CARGO_HOME) }}
         key: ${{ runner.OS }}-build-reg-index-
         restore-keys: ${{ runner.OS }}-build-reg-index-
     - name: cache rust registry/cache
       uses: actions/cache@v1
       with:
-        path: ${{ format('{0}/registry/cache/', $CARGO_HOME) }}
+        path: ${{ format('{0}/registry/cache/', matrix.CARGO_HOME) }}
         key: ${{ runner.OS }}-build-reg-cache-
         restore-keys: ${{ runner.OS }}-build-reg-cache-
     - run: cargo install tauri-cli
@@ -66,8 +66,6 @@ jobs:
   via-source:
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 40
-    env:
-      CARGO_HOME: ./.cargo
 
     strategy:
       fail-fast: false
@@ -82,12 +80,15 @@ jobs:
             executable: app
         include:
           - platform: ubuntu-latest
+            CARGO_HOME: ./.cargo
             releaseFolder: target/release/bundle/deb
             ext: _0.1.0_amd64.deb
           - platform: macos-latest
+            CARGO_HOME: ./.cargo
             releaseFolder: target/release/bundle/osx
             ext: .app
           - platform: windows-latest
+            CARGO_HOME: ./.cargo
             releaseFolder: target/release
             ext: .x86.msi
 
@@ -107,19 +108,19 @@ jobs:
     - name: cache rust bin
       uses: actions/cache@v1
       with:
-        path: ${{ format('{0}/bin/', $CARGO_HOME) }}
+        path: ${{ format('{0}/bin/', matrix.CARGO_HOME) }}
         key: ${{ runner.OS }}-build-bin-
         restore-keys: ${{ runner.OS }}-build-bin-
     - name: cache rust registry/index
       uses: actions/cache@v1
       with:
-        path: ${{ format('{0}/registry/index/', $CARGO_HOME) }}
+        path: ${{ format('{0}/registry/index/', matrix.CARGO_HOME) }}
         key: ${{ runner.OS }}-build-reg-index-
         restore-keys: ${{ runner.OS }}-build-reg-index-
     - name: cache rust registry/cache
       uses: actions/cache@v1
       with:
-        path: ${{ format('{0}/registry/cache/', $CARGO_HOME) }}
+        path: ${{ format('{0}/registry/cache/', matrix.CARGO_HOME) }}
         key: ${{ runner.OS }}-build-reg-cache-
         restore-keys: ${{ runner.OS }}-build-reg-cache-
     - name: build rust

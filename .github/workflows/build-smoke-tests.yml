@@ -78,7 +78,7 @@ jobs:
             executable: app
         include:
           - platform: ubuntu-latest
-            releaseFolder: target/release
+            releaseFolder: target/release/bundle/deb
             ext: _0.1.0_amd64.deb
           - platform: macos-latest
             releaseFolder: target/release/bundle/osx

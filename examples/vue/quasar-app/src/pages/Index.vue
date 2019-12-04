@@ -8,7 +8,6 @@
 </template>
 
 <script>
-require('../../src-tauri/tauri.js')
 import { uid } from 'quasar'
 
 export default {
@@ -19,10 +18,11 @@ export default {
     }
   },
   mounted () {
-    window.tauri.setup()
-    window.tauri.listen('reply', res => {
-      this.msg = res.payload.msg
-    }, false)
+    window.onTauriInit = () => {
+      window.tauri.listen('reply', res => {
+        this.msg = res.payload.msg
+      }, false)
+    }
   },
   methods: {
     // set up an event listener

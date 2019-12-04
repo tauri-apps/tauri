@@ -8,6 +8,7 @@ const
   { spawn } = require('./helpers/spawn')
 const onShutdown = require('./helpers/on-shutdown')
 const generator = require('./generator')
+const entry = require('./entry')
 const { appDir, tauriDir } = require('./helpers/app-paths')
 
 const logger = require('./helpers/logger')
@@ -38,17 +39,19 @@ class Runner {
       this.__whitelistApi(cfg, toml)
     })
 
-    generator.generate(cfg.tauri)
+    generator.generate({
+      devPath: devPath.startsWith('http') ? devPath : resolve(appDir, devPath),
+      ...cfg.tauri
+    })
+    entry.generate(tauriDir, cfg)
 
     this.devPath = devPath
 
-    const args = ['--path', devPath.startsWith('http') ? devPath : path.resolve(appDir, devPath)]
     const features = ['dev']
 
     const startDevTauri = () => {
       return this.__runCargoCommand({
-        cargoArgs: ['run', '--features', ...features],
-        extraArgs: args
+        cargoArgs: ['run', '--features', ...features]
       })
     }
 
@@ -84,6 +87,7 @@ class Runner {
     })
 
     generator.generate(cfg.tauri)
+    entry.generate(tauriDir, cfg)
 
     const features = []
     if (cfg.tauri.embeddedServer.active) {

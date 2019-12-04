@@ -21,17 +21,13 @@ if (argv.help) {
   process.exit(0)
 }
 
-const { tauriDir } = require('../helpers/app-paths')
 const Runner = require('../runner')
-const tauri = new Runner({ modeDir: tauriDir })
+const tauri = new Runner()
 const tauriConfig = require('../helpers/tauri-config')({
   ctx: {
     debug: argv.debug,
     prod: true
   }
 })
-
-require('../generator').generate(tauriConfig.tauri)
-require('../entry').generate(tauriDir, tauriConfig)
 
 tauri.build(tauriConfig)

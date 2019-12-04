@@ -10,37 +10,35 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
     Ok(command) => {
       match command {
         Init {} => {
+          #[cfg(feature = "dev")]
+          let handler_call = "listener.handler(payload)";
+          #[cfg(not(feature = "dev"))]
+          let handler_call = "window.frames[0].postMessage({ type: 'tauri-callback', payload: payload, callback: listener.handler }, '*')";
           webview
             .handle()
             .dispatch(move |_webview| {
               _webview
                 .eval(&format!(
                   "window['{queue}'] = [];
-                  window['{fn}'] = function (payload, salt, ignoreQueue) {{
-                    window.tauri.promisified({{
-                      cmd: 'validateSalt',
-                      salt: salt
-                    }}).then(function () {{
-                      const listeners = (window['{listeners}'] && window['{listeners}'][payload.type]) || []
+                  window['{fn}'] = function (payload, ignoreQueue) {{
+                    const listeners = (window['{listeners}'] && window['{listeners}'][payload.type]) || []
+                    if (!ignoreQueue && listeners.length === 0) {{
+                      window['{queue}'].push({{
+                        payload: payload
+                      }})
+                    }}
 
-                      if (!ignoreQueue && listeners.length === 0) {{
-                        window['{queue}'].push({{
-                          payload: payload,
-                          salt: salt
-                        }})
-                      }}
-
-                      for (let i = listeners.length - 1; i >= 0; i--) {{
-                        const listener = listeners[i]
-                        if (listener.once)
-                          listeners.splice(i, 1)
-                        listener.handler(payload)
-                      }}
-                    }})
+                    for (let i = listeners.length - 1; i >= 0; i--) {{
+                      const listener = listeners[i]
+                      if (listener.once)
+                        listeners.splice(i, 1)
+                      {handler_call}
+                    }}
                   }}",
                   fn = crate::event::emit_function_name(),
                   listeners = crate::event::event_listeners_object_name(),
-                  queue = crate::event::event_queue_object_name()
+                  queue = crate::event::event_queue_object_name(),
+                  handler_call = handler_call
                 ))
                 .unwrap();
 
@@ -131,13 +129,13 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
                   window['{listeners}']['{evt}'] = []
                 }}
                 window['{listeners}']['{evt}'].push({{
-                  handler: window['{handler}'],
+                  handler: '{handler}',
                   once: {once_flag}
                 }});
 
-                for (let i = 0; i < window['{queue}'].length; i++) {{
+                for (let i = 0; i < (window['{queue}'] || []).length; i++) {{
                   const e = window['{queue}'][i];
-                  window['{emit}'](e.payload, e.salt, true)
+                  window['{emit}'](e.payload, true)
                 }}
               ",
               listeners = crate::event::event_listeners_object_name(),

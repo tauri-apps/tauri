@@ -62,7 +62,14 @@ window.tauri = {
   <% } %>
   invoke: function invoke(args) {
     Object.freeze(args);
+    <% if (ctx.dev) { %>
     window.external.invoke(JSON.stringify(args));
+    <% } else { %>
+      window.parent.postMessage({
+        type: 'tauri-invoke',
+        payload: JSON.stringify(args)
+      }, '*')
+      <% } %>
   },
 
   <% if (ctx.dev) { %>
@@ -362,31 +369,6 @@ window.tauri = {
       <% } %>
             return __reject
     <% } %>
-  },
-
-  <% if (ctx.dev) { %>
-  /**
-   * @name setup
-   * @description Inform Rust that the webview has initialized and is
-   * ready for communication
-     */
-  <% } %>
-  setup: function setup() {
-    document.querySelector('body').addEventListener('click', function (e) {
-      var target = e.target;
-
-      while (target != null) {
-        if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
-          tauri.open(target.href);
-          break;
-        }
-
-        target = target.parentElement;
-      }
-    }, true);
-    window.tauri.invoke({
-      cmd: 'init'
-    });
   }
 };
 
@@ -401,7 +383,20 @@ tauri.invoke({
   cmd: 'init'
 })
 
+function __initTauri () {
+  if (window.onTauriInit !== void 0) {
+    window.onTauriInit()
+  }
+}
+
+<% if (ctx.dev) { %>
+  __initTauri()
+<% } %>
+
 document.addEventListener('DOMContentLoaded', function () {
+  <% if (!ctx.dev) { %>
+    setTimeout(__initTauri)
+  <% } %>
   // open <a href="..."> links with the Tauri API
   document.querySelector('body').addEventListener('click', function (e) {
     var target = e.target

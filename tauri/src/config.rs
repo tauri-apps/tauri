@@ -69,6 +69,12 @@ pub struct Config {
   pub window: WindowConfig,
   #[serde(default = "default_embedded_server")]
   pub embedded_server: EmbeddedServerConfig,
+  #[serde(default = "default_dev_path")]
+  pub dev_path: String,
+}
+
+fn default_dev_path() -> String {
+  "".to_string()
 }
 
 pub fn get() -> Config {

@@ -17,7 +17,7 @@ serde_derive = "1.0"
 tiny_http = "0.6"
 phf = "0.7.24"
 includedir = "0.5.0"
-tauri = <%= tauriDep || `"0.1.0"` %>
+tauri = <%= tauriDep || `{ version = "0.1.0" }` %>
 
 [features]
 dev = ["tauri/dev"] # has no explicit dependencies

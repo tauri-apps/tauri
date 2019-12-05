@@ -1,11 +1,6 @@
 test
-docs
-docs-generator
 node_modules
 .git
 .github
 .idea
 SECURITY.md
-
-src-tauri
-/tauri.conf.js

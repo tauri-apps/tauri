@@ -47,6 +47,8 @@ Run \`tauri init --force template\` to overwrite.`)
   } catch (e) {
     if (logging) console.log(e)
     return false
+  } finally {
+    if (logging) log('Successfully wrote src-tauri')
   }
 }
 

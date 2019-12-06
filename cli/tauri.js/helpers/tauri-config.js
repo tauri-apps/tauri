@@ -1,16 +1,17 @@
 const appPaths = require('./app-paths')
 const merge = require('webpack-merge')
+const error = require('../helpers/logger')('ERROR:', 'red')
 const { existsSync } = require('fs-extra')
 
 module.exports = cfg => {
   const pkgPath = appPaths.resolve.app('package.json')
   const tauriConfPath = appPaths.resolve.app('tauri.conf.js')
   if (!existsSync(pkgPath)) {
-    console.error('ERROR: Could not find a package.json in your app\'s directory.')
+    error('Could not find a package.json in your app\'s directory.')
     process.exit(1)
   }
   if (!existsSync(tauriConfPath)) {
-    console.error('ERROR: Could not find a tauri config (tauri.conf.js) in your app\'s directory.')
+    error('Could not find a tauri config (tauri.conf.js) in your app\'s directory.')
     process.exit(1)
   }
   const tauriConf = require(tauriConfPath)(cfg.ctx)

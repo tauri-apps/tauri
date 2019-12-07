@@ -391,10 +391,13 @@ if (window.top === window.self) { // detect if we are not in an iframe
   __initTauri()
 }
 
+window.addEventListener('load', function () {
+    if (window.top !== window.self) { // detect if we are in an iframe
+      setTimeout(__initTauri)
+    }
+}, true)
+
 window.addEventListener('DOMContentLoaded', function () {
-  if (window.top !== window.self) { // detect if we are in an iframe
-    setTimeout(__initTauri)
-  }
   // open <a href="..."> links with the Tauri API
   document.querySelector('body').addEventListener('click', function (e) {
     var target = e.target

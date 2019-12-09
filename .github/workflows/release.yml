@@ -1,0 +1,24 @@
+on: pull_request
+
+name: Create Release
+
+jobs:
+  build:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v1
+      - run: echo ${{ github.event.commit.message }}
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: next
+          release_name: Release ${{ github.ref }}
+          body: |
+            # Changelog
+          draft: true
+          prerelease: false

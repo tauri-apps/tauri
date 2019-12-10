@@ -21,6 +21,7 @@ jobs:
         with:
           tag_name: next
           release_name: Release ${{ github.ref }}
+          target_commitish: master
           body: '# Changelog'
           draft: true
           prerelease: false

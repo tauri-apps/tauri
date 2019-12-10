@@ -12,7 +12,8 @@ module.exports = {
   coverageDirectory: '<rootDir>/test/jest/coverage',
   collectCoverageFrom: [
     '<rootDir>/bin/**/*.js',
-    '<rootDir>/helpers/**/*.js'
+    '<rootDir>/helpers/**/*.js',
+    '<rootDir>/api/**/*.js'
   ],
   coverageReporters: ['json-summary', 'text', 'lcov'],
   coverageThreshold: {
@@ -32,6 +33,7 @@ module.exports = {
     '^~/(.*)$': '<rootDir>/$1',
     '^bin/(.*)$': '<rootDir>/bin/$1',
     '^helpers/(.*)$': '<rootDir>/helpers/$1',
+    '^api/(.*)$': '<rootDir>/api/$1',
     '^templates/(.*)$': '<rootDir>/templates/$1',
     '^test/(.*)$': '<rootDir>/test/$1',
     '../../package.json': '<rootDir>/package.json'

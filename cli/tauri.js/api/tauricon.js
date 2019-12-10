@@ -21,11 +21,11 @@ const zopfli = require('imagemin-zopfli')
 const png2icons = require('png2icons')
 const readChunk = require('read-chunk')
 const isPng = require('is-png')
-const logger = require('./logger')
+const logger = require('../helpers/logger')
 const log = logger('app:spawn')
 const warn = logger('app:spawn', 'red')
 
-const settings = require('./tauricon.config.js')
+const settings = require('../helpers/tauricon.config.js')
 let image = false
 const spinnerInterval = false
 

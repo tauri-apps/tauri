@@ -39,9 +39,10 @@ if (argv.help) {
   process.exit(0)
 }
 
-const { inject } = require('../template')
+const init = require('../api/init')
 
-inject(argv.d || process.cwd(), 'all', {
+init({
+  directory: argv.d || process.cwd(),
   force: argv.f || null,
   logging: argv.l || null,
   tauriPath: argv.t || null

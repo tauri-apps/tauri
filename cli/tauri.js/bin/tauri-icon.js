@@ -3,7 +3,7 @@ const { appDir, tauriDir } = require('../helpers/app-paths')
 const logger = require('../helpers/logger')
 const log = logger('app:tauri')
 const warn = logger('app:tauri (icon)', 'red')
-const { tauricon } = require('../helpers/tauricon')
+const { tauricon } = require('../api/tauricon')
 const { resolve } = require('path')
 
 /**

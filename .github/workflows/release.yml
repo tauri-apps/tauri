@@ -1,4 +1,6 @@
-on: pull_request
+on:
+  push:
+    branches: master
 
 name: Create Release
 
@@ -22,6 +24,6 @@ jobs:
           tag_name: next
           release_name: Release ${{ github.ref }}
           target_commitish: master
-          body: '# Changelog'
+          body: Changelog
           draft: true
           prerelease: false

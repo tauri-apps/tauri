@@ -28,7 +28,7 @@ either = "1.5.3"
 tar = "0.4"
 flate2 = "1"
 hyper-old-types = "0.11.0"
-sysinfo = "0.9"
+sysinfo = "0.10"
 webbrowser = "0.5.2"
 uuid = { version = "0.8.1", features = ["v4"] }
 lazy_static = "1.4.0"

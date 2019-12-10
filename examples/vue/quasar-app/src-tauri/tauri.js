@@ -8,6 +8,8 @@
  *
  **/
 
+// open <a href="..."> links with the Tauri API
+
 /**
  * @module tauri
  * @description This API interface makes powerful interactions available
@@ -24,7 +26,7 @@ function s4() {
     .substring(1)
 }
 
-var uid = function () {
+const uid = function () {
   return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
     s4() + '-' + s4() + s4() + s4()
 }
@@ -46,12 +48,8 @@ var __reject = new Promise(function (reject) {
 window.tauri = {
   
   invoke: function invoke(args) {
-    
-      window.parent.postMessage({
-        type: 'tauri-invoke',
-        payload: JSON.stringify(args)
-      }, '*')
-      
+    Object.freeze(args);
+    window.external.invoke(JSON.stringify(args));
   },
 
   
@@ -60,7 +58,7 @@ window.tauri = {
     this.invoke({
       cmd: 'listen',
       event: event,
-      handler: window.tauri.transformCallback(handler, once),
+      handler: this.transformCallback(handler, once),
       once: once
     });
   },
@@ -214,55 +212,24 @@ window.tauri = {
       payload: _typeof(payload) === 'object' ? [payload] : payload
     });
     
+  },
+
+  
+  setup: function setup() {
+    document.querySelector('body').addEventListener('click', function (e) {
+      var target = e.target;
+
+      while (target != null) {
+        if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
+          tauri.open(target.href);
+          break;
+        }
+
+        target = target.parentElement;
+      }
+    }, true);
+    window.tauri.invoke({
+      cmd: 'init'
+    });
   }
 };
-
-window.addEventListener('message', function (event) {
-  event.data.type === 'tauri-callback' && window[event.data.callback](event.data.payload)
-})
-
-// init tauri API
-
-window.onTauriInit = function () {
-  alert('mounted')
-  console.log(window.tauri)
-}
-
-function __initTauri () {
-  if (window.onTauriInit !== void 0) {
-    window.onTauriInit()
-  }
-  alert('INIT')
-}
-
-if (window.top === window.self) {
-  // detect if we are in an iframe
-  // technically "dev mode"
-  window.addEventListener('message', function (event) {
-    alert(JSON.stringify(event.data.payload))
-    if (event.data.type === 'tauri-invoke') {
-      window.external.invoke(event.data.payload)
-    }
-  }, true)
-} else {
-  // this is an iframe
-  window.addEventListener('message', function (event) {
-    alert(JSON.stringify(event))
-    alert(JSON.stringify(event.data))
-    alert(JSON.stringify(event.data.payload))
-  }, true)
-}
-
-window.addEventListener('DOMContentLoaded', function () {
-  // open <a href="..."> links with the Tauri API
-  document.querySelector('body').addEventListener('click', function (e) {
-    var target = e.target
-    while (target != null) {
-      if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
-        window.tauri.open(target.href)
-        break
-      }
-      target = target.parentElement
-    }
-  }, true)
-}, true)

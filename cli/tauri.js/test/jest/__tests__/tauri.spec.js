@@ -1,3 +1,4 @@
+// eslint-disable-next-line node/no-missing-require
 const { tauri } = require('bin/tauri')
 
 describe('[CLI] tauri.js', () => {

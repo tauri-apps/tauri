@@ -59,7 +59,7 @@
     "ms": "2.1.2",
     "png2icons": "2.0.1",
     "read-chunk": "3.2.0",
-    "sharp": "0.23.3",
+    "sharp": "0.23.4",
     "webpack-merge": "4.2.2",
     "webpack-shell-plugin": "0.5.0"
   },

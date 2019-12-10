@@ -22,10 +22,10 @@
   },
   "dependencies": {
     "@quasar/extras": "^1.0.0",
-    "quasar": "^1.5.7"
+    "quasar": "1.5.8"
   },
   "devDependencies": {
-    "@quasar/app": "^1.3.5",
+    "@quasar/app": "1.3.6",
     "@vue/eslint-config-standard": "^4.0.0",
     "babel-eslint": "^10.0.1",
     "eslint": "^5.10.0",

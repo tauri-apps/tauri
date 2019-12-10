@@ -31,6 +31,7 @@ const tauri = function (command) {
       process.argv.splice(2, 1)
     }
     console.log(`[tauri]: running ${command}`)
+    // eslint-disable-next-line security/detect-non-literal-require
     require(`./tauri-${command}`)
   } else {
     console.log(`Invalid command ${command}. Use one of ${cmds.join(',')}.`)

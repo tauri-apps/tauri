@@ -10,7 +10,7 @@ edition = "2018"
 
 [dependencies]
 web-view = "0.5.4"
-serde_json = "1.0.42"
+serde_json = "1.0.44"
 serde = "1.0"
 serde_derive = "1.0"
 dirs = "2.0.2"

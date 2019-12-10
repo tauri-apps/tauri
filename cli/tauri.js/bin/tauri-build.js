@@ -20,6 +20,6 @@ if (argv.help) {
   process.exit(0)
 }
 
-const build = require('../helpers/build')
+const build = require('../api/build')
 
 build({ ctx: { debug: argv.debug } })

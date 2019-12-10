@@ -3889,7 +3889,7 @@ locate-path@^5.0.0:
   dependencies:
     p-locate "^4.1.0"
 
-lockfile-lint-api@^2.0.0:
+lockfile-lint-api@^2.3.0:
   version "2.3.0"
   resolved "https://registry.yarnpkg.com/lockfile-lint-api/-/lockfile-lint-api-2.3.0.tgz#c200de37f07bee35eca2a52a8e560f013c87910c"
   integrity sha512-4jp8ULItLgsaPgPjxm/nuupIiBbxWf/nA05gRGMtvJQxGoSOOYA1LxSunY5p1b4kw7u6ZW5TZNgcIs4cFvp9lw==
@@ -3897,13 +3897,13 @@ lockfile-lint-api@^2.0.0:
     "@yarnpkg/lockfile" "^1.1.0"
     debug "^4.1.0"
 
-lockfile-lint@2.0.1:
-  version "2.0.1"
-  resolved "https://registry.yarnpkg.com/lockfile-lint/-/lockfile-lint-2.0.1.tgz#b2ccd71530f2861a433cfec3b9deb18b01a2c5e0"
-  integrity sha512-hT6Nrx2ewTtmZ/N3KjaEpLaXujHmIjcKU32pcuX20JhGgkTVWBlU3bDkIh+Lob7NG6zD96ASOUL6t/dQUa89WQ==
+lockfile-lint@2.2.0:
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/lockfile-lint/-/lockfile-lint-2.2.0.tgz#24fc4ee8a62a7491c3aecb0e7ca7ef705719cb58"
+  integrity sha512-3RMEInA86I/NNp4ZYnh9UDme736Iym0JE++CdfqXt5VjqRK+LnnaE0v+swqpgDO+FVF/AsjpdocipN6qefEpsQ==
   dependencies:
     debug "^4.1.0"
-    lockfile-lint-api "^2.0.0"
+    lockfile-lint-api "^2.3.0"
     yargs "^13.2.4"
 
 lodash._reinterpolate@^3.0.0:

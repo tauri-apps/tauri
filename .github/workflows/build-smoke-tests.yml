@@ -29,21 +29,26 @@ jobs:
       with:
           toolchain: stable
     - name: cache rust bin
+      id: cache_rust_bin
       uses: actions/cache@v1
       with:
         path: ${{ format('{0}/bin/', matrix.CARGO_HOME) }}
         key: ${{ runner.OS }}-build-bin-${{ hashFiles('**/Cargo.lock') }}-
     - name: cache rust registry/index
+      id: cache_rust_reg_index
       uses: actions/cache@v1
       with:
         path: ${{ format('{0}/registry/index/', matrix.CARGO_HOME) }}
         key: ${{ runner.OS }}-build-reg-index-${{ hashFiles('**/Cargo.lock') }}-
     - name: cache rust registry/cache
+      id: cache_rust_reg_cache
       uses: actions/cache@v1
       with:
         path: ${{ format('{0}/registry/cache/', matrix.CARGO_HOME) }}
         key: ${{ runner.OS }}-build-reg-cache-${{ hashFiles('**/Cargo.lock') }}-
-    - run: cargo install tauri-cli
+    - run: cargo install tauri-cli --force
+      # if we pull from cache, this will be skipped, but force just in case cache has an issue but it does exist
+      if: steps.cache_rust_bin.outputs.cache-hit != 'true' || steps.cache_rust_reg_index.outputs.cache-hit != 'true' || steps.cache_rust_reg_cache.outputs.cache-hit != 'true'
     - name: cache node modules
       uses: actions/cache@v1
       with:

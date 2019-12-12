@@ -2,7 +2,7 @@
   "extends": [
     "config:base"
   ],
-  "schedule": "after 3am on Tuesday",
+  "schedule": "after 3am on Wednesday",
   "enabledManagers": ["cargo", "npm"],
   "cargo": {
     "enabled": true

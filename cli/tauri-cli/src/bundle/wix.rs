@@ -53,13 +53,9 @@ lazy_static! {
 fn download_and_verify(url: &str, hash: &str) -> crate::Result<Vec<u8>> {
   common::print_info(format!("Downloading {}", url).as_str())?;
 
-  let mut response = reqwest::get(url).or_else(|e| Err(e.to_string()))?;
+  let response = attohttpc::get(url).send().or_else(|e| Err(e.to_string()))?;
 
-  let mut data: Vec<u8> = Vec::new();
-
-  response
-    .read_to_end(&mut data)
-    .or_else(|e| Err(e.to_string()))?;
+  let data: Vec<u8> = response.bytes().or_else(|e| Err(e.to_string()))?;
 
   common::print_info("validating hash")?;
 

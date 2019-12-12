@@ -27,7 +27,9 @@ error_chain! {
         Term(::term::Error);
         Toml(::toml::de::Error);
         Walkdir(::walkdir::Error);
+        HttpError(::attohttpc::Error);
         StripError(std::path::StripPrefixError);
+
     }
     errors {}
 }

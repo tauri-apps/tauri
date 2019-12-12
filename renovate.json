@@ -3,8 +3,42 @@
     "config:base"
   ],
   "schedule": "after 3am on Wednesday",
+  "ignorePaths": []
   "enabledManagers": ["cargo", "npm"],
   "cargo": {
     "enabled": true
-  }
+  },
+  // groups all examples into their own single PR
+  "packageRules": [
+    {
+      "paths": ["examples/gatsby/**"],
+      "groupName": "Gatsby Examples",
+      "groupSlug": "allGatsby",
+      "commitMessagePrefix": "chore(examples)",
+      "lockFileMaintenance": {
+        "enabled": true
+      },
+      "prPriority": -1 // makes these PRed last
+    },
+    {
+      "paths": ["examples/vue/**"],
+      "groupName": "Vue Examples",
+      "groupSlug": "allVue",
+      "commitMessagePrefix": "chore(examples)",
+      "lockFileMaintenance": {
+        "enabled": true
+      },
+      "prPriority": -1 // makes these PRed last
+    },
+    {
+      "paths": ["examples/vanillajs/**"],
+      "groupName": "VanillaJS Examples",
+      "groupSlug": "allVanilla",
+      "commitMessagePrefix": "chore(examples)",
+      "lockFileMaintenance": {
+        "enabled": true
+      },
+      "prPriority": -1 // makes these PRed last
+    }
+  ]
 }

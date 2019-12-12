@@ -8,7 +8,6 @@
   "cargo": {
     "enabled": true
   },
-  "__packageRulesComment": "groups all examples into their own single PR",
   "packageRules": [
     {
       "paths": ["examples/gatsby/**"],
@@ -18,7 +17,6 @@
       "lockFileMaintenance": {
         "enabled": true
       },
-      "__prPriority_comment": "makes these PRed last",
       "prPriority": -1
     },
     {
@@ -29,7 +27,6 @@
       "lockFileMaintenance": {
         "enabled": true
       },
-      "__prPriority_comment": "makes these PRed last",
       "prPriority": -1
     },
     {
@@ -40,7 +37,6 @@
       "lockFileMaintenance": {
         "enabled": true
       },
-      "__prPriority_comment": "makes these PRed last",
       "prPriority": -1
     }
   ]

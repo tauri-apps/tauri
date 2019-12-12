@@ -1,19 +1,20 @@
 use std::boxed::Box;
 use std::collections::HashMap;
+use std::future::Future;
 use std::sync::{Arc, Mutex};
+
+use futures_executor::ThreadPool;
+use once_cell::sync::OnceCell;
 use web_view::Handle;
 
-struct EventHandler {
-  on_event: Box<dyn FnMut(String)>,
-}
+struct EventHandler(Box<dyn FnMut(String) -> dyn Future<Output=()>>);
 
-thread_local!(static LISTENERS: Arc<Mutex<HashMap<String, EventHandler>>> = Arc::new(Mutex::new(HashMap::new())));
+static LISTENERS: Arc<Mutex<HashMap<String, EventHandler>>> = Default::default();
+static THREAD_POOL: OnceCell<ThreadPool> = OnceCell::new();
+static EMIT_FUNCTION_NAME: String = uuid::Uuid::new_v4().to_string();
+static EVENT_LISTENERS_OBJECT_NAME: String = uuid::Uuid::new_v4().to_string();
+static EVENT_QUEUE_OBJECT_NAME: String = uuid::Uuid::new_v4().to_string();
 
-lazy_static! {
-  static ref EMIT_FUNCTION_NAME: String = uuid::Uuid::new_v4().to_string();
-  static ref EVENT_LISTENERS_OBJECT_NAME: String = uuid::Uuid::new_v4().to_string();
-  static ref EVENT_QUEUE_OBJECT_NAME: String = uuid::Uuid::new_v4().to_string();
-}
 
 pub fn emit_function_name() -> String {
   EMIT_FUNCTION_NAME.to_string()
@@ -27,16 +28,12 @@ pub fn event_queue_object_name() -> String {
   EVENT_QUEUE_OBJECT_NAME.to_string()
 }
 
-pub fn listen<F: FnMut(String) + 'static>(id: &'static str, handler: F) {
-  LISTENERS.with(|listeners| {
-    let mut l = listeners.lock().unwrap();
+pub fn listen<F: FnMut(String) -> Fut + 'static, Fut: Future<Output=()>>(id: &'static str, handler: F) {
+    let mut l = LISTENERS.lock().unwrap();
     l.insert(
       id.to_string(),
-      EventHandler {
-        on_event: Box::new(handler),
-      }
+      EventHandler(Box::new(handler))
     );
-  });
 }
 
 pub fn emit<T: 'static>(webview_handle: &Handle<T>, event: &'static str, mut payload: String) {
@@ -59,14 +56,28 @@ pub fn emit<T: 'static>(webview_handle: &Handle<T>, event: &'static str, mut pay
 }
 
 pub fn on_event(event: String, data: String) {
-  LISTENERS.with(|listeners| {
-    let mut l = listeners.lock().unwrap();
+  let mut l = LISTENERS.lock().unwrap();
 
-    let key = event.clone();
+  let key = event.clone();
 
-    if l.contains_key(&key) {
-      let handler = l.get_mut(&key).unwrap();
-      (handler.on_event)(data);
+  if l.contains_key(&key) {
+    let handler = l.get_mut(&key).unwrap();
+    let future = Box::new((handler.0)(data));
+    if let Some(pool) = THREAD_POOL.get() {
+      (*pool).spawn_ok(future);
     }
-  });
+  }
+}
+
+pub fn start_threadpool<S: Into<String>>(num_threads: usize, prefix: S) -> Result<(), std::io::Error> {
+  if let None = THREAD_POOL.get() {
+    let pool = ThreadPool::builder()
+        .pool_size(num_threads)
+        .name_prefix(prefix)
+        .create()?;
+
+    THREAD_POOL.set(pool);
+  }
+
+  Ok(())
 }

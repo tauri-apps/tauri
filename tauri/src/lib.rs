@@ -4,9 +4,6 @@ extern crate serde_derive;
 #[macro_use]
 mod macros;
 
-#[macro_use]
-extern crate lazy_static;
-
 extern crate web_view;
 
 pub mod api;

@@ -7,9 +7,7 @@ struct Salt {
   one_time: bool,
 }
 
-lazy_static! {
-  static ref SALTS: Mutex<Vec<Salt>> = Mutex::new(vec![]);
-}
+static SALTS: Mutex<Vec<Salt>> = Mutex::new(Vec::new());
 
 pub fn generate() -> String {
   let salt = Uuid::new_v4();

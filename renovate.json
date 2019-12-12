@@ -3,7 +3,7 @@
     "config:base"
   ],
   "schedule": "after 3am on Wednesday",
-  "ignorePaths": []
+  "ignorePaths": [],
   "enabledManagers": ["cargo", "npm"],
   "cargo": {
     "enabled": true

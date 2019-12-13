@@ -17,6 +17,7 @@ pub mod dir;
 pub mod event;
 pub mod file;
 pub mod file_system;
+#[cfg(feature = "updater")]
 pub mod http;
 pub mod platform;
 pub mod process;
@@ -25,7 +26,9 @@ pub mod salt;
 #[cfg(feature = "embedded-server")]
 pub mod server;
 pub mod tcp;
+#[cfg(feature = "updater")]
 pub mod updater;
+
 pub mod version;
 pub use app::*;
 

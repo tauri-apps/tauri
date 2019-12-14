@@ -31,6 +31,7 @@ toml = "0.5.5"
 uuid = { version = "0.8", features = ["v5"] }
 walkdir = "2"
 
+attohttpc = { version = "0.7.0" }
 
 
 [dev-dependencies]
@@ -47,7 +48,6 @@ dmg = []
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 handlebars = { version = "2.0" }
-attohttpc = { version = "0.7.0" }
 lazy_static = { version = "1.4" }
 zip = { version = "0.5" }
 sha2 = { version = "0.8" }

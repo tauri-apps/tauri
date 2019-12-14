@@ -15,7 +15,6 @@ pub enum PackageType {
   OsxBundle,
   #[cfg(feature = "ios")]
   IosBundle,
-  #[cfg(feature = "wix")]
   WindowsMsi,
   Deb,
   Rpm,
@@ -32,7 +31,6 @@ impl PackageType {
       "deb" => Some(PackageType::Deb),
       #[cfg(feature = "ios")]
       "ios" => Some(PackageType::IosBundle),
-      #[cfg(feature = "wix")]
       "msi" => Some(PackageType::WindowsMsi),
       "osx" => Some(PackageType::OsxBundle),
       "rpm" => Some(PackageType::Rpm),
@@ -49,7 +47,6 @@ impl PackageType {
       PackageType::Deb => "deb",
       #[cfg(feature = "ios")]
       PackageType::IosBundle => "ios",
-      #[cfg(feature = "wix")]
       PackageType::WindowsMsi => "msi",
       PackageType::OsxBundle => "osx",
       PackageType::Rpm => "rpm",
@@ -343,7 +340,7 @@ impl Settings {
         #[cfg(feature = "ios")]
         "ios" => Ok(vec![PackageType::IosBundle]),
         "linux" => Ok(vec![PackageType::Deb]), // TODO: Do Rpm too, once it's implemented.
-        #[cfg(feature = "wix")]
+
         "windows" => Ok(vec![PackageType::WindowsMsi]),
         os => bail!("Native {} bundles not yet supported.", os),
       }

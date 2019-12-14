@@ -31,12 +31,7 @@ toml = "0.5.5"
 uuid = { version = "0.8", features = ["v5"] }
 walkdir = "2"
 
-handlebars = { version = "2.0", optional = true }
-attohttpc = { version = "0.7.0", optional = true }
-lazy_static = { version = "1.4", optional = true }
-zip = { version = "0.5", optional = true }
-sha2 = { version = "0.8", optional = true }
-hex = { version = "0.4", optional = true }
+
 
 [dev-dependencies]
 tempfile = "3"
@@ -46,12 +41,14 @@ name = "cargo-tauri-cli"
 path = "src/main.rs"
 
 [features]
-
 appimage = []
-wix = []
 ios = []
 dmg = []
-rpm = []
 
-[target.'cfg(target_os = "windows")'.features]
-default = ["wix"]
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+handlebars = { version = "2.0" }
+attohttpc = { version = "0.7.0" }
+lazy_static = { version = "1.4" }
+zip = { version = "0.5" }
+sha2 = { version = "0.8" }
+hex = { version = "0.4" }

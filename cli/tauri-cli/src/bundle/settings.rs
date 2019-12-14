@@ -64,6 +64,7 @@ impl PackageType {
 
 const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::Deb,
+  #[cfg(feature = "ios")]
   PackageType::IosBundle,
   PackageType::WindowsMsi,
   PackageType::OsxBundle,

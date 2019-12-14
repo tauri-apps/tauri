@@ -46,9 +46,12 @@ name = "cargo-tauri-cli"
 path = "src/main.rs"
 
 [features]
-default = ["wix"]
+
 appimage = []
 wix = []
 ios = []
 dmg = []
 rpm = []
+
+[target.'cfg(target_os = "windows")'.features]
+default = ["wix"]

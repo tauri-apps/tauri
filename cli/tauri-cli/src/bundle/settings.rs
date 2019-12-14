@@ -47,11 +47,15 @@ impl PackageType {
   pub fn short_name(&self) -> &'static str {
     match *self {
       PackageType::Deb => "deb",
+      #[cfg(feature = "ios")]
       PackageType::IosBundle => "ios",
+      #[cfg(feature = "wix")]
       PackageType::WindowsMsi => "msi",
       PackageType::OsxBundle => "osx",
       PackageType::Rpm => "rpm",
+      #[cfg(feature = "appimage")]
       PackageType::AppImage => "appimage",
+      #[cfg(feature = "dmg")]
       PackageType::Dmg => "dmg",
     }
   }
@@ -336,8 +340,10 @@ impl Settings {
       };
       match target_os {
         "macos" => Ok(vec![PackageType::OsxBundle]),
+        #[cfg(feature = "ios")]
         "ios" => Ok(vec![PackageType::IosBundle]),
         "linux" => Ok(vec![PackageType::Deb]), // TODO: Do Rpm too, once it's implemented.
+        #[cfg(feature = "wix")]
         "windows" => Ok(vec![PackageType::WindowsMsi]),
         os => bail!("Native {} bundles not yet supported.", os),
       }

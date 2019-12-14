@@ -13,11 +13,15 @@ use walkdir;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PackageType {
   OsxBundle,
+  #[cfg(feature = "ios")]
   IosBundle,
+  #[cfg(feature = "wix")]
   WindowsMsi,
   Deb,
   Rpm,
+  #[cfg(feature = "appimage")]
   AppImage,
+  #[cfg(feature = "dmg")]
   Dmg,
 }
 
@@ -26,11 +30,15 @@ impl PackageType {
     // Other types we may eventually want to support: apk
     match name {
       "deb" => Some(PackageType::Deb),
+      #[cfg(feature = "ios")]
       "ios" => Some(PackageType::IosBundle),
+      #[cfg(feature = "wix")]
       "msi" => Some(PackageType::WindowsMsi),
       "osx" => Some(PackageType::OsxBundle),
       "rpm" => Some(PackageType::Rpm),
+      #[cfg(feature = "appimage")]
       "appimage" => Some(PackageType::AppImage),
+      #[cfg(feature = "dmg")]
       "dmg" => Some(PackageType::Dmg),
       _ => None,
     }

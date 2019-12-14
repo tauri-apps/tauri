@@ -368,11 +368,24 @@ window.tauri = {
       <% } %>
             return __reject
     <% } %>
+  },
+
+  loadAsset: function loadAsset(assetName) {
+    return this.promisified({
+      cmd: 'loadAsset',
+      asset: assetName
+    })
   }
 };
 
 window.addEventListener('message', function (event) {
   event.data.type === 'tauri-callback' && window[event.data.callback](event.data.payload)
+  if (event.data.type === 'tauri-asset') {
+    var script = document.createElement('script')
+    alert(event.data.payload.substring(event.data.payload.length - 500))
+    script.text = event.data.payload
+    document.getElementsByTagName('head')[0].appendChild(script)
+  }
 })
 
 // init tauri API

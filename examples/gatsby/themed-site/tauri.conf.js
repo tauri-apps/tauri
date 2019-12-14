@@ -26,9 +26,6 @@ module.exports = function () {
       },
       edge: {
         active: true
-      },
-      automaticStart: {
-        active: true
       }
     }
   }

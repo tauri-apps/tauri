@@ -150,6 +150,38 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
         #[cfg(any(feature = "all-api", feature = "answer"))]
         Emit { event, payload } => {
           crate::event::on_event(event, payload);
+        },
+        LoadAsset { asset, callback, error } => {
+          println!("loading asset named {}", asset);
+          let handle = webview.handle();
+          crate::execute_promise(
+            webview,
+            move || {
+              handle.dispatch(move |_webview| {
+                let asset_str = std::fs::read_to_string(format!("{}/{}", env!("TAURI_DIST_DIR"), asset));
+                if asset_str.is_err() {
+                  Err(web_view::Error::Custom(Box::new("Asset not found")))
+                } else {
+                  let asset_script = asset_str.unwrap().replace("\"", "\\\"");
+                  /*println!(
+                    r#"window.frames[0].postMessage({{ type: "tauri-asset", payload: "{}" }}, '*')"#, 
+                    asset_script
+                  );
+                  _webview.eval("window.a = 5")*/
+                  _webview.eval(
+                    &format!(
+                      r#"window.frames[0].postMessage({{ type: "tauri-asset", payload: "{}" }}, '*')"#, 
+                      asset_script
+                    )
+                  )
+                }
+              })
+                .map_err(|err| format!("`{}`", err))
+                .map(|_| r#""Asset load successfully""#.to_string())
+            },
+            callback,
+            error
+          );
         }
       }
       true

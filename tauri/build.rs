@@ -118,17 +118,40 @@ fn parse_html_file(html: &str) -> String {
   rewrite_str(
     html,
     RewriteStrSettings {
-      element_content_handlers: vec![element!("body", |el| {
-        el.before(
-          format!(
-            r#"<script type="text/javascript"=>{}</script>"#,
-            tauri_script
-          )
-          .as_str(),
-          ContentType::Html,
-        );
-        Ok(())
-      })],
+      element_content_handlers: vec![
+        element!("body", |el| {
+          el.before(
+            format!(
+              r#"<script type="text/javascript">{}</script>"#,
+              tauri_script
+            )
+            .as_str(),
+            ContentType::Html,
+          );
+          Ok(())
+        }),
+        element!("link", |el| {
+          el.remove_attribute("rel");
+          el.remove_attribute("as");
+          Ok(())
+        }),
+        element!("script", |el| {
+          match el.get_attribute("src") {
+            Some(src) => {
+              el.remove_attribute("src");
+              let resource_path = std::path::Path::new(env!("TAURI_DIST_DIR")).join(src);
+              println!("{}", resource_path.to_str().unwrap());
+
+              el.set_inner_content(
+                &std::fs::read_to_string(resource_path).unwrap(), 
+                ContentType::Html
+              );
+            },
+            None => {}
+          }
+          Ok(())
+        })
+      ],
       ..RewriteStrSettings::default()
     },
   )

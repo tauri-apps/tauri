@@ -10,7 +10,7 @@ module.exports = function () {
     ctx: {},
     tauri: {
       embeddedServer: {
-        active: true
+        active: false
       },
       bundle: {
         active: true
@@ -25,9 +25,6 @@ module.exports = function () {
         csp: 'default-src data: filesystem: ws: http: https: \'unsafe-eval\' \'unsafe-inline\''
       },
       edge: {
-        active: true
-      },
-      automaticStart: {
         active: true
       }
     }

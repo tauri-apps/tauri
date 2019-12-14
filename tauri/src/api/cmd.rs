@@ -63,4 +63,5 @@ pub enum Cmd {
     event: String,
     payload: String,
   },
+  LoadAsset { asset: String, callback: String, error: String }
 }

@@ -960,6 +960,18 @@
   resolved "https://registry.npmjs.org/@tauri-apps/toml/-/toml-2.2.3.tgz#88cdebed2ae3944734aa8ecccce4834fffb8bc83"
   integrity sha512-90BIlU465RLt/643N+obkJVRjagkIJMVNV7NGK7K34ku4IPRLyDYPrIz1hspyKjlhs5g1K3KD7XJMTS6GFMvbg==
 
+"@tauri-apps/webpack@file:../../../webpack":
+  version "0.1.0"
+  dependencies:
+    "@babel/generator" "^7.7.4"
+    webpack-shell-plugin "^0.5.0"
+
+"@tauri-apps/webpack@file:../../../webpack/":
+  version "0.1.0"
+  dependencies:
+    "@babel/generator" "^7.7.4"
+    webpack-shell-plugin "^0.5.0"
+
 "@types/color-name@^1.1.1":
   version "1.1.1"
   resolved "https://registry.npmjs.org/@types/color-name/-/color-name-1.1.1.tgz#1c1261bbeaa10a8055bbc5d8ab84b7b2afc846a0"
@@ -9916,7 +9928,7 @@ webpack-node-externals@1.7.2:
   resolved "https://registry.npmjs.org/webpack-node-externals/-/webpack-node-externals-1.7.2.tgz#6e1ee79ac67c070402ba700ef033a9b8d52ac4e3"
   integrity sha512-ajerHZ+BJKeCLviLUUmnyd5B4RavLF76uv3cs6KNuO8W+HuQaEs0y0L7o40NQxdPy5w0pcv8Ew7yPUAQG0UdCg==
 
-webpack-shell-plugin@0.5.0:
+webpack-shell-plugin@0.5.0, webpack-shell-plugin@^0.5.0:
   version "0.5.0"
   resolved "https://registry.npmjs.org/webpack-shell-plugin/-/webpack-shell-plugin-0.5.0.tgz#29b8a1d80ddeae0ddb10e729667f728653c2c742"
   integrity sha1-Kbih2A3erg3bEOcpZn9yhlPCx0I=

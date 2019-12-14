@@ -1,0 +1,26 @@
+{
+  "name": "@tauri-apps/webpack",
+  "version": "0.1.0",
+  "description": "Webpack configuration for Tauri.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tauri-apps/tauri.git"
+  },
+  "keywords": [
+    "tauri",
+    "webpack"
+  ],
+  "author": "Lucas Nogueira <lucasfernandesnog@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/tauri-apps/tauri/issues"
+  },
+  "homepage": "https://github.com/tauri-apps/tauri#readme",
+  "dependencies": {
+    "webpack-shell-plugin": "^0.5.0"
+  }
+}

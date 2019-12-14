@@ -1,6 +1,8 @@
 // Configuration for your app
 // https://quasar.dev/quasar-cli/quasar-conf-js
 
+const path = require(`path`)
+
 module.exports = function (ctx) {
   return {
     // app boot file (/src/boot)
@@ -72,6 +74,10 @@ module.exports = function (ctx) {
             formatter: require('eslint').CLIEngine.getFormatter('stylish')
           }
         })
+      },
+
+      chainWebpack (chain) {
+        require('@tauri-apps/webpack').chain(chain)
       }
     },
 

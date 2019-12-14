@@ -33,10 +33,7 @@ fn main() {
       config.dev_path
     } else {
       let dev_path = std::path::Path::new(&config.dev_path).join("index.html");
-      format!(
-        "data:text/html;base64,{}",
-        &base64::encode(&parse_html_file(&std::fs::read_to_string(dev_path).unwrap()))
-      )
+      parse_html_file(&std::fs::read_to_string(dev_path).unwrap())
     };
   }
 
@@ -97,14 +94,10 @@ fn main() {
 
   #[cfg(feature = "no-server")]
   {
-    tauri_src = format!(
-      "data:text/html;base64,{}",
-      &base64::encode(&parse_dist_html())
-    );
+    tauri_src = parse_dist_html();
   }
 
-  let out_html = include_str!("./template.html").replace("__TAURI_SRC", &tauri_src);
-  file.write_all(out_html.as_bytes()).unwrap();
+  file.write_all(tauri_src.as_bytes()).unwrap();
 }
 
 #[cfg(any(feature = "embedded-server", feature = "no-server"))]
@@ -121,6 +114,16 @@ fn parse_html_file(html: &str) -> String {
       element_content_handlers: vec![
         element!("body", |el| {
           el.before(
+            r#"<script type="text/javascript">
+              window.addEventListener('message', function (event) {
+                if (event.data.type === 'tauri-invoke') {
+                  window.external.invoke(event.data.payload)
+                }
+              }, true)
+            </script>"#, 
+            ContentType::Html
+          );
+          el.before(
             format!(
               r#"<script type="text/javascript">{}</script>"#,
               tauri_script
@@ -133,6 +136,16 @@ fn parse_html_file(html: &str) -> String {
         element!("link", |el| {
           el.remove_attribute("rel");
           el.remove_attribute("as");
+          match el.get_attribute("href") {
+            Some(href) => {
+              if href.ends_with("css") {
+                let resource_path = std::path::Path::new(env!("TAURI_DIST_DIR")).join(href);
+                
+                el.replace(&format!("<style>{}</style>", &std::fs::read_to_string(resource_path).unwrap()), ContentType::Html);
+              }
+            },
+            None => {}
+          }
           Ok(())
         }),
         element!("script", |el| {
@@ -140,7 +153,6 @@ fn parse_html_file(html: &str) -> String {
             Some(src) => {
               el.remove_attribute("src");
               let resource_path = std::path::Path::new(env!("TAURI_DIST_DIR")).join(src);
-              println!("{}", resource_path.to_str().unwrap());
 
               el.set_inner_content(
                 &std::fs::read_to_string(resource_path).unwrap(), 

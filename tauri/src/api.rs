@@ -10,10 +10,6 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
     Ok(command) => {
       match command {
         Init {} => {
-          #[cfg(feature = "dev-server")]
-          let handler_call = "window[listener.handler](payload)";
-          #[cfg(not(feature = "dev-server"))]
-          let handler_call = "window.frames[0].postMessage({ type: 'tauri-callback', payload: payload, callback: listener.handler }, '*')";
           webview
             .handle()
             .dispatch(move |_webview| {
@@ -32,13 +28,12 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
                       const listener = listeners[i]
                       if (listener.once)
                         listeners.splice(i, 1)
-                      {handler_call}
+                      window[listener.handler](payload)
                     }}
                   }}",
                   fn = crate::event::emit_function_name(),
                   listeners = crate::event::event_listeners_object_name(),
-                  queue = crate::event::event_queue_object_name(),
-                  handler_call = handler_call
+                  queue = crate::event::event_queue_object_name()
                 ))
                 .unwrap();
 
@@ -162,17 +157,14 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
                 if asset_str.is_err() {
                   Err(web_view::Error::Custom(Box::new("Asset not found")))
                 } else {
-                  let asset_script = asset_str.unwrap().replace("\"", "\\\"");
+                  let asset_script = asset_str.unwrap();
                   /*println!(
                     r#"window.frames[0].postMessage({{ type: "tauri-asset", payload: "{}" }}, '*')"#, 
                     asset_script
                   );
                   _webview.eval("window.a = 5")*/
                   _webview.eval(
-                    &format!(
-                      r#"window.frames[0].postMessage({{ type: "tauri-asset", payload: "{}" }}, '*')"#, 
-                      asset_script
-                    )
+                    &asset_script
                   )
                 }
               })

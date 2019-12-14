@@ -1,11 +1,7 @@
 <html>
   <body style="margin:0px; padding:0px;">
     <script>
-      window.addEventListener('message', function (event) {
-        if (event.data.type === 'tauri-invoke') {
-          window.external.invoke(event.data.payload)
-        }
-      }, true)
+      
     </script>
     <iframe name="tauri" src="__TAURI_SRC"
       frameborder="0" height="100%" width="100%">

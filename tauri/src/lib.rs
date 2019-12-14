@@ -18,7 +18,6 @@ pub mod event;
 pub mod file;
 pub mod file_system;
 
-pub mod platform;
 pub mod rpc;
 pub mod salt;
 pub mod tcp;
@@ -28,7 +27,7 @@ pub mod server;
 
 #[cfg(feature = "updater")]
 pub mod http;
-#[cfg(feature = "updater")]
+
 pub mod platform;
 #[cfg(feature = "updater")]
 pub mod process;

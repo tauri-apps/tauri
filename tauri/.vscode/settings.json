@@ -1,0 +1,5 @@
+{
+    "rust.features": [
+        "development"
+    ]
+}

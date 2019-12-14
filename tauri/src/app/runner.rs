@@ -14,7 +14,7 @@ pub(crate) fn run(application: &mut crate::App) {
 
   #[cfg(feature = "updater")]
   {
-    thread::spawn(|| {
+    std::thread::spawn(|| {
       crate::command::spawn_relative_command(
         "updater".to_string(),
         Vec::new(),

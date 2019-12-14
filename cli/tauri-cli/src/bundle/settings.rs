@@ -15,6 +15,7 @@ pub enum PackageType {
   OsxBundle,
   #[cfg(feature = "ios")]
   IosBundle,
+  #[cfg(target_os = "windows")]
   WindowsMsi,
   Deb,
   Rpm,
@@ -31,6 +32,7 @@ impl PackageType {
       "deb" => Some(PackageType::Deb),
       #[cfg(feature = "ios")]
       "ios" => Some(PackageType::IosBundle),
+      #[cfg(target_os = "windows")]
       "msi" => Some(PackageType::WindowsMsi),
       "osx" => Some(PackageType::OsxBundle),
       "rpm" => Some(PackageType::Rpm),
@@ -47,6 +49,7 @@ impl PackageType {
       PackageType::Deb => "deb",
       #[cfg(feature = "ios")]
       PackageType::IosBundle => "ios",
+      #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => "msi",
       PackageType::OsxBundle => "osx",
       PackageType::Rpm => "rpm",
@@ -66,6 +69,7 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::Deb,
   #[cfg(feature = "ios")]
   PackageType::IosBundle,
+  #[cfg(target_os = "windows")]
   PackageType::WindowsMsi,
   PackageType::OsxBundle,
   PackageType::Rpm,
@@ -341,7 +345,7 @@ impl Settings {
         #[cfg(feature = "ios")]
         "ios" => Ok(vec![PackageType::IosBundle]),
         "linux" => Ok(vec![PackageType::Deb]), // TODO: Do Rpm too, once it's implemented.
-
+        #[cfg(target_os = "windows")]
         "windows" => Ok(vec![PackageType::WindowsMsi]),
         os => bail!("Native {} bundles not yet supported.", os),
       }

@@ -3,7 +3,7 @@ use std::env;
 
 fn main() {
   let var = if cfg!(feature = "development") {
-    String::from("../examples/gatsby/themed-site")
+    Ok(String::from("../examples/gatsby/themed-site"))
   } else {
     env::var("TAURI_DIST_DIR")
   };

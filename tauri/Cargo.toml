@@ -20,22 +20,23 @@ threadpool = "1.7"
 rand = "0.7"
 zip = "0.5.3"
 tempdir = "0.3"
-semver = "0.9"
 tempfile = "3"
 either = "1.5.3"
 tar = "0.4"
 flate2 = "1"
-sysinfo = "0.10"
-webbrowser = "0.5.2"
 uuid = { version = "0.8.1", features = ["v4"] }
 lazy_static = "1.4.0"
 includedir = "0.5.0"
 tiny_http = "0.6"
 clap = {version = "2.33", features = ["yaml"]}
 
+
+semver = {version = "0.9", option = true }
 reqwest = {version = "0.9", optional = true }
 hyper-old-types = {version = "0.11.0", optional = true }
 pbr = {version = "1", optional = true }
+sysinfo = {version = "0.10", optional = true }
+webbrowser = {version = "0.5.2", optional = true }
 
 [build-dependencies]
 includedir_codegen = "0.5.0"

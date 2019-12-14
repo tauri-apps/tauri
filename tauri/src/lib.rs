@@ -17,19 +17,23 @@ pub mod dir;
 pub mod event;
 pub mod file;
 pub mod file_system;
-#[cfg(feature = "updater")]
-pub mod http;
+
 pub mod platform;
 pub mod process;
 pub mod rpc;
 pub mod salt;
+pub mod tcp;
+
 #[cfg(feature = "embedded-server")]
 pub mod server;
-pub mod tcp;
+
+#[cfg(feature = "updater")]
+pub mod http;
 #[cfg(feature = "updater")]
 pub mod updater;
-
+#[cfg(feature = "updater")]
 pub mod version;
+
 pub use app::*;
 
 use web_view::*;

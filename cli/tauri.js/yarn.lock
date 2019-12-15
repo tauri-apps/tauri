@@ -326,10 +326,10 @@
   resolved "https://registry.npmjs.org/@sindresorhus/is/-/is-0.7.0.tgz#9a06f4f137ee84d7df0460c1fdb1135ffa6c50fd"
   integrity sha512-ONhaKPIufzzrlNbqtWFFd+jlnemX6lJAgq9ZeiZtS7I1PIf/la7CW4m83rTXRnVnsMbW2k56pGYu7AUFJD9Pow==
 
-"@tauri-apps/toml@2.2.3":
-  version "2.2.3"
-  resolved "https://registry.npmjs.org/@tauri-apps/toml/-/toml-2.2.3.tgz#88cdebed2ae3944734aa8ecccce4834fffb8bc83"
-  integrity sha512-90BIlU465RLt/643N+obkJVRjagkIJMVNV7NGK7K34ku4IPRLyDYPrIz1hspyKjlhs5g1K3KD7XJMTS6GFMvbg==
+"@tauri-apps/toml@2.2.4":
+  version "2.2.4"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/toml/-/toml-2.2.4.tgz#2b4f637aded7fc3a7302724605682c8fa3ac7505"
+  integrity sha512-NJV/pdgJObDlDWi5+MTHZ2qyNvdL0dlHqQ72nzQYXWbW1LHMPXgCJYl0pLqL1XxxLtxtInYbtVCGVAcwhGxdkw==
 
 "@types/babel__core@^7.1.0":
   version "7.1.3"

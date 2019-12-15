@@ -47,6 +47,10 @@ class Runner {
     })
     entry.generate(tauriDir, cfg)
 
+    if (!runningDevServer) {
+      await this.__parseHtml(path.resolve(appDir, devPath))
+    }
+
     this.devPath = devPath
 
     const features = runningDevServer ? ['dev-server'] : []
@@ -91,6 +95,8 @@ class Runner {
 
     generator.generate(cfg.tauri)
     entry.generate(tauriDir, cfg)
+    
+    await this.__parseHtml(cfg.build.distDir)
 
     const features = [
       cfg.tauri.embeddedServer.active ? 'embedded-server' : 'no-server'
@@ -113,6 +119,33 @@ class Runner {
         await buildFn(target)
       }
     }
+  }
+
+  __parseHtml(indexPath) {
+    const Inliner = require('inliner')
+    const jsdom = require('jsdom')
+    const { JSDOM } = jsdom
+
+    return new Promise((resolve, reject) => {
+      new Inliner(path.join(indexPath, 'index.html'), (err, html) => {
+        if (err) {
+          reject(err)
+        } else {
+          const dom = new JSDOM(html)
+          const document = dom.window.document
+          document.querySelectorAll('link').forEach(link => {
+            link.removeAttribute('rel')
+            link.removeAttribute('as')
+          })
+          const tauriScript = document.createElement('script')
+          tauriScript.text = readFileSync(path.join(tauriDir, 'tauri.js'))
+          document.body.insertBefore(tauriScript, document.body.firstChild)
+          
+          writeFileSync(path.join(indexPath, 'index.tauri.html'), dom.serialize())
+          resolve()
+        }
+      })
+    })
   }
 
   stop () {

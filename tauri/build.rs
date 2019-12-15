@@ -87,7 +87,8 @@ fn main() {
   #[cfg(feature = "no-server")]
   {
     let index_path = std::path::Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
-    tauri_src = std::fs::read_to_string(dev_path).unwrap();
+    println!("{}", format!("cargo:rerun-if-changed={:?}", index_path));
+    tauri_src = std::fs::read_to_string(index_path).unwrap();
   }
 
   file.write_all(tauri_src.as_bytes()).unwrap();

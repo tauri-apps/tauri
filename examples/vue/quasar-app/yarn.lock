@@ -963,13 +963,6 @@
 "@tauri-apps/webpack@file:../../../webpack":
   version "0.1.0"
   dependencies:
-    "@babel/generator" "^7.7.4"
-    webpack-shell-plugin "^0.5.0"
-
-"@tauri-apps/webpack@file:../../../webpack/":
-  version "0.1.0"
-  dependencies:
-    "@babel/generator" "^7.7.4"
     webpack-shell-plugin "^0.5.0"
 
 "@types/color-name@^1.1.1":

@@ -137,6 +137,7 @@ class Runner {
             link.removeAttribute('rel')
             link.removeAttribute('as')
           })
+
           const tauriScript = document.createElement('script')
           tauriScript.text = readFileSync(path.join(tauriDir, 'tauri.js'))
           document.body.insertBefore(tauriScript, document.body.firstChild)

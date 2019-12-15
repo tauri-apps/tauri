@@ -10,6 +10,14 @@
 <script>
 import { uid } from 'quasar'
 
+function __onTauriInit (cb) {
+  if (window.tauri) {
+    cb()
+  } else {
+    window.onTauriInit = cb
+  }
+}
+
 export default {
   name: 'HelloWorld',
   data () {
@@ -18,11 +26,11 @@ export default {
     }
   },
   mounted () {
-    window.onTauriInit = () => {
+    __onTauriInit(() => {
       window.tauri.listen('reply', res => {
         this.msg = res.payload.msg
       })
-    }
+    })
   },
   methods: {
     // set up an event listener

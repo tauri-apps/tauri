@@ -46,17 +46,16 @@ pub(crate) fn run(application: &mut crate::App) {
 
   #[cfg(feature = "embedded-server")]
   {
-    let server_url = include_str!(concat!(env!("TAURI_DIST_DIR"), "/tauri.server"));
     std::thread::spawn(move || {
       let server = tiny_http::Server::http(
-        server_url
+        tauri_src
           .clone()
           .replace("http://", "")
           .replace("https://", ""),
       )
       .expect(&format!(
         "Could not start embedded server with the specified url: {}",
-        server_url
+        tauri_src
       ));
       for request in server.incoming_requests() {
         let mut url = request.url().to_string();

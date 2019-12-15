@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate serde_derive;
 
+#[cfg(feature = "updater")]
 #[macro_use]
 mod macros;
 
@@ -19,6 +20,7 @@ pub mod file;
 pub mod file_system;
 #[cfg(feature = "updater")]
 pub mod http;
+#[cfg(feature = "updater")]
 pub mod platform;
 pub mod process;
 pub mod rpc;

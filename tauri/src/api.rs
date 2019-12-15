@@ -160,7 +160,6 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
                 } else {
                   let asset_bytes = &asset_str.unwrap().into_owned();
                   let asset_script = std::str::from_utf8(asset_bytes).unwrap();
-                  println!("{}", asset_script);
                   _webview.eval(&asset_script)
                 }
               })

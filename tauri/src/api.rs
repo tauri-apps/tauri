@@ -16,27 +16,20 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
               _webview
                 .eval(&format!(
                   "window['{queue}'] = [];
-                  window['{fn}'] = function (payload, salt, ignoreQueue) {{
-                    window.tauri.promisified({{
-                      cmd: 'validateSalt',
-                      salt: salt
-                    }}).then(function () {{
-                      const listeners = (window['{listeners}'] && window['{listeners}'][payload.type]) || []
+                  window['{fn}'] = function (payload, ignoreQueue) {{
+                    const listeners = (window['{listeners}'] && window['{listeners}'][payload.type]) || []
+                    if (!ignoreQueue && listeners.length === 0) {{
+                      window['{queue}'].push({{
+                        payload: payload
+                      }})
+                    }}
 
-                      if (!ignoreQueue && listeners.length === 0) {{
-                        window['{queue}'].push({{
-                          payload: payload,
-                          salt: salt
-                        }})
-                      }}
-
-                      for (let i = listeners.length - 1; i >= 0; i--) {{
-                        const listener = listeners[i]
-                        if (listener.once)
-                          listeners.splice(i, 1)
-                        listener.handler(payload)
-                      }}
-                    }})
+                    for (let i = listeners.length - 1; i >= 0; i--) {{
+                      const listener = listeners[i]
+                      if (listener.once)
+                        listeners.splice(i, 1)
+                      listener.handler(payload)
+                    }}
                   }}",
                   fn = crate::event::emit_function_name(),
                   listeners = crate::event::event_listeners_object_name(),
@@ -47,8 +40,7 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
                 Ok(())
             })
             .unwrap();
-
-        },
+        }
         #[cfg(any(feature = "all-api", feature = "readTextFile"))]
         ReadTextFile {
           path,
@@ -136,9 +128,9 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
                   once: {once_flag}
                 }});
 
-                for (let i = 0; i < window['{queue}'].length; i++) {{
+                for (let i = 0; i < (window['{queue}'] || []).length; i++) {{
                   const e = window['{queue}'][i];
-                  window['{emit}'](e.payload, e.salt, true)
+                  window['{emit}'](e.payload, true)
                 }}
               ",
               listeners = crate::event::event_listeners_object_name(),
@@ -153,6 +145,28 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
         #[cfg(any(feature = "all-api", feature = "answer"))]
         Emit { event, payload } => {
           crate::event::on_event(event, payload);
+        },
+        LoadAsset { asset, callback, error } => {
+          println!("loading asset named {}", asset);
+          let handle = webview.handle();
+          crate::execute_promise(
+            webview,
+            move || {
+              handle.dispatch(move |_webview| {
+                let asset_str = std::fs::read_to_string(format!("{}/{}", env!("TAURI_DIST_DIR"), asset));
+                if asset_str.is_err() {
+                  Err(web_view::Error::Custom(Box::new("Asset not found")))
+                } else {
+                  let asset_script = asset_str.unwrap();
+                  _webview.eval(&asset_script)
+                }
+              })
+                .map_err(|err| format!("`{}`", err))
+                .map(|_| r#""Asset load successfully""#.to_string())
+            },
+            callback,
+            error
+          );
         }
       }
       true

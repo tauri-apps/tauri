@@ -69,8 +69,14 @@ pub struct Config {
   pub window: WindowConfig,
   #[serde(default = "default_embedded_server")]
   pub embedded_server: EmbeddedServerConfig,
+  #[serde(default = "default_dev_path")]
+  pub dev_path: String,
+}
+
+fn default_dev_path() -> String {
+  "".to_string()
 }
 
 pub fn get() -> Config {
-  serde_json::from_str(include_str!(concat!(env!("TAURI_CONFIG_DIR"), "/config.json"))).unwrap()
+  serde_json::from_str(include_str!(concat!(env!("TAURI_DIR"), "/config.json"))).unwrap()
 }

@@ -8,6 +8,7 @@ const
   { spawn } = require('./helpers/spawn')
 const onShutdown = require('./helpers/on-shutdown')
 const generator = require('./generator')
+const entry = require('./entry')
 const { appDir, tauriDir } = require('./helpers/app-paths')
 
 const logger = require('./helpers/logger')
@@ -38,17 +39,22 @@ class Runner {
       this.__whitelistApi(cfg, toml)
     })
 
-    generator.generate(cfg.tauri)
+    const runningDevServer = devPath.startsWith('http')
+
+    generator.generate({
+      devPath: runningDevServer ? devPath : path.resolve(appDir, devPath),
+      ...cfg.tauri
+    })
+    entry.generate(tauriDir, cfg)
 
     this.devPath = devPath
 
-    const args = ['--path', devPath.startsWith('http') ? devPath : path.resolve(appDir, devPath)]
-    const features = ['dev']
+    const features = runningDevServer ? ['dev-server'] : []
 
     const startDevTauri = () => {
       return this.__runCargoCommand({
-        cargoArgs: ['run', '--features', ...features],
-        extraArgs: args
+        cargoArgs: ['run'].concat(features.length ? ['--features', ...features] : []),
+        dev: true
       })
     }
 
@@ -84,15 +90,14 @@ class Runner {
     })
 
     generator.generate(cfg.tauri)
+    entry.generate(tauriDir, cfg)
 
-    const features = []
-    if (cfg.tauri.embeddedServer.active) {
-      features.push('embedded-server')
-    }
+    const features = [
+      cfg.tauri.embeddedServer.active ? 'embedded-server' : 'no-server'
+    ]
 
     const buildFn = target => this.__runCargoCommand({
-      cargoArgs: [cfg.tauri.bundle.active ? 'tauri-cli' : 'build']
-        .concat(features.length ? ['--features', ...features] : [])
+      cargoArgs: [cfg.tauri.bundle.active ? 'tauri-cli' : 'build', '--features', ...features]
         .concat(cfg.ctx.debug ? [] : ['--release'])
         .concat(target ? ['--target', target] : [])
     })
@@ -119,7 +124,8 @@ class Runner {
 
   __runCargoCommand ({
     cargoArgs,
-    extraArgs
+    extraArgs,
+    dev = false
   }) {
     return new Promise(resolve => {
       this.pid = spawn(
@@ -142,7 +148,7 @@ class Runner {
           if (this.killPromise) {
             this.killPromise()
             this.killPromise = null
-          } else if (cargoArgs.some(arg => arg === 'dev')) { // else it wasn't killed by us
+          } else if (dev) {
             warn()
             warn('Cargo process was killed. Exiting...')
             warn()

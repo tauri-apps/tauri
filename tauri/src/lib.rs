@@ -25,7 +25,6 @@ pub mod rpc;
 pub mod salt;
 #[cfg(feature = "embedded-server")]
 pub mod server;
-pub mod tcp;
 #[cfg(feature = "updater")]
 pub mod updater;
 

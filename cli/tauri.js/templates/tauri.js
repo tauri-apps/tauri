@@ -8,8 +8,6 @@
  *
  **/
 
-// open <a href="..."> links with the Tauri API
-
 /**
  * @module tauri
  * @description This API interface makes powerful interactions available
@@ -26,7 +24,7 @@ function s4() {
     .substring(1)
 }
 
-const uid = function () {
+var uid = function () {
   return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
     s4() + '-' + s4() + s4() + s4()
 }
@@ -63,7 +61,6 @@ window.tauri = {
      */
   <% } %>
   invoke: function invoke(args) {
-    Object.freeze(args);
     window.external.invoke(JSON.stringify(args));
   },
 
@@ -81,7 +78,7 @@ window.tauri = {
     this.invoke({
       cmd: 'listen',
       event: event,
-      handler: this.transformCallback(handler, once),
+      handler: window.tauri.transformCallback(handler, once),
       once: once
     });
   },
@@ -366,28 +363,50 @@ window.tauri = {
     <% } %>
   },
 
-  <% if (ctx.dev) { %>
-  /**
-   * @name setup
-   * @description Inform Rust that the webview has initialized and is
-   * ready for communication
-     */
-  <% } %>
-  setup: function setup() {
-    document.querySelector('body').addEventListener('click', function (e) {
-      var target = e.target;
-
-      while (target != null) {
-        if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
-          tauri.open(target.href);
-          break;
-        }
-
-        target = target.parentElement;
-      }
-    }, true);
-    window.tauri.invoke({
-      cmd: 'init'
-    });
+  loadAsset: function loadAsset(assetName) {
+    return this.promisified({
+      cmd: 'loadAsset',
+      asset: assetName
+    })
   }
 };
+
+window.addEventListener('message', function (event) {
+  event.data.type === 'tauri-callback' && window[event.data.callback](event.data.payload)
+  if (event.data.type === 'tauri-asset') {
+    var script = document.createElement('script')
+    alert(event.data.payload.substring(event.data.payload.length - 500))
+    script.text = event.data.payload
+    document.getElementsByTagName('head')[0].appendChild(script)
+  }
+})
+
+// init tauri API
+
+window.tauri.invoke({
+  cmd: 'init'
+})
+
+function __initTauri () {
+  if (window.onTauriInit !== void 0) {
+    window.onTauriInit()
+  }
+}
+
+window.addEventListener('load', function () {
+  setTimeout(__initTauri)
+}, true)
+
+window.addEventListener('DOMContentLoaded', function () {
+  // open <a href="..."> links with the Tauri API
+  document.querySelector('body').addEventListener('click', function (e) {
+    var target = e.target
+    while (target != null) {
+      if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
+        window.tauri.open(target.href)
+        break
+      }
+      target = target.parentElement
+    }
+  }, true)
+}, true)

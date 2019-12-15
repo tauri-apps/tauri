@@ -3,7 +3,7 @@
 extern crate serde_derive;
 extern crate serde_json;
 
-#[cfg(feature = "embedded-server")]
+#[cfg(any(feature = "embedded-server", feature = "no-server"))]
 use includedir_codegen::Compression;
 
 use std::env;
@@ -34,14 +34,10 @@ fn main() {
     };
   }
 
-  #[cfg(feature = "embedded-server")]
+  #[cfg(any(feature = "embedded-server", feature = "no-server"))]
   {
     match env::var("TAURI_DIST_DIR") {
       Ok(dist_path) => {
-        let index_path = std::path::Path::new(&dist_path).join("index.tauri.html");
-        let mut index_file = std::fs::File::create(&index_path).unwrap();
-        index_file.write_all(parse_dist_html().as_bytes()).unwrap();
-
         // include assets
         includedir_codegen::start("ASSETS")
           .dir(dist_path, Compression::None)
@@ -50,7 +46,8 @@ fn main() {
       }
       Err(_e) => panic!("Build error: Couldn't find ENV: {}", _e),
     }
-
+  }
+  #[cfg(feature = "embedded-server")] {
     // define URL
     let port;
     let port_valid;

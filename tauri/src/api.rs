@@ -2,6 +2,8 @@ mod cmd;
 
 use web_view::WebView;
 
+include!(concat!(env!("OUT_DIR"), "/data.rs"));
+
 #[allow(unused_variables)]
 pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
   use cmd::Cmd::*;
@@ -147,17 +149,18 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
           crate::event::on_event(event, payload);
         },
         LoadAsset { asset, callback, error } => {
-          println!("loading asset named {}", asset);
           let handle = webview.handle();
           crate::execute_promise(
             webview,
             move || {
               handle.dispatch(move |_webview| {
-                let asset_str = std::fs::read_to_string(format!("{}/{}", env!("TAURI_DIST_DIR"), asset));
+                let asset_str = ASSETS.get(&format!("{}/{}", env!("TAURI_DIST_DIR"), asset));
                 if asset_str.is_err() {
                   Err(web_view::Error::Custom(Box::new("Asset not found")))
                 } else {
-                  let asset_script = asset_str.unwrap();
+                  let asset_bytes = &asset_str.unwrap().into_owned();
+                  let asset_script = std::str::from_utf8(asset_bytes).unwrap();
+                  println!("{}", asset_script);
                   _webview.eval(&asset_script)
                 }
               })

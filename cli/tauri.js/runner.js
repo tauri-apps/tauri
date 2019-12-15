@@ -40,16 +40,18 @@ class Runner {
     })
 
     const runningDevServer = devPath.startsWith('http')
+    let inlinedAssets = []
+
+    if (!runningDevServer) {
+      inlinedAssets = await this.__parseHtml(path.resolve(appDir, devPath))
+    }
 
     generator.generate({
       devPath: runningDevServer ? devPath : path.resolve(appDir, devPath),
+      inlinedAssets,
       ...cfg.tauri
     })
     entry.generate(tauriDir, cfg)
-
-    if (!runningDevServer) {
-      await this.__parseHtml(path.resolve(appDir, devPath))
-    }
 
     this.devPath = devPath
 
@@ -93,10 +95,14 @@ class Runner {
       this.__whitelistApi(cfg, toml)
     })
 
-    generator.generate(cfg.tauri)
+    const inlinedAssets = await this.__parseHtml(cfg.build.distDir)
+
+    generator.generate({
+      inlinedAssets,
+      ...cfg.tauri
+    })
     entry.generate(tauriDir, cfg)
     
-    await this.__parseHtml(cfg.build.distDir)
 
     const features = [
       cfg.tauri.embeddedServer.active ? 'embedded-server' : 'no-server'
@@ -121,13 +127,14 @@ class Runner {
     }
   }
 
-  __parseHtml(indexPath) {
+  __parseHtml (indexDir) {
     const Inliner = require('inliner')
     const jsdom = require('jsdom')
     const { JSDOM } = jsdom
-
+    const inlinedAssets = []
+    
     return new Promise((resolve, reject) => {
-      new Inliner(path.join(indexPath, 'index.html'), (err, html) => {
+      new Inliner(path.join(indexDir, 'index.html'), (err, html) => {
         if (err) {
           reject(err)
         } else {
@@ -142,9 +149,12 @@ class Runner {
           tauriScript.text = readFileSync(path.join(tauriDir, 'tauri.js'))
           document.body.insertBefore(tauriScript, document.body.firstChild)
           
-          writeFileSync(path.join(indexPath, 'index.tauri.html'), dom.serialize())
-          resolve()
+          writeFileSync(path.join(indexDir, 'index.tauri.html'), dom.serialize())
+          resolve(inlinedAssets)
         }
+      }).on('progress', event => {
+        const match = event.match(/([\S\d]+)\.([\S\d]+)/g)
+        match && inlinedAssets.push(match[0])
       })
     })
   }

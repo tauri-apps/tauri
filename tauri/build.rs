@@ -1,17 +1,14 @@
-#[cfg(not(feature = "no-server"))]
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
 
-#[cfg(any(feature = "embedded-server", feature = "no-server"))]
-use includedir_codegen::Compression;
-
 use std::env;
 use std::io::Write;
 
-#[cfg(not(feature = "no-server"))]
 #[path = "src/config.rs"]
 mod config;
+#[cfg(any(feature = "embedded-server", feature = "no-server"))]
+pub mod includedir_codegen;
 #[cfg(feature = "embedded-server")]
 mod tcp;
 
@@ -21,7 +18,6 @@ fn main() {
   let mut file = std::fs::File::create(&dest_path).unwrap();
 
   let tauri_src: String;
-  #[cfg(not(feature = "no-server"))]
   let config = config::get();
 
   #[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
@@ -40,14 +36,15 @@ fn main() {
       Ok(dist_path) => {
         // include assets
         includedir_codegen::start("ASSETS")
-          .dir(dist_path, Compression::None)
-          .build("data.rs")
+          .dir(dist_path, includedir_codegen::Compression::None)
+          .build("data.rs", config.inlined_assets)
           .unwrap()
       }
       Err(_e) => panic!("Build error: Couldn't find ENV: {}", _e),
     }
   }
-  #[cfg(feature = "embedded-server")] {
+  #[cfg(feature = "embedded-server")]
+  {
     // define URL
     let port;
     let port_valid;

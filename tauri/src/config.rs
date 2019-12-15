@@ -71,6 +71,12 @@ pub struct Config {
   pub embedded_server: EmbeddedServerConfig,
   #[serde(default = "default_dev_path")]
   pub dev_path: String,
+  #[serde(default = "default_inlined_assets")]
+  pub inlined_assets: Vec<String>,
+}
+
+fn default_inlined_assets() -> Vec<String> {
+  Vec::new()
 }
 
 fn default_dev_path() -> String {

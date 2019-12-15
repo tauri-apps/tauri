@@ -4,7 +4,8 @@
   "description": "Webpack configuration for Tauri.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "lint-fix": "eslint --fix ./plugins/*.js ./*.js",
+    "lint:lockfile": "lockfile-lint --path yarn.lock --type yarn --validate-https --allowed-hosts npm yarn"
   },
   "repository": {
     "type": "git",
@@ -22,5 +23,17 @@
   "homepage": "https://github.com/tauri-apps/tauri#readme",
   "dependencies": {
     "webpack-shell-plugin": "^0.5.0"
+  },
+  "devDependencies": {
+    "eslint": "6.7.2",
+    "eslint-config-standard": "14.1.0",
+    "eslint-plugin-import": "2.19.1",
+    "eslint-plugin-lodash-template": "0.15.0",
+    "eslint-plugin-node": "10.0.0",
+    "eslint-plugin-promise": "4.2.1",
+    "eslint-plugin-security": "1.4.0",
+    "eslint-plugin-standard": "4.0.1",
+    "lint-staged": "9.5.0",
+    "lockfile-lint": "3.0.3"
   }
 }

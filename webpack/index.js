@@ -5,7 +5,7 @@ module.exports.chain = function (chain, { automaticStart = false } = {}) {
   if (automaticStart) {
     chain.plugin('webpack-shell-plugin')
       .use(WebpackShellPlugin, [{
-        onBuildEnd: [ cfg.ctx.prod ? `tauri build` : `tauri dev` ]
+        onBuildEnd: [process.env.NODE_ENV === 'production' ? 'tauri build' : 'tauri dev']
       }])
   }
 

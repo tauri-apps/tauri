@@ -131,7 +131,7 @@ jobs:
       run: cargo build
       env:
         TAURI_DIST_DIR: ../../test/fixture/dist
-        TAURI_DIR: ../test/fixture/
+        TAURI_DIR: ../test/fixture
     - run: cargo install --path ./cli/tauri-cli --force
     - name: install cli deps via yarn
       run: |

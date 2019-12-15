@@ -18,20 +18,26 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
               _webview
                 .eval(&format!(
                   "window['{queue}'] = [];
-                  window['{fn}'] = function (payload, ignoreQueue) {{
-                    const listeners = (window['{listeners}'] && window['{listeners}'][payload.type]) || []
-                    if (!ignoreQueue && listeners.length === 0) {{
-                      window['{queue}'].push({{
-                        payload: payload
-                      }})
-                    }}
+                  window['{fn}'] = function (payload, salt, ignoreQueue) {{
+                     window.tauri.promisified({{
+                      cmd: 'validateSalt',
+                      salt: salt
+                    }}).then(function () {{
+                      const listeners = (window['{listeners}'] && window['{listeners}'][payload.type]) || []
+                      if (!ignoreQueue && listeners.length === 0) {{
+                        window['{queue}'].push({{
+                          payload: payload,
+                          salt: salt
+                        }})
+                      }}
 
-                    for (let i = listeners.length - 1; i >= 0; i--) {{
-                      const listener = listeners[i]
-                      if (listener.once)
-                        listeners.splice(i, 1)
-                      listener.handler(payload)
-                    }}
+                      for (let i = listeners.length - 1; i >= 0; i--) {{
+                        const listener = listeners[i]
+                        if (listener.once)
+                          listeners.splice(i, 1)
+                        listener.handler(payload)
+                      }}
+                    }})
                   }}",
                   fn = crate::event::emit_function_name(),
                   listeners = crate::event::event_listeners_object_name(),
@@ -132,7 +138,7 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
 
                 for (let i = 0; i < (window['{queue}'] || []).length; i++) {{
                   const e = window['{queue}'][i];
-                  window['{emit}'](e.payload, true)
+                  window['{emit}'](e.payload, e.salt, true)
                 }}
               ",
               listeners = crate::event::event_listeners_object_name(),

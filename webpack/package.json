@@ -14,7 +14,7 @@
     "tauri",
     "webpack"
   ],
-  "author": "Lucas Nogueira <lucasfernandesnog@gmail.com>",
+  "author": "Lucas Nogueira <lucas@quasar.dev>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/tauri-apps/tauri/issues"

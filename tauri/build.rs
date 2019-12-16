@@ -7,7 +7,7 @@ use std::io::Write;
 
 #[path = "src/config.rs"]
 mod config;
-#[cfg(any(feature = "embedded-server", feature = "no-server"))]
+#[cfg(not(feature = "dev-server"))]
 pub mod includedir_codegen;
 #[cfg(feature = "embedded-server")]
 mod tcp;
@@ -30,7 +30,7 @@ fn main() {
     };
   }
 
-  #[cfg(any(feature = "embedded-server", feature = "no-server"))]
+  #[cfg(not(feature = "dev-server"))]
   {
     match env::var("TAURI_DIST_DIR") {
       Ok(dist_path) => {

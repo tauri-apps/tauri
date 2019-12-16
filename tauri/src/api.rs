@@ -2,6 +2,7 @@ mod cmd;
 
 use web_view::WebView;
 
+#[cfg(not(feature = "dev-server"))]
 include!(concat!(env!("OUT_DIR"), "/data.rs"));
 
 #[allow(unused_variables)]
@@ -159,27 +160,30 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
           callback,
           error,
         } => {
-          let handle = webview.handle();
-          crate::execute_promise(
-            webview,
-            move || {
-              handle
-                .dispatch(move |_webview| {
-                  let asset_str = ASSETS.get(&format!("{}/{}", env!("TAURI_DIST_DIR"), asset));
-                  if asset_str.is_err() {
-                    Err(web_view::Error::Custom(Box::new("Asset not found")))
-                  } else {
-                    let asset_bytes = &asset_str.unwrap().into_owned();
-                    let asset_script = std::str::from_utf8(asset_bytes).unwrap();
-                    _webview.eval(&asset_script)
-                  }
-                })
-                .map_err(|err| format!("`{}`", err))
-                .map(|_| r#""Asset load successfully""#.to_string())
-            },
-            callback,
-            error,
-          );
+          #[cfg(not(feature = "dev-server"))]
+          {
+            let handle = webview.handle();
+            crate::execute_promise(
+              webview,
+              move || {
+                handle
+                  .dispatch(move |_webview| {
+                    let asset_str = ASSETS.get(&format!("{}/{}", env!("TAURI_DIST_DIR"), asset));
+                    if asset_str.is_err() {
+                      Err(web_view::Error::Custom(Box::new("Asset not found")))
+                    } else {
+                      let asset_bytes = &asset_str.unwrap().into_owned();
+                      let asset_script = std::str::from_utf8(asset_bytes).unwrap();
+                      _webview.eval(&asset_script)
+                    }
+                  })
+                  .map_err(|err| format!("`{}`", err))
+                  .map(|_| r#""Asset load successfully""#.to_string())
+              },
+              callback,
+              error,
+            );
+          }
         }
       }
       true

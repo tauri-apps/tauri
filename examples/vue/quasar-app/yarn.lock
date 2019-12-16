@@ -955,11 +955,12 @@
   resolved "https://registry.npmjs.org/@sindresorhus/is/-/is-0.7.0.tgz#9a06f4f137ee84d7df0460c1fdb1135ffa6c50fd"
   integrity sha512-ONhaKPIufzzrlNbqtWFFd+jlnemX6lJAgq9ZeiZtS7I1PIf/la7CW4m83rTXRnVnsMbW2k56pGYu7AUFJD9Pow==
 
-"@tauri-apps/tauri-webpack@^0.1.0":
-  version "0.1.0"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/tauri-webpack/-/tauri-webpack-0.1.0.tgz#37e5571f5441b7918a822414cc8cc339e85cda41"
-  integrity sha512-Z8nARd3lQAh5LK2dL8LAlf67ghNU7tqOGvoutYimkSDdaVgpZz2Zckd7uLzjshygu7ZXwxzrarDMwAPunycsRA==
+"@tauri-apps/tauri-webpack@^0.1.2":
+  version "0.1.2"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/tauri-webpack/-/tauri-webpack-0.1.2.tgz#908c438ea3ad86ff2e077b4d7f2a4ba8c8731300"
+  integrity sha512-kY2J6eHdPRsrQlHvMZ4VAXMGaKUejCLvt9EmCBrAMCMpDBTw22ypP/SbMRiNEeIebpL7xVl3vHkdUB59W6buvA==
   dependencies:
+    webpack-chain "^6.2.0"
     webpack-shell-plugin "0.5.0"
 
 "@tauri-apps/toml@2.2.3":
@@ -5517,7 +5518,7 @@ isurl@^1.0.0-alpha5:
     has-to-string-tag-x "^1.2.0"
     is-object "^1.0.1"
 
-javascript-stringify@^2.0.0:
+javascript-stringify@^2.0.0, javascript-stringify@^2.0.1:
   version "2.0.1"
   resolved "https://registry.npmjs.org/javascript-stringify/-/javascript-stringify-2.0.1.tgz#6ef358035310e35d667c675ed63d3eb7c1aa19e5"
   integrity sha512-yV+gqbd5vaOYjqlbk16EG89xB5udgjqQF3C5FAORDg4f/IS1Yc5ERCv5e/57yBcfJYw05V5JyIXabhwb75Xxow==
@@ -9881,6 +9882,14 @@ webpack-chain@6.0.0:
   dependencies:
     deepmerge "^1.5.2"
     javascript-stringify "^2.0.0"
+
+webpack-chain@^6.2.0:
+  version "6.2.0"
+  resolved "https://registry.yarnpkg.com/webpack-chain/-/webpack-chain-6.2.0.tgz#bcea7b0ad5feae6845d70e6fd7a048953f8ae77c"
+  integrity sha512-Kt/TCt6p4sL8YJ49m6/mMkU1gkGJUMu/6yevWbWnaHYTdKc7U6hNAm0d9RSdLIN28CGonmYD5FkABqE1UuNTTw==
+  dependencies:
+    deepmerge "^1.5.2"
+    javascript-stringify "^2.0.1"
 
 webpack-dev-middleware@^3.7.2:
   version "3.7.2"

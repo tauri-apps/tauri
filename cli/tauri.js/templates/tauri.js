@@ -377,15 +377,9 @@ window.tauri.invoke({
   cmd: 'init'
 })
 
-function __initTauri () {
-  if (window.onTauriInit !== void 0) {
-    window.onTauriInit()
-  }
+if (window.onTauriInit !== void 0) {
+  window.onTauriInit()
 }
-
-window.addEventListener('load', function () {
-  setTimeout(__initTauri)
-}, true)
 
 window.addEventListener('DOMContentLoaded', function () {
   // open <a href="..."> links with the Tauri API

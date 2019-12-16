@@ -44,6 +44,13 @@ pub(crate) fn run(application: &mut crate::App) {
     .build()
     .unwrap();
 
+  #[cfg(feature = "dev-server")]
+  webview.handle()
+    .dispatch(|_webview| {
+      _webview.eval(include_str!(concat!(env!("TAURI_DIR"), "/tauri.js")))
+    })
+    .unwrap();
+
   #[cfg(feature = "embedded-server")]
   {
     std::thread::spawn(move || {

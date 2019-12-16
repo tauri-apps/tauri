@@ -2,7 +2,7 @@ mod cmd;
 
 use web_view::WebView;
 
-#[cfg(not(feature = "dev-server"))]
+#[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
 include!(concat!(env!("OUT_DIR"), "/data.rs"));
 
 #[allow(unused_variables)]
@@ -160,7 +160,7 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
           callback,
           error,
         } => {
-          #[cfg(not(feature = "dev-server"))]
+          #[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
           {
             let handle = webview.handle();
             crate::execute_promise(

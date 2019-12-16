@@ -65,6 +65,7 @@ pub enum Cmd {
   },
   LoadAsset {
     asset: String,
+    asset_type: String,
     callback: String,
     error: String,
   },

@@ -363,10 +363,11 @@ window.tauri = {
     <% } %>
   },
 
-  loadAsset: function loadAsset(assetName) {
+  loadAsset: function loadAsset(assetName, assetType) {
     return this.promisified({
       cmd: 'loadAsset',
-      asset: assetName
+      asset: assetName,
+      asset_type: assetType || 'unknown'
     })
   }
 };
@@ -380,6 +381,20 @@ window.tauri.invoke({
 if (window.onTauriInit !== void 0) {
   window.onTauriInit()
 }
+
+document.addEventListener('error', function (e) {
+  var target = e.target
+  while (target != null) {
+    if (target.matches ? target.matches('img') : target.msMatchesSelector('img')) {
+      window.tauri.loadAsset(target.src, 'image')
+        .then(img => {
+          target.src = img
+        }).catch(alert)
+      break
+    }
+    target = target.parentElement
+  }
+}, true)
 
 window.addEventListener('DOMContentLoaded', function () {
   // open <a href="..."> links with the Tauri API

@@ -8,7 +8,7 @@ use std::io::Write;
 #[path = "src/config.rs"]
 mod config;
 #[cfg(not(feature = "dev-server"))]
-pub mod includedir_codegen;
+extern crate tauri_includedir_codegen;
 #[cfg(feature = "embedded-server")]
 mod tcp;
 
@@ -35,8 +35,8 @@ fn main() {
     match env::var("TAURI_DIST_DIR") {
       Ok(dist_path) => {
         // include assets
-        includedir_codegen::start("ASSETS")
-          .dir(dist_path, includedir_codegen::Compression::None)
+        tauri_includedir_codegen::start("ASSETS")
+          .dir(dist_path, tauri_includedir_codegen::Compression::None)
           .build("data.rs", config.inlined_assets)
           .unwrap()
       }

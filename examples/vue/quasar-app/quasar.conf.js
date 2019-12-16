@@ -77,9 +77,7 @@ module.exports = function (ctx) {
       },
 
       chainWebpack (chain) {
-        require('@tauri-apps/tauri-webpack').chain(chain, {
-          tauriLazyLoading: !ctx.dev
-        })
+        require('@tauri-apps/tauri-webpack').chain(chain)
       }
     },
 

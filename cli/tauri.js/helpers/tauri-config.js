@@ -18,9 +18,7 @@ module.exports = cfg => {
   const pkg = require(pkgPath)
 
   const config = merge({
-    build: {
-      distDir: './dist'
-    },
+    build: {},
     ctx: {},
     tauri: {
       embeddedServer: {

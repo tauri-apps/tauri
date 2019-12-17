@@ -164,7 +164,6 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
           #[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
           {
             let handle = webview.handle();
-            println!("{}", asset_type);
             crate::execute_promise(
               webview,
               move || {

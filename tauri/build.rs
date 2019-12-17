@@ -26,6 +26,7 @@ fn main() {
       config.dev_path
     } else {
       let dev_path = std::path::Path::new(&config.dev_path).join("index.tauri.html");
+      println!("{}", format!("cargo:rerun-if-changed={:?}", dev_path));
       std::fs::read_to_string(dev_path).unwrap()
     };
   }

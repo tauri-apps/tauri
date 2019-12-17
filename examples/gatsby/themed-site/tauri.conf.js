@@ -5,7 +5,7 @@ module.exports = function () {
   return {
     build: {
       distDir: distDir,
-      devPath: 'http://localhost:8000' // devServer URL or path to html file
+      devPath: 'http://localhost:8000' // devServer URL or html dir
     },
     ctx: {},
     tauri: {
@@ -25,9 +25,6 @@ module.exports = function () {
         csp: 'default-src data: filesystem: ws: http: https: \'unsafe-eval\' \'unsafe-inline\''
       },
       edge: {
-        active: true
-      },
-      automaticStart: {
         active: true
       }
     }

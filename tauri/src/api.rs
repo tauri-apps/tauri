@@ -2,6 +2,9 @@ mod cmd;
 
 use web_view::WebView;
 
+#[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
+include!(concat!(env!("OUT_DIR"), "/data.rs"));
+
 #[allow(unused_variables)]
 pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
   use cmd::Cmd::*;
@@ -17,12 +20,11 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
                 .eval(&format!(
                   "window['{queue}'] = [];
                   window['{fn}'] = function (payload, salt, ignoreQueue) {{
-                    window.tauri.promisified({{
+                     window.tauri.promisified({{
                       cmd: 'validateSalt',
                       salt: salt
                     }}).then(function () {{
                       const listeners = (window['{listeners}'] && window['{listeners}'][payload.type]) || []
-
                       if (!ignoreQueue && listeners.length === 0) {{
                         window['{queue}'].push({{
                           payload: payload,
@@ -47,8 +49,7 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
                 Ok(())
             })
             .unwrap();
-
-        },
+        }
         #[cfg(any(feature = "all-api", feature = "readTextFile"))]
         ReadTextFile {
           path,
@@ -136,7 +137,7 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
                   once: {once_flag}
                 }});
 
-                for (let i = 0; i < window['{queue}'].length; i++) {{
+                for (let i = 0; i < (window['{queue}'] || []).length; i++) {{
                   const e = window['{queue}'][i];
                   window['{emit}'](e.payload, e.salt, true)
                 }}
@@ -153,6 +154,46 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
         #[cfg(any(feature = "all-api", feature = "answer"))]
         Emit { event, payload } => {
           crate::event::on_event(event, payload);
+        }
+        LoadAsset {
+          asset,
+          asset_type,
+          callback,
+          error,
+        } => {
+          #[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
+          {
+            let handle = webview.handle();
+            crate::execute_promise(
+              webview,
+              move || {
+                let read_asset = ASSETS.get(&format!("{}{}{}", env!("TAURI_DIST_DIR"), if asset.starts_with("/") { "" } else { "/" }, asset));
+                if read_asset.is_err() {
+                  return Err(r#""Asset not found""#.to_string());
+                }
+
+                if asset_type == "image" {
+                  let ext = if asset.ends_with("gif") {
+                    "gif"
+                  } else if asset.ends_with("png") {
+                    "png"
+                  } else {
+                    "jpeg"
+                  };
+                  Ok(format!("`data:image/{};base64,{}`", ext, base64::encode(&read_asset.unwrap().into_owned())))
+                } else {
+                  handle
+                    .dispatch(move |_webview| {
+                      _webview.eval(&std::str::from_utf8(&read_asset.unwrap().into_owned()).unwrap())
+                    })
+                    .map_err(|err| format!("`{}`", err))
+                    .map(|_| r#""Asset loaded successfully""#.to_string())
+                }
+              },
+              callback,
+              error,
+            );
+          }
         }
       }
       true

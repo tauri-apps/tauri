@@ -1,6 +1,6 @@
 use std::sync::Mutex;
-use web_view::WebView;
 use uuid::Uuid;
+use web_view::WebView;
 
 struct Salt {
   value: String,

@@ -18,9 +18,7 @@ module.exports = cfg => {
   const pkg = require(pkgPath)
 
   const config = merge({
-    build: {
-      distDir: './dist'
-    },
+    build: {},
     ctx: {},
     tauri: {
       embeddedServer: {
@@ -38,11 +36,6 @@ module.exports = cfg => {
       security: {
         csp: 'default-src data: filesystem: ws: http: https: \'unsafe-eval\' \'unsafe-inline\''
       },
-      automaticStart: {
-        active: false,
-        devArgs: [],
-        buildArgs: []
-      },
       edge: {
         active: true
       }
@@ -50,7 +43,7 @@ module.exports = cfg => {
   }, tauriConf, cfg)
 
   process.env.TAURI_DIST_DIR = appPaths.resolve.app(config.build.distDir)
-  process.env.TAURI_CONFIG_DIR = appPaths.tauriDir
+  process.env.TAURI_DIR = appPaths.tauriDir
 
   return config
 }

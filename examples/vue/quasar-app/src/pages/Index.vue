@@ -8,8 +8,15 @@
 </template>
 
 <script>
-require('../../src-tauri/tauri.js')
 import { uid } from 'quasar'
+
+function __onTauriInit (cb) {
+  if (window.tauri) {
+    cb()
+  } else {
+    window.onTauriInit = cb
+  }
+}
 
 export default {
   name: 'HelloWorld',
@@ -19,10 +26,11 @@ export default {
     }
   },
   mounted () {
-    window.tauri.setup()
-    window.tauri.listen('reply', res => {
-      this.msg = res.payload.msg
-    }, false)
+    __onTauriInit(() => {
+      window.tauri.listen('reply', res => {
+        this.msg = res.payload.msg
+      })
+    })
   },
   methods: {
     // set up an event listener

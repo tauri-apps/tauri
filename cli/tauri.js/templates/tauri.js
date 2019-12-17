@@ -8,8 +8,6 @@
  *
  **/
 
-// open <a href="..."> links with the Tauri API
-
 /**
  * @module tauri
  * @description This API interface makes powerful interactions available
@@ -26,7 +24,7 @@ function s4() {
     .substring(1)
 }
 
-const uid = function () {
+var uid = function () {
   return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
     s4() + '-' + s4() + s4() + s4()
 }
@@ -63,7 +61,6 @@ window.tauri = {
      */
   <% } %>
   invoke: function invoke(args) {
-    Object.freeze(args);
     window.external.invoke(JSON.stringify(args));
   },
 
@@ -81,7 +78,7 @@ window.tauri = {
     this.invoke({
       cmd: 'listen',
       event: event,
-      handler: this.transformCallback(handler, once),
+      handler: window.tauri.transformCallback(handler, once),
       once: once
     });
   },
@@ -366,28 +363,49 @@ window.tauri = {
     <% } %>
   },
 
-  <% if (ctx.dev) { %>
-  /**
-   * @name setup
-   * @description Inform Rust that the webview has initialized and is
-   * ready for communication
-     */
-  <% } %>
-  setup: function setup() {
-    document.querySelector('body').addEventListener('click', function (e) {
-      var target = e.target;
-
-      while (target != null) {
-        if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
-          tauri.open(target.href);
-          break;
-        }
-
-        target = target.parentElement;
-      }
-    }, true);
-    window.tauri.invoke({
-      cmd: 'init'
-    });
+  loadAsset: function loadAsset(assetName, assetType) {
+    return this.promisified({
+      cmd: 'loadAsset',
+      asset: assetName,
+      asset_type: assetType || 'unknown'
+    })
   }
 };
+
+// init tauri API
+
+window.tauri.invoke({
+  cmd: 'init'
+})
+
+if (window.onTauriInit !== void 0) {
+  window.onTauriInit()
+}
+
+document.addEventListener('error', function (e) {
+  var target = e.target
+  while (target != null) {
+    if (target.matches ? target.matches('img') : target.msMatchesSelector('img')) {
+      window.tauri.loadAsset(target.src, 'image')
+        .then(img => {
+          target.src = img
+        }).catch(alert)
+      break
+    }
+    target = target.parentElement
+  }
+}, true)
+
+window.addEventListener('DOMContentLoaded', function () {
+  // open <a href="..."> links with the Tauri API
+  document.querySelector('body').addEventListener('click', function (e) {
+    var target = e.target
+    while (target != null) {
+      if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
+        window.tauri.open(target.href)
+        break
+      }
+      target = target.parentElement
+    }
+  }, true)
+}, true)

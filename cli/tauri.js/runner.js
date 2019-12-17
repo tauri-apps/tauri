@@ -8,6 +8,7 @@ const
   { spawn } = require('./helpers/spawn')
 const onShutdown = require('./helpers/on-shutdown')
 const generator = require('./generator')
+const entry = require('./entry')
 const { appDir, tauriDir } = require('./helpers/app-paths')
 
 const logger = require('./helpers/logger')
@@ -38,17 +39,28 @@ class Runner {
       this.__whitelistApi(cfg, toml)
     })
 
-    generator.generate(cfg.tauri)
+    const runningDevServer = devPath.startsWith('http')
+    let inlinedAssets = []
+
+    if (!runningDevServer) {
+      inlinedAssets = await this.__parseHtml(path.resolve(appDir, devPath))
+    }
+
+    generator.generate({
+      devPath: runningDevServer ? devPath : path.resolve(appDir, devPath),
+      inlinedAssets,
+      ...cfg.tauri
+    })
+    entry.generate(tauriDir, cfg)
 
     this.devPath = devPath
 
-    const args = ['--path', devPath.startsWith('http') ? devPath : path.resolve(appDir, devPath)]
-    const features = ['dev']
+    const features = runningDevServer ? ['dev-server'] : []
 
     const startDevTauri = () => {
       return this.__runCargoCommand({
-        cargoArgs: ['run', '--features', ...features],
-        extraArgs: args
+        cargoArgs: ['run'].concat(features.length ? ['--features', ...features] : []),
+        dev: true
       })
     }
 
@@ -69,7 +81,7 @@ class Runner {
       .on('change', debounce(async (path) => {
         await this.__stopCargo()
         if (path.includes('tauri.conf.js')) {
-          this.run(require('./helpers/tauri-config')(cfg.ctx))
+          this.run(require('./helpers/tauri-config')({ ctx: cfg.ctx }))
         } else {
           startDevTauri()
         }
@@ -83,16 +95,21 @@ class Runner {
       this.__whitelistApi(cfg, toml)
     })
 
-    generator.generate(cfg.tauri)
+    const inlinedAssets = await this.__parseHtml(cfg.build.distDir)
 
-    const features = []
-    if (cfg.tauri.embeddedServer.active) {
-      features.push('embedded-server')
-    }
+    generator.generate({
+      inlinedAssets,
+      ...cfg.tauri
+    })
+    entry.generate(tauriDir, cfg)
+    
+
+    const features = [
+      cfg.tauri.embeddedServer.active ? 'embedded-server' : 'no-server'
+    ]
 
     const buildFn = target => this.__runCargoCommand({
-      cargoArgs: [cfg.tauri.bundle.active ? 'tauri-cli' : 'build']
-        .concat(features.length ? ['--features', ...features] : [])
+      cargoArgs: [cfg.tauri.bundle.active ? 'tauri-cli' : 'build', '--features', ...features]
         .concat(cfg.ctx.debug ? [] : ['--release'])
         .concat(target ? ['--target', target] : [])
     })
@@ -110,6 +127,38 @@ class Runner {
     }
   }
 
+  __parseHtml (indexDir) {
+    const Inliner = require('inliner')
+    const jsdom = require('jsdom')
+    const { JSDOM } = jsdom
+    const inlinedAssets = []
+    
+    return new Promise((resolve, reject) => {
+      new Inliner(path.join(indexDir, 'index.html'), (err, html) => {
+        if (err) {
+          reject(err)
+        } else {
+          const dom = new JSDOM(html)
+          const document = dom.window.document
+          document.querySelectorAll('link').forEach(link => {
+            link.removeAttribute('rel')
+            link.removeAttribute('as')
+          })
+
+          const tauriScript = document.createElement('script')
+          tauriScript.text = readFileSync(path.join(tauriDir, 'tauri.js'))
+          document.body.insertBefore(tauriScript, document.body.firstChild)
+          
+          writeFileSync(path.join(indexDir, 'index.tauri.html'), dom.serialize())
+          resolve(inlinedAssets)
+        }
+      }).on('progress', event => {
+        const match = event.match(/([\S\d]+)\.([\S\d]+)/g)
+        match && inlinedAssets.push(match[0])
+      })
+    })
+  }
+
   stop () {
     return new Promise((resolve, reject) => {
       this.tauriWatcher && this.tauriWatcher.close()
@@ -119,7 +168,8 @@ class Runner {
 
   __runCargoCommand ({
     cargoArgs,
-    extraArgs
+    extraArgs,
+    dev = false
   }) {
     return new Promise(resolve => {
       this.pid = spawn(
@@ -142,7 +192,7 @@ class Runner {
           if (this.killPromise) {
             this.killPromise()
             this.killPromise = null
-          } else if (cargoArgs.some(arg => arg === 'dev')) { // else it wasn't killed by us
+          } else if (dev) {
             warn()
             warn('Cargo process was killed. Exiting...')
             warn()

@@ -7,7 +7,8 @@ module.exports = config => {
     merge(
       {
         ctx: {
-          debug: true
+          debug: true,
+          dev: true
         }
       },
       config

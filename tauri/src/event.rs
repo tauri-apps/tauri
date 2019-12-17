@@ -34,7 +34,7 @@ pub fn listen<F: FnMut(String) + 'static>(id: &'static str, handler: F) {
       id.to_string(),
       EventHandler {
         on_event: Box::new(handler),
-      }
+      },
     );
   });
 }

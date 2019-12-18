@@ -41,7 +41,7 @@
   "dependencies": {
     "@tauri-apps/toml": "2.2.4",
     "chalk": "3.0.0",
-    "chokidar": "3.3.0",
+    "chokidar": "3.3.1",
     "cross-spawn": "7.0.1",
     "fast-glob": "3.1.1",
     "fs-extra": "8.1.0",

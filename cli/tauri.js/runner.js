@@ -43,7 +43,7 @@ class Runner {
     let inlinedAssets = []
 
     if (!runningDevServer) {
-      inlinedAssets = await this.__parseHtml(path.resolve(appDir, devPath))
+      inlinedAssets = await this.__parseHtml(cfg, path.resolve(appDir, devPath))
     }
 
     generator.generate({
@@ -95,7 +95,7 @@ class Runner {
       this.__whitelistApi(cfg, toml)
     })
 
-    const inlinedAssets = await this.__parseHtml(cfg.build.distDir)
+    const inlinedAssets = await this.__parseHtml(cfg, cfg.build.distDir)
 
     generator.generate({
       inlinedAssets,
@@ -127,7 +127,7 @@ class Runner {
     }
   }
 
-  __parseHtml (indexDir) {
+  __parseHtml (cfg, indexDir) {
     const Inliner = require('@tauri-apps/tauri-inliner')
     const jsdom = require('jsdom')
     const { JSDOM } = jsdom
@@ -148,7 +148,15 @@ class Runner {
           const tauriScript = document.createElement('script')
           tauriScript.text = readFileSync(path.join(tauriDir, 'tauri.js'))
           document.body.insertBefore(tauriScript, document.body.firstChild)
-          
+
+          const csp = cfg.tauri.security.csp
+          if (csp) {
+            const cspTag = document.createElement('meta')
+            cspTag.setAttribute('http-equiv', 'Content-Security-Policy')
+            cspTag.setAttribute('content', csp)
+            document.head.appendChild(cspTag)
+          }
+
           writeFileSync(path.join(indexDir, 'index.tauri.html'), dom.serialize())
           resolve(inlinedAssets)
         }

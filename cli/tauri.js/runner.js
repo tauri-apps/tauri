@@ -128,7 +128,7 @@ class Runner {
   }
 
   __parseHtml (indexDir) {
-    const Inliner = require('inliner')
+    const Inliner = require('@tauri-apps/tauri-inliner')
     const jsdom = require('jsdom')
     const { JSDOM } = jsdom
     const inlinedAssets = []

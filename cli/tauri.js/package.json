@@ -49,7 +49,7 @@
     "imagemin-optipng": "7.1.0",
     "imagemin-pngquant": "8.0.0",
     "imagemin-zopfli": "6.0.0",
-    "inliner": "^1.13.1",
+    "@tauri-apps/tauri-inliner": "1.13.2",
     "is-png": "2.0.0",
     "isbinaryfile": "4.0.2",
     "jsdom": "^15.2.1",

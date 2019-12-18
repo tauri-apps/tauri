@@ -373,10 +373,17 @@ window.tauri = {
 };
 
 // init tauri API
-
-window.tauri.invoke({
-  cmd: 'init'
-})
+try {
+  window.tauri.invoke({
+    cmd: 'init'
+  })
+} catch (e) {
+  window.addEventListener('DOMContentLoaded', function () {
+    window.tauri.invoke({
+      cmd: 'init'
+    })
+  }, true)
+}
 
 if (window.onTauriInit !== void 0) {
   window.onTauriInit()

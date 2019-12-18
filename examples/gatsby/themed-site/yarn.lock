@@ -322,7 +322,7 @@
     "@babel/helper-plugin-utils" "^7.0.0"
     "@babel/plugin-syntax-optional-catch-binding" "^7.7.4"
 
-"@babel/plugin-proposal-optional-chaining@^7.7.4":
+"@babel/plugin-proposal-optional-chaining@7.7.4":
   version "7.7.4"
   resolved "https://registry.yarnpkg.com/@babel/plugin-proposal-optional-chaining/-/plugin-proposal-optional-chaining-7.7.4.tgz#3f04c2de1a942cbd3008324df8144b9cbc0ca0ba"
   integrity sha512-JmgaS+ygAWDR/STPe3/7y0lNlHgS+19qZ9aC06nYLwQ/XB7c0q5Xs+ksFU3EDnp9EiEsO0dnRAOKeyLHTZuW3A==
@@ -5760,9 +5760,9 @@ gatsby-telemetry@^1.1.40:
     stack-utils "1.0.2"
     uuid "3.3.3"
 
-gatsby-theme-recipes@^0.0.9:
+gatsby-theme-recipes@0.0.9:
   version "0.0.9"
-  resolved "https://registry.npmjs.org/gatsby-theme-recipes/-/gatsby-theme-recipes-0.0.9.tgz#6e14a80f7ce2dec507e35928d7a96fc7fb6095fd"
+  resolved "https://registry.yarnpkg.com/gatsby-theme-recipes/-/gatsby-theme-recipes-0.0.9.tgz#6e14a80f7ce2dec507e35928d7a96fc7fb6095fd"
   integrity sha512-zF8YGd2CMKvJMgIfLx0ZxZKsFSJ5RqzUOfRyYlDdX3Ea9HxrdoKyP6icy6J3FlmhiW3HuTU1/YPzkQQCudQoAw==
   dependencies:
     isolated-theme-ui "^1.0.1"
@@ -12287,7 +12287,7 @@ tar@^5.0.5:
     mkdirp "^0.5.0"
     yallist "^4.0.0"
 
-tauri@^0.1.3:
+tauri@0.1.3:
   version "0.1.3"
   resolved "https://registry.yarnpkg.com/tauri/-/tauri-0.1.3.tgz#9c80b7a72a06ba29b7403b9c3473e82e608d11f5"
   integrity sha512-eu12PcGWSFODPTa154ttI7cao+Bd39lwC4YA6+vnivCQZocYB7JI6JGOFtexAsrO76YJt6K9fstMqNSugqs91Q==

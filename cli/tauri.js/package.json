@@ -52,7 +52,7 @@
     "@tauri-apps/tauri-inliner": "1.13.2",
     "is-png": "2.0.0",
     "isbinaryfile": "4.0.2",
-    "jsdom": "^15.2.1",
+    "jsdom": "15.2.1",
     "lodash.debounce": "4.0.8",
     "lodash.template": "4.5.0",
     "minimist": "1.2.0",

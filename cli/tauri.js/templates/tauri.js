@@ -389,7 +389,7 @@ document.addEventListener('error', function (e) {
       window.tauri.loadAsset(target.src, 'image')
         .then(img => {
           target.src = img
-        }).catch(alert)
+        })
       break
     }
     target = target.parentElement

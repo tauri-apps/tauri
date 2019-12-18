@@ -1,12 +1,13 @@
 [package]
 name = "tauri"
-version = "0.1.3"
+version = "0.2.0"
 authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>"]
 license = "MIT"
 homepage = "https://tauri-apps.org"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 edition = "2018"
+exclude = ["test/fixture/**"]
 
 [dependencies]
 web-view = "0.5.4"

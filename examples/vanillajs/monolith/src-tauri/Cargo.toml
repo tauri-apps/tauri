@@ -19,15 +19,15 @@ icon = [
 ]
 
 [dependencies]
-serde_json = "1.0.41"
+serde_json = "1.0.44"
 serde = "1.0"
 serde_derive = "1.0"
 tiny_http = "0.6"
-phf = "0.7.24"
+phf = "0.8.0"
 includedir = "0.5.0"
 
   [dependencies.tauri]
-  version = "0.1.0"
+  path = "../../../../tauri"
   features = [ "all-api", "edge" ]
 
 [features]

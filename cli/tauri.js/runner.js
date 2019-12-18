@@ -65,6 +65,7 @@ class Runner {
     }
 
     // Start watching for tauri app changes
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     this.tauriWatcher = chokidar
       .watch([
         path.join(tauriDir, 'src'),
@@ -102,7 +103,6 @@ class Runner {
       ...cfg.tauri
     })
     entry.generate(tauriDir, cfg)
-    
 
     const features = [
       cfg.tauri.embeddedServer.active ? 'embedded-server' : 'no-server'
@@ -132,7 +132,7 @@ class Runner {
     const jsdom = require('jsdom')
     const { JSDOM } = jsdom
     const inlinedAssets = []
-    
+
     return new Promise((resolve, reject) => {
       new Inliner(path.join(indexDir, 'index.html'), (err, html) => {
         if (err) {

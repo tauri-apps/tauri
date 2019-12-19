@@ -2,7 +2,7 @@ const
   chokidar = require('chokidar')
 const debounce = require('lodash.debounce')
 const path = require('path')
-const { readFileSync, writeFileSync } = require('fs-extra')
+const { readFileSync, writeFileSync, existsSync } = require('fs-extra')
 
 const
   { spawn } = require('./helpers/spawn')
@@ -134,7 +134,12 @@ class Runner {
     const inlinedAssets = []
 
     return new Promise((resolve, reject) => {
-      new Inliner(path.join(indexDir, 'index.html'), (err, html) => {
+      const distIndexPath = path.join(indexDir, 'index.html')
+      if (!existsSync(distIndexPath)) {
+        warn(`Error: cannot find index.html in "${indexDir}". Did you forget to build your web code or update the build.distDir in tauri.conf.js?`)
+        reject(new Error('Could not find index.html in dist dir.'))
+      }
+      new Inliner(distIndexPath, (err, html) => {
         if (err) {
           reject(err)
         } else {

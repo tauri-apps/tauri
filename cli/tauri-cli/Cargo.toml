@@ -23,7 +23,7 @@ msi = "0.2"
 
 serde = "1.0"
 serde_derive = "1.0"
-strsim = "0.9.2"
+strsim = "0.9.3"
 tar = "0.4"
 target_build_utils = "0.3"
 term = "0.6.1"

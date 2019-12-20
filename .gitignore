@@ -75,5 +75,5 @@ target
 /cli/tauri.js/tauri.conf.js
 
 # example specific ignores
-examples/**/.cache
-examples/**/public
+examples/gatsby/**/.cache
+examples/gatsby/**/public

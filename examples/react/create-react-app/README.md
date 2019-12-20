@@ -1,3 +1,30 @@
+## Running Example
+
+Ensure you have setup and installed all the project dependencies.
+
+```
+npm install -g tauri
+git clone https://github.com/tauri-apps/tauri
+cd examples/react/create-react-app
+yarn
+cargo install tauri-cli
+```
+
+### Development
+
+```
+yarn start & tauri dev
+```
+
+### Production
+
+```
+yarn build
+tauri build
+```
+
+# Original ReadMe
+
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts

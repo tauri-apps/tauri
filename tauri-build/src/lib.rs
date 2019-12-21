@@ -11,12 +11,13 @@ extern crate tauri_includedir_codegen;
 #[cfg(feature = "embedded-server")]
 mod tcp;
 
+#[cfg(not(feature = "test"))]
 pub fn build() {
   let out_dir = env::var("OUT_DIR").expect("Failed to find out_dir");
   let dest_path = std::path::Path::new(&out_dir).join("tauri_src");
   let mut file = std::fs::File::create(&dest_path).expect("failed to create file");
 
-  let mut tauri_src: String;
+  let tauri_src: String;
   let config = config::get_tauri_dir();
 
   #[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
@@ -88,4 +89,9 @@ pub fn build() {
   file
     .write_all(tauri_src.as_bytes())
     .expect("failed to write all");
+}
+
+#[cfg(feature = "test")]
+pub fn build() {
+  println!("You are an ass!")
 }

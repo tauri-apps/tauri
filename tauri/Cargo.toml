@@ -52,4 +52,4 @@ setTitle = ["tauri-build/setTitle"]
 execute = ["tauri-build/execute"]
 open = ["tauri-build/open"]
 emit = ["tauri-build/emit"]
-
+test  = ["tauri-build/test"]

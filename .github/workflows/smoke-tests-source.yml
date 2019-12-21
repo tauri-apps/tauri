@@ -21,8 +21,8 @@ jobs:
           - name : NextjsApp
             folder: react/next.js
             executable: app
-          - name : GatsbyThemedSite
-            folder: react/gatsby-themed-site
+          - name : VanillajsMonolithApp
+            folder: vanillajs/monolith
             executable: app
           - name: quasar-app
             folder: vue/quasar-app

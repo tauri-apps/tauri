@@ -1,0 +1,78 @@
+name: build smoke tests with prod
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  via-prod:
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 40
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+        example: [react/gatsby-themed-site, vue/quasar-app]
+        include:
+          - platform: ubuntu-latest
+            CARGO_HOME: ~/.cargo
+          - platform: macos-latest
+            CARGO_HOME: ~/.cargo
+          - platform: windows-latest
+            CARGO_HOME: ~/.cargo
+
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        fetch-depth: 3
+    - name: install rust stable
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: stable
+    - name: install webkit2gtk (ubuntu only)
+      if: matrix.platform == 'ubuntu-latest'
+      run: |
+           sudo apt-get update
+           sudo apt-get install -y webkit2gtk-4.0
+    - name: cache rust bin
+      id: cache_rust_bin
+      uses: actions/cache@v1
+      with:
+        path: ${{ format('{0}/bin/', matrix.CARGO_HOME) }}
+        key: ${{ runner.OS }}-build-bin-${{ hashFiles('**/Cargo.lock') }}-
+    - name: cache rust registry/index
+      id: cache_rust_reg_index
+      uses: actions/cache@v1
+      with:
+        path: ${{ format('{0}/registry/index/', matrix.CARGO_HOME) }}
+        key: ${{ runner.OS }}-build-reg-index-${{ hashFiles('**/Cargo.lock') }}-
+    - name: cache rust registry/cache
+      id: cache_rust_reg_cache
+      uses: actions/cache@v1
+      with:
+        path: ${{ format('{0}/registry/cache/', matrix.CARGO_HOME) }}
+        key: ${{ runner.OS }}-build-reg-cache-${{ hashFiles('**/Cargo.lock') }}-
+    - run: cargo install tauri-cli --force
+      # if we pull from cache, this will be skipped, but force just in case cache has an issue but it does exist
+      if: steps.cache_rust_bin.outputs.cache-hit != 'true' || steps.cache_rust_reg_index.outputs.cache-hit != 'true' || steps.cache_rust_reg_cache.outputs.cache-hit != 'true'
+    - name: cache node modules
+      uses: actions/cache@v1
+      with:
+        path: ${{ format('examples/{0}/node_modules', matrix.example) }}
+        key: ${{ runner.OS }}-build-${{ hashFiles(format('examples/{0}/yarn.lock', matrix.example)) }}
+        restore-keys: ${{ runner.OS }}-build-${{ env.cache-name }}-
+    - name: install via yarn
+      run: |
+           cd ./examples/${{ matrix.example }}
+           yarn
+    - name: build example
+      env:
+        EXAMPLE_GATSBY_AIRTABLE_API_KEY: ${{ secrets.EXAMPLE_GATSBY_AIRTABLE_API_KEY }}
+      run: |
+           cd ./examples/${{ matrix.example }}
+           yarn build
+    - name: yarn tauri build
+      run: |
+           cd ./examples/${{ matrix.example }}
+           yarn tauri:prod:build

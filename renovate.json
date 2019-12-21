@@ -1,6 +1,7 @@
 {
   "extends": ["config:base"],
   "schedule": "after 3am on Wednesday",
+  "rebaseConflictedPrs": false,
   "ignorePaths": [],
   "enabledManagers": ["cargo", "npm"],
   "cargo": {
@@ -16,7 +17,8 @@
         "enabled": true
       },
       "prPriority": -1,
-      "automerge": true
+      "automerge": true,
+      "rebaseConflictedPrs": true
     },
     {
       "paths": ["examples/vue/**"],
@@ -27,7 +29,8 @@
         "enabled": true
       },
       "prPriority": -1,
-      "automerge": true
+      "automerge": true,
+      "rebaseConflictedPrs": true
     },
     {
       "paths": ["examples/vanillajs/**"],
@@ -38,7 +41,8 @@
         "enabled": true
       },
       "prPriority": -1,
-      "automerge": true
+      "automerge": true,
+      "rebaseConflictedPrs": true
     }
   ]
 }

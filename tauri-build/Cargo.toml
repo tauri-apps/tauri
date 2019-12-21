@@ -9,15 +9,25 @@ description = "Make tiny, secure apps for all desktop platforms with Tauri"
 edition = "2018"
 exclude = ["test/fixture/**"]
 
-
 [dependencies]
-tauri_includedir_codegen = "0.5.1"
 serde_json = "1.0.44"
 serde = "1.0"
 serde_derive = "1.0"
 rand = "0.7"
 web-view = "0.5.4"
+tauri_includedir = "0.5.0"
+phf = "0.8.0"
+base64 = "0.11.0"
+webbrowser = "0.5.2"
+lazy_static = "1.4.0"
+uuid = { version = "0.8.1", features = ["v4"] }
+tauri = { path = "../tauri" }
 
+[build-dependencies]
+tauri_includedir_codegen = "0.5.1"
+serde_json = "1.0.44"
+serde = "1.0"
+serde_derive = "1.0"
 
 [features]
 edge = ["web-view/edge"]

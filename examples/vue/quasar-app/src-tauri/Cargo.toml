@@ -27,15 +27,16 @@ serde_derive = "1.0"
 tiny_http = "0.6"
 phf = "0.8.0"
 includedir = "0.5.0"
+tauri = { path = "../../../../tauri" }
 
-  [dependencies.tauri]
-  path = "../../../../tauri"
+  [dependencies.tauri-build]
+  path = "../../../../tauri-build"
   features = [ "all-api", "edge" ]
 
 [features]
-dev-server = [ "tauri/dev-server" ]
-embedded-server = [ "tauri/embedded-server" ]
-no-server = [ "tauri/no-server" ]
+dev-server = [ "tauri-build/dev-server" ]
+embedded-server = [ "tauri-build/embedded-server" ]
+no-server = [ "tauri-build/no-server" ]
 
 [[bin]]
 name = "app"

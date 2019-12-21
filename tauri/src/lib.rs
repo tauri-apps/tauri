@@ -1,18 +1,13 @@
 #[macro_use]
 extern crate serde_derive;
 
-#[macro_use]
-extern crate lazy_static;
-
 extern crate web_view;
 
 pub mod command;
 pub mod dir;
-pub mod event;
 pub mod file;
 pub mod file_system;
 pub mod rpc;
-pub mod salt;
 
 pub mod version;
 

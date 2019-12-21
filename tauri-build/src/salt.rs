@@ -48,7 +48,7 @@ pub fn validate<T: 'static>(
   callback: String,
   error: String,
 ) {
-  crate::execute_promise(
+  tauri::execute_promise(
     webview,
     move || {
       if is_valid(salt) {

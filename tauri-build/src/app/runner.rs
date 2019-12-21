@@ -1,12 +1,58 @@
 pub(crate) fn run(application: &mut crate::App) {
   let debug = cfg!(debug_assertions);
-  let config = crate::config::get();
-  let tauri_src = include_str!(concat!(env!("OUT_DIR"), "/tauri_src"));
-  let content = if tauri_src.starts_with("http://") || tauri_src.starts_with("https://") {
-    web_view::Content::Url(tauri_src)
-  } else {
-    web_view::Content::Html(tauri_src)
-  };
+  let config = crate::config::get_tauri_dir();
+
+  let content;
+  #[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
+  {
+    content = if config.dev_path.starts_with("http") {
+      web_view::Content::Url(config.dev_path)
+    } else {
+      let dev_path = std::path::Path::new(&config.dev_path).join("index.tauri.html");
+      web_view::Content::Html(std::fs::read_to_string(dev_path).expect("failed to build index.tauri.html"))
+    };
+  }
+
+  #[cfg(feature = "embedded-server")]
+  {
+    // define URL
+    let port;
+    let port_valid;
+    if config.embedded_server.port == "random" {
+      match tcp::get_available_port() {
+        Some(available_port) => {
+          port = available_port.to_string();
+          port_valid = true;
+        }
+        None => {
+          port = "0".to_string();
+          port_valid = false;
+        }
+      }
+    } else {
+      port = config.embedded_server.port;
+      port_valid = crate::tcp::port_is_available(
+        port
+          .parse::<u16>()
+          .expect(&format!("Invalid port {}", port)),
+      );
+    }
+    if port_valid {
+      let mut url = format!("{}:{}", config.embedded_server.host, port);
+      if !url.starts_with("http") {
+        url = format!("http://{}", url);
+      }
+      content = web_view::Content::Url(url.to_string());
+    } else {
+      panic!(format!("Port {} is not valid or not open", port));
+    }
+  }
+
+  #[cfg(feature = "no-server")]
+  {
+    let index_path = std::path::Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
+    content = web_view::Content::Html(std::fs::read_to_string(index_path).expect("failed to read string"));
+  }
 
   #[cfg(feature = "updater")]
   {

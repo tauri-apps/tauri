@@ -16,7 +16,6 @@ serde = "1.0"
 serde_derive = "1.0"
 dirs = "2.0.2"
 ignore = "0.4.10"
-phf = "0.8.0"
 threadpool = "1.7"
 rand = "0.7"
 zip = "0.5.3"
@@ -27,29 +26,5 @@ either = "1.5.3"
 tar = "0.4"
 flate2 = "1"
 sysinfo = "0.10"
-webbrowser = "0.5.2"
-uuid = { version = "0.8.1", features = ["v4"] }
-lazy_static = "1.4.0"
-tauri_includedir = "0.5.0"
 tiny_http = "0.6"
-base64 = "0.11.0"
 
-[build-dependencies]
-tauri-build = { version = "0.2", path = "../tauri-build" }
-
-[features]
-edge = ["tauri-build/edge"]
-dev-server = ["tauri-build/dev-server"]
-embedded-server = ["tauri-build/embedded-server"]
-no-server = ["tauri-build/no-server"]
-all-api = ["tauri-build/all-api"]
-readTextFile = ["tauri-build/readTextFile"]
-readBinaryFile = ["tauri-build/readBinaryFile"]
-writeFile = ["tauri-build/writeFile"]
-listFiles = ["tauri-build/listFiles"]
-listDirs = ["tauri-build/listDirs"]
-setTitle = ["tauri-build/setTitle"]
-execute = ["tauri-build/execute"]
-open = ["tauri-build/open"]
-emit = ["tauri-build/emit"]
-test  = ["tauri-build/test"]

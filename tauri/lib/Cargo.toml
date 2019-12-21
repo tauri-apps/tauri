@@ -33,6 +33,8 @@ lazy_static = "1.4.0"
 tauri_includedir = "0.5.0"
 tiny_http = "0.6"
 base64 = "0.11.0"
+
+[build-dependencies]
 builder = { version = "0.2", path = "../builder" }
 
 [features]

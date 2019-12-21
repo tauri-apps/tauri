@@ -21,4 +21,4 @@ sysinfo = "0.10"
 tempdir = "0.3"
 
 
-tauri = { path = "../lib" }
+tauri = { version = "0.2", path = "../lib" }

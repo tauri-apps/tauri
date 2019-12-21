@@ -1,4 +1,4 @@
-exports.options = {
+export const options = {
   // folder determines in which path to drop the generated file
   // prefix is the first part of the generated file's name
   // infix adds e.g. '44x44' based on the size in sizes to the generated file's name
@@ -38,53 +38,35 @@ exports.options = {
       prefix: '',
       infix: true,
       suffix: '.png',
-      sizes: [
-        32, 128
-      ]
+      sizes: [32, 128]
     },
     linux_2x: {
       folder: '.',
       prefix: '128x128@2x',
       infix: false,
       suffix: '.png',
-      sizes: [
-        256
-      ]
+      sizes: [256]
     },
     defaults: {
       folder: '.',
       prefix: 'icon',
       infix: false,
       suffix: '.png',
-      sizes: [
-        512
-      ]
+      sizes: [512]
     },
     appx_logo: {
       folder: '.',
       prefix: 'StoreLogo',
       infix: false,
       suffix: '.png',
-      sizes: [
-        50
-      ]
+      sizes: [50]
     },
     appx_square: {
       folder: '.',
       prefix: 'Square',
       infix: true,
       suffix: 'Logo.png',
-      sizes: [
-        30,
-        44,
-        71,
-        89,
-        107,
-        142,
-        150,
-        284,
-        310
-      ]
+      sizes: [30, 44, 71, 89, 107, 142, 150, 284, 310]
     }
     // todo: look at capacitor and cordova for insight into what icons
     // we need for those distribution targets

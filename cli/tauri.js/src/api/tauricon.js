@@ -29,14 +29,9 @@ const settings = require('../helpers/tauricon.config.js')
 let image = false
 const spinnerInterval = false
 
-const {
-  access,
-  writeFileSync,
-  ensureDir,
-  ensureFileSync
-} = require('fs-extra')
+const { access, writeFileSync, ensureDir, ensureFileSync } = require('fs-extra')
 
-const exists = async function (file) {
+const exists = async function(file) {
   try {
     await access(file)
     return true
@@ -53,7 +48,7 @@ const exists = async function (file) {
  * @param {string} src - a folder to target
  * @exits {error} if not a png, if not an image
  */
-const checkSrc = async function (src) {
+const checkSrc = async function(src) {
   if (image !== false) {
     return image
   } else {
@@ -83,7 +78,7 @@ const checkSrc = async function (src) {
  * @param {object} options - a subset of the settings
  * @returns {array} folders
  */
-const uniqueFolders = function (options) {
+const uniqueFolders = function(options) {
   let folders = []
   for (const type in options) {
     if (options[type].folder) {
@@ -100,11 +95,11 @@ const uniqueFolders = function (options) {
  * @param {string} hex - hex colour
  * @returns {array} r,g,b
  */
-const hexToRgb = function (hex) {
+const hexToRgb = function(hex) {
   // https://stackoverflow.com/questions/5623838/rgb-to-hex-and-hex-to-rgb
   // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
   const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i
-  hex = hex.replace(shorthandRegex, function (m, r, g, b) {
+  hex = hex.replace(shorthandRegex, function(m, r, g, b) {
     return r + r + g + g + b + b
   })
 
@@ -124,7 +119,7 @@ const hexToRgb = function (hex) {
  * @param {string} target
  * @returns {Promise<void>}
  */
-const validate = async function (src, target) {
+const validate = async function(src, target) {
   if (target !== undefined) {
     await ensureDir(target)
   }
@@ -137,7 +132,7 @@ const validate = async function (src, target) {
  * @param {string} msg
  * @param {boolean} end
  */
-const progress = function (msg) {
+const progress = function(msg) {
   process.stdout.write(`  ${msg}                       \r`)
 }
 
@@ -151,7 +146,7 @@ const progress = function (msg) {
  *     clearInterval(spinnerInterval)
  * @returns {function} - the interval object
  */
-const spinner = function () {
+const spinner = function() {
   return setInterval(() => {
     process.stdout.write('/ \r')
     setTimeout(() => {
@@ -166,12 +161,12 @@ const spinner = function () {
   }, 500)
 }
 
-const tauricon = exports.tauricon = {
-  validate: async function (src, target) {
+const tauricon = (exports.tauricon = {
+  validate: async function(src, target) {
     await validate(src, target)
     return typeof image === 'object'
   },
-  version: function () {
+  version: function() {
     return require('../package.json').version
   },
   /**
@@ -181,7 +176,7 @@ const tauricon = exports.tauricon = {
    * @param {string} strategy
    * @param {object} options
    */
-  make: async function (src, target, strategy, options) {
+  make: async function(src, target, strategy, options) {
     const spinnerInterval = spinner()
     options = options || settings.options.tauri
     await this.validate(src, target)
@@ -207,10 +202,10 @@ const tauricon = exports.tauricon = {
    * @param {string} target - where to drop the images
    * @param {object} options - js object that defines path and sizes
    */
-  build: async function (src, target, options) {
+  build: async function(src, target, options) {
     await this.validate(src, target)
     const sharpSrc = sharp(src) // creates the image object
-    const buildify2 = async function (pvar) {
+    const buildify2 = async function(pvar) {
       try {
         const pngImage = sharpSrc.resize(pvar[1], pvar[1])
         if (pvar[2]) {
@@ -258,7 +253,7 @@ const tauricon = exports.tauricon = {
    * @param {string} target - where to drop the images
    * @param {object} options - js object that defines path and sizes
    */
-  splash: async function (src, splashSrc, target, options) {
+  splash: async function(src, splashSrc, target, options) {
     let output
     let block = false
     const rgb = hexToRgb(options.background_color)
@@ -280,29 +275,33 @@ const tauricon = exports.tauricon = {
         process.exit(1)
       }
       sharpSrc = sharp(src)
-      sharpSrc.extend({
-        top: 726,
-        bottom: 726,
-        left: 726,
-        right: 726,
-        background: {
-          r: rgb.r,
-          g: rgb.g,
-          b: rgb.b,
-          alpha: 1
-        }
-      })
+      sharpSrc
+        .extend({
+          top: 726,
+          bottom: 726,
+          left: 726,
+          right: 726,
+          background: {
+            r: rgb.r,
+            g: rgb.g,
+            b: rgb.b,
+            alpha: 1
+          }
+        })
         .flatten({ background: { r: rgb.r, g: rgb.g, b: rgb.b, alpha: 1 } })
     } else if (options.splashscreen_type === 'overlay') {
       sharpSrc = sharp(splashSrc)
         .flatten({ background: { r: rgb.r, g: rgb.g, b: rgb.b, alpha: 1 } })
-        .composite([{
-          input: src
-          // blend: 'multiply' <= future work, maybe just a gag
-        }])
+        .composite([
+          {
+            input: src
+            // blend: 'multiply' <= future work, maybe just a gag
+          }
+        ])
     } else if (options.splashscreen_type === 'pure') {
-      sharpSrc = sharp(splashSrc)
-        .flatten({ background: { r: rgb.r, g: rgb.g, b: rgb.b, alpha: 1 } })
+      sharpSrc = sharp(splashSrc).flatten({
+        background: { r: rgb.r, g: rgb.g, b: rgb.b, alpha: 1 }
+      })
     }
 
     const data = await sharpSrc.toBuffer()
@@ -337,7 +336,7 @@ const tauricon = exports.tauricon = {
    * @param {string} strategy - which minify strategy to use
    * @param {string} mode - singlefile or batch
    */
-  minify: async function (target, options, strategy, mode) {
+  minify: async function(target, options, strategy, mode) {
     let cmd
     const minify = settings.options.minify
     if (!minify.available.find(x => x === strategy)) {
@@ -355,7 +354,7 @@ const tauricon = exports.tauricon = {
         break
     }
 
-    const __minifier = async (pvar) => {
+    const __minifier = async pvar => {
       await imagemin([pvar[0]], {
         destination: pvar[1],
         plugins: [cmd]
@@ -372,10 +371,13 @@ const tauricon = exports.tauricon = {
         const folders = uniqueFolders(options)
         for (const n in folders) {
           log('batch minify:', folders[n])
-          await __minifier([
-            `${target}${path.sep}${folders[n]}${path.sep}*.png`,
-            `${target}${path.sep}${folders[n]}`
-          ], cmd)
+          await __minifier(
+            [
+              `${target}${path.sep}${folders[n]}${path.sep}*.png`,
+              `${target}${path.sep}${folders[n]}`
+            ],
+            cmd
+          )
         }
         break
       default:
@@ -393,7 +395,7 @@ const tauricon = exports.tauricon = {
    * @param {object} options
    * @param {string} strategy
    */
-  icns: async function (src, target, options, strategy) {
+  icns: async function(src, target, options, strategy) {
     try {
       if (!image) {
         process.exit(1)
@@ -414,7 +416,7 @@ const tauricon = exports.tauricon = {
       console.error(err)
     }
   }
-}
+})
 
 if (typeof exports !== 'undefined') {
   if (typeof module !== 'undefined' && module.exports) {

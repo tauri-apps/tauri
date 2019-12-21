@@ -1,12 +1,21 @@
-const { copySync, existsSync, removeSync } = require('fs-extra')
-const { resolve, join, normalize } = require('path')
-const copyTemplates = require('./helpers/copy-templates')
+import { copySync, existsSync, removeSync } from 'fs-extra'
+import { join, normalize, resolve } from 'path'
+import copyTemplates from './helpers/copy-templates'
+import logger from './helpers/logger'
 
-const logger = require('./helpers/logger')
 const log = logger('app:tauri', 'green')
 const warn = logger('app:tauri (template)', 'red')
 
-const injectConfFile = (injectPath, { force, logging }) => {
+const injectConfFile = (
+  injectPath: string,
+  {
+    force,
+    logging
+  }: {
+    force: false | 'conf' | 'template' | 'all'
+    logging: boolean
+  }
+): boolean | undefined => {
   const path = join(injectPath, 'tauri.conf.js')
   if (existsSync(path) && force !== 'conf' && force !== 'all') {
     warn(`tauri.conf.js found in ${path}
@@ -15,7 +24,7 @@ const injectConfFile = (injectPath, { force, logging }) => {
   } else {
     try {
       removeSync(path)
-      copySync(resolve(__dirname, './templates/tauri.conf.js'), path)
+      copySync(resolve(__dirname, '../templates/tauri.conf.js'), path)
     } catch (e) {
       if (logging) console.log(e)
       return false
@@ -25,7 +34,18 @@ const injectConfFile = (injectPath, { force, logging }) => {
   }
 }
 
-const injectTemplate = (injectPath, { force, logging, tauriPath }) => {
+const injectTemplate = (
+  injectPath: string,
+  {
+    force,
+    logging,
+    tauriPath
+  }: {
+    force: false | 'conf' | 'template' | 'all'
+    logging: boolean
+    tauriPath?: string
+  }
+): boolean | undefined => {
   const dir = normalize(join(injectPath, 'src-tauri'))
   if (existsSync(dir) && force !== 'template' && force !== 'all') {
     warn(`Tauri dir (${dir}) not empty.
@@ -33,12 +53,14 @@ Run \`tauri init --force template\` to overwrite.`)
     if (!force) return false
   }
 
-  const tauriDep = tauriPath ? `{ path = "${join('..', tauriPath, 'tauri')}" }` : null
+  const tauriDep = tauriPath
+    ? `{ path = "${join('..', tauriPath, 'tauri')}" }`
+    : null
 
   try {
     removeSync(dir)
     copyTemplates({
-      source: resolve(__dirname, './templates/src-tauri'),
+      source: resolve(__dirname, '../templates/src-tauri'),
       scope: {
         tauriDep
       },
@@ -52,16 +74,19 @@ Run \`tauri init --force template\` to overwrite.`)
   }
 }
 
-/**
- *
- * @param {string} injectPath
- * @param {string} type ['conf'|'template'|'all']
- * @param {string|boolean} [force=false] - One of[false|'conf'|'template'|'all']
- * @param {boolean} [logging=false]
- * @param {string} [tauriPath=null]
- * @returns {boolean}
- */
-const inject = (injectPath, type, { force = false, logging = false, tauriPath = null }) => {
+const inject = (
+  injectPath: string,
+  type: 'conf' | 'template' | 'all',
+  {
+    force = false,
+    logging = false,
+    tauriPath
+  }: {
+    force: false | 'conf' | 'template' | 'all'
+    logging: boolean
+    tauriPath?: string
+  }
+): boolean => {
   if (typeof type !== 'string' || typeof injectPath !== 'string') {
     warn('- internal error. Required params missing.')
     return false
@@ -75,6 +100,4 @@ const inject = (injectPath, type, { force = false, logging = false, tauriPath = 
   return true
 }
 
-module.exports = {
-  inject
-}
+export { inject }

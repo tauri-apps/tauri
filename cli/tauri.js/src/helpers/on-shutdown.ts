@@ -1,5 +1,5 @@
-module.exports = function (fn) {
-  const cleanup = () => {
+export default (fn: () => void): void => {
+  const cleanup = (): void => {
     try {
       fn()
     } finally {

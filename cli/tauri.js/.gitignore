@@ -1,3 +1,6 @@
+# Webpack output
+dist
+
 # Logs
 logs
 *.log

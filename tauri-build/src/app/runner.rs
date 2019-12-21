@@ -1,6 +1,6 @@
 pub(crate) fn run(application: &mut crate::App) {
   let debug = cfg!(debug_assertions);
-  let config = crate::config::get_tauri_dir();
+  let config = crate::config::get();
 
   let content;
   #[cfg(not(any(feature = "embedded-server", feature = "no-server")))]

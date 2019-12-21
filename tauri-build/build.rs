@@ -16,7 +16,7 @@ pub fn main() {
   {
     match std::env::var("TAURI_DIST_DIR") {
       Ok(dist_path) => {
-        let config = config::get_tauri_dir();
+        let config = config::get();
         // include assets
         tauri_includedir_codegen::start("ASSETS")
           .dir(dist_path, tauri_includedir_codegen::Compression::None)

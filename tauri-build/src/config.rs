@@ -83,7 +83,7 @@ fn default_dev_path() -> String {
   "".to_string()
 }
 
-pub fn get_tauri_dir() -> Config {
+pub fn get() -> Config {
   serde_json::from_str(include_str!(concat!(env!("TAURI_DIR"), "/config.json")))
     .expect("failed to create config.json")
 }

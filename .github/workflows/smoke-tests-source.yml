@@ -81,8 +81,6 @@ jobs:
            cd ./examples/${{ matrix.example.folder }}
            yarn
     - name: build example
-      env:
-        EXAMPLE_GATSBY_AIRTABLE_API_KEY: ${{ secrets.EXAMPLE_GATSBY_AIRTABLE_API_KEY }}
       run: |
            cd ./examples/${{ matrix.example.folder }}
            yarn build

@@ -35,21 +35,21 @@ tiny_http = "0.6"
 base64 = "0.11.0"
 
 [build-dependencies]
-builder = { version = "0.2", path = "../builder" }
+tauri-build = { version = "0.2", path = "../tauri-build" }
 
 [features]
-edge = ["builder/edge"]
-dev-server = ["builder/dev-server"]
-embedded-server = ["builder/embedded-server"]
-no-server = ["builder/no-server"]
-all-api = ["builder/all-api"]
-readTextFile = ["builder/readTextFile"]
-readBinaryFile = ["builder/readBinaryFile"]
-writeFile = ["builder/writeFile"]
-listFiles = ["builder/listFiles"]
-listDirs = ["builder/listDirs"]
-setTitle = ["builder/setTitle"]
-execute = ["builder/execute"]
-open = ["builder/open"]
-emit = ["builder/emit"]
+edge = ["tauri-build/edge"]
+dev-server = ["tauri-build/dev-server"]
+embedded-server = ["tauri-build/embedded-server"]
+no-server = ["tauri-build/no-server"]
+all-api = ["tauri-build/all-api"]
+readTextFile = ["tauri-build/readTextFile"]
+readBinaryFile = ["tauri-build/readBinaryFile"]
+writeFile = ["tauri-build/writeFile"]
+listFiles = ["tauri-build/listFiles"]
+listDirs = ["tauri-build/listDirs"]
+setTitle = ["tauri-build/setTitle"]
+execute = ["tauri-build/execute"]
+open = ["tauri-build/open"]
+emit = ["tauri-build/emit"]
 

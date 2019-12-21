@@ -15,6 +15,15 @@ jobs:
           - name : GatsbyThemedSite
             folder: react/gatsby-themed-site
             executable: gatsby-themed-site-app
+          - name : CRAApp
+            folder: react/create-react-app
+            executable: app
+          - name : NextjsApp
+            folder: react/next.js
+            executable: app
+          - name : GatsbyThemedSite
+            folder: react/gatsby-themed-site
+            executable: app
           - name: quasar-app
             folder: vue/quasar-app
             executable: app

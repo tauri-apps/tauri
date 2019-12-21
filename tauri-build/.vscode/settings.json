@@ -1,5 +1,0 @@
-{
-    "rust.features": [
-        "embedded-server",
-    ]
-}

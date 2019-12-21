@@ -93,5 +93,5 @@ pub fn build() {
 
 #[cfg(feature = "test")]
 pub fn build() {
-  println!("You are an ass!")
+  println!("This is a Test")
 }

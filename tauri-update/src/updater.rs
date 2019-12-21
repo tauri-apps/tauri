@@ -129,7 +129,7 @@ impl UpdateBuilder {
   ///
   /// ```
   /// # use tauri::updater::Update;
-  /// # fn run() -> Result<(), Box<::std::error::Error>> {
+  /// # fn run() -> Result<(), Box<dyn std::error::Error>> {
   /// Update::configure()?
   ///     .bin_path_in_archive("bin/myapp")
   /// #   .build()?;

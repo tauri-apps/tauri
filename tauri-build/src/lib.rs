@@ -16,8 +16,8 @@ pub fn build() {
   let dest_path = std::path::Path::new(&out_dir).join("tauri_src");
   let mut file = std::fs::File::create(&dest_path).expect("failed to create file");
 
-  let tauri_src: String;
-  let config = config::get();
+  let mut tauri_src: String;
+  let config = config::get_tauri_dir();
 
   #[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
   {

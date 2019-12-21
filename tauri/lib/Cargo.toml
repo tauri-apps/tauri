@@ -35,6 +35,19 @@ tiny_http = "0.6"
 base64 = "0.11.0"
 builder = { version = "0.2", path = "../builder" }
 
-
-
+[features]
+edge = ["builder/edge"]
+dev-server = ["builder/dev-server"]
+embedded-server = ["builder/embedded-server"]
+no-server = ["builder/no-server"]
+all-api = ["builder/all-api"]
+readTextFile = ["builder/readTextFile"]
+readBinaryFile = ["builder/readBinaryFile"]
+writeFile = ["builder/writeFile"]
+listFiles = ["builder/listFiles"]
+listDirs = ["builder/listDirs"]
+setTitle = ["builder/setTitle"]
+execute = ["builder/execute"]
+open = ["builder/open"]
+emit = ["builder/emit"]
 

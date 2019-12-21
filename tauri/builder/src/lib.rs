@@ -11,7 +11,7 @@ extern crate tauri_includedir_codegen;
 #[cfg(feature = "embedded-server")]
 mod tcp;
 
-fn main() {
+fn build() {
   let out_dir = env::var("OUT_DIR").expect("Failed to find out_dir");
   let dest_path = std::path::Path::new(&out_dir).join("tauri_src");
   let mut file = std::fs::File::create(&dest_path).expect("failed to create file");

@@ -1,7 +1,5 @@
 {
-  "extends": [
-    "config:base"
-  ],
+  "extends": ["config:base"],
   "schedule": "after 3am on Wednesday",
   "ignorePaths": [],
   "enabledManagers": ["cargo", "npm"],
@@ -10,14 +8,15 @@
   },
   "packageRules": [
     {
-      "paths": ["examples/gatsby/**"],
+      "paths": ["examples/react/gatsby-themed-site"],
       "groupName": "Gatsby Examples",
       "groupSlug": "allGatsby",
       "commitMessagePrefix": "chore(examples)",
       "lockFileMaintenance": {
         "enabled": true
       },
-      "prPriority": -1
+      "prPriority": -1,
+      "automerge": true
     },
     {
       "paths": ["examples/vue/**"],
@@ -27,7 +26,8 @@
       "lockFileMaintenance": {
         "enabled": true
       },
-      "prPriority": -1
+      "prPriority": -1,
+      "automerge": true
     },
     {
       "paths": ["examples/vanillajs/**"],
@@ -37,7 +37,8 @@
       "lockFileMaintenance": {
         "enabled": true
       },
-      "prPriority": -1
+      "prPriority": -1,
+      "automerge": true
     }
   ]
 }

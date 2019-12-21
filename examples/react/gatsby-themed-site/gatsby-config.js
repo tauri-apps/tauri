@@ -1,57 +1,22 @@
 module.exports = {
   siteMetadata: {
-    siteTitle: `Jacob Bolda`,
-    siteDescription: `Structural Engineer with a knack for creative solutions using code and ingenuity.`,
+    siteTitle: `Gatsby Themed Site In Tauri`,
+    siteDescription: `This is a smoke test to see that a (themed) Gatsbyjs site will work within Tauri.`,
     siteAuthor: `Jacob Bolda`,
-    siteAuthorIdentity: `Structural Engineer`,
-    siteLanding: `
-    Focusing on the intersection of tech and Structural
-    Engineering. Masters degree in Structural Engineering
-    from the Milwaukee School of Engineering, undergrad in
-    Architectural Engineering with a minor in Management,
-    and a deep understanding of software and programming.
-    Marrying that experience with problem solving and
-    systematizing is powerful.
-  `,
     siteContact: "https://twitter.com/jacobbolda",
     contactLinks: [
-      {
-        url: "mailto:me@jacobbolda.com",
-        text: "me@jacobbolda.com",
-        icon: ["far", "envelope"]
-      },
       {
         url: "https://twitter.com/jacobbolda",
         text: "@jacobbolda",
         icon: ["fab", "twitter"]
       },
       {
-        url: "https://linkedin.com/in/bolda",
-        text: "linkedin.com/in/bolda",
-        icon: ["fab", "linkedin"]
-      },
-      {
-        url: "https://github.com/jbolda",
-        text: "github.com/jbolda",
-        icon: ["fab", "github"]
-      },
-      {
-        url: "https://keybase.io/jbolda",
-        text: "keybase.io/jbolda",
-        icon: ["fab", "keybase"]
-      },
-      {
-        url: "https://angel.co/jacobbolda",
-        text: "angel.co/jacobbolda",
-        icon: ["fab", "angellist"]
-      },
-      {
-        url: "http://www.jbolda.com/photo",
-        text: "My Photographs",
-        icon: ["fas", "camera"]
+        url: "https://twitter.com/TauriApps",
+        text: "@TauriApps",
+        icon: ["fab", "twitter"]
       }
     ],
-    navLinks: [{ url: "/recipes/", text: "Our Recipes" }]
+    navLinks: [{ text: "Articles", url: "/articles/" }]
   },
   plugins: [
     {
@@ -59,6 +24,13 @@ module.exports = {
       options: {
         name: `articles`,
         path: `${__dirname}/src/articles/`
+      }
+    },
+    {
+      resolve: `gatsby-source-filesystem`,
+      options: {
+        name: `homepage`,
+        path: `${__dirname}/src/homepage/`
       }
     },
     `gatsby-plugin-theme-ui`,

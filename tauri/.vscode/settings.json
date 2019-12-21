@@ -1,0 +1,7 @@
+{
+    "rust.features": [
+        "embedded-server",
+        "edge",
+        "dev"
+    ]
+}

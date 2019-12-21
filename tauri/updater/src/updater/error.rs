@@ -1,8 +1,8 @@
-use crate::file;
 use crate::http;
-use crate::version;
 use reqwest;
 use std;
+use tauri::file;
+use tauri::version;
 use zip::result::ZipError;
 
 #[derive(Debug)]

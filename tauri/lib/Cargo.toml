@@ -1,0 +1,40 @@
+[package]
+name = "tauri"
+version = "0.2.0"
+authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>"]
+license = "MIT"
+homepage = "https://tauri-apps.org"
+repository = "https://github.com/tauri-apps/tauri"
+description = "Make tiny, secure apps for all desktop platforms with Tauri"
+edition = "2018"
+exclude = ["test/fixture/**"]
+
+[dependencies]
+web-view = "0.5.4"
+serde_json = "1.0.44"
+serde = "1.0"
+serde_derive = "1.0"
+dirs = "2.0.2"
+ignore = "0.4.10"
+phf = "0.8.0"
+threadpool = "1.7"
+rand = "0.7"
+zip = "0.5.3"
+tempdir = "0.3"
+semver = "0.9"
+tempfile = "3"
+either = "1.5.3"
+tar = "0.4"
+flate2 = "1"
+sysinfo = "0.10"
+webbrowser = "0.5.2"
+uuid = { version = "0.8.1", features = ["v4"] }
+lazy_static = "1.4.0"
+tauri_includedir = "0.5.0"
+tiny_http = "0.6"
+base64 = "0.11.0"
+builder = { path = "../builder" }
+
+
+
+

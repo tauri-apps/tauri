@@ -2,8 +2,8 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-use crate::file::{Extract, Move};
 use crate::http;
+use tauri::file::{Extract, Move};
 
 pub mod github;
 

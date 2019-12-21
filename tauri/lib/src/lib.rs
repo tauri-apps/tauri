@@ -1,37 +1,20 @@
 #[macro_use]
 extern crate serde_derive;
 
-#[cfg(feature = "updater")]
-#[macro_use]
-mod macros;
-
 #[macro_use]
 extern crate lazy_static;
 
 extern crate web_view;
 
-pub mod api;
-mod app;
 pub mod command;
-pub mod config;
 pub mod dir;
 pub mod event;
 pub mod file;
 pub mod file_system;
-#[cfg(feature = "updater")]
-pub mod http;
-#[cfg(feature = "updater")]
-pub mod platform;
-pub mod process;
 pub mod rpc;
 pub mod salt;
-#[cfg(feature = "embedded-server")]
-pub mod server;
-#[cfg(feature = "updater")]
-pub mod updater;
 
 pub mod version;
-pub use app::*;
 
 use web_view::*;
 

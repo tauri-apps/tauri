@@ -5,7 +5,6 @@ extern crate serde_json;
 use std::env;
 use std::io::Write;
 
-#[path = "src/config.rs"]
 mod config;
 #[cfg(not(feature = "dev-server"))]
 extern crate tauri_includedir_codegen;
@@ -13,9 +12,9 @@ extern crate tauri_includedir_codegen;
 mod tcp;
 
 fn main() {
-  let out_dir = env::var("OUT_DIR").unwrap();
+  let out_dir = env::var("OUT_DIR").expect("Failed to find out_dir");
   let dest_path = std::path::Path::new(&out_dir).join("tauri_src");
-  let mut file = std::fs::File::create(&dest_path).unwrap();
+  let mut file = std::fs::File::create(&dest_path).expect("failed to create file");
 
   let tauri_src: String;
   let config = config::get();
@@ -27,7 +26,7 @@ fn main() {
     } else {
       let dev_path = std::path::Path::new(&config.dev_path).join("index.tauri.html");
       println!("{}", format!("cargo:rerun-if-changed={:?}", dev_path));
-      std::fs::read_to_string(dev_path).unwrap()
+      std::fs::read_to_string(dev_path).expect("failed to build index.tauri.html")
     };
   }
 
@@ -38,10 +37,10 @@ fn main() {
         // include assets
         tauri_includedir_codegen::start("ASSETS")
           .dir(dist_path, tauri_includedir_codegen::Compression::None)
-          .build("data.rs", config.inlined_assets)
-          .unwrap()
+          .build("/data.rs", config.inlined_assets)
+          .expect("failed to build data.rs")
       }
-      Err(_e) => panic!("Build error: Couldn't find ENV: {}", _e),
+      Err(e) => panic!("Build error: Couldn't find ENV: {}", e),
     }
   }
   #[cfg(feature = "embedded-server")]
@@ -83,8 +82,10 @@ fn main() {
   {
     let index_path = std::path::Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
     println!("{}", format!("cargo:rerun-if-changed={:?}", index_path));
-    tauri_src = std::fs::read_to_string(index_path).unwrap();
+    tauri_src = std::fs::read_to_string(index_path).expect("failed to read string");
   }
 
-  file.write_all(tauri_src.as_bytes()).unwrap();
+  file
+    .write_all(tauri_src.as_bytes())
+    .expect("failed to write all");
 }

@@ -1,13 +1,13 @@
 workspace = { }
 
 [package]
-name = "GatsbyThemedSiteApp"
+name = "gatsby-themed-site-app"
 version = "0.1.0"
 description = "Gatsby themed site built by Tauri"
 author = [ "you" ]
 license = ""
 repository = ""
-default-run = "GatsbyThemedSiteApp"
+default-run = "gatsby-themed-site-app"
 edition = "2018"
 
 [package.metadata.bundle]
@@ -37,5 +37,5 @@ dev-server = [ "tauri/dev-server" ]
 embedded-server = [ "tauri/embedded-server" ]
 
 [[bin]]
-name = "GatsbyThemedSiteApp"
+name = "gatsby-themed-site-app"
 path = "src/main.rs"

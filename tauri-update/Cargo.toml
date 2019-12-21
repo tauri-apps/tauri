@@ -1,5 +1,5 @@
 [package]
-name = "updater"
+name = "tauri-update"
 version = "0.2.0"
 authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>"]
 license = "MIT"
@@ -21,4 +21,4 @@ sysinfo = "0.10"
 tempdir = "0.3"
 
 
-tauri = { version = "0.2", path = "../lib" }
+tauri = { version = "0.2", path = "../tauri" }

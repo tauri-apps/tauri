@@ -20,8 +20,10 @@ phf = "0.8.0"
 base64 = "0.11.0"
 webbrowser = "0.5.2"
 lazy_static = "1.4.0"
+tiny_http = "0.6"
+threadpool = "1.7"
 uuid = { version = "0.8.1", features = ["v4"] }
-tauri = { path = "../tauri" }
+tauri = { vesion = "0.2",  path = "../tauri" }
 
 [build-dependencies]
 tauri_includedir_codegen = "0.5.1"

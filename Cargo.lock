@@ -1997,29 +1997,17 @@ dependencies = [
 name = "tauri"
 version = "0.2.0"
 dependencies = [
- "base64 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "dirs 2.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "either 1.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "flate2 1.0.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "ignore 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "phf 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_derive 1.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_json 1.0.44 (registry+https://github.com/rust-lang/crates.io-index)",
  "sysinfo 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "tar 0.4.26 (registry+https://github.com/rust-lang/crates.io-index)",
- "tauri-build 0.2.0",
- "tauri_includedir 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempdir 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile 3.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "threadpool 1.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "tiny_http 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "uuid 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "web-view 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "webbrowser 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "zip 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2027,12 +2015,21 @@ dependencies = [
 name = "tauri-build"
 version = "0.2.0"
 dependencies = [
+ "base64 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "phf 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.44 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tauri 0.2.0",
+ "tauri_includedir 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tauri_includedir_codegen 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "threadpool 1.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tiny_http 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "uuid 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "web-view 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "webbrowser 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

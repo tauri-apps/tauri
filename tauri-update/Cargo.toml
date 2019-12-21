@@ -23,5 +23,3 @@ tempdir = "0.3"
 
 tauri = { version = "0.2", path = "../tauri" }
 
-[features]
-test = ["tauri/test"]

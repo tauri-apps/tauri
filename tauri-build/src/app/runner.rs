@@ -9,7 +9,9 @@ pub(crate) fn run(application: &mut crate::App) {
       web_view::Content::Url(config.dev_path)
     } else {
       let dev_path = std::path::Path::new(&config.dev_path).join("index.tauri.html");
-      web_view::Content::Html(std::fs::read_to_string(dev_path).expect("failed to build index.tauri.html"))
+      web_view::Content::Html(
+        std::fs::read_to_string(dev_path).expect("failed to build index.tauri.html"),
+      )
     };
   }
 
@@ -19,7 +21,7 @@ pub(crate) fn run(application: &mut crate::App) {
     let port;
     let port_valid;
     if config.embedded_server.port == "random" {
-      match tcp::get_available_port() {
+      match crate::tcp::get_available_port() {
         Some(available_port) => {
           port = available_port.to_string();
           port_valid = true;
@@ -51,7 +53,8 @@ pub(crate) fn run(application: &mut crate::App) {
   #[cfg(feature = "no-server")]
   {
     let index_path = std::path::Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
-    content = web_view::Content::Html(std::fs::read_to_string(index_path).expect("failed to read string"));
+    content =
+      web_view::Content::Html(std::fs::read_to_string(index_path).expect("failed to read string"));
   }
 
   #[cfg(feature = "updater")]
@@ -91,10 +94,9 @@ pub(crate) fn run(application: &mut crate::App) {
     .unwrap();
 
   #[cfg(feature = "dev-server")]
-  webview.handle()
-    .dispatch(|_webview| {
-      _webview.eval(include_str!(concat!(env!("TAURI_DIR"), "/tauri.js")))
-    })
+  webview
+    .handle()
+    .dispatch(|_webview| _webview.eval(include_str!(concat!(env!("TAURI_DIR"), "/tauri.js"))))
     .unwrap();
 
   #[cfg(feature = "embedded-server")]

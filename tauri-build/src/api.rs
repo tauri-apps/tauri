@@ -56,7 +56,7 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
           callback,
           error,
         } => {
-          tauri::file_system::read_text_file(webview, path, callback, error);
+          crate::file_system::read_text_file(webview, path, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "readBinaryFile"))]
         ReadBinaryFile {
@@ -64,7 +64,7 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
           callback,
           error,
         } => {
-          tauri::file_system::read_binary_file(webview, path, callback, error);
+          crate::file_system::read_binary_file(webview, path, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "writeFile"))]
         WriteFile {
@@ -73,7 +73,7 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
           callback,
           error,
         } => {
-          tauri::file_system::write_file(webview, file, contents, callback, error);
+          crate::file_system::write_file(webview, file, contents, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "listDirs"))]
         ListDirs {
@@ -81,7 +81,7 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
           callback,
           error,
         } => {
-          tauri::file_system::list_dirs(webview, path, callback, error);
+          crate::file_system::list_dirs(webview, path, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "listFiles"))]
         ListFiles {
@@ -89,7 +89,7 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
           callback,
           error,
         } => {
-          tauri::file_system::list(webview, path, callback, error);
+          crate::file_system::list(webview, path, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "setTitle"))]
         SetTitle { title } => {
@@ -102,11 +102,11 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
           callback,
           error,
         } => {
-          tauri::command::call(webview, command, args, callback, error);
+          crate::call(webview, command, args, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "open"))]
         Open { uri } => {
-          tauri::spawn(move || {
+          crate::spawn(move || {
             webbrowser::open(&uri).unwrap();
           });
         }
@@ -161,49 +161,47 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
           callback,
           error,
         } =>
+        #[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
         {
-          #[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
-          {
-            let handle = webview.handle();
-            tauri::execute_promise(
-              webview,
-              move || {
-                let read_asset = ASSETS.get(&format!(
-                  "{}{}{}",
-                  env!("TAURI_DIST_DIR"),
-                  if asset.starts_with("/") { "" } else { "/" },
-                  asset
-                ));
-                if read_asset.is_err() {
-                  return Err(r#""Asset not found""#.to_string());
-                }
+          let handle = webview.handle();
+          crate::execute_promise(
+            webview,
+            move || {
+              let read_asset = ASSETS.get(&format!(
+                "{}{}{}",
+                env!("TAURI_DIST_DIR"),
+                if asset.starts_with("/") { "" } else { "/" },
+                asset
+              ));
+              if read_asset.is_err() {
+                return Err(r#""Asset not found""#.to_string());
+              }
 
-                if asset_type == "image" {
-                  let ext = if asset.ends_with("gif") {
-                    "gif"
-                  } else if asset.ends_with("png") {
-                    "png"
-                  } else {
-                    "jpeg"
-                  };
-                  Ok(format!(
-                    "`data:image/{};base64,{}`",
-                    ext,
-                    base64::encode(&read_asset.unwrap().into_owned())
-                  ))
+              if asset_type == "image" {
+                let ext = if asset.ends_with("gif") {
+                  "gif"
+                } else if asset.ends_with("png") {
+                  "png"
                 } else {
-                  handle
-                    .dispatch(move |_webview| {
-                      _webview.eval(&std::str::from_utf8(&read_asset.unwrap().into_owned()).unwrap())
-                    })
-                    .map_err(|err| format!("`{}`", err))
-                    .map(|_| r#""Asset loaded successfully""#.to_string())
-                }
-              },
-              callback,
-              error,
-            );
-          }
+                  "jpeg"
+                };
+                Ok(format!(
+                  "`data:image/{};base64,{}`",
+                  ext,
+                  base64::encode(&read_asset.unwrap().into_owned())
+                ))
+              } else {
+                handle
+                  .dispatch(move |_webview| {
+                    _webview.eval(&std::str::from_utf8(&read_asset.unwrap().into_owned()).unwrap())
+                  })
+                  .map_err(|err| format!("`{}`", err))
+                  .map(|_| r#""Asset loaded successfully""#.to_string())
+              }
+            },
+            callback,
+            error,
+          );
         }
       }
       true

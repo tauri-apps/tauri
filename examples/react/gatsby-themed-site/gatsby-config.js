@@ -1,81 +1,3 @@
-const fs = require("fs");
-const path = require("path");
-
-const addPluginsIfAPIKeySet = !process.env.EXAMPLE_GATSBY_AIRTABLE_API_KEY
-  ? []
-  : [
-      {
-        resolve: `gatsby-source-airtable`,
-        options: {
-          apiKey: process.env.EXAMPLE_GATSBY_AIRTABLE_API_KEY,
-          tables: [
-            {
-              baseId: `appcL6Jdj7ZrhTg4q`,
-              tableName: `Recipes`,
-              tableView: `List`,
-              queryName: `Recipes`,
-              mapping: {
-                images: "fileNode",
-                ingredients: "text/markdown",
-                directions: "text/markdown"
-              },
-              separateMapTypes: true
-            }
-          ]
-        }
-      },
-      {
-        resolve: `gatsby-theme-recipes`,
-        options: {
-          sources: ["Airtable"]
-        }
-      }
-    ];
-
-if (!process.env.EXAMPLE_GATSBY_AIRTABLE_API_KEY) {
-  try {
-    const template = require.resolve(
-      "gatsby-theme-recipes/src/templates/recipeTemplate.js"
-    );
-    const main = require.resolve("gatsby-theme-recipes/src/main/recipes.js");
-    fs.renameSync(
-      template,
-      template
-        .split(".")
-        .reduce((acc, cur) => (cur === "js" ? acc + ".nojs" : acc + cur), "")
-    );
-    fs.renameSync(
-      main,
-      main
-        .split(".")
-        .reduce((acc, cur) => (cur === "js" ? acc + ".nojs" : acc + cur), "")
-    );
-  } catch (e) {
-    // no-op
-  }
-} else {
-  try {
-    const template = require.resolve(
-      "gatsby-theme-recipes/src/templates/recipeTemplate.nojs"
-    );
-    const main = require.resolve("gatsby-theme-recipes/src/main/recipes.nojs");
-    fs.renameSync(
-      template,
-      template
-        .split(".")
-        .reduce((acc, cur) => (cur === "nojs" ? acc + ".js" : acc + cur), "")
-    );
-    fs.renameSync(
-      main,
-      main
-        .split(".")
-        .reduce((acc, cur) => (cur === "nojs" ? acc + ".js" : acc + cur), "")
-    );
-  } catch (e) {
-    // no-op
-  }
-}
-
 module.exports = {
   siteMetadata: {
     siteTitle: `Jacob Bolda`,
@@ -144,7 +66,6 @@ module.exports = {
     `gatsby-transformer-sharp`,
     `@jbolda/gatsby-theme-homepage`,
     `@jbolda/gatsby-theme-articles`,
-    ...addPluginsIfAPIKeySet,
     {
       resolve: `gatsby-plugin-mdx`,
       options: {}

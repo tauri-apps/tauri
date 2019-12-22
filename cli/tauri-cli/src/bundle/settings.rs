@@ -13,11 +13,15 @@ use walkdir;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PackageType {
   OsxBundle,
+  #[cfg(feature = "ios")]
   IosBundle,
+  #[cfg(target_os = "windows")]
   WindowsMsi,
   Deb,
   Rpm,
+  #[cfg(feature = "appimage")]
   AppImage,
+  #[cfg(feature = "dmg")]
   Dmg,
 }
 
@@ -26,11 +30,15 @@ impl PackageType {
     // Other types we may eventually want to support: apk
     match name {
       "deb" => Some(PackageType::Deb),
+      #[cfg(feature = "ios")]
       "ios" => Some(PackageType::IosBundle),
+      #[cfg(target_os = "windows")]
       "msi" => Some(PackageType::WindowsMsi),
       "osx" => Some(PackageType::OsxBundle),
       "rpm" => Some(PackageType::Rpm),
+      #[cfg(feature = "appimage")]
       "appimage" => Some(PackageType::AppImage),
+      #[cfg(feature = "dmg")]
       "dmg" => Some(PackageType::Dmg),
       _ => None,
     }
@@ -39,11 +47,15 @@ impl PackageType {
   pub fn short_name(&self) -> &'static str {
     match *self {
       PackageType::Deb => "deb",
+      #[cfg(feature = "ios")]
       PackageType::IosBundle => "ios",
+      #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => "msi",
       PackageType::OsxBundle => "osx",
       PackageType::Rpm => "rpm",
+      #[cfg(feature = "appimage")]
       PackageType::AppImage => "appimage",
+      #[cfg(feature = "dmg")]
       PackageType::Dmg => "dmg",
     }
   }
@@ -55,7 +67,9 @@ impl PackageType {
 
 const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::Deb,
+  #[cfg(feature = "ios")]
   PackageType::IosBundle,
+  #[cfg(target_os = "windows")]
   PackageType::WindowsMsi,
   PackageType::OsxBundle,
   PackageType::Rpm,
@@ -328,8 +342,10 @@ impl Settings {
       };
       match target_os {
         "macos" => Ok(vec![PackageType::OsxBundle]),
+        #[cfg(feature = "ios")]
         "ios" => Ok(vec![PackageType::IosBundle]),
         "linux" => Ok(vec![PackageType::Deb]), // TODO: Do Rpm too, once it's implemented.
+        #[cfg(target_os = "windows")]
         "windows" => Ok(vec![PackageType::WindowsMsi]),
         os => bail!("Native {} bundles not yet supported.", os),
       }

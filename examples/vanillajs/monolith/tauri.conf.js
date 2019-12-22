@@ -16,15 +16,20 @@ module.exports = function () {
         active: true
       },
       whitelist: {
-        all: true
+        all: false
       },
       window: {
         title: 'Tauri App'
       },
       security: {
         csp: 'default-src data: filesystem: ws: http: https: \'unsafe-eval\' \'unsafe-inline\''
+      },
+      edge: {
+        active: true
+      },
+      automaticStart: {
+        active: true
       }
-    },
-    edge: true
+    }
   }
 }

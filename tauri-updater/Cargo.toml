@@ -1,5 +1,5 @@
 [package]
-name = "tauri-update"
+name = "tauri-updater"
 version = "0.2.0"
 authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
 license = "MIT"

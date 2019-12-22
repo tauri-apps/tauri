@@ -3,7 +3,7 @@ mod cmd;
 use web_view::WebView;
 
 #[allow(unused_variables)]
-pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
+pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
     Err(_) => false,

@@ -5,10 +5,10 @@ extern crate serde_derive;
 extern crate serde_json;
 
 fn main() {
-  tauri_build::AppBuilder::new()
+  tauri::AppBuilder::new()
     .setup(|_webview| {
       let handle = _webview.handle();
-      tauri_build::event::listen("hello", move |msg| {
+      tauri::event::listen("hello", move |msg| {
         #[derive(Serialize)]
         pub struct Reply {
           pub msg: String,
@@ -20,7 +20,7 @@ fn main() {
           rep: "something else".to_string()
         };
 
-        tauri_build::event::emit(&handle, "reply",  serde_json::to_string(&reply).unwrap());
+        tauri::event::emit(&handle, "reply",  serde_json::to_string(&reply).unwrap());
 
         println!("Message from emit:hello => {}", msg);
       });

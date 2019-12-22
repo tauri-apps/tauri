@@ -1,7 +1,7 @@
 use web_view::WebView;
 
-use tauri::dir;
-use tauri::file;
+use tauri_api::dir;
+use tauri_api::file;
 
 use std::fs::File;
 use std::io::Write;

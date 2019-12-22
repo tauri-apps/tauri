@@ -260,7 +260,7 @@ class Runner {
       tomlFeatures.push('edge')
     }
 
-    tomlContents.dependencies['tauri-build'].features = tomlFeatures
+    tomlContents.dependencies.tauri.features = tomlFeatures
   }
 }
 

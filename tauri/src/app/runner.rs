@@ -82,7 +82,7 @@ pub(crate) fn run(application: &mut crate::App) {
     .debug(debug)
     .user_data(())
     .invoke_handler(|webview, arg| {
-      if !crate::api::handler(webview, arg) {
+      if !crate::endpoints::handle(webview, arg) {
         application.run_invoke_handler(webview, arg);
       }
       // the first command is always the `init`, so we can safely run the setup hook here

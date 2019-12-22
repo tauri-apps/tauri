@@ -10,7 +10,9 @@ pub mod config;
 pub mod event;
 pub mod server;
 
+#[allow(dead_code)]
 mod file_system;
+#[allow(dead_code)]
 mod salt;
 
 #[cfg(feature = "embedded-server")]

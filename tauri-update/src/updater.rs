@@ -3,7 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::http;
-use tauri::file::{Extract, Move};
+use tauri_api::file::{Extract, Move};
 
 pub mod github;
 

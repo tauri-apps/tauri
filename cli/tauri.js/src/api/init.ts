@@ -1,6 +1,6 @@
 import { inject } from '../template'
 
-export default (args: {
+module.exports = (args: {
   directory: string
   force: false | 'conf' | 'template' | 'all'
   logging: boolean

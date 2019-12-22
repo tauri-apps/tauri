@@ -20,6 +20,6 @@ if (argv.help) {
   process.exit(0)
 }
 
-const build = require('../dist/build').default
+const build = require('../dist/build')
 
 build({ ctx: { debug: argv.debug } })

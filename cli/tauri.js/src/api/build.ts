@@ -6,7 +6,7 @@ import { tauriDir } from '../helpers/app-paths'
 import getTauriConfig from '../helpers/tauri-config'
 import Runner from '../runner'
 
-export default async (config: TauriConfig): Promise<void> => {
+module.exports = async (config: TauriConfig): Promise<void> => {
   // TODO: why is this being passed?
   // @ts-ignore
   const tauri = new Runner({ modeDir: tauriDir })

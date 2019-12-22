@@ -2,10 +2,10 @@
   "compilerOptions": {
     "outDir": "./dist/",
     "strict": true,
-    "module": "es6",
+    "module": "commonjs",
     "target": "es5",
     "allowJs": true,
-    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
     "moduleResolution": "node",
     "baseUrl": ".",
     "paths": {

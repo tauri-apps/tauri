@@ -1,8 +1,4 @@
-use web_view::WebView;
-
 use std::process::{Child, Command, Stdio};
-
-use crate::execute_promise;
 
 pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> Result<String, String> {
   Command::new(cmd)
@@ -56,23 +52,4 @@ pub fn spawn_relative_command(
 ) -> Result<Child, std::io::Error> {
   let cmd = relative_command(command)?;
   Ok(Command::new(cmd).args(args).stdout(stdout).spawn()?)
-}
-
-pub fn call<T: 'static>(
-  webview: &mut WebView<'_, T>,
-  command: String,
-  args: Vec<String>,
-  callback: String,
-  error: String,
-) {
-  execute_promise(
-    webview,
-    || {
-      get_output(command, args, Stdio::piped())
-        .map_err(|err| format!("`{}`", err))
-        .map(|output| format!("`{}`", output))
-    },
-    callback,
-    error,
-  );
 }

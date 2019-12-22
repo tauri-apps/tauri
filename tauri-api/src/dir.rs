@@ -2,6 +2,7 @@ use tempfile;
 
 mod utils;
 use ignore::Walk;
+use serde::Serialize;
 use std::fs;
 use std::fs::metadata;
 use utils::get_dir_name_from_path;

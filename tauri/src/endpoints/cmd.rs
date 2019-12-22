@@ -63,6 +63,7 @@ pub enum Cmd {
     event: String,
     payload: String,
   },
+  #[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
   LoadAsset {
     asset: String,
     asset_type: String,

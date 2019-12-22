@@ -19,6 +19,6 @@
 
 /tauri-update/ @tauri-apps/core
 
-/tauri-build/ @tauri-apps/core
+/tauri-api/ @tauri-apps/core
 
 /tauri/ @tauri-apps/core

@@ -16,6 +16,9 @@ pub(crate) fn run(application: &mut crate::App) {
   }
 
   #[cfg(feature = "embedded-server")]
+  let server_url;
+
+  #[cfg(feature = "embedded-server")]
   {
     // define URL
     let port;
@@ -44,6 +47,7 @@ pub(crate) fn run(application: &mut crate::App) {
       if !url.starts_with("http") {
         url = format!("http://{}", url);
       }
+      server_url = url.clone();
       content = web_view::Content::Url(url.to_string());
     } else {
       panic!(format!("Port {} is not valid or not open", port));
@@ -103,14 +107,14 @@ pub(crate) fn run(application: &mut crate::App) {
   {
     std::thread::spawn(move || {
       let server = tiny_http::Server::http(
-        tauri_src
+        server_url
           .clone()
           .replace("http://", "")
           .replace("https://", ""),
       )
       .expect(&format!(
         "Could not start embedded server with the specified url: {}",
-        tauri_src
+        server_url
       ));
       for request in server.incoming_requests() {
         let mut url = request.url().to_string();

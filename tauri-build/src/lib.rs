@@ -18,6 +18,9 @@ mod salt;
 #[cfg(feature = "embedded-server")]
 mod tcp;
 
+#[cfg(not(feature = "dev-server"))]
+mod assets;
+
 mod app;
 
 use std::process::Stdio;

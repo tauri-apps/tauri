@@ -2,9 +2,6 @@ mod cmd;
 
 use web_view::WebView;
 
-#[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
-include!(concat!(env!("OUT_DIR"), "/data.rs"));
-
 #[allow(unused_variables)]
 pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
   use cmd::Cmd::*;
@@ -155,57 +152,53 @@ pub fn handler<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
         Emit { event, payload } => {
           crate::event::on_event(event, payload);
         }
+        #[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
         LoadAsset {
           asset,
           asset_type,
           callback,
           error,
         } => {
-          if cfg!(not(any(
-            feature = "dev-server",
-            feature = "embedded-server"
-          ))) {
-            let handle = webview.handle();
-            crate::execute_promise(
-              webview,
-              move || {
-                let read_asset = ASSETS.get(&format!(
-                  "{}{}{}",
-                  env!("TAURI_DIST_DIR"),
-                  if asset.starts_with("/") { "" } else { "/" },
-                  asset
-                ));
-                if read_asset.is_err() {
-                  return Err(r#""Asset not found""#.to_string());
-                }
+          let handle = webview.handle();
+          crate::execute_promise(
+            webview,
+            move || {
+              let read_asset = crate::assets::ASSETS.get(&format!(
+                "{}{}{}",
+                env!("TAURI_DIST_DIR"),
+                if asset.starts_with("/") { "" } else { "/" },
+                asset
+              ));
+              if read_asset.is_err() {
+                return Err(r#""Asset not found""#.to_string());
+              }
 
-                if asset_type == "image" {
-                  let ext = if asset.ends_with("gif") {
-                    "gif"
-                  } else if asset.ends_with("png") {
-                    "png"
-                  } else {
-                    "jpeg"
-                  };
-                  Ok(format!(
-                    "`data:image/{};base64,{}`",
-                    ext,
-                    base64::encode(&read_asset.unwrap().into_owned())
-                  ))
+              if asset_type == "image" {
+                let ext = if asset.ends_with("gif") {
+                  "gif"
+                } else if asset.ends_with("png") {
+                  "png"
                 } else {
-                  handle
-                    .dispatch(move |_webview| {
-                      _webview
-                        .eval(&std::str::from_utf8(&read_asset.unwrap().into_owned()).unwrap())
-                    })
-                    .map_err(|err| format!("`{}`", err))
-                    .map(|_| r#""Asset loaded successfully""#.to_string())
-                }
-              },
-              callback,
-              error,
-            );
-          }
+                  "jpeg"
+                };
+                Ok(format!(
+                  "`data:image/{};base64,{}`",
+                  ext,
+                  base64::encode(&read_asset.unwrap().into_owned())
+                ))
+              } else {
+                handle
+                  .dispatch(move |_webview| {
+                    _webview
+                      .eval(&std::str::from_utf8(&read_asset.unwrap().into_owned()).unwrap())
+                  })
+                  .map_err(|err| format!("`{}`", err))
+                  .map(|_| r#""Asset loaded successfully""#.to_string())
+              }
+            },
+            callback,
+            error,
+          );
         }
       }
       true

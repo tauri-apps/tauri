@@ -1,9 +1,7 @@
 use tiny_http::{Header, Response};
 
-include!(concat!(env!("OUT_DIR"), "/data.rs"));
-
 pub fn asset_response(path: &str) -> Response<std::io::Cursor<Vec<u8>>> {
-  let asset = ASSETS
+  let asset = crate::assets::ASSETS
     .get(&format!("{}{}", env!("TAURI_DIST_DIR"), path))
     .unwrap()
     .into_owned();

@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "echo \"No build is necessary for Vanillajs, skipping.\"",
     "html:dev": "quasar serve ./dist",
     "tauri:prod": "tauri",
     "tauri:source": "node ../../../cli/tauri.js/bin/tauri",

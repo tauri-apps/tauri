@@ -34,24 +34,24 @@ use web_view::*;
 
 thread_local!(static POOL: ThreadPool = ThreadPool::new(4));
 
-pub fn spawn<F: FnOnce() -> () + Send + 'static>(what: F) {
+pub fn spawn<F: FnOnce() -> () + Send + 'static>(task: F) {
   POOL.with(|thread| {
     thread.execute(move || {
-      what();
+      task();
     });
   });
 }
 
 pub fn execute_promise<T: 'static, F: FnOnce() -> Result<String, String> + Send + 'static>(
   webview: &mut WebView<'_, T>,
-  what: F,
+  task: F,
   callback: String,
   error: String,
 ) {
   let handle = webview.handle();
   POOL.with(|thread| {
     thread.execute(move || {
-      let callback_string = tauri::rpc::format_callback_result(what(), callback, error);
+      let callback_string = tauri::rpc::format_callback_result(task(), callback, error);
       handle
         .dispatch(move |_webview| _webview.eval(callback_string.as_str()))
         .unwrap()

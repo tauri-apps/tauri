@@ -1,6 +1,5 @@
 [workspace]
 members = [
-  "cli/tauri-cli",
   "tauri",
   "tauri-build",
   "tauri-update",

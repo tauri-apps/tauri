@@ -117,10 +117,11 @@ pub(crate) fn run(application: &mut crate::App) {
         server_url
       ));
       for request in server.incoming_requests() {
-        let mut url = request.url().to_string();
-        if url == "/" {
-          url = "/index.tauri.html".to_string();
+        let url = match request.url() {
+          "/" => "/index.tauri.html",
+          url => url,
         }
+        .to_string();
         request
           .respond(crate::server::asset_response(&url))
           .unwrap();

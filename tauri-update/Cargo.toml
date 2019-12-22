@@ -5,7 +5,7 @@ authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Tho
 license = "MIT"
 homepage = "https://tauri-apps.org"
 repository = "https://github.com/tauri-apps/tauri"
-description = "Make tiny, secure apps for all desktop platforms with Tauri"
+description = "Updater for Tauri"
 edition = "2018"
 exclude = ["test/fixture/**"]
 

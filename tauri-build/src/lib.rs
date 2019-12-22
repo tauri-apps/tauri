@@ -8,6 +8,8 @@ extern crate lazy_static;
 mod api;
 pub mod config;
 pub mod event;
+
+#[cfg(feature = "embedded-server")]
 pub mod server;
 
 #[allow(dead_code)]
@@ -19,7 +21,7 @@ mod salt;
 mod tcp;
 
 #[cfg(not(feature = "dev-server"))]
-mod assets;
+pub mod assets;
 
 mod app;
 

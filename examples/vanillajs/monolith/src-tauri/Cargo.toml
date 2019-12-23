@@ -1,3 +1,5 @@
+workspace = { }
+
 [package]
 name = "app"
 version = "0.1.0"
@@ -31,7 +33,7 @@ includedir = "0.5.0"
   features = [ "all-api", "edge" ]
 
 [features]
-dev = [ "tauri/dev" ]
+dev-server = [ "tauri/dev-server" ]
 embedded-server = [ "tauri/embedded-server" ]
 
 [[bin]]

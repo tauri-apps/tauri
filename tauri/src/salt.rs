@@ -48,16 +48,11 @@ pub fn validate<T: 'static>(
   callback: String,
   error: String,
 ) {
-  crate::execute_promise(
-    webview,
-    move || {
-      if is_valid(salt) {
-        Ok("'VALID'".to_string())
-      } else {
-        Err("'INVALID SALT'".to_string())
-      }
-    },
-    callback,
-    error,
-  );
+  let response = if is_valid(salt) {
+    Ok("'VALID'".to_string())
+  } else {
+    Err("'INVALID SALT'".to_string())
+  };
+  let callback_string = crate::api::rpc::format_callback_result(response, callback, error);
+  webview.eval(callback_string.as_str()).unwrap();
 }

@@ -95,7 +95,7 @@ window.tauri = {
     this.invoke({
       cmd: 'emit',
       event: evt,
-      payload: payload
+      payload: payload || ''
     });
   },
 

@@ -1,7 +1,7 @@
 [package]
 name = "tauri-cli"
 version = "0.1.2"
-authors = ["George Burton <burtonageo@gmail.com>", "Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>"]
+authors = ["George Burton <burtonageo@gmail.com>", "Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
 license = "MIT/Apache-2.0"
 keywords = ["bundle", "cargo", "tauri"]
 repository = "https://github.com/tauri-apps/tauri"
@@ -31,12 +31,14 @@ toml = "0.5.5"
 uuid = { version = "0.8", features = ["v5"] }
 walkdir = "2"
 
-sha2 = "0.8"
-lazy_static = "1.4"
-handlebars = "2.0"
-attohttpc = "0.7.0"
-hex = "0.4"
-zip = "0.5"
+attohttpc = { version = "0.7.0" }
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+handlebars = { version = "2.0" }
+lazy_static = { version = "1.4" }
+zip = { version = "0.5" }
+sha2 = { version = "0.8" }
+hex = { version = "0.4" }
 
 [dev-dependencies]
 tempfile = "3"
@@ -44,3 +46,8 @@ tempfile = "3"
 [[bin]]
 name = "cargo-tauri-cli"
 path = "src/main.rs"
+
+[features]
+appimage = []
+ios = []
+dmg = []

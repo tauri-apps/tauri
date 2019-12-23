@@ -3,7 +3,7 @@ name: test library
 on: pull_request
 
 jobs:
-  build-tauri:
+  build-tauri-core:
     runs-on: ${{ matrix.platform }}
 
     strategy:
@@ -32,7 +32,7 @@ jobs:
         TAURI_DIST_DIR: ../../test/fixture/dist
         TAURI_DIR: ../test/fixture/
 
-  build-tauri-cli:
+  build-tauri-bundler:
     runs-on: ${{ matrix.platform }}
 
     strategy:
@@ -53,7 +53,7 @@ jobs:
            cd ./cli/tauri-cli
            cargo build
 
-  test-tauri-js:
+  test-tauri-js-cli:
     runs-on: ${{ matrix.platform }}
 
     strategy:

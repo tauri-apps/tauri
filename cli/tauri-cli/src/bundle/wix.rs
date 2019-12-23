@@ -330,8 +330,6 @@ pub fn build_wix_app_installer(
 
   data.insert("app_exe_source", &app_exe_source);
 
-  common::print_info(format!("{:?}", settings.binary_path()).as_str())?;
-
   // get out dir
   let mut image_path = PathBuf::from(settings.project_out_directory());
 

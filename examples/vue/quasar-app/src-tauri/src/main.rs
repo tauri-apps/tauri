@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows"]
 mod cmd;
 
 #[macro_use]

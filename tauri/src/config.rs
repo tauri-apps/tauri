@@ -90,9 +90,10 @@ pub fn get() -> Config {
   let path = Path::new(&path_str);
   let config_file: String;
   if path.is_relative() {
-      config_file = fs::read_to_string(Path::new(&env!("PWD")).join(path).as_path()).unwrap();
+      config_file = fs::read_to_string(Path::new(&env!("CARGO_MANIFEST_DIR")).join(path).as_path().canonicalize().unwrap().to_str().unwrap()).unwrap();
   } else {
       config_file = fs::read_to_string(path_str).unwrap();
   }
+  println!("{:?}", config_file);
   serde_json::from_str(&config_file).unwrap()
 }

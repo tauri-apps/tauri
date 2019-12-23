@@ -1,3 +1,5 @@
+workspace = { }
+
 [package]
 name = "tauri-cli"
 version = "0.1.2"

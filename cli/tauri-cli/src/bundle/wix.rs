@@ -44,6 +44,7 @@ lazy_static! {
 
     handlebars
       .register_template_string("main.wxs", include_str!("templates/main.wxs"))
+      .or_else(|e| Err(e.to_string()))
       .unwrap();
     handlebars
   };
@@ -329,7 +330,19 @@ pub fn build_wix_app_installer(
 
   data.insert("app_exe_source", &app_exe_source);
 
-  let image_path = PathBuf::from("../../../../icons/icon.ico")
+  common::print_info(format!("{:?}", settings.binary_path()).as_str())?;
+
+  // get out dir
+  let mut image_path = PathBuf::from(settings.project_out_directory());
+
+  // pop off till in tauri_src dir
+  image_path.pop();
+  image_path.pop();
+
+  // get icon dir and icon file.
+  let image_path = image_path
+    .join("icons")
+    .join("icon.ico")
     .display()
     .to_string();
 

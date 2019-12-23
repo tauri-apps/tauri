@@ -101,7 +101,7 @@ const uniqueFolders = (options: { [index: string]: any }): any[] => {
  */
 const hexToRgb = (
   hex: string
-): { r: number, g: number, b: number } | undefined => {
+): { r: number; g: number; b: number } | undefined => {
   // https://stackoverflow.com/questions/5623838/rgb-to-hex-and-hex-to-rgb
   // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
   const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i
@@ -117,10 +117,10 @@ const hexToRgb = (
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
   return result
     ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16)
-    }
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      }
     : undefined
 }
 
@@ -262,7 +262,11 @@ const tauricon = (exports.tauricon = {
           } else {
             output = `${dest}${path.sep}${option.prefix}${option.suffix}`
           }
-          const pvar = [output, size, option.background]
+          const pvar: [string, number, number] = [
+            output,
+            size,
+            option.background
+          ]
           await buildify2(pvar)
         }
       }

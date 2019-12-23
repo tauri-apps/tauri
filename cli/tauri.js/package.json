@@ -67,10 +67,13 @@
   "devDependencies": {
     "@types/cross-spawn": "^6.0.1",
     "@types/fs-extra": "^8.0.1",
+    "@types/imagemin": "^7.0.0",
+    "@types/imagemin-optipng": "^5.2.0",
     "@types/jsdom": "^12.2.4",
     "@types/lodash.debounce": "^4.0.6",
     "@types/lodash.template": "^4.4.6",
     "@types/ms": "^0.7.31",
+    "@types/sharp": "^0.23.1",
     "@types/webpack-merge": "^4.1.5",
     "@typescript-eslint/eslint-plugin": "^2.12.0",
     "@typescript-eslint/parser": "^2.12.0",

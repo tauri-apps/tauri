@@ -5,7 +5,8 @@ module.exports = {
   entry: {
     build: './src/api/build.ts',
     dev: './src/api/dev.ts',
-    init: './src/api/init.ts'
+    init: './src/api/init.ts',
+    tauricon: './src/api/tauricon.ts'
   },
   mode: process.env.NODE_ENV || 'development',
   devtool: 'source-map',

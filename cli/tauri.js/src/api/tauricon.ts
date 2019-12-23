@@ -12,26 +12,27 @@
  * @license MIT
  */
 
-const path = require('path')
-const sharp = require('sharp')
-const imagemin = require('imagemin')
-const pngquant = require('imagemin-pngquant')
-const optipng = require('imagemin-optipng')
-const zopfli = require('imagemin-zopfli')
-const png2icons = require('png2icons')
-const readChunk = require('read-chunk')
-const isPng = require('is-png')
-const logger = require('../helpers/logger')
+import { access, ensureDir, ensureFileSync, writeFileSync } from 'fs-extra'
+import imagemin, { Plugin } from 'imagemin'
+import optipng from 'imagemin-optipng'
+import pngquant from 'imagemin-pngquant'
+import zopfli from 'imagemin-zopfli'
+import isPng from 'is-png'
+import path from 'path'
+import png2icons from 'png2icons'
+import readChunk from 'read-chunk'
+import sharp from 'sharp'
+import { appDir, tauriDir } from '../helpers/app-paths'
+import logger from '../helpers/logger'
+import * as settings from '../helpers/tauricon.config'
+
 const log = logger('app:spawn')
 const warn = logger('app:spawn', 'red')
 
-const settings = require('../helpers/tauricon.config.js')
-let image = false
+let image: boolean | sharp.Sharp = false
 const spinnerInterval = false
 
-const { access, writeFileSync, ensureDir, ensureFileSync } = require('fs-extra')
-
-const exists = async function(file) {
+const exists = async function(file: string | Buffer): Promise<boolean> {
   try {
     await access(file)
     return true
@@ -48,7 +49,7 @@ const exists = async function(file) {
  * @param {string} src - a folder to target
  * @exits {error} if not a png, if not an image
  */
-const checkSrc = async function(src) {
+const checkSrc = async (src: string): Promise<boolean | sharp.Sharp> => {
   if (image !== false) {
     return image
   } else {
@@ -78,13 +79,16 @@ const checkSrc = async function(src) {
  * @param {object} options - a subset of the settings
  * @returns {array} folders
  */
-const uniqueFolders = function(options) {
+// TODO: proper type of options and folders
+const uniqueFolders = (options: { [index: string]: any }): any[] => {
   let folders = []
   for (const type in options) {
     if (options[type].folder) {
       folders.push(options[type].folder)
     }
   }
+  // TODO: is compare argument required?
+  // eslint-disable-next-line @typescript-eslint/require-array-sort-compare
   folders = folders.sort().filter((x, i, a) => !i || x !== a[i - 1])
   return folders
 }
@@ -95,11 +99,18 @@ const uniqueFolders = function(options) {
  * @param {string} hex - hex colour
  * @returns {array} r,g,b
  */
-const hexToRgb = function(hex) {
+const hexToRgb = (
+  hex: string
+): { r: number, g: number, b: number } | undefined => {
   // https://stackoverflow.com/questions/5623838/rgb-to-hex-and-hex-to-rgb
   // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
   const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i
-  hex = hex.replace(shorthandRegex, function(m, r, g, b) {
+  hex = hex.replace(shorthandRegex, function(
+    m: string,
+    r: string,
+    g: string,
+    b: string
+  ) {
     return r + r + g + g + b + b
   })
 
@@ -110,29 +121,29 @@ const hexToRgb = function(hex) {
       g: parseInt(result[2], 16),
       b: parseInt(result[3], 16)
     }
-    : null
+    : undefined
 }
 
 /**
  * validate image and directory
- * @param {string} src
- * @param {string} target
- * @returns {Promise<void>}
  */
-const validate = async function(src, target) {
+const validate = async (
+  src: string,
+  target: string
+): Promise<boolean | sharp.Sharp> => {
   if (target !== undefined) {
     await ensureDir(target)
   }
   return checkSrc(src)
 }
 
+// TODO: should take end param?
 /**
  * Log progress in the command line
  *
- * @param {string} msg
  * @param {boolean} end
  */
-const progress = function(msg) {
+const progress = (msg: string): void => {
   process.stdout.write(`  ${msg}                       \r`)
 }
 
@@ -144,9 +155,8 @@ const progress = function(msg) {
  *     const spinnerInterval = spinner()
  *     // later
  *     clearInterval(spinnerInterval)
- * @returns {function} - the interval object
  */
-const spinner = function() {
+const spinner = (): NodeJS.Timeout => {
   return setInterval(() => {
     process.stdout.write('/ \r')
     setTimeout(() => {
@@ -162,21 +172,20 @@ const spinner = function() {
 }
 
 const tauricon = (exports.tauricon = {
-  validate: async function(src, target) {
+  validate: async function(src: string, target: string) {
     await validate(src, target)
     return typeof image === 'object'
   },
   version: function() {
-    return require('../package.json').version
+    return __non_webpack_require__('../package.json').version
   },
-  /**
-   *
-   * @param {string} src
-   * @param {string} target
-   * @param {string} strategy
-   * @param {object} options
-   */
-  make: async function(src, target, strategy, options) {
+  make: async function(
+    src: string = path.resolve(appDir, 'app-icon.png'),
+    target: string = path.resolve(tauriDir, 'icons'),
+    strategy: string,
+    // TODO: proper type for options
+    options: { [index: string]: any }
+  ) {
     const spinnerInterval = spinner()
     options = options || settings.options.tauri
     await this.validate(src, target)
@@ -202,14 +211,25 @@ const tauricon = (exports.tauricon = {
    * @param {string} target - where to drop the images
    * @param {object} options - js object that defines path and sizes
    */
-  build: async function(src, target, options) {
+  build: async function(
+    src: string,
+    target: string,
+    // TODO: proper type for options
+    options: { [index: string]: any }
+  ) {
     await this.validate(src, target)
     const sharpSrc = sharp(src) // creates the image object
-    const buildify2 = async function(pvar) {
+    const buildify2 = async function(
+      pvar: [string, number, number]
+    ): Promise<void> {
       try {
         const pngImage = sharpSrc.resize(pvar[1], pvar[1])
         if (pvar[2]) {
-          const rgb = hexToRgb(options.background_color)
+          const rgb = hexToRgb(options.background_color) || {
+            r: undefined,
+            g: undefined,
+            b: undefined
+          }
           pngImage.flatten({
             background: { r: rgb.r, g: rgb.g, b: rgb.b, alpha: 1 }
           })
@@ -223,8 +243,11 @@ const tauricon = (exports.tauricon = {
 
     let output
     const folders = uniqueFolders(options)
+    // eslint-disable-next-line @typescript-eslint/no-for-in-array
     for (const n in folders) {
       // make the folders first
+      // TODO: should this be ensureDirSync?
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       ensureDir(`${target}${path.sep}${folders[n]}`)
     }
     for (const optionKey in options) {
@@ -253,10 +276,20 @@ const tauricon = (exports.tauricon = {
    * @param {string} target - where to drop the images
    * @param {object} options - js object that defines path and sizes
    */
-  splash: async function(src, splashSrc, target, options) {
+  splash: async function(
+    src: string,
+    splashSrc: string,
+    target: string,
+    // TODO: proper type for options
+    options: { [index: string]: any }
+  ) {
     let output
     let block = false
-    const rgb = hexToRgb(options.background_color)
+    const rgb = hexToRgb(options.background_color) || {
+      r: undefined,
+      g: undefined,
+      b: undefined
+    }
 
     // three options
     // options: splashscreen_type [generate | overlay | pure]
@@ -303,7 +336,8 @@ const tauricon = (exports.tauricon = {
         background: { r: rgb.r, g: rgb.g, b: rgb.b, alpha: 1 }
       })
     }
-
+    // TODO: determine if this really could be undefined
+    // @ts-ignore
     const data = await sharpSrc.toBuffer()
 
     for (const optionKey in options) {
@@ -336,14 +370,22 @@ const tauricon = (exports.tauricon = {
    * @param {string} strategy - which minify strategy to use
    * @param {string} mode - singlefile or batch
    */
-  minify: async function(target, options, strategy, mode) {
-    let cmd
+  minify: async function(
+    target: string,
+    // TODO: proper type for options
+    options: { [index: string]: any },
+    strategy: string,
+    mode: string
+  ) {
+    let cmd: Plugin
     const minify = settings.options.minify
     if (!minify.available.find(x => x === strategy)) {
       strategy = minify.type
     }
     switch (strategy) {
       case 'pngquant':
+        // TODO: is minify.pngquantOptions the proper format?
+        // @ts-ignore
         cmd = pngquant(minify.pngquantOptions)
         break
       case 'optipng':
@@ -354,7 +396,7 @@ const tauricon = (exports.tauricon = {
         break
     }
 
-    const __minifier = async pvar => {
+    const __minifier = async (pvar: string[]): Promise<string | void> => {
       await imagemin([pvar[0]], {
         destination: pvar[1],
         plugins: [cmd]
@@ -364,18 +406,25 @@ const tauricon = (exports.tauricon = {
     }
     switch (mode) {
       case 'singlefile':
+        // TODO: the __minifier function only accepts one arg, why is cmd passed?
+        // @ts-ignore
         await __minifier([target, path.dirname(target)], cmd)
         break
       case 'batch':
         // eslint-disable-next-line no-case-declarations
         const folders = uniqueFolders(options)
+        // eslint-disable-next-line @typescript-eslint/no-for-in-array
         for (const n in folders) {
+          // TODO: The log argument doesn't accept multiple args, should this be fixed?
+          // @ts-ignore
           log('batch minify:', folders[n])
           await __minifier(
             [
               `${target}${path.sep}${folders[n]}${path.sep}*.png`,
               `${target}${path.sep}${folders[n]}`
             ],
+            // TODO: the __minifier function only accepts one arg, why is this here?
+            // @ts-ignore
             cmd
           )
         }
@@ -395,7 +444,13 @@ const tauricon = (exports.tauricon = {
    * @param {object} options
    * @param {string} strategy
    */
-  icns: async function(src, target, options, strategy) {
+  icns: async function(
+    src: string,
+    target: string,
+    // TODO: proper type for options
+    options: { [index: string]: any },
+    strategy: string
+  ) {
     try {
       if (!image) {
         process.exit(1)
@@ -405,10 +460,14 @@ const tauricon = (exports.tauricon = {
       const sharpSrc = sharp(src)
       const buf = await sharpSrc.toBuffer()
 
+      // TODO: does this need to be awaited?
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       const out = await png2icons.createICNS(buf, png2icons.BICUBIC, 0)
       ensureFileSync(path.join(target, '/icon.icns'))
       writeFileSync(path.join(target, '/icon.icns'), out)
 
+      // TODO: does this need to be awaited?
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       const out2 = await png2icons.createICO(buf, png2icons.BICUBIC, 0, true)
       ensureFileSync(path.join(target, '/icon.ico'))
       writeFileSync(path.join(target, '/icon.ico'), out2)

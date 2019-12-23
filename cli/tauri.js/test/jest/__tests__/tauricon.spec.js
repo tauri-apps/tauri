@@ -1,4 +1,4 @@
-const tauricon = require('api/tauricon.js')
+const tauricon = require('~/dist/tauricon.js')
 
 describe('[CLI] tauri-icon internals', () => {
   it('tells you the version', () => {

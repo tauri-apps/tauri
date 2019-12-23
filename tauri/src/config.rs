@@ -1,4 +1,6 @@
 use std::env;
+use std::fs;
+use std::path::Path;
 
 #[derive(Deserialize)]
 #[serde(tag = "window", rename_all = "camelCase")]
@@ -84,6 +86,13 @@ fn default_dev_path() -> String {
 }
 
 pub fn get() -> Config {
-  serde_json::from_str(include_str!(concat!(env!("TAURI_DIR"), "/config.json")))
-    .expect("failed to create config.json")
+  let path_str = concat!(env!("TAURI_DIR"), "/config.json");
+  let path = Path::new(&path_str);
+  let config_file: String;
+  if path.is_relative() {
+      config_file = fs::read_to_string(Path::new(&env!("PWD")).join(path).as_path()).unwrap();
+  } else {
+      config_file = fs::read_to_string(path_str).unwrap();
+  }
+  serde_json::from_str(&config_file).unwrap()
 }

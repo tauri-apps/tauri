@@ -1,5 +1,7 @@
 use super::common;
+use super::path_utils::{copy, Options};
 use super::settings::Settings;
+
 use handlebars::Handlebars;
 use lazy_static::lazy_static;
 use sha2::Digest;
@@ -48,6 +50,38 @@ lazy_static! {
       .unwrap();
     handlebars
   };
+}
+
+fn copy_icons(settings: &Settings) -> crate::Result<PathBuf> {
+  let base_dir = settings.binary_path();
+  let base_dir = base_dir.parent().expect("Failed to get dir");
+
+  common::print_info(format!("{:?}", &base_dir).as_str())?;
+
+  let resource_dir = base_dir.join("resources");
+
+  let mut image_path = PathBuf::from(settings.project_out_directory());
+
+  // pop off till in tauri_src dir
+  image_path.pop();
+  image_path.pop();
+
+  // get icon dir and icon file.
+  let image_path = image_path.join("icons");
+  let opts = super::path_utils::Options::default();
+
+  copy(
+    image_path,
+    &resource_dir,
+    &Options {
+      copy_files: true,
+      overwrite: true,
+      ..opts
+    },
+  )
+  .or_else(|e| Err(e.to_string()))?;
+
+  Ok(resource_dir)
 }
 
 // Function used to download Wix and VC_REDIST. Checks SHA256 to verify the download.
@@ -330,20 +364,10 @@ pub fn build_wix_app_installer(
 
   data.insert("app_exe_source", &app_exe_source);
 
-  // get out dir
-  let mut image_path = PathBuf::from(settings.project_out_directory());
+  let image_path = copy_icons(&settings)?;
+  let image_path = image_path.display().to_string();
 
-  // pop off till in tauri_src dir
-  image_path.pop();
-  image_path.pop();
-
-  // get icon dir and icon file.
-  let image_path = image_path
-    .join("icons")
-    .join("icon.ico")
-    .display()
-    .to_string();
-
+  // copy icons from icons folder to resource folder near msi
   data.insert("icon_path", &image_path);
 
   let temp = HANDLEBARS

@@ -1,8 +1,7 @@
 {
-  "extends": [
-    "config:base"
-  ],
+  "extends": ["config:base"],
   "schedule": "after 3am on Wednesday",
+  "rebaseConflictedPrs": false,
   "ignorePaths": [],
   "enabledManagers": ["cargo", "npm"],
   "cargo": {
@@ -10,14 +9,40 @@
   },
   "packageRules": [
     {
-      "paths": ["examples/gatsby/**"],
+      "paths": ["examples/react/gatsby**"],
       "groupName": "Gatsby Examples",
       "groupSlug": "allGatsby",
       "commitMessagePrefix": "chore(examples)",
       "lockFileMaintenance": {
         "enabled": true
       },
-      "prPriority": -1
+      "prPriority": -1,
+      "automerge": true,
+      "rebaseConflictedPrs": true
+    },
+    {
+      "paths": ["examples/react/create-react-app**"],
+      "groupName": "CRA Examples",
+      "groupSlug": "allCRA",
+      "commitMessagePrefix": "chore(examples)",
+      "lockFileMaintenance": {
+        "enabled": true
+      },
+      "prPriority": -1,
+      "automerge": true,
+      "rebaseConflictedPrs": true
+    },
+    {
+      "paths": ["examples/react/next**"],
+      "groupName": "Next.js Examples",
+      "groupSlug": "allNextjs",
+      "commitMessagePrefix": "chore(examples)",
+      "lockFileMaintenance": {
+        "enabled": true
+      },
+      "prPriority": -1,
+      "automerge": true,
+      "rebaseConflictedPrs": true
     },
     {
       "paths": ["examples/vue/**"],
@@ -27,7 +52,9 @@
       "lockFileMaintenance": {
         "enabled": true
       },
-      "prPriority": -1
+      "prPriority": -1,
+      "automerge": true,
+      "rebaseConflictedPrs": true
     },
     {
       "paths": ["examples/vanillajs/**"],
@@ -37,7 +64,9 @@
       "lockFileMaintenance": {
         "enabled": true
       },
-      "prPriority": -1
+      "prPriority": -1,
+      "automerge": true,
+      "rebaseConflictedPrs": true
     }
   ]
 }

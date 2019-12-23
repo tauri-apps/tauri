@@ -92,11 +92,11 @@
     "lint-staged": "9.5.0",
     "lockfile-lint": "3.0.3",
     "promise": "8.0.3",
-    "ts-loader": "^6.2.1",
-    "typescript": "^3.7.3",
-    "webpack": "^4.41.4",
-    "webpack-cli": "^3.3.10",
-    "webpack-node-externals": "^1.7.2"
+    "ts-loader": "6.2.1",
+    "typescript": "3.7.3",
+    "webpack": "4.41.4",
+    "webpack-cli": "3.3.10",
+    "webpack-node-externals": "1.7.2"
   },
   "husky": {
     "hooks": {

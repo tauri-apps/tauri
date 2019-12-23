@@ -1,0 +1,22 @@
+[package]
+name = "tauri-api"
+version = "0.2.0"
+authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
+license = "MIT"
+homepage = "https://tauri-apps.org"
+repository = "https://github.com/tauri-apps/tauri"
+description = "Make tiny, secure apps for all desktop platforms with Tauri"
+edition = "2018"
+exclude = ["test/fixture/**"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] } 
+dirs = "2.0.2"
+ignore = "0.4.10"
+zip = "0.5.3"
+tempdir = "0.3"
+semver = "0.9"
+tempfile = "3"
+either = "1.5.3"
+tar = "0.4"
+flate2 = "1"

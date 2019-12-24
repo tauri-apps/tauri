@@ -6,6 +6,7 @@
     "start": "sirv public",
     "dev": "rollup -c -w",
     "build": "rollup -c",
+    "test": "echo \"No test specified\" && exit 0",
     "tauri:prod": "tauri",
     "tauri:source": "node ../../../cli/tauri.js/bin/tauri",
     "tauri:source:init": "yarn tauri:source init --tauriPath ../../../tauri",

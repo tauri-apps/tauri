@@ -1,11 +1,11 @@
 const path = require('path')
-const distDir = path.resolve(__dirname, './dist')
+const distDir = path.resolve(__dirname, './public')
 
 module.exports = function () {
   return {
     build: {
       distDir: distDir,
-      devPath: 'http://localhost:3000' // devServer URL or html dir
+      devPath: 'http://localhost:5000' // devServer URL or html dir
     },
     ctx: {},
     tauri: {

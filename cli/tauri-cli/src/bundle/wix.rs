@@ -1,5 +1,7 @@
 use super::common;
+use super::path_utils::{copy, Options};
 use super::settings::Settings;
+
 use handlebars::Handlebars;
 use lazy_static::lazy_static;
 use sha2::Digest;
@@ -44,9 +46,40 @@ lazy_static! {
 
     handlebars
       .register_template_string("main.wxs", include_str!("templates/main.wxs"))
+      .or_else(|e| Err(e.to_string()))
       .unwrap();
     handlebars
   };
+}
+
+fn copy_icons(settings: &Settings) -> crate::Result<PathBuf> {
+  let base_dir = settings.binary_path();
+  let base_dir = base_dir.parent().expect("Failed to get dir");
+
+  let resource_dir = base_dir.join("resources");
+
+  let mut image_path = PathBuf::from(settings.project_out_directory());
+
+  // pop off till in tauri_src dir
+  image_path.pop();
+  image_path.pop();
+
+  // get icon dir and icon file.
+  let image_path = image_path.join("icons");
+  let opts = super::path_utils::Options::default();
+
+  copy(
+    image_path,
+    &resource_dir,
+    &Options {
+      copy_files: true,
+      overwrite: true,
+      ..opts
+    },
+  )
+  .or_else(|e| Err(e.to_string()))?;
+
+  Ok(resource_dir)
 }
 
 // Function used to download Wix and VC_REDIST. Checks SHA256 to verify the download.
@@ -322,6 +355,9 @@ pub fn build_wix_app_installer(
   let path_guid = generate_package_guid(settings).to_string();
   data.insert("path_component_guid", &path_guid.as_str());
 
+  let shortcut_guid = generate_package_guid(settings).to_string();
+  data.insert("shortcut_guid", &shortcut_guid.as_str());
+
   let app_exe_name = settings.binary_name().to_string();
   data.insert("app_exe_name", &app_exe_name);
 
@@ -329,11 +365,12 @@ pub fn build_wix_app_installer(
 
   data.insert("app_exe_source", &app_exe_source);
 
-  let image_path = PathBuf::from("../../../../icons/icon.ico")
-    .display()
-    .to_string();
+  // copy icons from icons folder to resource folder near msi
+  let image_path = copy_icons(&settings)?;
 
-  data.insert("icon_path", &image_path);
+  let path = image_path.join("icon.ico").display().to_string();
+
+  data.insert("icon_path", path.as_str());
 
   let temp = HANDLEBARS
     .render("main.wxs", &data)

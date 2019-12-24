@@ -30,7 +30,6 @@
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
         <Icon Id="ProductIcon" SourceFile="{{{icon_path}}}"/>
         <Property Id="ARPPRODUCTICON" Value="icon.ico" />
-        <Property Id="ARPPRODUCTICON" Value="ProductIcon"/>
         <Property Id="ARPNOREPAIR" Value="1"/>
         <Property Id="ARPNOMODIFY" Value="1"/>
 

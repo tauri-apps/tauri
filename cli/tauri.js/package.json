@@ -12,6 +12,7 @@
   "scripts": {
     "build": "webpack --progress",
     "test": "jest --runInBand --no-cache",
+    "prepare": "yarn build",
     "pretest": "yarn build",
     "test:mac-local": "jest --runInBand",
     "lint": "eslint --ext ts ./src/**/*.ts",

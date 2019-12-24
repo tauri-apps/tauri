@@ -9,7 +9,6 @@ license = ""
 repository = ""
 default-run = "gatsby-themed-site-app"
 edition = "2018"
-build = "src/build.rs"
 
 [package.metadata.bundle]
 identifier = "com.tauri.dev"
@@ -22,20 +21,21 @@ icon = [
 ]
 
 [dependencies]
-serde_json = "1.0.41"
-serde = "1.0.104"
-serde_derive = "1.0.104"
+serde_json = "1.0.44"
+serde = "1.0"
+serde_derive = "1.0"
 tiny_http = "0.6"
-tauri = { version = "0.2.0", features = [ "edge" ] }
+phf = "0.8.0"
+includedir = "0.5.0"
 
-[target."cfg(windows)".build-dependencies]
-winres = "0.1"
+  [dependencies.tauri]
+  path = "../../../../tauri"
+  features = [ "edge" ]
 
 [features]
 dev-server = [ "tauri/dev-server" ]
 embedded-server = [ "tauri/embedded-server" ]
-no-server = [ "tauri/no-server" ]
 
 [[bin]]
-name = "app"
+name = "gatsby-themed-site-app"
 path = "src/main.rs"

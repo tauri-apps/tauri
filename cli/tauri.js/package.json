@@ -10,7 +10,9 @@
     "url": "https://opencollective.com/tauri"
   },
   "scripts": {
+    "build": "webpack --progress",
     "test": "jest --runInBand --no-cache",
+    "pretest": "yarn build",
     "test:mac-local": "jest --runInBand",
     "lint": "eslint --ext ts ./src/**/*.ts",
     "lint-fix": "eslint --fix --ext ts ./src/**/*.ts",

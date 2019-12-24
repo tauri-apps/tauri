@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "rollup -c -w",
+    "start": "sirv public",
+    "dev": "rollup -c -w",
     "build": "rollup -c",
     "tauri:prod": "tauri",
     "tauri:source": "node ../../../cli/tauri.js/bin/tauri",
@@ -20,7 +21,8 @@
     "rollup-plugin-commonjs": "^10.0.0",
     "rollup-plugin-livereload": "^1.0.0",
     "rollup-plugin-svelte": "^5.0.3",
-    "rollup-plugin-terser": "^5.1.2"
+    "rollup-plugin-terser": "^5.1.2",
+    "sirv-cli": "^0.4.4"
   },
   "dependencies": {
     "svelte": "^3.0.0"

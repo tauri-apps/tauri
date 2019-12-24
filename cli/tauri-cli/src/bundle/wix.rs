@@ -365,11 +365,12 @@ pub fn build_wix_app_installer(
 
   data.insert("app_exe_source", &app_exe_source);
 
-  let image_path = copy_icons(&settings)?;
-  let image_path = image_path.join("icon.ico").display().to_string();
-
   // copy icons from icons folder to resource folder near msi
-  data.insert("icon_path", &image_path);
+  let image_path = copy_icons(&settings)?;
+
+  let path = image_path.join("icon.ico").display().to_string();
+
+  data.insert("icon_path", path.as_str());
 
   let temp = HANDLEBARS
     .render("main.wxs", &data)

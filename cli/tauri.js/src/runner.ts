@@ -6,12 +6,11 @@ import { JSDOM } from 'jsdom'
 import debounce from 'lodash.debounce'
 import path from 'path'
 import * as entry from './entry'
-import * as generator from './generator'
 import { appDir, tauriDir } from './helpers/app-paths'
 import logger from './helpers/logger'
 import onShutdown from './helpers/on-shutdown'
 import { spawn } from './helpers/spawn'
-import getTauriConfig from './helpers/tauri-config'
+const getTauriConfig = require('./helpers/tauri-config')
 import { TauriConfig } from './types/config'
 
 const log = logger('app:tauri', 'green')
@@ -52,14 +51,11 @@ class Runner {
     let inlinedAssets: string[] = []
 
     if (!runningDevServer) {
-      inlinedAssets = await this.__parseHtml(cfg, path.resolve(appDir, devPath))
+      inlinedAssets = await this.__parseHtml(cfg, devPath)
     }
 
-    generator.generate({
-      devPath: runningDevServer ? devPath : path.resolve(appDir, devPath),
-      inlinedAssets,
-      ...cfg.tauri
-    })
+    process.env.TAURI_INLINED_ASSSTS = inlinedAssets.join('|')
+
     entry.generate(tauriDir, cfg)
 
     this.devPath = devPath
@@ -127,10 +123,8 @@ class Runner {
 
     const inlinedAssets = await this.__parseHtml(cfg, cfg.build.distDir)
 
-    generator.generate({
-      inlinedAssets,
-      ...cfg.tauri
-    })
+    process.env.TAURI_INLINED_ASSSTS = inlinedAssets.join('|')
+  
     entry.generate(tauriDir, cfg)
 
     const features = [

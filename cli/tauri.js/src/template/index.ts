@@ -90,11 +90,11 @@ const inject = (
     warn('- internal error. Required params missing.')
     return false
   }
-  if (type === 'conf' || type === 'all') {
-    injectConfFile(injectPath, { force, logging }, customConfig)
-  }
   if (type === 'template' || type === 'all') {
     injectTemplate(injectPath, { force, logging, tauriPath })
+  }
+  if (type === 'conf' || type === 'all') {
+    injectConfFile(join(injectPath, 'src-tauri'), { force, logging }, customConfig)
   }
   return true
 }

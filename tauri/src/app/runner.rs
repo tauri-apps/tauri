@@ -5,10 +5,10 @@ pub(crate) fn run(application: &mut crate::App) {
   let content;
   #[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
   {
-    content = if config.dev_path.starts_with("http") {
-      web_view::Content::Url(config.dev_path)
+    content = if config.build.dev_path.starts_with("http") {
+      web_view::Content::Url(config.build.dev_path)
     } else {
-      let dev_path = std::path::Path::new(&config.dev_path).join("index.tauri.html");
+      let dev_path = std::path::Path::new(&config.build.dev_path).join("index.tauri.html");
       web_view::Content::Html(
         std::fs::read_to_string(dev_path).expect("failed to build index.tauri.html"),
       )
@@ -23,7 +23,7 @@ pub(crate) fn run(application: &mut crate::App) {
     // define URL
     let port;
     let port_valid;
-    if config.embedded_server.port == "random" {
+    if config.tauri.embedded_server.port == "random" {
       match crate::tcp::get_available_port() {
         Some(available_port) => {
           port = available_port.to_string();
@@ -35,7 +35,7 @@ pub(crate) fn run(application: &mut crate::App) {
         }
       }
     } else {
-      port = config.embedded_server.port;
+      port = config.tauri.embedded_server.port;
       port_valid = crate::tcp::port_is_available(
         port
           .parse::<u16>()
@@ -43,7 +43,7 @@ pub(crate) fn run(application: &mut crate::App) {
       );
     }
     if port_valid {
-      let mut url = format!("{}:{}", config.embedded_server.host, port);
+      let mut url = format!("{}:{}", config.tauri.embedded_server.host, port);
       if !url.starts_with("http") {
         url = format!("http://{}", url);
       }
@@ -76,9 +76,9 @@ pub(crate) fn run(application: &mut crate::App) {
   let mut ran_setup = false;
 
   let webview = web_view::builder()
-    .title(&config.window.title)
-    .size(config.window.width, config.window.height)
-    .resizable(config.window.resizable)
+    .title(&config.tauri.window.title)
+    .size(config.tauri.window.width, config.tauri.window.height)
+    .resizable(config.tauri.window.resizable)
     .debug(debug)
     .user_data(())
     .invoke_handler(|webview, arg| {

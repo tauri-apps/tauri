@@ -71,7 +71,7 @@ config.json
 target
 
 
-# doing this because of how our tests currently (naively) drop the tauri.conf.js in that folder
+# doing this because of how our tests currently (naively) drop the tauri.conf.json in that folder
 # todo: needs a proper fic
-tauri.conf.js
+tauri.conf.json
 src-tauri

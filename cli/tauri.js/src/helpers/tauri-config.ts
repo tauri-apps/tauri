@@ -8,18 +8,18 @@ const error = logger('ERROR:', 'red')
 
 export default (cfg: Partial<TauriConfig>): TauriConfig => {
   const pkgPath = appPaths.resolve.app('package.json')
-  const tauriConfPath = appPaths.resolve.app('tauri.conf.js')
+  const tauriConfPath = appPaths.resolve.app('tauri.conf.json')
   if (!existsSync(pkgPath)) {
     error("Could not find a package.json in your app's directory.")
     process.exit(1)
   }
   if (!existsSync(tauriConfPath)) {
     error(
-      "Could not find a tauri config (tauri.conf.js) in your app's directory."
+      "Could not find a tauri config (tauri.conf.json) in your app's directory."
     )
     process.exit(1)
   }
-  const tauriConf = __non_webpack_require__(tauriConfPath)(cfg.ctx)
+  const tauriConf = __non_webpack_require__(tauriConfPath)
   const pkg = __non_webpack_require__(pkgPath)
 
   const config = merge(

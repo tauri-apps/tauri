@@ -83,7 +83,7 @@ class Runner {
           path.join(tauriDir, 'src'),
           path.join(tauriDir, 'Cargo.toml'),
           path.join(tauriDir, 'build.rs'),
-          path.join(appDir, 'tauri.conf.js')
+          path.join(appDir, 'tauri.conf.json')
         ],
         {
           // TODO: incorrect options?
@@ -99,7 +99,7 @@ class Runner {
         'change',
         debounce(async (path: string) => {
           await this.__stopCargo()
-          if (path.includes('tauri.conf.js')) {
+          if (path.includes('tauri.conf.json')) {
             this.run(getTauriConfig({ ctx: cfg.ctx })).catch(e => {
               throw e
             })
@@ -162,7 +162,7 @@ class Runner {
       const distIndexPath = path.join(indexDir, 'index.html')
       if (!existsSync(distIndexPath)) {
         warn(
-          `Error: cannot find index.html in "${indexDir}". Did you forget to build your web code or update the build.distDir in tauri.conf.js?`
+          `Error: cannot find index.html in "${indexDir}". Did you forget to build your web code or update the build.distDir in tauri.conf.json?`
         )
         reject(new Error('Could not find index.html in dist dir.'))
       }

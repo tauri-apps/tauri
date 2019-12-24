@@ -25,7 +25,7 @@ const argv = parseArgs(process.argv.slice(2), {
 if (argv.help) {
   console.log(`
   Description
-    Inits the Tauri template. If Tauri cannot find the tauri.conf.js
+    Inits the Tauri template. If Tauri cannot find the tauri.conf.json
     it will create one.
   Usage
     $ tauri init

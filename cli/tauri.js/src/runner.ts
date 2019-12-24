@@ -83,7 +83,7 @@ class Runner {
           path.join(tauriDir, 'src'),
           path.join(tauriDir, 'Cargo.toml'),
           path.join(tauriDir, 'build.rs'),
-          path.join(appDir, 'tauri.conf.json')
+          path.join(appDir, 'tauri.conf.js')
         ],
         {
           // TODO: incorrect options?
@@ -97,17 +97,23 @@ class Runner {
       )
       .on(
         'change',
-        debounce(async (path: string) => {
-          await this.__stopCargo()
-          if (path.includes('tauri.conf.json')) {
-            this.run(getTauriConfig({ ctx: cfg.ctx })).catch(e => {
-              throw e
+        debounce((path: string) => {
+          this.__stopCargo()
+            .then(() => {
+              if (path.includes('tauri.conf.js')) {
+                this.run(getTauriConfig({ ctx: cfg.ctx })).catch(e => {
+                  throw e
+                })
+              } else {
+                startDevTauri().catch(e => {
+                  throw e
+                })
+              }
             })
-          } else {
-            startDevTauri().catch(e => {
-              throw e
+            .catch(err => {
+              warn(err)
+              process.exit(1)
             })
-          }
         }, 1000)
       )
 
@@ -162,7 +168,7 @@ class Runner {
       const distIndexPath = path.join(indexDir, 'index.html')
       if (!existsSync(distIndexPath)) {
         warn(
-          `Error: cannot find index.html in "${indexDir}". Did you forget to build your web code or update the build.distDir in tauri.conf.json?`
+          `Error: cannot find index.html in "${indexDir}". Did you forget to build your web code or update the build.distDir in tauri.conf.js?`
         )
         reject(new Error('Could not find index.html in dist dir.'))
       }
@@ -296,7 +302,7 @@ class Runner {
       tomlFeatures.push('all-api')
     } else {
       const whitelist = Object.keys(cfg.tauri.whitelist).filter(
-        w => cfg.tauri.whitelist[w] === true
+        w => cfg.tauri.whitelist[String(w)] === true
       )
       tomlFeatures.push(...whitelist)
     }

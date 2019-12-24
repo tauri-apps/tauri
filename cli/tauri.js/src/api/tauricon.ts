@@ -83,8 +83,9 @@ const checkSrc = async (src: string): Promise<boolean | sharp.Sharp> => {
 const uniqueFolders = (options: { [index: string]: any }): any[] => {
   let folders = []
   for (const type in options) {
-    if (options[type].folder) {
-      folders.push(options[type].folder)
+    const option = options[String(type)]
+    if (option.folder) {
+      folders.push(option.folder)
     }
   }
   // TODO: is compare argument required?
@@ -101,7 +102,7 @@ const uniqueFolders = (options: { [index: string]: any }): any[] => {
  */
 const hexToRgb = (
   hex: string
-): { r: number; g: number; b: number } | undefined => {
+): { r: number, g: number, b: number } | undefined => {
   // https://stackoverflow.com/questions/5623838/rgb-to-hex-and-hex-to-rgb
   // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
   const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i
@@ -117,10 +118,10 @@ const hexToRgb = (
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
   return result
     ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16)
-      }
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    }
     : undefined
 }
 
@@ -245,16 +246,17 @@ const tauricon = (exports.tauricon = {
     const folders = uniqueFolders(options)
     // eslint-disable-next-line @typescript-eslint/no-for-in-array
     for (const n in folders) {
+      const folder = folders[Number(n)]
       // make the folders first
       // TODO: should this be ensureDirSync?
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      ensureDir(`${target}${path.sep}${folders[n]}`)
+      ensureDir(`${target}${path.sep}${folder}`)
     }
     for (const optionKey in options) {
-      const option = options[optionKey]
+      const option = options[String(optionKey)]
       // chain up the transforms
       for (const sizeKey in option.sizes) {
-        const size = option.sizes[sizeKey]
+        const size = option.sizes[String(sizeKey)]
         if (!option.splash) {
           const dest = `${target}/${option.folder}`
           if (option.infix === true) {
@@ -345,9 +347,9 @@ const tauricon = (exports.tauricon = {
     const data = await sharpSrc.toBuffer()
 
     for (const optionKey in options) {
-      const option = options[optionKey]
+      const option = options[String(optionKey)]
       for (const sizeKey in option.sizes) {
-        const size = option.sizes[sizeKey]
+        const size = option.sizes[String(sizeKey)]
         if (option.splash) {
           const dest = `${target}${path.sep}${option.folder}`
           await ensureDir(dest)
@@ -419,13 +421,14 @@ const tauricon = (exports.tauricon = {
         const folders = uniqueFolders(options)
         // eslint-disable-next-line @typescript-eslint/no-for-in-array
         for (const n in folders) {
+          const folder = folders[Number(n)]
           // TODO: The log argument doesn't accept multiple args, should this be fixed?
           // @ts-ignore
-          log('batch minify:', folders[n])
+          log('batch minify:', folder)
           await __minifier(
             [
-              `${target}${path.sep}${folders[n]}${path.sep}*.png`,
-              `${target}${path.sep}${folders[n]}`
+              `${target}${path.sep}${folder}${path.sep}*.png`,
+              `${target}${path.sep}${folder}`
             ],
             // TODO: the __minifier function only accepts one arg, why is this here?
             // @ts-ignore

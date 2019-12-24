@@ -5,7 +5,7 @@ module.exports = (args: {
   directory: string
   force: false | 'conf' | 'template' | 'all'
   logging: boolean
-  tauriPath?: string
+  tauriPath?: string,
   customConfig?: Partial<TauriConfig>
 }): boolean => {
   return inject(args.directory, 'all', {

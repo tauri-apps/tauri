@@ -246,7 +246,7 @@ const tauricon = (exports.tauricon = {
     const folders = uniqueFolders(options)
     // eslint-disable-next-line @typescript-eslint/no-for-in-array
     for (const n in folders) {
-      const folder = folders[String(n)]
+      const folder = folders[Number(n)]
       // make the folders first
       // TODO: should this be ensureDirSync?
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -421,7 +421,7 @@ const tauricon = (exports.tauricon = {
         const folders = uniqueFolders(options)
         // eslint-disable-next-line @typescript-eslint/no-for-in-array
         for (const n in folders) {
-          const folder = folders[String(n)]
+          const folder = folders[Number(n)]
           // TODO: The log argument doesn't accept multiple args, should this be fixed?
           // @ts-ignore
           log('batch minify:', folder)

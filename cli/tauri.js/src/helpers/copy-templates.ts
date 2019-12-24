@@ -42,10 +42,12 @@ const copyTemplates = ({
     if (isBinary(sourcePath)) {
       fs.copyFileSync(sourcePath, targetPath)
     } else {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
       const rawContent = fs.readFileSync(sourcePath, 'utf-8')
       const template = compileTemplate(rawContent, {
         interpolate: /<%=([\s\S]+?)%>/g
       })
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
       fs.writeFileSync(targetPath, template(scope), 'utf-8')
     }
   }

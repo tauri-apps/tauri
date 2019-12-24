@@ -97,17 +97,23 @@ class Runner {
       )
       .on(
         'change',
-        debounce(async (path: string) => {
-          await this.__stopCargo()
-          if (path.includes('tauri.conf.js')) {
-            this.run(getTauriConfig({ ctx: cfg.ctx })).catch(e => {
-              throw e
+        debounce((path: string) => {
+          this.__stopCargo()
+            .then(() => {
+              if (path.includes('tauri.conf.js')) {
+                this.run(getTauriConfig({ ctx: cfg.ctx })).catch(e => {
+                  throw e
+                })
+              } else {
+                startDevTauri().catch(e => {
+                  throw e
+                })
+              }
             })
-          } else {
-            startDevTauri().catch(e => {
-              throw e
+            .catch(err => {
+              warn(err)
+              process.exit(1)
             })
-          }
         }, 1000)
       )
 
@@ -296,7 +302,7 @@ class Runner {
       tomlFeatures.push('all-api')
     } else {
       const whitelist = Object.keys(cfg.tauri.whitelist).filter(
-        w => cfg.tauri.whitelist[w] === true
+        w => cfg.tauri.whitelist[String(w)] === true
       )
       tomlFeatures.push(...whitelist)
     }

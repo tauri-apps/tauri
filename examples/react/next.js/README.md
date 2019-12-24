@@ -20,6 +20,5 @@ yarn dev & tauri dev
 
 ```
 yarn build
-yarn next export
 tauri build
 ```

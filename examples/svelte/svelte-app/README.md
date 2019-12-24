@@ -1,3 +1,30 @@
+## Running Example
+
+Ensure you have setup and installed all the project dependencies.
+
+```
+npm install -g tauri
+git clone https://github.com/tauri-apps/tauri
+cd examples/svelte/svelte-app
+yarn
+cargo install tauri-cli
+```
+
+### Development
+
+```
+yarn start & tauri dev
+```
+
+### Production
+
+```
+yarn build
+tauri build
+```
+
+# Original ReadMe
+
 *Psst — looking for a shareable component template? Go here --> [sveltejs/component-template](https://github.com/sveltejs/component-template)*
 
 ---

@@ -9,7 +9,6 @@ license = ""
 repository = ""
 default-run = "app"
 edition = "2018"
-build = "src/build.rs"
 
 [package.metadata.bundle]
 identifier = "com.tauri.dev"
@@ -22,19 +21,16 @@ icon = [
 ]
 
 [dependencies]
-serde_json = "1.0.41"
-serde = "1.0.104"
-serde_derive = "1.0.104"
+serde_json = "1.0.44"
+serde = "1.0"
+serde_derive = "1.0"
 tiny_http = "0.6"
 phf = "0.8.0"
-tauri_includedir = "0.5.0"
+includedir = "0.5.0"
 
   [dependencies.tauri]
   path = "../../../../tauri"
   features = [ "all-api", "edge" ]
-
-[target."cfg(windows)".build-dependencies]
-winres = "0.1"
 
 [features]
 dev-server = [ "tauri/dev-server" ]

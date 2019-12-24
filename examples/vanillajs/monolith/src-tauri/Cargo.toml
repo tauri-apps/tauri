@@ -25,8 +25,11 @@ serde_json = "1.0.44"
 serde = "1.0"
 serde_derive = "1.0"
 tiny_http = "0.6"
+<<<<<<< HEAD
 phf = "0.8.0"
 includedir = "0.5.0"
+=======
+>>>>>>> parent of 06191b0... Revert "remove unnessecary deps"
 
   [dependencies.tauri]
   path = "../../../../tauri"

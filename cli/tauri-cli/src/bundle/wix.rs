@@ -355,6 +355,9 @@ pub fn build_wix_app_installer(
   let path_guid = generate_package_guid(settings).to_string();
   data.insert("path_component_guid", &path_guid.as_str());
 
+  let shortcut_guid = generate_package_guid(settings).to_string();
+  data.insert("shortcut_guid", &shortcut_guid.as_str());
+
   let app_exe_name = settings.binary_name().to_string();
   data.insert("app_exe_name", &app_exe_name);
 
@@ -363,7 +366,7 @@ pub fn build_wix_app_installer(
   data.insert("app_exe_source", &app_exe_source);
 
   let image_path = copy_icons(&settings)?;
-  let image_path = image_path.display().to_string();
+  let image_path = image_path.join("icon.ico").display().to_string();
 
   // copy icons from icons folder to resource folder near msi
   data.insert("icon_path", &image_path);

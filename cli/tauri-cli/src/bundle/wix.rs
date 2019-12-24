@@ -56,8 +56,6 @@ fn copy_icons(settings: &Settings) -> crate::Result<PathBuf> {
   let base_dir = settings.binary_path();
   let base_dir = base_dir.parent().expect("Failed to get dir");
 
-  common::print_info(format!("{:?}", &base_dir).as_str())?;
-
   let resource_dir = base_dir.join("resources");
 
   let mut image_path = PathBuf::from(settings.project_out_directory());

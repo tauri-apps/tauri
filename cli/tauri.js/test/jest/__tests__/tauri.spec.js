@@ -33,8 +33,21 @@ describe('[CLI] tauri.js', () => {
   })
   it('gets you help', async () => {
     jest.spyOn(console, 'log')
-    tauri(['icon'])
-    expect(!!console.log.mock.calls[0][0]).toBe(true)
-    jest.clearAllMocks()
+    const tests = ['--help', '-h', 'invalid command']
+    for (const test of tests) {
+      tauri([test])
+      expect(!!console.log.mock.calls[0][0]).toBe(true)
+      jest.clearAllMocks()
+    }
+  })
+  it('gets you version', async () => {
+    jest.spyOn(console, 'log')
+    const tests = ['--version', '-v']
+    const version = require('../../../package.json').version
+    for (const test of tests) {
+      tauri([test])
+      expect(console.log.mock.calls[0][0]).toBe(version)
+      jest.clearAllMocks()
+    }
   })
 })

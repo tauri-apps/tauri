@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         platform: [ubuntu-latest, macos-latest, windows-latest]
-        example: [react/gatsby-themed-site, react/create-react-app, react/next.js, vanilla/monolith, vue/quasar-app]
+        example: [react/gatsby-themed-site, react/create-react-app, react/next.js, vanilla/monolith, vue/quasar-app, svelte/svelte-app]
         include:
           - platform: ubuntu-latest
             CARGO_HOME: ~/.cargo

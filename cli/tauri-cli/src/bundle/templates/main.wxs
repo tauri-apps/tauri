@@ -21,17 +21,21 @@
 
         <Package Id="*"
                  Keywords="Installer"
-                 InstallerVersion="200"
+                 InstallerVersion="450"
                  Languages="1033"
                  Compressed="yes"
                  InstallScope="perMachine"
                  SummaryCodepage="1252"/>
 
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
+        
+        <WixVariable Id="WixUIBannerBmp" Value="{{{icon_path}}}" />
+        
         <Icon Id="ProductIcon" SourceFile="{{{icon_path}}}"/>
         <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
-        <Property Id="ARPNOREPAIR" Value="1"/>
-        <Property Id="ARPNOMODIFY" Value="1"/>
+        <Property Id="ARPNOREPAIR" Value="yes" Secure="yes" />      <!-- Remove repair -->
+        <Property Id="ARPNOMODIFY" Value="yes" Secure="yes" />      <!-- Remove modify -->
+
 
         <Directory Id="TARGETDIR" Name="SourceDir">
             <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">

@@ -7,9 +7,7 @@ import getTauriConfig from '../helpers/tauri-config'
 import Runner from '../runner'
 
 module.exports = async (config: TauriConfig): Promise<void> => {
-  // TODO: why is this being passed?
-  // @ts-ignore
-  const tauri = new Runner({ modeDir: tauriDir })
+  const tauri = new Runner()
   const tauriConfig = getTauriConfig(
     merge(
       {

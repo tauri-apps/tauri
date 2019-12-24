@@ -6,15 +6,16 @@ import logger from './helpers/logger'
 const log = logger('app:tauri', 'green')
 const warn = logger('app:tauri (template)', 'red')
 
+interface InjectOptions {
+  force: false | InjectionType
+  logging: boolean
+  tauriPath?: string
+}
+type InjectionType = 'conf' | 'template' | 'all'
+
 const injectConfFile = (
   injectPath: string,
-  {
-    force,
-    logging
-  }: {
-    force: false | 'conf' | 'template' | 'all'
-    logging: boolean
-  }
+  { force, logging }: InjectOptions
 ): boolean | undefined => {
   const path = join(injectPath, 'tauri.conf.js')
   if (existsSync(path) && force !== 'conf' && force !== 'all') {
@@ -36,15 +37,7 @@ const injectConfFile = (
 
 const injectTemplate = (
   injectPath: string,
-  {
-    force,
-    logging,
-    tauriPath
-  }: {
-    force: false | 'conf' | 'template' | 'all'
-    logging: boolean
-    tauriPath?: string
-  }
+  { force, logging, tauriPath }: InjectOptions
 ): boolean | undefined => {
   const dir = normalize(join(injectPath, 'src-tauri'))
   if (existsSync(dir) && force !== 'template' && force !== 'all') {
@@ -76,16 +69,8 @@ Run \`tauri init --force template\` to overwrite.`)
 
 const inject = (
   injectPath: string,
-  type: 'conf' | 'template' | 'all',
-  {
-    force = false,
-    logging = false,
-    tauriPath
-  }: {
-    force: false | 'conf' | 'template' | 'all'
-    logging: boolean
-    tauriPath?: string
-  }
+  type: InjectionType,
+  { force = false, logging = false, tauriPath }: InjectOptions
 ): boolean => {
   if (typeof type !== 'string' || typeof injectPath !== 'string') {
     warn('- internal error. Required params missing.')

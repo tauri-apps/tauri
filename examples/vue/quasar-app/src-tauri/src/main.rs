@@ -1,3 +1,8 @@
+#![cfg_attr(
+  all(not(debug_assertions), target_os = "windows"),
+  windows_subsystem = "windows"
+)]
+
 mod cmd;
 
 #[macro_use]
@@ -12,15 +17,15 @@ fn main() {
         #[derive(Serialize)]
         pub struct Reply {
           pub msg: String,
-          pub rep: String
+          pub rep: String,
         }
 
         let reply = Reply {
           msg: format!("{}", msg).to_string(),
-          rep: "something else".to_string()
+          rep: "something else".to_string(),
         };
 
-        tauri::event::emit(&handle, "reply",  serde_json::to_string(&reply).unwrap());
+        tauri::event::emit(&handle, "reply", serde_json::to_string(&reply).unwrap());
 
         println!("Message from emit:hello => {}", msg);
       });

@@ -1,23 +1,27 @@
 module.exports = {
+  root: true,
+
   env: {
     node: true,
     jest: true
   },
 
+  parser: '@typescript-eslint/parser',
+
   extends: [
-    'standard',
-    'plugin:lodash-template/recommended',
-    'plugin:node/recommended'
+    'standard-with-typescript',
+    'plugin:@typescript-eslint/recommended-requiring-type-checking',
+    'plugin:lodash-template/recommended'
+    // TODO: make this work with typescript
+    // 'plugin:node/recommended'
   ],
 
-  'parserOptions': {
-    'ecmaVersion': 2020
+  plugins: ['@typescript-eslint', 'node', 'security'],
+
+  parserOptions: {
+    tsconfigRootDir: __dirname,
+    project: './tsconfig.json'
   },
-
-  'plugins': [
-    'node',
-    'security'
-  ],
 
   globals: {
     __statics: true,
@@ -42,6 +46,15 @@ module.exports = {
     'security/detect-non-literal-require': 'warn',
     'security/detect-object-injection': 'warn',
     'security/detect-possible-timing-attacks': 'error',
-    'security/detect-pseudoRandomBytes': 'error'
+    'security/detect-pseudoRandomBytes': 'error',
+    '@typescript-eslint/strict-boolean-expressions': 0,
+    'space-before-function-paren': [
+      'error',
+      {
+        asyncArrow: 'always',
+        anonymous: 'never',
+        named: 'never'
+      }
+    ]
   }
 }

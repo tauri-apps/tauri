@@ -1,30 +1,39 @@
-const
-  chokidar = require('chokidar')
-const debounce = require('lodash.debounce')
-const path = require('path')
-const { readFileSync, writeFileSync, existsSync } = require('fs-extra')
+import Inliner from '@tauri-apps/tauri-inliner'
+import toml from '@tauri-apps/toml'
+import chokidar, { FSWatcher } from 'chokidar'
+import { existsSync, readFileSync, writeFileSync } from 'fs-extra'
+import { JSDOM } from 'jsdom'
+import debounce from 'lodash.debounce'
+import path from 'path'
+import * as entry from './entry'
+import * as generator from './generator'
+import { appDir, tauriDir } from './helpers/app-paths'
+import logger from './helpers/logger'
+import onShutdown from './helpers/on-shutdown'
+import { spawn } from './helpers/spawn'
+import getTauriConfig from './helpers/tauri-config'
+import { TauriConfig } from './types/config'
 
-const
-  { spawn } = require('./helpers/spawn')
-const onShutdown = require('./helpers/on-shutdown')
-const generator = require('./generator')
-const entry = require('./entry')
-const { appDir, tauriDir } = require('./helpers/app-paths')
-
-const logger = require('./helpers/logger')
 const log = logger('app:tauri', 'green')
 const warn = logger('app:tauri (template)', 'red')
 
 class Runner {
-  constructor () {
+  pid: number
+  tauriWatcher?: FSWatcher
+  devPath?: string
+  killPromise?: Function
+
+  constructor() {
     this.pid = 0
-    this.tauriWatcher = null
+    this.tauriWatcher = undefined
     onShutdown(() => {
-      this.stop()
+      this.stop().catch(e => {
+        throw e
+      })
     })
   }
 
-  async run (cfg) {
+  async run(cfg: TauriConfig): Promise<void> {
     const devPath = cfg.build.devPath
 
     if (this.pid) {
@@ -40,7 +49,7 @@ class Runner {
     })
 
     const runningDevServer = devPath.startsWith('http')
-    let inlinedAssets = []
+    let inlinedAssets: string[] = []
 
     if (!runningDevServer) {
       inlinedAssets = await this.__parseHtml(cfg, path.resolve(appDir, devPath))
@@ -57,9 +66,11 @@ class Runner {
 
     const features = runningDevServer ? ['dev-server'] : []
 
-    const startDevTauri = () => {
+    const startDevTauri = async (): Promise<void> => {
       return this.__runCargoCommand({
-        cargoArgs: ['run'].concat(features.length ? ['--features', ...features] : []),
+        cargoArgs: ['run'].concat(
+          features.length ? ['--features', ...features] : []
+        ),
         dev: true
       })
     }
@@ -67,31 +78,49 @@ class Runner {
     // Start watching for tauri app changes
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     this.tauriWatcher = chokidar
-      .watch([
-        path.join(tauriDir, 'src'),
-        path.join(tauriDir, 'Cargo.toml'),
-        path.join(tauriDir, 'build.rs'),
-        path.join(appDir, 'tauri.conf.js')
-      ], {
-        watchers: {
-          chokidar: {
-            ignoreInitial: true
+      .watch(
+        [
+          path.join(tauriDir, 'src'),
+          path.join(tauriDir, 'Cargo.toml'),
+          path.join(tauriDir, 'build.rs'),
+          path.join(appDir, 'tauri.conf.js')
+        ],
+        {
+          // TODO: incorrect options?
+          // @ts-ignore
+          watchers: {
+            chokidar: {
+              ignoreInitial: true
+            }
           }
         }
-      })
-      .on('change', debounce(async (path) => {
-        await this.__stopCargo()
-        if (path.includes('tauri.conf.js')) {
-          this.run(require('./helpers/tauri-config')({ ctx: cfg.ctx }))
-        } else {
-          startDevTauri()
-        }
-      }, 1000))
+      )
+      .on(
+        'change',
+        debounce((path: string) => {
+          this.__stopCargo()
+            .then(() => {
+              if (path.includes('tauri.conf.js')) {
+                this.run(getTauriConfig({ ctx: cfg.ctx })).catch(e => {
+                  throw e
+                })
+              } else {
+                startDevTauri().catch(e => {
+                  throw e
+                })
+              }
+            })
+            .catch(err => {
+              warn(err)
+              process.exit(1)
+            })
+        }, 1000)
+      )
 
     return startDevTauri()
   }
 
-  async build (cfg) {
+  async build(cfg: TauriConfig): Promise<void> {
     this.__manipulateToml(toml => {
       this.__whitelistApi(cfg, toml)
     })
@@ -108,11 +137,16 @@ class Runner {
       cfg.tauri.embeddedServer.active ? 'embedded-server' : 'no-server'
     ]
 
-    const buildFn = target => this.__runCargoCommand({
-      cargoArgs: [cfg.tauri.bundle.active ? 'tauri-cli' : 'build', '--features', ...features]
-        .concat(cfg.ctx.debug ? [] : ['--release'])
-        .concat(target ? ['--target', target] : [])
-    })
+    const buildFn = async (target?: string): Promise<void> =>
+      this.__runCargoCommand({
+        cargoArgs: [
+          cfg.tauri.bundle.active ? 'tauri-cli' : 'build',
+          '--features',
+          ...features
+        ]
+          .concat(cfg.ctx.debug ? [] : ['--release'])
+          .concat(target ? ['--target', target] : [])
+      })
 
     if (cfg.ctx.debug || !cfg.ctx.targetName) {
       // on debug mode or if no target specified,
@@ -127,19 +161,18 @@ class Runner {
     }
   }
 
-  __parseHtml (cfg, indexDir) {
-    const Inliner = require('@tauri-apps/tauri-inliner')
-    const jsdom = require('jsdom')
-    const { JSDOM } = jsdom
-    const inlinedAssets = []
+  async __parseHtml(cfg: TauriConfig, indexDir: string): Promise<string[]> {
+    const inlinedAssets: string[] = []
 
     return new Promise((resolve, reject) => {
       const distIndexPath = path.join(indexDir, 'index.html')
       if (!existsSync(distIndexPath)) {
-        warn(`Error: cannot find index.html in "${indexDir}". Did you forget to build your web code or update the build.distDir in tauri.conf.js?`)
+        warn(
+          `Error: cannot find index.html in "${indexDir}". Did you forget to build your web code or update the build.distDir in tauri.conf.js?`
+        )
         reject(new Error('Could not find index.html in dist dir.'))
       }
-      new Inliner(distIndexPath, (err, html) => {
+      new Inliner(distIndexPath, (err: Error, html: string) => {
         if (err) {
           reject(err)
         } else {
@@ -151,6 +184,9 @@ class Runner {
           })
 
           const tauriScript = document.createElement('script')
+          // TODO: should this be read as a buffer or a utf8 string?
+          // TODO: is text the write attribute to set?
+          // @ts-ignore
           tauriScript.text = readFileSync(path.join(tauriDir, 'tauri.js'))
           document.body.insertBefore(tauriScript, document.body.firstChild)
 
@@ -162,35 +198,44 @@ class Runner {
             document.head.appendChild(cspTag)
           }
 
-          writeFileSync(path.join(indexDir, 'index.tauri.html'), dom.serialize())
+          writeFileSync(
+            path.join(indexDir, 'index.tauri.html'),
+            dom.serialize()
+          )
           resolve(inlinedAssets)
         }
-      }).on('progress', event => {
+      }).on('progress', (event: string) => {
         const match = event.match(/([\S\d]+)\.([\S\d]+)/g)
         match && inlinedAssets.push(match[0])
       })
     })
   }
 
-  stop () {
+  async stop(): Promise<void> {
     return new Promise((resolve, reject) => {
       this.tauriWatcher && this.tauriWatcher.close()
-      this.__stopCargo().then(resolve)
+      this.__stopCargo()
+        .then(resolve)
+        .catch(e => {
+          console.error(e)
+        })
     })
   }
 
-  __runCargoCommand ({
+  async __runCargoCommand({
     cargoArgs,
     extraArgs,
     dev = false
-  }) {
+  }: {
+    cargoArgs: string[]
+    extraArgs?: string[]
+    dev?: boolean
+  }): Promise<void> {
     return new Promise(resolve => {
       this.pid = spawn(
         'cargo',
 
-        extraArgs
-          ? cargoArgs.concat(['--']).concat(extraArgs)
-          : cargoArgs,
+        extraArgs ? cargoArgs.concat(['--']).concat(extraArgs) : cargoArgs,
 
         tauriDir,
 
@@ -204,7 +249,7 @@ class Runner {
 
           if (this.killPromise) {
             this.killPromise()
-            this.killPromise = null
+            this.killPromise = undefined
           } else if (dev) {
             warn()
             warn('Cargo process was killed. Exiting...')
@@ -218,7 +263,7 @@ class Runner {
     })
   }
 
-  __stopCargo () {
+  async __stopCargo(): Promise<void> {
     const pid = this.pid
 
     if (!pid) {
@@ -234,10 +279,11 @@ class Runner {
     })
   }
 
-  __manipulateToml (callback) {
-    const toml = require('@tauri-apps/toml')
+  __manipulateToml(callback: (tomlContents: object) => void): void {
     const tomlPath = path.join(tauriDir, 'Cargo.toml')
+    // TODO: should this be read as buffer or string?
     const tomlFile = readFileSync(tomlPath)
+    // @ts-ignore
     const tomlContents = toml.parse(tomlFile)
 
     callback(tomlContents)
@@ -246,13 +292,18 @@ class Runner {
     writeFileSync(tomlPath, output)
   }
 
-  __whitelistApi (cfg, tomlContents) {
+  __whitelistApi(
+    cfg: TauriConfig,
+    tomlContents: { [index: string]: any }
+  ): void {
     const tomlFeatures = []
 
     if (cfg.tauri.whitelist.all) {
       tomlFeatures.push('all-api')
     } else {
-      const whitelist = Object.keys(cfg.tauri.whitelist).filter(w => cfg.tauri.whitelist[w] === true)
+      const whitelist = Object.keys(cfg.tauri.whitelist).filter(
+        w => cfg.tauri.whitelist[String(w)] === true
+      )
       tomlFeatures.push(...whitelist)
     }
 
@@ -264,4 +315,4 @@ class Runner {
   }
 }
 
-module.exports = Runner
+export default Runner

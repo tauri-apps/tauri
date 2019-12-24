@@ -10,9 +10,12 @@
     "url": "https://opencollective.com/tauri"
   },
   "scripts": {
+    "build": "webpack --progress",
     "test": "jest --runInBand --no-cache",
+    "pretest": "yarn build",
     "test:mac-local": "jest --runInBand",
-    "lint-fix": "eslint --fix ./bin/*.js ./*.js ./helpers/*.js",
+    "lint": "eslint --ext ts ./src/**/*.ts",
+    "lint-fix": "eslint --fix --ext ts ./src/**/*.ts",
     "lint:lockfile": "lockfile-lint --path yarn.lock --type yarn --validate-https --allowed-hosts npm yarn",
     "build:tauri[rust]": "cd ../tauri && TAURI_DIST_DIR=../../test/fixture/dist TAURI_DIR=../test/fixture cargo publish --dry-run --allow-dirty"
   },
@@ -39,6 +42,7 @@
     "yarn": ">= 1.19.1"
   },
   "dependencies": {
+    "@tauri-apps/tauri-inliner": "1.13.2",
     "@tauri-apps/toml": "2.2.4",
     "chalk": "3.0.0",
     "chokidar": "3.3.1",
@@ -49,7 +53,6 @@
     "imagemin-optipng": "7.1.0",
     "imagemin-pngquant": "8.0.0",
     "imagemin-zopfli": "6.0.0",
-    "@tauri-apps/tauri-inliner": "1.13.2",
     "is-png": "2.0.0",
     "isbinaryfile": "4.0.2",
     "jsdom": "15.2.1",
@@ -64,9 +67,21 @@
     "webpack-shell-plugin": "0.5.0"
   },
   "devDependencies": {
+    "@types/cross-spawn": "^6.0.1",
+    "@types/fs-extra": "^8.0.1",
+    "@types/imagemin": "^7.0.0",
+    "@types/imagemin-optipng": "^5.2.0",
+    "@types/jsdom": "^12.2.4",
+    "@types/lodash.debounce": "^4.0.6",
+    "@types/lodash.template": "^4.4.6",
+    "@types/ms": "^0.7.31",
+    "@types/sharp": "^0.23.1",
+    "@types/webpack-merge": "^4.1.5",
+    "@typescript-eslint/eslint-plugin": "^2.12.0",
+    "@typescript-eslint/parser": "^2.12.0",
     "dotenv": "8.2.0",
     "eslint": "6.7.2",
-    "eslint-config-standard": "14.1.0",
+    "eslint-config-standard-with-typescript": "^11.0.1",
     "eslint-plugin-import": "2.19.1",
     "eslint-plugin-lodash-template": "0.15.0",
     "eslint-plugin-node": "10.0.0",
@@ -77,8 +92,13 @@
     "jest": "24.9.0",
     "jest-mock-process": "1.2.0",
     "lint-staged": "9.5.0",
-    "lockfile-lint": "3.0.4",
-    "promise": "8.0.3"
+    "lockfile-lint": "3.0.3",
+    "promise": "8.0.3",
+    "ts-loader": "6.2.1",
+    "typescript": "3.7.3",
+    "webpack": "4.41.4",
+    "webpack-cli": "3.3.10",
+    "webpack-node-externals": "1.7.2"
   },
   "husky": {
     "hooks": {

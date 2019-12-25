@@ -67,7 +67,7 @@
       "prPriority": -1,
       "automerge": true,
       "rebaseConflictedPrs": true
-    }
+    },
     {
       "paths": ["examples/svelte/**"],
       "groupName": "Svelte Examples",

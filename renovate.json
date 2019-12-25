@@ -68,5 +68,17 @@
       "automerge": true,
       "rebaseConflictedPrs": true
     }
+    {
+      "paths": ["examples/svelte/**"],
+      "groupName": "Svelte Examples",
+      "groupSlug": "allSvelte",
+      "commitMessagePrefix": "chore(examples)",
+      "lockFileMaintenance": {
+        "enabled": true
+      },
+      "prPriority": -1,
+      "automerge": true,
+      "rebaseConflictedPrs": true
+    }
   ]
 }

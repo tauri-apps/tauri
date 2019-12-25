@@ -179,8 +179,6 @@ class Runner {
           })
 
           const tauriScript = document.createElement('script')
-          // TODO: should this be read as a buffer or a utf8 string?
-          // TODO: is text the write attribute to set?
           // @ts-ignore
           tauriScript.text = readFileSync(path.join(tauriDir, 'tauri.js'))
           document.body.insertBefore(tauriScript, document.body.firstChild)

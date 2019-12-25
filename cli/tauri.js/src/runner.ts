@@ -1,7 +1,7 @@
 import Inliner from '@tauri-apps/tauri-inliner'
 import toml from '@tauri-apps/toml'
 import chokidar, { FSWatcher } from 'chokidar'
-import { existsSync, readFileSync, writeFileSync } from 'fs-extra'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs-extra'
 import { JSDOM } from 'jsdom'
 import debounce from 'lodash.debounce'
 import path from 'path'
@@ -157,6 +157,7 @@ class Runner {
 
   async __parseHtml(cfg: TauriConfig, indexDir: string): Promise<string[]> {
     const inlinedAssets: string[] = []
+    const distDir = cfg.build.distDir
 
     return new Promise((resolve, reject) => {
       const distIndexPath = path.join(indexDir, 'index.html')
@@ -192,8 +193,12 @@ class Runner {
             document.head.appendChild(cspTag)
           }
 
+          if (!existsSync(distDir)) {
+            mkdirSync(distDir, { recursive: true })
+          }
+
           writeFileSync(
-            path.join(indexDir, 'index.tauri.html'),
+            path.join(distDir, 'index.tauri.html'),
             dom.serialize()
           )
           resolve(inlinedAssets)

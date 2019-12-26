@@ -63,27 +63,48 @@ fn default_embedded_server() -> EmbeddedServerConfig {
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Config {
+#[serde(tag = "tauri", rename_all = "camelCase")]
+pub struct TauriConfig {
   #[serde(default = "default_window")]
   pub window: WindowConfig,
   #[serde(default = "default_embedded_server")]
-  pub embedded_server: EmbeddedServerConfig,
-  #[serde(default = "default_dev_path")]
-  pub dev_path: String,
-  #[serde(default = "default_inlined_assets")]
-  pub inlined_assets: Vec<String>,
+  pub embedded_server: EmbeddedServerConfig
 }
 
-fn default_inlined_assets() -> Vec<String> {
-  Vec::new()
+#[derive(Deserialize)]
+#[serde(tag = "build", rename_all = "camelCase")]
+pub struct BuildConfig {
+  #[serde(default = "default_dev_path")]
+  pub dev_path: String
 }
 
 fn default_dev_path() -> String {
   "".to_string()
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Config {
+  #[serde(default = "default_tauri")]
+  pub tauri: TauriConfig,
+  #[serde(default = "default_build")]
+  pub build: BuildConfig
+}
+
+fn default_tauri() -> TauriConfig {
+  TauriConfig {
+    window: default_window(),
+    embedded_server: default_embedded_server()
+  }
+}
+
+fn default_build() -> BuildConfig {
+  BuildConfig {
+    dev_path: default_dev_path()
+  }
+}
+
 pub fn get() -> Config {
-  serde_json::from_str(include_str!(concat!(env!("TAURI_DIR"), "/config.json")))
-    .expect("failed to create config.json")
+  serde_json::from_str(include_str!(concat!(env!("TAURI_DIR"), "/tauri.conf.json")))
+    .expect("failed to read tauri.conf.json")
 }

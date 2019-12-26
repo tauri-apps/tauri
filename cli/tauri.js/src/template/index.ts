@@ -1,7 +1,10 @@
-import { copySync, existsSync, removeSync } from 'fs-extra'
+import { existsSync, removeSync, writeFileSync } from 'fs-extra'
 import { join, normalize, resolve } from 'path'
-import copyTemplates from './helpers/copy-templates'
-import logger from './helpers/logger'
+import { TauriConfig } from 'types'
+import merge from 'webpack-merge'
+import copyTemplates from '../helpers/copy-templates'
+import logger from '../helpers/logger'
+import defaultConfig from './defaultConfig'
 
 const log = logger('app:tauri', 'green')
 const warn = logger('app:tauri (template)', 'red')
@@ -15,22 +18,32 @@ type InjectionType = 'conf' | 'template' | 'all'
 
 const injectConfFile = (
   injectPath: string,
-  { force, logging }: InjectOptions
+  { force, logging }: InjectOptions,
+  customConfig: Partial<TauriConfig> = {}
 ): boolean | undefined => {
-  const path = join(injectPath, 'tauri.conf.js')
+  const path = join(injectPath, 'tauri.conf.json')
   if (existsSync(path) && force !== 'conf' && force !== 'all') {
-    warn(`tauri.conf.js found in ${path}
+    warn(`tauri.conf.json found in ${path}
   Run \`tauri init --force conf\` to overwrite.`)
     if (!force) return false
   } else {
     try {
       removeSync(path)
-      copySync(resolve(__dirname, '../templates/tauri.conf.js'), path)
+      const finalConf = merge(defaultConfig as any, customConfig as any) as {
+        [index: string]: any
+      }
+      Object.keys(finalConf).forEach(key => {
+        // Options marked `null` should be removed
+        if (finalConf[key] === null) {
+          delete finalConf[key]
+        }
+      })
+      writeFileSync(path, JSON.stringify(finalConf, undefined, 2))
     } catch (e) {
       if (logging) console.log(e)
       return false
     } finally {
-      if (logging) log('Successfully wrote tauri.conf.js')
+      if (logging) log('Successfully wrote tauri.conf.json')
     }
   }
 }
@@ -70,17 +83,18 @@ Run \`tauri init --force template\` to overwrite.`)
 const inject = (
   injectPath: string,
   type: InjectionType,
-  { force = false, logging = false, tauriPath }: InjectOptions
+  { force = false, logging = false, tauriPath }: InjectOptions,
+  customConfig?: Partial<TauriConfig>
 ): boolean => {
   if (typeof type !== 'string' || typeof injectPath !== 'string') {
     warn('- internal error. Required params missing.')
     return false
   }
-  if (type === 'conf' || type === 'all') {
-    injectConfFile(injectPath, { force, logging })
-  }
   if (type === 'template' || type === 'all') {
     injectTemplate(injectPath, { force, logging, tauriPath })
+  }
+  if (type === 'conf' || type === 'all') {
+    injectConfFile(join(injectPath, 'src-tauri'), { force, logging }, customConfig)
   }
   return true
 }

@@ -1,17 +1,16 @@
 import Inliner from '@tauri-apps/tauri-inliner'
 import toml from '@tauri-apps/toml'
 import chokidar, { FSWatcher } from 'chokidar'
-import { existsSync, readFileSync, writeFileSync } from 'fs-extra'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs-extra'
 import { JSDOM } from 'jsdom'
 import debounce from 'lodash.debounce'
 import path from 'path'
 import * as entry from './entry'
-import * as generator from './generator'
 import { appDir, tauriDir } from './helpers/app-paths'
 import logger from './helpers/logger'
 import onShutdown from './helpers/on-shutdown'
 import { spawn } from './helpers/spawn'
-import getTauriConfig from './helpers/tauri-config'
+const getTauriConfig = require('./helpers/tauri-config')
 import { TauriConfig } from './types/config'
 
 const log = logger('app:tauri', 'green')
@@ -52,14 +51,11 @@ class Runner {
     let inlinedAssets: string[] = []
 
     if (!runningDevServer) {
-      inlinedAssets = await this.__parseHtml(cfg, path.resolve(appDir, devPath))
+      inlinedAssets = await this.__parseHtml(cfg, devPath)
     }
 
-    generator.generate({
-      devPath: runningDevServer ? devPath : path.resolve(appDir, devPath),
-      inlinedAssets,
-      ...cfg.tauri
-    })
+    process.env.TAURI_INLINED_ASSSTS = inlinedAssets.join('|')
+
     entry.generate(tauriDir, cfg)
 
     this.devPath = devPath
@@ -127,10 +123,8 @@ class Runner {
 
     const inlinedAssets = await this.__parseHtml(cfg, cfg.build.distDir)
 
-    generator.generate({
-      inlinedAssets,
-      ...cfg.tauri
-    })
+    process.env.TAURI_INLINED_ASSSTS = inlinedAssets.join('|')
+  
     entry.generate(tauriDir, cfg)
 
     const features = [
@@ -163,6 +157,7 @@ class Runner {
 
   async __parseHtml(cfg: TauriConfig, indexDir: string): Promise<string[]> {
     const inlinedAssets: string[] = []
+    const distDir = cfg.build.distDir
 
     return new Promise((resolve, reject) => {
       const distIndexPath = path.join(indexDir, 'index.html')
@@ -184,8 +179,6 @@ class Runner {
           })
 
           const tauriScript = document.createElement('script')
-          // TODO: should this be read as a buffer or a utf8 string?
-          // TODO: is text the write attribute to set?
           // @ts-ignore
           tauriScript.text = readFileSync(path.join(tauriDir, 'tauri.js'))
           document.body.insertBefore(tauriScript, document.body.firstChild)
@@ -198,8 +191,12 @@ class Runner {
             document.head.appendChild(cspTag)
           }
 
+          if (!existsSync(distDir)) {
+            mkdirSync(distDir, { recursive: true })
+          }
+
           writeFileSync(
-            path.join(indexDir, 'index.tauri.html'),
+            path.join(distDir, 'index.tauri.html'),
             dom.serialize()
           )
           resolve(inlinedAssets)

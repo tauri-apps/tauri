@@ -1,9 +1,8 @@
 import { TauriConfig } from 'types'
 import merge from 'webpack-merge'
 import * as entry from '../entry'
-import * as generator from '../generator'
 import { tauriDir } from '../helpers/app-paths'
-import getTauriConfig from '../helpers/tauri-config'
+const getTauriConfig = require('../helpers/tauri-config')
 import Runner from '../runner'
 
 module.exports = async (config: TauriConfig): Promise<void> => {
@@ -19,7 +18,6 @@ module.exports = async (config: TauriConfig): Promise<void> => {
     ) as TauriConfig
   )
 
-  generator.generate(tauriConfig.tauri)
   entry.generate(tauriDir, tauriConfig)
 
   return tauri.build(tauriConfig)

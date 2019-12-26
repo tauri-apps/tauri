@@ -1,9 +1,10 @@
 use tiny_http::{Header, Response};
 
 pub fn asset_response(path: &str) -> Response<std::io::Cursor<Vec<u8>>> {
+  let asset_path = &format!("{}{}", env!("TAURI_DIST_DIR"), path);
   let asset = crate::assets::ASSETS
-    .get(&format!("{}{}", env!("TAURI_DIST_DIR"), path))
-    .expect("Could not get assets")
+    .get(asset_path)
+    .expect(&format!("Could not read asset {}", asset_path))
     .into_owned();
   let mut response = Response::from_data(asset);
   let header;

@@ -179,7 +179,11 @@ impl<'a> Extract<'a> {
       }
       ArchiveFormat::Zip => {
         let mut archive = zip::ZipArchive::new(source)?;
-        let mut file = archive.by_name(file_to_extract.to_str().unwrap())?;
+        let mut file = archive.by_name(
+          file_to_extract
+            .to_str()
+            .expect("Could not convert file to str"),
+        )?;
         let mut output = fs::File::create(into_dir.join(file.name()))?;
         io::copy(&mut file, &mut output)?;
       }

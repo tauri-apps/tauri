@@ -47,7 +47,7 @@ lazy_static! {
     handlebars
       .register_template_string("main.wxs", include_str!("templates/main.wxs"))
       .or_else(|e| Err(e.to_string()))
-      .unwrap();
+      .expect("Failed to setup handlebar template");
     handlebars
   };
 }
@@ -133,7 +133,7 @@ fn extract_zip(data: &Vec<u8>, path: &Path) -> crate::Result<()> {
   for i in 0..zipa.len() {
     let mut file = zipa.by_index(i).or_else(|e| Err(e.to_string()))?;
     let dest_path = path.join(file.name());
-    let parent = dest_path.parent().unwrap();
+    let parent = dest_path.parent().expect("Failed to get parent");
 
     if !parent.exists() {
       create_dir_all(parent).or_else(|e| Err(e.to_string()))?;
@@ -143,7 +143,7 @@ fn extract_zip(data: &Vec<u8>, path: &Path) -> crate::Result<()> {
     file
       .read_to_end(&mut buff)
       .or_else(|e| Err(e.to_string()))?;
-    let mut fileout = File::create(dest_path).unwrap();
+    let mut fileout = File::create(dest_path).expect("Failed to open file");
 
     fileout.write_all(&buff).or_else(|e| Err(e.to_string()))?;
   }
@@ -256,15 +256,15 @@ fn run_candle(
     .spawn()
     .expect("error running candle.exe");
   {
-    let stdout = cmd.stdout.as_mut().unwrap();
+    let stdout = cmd.stdout.as_mut().expect("Failed to get stdout handle");
     let reader = BufReader::new(stdout);
 
     for line in reader.lines() {
-      common::print_info(line.unwrap().as_str())?;
+      common::print_info(line.expect("Failed to get line").as_str())?;
     }
   }
 
-  let status = cmd.wait().unwrap();
+  let status = cmd.wait()?;
   if status.success() {
     Ok(())
   } else {
@@ -296,15 +296,15 @@ fn run_light(
     .spawn()
     .expect("error running light.exe");
   {
-    let stdout = cmd.stdout.as_mut().unwrap();
+    let stdout = cmd.stdout.as_mut().expect("Failed to get stdout handle");
     let reader = BufReader::new(stdout);
 
     for line in reader.lines() {
-      common::print_info(line.unwrap().as_str())?;
+      common::print_info(line.expect("Failed to get line").as_str())?;
     }
   }
 
-  let status = cmd.wait().unwrap();
+  let status = cmd.wait()?;
   if status.success() {
     Ok(output_path.to_path_buf())
   } else {

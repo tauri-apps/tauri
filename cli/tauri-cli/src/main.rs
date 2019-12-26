@@ -29,7 +29,7 @@ error_chain! {
         Walkdir(::walkdir::Error);
         HttpError(::attohttpc::Error) #[cfg(windows)];
         StripError(std::path::StripPrefixError);
-
+        ConvertError(std::num::TryFromIntError);
     }
     errors {}
 }
@@ -153,6 +153,6 @@ fn run() -> crate::Result<()> {
 
 fn main() {
   if let Err(error) = run() {
-    bundle::print_error(&error).unwrap();
+    bundle::print_error(&error).expect("Failed to call print error in main");
   }
 }

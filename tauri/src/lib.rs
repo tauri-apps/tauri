@@ -5,8 +5,8 @@ extern crate serde_json;
 #[macro_use]
 extern crate lazy_static;
 
-mod endpoints;
 pub mod config;
+mod endpoints;
 pub mod event;
 
 #[cfg(feature = "embedded-server")]
@@ -56,7 +56,7 @@ pub fn execute_promise<T: 'static, F: FnOnce() -> Result<String, String> + Send 
       let callback_string = api::rpc::format_callback_result(task(), callback, error);
       handle
         .dispatch(move |_webview| _webview.eval(callback_string.as_str()))
-        .unwrap()
+        .expect("Failed to dispatch promise callback")
     });
   });
 }

@@ -17,7 +17,7 @@ lazy_static! {
 
     handlebars
       .register_template_string("bundle_dmg", include_str!("templates/bundle_dmg"))
-      .unwrap();
+      .expect("Failed to setup handlebars template");
     handlebars
   };
 }

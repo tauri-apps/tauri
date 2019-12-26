@@ -189,7 +189,7 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
     for byte in hash.compute().iter() {
       write!(md5sums_file, "{:02x}", byte)?;
     }
-    let rel_path = path.strip_prefix(data_dir).unwrap();
+    let rel_path = path.strip_prefix(data_dir)?;
     let path_str = rel_path.to_str().ok_or_else(|| {
       let msg = format!("Non-UTF-8 path: {:?}", rel_path);
       io::Error::new(io::ErrorKind::InvalidData, msg)
@@ -232,8 +232,8 @@ fn generate_icon_files(settings: &Settings, data_dir: &PathBuf) -> crate::Result
       continue;
     }
     let decoder = PNGDecoder::new(File::open(&icon_path)?)?;
-    let width = decoder.dimensions().0.try_into().unwrap();
-    let height = decoder.dimensions().1.try_into().unwrap();
+    let width = decoder.dimensions().0.try_into()?;
+    let height = decoder.dimensions().1.try_into()?;
     let is_high_density = common::is_retina(&icon_path);
     if !sizes.contains(&(width, height, is_high_density)) {
       sizes.insert((width, height, is_high_density));
@@ -303,7 +303,7 @@ fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
     if src_path == src_dir {
       continue;
     }
-    let dest_path = src_path.strip_prefix(&src_dir).unwrap();
+    let dest_path = src_path.strip_prefix(&src_dir)?;
     if entry.file_type().is_dir() {
       tar_builder.append_dir(dest_path, src_path)?;
     } else {

@@ -29,7 +29,9 @@ pub fn event_queue_object_name() -> String {
 
 pub fn listen<F: FnMut(String) + 'static>(id: &'static str, handler: F) {
   LISTENERS.with(|listeners| {
-    let mut l = listeners.lock().unwrap();
+    let mut l = listeners
+      .lock()
+      .expect("Failed to lock listeners: listen()");
     l.insert(
       id.to_string(),
       EventHandler {
@@ -55,17 +57,19 @@ pub fn emit<T: 'static>(webview_handle: &Handle<T>, event: &'static str, mut pay
         salt
       ))
     })
-    .unwrap();
+    .expect("Failed to dispatch JS from emit");
 }
 
 pub fn on_event(event: String, data: String) {
   LISTENERS.with(|listeners| {
-    let mut l = listeners.lock().unwrap();
+    let mut l = listeners
+      .lock()
+      .expect("Failed to lock listeners: on_event()");
 
     let key = event.clone();
 
     if l.contains_key(&key) {
-      let handler = l.get_mut(&key).unwrap();
+      let handler = l.get_mut(&key).expect("Failed to get mutable handler");
       (handler.on_event)(data);
     }
   });

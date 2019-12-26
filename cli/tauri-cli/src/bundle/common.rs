@@ -60,7 +60,7 @@ pub fn copy_file(from: &Path, to: &Path) -> crate::Result<()> {
   if !from.is_file() {
     bail!("{:?} is not a file", from);
   }
-  let dest_dir = to.parent().unwrap();
+  let dest_dir = to.parent().expect("No data in parent");
   fs::create_dir_all(dest_dir).chain_err(|| format!("Failed to create {:?}", dest_dir))?;
   fs::copy(from, to).chain_err(|| format!("Failed to copy {:?} to {:?}", from, to))?;
   Ok(())
@@ -80,12 +80,12 @@ pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
   if to.exists() {
     bail!("{:?} already exists", to);
   }
-  let parent = to.parent().unwrap();
+  let parent = to.parent().expect("No data in parent");
   fs::create_dir_all(parent).chain_err(|| format!("Failed to create {:?}", parent))?;
   for entry in walkdir::WalkDir::new(from) {
     let entry = entry?;
     debug_assert!(entry.path().starts_with(from));
-    let rel_path = entry.path().strip_prefix(from).unwrap();
+    let rel_path = entry.path().strip_prefix(from)?;
     let dest_path = to.join(rel_path);
     if entry.file_type().is_symlink() {
       let target = fs::read_link(entry.path())?;
@@ -251,11 +251,12 @@ mod tests {
 
   #[test]
   fn create_file_with_parent_dirs() {
-    let tmp = tempfile::tempdir().unwrap();
+    let tmp = tempfile::tempdir().expect("Unable to create temp dir");
     assert!(!tmp.path().join("parent").exists());
     {
-      let mut file = create_file(&tmp.path().join("parent/file.txt")).unwrap();
-      write!(file, "Hello, world!\n").unwrap();
+      let mut file =
+        create_file(&tmp.path().join("parent/file.txt")).expect("Failed to create file");
+      write!(file, "Hello, world!\n").expect("unable to write file");
     }
     assert!(tmp.path().join("parent").is_dir());
     assert!(tmp.path().join("parent/file.txt").is_file());
@@ -268,42 +269,44 @@ mod tests {
     //       sub/
     //           file.txt
     //       link -> sub/file.txt
-    let tmp = tempfile::tempdir().unwrap();
+    let tmp = tempfile::tempdir().expect("unable to create tempdir");
     {
-      let mut file = create_file(&tmp.path().join("orig/sub/file.txt")).unwrap();
-      write!(file, "Hello, world!\n").unwrap();
+      let mut file =
+        create_file(&tmp.path().join("orig/sub/file.txt")).expect("Unable to create file");
+      write!(file, "Hello, world!\n").expect("Unable to write to file");
     }
     symlink_file(
       &PathBuf::from("sub/file.txt"),
       &tmp.path().join("orig/link"),
     )
-    .unwrap();
+    .expect("Failed to create symlink");
     assert_eq!(
       std::fs::read(tmp.path().join("orig/link"))
-        .unwrap()
+        .expect("Failed to read file")
         .as_slice(),
       b"Hello, world!\n"
     );
     // Copy ${TMP}/orig to ${TMP}/parent/copy, and make sure that the
     // directory structure, file, and symlink got copied correctly.
-    copy_dir(&tmp.path().join("orig"), &tmp.path().join("parent/copy")).unwrap();
+    copy_dir(&tmp.path().join("orig"), &tmp.path().join("parent/copy"))
+      .expect("Failed to copy dir");
     assert!(tmp.path().join("parent/copy").is_dir());
     assert!(tmp.path().join("parent/copy/sub").is_dir());
     assert!(tmp.path().join("parent/copy/sub/file.txt").is_file());
     assert_eq!(
       std::fs::read(tmp.path().join("parent/copy/sub/file.txt"))
-        .unwrap()
+        .expect("Failed to read file")
         .as_slice(),
       b"Hello, world!\n"
     );
     assert!(tmp.path().join("parent/copy/link").exists());
     assert_eq!(
-      std::fs::read_link(tmp.path().join("parent/copy/link")).unwrap(),
+      std::fs::read_link(tmp.path().join("parent/copy/link")).expect("Failed to read from symlink"),
       PathBuf::from("sub/file.txt")
     );
     assert_eq!(
       std::fs::read(tmp.path().join("parent/copy/link"))
-        .unwrap()
+        .expect("Failed to read from file")
         .as_slice(),
       b"Hello, world!\n"
     );

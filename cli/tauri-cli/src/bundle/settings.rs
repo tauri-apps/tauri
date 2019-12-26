@@ -182,7 +182,7 @@ impl Settings {
       Some(
         matches
           .values_of("features")
-          .unwrap()
+          .expect("Couldn't get the features")
           .map(|s| s.to_string())
           .collect(),
       )
@@ -284,7 +284,7 @@ impl Settings {
             if workspace_settings.members.is_some()
               && workspace_settings
                 .members
-                .unwrap()
+                .expect("Couldn't get members")
                 .iter()
                 .any(|member| member.as_str() == project_name)
             {
@@ -607,16 +607,19 @@ mod tests {
                     [dependencies]\n\
                     rand = \"0.4\"\n";
     let cargo_settings: CargoSettings = toml::from_str(toml_str).unwrap();
-    let package = cargo_settings.package.unwrap();
+    let package = cargo_settings.package.expect("Couldn't get package");
     assert_eq!(package.name, "example");
     assert_eq!(package.version, "0.1.0");
     assert_eq!(package.description, "An example application.");
     assert_eq!(package.homepage, None);
     assert_eq!(package.authors, Some(vec!["Jane Doe".to_string()]));
     assert!(package.metadata.is_some());
-    let metadata = package.metadata.as_ref().unwrap();
+    let metadata = package
+      .metadata
+      .as_ref()
+      .expect("Failed to get metadata ref");
     assert!(metadata.bundle.is_some());
-    let bundle = metadata.bundle.as_ref().unwrap();
+    let bundle = metadata.bundle.as_ref().expect("Failed to get bundle ref");
     assert_eq!(bundle.name, Some("Example Application".to_string()));
     assert_eq!(bundle.identifier, Some("com.example.app".to_string()));
     assert_eq!(bundle.icon, None);
@@ -661,26 +664,34 @@ mod tests {
             \n\
             [[example]]\n\
             name = \"baz\"\n";
-    let cargo_settings: CargoSettings = toml::from_str(toml_str).unwrap();
+    let cargo_settings: CargoSettings = toml::from_str(toml_str).expect("Failed to read from toml");
     assert!(cargo_settings.package.is_some());
-    let package = cargo_settings.package.as_ref().unwrap();
+    let package = cargo_settings
+      .package
+      .as_ref()
+      .expect("Failed to get package ref");
     assert!(package.metadata.is_some());
-    let metadata = package.metadata.as_ref().unwrap();
+    let metadata = package
+      .metadata
+      .as_ref()
+      .expect("Failed to get metadata ref");
     assert!(metadata.bundle.is_some());
-    let bundle = metadata.bundle.as_ref().unwrap();
+    let bundle = metadata.bundle.as_ref().expect("Failed to get bundle ref");
     assert!(bundle.example.is_some());
 
-    let bins = bundle.bin.as_ref().unwrap();
+    let bins = bundle.bin.as_ref().expect("Failed to get bin ref");
     assert!(bins.contains_key("foo"));
-    let foo: &BundleSettings = bins.get("foo").unwrap();
+    let foo: &BundleSettings = bins.get("foo").expect("Failed to get foo bundle settings");
     assert_eq!(foo.name, Some("Foo App".to_string()));
     assert!(bins.contains_key("bar"));
-    let bar: &BundleSettings = bins.get("bar").unwrap();
+    let bar: &BundleSettings = bins.get("bar").expect("Failed to get bar bundle settings");
     assert_eq!(bar.name, Some("Bar App".to_string()));
 
-    let examples = bundle.example.as_ref().unwrap();
+    let examples = bundle.example.as_ref().expect("Failed to get example ref");
     assert!(examples.contains_key("baz"));
-    let baz: &BundleSettings = examples.get("baz").unwrap();
+    let baz: &BundleSettings = examples
+      .get("baz")
+      .expect("Failed to get baz bundle settings");
     assert_eq!(baz.name, Some("Baz Example".to_string()));
   }
 }

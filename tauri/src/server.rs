@@ -3,21 +3,26 @@ use tiny_http::{Header, Response};
 pub fn asset_response(path: &str) -> Response<std::io::Cursor<Vec<u8>>> {
   let asset = crate::assets::ASSETS
     .get(&format!("{}{}", env!("TAURI_DIST_DIR"), path))
-    .unwrap()
+    .expect("Could not get assets")
     .into_owned();
   let mut response = Response::from_data(asset);
   let header;
 
   if path.ends_with(".svg") {
-    header = Header::from_bytes(&b"Content-Type"[..], &b"image/svg+xml"[..]).unwrap();
+    header = Header::from_bytes(&b"Content-Type"[..], &b"image/svg+xml"[..])
+      .expect("Could not add svg+xml header");
   } else if path.ends_with(".css") {
-    header = Header::from_bytes(&b"Content-Type"[..], &b"text/css"[..]).unwrap();
+    header =
+      Header::from_bytes(&b"Content-Type"[..], &b"text/css"[..]).expect("Could not add css header");
   } else if path.ends_with(".html") {
-    header = Header::from_bytes(&b"Content-Type"[..], &b"text/html"[..]).unwrap();
+    header = Header::from_bytes(&b"Content-Type"[..], &b"text/html"[..])
+      .expect("Could not add html header");
   } else if path.ends_with(".js") {
-    header = Header::from_bytes(&b"Content-Type"[..], &b"text/javascript"[..]).unwrap();
+    header = Header::from_bytes(&b"Content-Type"[..], &b"text/javascript"[..])
+      .expect("Could not add Javascript header");
   } else {
-    header = Header::from_bytes(&b"Content-Type"[..], &b"application/octet-stream"[..]).unwrap();
+    header = Header::from_bytes(&b"Content-Type"[..], &b"application/octet-stream"[..])
+      .expect("Could not add octet-stream header");
   }
 
   response.add_header(header);

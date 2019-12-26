@@ -69,7 +69,7 @@ pub(crate) fn run(application: &mut crate::App) {
         Vec::new(),
         std::process::Stdio::inherit(),
       )
-      .unwrap();
+      .expect("Failed to spawn updater thread");
     });
   }
 
@@ -95,13 +95,13 @@ pub(crate) fn run(application: &mut crate::App) {
     })
     .content(content)
     .build()
-    .unwrap();
+    .expect("Failed to build webview builder");
 
   #[cfg(feature = "dev-server")]
   webview
     .handle()
     .dispatch(|_webview| _webview.eval(include_str!(concat!(env!("TAURI_DIR"), "/tauri.js"))))
-    .unwrap();
+    .expect("Failed to grab webview handle");
 
   #[cfg(feature = "embedded-server")]
   {
@@ -124,10 +124,10 @@ pub(crate) fn run(application: &mut crate::App) {
         .to_string();
         request
           .respond(crate::server::asset_response(&url))
-          .unwrap();
+          .expect("Failed to read asset type");
       }
     });
   }
 
-  webview.run().unwrap();
+  webview.run().expect("Failed to run webview");
 }

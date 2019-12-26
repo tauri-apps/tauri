@@ -39,7 +39,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> boo
             fn = crate::event::emit_function_name(),
             listeners = crate::event::event_listeners_object_name(),
             queue = crate::event::event_queue_object_name()
-          )).unwrap();
+          )).expect("Failed to call webview.eval from init");
         }
         #[cfg(any(feature = "all-api", feature = "readTextFile"))]
         ReadTextFile {
@@ -84,7 +84,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> boo
         }
         #[cfg(any(feature = "all-api", feature = "setTitle"))]
         SetTitle { title } => {
-          webview.set_title(&title).unwrap();
+          webview.set_title(&title).expect("Failed to set title");
         }
         #[cfg(any(feature = "all-api", feature = "execute"))]
         Execute {
@@ -98,7 +98,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> boo
         #[cfg(any(feature = "all-api", feature = "open"))]
         Open { uri } => {
           crate::spawn(move || {
-            webbrowser::open(&uri).unwrap();
+            webbrowser::open(&uri).expect("Failed to open webbrowser with uri");
           });
         }
 
@@ -140,7 +140,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> boo
               handler = handler,
               once_flag = if once { "true" } else { "false" }
             ))
-            .unwrap();
+            .expect("failed to call webview.eval from listen");
         }
         #[cfg(any(feature = "all-api", feature = "answer"))]
         Emit { event, payload } => {
@@ -178,13 +178,17 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> boo
                 Ok(format!(
                   "`data:image/{};base64,{}`",
                   ext,
-                  base64::encode(&read_asset.unwrap().into_owned())
+                  base64::encode(&read_asset.expect("Failed to read asset type").into_owned())
                 ))
               } else {
                 handle
                   .dispatch(move |_webview| {
-                    _webview
-                      .eval(&std::str::from_utf8(&read_asset.unwrap().into_owned()).unwrap())
+                    _webview.eval(
+                      &std::str::from_utf8(
+                        &read_asset.expect("Failed to read asset type").into_owned(),
+                      )
+                      .expect("failed to convert asset bytes to u8 slice"),
+                    )
                   })
                   .map_err(|err| format!("`{}`", err))
                   .map(|_| r#""Asset loaded successfully""#.to_string())

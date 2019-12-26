@@ -301,7 +301,7 @@ mod tests {
     );
     assert!(tmp.path().join("parent/copy/link").exists());
     assert_eq!(
-      std::fs::read_link(tmp.path().join("parent/copy/link")).expect("Failed to read from simlink"),
+      std::fs::read_link(tmp.path().join("parent/copy/link")).expect("Failed to read from symlink"),
       PathBuf::from("sub/file.txt")
     );
     assert_eq!(

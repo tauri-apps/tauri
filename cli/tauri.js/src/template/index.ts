@@ -66,7 +66,7 @@ Run \`tauri init --force template\` to overwrite.`)
   try {
     removeSync(dir)
     copyTemplates({
-      source: resolve(__dirname, '../templates/src-tauri'),
+      source: resolve(__dirname, '../../templates/src-tauri'),
       scope: {
         tauriDep
       },

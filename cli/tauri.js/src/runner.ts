@@ -47,6 +47,8 @@ class Runner {
       this.__whitelistApi(cfg, toml)
     })
 
+    entry.generate(tauriDir, cfg)
+
     const runningDevServer = devPath.startsWith('http')
     let inlinedAssets: string[] = []
 
@@ -55,8 +57,6 @@ class Runner {
     }
 
     process.env.TAURI_INLINED_ASSSTS = inlinedAssets.join('|')
-
-    entry.generate(tauriDir, cfg)
 
     this.devPath = devPath
 
@@ -121,11 +121,10 @@ class Runner {
       this.__whitelistApi(cfg, toml)
     })
 
-    const inlinedAssets = await this.__parseHtml(cfg, cfg.build.distDir)
-
-    process.env.TAURI_INLINED_ASSSTS = inlinedAssets.join('|')
-  
     entry.generate(tauriDir, cfg)
+
+    const inlinedAssets = await this.__parseHtml(cfg, cfg.build.distDir)
+    process.env.TAURI_INLINED_ASSSTS = inlinedAssets.join('|')
 
     const features = [
       cfg.tauri.embeddedServer.active ? 'embedded-server' : 'no-server'
@@ -163,7 +162,7 @@ class Runner {
       const distIndexPath = path.join(indexDir, 'index.html')
       if (!existsSync(distIndexPath)) {
         warn(
-          `Error: cannot find index.html in "${indexDir}". Did you forget to build your web code or update the build.distDir in tauri.conf.js?`
+          `Error: cannot find index.html in "${indexDir}". Did you forget to build your web code or update the build.distDir in tauri.conf.json?`
         )
         reject(new Error('Could not find index.html in dist dir.'))
       }

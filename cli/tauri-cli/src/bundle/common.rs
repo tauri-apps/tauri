@@ -225,7 +225,7 @@ pub fn print_error(error: &crate::Error) -> crate::Result<()> {
       writeln!(output, "{:?}", backtrace)?;
     }
     output.flush()?;
-    Ok(())
+    std::process::exit(1)
   } else {
     let mut output = io::stderr();
     write!(output, "error:")?;
@@ -237,7 +237,7 @@ pub fn print_error(error: &crate::Error) -> crate::Result<()> {
       writeln!(output, "{:?}", backtrace)?;
     }
     output.flush()?;
-    Ok(())
+    std::process::exit(1)
   }
 }
 

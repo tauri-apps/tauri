@@ -224,7 +224,7 @@ where
   if item.is_none() {
     return Err("Invalid path".into());
   }
-  let item = item.unwrap().to_string();
+  let item = item.expect("Item had no data").to_string();
 
   if path.as_ref().is_dir() {
     directories.push(item);

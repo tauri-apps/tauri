@@ -76,8 +76,8 @@ fn generate_icon_files(bundle_dir: &Path, settings: &Settings) -> crate::Result<
         continue;
       }
       let decoder = PNGDecoder::new(File::open(&icon_path)?)?;
-      let width = decoder.dimensions().0.try_into().unwrap();
-      let height = decoder.dimensions().1.try_into().unwrap();
+      let width = decoder.dimensions().0.try_into()?;
+      let height = decoder.dimensions().1.try_into()?;
       let is_retina = common::is_retina(&icon_path);
       if !sizes.contains(&(width, height, is_retina)) {
         sizes.insert((width, height, is_retina));

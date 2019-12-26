@@ -19,7 +19,7 @@ lazy_static! {
 
     handlebars
       .register_template_string("appimage", include_str!("templates/appimage"))
-      .unwrap();
+      .expect("Failed to register template for handlebars");
     handlebars
   };
 }

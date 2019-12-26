@@ -115,7 +115,7 @@ fn create_info_plist(
     write!(
       file,
       "  <key>CFBundleIconFile</key>\n  <string>{}</string>\n",
-      path.file_name().unwrap().to_string_lossy()
+      path.file_name().expect("No file name").to_string_lossy()
     )?;
   }
   write!(
@@ -201,7 +201,7 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
   for framework in frameworks.iter() {
     if framework.ends_with(".framework") {
       let src_path = PathBuf::from(framework);
-      let src_name = src_path.file_name().unwrap();
+      let src_name = src_path.file_name().expect("Couldn't get file name");
       common::copy_dir(&src_path, &dest_dir.join(&src_name))?;
       continue;
     } else if framework.contains("/") {
@@ -245,7 +245,7 @@ fn create_icns_file(
     let icon_path = icon_path?;
     if icon_path.extension() == Some(OsStr::new("icns")) {
       let mut dest_path = resources_dir.to_path_buf();
-      dest_path.push(icon_path.file_name().unwrap());
+      dest_path.push(icon_path.file_name().expect("Could not get filename"));
       common::copy_file(&icon_path, &dest_path)?;
       return Ok(Some(dest_path));
     }

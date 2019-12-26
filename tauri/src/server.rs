@@ -19,10 +19,10 @@ pub fn asset_response(path: &str) -> Response<std::io::Cursor<Vec<u8>>> {
       .expect("Could not add html header");
   } else if path.ends_with(".js") {
     header = Header::from_bytes(&b"Content-Type"[..], &b"text/javascript"[..])
-      ..expect("Could not add Javascript header");
+      .expect("Could not add Javascript header");
   } else {
     header = Header::from_bytes(&b"Content-Type"[..], &b"application/octet-stream"[..])
-      ..expect("Could not add octet-stream header");
+      .expect("Could not add octet-stream header");
   }
 
   response.add_header(header);

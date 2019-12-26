@@ -1463,7 +1463,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tauri-update"
+name = "tauri-updater"
 version = "0.2.0"
 dependencies = [
  "hyper-old-types 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",

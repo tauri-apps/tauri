@@ -27,6 +27,9 @@ jobs:
           - name: quasar-app
             folder: vue/quasar-app
             executable: app
+          - name: svelte-app
+            folder: svelte/svelte-app
+            executable: app
         include:
           - platform: ubuntu-latest
             CARGO_HOME: ~/.cargo

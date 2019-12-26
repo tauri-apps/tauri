@@ -21,17 +21,21 @@
 
         <Package Id="*"
                  Keywords="Installer"
-                 InstallerVersion="200"
+                 InstallerVersion="450"
                  Languages="1033"
                  Compressed="yes"
                  InstallScope="perMachine"
                  SummaryCodepage="1252"/>
 
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
+        
+        <WixVariable Id="WixUIBannerBmp" Value="{{{icon_path}}}" />
+        
         <Icon Id="ProductIcon" SourceFile="{{{icon_path}}}"/>
-        <Property Id="ARPPRODUCTICON" Value="ProductIcon"/>
-        <Property Id="ARPNOREPAIR" Value="1"/>
-        <Property Id="ARPNOMODIFY" Value="1"/>
+        <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
+        <Property Id="ARPNOREPAIR" Value="yes" Secure="yes" />      <!-- Remove repair -->
+        <Property Id="ARPNOMODIFY" Value="yes" Secure="yes" />      <!-- Remove modify -->
+
 
         <Directory Id="TARGETDIR" Name="SourceDir">
             <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">
@@ -43,15 +47,44 @@
             </Directory>
         </Directory>
 
+        <DirectoryRef Id="APPLICATIONFOLDER">
+            <Component Id="CMP_ReadFileShortcut"
+                Guid="1AF06B42-CD42-4AED-959F-36DB5E512046">
+
+                <Shortcut Id="UninstallShortcut"
+						  Name="Uninstall {{{product_name}}}"
+						  Description="Uninstalls {{{product_name}}}"
+						  Target="[System64Folder]msiexec.exe"
+						  Arguments="/x [ProductCode]" />
+
+				<RemoveFolder Id="RemoveDIR_Shortcuts"
+							  On="uninstall" />
+
+				<RegistryValue Root="HKCU"
+							   Key="Software\{{{manufacturer}}}\{{{product_name}}}"
+							   Name="installed"
+							   Type="integer"
+							   Value="1"
+							   KeyPath="yes" />
+            
+            </Component>
+        </DirectoryRef>
+
         <Feature
                 Id="MainProgram"
                 Title="Application"
-                Description="Installs the executable."
+                Description="Installs {{{product_name}}}."
                 Level="1"
                 ConfigurableDirectory="APPLICATIONFOLDER"
                 AllowAdvertise="no"
                 Display="expand"
                 Absent="disallow">
+
+            <Feature Id="ShortcutsFeature"
+			 Title="Shortcuts"
+			 Level="1">
+			<ComponentRef Id="CMP_ReadFileShortcut" />
+		    </Feature>
 
             <Feature
                     Id="Environment"
@@ -64,6 +97,5 @@
         </Feature>
 
         <SetProperty Id="ARPINSTALLLOCATION" Value="[APPLICATIONFOLDER]" After="CostFinalize"/>
-
     </Product>
 </Wix>

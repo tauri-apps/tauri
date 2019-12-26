@@ -7,14 +7,18 @@ license = ""
 repository = ""
 default-run = "app"
 edition = "2018"
+build = "src/build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 serde_json = "1.0.41"
-serde = "1.0"
-serde_derive = "1.0"
+serde = "1.0.104"
+serde_derive = "1.0.104"
 tauri = <%= tauriDep || `{ version = "0.2.0" }` %>
+
+[target."cfg(windows)".build-dependencies]
+winres = "0.1"
 
 [features]
 dev-server = [ "tauri/dev-server" ]

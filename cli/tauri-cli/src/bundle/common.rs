@@ -237,7 +237,7 @@ pub fn print_error(error: &crate::Error) -> crate::Result<()> {
       writeln!(output, "{:?}", backtrace)?;
     }
     output.flush()?;
-    Ok(())
+    std::process::exit(1)
   }
 }
 

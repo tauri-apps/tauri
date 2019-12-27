@@ -36,7 +36,7 @@ describe('[CLI] tauri-icon builder', () => {
     try {
       await tauricon.make('test/jest/fixtures/tauri-foo-not-found.png', 'test/jest/tmp/pngquant', 'pngquant')
     } catch (e) {
-      expect(e.message).toBe('[ERROR] Source image for tauricon not found')
+      expect(e.message).toBe('Input file is missing')
     }
   })
 })

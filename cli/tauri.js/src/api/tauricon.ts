@@ -19,7 +19,7 @@ import pngquant from 'imagemin-pngquant'
 import zopfli from 'imagemin-zopfli'
 import isPng from 'is-png'
 import path from 'path'
-import png2icons from 'png2icons'
+import * as png2icons from 'png2icons'
 import readChunk from 'read-chunk'
 import sharp from 'sharp'
 import { appDir, tauriDir } from '../helpers/app-paths'
@@ -467,19 +467,16 @@ const tauricon = (exports.tauricon = {
       const sharpSrc = sharp(src)
       const buf = await sharpSrc.toBuffer()
 
-      // TODO: does this need to be awaited?
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      const out = await png2icons.createICNS(buf, png2icons.BICUBIC, 0)
+      const out = png2icons.createICNS(buf, png2icons.BICUBIC, 0)
       ensureFileSync(path.join(target, '/icon.icns'))
       writeFileSync(path.join(target, '/icon.icns'), out)
 
-      // TODO: does this need to be awaited?
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      const out2 = await png2icons.createICO(buf, png2icons.BICUBIC, 0, true)
+      const out2 = png2icons.createICO(buf, png2icons.BICUBIC, 0, true)
       ensureFileSync(path.join(target, '/icon.ico'))
       writeFileSync(path.join(target, '/icon.ico'), out2)
     } catch (err) {
       console.error(err)
+      throw err
     }
   }
 })

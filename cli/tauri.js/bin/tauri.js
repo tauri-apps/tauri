@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const cmds = ['init', 'dev', 'build', 'help', 'icon']
+const cmds = ['init', 'dev', 'build', 'help', 'icon', 'info']
 
 const cmd = process.argv[2]
 /**

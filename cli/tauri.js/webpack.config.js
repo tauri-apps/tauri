@@ -7,7 +7,8 @@ module.exports = {
     'api/dev': './src/api/dev.ts',
     'api/init': './src/api/init.ts',
     'api/tauricon': './src/api/tauricon.ts',
-    'helpers/tauri-config': './src/helpers/tauri-config.ts'
+    'helpers/tauri-config': './src/helpers/tauri-config.ts',
+    'api/info': './src/api/info.ts'
   },
   mode: process.env.NODE_ENV || 'development',
   devtool: 'source-map',

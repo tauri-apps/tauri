@@ -1,5 +1,5 @@
 const parseArgs = require('minimist')
-const { tauricon } = require('../dist/tauricon')
+const { tauricon } = require('../dist/api/tauricon')
 
 /**
  * @type {object}

@@ -28,6 +28,9 @@ tauri-api = { version = "0.2",  path = "../tauri-api" }
 [build-dependencies]
 tauri_includedir_codegen = "0.5.1"
 
+[dev-dependencies]
+proptest = "0.9.4"
+
 [features]
 edge = ["web-view/edge"]
 dev-server = []

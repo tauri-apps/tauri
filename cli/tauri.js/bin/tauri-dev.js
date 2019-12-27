@@ -19,6 +19,6 @@ if (argv.help) {
   process.exit(0)
 }
 
-const dev = require('../dist/dev')
+const dev = require('../dist/api/dev')
 
 dev()

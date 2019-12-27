@@ -39,7 +39,7 @@ if (argv.help) {
   process.exit(0)
 }
 
-const init = require('../dist/init')
+const init = require('../dist/api/init')
 
 init({
   directory: argv.d || process.cwd(),

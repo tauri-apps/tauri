@@ -3,12 +3,12 @@ const nodeExternals = require('webpack-node-externals')
 
 module.exports = {
   entry: {
-    build: './src/api/build.ts',
-    dev: './src/api/dev.ts',
-    init: './src/api/init.ts',
-    tauricon: './src/api/tauricon.ts',
-    'tauri-config': './src/helpers/tauri-config.ts',
-    info: './src/api/info.ts',
+    'api/build': './src/api/build.ts',
+    'api/dev': './src/api/dev.ts',
+    'api/init': './src/api/init.ts',
+    'api/tauricon': './src/api/tauricon.ts',
+    'helpers/tauri-config': './src/helpers/tauri-config.ts',
+    'api/info': './src/api/info.ts'
   },
   mode: process.env.NODE_ENV || 'development',
   devtool: 'source-map',
@@ -18,6 +18,10 @@ module.exports = {
         test: /\.tsx?$/,
         use: 'ts-loader',
         exclude: /node_modules/
+      },
+      {
+        test: /tauri\.js$/i,
+        loader: 'raw-loader'
       }
     ]
   },

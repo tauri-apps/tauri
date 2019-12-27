@@ -95,6 +95,7 @@
     "lint-staged": "9.5.0",
     "lockfile-lint": "3.0.3",
     "promise": "8.0.3",
+    "raw-loader": "^4.0.0",
     "ts-loader": "6.2.1",
     "typescript": "3.7.3",
     "webpack": "4.41.4",

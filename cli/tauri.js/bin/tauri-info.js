@@ -1,3 +1,3 @@
-const info = require('../dist/info')
+const info = require('../dist/api/info')
 
 info()

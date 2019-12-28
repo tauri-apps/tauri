@@ -5,9 +5,15 @@ const proxy = new Proxy({
       if (key in window.tauri) {
         const cache = this[key]
         for (const call of cache) {
-          const ret = window.tauri[key].apply(window.tauri, call.arguments)
-          if (ret instanceof Promise) {
-            ret.then(call.resolve, call.reject)
+          try {
+            const ret = window.tauri[key].apply(window.tauri, call.arguments)
+            if (ret instanceof Promise) {
+              ret.then(call.resolve, call.reject)
+            } else {
+              call.resolve()
+            }
+          } catch (e) {
+            call.reject(e)
           }
         }
       }

@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/sh
 
 while true
 do

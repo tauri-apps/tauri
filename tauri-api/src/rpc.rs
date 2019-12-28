@@ -31,8 +31,6 @@ mod test {
       // get length of the resulting string
       let fclen = fc.len();
 
-      println!("{}", fclen);
-
       // if formatted string equals the length of the argument and the function plus 12 then its correct.
       fclen == alen + flen + 12
     } else {

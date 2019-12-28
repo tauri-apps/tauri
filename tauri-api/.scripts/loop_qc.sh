@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Loop all quickcheck tests. 
 while true
 do
     cargo test qc_

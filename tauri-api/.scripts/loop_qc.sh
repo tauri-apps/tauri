@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Loop all quickcheck tests. 
+# Loop all quickcheck tests for tauri-api. 
 while true
 do
     cargo test qc_

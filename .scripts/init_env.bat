@@ -5,7 +5,7 @@ rem check script execution directory vs script directory.
 
 IF "%cd%\"=="%~dp0" (
     goto exitnodir
-) 
+)
 
 rem setup relative paths from root folder
 set "TAURI_DIST_DIR=%~1tauri\test\fixture\dist"

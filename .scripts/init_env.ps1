@@ -15,5 +15,3 @@ if ((Test-Path $dist_path -PathType Any) -Or (Test-Path $src_path -PathType Any)
 else {
     Write-Output "Variables are not setup properly. Please run from Tauri Root directory"
 }
-
-

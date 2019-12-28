@@ -23,4 +23,3 @@ else
     # if directories don't exist then exit script and tell user run script in root dir. 
     echo "Error: Variables are not setup properly. Please run from Tauri Root directory '. .scripts/init_env.sh'"
 fi
-

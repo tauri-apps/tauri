@@ -1,9 +1,9 @@
 #!/bin/sh
-# Note: Script must be run like this `. .setup.sh` to setup variables for your current shell
+# Note: Script must be run like this `. .init_env.sh` to setup variables for your current shell
 
 # define relative paths
-DistPath="../dist"
-SrcPath="../src-tauri"
+DistPath="tauri/test/fixture/dist"
+SrcPath="tauri/test/fixture/src-tauri"
 
 # Convert to absolute paths
 DistPath="$(cd "$DistPath" && pwd -P)"

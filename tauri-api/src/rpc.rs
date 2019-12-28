@@ -20,7 +20,7 @@ mod test {
 
   // check abritrary strings in the format callback function
   #[quickcheck]
-  fn test_formating(f: String, a: String) -> bool {
+  fn ch_formating(f: String, a: String) -> bool {
     // can not accept empty strings
     if f != "" && a != "" {
       // get length of function and argument
@@ -40,7 +40,7 @@ mod test {
 
   // check arbitrary strings in format_callback_result
   #[quickcheck]
-  fn test_format_res(result: Result<String, String>, c: String, ec: String) -> bool {
+  fn ch_format_res(result: Result<String, String>, c: String, ec: String) -> bool {
     // match on result to decide how to call the function.
     match result {
       // if ok, get length of result and callback strings.

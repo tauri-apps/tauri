@@ -75,3 +75,20 @@ pub fn with_temp_dir<F: FnOnce(&tempfile::TempDir) -> ()>(
   dir.close()?;
   Ok(())
 }
+
+#[cfg(test)]
+mod test {
+  use crate::dir::*;
+
+  // check is dir function by passing in arbitrary strings
+  #[quickcheck]
+  fn test_is_dir(f: String) -> bool {
+    // is the string runs through is_dir and comes out as an OK result then it must be a DIR.
+    match is_dir(f.clone()) {
+      // check to see that the path exists.
+      Ok(_) => std::path::PathBuf::from(f).exists(),
+      // if is Err then string isn't a path nor a dir and function passes.
+      Err(_) => true,
+    }
+  }
+}

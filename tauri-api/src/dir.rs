@@ -82,7 +82,7 @@ mod test {
 
   // check is dir function by passing in arbitrary strings
   #[quickcheck]
-  fn ch_is_dir(f: String) -> bool {
+  fn qc_is_dir(f: String) -> bool {
     // is the string runs through is_dir and comes out as an OK result then it must be a DIR.
     match is_dir(f.clone()) {
       // check to see that the path exists.

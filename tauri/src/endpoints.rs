@@ -35,6 +35,10 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> boo
                     }}
                   }})
                 }}
+              }}
+
+              if (window.onTauriInit !== void 0) {{
+                window.onTauriInit()
               }}",
             fn = crate::event::emit_function_name(),
             listeners = crate::event::event_listeners_object_name(),

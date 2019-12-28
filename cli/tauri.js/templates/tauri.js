@@ -385,10 +385,6 @@ try {
   }, true)
 }
 
-if (window.onTauriInit !== void 0) {
-  window.onTauriInit()
-}
-
 document.addEventListener('error', function (e) {
   var target = e.target
   while (target != null) {

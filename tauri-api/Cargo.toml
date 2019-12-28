@@ -20,3 +20,7 @@ tempfile = "3"
 either = "1.5.3"
 tar = "0.4"
 flate2 = "1"
+
+[dev-dependencies]
+quickcheck = "0.8.0"
+quickcheck_macros = "0.8.0"

@@ -8,16 +8,19 @@ pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> Result<Strin
     .map_err(|err| err.to_string())
     .and_then(|output| {
       if output.status.success() {
-        return Result::Ok(String::from_utf8_lossy(&output.stdout).to_string());
+        Result::Ok(String::from_utf8_lossy(&output.stdout).to_string())
       } else {
-        return Result::Err(String::from_utf8_lossy(&output.stderr).to_string());
+        Result::Err(String::from_utf8_lossy(&output.stderr).to_string())
       }
     })
 }
 
-// TODO use .exe for windows builds
 pub fn format_command(path: String, command: String) -> String {
-  return format!("{}/./{}", path, command);
+  if cfg!(windows) {
+    format!("{}/./{}.exe", path, command)
+  } else {
+    format!("{}/./{}", path, command)
+  }
 }
 
 pub fn relative_command(command: String) -> Result<String, std::io::Error> {
@@ -32,16 +35,16 @@ pub fn relative_command(command: String) -> Result<String, std::io::Error> {
   }
 }
 
-// TODO append .exe for windows builds
 pub fn command_path(command: String) -> Result<String, std::io::Error> {
   match std::env::current_exe()?.parent() {
-    Some(exe_dir) => return Ok(format!("{}/{}", exe_dir.display().to_string(), command)),
-    None => {
-      return Err(std::io::Error::new(
-        std::io::ErrorKind::Other,
-        "Could not evaluate executable dir".to_string(),
-      ))
-    }
+    #[cfg(not(windows))]
+    Some(exe_dir) => Ok(format!("{}/{}", exe_dir.display().to_string(), command)),
+    #[cfg(windows)]
+    Some(exe_dir) => Ok(format!("{}/{}.exe", exe_dir.display().to_string(), command)),
+    None => Err(std::io::Error::new(
+      std::io::ErrorKind::Other,
+      "Could not evaluate executable dir".to_string(),
+    )),
   }
 }
 

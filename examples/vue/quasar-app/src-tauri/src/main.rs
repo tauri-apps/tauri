@@ -27,7 +27,7 @@ fn main() {
 
         tauri::event::emit(
           &handle,
-          string::from("reply"),
+          String::from("reply"),
           serde_json::to_string(&reply).unwrap(),
         );
 

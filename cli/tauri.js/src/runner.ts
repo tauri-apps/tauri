@@ -227,7 +227,7 @@ class Runner {
     extraArgs?: string[]
     dev?: boolean
   }): Promise<void> {
-    return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
       this.pid = spawn(
         'cargo',
 
@@ -240,7 +240,10 @@ class Runner {
             warn()
             warn('⚠️  [FAIL] Cargo CLI has failed')
             warn()
+            reject()
             process.exit(1)
+          } else if (!dev) {
+            resolve()
           }
 
           if (this.killPromise) {
@@ -254,8 +257,10 @@ class Runner {
           }
         }
       )
-
-      resolve()
+      
+      if (dev) {
+        resolve()
+      }
     })
   }
 

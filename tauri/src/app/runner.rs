@@ -73,8 +73,6 @@ pub(crate) fn run(application: &mut crate::App) {
     });
   }
 
-  let mut ran_setup = false;
-
   let webview = web_view::builder()
     .title(&config.tauri.window.title)
     .size(config.tauri.window.width, config.tauri.window.height)
@@ -82,13 +80,15 @@ pub(crate) fn run(application: &mut crate::App) {
     .debug(debug)
     .user_data(())
     .invoke_handler(|webview, arg| {
-      if !crate::endpoints::handle(webview, arg) {
-        application.run_invoke_handler(webview, arg);
-      }
-      // the first command is always the `init`, so we can safely run the setup hook here
-      if !ran_setup {
-        ran_setup = true;
+      if arg == r#"{"cmd":"__initialized"}"# {
         application.run_setup(webview);
+        webview.eval("
+          if (window.onTauriInit !== void 0) {
+            window.onTauriInit()
+          }
+        ").expect("failed to evaluate window.onTauriInit");
+      } else if !crate::endpoints::handle(webview, arg) {
+        application.run_invoke_handler(webview, arg);
       }
 
       Ok(())
@@ -96,7 +96,7 @@ pub(crate) fn run(application: &mut crate::App) {
     .content(content)
     .build()
     .expect("Failed to build webview builder");
-
+  
   #[cfg(feature = "dev-server")]
   webview
     .handle()

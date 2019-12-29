@@ -1,0 +1,22 @@
+{
+   "name": "test",
+   "version": "1.0.0",
+   "description": "",
+   "main": "index.js",
+   "scripts": {
+      "tauri:prod": "tauri",
+      "tauri:source": "node ../cli/tauri.js/bin/tauri",
+      "tauri:source:init": "yarn tauri:source init --tauriPath ..",
+      "tauri:prod:init": "yarn tauri:prod init",
+      "tauri:source:dev": "yarn tauri:source dev",
+      "tauri:prod:dev": "yarn tauri:prod dev",
+      "tauri:source:build": "yarn tauri:source build",
+      "tauri:prod:build": "yarn tauri:prod build"
+   },
+   "author": "",
+   "license": "ISC",
+   "dependencies": {
+      "cors": "^2.8.5",
+      "express": "^4.17.1"
+   }
+}

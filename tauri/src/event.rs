@@ -1,6 +1,7 @@
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+
 use web_view::Handle;
 
 struct EventHandler {
@@ -82,14 +83,14 @@ mod test {
 
   // dummy event handler function
   fn event_fn(s: String) {
-    println!("{}-works", s)
+    println!("{}", s)
   }
 
   proptest! {
     #![proptest_config(ProptestConfig::with_cases(10000))]
     #[test]
     // check to see if listen() is properly passing keys into the LISTENERS map
-    fn listeners_check_key(e in ".+") {
+    fn listeners_check_key(e in "[a-z]+") {
       // clone e as the key
       let key = e.clone();
       // pass e and an dummy func into listen
@@ -107,7 +108,7 @@ mod test {
 
     #[test]
     // check to see if listen inputs a handler function properly into the LISTENERS map.
-    fn listeners_check_fn(e in ".+") {
+    fn listeners_check_fn(e in "[a-z]+") {
        // clone e as the key
        let key = e.clone();
        // pass e and an dummy func into listen
@@ -130,6 +131,26 @@ mod test {
             None => assert!(false)
           }
         }
+      });
+    }
+
+    #[test]
+    // check to see if on_event properly grabs the stored function from listen.
+    fn check_on_event(e in "[a-z]+", d in "[a-z]+") {
+      // clone e as the key
+      let key = e.clone();
+      // call listen with e and the event_fn dummy func
+      listen(e.clone(), event_fn);
+      // call on event with e and d.
+      on_event(e, d);
+
+      // open listeners
+      LISTENERS.with(|list| {
+        // lock the mutex
+        let l = list.lock().unwrap();
+
+        // assert that the key is contained in the listeners map
+        assert!(l.contains_key(&key));
       });
     }
   }

@@ -12,7 +12,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> boo
         Init {} => {
           webview
             .eval(&format!(
-              "window['{queue}'] = [];
+              r#"window['{queue}'] = [];
                 window['{fn}'] = function (payload, salt, ignoreQueue) {{
                 const listeners = (window['{listeners}'] && window['{listeners}'][payload.type]) || []
                 if (!ignoreQueue && listeners.length === 0) {{
@@ -35,7 +35,10 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> boo
                     }}
                   }})
                 }}
-              }}",
+              }}
+
+              window.external.invoke('{{"cmd":"__initialized"}}')
+            "#,
             fn = crate::event::emit_function_name(),
             listeners = crate::event::event_listeners_object_name(),
             queue = crate::event::event_queue_object_name()

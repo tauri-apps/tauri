@@ -44,11 +44,11 @@ const copyTemplates = ({
     } else {
       // eslint-disable-next-line security/detect-non-literal-fs-filename
       const rawContent = fs.readFileSync(sourcePath, 'utf-8')
-      const templated = template(rawContent, {
+      const compiled = template(rawContent, {
         interpolate: /<%=([\s\S]+?)%>/g
       })
       // eslint-disable-next-line security/detect-non-literal-fs-filename
-      fs.writeFileSync(targetPath, templated(scope), 'utf-8')
+      fs.writeFileSync(targetPath, compiled(scope), 'utf-8')
     }
   }
 }

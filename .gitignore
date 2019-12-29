@@ -55,12 +55,13 @@ typings/
 .DS_Store
 .Thumbs.db
 *.sublime*
-.idea/
+.idea
 debug.log
 package-lock.json
 .vscode/settings.json
 */.vscode/
 proptest-regressions/
+TODO.md
 
 # Tauri output
 /bundle.json
@@ -69,6 +70,9 @@ proptest-regressions/
 
 # rust compiled folders
 target
+
+# Cargo lock for libs
+Cargo.lock
 
 /cli/tauri.js/test/jest/tmp
 

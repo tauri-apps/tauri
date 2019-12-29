@@ -96,7 +96,7 @@ pub(crate) fn run(application: &mut crate::App) {
     .content(content)
     .build()
     .expect("Failed to build webview builder");
-  
+
   #[cfg(feature = "dev-server")]
   webview
     .handle()

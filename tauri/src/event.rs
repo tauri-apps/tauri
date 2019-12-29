@@ -87,8 +87,8 @@ mod test {
   proptest! {
     #![proptest_config(ProptestConfig::with_cases(10000))]
     #[test]
-    // check to see if listen is properly passing keys into the LISTENERS map
-    fn listeners_check_key(e in "[a-z]+") {
+    // check to see if listen() is properly passing keys into the LISTENERS map
+    fn listeners_check_key(e in ".+") {
       // clone e as the key
       let key = e.clone();
       // pass e and an empty closure into listen

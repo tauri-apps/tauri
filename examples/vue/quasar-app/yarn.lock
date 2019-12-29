@@ -1240,7 +1240,7 @@ acorn-globals@^4.3.2:
     acorn "^6.0.1"
     acorn-walk "^6.0.1"
 
-acorn-jsx@^5.0.0, acorn-jsx@^5.1.0:
+acorn-jsx@^5.1.0:
   version "5.1.0"
   resolved "https://registry.npmjs.org/acorn-jsx/-/acorn-jsx-5.1.0.tgz#294adb71b57398b0680015f0a38c563ee1db5384"
   integrity sha512-tMUqwBWfLFbJbizRmEcWSLw6HnFzfdJs2sOJEOwwtVPMoH/0Ay+E703oZz78VSXZiiDcZrQ5XKjPIUQixhmgVw==
@@ -3777,14 +3777,14 @@ eslint-plugin-standard@4.0.1:
   resolved "https://registry.yarnpkg.com/eslint-plugin-standard/-/eslint-plugin-standard-4.0.1.tgz#ff0519f7ffaff114f76d1bd7c3996eef0f6e20b4"
   integrity sha512-v/KBnfyaOMPmZc/dmc6ozOdWqekGp7bBGq4jLAecEfPGmfKiWS4sA8sC0LqiV9w5qmXAtXVn4M3p1jSyhY85SQ==
 
-eslint-plugin-vue@6.0.1:
-  version "6.0.1"
-  resolved "https://registry.npmjs.org/eslint-plugin-vue/-/eslint-plugin-vue-6.0.1.tgz#166d3eb24cf290f3ff24d44fe9fca496f3924fc2"
-  integrity sha512-5tgFPcxGDKjfVB/6Yi56bKiWxygUibfZmzSh26Np3kuwAk/lfaGbVld+Yt+MPgD84ppvcachtiL4/winsXLjXA==
+eslint-plugin-vue@6.1.1:
+  version "6.1.1"
+  resolved "https://registry.npmjs.org/eslint-plugin-vue/-/eslint-plugin-vue-6.1.1.tgz#183c4c8b54880e81b585d2f3dd5c183598e73664"
+  integrity sha512-WsJcndi3iOtKF+Wkrw7mWiKT3GdGYUM8onbWYX7sBgggiFKoxHyx8VciA5letkx6iKzoW4B7XrBeVdTukmrtpg==
   dependencies:
-    vue-eslint-parser "^6.0.5"
+    vue-eslint-parser "^7.0.0"
 
-eslint-scope@^4.0.0, eslint-scope@^4.0.3:
+eslint-scope@^4.0.3:
   version "4.0.3"
   resolved "https://registry.npmjs.org/eslint-scope/-/eslint-scope-4.0.3.tgz#ca03833310f6889a3264781aa82e63eb9cfe7848"
   integrity sha512-p7VutNr1O/QrxysMo3E45FjYDTeXBy0iTltPFNSqKAIfjDSXC+4dj+qfyuD8bfAXrW/y6lW3O76VaYNPKfpKrg==
@@ -3812,10 +3812,10 @@ eslint-visitor-keys@^1.0.0, eslint-visitor-keys@^1.1.0:
   resolved "https://registry.npmjs.org/eslint-visitor-keys/-/eslint-visitor-keys-1.1.0.tgz#e2a82cea84ff246ad6fb57f9bde5b46621459ec2"
   integrity sha512-8y9YjtM1JBJU/A9Kc+SbaOV4y29sSWckBwMHa+FGtVj5gN/sbnKDf6xJUl+8g7FAij9LVaP8C24DUiH/f/2Z9A==
 
-eslint@6.7.2:
-  version "6.7.2"
-  resolved "https://registry.npmjs.org/eslint/-/eslint-6.7.2.tgz#c17707ca4ad7b2d8af986a33feba71e18a9fecd1"
-  integrity sha512-qMlSWJaCSxDFr8fBPvJM9kJwbazrhNcBU3+DszDW1OlEwKBBRWsJc7NJFelvwQpanHCR14cOLD41x8Eqvo3Nng==
+eslint@6.8.0:
+  version "6.8.0"
+  resolved "https://registry.npmjs.org/eslint/-/eslint-6.8.0.tgz#62262d6729739f9275723824302fb227c8c93ffb"
+  integrity sha512-K+Iayyo2LtyYhDSYwz5D5QdWw0hCacNzyq1Y821Xna2xSJj7cijoLLYmLxTQgcgZ9mC61nryMy9S7GRbYpI5Ig==
   dependencies:
     "@babel/code-frame" "^7.0.0"
     ajv "^6.10.0"
@@ -3854,15 +3854,6 @@ eslint@6.7.2:
     table "^5.2.3"
     text-table "^0.2.0"
     v8-compile-cache "^2.0.3"
-
-espree@^5.0.0:
-  version "5.0.1"
-  resolved "https://registry.npmjs.org/espree/-/espree-5.0.1.tgz#5d6526fa4fc7f0788a5cf75b15f30323e2f81f7a"
-  integrity sha512-qWAZcWh4XE/RwzLJejfcofscgMc9CamR6Tn1+XRXNzrvUSSbiAjGOI/fggztjIi7y9VLPqnICMIPiGyr8JaZ0A==
-  dependencies:
-    acorn "^6.0.7"
-    acorn-jsx "^5.0.0"
-    eslint-visitor-keys "^1.0.0"
 
 espree@^6.1.2:
   version "6.1.2"
@@ -8253,10 +8244,10 @@ qs@~6.5.2:
   resolved "https://registry.npmjs.org/qs/-/qs-6.5.2.tgz#cb3ae806e8740444584ef154ce8ee98d403f3e36"
   integrity sha512-N5ZAX4/LxJmF+7wN74pUD6qAh9/wnvdQcjq9TZjevvXzSUo7bfmw91saqMjzGS2xq91/odN2dW/WOl7qQHNDGA==
 
-quasar@1.5.9:
-  version "1.5.9"
-  resolved "https://registry.npmjs.org/quasar/-/quasar-1.5.9.tgz#866651eb425911afbbea7176b1d57ba8969f2fee"
-  integrity sha512-QdTiLNCqumBOOkeODZrDmxJY9KjjEEC1Gp4KPM5fRFEpSNvtHF5m68tt5/4mnCrS6V05ZpetYRizmCAnE9kkzw==
+quasar@1.5.11:
+  version "1.5.11"
+  resolved "https://registry.npmjs.org/quasar/-/quasar-1.5.11.tgz#a1ff4a9389167eec27d465ddc9b7fdecc71cd2a5"
+  integrity sha512-+gyZYZc6qQRDYzfICmbEca6prRZV+nI9T6y7AczQu55w3C8GUNXZ6IF6OHH2Rwh0ftdeqcbOZ+9k8/IOeJFGLQ==
 
 query-string@^4.1.0:
   version "4.3.4"
@@ -9758,35 +9749,6 @@ tar@^5.0.5:
     mkdirp "^0.5.0"
     yallist "^4.0.0"
 
-tauri@0.2.1:
-  version "0.2.1"
-  resolved "https://registry.yarnpkg.com/tauri/-/tauri-0.2.1.tgz#76e3838a7c37ab3d779343a5f12ed3e99971a18e"
-  integrity sha512-wpWvhOjKUm+p+uZL7psCYUwFM3BGXnBD+iPXq0xn3NRXlANswrYAn3xgNBWN3nIFIRVlMa5GZBGF75aUGfeG0Q==
-  dependencies:
-    "@tauri-apps/tauri-inliner" "1.13.2"
-    "@tauri-apps/toml" "2.2.4"
-    chalk "3.0.0"
-    chokidar "3.3.1"
-    cross-spawn "7.0.1"
-    fast-glob "3.1.1"
-    fs-extra "8.1.0"
-    imagemin "7.0.1"
-    imagemin-optipng "7.1.0"
-    imagemin-pngquant "8.0.0"
-    imagemin-zopfli "6.0.0"
-    is-png "2.0.0"
-    isbinaryfile "4.0.2"
-    jsdom "15.2.1"
-    lodash.debounce "4.0.8"
-    lodash.template "4.5.0"
-    minimist "1.2.0"
-    ms "2.1.2"
-    png2icons "2.0.1"
-    read-chunk "3.2.0"
-    sharp "0.23.4"
-    webpack-merge "4.2.2"
-    webpack-shell-plugin "0.5.0"
-
 tauri@^0.1.9:
   version "0.1.9"
   resolved "https://registry.npmjs.org/tauri/-/tauri-0.1.9.tgz#c7e0631edefaaea0b86d144d4cd301f1a65a928a"
@@ -9813,6 +9775,33 @@ tauri@^0.1.9:
     png2icons "2.0.1"
     read-chunk "3.2.0"
     sharp "0.23.3"
+    webpack-merge "4.2.2"
+    webpack-shell-plugin "0.5.0"
+
+"tauri@file:../../../cli/tauri.js":
+  version "0.2.1"
+  dependencies:
+    "@tauri-apps/tauri-inliner" "1.13.2"
+    "@tauri-apps/toml" "2.2.4"
+    chalk "3.0.0"
+    chokidar "3.3.1"
+    cross-spawn "7.0.1"
+    fast-glob "3.1.1"
+    fs-extra "8.1.0"
+    imagemin "7.0.1"
+    imagemin-optipng "7.1.0"
+    imagemin-pngquant "8.0.0"
+    imagemin-zopfli "6.0.0"
+    is-png "2.0.0"
+    isbinaryfile "4.0.2"
+    jsdom "15.2.1"
+    lodash.debounce "4.0.8"
+    lodash.template "4.5.0"
+    minimist "1.2.0"
+    ms "2.1.2"
+    png2icons "2.0.1"
+    read-chunk "3.2.0"
+    sharp "0.23.4"
     webpack-merge "4.2.2"
     webpack-shell-plugin "0.5.0"
 
@@ -10392,17 +10381,17 @@ vm-browserify@^1.0.1:
   resolved "https://registry.npmjs.org/vm-browserify/-/vm-browserify-1.1.2.tgz#78641c488b8e6ca91a75f511e7a3b32a86e5dda0"
   integrity sha512-2ham8XPWTONajOR0ohOKOHXkm3+gaBmGut3SRuu75xLd/RRaY6vqgh8NBYYk7+RW3u5AtzPQZG8F10LHkl0lAQ==
 
-vue-eslint-parser@^6.0.5:
-  version "6.0.5"
-  resolved "https://registry.npmjs.org/vue-eslint-parser/-/vue-eslint-parser-6.0.5.tgz#c1c067c2755748e28f3872cd42e8c1c4c1a8059f"
-  integrity sha512-Bvjlx7rH1Ulvus56KHeLXOjEi3JMOYTa1GAqZr9lBQhd8weK8mV7U7V2l85yokBZEWHJQjLn6X3nosY8TzkOKg==
+vue-eslint-parser@^7.0.0:
+  version "7.0.0"
+  resolved "https://registry.npmjs.org/vue-eslint-parser/-/vue-eslint-parser-7.0.0.tgz#a4ed2669f87179dedd06afdd8736acbb3a3864d6"
+  integrity sha512-yR0dLxsTT7JfD2YQo9BhnQ6bUTLsZouuzt9SKRP7XNaZJV459gvlsJo4vT2nhZ/2dH9j3c53bIx9dnqU2prM9g==
   dependencies:
     debug "^4.1.1"
-    eslint-scope "^4.0.0"
-    eslint-visitor-keys "^1.0.0"
-    espree "^5.0.0"
+    eslint-scope "^5.0.0"
+    eslint-visitor-keys "^1.1.0"
+    espree "^6.1.2"
     esquery "^1.0.1"
-    lodash "^4.17.11"
+    lodash "^4.17.15"
 
 vue-hot-reload-api@^2.3.0:
   version "2.3.4"

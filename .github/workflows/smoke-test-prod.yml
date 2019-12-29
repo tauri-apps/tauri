@@ -30,6 +30,7 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
           toolchain: stable
+          profile: minimal
     - name: install webkit2gtk (ubuntu only)
       if: matrix.platform == 'ubuntu-latest'
       run: |

@@ -1,10 +1,12 @@
+const cache = {}
+let initialized = false
+
 const proxy = new Proxy({
   __consume () {
-    this.__consuming = true
-    for (const key in this) {
+    for (const key in cache) {
       if (key in window.tauri) {
-        const cache = this[key]
-        for (const call of cache) {
+        const queue = cache[key]
+        for (const call of queue) {
           try {
             const ret = window.tauri[key].apply(window.tauri, call.arguments)
             if (ret instanceof Promise) {
@@ -18,27 +20,24 @@ const proxy = new Proxy({
         }
       }
     }
-    this.__consuming = false
+    initialized = true
   }
 }, {
-  set (obj, prop, value) {
-    obj[prop] = value
-    return true
-  },
   get (obj, prop) {
-    if (obj.__consuming || prop === '__consume') {
+    if (prop === '__consume') {
       return obj[prop]
     }
 
-    if ('tauri' in window) {
+    if (initialized && 'tauri' in window) {
       return window.tauri[prop].bind(window.tauri)
     }
-    if (!(prop in obj)) {
-      obj[prop] = []
+
+    if (!(prop in cache)) {
+      cache[prop] = []
     }
     return function () {
       const promise = new Promise((resolve, reject) => {
-        obj[prop].push({
+        cache[prop].push({
           arguments: arguments,
           resolve,
           reject

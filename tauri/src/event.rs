@@ -80,6 +80,7 @@ mod test {
   use crate::event::*;
   use proptest::prelude::*;
 
+  // dummy event handler function
   fn event_fn(s: String) {
     println!("{}-works", s)
   }
@@ -91,7 +92,7 @@ mod test {
     fn listeners_check_key(e in ".+") {
       // clone e as the key
       let key = e.clone();
-      // pass e and an empty closure into listen
+      // pass e and an dummy func into listen
       listen(e, event_fn);
 
       // open listeners
@@ -104,23 +105,32 @@ mod test {
       });
     }
 
-    // #[test]
-    // fn listeners_check_fn(e in "[a-z]+") {
-    //    // clone e as the key
-    //    let key = e.clone();
-    //    // pass e and an empty closure into listen
-    //    listen(e, event_fn);
+    #[test]
+    // check to see if listen inputs a handler function properly into the LISTENERS map.
+    fn listeners_check_fn(e in ".+") {
+       // clone e as the key
+       let key = e.clone();
+       // pass e and an dummy func into listen
+       listen(e, event_fn);
 
-    //    // open listeners
-    //    LISTENERS.with(|lis| {
-    //      // lock mutex
-    //     let mut l = lis.lock().unwrap();
+       // open listeners
+       LISTENERS.with(|lis| {
+         // lock mutex
+        let mut l = lis.lock().unwrap();
 
-    //     if l.contains_key(&key) {
-    //       let handler = l.get_mut(&key).unwrap();
-
-    //     }
-    //   });
-    // }
+        // check if l contains key
+        if l.contains_key(&key) {
+          // grab key if it exists
+          let handler = l.get_mut(&key);
+          // check to see if we get back a handler or not
+          match handler {
+            // pass on Some(handler)
+            Some(_) => assert!(true),
+            // Fail on None
+            None => assert!(false)
+          }
+        }
+      });
+    }
   }
 }

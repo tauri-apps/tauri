@@ -30,7 +30,7 @@
     "@jbolda/gatsby-theme-layout": "0.0.6",
     "@mdx-js/mdx": "1.5.3",
     "@mdx-js/react": "1.5.3",
-    "gatsby": "2.18.16",
+    "gatsby": "2.18.17",
     "gatsby-image": "2.2.37",
     "gatsby-plugin-mdx": "1.0.64",
     "gatsby-plugin-netlify": "2.1.30",

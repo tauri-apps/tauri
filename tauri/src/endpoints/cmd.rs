@@ -53,12 +53,13 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
+  #[cfg(any(feature = "all-api", feature = "event"))]
   Listen {
     event: String,
     handler: String,
     once: bool,
   },
-  #[cfg(any(feature = "all-api", feature = "emit"))]
+  #[cfg(any(feature = "all-api", feature = "event"))]
   Emit {
     event: String,
     payload: String,

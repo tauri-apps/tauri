@@ -9,14 +9,7 @@
 
 <script>
 import { uid } from 'quasar'
-
-function __onTauriInit (cb) {
-  if (window.tauri) {
-    cb()
-  } else {
-    window.onTauriInit = cb
-  }
-}
+import tauri from 'tauri/api'
 
 export default {
   name: 'HelloWorld',
@@ -26,16 +19,14 @@ export default {
     }
   },
   mounted () {
-    __onTauriInit(() => {
-      window.tauri.listen('reply', res => {
-        this.msg = res.payload.msg
-      })
+    tauri.listen('reply', res => {
+      this.msg = res.payload.msg
     })
   },
   methods: {
     // set up an event listener
     eventToRust () {
-      window.tauri.emit('hello', uid())
+      tauri.emit('hello', uid())
     }
   }
 }

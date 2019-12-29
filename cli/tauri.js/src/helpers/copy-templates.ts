@@ -2,7 +2,7 @@
 import fglob from 'fast-glob'
 import fs from 'fs-extra'
 import { isBinaryFileSync as isBinary } from 'isbinaryfile'
-import compileTemplate from 'lodash.template'
+import  { template } from 'lodash'
 import { join, resolve } from 'path'
 
 const copyTemplates = ({
@@ -44,11 +44,11 @@ const copyTemplates = ({
     } else {
       // eslint-disable-next-line security/detect-non-literal-fs-filename
       const rawContent = fs.readFileSync(sourcePath, 'utf-8')
-      const template = compileTemplate(rawContent, {
+      const compiled = template(rawContent, {
         interpolate: /<%=([\s\S]+?)%>/g
       })
       // eslint-disable-next-line security/detect-non-literal-fs-filename
-      fs.writeFileSync(targetPath, template(scope), 'utf-8')
+      fs.writeFileSync(targetPath, compiled(scope), 'utf-8')
     }
   }
 }

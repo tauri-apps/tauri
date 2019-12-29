@@ -27,13 +27,13 @@ pub fn event_queue_object_name() -> String {
   EVENT_QUEUE_OBJECT_NAME.to_string()
 }
 
-pub fn listen<F: FnMut(String) + 'static>(id: &'static str, handler: F) {
+pub fn listen<F: FnMut(String) + 'static>(id: String, handler: F) {
   LISTENERS.with(|listeners| {
     let mut l = listeners
       .lock()
       .expect("Failed to lock listeners: listen()");
     l.insert(
-      id.to_string(),
+      id,
       EventHandler {
         on_event: Box::new(handler),
       },
@@ -41,7 +41,7 @@ pub fn listen<F: FnMut(String) + 'static>(id: &'static str, handler: F) {
   });
 }
 
-pub fn emit<T: 'static>(webview_handle: &Handle<T>, event: &'static str, mut payload: String) {
+pub fn emit<T: 'static>(webview_handle: &Handle<T>, event: String, mut payload: String) {
   let salt = crate::salt::generate();
   if payload == "" {
     payload = "void 0".to_string();
@@ -52,7 +52,7 @@ pub fn emit<T: 'static>(webview_handle: &Handle<T>, event: &'static str, mut pay
       _webview.eval(&format!(
         "window['{}']({{type: '{}', payload: {}}}, '{}')",
         emit_function_name(),
-        event,
+        event.as_str(),
         payload,
         salt
       ))
@@ -73,4 +73,31 @@ pub fn on_event(event: String, data: String) {
       (handler.on_event)(data);
     }
   });
+}
+
+#[cfg(test)]
+mod test {
+  use crate::event::*;
+  use proptest::prelude::*;
+
+  proptest! {
+  #![proptest_config(ProptestConfig::with_cases(10000))]
+  #[test]
+  // check to see if listen is properly passing keys into the LISTENERS map
+  fn listeners_check_key(e in "[a-z]+") {
+    // clone e as the key
+    let key = e.clone();
+    // pass e and an empty closure into listen
+    listen(e, |_| {});
+
+    // open listeners
+    LISTENERS.with(|lis| {
+      // lock mutex
+      let l = lis.lock().unwrap();
+
+      // check if the generated key is in the map
+      assert_eq!(l.contains_key(&key), true);
+    });
+  }
+  }
 }

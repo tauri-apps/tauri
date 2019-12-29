@@ -80,24 +80,47 @@ mod test {
   use crate::event::*;
   use proptest::prelude::*;
 
-  proptest! {
-  #![proptest_config(ProptestConfig::with_cases(10000))]
-  #[test]
-  // check to see if listen is properly passing keys into the LISTENERS map
-  fn listeners_check_key(e in "[a-z]+") {
-    // clone e as the key
-    let key = e.clone();
-    // pass e and an empty closure into listen
-    listen(e, |_| {});
-
-    // open listeners
-    LISTENERS.with(|lis| {
-      // lock mutex
-      let l = lis.lock().unwrap();
-
-      // check if the generated key is in the map
-      assert_eq!(l.contains_key(&key), true);
-    });
+  fn event_fn(s: String) {
+    println!("{}-works", s)
   }
+
+  proptest! {
+    #![proptest_config(ProptestConfig::with_cases(10000))]
+    #[test]
+    // check to see if listen is properly passing keys into the LISTENERS map
+    fn listeners_check_key(e in "[a-z]+") {
+      // clone e as the key
+      let key = e.clone();
+      // pass e and an empty closure into listen
+      listen(e, event_fn);
+
+      // open listeners
+      LISTENERS.with(|lis| {
+        // lock mutex
+        let l = lis.lock().unwrap();
+
+        // check if the generated key is in the map
+        assert_eq!(l.contains_key(&key), true);
+      });
+    }
+
+    // #[test]
+    // fn listeners_check_fn(e in "[a-z]+") {
+    //    // clone e as the key
+    //    let key = e.clone();
+    //    // pass e and an empty closure into listen
+    //    listen(e, event_fn);
+
+    //    // open listeners
+    //    LISTENERS.with(|lis| {
+    //      // lock mutex
+    //     let mut l = lis.lock().unwrap();
+
+    //     if l.contains_key(&key) {
+    //       let handler = l.get_mut(&key).unwrap();
+
+    //     }
+    //   });
+    // }
   }
 }

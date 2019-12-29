@@ -178,7 +178,7 @@ const tauricon = (exports.tauricon = {
     return typeof image === 'object'
   },
   version: function() {
-    return __non_webpack_require__('../package.json').version
+    return __non_webpack_require__('../../package.json').version
   },
   make: async function(
     src: string = path.resolve(appDir, 'app-icon.png'),

@@ -59,6 +59,7 @@ typings/
 debug.log
 package-lock.json
 .vscode/settings.json
+*/.vscode/
 
 # Tauri output
 /bundle.json

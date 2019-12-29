@@ -93,7 +93,7 @@
     "jest": "24.9.0",
     "jest-mock-process": "1.2.0",
     "lint-staged": "9.5.0",
-    "lockfile-lint": "3.0.3",
+    "lockfile-lint": "3.0.5",
     "promise": "8.0.3",
     "raw-loader": "4.0.0",
     "ts-loader": "6.2.1",

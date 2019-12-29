@@ -4,7 +4,7 @@ echo "Setting up enviromental Variables"
 rem check script execution directory vs script directory. 
 
 IF "%cd%\"=="%~dp0" (
-    goto exitnodir
+    GOTO exitnodir
 )
 
 rem setup relative paths from root folder

@@ -81,7 +81,7 @@
     "@typescript-eslint/eslint-plugin": "2.12.0",
     "@typescript-eslint/parser": "2.12.0",
     "dotenv": "8.2.0",
-    "eslint": "6.7.2",
+    "eslint": "6.8.0",
     "eslint-config-standard-with-typescript": "11.0.1",
     "eslint-plugin-import": "2.19.1",
     "eslint-plugin-lodash-template": "0.15.0",

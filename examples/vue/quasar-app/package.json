@@ -36,7 +36,7 @@
     "eslint-plugin-promise": "4.2.1",
     "eslint-plugin-standard": "4.0.1",
     "eslint-plugin-vue": "6.0.1",
-    "tauri": "0.2.1"
+    "tauri": "file:../../../cli/tauri.js"
   },
   "engines": {
     "node": ">= 8.9.0",

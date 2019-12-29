@@ -102,6 +102,7 @@ struct BundleSettings {
   // Bundles for other binaries/examples:
   bin: Option<HashMap<String, BundleSettings>>,
   example: Option<HashMap<String, BundleSettings>>,
+  external_bin: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -116,7 +117,7 @@ struct PackageSettings {
   description: String,
   homepage: Option<String>,
   authors: Option<Vec<String>>,
-  metadata: Option<MetadataSettings>,
+  metadata: Option<MetadataSettings>
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -205,7 +206,7 @@ impl Settings {
     } else {
       bail!("No [package.metadata.bundle] section in Cargo.toml");
     };
-    let (bundle_settings, binary_name) = match build_artifact {
+    let (mut bundle_settings, binary_name) = match build_artifact {
       BuildArtifact::Main => (bundle_settings, package.name.clone()),
       BuildArtifact::Bin(ref name) => (
         bundle_settings_from_table(&bundle_settings.bin, "bin", name)?,
@@ -222,6 +223,20 @@ impl Settings {
       binary_name
     };
     let binary_path = target_dir.join(&binary_name);
+
+    if cfg!(windows) {
+      let mut win_paths = Vec::new();
+      match bundle_settings.external_bin {
+        Some(paths) => {
+          for path1 in paths.iter() {
+            win_paths.push(format!("{}.exe", path1))
+          }
+          bundle_settings.external_bin = Some(win_paths);
+        },
+        None => {}
+      }
+    }
+
     Ok(Settings {
       package,
       package_type,
@@ -407,6 +422,15 @@ impl Settings {
   /// bundle.
   pub fn resource_files(&self) -> ResourcePaths<'_> {
     match self.bundle_settings.resources {
+      Some(ref paths) => ResourcePaths::new(paths.as_slice(), true),
+      None => ResourcePaths::new(&[], true),
+    }
+  }
+
+   /// Returns an iterator over the external binaries to be included in this
+  /// bundle.
+  pub fn external_binaries(&self) -> ResourcePaths<'_> {
+    match self.bundle_settings.external_bin {
       Some(ref paths) => ResourcePaths::new(paths.as_slice(), true),
       None => ResourcePaths::new(&[], true),
     }

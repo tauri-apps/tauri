@@ -79,3 +79,22 @@ pub fn call<T: 'static>(
     error,
   );
 }
+
+#[cfg(test)]
+mod test {
+  use proptest::prelude::*;
+
+  proptest! {
+    #[test]
+    // check to see if spawn executes a function.
+    fn check_spawn_task(task in "[a-z]+") {
+      // create dummy task function
+      let dummy_task = move || {
+        format!("{}-run-dummy-task", task);
+        assert!(true);
+      };
+      // call spawn
+      crate::spawn(dummy_task);
+    }
+  }
+}

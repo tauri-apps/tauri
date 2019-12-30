@@ -2,7 +2,7 @@
 import fglob from 'fast-glob'
 import fs from 'fs-extra'
 import { isBinaryFileSync as isBinary } from 'isbinaryfile'
-import  { template } from 'lodash'
+import { template } from 'lodash'
 import { join, resolve } from 'path'
 
 const copyTemplates = ({

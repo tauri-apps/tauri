@@ -15,7 +15,7 @@ build = "src/build.rs"
 serde_json = "1.0.41"
 serde = "1.0.104"
 serde_derive = "1.0.104"
-tauri = <%= tauriDep || `{ version = "0.2.0" }` %>
+tauri = <%= tauriDep || `{ version = "0.3.0" }` %>
 
 [target."cfg(windows)".build-dependencies]
 winres = "0.1"

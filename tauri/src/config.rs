@@ -105,10 +105,10 @@ fn default_build() -> BuildConfig {
 }
 
 pub fn get() -> Config {
-  match std::env::var("TAURI_CONFIG") {
-    Ok(config) => serde_json::from_str(&config)
+  match option_env!("TAURI_CONFIG") {
+    Some(config) => serde_json::from_str(config)
       .expect("failed to parse TAURI_CONFIG env"),
-    Err(_) => serde_json::from_str(include_str!(concat!(env!("TAURI_DIR"), "/tauri.conf.json")))
+    None => serde_json::from_str(include_str!(concat!(env!("TAURI_DIR"), "/tauri.conf.json")))
       .expect("failed to read tauri.conf.json")
   }
 }

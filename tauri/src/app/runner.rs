@@ -127,10 +127,18 @@ fn build_webview(
           webview
             .eval(
               "
-          if (window.onTauriInit !== void 0) {
-            window.onTauriInit()
-          }
-        ",
+            if (window.onTauriInit !== void 0) {
+              window.onTauriInit()
+              window.onTauriInit = void 0
+            }
+            Object.defineProperty(window, 'onTauriInit', {
+              set: function(val) {
+                if (typeof(val) === 'function') {
+                  val()
+                }
+              }
+            })
+          ",
             )
             .expect("failed to evaluate window.onTauriInit");
         } else if !crate::endpoints::handle(webview, arg) {

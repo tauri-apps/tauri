@@ -41,8 +41,7 @@ module.exports = (cfg: Partial<TauriConfig>): TauriConfig => {
           title: pkg.productName
         },
         security: {
-          csp:
-            "default-src data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
+          csp: "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
         },
         edge: {
           active: true
@@ -63,6 +62,7 @@ module.exports = (cfg: Partial<TauriConfig>): TauriConfig => {
 
   process.env.TAURI_DIST_DIR = appPaths.resolve.app(config.build.distDir)
   process.env.TAURI_DIR = appPaths.tauriDir
+  process.env.TAURI_CONFIG = JSON.stringify(config)
 
   return config
 }

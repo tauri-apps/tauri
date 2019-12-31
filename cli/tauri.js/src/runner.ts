@@ -1,7 +1,7 @@
 import Inliner from '@tauri-apps/tauri-inliner'
 import toml from '@tauri-apps/toml'
 import chokidar, { FSWatcher } from 'chokidar'
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs-extra'
+import { existsSync, readFileSync, writeFileSync } from 'fs-extra'
 import { JSDOM } from 'jsdom'
 import { debounce } from 'lodash'
 import path from 'path'
@@ -82,13 +82,7 @@ class Runner {
           path.join(appDir, 'tauri.conf.js')
         ],
         {
-          // TODO: incorrect options?
-          // @ts-ignore
-          watchers: {
-            chokidar: {
-              ignoreInitial: true
-            }
-          }
+          ignoreInitial: true
         }
       )
       .on(
@@ -156,17 +150,16 @@ class Runner {
 
   async __parseHtml(cfg: TauriConfig, indexDir: string): Promise<string[]> {
     const inlinedAssets: string[] = []
-    const distDir = cfg.build.distDir
 
     return new Promise((resolve, reject) => {
-      const distIndexPath = path.join(indexDir, 'index.html')
-      if (!existsSync(distIndexPath)) {
+      const indexPath = path.join(indexDir, 'index.html')
+      if (!existsSync(indexPath)) {
         warn(
           `Error: cannot find index.html in "${indexDir}". Did you forget to build your web code or update the build.distDir in tauri.conf.json?`
         )
         reject(new Error('Could not find index.html in dist dir.'))
       }
-      new Inliner(distIndexPath, (err: Error, html: string) => {
+      new Inliner(indexPath, (err: Error, html: string) => {
         if (err) {
           reject(err)
         } else {
@@ -190,12 +183,8 @@ class Runner {
             document.head.appendChild(cspTag)
           }
 
-          if (!existsSync(distDir)) {
-            mkdirSync(distDir, { recursive: true })
-          }
-
           writeFileSync(
-            path.join(distDir, 'index.tauri.html'),
+            path.join(indexDir, 'index.tauri.html'),
             dom.serialize()
           )
           resolve(inlinedAssets)
@@ -277,7 +266,6 @@ class Runner {
 
   __manipulateToml(callback: (tomlContents: object) => void): void {
     const tomlPath = path.join(tauriDir, 'Cargo.toml')
-    // TODO: should this be read as buffer or string?
     const tomlFile = readFileSync(tomlPath)
     // @ts-ignore
     const tomlContents = toml.parse(tomlFile)

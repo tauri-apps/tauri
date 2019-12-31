@@ -8,9 +8,9 @@ pub(crate) fn run(application: &mut crate::App) {
     content = if config.build.dev_path.starts_with("http") {
       web_view::Content::Url(config.build.dev_path)
     } else {
-      let dev_path = std::path::Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
+      let dev_path = std::path::Path::new(&config.build.dev_path).join("index.tauri.html");
       web_view::Content::Html(
-        std::fs::read_to_string(dev_path).expect("failed to build index.tauri.html"),
+        std::fs::read_to_string(dev_path).expect("failed to read index.tauri.html"),
       )
     };
   }

@@ -1,6 +1,6 @@
 use std::env;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 #[serde(tag = "window", rename_all = "camelCase")]
 pub struct WindowConfig {
   #[serde(default = "default_width")]
@@ -38,7 +38,7 @@ fn default_window() -> WindowConfig {
   };
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 #[serde(tag = "embeddedServer", rename_all = "camelCase")]
 pub struct EmbeddedServerConfig {
   #[serde(default = "default_host")]
@@ -62,45 +62,45 @@ fn default_embedded_server() -> EmbeddedServerConfig {
   }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 #[serde(tag = "tauri", rename_all = "camelCase")]
 pub struct TauriConfig {
   #[serde(default = "default_window")]
   pub window: WindowConfig,
   #[serde(default = "default_embedded_server")]
-  pub embedded_server: EmbeddedServerConfig
+  pub embedded_server: EmbeddedServerConfig,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 #[serde(tag = "build", rename_all = "camelCase")]
 pub struct BuildConfig {
   #[serde(default = "default_dev_path")]
-  pub dev_path: String
+  pub dev_path: String,
 }
 
 fn default_dev_path() -> String {
   "".to_string()
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
   #[serde(default = "default_tauri")]
   pub tauri: TauriConfig,
   #[serde(default = "default_build")]
-  pub build: BuildConfig
+  pub build: BuildConfig,
 }
 
 fn default_tauri() -> TauriConfig {
   TauriConfig {
     window: default_window(),
-    embedded_server: default_embedded_server()
+    embedded_server: default_embedded_server(),
   }
 }
 
 fn default_build() -> BuildConfig {
   BuildConfig {
-    dev_path: default_dev_path()
+    dev_path: default_dev_path(),
   }
 }
 

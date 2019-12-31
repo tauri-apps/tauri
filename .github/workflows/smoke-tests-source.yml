@@ -62,17 +62,17 @@ jobs:
       uses: actions/cache@v1
       with:
         path: ${{ format('{0}/bin/', matrix.CARGO_HOME) }}
-        key: ${{ runner.OS }}-build-bin-${{ hashFiles('**/Cargo.lock') }}-
+        key: ${{ runner.OS }}-build-bin-${{ hashFiles('**/Cargo.toml') }}-
     - name: cache rust registry/index
       uses: actions/cache@v1
       with:
         path: ${{ format('{0}/registry/index/', matrix.CARGO_HOME) }}
-        key: ${{ runner.OS }}-build-reg-index-${{ hashFiles('**/Cargo.lock') }}-
+        key: ${{ runner.OS }}-build-reg-index-${{ hashFiles('**/Cargo.toml') }}-
     - name: cache rust registry/cache
       uses: actions/cache@v1
       with:
         path: ${{ format('{0}/registry/cache/', matrix.CARGO_HOME) }}
-        key: ${{ runner.OS }}-build-reg-cache-${{ hashFiles('**/Cargo.lock') }}-
+        key: ${{ runner.OS }}-build-reg-cache-${{ hashFiles('**/Cargo.toml') }}-
     - name: build rust
       run: cargo build
       env:

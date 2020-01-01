@@ -34,6 +34,9 @@ use web_view::*;
 
 pub use tauri_api as api;
 
+// Result alias
+type TauriResult<T> = Result<T, Box<dyn std::error::Error>>;
+
 thread_local!(static POOL: ThreadPool = ThreadPool::new(4));
 
 pub fn spawn<F: FnOnce() -> () + Send + 'static>(task: F) {

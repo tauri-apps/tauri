@@ -2,11 +2,13 @@ mod cmd;
 
 use web_view::WebView;
 
+use crate::TauriResult;
+
 #[allow(unused_variables)]
-pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
+pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> TauriResult<bool> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
-    Err(_) => false,
+    Err(_) => Ok(false),
     Ok(command) => {
       match command {
         Init {} => {
@@ -44,13 +46,12 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> boo
             listeners = crate::event::event_listeners_object_name(),
             queue = crate::event::event_queue_object_name()
           );
-          webview
-            .eval(&format!(
-              r#"{event_init}
+          webview.eval(&format!(
+            r#"{event_init}
                 window.external.invoke('{{"cmd":"__initialized"}}')
               "#,
-              event_init = event_init
-            )).expect("Failed to call webview.eval from init");
+            event_init = event_init
+          ))?;
         }
         #[cfg(any(feature = "all-api", feature = "readTextFile"))]
         ReadTextFile {
@@ -95,7 +96,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> boo
         }
         #[cfg(any(feature = "all-api", feature = "setTitle"))]
         SetTitle { title } => {
-          webview.set_title(&title).expect("Failed to set title");
+          webview.set_title(&title)?;
         }
         #[cfg(any(feature = "all-api", feature = "execute"))]
         Execute {
@@ -211,7 +212,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> boo
           );
         }
       }
-      true
+      Ok(true)
     }
   }
 }

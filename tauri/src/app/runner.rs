@@ -5,17 +5,16 @@ use crate::tcp::{get_available_port, port_is_available};
 pub(crate) fn run(application: &mut crate::App) {
   let config = crate::config::get();
 
-  #[cfg(feature = "embedded-server")]
-  let server_url = {
-    let (port, valid) = setup_port(config.clone()).expect("Failed to setup port");
-    setup_server_url(config.clone(), valid, port).expect("Unable to get server URL")
-  };
-
-  #[cfg(not(feature = "embedded-server"))]
   let content = setup_content(config.clone()).expect("Unable to get content type");
 
   #[cfg(feature = "embedded-server")]
-  let content = setup_content(&server_url).expect("Failed to setup content");
+  let server_url = {
+    if let web_view::Content::Url(ref url) = &content {
+      String::from(url)
+    } else {
+      String::from("")
+    }
+  };
 
   let webview = build_webview(application, config, content).expect("Unable to build Webview");
 
@@ -26,7 +25,7 @@ pub(crate) fn run(application: &mut crate::App) {
     .expect("Failed to grab webview handle");
 
   #[cfg(feature = "embedded-server")]
-  spawn_server(server_url);
+  spawn_server(server_url.to_string());
 
   #[cfg(feature = "updater")]
   match spawn_updater() {
@@ -50,7 +49,10 @@ fn setup_content(config: Config) -> Result<web_view::Content<String>, ()> {
 }
 
 #[cfg(feature = "embedded-server")]
-fn setup_content(url: &String) -> Result<web_view::Content<String>, String> {
+fn setup_content(config: Config) -> Result<web_view::Content<String>, String> {
+  let (port, valid) = setup_port(config.clone()).expect("Failed to setup port");
+  let url = setup_server_url(config.clone(), valid, port).expect("Unable to get server URL");
+
   Ok(web_view::Content::Url(url.to_string()))
 }
 

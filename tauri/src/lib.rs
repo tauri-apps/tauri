@@ -20,17 +20,16 @@ mod salt;
 #[cfg(feature = "embedded-server")]
 mod tcp;
 
+mod app;
 #[cfg(not(feature = "dev-server"))]
 pub mod assets;
-
-mod app;
 
 use std::process::Stdio;
 
 use threadpool::ThreadPool;
 
 pub use app::*;
-use web_view::*;
+use web_view::WebView;
 
 pub use tauri_api as api;
 

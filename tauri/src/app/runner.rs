@@ -3,10 +3,10 @@ use std::{fs::read_to_string, path::Path, process::Stdio, thread::spawn};
 
 use web_view::{builder, Content, WebView};
 
+use super::App;
 use crate::config::{get, Config};
 #[cfg(feature = "embedded-server")]
 use crate::tcp::{get_available_port, port_is_available};
-use crate::App;
 use crate::TauriResult;
 
 // JavaScript string literal

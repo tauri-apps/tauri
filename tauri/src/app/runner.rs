@@ -27,7 +27,7 @@ Object.defineProperty(window, 'onTauriInit', {
 // Main entry point function for running the Webview
 pub(crate) fn run(application: &mut App) -> TauriResult<()> {
   // get the tauri config struct
-  let config = get();
+  let config = get()?;
 
   // setup the content using the config struct depending on the compile target
   let content = setup_content(config.clone())?;
@@ -192,8 +192,10 @@ fn build_webview(
         if arg == r#"{"cmd":"__initialized"}"# {
           application.run_setup(webview);
           webview.eval(JS_STRING)?;
-        } else if !crate::endpoints::handle(webview, arg) {
-          application.run_invoke_handler(webview, arg);
+        } else if let Ok(b) = crate::endpoints::handle(webview, arg) {
+          if !b {
+            application.run_invoke_handler(webview, arg);
+          }
         }
 
         Ok(())

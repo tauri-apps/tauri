@@ -1,5 +1,7 @@
 use std::env;
 
+use crate::TauriResult;
+
 #[derive(Deserialize, Clone)]
 #[serde(tag = "window", rename_all = "camelCase")]
 pub struct WindowConfig {
@@ -104,11 +106,12 @@ fn default_build() -> BuildConfig {
   }
 }
 
-pub fn get() -> Config {
+pub fn get() -> TauriResult<Config> {
   match option_env!("TAURI_CONFIG") {
-    Some(config) => serde_json::from_str(config)
-      .expect("failed to parse TAURI_CONFIG env"),
-    None => serde_json::from_str(include_str!(concat!(env!("TAURI_DIR"), "/tauri.conf.json")))
-      .expect("failed to read tauri.conf.json")
+    Some(config) => Ok(serde_json::from_str(config).expect("failed to parse TAURI_CONFIG env")),
+    None => Ok(
+      serde_json::from_str(include_str!(concat!(env!("TAURI_DIR"), "/tauri.conf.json")))
+        .expect("failed to read tauri.conf.json"),
+    ),
   }
 }

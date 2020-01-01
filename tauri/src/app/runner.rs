@@ -72,9 +72,7 @@ fn setup_content(config: Config) -> TauriResult<Content<String>> {
     Ok(Content::Url(config.build.dev_path))
   } else {
     let dev_path = Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
-    Ok(Content::Html(
-      read_to_string(dev_path).expect("failed to build index.tauri.html"),
-    ))
+    Ok(Content::Html(read_to_string(dev_path)?))
   }
 }
 
@@ -91,9 +89,7 @@ fn setup_content(config: Config) -> TauriResult<Content<String>> {
 #[cfg(feature = "no-server")]
 fn setup_content(_: Config) -> TauriResult<Content<String>> {
   let index_path = Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
-  Ok(Content::Html(
-    read_to_string(index_path).expect("failed to read string"),
-  ))
+  Ok(Content::Html(read_to_string(index_path)?))
 }
 
 // get the port for the embedded server

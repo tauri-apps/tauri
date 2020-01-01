@@ -11,11 +11,15 @@ use crate::config::{get, Config};
 use crate::tcp::{get_available_port, port_is_available};
 use crate::App;
 
+// Main entry point function for running the Webview
 pub(crate) fn run(application: &mut App) {
+  // get the tauri config struct
   let config = get();
 
+  // setup the content using the config struct depending on the compile target
   let content = setup_content(config.clone()).expect("Unable to get content type");
 
+  // setup the server url for the embedded-server
   #[cfg(feature = "embedded-server")]
   let server_url = {
     if let Content::Url(ref url) = &content {
@@ -25,26 +29,32 @@ pub(crate) fn run(application: &mut App) {
     }
   };
 
+  // build the webview
   let webview = build_webview(application, config, content).expect("Unable to build Webview");
 
+  // on dev-server grab a handler and execute the tauri.js API entry point.
   #[cfg(feature = "dev-server")]
   webview
     .handle()
     .dispatch(|_webview| _webview.eval(include_str!(concat!(env!("TAURI_DIR"), "/tauri.js"))))
     .expect("Failed to grab webview handle");
 
+  // spawn the embedded server on our server url
   #[cfg(feature = "embedded-server")]
   spawn_server(server_url.to_string());
 
+  // spin up the updater process
   #[cfg(feature = "updater")]
   match spawn_updater() {
     Some(_) => (),
     None => panic!("Failed to spawn updater"),
   };
 
+  // run the webview
   webview.run().expect("Failed to run webview");
 }
 
+// setup content for dev-server
 #[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
 fn setup_content(config: Config) -> Result<Content<String>, ()> {
   if config.build.dev_path.starts_with("http") {
@@ -57,6 +67,7 @@ fn setup_content(config: Config) -> Result<Content<String>, ()> {
   }
 }
 
+// setup content for embedded server
 #[cfg(feature = "embedded-server")]
 fn setup_content(config: Config) -> Result<Content<String>, String> {
   let (port, valid) = setup_port(config.clone()).expect("Failed to setup port");
@@ -65,6 +76,7 @@ fn setup_content(config: Config) -> Result<Content<String>, String> {
   Ok(Content::Url(url.to_string()))
 }
 
+// setup content for no-server
 #[cfg(feature = "no-server")]
 fn setup_content(_: Config) -> Result<Content<String>, ()> {
   let index_path = Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
@@ -73,6 +85,7 @@ fn setup_content(_: Config) -> Result<Content<String>, ()> {
   ))
 }
 
+// get the port for the embedded server
 #[cfg(feature = "embedded-server")]
 fn setup_port(config: Config) -> Option<(String, bool)> {
   if config.tauri.embedded_server.port == "random" {
@@ -91,6 +104,7 @@ fn setup_port(config: Config) -> Option<(String, bool)> {
   }
 }
 
+// setup the server url for embedded server
 #[cfg(feature = "embedded-server")]
 fn setup_server_url(config: Config, valid: bool, port: String) -> Option<String> {
   if valid {
@@ -104,6 +118,31 @@ fn setup_server_url(config: Config, valid: bool, port: String) -> Option<String>
   }
 }
 
+// spawn the embedded server
+#[cfg(feature = "embedded-server")]
+fn spawn_server(server_url: String) {
+  spawn(move || {
+    let server = tiny_http::Server::http(
+      server_url
+        .clone()
+        .replace("http://", "")
+        .replace("https://", ""),
+    )
+    .expect("Unable to spawn server");
+    for request in server.incoming_requests() {
+      let url = match request.url() {
+        "/" => "/index.tauri.html",
+        url => url,
+      }
+      .to_string();
+      request
+        .respond(crate::server::asset_response(&url))
+        .expect("Unable to respond to asset");
+    }
+  });
+}
+
+// spawn an updater process.
 #[cfg(feature = "updater")]
 fn spawn_updater() -> Result<(), ()> {
   spawn(|| {
@@ -113,6 +152,7 @@ fn spawn_updater() -> Result<(), ()> {
   Ok(())
 }
 
+// build the webview struct
 fn build_webview(
   application: &mut App,
   config: Config,
@@ -161,27 +201,4 @@ fn build_webview(
       .build()
       .expect("Failed to build webview builder"),
   )
-}
-
-#[cfg(feature = "embedded-server")]
-fn spawn_server(server_url: String) {
-  spawn(move || {
-    let server = tiny_http::Server::http(
-      server_url
-        .clone()
-        .replace("http://", "")
-        .replace("https://", ""),
-    )
-    .expect("Unable to spawn server");
-    for request in server.incoming_requests() {
-      let url = match request.url() {
-        "/" => "/index.tauri.html",
-        url => url,
-      }
-      .to_string();
-      request
-        .respond(crate::server::asset_response(&url))
-        .expect("Unable to respond to asset");
-    }
-  });
 }

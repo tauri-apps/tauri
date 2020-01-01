@@ -60,10 +60,7 @@ pub(crate) fn run(application: &mut App) -> TauriResult<()> {
 
   // spin up the updater process
   #[cfg(feature = "updater")]
-  match spawn_updater() {
-    Some(_) => (),
-    None => panic!("Failed to spawn updater"),
-  };
+  spawn_updater()?;
 
   // run the webview
   webview.run()?;

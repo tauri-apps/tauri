@@ -10,7 +10,7 @@ pub struct App {
 
 impl App {
   pub fn run(mut self) {
-    runner::run(&mut self);
+    runner::run(&mut self).expect("Failed to build webview");
   }
 
   pub(crate) fn run_invoke_handler(&mut self, webview: &mut WebView<'_, ()>, arg: &str) {

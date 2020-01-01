@@ -10,14 +10,30 @@ use crate::config::{get, Config};
 #[cfg(feature = "embedded-server")]
 use crate::tcp::{get_available_port, port_is_available};
 use crate::App;
+use crate::TauriResult;
+
+// JavaScript string literal
+const JS_STRING: &'static str = r#"
+if (window.onTauriInit !== void 0) {
+  window.onTauriInit()
+  window.onTauriInit = void 0
+}
+Object.defineProperty(window, 'onTauriInit', {
+  set: function(val) {
+    if (typeof(val) === 'function') {
+      val()
+    }
+  }
+})
+"#;
 
 // Main entry point function for running the Webview
-pub(crate) fn run(application: &mut App) {
+pub(crate) fn run(application: &mut App) -> TauriResult<()> {
   // get the tauri config struct
   let config = get();
 
   // setup the content using the config struct depending on the compile target
-  let content = setup_content(config.clone()).expect("Unable to get content type");
+  let content = setup_content(config.clone())?;
 
   // setup the server url for the embedded-server
   #[cfg(feature = "embedded-server")]
@@ -30,18 +46,17 @@ pub(crate) fn run(application: &mut App) {
   };
 
   // build the webview
-  let webview = build_webview(application, config, content).expect("Unable to build Webview");
+  let webview = build_webview(application, config, content)?;
 
   // on dev-server grab a handler and execute the tauri.js API entry point.
   #[cfg(feature = "dev-server")]
   webview
     .handle()
-    .dispatch(|_webview| _webview.eval(include_str!(concat!(env!("TAURI_DIR"), "/tauri.js"))))
-    .expect("Failed to grab webview handle");
+    .dispatch(|_webview| _webview.eval(include_str!(concat!(env!("TAURI_DIR"), "/tauri.js"))))?;
 
   // spawn the embedded server on our server url
   #[cfg(feature = "embedded-server")]
-  spawn_server(server_url.to_string());
+  spawn_server(server_url.to_string())?;
 
   // spin up the updater process
   #[cfg(feature = "updater")]
@@ -51,12 +66,14 @@ pub(crate) fn run(application: &mut App) {
   };
 
   // run the webview
-  webview.run().expect("Failed to run webview");
+  webview.run()?;
+
+  Ok(())
 }
 
 // setup content for dev-server
 #[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
-fn setup_content(config: Config) -> Result<Content<String>, ()> {
+fn setup_content(config: Config) -> TauriResult<Content<String>> {
   if config.build.dev_path.starts_with("http") {
     Ok(Content::Url(config.build.dev_path))
   } else {
@@ -69,16 +86,16 @@ fn setup_content(config: Config) -> Result<Content<String>, ()> {
 
 // setup content for embedded server
 #[cfg(feature = "embedded-server")]
-fn setup_content(config: Config) -> Result<Content<String>, String> {
-  let (port, valid) = setup_port(config.clone()).expect("Failed to setup port");
-  let url = setup_server_url(config.clone(), valid, port).expect("Unable to get server URL");
+fn setup_content(config: Config) -> TauriResult<Content<String>> {
+  let (port, valid) = setup_port(config.clone())?;
+  let url = setup_server_url(config.clone(), valid, port)?;
 
   Ok(Content::Url(url.to_string()))
 }
 
 // setup content for no-server
 #[cfg(feature = "no-server")]
-fn setup_content(_: Config) -> Result<Content<String>, ()> {
+fn setup_content(_: Config) -> TauriResult<Content<String>> {
   let index_path = Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
   Ok(Content::Html(
     read_to_string(index_path).expect("failed to read string"),
@@ -120,34 +137,36 @@ fn setup_server_url(config: Config, valid: bool, port: String) -> Option<String>
 
 // spawn the embedded server
 #[cfg(feature = "embedded-server")]
-fn spawn_server(server_url: String) {
+fn spawn_server(server_url: String) -> TauriResult<()> {
   spawn(move || {
     let server = tiny_http::Server::http(
       server_url
         .clone()
         .replace("http://", "")
         .replace("https://", ""),
-    )
-    .expect("Unable to spawn server");
+    )?;
     for request in server.incoming_requests() {
       let url = match request.url() {
         "/" => "/index.tauri.html",
         url => url,
       }
       .to_string();
-      request
-        .respond(crate::server::asset_response(&url))
-        .expect("Unable to respond to asset");
+      request.respond(crate::server::asset_response(&url))?;
     }
   });
+
+  Ok(())
 }
 
 // spawn an updater process.
 #[cfg(feature = "updater")]
-fn spawn_updater() -> Result<(), ()> {
+fn spawn_updater() -> TauriResult<()> {
   spawn(|| {
-    tauri_api::command::spawn_relative_command("updater".to_string(), Vec::new(), Stdio::inherit())
-      .expect("Failed to spawn updater thread");
+    tauri_api::command::spawn_relative_command(
+      "updater".to_string(),
+      Vec::new(),
+      Stdio::inherit(),
+    )?;
   });
   Ok(())
 }
@@ -157,8 +176,9 @@ fn build_webview(
   application: &mut App,
   config: Config,
   content: Content<String>,
-) -> Result<WebView<'_, ()>, ()> {
+) -> TauriResult<WebView<'_, ()>> {
   let debug = cfg!(debug_assertions);
+  // get properties from config struct
   let width = config.tauri.window.width;
   let height = config.tauri.window.height;
   let resizable = config.tauri.window.resizable;
@@ -174,23 +194,7 @@ fn build_webview(
       .invoke_handler(move |webview, arg| {
         if arg == r#"{"cmd":"__initialized"}"# {
           application.run_setup(webview);
-          webview
-            .eval(
-              "
-            if (window.onTauriInit !== void 0) {
-              window.onTauriInit()
-              window.onTauriInit = void 0
-            }
-            Object.defineProperty(window, 'onTauriInit', {
-              set: function(val) {
-                if (typeof(val) === 'function') {
-                  val()
-                }
-              }
-            })
-          ",
-            )
-            .expect("failed to evaluate window.onTauriInit");
+          webview.eval(JS_STRING)?;
         } else if !crate::endpoints::handle(webview, arg) {
           application.run_invoke_handler(webview, arg);
         }
@@ -198,7 +202,6 @@ fn build_webview(
         Ok(())
       })
       .content(content)
-      .build()
-      .expect("Failed to build webview builder"),
+      .build()?,
   )
 }

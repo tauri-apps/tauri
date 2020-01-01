@@ -57,7 +57,7 @@ fn setup_content(config: Config) -> Result<web_view::Content<String>, String> {
 }
 
 #[cfg(feature = "no-server")]
-fn setup_content(config: Config) -> Result<web_view::Content<String>, ()> {
+fn setup_content(_: Config) -> Result<web_view::Content<String>, ()> {
   let index_path = std::path::Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
   Ok(web_view::Content::Html(
     std::fs::read_to_string(index_path).expect("failed to read string"),

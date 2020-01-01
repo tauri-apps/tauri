@@ -1,5 +1,6 @@
-mod runner;
 use web_view::WebView;
+
+mod runner;
 
 //type FnMut(&mut InvokeHandler<WebView<'_, ()>>, &str) = FnMut(&mut FnMut(&mut InvokeHandler<WebView<'_, ()>>, &str)<WebView<'_, ()>>, &str);
 

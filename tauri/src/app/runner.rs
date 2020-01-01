@@ -6,6 +6,7 @@ pub(crate) fn run(application: &mut crate::App) {
   let config = crate::config::get();
 
   let content = setup_content(config.clone()).expect("Unable to get content type");
+
   #[cfg(feature = "embedded-server")]
   let server_url = setup_server_url(config.clone()).expect("Unable to get server URL");
 
@@ -24,7 +25,7 @@ pub(crate) fn run(application: &mut crate::App) {
     .expect("Failed to grab webview handle");
 
   #[cfg(feature = "embedded-server")]
-  spawn_server(server_url).and_then(op: F);
+  spawn_server(server_url);
 
   webview.run().expect("Failed to run webview");
 }
@@ -46,7 +47,7 @@ fn setup_content(config: Config) -> Result<web_view::Content<String>, String> {
   if let Some(url) = setup_server_url(config) {
     Ok(web_view::Content::Url(url.to_string()))
   } else {
-    Err("Unable to assign content type")
+    Err("Unable to assign content type".to_string())
   }
 }
 
@@ -78,20 +79,19 @@ fn setup_port(config: Config) -> Option<(String, bool)> {
 
 #[cfg(feature = "embedded-server")]
 fn setup_server_url(config: Config) -> Option<String> {
-  if let Some((port, valid)) = setup_port(config) {
+  if let Some((port, valid)) = setup_port(config.clone()) {
     if valid {
-      let mut url = format!(
-        "{}:{}",
-        config.tauri.embedded_server.host, config.tauri.embedded_server.port
-      );
+      let url = format!("{}:{}", config.tauri.embedded_server.host, port).to_string();
       if !url.starts_with("http") {
-        return Some(format!("http://{}", url));
+        Some(format!("http://{}", url).to_string())
+      } else {
+        Some(url)
       }
-
-      Some(url)
     } else {
       None
     }
+  } else {
+    None
   }
 }
 
@@ -159,30 +159,24 @@ fn build_webview(
 }
 
 #[cfg(feature = "embedded-server")]
-fn spawn_server(server_url: String) -> Result<(), String> {
+fn spawn_server(server_url: String) {
   std::thread::spawn(move || {
-    let server = match tiny_http::Server::http(
+    let server = tiny_http::Server::http(
       server_url
         .clone()
         .replace("http://", "")
         .replace("https://", ""),
-    ) {
-      Ok(_) => Ok(()),
-      Err(_) => Err(format!(
-        "Could not start embedded server with the url: {}",
-        server_url
-      )),
-    };
+    )
+    .expect("Unable to spawn server");
     for request in server.incoming_requests() {
       let url = match request.url() {
         "/" => "/index.tauri.html",
         url => url,
       }
       .to_string();
-      match request.respond(crate::server::asset_response(&url)) {
-        Ok(_) => Ok(()),
-        Err(_) => Err("Failed to read asset type"),
-      };
+      request
+        .respond(crate::server::asset_response(&url))
+        .expect("Unable to respond to asset");
     }
   });
 }

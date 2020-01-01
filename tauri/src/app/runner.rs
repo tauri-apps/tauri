@@ -1,9 +1,6 @@
-use std::fs::read_to_string;
-use std::path::Path;
-#[cfg(feature = "updater")]
-use std::process::Stdio;
-#[cfg(any(feature = "updater", feature = "embedded-server"))]
-use std::thread::spawn;
+#[allow(unused_imports)]
+use std::{fs::read_to_string, path::Path, process::Stdio, thread::spawn};
+
 use web_view::{builder, Content, WebView};
 
 use crate::config::{get, Config};
@@ -84,8 +81,8 @@ fn setup_content(config: Config) -> TauriResult<Content<String>> {
 // setup content for embedded server
 #[cfg(feature = "embedded-server")]
 fn setup_content(config: Config) -> TauriResult<Content<String>> {
-  let (port, valid) = setup_port(config.clone())?;
-  let url = setup_server_url(config.clone(), valid, port)?;
+  let (port, valid) = setup_port(config.clone()).expect("Unable to setup Port");
+  let url = setup_server_url(config.clone(), valid, port).expect("Unable to setup URL");
 
   Ok(Content::Url(url.to_string()))
 }
@@ -141,14 +138,17 @@ fn spawn_server(server_url: String) -> TauriResult<()> {
         .clone()
         .replace("http://", "")
         .replace("https://", ""),
-    )?;
+    )
+    .expect("Unable to spawn server");
     for request in server.incoming_requests() {
       let url = match request.url() {
         "/" => "/index.tauri.html",
         url => url,
       }
       .to_string();
-      request.respond(crate::server::asset_response(&url))?;
+      request
+        .respond(crate::server::asset_response(&url))
+        .expect("unable to setup response");
     }
   });
 

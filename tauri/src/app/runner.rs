@@ -5,16 +5,17 @@ use crate::tcp::{get_available_port, port_is_available};
 pub(crate) fn run(application: &mut crate::App) {
   let config = crate::config::get();
 
+  #[cfg(feature = "embedded-server")]
+  let server_url = {
+    let (port, valid) = setup_port(config.clone()).expect("Failed to setup port");
+    setup_server_url(config.clone(), valid, port).expect("Unable to get server URL")
+  };
+
+  #[cfg(not(feature = "embedded-server"))]
   let content = setup_content(config.clone()).expect("Unable to get content type");
 
   #[cfg(feature = "embedded-server")]
-  let server_url = setup_server_url(config.clone()).expect("Unable to get server URL");
-
-  #[cfg(feature = "updater")]
-  match spawn_updater() {
-    Some(_) => (),
-    None => panic!("Failed to spawn updater"),
-  };
+  let content = setup_content(&server_url).expect("Failed to setup content");
 
   let webview = build_webview(application, config, content).expect("Unable to build Webview");
 
@@ -26,6 +27,12 @@ pub(crate) fn run(application: &mut crate::App) {
 
   #[cfg(feature = "embedded-server")]
   spawn_server(server_url);
+
+  #[cfg(feature = "updater")]
+  match spawn_updater() {
+    Some(_) => (),
+    None => panic!("Failed to spawn updater"),
+  };
 
   webview.run().expect("Failed to run webview");
 }
@@ -43,12 +50,8 @@ fn setup_content(config: Config) -> Result<web_view::Content<String>, ()> {
 }
 
 #[cfg(feature = "embedded-server")]
-fn setup_content(config: Config) -> Result<web_view::Content<String>, String> {
-  if let Some(url) = setup_server_url(config) {
-    Ok(web_view::Content::Url(url.to_string()))
-  } else {
-    Err("Unable to assign content type".to_string())
-  }
+fn setup_content(url: &String) -> Result<web_view::Content<String>, String> {
+  Ok(web_view::Content::Url(url.to_string()))
 }
 
 #[cfg(feature = "no-server")]
@@ -78,18 +81,13 @@ fn setup_port(config: Config) -> Option<(String, bool)> {
 }
 
 #[cfg(feature = "embedded-server")]
-fn setup_server_url(config: Config) -> Option<String> {
-  if let Some((port, valid)) = setup_port(config.clone()) {
-    if valid {
-      let url = format!("{}:{}", config.tauri.embedded_server.host, port).to_string();
-      if !url.starts_with("http") {
-        Some(format!("http://{}", url).to_string())
-      } else {
-        Some(url)
-      }
-    } else {
-      None
+fn setup_server_url(config: Config, valid: bool, port: String) -> Option<String> {
+  if valid {
+    let mut url = format!("{}:{}", config.tauri.embedded_server.host, port);
+    if !url.starts_with("http") {
+      url = format!("http://{}", url);
     }
+    Some(url)
   } else {
     None
   }

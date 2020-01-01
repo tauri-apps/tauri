@@ -1,15 +1,24 @@
-use crate::config::Config;
+use std::fs::read_to_string;
+use std::path::Path;
+#[cfg(feature = "updater")]
+use std::process::Stdio;
+#[cfg(any(feature = "updater", feature = "embedded-server"))]
+use std::thread::spawn;
+use web_view::{builder, Content, WebView};
+
+use crate::config::{get, Config};
 #[cfg(feature = "embedded-server")]
 use crate::tcp::{get_available_port, port_is_available};
+use crate::App;
 
-pub(crate) fn run(application: &mut crate::App) {
-  let config = crate::config::get();
+pub(crate) fn run(application: &mut App) {
+  let config = get();
 
   let content = setup_content(config.clone()).expect("Unable to get content type");
 
   #[cfg(feature = "embedded-server")]
   let server_url = {
-    if let web_view::Content::Url(ref url) = &content {
+    if let Content::Url(ref url) = &content {
       String::from(url)
     } else {
       String::from("")
@@ -37,30 +46,30 @@ pub(crate) fn run(application: &mut crate::App) {
 }
 
 #[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
-fn setup_content(config: Config) -> Result<web_view::Content<String>, ()> {
+fn setup_content(config: Config) -> Result<Content<String>, ()> {
   if config.build.dev_path.starts_with("http") {
-    Ok(web_view::Content::Url(config.build.dev_path))
+    Ok(Content::Url(config.build.dev_path))
   } else {
-    let dev_path = std::path::Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
-    Ok(web_view::Content::Html(
-      std::fs::read_to_string(dev_path).expect("failed to build index.tauri.html"),
+    let dev_path = Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
+    Ok(Content::Html(
+      read_to_string(dev_path).expect("failed to build index.tauri.html"),
     ))
   }
 }
 
 #[cfg(feature = "embedded-server")]
-fn setup_content(config: Config) -> Result<web_view::Content<String>, String> {
+fn setup_content(config: Config) -> Result<Content<String>, String> {
   let (port, valid) = setup_port(config.clone()).expect("Failed to setup port");
   let url = setup_server_url(config.clone(), valid, port).expect("Unable to get server URL");
 
-  Ok(web_view::Content::Url(url.to_string()))
+  Ok(Content::Url(url.to_string()))
 }
 
 #[cfg(feature = "no-server")]
-fn setup_content(_: Config) -> Result<web_view::Content<String>, ()> {
-  let index_path = std::path::Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
-  Ok(web_view::Content::Html(
-    std::fs::read_to_string(index_path).expect("failed to read string"),
+fn setup_content(_: Config) -> Result<Content<String>, ()> {
+  let index_path = Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
+  Ok(Content::Html(
+    read_to_string(index_path).expect("failed to read string"),
   ))
 }
 
@@ -97,22 +106,18 @@ fn setup_server_url(config: Config, valid: bool, port: String) -> Option<String>
 
 #[cfg(feature = "updater")]
 fn spawn_updater() -> Result<(), ()> {
-  std::thread::spawn(|| {
-    tauri_api::command::spawn_relative_command(
-      "updater".to_string(),
-      Vec::new(),
-      std::process::Stdio::inherit(),
-    )
-    .expect("Failed to spawn updater thread");
+  spawn(|| {
+    tauri_api::command::spawn_relative_command("updater".to_string(), Vec::new(), Stdio::inherit())
+      .expect("Failed to spawn updater thread");
   });
   Ok(())
 }
 
 fn build_webview(
-  application: &mut crate::App,
+  application: &mut App,
   config: Config,
-  content: web_view::Content<String>,
-) -> Result<web_view::WebView<'_, ()>, ()> {
+  content: Content<String>,
+) -> Result<WebView<'_, ()>, ()> {
   let debug = cfg!(debug_assertions);
   let width = config.tauri.window.width;
   let height = config.tauri.window.height;
@@ -120,7 +125,7 @@ fn build_webview(
   let title = config.tauri.window.title.into_boxed_str();
 
   Ok(
-    web_view::builder()
+    builder()
       .title(Box::leak(title))
       .size(width, height)
       .resizable(resizable)
@@ -160,7 +165,7 @@ fn build_webview(
 
 #[cfg(feature = "embedded-server")]
 fn spawn_server(server_url: String) {
-  std::thread::spawn(move || {
+  spawn(move || {
     let server = tiny_http::Server::http(
       server_url
         .clone()

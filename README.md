@@ -1,5 +1,5 @@
 # tauri
- <img align="right" src="app-icon.png" height="200" width="200">
+ <img align="right" src="app-icon.png" height="120" width="120">
 
 ## A fresh take on creating cross-platform apps.
 [![status](https://img.shields.io/badge/Status-Early%20Alpha-yellow.svg)](https://github.com/tauri-apps/tauri/tree/dev)
@@ -8,7 +8,7 @@
 
 ![](https://img.shields.io/github/workflow/status/tauri-apps/tauri/test%20library?label=test%20library
 )
-[![devto](https://img.shields.io/badge/documentation-site-purple.svg)](https://tauri-apps.org)
+[![devto](https://img.shields.io/badge/documentation-wiki-purple.svg)](https://github.com/tauri-apps/tauri/wiki)
 
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
 [![support](https://img.shields.io/badge/sponsor-Opencollective-blue.svg)](https://opencollective.com/tauri)

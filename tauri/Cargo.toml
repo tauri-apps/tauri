@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "0.2.0"
+version = "0.3.1"
 authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
 license = "MIT"
 homepage = "https://tauri-apps.org"
@@ -23,11 +23,13 @@ lazy_static = "1.4.0"
 tiny_http = "0.6"
 threadpool = "1.7"
 uuid = { version = "0.8.1", features = ["v4"] }
-tauri-api = { version = "0.2",  path = "../tauri-api" }
+tauri-api = { version = "0.3",  path = "../tauri-api" }
 
 [build-dependencies]
 tauri_includedir_codegen = "0.5.1"
 
+[dev-dependencies]
+proptest = "0.9.4"
 
 [features]
 edge = ["web-view/edge"]
@@ -43,4 +45,4 @@ listDirs = []
 setTitle = []
 execute = []
 open = []
-emit = []
+event = []

@@ -34,19 +34,23 @@ fn main() {
       });
 
       let handle2 = _webview.handle();
-      tauri::event::listen("hello", move |msg| {
+      tauri::event::listen(String::from("hello"), move |msg| {
         #[derive(Serialize)]
         pub struct Reply {
           pub msg: String,
-          pub rep: String
+          pub rep: String,
         }
 
         let reply = Reply {
           msg: format!("{}", msg).to_string(),
-          rep: "something else".to_string()
+          rep: "something else".to_string(),
         };
 
-        tauri::event::emit(&handle2, "reply",  serde_json::to_string(&reply).unwrap());
+        tauri::event::emit(
+          &handle2,
+          String::from("reply"),
+          serde_json::to_string(&reply).unwrap(),
+        );
 
         println!("Message from emit:hello => {}", msg);
       });

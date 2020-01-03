@@ -20,19 +20,21 @@ mod salt;
 #[cfg(feature = "embedded-server")]
 mod tcp;
 
+mod app;
 #[cfg(not(feature = "dev-server"))]
 pub mod assets;
-
-mod app;
 
 use std::process::Stdio;
 
 use threadpool::ThreadPool;
 
 pub use app::*;
-use web_view::*;
+use web_view::WebView;
 
 pub use tauri_api as api;
+
+// Result alias
+type TauriResult<T> = Result<T, Box<dyn std::error::Error>>;
 
 thread_local!(static POOL: ThreadPool = ThreadPool::new(4));
 
@@ -78,4 +80,23 @@ pub fn call<T: 'static>(
     callback,
     error,
   );
+}
+
+#[cfg(test)]
+mod test {
+  use proptest::prelude::*;
+
+  proptest! {
+    #[test]
+    // check to see if spawn executes a function.
+    fn check_spawn_task(task in "[a-z]+") {
+      // create dummy task function
+      let dummy_task = move || {
+        format!("{}-run-dummy-task", task);
+        assert!(true);
+      };
+      // call spawn
+      crate::spawn(dummy_task);
+    }
+  }
 }

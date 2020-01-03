@@ -2,47 +2,56 @@ mod cmd;
 
 use web_view::WebView;
 
+use crate::TauriResult;
+
 #[allow(unused_variables)]
-pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> bool {
+pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> TauriResult<bool> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
-    Err(_) => false,
+    Err(_) => Ok(false),
     Ok(command) => {
       match command {
         Init {} => {
-          webview
-            .eval(&format!(
-              r#"window['{queue}'] = [];
-                window['{fn}'] = function (payload, salt, ignoreQueue) {{
-                const listeners = (window['{listeners}'] && window['{listeners}'][payload.type]) || []
-                if (!ignoreQueue && listeners.length === 0) {{
-                  window['{queue}'].push({{
-                    payload: payload,
-                    salt: salt
-                  }})
-                }}
-
-                if (listeners.length > 0) {{
-                  window.tauri.promisified({{
-                    cmd: 'validateSalt',
-                    salt: salt
-                  }}).then(function () {{
-                    for (let i = listeners.length - 1; i >= 0; i--) {{
-                      const listener = listeners[i]
-                      if (listener.once)
-                        listeners.splice(i, 1)
-                      listener.handler(payload)
-                    }}
-                  }})
-                }}
+          #[cfg(not(any(feature = "all-api", feature = "event")))]
+          let event_init = "";
+          #[cfg(any(feature = "all-api", feature = "event"))]
+          let event_init = format!(
+            "
+              window['{queue}'] = [];
+              window['{fn}'] = function (payload, salt, ignoreQueue) {{
+              const listeners = (window['{listeners}'] && window['{listeners}'][payload.type]) || []
+              if (!ignoreQueue && listeners.length === 0) {{
+                window['{queue}'].push({{
+                  payload: payload,
+                  salt: salt
+                }})
               }}
 
-              window.external.invoke('{{"cmd":"__initialized"}}')
-            "#,
+              if (listeners.length > 0) {{
+                window.tauri.promisified({{
+                  cmd: 'validateSalt',
+                  salt: salt
+                }}).then(function () {{
+                  for (let i = listeners.length - 1; i >= 0; i--) {{
+                    const listener = listeners[i]
+                    if (listener.once)
+                      listeners.splice(i, 1)
+                    listener.handler(payload)
+                  }}
+                }})
+              }}
+            }}
+            ",
             fn = crate::event::emit_function_name(),
             listeners = crate::event::event_listeners_object_name(),
             queue = crate::event::event_queue_object_name()
-          )).expect("Failed to call webview.eval from init");
+          );
+          webview.eval(&format!(
+            r#"{event_init}
+                window.external.invoke('{{"cmd":"__initialized"}}')
+              "#,
+            event_init = event_init
+          ))?;
         }
         #[cfg(any(feature = "all-api", feature = "readTextFile"))]
         ReadTextFile {
@@ -87,7 +96,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> boo
         }
         #[cfg(any(feature = "all-api", feature = "setTitle"))]
         SetTitle { title } => {
-          webview.set_title(&title).expect("Failed to set title");
+          webview.set_title(&title)?;
         }
         #[cfg(any(feature = "all-api", feature = "execute"))]
         Execute {
@@ -112,6 +121,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> boo
         } => {
           crate::salt::validate(webview, salt, callback, error);
         }
+        #[cfg(any(feature = "all-api", feature = "event"))]
         Listen {
           event,
           handler,
@@ -145,7 +155,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> boo
             ))
             .expect("failed to call webview.eval from listen");
         }
-        #[cfg(any(feature = "all-api", feature = "answer"))]
+        #[cfg(any(feature = "all-api", feature = "event"))]
         Emit { event, payload } => {
           crate::event::on_event(event, payload);
         }
@@ -202,7 +212,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> boo
           );
         }
       }
-      true
+      Ok(true)
     }
   }
 }

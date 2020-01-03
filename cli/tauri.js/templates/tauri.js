@@ -39,18 +39,34 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
 function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
 
 <% if (ctx.dev) { %>
+/**
+ * @name return __whitelistWarning
+ * @description Present a stylish warning to the developer that their API
+ * call has not been whitelisted in tauri.conf.json
+ * @param {String} func - function name to warn
+ * @private
+ */
+var __whitelistWarning = function (func) {
+  console.warn('%c[Tauri] Danger \ntauri.' + func + ' not whitelisted 💣\n%c\nAdd to tauri.conf.json: \n\ntauri: \n  whitelist: { \n    ' + func + ': true \n\nReference: https://tauri-apps.org/docs/api#' + func , 'background: red; color: white; font-weight: 800; padding: 2px; font-size:1.5em', ' ')
+  return __reject()
+}
+<% } %>
+
+<% if (ctx.dev) { %>
   /**
    * @name __reject
-   * @description is a private promise used to deflect un-whitelisted tauri API calls
+   * @description generates a promise used to deflect un-whitelisted tauri API calls
    * Its only purpose is to maintain thenable structure in client code without
    * breaking the application
    *  * @type {Promise<any>}
    * @private
    */
 <% } %>
-var __reject = new Promise(function (reject) {
-  reject;
-});
+var __reject = function () {
+  return new Promise(function (_, reject) {
+    reject();
+  });
+}
 
 window.tauri = {
   <% if (ctx.dev) { %>
@@ -74,6 +90,7 @@ window.tauri = {
      */
   <% } %>
   listen: function listen(event, handler) {
+    <% if (tauri.whitelist.event === true || tauri.whitelist.all === true) { %>
     var once = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
     this.invoke({
       cmd: 'listen',
@@ -81,6 +98,12 @@ window.tauri = {
       handler: window.tauri.transformCallback(handler, once),
       once: once
     });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+          return __whitelistWarning('event')
+          <% } %>
+        return __reject()
+    <% } %>
   },
 
   <% if (ctx.dev) { %>
@@ -92,11 +115,18 @@ window.tauri = {
      */
   <% } %>
   emit: function emit(evt, payload) {
+    <% if (tauri.whitelist.event === true || tauri.whitelist.all === true) { %>
     this.invoke({
       cmd: 'emit',
       event: evt,
       payload: payload || ''
     });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+          return __whitelistWarning('event')
+          <% } %>
+        return __reject()
+    <% } %>
   },
 
   <% if (ctx.dev) { %>
@@ -160,9 +190,9 @@ window.tauri = {
     });
     <% } else { %>
       <% if (ctx.dev) { %>
-          __whitelistWarning('readTextFile')
+          return __whitelistWarning('readTextFile')
           <% } %>
-        return __reject
+        return __reject()
     <% } %>
   },
 
@@ -184,9 +214,9 @@ window.tauri = {
     });
     <% } else { %>
       <% if (ctx.dev) { %>
-          __whitelistWarning('readBinaryFile')
+          return __whitelistWarning('readBinaryFile')
           <% } %>
-        return __reject
+        return __reject()
     <% } %>
   },
 
@@ -210,9 +240,9 @@ window.tauri = {
     });
     <% } else { %>
       <% if (ctx.dev) { %>
-          __whitelistWarning('writeFile')
+          return __whitelistWarning('writeFile')
           <% } %>
-        return __reject
+        return __reject()
     <% } %>
   },
 
@@ -235,9 +265,9 @@ window.tauri = {
     });
     <% } else { %>
       <% if (ctx.dev) { %>
-          __whitelistWarning('listDirs')
+          return __whitelistWarning('listDirs')
           <% } %>
-        return __reject
+        return __reject()
     <% } %>
   },
 
@@ -259,9 +289,9 @@ window.tauri = {
     });
     <% } else { %>
       <% if (ctx.dev) { %>
-          __whitelistWarning('listDirs')
+          return __whitelistWarning('listDirs')
           <% } %>
-        return __reject
+        return __reject()
     <% } %>
   },
 
@@ -281,9 +311,9 @@ window.tauri = {
     });
     <% } else { %>
       <% if (ctx.dev) { %>
-    __whitelistWarning('setTitle')
+    return __whitelistWarning('setTitle')
       <% } %>
-    return __reject
+    return __reject()
     <% } %>
   },
 
@@ -303,9 +333,9 @@ window.tauri = {
     });
     <% } else { %>
     <% if (ctx.dev) { %>
-      __whitelistWarning('open')
+      return __whitelistWarning('open')
       <% } %>
-    return __reject
+    return __reject()
       <% } %>
   },
 
@@ -335,9 +365,9 @@ window.tauri = {
     });
     <% } else { %>
       <% if (ctx.dev) { %>
-        __whitelistWarning('execute')
+        return __whitelistWarning('execute')
         <% } %>
-        return __reject
+        return __reject()
     <% } %>
   },
 
@@ -357,9 +387,9 @@ window.tauri = {
     });
     <% } else { %>
       <% if (ctx.dev) { %>
-          __whitelistWarning('bridge')
+          return __whitelistWarning('bridge')
       <% } %>
-            return __reject
+            return __reject()
     <% } %>
   },
 

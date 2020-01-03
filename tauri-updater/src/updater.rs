@@ -128,7 +128,7 @@ impl UpdateBuilder {
   /// The path provided should be:
   ///
   /// ```
-  /// # use tauri::updater::Update;
+  /// # use tauri_updater::updater::Update;
   /// # fn run() -> Result<(), Box<dyn std::error::Error>> {
   /// Update::configure()?
   ///     .bin_path_in_archive("bin/myapp")

@@ -18,8 +18,7 @@ export default {
       title: 'Tauri App'
     },
     security: {
-      csp:
-        "default-src data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
+      csp: "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
     },
     edge: {
       active: true

@@ -1,6 +1,6 @@
 {
   "name": "tauri",
-  "version": "0.2.1",
+  "version": "0.3.1",
   "description": "Multi-binding collection of libraries and templates for building Tauri apps",
   "bin": {
     "tauri": "./bin/tauri.js"
@@ -55,7 +55,7 @@
     "imagemin-pngquant": "8.0.0",
     "imagemin-zopfli": "6.0.0",
     "is-png": "2.0.0",
-    "isbinaryfile": "4.0.2",
+    "isbinaryfile": "4.0.3",
     "jsdom": "15.2.1",
     "lodash": "4.17.15",
     "minimist": "1.2.0",
@@ -76,14 +76,14 @@
     "@types/ms": "0.7.31",
     "@types/sharp": "0.23.1",
     "@types/webpack-merge": "4.1.5",
-    "@typescript-eslint/eslint-plugin": "2.12.0",
-    "@typescript-eslint/parser": "2.12.0",
+    "@typescript-eslint/eslint-plugin": "2.14.0",
+    "@typescript-eslint/parser": "2.14.0",
     "dotenv": "8.2.0",
     "eslint": "6.8.0",
     "eslint-config-standard-with-typescript": "11.0.1",
     "eslint-plugin-import": "2.19.1",
     "eslint-plugin-lodash-template": "0.15.0",
-    "eslint-plugin-node": "10.0.0",
+    "eslint-plugin-node": "11.0.0",
     "eslint-plugin-promise": "4.2.1",
     "eslint-plugin-security": "1.4.0",
     "eslint-plugin-standard": "4.0.1",
@@ -96,7 +96,7 @@
     "raw-loader": "4.0.0",
     "ts-loader": "6.2.1",
     "typescript": "3.7.4",
-    "webpack": "4.41.4",
+    "webpack": "4.41.5",
     "webpack-cli": "3.3.10",
     "webpack-node-externals": "1.7.2"
   },

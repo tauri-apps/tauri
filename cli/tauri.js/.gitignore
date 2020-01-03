@@ -1,5 +1,5 @@
 # Webpack output
-dist
+/dist
 
 # Logs
 logs
@@ -69,9 +69,3 @@ config.json
 
 # rust compiled folders
 target
-
-
-# doing this because of how our tests currently (naively) drop the tauri.conf.json in that folder
-# todo: needs a proper fic
-tauri.conf.json
-src-tauri

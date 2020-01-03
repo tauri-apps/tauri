@@ -18,9 +18,9 @@ Tauri is a tool for building tiny, blazing fast binaries for all major desktop p
 
 | Component | Version | Lin | Win | Mac |
 |-----------|---------|-----|-----|-----|
-| tauri.js  | ![](https://img.shields.io/npm/v/tauri.svg)         |✅|✅|✅|
-| tauri     | ![](https://img.shields.io/crates/v/tauri.svg)      |✅|✅|✅|
-| tauri CLI | ![](https://img.shields.io/crates/v/tauri-cli.svg)  |✅|✅|✅ |
+| tauri.js CLI | ![](https://img.shields.io/npm/v/tauri.svg)         |✅|✅|✅|
+| tauri core    | ![](https://img.shields.io/crates/v/tauri.svg)      |✅|✅|✅|
+| tauri bundler | ![](https://img.shields.io/crates/v/tauri-cli.svg)  |✅|✅|✅ |
 
 ## Who Tauri is For
 Because of the way Tauri has been built and can be extended, developers
@@ -48,7 +48,7 @@ What will you make?
 Tauri has five major components:
 - [Node.js CLI](https://github.com/tauri-apps/tauri/tree/dev/cli/tauri.js) for creating, developing and building apps
 - [Rust Core](https://github.com/tauri-apps/tauri/tree/dev/tauri) for binding to the low level WEBVIEW and providing a tree-shakeable API
-- [Rust CLI](https://github.com/tauri-apps/tauri/tree/dev/cli/tauri-cli) for manufacturing the final binaries
+- [Rust Bundler](https://github.com/tauri-apps/tauri/tree/dev/cli/tauri-cli) for manufacturing the final binaries
 - [Rust Bindings](https://github.com/Boscop/web-view) for Webviews
 - [Webview](https://github.com/Boscop/web-view/tree/master/webview-sys)
 Low level library for creating and interfacing with OS "native" webviews

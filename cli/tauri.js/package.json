@@ -96,7 +96,7 @@
     "raw-loader": "4.0.0",
     "ts-loader": "6.2.1",
     "typescript": "3.7.4",
-    "webpack": "4.41.4",
+    "webpack": "4.41.5",
     "webpack-cli": "3.3.10",
     "webpack-node-externals": "1.7.2"
   },

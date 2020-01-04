@@ -1006,43 +1006,43 @@
   dependencies:
     "@hapi/hoek" "^8.3.0"
 
-"@jbolda/gatsby-theme-articles@0.0.6":
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/@jbolda/gatsby-theme-articles/-/gatsby-theme-articles-0.0.6.tgz#634cdd887b1767191c0e8317eef3a6fc423a8d8d"
-  integrity sha512-yoHLsaKTUSu9hG3fheO6MhKLNAS864JV1ApQezX0NaUAxQbN7dY7x6Cb8p/+ZGx9NVccyu0JurX9v0eBuV++TQ==
+"@jbolda/gatsby-theme-articles@0.1.0":
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/@jbolda/gatsby-theme-articles/-/gatsby-theme-articles-0.1.0.tgz#c745b9beb343321060aacd4d5770851cfa691ffd"
+  integrity sha512-uLuuhVwaZZ4HG760mNtBSJE+5awQbv11e/lmOY1Vai7rcA31VoBf5pON+61BBAsPwJnKcbOe+zLag84xssWDdw==
   dependencies:
-    "@jbolda/isolated-theme-ui-components" "^0.0.4"
+    "@jbolda/isolated-theme-ui-components" "^0.1.0"
     gatsby-plugin-compile-es6-packages "2.1.0"
     isolated-theme-ui "1.0.1"
 
-"@jbolda/gatsby-theme-homepage@0.0.7":
-  version "0.0.7"
-  resolved "https://registry.yarnpkg.com/@jbolda/gatsby-theme-homepage/-/gatsby-theme-homepage-0.0.7.tgz#8809345100f0073435a6a0773076147b136a7f52"
-  integrity sha512-geMPE44JmbQBZk1SWt3jaARvrGhRQ+U6Z7AvLYM/YsLJ5E9Th4pcITZbgz+A3dTcdtks4v090P6/5P7AshBS5A==
+"@jbolda/gatsby-theme-homepage@0.1.0":
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/@jbolda/gatsby-theme-homepage/-/gatsby-theme-homepage-0.1.0.tgz#cb31f93797de5a42c16a818c6c76e799baf6950e"
+  integrity sha512-Tq4JQkpGMgt9AIg5lLG/CamlnF+0/OiWahWed9BNtZTzRntlVp9f5Q1v4WCDIAaU3IcvID0fLsXOkkt5VyJgGQ==
   dependencies:
-    "@jbolda/isolated-theme-ui-components" "^0.0.4"
+    "@jbolda/isolated-theme-ui-components" "^0.1.0"
     gatsby-plugin-compile-es6-packages "^2.1.0"
     isolated-theme-ui "^1.0.1"
 
-"@jbolda/gatsby-theme-layout@0.0.6":
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/@jbolda/gatsby-theme-layout/-/gatsby-theme-layout-0.0.6.tgz#e40a2b211dd2aef0ae1ca7a7d8871b66b6ec1925"
-  integrity sha512-belMaufnDrBx6ZIYfESLWuwnWYcvky6xJD4JsEDlgFoq5iGLA+qMjrCUpH46EC4nr2d1Z/4F8Q+gG//GOE905w==
+"@jbolda/gatsby-theme-layout@0.1.0":
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/@jbolda/gatsby-theme-layout/-/gatsby-theme-layout-0.1.0.tgz#ac3e5306f359a1b23b45ee16f6632a0554d7388e"
+  integrity sha512-7vb2jPmzSns7GvGA6r0eiOcGBO4cGfdLYswGMkdulHQb0vMuLaBoTTajVBISihf7o7hfshWZbFkT8DJSagj2FQ==
   dependencies:
     "@fortawesome/fontawesome-svg-core" "1.2.26"
     "@fortawesome/free-brands-svg-icons" "5.12.0"
     "@fortawesome/free-regular-svg-icons" "5.12.0"
     "@fortawesome/free-solid-svg-icons" "5.12.0"
     "@fortawesome/react-fontawesome" "0.1.8"
-    "@jbolda/isolated-theme-ui-components" "^0.0.4"
+    "@jbolda/isolated-theme-ui-components" "^0.1.0"
     gatsby-plugin-compile-es6-packages "2.1.0"
     isolated-theme-ui "1.0.1"
-    react-use "13.12.2"
+    react-use "13.13.0"
 
-"@jbolda/isolated-theme-ui-components@^0.0.4":
-  version "0.0.4"
-  resolved "https://registry.yarnpkg.com/@jbolda/isolated-theme-ui-components/-/isolated-theme-ui-components-0.0.4.tgz#831af082b5d45667dc0f198f0bac534b230e3805"
-  integrity sha512-jRXGEP5Yau7tGfkr8DEjxrFQ1WrkK9lAEjTqFMvn8YbRRuzf9WfX7x587h0Ka879E+Nn+e/nLCeEPWE9rvYNeQ==
+"@jbolda/isolated-theme-ui-components@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/@jbolda/isolated-theme-ui-components/-/isolated-theme-ui-components-0.1.0.tgz#f60cfb6b8723f77afe9607b3e22b08fd33110c2d"
+  integrity sha512-/nuzpcXCp5Gx3sDi9Vm8jVkhRd+yda013k8JsZiplkbd+H1FlFz6q1bRl1XKayT20VqhF/qFLPd+L5NqbE9jFg==
 
 "@jimp/bmp@^0.6.8":
   version "0.6.8"
@@ -5405,6 +5405,11 @@ fast-levenshtein@^2.0.6, fast-levenshtein@~2.0.6:
   resolved "https://registry.npmjs.org/fast-levenshtein/-/fast-levenshtein-2.0.6.tgz#3d8a5c66883a16a30ca8643e851f19baa7797917"
   integrity sha1-PYpcZog6FqMMqGQ+hR8Zuqd5eRc=
 
+fast-shallow-equal@^0.1.1:
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/fast-shallow-equal/-/fast-shallow-equal-0.1.1.tgz#44d01324d7fd31e00a67bb02b9396e283d526c22"
+  integrity sha512-XVP6nhaXLYOH6JZCWBcNaeEer9GJ5/8cJWUP+OLmgwWgEkJp5Kpl/fdpJ01zl0mpLxrk7f5J3hIv+GmjTCi7Mg==
+
 fastest-stable-stringify@^1.0.1:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/fastest-stable-stringify/-/fastest-stable-stringify-1.0.1.tgz#9122d406d4c9d98bea644a6b6853d5874b87b028"
@@ -8330,11 +8335,6 @@ lockfile@^1.0.4:
   dependencies:
     signal-exit "^3.0.2"
 
-lodash._reinterpolate@^3.0.0:
-  version "3.0.0"
-  resolved "https://registry.yarnpkg.com/lodash._reinterpolate/-/lodash._reinterpolate-3.0.0.tgz#0ccf2d89166af03b3663c796538b75ac6e114d9d"
-  integrity sha1-DM8tiRZq8Ds2Y8eWU4t1rG4RTZ0=
-
 lodash.assignin@^4.0.9:
   version "4.2.0"
   resolved "https://registry.npmjs.org/lodash.assignin/-/lodash.assignin-4.2.0.tgz#ba8df5fb841eb0a3e8044232b0e263a8dc6a28a2"
@@ -8344,11 +8344,6 @@ lodash.bind@^4.1.4:
   version "4.2.1"
   resolved "https://registry.npmjs.org/lodash.bind/-/lodash.bind-4.2.1.tgz#7ae3017e939622ac31b7d7d7dcb1b34db1690d35"
   integrity sha1-euMBfpOWIqwxt9fX3LGzTbFpDTU=
-
-lodash.debounce@4.0.8:
-  version "4.0.8"
-  resolved "https://registry.yarnpkg.com/lodash.debounce/-/lodash.debounce-4.0.8.tgz#82d79bff30a67c4005ffd5e2515300ad9ca4d7af"
-  integrity sha1-gteb/zCmfEAF/9XiUVMArZyk168=
 
 lodash.defaults@^4.0.1:
   version "4.2.0"
@@ -8440,21 +8435,6 @@ lodash.sortby@^4.7.0:
   resolved "https://registry.yarnpkg.com/lodash.sortby/-/lodash.sortby-4.7.0.tgz#edd14c824e2cc9c1e0b0a1b42bb5210516a42438"
   integrity sha1-7dFMgk4sycHgsKG0K7UhBRakJDg=
 
-lodash.template@4.5.0:
-  version "4.5.0"
-  resolved "https://registry.yarnpkg.com/lodash.template/-/lodash.template-4.5.0.tgz#f976195cf3f347d0d5f52483569fe8031ccce8ab"
-  integrity sha512-84vYFxIkmidUiFxidA/KjjH9pAycqW+h980j7Fuz5qxRtO9pgB7MDFTdys1N7A5mcucRiDyEq4fusljItR1T/A==
-  dependencies:
-    lodash._reinterpolate "^3.0.0"
-    lodash.templatesettings "^4.0.0"
-
-lodash.templatesettings@^4.0.0:
-  version "4.2.0"
-  resolved "https://registry.yarnpkg.com/lodash.templatesettings/-/lodash.templatesettings-4.2.0.tgz#e481310f049d3cf6d47e912ad09313b154f0fb33"
-  integrity sha512-stgLz+i3Aa9mZgnjr/O+v9ruKZsPsndy7qPZOchbqk2cnTU1ZaldKK+v7m54WoKIyxiuMZTKT2H81F8BeAc3ZQ==
-  dependencies:
-    lodash._reinterpolate "^3.0.0"
-
 lodash.throttle@^4.1.1:
   version "4.1.1"
   resolved "https://registry.npmjs.org/lodash.throttle/-/lodash.throttle-4.1.1.tgz#c23e91b710242ac70c37f1e1cda9274cc39bf2f4"
@@ -8475,7 +8455,7 @@ lodash.uniq@4.5.0, lodash.uniq@^4.5.0:
   resolved "https://registry.npmjs.org/lodash.uniq/-/lodash.uniq-4.5.0.tgz#d0225373aeb652adc1bc82e4945339a842754773"
   integrity sha1-0CJTc662Uq3BvILklFM5qEJ1R3M=
 
-lodash@^4.11.1, lodash@^4.17.11, lodash@^4.17.13, lodash@^4.17.14, lodash@^4.17.15, lodash@^4.17.4, lodash@^4.17.5, lodash@^4.3.0:
+lodash@4.17.15, lodash@^4.11.1, lodash@^4.17.11, lodash@^4.17.13, lodash@^4.17.14, lodash@^4.17.15, lodash@^4.17.4, lodash@^4.17.5, lodash@^4.3.0:
   version "4.17.15"
   resolved "https://registry.npmjs.org/lodash/-/lodash-4.17.15.tgz#b447f6670a0455bbfeedd11392eff330ea097548"
   integrity sha512-8xOcRHvCjnocdS5cpwXQXVzmmh5e5+saE2QGoeQmbKmRS6J3VQppPOIt0MnmE+4xlZoumy0GPG0D0MVIQbNA1A==
@@ -11075,13 +11055,14 @@ react-side-effect@^1.1.0:
   dependencies:
     shallowequal "^1.0.1"
 
-react-use@13.12.2:
-  version "13.12.2"
-  resolved "https://registry.yarnpkg.com/react-use/-/react-use-13.12.2.tgz#89343a7769ed4b84f102bb371146a13ba2caae07"
-  integrity sha512-+I5kYjfsU7jel64wYa0nC7w/evhjL9fzmhEwOInB3HtrMt4Wt3jr6UYSVJExUTWEBUKSbmhyFAsR6jHvVj3vUw==
+react-use@13.13.0:
+  version "13.13.0"
+  resolved "https://registry.yarnpkg.com/react-use/-/react-use-13.13.0.tgz#5d133c4d4d8d3f21f6ccf4ccbe54fbcd6fdafb36"
+  integrity sha512-J3/h5wvL6vXmecAvEnninCC3DviLMRWcQrEnouTliwws1b376DQKEgIFuTXlF8c3SKpXBQJdDDm1RpluokW6ag==
   dependencies:
     "@xobotyi/scrollbar-width" "1.5.0"
     copy-to-clipboard "^3.2.0"
+    fast-shallow-equal "^0.1.1"
     nano-css "^5.2.1"
     react-fast-compare "^2.0.4"
     resize-observer-polyfill "^1.5.1"
@@ -12939,10 +12920,10 @@ tar@^5.0.5:
     mkdirp "^0.5.0"
     yallist "^4.0.0"
 
-tauri@0.2.1:
-  version "0.2.1"
-  resolved "https://registry.yarnpkg.com/tauri/-/tauri-0.2.1.tgz#76e3838a7c37ab3d779343a5f12ed3e99971a18e"
-  integrity sha512-wpWvhOjKUm+p+uZL7psCYUwFM3BGXnBD+iPXq0xn3NRXlANswrYAn3xgNBWN3nIFIRVlMa5GZBGF75aUGfeG0Q==
+tauri@0.3.1:
+  version "0.3.1"
+  resolved "https://registry.yarnpkg.com/tauri/-/tauri-0.3.1.tgz#3b8da8a22678978112548d01793fce4a04623767"
+  integrity sha512-7wmMuDd7bvu9k+wjrdHDlEvW5yma+pAkVKPzGUtziJkD3jkkmHrGrAv3akARc+Rbu4P3EFPC8y4VeyVSQEvwrw==
   dependencies:
     "@tauri-apps/tauri-inliner" "1.13.2"
     "@tauri-apps/toml" "2.2.4"
@@ -12958,8 +12939,7 @@ tauri@0.2.1:
     is-png "2.0.0"
     isbinaryfile "4.0.2"
     jsdom "15.2.1"
-    lodash.debounce "4.0.8"
-    lodash.template "4.5.0"
+    lodash "4.17.15"
     minimist "1.2.0"
     ms "2.1.2"
     png2icons "2.0.1"

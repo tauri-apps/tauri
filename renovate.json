@@ -9,7 +9,7 @@
   },
   "packageRules": [
     {
-      "paths": ["examples/react/gatsby**"],
+      "paths": ["examples/react/gatsby*/**"],
       "groupName": "Gatsby Examples",
       "groupSlug": "allGatsby",
       "commitMessagePrefix": "chore(examples)",
@@ -21,7 +21,7 @@
       "rebaseConflictedPrs": true
     },
     {
-      "paths": ["examples/react/create-react-app**"],
+      "paths": ["examples/react/create-react-app*/**"],
       "groupName": "CRA Examples",
       "groupSlug": "allCRA",
       "commitMessagePrefix": "chore(examples)",
@@ -33,7 +33,7 @@
       "rebaseConflictedPrs": true
     },
     {
-      "paths": ["examples/react/next**"],
+      "paths": ["examples/react/next*/**"],
       "groupName": "Next.js Examples",
       "groupSlug": "allNextjs",
       "commitMessagePrefix": "chore(examples)",

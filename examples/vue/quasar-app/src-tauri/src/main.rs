@@ -29,7 +29,7 @@ fn main() {
           .lines()
           .filter_map(|line| line.ok())
           .for_each(|line| {
-            tauri::event::emit(&handle1, "node", format!("'{}'", line))
+            tauri::event::emit(&handle1, String::from("node"), format!("'{}'", line))
           });
       });
 

@@ -154,7 +154,7 @@ fn init() -> TauriResult<String> {
 fn open_fn(uri: String) -> TauriResult<()> {
   crate::spawn(move || {
     #[cfg(test)]
-    assert!(true);
+    assert!(uri.contains("http://"));
 
     #[cfg(not(test))]
     webbrowser::open(&uri).expect("Failed to open webbrowser with uri");
@@ -267,10 +267,22 @@ mod test {
     }
   }
 
-  // only run if you are prepared to deal with 10000 browser tabs opening
-  #[cfg(any(feature = "all-api", feature = "open"))]
+  // check the listen_fn for various usecases.
   proptest! {
-    #![proptest_config(ProptestConfig::with_cases(10000))]
+    #[cfg(any(feature = "all-api", feature = "event"))]
+    #[test]
+    fn check_listen_fn(event in "", handler in "", once in proptest::bool::ANY) {
+      let res = super::listen_fn(event, handler, once);
+      match res {
+        Ok(_) => assert!(true),
+        Err(_) => assert!(false)
+      }
+    }
+  }
+
+  // Test the open func to see if proper uris can be opened by the browser.
+  proptest! {
+    #[cfg(any(feature = "all-api", feature = "open"))]
     #[test]
     fn check_open(uri in r"(http://)([\\w\\d\\.]+([\\w]{2,6})?)") {
       let res = super::open_fn(uri);

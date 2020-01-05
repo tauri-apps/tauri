@@ -91,8 +91,8 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> Tau
           handler,
           once,
         } => {
-          let js_string = listen_fn(webview, event, handler, once)?;
-          webview.eval(js_string)?;
+          let js_string = listen_fn(event, handler, once)?;
+          webview.eval(&js_string)?;
         }
         #[cfg(any(feature = "all-api", feature = "event"))]
         Emit { event, payload } => {
@@ -113,9 +113,9 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> Tau
   }
 }
 
-fn init() -> TauriResult<&'static str> {
+fn init() -> TauriResult<String> {
   #[cfg(not(any(feature = "all-api", feature = "event")))]
-  return Ok("");
+  return Ok(String::from(""));
   #[cfg(any(feature = "all-api", feature = "event"))]
   return Ok(format!(
             "
@@ -146,7 +146,7 @@ fn init() -> TauriResult<&'static str> {
             ",
             fn = crate::event::emit_function_name(),
             queue = crate::event::event_listeners_object_name(),
-            listeners = crate::event::event_queue_object_name();
+            listeners = crate::event::event_queue_object_name(),
   ));
 }
 
@@ -160,7 +160,7 @@ fn open_fn(uri: String) -> TauriResult<()> {
 }
 
 #[cfg(any(feature = "all-api", feature = "event"))]
-fn listen_fn(event: String, handler: String, once: bool) -> TauriResult<&'static str> {
+fn listen_fn(event: String, handler: String, once: bool) -> TauriResult<String> {
   Ok(format!(
     "if (window['{listeners}'] === void 0) {{
       window['{listeners}'] = {{}}
@@ -245,17 +245,33 @@ fn load_asset<T: 'static>(
 mod test {
   use proptest::prelude::*;
 
-  proptest! {
-    #[test]
-    // check to see if spawn executes a function.
-    fn check_spawn_task(task in "[a-z]+") {
-      // create dummy task function
-      let dummy_task = move || {
-        format!("{}-run-dummy-task", task);
-        assert!(true);
-      };
-      // call spawn
-      crate::spawn(dummy_task);
+  #[test]
+  // test to see if check init produces a string or not.
+  fn check_init() {
+    if cfg!(not(any(feature = "all-api", feature = "event"))) {
+      let res = super::init();
+      match res {
+        Ok(s) => assert_eq!(s, ""),
+        Err(_) => assert!(false),
+      }
+    } else if cfg!(any(feature = "all-api", feature = "event")) {
+      let res = super::init();
+      match res {
+        Ok(_) => assert!(true),
+        Err(_) => assert!(false),
+      }
     }
+  }
+
+  proptest! {
+    #[cfg(any(feature = "all-api", feature = "open"))]
+    #[test]
+    fn check_open(uri in r"(http://)([\\w\\d\\.]+([\\w]{2,6})?)") {
+      let res = super::open_fn(uri);
+      match res {
+        Ok(_) => assert!(true),
+        Err(_) => assert!(false),
+    }
+  }
   }
 }

@@ -200,3 +200,32 @@ fn build_webview(
       .build()?,
   )
 }
+
+#[cfg(test)]
+mod test {
+  use proptest::prelude::*;
+  use std::{fs::read_to_string, path::Path};
+  use web_view::Content;
+
+  fn init_config() -> crate::config::Config {
+    crate::config::get().expect("unable to setup default config")
+  }
+
+  proptest! {
+    #[test]
+    fn check_setup_content(_ in "") {
+      let config = init_config();
+      let c = config.clone();
+
+      if cfg!(not(any(feature = "embedded-server", feature = "no-server"))) {
+        let res = super::setup_content(config);
+
+        match res {
+          Ok(Content::Url(dp)) => assert_eq!(dp, c.build.dev_path),
+          Ok(Content::Html(s)) => assert_eq!(s, read_to_string(Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html")).unwrap()),
+          Err(_) => assert!(false),
+        }
+      }
+    }
+  }
+}

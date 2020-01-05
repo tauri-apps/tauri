@@ -12,46 +12,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> Tau
     Ok(command) => {
       match command {
         Init {} => {
-          #[cfg(not(any(feature = "all-api", feature = "event")))]
-          let event_init = "";
-          #[cfg(any(feature = "all-api", feature = "event"))]
-          let event_init = format!(
-            "
-              window['{queue}'] = [];
-              window['{fn}'] = function (payload, salt, ignoreQueue) {{
-              const listeners = (window['{listeners}'] && window['{listeners}'][payload.type]) || []
-              if (!ignoreQueue && listeners.length === 0) {{
-                window['{queue}'].push({{
-                  payload: payload,
-                  salt: salt
-                }})
-              }}
-
-              if (listeners.length > 0) {{
-                window.tauri.promisified({{
-                  cmd: 'validateSalt',
-                  salt: salt
-                }}).then(function () {{
-                  for (let i = listeners.length - 1; i >= 0; i--) {{
-                    const listener = listeners[i]
-                    if (listener.once)
-                      listeners.splice(i, 1)
-                    listener.handler(payload)
-                  }}
-                }})
-              }}
-            }}
-            ",
-            fn = crate::event::emit_function_name(),
-            listeners = crate::event::event_listeners_object_name(),
-            queue = crate::event::event_queue_object_name()
-          );
-          webview.eval(&format!(
-            r#"{event_init}
-                window.external.invoke('{{"cmd":"__initialized"}}')
-              "#,
-            event_init = event_init
-          ))?;
+          init(webview)?;
         }
         #[cfg(any(feature = "all-api", feature = "readTextFile"))]
         ReadTextFile {
@@ -109,11 +70,8 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> Tau
         }
         #[cfg(any(feature = "all-api", feature = "open"))]
         Open { uri } => {
-          crate::spawn(move || {
-            webbrowser::open(&uri).expect("Failed to open webbrowser with uri");
-          });
+          open_fn(uri)?;
         }
-
         ValidateSalt {
           salt,
           callback,
@@ -127,33 +85,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> Tau
           handler,
           once,
         } => {
-          webview
-            .eval(&format!(
-              "
-                if (window['{listeners}'] === void 0) {{
-                  window['{listeners}'] = {{}}
-                 }}
-                if (window['{listeners}']['{evt}'] === void 0) {{
-                  window['{listeners}']['{evt}'] = []
-                }}
-                window['{listeners}']['{evt}'].push({{
-                  handler: window['{handler}'],
-                  once: {once_flag}
-                }});
-
-                for (let i = 0; i < (window['{queue}'] || []).length; i++) {{
-                  const e = window['{queue}'][i];
-                  window['{emit}'](e.payload, e.salt, true)
-                }}
-              ",
-              listeners = crate::event::event_listeners_object_name(),
-              queue = crate::event::event_queue_object_name(),
-              emit = crate::event::emit_function_name(),
-              evt = event,
-              handler = handler,
-              once_flag = if once { "true" } else { "false" }
-            ))
-            .expect("failed to call webview.eval from listen");
+          listen_fn(webview, event, handler, once)?;
         }
         #[cfg(any(feature = "all-api", feature = "event"))]
         Emit { event, payload } => {
@@ -166,53 +98,153 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> Tau
           callback,
           error,
         } => {
-          let handle = webview.handle();
-          crate::execute_promise(
-            webview,
-            move || {
-              let read_asset = crate::assets::ASSETS.get(&format!(
-                "{}{}{}",
-                env!("TAURI_DIST_DIR"),
-                if asset.starts_with("/") { "" } else { "/" },
-                asset
-              ));
-              if read_asset.is_err() {
-                return Err(r#""Asset not found""#.to_string());
-              }
-
-              if asset_type == "image" {
-                let ext = if asset.ends_with("gif") {
-                  "gif"
-                } else if asset.ends_with("png") {
-                  "png"
-                } else {
-                  "jpeg"
-                };
-                Ok(format!(
-                  "`data:image/{};base64,{}`",
-                  ext,
-                  base64::encode(&read_asset.expect("Failed to read asset type").into_owned())
-                ))
-              } else {
-                handle
-                  .dispatch(move |_webview| {
-                    _webview.eval(
-                      &std::str::from_utf8(
-                        &read_asset.expect("Failed to read asset type").into_owned(),
-                      )
-                      .expect("failed to convert asset bytes to u8 slice"),
-                    )
-                  })
-                  .map_err(|err| format!("`{}`", err))
-                  .map(|_| r#""Asset loaded successfully""#.to_string())
-              }
-            },
-            callback,
-            error,
-          );
+          load_asset(webview, asset, asset_type, callback, error)?;
         }
       }
       Ok(true)
     }
   }
+}
+
+fn init<T: 'static>(webview: &mut WebView<'_, T>) -> TauriResult<()> {
+  #[cfg(not(any(feature = "all-api", feature = "event")))]
+  let event_init = "";
+  #[cfg(any(feature = "all-api", feature = "event"))]
+  let event_init = format!(
+            "
+              window['{queue}'] = [];
+              window['{fn}'] = function (payload, salt, ignoreQueue) {{
+              const listeners = (window['{listeners}'] && window['{listeners}'][payload.type]) || []
+              if (!ignoreQueue && listeners.length === 0) {{
+                window['{queue}'].push({{
+                  payload: payload,
+                  salt: salt
+                }})
+              }}
+
+              if (listeners.length > 0) {{
+                window.tauri.promisified({{
+                  cmd: 'validateSalt',
+                  salt: salt
+                }}).then(function () {{
+                  for (let i = listeners.length - 1; i >= 0; i--) {{
+                    const listener = listeners[i]
+                    if (listener.once)
+                      listeners.splice(i, 1)
+                    listener.handler(payload)
+                  }}
+                }})
+              }}
+            }}
+            ",
+            fn = crate::event::emit_function_name(),
+            queue = crate::event::event_listeners_object_name(),
+            listeners = crate::event::event_queue_object_name();
+  );
+  webview.eval(&format!(
+    r#"{event_init}
+        window.external.invoke('{{"cmd":"__initialized"}}')
+      "#,
+    event_init = event_init
+  ))?;
+
+  Ok(())
+}
+
+#[cfg(any(feature = "all-api", feature = "open"))]
+fn open_fn(uri: String) -> TauriResult<()> {
+  crate::spawn(move || {
+    webbrowser::open(&uri).expect("Failed to open webbrowser with uri");
+  });
+
+  Ok(())
+}
+
+#[cfg(any(feature = "all-api", feature = "event"))]
+fn listen_fn<T: 'static>(
+  webview: &mut WebView<'_, T>,
+  event: String,
+  handler: String,
+  once: bool,
+) -> TauriResult<()> {
+  webview.eval(&format!(
+    "if (window['{listeners}'] === void 0) {{
+      window['{listeners}'] = {{}}
+      }}
+    if (window['{listeners}']['{evt}'] === void 0) {{
+      window['{listeners}']['{evt}'] = []
+    }}
+    window['{listeners}']['{evt}'].push({{
+      handler: window['{handler}'],
+      once: {once_flag}
+    }});
+
+    for (let i = 0; i < (window['{queue}'] || []).length; i++) {{
+      const e = window['{queue}'][i];
+      window['{emit}'](e.payload, e.salt, true)
+    }}
+  ",
+    listeners = crate::event::event_listeners_object_name(),
+    queue = crate::event::event_queue_object_name(),
+    emit = crate::event::emit_function_name(),
+    evt = event,
+    handler = handler,
+    once_flag = if once { "true" } else { "false" }
+  ))?;
+
+  Ok(())
+}
+
+#[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
+fn load_asset<T: 'static>(
+  webview: &mut WebView<'_, T>,
+  asset: String,
+  asset_type: String,
+  callback: String,
+  error: String,
+) -> TauriResult<()> {
+  let handle = webview.handle();
+  crate::execute_promise(
+    webview,
+    move || {
+      let read_asset = crate::assets::ASSETS.get(&format!(
+        "{}{}{}",
+        env!("TAURI_DIST_DIR"),
+        if asset.starts_with("/") { "" } else { "/" },
+        asset
+      ));
+      if read_asset.is_err() {
+        return Err(r#""Asset not found""#.to_string());
+      }
+
+      if asset_type == "image" {
+        let ext = if asset.ends_with("gif") {
+          "gif"
+        } else if asset.ends_with("png") {
+          "png"
+        } else {
+          "jpeg"
+        };
+        Ok(format!(
+          "`data:image/{};base64,{}`",
+          ext,
+          base64::encode(&read_asset.expect("Failed to read asset type").into_owned())
+        ))
+      } else {
+        handle
+          .dispatch(move |_webview| {
+            _webview.eval(
+              &std::str::from_utf8(&read_asset.expect("Failed to read asset type").into_owned())
+                .expect("failed to convert asset bytes to u8 slice"),
+            )
+          })
+          .map_err(|err| format!("`{}`", err))
+          .map(|_| r#""Asset loaded successfully""#.to_string())
+      }
+    },
+    callback,
+    error,
+  );
+
+  Ok(())
 }

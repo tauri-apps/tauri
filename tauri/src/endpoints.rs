@@ -153,6 +153,10 @@ fn init() -> TauriResult<String> {
 #[cfg(any(feature = "all-api", feature = "open"))]
 fn open_fn(uri: String) -> TauriResult<()> {
   crate::spawn(move || {
+    #[cfg(test)]
+    assert!(true);
+
+    #[cfg(not(test))]
     webbrowser::open(&uri).expect("Failed to open webbrowser with uri");
   });
 
@@ -257,14 +261,15 @@ mod test {
     } else if cfg!(any(feature = "all-api", feature = "event")) {
       let res = super::init();
       match res {
-        Ok(_) => assert!(true),
+        Ok(s) => assert!(s.contains("window.tauri.promisified")),
         Err(_) => assert!(false),
       }
     }
   }
 
+  // only run if you are prepared to deal with 10000 browser tabs opening
+  #[cfg(any(feature = "all-api", feature = "open"))]
   proptest! {
-    #[cfg(any(feature = "all-api", feature = "open"))]
     #[test]
     fn check_open(uri in r"(http://)([\\w\\d\\.]+([\\w]{2,6})?)") {
       let res = super::open_fn(uri);

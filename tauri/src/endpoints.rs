@@ -270,6 +270,7 @@ mod test {
   // only run if you are prepared to deal with 10000 browser tabs opening
   #[cfg(any(feature = "all-api", feature = "open"))]
   proptest! {
+    #![proptest_config(ProptestConfig::with_cases(10000))]
     #[test]
     fn check_open(uri in r"(http://)([\\w\\d\\.]+([\\w]{2,6})?)") {
       let res = super::open_fn(uri);

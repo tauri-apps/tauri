@@ -12,7 +12,13 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> Tau
     Ok(command) => {
       match command {
         Init {} => {
-          init(webview)?;
+          let event_init = init()?;
+          webview.eval(&format!(
+            r#"{event_init}
+                window.external.invoke('{{"cmd":"__initialized"}}')
+              "#,
+            event_init = event_init
+          ))?;
         }
         #[cfg(any(feature = "all-api", feature = "readTextFile"))]
         ReadTextFile {
@@ -85,7 +91,8 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> Tau
           handler,
           once,
         } => {
-          listen_fn(webview, event, handler, once)?;
+          let js_string = listen_fn(webview, event, handler, once)?;
+          webview.eval(js_string)?;
         }
         #[cfg(any(feature = "all-api", feature = "event"))]
         Emit { event, payload } => {
@@ -106,11 +113,11 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> Tau
   }
 }
 
-fn init<T: 'static>(webview: &mut WebView<'_, T>) -> TauriResult<()> {
+fn init() -> TauriResult<&'static str> {
   #[cfg(not(any(feature = "all-api", feature = "event")))]
-  let event_init = "";
+  return Ok("");
   #[cfg(any(feature = "all-api", feature = "event"))]
-  let event_init = format!(
+  return Ok(format!(
             "
               window['{queue}'] = [];
               window['{fn}'] = function (payload, salt, ignoreQueue) {{
@@ -140,15 +147,7 @@ fn init<T: 'static>(webview: &mut WebView<'_, T>) -> TauriResult<()> {
             fn = crate::event::emit_function_name(),
             queue = crate::event::event_listeners_object_name(),
             listeners = crate::event::event_queue_object_name();
-  );
-  webview.eval(&format!(
-    r#"{event_init}
-        window.external.invoke('{{"cmd":"__initialized"}}')
-      "#,
-    event_init = event_init
-  ))?;
-
-  Ok(())
+  ));
 }
 
 #[cfg(any(feature = "all-api", feature = "open"))]
@@ -161,13 +160,8 @@ fn open_fn(uri: String) -> TauriResult<()> {
 }
 
 #[cfg(any(feature = "all-api", feature = "event"))]
-fn listen_fn<T: 'static>(
-  webview: &mut WebView<'_, T>,
-  event: String,
-  handler: String,
-  once: bool,
-) -> TauriResult<()> {
-  webview.eval(&format!(
+fn listen_fn(event: String, handler: String, once: bool) -> TauriResult<&'static str> {
+  Ok(format!(
     "if (window['{listeners}'] === void 0) {{
       window['{listeners}'] = {{}}
       }}
@@ -190,9 +184,7 @@ fn listen_fn<T: 'static>(
     evt = event,
     handler = handler,
     once_flag = if once { "true" } else { "false" }
-  ))?;
-
-  Ok(())
+  ))
 }
 
 #[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
@@ -247,4 +239,23 @@ fn load_asset<T: 'static>(
   );
 
   Ok(())
+}
+
+#[cfg(test)]
+mod test {
+  use proptest::prelude::*;
+
+  proptest! {
+    #[test]
+    // check to see if spawn executes a function.
+    fn check_spawn_task(task in "[a-z]+") {
+      // create dummy task function
+      let dummy_task = move || {
+        format!("{}-run-dummy-task", task);
+        assert!(true);
+      };
+      // call spawn
+      crate::spawn(dummy_task);
+    }
+  }
 }

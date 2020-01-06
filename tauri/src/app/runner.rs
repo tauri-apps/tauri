@@ -203,7 +203,7 @@ fn build_webview(
 
 #[cfg(test)]
 mod test {
-  // use proptest::prelude::*;
+  use proptest::prelude::*;
   use std::{fs::read_to_string, path::Path};
   use web_view::Content;
 
@@ -243,6 +243,24 @@ mod test {
           read_to_string(Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html")).unwrap()
         ),
         _ => assert!(false),
+      }
+    }
+  }
+
+  proptest! {
+    #[cfg(feature = "embedded-server")]
+    #[test]
+    fn check_server_url( port in (any::<u32>().prop_map(|v| v.to_string()))) {
+      let config = init_config();
+      let valid = true;
+
+      let p = port.clone();
+
+      let res = super::setup_server_url(config, valid, port);
+
+      match res {
+        Some(url) => assert!(url.contains(&p)),
+        None => assert!(false)
       }
     }
   }

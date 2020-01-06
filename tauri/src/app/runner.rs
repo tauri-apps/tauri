@@ -216,34 +216,31 @@ mod test {
     let config = init_config();
     let c = config.clone();
 
-    if cfg!(not(any(feature = "embedded-server", feature = "no-server"))) {
-      let res = super::setup_content(config);
+    let res = super::setup_content(config);
 
-      match res {
-        Ok(Content::Url(dp)) => assert_eq!(dp, c.build.dev_path),
-        Ok(Content::Html(s)) => assert_eq!(
-          s,
-          read_to_string(Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html")).unwrap()
-        ),
-        Err(_) => assert!(false),
-      }
-    } else if cfg!(feature = "embedded-server") {
-      let res = super::setup_content(config);
+    #[cfg(feature = "embedded-server")]
+    match res {
+      Ok(Content::Url(u)) => assert!(u.contains("http://")),
+      _ => assert!(false),
+    }
 
-      match res {
-        Ok(Content::Url(u)) => assert!(u.contains("http://")),
-        _ => assert!(false),
-      }
-    } else if cfg!(feature = "no-server") {
-      let res = super::setup_content(config);
+    #[cfg(feature = "no-server")]
+    match res {
+      Ok(Content::Html(s)) => assert_eq!(
+        s,
+        read_to_string(Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html")).unwrap()
+      ),
+      _ => assert!(false),
+    }
 
-      match res {
-        Ok(Content::Html(s)) => assert_eq!(
-          s,
-          read_to_string(Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html")).unwrap()
-        ),
-        _ => assert!(false),
-      }
+    #[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
+    match res {
+      Ok(Content::Url(dp)) => assert_eq!(dp, c.build.dev_path),
+      Ok(Content::Html(s)) => assert_eq!(
+        s,
+        read_to_string(Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html")).unwrap()
+      ),
+      _ => assert!(false),
     }
   }
 

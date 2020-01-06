@@ -216,6 +216,7 @@ mod test {
   #[test]
   fn check_setup_content() {
     let config = init_config();
+    let _c = config.clone();
 
     let res = super::setup_content(config);
 
@@ -235,16 +236,13 @@ mod test {
     }
 
     #[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
-    {
-      let c = config.clone();
-      match res {
-        Ok(Content::Url(dp)) => assert_eq!(dp, c.build.dev_path),
-        Ok(Content::Html(s)) => assert_eq!(
-          s,
-          read_to_string(Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html")).unwrap()
-        ),
-        _ => assert!(false),
-      }
+    match res {
+      Ok(Content::Url(dp)) => assert_eq!(dp, _c.build.dev_path),
+      Ok(Content::Html(s)) => assert_eq!(
+        s,
+        read_to_string(Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html")).unwrap()
+      ),
+      _ => assert!(false),
     }
   }
 

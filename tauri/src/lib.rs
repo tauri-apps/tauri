@@ -34,7 +34,7 @@ use web_view::WebView;
 pub use tauri_api as api;
 
 // Result alias
-type TauriResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync + 'static>>;
+type TauriResult<T> = Result<T, Box<dyn std::error::Error>>;
 
 thread_local!(static POOL: ThreadPool = ThreadPool::new(4));
 

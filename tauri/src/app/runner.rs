@@ -247,6 +247,18 @@ mod test {
     }
   }
 
+  #[cfg(feature = "embedded-server")]
+  #[test]
+  fn check_setup_port() {
+    let config = init_config();
+
+    let res = super::setup_port(config);
+    match res {
+      Some((_s, _b)) => assert!(true),
+      _ => assert!(false),
+    }
+  }
+
   proptest! {
     #[cfg(feature = "embedded-server")]
     #[test]

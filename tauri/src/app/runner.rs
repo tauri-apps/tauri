@@ -259,9 +259,10 @@ mod test {
   }
 
   proptest! {
+    #![proptest_config(ProptestConfig::with_cases(10000))]
     #[cfg(feature = "embedded-server")]
     #[test]
-    fn check_server_url( port in (any::<u32>().prop_map(|v| v.to_string()))) {
+    fn check_server_url(port in (any::<u32>().prop_map(|v| v.to_string()))) {
       let config = init_config();
       let valid = true;
 

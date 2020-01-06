@@ -1,6 +1,7 @@
 {
   "extends": ["config:base"],
   "schedule": "after 3am on Wednesday",
+  "enabled": false,
   "rebaseConflictedPrs": false,
   "ignorePaths": [],
   "enabledManagers": ["cargo", "npm"],
@@ -9,6 +10,47 @@
   },
   "packageRules": [
     {
+      "enabled": true,
+      "paths": ["tauri/**"],
+      "groupName": "Tauri Core",
+      "groupSlug": "allTauriCore",
+      "commitMessagePrefix": "chore(deps)",
+      "lockFileMaintenance": {
+        "enabled": true
+      }
+    },
+    {
+      "enabled": true,
+      "paths": ["tauri-api/**"],
+      "groupName": "Tauri API",
+      "groupSlug": "allTauriAPI",
+      "commitMessagePrefix": "chore(deps)",
+      "lockFileMaintenance": {
+        "enabled": true
+      }
+    },
+    {
+      "enabled": true,
+      "paths": ["cli/tauri-cli/**"],
+      "groupName": "Tauri Bundler",
+      "groupSlug": "allTauriBundler",
+      "commitMessagePrefix": "chore(deps)",
+      "lockFileMaintenance": {
+        "enabled": true
+      }
+    },
+    {
+      "enabled": true,
+      "paths": ["cli/tauri.js/**"],
+      "groupName": "Tauri JS CLI",
+      "groupSlug": "allTauriJSCLI",
+      "commitMessagePrefix": "chore(deps)",
+      "lockFileMaintenance": {
+        "enabled": true
+      }
+    },
+    {
+      "enabled": true,
       "paths": ["examples/react/gatsby*/**"],
       "groupName": "Gatsby Examples",
       "groupSlug": "allGatsby",
@@ -21,6 +63,7 @@
       "rebaseConflictedPrs": true
     },
     {
+      "enabled": true,
       "paths": ["examples/react/create-react-app*/**"],
       "groupName": "CRA Examples",
       "groupSlug": "allCRA",
@@ -33,6 +76,7 @@
       "rebaseConflictedPrs": true
     },
     {
+      "enabled": true,
       "paths": ["examples/react/next*/**"],
       "groupName": "Next.js Examples",
       "groupSlug": "allNextjs",
@@ -45,6 +89,7 @@
       "rebaseConflictedPrs": true
     },
     {
+      "enabled": true,
       "paths": ["examples/vue/**"],
       "groupName": "Vue Examples",
       "groupSlug": "allVue",
@@ -57,6 +102,7 @@
       "rebaseConflictedPrs": true
     },
     {
+      "enabled": true,
       "paths": ["examples/vanillajs/**"],
       "groupName": "VanillaJS Examples",
       "groupSlug": "allVanilla",
@@ -69,6 +115,7 @@
       "rebaseConflictedPrs": true
     },
     {
+      "enabled": true,
       "paths": ["examples/svelte/**"],
       "groupName": "Svelte Examples",
       "groupSlug": "allSvelte",

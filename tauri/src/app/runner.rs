@@ -200,3 +200,80 @@ fn build_webview(
       .build()?,
   )
 }
+
+#[cfg(test)]
+mod test {
+  use proptest::prelude::*;
+  use web_view::Content;
+
+  #[cfg(not(feature = "embedded-server"))]
+  use std::{fs::read_to_string, path::Path};
+
+  fn init_config() -> crate::config::Config {
+    crate::config::get().expect("unable to setup default config")
+  }
+
+  #[test]
+  fn check_setup_content() {
+    let config = init_config();
+    let _c = config.clone();
+
+    let res = super::setup_content(config);
+
+    #[cfg(feature = "embedded-server")]
+    match res {
+      Ok(Content::Url(u)) => assert!(u.contains("http://")),
+      _ => assert!(false),
+    }
+
+    #[cfg(feature = "no-server")]
+    match res {
+      Ok(Content::Html(s)) => assert_eq!(
+        s,
+        read_to_string(Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html")).unwrap()
+      ),
+      _ => assert!(false),
+    }
+
+    #[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
+    match res {
+      Ok(Content::Url(dp)) => assert_eq!(dp, _c.build.dev_path),
+      Ok(Content::Html(s)) => assert_eq!(
+        s,
+        read_to_string(Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html")).unwrap()
+      ),
+      _ => assert!(false),
+    }
+  }
+
+  #[cfg(feature = "embedded-server")]
+  #[test]
+  fn check_setup_port() {
+    let config = init_config();
+
+    let res = super::setup_port(config);
+    match res {
+      Some((_s, _b)) => assert!(true),
+      _ => assert!(false),
+    }
+  }
+
+  proptest! {
+    #![proptest_config(ProptestConfig::with_cases(10000))]
+    #[cfg(feature = "embedded-server")]
+    #[test]
+    fn check_server_url(port in (any::<u32>().prop_map(|v| v.to_string()))) {
+      let config = init_config();
+      let valid = true;
+
+      let p = port.clone();
+
+      let res = super::setup_server_url(config, valid, port);
+
+      match res {
+        Some(url) => assert!(url.contains(&p)),
+        None => assert!(false)
+      }
+    }
+  }
+}

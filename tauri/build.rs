@@ -4,13 +4,12 @@ extern crate tauri_includedir_codegen;
 pub fn main() {
   #[cfg(not(feature = "dev-server"))]
   {
+    println!("cargo:rerun-if-changed={}", std::env::var("TAURI_DIST_DIR"));
     match std::env::var("TAURI_DIST_DIR") {
       Ok(dist_path) => {
         let inlined_assets = match std::env::var("TAURI_INLINED_ASSETS") {
-          Ok(assets) => {
-            assets.split("|").map(|s| s.to_string()).collect()
-          }
-          Err(_) => Vec::new()
+          Ok(assets) => assets.split("|").map(|s| s.to_string()).collect(),
+          Err(_) => Vec::new(),
         };
         // include assets
         tauri_includedir_codegen::start("ASSETS")

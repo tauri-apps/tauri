@@ -4,7 +4,7 @@ module.exports = {
     siteDescription: `This is a smoke test to see that a (themed) Gatsbyjs site will work within Tauri.`,
     siteAuthor: `Jacob Bolda`,
     siteContact: "https://twitter.com/jacobbolda",
-    siteURL: "http://www.tauri.studio",
+    siteURL: "https://www.tauri.studio",
     contactLinks: [
       {
         url: "https://twitter.com/jacobbolda",

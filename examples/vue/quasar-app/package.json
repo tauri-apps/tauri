@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@quasar/extras": "1.3.3",
-    "quasar": "1.5.11"
+    "quasar": "1.6.1"
   },
   "devDependencies": {
     "@quasar/app": "1.4.3",

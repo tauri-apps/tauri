@@ -18,7 +18,7 @@
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "6.0.0",
-    "rollup": "1.28.0",
+    "rollup": "1.29.0",
     "rollup-plugin-commonjs": "10.1.0",
     "rollup-plugin-livereload": "1.0.4",
     "rollup-plugin-svelte": "5.1.1",

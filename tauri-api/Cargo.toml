@@ -13,7 +13,7 @@ exclude = ["test/fixture/**"]
 serde = { version = "1.0", features = ["derive"] } 
 dirs = "2.0.2"
 ignore = "0.4.10"
-zip = "0.5.3"
+zip = "0.5.4"
 tempdir = "0.3"
 semver = "0.9"
 tempfile = "3"

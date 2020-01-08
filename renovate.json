@@ -4,6 +4,7 @@
   "enabled": false,
   "rebaseConflictedPrs": false,
   "ignorePaths": [],
+  "labels: ["chore"],
   "enabledManagers": ["cargo", "npm"],
   "cargo": {
     "enabled": true

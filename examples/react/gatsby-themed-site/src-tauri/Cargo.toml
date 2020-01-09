@@ -36,5 +36,5 @@ embedded-server = [ "tauri/embedded-server" ]
 no-server = [ "tauri/no-server" ]
 
 [[bin]]
-name = "app"
+name = "gatsby-themed-site-app"
 path = "src/main.rs"

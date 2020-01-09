@@ -1,8 +1,6 @@
 {
   "extends": ["config:base"],
   "schedule": "after 3am on Wednesday",
-  "enabled": false,
-  "rebaseConflictedPrs": false,
   "ignorePaths": [],
   "labels": ["chore"],
   "enabledManagers": ["cargo", "npm"],
@@ -11,6 +9,10 @@
   },
   "packageRules": [
     {
+      "packagePatterns": ["*"],
+      "enabled": false
+    },
+    {
       "enabled": true,
       "paths": ["tauri/**"],
       "groupName": "Tauri Core",
@@ -18,7 +20,8 @@
       "commitMessagePrefix": "chore(deps)",
       "lockFileMaintenance": {
         "enabled": true
-      }
+      },
+      "rebaseConflictedPrs": false
     },
     {
       "enabled": true,
@@ -28,7 +31,8 @@
       "commitMessagePrefix": "chore(deps)",
       "lockFileMaintenance": {
         "enabled": true
-      }
+      },
+      "rebaseConflictedPrs": false
     },
     {
       "enabled": true,
@@ -38,7 +42,8 @@
       "commitMessagePrefix": "chore(deps)",
       "lockFileMaintenance": {
         "enabled": true
-      }
+      },
+      "rebaseConflictedPrs": false
     },
     {
       "enabled": true,
@@ -48,7 +53,8 @@
       "commitMessagePrefix": "chore(deps)",
       "lockFileMaintenance": {
         "enabled": true
-      }
+      },
+      "rebaseConflictedPrs": false
     },
     {
       "enabled": true,

@@ -68,6 +68,9 @@
     "webpack-shell-plugin": "0.5.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.7.7",
+    "@babel/preset-env": "^7.7.7",
+    "@babel/preset-typescript": "^7.7.7",
     "@types/cross-spawn": "^6.0.1",
     "@types/fs-extra": "^8.0.1",
     "@types/imagemin": "^7.0.0",
@@ -80,6 +83,7 @@
     "@types/webpack-merge": "^4.1.5",
     "@typescript-eslint/eslint-plugin": "^2.12.0",
     "@typescript-eslint/parser": "^2.12.0",
+    "babel-jest": "^24.9.0",
     "cors": "^2.8.5",
     "dotenv": "8.2.0",
     "eslint": "6.7.2",
@@ -94,6 +98,7 @@
     "husky": "3.1.0",
     "jest": "24.9.0",
     "jest-mock-process": "1.2.0",
+    "jest-raw-loader": "^1.0.1",
     "lint-staged": "9.5.0",
     "lockfile-lint": "3.0.3",
     "promise": "8.0.3",

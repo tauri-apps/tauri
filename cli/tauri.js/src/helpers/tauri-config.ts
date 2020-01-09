@@ -20,8 +20,9 @@ module.exports = (cfg: Partial<TauriConfig>): TauriConfig => {
     )
     process.exit(1)
   }
-  const tauriConf = __non_webpack_require__(tauriConfPath)
-  const pkg = __non_webpack_require__(pkgPath)
+  const nonWebpackRequire = require('../helpers/non-webpack-require')
+  const tauriConf = nonWebpackRequire(tauriConfPath)
+  const pkg = nonWebpackRequire(pkgPath)
 
   const config = merge(
     {

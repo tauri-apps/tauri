@@ -97,7 +97,7 @@ function printAppInfo(tauriDir: string) {
       return chalk.red('unset')
     }
     const configPath = path.join(tauriDir, 'tauri.conf.json')
-    const config = __non_webpack_require__(configPath) as TauriConfig
+    const config = require('../helpers/non-webpack-require')(configPath) as TauriConfig
     printInfo({ key: '  mode', value: tauriMode(config) })
     printInfo({ key: '  build-type', value: config.tauri.bundle && config.tauri.bundle.active ? 'bundle' : 'build' })
     printInfo({ key: '  CSP', value: config.tauri.security ? config.tauri.security.csp : 'unset' })

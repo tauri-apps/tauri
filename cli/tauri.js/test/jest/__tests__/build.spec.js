@@ -1,69 +1,77 @@
-const express = require('express')
-const cors = require('cors')
-const app = express()
 const path = require('path')
+const fixtureSetup = require('../fixtures/app-test-setup')
+const appDir = fixtureSetup.appDir
+const distDir = fixtureSetup.distDir
 
-const appDir = path.resolve(__dirname, '../fixtures/app')
-const distDir = path.join(appDir, 'dist')
-const spy = jest.spyOn(process, 'cwd')
-spy.mockReturnValue(appDir)
+const spawn = require('../../../src/helpers/spawn').spawn
 
-const spawn = require('../../../dist/helpers/spawn').spawn
-const build = require('../../../dist/api/build')
-app.use(cors())
-app.use(express.json())
-
-describe('it builds a Tauri app', () => {
-  test('it pings a localhost server', () => {
-    return new Promise(async (resolve, reject) => {
-      const port = 7000
+function runBuildTest(tauriConfig) {
+  fixtureSetup.initJest()
+  const build = require('../../../src/api/build')
+  return new Promise(async (resolve, reject) => {
+    try {
       let appPid
+      fixtureSetup.startServer(() => appPid, resolve)
+      await build(tauriConfig)
 
-      app.post('/reply', (req, res) => {
-        expect(req.body).toStrictEqual({
-          msg: 'TEST'
-        })
-        console.log(req.body)
-        server.close()
-        process.kill(appPid)
-        // wait for the app process to be killed
-        setTimeout(() => {
-          resolve()
-        })
-      })
+      const artifactPath = path.resolve(appDir, 'src-tauri/target/debug/app')
 
-      const server = app.listen(port, () => console.log(`Test listening on port ${port}!`))
+      appPid = spawn(
+        process.platform === 'win32' ? `${artifactPath}.exe` : artifactPath.replace('debug/app', 'debug/./app'),
+        [],
+        null
+      )
 
-      try {
-        await build({
-          build: {
-            devPath: distDir,
-            distDir: distDir
-          },
-          ctx: {
-            debug: true
-          },
-          tauri: {
-            embeddedServer: {
-              active: true
-            }
-          }
-        })
-
-        const artifactPath = path.resolve(appDir, 'src-tauri/target/debug/app')
-
-        appPid = spawn(
-          process.platform === 'win32' ? `${artifactPath}.exe` : artifactPath.replace('debug/app', 'debug/./app'),
-          [],
-          null
-        )
-
-        setTimeout(() => {
-          reject("App didn't reply")
-        }, 2500)
-      } catch (error) {
-        reject(error)
-      }
-    })
+      setTimeout(() => {
+        reject("App didn't reply")
+      }, 2500)
+    } catch (error) {
+      reject(error)
+    }
   })
+}
+
+describe('Tauri Build', () => {
+  const build = {
+    devPath: distDir,
+    distDir: distDir
+  }
+
+  for (const debug of [true, false]) {
+    it(`works with the embedded-server ${debug ? 'debug' : 'release'} mode`, () => {
+      return runBuildTest({
+        build,
+        ctx: {
+          debug
+        },
+        tauri: {
+          embeddedServer: {
+            active: true
+          },
+          whitelist: {
+            all: true
+          }
+        }
+      })
+    })
+  }
+
+  for (const debug of [true, false]) {
+    it(`works with the no-server ${debug ? 'debug' : 'release'} mode`, () => {
+      return runBuildTest({
+        build,
+        ctx: {
+          debug
+        },
+        tauri: {
+          embeddedServer: {
+            active: false
+          },
+          whitelist: {
+            all: true
+          }
+        }
+      })
+    })
+  }
 })

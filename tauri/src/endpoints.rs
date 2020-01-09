@@ -145,8 +145,8 @@ fn init() -> TauriResult<String> {
             }}
             ",
             fn = crate::event::emit_function_name(),
-            queue = crate::event::event_listeners_object_name(),
-            listeners = crate::event::event_queue_object_name(),
+            queue = crate::event::event_queue_object_name(),
+            listeners = crate::event::event_listeners_object_name()
   ));
 }
 

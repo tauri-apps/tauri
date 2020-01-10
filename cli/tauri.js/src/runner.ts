@@ -1,9 +1,9 @@
 import Inliner from '@tauri-apps/tauri-inliner'
 import toml from '@tauri-apps/toml'
 import chokidar, { FSWatcher } from 'chokidar'
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs-extra'
+import { existsSync, readFileSync, writeFileSync } from 'fs-extra'
 import { JSDOM } from 'jsdom'
-import debounce from 'lodash.debounce'
+import { debounce } from 'lodash'
 import path from 'path'
 import * as entry from './entry'
 import { appDir, tauriDir } from './helpers/app-paths'
@@ -82,13 +82,7 @@ class Runner {
           path.join(appDir, 'tauri.conf.js')
         ],
         {
-          // TODO: incorrect options?
-          // @ts-ignore
-          watchers: {
-            chokidar: {
-              ignoreInitial: true
-            }
-          }
+          ignoreInitial: true
         }
       )
       .on(
@@ -156,54 +150,63 @@ class Runner {
 
   async __parseHtml(cfg: TauriConfig, indexDir: string): Promise<string[]> {
     const inlinedAssets: string[] = []
-    const distDir = cfg.build.distDir
 
     return new Promise((resolve, reject) => {
-      const distIndexPath = path.join(indexDir, 'index.html')
-      if (!existsSync(distIndexPath)) {
+      const indexPath = path.join(indexDir, 'index.html')
+      if (!existsSync(indexPath)) {
         warn(
           `Error: cannot find index.html in "${indexDir}". Did you forget to build your web code or update the build.distDir in tauri.conf.json?`
         )
         reject(new Error('Could not find index.html in dist dir.'))
       }
-      new Inliner(distIndexPath, (err: Error, html: string) => {
-        if (err) {
-          reject(err)
-        } else {
-          const dom = new JSDOM(html)
-          const document = dom.window.document
-          document.querySelectorAll('link').forEach(link => {
-            link.removeAttribute('rel')
-            link.removeAttribute('as')
-          })
 
-          const tauriScript = document.createElement('script')
-          // @ts-ignore
-          tauriScript.text = readFileSync(path.join(tauriDir, 'tauri.js'))
-          document.body.insertBefore(tauriScript, document.body.firstChild)
-
-          const csp = cfg.tauri.security.csp
-          if (csp) {
-            const cspTag = document.createElement('meta')
-            cspTag.setAttribute('http-equiv', 'Content-Security-Policy')
-            cspTag.setAttribute('content', csp)
-            document.head.appendChild(cspTag)
-          }
-
-          if (!existsSync(distDir)) {
-            mkdirSync(distDir, { recursive: true })
-          }
-
-          writeFileSync(
-            path.join(distDir, 'index.tauri.html'),
-            dom.serialize()
-          )
-          resolve(inlinedAssets)
+      const rewriteHtml = (html: string, interceptor?: (dom: JSDOM) => void) => {
+        const dom = new JSDOM(html)
+        const document = dom.window.document
+        if (interceptor !== undefined) {
+          interceptor(dom)
         }
-      }).on('progress', (event: string) => {
-        const match = event.match(/([\S\d]+)\.([\S\d]+)/g)
-        match && inlinedAssets.push(match[0])
-      })
+
+        const tauriScript = document.createElement('script')
+        // @ts-ignore
+        tauriScript.text = readFileSync(path.join(tauriDir, 'tauri.js'))
+        document.body.insertBefore(tauriScript, document.body.firstChild)
+
+        const csp = cfg.tauri.security.csp
+        if (csp) {
+          const cspTag = document.createElement('meta')
+          cspTag.setAttribute('http-equiv', 'Content-Security-Policy')
+          cspTag.setAttribute('content', csp)
+          document.head.appendChild(cspTag)
+        }
+        writeFileSync(
+          path.join(indexDir, 'index.tauri.html'),
+          dom.serialize()
+        )
+      }
+
+      if (cfg.tauri.embeddedServer.active) {
+        rewriteHtml(readFileSync(indexPath).toString())
+        resolve(inlinedAssets)
+      } else {
+        new Inliner(indexPath, (err: Error, html: string) => {
+          if (err) {
+            reject(err)
+          } else {
+            rewriteHtml(html, dom => {
+              const document = dom.window.document
+              document.querySelectorAll('link').forEach(link => {
+                link.removeAttribute('rel')
+                link.removeAttribute('as')
+              })
+            })
+            resolve(inlinedAssets)
+          }
+        }).on('progress', (event: string) => {
+          const match = event.match(/([\S\d]+)\.([\S\d]+)/g)
+          match && inlinedAssets.push(match[0])
+        })
+      }
     })
   }
 
@@ -282,7 +285,6 @@ class Runner {
 
   __manipulateToml(callback: (tomlContents: object) => void): void {
     const tomlPath = path.join(tauriDir, 'Cargo.toml')
-    // TODO: should this be read as buffer or string?
     const tomlFile = readFileSync(tomlPath)
     // @ts-ignore
     const tomlContents = toml.parse(tomlFile)

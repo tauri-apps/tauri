@@ -1,5 +1,6 @@
-mod runner;
 use web_view::WebView;
+
+mod runner;
 
 //type FnMut(&mut InvokeHandler<WebView<'_, ()>>, &str) = FnMut(&mut FnMut(&mut InvokeHandler<WebView<'_, ()>>, &str)<WebView<'_, ()>>, &str);
 
@@ -10,7 +11,7 @@ pub struct App {
 
 impl App {
   pub fn run(mut self) {
-    runner::run(&mut self);
+    runner::run(&mut self).expect("Failed to build webview");
   }
 
   pub(crate) fn run_invoke_handler(&mut self, webview: &mut WebView<'_, ()>, arg: &str) {

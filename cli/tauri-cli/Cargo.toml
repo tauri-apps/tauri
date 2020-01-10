@@ -34,7 +34,7 @@ uuid = { version = "0.8", features = ["v5"] }
 walkdir = "2"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-attohttpc = { version = "0.7.0" }
+attohttpc = { version = "0.8.0" }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 handlebars = { version = "2.0" }

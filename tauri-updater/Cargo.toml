@@ -19,4 +19,4 @@ zip = "0.5.3"
 sysinfo = "0.10"
 tempdir = "0.3"
 
-tauri-api = { version = "0.2", path = "../tauri-api" }
+tauri-api = { version = "0.3", path = "../tauri-api" }

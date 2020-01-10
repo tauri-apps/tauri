@@ -34,7 +34,7 @@ sleep 5
 bless --folder "${MOUNT_DIR}" -label "${MACOS_APP_NAME}"
 
 test -d "${MOUNT_DIR}/.background" || mkdir "${MOUNT_DIR}/.background"
-cp ../../icons/bg.png "${MOUNT_DIR}"/.background/bg.png
+test -f ../../icons/bg.png && cp ../../icons/bg.png "${MOUNT_DIR}"/.background/bg.png
 
 # I couldn't get DeRez and Rez to work. Leaving it here in case its helpful in the future.
 ### DeRez -only icns "${MOUNT_DIR}/.VolumeIcon.icns" > "${MOUNT_DIR}/.VolumeIcon.rsrc"
@@ -46,7 +46,7 @@ VERSION=$(sw_vers -productVersion | cut -d'.' -f2)
 
 if [ "$VERSION" -gt 12 ]; then
   echo "Using SIPS v10.13+"
-  sips --i "${MOUNT_DIR}/.VolumeIcon.icns" # 10.13+
+  sips -i "${MOUNT_DIR}/.VolumeIcon.icns" # 10.13+
 else
     echo "Using SIPS v10.12-"
   sips --addIcon "${MOUNT_DIR}/.VolumeIcon.icns"

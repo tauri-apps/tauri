@@ -1,7 +1,7 @@
 import { TauriConfig } from 'types'
 import merge from 'webpack-merge'
-const getTauriConfig = require('../helpers/tauri-config')
 import Runner from '../runner'
+const getTauriConfig = require('../helpers/tauri-config')
 
 module.exports = async (config: TauriConfig): Promise<void> => {
   const tauri = new Runner()

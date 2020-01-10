@@ -1,6 +1,6 @@
 [package]
 name = "tauri-api"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
 license = "MIT"
 homepage = "https://tauri-apps.org"
@@ -22,5 +22,5 @@ tar = "0.4"
 flate2 = "1"
 
 [dev-dependencies]
-quickcheck = "0.8.0"
+quickcheck = "0.8.5"
 quickcheck_macros = "0.8.0"

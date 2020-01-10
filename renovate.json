@@ -1,15 +1,64 @@
 {
   "extends": ["config:base"],
   "schedule": "after 3am on Wednesday",
-  "rebaseConflictedPrs": false,
   "ignorePaths": [],
+  "labels": ["chore"],
   "enabledManagers": ["cargo", "npm"],
   "cargo": {
     "enabled": true
   },
   "packageRules": [
     {
-      "paths": ["examples/react/gatsby**"],
+      "packagePatterns": ["*"],
+      "enabled": false
+    },
+    {
+      "enabled": true,
+      "paths": ["tauri/**"],
+      "groupName": "Tauri Core",
+      "groupSlug": "allTauriCore",
+      "commitMessagePrefix": "chore(deps)",
+      "lockFileMaintenance": {
+        "enabled": true
+      },
+      "rebaseConflictedPrs": false
+    },
+    {
+      "enabled": true,
+      "paths": ["tauri-api/**"],
+      "groupName": "Tauri API",
+      "groupSlug": "allTauriAPI",
+      "commitMessagePrefix": "chore(deps)",
+      "lockFileMaintenance": {
+        "enabled": true
+      },
+      "rebaseConflictedPrs": false
+    },
+    {
+      "enabled": true,
+      "paths": ["cli/tauri-cli/**"],
+      "groupName": "Tauri Bundler",
+      "groupSlug": "allTauriBundler",
+      "commitMessagePrefix": "chore(deps)",
+      "lockFileMaintenance": {
+        "enabled": true
+      },
+      "rebaseConflictedPrs": false
+    },
+    {
+      "enabled": true,
+      "paths": ["cli/tauri.js/**"],
+      "groupName": "Tauri JS CLI",
+      "groupSlug": "allTauriJSCLI",
+      "commitMessagePrefix": "chore(deps)",
+      "lockFileMaintenance": {
+        "enabled": true
+      },
+      "rebaseConflictedPrs": false
+    },
+    {
+      "enabled": true,
+      "paths": ["examples/react/gatsby*/**"],
       "groupName": "Gatsby Examples",
       "groupSlug": "allGatsby",
       "commitMessagePrefix": "chore(examples)",
@@ -21,7 +70,8 @@
       "rebaseConflictedPrs": true
     },
     {
-      "paths": ["examples/react/create-react-app**"],
+      "enabled": true,
+      "paths": ["examples/react/create-react-app*/**"],
       "groupName": "CRA Examples",
       "groupSlug": "allCRA",
       "commitMessagePrefix": "chore(examples)",
@@ -33,7 +83,8 @@
       "rebaseConflictedPrs": true
     },
     {
-      "paths": ["examples/react/next**"],
+      "enabled": true,
+      "paths": ["examples/react/next*/**"],
       "groupName": "Next.js Examples",
       "groupSlug": "allNextjs",
       "commitMessagePrefix": "chore(examples)",
@@ -45,6 +96,7 @@
       "rebaseConflictedPrs": true
     },
     {
+      "enabled": true,
       "paths": ["examples/vue/**"],
       "groupName": "Vue Examples",
       "groupSlug": "allVue",
@@ -57,6 +109,7 @@
       "rebaseConflictedPrs": true
     },
     {
+      "enabled": true,
       "paths": ["examples/vanillajs/**"],
       "groupName": "VanillaJS Examples",
       "groupSlug": "allVanilla",
@@ -69,6 +122,7 @@
       "rebaseConflictedPrs": true
     },
     {
+      "enabled": true,
       "paths": ["examples/svelte/**"],
       "groupName": "Svelte Examples",
       "groupSlug": "allSvelte",

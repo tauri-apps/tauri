@@ -1,6 +1,6 @@
 export default {
   build: {
-    distDir: 'dist',
+    distDir: '../dist',
     devPath: 'http://localhost:4000'
   },
   ctx: {},
@@ -12,7 +12,7 @@ export default {
       active: true
     },
     whitelist: {
-      all: false
+      all: true
     },
     window: {
       title: 'Tauri App'

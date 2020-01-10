@@ -14,10 +14,11 @@ function runBuildTest(tauriConfig) {
       fixtureSetup.startServer(() => appPid, resolve)
       await build(tauriConfig)
 
-      const artifactPath = path.resolve(appDir, 'src-tauri/target/debug/app')
+      const artifactFolder = tauriConfig.ctx.debug ? 'debug' : 'release'
+      const artifactPath = path.resolve(appDir, `src-tauri/target/${artifactFolder}/app`)
 
       appPid = spawn(
-        process.platform === 'win32' ? `${artifactPath}.exe` : artifactPath.replace('debug/app', 'debug/./app'),
+        process.platform === 'win32' ? `${artifactPath}.exe` : artifactPath.replace(`${artifactFolder}/app`, `${artifactFolder}/./app`),
         [],
         null
       )

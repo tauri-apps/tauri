@@ -38,7 +38,7 @@ module.exports.startServer = (getAppPid, onReply) => {
     // wait for the app process to be killed
     setTimeout(() => {
       onReply()
-    })
+    }, 100)
   })
 
   const server = app.listen(port)

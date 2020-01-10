@@ -5,7 +5,7 @@
    "main": "index.js",
    "scripts": {
       "tauri:prod": "tauri",
-      "tauri:source": "node ../cli/tauri.js/bin/tauri",
+      "tauri:source": "node ../../../../bin/tauri",
       "tauri:source:init": "yarn tauri:source init --tauriPath ..",
       "tauri:prod:init": "yarn tauri:prod init",
       "tauri:source:dev": "yarn tauri:source dev",

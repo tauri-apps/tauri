@@ -5,7 +5,7 @@ import { TauriConfig } from './types/config'
 
 export const generate = (outDir: string, cfg: TauriConfig): void => {
   // this MUST be from the templates repo
-  const apiTemplate = require('../templates/tauri.js').default
+  const apiTemplate = process.env.NODE_ENV === 'test' ? require('../templates/tauri.js') : require('../templates/tauri.js').default
   const compiledApi = template(apiTemplate)
 
   ensureDirSync(outDir)

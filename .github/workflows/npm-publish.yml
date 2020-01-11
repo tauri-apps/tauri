@@ -8,11 +8,11 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
-    - name: Login to NPM
-      run: npm login ${{ secrets.npm_token }}
-    - name: Publish package
-      run: |
-        cd packages/tauri-js
-        echo "We will publish this directory."
-        ls # npm publish
+      - uses: actions/checkout@v2
+      - name: Login to NPM
+        run: npm login ${{ secrets.npm_token }}
+      - name: Publish package
+        run: |
+          cd packages/tauri-js
+          echo "We will publish this directory."
+          ls # npm publish

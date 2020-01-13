@@ -146,7 +146,7 @@ fn run() -> crate::Result<()> {
             Ok(s)
           } else {
             Err(crate::Error::from(
-              "Could not find Icon Paths. Please make sure they exist and are in your Cargo.toml.",
+              "Could not find Icon Paths. Please make sure they exist and are in your Cargo.toml's icon key.",
             ))
           }
         })

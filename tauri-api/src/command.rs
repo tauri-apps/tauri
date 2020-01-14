@@ -65,19 +65,49 @@ mod test {
       Stdio::piped(),
     );
 
+    assert_ok!(&res);
+
     if let Ok(s) = &res {
       assert_eq!(*s, "This is a test doc!".to_string());
     }
-
-    assert_ok!(res);
   }
 
   #[test]
   fn test_cmd_fail() {
     let res = get_output("cat".to_string(), vec!["test/".to_string()], Stdio::piped());
+
+    assert_err!(&res);
+
     if let Err(Error(ErrorKind::Command(e), _)) = &res {
       assert_eq!(*e, "cat: test/: Is a directory\n".to_string());
     }
-    assert_err!(res);
   }
+
+  #[test]
+  fn check_relateive_cmd() {
+    let res = relative_command("cat".to_string());
+
+    assert_ok!(res);
+
+    if let Ok(s) = &res {
+      assert_eq!(
+        *s,
+        format_command(
+          std::env::current_exe()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .display()
+            .to_string(),
+          "cat".to_string()
+        )
+      );
+    }
+  }
+
+  #[test]
+  fn check_command_path() {}
+
+  #[test]
+  fn check_spawn_cmd() {}
 }

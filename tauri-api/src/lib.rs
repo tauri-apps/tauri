@@ -24,5 +24,9 @@ error_chain! {
             description("Extract Error")
             display("Extract Error: '{}'", t)
         }
+        Command(t: String) {
+            description("Command Execution Error")
+            display("Command Error: '{}'", t)
+        }
     }
 }

@@ -10,7 +10,7 @@ pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> crate::Resul
       if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
       } else {
-        Err(String::from_utf8_lossy(&output.stderr).to_string().into())
+        Err(crate::ErrorKind::Command(String::from_utf8_lossy(&output.stderr).to_string()).into())
       }
     })
 }

@@ -2,7 +2,7 @@ use crate::http;
 use reqwest;
 use std;
 use tauri_api::file;
-use tauri_api::version;
+// use tauri_api::version;
 use zip::result::ZipError;
 
 #[derive(Debug)]
@@ -14,7 +14,7 @@ pub enum Error {
   Io(std::io::Error),
   Zip(ZipError),
   File(file::Error),
-  Version(version::Error),
+  // Version(version::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -28,7 +28,7 @@ impl std::fmt::Display for Error {
       Io(ref e) => write!(f, "IoError: {}", e),
       Zip(ref e) => write!(f, "ZipError: {}", e),
       File(ref e) => write!(f, "FileError: {}", e),
-      Version(ref e) => write!(f, "VersionError: {}", e),
+      // Version(ref e) => write!(f, "VersionError: {}", e),
     }
   }
 }
@@ -71,8 +71,8 @@ impl From<reqwest::Error> for Error {
   }
 }
 
-impl From<version::Error> for Error {
-  fn from(e: version::Error) -> Self {
-    Error::Version(e)
-  }
-}
+// impl From<version::Error> for Error {
+//   fn from(e: version::Error) -> Self {
+//     Error::Version(e)
+//   }
+// }

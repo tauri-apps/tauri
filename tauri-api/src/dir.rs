@@ -16,14 +16,14 @@ pub struct DiskEntry {
   pub name: String,
 }
 
-fn is_dir(file_name: String) -> Result<bool, String> {
+fn is_dir(file_name: String) -> crate::Result<bool> {
   match metadata(file_name.to_string()) {
     Ok(md) => return Result::Ok(md.is_dir()),
-    Err(err) => return Result::Err(err.to_string()),
+    Err(err) => return Result::Err(err.to_string().into()),
   };
 }
 
-pub fn walk_dir(path_copy: String) -> Result<Vec<DiskEntry>, String> {
+pub fn walk_dir(path_copy: String) -> crate::Result<Vec<DiskEntry>> {
   println!("Trying to walk: {}", path_copy.as_str());
   let mut files_and_dirs: Vec<DiskEntry> = vec![];
   for result in Walk::new(path_copy) {
@@ -49,9 +49,9 @@ pub fn walk_dir(path_copy: String) -> Result<Vec<DiskEntry>, String> {
   return Result::Ok(files_and_dirs);
 }
 
-pub fn list_dir_contents(dir_path: &String) -> Result<Vec<DiskEntry>, String> {
+pub fn list_dir_contents(dir_path: &String) -> crate::Result<Vec<DiskEntry>> {
   fs::read_dir(dir_path)
-    .map_err(|err| err.to_string())
+    .map_err(|err| crate::Error::with_chain(err, "read string failed"))
     .and_then(|paths| {
       let mut dirs: Vec<DiskEntry> = vec![];
       for path in paths {
@@ -67,9 +67,7 @@ pub fn list_dir_contents(dir_path: &String) -> Result<Vec<DiskEntry>, String> {
     })
 }
 
-pub fn with_temp_dir<F: FnOnce(&tempfile::TempDir) -> ()>(
-  callback: F,
-) -> Result<(), std::io::Error> {
+pub fn with_temp_dir<F: FnOnce(&tempfile::TempDir) -> ()>(callback: F) -> crate::Result<()> {
   let dir = tempdir()?;
   callback(&dir);
   dir.close()?;

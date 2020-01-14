@@ -59,11 +59,9 @@ mod test {
 
   #[test]
   fn test_cmd_output() {
-    let res = get_output(
-      "cat".to_string(),
-      vec!["test/test.txt".to_string()],
-      Stdio::piped(),
-    );
+    let cmd = String::from("cat");
+
+    let res = get_output(cmd, vec!["test/test.txt".to_string()], Stdio::piped());
 
     assert_ok!(&res);
 
@@ -74,7 +72,9 @@ mod test {
 
   #[test]
   fn test_cmd_fail() {
-    let res = get_output("cat".to_string(), vec!["test/".to_string()], Stdio::piped());
+    let cmd = String::from("cat");
+
+    let res = get_output(cmd, vec!["test/".to_string()], Stdio::piped());
 
     assert_err!(&res);
 
@@ -85,29 +85,43 @@ mod test {
 
   #[test]
   fn check_relateive_cmd() {
-    let res = relative_command("cat".to_string());
+    let cmd = String::from("cat");
+
+    let res = relative_command(cmd.clone());
 
     assert_ok!(res);
 
+    let current_exe = std::env::current_exe()
+      .unwrap()
+      .parent()
+      .unwrap()
+      .display()
+      .to_string();
+
     if let Ok(s) = &res {
-      assert_eq!(
-        *s,
-        format_command(
-          std::env::current_exe()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .display()
-            .to_string(),
-          "cat".to_string()
-        )
-      );
+      assert_eq!(*s, format_command(current_exe, cmd));
     }
   }
 
   #[test]
-  fn check_command_path() {}
+  fn check_command_path() {
+    let cmd = String::from("cat");
+
+    let res = command_path(cmd);
+
+    assert_ok!(res);
+  }
 
   #[test]
-  fn check_spawn_cmd() {}
+  fn check_spawn_cmd() {
+    let cmd = String::from("cat");
+
+    let res = spawn_relative_command(cmd, vec!["test/test.txt".to_string()], Stdio::piped());
+
+    assert_err!(&res);
+
+    if let Err(Error(ErrorKind::Io(s), _)) = &res {
+      assert_eq!(s.kind(), std::io::ErrorKind::NotFound);
+    }
+  }
 }

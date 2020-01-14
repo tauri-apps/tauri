@@ -55,5 +55,20 @@ mod test {
   }
 
   #[test]
-  fn check_read_binary() {}
+  fn check_read_binary() {
+    let file = String::from("test/test_binary");
+
+    let expected_vec = vec![
+      35, 33, 47, 98, 105, 110, 47, 98, 97, 115, 104, 10, 10, 101, 99, 104, 111, 32, 34, 72, 101,
+      108, 108, 111, 32, 116, 104, 101, 114, 101, 34,
+    ];
+
+    let res = read_binary(file);
+
+    assert_ok!(res);
+
+    if let Ok(vec) = res {
+      assert_eq!(vec, expected_vec);
+    }
+  }
 }

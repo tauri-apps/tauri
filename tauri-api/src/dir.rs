@@ -77,7 +77,7 @@ pub fn with_temp_dir<F: FnOnce(&tempfile::TempDir) -> ()>(callback: F) -> crate:
 #[cfg(test)]
 mod test {
   use super::*;
-  use totems::{assert_ok, assert_some};
+  use totems::assert_ok;
 
   // check is dir function by passing in arbitrary strings
   #[quickcheck]
@@ -96,8 +96,9 @@ mod test {
   fn check_walk_dir() {
     // define a relative directory string test/
     let dir = String::from("test/");
-    // add the file to this directory as test/test.txt
-    let file = format!("{}test.txt", &dir).to_string();
+    // add the files to this directory
+    let file_one = format!("{}test.txt", &dir).to_string();
+    let file_two = format!("{}test_binary", &dir).to_string();
 
     // call walk_dir on the directory
     let res = walk_dir(dir.clone());
@@ -107,13 +108,15 @@ mod test {
 
     // destruct the OK into a vector of DiskEntry Structs
     if let Ok(vec) = res {
-      // assert that the vector length is only 2
-      assert_eq!(vec.len(), 2);
+      // assert that the vector length is only 3
+      assert_eq!(vec.len(), 3);
 
       // get the first DiskEntry
       let first = &vec[0];
       // get the second DiskEntry
       let second = &vec[1];
+      // get the third DiskEntry
+      let third = &vec[2];
 
       // check the fields for the first DiskEntry
       assert_eq!(first.path, dir);
@@ -121,9 +124,14 @@ mod test {
       assert_eq!(first.name, dir);
 
       // check the fields for the second DiskEntry
-      assert_eq!(second.path, file);
+      assert_eq!(second.path, file_one);
       assert_eq!(second.is_dir, false);
-      assert_eq!(second.name, file);
+      assert_eq!(second.name, file_one);
+
+      // check the fields for the third DiskEntry
+      assert_eq!(third.path, file_two);
+      assert_eq!(third.is_dir, false);
+      assert_eq!(third.name, file_two);
     }
   }
 
@@ -141,22 +149,22 @@ mod test {
 
     // destruct the vector from the Ok()
     if let Ok(vec) = res {
-      // assert the length of the vector is 1
-      assert_eq!(vec.len(), 1);
+      // assert the length of the vector is 2
+      assert_eq!(vec.len(), 2);
 
-      // get the only entry in this vector
-      let entry = vec.first();
+      // get the two DiskEntry structs in this vector
+      let first = &vec[0];
+      let second = &vec[1];
 
-      // assert that the Option is a Some() type
-      assert_some!(entry);
+      // check the fields for the first DiskEntry
+      assert_eq!(first.path, "test/test.txt".to_string());
+      assert_eq!(first.is_dir, true);
+      assert_eq!(first.name, "test.txt".to_string());
 
-      // destruct the entry from Some
-      if let Some(e) = entry {
-        // test the fields in the DiskEntry
-        assert_eq!(e.path, "test/test.txt".to_string());
-        assert_eq!(e.is_dir, true);
-        assert_eq!(e.name, "test.txt".to_string());
-      }
+      // check the fields for the second DiskEntry
+      assert_eq!(second.path, "test/test_binary".to_string());
+      assert_eq!(second.is_dir, true);
+      assert_eq!(second.name, "test_binary".to_string());
     }
   }
 

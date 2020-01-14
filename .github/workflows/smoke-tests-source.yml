@@ -12,16 +12,16 @@ jobs:
       matrix:
         platform: [ubuntu-latest, macos-latest, windows-latest]
         example:
-          - name : GatsbyThemedSite
+          - name: GatsbyThemedSite
             folder: react/gatsby-themed-site
             executable: gatsby-themed-site-app
-          - name : CRAApp
+          - name: CRAApp
             folder: react/create-react-app
             executable: app
-          - name : NextjsApp
+          - name: NextjsApp
             folder: react/next.js
             executable: app
-          - name : VanillajsMonolithApp
+          - name: VanillajsMonolithApp
             folder: vanillajs/monolith
             executable: app
           - name: quasar-app
@@ -45,64 +45,62 @@ jobs:
             ext: .x86.msi
 
     steps:
-    - uses: actions/checkout@v1
-      with:
-        fetch-depth: 3
-    - name: install rust stable
-      uses: actions-rs/toolchain@v1
-      with:
+      - uses: actions/checkout@v2
+      - name: install rust stable
+        uses: actions-rs/toolchain@v1
+        with:
           toolchain: stable
           profile: minimal
-    - name: install webkit2gtk (ubuntu only)
-      if: matrix.platform == 'ubuntu-latest'
-      run: |
-           sudo apt-get update
-           sudo apt-get install -y webkit2gtk-4.0
-    - name: cache rust bin
-      uses: actions/cache@v1
-      with:
-        path: ${{ format('{0}/bin/', matrix.CARGO_HOME) }}
-        key: ${{ runner.OS }}-build-bin-${{ hashFiles('**/Cargo.toml') }}-
-    - name: cache rust registry/index
-      uses: actions/cache@v1
-      with:
-        path: ${{ format('{0}/registry/index/', matrix.CARGO_HOME) }}
-        key: ${{ runner.OS }}-build-reg-index-${{ hashFiles('**/Cargo.toml') }}-
-    - name: cache rust registry/cache
-      uses: actions/cache@v1
-      with:
-        path: ${{ format('{0}/registry/cache/', matrix.CARGO_HOME) }}
-        key: ${{ runner.OS }}-build-reg-cache-${{ hashFiles('**/Cargo.toml') }}-
-    - name: build rust
-      run: cargo build
-      env:
-        TAURI_DIST_DIR: ../../test/fixture/dist
-        TAURI_DIR: ../test/fixture/src-tauri
-    - run: cargo install --path ./cli/tauri-cli --force
-    - name: install cli deps via yarn
-      run: |
-           cd ./cli/tauri.js
-           yarn
-    - name: cache node modules
-      uses: actions/cache@v1
-      with:
-        path: ${{ format('examples/{0}/node_modules', matrix.example.folder) }}
-        key: ${{ runner.OS }}-build-${{ hashFiles(format('examples/{0}/yarn.lock', matrix.example.folder)) }}
-        restore-keys: ${{ runner.OS }}-build-${{ env.cache-name }}-
-    - name: install via yarn
-      run: |
-           cd ./examples/${{ matrix.example.folder }}
-           yarn
-    - name: build example
-      run: |
-           cd ./examples/${{ matrix.example.folder }}
-           yarn build
-    - name: yarn tauri build
-      run: |
-           cd ./examples/${{ matrix.example.folder }}
-           yarn tauri:source:build
-    - uses: actions/upload-artifact@v1
-      if: success()
-      with:
-        name: ${{ matrix.example.name }}(${{ matrix.platform }})
-        path: ${{ format('./examples/{0}/src-tauri/{1}/{2}{3}', matrix.example.folder, matrix.releaseFolder, matrix.example.executable, matrix.ext ) }}
+      - name: install webkit2gtk (ubuntu only)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0
+      - name: cache rust bin
+        uses: actions/cache@v1
+        with:
+          path: ${{ format('{0}/bin/', matrix.CARGO_HOME) }}
+          key: ${{ runner.OS }}-build-bin-${{ hashFiles('**/Cargo.toml') }}-
+      - name: cache rust registry/index
+        uses: actions/cache@v1
+        with:
+          path: ${{ format('{0}/registry/index/', matrix.CARGO_HOME) }}
+          key: ${{ runner.OS }}-build-reg-index-${{ hashFiles('**/Cargo.toml') }}-
+      - name: cache rust registry/cache
+        uses: actions/cache@v1
+        with:
+          path: ${{ format('{0}/registry/cache/', matrix.CARGO_HOME) }}
+          key: ${{ runner.OS }}-build-reg-cache-${{ hashFiles('**/Cargo.toml') }}-
+      - name: build rust
+        run: cargo build
+        env:
+          TAURI_DIST_DIR: ../../test/fixture/dist
+          TAURI_DIR: ../test/fixture/src-tauri
+      - run: cargo install --path ./cli/tauri-cli --force
+      - name: install cli deps via yarn
+        run: |
+          cd ./cli/tauri.js
+          yarn
+      - name: cache node modules
+        uses: actions/cache@v1
+        with:
+          path: ${{ format('examples/{0}/node_modules', matrix.example.folder) }}
+          key: ${{ runner.OS }}-build-${{ hashFiles(format('examples/{0}/yarn.lock', matrix.example.folder)) }}
+          restore-keys: ${{ runner.OS }}-build-${{ env.cache-name }}-
+      - name: install via yarn
+        run: |
+          cd ./examples/${{ matrix.example.folder }}
+          yarn
+      - name: build example
+        run: |
+          cd ./examples/${{ matrix.example.folder }}
+          yarn build
+      - name: yarn tauri build
+        run: |
+          cd ./examples/${{ matrix.example.folder }}
+          yarn tauri:source:build
+      - uses: actions/upload-artifact@v1
+        if: success()
+        with:
+          name: ${{ matrix.example.name }}(${{ matrix.platform }})
+          path: ${{ format('./examples/{0}/src-tauri/{1}/{2}{3}', matrix.example.folder, matrix.releaseFolder, matrix.example.executable, matrix.ext ) }}

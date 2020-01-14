@@ -47,9 +47,15 @@ mod test {
     assert_err!(res);
 
     if let Err(Error(ErrorKind::File(e), _)) = res {
+      #[cfg(windows)]
       assert_eq!(
         e,
         "Read_string failed: Access is denied. (os error 5)".to_string()
+      );
+      #[cfg(not(windows))]
+      assert_eq!(
+        e,
+        "Read_string failed: Is a directory (os error 21)".to_string()
       );
     }
   }
@@ -81,9 +87,15 @@ mod test {
     assert_err!(res);
 
     if let Err(Error(ErrorKind::File(e), _)) = res {
+      #[cfg(windows)]
       assert_eq!(
         e,
         "Read_binary failed: Access is denied. (os error 5)".to_string()
+      );
+      #[cfg(not(windows))]
+      assert_eq!(
+        e,
+        "Read_binary failed: Is a directory (os error 21)".to_string()
       );
     }
   }

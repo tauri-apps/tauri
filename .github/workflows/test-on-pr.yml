@@ -13,8 +13,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-        with:
-          fetch-depth: 3
       - name: install stable
         uses: actions-rs/toolchain@v1
         with:
@@ -42,8 +40,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-        with:
-          fetch-depth: 3
       - name: install stable
         uses: actions-rs/toolchain@v1
         with:
@@ -63,8 +59,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-        with:
-          fetch-depth: 3
       - name: test
         timeout-minutes: 15
         run: |

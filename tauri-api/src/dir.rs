@@ -9,7 +9,7 @@ use utils::get_dir_name_from_path;
 
 use tempfile::tempdir;
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct DiskEntry {
   pub path: String,
   pub is_dir: bool,
@@ -76,7 +76,8 @@ pub fn with_temp_dir<F: FnOnce(&tempfile::TempDir) -> ()>(callback: F) -> crate:
 
 #[cfg(test)]
 mod test {
-  use crate::dir::*;
+  use super::*;
+  use totems::{assert_ok, assert_some};
 
   // check is dir function by passing in arbitrary strings
   #[quickcheck]
@@ -87,6 +88,42 @@ mod test {
       Ok(_) => std::path::PathBuf::from(f).exists(),
       // if is Err then string isn't a path nor a dir and function passes.
       Err(_) => true,
+    }
+  }
+
+  #[test]
+  // check the walk_dir function
+  fn check_walk_dir() {
+    // define a relative directory string test/
+    let dir = String::from("test/");
+    // add the file to this directory as test/test.txt
+    let file = format!("{}test.txt", &dir).to_string();
+
+    // call walk_dir on the directory
+    let res = walk_dir(dir.clone());
+
+    // assert that the result is Ok()
+    assert_ok!(&res);
+
+    // destruct the OK into a vector of DiskEntry Structs
+    if let Ok(vec) = res {
+      // assert that the vector length is only 2
+      assert_eq!(vec.len(), 2);
+
+      // get the first DiskEntry
+      let first = &vec[0];
+      // get the second DiskEntry
+      let second = &vec[1];
+
+      // check the fields for the first DiskEntry
+      assert_eq!(first.path, dir);
+      assert_eq!(first.is_dir, true);
+      assert_eq!(first.name, dir);
+
+      // check the fields for the second DiskEntry
+      assert_eq!(second.path, file);
+      assert_eq!(second.is_dir, false);
+      assert_eq!(second.name, file);
     }
   }
 }

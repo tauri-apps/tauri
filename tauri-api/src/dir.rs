@@ -159,4 +159,19 @@ mod test {
       }
     }
   }
+
+  #[test]
+  // test the with_temp_dir function
+  fn check_test_dir() {
+    // create a callback closure that takes in a TempDir type and prints it.
+    let callback = |td: &tempfile::TempDir| {
+      println!("{:?}", td);
+    };
+
+    // execute the with_temp_dir function on the callback
+    let res = with_temp_dir(callback);
+
+    // assert that the result is an OK type.
+    assert_ok!(res);
+  }
 }

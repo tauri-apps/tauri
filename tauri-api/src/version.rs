@@ -1,7 +1,5 @@
 use semver::Version;
 
-mod error;
-
 /// Compare two semver versions
 pub fn compare(first: &str, second: &str) -> crate::Result<i32> {
   let v1 = Version::parse(first)?;

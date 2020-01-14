@@ -1,8 +1,6 @@
 use std::fs;
 use std::path;
 
-use crate::file::error::*;
-
 /// Moves a file from the given path to the specified destination.
 ///
 /// `source` and `dest` must be on the same filesystem.
@@ -37,7 +35,7 @@ impl<'a> Move<'a> {
   }
 
   /// Move source file to specified destination
-  pub fn to_dest(&self, dest: &path::Path) -> Result<(), Error> {
+  pub fn to_dest(&self, dest: &path::Path) -> crate::Result<()> {
     match self.temp {
       None => {
         fs::rename(self.source, dest)?;
@@ -50,7 +48,7 @@ impl<'a> Move<'a> {
           fs::rename(dest, temp)?;
           if let Err(e) = fs::rename(self.source, dest) {
             fs::rename(temp, dest)?;
-            return Err(Error::from(e));
+            return Err(crate::Error::from(e));
           }
         } else {
           fs::rename(self.source, dest)?;

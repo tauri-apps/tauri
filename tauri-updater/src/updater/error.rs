@@ -1,7 +1,8 @@
 use crate::http;
 use reqwest;
 use std;
-use tauri_api::file;
+use tauri_api;
+// use tauri_api::file;
 // use tauri_api::version;
 use zip::result::ZipError;
 
@@ -13,7 +14,8 @@ pub enum Error {
   Config(String),
   Io(std::io::Error),
   Zip(ZipError),
-  File(file::Error),
+  API(tauri_api::Error),
+  // File(file::Error),
   // Version(version::Error),
 }
 
@@ -27,7 +29,8 @@ impl std::fmt::Display for Error {
       Config(ref s) => write!(f, "ConfigError: {}", s),
       Io(ref e) => write!(f, "IoError: {}", e),
       Zip(ref e) => write!(f, "ZipError: {}", e),
-      File(ref e) => write!(f, "FileError: {}", e),
+      API(ref e) => write!(f, "APIError: {}", e),
+      // File(ref e) => write!(f, "FileError: {}", e),
       // Version(ref e) => write!(f, "VersionError: {}", e),
     }
   }
@@ -53,11 +56,11 @@ impl From<std::io::Error> for Error {
   }
 }
 
-impl From<file::Error> for Error {
-  fn from(e: file::Error) -> Self {
-    Error::File(e)
-  }
-}
+// impl From<file::Error> for Error {
+//   fn from(e: file::Error) -> Self {
+//     Error::File(e)
+//   }
+// }
 
 impl From<http::Error> for Error {
   fn from(e: http::Error) -> Self {
@@ -68,6 +71,12 @@ impl From<http::Error> for Error {
 impl From<reqwest::Error> for Error {
   fn from(e: reqwest::Error) -> Self {
     Error::Network(e.to_string())
+  }
+}
+
+impl From<tauri_api::Error> for Error {
+  fn from(e: tauri_api::Error) -> Self {
+    Error::API(e)
   }
 }
 

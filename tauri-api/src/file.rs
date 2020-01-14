@@ -71,4 +71,20 @@ mod test {
       assert_eq!(vec, expected_vec);
     }
   }
+
+  #[test]
+  fn check_read_binary_fail() {
+    let file = String::from("test/");
+
+    let res = read_binary(file);
+
+    assert_err!(res);
+
+    if let Err(Error(ErrorKind::File(e), _)) = res {
+      assert_eq!(
+        e,
+        "Read_binary failed: Access is denied. (os error 5)".to_string()
+      );
+    }
+  }
 }

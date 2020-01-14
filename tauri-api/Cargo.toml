@@ -25,3 +25,4 @@ error-chain = "0.12"
 [dev-dependencies]
 quickcheck = "0.8.5"
 quickcheck_macros = "0.8.0"
+totems = "0.2.7"

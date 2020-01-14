@@ -50,3 +50,34 @@ pub fn spawn_relative_command(
   let cmd = relative_command(command)?;
   Ok(Command::new(cmd).args(args).stdout(stdout).spawn()?)
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use crate::{Error, ErrorKind};
+  use totems::{assert_err, assert_ok};
+
+  #[test]
+  fn test_cmd_output() {
+    let res = get_output(
+      "cat".to_string(),
+      vec!["test/test.txt".to_string()],
+      Stdio::piped(),
+    );
+
+    if let Ok(s) = &res {
+      assert_eq!(*s, "This is a test doc!".to_string());
+    }
+
+    assert_ok!(res);
+  }
+
+  #[test]
+  fn test_cmd_fail() {
+    let res = get_output("cat".to_string(), vec!["test/".to_string()], Stdio::piped());
+    if let Err(Error(ErrorKind::Command(e), _)) = &res {
+      assert_eq!(*e, "cat: test/: Is a directory\n".to_string());
+    }
+    assert_err!(res);
+  }
+}

@@ -126,4 +126,37 @@ mod test {
       assert_eq!(second.name, file);
     }
   }
+
+  #[test]
+  // check the list_dir_contents function
+  fn check_list_dir_contents() {
+    // define a relative directory string test/
+    let dir = String::from("test/");
+
+    // call list_dir_contents on the dir string
+    let res = list_dir_contents(&dir);
+
+    // assert that the result is Ok()
+    assert_ok!(&res);
+
+    // destruct the vector from the Ok()
+    if let Ok(vec) = res {
+      // assert the length of the vector is 1
+      assert_eq!(vec.len(), 1);
+
+      // get the only entry in this vector
+      let entry = vec.first();
+
+      // assert that the Option is a Some() type
+      assert_some!(entry);
+
+      // destruct the entry from Some
+      if let Some(e) = entry {
+        // test the fields in the DiskEntry
+        assert_eq!(e.path, "test/test.txt".to_string());
+        assert_eq!(e.is_dir, true);
+        assert_eq!(e.name, "test.txt".to_string());
+      }
+    }
+  }
 }

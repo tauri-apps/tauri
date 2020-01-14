@@ -8,16 +8,16 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
-    - name: Login to Crates.IO
-      run: cargo login ${{ secrets.crate_token }}
-    - name: Publish CLI
-      run: |
-        cd cli/tauri-cli
-        echo "We will publish this directory."
-        ls # cargo publish
-    - name: Publish TAURI
-      run: |
-        cd tauri
-        echo "We will publish this directory."
-        ls # TAURI_DIST_DIR=../../test/fixture/dist cargo publish
+      - uses: actions/checkout@v2
+      - name: Login to Crates.IO
+        run: cargo login ${{ secrets.crate_token }}
+      - name: Publish CLI
+        run: |
+          cd cli/tauri-cli
+          echo "We will publish this directory."
+          ls # cargo publish
+      - name: Publish TAURI
+        run: |
+          cd tauri
+          echo "We will publish this directory."
+          ls # TAURI_DIST_DIR=../../test/fixture/dist cargo publish

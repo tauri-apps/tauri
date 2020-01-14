@@ -53,3 +53,16 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
 
   Ok(paths)
 }
+
+// Check to see if there are icons in the settings struct
+pub fn check_icons(settings: &Settings) -> crate::Result<bool> {
+  // make a peekable iterator of the icon_files
+  let mut iter = settings.icon_files().peekable();
+
+  // if iter's first value is a None then there are no Icon files in the settings struct
+  if iter.peek().is_none() {
+    Ok(false)
+  } else {
+    Ok(true)
+  }
+}

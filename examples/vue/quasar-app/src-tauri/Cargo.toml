@@ -27,6 +27,9 @@ serde = "1.0"
 serde_derive = "1.0"
 tauri = { path = "../../../../tauri", features = [ "all-api", "edge" ] }
 
+[target."cfg(windows)".build-dependencies]
+winres = "0.1"
+
 [features]
 dev-server = [ "tauri/dev-server" ]
 embedded-server = [ "tauri/embedded-server" ]

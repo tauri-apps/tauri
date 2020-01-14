@@ -87,6 +87,7 @@ mod test {
   use proptest::prelude::*;
 
   proptest! {
+    #![proptest_config(ProptestConfig::with_cases(10000))]
     #[test]
     // check to see if spawn executes a function.
     fn check_spawn_task(task in "[a-z]+") {

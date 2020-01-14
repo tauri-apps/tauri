@@ -73,6 +73,8 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::WindowsMsi,
   PackageType::OsxBundle,
   PackageType::Rpm,
+  #[cfg(feature = "dmg")]
+  PackageType::Dmg,
 ];
 
 #[derive(Clone, Debug)]

@@ -159,40 +159,54 @@ class Runner {
         )
         reject(new Error('Could not find index.html in dist dir.'))
       }
-      new Inliner(indexPath, (err: Error, html: string) => {
-        if (err) {
-          reject(err)
-        } else {
-          const dom = new JSDOM(html)
-          const document = dom.window.document
-          document.querySelectorAll('link').forEach(link => {
-            link.removeAttribute('rel')
-            link.removeAttribute('as')
-          })
 
-          const tauriScript = document.createElement('script')
-          // @ts-ignore
-          tauriScript.text = readFileSync(path.join(tauriDir, 'tauri.js'))
-          document.body.insertBefore(tauriScript, document.body.firstChild)
-
-          const csp = cfg.tauri.security.csp
-          if (csp) {
-            const cspTag = document.createElement('meta')
-            cspTag.setAttribute('http-equiv', 'Content-Security-Policy')
-            cspTag.setAttribute('content', csp)
-            document.head.appendChild(cspTag)
-          }
-
-          writeFileSync(
-            path.join(indexDir, 'index.tauri.html'),
-            dom.serialize()
-          )
-          resolve(inlinedAssets)
+      const rewriteHtml = (html: string, interceptor?: (dom: JSDOM) => void) => {
+        const dom = new JSDOM(html)
+        const document = dom.window.document
+        if (interceptor !== undefined) {
+          interceptor(dom)
         }
-      }).on('progress', (event: string) => {
-        const match = event.match(/([\S\d]+)\.([\S\d]+)/g)
-        match && inlinedAssets.push(match[0])
-      })
+
+        const tauriScript = document.createElement('script')
+        // @ts-ignore
+        tauriScript.text = readFileSync(path.join(tauriDir, 'tauri.js'))
+        document.body.insertBefore(tauriScript, document.body.firstChild)
+
+        const csp = cfg.tauri.security.csp
+        if (csp) {
+          const cspTag = document.createElement('meta')
+          cspTag.setAttribute('http-equiv', 'Content-Security-Policy')
+          cspTag.setAttribute('content', csp)
+          document.head.appendChild(cspTag)
+        }
+        writeFileSync(
+          path.join(indexDir, 'index.tauri.html'),
+          dom.serialize()
+        )
+      }
+
+      if (cfg.tauri.embeddedServer.active) {
+        rewriteHtml(readFileSync(indexPath).toString())
+        resolve(inlinedAssets)
+      } else {
+        new Inliner(indexPath, (err: Error, html: string) => {
+          if (err) {
+            reject(err)
+          } else {
+            rewriteHtml(html, dom => {
+              const document = dom.window.document
+              document.querySelectorAll('link').forEach(link => {
+                link.removeAttribute('rel')
+                link.removeAttribute('as')
+              })
+            })
+            resolve(inlinedAssets)
+          }
+        }).on('progress', (event: string) => {
+          const match = event.match(/([\S\d]+)\.([\S\d]+)/g)
+          match && inlinedAssets.push(match[0])
+        })
+      }
     })
   }
 

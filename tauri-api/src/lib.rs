@@ -28,5 +28,9 @@ error_chain! {
             description("Command Execution Error")
             display("Command Error: '{}'", t)
         }
+        File(t: String) {
+            description("File function Error")
+            display("File Error: {}", t)
+        }
     }
 }

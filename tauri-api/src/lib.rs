@@ -10,3 +10,19 @@ pub mod file;
 pub mod rpc;
 
 pub mod version;
+
+use error_chain::error_chain;
+
+error_chain! {
+    foreign_links {
+        Io(::std::io::Error);
+        ZipError(::zip::result::ZipError);
+        SemVer(semver::SemVerError);
+    }
+    errors {
+        Extract(t: String) {
+            description("Extract Error")
+            display("Extract Error: '{}'", t)
+        }
+    }
+}

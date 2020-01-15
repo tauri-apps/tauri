@@ -22,10 +22,10 @@
     "rollup-plugin-commonjs": "10.1.0",
     "rollup-plugin-livereload": "1.0.4",
     "rollup-plugin-svelte": "5.1.1",
-    "rollup-plugin-terser": "5.1.3",
+    "rollup-plugin-terser": "5.2.0",
     "sirv-cli": "0.4.5"
   },
   "dependencies": {
-    "svelte": "3.16.7"
+    "svelte": "3.17.1"
   }
 }

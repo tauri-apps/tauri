@@ -29,6 +29,12 @@ jobs:
         env:
           TAURI_DIST_DIR: ../../test/fixture/dist
           TAURI_DIR: ../test/fixture/src-tauri
+      - name: test
+        run: |
+          cargo test --features all-api
+        env:
+          TAURI_DIST_DIR: ../../test/fixture/dist
+          TAURI_DIR: ../test/fixture/src-tauri
 
   build-tauri-bundler:
     runs-on: ${{ matrix.platform }}

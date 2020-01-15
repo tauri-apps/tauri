@@ -1,0 +1,34 @@
+name: Run Core Rust Tests
+
+on: pull_request
+
+jobs:
+  test-tauri-core:
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v2
+      - name: install stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: install webkit2gtk (ubuntu only)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0
+      - name: test-tauri
+        run: |
+          cd ./tauri
+          cargo test
+      - name: run-quickcheck
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          .tauri-api/.scripts/loop_qc.sh
+        env:
+          TAURI_DIST_DIR: ../../test/fixture/dist
+          TAURI_DIR: ../test/fixture/src-tauri

@@ -2,9 +2,10 @@ use super::common;
 use super::path_utils::{copy, Options};
 use super::settings::Settings;
 
-use handlebars::Handlebars;
+use handlebars::{Handlebars, to_json};
 use lazy_static::lazy_static;
 use sha2::Digest;
+use regex::Regex;
 
 use std::collections::BTreeMap;
 use std::fs::{create_dir_all, remove_dir_all, write, File};
@@ -153,8 +154,12 @@ fn extract_zip(data: &Vec<u8>, path: &Path) -> crate::Result<()> {
 
 // Generates the UUID for the Wix template.
 fn generate_package_guid(settings: &Settings) -> Uuid {
+  generate_guid(settings.bundle_identifier().as_bytes())
+}
+
+fn generate_guid(key: &[u8]) -> Uuid {
   let namespace = Uuid::from_bytes(UUID_NAMESPACE);
-  Uuid::new_v5(&namespace, settings.bundle_identifier().as_bytes())
+  Uuid::new_v5(&namespace, key)
 }
 
 // Specifically goes and gets Wix and verifies the download via Sha256
@@ -340,37 +345,59 @@ pub fn build_wix_app_installer(
 
   let mut data = BTreeMap::new();
 
-  data.insert("product_name", settings.bundle_name());
-  data.insert("version", settings.version_string());
+  data.insert("product_name", to_json(settings.bundle_name()));
+  data.insert("version", to_json(settings.version_string()));
   let manufacturer = settings.bundle_identifier().to_string();
-  data.insert("manufacturer", manufacturer.as_str());
+  data.insert("manufacturer", to_json(manufacturer.as_str()));
   let upgrade_code = Uuid::new_v5(
     &Uuid::NAMESPACE_DNS,
     format!("{}.app.x64", &settings.binary_name()).as_bytes(),
   )
   .to_string();
 
-  data.insert("upgrade_code", &upgrade_code.as_str());
+  data.insert("upgrade_code", to_json(&upgrade_code.as_str()));
 
   let path_guid = generate_package_guid(settings).to_string();
-  data.insert("path_component_guid", &path_guid.as_str());
+  data.insert("path_component_guid", to_json(&path_guid.as_str()));
 
   let shortcut_guid = generate_package_guid(settings).to_string();
-  data.insert("shortcut_guid", &shortcut_guid.as_str());
+  data.insert("shortcut_guid", to_json(&shortcut_guid.as_str()));
 
   let app_exe_name = settings.binary_name().to_string();
-  data.insert("app_exe_name", &app_exe_name);
+  data.insert("app_exe_name", to_json(&app_exe_name));
+
+  #[derive(Serialize)]
+  struct ExternalBinary {
+    guid: String,
+    id: String,
+    path: String
+  }
+  let mut external_binaries = Vec::new();
+  let regex = Regex::new("[^A-Za-z0-9\\._]").unwrap();
+  let cwd = std::env::current_dir()?;
+  for src in settings.external_binaries() {
+    let src = src?;
+    let filename = src.file_name().expect("failed to extract external binary filename").to_os_string().into_string().expect("failed to convert external binary filename to string");
+    let guid = generate_guid(filename.as_bytes()).to_string();
+    external_binaries.push(ExternalBinary {
+      guid: guid,
+      path: cwd.join(src).into_os_string().into_string().expect("failed to read external binary path"),
+      id: regex.replace_all(&filename, "").to_string()
+    });
+  }
+  let external_binaries_json = to_json(&external_binaries);
+  data.insert("external_binaries", external_binaries_json);
 
   let app_exe_source = settings.binary_path().display().to_string();
 
-  data.insert("app_exe_source", &app_exe_source);
+  data.insert("app_exe_source", to_json(&app_exe_source));
 
   // copy icons from icons folder to resource folder near msi
   let image_path = copy_icons(&settings)?;
 
   let path = image_path.join("icon.ico").display().to_string();
 
-  data.insert("icon_path", path.as_str());
+  data.insert("icon_path", to_json(path.as_str()));
 
   let temp = HANDLEBARS
     .render("main.wxs", &data)

@@ -50,6 +50,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   })?;
 
   let resources_dir = bundle_directory.join("Resources");
+  let bin_dir = bundle_directory.join("MacOS");
 
   let bundle_icon_file: Option<PathBuf> =
     { create_icns_file(&resources_dir, settings).chain_err(|| "Failed to create app icon")? };
@@ -65,6 +66,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     let dest = resources_dir.join(common::resource_relpath(&src));
     common::copy_file(&src, &dest)
       .chain_err(|| format!("Failed to copy resource file {:?}", src))?;
+  }
+
+  for src in settings.external_binaries() {
+    let src = src?;
+    let dest = bin_dir.join(src.file_name().expect("failed to extract external binary filename"));
+    common::copy_file(&src, &dest)
+      .chain_err(|| format!("Failed to copy external binary {:?}", src))?;
   }
 
   copy_binary_to_bundle(&bundle_directory, settings)

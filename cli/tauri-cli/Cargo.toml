@@ -42,6 +42,7 @@ lazy_static = { version = "1.4" }
 zip = { version = "0.5" }
 sha2 = { version = "0.8" }
 hex = { version = "0.4" }
+regex = { version = "1" }
 
 [dev-dependencies]
 tempfile = "3"

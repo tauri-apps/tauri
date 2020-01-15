@@ -8,8 +8,8 @@ pub mod command;
 pub mod dir;
 pub mod file;
 pub mod rpc;
-
 pub mod version;
+pub mod platform;
 
 use error_chain::error_chain;
 

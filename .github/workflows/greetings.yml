@@ -9,5 +9,5 @@ jobs:
     - uses: actions/first-interaction@v1
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
-        issue-message: 'Thanks for your interest in Tauri!'' first issue'
-        pr-message: 'Hey there! Thanks for your contribution! :heart: Please make sure you have signed all your commits. Signed commits mean that we can have improved level of trust that the commit was actually pushed by you.'' first pr'
+        issue-message: 'Thanks so much for your interest in Tauri!'' first issue'
+        pr-message: 'Thanks so much for your contribution! :heart:  We will get to reviewing and merging your PR asap. In the meantime, please make sure you have signed all your commits. Signed commits mean that we can have improved level of trust that the commit was actually pushed by you.'' first pr'

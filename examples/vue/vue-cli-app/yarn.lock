@@ -2689,7 +2689,12 @@ core-js-compat@^3.4.4, core-js-compat@^3.6.0:
     browserslist "^4.8.2"
     semver "7.0.0"
 
-core-js@3.6.1, core-js@^3.4.4:
+core-js@3.6.4:
+  version "3.6.4"
+  resolved "https://registry.yarnpkg.com/core-js/-/core-js-3.6.4.tgz#440a83536b458114b9cb2ac1580ba377dc470647"
+  integrity sha512-4paDGScNgZP2IXXilaffL9X7968RuvwlkK3xWtZRVqgd8SYNiVKRJvkFd1aqqEuPfN7E68ZHEp9hDj6lHj4Hyw==
+
+core-js@^3.4.4:
   version "3.6.1"
   resolved "https://registry.yarnpkg.com/core-js/-/core-js-3.6.1.tgz#39d5e2e346258cc01eb7d44345b1c3c014ca3f05"
   integrity sha512-186WjSik2iTGfDjfdCZAxv2ormxtKgemjC3SI6PL31qOA0j5LhTDVjHChccoc7brwLvpvLPiMyRlcO88C4l1QQ==
@@ -9741,10 +9746,10 @@ vm-browserify@^1.0.1:
   resolved "https://registry.yarnpkg.com/vm-browserify/-/vm-browserify-1.1.2.tgz#78641c488b8e6ca91a75f511e7a3b32a86e5dda0"
   integrity sha512-2ham8XPWTONajOR0ohOKOHXkm3+gaBmGut3SRuu75xLd/RRaY6vqgh8NBYYk7+RW3u5AtzPQZG8F10LHkl0lAQ==
 
-vue-cli-plugin-tauri@0.0.3:
-  version "0.0.3"
-  resolved "https://registry.yarnpkg.com/vue-cli-plugin-tauri/-/vue-cli-plugin-tauri-0.0.3.tgz#24fe8e319ad7064cb1f33d6a399f843fb9f7f453"
-  integrity sha512-UNuKFWmRKewnHwPIj9C4dQWbGmJkQcnvjvwI5V6ayRTmgkuMrxFLwVHItA7AaB4onC7NPelvmOfDYYDw94Wdkw==
+vue-cli-plugin-tauri@0.0.4:
+  version "0.0.4"
+  resolved "https://registry.yarnpkg.com/vue-cli-plugin-tauri/-/vue-cli-plugin-tauri-0.0.4.tgz#5c89b3ee728e3a469ecd062587475b39d4ea39cd"
+  integrity sha512-ZRWcbPAY5z4KwU2NVF6P+GihVQp1Lb8RmT3Cqil8/d5PhBT49m+NE4+ClTPLg9rgI6lokZxjPDnJifNUswo4vw==
   dependencies:
     "@tauri-apps/tauri-webpack" "^0.2.0"
     "@vue/cli-shared-utils" "^4.1.1"

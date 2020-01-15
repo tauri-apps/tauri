@@ -11,7 +11,13 @@ import * as appPaths from '../../../src/helpers/app-paths'
 
 module.exports.initJest = () => {
   jest.mock('helpers/non-webpack-require', () => {
-    return path => require('fs').readFileSync(path).toString()
+    return path => {
+      const value = require('fs').readFileSync(path).toString()
+      if (path.endsWith('.json')) {
+        return JSON.parse(value)
+      }
+      return value
+    }
   })
   appPaths.appDir = appDir
   appPaths.tauriDir = tauriDir
@@ -34,7 +40,9 @@ module.exports.startServer = (getAppPid, onReply) => {
       msg: 'TEST'
     })
     server.close()
-    process.kill(getAppPid())
+    if (typeof getAppPid === 'function') {
+      process.kill(getAppPid())
+    }
     // wait for the app process to be killed
     setTimeout(() => {
       onReply()

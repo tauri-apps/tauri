@@ -3,7 +3,12 @@ import merge from 'webpack-merge'
 import Runner from '../runner'
 const getTauriConfig = require('../helpers/tauri-config')
 
-module.exports = async (config: TauriConfig): Promise<void> => {
+interface DevResult {
+  promise: Promise<void>,
+  runner: Runner
+}
+
+module.exports = (config: TauriConfig): DevResult => {
   const tauri = new Runner()
   const tauriConfig = getTauriConfig(
     merge(
@@ -17,5 +22,8 @@ module.exports = async (config: TauriConfig): Promise<void> => {
     ) as TauriConfig
   )
 
-  return tauri.run(tauriConfig)
+  return {
+    runner: tauri,
+    promise: tauri.run(tauriConfig)
+  }
 }

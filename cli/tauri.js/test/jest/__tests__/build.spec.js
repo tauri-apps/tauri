@@ -12,7 +12,8 @@ function runBuildTest(tauriConfig) {
     try {
       let appPid
       fixtureSetup.startServer(() => appPid, resolve)
-      await build(tauriConfig)
+      const result = build(tauriConfig)
+      await result.promise
 
       const artifactFolder = tauriConfig.ctx.debug ? 'debug' : 'release'
       const artifactPath = path.resolve(appDir, `src-tauri/target/${artifactFolder}/app`)
@@ -48,9 +49,6 @@ describe('Tauri Build', () => {
         tauri: {
           embeddedServer: {
             active: true
-          },
-          whitelist: {
-            all: true
           }
         }
       })
@@ -67,9 +65,6 @@ describe('Tauri Build', () => {
         tauri: {
           embeddedServer: {
             active: false
-          },
-          whitelist: {
-            all: true
           }
         }
       })

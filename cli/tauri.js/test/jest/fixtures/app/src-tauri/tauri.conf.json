@@ -1,9 +1,4 @@
 {
-  "build": {
-    "distDir": "../dist",
-    "devPath": "http://localhost:7334"
-  },
-  "ctx": {},
   "tauri": {
     "whitelist": {
       "all": true

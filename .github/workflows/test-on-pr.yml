@@ -12,25 +12,29 @@ jobs:
         platform: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-    - uses: actions/checkout@v1
-      with:
-        fetch-depth: 3
-    - name: install stable
-      uses: actions-rs/toolchain@v1
-      with:
+      - uses: actions/checkout@v2
+      - name: install stable
+        uses: actions-rs/toolchain@v1
+        with:
           toolchain: stable
-    - name: install webkit2gtk (ubuntu only)
-      if: matrix.platform == 'ubuntu-latest'
-      run: |
-           sudo apt-get update
-           sudo apt-get install -y webkit2gtk-4.0
-    - name: build
-      run: |
-           cd ./tauri
-           cargo build
-      env:
-        TAURI_DIST_DIR: ../../test/fixture/dist
-        TAURI_DIR: ../test/fixture/src-tauri
+      - name: install webkit2gtk (ubuntu only)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0
+      - name: build
+        run: |
+          cd ./tauri
+          cargo build
+        env:
+          TAURI_DIST_DIR: ../../test/fixture/dist
+          TAURI_DIR: ../test/fixture/src-tauri
+      - name: test
+        run: |
+          cargo test --features all-api
+        env:
+          TAURI_DIST_DIR: ../../test/fixture/dist
+          TAURI_DIR: ../test/fixture/src-tauri
 
   build-tauri-bundler:
     runs-on: ${{ matrix.platform }}
@@ -41,17 +45,15 @@ jobs:
         platform: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-    - uses: actions/checkout@v1
-      with:
-        fetch-depth: 3
-    - name: install stable
-      uses: actions-rs/toolchain@v1
-      with:
+      - uses: actions/checkout@v2
+      - name: install stable
+        uses: actions-rs/toolchain@v1
+        with:
           toolchain: stable
-    - name: build
-      run: |
-           cd ./cli/tauri-cli
-           cargo build
+      - name: build
+        run: |
+          cd ./cli/tauri-cli
+          cargo build
 
   test-tauri-js-cli:
     runs-on: ${{ matrix.platform }}
@@ -62,12 +64,10 @@ jobs:
         platform: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-    - uses: actions/checkout@v1
-      with:
-        fetch-depth: 3
-    - name: test
-      timeout-minutes: 15
-      run: |
-           cd ./cli/tauri.js
-           yarn
-           yarn test
+      - uses: actions/checkout@v2
+      - name: test
+        timeout-minutes: 15
+        run: |
+          cd ./cli/tauri.js
+          yarn
+          yarn test

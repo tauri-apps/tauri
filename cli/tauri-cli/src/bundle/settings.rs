@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use target_build_utils::TargetInfo;
 use toml;
 use walkdir;
+use crate::platform::{target_triple};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PackageType {
@@ -104,6 +105,7 @@ struct BundleSettings {
   // Bundles for other binaries/examples:
   bin: Option<HashMap<String, BundleSettings>>,
   example: Option<HashMap<String, BundleSettings>>,
+  external_bin: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -118,7 +120,7 @@ struct PackageSettings {
   description: String,
   homepage: Option<String>,
   authors: Option<Vec<String>>,
-  metadata: Option<MetadataSettings>,
+  metadata: Option<MetadataSettings>
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -207,7 +209,7 @@ impl Settings {
     } else {
       bail!("No [package.metadata.bundle] section in Cargo.toml");
     };
-    let (bundle_settings, binary_name) = match build_artifact {
+    let (mut bundle_settings, binary_name) = match build_artifact {
       BuildArtifact::Main => (bundle_settings, package.name.clone()),
       BuildArtifact::Bin(ref name) => (
         bundle_settings_from_table(&bundle_settings.bin, "bin", name)?,
@@ -224,6 +226,26 @@ impl Settings {
       binary_name
     };
     let binary_path = target_dir.join(&binary_name);
+
+    let target_triple = target_triple()?;
+    let mut win_paths = Vec::new();
+    match bundle_settings.external_bin {
+      Some(paths) => {
+        for curr_path in paths.iter() {
+          win_paths.push(
+            format!(
+              "{}-{}{}",
+              curr_path,
+              target_triple,
+              if cfg!(windows) { ".exe" } else { "" }
+            )
+          );
+        }
+        bundle_settings.external_bin = Some(win_paths);
+      },
+      None => { }
+    }
+
     Ok(Settings {
       package,
       package_type,
@@ -409,6 +431,15 @@ impl Settings {
   /// bundle.
   pub fn resource_files(&self) -> ResourcePaths<'_> {
     match self.bundle_settings.resources {
+      Some(ref paths) => ResourcePaths::new(paths.as_slice(), true),
+      None => ResourcePaths::new(&[], true),
+    }
+  }
+
+  /// Returns an iterator over the external binaries to be included in this
+  /// bundle.
+  pub fn external_binaries(&self) -> ResourcePaths<'_> {
+    match self.bundle_settings.external_bin {
       Some(ref paths) => ResourcePaths::new(paths.as_slice(), true),
       None => ResourcePaths::new(&[], true),
     }

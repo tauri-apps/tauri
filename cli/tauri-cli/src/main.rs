@@ -11,8 +11,9 @@ extern crate serde_derive;
 extern crate tempfile;
 
 mod bundle;
+mod platform;
 
-use crate::bundle::{bundle_project, BuildArtifact, PackageType, Settings};
+use crate::bundle::{bundle_project, check_icons, BuildArtifact, PackageType, Settings};
 use clap::{App, AppSettings, Arg, SubCommand};
 use std::env;
 use std::process;
@@ -141,8 +142,14 @@ fn run() -> crate::Result<()> {
         .map_err(From::from)
         .and_then(|d| Settings::new(d, m))
         .and_then(|s| {
-          build_project_if_unbuilt(&s)?;
-          Ok(s)
+          if check_icons(&s)? {
+            build_project_if_unbuilt(&s)?;
+            Ok(s)
+          } else {
+            Err(crate::Error::from(
+              "Could not find Icon Paths. Please make sure they exist and are in your Cargo.toml's icon key.",
+            ))
+          }
         })
         .and_then(bundle_project)?;
       bundle::print_finished(&output_paths)?;

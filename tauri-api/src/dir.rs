@@ -123,15 +123,27 @@ mod test {
       assert_eq!(first.is_dir, true);
       assert_eq!(first.name, dir);
 
-      // check the fields for the second DiskEntry
-      assert_eq!(second.path, file_one);
-      assert_eq!(second.is_dir, false);
-      assert_eq!(second.name, file_one);
+      if second.path.contains(".txt") {
+        // check the fields for the second DiskEntry
+        assert_eq!(second.path, file_one);
+        assert_eq!(second.is_dir, false);
+        assert_eq!(second.name, file_one);
 
-      // check the fields for the third DiskEntry
-      assert_eq!(third.path, file_two);
-      assert_eq!(third.is_dir, false);
-      assert_eq!(third.name, file_two);
+        // check the fields for the third DiskEntry
+        assert_eq!(third.path, file_two);
+        assert_eq!(third.is_dir, false);
+        assert_eq!(third.name, file_two);
+      } else {
+        // check the fields for the second DiskEntry
+        assert_eq!(second.path, file_two);
+        assert_eq!(second.is_dir, false);
+        assert_eq!(second.name, file_two);
+
+        // check the fields for the third DiskEntry
+        assert_eq!(third.path, file_one);
+        assert_eq!(third.is_dir, false);
+        assert_eq!(third.name, file_one);
+      }
     }
   }
 
@@ -156,15 +168,27 @@ mod test {
       let first = &vec[0];
       let second = &vec[1];
 
-      // check the fields for the first DiskEntry
-      assert_eq!(first.path, "test/test.txt".to_string());
-      assert_eq!(first.is_dir, true);
-      assert_eq!(first.name, "test.txt".to_string());
+      if first.path.contains(".txt") {
+        // check the fields for the first DiskEntry
+        assert_eq!(first.path, "test/test.txt".to_string());
+        assert_eq!(first.is_dir, true);
+        assert_eq!(first.name, "test.txt".to_string());
 
-      // check the fields for the second DiskEntry
-      assert_eq!(second.path, "test/test_binary".to_string());
-      assert_eq!(second.is_dir, true);
-      assert_eq!(second.name, "test_binary".to_string());
+        // check the fields for the second DiskEntry
+        assert_eq!(second.path, "test/test_binary".to_string());
+        assert_eq!(second.is_dir, true);
+        assert_eq!(second.name, "test_binary".to_string());
+      } else {
+        // check the fields for the first DiskEntry
+        assert_eq!(second.path, "test/test.txt".to_string());
+        assert_eq!(second.is_dir, true);
+        assert_eq!(second.name, "test.txt".to_string());
+
+        // check the fields for the second DiskEntry
+        assert_eq!(first.path, "test/test_binary".to_string());
+        assert_eq!(first.is_dir, true);
+        assert_eq!(first.name, "test_binary".to_string());
+      }
     }
   }
 

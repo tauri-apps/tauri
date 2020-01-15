@@ -39,7 +39,7 @@ pub fn target_triple() -> Result<String, Error> {
   } else {
     let env = if cfg!(target_env = "gnu") {
       "gnu"
-    } else if cfg!(target_env = "gnu") {
+    } else if cfg!(target_env = "musl") {
       "musl"
     } else if cfg!(target_env = "msvc") {
       "msvc"

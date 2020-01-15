@@ -382,7 +382,7 @@ pub fn build_wix_app_installer(
     external_binaries.push(ExternalBinary {
       guid: guid,
       path: cwd.join(src).into_os_string().into_string().expect("failed to read external binary path"),
-      id: regex.replace(&filename, "").to_string()
+      id: regex.replace_all(&filename, "").to_string()
     });
   }
   let external_binaries_json = to_json(&external_binaries);

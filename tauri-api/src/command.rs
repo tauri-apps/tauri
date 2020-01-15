@@ -56,3 +56,9 @@ pub fn spawn_relative_command(
   let cmd = relative_command(command)?;
   Ok(Command::new(cmd).args(args).stdout(stdout).spawn()?)
 }
+
+pub fn binary_command(
+  binary_name: String
+) -> Result<String, String> {
+  return Ok(format!("{}-{}", binary_name, crate::platform::target_triple()?));
+}

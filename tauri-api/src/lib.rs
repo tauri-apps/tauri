@@ -10,3 +10,4 @@ pub mod file;
 pub mod rpc;
 
 pub mod version;
+pub mod platform;

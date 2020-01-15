@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use target_build_utils::TargetInfo;
 use toml;
 use walkdir;
+use crate::platform::{target_triple};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PackageType {
@@ -226,17 +227,23 @@ impl Settings {
     };
     let binary_path = target_dir.join(&binary_name);
 
-    if cfg!(windows) {
-      let mut win_paths = Vec::new();
-      match bundle_settings.external_bin {
-        Some(paths) => {
-          for path1 in paths.iter() {
-            win_paths.push(format!("{}.exe", path1))
-          }
-          bundle_settings.external_bin = Some(win_paths);
-        },
-        None => {}
-      }
+    let target_triple = target_triple()?;
+    let mut win_paths = Vec::new();
+    match bundle_settings.external_bin {
+      Some(paths) => {
+        for curr_path in paths.iter() {
+          win_paths.push(
+            format!(
+              "{}-{}{}",
+              curr_path,
+              target_triple,
+              if cfg!(windows) { ".exe" } else { "" }
+            )
+          );
+        }
+        bundle_settings.external_bin = Some(win_paths);
+      },
+      None => { }
     }
 
     Ok(Settings {
@@ -429,7 +436,7 @@ impl Settings {
     }
   }
 
-   /// Returns an iterator over the external binaries to be included in this
+  /// Returns an iterator over the external binaries to be included in this
   /// bundle.
   pub fn external_binaries(&self) -> ResourcePaths<'_> {
     match self.bundle_settings.external_bin {

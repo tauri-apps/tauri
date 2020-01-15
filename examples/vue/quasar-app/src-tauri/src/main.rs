@@ -17,7 +17,7 @@ fn main() {
       let handle1 = _webview.handle();
       std::thread::spawn(move || {
         let stdout = tauri::api::command::spawn_relative_command(
-          "packaged-node".to_string(),
+          tauri::api::command::binary_command("packaged-node".to_string()).expect("failed to get binary command"),
           Vec::new(),
           std::process::Stdio::piped(),
         )

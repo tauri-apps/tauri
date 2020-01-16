@@ -422,7 +422,7 @@ pub fn build_wix_app_installer(
 
 fn generate_external_binary_data(settings: &Settings) -> crate::Result<Vec<ExternalBinary>> {
   let mut external_binaries = Vec::new();
-  let regex = Regex::new("[^A-Za-z0-9\\._]").unwrap();
+  let regex = Regex::new(r"[^\w\d\.]")?;
   let cwd = std::env::current_dir()?;
   for src in settings.external_binaries() {
     let src = src?;

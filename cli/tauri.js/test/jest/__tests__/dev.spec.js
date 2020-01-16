@@ -25,13 +25,14 @@ function runDevTest(tauriConfig) {
   return new Promise(async (resolve, reject) => {
     try {
       const { promise, runner } = dev(tauriConfig)
-      fixtureSetup.startServer(null, async () => {
+      const server = fixtureSetup.startServer(null, async () => {
         await runner.stop()
         resolve()
       })
       setTimeout(async () => {
-        reject("App didn't reply")
         await runner.stop()
+        server.close()
+        reject("App didn't reply")
       }, 10000)
       await promise
     } catch (error) {

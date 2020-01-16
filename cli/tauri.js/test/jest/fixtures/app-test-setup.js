@@ -50,4 +50,5 @@ module.exports.startServer = (getAppPid, onReply) => {
   })
 
   const server = app.listen(port)
+  return server
 }

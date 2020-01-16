@@ -88,10 +88,16 @@ pub fn generate_folders(settings: &Settings, package_dir: &Path) -> crate::Resul
   // Generate data files.
   let data_dir = package_dir.join("data");
   let binary_dest = data_dir.join("usr/bin").join(settings.binary_name());
+  let bin_dir = data_dir.join("usr/bin");
+
   common::copy_file(settings.binary_path(), &binary_dest)
     .chain_err(|| "Failed to copy binary file")?;
   transfer_resource_files(settings, &data_dir).chain_err(|| "Failed to copy resource files")?;
-  transfer_external_binaries(settings, &data_dir).chain_err(|| "Failed to copy external binaries")?;
+
+  settings
+    .copy_binaries(&bin_dir)
+    .chain_err(|| "Failed to copy external binaries")?;
+
   generate_icon_files(settings, &data_dir).chain_err(|| "Failed to create icon files")?;
   generate_desktop_file(settings, &data_dir).chain_err(|| "Failed to create desktop file")?;
 
@@ -209,19 +215,6 @@ fn transfer_resource_files(settings: &Settings, data_dir: &Path) -> crate::Resul
     let dest = resource_dir.join(common::resource_relpath(&src));
     common::copy_file(&src, &dest)
       .chain_err(|| format!("Failed to copy resource file {:?}", src))?;
-  }
-  Ok(())
-}
-
-/// Copy the bundle's external binaries into an appropriate directory under the
-/// `data_dir`.
-fn transfer_external_binaries(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  let bin_dir = data_dir.join("usr/bin");
-  for src in settings.external_binaries() {
-    let src = src?;
-    let dest = bin_dir.join(src.file_name().expect("failed to extract external binary filename"));
-    common::copy_file(&src, &dest)
-      .chain_err(|| format!("Failed to copy external binary {:?}", src))?;
   }
   Ok(())
 }

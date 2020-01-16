@@ -1,4 +1,7 @@
 use super::category::AppCategory;
+use crate::bundle::common;
+use crate::platform::target_triple;
+
 use clap::ArgMatches;
 use glob;
 use std;
@@ -9,7 +12,6 @@ use std::path::{Path, PathBuf};
 use target_build_utils::TargetInfo;
 use toml;
 use walkdir;
-use crate::platform::{target_triple};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PackageType {
@@ -120,7 +122,7 @@ struct PackageSettings {
   description: String,
   homepage: Option<String>,
   authors: Option<Vec<String>>,
-  metadata: Option<MetadataSettings>
+  metadata: Option<MetadataSettings>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -232,18 +234,16 @@ impl Settings {
     match bundle_settings.external_bin {
       Some(paths) => {
         for curr_path in paths.iter() {
-          win_paths.push(
-            format!(
-              "{}-{}{}",
-              curr_path,
-              target_triple,
-              if cfg!(windows) { ".exe" } else { "" }
-            )
-          );
+          win_paths.push(format!(
+            "{}-{}{}",
+            curr_path,
+            target_triple,
+            if cfg!(windows) { ".exe" } else { "" }
+          ));
         }
         bundle_settings.external_bin = Some(win_paths);
-      },
-      None => { }
+      }
+      None => {}
     }
 
     Ok(Settings {
@@ -443,6 +443,21 @@ impl Settings {
       Some(ref paths) => ResourcePaths::new(paths.as_slice(), true),
       None => ResourcePaths::new(&[], true),
     }
+  }
+
+  // copy external binaries to a path.
+  pub fn copy_binaries(&self, path: &Path) -> crate::Result<()> {
+    for src in self.external_binaries() {
+      let src = src?;
+      let dest = path.join(
+        src
+          .file_name()
+          .expect("failed to extract external binary filename"),
+      );
+      common::copy_file(&src, &dest)
+        .map_err(|_| format!("Failed to copy external binary {:?}", src))?;
+    }
+    Ok(())
   }
 
   pub fn version_string(&self) -> &str {

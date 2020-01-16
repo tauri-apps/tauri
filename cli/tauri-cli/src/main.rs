@@ -31,7 +31,7 @@ error_chain! {
         HttpError(::attohttpc::Error) #[cfg(windows)];
         StripError(std::path::StripPrefixError);
         ConvertError(std::num::TryFromIntError);
-        RegexError(regex::Error);
+        RegexError(::regex::Error);
     }
     errors {}
 }

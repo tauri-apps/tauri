@@ -1,4 +1,7 @@
 use super::category::AppCategory;
+use crate::bundle::common;
+use crate::platform::target_triple;
+
 use clap::ArgMatches;
 use glob;
 use std;
@@ -9,7 +12,6 @@ use std::path::{Path, PathBuf};
 use target_build_utils::TargetInfo;
 use toml;
 use walkdir;
-use crate::platform::{target_triple};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PackageType {
@@ -120,7 +122,7 @@ struct PackageSettings {
   description: String,
   homepage: Option<String>,
   authors: Option<Vec<String>>,
-  metadata: Option<MetadataSettings>
+  metadata: Option<MetadataSettings>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -209,7 +211,7 @@ impl Settings {
     } else {
       bail!("No [package.metadata.bundle] section in Cargo.toml");
     };
-    let (mut bundle_settings, binary_name) = match build_artifact {
+    let (bundle_settings, binary_name) = match build_artifact {
       BuildArtifact::Main => (bundle_settings, package.name.clone()),
       BuildArtifact::Bin(ref name) => (
         bundle_settings_from_table(&bundle_settings.bin, "bin", name)?,
@@ -227,24 +229,7 @@ impl Settings {
     };
     let binary_path = target_dir.join(&binary_name);
 
-    let target_triple = target_triple()?;
-    let mut win_paths = Vec::new();
-    match bundle_settings.external_bin {
-      Some(paths) => {
-        for curr_path in paths.iter() {
-          win_paths.push(
-            format!(
-              "{}-{}{}",
-              curr_path,
-              target_triple,
-              if cfg!(windows) { ".exe" } else { "" }
-            )
-          );
-        }
-        bundle_settings.external_bin = Some(win_paths);
-      },
-      None => { }
-    }
+    let bundle_settings = add_external_bin(bundle_settings)?;
 
     Ok(Settings {
       package,
@@ -445,6 +430,21 @@ impl Settings {
     }
   }
 
+  // copy external binaries to a path.
+  pub fn copy_binaries(&self, path: &Path) -> crate::Result<()> {
+    for src in self.external_binaries() {
+      let src = src?;
+      let dest = path.join(
+        src
+          .file_name()
+          .expect("failed to extract external binary filename"),
+      );
+      common::copy_file(&src, &dest)
+        .map_err(|_| format!("Failed to copy external binary {:?}", src))?;
+    }
+    Ok(())
+  }
+
   pub fn version_string(&self) -> &str {
     self
       .bundle_settings
@@ -539,6 +539,30 @@ fn bundle_settings_from_table(
       bundle_name
     );
   }
+}
+
+fn add_external_bin(bundle_settings: BundleSettings) -> crate::Result<BundleSettings> {
+  let target_triple = target_triple()?;
+  let mut win_paths = Vec::new();
+  let external_bin = match bundle_settings.external_bin {
+    Some(paths) => {
+      for curr_path in paths.iter() {
+        win_paths.push(format!(
+          "{}-{}{}",
+          curr_path,
+          target_triple,
+          if cfg!(windows) { ".exe" } else { "" }
+        ));
+      }
+      Some(win_paths)
+    }
+    None => Some(vec![String::from("")]),
+  };
+
+  Ok(BundleSettings {
+    external_bin,
+    ..bundle_settings
+  })
 }
 
 pub struct ResourcePaths<'a> {

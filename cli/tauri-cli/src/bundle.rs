@@ -42,14 +42,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
     });
   }
 
-  // copy external binaries to out dir for testing
-  let out_dir = settings.project_out_directory();
-  for src in settings.external_binaries() {
-    let src = src?;
-    let dest = out_dir.join(src.file_name().expect("failed to extract external binary filename"));
-    common::copy_file(&src, &dest)
-      .map_err(|_| format!("Failed to copy external binary {:?}", src))?;
-  }
+  settings.copy_binaries(settings.project_out_directory())?;
 
   Ok(paths)
 }

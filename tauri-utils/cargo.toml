@@ -8,6 +8,7 @@ repository = "https://github.com/tauri-apps/tauri"
 description = "Utilities for Tauri"
 edition = "2018"
 
+
 [dependencies]
 sysinfo = "0.10"
 error-chain = "0.12.1"

@@ -30,5 +30,6 @@ pub enum RelationType {
   /// next.
   Next,
   /// ext-rel-type.
+  #[allow(dead_code)]
   ExtRelType(String),
 }

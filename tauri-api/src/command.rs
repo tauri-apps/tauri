@@ -3,6 +3,7 @@ use std::process::{Child, Command, Stdio};
 use crate::platform;
 
 pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> crate::Result<String> {
+  #![windows_subsystem = "windows"]
   Command::new(cmd)
     .args(args)
     .stdout(stdout)

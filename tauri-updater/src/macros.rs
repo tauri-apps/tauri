@@ -11,10 +11,10 @@ macro_rules! format_err {
 /// Helper for formatting `errors::Error`s and returning early
 macro_rules! bail {
     ($e_type:expr, $literal:expr) => {
-        return Err(format_err!($e_type, $literal))
+        return Err(format_err!($e_type, $literal).into())
     };
     ($e_type:expr, $literal:expr, $($arg:expr),*) => {
-        return Err(format_err!($e_type, $literal, $($arg),*))
+        return Err(format_err!($e_type, $literal, $($arg),*).into())
     };
 }
 

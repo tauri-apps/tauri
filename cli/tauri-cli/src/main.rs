@@ -11,7 +11,6 @@ extern crate serde_derive;
 extern crate tempfile;
 
 mod bundle;
-mod platform;
 
 use crate::bundle::{bundle_project, check_icons, BuildArtifact, PackageType, Settings};
 use clap::{App, AppSettings, Arg, SubCommand};

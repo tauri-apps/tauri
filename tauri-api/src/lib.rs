@@ -21,7 +21,8 @@ error_chain! {
     foreign_links {
         Io(::std::io::Error);
         ZipError(::zip::result::ZipError);
-        SemVer(semver::SemVerError);
+        SemVer(::semver::SemVerError);
+        Platform(::tauri_utils::Error);
     }
     errors {
         Extract(t: String) {

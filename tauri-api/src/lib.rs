@@ -1,3 +1,8 @@
+#![cfg_attr(
+  all(not(debug_assertions), target_os = "windows"),
+  windows_subsystem = "windows"
+)]
+
 #[cfg(test)]
 extern crate quickcheck;
 #[cfg(test)]
@@ -7,9 +12,9 @@ extern crate quickcheck_macros;
 pub mod command;
 pub mod dir;
 pub mod file;
+pub mod platform;
 pub mod rpc;
 pub mod version;
-pub mod platform;
 
 use error_chain::error_chain;
 

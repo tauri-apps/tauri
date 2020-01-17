@@ -7,9 +7,6 @@ use tauri_api::file::{Extract, Move};
 
 pub mod github;
 
-mod error;
-pub use error::Error;
-
 /// Status returned after updating
 ///
 /// Wrapped `String`s are version tags
@@ -68,7 +65,7 @@ impl UpdateBuilder {
   ///
   /// * Errors:
   ///     * Io - Determining current exe path
-  pub fn new() -> Result<Self, Error> {
+  pub fn new() -> crate::Result<UpdateBuilder> {
     Ok(Self {
       release: None,
       bin_name: None,
@@ -157,32 +154,32 @@ impl UpdateBuilder {
   ///
   /// * Errors:
   ///     * Config - Invalid `Update` configuration
-  pub fn build(&self) -> Result<Update, Error> {
+  pub fn build(&self) -> crate::Result<Update> {
     Ok(Update {
       release: if let Some(ref release) = self.release {
         release.to_owned()
       } else {
-        bail!(Error::Config, "`release` required")
+        bail!(crate::ErrorKind::Config, "`release` required")
       },
       bin_name: if let Some(ref name) = self.bin_name {
         name.to_owned()
       } else {
-        bail!(Error::Config, "`bin_name` required")
+        bail!(crate::ErrorKind::Config, "`bin_name` required")
       },
       bin_install_path: if let Some(ref path) = self.bin_install_path {
         path.to_owned()
       } else {
-        bail!(Error::Config, "`bin_install_path` required")
+        bail!(crate::ErrorKind::Config, "`bin_install_path` required")
       },
       bin_path_in_archive: if let Some(ref path) = self.bin_path_in_archive {
         path.to_owned()
       } else {
-        bail!(Error::Config, "`bin_path_in_archive` required")
+        bail!(crate::ErrorKind::Config, "`bin_path_in_archive` required")
       },
       current_version: if let Some(ref ver) = self.current_version {
         ver.to_owned()
       } else {
-        bail!(Error::Config, "`current_version` required")
+        bail!(crate::ErrorKind::Config, "`current_version` required")
       },
       show_download_progress: self.show_download_progress,
       show_output: self.show_output,
@@ -203,11 +200,11 @@ pub struct Update {
 }
 impl Update {
   /// Initialize a new `Update` builder
-  pub fn configure() -> Result<UpdateBuilder, Error> {
+  pub fn configure() -> crate::Result<UpdateBuilder> {
     UpdateBuilder::new()
   }
 
-  fn print_flush(&self, msg: &str) -> Result<(), Error> {
+  fn print_flush(&self, msg: &str) -> crate::Result<()> {
     if self.show_output {
       print_flush!("{}", msg);
     }
@@ -220,7 +217,7 @@ impl Update {
     }
   }
 
-  pub fn update(self) -> Result<Status, Error> {
+  pub fn update(self) -> crate::Result<Status> {
     self.println(&format!(
       "Checking current version... v{}",
       self.current_version
@@ -238,7 +235,7 @@ impl Update {
     let tmp_dir_parent = self
       .bin_install_path
       .parent()
-      .ok_or_else(|| Error::Updater("Failed to determine parent dir".into()))?;
+      .ok_or_else(|| crate::ErrorKind::Updater("Failed to determine parent dir".into()))?;
     let tmp_dir =
       tempdir::TempDir::new_in(&tmp_dir_parent, &format!("{}_download", self.bin_name))?;
     let tmp_archive_path = tmp_dir.path().join(&self.release.asset_name);

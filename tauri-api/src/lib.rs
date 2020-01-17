@@ -12,7 +12,6 @@ extern crate quickcheck_macros;
 pub mod command;
 pub mod dir;
 pub mod file;
-pub mod platform;
 pub mod rpc;
 pub mod version;
 

@@ -1,6 +1,6 @@
 use std::process::{Child, Command, Stdio};
 
-use crate::platform;
+use tauri_utils::platform;
 
 pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> crate::Result<String> {
   Command::new(cmd)

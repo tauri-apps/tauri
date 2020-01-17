@@ -1,0 +1,13 @@
+[package]
+name = "tauri-utils"
+version = "0.3.0"
+authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
+license = "MIT"
+homepage = "https://tauri-apps.org"
+repository = "https://github.com/tauri-apps/tauri"
+description = "Utilities for Tauri"
+edition = "2018"
+
+[dependencies]
+sysinfo = "0.10"
+error-chain = "0.12.1"

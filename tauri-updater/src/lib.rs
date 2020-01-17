@@ -2,7 +2,6 @@
 pub mod macros;
 
 pub mod http;
-pub mod process;
 pub mod updater;
 
 use error_chain::error_chain;

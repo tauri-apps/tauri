@@ -22,6 +22,9 @@ tar = "0.4"
 flate2 = "1"
 error-chain = "0.12"
 
+tauri-utils = {version = "0.3.0", path = "../tauri-utils"}
+
+
 [dev-dependencies]
 quickcheck = "0.9.2"
 quickcheck_macros = "0.9.1"

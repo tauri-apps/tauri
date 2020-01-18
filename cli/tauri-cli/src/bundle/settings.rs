@@ -445,6 +445,17 @@ impl Settings {
     Ok(())
   }
 
+  // copy resources to a path
+  pub fn copy_resources(&self, path: &Path) -> crate::Result<()> {
+    for src in self.resource_files() {
+      let src = src?;
+      let dest = path.join(common::resource_relpath(&src));
+      common::copy_file(&src, &dest)
+        .map_err(|_| format!("Failed to copy resource file {:?}", src))?;
+    }
+    Ok(())
+  }
+
   pub fn version_string(&self) -> &str {
     self
       .bundle_settings

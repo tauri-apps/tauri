@@ -12,7 +12,6 @@ extern crate quickcheck_macros;
 pub mod command;
 pub mod dir;
 pub mod file;
-pub mod platform;
 pub mod rpc;
 pub mod version;
 
@@ -22,7 +21,8 @@ error_chain! {
     foreign_links {
         Io(::std::io::Error);
         ZipError(::zip::result::ZipError);
-        SemVer(semver::SemVerError);
+        SemVer(::semver::SemVerError);
+        Platform(::tauri_utils::Error);
     }
     errors {
         Extract(t: String) {

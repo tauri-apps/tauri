@@ -1,6 +1,5 @@
 use super::category::AppCategory;
 use crate::bundle::common;
-use crate::platform::target_triple;
 
 use clap::ArgMatches;
 use glob;
@@ -10,6 +9,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use target_build_utils::TargetInfo;
+use tauri_utils::platform::target_triple;
 use toml;
 use walkdir;
 

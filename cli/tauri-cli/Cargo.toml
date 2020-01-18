@@ -33,6 +33,8 @@ toml = "0.5.5"
 uuid = { version = "0.8", features = ["v5"] }
 walkdir = "2"
 
+tauri-utils = {version = "0.3", path = "../../tauri-utils"}
+
 [target.'cfg(target_os = "windows")'.dependencies]
 attohttpc = { version = "0.10.1" }
 regex = { version = "1" }

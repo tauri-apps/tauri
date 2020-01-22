@@ -29,7 +29,7 @@ strsim = "0.9.3"
 tar = "0.4"
 target_build_utils = "0.3"
 term = "0.6.1"
-toml = "0.5.5"
+toml = "0.5.6"
 uuid = { version = "0.8", features = ["v5"] }
 walkdir = "2"
 

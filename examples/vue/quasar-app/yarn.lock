@@ -845,12 +845,12 @@
   resolved "https://registry.npmjs.org/@positron/stack-trace/-/stack-trace-1.0.0.tgz#14fcc712a530038ef9be1ce6952315a839f466a8"
   integrity sha1-FPzHEqUwA475vhzmlSMVqDn0Zqg=
 
-"@quasar/app@1.5.1":
-  version "1.5.1"
-  resolved "https://registry.yarnpkg.com/@quasar/app/-/app-1.5.1.tgz#d5d0826b771cdda3ce8a7e0656528df3fba9c1b1"
-  integrity sha512-eXH2RSG7f9YNTcvngo1sIQO9mMzxbK+UX6d1yNYgmDFMppy58ZI/rD3peNnjqe+falgALQ9KMXgsJdl0196Hfw==
+"@quasar/app@1.5.2":
+  version "1.5.2"
+  resolved "https://registry.yarnpkg.com/@quasar/app/-/app-1.5.2.tgz#fbdf90ca691e2c41585a7a82dd6b225db47d8600"
+  integrity sha512-J3zCrN0PPHioGvMVwy2eggtb8ZvrN0XGa1PiyqIbU+mogW11OyupUyrJ1qHMIYvIW2nmM8bT2WZNySvKY8bi9A==
   dependencies:
-    "@quasar/babel-preset-app" "1.1.7"
+    "@quasar/babel-preset-app" "1.1.8"
     "@quasar/fastclick" "1.1.4"
     "@vue/preload-webpack-plugin" "1.1.1"
     autoprefixer "9.7.3"
@@ -914,10 +914,10 @@
     webpack-node-externals "1.7.2"
     workbox-webpack-plugin "4.3.1"
 
-"@quasar/babel-preset-app@1.1.7":
-  version "1.1.7"
-  resolved "https://registry.npmjs.org/@quasar/babel-preset-app/-/babel-preset-app-1.1.7.tgz#760fbe238b94d6f13f3e4105efd99753ab8f3b61"
-  integrity sha512-xQELeIYLjez2/p5B6UkMN6JKV6T98f6wWiKbKNhhjnC3+YQ1sM1qnSjets/TJNqdQcZnGH4D67HuR0BFuw0mcg==
+"@quasar/babel-preset-app@1.1.8":
+  version "1.1.8"
+  resolved "https://registry.yarnpkg.com/@quasar/babel-preset-app/-/babel-preset-app-1.1.8.tgz#4c11cb2ac03c6544b0b5e8d5067145cc038d9e3f"
+  integrity sha512-vMtxqgJ3eR2aCHkSTL8zPItly2uu+e0nIG/hJCtZGRvaVuivzLjxttrd1scPPhs9HkjiKTErfMGV/XTZ/gzCew==
   dependencies:
     "@babel/core" "^7.5.5"
     "@babel/plugin-proposal-class-properties" "^7.5.5"
@@ -939,10 +939,10 @@
     babel-plugin-module-resolver "^3.2.0"
     babel-plugin-transform-imports "^1.0.0"
 
-"@quasar/extras@1.4.1":
-  version "1.4.1"
-  resolved "https://registry.yarnpkg.com/@quasar/extras/-/extras-1.4.1.tgz#93f816febca2a985ce57efe308e8d262c766faab"
-  integrity sha512-1CcupUAyX5bQEax24nQIsQzYkJ6H835JOzJumDUonHZTYe4zXzMpvuoT47F8qkUlRgN3loKqujf3O3it1sWZcQ==
+"@quasar/extras@1.5.0":
+  version "1.5.0"
+  resolved "https://registry.yarnpkg.com/@quasar/extras/-/extras-1.5.0.tgz#68ac3aa5056634f90ba5a4e58c584793d15b4997"
+  integrity sha512-SE1npMOvXGSEI1nWnEd2/EQswkM2QAiZ2K1WSPMOeqZtDvc29uLqv5A9mecWPLxVN/bSpLiX65j+ZYilY6KNHQ==
 
 "@quasar/fastclick@1.1.4":
   version "1.1.4"
@@ -8296,10 +8296,10 @@ qs@~6.5.2:
   resolved "https://registry.npmjs.org/qs/-/qs-6.5.2.tgz#cb3ae806e8740444584ef154ce8ee98d403f3e36"
   integrity sha512-N5ZAX4/LxJmF+7wN74pUD6qAh9/wnvdQcjq9TZjevvXzSUo7bfmw91saqMjzGS2xq91/odN2dW/WOl7qQHNDGA==
 
-quasar@1.7.3:
-  version "1.7.3"
-  resolved "https://registry.yarnpkg.com/quasar/-/quasar-1.7.3.tgz#9ddaa9203599ad356bec73ef905f6a6cb8047f52"
-  integrity sha512-FlQdums/kdKNQo4zbOApE9kU/p9ukFyGAFUV5pXY+85uUbucRUXtqnxe4rNKI+FgPhAtP/l6837iF4LaaoE05w==
+quasar@1.8.0:
+  version "1.8.0"
+  resolved "https://registry.yarnpkg.com/quasar/-/quasar-1.8.0.tgz#44fd0d78964a108c62fb012b8a9f1016dde4596d"
+  integrity sha512-pYulOIMTN2PoBZEHPnHNNJBSTiN5jAFgIO096zNXYyyn9YW80LgLoWDJOd6urVPYqWOBMpMuDmerxu/7RR3A+Q==
 
 query-string@^4.1.0:
   version "4.3.4"

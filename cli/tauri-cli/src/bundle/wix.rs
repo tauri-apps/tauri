@@ -60,6 +60,51 @@ struct ExternalBinary {
   path: String,
 }
 
+#[derive(Serialize)]
+struct ResourceDirectory {
+  name: String,
+  files: Vec<ResourceFile>,
+  directories: Vec<ResourceDirectory>
+}
+
+impl ResourceDirectory {
+  fn add_file(&mut self, file: ResourceFile) {
+    self.files.push(file);
+  }
+
+  fn get_wix_data(self) -> (String, Vec<String>) {
+    let mut files = String::from("");
+    let mut file_ids = Vec::new();
+    for file in self.files {
+      file_ids.push(file.id.clone());
+      files.push_str(
+        format!(
+          r#"<Component Id="{id}" Guid="{guid}" Win64="$(var.Win64)" KeyPath="yes"><File Id="PathFile_{id}" Source="{path}" /></Component>"#,
+          id = file.id,
+          guid = file.guid,
+          path = file.path
+        ).as_str()
+      );
+    }
+    let mut directories = String::from("");
+    for directory in self.directories {
+      let (wix_string, ids) = directory.get_wix_data();
+      for id in ids {
+        file_ids.push(id)
+      }
+      directories.push_str(wix_string.as_str());
+    }
+    (format!(r#"<Directory Id="{name}" Name="{name}">{contents}</Directory>"#, name = self.name, contents = format!("{}{}", files, directories)), file_ids)
+  }
+}
+
+#[derive(Serialize, Clone)]
+struct ResourceFile {
+  guid: String,
+  id: String,
+  path: String,
+}
+
 fn copy_icons(settings: &Settings) -> crate::Result<PathBuf> {
   let base_dir = settings.binary_path();
   let base_dir = base_dir.parent().expect("Failed to get dir");
@@ -378,6 +423,20 @@ pub fn build_wix_app_installer(
   let external_binaries_json = to_json(&external_binaries);
   data.insert("external_binaries", external_binaries_json);
 
+  let resources = generate_resource_data(&settings)?;
+  let mut resources_wix_string = String::from("");
+  let mut files_ids = Vec::new();
+  for (_, dir) in resources {
+    let (wix_string, ids) = dir.get_wix_data();
+    resources_wix_string.push_str(wix_string.as_str());
+    for id in ids {
+      files_ids.push(id);
+    }
+  }
+
+  data.insert("resources", to_json(resources_wix_string));
+  data.insert("resource_file_ids", to_json(files_ids));
+
   let app_exe_source = settings.binary_path().display().to_string();
 
   data.insert("app_exe_source", to_json(&app_exe_source));
@@ -447,4 +506,65 @@ fn generate_external_binary_data(settings: &Settings) -> crate::Result<Vec<Exter
   }
 
   Ok(external_binaries)
+}
+
+type ResourceMap = BTreeMap<String, ResourceDirectory>;
+fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
+  let mut resources = ResourceMap::new();
+  let regex = Regex::new(r"[^\w\d\.]")?;
+  let cwd = std::env::current_dir()?;
+  for src in settings.resource_files() {
+    let src = src?;
+
+    let filename = src
+      .file_name()
+      .expect("failed to extract resource filename")
+      .to_os_string()
+      .into_string()
+      .expect("failed to convert resource filename to string");
+
+    let resource_path = cwd
+      .join(src.clone())
+      .into_os_string()
+      .into_string()
+      .expect("failed to read resource path");
+
+    let resource_entry = ResourceFile {
+      guid: generate_guid(filename.as_bytes()).to_string(),
+      path: resource_path,
+      id: regex.replace_all(&filename, "").to_string(),
+    };
+
+    let mut directories = src.components().filter(|component| {
+      let comp = component.as_os_str();
+      comp != "." && comp != ".."
+    }).collect::<Vec<_>>();
+    directories.truncate(directories.len() - 1);
+    
+    for directory in directories {
+      let directory_name = directory.as_os_str().to_os_string().into_string().expect("failed to read resource folder name");
+      if resources.contains_key(&directory_name) {
+        let directory_entry = &mut resources.get_mut(&directory_name).unwrap();
+        let index = directory_entry.directories.iter().position(|f| f.name == directory_name);
+        if index.is_some() {
+          let dir = directory_entry.directories.get_mut(index.unwrap()).unwrap();
+          dir.add_file(resource_entry.clone());
+        } else {
+          directory_entry.directories.push(ResourceDirectory {
+          name: directory_name.clone(),
+          directories: vec!(),
+          files: vec!(resource_entry.clone())
+        });
+        }
+      } else {
+        resources.insert(directory_name.clone(), ResourceDirectory {
+          name: directory_name.clone(),
+          directories: vec!(),
+          files: vec!(resource_entry.clone())
+        });
+      }
+    }
+  }
+
+  Ok(resources)
 }

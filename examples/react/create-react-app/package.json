@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@testing-library/jest-dom": "4.2.4",
+    "@testing-library/jest-dom": "5.0.2",
     "@testing-library/react": "9.4.0",
     "@testing-library/user-event": "8.0.3",
     "react": "16.12.0",

@@ -40,7 +40,7 @@ const uid = function () {
  * @private
  */
 const __whitelistWarning = function (func) {
-  console.warn('%c[Tauri] Danger \ntauri.' + func + ' not whitelisted 💣\n%c\nAdd to tauri.conf.json: \n\ntauri: \n  whitelist: { \n    ' + func + ': true \n\nReference: https://tauri-apps.org/docs/api#' + func , 'background: red; color: white; font-weight: 800; padding: 2px; font-size:1.5em', ' ')
+  console.warn('%c[Tauri] Danger \ntauri.' + func + ' not whitelisted 💣\n%c\nAdd to tauri.conf.json: \n\ntauri: \n  whitelist: { \n    ' + func + ': true \n\nReference: https://github.com/tauri-apps/tauri/wiki' + func , 'background: red; color: white; font-weight: 800; padding: 2px; font-size:1.5em', ' ')
 }
 <% } %>
 

@@ -30,7 +30,7 @@ tauri-api = { version = "0.3",  path = "../tauri-api" }
 tauri_includedir_codegen = "0.5.1"
 
 [dev-dependencies]
-proptest = "0.9.4"
+proptest = "0.9.5"
 
 [features]
 edge = ["web-view/edge"]

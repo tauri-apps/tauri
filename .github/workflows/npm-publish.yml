@@ -8,11 +8,25 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Login to NPM
-        run: npm login ${{ secrets.npm_token }}
-      - name: Publish package
-        run: |
-          cd packages/tauri-js
-          echo "We will publish this directory."
-          ls # npm publish
+    - uses: actions/checkout@v2
+    - name: Use Node 12
+      uses: actions/setup-node@v1
+      with:
+        # specify node version and the registry for the RELEASE build
+        node-version: 12
+        registry-url: https://registry.npmjs.org/
+    - name: Build package
+      run: |
+        npm install -g yarn
+        yarn install
+        yarn rollup -c
+    - name: Register Token
+      run: |
+        echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" > /home/runner/work/_temp/.npmrc
+        echo "_auth=$NODE_AUTH_TOKEN" >>  /home/runner/work/_temp/.npmrc
+        echo "email=<tauri-ci@tauri.studio>" >>  /home/runner/work/_temp/.npmrc
+        echo "always-auth=true" >>  /home/runner/work/_temp/.npmrc
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.npm_token }}
+    - name: Publish
+      run: npm publish

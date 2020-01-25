@@ -3,14 +3,23 @@ const fixtureSetup = require('../fixtures/app-test-setup')
 const distDir = fixtureSetup.distDir
 
 function startDevServer() {
-    const express = require('express')
-    const app = express()
+    const http = require('http')
+    const { statSync, createReadStream } = require('fs')
+    const app = http.createServer((req, res) => {
+      if (req.method === 'GET') {
+        if (req.url === '/') {
+          const indexPath = path.join(distDir, 'index.html')
+          const stat = statSync(indexPath)
+          res.writeHead(200, {
+            'Content-Type': 'text/html',
+            'Content-Length': stat.size
+          })
+          createReadStream(indexPath).pipe(res)
+        }
+      }
+    })
 
     const port = 7001
-
-    app.get('/', (req, res) => {
-        res.sendFile(path.join(distDir, 'index.html'))
-    })
 
     const server = app.listen(port)
     return {

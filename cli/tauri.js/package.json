@@ -67,6 +67,9 @@
     "webpack-shell-plugin": "0.5.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.7.7",
+    "@babel/preset-env": "^7.7.7",
+    "@babel/preset-typescript": "^7.7.7",
     "@types/cross-spawn": "6.0.1",
     "@types/fs-extra": "8.0.1",
     "@types/imagemin": "7.0.0",
@@ -79,10 +82,6 @@
     "@typescript-eslint/eslint-plugin": "2.16.0",
     "@typescript-eslint/parser": "2.16.0",
     "babel-jest": "^24.9.0",
-    "cors": "^2.8.5",
-    "@babel/core": "^7.7.7",
-    "@babel/preset-env": "^7.7.7",
-    "@babel/preset-typescript": "^7.7.7",
     "dotenv": "8.2.0",
     "eslint": "6.8.0",
     "eslint-config-standard-with-typescript": "11.0.1",
@@ -92,7 +91,6 @@
     "eslint-plugin-promise": "4.2.1",
     "eslint-plugin-security": "1.4.0",
     "eslint-plugin-standard": "4.0.1",
-    "express": "^4.17.1",
     "husky": "3.1.0",
     "jest": "24.9.0",
     "jest-mock-process": "1.2.0",

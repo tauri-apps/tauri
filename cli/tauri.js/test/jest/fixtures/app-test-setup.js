@@ -26,29 +26,44 @@ module.exports.initJest = () => {
 }
 
 module.exports.startServer = (getAppPid, onReply) => {
-  const express = require('express')
-  const cors = require('cors')
-  const app = express()
+  const http = require('http')
+  const app = http.createServer((req, res) => {
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Request-Method', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, GET')
+    res.setHeader('Access-Control-Allow-Headers', '*')
 
-  app.use(cors())
-  app.use(express.json())
-
-  const port = 7000
-
-  app.post('/reply', (req, res) => {
-    expect(req.body).toStrictEqual({
-      msg: 'TEST'
-    })
-    server.close()
-    if (typeof getAppPid === 'function') {
-      process.kill(getAppPid())
+    if (req.method === 'OPTIONS') {
+      res.writeHead(200)
+      res.end()
+      return
     }
-    // wait for the app process to be killed
-    setTimeout(() => {
-      onReply()
-    }, 100)
+
+    if (req.method === 'POST') {
+      if (req.url === '/reply') {
+        let body = ''
+        req.on('data', chunk => {
+          body += chunk.toString()
+        })
+        req.on('end', () => {
+          expect(JSON.parse(body)).toStrictEqual({
+            msg: 'TEST'
+          })
+          server.close()
+          if (typeof getAppPid === 'function') {
+            process.kill(getAppPid())
+          }
+          // wait for the app process to be killed
+          setTimeout(() => {
+            onReply()
+          }, 100)
+        })
+      }
+    }
   })
 
+  const port = 7000
   const server = app.listen(port)
   return server
 }

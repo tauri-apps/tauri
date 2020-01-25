@@ -43,12 +43,13 @@ describe('Tauri Build', () => {
     distDir: distDir
   }
 
-  for (const debug of [true, false]) {
-    it(`works with the embedded-server ${debug ? 'debug' : 'release'} mode`, () => {
+  test.each([['debug'], ['release']])(
+    'works with the embedded-server $a mode',
+    mode => {
       return runBuildTest({
         build,
         ctx: {
-          debug
+          debug: mode === 'debug'
         },
         tauri: {
           embeddedServer: {
@@ -56,15 +57,16 @@ describe('Tauri Build', () => {
           }
         }
       })
-    })
-  }
+    }
+  )
 
-  for (const debug of [true, false]) {
-    it(`works with the no-server ${debug ? 'debug' : 'release'} mode`, () => {
+  test.each([['debug'], ['release']])(
+    'works with the no-server $a mode',
+    mode => {
       return runBuildTest({
         build,
         ctx: {
-          debug
+          debug: mode === 'debug'
         },
         tauri: {
           embeddedServer: {
@@ -72,6 +74,6 @@ describe('Tauri Build', () => {
           }
         }
       })
-    })
-  }
+    }
+  )
 })

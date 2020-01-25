@@ -57,9 +57,10 @@ describe('Tauri Dev', () => {
 
   const devServer = startDevServer()
 
-  for (const devPath of [devServer.url, distDir]) {
-    const runningDevServer = devPath.startsWith('http')
-    it(`works with the ${runningDevServer ? 'dev server' : 'dev path'} mode`, () => {
+  test.each([[devServer.url], [distDir]])(
+    'works with dev pointing to $a',
+    devPath => {
+      const runningDevServer = devPath.startsWith('http')
       const promise = runDevTest({
         build: {
           ...build,
@@ -78,6 +79,6 @@ describe('Tauri Dev', () => {
       })
 
       return promise
-    })
-  }
+    }
+  )
 })

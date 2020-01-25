@@ -509,6 +509,7 @@ fn generate_external_binary_data(settings: &Settings) -> crate::Result<Vec<Exter
 }
 
 type ResourceMap = BTreeMap<String, ResourceDirectory>;
+// generates the data required for the resource bundling on wix
 fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
   let mut resources = ResourceMap::new();
   let regex = Regex::new(r"[^\w\d\.]")?;
@@ -535,24 +536,29 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       id: regex.replace_all(&filename, "").to_string(),
     };
 
+    // split the resource path directories
     let mut directories = src.components().filter(|component| {
       let comp = component.as_os_str();
       comp != "." && comp != ".."
     }).collect::<Vec<_>>();
     directories.truncate(directories.len() - 1);
     
+    // transform the directory structure to a chained vec structure
     for directory in directories {
       let directory_name = directory.as_os_str().to_os_string().into_string().expect("failed to read resource folder name");
+
+      // if the directory is already on the map
       if resources.contains_key(&directory_name) {
         let directory_entry = &mut resources.get_mut(&directory_name).unwrap();
-        if directory_entry.name == directory_name {
+        if directory_entry.name == directory_name { // the directory entry is the root of the chain
           directory_entry.add_file(resource_entry.clone());
         } else {
           let index = directory_entry.directories.iter().position(|f| f.name == directory_name);
-          if index.is_some() {
+          if index.is_some() { // the directory entry is already a part of the chain
             let dir = directory_entry.directories.get_mut(index.unwrap()).unwrap();
             dir.add_file(resource_entry.clone());
           } else {
+            // push it to the chain
             directory_entry.directories.push(ResourceDirectory {
               name: directory_name.clone(),
               directories: vec!(),
@@ -560,7 +566,6 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
             });
           }
         }
-
       } else {
         resources.insert(directory_name.clone(), ResourceDirectory {
           name: directory_name.clone(),

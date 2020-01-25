@@ -3,11 +3,11 @@ const fixtureSetup = require('../fixtures/app-test-setup')
 const appDir = fixtureSetup.appDir
 const distDir = fixtureSetup.distDir
 
-const spawn = require('../../../src/helpers/spawn').spawn
+const spawn = require('helpers/spawn').spawn
 
 function runBuildTest(tauriConfig) {
   fixtureSetup.initJest()
-  const build = require('../../../src/api/build')
+  const build = require('api/build')
   return new Promise(async (resolve, reject) => {
     try {
       let appPid

@@ -21,7 +21,7 @@ function startDevServer() {
 
 function runDevTest(tauriConfig) {
   fixtureSetup.initJest()
-  const dev = require('../../../src/api/dev')
+  const dev = require('api/dev')
   return new Promise(async (resolve, reject) => {
     try {
       const { promise, runner } = dev(tauriConfig)

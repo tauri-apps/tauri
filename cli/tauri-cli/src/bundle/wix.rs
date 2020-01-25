@@ -72,6 +72,7 @@ impl ResourceDirectory {
     self.files.push(file);
   }
 
+  // generates the wix XML string to bundle this directory resources recursively
   fn get_wix_data(self) -> (String, Vec<String>) {
     let mut files = String::from("");
     let mut file_ids = Vec::new();

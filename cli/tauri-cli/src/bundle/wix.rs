@@ -545,17 +545,22 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       let directory_name = directory.as_os_str().to_os_string().into_string().expect("failed to read resource folder name");
       if resources.contains_key(&directory_name) {
         let directory_entry = &mut resources.get_mut(&directory_name).unwrap();
-        let index = directory_entry.directories.iter().position(|f| f.name == directory_name);
-        if index.is_some() {
-          let dir = directory_entry.directories.get_mut(index.unwrap()).unwrap();
-          dir.add_file(resource_entry.clone());
+        if directory_entry.name == directory_name {
+          directory_entry.add_file(resource_entry.clone());
         } else {
-          directory_entry.directories.push(ResourceDirectory {
-          name: directory_name.clone(),
-          directories: vec!(),
-          files: vec!(resource_entry.clone())
-        });
+          let index = directory_entry.directories.iter().position(|f| f.name == directory_name);
+          if index.is_some() {
+            let dir = directory_entry.directories.get_mut(index.unwrap()).unwrap();
+            dir.add_file(resource_entry.clone());
+          } else {
+            directory_entry.directories.push(ResourceDirectory {
+              name: directory_name.clone(),
+              directories: vec!(),
+              files: vec!(resource_entry.clone())
+            });
+          }
         }
+
       } else {
         resources.insert(directory_name.clone(), ResourceDirectory {
           name: directory_name.clone(),

@@ -210,7 +210,7 @@ fn load_asset<T: 'static>(
         asset
       ));
       if read_asset.is_err() {
-        return Err(r#""Asset not found""#.to_string());
+        return Err(format!("Asset '{}' not found", asset));
       }
 
       if asset_type == "image" {

@@ -15,6 +15,12 @@ if (window.onTauriInit !== void 0) {
   window.onTauriInit()
   window.onTauriInit = void 0
 }
+if (window.__TAURI_INIT_HOOKS !== void 0) {
+  for (var hook in window.__TAURI_INIT_HOOKS) {
+    window.__TAURI_INIT_HOOKS[hook]()
+  }
+  window.__TAURI_INIT_HOOKS = void 0
+}
 Object.defineProperty(window, 'onTauriInit', {
   set: function(val) {
     if (typeof(val) === 'function') {
@@ -43,7 +49,8 @@ pub(crate) fn run(application: &mut App) -> TauriResult<()> {
   };
 
   // build the webview
-  let webview = build_webview(application, config, content)?;
+  let mut webview = build_webview(application, config, content)?;
+  webview.set_color((255, 255, 255));
 
   // on dev-server grab a handler and execute the tauri.js API entry point.
   #[cfg(feature = "dev-server")]

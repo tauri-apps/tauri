@@ -3,7 +3,7 @@ import toml from '@tauri-apps/toml'
 import chokidar, { FSWatcher } from 'chokidar'
 import { existsSync, readFileSync, writeFileSync } from 'fs-extra'
 import { JSDOM } from 'jsdom'
-import { debounce } from 'lodash'
+import { debounce, template } from 'lodash'
 import path from 'path'
 import * as entry from './entry'
 import { appDir, tauriDir } from './helpers/app-paths'
@@ -165,6 +165,25 @@ class Runner {
         const document = dom.window.document
         if (interceptor !== undefined) {
           interceptor(dom)
+        }
+
+        if (!((cfg.ctx.dev && cfg.build.devPath.startsWith('http')) || cfg.tauri.embeddedServer.active)) {
+          const mutationObserverTemplate = require('!!raw-loader!!../templates/mutation-observer').default
+          const compiledMutationObserver = template(mutationObserverTemplate)
+
+          const bodyMutationObserverScript = document.createElement('script')
+          bodyMutationObserverScript.text = compiledMutationObserver({
+            target: 'body',
+            inlinedAssets: JSON.stringify(inlinedAssets)
+          })
+          document.body.insertBefore(bodyMutationObserverScript, document.body.firstChild)
+
+          const headMutationObserverScript = document.createElement('script')
+          headMutationObserverScript.text = compiledMutationObserver({
+            target: 'head',
+            inlinedAssets: JSON.stringify(inlinedAssets)
+          })
+          document.head.insertBefore(headMutationObserverScript, document.head.firstChild)
         }
 
         const tauriScript = document.createElement('script')

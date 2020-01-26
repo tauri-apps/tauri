@@ -40,8 +40,7 @@ function runDevTest(tauriConfig) {
       let success = false
       const checkIntervalId = setInterval(async () => {
         if (!isRunning(runner.pid) && !success) {
-          server.close()
-          reject("App didn't reply")
+          server.close(() => reject("App didn't reply"))
         }
       }, 2000)
 

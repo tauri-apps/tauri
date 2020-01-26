@@ -31,11 +31,12 @@ function runBuildTest(tauriConfig) {
 
       setTimeout(() => {
         if (!success) {
-          server.close()
-          try {
-            process.kill(appPid)
-          } catch { }
-          reject("App didn't reply")
+          server.close(() => {
+            try {
+              process.kill(appPid)
+            } catch {}
+            reject("App didn't reply")
+          })
         }
       }, 2500)
     } catch (error) {

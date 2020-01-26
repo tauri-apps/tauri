@@ -204,9 +204,9 @@ class Runner {
         )
       }
 
-      const domInterceptor = cfg.tauri.embeddedServer.active ? undefined : dom => {
+      const domInterceptor = cfg.tauri.embeddedServer.active ? undefined : (dom: JSDOM) => {
         const document = dom.window.document
-        document.querySelectorAll('link').forEach(link => {
+        document.querySelectorAll('link').forEach((link: HTMLLinkElement) => {
           link.removeAttribute('rel')
           link.removeAttribute('as')
         })

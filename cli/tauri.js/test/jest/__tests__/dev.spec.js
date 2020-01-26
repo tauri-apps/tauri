@@ -1,3 +1,4 @@
+jest.setTimeout(240000)
 const path = require('path')
 const fixtureSetup = require('../fixtures/app-test-setup')
 const distDir = fixtureSetup.distDir
@@ -34,15 +35,22 @@ function runDevTest(tauriConfig) {
   return new Promise(async (resolve, reject) => {
     try {
       const { promise, runner } = dev(tauriConfig)
-      const server = fixtureSetup.startServer(null, async () => {
-        await runner.stop()
+
+      const isRunning = require('is-running')
+      const checkIntervalId = setInterval(async () => {
+        if (!isRunning(runner.pid)) {
+          server.close()
+          reject("App didn't reply")
+        }
+      }, 2000)
+
+      const server = fixtureSetup.startServer(async () => {
+        clearInterval(checkIntervalId)
+        try {
+          await runner.stop()
+        } catch { }
         resolve()
       })
-      setTimeout(async () => {
-        await runner.stop()
-        server.close()
-        reject("App didn't reply")
-      }, 10000)
       await promise
     } catch (error) {
       reject(error)

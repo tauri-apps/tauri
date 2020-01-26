@@ -215,9 +215,7 @@ class Runner {
       this.tauriWatcher && this.tauriWatcher.close()
       this.__stopCargo()
         .then(resolve)
-        .catch(e => {
-          console.error(e)
-        })
+        .catch(reject)
     })
   }
 
@@ -279,7 +277,11 @@ class Runner {
 
     return new Promise((resolve, reject) => {
       this.killPromise = resolve
-      process.kill(pid)
+      try {
+        process.kill(pid)
+      } catch (e) {
+        reject(e)
+      }
     })
   }
 

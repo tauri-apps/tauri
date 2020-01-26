@@ -23,9 +23,10 @@ module.exports.initJest = () => {
   appPaths.tauriDir = tauriDir
   jest.spyOn(appPaths.resolve, 'app').mockImplementation(dir => path.resolve(appDir, dir))
   jest.spyOn(appPaths.resolve, 'tauri').mockImplementation(dir => path.resolve(tauriDir, dir))
+  jest.spyOn(process, 'exit').mockImplementation(() => {})
 }
 
-module.exports.startServer = (getAppPid, onReply) => {
+module.exports.startServer = (onReply) => {
   const http = require('http')
   const app = http.createServer((req, res) => {
     // Set CORS headers
@@ -50,12 +51,11 @@ module.exports.startServer = (getAppPid, onReply) => {
           expect(JSON.parse(body)).toStrictEqual({
             msg: 'TEST'
           })
-          server.close()
-          if (typeof getAppPid === 'function') {
-            process.kill(getAppPid())
-          }
+          res.writeHead(200)
+          res.end()
           // wait for the app process to be killed
           setTimeout(() => {
+            server.close()
             onReply()
           }, 100)
         })

@@ -1,3 +1,4 @@
+jest.setTimeout(240000)
 const path = require('path')
 const fixtureSetup = require('../fixtures/app-test-setup')
 const appDir = fixtureSetup.appDir
@@ -10,15 +11,14 @@ function runBuildTest(tauriConfig) {
   const build = require('api/build')
   return new Promise(async (resolve, reject) => {
     try {
-      let appPid
-      const server = fixtureSetup.startServer(() => appPid, resolve)
+      const server = fixtureSetup.startServer(resolve)
       const result = build(tauriConfig)
       await result.promise
 
       const artifactFolder = tauriConfig.ctx.debug ? 'debug' : 'release'
       const artifactPath = path.resolve(appDir, `src-tauri/target/${artifactFolder}/app`)
 
-      appPid = spawn(
+      const appPid = spawn(
         process.platform === 'win32' ? `${artifactPath}.exe` : artifactPath.replace(`${artifactFolder}/app`, `${artifactFolder}/./app`),
         [],
         null
@@ -44,36 +44,20 @@ describe('Tauri Build', () => {
   }
 
   it.each`
-    mode
-    ${'debug'}
-    ${'release'}
-  `('works with the embedded-server $mode mode', ({ mode }) => {
+    mode                  | flag
+    ${'embedded-server'}  | ${'debug'}
+    ${'embedded-server'}  | ${'release'}
+    ${'no-server'}        | ${'debug'}
+    ${'no-server'}        | ${'release'}
+  `('works with the $mode $flag mode', ({ mode, flag }) => {
     return runBuildTest({
       build,
       ctx: {
-        debug: mode === 'debug'
+        debug: flag === 'debug'
       },
       tauri: {
         embeddedServer: {
-          active: true
-        }
-      }
-    })
-  })
-
-  it.each `
-    mode
-    ${'debug'}
-    ${'release'}
-  `('works with the no-server $mode mode', ({ mode }) => {
-    return runBuildTest({
-      build,
-      ctx: {
-        debug: mode === 'debug'
-      },
-      tauri: {
-        embeddedServer: {
-          active: false
+          active: mode === 'embedded-server'
         }
       }
     })

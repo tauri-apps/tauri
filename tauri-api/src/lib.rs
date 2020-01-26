@@ -1,3 +1,8 @@
+#![cfg_attr(
+  all(not(debug_assertions), target_os = "windows"),
+  windows_subsystem = "windows"
+)]
+
 #[cfg(test)]
 extern crate quickcheck;
 #[cfg(test)]
@@ -9,7 +14,6 @@ pub mod dir;
 pub mod file;
 pub mod rpc;
 pub mod version;
-pub mod platform;
 
 use error_chain::error_chain;
 
@@ -17,7 +21,8 @@ error_chain! {
     foreign_links {
         Io(::std::io::Error);
         ZipError(::zip::result::ZipError);
-        SemVer(semver::SemVerError);
+        SemVer(::semver::SemVerError);
+        Platform(::tauri_utils::Error);
     }
     errors {
         Extract(t: String) {

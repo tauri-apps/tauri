@@ -2,10 +2,10 @@ use super::common;
 use super::path_utils::{copy, Options};
 use super::settings::Settings;
 
-use handlebars::{Handlebars, to_json};
+use handlebars::{to_json, Handlebars};
 use lazy_static::lazy_static;
-use sha2::Digest;
 use regex::Regex;
+use sha2::Digest;
 
 use std::collections::BTreeMap;
 use std::fs::{create_dir_all, remove_dir_all, write, File};
@@ -51,6 +51,13 @@ lazy_static! {
       .expect("Failed to setup handlebar template");
     handlebars
   };
+}
+
+#[derive(Serialize)]
+struct ExternalBinary {
+  guid: String,
+  id: String,
+  path: String,
 }
 
 fn copy_icons(settings: &Settings) -> crate::Result<PathBuf> {
@@ -366,25 +373,8 @@ pub fn build_wix_app_installer(
   let app_exe_name = settings.binary_name().to_string();
   data.insert("app_exe_name", to_json(&app_exe_name));
 
-  #[derive(Serialize)]
-  struct ExternalBinary {
-    guid: String,
-    id: String,
-    path: String
-  }
-  let mut external_binaries = Vec::new();
-  let regex = Regex::new("[^A-Za-z0-9\\._]").unwrap();
-  let cwd = std::env::current_dir()?;
-  for src in settings.external_binaries() {
-    let src = src?;
-    let filename = src.file_name().expect("failed to extract external binary filename").to_os_string().into_string().expect("failed to convert external binary filename to string");
-    let guid = generate_guid(filename.as_bytes()).to_string();
-    external_binaries.push(ExternalBinary {
-      guid: guid,
-      path: cwd.join(src).into_os_string().into_string().expect("failed to read external binary path"),
-      id: regex.replace_all(&filename, "").to_string()
-    });
-  }
+  let external_binaries = generate_external_binary_data(&settings)?;
+
   let external_binaries_json = to_json(&external_binaries);
   data.insert("external_binaries", external_binaries_json);
 
@@ -428,4 +418,33 @@ pub fn build_wix_app_installer(
   )?;
 
   Ok(target)
+}
+
+fn generate_external_binary_data(settings: &Settings) -> crate::Result<Vec<ExternalBinary>> {
+  let mut external_binaries = Vec::new();
+  let regex = Regex::new(r"[^\w\d\.]")?;
+  let cwd = std::env::current_dir()?;
+  for src in settings.external_binaries() {
+    let src = src?;
+    let filename = src
+      .file_name()
+      .expect("failed to extract external binary filename")
+      .to_os_string()
+      .into_string()
+      .expect("failed to convert external binary filename to string");
+
+    let guid = generate_guid(filename.as_bytes()).to_string();
+
+    external_binaries.push(ExternalBinary {
+      guid: guid,
+      path: cwd
+        .join(src)
+        .into_os_string()
+        .into_string()
+        .expect("failed to read external binary path"),
+      id: regex.replace_all(&filename, "").to_string(),
+    });
+  }
+
+  Ok(external_binaries)
 }

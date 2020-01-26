@@ -11,7 +11,6 @@ extern crate serde_derive;
 extern crate tempfile;
 
 mod bundle;
-mod platform;
 
 use crate::bundle::{bundle_project, check_icons, BuildArtifact, PackageType, Settings};
 use clap::{App, AppSettings, Arg, SubCommand};
@@ -28,9 +27,11 @@ error_chain! {
         Term(::term::Error);
         Toml(::toml::de::Error);
         Walkdir(::walkdir::Error);
-        HttpError(::attohttpc::Error) #[cfg(windows)];
         StripError(std::path::StripPrefixError);
         ConvertError(std::num::TryFromIntError);
+        PlatformError(::tauri_utils::Error);
+        RegexError(::regex::Error) #[cfg(windows)];
+        HttpError(::attohttpc::Error) #[cfg(windows)];
     }
     errors {}
 }

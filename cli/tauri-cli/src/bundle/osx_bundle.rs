@@ -68,12 +68,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       .chain_err(|| format!("Failed to copy resource file {:?}", src))?;
   }
 
-  for src in settings.external_binaries() {
-    let src = src?;
-    let dest = bin_dir.join(src.file_name().expect("failed to extract external binary filename"));
-    common::copy_file(&src, &dest)
-      .chain_err(|| format!("Failed to copy external binary {:?}", src))?;
-  }
+  settings
+    .copy_binaries(&bin_dir)
+    .chain_err(|| "Failed to copy external binaries")?;
 
   copy_binary_to_bundle(&bundle_directory, settings)
     .chain_err(|| format!("Failed to copy binary from {:?}", settings.binary_path()))?;

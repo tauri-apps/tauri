@@ -1,5 +1,7 @@
 use std::process::{Child, Command, Stdio};
 
+use tauri_utils::platform;
+
 pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> crate::Result<String> {
   Command::new(cmd)
     .args(args)
@@ -51,12 +53,8 @@ pub fn spawn_relative_command(
   Ok(Command::new(cmd).args(args).stdout(stdout).spawn()?)
 }
 
-pub fn binary_command(binary_name: String) -> Result<String, String> {
-  return Ok(format!(
-    "{}-{}",
-    binary_name,
-    crate::platform::target_triple()?
-  ));
+pub fn binary_command(binary_name: String) -> crate::Result<String> {
+  return Ok(format!("{}-{}", binary_name, platform::target_triple()?));
 }
 
 // tests for the commands functions.

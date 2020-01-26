@@ -3,7 +3,7 @@ name = "tauri-api"
 version = "0.3.0"
 authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
 license = "MIT"
-homepage = "https://tauri-apps.org"
+homepage = "https://tauri.studio"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 edition = "2018"
@@ -21,6 +21,9 @@ either = "1.5.3"
 tar = "0.4"
 flate2 = "1"
 error-chain = "0.12"
+
+tauri-utils = {version = "0.3.0", path = "../tauri-utils"}
+
 
 [dev-dependencies]
 quickcheck = "0.9.2"

@@ -8,7 +8,7 @@
 
 ![](https://img.shields.io/github/workflow/status/tauri-apps/tauri/test%20library?label=test%20library
 )
-[![devto](https://img.shields.io/badge/documentation-site-purple.svg)](https://tauri-apps.org)
+[![devto](https://img.shields.io/badge/documentation-site-purple.svg)](https://tauri.studio)
 
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
 [![support](https://img.shields.io/badge/sponsor-Opencollective-blue.svg)](https://opencollective.com/tauri)

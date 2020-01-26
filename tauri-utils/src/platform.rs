@@ -7,7 +7,7 @@
 ///
 /// * Errors:
 ///     * Unexpected system config
-pub fn target_triple() -> Result<String, String> {
+pub fn target_triple() -> Result<String, crate::Error> {
   let arch = if cfg!(target_arch = "x86") {
     "i686"
   } else if cfg!(target_arch = "x86_64") {
@@ -15,7 +15,9 @@ pub fn target_triple() -> Result<String, String> {
   } else if cfg!(target_arch = "arm") {
     "armv7"
   } else {
-    return Err("Unable to determine target-architecture".to_string());
+    return Err(crate::Error::from(
+      "Unable to determine target-architecture",
+    ));
   };
 
   let os = if cfg!(target_os = "linux") {
@@ -27,7 +29,7 @@ pub fn target_triple() -> Result<String, String> {
   } else if cfg!(target_os = "freebsd") {
     "unknown-freebsd"
   } else {
-    return Err("Unable to determine target-os".to_string());
+    return Err(crate::Error::from("Unable to determine target-os"));
   };
 
   let s;
@@ -41,7 +43,7 @@ pub fn target_triple() -> Result<String, String> {
     } else if cfg!(target_env = "msvc") {
       "msvc"
     } else {
-      return Err("Unable to determine target-environment".to_string());
+      return Err(crate::Error::from("Unable to determine target-environment"));
     };
     s = format!("{}-{}", os, env);
     &s

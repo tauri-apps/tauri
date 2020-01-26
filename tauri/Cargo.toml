@@ -3,7 +3,7 @@ name = "tauri"
 version = "0.3.2"
 authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
 license = "MIT"
-homepage = "https://tauri-apps.org"
+homepage = "https://tauri.studio"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 edition = "2018"
@@ -23,13 +23,14 @@ lazy_static = "1.4.0"
 tiny_http = "0.6"
 threadpool = "1.7"
 uuid = { version = "0.8.1", features = ["v4"] }
+
 tauri-api = { version = "0.3",  path = "../tauri-api" }
 
 [build-dependencies]
 tauri_includedir_codegen = "0.5.1"
 
 [dev-dependencies]
-proptest = "0.9.4"
+proptest = "0.9.5"
 
 [features]
 edge = ["web-view/edge"]

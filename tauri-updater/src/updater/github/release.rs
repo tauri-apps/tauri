@@ -1,5 +1,5 @@
-use crate::updater::error::*;
-use hyper_old_types::header::{LinkValue, RelationType};
+use crate::http::link_value::{LinkValue, RelationType};
+
 use serde_json;
 
 /// GitHub release-asset information
@@ -13,13 +13,16 @@ impl ReleaseAsset {
   ///
   /// Errors:
   ///     * Missing required name & browser_download_url keys
-  fn from_asset(asset: &serde_json::Value) -> Result<ReleaseAsset, Error> {
-    let download_url = asset["browser_download_url"]
-      .as_str()
-      .ok_or_else(|| format_err!(Error::Release, "Asset missing `browser_download_url`"))?;
+  fn from_asset(asset: &serde_json::Value) -> crate::Result<ReleaseAsset> {
+    let download_url = asset["browser_download_url"].as_str().ok_or_else(|| {
+      format_err!(
+        crate::ErrorKind::Network,
+        "Asset missing `browser_download_url`"
+      )
+    })?;
     let name = asset["name"]
       .as_str()
-      .ok_or_else(|| format_err!(Error::Release, "Asset missing `name`"))?;
+      .ok_or_else(|| format_err!(crate::ErrorKind::Network, "Asset missing `name`"))?;
     Ok(ReleaseAsset {
       download_url: download_url.to_owned(),
       name: name.to_owned(),
@@ -36,22 +39,22 @@ pub struct Release {
   pub assets: Vec<ReleaseAsset>,
 }
 impl Release {
-  pub fn parse(release: &serde_json::Value) -> Result<Release, Error> {
+  pub fn parse(release: &serde_json::Value) -> crate::Result<Release> {
     let tag = release["tag_name"]
       .as_str()
-      .ok_or_else(|| format_err!(Error::Release, "Release missing `tag_name`"))?;
+      .ok_or_else(|| format_err!(crate::ErrorKind::Network, "Release missing `tag_name`"))?;
     let date_created = release["created_at"]
       .as_str()
-      .ok_or_else(|| format_err!(Error::Release, "Release missing `created_at`"))?;
+      .ok_or_else(|| format_err!(crate::ErrorKind::Network, "Release missing `created_at`"))?;
     let name = release["name"].as_str().unwrap_or(tag);
     let body = release["body"].as_str().unwrap_or("");
     let assets = release["assets"]
       .as_array()
-      .ok_or_else(|| format_err!(Error::Release, "No assets found"))?;
+      .ok_or_else(|| format_err!(crate::ErrorKind::Network, "No assets found"))?;
     let assets = assets
       .iter()
       .map(ReleaseAsset::from_asset)
-      .collect::<Result<Vec<ReleaseAsset>, Error>>()?;
+      .collect::<crate::Result<Vec<ReleaseAsset>>>()?;
     Ok(Release {
       name: name.to_owned(),
       body: body.to_owned(),
@@ -109,17 +112,17 @@ impl ReleaseListBuilder {
   }
 
   /// Verify builder args, returning a `ReleaseList`
-  pub fn build(&self) -> Result<ReleaseList, Error> {
+  pub fn build(&self) -> crate::Result<ReleaseList> {
     Ok(ReleaseList {
       repo_owner: if let Some(ref owner) = self.repo_owner {
         owner.to_owned()
       } else {
-        bail!(Error::Config, "`repo_owner` required")
+        bail!(crate::ErrorKind::Config, "`repo_owner` required")
       },
       repo_name: if let Some(ref name) = self.repo_name {
         name.to_owned()
       } else {
-        bail!(Error::Config, "`repo_name` required")
+        bail!(crate::ErrorKind::Config, "`repo_name` required")
       },
       target: self.target.clone(),
     })
@@ -146,7 +149,7 @@ impl ReleaseList {
 
   /// Retrieve a list of `Release`s.
   /// If specified, filter for those containing a specified `target`
-  pub fn fetch(self) -> Result<Vec<Release>, Error> {
+  pub fn fetch(self) -> crate::Result<Vec<Release>> {
     set_ssl_vars!();
     let api_url = format!(
       "https://api.github.com/repos/{}/{}/releases",
@@ -163,29 +166,30 @@ impl ReleaseList {
     Ok(releases)
   }
 
-  fn fetch_releases(url: &str) -> Result<Vec<Release>, Error> {
-    let mut resp = reqwest::get(url)?;
-    if !resp.status().is_success() {
+  fn fetch_releases(url: &str) -> crate::Result<Vec<Release>> {
+    let (status, headers, reader) = attohttpc::get(url).send()?.split();
+
+    if !status.is_success() {
       bail!(
-        Error::Network,
+        crate::ErrorKind::Network,
         "api request failed with status: {:?} - for: {:?}",
-        resp.status(),
+        status,
         url
       )
     }
-    let releases = resp.json::<serde_json::Value>()?;
+
+    let releases = reader.json::<serde_json::Value>()?.clone();
     let releases = releases
       .as_array()
-      .ok_or_else(|| format_err!(Error::Release, "No releases found"))?;
+      .ok_or_else(|| format_err!(crate::ErrorKind::Network, "No releases found"))?;
     let mut releases = releases
       .iter()
       .map(Release::parse)
-      .collect::<Result<Vec<Release>, Error>>()?;
+      .collect::<crate::Result<Vec<Release>>>()?;
 
     // handle paged responses containing `Link` header:
     // `Link: <https://api.github.com/resource?page=2>; rel="next"`
-    let headers = resp.headers();
-    let links = headers.get_all(reqwest::header::LINK);
+    let links = headers.get_all(attohttpc::header::LINK);
 
     let next_link = links
       .iter()

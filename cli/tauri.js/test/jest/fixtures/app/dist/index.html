@@ -7,9 +7,6 @@
       xhr.open('POST', 'http://localhost:7000/' + route)
       xhr.setRequestHeader('Content-type', 'application/json')
       xhr.send(JSON.stringify(args))
-      xhr.onload = xhr.onerror = xhr.onabort = function () {
-        window.tauri.invoke({ cmd: 'exit' })
-      }
     }
 
     window.onTauriInit = function () {
@@ -18,6 +15,9 @@
       })
       window.tauri.emit('hello')
     }
+    setTimeout(function () {
+      window.tauri.invoke({ cmd: 'exit' })
+    }, 1000)
   </script>
 </body>
 

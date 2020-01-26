@@ -51,13 +51,8 @@ module.exports.startServer = (onReply) => {
           expect(JSON.parse(body)).toStrictEqual({
             msg: 'TEST'
           })
-          res.writeHead(200)
-          res.end()
-          // wait for the app process to be killed
-          setTimeout(() => {
-            server.close()
-            onReply()
-          }, 100)
+          server.close()
+          onReply()
         })
       }
     }

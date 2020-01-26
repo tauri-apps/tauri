@@ -37,19 +37,24 @@ function runDevTest(tauriConfig) {
       const { promise, runner } = dev(tauriConfig)
 
       const isRunning = require('is-running')
+      let success = false
       const checkIntervalId = setInterval(async () => {
-        if (!isRunning(runner.pid)) {
+        if (!isRunning(runner.pid) && !success) {
           server.close()
           reject("App didn't reply")
         }
       }, 2000)
 
       const server = fixtureSetup.startServer(async () => {
+        success = true
         clearInterval(checkIntervalId)
-        try {
-          await runner.stop()
-        } catch { }
-        resolve()
+        // wait for the app process to be killed
+        setTimeout(async () => {
+          try {
+            await runner.stop()
+          } catch {}
+          resolve()
+        }, 2000)
       })
       await promise
     } catch (error) {

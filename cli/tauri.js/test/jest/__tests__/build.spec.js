@@ -11,7 +11,12 @@ function runBuildTest(tauriConfig) {
   const build = require('api/build')
   return new Promise(async (resolve, reject) => {
     try {
-      const server = fixtureSetup.startServer(resolve)
+      let success = false
+      const server = fixtureSetup.startServer(() => {
+        success = true
+        // wait for the app process to be killed
+        setTimeout(resolve, 2000)
+      })
       const result = build(tauriConfig)
       await result.promise
 
@@ -25,11 +30,13 @@ function runBuildTest(tauriConfig) {
       )
 
       setTimeout(() => {
-        server.close()
-        try {
-          process.kill(appPid)
-        } catch { }
-        reject("App didn't reply")
+        if (!success) {
+          server.close()
+          try {
+            process.kill(appPid)
+          } catch { }
+          reject("App didn't reply")
+        }
       }, 2500)
     } catch (error) {
       reject(error)

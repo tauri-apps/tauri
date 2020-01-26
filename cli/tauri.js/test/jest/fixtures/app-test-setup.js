@@ -51,8 +51,7 @@ module.exports.startServer = (onReply) => {
           expect(JSON.parse(body)).toStrictEqual({
             msg: 'TEST'
           })
-          server.close()
-          onReply()
+          server.close(onReply)
         })
       }
     }

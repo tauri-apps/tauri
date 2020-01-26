@@ -43,7 +43,7 @@
     "yarn": ">= 1.19.1"
   },
   "dependencies": {
-    "@tauri-apps/tauri-inliner": "1.13.2",
+    "@tauri-apps/tauri-inliner": "1.14.0",
     "@tauri-apps/toml": "2.2.4",
     "chalk": "3.0.0",
     "chokidar": "3.3.1",

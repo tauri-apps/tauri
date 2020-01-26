@@ -57,28 +57,29 @@ describe('Tauri Dev', () => {
 
   const devServer = startDevServer()
 
-  it.each([[devServer.url], [distDir]])(
-    'works with dev pointing to $a',
-    devPath => {
-      const runningDevServer = devPath.startsWith('http')
-      const promise = runDevTest({
-        build: {
-          ...build,
-          devPath
-        },
-        ctx: {
-          debug: true,
-          dev: true
-        }
-      })
+  it.each`
+    url
+    ${devServer.url}
+    ${distDir}
+  `('works with dev pointing to $url', ({ url }) => {
+    const runningDevServer = url.startsWith('http')
+    const promise = runDevTest({
+      build: {
+        ...build,
+        devPath: url
+      },
+      ctx: {
+        debug: true,
+        dev: true
+      }
+    })
 
-      promise.then(() => {
-        if (runningDevServer) {
-          devServer.server.close()
-        }
-      })
+    promise.then(() => {
+      if (runningDevServer) {
+        devServer.server.close()
+      }
+    })
 
-      return promise
-    }
-  )
+    return promise
+  })
 })

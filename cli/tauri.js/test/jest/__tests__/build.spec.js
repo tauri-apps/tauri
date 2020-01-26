@@ -43,37 +43,39 @@ describe('Tauri Build', () => {
     distDir: distDir
   }
 
-  it.each([['debug'], ['release']])(
-    'works with the embedded-server $a mode',
-    mode => {
-      return runBuildTest({
-        build,
-        ctx: {
-          debug: mode === 'debug'
-        },
-        tauri: {
-          embeddedServer: {
-            active: true
-          }
+  it.each`
+    mode
+    ${'debug'}
+    ${'release'}
+  `('works with the embedded-server $mode mode', ({ mode }) => {
+    return runBuildTest({
+      build,
+      ctx: {
+        debug: mode === 'debug'
+      },
+      tauri: {
+        embeddedServer: {
+          active: true
         }
-      })
-    }
-  )
+      }
+    })
+  })
 
-  it.each([['debug'], ['release']])(
-    'works with the no-server $a mode',
-    mode => {
-      return runBuildTest({
-        build,
-        ctx: {
-          debug: mode === 'debug'
-        },
-        tauri: {
-          embeddedServer: {
-            active: false
-          }
+  it.each `
+    mode
+    ${'debug'}
+    ${'release'}
+  `('works with the no-server $mode mode', ({ mode }) => {
+    return runBuildTest({
+      build,
+      ctx: {
+        debug: mode === 'debug'
+      },
+      tauri: {
+        embeddedServer: {
+          active: false
         }
-      })
-    }
-  )
+      }
+    })
+  })
 })

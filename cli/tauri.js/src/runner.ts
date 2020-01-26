@@ -204,21 +204,23 @@ class Runner {
         )
       }
 
-      if (cfg.tauri.embeddedServer.active) {
-        rewriteHtml(readFileSync(indexPath).toString())
+      const domInterceptor = cfg.tauri.embeddedServer.active ? undefined : dom => {
+        const document = dom.window.document
+        document.querySelectorAll('link').forEach(link => {
+          link.removeAttribute('rel')
+          link.removeAttribute('as')
+        })
+      }
+
+      if (cfg.tauri.embeddedServer.active || !cfg.tauri.inliner.active) {
+        rewriteHtml(readFileSync(indexPath).toString(), domInterceptor)
         resolve(inlinedAssets)
       } else {
         new Inliner(indexPath, (err: Error, html: string) => {
           if (err) {
             reject(err)
           } else {
-            rewriteHtml(html, dom => {
-              const document = dom.window.document
-              document.querySelectorAll('link').forEach(link => {
-                link.removeAttribute('rel')
-                link.removeAttribute('as')
-              })
-            })
+            rewriteHtml(html, domInterceptor)
             resolve(inlinedAssets)
           }
         }).on('progress', (event: string) => {

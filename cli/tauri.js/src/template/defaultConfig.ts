@@ -23,7 +23,7 @@ export default {
     edge: {
       active: true
     },
-    automaticStart: {
+    inliner: {
       active: true
     }
   }

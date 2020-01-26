@@ -53,8 +53,17 @@ lazy_static! {
   };
 }
 
+type ResourceMap = BTreeMap<String, ResourceDirectory>;
+
 #[derive(Serialize)]
 struct ExternalBinary {
+  guid: String,
+  id: String,
+  path: String,
+}
+
+#[derive(Serialize, Clone)]
+struct ResourceFile {
   guid: String,
   id: String,
   path: String,
@@ -64,7 +73,7 @@ struct ExternalBinary {
 struct ResourceDirectory {
   name: String,
   files: Vec<ResourceFile>,
-  directories: Vec<ResourceDirectory>
+  directories: Vec<ResourceDirectory>,
 }
 
 impl ResourceDirectory {
@@ -73,7 +82,7 @@ impl ResourceDirectory {
   }
 
   // generates the wix XML string to bundle this directory resources recursively
-  fn get_wix_data(self) -> (String, Vec<String>) {
+  fn get_wix_data(self) -> crate::Result<(String, Vec<String>)> {
     let mut files = String::from("");
     let mut file_ids = Vec::new();
     for file in self.files {
@@ -89,21 +98,20 @@ impl ResourceDirectory {
     }
     let mut directories = String::from("");
     for directory in self.directories {
-      let (wix_string, ids) = directory.get_wix_data();
+      let (wix_string, ids) = directory.get_wix_data()?;
       for id in ids {
         file_ids.push(id)
       }
       directories.push_str(wix_string.as_str());
     }
-    (format!(r#"<Directory Id="{name}" Name="{name}">{contents}</Directory>"#, name = self.name, contents = format!("{}{}", files, directories)), file_ids)
-  }
-}
+    let wix_string = format!(
+      r#"<Directory Id="{name}" Name="{name}">{contents}</Directory>"#,
+      name = self.name,
+      contents = format!("{}{}", files, directories)
+    );
 
-#[derive(Serialize, Clone)]
-struct ResourceFile {
-  guid: String,
-  id: String,
-  path: String,
+    Ok((wix_string, file_ids))
+  }
 }
 
 fn copy_icons(settings: &Settings) -> crate::Result<PathBuf> {
@@ -428,7 +436,7 @@ pub fn build_wix_app_installer(
   let mut resources_wix_string = String::from("");
   let mut files_ids = Vec::new();
   for (_, dir) in resources {
-    let (wix_string, ids) = dir.get_wix_data();
+    let (wix_string, ids) = dir.get_wix_data()?;
     resources_wix_string.push_str(wix_string.as_str());
     for id in ids {
       files_ids.push(id);
@@ -509,7 +517,6 @@ fn generate_external_binary_data(settings: &Settings) -> crate::Result<Vec<Exter
   Ok(external_binaries)
 }
 
-type ResourceMap = BTreeMap<String, ResourceDirectory>;
 // generates the data required for the resource bundling on wix
 fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
   let mut resources = ResourceMap::new();
@@ -538,41 +545,60 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     };
 
     // split the resource path directories
-    let mut directories = src.components().filter(|component| {
-      let comp = component.as_os_str();
-      comp != "." && comp != ".."
-    }).collect::<Vec<_>>();
+    let mut directories = src
+      .components()
+      .filter(|component| {
+        let comp = component.as_os_str();
+        comp != "." && comp != ".."
+      })
+      .collect::<Vec<_>>();
     directories.truncate(directories.len() - 1);
-    
     // transform the directory structure to a chained vec structure
     for directory in directories {
-      let directory_name = directory.as_os_str().to_os_string().into_string().expect("failed to read resource folder name");
+      let directory_name = directory
+        .as_os_str()
+        .to_os_string()
+        .into_string()
+        .expect("failed to read resource folder name");
 
       // if the directory is already on the map
       if resources.contains_key(&directory_name) {
-        let directory_entry = &mut resources.get_mut(&directory_name).unwrap();
-        if directory_entry.name == directory_name { // the directory entry is the root of the chain
+        let directory_entry = &mut resources
+          .get_mut(&directory_name)
+          .expect("Unable to handle resources");
+        if directory_entry.name == directory_name {
+          // the directory entry is the root of the chain
           directory_entry.add_file(resource_entry.clone());
         } else {
-          let index = directory_entry.directories.iter().position(|f| f.name == directory_name);
-          if index.is_some() { // the directory entry is already a part of the chain
-            let dir = directory_entry.directories.get_mut(index.unwrap()).unwrap();
+          let index = directory_entry
+            .directories
+            .iter()
+            .position(|f| f.name == directory_name);
+          if index.is_some() {
+            // the directory entry is already a part of the chain
+            let dir = directory_entry
+              .directories
+              .get_mut(index.expect("Unable to get index"))
+              .expect("Unable to get directory");
             dir.add_file(resource_entry.clone());
           } else {
             // push it to the chain
             directory_entry.directories.push(ResourceDirectory {
               name: directory_name.clone(),
-              directories: vec!(),
-              files: vec!(resource_entry.clone())
+              directories: vec![],
+              files: vec![resource_entry.clone()],
             });
           }
         }
       } else {
-        resources.insert(directory_name.clone(), ResourceDirectory {
-          name: directory_name.clone(),
-          directories: vec!(),
-          files: vec!(resource_entry.clone())
-        });
+        resources.insert(
+          directory_name.clone(),
+          ResourceDirectory {
+            name: directory_name.clone(),
+            directories: vec![],
+            files: vec![resource_entry.clone()],
+          },
+        );
       }
     }
   }

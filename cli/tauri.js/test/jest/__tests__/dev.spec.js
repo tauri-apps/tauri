@@ -57,7 +57,7 @@ describe('Tauri Dev', () => {
 
   const devServer = startDevServer()
 
-  test.each([[devServer.url], [distDir]])(
+  it.each([[devServer.url], [distDir]])(
     'works with dev pointing to $a',
     devPath => {
       const runningDevServer = devPath.startsWith('http')

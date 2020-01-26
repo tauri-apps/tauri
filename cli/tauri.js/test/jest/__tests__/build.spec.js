@@ -43,7 +43,7 @@ describe('Tauri Build', () => {
     distDir: distDir
   }
 
-  test.each([['debug'], ['release']])(
+  it.each([['debug'], ['release']])(
     'works with the embedded-server $a mode',
     mode => {
       return runBuildTest({
@@ -60,7 +60,7 @@ describe('Tauri Build', () => {
     }
   )
 
-  test.each([['debug'], ['release']])(
+  it.each([['debug'], ['release']])(
     'works with the no-server $a mode',
     mode => {
       return runBuildTest({

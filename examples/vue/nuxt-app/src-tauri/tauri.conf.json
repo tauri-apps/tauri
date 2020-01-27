@@ -23,8 +23,8 @@
     "edge": {
       "active": true
     },
-    "automaticStart": {
-      "active": true
+    "inliner": {
+      "active": false
     }
   }
 }

@@ -47,15 +47,18 @@ export default {
     ** You can extend webpack config here
     */
     extend (config, ctx) {
+      // this is optional; optimization for webpack lazy loading
       if (!ctx.isDev && ctx.isClient) {
         const tauriConfig = require('./src-tauri/tauri.conf.json')
         if (!tauriConfig.tauri.embeddedServer.active) {
           const TauriRequirePlugin = require('@tauri-apps/tauri-webpack/plugins/tauri-require').plugin
           config.plugins.push(new TauriRequirePlugin())
-          console.log(config)
-          config.output.publicPath = '_nuxt/'
         }
       }
     }
+  },
+
+  router: {
+    middleware: 'tauri'
   }
 }

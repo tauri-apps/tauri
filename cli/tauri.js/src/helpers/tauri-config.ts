@@ -45,6 +45,9 @@ module.exports = (cfg: Partial<TauriConfig>): TauriConfig => {
         },
         edge: {
           active: true
+        },
+        inliner: {
+          active: true
         }
       }
     } as any,

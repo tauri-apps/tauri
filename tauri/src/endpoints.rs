@@ -1,6 +1,7 @@
 mod cmd;
 
 use web_view::WebView;
+#[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
 use std::path::{PathBuf};
 
 use crate::TauriResult;
@@ -225,7 +226,7 @@ fn load_asset<T: 'static>(
               path = PathBuf::from(path.to_string_lossy().replacen(format!("{}/", first_component).as_str(), "", 1));
             }
             None => {
-              return Err("Asset not found".to_string());
+              return Err(format!("Asset '{}' not found", asset));
             }
           }
         } else {
@@ -249,10 +250,14 @@ fn load_asset<T: 'static>(
       } else {
         handle
           .dispatch(move |_webview| {
-            _webview.eval(
-              &std::str::from_utf8(&read_asset.expect("Failed to read asset type").into_owned())
-                .expect("failed to convert asset bytes to u8 slice"),
-            )
+            let asset_bytes = &read_asset.expect("Failed to read asset type").into_owned();
+            let asset_str = &std::str::from_utf8(asset_bytes)
+                .expect("failed to convert asset bytes to u8 slice");
+            if asset_type == "stylesheet" {
+              _webview.inject_css(asset_str)
+            } else {
+              _webview.eval(asset_str)
+            }
           })
           .map_err(|err| format!("`{}`", err))
           .map(|_| r#""Asset loaded successfully""#.to_string())

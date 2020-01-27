@@ -61,12 +61,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   copy_frameworks_to_bundle(&bundle_directory, settings)
     .chain_err(|| "Failed to bundle frameworks")?;
 
-  for src in settings.resource_files() {
-    let src = src?;
-    let dest = resources_dir.join(common::resource_relpath(&src));
-    common::copy_file(&src, &dest)
-      .chain_err(|| format!("Failed to copy resource file {:?}", src))?;
-  }
+  settings.copy_resources(&resources_dir)?;
 
   settings
     .copy_binaries(&bin_dir)

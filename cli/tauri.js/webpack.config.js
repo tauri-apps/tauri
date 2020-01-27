@@ -18,10 +18,6 @@ module.exports = {
         test: /\.tsx?$/,
         use: 'ts-loader',
         exclude: /node_modules/
-      },
-      {
-        test: /tauri\.js$/i,
-        loader: 'raw-loader'
       }
     ]
   },

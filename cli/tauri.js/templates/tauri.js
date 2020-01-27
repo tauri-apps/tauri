@@ -435,7 +435,9 @@ window.addEventListener('DOMContentLoaded', function () {
     var target = e.target
     while (target != null) {
       if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
-        window.tauri.open(target.href)
+        if (target.href && target.href.startsWith('http')) {
+          window.tauri.open(target.href)
+        }
         break
       }
       target = target.parentElement

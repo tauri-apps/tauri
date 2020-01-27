@@ -210,13 +210,7 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
 /// `data_dir`.
 fn transfer_resource_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
   let resource_dir = data_dir.join("usr/lib").join(settings.binary_name());
-  for src in settings.resource_files() {
-    let src = src?;
-    let dest = resource_dir.join(common::resource_relpath(&src));
-    common::copy_file(&src, &dest)
-      .chain_err(|| format!("Failed to copy resource file {:?}", src))?;
-  }
-  Ok(())
+  settings.copy_resources(&resource_dir)
 }
 
 /// Generate the icon files and store them under the `data_dir`.

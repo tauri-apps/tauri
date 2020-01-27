@@ -4,5 +4,8 @@ pub mod process;
 use error_chain::error_chain;
 
 error_chain! {
-    errors{}
+    foreign_links {
+        Io(::std::io::Error);
+    }
+    errors {}
 }

@@ -19,7 +19,7 @@ icon = [
   "icons/icon.icns",
   "icons/icon.ico"
 ]
-external_bin = [ "bin/packaged-node" ]
+resources = [ "resources" ]
 
 [dependencies]
 serde_json = "1.0.44"

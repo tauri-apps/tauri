@@ -16,11 +16,12 @@ fn main() {
     .setup(|_webview| {
       let handle1 = _webview.handle();
       std::thread::spawn(move || {
-        let stdout = tauri::api::command::spawn_relative_command(
-          tauri::api::command::binary_command("packaged-node".to_string()).expect("failed to get binary command"),
-          Vec::new(),
-          std::process::Stdio::piped(),
-        )
+        let resource_dir = tauri::api::platform::resource_dir().expect("failed to get resource dir");
+        let node_package_path = resource_dir.join("resources/packaged-node.js");
+        let stdout = std::process::Command::new("node")
+          .args(vec!(node_package_path))
+          .stdout(std::process::Stdio::piped())
+          .spawn()
           .expect("Failed to spawn packaged node")
           .stdout.expect("Failed to get packaged node stdout");
         let reader = std::io::BufReader::new(stdout);

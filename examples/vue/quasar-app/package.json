@@ -21,11 +21,11 @@
     "tauri:prod:build": "yarn tauri:prod build"
   },
   "dependencies": {
-    "@quasar/extras": "1.4.1",
-    "quasar": "1.7.3"
+    "@quasar/extras": "1.5.0",
+    "quasar": "1.8.0"
   },
   "devDependencies": {
-    "@quasar/app": "1.5.1",
+    "@quasar/app": "1.5.2",
     "@tauri-apps/tauri-webpack": "0.2.0",
     "@vue/eslint-config-standard": "5.1.0",
     "babel-eslint": "10.0.3",

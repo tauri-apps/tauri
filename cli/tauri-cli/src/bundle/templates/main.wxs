@@ -48,6 +48,7 @@
                         <File Id="PathFile_{{ external_bin.id }}" Source="{{external_bin.path}}" />
                     </Component>
                     {{/each~}}
+                    {{{resources}}}
                 </Directory>
             </Directory>
         </Directory>
@@ -84,6 +85,10 @@
                 AllowAdvertise="no"
                 Display="expand"
                 Absent="disallow">
+
+            {{#each resource_file_ids as |resource_file_id| ~}}
+            <ComponentRef Id="{{ resource_file_id }}"/>
+            {{/each~}}
 
             <Feature Id="ShortcutsFeature"
 			 Title="Shortcuts"

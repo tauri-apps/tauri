@@ -22,6 +22,9 @@
     },
     "edge": {
       "active": true
+    },
+    "inliner": {
+      "active": false
     }
   }
 }

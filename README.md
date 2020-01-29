@@ -2,7 +2,7 @@
  <img align="right" src="app-icon.png" height="120" width="120">
 
 ## A fresh take on creating cross-platform apps.
-[![status](https://img.shields.io/badge/Status-Early%20Alpha-yellow.svg)](https://github.com/tauri-apps/tauri/tree/dev)
+[![status](https://img.shields.io/badge/Status-Alpha-yellow.svg)](https://github.com/tauri-apps/tauri/tree/dev)
 [![Chat Server](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/SpmNs4S)
 [![devto](https://img.shields.io/badge/blog-dev.to-black.svg)](https://dev.to/tauri)
 

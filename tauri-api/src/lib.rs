@@ -15,6 +15,8 @@ pub mod file;
 pub mod rpc;
 pub mod version;
 
+pub use tauri_utils::*;
+
 use error_chain::error_chain;
 
 error_chain! {

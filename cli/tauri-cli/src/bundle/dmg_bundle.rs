@@ -6,10 +6,10 @@ use handlebars::Handlebars;
 use lazy_static::lazy_static;
 
 use std::collections::BTreeMap;
-use std::fs::{File, write};
+use std::fs::{write, File};
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use std::io::Write;
 
 // Create handlebars template for shell scripts
 lazy_static! {
@@ -55,7 +55,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let seticon = include_bytes!("templates/seticon");
   let seticon_out = &output_path.join("seticon");
   let mut seticon_buffer = File::create(seticon_out).or_else(|e| Err(e.to_string()))?;
-  seticon_buffer.write_all(seticon).or_else(|e| Err(e.to_string()))?;
+  seticon_buffer
+    .write_all(seticon)
+    .or_else(|e| Err(e.to_string()))?;
 
   // chmod script for execution
 

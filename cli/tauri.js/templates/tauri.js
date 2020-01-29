@@ -47,7 +47,7 @@ function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterat
  * @private
  */
 var __whitelistWarning = function (func) {
-  console.warn('%c[Tauri] Danger \ntauri.' + func + ' not whitelisted 💣\n%c\nAdd to tauri.conf.json: \n\ntauri: \n  whitelist: { \n    ' + func + ': true \n\nReference: https://tauri-apps.org/docs/api#' + func , 'background: red; color: white; font-weight: 800; padding: 2px; font-size:1.5em', ' ')
+  console.warn('%c[Tauri] Danger \ntauri.' + func + ' not whitelisted 💣\n%c\nAdd to tauri.conf.json: \n\ntauri: \n  whitelist: { \n    ' + func + ': true \n\nReference: https://github.com/tauri-apps/tauri/wiki' + func , 'background: red; color: white; font-weight: 800; padding: 2px; font-size:1.5em', ' ')
   return __reject()
 }
 <% } %>
@@ -435,7 +435,9 @@ window.addEventListener('DOMContentLoaded', function () {
     var target = e.target
     while (target != null) {
       if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
-        window.tauri.open(target.href)
+        if (target.href && target.href.startsWith('http')) {
+          window.tauri.open(target.href)
+        }
         break
       }
       target = target.parentElement

@@ -42,7 +42,7 @@ const UUID_NAMESPACE: [u8; 16] = [
 
 // setup for the main.wxs template file using handlebars. Dynamically changes the template on compilation based on the application metadata.
 lazy_static! {
-  static ref HANDLEBARS: Handlebars = {
+  static ref HANDLEBARS: Handlebars<'static> = {
     let mut handlebars = Handlebars::new();
 
     handlebars

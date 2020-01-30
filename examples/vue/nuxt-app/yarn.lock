@@ -1015,7 +1015,7 @@
     uglify-js "^2.8.0"
     update-notifier "^0.5.0"
 
-"@tauri-apps/tauri-webpack@^0.2.0":
+"@tauri-apps/tauri-webpack@0.2.0":
   version "0.2.0"
   resolved "https://registry.yarnpkg.com/@tauri-apps/tauri-webpack/-/tauri-webpack-0.2.0.tgz#44127fb0eb087c7ebf5dbbcb6ac4d76fada78638"
   integrity sha512-B3G9lNvq9pnxW6WQTDsgAOhY0Swy+4DyAs3/pzXIxY1Z4xxJh5EVD/jc/XvPNKc7ODQzy/fmss9WfgOWbVnhMg==
@@ -5993,7 +5993,7 @@ number-is-nan@^1.0.0:
   resolved "https://registry.yarnpkg.com/number-is-nan/-/number-is-nan-1.0.1.tgz#097b602b53422a522c1afb8790318336941a011d"
   integrity sha1-CXtgK1NCKlIsGvuHkDGDNpQaAR0=
 
-nuxt@^2.0.0:
+nuxt@2.11.0:
   version "2.11.0"
   resolved "https://registry.yarnpkg.com/nuxt/-/nuxt-2.11.0.tgz#654664fe1a95af2014fd55c38ba2c732bfa5edc5"
   integrity sha512-Y7lastjYWIOppja0FaWozPfkvlmJ8uZSqWx0VbK7l5djbHls5jgUGag0iu6GsNNwCFTKpoAtptNHiWOsyMxStA==

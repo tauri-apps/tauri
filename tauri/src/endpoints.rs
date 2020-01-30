@@ -224,7 +224,7 @@ fn load_asset<T: 'static>(
               path = PathBuf::from(path.to_string_lossy().replacen(format!("{}/", first_component).as_str(), "", 1));
             }
             None => {
-              return Err(format!("Asset '{}' not found", asset));
+              return Err(format!("Asset '{}' not found", asset).into());
             }
           }
         } else {

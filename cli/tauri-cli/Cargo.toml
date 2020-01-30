@@ -40,7 +40,7 @@ attohttpc = { version = "0.11.1" }
 regex = { version = "1" }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
-handlebars = { version = "2.0" }
+handlebars = { version = "3.0" }
 lazy_static = { version = "1.4" }
 zip = { version = "0.5" }
 sha2 = { version = "0.8" }

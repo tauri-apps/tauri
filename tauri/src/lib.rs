@@ -48,13 +48,13 @@ error_chain! {
     Io(::std::io::Error);
   }
   errors{
-    Task(t: String) {
-        description("Task Error")
-        display("Task Error: '{}'", t)
-    }
     Promise(t: String) {
         description("Promise Error")
         display("Promise Error: '{}'", t)
+    }
+    Command(t: String) {
+      description("Command Error")
+      display("Command Error: '{}'", t)
     }
   }
 }

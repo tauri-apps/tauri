@@ -208,7 +208,7 @@ fn load_asset<T: 'static>(
         asset
       ));
       if read_asset.is_err() {
-        return Err(format!("Asset '{}' not found", asset));
+        return Err(format!("Asset '{}' not found", asset).into());
       }
 
       if asset_type == "image" {
@@ -236,7 +236,7 @@ fn load_asset<T: 'static>(
               _webview.eval(asset_str)
             }
           })
-          .map_err(|err| format!("`{}`", err))
+          .map_err(|err| crate::ErrorKind::Promise(format!("`{}`", err)).into())
           .map(|_| r#""Asset loaded successfully""#.to_string())
       }
     },

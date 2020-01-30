@@ -16,7 +16,7 @@ pub fn list<T: 'static>(
     webview,
     move || {
       dir::walk_dir(path.to_string())
-        .map_err(|e| crate::ErrorKind::Promise(e.to_string()).into())
+        .map_err(|e| crate::ErrorKind::Command(e.to_string()).into())
         .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
     },
     callback,
@@ -34,7 +34,7 @@ pub fn list_dirs<T: 'static>(
     webview,
     move || {
       dir::list_dir_contents(&path)
-        .map_err(|e| crate::ErrorKind::Promise(e.to_string()).into())
+        .map_err(|e| crate::ErrorKind::Command(e.to_string()).into())
         .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
     },
     callback,
@@ -53,7 +53,7 @@ pub fn write_file<T: 'static>(
     webview,
     move || {
       File::create(file)
-        .map_err(|e| crate::ErrorKind::Promise(e.to_string()).into())
+        .map_err(|e| crate::ErrorKind::Command(e.to_string()).into())
         .and_then(|mut f| {
           f.write_all(contents.as_bytes())
             .map_err(|err| err.into())
@@ -75,7 +75,7 @@ pub fn read_text_file<T: 'static>(
     webview,
     move || {
       file::read_string(path)
-        .map_err(|e| crate::ErrorKind::Promise(e.to_string()).into())
+        .map_err(|e| crate::ErrorKind::Command(e.to_string()).into())
         .and_then(|f| {
           serde_json::to_string(&f)
             .map_err(|err| err.into())
@@ -97,7 +97,7 @@ pub fn read_binary_file<T: 'static>(
     webview,
     move || {
       file::read_binary(path)
-        .map_err(|e| crate::ErrorKind::Promise(e.to_string()).into())
+        .map_err(|e| crate::ErrorKind::Command(e.to_string()).into())
         .and_then(|f| {
           serde_json::to_string(&f)
             .map_err(|err| err.into())

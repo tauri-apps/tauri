@@ -161,7 +161,8 @@ fn spawn_server(server_url: String) -> crate::Result<()> {
 #[cfg(feature = "updater")]
 fn spawn_updater() -> crate::Result<()> {
   spawn(|| {
-    tauri_api::command::spawn_relative_command("updater".to_string(), Vec::new(), Stdio::inherit());
+    tauri_api::command::spawn_relative_command("updater".to_string(), Vec::new(), Stdio::inherit())
+      .expect("Unable to spawn relative command");
   });
   Ok(())
 }

@@ -23,6 +23,7 @@ lazy_static = "1.4.0"
 tiny_http = "0.6"
 threadpool = "1.7"
 uuid = { version = "0.8.1", features = ["v4"] }
+error-chain = "0.12.1"
 
 tauri-api = { version = "0.3",  path = "../tauri-api" }
 
@@ -47,3 +48,4 @@ setTitle = []
 execute = []
 open = []
 event = []
+updater = []

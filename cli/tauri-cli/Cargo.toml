@@ -36,7 +36,7 @@ walkdir = "2"
 tauri-utils = {version = "0.3", path = "../../tauri-utils"}
 
 [target.'cfg(target_os = "windows")'.dependencies]
-attohttpc = { version = "0.10.1" }
+attohttpc = { version = "0.11.1" }
 regex = { version = "1" }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]

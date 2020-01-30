@@ -7,7 +7,6 @@ use super::App;
 use crate::config::{get, Config};
 #[cfg(feature = "embedded-server")]
 use crate::tcp::{get_available_port, port_is_available};
-use crate::TauriResult;
 
 // JavaScript string literal
 const JS_STRING: &'static str = r#"
@@ -31,7 +30,7 @@ Object.defineProperty(window, 'onTauriInit', {
 "#;
 
 // Main entry point function for running the Webview
-pub(crate) fn run(application: &mut App) -> TauriResult<()> {
+pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   // get the tauri config struct
   let config = get()?;
 
@@ -74,7 +73,7 @@ pub(crate) fn run(application: &mut App) -> TauriResult<()> {
 
 // setup content for dev-server
 #[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
-fn setup_content(config: Config) -> TauriResult<Content<String>> {
+fn setup_content(config: Config) -> crate::Result<Content<String>> {
   if config.build.dev_path.starts_with("http") {
     Ok(Content::Url(config.build.dev_path))
   } else {
@@ -85,7 +84,7 @@ fn setup_content(config: Config) -> TauriResult<Content<String>> {
 
 // setup content for embedded server
 #[cfg(feature = "embedded-server")]
-fn setup_content(config: Config) -> TauriResult<Content<String>> {
+fn setup_content(config: Config) -> crate::Result<Content<String>> {
   let (port, valid) = setup_port(config.clone()).expect("Unable to setup Port");
   let url = setup_server_url(config.clone(), valid, port).expect("Unable to setup URL");
 
@@ -94,7 +93,7 @@ fn setup_content(config: Config) -> TauriResult<Content<String>> {
 
 // setup content for no-server
 #[cfg(feature = "no-server")]
-fn setup_content(_: Config) -> TauriResult<Content<String>> {
+fn setup_content(_: Config) -> crate::Result<Content<String>> {
   let index_path = Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
   Ok(Content::Html(read_to_string(index_path)?))
 }
@@ -134,7 +133,7 @@ fn setup_server_url(config: Config, valid: bool, port: String) -> Option<String>
 
 // spawn the embedded server
 #[cfg(feature = "embedded-server")]
-fn spawn_server(server_url: String) -> TauriResult<()> {
+fn spawn_server(server_url: String) -> crate::Result<()> {
   spawn(move || {
     let server = tiny_http::Server::http(
       server_url
@@ -160,13 +159,10 @@ fn spawn_server(server_url: String) -> TauriResult<()> {
 
 // spawn an updater process.
 #[cfg(feature = "updater")]
-fn spawn_updater() -> TauriResult<()> {
+fn spawn_updater() -> crate::Result<()> {
   spawn(|| {
-    tauri_api::command::spawn_relative_command(
-      "updater".to_string(),
-      Vec::new(),
-      Stdio::inherit(),
-    )?;
+    tauri_api::command::spawn_relative_command("updater".to_string(), Vec::new(), Stdio::inherit())
+      .expect("Unable to spawn relative command");
   });
   Ok(())
 }
@@ -176,7 +172,7 @@ fn build_webview(
   application: &mut App,
   config: Config,
   content: Content<String>,
-) -> TauriResult<WebView<'_, ()>> {
+) -> crate::Result<WebView<'_, ()>> {
   let debug = cfg!(debug_assertions);
   // get properties from config struct
   let width = config.tauri.window.width;

@@ -2,10 +2,8 @@ mod cmd;
 
 use web_view::WebView;
 
-use crate::TauriResult;
-
 #[allow(unused_variables)]
-pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> TauriResult<bool> {
+pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> crate::Result<bool> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
     Err(_) => Ok(false),
@@ -113,7 +111,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> Tau
   }
 }
 
-fn init() -> TauriResult<String> {
+fn init() -> crate::Result<String> {
   #[cfg(not(any(feature = "all-api", feature = "event")))]
   return Ok(String::from(""));
   #[cfg(any(feature = "all-api", feature = "event"))]
@@ -151,7 +149,7 @@ fn init() -> TauriResult<String> {
 }
 
 #[cfg(any(feature = "all-api", feature = "open"))]
-fn open_fn(uri: String) -> TauriResult<()> {
+fn open_fn(uri: String) -> crate::Result<()> {
   crate::spawn(move || {
     #[cfg(test)]
     assert!(uri.contains("http://"));
@@ -164,7 +162,7 @@ fn open_fn(uri: String) -> TauriResult<()> {
 }
 
 #[cfg(any(feature = "all-api", feature = "event"))]
-fn listen_fn(event: String, handler: String, once: bool) -> TauriResult<String> {
+fn listen_fn(event: String, handler: String, once: bool) -> crate::Result<String> {
   Ok(format!(
     "if (window['{listeners}'] === void 0) {{
       window['{listeners}'] = {{}}
@@ -198,7 +196,7 @@ fn load_asset<T: 'static>(
   asset_type: String,
   callback: String,
   error: String,
-) -> TauriResult<()> {
+) -> crate::Result<()> {
   let handle = webview.handle();
   crate::execute_promise(
     webview,
@@ -210,7 +208,7 @@ fn load_asset<T: 'static>(
         asset
       ));
       if read_asset.is_err() {
-        return Err(format!("Asset '{}' not found", asset));
+        return Err(format!("Asset '{}' not found", asset).into());
       }
 
       if asset_type == "image" {
@@ -230,15 +228,15 @@ fn load_asset<T: 'static>(
         handle
           .dispatch(move |_webview| {
             let asset_bytes = &read_asset.expect("Failed to read asset type").into_owned();
-            let asset_str = &std::str::from_utf8(asset_bytes)
-                .expect("failed to convert asset bytes to u8 slice");
+            let asset_str =
+              &std::str::from_utf8(asset_bytes).expect("failed to convert asset bytes to u8 slice");
             if asset_type == "stylesheet" {
               _webview.inject_css(asset_str)
             } else {
               _webview.eval(asset_str)
             }
           })
-          .map_err(|err| format!("`{}`", err))
+          .map_err(|err| crate::ErrorKind::Promise(format!("`{}`", err)).into())
           .map(|_| r#""Asset loaded successfully""#.to_string())
       }
     },

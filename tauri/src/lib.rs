@@ -33,13 +33,31 @@ use std::process::Stdio;
 
 use threadpool::ThreadPool;
 
+use error_chain::error_chain;
+
 pub use app::*;
 use web_view::WebView;
 
 pub use tauri_api as api;
 
-// Result alias
-type TauriResult<T> = Result<T, Box<dyn std::error::Error>>;
+error_chain! {
+  foreign_links{
+    Api(::tauri_api::Error);
+    Json(::serde_json::Error);
+    Webview(::web_view::Error);
+    Io(::std::io::Error);
+  }
+  errors{
+    Promise(t: String) {
+        description("Promise Error")
+        display("Promise Error: '{}'", t)
+    }
+    Command(t: String) {
+      description("Command Error")
+      display("Command Error: '{}'", t)
+    }
+  }
+}
 
 thread_local!(static POOL: ThreadPool = ThreadPool::new(4));
 
@@ -51,7 +69,7 @@ pub fn spawn<F: FnOnce() -> () + Send + 'static>(task: F) {
   });
 }
 
-pub fn execute_promise<T: 'static, F: FnOnce() -> Result<String, String> + Send + 'static>(
+pub fn execute_promise<T: 'static, F: FnOnce() -> crate::Result<String> + Send + 'static>(
   webview: &mut WebView<'_, T>,
   task: F,
   callback: String,
@@ -60,7 +78,8 @@ pub fn execute_promise<T: 'static, F: FnOnce() -> Result<String, String> + Send 
   let handle = webview.handle();
   POOL.with(|thread| {
     thread.execute(move || {
-      let callback_string = api::rpc::format_callback_result(task(), callback, error);
+      let callback_string =
+        api::rpc::format_callback_result(task().map_err(|err| err.to_string()), callback, error);
       handle
         .dispatch(move |_webview| _webview.eval(callback_string.as_str()))
         .expect("Failed to dispatch promise callback")
@@ -79,7 +98,7 @@ pub fn call<T: 'static>(
     webview,
     || {
       api::command::get_output(command, args, Stdio::piped())
-        .map_err(|err| format!("`{}`", err))
+        .map_err(|err| crate::ErrorKind::Promise(err.to_string()).into())
         .map(|output| format!("`{}`", output))
     },
     callback,

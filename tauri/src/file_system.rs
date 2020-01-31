@@ -160,7 +160,7 @@ mod test {
     );
 
     // sleep the main thread to wait for the promise to execute.
-    std::thread::sleep(std::time::Duration::from_millis(500));
+    std::thread::sleep(std::time::Duration::from_millis(200));
 
     // read from the file.
     let data = read_to_string(path)?;

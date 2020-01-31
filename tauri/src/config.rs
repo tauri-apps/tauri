@@ -1,6 +1,6 @@
 use std::env;
 
-#[derive(Deserialize, Clone)]
+#[derive(PartialEq, Deserialize, Clone, Debug)]
 #[serde(tag = "window", rename_all = "camelCase")]
 pub struct WindowConfig {
   #[serde(default = "default_width")]
@@ -38,7 +38,7 @@ fn default_window() -> WindowConfig {
   };
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(PartialEq, Deserialize, Clone, Debug)]
 #[serde(tag = "embeddedServer", rename_all = "camelCase")]
 pub struct EmbeddedServerConfig {
   #[serde(default = "default_host")]
@@ -62,7 +62,7 @@ fn default_embedded_server() -> EmbeddedServerConfig {
   }
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(PartialEq, Deserialize, Clone, Debug)]
 #[serde(tag = "tauri", rename_all = "camelCase")]
 pub struct TauriConfig {
   #[serde(default = "default_window")]
@@ -71,7 +71,7 @@ pub struct TauriConfig {
   pub embedded_server: EmbeddedServerConfig,
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(PartialEq, Deserialize, Clone, Debug)]
 #[serde(tag = "build", rename_all = "camelCase")]
 pub struct BuildConfig {
   #[serde(default = "default_dev_path")]
@@ -82,7 +82,7 @@ fn default_dev_path() -> String {
   "".to_string()
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(PartialEq, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
   #[serde(default = "default_tauri")]
@@ -111,5 +111,76 @@ pub fn get() -> crate::Result<Config> {
       serde_json::from_str(include_str!(concat!(env!("TAURI_DIR"), "/tauri.conf.json")))
         .expect("failed to read tauri.conf.json"),
     ),
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+
+  fn create_test_config() -> Config {
+    Config {
+      tauri: TauriConfig {
+        window: WindowConfig {
+          width: 800,
+          height: 600,
+          resizable: true,
+          title: String::from("Tauri App"),
+        },
+        embedded_server: EmbeddedServerConfig {
+          host: String::from("http://127.0.0.1"),
+          port: String::from("random"),
+        },
+      },
+      build: BuildConfig {
+        dev_path: String::from("http://localhost:4000"),
+      },
+    }
+  }
+
+  #[test]
+  fn test_get() {
+    let test_config = create_test_config();
+
+    let config = get();
+
+    match config {
+      Ok(c) => assert_eq!(c, test_config),
+      Err(_) => assert!(false),
+    }
+  }
+
+  #[test]
+  fn test_defaults() {
+    let t_config = default_tauri();
+    let b_config = default_build();
+    let d_path = default_dev_path();
+    let de_server = default_embedded_server();
+    let d_window = default_window();
+    let d_title = default_title();
+
+    let tauri = TauriConfig {
+      window: WindowConfig {
+        width: 800,
+        height: 600,
+        resizable: true,
+        title: String::from("Tauri App"),
+      },
+      embedded_server: EmbeddedServerConfig {
+        host: String::from("http://127.0.0.1"),
+        port: String::from("random"),
+      },
+    };
+
+    let build = BuildConfig {
+      dev_path: String::from(""),
+    };
+
+    assert_eq!(t_config, tauri);
+    assert_eq!(b_config, build);
+    assert_eq!(de_server, tauri.embedded_server);
+    assert_eq!(d_path, String::from(""));
+    assert_eq!(d_title, tauri.window.title);
+    assert_eq!(d_window, tauri.window);
   }
 }

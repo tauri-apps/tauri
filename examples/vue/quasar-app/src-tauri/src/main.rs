@@ -24,6 +24,7 @@ fn main() {
           .spawn()
           .expect("Failed to spawn packaged node")
           .stdout.expect("Failed to get packaged node stdout");
+
         let reader = std::io::BufReader::new(stdout);
 
         reader

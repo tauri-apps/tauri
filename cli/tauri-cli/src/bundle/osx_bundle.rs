@@ -29,6 +29,7 @@ use std::fs::{self, File};
 use std::io::prelude::*;
 use std::io::{self, BufWriter};
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let app_bundle_name = format!("{}.app", settings.bundle_name());
@@ -70,6 +71,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   copy_binary_to_bundle(&bundle_directory, settings)
     .chain_err(|| format!("Failed to copy binary from {:?}", settings.binary_path()))?;
 
+  create_path_hook(&bundle_directory, settings)
+    .chain_err(|| "Failed to create _boot wrapper")?;
+
+
+
   Ok(vec![app_bundle_path])
 }
 
@@ -79,6 +85,42 @@ fn copy_binary_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate:
     settings.binary_path(),
     &dest_dir.join(settings.binary_name()),
   )
+}
+
+fn create_path_hook(
+  bundle_dir: &Path,
+  settings: &Settings,
+) -> crate::Result<()> {
+  let file = &mut common::create_file(&bundle_dir.join("MacOS/__bootstrapper"))?;
+  // Create a shell script to bootstrap the  $PATH for Tauri, so environments like node are available.
+  write!(
+    file,
+    "#!/usr/bin/env sh
+# This bootstraps the $PATH for Tauri, so environments are available.
+
+. ~/.bash_profile
+
+if pidof -x \"__bootstrapper\" >/dev/null; then
+    exit 0
+else
+    exec \"`dirname \\\"$0\\\"`/{}\" $@ & disown
+fi
+exit 0",
+    settings.bundle_name()
+  )?;
+  file.flush()?;
+
+  // We have to make the __bootstrapper executable, or the bundle will not work
+  Command::new("chmod")
+    .arg("+x")
+    .arg("__bootstrapper")
+    .current_dir(&bundle_dir.join("MacOS/"))
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .spawn()
+    .expect("Failed to chmod script");
+
+  Ok(())
 }
 
 fn create_info_plist(
@@ -108,8 +150,9 @@ fn create_info_plist(
   )?;
   write!(
     file,
-    "  <key>CFBundleExecutable</key>\n  <string>{}</string>\n",
-    settings.binary_name()
+    // Here we should only use this technique if they have specified
+    // that they want to use the resources
+    "  <key>CFBundleExecutable</key>\n  <string>__bootstrapper</string>\n"
   )?;
   if let Some(path) = bundle_icon_file {
     write!(

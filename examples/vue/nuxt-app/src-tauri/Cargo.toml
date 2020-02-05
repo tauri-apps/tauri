@@ -22,9 +22,9 @@ icon = [
 ]
 
 [dependencies]
-serde_json = "1.0.46"
-serde = "1.0.104"
-serde_derive = "1.0.104"
+serde_json = "1.0"
+serde = "1.0"
+serde_derive = "1.0"
 tauri = { path = "../../../../tauri", features = [ "all-api", "edge" ] }
 
 [target."cfg(windows)".build-dependencies]

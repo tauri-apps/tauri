@@ -135,7 +135,7 @@ mod test {
   }
 
   #[test]
-  #[cfg(not(target_os = "linux"))]
+  #[cfg(not(any(target_os = "linux", target_os = "macos")))]
   // test the file_write functionality
   fn test_write_to_file() -> crate::Result<()> {
     // import read_to_string and write to be able to manipulate the file.

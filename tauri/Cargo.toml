@@ -10,7 +10,7 @@ edition = "2018"
 exclude = ["test/fixture/**"]
 
 [dependencies]
-serde_json = "1.0.45"
+serde_json = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
 rand = "0.7"

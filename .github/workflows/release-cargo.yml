@@ -43,6 +43,8 @@ jobs:
       - name: get version
         working-directory: ${{ matrix.package.path }}
         run: echo ::set-env name=PACKAGE_VERSION::$(sed -nE 's/^\s*version = "(.*?)"/\1/p' Cargo.toml)
+      - name: check published version
+        run: echo ::set-env name=PUBLISHED_VERSION::$(cargo search ${{ matrix.package.registryName }} --limit 1 | sed -nE 's/^[^"]*"//; s/".*//1p' -)
       - name: cargo package
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         working-directory: ${{ matrix.package.path }}

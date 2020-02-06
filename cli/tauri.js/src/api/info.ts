@@ -14,6 +14,7 @@ interface DirInfo {
   children?: DirInfo[]
 }
 
+/* eslint-disable security/detect-non-literal-fs-filename */
 function dirTree(filename: string): DirInfo {
   const stats = fs.lstatSync(filename)
   const info: DirInfo = {
@@ -180,3 +181,5 @@ module.exports = () => {
   }
   printAppInfo(tauriDir)
 }
+
+/* eslint-enable security/detect-non-literal-fs-filename */

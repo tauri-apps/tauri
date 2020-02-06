@@ -5,9 +5,7 @@
 
 mod cmd;
 
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
+use serde::Serialize;
 
 use std::io::BufRead;
 
@@ -16,14 +14,16 @@ fn main() {
     .setup(|_webview| {
       let handle1 = _webview.handle();
       std::thread::spawn(move || {
-        let resource_dir = tauri::api::platform::resource_dir().expect("failed to get resource dir");
+        let resource_dir =
+          tauri::api::platform::resource_dir().expect("failed to get resource dir");
         let node_package_path = resource_dir.join("resources/packaged-node.js");
         let stdout = std::process::Command::new("node")
-          .args(vec!(node_package_path))
+          .args(vec![node_package_path])
           .stdout(std::process::Stdio::piped())
           .spawn()
           .expect("Failed to spawn packaged node")
-          .stdout.expect("Failed to get packaged node stdout");
+          .stdout
+          .expect("Failed to get packaged node stdout");
 
         let reader = std::io::BufReader::new(stdout);
 

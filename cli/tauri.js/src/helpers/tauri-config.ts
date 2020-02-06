@@ -7,7 +7,7 @@ import * as appPaths from './app-paths'
 
 const error = logger('ERROR:', 'red')
 
-module.exports = (cfg: Partial<TauriConfig>): TauriConfig => {
+const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
   const pkgPath = appPaths.resolve.app('package.json')
   const tauriConfPath = appPaths.resolve.tauri('tauri.conf.json')
   if (!existsSync(pkgPath)) {
@@ -69,3 +69,5 @@ module.exports = (cfg: Partial<TauriConfig>): TauriConfig => {
 
   return config
 }
+
+export default getTauriConfig

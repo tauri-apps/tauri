@@ -28,7 +28,7 @@ export const spawn = (
       log(`Command "${cmd}" failed with exit code: ${code}`)
     }
 
-    onClose && onClose(code)
+    onClose?.(code)
   })
 
   return runner.pid
@@ -51,13 +51,14 @@ export const spawnSync = (
     cwd
   })
 
+  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
   if (runner.status || runner.error) {
     warn()
     warn(`⚠️  Command "${cmd}" failed with exit code: ${runner.status}`)
     if (runner.status === null) {
       warn(`⚠️  Please globally install "${cmd}"`)
     }
-    onFail && onFail()
+    onFail?.()
     process.exit(1)
   }
 }

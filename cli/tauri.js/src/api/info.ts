@@ -173,7 +173,7 @@ module.exports = () => {
   printInfo({ key: 'App directory structure', section: true })
 
   const tree = dirTree(appDir)
-  for (const artifact of tree.children || []) {
+  for (const artifact of tree.children ?? []) {
     if (artifact.type === 'folder') {
       console.log(`/${artifact.name}`)
     }

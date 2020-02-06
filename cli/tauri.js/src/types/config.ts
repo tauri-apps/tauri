@@ -38,7 +38,7 @@ export interface TauriConfig {
     }
     edge: {
       active: boolean
-    },
+    }
     inliner: {
       active: boolean
     }

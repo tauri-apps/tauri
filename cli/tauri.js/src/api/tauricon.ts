@@ -226,7 +226,7 @@ const tauricon = (exports.tauricon = {
       try {
         const pngImage = sharpSrc.resize(pvar[1], pvar[1])
         if (pvar[2]) {
-          const rgb = hexToRgb(options.background_color) || {
+          const rgb = hexToRgb(options.background_color) ?? {
             r: undefined,
             g: undefined,
             b: undefined
@@ -291,7 +291,7 @@ const tauricon = (exports.tauricon = {
   ) {
     let output
     let block = false
-    const rgb = hexToRgb(options.background_color) || {
+    const rgb = hexToRgb(options.background_color) ?? {
       r: undefined,
       g: undefined,
       b: undefined

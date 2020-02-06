@@ -23,23 +23,23 @@
   resolved "https://registry.yarnpkg.com/@polka/url/-/url-0.5.0.tgz#b21510597fd601e5d7c95008b76bf0d254ebfd31"
   integrity sha512-oZLYFEAzUKyi3SKnXvj32ZCEGH6RDnao7COuCVhDydMS9NrCSVXhM79VaKyP5+Zc33m0QXEd2DN3UkU7OsHcfw==
 
-"@rollup/plugin-node-resolve@7.0.0":
-  version "7.0.0"
-  resolved "https://registry.yarnpkg.com/@rollup/plugin-node-resolve/-/plugin-node-resolve-7.0.0.tgz#cce3826df801538b001972fbf9b6b1c22b69fdf8"
-  integrity sha512-+vOx2+WMBMFotYKM3yYeDGZxIvcQ7yO4g+SuKDFsjKaq8Lw3EPgfB6qNlp8Z/3ceDCEhHvC9/b+PgBGwDQGbzQ==
+"@rollup/plugin-node-resolve@7.1.1":
+  version "7.1.1"
+  resolved "https://registry.yarnpkg.com/@rollup/plugin-node-resolve/-/plugin-node-resolve-7.1.1.tgz#8c6e59c4b28baf9d223028d0e450e06a485bb2b7"
+  integrity sha512-14ddhD7TnemeHE97a4rLOhobfYvUVcaYuqTnL8Ti7Jxi9V9Jr5LY7Gko4HZ5k4h4vqQM0gBQt6tsp9xXW94WPA==
   dependencies:
-    "@rollup/pluginutils" "^3.0.0"
+    "@rollup/pluginutils" "^3.0.6"
     "@types/resolve" "0.0.8"
     builtin-modules "^3.1.0"
     is-module "^1.0.0"
-    resolve "^1.11.1"
+    resolve "^1.14.2"
 
-"@rollup/pluginutils@^3.0.0":
-  version "3.0.1"
-  resolved "https://registry.yarnpkg.com/@rollup/pluginutils/-/pluginutils-3.0.1.tgz#6923a24c4a0db2917e5c77b1ed7d6721ac7fe58e"
-  integrity sha512-PmNurkecagFimv7ZdKCVOfQuqKDPkrcpLFxRBcQ00LYr4HAjJwhCFxBiY2Xoletll2htTIiXBg6g0Yg21h2M3w==
+"@rollup/pluginutils@^3.0.6":
+  version "3.0.8"
+  resolved "https://registry.yarnpkg.com/@rollup/pluginutils/-/pluginutils-3.0.8.tgz#4e94d128d94b90699e517ef045422960d18c8fde"
+  integrity sha512-rYGeAc4sxcZ+kPG/Tw4/fwJODC3IXHYDH4qusdN/b6aLw5LPUbzpecYbEJh4sVQGPFJxd2dBU4kc1H3oy9/bnw==
   dependencies:
-    estree-walker "^0.6.1"
+    estree-walker "^1.0.1"
 
 "@types/estree@*":
   version "0.0.41"
@@ -315,6 +315,11 @@ estree-walker@^0.6.1:
   version "0.6.1"
   resolved "https://registry.yarnpkg.com/estree-walker/-/estree-walker-0.6.1.tgz#53049143f40c6eb918b23671d1fe3219f3a1b362"
   integrity sha512-SqmZANLWS0mnatqbSfRP5g8OXZC12Fgg1IwNtLsyHDzJizORW4khDfjPqJZsemPWBB2uqykUah5YpQ6epsqC/w==
+
+estree-walker@^1.0.1:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/estree-walker/-/estree-walker-1.0.1.tgz#31bc5d612c96b704106b477e6dd5d8aa138cb700"
+  integrity sha512-1fMXF3YP4pZZVozF8j/ZLfvnR8NSIljt56UhbZ5PeeDmmGHpgpdwQt7ITlGvYaQukCvuBRMLEiKiYC+oeIg4cg==
 
 esutils@^2.0.2:
   version "2.0.3"
@@ -868,10 +873,17 @@ resolve-url@^0.2.1:
   resolved "https://registry.yarnpkg.com/resolve-url/-/resolve-url-0.2.1.tgz#2c637fe77c893afd2a663fe21aa9080068e2052a"
   integrity sha1-LGN/53yJOv0qZj/iGqkIAGjiBSo=
 
-resolve@^1.11.0, resolve@^1.11.1:
+resolve@^1.11.0:
   version "1.14.1"
   resolved "https://registry.yarnpkg.com/resolve/-/resolve-1.14.1.tgz#9e018c540fcf0c427d678b9931cbf45e984bcaff"
   integrity sha512-fn5Wobh4cxbLzuHaE+nphztHy43/b++4M6SsGFC2gB8uYwf0C8LcarfCz1un7UTW8OFQg9iNjZ4xpcFVGebDPg==
+  dependencies:
+    path-parse "^1.0.6"
+
+resolve@^1.14.2:
+  version "1.15.1"
+  resolved "https://registry.yarnpkg.com/resolve/-/resolve-1.15.1.tgz#27bdcdeffeaf2d6244b95bb0f9f4b4653451f3e8"
+  integrity sha512-84oo6ZTtoTUpjgNEr5SJyzQhzL72gaRodsSfyxC/AXRvwu0Yse9H8eF9IpGo7b8YetZhlI6v7ZQ6bKBFV/6S7w==
   dependencies:
     path-parse "^1.0.6"
 
@@ -925,10 +937,10 @@ rollup-pluginutils@^2.3.3, rollup-pluginutils@^2.8.1, rollup-pluginutils@^2.8.2:
   dependencies:
     estree-walker "^0.6.1"
 
-rollup@1.30.1:
-  version "1.30.1"
-  resolved "https://registry.yarnpkg.com/rollup/-/rollup-1.30.1.tgz#3fd28d6198beb2f3cd1640732047d5ec16c2d3a0"
-  integrity sha512-Uus8mwQXwaO+ZVoNwBcXKhT0AvycFCBW/W8VZtkpVGsotRllWk9oldfCjqWmTnFRI0y7x6BnEqSqc65N+/YdBw==
+rollup@1.31.0:
+  version "1.31.0"
+  resolved "https://registry.yarnpkg.com/rollup/-/rollup-1.31.0.tgz#e2a87212e96aa7850f3eb53fdd02cf89f2d2fe9a"
+  integrity sha512-9C6ovSyNeEwvuRuUUmsTpJcXac1AwSL1a3x+O5lpmQKZqi5mmrjauLeqIjvREC+yNRR8fPdzByojDng+af3nVw==
   dependencies:
     "@types/estree" "*"
     "@types/node" "*"

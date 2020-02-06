@@ -58,6 +58,7 @@ jobs:
           cd ${{ matrix.publishPath }}
           ls
       - name: cargo audit
+        if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         working-directory: ${{ matrix.package.path }}
         run: |
           cargo install cargo-audit

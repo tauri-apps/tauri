@@ -3,13 +3,6 @@
   windows_subsystem = "windows"
 )]
 
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-
-#[macro_use]
-extern crate lazy_static;
-
 pub mod config;
 mod endpoints;
 pub mod event;
@@ -35,9 +28,9 @@ use threadpool::ThreadPool;
 
 use error_chain::error_chain;
 
-pub use app::*;
 use web_view::WebView;
 
+pub use app::*;
 pub use tauri_api as api;
 
 error_chain! {

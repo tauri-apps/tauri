@@ -1,3 +1,4 @@
+use lazy_static::lazy_static;
 use std::sync::Mutex;
 use uuid::Uuid;
 use web_view::WebView;

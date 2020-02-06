@@ -22,6 +22,15 @@ jobs:
             registryName: tauri
             path: tauri
             publishPath: /target/package
+          - name: tauri-api
+            registryName: tauri-api
+            path: tauri-api
+          - name: tauri-updater
+            registryName: tauri-updater
+            path: tauri-updater
+          - name: tauri-utils
+            registryName: tauri-utils
+            path: tauri-utils
     steps:
       - uses: actions/checkout@v2
         with:

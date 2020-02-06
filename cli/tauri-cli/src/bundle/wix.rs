@@ -5,6 +5,7 @@ use super::settings::Settings;
 use handlebars::{to_json, Handlebars};
 use lazy_static::lazy_static;
 use regex::Regex;
+use serde::Serialize;
 use sha2::Digest;
 
 use std::collections::BTreeMap;

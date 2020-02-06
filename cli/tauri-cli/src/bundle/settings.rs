@@ -2,7 +2,9 @@ use super::category::AppCategory;
 use crate::bundle::common;
 
 use clap::ArgMatches;
+use error_chain::bail;
 use glob;
+use serde::Deserialize;
 use std;
 use std::collections::HashMap;
 use std::fs::File;

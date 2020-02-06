@@ -19,8 +19,10 @@
 
 use super::common;
 use crate::{ResultExt, Settings};
+
 use chrono;
 use dirs;
+use error_chain::bail;
 use icns;
 use image::{self, GenericImageView};
 use std::cmp::min;
@@ -71,10 +73,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   copy_binary_to_bundle(&bundle_directory, settings)
     .chain_err(|| format!("Failed to copy binary from {:?}", settings.binary_path()))?;
 
-  create_path_hook(&bundle_directory, settings)
-    .chain_err(|| "Failed to create _boot wrapper")?;
-
-
+  create_path_hook(&bundle_directory, settings).chain_err(|| "Failed to create _boot wrapper")?;
 
   Ok(vec![app_bundle_path])
 }
@@ -87,10 +86,7 @@ fn copy_binary_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate:
   )
 }
 
-fn create_path_hook(
-  bundle_dir: &Path,
-  settings: &Settings,
-) -> crate::Result<()> {
+fn create_path_hook(bundle_dir: &Path, settings: &Settings) -> crate::Result<()> {
   let file = &mut common::create_file(&bundle_dir.join("MacOS/__bootstrapper"))?;
   // Create a shell script to bootstrap the  $PATH for Tauri, so environments like node are available.
   write!(

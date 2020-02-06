@@ -25,6 +25,7 @@ use dirs;
 use error_chain::bail;
 use icns;
 use image::{self, GenericImageView};
+
 use std::cmp::min;
 use std::ffi::OsStr;
 use std::fs::{self, File};

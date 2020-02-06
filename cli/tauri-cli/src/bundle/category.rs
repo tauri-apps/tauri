@@ -1,5 +1,6 @@
-use serde;
 use std::fmt;
+
+use serde;
 use strsim;
 
 const CONFIDENCE_THRESHOLD: f64 = 0.8;

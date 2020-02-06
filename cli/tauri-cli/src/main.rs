@@ -1,8 +1,10 @@
 mod bundle;
 
 use crate::bundle::{bundle_project, check_icons, BuildArtifact, PackageType, Settings};
+
 use clap::{crate_version, App, AppSettings, Arg, SubCommand};
 use error_chain::{bail, error_chain};
+
 use std::env;
 use std::process;
 

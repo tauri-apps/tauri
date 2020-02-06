@@ -1,8 +1,8 @@
-use lazy_static::lazy_static;
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use lazy_static::lazy_static;
 use web_view::Handle;
 
 struct EventHandler {

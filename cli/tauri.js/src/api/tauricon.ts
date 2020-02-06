@@ -172,6 +172,7 @@ const spinner = (): NodeJS.Timeout => {
   }, 500)
 }
 
+/* eslint-disable @typescript-eslint/restrict-template-expressions */
 const tauricon = (exports.tauricon = {
   validate: async function(src: string, target: string) {
     await validate(src, target)
@@ -480,6 +481,7 @@ const tauricon = (exports.tauricon = {
     }
   }
 })
+/* eslint-enable @typescript-eslint/restrict-template-expressions */
 
 if (typeof exports !== 'undefined') {
   if (typeof module !== 'undefined' && module.exports) {

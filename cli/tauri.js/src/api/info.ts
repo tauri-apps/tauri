@@ -93,6 +93,7 @@ function printAppInfo(tauriDir: string): void {
             // @ts-ignore
             const tauriTomlContents = toml.parse(tauriTomlFile)
             return chalk.green(
+              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               `${tauriTomlContents.package.version} (from source)`
             )
           } catch (_) {}

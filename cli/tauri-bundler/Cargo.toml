@@ -1,7 +1,7 @@
 workspace = {}
 
 [package]
-name = "tauri-cli"
+name = "tauri-bundler"
 version = "0.1.2"
 authors = ["George Burton <burtonageo@gmail.com>", "Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
 license = "MIT/Apache-2.0"
@@ -50,7 +50,7 @@ hex = { version = "0.4" }
 tempfile = "3"
 
 [[bin]]
-name = "cargo-tauri-cli"
+name = "cargo-tauri-bundler"
 path = "src/main.rs"
 
 [features]

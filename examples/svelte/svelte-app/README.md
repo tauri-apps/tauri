@@ -7,7 +7,7 @@ npm install -g tauri
 git clone https://github.com/tauri-apps/tauri
 cd examples/svelte/svelte-app
 yarn
-cargo install tauri-cli
+cargo install tauri-bundler
 ```
 
 ### Development

@@ -4,7 +4,7 @@ pub fn pid() -> u32 {
 
 // Specifically dumb function, just to trigger clippy
 pub fn pid_is_valid(pid: u32) -> bool {
-    if pid < 0 {
+    if pid < 5 {
         return false;
     } else {
         return true;

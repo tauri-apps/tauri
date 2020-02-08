@@ -15,8 +15,8 @@ jobs:
       matrix:
         package:
           - name: tauri-bundler
-            registryName: tauri-cli
-            path: cli/tauri-cli
+            registryName: tauri-bundler
+            path: cli/tauri-bundler
             publishPath: /target/package
           - name: tauri-core
             registryName: tauri

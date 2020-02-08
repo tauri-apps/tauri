@@ -15,7 +15,7 @@ pub struct DiskEntry {
   pub name: String,
 }
 
-fn is_dir(file_name: String) -> crate::Result<bool> {
+fn is_dir(file_name: &String) -> crate::Result<bool> {
   match metadata(file_name) {
     Ok(md) => Result::Ok(md.is_dir()),
     Err(err) => Result::Err(err.to_string().into()),
@@ -30,7 +30,7 @@ pub fn walk_dir(path_copy: String) -> crate::Result<Vec<DiskEntry>> {
       let display_value = entry.path().display();
       let _dir_name = display_value.to_string();
 
-      if let Ok(flag) = is_dir(display_value.to_string()) {
+      if let Ok(flag) = is_dir(&display_value.to_string()) {
         files_and_dirs.push(DiskEntry {
           path: display_value.to_string(),
           is_dir: flag,
@@ -77,7 +77,7 @@ mod test {
   #[quickcheck]
   fn qc_is_dir(f: String) -> bool {
     // is the string runs through is_dir and comes out as an OK result then it must be a DIR.
-    if let Ok(_) = is_dir(f.clone()) {
+    if let Ok(_) = is_dir(&f.clone()) {
       std::path::PathBuf::from(f).exists()
     } else {
       true

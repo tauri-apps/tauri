@@ -27,9 +27,9 @@ pub fn format_command(path: String, command: String) -> String {
 
 pub fn relative_command(command: String) -> crate::Result<String> {
   match std::env::current_exe()?.parent() {
-    Some(exe_dir) => return Ok(format_command(exe_dir.display().to_string(), command)),
+    Some(exe_dir) => Ok(format_command(exe_dir.display().to_string(), command)),
     None => {
-      return Err(crate::ErrorKind::Command("Could not evaluate executable dir".to_string()).into())
+      Err(crate::ErrorKind::Command("Could not evaluate executable dir".to_string()).into())
     }
   }
 }
@@ -54,7 +54,7 @@ pub fn spawn_relative_command(
 }
 
 pub fn binary_command(binary_name: String) -> crate::Result<String> {
-  return Ok(format!("{}-{}", binary_name, platform::target_triple()?));
+  Ok(format!("{}-{}", binary_name, platform::target_triple()?))
 }
 
 // tests for the commands functions.

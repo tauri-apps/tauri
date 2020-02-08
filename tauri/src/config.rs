@@ -32,12 +32,12 @@ fn default_title() -> String {
 }
 
 fn default_window() -> WindowConfig {
-  return WindowConfig {
+  WindowConfig {
     width: default_width(),
     height: default_height(),
     resizable: default_resizable(),
     title: default_title(),
-  };
+  }
 }
 
 #[derive(PartialEq, Deserialize, Clone, Debug)]

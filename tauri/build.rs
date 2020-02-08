@@ -7,7 +7,7 @@ pub fn main() {
   match std::env::var("TAURI_DIST_DIR") {
     Ok(dist_path) => {
       let inlined_assets = match std::env::var("TAURI_INLINED_ASSETS") {
-        Ok(assets) => assets.split("|").map(|s| s.to_string()).collect(),
+        Ok(assets) => assets.split('|').map(|s| s.to_string()).collect(),
         Err(_) => Vec::new(),
       };
       // include assets

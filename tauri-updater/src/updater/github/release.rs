@@ -178,7 +178,7 @@ impl ReleaseList {
       )
     }
 
-    let releases = reader.json::<serde_json::Value>()?.clone();
+    let releases = reader.json::<serde_json::Value>()?;
     let releases = releases
       .as_array()
       .ok_or_else(|| format_err!(crate::ErrorKind::Network, "No releases found"))?;

@@ -22,7 +22,7 @@ pub fn generate() -> String {
       value: salt.to_string(),
       one_time: true,
     });
-  return salt.to_string();
+  salt.to_string()
 }
 
 pub fn generate_static() -> String {
@@ -34,7 +34,7 @@ pub fn generate_static() -> String {
       value: salt.to_string(),
       one_time: false,
     });
-  return salt.to_string();
+  salt.to_string()
 }
 
 pub fn is_valid(salt: String) -> bool {

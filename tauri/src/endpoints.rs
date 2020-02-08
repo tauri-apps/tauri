@@ -204,7 +204,7 @@ fn load_asset<T: 'static>(
     webview,
     move || {
       let mut path = PathBuf::from(
-        if asset.starts_with("/") {
+        if asset.starts_with('/') {
           asset.replacen("/", "", 1)
         } else {
           asset.clone()

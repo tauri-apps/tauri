@@ -2,11 +2,12 @@ use web_view::WebView;
 
 mod runner;
 
-//type FnMut(&mut InvokeHandler<WebView<'_, ()>>, &str) = FnMut(&mut FnMut(&mut InvokeHandler<WebView<'_, ()>>, &str)<WebView<'_, ()>>, &str);
+type InvokeHandler = Box<dyn FnMut(&mut WebView<'_, ()>, &str)>;
+type Setup = Box<dyn FnMut(&mut WebView<'_, ()>, String)>;
 
 pub struct App {
-  invoke_handler: Option<Box<dyn FnMut(&mut WebView<'_, ()>, &str)>>,
-  setup: Option<Box<dyn FnMut(&mut WebView<'_, ()>, String)>>,
+  invoke_handler: Option<InvokeHandler>,
+  setup: Option<Setup>,
   splashscreen_html: Option<String>,
 }
 
@@ -16,20 +17,14 @@ impl App {
   }
 
   pub(crate) fn run_invoke_handler(&mut self, webview: &mut WebView<'_, ()>, arg: &str) {
-    match self.invoke_handler {
-      Some(ref mut invoke_handler) => {
-        invoke_handler(webview, arg);
-      }
-      None => {}
+    if let Some(ref mut invoke_handler) = self.invoke_handler {
+      invoke_handler(webview, arg);
     }
   }
 
   pub(crate) fn run_setup(&mut self, webview: &mut WebView<'_, ()>, source: String) {
-    match self.setup {
-      Some(ref mut setup) => {
-        setup(webview, source);
-      }
-      None => {}
+    if let Some(ref mut setup) = self.setup {
+      setup(webview, source);
     }
   }
 
@@ -38,9 +33,10 @@ impl App {
   }
 }
 
+#[derive(Default)]
 pub struct AppBuilder {
-  invoke_handler: Option<Box<dyn FnMut(&mut WebView<'_, ()>, &str)>>,
-  setup: Option<Box<dyn FnMut(&mut WebView<'_, ()>, String)>>,
+  invoke_handler: Option<InvokeHandler>,
+  setup: Option<Setup>,
   splashscreen_html: Option<String>
 }
 

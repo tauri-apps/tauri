@@ -76,7 +76,7 @@ jobs:
         env:
           TAURI_DIST_DIR: ../../test/fixture/dist
           TAURI_DIR: ../test/fixture/src-tauri
-      - run: cargo install --path ./cli/tauri-cli --force
+      - run: cargo install --path ./cli/tauri-bundler --force
       - name: install cli deps via yarn
         run: |
           cd ./cli/tauri.js

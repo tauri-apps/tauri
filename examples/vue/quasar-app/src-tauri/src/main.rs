@@ -11,8 +11,8 @@ use std::io::BufRead;
 
 fn main() {
   tauri::AppBuilder::new()
-    .setup(|_webview| {
-      let handle1 = _webview.handle();
+    .setup(|webview, _| {
+      let handle1 = webview.handle();
       std::thread::spawn(move || {
         let resource_dir =
           tauri::api::platform::resource_dir().expect("failed to get resource dir");
@@ -35,7 +35,7 @@ fn main() {
           });
       });
 
-      let handle2 = _webview.handle();
+      let handle2 = webview.handle();
       tauri::event::listen(String::from("hello"), move |msg| {
         #[derive(Serialize)]
         pub struct Reply {

@@ -18,6 +18,20 @@
  * and also whitelist them based upon the developer's settings.
  */
 
+ // makes the window.external.invoke API available after window.location.href changes
+if (navigator.platform != "Win64" && navigator.plaform != "Win32") {
+  window.external = this
+  if (navigator.platform == "MacIntel") {
+    invoke = function (x) {
+      webkit.messageHandlers.invoke.postMessage(x);
+    }
+  } else {
+    invoke = function (x) {
+      window.webkit.messageHandlers.external.postMessage(x);
+    }
+  }
+}
+
 function s4() {
   return Math.floor((1 + Math.random()) * 0x10000)
     .toString(16)

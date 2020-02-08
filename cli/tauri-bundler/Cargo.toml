@@ -1,7 +1,7 @@
 workspace = {}
 
 [package]
-name = "tauri-cli"
+name = "tauri-bundler"
 version = "0.1.2"
 authors = ["George Burton <burtonageo@gmail.com>", "Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
 license = "MIT/Apache-2.0"
@@ -18,13 +18,13 @@ dirs = "2.0.2"
 error-chain = "0.12"
 glob = "0.3.0"
 icns = "0.3"
-image = "0.22.4"
+image = "0.22.5"
 libflate = "0.1"
 md5 = "0.7.0"
 msi = "0.2"
 
 serde = { version = "1.0", features = ["derive"] }
-strsim = "0.9.3"
+strsim = "0.10.0"
 tar = "0.4"
 target_build_utils = "0.3"
 term = "0.6.1"
@@ -49,7 +49,7 @@ hex = { version = "0.4" }
 tempfile = "3"
 
 [[bin]]
-name = "cargo-tauri-cli"
+name = "cargo-tauri-bundler"
 path = "src/main.rs"
 
 [features]

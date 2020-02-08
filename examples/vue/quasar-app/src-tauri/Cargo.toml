@@ -23,7 +23,7 @@ resources = [ "resources" ]
 
 [dependencies]
 serde_json = "1.0"
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0", features = [ "derive" ] }
 tauri = { path = "../../../../tauri", features = [ "all-api", "edge" ] }
 
 [target."cfg(windows)".build-dependencies]

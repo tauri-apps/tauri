@@ -1,6 +1,8 @@
 mod cmd;
 
 use web_view::WebView;
+#[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
+use std::path::{PathBuf};
 
 #[allow(unused_variables)]
 pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> crate::Result<bool> {
@@ -201,14 +203,33 @@ fn load_asset<T: 'static>(
   crate::execute_promise(
     webview,
     move || {
-      let read_asset = crate::assets::ASSETS.get(&format!(
-        "{}{}{}",
-        env!("TAURI_DIST_DIR"),
-        if asset.starts_with("/") { "" } else { "/" },
-        asset
-      ));
-      if read_asset.is_err() {
-        return Err(format!("Asset '{}' not found", asset).into());
+      let mut path = PathBuf::from(
+        if asset.starts_with("/") {
+          asset.replacen("/", "", 1)
+        } else {
+          asset.clone()
+        }
+      );
+      let mut read_asset;
+      loop {
+        read_asset = crate::assets::ASSETS.get(&format!(
+          "{}/{}",
+          env!("TAURI_DIST_DIR"),
+          path.to_string_lossy()
+        ));
+        if read_asset.is_err() {
+          match path.iter().next() {
+            Some(component) => {
+              let first_component = component.to_str().expect("failed to read path component");
+              path = PathBuf::from(path.to_string_lossy().replacen(format!("{}/", first_component).as_str(), "", 1));
+            }
+            None => {
+              return Err(format!("Asset '{}' not found", asset).into());
+            }
+          }
+        } else {
+          break;
+        }
       }
 
       if asset_type == "image" {

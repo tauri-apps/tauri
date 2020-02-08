@@ -13,7 +13,7 @@
 
 /examples/ @tauri-apps/testing
 
-/cli/tauri-cli/ @tauri-apps/bundler
+/cli/tauri-bundler/ @tauri-apps/bundler
 
 /cli/tauri.js/ @tauri-apps/js-cli
 

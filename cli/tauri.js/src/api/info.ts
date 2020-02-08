@@ -168,7 +168,7 @@ module.exports = () => {
     key: '  cargo',
     value: getVersion('cargo', [], output => output.split(' ')[1])
   })
-  printInfo({ key: '  tauri-cli', value: getVersion('cargo', ['tauri-cli']) })
+  printInfo({ key: '  tauri-bundler', value: getVersion('cargo', ['tauri-bundler']) })
   printInfo({ key: 'Global packages', section: true })
   printInfo({ key: '  NPM', value: getVersion('npm') })
   printInfo({ key: '  yarn', value: getVersion('yarn') })

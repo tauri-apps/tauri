@@ -13,7 +13,7 @@ jobs:
         run: cargo login ${{ secrets.crate_token }}
       - name: Publish CLI
         run: |
-          cd cli/tauri-cli
+          cd cli/tauri-bundler
           echo "We will publish this directory."
           ls # cargo publish
       - name: Publish TAURI

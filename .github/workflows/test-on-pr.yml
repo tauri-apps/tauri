@@ -52,7 +52,7 @@ jobs:
           toolchain: stable
       - name: build
         run: |
-          cd ./cli/tauri-cli
+          cd ./cli/tauri-bundler
           cargo build
 
   test-tauri-js-cli:

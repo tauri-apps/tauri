@@ -14,6 +14,7 @@ interface DirInfo {
   children?: DirInfo[]
 }
 
+/* eslint-disable security/detect-non-literal-fs-filename */
 function dirTree(filename: string): DirInfo {
   const stats = fs.lstatSync(filename)
   const info: DirInfo = {
@@ -92,6 +93,7 @@ function printAppInfo(tauriDir: string): void {
             // @ts-ignore
             const tauriTomlContents = toml.parse(tauriTomlFile)
             return chalk.green(
+              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               `${tauriTomlContents.package.version} (from source)`
             )
           } catch (_) {}
@@ -173,10 +175,12 @@ module.exports = () => {
   printInfo({ key: 'App directory structure', section: true })
 
   const tree = dirTree(appDir)
-  for (const artifact of tree.children || []) {
+  for (const artifact of tree.children ?? []) {
     if (artifact.type === 'folder') {
       console.log(`/${artifact.name}`)
     }
   }
   printAppInfo(tauriDir)
 }
+
+/* eslint-enable security/detect-non-literal-fs-filename */

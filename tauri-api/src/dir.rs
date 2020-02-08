@@ -80,7 +80,7 @@ mod test {
     if let Ok(_) = is_dir(f.clone()) {
       std::path::PathBuf::from(f).exists()
     } else {
-      false
+      true
     }
   }
 
@@ -147,7 +147,7 @@ mod test {
     let dir = String::from("test/");
 
     // call list_dir_contents on the dir string
-    let res = list_dir_contents(&dir);
+    let res = list_dir_contents(dir);
 
     // assert that the result is Ok()
     assert_ok!(&res);

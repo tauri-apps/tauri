@@ -9,7 +9,7 @@ use crate::config::{get, Config};
 use crate::tcp::{get_available_port, port_is_available};
 
 // JavaScript string literal
-const JS_STRING: &'static str = r#"
+const JS_STRING: &str = r#"
 if (window.onTauriInit !== void 0) {
   window.onTauriInit()
   window.onTauriInit = void 0

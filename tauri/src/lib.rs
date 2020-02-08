@@ -36,7 +36,7 @@ use threadpool::ThreadPool;
 use error_chain::error_chain;
 
 pub use app::*;
-use web_view::WebView;
+use web_view::{WebView, Handle};
 
 pub use tauri_api as api;
 
@@ -104,6 +104,14 @@ pub fn call<T: 'static>(
     callback,
     error,
   );
+}
+
+pub fn close_splashscreen<T: 'static>(webview_handle: &Handle<T>) -> crate::Result<()> {
+  webview_handle.dispatch(|webview| {
+    // send a signal to the runner so it knows that it should redirect to the main app content
+    webview.eval(r#"window.external.invoke(JSON.stringify({ cmd: "closeSplashscreen" }))"#)
+  })?;
+  Ok(())
 }
 
 #[cfg(test)]

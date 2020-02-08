@@ -35,12 +35,12 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   let config = get()?;
 
   // setup the content using the config struct depending on the compile target
-  let content = setup_content(config.clone())?;
+  let main_content = setup_content(config.clone())?;
 
   // setup the server url for the embedded-server
   #[cfg(feature = "embedded-server")]
   let server_url = {
-    if let Content::Url(ref url) = &content {
+    if let Content::Url(ref url) = &main_content {
       String::from(url)
     } else {
       String::from("")
@@ -48,8 +48,16 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   };
 
   // build the webview
-  let mut webview = build_webview(application, config, content)?;
-  webview.set_color((255, 255, 255));
+  let webview = build_webview(
+    application,
+    config,
+    main_content,
+    if application.splashscreen_html().is_some() {
+      Some(Content::Html(application.splashscreen_html().expect("failed to get splashscreen_html").to_string()))
+    } else {
+      None
+    },
+  )?;
 
   // on dev-server grab a handler and execute the tauri.js API entry point.
   #[cfg(feature = "dev-server")]
@@ -172,7 +180,12 @@ fn build_webview(
   application: &mut App,
   config: Config,
   content: Content<String>,
+  splashscreen_content: Option<Content<String>>
 ) -> crate::Result<WebView<'_, ()>> {
+  let content_clone = match content {
+    Content::Html(ref html) => Content::Html(html.clone()),
+    Content::Url(ref url) => Content::Url(url.clone()),
+  };
   let debug = cfg!(debug_assertions);
   // get properties from config struct
   let width = config.tauri.window.width;
@@ -180,28 +193,54 @@ fn build_webview(
   let resizable = config.tauri.window.resizable;
   let title = config.tauri.window.title.into_boxed_str();
 
-  Ok(
-    builder()
-      .title(Box::leak(title))
-      .size(width, height)
-      .resizable(resizable)
-      .debug(debug)
-      .user_data(())
-      .invoke_handler(move |webview, arg| {
-        if arg == r#"{"cmd":"__initialized"}"# {
-          application.run_setup(webview);
-          webview.eval(JS_STRING)?;
-        } else if let Ok(b) = crate::endpoints::handle(webview, arg) {
-          if !b {
-            application.run_invoke_handler(webview, arg);
-          }
-        }
+  let has_splashscreen = splashscreen_content.is_some();
+  let mut initialized_splashscreen = false;
 
-        Ok(())
-      })
-      .content(content)
-      .build()?,
-  )
+  let webview = builder()
+    .title(Box::leak(title))
+    .size(width, height)
+    .resizable(resizable)
+    .debug(debug)
+    .user_data(())
+    .invoke_handler(move |webview, arg| {
+      if arg == r#"{"cmd":"__initialized"}"# {
+        let source = if has_splashscreen && !initialized_splashscreen {
+          initialized_splashscreen = true;
+          "splashscreen"
+        } else {
+          "window-1"
+        };
+        application.run_setup(webview, source.to_string());
+        webview.eval(JS_STRING)?;
+      } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
+        let content_href = match content_clone {
+          Content::Html(ref html) => html,
+          Content::Url(ref url) => url,
+        };
+        webview.eval(&format!("window.location.href = `{}`", content_href))?;
+      } else if let Ok(b) = crate::endpoints::handle(webview, arg) {
+        if !b {
+          application.run_invoke_handler(webview, arg);
+        }
+      }
+
+      Ok(())
+    })
+    .content(if splashscreen_content.is_some() {
+      splashscreen_content.expect("failed to get splashscreen content")
+    } else {
+      content
+    })
+    .build()?;
+
+  if has_splashscreen {
+    // trigger the init hook for the splashscreen since we're not injecting the tauri.js entry point
+    webview.handle().dispatch(|webview| {
+      webview.eval(r#"window.external.invoke(JSON.stringify({ cmd: "__initialized" }))"#)
+    }).expect("failed to initialize splashscreen");
+  }
+  
+  Ok(webview)
 }
 
 #[cfg(test)]

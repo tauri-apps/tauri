@@ -52,7 +52,7 @@ jobs:
         with:
           path: ${{ format('{0}/registry/cache/', matrix.CARGO_HOME) }}
           key: ${{ runner.OS }}-build-reg-cache-${{ hashFiles('**/Cargo.toml') }}-
-      - run: cargo install tauri-cli --force
+      - run: cargo install tauri-bundler --force
         # if we pull from cache, this will be skipped, but force just in case cache has an issue but it does exist
         if: steps.cache_rust_bin.outputs.cache-hit != 'true' || steps.cache_rust_reg_index.outputs.cache-hit != 'true' || steps.cache_rust_reg_cache.outputs.cache-hit != 'true'
       - name: cache node modules

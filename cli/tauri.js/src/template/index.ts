@@ -34,9 +34,12 @@ const injectConfFile = (
       }
       Object.keys(finalConf).forEach(key => {
         // Options marked `null` should be removed
+        /* eslint-disable security/detect-object-injection */
         if (finalConf[key] === null) {
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
           delete finalConf[key]
         }
+        /* eslint-enable security/detect-object-injection */
       })
       writeFileSync(path, JSON.stringify(finalConf, undefined, 2))
     } catch (e) {

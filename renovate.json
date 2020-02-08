@@ -36,7 +36,7 @@
     },
     {
       "enabled": true,
-      "paths": ["cli/tauri-cli/**"],
+      "paths": ["cli/tauri-bundler/**"],
       "groupName": "Tauri Bundler",
       "groupSlug": "allTauriBundler",
       "commitMessagePrefix": "chore(deps)",

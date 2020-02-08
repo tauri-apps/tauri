@@ -127,7 +127,7 @@ class Runner {
     const buildFn = async (target?: string): Promise<void> =>
       this.__runCargoCommand({
         cargoArgs: [
-          cfg.tauri.bundle.active ? 'tauri-cli' : 'build',
+          cfg.tauri.bundle.active ? 'tauri-bundler' : 'build',
           '--features',
           ...features
         ]

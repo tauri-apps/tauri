@@ -172,6 +172,7 @@ const spinner = (): NodeJS.Timeout => {
   }, 500)
 }
 
+/* eslint-disable @typescript-eslint/restrict-template-expressions */
 const tauricon = (exports.tauricon = {
   validate: async function(src: string, target: string) {
     await validate(src, target)
@@ -226,7 +227,7 @@ const tauricon = (exports.tauricon = {
       try {
         const pngImage = sharpSrc.resize(pvar[1], pvar[1])
         if (pvar[2]) {
-          const rgb = hexToRgb(options.background_color) || {
+          const rgb = hexToRgb(options.background_color) ?? {
             r: undefined,
             g: undefined,
             b: undefined
@@ -291,7 +292,7 @@ const tauricon = (exports.tauricon = {
   ) {
     let output
     let block = false
-    const rgb = hexToRgb(options.background_color) || {
+    const rgb = hexToRgb(options.background_color) ?? {
       r: undefined,
       g: undefined,
       b: undefined
@@ -480,6 +481,7 @@ const tauricon = (exports.tauricon = {
     }
   }
 })
+/* eslint-enable @typescript-eslint/restrict-template-expressions */
 
 if (typeof exports !== 'undefined') {
   if (typeof module !== 'undefined' && module.exports) {

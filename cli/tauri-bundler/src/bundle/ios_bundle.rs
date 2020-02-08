@@ -10,9 +10,11 @@
 
 use super::common;
 use crate::{ResultExt, Settings};
+
 use icns;
 use image::png::{PNGDecoder, PNGEncoder};
 use image::{self, GenericImageView, ImageDecoder};
+
 use std::collections::BTreeSet;
 use std::convert::TryInto;
 use std::ffi::OsStr;

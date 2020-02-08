@@ -44,7 +44,7 @@ jobs:
           TAURI_DIR: ../test/fixture/src-tauri
       - name: test
         run: |
-          cargo test --features all-api
+          cargo test
         env:
           TAURI_DIST_DIR: ../../test/fixture/dist
           TAURI_DIR: ../test/fixture/src-tauri
@@ -65,7 +65,7 @@ jobs:
           toolchain: stable
       - name: build
         run: |
-          cd ./cli/tauri-cli
+          cd ./cli/tauri-bundler
           cargo build
 
   test-tauri-js-cli:

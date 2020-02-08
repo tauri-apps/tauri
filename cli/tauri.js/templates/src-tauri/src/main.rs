@@ -5,10 +5,6 @@
 
 mod cmd;
 
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-
 fn main() {
   tauri::AppBuilder::new()
     .invoke_handler(|_webview, arg| {

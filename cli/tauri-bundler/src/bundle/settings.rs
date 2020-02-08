@@ -2,16 +2,19 @@ use super::category::AppCategory;
 use crate::bundle::common;
 
 use clap::ArgMatches;
+use error_chain::bail;
 use glob;
+use serde::Deserialize;
+use target_build_utils::TargetInfo;
+use tauri_utils::platform::target_triple;
+use toml;
+use walkdir;
+
 use std;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use target_build_utils::TargetInfo;
-use tauri_utils::platform::target_triple;
-use toml;
-use walkdir;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PackageType {

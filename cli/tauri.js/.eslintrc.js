@@ -47,8 +47,9 @@ module.exports = {
     'security/detect-object-injection': 'warn',
     'security/detect-possible-timing-attacks': 'error',
     'security/detect-pseudoRandomBytes': 'error',
+    'space-before-function-paren': 'off',
     '@typescript-eslint/strict-boolean-expressions': 0,
-    'space-before-function-paren': [
+    '@typescript-eslint/space-before-function-paren': [
       'error',
       {
         asyncArrow: 'always',

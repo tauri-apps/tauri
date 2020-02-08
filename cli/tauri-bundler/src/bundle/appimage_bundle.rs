@@ -14,7 +14,7 @@ use std::process::{Command, Stdio};
 
 // Create handlebars template for shell script
 lazy_static! {
-  static ref HANDLEBARS: Handlebars = {
+  static ref HANDLEBARS: Handlebars<'static> = {
     let mut handlebars = Handlebars::new();
 
     handlebars

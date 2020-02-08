@@ -1,9 +1,12 @@
 use crate::ResultExt;
+
 use std;
 use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::{self, BufWriter, Write};
 use std::path::{Component, Path, PathBuf};
+
+use error_chain::bail;
 use term;
 use walkdir;
 

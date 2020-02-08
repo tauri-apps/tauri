@@ -3,43 +3,51 @@
   windows_subsystem = "windows"
 )]
 
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-
-#[macro_use]
-extern crate lazy_static;
-
+#[cfg(not(feature = "dev-server"))]
+pub mod assets;
 pub mod config;
-mod endpoints;
 pub mod event;
-
 #[cfg(feature = "embedded-server")]
 pub mod server;
 
+mod app;
+mod endpoints;
 #[allow(dead_code)]
 mod file_system;
 #[allow(dead_code)]
 mod salt;
-
 #[cfg(feature = "embedded-server")]
 mod tcp;
 
-mod app;
-#[cfg(not(feature = "dev-server"))]
-pub mod assets;
-
 use std::process::Stdio;
 
+use error_chain::error_chain;
 use threadpool::ThreadPool;
 
 pub use app::*;
-use web_view::WebView;
+use web_view::{WebView, Handle};
 
+pub use app::*;
 pub use tauri_api as api;
 
-// Result alias
-type TauriResult<T> = Result<T, Box<dyn std::error::Error>>;
+error_chain! {
+  foreign_links{
+    Api(::tauri_api::Error);
+    Json(::serde_json::Error);
+    Webview(::web_view::Error);
+    Io(::std::io::Error);
+  }
+  errors{
+    Promise(t: String) {
+        description("Promise Error")
+        display("Promise Error: '{}'", t)
+    }
+    Command(t: String) {
+      description("Command Error")
+      display("Command Error: '{}'", t)
+    }
+  }
+}
 
 thread_local!(static POOL: ThreadPool = ThreadPool::new(4));
 
@@ -51,7 +59,7 @@ pub fn spawn<F: FnOnce() -> () + Send + 'static>(task: F) {
   });
 }
 
-pub fn execute_promise<T: 'static, F: FnOnce() -> Result<String, String> + Send + 'static>(
+pub fn execute_promise<T: 'static, F: FnOnce() -> crate::Result<String> + Send + 'static>(
   webview: &mut WebView<'_, T>,
   task: F,
   callback: String,
@@ -60,7 +68,8 @@ pub fn execute_promise<T: 'static, F: FnOnce() -> Result<String, String> + Send 
   let handle = webview.handle();
   POOL.with(|thread| {
     thread.execute(move || {
-      let callback_string = api::rpc::format_callback_result(task(), callback, error);
+      let callback_string =
+        api::rpc::format_callback_result(task().map_err(|err| err.to_string()), callback, error);
       handle
         .dispatch(move |_webview| _webview.eval(callback_string.as_str()))
         .expect("Failed to dispatch promise callback")
@@ -79,12 +88,20 @@ pub fn call<T: 'static>(
     webview,
     || {
       api::command::get_output(command, args, Stdio::piped())
-        .map_err(|err| format!("`{}`", err))
+        .map_err(|err| crate::ErrorKind::Promise(err.to_string()).into())
         .map(|output| format!("`{}`", output))
     },
     callback,
     error,
   );
+}
+
+pub fn close_splashscreen<T: 'static>(webview_handle: &Handle<T>) -> crate::Result<()> {
+  webview_handle.dispatch(|webview| {
+    // send a signal to the runner so it knows that it should redirect to the main app content
+    webview.eval(r#"window.external.invoke(JSON.stringify({ cmd: "closeSplashscreen" }))"#)
+  })?;
+  Ok(())
 }
 
 #[cfg(test)]

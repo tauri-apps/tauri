@@ -5,6 +5,9 @@ on: pull_request
 jobs:
   clippy_check:
     runs-on: ubuntu-latest
+    env:
+      TAURI_DIST_DIR: tauri/test/fixture/dist
+      TAURI_DIR: ../test/fixture/src-tauri
     steps:
       - uses: actions/checkout@v2
       - name: install webkit2gtk

@@ -1,19 +1,10 @@
-#[macro_use]
-extern crate clap;
-
-#[macro_use]
-extern crate error_chain;
-
-#[macro_use]
-extern crate serde_derive;
-
-#[cfg(test)]
-extern crate tempfile;
-
 mod bundle;
 
 use crate::bundle::{bundle_project, check_icons, BuildArtifact, PackageType, Settings};
-use clap::{App, AppSettings, Arg, SubCommand};
+
+use clap::{crate_version, App, AppSettings, Arg, SubCommand};
+use error_chain::{bail, error_chain};
+
 use std::env;
 use std::process;
 

@@ -1,9 +1,8 @@
-use either;
+use either::{self, Either};
 use flate2;
 use tar;
 use zip;
 
-use either::Either;
 use std::fs;
 use std::io;
 use std::path;

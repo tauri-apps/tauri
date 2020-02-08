@@ -20,20 +20,22 @@
 
 use super::common;
 use crate::{ResultExt, Settings};
+
 use ar;
 use icns;
 use image::png::{PNGDecoder, PNGEncoder};
 use image::{self, GenericImageView, ImageDecoder};
 use libflate::gzip;
 use md5;
+use tar;
+use walkdir::WalkDir;
+
 use std::collections::BTreeSet;
 use std::convert::TryInto;
 use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use tar;
-use walkdir::WalkDir;
 
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let arch = match settings.binary_arch() {

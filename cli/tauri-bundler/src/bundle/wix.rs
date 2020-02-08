@@ -5,15 +5,16 @@ use super::settings::Settings;
 use handlebars::{to_json, Handlebars};
 use lazy_static::lazy_static;
 use regex::Regex;
+use serde::Serialize;
 use sha2::Digest;
+use uuid::Uuid;
+use zip::ZipArchive;
 
 use std::collections::BTreeMap;
 use std::fs::{create_dir_all, remove_dir_all, write, File};
 use std::io::{BufRead, BufReader, Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use uuid::Uuid;
-use zip::ZipArchive;
 
 // URLS for the WIX toolchain.  Can be used for crossplatform compilation.
 pub const WIX_URL: &str =

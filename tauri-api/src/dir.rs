@@ -1,13 +1,12 @@
-use tempfile;
-
 mod utils;
+
 use ignore::Walk;
 use serde::Serialize;
-use std::fs;
-use std::fs::metadata;
+use tempfile::{self, tempdir};
+
 use utils::get_dir_name_from_path;
 
-use tempfile::tempdir;
+use std::fs::{self, metadata};
 
 #[derive(Debug, Serialize)]
 pub struct DiskEntry {
@@ -77,6 +76,7 @@ pub fn with_temp_dir<F: FnOnce(&tempfile::TempDir) -> ()>(callback: F) -> crate:
 #[cfg(test)]
 mod test {
   use super::*;
+  use quickcheck_macros::quickcheck;
   use totems::assert_ok;
 
   // check is dir function by passing in arbitrary strings

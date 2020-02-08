@@ -17,6 +17,7 @@ pub fn format_callback_result(
 #[cfg(test)]
 mod test {
   use crate::rpc::*;
+  use quickcheck_macros::quickcheck;
 
   // check abritrary strings in the format callback function
   #[quickcheck]

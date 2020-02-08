@@ -3,41 +3,31 @@
   windows_subsystem = "windows"
 )]
 
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-
-#[macro_use]
-extern crate lazy_static;
-
+#[cfg(not(feature = "dev-server"))]
+pub mod assets;
 pub mod config;
-mod endpoints;
 pub mod event;
-
 #[cfg(feature = "embedded-server")]
 pub mod server;
 
+mod app;
+mod endpoints;
 #[allow(dead_code)]
 mod file_system;
 #[allow(dead_code)]
 mod salt;
-
 #[cfg(feature = "embedded-server")]
 mod tcp;
 
-mod app;
-#[cfg(not(feature = "dev-server"))]
-pub mod assets;
-
 use std::process::Stdio;
 
-use threadpool::ThreadPool;
-
 use error_chain::error_chain;
+use threadpool::ThreadPool;
 
 pub use app::*;
 use web_view::{WebView, Handle};
 
+pub use app::*;
 pub use tauri_api as api;
 
 error_chain! {

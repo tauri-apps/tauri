@@ -1,3 +1,5 @@
+use serde::Deserialize;
+
 use std::env;
 
 #[derive(PartialEq, Deserialize, Clone, Debug)]

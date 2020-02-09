@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - '**/Cargo.toml'
+      - '.github/workflows/**'
 
 jobs:
   publish:
@@ -57,6 +58,9 @@ jobs:
           echo "post package dir:"
           cd ${{ matrix.publishPath }}
           ls
+      - name: cargo login
+        if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
+        run: cargo login {{ secrets.crate_token }}
       - name: cargo audit
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         working-directory: ${{ matrix.package.path }}

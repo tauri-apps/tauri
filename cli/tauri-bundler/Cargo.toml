@@ -2,7 +2,7 @@ workspace = {}
 
 [package]
 name = "tauri-bundler"
-version = "0.1.2"
+version = "0.4.0"
 authors = ["George Burton <burtonageo@gmail.com>", "Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
 license = "MIT/Apache-2.0"
 keywords = ["bundle", "cargo", "tauri"]
@@ -32,7 +32,7 @@ toml = "0.5.6"
 uuid = { version = "0.8", features = ["v5"] }
 walkdir = "2"
 
-tauri-utils = {version = "0.3", path = "../../tauri-utils"}
+tauri-utils = {version = "0.4", path = "../../tauri-utils"}
 
 [target.'cfg(target_os = "windows")'.dependencies]
 attohttpc = { version = "0.11.1" }

@@ -9,7 +9,7 @@ jobs:
       TAURI_DIST_DIR: ../../test/fixture/dist
       TAURI_DIR: ../test/fixture/src-tauri
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v1
       - name: install webkit2gtk
         run: |
           sudo apt-get update

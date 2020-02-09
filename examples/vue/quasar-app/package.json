@@ -1,0 +1,49 @@
+{
+  "name": "quasar-app",
+  "version": "0.0.1",
+  "description": "A Quasar Framework app",
+  "productName": "Quasar App",
+  "cordovaId": "org.cordova.quasar.app",
+  "capacitorId": "",
+  "author": "Daniel Thompson-Yvetot <denjell@sfosc.org>",
+  "private": true,
+  "scripts": {
+    "lint": "eslint --ext .js,.vue src",
+    "test": "echo \"No test specified\" && exit 0",
+    "build": "quasar build",
+    "tauri:prod": "tauri",
+    "tauri:source": "node ../../../cli/tauri.js/bin/tauri",
+    "tauri:source:init": "yarn tauri:source init --tauriPath ../../../tauri",
+    "tauri:prod:init": "yarn tauri:prod init",
+    "tauri:source:dev": "yarn tauri:source dev",
+    "tauri:prod:dev": "yarn tauri:prod dev",
+    "tauri:source:build": "yarn tauri:source build",
+    "tauri:prod:build": "yarn tauri:prod build"
+  },
+  "dependencies": {
+    "@quasar/extras": "1.5.1",
+    "quasar": "1.8.5"
+  },
+  "devDependencies": {
+    "@quasar/app": "1.5.3",
+    "@tauri-apps/tauri-webpack": "0.2.0",
+    "@vue/eslint-config-standard": "5.1.0",
+    "babel-eslint": "10.0.3",
+    "eslint": "6.8.0",
+    "eslint-loader": "3.0.3",
+    "eslint-plugin-import": "2.20.1",
+    "eslint-plugin-node": "11.0.0",
+    "eslint-plugin-promise": "4.2.1",
+    "eslint-plugin-standard": "4.0.1",
+    "eslint-plugin-vue": "6.1.2",
+    "tauri": "file:../../../cli/tauri.js"
+  },
+  "engines": {
+    "node": ">= 8.9.0",
+    "npm": ">= 5.6.0",
+    "yarn": ">= 1.6.0"
+  },
+  "browserslist": [
+    "last 1 version, not dead, ie >= 11"
+  ]
+}

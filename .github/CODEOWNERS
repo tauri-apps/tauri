@@ -1,0 +1,24 @@
+# Current WG Code Sub Teams:
+# @tauri-apps/admins
+# @tauri-apps/bundler
+# @tauri-apps/core
+# @tauri-apps/js-cli
+# @tauri-apps/testing
+
+# admins default to review
+# Order is important; the last matching pattern takes the most precedence.
+* @tauri-apps/admins 
+
+.github @tauri-apps/admins @tauri-apps/testing
+
+/examples/ @tauri-apps/testing
+
+/cli/tauri-bundler/ @tauri-apps/bundler
+
+/cli/tauri.js/ @tauri-apps/js-cli
+
+/tauri-update/ @tauri-apps/core
+
+/tauri-api/ @tauri-apps/core
+
+/tauri/ @tauri-apps/core

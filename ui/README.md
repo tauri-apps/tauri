@@ -1,3 +1,0 @@
-# PROTON WEBVIEW
-
-Documentation forthcoming.

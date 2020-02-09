@@ -1,0 +1,114 @@
+<?if $(sys.BUILDARCH)="x86"?>
+    <?define Win64 = "no" ?>
+    <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
+<?elseif $(sys.BUILDARCH)="x64"?>
+    <?define Win64 = "yes" ?>
+    <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+<?else?>
+    <?error Unsupported value of sys.BUILDARCH=$(sys.BUILDARCH)?>
+<?endif?>
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
+    <Product
+            Id="*"
+            Name="{{{product_name}}}"
+            UpgradeCode="{{{upgrade_code}}}"
+            Language="1033"
+            Codepage="1252"
+            Manufacturer="{{{manufacturer}}}"
+            Version="{{{version}}}">
+
+        <Package Id="*"
+                 Keywords="Installer"
+                 InstallerVersion="450"
+                 Languages="1033"
+                 Compressed="yes"
+                 InstallScope="perMachine"
+                 SummaryCodepage="1252"/>
+
+        <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
+        
+        <WixVariable Id="WixUIBannerBmp" Value="{{{icon_path}}}" />
+        
+        <Icon Id="ProductIcon" SourceFile="{{{icon_path}}}"/>
+        <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
+        <Property Id="ARPNOREPAIR" Value="yes" Secure="yes" />      <!-- Remove repair -->
+        <Property Id="ARPNOMODIFY" Value="yes" Secure="yes" />      <!-- Remove modify -->
+
+
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">
+                <Directory Id="APPLICATIONFOLDER" Name="{{{product_name}}}">
+                    <Component Id="Path" Guid="{{{path_component_guid}}}" Win64="$(var.Win64)" KeyPath="yes">
+                        <File Id="PathFile" Source="{{{app_exe_source}}}" />
+                    </Component>
+                    {{#each external_binaries as |external_bin| ~}}
+                    <Component Id="{{ external_bin.id }}" Guid="{{external_bin.guid}}" Win64="$(var.Win64)" KeyPath="yes">
+                        <File Id="PathFile_{{ external_bin.id }}" Source="{{external_bin.path}}" />
+                    </Component>
+                    {{/each~}}
+                    {{{resources}}}
+                </Directory>
+            </Directory>
+        </Directory>
+
+        <DirectoryRef Id="APPLICATIONFOLDER">
+            <Component Id="CMP_ReadFileShortcut"
+                Guid="1AF06B42-CD42-4AED-959F-36DB5E512046">
+
+                <Shortcut Id="UninstallShortcut"
+						  Name="Uninstall {{{product_name}}}"
+						  Description="Uninstalls {{{product_name}}}"
+						  Target="[System64Folder]msiexec.exe"
+						  Arguments="/x [ProductCode]" />
+
+				<RemoveFolder Id="RemoveDIR_Shortcuts"
+							  On="uninstall" />
+
+				<RegistryValue Root="HKCU"
+							   Key="Software\{{{manufacturer}}}\{{{product_name}}}"
+							   Name="installed"
+							   Type="integer"
+							   Value="1"
+							   KeyPath="yes" />
+            
+            </Component>
+        </DirectoryRef>
+
+        <Feature
+                Id="MainProgram"
+                Title="Application"
+                Description="Installs {{{product_name}}}."
+                Level="1"
+                ConfigurableDirectory="APPLICATIONFOLDER"
+                AllowAdvertise="no"
+                Display="expand"
+                Absent="disallow">
+
+            {{#each resource_file_ids as |resource_file_id| ~}}
+            <ComponentRef Id="{{ resource_file_id }}"/>
+            {{/each~}}
+
+            <Feature Id="ShortcutsFeature"
+			 Title="Shortcuts"
+			 Level="1">
+			<ComponentRef Id="CMP_ReadFileShortcut" />
+		    </Feature>
+
+            <Feature
+                    Id="Environment"
+                    Title="PATH Environment Variable"
+                    Description="Add the install location of the [ProductName] executable to the PATH system environment variable. This allows the [ProductName] executable to be called from any location."
+                    Level="1"
+                    Absent="allow">
+                <ComponentRef Id="Path"/>
+                {{#each external_binaries as |external_bin| ~}}
+                <ComponentRef Id="{{ external_bin.id }}"/>
+                {{/each~}}
+            </Feature>
+        </Feature>
+
+        <SetProperty Id="ARPINSTALLLOCATION" Value="[APPLICATIONFOLDER]" After="CostFinalize"/>
+    </Product>
+</Wix>

@@ -50,7 +50,7 @@ jobs:
         working-directory: ${{ matrix.package.path }}
         run: |
           echo "# NPM Audit Results" | tee -a ${{runner.workspace }}/notes.md
-          npm audit 2>&1 | tee -a ${{runner.workspace }}/notes.md
+          yarn audit 2>&1 | tee -a ${{runner.workspace }}/notes.md
       - name: Publish ${{ matrix.package.name }}
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         working-directory: ${{ matrix.package.path }}
@@ -78,7 +78,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_npm_release.outputs.upload_url }} 
+          upload_url: ${{ steps.create_npm_release.outputs.upload_url }}
           asset_path: ./${{ matrix.package.path }}/${{ matrix.package.registryName }}-${{ env.PACKAGE_VERSION }}.tgz
           asset_name: ${{ matrix.package.registryName }}-${{ env.PACKAGE_VERSION }}.tgz
           asset_content_type: application/x-gtar

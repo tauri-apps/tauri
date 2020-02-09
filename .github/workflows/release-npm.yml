@@ -33,6 +33,7 @@ jobs:
         run: echo ::set-env name=PUBLISHED_VERSION::$(npm view ${{ matrix.package.registryName }} version)
       - name: yarn install
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
+        working-directory: ${{ matrix.package.path }}
         run: yarn
       - name: npm pack
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION

@@ -18,7 +18,6 @@ mod file_system;
 mod salt;
 #[cfg(feature = "embedded-server")]
 mod tcp;
-mod pid;
 
 use std::process::Stdio;
 

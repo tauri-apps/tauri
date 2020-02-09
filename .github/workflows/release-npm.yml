@@ -30,6 +30,7 @@ jobs:
         run: echo ::set-env name=PACKAGE_VERSION::$(node -p "require('./package.json').version")
       - name: check published version
         run: echo ::set-env name=PUBLISHED_VERSION::$(npm view ${{ matrix.package.registryName }} version)
+      - run: yarn
       - name: npm pack
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         working-directory: ${{ matrix.package.path }}

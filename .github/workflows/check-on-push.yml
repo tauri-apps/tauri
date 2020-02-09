@@ -1,9 +1,10 @@
 name: clippy check
 
-on: push
-  branches-ignore:
-    - master
-    - dev
+on:
+  push:
+    branches-ignore:
+      - master
+      - dev
 
 jobs:
   clippy_check:

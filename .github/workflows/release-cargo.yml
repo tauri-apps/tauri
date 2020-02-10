@@ -73,17 +73,17 @@ jobs:
         run: |
           cargo install cargo-audit
           echo "# Cargo Audit" | tee -a ${{runner.workspace }}/notes.md
-          echo "```" >> ${{runner.workspace }}/notes.md
+          echo "\`\`\`" >> ${{runner.workspace }}/notes.md
           cargo audit 2>&1 | tee -a ${{runner.workspace }}/notes.md
-          echo "```" >> ${{runner.workspace }}/notes.md
+          echo "\`\`\`" >> ${{runner.workspace }}/notes.md
       - name: Publish ${{ matrix.package.name }}
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         working-directory: ${{ matrix.package.path }}
         run: |
           echo "# Cargo Publish" | tee -a ${{runner.workspace }}/notes.md
-          echo "```" >> ${{runner.workspace }}/notes.md
+          echo "\`\`\`" >> ${{runner.workspace }}/notes.md
           cargo publish --no-verify 2>&1 | tee -a ${{runner.workspace }}/notes.md
-          echo "```" >> ${{runner.workspace }}/notes.md
+          echo "\`\`\`" >> ${{runner.workspace }}/notes.md
       - name: Create Release
         id: create_crate_release
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION

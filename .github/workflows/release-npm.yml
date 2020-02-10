@@ -51,9 +51,9 @@ jobs:
         working-directory: ${{ matrix.package.path }}
         run: |
           echo "# Yarn Audit Results" | tee -a ${{runner.workspace }}/notes.md
-          echo "```" >> ${{runner.workspace }}/notes.md
+          echo "\`\`\`" >> ${{runner.workspace }}/notes.md
           yarn audit 2>&1 | tee -a ${{runner.workspace }}/notes.md
-          echo "```" >> ${{runner.workspace }}/notes.md
+          echo "\`\`\`" >> ${{runner.workspace }}/notes.md
       - name: Publish ${{ matrix.package.name }}
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         working-directory: ${{ matrix.package.path }}
@@ -61,9 +61,9 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           echo "# NPM Package Publish" | tee -a ${{runner.workspace }}/notes.md
-          echo "```" >> ${{runner.workspace }}/notes.md
+          echo "\`\`\`" >> ${{runner.workspace }}/notes.md
           npm publish 2>&1 | tee -a ${{runner.workspace }}/notes.md
-          echo "```" >> ${{runner.workspace }}/notes.md
+          echo "\`\`\`" >> ${{runner.workspace }}/notes.md
       - name: Create Release
         id: create_npm_release
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION

@@ -59,7 +59,8 @@ jobs:
         with:
           repository: tauri-apps/examples
           ref: master
-          path: tauri
+          path: examples
+      - run: ls
       - name: install rust stable
         uses: actions-rs/toolchain@v1
         with:

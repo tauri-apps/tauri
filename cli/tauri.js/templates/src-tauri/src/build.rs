@@ -10,6 +10,7 @@ fn main() {
   } else {
     panic!("No Icon.ico found. Please add one or check the path");
   }
+}
 
 #[cfg(not(windows))]
 fn main() {}

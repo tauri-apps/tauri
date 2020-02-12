@@ -42,7 +42,7 @@ jobs:
           - platform: windows-latest
             CARGO_HOME: ~/.cargo
             releaseFolder: target/release
-            ext: .amd64.msi
+            ext: .x64.msi
 
     steps:
       - uses: actions/checkout@v2

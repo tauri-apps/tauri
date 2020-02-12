@@ -170,7 +170,7 @@ fn download_and_verify(url: &str, hash: &str) -> crate::Result<Vec<u8>> {
 
 fn app_installer_dir(settings: &Settings) -> crate::Result<PathBuf> {
   let arch = match settings.binary_arch() {
-     "x86" => "i386",
+    "x86" => "i386",
     "x86_64" => "amd64",
     target => {
       return Err(crate::Error::from(format!(

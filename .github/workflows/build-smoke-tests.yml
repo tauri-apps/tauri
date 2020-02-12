@@ -49,7 +49,7 @@ jobs:
           - platform: windows-latest
             CARGO_HOME: ~/.cargo
             releaseFolder: target/release
-            ext: .x86.msi
+            ext: .x64.msi
 
     steps:
       - name: checkout tauri

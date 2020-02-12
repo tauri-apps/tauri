@@ -10,7 +10,7 @@ on:
       - '**/Cargo.toml'
 
 jobs:
-  via-source:
+  node:
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 40
 
@@ -99,7 +99,7 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ${{ format('examples/{0}/node_modules', matrix.example.folder) }}
-          key: ${{ runner.OS }}-build-${{ hashFiles(format('examples/{0}/yarn.lock', matrix.example.folder)) }}
+          key: ${{ runner.OS }}-build-${{ hashFiles(format('examples/node/{0}/yarn.lock', matrix.example.folder)) }}
           restore-keys: ${{ runner.OS }}-build-${{ env.cache-name }}-
       - name: install via yarn
         working-directory: ./examples/node/${{ matrix.example.folder }}

@@ -6,10 +6,14 @@ on:
       - master
     paths:
       - '**/Cargo.toml'
+      - '.github/workflows/**'
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      TAURI_DIST_DIR: tauri/test/fixture/dist
+      TAURI_DIR: ../test/fixture/src-tauri
     strategy:
       fail-fast: false
       matrix:
@@ -25,12 +29,15 @@ jobs:
           - name: tauri-api
             registryName: tauri-api
             path: tauri-api
+            publishPath: /target/package
           - name: tauri-updater
             registryName: tauri-updater
             path: tauri-updater
+            publishPath: /target/package
           - name: tauri-utils
             registryName: tauri-utils
             path: tauri-utils
+            publishPath: /target/package
     steps:
       - uses: actions/checkout@v2
         with:
@@ -45,13 +52,16 @@ jobs:
         run: echo ::set-env name=PACKAGE_VERSION::$(sed -nE 's/^\s*version = "(.*?)"/\1/p' Cargo.toml)
       - name: check published version
         run: echo ::set-env name=PUBLISHED_VERSION::$(cargo search ${{ matrix.package.registryName }} --limit 1 | sed -nE 's/^[^"]*"//; s/".*//1p' -)
+      - name: cargo login
+        if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
+        run: cargo login ${{ secrets.crate_token }}
       - name: cargo package
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         working-directory: ${{ matrix.package.path }}
         run: |
           echo "package dir:"
           ls
-          cargo package
+          cargo package --no-verify
           echo "We will publish:" $PACKAGE_VERSION
           echo "This is current latest:" $PUBLISHED_VERSION
           echo "post package dir:"
@@ -63,13 +73,17 @@ jobs:
         run: |
           cargo install cargo-audit
           echo "# Cargo Audit" | tee -a ${{runner.workspace }}/notes.md
+          echo "\`\`\`" >> ${{runner.workspace }}/notes.md
           cargo audit 2>&1 | tee -a ${{runner.workspace }}/notes.md
+          echo "\`\`\`" >> ${{runner.workspace }}/notes.md
       - name: Publish ${{ matrix.package.name }}
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         working-directory: ${{ matrix.package.path }}
         run: |
           echo "# Cargo Publish" | tee -a ${{runner.workspace }}/notes.md
-          cargo publish 2>&1 | tee -a ${{runner.workspace }}/notes.md
+          echo "\`\`\`" >> ${{runner.workspace }}/notes.md
+          cargo publish --no-verify 2>&1 | tee -a ${{runner.workspace }}/notes.md
+          echo "\`\`\`" >> ${{runner.workspace }}/notes.md
       - name: Create Release
         id: create_crate_release
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
@@ -102,4 +116,4 @@ jobs:
           IOTA_SEED: ${{ secrets.IOTA_SEED }}
         with:
           tag_name: ${{ matrix.package.name }}-v${{ env.PACKAGE_VERSION }}
-          comment: "[Test] Release ${{ matrix.package.name }} v${{ env.PACKAGE_VERSION }} [crates.io]"
+          comment: "Release ${{ matrix.package.name }} v${{ env.PACKAGE_VERSION }} [crates.io]"

@@ -170,8 +170,8 @@ fn download_and_verify(url: &str, hash: &str) -> crate::Result<Vec<u8>> {
 
 fn app_installer_dir(settings: &Settings) -> crate::Result<PathBuf> {
   let arch = match settings.binary_arch() {
-    "x86_64" => "x86",
-    "x64" => "x64",
+    "x86" => "x86",
+    "x86_64" => "x64",
     target => {
       return Err(crate::Error::from(format!(
         "Unsupported architecture: {}",

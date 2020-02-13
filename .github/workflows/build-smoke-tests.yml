@@ -97,7 +97,7 @@ jobs:
       - name: cache node modules
         uses: actions/cache@v1
         with:
-          path: ${{ format('examples/{0}/node_modules', matrix.example.folder) }}
+          path: ${{ format('examples/node/{0}/node_modules', matrix.example.folder) }}
           key: ${{ runner.OS }}-build-${{ hashFiles(format('examples/node/{0}/yarn.lock', matrix.example.folder)) }}
           restore-keys: ${{ runner.OS }}-build-${{ env.cache-name }}-
       - name: install via yarn

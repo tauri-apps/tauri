@@ -161,4 +161,4 @@ Code: (c) 2015 - present - Daniel Thompson-Yvetot, Lucas Nogueira, Tensor, Bosco
 MIT or MIT/Apache where applicable.
 
 Logo: CC-BY-NC-ND
-- Original Tauri Logo Design by [Daniel Thompson-Yvetot](https://github.com/nothingismagick)
+- Original Tauri Logo Designs by [Daniel Thompson-Yvetot](https://github.com/nothingismagick) and [Guillaume Chau](https://github.com/akryum)

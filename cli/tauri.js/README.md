@@ -1,5 +1,5 @@
 # tauri
- <img align="right" src="app-icon.png" height="200" width="200">
+ <img align="right" src="app-icon.png" height="128" width="128">
 
 ## A fresh take on creating cross-platform apps.
 [![status](https://img.shields.io/badge/Status-Early%20Alpha-yellow.svg)](https://github.com/quasarframework/quasar/tree/tauri)

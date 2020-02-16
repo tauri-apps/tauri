@@ -85,11 +85,6 @@ jobs:
         with:
           path: ${{ format('{0}/registry/cache/', matrix.CARGO_HOME) }}
           key: ${{ runner.OS }}-build-reg-cache-${{ hashFiles('**/Cargo.toml') }}-
-      - name: build rust
-        run: cargo build
-        env:
-          TAURI_DIST_DIR: ../../test/fixture/dist
-          TAURI_DIR: ../test/fixture/src-tauri
       - run: cargo install --path ./cli/tauri-bundler --force
       - name: install cli deps via yarn
         working-directory: ./cli/tauri.js

@@ -79,7 +79,7 @@ class Runner {
           path.join(tauriDir, 'src'),
           path.join(tauriDir, 'Cargo.toml'),
           path.join(tauriDir, 'build.rs'),
-          path.join(appDir, 'tauri.conf.js')
+          path.join(appDir, 'tauri.conf.json')
         ],
         {
           ignoreInitial: true
@@ -90,7 +90,7 @@ class Runner {
         debounce((path: string) => {
           this.__stopCargo()
             .then(() => {
-              if (path.includes('tauri.conf.js')) {
+              if (path.includes('tauri.conf.json')) {
                 this.run(getTauriConfig({ ctx: cfg.ctx })).catch(e => {
                   throw e
                 })

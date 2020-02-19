@@ -214,6 +214,27 @@ fn create_info_plist(
       copyright
     )?;
   }
+
+  if let Some(exception_domain) = settings.exception_domain() {
+    write!(
+      file,
+      "  <key>NSAppTransportSecurity</key>\n  \
+      <dict>\n  \
+          <key>NSExceptionDomains</key>\n  \
+          <dict>\n  \
+              <key>{}</key>\n  \
+              <dict>\n  \
+                  <key>NSExceptionAllowsInsecureHTTPLoads</key>\n  \
+                  <true/>\n  \
+                  <key>NSIncludesSubdomains</key>\n  \
+                  <true/>\n  \
+              </dict>\n  \
+          </dict>\n  \
+      </dict>",
+      exception_domain
+    )?;
+  }
+
   write!(file, "</dict>\n</plist>\n")?;
   file.flush()?;
   Ok(())

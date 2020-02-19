@@ -449,7 +449,7 @@ function __openLinks () {
     var target = e.target
     while (target != null) {
       if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
-        if (target.href && target.href.startsWith('http')) {
+        if (target.href && target.href.startsWith('http') && target.target === '_blank') {
           window.tauri.open(target.href)
         }
         break

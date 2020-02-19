@@ -111,6 +111,7 @@ struct BundleSettings {
   bin: Option<HashMap<String, BundleSettings>>,
   example: Option<HashMap<String, BundleSettings>>,
   external_bin: Option<Vec<String>>,
+  exception_domain: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -431,6 +432,10 @@ impl Settings {
       Some(ref paths) => ResourcePaths::new(paths.as_slice(), true),
       None => ResourcePaths::new(&[], true),
     }
+  }
+
+  pub fn exception_domain(&self) -> Option<&String> {
+    return self.bundle_settings.exception_domain.as_ref()
   }
 
   // copy external binaries to a path.

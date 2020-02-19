@@ -9,9 +9,7 @@ on:
 jobs:
   clippy_check:
     runs-on: ubuntu-latest
-    env:
-      TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/dist
-      TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/src-tauri
+
     steps:
       - uses: actions/checkout@v2
       - name: install webkit2gtk
@@ -22,3 +20,6 @@ jobs:
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/dist
+          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/src-tauri

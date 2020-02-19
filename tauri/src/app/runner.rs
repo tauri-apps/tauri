@@ -63,7 +63,7 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   #[cfg(feature = "dev-server")]
   webview
     .handle()
-    .dispatch(|_webview| _webview.eval(include_str!(concat!("../", env!("TAURI_DIR"), "/tauri.js"))))?;
+    .dispatch(|_webview| _webview.eval(include_str!(concat!(env!("TAURI_DIR"), "/tauri.js"))))?;
 
   // spawn the embedded server on our server url
   #[cfg(feature = "embedded-server")]
@@ -237,7 +237,7 @@ fn build_webview(
     // inject the tauri.js entry point
     webview
     .handle()
-    .dispatch(|_webview| _webview.eval(include_str!(concat!("../", env!("TAURI_DIR"), "/tauri.js"))))?;
+    .dispatch(|_webview| _webview.eval(include_str!(concat!(env!("TAURI_DIR"), "/tauri.js"))))?;
   }
   
   Ok(webview)

@@ -443,8 +443,8 @@ document.addEventListener('error', function (e) {
   }
 }, true)
 
-window.addEventListener('DOMContentLoaded', function () {
   // open <a href="..."> links with the Tauri API
+function __openLinks () {
   document.querySelector('body').addEventListener('click', function (e) {
     var target = e.target
     while (target != null) {
@@ -457,4 +457,12 @@ window.addEventListener('DOMContentLoaded', function () {
       target = target.parentElement
     }
   }, true)
-}, true)
+}
+
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  __openLinks()
+} else {
+  window.addEventListener('DOMContentLoaded', function () {
+    __openLinks()
+  }, true)
+}

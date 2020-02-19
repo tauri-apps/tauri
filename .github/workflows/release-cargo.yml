@@ -12,8 +12,8 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     env:
-      TAURI_DIST_DIR: tauri/test/fixture/dist
-      TAURI_DIR: ../test/fixture/src-tauri
+      TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/dist
+      TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/src-tauri
     strategy:
       fail-fast: false
       matrix:

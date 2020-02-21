@@ -234,10 +234,10 @@ fn build_webview(
     .build()?;
 
   if has_splashscreen {
-    // trigger the init hook for the splashscreen since we're not injecting the tauri.js entry point
-    webview.handle().dispatch(|webview| {
-      webview.eval(r#"window.external.invoke(JSON.stringify({ cmd: "__initialized" }))"#)
-    }).expect("failed to initialize splashscreen");
+    // inject the tauri.js entry point
+    webview
+    .handle()
+    .dispatch(|_webview| _webview.eval(include_str!(concat!(env!("TAURI_DIR"), "/tauri.js"))))?;
   }
   
   Ok(webview)

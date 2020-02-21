@@ -1,5 +1,5 @@
 # tauri
- <img align="right" src="app-icon.png" height="120" width="120">
+ <img align="right" src="app-icon.png" height="128" width="128">
 
 ## A fresh take on creating cross-platform apps.
 [![status](https://img.shields.io/badge/Status-Alpha-yellow.svg)](https://github.com/tauri-apps/tauri/tree/dev)
@@ -161,4 +161,4 @@ Code: (c) 2015 - present - Daniel Thompson-Yvetot, Lucas Nogueira, Tensor, Bosco
 MIT or MIT/Apache where applicable.
 
 Logo: CC-BY-NC-ND
-- Original Tauri Logo Design by [Daniel Thompson-Yvetot](https://github.com/nothingismagick)
+- Original Tauri Logo Designs by [Daniel Thompson-Yvetot](https://github.com/nothingismagick) and [Guillaume Chau](https://github.com/akryum)

@@ -14,7 +14,6 @@
     "build-release": "yarn build --display none --progress false",
     "test": "jest --runInBand --no-cache",
     "pretest": "yarn build",
-    "postinstall": "yarn build",
     "prepublishOnly": "yarn build-release",
     "test:mac-local": "jest --runInBand",
     "lint": "eslint --ext ts ./src/**/*.ts",

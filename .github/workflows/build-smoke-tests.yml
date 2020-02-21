@@ -1,9 +1,16 @@
 name: build smoke tests with source
 
-on: pull_request
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+    paths:
+      - '**/package.json'
+      - '**/Cargo.toml'
 
 jobs:
-  via-source:
+  node:
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 40
 
@@ -42,10 +49,17 @@ jobs:
           - platform: windows-latest
             CARGO_HOME: ~/.cargo
             releaseFolder: target/release
-            ext: .x86.msi
+            ext: .x64.msi
 
     steps:
-      - uses: actions/checkout@v2
+      - name: checkout tauri
+        uses: actions/checkout@v2
+      - name: checkout examples
+        uses: actions/checkout@v2
+        with:
+          repository: tauri-apps/examples
+          ref: master
+          path: examples
       - name: install rust stable
         uses: actions-rs/toolchain@v1
         with:
@@ -71,36 +85,27 @@ jobs:
         with:
           path: ${{ format('{0}/registry/cache/', matrix.CARGO_HOME) }}
           key: ${{ runner.OS }}-build-reg-cache-${{ hashFiles('**/Cargo.toml') }}-
-      - name: build rust
-        run: cargo build
-        env:
-          TAURI_DIST_DIR: ../../test/fixture/dist
-          TAURI_DIR: ../test/fixture/src-tauri
       - run: cargo install --path ./cli/tauri-bundler --force
       - name: install cli deps via yarn
-        run: |
-          cd ./cli/tauri.js
-          yarn
+        working-directory: ./cli/tauri.js
+        run: yarn
       - name: cache node modules
         uses: actions/cache@v1
         with:
-          path: ${{ format('examples/{0}/node_modules', matrix.example.folder) }}
-          key: ${{ runner.OS }}-build-${{ hashFiles(format('examples/{0}/yarn.lock', matrix.example.folder)) }}
+          path: ${{ format('examples/node/{0}/node_modules', matrix.example.folder) }}
+          key: ${{ runner.OS }}-build-${{ hashFiles(format('examples/node/{0}/yarn.lock', matrix.example.folder)) }}
           restore-keys: ${{ runner.OS }}-build-${{ env.cache-name }}-
       - name: install via yarn
-        run: |
-          cd ./examples/${{ matrix.example.folder }}
-          yarn
+        working-directory: ./examples/node/${{ matrix.example.folder }}
+        run: yarn
       - name: build example
-        run: |
-          cd ./examples/${{ matrix.example.folder }}
-          yarn build
+        working-directory: ./examples/node/${{ matrix.example.folder }}
+        run: yarn build
       - name: yarn tauri build
-        run: |
-          cd ./examples/${{ matrix.example.folder }}
-          yarn tauri:source:build
+        working-directory: ./examples/node/${{ matrix.example.folder }}
+        run: yarn tauri:source:build
       - uses: actions/upload-artifact@v1
         if: success()
         with:
           name: ${{ matrix.example.name }}(${{ matrix.platform }})
-          path: ${{ format('./examples/{0}/src-tauri/{1}/{2}{3}', matrix.example.folder, matrix.releaseFolder, matrix.example.executable, matrix.ext ) }}
+          path: ${{ format('./examples/node/{0}/src-tauri/{1}/{2}{3}', matrix.example.folder, matrix.releaseFolder, matrix.example.executable, matrix.ext ) }}

@@ -443,13 +443,13 @@ document.addEventListener('error', function (e) {
   }
 }, true)
 
-window.addEventListener('DOMContentLoaded', function () {
   // open <a href="..."> links with the Tauri API
+function __openLinks () {
   document.querySelector('body').addEventListener('click', function (e) {
     var target = e.target
     while (target != null) {
       if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
-        if (target.href && target.href.startsWith('http')) {
+        if (target.href && target.href.startsWith('http') && target.target === '_blank') {
           window.tauri.open(target.href)
         }
         break
@@ -457,4 +457,12 @@ window.addEventListener('DOMContentLoaded', function () {
       target = target.parentElement
     }
   }, true)
-}, true)
+}
+
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  __openLinks()
+} else {
+  window.addEventListener('DOMContentLoaded', function () {
+    __openLinks()
+  }, true)
+}

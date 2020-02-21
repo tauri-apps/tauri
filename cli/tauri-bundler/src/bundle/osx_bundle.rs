@@ -95,9 +95,29 @@ fn create_path_hook(bundle_dir: &Path, settings: &Settings) -> crate::Result<()>
     "#!/usr/bin/env sh
 # This bootstraps the $PATH for Tauri, so environments are available.
 
-. ~/.bash_profile
+if [ -e ~/.bash_profile ]
+then 
+  . ~/.bash_profile
+fi
+if [ -e ~/.zprofile ]
+then 
+  . ~/.zprofile
+fi
+if [ -e ~/.profile ]
+then 
+  . ~/.profile
+fi
+if [ -e ~/.bashrc ]
+then 
+  . ~/.bashrc
+fi
 
-if pidof -x \"__bootstrapper\" >/dev/null; then
+if [ -e ~/.zshrc ]
+then 
+  . ~/.zshrc
+fi
+
+if pidof \"__bootstrapper\" >/dev/null; then
     exit 0
 else
     exec \"`dirname \\\"$0\\\"`/{}\" $@ & disown
@@ -214,6 +234,27 @@ fn create_info_plist(
       copyright
     )?;
   }
+
+  if let Some(exception_domain) = settings.exception_domain() {
+    write!(
+      file,
+      "  <key>NSAppTransportSecurity</key>\n  \
+      <dict>\n  \
+          <key>NSExceptionDomains</key>\n  \
+          <dict>\n  \
+              <key>{}</key>\n  \
+              <dict>\n  \
+                  <key>NSExceptionAllowsInsecureHTTPLoads</key>\n  \
+                  <true/>\n  \
+                  <key>NSIncludesSubdomains</key>\n  \
+                  <true/>\n  \
+              </dict>\n  \
+          </dict>\n  \
+      </dict>",
+      exception_domain
+    )?;
+  }
+
   write!(file, "</dict>\n</plist>\n")?;
   file.flush()?;
   Ok(())

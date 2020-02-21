@@ -12,8 +12,8 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     env:
-      TAURI_DIST_DIR: tauri/test/fixture/dist
-      TAURI_DIR: ../test/fixture/src-tauri
+      TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/dist
+      TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/src-tauri
     strategy:
       fail-fast: false
       matrix:
@@ -110,7 +110,7 @@ jobs:
       - name: Tangle Release
         id: tangle_release
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
-        uses: iotaledger/gh-tangle-release@v0.5.2
+        uses: iotaledger/gh-tangle-release@v0.6.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IOTA_SEED: ${{ secrets.IOTA_SEED }}

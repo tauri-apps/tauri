@@ -29,6 +29,7 @@ use libflate::gzip;
 use md5;
 use tar;
 use walkdir::WalkDir;
+use std::process::{Command, Stdio};
 
 use std::collections::BTreeSet;
 use std::convert::TryInto;
@@ -89,7 +90,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 pub fn generate_folders(settings: &Settings, package_dir: &Path) -> crate::Result<PathBuf> {
   // Generate data files.
   let data_dir = package_dir.join("data");
-  let binary_dest = data_dir.join("usr/bin").join(settings.binary_name());
+  let bin_name = settings.binary_name();
+  let binary_dest = data_dir.join("usr/bin").join(bin_name);
   let bin_dir = data_dir.join("usr/bin");
 
   common::copy_file(settings.binary_path(), &binary_dest)
@@ -102,6 +104,62 @@ pub fn generate_folders(settings: &Settings, package_dir: &Path) -> crate::Resul
 
   generate_icon_files(settings, &data_dir).chain_err(|| "Failed to create icon files")?;
   generate_desktop_file(settings, &data_dir).chain_err(|| "Failed to create desktop file")?;
+
+  let bootstrap_file_name = format!("__{}-bootstrapper", bin_name);
+  let bootstrapper_file_path = bin_dir
+    .join(bootstrap_file_name.clone());
+  let bootstrapper_file = &mut common::create_file(&bootstrapper_file_path)?;
+  println!("{:?}", bootstrapper_file_path);
+  write!(
+    bootstrapper_file,
+    "#!/usr/bin/env sh
+# This bootstraps the $PATH for Tauri, so environments are available.
+export NVM_DIR=\"$([ -z \"${{XDG_CONFIG_HOME-}}\" ] && printf %s \"${{HOME}}/.nvm\" || printf %s \"${{XDG_CONFIG_HOME}}/nvm\")\"
+[ -s \"$NVM_DIR/nvm.sh\" ] && . \"$NVM_DIR/nvm.sh\"
+
+if [ -e ~/.bash_profile ]
+then
+  source ~/.bash_profile
+fi
+if [ -e ~/.zprofile ]
+then
+  source ~/.zprofile
+fi
+if [ -e ~/.profile ]
+then
+  source ~/.profile
+fi
+if [ -e ~/.bashrc ]
+then
+  source ~/.bashrc
+fi
+if [ -e ~/.zshrc ]
+then
+  source ~/.zshrc
+fi
+
+echo $PATH
+
+source /etc/profile
+
+if pidof -x \"{}\" >/dev/null; then
+    exit 0
+else
+Exec=/usr/bin/env /usr/bin/{} $@ & disown
+fi
+exit 0
+", bootstrap_file_name, bin_name
+  )?;
+  bootstrapper_file.flush()?;
+
+  Command::new("chmod")
+    .arg("+x")
+    .arg(bootstrap_file_name)
+    .current_dir(&bin_dir)
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .spawn()
+    .expect("Failed to chmod script");
 
   Ok(data_dir)
 }
@@ -124,7 +182,7 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   if !settings.short_description().is_empty() {
     write!(file, "Comment={}\n", settings.short_description())?;
   }
-  write!(file, "Exec={}\n", bin_name)?;
+  write!(file, "Exec=__{}-bootstrapper\n", bin_name)?;
   write!(file, "Icon={}\n", bin_name)?;
   write!(file, "Name={}\n", settings.bundle_name())?;
   write!(file, "Terminal=false\n")?;

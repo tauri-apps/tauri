@@ -25,7 +25,7 @@ use error_chain::error_chain;
 use threadpool::ThreadPool;
 
 pub use app::*;
-use web_view::{WebView, Handle};
+pub use web_view::{WebView, Handle};
 
 pub use app::*;
 pub use tauri_api as api;

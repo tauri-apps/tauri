@@ -1,5 +1,5 @@
 # tauri
- <img align="right" src="app-icon.png" height="200" width="200">
+ <img align="right" src="app-icon.png" height="128" width="128">
 
 ## A fresh take on creating cross-platform apps.
 [![status](https://img.shields.io/badge/Status-Early%20Alpha-yellow.svg)](https://github.com/quasarframework/quasar/tree/tauri)
@@ -25,15 +25,19 @@ Please visit the main readme for further information about contributing.
 
 ## Installation
 
-The preferred method is to install this module globally:
+The preferred method is to install this module locally as a dev dependency:
 ```
-$ npm install --global tauri
-```
-
-You can also add it to your project and use it locally - maybe helpful for some CI pipelines:
-```
+$ npm install --save-dev tauri
 $ yarn add --dev tauri
 ```
 
-## License
-MIT
+## Semver
+**tauri** is following [Semantic Versioning 2.0](https://semver.org/).
+
+## Licenses
+Code: (c) 2015 - present - Daniel Thompson-Yvetot, Lucas Nogueira, Tensor, Boscop, Serge Zaitsev, George Burton and all the other amazing contributors.
+
+MIT or MIT/Apache where applicable.
+
+Logo: CC-BY-NC-ND
+- Original Tauri Logo Designs by [Daniel Thompson-Yvetot](https://github.com/nothingismagick) and [Guillaume Chau](https://github.com/akryum)

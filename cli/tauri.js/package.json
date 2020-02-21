@@ -11,9 +11,11 @@
   },
   "scripts": {
     "build": "webpack --progress",
+    "build-release": "yarn build --display none --progress false",
     "test": "jest --runInBand --no-cache",
-    "prepare": "yarn build",
     "pretest": "yarn build",
+    "postinstall": "yarn build",
+    "prepublishOnly": "yarn build-release",
     "test:mac-local": "jest --runInBand",
     "lint": "eslint --ext ts ./src/**/*.ts",
     "lint-fix": "eslint --fix --ext ts ./src/**/*.ts",

@@ -95,9 +95,29 @@ fn create_path_hook(bundle_dir: &Path, settings: &Settings) -> crate::Result<()>
     "#!/usr/bin/env sh
 # This bootstraps the $PATH for Tauri, so environments are available.
 
-. ~/.bash_profile
+if [ -e ~/.bash_profile ]
+then 
+  . ~/.bash_profile
+fi
+if [ -e ~/.zprofile ]
+then 
+  . ~/.zprofile
+fi
+if [ -e ~/.profile ]
+then 
+  . ~/.profile
+fi
+if [ -e ~/.bashrc ]
+then 
+  . ~/.bashrc
+fi
 
-if pidof -x \"__bootstrapper\" >/dev/null; then
+if [ -e ~/.zshrc ]
+then 
+  . ~/.zshrc
+fi
+
+if pidof \"__bootstrapper\" >/dev/null; then
     exit 0
 else
     exec \"`dirname \\\"$0\\\"`/{}\" $@ & disown

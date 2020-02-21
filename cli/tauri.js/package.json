@@ -1,6 +1,6 @@
 {
   "name": "tauri",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Multi-binding collection of libraries and templates for building Tauri apps",
   "bin": {
     "tauri": "./bin/tauri.js"
@@ -14,7 +14,6 @@
     "build-release": "yarn build --display none --progress false",
     "test": "jest --runInBand --no-cache",
     "pretest": "yarn build",
-    "postinstall": "yarn build",
     "prepublishOnly": "yarn build-release",
     "test:mac-local": "jest --runInBand",
     "lint": "eslint --ext ts ./src/**/*.ts",

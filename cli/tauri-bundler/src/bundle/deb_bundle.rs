@@ -114,35 +114,41 @@ pub fn generate_folders(settings: &Settings, package_dir: &Path) -> crate::Resul
     bootstrapper_file,
     "#!/usr/bin/env sh
 # This bootstraps the $PATH for Tauri, so environments are available.
+export NVM_DIR=\"$([ -z \"${{XDG_CONFIG_HOME-}}\" ] && printf %s \"${{HOME}}/.nvm\" || printf %s \"${{XDG_CONFIG_HOME}}/nvm\")\"
+[ -s \"$NVM_DIR/nvm.sh\" ] && . \"$NVM_DIR/nvm.sh\"
 
 if [ -e ~/.bash_profile ]
-then 
-  . ~/.bash_profile
+then
+  source ~/.bash_profile
 fi
 if [ -e ~/.zprofile ]
-then 
-  . ~/.zprofile
+then
+  source ~/.zprofile
 fi
 if [ -e ~/.profile ]
-then 
-  . ~/.profile
+then
+  source ~/.profile
 fi
 if [ -e ~/.bashrc ]
-then 
-  . ~/.bashrc
+then
+  source ~/.bashrc
+fi
+if [ -e ~/.zshrc ]
+then
+  source ~/.zshrc
 fi
 
-if [ -e ~/.zshrc ]
-then 
-  . ~/.zshrc
-fi
+echo $PATH
+
+source /etc/profile
 
 if pidof -x \"{}\" >/dev/null; then
     exit 0
 else
-    {} $@ & disown
+Exec=/usr/bin/env /usr/bin/{} $@ & disown
 fi
-exit 0", bootstrap_file_name, bin_name
+exit 0
+", bootstrap_file_name, bin_name
   )?;
   bootstrapper_file.flush()?;
 

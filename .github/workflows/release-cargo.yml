@@ -11,9 +11,6 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    env:
-      TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/dist
-      TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/src-tauri
     strategy:
       fail-fast: false
       matrix:
@@ -58,6 +55,9 @@ jobs:
       - name: cargo package
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         working-directory: ${{ matrix.package.path }}
+        env:
+          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/dist
+          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/src-tauri
         run: |
           echo "package dir:"
           ls
@@ -70,6 +70,9 @@ jobs:
       - name: cargo audit
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         working-directory: ${{ matrix.package.path }}
+        env:
+          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/dist
+          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/src-tauri
         run: |
           cargo install cargo-audit
           echo "# Cargo Audit" | tee -a ${{runner.workspace }}/notes.md
@@ -79,6 +82,9 @@ jobs:
       - name: Publish ${{ matrix.package.name }}
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         working-directory: ${{ matrix.package.path }}
+        env:
+          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/dist
+          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/src-tauri
         run: |
           echo "# Cargo Publish" | tee -a ${{runner.workspace }}/notes.md
           echo "\`\`\`" >> ${{runner.workspace }}/notes.md

@@ -89,6 +89,9 @@ jobs:
       - name: install cli deps via yarn
         working-directory: ./cli/tauri.js
         run: yarn
+      - name: build cli
+        working-directory: ./cli/tauri.js
+        run: yarn build
       - name: cache node modules
         uses: actions/cache@v1
         with:

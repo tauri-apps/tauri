@@ -4,7 +4,6 @@ use serde::Deserialize;
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   Init {},
-  Reload {},
   #[cfg(any(feature = "all-api", feature = "readTextFile"))]
   ReadTextFile {
     path: String,

@@ -20,9 +20,6 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
             event_init = event_init
           ))?;
         }
-        Reload {} => {
-            webview.eval(include_str!(concat!(env!("TAURI_DIR"), "/tauri.js")));
-        }
         #[cfg(any(feature = "all-api", feature = "readTextFile"))]
         ReadTextFile {
           path,

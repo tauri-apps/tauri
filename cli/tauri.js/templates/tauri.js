@@ -19,25 +19,25 @@
  */
 
 // makes the window.external.invoke API available after window.location.href changes
-if (navigator.platform) {
-  switch (navigator.platform) {
-    case "MacIntel":
-      window.external = this
-      invoke = function (x) {
-        webkit.messageHandlers.invoke.postMessage(x);
-      }
-      break;
-    case "Win32":
-    case "Win64":
-      break;
-    default: 
-      window.external = this
-      invoke = function (x) {
-        window.webkit.messageHandlers.external.postMessage(x);
-      }
-      break;
-  }
+
+switch (navigator.platform) {
+  case "MacIntel":
+    window.external = this
+    invoke = function (x) {
+      webkit.messageHandlers.invoke.postMessage(x);
+    }
+    break;
+  case "Win32":
+  case "Win64":
+    break;
+  default: 
+    window.external = this
+    invoke = function (x) {
+      window.webkit.messageHandlers.external.postMessage(x);
+    }
+    break;
 }
+
 
 function s4() {
   return Math.floor((1 + Math.random()) * 0x10000)

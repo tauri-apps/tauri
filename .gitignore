@@ -36,6 +36,9 @@ typings/
 # Optional npm cache directory
 .npm
 
+# Optional yarn cache directory
+.yarn
+
 # Optional eslint cache
 .eslintcache
 
@@ -62,6 +65,7 @@ package-lock.json
 */.vscode/
 proptest-regressions/
 TODO.md
+
 
 # Tauri output
 /bundle.json

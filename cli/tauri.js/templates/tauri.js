@@ -21,12 +21,17 @@
 // makes the window.external.invoke API available after window.location.href changes
 
 switch (navigator.platform) {
+  case "Macintosh":
+  case "MacPPC":
   case "MacIntel":
+  case "Mac68K":
     window.external = this
     invoke = function (x) {
       webkit.messageHandlers.invoke.postMessage(x);
     }
     break;
+  case "Windows":
+  case "WinCE":
   case "Win32":
   case "Win64":
     break;

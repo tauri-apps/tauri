@@ -61,7 +61,7 @@ const checkSrc = async (src: string): Promise<boolean | sharp.Sharp> => {
       process.exit(1)
     } else {
       const buffer = await readChunk(src, 0, 8)
-      if (isPng(buffer) === true) {
+      if (isPng(buffer)) {
         return (image = sharp(src))
       } else {
         image = false
@@ -309,7 +309,7 @@ const tauricon = (exports.tauricon = {
       // prevent overlay or pure
       block = true
     }
-    if (block === true || options.splashscreen_type === 'generate') {
+    if (block || options.splashscreen_type === 'generate') {
       await this.validate(src, target)
       if (!image) {
         process.exit(1)

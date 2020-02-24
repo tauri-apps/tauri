@@ -107,7 +107,6 @@
     }
   },
   "lint-staged": [
-    "eslint --fix",
-    "git add"
+    "eslint --fix"
   ]
 }

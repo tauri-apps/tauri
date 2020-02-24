@@ -1,4 +1,4 @@
-name: clippy check
+name: clippy and eslint check
 
 on:
   push:
@@ -23,3 +23,15 @@ jobs:
         env:
           TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/dist
           TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/src-tauri
+
+  eslint-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1.4.0
+      - name: install deps via yarn
+        working-directory: ./cli/tauri.js
+        run: yarn
+      - name: run eslint
+        working-directory: ./cli/tauri.js
+        run: yarn lint

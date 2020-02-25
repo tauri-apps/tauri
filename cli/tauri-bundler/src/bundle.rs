@@ -11,6 +11,7 @@ mod ios_bundle;
 mod msi_bundle;
 mod osx_bundle;
 mod path_utils;
+mod platform;
 mod rpm_bundle;
 mod settings;
 #[cfg(target_os = "windows")]

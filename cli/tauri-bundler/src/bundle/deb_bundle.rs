@@ -27,9 +27,9 @@ use image::png::{PNGDecoder, PNGEncoder};
 use image::{self, GenericImageView, ImageDecoder};
 use libflate::gzip;
 use md5;
+use std::process::{Command, Stdio};
 use tar;
 use walkdir::WalkDir;
-use std::process::{Command, Stdio};
 
 use std::collections::BTreeSet;
 use std::convert::TryInto;
@@ -105,9 +105,17 @@ pub fn generate_folders(settings: &Settings, package_dir: &Path) -> crate::Resul
   generate_icon_files(settings, &data_dir).chain_err(|| "Failed to create icon files")?;
   generate_desktop_file(settings, &data_dir).chain_err(|| "Failed to create desktop file")?;
 
+  generate_bootstrap_file(settings, &data_dir).chain_err(|| "Failed to generate bootstrap file")?;
+
+  Ok(data_dir)
+}
+
+fn generate_bootstrap_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
+  let bin_name = settings.binary_name();
+  let bin_dir = data_dir.join("usr/bin");
+
   let bootstrap_file_name = format!("__{}-bootstrapper", bin_name);
-  let bootstrapper_file_path = bin_dir
-    .join(bootstrap_file_name.clone());
+  let bootstrapper_file_path = bin_dir.join(bootstrap_file_name.clone());
   let bootstrapper_file = &mut common::create_file(&bootstrapper_file_path)?;
   println!("{:?}", bootstrapper_file_path);
   write!(
@@ -119,23 +127,23 @@ export NVM_DIR=\"$([ -z \"${{XDG_CONFIG_HOME-}}\" ] && printf %s \"${{HOME}}/.nv
 
 if [ -e ~/.bash_profile ]
 then
-  source ~/.bash_profile
+    source ~/.bash_profile
 fi
 if [ -e ~/.zprofile ]
 then
-  source ~/.zprofile
+    source ~/.zprofile
 fi
 if [ -e ~/.profile ]
 then
-  source ~/.profile
+    source ~/.profile
 fi
 if [ -e ~/.bashrc ]
 then
-  source ~/.bashrc
+    source ~/.bashrc
 fi
 if [ -e ~/.zshrc ]
 then
-  source ~/.zshrc
+    source ~/.zshrc
 fi
 
 echo $PATH
@@ -145,10 +153,10 @@ source /etc/profile
 if pidof -x \"{}\" >/dev/null; then
     exit 0
 else
-Exec=/usr/bin/env /usr/bin/{} $@ & disown
+    Exec=/usr/bin/env /usr/bin/{} $@ & disown
 fi
-exit 0
-", bootstrap_file_name, bin_name
+exit 0",
+    bootstrap_file_name, bin_name
   )?;
   bootstrapper_file.flush()?;
 
@@ -158,10 +166,9 @@ exit 0
     .current_dir(&bin_dir)
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
-    .spawn()
-    .expect("Failed to chmod script");
+    .spawn()?;
 
-  Ok(data_dir)
+  Ok(())
 }
 
 /// Generate the application desktop file and store it under the `data_dir`.

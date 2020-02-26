@@ -18,19 +18,31 @@
  * and also whitelist them based upon the developer's settings.
  */
 
- // makes the window.external.invoke API available after window.location.href changes
-if (navigator.platform != "Win64" && navigator.plaform != "Win32") {
-  window.external = this
-  if (navigator.platform == "MacIntel") {
+// makes the window.external.invoke API available after window.location.href changes
+
+switch (navigator.platform) {
+  case "Macintosh":
+  case "MacPPC":
+  case "MacIntel":
+  case "Mac68K":
+    window.external = this
     invoke = function (x) {
       webkit.messageHandlers.invoke.postMessage(x);
     }
-  } else {
+    break;
+  case "Windows":
+  case "WinCE":
+  case "Win32":
+  case "Win64":
+    break;
+  default: 
+    window.external = this
     invoke = function (x) {
       window.webkit.messageHandlers.external.postMessage(x);
     }
-  }
+    break;
 }
+
 
 function s4() {
   return Math.floor((1 + Math.random()) * 0x10000)
@@ -61,10 +73,10 @@ function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterat
  * @private
  */
 var __whitelistWarning = function (func) {
-  console.warn('%c[Tauri] Danger \ntauri.' + func + ' not whitelisted 💣\n%c\nAdd to tauri.conf.json: \n\ntauri: \n  whitelist: { \n    ' + func + ': true \n\nReference: https://github.com/tauri-apps/tauri/wiki' + func , 'background: red; color: white; font-weight: 800; padding: 2px; font-size:1.5em', ' ')
-  return __reject()
-}
-<% } %>
+    console.warn('%c[Tauri] Danger \ntauri.' + func + ' not whitelisted 💣\n%c\nAdd to tauri.conf.json: \n\ntauri: \n  whitelist: { \n    ' + func + ': true \n\nReference: https://github.com/tauri-apps/tauri/wiki' + func, 'background: red; color: white; font-weight: 800; padding: 2px; font-size:1.5em', ' ')
+    return __reject()
+  }
+    <% } %>
 
 <% if (ctx.dev) { %>
   /**
@@ -106,18 +118,18 @@ window.tauri = {
   listen: function listen(event, handler) {
     <% if (tauri.whitelist.event === true || tauri.whitelist.all === true) { %>
     var once = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
-    this.invoke({
-      cmd: 'listen',
-      event: event,
-      handler: window.tauri.transformCallback(handler, once),
-      once: once
-    });
+      this.invoke({
+        cmd: 'listen',
+        event: event,
+        handler: window.tauri.transformCallback(handler, once),
+        once: once
+      });
     <% } else { %>
       <% if (ctx.dev) { %>
           return __whitelistWarning('event')
           <% } %>
         return __reject()
-    <% } %>
+        <% } %>
   },
 
   <% if (ctx.dev) { %>
@@ -130,17 +142,17 @@ window.tauri = {
   <% } %>
   emit: function emit(evt, payload) {
     <% if (tauri.whitelist.event === true || tauri.whitelist.all === true) { %>
-    this.invoke({
-      cmd: 'emit',
-      event: evt,
-      payload: payload || ''
-    });
+      this.invoke({
+        cmd: 'emit',
+        event: evt,
+        payload: payload || ''
+      });
     <% } else { %>
       <% if (ctx.dev) { %>
           return __whitelistWarning('event')
           <% } %>
         return __reject()
-    <% } %>
+        <% } %>
   },
 
   <% if (ctx.dev) { %>
@@ -197,17 +209,17 @@ window.tauri = {
   <% } %>
   readTextFile: function readTextFile(path) {
     <% if (tauri.whitelist.readTextFile === true || tauri.whitelist.all === true) { %>
-    Object.freeze(path);
-    return this.promisified({
-      cmd: 'readTextFile',
-      path: path
-    });
+      Object.freeze(path);
+      return this.promisified({
+        cmd: 'readTextFile',
+        path: path
+      });
     <% } else { %>
       <% if (ctx.dev) { %>
           return __whitelistWarning('readTextFile')
           <% } %>
         return __reject()
-    <% } %>
+        <% } %>
   },
 
   <% if (ctx.dev) { %>
@@ -221,17 +233,17 @@ window.tauri = {
   <% } %>
   readBinaryFile: function readBinaryFile(path) {
     <% if (tauri.whitelist.readBinaryFile === true || tauri.whitelist.all === true) { %>
-    Object.freeze(path);
-    return this.promisified({
-      cmd: 'readBinaryFile',
-      path: path
-    });
+      Object.freeze(path);
+      return this.promisified({
+        cmd: 'readBinaryFile',
+        path: path
+      });
     <% } else { %>
       <% if (ctx.dev) { %>
           return __whitelistWarning('readBinaryFile')
           <% } %>
         return __reject()
-    <% } %>
+        <% } %>
   },
 
   <% if (ctx.dev) { %>
@@ -246,18 +258,18 @@ window.tauri = {
   <% } %>
   writeFile: function writeFile(cfg) {
     <% if (tauri.whitelist.writeFile === true || tauri.whitelist.all === true) { %>
-    Object.freeze(cfg);
-    this.invoke({
-      cmd: 'writeFile',
-      file: cfg.file,
-      contents: cfg.contents
-    });
+      Object.freeze(cfg);
+      this.invoke({
+        cmd: 'writeFile',
+        file: cfg.file,
+        contents: cfg.contents
+      });
     <% } else { %>
       <% if (ctx.dev) { %>
           return __whitelistWarning('writeFile')
           <% } %>
         return __reject()
-    <% } %>
+        <% } %>
   },
 
   <% if (ctx.dev) { %>
@@ -272,17 +284,17 @@ window.tauri = {
   listFiles: function listFiles(path) {
     <% if (tauri.whitelist.listFiles === true || tauri.whitelist.all === true) { %>
 
-    Object.freeze(path);
-    return this.promisified({
-      cmd: 'listFiles',
-      path: path
-    });
+      Object.freeze(path);
+      return this.promisified({
+        cmd: 'listFiles',
+        path: path
+      });
     <% } else { %>
       <% if (ctx.dev) { %>
           return __whitelistWarning('listDirs')
           <% } %>
         return __reject()
-    <% } %>
+        <% } %>
   },
 
   <% if (ctx.dev) { %>
@@ -296,17 +308,17 @@ window.tauri = {
   <% } %>
   listDirs: function listDirs(path) {
     <% if (tauri.whitelist.listDirs === true || tauri.whitelist.all === true) { %>
-    Object.freeze(path);
-    return this.promisified({
-      cmd: 'listDirs',
-      path: path
-    });
+      Object.freeze(path);
+      return this.promisified({
+        cmd: 'listDirs',
+        path: path
+      });
     <% } else { %>
       <% if (ctx.dev) { %>
           return __whitelistWarning('listDirs')
           <% } %>
         return __reject()
-    <% } %>
+        <% } %>
   },
 
   <% if (ctx.dev) { %>
@@ -318,17 +330,17 @@ window.tauri = {
   <% } %>
   setTitle: function setTitle(title) {
     <% if (tauri.whitelist.setTitle === true || tauri.whitelist.all === true) { %>
-    Object.freeze(title);
-    this.invoke({
-      cmd: 'setTitle',
-      title: title
-    });
+      Object.freeze(title);
+      this.invoke({
+        cmd: 'setTitle',
+        title: title
+      });
     <% } else { %>
       <% if (ctx.dev) { %>
     return __whitelistWarning('setTitle')
-      <% } %>
+          <% } %>
     return __reject()
-    <% } %>
+        <% } %>
   },
 
   <% if (ctx.dev) { %>
@@ -340,17 +352,17 @@ window.tauri = {
   <% } %>
   open: function open(uri) {
     <% if (tauri.whitelist.open === true || tauri.whitelist.all === true) { %>
-    Object.freeze(uri);
-    this.invoke({
-      cmd: 'open',
-      uri: uri
-    });
+      Object.freeze(uri);
+      this.invoke({
+        cmd: 'open',
+        uri: uri
+      });
     <% } else { %>
     <% if (ctx.dev) { %>
       return __whitelistWarning('open')
-      <% } %>
+          <% } %>
     return __reject()
-      <% } %>
+        <% } %>
   },
 
   <% if (ctx.dev) { %>
@@ -366,26 +378,26 @@ window.tauri = {
   execute: function execute(command, args) {
     <% if (tauri.whitelist.execute === true || tauri.whitelist.all === true) { %>
 
-    Object.freeze(command);
+      Object.freeze(command);
 
-    if (typeof args === 'string' || _typeof(args) === 'object') {
-      Object.freeze(args);
-    }
+      if (typeof args === 'string' || _typeof(args) === 'object') {
+        Object.freeze(args);
+      }
 
-    return this.promisified({
-      cmd: 'execute',
-      command: command,
-      args: typeof args === 'string' ? [args] : args
-    });
+      return this.promisified({
+        cmd: 'execute',
+        command: command,
+        args: typeof args === 'string' ? [args] : args
+      });
     <% } else { %>
       <% if (ctx.dev) { %>
         return __whitelistWarning('execute')
-        <% } %>
+          <% } %>
         return __reject()
-    <% } %>
+        <% } %>
   },
 
-  bridge: function bridge(command, payload) {
+bridge: function bridge(command, payload) {
     <% if (tauri.whitelist.bridge === true || tauri.whitelist.all === true) { %>
 
     Object.freeze(command);
@@ -402,18 +414,18 @@ window.tauri = {
     <% } else { %>
       <% if (ctx.dev) { %>
           return __whitelistWarning('bridge')
-      <% } %>
+        <% } %>
             return __reject()
-    <% } %>
+      <% } %>
   },
 
-  loadAsset: function loadAsset(assetName, assetType) {
-    return this.promisified({
-      cmd: 'loadAsset',
-      asset: assetName,
-      asset_type: assetType || 'unknown'
-    })
-  }
+loadAsset: function loadAsset(assetName, assetType) {
+  return this.promisified({
+    cmd: 'loadAsset',
+    asset: assetName,
+    asset_type: assetType || 'unknown'
+  })
+}
 };
 
 // init tauri API
@@ -443,8 +455,8 @@ document.addEventListener('error', function (e) {
   }
 }, true)
 
-  // open <a href="..."> links with the Tauri API
-function __openLinks () {
+// open <a href="..."> links with the Tauri API
+function __openLinks() {
   document.querySelector('body').addEventListener('click', function (e) {
     var target = e.target
     while (target != null) {

@@ -48,6 +48,7 @@ module.exports = {
     'security/detect-possible-timing-attacks': 'error',
     'security/detect-pseudoRandomBytes': 'error',
     'space-before-function-paren': 'off',
+    '@typescript-eslint/default-param-last': 'off',
     '@typescript-eslint/strict-boolean-expressions': 0,
     '@typescript-eslint/space-before-function-paren': [
       'error',

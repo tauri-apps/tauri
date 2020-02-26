@@ -1,6 +1,6 @@
 {
   "name": "tauri",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "Multi-binding collection of libraries and templates for building Tauri apps",
   "bin": {
     "tauri": "./bin/tauri.js"
@@ -107,7 +107,6 @@
     }
   },
   "lint-staged": [
-    "eslint --fix",
-    "git add"
+    "eslint --fix"
   ]
 }

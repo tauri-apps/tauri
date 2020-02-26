@@ -134,8 +134,7 @@ exit 0",
     .current_dir(&bundle_dir.join("MacOS/"))
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
-    .spawn()
-    .expect("Failed to chmod script");
+    .spawn()?;
 
   Ok(())
 }

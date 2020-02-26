@@ -20,7 +20,6 @@ error_chain! {
         Walkdir(::walkdir::Error);
         StripError(std::path::StripPrefixError);
         ConvertError(std::num::TryFromIntError);
-        PlatformError(::tauri_utils::Error);
         RegexError(::regex::Error) #[cfg(windows)];
         HttpError(::attohttpc::Error) #[cfg(windows)];
     }

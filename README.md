@@ -6,8 +6,7 @@
 [![Chat Server](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/SpmNs4S)
 [![devto](https://img.shields.io/badge/blog-dev.to-black.svg)](https://dev.to/tauri)
 
-![](https://img.shields.io/github/workflow/status/tauri-apps/tauri/test%20library?label=test%20library
-)
+[![test library](https://img.shields.io/github/workflow/status/tauri-apps/tauri/test%20library?label=test%20library)](https://github.com/tauri-apps/tauri/actions?query=workflow%3A%22test+library%22)
 [![devto](https://img.shields.io/badge/documentation-wiki-purple.svg)](https://github.com/tauri-apps/tauri/wiki)
 
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
@@ -18,9 +17,9 @@ Tauri is a tool for building tiny, blazing fast binaries for all major desktop p
 
 | Component | Version | Lin | Win | Mac |
 |-----------|---------|-----|-----|-----|
-| tauri.js CLI | ![](https://img.shields.io/npm/v/tauri.svg)         |✅|✅|✅|
-| tauri core    | ![](https://img.shields.io/crates/v/tauri.svg)      |✅|✅|✅|
-| tauri bundler | ![](https://img.shields.io/crates/v/tauri-bundler.svg)  |✅|✅|✅ |
+| tauri.js CLI | [![](https://img.shields.io/npm/v/tauri.svg)](https://www.npmjs.com/package/tauri)         |✅|✅|✅|
+| tauri core    | [![](https://img.shields.io/crates/v/tauri.svg)](https://crates.io/crates/tauri)      |✅|✅|✅|
+| tauri bundler | [![](https://img.shields.io/crates/v/tauri-bundler.svg)](https://crates.io/crates/tauri-bundler)  |✅|✅|✅ |
 
 ## Who Tauri is For
 Because of the way Tauri has been built and can be extended, developers

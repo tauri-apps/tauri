@@ -1,14 +1,12 @@
 #[cfg(not(feature = "dev-server"))]
 pub fn main() {
-  if let Some(dist_path) = std::env::var_os("TAURI_DIST_DIR") {
-    println!(
-      "cargo:rerun-if-changed={}",
-      dist_path.into_string().unwrap()
-    )
-  }
-
   match std::env::var_os("TAURI_DIST_DIR") {
     Some(dist_path) => {
+      println!(
+        "cargo:rerun-if-changed={}",
+        dist_path.into_string().unwrap()
+      );
+
       let inlined_assets = match std::env::var_os("TAURI_INLINED_ASSETS") {
         Some(assets) => assets
           .into_string()

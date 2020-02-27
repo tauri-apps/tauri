@@ -12,7 +12,7 @@ exclude = ["test/fixture/**"]
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-web-view = "0.6.0"
+web-view = "0.6.2"
 tauri_includedir = "0.5.0"
 phf = "0.8.0"
 base64 = "0.12.0"

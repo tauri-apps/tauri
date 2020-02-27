@@ -11,6 +11,8 @@ pub struct WindowConfig {
   pub height: i32,
   #[serde(default = "default_resizable")]
   pub resizable: bool,
+  #[serde(default = "default_frameless")]
+  pub frameless: bool,
   #[serde(default = "default_title")]
   pub title: String,
   #[serde(default)]
@@ -29,6 +31,10 @@ fn default_resizable() -> bool {
   true
 }
 
+fn default_frameless() -> bool {
+  false
+}
+
 fn default_title() -> String {
   "Tauri App".to_string()
 }
@@ -38,6 +44,7 @@ fn default_window() -> WindowConfig {
     width: default_width(),
     height: default_height(),
     resizable: default_resizable(),
+    frameless: default_frameless(),
     title: default_title(),
     fullscreen: false,
   }
@@ -130,6 +137,7 @@ mod test {
           width: 800,
           height: 600,
           resizable: true,
+          frameless: false,
           title: String::from("Tauri App"),
           fullscreen: false,
         },
@@ -183,6 +191,7 @@ mod test {
         width: 800,
         height: 600,
         resizable: true,
+        frameless: false,
         title: String::from("Tauri App"),
         fullscreen: false,
       },

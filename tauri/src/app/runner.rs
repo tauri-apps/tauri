@@ -192,6 +192,7 @@ fn build_webview(
   let height = config.tauri.window.height;
   let resizable = config.tauri.window.resizable;
   let fullscreen = config.tauri.window.fullscreen;
+  let frameless = config.tauri.window.frameless;
   let title = config.tauri.window.title.into_boxed_str();
 
   let has_splashscreen = splashscreen_content.is_some();
@@ -201,6 +202,7 @@ fn build_webview(
     .title(Box::leak(title))
     .size(width, height)
     .resizable(resizable)
+    .frameless(frameless)
     .debug(debug)
     .user_data(())
     .invoke_handler(move |webview, arg| {
@@ -260,13 +262,13 @@ fn build_webview(
     .handle()
     .dispatch(|_webview| _webview.eval(include_str!(concat!(env!("TAURI_DIR"), "/tauri.js"))))?;
   }
-  
+
   Ok(webview)
 }
 
 fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
   format!(
-    r#"console.error('failed to match a command for {}, {}')"#, 
+    r#"console.error('failed to match a command for {}, {}')"#,
     arg.replace("'", "\\'"),
     handler_error_message
   )

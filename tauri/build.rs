@@ -2,10 +2,9 @@
 pub fn main() {
   match std::env::var_os("TAURI_DIST_DIR") {
     Some(dist_path) => {
-      println!(
-        "cargo:rerun-if-changed={}",
-        dist_path.into_string().unwrap()
-      );
+      let dist_path_string = dist_path.into_string().unwrap();
+
+      println!("cargo:rerun-if-changed={}", dist_path_string);
 
       let inlined_assets = match std::env::var_os("TAURI_INLINED_ASSETS") {
         Some(assets) => assets
@@ -19,7 +18,7 @@ pub fn main() {
       // include assets
       tauri_includedir_codegen::start("ASSETS")
         .dir(
-          dist_path.into_string().unwrap(),
+          dist_path_string,
           tauri_includedir_codegen::Compression::None,
         )
         .build("data.rs", inlined_assets)

@@ -24,10 +24,7 @@ pub fn main() {
         .build("data.rs", inlined_assets)
         .expect("failed to build data.rs")
     }
-    None => {
-      println!("Build error: Couldn't find ENV: TAURI_DIST_DIR");
-      ()
-    }
+    None => println!("Build error: Couldn't find ENV: TAURI_DIST_DIR"),
   }
 }
 

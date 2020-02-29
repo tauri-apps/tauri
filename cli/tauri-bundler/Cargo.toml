@@ -23,6 +23,7 @@ libflate = "0.1"
 md5 = "0.7.0"
 msi = "0.2"
 
+serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 strsim = "0.10.0"
 tar = "0.4"

@@ -18,6 +18,14 @@
  * and also whitelist them based upon the developer's settings.
  */
 
+// polyfills
+if (!String.prototype.startsWith) {
+  String.prototype.startsWith = function (searchString, position) {
+    position = position || 0
+    return this.substr(position, searchString.length) === searchString
+  }
+}
+
 // makes the window.external.invoke API available after window.location.href changes
 
 switch (navigator.platform) {
@@ -166,7 +174,7 @@ window.tauri = {
   <% } %>
   transformCallback: function transformCallback(callback) {
     var once = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
-    var identifier = Object.freeze(uid());
+    var identifier = uid();
 
     window[identifier] = function (result) {
       if (once) {
@@ -209,7 +217,6 @@ window.tauri = {
   <% } %>
   readTextFile: function readTextFile(path) {
     <% if (tauri.whitelist.readTextFile === true || tauri.whitelist.all === true) { %>
-      Object.freeze(path);
       return this.promisified({
         cmd: 'readTextFile',
         path: path
@@ -233,7 +240,6 @@ window.tauri = {
   <% } %>
   readBinaryFile: function readBinaryFile(path) {
     <% if (tauri.whitelist.readBinaryFile === true || tauri.whitelist.all === true) { %>
-      Object.freeze(path);
       return this.promisified({
         cmd: 'readBinaryFile',
         path: path
@@ -258,7 +264,9 @@ window.tauri = {
   <% } %>
   writeFile: function writeFile(cfg) {
     <% if (tauri.whitelist.writeFile === true || tauri.whitelist.all === true) { %>
-      Object.freeze(cfg);
+      if (_typeof(cfg) === 'object') {
+        Object.freeze(cfg);
+      }
       this.invoke({
         cmd: 'writeFile',
         file: cfg.file,
@@ -283,8 +291,6 @@ window.tauri = {
   <% } %>
   listFiles: function listFiles(path) {
     <% if (tauri.whitelist.listFiles === true || tauri.whitelist.all === true) { %>
-
-      Object.freeze(path);
       return this.promisified({
         cmd: 'listFiles',
         path: path
@@ -308,7 +314,6 @@ window.tauri = {
   <% } %>
   listDirs: function listDirs(path) {
     <% if (tauri.whitelist.listDirs === true || tauri.whitelist.all === true) { %>
-      Object.freeze(path);
       return this.promisified({
         cmd: 'listDirs',
         path: path
@@ -330,7 +335,6 @@ window.tauri = {
   <% } %>
   setTitle: function setTitle(title) {
     <% if (tauri.whitelist.setTitle === true || tauri.whitelist.all === true) { %>
-      Object.freeze(title);
       this.invoke({
         cmd: 'setTitle',
         title: title
@@ -352,7 +356,6 @@ window.tauri = {
   <% } %>
   open: function open(uri) {
     <% if (tauri.whitelist.open === true || tauri.whitelist.all === true) { %>
-      Object.freeze(uri);
       this.invoke({
         cmd: 'open',
         uri: uri
@@ -378,9 +381,7 @@ window.tauri = {
   execute: function execute(command, args) {
     <% if (tauri.whitelist.execute === true || tauri.whitelist.all === true) { %>
 
-      Object.freeze(command);
-
-      if (typeof args === 'string' || _typeof(args) === 'object') {
+      if (_typeof(args) === 'object') {
         Object.freeze(args);
       }
 
@@ -400,9 +401,7 @@ window.tauri = {
 bridge: function bridge(command, payload) {
     <% if (tauri.whitelist.bridge === true || tauri.whitelist.all === true) { %>
 
-    Object.freeze(command);
-
-    if (typeof payload === 'string' || _typeof(payload) === 'object') {
+    if (_typeof(payload) === 'object') {
       Object.freeze(payload);
     }
 
@@ -446,7 +445,7 @@ document.addEventListener('error', function (e) {
   while (target != null) {
     if (target.matches ? target.matches('img') : target.msMatchesSelector('img')) {
       window.tauri.loadAsset(target.src, 'image')
-        .then(img => {
+        .then(function (img) {
           target.src = img
         })
       break
@@ -463,6 +462,7 @@ function __openLinks() {
       if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
         if (target.href && target.href.startsWith('http') && target.target === '_blank') {
           window.tauri.open(target.href)
+          e.preventDefault()
         }
         break
       }

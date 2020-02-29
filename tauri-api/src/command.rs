@@ -43,7 +43,7 @@ pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> crate::Resul
 
 pub fn format_command(path: String, command: String) -> String {
   if cfg!(windows) {
-    format!("{}/{}", path, command)
+    format!("{}/./{}.exe", path, command)
   } else {
     format!("{}/./{}", path, command)
   }
@@ -56,9 +56,18 @@ pub fn relative_command(command: String) -> crate::Result<String> {
   }
 }
 
+#[cfg(not(windows))]
 pub fn command_path(command: String) -> crate::Result<String> {
   match std::env::current_exe()?.parent() {
     Some(exe_dir) => Ok(format!("{}/{}", exe_dir.display().to_string(), command)),
+    None => Err(crate::ErrorKind::Command("Could not evaluate executable dir".to_string()).into()),
+  }
+}
+
+#[cfg(windows)]
+pub fn command_path(command: String) -> crate::Result<String> {
+  match std::env::current_exe()?.parent() {
+    Some(exe_dir) => Ok(format!("{}/{}.exe", exe_dir.display().to_string(), command)),
     None => Err(crate::ErrorKind::Command("Could not evaluate executable dir".to_string()).into()),
   }
 }

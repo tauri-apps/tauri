@@ -18,9 +18,13 @@ export default {
       category: '',
       shortDescription: '',
       longDescription: '',
-      debDepends: [],
-      osxFrameworks: [],
-      osxMinimumSystemVersion: '',
+      deb: {
+        depends: []
+      },
+      osx: {
+        frameworks: [],
+        minimumSystemVersion: '',
+      },
       exceptionDomain: ''
     },
     whitelist: {

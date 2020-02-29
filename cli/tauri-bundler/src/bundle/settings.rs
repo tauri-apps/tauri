@@ -591,11 +591,11 @@ fn add_external_bin(bundle_settings: BundleSettings) -> crate::Result<BundleSett
 }
 
 fn options_value<T>(first: Option<T>, second: Option<T>) -> Option<T> {
-  if second.is_some() {
-    second
+  if first.is_some() {
+    first
   }
   else {
-    first
+    second
   }
 }
 
@@ -614,11 +614,11 @@ fn merge_settings(
     short_description: options_value(config.short_description, bundle_settings.short_description),
     long_description: options_value(config.long_description, bundle_settings.long_description),
     script: options_value(config.script, bundle_settings.script),
-    deb_depends: options_value(config.deb_depends, bundle_settings.deb_depends),
-    osx_frameworks: options_value(config.osx_frameworks, bundle_settings.osx_frameworks),
-    osx_minimum_system_version: options_value(config.osx_minimum_system_version, bundle_settings.osx_minimum_system_version),
+    deb_depends: options_value(config.deb.depends, bundle_settings.deb_depends),
+    osx_frameworks: options_value(config.osx.frameworks, bundle_settings.osx_frameworks),
+    osx_minimum_system_version: options_value(config.osx.minimum_system_version, bundle_settings.osx_minimum_system_version),
     external_bin: options_value(config.external_bin, bundle_settings.external_bin),
-    exception_domain: options_value(config.exception_domain, bundle_settings.exception_domain),
+    exception_domain: options_value(config.osx.exception_domain, bundle_settings.exception_domain),
     ..bundle_settings
   }
 }

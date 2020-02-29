@@ -235,6 +235,12 @@ impl Settings {
 
     let bundle_settings = add_external_bin(bundle_settings)?;
 
+    let tauri_config = super::tauri_config::get();
+    let merged_bundle_settings = match tauri_config {
+      Ok(config) => merge_settings(bundle_settings, config.tauri.bundle),
+      Err(_) => bundle_settings
+    };
+
     Ok(Settings {
       package,
       package_type,
@@ -245,7 +251,7 @@ impl Settings {
       project_out_directory: target_dir,
       binary_path,
       binary_name,
-      bundle_settings,
+      bundle_settings: merged_bundle_settings,
     })
   }
 
@@ -582,6 +588,39 @@ fn add_external_bin(bundle_settings: BundleSettings) -> crate::Result<BundleSett
     external_bin,
     ..bundle_settings
   })
+}
+
+fn options_value<T>(first: Option<T>, second: Option<T>) -> Option<T> {
+  if first.is_some() {
+    first
+  }
+  else {
+    second
+  }
+}
+
+fn merge_settings(
+  bundle_settings: BundleSettings,
+  config: crate::bundle::tauri_config::BundleConfig
+) -> BundleSettings {
+  BundleSettings {
+    name: options_value(config.name, bundle_settings.name),
+    identifier: options_value(config.identifier, bundle_settings.identifier),
+    icon: options_value(config.icon, bundle_settings.icon),
+    version: options_value(config.version, bundle_settings.version),
+    resources: options_value(config.resources, bundle_settings.resources),
+    copyright: options_value(config.copyright, bundle_settings.copyright),
+    category: options_value(config.category, bundle_settings.category),
+    short_description: options_value(config.short_description, bundle_settings.short_description),
+    long_description: options_value(config.long_description, bundle_settings.long_description),
+    script: options_value(config.script, bundle_settings.script),
+    deb_depends: options_value(config.deb.depends, bundle_settings.deb_depends),
+    osx_frameworks: options_value(config.osx.frameworks, bundle_settings.osx_frameworks),
+    osx_minimum_system_version: options_value(config.osx.minimum_system_version, bundle_settings.osx_minimum_system_version),
+    external_bin: options_value(config.external_bin, bundle_settings.external_bin),
+    exception_domain: options_value(config.osx.exception_domain, bundle_settings.exception_domain),
+    ..bundle_settings
+  }
 }
 
 pub struct ResourcePaths<'a> {

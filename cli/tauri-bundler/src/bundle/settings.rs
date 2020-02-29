@@ -575,7 +575,7 @@ fn add_external_bin(bundle_settings: BundleSettings) -> crate::Result<BundleSett
       }
       Some(win_paths)
     }
-    None => Some(vec![String::from("")]),
+    None => Some(vec![]),
   };
 
   Ok(BundleSettings {
@@ -589,6 +589,8 @@ pub struct ResourcePaths<'a> {
   glob_iter: Option<glob::Paths>,
   walk_iter: Option<walkdir::IntoIter>,
   allow_walk: bool,
+  current_pattern: Option<String>,
+  current_pattern_is_valid: bool
 }
 
 impl<'a> ResourcePaths<'a> {
@@ -598,6 +600,8 @@ impl<'a> ResourcePaths<'a> {
       glob_iter: None,
       walk_iter: None,
       allow_walk,
+      current_pattern: None,
+      current_pattern_is_valid: false,
     }
   }
 }
@@ -617,6 +621,7 @@ impl<'a> Iterator for ResourcePaths<'a> {
           if path.is_dir() {
             continue;
           }
+          self.current_pattern_is_valid = true;
           return Some(Ok(path.to_path_buf()));
         }
       }
@@ -637,11 +642,20 @@ impl<'a> Iterator for ResourcePaths<'a> {
               return Some(Err(crate::Error::from(msg)));
             }
           }
+          self.current_pattern_is_valid = true;
           return Some(Ok(path));
+        } else {
+          if let Some(current_path) = &self.current_pattern {
+            if !self.current_pattern_is_valid {
+              return Some(Err(crate::Error::from(format!("Path matching '{}' not found", current_path))));
+            }
+          }
         }
       }
       self.glob_iter = None;
       if let Some(pattern) = self.pattern_iter.next() {
+        self.current_pattern = Some(pattern.to_string());
+        self.current_pattern_is_valid = false;
         let glob = match glob::glob(pattern) {
           Ok(glob) => glob,
           Err(error) => return Some(Err(crate::Error::from(error))),

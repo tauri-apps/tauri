@@ -10,8 +10,8 @@ export default {
     },
     bundle: {
       active: true,
-      identifier: "com.tauri.dev",
-      icon: ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+      identifier: 'com.tauri.dev',
+      icon: ['icons/32x32.png', 'icons/128x128.png', 'icons/128x128@2x.png', 'icons/icon.icns', 'icons/icon.ico'],
       resources: [],
       externalBin: [],
       copyright: '',

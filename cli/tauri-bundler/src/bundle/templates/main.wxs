@@ -9,11 +9,6 @@
 <?endif?>
 
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-    <Fragment>
-        <CustomAction Id="LoopBackCmd" Directory="INSTALLFOLDER" Execute="immediate" Impersonate="no" ExeCommand="cmd.exe /c &quot;CheckNetIsolation.exe LoopbackExempt -a -n='Microsoft.Win32WebViewHost_cw5n1h2txyewy'&quot;" Return="check" />
-
-    </Fragment>
-
     <Product
             Id="*"
             Name="{{{product_name}}}"
@@ -135,4 +130,8 @@
             <Custom Action='LoopBackCmd' After='InstallFiles'/>
         </InstallExecuteSequence>
     </Product>
+
+    <Fragment>
+        <CustomAction Id="LoopBackCmd" Directory="ApplicationProgramsFolder" Execute="commit" Impersonate="no" ExeCommand="cmd.exe /c &quot;CheckNetIsolation.exe LoopbackExempt -a -n=&quot;Microsoft.Win32WebViewHost_cw5n1h2txyewy&quot;&quot;" Return="ignore" />
+    </Fragment>
 </Wix>

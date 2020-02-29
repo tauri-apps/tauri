@@ -23,7 +23,8 @@ export default {
       },
       osx: {
         frameworks: [],
-        minimumSystemVersion: ''
+        minimumSystemVersion: '',
+        signingIdentity: ''
       },
       exceptionDomain: ''
     },

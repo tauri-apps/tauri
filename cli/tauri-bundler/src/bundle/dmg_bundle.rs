@@ -61,15 +61,18 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // chmod script for execution
 
-  Command::new("chmod")
+  let status = Command::new("chmod")
     .arg("777")
     .arg(&bundle_sh)
     .arg(&seticon_out)
     .current_dir(output_path)
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
-    .spawn()
-    .expect("Failed to chmod script");
+    .status()?;
+
+  if !status.success() {
+    return Err(crate::Error::from("failed to make the bundle script an executable"));
+  }
 
   // execute the bundle script
   Command::new(&bundle_sh)

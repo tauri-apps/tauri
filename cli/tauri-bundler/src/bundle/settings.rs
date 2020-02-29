@@ -112,6 +112,7 @@ struct BundleSettings {
   example: Option<HashMap<String, BundleSettings>>,
   external_bin: Option<Vec<String>>,
   exception_domain: Option<String>,
+  osx_signing_identity: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -444,6 +445,10 @@ impl Settings {
     return self.bundle_settings.exception_domain.as_ref();
   }
 
+  pub fn osx_signing_identity(&self) -> Option<&String> {
+    return self.bundle_settings.osx_signing_identity.as_ref();
+  }
+
   // copy external binaries to a path.
   pub fn copy_binaries(&self, path: &Path) -> crate::Result<()> {
     for src in self.external_binaries() {
@@ -619,6 +624,7 @@ fn merge_settings(
     osx_minimum_system_version: options_value(config.osx.minimum_system_version, bundle_settings.osx_minimum_system_version),
     external_bin: options_value(config.external_bin, bundle_settings.external_bin),
     exception_domain: options_value(config.osx.exception_domain, bundle_settings.exception_domain),
+    osx_signing_identity: options_value(config.osx.signing_identity, bundle_settings.osx_signing_identity),
     ..bundle_settings
   }
 }

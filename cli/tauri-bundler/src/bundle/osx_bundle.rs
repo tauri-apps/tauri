@@ -76,7 +76,23 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   create_path_hook(&bundle_directory, settings).chain_err(|| "Failed to create _boot wrapper")?;
 
+  if settings.osx_signing_identity().is_some() {
+    sign(app_bundle_path.clone(), settings)?;
+  }
+
   Ok(vec![app_bundle_path])
+}
+
+fn sign(app_bundle_path: PathBuf, settings: &Settings) -> crate::Result<()> {
+  let identity = settings.osx_signing_identity().expect("signing identity not provided");
+  println!(r#"signing app with identity "{}""#, identity);
+  let status = Command::new("codesign")
+    .args(vec!["--deep", "--force", "-s", identity, &app_bundle_path.to_string_lossy()])
+    .status()?;
+  if !status.success() {
+    return Err(crate::Error::from("failed to sign app"));
+  }
+  Ok(())
 }
 
 fn copy_binary_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
@@ -128,13 +144,17 @@ exit 0",
   file.flush()?;
 
   // We have to make the __bootstrapper executable, or the bundle will not work
-  Command::new("chmod")
+  let status = Command::new("chmod")
     .arg("+x")
     .arg("__bootstrapper")
     .current_dir(&bundle_dir.join("MacOS/"))
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
-    .spawn()?;
+    .status()?;
+
+  if !status.success() {
+    return Err(crate::Error::from("failed to make the bootstrapper an executable"));
+  }
 
   Ok(())
 }

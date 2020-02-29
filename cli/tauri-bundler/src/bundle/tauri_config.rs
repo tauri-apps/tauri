@@ -16,6 +16,7 @@ pub struct OsxConfig {
   pub frameworks: Option<Vec<String>>,
   pub minimum_system_version: Option<String>,
   pub exception_domain: Option<String>,
+  pub signing_identity: Option<String>,
 }
 
 #[derive(PartialEq, Deserialize, Clone, Debug, Default)]

@@ -55,6 +55,7 @@
     "imagemin-optipng": "7.1.0",
     "imagemin-pngquant": "8.0.0",
     "imagemin-zopfli": "6.0.0",
+    "inquirer": "^7.0.5",
     "is-png": "2.0.0",
     "isbinaryfile": "4.0.4",
     "jsdom": "16.2.0",

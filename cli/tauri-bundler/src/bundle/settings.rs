@@ -235,6 +235,9 @@ impl Settings {
 
     let bundle_settings = add_external_bin(bundle_settings)?;
 
+    let tauri_config = super::tauri_config::get();
+    println!("{:?}", tauri_config);
+
     Ok(Settings {
       package,
       package_type,

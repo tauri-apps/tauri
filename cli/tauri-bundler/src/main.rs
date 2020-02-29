@@ -22,6 +22,7 @@ error_chain! {
         ConvertError(std::num::TryFromIntError);
         RegexError(::regex::Error) #[cfg(windows)];
         HttpError(::attohttpc::Error) #[cfg(windows)];
+        Json(::serde_json::error::Error);
     }
     errors {}
 }

@@ -217,7 +217,7 @@ fn build_webview(
           Content::Html(ref html) => html,
           Content::Url(ref url) => url,
         };
-        webview.eval(&format!("window.location.href = `{}`", content_href))?;
+        webview.eval(&format!(r#"window.location.href = "{}""#, content_href))?;
       } else if let Ok(b) = crate::endpoints::handle(webview, arg) {
         if !b {
           application.run_invoke_handler(webview, arg);

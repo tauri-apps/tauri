@@ -89,7 +89,7 @@ pub fn call<T: 'static>(
     || {
       api::command::get_output(command, args, Stdio::piped())
         .map_err(|err| crate::ErrorKind::Promise(err.to_string()).into())
-        .map(|output| format!("`{}`", output))
+        .map(|output| format!(r#""{}""#, output))
     },
     callback,
     error,

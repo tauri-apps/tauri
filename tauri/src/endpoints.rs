@@ -241,7 +241,7 @@ fn load_asset<T: 'static>(
           "jpeg"
         };
         Ok(format!(
-          "`data:image/{};base64,{}`",
+          r#""data:image/{};base64,{}""#,
           ext,
           base64::encode(&read_asset.expect("Failed to read asset type").into_owned())
         ))
@@ -257,7 +257,7 @@ fn load_asset<T: 'static>(
               _webview.eval(asset_str)
             }
           })
-          .map_err(|err| crate::ErrorKind::Promise(format!("`{}`", err)).into())
+          .map_err(|err| crate::ErrorKind::Promise(format!(r#""{}""#, err)).into())
           .map(|_| r#""Asset loaded successfully""#.to_string())
       }
     },

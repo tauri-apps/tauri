@@ -18,8 +18,8 @@ use std::process::{Command, Stdio};
 
 // URLS for the WIX toolchain.  Can be used for crossplatform compilation.
 pub const WIX_URL: &str =
-  "https://github.com/wixtoolset/wix3/releases/download/wix3111rtm/wix311-binaries.zip";
-pub const WIX_SHA256: &str = "37f0a533b0978a454efb5dc3bd3598becf9660aaf4287e55bf68ca6b527d051d";
+  "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
+pub const WIX_SHA256: &str = "2c1888d5d1dba377fc7fa14444cf556963747ff9a0a289a3599cf09da03b9e2e";
 
 // For Cross Platform Complilation.
 
@@ -348,7 +348,12 @@ fn run_light(
 ) -> crate::Result<PathBuf> {
   let light_exe = wix_toolset_path.join("light.exe");
 
-  let mut args: Vec<String> = vec!["-o".to_string(), output_path.display().to_string()];
+  let mut args: Vec<String> = vec![
+    "-ext".to_string(),
+    "WixUIExtension".to_string(),
+    "-o".to_string(),
+    output_path.display().to_string(),
+  ];
 
   for p in wixobjs {
     args.push(p.to_string());

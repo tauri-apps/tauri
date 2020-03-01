@@ -1,6 +1,6 @@
 {
   "name": "tauri",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Multi-binding collection of libraries and templates for building Tauri apps",
   "bin": {
     "tauri": "./bin/tauri.js"
@@ -49,7 +49,7 @@
     "chalk": "3.0.0",
     "chokidar": "3.3.1",
     "cross-spawn": "7.0.1",
-    "fast-glob": "3.2.1",
+    "fast-glob": "3.2.2",
     "fs-extra": "8.1.0",
     "imagemin": "7.0.1",
     "imagemin-optipng": "7.1.0",
@@ -77,8 +77,8 @@
     "@types/ms": "0.7.31",
     "@types/sharp": "0.24.0",
     "@types/webpack-merge": "4.1.5",
-    "@typescript-eslint/eslint-plugin": "2.20.0",
-    "@typescript-eslint/parser": "2.20.0",
+    "@typescript-eslint/eslint-plugin": "2.21.0",
+    "@typescript-eslint/parser": "2.21.0",
     "dotenv": "8.2.0",
     "eslint": "6.8.0",
     "eslint-config-standard-with-typescript": "14.0.0",
@@ -91,12 +91,12 @@
     "husky": "4.2.3",
     "jest": "25.1.0",
     "jest-mock-process": "1.3.2",
-    "lint-staged": "10.0.7",
+    "lint-staged": "10.0.8",
     "lockfile-lint": "4.0.0",
     "promise": "8.0.3",
     "raw-loader": "4.0.0",
     "ts-loader": "6.2.1",
-    "typescript": "3.8.2",
+    "typescript": "3.8.3",
     "webpack": "4.41.6",
     "webpack-cli": "3.3.11",
     "webpack-node-externals": "1.7.2"

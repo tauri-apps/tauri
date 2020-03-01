@@ -117,7 +117,6 @@ fn generate_bootstrap_file(settings: &Settings, data_dir: &Path) -> crate::Resul
   let bootstrap_file_name = format!("__{}-bootstrapper", bin_name);
   let bootstrapper_file_path = bin_dir.join(bootstrap_file_name.clone());
   let bootstrapper_file = &mut common::create_file(&bootstrapper_file_path)?;
-  println!("{:?}", bootstrapper_file_path);
   write!(
     bootstrapper_file,
     "#!/usr/bin/env sh

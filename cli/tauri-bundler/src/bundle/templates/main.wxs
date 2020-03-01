@@ -9,7 +9,6 @@
 <?endif?>
 
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-
     <Product
             Id="*"
             Name="{{{product_name}}}"
@@ -39,21 +38,23 @@
 
         <Directory Id="TARGETDIR" Name="SourceDir">
             <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">
-                <Directory Id="APPLICATIONFOLDER" Name="{{{product_name}}}">
-                    <Component Id="Path" Guid="{{{path_component_guid}}}" Win64="$(var.Win64)" KeyPath="yes">
-                        <File Id="PathFile" Source="{{{app_exe_source}}}" />
-                    </Component>
-                    {{#each external_binaries as |external_bin| ~}}
-                    <Component Id="{{ external_bin.id }}" Guid="{{external_bin.guid}}" Win64="$(var.Win64)" KeyPath="yes">
-                        <File Id="PathFile_{{ external_bin.id }}" Source="{{external_bin.path}}" />
-                    </Component>
-                    {{/each~}}
-                    {{{resources}}}
-                </Directory>
+                <Directory Id="APPLICATIONFOLDER" Name="{{{product_name}}}"/>
+            </Directory>
+            <Directory Id="ProgramMenuFolder">
+                <Directory Id="ApplicationProgramsFolder" Name="{{{product_name}}}"/>
             </Directory>
         </Directory>
 
         <DirectoryRef Id="APPLICATIONFOLDER">
+            <Component Id="Path" Guid="{{{path_component_guid}}}" Win64="$(var.Win64)">
+                <File Id="Path" Source="{{{app_exe_source}}}" KeyPath="yes" Checksum="yes"/>
+            </Component>
+            {{#each external_binaries as |external_bin| ~}}
+            <Component Id="{{ external_bin.id }}" Guid="{{external_bin.guid}}" Win64="$(var.Win64)">
+                <File Id="Path_{{ external_bin.id }}" Source="{{external_bin.path}}"  KeyPath="yes"/>
+            </Component>
+            {{/each~}}
+            {{{resources}}}
             <Component Id="CMP_ReadFileShortcut"
                 Guid="1AF06B42-CD42-4AED-959F-36DB5E512046">
 
@@ -63,10 +64,10 @@
 						  Target="[System64Folder]msiexec.exe"
 						  Arguments="/x [ProductCode]" />
 
-				<RemoveFolder Id="RemoveDIR_Shortcuts"
+				<RemoveFolder Id="APPLICATIONFOLDER"
 							  On="uninstall" />
 
-				<RegistryValue Root="HKCU"
+				<RegistryValue Root="HKCR"
 							   Key="Software\{{{manufacturer}}}\{{{product_name}}}"
 							   Name="installed"
 							   Type="integer"
@@ -74,6 +75,18 @@
 							   KeyPath="yes" />
             
             </Component>
+        </DirectoryRef>
+
+        <DirectoryRef Id="ApplicationProgramsFolder">
+            <Component Id="ApplicationShortcut" Guid="81ccebd8-b769-4bed-bdbd-0340f9f7cad1">
+                <Shortcut Id="ApplicationStartMenuShortcut" 
+                    Name="{{{product_name}}}"
+                    Description="Runs {{{product_name}}}"
+                    Target="[!Path]"
+                    Icon="ProductIcon"/>
+                <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
+                <RegistryValue Root="HKCU" Key="Software\{{{manufacturer}}}\{{{product_name}}}" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+           </Component>
         </DirectoryRef>
 
         <Feature
@@ -93,7 +106,9 @@
             <Feature Id="ShortcutsFeature"
 			 Title="Shortcuts"
 			 Level="1">
-			<ComponentRef Id="CMP_ReadFileShortcut" />
+            <ComponentRef Id="Path"/>
+            <ComponentRef Id="CMP_ReadFileShortcut" />
+            <ComponentRef Id="ApplicationShortcut" />
 		    </Feature>
 
             <Feature
@@ -110,5 +125,13 @@
         </Feature>
 
         <SetProperty Id="ARPINSTALLLOCATION" Value="[APPLICATIONFOLDER]" After="CostFinalize"/>
+
+        <InstallExecuteSequence>
+            <Custom Action='LoopBackCmd' After='InstallFiles'/>
+        </InstallExecuteSequence>
     </Product>
+
+    <Fragment>
+        <CustomAction Id="LoopBackCmd" Directory="ApplicationProgramsFolder" Execute="commit" Impersonate="no" ExeCommand="cmd.exe /c &quot;CheckNetIsolation.exe LoopbackExempt -a -n=&quot;Microsoft.Win32WebViewHost_cw5n1h2txyewy&quot;&quot;" Return="ignore" />
+    </Fragment>
 </Wix>

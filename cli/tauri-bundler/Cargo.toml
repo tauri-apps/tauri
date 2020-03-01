@@ -2,7 +2,7 @@ workspace = {}
 
 [package]
 name = "tauri-bundler"
-version = "0.4.2"
+version = "0.4.3"
 authors = ["George Burton <burtonageo@gmail.com>", "Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
 license = "MIT/Apache-2.0"
 keywords = ["bundle", "cargo", "tauri"]
@@ -23,6 +23,7 @@ libflate = "0.1"
 md5 = "0.7.0"
 msi = "0.2"
 
+serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 strsim = "0.10.0"
 tar = "0.4"

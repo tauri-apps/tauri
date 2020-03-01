@@ -2,7 +2,7 @@ workspace = {}
 
 [package]
 name = "tauri-bundler"
-version = "0.4.3"
+version = "0.4.4"
 authors = ["George Burton <burtonageo@gmail.com>", "Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
 license = "MIT/Apache-2.0"
 keywords = ["bundle", "cargo", "tauri"]

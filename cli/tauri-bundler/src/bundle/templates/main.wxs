@@ -9,7 +9,6 @@
 <?endif?>
 
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-
     <Product
             Id="*"
             Name="{{{product_name}}}"
@@ -126,5 +125,13 @@
         </Feature>
 
         <SetProperty Id="ARPINSTALLLOCATION" Value="[APPLICATIONFOLDER]" After="CostFinalize"/>
+
+        <InstallExecuteSequence>
+            <Custom Action='LoopBackCmd' After='InstallFiles'/>
+        </InstallExecuteSequence>
     </Product>
+
+    <Fragment>
+        <CustomAction Id="LoopBackCmd" Directory="ApplicationProgramsFolder" Execute="commit" Impersonate="no" ExeCommand="cmd.exe /c &quot;CheckNetIsolation.exe LoopbackExempt -a -n=&quot;Microsoft.Win32WebViewHost_cw5n1h2txyewy&quot;&quot;" Return="ignore" />
+    </Fragment>
 </Wix>

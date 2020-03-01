@@ -238,7 +238,7 @@ impl Settings {
     let tauri_config = super::tauri_config::get();
     let merged_bundle_settings = match tauri_config {
       Ok(config) => merge_settings(bundle_settings, config.tauri.bundle),
-      Err(_) => bundle_settings
+      Err(_) => bundle_settings,
     };
 
     Ok(Settings {
@@ -591,17 +591,16 @@ fn add_external_bin(bundle_settings: BundleSettings) -> crate::Result<BundleSett
 }
 
 fn options_value<T>(first: Option<T>, second: Option<T>) -> Option<T> {
-  if first.is_some() {
+  if let Some(_) = first {
     first
-  }
-  else {
+  } else {
     second
   }
 }
 
 fn merge_settings(
   bundle_settings: BundleSettings,
-  config: crate::bundle::tauri_config::BundleConfig
+  config: crate::bundle::tauri_config::BundleConfig,
 ) -> BundleSettings {
   BundleSettings {
     name: options_value(config.name, bundle_settings.name),
@@ -616,9 +615,15 @@ fn merge_settings(
     script: options_value(config.script, bundle_settings.script),
     deb_depends: options_value(config.deb.depends, bundle_settings.deb_depends),
     osx_frameworks: options_value(config.osx.frameworks, bundle_settings.osx_frameworks),
-    osx_minimum_system_version: options_value(config.osx.minimum_system_version, bundle_settings.osx_minimum_system_version),
+    osx_minimum_system_version: options_value(
+      config.osx.minimum_system_version,
+      bundle_settings.osx_minimum_system_version,
+    ),
     external_bin: options_value(config.external_bin, bundle_settings.external_bin),
-    exception_domain: options_value(config.osx.exception_domain, bundle_settings.exception_domain),
+    exception_domain: options_value(
+      config.osx.exception_domain,
+      bundle_settings.exception_domain,
+    ),
     ..bundle_settings
   }
 }
@@ -629,7 +634,7 @@ pub struct ResourcePaths<'a> {
   walk_iter: Option<walkdir::IntoIter>,
   allow_walk: bool,
   current_pattern: Option<String>,
-  current_pattern_is_valid: bool
+  current_pattern_is_valid: bool,
 }
 
 impl<'a> ResourcePaths<'a> {
@@ -686,7 +691,10 @@ impl<'a> Iterator for ResourcePaths<'a> {
         } else {
           if let Some(current_path) = &self.current_pattern {
             if !self.current_pattern_is_valid {
-              return Some(Err(crate::Error::from(format!("Path matching '{}' not found", current_path))));
+              return Some(Err(crate::Error::from(format!(
+                "Path matching '{}' not found",
+                current_path
+              ))));
             }
           }
         }

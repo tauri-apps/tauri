@@ -18,23 +18,23 @@ jobs:
           - name: tauri-bundler
             registryName: tauri-bundler
             path: cli/tauri-bundler
-            publishPath: /target/package
+            publishPath: cli/tauri-bundler/target/package # not in workspace so target folder is nested
           - name: tauri-core
             registryName: tauri
             path: tauri
-            publishPath: /target/package
+            publishPath: target/package
           - name: tauri-api
             registryName: tauri-api
             path: tauri-api
-            publishPath: /target/package
+            publishPath: target/package
           - name: tauri-updater
             registryName: tauri-updater
             path: tauri-updater
-            publishPath: /target/package
+            publishPath: target/package
           - name: tauri-utils
             registryName: tauri-utils
             path: tauri-utils
-            publishPath: /target/package
+            publishPath: target/package
     steps:
       - uses: actions/checkout@v2
         with:
@@ -59,14 +59,9 @@ jobs:
           TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/dist
           TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/src-tauri
         run: |
-          echo "package dir:"
-          ls
           cargo package --no-verify
           echo "We will publish:" $PACKAGE_VERSION
           echo "This is current latest:" $PUBLISHED_VERSION
-          echo "post package dir:"
-          cd ${{ matrix.publishPath }}
-          ls
       - name: cargo audit
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         working-directory: ${{ matrix.package.path }}

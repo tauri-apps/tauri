@@ -26,6 +26,10 @@
                  InstallScope="perMachine"
                  SummaryCodepage="1252"/>
 
+         <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed."
+                  MigrateFeatures="yes" />
+
+
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
         
         <WixVariable Id="WixUIBannerBmp" Value="{{{icon_path}}}" />
@@ -33,19 +37,36 @@
         <Icon Id="ProductIcon" SourceFile="{{{icon_path}}}"/>
         <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
         <Property Id="ARPNOREPAIR" Value="yes" Secure="yes" />      <!-- Remove repair -->
-        <Property Id="ARPNOMODIFY" Value="yes" Secure="yes" />      <!-- Remove modify -->
+        <SetProperty Id="ARPNOMODIFY" Value="1" After="InstallValidate" Sequence="execute"/>
 
+        <UI>
+            <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+
+            <!-- Skip license dialog -->
+            <Publish Dialog="WelcomeDlg"
+                     Control="Next"
+                     Event="NewDialog"
+                     Value="InstallDirDlg"
+                     Order="2">1</Publish>
+            <Publish Dialog="InstallDirDlg"
+                     Control="Back"
+                     Event="NewDialog"
+                     Value="WelcomeDlg"
+                     Order="2">1</Publish>
+        </UI>
+
+        <UIRef Id="WixUI_InstallDir" />
 
         <Directory Id="TARGETDIR" Name="SourceDir">
             <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">
-                <Directory Id="APPLICATIONFOLDER" Name="{{{product_name}}}"/>
+                <Directory Id="INSTALLDIR" Name="{{{product_name}}}"/>
             </Directory>
             <Directory Id="ProgramMenuFolder">
                 <Directory Id="ApplicationProgramsFolder" Name="{{{product_name}}}"/>
             </Directory>
         </Directory>
 
-        <DirectoryRef Id="APPLICATIONFOLDER">
+        <DirectoryRef Id="INSTALLDIR">
             <Component Id="Path" Guid="{{{path_component_guid}}}" Win64="$(var.Win64)">
                 <File Id="Path" Source="{{{app_exe_source}}}" KeyPath="yes" Checksum="yes"/>
             </Component>
@@ -64,7 +85,7 @@
 						  Target="[System64Folder]msiexec.exe"
 						  Arguments="/x [ProductCode]" />
 
-				<RemoveFolder Id="APPLICATIONFOLDER"
+				<RemoveFolder Id="INSTALLDIR"
 							  On="uninstall" />
 
 				<RegistryValue Root="HKCR"
@@ -73,7 +94,6 @@
 							   Type="integer"
 							   Value="1"
 							   KeyPath="yes" />
-            
             </Component>
         </DirectoryRef>
 
@@ -94,41 +114,42 @@
                 Title="Application"
                 Description="Installs {{{product_name}}}."
                 Level="1"
-                ConfigurableDirectory="APPLICATIONFOLDER"
+                ConfigurableDirectory="INSTALLDIR"
                 AllowAdvertise="no"
                 Display="expand"
                 Absent="disallow">
 
             {{#each resource_file_ids as |resource_file_id| ~}}
-            <ComponentRef Id="{{ resource_file_id }}"/>
+                <ComponentRef Id="{{ resource_file_id }}"/>
             {{/each~}}
 
             <Feature Id="ShortcutsFeature"
-			 Title="Shortcuts"
-			 Level="1">
-            <ComponentRef Id="Path"/>
-            <ComponentRef Id="CMP_ReadFileShortcut" />
-            <ComponentRef Id="ApplicationShortcut" />
-		    </Feature>
+                Title="Shortcuts"
+                Level="1">
+                <ComponentRef Id="Path"/>
+                <ComponentRef Id="CMP_ReadFileShortcut" />
+                <ComponentRef Id="ApplicationShortcut" />
+            </Feature>
 
             <Feature
-                    Id="Environment"
-                    Title="PATH Environment Variable"
-                    Description="Add the install location of the [ProductName] executable to the PATH system environment variable. This allows the [ProductName] executable to be called from any location."
-                    Level="1"
-                    Absent="allow">
-                <ComponentRef Id="Path"/>
-                {{#each external_binaries as |external_bin| ~}}
-                <ComponentRef Id="{{ external_bin.id }}"/>
-                {{/each~}}
+                Id="Environment"
+                Title="PATH Environment Variable"
+                Description="Add the install location of the [ProductName] executable to the PATH system environment variable. This allows the [ProductName] executable to be called from any location."
+                Level="1"
+                Absent="allow">
+            <ComponentRef Id="Path"/>
+            {{#each external_binaries as |external_bin| ~}}
+            <ComponentRef Id="{{ external_bin.id }}"/>
+            {{/each~}}
             </Feature>
         </Feature>
 
-        <SetProperty Id="ARPINSTALLLOCATION" Value="[APPLICATIONFOLDER]" After="CostFinalize"/>
+        <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" After="CostFinalize"/>
 
         <InstallExecuteSequence>
             <Custom Action='LoopBackCmd' After='InstallFiles'/>
         </InstallExecuteSequence>
+        
     </Product>
 
     <Fragment>

@@ -85,7 +85,7 @@
 						  Target="[System64Folder]msiexec.exe"
 						  Arguments="/x [ProductCode]" />
 
-				<RemoveFolder Id="INSTALLDIR"
+				<RemoveFolder Id="ApplicationProgramsFolder"
 							  On="uninstall" />
 
 				<RegistryValue Root="HKCR"

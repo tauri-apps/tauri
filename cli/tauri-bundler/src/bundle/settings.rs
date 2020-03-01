@@ -113,6 +113,9 @@ struct BundleSettings {
   external_bin: Option<Vec<String>>,
   exception_domain: Option<String>,
   osx_signing_identity: Option<String>,
+  windows_digest_algorithm: Option<String>,
+  windows_certificate_thumbprint: Option<String>,
+  windows_timestamp_url: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -449,6 +452,18 @@ impl Settings {
     return self.bundle_settings.osx_signing_identity.as_ref();
   }
 
+  pub fn windows_digest_algorithm(&self) -> Option<&String> {
+    return self.bundle_settings.windows_digest_algorithm.as_ref();
+  }
+
+  pub fn windows_certificate_thumbprint(&self) -> Option<&String> {
+    return self.bundle_settings.windows_certificate_thumbprint.as_ref();
+  }
+
+  pub fn windows_timestamp_url(&self) -> Option<&String> {
+    return self.bundle_settings.windows_timestamp_url.as_ref();
+  }
+
   // copy external binaries to a path.
   pub fn copy_binaries(&self, path: &Path) -> crate::Result<()> {
     for src in self.external_binaries() {
@@ -625,6 +640,9 @@ fn merge_settings(
     external_bin: options_value(config.external_bin, bundle_settings.external_bin),
     exception_domain: options_value(config.osx.exception_domain, bundle_settings.exception_domain),
     osx_signing_identity: options_value(config.osx.signing_identity, bundle_settings.osx_signing_identity),
+    windows_digest_algorithm: options_value(config.windows.digest_algorithm, bundle_settings.windows_digest_algorithm),
+    windows_certificate_thumbprint: options_value(config.windows.certificate_thumbprint, bundle_settings.windows_certificate_thumbprint),
+    windows_timestamp_url: options_value(config.windows.timestamp_url, bundle_settings.windows_timestamp_url),
     ..bundle_settings
   }
 }

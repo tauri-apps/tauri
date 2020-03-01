@@ -20,6 +20,14 @@ pub struct OsxConfig {
 }
 
 #[derive(PartialEq, Deserialize, Clone, Debug, Default)]
+#[serde(tag = "windows", rename_all = "camelCase")]
+pub struct WindowsConfig {
+  pub digest_algorithm: Option<String>,
+  pub certificate_thumbprint: Option<String>,
+  pub timestamp_url: Option<String>,
+}
+
+#[derive(PartialEq, Deserialize, Clone, Debug, Default)]
 #[serde(tag = "bundle", rename_all = "camelCase")]
 pub struct BundleConfig {
   pub name: Option<String>,
@@ -37,6 +45,8 @@ pub struct BundleConfig {
   #[serde(default)]
   pub osx: OsxConfig,
   pub external_bin: Option<Vec<String>>,
+  #[serde(default)]
+  pub windows: WindowsConfig,
 }
 
 #[derive(PartialEq, Deserialize, Clone, Debug, Default)]

@@ -26,6 +26,11 @@ export default {
         minimumSystemVersion: '',
         signingIdentity: ''
       },
+      windows: {
+        certificateThumbprint: '',
+        digestAlgorithm: 'sha256',
+        timestampUrl: ''
+      },
       exceptionDomain: ''
     },
     whitelist: {

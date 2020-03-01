@@ -85,7 +85,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
 fn sign(app_bundle_path: PathBuf, settings: &Settings) -> crate::Result<()> {
   let identity = settings.osx_signing_identity().expect("signing identity not provided");
-  println!(r#"signing app with identity "{}""#, identity);
+  common::print_info(format!(r#"signing app with identity "{}""#, identity).as_str())?;
   let status = Command::new("codesign")
     .args(vec!["--deep", "--force", "-s", identity, &app_bundle_path.to_string_lossy()])
     .status()?;

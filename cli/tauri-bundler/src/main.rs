@@ -22,6 +22,7 @@ error_chain! {
         ConvertError(std::num::TryFromIntError);
         RegexError(::regex::Error) #[cfg(windows)];
         HttpError(::attohttpc::Error) #[cfg(windows)];
+        Json(::serde_json::error::Error);
     }
     errors {}
 }
@@ -74,7 +75,7 @@ fn run() -> crate::Result<()> {
     .setting(AppSettings::SubcommandRequired)
     .subcommand(
       SubCommand::with_name("tauri-bundler")
-        .author("George Burton <burtonageo@gmail.com>, Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>, Daniel Thompson-Yvetot <denjell@sfosc.org>")
+        .author("George Burton <burtonageo@gmail.com>, Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>, Daniel Thompson-Yvetot <denjell@sfosc.org>, Tensor Programming <tensordeveloper@gmail.com>")
         .about("Bundle Rust executables into OS bundles")
         .setting(AppSettings::DisableVersion)
         .setting(AppSettings::UnifiedHelpMessage)

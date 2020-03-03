@@ -33,7 +33,9 @@ case "$PWD" in
   yarn && yarn tauri:source dev
 ;;
 */rust/*)
-  cargo web deploy && cd ..
+  cargo web deploy
+  [ $example = `basename $(dirname $PWD)` ] && cd ..
+
   yarn add tauri@link:../../../cli/tauri.js
   yarn && yarn tauri dev
 ;; 

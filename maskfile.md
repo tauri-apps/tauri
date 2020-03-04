@@ -18,6 +18,8 @@ yarn && yarn build
 
 ## run
 
+![tauri-mask-run-example](https://user-images.githubusercontent.com/4953069/75866011-00ed8600-5e37-11ea-9106-3cb104a05f80.gif)
+
 ### run example (example)
 > Run specific example in dev mode
 

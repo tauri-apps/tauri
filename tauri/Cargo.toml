@@ -48,3 +48,7 @@ execute = []
 open = []
 event = []
 updater = []
+
+[package.metadata.docs.rs]
+
+features = ["dev-server", "all-api"]

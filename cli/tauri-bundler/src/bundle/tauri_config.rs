@@ -38,6 +38,13 @@ pub struct BundleConfig {
   pub external_bin: Option<Vec<String>>,
 }
 
+
+#[derive(PartialEq, Deserialize, Clone, Debug, Default)]
+#[serde(tag = "build", rename_all = "camelCase")]
+pub struct BuildConfig {
+  pub tool: Option<String>,
+}
+
 #[derive(PartialEq, Deserialize, Clone, Debug, Default)]
 #[serde(tag = "tauri", rename_all = "camelCase")]
 pub struct TauriConfig {
@@ -50,6 +57,7 @@ pub struct TauriConfig {
 pub struct Config {
   #[serde(default)]
   pub tauri: TauriConfig,
+  pub build: BuildConfig,
 }
 
 pub fn get() -> crate::Result<Config> {

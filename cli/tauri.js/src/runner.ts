@@ -132,7 +132,8 @@ class Runner {
           ...features
         ]
           .concat(cfg.ctx.debug ? [] : ['--release'])
-          .concat(target ? ['--target', target] : [])
+          .concat(target ? ['--target', target] : []),
+        tool: cfg.build.tool
       })
 
     if (!cfg.ctx.target) {
@@ -245,15 +246,17 @@ class Runner {
   async __runCargoCommand({
     cargoArgs,
     extraArgs,
-    dev = false
+    dev = false,
+    tool = 'cargo'
   }: {
     cargoArgs: string[]
     extraArgs?: string[]
-    dev?: boolean
+    dev?: boolean,
+    tool?: string
   }): Promise<void> {
     return new Promise((resolve, reject) => {
       this.pid = spawn(
-        'cargo',
+        tool,
 
         extraArgs ? cargoArgs.concat(['--']).concat(extraArgs) : cargoArgs,
 

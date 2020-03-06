@@ -92,6 +92,7 @@ pub enum BuildArtifact {
 
 #[derive(Clone, Debug, Deserialize)]
 struct BundleSettings {
+  build_tool: Option<String>,
   // General settings:
   name: Option<String>,
   identifier: Option<String>,
@@ -237,7 +238,7 @@ impl Settings {
 
     let tauri_config = super::tauri_config::get();
     let merged_bundle_settings = match tauri_config {
-      Ok(config) => merge_settings(bundle_settings, config.tauri.bundle),
+      Ok(config) => merge_settings(bundle_settings, config),
       Err(_) => bundle_settings,
     };
 
@@ -253,6 +254,10 @@ impl Settings {
       binary_name,
       bundle_settings: merged_bundle_settings,
     })
+  }
+
+  pub fn build_tool(&self) -> Option<&String> {
+    return self.bundle_settings.build_tool.as_ref()
   }
 
   /*
@@ -600,30 +605,32 @@ fn options_value<T>(first: Option<T>, second: Option<T>) -> Option<T> {
 
 fn merge_settings(
   bundle_settings: BundleSettings,
-  config: crate::bundle::tauri_config::BundleConfig,
+  config: crate::bundle::tauri_config::Config,
 ) -> BundleSettings {
+  let bundle_config = config.tauri.bundle;
   BundleSettings {
-    name: options_value(config.name, bundle_settings.name),
-    identifier: options_value(config.identifier, bundle_settings.identifier),
-    icon: options_value(config.icon, bundle_settings.icon),
-    version: options_value(config.version, bundle_settings.version),
-    resources: options_value(config.resources, bundle_settings.resources),
-    copyright: options_value(config.copyright, bundle_settings.copyright),
-    category: options_value(config.category, bundle_settings.category),
-    short_description: options_value(config.short_description, bundle_settings.short_description),
-    long_description: options_value(config.long_description, bundle_settings.long_description),
-    script: options_value(config.script, bundle_settings.script),
-    deb_depends: options_value(config.deb.depends, bundle_settings.deb_depends),
-    osx_frameworks: options_value(config.osx.frameworks, bundle_settings.osx_frameworks),
+    name: options_value(bundle_config.name, bundle_settings.name),
+    identifier: options_value(bundle_config.identifier, bundle_settings.identifier),
+    icon: options_value(bundle_config.icon, bundle_settings.icon),
+    version: options_value(bundle_config.version, bundle_settings.version),
+    resources: options_value(bundle_config.resources, bundle_settings.resources),
+    copyright: options_value(bundle_config.copyright, bundle_settings.copyright),
+    category: options_value(bundle_config.category, bundle_settings.category),
+    short_description: options_value(bundle_config.short_description, bundle_settings.short_description),
+    long_description: options_value(bundle_config.long_description, bundle_settings.long_description),
+    script: options_value(bundle_config.script, bundle_settings.script),
+    deb_depends: options_value(bundle_config.deb.depends, bundle_settings.deb_depends),
+    osx_frameworks: options_value(bundle_config.osx.frameworks, bundle_settings.osx_frameworks),
     osx_minimum_system_version: options_value(
-      config.osx.minimum_system_version,
+      bundle_config.osx.minimum_system_version,
       bundle_settings.osx_minimum_system_version,
     ),
-    external_bin: options_value(config.external_bin, bundle_settings.external_bin),
+    external_bin: options_value(bundle_config.external_bin, bundle_settings.external_bin),
     exception_domain: options_value(
-      config.osx.exception_domain,
+      bundle_config.osx.exception_domain,
       bundle_settings.exception_domain,
     ),
+    build_tool: options_value(config.build.tool, bundle_settings.build_tool),
     ..bundle_settings
   }
 }

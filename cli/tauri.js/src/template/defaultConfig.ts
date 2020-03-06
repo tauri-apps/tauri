@@ -1,7 +1,8 @@
 export default {
   build: {
     distDir: '../dist',
-    devPath: 'http://localhost:4000'
+    devPath: 'http://localhost:4000',
+    tool: 'cargo'
   },
   ctx: {},
   tauri: {

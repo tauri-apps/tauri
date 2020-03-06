@@ -53,10 +53,13 @@ fn build_project_if_unbuilt(settings: &Settings) -> crate::Result<()> {
     None => {}
   }
 
-  let status = process::Command::new("cargo").args(args).status()?;
+  let default_build_tool = &"cargo".to_string();
+  let build_tool = settings.build_tool().unwrap_or(default_build_tool);
+  let status = process::Command::new(build_tool).args(args).status()?;
   if !status.success() {
     bail!(
-      "Result of `cargo build` operation was unsuccessful: {}",
+      "Result of `{} build` operation was unsuccessful: {}",
+      build_tool,
       status
     );
   }

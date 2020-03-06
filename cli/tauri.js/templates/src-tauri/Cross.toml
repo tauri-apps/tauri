@@ -1,0 +1,6 @@
+# probably needed, not sure yet
+[build.env]
+passthrough = [
+    "TAURI_DIR",
+    "TAURI_DIST_DIR"
+]

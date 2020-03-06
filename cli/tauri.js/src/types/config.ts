@@ -5,6 +5,7 @@ export interface TauriConfig {
   build: {
     distDir: string
     devPath: string
+    tool: string
   }
   ctx: {
     prod?: boolean

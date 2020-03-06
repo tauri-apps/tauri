@@ -135,8 +135,8 @@ class Runner {
           .concat(target ? ['--target', target] : [])
       })
 
-    if (cfg.ctx.debug || !cfg.ctx.targetName) {
-      // on debug mode or if no target specified,
+    if (!cfg.ctx.target) {
+      // if no target specified,
       // build only for the current platform
       await buildFn()
     } else {
@@ -251,7 +251,7 @@ class Runner {
     extraArgs?: string[]
     dev?: boolean
   }): Promise<void> {
-    return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
       this.pid = spawn(
         'cargo',
 
@@ -264,6 +264,7 @@ class Runner {
             warn()
             warn('⚠️  [FAIL] Cargo CLI has failed')
             warn()
+            reject()
             process.exit(1)
           }
 
@@ -276,10 +277,10 @@ class Runner {
             warn()
             process.exit(0)
           }
+
+          resolve()
         }
       )
-
-      resolve()
     })
   }
 

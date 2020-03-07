@@ -26,10 +26,11 @@ export const spawn = (
   runner.on('close', code => {
     log()
     if (code) {
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       log(`Command "${cmd}" failed with exit code: ${code}`)
     }
 
-    onClose && onClose(code)
+    onClose?.(code)
   })
 
   return runner.pid
@@ -52,13 +53,15 @@ export const spawnSync = (
     cwd
   })
 
+  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
   if (runner.status || runner.error) {
     warn()
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     warn(`⚠️  Command "${cmd}" failed with exit code: ${runner.status}`)
     if (runner.status === null) {
       warn(`⚠️  Please globally install "${cmd}"`)
     }
-    onFail && onFail()
+    onFail?.()
     process.exit(1)
   }
 }

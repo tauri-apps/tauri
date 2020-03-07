@@ -1,7 +1,6 @@
 use std::net::TcpListener;
 
 use rand;
-
 use rand::distributions::{Distribution, Uniform};
 
 pub fn get_available_port() -> Option<u16> {

@@ -1,13 +1,12 @@
 # tauri
- <img align="right" src="app-icon.png" height="120" width="120">
+ <img align="right" src="app-icon.png" height="128" width="128">
 
 ## A fresh take on creating cross-platform apps.
-[![status](https://img.shields.io/badge/Status-Early%20Alpha-yellow.svg)](https://github.com/tauri-apps/tauri/tree/dev)
+[![status](https://img.shields.io/badge/Status-Alpha-yellow.svg)](https://github.com/tauri-apps/tauri/tree/dev)
 [![Chat Server](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/SpmNs4S)
 [![devto](https://img.shields.io/badge/blog-dev.to-black.svg)](https://dev.to/tauri)
 
-![](https://img.shields.io/github/workflow/status/tauri-apps/tauri/test%20library?label=test%20library
-)
+[![test library](https://img.shields.io/github/workflow/status/tauri-apps/tauri/test%20library?label=test%20library)](https://github.com/tauri-apps/tauri/actions?query=workflow%3A%22test+library%22)
 [![devto](https://img.shields.io/badge/documentation-wiki-purple.svg)](https://github.com/tauri-apps/tauri/wiki)
 
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
@@ -18,9 +17,9 @@ Tauri is a tool for building tiny, blazing fast binaries for all major desktop p
 
 | Component | Version | Lin | Win | Mac |
 |-----------|---------|-----|-----|-----|
-| tauri.js CLI | ![](https://img.shields.io/npm/v/tauri.svg)         |✅|✅|✅|
-| tauri core    | ![](https://img.shields.io/crates/v/tauri.svg)      |✅|✅|✅|
-| tauri bundler | ![](https://img.shields.io/crates/v/tauri-cli.svg)  |✅|✅|✅ |
+| tauri.js CLI | [![](https://img.shields.io/npm/v/tauri.svg)](https://www.npmjs.com/package/tauri)         |✅|✅|✅|
+| tauri core    | [![](https://img.shields.io/crates/v/tauri.svg)](https://crates.io/crates/tauri)      |✅|✅|✅|
+| tauri bundler | [![](https://img.shields.io/crates/v/tauri-bundler.svg)](https://crates.io/crates/tauri-bundler)  |✅|✅|✅ |
 
 ## Who Tauri is For
 Because of the way Tauri has been built and can be extended, developers
@@ -48,7 +47,7 @@ What will you make?
 Tauri has five major components:
 - [Node.js CLI](https://github.com/tauri-apps/tauri/tree/dev/cli/tauri.js) for creating, developing and building apps
 - [Rust Core](https://github.com/tauri-apps/tauri/tree/dev/tauri) for binding to the low level WEBVIEW and providing a tree-shakeable API
-- [Rust Bundler](https://github.com/tauri-apps/tauri/tree/dev/cli/tauri-cli) for manufacturing the final binaries
+- [Rust Bundler](https://github.com/tauri-apps/tauri/tree/dev/cli/tauri-bundler) for manufacturing the final binaries
 - [Rust Bindings](https://github.com/Boscop/web-view) for Webviews
 - [Webview](https://github.com/Boscop/web-view/tree/master/webview-sys)
 Low level library for creating and interfacing with OS "native" webviews
@@ -161,4 +160,4 @@ Code: (c) 2015 - present - Daniel Thompson-Yvetot, Lucas Nogueira, Tensor, Bosco
 MIT or MIT/Apache where applicable.
 
 Logo: CC-BY-NC-ND
-- Original Tauri Logo Design by [Daniel Thompson-Yvetot](https://github.com/nothingismagick)
+- Original Tauri Logo Designs by [Daniel Thompson-Yvetot](https://github.com/nothingismagick) and [Guillaume Chau](https://github.com/akryum)

@@ -9,7 +9,23 @@ export default {
       active: true
     },
     bundle: {
-      active: true
+      active: true,
+      identifier: 'com.tauri.dev',
+      icon: ['icons/32x32.png', 'icons/128x128.png', 'icons/128x128@2x.png', 'icons/icon.icns', 'icons/icon.ico'],
+      resources: [],
+      externalBin: [],
+      copyright: '',
+      category: '',
+      shortDescription: '',
+      longDescription: '',
+      deb: {
+        depends: []
+      },
+      osx: {
+        frameworks: [],
+        minimumSystemVersion: ''
+      },
+      exceptionDomain: ''
     },
     whitelist: {
       all: true
@@ -23,7 +39,7 @@ export default {
     edge: {
       active: true
     },
-    automaticStart: {
+    inliner: {
       active: true
     }
   }

@@ -1,15 +1,14 @@
 use semver::Version;
+use std::cmp::Ordering;
 
 /// Compare two semver versions
 pub fn compare(first: &str, second: &str) -> crate::Result<i32> {
   let v1 = Version::parse(first)?;
   let v2 = Version::parse(second)?;
-  if v1 > v2 {
-    Ok(-1)
-  } else if v1 == v2 {
-    Ok(0)
-  } else {
-    Ok(1)
+  match v1.cmp(&v2) {
+    Ordering::Greater => Ok(-1),
+    Ordering::Less => Ok(1),
+    Ordering::Equal => Ok(0)
   }
 }
 

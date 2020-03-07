@@ -1,9 +1,10 @@
-use std::fs;
-
 mod extract;
 mod file_move;
 
+use std::fs;
+
 use crate::{Error, ErrorKind};
+
 pub use extract::*;
 pub use file_move::*;
 

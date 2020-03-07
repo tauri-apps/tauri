@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "0.3.2"
+version = "0.4.3"
 authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
 license = "MIT"
 homepage = "https://tauri.studio"
@@ -10,9 +10,8 @@ edition = "2018"
 exclude = ["test/fixture/**"]
 
 [dependencies]
-serde_json = "1.0.44"
-serde = "1.0"
-serde_derive = "1.0"
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
 rand = "0.7"
 web-view = "0.6.0"
 tauri_includedir = "0.5.0"
@@ -23,11 +22,12 @@ lazy_static = "1.4.0"
 tiny_http = "0.6"
 threadpool = "1.7"
 uuid = { version = "0.8.1", features = ["v4"] }
+error-chain = "0.12.1"
 
-tauri-api = { version = "0.3",  path = "../tauri-api" }
+tauri-api = { version = "0.4",  path = "../tauri-api" }
 
 [build-dependencies]
-tauri_includedir_codegen = "0.5.1"
+tauri_includedir_codegen = "0.5.2"
 
 [dev-dependencies]
 proptest = "0.9.5"
@@ -47,3 +47,8 @@ setTitle = []
 execute = []
 open = []
 event = []
+updater = []
+
+[package.metadata.docs.rs]
+
+features = ["dev-server", "all-api"]

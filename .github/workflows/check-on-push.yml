@@ -1,0 +1,37 @@
+name: clippy and eslint check
+
+on:
+  push:
+    branches-ignore:
+      - master
+      - dev
+
+jobs:
+  clippy_check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: install webkit2gtk
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0
+      - run: rustup component add clippy
+      - uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/dist
+          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/src-tauri
+
+  eslint-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+      - name: install deps via yarn
+        working-directory: ./cli/tauri.js
+        run: yarn
+      - name: run eslint
+        working-directory: ./cli/tauri.js
+        run: yarn lint

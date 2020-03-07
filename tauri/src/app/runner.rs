@@ -7,13 +7,18 @@ use super::App;
 use crate::config::{get, Config};
 #[cfg(feature = "embedded-server")]
 use crate::tcp::{get_available_port, port_is_available};
-use crate::TauriResult;
 
 // JavaScript string literal
-const JS_STRING: &'static str = r#"
+const JS_STRING: &str = r#"
 if (window.onTauriInit !== void 0) {
   window.onTauriInit()
   window.onTauriInit = void 0
+}
+if (window.__TAURI_INIT_HOOKS !== void 0) {
+  for (var hook in window.__TAURI_INIT_HOOKS) {
+    window.__TAURI_INIT_HOOKS[hook]()
+  }
+  window.__TAURI_INIT_HOOKS = void 0
 }
 Object.defineProperty(window, 'onTauriInit', {
   set: function(val) {
@@ -25,17 +30,17 @@ Object.defineProperty(window, 'onTauriInit', {
 "#;
 
 // Main entry point function for running the Webview
-pub(crate) fn run(application: &mut App) -> TauriResult<()> {
+pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   // get the tauri config struct
   let config = get()?;
 
   // setup the content using the config struct depending on the compile target
-  let content = setup_content(config.clone())?;
+  let main_content = setup_content(config.clone())?;
 
   // setup the server url for the embedded-server
   #[cfg(feature = "embedded-server")]
   let server_url = {
-    if let Content::Url(ref url) = &content {
+    if let Content::Url(ref url) = &main_content {
       String::from(url)
     } else {
       String::from("")
@@ -43,7 +48,16 @@ pub(crate) fn run(application: &mut App) -> TauriResult<()> {
   };
 
   // build the webview
-  let webview = build_webview(application, config, content)?;
+  let webview = build_webview(
+    application,
+    config,
+    main_content,
+    if application.splashscreen_html().is_some() {
+      Some(Content::Html(application.splashscreen_html().expect("failed to get splashscreen_html").to_string()))
+    } else {
+      None
+    },
+  )?;
 
   // on dev-server grab a handler and execute the tauri.js API entry point.
   #[cfg(feature = "dev-server")]
@@ -67,7 +81,7 @@ pub(crate) fn run(application: &mut App) -> TauriResult<()> {
 
 // setup content for dev-server
 #[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
-fn setup_content(config: Config) -> TauriResult<Content<String>> {
+fn setup_content(config: Config) -> crate::Result<Content<String>> {
   if config.build.dev_path.starts_with("http") {
     Ok(Content::Url(config.build.dev_path))
   } else {
@@ -78,7 +92,7 @@ fn setup_content(config: Config) -> TauriResult<Content<String>> {
 
 // setup content for embedded server
 #[cfg(feature = "embedded-server")]
-fn setup_content(config: Config) -> TauriResult<Content<String>> {
+fn setup_content(config: Config) -> crate::Result<Content<String>> {
   let (port, valid) = setup_port(config.clone()).expect("Unable to setup Port");
   let url = setup_server_url(config.clone(), valid, port).expect("Unable to setup URL");
 
@@ -87,7 +101,7 @@ fn setup_content(config: Config) -> TauriResult<Content<String>> {
 
 // setup content for no-server
 #[cfg(feature = "no-server")]
-fn setup_content(_: Config) -> TauriResult<Content<String>> {
+fn setup_content(_: Config) -> crate::Result<Content<String>> {
   let index_path = Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
   Ok(Content::Html(read_to_string(index_path)?))
 }
@@ -127,7 +141,7 @@ fn setup_server_url(config: Config, valid: bool, port: String) -> Option<String>
 
 // spawn the embedded server
 #[cfg(feature = "embedded-server")]
-fn spawn_server(server_url: String) -> TauriResult<()> {
+fn spawn_server(server_url: String) -> crate::Result<()> {
   spawn(move || {
     let server = tiny_http::Server::http(
       server_url
@@ -153,13 +167,10 @@ fn spawn_server(server_url: String) -> TauriResult<()> {
 
 // spawn an updater process.
 #[cfg(feature = "updater")]
-fn spawn_updater() -> TauriResult<()> {
+fn spawn_updater() -> crate::Result<()> {
   spawn(|| {
-    tauri_api::command::spawn_relative_command(
-      "updater".to_string(),
-      Vec::new(),
-      Stdio::inherit(),
-    )?;
+    tauri_api::command::spawn_relative_command("updater".to_string(), Vec::new(), Stdio::inherit())
+      .expect("Unable to spawn relative command");
   });
   Ok(())
 }
@@ -169,7 +180,12 @@ fn build_webview(
   application: &mut App,
   config: Config,
   content: Content<String>,
-) -> TauriResult<WebView<'_, ()>> {
+  splashscreen_content: Option<Content<String>>
+) -> crate::Result<WebView<'_, ()>> {
+  let content_clone = match content {
+    Content::Html(ref html) => Content::Html(html.clone()),
+    Content::Url(ref url) => Content::Url(url.clone()),
+  };
   let debug = cfg!(debug_assertions);
   // get properties from config struct
   let width = config.tauri.window.width;
@@ -177,28 +193,54 @@ fn build_webview(
   let resizable = config.tauri.window.resizable;
   let title = config.tauri.window.title.into_boxed_str();
 
-  Ok(
-    builder()
-      .title(Box::leak(title))
-      .size(width, height)
-      .resizable(resizable)
-      .debug(debug)
-      .user_data(())
-      .invoke_handler(move |webview, arg| {
-        if arg == r#"{"cmd":"__initialized"}"# {
-          application.run_setup(webview);
-          webview.eval(JS_STRING)?;
-        } else if let Ok(b) = crate::endpoints::handle(webview, arg) {
-          if !b {
-            application.run_invoke_handler(webview, arg);
-          }
-        }
+  let has_splashscreen = splashscreen_content.is_some();
+  let mut initialized_splashscreen = false;
 
-        Ok(())
-      })
-      .content(content)
-      .build()?,
-  )
+  let webview = builder()
+    .title(Box::leak(title))
+    .size(width, height)
+    .resizable(resizable)
+    .debug(debug)
+    .user_data(())
+    .invoke_handler(move |webview, arg| {
+      if arg == r#"{"cmd":"__initialized"}"# {
+        let source = if has_splashscreen && !initialized_splashscreen {
+          initialized_splashscreen = true;
+          "splashscreen"
+        } else {
+          "window-1"
+        };
+        application.run_setup(webview, source.to_string());
+        webview.eval(JS_STRING)?;
+      } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
+        let content_href = match content_clone {
+          Content::Html(ref html) => html,
+          Content::Url(ref url) => url,
+        };
+        webview.eval(&format!(r#"window.location.href = "{}""#, content_href))?;
+      } else if let Ok(b) = crate::endpoints::handle(webview, arg) {
+        if !b {
+          application.run_invoke_handler(webview, arg);
+        }
+      }
+
+      Ok(())
+    })
+    .content(if splashscreen_content.is_some() {
+      splashscreen_content.expect("failed to get splashscreen content")
+    } else {
+      content
+    })
+    .build()?;
+
+  if has_splashscreen {
+    // inject the tauri.js entry point
+    webview
+    .handle()
+    .dispatch(|_webview| _webview.eval(include_str!(concat!(env!("TAURI_DIR"), "/tauri.js"))))?;
+  }
+  
+  Ok(webview)
 }
 
 #[cfg(test)]

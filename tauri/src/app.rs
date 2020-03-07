@@ -2,11 +2,13 @@ use web_view::WebView;
 
 mod runner;
 
-//type FnMut(&mut InvokeHandler<WebView<'_, ()>>, &str) = FnMut(&mut FnMut(&mut InvokeHandler<WebView<'_, ()>>, &str)<WebView<'_, ()>>, &str);
+type InvokeHandler = Box<dyn FnMut(&mut WebView<'_, ()>, &str)>;
+type Setup = Box<dyn FnMut(&mut WebView<'_, ()>, String)>;
 
 pub struct App {
-  invoke_handler: Option<Box<dyn FnMut(&mut WebView<'_, ()>, &str)>>,
-  setup: Option<Box<dyn FnMut(&mut WebView<'_, ()>)>>,
+  invoke_handler: Option<InvokeHandler>,
+  setup: Option<Setup>,
+  splashscreen_html: Option<String>,
 }
 
 impl App {
@@ -15,27 +17,27 @@ impl App {
   }
 
   pub(crate) fn run_invoke_handler(&mut self, webview: &mut WebView<'_, ()>, arg: &str) {
-    match self.invoke_handler {
-      Some(ref mut invoke_handler) => {
-        invoke_handler(webview, arg);
-      }
-      None => {}
+    if let Some(ref mut invoke_handler) = self.invoke_handler {
+      invoke_handler(webview, arg);
     }
   }
 
-  pub(crate) fn run_setup(&mut self, webview: &mut WebView<'_, ()>) {
-    match self.setup {
-      Some(ref mut setup) => {
-        setup(webview);
-      }
-      None => {}
+  pub(crate) fn run_setup(&mut self, webview: &mut WebView<'_, ()>, source: String) {
+    if let Some(ref mut setup) = self.setup {
+      setup(webview, source);
     }
+  }
+
+  pub fn splashscreen_html(&self) -> Option<&String> {
+    self.splashscreen_html.as_ref()
   }
 }
 
+#[derive(Default)]
 pub struct AppBuilder {
-  invoke_handler: Option<Box<dyn FnMut(&mut WebView<'_, ()>, &str)>>,
-  setup: Option<Box<dyn FnMut(&mut WebView<'_, ()>)>>,
+  invoke_handler: Option<InvokeHandler>,
+  setup: Option<Setup>,
+  splashscreen_html: Option<String>
 }
 
 impl AppBuilder {
@@ -43,6 +45,7 @@ impl AppBuilder {
     Self {
       invoke_handler: None,
       setup: None,
+      splashscreen_html: None,
     }
   }
 
@@ -54,8 +57,13 @@ impl AppBuilder {
     self
   }
 
-  pub fn setup<F: FnMut(&mut WebView<'_, ()>) + 'static>(mut self, setup: F) -> Self {
+  pub fn setup<F: FnMut(&mut WebView<'_, ()>, String) + 'static>(mut self, setup: F) -> Self {
     self.setup = Some(Box::new(setup));
+    self
+  }
+
+  pub fn splashscreen_html(mut self, html: &str) -> Self {
+    self.splashscreen_html = Some(html.to_string());
     self
   }
 
@@ -63,6 +71,7 @@ impl AppBuilder {
     App {
       invoke_handler: self.invoke_handler,
       setup: self.setup,
+      splashscreen_html: self.splashscreen_html,
     }
   }
 }

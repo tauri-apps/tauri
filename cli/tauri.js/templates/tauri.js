@@ -398,26 +398,6 @@ window.tauri = {
         <% } %>
   },
 
-bridge: function bridge(command, payload) {
-    <% if (tauri.whitelist.bridge === true || tauri.whitelist.all === true) { %>
-
-    if (_typeof(payload) === 'object') {
-      Object.freeze(payload);
-    }
-
-    return this.promisified({
-      cmd: 'bridge',
-      command: command,
-      payload: _typeof(payload) === 'object' ? [payload] : payload
-    });
-    <% } else { %>
-      <% if (ctx.dev) { %>
-          return __whitelistWarning('bridge')
-        <% } %>
-            return __reject()
-      <% } %>
-  },
-
 loadAsset: function loadAsset(assetName, assetType) {
   return this.promisified({
     cmd: 'loadAsset',

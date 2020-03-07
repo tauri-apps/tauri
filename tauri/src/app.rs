@@ -67,8 +67,8 @@ impl AppBuilder {
     self
   }
 
-  pub fn extension(self, ext: impl crate::extension::Extension + 'static) -> Self {
-    crate::extension::register(ext);
+  pub fn plugin(self, plugin: impl crate::plugin::Plugin + 'static) -> Self {
+    crate::plugin::register(plugin);
     self
   }
 

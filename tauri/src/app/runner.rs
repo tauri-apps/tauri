@@ -59,7 +59,7 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
     },
   )?;
 
-  crate::extension::created(&mut webview);
+  crate::plugin::created(&mut webview);
 
   // on dev-server grab a handler and execute the tauri.js API entry point.
   #[cfg(feature = "dev-server")]
@@ -217,7 +217,7 @@ fn build_webview(
         if source == "window-1" {
           let handle = webview.handle();
           handle.dispatch(|webview| {
-            crate::extension::ready(webview);
+            crate::plugin::ready(webview);
             Ok(())
           }).expect("failed to invoke ready hook");
         }
@@ -229,7 +229,7 @@ fn build_webview(
         webview.eval(&format!(r#"window.location.href = "{}""#, content_href))?;
       } else if let Ok(b) = crate::endpoints::handle(webview, arg) {
         if !b {
-          crate::extension::extend_api(webview, arg);
+          crate::plugin::extend_api(webview, arg);
           application.run_invoke_handler(webview, arg);
         }
       }

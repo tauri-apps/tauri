@@ -18,7 +18,7 @@ mod file_system;
 mod salt;
 #[cfg(feature = "embedded-server")]
 mod tcp;
-pub mod extension;
+pub mod plugin;
 
 use std::process::Stdio;
 

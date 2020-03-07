@@ -4,7 +4,7 @@ import Runner from '../runner'
 import getTauriConfig from '../helpers/tauri-config'
 
 interface DevResult {
-  promise: Promise<void>,
+  promise: Promise<void>
   runner: Runner
 }
 

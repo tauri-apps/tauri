@@ -67,6 +67,11 @@ impl AppBuilder {
     self
   }
 
+  pub fn extension(self, ext: impl crate::extension::Extension + 'static) -> Self {
+    crate::extension::register(ext);
+    self
+  }
+
   pub fn build(self) -> App {
     App {
       invoke_handler: self.invoke_handler,

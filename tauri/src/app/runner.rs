@@ -48,7 +48,7 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   };
 
   // build the webview
-  let webview = build_webview(
+  let mut webview = build_webview(
     application,
     config,
     main_content,
@@ -58,6 +58,8 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
       None
     },
   )?;
+
+  crate::extension::created(&mut webview);
 
   // on dev-server grab a handler and execute the tauri.js API entry point.
   #[cfg(feature = "dev-server")]
@@ -212,6 +214,13 @@ fn build_webview(
         };
         application.run_setup(webview, source.to_string());
         webview.eval(JS_STRING)?;
+        if source == "window-1" {
+          let handle = webview.handle();
+          handle.dispatch(|webview| {
+            crate::extension::ready(webview);
+            Ok(())
+          }).expect("failed to invoke ready hook");
+        }
       } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
         let content_href = match content_clone {
           Content::Html(ref html) => html,
@@ -220,6 +229,7 @@ fn build_webview(
         webview.eval(&format!(r#"window.location.href = "{}""#, content_href))?;
       } else if let Ok(b) = crate::endpoints::handle(webview, arg) {
         if !b {
+          crate::extension::extend_api(webview, arg);
           application.run_invoke_handler(webview, arg);
         }
       }

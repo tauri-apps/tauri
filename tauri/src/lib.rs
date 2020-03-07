@@ -18,6 +18,7 @@ mod file_system;
 mod salt;
 #[cfg(feature = "embedded-server")]
 mod tcp;
+pub mod extension;
 
 use std::process::Stdio;
 
@@ -25,7 +26,7 @@ use error_chain::error_chain;
 use threadpool::ThreadPool;
 
 pub use web_view::Handle;
-use web_view::WebView;
+pub use web_view::WebView;
 
 pub use app::*;
 pub use tauri_api as api;

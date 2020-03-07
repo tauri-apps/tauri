@@ -19,7 +19,8 @@ export const spawn = (
   // TODO: move to execa?
   const runner = crossSpawn(cmd, params, {
     stdio: 'inherit',
-    cwd
+    cwd,
+    env: process.env
   })
 
   runner.on('close', code => {

@@ -16,7 +16,7 @@ const getAppDir = (): string => {
     dir = normalize(join(dir, '..'))
   }
 
-  warn(`Couldn't find recognize the current folder as a part of a Tauri project`)
+  warn('Couldn\'t find recognize the current folder as a part of a Tauri project')
   process.exit(1)
 }
 

@@ -18,6 +18,7 @@ mod file_system;
 mod salt;
 #[cfg(feature = "embedded-server")]
 mod tcp;
+mod view;
 
 use std::process::Stdio;
 

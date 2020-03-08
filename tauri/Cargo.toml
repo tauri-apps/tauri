@@ -31,6 +31,9 @@ tauri_includedir_codegen = "0.5.2"
 
 [dev-dependencies]
 proptest = "0.9.5"
+serde_json = "1.0"
+tauri = {path = ".", features = [ "all-api", "edge" ]}
+serde = { version = "1.0", features = [ "derive" ] }
 
 [features]
 edge = ["web-view/edge"]
@@ -50,5 +53,10 @@ event = []
 updater = []
 
 [package.metadata.docs.rs]
-
 features = ["dev-server", "all-api"]
+
+[[example]]
+name = "kitchensink"
+path = "examples/communication/src-tauri/src/main.rs"
+build = "examples/communication/src-tauri/src/build.rs"
+

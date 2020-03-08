@@ -6,7 +6,7 @@ use web_view::{builder, Content, WebView};
 use super::App;
 use crate::config::{get, Config};
 #[cfg(feature = "embedded-server")]
-use crate::tcp::{get_available_port, port_is_available};
+use crate::api::tcp::{get_available_port, port_is_available};
 
 // JavaScript string literal
 const JS_STRING: &str = r#"

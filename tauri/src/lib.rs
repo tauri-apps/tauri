@@ -14,8 +14,6 @@ mod app;
 mod endpoints;
 #[allow(dead_code)]
 mod salt;
-#[cfg(feature = "embedded-server")]
-mod tcp;
 
 use std::process::Stdio;
 

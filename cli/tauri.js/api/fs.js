@@ -47,7 +47,7 @@ function writeFile (file) {
  * @return {Promise<FileEntry[]>}
  */
 function readDir (dir, options = {}) {
-  return options.recursive ? tauri.listDirs(dir) : tauri.listFiles(dir)
+  return tauri.readDir(dir, options)
 }
 
 export {

@@ -1,41 +1,42 @@
 use serde::Deserialize;
 
 #[derive(Deserialize)]
+pub struct ReadDirOptions {
+  #[serde(default)]
+  pub recursive: bool
+}
+
+#[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   Init {},
-  #[cfg(any(feature = "all-api", feature = "readTextFile"))]
+  #[cfg(any(feature = "all-api", feature = "read-text-file"))]
   ReadTextFile {
     path: String,
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "readBinaryFile"))]
+  #[cfg(any(feature = "all-api", feature = "read-binary-file"))]
   ReadBinaryFile {
     path: String,
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "writeFile"))]
+  #[cfg(any(feature = "all-api", feature = "write-file"))]
   WriteFile {
     file: String,
     contents: String,
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "listFiles"))]
-  ListFiles {
+  #[cfg(any(feature = "all-api", feature = "read-dir"))]
+  ReadDir {
     path: String,
+    options: Option<ReadDirOptions>,
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "listDirs"))]
-  ListDirs {
-    path: String,
-    callback: String,
-    error: String,
-  },
-  #[cfg(any(feature = "all-api", feature = "setTitle"))]
+  #[cfg(any(feature = "all-api", feature = "set-title"))]
   SetTitle {
     title: String,
   },

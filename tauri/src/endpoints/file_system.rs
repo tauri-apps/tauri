@@ -6,36 +6,32 @@ use tauri_api::file;
 use std::fs::File;
 use std::io::Write;
 
-pub fn list<T: 'static>(
-  webview: &mut WebView<'_, T>,
-  path: String,
-  callback: String,
-  error: String,
-) {
-  crate::execute_promise(
-    webview,
-    move || {
-      dir::list_dir_contents(path)
-        .map_err(|e| crate::ErrorKind::Command(e.to_string()).into())
-        .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
-    },
-    callback,
-    error,
-  );
-}
+use super::cmd::{ReadDirOptions};
 
-pub fn list_dirs<T: 'static>(
+pub fn read_dir<T: 'static>(
   webview: &mut WebView<'_, T>,
   path: String,
+  options: Option<ReadDirOptions>,
   callback: String,
   error: String,
 ) {
   crate::execute_promise(
     webview,
     move || {
-      dir::walk_dir(path)
-        .map_err(|e| crate::ErrorKind::Command(e.to_string()).into())
-        .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
+      let recursive = if let Some(options_value) = options {
+        options_value.recursive
+      } else {
+        false
+      };
+      if recursive {
+        dir::walk_dir(path)
+          .map_err(|e| crate::ErrorKind::Command(e.to_string()).into())
+          .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
+      } else {
+        dir::list_dir_contents(path)
+          .map_err(|e| crate::ErrorKind::Command(e.to_string()).into())
+          .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
+      }
     },
     callback,
     error,

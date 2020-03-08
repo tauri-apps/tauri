@@ -23,7 +23,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
             event_init = event_init
           ))?;
         }
-        #[cfg(any(feature = "all-api", feature = "readTextFile"))]
+        #[cfg(any(feature = "all-api", feature = "read-text-file"))]
         ReadTextFile {
           path,
           callback,
@@ -31,7 +31,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         } => {
           file_system::read_text_file(webview, path, callback, error);
         }
-        #[cfg(any(feature = "all-api", feature = "readBinaryFile"))]
+        #[cfg(any(feature = "all-api", feature = "read-binary-file"))]
         ReadBinaryFile {
           path,
           callback,
@@ -39,7 +39,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         } => {
           file_system::read_binary_file(webview, path, callback, error);
         }
-        #[cfg(any(feature = "all-api", feature = "writeFile"))]
+        #[cfg(any(feature = "all-api", feature = "write-file"))]
         WriteFile {
           file,
           contents,
@@ -48,23 +48,16 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         } => {
           file_system::write_file(webview, file, contents, callback, error);
         }
-        #[cfg(any(feature = "all-api", feature = "listDirs"))]
-        ListDirs {
+        #[cfg(any(feature = "all-api", feature = "read-dir"))]
+        ReadDir {
           path,
+          options,
           callback,
           error,
         } => {
-          file_system::list_dirs(webview, path, callback, error);
+          file_system::read_dir(webview, path, options, callback, error);
         }
-        #[cfg(any(feature = "all-api", feature = "listFiles"))]
-        ListFiles {
-          path,
-          callback,
-          error,
-        } => {
-          file_system::list(webview, path, callback, error);
-        }
-        #[cfg(any(feature = "all-api", feature = "setTitle"))]
+        #[cfg(any(feature = "all-api", feature = "set-title"))]
         SetTitle { title } => {
           webview.set_title(&title)?;
         }

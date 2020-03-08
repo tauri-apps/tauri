@@ -1,4 +1,7 @@
 mod cmd;
+mod salt;
+#[allow(dead_code)]
+mod file_system;
 
 #[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
 use std::path::PathBuf;
@@ -26,7 +29,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           callback,
           error,
         } => {
-          crate::file_system::read_text_file(webview, path, callback, error);
+          file_system::read_text_file(webview, path, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "readBinaryFile"))]
         ReadBinaryFile {
@@ -34,7 +37,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           callback,
           error,
         } => {
-          crate::file_system::read_binary_file(webview, path, callback, error);
+          file_system::read_binary_file(webview, path, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "writeFile"))]
         WriteFile {
@@ -43,7 +46,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           callback,
           error,
         } => {
-          crate::file_system::write_file(webview, file, contents, callback, error);
+          file_system::write_file(webview, file, contents, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "listDirs"))]
         ListDirs {
@@ -51,7 +54,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           callback,
           error,
         } => {
-          crate::file_system::list_dirs(webview, path, callback, error);
+          file_system::list_dirs(webview, path, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "listFiles"))]
         ListFiles {
@@ -59,7 +62,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           callback,
           error,
         } => {
-          crate::file_system::list(webview, path, callback, error);
+          file_system::list(webview, path, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "setTitle"))]
         SetTitle { title } => {
@@ -83,7 +86,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           callback,
           error,
         } => {
-          crate::salt::validate(webview, salt, callback, error);
+          salt::validate(webview, salt, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "event"))]
         Listen {

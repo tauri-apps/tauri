@@ -13,8 +13,6 @@ pub mod server;
 mod app;
 mod endpoints;
 #[allow(dead_code)]
-mod file_system;
-#[allow(dead_code)]
 mod salt;
 #[cfg(feature = "embedded-server")]
 mod tcp;

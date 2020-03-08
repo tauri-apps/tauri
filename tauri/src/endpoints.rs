@@ -8,10 +8,10 @@ use std::path::PathBuf;
 use web_view::WebView;
 
 #[allow(unused_variables)]
-pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> crate::Result<bool> {
+pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> crate::Result<()> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
-    Err(_) => Ok(false),
+    Err(e) => Err(crate::Error::from(e.to_string())),
     Ok(command) => {
       match command {
         Init {} => {
@@ -104,7 +104,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           load_asset(webview, asset, asset_type, callback, error)?;
         }
       }
-      Ok(true)
+      Ok(())
     }
   }
 }

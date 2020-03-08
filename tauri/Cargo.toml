@@ -56,7 +56,7 @@ updater = []
 features = ["dev-server", "all-api"]
 
 [[example]]
-name = "kitchensink"
+name = "communication"
 path = "examples/communication/src-tauri/src/main.rs"
 build = "examples/communication/src-tauri/src/build.rs"
 

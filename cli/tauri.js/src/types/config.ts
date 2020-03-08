@@ -12,6 +12,7 @@ export interface TauriConfig {
     target: string
     debug?: boolean
     targetName: string
+    exitOnPanic?: boolean
   }
   bundle: {}
   tauri: {

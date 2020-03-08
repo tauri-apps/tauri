@@ -65,7 +65,7 @@ pub enum Cmd {
   #[cfg(any(feature = "all-api", feature = "event"))]
   Emit {
     event: String,
-    payload: String,
+    payload: Option<String>,
   },
   #[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
   LoadAsset {

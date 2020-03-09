@@ -243,7 +243,13 @@ impl Settings {
 
     let merged_bundle_settings = match tauri_config {
       Ok(config) => merge_settings(bundle_settings, config.tauri.bundle),
-      Err(_) => bundle_settings,
+      Err(e) => {
+        let error_message = e.to_string();
+        if !error_message.contains("No such file or directory") {
+          bail!("Failed to read Tauri config: {}", error_message);
+        }
+        bundle_settings
+      },
     };
 
     Ok(Settings {

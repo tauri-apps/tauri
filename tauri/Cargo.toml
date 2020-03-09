@@ -58,5 +58,4 @@ features = ["dev-server", "all-api"]
 [[example]]
 name = "communication"
 path = "examples/communication/src-tauri/src/main.rs"
-build = "examples/communication/src-tauri/src/build.rs"
 

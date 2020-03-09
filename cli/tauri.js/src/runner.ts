@@ -9,7 +9,7 @@ import * as entry from './entry'
 import { appDir, tauriDir } from './helpers/app-paths'
 import logger from './helpers/logger'
 import onShutdown from './helpers/on-shutdown'
-import { spawn } from './helpers/spawn'
+import { spawn, spawnSync } from './helpers/spawn'
 const getTauriConfig = require('./helpers/tauri-config')
 import { TauriConfig } from './types/config'
 
@@ -21,6 +21,7 @@ class Runner {
   tauriWatcher?: FSWatcher
   devPath?: string
   killPromise?: Function
+  ranBeforeDevCommand?: boolean
 
   constructor() {
     this.pid = 0
@@ -41,6 +42,12 @@ class Runner {
       } else {
         return
       }
+    }
+
+    if (!this.ranBeforeDevCommand && cfg.build.beforeDevCommand) {
+      this.ranBeforeDevCommand = true // prevent calling it twice on recursive call on our watcher
+      const [command, ...args] = cfg.build.beforeDevCommand.split(' ')
+      spawnSync(command, args, tauriDir)
     }
 
     const tomlContents = this.__getManifest()
@@ -127,6 +134,11 @@ class Runner {
   }
 
   async build(cfg: TauriConfig): Promise<void> {
+    if (cfg.build.beforeBuildCommand) {
+      const [command, ...args] = cfg.build.beforeBuildCommand.split(' ')
+      spawnSync(command, args, tauriDir)
+    }
+    
     const tomlContents = this.__getManifest()
     this.__whitelistApi(cfg, tomlContents)
     this.__rewriteManifest(tomlContents)

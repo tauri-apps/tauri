@@ -15,13 +15,13 @@ serde = { version = "1.0", features = ["derive"] }
 web-view = "0.6.0"
 tauri_includedir = "0.5.0"
 phf = "0.8.0"
-base64 = "0.11.0"
+base64 = "0.12.0"
 webbrowser = "0.5.2"
 lazy_static = "1.4.0"
 tiny_http = "0.6"
 threadpool = "1.7"
 uuid = { version = "0.8.1", features = ["v4"] }
-error-chain = "0.12.1"
+error-chain = "0.12.2"
 
 tauri-api = { version = "0.4",  path = "../tauri-api" }
 
@@ -30,6 +30,9 @@ tauri_includedir_codegen = "0.5.2"
 
 [dev-dependencies]
 proptest = "0.9.5"
+serde_json = "1.0"
+tauri = {path = ".", features = [ "all-api", "edge" ]}
+serde = { version = "1.0", features = [ "derive" ] }
 
 [features]
 edge = ["web-view/edge"]
@@ -48,5 +51,9 @@ event = []
 updater = []
 
 [package.metadata.docs.rs]
-
 features = ["dev-server", "all-api"]
+
+[[example]]
+name = "communication"
+path = "examples/communication/src-tauri/src/main.rs"
+

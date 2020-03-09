@@ -1,7 +1,9 @@
 export default {
   build: {
     distDir: '../dist',
-    devPath: 'http://localhost:4000'
+    devPath: 'http://localhost:4000',
+    beforeDevCommand: '',
+    beforeBuildCommand: ''
   },
   ctx: {},
   tauri: {
@@ -15,7 +17,7 @@ export default {
       resources: [],
       externalBin: [],
       copyright: '',
-      category: '',
+      category: 'DeveloperTool',
       shortDescription: '',
       longDescription: '',
       deb: {

@@ -301,7 +301,7 @@ class Runner {
             warn()
             warn('⚠️  [FAIL] Cargo CLI has failed')
             warn()
-            reject(new Error(`Cargo failed with status code ${code}`))
+            reject(new Error('Cargo failed with status code ' + code.toString()))
             process.exit(1)
           } else if (!dev) {
             resolve()

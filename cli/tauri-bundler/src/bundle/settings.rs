@@ -90,7 +90,7 @@ pub enum BuildArtifact {
   Example(String),
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Default)]
 struct BundleSettings {
   // General settings:
   name: Option<String>,
@@ -200,6 +200,8 @@ impl Settings {
       None
     };
     let cargo_settings = CargoSettings::load(&current_dir)?;
+    let tauri_config = super::tauri_config::get();
+
     let package = match cargo_settings.package {
       Some(package_info) => package_info,
       None => bail!("No 'package' info found in 'Cargo.toml'"),
@@ -213,7 +215,11 @@ impl Settings {
     {
       bundle_settings.clone()
     } else {
-      bail!("No [package.metadata.bundle] section in Cargo.toml");
+      if let Ok(_) = tauri_config {
+        BundleSettings::default()
+      } else {
+        bail!("No [package.metadata.bundle] section in Cargo.toml");
+      }
     };
     let (bundle_settings, binary_name) = match build_artifact {
       BuildArtifact::Main => (bundle_settings, package.name.clone()),
@@ -235,10 +241,15 @@ impl Settings {
 
     let bundle_settings = add_external_bin(bundle_settings)?;
 
-    let tauri_config = super::tauri_config::get();
     let merged_bundle_settings = match tauri_config {
       Ok(config) => merge_settings(bundle_settings, config.tauri.bundle),
-      Err(_) => bundle_settings,
+      Err(e) => {
+        let error_message = e.to_string();
+        if !error_message.contains("No such file or directory") {
+          bail!("Failed to read Tauri config: {}", error_message);
+        }
+        bundle_settings
+      },
     };
 
     Ok(Settings {

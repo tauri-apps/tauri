@@ -25,6 +25,7 @@ import sharp from 'sharp'
 import { appDir, tauriDir } from '../helpers/app-paths'
 import logger from '../helpers/logger'
 import * as settings from '../helpers/tauricon.config'
+import nonWebpackRequire from '../helpers/non-webpack-require'
 
 const log = logger('app:spawn')
 const warn = logger('app:spawn', 'red')
@@ -179,7 +180,7 @@ const tauricon = (exports.tauricon = {
     return typeof image === 'object'
   },
   version: function() {
-    return __non_webpack_require__('../../package.json').version
+    return nonWebpackRequire('../../package.json').version
   },
   make: async function(
     src: string = path.resolve(appDir, 'app-icon.png'),

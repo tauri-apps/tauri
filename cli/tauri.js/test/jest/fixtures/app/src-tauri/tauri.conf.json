@@ -1,0 +1,7 @@
+{
+  "tauri": {
+    "whitelist": {
+      "all": true
+    }
+  }
+}

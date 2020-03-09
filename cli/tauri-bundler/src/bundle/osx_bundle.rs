@@ -375,7 +375,7 @@ fn create_icns_file(
   }
 
   for (icon, next_size_down, density) in images_to_resize {
-    let icon = icon.resize_exact(next_size_down, next_size_down, image::Lanczos3);
+    let icon = icon.resize_exact(next_size_down, next_size_down, image::imageops::FilterType::Lanczos3);
     add_icon_to_family(icon, density, &mut family)?;
   }
 
@@ -395,14 +395,14 @@ fn create_icns_file(
 /// Converts an image::DynamicImage into an icns::Image.
 fn make_icns_image(img: image::DynamicImage) -> io::Result<icns::Image> {
   let pixel_format = match img.color() {
-    image::ColorType::RGBA(8) => icns::PixelFormat::RGBA,
-    image::ColorType::RGB(8) => icns::PixelFormat::RGB,
-    image::ColorType::GrayA(8) => icns::PixelFormat::GrayAlpha,
-    image::ColorType::Gray(8) => icns::PixelFormat::Gray,
+    image::ColorType::Rgba8 => icns::PixelFormat::RGBA,
+    image::ColorType::Rgb8 => icns::PixelFormat::RGB,
+    image::ColorType::La8 => icns::PixelFormat::GrayAlpha,
+    image::ColorType::L8 => icns::PixelFormat::Gray,
     _ => {
       let msg = format!("unsupported ColorType: {:?}", img.color());
       return Err(io::Error::new(io::ErrorKind::InvalidData, msg));
     }
   };
-  icns::Image::from_data(pixel_format, img.width(), img.height(), img.raw_pixels())
+  icns::Image::from_data(pixel_format, img.width(), img.height(), img.to_bytes())
 }

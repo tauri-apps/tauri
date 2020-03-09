@@ -6,6 +6,7 @@ import os from 'os'
 import path from 'path'
 import { appDir, tauriDir } from '../helpers/app-paths'
 import { TauriConfig } from './../types/config'
+import nonWebpackRequire from '../helpers/non-webpack-require'
 
 interface DirInfo {
   path: string
@@ -115,7 +116,7 @@ function printAppInfo(tauriDir: string): void {
       return chalk.red('unset')
     }
     const configPath = path.join(tauriDir, 'tauri.conf.json')
-    const config = __non_webpack_require__(configPath) as TauriConfig
+    const config = nonWebpackRequire(configPath) as TauriConfig
     printInfo({ key: '  mode', value: tauriMode(config) })
     printInfo({
       key: '  build-type',

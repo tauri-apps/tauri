@@ -1,5 +1,5 @@
 import Inliner from '@tauri-apps/tauri-inliner'
-import toml from '@tauri-apps/toml'
+import toml, { JsonMap } from '@tauri-apps/toml'
 import chokidar, { FSWatcher } from 'chokidar'
 import { existsSync, readFileSync, writeFileSync } from 'fs-extra'
 import { JSDOM } from 'jsdom'
@@ -9,18 +9,19 @@ import * as entry from './entry'
 import { appDir, tauriDir } from './helpers/app-paths'
 import logger from './helpers/logger'
 import onShutdown from './helpers/on-shutdown'
-import { spawn } from './helpers/spawn'
+import { spawn, spawnSync } from './helpers/spawn'
 const getTauriConfig = require('./helpers/tauri-config')
 import { TauriConfig } from './types/config'
 
 const log = logger('app:tauri', 'green')
-const warn = logger('app:tauri (template)', 'red')
+const warn = logger('app:tauri (runner)', 'red')
 
 class Runner {
   pid: number
   tauriWatcher?: FSWatcher
   devPath?: string
   killPromise?: Function
+  ranBeforeDevCommand?: boolean
 
   constructor() {
     this.pid = 0
@@ -43,9 +44,15 @@ class Runner {
       }
     }
 
-    this.__manipulateToml(toml => {
-      this.__whitelistApi(cfg, toml)
-    })
+    if (!this.ranBeforeDevCommand && cfg.build.beforeDevCommand) {
+      this.ranBeforeDevCommand = true // prevent calling it twice on recursive call on our watcher
+      const [command, ...args] = cfg.build.beforeDevCommand.split(' ')
+      spawnSync(command, args, tauriDir)
+    }
+
+    const tomlContents = this.__getManifest()
+    this.__whitelistApi(cfg, tomlContents)
+    this.__rewriteManifest(tomlContents)
 
     entry.generate(tauriDir, cfg)
 
@@ -67,19 +74,35 @@ class Runner {
         cargoArgs: ['run'].concat(
           features.length ? ['--features', ...features] : []
         ),
-        dev: true
+        dev: true,
+        exitOnPanic: cfg.ctx.exitOnPanic
       })
     }
 
     // Start watching for tauri app changes
     // eslint-disable-next-line security/detect-non-literal-fs-filename
+
+    let tauriPaths: string[] = []
+    // @ts-ignore
+    if (tomlContents.dependencies.tauri.path) {
+      // @ts-ignore
+      const tauriPath = path.resolve(tauriDir, tomlContents.dependencies.tauri.path)
+      tauriPaths = [
+        tauriPath,
+        `${tauriPath}-api`,
+        `${tauriPath}-updater`,
+        `${tauriPath}-utils`
+      ]
+    }
+
     this.tauriWatcher = chokidar
       .watch(
         [
           path.join(tauriDir, 'src'),
           path.join(tauriDir, 'Cargo.toml'),
           path.join(tauriDir, 'build.rs'),
-          path.join(appDir, 'tauri.conf.json')
+          path.join(tauriDir, 'tauri.conf.json'),
+          ...tauriPaths
         ],
         {
           ignoreInitial: true
@@ -88,7 +111,7 @@ class Runner {
       .on(
         'change',
         debounce((path: string) => {
-          this.__stopCargo()
+          (this.pid ? this.__stopCargo() : Promise.resolve())
             .then(() => {
               if (path.includes('tauri.conf.json')) {
                 this.run(getTauriConfig({ ctx: cfg.ctx })).catch(e => {
@@ -111,9 +134,14 @@ class Runner {
   }
 
   async build(cfg: TauriConfig): Promise<void> {
-    this.__manipulateToml(toml => {
-      this.__whitelistApi(cfg, toml)
-    })
+    if (cfg.build.beforeBuildCommand) {
+      const [command, ...args] = cfg.build.beforeBuildCommand.split(' ')
+      spawnSync(command, args, tauriDir)
+    }
+    
+    const tomlContents = this.__getManifest()
+    this.__whitelistApi(cfg, tomlContents)
+    this.__rewriteManifest(tomlContents)
 
     entry.generate(tauriDir, cfg)
 
@@ -236,20 +264,20 @@ class Runner {
       this.tauriWatcher && this.tauriWatcher.close()
       this.__stopCargo()
         .then(resolve)
-        .catch(e => {
-          console.error(e)
-        })
+        .catch(reject)
     })
   }
 
   async __runCargoCommand({
     cargoArgs,
     extraArgs,
-    dev = false
+    dev = false,
+    exitOnPanic = true
   }: {
     cargoArgs: string[]
     extraArgs?: string[]
-    dev?: boolean
+    dev?: boolean,
+    exitOnPanic?: boolean
   }): Promise<void> {
     return new Promise((resolve, reject) => {
       this.pid = spawn(
@@ -260,12 +288,20 @@ class Runner {
         tauriDir,
 
         code => {
+          if (dev && !exitOnPanic && code === 101) {
+            this.pid = 0
+            resolve()
+            return
+          }
+
           if (code) {
             warn()
             warn('⚠️  [FAIL] Cargo CLI has failed')
             warn()
             reject()
             process.exit(1)
+          } else if (!dev) {
+            resolve()
           }
 
           if (this.killPromise) {
@@ -281,6 +317,10 @@ class Runner {
           resolve()
         }
       )
+      
+      if (dev) {
+        resolve()
+      }
     })
   }
 
@@ -296,18 +336,27 @@ class Runner {
 
     return new Promise((resolve, reject) => {
       this.killPromise = resolve
-      process.kill(pid)
+      try {
+        process.kill(pid)
+      } catch (e) {
+        reject(e)
+      }
     })
   }
 
-  __manipulateToml(callback: (tomlContents: object) => void): void {
-    const tomlPath = path.join(tauriDir, 'Cargo.toml')
-    const tomlFile = readFileSync(tomlPath)
-    // @ts-ignore
+  __getManifestPath(): string {
+    return path.join(tauriDir, 'Cargo.toml')
+  }
+
+  __getManifest(): JsonMap {
+    const tomlPath = this.__getManifestPath()
+    const tomlFile = readFileSync(tomlPath).toString()
     const tomlContents = toml.parse(tomlFile)
+    return tomlContents
+  }
 
-    callback(tomlContents)
-
+  __rewriteManifest(tomlContents: JsonMap) {
+    const tomlPath = this.__getManifestPath()
     const output = toml.stringify(tomlContents)
     writeFileSync(tomlPath, output)
   }
@@ -321,10 +370,15 @@ class Runner {
     if (cfg.tauri.whitelist.all) {
       tomlFeatures.push('all-api')
     } else {
+      const toKebabCase = (value: string): string => {
+        return value.replace(/([a-z])([A-Z])/g, "$1-$2")
+          .replace(/\s+/g, '-')
+          .toLowerCase()
+      }
       const whitelist = Object.keys(cfg.tauri.whitelist).filter(
         w => cfg.tauri.whitelist[String(w)] === true
       )
-      tomlFeatures.push(...whitelist)
+      tomlFeatures.push(...whitelist.map(toKebabCase))
     }
 
     if (cfg.tauri.edge.active) {

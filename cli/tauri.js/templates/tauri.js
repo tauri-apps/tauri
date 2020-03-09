@@ -153,7 +153,7 @@ window.tauri = {
       this.invoke({
         cmd: 'emit',
         event: evt,
-        payload: payload || ''
+        payload: payload
       });
     <% } else { %>
       <% if (ctx.dev) { %>
@@ -396,26 +396,6 @@ window.tauri = {
           <% } %>
         return __reject()
         <% } %>
-  },
-
-bridge: function bridge(command, payload) {
-    <% if (tauri.whitelist.bridge === true || tauri.whitelist.all === true) { %>
-
-    if (_typeof(payload) === 'object') {
-      Object.freeze(payload);
-    }
-
-    return this.promisified({
-      cmd: 'bridge',
-      command: command,
-      payload: _typeof(payload) === 'object' ? [payload] : payload
-    });
-    <% } else { %>
-      <% if (ctx.dev) { %>
-          return __whitelistWarning('bridge')
-        <% } %>
-            return __reject()
-      <% } %>
   },
 
 loadAsset: function loadAsset(assetName, assetType) {

@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use web_view::Handle;
 
 struct EventHandler {
-  on_event: Box<dyn FnMut(String)>,
+  on_event: Box<dyn FnMut(Option<String>)>,
 }
 
 thread_local!(static LISTENERS: Arc<Mutex<HashMap<String, EventHandler>>> = Arc::new(Mutex::new(HashMap::new())));
@@ -29,7 +29,7 @@ pub fn event_queue_object_name() -> String {
   EVENT_QUEUE_OBJECT_NAME.to_string()
 }
 
-pub fn listen<F: FnMut(String) + 'static>(id: String, handler: F) {
+pub fn listen<F: FnMut(Option<String>) + 'static>(id: String, handler: F) {
   LISTENERS.with(|listeners| {
     let mut l = listeners
       .lock()
@@ -43,11 +43,14 @@ pub fn listen<F: FnMut(String) + 'static>(id: String, handler: F) {
   });
 }
 
-pub fn emit<T: 'static>(webview_handle: &Handle<T>, event: String, mut payload: String) {
+pub fn emit<T: 'static>(webview_handle: &Handle<T>, event: String, payload: Option<String>) {
   let salt = crate::salt::generate();
-  if payload == "" {
-    payload = "void 0".to_string();
-  }
+
+  let js_payload = if let Some(payload_str) = payload {
+    payload_str
+  } else {
+    "void 0".to_string()
+  };
 
   webview_handle
     .dispatch(move |_webview| {
@@ -55,14 +58,14 @@ pub fn emit<T: 'static>(webview_handle: &Handle<T>, event: String, mut payload: 
         "window['{}']({{type: '{}', payload: {}}}, '{}')",
         emit_function_name(),
         event.as_str(),
-        payload,
+        js_payload,
         salt
       ))
     })
     .expect("Failed to dispatch JS from emit");
 }
 
-pub fn on_event(event: String, data: String) {
+pub fn on_event(event: String, data: Option<String>) {
   LISTENERS.with(|listeners| {
     let mut l = listeners
       .lock()
@@ -83,8 +86,8 @@ mod test {
   use proptest::prelude::*;
 
   // dummy event handler function
-  fn event_fn(s: String) {
-    println!("{}", s)
+  fn event_fn(s: Option<String>) {
+    println!("{:?}", s);
   }
 
   proptest! {
@@ -143,7 +146,7 @@ mod test {
       // call listen with e and the event_fn dummy func
       listen(e.clone(), event_fn);
       // call on event with e and d.
-      on_event(e, d);
+      on_event(e, Some(d));
 
       // open listeners
       LISTENERS.with(|list| {

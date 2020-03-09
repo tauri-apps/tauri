@@ -12,7 +12,6 @@ exclude = ["test/fixture/**"]
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-rand = "0.7"
 web-view = "0.6.0"
 tauri_includedir = "0.5.0"
 phf = "0.8.0"
@@ -41,12 +40,11 @@ dev-server = []
 embedded-server = []
 no-server = []
 all-api = []
-readTextFile = []
-readBinaryFile = []
-writeFile = []
-listFiles = []
-listDirs = []
-setTitle = []
+read-text-file = []
+read-binary-file = []
+write-file = []
+read-dir = []
+set-title = []
 execute = []
 open = []
 event = []

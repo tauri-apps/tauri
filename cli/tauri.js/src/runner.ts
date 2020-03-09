@@ -370,10 +370,15 @@ class Runner {
     if (cfg.tauri.whitelist.all) {
       tomlFeatures.push('all-api')
     } else {
+      const toKebabCase = (value: string): string => {
+        return value.replace(/([a-z])([A-Z])/g, "$1-$2")
+          .replace(/\s+/g, '-')
+          .toLowerCase()
+      }
       const whitelist = Object.keys(cfg.tauri.whitelist).filter(
         w => cfg.tauri.whitelist[String(w)] === true
       )
-      tomlFeatures.push(...whitelist)
+      tomlFeatures.push(...whitelist.map(toKebabCase))
     }
 
     if (cfg.tauri.edge.active) {

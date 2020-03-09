@@ -4,8 +4,8 @@ const { rmdirSync, existsSync, writeFileSync, readFileSync } = require('fs')
 
 describe('[CLI] tauri.js template', () => {
   it('init a project and builds it', done => {
+    const cwd = process.cwd()
     try {
-      const cwd = process.cwd()
       const fixturePath = resolve(__dirname, '../fixtures/empty')
       const tauriFixturePath = resolve(fixturePath, 'src-tauri')
 

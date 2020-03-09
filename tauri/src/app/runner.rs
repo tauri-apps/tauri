@@ -30,7 +30,7 @@ Object.defineProperty(window, 'onTauriInit', {
 "#;
 
 // Main entry point function for running the Webview
-pub(crate) fn run(application: &mut App) -> crate::Result<()> {
+pub(crate) fn run<T: 'static>(application: &mut App<T>) -> crate::Result<()> {
   // get the tauri config struct
   let config = get()?;
 
@@ -176,12 +176,12 @@ fn spawn_updater() -> crate::Result<()> {
 }
 
 // build the webview struct
-fn build_webview(
-  application: &mut App,
+fn build_webview<T: 'static>(
+  application: &mut App<T>,
   config: Config,
   content: Content<String>,
   splashscreen_content: Option<Content<String>>
-) -> crate::Result<WebView<'_, ()>> {
+) -> crate::Result<WebView<'_, T>> {
   let content_clone = match content {
     Content::Html(ref html) => Content::Html(html.clone()),
     Content::Url(ref url) => Content::Url(url.clone()),
@@ -201,7 +201,7 @@ fn build_webview(
     .size(width, height)
     .resizable(resizable)
     .debug(debug)
-    .user_data(())
+    .user_data(application.user_data.take().unwrap())
     .invoke_handler(move |webview, arg| {
       if arg == r#"{"cmd":"__initialized"}"# {
         let source = if has_splashscreen && !initialized_splashscreen {

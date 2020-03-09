@@ -43,7 +43,7 @@ export const spawnSync = (
   cmd: string,
   params: string[],
   cwd: string,
-  onFail: () => void
+  onFail?: () => void
 ): void => {
   log(`[sync] Running "${cmd} ${params.join(' ')}"`)
   log()

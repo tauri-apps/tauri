@@ -86,8 +86,8 @@ mod test {
   use proptest::prelude::*;
 
   // dummy event handler function
-  fn event_fn(s: String) {
-    println!("{}", s)
+  fn event_fn(s: Option<String>) {
+    println!("{:?}", s);
   }
 
   proptest! {
@@ -146,7 +146,7 @@ mod test {
       // call listen with e and the event_fn dummy func
       listen(e.clone(), event_fn);
       // call on event with e and d.
-      on_event(e, d);
+      on_event(e, Some(d));
 
       // open listeners
       LISTENERS.with(|list| {

@@ -1,13 +1,12 @@
-jest.setTimeout(240000)
 const path = require('path')
 const fixtureSetup = require('../fixtures/app-test-setup')
-const appDir = fixtureSetup.appDir
-const distDir = fixtureSetup.distDir
+const appDir = path.join(fixtureSetup.fixtureDir, 'app')
+const distDir = path.join(appDir, 'dist')
 
 const spawn = require('helpers/spawn').spawn
 
 function runBuildTest(tauriConfig) {
-  fixtureSetup.initJest()
+  fixtureSetup.initJest('app')
   const build = require('api/build')
   return new Promise(async (resolve, reject) => {
     try {

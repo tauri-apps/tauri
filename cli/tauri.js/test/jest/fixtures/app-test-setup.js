@@ -1,15 +1,14 @@
 const path = require('path')
 const process = require('process')
 
-const appDir = path.resolve(__dirname, '../fixtures/app')
-const tauriDir = path.join(appDir, 'src-tauri')
+const fixtureDir = path.resolve(__dirname, '../fixtures')
 
-module.exports.appDir = appDir
-module.exports.distDir = path.join(appDir, 'dist')
+module.exports.fixtureDir = fixtureDir
 
 import * as appPaths from '../../../src/helpers/app-paths'
 
-module.exports.initJest = () => {
+module.exports.initJest = (fixture) => {
+  jest.setTimeout(240000)
   jest.mock('helpers/non-webpack-require', () => {
     return path => {
       const value = require('fs').readFileSync(path).toString()
@@ -19,10 +18,10 @@ module.exports.initJest = () => {
       return value
     }
   })
-  appPaths.appDir = appDir
-  appPaths.tauriDir = tauriDir
-  jest.spyOn(appPaths.resolve, 'app').mockImplementation(dir => path.resolve(appDir, dir))
-  jest.spyOn(appPaths.resolve, 'tauri').mockImplementation(dir => path.resolve(tauriDir, dir))
+  appPaths.appDir = path.join(fixtureDir, fixture)
+  appPaths.tauriDir = path.join(appPaths.appDir, 'src-tauri')
+  jest.spyOn(appPaths.resolve, 'app').mockImplementation(dir => path.join(appPaths.appDir, dir))
+  jest.spyOn(appPaths.resolve, 'tauri').mockImplementation(dir => path.join(appPaths.tauriDir, dir))
   jest.spyOn(process, 'exit').mockImplementation(() => {})
 }
 

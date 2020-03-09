@@ -17,7 +17,7 @@ export default {
       resources: [],
       externalBin: [],
       copyright: '',
-      category: '',
+      category: 'DeveloperTool',
       shortDescription: '',
       longDescription: '',
       deb: {

@@ -21,7 +21,7 @@ module.exports = {
         exclude: /node_modules/
       },
       {
-        test: /templates\/tauri\.js/,
+        test: /templates[\\/]tauri\.js/,
         use: 'raw-loader'
       }
     ]

@@ -1,7 +1,6 @@
-jest.setTimeout(240000)
 const path = require('path')
 const fixtureSetup = require('../fixtures/app-test-setup')
-const distDir = fixtureSetup.distDir
+const distDir = path.resolve(fixtureSetup.fixtureDir, 'app', 'dist')
 
 function startDevServer() {
     const http = require('http')
@@ -30,7 +29,7 @@ function startDevServer() {
 }
 
 function runDevTest(tauriConfig) {
-  fixtureSetup.initJest()
+  fixtureSetup.initJest('app')
   const dev = require('api/dev')
   return new Promise(async (resolve, reject) => {
     try {

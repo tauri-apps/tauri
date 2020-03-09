@@ -1,5 +1,5 @@
 import { ensureDirSync, writeFileSync } from 'fs-extra'
-import  { template } from 'lodash'
+import { template } from 'lodash'
 import path from 'path'
 import { TauriConfig } from './types/config'
 

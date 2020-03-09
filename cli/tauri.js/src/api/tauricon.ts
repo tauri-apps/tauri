@@ -227,6 +227,7 @@ const tauricon = (exports.tauricon = {
       try {
         const pngImage = sharpSrc.resize(pvar[1], pvar[1])
         if (pvar[2]) {
+          // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
           const rgb = hexToRgb(options.background_color) || {
             r: undefined,
             g: undefined,
@@ -292,6 +293,7 @@ const tauricon = (exports.tauricon = {
   ) {
     let output
     let block = false
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const rgb = hexToRgb(options.background_color) || {
       r: undefined,
       g: undefined,

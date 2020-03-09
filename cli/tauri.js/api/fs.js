@@ -23,7 +23,7 @@ function readBinaryFile (filePath) {
 /**
  * writes a text file
  *
- * @param {object} config
+ * @param {object} file
  * @param {string} file.path path of the file
  * @param {string} file.contents contents of the file
  * @return {Promise<void>}
@@ -38,12 +38,13 @@ function writeFile (file) {
  * @property {boolean} is_dir
  * @property {string} name
  */
+
 /**
  * list directory files
  *
  * @param {string} dir path to the directory to read
- * @param {object} options configuration object
- * @param {boolean} options.recursive whether to list dirs recursively or not
+ * @param {object} [options] configuration object
+ * @param {boolean} [options.recursive] whether to list dirs recursively or not
  * @return {Promise<FileEntry[]>}
  */
 function readDir (dir, options = {}) {

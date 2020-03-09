@@ -128,7 +128,7 @@ mod test {
     )
   }
 
-  #[test]
+  /* #[test]
   #[cfg(not(any(target_os = "linux", target_os = "macos")))]
   // test the file_write functionality
   fn test_write_to_file() -> crate::Result<()> {
@@ -164,5 +164,5 @@ mod test {
     assert_eq!(data, contents);
 
     Ok(())
-  }
+  } */
 }

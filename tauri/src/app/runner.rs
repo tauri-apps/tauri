@@ -6,7 +6,7 @@ use web_view::{builder, Content, WebView};
 use super::App;
 use crate::config::{get, Config};
 #[cfg(feature = "embedded-server")]
-use crate::tcp::{get_available_port, port_is_available};
+use crate::api::tcp::{get_available_port, port_is_available};
 
 // JavaScript string literal
 const JS_STRING: &str = r#"
@@ -218,9 +218,27 @@ fn build_webview<T: 'static>(
           Content::Url(ref url) => url,
         };
         webview.eval(&format!(r#"window.location.href = "{}""#, content_href))?;
-      } else if let Ok(b) = crate::endpoints::handle(webview, arg) {
-        if !b {
-          application.run_invoke_handler(webview, arg);
+      } else {
+        let handler_error;
+        if let Err(tauri_handle_error) = crate::endpoints::handle(webview, arg) {
+          let tauri_handle_error_str = tauri_handle_error.to_string();
+          if tauri_handle_error_str.contains("unknown variant") {
+            let handled_by_app = application.run_invoke_handler(webview, arg);
+            handler_error = if let Err(e) = handled_by_app {
+              Some(e.replace("'", "\\'"))
+            } else {
+              let handled = handled_by_app.expect("failed to check if the invoke was handled");
+              if handled { None } else { Some(tauri_handle_error_str) }
+            };
+          } else {
+            handler_error = Some(tauri_handle_error_str);
+          }
+
+          if let Some(handler_error_message) = handler_error {
+            webview.eval(
+              &get_api_error_message(arg, handler_error_message)
+            )?;
+          }
         }
       }
 
@@ -241,6 +259,14 @@ fn build_webview<T: 'static>(
   }
   
   Ok(webview)
+}
+
+fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
+  format!(
+    r#"console.error('failed to match a command for {}, {}')"#, 
+    arg.replace("'", "\\'"),
+    handler_error_message
+  )
 }
 
 #[cfg(test)]

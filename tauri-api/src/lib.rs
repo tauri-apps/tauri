@@ -8,6 +8,7 @@ pub mod dir;
 pub mod file;
 pub mod rpc;
 pub mod version;
+pub mod tcp;
 
 pub use tauri_utils::*;
 

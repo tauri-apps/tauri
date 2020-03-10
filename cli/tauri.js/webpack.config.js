@@ -19,6 +19,10 @@ module.exports = {
         test: /\.tsx?$/,
         use: 'ts-loader',
         exclude: /node_modules/
+      },
+      {
+        test: /templates[\\/](tauri|mutation-observer)\.js/,
+        use: 'raw-loader'
       }
     ]
   },

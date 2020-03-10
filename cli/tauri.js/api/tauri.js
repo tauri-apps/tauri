@@ -2,7 +2,7 @@ const cache = {}
 let initialized = false
 
 const proxy = new Proxy({
-  __consume () {
+  __consume() {
     for (const key in cache) {
       if (key in window.tauri) {
         const queue = cache[key]
@@ -23,7 +23,7 @@ const proxy = new Proxy({
     initialized = true
   }
 }, {
-  get (obj, prop) {
+  get(obj, prop) {
     if (prop === '__consume') {
       return obj[prop]
     }

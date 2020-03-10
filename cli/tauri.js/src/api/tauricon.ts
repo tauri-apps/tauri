@@ -25,7 +25,6 @@ import sharp from 'sharp'
 import { appDir, tauriDir } from '../helpers/app-paths'
 import logger from '../helpers/logger'
 import * as settings from '../helpers/tauricon.config'
-import nonWebpackRequire from '../helpers/non-webpack-require'
 
 const log = logger('app:spawn')
 const warn = logger('app:spawn', 'red')
@@ -180,7 +179,7 @@ const tauricon = (exports.tauricon = {
     return typeof image === 'object'
   },
   version: function() {
-    return nonWebpackRequire('../../package.json').version
+    return require('../../package.json').version
   },
   make: async function(
     src: string = path.resolve(appDir, 'app-icon.png'),
@@ -228,7 +227,8 @@ const tauricon = (exports.tauricon = {
       try {
         const pngImage = sharpSrc.resize(pvar[1], pvar[1])
         if (pvar[2]) {
-          const rgb = hexToRgb(options.background_color) ?? {
+          // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+          const rgb = hexToRgb(options.background_color) || {
             r: undefined,
             g: undefined,
             b: undefined
@@ -293,7 +293,8 @@ const tauricon = (exports.tauricon = {
   ) {
     let output
     let block = false
-    const rgb = hexToRgb(options.background_color) ?? {
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    const rgb = hexToRgb(options.background_color) || {
       r: undefined,
       g: undefined,
       b: undefined

@@ -13,12 +13,13 @@ describe('[CLI] tauri.js template', () => {
 
       process.chdir(fixturePath)
 
-      if (existsSync(tauriFixturePath)) {
-        rmdirSync(tauriFixturePath, { recursive: true })
-      }
+      const init = require('api/init')
+      init({
+        directory: process.cwd(),
+        force: true,
+        tauriPath: resolve(__dirname, '../../../../..')
+      })
 
-      const { tauri } = require('bin/tauri')
-      tauri('init')
       process.chdir(tauriFixturePath)
 
       const manifestPath = resolve(tauriFixturePath, 'Cargo.toml')

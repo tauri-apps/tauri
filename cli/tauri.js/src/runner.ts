@@ -6,12 +6,13 @@ import { JSDOM } from 'jsdom'
 import { debounce, template } from 'lodash'
 import path from 'path'
 import * as entry from './entry'
-import { appDir, tauriDir } from './helpers/app-paths'
+import { tauriDir } from './helpers/app-paths'
 import logger from './helpers/logger'
 import onShutdown from './helpers/on-shutdown'
 import { spawn, spawnSync } from './helpers/spawn'
-const getTauriConfig = require('./helpers/tauri-config')
 import { TauriConfig } from './types/config'
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const getTauriConfig = require('./helpers/tauri-config')
 
 const log = logger('app:tauri', 'green')
 const warn = logger('app:tauri (runner)', 'red')
@@ -95,6 +96,7 @@ class Runner {
       ]
     }
 
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     this.tauriWatcher = chokidar
       .watch(
         [
@@ -138,7 +140,7 @@ class Runner {
       const [command, ...args] = cfg.build.beforeBuildCommand.split(' ')
       spawnSync(command, args, tauriDir)
     }
-    
+
     const tomlContents = this.__getManifest()
     this.__whitelistApi(cfg, tomlContents)
     this.__rewriteManifest(tomlContents)
@@ -188,15 +190,16 @@ class Runner {
         reject(new Error('Could not find index.html in dist dir.'))
       }
 
-      const rewriteHtml = (html: string, interceptor?: (dom: JSDOM) => void) => {
+      const rewriteHtml = (html: string, interceptor?: (dom: JSDOM) => void): void => {
         const dom = new JSDOM(html)
         const document = dom.window.document
         if (interceptor !== undefined) {
           interceptor(dom)
         }
 
+        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
         if (!((cfg.ctx.dev && cfg.build.devPath.startsWith('http')) || cfg.tauri.embeddedServer.active)) {
-          const mutationObserverTemplate = require('!!raw-loader!!../templates/mutation-observer').default
+          const mutationObserverTemplate = require('../templates/mutation-observer').default
           const compiledMutationObserver = template(mutationObserverTemplate)
 
           const bodyMutationObserverScript = document.createElement('script')
@@ -276,7 +279,7 @@ class Runner {
   }: {
     cargoArgs: string[]
     extraArgs?: string[]
-    dev?: boolean,
+    dev?: boolean
     exitOnPanic?: boolean
   }): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -298,7 +301,7 @@ class Runner {
             warn()
             warn('⚠️  [FAIL] Cargo CLI has failed')
             warn()
-            reject()
+            reject(new Error('Cargo failed with status code ' + code.toString()))
             process.exit(1)
           } else if (!dev) {
             resolve()
@@ -317,7 +320,7 @@ class Runner {
           resolve()
         }
       )
-      
+
       if (dev) {
         resolve()
       }
@@ -355,7 +358,7 @@ class Runner {
     return tomlContents
   }
 
-  __rewriteManifest(tomlContents: JsonMap) {
+  __rewriteManifest(tomlContents: JsonMap): void {
     const tomlPath = this.__getManifestPath()
     const output = toml.stringify(tomlContents)
     writeFileSync(tomlPath, output)
@@ -371,12 +374,12 @@ class Runner {
       tomlFeatures.push('all-api')
     } else {
       const toKebabCase = (value: string): string => {
-        return value.replace(/([a-z])([A-Z])/g, "$1-$2")
+        return value.replace(/([a-z])([A-Z])/g, '$1-$2')
           .replace(/\s+/g, '-')
           .toLowerCase()
       }
       const whitelist = Object.keys(cfg.tauri.whitelist).filter(
-        w => cfg.tauri.whitelist[String(w)] === true
+        w => cfg.tauri.whitelist[String(w)]
       )
       tomlFeatures.push(...whitelist.map(toKebabCase))
     }

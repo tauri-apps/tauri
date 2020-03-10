@@ -398,6 +398,38 @@ window.tauri = {
         <% } %>
   },
 
+  <% if (ctx.dev) { %>
+    /**
+     * @name notification
+     * @description Display a desktop notification
+     * @param {Object|String} options the notifications options if an object, otherwise its body
+     * @param {String} [options.summary] the notification's summary
+     * @param {String} options.body the notification's body
+     * @param {String} [options.icon] the notifications's icon
+     * @returns {*|Promise<any>|Promise}
+     */
+  <% } %>
+  notification: function notification(options) {
+    <% if (tauri.whitelist.notification === true || tauri.whitelist.all === true) { %>
+
+      if (_typeof(options) === 'object') {
+        Object.freeze(options);
+      }
+
+      return this.promisified({
+        cmd: 'notification',
+        options: typeof options === 'string' ? {
+          body: options
+        } : options
+      });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+        return __whitelistWarning('notification')
+          <% } %>
+        return __reject()
+        <% } %>
+  },
+
 loadAsset: function loadAsset(assetName, assetType) {
   return this.promisified({
     cmd: 'loadAsset',
@@ -406,6 +438,14 @@ loadAsset: function loadAsset(assetName, assetType) {
   })
 }
 };
+
+<% if (tauri.whitelist.notification === true || tauri.whitelist.all === true) { %>
+  window.Notification = function (options) {
+    window.tauri.notification(options)
+  }
+  window.Notification.permission = 'granted'
+<% } %>
+
 
 // init tauri API
 try {

@@ -32,6 +32,7 @@ error_chain! {
     Json(::serde_json::Error);
     Webview(::web_view::Error);
     Io(::std::io::Error);
+    Notify(::notify_rust::error::Error);
   }
   errors{
     Promise(t: String) {

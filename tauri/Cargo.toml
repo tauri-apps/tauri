@@ -22,6 +22,7 @@ tiny_http = "0.6"
 threadpool = "1.7"
 uuid = { version = "0.8.1", features = ["v4"] }
 error-chain = "0.12.2"
+notify-rust = { version = "3", optional = true }
 
 tauri-api = { version = "0.4",  path = "../tauri-api" }
 
@@ -39,7 +40,7 @@ edge = ["web-view/edge"]
 dev-server = []
 embedded-server = []
 no-server = []
-all-api = []
+all-api = ["notify-rust"]
 read-text-file = []
 read-binary-file = []
 write-file = []
@@ -49,6 +50,7 @@ execute = []
 open = []
 event = []
 updater = []
+notification = ["notify-rust"]
 
 [package.metadata.docs.rs]
 features = ["dev-server", "all-api"]
@@ -56,4 +58,3 @@ features = ["dev-server", "all-api"]
 [[example]]
 name = "communication"
 path = "examples/communication/src-tauri/src/main.rs"
-

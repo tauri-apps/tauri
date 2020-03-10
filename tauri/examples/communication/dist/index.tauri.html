@@ -106,7 +106,7 @@ window.tauri = {
       this.invoke({
         cmd: 'emit',
         event: evt,
-        payload: payload || ''
+        payload: payload
       });
     
   },
@@ -229,18 +229,20 @@ window.tauri = {
     
   },
 
-bridge: function bridge(command, payload) {
+  
+  notification: function notification(options) {
     
 
-    if (_typeof(payload) === 'object') {
-      Object.freeze(payload);
-    }
+      if (_typeof(options) === 'object') {
+        Object.freeze(options);
+      }
 
-    return this.promisified({
-      cmd: 'bridge',
-      command: command,
-      payload: _typeof(payload) === 'object' ? [payload] : payload
-    });
+      return this.promisified({
+        cmd: 'notification',
+        options: typeof options === 'string' ? {
+          body: options
+        } : options
+      });
     
   },
 
@@ -252,6 +254,14 @@ loadAsset: function loadAsset(assetName, assetType) {
   })
 }
 };
+
+
+  window.Notification = function (options) {
+    window.tauri.notification(options)
+  }
+  window.Notification.permission = 'granted'
+
+
 
 // init tauri API
 try {

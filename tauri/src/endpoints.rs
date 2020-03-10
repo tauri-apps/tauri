@@ -102,6 +102,14 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           error,
         } => {
           load_asset(webview, asset, asset_type, callback, error)?;
+        },
+        #[cfg(any(feature = "all-api", feature = "notification"))]
+        Notification {
+          options,
+          callback,
+          error,
+        } => {
+          notification(webview, options, callback, error)?;
         }
       }
       Ok(())
@@ -263,6 +271,36 @@ fn load_asset<T: 'static>(
     error,
   );
 
+  Ok(())
+}
+
+#[cfg(any(feature = "all-api", feature = "notification"))]
+fn notification<T: 'static>(
+  webview: &mut WebView<'_, T>,
+  options: cmd::NotificationOptions,
+  callback: String,
+  error: String,
+) -> crate::Result<()> {
+  crate::execute_promise(
+    webview,
+    move || {
+      let mut notification = notify_rust::Notification::new();
+      notification.body(&options.body);
+      if let Some(summary) = options.summary {
+        notification.summary(&summary);
+      }
+      if let Some(icon) = options.icon {
+        notification.icon(&icon);
+      }
+      notification.show()
+        .map_err(|e| {
+          crate::Error::from(format!(r#""{}""#, e.to_string()))
+        })?;
+      Ok("".to_string())
+    },
+    callback,
+    error
+  );
   Ok(())
 }
 

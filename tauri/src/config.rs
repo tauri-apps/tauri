@@ -131,6 +131,7 @@ mod test {
           height: 600,
           resizable: true,
           title: String::from("Tauri App"),
+          fullscreen: false,
         },
         embedded_server: EmbeddedServerConfig {
           host: String::from("http://127.0.0.1"),
@@ -183,6 +184,7 @@ mod test {
         height: 600,
         resizable: true,
         title: String::from("Tauri App"),
+        fullscreen: false,
       },
       embedded_server: EmbeddedServerConfig {
         host: String::from("http://127.0.0.1"),

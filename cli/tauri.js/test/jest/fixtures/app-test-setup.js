@@ -6,7 +6,7 @@ const mockFixtureDir = path.resolve(__dirname, '../fixtures')
 module.exports.fixtureDir = mockFixtureDir
 
 module.exports.initJest = (mockFixture) => {
-  jest.setTimeout(240000)
+  jest.setTimeout(720000)
   jest.mock('helpers/non-webpack-require', () => {
     return path => {
       const value = require('fs').readFileSync(path).toString()

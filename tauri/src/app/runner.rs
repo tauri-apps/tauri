@@ -191,12 +191,13 @@ fn build_webview(
   let width = config.tauri.window.width;
   let height = config.tauri.window.height;
   let resizable = config.tauri.window.resizable;
+  let fullscreen = config.tauri.window.fullscreen;
   let title = config.tauri.window.title.into_boxed_str();
 
   let has_splashscreen = splashscreen_content.is_some();
   let mut initialized_splashscreen = false;
 
-  let webview = builder()
+  let mut webview = builder()
     .title(Box::leak(title))
     .size(width, height)
     .resizable(resizable)
@@ -250,6 +251,8 @@ fn build_webview(
       content
     })
     .build()?;
+
+  webview.set_fullscreen(fullscreen);
 
   if has_splashscreen {
     // inject the tauri.js entry point

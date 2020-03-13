@@ -73,7 +73,28 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
 function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
 
 
+/**
+ * @name return __whitelistWarning
+ * @description Present a stylish warning to the developer that their API
+ * call has not been whitelisted in tauri.conf.json
+ * @param {String} func - function name to warn
+ * @private
+ */
+var __whitelistWarning = function (func) {
+    console.warn('%c[Tauri] Danger \ntauri.' + func + ' not whitelisted 💣\n%c\nAdd to tauri.conf.json: \n\ntauri: \n  whitelist: { \n    ' + func + ': true \n\nReference: https://github.com/tauri-apps/tauri/wiki' + func, 'background: red; color: white; font-weight: 800; padding: 2px; font-size:1.5em', ' ')
+    return __reject()
+  }
+    
 
+
+  /**
+   * @name __reject
+   * @description generates a promise used to deflect un-whitelisted tauri API calls
+   * Its only purpose is to maintain thenable structure in client code without
+   * breaking the application
+   *  * @type {Promise<any>}
+   * @private
+   */
 
 var __reject = function () {
   return new Promise(function (_, reject) {
@@ -83,10 +104,24 @@ var __reject = function () {
 
 window.tauri = {
   
+    /**
+     * @name invoke
+     * @description Calls a Tauri Core feature, such as setTitle
+     * @param {Object} args
+     */
+  
   invoke: function invoke(args) {
     window.external.invoke(JSON.stringify(args));
   },
 
+  
+    /**
+     * @name listen
+     * @description Add an event listener to Tauri backend
+     * @param {String} event
+     * @param {Function} handler
+     * @param {Boolean} once
+     */
   
   listen: function listen(event, handler) {
     
@@ -101,16 +136,31 @@ window.tauri = {
   },
 
   
+    /**
+     * @name emit
+     * @description Emits an evt to the Tauri back end
+     * @param {String} evt
+     * @param {Object} payload
+     */
+  
   emit: function emit(evt, payload) {
     
       this.invoke({
         cmd: 'emit',
         event: evt,
-        payload: payload || ''
+        payload: payload
       });
     
   },
 
+  
+    /**
+     * @name transformCallback
+     * @description Registers a callback with a uid
+     * @param {Function} callback
+     * @param {Boolean} once
+     * @returns {*}
+     */
   
   transformCallback: function transformCallback(callback) {
     var once = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
@@ -128,6 +178,13 @@ window.tauri = {
   },
 
   
+    /**
+     * @name promisified
+     * @description Turns a request into a chainable promise
+     * @param {Object} args
+     * @returns {Promise<any>}
+     */
+  
   promisified: function promisified(args) {
     var _this = this;
 
@@ -140,6 +197,14 @@ window.tauri = {
   },
 
   
+    /**
+     * @name readTextFile
+     * @description Accesses a non-binary file on the user's filesystem
+     * and returns the content. Permissions based on the app's PID owner
+     * @param {String} path
+     * @returns {*|Promise<any>|Promise}
+     */
+  
   readTextFile: function readTextFile(path) {
     
       return this.promisified({
@@ -149,6 +214,14 @@ window.tauri = {
     
   },
 
+  
+    /**
+     * @name readBinaryFile
+     * @description Accesses a binary file on the user's filesystem
+     * and returns the content. Permissions based on the app's PID owner
+     * @param {String} path
+     * @returns {*|Promise<any>|Promise}
+     */
   
   readBinaryFile: function readBinaryFile(path) {
     
@@ -160,12 +233,21 @@ window.tauri = {
   },
 
   
+    /**
+     * @name writeFile
+     * @description Write a file to the Local Filesystem.
+     * Permissions based on the app's PID owner
+     * @param {Object} cfg
+     * @param {String} cfg.file
+     * @param {String|Binary} cfg.contents
+     */
+  
   writeFile: function writeFile(cfg) {
     
       if (_typeof(cfg) === 'object') {
         Object.freeze(cfg);
       }
-      this.invoke({
+      return this.promisified({
         cmd: 'writeFile',
         file: cfg.file,
         contents: cfg.contents
@@ -174,25 +256,32 @@ window.tauri = {
   },
 
   
-  listFiles: function listFiles(path) {
+    /**
+     * @name readDir
+     * @description Reads a directory
+     * Permissions based on the app's PID owner
+     * @param {String} path
+     * @param {Object} [options]
+     * @param {Boolean} [options.recursive]
+     * @returns {*|Promise<any>|Promise}
+     */
+  
+  readDir: function readDir(path, options) {
     
       return this.promisified({
-        cmd: 'listFiles',
-        path: path
+        cmd: 'readDir',
+        path: path,
+        options: options
       });
     
   },
 
   
-  listDirs: function listDirs(path) {
-    
-      return this.promisified({
-        cmd: 'listDirs',
-        path: path
-      });
-    
-  },
-
+    /**
+     * @name setTitle
+     * @description Set the application's title
+     * @param {String} title
+     */
   
   setTitle: function setTitle(title) {
     
@@ -204,6 +293,12 @@ window.tauri = {
   },
 
   
+    /**
+     * @name open
+     * @description Open an URI
+     * @param {String} uri
+     */
+  
   open: function open(uri) {
     
       this.invoke({
@@ -213,6 +308,15 @@ window.tauri = {
     
   },
 
+  
+    /**
+     * @name execute
+     * @description Execute a program with arguments.
+     * Permissions based on the app's PID owner
+     * @param {String} command
+     * @param {String|Array} args
+     * @returns {*|Promise<any>|Promise}
+     */
   
   execute: function execute(command, args) {
     
@@ -226,21 +330,6 @@ window.tauri = {
         command: command,
         args: typeof args === 'string' ? [args] : args
       });
-    
-  },
-
-bridge: function bridge(command, payload) {
-    
-
-    if (_typeof(payload) === 'object') {
-      Object.freeze(payload);
-    }
-
-    return this.promisified({
-      cmd: 'bridge',
-      command: command,
-      payload: _typeof(payload) === 'object' ? [payload] : payload
-    });
     
   },
 
@@ -304,44 +393,4 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
     __openLinks()
   }, true)
 }
-</script>
-    <div>
-      <button id="log">Call Log API</button>
-      <button id="request">Call Request (async) API</button>
-      <button id="event">Send event to Rust</button>
-      <div id="response"></div>
-    </div>
-    <script>
-      window.onTauriInit = function () {
-        window.tauri.listen('rust-event', function (res) {
-          document.getElementById('response').innerHTML = JSON.stringify(res)
-        })
-      }
-
-      document.getElementById('log').addEventListener('click', function () {
-        window.tauri.invoke({
-          cmd: 'logOperation',
-          event: 'tauri-click',
-          payload: 'this payload is optional because we used Option in Rust'
-        })
-      })
-
-      document.getElementById('request').addEventListener('click', function () {
-        window.tauri.promisified({
-          cmd: 'performRequest',
-          endpoint: 'dummy endpoint arg',
-          body: {
-            id: 5,
-            name: 'test'
-          }
-        }).then(function (response) {
-          document.getElementById('response').innerHTML = JSON.stringify(response)
-        })
-      })
-
-      document.getElementById('event').addEventListener('click', function () {
-        window.tauri.emit('js-event', 'this is the payload string')
-      })
-    </script>
-  
-</body></html>
+</script> <div> <button id="log">Call Log API</button> <button id="request">Call Request (async) API</button> <button id="event">Send event to Rust</button> </div> <div style="margin-top:24px"> <input id="path-to-read" placeholder="Type the path to read..."> <button id="read">Read</button> </div> <div style="margin-top:24px"> <input id="url" value="https://tauri.studio"> <button id="open-url">Open URL</button> </div> <div style="margin-top:24px"> <input id="title" value="Awesome Tauri Example!"> <button id="set-title">Set title</button> </div> <div id="response"></div> <script>function registerResponse(e){document.getElementById("response").innerHTML="object"==typeof e?JSON.stringify(e):e}function addClickEnterHandler(e,n,t){e.addEventListener("click",t),n.addEventListener("keyup",function(e){13===e.keyCode&&t()})}</script> <script>window.onTauriInit=function(){window.tauri.listen("rust-event",function(e){document.getElementById("response").innerHTML=JSON.stringify(e)})},document.getElementById("log").addEventListener("click",function(){window.tauri.invoke({cmd:"logOperation",event:"tauri-click",payload:"this payload is optional because we used Option in Rust"})}),document.getElementById("request").addEventListener("click",function(){window.tauri.promisified({cmd:"performRequest",endpoint:"dummy endpoint arg",body:{id:5,name:"test"}}).then(registerResponse).catch(registerResponse)}),document.getElementById("event").addEventListener("click",function(){window.tauri.emit("js-event","this is the payload string")});</script> <script>function arrayBufferToBase64(e,n){var t=new Blob([e],{type:"application/octet-binary"}),a=new FileReader;a.onload=function(e){var t=e.target.result;n(t.substr(t.indexOf(",")+1))},a.readAsDataURL(t)}var pathInput=document.getElementById("path-to-read");addClickEnterHandler(document.getElementById("read"),pathInput,function(){var a=pathInput.value,r=a.match(/\S+\.\S+$/g);(r?window.tauri.readBinaryFile(a):window.tauri.readDir(a)).then(function(e){if(r)if(a.includes(".png")||a.includes(".jpg"))arrayBufferToBase64(new Uint8Array(e),function(e){registerResponse('<img src="'+("data:image/png;base64,"+e)+'"></img>')});else{var t=String.fromCharCode.apply(null,e);registerResponse('<textarea id="file-response" style="height: 400px"></textarea><button id="file-save">Save</button>');var n=document.getElementById("file-response");n.value=t,document.getElementById("file-save").addEventListener("click",function(){window.tauri.writeFile({file:a,contents:n.value}).catch(registerResponse)})}else registerResponse(e)}).catch(registerResponse)});</script> <script>var urlInput=document.getElementById("url");addClickEnterHandler(document.getElementById("open-url"),urlInput,function(){window.tauri.open(urlInput.value)});var titleInput=document.getElementById("title");addClickEnterHandler(document.getElementById("set-title"),titleInput,function(){window.tauri.setTitle(titleInput.value)});</script>   </body></html>

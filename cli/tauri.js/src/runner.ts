@@ -11,8 +11,7 @@ import logger from './helpers/logger'
 import onShutdown from './helpers/on-shutdown'
 import { spawn, spawnSync } from './helpers/spawn'
 import { TauriConfig } from './types/config'
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const getTauriConfig = require('./helpers/tauri-config')
+import getTauriConfig from './helpers/tauri-config'
 
 const log = logger('app:tauri', 'green')
 const warn = logger('app:tauri (runner)', 'red')
@@ -105,17 +104,20 @@ class Runner {
           path.join(tauriDir, 'build.rs'),
           path.join(tauriDir, 'tauri.conf.json'),
           ...tauriPaths
-        ],
+        ].concat(runningDevServer ? [] : [devPath]),
         {
-          ignoreInitial: true
+          ignoreInitial: true,
+          ignored: runningDevServer ? null : path.join(devPath, 'index.tauri.html')
         }
       )
       .on(
         'change',
-        debounce((path: string) => {
+        debounce((changedPath: string) => {
           (this.pid ? this.__stopCargo() : Promise.resolve())
             .then(() => {
-              if (path.includes('tauri.conf.json')) {
+              const shouldTriggerRun = changedPath.includes('tauri.conf.json') ||
+                changedPath.startsWith(devPath)
+              if (shouldTriggerRun) {
                 this.run(getTauriConfig({ ctx: cfg.ctx })).catch(e => {
                   throw e
                 })
@@ -243,7 +245,7 @@ class Runner {
         })
       }
 
-      if (cfg.tauri.embeddedServer.active || !cfg.tauri.inliner.active) {
+      if ((!cfg.ctx.dev && cfg.tauri.embeddedServer.active) || !cfg.tauri.inliner.active) {
         rewriteHtml(readFileSync(indexPath).toString(), domInterceptor)
         resolve(inlinedAssets)
       } else {

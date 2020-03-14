@@ -42,6 +42,10 @@ error_chain! {
       description("Command Error")
       display("Command Error: '{}'", t)
     }
+    FileSystem(t: String) {
+      description("FileSystem Error")
+      display("FileSystem Error: '{}'", t)
+    }
   }
 }
 

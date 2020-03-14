@@ -57,6 +57,50 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         } => {
           file_system::read_dir(webview, path, options, callback, error);
         }
+        #[cfg(any(feature = "all-api", feature = "copy-file"))]
+        CopyFile {
+          source,
+          destination,
+          callback,
+          error,
+        } => {
+          file_system::copy_file(webview, source, destination, callback, error);
+        }
+        #[cfg(any(feature = "all-api", feature = "create-dir"))]
+        CreateDir {
+          path,
+          options,
+          callback,
+          error,
+        } => {
+          file_system::create_dir(webview, path, options, callback, error);
+        }
+        #[cfg(any(feature = "all-api", feature = "remove-dir"))]
+        RemoveDir {
+          path,
+          options,
+          callback,
+          error,
+        } => {
+          file_system::remove_dir(webview, path, options, callback, error);
+        }
+        #[cfg(any(feature = "all-api", feature = "remove-file"))]
+        RemoveFile {
+          path,
+          callback,
+          error,
+        } => {
+          file_system::remove_file(webview, path, callback, error);
+        }
+        #[cfg(any(feature = "all-api", feature = "rename-file"))]
+        RenameFile {
+          old_path,
+          new_path,
+          callback,
+          error,
+        } => {
+          file_system::rename_file(webview, old_path, new_path, callback, error);
+        }
         #[cfg(any(feature = "all-api", feature = "set-title"))]
         SetTitle { title } => {
           webview.set_title(&title)?;

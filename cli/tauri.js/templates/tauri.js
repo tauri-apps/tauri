@@ -328,6 +328,130 @@ window.tauri = {
 
   <% if (ctx.dev) { %>
     /**
+     * @name createDir
+     * @description Creates a directory
+     * Permissions based on the app's PID owner
+     * @param {String} path
+     * @param {Object} [options]
+     * @param {Boolean} [options.recursive]
+     * @returns {*|Promise<any>|Promise}
+     */
+  <% } %>
+  createDir: function createDir(path, options) {
+    <% if (tauri.whitelist.createDir === true || tauri.whitelist.all === true) { %>
+      return this.promisified({
+        cmd: 'createDir',
+        path: path,
+        options: options
+      });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+          return __whitelistWarning('createDir')
+          <% } %>
+        return __reject()
+        <% } %>
+  },
+
+  <% if (ctx.dev) { %>
+    /**
+     * @name removeDir
+     * @description Removes a directory
+     * Permissions based on the app's PID owner
+     * @param {String} path
+     * @param {Object} [options]
+     * @param {Boolean} [options.recursive]
+     * @returns {*|Promise<any>|Promise}
+     */
+  <% } %>
+  removeDir: function removeDir(path, options) {
+    <% if (tauri.whitelist.removeDir === true || tauri.whitelist.all === true) { %>
+      return this.promisified({
+        cmd: 'removeDir',
+        path: path,
+        options: options
+      });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+          return __whitelistWarning('removeDir')
+          <% } %>
+        return __reject()
+        <% } %>
+  },
+
+  <% if (ctx.dev) { %>
+    /**
+     * @name copyFile
+     * @description Copy file
+     * Permissions based on the app's PID owner
+     * @param {String} source
+     * @param {String} destination
+     * @returns {*|Promise<any>|Promise}
+     */
+  <% } %>
+  copyFile: function copyFile(source, destination) {
+    <% if (tauri.whitelist.copyFile === true || tauri.whitelist.all === true) { %>
+      return this.promisified({
+        cmd: 'copyFile',
+        source: source,
+        destination: destination
+      });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+          return __whitelistWarning('copyFile')
+          <% } %>
+        return __reject()
+        <% } %>
+  },
+
+  <% if (ctx.dev) { %>
+    /**
+     * @name removeFile
+     * @description Removes a file
+     * Permissions based on the app's PID owner
+     * @param {String} path
+     * @returns {*|Promise<any>|Promise}
+     */
+  <% } %>
+  removeFile: function removeFile(path) {
+    <% if (tauri.whitelist.removeFile === true || tauri.whitelist.all === true) { %>
+      return this.promisified({
+        cmd: 'removeFile',
+        path: path
+      });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+          return __whitelistWarning('removeFile')
+          <% } %>
+        return __reject()
+        <% } %>
+  },
+
+  <% if (ctx.dev) { %>
+    /**
+     * @name renameFile
+     * @description Renames a file
+     * Permissions based on the app's PID owner
+     * @param {String} path
+     * @returns {*|Promise<any>|Promise}
+     */
+  <% } %>
+  renameFile: function renameFile(oldPath, newPath) {
+    <% if (tauri.whitelist.renameFile === true || tauri.whitelist.all === true) { %>
+      return this.promisified({
+        cmd: 'renameFile',
+        old_path: oldPath,
+        new_path: newPath
+      });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+          return __whitelistWarning('renameFile')
+          <% } %>
+        return __reject()
+        <% } %>
+  },
+
+  <% if (ctx.dev) { %>
+    /**
      * @name setTitle
      * @description Set the application's title
      * @param {String} title

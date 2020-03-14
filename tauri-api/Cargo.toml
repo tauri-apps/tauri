@@ -11,6 +11,7 @@ exclude = ["test/fixture/**"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
+serde_repr = "0.1"
 dirs = "2.0.2"
 ignore = "0.4.11"
 zip = "0.5.4"

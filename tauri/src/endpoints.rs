@@ -26,27 +26,30 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         #[cfg(any(feature = "all-api", feature = "read-text-file"))]
         ReadTextFile {
           path,
+          options,
           callback,
           error,
         } => {
-          file_system::read_text_file(webview, path, callback, error);
+          file_system::read_text_file(webview, path, options, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "read-binary-file"))]
         ReadBinaryFile {
           path,
+          options,
           callback,
           error,
         } => {
-          file_system::read_binary_file(webview, path, callback, error);
+          file_system::read_binary_file(webview, path, options, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "write-file"))]
         WriteFile {
           file,
           contents,
+          options,
           callback,
           error,
         } => {
-          file_system::write_file(webview, file, contents, callback, error);
+          file_system::write_file(webview, file, contents, options, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "read-dir"))]
         ReadDir {
@@ -61,10 +64,11 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         CopyFile {
           source,
           destination,
+          options,
           callback,
           error,
         } => {
-          file_system::copy_file(webview, source, destination, callback, error);
+          file_system::copy_file(webview, source, destination, options, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "create-dir"))]
         CreateDir {
@@ -87,19 +91,21 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         #[cfg(any(feature = "all-api", feature = "remove-file"))]
         RemoveFile {
           path,
+          options,
           callback,
           error,
         } => {
-          file_system::remove_file(webview, path, callback, error);
+          file_system::remove_file(webview, path, options, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "rename-file"))]
         RenameFile {
           old_path,
           new_path,
+          options,
           callback,
           error,
         } => {
-          file_system::rename_file(webview, old_path, new_path, callback, error);
+          file_system::rename_file(webview, old_path, new_path, options, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "set-title"))]
         SetTitle { title } => {

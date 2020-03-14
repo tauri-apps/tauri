@@ -1,9 +1,16 @@
 use serde::Deserialize;
+use crate::api::path::BaseDirectory;
 
 #[derive(Deserialize)]
 pub struct DirOperationOptions {
   #[serde(default)]
-  pub recursive: bool
+  pub recursive: bool,
+  pub dir: Option<BaseDirectory>,
+}
+
+#[derive(Deserialize)]
+pub struct FileOperationOptions {
+  pub dir: Option<BaseDirectory>,
 }
 
 #[derive(Deserialize)]
@@ -13,12 +20,14 @@ pub enum Cmd {
   #[cfg(any(feature = "all-api", feature = "read-text-file"))]
   ReadTextFile {
     path: String,
+    options: Option<FileOperationOptions>,
     callback: String,
     error: String,
   },
   #[cfg(any(feature = "all-api", feature = "read-binary-file"))]
   ReadBinaryFile {
     path: String,
+    options: Option<FileOperationOptions>,
     callback: String,
     error: String,
   },
@@ -26,6 +35,7 @@ pub enum Cmd {
   WriteFile {
     file: String,
     contents: String,
+    options: Option<FileOperationOptions>,
     callback: String,
     error: String,
   },
@@ -40,6 +50,7 @@ pub enum Cmd {
   CopyFile {
     source: String,
     destination: String,
+    options: Option<FileOperationOptions>,
     callback: String,
     error: String,
   },
@@ -60,6 +71,7 @@ pub enum Cmd {
   #[cfg(any(feature = "all-api", feature = "remove-file"))]
   RemoveFile {
     path: String,
+    options: Option<FileOperationOptions>,
     callback: String,
     error: String,
   },
@@ -67,6 +79,7 @@ pub enum Cmd {
   RenameFile {
     old_path: String,
     new_path: String,
+    options: Option<FileOperationOptions>,
     callback: String,
     error: String,
   },

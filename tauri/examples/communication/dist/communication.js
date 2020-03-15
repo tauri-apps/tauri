@@ -1,9 +1,3 @@
-window.onTauriInit = function () {
-  window.tauri.listen('rust-event', function (res) {
-    document.getElementById('response').innerHTML = JSON.stringify(res)
-  })
-}
-
 document.getElementById('log').addEventListener('click', function () {
   window.tauri.invoke({
     cmd: 'logOperation',

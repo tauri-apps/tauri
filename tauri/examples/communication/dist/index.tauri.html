@@ -376,6 +376,9 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
     </div>
 
     <div style="margin-top: 24px">
+      <select id="dir">
+        <option value="">None</option>
+      </select>
       <input id="path-to-read" placeholder="Type the path to read...">
       <button id="read">Read</button>
     </div>
@@ -406,6 +409,21 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
             handler()
           }
         })
+      }
+
+      window.onTauriInit = function () {
+        window.tauri.listen('rust-event', function (res) {
+          document.getElementById('response').innerHTML = JSON.stringify(res)
+        })
+
+        var dirSelect = document.getElementById('dir')
+        for (var key in window.tauri.Dir) {
+          var value = window.tauri.Dir[key]
+          var opt = document.createElement("option")
+          opt.value = value
+          opt.innerHTML = key
+          dirSelect.appendChild(opt)
+        }
       }
     </script>
     <script src="communication.js"></script>

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use serde_repr::{Serialize_repr, Deserialize_repr};
 
-#[derive(Serialize_repr, Deserialize_repr, Clone)]
+#[derive(Serialize_repr, Deserialize_repr, Clone, Debug)]
 #[repr(u16)]
 pub enum BaseDirectory {
   Audio = 1,

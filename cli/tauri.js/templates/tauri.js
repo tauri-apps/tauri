@@ -378,6 +378,66 @@ window.tauri = {
         <% } %>
   },
 
+  <% if (ctx.dev) { %>
+    /**
+     * @name openDialog
+     * @description Open a file/directory selection dialog
+     * @param {String} [options]
+     * @param {String} [options.filter]
+     * @param {String} [options.defaultPath]
+     * @param {Boolean} [options.multiple=false]
+     * @param {Boolean} [options.directory=false]
+     * @returns {Promise<String|String[]>} promise resolving to the select path(s)
+     */
+  <% } %>
+  openDialog: function openDialog(options) {
+    <% if (tauri.whitelist.openDialog === true || tauri.whitelist.all === true) { %>
+      var opts = options || {}
+      if (_typeof(options) === 'object') {
+        opts.default_path = opts.defaultPath
+        Object.freeze(options);
+      }
+      return this.promisified({
+        cmd: 'openDialog',
+        options: opts
+      });
+    <% } else { %>
+    <% if (ctx.dev) { %>
+      return __whitelistWarning('openDialog')
+          <% } %>
+    return __reject()
+        <% } %>
+  },
+
+  <% if (ctx.dev) { %>
+    /**
+     * @name saveDialog
+     * @description Open a file/directory save dialog
+     * @param {String} [options]
+     * @param {String} [options.filter]
+     * @param {String} [options.defaultPath]
+     * @returns {Promise<String>} promise resolving to the select path
+     */
+  <% } %>
+  saveDialog: function saveDialog(options) {
+    <% if (tauri.whitelist.saveDialog === true || tauri.whitelist.all === true) { %>
+      var opts = options || {}
+      if (_typeof(options) === 'object') {
+        opts.default_path = opts.defaultPath
+        Object.freeze(options);
+      }
+      return this.promisified({
+        cmd: 'saveDialog',
+        options: opts
+      });
+    <% } else { %>
+    <% if (ctx.dev) { %>
+      return __whitelistWarning('saveDialog')
+          <% } %>
+    return __reject()
+        <% } %>
+  },
+
 loadAsset: function loadAsset(assetName, assetType) {
   return this.promisified({
     cmd: 'loadAsset',

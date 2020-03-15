@@ -9,6 +9,7 @@ pub mod file;
 pub mod rpc;
 pub mod version;
 pub mod tcp;
+pub mod dialog;
 
 pub use tauri_utils::*;
 

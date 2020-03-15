@@ -333,6 +333,56 @@ window.tauri = {
     
   },
 
+  
+    /**
+     * @name openDialog
+     * @description Open a file/directory selection dialog
+     * @param {String} [options]
+     * @param {String} [options.filter]
+     * @param {String} [options.defaultPath]
+     * @param {Boolean} [options.multiple=false]
+     * @param {Boolean} [options.directory=false]
+     * @returns {Promise<String|String[]>} promise resolving to the select path(s)
+     */
+  
+  openDialog: function openDialog(options) {
+    
+      var opts = options || {}
+      if (_typeof(options) === 'object') {
+        opts.default_path = opts.defaultPath
+        Object.freeze(options);
+      }
+      return this.promisified({
+        cmd: 'openDialog',
+        options: opts
+      });
+    
+  },
+
+  
+    /**
+     * @name saveDialog
+     * @description Open a file/directory save dialog
+     * @param {String} [options]
+     * @param {String} [options.filter]
+     * @param {String} [options.defaultPath]
+     * @returns {Promise<String>} promise resolving to the select path
+     */
+  
+  saveDialog: function saveDialog(options) {
+    
+      var opts = options || {}
+      if (_typeof(options) === 'object') {
+        opts.default_path = opts.defaultPath
+        Object.freeze(options);
+      }
+      return this.promisified({
+        cmd: 'saveDialog',
+        options: opts
+      });
+    
+  },
+
 loadAsset: function loadAsset(assetName, assetType) {
   return this.promisified({
     cmd: 'loadAsset',
@@ -393,4 +443,4 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
     __openLinks()
   }, true)
 }
-</script> <div> <button id="log">Call Log API</button> <button id="request">Call Request (async) API</button> <button id="event">Send event to Rust</button> </div> <div style="margin-top:24px"> <input id="path-to-read" placeholder="Type the path to read..."> <button id="read">Read</button> </div> <div style="margin-top:24px"> <input id="url" value="https://tauri.studio"> <button id="open-url">Open URL</button> </div> <div style="margin-top:24px"> <input id="title" value="Awesome Tauri Example!"> <button id="set-title">Set title</button> </div> <div id="response"></div> <script>function registerResponse(e){document.getElementById("response").innerHTML="object"==typeof e?JSON.stringify(e):e}function addClickEnterHandler(e,n,t){e.addEventListener("click",t),n.addEventListener("keyup",function(e){13===e.keyCode&&t()})}</script> <script>window.onTauriInit=function(){window.tauri.listen("rust-event",function(e){document.getElementById("response").innerHTML=JSON.stringify(e)})},document.getElementById("log").addEventListener("click",function(){window.tauri.invoke({cmd:"logOperation",event:"tauri-click",payload:"this payload is optional because we used Option in Rust"})}),document.getElementById("request").addEventListener("click",function(){window.tauri.promisified({cmd:"performRequest",endpoint:"dummy endpoint arg",body:{id:5,name:"test"}}).then(registerResponse).catch(registerResponse)}),document.getElementById("event").addEventListener("click",function(){window.tauri.emit("js-event","this is the payload string")});</script> <script>function arrayBufferToBase64(e,n){var t=new Blob([e],{type:"application/octet-binary"}),a=new FileReader;a.onload=function(e){var t=e.target.result;n(t.substr(t.indexOf(",")+1))},a.readAsDataURL(t)}var pathInput=document.getElementById("path-to-read");addClickEnterHandler(document.getElementById("read"),pathInput,function(){var a=pathInput.value,r=a.match(/\S+\.\S+$/g);(r?window.tauri.readBinaryFile(a):window.tauri.readDir(a)).then(function(e){if(r)if(a.includes(".png")||a.includes(".jpg"))arrayBufferToBase64(new Uint8Array(e),function(e){registerResponse('<img src="'+("data:image/png;base64,"+e)+'"></img>')});else{var t=String.fromCharCode.apply(null,e);registerResponse('<textarea id="file-response" style="height: 400px"></textarea><button id="file-save">Save</button>');var n=document.getElementById("file-response");n.value=t,document.getElementById("file-save").addEventListener("click",function(){window.tauri.writeFile({file:a,contents:n.value}).catch(registerResponse)})}else registerResponse(e)}).catch(registerResponse)});</script> <script>var urlInput=document.getElementById("url");addClickEnterHandler(document.getElementById("open-url"),urlInput,function(){window.tauri.open(urlInput.value)});var titleInput=document.getElementById("title");addClickEnterHandler(document.getElementById("set-title"),titleInput,function(){window.tauri.setTitle(titleInput.value)});</script>   </body></html>
+</script> <div> <button id="log">Call Log API</button> <button id="request">Call Request (async) API</button> <button id="event">Send event to Rust</button> </div> <div style="margin-top:24px"> <input id="path-to-read" placeholder="Type the path to read..."> <button id="read">Read</button> </div> <div style="margin-top:24px"> <input id="url" value="https://tauri.studio"> <button id="open-url">Open URL</button> </div> <div style="margin-top:24px"> <input id="title" value="Awesome Tauri Example!"> <button id="set-title">Set title</button> </div> <div style="margin-top:24px"> <input id="dialog-default-path" placeholder="Default path"> <input id="dialog-filter" placeholder="Extensions filter"> <div> <input type="checkbox" id="dialog-multiple"> <label>Multiple</label> </div> <div> <input type="checkbox" id="dialog-directory"> <label>Directory</label> </div> <button id="open-dialog">Open dialog</button> <button id="save-dialog">Open save dialog</button> </div> <div id="response"></div> <script>function registerResponse(e){document.getElementById("response").innerHTML="object"==typeof e?JSON.stringify(e):e}function addClickEnterHandler(e,n,t){e.addEventListener("click",t),n.addEventListener("keyup",function(e){13===e.keyCode&&t()})}</script> <script>window.onTauriInit=function(){window.tauri.listen("rust-event",function(e){document.getElementById("response").innerHTML=JSON.stringify(e)})},document.getElementById("log").addEventListener("click",function(){window.tauri.invoke({cmd:"logOperation",event:"tauri-click",payload:"this payload is optional because we used Option in Rust"})}),document.getElementById("request").addEventListener("click",function(){window.tauri.promisified({cmd:"performRequest",endpoint:"dummy endpoint arg",body:{id:5,name:"test"}}).then(registerResponse).catch(registerResponse)}),document.getElementById("event").addEventListener("click",function(){window.tauri.emit("js-event","this is the payload string")});</script> <script>function arrayBufferToBase64(e,n){var t=new Blob([e],{type:"application/octet-binary"}),a=new FileReader;a.onload=function(e){var t=e.target.result;n(t.substr(t.indexOf(",")+1))},a.readAsDataURL(t)}var pathInput=document.getElementById("path-to-read");addClickEnterHandler(document.getElementById("read"),pathInput,function(){var a=pathInput.value,r=a.match(/\S+\.\S+$/g);(r?window.tauri.readBinaryFile(a):window.tauri.readDir(a)).then(function(e){if(r)if(a.includes(".png")||a.includes(".jpg"))arrayBufferToBase64(new Uint8Array(e),function(e){registerResponse('<img src="'+("data:image/png;base64,"+e)+'"></img>')});else{var t=String.fromCharCode.apply(null,e);registerResponse('<textarea id="file-response" style="height: 400px"></textarea><button id="file-save">Save</button>');var n=document.getElementById("file-response");n.value=t,document.getElementById("file-save").addEventListener("click",function(){window.tauri.writeFile({file:a,contents:n.value}).catch(registerResponse)})}else registerResponse(e)}).catch(registerResponse)});</script> <script>var urlInput=document.getElementById("url");addClickEnterHandler(document.getElementById("open-url"),urlInput,function(){window.tauri.open(urlInput.value)});var titleInput=document.getElementById("title");addClickEnterHandler(document.getElementById("set-title"),titleInput,function(){window.tauri.setTitle(titleInput.value)});</script> <script>var defaultPathInput=document.getElementById("dialog-default-path"),filterInput=document.getElementById("dialog-filter"),multipleInput=document.getElementById("dialog-multiple"),directoryInput=document.getElementById("dialog-directory");document.getElementById("open-dialog").addEventListener("click",function(){window.tauri.openDialog({defaultPath:defaultPathInput.value||null,filter:filterInput.value||null,multiple:multipleInput.checked,directory:directoryInput.checked}).then(registerResponse).catch(registerResponse)}),document.getElementById("save-dialog").addEventListener("click",function(){window.tauri.saveDialog({defaultPath:defaultPathInput.value||null,filter:filterInput.value||null}).then(registerResponse).catch(registerResponse)});</script>   </body></html>

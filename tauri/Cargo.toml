@@ -49,6 +49,8 @@ execute = []
 open = []
 event = []
 updater = []
+open-dialog = []
+save-dialog = []
 
 [package.metadata.docs.rs]
 features = ["dev-server", "all-api"]

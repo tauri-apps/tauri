@@ -4,7 +4,7 @@ use web_view::WebView;
 
 fn map_response(response: Response) -> String {
   match response {
-    Response::Okay(path) => format!(r#""{}""#, path),
+    Response::Okay(path) => format!(r#""{}""#, path).replace("\\", "\\\\"),
     Response::OkayMultiple(paths) => format!("{:?}", paths),
     Response::Cancel => panic!("unexpected response type")
   }

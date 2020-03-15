@@ -267,7 +267,7 @@ window.tauri = {
       if (_typeof(cfg) === 'object') {
         Object.freeze(cfg);
       }
-      this.invoke({
+      return this.promisified({
         cmd: 'writeFile',
         file: cfg.file,
         contents: cfg.contents
@@ -282,45 +282,25 @@ window.tauri = {
 
   <% if (ctx.dev) { %>
     /**
-     * @name listFiles
-     * @description Get the files in a path.
+     * @name readDir
+     * @description Reads a directory
      * Permissions based on the app's PID owner
      * @param {String} path
+     * @param {Object} [options]
+     * @param {Boolean} [options.recursive]
      * @returns {*|Promise<any>|Promise}
      */
   <% } %>
-  listFiles: function listFiles(path) {
-    <% if (tauri.whitelist.listFiles === true || tauri.whitelist.all === true) { %>
+  readDir: function readDir(path, options) {
+    <% if (tauri.whitelist.readDir === true || tauri.whitelist.all === true) { %>
       return this.promisified({
-        cmd: 'listFiles',
-        path: path
+        cmd: 'readDir',
+        path: path,
+        options: options
       });
     <% } else { %>
       <% if (ctx.dev) { %>
-          return __whitelistWarning('listDirs')
-          <% } %>
-        return __reject()
-        <% } %>
-  },
-
-  <% if (ctx.dev) { %>
-    /**
-     * @name listDirs
-     * @description Get the directories in a path.
-     * Permissions based on the app's PID owner
-     * @param {String} path
-     * @returns {*|Promise<any>|Promise}
-     */
-  <% } %>
-  listDirs: function listDirs(path) {
-    <% if (tauri.whitelist.listDirs === true || tauri.whitelist.all === true) { %>
-      return this.promisified({
-        cmd: 'listDirs',
-        path: path
-      });
-    <% } else { %>
-      <% if (ctx.dev) { %>
-          return __whitelistWarning('listDirs')
+          return __whitelistWarning('readDir')
           <% } %>
         return __reject()
         <% } %>

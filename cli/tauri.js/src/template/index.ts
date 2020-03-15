@@ -62,8 +62,14 @@ Run \`tauri init --force template\` to overwrite.`)
     if (!force) return false
   }
 
+  const resolveTauriPath = (tauriPath: string): string => {
+    const resolvedPath = tauriPath.startsWith('/') || /^\S:/g.test(tauriPath)
+      ? join(tauriPath, 'tauri') // we received a full path as argument
+      : join('..', tauriPath, 'tauri') // we received a relative path
+    return resolvedPath.replace(/\\/g, '/')
+  }
   const tauriDep = tauriPath
-    ? `{ path = "${join('..', tauriPath, 'tauri')}" }`
+    ? `{ path = "${resolveTauriPath(tauriPath)}" }`
     : null
 
   try {

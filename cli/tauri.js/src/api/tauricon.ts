@@ -179,7 +179,7 @@ const tauricon = (exports.tauricon = {
     return typeof image === 'object'
   },
   version: function() {
-    return __non_webpack_require__('../../package.json').version
+    return require('../../package.json').version
   },
   make: async function(
     src: string = path.resolve(appDir, 'app-icon.png'),
@@ -227,7 +227,8 @@ const tauricon = (exports.tauricon = {
       try {
         const pngImage = sharpSrc.resize(pvar[1], pvar[1])
         if (pvar[2]) {
-          const rgb = hexToRgb(options.background_color) ?? {
+          // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+          const rgb = hexToRgb(options.background_color) || {
             r: undefined,
             g: undefined,
             b: undefined
@@ -292,7 +293,8 @@ const tauricon = (exports.tauricon = {
   ) {
     let output
     let block = false
-    const rgb = hexToRgb(options.background_color) ?? {
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    const rgb = hexToRgb(options.background_color) || {
       r: undefined,
       g: undefined,
       b: undefined

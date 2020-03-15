@@ -5,6 +5,8 @@ export interface TauriConfig {
   build: {
     distDir: string
     devPath: string
+    beforeDevCommand?: string
+    beforeBuildCommand?: string
   }
   ctx: {
     prod?: boolean
@@ -12,6 +14,7 @@ export interface TauriConfig {
     target: string
     debug?: boolean
     targetName: string
+    exitOnPanic?: boolean
   }
   bundle: {}
   tauri: {

@@ -2,7 +2,7 @@ use web_view::WebView;
 
 mod runner;
 
-type InvokeHandler = Box<dyn FnMut(&mut WebView<'_, ()>, &str)>;
+type InvokeHandler = Box<dyn FnMut(&mut WebView<'_, ()>, &str) -> Result<(), String>>;
 type Setup = Box<dyn FnMut(&mut WebView<'_, ()>, String)>;
 
 pub struct App {
@@ -16,9 +16,12 @@ impl App {
     runner::run(&mut self).expect("Failed to build webview");
   }
 
-  pub(crate) fn run_invoke_handler(&mut self, webview: &mut WebView<'_, ()>, arg: &str) {
+  pub(crate) fn run_invoke_handler(&mut self, webview: &mut WebView<'_, ()>, arg: &str) -> Result<bool, String> {
     if let Some(ref mut invoke_handler) = self.invoke_handler {
-      invoke_handler(webview, arg);
+      invoke_handler(webview, arg)
+        .map(|_| true)
+    } else {
+      Ok(false)
     }
   }
 
@@ -49,7 +52,7 @@ impl AppBuilder {
     }
   }
 
-  pub fn invoke_handler<F: FnMut(&mut WebView<'_, ()>, &str) + 'static>(
+  pub fn invoke_handler<F: FnMut(&mut WebView<'_, ()>, &str) -> Result<(), String> + 'static>(
     mut self,
     invoke_handler: F,
   ) -> Self {

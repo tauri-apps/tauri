@@ -9,7 +9,9 @@ pub trait Plugin {
   fn ready(&self, webview: &mut WebView<'_, ()>) {}
 
   #[allow(unused_variables)]
-  fn extend_api(&self, webview: &mut WebView<'_, ()>, payload: &str) {}
+  fn extend_api(&self, webview: &mut WebView<'_, ()>, payload: &str) -> Result<bool, String> {
+    Err("unknown variant".to_string())
+  }
 }
 
 thread_local!(static PLUGINS: Arc<Mutex<Vec<Box<dyn Plugin>>>> = Default::default());
@@ -42,8 +44,23 @@ pub(crate) fn ready(webview: &mut WebView<'_, ()>) {
   });
 }
 
-pub(crate) fn extend_api(webview: &mut WebView<'_, ()>, arg: &str) {
-   run_plugin(|ext| {
-    ext.extend_api(webview, arg);
-  });
+pub(crate) fn extend_api(webview: &mut WebView<'_, ()>, arg: &str) -> Result<bool, String> {
+  PLUGINS.with(|plugins| {
+    let exts = plugins.lock().unwrap();
+    for ext in exts.iter() {
+      match ext.extend_api(webview, arg) {
+        Ok(handled) => {
+          if handled {
+            return Ok(true)
+          }
+        }
+        Err(e) => {
+          if !e.contains("unknown variant") {
+            return Err(e);
+          }
+        }
+      }
+    }
+    Ok(false)
+  })
 }

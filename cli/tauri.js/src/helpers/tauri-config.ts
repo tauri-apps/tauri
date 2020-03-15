@@ -4,6 +4,7 @@ import { TauriConfig } from 'types'
 import merge from 'webpack-merge'
 import logger from '../helpers/logger'
 import * as appPaths from './app-paths'
+import nonWebpackRequire from '../helpers/non-webpack-require'
 
 const error = logger('ERROR:', 'red')
 
@@ -20,8 +21,8 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
     )
     process.exit(1)
   }
-  const tauriConf = __non_webpack_require__(tauriConfPath)
-  const pkg = __non_webpack_require__(pkgPath)
+  const tauriConf = nonWebpackRequire(tauriConfPath)
+  const pkg = nonWebpackRequire(pkgPath)
 
   const config = merge(
     {

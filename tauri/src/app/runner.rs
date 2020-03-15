@@ -6,7 +6,7 @@ use web_view::{builder, Content, WebView};
 use super::App;
 use crate::config::{get, Config};
 #[cfg(feature = "embedded-server")]
-use crate::tcp::{get_available_port, port_is_available};
+use crate::api::tcp::{get_available_port, port_is_available};
 
 // JavaScript string literal
 const JS_STRING: &str = r#"
@@ -193,12 +193,13 @@ fn build_webview(
   let width = config.tauri.window.width;
   let height = config.tauri.window.height;
   let resizable = config.tauri.window.resizable;
+  let fullscreen = config.tauri.window.fullscreen;
   let title = config.tauri.window.title.into_boxed_str();
 
   let has_splashscreen = splashscreen_content.is_some();
   let mut initialized_splashscreen = false;
 
-  let webview = builder()
+  let mut webview = builder()
     .title(Box::leak(title))
     .size(width, height)
     .resizable(resizable)
@@ -227,10 +228,43 @@ fn build_webview(
           Content::Url(ref url) => url,
         };
         webview.eval(&format!(r#"window.location.href = "{}""#, content_href))?;
-      } else if let Ok(b) = crate::endpoints::handle(webview, arg) {
-        if !b {
-          crate::plugin::extend_api(webview, arg);
-          application.run_invoke_handler(webview, arg);
+      } else {
+        let endpoint_handle = crate::endpoints::handle(webview, arg)
+          .map_err(|tauri_handle_error| {
+            let tauri_handle_error_str = tauri_handle_error.to_string();
+            if tauri_handle_error_str.contains("unknown variant") {
+              match application.run_invoke_handler(webview, arg) {
+                Ok(handled) => if handled { String::from("") } else { tauri_handle_error_str }
+                Err(e) => e
+              }
+            } else {
+              tauri_handle_error_str
+            }
+          })
+          .map_err(|app_handle_error| {
+            let app_handle_error_str = app_handle_error.to_string();
+            if app_handle_error_str.contains("unknown variant") {
+              match crate::plugin::extend_api(webview, arg) {
+                Ok(handled) => {
+                  if handled {
+                    String::from("")
+                  } else {
+                    app_handle_error_str
+                  }
+                },
+                Err(e) => e
+              }
+            } else {
+              app_handle_error_str
+            }
+          })
+          .map_err(|e| e.replace("'", "\\'"));
+        if let Err(handler_error_message) = endpoint_handle {
+          if handler_error_message != "" {
+            webview.eval(
+              &get_api_error_message(arg, handler_error_message)
+            )?;
+          }
         }
       }
 
@@ -243,6 +277,8 @@ fn build_webview(
     })
     .build()?;
 
+  webview.set_fullscreen(fullscreen);
+
   if has_splashscreen {
     // inject the tauri.js entry point
     webview
@@ -251,6 +287,14 @@ fn build_webview(
   }
   
   Ok(webview)
+}
+
+fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
+  format!(
+    r#"console.error('failed to match a command for {}, {}')"#, 
+    arg.replace("'", "\\'"),
+    handler_error_message
+  )
 }
 
 #[cfg(test)]

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <div>
+      <button id="log">Call Log API</button>
+      <button id="request">Call Request (async) API</button>
+      <button id="event">Send event to Rust</button>
+    </div>
+
+    <div style="margin-top: 24px">
+      <input id="path-to-read" placeholder="Type the path to read...">
+      <button id="read">Read</button>
+    </div>
+
+    <div style="margin-top: 24px">
+      <input id="url" value="https://tauri.studio">
+      <button id="open-url">Open URL</button>
+    </div>
+
+    <div style="margin-top: 24px">
+      <input id="title" value="Awesome Tauri Example!">
+      <button id="set-title">Set title</button>
+    </div>
+
+    <div id="response"></div>
+
+    <script>
+      function registerResponse (response) {
+        document.getElementById('response').innerHTML = typeof response === 'object'
+          ? JSON.stringify(response)
+          : response
+      }
+
+      function addClickEnterHandler (button, input, handler) {
+        button.addEventListener('click', handler)
+        input.addEventListener('keyup', function (e) {
+          if (e.keyCode === 13) {
+            handler()
+          }
+        })
+      }
+    </script>
+    <script src="communication.js"></script>
+    <script src="fs.js"></script>
+    <script src="window.js"></script>
+  </body>
+</html>

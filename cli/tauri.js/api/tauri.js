@@ -21,10 +21,11 @@ const proxy = new Proxy({
       }
     }
     initialized = true
-  }
+  },
+  Dir: require('./fs/dir').Dir
 }, {
   get(obj, prop) {
-    if (prop === '__consume') {
+    if (prop === '__consume' || prop === 'Dir') {
       return obj[prop]
     }
 

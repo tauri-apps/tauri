@@ -2,6 +2,7 @@ mod cmd;
 mod salt;
 #[allow(dead_code)]
 mod file_system;
+mod dialog;
 
 #[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
 use std::path::PathBuf;
@@ -143,6 +144,22 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         #[cfg(any(feature = "all-api", feature = "event"))]
         Emit { event, payload } => {
           crate::event::on_event(event, payload);
+        }
+        #[cfg(any(feature = "all-api", feature = "open-dialog"))]
+        OpenDialog {
+          options,
+          callback,
+          error
+        } => {
+          dialog::open(webview, options, callback, error);
+        }
+        #[cfg(any(feature = "all-api", feature = "save-dialog"))]
+        SaveDialog {
+          options,
+          callback,
+          error,
+        } => {
+          dialog::save(webview, options, callback, error);
         }
         #[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
         LoadAsset {

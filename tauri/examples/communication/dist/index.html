@@ -25,6 +25,22 @@
       <button id="set-title">Set title</button>
     </div>
 
+    <div style="margin-top: 24px">
+      <input id="dialog-default-path" placeholder="Default path">
+      <input id="dialog-filter" placeholder="Extensions filter">
+      <div>
+        <input type="checkbox" id="dialog-multiple">
+        <label>Multiple</label>
+      </div>
+      <div>
+        <input type="checkbox" id="dialog-directory">
+        <label>Directory</label>
+      </div>
+
+      <button id="open-dialog">Open dialog</button>
+      <button id="save-dialog">Open save dialog</button>
+    </div>
+
     <div id="response"></div>
 
     <script>
@@ -61,5 +77,6 @@
     <script src="communication.js"></script>
     <script src="fs.js"></script>
     <script src="window.js"></script>
+    <script src="dialog.js"></script>
   </body>
 </html>

@@ -100,7 +100,28 @@ var Dir = {
 }
 
 
+/**
+ * @name return __whitelistWarning
+ * @description Present a stylish warning to the developer that their API
+ * call has not been whitelisted in tauri.conf.json
+ * @param {String} func - function name to warn
+ * @private
+ */
+var __whitelistWarning = function (func) {
+    console.warn('%c[Tauri] Danger \ntauri.' + func + ' not whitelisted 💣\n%c\nAdd to tauri.conf.json: \n\ntauri: \n  whitelist: { \n    ' + func + ': true \n\nReference: https://github.com/tauri-apps/tauri/wiki' + func, 'background: red; color: white; font-weight: 800; padding: 2px; font-size:1.5em', ' ')
+    return __reject()
+  }
+    
 
+
+  /**
+   * @name __reject
+   * @description generates a promise used to deflect un-whitelisted tauri API calls
+   * Its only purpose is to maintain thenable structure in client code without
+   * breaking the application
+   *  * @type {Promise<any>}
+   * @private
+   */
 
 var __reject = function () {
   return new Promise(function (_, reject) {
@@ -111,10 +132,24 @@ var __reject = function () {
 window.tauri = {
   Dir: Dir,
   
+    /**
+     * @name invoke
+     * @description Calls a Tauri Core feature, such as setTitle
+     * @param {Object} args
+     */
+  
   invoke: function invoke(args) {
     window.external.invoke(JSON.stringify(args));
   },
 
+  
+    /**
+     * @name listen
+     * @description Add an event listener to Tauri backend
+     * @param {String} event
+     * @param {Function} handler
+     * @param {Boolean} once
+     */
   
   listen: function listen(event, handler) {
     
@@ -129,6 +164,13 @@ window.tauri = {
   },
 
   
+    /**
+     * @name emit
+     * @description Emits an evt to the Tauri back end
+     * @param {String} evt
+     * @param {Object} payload
+     */
+  
   emit: function emit(evt, payload) {
     
       this.invoke({
@@ -139,6 +181,14 @@ window.tauri = {
     
   },
 
+  
+    /**
+     * @name transformCallback
+     * @description Registers a callback with a uid
+     * @param {Function} callback
+     * @param {Boolean} once
+     * @returns {*}
+     */
   
   transformCallback: function transformCallback(callback) {
     var once = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
@@ -156,6 +206,13 @@ window.tauri = {
   },
 
   
+    /**
+     * @name promisified
+     * @description Turns a request into a chainable promise
+     * @param {Object} args
+     * @returns {Promise<any>}
+     */
+  
   promisified: function promisified(args) {
     var _this = this;
 
@@ -168,6 +225,16 @@ window.tauri = {
   },
 
   
+    /**
+     * @name readTextFile
+     * @description Accesses a non-binary file on the user's filesystem
+     * and returns the content. Permissions based on the app's PID owner
+     * @param {String} path
+     * @param {Object} [options]
+     * @param {BaseDirectory} [options.dir]
+     * @returns {*|Promise<any>|Promise}
+     */
+  
   readTextFile: function readTextFile(path, options) {
     
       return this.promisified({
@@ -179,6 +246,16 @@ window.tauri = {
   },
 
   
+    /**
+     * @name readBinaryFile
+     * @description Accesses a binary file on the user's filesystem
+     * and returns the content. Permissions based on the app's PID owner
+     * @param {String} path
+     * @param {Object} [options]
+     * @param {BaseDirectory} [options.dir]
+     * @returns {*|Promise<any>|Promise}
+     */
+  
   readBinaryFile: function readBinaryFile(path, options) {
     
       return this.promisified({
@@ -189,6 +266,17 @@ window.tauri = {
     
   },
 
+  
+    /**
+     * @name writeFile
+     * @description Write a file to the Local Filesystem.
+     * Permissions based on the app's PID owner
+     * @param {Object} cfg
+     * @param {String} cfg.file
+     * @param {String|Binary} cfg.contents
+     * @param {Object} [options]
+     * @param {BaseDirectory} [options.dir]
+     */
   
   writeFile: function writeFile(cfg, options) {
     
@@ -205,6 +293,17 @@ window.tauri = {
   },
 
   
+    /**
+     * @name readDir
+     * @description Reads a directory
+     * Permissions based on the app's PID owner
+     * @param {String} path
+     * @param {Object} [options]
+     * @param {Boolean} [options.recursive]
+     * @param {BaseDirectory} [options.dir]
+     * @returns {*|Promise<any>|Promise}
+     */
+  
   readDir: function readDir(path, options) {
     
       return this.promisified({
@@ -215,6 +314,17 @@ window.tauri = {
     
   },
 
+  
+    /**
+     * @name createDir
+     * @description Creates a directory
+     * Permissions based on the app's PID owner
+     * @param {String} path
+     * @param {Object} [options]
+     * @param {Boolean} [options.recursive]
+     * @param {BaseDirectory} [options.dir]
+     * @returns {*|Promise<any>|Promise}
+     */
   
   createDir: function createDir(path, options) {
     
@@ -227,6 +337,17 @@ window.tauri = {
   },
 
   
+    /**
+     * @name removeDir
+     * @description Removes a directory
+     * Permissions based on the app's PID owner
+     * @param {String} path
+     * @param {Object} [options]
+     * @param {Boolean} [options.recursive]
+     * @param {BaseDirectory} [options.dir]
+     * @returns {*|Promise<any>|Promise}
+     */
+  
   removeDir: function removeDir(path, options) {
     
       return this.promisified({
@@ -237,6 +358,17 @@ window.tauri = {
     
   },
 
+  
+    /**
+     * @name copyFile
+     * @description Copy file
+     * Permissions based on the app's PID owner
+     * @param {String} source
+     * @param {String} destination
+     * @param {Object} [options]
+     * @param {BaseDirectory} [options.dir]
+     * @returns {*|Promise<any>|Promise}
+     */
   
   copyFile: function copyFile(source, destination, options) {
     
@@ -250,6 +382,16 @@ window.tauri = {
   },
 
   
+    /**
+     * @name removeFile
+     * @description Removes a file
+     * Permissions based on the app's PID owner
+     * @param {String} path
+     * @param {Object} [options]
+     * @param {BaseDirectory} [options.dir]
+     * @returns {*|Promise<any>|Promise}
+     */
+  
   removeFile: function removeFile(path, options) {
     
       return this.promisified({
@@ -260,6 +402,16 @@ window.tauri = {
     
   },
 
+  
+    /**
+     * @name renameFile
+     * @description Renames a file
+     * Permissions based on the app's PID owner
+     * @param {String} path
+     * @param {Object} [options]
+     * @param {BaseDirectory} [options.dir]
+     * @returns {*|Promise<any>|Promise}
+     */
   
   renameFile: function renameFile(oldPath, newPath, options) {
     
@@ -273,6 +425,12 @@ window.tauri = {
   },
 
   
+    /**
+     * @name setTitle
+     * @description Set the application's title
+     * @param {String} title
+     */
+  
   setTitle: function setTitle(title) {
     
       this.invoke({
@@ -283,6 +441,12 @@ window.tauri = {
   },
 
   
+    /**
+     * @name open
+     * @description Open an URI
+     * @param {String} uri
+     */
+  
   open: function open(uri) {
     
       this.invoke({
@@ -292,6 +456,15 @@ window.tauri = {
     
   },
 
+  
+    /**
+     * @name execute
+     * @description Execute a program with arguments.
+     * Permissions based on the app's PID owner
+     * @param {String} command
+     * @param {String|Array} args
+     * @returns {*|Promise<any>|Promise}
+     */
   
   execute: function execute(command, args) {
     
@@ -304,6 +477,56 @@ window.tauri = {
         cmd: 'execute',
         command: command,
         args: typeof args === 'string' ? [args] : args
+      });
+    
+  },
+
+  
+    /**
+     * @name openDialog
+     * @description Open a file/directory selection dialog
+     * @param {String} [options]
+     * @param {String} [options.filter]
+     * @param {String} [options.defaultPath]
+     * @param {Boolean} [options.multiple=false]
+     * @param {Boolean} [options.directory=false]
+     * @returns {Promise<String|String[]>} promise resolving to the select path(s)
+     */
+  
+  openDialog: function openDialog(options) {
+    
+      var opts = options || {}
+      if (_typeof(options) === 'object') {
+        opts.default_path = opts.defaultPath
+        Object.freeze(options);
+      }
+      return this.promisified({
+        cmd: 'openDialog',
+        options: opts
+      });
+    
+  },
+
+  
+    /**
+     * @name saveDialog
+     * @description Open a file/directory save dialog
+     * @param {String} [options]
+     * @param {String} [options.filter]
+     * @param {String} [options.defaultPath]
+     * @returns {Promise<String>} promise resolving to the select path
+     */
+  
+  saveDialog: function saveDialog(options) {
+    
+      var opts = options || {}
+      if (_typeof(options) === 'object') {
+        opts.default_path = opts.defaultPath
+        Object.freeze(options);
+      }
+      return this.promisified({
+        cmd: 'saveDialog',
+        options: opts
       });
     
   },
@@ -368,67 +591,4 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
     __openLinks()
   }, true)
 }
-</script>
-    <div>
-      <button id="log">Call Log API</button>
-      <button id="request">Call Request (async) API</button>
-      <button id="event">Send event to Rust</button>
-    </div>
-
-    <div style="margin-top: 24px">
-      <select id="dir">
-        <option value="">None</option>
-      </select>
-      <input id="path-to-read" placeholder="Type the path to read...">
-      <button id="read">Read</button>
-    </div>
-
-    <div style="margin-top: 24px">
-      <input id="url" value="https://tauri.studio">
-      <button id="open-url">Open URL</button>
-    </div>
-
-    <div style="margin-top: 24px">
-      <input id="title" value="Awesome Tauri Example!">
-      <button id="set-title">Set title</button>
-    </div>
-
-    <div id="response"></div>
-
-    <script>
-      function registerResponse (response) {
-        document.getElementById('response').innerHTML = typeof response === 'object'
-          ? JSON.stringify(response)
-          : response
-      }
-
-      function addClickEnterHandler (button, input, handler) {
-        button.addEventListener('click', handler)
-        input.addEventListener('keyup', function (e) {
-          if (e.keyCode === 13) {
-            handler()
-          }
-        })
-      }
-
-      window.onTauriInit = function () {
-        window.tauri.listen('rust-event', function (res) {
-          document.getElementById('response').innerHTML = JSON.stringify(res)
-        })
-
-        var dirSelect = document.getElementById('dir')
-        for (var key in window.tauri.Dir) {
-          var value = window.tauri.Dir[key]
-          var opt = document.createElement("option")
-          opt.value = value
-          opt.innerHTML = key
-          dirSelect.appendChild(opt)
-        }
-      }
-    </script>
-    <script src="communication.js"></script>
-    <script src="fs.js"></script>
-    <script src="window.js"></script>
-  
-
-</body></html>
+</script> <div> <button id="log">Call Log API</button> <button id="request">Call Request (async) API</button> <button id="event">Send event to Rust</button> </div> <div style="margin-top:24px"> <select id="dir"> <option value="">None</option> </select> <input id="path-to-read" placeholder="Type the path to read..."> <button id="read">Read</button> </div> <div style="margin-top:24px"> <input id="url" value="https://tauri.studio"> <button id="open-url">Open URL</button> </div> <div style="margin-top:24px"> <input id="title" value="Awesome Tauri Example!"> <button id="set-title">Set title</button> </div> <div style="margin-top:24px"> <input id="dialog-default-path" placeholder="Default path"> <input id="dialog-filter" placeholder="Extensions filter"> <div> <input type="checkbox" id="dialog-multiple"> <label>Multiple</label> </div> <div> <input type="checkbox" id="dialog-directory"> <label>Directory</label> </div> <button id="open-dialog">Open dialog</button> <button id="save-dialog">Open save dialog</button> </div> <div id="response"></div> <script>function registerResponse(e){document.getElementById("response").innerHTML="object"==typeof e?JSON.stringify(e):e}function addClickEnterHandler(e,n,t){e.addEventListener("click",t),n.addEventListener("keyup",function(e){13===e.keyCode&&t()})}window.onTauriInit=function(){window.tauri.listen("rust-event",function(e){document.getElementById("response").innerHTML=JSON.stringify(e)});var e=document.getElementById("dir");for(var n in window.tauri.Dir){var t=window.tauri.Dir[n],i=document.createElement("option");i.value=t,i.innerHTML=n,e.appendChild(i)}};</script> <script>document.getElementById("log").addEventListener("click",function(){window.tauri.invoke({cmd:"logOperation",event:"tauri-click",payload:"this payload is optional because we used Option in Rust"})}),document.getElementById("request").addEventListener("click",function(){window.tauri.promisified({cmd:"performRequest",endpoint:"dummy endpoint arg",body:{id:5,name:"test"}}).then(registerResponse).catch(registerResponse)}),document.getElementById("event").addEventListener("click",function(){window.tauri.emit("js-event","this is the payload string")});</script> <script>var dirSelect=document.getElementById("dir");function getDir(){return dirSelect.value?parseInt(dir.value):null}function arrayBufferToBase64(e,n){var t=new Blob([e],{type:"application/octet-binary"}),r=new FileReader;r.onload=function(e){var t=e.target.result;n(t.substr(t.indexOf(",")+1))},r.readAsDataURL(t)}var pathInput=document.getElementById("path-to-read");addClickEnterHandler(document.getElementById("read"),pathInput,function(){var r=pathInput.value,a=r.match(/\S+\.\S+$/g),e={dir:getDir()};(a?window.tauri.readBinaryFile(r,e):window.tauri.readDir(r,e)).then(function(e){if(a)if(r.includes(".png")||r.includes(".jpg"))arrayBufferToBase64(new Uint8Array(e),function(e){registerResponse('<img src="'+("data:image/png;base64,"+e)+'"></img>')});else{var t=String.fromCharCode.apply(null,e);registerResponse('<textarea id="file-response" style="height: 400px"></textarea><button id="file-save">Save</button>');var n=document.getElementById("file-response");n.value=t,document.getElementById("file-save").addEventListener("click",function(){window.tauri.writeFile({file:r,contents:n.value},{dir:getDir()}).catch(registerResponse)})}else registerResponse(e)}).catch(registerResponse)});</script> <script>var urlInput=document.getElementById("url");addClickEnterHandler(document.getElementById("open-url"),urlInput,function(){window.tauri.open(urlInput.value)});var titleInput=document.getElementById("title");addClickEnterHandler(document.getElementById("set-title"),titleInput,function(){window.tauri.setTitle(titleInput.value)});</script> <script>var defaultPathInput=document.getElementById("dialog-default-path"),filterInput=document.getElementById("dialog-filter"),multipleInput=document.getElementById("dialog-multiple"),directoryInput=document.getElementById("dialog-directory");document.getElementById("open-dialog").addEventListener("click",function(){window.tauri.openDialog({defaultPath:defaultPathInput.value||null,filter:filterInput.value||null,multiple:multipleInput.checked,directory:directoryInput.checked}).then(registerResponse).catch(registerResponse)}),document.getElementById("save-dialog").addEventListener("click",function(){window.tauri.saveDialog({defaultPath:defaultPathInput.value||null,filter:filterInput.value||null}).then(registerResponse).catch(registerResponse)});</script>   </body></html>

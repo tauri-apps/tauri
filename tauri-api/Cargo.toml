@@ -23,6 +23,7 @@ tar = "0.4"
 flate2 = "1"
 error-chain = "0.12"
 rand = "0.7"
+nfd = "0.0.4"
 tauri-utils = {version = "0.4", path = "../tauri-utils"}
 
 [dev-dependencies]

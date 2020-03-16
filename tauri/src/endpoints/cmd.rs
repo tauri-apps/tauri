@@ -14,6 +14,22 @@ pub struct FileOperationOptions {
 }
 
 #[derive(Deserialize)]
+pub struct OpenDialogOptions {
+  pub filter: Option<String>,
+  #[serde(default)]
+  pub multiple: bool,
+  #[serde(default)]
+  pub directory: bool,
+  pub default_path: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct SaveDialogOptions {
+  pub filter: Option<String>,
+  pub default_path: Option<String>,
+}
+
+#[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   Init {},
@@ -113,6 +129,18 @@ pub enum Cmd {
   Emit {
     event: String,
     payload: Option<String>,
+  },
+  #[cfg(any(feature = "all-api", feature = "open-dialog"))]
+  OpenDialog {
+    options: OpenDialogOptions,
+    callback: String,
+    error: String,
+  },
+  #[cfg(any(feature = "all-api", feature = "save-dialog"))]
+  SaveDialog {
+    options: SaveDialogOptions,
+    callback: String,
+    error: String,
   },
   #[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
   LoadAsset {

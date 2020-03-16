@@ -46,6 +46,10 @@ error_chain! {
       description("FileSystem Error")
       display("FileSystem Error: '{}'", t)
     }
+    Dialog(t: String) {
+      description("Dialog Error")
+      display("Dialog Error: '{}'", t)
+    }
   }
 }
 
@@ -57,6 +61,20 @@ pub fn spawn<F: FnOnce() -> () + Send + 'static>(task: F) {
       task();
     });
   });
+}
+
+pub fn execute_promise_sync<T: 'static, F: FnOnce() -> crate::Result<String> + Send + 'static>(
+  webview: &mut WebView<'_, T>,
+  task: F,
+  callback: String,
+  error: String,
+) {
+  let handle = webview.handle();
+  let callback_string =
+    api::rpc::format_callback_result(task().map_err(|err| err.to_string()), callback, error);
+  handle
+    .dispatch(move |_webview| _webview.eval(callback_string.as_str()))
+    .expect("Failed to dispatch promise callback");
 }
 
 pub fn execute_promise<T: 'static, F: FnOnce() -> crate::Result<String> + Send + 'static>(

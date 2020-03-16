@@ -61,7 +61,8 @@ function readDir (dir, options = {}) {
 
 /**
  * Creates a directory
- * If one of the path's parent components doesn't exist and the `recursive` option isn't set to true, it will be rejected
+ * If one of the path's parent components doesn't exist
+ * and the `recursive` option isn't set to true, it will be rejected
  *
  * @param {string} dir path to the directory to create
  * @param {object} [options] configuration object

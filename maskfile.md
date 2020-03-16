@@ -5,8 +5,10 @@
 
 ```sh
 git clone --recursive git@github.com:tauri-apps/examples.git \
-|| cd examples && git pull; cd .. 		# always prepare up-to-date examples in case it's already available
-source .scripts/init_env.sh
+|| (cd examples && git pull origin master; cd ..) 		# always prepare up-to-date examples in case it's already available
+
+export TAURI_DIST_DIR=$PWD/tauri/test/fixture/dist
+export TAURI_DIR=$PWD/tauri/test/fixture/src-tauri
 
 cargo build
 cargo install --path cli/tauri-bundler --force
@@ -28,7 +30,7 @@ source .scripts/init_env.sh
 shopt -s globstar
 
 cd examples/**/$example 2>/dev/null \
-|| cd examples/**/$example/$example 	# workaround for rust/yew/todomvc/todomvc 
+|| cd examples/**/$example/$example 	# workaround for rust/yew/todomvc/todomvc
 
 case "$PWD" in
 */node/*)
@@ -40,10 +42,10 @@ case "$PWD" in
 
   yarn add tauri@link:../../../cli/tauri.js
   yarn && yarn tauri dev
-;; 
+;;
 *)
-  echo unknown project $(dirname $example)/$example 
-;; 
+  echo unknown project $(dirname $example)/$example
+;;
 esac
 ```
 

@@ -51,9 +51,71 @@ function readDir (dir, options = {}) {
   return tauri.readDir(dir, options)
 }
 
+/**
+ * Creates a directory
+ * If one of the path's parent components doesn't exist and the `recursive` option isn't set to true, it will be rejected
+ *
+ * @param {string} dir path to the directory to create
+ * @param {object} [options] configuration object
+ * @param {boolean} [options.recursive] whether to create the directory's parent components or not
+ * @return {Promise<void>}
+ */
+function createDir (dir, options = {}) {
+  return tauri.createDir(dir, options)
+}
+
+/**
+ * Removes a directory
+ * If the directory is not empty and the `recursive` option isn't set to true, it will be rejected
+ *
+ * @param {string} dir path to the directory to remove
+ * @param {object} [options] configuration object
+ * @param {boolean} [options.recursive] whether to remove all of the directory's content or not
+ * @return {Promise<void>}
+ */
+function removeDir (dir, options = {}) {
+  return tauri.removeDir(dir, options)
+}
+
+/**
+ * Copy file
+ *
+ * @param {string} source
+ * @param {string} destination
+ * @return {Promise<void>}
+ */
+function copyFile (source, destination) {
+  return tauri.copyFile(source, destination)
+}
+
+/**
+ * Removes a file
+ *
+ * @param {string} file path to the file to remove
+ * @return {Promise<void>}
+ */
+function removeFile (file) {
+  return tauri.removeFile(file)
+}
+
+/**
+ * Renames a file
+ *
+ * @param {string} oldPath
+ * @param {string} newPath
+ * @return {Promise<void>}
+ */
+function renameFile (oldPath, newPath) {
+  return tauri.renameFile(oldPath, newPath)
+}
+
 export {
   readTextFile,
   readBinaryFile,
   writeFile,
-  readDir
+  readDir,
+  createDir,
+  removeDir,
+  copyFile,
+  removeFile
 }

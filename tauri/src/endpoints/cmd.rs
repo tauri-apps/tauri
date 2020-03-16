@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 #[derive(Deserialize)]
-pub struct ReadDirOptions {
+pub struct DirOperationOptions {
   #[serde(default)]
   pub recursive: bool
 }
@@ -48,7 +48,41 @@ pub enum Cmd {
   #[cfg(any(feature = "all-api", feature = "read-dir"))]
   ReadDir {
     path: String,
-    options: Option<ReadDirOptions>,
+    options: Option<DirOperationOptions>,
+    callback: String,
+    error: String,
+  },
+  #[cfg(any(feature = "all-api", feature = "copy-file"))]
+  CopyFile {
+    source: String,
+    destination: String,
+    callback: String,
+    error: String,
+  },
+  #[cfg(any(feature = "all-api", feature = "create-dir"))]
+  CreateDir {
+    path: String,
+    options: Option<DirOperationOptions>,
+    callback: String,
+    error: String,
+  },
+  #[cfg(any(feature = "all-api", feature = "remove-dir"))]
+  RemoveDir {
+    path: String,
+    options: Option<DirOperationOptions>,
+    callback: String,
+    error: String,
+  },
+  #[cfg(any(feature = "all-api", feature = "remove-file"))]
+  RemoveFile {
+    path: String,
+    callback: String,
+    error: String,
+  },
+  #[cfg(any(feature = "all-api", feature = "rename-file"))]
+  RenameFile {
+    old_path: String,
+    new_path: String,
     callback: String,
     error: String,
   },

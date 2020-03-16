@@ -3,15 +3,16 @@ use web_view::WebView;
 use tauri_api::dir;
 use tauri_api::file;
 
+use std::fs;
 use std::fs::File;
 use std::io::Write;
 
-use super::cmd::{ReadDirOptions};
+use super::cmd::{DirOperationOptions};
 
 pub fn read_dir<T: 'static>(
   webview: &mut WebView<'_, T>,
   path: String,
-  options: Option<ReadDirOptions>,
+  options: Option<DirOperationOptions>,
   callback: String,
   error: String,
 ) {
@@ -25,13 +26,129 @@ pub fn read_dir<T: 'static>(
       };
       if recursive {
         dir::walk_dir(path)
-          .map_err(|e| crate::ErrorKind::Command(e.to_string()).into())
+          .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
           .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
       } else {
         dir::list_dir_contents(path)
-          .map_err(|e| crate::ErrorKind::Command(e.to_string()).into())
+          .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
           .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
       }
+    },
+    callback,
+    error,
+  );
+}
+
+pub fn copy_file<T: 'static>(
+  webview: &mut WebView<'_, T>,
+  source: String,
+  destination: String,
+  callback: String,
+  error: String,
+) {
+  crate::execute_promise(
+    webview,
+    move || {
+      fs::copy(source, destination)
+         .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
+         .map(|_| "".to_string())
+    },
+    callback,
+    error,
+  );
+}
+
+pub fn create_dir<T: 'static>(
+  webview: &mut WebView<'_, T>,
+  path: String,
+  options: Option<DirOperationOptions>,
+  callback: String,
+  error: String,
+) {
+  crate::execute_promise(
+    webview,
+    move || {
+      let recursive = if let Some(options_value) = options {
+        options_value.recursive
+      } else {
+        false
+      };
+      let response = if recursive {
+        fs::create_dir_all(path)
+      } else {
+        fs::create_dir(path)
+      };
+
+      response
+        .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
+         .map(|_| "".to_string())
+    },
+    callback,
+    error,
+  );
+}
+
+pub fn remove_dir<T: 'static>(
+  webview: &mut WebView<'_, T>,
+  path: String,
+  options: Option<DirOperationOptions>,
+  callback: String,
+  error: String,
+) {
+  crate::execute_promise(
+    webview,
+    move || {
+      let recursive = if let Some(options_value) = options {
+        options_value.recursive
+      } else {
+        false
+      };
+      let response = if recursive {
+        fs::remove_dir_all(path)
+      } else {
+        fs::remove_dir(path)
+      };
+
+      response
+        .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
+        .map(|_| "".to_string())
+    },
+    callback,
+    error,
+  );
+}
+
+pub fn remove_file<T: 'static>(
+  webview: &mut WebView<'_, T>,
+  path: String,
+  callback: String,
+  error: String,
+) {
+  crate::execute_promise(
+    webview,
+    move || {
+      fs::remove_file(path)
+        .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
+        .map(|_| "".to_string())
+    },
+    callback,
+    error,
+  );
+}
+
+pub fn rename_file<T: 'static>(
+  webview: &mut WebView<'_, T>,
+  old_path: String,
+  new_path: String,
+  callback: String,
+  error: String,
+) {
+  crate::execute_promise(
+    webview,
+    move || {
+      fs::rename(old_path, new_path)
+        .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
+        .map(|_| "".to_string())
     },
     callback,
     error,
@@ -49,7 +166,7 @@ pub fn write_file<T: 'static>(
     webview,
     move || {
       File::create(file)
-        .map_err(|e| crate::ErrorKind::Command(e.to_string()).into())
+        .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
         .and_then(|mut f| {
           f.write_all(contents.as_bytes())
             .map_err(|err| err.into())
@@ -71,7 +188,7 @@ pub fn read_text_file<T: 'static>(
     webview,
     move || {
       file::read_string(path)
-        .map_err(|e| crate::ErrorKind::Command(e.to_string()).into())
+        .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
         .and_then(|f| {
           serde_json::to_string(&f)
             .map_err(|err| err.into())
@@ -92,7 +209,7 @@ pub fn read_binary_file<T: 'static>(
     webview,
     move || {
       file::read_binary(path)
-        .map_err(|e| crate::ErrorKind::Command(e.to_string()).into())
+        .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
         .and_then(|f| {
           serde_json::to_string(&f)
             .map_err(|err| err.into())

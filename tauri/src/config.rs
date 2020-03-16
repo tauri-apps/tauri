@@ -119,17 +119,17 @@ mod test {
   // test all of the default functions
   fn test_defaults() {
     // get default tauri config
-    let t_config = default_tauri();
+    let t_config = TauriConfig::default();
     // get default build config
-    let b_config = default_build();
+    let b_config = BuildConfig::default();
     // get default dev path
-    let d_path = default_dev_path();
+    let ref d_path = b_config.dev_path;
     // get default embedded server
-    let de_server = default_embedded_server();
+    let de_server = EmbeddedServerConfig::default();
     // get default window
-    let d_window = default_window();
+    let d_window = WindowConfig::default();
     // get default title
-    let d_title = default_title();
+    let ref d_title = d_window.title;
 
     // create a tauri config.
     let tauri = TauriConfig {
@@ -156,8 +156,8 @@ mod test {
     assert_eq!(t_config, tauri);
     assert_eq!(b_config, build);
     assert_eq!(de_server, tauri.embedded_server);
-    assert_eq!(d_path, String::from(""));
-    assert_eq!(d_title, tauri.window.title);
+    assert_eq!(d_path, "");
+    assert_eq!(d_title, &tauri.window.title);
     assert_eq!(d_window, tauri.window);
   }
 }

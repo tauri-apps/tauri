@@ -113,6 +113,9 @@ class Runner {
       .on(
         'change',
         debounce((changedPath: string) => {
+          if (changedPath.startsWith(path.join(tauriDir, 'target'))) {
+            return
+          }
           (this.pid ? this.__stopCargo() : Promise.resolve())
             .then(() => {
               const shouldTriggerRun = changedPath.includes('tauri.conf.json') ||

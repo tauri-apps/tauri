@@ -1,23 +1,28 @@
 import tauri from './tauri'
+import { Dir } from './dir'
 
 /**
  * reads a file as text
  *
  * @param {string} filePath path to the file
+ * @param {object} [options] configuration object
+ * @param {BaseDirectory} [options.dir] base directory
  * @return {Promise<string>}
  */
-function readTextFile (filePath) {
-  return tauri.readTextFile(filePath)
+function readTextFile (filePath, options = {}) {
+  return tauri.readTextFile(filePath, options)
 }
 
 /**
  * reads a file as binary
  *
  * @param {string} filePath path to the file
+ * @param {object} [options] configuration object
+ * @param {BaseDirectory} [options.dir] base directory
  * @return {Promise<int[]>}
  */
-function readBinaryFile (filePath) {
-  return tauri.readBinaryFile(filePath)
+function readBinaryFile (filePath, options = {}) {
+  return tauri.readBinaryFile(filePath, options)
 }
 
 /**
@@ -26,10 +31,12 @@ function readBinaryFile (filePath) {
  * @param {object} file
  * @param {string} file.path path of the file
  * @param {string} file.contents contents of the file
+ * @param {object} [options] configuration object
+ * @param {BaseDirectory} [options.dir] base directory
  * @return {Promise<void>}
  */
-function writeFile (file) {
-  return tauri.writeFile(file)
+function writeFile (file, options = {}) {
+  return tauri.writeFile(file, options)
 }
 
 /**
@@ -45,6 +52,7 @@ function writeFile (file) {
  * @param {string} dir path to the directory to read
  * @param {object} [options] configuration object
  * @param {boolean} [options.recursive] whether to list dirs recursively or not
+ * @param {BaseDirectory} [options.dir] base directory
  * @return {Promise<FileEntry[]>}
  */
 function readDir (dir, options = {}) {
@@ -53,11 +61,13 @@ function readDir (dir, options = {}) {
 
 /**
  * Creates a directory
- * If one of the path's parent components doesn't exist and the `recursive` option isn't set to true, it will be rejected
+ * If one of the path's parent components doesn't exist
+ * and the `recursive` option isn't set to true, it will be rejected
  *
  * @param {string} dir path to the directory to create
  * @param {object} [options] configuration object
  * @param {boolean} [options.recursive] whether to create the directory's parent components or not
+ * @param {BaseDirectory} [options.dir] base directory
  * @return {Promise<void>}
  */
 function createDir (dir, options = {}) {
@@ -71,6 +81,7 @@ function createDir (dir, options = {}) {
  * @param {string} dir path to the directory to remove
  * @param {object} [options] configuration object
  * @param {boolean} [options.recursive] whether to remove all of the directory's content or not
+ * @param {BaseDirectory} [options.dir] base directory
  * @return {Promise<void>}
  */
 function removeDir (dir, options = {}) {
@@ -82,20 +93,24 @@ function removeDir (dir, options = {}) {
  *
  * @param {string} source
  * @param {string} destination
+ * @param {object} [options] configuration object
+ * @param {BaseDirectory} [options.dir] base directory
  * @return {Promise<void>}
  */
-function copyFile (source, destination) {
-  return tauri.copyFile(source, destination)
+function copyFile (source, destination, options = {}) {
+  return tauri.copyFile(source, destination, options)
 }
 
 /**
  * Removes a file
  *
  * @param {string} file path to the file to remove
+ * @param {object} [options] configuration object
+ * @param {BaseDirectory} [options.dir] base directory
  * @return {Promise<void>}
  */
-function removeFile (file) {
-  return tauri.removeFile(file)
+function removeFile (file, options = {}) {
+  return tauri.removeFile(file, options)
 }
 
 /**
@@ -103,13 +118,16 @@ function removeFile (file) {
  *
  * @param {string} oldPath
  * @param {string} newPath
+ * @param {object} [options] configuration object
+ * @param {BaseDirectory} [options.dir] base directory
  * @return {Promise<void>}
  */
-function renameFile (oldPath, newPath) {
-  return tauri.renameFile(oldPath, newPath)
+function renameFile (oldPath, newPath, options = {}) {
+  return tauri.renameFile(oldPath, newPath, options)
 }
 
 export {
+  Dir,
   readTextFile,
   readBinaryFile,
   writeFile,
@@ -117,5 +135,6 @@ export {
   createDir,
   removeDir,
   copyFile,
-  removeFile
+  removeFile,
+  renameFile
 }

@@ -42,13 +42,13 @@ error_chain! {
       description("Command Error")
       display("Command Error: '{}'", t)
     }
-    FileSystem(t: String) {
-      description("FileSystem Error")
-      display("FileSystem Error: '{}'", t)
-    }
     Dialog(t: String) {
       description("Dialog Error")
       display("Dialog Error: '{}'", t)
+    }
+    FileSystem(t: String) {
+      description("FileSystem Error")
+      display("FileSystem Error: '{}'", t)
     }
   }
 }

@@ -28,9 +28,6 @@ module.exports = {
     '<rootDir>/test/jest/__tests__/**/*.spec.js',
     '<rootDir>/test/jest/__tests__/**/*.test.js'
   ],
-  testPathIgnorePatterns: [
-    '(build|dev).spec.js'
-  ],
   moduleFileExtensions: ['ts', 'js', 'json'],
   moduleNameMapper: {
     '^~/(.*)$': '<rootDir>/$1',

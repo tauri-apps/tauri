@@ -5,6 +5,12 @@ const mockFixtureDir = path.resolve(__dirname, '../fixtures')
 
 module.exports.fixtureDir = mockFixtureDir
 
+function mockResolvePath (basePath, dir) {
+  return dir.startsWith('/') || /^\S:/g.test(dir)
+    ? dir
+    : path.resolve(basePath, dir)
+}
+
 module.exports.initJest = (mockFixture) => {
   jest.setTimeout(720000)
   jest.mock('helpers/non-webpack-require', () => {
@@ -25,8 +31,8 @@ module.exports.initJest = (mockFixture) => {
       appDir,
       tauriDir,
       resolve: {
-        app: dir => path.join(appDir, dir),
-        tauri: dir => path.join(tauriDir, dir)
+        app: dir => mockResolvePath(appDir, dir),
+        tauri: dir => mockResolvePath(tauriDir, dir)
       }
     }
   })

@@ -1,5 +1,4 @@
 import { existsSync } from 'fs-extra'
-import { resolve } from 'path'
 import { TauriConfig } from 'types'
 import merge from 'webpack-merge'
 import logger from '../helpers/logger'
@@ -65,7 +64,7 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
     config.build.distDir = appPaths.resolve.tauri(config.build.distDir)
     process.env.TAURI_DIST_DIR = appPaths.resolve.app(config.build.distDir)
   }
-  
+
   if (!process.env.TAURI_DIST_DIR) {
     error("Couldn't resolve the dist dir. Make sure you have `devPath` or `distDir` under tauri.conf.json > build")
     process.exit(1)

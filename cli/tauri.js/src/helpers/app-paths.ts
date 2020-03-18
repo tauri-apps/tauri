@@ -3,7 +3,7 @@ import { join, normalize, resolve, sep } from 'path'
 import logger from './logger'
 const warn = logger('tauri', 'red')
 
-function resolvePath (basePath: string, dir: string): string {
+function resolvePath(basePath: string, dir: string): string {
   return dir.startsWith('/') || /^\S:/g.test(dir)
     ? dir
     : resolve(basePath, dir)

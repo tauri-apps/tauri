@@ -12,7 +12,7 @@
   "scripts": {
     "build": "webpack --progress",
     "build-release": "yarn build --display none --progress false",
-    "test": "jest --runInBand --no-cache --testPathIgnorePatterns='(build|dev)'",
+    "test": "jest --runInBand --no-cache --testPathIgnorePatterns=\"(build|dev)\"",
     "pretest": "yarn build",
     "prepublishOnly": "yarn build-release",
     "test:local": "jest --runInBand",

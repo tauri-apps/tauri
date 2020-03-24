@@ -9,6 +9,9 @@ default-run = "app"
 edition = "2018"
 build = "src/build.rs"
 
+[package.metadata.bundle]
+icon = [ "icons/icon.png" ]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]

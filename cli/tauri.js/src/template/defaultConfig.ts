@@ -1,7 +1,9 @@
 export default {
   build: {
     distDir: '../dist',
-    devPath: 'http://localhost:4000'
+    devPath: 'http://localhost:4000',
+    beforeDevCommand: '',
+    beforeBuildCommand: ''
   },
   ctx: {},
   tauri: {
@@ -15,7 +17,7 @@ export default {
       resources: [],
       externalBin: [],
       copyright: '',
-      category: '',
+      category: 'DeveloperTool',
       shortDescription: '',
       longDescription: '',
       deb: {
@@ -31,7 +33,11 @@ export default {
       all: true
     },
     window: {
-      title: 'Tauri App'
+      title: 'Tauri App',
+      width: 800,
+      height: 600,
+      resizable: true,
+      fullscreen: false
     },
     security: {
       csp: "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"

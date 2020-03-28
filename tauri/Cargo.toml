@@ -24,7 +24,7 @@ threadpool = "1.7"
 uuid = { version = "0.8.1", features = ["v4"] }
 error-chain = "0.12.2"
 
-tauri-api = { version = "0.4",  path = "../tauri-api" }
+tauri-api = { version = "0.5",  path = "../tauri-api" }
 
 [build-dependencies]
 tauri_includedir_codegen = "0.5.2"

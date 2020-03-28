@@ -1,4 +1,7 @@
-const tauricon = require('~/dist/api/tauricon.js')
+const appTestSetup = require('../fixtures/app-test-setup')
+appTestSetup.initJest('app')
+
+const tauricon = require('api/tauricon')
 
 describe('[CLI] tauri-icon internals', () => {
   it('tells you the version', () => {

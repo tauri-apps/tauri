@@ -13,6 +13,8 @@ pub struct WindowConfig {
   pub resizable: bool,
   #[serde(default = "default_title")]
   pub title: String,
+  #[serde(default)]
+  pub fullscreen: bool,
 }
 
 fn default_width() -> i32 {
@@ -37,6 +39,7 @@ fn default_window() -> WindowConfig {
     height: default_height(),
     resizable: default_resizable(),
     title: default_title(),
+    fullscreen: false,
   }
 }
 
@@ -128,6 +131,7 @@ mod test {
           height: 600,
           resizable: true,
           title: String::from("Tauri App"),
+          fullscreen: false,
         },
         embedded_server: EmbeddedServerConfig {
           host: String::from("http://127.0.0.1"),
@@ -180,6 +184,7 @@ mod test {
         height: 600,
         resizable: true,
         title: String::from("Tauri App"),
+        fullscreen: false,
       },
       embedded_server: EmbeddedServerConfig {
         host: String::from("http://127.0.0.1"),

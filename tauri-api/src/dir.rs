@@ -44,7 +44,7 @@ pub fn walk_dir(path_copy: String) -> crate::Result<Vec<DiskEntry>> {
 
 pub fn list_dir_contents(dir_path: String) -> crate::Result<Vec<DiskEntry>> {
   fs::read_dir(dir_path)
-    .map_err(|err| crate::Error::with_chain(err, "read string failed"))
+    .map_err(|err| crate::Error::with_chain(err, "read dir failed"))
     .and_then(|paths| {
       let mut dirs: Vec<DiskEntry> = vec![];
       for path in paths {

@@ -90,7 +90,7 @@ pub enum BuildArtifact {
   Example(String),
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Default)]
 struct BundleSettings {
   // General settings:
   name: Option<String>,
@@ -200,20 +200,31 @@ impl Settings {
       None
     };
     let cargo_settings = CargoSettings::load(&current_dir)?;
+    let tauri_config = super::tauri_config::get();
+
     let package = match cargo_settings.package {
       Some(package_info) => package_info,
       None => bail!("No 'package' info found in 'Cargo.toml'"),
     };
     let workspace_dir = Settings::get_workspace_dir(&current_dir);
     let target_dir = Settings::get_target_dir(&workspace_dir, &target, is_release, &build_artifact);
-    let bundle_settings = if let Some(bundle_settings) = package
-      .metadata
-      .as_ref()
-      .and_then(|metadata| metadata.bundle.as_ref())
-    {
-      bundle_settings.clone()
-    } else {
-      bail!("No [package.metadata.bundle] section in Cargo.toml");
+    let bundle_settings = match tauri_config {
+      Ok(config) => merge_settings(BundleSettings::default(), config.tauri.bundle),
+      Err(e) => {
+        let error_message = e.to_string();
+        if !error_message.contains("No such file or directory") {
+          bail!("Failed to read Tauri config: {}", error_message);
+        }
+        if let Some(bundle_settings) = package
+          .metadata
+          .as_ref()
+          .and_then(|metadata| metadata.bundle.as_ref())
+        {
+          bundle_settings.clone()
+        } else {
+          bail!("No [package.metadata.bundle] section in Cargo.toml");
+        }
+      }
     };
     let (bundle_settings, binary_name) = match build_artifact {
       BuildArtifact::Main => (bundle_settings, package.name.clone()),
@@ -235,12 +246,6 @@ impl Settings {
 
     let bundle_settings = add_external_bin(bundle_settings)?;
 
-    let tauri_config = super::tauri_config::get();
-    let merged_bundle_settings = match tauri_config {
-      Ok(config) => merge_settings(bundle_settings, config.tauri.bundle),
-      Err(_) => bundle_settings,
-    };
-
     Ok(Settings {
       package,
       package_type,
@@ -251,7 +256,7 @@ impl Settings {
       project_out_directory: target_dir,
       binary_path,
       binary_name,
-      bundle_settings: merged_bundle_settings,
+      bundle_settings,
     })
   }
 

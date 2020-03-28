@@ -72,6 +72,33 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
 
 function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
 
+/**
+ * @typedef {number} BaseDirectory
+ */
+/**
+ * @enum {BaseDirectory}
+ */
+var Dir = {
+  Audio: 1,
+  Cache: 2,
+  Config: 3, 
+  Data: 4,
+  LocalData: 5,
+  Desktop: 6,
+  Document: 7,
+  Download: 8,
+  Executable: 9,
+  Font: 10,
+  Home: 11,
+  Picture: 12,
+  Public: 13,
+  Runtime: 14,
+  Template: 15,
+  Video: 16,
+  Resource: 17,
+  App: 18
+}
+
 <% if (ctx.dev) { %>
 /**
  * @name return __whitelistWarning
@@ -103,6 +130,7 @@ var __reject = function () {
 }
 
 window.tauri = {
+  Dir: Dir,
   <% if (ctx.dev) { %>
     /**
      * @name invoke
@@ -153,7 +181,7 @@ window.tauri = {
       this.invoke({
         cmd: 'emit',
         event: evt,
-        payload: payload || ''
+        payload: payload
       });
     <% } else { %>
       <% if (ctx.dev) { %>
@@ -212,14 +240,17 @@ window.tauri = {
      * @description Accesses a non-binary file on the user's filesystem
      * and returns the content. Permissions based on the app's PID owner
      * @param {String} path
+     * @param {Object} [options]
+     * @param {BaseDirectory} [options.dir]
      * @returns {*|Promise<any>|Promise}
      */
   <% } %>
-  readTextFile: function readTextFile(path) {
+  readTextFile: function readTextFile(path, options) {
     <% if (tauri.whitelist.readTextFile === true || tauri.whitelist.all === true) { %>
       return this.promisified({
         cmd: 'readTextFile',
-        path: path
+        path: path,
+        options: options
       });
     <% } else { %>
       <% if (ctx.dev) { %>
@@ -235,14 +266,17 @@ window.tauri = {
      * @description Accesses a binary file on the user's filesystem
      * and returns the content. Permissions based on the app's PID owner
      * @param {String} path
+     * @param {Object} [options]
+     * @param {BaseDirectory} [options.dir]
      * @returns {*|Promise<any>|Promise}
      */
   <% } %>
-  readBinaryFile: function readBinaryFile(path) {
+  readBinaryFile: function readBinaryFile(path, options) {
     <% if (tauri.whitelist.readBinaryFile === true || tauri.whitelist.all === true) { %>
       return this.promisified({
         cmd: 'readBinaryFile',
-        path: path
+        path: path,
+        options: options
       });
     <% } else { %>
       <% if (ctx.dev) { %>
@@ -260,17 +294,20 @@ window.tauri = {
      * @param {Object} cfg
      * @param {String} cfg.file
      * @param {String|Binary} cfg.contents
+     * @param {Object} [options]
+     * @param {BaseDirectory} [options.dir]
      */
   <% } %>
-  writeFile: function writeFile(cfg) {
+  writeFile: function writeFile(cfg, options) {
     <% if (tauri.whitelist.writeFile === true || tauri.whitelist.all === true) { %>
       if (_typeof(cfg) === 'object') {
         Object.freeze(cfg);
       }
-      this.invoke({
+      return this.promisified({
         cmd: 'writeFile',
         file: cfg.file,
-        contents: cfg.contents
+        contents: cfg.contents,
+        options: options
       });
     <% } else { %>
       <% if (ctx.dev) { %>
@@ -282,22 +319,26 @@ window.tauri = {
 
   <% if (ctx.dev) { %>
     /**
-     * @name listFiles
-     * @description Get the files in a path.
+     * @name readDir
+     * @description Reads a directory
      * Permissions based on the app's PID owner
      * @param {String} path
+     * @param {Object} [options]
+     * @param {Boolean} [options.recursive]
+     * @param {BaseDirectory} [options.dir]
      * @returns {*|Promise<any>|Promise}
      */
   <% } %>
-  listFiles: function listFiles(path) {
-    <% if (tauri.whitelist.listFiles === true || tauri.whitelist.all === true) { %>
+  readDir: function readDir(path, options) {
+    <% if (tauri.whitelist.readDir === true || tauri.whitelist.all === true) { %>
       return this.promisified({
-        cmd: 'listFiles',
-        path: path
+        cmd: 'readDir',
+        path: path,
+        options: options
       });
     <% } else { %>
       <% if (ctx.dev) { %>
-          return __whitelistWarning('listDirs')
+          return __whitelistWarning('readDir')
           <% } %>
         return __reject()
         <% } %>
@@ -305,22 +346,134 @@ window.tauri = {
 
   <% if (ctx.dev) { %>
     /**
-     * @name listDirs
-     * @description Get the directories in a path.
+     * @name createDir
+     * @description Creates a directory
      * Permissions based on the app's PID owner
      * @param {String} path
+     * @param {Object} [options]
+     * @param {Boolean} [options.recursive]
+     * @param {BaseDirectory} [options.dir]
      * @returns {*|Promise<any>|Promise}
      */
   <% } %>
-  listDirs: function listDirs(path) {
-    <% if (tauri.whitelist.listDirs === true || tauri.whitelist.all === true) { %>
+  createDir: function createDir(path, options) {
+    <% if (tauri.whitelist.createDir === true || tauri.whitelist.all === true) { %>
       return this.promisified({
-        cmd: 'listDirs',
-        path: path
+        cmd: 'createDir',
+        path: path,
+        options: options
       });
     <% } else { %>
       <% if (ctx.dev) { %>
-          return __whitelistWarning('listDirs')
+          return __whitelistWarning('createDir')
+          <% } %>
+        return __reject()
+        <% } %>
+  },
+
+  <% if (ctx.dev) { %>
+    /**
+     * @name removeDir
+     * @description Removes a directory
+     * Permissions based on the app's PID owner
+     * @param {String} path
+     * @param {Object} [options]
+     * @param {Boolean} [options.recursive]
+     * @param {BaseDirectory} [options.dir]
+     * @returns {*|Promise<any>|Promise}
+     */
+  <% } %>
+  removeDir: function removeDir(path, options) {
+    <% if (tauri.whitelist.removeDir === true || tauri.whitelist.all === true) { %>
+      return this.promisified({
+        cmd: 'removeDir',
+        path: path,
+        options: options
+      });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+          return __whitelistWarning('removeDir')
+          <% } %>
+        return __reject()
+        <% } %>
+  },
+
+  <% if (ctx.dev) { %>
+    /**
+     * @name copyFile
+     * @description Copy file
+     * Permissions based on the app's PID owner
+     * @param {String} source
+     * @param {String} destination
+     * @param {Object} [options]
+     * @param {BaseDirectory} [options.dir]
+     * @returns {*|Promise<any>|Promise}
+     */
+  <% } %>
+  copyFile: function copyFile(source, destination, options) {
+    <% if (tauri.whitelist.copyFile === true || tauri.whitelist.all === true) { %>
+      return this.promisified({
+        cmd: 'copyFile',
+        source: source,
+        destination: destination,
+        options: options
+      });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+          return __whitelistWarning('copyFile')
+          <% } %>
+        return __reject()
+        <% } %>
+  },
+
+  <% if (ctx.dev) { %>
+    /**
+     * @name removeFile
+     * @description Removes a file
+     * Permissions based on the app's PID owner
+     * @param {String} path
+     * @param {Object} [options]
+     * @param {BaseDirectory} [options.dir]
+     * @returns {*|Promise<any>|Promise}
+     */
+  <% } %>
+  removeFile: function removeFile(path, options) {
+    <% if (tauri.whitelist.removeFile === true || tauri.whitelist.all === true) { %>
+      return this.promisified({
+        cmd: 'removeFile',
+        path: path,
+        options: options
+      });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+          return __whitelistWarning('removeFile')
+          <% } %>
+        return __reject()
+        <% } %>
+  },
+
+  <% if (ctx.dev) { %>
+    /**
+     * @name renameFile
+     * @description Renames a file
+     * Permissions based on the app's PID owner
+     * @param {String} path
+     * @param {Object} [options]
+     * @param {BaseDirectory} [options.dir]
+     * @returns {*|Promise<any>|Promise}
+     */
+  <% } %>
+  renameFile: function renameFile(oldPath, newPath, options) {
+    <% if (tauri.whitelist.renameFile === true || tauri.whitelist.all === true) { %>
+      return this.promisified({
+        cmd: 'renameFile',
+        old_path: oldPath,
+        new_path: newPath,
+        options: options
+      });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+          return __whitelistWarning('renameFile')
           <% } %>
         return __reject()
         <% } %>
@@ -398,24 +551,64 @@ window.tauri = {
         <% } %>
   },
 
-bridge: function bridge(command, payload) {
-    <% if (tauri.whitelist.bridge === true || tauri.whitelist.all === true) { %>
-
-    if (_typeof(payload) === 'object') {
-      Object.freeze(payload);
-    }
-
-    return this.promisified({
-      cmd: 'bridge',
-      command: command,
-      payload: _typeof(payload) === 'object' ? [payload] : payload
-    });
+  <% if (ctx.dev) { %>
+    /**
+     * @name openDialog
+     * @description Open a file/directory selection dialog
+     * @param {String} [options]
+     * @param {String} [options.filter]
+     * @param {String} [options.defaultPath]
+     * @param {Boolean} [options.multiple=false]
+     * @param {Boolean} [options.directory=false]
+     * @returns {Promise<String|String[]>} promise resolving to the select path(s)
+     */
+  <% } %>
+  openDialog: function openDialog(options) {
+    <% if (tauri.whitelist.openDialog === true || tauri.whitelist.all === true) { %>
+      var opts = options || {}
+      if (_typeof(options) === 'object') {
+        opts.default_path = opts.defaultPath
+        Object.freeze(options);
+      }
+      return this.promisified({
+        cmd: 'openDialog',
+        options: opts
+      });
     <% } else { %>
-      <% if (ctx.dev) { %>
-          return __whitelistWarning('bridge')
+    <% if (ctx.dev) { %>
+      return __whitelistWarning('openDialog')
+          <% } %>
+    return __reject()
         <% } %>
-            return __reject()
-      <% } %>
+  },
+
+  <% if (ctx.dev) { %>
+    /**
+     * @name saveDialog
+     * @description Open a file/directory save dialog
+     * @param {String} [options]
+     * @param {String} [options.filter]
+     * @param {String} [options.defaultPath]
+     * @returns {Promise<String>} promise resolving to the select path
+     */
+  <% } %>
+  saveDialog: function saveDialog(options) {
+    <% if (tauri.whitelist.saveDialog === true || tauri.whitelist.all === true) { %>
+      var opts = options || {}
+      if (_typeof(options) === 'object') {
+        opts.default_path = opts.defaultPath
+        Object.freeze(options);
+      }
+      return this.promisified({
+        cmd: 'saveDialog',
+        options: opts
+      });
+    <% } else { %>
+    <% if (ctx.dev) { %>
+      return __whitelistWarning('saveDialog')
+          <% } %>
+    return __reject()
+        <% } %>
   },
 
 loadAsset: function loadAsset(assetName, assetType) {

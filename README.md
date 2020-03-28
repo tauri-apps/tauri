@@ -20,6 +20,9 @@ Tauri is a tool for building tiny, blazing fast binaries for all major desktop p
 | tauri.js CLI | [![](https://img.shields.io/npm/v/tauri.svg)](https://www.npmjs.com/package/tauri)         |✅|✅|✅|
 | tauri core    | [![](https://img.shields.io/crates/v/tauri.svg)](https://crates.io/crates/tauri)      |✅|✅|✅|
 | tauri bundler | [![](https://img.shields.io/crates/v/tauri-bundler.svg)](https://crates.io/crates/tauri-bundler)  |✅|✅|✅ |
+| tauri api | [![](https://img.shields.io/crates/v/tauri-api.svg)](https://crates.io/crates/tauri-api)  |✅|✅|✅ |
+| tauri updater | [![](https://img.shields.io/crates/v/tauri-updater.svg)](https://crates.io/crates/tauri-updater)  |✅|✅|✅ |
+| tauri utils | [![](https://img.shields.io/crates/v/tauri-utils.svg)](https://crates.io/crates/tauri-utils)  |✅|✅|✅ |
 
 ## Who Tauri is For
 Because of the way Tauri has been built and can be extended, developers

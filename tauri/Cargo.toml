@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "0.4.4"
+version = "0.5.0"
 authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
 license = "MIT"
 homepage = "https://tauri.studio"

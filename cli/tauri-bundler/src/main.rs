@@ -97,6 +97,7 @@ fn run() -> crate::Result<()> {
             .long("format")
             .value_name("FORMAT")
             .possible_values(&all_formats)
+            .multiple(true)
             .help("Which bundle format to produce"),
         )
         .arg(

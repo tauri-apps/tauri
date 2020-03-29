@@ -375,7 +375,11 @@ fn create_icns_file(
   }
 
   for (icon, next_size_down, density) in images_to_resize {
-    let icon = icon.resize_exact(next_size_down, next_size_down, image::imageops::FilterType::Lanczos3);
+    let icon = icon.resize_exact(
+      next_size_down,
+      next_size_down,
+      image::imageops::FilterType::Lanczos3,
+    );
     add_icon_to_family(icon, density, &mut family)?;
   }
 

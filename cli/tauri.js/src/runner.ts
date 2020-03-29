@@ -164,7 +164,12 @@ class Runner {
         cargoArgs: [
           cfg.tauri.bundle.active ? 'tauri-bundler' : 'build',
           '--features',
-          ...features
+          ...features,
+          ...(
+            cfg.tauri.bundle.active && Array.isArray(cfg.tauri.bundle.targets) && cfg.tauri.bundle.targets.length
+              ? ['--format'].concat(cfg.tauri.bundle.targets)
+              : []
+            )
         ]
           .concat(cfg.ctx.debug ? [] : ['--release'])
           .concat(target ? ['--target', target] : [])

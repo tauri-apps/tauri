@@ -13,15 +13,16 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         package:
           - name: tauri-bundler
             registryName: tauri-bundler
             path: cli/tauri-bundler
             publishPath: cli/tauri-bundler/target/package # not in workspace so target folder is nested
-          - name: tauri-core
-            registryName: tauri
-            path: tauri
+          - name: tauri-utils
+            registryName: tauri-utils
+            path: tauri-utils
             publishPath: target/package
           - name: tauri-api
             registryName: tauri-api
@@ -31,9 +32,9 @@ jobs:
             registryName: tauri-updater
             path: tauri-updater
             publishPath: target/package
-          - name: tauri-utils
-            registryName: tauri-utils
-            path: tauri-utils
+          - name: tauri-core
+            registryName: tauri
+            path: tauri
             publishPath: target/package
     steps:
       - uses: actions/checkout@v2

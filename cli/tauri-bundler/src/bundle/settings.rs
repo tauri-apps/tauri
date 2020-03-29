@@ -208,17 +208,22 @@ impl Settings {
     };
     let workspace_dir = Settings::get_workspace_dir(&current_dir);
     let target_dir = Settings::get_target_dir(&workspace_dir, &target, is_release, &build_artifact);
-    let bundle_settings = if let Some(bundle_settings) = package
-      .metadata
-      .as_ref()
-      .and_then(|metadata| metadata.bundle.as_ref())
-    {
-      bundle_settings.clone()
-    } else {
-      if let Ok(_) = tauri_config {
-        BundleSettings::default()
-      } else {
-        bail!("No [package.metadata.bundle] section in Cargo.toml");
+    let bundle_settings = match tauri_config {
+      Ok(config) => merge_settings(BundleSettings::default(), config.tauri.bundle),
+      Err(e) => {
+        let error_message = e.to_string();
+        if !error_message.contains("No such file or directory") {
+          bail!("Failed to read Tauri config: {}", error_message);
+        }
+        if let Some(bundle_settings) = package
+          .metadata
+          .as_ref()
+          .and_then(|metadata| metadata.bundle.as_ref())
+        {
+          bundle_settings.clone()
+        } else {
+          bail!("No [package.metadata.bundle] section in Cargo.toml");
+        }
       }
     };
     let (bundle_settings, binary_name) = match build_artifact {
@@ -241,17 +246,6 @@ impl Settings {
 
     let bundle_settings = add_external_bin(bundle_settings)?;
 
-    let merged_bundle_settings = match tauri_config {
-      Ok(config) => merge_settings(bundle_settings, config.tauri.bundle),
-      Err(e) => {
-        let error_message = e.to_string();
-        if !error_message.contains("No such file or directory") {
-          bail!("Failed to read Tauri config: {}", error_message);
-        }
-        bundle_settings
-      },
-    };
-
     Ok(Settings {
       package,
       package_type,
@@ -262,7 +256,7 @@ impl Settings {
       project_out_directory: target_dir,
       binary_path,
       binary_name,
-      bundle_settings: merged_bundle_settings,
+      bundle_settings,
     })
   }
 

@@ -1,6 +1,6 @@
 [package]
 name = "tauri-api"
-version = "0.4.2"
+version = "0.5.0"
 authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
 license = "MIT"
 homepage = "https://tauri.studio"
@@ -24,7 +24,7 @@ flate2 = "1"
 error-chain = "0.12"
 rand = "0.7"
 nfd = "0.0.4"
-tauri-utils = {version = "0.4", path = "../tauri-utils"}
+tauri-utils = {version = "0.5", path = "../tauri-utils"}
 
 [dev-dependencies]
 quickcheck = "0.9.2"

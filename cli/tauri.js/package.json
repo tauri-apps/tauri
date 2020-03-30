@@ -12,10 +12,10 @@
   "scripts": {
     "build": "webpack --progress",
     "build-release": "yarn build --display none --progress false",
-    "test": "jest --runInBand --no-cache",
+    "test": "jest --runInBand --no-cache --testPathIgnorePatterns=\"(build|dev)\"",
     "pretest": "yarn build",
     "prepublishOnly": "yarn build-release",
-    "test:mac-local": "jest --runInBand",
+    "test:local": "jest --runInBand",
     "lint": "eslint --ext ts ./src/**/*.ts",
     "lint-fix": "eslint --fix --ext ts ./src/**/*.ts",
     "lint:lockfile": "lockfile-lint --path yarn.lock --type yarn --validate-https --allowed-hosts npm yarn",

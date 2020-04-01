@@ -113,6 +113,7 @@ struct BundleSettings {
   external_bin: Option<Vec<String>>,
   exception_domain: Option<String>,
   osx_signing_identity: Option<String>,
+  osx_entitlements: Option<String>,
   windows_digest_algorithm: Option<String>,
   windows_certificate_thumbprint: Option<String>,
   windows_timestamp_url: Option<String>,
@@ -457,6 +458,10 @@ impl Settings {
     return self.bundle_settings.osx_signing_identity.as_ref();
   }
 
+  pub fn osx_entitlements(&self) -> Option<&String> {
+    return self.bundle_settings.osx_entitlements.as_ref();
+  }
+
   pub fn windows_digest_algorithm(&self) -> Option<&String> {
     return self.bundle_settings.windows_digest_algorithm.as_ref();
   }
@@ -652,6 +657,10 @@ fn merge_settings(
     osx_signing_identity: options_value(
       config.osx.signing_identity,
       bundle_settings.osx_signing_identity,
+    ),
+    osx_entitlements: options_value(
+      config.osx.entitlements,
+      bundle_settings.osx_entitlements
     ),
     windows_digest_algorithm: options_value(
       config.windows.digest_algorithm,

@@ -17,6 +17,7 @@ pub struct OsxConfig {
   pub minimum_system_version: Option<String>,
   pub exception_domain: Option<String>,
   pub signing_identity: Option<String>,
+  pub entitlements: Option<String>,
 }
 
 #[derive(PartialEq, Deserialize, Clone, Debug, Default)]

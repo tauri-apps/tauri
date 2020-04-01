@@ -81,7 +81,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   create_path_hook(&bundle_directory, settings).chain_err(|| "Failed to create _boot wrapper")?;
 
   if let Some(identity) = settings.osx_signing_identity() {
-    sign(app_bundle_path.clone(), identity)?;
+    sign(app_bundle_path.clone(), identity, &settings)?;
     match notarize_auth_args() {
       Ok(args) => {
         notarize(app_bundle_path.clone(), args, settings)?;
@@ -95,16 +95,22 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   Ok(vec![app_bundle_path])
 }
 
-fn sign(app_bundle_path: PathBuf, identity: &str) -> crate::Result<()> {
+fn sign(app_bundle_path: PathBuf, identity: &str, settings: &Settings) -> crate::Result<()> {
   common::print_info(format!(r#"signing app with identity "{}""#, identity).as_str())?;
+  let mut args = vec![
+    "--deep",
+    "--force",
+    "-s",
+    identity,
+  ];
+  if let Some(entitlements_path) = settings.osx_entitlements() {
+    common::print_info(format!("using entitlements file at {}", entitlements_path).as_str())?;
+    args.push("--entitlements");
+    args.push(entitlements_path);
+  }
   let status = Command::new("codesign")
-    .args(vec![
-      "--deep",
-      "--force",
-      "-s",
-      identity,
-      &app_bundle_path.to_string_lossy(),
-    ])
+    .args(args)
+    .arg(app_bundle_path.to_string_lossy().to_string())
     .status()?;
   if !status.success() {
     return Err(crate::Error::from("failed to sign app"));

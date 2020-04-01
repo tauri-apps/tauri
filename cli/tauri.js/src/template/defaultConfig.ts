@@ -26,7 +26,8 @@ export default {
       osx: {
         frameworks: [],
         minimumSystemVersion: '',
-        signingIdentity: ''
+        signingIdentity: '',
+        entitlements: ''
       },
       windows: {
         certificateThumbprint: '',

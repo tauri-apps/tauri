@@ -23,7 +23,7 @@ use crate::{ResultExt, Settings};
 
 use ar;
 use icns;
-use image::png::{PNGDecoder, PNGEncoder};
+use image::png::PngDecoder;
 use image::{self, GenericImageView, ImageDecoder};
 use libflate::gzip;
 use md5;
@@ -32,7 +32,6 @@ use tar;
 use walkdir::WalkDir;
 
 use std::collections::BTreeSet;
-use std::convert::TryInto;
 use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::{self, Write};
@@ -168,7 +167,9 @@ exit 0",
     .status()?;
 
   if !status.success() {
-    return Err(crate::Error::from("failed to make the bootstrapper an executable"));
+    return Err(crate::Error::from(
+      "failed to make the bootstrapper an executable",
+    ));
   }
 
   Ok(())
@@ -302,9 +303,9 @@ fn generate_icon_files(settings: &Settings, data_dir: &PathBuf) -> crate::Result
     if icon_path.extension() != Some(OsStr::new("png")) {
       continue;
     }
-    let decoder = PNGDecoder::new(File::open(&icon_path)?)?;
-    let width = decoder.dimensions().0.try_into()?;
-    let height = decoder.dimensions().1.try_into()?;
+    let decoder = PngDecoder::new(File::open(&icon_path)?)?;
+    let width = decoder.dimensions().0;
+    let height = decoder.dimensions().1;
     let is_high_density = common::is_retina(&icon_path);
     if !sizes.contains(&(width, height, is_high_density)) {
       sizes.insert((width, height, is_high_density));
@@ -337,8 +338,10 @@ fn generate_icon_files(settings: &Settings, data_dir: &PathBuf) -> crate::Result
       if !sizes.contains(&(width, height, is_high_density)) {
         sizes.insert((width, height, is_high_density));
         let dest_path = get_dest_path(width, height, is_high_density);
-        let encoder = PNGEncoder::new(common::create_file(&dest_path)?);
-        encoder.encode(&icon.raw_pixels(), width, height, icon.color())?;
+        icon.write_to(
+          &mut common::create_file(&dest_path)?,
+          image::ImageOutputFormat::Png,
+        )?;
       }
     }
   }

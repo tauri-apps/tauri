@@ -1,4 +1,3 @@
-// eslint-disable-next-line node/no-missing-require
 const { tauri } = require('bin/tauri')
 
 describe('[CLI] tauri.js', () => {
@@ -27,6 +26,7 @@ describe('[CLI] tauri.js', () => {
 
   it('will pass on an available command', async () => {
     jest.spyOn(console, 'log')
+    jest.mock('fs')
     tauri('init')
     expect(console.log.mock.calls[0][0].split('.')[0]).toBe('[tauri]: running init')
     jest.clearAllMocks()

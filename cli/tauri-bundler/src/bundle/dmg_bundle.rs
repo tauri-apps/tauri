@@ -71,7 +71,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .status()?;
 
   if !status.success() {
-    return Err(crate::Error::from("failed to make the bundle script an executable"));
+    return Err(crate::Error::from(
+      "failed to make the bundle script an executable",
+    ));
   }
 
   // execute the bundle script

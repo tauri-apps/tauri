@@ -90,7 +90,7 @@ pub enum BuildArtifact {
   Example(String),
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Default)]
 struct BundleSettings {
   // General settings:
   name: Option<String>,
@@ -204,20 +204,31 @@ impl Settings {
       None
     };
     let cargo_settings = CargoSettings::load(&current_dir)?;
+    let tauri_config = super::tauri_config::get();
+
     let package = match cargo_settings.package {
       Some(package_info) => package_info,
       None => bail!("No 'package' info found in 'Cargo.toml'"),
     };
     let workspace_dir = Settings::get_workspace_dir(&current_dir);
     let target_dir = Settings::get_target_dir(&workspace_dir, &target, is_release, &build_artifact);
-    let bundle_settings = if let Some(bundle_settings) = package
-      .metadata
-      .as_ref()
-      .and_then(|metadata| metadata.bundle.as_ref())
-    {
-      bundle_settings.clone()
-    } else {
-      bail!("No [package.metadata.bundle] section in Cargo.toml");
+    let bundle_settings = match tauri_config {
+      Ok(config) => merge_settings(BundleSettings::default(), config.tauri.bundle),
+      Err(e) => {
+        let error_message = e.to_string();
+        if !error_message.contains("No such file or directory") {
+          bail!("Failed to read Tauri config: {}", error_message);
+        }
+        if let Some(bundle_settings) = package
+          .metadata
+          .as_ref()
+          .and_then(|metadata| metadata.bundle.as_ref())
+        {
+          bundle_settings.clone()
+        } else {
+          bail!("No [package.metadata.bundle] section in Cargo.toml");
+        }
+      }
     };
     let (bundle_settings, binary_name) = match build_artifact {
       BuildArtifact::Main => (bundle_settings, package.name.clone()),
@@ -239,12 +250,6 @@ impl Settings {
 
     let bundle_settings = add_external_bin(bundle_settings)?;
 
-    let tauri_config = super::tauri_config::get();
-    let merged_bundle_settings = match tauri_config {
-      Ok(config) => merge_settings(bundle_settings, config.tauri.bundle),
-      Err(_) => bundle_settings
-    };
-
     Ok(Settings {
       package,
       package_type,
@@ -255,7 +260,7 @@ impl Settings {
       project_out_directory: target_dir,
       binary_path,
       binary_name,
-      bundle_settings: merged_bundle_settings,
+      bundle_settings,
     })
   }
 
@@ -611,17 +616,16 @@ fn add_external_bin(bundle_settings: BundleSettings) -> crate::Result<BundleSett
 }
 
 fn options_value<T>(first: Option<T>, second: Option<T>) -> Option<T> {
-  if first.is_some() {
+  if let Some(_) = first {
     first
-  }
-  else {
+  } else {
     second
   }
 }
 
 fn merge_settings(
   bundle_settings: BundleSettings,
-  config: crate::bundle::tauri_config::BundleConfig
+  config: crate::bundle::tauri_config::BundleConfig,
 ) -> BundleSettings {
   BundleSettings {
     name: options_value(config.name, bundle_settings.name),
@@ -636,13 +640,31 @@ fn merge_settings(
     script: options_value(config.script, bundle_settings.script),
     deb_depends: options_value(config.deb.depends, bundle_settings.deb_depends),
     osx_frameworks: options_value(config.osx.frameworks, bundle_settings.osx_frameworks),
-    osx_minimum_system_version: options_value(config.osx.minimum_system_version, bundle_settings.osx_minimum_system_version),
+    osx_minimum_system_version: options_value(
+      config.osx.minimum_system_version,
+      bundle_settings.osx_minimum_system_version,
+    ),
     external_bin: options_value(config.external_bin, bundle_settings.external_bin),
-    exception_domain: options_value(config.osx.exception_domain, bundle_settings.exception_domain),
-    osx_signing_identity: options_value(config.osx.signing_identity, bundle_settings.osx_signing_identity),
-    windows_digest_algorithm: options_value(config.windows.digest_algorithm, bundle_settings.windows_digest_algorithm),
-    windows_certificate_thumbprint: options_value(config.windows.certificate_thumbprint, bundle_settings.windows_certificate_thumbprint),
-    windows_timestamp_url: options_value(config.windows.timestamp_url, bundle_settings.windows_timestamp_url),
+    exception_domain: options_value(
+      config.osx.exception_domain,
+      bundle_settings.exception_domain,
+    ),
+    osx_signing_identity: options_value(
+      config.osx.signing_identity,
+      bundle_settings.osx_signing_identity,
+    ),
+    windows_digest_algorithm: options_value(
+      config.windows.digest_algorithm,
+      bundle_settings.windows_digest_algorithm,
+    ),
+    windows_certificate_thumbprint: options_value(
+      config.windows.certificate_thumbprint,
+      bundle_settings.windows_certificate_thumbprint,
+    ),
+    windows_timestamp_url: options_value(
+      config.windows.timestamp_url,
+      bundle_settings.windows_timestamp_url,
+    ),
     ..bundle_settings
   }
 }
@@ -653,7 +675,7 @@ pub struct ResourcePaths<'a> {
   walk_iter: Option<walkdir::IntoIter>,
   allow_walk: bool,
   current_pattern: Option<String>,
-  current_pattern_is_valid: bool
+  current_pattern_is_valid: bool,
 }
 
 impl<'a> ResourcePaths<'a> {
@@ -710,7 +732,10 @@ impl<'a> Iterator for ResourcePaths<'a> {
         } else {
           if let Some(current_path) = &self.current_pattern {
             if !self.current_pattern_is_valid {
-              return Some(Err(crate::Error::from(format!("Path matching '{}' not found", current_path))));
+              return Some(Err(crate::Error::from(format!(
+                "Path matching '{}' not found",
+                current_path
+              ))));
             }
           }
         }

@@ -34,9 +34,9 @@ use std::io::{self, BufWriter};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+use regex::Regex;
 use tempfile;
 use zip;
-use regex::Regex;
 
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let app_bundle_name = format!("{}.app", settings.bundle_name());
@@ -85,7 +85,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     match notarize_auth_args() {
       Ok(args) => {
         notarize(app_bundle_path.clone(), args, settings)?;
-      },
+      }
       Err(e) => {
         common::print_info(format!("skipping app notarize, {}", e.to_string()).as_str())?;
       }
@@ -96,37 +96,58 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 }
 
 fn sign(app_bundle_path: PathBuf, settings: &Settings) -> crate::Result<()> {
-  let identity = settings.osx_signing_identity().expect("signing identity not provided");
+  let identity = settings
+    .osx_signing_identity()
+    .expect("signing identity not provided");
   common::print_info(format!(r#"signing app with identity "{}""#, identity).as_str())?;
   let output = Command::new("codesign")
-    .args(vec!["--deep", "--force", "-s", identity, &app_bundle_path.to_string_lossy()])
+    .args(vec![
+      "--deep",
+      "--force",
+      "-s",
+      identity,
+      &app_bundle_path.to_string_lossy(),
+    ])
     .output()?;
   if !output.status.success() {
-    return Err(crate::Error::from(format!("failed to sign app. {:?}", output.stderr)));
+    return Err(crate::Error::from(format!(
+      "failed to sign app. {:?}",
+      output.stderr
+    )));
   }
   Ok(())
 }
 
-fn notarize(app_bundle_path: PathBuf, auth_args: Vec<&'static str>, settings: &Settings) -> crate::Result<()> {
+fn notarize(
+  app_bundle_path: PathBuf,
+  auth_args: Vec<&'static str>,
+  settings: &Settings,
+) -> crate::Result<()> {
   let identifier = settings.bundle_identifier();
 
   let tmp_dir = tempfile::tempdir()?;
-  let bundle_stem = app_bundle_path.file_stem().expect("failed to get bundle filename");
+  let bundle_stem = app_bundle_path
+    .file_stem()
+    .expect("failed to get bundle filename");
   let zip_path = tmp_dir.path().join(format!("{:?}.zip", bundle_stem));
   let file = std::fs::File::create(zip_path.clone()).unwrap();
   let mut zip = zip::ZipWriter::new(file);
   zip.add_directory(
-    app_bundle_path.to_str().expect("failed to convert bundle_path to string"),
-    Default::default()
+    app_bundle_path
+      .to_str()
+      .expect("failed to convert bundle_path to string"),
+    Default::default(),
   )?;
-  
+
   let notarize_args = vec![
     "altool",
     "--notarize-app",
     "-f",
-    zip_path.to_str().expect("failed to convert zip_path to string"),
+    zip_path
+      .to_str()
+      .expect("failed to convert zip_path to string"),
     "--primary-bundle-id",
-    identifier
+    identifier,
   ];
   let output = Command::new("xcrun")
     .args(notarize_args)
@@ -134,7 +155,10 @@ fn notarize(app_bundle_path: PathBuf, auth_args: Vec<&'static str>, settings: &S
     .output()?;
 
   if !output.status.success() {
-    return Err(crate::Error::from(format!("failed to upload app to Apple's notarization servers. {:?}", output.stderr)));
+    return Err(crate::Error::from(format!(
+      "failed to upload app to Apple's notarization servers. {:?}",
+      output.stderr
+    )));
   }
 
   let regex = Regex::new(r"\nRequestUUID = (.+?)\n")?;
@@ -145,15 +169,19 @@ fn notarize(app_bundle_path: PathBuf, auth_args: Vec<&'static str>, settings: &S
     get_notarization_status(uuid, auth_args)?;
     staple_app(app_bundle_path.clone())?;
   } else {
-    return Err(crate::Error::from(format!("failed to parse RequestUUID from upload output. {}", stdout)));
+    return Err(crate::Error::from(format!(
+      "failed to parse RequestUUID from upload output. {}",
+      stdout
+    )));
   }
-  
+
   Ok(())
 }
 
 fn staple_app(mut app_bundle_path: PathBuf) -> crate::Result<()> {
   let app_bundle_path_clone = app_bundle_path.clone();
-  let filename = app_bundle_path_clone.file_name()
+  let filename = app_bundle_path_clone
+    .file_name()
     .expect("failed to get bundle filename")
     .to_str()
     .expect("failed to convert bundle filename to string");
@@ -166,7 +194,10 @@ fn staple_app(mut app_bundle_path: PathBuf) -> crate::Result<()> {
     .output()?;
 
   if !output.status.success() {
-    Err(crate::Error::from(format!("failed to staple app. {:?}", output.stderr)))
+    Err(crate::Error::from(format!(
+      "failed to staple app. {:?}",
+      output.stderr
+    )))
   } else {
     Ok(())
   }
@@ -190,12 +221,16 @@ fn get_notarization_status(uuid: String, auth_args: Vec<&'static str>) -> crate:
         get_notarization_status(uuid, auth_args.clone())
       } else {
         if status == "invalid" {
-          Err(crate::Error::from(format!("Apple failed to notarize your app. {:?}", output.stderr)))
-        }
-        else if status != "success" {
-          Err(crate::Error::from(format!("Unknown notarize status {}. {:?}", status, output.stderr)))
-        }
-        else {
+          Err(crate::Error::from(format!(
+            "Apple failed to notarize your app. {:?}",
+            output.stderr
+          )))
+        } else if status != "success" {
+          Err(crate::Error::from(format!(
+            "Unknown notarize status {}. {:?}",
+            status, output.stderr
+          )))
+        } else {
           Ok(())
         }
       }
@@ -275,7 +310,9 @@ exit 0",
     .status()?;
 
   if !status.success() {
-    return Err(crate::Error::from("failed to make the bootstrapper an executable"));
+    return Err(crate::Error::from(
+      "failed to make the bootstrapper an executable",
+    ));
   }
 
   Ok(())
@@ -517,7 +554,11 @@ fn create_icns_file(
   }
 
   for (icon, next_size_down, density) in images_to_resize {
-    let icon = icon.resize_exact(next_size_down, next_size_down, image::Lanczos3);
+    let icon = icon.resize_exact(
+      next_size_down,
+      next_size_down,
+      image::imageops::FilterType::Lanczos3,
+    );
     add_icon_to_family(icon, density, &mut family)?;
   }
 
@@ -537,14 +578,14 @@ fn create_icns_file(
 /// Converts an image::DynamicImage into an icns::Image.
 fn make_icns_image(img: image::DynamicImage) -> io::Result<icns::Image> {
   let pixel_format = match img.color() {
-    image::ColorType::RGBA(8) => icns::PixelFormat::RGBA,
-    image::ColorType::RGB(8) => icns::PixelFormat::RGB,
-    image::ColorType::GrayA(8) => icns::PixelFormat::GrayAlpha,
-    image::ColorType::Gray(8) => icns::PixelFormat::Gray,
+    image::ColorType::Rgba8 => icns::PixelFormat::RGBA,
+    image::ColorType::Rgb8 => icns::PixelFormat::RGB,
+    image::ColorType::La8 => icns::PixelFormat::GrayAlpha,
+    image::ColorType::L8 => icns::PixelFormat::Gray,
     _ => {
       let msg = format!("unsupported ColorType: {:?}", img.color());
       return Err(io::Error::new(io::ErrorKind::InvalidData, msg));
     }
   };
-  icns::Image::from_data(pixel_format, img.width(), img.height(), img.raw_pixels())
+  icns::Image::from_data(pixel_format, img.width(), img.height(), img.to_bytes())
 }

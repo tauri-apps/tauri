@@ -1,9 +1,9 @@
 import { existsSync } from 'fs-extra'
-import { resolve } from 'path'
 import { TauriConfig } from 'types'
 import merge from 'webpack-merge'
 import logger from '../helpers/logger'
 import * as appPaths from './app-paths'
+import nonWebpackRequire from '../helpers/non-webpack-require'
 
 const error = logger('ERROR:', 'red')
 
@@ -20,8 +20,8 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
     )
     process.exit(1)
   }
-  const tauriConf = __non_webpack_require__(tauriConfPath)
-  const pkg = __non_webpack_require__(pkgPath)
+  const tauriConf = nonWebpackRequire(tauriConfPath)
+  const pkg = nonWebpackRequire(pkgPath)
 
   const config = merge(
     {
@@ -57,13 +57,19 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
 
   const runningDevServer = config.build.devPath && config.build.devPath.startsWith('http')
   if (!runningDevServer) {
-    config.build.devPath = resolve(appPaths.tauriDir, config.build.devPath)
+    config.build.devPath = appPaths.resolve.tauri(config.build.devPath)
+    process.env.TAURI_DIST_DIR = appPaths.resolve.app(config.build.devPath)
   }
   if (config.build.distDir) {
-    config.build.distDir = resolve(appPaths.tauriDir, config.build.distDir)
+    config.build.distDir = appPaths.resolve.tauri(config.build.distDir)
+    process.env.TAURI_DIST_DIR = appPaths.resolve.app(config.build.distDir)
   }
 
-  process.env.TAURI_DIST_DIR = appPaths.resolve.app(config.build.distDir)
+  if (!process.env.TAURI_DIST_DIR) {
+    error("Couldn't resolve the dist dir. Make sure you have `devPath` or `distDir` under tauri.conf.json > build")
+    process.exit(1)
+  }
+
   process.env.TAURI_DIR = appPaths.tauriDir
   process.env.TAURI_CONFIG = JSON.stringify(config)
 

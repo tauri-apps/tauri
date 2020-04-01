@@ -20,9 +20,10 @@ error_chain! {
         Walkdir(::walkdir::Error);
         StripError(std::path::StripPrefixError);
         ConvertError(std::num::TryFromIntError);
-        RegexError(::regex::Error) #[cfg(windows)];
+        RegexError(::regex::Error);
         HttpError(::attohttpc::Error) #[cfg(windows)];
         Json(::serde_json::error::Error);
+        Zip(::zip::result::ZipError);
     }
     errors {}
 }

@@ -24,6 +24,7 @@ error_chain! {
         HttpError(::attohttpc::Error) #[cfg(windows)];
         Json(::serde_json::error::Error);
         Zip(::zip::result::ZipError);
+        Utf8(::std::str::Utf8Error);
     }
     errors {}
 }

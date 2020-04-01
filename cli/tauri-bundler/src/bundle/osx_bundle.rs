@@ -80,8 +80,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   create_path_hook(&bundle_directory, settings).chain_err(|| "Failed to create _boot wrapper")?;
 
-  if settings.osx_signing_identity().is_some() {
-    sign(app_bundle_path.clone(), settings)?;
+  if let Some(identity) = settings.osx_signing_identity() {
+    sign(app_bundle_path.clone(), identity)?;
     match notarize_auth_args() {
       Ok(args) => {
         notarize(app_bundle_path.clone(), args, settings)?;
@@ -95,12 +95,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   Ok(vec![app_bundle_path])
 }
 
-fn sign(app_bundle_path: PathBuf, settings: &Settings) -> crate::Result<()> {
-  let identity = settings
-    .osx_signing_identity()
-    .expect("signing identity not provided");
+fn sign(app_bundle_path: PathBuf, identity: &str) -> crate::Result<()> {
   common::print_info(format!(r#"signing app with identity "{}""#, identity).as_str())?;
-  let output = Command::new("codesign")
+  let status = Command::new("codesign")
     .args(vec![
       "--deep",
       "--force",
@@ -108,19 +105,16 @@ fn sign(app_bundle_path: PathBuf, settings: &Settings) -> crate::Result<()> {
       identity,
       &app_bundle_path.to_string_lossy(),
     ])
-    .output()?;
-  if !output.status.success() {
-    return Err(crate::Error::from(format!(
-      "failed to sign app. {:?}",
-      output.stderr
-    )));
+    .status()?;
+  if !status.success() {
+    return Err(crate::Error::from("failed to sign app"));
   }
   Ok(())
 }
 
 fn notarize(
   app_bundle_path: PathBuf,
-  auth_args: Vec<&'static str>,
+  auth_args: Vec<String>,
   settings: &Settings,
 ) -> crate::Result<()> {
   let identifier = settings.bundle_identifier();
@@ -149,20 +143,22 @@ fn notarize(
     "--primary-bundle-id",
     identifier,
   ];
+  common::print_info("notarizing app")?;
   let output = Command::new("xcrun")
     .args(notarize_args)
     .args(auth_args.clone())
+    .stderr(Stdio::inherit())
     .output()?;
 
   if !output.status.success() {
     return Err(crate::Error::from(format!(
-      "failed to upload app to Apple's notarization servers. {:?}",
-      output.stderr
+      "failed to upload app to Apple's notarization servers. {}",
+      std::str::from_utf8(&output.stdout)?
     )));
   }
 
   let regex = Regex::new(r"\nRequestUUID = (.+?)\n")?;
-  let stdout = std::str::from_utf8(&output.stdout).expect("failed to get xcrun output");
+  let stdout = std::str::from_utf8(&output.stdout)?;
   if let Some(uuid) = regex.captures_iter(stdout).next() {
     common::print_info("notarization started; waiting for Apple response...")?;
     let uuid = uuid[1].to_string();
@@ -191,30 +187,32 @@ fn staple_app(mut app_bundle_path: PathBuf) -> crate::Result<()> {
   let output = Command::new("xcrun")
     .args(vec!["stapler", "staple", "-v", filename])
     .current_dir(app_bundle_path)
+    .stderr(Stdio::inherit())
     .output()?;
 
   if !output.status.success() {
     Err(crate::Error::from(format!(
-      "failed to staple app. {:?}",
-      output.stderr
+      "failed to staple app. {}",
+      std::str::from_utf8(&output.stdout)?
     )))
   } else {
     Ok(())
   }
 }
 
-fn get_notarization_status(uuid: String, auth_args: Vec<&'static str>) -> crate::Result<()> {
+fn get_notarization_status(uuid: String, auth_args: Vec<String>) -> crate::Result<()> {
   std::thread::sleep(std::time::Duration::from_secs(10));
   let output = Command::new("xcrun")
     .args(vec!["altool", "--notarization-info", &uuid])
     .args(auth_args.clone())
+    .stderr(Stdio::inherit())
     .output()?;
 
   if !output.status.success() {
     get_notarization_status(uuid, auth_args.clone())
   } else {
     let regex = Regex::new(r"\n *Status: (.+?)\n")?;
-    let stdout = std::str::from_utf8(&output.stdout).expect("failed to get xcrun output");
+    let stdout = std::str::from_utf8(&output.stdout)?;
     if let Some(status) = regex.captures_iter(stdout).next() {
       let status = status[1].to_string();
       if status == "in progress" {
@@ -222,13 +220,14 @@ fn get_notarization_status(uuid: String, auth_args: Vec<&'static str>) -> crate:
       } else {
         if status == "invalid" {
           Err(crate::Error::from(format!(
-            "Apple failed to notarize your app. {:?}",
-            output.stderr
+            "Apple failed to notarize your app. {}",
+            std::str::from_utf8(&output.stdout)?
           )))
         } else if status != "success" {
           Err(crate::Error::from(format!(
-            "Unknown notarize status {}. {:?}",
-            status, output.stderr
+            "Unknown notarize status {}. {}",
+            status,
+            std::str::from_utf8(&output.stdout)?
           )))
         } else {
           Ok(())
@@ -240,12 +239,36 @@ fn get_notarization_status(uuid: String, auth_args: Vec<&'static str>) -> crate:
   }
 }
 
-fn notarize_auth_args() -> crate::Result<Vec<&'static str>> {
-  match (option_env!("APPLE_ID"), option_env!("APPLE_PASSWORD")) {
-    (Some(apple_id), Some(apple_password)) => Ok(vec!["-u", apple_id, "-p", apple_password]),
+fn notarize_auth_args() -> crate::Result<Vec<String>> {
+  match (
+    std::env::var_os("APPLE_ID"),
+    std::env::var_os("APPLE_PASSWORD"),
+  ) {
+    (Some(apple_id), Some(apple_password)) => {
+      let apple_id = apple_id
+        .clone()
+        .to_str()
+        .expect("failed to convert APPLE_ID to string")
+        .to_string();
+      let apple_password = apple_password
+        .clone()
+        .to_str()
+        .expect("failed to convert APPLE_PASSWORD to string")
+        .to_string();
+      Ok(vec![
+        "-u".to_string(),
+        apple_id,
+        "-p".to_string(),
+        apple_password,
+      ])
+    }
     _ => {
-      match (option_env!("APPLE_API_KEY"), option_env!("APPLE_API_ISSUER")) {
-        (Some(api_key), Some(api_issuer)) => Ok(vec!["--apiKey", api_key, "--apiIssuer", api_issuer]),
+      match (std::env::var_os("APPLE_API_KEY"), std::env::var_os("APPLE_API_ISSUER")) {
+        (Some(api_key), Some(api_issuer)) => {
+          let api_key = api_key.clone().to_str().expect("failed to convert APPLE_API_KEY to string").to_string();
+          let api_issuer = api_issuer.clone().to_str().expect("failed to convert APPLE_API_ISSUER to string").to_string();
+          Ok(vec!["--apiKey".to_string(), api_key, "--apiIssuer".to_string(), api_issuer])
+        },
         _ => Err(crate::Error::from("no APPLE_ID & APPLE_PASSWORD or APPLE_API_KEY & APPLE_API_ISSUER environment variables found"))
       }
     }

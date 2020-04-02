@@ -27,7 +27,7 @@ pub fn open<T: 'static>(
         select(options.filter, options.default_path)
       };
       response
-        .map(|r| map_response(r))
+        .map(map_response)
         .map_err(|e| crate::ErrorKind::Dialog(e.to_string()).into())
     },
     callback,
@@ -45,7 +45,7 @@ pub fn save<T: 'static>(
     webview,
     move || {
       save_file(options.filter, options.default_path)
-        .map(|r| map_response(r))
+        .map(map_response)
         .map_err(|e| crate::ErrorKind::Dialog(e.to_string()).into())
     },
     callback,

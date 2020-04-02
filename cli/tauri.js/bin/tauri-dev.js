@@ -20,10 +20,14 @@ if (argv.help) {
   process.exit(0)
 }
 
-const dev = require('../dist/api/dev')
+async function run () {
+  const dev = require('../dist/api/dev')
 
-dev({
-  ctx: {
-    exitOnPanic: argv['exit-on-panic']
-  }
-})
+  await dev({
+    ctx: {
+      exitOnPanic: argv['exit-on-panic']
+    }
+  }).promise
+}
+
+run()

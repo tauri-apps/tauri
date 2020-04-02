@@ -135,7 +135,8 @@ const validate = async (
   if (target !== undefined) {
     await ensureDir(target)
   }
-  return checkSrc(src)
+  const res = await checkSrc(src)
+  return res
 }
 
 // TODO: should take end param?

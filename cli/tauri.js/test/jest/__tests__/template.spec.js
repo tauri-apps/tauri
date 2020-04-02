@@ -16,7 +16,7 @@ describe('[CLI] tauri.js template', () => {
       const init = require('api/init')
       init({
         directory: process.cwd(),
-        force: true,
+        force: 'all',
         tauriPath: resolve(__dirname, '../../../../..')
       })
 

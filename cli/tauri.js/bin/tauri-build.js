@@ -23,11 +23,15 @@ if (argv.help) {
   process.exit(0)
 }
 
-const build = require('../dist/api/build')
+async function run () {
+  const build = require('../dist/api/build')
 
-build({
-  ctx: {
-    debug: argv.debug,
-    target: argv.target
-  }
-})
+  await build({
+    ctx: {
+      debug: argv.debug,
+      target: argv.target
+    }
+  }).promise
+}
+
+run()

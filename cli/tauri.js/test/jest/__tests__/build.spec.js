@@ -13,6 +13,9 @@ function runBuildTest(tauriConfig) {
       let success = false
       const server = fixtureSetup.startServer(() => {
         success = true
+        try {
+          process.kill(appPid)
+        } catch {}
         // wait for the app process to be killed
         setTimeout(resolve, 2000)
       })
@@ -37,7 +40,7 @@ function runBuildTest(tauriConfig) {
             reject("App didn't reply")
           })
         }
-      }, 2500)
+      }, 15000)
     } catch (error) {
       reject(error)
     }

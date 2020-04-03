@@ -23,7 +23,7 @@ use crate::{ResultExt, Settings};
 
 use ar;
 use icns;
-use image::png::{PngDecoder};
+use image::png::PngDecoder;
 use image::{self, GenericImageView, ImageDecoder};
 use libflate::gzip;
 use md5;
@@ -334,7 +334,7 @@ fn generate_icon_files(settings: &Settings, data_dir: &PathBuf) -> crate::Result
         let dest_path = get_dest_path(width, height, is_high_density);
         icon.write_to(
           &mut common::create_file(&dest_path)?,
-          image::ImageOutputFormat::Png
+          image::ImageOutputFormat::Png,
         )?;
       }
     }

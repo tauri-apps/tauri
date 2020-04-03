@@ -4,8 +4,8 @@ import { Dir } from './dir'
 /**
  * reads a file as text
  *
- * @param {string} filePath path to the file
- * @param {object} [options] configuration object
+ * @param {String} filePath path to the file
+ * @param {Object} [options] configuration object
  * @param {BaseDirectory} [options.dir] base directory
  * @return {Promise<string>}
  */
@@ -16,8 +16,8 @@ function readTextFile (filePath, options = {}) {
 /**
  * reads a file as binary
  *
- * @param {string} filePath path to the file
- * @param {object} [options] configuration object
+ * @param {String} filePath path to the file
+ * @param {Object} [options] configuration object
  * @param {BaseDirectory} [options.dir] base directory
  * @return {Promise<int[]>}
  */
@@ -28,10 +28,10 @@ function readBinaryFile (filePath, options = {}) {
 /**
  * writes a text file
  *
- * @param {object} file
- * @param {string} file.path path of the file
- * @param {string} file.contents contents of the file
- * @param {object} [options] configuration object
+ * @param {Object} file
+ * @param {String} file.path path of the file
+ * @param {String} file.contents contents of the file
+ * @param {Object} [options] configuration object
  * @param {BaseDirectory} [options.dir] base directory
  * @return {Promise<void>}
  */
@@ -40,18 +40,18 @@ function writeFile (file, options = {}) {
 }
 
 /**
- * @typedef {object} FileEntry
- * @property {string} path
- * @property {boolean} is_dir
- * @property {string} name
+ * @typedef {Object} FileEntry
+ * @property {String} path
+ * @property {Boolean} is_dir
+ * @property {String} name
  */
 
 /**
  * list directory files
  *
- * @param {string} dir path to the directory to read
- * @param {object} [options] configuration object
- * @param {boolean} [options.recursive] whether to list dirs recursively or not
+ * @param {String} dir path to the directory to read
+ * @param {Object} [options] configuration object
+ * @param {Boolean} [options.recursive] whether to list dirs recursively or not
  * @param {BaseDirectory} [options.dir] base directory
  * @return {Promise<FileEntry[]>}
  */
@@ -64,9 +64,9 @@ function readDir (dir, options = {}) {
  * If one of the path's parent components doesn't exist
  * and the `recursive` option isn't set to true, it will be rejected
  *
- * @param {string} dir path to the directory to create
- * @param {object} [options] configuration object
- * @param {boolean} [options.recursive] whether to create the directory's parent components or not
+ * @param {String} dir path to the directory to create
+ * @param {Object} [options] configuration object
+ * @param {Boolean} [options.recursive] whether to create the directory's parent components or not
  * @param {BaseDirectory} [options.dir] base directory
  * @return {Promise<void>}
  */
@@ -78,9 +78,9 @@ function createDir (dir, options = {}) {
  * Removes a directory
  * If the directory is not empty and the `recursive` option isn't set to true, it will be rejected
  *
- * @param {string} dir path to the directory to remove
- * @param {object} [options] configuration object
- * @param {boolean} [options.recursive] whether to remove all of the directory's content or not
+ * @param {String} dir path to the directory to remove
+ * @param {Object} [options] configuration object
+ * @param {Boolean} [options.recursive] whether to remove all of the directory's content or not
  * @param {BaseDirectory} [options.dir] base directory
  * @return {Promise<void>}
  */
@@ -104,8 +104,8 @@ function copyFile (source, destination, options = {}) {
 /**
  * Removes a file
  *
- * @param {string} file path to the file to remove
- * @param {object} [options] configuration object
+ * @param {String} file path to the file to remove
+ * @param {Object} [options] configuration object
  * @param {BaseDirectory} [options.dir] base directory
  * @return {Promise<void>}
  */
@@ -116,9 +116,9 @@ function removeFile (file, options = {}) {
 /**
  * Renames a file
  *
- * @param {string} oldPath
- * @param {string} newPath
- * @param {object} [options] configuration object
+ * @param {String} oldPath
+ * @param {String} newPath
+ * @param {Object} [options] configuration object
  * @param {BaseDirectory} [options.dir] base directory
  * @return {Promise<void>}
  */

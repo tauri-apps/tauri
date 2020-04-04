@@ -6,10 +6,11 @@ use handlebars::Handlebars;
 use lazy_static::lazy_static;
 
 use std::collections::BTreeMap;
-use std::fs::{write, File};
-use std::io::Write;
+use std::fs::{self, write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+
+use crate::ResultExt;
 
 // Create handlebars template for shell scripts
 lazy_static! {
@@ -28,56 +29,77 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // generate the app.app folder
   osx_bundle::bundle_project(settings)?;
 
-  // get uppercase string of app name
-  let upcase = settings.binary_name().to_uppercase();
+  let app_name = settings.bundle_name();
 
-  // generate BTreeMap for templates
-  let mut sh_map = BTreeMap::new();
-  sh_map.insert("app_name", settings.binary_name());
-  sh_map.insert("app_name_upcase", &upcase);
-
+  let sh_map: BTreeMap<(), ()> = BTreeMap::new();
   let bundle_temp = HANDLEBARS
     .render("bundle_dmg", &sh_map)
     .or_else(|e| Err(e.to_string()))?;
 
   // get the target path
-  let output_path = settings.project_out_directory();
+  let output_path = settings.project_out_directory().join("bundle/dmg");
+  let dmg_name = format!("{}.dmg", app_name.clone());
+  let dmg_path = output_path.join(&dmg_name.clone());
+
+  let bundle_name = &format!("{}.app", app_name);
+  let bundle_dir = settings.project_out_directory().join("bundle/osx");
+  let bundle_path = bundle_dir.join(&bundle_name.clone());
+
+  let support_directory_path = output_path.join("support");
+  if output_path.exists() {
+    fs::remove_dir_all(&output_path).chain_err(|| format!("Failed to remove old {}", dmg_name))?;
+  }
+  fs::create_dir_all(&support_directory_path).chain_err(|| {
+    format!(
+      "Failed to create output directory at {:?}",
+      support_directory_path
+    )
+  })?;
 
   // create paths for script
-  let bundle_sh = output_path.join("bundle_dmg.sh");
+  let bundle_script_path = output_path.join("bundle_dmg.sh");
 
-  common::print_bundling(format!("{:?}", &output_path.join(format!("{}.dmg", &upcase))).as_str())?;
+  common::print_bundling(format!("{:?}", &dmg_path.clone()).as_str())?;
 
   // write the scripts
-  write(&bundle_sh, bundle_temp).or_else(|e| Err(e.to_string()))?;
-
-  // copy seticon binary
-  let seticon = include_bytes!("templates/seticon");
-  let seticon_out = &output_path.join("seticon");
-  let mut seticon_buffer = File::create(seticon_out).or_else(|e| Err(e.to_string()))?;
-  seticon_buffer
-    .write_all(seticon)
-    .or_else(|e| Err(e.to_string()))?;
+  write(&bundle_script_path, bundle_temp).or_else(|e| Err(e.to_string()))?;
 
   // chmod script for execution
-
   Command::new("chmod")
     .arg("777")
-    .arg(&bundle_sh)
-    .arg(&seticon_out)
-    .current_dir(output_path)
+    .arg(&bundle_script_path)
+    .current_dir(output_path.clone())
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
     .output()
     .expect("Failed to chmod script");
 
+  let args = vec![
+    "--volname",
+    &app_name,
+    "--volicon",
+    "../../../../icons/icon.icns",
+    "--app-drop-link",
+    "400", "185",
+    "--window-size",
+    "600", "400",
+    "--window-pos",
+    "200", "120",
+    dmg_name.as_str(),
+    bundle_name.as_str(),
+  ];
+
   // execute the bundle script
-  Command::new(&bundle_sh)
-    .current_dir(output_path)
-    .stdout(Stdio::piped())
-    .stderr(Stdio::piped())
-    .output()
+  let status = Command::new(&bundle_script_path)
+    .current_dir(bundle_dir.clone())
+    .args(args)
+    .status()
     .expect("Failed to execute shell script");
 
-  Ok(vec![bundle_sh])
+  if !status.success() {
+    Err(crate::Error::from("error running bundle_dmg.sh"))
+  } else {
+    fs::rename(bundle_dir.join(dmg_name.clone()), dmg_path.clone())?;
+    Ok(vec![bundle_path, dmg_path])
+  }
 }

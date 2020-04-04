@@ -22,17 +22,35 @@ use std::path::PathBuf;
 
 pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
   let mut paths = Vec::new();
-  for package_type in settings.package_types()? {
-    paths.append(&mut match package_type {
-      PackageType::OsxBundle => osx_bundle::bundle_project(&settings)?,
+  let package_types = settings.package_types()?;
+  for package_type in &package_types {
+    let mut bundle_paths = match package_type {
+      PackageType::OsxBundle => {
+        if package_types.clone().iter().any(|&t| t == PackageType::Dmg) {
+          vec![]
+        } else {
+          osx_bundle::bundle_project(&settings)?
+        }
+      }
       PackageType::IosBundle => ios_bundle::bundle_project(&settings)?,
       #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => msi_bundle::bundle_project(&settings)?,
-      PackageType::Deb => deb_bundle::bundle_project(&settings)?,
+      PackageType::Deb => {
+        if package_types
+          .clone()
+          .iter()
+          .any(|&t| t == PackageType::AppImage)
+        {
+          vec![]
+        } else {
+          deb_bundle::bundle_project(&settings)?
+        }
+      }
       PackageType::Rpm => rpm_bundle::bundle_project(&settings)?,
       PackageType::AppImage => appimage_bundle::bundle_project(&settings)?,
       PackageType::Dmg => dmg_bundle::bundle_project(&settings)?,
-    });
+    };
+    paths.append(&mut bundle_paths);
   }
 
   settings.copy_resources(settings.project_out_directory())?;

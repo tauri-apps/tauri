@@ -1,4 +1,4 @@
-import tauri from './tauri'
+import tauri from '../tauri'
 import { Dir } from './dir'
 
 /**

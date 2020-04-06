@@ -47,6 +47,7 @@ jobs:
       - name: check published version
         run: echo ::set-env name=PUBLISHED_VERSION::$(cargo search ${{ matrix.package.registryName }} --limit 1 | sed -nE 's/^[^"]*"//; s/".*//1p' -)
       - name: install webkit2gtk
+        if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         run: |
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0

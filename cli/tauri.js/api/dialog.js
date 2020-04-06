@@ -3,7 +3,7 @@ import tauri from './tauri'
 /**
  * @name openDialog
  * @description Open a file/directory selection dialog
- * @param {String} [options]
+ * @param {Object} [options]
  * @param {String} [options.filter]
  * @param {String} [options.defaultPath]
  * @param {Boolean} [options.multiple=false]
@@ -17,7 +17,7 @@ function open (options = {}) {
 /**
  * @name save
  * @description Open a file/directory save dialog
- * @param {String} [options]
+ * @param {Object} [options]
  * @param {String} [options.filter]
  * @param {String} [options.defaultPath]
  * @returns {Promise<String>} promise resolving to the select path

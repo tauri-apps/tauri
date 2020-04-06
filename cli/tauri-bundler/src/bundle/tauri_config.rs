@@ -1,5 +1,5 @@
-use serde::Deserialize;
 use super::category::AppCategory;
+use serde::Deserialize;
 use std::path::PathBuf;
 
 use std::fs;

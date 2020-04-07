@@ -65,15 +65,25 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
     process.env.TAURI_DIST_DIR = config.build.distDir
   }
 
-  // OSX bundle configuration
-  if (config.tauri.bundle && config.tauri.bundle.osx) {
-    const license = config.tauri.bundle.osx.license
-    if (typeof license === 'string') {
-      config.tauri.bundle.osx.license = appPaths.resolve.tauri(license)
-    } else if (license !== null) {
-      const licensePath = appPaths.resolve.app('LICENSE')
-      if (existsSync(licensePath)) {
-        config.tauri.bundle.osx.license = licensePath
+  // bundle configuration
+  if (config.tauri.bundle) {
+    // OSX
+    if (config.tauri.bundle.osx) {
+      const license = config.tauri.bundle.osx.license
+      if (typeof license === 'string') {
+        config.tauri.bundle.osx.license = appPaths.resolve.tauri(license)
+      } else if (license !== null) {
+        const licensePath = appPaths.resolve.app('LICENSE')
+        if (existsSync(licensePath)) {
+          config.tauri.bundle.osx.license = licensePath
+        }
+      }
+    }
+
+    // targets
+    if (Array.isArray(config.tauri.bundle.targets)) {
+      if (process.platform !== 'win32') {
+        config.tauri.bundle.targets = config.tauri.bundle.targets.filter(t => t !== 'msi')
       }
     }
   }

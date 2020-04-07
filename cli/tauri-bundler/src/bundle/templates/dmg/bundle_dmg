@@ -284,13 +284,11 @@ fi
 
 if ! test -z "$APPLICATION_LINK"; then
 	echo "making link to Applications dir"
-	echo $MOUNT_DIR
 	test -d "$MOUNT_DIR/Applications" || ln -s /Applications "$MOUNT_DIR/Applications"
 fi
 
 if ! test -z "$QL_LINK"; then
 	echo "making link to QuickLook install dir"
-	echo $MOUNT_DIR
 	ln -s "/Library/QuickLook" "$MOUNT_DIR/QuickLook"
 fi
 

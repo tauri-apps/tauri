@@ -58,11 +58,24 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
   const runningDevServer = config.build.devPath && config.build.devPath.startsWith('http')
   if (!runningDevServer) {
     config.build.devPath = appPaths.resolve.tauri(config.build.devPath)
-    process.env.TAURI_DIST_DIR = appPaths.resolve.app(config.build.devPath)
+    process.env.TAURI_DIST_DIR = config.build.devPath
   }
   if (config.build.distDir) {
     config.build.distDir = appPaths.resolve.tauri(config.build.distDir)
-    process.env.TAURI_DIST_DIR = appPaths.resolve.app(config.build.distDir)
+    process.env.TAURI_DIST_DIR = config.build.distDir
+  }
+
+  // OSX bundle configuration
+  if (config.tauri.bundle && config.tauri.bundle.osx) {
+    const license = config.tauri.bundle.osx.license
+    if (typeof license === 'string') {
+      config.tauri.bundle.osx.license = appPaths.resolve.tauri(license)
+    } else if (license !== null) {
+      const licensePath = appPaths.resolve.app('LICENSE')
+      if (existsSync(licensePath)) {
+        config.tauri.bundle.osx.license = licensePath
+      }
+    }
   }
 
   if (!process.env.TAURI_DIST_DIR) {

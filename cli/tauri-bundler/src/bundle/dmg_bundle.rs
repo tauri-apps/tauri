@@ -2,27 +2,11 @@ use super::common;
 use super::osx_bundle;
 use crate::Settings;
 
-use handlebars::Handlebars;
-use lazy_static::lazy_static;
-
-use std::collections::BTreeMap;
 use std::fs::{self, write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 use crate::ResultExt;
-
-// Create handlebars template for shell scripts
-lazy_static! {
-  static ref HANDLEBARS: Handlebars<'static> = {
-    let mut handlebars = Handlebars::new();
-
-    handlebars
-      .register_template_string("bundle_dmg", include_str!("templates/bundle_dmg"))
-      .expect("Failed to setup handlebars template");
-    handlebars
-  };
-}
 
 // create script files to bundle project and execute bundle_script.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
@@ -30,11 +14,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   osx_bundle::bundle_project(settings)?;
 
   let app_name = settings.bundle_name();
-
-  let sh_map: BTreeMap<(), ()> = BTreeMap::new();
-  let bundle_temp = HANDLEBARS
-    .render("bundle_dmg", &sh_map)
-    .or_else(|e| Err(e.to_string()))?;
 
   // get the target path
   let output_path = settings.project_out_directory().join("bundle/dmg");
@@ -58,41 +37,51 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // create paths for script
   let bundle_script_path = output_path.join("bundle_dmg.sh");
+  let license_script_path = support_directory_path.join("dmg-license.py");
 
   common::print_bundling(format!("{:?}", &dmg_path.clone()).as_str())?;
 
   // write the scripts
-  write(&bundle_script_path, bundle_temp).or_else(|e| Err(e.to_string()))?;
+  write(&bundle_script_path, include_str!("templates/dmg/bundle_dmg")).or_else(|e| Err(e.to_string()))?;
+  write(support_directory_path.join("template.applescript"), include_str!("templates/dmg/template.applescript"))?;
+  write(&license_script_path, include_str!("templates/dmg/dmg-license.py"))?;
 
   // chmod script for execution
   Command::new("chmod")
     .arg("777")
     .arg(&bundle_script_path)
+    .arg(&license_script_path)
     .current_dir(output_path.clone())
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
     .output()
     .expect("Failed to chmod script");
 
-  let args = vec![
+  let mut args = vec![
     "--volname",
     &app_name,
     "--volicon",
     "../../../../icons/icon.icns",
+    "--icon",
+    &bundle_name, "180", "170",
     "--app-drop-link",
-    "400", "185",
+    "480", "170",
     "--window-size",
-    "600", "400",
-    "--window-pos",
-    "200", "120",
-    dmg_name.as_str(),
-    bundle_name.as_str(),
+    "660", "400",
+    "--hide-extension",
+    &bundle_name,
   ];
+
+  if let Some(license_path) = settings.osx_license() {
+    args.push("--eula");
+    args.push(license_path);
+  }
 
   // execute the bundle script
   let status = Command::new(&bundle_script_path)
     .current_dir(bundle_dir.clone())
     .args(args)
+    .args(vec![dmg_name.as_str(), bundle_name.as_str()])
     .status()
     .expect("Failed to execute shell script");
 

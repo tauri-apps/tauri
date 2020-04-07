@@ -97,6 +97,7 @@ struct BundleSettings {
   deb_depends: Option<Vec<String>>,
   osx_frameworks: Option<Vec<String>>,
   osx_minimum_system_version: Option<String>,
+  osx_license: Option<String>,
   // Bundles for other binaries/examples:
   bin: Option<HashMap<String, BundleSettings>>,
   example: Option<HashMap<String, BundleSettings>>,
@@ -563,6 +564,14 @@ impl Settings {
       .as_ref()
       .map(String::as_str)
   }
+
+  pub fn osx_license(&self) -> Option<&str> {
+    self
+      .bundle_settings
+      .osx_license
+      .as_ref()
+      .map(String::as_str)
+  }
 }
 
 fn bundle_settings_from_table(
@@ -634,6 +643,7 @@ fn merge_settings(
       config.osx.minimum_system_version,
       bundle_settings.osx_minimum_system_version,
     ),
+    osx_license: options_value(config.osx.license, bundle_settings.osx_license),
     external_bin: options_value(config.external_bin, bundle_settings.external_bin),
     exception_domain: options_value(
       config.osx.exception_domain,

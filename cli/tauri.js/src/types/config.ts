@@ -39,6 +39,7 @@ export interface TauriConfig {
       osx?: {
         frameworks?: string[]
         minimumSystemVersion?: string
+        license?: string
       }
       exceptionDomain?: string
     }

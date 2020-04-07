@@ -11,11 +11,12 @@ pub struct DebConfig {
 }
 
 #[derive(PartialEq, Deserialize, Clone, Debug, Default)]
-#[serde(tag = "deb", rename_all = "camelCase")]
+#[serde(tag = "osx", rename_all = "camelCase")]
 pub struct OsxConfig {
   pub frameworks: Option<Vec<String>>,
   pub minimum_system_version: Option<String>,
   pub exception_domain: Option<String>,
+  pub license: Option<String>,
 }
 
 #[derive(PartialEq, Deserialize, Clone, Debug, Default)]

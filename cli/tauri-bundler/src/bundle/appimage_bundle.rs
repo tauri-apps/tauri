@@ -90,5 +90,5 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .spawn()
     .expect("Failed to execute shell script");
 
-  Ok(vec![appimage_path])
+  Ok(vec![package_dir, appimage_path])
 }

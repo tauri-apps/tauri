@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 # Create a read-only disk image of the contents of a folder
+# forked from https://github.com/andreyvit/create-dmg
 
 set -e;
 

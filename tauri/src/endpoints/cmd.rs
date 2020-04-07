@@ -142,7 +142,7 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
-  #[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
+  #[cfg(any(feature = "embedded-server", feature = "no-server"))]
   LoadAsset {
     asset: String,
     asset_type: String,

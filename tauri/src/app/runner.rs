@@ -59,12 +59,6 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
     },
   )?;
 
-  // on dev-server grab a handler and execute the tauri.js API entry point.
-  #[cfg(feature = "dev-server")]
-  webview
-    .handle()
-    .dispatch(|_webview| _webview.eval(include_str!(concat!(env!("TAURI_DIR"), "/tauri.js"))))?;
-
   // spawn the embedded server on our server url
   #[cfg(feature = "embedded-server")]
   spawn_server(server_url.to_string())?;

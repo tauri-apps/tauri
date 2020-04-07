@@ -37,7 +37,6 @@ serde = { version = "1.0", features = [ "derive" ] }
 
 [features]
 edge = ["web-view/edge"]
-dev-server = []
 embedded-server = []
 no-server = []
 all-api = []
@@ -59,7 +58,7 @@ open-dialog = []
 save-dialog = []
 
 [package.metadata.docs.rs]
-features = ["dev-server", "all-api"]
+features = ["all-api"]
 
 [[example]]
 name = "communication"

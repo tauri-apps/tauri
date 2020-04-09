@@ -35,17 +35,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
       PackageType::IosBundle => ios_bundle::bundle_project(&settings)?,
       #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => msi_bundle::bundle_project(&settings)?,
-      PackageType::Deb => {
-        if package_types
-          .clone()
-          .iter()
-          .any(|&t| t == PackageType::AppImage)
-        {
-          vec![]
-        } else {
-          deb_bundle::bundle_project(&settings)?
-        }
-      }
+      PackageType::Deb => deb_bundle::bundle_project(&settings)?,
       PackageType::Rpm => rpm_bundle::bundle_project(&settings)?,
       PackageType::AppImage => appimage_bundle::bundle_project(&settings)?,
       PackageType::Dmg => dmg_bundle::bundle_project(&settings)?,

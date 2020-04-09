@@ -8,27 +8,6 @@ use crate::config::{get, Config};
 #[cfg(feature = "embedded-server")]
 use crate::api::tcp::{get_available_port, port_is_available};
 
-// JavaScript string literal
-const JS_STRING: &str = r#"
-if (window.onTauriInit !== void 0) {
-  window.onTauriInit()
-  window.onTauriInit = void 0
-}
-if (window.__TAURI_INIT_HOOKS !== void 0) {
-  for (var hook in window.__TAURI_INIT_HOOKS) {
-    window.__TAURI_INIT_HOOKS[hook]()
-  }
-  window.__TAURI_INIT_HOOKS = void 0
-}
-Object.defineProperty(window, 'onTauriInit', {
-  set: function(val) {
-    if (typeof(val) === 'function') {
-      val()
-    }
-  }
-})
-"#;
-
 // Main entry point function for running the Webview
 pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   // get the tauri config struct
@@ -206,7 +185,6 @@ fn build_webview(
           "window-1"
         };
         application.run_setup(webview, source.to_string());
-        webview.eval(JS_STRING)?;
       } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
         let content_href = match content_clone {
           Content::Html(ref html) => html,

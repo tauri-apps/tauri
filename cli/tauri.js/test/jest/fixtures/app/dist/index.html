@@ -74,20 +74,18 @@
       }).catch(sendError)
     }
 
-    window.onTauriInit = function () {
-      window.tauri.listen('reply', function (res) {
-        reply({ cmd: 'listen' })
-      })
-      window.tauri.emit('hello')
+    window.tauri.listen('reply', function (res) {
+      reply({ cmd: 'listen' })
+    })
+    window.tauri.emit('hello')
 
-      testFs(null).then(function () {
-        testFs(window.tauri.Dir.Config)
-      })
+    testFs(null).then(function () {
+      testFs(window.tauri.Dir.Config)
+    })
 
-      setTimeout(function () {
-        window.tauri.invoke({ cmd: 'exit' })
-      }, 15000)
-    }
+    setTimeout(function () {
+      window.tauri.invoke({ cmd: 'exit' })
+    }, 15000)
   </script>
 </body>
 

@@ -46,7 +46,7 @@
   "dependencies": {
     "@tauri-apps/tauri-inliner": "1.14.1",
     "@tauri-apps/toml": "2.2.4",
-    "chalk": "3.0.0",
+    "chalk": "4.0.0",
     "chokidar": "3.3.1",
     "cross-spawn": "7.0.2",
     "fast-glob": "3.2.2",

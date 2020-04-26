@@ -19,8 +19,8 @@ phf = "0.8.0"
 base64 = "0.12.0"
 webbrowser = "0.5.2"
 lazy_static = "1.4.0"
-tiny_http = { version = "0.6", optional = true }
-threadpool = "1.7"
+tiny_http = { version = "0.7", optional = true }
+threadpool = "1.8"
 uuid = { version = "0.8.1", features = ["v4"] }
 error-chain = "0.12.2"
 

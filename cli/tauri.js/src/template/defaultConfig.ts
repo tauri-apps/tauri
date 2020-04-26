@@ -22,11 +22,13 @@ export default {
       shortDescription: '',
       longDescription: '',
       deb: {
-        depends: []
+        depends: [],
+        useBootstrapper: false
       },
       osx: {
         frameworks: [],
-        minimumSystemVersion: ''
+        minimumSystemVersion: '',
+        useBootstrapper: false
       },
       exceptionDomain: ''
     },

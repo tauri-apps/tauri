@@ -8,14 +8,19 @@ use std::fs;
 #[serde(tag = "deb", rename_all = "camelCase")]
 pub struct DebConfig {
   pub depends: Option<Vec<String>>,
+  #[serde(default)]
+  pub use_bootstrapper: bool,
 }
 
 #[derive(PartialEq, Deserialize, Clone, Debug, Default)]
-#[serde(tag = "deb", rename_all = "camelCase")]
+#[serde(tag = "osx", rename_all = "camelCase")]
 pub struct OsxConfig {
   pub frameworks: Option<Vec<String>>,
   pub minimum_system_version: Option<String>,
   pub exception_domain: Option<String>,
+  pub license: Option<String>,
+  #[serde(default)]
+  pub use_bootstrapper: bool,
 }
 
 #[derive(PartialEq, Deserialize, Clone, Debug, Default)]

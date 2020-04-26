@@ -32,7 +32,16 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
           active: true
         },
         bundle: {
-          active: true
+          active: true,
+          icon: [],
+          resources: [],
+          externalBin: [],
+          deb: {
+            depends: []
+          },
+          osx: {
+            frameworks: []
+          }
         },
         whitelist: {
           all: false

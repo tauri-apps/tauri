@@ -35,11 +35,13 @@ export interface TauriConfig {
       longDescription?: string
       deb?: {
         depends?: string[]
+        useBootstrapper: boolean
       }
       osx?: {
         frameworks?: string[]
         minimumSystemVersion?: string
         license?: string
+        useBootstrapper: boolean
       }
       exceptionDomain?: string
     }

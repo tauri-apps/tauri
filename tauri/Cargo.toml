@@ -22,7 +22,7 @@ tiny_http = "0.6"
 threadpool = "1.7"
 uuid = { version = "0.8.1", features = ["v4"] }
 error-chain = "0.12.2"
-notify-rust = { version = "3", optional = true }
+notify-rust = { version = "4.0.0-beta.4", optional = true }
 
 tauri-api = { version = "0.4",  path = "../tauri-api" }
 

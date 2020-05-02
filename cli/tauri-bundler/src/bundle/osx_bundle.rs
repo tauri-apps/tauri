@@ -74,8 +74,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   copy_binary_to_bundle(&bundle_directory, settings)
     .chain_err(|| format!("Failed to copy binary from {:?}", settings.binary_path()))?;
 
-  create_path_hook(&bundle_directory, settings).chain_err(|| "Failed to create _boot wrapper")?;
-
+  let use_bootstrapper = settings.osx_use_bootstrapper();
+  if use_bootstrapper {
+    create_bootstrapper(&bundle_directory, settings).chain_err(|| "Failed to create OSX bootstrapper")?;
+  }
   Ok(vec![app_bundle_path])
 }
 
@@ -87,7 +89,7 @@ fn copy_binary_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate:
   )
 }
 
-fn create_path_hook(bundle_dir: &Path, settings: &Settings) -> crate::Result<()> {
+fn create_bootstrapper(bundle_dir: &Path, settings: &Settings) -> crate::Result<()> {
   let file = &mut common::create_file(&bundle_dir.join("MacOS/__bootstrapper"))?;
   // Create a shell script to bootstrap the  $PATH for Tauri, so environments like node are available.
   write!(
@@ -146,6 +148,7 @@ fn create_info_plist(
 ) -> crate::Result<()> {
   let build_number = chrono::Utc::now().format("%Y%m%d.%H%M%S");
   let file = &mut common::create_file(&bundle_dir.join("Info.plist"))?;
+  let use_bootstrapper = settings.osx_use_bootstrapper();
   write!(
     file,
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
@@ -166,9 +169,8 @@ fn create_info_plist(
   )?;
   write!(
     file,
-    // Here we should only use this technique if they have specified
-    // that they want to use the resources
-    "  <key>CFBundleExecutable</key>\n  <string>__bootstrapper</string>\n"
+    "  <key>CFBundleExecutable</key>\n  <string>{}</string>\n",
+    if use_bootstrapper { "__bootstrapper" } else { settings.binary_name() }
   )?;
   if let Some(path) = bundle_icon_file {
     write!(
@@ -375,7 +377,11 @@ fn create_icns_file(
   }
 
   for (icon, next_size_down, density) in images_to_resize {
-    let icon = icon.resize_exact(next_size_down, next_size_down, image::imageops::FilterType::Lanczos3);
+    let icon = icon.resize_exact(
+      next_size_down,
+      next_size_down,
+      image::imageops::FilterType::Lanczos3,
+    );
     add_icon_to_family(icon, density, &mut family)?;
   }
 

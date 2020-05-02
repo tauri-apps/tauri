@@ -8,6 +8,9 @@
     </div>
 
     <div style="margin-top: 24px">
+      <select id="dir">
+        <option value="">None</option>
+      </select>
       <input id="path-to-read" placeholder="Type the path to read...">
       <button id="read">Read</button>
     </div>
@@ -20,6 +23,22 @@
     <div style="margin-top: 24px">
       <input id="title" value="Awesome Tauri Example!">
       <button id="set-title">Set title</button>
+    </div>
+
+    <div style="margin-top: 24px">
+      <input id="dialog-default-path" placeholder="Default path">
+      <input id="dialog-filter" placeholder="Extensions filter">
+      <div>
+        <input type="checkbox" id="dialog-multiple">
+        <label>Multiple</label>
+      </div>
+      <div>
+        <input type="checkbox" id="dialog-directory">
+        <label>Directory</label>
+      </div>
+
+      <button id="open-dialog">Open dialog</button>
+      <button id="save-dialog">Open save dialog</button>
     </div>
 
     <div id="response"></div>
@@ -39,9 +58,25 @@
           }
         })
       }
+
+      window.onTauriInit = function () {
+        window.tauri.listen('rust-event', function (res) {
+          document.getElementById('response').innerHTML = JSON.stringify(res)
+        })
+
+        var dirSelect = document.getElementById('dir')
+        for (var key in window.tauri.Dir) {
+          var value = window.tauri.Dir[key]
+          var opt = document.createElement("option")
+          opt.value = value
+          opt.innerHTML = key
+          dirSelect.appendChild(opt)
+        }
+      }
     </script>
     <script src="communication.js"></script>
     <script src="fs.js"></script>
     <script src="window.js"></script>
+    <script src="dialog.js"></script>
   </body>
 </html>

@@ -19,15 +19,12 @@ use std::path::{Path, PathBuf};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PackageType {
   OsxBundle,
-  #[cfg(feature = "ios")]
   IosBundle,
   #[cfg(target_os = "windows")]
   WindowsMsi,
   Deb,
   Rpm,
-  #[cfg(feature = "appimage")]
   AppImage,
-  #[cfg(feature = "dmg")]
   Dmg,
 }
 
@@ -36,15 +33,12 @@ impl PackageType {
     // Other types we may eventually want to support: apk
     match name {
       "deb" => Some(PackageType::Deb),
-      #[cfg(feature = "ios")]
       "ios" => Some(PackageType::IosBundle),
       #[cfg(target_os = "windows")]
       "msi" => Some(PackageType::WindowsMsi),
       "osx" => Some(PackageType::OsxBundle),
       "rpm" => Some(PackageType::Rpm),
-      #[cfg(feature = "appimage")]
       "appimage" => Some(PackageType::AppImage),
-      #[cfg(feature = "dmg")]
       "dmg" => Some(PackageType::Dmg),
       _ => None,
     }
@@ -53,15 +47,12 @@ impl PackageType {
   pub fn short_name(&self) -> &'static str {
     match *self {
       PackageType::Deb => "deb",
-      #[cfg(feature = "ios")]
       PackageType::IosBundle => "ios",
       #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => "msi",
       PackageType::OsxBundle => "osx",
       PackageType::Rpm => "rpm",
-      #[cfg(feature = "appimage")]
       PackageType::AppImage => "appimage",
-      #[cfg(feature = "dmg")]
       PackageType::Dmg => "dmg",
     }
   }
@@ -73,14 +64,13 @@ impl PackageType {
 
 const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::Deb,
-  #[cfg(feature = "ios")]
   PackageType::IosBundle,
   #[cfg(target_os = "windows")]
   PackageType::WindowsMsi,
   PackageType::OsxBundle,
   PackageType::Rpm,
-  #[cfg(feature = "dmg")]
   PackageType::Dmg,
+  PackageType::AppImage,
 ];
 
 #[derive(Clone, Debug)]
@@ -105,8 +95,11 @@ struct BundleSettings {
   script: Option<PathBuf>,
   // OS-specific settings:
   deb_depends: Option<Vec<String>>,
+  deb_use_bootstrapper: Option<bool>,
   osx_frameworks: Option<Vec<String>>,
   osx_minimum_system_version: Option<String>,
+  osx_license: Option<String>,
+  osx_use_bootstrapper: Option<bool>,
   // Bundles for other binaries/examples:
   bin: Option<HashMap<String, BundleSettings>>,
   example: Option<HashMap<String, BundleSettings>>,
@@ -143,7 +136,7 @@ struct CargoSettings {
 #[derive(Clone, Debug)]
 pub struct Settings {
   package: PackageSettings,
-  package_type: Option<PackageType>, // If `None`, use the default package type for this os
+  package_types: Option<Vec<PackageType>>, // If `None`, use the default package type for this os
   target: Option<(String, TargetInfo)>,
   features: Option<Vec<String>>,
   project_out_directory: PathBuf,
@@ -169,11 +162,19 @@ impl CargoSettings {
 
 impl Settings {
   pub fn new(current_dir: PathBuf, matches: &ArgMatches<'_>) -> crate::Result<Self> {
-    let package_type = match matches.value_of("format") {
-      Some(name) => match PackageType::from_short_name(name) {
-        Some(package_type) => Some(package_type),
-        None => bail!("Unsupported bundle format: {}", name),
-      },
+    let package_types = match matches.values_of("format") {
+      Some(names) => {
+        let mut types = vec![];
+        for name in names {
+          match PackageType::from_short_name(name) {
+            Some(package_type) => {
+              types.push(package_type);
+            }
+            None => bail!("Unsupported bundle format: {}", name),
+          }
+        }
+        Some(types)
+      }
       None => None,
     };
     let build_artifact = if let Some(bin) = matches.value_of("bin") {
@@ -208,17 +209,22 @@ impl Settings {
     };
     let workspace_dir = Settings::get_workspace_dir(&current_dir);
     let target_dir = Settings::get_target_dir(&workspace_dir, &target, is_release, &build_artifact);
-    let bundle_settings = if let Some(bundle_settings) = package
-      .metadata
-      .as_ref()
-      .and_then(|metadata| metadata.bundle.as_ref())
-    {
-      bundle_settings.clone()
-    } else {
-      if let Ok(_) = tauri_config {
-        BundleSettings::default()
-      } else {
-        bail!("No [package.metadata.bundle] section in Cargo.toml");
+    let bundle_settings = match tauri_config {
+      Ok(config) => merge_settings(BundleSettings::default(), config.tauri.bundle),
+      Err(e) => {
+        let error_message = e.to_string();
+        if !error_message.contains("No such file or directory") {
+          bail!("Failed to read Tauri config: {}", error_message);
+        }
+        if let Some(bundle_settings) = package
+          .metadata
+          .as_ref()
+          .and_then(|metadata| metadata.bundle.as_ref())
+        {
+          bundle_settings.clone()
+        } else {
+          bail!("No [package.metadata.bundle] section in Cargo.toml");
+        }
       }
     };
     let (bundle_settings, binary_name) = match build_artifact {
@@ -241,20 +247,9 @@ impl Settings {
 
     let bundle_settings = add_external_bin(bundle_settings)?;
 
-    let merged_bundle_settings = match tauri_config {
-      Ok(config) => merge_settings(bundle_settings, config.tauri.bundle),
-      Err(e) => {
-        let error_message = e.to_string();
-        if !error_message.contains("No such file or directory") {
-          bail!("Failed to read Tauri config: {}", error_message);
-        }
-        bundle_settings
-      },
-    };
-
     Ok(Settings {
       package,
-      package_type,
+      package_types,
       target,
       features,
       build_artifact,
@@ -262,7 +257,7 @@ impl Settings {
       project_out_directory: target_dir,
       binary_path,
       binary_name,
-      bundle_settings: merged_bundle_settings,
+      bundle_settings,
     })
   }
 
@@ -356,29 +351,41 @@ impl Settings {
     &self.binary_path
   }
 
-  /// If a specific package type was specified by the command-line, returns
-  /// that package type; otherwise, if a target triple was specified by the
+  /// If a list of package types was specified by the command-line, returns
+  /// that list filtered by the current target's available targets;
+  /// otherwise, if a target triple was specified by the
   /// command-line, returns the native package type(s) for that target;
   /// otherwise, returns the native package type(s) for the host platform.
   /// Fails if the host/target's native package type is not supported.
   pub fn package_types(&self) -> crate::Result<Vec<PackageType>> {
-    if let Some(package_type) = self.package_type {
-      Ok(vec![package_type])
+    let target_os = if let Some((_, ref info)) = self.target {
+      info.target_os()
     } else {
-      let target_os = if let Some((_, ref info)) = self.target {
-        info.target_os()
-      } else {
-        std::env::consts::OS
-      };
-      match target_os {
-        "macos" => Ok(vec![PackageType::OsxBundle]),
-        #[cfg(feature = "ios")]
-        "ios" => Ok(vec![PackageType::IosBundle]),
-        "linux" => Ok(vec![PackageType::Deb]), // TODO: Do Rpm too, once it's implemented.
-        #[cfg(target_os = "windows")]
-        "windows" => Ok(vec![PackageType::WindowsMsi]),
-        os => bail!("Native {} bundles not yet supported.", os),
+      std::env::consts::OS
+    };
+    let platform_types = match target_os {
+      "macos" => vec![PackageType::OsxBundle, PackageType::Dmg],
+      "ios" => vec![PackageType::IosBundle],
+      "linux" => vec![PackageType::Deb, PackageType::AppImage],
+      #[cfg(target_os = "windows")]
+      "windows" => vec![PackageType::WindowsMsi],
+      os => bail!("Native {} bundles not yet supported.", os),
+    };
+    if let Some(package_types) = &self.package_types {
+      let mut types = vec![];
+      for package_type in package_types {
+        let package_type = *package_type;
+        if platform_types
+          .clone()
+          .into_iter()
+          .any(|t| t == package_type)
+        {
+          types.push(package_type);
+        }
       }
+      Ok(types)
+    } else {
+      Ok(platform_types)
     }
   }
 
@@ -452,7 +459,7 @@ impl Settings {
   }
 
   pub fn exception_domain(&self) -> Option<&String> {
-    return self.bundle_settings.exception_domain.as_ref();
+    self.bundle_settings.exception_domain.as_ref()
   }
 
   // copy external binaries to a path.
@@ -545,6 +552,13 @@ impl Settings {
     }
   }
 
+  pub fn debian_use_bootstrapper(&self) -> bool {
+    self
+      .bundle_settings
+      .deb_use_bootstrapper
+      .unwrap_or(false)
+  }
+
   pub fn osx_frameworks(&self) -> &[String] {
     match self.bundle_settings.osx_frameworks {
       Some(ref frameworks) => frameworks.as_slice(),
@@ -558,6 +572,21 @@ impl Settings {
       .osx_minimum_system_version
       .as_ref()
       .map(String::as_str)
+  }
+
+  pub fn osx_license(&self) -> Option<&str> {
+    self
+      .bundle_settings
+      .osx_license
+      .as_ref()
+      .map(String::as_str)
+  }
+
+  pub fn osx_use_bootstrapper(&self) -> bool {
+    self
+      .bundle_settings
+      .osx_use_bootstrapper
+      .unwrap_or(false)
   }
 }
 
@@ -625,11 +654,14 @@ fn merge_settings(
     long_description: options_value(config.long_description, bundle_settings.long_description),
     script: options_value(config.script, bundle_settings.script),
     deb_depends: options_value(config.deb.depends, bundle_settings.deb_depends),
+    deb_use_bootstrapper: Some(config.deb.use_bootstrapper),
     osx_frameworks: options_value(config.osx.frameworks, bundle_settings.osx_frameworks),
     osx_minimum_system_version: options_value(
       config.osx.minimum_system_version,
       bundle_settings.osx_minimum_system_version,
     ),
+    osx_license: options_value(config.osx.license, bundle_settings.osx_license),
+    osx_use_bootstrapper: Some(config.osx.use_bootstrapper),
     external_bin: options_value(config.external_bin, bundle_settings.external_bin),
     exception_domain: options_value(
       config.osx.exception_domain,

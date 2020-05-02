@@ -83,3 +83,6 @@ Cargo.lock
 # doing this because of how our tests currently (naively) drop the tauri.conf.js in that folder
 # todo: needs a proper fic
 /cli/tauri.js/tauri.conf.js
+
+# doing this because the task-runner (`mask prepare`) will clone gh:tauri-apps/examples
+/examples

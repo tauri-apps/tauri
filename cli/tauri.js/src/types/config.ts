@@ -16,7 +16,6 @@ export interface TauriConfig {
     targetName: string
     exitOnPanic?: boolean
   }
-  bundle: {}
   tauri: {
     inlinedAssets: string[]
     devPath: string
@@ -25,6 +24,26 @@ export interface TauriConfig {
     }
     bundle: {
       active: boolean
+      targets?: string | string[]
+      identifier: string
+      icon: string[]
+      resources?: string[]
+      externalBin?: string[]
+      copyright?: string
+      category: string
+      shortDescription?: string
+      longDescription?: string
+      deb?: {
+        depends?: string[]
+        useBootstrapper: boolean
+      }
+      osx?: {
+        frameworks?: string[]
+        minimumSystemVersion?: string
+        license?: string
+        useBootstrapper: boolean
+      }
+      exceptionDomain?: string
     }
     whitelist: {
       all: boolean

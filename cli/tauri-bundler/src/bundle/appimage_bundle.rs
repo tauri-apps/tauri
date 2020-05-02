@@ -38,22 +38,21 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     settings.version_string(),
     arch
   );
-  let base_dir = settings.project_out_directory().join("bundle/deb");
+  let base_dir = settings.project_out_directory().join("bundle/appimage_deb");
   let package_dir = base_dir.join(&package_base_name);
-  if package_dir.exists() {
-    remove_dir_all(&package_dir)
-      .chain_err(|| format!("Failed to remove old {}", package_base_name))?;
-  }
 
   // generate deb_folder structure
   deb_bundle::generate_folders(settings, &package_dir)?;
 
-  let _app_dir_path = path_utils::create(
-    settings
-      .project_out_directory()
-      .join(format!("{}.AppDir", settings.binary_name())),
-    true,
-  );
+  let output_path = settings.project_out_directory().join("bundle/appimage");
+  if output_path.exists() {
+    remove_dir_all(&output_path)
+      .chain_err(|| format!("Failed to remove old {}", package_base_name))?;
+  }
+  std::fs::create_dir_all(output_path.clone())?;
+  let app_dir_path = output_path.join(format!("{}.AppDir", settings.binary_name()));
+  let appimage_path = output_path.join(format!("{}.AppImage", settings.binary_name()));
+  path_utils::create(app_dir_path.clone(), true)?;
 
   let upcase = settings.binary_name().to_uppercase();
 
@@ -67,27 +66,20 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let temp = HANDLEBARS
     .render("appimage", &sh_map)
     .or_else(|e| Err(e.to_string()))?;
-  let output_path = settings.project_out_directory();
 
   // create the shell script file in the target/ folder.
   let sh_file = output_path.join("build_appimage");
-  common::print_bundling(
-    format!(
-      "{:?}",
-      &output_path.join(format!("{}.AppImage", settings.binary_name()))
-    )
-    .as_str(),
-  )?;
+  common::print_bundling(format!("{:?}", &appimage_path).as_str())?;
   write(&sh_file, temp).or_else(|e| Err(e.to_string()))?;
 
   // chmod script for execution
   Command::new("chmod")
     .arg("777")
     .arg(&sh_file)
-    .current_dir(output_path)
+    .current_dir(output_path.clone())
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
-    .spawn()
+    .output()
     .expect("Failed to chmod script");
 
   // execute the shell script to build the appimage.
@@ -98,5 +90,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .spawn()
     .expect("Failed to execute shell script");
 
-  Ok(vec![sh_file])
+  remove_dir_all(&package_dir)?;
+
+  Ok(vec![appimage_path])
 }

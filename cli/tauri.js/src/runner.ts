@@ -113,6 +113,9 @@ class Runner {
       .on(
         'change',
         debounce((changedPath: string) => {
+          if (changedPath.startsWith(path.join(tauriDir, 'target'))) {
+            return
+          }
           (this.pid ? this.__stopCargo() : Promise.resolve())
             .then(() => {
               const shouldTriggerRun = changedPath.includes('tauri.conf.json') ||
@@ -161,7 +164,12 @@ class Runner {
         cargoArgs: [
           cfg.tauri.bundle.active ? 'tauri-bundler' : 'build',
           '--features',
-          ...features
+          ...features,
+          ...(
+            cfg.tauri.bundle.active && Array.isArray(cfg.tauri.bundle.targets) && cfg.tauri.bundle.targets.length
+              ? ['--format'].concat(cfg.tauri.bundle.targets)
+              : []
+            )
         ]
           .concat(cfg.ctx.debug ? [] : ['--release'])
           .concat(target ? ['--target', target] : [])

@@ -1,5 +1,4 @@
 import { existsSync } from 'fs-extra'
-import { resolve } from 'path'
 import { TauriConfig } from 'types'
 import merge from 'webpack-merge'
 import logger from '../helpers/logger'
@@ -33,7 +32,16 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
           active: true
         },
         bundle: {
-          active: true
+          active: true,
+          icon: [],
+          resources: [],
+          externalBin: [],
+          deb: {
+            depends: []
+          },
+          osx: {
+            frameworks: []
+          }
         },
         whitelist: {
           all: false
@@ -58,13 +66,42 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
 
   const runningDevServer = config.build.devPath && config.build.devPath.startsWith('http')
   if (!runningDevServer) {
-    config.build.devPath = resolve(appPaths.tauriDir, config.build.devPath)
+    config.build.devPath = appPaths.resolve.tauri(config.build.devPath)
+    process.env.TAURI_DIST_DIR = config.build.devPath
   }
   if (config.build.distDir) {
-    config.build.distDir = resolve(appPaths.tauriDir, config.build.distDir)
+    config.build.distDir = appPaths.resolve.tauri(config.build.distDir)
+    process.env.TAURI_DIST_DIR = config.build.distDir
   }
 
-  process.env.TAURI_DIST_DIR = appPaths.resolve.app(config.build.distDir)
+  // bundle configuration
+  if (config.tauri.bundle) {
+    // OSX
+    if (config.tauri.bundle.osx) {
+      const license = config.tauri.bundle.osx.license
+      if (typeof license === 'string') {
+        config.tauri.bundle.osx.license = appPaths.resolve.tauri(license)
+      } else if (license !== null) {
+        const licensePath = appPaths.resolve.app('LICENSE')
+        if (existsSync(licensePath)) {
+          config.tauri.bundle.osx.license = licensePath
+        }
+      }
+    }
+
+    // targets
+    if (Array.isArray(config.tauri.bundle.targets)) {
+      if (process.platform !== 'win32') {
+        config.tauri.bundle.targets = config.tauri.bundle.targets.filter(t => t !== 'msi')
+      }
+    }
+  }
+
+  if (!process.env.TAURI_DIST_DIR) {
+    error("Couldn't resolve the dist dir. Make sure you have `devPath` or `distDir` under tauri.conf.json > build")
+    process.exit(1)
+  }
+
   process.env.TAURI_DIR = appPaths.tauriDir
   process.env.TAURI_CONFIG = JSON.stringify(config)
 

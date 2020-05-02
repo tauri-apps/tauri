@@ -9,6 +9,8 @@ pub mod file;
 pub mod rpc;
 pub mod version;
 pub mod tcp;
+pub mod dialog;
+pub mod path;
 
 pub use tauri_utils::*;
 
@@ -33,6 +35,10 @@ error_chain! {
         File(t: String) {
             description("File function Error")
             display("File Error: {}", t)
+        }
+        Path(t: String) {
+            description("Path function Error")
+            display("Path Error: {}", t)
         }
     }
 }

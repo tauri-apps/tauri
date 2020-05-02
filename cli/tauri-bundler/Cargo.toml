@@ -2,7 +2,7 @@ workspace = {}
 
 [package]
 name = "tauri-bundler"
-version = "0.4.4"
+version = "0.5.0"
 authors = ["George Burton <burtonageo@gmail.com>", "Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
 license = "MIT/Apache-2.0"
 keywords = ["bundle", "cargo", "tauri"]
@@ -18,7 +18,7 @@ dirs = "2.0.2"
 error-chain = "0.12"
 glob = "0.3.0"
 icns = "0.3"
-image = "0.23.1"
+image = "0.23.4"
 libflate = "0.1"
 md5 = "0.7.0"
 msi = "0.2"
@@ -32,14 +32,14 @@ term = "0.6.1"
 toml = "0.5.6"
 uuid = { version = "0.8", features = ["v5"] }
 walkdir = "2"
+lazy_static = { version = "1.4" }
+handlebars = { version = "3.0" }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-attohttpc = { version = "0.11.1" }
+attohttpc = { version = "0.13.0" }
 regex = { version = "1" }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
-handlebars = { version = "3.0" }
-lazy_static = { version = "1.4" }
 zip = { version = "0.5" }
 sha2 = { version = "0.8" }
 hex = { version = "0.4" }
@@ -50,8 +50,3 @@ tempfile = "3"
 [[bin]]
 name = "cargo-tauri-bundler"
 path = "src/main.rs"
-
-[features]
-appimage = []
-ios = []
-dmg = []

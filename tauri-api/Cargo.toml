@@ -1,6 +1,6 @@
 [package]
 name = "tauri-api"
-version = "0.4.2"
+version = "0.5.0"
 authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
 license = "MIT"
 homepage = "https://tauri.studio"
@@ -11,6 +11,7 @@ exclude = ["test/fixture/**"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
+serde_repr = "0.1"
 dirs = "2.0.2"
 ignore = "0.4.11"
 zip = "0.5.4"
@@ -22,7 +23,8 @@ tar = "0.4"
 flate2 = "1"
 error-chain = "0.12"
 rand = "0.7"
-tauri-utils = {version = "0.4", path = "../tauri-utils"}
+nfd = "0.0.4"
+tauri-utils = {version = "0.5", path = "../tauri-utils"}
 
 [dev-dependencies]
 quickcheck = "0.9.2"

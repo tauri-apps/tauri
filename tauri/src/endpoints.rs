@@ -2,6 +2,7 @@ mod cmd;
 mod salt;
 #[allow(dead_code)]
 mod file_system;
+mod dialog;
 
 #[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
 use std::path::PathBuf;
@@ -26,27 +27,30 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         #[cfg(any(feature = "all-api", feature = "read-text-file"))]
         ReadTextFile {
           path,
+          options,
           callback,
           error,
         } => {
-          file_system::read_text_file(webview, path, callback, error);
+          file_system::read_text_file(webview, path, options, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "read-binary-file"))]
         ReadBinaryFile {
           path,
+          options,
           callback,
           error,
         } => {
-          file_system::read_binary_file(webview, path, callback, error);
+          file_system::read_binary_file(webview, path, options, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "write-file"))]
         WriteFile {
           file,
           contents,
+          options,
           callback,
           error,
         } => {
-          file_system::write_file(webview, file, contents, callback, error);
+          file_system::write_file(webview, file, contents, options, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "read-dir"))]
         ReadDir {
@@ -56,6 +60,53 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           error,
         } => {
           file_system::read_dir(webview, path, options, callback, error);
+        }
+        #[cfg(any(feature = "all-api", feature = "copy-file"))]
+        CopyFile {
+          source,
+          destination,
+          options,
+          callback,
+          error,
+        } => {
+          file_system::copy_file(webview, source, destination, options, callback, error);
+        }
+        #[cfg(any(feature = "all-api", feature = "create-dir"))]
+        CreateDir {
+          path,
+          options,
+          callback,
+          error,
+        } => {
+          file_system::create_dir(webview, path, options, callback, error);
+        }
+        #[cfg(any(feature = "all-api", feature = "remove-dir"))]
+        RemoveDir {
+          path,
+          options,
+          callback,
+          error,
+        } => {
+          file_system::remove_dir(webview, path, options, callback, error);
+        }
+        #[cfg(any(feature = "all-api", feature = "remove-file"))]
+        RemoveFile {
+          path,
+          options,
+          callback,
+          error,
+        } => {
+          file_system::remove_file(webview, path, options, callback, error);
+        }
+        #[cfg(any(feature = "all-api", feature = "rename-file"))]
+        RenameFile {
+          old_path,
+          new_path,
+          options,
+          callback,
+          error,
+        } => {
+          file_system::rename_file(webview, old_path, new_path, options, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "set-title"))]
         SetTitle { title } => {
@@ -93,6 +144,22 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         #[cfg(any(feature = "all-api", feature = "event"))]
         Emit { event, payload } => {
           crate::event::on_event(event, payload);
+        }
+        #[cfg(any(feature = "all-api", feature = "open-dialog"))]
+        OpenDialog {
+          options,
+          callback,
+          error
+        } => {
+          dialog::open(webview, options, callback, error);
+        }
+        #[cfg(any(feature = "all-api", feature = "save-dialog"))]
+        SaveDialog {
+          options,
+          callback,
+          error,
+        } => {
+          dialog::save(webview, options, callback, error);
         }
         #[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
         LoadAsset {

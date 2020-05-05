@@ -30,7 +30,6 @@ includedir = "0.5.0"
 tauri = { path = "../../../../../../../tauri", features = [ "all-api", "edge" ] }
 
 [features]
-dev-server = [ "tauri/dev-server" ]
 embedded-server = [ "tauri/embedded-server" ]
 no-server = [ "tauri/no-server" ]
 

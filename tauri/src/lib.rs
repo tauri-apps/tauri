@@ -3,7 +3,7 @@
   windows_subsystem = "windows"
 )]
 
-#[cfg(not(feature = "dev-server"))]
+#[cfg(any(feature = "embedded-server", feature = "no-server"))]
 pub mod assets;
 pub mod config;
 pub mod event;

@@ -39,11 +39,12 @@ function runDevTest(tauriConfig) {
       let success = false
       const checkIntervalId = setInterval(async () => {
         if (!isRunning(runner.pid) && !success) {
-          server.close(() => reject("App didn't reply"))
+          const failedCommands = Object.keys(responses).filter(k => responses[k] === null).join(', ')
+          server.close(() => reject("App didn't reply to " + failedCommands))
         }
       }, 2000)
 
-      const server = fixtureSetup.startServer(async () => {
+      const { server, responses } = fixtureSetup.startServer(async () => {
         success = true
         clearInterval(checkIntervalId)
         // wait for the app process to be killed

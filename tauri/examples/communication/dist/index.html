@@ -59,19 +59,17 @@
         })
       }
 
-      window.onTauriInit = function () {
-        window.tauri.listen('rust-event', function (res) {
-          document.getElementById('response').innerHTML = JSON.stringify(res)
-        })
+      window.tauri.listen('rust-event', function (res) {
+        document.getElementById('response').innerHTML = JSON.stringify(res)
+      })
 
-        var dirSelect = document.getElementById('dir')
-        for (var key in window.tauri.Dir) {
-          var value = window.tauri.Dir[key]
-          var opt = document.createElement("option")
-          opt.value = value
-          opt.innerHTML = key
-          dirSelect.appendChild(opt)
-        }
+      var dirSelect = document.getElementById('dir')
+      for (var key in window.tauri.Dir) {
+      var value = window.tauri.Dir[key]
+      var opt = document.createElement("option")
+      opt.value = value
+      opt.innerHTML = key
+      dirSelect.appendChild(opt)
       }
     </script>
     <script src="communication.js"></script>

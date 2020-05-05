@@ -198,6 +198,30 @@ pub fn write_file<T: 'static>(
   );
 }
 
+pub fn write_binary_file<T: 'static>(
+  webview: &mut WebView<'_, T>,
+  file: String,
+  contents: Vec<u8>,
+  options: Option<FileOperationOptions>,
+  callback: String,
+  error: String,
+) {
+  crate::execute_promise(
+    webview,
+    move || {
+      File::create(resolve_path(file, options.and_then(|o| o.dir))?)
+        .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
+        .and_then(|mut f| {
+          f.write_all(&contents)
+            .map_err(|err| err.into())
+            .map(|_| "".to_string())
+        })
+    },
+    callback,
+    error,
+  );
+}
+
 pub fn read_text_file<T: 'static>(
   webview: &mut WebView<'_, T>,
   path: String,

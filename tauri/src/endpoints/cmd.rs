@@ -55,6 +55,14 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
+  #[cfg(any(feature = "all-api", feature = "write-binary-file"))]
+  WriteBinaryFile {
+    file: String,
+    contents: Vec<u8>,
+    options: Option<FileOperationOptions>,
+    callback: String,
+    error: String,
+  },
   #[cfg(any(feature = "all-api", feature = "read-dir"))]
   ReadDir {
     path: String,

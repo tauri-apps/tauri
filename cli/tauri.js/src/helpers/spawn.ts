@@ -11,7 +11,7 @@ export const spawn = (
   cmd: string,
   params: string[],
   cwd: string,
-  onClose: (code: number) => void
+  onClose?: (code: number) => void
 ): number => {
   log(`Running "${cmd} ${params.join(' ')}"`)
   log()

@@ -44,7 +44,7 @@ const CHUNK_SIZE = 65536;
 /**
  * convert an Uint8Array to ascii string
  *
- * @param {ArrayBuffer} buffer
+ * @param {Uint8Array} arr
  * @return {String}
  */
 function uint8ArrayToString(arr) {

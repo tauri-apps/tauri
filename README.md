@@ -92,6 +92,7 @@ the box.
 - [x] readTextFile - read text file from local filesystem
 - [x] setTitle - set the window title
 - [x] writeFile - write file to local filesystem
+- [x] writeBinaryFile - write binary file to local filesystem
 - [x] API Spec
 - [x] Documentation (WIP)
 

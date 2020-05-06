@@ -43,7 +43,7 @@ switch (navigator.platform) {
   case "Win32":
   case "Win64":
     break;
-  default: 
+  default:
     window.external = this
     invoke = function (x) {
       window.webkit.messageHandlers.external.postMessage(x);
@@ -81,7 +81,7 @@ function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterat
 var Dir = {
   Audio: 1,
   Cache: 2,
-  Config: 3, 
+  Config: 3,
   Data: 4,
   LocalData: 5,
   Desktop: 6,
@@ -312,6 +312,37 @@ window.tauri = {
     <% } else { %>
       <% if (ctx.dev) { %>
           return __whitelistWarning('writeFile')
+          <% } %>
+        return __reject()
+        <% } %>
+  },
+
+  <% if (ctx.dev) { %>
+    /**
+     * @name writeBinaryFile
+     * @description Write a binary file to the Local Filesystem.
+     * Permissions based on the app's PID owner
+     * @param {Object} cfg
+     * @param {String} cfg.file
+     * @param {String|Binary} cfg.contents
+     * @param {Object} [options]
+     * @param {BaseDirectory} [options.dir]
+     */
+  <% } %>
+  writeBinaryFile: function writeBinaryFile(cfg, options) {
+    <% if (tauri.whitelist.writeBinaryFile === true || tauri.whitelist.all === true) { %>
+      if (_typeof(cfg) === 'object') {
+        Object.freeze(cfg);
+      }
+      return this.promisified({
+        cmd: 'writeBinaryFile',
+        file: cfg.file,
+        contents: cfg.contents,
+        options: options
+      });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+          return __whitelistWarning('writeBinaryFile')
           <% } %>
         return __reject()
         <% } %>

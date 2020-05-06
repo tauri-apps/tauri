@@ -201,7 +201,7 @@ pub fn write_file<T: 'static>(
 pub fn write_binary_file<T: 'static>(
   webview: &mut WebView<'_, T>,
   file: String,
-  contents: Vec<u8>,
+  contents: String,
   options: Option<FileOperationOptions>,
   callback: String,
   error: String,
@@ -209,12 +209,16 @@ pub fn write_binary_file<T: 'static>(
   crate::execute_promise(
     webview,
     move || {
-      File::create(resolve_path(file, options.and_then(|o| o.dir))?)
+      base64::decode(contents)
         .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
-        .and_then(|mut f| {
-          f.write_all(&contents)
-            .map_err(|err| err.into())
-            .map(|_| "".to_string())
+        .and_then(|c| {
+          File::create(resolve_path(file, options.and_then(|o| o.dir))?)
+            .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
+            .and_then(|mut f| {
+              f.write_all(&c)
+                .map_err(|err| err.into())
+                .map(|_| "".to_string())
+            })
         })
     },
     callback,

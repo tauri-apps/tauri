@@ -39,6 +39,56 @@ function writeFile (file, options = {}) {
   return tauri.writeFile(file, options)
 }
 
+const CHUNK_SIZE = 65536;
+
+/**
+ * convert an Uint8Array to ascii string
+ *
+ * @param {ArrayBuffer} buffer
+ * @return {String}
+ */
+function uint8ArrayToString(arr) {
+  if (arr.length < CHUNK_SIZE) {
+    return String.fromCharCode.apply(null, arr)
+  }
+
+  let result = ''
+  const arrLen = arr.length
+  for (let i = 0; i < arrLen; i++) {
+    const chunk = arr.subarray(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
+    result += String.fromCharCode.apply(null, chunk)
+  }
+  return result
+}
+
+/**
+ * convert an ArrayBuffer to base64 encoded string
+ *
+ * @param {ArrayBuffer} buffer
+ * @return {String}
+ */
+function arrayBufferToBase64(buffer) {
+  const str = uint8ArrayToString(new Uint8Array(buffer))
+  return btoa(str)
+}
+
+/**
+ * writes a binary file
+ *
+ * @param {Object} file
+ * @param {String} file.path path of the file
+ * @param {ArrayBuffer} file.contents contents of the file
+ * @param {Object} [options] configuration object
+ * @param {BaseDirectory} [options.dir] base directory
+ * @return {Promise<void>}
+ */
+function writeBinaryFile(file, options = {}) {
+  return tauri.writeBinaryFile({
+    ...file,
+    contents: arrayBufferToBase64(file.contents)
+  }, options)
+}
+
 /**
  * @typedef {Object} FileEntry
  * @property {String} path
@@ -131,6 +181,7 @@ export {
   readTextFile,
   readBinaryFile,
   writeFile,
+  writeBinaryFile,
   readDir,
   createDir,
   removeDir,

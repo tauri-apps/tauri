@@ -359,8 +359,8 @@ fn notification<T: 'static>(
     move || {
       let mut notification = notify_rust::Notification::new();
       notification.body(&options.body);
-      if let Some(summary) = options.summary {
-        notification.summary(&summary);
+      if let Some(title) = options.title {
+        notification.summary(&title);
       }
       if let Some(icon) = options.icon {
         notification.icon(&icon);

@@ -13,7 +13,7 @@
 [![support](https://img.shields.io/badge/sponsor-Opencollective-blue.svg)](https://opencollective.com/tauri)
 
 
-Tauri is a tool for building tiny, blazing fast binaries for all major desktop platforms. You can use any front-end framework that compiles to HTML,JS and CSS for building your interface.
+Tauri is a tool for building tiny, blazing fast binaries for all major desktop platforms. You can use any front-end framework that compiles to HTML, JS and CSS for building your interface.
 
 | Component | Version | Lin | Win | Mac |
 |-----------|---------|-----|-----|-----|

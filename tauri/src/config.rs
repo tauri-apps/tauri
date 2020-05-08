@@ -68,12 +68,26 @@ fn default_embedded_server() -> EmbeddedServerConfig {
 }
 
 #[derive(PartialEq, Deserialize, Clone, Debug)]
+#[serde(tag = "bundle", rename_all = "camelCase")]
+pub struct BundleConfig {
+  pub identifier: String,
+}
+
+fn default_bundle() -> BundleConfig {
+  BundleConfig {
+    identifier: String::from("")
+  }
+}
+
+#[derive(PartialEq, Deserialize, Clone, Debug)]
 #[serde(tag = "tauri", rename_all = "camelCase")]
 pub struct TauriConfig {
   #[serde(default = "default_window")]
   pub window: WindowConfig,
   #[serde(default = "default_embedded_server")]
   pub embedded_server: EmbeddedServerConfig,
+  #[serde(default = "default_bundle")]
+  pub bundle: BundleConfig,
 }
 
 #[derive(PartialEq, Deserialize, Clone, Debug)]
@@ -100,6 +114,7 @@ fn default_tauri() -> TauriConfig {
   TauriConfig {
     window: default_window(),
     embedded_server: default_embedded_server(),
+    bundle: default_bundle(),
   }
 }
 
@@ -136,6 +151,9 @@ mod test {
         embedded_server: EmbeddedServerConfig {
           host: String::from("http://127.0.0.1"),
           port: String::from("random"),
+        },
+        bundle: BundleConfig {
+          identifier: String::from("com.tauri.dev"),
         },
       },
       build: BuildConfig {

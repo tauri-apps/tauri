@@ -7,9 +7,13 @@ mod dialog;
 #[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
 use std::path::PathBuf;
 use web_view::WebView;
+use crate::config::Config;
+
+#[cfg(windows)]
+use std::path::{MAIN_SEPARATOR};
 
 #[allow(unused_variables)]
-pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> crate::Result<()> {
+pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str, config: &Config) -> crate::Result<()> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
     Err(e) => Err(crate::Error::from(e.to_string())),
@@ -176,7 +180,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           callback,
           error,
         } => {
-          notification(webview, options, callback, error)?;
+          notification(webview, options, callback, error, config)?;
         }
       }
       Ok(())
@@ -347,7 +351,9 @@ fn notification<T: 'static>(
   options: cmd::NotificationOptions,
   callback: String,
   error: String,
+  config: &Config
 ) -> crate::Result<()> {
+  let identifier = config.tauri.bundle.identifier.clone();
   crate::execute_promise(
     webview,
     move || {
@@ -358,6 +364,18 @@ fn notification<T: 'static>(
       }
       if let Some(icon) = options.icon {
         notification.icon(&icon);
+      }
+      #[cfg(windows)]
+      {
+        let exe = std::env::current_exe()?;
+        let exe_dir = exe.parent().expect("failed to get exe directory");
+        let curr_dir = exe_dir.display().to_string();
+        // set the notification's System.AppUserModel.ID only when running the installed app
+        if !(curr_dir.ends_with(format!("{S}target{S}debug", S = MAIN_SEPARATOR).as_str())
+          || curr_dir.ends_with(format!("{S}target{S}release", S = MAIN_SEPARATOR).as_str()))
+        {
+          notification.app_id(&identifier);
+        }
       }
       notification.show()
         .map_err(|e| {

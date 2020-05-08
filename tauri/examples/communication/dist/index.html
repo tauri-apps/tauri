@@ -5,6 +5,7 @@
       <button id="log">Call Log API</button>
       <button id="request">Call Request (async) API</button>
       <button id="event">Send event to Rust</button>
+      <button id="notification">Send test notification</button>
     </div>
 
     <div style="margin-top: 24px">
@@ -43,6 +44,7 @@
 
     <div id="response"></div>
 
+    <script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"></script>
     <script>
       function registerResponse (response) {
         document.getElementById('response').innerHTML = typeof response === 'object'
@@ -78,5 +80,6 @@
     <script src="fs.js"></script>
     <script src="window.js"></script>
     <script src="dialog.js"></script>
+    <script src="notification.js"></script>
   </body>
 </html>

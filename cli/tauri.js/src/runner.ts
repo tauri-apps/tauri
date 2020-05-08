@@ -1,7 +1,7 @@
 import Inliner from '@tauri-apps/tauri-inliner'
 import toml, { JsonMap } from '@tauri-apps/toml'
 import chokidar, { FSWatcher } from 'chokidar'
-import { existsSync, readFileSync, writeFileSync, writeFile } from 'fs-extra'
+import { existsSync, readFileSync, writeFileSync } from 'fs-extra'
 import { JSDOM } from 'jsdom'
 import { debounce, template } from 'lodash'
 import path from 'path'
@@ -10,7 +10,7 @@ import * as net from 'net'
 import os from 'os'
 import { findClosestOpenPort } from './helpers/net'
 import * as entry from './entry'
-import { tauriDir } from './helpers/app-paths'
+import { tauriDir, appDir } from './helpers/app-paths'
 import logger from './helpers/logger'
 import onShutdown from './helpers/on-shutdown'
 import { spawn, spawnSync } from './helpers/spawn'
@@ -52,7 +52,9 @@ class Runner {
     if (!this.ranBeforeDevCommand && cfg.build.beforeDevCommand) {
       this.ranBeforeDevCommand = true // prevent calling it twice on recursive call on our watcher
       const [command, ...args] = cfg.build.beforeDevCommand.split(' ')
-      spawnSync(command, args, tauriDir)
+      spawn(command, args, appDir, code => {
+        process.exit(code)
+      })
     }
 
     const tomlContents = this.__getManifest()
@@ -194,7 +196,7 @@ class Runner {
   async build(cfg: TauriConfig): Promise<void> {
     if (cfg.build.beforeBuildCommand) {
       const [command, ...args] = cfg.build.beforeBuildCommand.split(' ')
-      spawnSync(command, args, tauriDir)
+      spawnSync(command, args, appDir)
     }
 
     const tomlContents = this.__getManifest()

@@ -32,7 +32,16 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
           active: true
         },
         bundle: {
-          active: true
+          active: true,
+          icon: [],
+          resources: [],
+          externalBin: [],
+          deb: {
+            depends: []
+          },
+          osx: {
+            frameworks: []
+          }
         },
         whitelist: {
           all: false
@@ -58,11 +67,34 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
   const runningDevServer = config.build.devPath && config.build.devPath.startsWith('http')
   if (!runningDevServer) {
     config.build.devPath = appPaths.resolve.tauri(config.build.devPath)
-    process.env.TAURI_DIST_DIR = appPaths.resolve.app(config.build.devPath)
+    process.env.TAURI_DIST_DIR = config.build.devPath
   }
   if (config.build.distDir) {
     config.build.distDir = appPaths.resolve.tauri(config.build.distDir)
-    process.env.TAURI_DIST_DIR = appPaths.resolve.app(config.build.distDir)
+    process.env.TAURI_DIST_DIR = config.build.distDir
+  }
+
+  // bundle configuration
+  if (config.tauri.bundle) {
+    // OSX
+    if (config.tauri.bundle.osx) {
+      const license = config.tauri.bundle.osx.license
+      if (typeof license === 'string') {
+        config.tauri.bundle.osx.license = appPaths.resolve.tauri(license)
+      } else if (license !== null) {
+        const licensePath = appPaths.resolve.app('LICENSE')
+        if (existsSync(licensePath)) {
+          config.tauri.bundle.osx.license = licensePath
+        }
+      }
+    }
+
+    // targets
+    if (Array.isArray(config.tauri.bundle.targets)) {
+      if (process.platform !== 'win32') {
+        config.tauri.bundle.targets = config.tauri.bundle.targets.filter(t => t !== 'msi')
+      }
+    }
   }
 
   if (!process.env.TAURI_DIST_DIR) {

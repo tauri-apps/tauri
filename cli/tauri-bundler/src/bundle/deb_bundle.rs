@@ -104,7 +104,10 @@ pub fn generate_folders(settings: &Settings, package_dir: &Path) -> crate::Resul
   generate_icon_files(settings, &data_dir).chain_err(|| "Failed to create icon files")?;
   generate_desktop_file(settings, &data_dir).chain_err(|| "Failed to create desktop file")?;
 
-  generate_bootstrap_file(settings, &data_dir).chain_err(|| "Failed to generate bootstrap file")?;
+  let use_bootstrapper = settings.debian_use_bootstrapper();
+  if use_bootstrapper {
+    generate_bootstrap_file(settings, &data_dir).chain_err(|| "Failed to generate bootstrap file")?;
+  }
 
   Ok(data_dir)
 }
@@ -187,7 +190,12 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   if !settings.short_description().is_empty() {
     write!(file, "Comment={}\n", settings.short_description())?;
   }
-  write!(file, "Exec=__{}-bootstrapper\n", bin_name)?;
+  let use_bootstrapper = settings.debian_use_bootstrapper();
+  write!(
+    file, 
+    "Exec={}\n",
+    if use_bootstrapper { format!("__{}-bootstrapper", bin_name) } else { bin_name.to_string() }
+  )?;
   write!(file, "Icon={}\n", bin_name)?;
   write!(file, "Name={}\n", settings.bundle_name())?;
   write!(file, "Terminal=false\n")?;

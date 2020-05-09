@@ -4,9 +4,9 @@ use std::{fs::read_to_string, path::Path, process::Stdio, thread::spawn};
 use web_view::{builder, Content, WebView};
 
 use super::App;
-use crate::config::{get, Config};
 #[cfg(feature = "embedded-server")]
 use crate::api::tcp::{get_available_port, port_is_available};
+use crate::config::{get, Config};
 
 // Main entry point function for running the Webview
 pub(crate) fn run(application: &mut App) -> crate::Result<()> {
@@ -32,7 +32,12 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
     config,
     main_content,
     if application.splashscreen_html().is_some() {
-      Some(Content::Html(application.splashscreen_html().expect("failed to get splashscreen_html").to_string()))
+      Some(Content::Html(
+        application
+          .splashscreen_html()
+          .expect("failed to get splashscreen_html")
+          .to_string(),
+      ))
     } else {
       None
     },
@@ -153,7 +158,7 @@ fn build_webview(
   application: &mut App,
   config: Config,
   content: Content<String>,
-  splashscreen_content: Option<Content<String>>
+  splashscreen_content: Option<Content<String>>,
 ) -> crate::Result<WebView<'_, ()>> {
   let content_clone = match content {
     Content::Html(ref html) => Content::Html(html.clone()),
@@ -201,16 +206,18 @@ fn build_webview(
               Some(e.replace("'", "\\'"))
             } else {
               let handled = handled_by_app.expect("failed to check if the invoke was handled");
-              if handled { None } else { Some(tauri_handle_error_str) }
+              if handled {
+                None
+              } else {
+                Some(tauri_handle_error_str)
+              }
             };
           } else {
             handler_error = Some(tauri_handle_error_str);
           }
 
           if let Some(handler_error_message) = handler_error {
-            webview.eval(
-              &get_api_error_message(arg, handler_error_message)
-            )?;
+            webview.eval(&get_api_error_message(arg, handler_error_message))?;
           }
         }
       }
@@ -229,16 +236,16 @@ fn build_webview(
   if has_splashscreen {
     // inject the tauri.js entry point
     webview
-    .handle()
-    .dispatch(|_webview| _webview.eval(include_str!(concat!(env!("TAURI_DIR"), "/tauri.js"))))?;
+      .handle()
+      .dispatch(|_webview| _webview.eval(include_str!(concat!(env!("TAURI_DIR"), "/tauri.js"))))?;
   }
-  
+
   Ok(webview)
 }
 
 fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
   format!(
-    r#"console.error('failed to match a command for {}, {}')"#, 
+    r#"console.error('failed to match a command for {}, {}')"#,
     arg.replace("'", "\\'"),
     handler_error_message
   )

@@ -11,7 +11,7 @@ function runBuildTest(tauriConfig) {
   return new Promise(async (resolve, reject) => {
     try {
       let success = false
-      const server = fixtureSetup.startServer(() => {
+      const { server, responses } = fixtureSetup.startServer(() => {
         success = true
         try {
           process.kill(appPid)
@@ -37,7 +37,8 @@ function runBuildTest(tauriConfig) {
             try {
               process.kill(appPid)
             } catch {}
-            reject("App didn't reply")
+            const failedCommands = Object.keys(responses).filter(k => responses[k] === null).join(', ')
+            reject("App didn't reply to " + failedCommands)
           })
         }
       }, 15000)

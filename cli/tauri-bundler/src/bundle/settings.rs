@@ -95,8 +95,11 @@ struct BundleSettings {
   script: Option<PathBuf>,
   // OS-specific settings:
   deb_depends: Option<Vec<String>>,
+  deb_use_bootstrapper: Option<bool>,
   osx_frameworks: Option<Vec<String>>,
   osx_minimum_system_version: Option<String>,
+  osx_license: Option<String>,
+  osx_use_bootstrapper: Option<bool>,
   // Bundles for other binaries/examples:
   bin: Option<HashMap<String, BundleSettings>>,
   example: Option<HashMap<String, BundleSettings>>,
@@ -456,7 +459,7 @@ impl Settings {
   }
 
   pub fn exception_domain(&self) -> Option<&String> {
-    return self.bundle_settings.exception_domain.as_ref();
+    self.bundle_settings.exception_domain.as_ref()
   }
 
   // copy external binaries to a path.
@@ -549,6 +552,13 @@ impl Settings {
     }
   }
 
+  pub fn debian_use_bootstrapper(&self) -> bool {
+    self
+      .bundle_settings
+      .deb_use_bootstrapper
+      .unwrap_or(false)
+  }
+
   pub fn osx_frameworks(&self) -> &[String] {
     match self.bundle_settings.osx_frameworks {
       Some(ref frameworks) => frameworks.as_slice(),
@@ -562,6 +572,21 @@ impl Settings {
       .osx_minimum_system_version
       .as_ref()
       .map(String::as_str)
+  }
+
+  pub fn osx_license(&self) -> Option<&str> {
+    self
+      .bundle_settings
+      .osx_license
+      .as_ref()
+      .map(String::as_str)
+  }
+
+  pub fn osx_use_bootstrapper(&self) -> bool {
+    self
+      .bundle_settings
+      .osx_use_bootstrapper
+      .unwrap_or(false)
   }
 }
 
@@ -629,11 +654,14 @@ fn merge_settings(
     long_description: options_value(config.long_description, bundle_settings.long_description),
     script: options_value(config.script, bundle_settings.script),
     deb_depends: options_value(config.deb.depends, bundle_settings.deb_depends),
+    deb_use_bootstrapper: Some(config.deb.use_bootstrapper),
     osx_frameworks: options_value(config.osx.frameworks, bundle_settings.osx_frameworks),
     osx_minimum_system_version: options_value(
       config.osx.minimum_system_version,
       bundle_settings.osx_minimum_system_version,
     ),
+    osx_license: options_value(config.osx.license, bundle_settings.osx_license),
+    osx_use_bootstrapper: Some(config.osx.use_bootstrapper),
     external_bin: options_value(config.external_bin, bundle_settings.external_bin),
     exception_domain: options_value(
       config.osx.exception_domain,

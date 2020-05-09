@@ -4,7 +4,7 @@ mod salt;
 mod file_system;
 mod dialog;
 
-#[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
+#[cfg(any(feature = "embedded-server", feature = "no-server"))]
 use std::path::PathBuf;
 use web_view::WebView;
 
@@ -161,7 +161,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         } => {
           dialog::save(webview, options, callback, error);
         }
-        #[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
+       #[cfg(any(feature = "embedded-server", feature = "no-server"))]
         LoadAsset {
           asset,
           asset_type,
@@ -254,7 +254,7 @@ fn listen_fn(event: String, handler: String, once: bool) -> crate::Result<String
   ))
 }
 
-#[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
+#[cfg(any(feature = "embedded-server", feature = "no-server"))]
 fn load_asset<T: 'static>(
   webview: &mut WebView<'_, T>,
   asset: String,

@@ -38,7 +38,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     settings.version_string(),
     arch
   );
-  let base_dir = settings.project_out_directory().join("bundle/deb");
+  let base_dir = settings.project_out_directory().join("bundle/appimage_deb");
   let package_dir = base_dir.join(&package_base_name);
 
   // generate deb_folder structure
@@ -89,6 +89,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .stderr(Stdio::piped())
     .spawn()
     .expect("Failed to execute shell script");
+
+  remove_dir_all(&package_dir)?;
 
   Ok(vec![appimage_path])
 }

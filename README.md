@@ -115,7 +115,7 @@ If you are interested in making a tauri-app, plase visit the [wiki](https://gith
 
 ## Development
 
-Tauri is a relatively complex system composed of a number of moving pieces.
+Tauri is a system composed of a number of moving pieces:
 
 ### Infrastructure
 - git for code management
@@ -138,20 +138,20 @@ Tauri is a relatively complex system composed of a number of moving pieces.
 Tauri core can be developed on Mac, Linux and Windows, but you are encouraged to use the latest possible operating systems and build tools for your OS.
 
 ### Contribution Flow
-Before you start working on something, it is best to check if there is an existing issue first. Also it is a good idea to stop by the Discord guild and confirm with the team if it makes sense or if someone is already working on it.
+Before you start working on something, it is best to check if there is an existing issue first. Also it is a good idea to stop by the Discord guild and confirm with the team if it makes sense or if someone is already working on it. If you want to read more about this, please see [this page](https://github.com/tauri-apps/tauri/blob/dev/.github/CONTRIBUTING.md).
 
 ### Documentation
-Documentation in a polyglot system is a tricky proposition. To this end, we prefer to use inline documentation of Rust code and at JSDoc in typescript / javascript code. We autocollect these and publish them via docusaurus.
+Documentation in a polyglot system is a tricky proposition. To this end, we prefer to use inline documentation of Rust code and at JSDoc in typescript / javascript code. We autocollect these and publish them using Docusaurus v2 and netlify. Here is the hosting repository for the documentation site: https://github.com/tauri-apps/tauri-docs
 
 ### Testing & Linting
-Test all the things! We have a number of test suites:
+Test all the things! We have a number of test suites, but are always looking to improve our coverage:
 - Rust (`cargo test`) => sourced via inline `#[cfg(test)]` declarations
 - TS (`jest`) => via spec files
 - Smoke Tests (run on merges to master)
 - eslint, clippy
 
 ### CI/CD
-This is probably just as complex as the setup for the development toolchain, so we recommend you read this article to understand better how we run our pipelines: https://www.jacobbolda.com/setting-up-ci-and-cd-for-tauri/
+We recommend you read this article to understand better how we run our pipelines: https://www.jacobbolda.com/setting-up-ci-and-cd-for-tauri/
 
 ## Organization
 Tauri aims to be a sustainable collective based on principles that guide [sustainable

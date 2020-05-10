@@ -2,8 +2,8 @@
 
 import net from 'net'
 
-function findClosestOpenPort(port: number, host: string): Promise<number> {
-  return isPortAvailable(port, host)
+async function findClosestOpenPort(port: number, host: string): Promise<number> {
+  return await isPortAvailable(port, host)
     .then(isAvailable => {
       if (isAvailable) {
         return port
@@ -15,8 +15,8 @@ function findClosestOpenPort(port: number, host: string): Promise<number> {
     })
 }
 
-function isPortAvailable(port: number, host: string): Promise<boolean> {
-  return new Promise((resolve, reject) => {
+async function isPortAvailable(port: number, host: string): Promise<boolean> {
+  return await new Promise((resolve, reject) => {
     const tester = net.createServer()
       .once('error', (err: any) => {
         if (err.code === 'EADDRNOTAVAIL') {

@@ -151,7 +151,7 @@ Test all the things! We have a number of test suites:
 - eslint, clippy
 
 ### CI/CD
-This is probably just as complex as the setup for the development toolchain, so we recommend you read this article to understand better how we
+This is probably just as complex as the setup for the development toolchain, so we recommend you read this article to understand better how we run our pipelines: https://www.jacobbolda.com/setting-up-ci-and-cd-for-tauri/
 
 ## Organization
 Tauri aims to be a sustainable collective based on principles that guide [sustainable

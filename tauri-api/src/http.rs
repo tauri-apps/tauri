@@ -9,38 +9,67 @@ use serde_repr::{Serialize_repr, Deserialize_repr};
 
 #[derive(Serialize_repr, Deserialize_repr, Clone, Debug)]
 #[repr(u16)]
+/// The request's body type
 pub enum BodyType {
+  /// Send request body as application/x-www-form-urlencoded
   Form = 1,
+  /// Send request body (which is a path to a file) as application/octet-stream
   File,
+  /// Detects the body type automatically
+  /// - if the body is a byte array, send is as bytes (application/octet-stream)
+  /// - if the body is an object or array, send it as JSON (application/json with UTF-8 charset)
+  /// - if the body is a string, send it as text (text/plain with UTF-8 charset)
   Auto
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Clone, Debug)]
 #[repr(u16)]
+/// The request's response type
 pub enum ResponseType {
+  /// Read the response as JSON
   Json = 1,
+  /// Read the response as text
   Text,
+  /// Read the response as binary
   Binary
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+/// The configuration object of an HTTP request
 pub struct HttpRequestOptions {
+  /// The request method (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS, CONNECT or TRACE)
   pub method: String,
+  /// The request URL
   pub url: String,
+  /// The request query params
   pub params: Option<HashMap<String, Value>>,
+  /// The request headers
   pub headers: Option<HashMap<String, Value>>,
+  /// The request body
   pub body: Option<Value>,
+  /// Whether to follow redirects or not
   pub follow_redirects: Option<bool>,
+  /// Max number of redirections to follow
   pub max_redirections: Option<u32>,
+  /// Connect timeout for the request
   pub connect_timeout: Option<u64>,
+  /// Read timeout for the request
   pub read_timeout: Option<u64>,
+  /// Timeout for the whole request
   pub timeout: Option<u64>,
+  /// Whether the request will announce that it accepts compression
   pub allow_compression: Option<bool>,
+  /// The body type (defaults to Auto)
   pub body_type: Option<BodyType>,
+  /// The response type (defaults to Json)
   pub response_type: Option<ResponseType>,
 }
 
+/// Executes an HTTP request
+///
+/// The response will be transformed to String,
+/// If reading the response as binary, the byte array will be serialized using serde_json
 pub fn make_request(options: HttpRequestOptions) -> crate::Result<String> {
   let method = Method::from_bytes(options.method.to_uppercase().as_bytes())?;
   let mut builder = RequestBuilder::new(method, options.url);
@@ -92,7 +121,11 @@ pub fn make_request(options: HttpRequestOptions) -> crate::Result<String> {
         } else if let Some(text) = body.as_str() {
           builder.text(&text).send()
         } else if body.is_array() {
-          builder.bytes(&serde_json::to_vec(&body)?).send()
+          let u: Result<Vec<u8>, _> = serde_json::from_value(body.clone());
+          match u {
+            Ok(vec) => builder.bytes(&vec).send(),
+            Err(_) => builder.json(&body)?.send()
+          }
         } else {
           builder.send()
         }

@@ -100,6 +100,9 @@ var Dir = {
 }
 
 <% if (ctx.dev) { %>
+function camelToKebab (string) {
+  return string.replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '$1-$2').toLowerCase()
+}
 /**
  * @name return __whitelistWarning
  * @description Present a stylish warning to the developer that their API
@@ -108,7 +111,7 @@ var Dir = {
  * @private
  */
 var __whitelistWarning = function (func) {
-    console.warn('%c[Tauri] Danger \ntauri.' + func + ' not whitelisted 💣\n%c\nAdd to tauri.conf.json: \n\ntauri: \n  whitelist: { \n    ' + func + ': true \n\nReference: https://github.com/tauri-apps/tauri/wiki' + func, 'background: red; color: white; font-weight: 800; padding: 2px; font-size:1.5em', ' ')
+    console.warn('%c[Tauri] Danger \ntauri.' + func + ' not whitelisted 💣\n%c\nAdd to tauri.conf.json: \n\ntauri: \n  whitelist: { \n    ' + camelToKebab(func) + ': true \n\nReference: https://github.com/tauri-apps/tauri/wiki' + func, 'background: red; color: white; font-weight: 800; padding: 2px; font-size:1.5em', ' ')
     return __reject()
   }
     <% } %>
@@ -467,8 +470,8 @@ window.tauri = {
     <% if (tauri.whitelist.renameFile === true || tauri.whitelist.all === true) { %>
       return this.promisified({
         cmd: 'renameFile',
-        old_path: oldPath,
-        new_path: newPath,
+        oldPath: oldPath,
+        newPath: newPath,
         options: options
       });
     <% } else { %>
@@ -611,13 +614,48 @@ window.tauri = {
         <% } %>
   },
 
-loadAsset: function loadAsset(assetName, assetType) {
-  return this.promisified({
-    cmd: 'loadAsset',
-    asset: assetName,
-    asset_type: assetType || 'unknown'
-  })
-}
+  <% if (ctx.dev) { %>
+    /**
+     * @name httpRequest
+     * @description Makes an HTTP request
+     * @param {Object} options
+     * @param {String} options.method GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS, CONNECT or TRACE
+     * @param {String} options.url the request URL
+     * @param {Object} [options.headers] the request headers
+     * @param {Object} [options.params] the request query params
+     * @param {Object|String|Binary} [options.body] the request body
+     * @param {Boolean} followRedirects whether to follow redirects or not
+     * @param {Number} maxRedirections max number of redirections
+     * @param {Number} connectTimeout request connect timeout
+     * @param {Number} readTimeout request read timeout
+     * @param {Number} timeout request timeout
+     * @param {Boolean} allowCompression
+     * @param {Number} [responseType=1] 1 - JSON, 2 - Text, 3 - Binary
+     * @param {Number} [bodyType=3] 1 - Form, 2 - File, 3 - Auto
+     * @returns {Promise<any>}
+     */
+  <% } %>
+  httpRequest: function httpRequest(options) {
+    <% if (tauri.whitelist.readBinaryFile === true || tauri.whitelist.all === true) { %>
+      return this.promisified({
+        cmd: 'httpRequest',
+        options: options
+      });
+    <% } else { %>
+      <% if (ctx.dev) { %>
+          return __whitelistWarning('httpRequest')
+          <% } %>
+        return __reject()
+        <% } %>
+  },
+
+  loadAsset: function loadAsset(assetName, assetType) {
+    return this.promisified({
+      cmd: 'loadAsset',
+      asset: assetName,
+      assetType: assetType || 'unknown'
+    })
+  }
 };
 
 // init tauri API

@@ -41,6 +41,19 @@
       <button id="save-dialog">Open save dialog</button>
     </div>
 
+    <div style="margin-top: 24px">
+      <select id="request-method">
+        <option value="GET">GET</option>
+        <option value="POST">POST</option>
+        <option value="PUT">PUT</option>
+        <option value="PATCH">PATCH</option>
+        <option value="DELETE">DELETE</option>
+      </select>
+      <input id="request-url" placeholder="Type the request URL...">
+      <textarea id="request-body" placeholder="Request body"></textarea>
+      <button id="make-request">Make request</button>
+    </div>
+
     <div id="response"></div>
 
     <script>
@@ -76,5 +89,6 @@
     <script src="fs.js"></script>
     <script src="window.js"></script>
     <script src="dialog.js"></script>
+    <script src="http.js"></script>
   </body>
 </html>

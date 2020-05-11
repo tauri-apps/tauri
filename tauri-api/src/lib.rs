@@ -11,6 +11,7 @@ pub mod version;
 pub mod tcp;
 pub mod dialog;
 pub mod path;
+pub mod http;
 
 pub use tauri_utils::*;
 
@@ -22,6 +23,10 @@ error_chain! {
         ZipError(::zip::result::ZipError);
         SemVer(::semver::SemVerError);
         Platform(::tauri_utils::Error);
+        Json(::serde_json::Error);
+        Http(::attohttpc::Error);
+        HttpMethod(::http::method::InvalidMethod);
+        HttpHeaderName(::http::header::InvalidHeaderName);
     }
     errors {
         Extract(t: String) {

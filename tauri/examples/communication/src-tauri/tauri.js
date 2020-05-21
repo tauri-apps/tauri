@@ -99,7 +99,7 @@ var Dir = {
   App: 18
 }
 
-<% if (ctx.dev) { %>
+
 function camelToKebab (string) {
   return string.replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '$1-$2').toLowerCase()
 }
@@ -114,9 +114,9 @@ var __whitelistWarning = function (func) {
     console.warn('%c[Tauri] Danger \ntauri.' + func + ' not whitelisted 💣\n%c\nAdd to tauri.conf.json: \n\ntauri: \n  whitelist: { \n    ' + camelToKebab(func) + ': true \n\nReference: https://github.com/tauri-apps/tauri/wiki' + func, 'background: red; color: white; font-weight: 800; padding: 2px; font-size:1.5em', ' ')
     return __reject()
   }
-    <% } %>
+    
 
-<% if (ctx.dev) { %>
+
   /**
    * @name __reject
    * @description generates a promise used to deflect un-whitelisted tauri API calls
@@ -125,7 +125,7 @@ var __whitelistWarning = function (func) {
    *  * @type {Promise<any>}
    * @private
    */
-<% } %>
+
 var __reject = function () {
   return new Promise(function (_, reject) {
     reject();
@@ -134,18 +134,18 @@ var __reject = function () {
 
 window.tauri = {
   Dir: Dir,
-  <% if (ctx.dev) { %>
+  
     /**
      * @name invoke
      * @description Calls a Tauri Core feature, such as setTitle
      * @param {Object} args
      */
-  <% } %>
+  
   invoke: function invoke(args) {
     window.external.invoke(JSON.stringify(args));
   },
 
-  <% if (ctx.dev) { %>
+  
     /**
      * @name listen
      * @description Add an event listener to Tauri backend
@@ -153,9 +153,9 @@ window.tauri = {
      * @param {Function} handler
      * @param {Boolean} once
      */
-  <% } %>
+  
   listen: function listen(event, handler) {
-    <% if (tauri.whitelist.event === true || tauri.whitelist.all === true) { %>
+    
     var once = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
       this.invoke({
         cmd: 'listen',
@@ -163,38 +163,28 @@ window.tauri = {
         handler: window.tauri.transformCallback(handler, once),
         once: once
       });
-    <% } else { %>
-      <% if (ctx.dev) { %>
-          return __whitelistWarning('event')
-          <% } %>
-        return __reject()
-        <% } %>
+    
   },
 
-  <% if (ctx.dev) { %>
+  
     /**
      * @name emit
      * @description Emits an evt to the Tauri back end
      * @param {String} evt
      * @param {Object} payload
      */
-  <% } %>
+  
   emit: function emit(evt, payload) {
-    <% if (tauri.whitelist.event === true || tauri.whitelist.all === true) { %>
+    
       this.invoke({
         cmd: 'emit',
         event: evt,
         payload: payload
       });
-    <% } else { %>
-      <% if (ctx.dev) { %>
-          return __whitelistWarning('event')
-          <% } %>
-        return __reject()
-        <% } %>
+    
   },
 
-  <% if (ctx.dev) { %>
+  
     /**
      * @name transformCallback
      * @description Registers a callback with a uid
@@ -202,7 +192,7 @@ window.tauri = {
      * @param {Boolean} once
      * @returns {*}
      */
-  <% } %>
+  
   transformCallback: function transformCallback(callback) {
     var once = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
     var identifier = uid();
@@ -218,14 +208,14 @@ window.tauri = {
     return identifier;
   },
 
-  <% if (ctx.dev) { %>
+  
     /**
      * @name promisified
      * @description Turns a request into a chainable promise
      * @param {Object} args
      * @returns {Promise<any>}
      */
-  <% } %>
+  
   promisified: function promisified(args) {
     var _this = this;
 
@@ -237,7 +227,7 @@ window.tauri = {
     });
   },
 
-  <% if (ctx.dev) { %>
+  
     /**
      * @name readTextFile
      * @description Accesses a non-binary file on the user's filesystem
@@ -247,23 +237,18 @@ window.tauri = {
      * @param {BaseDirectory} [options.dir]
      * @returns {*|Promise<any>|Promise}
      */
-  <% } %>
+  
   readTextFile: function readTextFile(path, options) {
-    <% if (tauri.whitelist.readTextFile === true || tauri.whitelist.all === true) { %>
+    
       return this.promisified({
         cmd: 'readTextFile',
         path: path,
         options: options
       });
-    <% } else { %>
-      <% if (ctx.dev) { %>
-          return __whitelistWarning('readTextFile')
-          <% } %>
-        return __reject()
-        <% } %>
+    
   },
 
-  <% if (ctx.dev) { %>
+  
     /**
      * @name readBinaryFile
      * @description Accesses a binary file on the user's filesystem
@@ -273,23 +258,18 @@ window.tauri = {
      * @param {BaseDirectory} [options.dir]
      * @returns {*|Promise<any>|Promise}
      */
-  <% } %>
+  
   readBinaryFile: function readBinaryFile(path, options) {
-    <% if (tauri.whitelist.readBinaryFile === true || tauri.whitelist.all === true) { %>
+    
       return this.promisified({
         cmd: 'readBinaryFile',
         path: path,
         options: options
       });
-    <% } else { %>
-      <% if (ctx.dev) { %>
-          return __whitelistWarning('readBinaryFile')
-          <% } %>
-        return __reject()
-        <% } %>
+    
   },
 
-  <% if (ctx.dev) { %>
+  
     /**
      * @name writeFile
      * @description Write a file to the Local Filesystem.
@@ -300,9 +280,9 @@ window.tauri = {
      * @param {Object} [options]
      * @param {BaseDirectory} [options.dir]
      */
-  <% } %>
+  
   writeFile: function writeFile(cfg, options) {
-    <% if (tauri.whitelist.writeFile === true || tauri.whitelist.all === true) { %>
+    
       if (_typeof(cfg) === 'object') {
         Object.freeze(cfg);
       }
@@ -312,15 +292,10 @@ window.tauri = {
         contents: cfg.contents,
         options: options
       });
-    <% } else { %>
-      <% if (ctx.dev) { %>
-          return __whitelistWarning('writeFile')
-          <% } %>
-        return __reject()
-        <% } %>
+    
   },
 
-  <% if (ctx.dev) { %>
+  
     /**
      * @name readDir
      * @description Reads a directory
@@ -331,23 +306,18 @@ window.tauri = {
      * @param {BaseDirectory} [options.dir]
      * @returns {*|Promise<any>|Promise}
      */
-  <% } %>
+  
   readDir: function readDir(path, options) {
-    <% if (tauri.whitelist.readDir === true || tauri.whitelist.all === true) { %>
+    
       return this.promisified({
         cmd: 'readDir',
         path: path,
         options: options
       });
-    <% } else { %>
-      <% if (ctx.dev) { %>
-          return __whitelistWarning('readDir')
-          <% } %>
-        return __reject()
-        <% } %>
+    
   },
 
-  <% if (ctx.dev) { %>
+  
     /**
      * @name createDir
      * @description Creates a directory
@@ -358,23 +328,18 @@ window.tauri = {
      * @param {BaseDirectory} [options.dir]
      * @returns {*|Promise<any>|Promise}
      */
-  <% } %>
+  
   createDir: function createDir(path, options) {
-    <% if (tauri.whitelist.createDir === true || tauri.whitelist.all === true) { %>
+    
       return this.promisified({
         cmd: 'createDir',
         path: path,
         options: options
       });
-    <% } else { %>
-      <% if (ctx.dev) { %>
-          return __whitelistWarning('createDir')
-          <% } %>
-        return __reject()
-        <% } %>
+    
   },
 
-  <% if (ctx.dev) { %>
+  
     /**
      * @name removeDir
      * @description Removes a directory
@@ -385,23 +350,18 @@ window.tauri = {
      * @param {BaseDirectory} [options.dir]
      * @returns {*|Promise<any>|Promise}
      */
-  <% } %>
+  
   removeDir: function removeDir(path, options) {
-    <% if (tauri.whitelist.removeDir === true || tauri.whitelist.all === true) { %>
+    
       return this.promisified({
         cmd: 'removeDir',
         path: path,
         options: options
       });
-    <% } else { %>
-      <% if (ctx.dev) { %>
-          return __whitelistWarning('removeDir')
-          <% } %>
-        return __reject()
-        <% } %>
+    
   },
 
-  <% if (ctx.dev) { %>
+  
     /**
      * @name copyFile
      * @description Copy file
@@ -412,24 +372,19 @@ window.tauri = {
      * @param {BaseDirectory} [options.dir]
      * @returns {*|Promise<any>|Promise}
      */
-  <% } %>
+  
   copyFile: function copyFile(source, destination, options) {
-    <% if (tauri.whitelist.copyFile === true || tauri.whitelist.all === true) { %>
+    
       return this.promisified({
         cmd: 'copyFile',
         source: source,
         destination: destination,
         options: options
       });
-    <% } else { %>
-      <% if (ctx.dev) { %>
-          return __whitelistWarning('copyFile')
-          <% } %>
-        return __reject()
-        <% } %>
+    
   },
 
-  <% if (ctx.dev) { %>
+  
     /**
      * @name removeFile
      * @description Removes a file
@@ -439,23 +394,18 @@ window.tauri = {
      * @param {BaseDirectory} [options.dir]
      * @returns {*|Promise<any>|Promise}
      */
-  <% } %>
+  
   removeFile: function removeFile(path, options) {
-    <% if (tauri.whitelist.removeFile === true || tauri.whitelist.all === true) { %>
+    
       return this.promisified({
         cmd: 'removeFile',
         path: path,
         options: options
       });
-    <% } else { %>
-      <% if (ctx.dev) { %>
-          return __whitelistWarning('removeFile')
-          <% } %>
-        return __reject()
-        <% } %>
+    
   },
 
-  <% if (ctx.dev) { %>
+  
     /**
      * @name renameFile
      * @description Renames a file
@@ -465,66 +415,51 @@ window.tauri = {
      * @param {BaseDirectory} [options.dir]
      * @returns {*|Promise<any>|Promise}
      */
-  <% } %>
+  
   renameFile: function renameFile(oldPath, newPath, options) {
-    <% if (tauri.whitelist.renameFile === true || tauri.whitelist.all === true) { %>
+    
       return this.promisified({
         cmd: 'renameFile',
         oldPath: oldPath,
         newPath: newPath,
         options: options
       });
-    <% } else { %>
-      <% if (ctx.dev) { %>
-          return __whitelistWarning('renameFile')
-          <% } %>
-        return __reject()
-        <% } %>
+    
   },
 
-  <% if (ctx.dev) { %>
+  
     /**
      * @name setTitle
      * @description Set the application's title
      * @param {String} title
      */
-  <% } %>
+  
   setTitle: function setTitle(title) {
-    <% if (tauri.whitelist.setTitle === true || tauri.whitelist.all === true) { %>
+    
       this.invoke({
         cmd: 'setTitle',
         title: title
       });
-    <% } else { %>
-      <% if (ctx.dev) { %>
-    return __whitelistWarning('setTitle')
-          <% } %>
-    return __reject()
-        <% } %>
+    
   },
 
-  <% if (ctx.dev) { %>
+  
     /**
      * @name open
      * @description Open an URI
      * @param {String} uri
      */
-  <% } %>
+  
   open: function open(uri) {
-    <% if (tauri.whitelist.open === true || tauri.whitelist.all === true) { %>
+    
       this.invoke({
         cmd: 'open',
         uri: uri
       });
-    <% } else { %>
-    <% if (ctx.dev) { %>
-      return __whitelistWarning('open')
-          <% } %>
-    return __reject()
-        <% } %>
+    
   },
 
-  <% if (ctx.dev) { %>
+  
     /**
      * @name execute
      * @description Execute a program with arguments.
@@ -533,9 +468,9 @@ window.tauri = {
      * @param {String|Array} args
      * @returns {*|Promise<any>|Promise}
      */
-  <% } %>
+  
   execute: function execute(command, args) {
-    <% if (tauri.whitelist.execute === true || tauri.whitelist.all === true) { %>
+    
 
       if (_typeof(args) === 'object') {
         Object.freeze(args);
@@ -546,15 +481,10 @@ window.tauri = {
         command: command,
         args: typeof args === 'string' ? [args] : args
       });
-    <% } else { %>
-      <% if (ctx.dev) { %>
-        return __whitelistWarning('execute')
-          <% } %>
-        return __reject()
-        <% } %>
+    
   },
 
-  <% if (ctx.dev) { %>
+  
     /**
      * @name openDialog
      * @description Open a file/directory selection dialog
@@ -565,9 +495,9 @@ window.tauri = {
      * @param {Boolean} [options.directory=false]
      * @returns {Promise<String|String[]>} promise resolving to the select path(s)
      */
-  <% } %>
+  
   openDialog: function openDialog(options) {
-    <% if (tauri.whitelist.openDialog === true || tauri.whitelist.all === true) { %>
+    
       var opts = options || {}
       if (_typeof(options) === 'object') {
         opts.default_path = opts.defaultPath
@@ -577,15 +507,10 @@ window.tauri = {
         cmd: 'openDialog',
         options: opts
       });
-    <% } else { %>
-    <% if (ctx.dev) { %>
-      return __whitelistWarning('openDialog')
-          <% } %>
-    return __reject()
-        <% } %>
+    
   },
 
-  <% if (ctx.dev) { %>
+  
     /**
      * @name saveDialog
      * @description Open a file/directory save dialog
@@ -594,9 +519,9 @@ window.tauri = {
      * @param {String} [options.defaultPath]
      * @returns {Promise<String>} promise resolving to the select path
      */
-  <% } %>
+  
   saveDialog: function saveDialog(options) {
-    <% if (tauri.whitelist.saveDialog === true || tauri.whitelist.all === true) { %>
+    
       var opts = options || {}
       if (_typeof(options) === 'object') {
         opts.default_path = opts.defaultPath
@@ -606,15 +531,10 @@ window.tauri = {
         cmd: 'saveDialog',
         options: opts
       });
-    <% } else { %>
-    <% if (ctx.dev) { %>
-      return __whitelistWarning('saveDialog')
-          <% } %>
-    return __reject()
-        <% } %>
+    
   },
 
-  <% if (ctx.dev) { %>
+  
     /**
      * @name httpRequest
      * @description Makes an HTTP request
@@ -634,19 +554,14 @@ window.tauri = {
      * @param {Number} [bodyType=3] 1 - Form, 2 - File, 3 - Auto
      * @returns {Promise<any>}
      */
-  <% } %>
+  
   httpRequest: function httpRequest(options) {
-    <% if (tauri.whitelist.readBinaryFile === true || tauri.whitelist.all === true) { %>
+    
       return this.promisified({
         cmd: 'httpRequest',
         options: options
       });
-    <% } else { %>
-      <% if (ctx.dev) { %>
-          return __whitelistWarning('httpRequest')
-          <% } %>
-        return __reject()
-        <% } %>
+    
   },
 
   loadAsset: function loadAsset(assetName, assetType) {

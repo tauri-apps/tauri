@@ -1,5 +1,6 @@
-use serde::Deserialize;
 use crate::api::path::BaseDirectory;
+use serde::Deserialize;
+use tauri_api::http::HttpRequestOptions;
 
 #[derive(Deserialize)]
 pub struct DirOperationOptions {
@@ -14,6 +15,7 @@ pub struct FileOperationOptions {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OpenDialogOptions {
   pub filter: Option<String>,
   #[serde(default)]
@@ -24,6 +26,7 @@ pub struct OpenDialogOptions {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SaveDialogOptions {
   pub filter: Option<String>,
   pub default_path: Option<String>,
@@ -91,6 +94,7 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
+  #[serde(rename_all = "camelCase")]
   #[cfg(any(feature = "all-api", feature = "rename-file"))]
   RenameFile {
     old_path: String,
@@ -142,6 +146,13 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
+  #[cfg(any(feature = "all-api", feature = "http-request"))]
+  HttpRequest {
+    options: HttpRequestOptions,
+    callback: String,
+    error: String,
+  },
+  #[serde(rename_all = "camelCase")]
   #[cfg(any(feature = "embedded-server", feature = "no-server"))]
   LoadAsset {
     asset: String,

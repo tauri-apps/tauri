@@ -1,12 +1,12 @@
-use crate::api::dialog::{select, select_multiple, save_file, pick_folder, Response};
 use super::cmd::{OpenDialogOptions, SaveDialogOptions};
+use crate::api::dialog::{pick_folder, save_file, select, select_multiple, Response};
 use web_view::WebView;
 
 fn map_response(response: Response) -> String {
   match response {
     Response::Okay(path) => format!(r#""{}""#, path).replace("\\", "\\\\"),
     Response::OkayMultiple(paths) => format!("{:?}", paths),
-    Response::Cancel => panic!("unexpected response type")
+    Response::Cancel => panic!("unexpected response type"),
   }
 }
 

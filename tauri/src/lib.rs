@@ -50,6 +50,10 @@ error_chain! {
       description("FileSystem Error")
       display("FileSystem Error: '{}'", t)
     }
+    Http(t: String) {
+      description("Http Error")
+      display("Http Error: '{}'", t)
+    }
   }
 }
 

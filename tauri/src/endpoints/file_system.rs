@@ -52,14 +52,15 @@ pub fn copy_file<T: 'static>(
     webview,
     move || {
       let (src, dest) = match options.and_then(|o| o.dir) {
-        Some(dir) => {
-          (resolve_path(source, Some(dir.clone()))?, resolve_path(destination, Some(dir))?)
-        }
-        None => (source, destination)
+        Some(dir) => (
+          resolve_path(source, Some(dir.clone()))?,
+          resolve_path(destination, Some(dir))?,
+        ),
+        None => (source, destination),
       };
       fs::copy(src, dest)
-         .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
-         .map(|_| "".to_string())
+        .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
+        .map(|_| "".to_string())
     },
     callback,
     error,
@@ -90,7 +91,7 @@ pub fn create_dir<T: 'static>(
 
       response
         .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
-         .map(|_| "".to_string())
+        .map(|_| "".to_string())
     },
     callback,
     error,
@@ -160,10 +161,11 @@ pub fn rename_file<T: 'static>(
     webview,
     move || {
       let (old, new) = match options.and_then(|o| o.dir) {
-        Some(dir) => {
-          (resolve_path(old_path, Some(dir.clone()))?, resolve_path(new_path, Some(dir))?)
-        }
-        None => (old_path, new_path)
+        Some(dir) => (
+          resolve_path(old_path, Some(dir.clone()))?,
+          resolve_path(new_path, Some(dir))?,
+        ),
+        None => (old_path, new_path),
       };
       fs::rename(old, new)
         .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
@@ -210,10 +212,7 @@ pub fn read_text_file<T: 'static>(
     move || {
       file::read_string(resolve_path(path, options.and_then(|o| o.dir))?)
         .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
-        .and_then(|f| {
-          serde_json::to_string(&f)
-            .map_err(|err| err.into())
-        })
+        .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
     },
     callback,
     error,
@@ -232,10 +231,7 @@ pub fn read_binary_file<T: 'static>(
     move || {
       file::read_binary(resolve_path(path, options.and_then(|o| o.dir))?)
         .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
-        .and_then(|f| {
-          serde_json::to_string(&f)
-            .map_err(|err| err.into())
-        })
+        .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
     },
     callback,
     error,

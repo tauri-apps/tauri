@@ -64,6 +64,11 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
     cfg as any
   ) as TauriConfig
 
+  if (!config.build.devPath || !config.build.distDir) {
+    error('Missing required build configuration in your tauri.conf.json file. Please make sure to add the proper path configuration as described at https://github.com/tauri-apps/tauri/wiki/05.-Tauri-Integration#src-tauritauriconfjson.')
+    process.exit(1)
+  }
+
   const runningDevServer = config.build.devPath && config.build.devPath.startsWith('http')
   if (!runningDevServer) {
     config.build.devPath = appPaths.resolve.tauri(config.build.devPath)

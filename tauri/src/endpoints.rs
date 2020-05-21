@@ -1,8 +1,8 @@
 mod cmd;
-mod salt;
-#[allow(dead_code)]
-mod file_system;
 mod dialog;
+mod file_system;
+mod http;
+mod salt;
 
 #[cfg(any(feature = "embedded-server", feature = "no-server"))]
 use std::path::PathBuf;
@@ -149,7 +149,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         OpenDialog {
           options,
           callback,
-          error
+          error,
         } => {
           dialog::open(webview, options, callback, error);
         }
@@ -161,7 +161,15 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         } => {
           dialog::save(webview, options, callback, error);
         }
-       #[cfg(any(feature = "embedded-server", feature = "no-server"))]
+        #[cfg(any(feature = "all-api", feature = "http-request"))]
+        HttpRequest {
+          options,
+          callback,
+          error,
+        } => {
+          http::make_request(webview, options, callback, error);
+        }
+        #[cfg(any(feature = "embedded-server", feature = "no-server"))]
         LoadAsset {
           asset,
           asset_type,

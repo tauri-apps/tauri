@@ -89,10 +89,10 @@ class Runner {
         selfHandleResponse: true
       })
 
-      proxy.on('proxyRes', function (proxyRes, req, res) {
+      proxy.on('proxyRes', function (proxyRes: http.IncomingMessage, req: http.IncomingMessage, res: http.ServerResponse) {
         if (req.url === '/') {
           let body: Uint8Array[] = []
-          proxyRes.on('data', function (chunk) {
+          proxyRes.on('data', function (chunk: Uint8Array) {
             body.push(chunk)
           })
           proxyRes.on('end', function () {

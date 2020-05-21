@@ -1,6 +1,6 @@
 {
   "name": "tauri",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Multi-binding collection of libraries and templates for building Tauri apps",
   "bin": {
     "tauri": "./bin/tauri.js"
@@ -51,6 +51,7 @@
     "cross-spawn": "7.0.2",
     "fast-glob": "3.2.2",
     "fs-extra": "9.0.0",
+    "http-proxy": "^1.18.0",
     "imagemin": "7.0.1",
     "imagemin-optipng": "7.1.0",
     "imagemin-pngquant": "8.0.0",
@@ -73,6 +74,7 @@
     "@babel/preset-typescript": "7.9.0",
     "@types/cross-spawn": "6.0.1",
     "@types/fs-extra": "8.1.0",
+    "@types/http-proxy": "^1.17.4",
     "@types/imagemin": "7.0.0",
     "@types/imagemin-optipng": "5.2.0",
     "@types/jsdom": "16.2.1",

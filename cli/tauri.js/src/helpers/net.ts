@@ -3,17 +3,16 @@
 import net from 'net'
 
 async function findClosestOpenPort(port: number, host: string): Promise<number> {
-  let portProposal = port
-
-  do {
-    if (await isPortAvailable(portProposal, host)) {
-      return portProposal
-    }
-    portProposal++
-  }
-  while (portProposal < 65535)
-
-  throw new Error('ERROR_NETWORK_PORT_NOT_AVAIL')
+  return await isPortAvailable(port, host)
+    .then(isAvailable => {
+      if (isAvailable) {
+        return port
+      } else if (port < 65535) {
+        return findClosestOpenPort(port + 1, host)
+      } else {
+        throw new Error('ERROR_NETWORK_PORT_NOT_AVAIL')
+      }
+    })
 }
 
 async function isPortAvailable(port: number, host: string): Promise<boolean> {

@@ -14,8 +14,10 @@ import { tauriDir, appDir } from './helpers/app-paths'
 import logger from './helpers/logger'
 import onShutdown from './helpers/on-shutdown'
 import { spawn, spawnSync } from './helpers/spawn'
+import { exec } from 'child_process'
 import { TauriConfig } from './types/config'
 import getTauriConfig from './helpers/tauri-config'
+import httpProxy from 'http-proxy'
 
 const log = logger('app:tauri', 'green')
 const warn = logger('app:tauri (runner)', 'red')
@@ -51,10 +53,18 @@ class Runner {
 
     if (!this.ranBeforeDevCommand && cfg.build.beforeDevCommand) {
       this.ranBeforeDevCommand = true // prevent calling it twice on recursive call on our watcher
-      const [command, ...args] = cfg.build.beforeDevCommand.split(' ')
-      spawn(command, args, appDir, code => {
-        process.exit(code)
+      log('Running `' + cfg.build.beforeDevCommand + '`')
+      const ls = exec(cfg.build.beforeDevCommand, {
+        cwd: appDir,
+        env: process.env
+      }, error => {
+        if (error) {
+          process.exit(1)
+        }
       })
+
+      ls.stderr && ls.stderr.pipe(process.stderr)
+      ls.stdout && ls.stdout.pipe(process.stdout)
     }
 
     const tomlContents = this.__getManifest()
@@ -68,51 +78,51 @@ class Runner {
     let inlinedAssets: string[] = []
 
     if (runningDevServer) {
+      const self = this
       const devUrl = new URL(devPath)
-      const app = http.createServer((req, res) => {
-        const options = {
-          hostname: devUrl.hostname,
-          port: devUrl.port,
-          path: req.url,
-          method: req.method
-        }
-        
-        const self = this
-
-        const proxy = http.request(options, function (originalResponse) {
-          if (options.path === '/') {
-            let body: Uint8Array[] = []
-            originalResponse.on('data', chunk => {
-              body.push(chunk)
-            })
-            originalResponse.on('end', () => {
-              const originalHtml = body.join('')
-              const indexDir = os.tmpdir()
-              writeFileSync(path.join(indexDir, 'index.html'), originalHtml)
-              self.__parseHtml(cfg, indexDir, false)
-                .then(({ html }) => {
-                  res.writeHead(200)
-                  res.end(html)
-                }).catch(err => {
-                  res.writeHead(500, JSON.stringify(err))
-                  res.end()
-                })
-            })
-          } else {
-            res.writeHead(res.statusCode, originalResponse.headers)
-            originalResponse.pipe(res, {
-              end: true
-            })
-          }
-        })
-
-        req.pipe(proxy, {
-          end: true
-        })
+      const proxy = httpProxy.createProxyServer({
+        ws: true,
+        target: {
+          host: devUrl.hostname,
+          port: devUrl.port
+        },
+        selfHandleResponse: true
       })
+
+      proxy.on('proxyRes', function (proxyRes, req, res) {
+        if (req.url === '/') {
+          let body: Uint8Array[] = []
+          proxyRes.on('data', function (chunk) {
+            body.push(chunk)
+          })
+          proxyRes.on('end', function () {
+            let bodyStr = body.join('')
+            const indexDir = os.tmpdir()
+            writeFileSync(path.join(indexDir, 'index.html'), bodyStr)
+            self.__parseHtml(cfg, indexDir, false)
+              .then(({ html }) => {
+                res.end(html)
+              }).catch(err => {
+                res.writeHead(500, JSON.stringify(err))
+                res.end()
+              })
+          })
+        } else {
+          proxyRes.pipe(res)
+        }
+      })
+
+      const proxyServer = http.createServer((req, res) => {
+        delete req.headers['accept-encoding']
+        proxy.web(req, res)
+      })
+      proxyServer.on('upgrade', (req, socket, head) => {
+        proxy.ws(req, socket, head)
+      })
+
       const port = await findClosestOpenPort(parseInt(devUrl.port) + 1, devUrl.hostname)
-      const server = app.listen(port)
-      this.devServer = server
+      const devServer = proxyServer.listen(port)
+      this.devServer = devServer
       devPath = `${devUrl.protocol}//localhost:${port}`
       cfg.build.devPath = devPath
       process.env.TAURI_CONFIG = JSON.stringify(cfg)

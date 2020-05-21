@@ -1,6 +1,36 @@
 <!DOCTYPE html>
 <html>
+  <head>
+    <style>
+      .logo-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .logo-link {
+        font-weight: 700;
+      }
+
+      .logo {
+        width: 128px;
+        height: 128px;
+        cursor: pointer;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+      }
+    </style>
+  </head>
   <body>
+    <div class="logo-container">
+      <a class="logo-link" target="_blank" href="https://github.com/tauri-apps/tauri">
+        <h3>GitHub Repository</h3>
+      </a>
+      <img src="../src-tauri/icons/icon.png" class="logo">
+    </div>
     <div>
       <button id="log">Call Log API</button>
       <button id="request">Call Request (async) API</button>
@@ -76,13 +106,17 @@
         document.getElementById('response').innerHTML = JSON.stringify(res)
       })
 
+      document.querySelector('.logo').addEventListener('click', function () {
+        window.tauri.open('https://tauri.studio/')
+      })
+
       var dirSelect = document.getElementById('dir')
       for (var key in window.tauri.Dir) {
-      var value = window.tauri.Dir[key]
-      var opt = document.createElement("option")
-      opt.value = value
-      opt.innerHTML = key
-      dirSelect.appendChild(opt)
+        var value = window.tauri.Dir[key]
+        var opt = document.createElement("option")
+        opt.value = value
+        opt.innerHTML = key
+        dirSelect.appendChild(opt)
       }
     </script>
     <script src="communication.js"></script>

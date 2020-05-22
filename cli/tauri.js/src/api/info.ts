@@ -80,7 +80,7 @@ function printAppInfo(tauriDir: string): void {
     const tauriVersion = (): string => {
       const tauri = tomlContents.dependencies.tauri
       if (tauri) {
-        if (typeof tauri === "string") {
+        if (typeof tauri === 'string') {
           return chalk.green(tauri)
         }
         if (tauri.version) {

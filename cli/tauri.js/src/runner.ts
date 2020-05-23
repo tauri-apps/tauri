@@ -108,6 +108,10 @@ class Runner {
               })
           })
         } else {
+          if (proxyRes.statusCode) {
+            res = res.writeHead(proxyRes.statusCode, proxyRes.headers)
+          }
+
           proxyRes.pipe(res)
         }
       })

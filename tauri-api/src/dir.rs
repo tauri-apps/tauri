@@ -18,7 +18,7 @@ pub struct DiskEntry {
 fn is_dir(file_name: String) -> crate::Result<bool> {
   match metadata(file_name) {
     Ok(md) => Result::Ok(md.is_dir()),
-    Err(err) => Result::Err(err.to_string().into()),
+    Err(err) => Result::Err(err.into()),
   }
 }
 
@@ -43,21 +43,18 @@ pub fn walk_dir(path_copy: String) -> crate::Result<Vec<DiskEntry>> {
 }
 
 pub fn list_dir_contents(dir_path: String) -> crate::Result<Vec<DiskEntry>> {
-  fs::read_dir(dir_path)
-    .map_err(|err| crate::Error::with_chain(err, "read dir failed"))
-    .and_then(|paths| {
-      let mut dirs: Vec<DiskEntry> = vec![];
-      for path in paths {
-        let dir_path = path.expect("dirpath error").path();
-        let _dir_name = dir_path.display();
-        dirs.push(DiskEntry {
-          path: format!("{}", _dir_name),
-          is_dir: true,
-          name: get_dir_name_from_path(_dir_name.to_string()),
-        });
-      }
-      Ok(dirs)
-    })
+  let paths = fs::read_dir(dir_path)?;
+  let mut dirs: Vec<DiskEntry> = vec![];
+  for path in paths {
+    let dir_path = path.expect("dirpath error").path();
+    let _dir_name = dir_path.display();
+    dirs.push(DiskEntry {
+      path: format!("{}", _dir_name),
+      is_dir: true,
+      name: get_dir_name_from_path(_dir_name.to_string()),
+    });
+  }
+  Ok(dirs)
 }
 
 pub fn with_temp_dir<F: FnOnce(&tempfile::TempDir) -> ()>(callback: F) -> crate::Result<()> {

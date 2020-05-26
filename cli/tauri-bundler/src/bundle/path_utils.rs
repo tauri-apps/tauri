@@ -1,6 +1,8 @@
 use std::fs::{create_dir, create_dir_all, read_dir, remove_dir_all};
 use std::path::{Path, PathBuf};
 
+use anyhow::anyhow;
+
 #[derive(Clone)]
 pub struct DirOpts {
   pub depth: u64,
@@ -94,17 +96,17 @@ where
   if !from.exists() {
     if let Some(msg) = from.to_str() {
       let msg = format!("Path \"{}\" does not exist or you don't have access", msg);
-      return Err(msg.into());
+      return Err(anyhow!(msg));
     }
-    return Err("Path does not exist Or you don't have access!".into());
+    return Err(anyhow!("Path does not exist Or you don't have access!"));
   }
 
   if !from.is_file() {
     if let Some(msg) = from.to_str() {
       let msg = format!("Path \"{}\" is not a file!", msg);
-      return Err(msg.into());
+      return Err(anyhow!(msg));
     }
-    return Err("Path is not a file!".into());
+    return Err(anyhow!("Path is not a file!"));
   }
   if !options.overwrite && to.as_ref().exists() {
     if options.skip {
@@ -113,7 +115,7 @@ where
 
     if let Some(msg) = to.as_ref().to_str() {
       let msg = format!("Path \"{}\" is exist", msg);
-      return Err(msg.into());
+      return Err(anyhow!(msg));
     }
   }
 
@@ -130,22 +132,22 @@ where
   if !from.exists() {
     if let Some(msg) = from.to_str() {
       let msg = format!("Path \"{}\" does not exist or you don't have access!", msg);
-      return Err(msg.into());
+      return Err(anyhow!(msg));
     }
-    return Err("Path does not exist Or you don't have access!".into());
+    return Err(anyhow!("Path does not exist Or you don't have access!"));
   }
   if !from.is_dir() {
     if let Some(msg) = from.to_str() {
       let msg = format!("Path \"{}\" is not a directory!", msg);
-      return Err(msg.into());
+      return Err(anyhow!(msg));
     }
-    return Err("Path is not a directory!".into());
+    return Err(anyhow!("Path is not a directory!"));
   }
   let dir_name;
   if let Some(val) = from.components().last() {
     dir_name = val.as_os_str();
   } else {
-    return Err("Invalid folder from".into());
+    return Err(anyhow!("Invalid folder from"));
   }
   let mut to: PathBuf = to.as_ref().to_path_buf();
   if !options.content_only && (!options.copy_files || to.exists()) {
@@ -192,7 +194,7 @@ where
         }
         Err(err) => {
           let err_msg = err.to_string();
-          return Err(err_msg.into());
+          return Err(anyhow!(err_msg));
         }
       }
     }
@@ -222,7 +224,7 @@ where
   let mut size = 0;
   let item = path.as_ref().to_str();
   if item.is_none() {
-    return Err("Invalid path".into());
+    return Err(anyhow!("Invalid path"));
   }
   let item = item.expect("Item had no data").to_string();
 

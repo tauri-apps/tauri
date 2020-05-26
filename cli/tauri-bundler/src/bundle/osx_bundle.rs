@@ -18,11 +18,11 @@
 // files into the `Contents` directory of the bundle.
 
 use super::common;
-use crate::{ResultExt, Settings};
+use crate::Settings;
 
+use anyhow::{bail, Context};
 use chrono;
 use dirs;
-use error_chain::bail;
 use icns;
 use image::{self, GenericImageView};
 
@@ -43,10 +43,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .join(&app_bundle_name);
   if app_bundle_path.exists() {
     fs::remove_dir_all(&app_bundle_path)
-      .chain_err(|| format!("Failed to remove old {}", app_bundle_name))?;
+      .with_context(|| format!("Failed to remove old {}", app_bundle_name))?;
   }
   let bundle_directory = app_bundle_path.join("Contents");
-  fs::create_dir_all(&bundle_directory).chain_err(|| {
+  fs::create_dir_all(&bundle_directory).with_context(|| {
     format!(
       "Failed to create bundle directory at {:?}",
       bundle_directory
@@ -57,26 +57,27 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let bin_dir = bundle_directory.join("MacOS");
 
   let bundle_icon_file: Option<PathBuf> =
-    { create_icns_file(&resources_dir, settings).chain_err(|| "Failed to create app icon")? };
+    { create_icns_file(&resources_dir, settings).with_context(|| "Failed to create app icon")? };
 
   create_info_plist(&bundle_directory, bundle_icon_file, settings)
-    .chain_err(|| "Failed to create Info.plist")?;
+    .with_context(|| "Failed to create Info.plist")?;
 
   copy_frameworks_to_bundle(&bundle_directory, settings)
-    .chain_err(|| "Failed to bundle frameworks")?;
+    .with_context(|| "Failed to bundle frameworks")?;
 
   settings.copy_resources(&resources_dir)?;
 
   settings
     .copy_binaries(&bin_dir)
-    .chain_err(|| "Failed to copy external binaries")?;
+    .with_context(|| "Failed to copy external binaries")?;
 
   copy_binary_to_bundle(&bundle_directory, settings)
-    .chain_err(|| format!("Failed to copy binary from {:?}", settings.binary_path()))?;
+    .with_context(|| format!("Failed to copy binary from {:?}", settings.binary_path()))?;
 
   let use_bootstrapper = settings.osx_use_bootstrapper();
   if use_bootstrapper {
-    create_bootstrapper(&bundle_directory, settings).chain_err(|| "Failed to create OSX bootstrapper")?;
+    create_bootstrapper(&bundle_directory, settings)
+      .with_context(|| "Failed to create OSX bootstrapper")?;
   }
   Ok(vec![app_bundle_path])
 }
@@ -170,7 +171,11 @@ fn create_info_plist(
   write!(
     file,
     "  <key>CFBundleExecutable</key>\n  <string>{}</string>\n",
-    if use_bootstrapper { "__bootstrapper" } else { settings.binary_name() }
+    if use_bootstrapper {
+      "__bootstrapper"
+    } else {
+      settings.binary_name()
+    }
   )?;
   if let Some(path) = bundle_icon_file {
     write!(
@@ -279,7 +284,7 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
   }
   let dest_dir = bundle_directory.join("Frameworks");
   fs::create_dir_all(&bundle_directory)
-    .chain_err(|| format!("Failed to create Frameworks directory at {:?}", dest_dir))?;
+    .with_context(|| format!("Failed to create Frameworks directory at {:?}", dest_dir))?;
   for framework in frameworks.iter() {
     if framework.ends_with(".framework") {
       let src_path = PathBuf::from(framework);

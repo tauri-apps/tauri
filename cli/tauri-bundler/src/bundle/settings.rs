@@ -2,8 +2,8 @@ use super::category::AppCategory;
 use crate::bundle::common;
 use crate::bundle::platform::target_triple;
 
+use anyhow::{anyhow, bail, Context};
 use clap::ArgMatches;
-use error_chain::bail;
 use glob;
 use serde::Deserialize;
 use target_build_utils::TargetInfo;
@@ -472,7 +472,7 @@ impl Settings {
           .expect("failed to extract external binary filename"),
       );
       common::copy_file(&src, &dest)
-        .map_err(|_| format!("Failed to copy external binary {:?}", src))?;
+        .with_context(|| format!("Failed to copy external binary {:?}", src))?;
     }
     Ok(())
   }
@@ -483,7 +483,7 @@ impl Settings {
       let src = src?;
       let dest = path.join(common::resource_relpath(&src));
       common::copy_file(&src, &dest)
-        .map_err(|_| format!("Failed to copy resource file {:?}", src))?;
+        .with_context(|| format!("Failed to copy resource file {:?}", src))?;
     }
     Ok(())
   }
@@ -553,10 +553,7 @@ impl Settings {
   }
 
   pub fn debian_use_bootstrapper(&self) -> bool {
-    self
-      .bundle_settings
-      .deb_use_bootstrapper
-      .unwrap_or(false)
+    self.bundle_settings.deb_use_bootstrapper.unwrap_or(false)
   }
 
   pub fn osx_frameworks(&self) -> &[String] {
@@ -583,10 +580,7 @@ impl Settings {
   }
 
   pub fn osx_use_bootstrapper(&self) -> bool {
-    self
-      .bundle_settings
-      .osx_use_bootstrapper
-      .unwrap_or(false)
+    self.bundle_settings.osx_use_bootstrapper.unwrap_or(false)
   }
 }
 
@@ -702,7 +696,7 @@ impl<'a> Iterator for ResourcePaths<'a> {
         if let Some(entry) = walk_entries.next() {
           let entry = match entry {
             Ok(entry) => entry,
-            Err(error) => return Some(Err(crate::Error::from(error))),
+            Err(error) => return Some(Err(error.into())),
           };
           let path = entry.path();
           if path.is_dir() {
@@ -717,7 +711,7 @@ impl<'a> Iterator for ResourcePaths<'a> {
         if let Some(glob_result) = glob_paths.next() {
           let path = match glob_result {
             Ok(path) => path,
-            Err(error) => return Some(Err(crate::Error::from(error))),
+            Err(error) => return Some(Err(error.into())),
           };
           if path.is_dir() {
             if self.allow_walk {
@@ -726,7 +720,7 @@ impl<'a> Iterator for ResourcePaths<'a> {
               continue;
             } else {
               let msg = format!("{:?} is a directory", path);
-              return Some(Err(crate::Error::from(msg)));
+              return Some(Err(anyhow!(msg)));
             }
           }
           self.current_pattern_is_valid = true;
@@ -734,7 +728,7 @@ impl<'a> Iterator for ResourcePaths<'a> {
         } else {
           if let Some(current_path) = &self.current_pattern {
             if !self.current_pattern_is_valid {
-              return Some(Err(crate::Error::from(format!(
+              return Some(Err(anyhow!(format!(
                 "Path matching '{}' not found",
                 current_path
               ))));
@@ -748,7 +742,7 @@ impl<'a> Iterator for ResourcePaths<'a> {
         self.current_pattern_is_valid = false;
         let glob = match glob::glob(pattern) {
           Ok(glob) => glob,
-          Err(error) => return Some(Err(crate::Error::from(error))),
+          Err(error) => return Some(Err(error.into())),
         };
         self.glob_iter = Some(glob);
         continue;

@@ -3,29 +3,11 @@ mod bundle;
 use crate::bundle::{bundle_project, check_icons, BuildArtifact, PackageType, Settings};
 
 use clap::{crate_version, App, AppSettings, Arg, SubCommand};
-use error_chain::{bail, error_chain};
 
 use std::env;
 use std::process;
 
-error_chain! {
-  foreign_links {
-        Glob(::glob::GlobError);
-        GlobPattern(::glob::PatternError);
-        Io(::std::io::Error);
-        Image(::image::ImageError);
-        Target(::target_build_utils::Error);
-        Term(::term::Error);
-        Toml(::toml::de::Error);
-        Walkdir(::walkdir::Error);
-        StripError(std::path::StripPrefixError);
-        ConvertError(std::num::TryFromIntError);
-        RegexError(::regex::Error) #[cfg(windows)];
-        HttpError(::attohttpc::Error) #[cfg(windows)];
-        Json(::serde_json::error::Error);
-    }
-    errors {}
-}
+pub use anyhow::Result;
 
 /// Runs `cargo build` to make sure the binary file is up-to-date.
 fn build_project_if_unbuilt(settings: &Settings) -> crate::Result<()> {
@@ -55,7 +37,7 @@ fn build_project_if_unbuilt(settings: &Settings) -> crate::Result<()> {
 
   let status = process::Command::new("cargo").args(args).status()?;
   if !status.success() {
-    bail!(
+    anyhow::bail!(
       "Result of `cargo build` operation was unsuccessful: {}",
       status
     );
@@ -139,9 +121,7 @@ fn run() -> crate::Result<()> {
             build_project_if_unbuilt(&s)?;
             Ok(s)
           } else {
-            Err(crate::Error::from(
-              "Could not find Icon Paths. Please make sure they exist and are in your Cargo.toml's icon key.",
-            ))
+            Err(anyhow::anyhow!("Could not find Icon Paths. Please make sure they exist and are in your Cargo.toml's icon key."))
           }
         })
         .and_then(bundle_project)?;

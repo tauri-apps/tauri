@@ -1,4 +1,5 @@
 use super::category::AppCategory;
+use anyhow::anyhow;
 use serde::Deserialize;
 use std::path::PathBuf;
 
@@ -69,7 +70,7 @@ pub fn get() -> crate::Result<Config> {
         let json = &fs::read_to_string(format!("{}{}", tauri_dir_str, "/tauri.conf.json"))?;
         Ok(serde_json::from_str(json)?)
       },
-      None => Err(crate::Error::from("Couldn't get tauri config; please specify the TAURI_CONFIG or TAURI_DIR environment variables"))
+      None => Err(anyhow!("Couldn't get tauri config; please specify the TAURI_CONFIG or TAURI_DIR environment variables"))
     }
   }
 }

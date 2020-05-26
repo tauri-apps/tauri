@@ -6,7 +6,7 @@ use std::fs::{self, write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
-use crate::ResultExt;
+use anyhow::{anyhow, Context};
 
 // create script files to bundle project and execute bundle_script.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
@@ -26,9 +26,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let support_directory_path = output_path.join("support");
   if output_path.exists() {
-    fs::remove_dir_all(&output_path).chain_err(|| format!("Failed to remove old {}", dmg_name))?;
+    fs::remove_dir_all(&output_path)
+      .with_context(|| format!("Failed to remove old {}", dmg_name))?;
   }
-  fs::create_dir_all(&support_directory_path).chain_err(|| {
+  fs::create_dir_all(&support_directory_path).with_context(|| {
     format!(
       "Failed to create output directory at {:?}",
       support_directory_path
@@ -42,9 +43,18 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   common::print_bundling(format!("{:?}", &dmg_path.clone()).as_str())?;
 
   // write the scripts
-  write(&bundle_script_path, include_str!("templates/dmg/bundle_dmg")).or_else(|e| Err(e.to_string()))?;
-  write(support_directory_path.join("template.applescript"), include_str!("templates/dmg/template.applescript"))?;
-  write(&license_script_path, include_str!("templates/dmg/dmg-license.py"))?;
+  write(
+    &bundle_script_path,
+    include_str!("templates/dmg/bundle_dmg"),
+  )?;
+  write(
+    support_directory_path.join("template.applescript"),
+    include_str!("templates/dmg/template.applescript"),
+  )?;
+  write(
+    &license_script_path,
+    include_str!("templates/dmg/dmg-license.py"),
+  )?;
 
   // chmod script for execution
   Command::new("chmod")
@@ -63,11 +73,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     "--volicon",
     "../../../../icons/icon.icns",
     "--icon",
-    &bundle_name, "180", "170",
+    &bundle_name,
+    "180",
+    "170",
     "--app-drop-link",
-    "480", "170",
+    "480",
+    "170",
     "--window-size",
-    "660", "400",
+    "660",
+    "400",
     "--hide-extension",
     &bundle_name,
   ];
@@ -86,7 +100,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .expect("Failed to execute shell script");
 
   if !status.success() {
-    Err(crate::Error::from("error running bundle_dmg.sh"))
+    Err(anyhow!("error running bundle_dmg.sh"))
   } else {
     fs::rename(bundle_dir.join(dmg_name.clone()), dmg_path.clone())?;
     Ok(vec![bundle_path, dmg_path])

@@ -8,7 +8,7 @@ pub fn compare(first: &str, second: &str) -> crate::Result<i32> {
   match v1.cmp(&v2) {
     Ordering::Greater => Ok(-1),
     Ordering::Less => Ok(1),
-    Ordering::Equal => Ok(0)
+    Ordering::Equal => Ok(0),
   }
 }
 

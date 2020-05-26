@@ -3,36 +3,17 @@ pub mod macros;
 pub mod http;
 pub mod updater;
 
-use error_chain::error_chain;
+pub use anyhow::Result;
+use thiserror::Error;
 
-error_chain! {
-    foreign_links{
-        Io(::std::io::Error);
-        Json(::serde_json::Error);
-        Zip(::zip::result::ZipError);
-        API(::tauri_api::Error);
-        HTTP(::attohttpc::Error);
-    }
-    errors{
-        Download(t: String) {
-            description("Download Error")
-            display("Download Error: '{}'", t)
-        }
-        Updater(t: String) {
-            description("Updater Error")
-            display("Updater Error: '{}'", t)
-        }
-        Release(t: String) {
-            description("Release Error")
-            display("Release Error: '{}'", t)
-        }
-        Network(t: String) {
-            description("Network Error")
-            display("Network Error: '{}'", t)
-        }
-        Config(t: String) {
-            description("Config Error")
-            display("Config Error: '{}'", t)
-        }
-    }
+#[derive(Error, Debug)]
+pub enum Error {
+  #[error("Download request failed with status:{0}")]
+  Download(attohttpc::StatusCode),
+  #[error("Failed to determine parent dir")]
+  Updater,
+  #[error("Network Error:{0}")]
+  Network(String),
+  #[error("Config Error:{0} required")]
+  Config(String),
 }

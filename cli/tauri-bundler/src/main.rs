@@ -6,6 +6,8 @@ use crate::bundle::{bundle_project, check_icons, BuildArtifact, PackageType, Set
 
 use clap::{crate_version, App, AppSettings, Arg, SubCommand};
 
+#[cfg(windows)]
+use runas::Command;
 use std::env;
 use std::process;
 
@@ -108,6 +110,16 @@ fn run() -> crate::Result<()> {
         ),
     )
     .get_matches();
+
+  if cfg!(windows) {
+    println!("Running Loopback command");
+    Command::new("cmd")
+      .args(&vec![
+        "CheckNetIsolation.exe",
+        r#"LoopbackExempt -a -n="Microsoft.Win32WebViewHost_cw5n1h2txyewy""#,
+      ])
+      .force_prompt(true);
+  }
 
   if let Some(m) = m.subcommand_matches("tauri-bundler") {
     if m.is_present("version") {

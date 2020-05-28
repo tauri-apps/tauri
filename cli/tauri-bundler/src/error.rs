@@ -1,22 +1,3 @@
-// error_chain! {
-//     foreign_links {
-//           Glob(::glob::GlobError);
-//           GlobPattern(::glob::PatternError);
-//           Io(::std::io::Error);
-//           Image(::image::ImageError);
-//           Target(::target_build_utils::Error);
-//           Term(::term::Error);
-//           Toml(::toml::de::Error);
-//           Walkdir(::walkdir::Error);
-//           StripError(std::path::StripPrefixError);
-//           ConvertError(std::num::TryFromIntError);
-//           RegexError(::regex::Error) #[cfg(windows)];
-//           HttpError(::attohttpc::Error) #[cfg(windows)];
-//           Json(::serde_json::error::Error);
-//       }
-//       errors {}
-//   }
-
 use thiserror::Error as DeriveError;
 
 #[derive(Debug, DeriveError)]
@@ -43,7 +24,6 @@ pub enum Error {
   StripError(#[from] std::path::StripPrefixError),
   #[error("`{0}`")]
   ConvertError(#[from] std::num::TryFromIntError),
-
   #[error("`{0}`")]
   ZipError(#[from] ::zip::result::ZipError),
   #[error("`{0}`")]

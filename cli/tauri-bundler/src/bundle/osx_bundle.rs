@@ -20,7 +20,7 @@
 use super::common;
 use crate::Settings;
 
-use anyhow::{bail, Context};
+use anyhow::Context;
 use chrono;
 use dirs;
 use icns;
@@ -294,10 +294,10 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
       common::copy_dir(&src_path, &dest_dir.join(&src_name))?;
       continue;
     } else if framework.contains("/") {
-      bail!(
+      return Err(crate::Error::GenericError(format!(
         "Framework path should have .framework extension: {}",
         framework
-      );
+      )));
     }
     if let Some(home_dir) = dirs::home_dir() {
       if copy_framework_from(&dest_dir, framework, &home_dir.join("Library/Frameworks/"))? {
@@ -313,7 +313,10 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
     {
       continue;
     }
-    bail!("Could not locate {}.framework", framework);
+    return Err(crate::Error::GenericError(format!(
+      "Could not locate framework: {}",
+      framework
+    )));
   }
   Ok(())
 }
@@ -398,9 +401,11 @@ fn create_icns_file(
     let icns_file = BufWriter::new(File::create(&dest_path)?);
     family.write(icns_file)?;
     return Ok(Some(dest_path));
+  } else {
+    return Err(crate::Error::GenericError(
+      "No usable Icon files found".to_owned(),
+    ));
   }
-
-  bail!("No usable icon files found.");
 }
 
 /// Converts an image::DynamicImage into an icns::Image.

@@ -2,7 +2,6 @@ use super::category::AppCategory;
 use crate::bundle::common;
 use crate::bundle::platform::target_triple;
 
-use anyhow::bail;
 use clap::ArgMatches;
 use glob;
 use serde::Deserialize;
@@ -170,7 +169,12 @@ impl Settings {
             Some(package_type) => {
               types.push(package_type);
             }
-            None => bail!("Unsupported bundle format: {}", name),
+            None => {
+              return Err(crate::Error::GenericError(format!(
+                "Unsupported bundle format: {}",
+                name
+              )));
+            }
           }
         }
         Some(types)
@@ -205,7 +209,11 @@ impl Settings {
 
     let package = match cargo_settings.package {
       Some(package_info) => package_info,
-      None => bail!("No 'package' info found in 'Cargo.toml'"),
+      None => {
+        return Err(crate::Error::GenericError(
+          "No package info in cargo.toml".to_owned(),
+        ))
+      }
     };
     let workspace_dir = Settings::get_workspace_dir(&current_dir);
     let target_dir = Settings::get_target_dir(&workspace_dir, &target, is_release, &build_artifact);
@@ -214,7 +222,10 @@ impl Settings {
       Err(e) => {
         let error_message = e.to_string();
         if !error_message.contains("No such file or directory") {
-          bail!("Failed to read Tauri config: {}", error_message);
+          return Err(crate::Error::GenericError(format!(
+            "Failed to read tauri config: {}",
+            error_message
+          )));
         }
         if let Some(bundle_settings) = package
           .metadata
@@ -223,7 +234,9 @@ impl Settings {
         {
           bundle_settings.clone()
         } else {
-          bail!("No [package.metadata.bundle] section in Cargo.toml");
+          return Err(crate::Error::GenericError(
+            "No [package.metadata.bundle] section in Cargo.toml".to_owned(),
+          ));
         }
       }
     };
@@ -369,7 +382,12 @@ impl Settings {
       "linux" => vec![PackageType::Deb, PackageType::AppImage],
       #[cfg(target_os = "windows")]
       "windows" => vec![PackageType::WindowsMsi],
-      os => bail!("Native {} bundles not yet supported.", os),
+      os => {
+        return Err(crate::Error::GenericError(format!(
+          "Native {} bundles not yet supported.",
+          os
+        )))
+      }
     };
     if let Some(package_types) = &self.package_types {
       let mut types = vec![];
@@ -590,11 +608,10 @@ fn bundle_settings_from_table(
   if let Some(bundle_settings) = opt_map.as_ref().and_then(|map| map.get(bundle_name)) {
     Ok(bundle_settings.clone())
   } else {
-    bail!(
+    return Err(crate::Error::GenericError(format!(
       "No [package.metadata.bundle.{}.{}] section in Cargo.toml",
-      map_name,
-      bundle_name
-    );
+      map_name, bundle_name
+    )));
   }
 }
 
@@ -718,7 +735,7 @@ impl<'a> Iterator for ResourcePaths<'a> {
               continue;
             } else {
               let msg = format!("{:?} is a directory", path);
-              return Some(Err(anyhow::anyhow!(msg)));
+              return Some(Err(crate::Error::GenericError(msg)));
             }
           }
           self.current_pattern_is_valid = true;
@@ -726,7 +743,7 @@ impl<'a> Iterator for ResourcePaths<'a> {
         } else {
           if let Some(current_path) = &self.current_pattern {
             if !self.current_pattern_is_valid {
-              return Some(Err(anyhow::anyhow!(format!(
+              return Some(Err(crate::Error::GenericError(format!(
                 "Path matching '{}' not found",
                 current_path
               ))));

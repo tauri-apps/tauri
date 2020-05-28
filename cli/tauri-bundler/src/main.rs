@@ -4,7 +4,6 @@ pub use error::{Error, Result};
 
 use crate::bundle::{bundle_project, check_icons, BuildArtifact, PackageType, Settings};
 
-use anyhow::{anyhow, bail};
 use clap::{crate_version, App, AppSettings, Arg, SubCommand};
 
 use std::env;
@@ -38,10 +37,10 @@ fn build_project_if_unbuilt(settings: &Settings) -> crate::Result<()> {
 
   let status = process::Command::new("cargo").args(args).status()?;
   if !status.success() {
-    bail!(
+    return Err(crate::Error::GenericError(format!(
       "Result of `cargo build` operation was unsuccessful: {}",
       status
-    );
+    )));
   }
   Ok(())
 }
@@ -122,9 +121,7 @@ fn run() -> crate::Result<()> {
             build_project_if_unbuilt(&s)?;
             Ok(s)
           } else {
-            Err(anyhow!(
-              "Could not find Icon paths.  Please make sure they exist in the tauri config JSON file"
-            ))
+            Err(crate::Error::IconPathError)
           }
         })
         .and_then(bundle_project)?;

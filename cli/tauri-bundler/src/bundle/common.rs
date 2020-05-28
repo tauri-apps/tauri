@@ -4,7 +4,6 @@ use std::fs::{self, File};
 use std::io::{self, BufWriter, Write};
 use std::path::{Component, Path, PathBuf};
 
-use anyhow::bail;
 use term;
 use walkdir;
 
@@ -56,10 +55,16 @@ fn symlink_file(src: &Path, dst: &Path) -> io::Result<()> {
 /// is a directory or doesn't exist.
 pub fn copy_file(from: &Path, to: &Path) -> crate::Result<()> {
   if !from.exists() {
-    bail!("{:?} does not exist", from);
+    return Err(crate::Error::GenericError(format!(
+      "{:?} does not exist",
+      from
+    )));
   }
   if !from.is_file() {
-    bail!("{:?} is not a file", from);
+    return Err(crate::Error::GenericError(format!(
+      "{:?} is not a file",
+      from
+    )));
   }
   let dest_dir = to.parent().expect("No data in parent");
   fs::create_dir_all(dest_dir)?;
@@ -73,13 +78,22 @@ pub fn copy_file(from: &Path, to: &Path) -> crate::Result<()> {
 /// already exists.
 pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
   if !from.exists() {
-    bail!("{:?} does not exist", from);
+    return Err(crate::Error::GenericError(format!(
+      "{:?} does not exist",
+      from
+    )));
   }
   if !from.is_dir() {
-    bail!("{:?} is not a directory", from);
+    return Err(crate::Error::GenericError(format!(
+      "{:?} is not a Directory",
+      from
+    )));
   }
   if to.exists() {
-    bail!("{:?} already exists", to);
+    return Err(crate::Error::GenericError(format!(
+      "{:?} already exists",
+      from
+    )));
   }
   let parent = to.parent().expect("No data in parent");
   fs::create_dir_all(parent)?;

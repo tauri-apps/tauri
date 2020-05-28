@@ -58,10 +58,14 @@ pub enum Error {
     "Couldn't get tauri config; please specify the TAURI_CONFIG or TAURI_DIR environment variables"
   )]
   EnvironmentError,
+  #[error("Could not find Icon paths.  Please make sure they exist in the tauri config JSON file")]
+  IconPathError,
   #[error("Path Error:`{0}`")]
   PathUtilError(String),
   #[error("Shell Scripting Error:`{0}`")]
   ShellScriptError(String),
+  #[error("`{0}`")]
+  GenericError(String),
 }
 
 pub type Result<T> = anyhow::Result<T, Error>;

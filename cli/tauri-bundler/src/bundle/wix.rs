@@ -10,7 +10,6 @@ use sha2::Digest;
 use uuid::Uuid;
 use zip::ZipArchive;
 
-use anyhow::{anyhow, bail, Context};
 use std::collections::BTreeMap;
 use std::fs::{create_dir_all, remove_dir_all, write, File};
 use std::io::{BufRead, BufReader, Cursor, Read, Write};

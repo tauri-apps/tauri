@@ -211,7 +211,7 @@ impl Settings {
       Some(package_info) => package_info,
       None => {
         return Err(crate::Error::GenericError(
-          "No package info in cargo.toml".to_owned(),
+          "No package info in the config file".to_owned(),
         ))
       }
     };
@@ -235,7 +235,7 @@ impl Settings {
           bundle_settings.clone()
         } else {
           return Err(crate::Error::GenericError(
-            "No [package.metadata.bundle] section in Cargo.toml".to_owned(),
+            "No 'bundle' key in the tauri.conf.json".to_owned(),
           ));
         }
       }
@@ -609,7 +609,7 @@ fn bundle_settings_from_table(
     Ok(bundle_settings.clone())
   } else {
     return Err(crate::Error::GenericError(format!(
-      "No [package.metadata.bundle.{}.{}] section in Cargo.toml",
+      "No 'bundle:{}:{}' keys section in the tauri.conf.json file",
       map_name, bundle_name
     )));
   }

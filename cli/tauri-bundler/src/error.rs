@@ -1,12 +1,15 @@
 use thiserror::Error as DeriveError;
 
 use {
-  glob, handlebars, hex, image, serde_json, std::io, std::num, std::path, target_build_utils, term,
+  glob, handlebars, image, serde_json, std::io, std::num, std::path, target_build_utils, term,
   toml, walkdir,
 };
 
 #[cfg(windows)]
 use {attohttpc, regex};
+
+#[cfg(not(linux))]
+use {hex, zip};
 
 #[derive(Debug, DeriveError)]
 pub enum Error {
@@ -32,8 +35,10 @@ pub enum Error {
   StripError(#[from] path::StripPrefixError),
   #[error("`{0}`")]
   ConvertError(#[from] num::TryFromIntError),
+  #[cfg(not(linux))]
   #[error("`{0}`")]
   ZipError(#[from] zip::result::ZipError),
+  #[cfg(not(linux))]
   #[error("`{0}`")]
   HexError(#[from] hex::FromHexError),
   #[error("`{0}`")]

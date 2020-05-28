@@ -208,10 +208,14 @@ cargo clean
 # find any node_module folders.
 $node_paths = Get-ChildItem -Path examples\ -Filter node_modules -Recurse -ErrorAction SilentlyContinue -Force
 
+if (-Not $node_paths -eq $null) {
 # delete all of the node_module folders.
-foreach ($path in $node_paths) {
-  $path.Delete()
+  foreach ($path in $node_paths) {
+    $path.Delete()
+  }
+  # enter the examples folder and remove any changes.
+  cd $CWD/examples; git checkout -- .; git clean -dfX
 }
-# enter the examples folder and remove any changes.
-cd $CWD/examples; git checkout -- .; git clean -dfX
+
+
 ```

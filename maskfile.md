@@ -97,6 +97,10 @@ esac
 ```
 
 ```powershell
+param(
+  [string] $example_name
+)
+
 # Setup Environment to execute in the tauri directory.
 $CWD = [Environment]::CurrentDirectory
 Push-Location $MyInvocation.MyCommand.Path
@@ -106,11 +110,11 @@ Push-Location $MyInvocation.MyCommand.Path
 Invoke-Expression -Command .scripts\init_env.ps1
 
 # get the example paths.
-$example_path = Get-ChildItem examples\*\$env:example
+$example_path = Get-ChildItem examples\*\*\$env:example
 
 # if the example path is null get the todomvc path.
 if ($example_path -eq $null) {
-  $example_path = Get-ChildItem examples\*\*\$env:example\$env:example
+  $example_path = Get-ChildItem examples\*\*\*\$env:example\$env:example
 }
 
 # if the example path is still null get the communication example path.
@@ -118,17 +122,19 @@ if ($example_path -eq $null) {
   $example_path = Get-ChildItem examples\tauri\*\$env:example
 }
 
+cd $example_path.FullName
 # Move to the selected example folder.
-cd $example_path
+
+Write-Output($example_path.FullName)
 
 # switch on the parent folder name.
 switch ($example_path.parent) {
   # if node, run yarn.
-  "node" {
+  {"vanillajs" -Or "react" -Or "svelte" -Or "vue"} {
     yarn; yarn tauri:source dev
   }
   # if rust, run cargo web deploy
-  "rust" {
+  "yew" {
     cargo web deploy
   }
   # if tauri run the communication example from the tauri folder.
@@ -165,7 +171,7 @@ $examples = @()
 # get the communication example
 $examples += Get-ChildItem examples/*/* -Filter communication
 # get the rest of the examples.
-$examples += Get-ChildItem examples/*/* -Directory -Exclude ('src*', 'public', 'test*', 'source', 'lib', 'web', 'dist')
+$examples += Get-ChildItem examples/*/* -Directory -Exclude ('src*', 'public', 'test*', 'source', 'lib', 'web', 'dist', 'node_*')
 
 # print out the examples.
 foreach($e in $examples) {

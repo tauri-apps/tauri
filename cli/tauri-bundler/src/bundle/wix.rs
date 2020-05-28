@@ -10,6 +10,7 @@ use sha2::Digest;
 use uuid::Uuid;
 use zip::ZipArchive;
 
+use anyhow::{anyhow, bail, Context};
 use std::collections::BTreeMap;
 use std::fs::{create_dir_all, remove_dir_all, write, File};
 use std::io::{BufRead, BufReader, Cursor, Read, Write};
@@ -139,8 +140,7 @@ fn copy_icons(settings: &Settings) -> crate::Result<PathBuf> {
       overwrite: true,
       ..opts
     },
-  )
-  .or_else(|e| Err(e.to_string()))?;
+  )?;
 
   Ok(resource_dir)
 }
@@ -149,9 +149,9 @@ fn copy_icons(settings: &Settings) -> crate::Result<PathBuf> {
 fn download_and_verify(url: &str, hash: &str) -> crate::Result<Vec<u8>> {
   common::print_info(format!("Downloading {}", url).as_str())?;
 
-  let response = attohttpc::get(url).send().or_else(|e| Err(e.to_string()))?;
+  let response = attohttpc::get(url).send()?;
 
-  let data: Vec<u8> = response.bytes().or_else(|e| Err(e.to_string()))?;
+  let data: Vec<u8> = response.bytes()?;
 
   common::print_info("validating hash")?;
 
@@ -159,12 +159,12 @@ fn download_and_verify(url: &str, hash: &str) -> crate::Result<Vec<u8>> {
   hasher.input(&data);
 
   let url_hash = hasher.result().to_vec();
-  let expected_hash = hex::decode(hash).or_else(|e| Err(e.to_string()))?;
+  let expected_hash = hex::decode(hash)?;
 
   if expected_hash == url_hash {
     Ok(data)
   } else {
-    Err(crate::Error::from("hash mismatch of downloaded file"))
+    Err(crate::Error::HashError)
   }
 }
 
@@ -173,7 +173,7 @@ fn app_installer_dir(settings: &Settings) -> crate::Result<PathBuf> {
     "x86" => "x86",
     "x86_64" => "x64",
     target => {
-      return Err(crate::Error::from(format!(
+      return Err(crate::Error::ArchError(format!(
         "Unsupported architecture: {}",
         target
       )))
@@ -191,24 +191,22 @@ fn app_installer_dir(settings: &Settings) -> crate::Result<PathBuf> {
 fn extract_zip(data: &Vec<u8>, path: &Path) -> crate::Result<()> {
   let cursor = Cursor::new(data);
 
-  let mut zipa = ZipArchive::new(cursor).or_else(|e| Err(e.to_string()))?;
+  let mut zipa = ZipArchive::new(cursor)?;
 
   for i in 0..zipa.len() {
-    let mut file = zipa.by_index(i).or_else(|e| Err(e.to_string()))?;
+    let mut file = zipa.by_index(i)?;
     let dest_path = path.join(file.name());
     let parent = dest_path.parent().expect("Failed to get parent");
 
     if !parent.exists() {
-      create_dir_all(parent).or_else(|e| Err(e.to_string()))?;
+      create_dir_all(parent)?;
     }
 
     let mut buff: Vec<u8> = Vec::new();
-    file
-      .read_to_end(&mut buff)
-      .or_else(|e| Err(e.to_string()))?;
+    file.read_to_end(&mut buff)?;
     let mut fileout = File::create(dest_path).expect("Failed to open file");
 
-    fileout.write_all(&buff).or_else(|e| Err(e.to_string()))?;
+    fileout.write_all(&buff)?;
   }
 
   Ok(())
@@ -299,7 +297,7 @@ fn run_candle(
     "x86_64" => "x64",
     "x86" => "x86",
     target => {
-      return Err(crate::Error::from(format!(
+      return Err(crate::Error::ArchError(format!(
         "unsupported target: {}",
         target
       )))
@@ -335,7 +333,7 @@ fn run_candle(
   if status.success() {
     Ok(())
   } else {
-    Err(crate::Error::from("error running candle.exe"))
+    Err(crate::Error::CandleError)
   }
 }
 
@@ -380,7 +378,7 @@ fn run_light(
   if status.success() {
     Ok(output_path.to_path_buf())
   } else {
-    Err(crate::Error::from("error running light.exe"))
+    Err(crate::Error::LightError)
   }
 }
 
@@ -397,7 +395,7 @@ pub fn build_wix_app_installer(
     "x86_64" => "x64",
     "x86" => "x86",
     target => {
-      return Err(crate::Error::from(format!(
+      return Err(crate::Error::ArchError(format!(
         "unsupported target: {}",
         target
       )))
@@ -463,18 +461,16 @@ pub fn build_wix_app_installer(
 
   data.insert("icon_path", to_json(path.as_str()));
 
-  let temp = HANDLEBARS
-    .render("main.wxs", &data)
-    .or_else(|e| Err(e.to_string()))?;
+  let temp = HANDLEBARS.render("main.wxs", &data)?;
 
   if output_path.exists() {
-    remove_dir_all(&output_path).or_else(|e| Err(e.to_string()))?;
+    remove_dir_all(&output_path).or_else(|e| Err(e))?;
   }
 
-  create_dir_all(&output_path).or_else(|e| Err(e.to_string()))?;
+  create_dir_all(&output_path).or_else(|e| Err(e))?;
 
   let main_wxs_path = output_path.join("main.wxs");
-  write(&main_wxs_path, temp).or_else(|e| Err(e.to_string()))?;
+  write(&main_wxs_path, temp).or_else(|e| Err(e))?;
 
   let input_basenames = vec!["main"];
 

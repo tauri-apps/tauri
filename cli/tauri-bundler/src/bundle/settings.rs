@@ -471,8 +471,7 @@ impl Settings {
           .file_name()
           .expect("failed to extract external binary filename"),
       );
-      common::copy_file(&src, &dest)
-        .map_err(|_| format!("Failed to copy external binary {:?}", src))?;
+      common::copy_file(&src, &dest)?;
     }
     Ok(())
   }
@@ -482,8 +481,7 @@ impl Settings {
     for src in self.resource_files() {
       let src = src?;
       let dest = path.join(common::resource_relpath(&src));
-      common::copy_file(&src, &dest)
-        .map_err(|_| format!("Failed to copy resource file {:?}", src))?;
+      common::copy_file(&src, &dest)?;
     }
     Ok(())
   }
@@ -553,10 +551,7 @@ impl Settings {
   }
 
   pub fn debian_use_bootstrapper(&self) -> bool {
-    self
-      .bundle_settings
-      .deb_use_bootstrapper
-      .unwrap_or(false)
+    self.bundle_settings.deb_use_bootstrapper.unwrap_or(false)
   }
 
   pub fn osx_frameworks(&self) -> &[String] {
@@ -583,10 +578,7 @@ impl Settings {
   }
 
   pub fn osx_use_bootstrapper(&self) -> bool {
-    self
-      .bundle_settings
-      .osx_use_bootstrapper
-      .unwrap_or(false)
+    self.bundle_settings.osx_use_bootstrapper.unwrap_or(false)
   }
 }
 
@@ -726,7 +718,7 @@ impl<'a> Iterator for ResourcePaths<'a> {
               continue;
             } else {
               let msg = format!("{:?} is a directory", path);
-              return Some(Err(crate::Error::from(msg)));
+              return Some(Err(anyhow::anyhow!(msg)));
             }
           }
           self.current_pattern_is_valid = true;
@@ -734,7 +726,7 @@ impl<'a> Iterator for ResourcePaths<'a> {
         } else {
           if let Some(current_path) = &self.current_pattern {
             if !self.current_pattern_is_valid {
-              return Some(Err(crate::Error::from(format!(
+              return Some(Err(anyhow::anyhow!(format!(
                 "Path matching '{}' not found",
                 current_path
               ))));

@@ -1,5 +1,3 @@
-use crate::ResultExt;
-
 use std;
 use std::ffi::OsStr;
 use std::fs::{self, File};
@@ -27,9 +25,9 @@ pub fn is_retina<P: AsRef<Path>>(path: P) -> bool {
 /// needed.
 pub fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
   if let Some(parent) = path.parent() {
-    fs::create_dir_all(&parent).chain_err(|| format!("Failed to create directory {:?}", parent))?;
+    fs::create_dir_all(&parent)?;
   }
-  let file = File::create(path).chain_err(|| format!("Failed to create file {:?}", path))?;
+  let file = File::create(path)?;
   Ok(BufWriter::new(file))
 }
 
@@ -64,8 +62,8 @@ pub fn copy_file(from: &Path, to: &Path) -> crate::Result<()> {
     bail!("{:?} is not a file", from);
   }
   let dest_dir = to.parent().expect("No data in parent");
-  fs::create_dir_all(dest_dir).chain_err(|| format!("Failed to create {:?}", dest_dir))?;
-  fs::copy(from, to).chain_err(|| format!("Failed to copy {:?} to {:?}", from, to))?;
+  fs::create_dir_all(dest_dir)?;
+  fs::copy(from, to)?;
   Ok(())
 }
 
@@ -84,7 +82,7 @@ pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
     bail!("{:?} already exists", to);
   }
   let parent = to.parent().expect("No data in parent");
-  fs::create_dir_all(parent).chain_err(|| format!("Failed to create {:?}", parent))?;
+  fs::create_dir_all(parent)?;
   for entry in walkdir::WalkDir::new(from) {
     let entry = entry?;
     debug_assert!(entry.path().starts_with(from));
@@ -212,7 +210,7 @@ pub fn print_info(message: &str) -> crate::Result<()> {
 }
 
 /// Prints an error to stderr, in the same format that `cargo` uses.
-pub fn print_error(error: &crate::Error) -> crate::Result<()> {
+pub fn print_error(error: &anyhow::Error) -> crate::Result<()> {
   if let Some(mut output) = term::stderr() {
     safe_term_attr(&mut output, term::Attr::Bold)?;
     output.fg(term::color::RED)?;
@@ -221,24 +219,25 @@ pub fn print_error(error: &crate::Error) -> crate::Result<()> {
     safe_term_attr(&mut output, term::Attr::Bold)?;
     writeln!(output, " {}", error)?;
     output.reset()?;
-    for cause in error.iter().skip(1) {
+    for cause in error.chain().skip(1) {
       writeln!(output, "  Caused by: {}", cause)?;
     }
-    if let Some(backtrace) = error.backtrace() {
-      writeln!(output, "{:?}", backtrace)?;
-    }
+    // Add Backtrace once its stable.
+    // if let Some(backtrace) = error.backtrace() {
+    //   writeln!(output, "{:?}", backtrace)?;
+    // }
     output.flush()?;
     std::process::exit(1)
   } else {
     let mut output = io::stderr();
     write!(output, "error:")?;
     writeln!(output, " {}", error)?;
-    for cause in error.iter().skip(1) {
+    for cause in error.chain().skip(1) {
       writeln!(output, "  Caused by: {}", cause)?;
     }
-    if let Some(backtrace) = error.backtrace() {
-      writeln!(output, "{:?}", backtrace)?;
-    }
+    // if let Some(backtrace) = error.backtrace() {
+    //   writeln!(output, "{:?}", backtrace)?;
+    // }
     output.flush()?;
     std::process::exit(1)
   }

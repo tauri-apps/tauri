@@ -1,43 +1,51 @@
 use thiserror::Error as DeriveError;
 
+use {
+  glob, handlebars, hex, image, serde_json, std::io, std::num, std::path, target_build_utils, term,
+  toml, walkdir,
+};
+
+#[cfg(windows)]
+use {attohttpc, regex};
+
 #[derive(Debug, DeriveError)]
 pub enum Error {
   #[error("{0}")]
   BundlerError(#[from] anyhow::Error),
   #[error("`{0}`")]
-  GlobError(#[from] ::glob::GlobError),
+  GlobError(#[from] glob::GlobError),
   #[error("`{0}`")]
-  GlobPatternError(#[from] ::glob::PatternError),
+  GlobPatternError(#[from] glob::PatternError),
   #[error("`{0}`")]
-  IoError(#[from] std::io::Error),
+  IoError(#[from] io::Error),
   #[error("`{0}`")]
-  ImageError(#[from] ::image::ImageError),
+  ImageError(#[from] image::ImageError),
   #[error("`{0}`")]
-  TargetError(#[from] ::target_build_utils::Error),
+  TargetError(#[from] target_build_utils::Error),
   #[error("`{0}`")]
-  TermError(#[from] ::term::Error),
+  TermError(#[from] term::Error),
   #[error("`{0}`")]
-  TomlError(#[from] ::toml::de::Error),
+  TomlError(#[from] toml::de::Error),
   #[error("`{0}`")]
-  WalkdirError(#[from] ::walkdir::Error),
+  WalkdirError(#[from] walkdir::Error),
   #[error("`{0}`")]
-  StripError(#[from] std::path::StripPrefixError),
+  StripError(#[from] path::StripPrefixError),
   #[error("`{0}`")]
-  ConvertError(#[from] std::num::TryFromIntError),
+  ConvertError(#[from] num::TryFromIntError),
   #[error("`{0}`")]
-  ZipError(#[from] ::zip::result::ZipError),
+  ZipError(#[from] zip::result::ZipError),
   #[error("`{0}`")]
-  HexError(#[from] ::hex::FromHexError),
+  HexError(#[from] hex::FromHexError),
   #[error("`{0}`")]
-  HandleBarsError(#[from] ::handlebars::RenderError),
+  HandleBarsError(#[from] handlebars::RenderError),
   #[error("`{0}`")]
-  JsonError(#[from] ::serde_json::error::Error),
+  JsonError(#[from] serde_json::error::Error),
   #[cfg(windows)]
   #[error("`{0}`")]
-  RegexError(#[from] ::regex::Error),
+  RegexError(#[from] regex::Error),
   #[cfg(windows)]
   #[error("`{0}`")]
-  HttpError(#[from] ::attohttpc::Error),
+  HttpError(#[from] attohttpc::Error),
   #[error("hash mismatch of downloaded file")]
   HashError,
   #[error("Architecture Error: `{0}`")]

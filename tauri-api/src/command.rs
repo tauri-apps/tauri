@@ -21,19 +21,17 @@ pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> crate::Resul
 
 #[cfg(windows)]
 pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> crate::Result<String> {
-  Command::new(cmd)
+  let output = Command::new(cmd)
     .args(args)
     .stdout(stdout)
     .creation_flags(CREATE_NO_WINDOW)
-    .output()
-    .map_err(|err| crate::Error::from(err))
-    .and_then(|output| {
-      if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
-      } else {
-        Err(crate::Error::Command(String::from_utf8_lossy(&output.stderr).to_string()).into())
-      }
-    })
+    .output()?;
+
+  if output.status.success() {
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+  } else {
+    Err(crate::Error::Command(String::from_utf8_lossy(&output.stderr).to_string()).into())
+  }
 }
 
 pub fn format_command(path: String, command: String) -> String {

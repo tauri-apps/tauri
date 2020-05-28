@@ -297,7 +297,7 @@ fn load_asset<T: 'static>(
               ));
             }
             None => {
-              return Err(format!("Asset '{}' not found", asset).into());
+              return Err(anyhow::anyhow!("Asset '{}' not found", asset));
             }
           }
         } else {

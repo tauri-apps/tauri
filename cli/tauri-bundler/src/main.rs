@@ -2,7 +2,9 @@ mod bundle;
 mod error;
 pub use error::{Error, Result};
 
-use crate::bundle::{bundle_project, check_icons, BuildArtifact, PackageType, Settings};
+use crate::bundle::{
+  bundle_project, check_icons, print_info, BuildArtifact, PackageType, Settings,
+};
 
 use clap::{crate_version, App, AppSettings, Arg, SubCommand};
 
@@ -111,8 +113,9 @@ fn run() -> crate::Result<()> {
     )
     .get_matches();
 
-  if cfg!(target_os = "windows") {
-    println!("Running Loopback command");
+  #[cfg(windows)]
+  {
+    print_info("Running Loopback command")?;
     Command::new("cmd")
       .args(&vec![
         "CheckNetIsolation.exe",

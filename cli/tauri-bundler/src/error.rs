@@ -8,7 +8,7 @@ use {
 #[cfg(windows)]
 use {attohttpc, regex};
 
-#[cfg(not(linux))]
+#[cfg(not(target_os = "linux"))]
 use {hex, zip};
 
 #[derive(Debug, DeriveError)]
@@ -35,10 +35,10 @@ pub enum Error {
   StripError(#[from] path::StripPrefixError),
   #[error("`{0}`")]
   ConvertError(#[from] num::TryFromIntError),
-  #[cfg(not(linux))]
+  #[cfg(not(target_os = "linux"))]
   #[error("`{0}`")]
   ZipError(#[from] zip::result::ZipError),
-  #[cfg(not(linux))]
+  #[cfg(not(target_os = "linux"))]
   #[error("`{0}`")]
   HexError(#[from] hex::FromHexError),
   #[error("`{0}`")]

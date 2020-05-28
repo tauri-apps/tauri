@@ -20,10 +20,9 @@
 use super::common;
 use crate::Settings;
 
-use anyhow::Context;
+use anyhow::{bail, Context};
 use chrono;
 use dirs;
-use error_chain::bail;
 use icns;
 use image::{self, GenericImageView};
 

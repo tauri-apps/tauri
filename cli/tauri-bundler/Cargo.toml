@@ -15,15 +15,15 @@ ar = "0.8.0"
 chrono = "0.4"
 clap = "^2"
 dirs = "2.0.2"
-error-chain = "0.12"
-anyhow = "1.0"
-thiserror = "1.0"
 glob = "0.3.0"
 icns = "0.3"
 image = "0.23.4"
 libflate = "1.0"
 md5 = "0.7.0"
 msi = "0.2"
+
+anyhow = "1.0"
+thiserror = "1.0"
 
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }

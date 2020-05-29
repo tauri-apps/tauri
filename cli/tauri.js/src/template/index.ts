@@ -5,9 +5,10 @@ import merge from 'webpack-merge'
 import copyTemplates from '../helpers/copy-templates'
 import logger from '../helpers/logger'
 import defaultConfig from './defaultConfig'
+import chalk from 'chalk'
 
-const log = logger('app:tauri', 'green')
-const warn = logger('app:tauri (template)', 'red')
+const log = logger('app:tauri')
+const warn = logger('app:tauri (template)', chalk.red)
 
 interface InjectOptions {
   force: false | InjectionType

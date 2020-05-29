@@ -17,7 +17,7 @@
 import { access, ensureDir, ensureFileSync, writeFileSync } from 'fs-extra'
 import imagemin, { Plugin } from 'imagemin'
 import optipng from 'imagemin-optipng'
-import pngquant from 'imagemin-pngquant'
+import pngquant, { Options as PngQuantOptions } from 'imagemin-pngquant'
 import zopfli from 'imagemin-zopfli'
 import isPng from 'is-png'
 import path from 'path'
@@ -27,9 +27,10 @@ import sharp from 'sharp'
 import { appDir, tauriDir } from '../helpers/app-paths'
 import logger from '../helpers/logger'
 import * as settings from '../helpers/tauricon.config'
+import chalk from 'chalk'
 
 const log = logger('app:spawn')
-const warn = logger('app:spawn', 'red')
+const warn = logger('app:spawn', chalk.red)
 
 let image: boolean | sharp.Sharp = false
 const spinnerInterval = false
@@ -346,6 +347,8 @@ const tauricon = (exports.tauricon = {
       sharpSrc = sharp(splashSrc).flatten({
         background: { r: rgb.r, g: rgb.g, b: rgb.b, alpha: 1 }
       })
+    } else {
+      throw new Error(`unknown options.splashscreen_type: ${options.splashscreen_type}`)
     }
     // TODO: determine if this really could be undefined
     // @ts-expect-error
@@ -396,8 +399,7 @@ const tauricon = (exports.tauricon = {
     switch (strategy) {
       case 'pngquant':
         // TODO: is minify.pngquantOptions the proper format?
-        // @ts-expect-error
-        cmd = pngquant(minify.pngquantOptions)
+        cmd = pngquant(minify.pngquantOptions as any as PngQuantOptions)
         break
       case 'optipng':
         cmd = optipng(minify.optipngOptions)
@@ -405,9 +407,11 @@ const tauricon = (exports.tauricon = {
       case 'zopfli':
         cmd = zopfli(minify.zopfliOptions)
         break
+      default:
+        throw new Error('unknown strategy' + strategy)
     }
 
-    const minifier = async (pvar: string[]): Promise<void> => {
+    const minifier = async (pvar: string[], cmd: Plugin): Promise<void> => {
       await imagemin([pvar[0]], {
         destination: pvar[1],
         plugins: [cmd]
@@ -418,8 +422,6 @@ const tauricon = (exports.tauricon = {
 
     switch (mode) {
       case 'singlefile':
-        // TODO: the minifier function only accepts one arg, why is cmd passed?
-        // @ts-expect-error
         await minifier([target, path.dirname(target)], cmd)
         break
       case 'batch':
@@ -434,8 +436,6 @@ const tauricon = (exports.tauricon = {
               `${target}${path.sep}${folder}${path.sep}*.png`,
               `${target}${path.sep}${folder}`
             ],
-            // TODO: the minifier function only accepts one arg, why is this here?
-            // @ts-expect-error
             cmd
           )
         }

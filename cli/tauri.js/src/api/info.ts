@@ -6,6 +6,7 @@ import os from 'os'
 import path from 'path'
 import { appDir, tauriDir } from '../helpers/app-paths'
 import { TauriConfig } from './../types/config'
+import { CargoToml } from './../types/cargo'
 import nonWebpackRequire from '../helpers/non-webpack-require'
 
 interface DirInfo {
@@ -58,16 +59,6 @@ interface Info {
   section?: boolean
   key: string
   value?: string
-}
-
-interface CargoToml {
-  dependencies: { [k: string]: string | CargoTomlDependency }
-  package: { version: string }
-}
-
-interface CargoTomlDependency {
-  version: string
-  path: string
 }
 
 function printInfo(info: Info): void {

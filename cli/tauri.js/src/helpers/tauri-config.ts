@@ -4,8 +4,9 @@ import merge from 'webpack-merge'
 import logger from '../helpers/logger'
 import * as appPaths from './app-paths'
 import nonWebpackRequire from '../helpers/non-webpack-require'
+import chalk from 'chalk'
 
-const error = logger('ERROR:', 'red')
+const error = logger('ERROR:', chalk.red)
 
 const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
   const pkgPath = appPaths.resolve.app('package.json')

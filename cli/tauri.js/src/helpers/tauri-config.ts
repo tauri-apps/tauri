@@ -20,8 +20,8 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
     )
     process.exit(1)
   }
-  const tauriConf = nonWebpackRequire(tauriConfPath)
-  const pkg = nonWebpackRequire(pkgPath)
+  const tauriConf = nonWebpackRequire(tauriConfPath) as TauriConfig
+  const pkg = nonWebpackRequire(pkgPath) as { productName: string }
 
   const config = merge(
     {
@@ -60,7 +60,7 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
         }
       }
     } as any,
-    tauriConf,
+    tauriConf as any,
     cfg as any
   ) as TauriConfig
 

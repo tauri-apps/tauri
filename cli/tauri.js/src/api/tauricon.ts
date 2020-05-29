@@ -1,5 +1,7 @@
 'use strict'
 
+/* eslint-disable @typescript-eslint/restrict-template-expressions, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
+
 /**
  * This is a module that takes an original image and resizes
  * it to common icon sizes and will put them in a folder.
@@ -173,7 +175,6 @@ const spinner = (): NodeJS.Timeout => {
   }, 500)
 }
 
-/* eslint-disable @typescript-eslint/restrict-template-expressions */
 const tauricon = (exports.tauricon = {
   validate: async function(src: string, target: string) {
     await validate(src, target)
@@ -347,7 +348,7 @@ const tauricon = (exports.tauricon = {
       })
     }
     // TODO: determine if this really could be undefined
-    // @ts-ignore
+    // @ts-expect-error
     const data = await sharpSrc.toBuffer()
 
     for (const optionKey in options) {
@@ -395,7 +396,7 @@ const tauricon = (exports.tauricon = {
     switch (strategy) {
       case 'pngquant':
         // TODO: is minify.pngquantOptions the proper format?
-        // @ts-ignore
+        // @ts-expect-error
         cmd = pngquant(minify.pngquantOptions)
         break
       case 'optipng':
@@ -406,7 +407,7 @@ const tauricon = (exports.tauricon = {
         break
     }
 
-    const __minifier = async (pvar: string[]): Promise<string | void> => {
+    const minifier = async (pvar: string[]): Promise<void> => {
       await imagemin([pvar[0]], {
         destination: pvar[1],
         plugins: [cmd]
@@ -414,11 +415,12 @@ const tauricon = (exports.tauricon = {
         warn(err)
       })
     }
+
     switch (mode) {
       case 'singlefile':
-        // TODO: the __minifier function only accepts one arg, why is cmd passed?
-        // @ts-ignore
-        await __minifier([target, path.dirname(target)], cmd)
+        // TODO: the minifier function only accepts one arg, why is cmd passed?
+        // @ts-expect-error
+        await minifier([target, path.dirname(target)], cmd)
         break
       case 'batch':
         // eslint-disable-next-line no-case-declarations
@@ -426,16 +428,14 @@ const tauricon = (exports.tauricon = {
         // eslint-disable-next-line @typescript-eslint/no-for-in-array
         for (const n in folders) {
           const folder = folders[Number(n)]
-          // TODO: The log argument doesn't accept multiple args, should this be fixed?
-          // @ts-ignore
-          log('batch minify:', folder)
-          await __minifier(
+          log('batch minify:' + String(folder))
+          await minifier(
             [
               `${target}${path.sep}${folder}${path.sep}*.png`,
               `${target}${path.sep}${folder}`
             ],
-            // TODO: the __minifier function only accepts one arg, why is this here?
-            // @ts-ignore
+            // TODO: the minifier function only accepts one arg, why is this here?
+            // @ts-expect-error
             cmd
           )
         }

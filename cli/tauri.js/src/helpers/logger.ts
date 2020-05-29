@@ -13,8 +13,8 @@ export default (banner: string, color: string = 'green') => {
     if (msg) {
       console.log(
         // TODO: proper typings for color and banner
-        // @ts-ignore
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+        // @ts-expect-error
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions, @typescript-eslint/no-unsafe-call
         ` ${chalk[String(color)](String(banner))} ${msg} ${chalk.green(`+${ms(diff)}`)}`
       )
     } else {

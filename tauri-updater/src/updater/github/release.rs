@@ -14,15 +14,12 @@ impl ReleaseAsset {
   /// Errors:
   ///     * Missing required name & browser_download_url keys
   fn from_asset(asset: &serde_json::Value) -> crate::Result<ReleaseAsset> {
-    let download_url = asset["browser_download_url"].as_str().ok_or_else(|| {
-      format_err!(
-        crate::ErrorKind::Network,
-        "Asset missing `browser_download_url`"
-      )
-    })?;
+    let download_url = asset["browser_download_url"]
+      .as_str()
+      .ok_or_else(|| crate::Error::Network("Asset missing `browser_download_url`".into()))?;
     let name = asset["name"]
       .as_str()
-      .ok_or_else(|| format_err!(crate::ErrorKind::Network, "Asset missing `name`"))?;
+      .ok_or_else(|| crate::Error::Network("Asset missing `name`".into()))?;
     Ok(ReleaseAsset {
       download_url: download_url.to_owned(),
       name: name.to_owned(),
@@ -42,15 +39,15 @@ impl Release {
   pub fn parse(release: &serde_json::Value) -> crate::Result<Release> {
     let tag = release["tag_name"]
       .as_str()
-      .ok_or_else(|| format_err!(crate::ErrorKind::Network, "Release missing `tag_name`"))?;
+      .ok_or_else(|| crate::Error::Network("Release missing `tag_name`".into()))?;
     let date_created = release["created_at"]
       .as_str()
-      .ok_or_else(|| format_err!(crate::ErrorKind::Network, "Release missing `created_at`"))?;
+      .ok_or_else(|| crate::Error::Network("Release missing `created_at`".into()))?;
     let name = release["name"].as_str().unwrap_or(tag);
     let body = release["body"].as_str().unwrap_or("");
     let assets = release["assets"]
       .as_array()
-      .ok_or_else(|| format_err!(crate::ErrorKind::Network, "No assets found"))?;
+      .ok_or_else(|| crate::Error::Network("No assets found".into()))?;
     let assets = assets
       .iter()
       .map(ReleaseAsset::from_asset)
@@ -117,12 +114,12 @@ impl ReleaseListBuilder {
       repo_owner: if let Some(ref owner) = self.repo_owner {
         owner.to_owned()
       } else {
-        bail!(crate::ErrorKind::Config, "`repo_owner` required")
+        return Err(crate::Error::Config("`repo_owner`".into()).into());
       },
       repo_name: if let Some(ref name) = self.repo_name {
         name.to_owned()
       } else {
-        bail!(crate::ErrorKind::Config, "`repo_name` required")
+        return Err(crate::Error::Config("`repo_name`".into()).into());
       },
       target: self.target.clone(),
     })
@@ -170,18 +167,19 @@ impl ReleaseList {
     let (status, headers, reader) = attohttpc::get(url).send()?.split();
 
     if !status.is_success() {
-      bail!(
-        crate::ErrorKind::Network,
-        "api request failed with status: {:?} - for: {:?}",
-        status,
-        url
-      )
+      return Err(
+        crate::Error::Network(format!(
+          "api request failed with status: {:?} - for: {:?}",
+          status, url
+        ))
+        .into(),
+      );
     }
 
     let releases = reader.json::<serde_json::Value>()?;
     let releases = releases
       .as_array()
-      .ok_or_else(|| format_err!(crate::ErrorKind::Network, "No releases found"))?;
+      .ok_or_else(|| crate::Error::Network("No releases found".into()))?;
     let mut releases = releases
       .iter()
       .map(Release::parse)

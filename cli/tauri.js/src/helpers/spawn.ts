@@ -1,8 +1,9 @@
 import crossSpawn from 'cross-spawn'
 import logger from './logger'
+import chalk from 'chalk'
 
 const log = logger('app:spawn')
-const warn = logger('app:spawn', 'red')
+const warn = logger('app:spawn', chalk.red)
 
 /*
   Returns pid, takes onClose

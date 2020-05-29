@@ -12,12 +12,14 @@ pub fn get_latest_release(repo_owner: &str, repo_name: &str) -> crate::Result<Re
   );
   let resp = http::get(api_url.clone())?;
   if !resp.status().is_success() {
-    bail!(
-      crate::ErrorKind::Network,
-      "api request failed with status: {:?} - for: {:?}",
-      resp.status(),
-      api_url
-    )
+    return Err(
+      crate::Error::Network(format!(
+        "api request failed with status: {:?} - for: {:?}",
+        resp.status(),
+        api_url
+      ))
+      .into(),
+    );
   }
   let json = resp.json::<serde_json::Value>()?;
   Ok(Release::parse(&json)?)
@@ -31,12 +33,14 @@ pub fn get_release_version(repo_owner: &str, repo_name: &str, ver: &str) -> crat
   );
   let resp = http::get(api_url.clone())?;
   if !resp.status().is_success() {
-    bail!(
-      crate::ErrorKind::Network,
-      "api request failed with status: {:?} - for: {:?}",
-      resp.status(),
-      api_url
-    )
+    return Err(
+      crate::Error::Network(format!(
+        "api request failed with status: {:?} - for: {:?}",
+        resp.status(),
+        api_url
+      ))
+      .into(),
+    );
   }
   let json = resp.json::<serde_json::Value>()?;
   Ok(Release::parse(&json)?)

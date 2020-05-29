@@ -11,4 +11,5 @@ edition = "2018"
 
 [dependencies]
 sysinfo = "0.10"
-error-chain = "0.12.1"
+anyhow = "1.0.31"
+thiserror = "1.0.19"

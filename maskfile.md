@@ -122,20 +122,15 @@ if ($example_path -eq $null) {
   $example_path = Get-ChildItem examples\tauri\*\$env:example
 }
 
-cd $example_path.FullName
-# Move to the selected example folder.
-
-Write-Output($example_path.FullName)
-
 # switch on the parent folder name.
 switch ($example_path.parent) {
   # if node, run yarn.
   {"vanillajs" -Or "react" -Or "svelte" -Or "vue"} {
-    yarn; yarn tauri:source dev
+    cd $example_path.FullName; yarn; yarn tauri dev
   }
   # if rust, run cargo web deploy
   "yew" {
-    cargo web deploy
+    cd $example_path.FullName; cargo web deploy
   }
   # if tauri run the communication example from the tauri folder.
   "tauri" {

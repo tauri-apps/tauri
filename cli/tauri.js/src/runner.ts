@@ -318,10 +318,12 @@ class Runner {
 
       const domInterceptor = cfg.tauri.embeddedServer.active ? undefined : (dom: JSDOM) => {
         const document = dom.window.document
-        document.querySelectorAll('link').forEach((link: HTMLLinkElement) => {
-          link.removeAttribute('rel')
-          link.removeAttribute('as')
-        })
+        if (!cfg.ctx.dev) {
+          document.querySelectorAll('link').forEach((link: HTMLLinkElement) => {
+            link.removeAttribute('rel')
+            link.removeAttribute('as')
+          })
+        }
       }
 
       if ((!cfg.ctx.dev && cfg.tauri.embeddedServer.active) || !inlinerEnabled) {

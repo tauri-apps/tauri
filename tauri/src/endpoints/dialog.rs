@@ -26,9 +26,7 @@ pub fn open<T: 'static>(
       } else {
         select(options.filter, options.default_path)
       };
-      response
-        .map(map_response)
-        .map_err(|e| crate::ErrorKind::Dialog(e.to_string()).into())
+      response.map(map_response).map_err(|e| e.into())
     },
     callback,
     error,
@@ -46,7 +44,7 @@ pub fn save<T: 'static>(
     move || {
       save_file(options.filter, options.default_path)
         .map(map_response)
-        .map_err(|e| crate::ErrorKind::Dialog(e.to_string()).into())
+        .map_err(|e| e.into())
     },
     callback,
     error,

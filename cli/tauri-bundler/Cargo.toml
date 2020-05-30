@@ -15,13 +15,16 @@ ar = "0.8.0"
 chrono = "0.4"
 clap = "^2"
 dirs = "2.0.2"
-error-chain = "0.12"
 glob = "0.3.0"
 icns = "0.3"
 image = "0.23.4"
 libflate = "1.0"
 md5 = "0.7.0"
 msi = "0.2"
+
+# error handling
+anyhow = "1.0"
+thiserror = "1.0"
 
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -38,6 +41,7 @@ handlebars = { version = "3.0" }
 [target.'cfg(target_os = "windows")'.dependencies]
 attohttpc = { version = "0.13.0" }
 regex = { version = "1" }
+runas = "0.2"
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 zip = { version = "0.5" }

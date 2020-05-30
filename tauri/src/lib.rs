@@ -17,7 +17,7 @@ mod salt;
 
 use std::process::Stdio;
 
-use error_chain::error_chain;
+pub use anyhow::Result;
 use threadpool::ThreadPool;
 
 pub use web_view::Handle;
@@ -25,37 +25,6 @@ use web_view::WebView;
 
 pub use app::*;
 pub use tauri_api as api;
-
-error_chain! {
-  foreign_links{
-    Api(::tauri_api::Error);
-    Json(::serde_json::Error);
-    Webview(::web_view::Error);
-    Io(::std::io::Error);
-  }
-  errors{
-    Promise(t: String) {
-        description("Promise Error")
-        display("Promise Error: '{}'", t)
-    }
-    Command(t: String) {
-      description("Command Error")
-      display("Command Error: '{}'", t)
-    }
-    Dialog(t: String) {
-      description("Dialog Error")
-      display("Dialog Error: '{}'", t)
-    }
-    FileSystem(t: String) {
-      description("FileSystem Error")
-      display("FileSystem Error: '{}'", t)
-    }
-    Http(t: String) {
-      description("Http Error")
-      display("Http Error: '{}'", t)
-    }
-  }
-}
 
 thread_local!(static POOL: ThreadPool = ThreadPool::new(4));
 
@@ -110,7 +79,7 @@ pub fn call<T: 'static>(
     webview,
     || {
       api::command::get_output(command, args, Stdio::piped())
-        .map_err(|err| crate::ErrorKind::Promise(err.to_string()).into())
+        .map_err(|err| err)
         .map(|output| format!(r#""{}""#, output))
     },
     callback,

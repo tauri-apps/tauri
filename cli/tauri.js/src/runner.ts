@@ -153,9 +153,7 @@ class Runner {
     // eslint-disable-next-line security/detect-non-literal-fs-filename
 
     let tauriPaths: string[] = []
-    // @ts-expect-error
     if (typeof tomlContents.dependencies.tauri !== 'string' && tomlContents.dependencies.tauri.path) {
-      // @ts-expect-error
       const tauriPath = path.resolve(tauriDir, tomlContents.dependencies.tauri.path)
       tauriPaths = [
         tauriPath,
@@ -299,7 +297,6 @@ class Runner {
         }
 
         const tauriScript = document.createElement('script')
-        // @ts-expect-error
         tauriScript.text = readFileSync(path.join(tauriDir, 'tauri.js')).toString()
         document.body.insertBefore(tauriScript, document.body.firstChild)
 

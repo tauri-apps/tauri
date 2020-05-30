@@ -350,8 +350,6 @@ const tauricon = (exports.tauricon = {
     } else {
       throw new Error(`unknown options.splashscreen_type: ${options.splashscreen_type}`)
     }
-    // TODO: determine if this really could be undefined
-    // @ts-expect-error
     const data = await sharpSrc.toBuffer()
 
     for (const optionKey in options) {
@@ -472,10 +470,16 @@ const tauricon = (exports.tauricon = {
       const buf = await sharpSrc.toBuffer()
 
       const out = png2icons.createICNS(buf, png2icons.BICUBIC, 0)
+      if (out === null) {
+        throw new Error('Failed to create icon.icns')
+      }
       ensureFileSync(path.join(target, '/icon.icns'))
       writeFileSync(path.join(target, '/icon.icns'), out)
 
       const out2 = png2icons.createICO(buf, png2icons.BICUBIC, 0, true)
+      if (out2 === null) {
+        throw new Error('Failed to create icon.ico')
+      }
       ensureFileSync(path.join(target, '/icon.ico'))
       writeFileSync(path.join(target, '/icon.ico'), out2)
     } catch (err) {

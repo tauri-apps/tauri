@@ -298,7 +298,7 @@ class Runner {
 
         const tauriScript = document.createElement('script')
         tauriScript.text = readFileSync(path.join(tauriDir, 'tauri.js')).toString()
-        document.body.insertBefore(tauriScript, document.body.firstChild)
+        document.head.insertBefore(tauriScript, document.head.firstChild)
 
         const csp = cfg.tauri.security.csp
         if (csp) {

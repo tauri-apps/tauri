@@ -1,7 +1,5 @@
 use serde::Deserialize;
 
-use std::env;
-
 #[derive(PartialEq, Deserialize, Clone, Debug)]
 #[serde(tag = "window", rename_all = "camelCase")]
 pub struct WindowConfig {
@@ -112,10 +110,13 @@ fn default_build() -> BuildConfig {
 pub fn get() -> crate::Result<Config> {
   match option_env!("TAURI_CONFIG") {
     Some(config) => Ok(serde_json::from_str(config).expect("failed to parse TAURI_CONFIG env")),
-    None => Ok(
-      serde_json::from_str(include_str!(concat!(env!("TAURI_DIR"), "/tauri.conf.json")))
-        .expect("failed to read tauri.conf.json"),
-    ),
+    None => {
+      let env_var = envmnt::get_or("TAURI_DIR", "../dist");
+      let path = std::path::Path::new(&env_var);
+      let contents = std::fs::read_to_string(path.join("tauri.conf.json"))?;
+
+      Ok(serde_json::from_str(&contents).expect("failed to read tauri.conf.json"))
+    }
   }
 }
 
@@ -139,7 +140,7 @@ mod test {
         },
       },
       build: BuildConfig {
-        dev_path: String::from("http://localhost:4000"),
+        dev_path: String::from("../dist"),
       },
     }
   }
@@ -156,7 +157,10 @@ mod test {
     // check to see if there is an OK or Err, on Err fail test.
     match config {
       // On Ok, check that the config is the same as the test config.
-      Ok(c) => assert_eq!(c, test_config),
+      Ok(c) => {
+        println!("{:?}", c);
+        assert_eq!(c, test_config)
+      }
       Err(_) => assert!(false),
     }
   }

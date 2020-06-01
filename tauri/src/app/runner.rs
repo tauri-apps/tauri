@@ -63,7 +63,14 @@ fn setup_content(config: Config) -> crate::Result<Content<String>> {
   if config.build.dev_path.starts_with("http") {
     Ok(Content::Url(config.build.dev_path))
   } else {
-    let dev_path = Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
+    let dist_dir = match option_env!("TAURI_DIST_DIR") {
+      Some(d) => d.to_string(),
+      None => std::env::current_dir()?
+        .into_os_string()
+        .into_string()
+        .expect("Unable to convert to normal String"),
+    };
+    let dev_path = Path::new(&dist_dir).join("index.tauri.html");
     Ok(Content::Html(read_to_string(dev_path)?))
   }
 }
@@ -80,7 +87,15 @@ fn setup_content(config: Config) -> crate::Result<Content<String>> {
 // setup content for no-server
 #[cfg(feature = "no-server")]
 fn setup_content(_: Config) -> crate::Result<Content<String>> {
-  let index_path = Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
+  let dist_dir = match option_env!("TAURI_DIST_DIR") {
+    Some(d) => d.to_string(),
+    None => std::env::current_dir()?
+      .into_os_string()
+      .into_string()
+      .expect("Unable to convert to normal String"),
+  };
+  let index_path = Path::new(dist_dir).join("index.tauri.html");
+
   Ok(Content::Html(read_to_string(index_path)?))
 }
 
@@ -234,10 +249,13 @@ fn build_webview(
   webview.set_fullscreen(fullscreen);
 
   if has_splashscreen {
+    let env_var = envmnt::get_or("TAURI_DIR", "../dist");
+    let path = std::path::Path::new(&env_var);
+    let contents = std::fs::read_to_string(path.join("/tauri.js"))?;
     // inject the tauri.js entry point
     webview
       .handle()
-      .dispatch(|_webview| _webview.eval(include_str!(concat!(env!("TAURI_DIR"), "/tauri.js"))))?;
+      .dispatch(move |_webview| _webview.eval(&contents))?;
   }
 
   Ok(webview)
@@ -278,20 +296,40 @@ mod test {
 
     #[cfg(feature = "no-server")]
     match res {
-      Ok(Content::Html(s)) => assert_eq!(
-        s,
-        read_to_string(Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html")).unwrap()
-      ),
+      Ok(Content::Html(s)) => {
+        let dist_dir = match option_env!("TAURI_DIST_DIR") {
+          Some(d) => d.to_string(),
+          None => std::env::current_dir()
+            .unwrap()
+            .into_os_string()
+            .into_string()
+            .expect("Unable to convert to normal String"),
+        };
+        assert_eq!(
+          s,
+          read_to_string(Path::new(&dist_dir).join("index.tauri.html")).unwrap()
+        );
+      }
       _ => assert!(false),
     }
 
     #[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
     match res {
       Ok(Content::Url(dp)) => assert_eq!(dp, _c.build.dev_path),
-      Ok(Content::Html(s)) => assert_eq!(
-        s,
-        read_to_string(Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html")).unwrap()
-      ),
+      Ok(Content::Html(s)) => {
+        let dist_dir = match option_env!("TAURI_DIST_DIR") {
+          Some(d) => d.to_string(),
+          None => std::env::current_dir()
+            .unwrap()
+            .into_os_string()
+            .into_string()
+            .expect("Unable to convert to normal String"),
+        };
+        assert_eq!(
+          s,
+          read_to_string(Path::new(&dist_dir).join("index.tauri.html")).unwrap()
+        );
+      }
       _ => assert!(false),
     }
   }

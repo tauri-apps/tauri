@@ -24,6 +24,7 @@ threadpool = "1.8"
 uuid = { version = "0.8.1", features = ["v4"] }
 anyhow = "1.0.31"
 thiserror = "1.0.19"
+envmnt = "0.8.2"
 
 tauri-api = { version = "0.5",  path = "../tauri-api" }
 

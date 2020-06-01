@@ -237,27 +237,27 @@ pub fn read_binary_file<T: 'static>(
 // test webview functionality.
 #[cfg(test)]
 mod test {
-  use super::*;
-  use web_view::*;
+  // use super::*;
+  // use web_view::*;
 
   // create a makeshift webview
-  fn create_test_webview() -> crate::Result<WebView<'static, ()>> {
-    // basic html set into webview
-    let content = r#"<html><head></head><body></body></html>"#;
+  // fn create_test_webview() -> crate::Result<WebView<'static, ()>> {
+  //   // basic html set into webview
+  //   let content = r#"<html><head></head><body></body></html>"#;
 
-    Ok(
-      // use webview builder to create simple webview
-      WebViewBuilder::new()
-        .title("test")
-        .size(800, 800)
-        .resizable(true)
-        .debug(true)
-        .user_data(())
-        .invoke_handler(|_wv, _arg| Ok(()))
-        .content(Content::Html(content))
-        .build()?,
-    )
-  }
+  //   Ok(
+  //     // use webview builder to create simple webview
+  //     WebViewBuilder::new()
+  //       .title("test")
+  //       .size(800, 800)
+  //       .resizable(true)
+  //       .debug(true)
+  //       .user_data(())
+  //       .invoke_handler(|_wv, _arg| Ok(()))
+  //       .content(Content::Html(content))
+  //       .build()?,
+  //   )
+  // }
 
   /* #[test]
   #[cfg(not(any(target_os = "linux", target_os = "macos")))]

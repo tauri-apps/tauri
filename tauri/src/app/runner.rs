@@ -1,5 +1,11 @@
 #[allow(unused_imports)]
-use std::{fs::read_to_string, path::Path, process::Stdio, thread::spawn};
+use std::{
+  env,
+  fs::{self, read_to_string},
+  path::Path,
+  process::Stdio,
+  thread::spawn,
+};
 
 use web_view::{builder, Content, WebView};
 
@@ -65,7 +71,7 @@ fn setup_content(config: Config) -> crate::Result<Content<String>> {
   } else {
     let dist_dir = match option_env!("TAURI_DIST_DIR") {
       Some(d) => d.to_string(),
-      None => std::env::current_dir()?
+      None => env::current_dir()?
         .into_os_string()
         .into_string()
         .expect("Unable to convert to normal String"),
@@ -89,7 +95,7 @@ fn setup_content(config: Config) -> crate::Result<Content<String>> {
 fn setup_content(_: Config) -> crate::Result<Content<String>> {
   let dist_dir = match option_env!("TAURI_DIST_DIR") {
     Some(d) => d.to_string(),
-    None => std::env::current_dir()?
+    None => env::current_dir()?
       .into_os_string()
       .into_string()
       .expect("Unable to convert to normal String"),
@@ -250,8 +256,8 @@ fn build_webview(
 
   if has_splashscreen {
     let env_var = envmnt::get_or("TAURI_DIR", "../dist");
-    let path = std::path::Path::new(&env_var);
-    let contents = std::fs::read_to_string(path.join("/tauri.js"))?;
+    let path = Path::new(&env_var);
+    let contents = fs::read_to_string(path.join("/tauri.js"))?;
     // inject the tauri.js entry point
     webview
       .handle()
@@ -275,7 +281,7 @@ mod test {
   use web_view::Content;
 
   #[cfg(not(feature = "embedded-server"))]
-  use std::{fs::read_to_string, path::Path};
+  use std::{env, fs::read_to_string, path::Path};
 
   fn init_config() -> crate::config::Config {
     crate::config::get().expect("unable to setup default config")
@@ -299,7 +305,7 @@ mod test {
       Ok(Content::Html(s)) => {
         let dist_dir = match option_env!("TAURI_DIST_DIR") {
           Some(d) => d.to_string(),
-          None => std::env::current_dir()
+          None => env::current_dir()
             .unwrap()
             .into_os_string()
             .into_string()
@@ -319,7 +325,7 @@ mod test {
       Ok(Content::Html(s)) => {
         let dist_dir = match option_env!("TAURI_DIST_DIR") {
           Some(d) => d.to_string(),
-          None => std::env::current_dir()
+          None => env::current_dir()
             .unwrap()
             .into_os_string()
             .into_string()

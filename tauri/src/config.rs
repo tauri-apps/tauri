@@ -1,5 +1,7 @@
 use serde::Deserialize;
 
+use std::{fs, path};
+
 #[derive(PartialEq, Deserialize, Clone, Debug)]
 #[serde(tag = "window", rename_all = "camelCase")]
 pub struct WindowConfig {
@@ -112,8 +114,8 @@ pub fn get() -> crate::Result<Config> {
     Some(config) => Ok(serde_json::from_str(config).expect("failed to parse TAURI_CONFIG env")),
     None => {
       let env_var = envmnt::get_or("TAURI_DIR", "../dist");
-      let path = std::path::Path::new(&env_var);
-      let contents = std::fs::read_to_string(path.join("tauri.conf.json"))?;
+      let path = path::Path::new(&env_var);
+      let contents = fs::read_to_string(path.join("tauri.conf.json"))?;
 
       Ok(serde_json::from_str(&contents).expect("failed to read tauri.conf.json"))
     }

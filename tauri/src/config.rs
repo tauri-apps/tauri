@@ -142,7 +142,7 @@ mod test {
         },
       },
       build: BuildConfig {
-        dev_path: String::from("../dist"),
+        dev_path: String::from("http://localhost:4000"),
       },
     }
   }

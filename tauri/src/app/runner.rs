@@ -80,8 +80,8 @@ fn setup_content(config: Config) -> crate::Result<Content<String>> {
 // setup content for no-server
 #[cfg(feature = "no-server")]
 fn setup_content(_: Config) -> crate::Result<Content<String>> {
-  let index_path = Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
-  Ok(Content::Html(read_to_string(index_path)?))
+  let html = include_str!(concat!(env!("TAURI_DIST_DIR"), "/index.tauri.html"));
+  Ok(Content::Html(String::from(html)))
 }
 
 // get the port for the embedded server

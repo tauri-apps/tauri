@@ -54,7 +54,7 @@
     "http-proxy": "1.18.1",
     "imagemin": "7.0.1",
     "imagemin-optipng": "8.0.0",
-    "imagemin-pngquant": "8.0.0",
+    "imagemin-pngquant": "9.0.0",
     "imagemin-zopfli": "7.0.0",
     "is-png": "2.0.0",
     "isbinaryfile": "4.0.6",

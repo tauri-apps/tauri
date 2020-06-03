@@ -4,6 +4,7 @@ use crate::Settings;
 
 use anyhow::Context;
 
+use std::env;
 use std::fs::{self, write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -89,6 +90,17 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   if let Some(license_path) = settings.osx_license() {
     args.push("--eula");
     args.push(license_path);
+  }
+
+  // Issue #592 - Building MacOS dmg files on CI
+  // https://github.com/tauri-apps/tauri/issues/592
+  match env::var_os("CI") {
+    Some(value) => {
+      if value == "true" {
+        args.push("--skip-jenkins");
+      }
+    }
+    None => (),
   }
 
   // execute the bundle script

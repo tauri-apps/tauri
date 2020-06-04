@@ -27,11 +27,9 @@ pub fn read_dir<T: 'static>(
       };
       if recursive {
         dir::walk_dir(resolve_path(path, dir)?)
-          .map_err(|e| e.into())
           .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
       } else {
         dir::list_dir_contents(resolve_path(path, dir)?)
-          .map_err(|e| e.into())
           .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
       }
     },
@@ -207,7 +205,6 @@ pub fn read_text_file<T: 'static>(
     webview,
     move || {
       file::read_string(resolve_path(path, options.and_then(|o| o.dir))?)
-        .map_err(|e| e.into())
         .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
     },
     callback,
@@ -226,7 +223,6 @@ pub fn read_binary_file<T: 'static>(
     webview,
     move || {
       file::read_binary(resolve_path(path, options.and_then(|o| o.dir))?)
-        .map_err(|e| e.into())
         .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
     },
     callback,

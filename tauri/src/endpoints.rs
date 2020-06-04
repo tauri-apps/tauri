@@ -167,7 +167,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           callback,
           error,
         } => {
-          http::make_request(webview, options, callback, error);
+          http::make_request(webview, *options, callback, error);
         }
         #[cfg(any(feature = "embedded-server", feature = "no-server"))]
         LoadAsset {

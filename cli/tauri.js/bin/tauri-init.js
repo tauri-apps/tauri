@@ -41,7 +41,7 @@ if (argv.help) {
     --directory, -d     Set target directory for init
     --tauri-path, -t    Path of the Tauri project to use (relative to the cwd)
     --window-title, -w  Window title of your Tauri application
-    --distDir, -D       Output directory of your web app build process
+    --distDir, -D       Web assets location, relative to <project-dir>/src-tauri
     --devPath, -p       Url of your dev server
     `)
   process.exit(0)
@@ -60,7 +60,7 @@ inquirer
       type: 'input',
       name: 'build.distDir',
       message:
-        'What is the output directory of your web app build process, relative to the "src-tauri" folder that will be created?',
+        'Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri" folder that will be created?',
       default: '../dist',
       when: () => !argv.D
     },
@@ -84,7 +84,7 @@ inquirer
       runInit()
     } else {
       // Something else when wrong
-      console.error('An unknown error occurred')
+      console.error('An unknown error occurred:', error)
     }
   })
 

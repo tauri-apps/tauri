@@ -3,7 +3,7 @@
   windows_subsystem = "windows"
 )]
 
-#[cfg(not(feature = "dev-server"))]
+#[cfg(any(feature = "embedded-server", feature = "no-server"))]
 pub mod assets;
 pub mod config;
 pub mod event;
@@ -13,41 +13,18 @@ pub mod server;
 mod app;
 mod endpoints;
 #[allow(dead_code)]
-mod file_system;
-#[allow(dead_code)]
 mod salt;
-#[cfg(feature = "embedded-server")]
-mod tcp;
 
 use std::process::Stdio;
 
-use error_chain::error_chain;
+pub use anyhow::Result;
 use threadpool::ThreadPool;
 
-pub use app::*;
-pub use web_view::{WebView, Handle};
+pub use web_view::Handle;
+use web_view::WebView;
 
 pub use app::*;
 pub use tauri_api as api;
-
-error_chain! {
-  foreign_links{
-    Api(::tauri_api::Error);
-    Json(::serde_json::Error);
-    Webview(::web_view::Error);
-    Io(::std::io::Error);
-  }
-  errors{
-    Promise(t: String) {
-        description("Promise Error")
-        display("Promise Error: '{}'", t)
-    }
-    Command(t: String) {
-      description("Command Error")
-      display("Command Error: '{}'", t)
-    }
-  }
-}
 
 thread_local!(static POOL: ThreadPool = ThreadPool::new(4));
 
@@ -57,6 +34,20 @@ pub fn spawn<F: FnOnce() -> () + Send + 'static>(task: F) {
       task();
     });
   });
+}
+
+pub fn execute_promise_sync<T: 'static, F: FnOnce() -> crate::Result<String> + Send + 'static>(
+  webview: &mut WebView<'_, T>,
+  task: F,
+  callback: String,
+  error: String,
+) {
+  let handle = webview.handle();
+  let callback_string =
+    api::rpc::format_callback_result(task().map_err(|err| err.to_string()), callback, error);
+  handle
+    .dispatch(move |_webview| _webview.eval(callback_string.as_str()))
+    .expect("Failed to dispatch promise callback");
 }
 
 pub fn execute_promise<T: 'static, F: FnOnce() -> crate::Result<String> + Send + 'static>(
@@ -88,8 +79,8 @@ pub fn call<T: 'static>(
     webview,
     || {
       api::command::get_output(command, args, Stdio::piped())
-        .map_err(|err| crate::ErrorKind::Promise(err.to_string()).into())
-        .map(|output| format!("`{}`", output))
+        .map_err(|err| err)
+        .map(|output| format!(r#""{}""#, output))
     },
     callback,
     error,

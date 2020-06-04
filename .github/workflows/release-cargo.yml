@@ -13,42 +13,44 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         package:
           - name: tauri-bundler
             registryName: tauri-bundler
             path: cli/tauri-bundler
-            publishPath: /target/package
-          - name: tauri-core
-            registryName: tauri
-            path: tauri
-            publishPath: /target/package
-          - name: tauri-api
-            registryName: tauri-api
-            path: tauri-api
-            publishPath: /target/package
-          - name: tauri-updater
-            registryName: tauri-updater
-            path: tauri-updater
-            publishPath: /target/package
+            publishPath: cli/tauri-bundler/target/package # not in workspace so target folder is nested
           - name: tauri-utils
             registryName: tauri-utils
             path: tauri-utils
-            publishPath: /target/package
+            publishPath: target/package
+          - name: tauri-api
+            registryName: tauri-api
+            path: tauri-api
+            publishPath: target/package
+          - name: tauri-updater
+            registryName: tauri-updater
+            path: tauri-updater
+            publishPath: target/package
+          - name: tauri-core
+            registryName: tauri
+            path: tauri
+            publishPath: target/package
     steps:
       - uses: actions/checkout@v2
         with:
           ref: master
           toolchain: stable
-      - name: install webkit2gtk
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.0
       - name: get version
         working-directory: ${{ matrix.package.path }}
         run: echo ::set-env name=PACKAGE_VERSION::$(sed -nE 's/^\s*version = "(.*?)"/\1/p' Cargo.toml)
       - name: check published version
         run: echo ::set-env name=PUBLISHED_VERSION::$(cargo search ${{ matrix.package.registryName }} --limit 1 | sed -nE 's/^[^"]*"//; s/".*//1p' -)
+      - name: install webkit2gtk
+        if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0
       - name: cargo login
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         run: cargo login ${{ secrets.crate_token }}
@@ -59,14 +61,9 @@ jobs:
           TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/dist
           TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/src-tauri
         run: |
-          echo "package dir:"
-          ls
           cargo package --no-verify
           echo "We will publish:" $PACKAGE_VERSION
           echo "This is current latest:" $PUBLISHED_VERSION
-          echo "post package dir:"
-          cd ${{ matrix.publishPath }}
-          ls
       - name: cargo audit
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         working-directory: ${{ matrix.package.path }}

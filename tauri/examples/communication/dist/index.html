@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      .logo-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .logo-link {
+        font-weight: 700;
+      }
+
+      .logo {
+        width: 128px;
+        height: 128px;
+        cursor: pointer;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="logo-container">
+      <a class="logo-link" target="_blank" href="https://github.com/tauri-apps/tauri">
+        <h3>GitHub Repository</h3>
+      </a>
+      <img src="icon.png" class="logo">
+    </div>
+    <div>
+      <button id="log">Call Log API</button>
+      <button id="request">Call Request (async) API</button>
+      <button id="event">Send event to Rust</button>
+    </div>
+
+    <div style="margin-top: 24px">
+      <select id="dir">
+        <option value="">None</option>
+      </select>
+      <input id="path-to-read" placeholder="Type the path to read...">
+      <button id="read">Read</button>
+    </div>
+
+    <div style="margin-top: 24px">
+      <input id="url" value="https://tauri.studio">
+      <button id="open-url">Open URL</button>
+    </div>
+
+    <div style="margin-top: 24px">
+      <input id="title" value="Awesome Tauri Example!">
+      <button id="set-title">Set title</button>
+    </div>
+
+    <div style="margin-top: 24px">
+      <input id="dialog-default-path" placeholder="Default path">
+      <input id="dialog-filter" placeholder="Extensions filter">
+      <div>
+        <input type="checkbox" id="dialog-multiple">
+        <label>Multiple</label>
+      </div>
+      <div>
+        <input type="checkbox" id="dialog-directory">
+        <label>Directory</label>
+      </div>
+
+      <button id="open-dialog">Open dialog</button>
+      <button id="save-dialog">Open save dialog</button>
+    </div>
+
+    <div style="margin-top: 24px">
+      <select id="request-method">
+        <option value="GET">GET</option>
+        <option value="POST">POST</option>
+        <option value="PUT">PUT</option>
+        <option value="PATCH">PATCH</option>
+        <option value="DELETE">DELETE</option>
+      </select>
+      <input id="request-url" placeholder="Type the request URL...">
+      <textarea id="request-body" placeholder="Request body"></textarea>
+      <button id="make-request">Make request</button>
+    </div>
+
+    <div id="response"></div>
+
+    <script>
+      function registerResponse (response) {
+        document.getElementById('response').innerHTML = typeof response === 'object'
+          ? JSON.stringify(response)
+          : response
+      }
+
+      function addClickEnterHandler (button, input, handler) {
+        button.addEventListener('click', handler)
+        input.addEventListener('keyup', function (e) {
+          if (e.keyCode === 13) {
+            handler()
+          }
+        })
+      }
+
+      window.tauri.listen('rust-event', function (res) {
+        document.getElementById('response').innerHTML = JSON.stringify(res)
+      })
+
+      document.querySelector('.logo').addEventListener('click', function () {
+        window.tauri.open('https://tauri.studio/')
+      })
+
+      var dirSelect = document.getElementById('dir')
+      for (var key in window.tauri.Dir) {
+        var value = window.tauri.Dir[key]
+        var opt = document.createElement("option")
+        opt.value = value
+        opt.innerHTML = key
+        dirSelect.appendChild(opt)
+      }
+    </script>
+    <script src="communication.js"></script>
+    <script src="fs.js"></script>
+    <script src="window.js"></script>
+    <script src="dialog.js"></script>
+    <script src="http.js"></script>
+  </body>
+</html>

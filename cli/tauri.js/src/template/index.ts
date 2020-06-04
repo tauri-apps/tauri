@@ -5,9 +5,10 @@ import merge from 'webpack-merge'
 import copyTemplates from '../helpers/copy-templates'
 import logger from '../helpers/logger'
 import defaultConfig from './defaultConfig'
+import chalk from 'chalk'
 
-const log = logger('app:tauri', 'green')
-const warn = logger('app:tauri (template)', 'red')
+const log = logger('app:tauri')
+const warn = logger('app:tauri (template)', chalk.red)
 
 interface InjectOptions {
   force: false | InjectionType
@@ -62,8 +63,14 @@ Run \`tauri init --force template\` to overwrite.`)
     if (!force) return false
   }
 
+  const resolveTauriPath = (tauriPath: string): string => {
+    const resolvedPath = tauriPath.startsWith('/') || /^\S:/g.test(tauriPath)
+      ? join(tauriPath, 'tauri') // we received a full path as argument
+      : join('..', tauriPath, 'tauri') // we received a relative path
+    return resolvedPath.replace(/\\/g, '/')
+  }
   const tauriDep = tauriPath
-    ? `{ path = "${join('..', tauriPath, 'tauri')}" }`
+    ? `{ path = "${resolveTauriPath(tauriPath)}" }`
     : null
 
   try {

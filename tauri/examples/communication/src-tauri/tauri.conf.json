@@ -1,0 +1,34 @@
+{
+  "build": {
+    "distDir": "../dist",
+    "devPath": "../dist"
+  },
+  "ctx": {},
+  "tauri": {
+    "embeddedServer": {
+      "active": true
+    },
+    "bundle": {
+      "active": true,
+      "identifier": "com.example.app",
+      "icon": [
+        "icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"
+      ]
+    },
+    "whitelist": {
+      "all": true
+    },
+    "window": {
+      "title": "Tauri App"
+    },
+    "security": {
+      "csp": "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
+    },
+    "edge": {
+      "active": true
+    },
+    "inliner": {
+      "active": true
+    }
+  }
+}

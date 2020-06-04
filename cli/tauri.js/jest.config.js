@@ -28,15 +28,18 @@ module.exports = {
     '<rootDir>/test/jest/__tests__/**/*.spec.js',
     '<rootDir>/test/jest/__tests__/**/*.test.js'
   ],
-  moduleFileExtensions: ['js', 'json'],
+  moduleFileExtensions: ['ts', 'js', 'json'],
   moduleNameMapper: {
     '^~/(.*)$': '<rootDir>/$1',
     '^bin/(.*)$': '<rootDir>/bin/$1',
-    '^helpers/(.*)$': '<rootDir>/helpers/$1',
-    '^api/(.*)$': '<rootDir>/api/$1',
-    '^templates/(.*)$': '<rootDir>/templates/$1',
+    '^helpers/(.*)$': '<rootDir>/src/helpers/$1',
+    '^api/(.*)$': '<rootDir>/src/api/$1',
+    '^templates/(.*)$': '<rootDir>/src/templates/$1',
     '^test/(.*)$': '<rootDir>/test/$1',
     '../../package.json': '<rootDir>/package.json'
   },
-  transform: {}
+  "transform": {
+    "templates[\\\\/](tauri|mutation-observer)\.js": "./test/jest/raw-loader-transformer.js",
+    "\\.(js|ts)$": "babel-jest"
+  }
 }

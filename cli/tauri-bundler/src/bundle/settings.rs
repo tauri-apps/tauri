@@ -3,7 +3,6 @@ use crate::bundle::common;
 use crate::bundle::platform::target_triple;
 
 use clap::ArgMatches;
-use error_chain::bail;
 use glob;
 use serde::Deserialize;
 use target_build_utils::TargetInfo;
@@ -19,15 +18,12 @@ use std::path::{Path, PathBuf};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PackageType {
   OsxBundle,
-  #[cfg(feature = "ios")]
   IosBundle,
   #[cfg(target_os = "windows")]
   WindowsMsi,
   Deb,
   Rpm,
-  #[cfg(feature = "appimage")]
   AppImage,
-  #[cfg(feature = "dmg")]
   Dmg,
 }
 
@@ -36,15 +32,12 @@ impl PackageType {
     // Other types we may eventually want to support: apk
     match name {
       "deb" => Some(PackageType::Deb),
-      #[cfg(feature = "ios")]
       "ios" => Some(PackageType::IosBundle),
       #[cfg(target_os = "windows")]
       "msi" => Some(PackageType::WindowsMsi),
       "osx" => Some(PackageType::OsxBundle),
       "rpm" => Some(PackageType::Rpm),
-      #[cfg(feature = "appimage")]
       "appimage" => Some(PackageType::AppImage),
-      #[cfg(feature = "dmg")]
       "dmg" => Some(PackageType::Dmg),
       _ => None,
     }
@@ -53,15 +46,12 @@ impl PackageType {
   pub fn short_name(&self) -> &'static str {
     match *self {
       PackageType::Deb => "deb",
-      #[cfg(feature = "ios")]
       PackageType::IosBundle => "ios",
       #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => "msi",
       PackageType::OsxBundle => "osx",
       PackageType::Rpm => "rpm",
-      #[cfg(feature = "appimage")]
       PackageType::AppImage => "appimage",
-      #[cfg(feature = "dmg")]
       PackageType::Dmg => "dmg",
     }
   }
@@ -73,14 +63,13 @@ impl PackageType {
 
 const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::Deb,
-  #[cfg(feature = "ios")]
   PackageType::IosBundle,
   #[cfg(target_os = "windows")]
   PackageType::WindowsMsi,
   PackageType::OsxBundle,
   PackageType::Rpm,
-  #[cfg(feature = "dmg")]
   PackageType::Dmg,
+  PackageType::AppImage,
 ];
 
 #[derive(Clone, Debug)]
@@ -90,7 +79,7 @@ pub enum BuildArtifact {
   Example(String),
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Default)]
 struct BundleSettings {
   // General settings:
   name: Option<String>,
@@ -105,8 +94,11 @@ struct BundleSettings {
   script: Option<PathBuf>,
   // OS-specific settings:
   deb_depends: Option<Vec<String>>,
+  deb_use_bootstrapper: Option<bool>,
   osx_frameworks: Option<Vec<String>>,
   osx_minimum_system_version: Option<String>,
+  osx_license: Option<String>,
+  osx_use_bootstrapper: Option<bool>,
   // Bundles for other binaries/examples:
   bin: Option<HashMap<String, BundleSettings>>,
   example: Option<HashMap<String, BundleSettings>>,
@@ -143,7 +135,7 @@ struct CargoSettings {
 #[derive(Clone, Debug)]
 pub struct Settings {
   package: PackageSettings,
-  package_type: Option<PackageType>, // If `None`, use the default package type for this os
+  package_types: Option<Vec<PackageType>>, // If `None`, use the default package type for this os
   target: Option<(String, TargetInfo)>,
   features: Option<Vec<String>>,
   project_out_directory: PathBuf,
@@ -169,11 +161,24 @@ impl CargoSettings {
 
 impl Settings {
   pub fn new(current_dir: PathBuf, matches: &ArgMatches<'_>) -> crate::Result<Self> {
-    let package_type = match matches.value_of("format") {
-      Some(name) => match PackageType::from_short_name(name) {
-        Some(package_type) => Some(package_type),
-        None => bail!("Unsupported bundle format: {}", name),
-      },
+    let package_types = match matches.values_of("format") {
+      Some(names) => {
+        let mut types = vec![];
+        for name in names {
+          match PackageType::from_short_name(name) {
+            Some(package_type) => {
+              types.push(package_type);
+            }
+            None => {
+              return Err(crate::Error::GenericError(format!(
+                "Unsupported bundle format: {}",
+                name
+              )));
+            }
+          }
+        }
+        Some(types)
+      }
       None => None,
     };
     let build_artifact = if let Some(bin) = matches.value_of("bin") {
@@ -200,20 +205,40 @@ impl Settings {
       None
     };
     let cargo_settings = CargoSettings::load(&current_dir)?;
+    let tauri_config = super::tauri_config::get();
+
     let package = match cargo_settings.package {
       Some(package_info) => package_info,
-      None => bail!("No 'package' info found in 'Cargo.toml'"),
+      None => {
+        return Err(crate::Error::GenericError(
+          "No package info in the config file".to_owned(),
+        ))
+      }
     };
     let workspace_dir = Settings::get_workspace_dir(&current_dir);
     let target_dir = Settings::get_target_dir(&workspace_dir, &target, is_release, &build_artifact);
-    let bundle_settings = if let Some(bundle_settings) = package
-      .metadata
-      .as_ref()
-      .and_then(|metadata| metadata.bundle.as_ref())
-    {
-      bundle_settings.clone()
-    } else {
-      bail!("No [package.metadata.bundle] section in Cargo.toml");
+    let bundle_settings = match tauri_config {
+      Ok(config) => merge_settings(BundleSettings::default(), config.tauri.bundle),
+      Err(e) => {
+        let error_message = e.to_string();
+        if !error_message.contains("No such file or directory") {
+          return Err(crate::Error::GenericError(format!(
+            "Failed to read tauri config: {}",
+            error_message
+          )));
+        }
+        if let Some(bundle_settings) = package
+          .metadata
+          .as_ref()
+          .and_then(|metadata| metadata.bundle.as_ref())
+        {
+          bundle_settings.clone()
+        } else {
+          return Err(crate::Error::GenericError(
+            "No 'bundle' key in the tauri.conf.json".to_owned(),
+          ));
+        }
+      }
     };
     let (bundle_settings, binary_name) = match build_artifact {
       BuildArtifact::Main => (bundle_settings, package.name.clone()),
@@ -237,7 +262,7 @@ impl Settings {
 
     Ok(Settings {
       package,
-      package_type,
+      package_types,
       target,
       features,
       build_artifact,
@@ -339,29 +364,46 @@ impl Settings {
     &self.binary_path
   }
 
-  /// If a specific package type was specified by the command-line, returns
-  /// that package type; otherwise, if a target triple was specified by the
+  /// If a list of package types was specified by the command-line, returns
+  /// that list filtered by the current target's available targets;
+  /// otherwise, if a target triple was specified by the
   /// command-line, returns the native package type(s) for that target;
   /// otherwise, returns the native package type(s) for the host platform.
   /// Fails if the host/target's native package type is not supported.
   pub fn package_types(&self) -> crate::Result<Vec<PackageType>> {
-    if let Some(package_type) = self.package_type {
-      Ok(vec![package_type])
+    let target_os = if let Some((_, ref info)) = self.target {
+      info.target_os()
     } else {
-      let target_os = if let Some((_, ref info)) = self.target {
-        info.target_os()
-      } else {
-        std::env::consts::OS
-      };
-      match target_os {
-        "macos" => Ok(vec![PackageType::OsxBundle]),
-        #[cfg(feature = "ios")]
-        "ios" => Ok(vec![PackageType::IosBundle]),
-        "linux" => Ok(vec![PackageType::Deb]), // TODO: Do Rpm too, once it's implemented.
-        #[cfg(target_os = "windows")]
-        "windows" => Ok(vec![PackageType::WindowsMsi]),
-        os => bail!("Native {} bundles not yet supported.", os),
+      std::env::consts::OS
+    };
+    let platform_types = match target_os {
+      "macos" => vec![PackageType::OsxBundle, PackageType::Dmg],
+      "ios" => vec![PackageType::IosBundle],
+      "linux" => vec![PackageType::Deb, PackageType::AppImage],
+      #[cfg(target_os = "windows")]
+      "windows" => vec![PackageType::WindowsMsi],
+      os => {
+        return Err(crate::Error::GenericError(format!(
+          "Native {} bundles not yet supported.",
+          os
+        )))
       }
+    };
+    if let Some(package_types) = &self.package_types {
+      let mut types = vec![];
+      for package_type in package_types {
+        let package_type = *package_type;
+        if platform_types
+          .clone()
+          .into_iter()
+          .any(|t| t == package_type)
+        {
+          types.push(package_type);
+        }
+      }
+      Ok(types)
+    } else {
+      Ok(platform_types)
     }
   }
 
@@ -435,7 +477,7 @@ impl Settings {
   }
 
   pub fn exception_domain(&self) -> Option<&String> {
-    return self.bundle_settings.exception_domain.as_ref();
+    self.bundle_settings.exception_domain.as_ref()
   }
 
   // copy external binaries to a path.
@@ -447,8 +489,7 @@ impl Settings {
           .file_name()
           .expect("failed to extract external binary filename"),
       );
-      common::copy_file(&src, &dest)
-        .map_err(|_| format!("Failed to copy external binary {:?}", src))?;
+      common::copy_file(&src, &dest)?;
     }
     Ok(())
   }
@@ -458,8 +499,7 @@ impl Settings {
     for src in self.resource_files() {
       let src = src?;
       let dest = path.join(common::resource_relpath(&src));
-      common::copy_file(&src, &dest)
-        .map_err(|_| format!("Failed to copy resource file {:?}", src))?;
+      common::copy_file(&src, &dest)?;
     }
     Ok(())
   }
@@ -528,6 +568,10 @@ impl Settings {
     }
   }
 
+  pub fn debian_use_bootstrapper(&self) -> bool {
+    self.bundle_settings.deb_use_bootstrapper.unwrap_or(false)
+  }
+
   pub fn osx_frameworks(&self) -> &[String] {
     match self.bundle_settings.osx_frameworks {
       Some(ref frameworks) => frameworks.as_slice(),
@@ -542,6 +586,18 @@ impl Settings {
       .as_ref()
       .map(String::as_str)
   }
+
+  pub fn osx_license(&self) -> Option<&str> {
+    self
+      .bundle_settings
+      .osx_license
+      .as_ref()
+      .map(String::as_str)
+  }
+
+  pub fn osx_use_bootstrapper(&self) -> bool {
+    self.bundle_settings.osx_use_bootstrapper.unwrap_or(false)
+  }
 }
 
 fn bundle_settings_from_table(
@@ -552,11 +608,10 @@ fn bundle_settings_from_table(
   if let Some(bundle_settings) = opt_map.as_ref().and_then(|map| map.get(bundle_name)) {
     Ok(bundle_settings.clone())
   } else {
-    bail!(
-      "No [package.metadata.bundle.{}.{}] section in Cargo.toml",
-      map_name,
-      bundle_name
-    );
+    return Err(crate::Error::GenericError(format!(
+      "No 'bundle:{}:{}' keys section in the tauri.conf.json file",
+      map_name, bundle_name
+    )));
   }
 }
 
@@ -575,7 +630,7 @@ fn add_external_bin(bundle_settings: BundleSettings) -> crate::Result<BundleSett
       }
       Some(win_paths)
     }
-    None => Some(vec![String::from("")]),
+    None => Some(vec![]),
   };
 
   Ok(BundleSettings {
@@ -584,11 +639,54 @@ fn add_external_bin(bundle_settings: BundleSettings) -> crate::Result<BundleSett
   })
 }
 
+fn options_value<T>(first: Option<T>, second: Option<T>) -> Option<T> {
+  if let Some(_) = first {
+    first
+  } else {
+    second
+  }
+}
+
+fn merge_settings(
+  bundle_settings: BundleSettings,
+  config: crate::bundle::tauri_config::BundleConfig,
+) -> BundleSettings {
+  BundleSettings {
+    name: options_value(config.name, bundle_settings.name),
+    identifier: options_value(config.identifier, bundle_settings.identifier),
+    icon: options_value(config.icon, bundle_settings.icon),
+    version: options_value(config.version, bundle_settings.version),
+    resources: options_value(config.resources, bundle_settings.resources),
+    copyright: options_value(config.copyright, bundle_settings.copyright),
+    category: options_value(config.category, bundle_settings.category),
+    short_description: options_value(config.short_description, bundle_settings.short_description),
+    long_description: options_value(config.long_description, bundle_settings.long_description),
+    script: options_value(config.script, bundle_settings.script),
+    deb_depends: options_value(config.deb.depends, bundle_settings.deb_depends),
+    deb_use_bootstrapper: Some(config.deb.use_bootstrapper),
+    osx_frameworks: options_value(config.osx.frameworks, bundle_settings.osx_frameworks),
+    osx_minimum_system_version: options_value(
+      config.osx.minimum_system_version,
+      bundle_settings.osx_minimum_system_version,
+    ),
+    osx_license: options_value(config.osx.license, bundle_settings.osx_license),
+    osx_use_bootstrapper: Some(config.osx.use_bootstrapper),
+    external_bin: options_value(config.external_bin, bundle_settings.external_bin),
+    exception_domain: options_value(
+      config.osx.exception_domain,
+      bundle_settings.exception_domain,
+    ),
+    ..bundle_settings
+  }
+}
+
 pub struct ResourcePaths<'a> {
   pattern_iter: std::slice::Iter<'a, String>,
   glob_iter: Option<glob::Paths>,
   walk_iter: Option<walkdir::IntoIter>,
   allow_walk: bool,
+  current_pattern: Option<String>,
+  current_pattern_is_valid: bool,
 }
 
 impl<'a> ResourcePaths<'a> {
@@ -598,6 +696,8 @@ impl<'a> ResourcePaths<'a> {
       glob_iter: None,
       walk_iter: None,
       allow_walk,
+      current_pattern: None,
+      current_pattern_is_valid: false,
     }
   }
 }
@@ -617,6 +717,7 @@ impl<'a> Iterator for ResourcePaths<'a> {
           if path.is_dir() {
             continue;
           }
+          self.current_pattern_is_valid = true;
           return Some(Ok(path.to_path_buf()));
         }
       }
@@ -634,14 +735,26 @@ impl<'a> Iterator for ResourcePaths<'a> {
               continue;
             } else {
               let msg = format!("{:?} is a directory", path);
-              return Some(Err(crate::Error::from(msg)));
+              return Some(Err(crate::Error::GenericError(msg)));
             }
           }
+          self.current_pattern_is_valid = true;
           return Some(Ok(path));
+        } else {
+          if let Some(current_path) = &self.current_pattern {
+            if !self.current_pattern_is_valid {
+              return Some(Err(crate::Error::GenericError(format!(
+                "Path matching '{}' not found",
+                current_path
+              ))));
+            }
+          }
         }
       }
       self.glob_iter = None;
       if let Some(pattern) = self.pattern_iter.next() {
+        self.current_pattern = Some(pattern.to_string());
+        self.current_pattern_is_valid = false;
         let glob = match glob::glob(pattern) {
           Ok(glob) => glob,
           Err(error) => return Some(Err(crate::Error::from(error))),

@@ -19,11 +19,12 @@
 // generate postinst or prerm files.
 
 use super::common;
-use crate::{ResultExt, Settings};
+use crate::Settings;
 
+use anyhow::Context;
 use ar;
 use icns;
-use image::png::{PNGDecoder, PNGEncoder};
+use image::png::PngDecoder;
 use image::{self, GenericImageView, ImageDecoder};
 use libflate::gzip;
 use md5;
@@ -32,7 +33,6 @@ use tar;
 use walkdir::WalkDir;
 
 use std::collections::BTreeSet;
-use std::convert::TryInto;
 use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::{self, Write};
@@ -56,34 +56,34 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let package_dir = base_dir.join(&package_base_name);
   if package_dir.exists() {
     fs::remove_dir_all(&package_dir)
-      .chain_err(|| format!("Failed to remove old {}", package_base_name))?;
+      .with_context(|| format!("Failed to remove old {}", package_base_name))?;
   }
   let package_path = base_dir.join(package_name);
 
   let data_dir =
-    generate_folders(settings, &package_dir).chain_err(|| "Failed to build folders")?;
+    generate_folders(settings, &package_dir).with_context(|| "Failed to build folders")?;
   // Generate control files.
   let control_dir = package_dir.join("control");
   generate_control_file(settings, arch, &control_dir, &data_dir)
-    .chain_err(|| "Failed to create control file")?;
-  generate_md5sums(&control_dir, &data_dir).chain_err(|| "Failed to create md5sums file")?;
+    .with_context(|| "Failed to create control file")?;
+  generate_md5sums(&control_dir, &data_dir).with_context(|| "Failed to create md5sums file")?;
 
   // Generate `debian-binary` file; see
   // http://www.tldp.org/HOWTO/Debian-Binary-Package-Building-HOWTO/x60.html#AEN66
   let debian_binary_path = package_dir.join("debian-binary");
   create_file_with_data(&debian_binary_path, "2.0\n")
-    .chain_err(|| "Failed to create debian-binary file")?;
+    .with_context(|| "Failed to create debian-binary file")?;
 
   // Apply tar/gzip/ar to create the final package file.
   let control_tar_gz_path =
-    tar_and_gzip_dir(control_dir).chain_err(|| "Failed to tar/gzip control directory")?;
+    tar_and_gzip_dir(control_dir).with_context(|| "Failed to tar/gzip control directory")?;
   let data_tar_gz_path =
-    tar_and_gzip_dir(data_dir).chain_err(|| "Failed to tar/gzip data directory")?;
+    tar_and_gzip_dir(data_dir).with_context(|| "Failed to tar/gzip data directory")?;
   create_archive(
     vec![debian_binary_path, control_tar_gz_path, data_tar_gz_path],
     &package_path,
   )
-  .chain_err(|| "Failed to create package archive")?;
+  .with_context(|| "Failed to create package archive")?;
   Ok(vec![package_path])
 }
 
@@ -95,17 +95,21 @@ pub fn generate_folders(settings: &Settings, package_dir: &Path) -> crate::Resul
   let bin_dir = data_dir.join("usr/bin");
 
   common::copy_file(settings.binary_path(), &binary_dest)
-    .chain_err(|| "Failed to copy binary file")?;
-  transfer_resource_files(settings, &data_dir).chain_err(|| "Failed to copy resource files")?;
+    .with_context(|| "Failed to copy binary file")?;
+  transfer_resource_files(settings, &data_dir).with_context(|| "Failed to copy resource files")?;
 
   settings
     .copy_binaries(&bin_dir)
-    .chain_err(|| "Failed to copy external binaries")?;
+    .with_context(|| "Failed to copy external binaries")?;
 
-  generate_icon_files(settings, &data_dir).chain_err(|| "Failed to create icon files")?;
-  generate_desktop_file(settings, &data_dir).chain_err(|| "Failed to create desktop file")?;
+  generate_icon_files(settings, &data_dir).with_context(|| "Failed to create icon files")?;
+  generate_desktop_file(settings, &data_dir).with_context(|| "Failed to create desktop file")?;
 
-  generate_bootstrap_file(settings, &data_dir).chain_err(|| "Failed to generate bootstrap file")?;
+  let use_bootstrapper = settings.debian_use_bootstrapper();
+  if use_bootstrapper {
+    generate_bootstrap_file(settings, &data_dir)
+      .with_context(|| "Failed to generate bootstrap file")?;
+  }
 
   Ok(data_dir)
 }
@@ -117,7 +121,6 @@ fn generate_bootstrap_file(settings: &Settings, data_dir: &Path) -> crate::Resul
   let bootstrap_file_name = format!("__{}-bootstrapper", bin_name);
   let bootstrapper_file_path = bin_dir.join(bootstrap_file_name.clone());
   let bootstrapper_file = &mut common::create_file(&bootstrapper_file_path)?;
-  println!("{:?}", bootstrapper_file_path);
   write!(
     bootstrapper_file,
     "#!/usr/bin/env sh
@@ -189,7 +192,16 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   if !settings.short_description().is_empty() {
     write!(file, "Comment={}\n", settings.short_description())?;
   }
-  write!(file, "Exec=__{}-bootstrapper\n", bin_name)?;
+  let use_bootstrapper = settings.debian_use_bootstrapper();
+  write!(
+    file,
+    "Exec={}\n",
+    if use_bootstrapper {
+      format!("__{}-bootstrapper", bin_name)
+    } else {
+      bin_name.to_string()
+    }
+  )?;
   write!(file, "Icon={}\n", bin_name)?;
   write!(file, "Name={}\n", settings.bundle_name())?;
   write!(file, "Terminal=false\n")?;
@@ -299,9 +311,9 @@ fn generate_icon_files(settings: &Settings, data_dir: &PathBuf) -> crate::Result
     if icon_path.extension() != Some(OsStr::new("png")) {
       continue;
     }
-    let decoder = PNGDecoder::new(File::open(&icon_path)?)?;
-    let width = decoder.dimensions().0.try_into()?;
-    let height = decoder.dimensions().1.try_into()?;
+    let decoder = PngDecoder::new(File::open(&icon_path)?)?;
+    let width = decoder.dimensions().0;
+    let height = decoder.dimensions().1;
     let is_high_density = common::is_retina(&icon_path);
     if !sizes.contains(&(width, height, is_high_density)) {
       sizes.insert((width, height, is_high_density));
@@ -334,8 +346,10 @@ fn generate_icon_files(settings: &Settings, data_dir: &PathBuf) -> crate::Result
       if !sizes.contains(&(width, height, is_high_density)) {
         sizes.insert((width, height, is_high_density));
         let dest_path = get_dest_path(width, height, is_high_density);
-        let encoder = PNGEncoder::new(common::create_file(&dest_path)?);
-        encoder.encode(&icon.raw_pixels(), width, height, icon.color())?;
+        icon.write_to(
+          &mut common::create_file(&dest_path)?,
+          image::ImageOutputFormat::Png,
+        )?;
       }
     }
   }

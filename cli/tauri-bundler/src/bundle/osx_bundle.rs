@@ -18,11 +18,11 @@
 // files into the `Contents` directory of the bundle.
 
 use super::common;
-use crate::{ResultExt, Settings};
+use crate::Settings;
 
+use anyhow::Context;
 use chrono;
 use dirs;
-use error_chain::bail;
 use icns;
 use image::{self, GenericImageView};
 
@@ -43,10 +43,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .join(&app_bundle_name);
   if app_bundle_path.exists() {
     fs::remove_dir_all(&app_bundle_path)
-      .chain_err(|| format!("Failed to remove old {}", app_bundle_name))?;
+      .with_context(|| format!("Failed to remove old {}", app_bundle_name))?;
   }
   let bundle_directory = app_bundle_path.join("Contents");
-  fs::create_dir_all(&bundle_directory).chain_err(|| {
+  fs::create_dir_all(&bundle_directory).with_context(|| {
     format!(
       "Failed to create bundle directory at {:?}",
       bundle_directory
@@ -57,25 +57,28 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let bin_dir = bundle_directory.join("MacOS");
 
   let bundle_icon_file: Option<PathBuf> =
-    { create_icns_file(&resources_dir, settings).chain_err(|| "Failed to create app icon")? };
+    { create_icns_file(&resources_dir, settings).with_context(|| "Failed to create app icon")? };
 
   create_info_plist(&bundle_directory, bundle_icon_file, settings)
-    .chain_err(|| "Failed to create Info.plist")?;
+    .with_context(|| "Failed to create Info.plist")?;
 
   copy_frameworks_to_bundle(&bundle_directory, settings)
-    .chain_err(|| "Failed to bundle frameworks")?;
+    .with_context(|| "Failed to bundle frameworks")?;
 
   settings.copy_resources(&resources_dir)?;
 
   settings
     .copy_binaries(&bin_dir)
-    .chain_err(|| "Failed to copy external binaries")?;
+    .with_context(|| "Failed to copy external binaries")?;
 
   copy_binary_to_bundle(&bundle_directory, settings)
-    .chain_err(|| format!("Failed to copy binary from {:?}", settings.binary_path()))?;
+    .with_context(|| format!("Failed to copy binary from {:?}", settings.binary_path()))?;
 
-  create_path_hook(&bundle_directory, settings).chain_err(|| "Failed to create _boot wrapper")?;
-
+  let use_bootstrapper = settings.osx_use_bootstrapper();
+  if use_bootstrapper {
+    create_bootstrapper(&bundle_directory, settings)
+      .with_context(|| "Failed to create OSX bootstrapper")?;
+  }
   Ok(vec![app_bundle_path])
 }
 
@@ -87,7 +90,7 @@ fn copy_binary_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate:
   )
 }
 
-fn create_path_hook(bundle_dir: &Path, settings: &Settings) -> crate::Result<()> {
+fn create_bootstrapper(bundle_dir: &Path, settings: &Settings) -> crate::Result<()> {
   let file = &mut common::create_file(&bundle_dir.join("MacOS/__bootstrapper"))?;
   // Create a shell script to bootstrap the  $PATH for Tauri, so environments like node are available.
   write!(
@@ -146,6 +149,7 @@ fn create_info_plist(
 ) -> crate::Result<()> {
   let build_number = chrono::Utc::now().format("%Y%m%d.%H%M%S");
   let file = &mut common::create_file(&bundle_dir.join("Info.plist"))?;
+  let use_bootstrapper = settings.osx_use_bootstrapper();
   write!(
     file,
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
@@ -166,9 +170,12 @@ fn create_info_plist(
   )?;
   write!(
     file,
-    // Here we should only use this technique if they have specified
-    // that they want to use the resources
-    "  <key>CFBundleExecutable</key>\n  <string>__bootstrapper</string>\n"
+    "  <key>CFBundleExecutable</key>\n  <string>{}</string>\n",
+    if use_bootstrapper {
+      "__bootstrapper"
+    } else {
+      settings.binary_name()
+    }
   )?;
   if let Some(path) = bundle_icon_file {
     write!(
@@ -277,7 +284,7 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
   }
   let dest_dir = bundle_directory.join("Frameworks");
   fs::create_dir_all(&bundle_directory)
-    .chain_err(|| format!("Failed to create Frameworks directory at {:?}", dest_dir))?;
+    .with_context(|| format!("Failed to create Frameworks directory at {:?}", dest_dir))?;
   for framework in frameworks.iter() {
     if framework.ends_with(".framework") {
       let src_path = PathBuf::from(framework);
@@ -287,10 +294,10 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
       common::copy_dir(&src_path, &dest_dir.join(&src_name))?;
       continue;
     } else if framework.contains("/") {
-      bail!(
+      return Err(crate::Error::GenericError(format!(
         "Framework path should have .framework extension: {}",
         framework
-      );
+      )));
     }
     if let Some(home_dir) = dirs::home_dir() {
       if copy_framework_from(&dest_dir, framework, &home_dir.join("Library/Frameworks/"))? {
@@ -306,7 +313,10 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
     {
       continue;
     }
-    bail!("Could not locate {}.framework", framework);
+    return Err(crate::Error::GenericError(format!(
+      "Could not locate framework: {}",
+      framework
+    )));
   }
   Ok(())
 }
@@ -375,7 +385,11 @@ fn create_icns_file(
   }
 
   for (icon, next_size_down, density) in images_to_resize {
-    let icon = icon.resize_exact(next_size_down, next_size_down, image::Lanczos3);
+    let icon = icon.resize_exact(
+      next_size_down,
+      next_size_down,
+      image::imageops::FilterType::Lanczos3,
+    );
     add_icon_to_family(icon, density, &mut family)?;
   }
 
@@ -387,22 +401,24 @@ fn create_icns_file(
     let icns_file = BufWriter::new(File::create(&dest_path)?);
     family.write(icns_file)?;
     return Ok(Some(dest_path));
+  } else {
+    return Err(crate::Error::GenericError(
+      "No usable Icon files found".to_owned(),
+    ));
   }
-
-  bail!("No usable icon files found.");
 }
 
 /// Converts an image::DynamicImage into an icns::Image.
 fn make_icns_image(img: image::DynamicImage) -> io::Result<icns::Image> {
   let pixel_format = match img.color() {
-    image::ColorType::RGBA(8) => icns::PixelFormat::RGBA,
-    image::ColorType::RGB(8) => icns::PixelFormat::RGB,
-    image::ColorType::GrayA(8) => icns::PixelFormat::GrayAlpha,
-    image::ColorType::Gray(8) => icns::PixelFormat::Gray,
+    image::ColorType::Rgba8 => icns::PixelFormat::RGBA,
+    image::ColorType::Rgb8 => icns::PixelFormat::RGB,
+    image::ColorType::La8 => icns::PixelFormat::GrayAlpha,
+    image::ColorType::L8 => icns::PixelFormat::Gray,
     _ => {
       let msg = format!("unsupported ColorType: {:?}", img.color());
       return Err(io::Error::new(io::ErrorKind::InvalidData, msg));
     }
   };
-  icns::Image::from_data(pixel_format, img.width(), img.height(), img.raw_pixels())
+  icns::Image::from_data(pixel_format, img.width(), img.height(), img.to_bytes())
 }

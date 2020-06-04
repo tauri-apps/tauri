@@ -1,14 +1,18 @@
 mod cmd;
+mod dialog;
+mod file_system;
+mod http;
+mod salt;
 
+#[cfg(any(feature = "embedded-server", feature = "no-server"))]
+use std::path::PathBuf;
 use web_view::WebView;
-#[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
-use std::path::{PathBuf};
 
 #[allow(unused_variables)]
-pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> crate::Result<bool> {
+pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> crate::Result<()> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
-    Err(_) => Ok(false),
+    Err(e) => Err(e.into()),
     Ok(command) => {
       match command {
         Init {} => {
@@ -20,48 +24,91 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
             event_init = event_init
           ))?;
         }
-        #[cfg(any(feature = "all-api", feature = "readTextFile"))]
+        #[cfg(any(feature = "all-api", feature = "read-text-file"))]
         ReadTextFile {
           path,
+          options,
           callback,
           error,
         } => {
-          crate::file_system::read_text_file(webview, path, callback, error);
+          file_system::read_text_file(webview, path, options, callback, error);
         }
-        #[cfg(any(feature = "all-api", feature = "readBinaryFile"))]
+        #[cfg(any(feature = "all-api", feature = "read-binary-file"))]
         ReadBinaryFile {
           path,
+          options,
           callback,
           error,
         } => {
-          crate::file_system::read_binary_file(webview, path, callback, error);
+          file_system::read_binary_file(webview, path, options, callback, error);
         }
-        #[cfg(any(feature = "all-api", feature = "writeFile"))]
+        #[cfg(any(feature = "all-api", feature = "write-file"))]
         WriteFile {
           file,
           contents,
+          options,
           callback,
           error,
         } => {
-          crate::file_system::write_file(webview, file, contents, callback, error);
+          file_system::write_file(webview, file, contents, options, callback, error);
         }
-        #[cfg(any(feature = "all-api", feature = "listDirs"))]
-        ListDirs {
+        #[cfg(any(feature = "all-api", feature = "read-dir"))]
+        ReadDir {
           path,
+          options,
           callback,
           error,
         } => {
-          crate::file_system::list_dirs(webview, path, callback, error);
+          file_system::read_dir(webview, path, options, callback, error);
         }
-        #[cfg(any(feature = "all-api", feature = "listFiles"))]
-        ListFiles {
+        #[cfg(any(feature = "all-api", feature = "copy-file"))]
+        CopyFile {
+          source,
+          destination,
+          options,
+          callback,
+          error,
+        } => {
+          file_system::copy_file(webview, source, destination, options, callback, error);
+        }
+        #[cfg(any(feature = "all-api", feature = "create-dir"))]
+        CreateDir {
           path,
+          options,
           callback,
           error,
         } => {
-          crate::file_system::list(webview, path, callback, error);
+          file_system::create_dir(webview, path, options, callback, error);
         }
-        #[cfg(any(feature = "all-api", feature = "setTitle"))]
+        #[cfg(any(feature = "all-api", feature = "remove-dir"))]
+        RemoveDir {
+          path,
+          options,
+          callback,
+          error,
+        } => {
+          file_system::remove_dir(webview, path, options, callback, error);
+        }
+        #[cfg(any(feature = "all-api", feature = "remove-file"))]
+        RemoveFile {
+          path,
+          options,
+          callback,
+          error,
+        } => {
+          file_system::remove_file(webview, path, options, callback, error);
+        }
+        #[cfg(any(feature = "all-api", feature = "rename-file"))]
+        RenameFile {
+          old_path,
+          new_path,
+          options,
+          callback,
+          error,
+        } => {
+          file_system::rename_file(webview, old_path, new_path, options, callback, error);
+        }
+        #[cfg(any(feature = "all-api", feature = "set-title"))]
         SetTitle { title } => {
           webview.set_title(&title)?;
         }
@@ -83,7 +130,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           callback,
           error,
         } => {
-          crate::salt::validate(webview, salt, callback, error);
+          salt::validate(webview, salt, callback, error);
         }
         #[cfg(any(feature = "all-api", feature = "event"))]
         Listen {
@@ -98,7 +145,31 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         Emit { event, payload } => {
           crate::event::on_event(event, payload);
         }
-        #[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
+        #[cfg(any(feature = "all-api", feature = "open-dialog"))]
+        OpenDialog {
+          options,
+          callback,
+          error,
+        } => {
+          dialog::open(webview, options, callback, error);
+        }
+        #[cfg(any(feature = "all-api", feature = "save-dialog"))]
+        SaveDialog {
+          options,
+          callback,
+          error,
+        } => {
+          dialog::save(webview, options, callback, error);
+        }
+        #[cfg(any(feature = "all-api", feature = "http-request"))]
+        HttpRequest {
+          options,
+          callback,
+          error,
+        } => {
+          http::make_request(webview, *options, callback, error);
+        }
+        #[cfg(any(feature = "embedded-server", feature = "no-server"))]
         LoadAsset {
           asset,
           asset_type,
@@ -108,7 +179,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           load_asset(webview, asset, asset_type, callback, error)?;
         }
       }
-      Ok(true)
+      Ok(())
     }
   }
 }
@@ -191,7 +262,7 @@ fn listen_fn(event: String, handler: String, once: bool) -> crate::Result<String
   ))
 }
 
-#[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
+#[cfg(any(feature = "embedded-server", feature = "no-server"))]
 fn load_asset<T: 'static>(
   webview: &mut WebView<'_, T>,
   asset: String,
@@ -203,13 +274,11 @@ fn load_asset<T: 'static>(
   crate::execute_promise(
     webview,
     move || {
-      let mut path = PathBuf::from(
-        if asset.starts_with('/') {
-          asset.replacen("/", "", 1)
-        } else {
-          asset.clone()
-        }
-      );
+      let mut path = PathBuf::from(if asset.starts_with('/') {
+        asset.replacen("/", "", 1)
+      } else {
+        asset.clone()
+      });
       let mut read_asset;
       loop {
         read_asset = crate::assets::ASSETS.get(&format!(
@@ -221,10 +290,14 @@ fn load_asset<T: 'static>(
           match path.iter().next() {
             Some(component) => {
               let first_component = component.to_str().expect("failed to read path component");
-              path = PathBuf::from(path.to_string_lossy().replacen(format!("{}/", first_component).as_str(), "", 1));
+              path = PathBuf::from(path.to_string_lossy().replacen(
+                format!("{}/", first_component).as_str(),
+                "",
+                1,
+              ));
             }
             None => {
-              return Err(format!("Asset '{}' not found", asset).into());
+              return Err(anyhow::anyhow!("Asset '{}' not found", asset));
             }
           }
         } else {
@@ -241,7 +314,7 @@ fn load_asset<T: 'static>(
           "jpeg"
         };
         Ok(format!(
-          "`data:image/{};base64,{}`",
+          r#""data:image/{};base64,{}""#,
           ext,
           base64::encode(&read_asset.expect("Failed to read asset type").into_owned())
         ))
@@ -257,7 +330,7 @@ fn load_asset<T: 'static>(
               _webview.eval(asset_str)
             }
           })
-          .map_err(|err| crate::ErrorKind::Promise(format!("`{}`", err)).into())
+          .map_err(|err| err.into())
           .map(|_| r#""Asset loaded successfully""#.to_string())
       }
     },

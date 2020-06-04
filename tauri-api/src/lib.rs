@@ -4,34 +4,32 @@
 )]
 
 pub mod command;
+pub mod dialog;
 pub mod dir;
 pub mod file;
+pub mod http;
+pub mod path;
 pub mod rpc;
+pub mod tcp;
 pub mod version;
 
 pub use tauri_utils::*;
 
-use error_chain::error_chain;
+pub use anyhow::Result;
+use thiserror::Error;
 
-error_chain! {
-    foreign_links {
-        Io(::std::io::Error);
-        ZipError(::zip::result::ZipError);
-        SemVer(::semver::SemVerError);
-        Platform(::tauri_utils::Error);
-    }
-    errors {
-        Extract(t: String) {
-            description("Extract Error")
-            display("Extract Error: '{}'", t)
-        }
-        Command(t: String) {
-            description("Command Execution Error")
-            display("Command Error: '{}'", t)
-        }
-        File(t: String) {
-            description("File function Error")
-            display("File Error: {}", t)
-        }
-    }
+#[derive(Error, Debug)]
+pub enum Error {
+  #[error("Extract Error:{0}")]
+  Extract(String),
+  #[error("Command Error:{0}")]
+  Command(String),
+  #[error("File Error:{0}")]
+  File(String),
+  #[error("Path Error:{0}")]
+  Path(String),
+  #[error("Dialog Error:{0}")]
+  Dialog(String),
+  #[error("Network Error:{0}")]
+  Network(attohttpc::StatusCode),
 }

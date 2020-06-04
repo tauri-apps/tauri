@@ -6,6 +6,8 @@ import os from 'os'
 import path from 'path'
 import { appDir, tauriDir } from '../helpers/app-paths'
 import { TauriConfig } from './../types/config'
+import { CargoToml } from './../types/cargo'
+import nonWebpackRequire from '../helpers/non-webpack-require'
 
 interface DirInfo {
   path: string
@@ -72,13 +74,15 @@ function printAppInfo(tauriDir: string): void {
 
   try {
     const tomlPath = path.join(tauriDir, 'Cargo.toml')
-    const tomlFile = fs.readFileSync(tomlPath)
-    // @ts-ignore
-    const tomlContents = toml.parse(tomlFile)
+    const tomlFile = fs.readFileSync(tomlPath).toString()
+    const tomlContents = toml.parse(tomlFile) as any as CargoToml
 
     const tauriVersion = (): string => {
       const tauri = tomlContents.dependencies.tauri
       if (tauri) {
+        if (typeof tauri === 'string') {
+          return chalk.green(tauri)
+        }
         if (tauri.version) {
           return chalk.green(tauri.version)
         }
@@ -89,9 +93,8 @@ function printAppInfo(tauriDir: string): void {
               tauri.path,
               'Cargo.toml'
             )
-            const tauriTomlFile = fs.readFileSync(tauriTomlPath)
-            // @ts-ignore
-            const tauriTomlContents = toml.parse(tauriTomlFile)
+            const tauriTomlFile = fs.readFileSync(tauriTomlPath).toString()
+            const tauriTomlContents = toml.parse(tauriTomlFile) as any as CargoToml
             return chalk.green(
               // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               `${tauriTomlContents.package.version} (from source)`
@@ -115,7 +118,7 @@ function printAppInfo(tauriDir: string): void {
       return chalk.red('unset')
     }
     const configPath = path.join(tauriDir, 'tauri.conf.json')
-    const config = __non_webpack_require__(configPath) as TauriConfig
+    const config = nonWebpackRequire(configPath) as TauriConfig
     printInfo({ key: '  mode', value: tauriMode(config) })
     printInfo({
       key: '  build-type',
@@ -157,7 +160,7 @@ module.exports = () => {
   printInfo({ key: '  Node.js', value: chalk.green(process.version.slice(1)) })
   printInfo({
     key: '  tauri.js',
-    value: chalk.green(require('../../package.json').version)
+    value: chalk.green((require('../../package.json') as { version: string }).version)
   })
   printInfo({ key: 'Rust environment', section: true })
   printInfo({
@@ -175,7 +178,8 @@ module.exports = () => {
   printInfo({ key: 'App directory structure', section: true })
 
   const tree = dirTree(appDir)
-  for (const artifact of tree.children ?? []) {
+  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+  for (const artifact of tree.children || []) {
     if (artifact.type === 'folder') {
       console.log(`/${artifact.name}`)
     }

@@ -10,7 +10,9 @@ fn main() {
     .invoke_handler(|_webview, arg| {
       use cmd::Cmd::*;
       match serde_json::from_str(arg) {
-        Err(_) => {}
+        Err(e) => {
+          Err(e.to_string())
+        }
         Ok(command) => {
           match command {
             // definitions for your custom commands from Cmd here
@@ -19,6 +21,7 @@ fn main() {
               println!("{}", argument);
             }
           }
+          Ok(())
         }
       }
     })

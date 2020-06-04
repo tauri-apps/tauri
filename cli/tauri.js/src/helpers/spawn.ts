@@ -1,8 +1,9 @@
 import crossSpawn from 'cross-spawn'
 import logger from './logger'
+import chalk from 'chalk'
 
 const log = logger('app:spawn')
-const warn = logger('app:spawn', 'red')
+const warn = logger('app:spawn', chalk.red)
 
 /*
   Returns pid, takes onClose
@@ -11,7 +12,7 @@ export const spawn = (
   cmd: string,
   params: string[],
   cwd: string,
-  onClose: (code: number) => void
+  onClose?: (code: number) => void
 ): number => {
   log(`Running "${cmd} ${params.join(' ')}"`)
   log()
@@ -19,7 +20,8 @@ export const spawn = (
   // TODO: move to execa?
   const runner = crossSpawn(cmd, params, {
     stdio: 'inherit',
-    cwd
+    cwd,
+    env: process.env
   })
 
   runner.on('close', code => {
@@ -29,7 +31,8 @@ export const spawn = (
       log(`Command "${cmd}" failed with exit code: ${code}`)
     }
 
-    onClose?.(code)
+    // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
+    onClose && onClose(code)
   })
 
   return runner.pid
@@ -42,7 +45,7 @@ export const spawnSync = (
   cmd: string,
   params: string[],
   cwd: string,
-  onFail: () => void
+  onFail?: () => void
 ): void => {
   log(`[sync] Running "${cmd} ${params.join(' ')}"`)
   log()
@@ -60,7 +63,8 @@ export const spawnSync = (
     if (runner.status === null) {
       warn(`⚠️  Please globally install "${cmd}"`)
     }
-    onFail?.()
+    // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
+    onFail && onFail()
     process.exit(1)
   }
 }

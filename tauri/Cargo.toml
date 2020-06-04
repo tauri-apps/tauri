@@ -1,7 +1,7 @@
 [package]
 name = "tauri"
-version = "0.4.2"
-authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
+version = "0.5.2"
+authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
 license = "MIT"
 homepage = "https://tauri.studio"
 repository = "https://github.com/tauri-apps/tauri"
@@ -12,39 +12,57 @@ exclude = ["test/fixture/**"]
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-rand = "0.7"
-web-view = "0.6.0"
+webview-sys = "=0.5.0"
+web-view = "=0.6.2"
 tauri_includedir = "0.5.0"
 phf = "0.8.0"
-base64 = "0.11.0"
+base64 = "0.12.1"
 webbrowser = "0.5.2"
 lazy_static = "1.4.0"
-tiny_http = "0.6"
-threadpool = "1.7"
+tiny_http = { version = "0.7", optional = true }
+threadpool = "1.8"
 uuid = { version = "0.8.1", features = ["v4"] }
-error-chain = "0.12.1"
+anyhow = "1.0.31"
+thiserror = "1.0.19"
+envmnt = "0.8.2"
 
-tauri-api = { version = "0.4",  path = "../tauri-api" }
+tauri-api = { version = "0.5",  path = "../tauri-api" }
 
 [build-dependencies]
 tauri_includedir_codegen = "0.5.2"
 
 [dev-dependencies]
-proptest = "0.9.5"
+proptest = "0.9.6"
+serde_json = "1.0"
+tauri = {path = ".", features = [ "all-api", "edge" ]}
+serde = { version = "1.0", features = [ "derive" ] }
 
 [features]
 edge = ["web-view/edge"]
-dev-server = []
-embedded-server = []
+embedded-server = ["tiny_http"]
 no-server = []
 all-api = []
-readTextFile = []
-readBinaryFile = []
-writeFile = []
-listFiles = []
-listDirs = []
-setTitle = []
+read-text-file = []
+read-binary-file = []
+write-file = []
+read-dir = []
+copy-file = []
+create-dir = []
+remove-dir = []
+remove-file = []
+rename-file = []
+set-title = []
 execute = []
 open = []
 event = []
 updater = []
+open-dialog = []
+save-dialog = []
+
+[package.metadata.docs.rs]
+features = ["all-api"]
+
+[[example]]
+name = "communication"
+path = "examples/communication/src-tauri/src/main.rs"
+

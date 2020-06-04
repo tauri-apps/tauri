@@ -15,9 +15,9 @@ pub fn target_triple() -> Result<String, crate::Error> {
   } else if cfg!(target_arch = "arm") {
     "armv7"
   } else {
-    return Err(crate::Error::from(
+    return Err(crate::Error::ArchError(String::from(
       "Unable to determine target-architecture",
-    ));
+    )));
   };
 
   let os = if cfg!(target_os = "linux") {
@@ -29,7 +29,9 @@ pub fn target_triple() -> Result<String, crate::Error> {
   } else if cfg!(target_os = "freebsd") {
     "unknown-freebsd"
   } else {
-    return Err(crate::Error::from("Unable to determine target-os"));
+    return Err(crate::Error::ArchError(String::from(
+      "Unable to determine target-os",
+    )));
   };
 
   let os = if cfg!(target_os = "macos") || cfg!(target_os = "freebsd") {
@@ -42,7 +44,9 @@ pub fn target_triple() -> Result<String, crate::Error> {
     } else if cfg!(target_env = "msvc") {
       "msvc"
     } else {
-      return Err(crate::Error::from("Unable to determine target-environment"));
+      return Err(crate::Error::ArchError(String::from(
+        "Unable to determine target-environment",
+      )));
     };
 
     format!("{}-{}", os, env)

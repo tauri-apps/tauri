@@ -2,9 +2,10 @@ const parseArgs = require('minimist')
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
-    h: 'help'
+    h: 'help',
+    e: 'exit-on-panic'
   },
-  boolean: ['h']
+  boolean: ['h', 'e']
 })
 
 if (argv.help) {
@@ -19,6 +20,14 @@ if (argv.help) {
   process.exit(0)
 }
 
-const dev = require('../dist/api/dev')
+async function run () {
+  const dev = require('../dist/api/dev')
 
-dev()
+  await dev({
+    ctx: {
+      exitOnPanic: argv['exit-on-panic']
+    }
+  }).promise
+}
+
+run()

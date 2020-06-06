@@ -41,9 +41,6 @@ impl<'a> Move<'a> {
         fs::rename(self.source, dest)?;
       }
       Some(temp) => {
-        println!("dest {}", dest.to_str().unwrap());
-        println!("temp {}", temp.to_str().unwrap());
-        println!("source {}", self.source.to_str().unwrap());
         if dest.exists() {
           fs::rename(dest, temp)?;
           if let Err(e) = fs::rename(self.source, dest) {

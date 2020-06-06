@@ -1,266 +1,124 @@
+use reqwest::{self, header};
 use std::env;
 use std::fs;
+
+use tauri_api::{file::Extract, file::Move};
+
 use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::http;
+use crate::{errors::*, CheckStatus, Download, InstallStatus, Release};
 
-use tauri_api::file::{Extract, Move};
+/// Updates to a specified or latest release
+pub trait ReleaseUpdate {
+  /// Current version of binary being updated
+  fn current_version(&self) -> String;
 
-pub mod github;
+  /// Target platform the update is being performed for
+  fn target(&self) -> String;
 
-/// Status returned after updating
-///
-/// Wrapped `String`s are version tags
-#[derive(Debug, Clone)]
-pub enum Status {
-  UpToDate(String),
-  Updated(String),
-}
-impl Status {
-  /// Return the version tag
-  pub fn version(&self) -> &str {
-    use Status::*;
-    match *self {
-      UpToDate(ref s) => s,
-      Updated(ref s) => s,
+  /// API Url
+  fn url(&self) -> String;
+
+  /// Where is located current App to update -- extract path will automatically generated based on the target
+  fn executable_path(&self) -> PathBuf;
+
+  /// Where we need to extract the archive content
+  fn extract_path(&self) -> PathBuf;
+
+  // Should we update?
+  fn status(&self) -> CheckStatus;
+
+  // Get the release details
+  fn release_details(&self) -> Release;
+
+  fn install(&self) -> Result<InstallStatus> {
+    // get OS
+    let target = self.target();
+    // get release extracted in check()
+    let release = self.release_details();
+    // download url for selected release
+    let url = release.get_download_url();
+    // extract path
+    let extract_path = self.extract_path();
+    // tmp dir
+    let tmp_dir_parent = if cfg!(windows) {
+      env::var_os("TEMP").map(PathBuf::from)
+    } else {
+      extract_path.parent().map(PathBuf::from)
     }
-  }
+    .ok_or_else(|| Error::Update("Failed to determine parent dir".into()))?;
 
-  /// Returns `true` if `Status::UpToDate`
-  pub fn uptodate(&self) -> bool {
-    match *self {
-      Status::UpToDate(_) => true,
-      _ => false,
-    }
-  }
-
-  /// Returns `true` if `Status::Updated`
-  pub fn updated(&self) -> bool {
-    match *self {
-      Status::Updated(_) => true,
-      _ => false,
-    }
-  }
-}
-
-#[derive(Clone, Debug)]
-pub struct Release {
-  pub version: String,
-  pub asset_name: String,
-  pub download_url: String,
-}
-
-#[derive(Debug)]
-pub struct UpdateBuilder {
-  release: Option<Release>,
-  bin_name: Option<String>,
-  bin_install_path: Option<PathBuf>,
-  bin_path_in_archive: Option<PathBuf>,
-  show_download_progress: bool,
-  show_output: bool,
-  current_version: Option<String>,
-}
-impl UpdateBuilder {
-  /// Initialize a new builder, defaulting the `bin_install_path` to the current
-  /// executable's path
-  ///
-  /// * Errors:
-  ///     * Io - Determining current exe path
-  pub fn new() -> crate::Result<UpdateBuilder> {
-    Ok(Self {
-      release: None,
-      bin_name: None,
-      bin_install_path: Some(env::current_exe()?),
-      bin_path_in_archive: None,
-      show_download_progress: false,
-      show_output: true,
-      current_version: None,
-    })
-  }
-
-  pub fn release(&mut self, release: Release) -> &mut Self {
-    self.release = Some(release);
-    self
-  }
-
-  /// Set the current app version, used to compare against the latest available version.
-  /// The `cargo_crate_version!` macro can be used to pull the version from your `Cargo.toml`
-  pub fn current_version(&mut self, ver: &str) -> &mut Self {
-    self.current_version = Some(ver.to_owned());
-    self
-  }
-
-  /// Set the exe's name. Also sets `bin_path_in_archive` if it hasn't already been set.
-  pub fn bin_name(&mut self, name: &str) -> &mut Self {
-    self.bin_name = Some(name.to_owned());
-    if self.bin_path_in_archive.is_none() {
-      self.bin_path_in_archive = Some(PathBuf::from(name));
-    }
-    self
-  }
-
-  /// Set the installation path for the new exe, defaults to the current
-  /// executable's path
-  pub fn bin_install_path(&mut self, bin_install_path: &str) -> &mut Self {
-    self.bin_install_path = Some(PathBuf::from(bin_install_path));
-    self
-  }
-
-  /// Set the path of the exe inside the release tarball. This is the location
-  /// of the executable relative to the base of the tar'd directory and is the
-  /// path that will be copied to the `bin_install_path`. If not specified, this
-  /// will default to the value of `bin_name`. This only needs to be specified if
-  /// the path to the binary (from the root of the tarball) is not equal to just
-  /// the `bin_name`.
-  ///
-  /// # Example
-  ///
-  /// For a tarball `myapp.tar.gz` with the contents:
-  ///
-  /// ```shell
-  /// myapp.tar/
-  ///  |------- bin/
-  ///  |         |--- myapp  # <-- executable
-  /// ```
-  ///
-  /// The path provided should be:
-  ///
-  /// ```
-  /// # use tauri_updater::updater::Update;
-  /// # fn run() -> Result<(), Box<dyn std::error::Error>> {
-  /// Update::configure()?
-  ///     .bin_path_in_archive("bin/myapp")
-  /// #   .build()?;
-  /// # Ok(())
-  /// # }
-  /// ```
-  pub fn bin_path_in_archive(&mut self, bin_path: &str) -> &mut Self {
-    self.bin_path_in_archive = Some(PathBuf::from(bin_path));
-    self
-  }
-
-  /// Toggle download progress bar, defaults to `off`.
-  pub fn show_download_progress(&mut self, show: bool) -> &mut Self {
-    self.show_download_progress = show;
-    self
-  }
-
-  /// Toggle update output information, defaults to `true`.
-  pub fn show_output(&mut self, show: bool) -> &mut Self {
-    self.show_output = show;
-    self
-  }
-
-  /// Confirm config and create a ready-to-use `Update`
-  ///
-  /// * Errors:
-  ///     * Config - Invalid `Update` configuration
-  pub fn build(&self) -> crate::Result<Update> {
-    Ok(Update {
-      release: if let Some(ref release) = self.release {
-        release.to_owned()
-      } else {
-        return Err(crate::Error::Config("`release`".into()).into());
-      },
-      bin_name: if let Some(ref name) = self.bin_name {
-        name.to_owned()
-      } else {
-        return Err(crate::Error::Config("`bin_name`".into()).into());
-      },
-      bin_install_path: if let Some(ref path) = self.bin_install_path {
-        path.to_owned()
-      } else {
-        return Err(crate::Error::Config("`bin_install_path`".into()).into());
-      },
-      bin_path_in_archive: if let Some(ref path) = self.bin_path_in_archive {
-        path.to_owned()
-      } else {
-        return Err(crate::Error::Config("`bin_path_in_archive`".into()).into());
-      },
-      current_version: if let Some(ref ver) = self.current_version {
-        ver.to_owned()
-      } else {
-        return Err(crate::Error::Config("`current_version`".into()).into());
-      },
-      show_download_progress: self.show_download_progress,
-      show_output: self.show_output,
-    })
-  }
-}
-
-/// Updates to a specified or latest release distributed
-#[derive(Debug)]
-pub struct Update {
-  release: Release,
-  current_version: String,
-  bin_name: String,
-  bin_install_path: PathBuf,
-  bin_path_in_archive: PathBuf,
-  show_download_progress: bool,
-  show_output: bool,
-}
-impl Update {
-  /// Initialize a new `Update` builder
-  pub fn configure() -> crate::Result<UpdateBuilder> {
-    UpdateBuilder::new()
-  }
-
-  fn print_flush(&self, msg: &str) -> crate::Result<()> {
-    if self.show_output {
-      print_flush!("{}", msg);
-    }
-    Ok(())
-  }
-
-  fn println(&self, msg: &str) {
-    if self.show_output {
-      println!("{}", msg);
-    }
-  }
-
-  pub fn update(self) -> crate::Result<Status> {
-    self.println(&format!(
-      "Checking current version... v{}",
-      self.current_version
-    ));
-
-    if self.show_output {
-      println!("\n{} release status:", self.bin_name);
-      println!("  * Current exe: {:?}", self.bin_install_path);
-      println!("  * New exe download url: {:?}", self.release.download_url);
-      println!(
-        "\nThe new release will be downloaded/extracted and the existing binary will be replaced."
+    // used for temp file name
+    // if we cant extract app name, we use unix epoch duration
+    let bin_name = std::env::current_exe()
+      .ok()
+      .and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
+      .and_then(|s| s.into_string().ok())
+      .unwrap_or(
+        SystemTime::now()
+          .duration_since(UNIX_EPOCH)
+          .unwrap()
+          .subsec_nanos()
+          .to_string(),
       );
-    }
 
-    let tmp_dir_parent = self
-      .bin_install_path
-      .parent()
-      .ok_or_else(|| crate::Error::Updater)?;
-    let tmp_dir =
-      tempdir::TempDir::new_in(&tmp_dir_parent, &format!("{}_download", self.bin_name))?;
-    let tmp_archive_path = tmp_dir.path().join(&self.release.asset_name);
+    // tmp dir for extraction
+    let tmp_dir = tempfile::Builder::new()
+      .prefix(&format!("{}_download", bin_name))
+      .tempdir_in(tmp_dir_parent)?;
+
+    let tmp_archive_path = tmp_dir.path().join(detect_archive_in_url(&url, &target));
     let mut tmp_archive = fs::File::create(&tmp_archive_path)?;
 
-    self.println("Downloading...");
-    http::download(
-      self.release.download_url.clone(),
-      &mut tmp_archive,
-      self.show_download_progress,
-    )?;
+    // prepare our download
+    let mut download = Download::from_url(&url);
 
-    self.print_flush("Extracting archive... ")?;
-    Extract::from_source(&tmp_archive_path)
-      .extract_file(&tmp_dir.path(), &self.bin_path_in_archive)?;
-    let new_exe = tmp_dir.path().join(&self.bin_path_in_archive);
-    self.println("Done");
+    // set our headers
+    let mut headers = header::HeaderMap::new();
+    headers.insert(header::ACCEPT, "application/octet-stream".parse().unwrap());
+    download.set_headers(headers);
 
-    self.print_flush("Replacing binary file... ")?;
-    let tmp_file = tmp_dir.path().join(&format!("__{}_backup", self.bin_name));
-    Move::from_source(&new_exe)
+    // download the file
+    download.download_to(&mut tmp_archive)?;
+
+    // extract using tauri api  inside a tmp path
+    let extract_process = Extract::from_source(&tmp_archive_path).extract_into(&tmp_dir.path());
+    match extract_process {
+      Ok(_) => (),
+      Err(err) => bail!(Error::Update, "Extract failed with status: {:?}", err),
+    };
+
+    let tmp_file = tmp_dir.path().join(&format!("__{}_backup", bin_name));
+
+    // move into the final position
+    let move_process = Move::from_source(&tmp_dir.path())
       .replace_using_temp(&tmp_file)
-      .to_dest(&self.bin_install_path)?;
-    self.println("Done");
-    Ok(Status::Updated(self.release.version))
+      .to_dest(&self.extract_path());
+
+    match move_process {
+      Ok(_) => Ok(InstallStatus::Installed),
+      Err(err) => bail!(Error::Update, "Move failed with status: {:?}", err),
+    }
   }
+}
+
+// Return the archive type to save on disk
+fn detect_archive_in_url(path: &str, target: &str) -> String {
+  path
+    .split('/')
+    .next_back()
+    .unwrap_or(&archive_name_by_os(target))
+    .to_string()
+}
+
+// Fallback archive name by os
+// The main objective is to provide the right extension based on the target
+// if we cant extract the archive type in the url we'll fallback to this value
+fn archive_name_by_os(target: &str) -> String {
+  let archive_name = match target {
+    "darwin" | "linux" => "update.tar.gz",
+    _ => "update.zip",
+  };
+  archive_name.to_string()
 }

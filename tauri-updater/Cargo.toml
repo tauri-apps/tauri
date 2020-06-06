@@ -1,6 +1,6 @@
 [package]
 name = "tauri-updater"
-version = "0.4.2"
+version = "0.5.0"
 authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
 license = "MIT"
 homepage = "https://tauri.studio"
@@ -10,13 +10,17 @@ edition = "2018"
 exclude = ["test/fixture/**"]
 
 [dependencies]
-attohttpc = {version = "0.10.1", features=["json", "compress" ]}
-# pbr = "1"
 serde_json = "1.0"
+tempfile = "3.1"
+reqwest = { version = "0.10", features = ["blocking", "json"] }
 serde = "1.0"
-zip = "0.5.3"
-tempdir = "0.3"
 tauri-api = { version = "0.5", path = "../tauri-api" }
 tauri-utils = { version = "0.5", path = "../tauri-utils" }
-anyhow = "1.0.31"
-thiserror = "1.0.19"
+log = "0.4.8"
+semver = "0.9"
+
+[features]
+default = ["reqwest/default-tls"]
+
+[package.metadata.docs.rs]
+all-features = true

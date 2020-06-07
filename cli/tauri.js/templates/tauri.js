@@ -108,10 +108,11 @@ function camelToKebab (string) {
  * @description Present a stylish warning to the developer that their API
  * call has not been whitelisted in tauri.conf.json
  * @param {String} func - function name to warn
+ * @param {String} [whitelistName] - key inside whitelist object that the dev must add
  * @private
  */
-var __whitelistWarning = function (func) {
-    console.warn('%c[Tauri] Danger \ntauri.' + func + ' not whitelisted 💣\n%c\nAdd to tauri.conf.json: \n\ntauri: \n  whitelist: { \n    ' + camelToKebab(func) + ': true \n\nReference: https://github.com/tauri-apps/tauri/wiki' + func, 'background: red; color: white; font-weight: 800; padding: 2px; font-size:1.5em', ' ')
+var __whitelistWarning = function (func, whitelistName) {
+    console.warn('%c[Tauri] Danger \ntauri.' + func + ' not whitelisted 💣\n%c\nAdd to tauri.conf.json: \n\ntauri: \n  whitelist: { \n    ' + (whitelistName || camelToKebab(func)) + ': true \n\nReference: https://github.com/tauri-apps/tauri/wiki' + func, 'background: red; color: white; font-weight: 800; padding: 2px; font-size:1.5em', ' ')
     return __reject()
   }
     <% } %>
@@ -644,6 +645,29 @@ window.tauri = {
     <% } else { %>
       <% if (ctx.dev) { %>
           return __whitelistWarning('httpRequest')
+          <% } %>
+        return __reject()
+        <% } %>
+  },
+
+  addShortcuts: function addShortcuts(shortcutHandlers) {
+    <% if (tauri.whitelist.shortcuts === true || tauri.whitelist.all === true) { %>
+      if (!Array.isArray(shortcutHandlers)) {
+        throw new Error('shortcuts must be an Array')
+      }
+      window.tauri.invoke({
+        cmd: 'addShortcuts',
+        shortcutHandlers: shortcutHandlers.map(handler => {
+          return {
+            shortcut: handler.shortcut,
+            callback: this.transformCallback(handler.handler),
+            error: handler.onError ? this.transformCallback(handler.onError) : null
+          }
+        })
+      })
+    <% } else { %>
+      <% if (ctx.dev) { %>
+          return __whitelistWarning('addShortcuts', 'shortcuts')
           <% } %>
         return __reject()
         <% } %>

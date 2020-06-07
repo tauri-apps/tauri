@@ -18,6 +18,9 @@ pub use tauri_utils::*;
 pub use anyhow::Result;
 use thiserror::Error;
 
+#[cfg(feature = "shortcut")]
+pub mod shortcut;
+
 #[derive(Error, Debug)]
 pub enum Error {
   #[error("Extract Error:{0}")]

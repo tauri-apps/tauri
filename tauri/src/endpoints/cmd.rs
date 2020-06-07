@@ -32,6 +32,15 @@ pub struct SaveDialogOptions {
   pub default_path: Option<String>,
 }
 
+#[cfg(any(feature = "all-api", feature = "shortcut"))]
+#[derive(Deserialize, Clone)]
+pub struct ShortcutHandlerBridge {
+  pub shortcut: String,
+  pub callback: String,
+  pub error: Option<String>,
+}
+
+
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
@@ -151,6 +160,11 @@ pub enum Cmd {
     options: Box<HttpRequestOptions>,
     callback: String,
     error: String,
+  },
+  #[serde(rename_all = "camelCase")]
+  #[cfg(any(feature = "all-api", feature = "shortcuts"))]
+  AddShortcuts {
+    shortcut_handlers: Vec<ShortcutHandlerBridge>,
   },
   #[serde(rename_all = "camelCase")]
   #[cfg(any(feature = "embedded-server", feature = "no-server"))]

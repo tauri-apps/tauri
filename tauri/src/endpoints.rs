@@ -12,7 +12,7 @@ use web_view::WebView;
 use tauri_api::shortcut::ShortcutBuilder;
 
 #[allow(unused_variables)]
-pub(crate) fn handle<T: Send + 'static>(webview: &mut WebView<'_, T>, arg: &str) -> crate::Result<()> {
+pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> crate::Result<()> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
     Err(e) => Err(e.into()),

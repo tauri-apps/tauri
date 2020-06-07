@@ -1,3 +1,4 @@
+#[cfg(not(target_os = "macos"))]
 use hotkey;
 
 pub struct ShortcutBuilder {
@@ -12,7 +13,7 @@ impl ShortcutBuilder {
   }
 
   pub fn register_shortcut<H: Fn() + 'static, E: Fn(String)>(&mut self, shortcut: String, handler: H, error: E) {
-    error("not implemented on macOS yet");
+    error("not implemented on macOS yet".to_string());
   }
 
   pub fn listen(self) {}

@@ -14,10 +14,19 @@ use super::App;
 use crate::api::tcp::{get_available_port, port_is_available};
 use crate::config::{get, Config};
 
+#[cfg(feature = "cli")]
+mod cli;
+
 // Main entry point function for running the Webview
 pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   // get the tauri config struct
   let config = get()?;
+
+  #[cfg(feature = "cli")]
+  {
+    let args = cli::get_matches(config.clone());
+    println!("{:?}", args);
+  }
 
   // setup the content using the config struct depending on the compile target
   let main_content = setup_content(config.clone())?;

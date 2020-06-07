@@ -475,6 +475,10 @@ class Runner {
       tomlFeatures.push('edge')
     }
 
+    if (cfg.tauri.cli) {
+      tomlFeatures.push('cli')
+    }
+
     tomlContents.dependencies.tauri.features = tomlFeatures
   }
 }

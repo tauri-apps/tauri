@@ -5,6 +5,25 @@
   },
   "ctx": {},
   "tauri": {
+    "cli": {
+      "description": null,
+      "longDescription": null,
+      "beforeHelp": null,
+      "afterHelp": null,
+      "args": [{
+        "short": "c",
+        "name": "config",
+        "takesValue": true,
+        "description": "Config path"
+      }, {
+        "short": "t",
+        "name": "theme",
+        "takesValue": true,
+        "description": "App theme",
+        "possibleValues": ["light", "dark", "system"]
+      }],
+      "subcommands": null
+    },
     "embeddedServer": {
       "active": true
     },

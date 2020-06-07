@@ -26,6 +26,10 @@ use web_view::WebView;
 pub use app::*;
 pub use tauri_api as api;
 
+#[cfg(feature = "cli")]
+#[macro_use]
+extern crate clap;
+
 thread_local!(static POOL: ThreadPool = ThreadPool::new(4));
 
 pub fn spawn<F: FnOnce() -> () + Send + 'static>(task: F) {

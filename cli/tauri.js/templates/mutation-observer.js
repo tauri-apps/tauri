@@ -1,16 +1,7 @@
 (function () {
   function loadAsset(path, type) {
     if (path) {
-      if (window.tauri !== void 0) {
-        window.tauri.loadAsset(path, type)
-      } else {
-        if (window.__TAURI_INIT_HOOKS === void 0) {
-          window.__TAURI_INIT_HOOKS = []
-        }
-        window.__TAURI_INIT_HOOKS.push(function () {
-          window.tauri.loadAsset(path, type)
-        })
-      }
+      window.tauri.loadAsset(path, type)
     }
   }
 

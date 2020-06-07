@@ -16,10 +16,13 @@ impl App {
     runner::run(&mut self).expect("Failed to build webview");
   }
 
-  pub(crate) fn run_invoke_handler(&mut self, webview: &mut WebView<'_, ()>, arg: &str) -> Result<bool, String> {
+  pub(crate) fn run_invoke_handler(
+    &mut self,
+    webview: &mut WebView<'_, ()>,
+    arg: &str,
+  ) -> Result<bool, String> {
     if let Some(ref mut invoke_handler) = self.invoke_handler {
-      invoke_handler(webview, arg)
-        .map(|_| true)
+      invoke_handler(webview, arg).map(|_| true)
     } else {
       Ok(false)
     }
@@ -40,7 +43,7 @@ impl App {
 pub struct AppBuilder {
   invoke_handler: Option<InvokeHandler>,
   setup: Option<Setup>,
-  splashscreen_html: Option<String>
+  splashscreen_html: Option<String>,
 }
 
 impl AppBuilder {

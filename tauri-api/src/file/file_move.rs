@@ -48,7 +48,7 @@ impl<'a> Move<'a> {
           fs::rename(dest, temp)?;
           if let Err(e) = fs::rename(self.source, dest) {
             fs::rename(temp, dest)?;
-            return Err(crate::Error::from(e));
+            return Err(e.into());
           }
         } else {
           fs::rename(self.source, dest)?;

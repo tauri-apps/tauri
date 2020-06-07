@@ -6,7 +6,7 @@ const mockFixtureDir = path.resolve(__dirname, '../fixtures')
 module.exports.fixtureDir = mockFixtureDir
 
 function mockResolvePath (basePath, dir) {
-  return dir.startsWith('/') || /^\S:/g.test(dir)
+  return dir && path.isAbsolute(dir)
     ? dir
     : path.resolve(basePath, dir)
 }
@@ -107,5 +107,5 @@ module.exports.startServer = (onSuccess) => {
 
   const port = 7000
   const server = app.listen(port)
-  return server
+  return { server, responses }
 }

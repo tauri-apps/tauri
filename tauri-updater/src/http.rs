@@ -23,11 +23,7 @@ pub fn download<T: Write>(url: String, dest: T, _display_progress: bool) -> crat
   let resp = get(url)?;
 
   if !resp.status().is_success() {
-    bail!(
-      crate::ErrorKind::Download,
-      "Download request failed with status: {:?}",
-      resp.status()
-    )
+    return Err(crate::Error::Download(resp.status()).into());
   }
 
   let file = BufWriter::new(dest);

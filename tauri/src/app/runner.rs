@@ -1,33 +1,18 @@
 #[allow(unused_imports)]
-use std::{fs::read_to_string, path::Path, process::Stdio, thread::spawn};
+use std::{
+  env,
+  fs::{self, read_to_string},
+  path::Path,
+  process::Stdio,
+  thread::spawn,
+};
 
 use web_view::{builder, Content, WebView};
 
 use super::App;
-use crate::config::{get, Config};
 #[cfg(feature = "embedded-server")]
 use crate::api::tcp::{get_available_port, port_is_available};
-
-// JavaScript string literal
-const JS_STRING: &str = r#"
-if (window.onTauriInit !== void 0) {
-  window.onTauriInit()
-  window.onTauriInit = void 0
-}
-if (window.__TAURI_INIT_HOOKS !== void 0) {
-  for (var hook in window.__TAURI_INIT_HOOKS) {
-    window.__TAURI_INIT_HOOKS[hook]()
-  }
-  window.__TAURI_INIT_HOOKS = void 0
-}
-Object.defineProperty(window, 'onTauriInit', {
-  set: function(val) {
-    if (typeof(val) === 'function') {
-      val()
-    }
-  }
-})
-"#;
+use crate::config::{get, Config};
 
 // Main entry point function for running the Webview
 pub(crate) fn run(application: &mut App) -> crate::Result<()> {
@@ -53,17 +38,16 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
     config,
     main_content,
     if application.splashscreen_html().is_some() {
-      Some(Content::Html(application.splashscreen_html().expect("failed to get splashscreen_html").to_string()))
+      Some(Content::Html(
+        application
+          .splashscreen_html()
+          .expect("failed to get splashscreen_html")
+          .to_string(),
+      ))
     } else {
       None
     },
   )?;
-
-  // on dev-server grab a handler and execute the tauri.js API entry point.
-  #[cfg(feature = "dev-server")]
-  webview
-    .handle()
-    .dispatch(|_webview| _webview.eval(include_str!(concat!(env!("TAURI_DIR"), "/tauri.js"))))?;
 
   // spawn the embedded server on our server url
   #[cfg(feature = "embedded-server")]
@@ -85,7 +69,14 @@ fn setup_content(config: Config) -> crate::Result<Content<String>> {
   if config.build.dev_path.starts_with("http") {
     Ok(Content::Url(config.build.dev_path))
   } else {
-    let dev_path = Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
+    let dist_dir = match option_env!("TAURI_DIST_DIR") {
+      Some(d) => d.to_string(),
+      None => env::current_dir()?
+        .into_os_string()
+        .into_string()
+        .expect("Unable to convert to normal String"),
+    };
+    let dev_path = Path::new(&dist_dir).join("index.tauri.html");
     Ok(Content::Html(read_to_string(dev_path)?))
   }
 }
@@ -102,7 +93,15 @@ fn setup_content(config: Config) -> crate::Result<Content<String>> {
 // setup content for no-server
 #[cfg(feature = "no-server")]
 fn setup_content(_: Config) -> crate::Result<Content<String>> {
-  let index_path = Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html");
+  let dist_dir = match option_env!("TAURI_DIST_DIR") {
+    Some(d) => d.to_string(),
+    None => env::current_dir()?
+      .into_os_string()
+      .into_string()
+      .expect("Unable to convert to normal String"),
+  };
+  let index_path = Path::new(dist_dir).join("index.tauri.html");
+
   Ok(Content::Html(read_to_string(index_path)?))
 }
 
@@ -180,7 +179,7 @@ fn build_webview(
   application: &mut App,
   config: Config,
   content: Content<String>,
-  splashscreen_content: Option<Content<String>>
+  splashscreen_content: Option<Content<String>>,
 ) -> crate::Result<WebView<'_, ()>> {
   let content_clone = match content {
     Content::Html(ref html) => Content::Html(html.clone()),
@@ -213,7 +212,6 @@ fn build_webview(
           "window-1"
         };
         application.run_setup(webview, source.to_string());
-        webview.eval(JS_STRING)?;
       } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
         let content_href = match content_clone {
           Content::Html(ref html) => html,
@@ -230,16 +228,18 @@ fn build_webview(
               Some(e.replace("'", "\\'"))
             } else {
               let handled = handled_by_app.expect("failed to check if the invoke was handled");
-              if handled { None } else { Some(tauri_handle_error_str) }
+              if handled {
+                None
+              } else {
+                Some(tauri_handle_error_str)
+              }
             };
           } else {
             handler_error = Some(tauri_handle_error_str);
           }
 
           if let Some(handler_error_message) = handler_error {
-            webview.eval(
-              &get_api_error_message(arg, handler_error_message)
-            )?;
+            webview.eval(&get_api_error_message(arg, handler_error_message))?;
           }
         }
       }
@@ -256,18 +256,21 @@ fn build_webview(
   webview.set_fullscreen(fullscreen);
 
   if has_splashscreen {
+    let env_var = envmnt::get_or("TAURI_DIR", "../dist");
+    let path = Path::new(&env_var);
+    let contents = fs::read_to_string(path.join("/tauri.js"))?;
     // inject the tauri.js entry point
     webview
-    .handle()
-    .dispatch(|_webview| _webview.eval(include_str!(concat!(env!("TAURI_DIR"), "/tauri.js"))))?;
+      .handle()
+      .dispatch(move |_webview| _webview.eval(&contents))?;
   }
-  
+
   Ok(webview)
 }
 
 fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
   format!(
-    r#"console.error('failed to match a command for {}, {}')"#, 
+    r#"console.error('failed to match a command for {}, {}')"#,
     arg.replace("'", "\\'"),
     handler_error_message
   )
@@ -279,7 +282,7 @@ mod test {
   use web_view::Content;
 
   #[cfg(not(feature = "embedded-server"))]
-  use std::{fs::read_to_string, path::Path};
+  use std::{env, fs::read_to_string, path::Path};
 
   fn init_config() -> crate::config::Config {
     crate::config::get().expect("unable to setup default config")
@@ -300,20 +303,40 @@ mod test {
 
     #[cfg(feature = "no-server")]
     match res {
-      Ok(Content::Html(s)) => assert_eq!(
-        s,
-        read_to_string(Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html")).unwrap()
-      ),
+      Ok(Content::Html(s)) => {
+        let dist_dir = match option_env!("TAURI_DIST_DIR") {
+          Some(d) => d.to_string(),
+          None => env::current_dir()
+            .unwrap()
+            .into_os_string()
+            .into_string()
+            .expect("Unable to convert to normal String"),
+        };
+        assert_eq!(
+          s,
+          read_to_string(Path::new(&dist_dir).join("index.tauri.html")).unwrap()
+        );
+      }
       _ => assert!(false),
     }
 
     #[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
     match res {
       Ok(Content::Url(dp)) => assert_eq!(dp, _c.build.dev_path),
-      Ok(Content::Html(s)) => assert_eq!(
-        s,
-        read_to_string(Path::new(env!("TAURI_DIST_DIR")).join("index.tauri.html")).unwrap()
-      ),
+      Ok(Content::Html(s)) => {
+        let dist_dir = match option_env!("TAURI_DIST_DIR") {
+          Some(d) => d.to_string(),
+          None => env::current_dir()
+            .unwrap()
+            .into_os_string()
+            .into_string()
+            .expect("Unable to convert to normal String"),
+        };
+        assert_eq!(
+          s,
+          read_to_string(Path::new(&dist_dir).join("index.tauri.html")).unwrap()
+        );
+      }
       _ => assert!(false),
     }
   }

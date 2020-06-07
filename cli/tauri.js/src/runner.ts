@@ -5,16 +5,24 @@ import { existsSync, readFileSync, writeFileSync } from 'fs-extra'
 import { JSDOM } from 'jsdom'
 import { debounce, template } from 'lodash'
 import path from 'path'
+import http from 'http'
+import * as net from 'net'
+import os from 'os'
+import { findClosestOpenPort } from './helpers/net'
 import * as entry from './entry'
-import { tauriDir } from './helpers/app-paths'
+import { tauriDir, appDir } from './helpers/app-paths'
 import logger from './helpers/logger'
 import onShutdown from './helpers/on-shutdown'
 import { spawn, spawnSync } from './helpers/spawn'
+import { exec } from 'child_process'
 import { TauriConfig } from './types/config'
+import { CargoToml } from './types/cargo'
 import getTauriConfig from './helpers/tauri-config'
+import httpProxy from 'http-proxy'
+import chalk from 'chalk'
 
-const log = logger('app:tauri', 'green')
-const warn = logger('app:tauri (runner)', 'red')
+const log = logger('app:tauri')
+const warn = logger('app:tauri (runner)', chalk.red)
 
 class Runner {
   pid: number
@@ -22,6 +30,7 @@ class Runner {
   devPath?: string
   killPromise?: Function
   ranBeforeDevCommand?: boolean
+  devServer?: net.Server
 
   constructor() {
     this.pid = 0
@@ -34,7 +43,7 @@ class Runner {
   }
 
   async run(cfg: TauriConfig): Promise<void> {
-    const devPath = cfg.build.devPath
+    let devPath = cfg.build.devPath
 
     if (this.pid) {
       if (this.devPath !== devPath) {
@@ -46,34 +55,95 @@ class Runner {
 
     if (!this.ranBeforeDevCommand && cfg.build.beforeDevCommand) {
       this.ranBeforeDevCommand = true // prevent calling it twice on recursive call on our watcher
-      const [command, ...args] = cfg.build.beforeDevCommand.split(' ')
-      spawnSync(command, args, tauriDir)
+      log('Running `' + cfg.build.beforeDevCommand + '`')
+      const ls = exec(cfg.build.beforeDevCommand, {
+        cwd: appDir,
+        env: process.env
+      }, error => {
+        if (error) {
+          process.exit(1)
+        }
+      })
+
+      ls.stderr && ls.stderr.pipe(process.stderr)
+      ls.stdout && ls.stdout.pipe(process.stdout)
     }
 
-    const tomlContents = this.__getManifest()
+    const tomlContents = this.__getManifest() as any as CargoToml
     this.__whitelistApi(cfg, tomlContents)
-    this.__rewriteManifest(tomlContents)
+    this.__rewriteManifest(tomlContents as any as JsonMap)
 
     entry.generate(tauriDir, cfg)
 
     const runningDevServer = devPath.startsWith('http')
+
     let inlinedAssets: string[] = []
 
-    if (!runningDevServer) {
-      inlinedAssets = await this.__parseHtml(cfg, devPath)
+    if (runningDevServer) {
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
+      const self = this
+      const devUrl = new URL(devPath)
+      const proxy = httpProxy.createProxyServer({
+        ws: true,
+        target: {
+          host: devUrl.hostname,
+          port: devUrl.port
+        },
+        selfHandleResponse: true
+      })
+
+      proxy.on('proxyRes', function(proxyRes: http.IncomingMessage, req: http.IncomingMessage, res: http.ServerResponse) {
+        if (req.url === '/') {
+          const body: Uint8Array[] = []
+          proxyRes.on('data', function(chunk: Uint8Array) {
+            body.push(chunk)
+          })
+          proxyRes.on('end', function() {
+            const bodyStr = body.join('')
+            const indexDir = os.tmpdir()
+            writeFileSync(path.join(indexDir, 'index.html'), bodyStr)
+            self.__parseHtml(cfg, indexDir, false)
+              .then(({ html }) => {
+                res.end(html)
+              }).catch(err => {
+                res.writeHead(500, JSON.stringify(err))
+                res.end()
+              })
+          })
+        } else {
+          if (proxyRes.statusCode) {
+            res = res.writeHead(proxyRes.statusCode, proxyRes.headers)
+          }
+
+          proxyRes.pipe(res)
+        }
+      })
+
+      const proxyServer = http.createServer((req, res) => {
+        delete req.headers['accept-encoding']
+        proxy.web(req, res)
+      })
+      proxyServer.on('upgrade', (req, socket, head) => {
+        proxy.ws(req, socket, head)
+      })
+
+      const port = await findClosestOpenPort(parseInt(devUrl.port) + 1, devUrl.hostname)
+      const devServer = proxyServer.listen(port)
+      this.devServer = devServer
+      devPath = `${devUrl.protocol}//localhost:${port}`
+      cfg.build.devPath = devPath
+      process.env.TAURI_CONFIG = JSON.stringify(cfg)
+    } else {
+      inlinedAssets = (await this.__parseHtml(cfg, devPath)).inlinedAssets
     }
 
     process.env.TAURI_INLINED_ASSSTS = inlinedAssets.join('|')
 
     this.devPath = devPath
 
-    const features = runningDevServer ? ['dev-server'] : []
-
     const startDevTauri = async (): Promise<void> => {
-      return this.__runCargoCommand({
-        cargoArgs: ['run'].concat(
-          features.length ? ['--features', ...features] : []
-        ),
+      return await this.__runCargoCommand({
+        cargoArgs: ['run'],
         dev: true,
         exitOnPanic: cfg.ctx.exitOnPanic
       })
@@ -83,9 +153,7 @@ class Runner {
     // eslint-disable-next-line security/detect-non-literal-fs-filename
 
     let tauriPaths: string[] = []
-    // @ts-ignore
-    if (tomlContents.dependencies.tauri.path) {
-      // @ts-ignore
+    if (typeof tomlContents.dependencies.tauri !== 'string' && tomlContents.dependencies.tauri.path) {
       const tauriPath = path.resolve(tauriDir, tomlContents.dependencies.tauri.path)
       tauriPaths = [
         tauriPath,
@@ -143,7 +211,7 @@ class Runner {
   async build(cfg: TauriConfig): Promise<void> {
     if (cfg.build.beforeBuildCommand) {
       const [command, ...args] = cfg.build.beforeBuildCommand.split(' ')
-      spawnSync(command, args, tauriDir)
+      spawnSync(command, args, appDir)
     }
 
     const tomlContents = this.__getManifest()
@@ -152,7 +220,7 @@ class Runner {
 
     entry.generate(tauriDir, cfg)
 
-    const inlinedAssets = await this.__parseHtml(cfg, cfg.build.distDir)
+    const inlinedAssets = (await this.__parseHtml(cfg, cfg.build.distDir)).inlinedAssets
     process.env.TAURI_INLINED_ASSSTS = inlinedAssets.join('|')
 
     const features = [
@@ -160,7 +228,7 @@ class Runner {
     ]
 
     const buildFn = async (target?: string): Promise<void> =>
-      this.__runCargoCommand({
+      await this.__runCargoCommand({
         cargoArgs: [
           cfg.tauri.bundle.active ? 'tauri-bundler' : 'build',
           '--features',
@@ -169,7 +237,7 @@ class Runner {
             cfg.tauri.bundle.active && Array.isArray(cfg.tauri.bundle.targets) && cfg.tauri.bundle.targets.length
               ? ['--format'].concat(cfg.tauri.bundle.targets)
               : []
-            )
+          )
         ]
           .concat(cfg.ctx.debug ? [] : ['--release'])
           .concat(target ? ['--target', target] : [])
@@ -188,10 +256,10 @@ class Runner {
     }
   }
 
-  async __parseHtml(cfg: TauriConfig, indexDir: string): Promise<string[]> {
+  async __parseHtml(cfg: TauriConfig, indexDir: string, inlinerEnabled = cfg.tauri.inliner.active): Promise<{ inlinedAssets: string[], html: string }> {
     const inlinedAssets: string[] = []
 
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
       const indexPath = path.join(indexDir, 'index.html')
       if (!existsSync(indexPath)) {
         warn(
@@ -199,8 +267,9 @@ class Runner {
         )
         reject(new Error('Could not find index.html in dist dir.'))
       }
+      const originalHtml = readFileSync(indexPath).toString()
 
-      const rewriteHtml = (html: string, interceptor?: (dom: JSDOM) => void): void => {
+      const rewriteHtml = (html: string, interceptor?: (dom: JSDOM) => void): string => {
         const dom = new JSDOM(html)
         const document = dom.window.document
         if (interceptor !== undefined) {
@@ -228,9 +297,8 @@ class Runner {
         }
 
         const tauriScript = document.createElement('script')
-        // @ts-ignore
-        tauriScript.text = readFileSync(path.join(tauriDir, 'tauri.js'))
-        document.body.insertBefore(tauriScript, document.body.firstChild)
+        tauriScript.text = readFileSync(path.join(tauriDir, 'tauri.js')).toString()
+        document.head.insertBefore(tauriScript, document.head.firstChild)
 
         const csp = cfg.tauri.security.csp
         if (csp) {
@@ -239,30 +307,38 @@ class Runner {
           cspTag.setAttribute('content', csp)
           document.head.appendChild(cspTag)
         }
+
+        const newHtml = dom.serialize()
         writeFileSync(
           path.join(indexDir, 'index.tauri.html'),
-          dom.serialize()
+          newHtml
         )
+        return newHtml
       }
 
       const domInterceptor = cfg.tauri.embeddedServer.active ? undefined : (dom: JSDOM) => {
         const document = dom.window.document
-        document.querySelectorAll('link').forEach((link: HTMLLinkElement) => {
-          link.removeAttribute('rel')
-          link.removeAttribute('as')
-        })
+        if (!cfg.ctx.dev) {
+          document.querySelectorAll('link').forEach((link: HTMLLinkElement) => {
+            link.removeAttribute('rel')
+            link.removeAttribute('as')
+          })
+        }
       }
 
-      if ((!cfg.ctx.dev && cfg.tauri.embeddedServer.active) || !cfg.tauri.inliner.active) {
-        rewriteHtml(readFileSync(indexPath).toString(), domInterceptor)
-        resolve(inlinedAssets)
+      if ((!cfg.ctx.dev && cfg.tauri.embeddedServer.active) || !inlinerEnabled) {
+        const html = rewriteHtml(originalHtml, domInterceptor)
+        resolve({ inlinedAssets, html })
       } else {
-        new Inliner(indexPath, (err: Error, html: string) => {
+        const cwd = process.cwd()
+        process.chdir(indexDir) // the inliner requires this to properly work
+        new Inliner({ source: originalHtml }, (err: Error, html: string) => {
+          process.chdir(cwd) // reset CWD
           if (err) {
             reject(err)
           } else {
-            rewriteHtml(html, domInterceptor)
-            resolve(inlinedAssets)
+            const rewrittenHtml = rewriteHtml(html, domInterceptor)
+            resolve({ inlinedAssets, html: rewrittenHtml })
           }
         }).on('progress', (event: string) => {
           const match = event.match(/([\S\d]+)\.([\S\d]+)/g)
@@ -273,7 +349,8 @@ class Runner {
   }
 
   async stop(): Promise<void> {
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
+      this.devServer && this.devServer.close()
       this.tauriWatcher && this.tauriWatcher.close()
       this.__stopCargo()
         .then(resolve)
@@ -292,7 +369,7 @@ class Runner {
     dev?: boolean
     exitOnPanic?: boolean
   }): Promise<void> {
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
       this.pid = spawn(
         'cargo',
 
@@ -341,13 +418,13 @@ class Runner {
     const pid = this.pid
 
     if (!pid) {
-      return Promise.resolve()
+      return await Promise.resolve()
     }
 
     log('Shutting down tauri process...')
     this.pid = 0
 
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
       this.killPromise = resolve
       try {
         process.kill(pid)

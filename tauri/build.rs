@@ -1,4 +1,4 @@
-#[cfg(not(feature = "dev-server"))]
+#[cfg(any(feature = "embedded-server", feature = "no-server"))]
 pub fn main() {
   match std::env::var_os("TAURI_DIST_DIR") {
     Some(dist_path) => {
@@ -28,5 +28,5 @@ pub fn main() {
   }
 }
 
-#[cfg(feature = "dev-server")]
+#[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
 pub fn main() {}

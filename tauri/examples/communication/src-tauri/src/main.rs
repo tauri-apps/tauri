@@ -9,7 +9,7 @@ use serde::Serialize;
 
 #[derive(Serialize)]
 struct Reply {
-  data: String
+  data: String,
 }
 
 fn main() {
@@ -32,15 +32,18 @@ fn main() {
     .invoke_handler(|_webview, arg| {
       use cmd::Cmd::*;
       match serde_json::from_str(arg) {
-        Err(e) => {
-          Err(e.to_string())
-        }
+        Err(e) => Err(e.to_string()),
         Ok(command) => {
           match command {
             LogOperation { event, payload } => {
               println!("{} {:?}", event, payload);
-            },
-            PerformRequest { endpoint, body, callback, error } => {
+            }
+            PerformRequest {
+              endpoint,
+              body,
+              callback,
+              error,
+            } => {
               // tauri::execute_promise is a helper for APIs that uses the tauri.promisified JS function
               // so you can easily communicate between JS and Rust with promises
               tauri::execute_promise(
@@ -54,9 +57,9 @@ fn main() {
                   Ok("{ key: 'response', value: [{ id: 3 }] }".to_string())
                 },
                 callback,
-                error
+                error,
               )
-            },
+            }
           }
           Ok(())
         }

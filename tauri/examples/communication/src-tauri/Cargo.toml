@@ -30,10 +30,16 @@ tauri = { path = "../../..", features = [ "all-api", "edge" ] }
 winres = "0.1"
 
 [features]
-dev-server = [ "tauri/dev-server" ]
 embedded-server = [ "tauri/embedded-server" ]
 no-server = [ "tauri/no-server" ]
 
 [[bin]]
 name = "app"
 path = "src/main.rs"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+incremental = false
+opt-level = "z"

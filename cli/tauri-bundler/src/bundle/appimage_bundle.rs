@@ -1,7 +1,6 @@
 use super::common;
 use super::deb_bundle;
 use super::path_utils;
-use crate::ResultExt;
 use crate::Settings;
 
 use handlebars::Handlebars;
@@ -46,8 +45,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let output_path = settings.project_out_directory().join("bundle/appimage");
   if output_path.exists() {
-    remove_dir_all(&output_path)
-      .chain_err(|| format!("Failed to remove old {}", package_base_name))?;
+    remove_dir_all(&output_path)?;
   }
   std::fs::create_dir_all(output_path.clone())?;
   let app_dir_path = output_path.join(format!("{}.AppDir", settings.binary_name()));
@@ -63,14 +61,12 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   sh_map.insert("app_name_uppercase", upcase.as_str());
 
   // initialize shell script template.
-  let temp = HANDLEBARS
-    .render("appimage", &sh_map)
-    .or_else(|e| Err(e.to_string()))?;
+  let temp = HANDLEBARS.render("appimage", &sh_map)?;
 
   // create the shell script file in the target/ folder.
   let sh_file = output_path.join("build_appimage");
   common::print_bundling(format!("{:?}", &appimage_path).as_str())?;
-  write(&sh_file, temp).or_else(|e| Err(e.to_string()))?;
+  write(&sh_file, temp)?;
 
   // chmod script for execution
   Command::new("chmod")

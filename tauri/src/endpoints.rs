@@ -1,10 +1,10 @@
 mod cmd;
-mod salt;
-#[allow(dead_code)]
-mod file_system;
 mod dialog;
+mod file_system;
+mod http;
+mod salt;
 
-#[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
+#[cfg(any(feature = "embedded-server", feature = "no-server"))]
 use std::path::PathBuf;
 use web_view::WebView;
 use crate::config::Config;
@@ -16,7 +16,7 @@ use std::path::{MAIN_SEPARATOR};
 pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str, config: &Config) -> crate::Result<()> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
-    Err(e) => Err(crate::Error::from(e.to_string())),
+    Err(e) => Err(e.into()),
     Ok(command) => {
       match command {
         Init {} => {
@@ -153,7 +153,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str, config
         OpenDialog {
           options,
           callback,
-          error
+          error,
         } => {
           dialog::open(webview, options, callback, error);
         }
@@ -165,7 +165,15 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str, config
         } => {
           dialog::save(webview, options, callback, error);
         }
-        #[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
+        #[cfg(any(feature = "all-api", feature = "http-request"))]
+        HttpRequest {
+          options,
+          callback,
+          error,
+        } => {
+          http::make_request(webview, *options, callback, error);
+        }
+        #[cfg(any(feature = "embedded-server", feature = "no-server"))]
         LoadAsset {
           asset,
           asset_type,
@@ -266,7 +274,7 @@ fn listen_fn(event: String, handler: String, once: bool) -> crate::Result<String
   ))
 }
 
-#[cfg(not(any(feature = "dev-server", feature = "embedded-server")))]
+#[cfg(any(feature = "embedded-server", feature = "no-server"))]
 fn load_asset<T: 'static>(
   webview: &mut WebView<'_, T>,
   asset: String,
@@ -301,7 +309,7 @@ fn load_asset<T: 'static>(
               ));
             }
             None => {
-              return Err(format!("Asset '{}' not found", asset).into());
+              return Err(anyhow::anyhow!("Asset '{}' not found", asset));
             }
           }
         } else {
@@ -334,7 +342,7 @@ fn load_asset<T: 'static>(
               _webview.eval(asset_str)
             }
           })
-          .map_err(|err| crate::ErrorKind::Promise(format!(r#""{}""#, err)).into())
+          .map_err(|err| err.into())
           .map(|_| r#""Asset loaded successfully""#.to_string())
       }
     },

@@ -1,8 +1,9 @@
 import crossSpawn from 'cross-spawn'
 import logger from './logger'
+import chalk from 'chalk'
 
 const log = logger('app:spawn')
-const warn = logger('app:spawn', 'red')
+const warn = logger('app:spawn', chalk.red)
 
 /*
   Returns pid, takes onClose
@@ -11,7 +12,7 @@ export const spawn = (
   cmd: string,
   params: string[],
   cwd: string,
-  onClose: (code: number) => void
+  onClose?: (code: number) => void
 ): number => {
   log(`Running "${cmd} ${params.join(' ')}"`)
   log()

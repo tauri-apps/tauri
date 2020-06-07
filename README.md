@@ -1,99 +1,77 @@
-# tauri
- <img align="right" src="app-icon.png" height="128" width="128">
+<h1 style="font-family:monospace, courier; font-size:3em"><img align="left" src="app-icon.png" height="52" width="52">&nbsp;TAURI</h2>
 
-## A fresh take on creating cross-platform apps.
 [![status](https://img.shields.io/badge/Status-Alpha-yellow.svg)](https://github.com/tauri-apps/tauri/tree/dev)
+[![license](https://img.shields.io/badge/license-MIT%20or%20Apache%202-orange.svg)](https://opencollective.com/tauri)
+[![test library](https://img.shields.io/github/workflow/status/tauri-apps/tauri/test%20library?label=test%20library)](https://github.com/tauri-apps/tauri/actions?query=workflow%3A%22test+library%22)
+
 [![Chat Server](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/SpmNs4S)
 [![devto](https://img.shields.io/badge/blog-dev.to-black.svg)](https://dev.to/tauri)
-
-[![test library](https://img.shields.io/github/workflow/status/tauri-apps/tauri/test%20library?label=test%20library)](https://github.com/tauri-apps/tauri/actions?query=workflow%3A%22test+library%22)
 [![devto](https://img.shields.io/badge/documentation-wiki-purple.svg)](https://github.com/tauri-apps/tauri/wiki)
-
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
-[![support](https://img.shields.io/badge/sponsor-Opencollective-blue.svg)](https://opencollective.com/tauri)
+[![support](https://img.shields.io/badge/sponsor-open%20collective-blue.svg)](https://opencollective.com/tauri)
+
+```yml
+Tauri Apps
+  footprint:   miniscule
+  performance: ludicrous
+  flexibility: gymnastic
+  security:    hardened
+```
+
+## Current Releases
+
+| Component | Description  | Version | Lin | Win | Mac |
+|-----------|---------|------|-----|-----|-----|
+| [**tauri.js CLI**](https://github.com/tauri-apps/tauri/tree/dev/cli/tauri.js) | create, develop and build apps | [![](https://img.shields.io/npm/v/tauri.svg)](https://www.npmjs.com/package/tauri) |✅|✅|✅|
+| [**tauri core**](https://github.com/tauri-apps/tauri/tree/dev/tauri)  | binding to the low level WEBVIEW   | [![](https://img.shields.io/crates/v/tauri.svg)](https://crates.io/crates/tauri)|✅|✅|✅|
+| [**tauri api**](https://github.com/tauri-apps/tauri/tree/dev/tauri-api)  | interface with the underlying OS | [![](https://img.shields.io/crates/v/tauri-api.svg)](https://crates.io/crates/tauri-api) |✅|✅|✅ |
+| [**tauri bundler**](https://github.com/tauri-apps/tauri/tree/dev/cli/tauri-bundler) | manufacture the final binaries | [![](https://img.shields.io/crates/v/tauri-bundler.svg)](https://crates.io/crates/tauri-bundler)  |✅|✅|✅ |
+| [**tauri utils**](https://github.com/tauri-apps/tauri/tree/dev/tauri-utils) | common tools for tauri| [![](https://img.shields.io/crates/v/tauri-utils.svg)](https://crates.io/crates/tauri-utils)  |✅|✅|✅ |
+| [**tauri updater**](https://github.com/tauri-apps/tauri/tree/dev/tauri-updater) [WIP] | update the userland app | [![](https://img.shields.io/crates/v/tauri-updater.svg)](https://crates.io/crates/tauri-updater)  | | | |
 
 
-Tauri is a tool for building tiny, blazing fast binaries for all major desktop platforms. You can use any front-end framework that compiles to HTML,JS and CSS for building your interface.
+## Introduction
+Tauri is a framework for building tiny, blazing fast binaries for all major desktop platforms. Developers can integrate any front-end framework that compiles to HTML, JS and CSS for building their user interface. The backend of the application is a rust-sourced binary with an API that the front-end can interact with.
 
-| Component | Version | Lin | Win | Mac |
-|-----------|---------|-----|-----|-----|
-| tauri.js CLI | [![](https://img.shields.io/npm/v/tauri.svg)](https://www.npmjs.com/package/tauri)         |✅|✅|✅|
-| tauri core    | [![](https://img.shields.io/crates/v/tauri.svg)](https://crates.io/crates/tauri)      |✅|✅|✅|
-| tauri bundler | [![](https://img.shields.io/crates/v/tauri-bundler.svg)](https://crates.io/crates/tauri-bundler)  |✅|✅|✅ |
-| tauri api | [![](https://img.shields.io/crates/v/tauri-api.svg)](https://crates.io/crates/tauri-api)  |✅|✅|✅ |
-| tauri updater | [![](https://img.shields.io/crates/v/tauri-updater.svg)](https://crates.io/crates/tauri-updater)  |✅|✅|✅ |
-| tauri utils | [![](https://img.shields.io/crates/v/tauri-utils.svg)](https://crates.io/crates/tauri-utils)  |✅|✅|✅ |
+The user interface in Tauri apps currently leverages Cocoa/WebKit on macOS, gtk-webkit2 on Linux and MSHTML (IE10/11) or Webkit via Edge on Windows. **Tauri** uses (and contributes to) the MIT licensed project that you can find at [webview](https://github.com/zserge/webview).
 
-## Who Tauri is For
-Because of the way Tauri has been built and can be extended, developers
-are able to interface not only with the entire Rust ecosystem, but also
-with many other programming languages. Being freed of the heaviest thing
-in the universe and the many shortcomings of server-side Javascript
-suddenly opens up whole new avenues for high-performance, security-focused
-applications that need the purebred power, agility and community
-acceptance of a low-level language.
 
-We expect to witness an entire new class of applications being built with
-Tauri. From a simple calender to locally crunching massive realtime
-feeds at particle colliders or even mesh-network based distributed message-
-passing ecosystems - the bar has been raised and gauntlet thrown.
-
-What will you make?
-
-## 4 Reasons to consider Tauri
-- **BUNDLE SIZE** of a vanilla Tauri app is less than 3 MB - about 140 MB smaller than what you get with Electron.
-- **MEMORY FOOTPRINT** is less than half of the size of an Electron app built from the same codebase.
-- **SECURITY** is Tauri's biggest priority and we are constantly innovating.
-- **FLOSS** licensing is regretfully impossible with downstream Chromium consumers, like Electron. Sources: [0](https://lists.gnu.org/archive/html/libreplanet-discuss/2017-01/msg00056.html) [1](https://lists.gnu.org/archive/html/directory-discuss/2017-12/msg00008.html) [2](https://lists.gnu.org/archive/html/libreplanet-discuss/2019-02/msg00001.html)
-
-## Technical Details
-Tauri has five major components:
-- [Node.js CLI](https://github.com/tauri-apps/tauri/tree/dev/cli/tauri.js) for creating, developing and building apps
-- [Rust Core](https://github.com/tauri-apps/tauri/tree/dev/tauri) for binding to the low level WEBVIEW and providing a tree-shakeable API
-- [Rust Bundler](https://github.com/tauri-apps/tauri/tree/dev/cli/tauri-bundler) for manufacturing the final binaries
-- [Rust Bindings](https://github.com/Boscop/web-view) for Webviews
-- [Webview](https://github.com/Boscop/web-view/tree/master/webview-sys)
-Low level library for creating and interfacing with OS "native" webviews
-
-The user interface in Tauri apps currently leverages Cocoa/WebKit on macOS,
-gtk-webkit2 on Linux and MSHTML (IE10/11) or Webkit via Edge on Windows.
-**Tauri** is based on the MIT licensed prior work known as
-[webview](https://github.com/zserge/webview).
-
-The default binding to the underlying webview library currently uses Rust,
-but other languages like Golang or Python (and many others) are possible
-(and only a PR away).
-
-The combination of power, safety and usability are why we chose Rust to be
-the default binding for Tauri. It is our intention to provide the most safe
-and performant native app experience (for devs and app consumers), out of
-the box.
+## Get Started
+If you are interested in making a tauri-app, plase visit the [wiki](https://github.com/tauri-apps/tauri/wiki) or the [documentation website](https://tauri.studio). This README is directed towards those who are interested in contributing to the core library. But if you just want a quick overview about where `tauri` is at in its development, here's a quick burndown:
 
 #### App Bundles
 - [x] App Icons
-- [x] Build on MacOS (.app, .dmg coming soon)
-- [x] Build on Linux (.deb, AppImage coming soon)
-- [x] Build on Windows (.exe, .msi coming soon)
-- [ ] App Signing
-- [ ] Self Updater (WIP)
-- [ ] Frameless Mode
-- [ ] Transparent Mode
-- [ ] Multiwindow Mode
-- [ ] Tray (coming soon)
+- [x] Build on MacOS (.app, .dmg)
+- [x] Build on Linux (.deb, AppImage)
+- [x] Build on Windows (.exe, .msi)
 - [x] Copy Buffer
+- [x] Device Notifications (toast)
+- [ ] Self Updater (in progress)
+- [ ] deeplink RPC (in progress)
+- [ ] App Signing (coming soon)
+- [ ] Frameless Mode (coming soon)
+- [ ] Transparent Mode (coming soon)
+- [ ] Multiwindow Mode (coming soon)
+- [ ] Tray (coming soon)
 
 #### API
-- [x] bridge - enable fast bridge
-- [x] event - enable binding to message
-- [x] execute - STDOUT Passthrough with Command Invocation
-- [x] listFiles - list files in a directory
+- [x] setTitle - set the window title
+- [x] command - make custom API interfaces
+- [x] execute - STDOUT Passthrough with command invocation
 - [x] open - open link in a browser
+- [x] event - two part api consisting of `emit` and `listen`
+- [x] httpRequest - command rust to make an http request
+- [x] openDialog - native file chooser dialog
+- [x] saveDialog - native file saver dialog
+- [x] readDir - list files in a directory
+- [x] createDir - create a directory
+- [x] removeDir - remove a directory
+- [x] removeFile - remove a file
+- [x] renameFile - rename a file
+- [x] copyFile - copy a file to a new destination
+- [x] writeFile - write file to local filesystem
 - [x] readBinaryFile - read binary file from local filesystem
 - [x] readTextFile - read text file from local filesystem
-- [x] setTitle - set the window title
-- [x] writeFile - write file to local filesystem
-- [x] API Spec
-- [x] Documentation (WIP)
 
 ### Security Features
 - [x] localhost-free mode (:fire:)
@@ -101,13 +79,13 @@ the box.
 - [x] functional Address Space Layout Randomization
 - [x] OTP salting of function names and messages at runtime
 - [x] CSP Injection
-- [ ] Frida-based harness for Post-Binary Analysis
+- [ ] Frida-based harness for Post-Binary Analysis (in progress)
 
 ### Comparison between Tauri and Electron
 
-|  | Tauri | Electron |
+| Detail | Tauri | Electron |
 |--|--------|----------|
-| Binary Size MacOS | 0.6 MB | 47.7 MB |
+| Binary Size MacOS | 0.6 MB (1) | 47.7 MB |
 | Memory Consumption MacOS | 13 MB | 34.1 MB |
 | Interface Service Provider | Varies | Chromium |
 | Backend Binding | Rust | Node.js (ECMAScript) |
@@ -117,8 +95,7 @@ the box.
 | Bytecode Delivery | Yes | No |
 | Can Render PDF | Yes | No |
 | Multiple Windows | Soon | Yes |
-| GPU Access | Yes | Yes |
-| Auto Updater | Soon | Yes (1) |
+| Auto Updater | Soon | Yes (2) |
 | Cross Platform | Yes | Yes |
 | Custom App Icon | Yes | Yes |
 | Windows Binary | Yes | Yes |
@@ -128,10 +105,53 @@ the box.
 | Android Binary | Soon | No |
 | Localhost Server | Yes | Yes |
 | No localhost option | Yes | No |
-| Desktop Tray | Soon | No |
+| Desktop Tray | Soon | Yes |
+| Splashscreen | Yes | Yes |
+| Sidecar Binaries | Yes | No |
 
 #### Notes
-1) Electron has no native auto updater on Linux, but is offered by electron-packager
+1. This is the smallest known binary, depending on your framework the size may be different.
+2. Electron has no native auto updater on Linux, but is offered by electron-packager
+
+## Development
+
+Tauri is a system composed of a number of moving pieces:
+
+### Infrastructure
+- git for code management
+- github for project management
+- github actions for CI and CD
+- discord for discussions
+- netlify-hosted documentation website
+
+### Major Runtimes
+- node.js for running the CLI (deno and pure rust are on the roadmap)
+- cargo for testing, running the dev service, building binaries and as the runtime harness for the webview
+
+### Major Languages
+- typescript for the CLI
+- javascript for the JS-side of the API
+- rust for bindings, rust side of the API, harnesses
+- C / obj-c for interfacing with the webviews
+
+### Operating systems
+Tauri core can be developed on Mac, Linux and Windows, but you are encouraged to use the latest possible operating systems and build tools for your OS.
+
+### Contribution Flow
+Before you start working on something, it is best to check if there is an existing issue first. Also it is a good idea to stop by the Discord guild and confirm with the team if it makes sense or if someone is already working on it. If you want to read more about this, please see [this page](https://github.com/tauri-apps/tauri/blob/dev/.github/CONTRIBUTING.md).
+
+### Documentation
+Documentation in a polyglot system is a tricky proposition. To this end, we prefer to use inline documentation of Rust code and at JSDoc in typescript / javascript code. We autocollect these and publish them using Docusaurus v2 and netlify. Here is the hosting repository for the documentation site: https://github.com/tauri-apps/tauri-docs
+
+### Testing & Linting
+Test all the things! We have a number of test suites, but are always looking to improve our coverage:
+- Rust (`cargo test`) => sourced via inline `#[cfg(test)]` declarations
+- TS (`jest`) => via spec files
+- Smoke Tests (run on merges to master)
+- eslint, clippy
+
+### CI/CD
+We recommend you read this article to understand better how we run our pipelines: https://www.jacobbolda.com/setting-up-ci-and-cd-for-tauri/
 
 ## Organization
 Tauri aims to be a sustainable collective based on principles that guide [sustainable
@@ -143,7 +163,6 @@ been possible without your amazing contribution to open-source and we are
 honoured to carry the torch further. Of special note:
 - [zserge](https://github.com/zserge) for the original webview approach and
 go bindings
-- [Boscop](https://github.com/Boscop) for the Rust Bindings
 - [Burtonago](https://github.com/burtonageo) for the Cargo Bundle prototype
 
 ## Contributing
@@ -152,15 +171,15 @@ before making a pull request.
 
 Thank you to all the people who already contributed to Tauri!
 
-Special thanks to the development team at Volentix Labs for the encouragement and support in the early phases of Tauri, notably Rhys Parry and Gregory Luneau. Also a warm thanks to the incubation period at the Quasar Framework and specifically Razvan Stoenescu for believing in Tauri from the beginning.
+Special thanks to the development team at Volentix Labs for the encouragement and support in the early phases of Tauri, notably Rhys Parry and Gregory Luneau.
 
 ## Semver
 **tauri** is following [Semantic Versioning 2.0](https://semver.org/).
 
 ## Licenses
-Code: (c) 2015 - present - Daniel Thompson-Yvetot, Lucas Nogueira, Tensor, Boscop, Serge Zaitsev, George Burton and all the other amazing contributors.
+Code: (c) 2015 - present - Daniel Thompson-Yvetot, Lucas Nogueira, Tensor, Serge Zaitsev, George Burton and all the other amazing contributors.
 
-MIT or MIT/Apache where applicable.
+MIT or MIT/Apache 2.0 where applicable.
 
 Logo: CC-BY-NC-ND
 - Original Tauri Logo Designs by [Daniel Thompson-Yvetot](https://github.com/nothingismagick) and [Guillaume Chau](https://github.com/akryum)

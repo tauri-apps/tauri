@@ -4,8 +4,9 @@ import merge from 'webpack-merge'
 import logger from '../helpers/logger'
 import * as appPaths from './app-paths'
 import nonWebpackRequire from '../helpers/non-webpack-require'
+import chalk from 'chalk'
 
-const error = logger('ERROR:', 'red')
+const error = logger('ERROR:', chalk.red)
 
 const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
   const pkgPath = appPaths.resolve.app('package.json')
@@ -20,8 +21,8 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
     )
     process.exit(1)
   }
-  const tauriConf = nonWebpackRequire(tauriConfPath)
-  const pkg = nonWebpackRequire(pkgPath)
+  const tauriConf = nonWebpackRequire(tauriConfPath) as TauriConfig
+  const pkg = nonWebpackRequire(pkgPath) as { productName: string }
 
   const config = merge(
     {
@@ -60,9 +61,14 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
         }
       }
     } as any,
-    tauriConf,
+    tauriConf as any,
     cfg as any
   ) as TauriConfig
+
+  if (!config.build.devPath || !config.build.distDir) {
+    error('Missing required build configuration in your tauri.conf.json file. Please make sure to add the proper path configuration as described at https://github.com/tauri-apps/tauri/wiki/05.-Tauri-Integration#src-tauritauriconfjson.')
+    process.exit(1)
+  }
 
   const runningDevServer = config.build.devPath && config.build.devPath.startsWith('http')
   if (!runningDevServer) {

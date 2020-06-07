@@ -4,16 +4,20 @@ mod file_system;
 mod http;
 mod salt;
 
+use crate::config::Config;
 #[cfg(any(feature = "embedded-server", feature = "no-server"))]
 use std::path::PathBuf;
 use web_view::WebView;
-use crate::config::Config;
 
 #[cfg(windows)]
-use std::path::{MAIN_SEPARATOR};
+use std::path::MAIN_SEPARATOR;
 
 #[allow(unused_variables)]
-pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str, config: &Config) -> crate::Result<()> {
+pub(crate) fn handle<T: 'static>(
+  webview: &mut WebView<'_, T>,
+  arg: &str,
+  config: &Config,
+) -> crate::Result<()> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
     Err(e) => Err(e.into()),
@@ -181,15 +185,65 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str, config
           error,
         } => {
           load_asset(webview, asset, asset_type, callback, error)?;
-        },
+        }
         #[cfg(any(feature = "all-api", feature = "notification"))]
         Notification {
           options,
           callback,
           error,
         } => {
-          notification(webview, options, callback, error, config)?;
+          notification(
+            webview,
+            options,
+            callback,
+            error,
+            #[cfg(windows)]
+            config,
+          )?;
         }
+        #[cfg(any(feature = "all-api", feature = "notification"))]
+        IsNotificationPermissionGranted { callback, error } => {
+          crate::execute_promise(
+            webview,
+            move || {
+              let settings = crate::settings::read_settings()?;
+              if let Some(allow_notification) = settings.allow_notification {
+                Ok(allow_notification.to_string())
+              } else {
+                Ok("null".to_string())
+              }
+            },
+            callback,
+            error,
+          );
+        }
+        #[cfg(any(feature = "all-api", feature = "notification"))]
+        RequestNotificationPermission { callback, error } => crate::execute_promise(
+          webview,
+          move || {
+            let mut settings = crate::settings::read_settings()?;
+            let granted = r#""granted""#.to_string();
+            let denied = r#""denied""#.to_string();
+            if let Some(allow_notification) = settings.allow_notification {
+              return Ok(if allow_notification { granted } else { denied });
+            }
+            let answer = tauri_api::dialog::ask(
+              "This app wants to show notifications. Do you allow?".to_string(),
+              Some("Permissions".to_string()),
+            )?;
+            match answer {
+              tauri_api::dialog::DialogAnswer::Yes => {
+                settings.allow_notification = Some(true);
+                crate::settings::write_settings(settings)?;
+                Ok(granted)
+              }
+              tauri_api::dialog::DialogAnswer::No => Ok(denied),
+              tauri_api::dialog::DialogAnswer::Cancel => Ok(r#""default""#.to_string()),
+            }
+          },
+          callback,
+          error,
+        ),
       }
       Ok(())
     }
@@ -359,8 +413,9 @@ fn notification<T: 'static>(
   options: cmd::NotificationOptions,
   callback: String,
   error: String,
-  config: &Config
+  #[cfg(windows)] config: &Config,
 ) -> crate::Result<()> {
+  #[cfg(windows)]
   let identifier = config.tauri.bundle.identifier.clone();
   crate::execute_promise(
     webview,
@@ -385,14 +440,13 @@ fn notification<T: 'static>(
           notification.app_id(&identifier);
         }
       }
-      notification.show()
-        .map_err(|e| {
-          crate::Error::from(format!(r#""{}""#, e.to_string()))
-        })?;
+      notification
+        .show()
+        .map_err(|e| anyhow::anyhow!(r#""{}""#, e.to_string()))?;
       Ok("".to_string())
     },
     callback,
-    error
+    error,
   );
   Ok(())
 }

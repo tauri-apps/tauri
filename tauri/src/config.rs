@@ -75,7 +75,7 @@ pub struct BundleConfig {
 
 fn default_bundle() -> BundleConfig {
   BundleConfig {
-    identifier: String::from("")
+    identifier: String::from(""),
   }
 }
 

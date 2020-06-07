@@ -9,6 +9,7 @@ pub mod config;
 pub mod event;
 #[cfg(feature = "embedded-server")]
 pub mod server;
+pub mod settings;
 
 mod app;
 mod endpoints;

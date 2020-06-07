@@ -173,4 +173,14 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
+  #[cfg(any(feature = "all-api", feature = "notification"))]
+  RequestNotificationPermission {
+    callback: String,
+    error: String,
+  },
+  #[cfg(any(feature = "all-api", feature = "notification"))]
+  IsNotificationPermissionGranted {
+    callback: String,
+    error: String,
+  },
 }

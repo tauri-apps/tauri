@@ -680,20 +680,58 @@ window.tauri = {
         <% } %>
   },
 
-loadAsset: function loadAsset(assetName, assetType) {
-  return this.promisified({
-    cmd: 'loadAsset',
-    asset: assetName,
-    asset_type: assetType || 'unknown'
-  })
-}
+  isNotificationPermissionGranted: function isNotificationPermissionGranted() {
+    <% if (tauri.whitelist.notification === true || tauri.whitelist.all === true) { %>
+      return window.tauri.promisified({
+        cmd: 'isNotificationPermissionGranted'
+      })
+    <% } else { %>
+    <% if (ctx.dev) { %>
+      return __whitelistWarning('notification')
+        <% } %>
+      return __reject()
+      <% } %>
+  },
+
+  requestNotificationPermission: function requestNotificationPermission() {
+    <% if (tauri.whitelist.notification === true || tauri.whitelist.all === true) { %>
+      return window.tauri.promisified({
+        cmd: 'requestNotificationPermission'
+      })
+    <% } else { %>
+    <% if (ctx.dev) { %>
+      return __whitelistWarning('notification')
+        <% } %>
+      return __reject()
+      <% } %>
+  },
+
+  loadAsset: function loadAsset(assetName, assetType) {
+    return this.promisified({
+      cmd: 'loadAsset',
+      asset: assetName,
+      assetType: assetType || 'unknown'
+    })
+  }
 };
 
 <% if (tauri.whitelist.notification === true || tauri.whitelist.all === true) { %>
-  window.Notification = function (options) {
+  window.Notification = function (title, options) {
+    if (options === void 0) {
+      options = {}
+    }
+    options.title = title
     window.tauri.notification(options)
   }
-  window.Notification.permission = 'granted'
+  window.Notification.requestPermission = window.tauri.requestNotificationPermission
+  window.Notification.permission = 'loading'
+  window.tauri.isNotificationPermissionGranted()
+    .then(function (response) {
+      if (response === null) {
+        window.Notification.permission = 'default'
+      }
+      window.Notification.permission = response ? 'granted' : 'denied'
+    })
 <% } %>
 
 

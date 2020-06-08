@@ -1,6 +1,3 @@
-pub use tempfile::TempDir;
-
-use reqwest::header;
 use std::cmp::min;
 use std::env;
 use std::io;
@@ -13,6 +10,8 @@ pub mod http;
 pub mod updater;
 
 use errors::*;
+
+use crate::updater::ReleaseUpdate;
 
 /// Release information
 #[derive(Clone, Debug, Default)]
@@ -41,7 +40,8 @@ pub enum InstallStatus {
 }
 
 pub enum ProgressStatus {
-  Download,
+  Download(u64),
+  Extract,
   CopyFiles,
 }
 
@@ -62,74 +62,6 @@ pub struct DownloadedArchive {
   bin_name: String,
   archive_path: PathBuf,
   tmp_dir: tempfile::TempDir,
-}
-
-impl Download {
-  /// Specify download url
-  pub fn from_url(url: &str) -> Self {
-    Self {
-      url: url.to_owned(),
-      headers: reqwest::header::HeaderMap::new(),
-    }
-  }
-
-  /// Set the download request headers
-  pub fn set_headers(&mut self, headers: reqwest::header::HeaderMap) -> &mut Self {
-    self.headers = headers;
-    self
-  }
-
-  pub fn download_to<T: io::Write>(&self, mut dest: T) -> Result<()> {
-    use io::BufRead;
-    let mut headers = self.headers.clone();
-    if !headers.contains_key(header::USER_AGENT) {
-      headers.insert(
-        header::USER_AGENT,
-        "tauri/updater".parse().expect("invalid user-agent"),
-      );
-    }
-
-    set_ssl_vars!();
-    let resp = reqwest::blocking::Client::new()
-      .get(&self.url)
-      .headers(headers)
-      .send()?;
-    let size = resp
-      .headers()
-      .get(reqwest::header::CONTENT_LENGTH)
-      .map(|val| {
-        val
-          .to_str()
-          .map(|s| s.parse::<u64>().unwrap_or(0))
-          .unwrap_or(0)
-      })
-      .unwrap_or(0);
-    if !resp.status().is_success() {
-      bail!(
-        Error::Update,
-        "Download request failed with status: {:?}",
-        resp.status()
-      )
-    }
-
-    let mut src = io::BufReader::new(resp);
-    let mut downloaded = 0;
-
-    loop {
-      let n = {
-        let buf = src.fill_buf()?;
-        dest.write_all(&buf)?;
-        buf.len()
-      };
-      if n == 0 {
-        break;
-      }
-      src.consume(n);
-      downloaded = min(downloaded + n as u64, size);
-    }
-
-    Ok(())
-  }
 }
 
 /// Returns a target os

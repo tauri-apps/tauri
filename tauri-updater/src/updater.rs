@@ -1,14 +1,16 @@
 use reqwest::{self, header};
+use std::cmp::min;
 use std::env;
 use std::fs;
-
+use std::io;
 use tauri_api::{file::Extract, file::Move};
 
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
-  errors::*, CheckStatus, Download, DownloadStatus, DownloadedArchive, InstallStatus, Release,
+  errors::*, CheckStatus, Download, DownloadStatus, DownloadedArchive, InstallStatus,
+  ProgressStatus, Release,
 };
 
 /// Updates to a specified or latest release
@@ -34,7 +36,12 @@ pub trait ReleaseUpdate {
   // Get the release details
   fn release_details(&self) -> Release;
 
+  fn send_progress(&self, status: ProgressStatus);
+
   fn download(&self) -> Result<DownloadStatus> {
+    // send event that we start the download process at 0%
+    self.send_progress(ProgressStatus::Download(0));
+
     // get OS
     let target = self.target();
     // get release extracted in check()
@@ -74,15 +81,62 @@ pub trait ReleaseUpdate {
     let mut tmp_archive = fs::File::create(&tmp_archive_path)?;
 
     // prepare our download
-    let mut download = Download::from_url(&url);
+    use io::BufRead;
+    use std::io::Write;
 
     // set our headers
     let mut headers = header::HeaderMap::new();
     headers.insert(header::ACCEPT, "application/octet-stream".parse().unwrap());
-    download.set_headers(headers);
 
-    // download the file
-    download.download_to(&mut tmp_archive)?;
+    if !headers.contains_key(header::USER_AGENT) {
+      headers.insert(
+        header::USER_AGENT,
+        "tauri/updater".parse().expect("invalid user-agent"),
+      );
+    }
+
+    set_ssl_vars!();
+    let resp = reqwest::blocking::Client::new()
+      .get(&url)
+      .headers(headers)
+      .send()?;
+    let size = resp
+      .headers()
+      .get(reqwest::header::CONTENT_LENGTH)
+      .map(|val| {
+        val
+          .to_str()
+          .map(|s| s.parse::<u64>().unwrap_or(0))
+          .unwrap_or(0)
+      })
+      .unwrap_or(0);
+    if !resp.status().is_success() {
+      bail!(
+        Error::Update,
+        "Download request failed with status: {:?}",
+        resp.status()
+      )
+    }
+
+    let mut src = io::BufReader::new(resp);
+    let mut downloaded = 0;
+    let mut dest = &tmp_archive;
+
+    loop {
+      let n = {
+        let buf = src.fill_buf()?;
+        dest.write_all(&buf)?;
+        buf.len()
+      };
+      if n == 0 {
+        break;
+      }
+      src.consume(n);
+      // calc the progress
+      downloaded = min(downloaded + n as u64, size);
+      // send progress to our listener in percent
+      self.send_progress(ProgressStatus::Download((downloaded * 100) / size));
+    }
 
     Ok(DownloadStatus::Downloaded(DownloadedArchive {
       archive_path: tmp_archive_path,
@@ -92,6 +146,9 @@ pub trait ReleaseUpdate {
   }
 
   fn install(&self, archive: DownloadedArchive) -> Result<InstallStatus> {
+    // send event that we start the extracting
+    self.send_progress(ProgressStatus::Extract);
+
     // extract using tauri api  inside a tmp path
     let extract_process =
       Extract::from_source(&archive.archive_path).extract_into(&archive.tmp_dir.path());
@@ -106,6 +163,7 @@ pub trait ReleaseUpdate {
       .join(&format!("__{}_backup", archive.bin_name));
 
     // move into the final position
+    self.send_progress(ProgressStatus::CopyFiles);
     let move_process = Move::from_source(&archive.tmp_dir.path())
       .replace_using_temp(&tmp_file)
       .to_dest(&self.extract_path());

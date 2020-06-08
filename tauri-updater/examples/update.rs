@@ -3,11 +3,14 @@ use tauri_updater::{http::Update, CheckStatus, DownloadStatus, InstallStatus, Pr
 fn update() -> Result<(), Box<dyn ::std::error::Error>> {
   fn get_progress(status: ProgressStatus) {
     match status {
-      ProgressStatus::Download => {
-        println!("DOWNLOAD IN PROGRESS");
+      ProgressStatus::Download(percentage) => {
+        println!("DOWNLOAD IN PROGRESS: {:?}%", percentage);
       }
       ProgressStatus::CopyFiles => {
         println!("COPY IN PROGRESS");
+      }
+      ProgressStatus::Extract => {
+        println!("Extracting IN PROGRESS");
       }
     }
   }
@@ -20,11 +23,11 @@ fn update() -> Result<(), Box<dyn ::std::error::Error>> {
     //.current_version(env!("CARGO_PKG_VERSION"))
     .current_version("0.0.1")
     // if not provided we use `env::current_exe()`
-    .executable_path("/Applications/TestApp.app/Contents/MacOS/guijs")
+    //.executable_path("/Applications/TestApp.app/Contents/MacOS/guijs")
     // check for update
     // Handler to get download and install progress
     // Usefull if we want to create a loading bar or something like this
-    //.on_progress(get_progress)
+    .on_progress(get_progress)
     .check()?;
 
   match updater.status() {
@@ -34,11 +37,10 @@ fn update() -> Result<(), Box<dyn ::std::error::Error>> {
 
       // launch download
       match updater.download()? {
-        DownloadStatus::Downloaded(archive) => {
+        DownloadStatus::Downloaded(extracted_archive) => {
           // POPUP `Ready to install` with Install and relaunch button
-
           // launch installation
-          match updater.install(archive)? {
+          match updater.install(extracted_archive)? {
             InstallStatus::Installed => println!("Installation sucess! Restart now"),
             // if something went wrong inside the installation
             InstallStatus::Failed => {

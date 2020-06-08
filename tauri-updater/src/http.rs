@@ -4,7 +4,15 @@ use std::path::{Path, PathBuf};
 use reqwest::{self};
 use tauri_api::version;
 
-use crate::{errors::*, get_target, updater::ReleaseUpdate, CheckStatus, Release};
+use crate::{errors::*, get_target, updater::ReleaseUpdate, CheckStatus, ProgressStatus, Release};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+thread_local!(static LISTENERS: Arc<Mutex<HashMap<String, EventHandler>>> = Arc::new(Mutex::new(HashMap::new())));
+
+struct EventHandler {
+  on_event: Box<dyn FnMut(ProgressStatus)>,
+}
 
 impl Release {
   // Read JSON and confirm this is a valid Schema
@@ -95,6 +103,22 @@ impl UpdateBuilder {
     self
   }
 
+  pub fn on_progress<F: FnMut(ProgressStatus) + 'static>(&self, handler: F) -> &Self {
+    // register our callback
+    LISTENERS.with(|listeners| {
+      let mut l = listeners
+        .lock()
+        .expect("Failed to lock listeners: listen()");
+      l.insert(
+        "httpupdater".to_string(),
+        EventHandler {
+          on_event: Box::new(handler),
+        },
+      );
+    });
+    self
+  }
+
   /// Check remotely for latest update
   pub fn check(&self) -> Result<Box<dyn ReleaseUpdate>> {
     // If no executable path provided, we use current_exe from rust
@@ -116,13 +140,7 @@ impl UpdateBuilder {
     // Linux & Windows should need to be extracted in the same directory as the executable
     // C:\Program Files\MyApp\MyApp.exe
     // We need C:\Program Files\MyApp
-    let mut extract_path = self
-      .executable_path
-      .as_ref()
-      .unwrap()
-      .parent()
-      .map(PathBuf::from)
-      .unwrap();
+    let mut extract_path = executable_path.parent().map(PathBuf::from).unwrap();
 
     // MacOS example binary is in /Applications/TestApp.app/Contents/MacOS/myApp
     // We need to get /Applications/TestApp.app
@@ -266,5 +284,21 @@ impl ReleaseUpdate for Update {
   // Cached data extracted in the check() step
   fn release_details(&self) -> Release {
     self.remote_release.clone()
+  }
+
+  // Cached data extracted in the check() step
+  fn send_progress(&self, status: ProgressStatus) {
+    LISTENERS.with(|listeners| {
+      let mut l = listeners
+        .lock()
+        .expect("Failed to lock listeners: on_event()");
+
+      let key = "httpupdater".to_string();
+
+      if l.contains_key(&key) {
+        let handler = l.get_mut(&key).expect("Failed to get mutable handler");
+        (handler.on_event)(status);
+      }
+    });
   }
 }

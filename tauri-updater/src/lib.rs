@@ -4,6 +4,7 @@ use reqwest::header;
 use std::cmp::min;
 use std::env;
 use std::io;
+use std::path::PathBuf;
 
 #[macro_use]
 pub mod macros;
@@ -39,11 +40,28 @@ pub enum InstallStatus {
   Failed,
 }
 
+pub enum ProgressStatus {
+  Download,
+  CopyFiles,
+}
+
+pub enum DownloadStatus {
+  Downloaded(DownloadedArchive),
+  Failed,
+}
+
 /// Download things into files
 #[derive(Debug)]
 pub struct Download {
   url: String,
   headers: reqwest::header::HeaderMap,
+}
+
+#[derive(Debug)]
+pub struct DownloadedArchive {
+  bin_name: String,
+  archive_path: PathBuf,
+  tmp_dir: tempfile::TempDir,
 }
 
 impl Download {

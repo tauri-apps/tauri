@@ -1,6 +1,17 @@
-use tauri_updater::{http::Update, CheckStatus};
+use tauri_updater::{http::Update, CheckStatus, DownloadStatus, InstallStatus, ProgressStatus};
 
 fn update() -> Result<(), Box<dyn ::std::error::Error>> {
+  fn get_progress(status: ProgressStatus) {
+    match status {
+      ProgressStatus::Download => {
+        println!("DOWNLOAD IN PROGRESS");
+      }
+      ProgressStatus::CopyFiles => {
+        println!("COPY IN PROGRESS");
+      }
+    }
+  }
+
   // setup updater
   let updater = Update::configure()
     // URL of the update server {{target}} and {{current_version}} and replaced automatically
@@ -11,14 +22,32 @@ fn update() -> Result<(), Box<dyn ::std::error::Error>> {
     // if not provided we use `env::current_exe()`
     .executable_path("/Applications/TestApp.app/Contents/MacOS/guijs")
     // check for update
+    // Handler to get download and install progress
+    // Usefull if we want to create a loading bar or something like this
+    //.on_progress(get_progress)
     .check()?;
 
   match updater.status() {
     CheckStatus::UpdateAvailable(my_release) => {
+      // POPUP Asking if they want to install new version
       println!("New version available {:?}", my_release.version);
-      println!("New version body {:?}", my_release.body);
-      println!("update available {:?}", my_release);
-      updater.install()?;
+
+      // launch download
+      match updater.download()? {
+        DownloadStatus::Downloaded(archive) => {
+          // POPUP `Ready to install` with Install and relaunch button
+
+          // launch installation
+          match updater.install(archive)? {
+            InstallStatus::Installed => println!("Installation sucess! Restart now"),
+            // if something went wrong inside the installation
+            InstallStatus::Failed => {
+              println!("Installation failed, download new version on www.com")
+            }
+          }
+        }
+        DownloadStatus::Failed => println!("Installation failed, download new version on www.com"),
+      }
     }
     CheckStatus::UpToDate => println!("App already up to date"),
   }

@@ -7,7 +7,9 @@ use tauri_api::{file::Extract, file::Move};
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{errors::*, CheckStatus, Download, InstallStatus, Release};
+use crate::{
+  errors::*, CheckStatus, Download, DownloadStatus, DownloadedArchive, InstallStatus, Release,
+};
 
 /// Updates to a specified or latest release
 pub trait ReleaseUpdate {
@@ -32,7 +34,7 @@ pub trait ReleaseUpdate {
   // Get the release details
   fn release_details(&self) -> Release;
 
-  fn install(&self) -> Result<InstallStatus> {
+  fn download(&self) -> Result<DownloadStatus> {
     // get OS
     let target = self.target();
     // get release extracted in check()
@@ -82,17 +84,29 @@ pub trait ReleaseUpdate {
     // download the file
     download.download_to(&mut tmp_archive)?;
 
+    Ok(DownloadStatus::Downloaded(DownloadedArchive {
+      archive_path: tmp_archive_path,
+      tmp_dir,
+      bin_name,
+    }))
+  }
+
+  fn install(&self, archive: DownloadedArchive) -> Result<InstallStatus> {
     // extract using tauri api  inside a tmp path
-    let extract_process = Extract::from_source(&tmp_archive_path).extract_into(&tmp_dir.path());
+    let extract_process =
+      Extract::from_source(&archive.archive_path).extract_into(&archive.tmp_dir.path());
     match extract_process {
       Ok(_) => (),
       Err(err) => bail!(Error::Update, "Extract failed with status: {:?}", err),
     };
 
-    let tmp_file = tmp_dir.path().join(&format!("__{}_backup", bin_name));
+    let tmp_file = archive
+      .tmp_dir
+      .path()
+      .join(&format!("__{}_backup", archive.bin_name));
 
     // move into the final position
-    let move_process = Move::from_source(&tmp_dir.path())
+    let move_process = Move::from_source(&archive.tmp_dir.path())
       .replace_using_temp(&tmp_file)
       .to_dest(&self.extract_path());
 

@@ -9,8 +9,7 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
-  errors::*, CheckStatus, Download, DownloadStatus, DownloadedArchive, InstallStatus,
-  ProgressStatus, Release,
+  errors::*, CheckStatus, DownloadStatus, DownloadedArchive, InstallStatus, ProgressStatus, Release,
 };
 
 /// Updates to a specified or latest release
@@ -20,9 +19,6 @@ pub trait ReleaseUpdate {
 
   /// Target platform the update is being performed for
   fn target(&self) -> String;
-
-  /// API Url
-  fn url(&self) -> String;
 
   /// Where is located current App to update -- extract path will automatically generated based on the target
   fn executable_path(&self) -> PathBuf;
@@ -78,7 +74,7 @@ pub trait ReleaseUpdate {
       .tempdir_in(tmp_dir_parent)?;
 
     let tmp_archive_path = tmp_dir.path().join(detect_archive_in_url(&url, &target));
-    let mut tmp_archive = fs::File::create(&tmp_archive_path)?;
+    let tmp_archive = fs::File::create(&tmp_archive_path)?;
 
     // prepare our download
     use io::BufRead;

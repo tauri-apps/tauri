@@ -1,12 +1,11 @@
+use crate::{errors::*, get_target, updater::ReleaseUpdate, CheckStatus, ProgressStatus, Release};
+use reqwest::{self};
+use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
-
-use reqwest::{self};
-use tauri_api::version;
-
-use crate::{errors::*, get_target, updater::ReleaseUpdate, CheckStatus, ProgressStatus, Release};
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
+use tauri_api::version;
 
 thread_local!(static LISTENERS: Arc<Mutex<HashMap<String, EventHandler>>> = Arc::new(Mutex::new(HashMap::new())));
 
@@ -51,7 +50,7 @@ impl Release {
 #[derive(Debug)]
 pub struct UpdateBuilder {
   // api url
-  url: Option<String>,
+  urls: Vec<String>,
   // target (os)
   target: Option<String>,
   // where the executable is located
@@ -64,7 +63,7 @@ impl Default for UpdateBuilder {
   fn default() -> Self {
     Self {
       target: None,
-      url: None,
+      urls: Vec::new(),
       executable_path: None,
       current_version: None,
     }
@@ -77,9 +76,19 @@ impl UpdateBuilder {
     Default::default()
   }
 
-  /// Set the repo name, used to build a github api url
-  pub fn url(&mut self, name: &str) -> &mut Self {
-    self.url = Some(name.to_owned());
+  /// Add remote URL to extract metadata
+  pub fn url(&mut self, url: &str) -> &mut Self {
+    self.urls.push(url.to_string());
+    self
+  }
+
+  /// Add multiple URLS at once inside a Vec for future reference
+  pub fn urls(&mut self, urls: &[&str]) -> &mut Self {
+    let mut formatted_vec: Vec<String> = Vec::new();
+    for url in urls {
+      formatted_vec.push(url.to_string());
+    }
+    self.urls = formatted_vec;
     self
   }
 
@@ -121,6 +130,13 @@ impl UpdateBuilder {
 
   /// Check remotely for latest update
   pub fn check(&self) -> Result<Box<dyn ReleaseUpdate>> {
+    let mut remote_release: Option<Release> = None;
+
+    // make sure we have at least one url
+    if self.urls.len() == 0 {
+      bail!(Error::Config, "`url` required")
+    };
+
     // If no executable path provided, we use current_exe from rust
     let executable_path = if let Some(v) = &self.executable_path {
       v.clone()
@@ -156,15 +172,21 @@ impl UpdateBuilder {
         .unwrap();
     };
 
-    // replace {{current_version}} and {{target}} in the provided URL
-    // this is usefull if we need to query example
-    // https://releases.myapp.com/update/{{target}}/{{current_version}}
-    // will be transleted into ->
-    // https://releases.myapp.com/update/darwin/1.0.0
-    // The main objective is if the update URL is defined via the Cargo.toml
-    // the URL will be generated dynamicly
-    let url = if let Some(ref url) = self.url {
-      str::replace(
+    // make sure SSL is correctly set for linux
+    set_ssl_vars!();
+
+    let mut last_error: Option<Error> = None;
+
+    for url in &self.urls {
+      // replace {{current_version}} and {{target}} in the provided URL
+      // this is usefull if we need to query example
+      // https://releases.myapp.com/update/{{target}}/{{current_version}}
+      // will be transleted into ->
+      // https://releases.myapp.com/update/darwin/1.0.0
+      // The main objective is if the update URL is defined via the Cargo.toml
+      // the URL will be generated dynamicly
+
+      let fixed_link = str::replace(
         &str::replace(
           url,
           "{{current_version}}",
@@ -172,44 +194,56 @@ impl UpdateBuilder {
         ),
         "{{target}}",
         &target,
-      )
-    } else {
-      bail!(Error::Config, "`url` required")
-    };
+      );
 
-    // make sure SSL is correctly set for linux
-    set_ssl_vars!();
+      let resp = reqwest::blocking::Client::new()
+        .get(&fixed_link)
+        .timeout(Duration::from_secs(5))
+        .send();
 
-    // make our remote query
-    let resp = reqwest::blocking::Client::new().get(&url).send()?;
-    if !resp.status().is_success() {
-      bail!(
-        Error::Network,
-        "api request failed with status: {:?} - for: {:?}",
-        resp.status(),
-        self.url
-      )
+      match resp {
+        Ok(res) => {
+          if res.status().is_success() {
+            let json = res.json::<serde_json::Value>()?;
+            let built_release = Release::from_release(&json);
+            match built_release {
+              Ok(release) => {
+                last_error = None;
+                remote_release = Some(release);
+                break;
+              }
+              Err(err) => last_error = Some(err),
+            }
+          }
+        }
+        Err(_) => (),
+      }
     }
 
-    // unmarshall the JSON into a Release
-    let json = resp.json::<serde_json::Value>()?;
-    let mut remote_release = Release::from_release(&json)?;
+    if last_error.is_some() {
+      bail!(Error::Network, "Api Error: {:?}", last_error.unwrap())
+    }
+
+    if remote_release.is_none() {
+      bail!(Error::Network, "Unable to extract remote metadata")
+    }
+
+    let mut final_release = remote_release.clone().unwrap();
 
     // did the announced version is greated than our current one?
     let should_update = match version::is_greater(
       &self.current_version.as_ref().unwrap(),
-      &remote_release.version,
+      &final_release.version,
     ) {
       Ok(v) => v,
       Err(_) => false,
     };
 
     // save it for future reference
-    remote_release.should_update = should_update;
+    final_release.should_update = should_update;
 
     // return our Update structure
     Ok(Box::new(Update {
-      url,
       target,
       executable_path,
       extract_path,
@@ -219,7 +253,7 @@ impl UpdateBuilder {
       } else {
         bail!(Error::Config, "`current_version` required")
       },
-      remote_release: Release::from_release(&json)?,
+      remote_release: final_release,
     }))
   }
 }
@@ -227,7 +261,6 @@ impl UpdateBuilder {
 /// Specific update data
 #[derive(Debug)]
 pub struct Update {
-  url: String,
   target: String,
   current_version: String,
   executable_path: PathBuf,
@@ -247,11 +280,6 @@ impl ReleaseUpdate for Update {
   // current version
   fn current_version(&self) -> String {
     self.current_version.to_owned()
-  }
-
-  // download URL
-  fn url(&self) -> String {
-    self.url.to_owned()
   }
 
   // OS (platform)

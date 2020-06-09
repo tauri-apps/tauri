@@ -1,6 +1,4 @@
-use std::cmp::min;
 use std::env;
-use std::io;
 use std::path::PathBuf;
 
 #[macro_use]
@@ -8,10 +6,6 @@ pub mod macros;
 pub mod errors;
 pub mod http;
 pub mod updater;
-
-use errors::*;
-
-use crate::updater::ReleaseUpdate;
 
 /// Release information
 #[derive(Clone, Debug, Default)]
@@ -48,13 +42,6 @@ pub enum ProgressStatus {
 pub enum DownloadStatus {
   Downloaded(DownloadedArchive),
   Failed,
-}
-
-/// Download things into files
-#[derive(Debug)]
-pub struct Download {
-  url: String,
-  headers: reqwest::header::HeaderMap,
 }
 
 #[derive(Debug)]

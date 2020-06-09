@@ -18,12 +18,15 @@ fn update() -> Result<(), Box<dyn ::std::error::Error>> {
   // setup updater
   let updater = Update::configure()
     // URL of the update server {{target}} and {{current_version}} and replaced automatically
+    .urls(&["http://badurl.www.tld/1", "https://gist.githubusercontent.com/lemarier/106011e4a5610ef5671af15ce2f78862/raw/d4dd4fa30b9112836e0a201fd3a867446e7bac98/test.json"])
+    //.url("http://badurl.www.tld/1")
+    //.url("https://gist.githubusercontent.com/lemarier/106011e4a5610ef5671af15ce2f78862/raw/d4dd4fa30b9112836e0a201fd3a867446e7bac98/test.json")
     .url("https://gist.githubusercontent.com/lemarier/8e4703d077ebd6470810927ed2205470/raw/329b7ad9f32d439083af40e7f2090ca072d7a1cf/gistfile1.txt?target={{target}}&version={{current_version}}")
     // current app version (can be extracted from cargo.toml easilly)
     //.current_version(env!("CARGO_PKG_VERSION"))
     .current_version("0.0.1")
     // if not provided we use `env::current_exe()`
-    //.executable_path("/Applications/TestApp.app/Contents/MacOS/guijs")
+    .executable_path("/Applications/TestApp.app/Contents/MacOS/guijs")
     // check for update
     // Handler to get download and install progress
     // Usefull if we want to create a loading bar or something like this

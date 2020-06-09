@@ -1,4 +1,5 @@
 mod appimage_bundle;
+mod archive_utils;
 mod category;
 mod common;
 mod deb_bundle;
@@ -12,6 +13,7 @@ mod platform;
 mod rpm_bundle;
 mod settings;
 mod tauri_config;
+mod updater_bundle;
 #[cfg(target_os = "windows")]
 mod wix;
 
@@ -23,6 +25,7 @@ use std::path::PathBuf;
 pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
   let mut paths = Vec::new();
   let package_types = settings.package_types()?;
+
   for package_type in &package_types {
     let mut bundle_paths = match package_type {
       PackageType::OsxBundle => {
@@ -39,6 +42,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
       PackageType::Rpm => rpm_bundle::bundle_project(&settings)?,
       PackageType::AppImage => appimage_bundle::bundle_project(&settings)?,
       PackageType::Dmg => dmg_bundle::bundle_project(&settings)?,
+      PackageType::Updater => updater_bundle::bundle_project(&settings)?,
     };
     paths.append(&mut bundle_paths);
   }

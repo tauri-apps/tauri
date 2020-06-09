@@ -18,6 +18,7 @@
 // metadata, as well as generating the md5sums file.  Currently we do not
 // generate postinst or prerm files.
 
+use super::archive_utils;
 use super::common;
 use crate::Settings;
 
@@ -26,10 +27,8 @@ use ar;
 use icns;
 use image::png::PngDecoder;
 use image::{self, GenericImageView, ImageDecoder};
-use libflate::gzip;
 use md5;
 use std::process::{Command, Stdio};
-use tar;
 use walkdir::WalkDir;
 
 use std::collections::BTreeSet;
@@ -75,10 +74,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .with_context(|| "Failed to create debian-binary file")?;
 
   // Apply tar/gzip/ar to create the final package file.
-  let control_tar_gz_path =
-    tar_and_gzip_dir(control_dir).with_context(|| "Failed to tar/gzip control directory")?;
-  let data_tar_gz_path =
-    tar_and_gzip_dir(data_dir).with_context(|| "Failed to tar/gzip data directory")?;
+  let control_tar_gz_path = archive_utils::tar_and_gzip_dir(control_dir)
+    .with_context(|| "Failed to tar/gzip control directory")?;
+  let data_tar_gz_path = archive_utils::tar_and_gzip_dir(data_dir)
+    .with_context(|| "Failed to tar/gzip data directory")?;
   create_archive(
     vec![debian_binary_path, control_tar_gz_path, data_tar_gz_path],
     &package_path,
@@ -373,42 +372,6 @@ fn total_dir_size(dir: &Path) -> crate::Result<u64> {
     total += entry?.metadata()?.len();
   }
   Ok(total)
-}
-
-/// Writes a tar file to the given writer containing the given directory.
-fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> crate::Result<W> {
-  let src_dir = src_dir.as_ref();
-  let mut tar_builder = tar::Builder::new(dest_file);
-  for entry in WalkDir::new(&src_dir) {
-    let entry = entry?;
-    let src_path = entry.path();
-    if src_path == src_dir {
-      continue;
-    }
-    let dest_path = src_path.strip_prefix(&src_dir)?;
-    if entry.file_type().is_dir() {
-      tar_builder.append_dir(dest_path, src_path)?;
-    } else {
-      let mut src_file = fs::File::open(src_path)?;
-      tar_builder.append_file(dest_path, &mut src_file)?;
-    }
-  }
-  let dest_file = tar_builder.into_inner()?;
-  Ok(dest_file)
-}
-
-/// Creates a `.tar.gz` file from the given directory (placing the new file
-/// within the given directory's parent directory), then deletes the original
-/// directory and returns the path to the new file.
-fn tar_and_gzip_dir<P: AsRef<Path>>(src_dir: P) -> crate::Result<PathBuf> {
-  let src_dir = src_dir.as_ref();
-  let dest_path = src_dir.with_extension("tar.gz");
-  let dest_file = common::create_file(&dest_path)?;
-  let gzip_encoder = gzip::Encoder::new(dest_file)?;
-  let gzip_encoder = create_tar_from_dir(src_dir, gzip_encoder)?;
-  let mut dest_file = gzip_encoder.finish().into_result()?;
-  dest_file.flush()?;
-  Ok(dest_path)
 }
 
 /// Creates an `ar` archive from the given source files and writes it to the

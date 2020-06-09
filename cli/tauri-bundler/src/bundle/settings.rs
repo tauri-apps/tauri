@@ -1,6 +1,7 @@
 use super::category::AppCategory;
 use crate::bundle::common;
 use crate::bundle::platform::target_triple;
+use crate::bundle::tauri_config::UpdaterConfig;
 
 use clap::ArgMatches;
 use glob;
@@ -25,6 +26,7 @@ pub enum PackageType {
   Rpm,
   AppImage,
   Dmg,
+  Updater,
 }
 
 impl PackageType {
@@ -39,6 +41,7 @@ impl PackageType {
       "rpm" => Some(PackageType::Rpm),
       "appimage" => Some(PackageType::AppImage),
       "dmg" => Some(PackageType::Dmg),
+      "updater" => Some(PackageType::Updater),
       _ => None,
     }
   }
@@ -53,6 +56,7 @@ impl PackageType {
       PackageType::Rpm => "rpm",
       PackageType::AppImage => "appimage",
       PackageType::Dmg => "dmg",
+      PackageType::Updater => "updater",
     }
   }
 
@@ -70,6 +74,7 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::Rpm,
   PackageType::Dmg,
   PackageType::AppImage,
+  PackageType::Updater,
 ];
 
 #[derive(Clone, Debug)]
@@ -104,6 +109,8 @@ struct BundleSettings {
   example: Option<HashMap<String, BundleSettings>>,
   external_bin: Option<Vec<String>>,
   exception_domain: Option<String>,
+  // Updater
+  updater: Option<UpdaterConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -376,7 +383,7 @@ impl Settings {
     } else {
       std::env::consts::OS
     };
-    let platform_types = match target_os {
+    let mut platform_types = match target_os {
       "macos" => vec![PackageType::OsxBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
       "linux" => vec![PackageType::Deb, PackageType::AppImage],
@@ -389,6 +396,12 @@ impl Settings {
         )))
       }
     };
+
+    // If updater bundler is enabled
+    if let true = &self.is_update_enabled() {
+      platform_types.push(PackageType::Updater);
+    }
+
     if let Some(package_types) = &self.package_types {
       let mut types = vec![];
       for package_type in package_types {
@@ -598,6 +611,14 @@ impl Settings {
   pub fn osx_use_bootstrapper(&self) -> bool {
     self.bundle_settings.osx_use_bootstrapper.unwrap_or(false)
   }
+
+  /// Is update enabled
+  pub fn is_update_enabled(&self) -> bool {
+    match &self.bundle_settings.updater {
+      Some(val) => val.active.unwrap_or(false),
+      None => false,
+    }
+  }
 }
 
 fn bundle_settings_from_table(
@@ -676,6 +697,7 @@ fn merge_settings(
       config.osx.exception_domain,
       bundle_settings.exception_domain,
     ),
+    updater: options_value(config.updater, bundle_settings.updater),
     ..bundle_settings
   }
 }

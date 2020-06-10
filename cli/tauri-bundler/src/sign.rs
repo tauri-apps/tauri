@@ -40,11 +40,19 @@ pub fn decode_key(base64_key: String) -> crate::Result<String> {
 }
 
 /// Save KeyPair to disk
-pub fn save_keypair<P>(force: bool, sk_path: P, key: &str) -> crate::Result<PathBuf>
+pub fn save_keypair<P>(
+  force: bool,
+  sk_path: P,
+  key: &str,
+  pubkey: &str,
+) -> crate::Result<(PathBuf, PathBuf)>
 where
   P: AsRef<Path>,
 {
   let sk_path = sk_path.as_ref();
+
+  let pubkey_path = format!("{}.pub", sk_path.display());
+  let pk_path = Path::new(&pubkey_path);
 
   if sk_path.exists() {
     if !force {
@@ -57,10 +65,19 @@ where
     }
   }
 
-  let mut pk_writer = super::bundle::common::create_file(&sk_path)?;
-  write!(pk_writer, "{:}", key)?;
+  if pk_path.exists() {
+    std::fs::remove_file(&pk_path)?;
+  }
+
+  let mut sk_writer = super::bundle::common::create_file(&sk_path)?;
+  write!(sk_writer, "{:}", key)?;
+  sk_writer.flush()?;
+
+  let mut pk_writer = super::bundle::common::create_file(&pk_path)?;
+  write!(pk_writer, "{:}", pubkey)?;
   pk_writer.flush()?;
-  Ok(fs::canonicalize(&sk_path)?)
+
+  Ok((fs::canonicalize(&sk_path)?, fs::canonicalize(&pk_path)?))
 }
 
 /// Read key from file

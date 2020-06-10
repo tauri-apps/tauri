@@ -237,28 +237,29 @@ fn run() -> crate::Result<()> {
           force = true
         }
 
-        let full_path = save_keypair(
+        let (secret_path, public_path) = save_keypair(
           force,
           Path::new(&m.value_of("write-private-key").unwrap()),
           &keypair.sk,
+          &keypair.pk,
         )?;
         println!(
-        "\n\nYour secret key was generated successfully - Keep it secret!\n{}\n\n---------------------------\n",
-        full_path.display()
+        "\nYour keypair was generated successfully\nPrivate: {} (Keep it secret!)\nPublic: {}\n---------------------------",
+        secret_path.display(),
+        public_path.display()
         )
       } else {
         println!(
-          "\n\nYour secret key was generated successfully - Keep it secret!\n{}\n\n",
+          "\nYour secret key was generated successfully - Keep it secret!\n{}\n\n",
           keypair.sk
+        );
+        println!(
+          "Your public key was generated successfully:\n{}\n\nAdd this in your tauri.conf.json",
+          keypair.pk
         );
       }
 
       println!("\nATTENTION: If you lose your private key OR password, you'll not be able to sign your update package and updates will not works.\n---------------------------\n");
-
-      println!(
-        "Your public key was generated successfully:\n{}\n\nAdd this in your tauri.conf.json",
-        keypair.pk
-      );
     } else if m.is_present("sign") {
       // get the priv key password
       let mut secret_key_password: Option<String>;

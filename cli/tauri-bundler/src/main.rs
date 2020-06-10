@@ -254,12 +254,12 @@ fn run() -> crate::Result<()> {
           keypair.sk
         );
         println!(
-          "Your public key was generated successfully:\n{}\n\nAdd this in your tauri.conf.json",
+          "Your public key was generated successfully:\n{}\n\nAdd the public key in your tauri.conf.json\n---------------------------\n",
           keypair.pk
         );
       }
 
-      println!("\nATTENTION: If you lose your private key OR password, you'll not be able to sign your update package and updates will not works.\n---------------------------\n");
+      println!("\nEnvironment variabled used to sign:\n`TAURI_PRIVATE_KEY`  Path or String of your private key\n`TAURI_KEY_PASSWORD`  Your private key password (optional)\n\nATTENTION: If you lose your private key OR password, you'll not be able to sign your update package and updates will not works.\n---------------------------\n");
     } else if m.is_present("sign") {
       // get the priv key password
       let mut secret_key_password: Option<String>;

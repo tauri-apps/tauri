@@ -28,6 +28,7 @@ pub struct OsxConfig {
 pub struct UpdaterConfig {
   pub active: Option<bool>,
   pub endpoints: Option<Vec<String>>,
+  pub pubkey: Option<String>,
 }
 
 #[derive(PartialEq, Deserialize, Clone, Debug, Default)]

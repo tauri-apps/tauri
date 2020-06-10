@@ -619,6 +619,14 @@ impl Settings {
       None => false,
     }
   }
+
+  /// Is pubkey provided?
+  pub fn is_updater_pubkey(&self) -> bool {
+    match &self.bundle_settings.updater {
+      Some(val) => !val.pubkey.is_none(),
+      None => false,
+    }
+  }
 }
 
 fn bundle_settings_from_table(

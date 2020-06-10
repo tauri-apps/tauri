@@ -4,14 +4,72 @@ use super::common;
 use super::osx_bundle;
 use crate::Settings;
 
+use crate::sign::{read_key_from_file, sign_file};
 use anyhow::Context;
+use std::env;
 use std::fs::{self};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 // Build update
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   if cfg!(unix) || cfg!(windows) || cfg!(macos) {
-    bundle_update(settings)
+    // Create our archive bundle
+    let bundle_result = bundle_update(settings)?;
+    // Clone it we need it later to push into
+    let mut bundle_result_return = bundle_result.clone();
+
+    // Sign updater archive
+    if settings.is_updater_pubkey() {
+      let secret_key_password: Option<String>;
+      let private_key: Option<String>;
+
+      // Private key password
+      match env::var_os("TAURI_KEY_PASSWORD") {
+        Some(value) => {
+          secret_key_password = Some(String::from(value.to_str().unwrap()));
+        }
+        None => secret_key_password = Some("".to_string()),
+      }
+
+      // make sure we have a private key available
+      // Private key can be a path or a String
+      match env::var_os("TAURI_PRIVATE_KEY") {
+        Some(value) => {
+          // check if this file exist..
+          let pk_string = String::from(value.to_str().unwrap());
+          let pk_dir = Path::new(&pk_string);
+
+          if pk_dir.exists() {
+            // read file content
+            let pk_dir_content = read_key_from_file(pk_dir)?;
+            private_key = Some(pk_dir_content);
+          } else {
+            private_key = Some(pk_string);
+          }
+        }
+        None => private_key = None,
+      }
+
+      // Loop only if we have a private key
+      if private_key.is_some() {
+        for path_to_sign in &bundle_result {
+          let (signature, _) = sign_file(
+            private_key.clone().unwrap(),
+            secret_key_password.clone().unwrap(),
+            path_to_sign,
+            false,
+          )?;
+
+          let mut added_buffer = PathBuf::new();
+          added_buffer.push(signature);
+          bundle_result_return.push(added_buffer);
+        }
+      } else {
+        // Print output so they are aware of...
+        common::print_warning("A public key has been found, but no private key. Make sure to set `TAURI_PRIVATE_KEY` environment variable.")?;
+      }
+    }
+    Ok(bundle_result_return)
   } else {
     common::print_info("Current platform do not support updates")?;
     Ok(vec![])

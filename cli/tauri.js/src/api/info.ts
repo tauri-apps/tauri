@@ -8,6 +8,7 @@ import { appDir, tauriDir } from '../helpers/app-paths'
 import { TauriConfig } from './../types/config'
 import { CargoToml } from './../types/cargo'
 import nonWebpackRequire from '../helpers/non-webpack-require'
+import { version } from '../../package.json'
 
 interface DirInfo {
   path: string
@@ -160,7 +161,7 @@ module.exports = () => {
   printInfo({ key: '  Node.js', value: chalk.green(process.version.slice(1)) })
   printInfo({
     key: '  tauri.js',
-    value: chalk.green((require('../../package.json') as { version: string }).version)
+    value: chalk.green(version)
   })
   printInfo({ key: 'Rust environment', section: true })
   printInfo({

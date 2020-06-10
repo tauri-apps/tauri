@@ -1,7 +1,7 @@
 mod appimage_bundle;
 mod archive_utils;
 mod category;
-mod common;
+pub mod common;
 mod deb_bundle;
 mod dmg_bundle;
 mod ios_bundle;

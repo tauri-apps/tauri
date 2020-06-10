@@ -1,8 +1,8 @@
 use thiserror::Error as DeriveError;
 
 use {
-  glob, handlebars, image, serde_json, std::io, std::num, std::path, target_build_utils, term,
-  toml, walkdir,
+  base64, glob, handlebars, image, minisign, serde_json, std::io, std::num, std::path,
+  target_build_utils, term, toml, walkdir,
 };
 
 #[cfg(windows)]
@@ -71,6 +71,12 @@ pub enum Error {
   ShellScriptError(String),
   #[error("`{0}`")]
   GenericError(String),
+  #[error("Decode Error: `{0}`")]
+  DecodeError(#[from] base64::DecodeError),
+  #[error("Utf8Error: `{0}`")]
+  Utf8Error(#[from] std::str::Utf8Error),
+  #[error("Signing error: `{0}`")]
+  MiniSign(#[from] minisign::PError),
 }
 
 pub type Result<T> = anyhow::Result<T, Error>;

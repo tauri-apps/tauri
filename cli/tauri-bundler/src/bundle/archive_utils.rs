@@ -1,16 +1,22 @@
 use super::common;
-
 use libflate::gzip;
-use tar;
-
-use std::fs::{self, File};
+use std::fs::{self};
+use std::io::Write;
 use std::path::{Path, PathBuf};
+use tar;
+use walkdir::WalkDir;
 
-use std::io::{Seek, Write};
-use std::iter::Iterator;
-use walkdir::{DirEntry, WalkDir};
-
+#[cfg(target_os = "windows")]
+use std::fs::File;
+#[cfg(target_os = "windows")]
 use std::io::prelude::*;
+#[cfg(target_os = "windows")]
+use std::io::Seek;
+#[cfg(target_os = "windows")]
+use std::iter::Iterator;
+#[cfg(target_os = "windows")]
+use walkdir::DirEntry;
+#[cfg(target_os = "windows")]
 use zip::write::FileOptions;
 
 /// Creates a `.tar.gz` file from the given directory (placing the new file
@@ -61,6 +67,7 @@ fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
   Ok(dest_file)
 }
 
+#[cfg(target_os = "windows")]
 pub fn zip_dir(src_dir: &PathBuf, dst_file: &PathBuf) -> crate::Result<PathBuf> {
   let parent_dir = dst_file.parent().expect("No data in parent");
   fs::create_dir_all(parent_dir)?;
@@ -74,6 +81,7 @@ pub fn zip_dir(src_dir: &PathBuf, dst_file: &PathBuf) -> crate::Result<PathBuf> 
   Ok(dst_file.to_owned())
 }
 
+#[cfg(target_os = "windows")]
 fn zip_it<T>(
   it: &mut dyn Iterator<Item = DirEntry>,
   prefix: &PathBuf,

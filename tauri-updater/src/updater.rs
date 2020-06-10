@@ -1,12 +1,15 @@
+use base64::decode;
+use minisign_verify::{PublicKey, Signature};
 use reqwest::{self, header};
 use std::cmp::min;
 use std::env;
-use std::fs;
-use std::io;
-use tauri_api::{file::Extract, file::Move};
-
+use std::fs::{File, OpenOptions};
+use std::io::BufReader;
+use std::io::{self, Read};
 use std::path::PathBuf;
+use std::str::from_utf8;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tauri_api::{file::Extract, file::Move};
 
 use crate::{
   errors::*, CheckStatus, DownloadStatus, DownloadedArchive, InstallStatus, ProgressStatus, Release,
@@ -74,7 +77,7 @@ pub trait ReleaseUpdate {
       .tempdir_in(tmp_dir_parent)?;
 
     let tmp_archive_path = tmp_dir.path().join(detect_archive_in_url(&url, &target));
-    let tmp_archive = fs::File::create(&tmp_archive_path)?;
+    let tmp_archive = File::create(&tmp_archive_path)?;
 
     // prepare our download
     use io::BufRead;
@@ -141,13 +144,59 @@ pub trait ReleaseUpdate {
     }))
   }
 
-  fn install(&self, archive: DownloadedArchive) -> Result<InstallStatus> {
+  fn install(&self, archive: DownloadedArchive, pub_key: Option<&str>) -> Result<InstallStatus> {
+    // if we have a pub_key we should validate the file inside
+    if pub_key.is_some() {
+      // get release extracted in check()
+      let release = self.release_details();
+
+      if release.signature.is_none() {
+        bail!(
+          Error::Update,
+          "Signature not available but pubkey provided, skipping update"
+        )
+      }
+
+      // we need to convert the pub key
+      let pubkey_unwrap = &pub_key.expect("Something is wrong with the pubkey");
+      let pub_key_decoded = &base64_to_string(&pubkey_unwrap);
+      let public_key = PublicKey::decode(pub_key_decoded).expect("Unable to decode the public key");
+
+      // make sure signature is ready
+      let release_signature = &release
+        .signature
+        .expect("Something is wrong with the signature");
+
+      let signature_decoded = base64_to_string(&release_signature);
+
+      let signature =
+        Signature::decode(&signature_decoded).expect("Unable to decode the signature");
+
+      // We need to open the file and extract the datas to make sure its not corrupted
+      let file_open = OpenOptions::new().read(true).open(&archive.archive_path)?;
+      let mut file_buff: BufReader<File> = BufReader::new(file_open);
+
+      // read all bytes since EOF in the buffer
+      let mut data = vec![];
+      file_buff.read_to_end(&mut data)?;
+
+      let valid_signature = public_key.verify(&data, &signature);
+
+      // If we got an error, we bail out
+      match valid_signature {
+        Ok(_) => (),
+        Err(err) => bail!(Error::Update, "Invalid signature: {:?}", err),
+      }
+    }
+
     // send event that we start the extracting
     self.send_progress(ProgressStatus::Extract);
 
     // extract using tauri api  inside a tmp path
     let extract_process =
       Extract::from_source(&archive.archive_path).extract_into(&archive.tmp_dir.path());
+
+    // Make sure extraction went well
     match extract_process {
       Ok(_) => (),
       Err(err) => bail!(Error::Update, "Extract failed with status: {:?}", err),
@@ -189,4 +238,11 @@ fn archive_name_by_os(target: &str) -> String {
     _ => "update.zip",
   };
   archive_name.to_string()
+}
+
+// Convert base64 to string and prevent failing
+fn base64_to_string(base64_string: &str) -> String {
+  let pub_key_decoded = &decode(base64_string.to_owned()).expect("Unable to decode string")[..];
+  let result = &from_utf8(&pub_key_decoded).expect("Unable to convert to UTF8");
+  result.to_string()
 }

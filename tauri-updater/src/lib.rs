@@ -14,6 +14,7 @@ pub struct Release {
   pub date: String,
   pub download_url: String,
   pub body: Option<String>,
+  pub signature: Option<String>,
   pub should_update: bool,
 }
 

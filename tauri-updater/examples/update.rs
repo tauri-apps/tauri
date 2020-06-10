@@ -18,12 +18,13 @@ fn update() -> Result<(), Box<dyn ::std::error::Error>> {
   // setup updater
   let updater = Update::configure()
     // URL of the update server {{target}} and {{current_version}} and replaced automatically
-    .urls(&["http://badurl.www.tld/1", "https://gist.githubusercontent.com/lemarier/106011e4a5610ef5671af15ce2f78862/raw/d4dd4fa30b9112836e0a201fd3a867446e7bac98/test.json"])
+    //.urls(&["http://badurl.www.tld/1", "https://gist.githubusercontent.com/lemarier/106011e4a5610ef5671af15ce2f78862/raw/d4dd4fa30b9112836e0a201fd3a867446e7bac98/test.json"])
     //.url("http://badurl.www.tld/1")
     //.url("https://gist.githubusercontent.com/lemarier/106011e4a5610ef5671af15ce2f78862/raw/d4dd4fa30b9112836e0a201fd3a867446e7bac98/test.json")
-    .url("https://gist.githubusercontent.com/lemarier/8e4703d077ebd6470810927ed2205470/raw/329b7ad9f32d439083af40e7f2090ca072d7a1cf/gistfile1.txt?target={{target}}&version={{current_version}}")
+    //.url("https://gist.githubusercontent.com/lemarier/8e4703d077ebd6470810927ed2205470/raw/329b7ad9f32d439083af40e7f2090ca072d7a1cf/gistfile1.txt?target={{target}}&version={{current_version}}")
     // current app version (can be extracted from cargo.toml easilly)
     //.current_version(env!("CARGO_PKG_VERSION"))
+    .url("https://gist.githubusercontent.com/lemarier/72a2a488f1c87601d11ec44d6a7aff05/raw/f86018772318629b3f15dbb3d15679e7651e36f6/with_sign.json")
     .current_version("0.0.1")
     // if not provided we use `env::current_exe()`
     .executable_path("/Applications/TestApp.app/Contents/MacOS/guijs")
@@ -43,7 +44,7 @@ fn update() -> Result<(), Box<dyn ::std::error::Error>> {
         DownloadStatus::Downloaded(extracted_archive) => {
           // POPUP `Ready to install` with Install and relaunch button
           // launch installation
-          match updater.install(extracted_archive)? {
+          match updater.install(extracted_archive, Some("dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY1OTgxQzc0MjVGNjM0Q0IKUldUTE5QWWxkQnlZOWFBK21kekU4OGgzdStleEtkeStHaFR5NjEyRHovRnlUdzAwWGJxWEU2aGYK"))? {
             InstallStatus::Installed => println!("Installation sucess! Restart now"),
             // if something went wrong inside the installation
             InstallStatus::Failed => {

@@ -35,8 +35,14 @@ impl Release {
 
     let body = release["notes"].as_str().map(String::from);
 
+    let signature = match &release["signature"].is_null() {
+      false => Some(release["signature"].as_str().unwrap().to_string()),
+      true => None,
+    };
+
     // Return our formatted release
     Ok(Release {
+      signature,
       version: name.trim_start_matches('v').to_owned(),
       date,
       download_url: url.to_owned(),

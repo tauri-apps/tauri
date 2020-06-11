@@ -152,7 +152,7 @@ pub trait ReleaseUpdate {
     pub_key: Option<&str>,
   ) -> crate::Result<InstallStatus> {
     // if we have a pub_key we should validate the file inside
-    if pub_key.is_some() {
+    if let Some(pub_key) = pub_key {
       // get release extracted in check()
       let release = self.release_details();
 
@@ -166,7 +166,7 @@ pub trait ReleaseUpdate {
       verify_signature(
         &archive.archive_path,
         release.signature.unwrap(),
-        pub_key.unwrap(),
+        pub_key,
       )?;
     }
 

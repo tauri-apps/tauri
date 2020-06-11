@@ -74,10 +74,8 @@ pub fn on_event(event: String, data: Option<String>) {
     .lock()
     .expect("Failed to lock listeners: on_event()");
 
-  let key = event.clone();
-
-  if l.contains_key(&key) {
-    let handler = l.get_mut(&key).expect("Failed to get mutable handler");
+  if l.contains_key(&event) {
+    let handler = l.get_mut(&event).expect("Failed to get mutable handler");
     (handler.on_event)(data);
   }
 }

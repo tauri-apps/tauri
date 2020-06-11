@@ -1,4 +1,7 @@
-use crate::{get_target, updater::ReleaseUpdate, CheckStatus, ProgressStatus, Release};
+use crate::{
+  get_target, updater::extract_path_from_executable, updater::ReleaseUpdate, CheckStatus,
+  ProgressStatus, Release,
+};
 use reqwest::{self};
 use std::collections::HashMap;
 use std::env;
@@ -158,31 +161,13 @@ impl UpdateBuilder {
     };
 
     // Get the extract_path from the provided executable_path
-
-    // Linux & Windows should need to be extracted in the same directory as the executable
-    // C:\Program Files\MyApp\MyApp.exe
-    // We need C:\Program Files\MyApp
-    let mut extract_path = executable_path.parent().map(PathBuf::from).unwrap();
-
-    // MacOS example binary is in /Applications/TestApp.app/Contents/MacOS/myApp
-    // We need to get /Applications/TestApp.app
-    // todo(lemarier): Need a better way here
-    // Maybe we could search for <*.app> to get the right path
-    if target == "darwin" {
-      extract_path = extract_path
-        .parent()
-        .map(PathBuf::from)
-        .unwrap()
-        .parent()
-        .map(PathBuf::from)
-        .unwrap();
-    };
+    let extract_path = extract_path_from_executable(&executable_path, &target);
 
     // make sure SSL is correctly set for linux
     set_ssl_vars!();
 
+    // Allow fallback if more than 1 urls is provided
     let mut last_error: Option<crate::Error> = None;
-
     for url in &self.urls {
       // replace {{current_version}} and {{target}} in the provided URL
       // this is usefull if we need to query example

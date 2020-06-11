@@ -1,4 +1,4 @@
-use ignore::Walk;
+use ignore::WalkBuilder;
 use std::fs;
 use std::path;
 
@@ -68,7 +68,8 @@ impl<'a> Move<'a> {
         if dest.exists() {
           // we got temp and our dest exist, lets make a backup
           // of current files
-          fs::rename(dest, temp)?;
+          walkdir_and_copy(dest, temp)?;
+
           if let Err(e) = walkdir_and_copy(self.source, dest) {
             // if we got something wrong we reset the dest with our backup
             fs::rename(temp, dest)?;
@@ -87,8 +88,11 @@ impl<'a> Move<'a> {
 // Overwriting existing items but keeping untouched the files in the dest
 // not provided in the source.
 fn walkdir_and_copy(source: &path::Path, dest: &path::Path) -> crate::Result<()> {
-  for entry in Walk::new(source) {
+  let walkdir = WalkBuilder::new(source).hidden(false).build();
+
+  for entry in walkdir {
     // Check if it's a file
+
     let element = entry?;
     let metadata = element.metadata()?;
     let destination = dest.join(element.path().strip_prefix(&source)?);

@@ -3,6 +3,7 @@ use minisign_verify::{PublicKey, Signature};
 use reqwest::{self, header};
 use std::cmp::min;
 use std::env;
+use std::fmt;
 use std::fs::{remove_file, File, OpenOptions};
 use std::io::{self, BufReader, Read};
 use std::path::PathBuf;
@@ -197,6 +198,41 @@ pub trait ReleaseUpdate {
   }
 }
 
+impl fmt::Debug for dyn ReleaseUpdate {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "unable to parse Release Update")
+  }
+}
+
+pub fn extract_path_from_executable(executable_path: &PathBuf, target: &str) -> PathBuf {
+  // Get the extract_path from the provided executable_path
+
+  // Linux & Windows should need to be extracted in the same directory as the executable
+  // C:\Program Files\MyApp\MyApp.exe
+  // We need C:\Program Files\MyApp
+
+  println!("executable_path: {:?}", executable_path);
+
+  let mut extract_path = executable_path.parent().map(PathBuf::from).unwrap();
+  let extract_path_as_string = extract_path.display().to_string();
+
+  // MacOS example binary is in /Applications/TestApp.app/Contents/MacOS/myApp
+  // We need to get /Applications/TestApp.app
+  // todo(lemarier): Need a better way here
+  // Maybe we could search for <*.app> to get the right path
+  if target == "darwin" && extract_path_as_string.contains(".app") {
+    extract_path = extract_path
+      .parent()
+      .map(PathBuf::from)
+      .unwrap()
+      .parent()
+      .map(PathBuf::from)
+      .unwrap();
+  };
+
+  extract_path
+}
+
 // Return the archive type to save on disk
 fn detect_archive_in_url(path: &str, target: &str) -> String {
   path
@@ -269,15 +305,20 @@ fn verify_signature(
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::get_target;
   use std::fs::read_to_string;
   use totems::{assert_err, assert_ok};
 
   #[test]
   fn verify_good_signature() {
-    let path: PathBuf = [r"test", "fixture", "good_signature"].iter().collect();
-    let archive_path = path.join("update-macos.tar.gz");
-    let signature_file = path.join("update-macos.tar.gz.sig");
-    let pubkey = path.join("update.key.pub");
+    let path: PathBuf = [r"test", "fixture"].iter().collect();
+
+    // select archove and signature file
+    let archive_path = path.join("archives").join("archive.tar.gz");
+    let signature_file = path.join("archives").join("archive.tar.gz.sig");
+
+    // go into our test path
+    let pubkey = path.join("good_signature").join("update.key.pub");
     let signature_content = read_to_string(signature_file);
     let pubkey_content = read_to_string(pubkey);
     let pubkey = pubkey_content.unwrap();
@@ -288,10 +329,14 @@ mod test {
 
   #[test]
   fn verify_bad_signature() {
-    let path: PathBuf = [r"test", "fixture", "bad_signature"].iter().collect();
-    let archive_path = path.join("update-macos.tar.gz");
-    let signature_file = path.join("update-macos.tar.gz.sig");
-    let pubkey = path.join("update.key.pub");
+    let path: PathBuf = [r"test", "fixture"].iter().collect();
+
+    // select archove and signature file
+    let archive_path = path.join("archives").join("archive.tar.gz");
+    let signature_file = path.join("archives").join("archive.tar.gz.badsig");
+
+    // go into our test path
+    let pubkey = path.join("bad_signature").join("update.key.pub");
     let signature_content = read_to_string(signature_file);
     let pubkey_content = read_to_string(pubkey);
     let pubkey = pubkey_content.unwrap();
@@ -305,5 +350,42 @@ mod test {
     let url = "https://google.com/test/134/asf4/84235h2h323/archive.tar.gz";
     let archive_found = detect_archive_in_url(&url, "darwin");
     assert_eq!(archive_found, "archive.tar.gz");
+  }
+
+  #[test]
+  fn valid_extract_path_from_executable() {
+    // possible target: win32, win64, darwin, linux
+    let target = get_target().to_owned();
+
+    if target == "darwin" {
+      let found_extract_path = extract_path_from_executable(
+        &PathBuf::from(r"/Applications/TestApp.app/Content/MacOS/myapp"),
+        &target,
+      )
+      .display()
+      .to_string();
+
+      assert_eq!(found_extract_path, "/Applications/TestApp.app");
+    }
+
+    if target == "linux" {
+      let found_extract_path =
+        extract_path_from_executable(&PathBuf::from(r"/usr/local/bin/myapp"), &target)
+          .display()
+          .to_string();
+
+      assert_eq!(found_extract_path, "/usr/local/bin");
+    }
+
+    if target == "win32" || target == "win64" {
+      let found_extract_path = extract_path_from_executable(
+        &PathBuf::from(r"C:\Program Files (x86)\MyApp\myapp.exe"),
+        &target,
+      )
+      .display()
+      .to_string();
+
+      assert_eq!(found_extract_path, r"C:\Program Files (x86)\MyApp");
+    }
   }
 }

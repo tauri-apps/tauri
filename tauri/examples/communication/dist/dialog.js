@@ -9,7 +9,25 @@ document.getElementById('open-dialog').addEventListener('click', function () {
     filter: filterInput.value || null,
     multiple: multipleInput.checked,
     directory: directoryInput.checked
-  }).then(registerResponse).catch(registerResponse)
+  }).then(function (res) {
+    console.log(res)
+    var pathToRead = res
+    var isFile = pathToRead.match(/\S+\.\S+$/g)
+    window.tauri.readBinaryFile(pathToRead).then(function (response) {
+      if (isFile) {
+        if (pathToRead.includes('.png') || pathToRead.includes('.jpg')) {
+          arrayBufferToBase64(new Uint8Array(response), function (base64) {
+            var src = 'data:image/png;base64,' + base64
+            registerResponse('<img src="' + src + '"></img>')
+          })
+        } else {
+          registerResponse(res)
+        }
+      } else {
+        registerResponse(res)
+      }
+    }).catch(registerResponse(res))
+  }).catch(registerResponse)
 })
 
 document.getElementById('save-dialog').addEventListener('click', function () {

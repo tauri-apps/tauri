@@ -85,7 +85,7 @@ jobs:
         run: |
           echo "# Cargo Publish" | tee -a ${{runner.workspace }}/notes.md
           echo "\`\`\`" >> ${{runner.workspace }}/notes.md
-          cargo publish --no-verify 2>&1 | tee -a ${{runner.workspace }}/notes.md
+          set -o pipefail && cargo publish --no-verify 2>&1 | tee -a ${{runner.workspace }}/notes.md
           echo "\`\`\`" >> ${{runner.workspace }}/notes.md
       - name: Create Release
         id: create_crate_release

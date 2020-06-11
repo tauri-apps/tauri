@@ -467,7 +467,7 @@ class Runner {
   __rewriteManifest(cargoManifest: JsonMap): void {
     const tomlPath = this.__getManifestPath()
     const output = toml.stringify(cargoManifest)
-    
+
     this.rewritingToml = true
     writeFileSync(tomlPath, output)
     setTimeout(() => {

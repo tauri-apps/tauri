@@ -12,8 +12,8 @@ exclude = ["test/fixture/**"]
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-webview-sys = "=0.5.0"
-web-view = "=0.6.2"
+webview-sys = { git = "https://github.com/tauri-apps/web-view" }
+web-view = { git = "https://github.com/tauri-apps/web-view" }
 tauri_includedir = "0.5.0"
 phf = "0.8.0"
 base64 = "0.12.1"

@@ -100,7 +100,7 @@ fn setup_content(_: Config) -> crate::Result<Content<String>> {
       .into_string()
       .expect("Unable to convert to normal String"),
   };
-  let index_path = Path::new(dist_dir).join("index.tauri.html");
+  let index_path = Path::new(&dist_dir).join("index.tauri.html");
 
   Ok(Content::Html(read_to_string(index_path)?))
 }

@@ -3,7 +3,7 @@ use minisign_verify::{PublicKey, Signature};
 use reqwest::{self, header};
 use std::cmp::min;
 use std::env;
-use std::fs::{File, OpenOptions};
+use std::fs::{remove_file, File, OpenOptions};
 use std::io::BufReader;
 use std::io::{self, Read};
 use std::path::PathBuf;
@@ -160,7 +160,12 @@ pub trait ReleaseUpdate {
       // we need to convert the pub key
       let pubkey_unwrap = &pub_key.expect("Something is wrong with the pubkey");
       let pub_key_decoded = &base64_to_string(&pubkey_unwrap);
-      let public_key = PublicKey::decode(pub_key_decoded).expect("Unable to decode the public key");
+      let public_key = PublicKey::decode(pub_key_decoded);
+      if public_key.is_err() {
+        bail!(Error::Update, "Something went wrong with pubkey decode")
+      }
+
+      let public_key_ready = public_key.unwrap();
 
       // make sure signature is ready
       let release_signature = &release
@@ -168,9 +173,12 @@ pub trait ReleaseUpdate {
         .expect("Something is wrong with the signature");
 
       let signature_decoded = base64_to_string(&release_signature);
+      let signature = Signature::decode(&signature_decoded);
+      if signature.is_err() {
+        bail!(Error::Update, "Something went wrong with signature decode")
+      }
 
-      let signature =
-        Signature::decode(&signature_decoded).expect("Unable to decode the signature");
+      let signature_ready = signature.unwrap();
 
       // We need to open the file and extract the datas to make sure its not corrupted
       let file_open = OpenOptions::new().read(true).open(&archive.archive_path)?;
@@ -180,7 +188,7 @@ pub trait ReleaseUpdate {
       let mut data = vec![];
       file_buff.read_to_end(&mut data)?;
 
-      let valid_signature = public_key.verify(&data, &signature);
+      let valid_signature = public_key_ready.verify(&data, &signature_ready);
 
       // If we got an error, we bail out
       match valid_signature {
@@ -198,7 +206,10 @@ pub trait ReleaseUpdate {
 
     // Make sure extraction went well
     match extract_process {
-      Ok(_) => (),
+      Ok(_) => {
+        // we can delete our archive file (not needed anymore)
+        remove_file(&archive.archive_path)?;
+      }
       Err(err) => bail!(Error::Update, "Extract failed with status: {:?}", err),
     };
 
@@ -209,9 +220,12 @@ pub trait ReleaseUpdate {
 
     // move into the final position
     self.send_progress(ProgressStatus::CopyFiles);
+
+    // walk the temp dir and copy all files by replacing existing files only
+    // and creating directories if needed
     let move_process = Move::from_source(&archive.tmp_dir.path())
       .replace_using_temp(&tmp_file)
-      .to_dest(&self.extract_path());
+      .walk_to_dest(&self.extract_path());
 
     match move_process {
       Ok(_) => Ok(InstallStatus::Installed),
@@ -242,7 +256,18 @@ fn archive_name_by_os(target: &str) -> String {
 
 // Convert base64 to string and prevent failing
 fn base64_to_string(base64_string: &str) -> String {
-  let pub_key_decoded = &decode(base64_string.to_owned()).expect("Unable to decode string")[..];
-  let result = &from_utf8(&pub_key_decoded).expect("Unable to convert to UTF8");
-  result.to_string()
+  //let pub_key_decoded = &decode(base64_string.to_owned()).expect("Unable to decode string")[..];
+  let _string = &decode(base64_string.to_owned());
+
+  if _string.is_err() {
+    return "".to_string();
+  }
+
+  let final_string = _string.as_ref().unwrap();
+  let result = &from_utf8(&final_string);
+  if result.is_err() {
+    return "".to_string();
+  }
+
+  result.unwrap().to_string()
 }

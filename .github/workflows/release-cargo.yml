@@ -113,7 +113,7 @@ jobs:
       - name: Tangle Release
         id: tangle_release
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
-        uses: iotaledger/gh-tangle-release@v0.6.0
+        uses: iotaledger/gh-tangle-release@v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IOTA_SEED: ${{ secrets.IOTA_SEED }}

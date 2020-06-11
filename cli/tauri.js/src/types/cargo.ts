@@ -4,8 +4,9 @@ export interface CargoManifest {
 }
 
 export interface CargoManifestDependency {
-  version: string
-  path: string
+  version?: string
+  path?: string
+  features?: string[]
 }
 
 export interface CargoLock {

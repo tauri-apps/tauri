@@ -66,13 +66,14 @@ class Runner {
         }
       })
 
-      ls.stderr && ls.stderr.pipe(process.stderr)
-      ls.stdout && ls.stdout.pipe(process.stdout)
+      ls.stderr?.pipe(process.stderr)
+       ls.stdout?.pipe(process.stdout)
     }
 
-    const tomlContents = this.__getManifest() as any as CargoManifest
-    this.__whitelistApi(cfg, tomlContents)
-    this.__rewriteManifest(tomlContents as any as JsonMap)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const cargoManifest = this.__getManifest() as any as CargoManifest
+    this.__whitelistApi(cfg, cargoManifest)
+    this.__rewriteManifest(cargoManifest as unknown as toml.JsonMap)
 
     entry.generate(tauriDir, cfg)
 
@@ -159,8 +160,8 @@ class Runner {
     // eslint-disable-next-line security/detect-non-literal-fs-filename
 
     let tauriPaths: string[] = []
-    if (typeof tomlContents.dependencies.tauri !== 'string' && tomlContents.dependencies.tauri.path) {
-      const tauriPath = path.resolve(tauriDir, tomlContents.dependencies.tauri.path)
+    if (typeof cargoManifest.dependencies.tauri !== 'string' && cargoManifest.dependencies.tauri.path) {
+      const tauriPath = path.resolve(tauriDir, cargoManifest.dependencies.tauri.path)
       tauriPaths = [
         tauriPath,
         `${tauriPath}-api`,
@@ -222,9 +223,9 @@ class Runner {
       spawnSync(command, args, appDir)
     }
 
-    const tomlContents = this.__getManifest()
-    this.__whitelistApi(cfg, tomlContents)
-    this.__rewriteManifest(tomlContents)
+    const cargoManifest = this.__getManifest()
+    this.__whitelistApi(cfg, cargoManifest as unknown as CargoManifest)
+    this.__rewriteManifest(cargoManifest)
 
     entry.generate(tauriDir, cfg)
 
@@ -286,6 +287,7 @@ class Runner {
 
         // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
         if (!((cfg.ctx.dev && cfg.build.devPath.startsWith('http')) || cfg.tauri.embeddedServer.active)) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
           const mutationObserverTemplate = require('../templates/mutation-observer').default
           const compiledMutationObserver = template(mutationObserverTemplate)
 
@@ -340,7 +342,8 @@ class Runner {
       } else {
         const cwd = process.cwd()
         process.chdir(indexDir) // the inliner requires this to properly work
-        new Inliner({ source: originalHtml }, (err: Error, html: string) => {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+        const inliner = new Inliner({ source: originalHtml }, (err: Error, html: string) => {
           process.chdir(cwd) // reset CWD
           if (err) {
             reject(err)
@@ -348,7 +351,9 @@ class Runner {
             const rewrittenHtml = rewriteHtml(html, domInterceptor)
             resolve({ inlinedAssets, html: rewrittenHtml })
           }
-        }).on('progress', (event: string) => {
+        })
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        inliner.on('progress', (event: string) => {
           const match = event.match(/([\S\d]+)\.([\S\d]+)/g)
           match && inlinedAssets.push(match[0])
         })
@@ -358,8 +363,8 @@ class Runner {
 
   async stop(): Promise<void> {
     return await new Promise((resolve, reject) => {
-      this.devServer && this.devServer.close()
-      this.tauriWatcher && this.tauriWatcher.close()
+      this.devServer?.close()
+      this.tauriWatcher?.close().catch(reject)
       this.__stopCargo()
         .then(resolve)
         .catch(reject)
@@ -455,13 +460,13 @@ class Runner {
   __getManifest(): JsonMap {
     const tomlPath = this.__getManifestPath()
     const tomlFile = readFileSync(tomlPath).toString()
-    const tomlContents = toml.parse(tomlFile)
-    return tomlContents
+    const cargoManifest = toml.parse(tomlFile)
+    return cargoManifest
   }
 
-  __rewriteManifest(tomlContents: JsonMap): void {
+  __rewriteManifest(cargoManifest: JsonMap): void {
     const tomlPath = this.__getManifestPath()
-    const output = toml.stringify(tomlContents)
+    const output = toml.stringify(cargoManifest)
 
     this.rewritingToml = true
     writeFileSync(tomlPath, output)
@@ -472,7 +477,7 @@ class Runner {
 
   __whitelistApi(
     cfg: TauriConfig,
-    tomlContents: { [index: string]: any }
+    manifest: CargoManifest
   ): void {
     const tomlFeatures = []
 
@@ -494,7 +499,14 @@ class Runner {
       tomlFeatures.push('edge')
     }
 
-    tomlContents.dependencies.tauri.features = tomlFeatures
+    if (typeof manifest.dependencies.tauri === 'string') {
+      manifest.dependencies.tauri = {
+        version: manifest.dependencies.tauri,
+        features: tomlFeatures
+      }
+    } else {
+      manifest.dependencies.tauri.features = tomlFeatures
+    }
   }
 }
 

@@ -16,7 +16,7 @@ import onShutdown from './helpers/on-shutdown'
 import { spawn, spawnSync } from './helpers/spawn'
 import { exec } from 'child_process'
 import { TauriConfig } from './types/config'
-import { CargoToml } from './types/cargo'
+import { CargoManifest } from './types/cargo'
 import getTauriConfig from './helpers/tauri-config'
 import httpProxy from 'http-proxy'
 import chalk from 'chalk'
@@ -69,9 +69,10 @@ class Runner {
        ls.stdout?.pipe(process.stdout)
     }
 
-    const tomlContents = this.__getManifest() as any as CargoToml
-    this.__whitelistApi(cfg, tomlContents)
-    this.__rewriteManifest(tomlContents as any as JsonMap)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const cargoManifest = this.__getManifest() as any as CargoManifest
+    this.__whitelistApi(cfg, cargoManifest)
+    this.__rewriteManifest(cargoManifest as unknown as toml.JsonMap)
 
     entry.generate(tauriDir, cfg)
 
@@ -153,8 +154,8 @@ class Runner {
     // eslint-disable-next-line security/detect-non-literal-fs-filename
 
     let tauriPaths: string[] = []
-    if (typeof tomlContents.dependencies.tauri !== 'string' && tomlContents.dependencies.tauri.path) {
-      const tauriPath = path.resolve(tauriDir, tomlContents.dependencies.tauri.path)
+    if (typeof cargoManifest.dependencies.tauri !== 'string' && cargoManifest.dependencies.tauri.path) {
+      const tauriPath = path.resolve(tauriDir, cargoManifest.dependencies.tauri.path)
       tauriPaths = [
         tauriPath,
         `${tauriPath}-api`,
@@ -215,7 +216,7 @@ class Runner {
     }
 
     const tomlContents = this.__getManifest()
-    this.__whitelistApi(cfg, tomlContents as any as CargoToml)
+    this.__whitelistApi(cfg, tomlContents as unknown as CargoManifest)
     this.__rewriteManifest(tomlContents)
 
     entry.generate(tauriDir, cfg)
@@ -457,7 +458,7 @@ class Runner {
 
   __whitelistApi(
     cfg: TauriConfig,
-    tomlContents: CargoToml
+    tomlContents: CargoManifest
   ): void {
     const tomlFeatures = []
 

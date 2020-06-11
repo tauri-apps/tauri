@@ -4,6 +4,7 @@ export interface CargoToml {
 }
 
 export interface CargoTomlDependency {
-  version: string
-  path: string
+  version?: string
+  path?: string
+  features?: string[]
 }

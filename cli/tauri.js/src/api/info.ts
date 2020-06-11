@@ -126,7 +126,7 @@ function printAppInfo(tauriDir: string): void {
     printInfo({
       key: '  build-type',
       value:
-        config.tauri.bundle && config.tauri.bundle.active ? 'bundle' : 'build'
+        config.tauri.bundle?.active ? 'bundle' : 'build'
     })
     printInfo({
       key: '  CSP',
@@ -134,7 +134,7 @@ function printAppInfo(tauriDir: string): void {
     })
     printInfo({
       key: '  Windows',
-      value: config.tauri.edge && config.tauri.edge.active ? 'Edge' : 'MSHTML'
+      value: config.tauri.edge?.active ? 'Edge' : 'MSHTML'
     })
     printInfo({
       key: '  distDir',

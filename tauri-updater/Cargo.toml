@@ -16,10 +16,13 @@ reqwest = { version = "0.10", features = ["blocking", "json"] }
 serde = "1.0"
 tauri-api = { version = "0.5", path = "../tauri-api" }
 tauri-utils = { version = "0.5", path = "../tauri-utils" }
-log = "0.4.8"
 semver = "0.9"
 minisign-verify = "0.1.8"
 base64 = "0.12.1"
+
+# error handling
+anyhow = "1.0"
+thiserror = "1.0"
 
 [features]
 default = ["reqwest/default-tls"]

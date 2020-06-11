@@ -3,9 +3,10 @@ use std::path::PathBuf;
 
 #[macro_use]
 pub mod macros;
-pub mod errors;
+pub mod error;
 pub mod http;
 pub mod updater;
+pub use error::{Error, Result};
 
 /// Release information
 #[derive(Clone, Debug, Default)]

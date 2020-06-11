@@ -1,4 +1,4 @@
-use crate::{errors::*, get_target, updater::ReleaseUpdate, CheckStatus, ProgressStatus, Release};
+use crate::{get_target, updater::ReleaseUpdate, CheckStatus, ProgressStatus, Release};
 use reqwest::{self};
 use std::collections::HashMap;
 use std::env;
@@ -15,12 +15,12 @@ struct EventHandler {
 
 impl Release {
   // Read JSON and confirm this is a valid Schema
-  fn from_release(release: &serde_json::Value) -> Result<Release> {
+  fn from_release(release: &serde_json::Value) -> crate::Result<Release> {
     let name = match &release["version"].is_null() {
       false => release["version"].as_str().unwrap().to_string(),
       true => release["name"]
         .as_str()
-        .ok_or_else(|| format_err!(Error::Release, "Release missing `name` or `version`"))?
+        .ok_or_else(|| crate::Error::Release("Release missing `name` or `version`".into()))?
         .to_string(),
     };
 
@@ -31,7 +31,7 @@ impl Release {
 
     let url = release["url"]
       .as_str()
-      .ok_or_else(|| format_err!(Error::Release, "Release missing `url`"))?;
+      .ok_or_else(|| crate::Error::Release("Release missing `name` or `url`".into()))?;
 
     let body = release["notes"].as_str().map(String::from);
 
@@ -135,12 +135,12 @@ impl UpdateBuilder {
   }
 
   /// Check remotely for latest update
-  pub fn check(&self) -> Result<Box<dyn ReleaseUpdate>> {
+  pub fn check(&self) -> crate::Result<Box<dyn ReleaseUpdate>> {
     let mut remote_release: Option<Release> = None;
 
     // make sure we have at least one url
-    if self.urls.len() == 0 {
-      bail!(Error::Config, "`url` required")
+    if self.urls.is_empty() {
+      bail!(crate::Error::Config, "`url` required")
     };
 
     // If no executable path provided, we use current_exe from rust
@@ -181,7 +181,7 @@ impl UpdateBuilder {
     // make sure SSL is correctly set for linux
     set_ssl_vars!();
 
-    let mut last_error: Option<Error> = None;
+    let mut last_error: Option<crate::Error> = None;
 
     for url in &self.urls {
       // replace {{current_version}} and {{target}} in the provided URL
@@ -227,11 +227,15 @@ impl UpdateBuilder {
     }
 
     if last_error.is_some() {
-      bail!(Error::Network, "Api Error: {:?}", last_error.unwrap())
+      bail!(
+        crate::Error::Network,
+        "Api Error: {:?}",
+        last_error.unwrap()
+      )
     }
 
     if remote_release.is_none() {
-      bail!(Error::Network, "Unable to extract remote metadata")
+      bail!(crate::Error::Network, "Unable to extract remote metadata")
     }
 
     let mut final_release = remote_release.clone().unwrap();
@@ -257,7 +261,7 @@ impl UpdateBuilder {
       current_version: if let Some(ref ver) = self.current_version {
         ver.to_owned()
       } else {
-        bail!(Error::Config, "`current_version` required")
+        bail!(crate::Error::Config, "`current_version` required")
       },
       remote_release: final_release,
     }))

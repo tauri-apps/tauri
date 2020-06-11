@@ -4,15 +4,14 @@ use reqwest::{self, header};
 use std::cmp::min;
 use std::env;
 use std::fs::{remove_file, File, OpenOptions};
-use std::io::BufReader;
-use std::io::{self, Read};
+use std::io::{self, BufReader, Read};
 use std::path::PathBuf;
 use std::str::from_utf8;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri_api::{file::Extract, file::Move};
 
 use crate::{
-  errors::*, CheckStatus, DownloadStatus, DownloadedArchive, InstallStatus, ProgressStatus, Release,
+  CheckStatus, DownloadStatus, DownloadedArchive, InstallStatus, ProgressStatus, Release,
 };
 
 /// Updates to a specified or latest release
@@ -37,7 +36,7 @@ pub trait ReleaseUpdate {
 
   fn send_progress(&self, status: ProgressStatus);
 
-  fn download(&self) -> Result<DownloadStatus> {
+  fn download(&self) -> crate::Result<DownloadStatus> {
     // send event that we start the download process at 0%
     self.send_progress(ProgressStatus::Download(0));
 
@@ -55,7 +54,7 @@ pub trait ReleaseUpdate {
     } else {
       extract_path.parent().map(PathBuf::from)
     }
-    .ok_or_else(|| Error::Update("Failed to determine parent dir".into()))?;
+    .ok_or_else(|| crate::Error::Updater("Failed to determine parent dir".into()))?;
 
     // used for temp file name
     // if we cant extract app name, we use unix epoch duration
@@ -99,6 +98,7 @@ pub trait ReleaseUpdate {
       .get(&url)
       .headers(headers)
       .send()?;
+
     let size = resp
       .headers()
       .get(reqwest::header::CONTENT_LENGTH)
@@ -111,7 +111,7 @@ pub trait ReleaseUpdate {
       .unwrap_or(0);
     if !resp.status().is_success() {
       bail!(
-        Error::Update,
+        crate::Error::Updater,
         "Download request failed with status: {:?}",
         resp.status()
       )
@@ -144,7 +144,11 @@ pub trait ReleaseUpdate {
     }))
   }
 
-  fn install(&self, archive: DownloadedArchive, pub_key: Option<&str>) -> Result<InstallStatus> {
+  fn install(
+    &self,
+    archive: DownloadedArchive,
+    pub_key: Option<&str>,
+  ) -> crate::Result<InstallStatus> {
     // if we have a pub_key we should validate the file inside
     if pub_key.is_some() {
       // get release extracted in check()
@@ -152,17 +156,20 @@ pub trait ReleaseUpdate {
 
       if release.signature.is_none() {
         bail!(
-          Error::Update,
+          crate::Error::Updater,
           "Signature not available but pubkey provided, skipping update"
         )
       }
 
       // we need to convert the pub key
       let pubkey_unwrap = &pub_key.expect("Something is wrong with the pubkey");
-      let pub_key_decoded = &base64_to_string(&pubkey_unwrap);
+      let pub_key_decoded = &base64_to_string(&pubkey_unwrap)?;
       let public_key = PublicKey::decode(pub_key_decoded);
       if public_key.is_err() {
-        bail!(Error::Update, "Something went wrong with pubkey decode")
+        bail!(
+          crate::Error::Updater,
+          "Something went wrong with pubkey decode"
+        )
       }
 
       let public_key_ready = public_key.unwrap();
@@ -172,10 +179,13 @@ pub trait ReleaseUpdate {
         .signature
         .expect("Something is wrong with the signature");
 
-      let signature_decoded = base64_to_string(&release_signature);
+      let signature_decoded = base64_to_string(&release_signature)?;
       let signature = Signature::decode(&signature_decoded);
       if signature.is_err() {
-        bail!(Error::Update, "Something went wrong with signature decode")
+        bail!(
+          crate::Error::Updater,
+          "Something went wrong with signature decode"
+        )
       }
 
       let signature_ready = signature.unwrap();
@@ -188,49 +198,35 @@ pub trait ReleaseUpdate {
       let mut data = vec![];
       file_buff.read_to_end(&mut data)?;
 
-      let valid_signature = public_key_ready.verify(&data, &signature_ready);
-
-      // If we got an error, we bail out
-      match valid_signature {
-        Ok(_) => (),
-        Err(err) => bail!(Error::Update, "Invalid signature: {:?}", err),
-      }
+      // Validate signature or bail out
+      public_key_ready.verify(&data, &signature_ready)?;
     }
 
     // send event that we start the extracting
     self.send_progress(ProgressStatus::Extract);
 
     // extract using tauri api  inside a tmp path
-    let extract_process =
-      Extract::from_source(&archive.archive_path).extract_into(&archive.tmp_dir.path());
+    Extract::from_source(&archive.archive_path).extract_into(&archive.tmp_dir.path())?;
 
-    // Make sure extraction went well
-    match extract_process {
-      Ok(_) => {
-        // we can delete our archive file (not needed anymore)
-        remove_file(&archive.archive_path)?;
-      }
-      Err(err) => bail!(Error::Update, "Extract failed with status: {:?}", err),
-    };
+    // Remove archive (not needed anymore)
+    remove_file(&archive.archive_path)?;
 
+    // Create our temp file -- we'll copy a backup of our destination before copying'
     let tmp_file = archive
       .tmp_dir
       .path()
       .join(&format!("__{}_backup", archive.bin_name));
 
-    // move into the final position
+    // Tell the world that we are copying' the files (last step)
     self.send_progress(ProgressStatus::CopyFiles);
 
-    // walk the temp dir and copy all files by replacing existing files only
+    // Walk the temp dir and copy all files by replacing existing files only
     // and creating directories if needed
-    let move_process = Move::from_source(&archive.tmp_dir.path())
+    Move::from_source(&archive.tmp_dir.path())
       .replace_using_temp(&tmp_file)
-      .walk_to_dest(&self.extract_path());
+      .walk_to_dest(&self.extract_path())?;
 
-    match move_process {
-      Ok(_) => Ok(InstallStatus::Installed),
-      Err(err) => bail!(Error::Update, "Move failed with status: {:?}", err),
-    }
+    Ok(InstallStatus::Installed)
   }
 }
 
@@ -255,19 +251,8 @@ fn archive_name_by_os(target: &str) -> String {
 }
 
 // Convert base64 to string and prevent failing
-fn base64_to_string(base64_string: &str) -> String {
-  //let pub_key_decoded = &decode(base64_string.to_owned()).expect("Unable to decode string")[..];
-  let _string = &decode(base64_string.to_owned());
-
-  if _string.is_err() {
-    return "".to_string();
-  }
-
-  let final_string = _string.as_ref().unwrap();
-  let result = &from_utf8(&final_string);
-  if result.is_err() {
-    return "".to_string();
-  }
-
-  result.unwrap().to_string()
+fn base64_to_string(base64_string: &str) -> crate::Result<String> {
+  let decoded_string = &decode(base64_string.to_owned())?;
+  let result = from_utf8(&decoded_string)?.to_string();
+  Ok(result)
 }

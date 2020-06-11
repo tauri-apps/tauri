@@ -18,7 +18,7 @@ interface DirInfo {
 }
 
 /* eslint-disable security/detect-non-literal-fs-filename */
-function dirTree(filename: string): DirInfo {
+function dirTree(filename: string, recurse = true): DirInfo {
   const stats = fs.lstatSync(filename)
   const info: DirInfo = {
     path: filename,
@@ -27,9 +27,11 @@ function dirTree(filename: string): DirInfo {
 
   if (stats.isDirectory()) {
     info.type = 'folder'
-    info.children = fs.readdirSync(filename).map(function(child: string) {
-      return dirTree(filename + '/' + child)
-    })
+    if (recurse) {
+      info.children = fs.readdirSync(filename).map(function(child: string) {
+        return dirTree(filename + '/' + child, false)
+      })
+    }
   } else {
     info.type = 'file'
   }

@@ -24,8 +24,11 @@ import chalk from 'chalk'
 const log = logger('app:tauri')
 const warn = logger('app:tauri (runner)', chalk.red)
 
+const WATCHER_INTERVAL = 1000
+
 class Runner {
   pid: number
+  rewritingToml: boolean = false
   tauriWatcher?: FSWatcher
   devPath?: string
   killPromise?: Function
@@ -48,8 +51,6 @@ class Runner {
     if (this.pid) {
       if (this.devPath !== devPath) {
         await this.stop()
-      } else {
-        return
       }
     }
 
@@ -119,6 +120,11 @@ class Runner {
         }
       })
 
+      proxy.on('error', (error: Error, _: http.IncomingMessage, res: http.ServerResponse) => {
+        console.error(error)
+        res.writeHead(500, error.message)
+      })
+
       const proxyServer = http.createServer((req, res) => {
         delete req.headers['accept-encoding']
         proxy.web(req, res)
@@ -163,47 +169,49 @@ class Runner {
       ]
     }
 
+    if (!this.tauriWatcher) {
     // eslint-disable-next-line security/detect-non-literal-fs-filename
-    this.tauriWatcher = chokidar
-      .watch(
-        [
-          path.join(tauriDir, 'src'),
-          path.join(tauriDir, 'Cargo.toml'),
-          path.join(tauriDir, 'build.rs'),
-          path.join(tauriDir, 'tauri.conf.json'),
-          ...tauriPaths
-        ].concat(runningDevServer ? [] : [devPath]),
-        {
-          ignoreInitial: true,
-          ignored: runningDevServer ? null : path.join(devPath, 'index.tauri.html')
-        }
-      )
-      .on(
-        'change',
-        debounce((changedPath: string) => {
-          if (changedPath.startsWith(path.join(tauriDir, 'target'))) {
-            return
+      this.tauriWatcher = chokidar
+        .watch(
+          [
+            path.join(tauriDir, 'src'),
+            path.join(tauriDir, 'Cargo.toml'),
+            path.join(tauriDir, 'build.rs'),
+            path.join(tauriDir, 'tauri.conf.json'),
+            ...tauriPaths
+          ].concat(runningDevServer ? [] : [devPath]),
+          {
+            ignoreInitial: true,
+            ignored: [runningDevServer ? null : path.join(devPath, 'index.tauri.html')].concat(path.join(tauriDir, 'target'))
           }
-          (this.pid ? this.__stopCargo() : Promise.resolve())
-            .then(() => {
-              const shouldTriggerRun = changedPath.includes('tauri.conf.json') ||
-                changedPath.startsWith(devPath)
-              if (shouldTriggerRun) {
-                this.run(getTauriConfig({ ctx: cfg.ctx })).catch(e => {
-                  throw e
-                })
-              } else {
-                startDevTauri().catch(e => {
-                  throw e
-                })
-              }
-            })
-            .catch(err => {
-              warn(err)
-              process.exit(1)
-            })
-        }, 1000)
-      )
+        )
+        .on(
+          'change',
+          debounce((changedPath: string) => {
+            if (this.rewritingToml && changedPath.startsWith(path.join(tauriDir, 'Cargo.toml'))) {
+              return
+            }
+            (this.pid ? this.__stopCargo() : Promise.resolve())
+              .then(() => {
+                const shouldTriggerRun = changedPath.includes('tauri.conf.json') ||
+                  changedPath.startsWith(devPath)
+                if (shouldTriggerRun) {
+                  this.run(getTauriConfig({ ctx: cfg.ctx })).catch(e => {
+                    throw e
+                  })
+                } else {
+                  startDevTauri().catch(e => {
+                    throw e
+                  })
+                }
+              })
+              .catch(err => {
+                warn(err)
+                process.exit(1)
+              })
+          }, WATCHER_INTERVAL)
+        )
+    }
 
     return startDevTauri()
   }
@@ -377,9 +385,20 @@ class Runner {
 
         tauriDir,
 
-        code => {
+        (code, pid) => {
+          if (this.killPromise) {
+            this.killPromise()
+            this.killPromise = undefined
+            resolve()
+            return
+          }
+
+          if (pid !== this.pid) {
+            resolve()
+            return
+          }
+
           if (dev && !exitOnPanic && code === 101) {
-            this.pid = 0
             resolve()
             return
           }
@@ -394,10 +413,7 @@ class Runner {
             resolve()
           }
 
-          if (this.killPromise) {
-            this.killPromise()
-            this.killPromise = undefined
-          } else if (dev) {
+          if (dev) {
             warn()
             warn('Cargo process was killed. Exiting...')
             warn()
@@ -415,19 +431,17 @@ class Runner {
   }
 
   async __stopCargo(): Promise<void> {
-    const pid = this.pid
-
-    if (!pid) {
+    if (!this.pid) {
       return await Promise.resolve()
     }
 
     log('Shutting down tauri process...')
-    this.pid = 0
 
     return await new Promise((resolve, reject) => {
       this.killPromise = resolve
       try {
-        process.kill(pid)
+        process.kill(this.pid)
+        this.pid = 0
       } catch (e) {
         reject(e)
       }
@@ -448,7 +462,12 @@ class Runner {
   __rewriteManifest(tomlContents: JsonMap): void {
     const tomlPath = this.__getManifestPath()
     const output = toml.stringify(tomlContents)
+
+    this.rewritingToml = true
     writeFileSync(tomlPath, output)
+    setTimeout(() => {
+      this.rewritingToml = false
+    }, WATCHER_INTERVAL * 2)
   }
 
   __whitelistApi(

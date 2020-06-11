@@ -215,9 +215,9 @@ class Runner {
       spawnSync(command, args, appDir)
     }
 
-    const tomlContents = this.__getManifest()
-    this.__whitelistApi(cfg, tomlContents as unknown as CargoManifest)
-    this.__rewriteManifest(tomlContents)
+    const cargoManifest = this.__getManifest()
+    this.__whitelistApi(cfg, cargoManifest as unknown as CargoManifest)
+    this.__rewriteManifest(cargoManifest)
 
     entry.generate(tauriDir, cfg)
 
@@ -446,19 +446,19 @@ class Runner {
   __getManifest(): JsonMap {
     const tomlPath = this.__getManifestPath()
     const tomlFile = readFileSync(tomlPath).toString()
-    const tomlContents = toml.parse(tomlFile)
-    return tomlContents
+    const cargoManifest = toml.parse(tomlFile)
+    return cargoManifest
   }
 
-  __rewriteManifest(tomlContents: JsonMap): void {
+  __rewriteManifest(cargoManifest: JsonMap): void {
     const tomlPath = this.__getManifestPath()
-    const output = toml.stringify(tomlContents)
+    const output = toml.stringify(cargoManifest)
     writeFileSync(tomlPath, output)
   }
 
   __whitelistApi(
     cfg: TauriConfig,
-    tomlContents: CargoManifest
+    manifest: CargoManifest
   ): void {
     const tomlFeatures = []
 
@@ -480,13 +480,13 @@ class Runner {
       tomlFeatures.push('edge')
     }
 
-    if (typeof tomlContents.dependencies.tauri === 'string') {
-      tomlContents.dependencies.tauri = {
-        version: tomlContents.dependencies.tauri,
+    if (typeof manifest.dependencies.tauri === 'string') {
+      manifest.dependencies.tauri = {
+        version: manifest.dependencies.tauri,
         features: tomlFeatures
       }
     } else {
-      tomlContents.dependencies.tauri.features = tomlFeatures
+      manifest.dependencies.tauri.features = tomlFeatures
     }
   }
 }

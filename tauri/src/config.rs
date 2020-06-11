@@ -133,7 +133,7 @@ mod test {
           width: 800,
           height: 600,
           resizable: true,
-          title: String::from("Tauri App"),
+          title: String::from("Tauri API Validation"),
           fullscreen: false,
         },
         embedded_server: EmbeddedServerConfig {
@@ -142,7 +142,7 @@ mod test {
         },
       },
       build: BuildConfig {
-        dev_path: String::from("http://localhost:4000"),
+        dev_path: String::from("../dist"),
       },
     }
   }

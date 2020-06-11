@@ -1,4 +1,3 @@
-use std::env;
 use std::path::PathBuf;
 
 #[macro_use]
@@ -64,10 +63,11 @@ pub fn get_target() -> &'static str {
   } else if cfg!(target_os = "macos") {
     "darwin"
   } else if cfg!(target_os = "windows") {
-    if env::var("CARGO_CFG_TARGET_POINTER_WIDTH").unwrap() == "64" {
-      return "win64";
+    if cfg!(target_pointer_width = "32") {
+      "win32"
+    } else {
+      "win64"
     }
-    "win32"
   } else if cfg!(target_os = "freebsd") {
     "freebsd"
   } else {
@@ -78,7 +78,7 @@ pub fn get_target() -> &'static str {
 #[cfg(test)]
 mod test {
   use super::*;
-  use env::current_exe;
+  use std::env::current_exe;
   use std::cell::RefCell;
   use std::path::Path;
   use totems::{assert_err, assert_ok};

@@ -69,14 +69,11 @@ fn setup_content(config: Config) -> crate::Result<Content<String>> {
   if config.build.dev_path.starts_with("http") {
     Ok(Content::Url(config.build.dev_path))
   } else {
-    let dist_dir = match option_env!("TAURI_DIST_DIR") {
-      Some(d) => d.to_string(),
-      None => env::current_dir()?
-        .into_os_string()
-        .into_string()
-        .expect("Unable to convert to normal String"),
-    };
-    let dev_path = Path::new(&dist_dir).join("index.tauri.html");
+    let dev_dir = config.build.dev_path;
+    let dev_path = Path::new(&dev_dir).join("index.tauri.html");
+    if !dev_path.exists() {
+      panic!("Couldn't find 'index.tauri.html' inside {}; did you forget to run 'tauri dev'?", dev_dir);
+    }
     Ok(Content::Html(read_to_string(dev_path)?))
   }
 }
@@ -100,7 +97,7 @@ fn setup_content(_: Config) -> crate::Result<Content<String>> {
       .into_string()
       .expect("Unable to convert to normal String"),
   };
-  let index_path = Path::new(dist_dir).join("index.tauri.html");
+  let index_path = Path::new(&dist_dir).join("index.tauri.html");
 
   Ok(Content::Html(read_to_string(index_path)?))
 }

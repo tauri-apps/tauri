@@ -18,7 +18,7 @@ async function findClosestOpenPort(port: number, host: string): Promise<number> 
 async function isPortAvailable(port: number, host: string): Promise<boolean> {
   return await new Promise((resolve, reject) => {
     const tester = net.createServer()
-      .once('error', (err: any) => {
+      .once('error', (err: NodeJS.ErrnoException) => {
         if (err.code === 'EADDRNOTAVAIL') {
           reject(new Error('ERROR_NETWORK_ADDRESS_NOT_AVAIL'))
         } else if (err.code === 'EADDRINUSE') {

@@ -1,6 +1,6 @@
 [package]
 name = "tauri-api"
-version = "0.5.1"
+version = "0.5.2"
 authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
 license = "MIT"
 homepage = "https://tauri.studio"
@@ -14,18 +14,19 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_repr = "0.1"
 dirs = "2.0.2"
-ignore = "0.4.11"
-zip = "0.5.4"
+ignore = "0.4.16"
+zip = "0.5.5"
 tempdir = "0.3"
-semver = "0.9"
+semver = "0.10"
 tempfile = "3"
 either = "1.5.3"
 tar = "0.4"
 flate2 = "1"
-error-chain = "0.12"
+anyhow = "1.0.31"
+thiserror = "1.0.19"
 rand = "0.7"
 nfd = "0.0.4"
-attohttpc = {version = "0.13.0", features=["json", "form" ]}
+attohttpc = {version = "0.14.0", features=["json", "form" ]}
 http = "0.2"
 tauri-utils = {version = "0.5", path = "../tauri-utils"}
 

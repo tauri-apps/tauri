@@ -1,11 +1,11 @@
-use std::time::Duration;
-use std::fs::File;
-use std::collections::HashMap;
-use attohttpc::{RequestBuilder, Method};
+use attohttpc::{Method, RequestBuilder};
 use http::header::HeaderName;
-use serde_json::Value;
 use serde::Deserialize;
-use serde_repr::{Serialize_repr, Deserialize_repr};
+use serde_json::Value;
+use serde_repr::{Deserialize_repr, Serialize_repr};
+use std::collections::HashMap;
+use std::fs::File;
+use std::time::Duration;
 
 #[derive(Serialize_repr, Deserialize_repr, Clone, Debug)]
 #[repr(u16)]
@@ -19,7 +19,7 @@ pub enum BodyType {
   /// - if the body is a byte array, send is as bytes (application/octet-stream)
   /// - if the body is an object or array, send it as JSON (application/json with UTF-8 charset)
   /// - if the body is a string, send it as text (text/plain with UTF-8 charset)
-  Auto
+  Auto,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Clone, Debug)]
@@ -31,7 +31,7 @@ pub enum ResponseType {
   /// Read the response as text
   Text,
   /// Read the response as binary
-  Binary
+  Binary,
 }
 
 #[derive(Deserialize)]
@@ -81,7 +81,10 @@ pub fn make_request(options: HttpRequestOptions) -> crate::Result<String> {
 
   if let Some(headers) = options.headers {
     for (header, header_value) in headers.iter() {
-      builder = builder.header(HeaderName::from_bytes(header.as_bytes())?, format!("{}", header_value));
+      builder = builder.header(
+        HeaderName::from_bytes(header.as_bytes())?,
+        format!("{}", header_value),
+      );
     }
   }
 
@@ -103,7 +106,9 @@ pub fn make_request(options: HttpRequestOptions) -> crate::Result<String> {
   if let Some(allow_compression) = options.allow_compression {
     builder = builder.allow_compression(allow_compression);
   }
-  builder = builder.danger_accept_invalid_certs(true).danger_accept_invalid_hostnames(true);
+  builder = builder
+    .danger_accept_invalid_certs(true)
+    .danger_accept_invalid_hostnames(true);
 
   let response = if let Some(body) = options.body {
     match options.body_type.unwrap_or(BodyType::Auto) {
@@ -112,9 +117,9 @@ pub fn make_request(options: HttpRequestOptions) -> crate::Result<String> {
         if let Some(path) = body.as_str() {
           builder.file(File::open(path)?).send()
         } else {
-          return Err(crate::Error::from("Body must be the path to the file"));
+          return Err(crate::Error::Path("Body must be the path to the file".into()).into());
         }
-      },
+      }
       BodyType::Auto => {
         if body.is_object() {
           builder.json(&body)?.send()
@@ -124,24 +129,26 @@ pub fn make_request(options: HttpRequestOptions) -> crate::Result<String> {
           let u: Result<Vec<u8>, _> = serde_json::from_value(body.clone());
           match u {
             Ok(vec) => builder.bytes(&vec).send(),
-            Err(_) => builder.json(&body)?.send()
+            Err(_) => builder.json(&body)?.send(),
           }
         } else {
           builder.send()
         }
       }
     }
-  } else { builder.send() };
+  } else {
+    builder.send()
+  };
 
   let response = response?;
   if response.is_success() {
     let response_data = match options.response_type.unwrap_or(ResponseType::Json) {
       ResponseType::Json => response.json()?,
       ResponseType::Text => response.text()?,
-      ResponseType::Binary => serde_json::to_string(&response.bytes()?)?
+      ResponseType::Binary => serde_json::to_string(&response.bytes()?)?,
     };
     Ok(response_data)
   } else {
-    Err(crate::Error::from(response.status().as_str()))
+    Err(crate::Error::Network(response.status()).into())
   }
 }

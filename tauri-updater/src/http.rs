@@ -121,7 +121,10 @@ impl UpdateBuilder {
     self
   }
 
-  pub fn on_progress<F: FnMut(ProgressStatus) + 'static>(&self, handler: F) -> &Self {
+  pub fn on_progress<F: for<'r> FnMut(ProgressStatus) + 'static>(&self, handler: F) -> &Self
+  where
+    F: FnMut(ProgressStatus),
+  {
     // register our callback
     LISTENERS.with(|listeners| {
       let mut l = listeners

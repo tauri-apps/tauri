@@ -211,8 +211,6 @@ pub fn extract_path_from_executable(executable_path: &PathBuf, target: &str) -> 
   // C:\Program Files\MyApp\MyApp.exe
   // We need C:\Program Files\MyApp
 
-  println!("executable_path: {:?}", executable_path);
-
   let mut extract_path = executable_path.parent().map(PathBuf::from).unwrap();
   let extract_path_as_string = extract_path.display().to_string();
 

@@ -75,11 +75,11 @@ pub fn get_target() -> &'static str {
   }
 }
 
-
 #[cfg(test)]
 mod test {
   use super::*;
   use env::current_exe;
+  use std::cell::RefCell;
   use std::path::Path;
   use totems::{assert_err, assert_ok};
 
@@ -197,10 +197,43 @@ mod test {
     let tmp_dir_path = tmp_dir_unwrap.path();
 
     // Configure our updater
+    #[derive(Debug, Copy, Clone)]
+    struct Foo {
+      call_count: u64,
+      percentage: u64,
+    };
+
+    // Sample callback handler
+    impl Foo {
+      fn add_call(&mut self) {
+        self.call_count = self.call_count + 1;
+      }
+      fn save_percentage(&mut self, percentage: u64) {
+        self.percentage = percentage;
+      }
+    }
+
+    let mut foo = RefCell::new(Foo {
+      call_count: 0,
+      percentage: 0,
+    });
+
     let check_update = http::Update::configure()
     .url("https://gist.githubusercontent.com/lemarier/72a2a488f1c87601d11ec44d6a7aff05/raw/f86018772318629b3f15dbb3d15679e7651e36f6/with_sign.json")
     .executable_path(&tmp_dir_path.join("my_app.exe"))
     .current_version("0.0.1")
+    .on_progress(move |status: ProgressStatus| match status {
+      ProgressStatus::Download(percentage) => {
+        &foo.get_mut().add_call();
+        &foo.get_mut().save_percentage(percentage);
+      }
+      ProgressStatus::CopyFiles => {
+        &foo.get_mut().add_call();
+      }
+      ProgressStatus::Extract => {
+        &foo.get_mut().add_call();
+      }
+    })
     .check();
 
     // Make sure we got OK
@@ -232,6 +265,13 @@ mod test {
                 let bin_file = tmp_dir_path.join("Contents").join("MacOS").join("app");
                 let bin_file_exist = Path::new(&bin_file).exists();
                 assert_eq!(bin_file_exist, true);
+
+                // make sure last percentage recorded is at least 99%
+                //assert_eq!(last_percentage > 0, true);
+                // make sure we called our caopy hook once
+                //assert_eq!(called_copy, true);
+                // make sure we called our extract hook once
+                //assert_eq!(called_extract, true);
 
                 is_processed = true
               }

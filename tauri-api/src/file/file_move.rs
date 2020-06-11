@@ -72,7 +72,7 @@ impl<'a> Move<'a> {
           if let Err(e) = walkdir_and_copy(self.source, dest) {
             // if we got something wrong we reset the dest with our backup
             fs::rename(temp, dest)?;
-            return Err(e.into());
+            return Err(e);
           }
         } else {
           // got temp but dest didnt exist
@@ -92,11 +92,10 @@ fn walkdir_and_copy(source: &path::Path, dest: &path::Path) -> crate::Result<()>
     let element = entry?;
     let metadata = element.metadata()?;
     let destination = dest.join(element.path().strip_prefix(&source)?);
-    // we make sure it's a directory
-    if metadata.is_dir() {
-      if !&destination.exists() {
-        fs::create_dir_all(&destination)?;
-      }
+
+    // we make sure it's a directory and destination doesnt exist
+    if metadata.is_dir() && !&destination.exists() {
+      fs::create_dir_all(&destination)?;
     }
 
     // we make sure it's a file

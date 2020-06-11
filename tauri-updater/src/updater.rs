@@ -58,17 +58,18 @@ pub trait ReleaseUpdate {
 
     // used for temp file name
     // if we cant extract app name, we use unix epoch duration
+
+    let current_time = SystemTime::now()
+      .duration_since(UNIX_EPOCH)
+      .unwrap()
+      .subsec_nanos()
+      .to_string();
+
     let bin_name = std::env::current_exe()
       .ok()
       .and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
       .and_then(|s| s.into_string().ok())
-      .unwrap_or(
-        SystemTime::now()
-          .duration_since(UNIX_EPOCH)
-          .unwrap()
-          .subsec_nanos()
-          .to_string(),
-      );
+      .unwrap_or(current_time);
 
     // tmp dir for extraction
     let tmp_dir = tempfile::Builder::new()

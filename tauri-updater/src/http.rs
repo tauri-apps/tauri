@@ -92,7 +92,7 @@ impl UpdateBuilder {
   pub fn urls(&mut self, urls: &[&str]) -> &mut Self {
     let mut formatted_vec: Vec<String> = Vec::new();
     for url in urls {
-      formatted_vec.push(url.to_string());
+      formatted_vec.push((*url).to_string());
     }
     self.urls = formatted_vec;
     self
@@ -207,38 +207,36 @@ impl UpdateBuilder {
         .timeout(Duration::from_secs(5))
         .send();
 
-      match resp {
-        Ok(res) => {
-          if res.status().is_success() {
-            let json = res.json::<serde_json::Value>()?;
-            let built_release = Release::from_release(&json);
-            match built_release {
-              Ok(release) => {
-                last_error = None;
-                remote_release = Some(release);
-                break;
-              }
-              Err(err) => last_error = Some(err),
+      // If we got a success, we stop the loop
+      // and we set our remote_release variable
+      if let Ok(ref res) = resp {
+        if res.status().is_success() {
+          let json = resp?.json::<serde_json::Value>()?;
+          let built_release = Release::from_release(&json);
+          match built_release {
+            Ok(release) => {
+              last_error = None;
+              remote_release = Some(release);
+              break;
             }
+            Err(err) => last_error = Some(err),
           }
         }
-        Err(_) => (),
       }
     }
 
     if last_error.is_some() {
-      bail!(
-        crate::Error::Network,
-        "Api Error: {:?}",
-        last_error.unwrap()
-      )
+      bail!(crate::Error::Network, "Api Error: {:?}", last_error)
     }
 
+    // Make sure we have remote release data (metadata)
     if remote_release.is_none() {
       bail!(crate::Error::Network, "Unable to extract remote metadata")
     }
 
-    let mut final_release = remote_release.clone().unwrap();
+    // Need to be mutable
+    let mut final_release = remote_release
+      .ok_or_else(|| crate::Error::Network("Unable to unwrap remote metadata".into()))?;
 
     // did the announced version is greated than our current one?
     let should_update = match version::is_greater(

@@ -148,7 +148,7 @@ pub enum Cmd {
   },
   #[cfg(any(feature = "all-api", feature = "http-request"))]
   HttpRequest {
-    options: HttpRequestOptions,
+    options: Box<HttpRequestOptions>,
     callback: String,
     error: String,
   },

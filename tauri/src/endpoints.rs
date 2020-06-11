@@ -12,7 +12,7 @@ use web_view::WebView;
 pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> crate::Result<()> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
-    Err(e) => Err(crate::Error::from(e.to_string())),
+    Err(e) => Err(e.into()),
     Ok(command) => {
       match command {
         Init {} => {
@@ -167,7 +167,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           callback,
           error,
         } => {
-          http::make_request(webview, options, callback, error);
+          http::make_request(webview, *options, callback, error);
         }
         #[cfg(any(feature = "embedded-server", feature = "no-server"))]
         LoadAsset {
@@ -297,7 +297,7 @@ fn load_asset<T: 'static>(
               ));
             }
             None => {
-              return Err(format!("Asset '{}' not found", asset).into());
+              return Err(anyhow::anyhow!("Asset '{}' not found", asset));
             }
           }
         } else {
@@ -330,7 +330,7 @@ fn load_asset<T: 'static>(
               _webview.eval(asset_str)
             }
           })
-          .map_err(|err| crate::ErrorKind::Promise(format!(r#""{}""#, err)).into())
+          .map_err(|err| err.into())
           .map(|_| r#""Asset loaded successfully""#.to_string())
       }
     },

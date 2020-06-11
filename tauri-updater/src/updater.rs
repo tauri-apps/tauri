@@ -162,45 +162,11 @@ pub trait ReleaseUpdate {
         )
       }
 
-      // we need to convert the pub key
-      let pubkey_unwrap = &pub_key.expect("Something is wrong with the pubkey");
-      let pub_key_decoded = &base64_to_string(&pubkey_unwrap)?;
-      let public_key = PublicKey::decode(pub_key_decoded);
-      if public_key.is_err() {
-        bail!(
-          crate::Error::Updater,
-          "Something went wrong with pubkey decode"
-        )
-      }
-
-      let public_key_ready = public_key.unwrap();
-
-      // make sure signature is ready
-      let release_signature = &release
-        .signature
-        .expect("Something is wrong with the signature");
-
-      let signature_decoded = base64_to_string(&release_signature)?;
-      let signature = Signature::decode(&signature_decoded);
-      if signature.is_err() {
-        bail!(
-          crate::Error::Updater,
-          "Something went wrong with signature decode"
-        )
-      }
-
-      let signature_ready = signature.unwrap();
-
-      // We need to open the file and extract the datas to make sure its not corrupted
-      let file_open = OpenOptions::new().read(true).open(&archive.archive_path)?;
-      let mut file_buff: BufReader<File> = BufReader::new(file_open);
-
-      // read all bytes since EOF in the buffer
-      let mut data = vec![];
-      file_buff.read_to_end(&mut data)?;
-
-      // Validate signature or bail out
-      public_key_ready.verify(&data, &signature_ready)?;
+      verify_signature(
+        &archive.archive_path,
+        release.signature.unwrap(),
+        pub_key.unwrap(),
+      )?;
     }
 
     // send event that we start the extracting
@@ -256,4 +222,88 @@ fn base64_to_string(base64_string: &str) -> crate::Result<String> {
   let decoded_string = &decode(base64_string.to_owned())?;
   let result = from_utf8(&decoded_string)?.to_string();
   Ok(result)
+}
+
+// Validate signature
+fn verify_signature(
+  archive_path: &PathBuf,
+  release_signature: String,
+  pub_key: &str,
+) -> crate::Result<bool> {
+  // we need to convert the pub key
+  let pub_key_decoded = &base64_to_string(pub_key)?;
+  let public_key = PublicKey::decode(pub_key_decoded);
+  if public_key.is_err() {
+    bail!(
+      crate::Error::Updater,
+      "Something went wrong with pubkey decode"
+    )
+  }
+
+  let public_key_ready = public_key.unwrap();
+
+  let signature_decoded = base64_to_string(&release_signature)?;
+  let signature = Signature::decode(&signature_decoded);
+  if signature.is_err() {
+    bail!(
+      crate::Error::Updater,
+      "Something went wrong with signature decode"
+    )
+  }
+
+  let signature_ready = signature.unwrap();
+
+  // We need to open the file and extract the datas to make sure its not corrupted
+  let file_open = OpenOptions::new().read(true).open(&archive_path)?;
+  let mut file_buff: BufReader<File> = BufReader::new(file_open);
+
+  // read all bytes since EOF in the buffer
+  let mut data = vec![];
+  file_buff.read_to_end(&mut data)?;
+
+  // Validate signature or bail out
+  public_key_ready.verify(&data, &signature_ready)?;
+  Ok(true)
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use std::fs::read_to_string;
+  use totems::{assert_err, assert_ok};
+
+  #[test]
+  fn verify_good_signature() {
+    let path: PathBuf = [r"test", "fixture", "good_signature"].iter().collect();
+    let archive_path = path.join("update-macos.tar.gz");
+    let signature_file = path.join("update-macos.tar.gz.sig");
+    let pubkey = path.join("update.key.pub");
+    let signature_content = read_to_string(signature_file);
+    let pubkey_content = read_to_string(pubkey);
+    let pubkey = pubkey_content.unwrap();
+    let signature = signature_content.unwrap();
+    let success = verify_signature(&archive_path, signature, &pubkey);
+    assert_ok!(&success);
+  }
+
+  #[test]
+  fn verify_bad_signature() {
+    let path: PathBuf = [r"test", "fixture", "bad_signature"].iter().collect();
+    let archive_path = path.join("update-macos.tar.gz");
+    let signature_file = path.join("update-macos.tar.gz.sig");
+    let pubkey = path.join("update.key.pub");
+    let signature_content = read_to_string(signature_file);
+    let pubkey_content = read_to_string(pubkey);
+    let pubkey = pubkey_content.unwrap();
+    let signature = signature_content.unwrap();
+    let success = verify_signature(&archive_path, signature, &pubkey);
+    assert_err!(&success);
+  }
+
+  #[test]
+  fn archive_url_extraction() {
+    let url = "https://google.com/test/134/asf4/84235h2h323/archive.tar.gz";
+    let archive_found = detect_archive_in_url(&url, "darwin");
+    assert_eq!(archive_found, "archive.tar.gz");
+  }
 }

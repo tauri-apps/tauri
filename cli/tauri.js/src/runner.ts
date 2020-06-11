@@ -16,7 +16,7 @@ import onShutdown from './helpers/on-shutdown'
 import { spawn, spawnSync } from './helpers/spawn'
 import { exec } from 'child_process'
 import { TauriConfig } from './types/config'
-import { CargoToml } from './types/cargo'
+import { CargoManifest } from './types/cargo'
 import getTauriConfig from './helpers/tauri-config'
 import httpProxy from 'http-proxy'
 import chalk from 'chalk'
@@ -69,7 +69,7 @@ class Runner {
       ls.stdout && ls.stdout.pipe(process.stdout)
     }
 
-    const tomlContents = this.__getManifest() as any as CargoToml
+    const tomlContents = this.__getManifest() as any as CargoManifest
     this.__whitelistApi(cfg, tomlContents)
     this.__rewriteManifest(tomlContents as any as JsonMap)
 

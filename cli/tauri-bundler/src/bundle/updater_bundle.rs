@@ -223,6 +223,13 @@ mod tests {
     example_path.push("fixture");
     example_path.push("config");
 
+    // Run cargo build in our test project
+    std::process::Command::new("cargo")
+      .arg("build")
+      .current_dir(&example_path)
+      .output()
+      .expect("Failed to execute cargo build");
+
     // set our tauri dir to the example path
     std::env::set_var("TAURI_DIR", &example_path);
 

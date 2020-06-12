@@ -157,7 +157,7 @@ fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     other => other,
   };
 
-  let update_name = format!("update-win_{}", arch);
+  let update_name = format!("update-win_{}.zip", arch);
 
   // copy bin in a tmp folder then zip this folder
   let package_dir = settings.project_out_directory().join("bundle/win");

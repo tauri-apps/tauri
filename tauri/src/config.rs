@@ -153,6 +153,16 @@ mod test {
     // get test_config
     let test_config = create_test_config();
 
+    // if no env variable set it return a default config...
+    // in the CI we don't have env variable set so the test are failing
+    let mut example_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    example_path.push("examples");
+    example_path.push("communication");
+    example_path.push("src-tauri");
+
+    // set our taur-dir
+    std::env::set_var("TAURI_DIR", example_path);
+
     // call get();
     let config = get();
 

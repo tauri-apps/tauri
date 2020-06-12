@@ -32,8 +32,6 @@ jobs:
       - name: test
         run: |
           cargo test
-          cd ./cli/tauri-bundler
-          cargo test
         env:
           TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/dist
           TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/src-tauri
@@ -56,6 +54,13 @@ jobs:
         run: |
           cd ./cli/tauri-bundler
           cargo build
+      - name: test
+        run: |
+          cd ./cli/tauri-bundler
+          cargo test
+        env:
+          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/dist
+          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/src-tauri
 
   test-tauri-js-cli:
     runs-on: ${{ matrix.platform }}

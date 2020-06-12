@@ -33,7 +33,7 @@
     },
     "tauri-updater": {
       "path": "./tauri-updater",
-      "manager": "rust",
+      "manager": "rust"
     }
   }
 }

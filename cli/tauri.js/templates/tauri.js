@@ -666,17 +666,12 @@ window.tauri = {
         Object.freeze(options);
       }
 
-      return window.tauri.isNotificationPermissionGranted()
-        .then(function (permission) {
-          if (permission) {
-            return window.tauri.promisified({
-              cmd: 'notification',
-              options: typeof options === 'string' ? {
-                body: options
-              } : options
-            });
-          }
-        })
+      return this.promisified({
+        cmd: 'notification',
+        options: typeof options === 'string' ? {
+          body: options
+        } : options
+      });
     <% } else { %>
       <% if (ctx.dev) { %>
         return __whitelistWarning('notification')
@@ -687,9 +682,6 @@ window.tauri = {
 
   isNotificationPermissionGranted: function isNotificationPermissionGranted() {
     <% if (tauri.whitelist.notification === true || tauri.whitelist.all === true) { %>
-      if (window.Notification.permission !== 'default' && window.Notification.permission !== 'loading') {
-        return Promise.resolve(window.Notification.permission === 'granted')
-      }
       return window.tauri.promisified({
         cmd: 'isNotificationPermissionGranted'
       })
@@ -705,14 +697,6 @@ window.tauri = {
     <% if (tauri.whitelist.notification === true || tauri.whitelist.all === true) { %>
       return window.tauri.promisified({
         cmd: 'requestNotificationPermission'
-      }).then(function (state) {
-        if (state === 'default') {
-          return window.tauri.isNotificationPermissionGranted()
-            .then(function (permission) {
-              return permission === 'granted'
-            })
-        }
-        return state
       })
     <% } else { %>
     <% if (ctx.dev) { %>
@@ -745,9 +729,8 @@ window.tauri = {
     .then(function (response) {
       if (response === null) {
         window.Notification.permission = 'default'
-      } else {
-        window.Notification.permission = response ? 'granted' : 'denied'
       }
+      window.Notification.permission = response ? 'granted' : 'denied'
     })
 <% } %>
 

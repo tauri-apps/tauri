@@ -1,5 +1,7 @@
 pub use nfd::Response;
 use nfd::{open_dialog, DialogType};
+use dialog::DialogBox;
+pub use dialog::Choice as DialogAnswer;
 
 fn open_dialog_internal(
   dialog_type: DialogType,
@@ -11,6 +13,19 @@ fn open_dialog_internal(
     Response::Cancel => Err(crate::Error::Dialog("user cancelled".into()).into()),
     _ => Ok(response),
   }
+}
+
+/// Displays a dialog with a message and an optional title with a "yes" and a "no" button.
+pub fn ask(
+  message: String,
+  title: Option<String>,
+) -> crate::Result<DialogAnswer> {
+  let mut question = dialog::Question::new(message);
+  if let Some(title) = title {
+    question.title(title);
+  }
+  question.show()
+    .map_err(|e| anyhow::anyhow!(e))
 }
 
 /// Open single select file dialog

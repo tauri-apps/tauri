@@ -18,6 +18,7 @@ fn get_settings_path() -> tauri_api::Result<String> {
 
 pub(crate) fn write_settings(settings: Settings) -> crate::Result<()> {
   let settings_path = get_settings_path()?;
+  std::fs::create_dir(Path::new(&settings_path).parent().unwrap())?;
   File::create(settings_path)
     .map_err(|e| anyhow!(e))
     .and_then(|mut f| {

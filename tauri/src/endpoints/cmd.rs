@@ -183,4 +183,11 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
+  #[cfg(any(feature = "all-api", feature = "notification"))]
+  SaveNotificationPermission {
+    id: String,
+    permission: bool,
+    callback: String,
+    error: String,
+  },
 }

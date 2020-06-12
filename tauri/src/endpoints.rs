@@ -12,6 +12,15 @@ use web_view::WebView;
 #[cfg(windows)]
 use std::path::MAIN_SEPARATOR;
 
+#[cfg(any(feature = "all-api", feature = "notification"))]
+use once_cell::sync::Lazy;
+
+#[cfg(any(feature = "all-api", feature = "notification"))]
+fn notification_permission_id() -> &'static String {
+  static ID: Lazy<String> = Lazy::new(|| uuid::Uuid::new_v4().to_string());
+  &ID
+}
+
 #[allow(unused_variables)]
 pub(crate) fn handle<T: 'static>(
   webview: &mut WebView<'_, T>,
@@ -202,6 +211,44 @@ pub(crate) fn handle<T: 'static>(
           )?;
         }
         #[cfg(any(feature = "all-api", feature = "notification"))]
+        RequestNotificationPermission { callback, error } => {
+          let handle = webview.handle();
+          crate::execute_promise(
+            webview,
+            move || {
+              let settings = crate::settings::read_settings()?;
+              let granted = r#""granted""#.to_string();
+              let denied = r#""denied""#.to_string();
+              if let Some(allow_notification) = settings.allow_notification {
+                return Ok(if allow_notification { granted } else { denied });
+              }
+              handle.dispatch(|dwebview| {
+                dwebview.eval(
+                  &format!(
+                    "
+                      var __tauriNotificationPermissionCheck = confirm('This app wants to show notifications. Do you allow?')
+                      window.Notification.permission = __tauriNotificationPermissionCheck ? 'granted' : 'denied'
+                      window.tauri.promisified({{
+                        cmd: 'saveNotificationPermission',
+                        id: '{}',
+                        permission: __tauriNotificationPermissionCheck
+                      }})
+                        .catch(function (err) {{
+                          console.error(err)
+                          alert('Failed to save permission state.')
+                        }})
+                    ",
+                    notification_permission_id()
+                  )
+                )
+              }).expect("failed to eval request permission dialog");
+              Ok(r#""default""#.to_string())
+            },
+            callback,
+            error,
+          )
+        }
+        #[cfg(any(feature = "all-api", feature = "notification"))]
         IsNotificationPermissionGranted { callback, error } => {
           crate::execute_promise(
             webview,
@@ -218,27 +265,21 @@ pub(crate) fn handle<T: 'static>(
           );
         }
         #[cfg(any(feature = "all-api", feature = "notification"))]
-        RequestNotificationPermission { callback, error } => crate::execute_promise(
+        SaveNotificationPermission {
+          id,
+          permission,
+          callback,
+          error,
+        } => crate::execute_promise(
           webview,
           move || {
-            let mut settings = crate::settings::read_settings()?;
-            let granted = r#""granted""#.to_string();
-            let denied = r#""denied""#.to_string();
-            if let Some(allow_notification) = settings.allow_notification {
-              return Ok(if allow_notification { granted } else { denied });
-            }
-            let answer = tauri_api::dialog::ask(
-              "This app wants to show notifications. Do you allow?".to_string(),
-              Some("Permissions".to_string()),
-            )?;
-            match answer {
-              tauri_api::dialog::DialogAnswer::Yes => {
-                settings.allow_notification = Some(true);
-                crate::settings::write_settings(settings)?;
-                Ok(granted)
-              }
-              tauri_api::dialog::DialogAnswer::No => Ok(denied),
-              tauri_api::dialog::DialogAnswer::Cancel => Ok(r#""default""#.to_string()),
+            if id != notification_permission_id().to_string() {
+              Err(anyhow::anyhow!(r#""can't call this function directly""#))
+            } else {
+              let mut settings = crate::settings::read_settings()?;
+              settings.allow_notification = Some(true);
+              crate::settings::write_settings(settings)?;
+              Ok("".to_string())
             }
           },
           callback,

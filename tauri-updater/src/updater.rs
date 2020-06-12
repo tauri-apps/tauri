@@ -263,7 +263,9 @@ fn base64_to_string(base64_string: &str) -> crate::Result<String> {
 }
 
 // Validate signature
-fn verify_signature(
+// need to be public because its been used
+// by our tests in the bundler
+pub fn verify_signature(
   archive_path: &PathBuf,
   release_signature: String,
   pub_key: &str,

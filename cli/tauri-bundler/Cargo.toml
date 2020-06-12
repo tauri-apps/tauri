@@ -52,6 +52,10 @@ hex = { version = "0.4" }
 
 [dev-dependencies]
 tempfile = "3"
+totems = "0.2.7"
+# used to make sure our signature/validation works together
+tauri-updater = { version = "0.5",  path = "../../tauri-updater" }
+
 
 [[bin]]
 name = "cargo-tauri-bundler"

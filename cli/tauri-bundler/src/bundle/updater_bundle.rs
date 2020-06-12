@@ -94,17 +94,12 @@ fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // source
   let bundle_name = &format!("{}.app", app_name);
   let bundle_dir = settings.project_out_directory().join("bundle/osx");
-  let bundle_path = bundle_dir.join(&bundle_name.clone());
+  let bundle_path = bundle_dir.join(&bundle_name);
 
-  if output_path.exists() {
-    fs::remove_dir_all(&output_path)
-      .with_context(|| format!("Failed to remove old {}", update_name))?;
-  }
+  // Create our gzip file
+  create_tar(&bundle_path, &update_path).with_context(|| "Failed to tar.gz update directory")?;
 
-  archive_utils::tar_and_gzip_to(&bundle_path, &update_path)
-    .with_context(|| "Failed to tar/gzip update directory")?;
-
-  common::print_bundling(format!("{:?}", update_path.clone()).as_str())?;
+  common::print_bundling(format!("{:?}", &update_path.clone()).as_str())?;
   Ok(vec![update_path])
 }
 
@@ -143,12 +138,8 @@ fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       .with_context(|| format!("Failed to remove old {}", update_name))?;
   }
 
-  archive_utils::tar_and_gzip_to(&package_dir, &update_path)
-    .with_context(|| "Failed to tar/gzip update directory")?;
-
-  if package_dir.exists() {
-    fs::remove_dir_all(&package_dir).with_context(|| format!("Failed to remove tmp dir"))?;
-  }
+  // Create our gzip file
+  create_tar(&package_dir, &update_path).with_context(|| "Failed to tar.gz update directory")?;
 
   common::print_bundling(format!("{:?}", update_path.clone()).as_str())?;
   Ok(vec![update_path])
@@ -189,13 +180,90 @@ fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       .with_context(|| format!("Failed to remove old {}", update_name))?;
   }
 
-  archive_utils::zip_dir(&package_dir, &update_path)
-    .with_context(|| "Failed to zip update directory")?;
-
-  if package_dir.exists() {
-    fs::remove_dir_all(&package_dir).with_context(|| format!("Failed to remove tmp dir"))?;
-  }
+  // Create our zip file
+  create_zip(&package_dir, &update_path).with_context(|| "Failed to zip update directory")?;
 
   common::print_bundling(format!("{:?}", update_path.clone()).as_str())?;
   Ok(vec![update_path])
+}
+
+#[cfg(target_os = "windows")]
+fn create_zip(source: &PathBuf, archive_path: &PathBuf) -> crate::Result<()> {
+  archive_utils::zip_dir(source, archive_path).with_context(|| "Failed to zip update directory")?;
+
+  if source.exists() {
+    fs::remove_dir_all(&source).with_context(|| format!("Failed to remove tmp dir"))?;
+  }
+  Ok(())
+}
+
+fn create_tar(source: &PathBuf, archive_path: &PathBuf) -> crate::Result<()> {
+  archive_utils::tar_and_gzip_to(source, archive_path)
+    .with_context(|| "Failed to zip update directory")?;
+
+  if source.exists() {
+    fs::remove_dir_all(&source).with_context(|| format!("Failed to remove tmp dir"))?;
+  }
+
+  Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std;
+  use tauri_updater::updater::verify_signature;
+  use totems::assert_ok;
+
+  #[test]
+  fn updater_with_signature_bundling() {
+    // load our main example
+    let mut example_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    example_path.push("test");
+    example_path.push("fixture");
+    example_path.push("config");
+
+    // set our tauri dir to the example path
+    std::env::set_var("TAURI_DIR", &example_path);
+
+    // set our private key -- this can also be a file path
+    std::env::set_var("TAURI_PRIVATE_KEY", "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5dGlHbTEvRFhRRis2STdlTzF3eWhOVk9LNjdGRENJMnFSREE3R2V3b3Rwb0FBQkFBQUFBQUFBQUFBQUlBQUFBQWFNZEJTNXFuVjk0bmdJMENRRXVYNG5QVzBDd1NMOWN4Q2RKRXZxRDZNakw3Y241Vkt3aTg2WGtoajJGS1owV0ZuSmo4ZXJ0ZCtyaWF0RWJObFpnd1EveDB4NzBTU2RweG9ZaUpuc3hnQ3BYVG9HNnBXUW5SZ2Q3b3dvZ3Y2UnhQZ1BQZDU3bXl6d3M9Cg==");
+
+    // create fake args
+    let temp_args = clap::ArgMatches::new();
+
+    // build our settings
+    let settings =
+      Settings::new(example_path, &temp_args).expect("Something went wrong when building settings");
+
+    let project_bundle = bundle_project(&settings);
+
+    assert_ok!(&project_bundle);
+
+    let files = project_bundle.expect("Something went wrong when building and signing update");
+
+    // we expect 2 files (archive + archive.sig)
+    assert_eq!(files.len(), 2);
+
+    // lets validate our files really exists
+    for file in &files {
+      assert_eq!(file.exists(), true);
+    }
+
+    // now we expect the the archive first and the sign second (archive is always created first..)
+    // lets make sure our decryption works as well
+    let signature = std::fs::read_to_string(&files[1]).expect("Something wrong with signature");
+
+    // we load the function from our updater directly to make sure
+    // it's compatible as we use a light version on the client side
+    let signature_valid = verify_signature(
+      &files[0],
+      signature,
+      &settings
+        .updater_pubkey()
+        .expect("Something wrong with pubkey"),
+    );
+
+    assert_ok!(signature_valid);
+  }
 }

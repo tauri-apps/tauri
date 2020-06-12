@@ -627,6 +627,19 @@ impl Settings {
       None => false,
     }
   }
+
+  /// Get pubkey (mainly for testing)
+  #[cfg(test)]
+  pub fn updater_pubkey(&self) -> Option<&str> {
+    self
+      .bundle_settings
+      .updater
+      .as_ref()
+      .expect("Updater is not defined")
+      .pubkey
+      .as_ref()
+      .map(String::as_str)
+  }
 }
 
 fn bundle_settings_from_table(

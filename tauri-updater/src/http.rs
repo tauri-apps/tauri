@@ -20,7 +20,10 @@ impl Release {
   // Read JSON and confirm this is a valid Schema
   fn from_release(release: &serde_json::Value) -> crate::Result<Release> {
     let name = match &release["version"].is_null() {
-      false => release["version"].as_str().unwrap().to_string(),
+      false => release["version"]
+        .as_str()
+        .expect("Can't extract remote version")
+        .to_string(),
       true => release["name"]
         .as_str()
         .ok_or_else(|| crate::Error::Release("Release missing `name` or `version`".into()))?
@@ -28,7 +31,10 @@ impl Release {
     };
 
     let date = match &release["pub_date"].is_null() {
-      false => release["pub_date"].as_str().unwrap().to_string(),
+      false => release["pub_date"]
+        .as_str()
+        .expect("Can't extract pub_date version")
+        .to_string(),
       true => "N/A".to_string(),
     };
 
@@ -39,7 +45,12 @@ impl Release {
     let body = release["notes"].as_str().map(String::from);
 
     let signature = match &release["signature"].is_null() {
-      false => Some(release["signature"].as_str().unwrap().to_string()),
+      false => Some(
+        release["signature"]
+          .as_str()
+          .expect("Can't extract remote version")
+          .to_string(),
+      ),
       true => None,
     };
 
@@ -184,7 +195,10 @@ impl UpdateBuilder {
         &str::replace(
           url,
           "{{current_version}}",
-          &self.current_version.as_ref().unwrap(),
+          &self
+            .current_version
+            .as_ref()
+            .expect("Can't transform current version"),
         ),
         "{{target}}",
         &target,
@@ -228,7 +242,10 @@ impl UpdateBuilder {
 
     // did the announced version is greated than our current one?
     let should_update = match version::is_greater(
-      &self.current_version.as_ref().unwrap(),
+      &self
+        .current_version
+        .as_ref()
+        .expect("Can't compare announced version wih current one."),
       &final_release.version,
     ) {
       Ok(v) => v,

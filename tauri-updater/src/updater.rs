@@ -62,7 +62,7 @@ pub trait ReleaseUpdate {
 
     let current_time = SystemTime::now()
       .duration_since(UNIX_EPOCH)
-      .unwrap()
+      .expect("Unable to get Unix Epoch")
       .subsec_nanos()
       .to_string();
 
@@ -165,7 +165,7 @@ pub trait ReleaseUpdate {
 
       verify_signature(
         &archive.archive_path,
-        release.signature.unwrap(),
+        release.signature.expect("Can't validate signature"),
         pub_key,
       )?;
     }
@@ -211,7 +211,11 @@ pub fn extract_path_from_executable(executable_path: &PathBuf, target: &str) -> 
   // C:\Program Files\MyApp\MyApp.exe
   // We need C:\Program Files\MyApp
 
-  let mut extract_path = executable_path.parent().map(PathBuf::from).unwrap();
+  let mut extract_path = executable_path
+    .parent()
+    .map(PathBuf::from)
+    .expect("Can't determine extract path");
+
   let extract_path_as_string = extract_path.display().to_string();
 
   // MacOS example binary is in /Applications/TestApp.app/Contents/MacOS/myApp
@@ -222,10 +226,10 @@ pub fn extract_path_from_executable(executable_path: &PathBuf, target: &str) -> 
     extract_path = extract_path
       .parent()
       .map(PathBuf::from)
-      .unwrap()
+      .expect("Unable to find the extract path")
       .parent()
       .map(PathBuf::from)
-      .unwrap();
+      .expect("Unable to find the extract path");
   };
 
   extract_path
@@ -274,18 +278,12 @@ fn verify_signature(
     )
   }
 
-  let public_key_ready = public_key.unwrap();
+  let public_key_ready = public_key.expect("Something wrong with the public key");
 
   let signature_decoded = base64_to_string(&release_signature)?;
-  let signature = Signature::decode(&signature_decoded);
-  if signature.is_err() {
-    bail!(
-      crate::Error::Updater,
-      "Something went wrong with signature decode"
-    )
-  }
 
-  let signature_ready = signature.unwrap();
+  let signature =
+    Signature::decode(&signature_decoded).expect("Something wrong with the signature");
 
   // We need to open the file and extract the datas to make sure its not corrupted
   let file_open = OpenOptions::new().read(true).open(&archive_path)?;
@@ -296,7 +294,7 @@ fn verify_signature(
   file_buff.read_to_end(&mut data)?;
 
   // Validate signature or bail out
-  public_key_ready.verify(&data, &signature_ready)?;
+  public_key_ready.verify(&data, &signature)?;
   Ok(true)
 }
 
@@ -317,10 +315,8 @@ mod test {
 
     // go into our test path
     let pubkey = path.join("good_signature").join("update.key.pub");
-    let signature_content = read_to_string(signature_file);
-    let pubkey_content = read_to_string(pubkey);
-    let pubkey = pubkey_content.unwrap();
-    let signature = signature_content.unwrap();
+    let pubkey = read_to_string(pubkey).expect("Something wrong with pubkey");
+    let signature = read_to_string(signature_file).expect("Something wrong with signature");
     let success = verify_signature(&archive_path, signature, &pubkey);
     assert_ok!(&success);
   }
@@ -335,10 +331,8 @@ mod test {
 
     // go into our test path
     let pubkey = path.join("bad_signature").join("update.key.pub");
-    let signature_content = read_to_string(signature_file);
-    let pubkey_content = read_to_string(pubkey);
-    let pubkey = pubkey_content.unwrap();
-    let signature = signature_content.unwrap();
+    let pubkey = read_to_string(pubkey).expect("Something wrong with pubkey");
+    let signature = read_to_string(signature_file).expect("Something wrong with signature");
     let success = verify_signature(&archive_path, signature, &pubkey);
     assert_err!(&success);
   }

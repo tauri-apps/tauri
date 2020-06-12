@@ -78,8 +78,8 @@ pub fn get_target() -> &'static str {
 #[cfg(test)]
 mod test {
   use super::*;
-  use std::env::current_exe;
   use std::cell::RefCell;
+  use std::env::current_exe;
   use std::path::Path;
   use totems::{assert_err, assert_ok};
 
@@ -92,7 +92,7 @@ mod test {
 
     assert_ok!(check_update);
 
-    let updater = check_update.unwrap();
+    let updater = check_update.expect("Can't check update");
     let mut is_processed = false;
 
     match updater.status() {
@@ -112,7 +112,7 @@ mod test {
 
     assert_ok!(check_update);
 
-    let updater = check_update.unwrap();
+    let updater = check_update.expect("Can't check remote update");
     let mut is_processed = false;
 
     match updater.status() {
@@ -133,7 +133,7 @@ mod test {
 
     assert_ok!(check_update);
 
-    let updater = check_update.unwrap();
+    let updater = check_update.expect("Can't check remote update");
     let mut is_processed = false;
 
     match updater.status() {
@@ -153,7 +153,7 @@ mod test {
 
     assert_ok!(check_update);
 
-    let updater = check_update.unwrap();
+    let updater = check_update.expect("Can't check remote update");
     let mut is_processed = false;
 
     match updater.status() {
@@ -185,15 +185,17 @@ mod test {
     // We dont want to overwrite our current executable or the directory
     // Otherwise tests are failing...
 
-    let executable_path = current_exe().unwrap();
-    let parent_path = executable_path.parent().unwrap();
+    let executable_path = current_exe().expect("Can't extract executable path");
+    let parent_path = executable_path
+      .parent()
+      .expect("Can't find the parent path");
 
     let tmp_dir = tempfile::Builder::new()
       .prefix("tauri_updater_test")
       .tempdir_in(parent_path);
 
     assert_ok!(&tmp_dir);
-    let tmp_dir_unwrap = tmp_dir.unwrap();
+    let tmp_dir_unwrap = tmp_dir.expect("Can't find tmp_dir");
     let tmp_dir_path = tmp_dir_unwrap.path();
 
     // Configure our updater
@@ -238,7 +240,7 @@ mod test {
 
     // Make sure we got OK
     assert_ok!(check_update);
-    let updater = check_update.unwrap();
+    let updater = check_update.expect("Can't check remote update");
 
     match updater.status() {
       CheckStatus::UpdateAvailable(my_release) => {
@@ -249,8 +251,10 @@ mod test {
         let download_process = updater.download();
         assert_ok!(download_process);
 
+        let is_downloaded = download_process.expect("Can't determine the download process");
+
         // Get our download status
-        match download_process.unwrap() {
+        match is_downloaded {
           // When download is completed
           DownloadStatus::Downloaded(extracted_archive) => {
             // Start the install
@@ -258,7 +262,9 @@ mod test {
             let install_status = updater.install(extracted_archive, Some(pubkey_test));
             assert_ok!(install_status);
 
-            match install_status.unwrap() {
+            let is_installed = install_status.expect("Something wrong with the install");
+
+            match is_installed {
               // if installation went successfully...
               InstallStatus::Installed => {
                 // make sure the extraction went well

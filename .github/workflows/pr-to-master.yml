@@ -20,7 +20,7 @@ jobs:
       - run: git fetch origin dev
       - run: git read-tree -u --reset ${{ github.sha }}
       - name: Create Pull Request
-        uses: tauri-apps/create-pull-request@v2.7.0
+        uses: tauri-apps/create-pull-request@v2.8.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: ${{ github.event.head_commit.message }}

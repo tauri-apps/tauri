@@ -85,7 +85,7 @@ jobs:
         run: |
           echo "# Cargo Publish" | tee -a ${{runner.workspace }}/notes.md
           echo "\`\`\`" >> ${{runner.workspace }}/notes.md
-          cargo publish --no-verify 2>&1 | tee -a ${{runner.workspace }}/notes.md
+          set -o pipefail && cargo publish --no-verify 2>&1 | tee -a ${{runner.workspace }}/notes.md
           echo "\`\`\`" >> ${{runner.workspace }}/notes.md
       - name: Create Release
         id: create_crate_release
@@ -100,23 +100,24 @@ jobs:
           draft: false
           prerelease: false
       - name: Upload Release Asset
-        id: upload-release-asset 
+        id: upload-release-asset
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         uses: actions/upload-release-asset@v1.0.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_crate_release.outputs.upload_url }} 
+          upload_url: ${{ steps.create_crate_release.outputs.upload_url }}
           asset_path: ./${{ matrix.package.publishPath }}/${{ matrix.package.registryName }}-${{ env.PACKAGE_VERSION }}.crate
           asset_name: ${{ matrix.package.registryName }}-${{ env.PACKAGE_VERSION }}.crate
           asset_content_type: application/x-gtar
       - name: Tangle Release
         id: tangle_release
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
-        uses: iotaledger/gh-tangle-release@v0.6.0
+        uses: iotaledger/gh-tangle-release@v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IOTA_SEED: ${{ secrets.IOTA_SEED }}
+          IOTA_NODE: "https://iotanode.us:14267"
         with:
           tag_name: ${{ matrix.package.name }}-v${{ env.PACKAGE_VERSION }}
           comment: "Release ${{ matrix.package.name }} v${{ env.PACKAGE_VERSION }} [crates.io]"

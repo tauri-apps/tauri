@@ -28,6 +28,7 @@ import { appDir, tauriDir } from '../helpers/app-paths'
 import logger from '../helpers/logger'
 import * as settings from '../helpers/tauricon.config'
 import chalk from 'chalk'
+import { version } from '../../package.json'
 
 const log = logger('app:spawn')
 const warn = logger('app:spawn', chalk.red)
@@ -182,7 +183,7 @@ const tauricon = (exports.tauricon = {
     return typeof image === 'object'
   },
   version: function() {
-    return require('../../package.json').version
+    return version
   },
   make: async function(
     src: string = path.resolve(appDir, 'app-icon.png'),

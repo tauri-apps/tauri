@@ -70,7 +70,7 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
     process.exit(1)
   }
 
-  const runningDevServer = config.build.devPath && config.build.devPath.startsWith('http')
+  const runningDevServer = config.build.devPath?.startsWith('http')
   if (!runningDevServer) {
     config.build.devPath = appPaths.resolve.tauri(config.build.devPath)
     process.env.TAURI_DIST_DIR = config.build.devPath

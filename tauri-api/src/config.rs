@@ -77,6 +77,8 @@ pub struct CliArg {
   pub long_description: Option<String>,
   pub takes_value: Option<bool>,
   pub multiple: Option<bool>,
+  pub multiple_occurrences: Option<bool>,
+  pub number_of_values: Option<u64>,
   pub possible_values: Option<Vec<String>>,
   pub min_values: Option<u64>,
   pub max_values: Option<u64>,
@@ -91,7 +93,6 @@ pub struct CliArg {
   pub requires_if: Option<Vec<String>>,
   pub required_if: Option<Vec<String>>,
   pub require_equals: Option<bool>,
-  pub global: Option<bool>,
 }
 
 #[derive(PartialEq, Deserialize, Clone, Debug)]

@@ -12,10 +12,10 @@ use web_view::{builder, Content, WebView};
 use super::App;
 #[cfg(feature = "embedded-server")]
 use crate::api::tcp::{get_available_port, port_is_available};
-use crate::config::{get, Config};
+use tauri_api::config::{get, Config};
 
 #[cfg(feature = "cli")]
-mod cli;
+use tauri_api::cli::get_matches;
 
 // Main entry point function for running the Webview
 pub(crate) fn run(application: &mut App) -> crate::Result<()> {
@@ -24,7 +24,7 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
 
   #[cfg(feature = "cli")]
   {
-    let args = cli::get_matches(config.clone());
+    let args = get_matches(config.clone());
     println!("{:?}", args);
   }
 
@@ -292,8 +292,8 @@ mod test {
   #[cfg(not(feature = "embedded-server"))]
   use std::{env, fs::read_to_string, path::Path};
 
-  fn init_config() -> crate::config::Config {
-    crate::config::get().expect("unable to setup default config")
+  fn init_config() -> tauri_api::config::Config {
+    tauri_api::config::get().expect("unable to setup default config")
   }
 
   #[test]

@@ -25,7 +25,6 @@ uuid = { version = "0.8.1", features = ["v4"] }
 anyhow = "1.0.31"
 thiserror = "1.0.19"
 envmnt = "0.8.2"
-clap = { git = "https://github.com/clap-rs/clap", optional = true }
 
 tauri-api = { version = "0.5",  path = "../tauri-api" }
 
@@ -39,7 +38,7 @@ tauri = {path = ".", features = [ "all-api", "edge" ]}
 serde = { version = "1.0", features = [ "derive" ] }
 
 [features]
-cli = ["clap"]
+cli = ["tauri-api/cli"]
 edge = ["web-view/edge"]
 embedded-server = ["tiny_http"]
 no-server = []

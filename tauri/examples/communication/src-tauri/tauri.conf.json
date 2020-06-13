@@ -21,6 +21,11 @@
         "takesValue": true,
         "description": "App theme",
         "possibleValues": ["light", "dark", "system"]
+      }, {
+        "short": "v",
+        "name": "verbose",
+        "multipleOccurrences": true,
+        "description": "Verbosity level"
       }],
       "subcommands": null
     },

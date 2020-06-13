@@ -4,6 +4,7 @@
 )]
 
 pub mod command;
+pub mod config;
 pub mod dialog;
 pub mod dir;
 pub mod file;
@@ -12,6 +13,12 @@ pub mod path;
 pub mod rpc;
 pub mod tcp;
 pub mod version;
+
+#[cfg(feature = "cli")]
+pub mod cli;
+#[cfg(feature = "cli")]
+#[macro_use]
+extern crate clap;
 
 pub use tauri_utils::*;
 

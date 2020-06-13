@@ -1,5 +1,6 @@
 #[cfg(any(feature = "embedded-server", feature = "no-server"))]
 pub fn main() {
+  shared();
   match std::env::var_os("TAURI_DIST_DIR") {
     Some(dist_path) => {
       let dist_path_string = dist_path.into_string().unwrap();
@@ -29,4 +30,14 @@ pub fn main() {
 }
 
 #[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
-pub fn main() {}
+pub fn main() {
+  shared();
+}
+
+fn shared() {
+  if let Some(tauri_dir) = std::env::var_os("TAURI_DIR") {
+    let mut tauri_path = std::path::PathBuf::from(tauri_dir);
+    tauri_path.push("tauri.conf.json");
+    println!("cargo:rerun-if-changed={:?}", tauri_path);
+  }
+}

@@ -86,3 +86,6 @@ Cargo.lock
 
 # doing this because the task-runner (`mask prepare`) will clone gh:tauri-apps/examples
 /examples
+
+# ignore frida handlers
+__handlers__/

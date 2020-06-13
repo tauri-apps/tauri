@@ -30,7 +30,7 @@
       "subcommands": null
     },
     "embeddedServer": {
-      "active": true
+      "active": false
     },
     "bundle": {
       "active": true,
@@ -43,7 +43,7 @@
       "all": true
     },
     "window": {
-      "title": "Tauri App"
+      "title": "Tauri API Validation"
     },
     "security": {
       "csp": "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"

@@ -155,9 +155,9 @@ fn download_and_verify(url: &str, hash: &str) -> crate::Result<Vec<u8>> {
   common::print_info("validating hash")?;
 
   let mut hasher = sha2::Sha256::new();
-  hasher.input(&data);
+  hasher.update(&data);
 
-  let url_hash = hasher.result().to_vec();
+  let url_hash = hasher.finalize().to_vec();
   let expected_hash = hex::decode(hash)?;
 
   if expected_hash == url_hash {

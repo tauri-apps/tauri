@@ -655,6 +655,21 @@ window.tauri = {
       asset: assetName,
       assetType: assetType || 'unknown'
     })
+  },
+
+  cliMatches: function () {
+    <% if (tauri.cli) { %>
+      return this.promisified({
+        cmd: 'cliMatches'
+      })
+    <% } else { %>
+      <% if (ctx.dev) { %>
+        console.error('You must add the CLI args configuration under tauri.conf.json > tauri > cli')
+        return __reject()
+      <% } %>
+        return __reject()
+      <% } %>
+    
   }
 };
 

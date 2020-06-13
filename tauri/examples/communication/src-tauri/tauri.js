@@ -354,6 +354,15 @@ window.tauri = {
       asset: assetName,
       assetType: assetType || 'unknown'
     })
+  },
+
+  cliMatches: function () {
+    
+      return this.promisified({
+        cmd: 'cliMatches'
+      })
+    
+    
   }
 };
 

@@ -24,8 +24,8 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
 
   #[cfg(feature = "cli")]
   {
-    let args = get_matches(config.clone());
-    println!("{:?}", args);
+    let matches = get_matches(config.clone());
+    crate::cli::set_matches(matches)?;
   }
 
   // setup the content using the config struct depending on the compile target
@@ -81,7 +81,10 @@ fn setup_content(config: Config) -> crate::Result<Content<String>> {
     let dev_dir = config.build.dev_path;
     let dev_path = Path::new(&dev_dir).join("index.tauri.html");
     if !dev_path.exists() {
-      panic!("Couldn't find 'index.tauri.html' inside {}; did you forget to run 'tauri dev'?", dev_dir);
+      panic!(
+        "Couldn't find 'index.tauri.html' inside {}; did you forget to run 'tauri dev'?",
+        dev_dir
+      );
     }
     Ok(Content::Html(read_to_string(dev_path)?))
   }

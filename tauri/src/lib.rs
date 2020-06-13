@@ -9,6 +9,9 @@ pub mod event;
 #[cfg(feature = "embedded-server")]
 pub mod server;
 
+#[cfg(feature = "cli")]
+pub mod cli;
+
 mod app;
 mod endpoints;
 #[allow(dead_code)]

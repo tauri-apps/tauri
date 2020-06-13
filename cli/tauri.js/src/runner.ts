@@ -55,7 +55,6 @@ class Runner {
     }
 
     if (!this.beforeDevProcess && cfg.build.beforeDevCommand) {
-      this.ranBeforeDevCommand = true // prevent calling it twice on recursive call on our watcher
       log('Running `' + cfg.build.beforeDevCommand + '`')
       const ls = exec(cfg.build.beforeDevCommand, {
         cwd: appDir,

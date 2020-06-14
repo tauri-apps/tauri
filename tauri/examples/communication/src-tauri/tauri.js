@@ -563,6 +563,64 @@ window.tauri = {
       });
     
   },
+  
+    /**
+     * @name notification
+     * @description Display a desktop notification
+     * @param {Object|String} options the notifications options if an object, otherwise its body
+     * @param {String} [options.summary] the notification's summary
+     * @param {String} options.body the notification's body
+     * @param {String} [options.icon] the notifications's icon
+     * @returns {*|Promise<any>|Promise}
+     */
+  
+  notification: function notification(options) {
+    
+
+      if (_typeof(options) === 'object') {
+        Object.freeze(options);
+      }
+
+      return window.tauri.isNotificationPermissionGranted()
+        .then(function (permission) {
+          if (permission) {
+            return window.tauri.promisified({
+              cmd: 'notification',
+              options: typeof options === 'string' ? {
+                body: options
+              } : options
+            });
+          }
+        })
+    
+  },
+
+  isNotificationPermissionGranted: function isNotificationPermissionGranted() {
+    
+      if (window.Notification.permission !== 'default' && window.Notification.permission !== 'loading') {
+        return Promise.resolve(window.Notification.permission === 'granted')
+      }
+      return window.tauri.promisified({
+        cmd: 'isNotificationPermissionGranted'
+      })
+    
+  },
+
+  requestNotificationPermission: function requestNotificationPermission() {
+    
+      return window.tauri.promisified({
+        cmd: 'requestNotificationPermission'
+      }).then(function (state) {
+        if (state === 'default') {
+          return window.tauri.isNotificationPermissionGranted()
+            .then(function (permission) {
+              return permission === 'granted'
+            })
+        }
+        return state
+      })
+    
+  },
 
   loadAsset: function loadAsset(assetName, assetType) {
     return this.promisified({
@@ -572,6 +630,27 @@ window.tauri = {
     })
   }
 };
+
+
+  window.Notification = function (title, options) {
+    if (options === void 0) {
+      options = {}
+    }
+    options.title = title
+    window.tauri.notification(options)
+  }
+  window.Notification.requestPermission = window.tauri.requestNotificationPermission
+  window.Notification.permission = 'loading'
+  window.tauri.isNotificationPermissionGranted()
+    .then(function (response) {
+      if (response === null) {
+        window.Notification.permission = 'default'
+      } else {
+        window.Notification.permission = response ? 'granted' : 'denied'
+      }
+    })
+
+
 
 // init tauri API
 try {

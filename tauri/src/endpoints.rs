@@ -218,7 +218,7 @@ pub(crate) fn handle<T: 'static>(
           );
         }
         #[cfg(any(feature = "all-api", feature = "notification"))]
-        RequestNotificationPermission { callback, error } => crate::execute_promise(
+        RequestNotificationPermission { callback, error } => crate::execute_promise_sync(
           webview,
           move || {
             let mut settings = crate::settings::read_settings()?;
@@ -228,17 +228,17 @@ pub(crate) fn handle<T: 'static>(
               return Ok(if allow_notification { granted } else { denied });
             }
             let answer = tauri_api::dialog::ask(
-              "This app wants to show notifications. Do you allow?".to_string(),
-              Some("Permissions".to_string()),
-            )?;
+              "This app wants to show notifications. Do you allow?",
+              "Permissions",
+            );
             match answer {
-              tauri_api::dialog::DialogAnswer::Yes => {
+              tauri_api::dialog::DialogSelection::Yes => {
                 settings.allow_notification = Some(true);
                 crate::settings::write_settings(settings)?;
                 Ok(granted)
               }
-              tauri_api::dialog::DialogAnswer::No => Ok(denied),
-              tauri_api::dialog::DialogAnswer::Cancel => Ok(r#""default""#.to_string()),
+              tauri_api::dialog::DialogSelection::No => Ok(denied),
+              _ => Ok(r#""default""#.to_string()),
             }
           },
           callback,

@@ -86,21 +86,23 @@ function printAppInfo(tauriDir: string): void {
 
   const lockPath = path.join(tauriDir, 'Cargo.lock')
   const lock = readTomlFile<CargoLock>(lockPath)
-  const tauriPackages = lock ? lock.package.filter(pkg => pkg.name === 'tauri') : []
+  const lockPackages = lock ? lock.package.filter(pkg => pkg.name === 'tauri') : []
+
+  const manifestPath = path.join(tauriDir, 'Cargo.toml')
+  const manifest = readTomlFile<CargoManifest>(manifestPath)
+
   let tauriVersion
-
-  if (lock && tauriPackages.length <= 0) {
-    tauriVersion = chalk.red('unknown')
-  } else if (lock && tauriPackages.length === 1) {
-    tauriVersion = chalk.green(tauriPackages[0].version)
+  if (manifest && lock && lockPackages.length === 1) {
+    // everything looks good
+    tauriVersion = chalk.green(lockPackages[0].version)
+  } else if (lock && lockPackages.length === 1) {
+    // good lockfile, but no manifest - will cause problems building
+    tauriVersion = `${chalk.green(lockPackages[0].version)} (${chalk.red('no manifest')})`
   } else {
-    // there are multiple `tauri` packages in the lockfile
-    // load and check the manifest version to display alongside the found versions
-    const manifestPath = path.join(tauriDir, 'Cargo.toml')
-    const manifestContent = readTomlFile<CargoManifest>(manifestPath)
-
+    // we found multiple/none `tauri` packages in the lockfile, or
+    // no manifest. in both cases we want more info on the manifest
     const manifestVersion = (): string => {
-      const tauri = manifestContent?.dependencies.tauri
+      const tauri = manifest?.dependencies.tauri
       if (tauri) {
         if (typeof tauri === 'string') {
           return chalk.yellow(tauri)
@@ -116,17 +118,19 @@ function printAppInfo(tauriDir: string): void {
       } else {
         return chalk.red('no manifest')
       }
-      return chalk.red('unknown')
+      return chalk.red('unknown manifest')
     }
 
-    let lockVersions
-    if (lock) {
-      lockVersions = chalk.yellow(tauriPackages.map(p => p.version).join(', '))
+    let lockVersion
+    if (lock && lockPackages.length > 0) {
+      lockVersion = chalk.yellow(lockPackages.map(p => p.version).join(', '))
+    } else if (lock && lockPackages.length === 0) {
+      lockVersion = chalk.red('unknown lockfile')
     } else {
-      lockVersions = chalk.red('no lockfile')
+      lockVersion = chalk.red('no lockfile')
     }
 
-    tauriVersion = `${manifestVersion()} (${chalk.yellow(lockVersions)})`
+    tauriVersion = `${manifestVersion()} (${chalk.yellow(lockVersion)})`
   }
 
   printInfo({ key: '  tauri.rs', value: tauriVersion })

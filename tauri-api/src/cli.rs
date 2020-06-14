@@ -55,7 +55,11 @@ fn get_matches_internal<T: Cli + 'static>(config: &T, matches: &ArgMatches) -> M
   let (subcommand_name, subcommand_matches_option) = matches.subcommand();
   if let Some(subcommand_matches) = subcommand_matches_option {
     let mut subcommand_cli_matches = Matches::default();
-    map_matches(config, subcommand_matches, &mut subcommand_cli_matches);
+    map_matches(
+      config.subcommands().unwrap().get(subcommand_name).unwrap(),
+      subcommand_matches,
+      &mut subcommand_cli_matches,
+    );
     cli_matches.set_subcommand(subcommand_name.to_string(), subcommand_cli_matches);
   }
 

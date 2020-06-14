@@ -129,11 +129,9 @@ function printAppInfo(tauriDir: string): void {
     if (tauri) {
       if (typeof tauri === 'string') {
         tauriVersion = chalk.green(tauri)
-      }
-      if (tauri.version) {
+      } else if (tauri.version) {
         tauriVersion = chalk.green(tauri.version)
-      }
-      if (tauri.path) {
+      } else if (tauri.path) {
         try {
           const tauriTomlPath = path.resolve(
             tauriDir,
@@ -149,6 +147,8 @@ function printAppInfo(tauriDir: string): void {
         } catch (_) {
           tauriVersion = chalk.red('unknown')
         }
+      } else {
+        tauriVersion = chalk.red('unknown')
       }
     }
   }

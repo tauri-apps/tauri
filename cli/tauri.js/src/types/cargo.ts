@@ -4,7 +4,7 @@ export interface CargoTomlDependency {
 }
 
 export interface CargoManifest {
-  dependencies: { [k: string]: CargoManifestDependency }
+  dependencies: { [k: string]: string | CargoManifestDependency }
   package: { version: string }
 }
 

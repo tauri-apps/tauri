@@ -1,8 +1,3 @@
-export interface CargoTomlDependency {
-  version?: string
-  path?: string
-}
-
 export interface CargoManifest {
   dependencies: { [k: string]: string | CargoManifestDependency }
   package: { version: string }

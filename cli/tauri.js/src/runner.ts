@@ -404,6 +404,7 @@ class Runner {
           }
 
           if (dev && !exitOnPanic && code === 101) {
+            this.pid = 0
             resolve()
             return
           }

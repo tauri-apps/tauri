@@ -301,6 +301,15 @@ mod test {
     let config = init_config();
     let _c = config.clone();
 
+    let tauri_dir = match option_env!("TAURI_DIR") {
+      Some(d) => d.to_string(),
+      None => env::current_dir()
+        .unwrap()
+        .into_os_string()
+        .into_string()
+        .expect("Unable to convert to normal String"),
+    };
+    env::set_current_dir(tauri_dir).expect("failed to change cwd");
     let res = super::setup_content(config);
 
     #[cfg(feature = "embedded-server")]
@@ -332,17 +341,11 @@ mod test {
     match res {
       Ok(Content::Url(dp)) => assert_eq!(dp, _c.build.dev_path),
       Ok(Content::Html(s)) => {
-        let dist_dir = match option_env!("TAURI_DIST_DIR") {
-          Some(d) => d.to_string(),
-          None => env::current_dir()
-            .unwrap()
-            .into_os_string()
-            .into_string()
-            .expect("Unable to convert to normal String"),
-        };
+        let dev_dir = _c.build.dev_path;
+        let dev_path = Path::new(&dev_dir).join("index.tauri.html");
         assert_eq!(
           s,
-          read_to_string(Path::new(&dist_dir).join("index.tauri.html")).unwrap()
+          read_to_string(dev_path).expect("failed to read dev path")
         );
       }
       _ => assert!(false),

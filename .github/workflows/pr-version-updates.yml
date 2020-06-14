@@ -1,0 +1,31 @@
+name: pr-version-updates
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  pr-to-master:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: git config
+        run: |
+          git config --global user.name "${{ github.event.pusher.name }}"
+          git config --global user.email "${{ github.event.pusher.email }}"
+      - name: covector version
+        uses: jbolda/covector/packages/action@master
+        id: covector
+        with:
+          command: 'version'
+      - name: Create Pull Request With Versions Bumped
+        uses: tauri-apps/create-pull-request@v2.8.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: release/version-updates
+          title: Apply Version Updates From Current Changes
+          body: |
+            Merging this PR will update the versions on all packages with changes as specified in the `.changes` directory.
+            It will kick off the process to release and publish any packages with an incremented version number.

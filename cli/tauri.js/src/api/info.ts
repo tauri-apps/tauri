@@ -6,7 +6,7 @@ import os from 'os'
 import path from 'path'
 import { appDir, tauriDir } from '../helpers/app-paths'
 import { TauriConfig } from './../types/config'
-import { CargoLock, CargoManifest, CargoToml } from '../types/cargo'
+import { CargoLock, CargoManifest } from '../types/cargo'
 import nonWebpackRequire from '../helpers/non-webpack-require'
 import { version } from '../../package.json'
 
@@ -124,7 +124,7 @@ function printAppInfo(tauriDir: string): void {
   } else {
     const tomlPath = path.join(tauriDir, 'Cargo.toml')
     const tomlFile = fs.readFileSync(tomlPath).toString()
-    const tomlContents = toml.parse(tomlFile) as any as CargoToml
+    const tomlContents = toml.parse(tomlFile) as any as CargoManifest
     const tauri = tomlContents.dependencies.tauri
     if (tauri) {
       if (typeof tauri === 'string') {
@@ -141,7 +141,7 @@ function printAppInfo(tauriDir: string): void {
             'Cargo.toml'
           )
           const tauriTomlFile = fs.readFileSync(tauriTomlPath).toString()
-          const tauriTomlContents = toml.parse(tauriTomlFile) as any as CargoToml
+          const tauriTomlContents = toml.parse(tauriTomlFile) as any as CargoManifest
           tauriVersion = chalk.green(
             // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             `${tauriTomlContents.package.version} (from source)`

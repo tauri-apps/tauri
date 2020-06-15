@@ -82,7 +82,7 @@ fn setup_content() -> crate::Result<Content<String>> {
 #[cfg(feature = "embedded-server")]
 fn setup_content() -> crate::Result<Content<String>> {
   let (port, valid) = setup_port().expect("Unable to setup Port");
-  let url = setup_server_url(valid, port).expect("Unable to setup URL");
+  let url = (if valid { setup_server_url(port) } else { None }).expect("Unable to setup URL");
 
   Ok(Content::Url(url.to_string()))
 }
@@ -124,17 +124,13 @@ fn setup_port() -> Option<(String, bool)> {
 
 // setup the server url for embedded server
 #[cfg(feature = "embedded-server")]
-fn setup_server_url(valid: bool, port: String) -> crate::Result<String> {
+fn setup_server_url(port: String) -> crate::Result<String> {
   let config = get()?;
-  if valid {
-    let mut url = format!("{}:{}", config.tauri.embedded_server.host, port);
-    if !url.starts_with("http") {
-      url = format!("http://{}", url);
-    }
-    Some(url)
-  } else {
-    None
+  let mut url = format!("{}:{}", config.tauri.embedded_server.host, port);
+  if !url.starts_with("http") {
+    url = format!("http://{}", url);
   }
+  Some(url)
 }
 
 // spawn the embedded server
@@ -356,11 +352,9 @@ mod test {
     #[cfg(feature = "embedded-server")]
     #[test]
     fn check_server_url(port in (any::<u32>().prop_map(|v| v.to_string()))) {
-      let valid = true;
-
       let p = port.clone();
 
-      let res = super::setup_server_url(valid, port);
+      let res = super::setup_server_url(port);
 
       match res {
         Ok(url) => assert!(url.contains(&p)),

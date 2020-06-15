@@ -2,4 +2,4 @@
 "tauri.js": patch
 ---
 
-Kill beforeDevProcess on shutdown.
+Kill process started by `tauri.conf.json > build > beforeDevCommand` on CLI shutdown.

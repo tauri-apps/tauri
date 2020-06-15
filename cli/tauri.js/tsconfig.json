@@ -11,7 +11,8 @@
     "baseUrl": ".",
     "paths": {
       "types": ["src/types"]
-    }
+    },
+    "resolveJsonModule": true
   },
   "include": ["src"]
 }

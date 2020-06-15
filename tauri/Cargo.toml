@@ -40,6 +40,7 @@ tauri = {path = ".", features = [ "all-api", "edge" ]}
 serde = { version = "1.0", features = [ "derive" ] }
 
 [features]
+cli = ["tauri-api/cli"]
 edge = ["web-view/edge"]
 embedded-server = ["tiny_http"]
 no-server = []

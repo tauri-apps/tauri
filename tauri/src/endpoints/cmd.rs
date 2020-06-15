@@ -167,6 +167,11 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
+  #[cfg(feature = "cli")]
+  CliMatches {
+    callback: String,
+    error: String,
+  },
   #[cfg(any(feature = "all-api", feature = "notification"))]
   Notification {
     options: NotificationOptions,

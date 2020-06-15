@@ -4,9 +4,9 @@ mod file_system;
 mod http;
 mod salt;
 
-use crate::config::Config;
 #[cfg(any(feature = "embedded-server", feature = "no-server"))]
 use std::path::PathBuf;
+use tauri_api::config::Config;
 use web_view::WebView;
 
 #[cfg(windows)]
@@ -186,6 +186,16 @@ pub(crate) fn handle<T: 'static>(
         } => {
           load_asset(webview, asset, asset_type, callback, error)?;
         }
+        #[cfg(feature = "cli")]
+        CliMatches { callback, error } => crate::execute_promise(
+          webview,
+          move || match crate::cli::get_matches() {
+            Some(matches) => Ok(serde_json::to_string(matches)?),
+            None => Err(anyhow::anyhow!(r#""failed to get matches""#)),
+          },
+          callback,
+          error,
+        ),
         #[cfg(any(feature = "all-api", feature = "notification"))]
         Notification {
           options,

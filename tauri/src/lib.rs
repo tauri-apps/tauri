@@ -5,11 +5,13 @@
 
 #[cfg(any(feature = "embedded-server", feature = "no-server"))]
 pub mod assets;
-pub mod config;
 pub mod event;
 #[cfg(feature = "embedded-server")]
 pub mod server;
 pub mod settings;
+
+#[cfg(feature = "cli")]
+pub mod cli;
 
 mod app;
 mod endpoints;

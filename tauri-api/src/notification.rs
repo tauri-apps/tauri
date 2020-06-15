@@ -1,4 +1,5 @@
-use crate::config::Config;
+#[cfg(windows)]
+use crate::config::{get as get_config};
 #[cfg(windows)]
 use std::path::MAIN_SEPARATOR;
 
@@ -7,16 +8,14 @@ pub struct Notification {
   body: Option<String>,
   title: Option<String>,
   icon: Option<String>,
-  config: Config,
 }
 
 impl Notification {
-  pub fn new(config: Config) -> Self {
+  pub fn new() -> Self {
     Self {
       body: None,
       title: None,
       icon: None,
-      config,
     }
   }
 
@@ -46,7 +45,7 @@ impl Notification {
     if let Some(icon) = self.icon {
       notification.icon(&icon);
     }
-    #[cfg(windowss)]
+    #[cfg(windows)]
     {
       let exe = std::env::current_exe()?;
       let exe_dir = exe.parent().expect("failed to get exe directory");
@@ -55,7 +54,8 @@ impl Notification {
       if !(curr_dir.ends_with(format!("{S}target{S}debug", S = MAIN_SEPARATOR).as_str())
         || curr_dir.ends_with(format!("{S}target{S}release", S = MAIN_SEPARATOR).as_str()))
       {
-        let identifier = self.config.tauri.bundle.identifier.clone();
+        let config = get_config()?;
+        let identifier = config.tauri.bundle.identifier.clone();
         notification.id(&identifier);
       }
     }

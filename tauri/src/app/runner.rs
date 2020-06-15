@@ -124,7 +124,7 @@ fn setup_port() -> Option<(String, bool)> {
 
 // setup the server url for embedded server
 #[cfg(feature = "embedded-server")]
-fn setup_server_url(valid: bool, port: String) -> Option<String> {
+fn setup_server_url(valid: bool, port: String) -> crate::Result<String> {
   let config = get()?;
   if valid {
     let mut url = format!("{}:{}", config.tauri.embedded_server.host, port);
@@ -363,8 +363,8 @@ mod test {
       let res = super::setup_server_url(valid, port);
 
       match res {
-        Some(url) => assert!(url.contains(&p)),
-        None => assert!(false)
+        Ok(url) => assert!(url.contains(&p)),
+        Err(_) => assert!(false)
       }
     }
   }

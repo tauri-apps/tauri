@@ -159,6 +159,18 @@ macro_rules! impl_cli {
   }
 }
 
+#[derive(PartialEq, Deserialize, Clone, Debug)]
+#[serde(tag = "bundle", rename_all = "camelCase")]
+pub struct BundleConfig {
+  pub identifier: String,
+}
+
+fn default_bundle() -> BundleConfig {
+  BundleConfig {
+    identifier: String::from(""),
+  }
+}
+
 impl_cli!(CliSubcommand, CliConfig);
 
 #[derive(PartialEq, Deserialize, Clone, Debug)]
@@ -170,6 +182,8 @@ pub struct TauriConfig {
   pub embedded_server: EmbeddedServerConfig,
   #[serde(default)]
   pub cli: Option<CliConfig>,
+  #[serde(default = "default_bundle")]
+  pub bundle: BundleConfig,
 }
 
 #[derive(PartialEq, Deserialize, Clone, Debug)]
@@ -197,6 +211,7 @@ fn default_tauri() -> TauriConfig {
     window: default_window(),
     embedded_server: default_embedded_server(),
     cli: None,
+    bundle: default_bundle(),
   }
 }
 
@@ -253,6 +268,9 @@ mod test {
         embedded_server: EmbeddedServerConfig {
           host: String::from("http://127.0.0.1"),
           port: String::from("random"),
+        },
+        bundle: BundleConfig {
+          identifier: String::from("com.tauri.communication"),
         },
         cli: Some(CliConfig {
           description: Some("Tauri communication example".to_string()),
@@ -331,6 +349,8 @@ mod test {
     let d_window = default_window();
     // get default title
     let d_title = default_title();
+    // get default bundle
+    let d_bundle = default_bundle();
 
     // create a tauri config.
     let tauri = TauriConfig {
@@ -345,6 +365,9 @@ mod test {
         host: String::from("http://127.0.0.1"),
         port: String::from("random"),
       },
+      bundle: BundleConfig {
+        identifier: String::from(""),
+      },
       cli: None,
     };
 
@@ -357,6 +380,7 @@ mod test {
     assert_eq!(t_config, tauri);
     assert_eq!(b_config, build);
     assert_eq!(de_server, tauri.embedded_server);
+    assert_eq!(d_bundle, tauri.bundle);
     assert_eq!(d_path, String::from(""));
     assert_eq!(d_title, tauri.window.title);
     assert_eq!(d_window, tauri.window);

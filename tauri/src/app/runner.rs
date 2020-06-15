@@ -195,6 +195,7 @@ fn build_webview(
     Content::Url(ref url) => Content::Url(url.clone()),
   };
   let debug = cfg!(debug_assertions);
+  let config_clone = config.clone();
   // get properties from config struct
   let width = config.tauri.window.width;
   let height = config.tauri.window.height;
@@ -228,7 +229,9 @@ fn build_webview(
         webview.eval(&format!(r#"window.location.href = "{}""#, content_href))?;
       } else {
         let handler_error;
-        if let Err(tauri_handle_error) = crate::endpoints::handle(webview, arg) {
+        if let Err(tauri_handle_error) =
+          crate::endpoints::handle(webview, arg, config_clone.clone())
+        {
           let tauri_handle_error_str = tauri_handle_error.to_string();
           if tauri_handle_error_str.contains("unknown variant") {
             let handled_by_app = application.run_invoke_handler(webview, arg);

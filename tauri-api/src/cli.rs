@@ -106,6 +106,12 @@ fn get_app<'a, T: Cli + 'static>(name: &str, about: Option<&'a String>, config: 
   if let Some(long_description) = config.long_description() {
     app = app.long_about(&**long_description);
   }
+  if let Some(before_help) = config.before_help() {
+    app = app.before_help(&**before_help);
+  }
+  if let Some(after_help) = config.after_help() {
+    app = app.after_help(&**after_help);
+  }
 
   if let Some(args) = config.args() {
     for arg in args {

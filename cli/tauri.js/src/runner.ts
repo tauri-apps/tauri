@@ -500,6 +500,10 @@ class Runner {
       tomlFeatures.push('edge')
     }
 
+    if (cfg.tauri.cli) {
+        tomlFeatures.push('cli')
+    }
+
     if (typeof manifest.dependencies.tauri === 'string') {
       manifest.dependencies.tauri = {
         version: manifest.dependencies.tauri,

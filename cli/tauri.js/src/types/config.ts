@@ -1,6 +1,39 @@
 // TODO: Clean up types, properly mark which ones are optional
 // May need to have different types for each stage of config generation process
 
+export interface CliArg {
+  short?: string
+  name: string
+  description?: string
+  longDescription?: string
+  takesValue?: boolean
+  multiple?: boolean
+  possibleValues?: string[]
+  minValues?: number
+  maxValues?: number
+  required?: boolean
+  requiredUnless?: string
+  requiredUnlessAll?: string[]
+  requiredUnlessOne?: string[]
+  conflictsWith?: string
+  conflictsWithAll?: string
+  requires?: string
+  requiresAll?: string[]
+  requiresIf?: [string, string]
+  requiredIf?: [string, string]
+  requireEquals?: boolean
+  global?: boolean
+}
+
+export interface CliConfig {
+  args?: CliArg[]
+  description?: string
+  longDescription?: string
+  beforeHelp?: string
+  afterHelp?: string
+  subcommands?: { [name: string]: CliConfig }
+}
+
 export interface TauriConfig {
   build: {
     distDir: string
@@ -17,6 +50,7 @@ export interface TauriConfig {
     exitOnPanic?: boolean
   }
   tauri: {
+    cli: CliConfig
     inlinedAssets: string[]
     devPath: string
     embeddedServer: {

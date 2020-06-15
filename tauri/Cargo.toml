@@ -39,6 +39,7 @@ tauri = {path = ".", features = [ "all-api", "edge" ]}
 serde = { version = "1.0", features = [ "derive" ] }
 
 [features]
+cli = ["tauri-api/cli"]
 edge = ["web-view/edge"]
 embedded-server = ["tiny_http"]
 no-server = []
@@ -66,4 +67,3 @@ features = ["all-api"]
 [[example]]
 name = "communication"
 path = "examples/communication/src-tauri/src/main.rs"
-

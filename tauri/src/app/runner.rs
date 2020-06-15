@@ -81,8 +81,13 @@ fn setup_content() -> crate::Result<Content<String>> {
 // setup content for embedded server
 #[cfg(feature = "embedded-server")]
 fn setup_content() -> crate::Result<Content<String>> {
-  let (port, valid) = setup_port().expect("Unable to setup Port");
-  let url = (if valid { setup_server_url(port) } else { None }).expect("Unable to setup URL");
+  let (port, valid) = setup_port()?;
+  let url = (if valid {
+    setup_server_url(port)
+  } else {
+    Err(anyhow::anyhow!("invalid port"))
+  })
+  .expect("Unable to setup URL");
 
   Ok(Content::Url(url.to_string()))
 }
@@ -104,21 +109,21 @@ fn setup_content() -> crate::Result<Content<String>> {
 
 // get the port for the embedded server
 #[cfg(feature = "embedded-server")]
-fn setup_port() -> Option<(String, bool)> {
+fn setup_port() -> crate::Result<(String, bool)> {
   let config = get()?;
   if config.tauri.embedded_server.port == "random" {
     match get_available_port() {
-      Some(available_port) => Some((available_port.to_string(), true)),
-      None => Some(("0".to_string(), false)),
+      Some(available_port) => Ok((available_port.to_string(), true)),
+      None => Ok(("0".to_string(), false)),
     }
   } else {
-    let port = config.tauri.embedded_server.port;
+    let port = &config.tauri.embedded_server.port;
     let port_valid = port_is_available(
       port
         .parse::<u16>()
         .expect(&format!("Invalid port {}", port)),
     );
-    Some((port, port_valid))
+    Ok((port.to_string(), port_valid))
   }
 }
 
@@ -130,7 +135,7 @@ fn setup_server_url(port: String) -> crate::Result<String> {
   if !url.starts_with("http") {
     url = format!("http://{}", url);
   }
-  Some(url)
+  Ok(url)
 }
 
 // spawn the embedded server
@@ -342,7 +347,7 @@ mod test {
   fn check_setup_port() {
     let res = super::setup_port();
     match res {
-      Some((_s, _b)) => assert!(true),
+      Ok((_s, _b)) => assert!(true),
       _ => assert!(false),
     }
   }

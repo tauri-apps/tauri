@@ -26,6 +26,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: release/version-updates
           title: Apply Version Updates From Current Changes
+          labels: "version updates"
           body: |
             Merging this PR will update the versions on all packages with changes as specified in the `.changes` directory.
             It will kick off the process to release and publish any packages with an incremented version number.

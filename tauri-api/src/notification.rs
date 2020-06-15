@@ -1,5 +1,5 @@
 #[cfg(windows)]
-use crate::config::{get as get_config};
+use crate::config::get as get_config;
 #[cfg(windows)]
 use std::path::MAIN_SEPARATOR;
 
@@ -56,7 +56,7 @@ impl Notification {
       {
         let config = get_config()?;
         let identifier = config.tauri.bundle.identifier.clone();
-        notification.id(&identifier);
+        notification.app_id(&identifier);
       }
     }
     notification

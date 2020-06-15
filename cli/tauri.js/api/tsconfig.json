@@ -10,9 +10,8 @@
     "moduleResolution": "node",
     "baseUrl": ".",
     "paths": {
-      "types": ["src/types"]
+      "types": ["@types"]
     },
   },
-  "include": ["src"],
-  "// extends": "./api/tsconfig.json"
+  "include": ["./"]
 }

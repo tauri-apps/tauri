@@ -1,5 +1,5 @@
 import tauri from './tauri'
-import { HttpOptions, Body, BodyType, ResponseType } from './models'
+import { HttpOptions, Body, BodyType, ResponseType, PartialOptions } from './models'
 
 /**
  * makes a HTTP request
@@ -8,8 +8,8 @@ import { HttpOptions, Body, BodyType, ResponseType } from './models'
  *
  * @return promise resolving to the response
  */
-function request<T> (options: HttpOptions): Promise<T> {
-  return tauri.httpRequest(options)
+async function request<T>(options: HttpOptions): Promise<T> {
+  return await tauri.httpRequest<T>(options)
 }
 
 /**
@@ -20,8 +20,8 @@ function request<T> (options: HttpOptions): Promise<T> {
  *
  * @return promise resolving to the response
  */
-function get<T> (url: string, options: HttpOptions): Promise<T> {
-  return request({
+async function get<T>(url: string, options: PartialOptions): Promise<T> {
+  return await request({
     method: 'GET',
     url,
     ...options
@@ -37,8 +37,8 @@ function get<T> (url: string, options: HttpOptions): Promise<T> {
  *
  * @return promise resolving to the response
  */
-function post<T> (url: string, body: Body, options: HttpOptions): Promise<T> {
-  return request({
+async function post<T>(url: string, body: Body, options: PartialOptions): Promise<T> {
+  return await request({
     method: 'POST',
     url,
     body,
@@ -55,8 +55,8 @@ function post<T> (url: string, body: Body, options: HttpOptions): Promise<T> {
  *
  * @return promise resolving to the response
  */
-function put<T> (url: string, body: Body, options: HttpOptions): Promise<T> {
-  return request({
+async function put<T>(url: string, body: Body, options: PartialOptions): Promise<T> {
+  return await request({
     method: 'PUT',
     url,
     body,
@@ -72,8 +72,8 @@ function put<T> (url: string, body: Body, options: HttpOptions): Promise<T> {
  *
  * @return promise resolving to the response
  */
-function patch<T> (url: string, options: HttpOptions): Promise<T> {
-  return request({
+async function patch<T>(url: string, options: PartialOptions): Promise<T> {
+  return await request({
     method: 'PATCH',
     url,
     ...options
@@ -88,8 +88,8 @@ function patch<T> (url: string, options: HttpOptions): Promise<T> {
  *
  * @return promise resolving to the response
  */
-function deleteRequest<T> (url: string, options: HttpOptions): Promise<T> {
-  return request({
+async function deleteRequest<T>(url: string, options: PartialOptions): Promise<T> {
+  return await request({
     method: 'DELETE',
     url,
     ...options

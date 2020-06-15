@@ -7,7 +7,7 @@ import tauri from './tauri'
  * @param [args] command args
  * @return promise resolving to the stdout text
  */
-function execute(command: string, args?: string | string[]): Promise<string> {
+async function execute(command: string, args?: string | string[]): Promise<string> {
   return tauri.execute(command, args)
 }
 

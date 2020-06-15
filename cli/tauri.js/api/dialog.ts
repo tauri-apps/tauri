@@ -1,28 +1,29 @@
+import { OpenDialogOptions, SaveDialogOptions } from './models'
 import tauri from './tauri'
 
 /**
  * @name openDialog
  * @description Open a file/directory selection dialog
- * @param {Object} [options]
- * @param {String} [options.filter]
- * @param {String} [options.defaultPath]
- * @param {Boolean} [options.multiple=false]
- * @param {Boolean} [options.directory=false]
- * @returns {Promise<String|String[]>} promise resolving to the select path(s)
+ * @param [options]
+ * @param [options.filter]
+ * @param [options.defaultPath]
+ * @param [options.multiple=false]
+ * @param [options.directory=false]
+ * @returns promise resolving to the select path(s)
  */
-function open (options = {}) {
+async function open(options: OpenDialogOptions = {}): Promise<String | String[]> {
   return tauri.openDialog(options)
 }
 
 /**
  * @name save
  * @description Open a file/directory save dialog
- * @param {Object} [options]
- * @param {String} [options.filter]
- * @param {String} [options.defaultPath]
- * @returns {Promise<String>} promise resolving to the select path
+ * @param [options]
+ * @param [options.filter]
+ * @param [options.defaultPath]
+ * @returns promise resolving to the select path
  */
-function save (options = {}) {
+async function save(options: SaveDialogOptions = {}): Promise<String> {
   return tauri.saveDialog(options)
 }
 

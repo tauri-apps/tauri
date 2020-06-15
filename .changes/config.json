@@ -1,9 +1,11 @@
 {
   "pkgManagers": {
     "rust": {
+      "version": true,
       "publish": false
     },
     "javascript": {
+      "version": true,
       "publish": false
     }
   },

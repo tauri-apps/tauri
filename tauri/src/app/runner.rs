@@ -12,12 +12,21 @@ use web_view::{builder, Content, WebView};
 use super::App;
 #[cfg(feature = "embedded-server")]
 use crate::api::tcp::{get_available_port, port_is_available};
-use crate::config::{get, Config};
+use tauri_api::config::{get, Config};
+
+#[cfg(feature = "cli")]
+use tauri_api::cli::get_matches;
 
 // Main entry point function for running the Webview
 pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   // get the tauri config struct
   let config = get()?;
+
+  #[cfg(feature = "cli")]
+  {
+    let matches = get_matches(config.clone());
+    crate::cli::set_matches(matches)?;
+  }
 
   // setup the content using the config struct depending on the compile target
   let main_content = setup_content(config.clone())?;
@@ -72,7 +81,10 @@ fn setup_content(config: Config) -> crate::Result<Content<String>> {
     let dev_dir = config.build.dev_path;
     let dev_path = Path::new(&dev_dir).join("index.tauri.html");
     if !dev_path.exists() {
-      panic!("Couldn't find 'index.tauri.html' inside {}; did you forget to run 'tauri dev'?", dev_dir);
+      panic!(
+        "Couldn't find 'index.tauri.html' inside {}; did you forget to run 'tauri dev'?",
+        dev_dir
+      );
     }
     Ok(Content::Html(read_to_string(dev_path)?))
   }
@@ -280,8 +292,8 @@ mod test {
   #[cfg(not(feature = "embedded-server"))]
   use std::{env, fs::read_to_string, path::Path};
 
-  fn init_config() -> crate::config::Config {
-    crate::config::get().expect("unable to setup default config")
+  fn init_config() -> tauri_api::config::Config {
+    tauri_api::config::get().expect("unable to setup default config")
   }
 
   #[test]

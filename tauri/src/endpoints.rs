@@ -178,6 +178,16 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         } => {
           load_asset(webview, asset, asset_type, callback, error)?;
         }
+        #[cfg(feature = "cli")]
+        CliMatches { callback, error } => crate::execute_promise(
+          webview,
+          move || match crate::cli::get_matches() {
+            Some(matches) => Ok(serde_json::to_string(matches)?),
+            None => Err(anyhow::anyhow!(r#""failed to get matches""#)),
+          },
+          callback,
+          error,
+        ),
       }
       Ok(())
     }

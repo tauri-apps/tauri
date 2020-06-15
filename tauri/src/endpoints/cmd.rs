@@ -160,4 +160,9 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
+  #[cfg(feature = "cli")]
+  CliMatches {
+    callback: String,
+    error: String,
+  },
 }

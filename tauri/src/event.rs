@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use lazy_static::lazy_static;
-use web_view::Handle;
 use once_cell::sync::Lazy;
+use web_view::Handle;
 
 struct EventHandler {
   on_event: Box<dyn FnMut(Option<String>) + Send>,

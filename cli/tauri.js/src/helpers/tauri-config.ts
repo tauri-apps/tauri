@@ -1,4 +1,4 @@
-import { existsSync } from 'fs-extra'
+import { existsSync, readFileSync } from 'fs-extra'
 import { TauriConfig } from 'types'
 import merge from 'webpack-merge'
 import logger from '../helpers/logger'
@@ -21,7 +21,7 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
     )
     process.exit(1)
   }
-  const tauriConf = nonWebpackRequire(tauriConfPath) as TauriConfig
+  const tauriConf = JSON.parse(readFileSync(tauriConfPath).toString()) as TauriConfig
   const pkg = nonWebpackRequire(pkgPath) as { productName: string }
 
   const config = merge(

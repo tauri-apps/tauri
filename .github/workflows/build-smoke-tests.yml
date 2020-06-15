@@ -3,11 +3,7 @@ name: build smoke tests with source
 on:
   push:
     branches:
-      - dev
-  pull_request:
-    paths:
-      - '**/package.json'
-      - '**/Cargo.toml'
+      - stop-running
 
 jobs:
   node:

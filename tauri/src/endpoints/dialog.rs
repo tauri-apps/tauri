@@ -41,10 +41,7 @@ pub fn save<T: 'static>(
 ) {
   crate::execute_promise_sync(
     webview,
-    move || {
-      save_file(options.filter, options.default_path)
-        .map(map_response)
-    },
+    move || save_file(options.filter, options.default_path).map(map_response),
     callback,
     error,
   );

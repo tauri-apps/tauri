@@ -1,5 +1,6 @@
 use serde::Deserialize;
 
+use std::collections::HashMap;
 use std::{fs, path};
 
 #[derive(PartialEq, Deserialize, Clone, Debug)]
@@ -67,6 +68,99 @@ fn default_embedded_server() -> EmbeddedServerConfig {
   }
 }
 
+#[derive(PartialEq, Deserialize, Clone, Debug, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct CliArg {
+  pub short: Option<char>,
+  pub name: String,
+  pub description: Option<String>,
+  pub long_description: Option<String>,
+  pub takes_value: Option<bool>,
+  pub multiple: Option<bool>,
+  pub multiple_occurrences: Option<bool>,
+  pub number_of_values: Option<u64>,
+  pub possible_values: Option<Vec<String>>,
+  pub min_values: Option<u64>,
+  pub max_values: Option<u64>,
+  pub required: Option<bool>,
+  pub required_unless: Option<String>,
+  pub required_unless_all: Option<Vec<String>>,
+  pub required_unless_one: Option<Vec<String>>,
+  pub conflicts_with: Option<String>,
+  pub conflicts_with_all: Option<Vec<String>>,
+  pub requires: Option<String>,
+  pub requires_all: Option<Vec<String>>,
+  pub requires_if: Option<Vec<String>>,
+  pub required_if: Option<Vec<String>>,
+  pub require_equals: Option<bool>,
+}
+
+#[derive(PartialEq, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct CliSubcommand {
+  description: Option<String>,
+  long_description: Option<String>,
+  before_help: Option<String>,
+  after_help: Option<String>,
+  args: Option<Vec<CliArg>>,
+  subcommands: Option<HashMap<String, CliSubcommand>>,
+}
+
+#[derive(PartialEq, Deserialize, Clone, Debug)]
+#[serde(tag = "cli", rename_all = "camelCase")]
+pub struct CliConfig {
+  description: Option<String>,
+  long_description: Option<String>,
+  before_help: Option<String>,
+  after_help: Option<String>,
+  args: Option<Vec<CliArg>>,
+  subcommands: Option<HashMap<String, CliSubcommand>>,
+}
+
+pub trait Cli {
+  fn args(&self) -> Option<&Vec<CliArg>>;
+  fn subcommands(&self) -> Option<&HashMap<String, CliSubcommand>>;
+  fn description(&self) -> Option<&String>;
+  fn long_description(&self) -> Option<&String>;
+  fn before_help(&self) -> Option<&String>;
+  fn after_help(&self) -> Option<&String>;
+}
+
+macro_rules! impl_cli {
+  ( $($field_name:ident),+ $(,)?) => {
+    $(
+      impl Cli for $field_name {
+
+        fn args(&self) -> Option<&Vec<CliArg>> {
+          self.args.as_ref()
+        }
+
+        fn subcommands(&self) -> Option<&HashMap<String, CliSubcommand>> {
+          self.subcommands.as_ref()
+        }
+
+        fn description(&self) -> Option<&String> {
+          self.description.as_ref()
+        }
+
+        fn long_description(&self) -> Option<&String> {
+          self.description.as_ref()
+        }
+
+        fn before_help(&self) -> Option<&String> {
+          self.before_help.as_ref()
+        }
+
+        fn after_help(&self) -> Option<&String> {
+          self.after_help.as_ref()
+        }
+      }
+    )+
+  }
+}
+
+impl_cli!(CliSubcommand, CliConfig);
+
 #[derive(PartialEq, Deserialize, Clone, Debug)]
 #[serde(tag = "tauri", rename_all = "camelCase")]
 pub struct TauriConfig {
@@ -74,6 +168,8 @@ pub struct TauriConfig {
   pub window: WindowConfig,
   #[serde(default = "default_embedded_server")]
   pub embedded_server: EmbeddedServerConfig,
+  #[serde(default)]
+  pub cli: Option<CliConfig>,
 }
 
 #[derive(PartialEq, Deserialize, Clone, Debug)]
@@ -100,6 +196,7 @@ fn default_tauri() -> TauriConfig {
   TauriConfig {
     window: default_window(),
     embedded_server: default_embedded_server(),
+    cli: None,
   }
 }
 
@@ -127,6 +224,23 @@ mod test {
   use super::*;
   // generate a test_config based on the test fixture
   fn create_test_config() -> Config {
+    let mut subcommands = std::collections::HashMap::new();
+    subcommands.insert(
+      "update".to_string(),
+      CliSubcommand {
+        description: Some("Updates the app".to_string()),
+        long_description: None,
+        before_help: None,
+        after_help: None,
+        args: Some(vec![CliArg {
+          short: Some('b'),
+          name: "background".to_string(),
+          description: Some("Update in background".to_string()),
+          ..Default::default()
+        }]),
+        subcommands: None,
+      },
+    );
     Config {
       tauri: TauriConfig {
         window: WindowConfig {
@@ -140,6 +254,41 @@ mod test {
           host: String::from("http://127.0.0.1"),
           port: String::from("random"),
         },
+        cli: Some(CliConfig {
+          description: Some("Tauri communication example".to_string()),
+          long_description: None,
+          before_help: None,
+          after_help: None,
+          args: Some(vec![
+            CliArg {
+              short: Some('c'),
+              name: "config".to_string(),
+              takes_value: Some(true),
+              description: Some("Config path".to_string()),
+              ..Default::default()
+            },
+            CliArg {
+              short: Some('t'),
+              name: "theme".to_string(),
+              takes_value: Some(true),
+              description: Some("App theme".to_string()),
+              possible_values: Some(vec![
+                "light".to_string(),
+                "dark".to_string(),
+                "system".to_string(),
+              ]),
+              ..Default::default()
+            },
+            CliArg {
+              short: Some('v'),
+              name: "verbose".to_string(),
+              multiple_occurrences: Some(true),
+              description: Some("Verbosity level".to_string()),
+              ..Default::default()
+            },
+          ]),
+          subcommands: Some(subcommands),
+        }),
       },
       build: BuildConfig {
         dev_path: String::from("../dist"),
@@ -152,16 +301,6 @@ mod test {
   fn test_get() {
     // get test_config
     let test_config = create_test_config();
-
-    // if no env variable set it return a default config...
-    // in the CI we don't have env variable set so the test are failing
-    let mut example_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    example_path.push("examples");
-    example_path.push("communication");
-    example_path.push("src-tauri");
-
-    // set our taur-dir
-    std::env::set_var("TAURI_DIR", example_path);
 
     // call get();
     let config = get();
@@ -206,6 +345,7 @@ mod test {
         host: String::from("http://127.0.0.1"),
         port: String::from("random"),
       },
+      cli: None,
     };
 
     // create a build config

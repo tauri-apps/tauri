@@ -1,6 +1,3 @@
-// TODO: Clean up types, properly mark which ones are optional
-// May need to have different types for each stage of config generation process
-
 export interface CliArg {
   short?: string
   name: string
@@ -44,38 +41,35 @@ export interface TauriConfig {
   ctx: {
     prod?: boolean
     dev?: boolean
-    target: string
+    target?: string
     debug?: boolean
-    targetName: string
     exitOnPanic?: boolean
   }
   tauri: {
-    cli: CliConfig
-    inlinedAssets: string[]
-    devPath: string
+    cli?: CliConfig
     embeddedServer: {
-      active: boolean
+      active?: boolean
     }
     bundle: {
-      active: boolean
+      active?: boolean
       targets?: string | string[]
       identifier: string
       icon: string[]
       resources?: string[]
       externalBin?: string[]
       copyright?: string
-      category: string
+      category?: string
       shortDescription?: string
       longDescription?: string
       deb?: {
         depends?: string[]
-        useBootstrapper: boolean
+        useBootstrapper?: boolean
       }
       osx?: {
         frameworks?: string[]
         minimumSystemVersion?: string
         license?: string
-        useBootstrapper: boolean
+        useBootstrapper?: boolean
       }
       exceptionDomain?: string
     }
@@ -85,18 +79,19 @@ export interface TauriConfig {
     }
     window: {
       title: string
-      width: number
-      height: number
-      resizable: boolean
+      width?: number
+      height?: number
+      resizable?: boolean
+      fullscreen?: boolean
     }
     security: {
-      csp: string
+      csp?: string
     }
     edge: {
-      active: boolean
+      active?: boolean
     }
     inliner: {
-      active: boolean
+      active?: boolean
     }
   }
 }

@@ -9,14 +9,11 @@ use std::path::PathBuf;
 use tauri_api::config::Config;
 use web_view::WebView;
 
-#[cfg(windows)]
-use std::path::MAIN_SEPARATOR;
-
 #[allow(unused_variables)]
 pub(crate) fn handle<T: 'static>(
   webview: &mut WebView<'_, T>,
   arg: &str,
-  config: &Config,
+  config: Config,
 ) -> crate::Result<()> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
@@ -202,14 +199,7 @@ pub(crate) fn handle<T: 'static>(
           callback,
           error,
         } => {
-          notification(
-            webview,
-            options,
-            callback,
-            error,
-            #[cfg(windows)]
-            config,
-          )?;
+          notification(webview, options, callback, error, config)?;
         }
         #[cfg(any(feature = "all-api", feature = "notification"))]
         IsNotificationPermissionGranted { callback, error } => {
@@ -423,32 +413,18 @@ fn notification<T: 'static>(
   options: cmd::NotificationOptions,
   callback: String,
   error: String,
-  #[cfg(windows)] config: &Config,
+  config: Config,
 ) -> crate::Result<()> {
-  #[cfg(windows)]
-  let identifier = config.tauri.bundle.identifier.clone();
   crate::execute_promise(
     webview,
     move || {
-      let mut notification = notify_rust::Notification::new();
-      notification.body(&options.body);
+      let mut notification = tauri_api::notification::Notification::new(config);
+      notification.body(options.body);
       if let Some(title) = options.title {
-        notification.summary(&title);
+        notification.title(title);
       }
       if let Some(icon) = options.icon {
-        notification.icon(&icon);
-      }
-      #[cfg(windows)]
-      {
-        let exe = std::env::current_exe()?;
-        let exe_dir = exe.parent().expect("failed to get exe directory");
-        let curr_dir = exe_dir.display().to_string();
-        // set the notification's System.AppUserModel.ID only when running the installed app
-        if !(curr_dir.ends_with(format!("{S}target{S}debug", S = MAIN_SEPARATOR).as_str())
-          || curr_dir.ends_with(format!("{S}target{S}release", S = MAIN_SEPARATOR).as_str()))
-        {
-          notification.app_id(&identifier);
-        }
+        notification.icon(icon);
       }
       notification
         .show()

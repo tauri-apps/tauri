@@ -26,7 +26,6 @@ anyhow = "1.0.31"
 thiserror = "1.0.19"
 envmnt = "0.8.2"
 once_cell = "1.4.0"
-notify-rust = { version = "4.0.0-beta.4", optional = true }
 
 tauri-api = { version = "0.5",  path = "../tauri-api" }
 
@@ -44,7 +43,7 @@ cli = ["tauri-api/cli"]
 edge = ["web-view/edge"]
 embedded-server = ["tiny_http"]
 no-server = []
-all-api = ["notify-rust"]
+all-api = ["tauri-api/notification"]
 read-text-file = []
 read-binary-file = []
 write-file = []
@@ -61,7 +60,7 @@ event = []
 updater = []
 open-dialog = []
 save-dialog = []
-notification = ["notify-rust"]
+notification = ["tauri-api/notification"]
 
 [package.metadata.docs.rs]
 features = ["all-api"]

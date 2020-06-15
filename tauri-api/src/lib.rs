@@ -20,6 +20,9 @@ pub mod cli;
 #[macro_use]
 extern crate clap;
 
+#[cfg(feature = "notification")]
+pub mod notification;
+
 pub use tauri_utils::*;
 
 pub use anyhow::Result;

@@ -57,7 +57,7 @@
     },
     "bundle": {
       "active": true,
-      "identifier": "com.example.app",
+      "identifier": "com.tauri.communication",
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",

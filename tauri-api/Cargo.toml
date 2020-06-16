@@ -26,11 +26,13 @@ anyhow = "1.0.31"
 thiserror = "1.0.19"
 rand = "0.7"
 nfd = "0.0.4"
+tauri-dialog = { git = "https://github.com/tauri-apps/tauri-dialog-rs", version = "0.1" }
 attohttpc = {version = "0.14.0", features=["json", "form" ]}
 http = "0.2"
 tauri-utils = {version = "0.5", path = "../tauri-utils"}
 envmnt = "0.8.2"
 clap = { git = "https://github.com/clap-rs/clap", rev = "1a276f8", version = "3.0.0-beta.1", optional = true }
+notify-rust = { version = "4.0.0-beta.4", optional = true }
 
 [dev-dependencies]
 quickcheck = "0.9.2"
@@ -39,3 +41,4 @@ totems = "0.2.7"
 
 [features]
 cli = ["clap"]
+notification = ["notify-rust"]

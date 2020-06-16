@@ -10,34 +10,44 @@
       "longDescription": null,
       "beforeHelp": null,
       "afterHelp": null,
-      "args": [{
-        "short": "c",
-        "name": "config",
-        "takesValue": true,
-        "description": "Config path"
-      }, {
-        "short": "t",
-        "name": "theme",
-        "takesValue": true,
-        "description": "App theme",
-        "possibleValues": ["light", "dark", "system"]
-      }, {
-        "short": "v",
-        "name": "verbose",
-        "multipleOccurrences": true,
-        "description": "Verbosity level"
-      }],
+      "args": [
+        {
+          "short": "c",
+          "name": "config",
+          "takesValue": true,
+          "description": "Config path"
+        },
+        {
+          "short": "t",
+          "name": "theme",
+          "takesValue": true,
+          "description": "App theme",
+          "possibleValues": [
+            "light",
+            "dark",
+            "system"
+          ]
+        },
+        {
+          "short": "v",
+          "name": "verbose",
+          "multipleOccurrences": true,
+          "description": "Verbosity level"
+        }
+      ],
       "subcommands": {
         "update": {
           "description": "Updates the app",
           "longDescription": null,
           "beforeHelp": null,
           "afterHelp": null,
-          "args": [{
-            "short": "b",
-            "name": "background",
-            "description": "Update in background"
-          }],
+          "args": [
+            {
+              "short": "b",
+              "name": "background",
+              "description": "Update in background"
+            }
+          ],
           "subcommands": null
         }
       }
@@ -49,7 +59,19 @@
       "active": true,
       "identifier": "com.example.app",
       "icon": [
-        "icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ]
+    },
+    "updater": {
+      "active": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY1OTgxQzc0MjVGNjM0Q0IKUldUTE5QWWxkQnlZOWFBK21kekU4OGgzdStleEtkeStHaFR5NjEyRHovRnlUdzAwWGJxWEU2aGYK",
+      "endpoints": [
+        "http://badurl.www.tld/1",
+        "https://gist.githubusercontent.com/lemarier/72a2a488f1c87601d11ec44d6a7aff05/raw/a581b13bdf30b50deb7b50490a3f41754dc5e505/with_sign.json?target={{target}}&version={{current_version}}"
       ]
     },
     "whitelist": {

@@ -24,7 +24,7 @@ icon = [
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
-tauri = { path = "../../..", features = [ "all-api", "edge", "cli" ] }
+tauri = { path = "../../..", features = [ "all-api", "edge", "cli", "updater" ] }
 
 [target."cfg(windows)".build-dependencies]
 winres = "0.1"

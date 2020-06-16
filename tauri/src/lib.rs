@@ -12,6 +12,9 @@ pub mod server;
 #[cfg(feature = "cli")]
 pub mod cli;
 
+#[cfg(feature = "updater")]
+mod updater;
+
 mod app;
 mod endpoints;
 #[allow(dead_code)]

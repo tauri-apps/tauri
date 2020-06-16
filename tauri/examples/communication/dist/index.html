@@ -170,6 +170,9 @@
       z-index: 1;
     }
 
+    .hidden {
+      display: none
+    }
   </style>
 </head>
 
@@ -258,6 +261,15 @@
           </div>
         </div>
       </div>
+      <div class="tab">
+        <input type="radio" id="tab-5" name="tab-group-1">
+        <label class="tabber" for="tab-5">Updater</label>
+        <div class="content">
+          <div style="margin-top: 24px">
+            <button class="button hidden" id="updater-install">Install update</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
   <div id="response"></div>
@@ -307,6 +319,7 @@
   <script src="dialog.js"></script>
   <script src="http.js"></script>
   <script src="cli.js"></script>
+  <script src="updater.js"></script>
 </body>
 
 </html>

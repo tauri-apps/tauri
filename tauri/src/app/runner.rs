@@ -7,6 +7,9 @@ use std::{
   thread::spawn,
 };
 
+#[cfg(feature = "updater")]
+use crate::updater::spawn_update_process;
+
 use web_view::{builder, Content, WebView};
 
 use super::App;
@@ -21,6 +24,7 @@ use tauri_api::cli::get_matches;
 pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   // get the tauri config struct
   let config = get()?;
+  let updater_config = config.clone();
 
   #[cfg(feature = "cli")]
   {
@@ -62,9 +66,10 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   #[cfg(feature = "embedded-server")]
   spawn_server(server_url.to_string())?;
 
-  // spin up the updater process
+  // Init the updater if required
+  // The webview is required for the events
   #[cfg(feature = "updater")]
-  spawn_updater()?;
+  spawn_update_process(&webview, updater_config)?;
 
   // run the webview
   webview.run()?;
@@ -170,16 +175,6 @@ fn spawn_server(server_url: String) -> crate::Result<()> {
     }
   });
 
-  Ok(())
-}
-
-// spawn an updater process.
-#[cfg(feature = "updater")]
-fn spawn_updater() -> crate::Result<()> {
-  spawn(|| {
-    tauri_api::command::spawn_relative_command("updater".to_string(), Vec::new(), Stdio::inherit())
-      .expect("Unable to spawn relative command");
-  });
   Ok(())
 }
 

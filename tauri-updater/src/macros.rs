@@ -2,7 +2,7 @@
 macro_rules! cargo_crate_version {
   // -- Pulled from clap.rs src/macros.rs
   () => {
-    env!("CARGO_PKG_VERSION")
+    env!("CARGO_PKG_VERSION").to_string()
   };
 }
 

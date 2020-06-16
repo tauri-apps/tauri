@@ -45,7 +45,38 @@ fn default_window() -> WindowConfig {
 }
 
 #[derive(PartialEq, Deserialize, Clone, Debug)]
-#[serde(tag = "embeddedServer", rename_all = "camelCase")]
+#[serde(tag = "updaterConfig", rename_all = "camelCase")]
+pub struct UpdaterConfig {
+  #[serde(default = "default_updater_active")]
+  pub active: bool,
+  #[serde(default = "default_updater_endpoints")]
+  pub endpoints: Option<Vec<String>>,
+  #[serde(default = "default_updater_pubkey")]
+  pub pubkey: Option<String>,
+}
+
+fn default_updater_active() -> bool {
+  false
+}
+
+fn default_updater_endpoints() -> Option<Vec<String>> {
+  Some(Vec::new())
+}
+
+fn default_updater_pubkey() -> Option<String> {
+  None
+}
+
+fn default_updater() -> UpdaterConfig {
+  UpdaterConfig {
+    active: default_updater_active(),
+    endpoints: default_updater_endpoints(),
+    pubkey: default_updater_pubkey(),
+  }
+}
+
+#[derive(PartialEq, Deserialize, Clone, Debug)]
+#[serde(tag = "updater", rename_all = "camelCase")]
 pub struct EmbeddedServerConfig {
   #[serde(default = "default_host")]
   pub host: String,
@@ -170,6 +201,8 @@ pub struct TauriConfig {
   pub embedded_server: EmbeddedServerConfig,
   #[serde(default)]
   pub cli: Option<CliConfig>,
+  #[serde(default = "default_updater")]
+  pub updater: UpdaterConfig,
 }
 
 #[derive(PartialEq, Deserialize, Clone, Debug)]
@@ -196,6 +229,7 @@ fn default_tauri() -> TauriConfig {
   TauriConfig {
     window: default_window(),
     embedded_server: default_embedded_server(),
+    updater: default_updater(),
     cli: None,
   }
 }
@@ -253,6 +287,11 @@ mod test {
         embedded_server: EmbeddedServerConfig {
           host: String::from("http://127.0.0.1"),
           port: String::from("random"),
+        },
+        updater: UpdaterConfig {
+          active: false,
+          pubkey: None,
+          endpoints: None,
         },
         cli: Some(CliConfig {
           description: Some("Tauri communication example".to_string()),
@@ -346,6 +385,11 @@ mod test {
         port: String::from("random"),
       },
       cli: None,
+      updater: UpdaterConfig {
+        active: false,
+        pubkey: None,
+        endpoints: None,
+      },
     };
 
     // create a build config

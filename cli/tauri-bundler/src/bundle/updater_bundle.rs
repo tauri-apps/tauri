@@ -2,6 +2,13 @@ use super::archive_utils;
 use super::common;
 #[cfg(target_os = "macos")]
 use super::osx_bundle;
+
+#[cfg(target_os = "linux")]
+use super::appimage_bundle;
+
+#[cfg(target_os = "windows")]
+use super::msi_bundle;
+
 use crate::Settings;
 
 use crate::sign::{read_key_from_file, sign_file};
@@ -83,24 +90,25 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 // this way the whole app manifest is replaced
 #[cfg(target_os = "macos")]
 fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  osx_bundle::bundle_project(settings)?;
-  let app_name = settings.bundle_name();
+  // build our app
+  let osx_bundled = osx_bundle::bundle_project(settings)?;
+  // we expect our .app to be on osx_bundled[0]
+  if osx_bundled.len() < 1 {
+    return Err(crate::Error::UpdateBundler);
+  }
 
-  // dest
-  let output_path = settings.project_out_directory().join("bundle/updater");
-  let update_name = "update-macos.tar.gz";
-  let update_path = output_path.join(&update_name.clone());
+  let source_path = &osx_bundled[0];
 
-  // source
-  let bundle_name = &format!("{}.app", app_name);
-  let bundle_dir = settings.project_out_directory().join("bundle/osx");
-  let bundle_path = bundle_dir.join(&bundle_name);
+  // add .tar.gz to our path
+  let osx_archived = format!("{}.tar.gz", source_path.display());
+  let osx_archived_path = PathBuf::from(&osx_archived);
 
   // Create our gzip file
-  create_tar(&bundle_path, &update_path).with_context(|| "Failed to tar.gz update directory")?;
+  create_tar(&source_path, &osx_archived_path)
+    .with_context(|| "Failed to tar.gz update directory")?;
 
-  common::print_bundling(format!("{:?}", &update_path.clone()).as_str())?;
-  Ok(vec![update_path])
+  common::print_bundling(format!("{:?}", &osx_archived_path.clone()).as_str())?;
+  Ok(vec![osx_archived_path])
 }
 
 // Create simple update-linux_<arch>.tar.gz
@@ -109,40 +117,25 @@ fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 // No assets are replaced
 #[cfg(target_os = "linux")]
 fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  let arch = match settings.binary_arch() {
-    "x86" => "i386",
-    "x86_64" => "amd64",
-    other => other,
-  };
-
-  let update_name = format!("update-linux_{}.tar.gz", arch);
-
-  // copy bin in a tmp folder then tar.gz this folder
-  let package_dir = settings.project_out_directory().join("bundle/linux");
-  let binary_dir = package_dir.join(settings.binary_name());
-
-  if package_dir.exists() {
-    fs::remove_dir_all(&package_dir)
-      .with_context(|| format!("Failed to remove old `bundle/linux`"))?;
+  // build our app actually we support only appimage on linux
+  let appimage_bundle = appimage_bundle::bundle_project(settings)?;
+  // we expect our .app to be on osx_bundled[0]
+  if appimage_bundle.len() < 1 {
+    return Err(crate::Error::UpdateBundler);
   }
 
-  common::copy_file(settings.binary_path(), &binary_dir)
-    .with_context(|| "Failed to copy binary file")?;
+  let source_path = &appimage_bundle[0];
 
-  // get the target path
-  let output_path = settings.project_out_directory().join("bundle/updater");
-  let update_path = output_path.join(&update_name.clone());
-
-  if output_path.exists() {
-    fs::remove_dir_all(&output_path)
-      .with_context(|| format!("Failed to remove old {}", update_name))?;
-  }
+  // add .tar.gz to our path
+  let appimage_archived = format!("{}.tar.gz", source_path.display());
+  let appimage_archived_path = PathBuf::from(&appimage_archived);
 
   // Create our gzip file
-  create_tar(&package_dir, &update_path).with_context(|| "Failed to tar.gz update directory")?;
+  create_tar(&source_path, &appimage_archived_path)
+    .with_context(|| "Failed to tar.gz update directory")?;
 
-  common::print_bundling(format!("{:?}", update_path.clone()).as_str())?;
-  Ok(vec![update_path])
+  common::print_bundling(format!("{:?}", &appimage_archived_path.clone()).as_str())?;
+  Ok(vec![appimage_archived_path])
 }
 
 // Create simple update-win_<arch>.zip
@@ -151,40 +144,24 @@ fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 // No assets are replaced
 #[cfg(target_os = "windows")]
 fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  let arch = match settings.binary_arch() {
-    "x86" => "x86",
-    "x86_64" => "x64",
-    other => other,
-  };
-
-  let update_name = format!("update-win_{}.zip", arch);
-
-  // copy bin in a tmp folder then zip this folder
-  let package_dir = settings.project_out_directory().join("bundle/win");
-  let binary_dir = package_dir.join(settings.binary_name());
-
-  if package_dir.exists() {
-    fs::remove_dir_all(&package_dir)
-      .with_context(|| format!("Failed to remove old `bundle/win`"))?;
+  // build our app actually we support only appimage on linux
+  let msi_path = msi_bundle::bundle_project(settings)?;
+  // we expect our .msi to be on msi_path[0]
+  if msi_path.len() < 1 {
+    return Err(crate::Error::UpdateBundler);
   }
 
-  common::copy_file(settings.binary_path(), &binary_dir)
-    .with_context(|| "Failed to copy binary file")?;
+  let source_path = &msi_path[0];
 
-  // get the target path
-  let output_path = settings.project_out_directory().join("bundle/updater");
-  let update_path = output_path.join(&update_name.clone());
+  // add .tar.gz to our path
+  let msi_archived = format!("{}.zip", source_path.display());
+  let msi_archived_path = PathBuf::from(&msi_archived);
 
-  if output_path.exists() {
-    fs::remove_dir_all(&output_path)
-      .with_context(|| format!("Failed to remove old {}", update_name))?;
-  }
+  // Create our gzip file
+  create_zip(&source_path, &msi_archived_path).with_context(|| "Failed to zip update MSI")?;
 
-  // Create our zip file
-  create_zip(&package_dir, &update_path).with_context(|| "Failed to zip update directory")?;
-
-  common::print_bundling(format!("{:?}", update_path.clone()).as_str())?;
-  Ok(vec![update_path])
+  common::print_bundling(format!("{:?}", &msi_archived_path.clone()).as_str())?;
+  Ok(vec![msi_archived_path])
 }
 
 #[cfg(target_os = "windows")]

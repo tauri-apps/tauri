@@ -64,6 +64,8 @@ pub enum Error {
   )]
   EnvironmentError,
   #[error("Could not find Icon paths.  Please make sure they exist in the tauri config JSON file")]
+  UpdateBundler,
+  #[error("Something went wrong with the update bundler process")]
   IconPathError,
   #[error("Path Error:`{0}`")]
   PathUtilError(String),

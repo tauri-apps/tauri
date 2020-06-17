@@ -73,6 +73,11 @@ export interface TauriConfig {
       }
       exceptionDomain?: string
     }
+    updater: {
+      active?: boolean
+      pubkey: string
+      endpoints: string[]
+    }
     whitelist: {
       all: boolean
       [index: string]: boolean

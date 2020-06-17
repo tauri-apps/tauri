@@ -25,6 +25,9 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   // get the tauri config struct
   let config = get()?;
 
+  #[cfg(feature = "updater")]
+  let updater_config = config.clone();
+
   #[cfg(feature = "cli")]
   {
     let matches = get_matches(config.clone());

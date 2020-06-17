@@ -5,8 +5,8 @@ use super::wix;
 use std;
 use std::path::PathBuf;
 
-// Runs all of the commands to build the MSI installer.
-// Returns a vector of PathBuf that shows where the MSI was created.
+/// Runs all of the commands to build the MSI installer.
+/// Returns a vector of PathBuf that shows where the MSI was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   common::print_warning("MSI bundle support is still experimental.")?;
 

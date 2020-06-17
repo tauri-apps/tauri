@@ -13,7 +13,7 @@ use runas::Command;
 use std::env;
 use std::process;
 
-/// Runs `cargo build` to make sure the binary file is up-to-date.
+// Runs `cargo build` to make sure the binary file is up-to-date.
 fn build_project_if_unbuilt(settings: &Settings) -> crate::Result<()> {
   let mut args = vec!["build".to_string()];
   if let Some(triple) = settings.target_triple() {
@@ -49,6 +49,7 @@ fn build_project_if_unbuilt(settings: &Settings) -> crate::Result<()> {
   Ok(())
 }
 
+// Runs the CLI.
 fn run() -> crate::Result<()> {
   let all_formats: Vec<&str> = PackageType::all()
     .iter()

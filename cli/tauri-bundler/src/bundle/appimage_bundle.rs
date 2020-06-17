@@ -23,7 +23,8 @@ lazy_static! {
   };
 }
 
-// bundle the project.
+/// Bundles the project.
+/// Returns a vector of PathBuf that shows where the AppImage was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // generate the deb binary name
   let arch = match settings.binary_arch() {

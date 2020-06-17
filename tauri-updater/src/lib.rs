@@ -389,8 +389,8 @@ impl Update {
       downloaded = min(downloaded + n as u64, size);
 
       // TODO: FIX LOOP TO SEND PERCENTAGE
-      let percent = (downloaded * 100) / size;
-      println!("{}", percent);
+      //let percent = (downloaded * 100) / size;
+      //println!("{}", percent);
     }
 
     // Validate signature

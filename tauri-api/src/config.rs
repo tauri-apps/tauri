@@ -53,16 +53,26 @@ pub struct UpdaterConfig {
   pub endpoints: Option<Vec<String>>,
   #[serde(default = "default_updater_pubkey")]
   pub pubkey: Option<String>,
+  #[serde(default = "default_updater_dialog")]
+  pub dialog: bool,
 }
 
+// Updater active or not
 fn default_updater_active() -> bool {
   false
 }
 
+// Use built-in tauri dialog to ask if they want to install the update
+fn default_updater_dialog() -> bool {
+  true
+}
+
+// Update endpoints
 fn default_updater_endpoints() -> Option<Vec<String>> {
   None
 }
 
+// Pubkey for signature -- if set, install need to be signed
 fn default_updater_pubkey() -> Option<String> {
   None
 }
@@ -72,6 +82,7 @@ fn default_updater() -> UpdaterConfig {
     active: default_updater_active(),
     endpoints: default_updater_endpoints(),
     pubkey: default_updater_pubkey(),
+    dialog: default_updater_dialog(),
   }
 }
 
@@ -305,6 +316,7 @@ mod test {
         },
         updater: UpdaterConfig {
           active: true,
+          dialog: true,
           pubkey: Some(String::from("dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY1OTgxQzc0MjVGNjM0Q0IKUldUTE5QWWxkQnlZOWFBK21kekU4OGgzdStleEtkeStHaFR5NjEyRHovRnlUdzAwWGJxWEU2aGYK")),
           endpoints: Some(vec![
             "http://badurl.www.tld/1".into(),
@@ -415,6 +427,7 @@ mod test {
       cli: None,
       updater: UpdaterConfig {
         active: false,
+        dialog: true,
         pubkey: None,
         endpoints: None,
       },

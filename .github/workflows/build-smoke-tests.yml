@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - stop-running
+env:
+  RUST_BACKTRACE: 1
 
 jobs:
   node:

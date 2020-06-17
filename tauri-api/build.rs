@@ -29,7 +29,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         write!(config_file, "{}", original_config)?;
       }
       None => {
-        write!(config_file, "")?;
+        write!(config_file, "{{}}")?;
         println!("Build error: Couldn't find ENV: TAURI_CONFIG or TAURI_DIR");
       }
     },

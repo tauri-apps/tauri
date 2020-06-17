@@ -10,8 +10,10 @@ pub fn spawn_update_process(webview: &WebView<'_, ()>, config: Config) -> crate:
   let fivesec = std::time::Duration::from_millis(5000);
   sleep(fivesec);
 
-  // do nothing if our updater is not active
-  if !config.tauri.updater.active {
+  let handler = webview.handle();
+
+  // do nothing if our updater is not active or we can't find endpoints
+  if !config.tauri.updater.active || config.tauri.updater.endpoints.is_none() {
     return Ok(());
   }
 
@@ -26,16 +28,7 @@ pub fn spawn_update_process(webview: &WebView<'_, ()>, config: Config) -> crate:
   // did we have a pubkey?
   let pubkey = config.tauri.updater.pubkey.clone();
 
-  // check update
-  check_update(&webview, endpoints, pubkey);
-
-  Ok(())
-}
-
-fn check_update(webview: &WebView<'_, ()>, endpoints: Vec<String>, pubkey: Option<String>) {
-  // clone our handler
-  let handler = webview.handle();
-
+  // check update inside a new thread
   spawn(move || {
     // Check if we have a new version announced
     let updater = tauri_updater::builder()
@@ -85,4 +78,6 @@ fn check_update(webview: &WebView<'_, ()>, endpoints: Vec<String>, pubkey: Optio
       });
     }
   });
+
+  Ok(())
 }

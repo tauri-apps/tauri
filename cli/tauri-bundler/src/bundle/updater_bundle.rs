@@ -14,7 +14,6 @@ use crate::Settings;
 use crate::sign::{read_key_from_file, sign_file};
 use anyhow::Context;
 use std::env;
-use std::fs::{self};
 use std::path::{Path, PathBuf};
 
 // Build update
@@ -168,19 +167,12 @@ fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 fn create_zip(source: &PathBuf, archive_path: &PathBuf) -> crate::Result<()> {
   archive_utils::zip_dir(source, archive_path).with_context(|| "Failed to zip update directory")?;
 
-  if source.exists() {
-    fs::remove_dir_all(&source).with_context(|| format!("Failed to remove tmp dir"))?;
-  }
   Ok(())
 }
 
 fn create_tar(source: &PathBuf, archive_path: &PathBuf) -> crate::Result<()> {
   archive_utils::tar_and_gzip_to(source, archive_path)
     .with_context(|| "Failed to zip update directory")?;
-
-  if source.exists() {
-    fs::remove_dir_all(&source).with_context(|| format!("Failed to remove tmp dir"))?;
-  }
 
   Ok(())
 }

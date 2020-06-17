@@ -212,7 +212,7 @@ fn create_tar(source: &PathBuf, archive_path: &PathBuf) -> crate::Result<()> {
 mod tests {
   use super::*;
   use std;
-  use tauri_updater::updater::verify_signature;
+  use tauri_updater::verify_signature;
   use totems::assert_ok;
 
   #[test]

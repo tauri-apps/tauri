@@ -24,7 +24,6 @@ use tauri_api::cli::get_matches;
 pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   // get the tauri config struct
   let config = get()?;
-  let updater_config = config.clone();
 
   #[cfg(feature = "cli")]
   {

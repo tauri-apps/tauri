@@ -60,7 +60,7 @@ fn default_updater_active() -> bool {
 }
 
 fn default_updater_endpoints() -> Option<Vec<String>> {
-  Some(Vec::new())
+  None
 }
 
 fn default_updater_pubkey() -> Option<String> {
@@ -304,9 +304,12 @@ mod test {
           port: String::from("random"),
         },
         updater: UpdaterConfig {
-          active: false,
-          pubkey: None,
-          endpoints: None,
+          active: true,
+          pubkey: Some(String::from("dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY1OTgxQzc0MjVGNjM0Q0IKUldUTE5QWWxkQnlZOWFBK21kekU4OGgzdStleEtkeStHaFR5NjEyRHovRnlUdzAwWGJxWEU2aGYK")),
+          endpoints: Some(vec![
+            "http://badurl.www.tld/1".into(),
+            "https://gist.githubusercontent.com/lemarier/72a2a488f1c87601d11ec44d6a7aff05/raw/a581b13bdf30b50deb7b50490a3f41754dc5e505/with_sign.json?target={{target}}&version={{current_version}}".into()
+          ]),
         },
         bundle: BundleConfig {
           identifier: String::from("com.tauri.communication"),
@@ -390,6 +393,8 @@ mod test {
     let d_title = default_title();
     // get default bundle
     let d_bundle = default_bundle();
+    // get default updater
+    let d_updater = default_updater();
 
     // create a tauri config.
     let tauri = TauriConfig {
@@ -425,6 +430,7 @@ mod test {
     assert_eq!(b_config, build);
     assert_eq!(de_server, tauri.embedded_server);
     assert_eq!(d_bundle, tauri.bundle);
+    assert_eq!(d_updater, tauri.updater);
     assert_eq!(d_path, String::from(""));
     assert_eq!(d_title, tauri.window.title);
     assert_eq!(d_window, tauri.window);

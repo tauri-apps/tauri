@@ -501,7 +501,11 @@ class Runner {
     }
 
     if (cfg.tauri.cli) {
-        tomlFeatures.push('cli')
+      tomlFeatures.push('cli')
+    }
+
+    if (cfg.tauri.updater?.active) {
+      tomlFeatures.push('updater')
     }
 
     if (typeof manifest.dependencies.tauri === 'string') {

@@ -4,12 +4,14 @@ use std::{
   thread::{sleep, spawn},
   time::Duration,
 };
-use tauri_api::{config::Config, dialog::ask, dialog::DialogSelection};
+use tauri_api::{config::Config, config::get as get_config dialog::ask, dialog::DialogSelection};
 use web_view::WebView;
 
 use tauri_updater;
 
-pub fn spawn_update_process(webview: &WebView<'_, ()>, config: Config) -> crate::Result<()> {
+pub fn spawn_update_process(webview: &WebView<'_, ()>) -> crate::Result<()> {
+  let config = get_config()?;
+
   let handler = webview.handle();
 
   // do nothing if our updater is not active or we can't find endpoints
@@ -22,6 +24,7 @@ pub fn spawn_update_process(webview: &WebView<'_, ()>, config: Config) -> crate:
     .tauri
     .updater
     .endpoints
+    .as_ref()
     .expect("Unable to extract endpoints")
     .clone();
 

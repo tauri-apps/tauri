@@ -19,18 +19,6 @@ use tauri_api::config::get;
 
 // Main entry point function for running the Webview
 pub(crate) fn run(application: &mut App) -> crate::Result<()> {
-  // get the tauri config struct
-  let config = get()?;
-
-  #[cfg(feature = "updater")]
-  let updater_config = config.clone();
-
-  #[cfg(feature = "cli")]
-  {
-    let matches = get_matches(config.clone());
-    crate::cli::set_matches(matches)?;
-  }
-
   // setup the content using the config struct depending on the compile target
   let main_content = setup_content()?;
 
@@ -67,7 +55,7 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   // Init the updater if required
   // The webview is required for the events
   #[cfg(feature = "updater")]
-  spawn_update_process(&webview, updater_config)?;
+  spawn_update_process(&webview)?;
 
   // run the webview
   webview.run()?;

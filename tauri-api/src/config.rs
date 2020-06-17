@@ -47,7 +47,7 @@ fn default_window() -> WindowConfig {
   }
 }
 
-#[derive(PartialEq, Deserialize, Clone, Debug)]
+#[derive(PartialEq, Deserialize, Debug)]
 #[serde(tag = "updaterConfig", rename_all = "camelCase")]
 pub struct UpdaterConfig {
   #[serde(default = "default_updater_active")]

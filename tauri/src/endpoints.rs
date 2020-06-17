@@ -6,15 +6,10 @@ mod salt;
 
 #[cfg(any(feature = "embedded-server", feature = "no-server"))]
 use std::path::PathBuf;
-use tauri_api::config::Config;
 use web_view::WebView;
 
 #[allow(unused_variables)]
-pub(crate) fn handle<T: 'static>(
-  webview: &mut WebView<'_, T>,
-  arg: &str,
-  config: Config,
-) -> crate::Result<()> {
+pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> crate::Result<()> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
     Err(e) => Err(e.into()),
@@ -199,7 +194,7 @@ pub(crate) fn handle<T: 'static>(
           callback,
           error,
         } => {
-          notification(webview, options, callback, error, config)?;
+          notification(webview, options, callback, error)?;
         }
         #[cfg(any(feature = "all-api", feature = "notification"))]
         IsNotificationPermissionGranted { callback, error } => {
@@ -413,12 +408,11 @@ fn notification<T: 'static>(
   options: cmd::NotificationOptions,
   callback: String,
   error: String,
-  config: Config,
 ) -> crate::Result<()> {
   crate::execute_promise(
     webview,
     move || {
-      let mut notification = tauri_api::notification::Notification::new(config);
+      let mut notification = tauri_api::notification::Notification::new();
       notification.body(options.body);
       if let Some(title) = options.title {
         notification.title(title);

@@ -1,11 +1,12 @@
 use crate::event;
 use std::thread::{sleep, spawn};
-use tauri_api::config::Config;
+use tauri_api::config::get as get_config;
 use web_view::WebView;
 
 use tauri_updater;
 
-pub fn spawn_update_process(webview: &WebView<'_, ()>, config: Config) -> crate::Result<()> {
+pub fn spawn_update_process(webview: &WebView<'_, ()>) -> crate::Result<()> {
+  let config = get_config()?;
   // todo(lemarier): wait the `update-available` event to be registred before checking our update
   let fivesec = std::time::Duration::from_millis(5000);
   sleep(fivesec);
@@ -22,6 +23,7 @@ pub fn spawn_update_process(webview: &WebView<'_, ()>, config: Config) -> crate:
     .tauri
     .updater
     .endpoints
+    .as_ref()
     .expect("Unable to extract endpoints")
     .clone();
 

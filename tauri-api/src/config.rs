@@ -1,9 +1,12 @@
 use serde::Deserialize;
 
+use once_cell::sync::OnceCell;
 use std::collections::HashMap;
 use std::{fs, path};
 
-#[derive(PartialEq, Deserialize, Clone, Debug)]
+static CONFIG: OnceCell<Config> = OnceCell::new();
+
+#[derive(PartialEq, Deserialize, Debug)]
 #[serde(tag = "window", rename_all = "camelCase")]
 pub struct WindowConfig {
   #[serde(default = "default_width")]
@@ -86,8 +89,8 @@ fn default_updater() -> UpdaterConfig {
   }
 }
 
-#[derive(PartialEq, Deserialize, Clone, Debug)]
-#[serde(tag = "updater", rename_all = "camelCase")]
+#[derive(PartialEq, Deserialize, Debug)]
+#[serde(tag = "embeddedServer", rename_all = "camelCase")]
 pub struct EmbeddedServerConfig {
   #[serde(default = "default_host")]
   pub host: String,
@@ -110,7 +113,7 @@ fn default_embedded_server() -> EmbeddedServerConfig {
   }
 }
 
-#[derive(PartialEq, Deserialize, Clone, Debug, Default)]
+#[derive(PartialEq, Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct CliArg {
   pub short: Option<char>,
@@ -137,7 +140,7 @@ pub struct CliArg {
   pub require_equals: Option<bool>,
 }
 
-#[derive(PartialEq, Deserialize, Clone, Debug)]
+#[derive(PartialEq, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct CliSubcommand {
   description: Option<String>,
@@ -148,7 +151,7 @@ pub struct CliSubcommand {
   subcommands: Option<HashMap<String, CliSubcommand>>,
 }
 
-#[derive(PartialEq, Deserialize, Clone, Debug)]
+#[derive(PartialEq, Deserialize, Debug)]
 #[serde(tag = "cli", rename_all = "camelCase")]
 pub struct CliConfig {
   description: Option<String>,
@@ -201,7 +204,7 @@ macro_rules! impl_cli {
   }
 }
 
-#[derive(PartialEq, Deserialize, Clone, Debug)]
+#[derive(PartialEq, Deserialize, Debug)]
 #[serde(tag = "bundle", rename_all = "camelCase")]
 pub struct BundleConfig {
   pub identifier: String,
@@ -215,7 +218,7 @@ fn default_bundle() -> BundleConfig {
 
 impl_cli!(CliSubcommand, CliConfig);
 
-#[derive(PartialEq, Deserialize, Clone, Debug)]
+#[derive(PartialEq, Deserialize, Debug)]
 #[serde(tag = "tauri", rename_all = "camelCase")]
 pub struct TauriConfig {
   #[serde(default = "default_window")]
@@ -230,7 +233,7 @@ pub struct TauriConfig {
   pub bundle: BundleConfig,
 }
 
-#[derive(PartialEq, Deserialize, Clone, Debug)]
+#[derive(PartialEq, Deserialize, Debug)]
 #[serde(tag = "build", rename_all = "camelCase")]
 pub struct BuildConfig {
   #[serde(default = "default_dev_path")]
@@ -241,7 +244,7 @@ fn default_dev_path() -> String {
   "".to_string()
 }
 
-#[derive(PartialEq, Deserialize, Clone, Debug)]
+#[derive(PartialEq, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
   #[serde(default = "default_tauri")]
@@ -266,17 +269,27 @@ fn default_build() -> BuildConfig {
   }
 }
 
-pub fn get() -> crate::Result<Config> {
-  match option_env!("TAURI_CONFIG") {
-    Some(config) => Ok(serde_json::from_str(config).expect("failed to parse TAURI_CONFIG env")),
+pub fn get() -> crate::Result<&'static Config> {
+  if let Some(config) = CONFIG.get() {
+    return Ok(config);
+  }
+  let config: Config = match option_env!("TAURI_CONFIG") {
+    Some(config) => serde_json::from_str(config).expect("failed to parse TAURI_CONFIG env"),
     None => {
       let env_var = envmnt::get_or("TAURI_DIR", "../dist");
       let path = path::Path::new(&env_var);
       let contents = fs::read_to_string(path.join("tauri.conf.json"))?;
 
-      Ok(serde_json::from_str(&contents).expect("failed to read tauri.conf.json"))
+      serde_json::from_str(&contents).expect("failed to read tauri.conf.json")
     }
-  }
+  };
+
+  CONFIG
+    .set(config)
+    .map_err(|_| anyhow::anyhow!("failed to set CONFIG"))?;
+
+  let config = CONFIG.get().unwrap();
+  Ok(config)
 }
 
 #[cfg(test)]
@@ -382,7 +395,7 @@ mod test {
       // On Ok, check that the config is the same as the test config.
       Ok(c) => {
         println!("{:?}", c);
-        assert_eq!(c, test_config)
+        assert_eq!(c, &test_config)
       }
       Err(_) => assert!(false),
     }

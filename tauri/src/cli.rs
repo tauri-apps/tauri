@@ -1,14 +1,8 @@
-use once_cell::sync::OnceCell;
+use once_cell::sync::Lazy;
 use tauri_api::cli::Matches;
 
-static MATCHES: OnceCell<Matches> = OnceCell::new();
+pub fn get_matches() -> &'static Option<Matches> {
+  static MATCHES: Lazy<Option<Matches>> = Lazy::new(|| tauri_api::cli::get_matches().ok());
 
-pub(crate) fn set_matches(matches: Matches) -> crate::Result<()> {
-  MATCHES
-    .set(matches)
-    .map_err(|_| anyhow::anyhow!("failed to set once_cell matches"))
-}
-
-pub fn get_matches() -> Option<&'static Matches> {
-  MATCHES.get()
+  &MATCHES
 }

@@ -91,7 +91,8 @@ impl<'a> Default for UpdateBuilder<'a> {
       urls: Vec::new(),
       target: None,
       executable_path: None,
-      current_version: "0.0.0",
+      // set version to current Cargo version
+      current_version: env!("CARGO_PKG_VERSION"),
     }
   }
 }
@@ -246,6 +247,7 @@ pub fn builder<'a>() -> UpdateBuilder<'a> {
 }
 
 // Once an update is available we return an Update instance
+#[derive(Debug)]
 pub struct Update {
   pub body: Option<String>,
   pub should_update: bool,
@@ -278,22 +280,6 @@ impl Update {
       target,
       version,
     })
-  }
-
-  pub fn run(self) -> Self {
-    // if we need to update
-    if !self.should_update {
-      return self;
-    }
-
-    // update current status
-    self.should_update(true)
-  }
-
-  // Set status as we should update
-  fn should_update(mut self, should_update: bool) -> Self {
-    self.should_update = should_update;
-    self
   }
 
   // Download and install our update
@@ -560,19 +546,134 @@ pub fn verify_signature(
   Ok(true)
 }
 
+#[cfg(test)]
 mod test {
-  //use std::env::current_exe;
-  //use totems::*;
+  use super::*;
+  use std::env::current_exe;
+  use std::path::Path;
+  use totems::{assert_err, assert_ok};
 
   #[test]
   fn simple_http_updater() {
-    //let executable_path = std::env::current_exe().expect("Can't extract executable path");
-    //let parent_path = executable_path
-    //  .parent()
-    //  .expect("Can't find the parent path");
+    let check_update = builder()
+    .current_version("0.0.0")
+    .url("https://gist.githubusercontent.com/lemarier/72a2a488f1c87601d11ec44d6a7aff05/raw/f86018772318629b3f15dbb3d15679e7651e36f6/with_sign.json".into())
+    .build();
 
-    //let tmp_dir = tempfile::Builder::new()
-    //  .prefix("tauri_updater_test")
-    //  .tempdir_in(parent_path);
+    assert_ok!(check_update);
+    let updater = check_update.expect("Can't check update");
+
+    assert_eq!(updater.should_update, true);
+  }
+
+  #[test]
+  fn simple_http_updater_without_version() {
+    let check_update = builder()
+    .url("https://gist.githubusercontent.com/lemarier/72a2a488f1c87601d11ec44d6a7aff05/raw/f86018772318629b3f15dbb3d15679e7651e36f6/with_sign.json".into())
+    .build();
+
+    assert_ok!(check_update);
+    let updater = check_update.expect("Can't check update");
+
+    assert_eq!(updater.should_update, false);
+  }
+
+  #[test]
+  fn http_updater_uptodate() {
+    let check_update = builder()
+    .current_version("10.0.0")
+    .url("https://gist.githubusercontent.com/lemarier/72a2a488f1c87601d11ec44d6a7aff05/raw/f86018772318629b3f15dbb3d15679e7651e36f6/with_sign.json".into())
+    .build();
+
+    assert_ok!(check_update);
+    let updater = check_update.expect("Can't check update");
+
+    assert_eq!(updater.should_update, false);
+  }
+
+  #[test]
+  fn http_updater_fallback_urls() {
+    let check_update = builder()
+    .url("http://badurl.www.tld/1".into())
+    .url("https://gist.githubusercontent.com/lemarier/72a2a488f1c87601d11ec44d6a7aff05/raw/f86018772318629b3f15dbb3d15679e7651e36f6/with_sign.json".into())
+    .current_version("0.0.1")
+    .build();
+
+    assert_ok!(check_update);
+    let updater = check_update.expect("Can't check remote update");
+
+    assert_eq!(updater.should_update, true);
+  }
+
+  #[test]
+  fn http_updater_fallback_urls_withs_array() {
+    let check_update = builder()
+    .urls(&["http://badurl.www.tld/1".into(), "https://gist.githubusercontent.com/lemarier/72a2a488f1c87601d11ec44d6a7aff05/raw/f86018772318629b3f15dbb3d15679e7651e36f6/with_sign.json".into()])
+    .current_version("0.0.1")
+    .build();
+
+    assert_ok!(check_update);
+    let updater = check_update.expect("Can't check remote update");
+
+    assert_eq!(updater.should_update, true);
+  }
+
+  #[test]
+  fn http_updater_missing_remote_data() {
+    let check_update = builder()
+    .url("https://gist.githubusercontent.com/lemarier/106011e4a5610ef5671af15ce2f78862/raw/d4dd4fa30b9112836e0a201fd3a867446e7bac98/test.json".into())
+    .current_version("0.0.1")
+    .build();
+
+    assert_err!(check_update);
+  }
+
+  #[test]
+  fn http_updater_complete_process() {
+    // Test pubkey generated with tauri-bundler
+    let pubkey_test = Some("dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY1OTgxQzc0MjVGNjM0Q0IKUldUTE5QWWxkQnlZOWFBK21kekU4OGgzdStleEtkeStHaFR5NjEyRHovRnlUdzAwWGJxWEU2aGYK".into());
+
+    // Build a tmpdir so we can test our extraction inside
+    // We dont want to overwrite our current executable or the directory
+    // Otherwise tests are failing...
+    let executable_path = current_exe().expect("Can't extract executable path");
+    let parent_path = executable_path
+      .parent()
+      .expect("Can't find the parent path");
+
+    let tmp_dir = tempfile::Builder::new()
+      .prefix("tauri_updater_test")
+      .tempdir_in(parent_path);
+
+    assert_ok!(&tmp_dir);
+    let tmp_dir_unwrap = tmp_dir.expect("Can't find tmp_dir");
+    let tmp_dir_path = tmp_dir_unwrap.path();
+
+    // configure the updater
+    let check_update = builder()
+    .url("https://gist.githubusercontent.com/lemarier/72a2a488f1c87601d11ec44d6a7aff05/raw/f86018772318629b3f15dbb3d15679e7651e36f6/with_sign.json".into())
+    .executable_path(&tmp_dir_path.join("my_app.exe"))
+    .current_version("0.0.1")
+    .build();
+
+    // make sure the process worked
+    assert_ok!(check_update);
+
+    // unwrap our results
+    let updater = check_update.expect("Can't check remote update");
+
+    // make sure we need to update
+    assert_eq!(updater.should_update, true);
+    // make sure we can read announced version
+    assert_eq!(updater.version, "0.0.4");
+
+    // download, install and validate signature
+    let install_process = updater.download_and_install(pubkey_test);
+    assert_ok!(&install_process);
+
+    // make sure the extraction went well
+    let bin_file = tmp_dir_path.join("Contents").join("MacOS").join("app");
+    let bin_file_exist = Path::new(&bin_file).exists();
+    assert_eq!(bin_file_exist, true);
   }
 }

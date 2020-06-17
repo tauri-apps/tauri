@@ -44,8 +44,7 @@ fn check_update(webview: &WebView<'_, ()>, endpoints: Vec<String>, pubkey: Optio
       // should be removed
       .current_version("0.0.1")
       .build()
-      .expect("Unable to check updates")
-      .run();
+      .expect("Unable to check updates");
 
     if updater.should_update {
       println!("NEW VERSION AVAILABLE");

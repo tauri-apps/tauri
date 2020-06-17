@@ -1,11 +1,3 @@
-#[macro_export]
-macro_rules! cargo_crate_version {
-  // -- Pulled from clap.rs src/macros.rs
-  () => {
-    env!("CARGO_PKG_VERSION").to_string()
-  };
-}
-
 /// Set ssl cert env. vars to make sure openssl can find required files
 macro_rules! set_ssl_vars {
   () => {

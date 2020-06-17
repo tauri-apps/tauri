@@ -4,7 +4,7 @@ use std::{
   thread::{sleep, spawn},
   time::Duration,
 };
-use tauri_api::{config::Config, config::get as get_config dialog::ask, dialog::DialogSelection};
+use tauri_api::{config::get as get_config, dialog::ask, dialog::DialogSelection};
 use web_view::WebView;
 
 use tauri_updater;

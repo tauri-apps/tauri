@@ -81,7 +81,7 @@ switch (navigator.platform) {
   var Dir = {
     Audio: 1,
     Cache: 2,
-    Config: 3, 
+    Config: 3,
     Data: 4,
     LocalData: 5,
     Desktop: 6,

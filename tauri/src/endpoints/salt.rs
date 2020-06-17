@@ -1,5 +1,6 @@
 use web_view::WebView;
 
+/// Validates a salt.
 pub fn validate<T: 'static>(
   webview: &mut WebView<'_, T>,
   salt: String,

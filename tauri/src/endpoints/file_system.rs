@@ -10,6 +10,7 @@ use std::io::Write;
 
 use super::cmd::{DirOperationOptions, FileOperationOptions};
 
+/// Reads a directory.
 pub fn read_dir<T: 'static>(
   webview: &mut WebView<'_, T>,
   path: String,
@@ -38,6 +39,7 @@ pub fn read_dir<T: 'static>(
   );
 }
 
+/// Copies a file.
 pub fn copy_file<T: 'static>(
   webview: &mut WebView<'_, T>,
   source: String,
@@ -65,6 +67,7 @@ pub fn copy_file<T: 'static>(
   );
 }
 
+/// Creates a directory.
 pub fn create_dir<T: 'static>(
   webview: &mut WebView<'_, T>,
   path: String,
@@ -94,6 +97,7 @@ pub fn create_dir<T: 'static>(
   );
 }
 
+/// Removes a directory.
 pub fn remove_dir<T: 'static>(
   webview: &mut WebView<'_, T>,
   path: String,
@@ -123,6 +127,7 @@ pub fn remove_dir<T: 'static>(
   );
 }
 
+/// Removes a file
 pub fn remove_file<T: 'static>(
   webview: &mut WebView<'_, T>,
   path: String,
@@ -143,6 +148,7 @@ pub fn remove_file<T: 'static>(
   );
 }
 
+/// Renames a file.
 pub fn rename_file<T: 'static>(
   webview: &mut WebView<'_, T>,
   old_path: String,
@@ -170,6 +176,7 @@ pub fn rename_file<T: 'static>(
   );
 }
 
+/// Writes a text file.
 pub fn write_file<T: 'static>(
   webview: &mut WebView<'_, T>,
   file: String,
@@ -194,6 +201,7 @@ pub fn write_file<T: 'static>(
   );
 }
 
+/// Reads a text file.
 pub fn read_text_file<T: 'static>(
   webview: &mut WebView<'_, T>,
   path: String,
@@ -212,6 +220,7 @@ pub fn read_text_file<T: 'static>(
   );
 }
 
+/// Reads a binary file.
 pub fn read_binary_file<T: 'static>(
   webview: &mut WebView<'_, T>,
   path: String,

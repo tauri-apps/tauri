@@ -2,6 +2,7 @@ use super::cmd::{OpenDialogOptions, SaveDialogOptions};
 use crate::api::dialog::{pick_folder, save_file, select, select_multiple, Response};
 use web_view::WebView;
 
+/// maps a dialog response to a JS value to eval
 fn map_response(response: Response) -> String {
   match response {
     Response::Okay(path) => format!(r#""{}""#, path).replace("\\", "\\\\"),
@@ -10,6 +11,7 @@ fn map_response(response: Response) -> String {
   }
 }
 
+/// Shows an open dialog.
 pub fn open<T: 'static>(
   webview: &mut WebView<'_, T>,
   options: OpenDialogOptions,
@@ -33,6 +35,7 @@ pub fn open<T: 'static>(
   );
 }
 
+/// Shows a save dialog.
 pub fn save<T: 'static>(
   webview: &mut WebView<'_, T>,
   options: SaveDialogOptions,

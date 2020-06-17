@@ -30,6 +30,7 @@ pub use app::*;
 pub use tauri_api as api;
 thread_local!(static POOL: ThreadPool = ThreadPool::new(4));
 
+/// Executes the operation in the thread pool.
 pub fn spawn<F: FnOnce() -> () + Send + 'static>(task: F) {
   POOL.with(|thread| {
     thread.execute(move || {
@@ -38,6 +39,8 @@ pub fn spawn<F: FnOnce() -> () + Send + 'static>(task: F) {
   });
 }
 
+/// Synchronously executes the given task
+/// and evaluates its Result to the JS promise described by the `callback` and `error` function names.
 pub fn execute_promise_sync<T: 'static, F: FnOnce() -> crate::Result<String> + Send + 'static>(
   webview: &mut WebView<'_, T>,
   task: F,
@@ -52,6 +55,8 @@ pub fn execute_promise_sync<T: 'static, F: FnOnce() -> crate::Result<String> + S
     .expect("Failed to dispatch promise callback");
 }
 
+/// Asynchronously executes the given task
+/// and evaluates its Result to the JS promise described by the `callback` and `error` function names.
 pub fn execute_promise<T: 'static, F: FnOnce() -> crate::Result<String> + Send + 'static>(
   webview: &mut WebView<'_, T>,
   task: F,
@@ -70,6 +75,7 @@ pub fn execute_promise<T: 'static, F: FnOnce() -> crate::Result<String> + Send +
   });
 }
 
+/// Calls the given command and evaluates its output to the JS promise described by the `callback` and `error` function names.
 pub fn call<T: 'static>(
   webview: &mut WebView<'_, T>,
   command: String,
@@ -89,6 +95,7 @@ pub fn call<T: 'static>(
   );
 }
 
+/// Closes the splashscreen.
 pub fn close_splashscreen<T: 'static>(webview_handle: &Handle<T>) -> crate::Result<()> {
   webview_handle.dispatch(|webview| {
     // send a signal to the runner so it knows that it should redirect to the main app content

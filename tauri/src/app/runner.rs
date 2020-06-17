@@ -17,7 +17,7 @@ use tauri_api::config::{get, Config};
 #[cfg(feature = "cli")]
 use tauri_api::cli::get_matches;
 
-// Main entry point function for running the Webview
+/// Main entry point for running the Webview
 pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   // get the tauri config struct
   let config = get()?;
@@ -279,6 +279,7 @@ fn build_webview(
   Ok(webview)
 }
 
+// Formats an invoke handler error message to print to console.error
 fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
   format!(
     r#"console.error('failed to match a command for {}, {}')"#,

@@ -344,7 +344,8 @@ fn load_asset<T: 'static>(
       loop {
         read_asset = crate::assets::ASSETS.get(&format!(
           "{}/{}",
-          env!("TAURI_DIST_DIR"),
+          option_env!("TAURI_DIST_DIR")
+            .expect("tauri apps should be built with the TAURI_DIST_DIR environment variable"),
           path.to_string_lossy()
         ));
         if read_asset.is_err() {

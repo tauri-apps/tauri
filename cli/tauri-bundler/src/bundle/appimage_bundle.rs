@@ -87,13 +87,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .expect("Failed to execute shell script");
 
   if !output.status.success() {
+    println!("status: {}", output.status);
+    println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+    println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
     Err(crate::Error::ShellScriptError(
       "error running build_appimage.sh".to_owned(),
     ))
   } else {
-    println!("status: {}", output.status);
-    println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
-    println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
     remove_dir_all(&package_dir)?;
     Ok(vec![appimage_path])
   }

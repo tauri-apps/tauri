@@ -178,6 +178,67 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         } => {
           load_asset(webview, asset, asset_type, callback, error)?;
         }
+        #[cfg(feature = "cli")]
+        CliMatches { callback, error } => crate::execute_promise(
+          webview,
+          move || match crate::cli::get_matches() {
+            Some(matches) => Ok(serde_json::to_string(matches)?),
+            None => Err(anyhow::anyhow!(r#""failed to get matches""#)),
+          },
+          callback,
+          error,
+        ),
+        #[cfg(any(feature = "all-api", feature = "notification"))]
+        Notification {
+          options,
+          callback,
+          error,
+        } => {
+          notification(webview, options, callback, error)?;
+        }
+        #[cfg(any(feature = "all-api", feature = "notification"))]
+        IsNotificationPermissionGranted { callback, error } => {
+          crate::execute_promise(
+            webview,
+            move || {
+              let settings = crate::settings::read_settings()?;
+              if let Some(allow_notification) = settings.allow_notification {
+                Ok(allow_notification.to_string())
+              } else {
+                Ok("null".to_string())
+              }
+            },
+            callback,
+            error,
+          );
+        }
+        #[cfg(any(feature = "all-api", feature = "notification"))]
+        RequestNotificationPermission { callback, error } => crate::execute_promise_sync(
+          webview,
+          move || {
+            let mut settings = crate::settings::read_settings()?;
+            let granted = r#""granted""#.to_string();
+            let denied = r#""denied""#.to_string();
+            if let Some(allow_notification) = settings.allow_notification {
+              return Ok(if allow_notification { granted } else { denied });
+            }
+            let answer = tauri_api::dialog::ask(
+              "This app wants to show notifications. Do you allow?",
+              "Permissions",
+            );
+            match answer {
+              tauri_api::dialog::DialogSelection::Yes => {
+                settings.allow_notification = Some(true);
+                crate::settings::write_settings(settings)?;
+                Ok(granted)
+              }
+              tauri_api::dialog::DialogSelection::No => Ok(denied),
+              _ => Ok(r#""default""#.to_string()),
+            }
+          },
+          callback,
+          error,
+        ),
       }
       Ok(())
     }
@@ -283,7 +344,8 @@ fn load_asset<T: 'static>(
       loop {
         read_asset = crate::assets::ASSETS.get(&format!(
           "{}/{}",
-          env!("TAURI_DIST_DIR"),
+          option_env!("TAURI_DIST_DIR")
+            .expect("tauri apps should be built with the TAURI_DIST_DIR environment variable"),
           path.to_string_lossy()
         ));
         if read_asset.is_err() {
@@ -338,6 +400,35 @@ fn load_asset<T: 'static>(
     error,
   );
 
+  Ok(())
+}
+
+#[cfg(any(feature = "all-api", feature = "notification"))]
+fn notification<T: 'static>(
+  webview: &mut WebView<'_, T>,
+  options: cmd::NotificationOptions,
+  callback: String,
+  error: String,
+) -> crate::Result<()> {
+  crate::execute_promise(
+    webview,
+    move || {
+      let mut notification = tauri_api::notification::Notification::new();
+      notification.body(options.body);
+      if let Some(title) = options.title {
+        notification.title(title);
+      }
+      if let Some(icon) = options.icon {
+        notification.icon(icon);
+      }
+      notification
+        .show()
+        .map_err(|e| anyhow::anyhow!(r#""{}""#, e.to_string()))?;
+      Ok("".to_string())
+    },
+    callback,
+    error,
+  );
   Ok(())
 }
 

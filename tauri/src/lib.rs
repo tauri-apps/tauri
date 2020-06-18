@@ -5,10 +5,13 @@
 
 #[cfg(any(feature = "embedded-server", feature = "no-server"))]
 pub mod assets;
-pub mod config;
 pub mod event;
 #[cfg(feature = "embedded-server")]
 pub mod server;
+pub mod settings;
+
+#[cfg(feature = "cli")]
+pub mod cli;
 
 mod app;
 mod endpoints;
@@ -25,7 +28,6 @@ use web_view::WebView;
 
 pub use app::*;
 pub use tauri_api as api;
-
 thread_local!(static POOL: ThreadPool = ThreadPool::new(4));
 
 pub fn spawn<F: FnOnce() -> () + Send + 'static>(task: F) {

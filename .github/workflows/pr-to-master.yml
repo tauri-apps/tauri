@@ -27,6 +27,7 @@ jobs:
           branch: release/master
           branch-suffix: short-commit-hash
           title: Publish
+          labels: "publish"
           body: |
             Merging this PR will squash and push all changes to the master branch.
             It will kick off the process to release and publish any packages with an incremented version number.

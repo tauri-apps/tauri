@@ -32,6 +32,7 @@ If yes, please describe the impact and migration path for existing applications 
 
 - [ ] It's submitted to the `dev` branch and _not_ the `master` branch
 - [ ] When resolving a specific issue, it's referenced in the PR's title (e.g. `fix: #xxx[,#xxx]`, where "xxx" is the issue number)
+- [ ] A change file is added if any packages will require a version bump due to this PR per [the instructions in the readme](https://github.com/tauri-apps/tauri/blob/dev/.changes/readme.md).
 
 If adding a **new feature**, the PR's description includes:
 - [ ] A convincing reason for adding this feature (to avoid wasting your time, it's best to open a suggestion issue first and wait for approval before working on it)

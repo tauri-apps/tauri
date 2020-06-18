@@ -33,6 +33,13 @@ pub struct SaveDialogOptions {
 }
 
 #[derive(Deserialize)]
+pub struct NotificationOptions {
+  pub title: Option<String>,
+  pub body: String,
+  pub icon: Option<String>,
+}
+
+#[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   Init {},
@@ -157,6 +164,27 @@ pub enum Cmd {
   LoadAsset {
     asset: String,
     asset_type: String,
+    callback: String,
+    error: String,
+  },
+  #[cfg(feature = "cli")]
+  CliMatches {
+    callback: String,
+    error: String,
+  },
+  #[cfg(any(feature = "all-api", feature = "notification"))]
+  Notification {
+    options: NotificationOptions,
+    callback: String,
+    error: String,
+  },
+  #[cfg(any(feature = "all-api", feature = "notification"))]
+  RequestNotificationPermission {
+    callback: String,
+    error: String,
+  },
+  #[cfg(any(feature = "all-api", feature = "notification"))]
+  IsNotificationPermissionGranted {
     callback: String,
     error: String,
   },

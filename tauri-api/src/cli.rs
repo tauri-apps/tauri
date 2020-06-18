@@ -76,7 +76,7 @@ fn map_matches<T: Cli + 'static>(config: &T, matches: &ArgMatches, cli_matches: 
     for arg in args {
       let occurrences = matches.occurrences_of(arg.name.clone());
       let value = if occurrences == 0 || !arg.takes_value.unwrap_or(false) {
-        Value::Null
+        Value::Bool(occurrences > 0)
       } else if arg.multiple.unwrap_or(false) {
         matches
           .values_of(arg.name.clone())

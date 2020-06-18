@@ -14,7 +14,7 @@ import { tauriDir, appDir } from './helpers/app-paths'
 import logger from './helpers/logger'
 import onShutdown from './helpers/on-shutdown'
 import { spawn, spawnSync } from './helpers/spawn'
-import { exec } from 'child_process'
+import { exec, ChildProcess } from 'child_process'
 import { TauriConfig } from './types/config'
 import { CargoManifest } from './types/cargo'
 import getTauriConfig from './helpers/tauri-config'
@@ -32,7 +32,7 @@ class Runner {
   tauriWatcher?: FSWatcher
   devPath?: string
   killPromise?: Function
-  ranBeforeDevCommand?: boolean
+  beforeDevProcess?: ChildProcess
   devServer?: net.Server
 
   constructor() {
@@ -54,8 +54,7 @@ class Runner {
       }
     }
 
-    if (!this.ranBeforeDevCommand && cfg.build.beforeDevCommand) {
-      this.ranBeforeDevCommand = true // prevent calling it twice on recursive call on our watcher
+    if (!this.beforeDevProcess && cfg.build.beforeDevCommand) {
       log('Running `' + cfg.build.beforeDevCommand + '`')
       const ls = exec(cfg.build.beforeDevCommand, {
         cwd: appDir,
@@ -67,7 +66,8 @@ class Runner {
       })
 
       ls.stderr?.pipe(process.stderr)
-       ls.stdout?.pipe(process.stdout)
+      ls.stdout?.pipe(process.stdout)
+      this.beforeDevProcess = ls
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -171,7 +171,7 @@ class Runner {
     }
 
     if (!this.tauriWatcher) {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
       this.tauriWatcher = chokidar
         .watch(
           [
@@ -404,6 +404,7 @@ class Runner {
           }
 
           if (dev && !exitOnPanic && code === 101) {
+            this.pid = 0
             resolve()
             return
           }
@@ -497,6 +498,10 @@ class Runner {
 
     if (cfg.tauri.edge.active) {
       tomlFeatures.push('edge')
+    }
+
+    if (cfg.tauri.cli) {
+        tomlFeatures.push('cli')
     }
 
     if (typeof manifest.dependencies.tauri === 'string') {

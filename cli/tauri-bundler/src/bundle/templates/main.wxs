@@ -103,7 +103,9 @@
                     Name="{{{product_name}}}"
                     Description="Runs {{{product_name}}}"
                     Target="[!Path]"
-                    Icon="ProductIcon"/>
+                    Icon="ProductIcon">
+                    <ShortcutProperty Key="System.AppUserModel.ID" Value="{{{manufacturer}}}"/>
+                </Shortcut>
                 <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
                 <RegistryValue Root="HKCU" Key="Software\{{{manufacturer}}}\{{{product_name}}}" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
            </Component>

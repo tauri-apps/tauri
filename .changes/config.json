@@ -1,0 +1,41 @@
+{
+  "pkgManagers": {
+    "rust": {
+      "version": true,
+      "publish": false
+    },
+    "javascript": {
+      "version": true,
+      "publish": false
+    }
+  },
+  "packages": {
+    "tauri.js": {
+      "path": "./cli/tauri.js",
+      "manager": "javascript",
+      "dependencies": ["tauri"]
+    },
+    "tauri-bundler": {
+      "path": "./cli/tauri-bundler",
+      "manager": "rust"
+    },
+    "tauri": {
+      "path": "./tauri",
+      "manager": "rust",
+      "dependencies": ["tauri-api", "tauri-updater"]
+    },
+    "tauri-api": {
+      "path": "./tauri-api",
+      "manager": "rust",
+      "dependencies": ["tauri-utils"]
+    },
+    "tauri-utils": {
+      "path": "./tauri-utils",
+      "manager": "rust"
+    },
+    "tauri-updater": {
+      "path": "./tauri-updater",
+      "manager": "rust"
+    }
+  }
+}

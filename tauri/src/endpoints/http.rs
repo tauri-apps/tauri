@@ -12,12 +12,12 @@ pub fn make_request<T: 'static>(
     webview,
     move || {
       let response_type = options.response_type.clone();
-      request(options).map(|response| {
-        match response_type.unwrap_or(ResponseType::Json) {
+      request(options).map(
+        |response| match response_type.unwrap_or(ResponseType::Json) {
           ResponseType::Text => format!(r#""{}""#, response),
           _ => response,
-        }
-      })
+        },
+      )
     },
     callback,
     error,

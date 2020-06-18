@@ -1,3 +1,4 @@
+import { CargoManifest } from './../types/cargo'
 import { existsSync, removeSync, writeFileSync } from 'fs-extra'
 import { join, normalize, resolve } from 'path'
 import { TauriConfig } from 'types'
@@ -69,9 +70,17 @@ Run \`tauri init --force template\` to overwrite.`)
       : join('..', tauriPath, 'tauri') // we received a relative path
     return resolvedPath.replace(/\\/g, '/')
   }
+
+  const resolveCurrentTauriVersion = (): string => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
+    const tauriManifest = require('../../../../tauri/Cargo.toml') as CargoManifest
+    const version = tauriManifest.package.version
+    return version.substring(0, version.lastIndexOf('.'))
+  }
+
   const tauriDep = tauriPath
     ? `{ path = "${resolveTauriPath(tauriPath)}" }`
-    : null
+    : `{ version = "${resolveCurrentTauriVersion()}" }`
 
   try {
     removeSync(dir)

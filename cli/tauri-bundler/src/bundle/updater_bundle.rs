@@ -191,6 +191,7 @@ mod tests {
     example_path.push("test");
     example_path.push("fixture");
     example_path.push("config");
+    example_path.push("src-tauri");
 
     // Run cargo build in our test project
     std::process::Command::new("cargo")

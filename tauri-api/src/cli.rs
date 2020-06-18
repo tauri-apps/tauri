@@ -142,6 +142,7 @@ fn get_app<'a, T: Cli + 'static>(name: &str, about: Option<&'a String>, config: 
       clap_arg = bind_if_arg!(arg, clap_arg, requires_if);
       clap_arg = bind_if_arg!(arg, clap_arg, required_if);
       clap_arg = bind_value_arg!(arg, clap_arg, require_equals);
+      clap_arg = bind_value_arg!(arg, clap_arg, index);
 
       app = app.arg(clap_arg);
     }

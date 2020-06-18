@@ -54,6 +54,15 @@ jobs:
       - name: cargo login
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         run: cargo login ${{ secrets.crate_token }}
+      - name: cargo generate-lockfile (for audit)
+        if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
+        working-directory: ${{ matrix.package.path }}
+        env:
+          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
+          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
+        run: |
+          echo "This is only for the audit. Lock files are listed in the gitignore so it should not be published."
+          cargo generate-lockfile
       - name: cargo package
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         working-directory: ${{ matrix.package.path }}

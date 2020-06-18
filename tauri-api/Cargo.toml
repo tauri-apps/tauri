@@ -29,7 +29,7 @@ anyhow = "1.0.31"
 thiserror = "1.0.20"
 rand = "0.7"
 nfd = "0.0.4"
-tauri-dialog = { git = "https://github.com/tauri-apps/tauri-dialog-rs", version = "0.1" }
+tauri-dialog = "0.1.0"
 attohttpc = { version = "0.14.0", features = [ "json", "form" ] }
 http = "0.2"
 tauri-utils = { version = "0.5", path = "../tauri-utils" }

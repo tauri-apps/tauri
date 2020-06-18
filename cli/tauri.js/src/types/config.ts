@@ -19,7 +19,7 @@ export interface CliArg {
   requiresIf?: [string, string]
   requiredIf?: [string, string]
   requireEquals?: boolean
-  global?: boolean
+  index?: number
 }
 
 export interface CliConfig {

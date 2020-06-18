@@ -95,6 +95,7 @@ pub struct CliArg {
   pub requires_if: Option<Vec<String>>,
   pub required_if: Option<Vec<String>>,
   pub require_equals: Option<bool>,
+  pub index: Option<u64>,
 }
 
 #[derive(PartialEq, Deserialize, Debug)]

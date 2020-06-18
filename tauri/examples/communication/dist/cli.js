@@ -1,5 +1,5 @@
 document.getElementById('cli-matches').addEventListener('click', function () {
-  window.tauri.cliMatches()
+  window.__TAURI__.cliMatches()
     .then(registerResponse)
     .catch(registerResponse)
 })

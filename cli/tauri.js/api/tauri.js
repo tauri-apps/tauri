@@ -1,1 +1,1 @@
-export default window.tauri
+export default window.__TAURI__

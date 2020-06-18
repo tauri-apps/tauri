@@ -19,5 +19,5 @@ document.getElementById('make-request').addEventListener('click', function () {
   }
   options.body = body
 
-  window.tauri.httpRequest(options).then(registerResponse).catch(registerResponse)
+  window.__TAURI__.httpRequest(options).then(registerResponse).catch(registerResponse)
 })

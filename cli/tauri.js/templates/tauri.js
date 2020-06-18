@@ -132,7 +132,7 @@ switch (navigator.platform) {
     });
   }
 
-  window.tauri = {
+  window.__TAURI__ = {
     Dir: Dir,
     <% if (ctx.dev) { %>
       /**
@@ -160,7 +160,7 @@ switch (navigator.platform) {
         this.invoke({
           cmd: 'listen',
           event: event,
-          handler: window.tauri.transformCallback(handler, once),
+          handler: window.__TAURI__.transformCallback(handler, once),
           once: once
         });
       <% } else { %>
@@ -666,10 +666,10 @@ switch (navigator.platform) {
           Object.freeze(options);
         }
 
-        return window.tauri.isNotificationPermissionGranted()
+        return window.__TAURI__.isNotificationPermissionGranted()
           .then(function (permission) {
             if (permission) {
-              return window.tauri.promisified({
+              return window.__TAURI__.promisified({
                 cmd: 'notification',
                 options: typeof options === 'string' ? {
                   body: options
@@ -690,7 +690,7 @@ switch (navigator.platform) {
         if (window.Notification.permission !== 'default' && window.Notification.permission !== 'loading') {
           return Promise.resolve(window.Notification.permission === 'granted')
         }
-        return window.tauri.promisified({
+        return window.__TAURI__.promisified({
           cmd: 'isNotificationPermissionGranted'
         })
       <% } else { %>
@@ -703,7 +703,7 @@ switch (navigator.platform) {
 
     requestNotificationPermission: function requestNotificationPermission() {
       <% if (tauri.whitelist.notification === true || tauri.whitelist.all === true) { %>
-        return window.tauri.promisified({
+        return window.__TAURI__.promisified({
           cmd: 'requestNotificationPermission'
         }).then(function (state) {
           setNotificationPermission(state)
@@ -755,9 +755,9 @@ switch (navigator.platform) {
         options = {}
       }
       options.title = title
-      window.tauri.notification(options)
+      window.__TAURI__.notification(options)
     }
-    window.Notification.requestPermission = window.tauri.requestNotificationPermission
+    window.Notification.requestPermission = window.__TAURI__.requestNotificationPermission
 
     Object.defineProperty(window.Notification, 'permission', {
       enumerable: true,
@@ -773,7 +773,7 @@ switch (navigator.platform) {
     });
 
     setNotificationPermission('loading')
-    window.tauri.isNotificationPermissionGranted()
+    window.__TAURI__.isNotificationPermissionGranted()
       .then(function (response) {
         if (response === null) {
           setNotificationPermission('default')
@@ -786,12 +786,12 @@ switch (navigator.platform) {
 
   // init tauri API
   try {
-    window.tauri.invoke({
+    window.__TAURI__.invoke({
       cmd: 'init'
     })
   } catch (e) {
     window.addEventListener('DOMContentLoaded', function () {
-      window.tauri.invoke({
+      window.__TAURI__.invoke({
         cmd: 'init'
       })
     }, true)
@@ -801,7 +801,7 @@ switch (navigator.platform) {
     var target = e.target
     while (target != null) {
       if (target.matches ? target.matches('img') : target.msMatchesSelector('img')) {
-        window.tauri.loadAsset(target.src, 'image')
+        window.__TAURI__.loadAsset(target.src, 'image')
           .then(function (img) {
             target.src = img
           })
@@ -818,7 +818,7 @@ switch (navigator.platform) {
       while (target != null) {
         if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
           if (target.href && target.href.startsWith('http') && target.target === '_blank') {
-            window.tauri.open(target.href)
+            window.__TAURI__.open(target.href)
             e.preventDefault()
           }
           break

@@ -47,7 +47,7 @@ var __reject = function () {
   });
 }
 
-window.tauri = {
+window.__TAURI__ = {
   
   invoke: function invoke(args) {
     window.external.invoke(JSON.stringify(args));
@@ -179,12 +179,12 @@ window.tauri = {
 
 // init tauri API
 try {
-  window.tauri.invoke({
+  window.__TAURI__.invoke({
     cmd: 'init'
   })
 } catch (e) {
   window.addEventListener('DOMContentLoaded', function () {
-    window.tauri.invoke({
+    window.__TAURI__.invoke({
       cmd: 'init'
     })
   }, true)
@@ -194,7 +194,7 @@ document.addEventListener('error', function (e) {
   var target = e.target
   while (target != null) {
     if (target.matches ? target.matches('img') : target.msMatchesSelector('img')) {
-      window.tauri.loadAsset(target.src, 'image')
+      window.__TAURI__.loadAsset(target.src, 'image')
         .then(img => {
           target.src = img
         })
@@ -210,7 +210,7 @@ window.addEventListener('DOMContentLoaded', function () {
     var target = e.target
     while (target != null) {
       if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
-        window.tauri.open(target.href)
+        window.__TAURI__.open(target.href)
         break
       }
       target = target.parentElement

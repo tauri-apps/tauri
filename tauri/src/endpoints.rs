@@ -262,7 +262,7 @@ fn init() -> crate::Result<String> {
               }}
 
               if (listeners.length > 0) {{
-                window.tauri.promisified({{
+                window.__TAURI__.promisified({{
                   cmd: 'validateSalt',
                   salt: salt
                 }}).then(function () {{
@@ -448,7 +448,7 @@ mod test {
     } else if cfg!(any(feature = "all-api", feature = "event")) {
       let res = super::init();
       match res {
-        Ok(s) => assert!(s.contains("window.tauri.promisified")),
+        Ok(s) => assert!(s.contains("window.__TAURI__.promisified")),
         Err(_) => assert!(false),
       }
     }

@@ -79,18 +79,21 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .expect("Failed to chmod script");
 
   // execute the shell script to build the appimage.
-  let status = Command::new(&sh_file)
+  let output = Command::new(&sh_file)
     .current_dir(output_path)
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
-    .status()
+    .output()
     .expect("Failed to execute shell script");
 
-  if !status.success() {
+  if !output.status.success() {
     Err(crate::Error::ShellScriptError(
       "error running build_appimage.sh".to_owned(),
     ))
   } else {
+    println!("status: {}", output.status);
+    println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+    println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
     remove_dir_all(&package_dir)?;
     Ok(vec![appimage_path])
   }

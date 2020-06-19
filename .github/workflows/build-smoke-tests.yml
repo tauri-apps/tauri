@@ -90,6 +90,9 @@ jobs:
       - name: build cli
         working-directory: ./cli/tauri.js
         run: yarn build
+      - name: transpile api-src
+        working-directory: ./cli/tauri.js
+        run: yarn build:api
       - name: cache node modules
         uses: actions/cache@v1
         with:

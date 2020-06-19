@@ -7,6 +7,7 @@ import http from './http'
 import * as process from './process'
 import * as tauri from './tauri'
 import * as window from './window'
+import * as notification from './notification'
 
 export {
   cli,
@@ -16,5 +17,6 @@ export {
   http,
   process,
   tauri,
-  window
+  window,
+  notification
 }

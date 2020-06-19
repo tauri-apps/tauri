@@ -232,7 +232,11 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
                 crate::settings::write_settings(settings)?;
                 Ok(granted)
               }
-              tauri_api::dialog::DialogSelection::No => Ok(denied),
+              tauri_api::dialog::DialogSelection::No => {
+                settings.allow_notification = Some(false);
+                crate::settings::write_settings(settings)?;
+                Ok(denied)
+              },
               _ => Ok(r#""default""#.to_string()),
             }
           },

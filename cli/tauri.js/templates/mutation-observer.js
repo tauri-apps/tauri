@@ -1,7 +1,7 @@
 (function () {
   function loadAsset(path, type) {
     if (path) {
-      window.tauri.loadAsset(path, type)
+      window.__TAURI__.loadAsset(path, type)
     }
   }
 

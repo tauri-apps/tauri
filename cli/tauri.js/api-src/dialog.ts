@@ -1,5 +1,5 @@
 import { OpenDialogOptions, SaveDialogOptions } from './types/dialog'
-import tauri from './tauri'
+import { promisified } from './tauri'
 
 /**
  * @name openDialog
@@ -12,7 +12,14 @@ import tauri from './tauri'
  * @returns promise resolving to the select path(s)
  */
 async function open(options: OpenDialogOptions = {}): Promise<String | String[]> {
-  return tauri.openDialog(options)
+  if (typeof options === 'object') {
+    Object.freeze(options)
+  }
+
+  return promisified({
+    cmd: 'openDialog',
+    options
+  })
 }
 
 /**
@@ -24,7 +31,14 @@ async function open(options: OpenDialogOptions = {}): Promise<String | String[]>
  * @returns promise resolving to the select path
  */
 async function save(options: SaveDialogOptions = {}): Promise<String> {
-  return tauri.saveDialog(options)
+  if (typeof options === 'object') {
+    Object.freeze(options)
+  }
+
+  return promisified({
+    cmd: 'saveDialog',
+    options
+  })
 }
 
 export {

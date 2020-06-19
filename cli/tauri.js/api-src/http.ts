@@ -1,4 +1,4 @@
-import tauri from './tauri'
+import { promisified } from './tauri'
 import { HttpOptions, Body, BodyType, ResponseType, PartialOptions } from './types/http'
 
 /**
@@ -9,7 +9,10 @@ import { HttpOptions, Body, BodyType, ResponseType, PartialOptions } from './typ
  * @return promise resolving to the response
  */
 async function request<T>(options: HttpOptions): Promise<T> {
-  return await tauri.httpRequest<T>(options)
+  return await promisified({
+    cmd: 'httpRequest',
+    options: options
+  })
 }
 
 /**

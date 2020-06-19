@@ -1,3 +1,2 @@
-import tauri from './tauri'
-
-export default tauri
+import * as api from './bundle'
+export default api

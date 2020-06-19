@@ -1,4 +1,4 @@
-import tauri from './tauri'
+import { promisified } from './tauri'
 
 /**
  * spawns a process
@@ -8,7 +8,15 @@ import tauri from './tauri'
  * @return promise resolving to the stdout text
  */
 async function execute(command: string, args?: string | string[]): Promise<string> {
-  return tauri.execute(command, args)
+  if (typeof args === 'object') {
+    Object.freeze(args)
+  }
+
+  return promisified({
+    cmd: 'execute',
+    command,
+    args: typeof args === 'string' ? [args] : args
+  });
 }
 
 export {

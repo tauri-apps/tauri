@@ -1,4 +1,4 @@
-import tauri from './tauri'
+import { invoke } from './tauri'
 
 /**
  * sets the window title
@@ -6,7 +6,10 @@ import tauri from './tauri'
  * @param title the new title
  */
 function setTitle(title: string): void {
-  tauri.setTitle(title)
+  invoke({
+    cmd: 'setTitle',
+    title
+  })
 }
 
 /**
@@ -15,7 +18,10 @@ function setTitle(title: string): void {
  * @param url the URL to open
  */
 function open(url: string): void {
-  tauri.open(url)
+  invoke({
+    cmd: 'open',
+    uri: url
+  })
 }
 
 export {

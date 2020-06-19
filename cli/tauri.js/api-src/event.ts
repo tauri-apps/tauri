@@ -1,4 +1,4 @@
-import tauri from './tauri'
+import { invoke, transformCallback } from './tauri'
 import { EventCallback } from './types/event'
 
 /**
@@ -7,8 +7,13 @@ import { EventCallback } from './types/event'
  * @param event the event name
  * @param handler the event handler callback
  */
-function listen(event: string, handler: EventCallback) {
-  tauri.listen(event, handler)
+function listen(event: string, handler: EventCallback, once = false) {
+  invoke({
+    cmd: 'listen',
+    event,
+    handler: transformCallback(handler, once),
+    once
+  })
 }
 
 /**
@@ -18,7 +23,11 @@ function listen(event: string, handler: EventCallback) {
  * @param [payload] the event payload
  */
 function emit(event: string, payload?: string) {
-  tauri.emit(event, payload)
+  invoke({
+    cmd: 'emit',
+    event,
+    payload
+  })
 }
 
 export {

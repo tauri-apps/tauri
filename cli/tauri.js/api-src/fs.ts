@@ -1,4 +1,4 @@
-import tauri from './tauri'
+import { promisified } from './tauri'
 import { BaseDirectory, FsOptions, FsFileOption, FileEntry } from './types/fs'
 
 /**
@@ -10,7 +10,11 @@ import { BaseDirectory, FsOptions, FsFileOption, FileEntry } from './types/fs'
  * @return
  */
 async function readTextFile(filePath: string, options: FsOptions = {}): Promise<string> {
-  return tauri.readTextFile(filePath, options)
+  return promisified({
+    cmd: 'readTextFile',
+    path: filePath,
+    options
+  })
 }
 
 /**
@@ -22,7 +26,11 @@ async function readTextFile(filePath: string, options: FsOptions = {}): Promise<
  * @return {Promise<int[]>}
  */
 async function readBinaryFile(filePath: string, options: FsOptions = {}): Promise<string> {
-  return tauri.readBinaryFile(filePath, options)
+  return promisified({
+    cmd: 'readBinaryFile',
+    path: filePath,
+    options
+  })
 }
 
 /**
@@ -36,7 +44,19 @@ async function readBinaryFile(filePath: string, options: FsOptions = {}): Promis
  * @return
  */
 async function writeFile(file: FsFileOption, options: FsOptions = {}): Promise<void> {
-  return tauri.writeFile(file, options)
+  if (typeof options === 'object') {
+    Object.freeze(options)
+  }
+  if (typeof file === 'object') {
+    Object.freeze(file)
+  }
+
+  return promisified({
+    cmd: 'writeFile',
+    file: file.path,
+    contents: file.contents,
+    options
+  });
 }
 
 /**
@@ -49,7 +69,11 @@ async function writeFile(file: FsFileOption, options: FsOptions = {}): Promise<v
  * @return
  */
 async function readDir(dir: string, options: FsOptions = {}): Promise<FileEntry[]> {
-  return tauri.readDir(dir, options)
+  return promisified({
+    cmd: 'readDir',
+    path: dir,
+    options
+  })
 }
 
 /**
@@ -64,7 +88,11 @@ async function readDir(dir: string, options: FsOptions = {}): Promise<FileEntry[
  * @return
  */
 async function createDir(dir: string, options: FsOptions = {}): Promise<void> {
-  return tauri.createDir(dir, options)
+  return promisified({
+    cmd: 'createDir',
+    path: dir,
+    options
+  })
 }
 
 /**
@@ -78,7 +106,11 @@ async function createDir(dir: string, options: FsOptions = {}): Promise<void> {
  * @return
  */
 async function removeDir(dir: string, options: FsOptions = {}): Promise<void> {
-  return tauri.removeDir(dir, options)
+  return promisified({
+    cmd: 'removeDir',
+    path: dir,
+    options
+  })
 }
 
 /**
@@ -91,7 +123,12 @@ async function removeDir(dir: string, options: FsOptions = {}): Promise<void> {
  * @return
  */
 async function copyFile(source: string, destination: string, options: FsOptions = {}): Promise<void> {
-  return tauri.copyFile(source, destination, options)
+  return promisified({
+    cmd: 'copyFile',
+    source,
+    destination,
+    options
+  })
 }
 
 /**
@@ -103,7 +140,11 @@ async function copyFile(source: string, destination: string, options: FsOptions 
  * @return
  */
 async function removeFile(file: string, options: FsOptions = {}): Promise<void> {
-  return tauri.removeFile(file, options)
+  return promisified({
+    cmd: 'removeFile',
+    path: file,
+    options: options
+  })
 }
 
 /**
@@ -116,7 +157,12 @@ async function removeFile(file: string, options: FsOptions = {}): Promise<void> 
  * @return
  */
 async function renameFile(oldPath: string, newPath: string, options: FsOptions = {}): Promise<void> {
-  return tauri.renameFile(oldPath, newPath, options)
+  return promisified({
+    cmd: 'renameFile',
+    oldPath,
+    newPath,
+    options
+  })
 }
 
 export {

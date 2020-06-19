@@ -1,50 +1,66 @@
-import { HttpOptions } from './types/dialog'
-import { EventCallback } from './types/event'
-import {
-  OpenDialogOptions, SaveDialogOptions
-} from './types/dialog'
-import {
-  FsOptions,
-  FsFileOption,
-  FileEntry
-} from './types/fs'
-
 declare global {
-  interface Window {
-    tauri: {
-      // window
-      setTitle: (title: string) => void
-      open: (url: string) => void
-
-      // process
-      execute: (command: string, args?: string | string[]) => Promise<string>
-
-      // http
-      httpRequest: <T>(options: HttpOptions) => Promise<T>
-
-      // event
-      listen: (event: string, handler: EventCallback) => void
-      emit: (event: string, payload?: string) => void
-
-      // dialog
-      openDialog: (options: OpenDialogOptions) => Promise<String | String[]>
-      saveDialog: (options: SaveDialogOptions) => Promise<String>
-
-      // cli
-      cliMatches: () => any
-
-      // fs
-      readTextFile: (filePath: string, options: FsOptions) => Promise<string>
-      readBinaryFile: (filePath: string, options: FsOptions) => Promise<string>
-      writeFile: (file: FsFileOption, options: FsOptions) => Promise<void>
-      readDir: (dir: string, options: FsOptions) => Promise<FileEntry[]>
-      createDir: (dir: string, options: FsOptions) => Promise<void>
-      removeDir: (dir: string, options: FsOptions) => Promise<void>
-      copyFile: (source: string, destination: string, options: FsOptions) => Promise<void>
-      removeFile: (file: string, options: FsOptions) => Promise<void>
-      renameFile: (oldPath: string, newPath: string, options: FsOptions) => Promise<void>
-    }
+  interface External {
+    invoke(command: string): void
   }
 }
 
-export default window.tauri
+function __s4(): string {
+  return Math.floor((1 + Math.random()) * 0x10000)
+    .toString(16)
+    .substring(1)
+}
+
+function __uid(): string {
+  return __s4() + __s4() + '-' + __s4() + '-' + __s4() + '-' +
+    __s4() + '-' + __s4() + __s4() + __s4()
+}
+
+function invoke(args: any) {
+  window.external.invoke(typeof args === 'object' ? JSON.stringify(args) : args)
+}
+
+function transformCallback(callback: (response: any) => void, once = false) {
+  var identifier = __uid();
+
+  Object.defineProperty(window, identifier, {
+    value: (result: any) => {
+      if (once) {
+        Reflect.deleteProperty(window, identifier)
+      }
+
+      return callback && callback(result)
+    },
+    writable: false
+  })
+
+  return identifier
+}
+
+function promisified(args: any): Promise<any> {
+  return new Promise((resolve, reject) => {
+    invoke({
+      callback: transformCallback(resolve),
+      error: transformCallback(reject),
+      ...args
+    })
+  });
+}
+
+// init tauri API
+try {
+  invoke({
+    cmd: 'init'
+  })
+} catch (e) {
+  window.addEventListener('DOMContentLoaded', function () {
+    invoke({
+      cmd: 'init'
+    })
+  }, true)
+}
+
+export {
+  invoke,
+  transformCallback,
+  promisified
+}

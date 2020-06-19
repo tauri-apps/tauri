@@ -65,7 +65,7 @@ export default [{
     'bundle': './api-src/bundle.ts'
   },
   output: [{
-    name: 'tauri',
+    name: '__TAURI__',
     dir:    'api/', // if it needs to run in the browser
     entryFileNames: 'tauri.bundle.umd.js',
     format:  'umd',

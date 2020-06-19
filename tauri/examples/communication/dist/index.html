@@ -284,17 +284,17 @@
       })
     }
 
-    window.tauri.listen('rust-event', function (res) {
+    window.__TAURI__.event.listen('rust-event', function (res) {
       document.getElementById('response').innerHTML = JSON.stringify(res)
     })
 
     document.querySelector('.logo').addEventListener('click', function () {
-      window.tauri.open('https://tauri.studio/')
+      window.__TAURI__.window.open('https://tauri.studio/')
     })
 
     var dirSelect = document.getElementById('dir')
-    for (var key in window.tauri.Dir) {
-      var value = window.tauri.Dir[key]
+    for (var key in window.__TAURI__.fs.Dir) {
+      var value = window.__TAURI__.fs.Dir[key]
       var opt = document.createElement("option")
       opt.value = value
       opt.innerHTML = key

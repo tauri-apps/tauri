@@ -1,10 +1,12 @@
-import tauri from './tauri'
+import { promisified } from './tauri'
 
 /**
  * gets the CLI matches
  */
 function getMatches(): any {
-  return tauri.cliMatches()
+  return promisified({
+    cmd: 'cliMatches'
+  })
 }
 
 export {

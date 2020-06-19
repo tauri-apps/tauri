@@ -10,9 +10,10 @@
     "url": "https://opencollective.com/tauri"
   },
   "scripts": {
-    "build": "webpack --progress",
-    "build:api": "rollup -c --silent",
-    "build-release": "yarn build --display none --progress false && yarn build:api",
+    "build": "rollup -c --silent && webpack --progress",
+    "build:webpack": "webpack --progress",
+    "build:api": "rollup -c",
+    "build-release": "yarn build --display none --progress false",
     "test": "jest --runInBand --no-cache --testPathIgnorePatterns=\"(build|dev)\"",
     "pretest": "yarn build",
     "prepublishOnly": "yarn build-release",

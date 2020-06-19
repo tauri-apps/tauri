@@ -13,6 +13,5 @@
       "types": ["src/types"]
     },
   },
-  "include": ["src"],
-  "// extends": "./api/tsconfig.json"
+  "include": ["src"]
 }

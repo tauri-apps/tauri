@@ -60,7 +60,7 @@ if ((Test-Path $dist_path -PathType Any) -Or (Test-Path $src_path -PathType Any)
 
   # install the tauri Node CLI and transpile the TS version of the API.
   cd cli\tauri.js
-  yarn; yarn build; yarn build:api
+  yarn; yarn build;
 }
 ```
 

@@ -280,7 +280,10 @@ pub fn make_request(options: HttpRequestOptions) -> crate::Result<String> {
   let response = response?;
   if response.is_success() {
     let response_data = match options.response_type.unwrap_or(ResponseType::Json) {
-      ResponseType::Json => response.json()?,
+      ResponseType::Json => {
+        let result = response.json::<Value>()?;
+        serde_json::to_string(&result)?
+      }
       ResponseType::Text => response.text()?,
       ResponseType::Binary => serde_json::to_string(&response.bytes()?)?,
     };

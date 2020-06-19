@@ -8,21 +8,21 @@ import pkg from './package.json'
 
 export default [{
   input: {
-    'api/fs': './api-src/fs.ts',
-    'api/dialog': './api-src/dialog.ts',
-    'api/event': './api-src/event.ts',
-    'api/http': './api-src/http.ts',
-    'api/index': './api-src/index.ts',
-    'api/process': './api-src/process.ts',
-    'api/tauri': './api-src/tauri.ts',
-    'api/window': './api-src/window.ts',
+    'fs': './api-src/fs.ts',
+    'dialog': './api-src/dialog.ts',
+    'event': './api-src/event.ts',
+    'http': './api-src/http.ts',
+    'index': './api-src/index.ts',
+    'process': './api-src/process.ts',
+    'tauri': './api-src/tauri.ts',
+    'window': './api-src/window.ts',
   },
   treeshake:      true,
   perf:           true,
   output:         [
     {
-      dir: 'api/cjs/', // if you want to consume in node but want it tiny
-      entryFileNames: '[name].min.js',
+      dir: 'api/', // if you want to consume in node but want it tiny
+      entryFileNames: '[name].js',
       format:  'cjs',
       plugins: [ terser() ],
       exports: 'named',
@@ -62,12 +62,12 @@ export default [{
 },
 {
   input: {
-    'api/bundle': './api-src/bundle.ts'
+    'bundle': './api-src/bundle.ts'
   },
   output: [{
     name: 'tauri',
-    dir:    'api/umd/', // if it needs to run in the browser
-    entryFileNames: 'tauri.bundle.min.js',
+    dir:    'api/', // if it needs to run in the browser
+    entryFileNames: 'tauri.bundle.umd.js',
     format:  'umd',
     plugins: [
       getBabelOutputPlugin({

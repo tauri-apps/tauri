@@ -11,7 +11,7 @@
   },
   "scripts": {
     "build": "webpack --progress",
-    "build:api": "rollup --silent",
+    "build:api": "rollup -c --silent",
     "build-release": "yarn build --display none --progress false && yarn build:api",
     "test": "jest --runInBand --no-cache --testPathIgnorePatterns=\"(build|dev)\"",
     "pretest": "yarn build",

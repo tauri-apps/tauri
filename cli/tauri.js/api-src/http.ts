@@ -1,5 +1,5 @@
 import tauri from './tauri'
-import { HttpOptions, Body, BodyType, ResponseType, PartialOptions } from './models'
+import { HttpOptions, Body, BodyType, ResponseType, PartialOptions } from './types/http'
 
 /**
  * makes a HTTP request

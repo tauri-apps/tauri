@@ -1,5 +1,5 @@
 import tauri from './tauri'
-import { EventCallback } from './models'
+import { EventCallback } from './types/event'
 
 /**
  * listen to an event from the backend
@@ -7,7 +7,7 @@ import { EventCallback } from './models'
  * @param event the event name
  * @param handler the event handler callback
  */
-function listen (event: string, handler: EventCallback) {
+function listen(event: string, handler: EventCallback) {
   tauri.listen(event, handler)
 }
 
@@ -17,7 +17,7 @@ function listen (event: string, handler: EventCallback) {
  * @param event the event name
  * @param [payload] the event payload
  */
-function emit (event: string, payload?: string) {
+function emit(event: string, payload?: string) {
   tauri.emit(event, payload)
 }
 

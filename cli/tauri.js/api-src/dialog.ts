@@ -1,4 +1,4 @@
-import { OpenDialogOptions, SaveDialogOptions } from './models'
+import { OpenDialogOptions, SaveDialogOptions } from './types/dialog'
 import tauri from './tauri'
 
 /**

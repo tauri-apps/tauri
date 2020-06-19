@@ -1,5 +1,5 @@
 import tauri from './tauri'
-import { BaseDirectory, FsOptions, FsFileOption, FileEntry } from './models'
+import { BaseDirectory, FsOptions, FsFileOption, FileEntry } from './types/fs'
 
 /**
  * reads a file as text

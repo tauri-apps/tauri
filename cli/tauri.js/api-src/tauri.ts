@@ -1,12 +1,13 @@
+import { HttpOptions } from './types/dialog'
+import { EventCallback } from './types/event'
 import {
-  HttpOptions,
-  EventCallback,
-  OpenDialogOptions,
-  SaveDialogOptions,
+  OpenDialogOptions, SaveDialogOptions
+} from './types/dialog'
+import {
   FsOptions,
   FsFileOption,
   FileEntry
-} from './models'
+} from './types/fs'
 
 declare global {
   interface Window {

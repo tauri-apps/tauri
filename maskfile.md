@@ -16,7 +16,7 @@ cargo install --path cli/tauri-bundler --force
 cargo install cargo-web 			# used by example rust/yew
 
 cd cli/tauri.js
-yarn && yarn build && yarn rollup -c
+yarn && yarn build
 ```
 
 ```powershell

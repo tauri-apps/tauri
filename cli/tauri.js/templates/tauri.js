@@ -351,29 +351,30 @@ switch (navigator.platform) {
           <% } %>
     },
 
-  <% if (ctx.dev) { %>
-    /**
-     * @name readDir
-     * @description Reads a directory
-     * Permissions based on the app's PID owner
-     * @param {String} path
-     * @param {Object} [options]
-     * @param {Boolean} [options.recursive]
-     * @param {BaseDirectory} [options.dir]
-     * @returns {*|Promise<any>|Promise}
-     */
-  <% } %>
-  readDir: function readDir(path, options) {
-    <% if (tauri.whitelist.readDir === true || tauri.whitelist.all === true) { %>
-      return this.promisified({
-        cmd: 'readDir',
-        path: path,
-        options: options
-      });
-    <% } else { %>
-      <% if (ctx.dev) { %>
-          return __whitelistWarning('readDir')
-          <% } %>
+    <% if (ctx.dev) { %>
+      /**
+       * @name readDir
+       * @description Reads a directory
+       * Permissions based on the app's PID owner
+       * @param {String} path
+       * @param {Object} [options]
+       * @param {Boolean} [options.recursive]
+       * @param {BaseDirectory} [options.dir]
+       * @returns {*|Promise<any>|Promise}
+       */
+    <% } %>
+    readDir: function readDir(path, options) {
+      <% if (tauri.whitelist.readDir === true || tauri.whitelist.all === true) { %>
+        return this.promisified({
+          cmd: 'readDir',
+          path: path,
+          options: options
+        });
+      <% } else { %>
+        <% if (ctx.dev) { %>
+            return __whitelistWarning('readDir')
+            <% } %>
+      <% } %>
     },
 
     <% if (ctx.dev) { %>

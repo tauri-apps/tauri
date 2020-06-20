@@ -1,80 +1,314 @@
 <!DOCTYPE html>
 <html>
-  <body>
-    <div>
-      <button id="log">Call Log API</button>
-      <button id="request">Call Request (async) API</button>
-      <button id="event">Send event to Rust</button>
-    </div>
 
-    <div style="margin-top: 24px">
-      <select id="dir">
-        <option value="">None</option>
-      </select>
-      <input id="path-to-read" placeholder="Type the path to read...">
-      <button id="read">Read</button>
-    </div>
+<head>
+  <style>
+    * {
+      font-family: Arial, Helvetica, sans-serif;
+    }
 
-    <div style="margin-top: 24px">
-      <input id="url" value="https://tauri.studio">
-      <button id="open-url">Open URL</button>
-    </div>
+    body {
+      background: #889;
+    }
 
-    <div style="margin-top: 24px">
-      <input id="title" value="Awesome Tauri Example!">
-      <button id="set-title">Set title</button>
-    </div>
+    .logo-container {
+      width: 95%;
+      margin: 0px auto;
+      overflow: hidden;
+    }
 
-    <div style="margin-top: 24px">
-      <input id="dialog-default-path" placeholder="Default path">
-      <input id="dialog-filter" placeholder="Extensions filter">
-      <div>
-        <input type="checkbox" id="dialog-multiple">
-        <label>Multiple</label>
+    .logo-link {
+      font-weight: 700;
+      position: absolute;
+      top: 150px;
+      right: 10px;
+    }
+
+    .logo {
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      position: fixed;
+      z-index: 10;
+      top: 7px;
+      right: 10px;
+    }
+
+    #response {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      top: 440px;
+      min-height: 110px;
+      background: #aab;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px;
+      word-wrap: break-word;
+      padding: 5px;
+      border-radius: 5px;
+      overflow-y: auto;
+    }
+
+    input,
+    select {
+      background: white;
+      font-family: system-ui, sans-serif;
+      border: 0;
+      border-radius: 0.25rem;
+      font-size: 1rem;
+      line-height: 1.2;
+      padding: 0.25rem 0.5rem;
+      margin: 0.25rem;
+    }
+
+    button:hover,
+    button:focus {
+      background: #0053ba;
+    }
+
+    button:focus {
+      outline: 1px solid #fff;
+      outline-offset: -4px;
+    }
+
+    button:active {
+      transform: scale(0.99);
+    }
+
+    .button {
+      border: 0;
+      border-radius: 0.25rem;
+      background: #1E88E5;
+      color: white;
+      font-family: system-ui, sans-serif;
+      font-size: 1rem;
+      line-height: 1.2;
+      white-space: nowrap;
+      text-decoration: none;
+      padding: 0.25rem 0.5rem;
+      margin: 0.25rem;
+      cursor: pointer;
+    }
+
+    .bottom {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      text-align: center;
+      width: 100%;
+      padding: 5px;
+      background: #333;
+      color: #eef;
+    }
+
+    .dark-link {
+      color: white;
+      text-decoration: none !important;
+    }
+
+    .tabs-container {
+      position: fixed;
+      height: 400px;
+      top: 20px;
+      left: 10px;
+      right: 10px;
+      z-index: 9;
+    }
+
+    .tabs {
+      position: relative;
+      min-height: 400px;
+      clear: both;
+    }
+
+    .tab {
+      float: left;
+    }
+
+    .tab>label {
+      background: #eee;
+      padding: 10px;
+      border: 1px solid transparent;
+      margin-left: -1px;
+      position: relative;
+      left: 1px;
+    }
+
+    .tabs>.tabber {
+      border-top-left-radius: 5px;
+    }
+
+    .tabs>.tabber~.tabber {
+      border-top-left-radius: none;
+    }
+
+    .tab [type=radio] {
+      display: none;
+    }
+
+    .content {
+      position: absolute;
+      top: 28px;
+      left: 0;
+      background: #bbc;
+      right: 0;
+      bottom: 0;
+      padding: 20px;
+      border: 1px solid transparent;
+      border-top-right-radius: 5px;
+      border-bottom-left-radius: 5px;
+      border-bottom-right-radius: 5px;
+    }
+
+    [type=radio]:checked~label {
+      background: #bbc;
+      border-bottom: 1px solid transparent;
+      z-index: 2;
+    }
+
+    [type=radio]:checked~label~.content {
+      z-index: 1;
+    }
+
+  </style>
+</head>
+
+<body>
+  <div class="logo-container">
+    <img src="icon.png" class="logo">
+  </div>
+
+  <div class="tabs-container">
+    <div class="tabs">
+      <div class="tab">
+        <input type="radio" id="tab-1" name="tab-group-1" checked>
+        <label class="tabber" for="tab-1">Messages</label>
+        <div class="content">
+          <button class="button" id="log">Call Log API</button>
+          <button class="button" id="request">Call Request (async) API</button>
+          <button class="button" id="event">Send event to Rust</button>
+          <button class="button" id="notification">Send test notification</button>
+
+          <div style="margin-top: 24px">
+            <input id="title" value="Awesome Tauri Example!">
+            <button class="button" id="set-title">Set title</button>
+          </div>
+        </div>
       </div>
-      <div>
-        <input type="checkbox" id="dialog-directory">
-        <label>Directory</label>
+      <div class="tab">
+        <input type="radio" id="tab-2" name="tab-group-1">
+        <label class="tabber" for="tab-2">File System</label>
+        <div class="content">
+          <div style="margin-top: 24px">
+            <select class="button" id="dir">
+              <option value="">None</option>
+            </select>
+            <input id="path-to-read" placeholder="Type the path to read...">
+            <button class="button" id="read">Read</button>
+          </div>
+          <div style="margin-top: 24px">
+            <input id="dialog-default-path" placeholder="Default path">
+            <input id="dialog-filter" placeholder="Extensions filter">
+            <div>
+              <input type="checkbox" id="dialog-multiple">
+              <label>Multiple</label>
+            </div>
+            <div>
+              <input type="checkbox" id="dialog-directory">
+              <label>Directory</label>
+            </div>
+
+            <button class="button" id="open-dialog">Open dialog</button>
+            <button class="button" id="save-dialog">Open save dialog</button>
+          </div>
+        </div>
       </div>
 
-      <button id="open-dialog">Open dialog</button>
-      <button id="save-dialog">Open save dialog</button>
+      <div class="tab">
+        <input type="radio" id="tab-3" name="tab-group-1">
+        <label class="tabber" for="tab-3">Communication</label>
+        <div class="content">
+          <div style="margin-top: 24px">
+            <input id="url" value="https://tauri.studio">
+            <button class="button" id="open-url">Open URL</button>
+          </div>
+
+          <div style="margin-top: 24px">
+            <select class="button" id="request-method">
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+              <option value="PUT">PUT</option>
+              <option value="PATCH">PATCH</option>
+              <option value="DELETE">DELETE</option>
+            </select>
+            <input id="request-url" placeholder="Type the request URL...">
+            <br />
+            <textarea id="request-body" placeholder="Request body" rows="5"
+              style="width:100%;margin-right:10px;font-size:12px"></textarea>
+            </br>
+            <button class="button" id="make-request">Make request</button>
+          </div>
+        </div>
+      </div>
+      <div class="tab">
+        <input type="radio" id="tab-4" name="tab-group-1">
+        <label class="tabber" for="tab-4">CLI</label>
+        <div class="content">
+          <div style="margin-top: 24px">
+            <button class="button" id="cli-matches">Get matches</button>
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
+  <div id="response"></div>
+  <div class="bottom">
+    <a class="dark-link" target="_blank" href="https://tauri.studio">Tauri Documentation</a>&nbsp;&nbsp;&nbsp;
+    <a class="dark-link" target="_blank" href="https://github.com/tauri-apps/tauri">Github Repo</a>&nbsp;&nbsp;&nbsp;
+    <a class="dark-link" target="_blank"
+      href="https://github.com/tauri-apps/tauri/tree/dev/tauri/examples/communication">Source for this App</a>
+  </div>
+  <script>
+    function registerResponse(response) {
+      document.getElementById('response').innerHTML = typeof response === 'object' ?
+        JSON.stringify(response) :
+        response
+    }
 
-    <div id="response"></div>
-
-    <script>
-      function registerResponse (response) {
-        document.getElementById('response').innerHTML = typeof response === 'object'
-          ? JSON.stringify(response)
-          : response
-      }
-
-      function addClickEnterHandler (button, input, handler) {
-        button.addEventListener('click', handler)
-        input.addEventListener('keyup', function (e) {
-          if (e.keyCode === 13) {
-            handler()
-          }
-        })
-      }
-
-      window.tauri.listen('rust-event', function (res) {
-        document.getElementById('response').innerHTML = JSON.stringify(res)
+    function addClickEnterHandler(button, input, handler) {
+      button.addEventListener('click', handler)
+      input.addEventListener('keyup', function (e) {
+        if (e.keyCode === 13) {
+          handler()
+        }
       })
+    }
 
-      var dirSelect = document.getElementById('dir')
-      for (var key in window.tauri.Dir) {
+    window.tauri.listen('rust-event', function (res) {
+      document.getElementById('response').innerHTML = JSON.stringify(res)
+    })
+
+    document.querySelector('.logo').addEventListener('click', function () {
+      window.tauri.open('https://tauri.studio/')
+    })
+
+    var dirSelect = document.getElementById('dir')
+    for (var key in window.tauri.Dir) {
       var value = window.tauri.Dir[key]
       var opt = document.createElement("option")
       opt.value = value
       opt.innerHTML = key
       dirSelect.appendChild(opt)
-      }
-    </script>
-    <script src="communication.js"></script>
-    <script src="fs.js"></script>
-    <script src="window.js"></script>
-    <script src="dialog.js"></script>
-  </body>
+    }
+
+  </script>
+  <script src="communication.js"></script>
+  <script src="fs.js"></script>
+  <script src="window.js"></script>
+  <script src="dialog.js"></script>
+  <script src="http.js"></script>
+  <script src="cli.js"></script>
+  <script src="notification.js"></script>
+</body>
+
 </html>

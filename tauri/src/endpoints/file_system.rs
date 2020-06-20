@@ -27,11 +27,9 @@ pub fn read_dir<T: 'static>(
       };
       if recursive {
         dir::walk_dir(resolve_path(path, dir)?)
-          .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
           .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
       } else {
         dir::list_dir_contents(resolve_path(path, dir)?)
-          .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
           .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
       }
     },
@@ -52,14 +50,15 @@ pub fn copy_file<T: 'static>(
     webview,
     move || {
       let (src, dest) = match options.and_then(|o| o.dir) {
-        Some(dir) => {
-          (resolve_path(source, Some(dir.clone()))?, resolve_path(destination, Some(dir))?)
-        }
-        None => (source, destination)
+        Some(dir) => (
+          resolve_path(source, Some(dir.clone()))?,
+          resolve_path(destination, Some(dir))?,
+        ),
+        None => (source, destination),
       };
       fs::copy(src, dest)
-         .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
-         .map(|_| "".to_string())
+        .map_err(|e| e.into())
+        .map(|_| "".to_string())
     },
     callback,
     error,
@@ -88,9 +87,7 @@ pub fn create_dir<T: 'static>(
         fs::create_dir(resolved_path)
       };
 
-      response
-        .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
-         .map(|_| "".to_string())
+      response.map_err(|e| e.into()).map(|_| "".to_string())
     },
     callback,
     error,
@@ -119,9 +116,7 @@ pub fn remove_dir<T: 'static>(
         fs::remove_dir(resolved_path)
       };
 
-      response
-        .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
-        .map(|_| "".to_string())
+      response.map_err(|e| e.into()).map(|_| "".to_string())
     },
     callback,
     error,
@@ -140,7 +135,7 @@ pub fn remove_file<T: 'static>(
     move || {
       let resolved_path = resolve_path(path, options.and_then(|o| o.dir))?;
       fs::remove_file(resolved_path)
-        .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
+        .map_err(|e| e.into())
         .map(|_| "".to_string())
     },
     callback,
@@ -160,13 +155,14 @@ pub fn rename_file<T: 'static>(
     webview,
     move || {
       let (old, new) = match options.and_then(|o| o.dir) {
-        Some(dir) => {
-          (resolve_path(old_path, Some(dir.clone()))?, resolve_path(new_path, Some(dir))?)
-        }
-        None => (old_path, new_path)
+        Some(dir) => (
+          resolve_path(old_path, Some(dir.clone()))?,
+          resolve_path(new_path, Some(dir))?,
+        ),
+        None => (old_path, new_path),
       };
       fs::rename(old, new)
-        .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
+        .map_err(|e| e.into())
         .map(|_| "".to_string())
     },
     callback,
@@ -186,7 +182,7 @@ pub fn write_file<T: 'static>(
     webview,
     move || {
       File::create(resolve_path(file, options.and_then(|o| o.dir))?)
-        .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
+        .map_err(|e| e.into())
         .and_then(|mut f| {
           f.write_all(contents.as_bytes())
             .map_err(|err| err.into())
@@ -237,11 +233,7 @@ pub fn read_text_file<T: 'static>(
     webview,
     move || {
       file::read_string(resolve_path(path, options.and_then(|o| o.dir))?)
-        .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
-        .and_then(|f| {
-          serde_json::to_string(&f)
-            .map_err(|err| err.into())
-        })
+        .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
     },
     callback,
     error,
@@ -259,11 +251,7 @@ pub fn read_binary_file<T: 'static>(
     webview,
     move || {
       file::read_binary(resolve_path(path, options.and_then(|o| o.dir))?)
-        .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
-        .and_then(|f| {
-          serde_json::to_string(&f)
-            .map_err(|err| err.into())
-        })
+        .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
     },
     callback,
     error,
@@ -273,27 +261,27 @@ pub fn read_binary_file<T: 'static>(
 // test webview functionality.
 #[cfg(test)]
 mod test {
-  use super::*;
-  use web_view::*;
+  // use super::*;
+  // use web_view::*;
 
   // create a makeshift webview
-  fn create_test_webview() -> crate::Result<WebView<'static, ()>> {
-    // basic html set into webview
-    let content = r#"<html><head></head><body></body></html>"#;
+  // fn create_test_webview() -> crate::Result<WebView<'static, ()>> {
+  //   // basic html set into webview
+  //   let content = r#"<html><head></head><body></body></html>"#;
 
-    Ok(
-      // use webview builder to create simple webview
-      WebViewBuilder::new()
-        .title("test")
-        .size(800, 800)
-        .resizable(true)
-        .debug(true)
-        .user_data(())
-        .invoke_handler(|_wv, _arg| Ok(()))
-        .content(Content::Html(content))
-        .build()?,
-    )
-  }
+  //   Ok(
+  //     // use webview builder to create simple webview
+  //     WebViewBuilder::new()
+  //       .title("test")
+  //       .size(800, 800)
+  //       .resizable(true)
+  //       .debug(true)
+  //       .user_data(())
+  //       .invoke_handler(|_wv, _arg| Ok(()))
+  //       .content(Content::Html(content))
+  //       .build()?,
+  //   )
+  // }
 
   /* #[test]
   #[cfg(not(any(target_os = "linux", target_os = "macos")))]

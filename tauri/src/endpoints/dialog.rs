@@ -1,12 +1,12 @@
-use crate::api::dialog::{select, select_multiple, save_file, pick_folder, Response};
 use super::cmd::{OpenDialogOptions, SaveDialogOptions};
+use crate::api::dialog::{pick_folder, save_file, select, select_multiple, Response};
 use web_view::WebView;
 
 fn map_response(response: Response) -> String {
   match response {
     Response::Okay(path) => format!(r#""{}""#, path).replace("\\", "\\\\"),
     Response::OkayMultiple(paths) => format!("{:?}", paths),
-    Response::Cancel => panic!("unexpected response type")
+    Response::Cancel => panic!("unexpected response type"),
   }
 }
 
@@ -26,9 +26,7 @@ pub fn open<T: 'static>(
       } else {
         select(options.filter, options.default_path)
       };
-      response
-        .map(map_response)
-        .map_err(|e| crate::ErrorKind::Dialog(e.to_string()).into())
+      response.map(map_response)
     },
     callback,
     error,
@@ -43,11 +41,7 @@ pub fn save<T: 'static>(
 ) {
   crate::execute_promise_sync(
     webview,
-    move || {
-      save_file(options.filter, options.default_path)
-        .map(map_response)
-        .map_err(|e| crate::ErrorKind::Dialog(e.to_string()).into())
-    },
+    move || save_file(options.filter, options.default_path).map(map_response),
     callback,
     error,
   );

@@ -1,8 +1,8 @@
 mod cmd;
-mod salt;
-#[allow(dead_code)]
-mod file_system;
 mod dialog;
+mod file_system;
+mod http;
+mod salt;
 
 #[cfg(any(feature = "embedded-server", feature = "no-server"))]
 use std::path::PathBuf;
@@ -12,7 +12,7 @@ use web_view::WebView;
 pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> crate::Result<()> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
-    Err(e) => Err(crate::Error::from(e.to_string())),
+    Err(e) => Err(e.into()),
     Ok(command) => {
       match command {
         Init {} => {
@@ -159,7 +159,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         OpenDialog {
           options,
           callback,
-          error
+          error,
         } => {
           dialog::open(webview, options, callback, error);
         }
@@ -171,7 +171,15 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         } => {
           dialog::save(webview, options, callback, error);
         }
-       #[cfg(any(feature = "embedded-server", feature = "no-server"))]
+        #[cfg(any(feature = "all-api", feature = "http-request"))]
+        HttpRequest {
+          options,
+          callback,
+          error,
+        } => {
+          http::make_request(webview, *options, callback, error);
+        }
+        #[cfg(any(feature = "embedded-server", feature = "no-server"))]
         LoadAsset {
           asset,
           asset_type,
@@ -180,6 +188,67 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         } => {
           load_asset(webview, asset, asset_type, callback, error)?;
         }
+        #[cfg(feature = "cli")]
+        CliMatches { callback, error } => crate::execute_promise(
+          webview,
+          move || match crate::cli::get_matches() {
+            Some(matches) => Ok(serde_json::to_string(matches)?),
+            None => Err(anyhow::anyhow!(r#""failed to get matches""#)),
+          },
+          callback,
+          error,
+        ),
+        #[cfg(any(feature = "all-api", feature = "notification"))]
+        Notification {
+          options,
+          callback,
+          error,
+        } => {
+          notification(webview, options, callback, error)?;
+        }
+        #[cfg(any(feature = "all-api", feature = "notification"))]
+        IsNotificationPermissionGranted { callback, error } => {
+          crate::execute_promise(
+            webview,
+            move || {
+              let settings = crate::settings::read_settings()?;
+              if let Some(allow_notification) = settings.allow_notification {
+                Ok(allow_notification.to_string())
+              } else {
+                Ok("null".to_string())
+              }
+            },
+            callback,
+            error,
+          );
+        }
+        #[cfg(any(feature = "all-api", feature = "notification"))]
+        RequestNotificationPermission { callback, error } => crate::execute_promise_sync(
+          webview,
+          move || {
+            let mut settings = crate::settings::read_settings()?;
+            let granted = r#""granted""#.to_string();
+            let denied = r#""denied""#.to_string();
+            if let Some(allow_notification) = settings.allow_notification {
+              return Ok(if allow_notification { granted } else { denied });
+            }
+            let answer = tauri_api::dialog::ask(
+              "This app wants to show notifications. Do you allow?",
+              "Permissions",
+            );
+            match answer {
+              tauri_api::dialog::DialogSelection::Yes => {
+                settings.allow_notification = Some(true);
+                crate::settings::write_settings(settings)?;
+                Ok(granted)
+              }
+              tauri_api::dialog::DialogSelection::No => Ok(denied),
+              _ => Ok(r#""default""#.to_string()),
+            }
+          },
+          callback,
+          error,
+        ),
       }
       Ok(())
     }
@@ -285,7 +354,8 @@ fn load_asset<T: 'static>(
       loop {
         read_asset = crate::assets::ASSETS.get(&format!(
           "{}/{}",
-          env!("TAURI_DIST_DIR"),
+          option_env!("TAURI_DIST_DIR")
+            .expect("tauri apps should be built with the TAURI_DIST_DIR environment variable"),
           path.to_string_lossy()
         ));
         if read_asset.is_err() {
@@ -299,7 +369,7 @@ fn load_asset<T: 'static>(
               ));
             }
             None => {
-              return Err(format!("Asset '{}' not found", asset).into());
+              return Err(anyhow::anyhow!("Asset '{}' not found", asset));
             }
           }
         } else {
@@ -332,7 +402,7 @@ fn load_asset<T: 'static>(
               _webview.eval(asset_str)
             }
           })
-          .map_err(|err| crate::ErrorKind::Promise(format!(r#""{}""#, err)).into())
+          .map_err(|err| err.into())
           .map(|_| r#""Asset loaded successfully""#.to_string())
       }
     },
@@ -340,6 +410,35 @@ fn load_asset<T: 'static>(
     error,
   );
 
+  Ok(())
+}
+
+#[cfg(any(feature = "all-api", feature = "notification"))]
+fn notification<T: 'static>(
+  webview: &mut WebView<'_, T>,
+  options: cmd::NotificationOptions,
+  callback: String,
+  error: String,
+) -> crate::Result<()> {
+  crate::execute_promise(
+    webview,
+    move || {
+      let mut notification = tauri_api::notification::Notification::new();
+      notification.body(options.body);
+      if let Some(title) = options.title {
+        notification.title(title);
+      }
+      if let Some(icon) = options.icon {
+        notification.icon(icon);
+      }
+      notification
+        .show()
+        .map_err(|e| anyhow::anyhow!(r#""{}""#, e.to_string()))?;
+      Ok("".to_string())
+    },
+    callback,
+    error,
+  );
   Ok(())
 }
 

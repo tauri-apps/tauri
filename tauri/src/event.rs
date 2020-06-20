@@ -3,18 +3,24 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use web_view::Handle;
 
 struct EventHandler {
-  on_event: Box<dyn FnMut(Option<String>)>,
+  on_event: Box<dyn FnMut(Option<String>) + Send>,
 }
 
-thread_local!(static LISTENERS: Arc<Mutex<HashMap<String, EventHandler>>> = Arc::new(Mutex::new(HashMap::new())));
+type Listeners = Arc<Mutex<HashMap<String, EventHandler>>>;
 
 lazy_static! {
   static ref EMIT_FUNCTION_NAME: String = uuid::Uuid::new_v4().to_string();
   static ref EVENT_LISTENERS_OBJECT_NAME: String = uuid::Uuid::new_v4().to_string();
   static ref EVENT_QUEUE_OBJECT_NAME: String = uuid::Uuid::new_v4().to_string();
+}
+
+fn listeners() -> &'static Listeners {
+  static LISTENERS: Lazy<Listeners> = Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
+  &LISTENERS
 }
 
 pub fn emit_function_name() -> String {
@@ -29,18 +35,16 @@ pub fn event_queue_object_name() -> String {
   EVENT_QUEUE_OBJECT_NAME.to_string()
 }
 
-pub fn listen<F: FnMut(Option<String>) + 'static>(id: String, handler: F) {
-  LISTENERS.with(|listeners| {
-    let mut l = listeners
-      .lock()
-      .expect("Failed to lock listeners: listen()");
-    l.insert(
-      id,
-      EventHandler {
-        on_event: Box::new(handler),
-      },
-    );
-  });
+pub fn listen<F: FnMut(Option<String>) + Send + 'static>(id: String, handler: F) {
+  let mut l = listeners()
+    .lock()
+    .expect("Failed to lock listeners: listen()");
+  l.insert(
+    id,
+    EventHandler {
+      on_event: Box::new(handler),
+    },
+  );
 }
 
 pub fn emit<T: 'static>(webview_handle: &Handle<T>, event: String, payload: Option<String>) {
@@ -66,18 +70,14 @@ pub fn emit<T: 'static>(webview_handle: &Handle<T>, event: String, payload: Opti
 }
 
 pub fn on_event(event: String, data: Option<String>) {
-  LISTENERS.with(|listeners| {
-    let mut l = listeners
-      .lock()
-      .expect("Failed to lock listeners: on_event()");
+  let mut l = listeners()
+    .lock()
+    .expect("Failed to lock listeners: on_event()");
 
-    let key = event.clone();
-
-    if l.contains_key(&key) {
-      let handler = l.get_mut(&key).expect("Failed to get mutable handler");
-      (handler.on_event)(data);
-    }
-  });
+  if l.contains_key(&event) {
+    let handler = l.get_mut(&event).expect("Failed to get mutable handler");
+    (handler.on_event)(data);
+  }
 }
 
 #[cfg(test)]
@@ -100,14 +100,11 @@ mod test {
       // pass e and an dummy func into listen
       listen(e, event_fn);
 
-      // open listeners
-      LISTENERS.with(|lis| {
-        // lock mutex
-        let l = lis.lock().unwrap();
+      // lock mutex
+      let l = listeners().lock().unwrap();
 
-        // check if the generated key is in the map
-        assert_eq!(l.contains_key(&key), true);
-      });
+      // check if the generated key is in the map
+      assert_eq!(l.contains_key(&key), true);
     }
 
     #[test]
@@ -118,24 +115,21 @@ mod test {
        // pass e and an dummy func into listen
        listen(e, event_fn);
 
-       // open listeners
-       LISTENERS.with(|lis| {
-         // lock mutex
-        let mut l = lis.lock().unwrap();
+       // lock mutex
+       let mut l = listeners().lock().unwrap();
 
-        // check if l contains key
-        if l.contains_key(&key) {
-          // grab key if it exists
-          let handler = l.get_mut(&key);
-          // check to see if we get back a handler or not
-          match handler {
-            // pass on Some(handler)
-            Some(_) => assert!(true),
-            // Fail on None
-            None => assert!(false)
-          }
+       // check if l contains key
+       if l.contains_key(&key) {
+        // grab key if it exists
+        let handler = l.get_mut(&key);
+        // check to see if we get back a handler or not
+        match handler {
+          // pass on Some(handler)
+          Some(_) => assert!(true),
+          // Fail on None
+          None => assert!(false)
         }
-      });
+      }
     }
 
     #[test]
@@ -148,14 +142,11 @@ mod test {
       // call on event with e and d.
       on_event(e, Some(d));
 
-      // open listeners
-      LISTENERS.with(|list| {
-        // lock the mutex
-        let l = list.lock().unwrap();
+      // lock the mutex
+      let l = listeners().lock().unwrap();
 
-        // assert that the key is contained in the listeners map
-        assert!(l.contains_key(&key));
-      });
+      // assert that the key is contained in the listeners map
+      assert!(l.contains_key(&key));
     }
   }
 }

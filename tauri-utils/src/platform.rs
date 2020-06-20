@@ -1,5 +1,7 @@
 use std::path::{PathBuf, MAIN_SEPARATOR};
 
+use anyhow::Result;
+
 /// Try to determine the current target triple.
 ///
 /// Returns a target triple (e.g. `x86_64-unknown-linux-gnu` or `i686-pc-windows-msvc`) or an
@@ -9,7 +11,7 @@ use std::path::{PathBuf, MAIN_SEPARATOR};
 ///
 /// * Errors:
 ///     * Unexpected system config
-pub fn target_triple() -> Result<String, crate::Error> {
+pub fn target_triple() -> Result<String> {
   let arch = if cfg!(target_arch = "x86") {
     "i686"
   } else if cfg!(target_arch = "x86_64") {
@@ -17,9 +19,7 @@ pub fn target_triple() -> Result<String, crate::Error> {
   } else if cfg!(target_arch = "arm") {
     "armv7"
   } else {
-    return Err(crate::Error::from(
-      "Unable to determine target-architecture",
-    ));
+    return Err(crate::Error::Architecture.into());
   };
 
   let os = if cfg!(target_os = "linux") {
@@ -31,7 +31,7 @@ pub fn target_triple() -> Result<String, crate::Error> {
   } else if cfg!(target_os = "freebsd") {
     "unknown-freebsd"
   } else {
-    return Err(crate::Error::from("Unable to determine target-os"));
+    return Err(crate::Error::OS.into());
   };
 
   let os = if cfg!(target_os = "macos") || cfg!(target_os = "freebsd") {
@@ -44,7 +44,7 @@ pub fn target_triple() -> Result<String, crate::Error> {
     } else if cfg!(target_env = "msvc") {
       "msvc"
     } else {
-      return Err(crate::Error::from("Unable to determine target-environment"));
+      return Err(crate::Error::Environment.into());
     };
 
     format!("{}-{}", os, env)
@@ -53,7 +53,7 @@ pub fn target_triple() -> Result<String, crate::Error> {
   Ok(format!("{}-{}", arch, os))
 }
 
-pub fn resource_dir() -> crate::Result<PathBuf> {
+pub fn resource_dir() -> Result<PathBuf> {
   let exe = std::env::current_exe()?;
   let exe_dir = exe.parent().expect("failed to get exe directory");
   let app_name = exe
@@ -81,6 +81,6 @@ pub fn resource_dir() -> crate::Result<PathBuf> {
   } else if cfg!(target_os = "macos") {
     Ok(exe_dir.join("../Resources"))
   } else {
-    Err(crate::Error::from("Unknown target_os"))
+    Err(crate::Error::Unknown.into())
   }
 }

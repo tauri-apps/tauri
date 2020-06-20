@@ -1,12 +1,16 @@
 #!/bin/bash
 
 mkdir -p {{app_name}}.AppDir
-cp -r bundle/deb/{{bundle_name}}/data/usr {{app_name}}.AppDir
-cp {{app_name}} {{app_name}}.AppDir/AppRun
+cp -r ../deb/{{bundle_name}}/data/usr {{app_name}}.AppDir
 
 cd {{app_name}}.AppDir
 
-cp usr/share/icons/hicolor/256x265/apps/{{app_name}}.png {{app_name}}.png
+wget -q -O AppRun https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-x86_64
+chmod +x AppRun
+
+cp usr/share/icons/hicolor/256x256/apps/{{app_name}}.png {{app_name}}.png
+
+cd ..
 
 echo '[Desktop Entry]' > {{app_name}}.desktop
 echo 'Version=1.0' >> {{app_name}}.desktop
@@ -19,10 +23,10 @@ echo 'Type=Application' >> {{app_name}}.desktop
 echo 'Categories=X-Web;' >> {{app_name}}.desktop
 
 cp {{app_name}}.desktop {{app_name}}.AppDir/usr/share/applications/{{app_name}}.desktop
-
-cd ..
+mv {{app_name}}.desktop {{app_name}}.AppDir/{{app_name}}.desktop
 
 mksquashfs {{app_name}}.AppDir {{app_name}}.squashfs -root-owned -noappend
-# cat runtime >> {{app_name}}.AppImage
-cat {{app_name}}.squashfs >> {{app_name}}.AppImage
-chmod a+x {{app_name}}.AppImage
+
+wget -q -O appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+chmod +x appimagetool
+./appimagetool {{app_name}}.AppDir {{app_name}}.AppImage

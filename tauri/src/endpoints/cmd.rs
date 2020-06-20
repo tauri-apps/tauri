@@ -1,5 +1,6 @@
-use serde::Deserialize;
 use crate::api::path::BaseDirectory;
+use serde::Deserialize;
+use tauri_api::http::HttpRequestOptions;
 
 #[derive(Deserialize)]
 pub struct DirOperationOptions {
@@ -14,6 +15,7 @@ pub struct FileOperationOptions {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OpenDialogOptions {
   pub filter: Option<String>,
   #[serde(default)]
@@ -24,9 +26,17 @@ pub struct OpenDialogOptions {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SaveDialogOptions {
   pub filter: Option<String>,
   pub default_path: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct NotificationOptions {
+  pub title: Option<String>,
+  pub body: String,
+  pub icon: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -99,6 +109,7 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
+  #[serde(rename_all = "camelCase")]
   #[cfg(any(feature = "all-api", feature = "rename-file"))]
   RenameFile {
     old_path: String,
@@ -150,10 +161,38 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
+  #[cfg(any(feature = "all-api", feature = "http-request"))]
+  HttpRequest {
+    options: Box<HttpRequestOptions>,
+    callback: String,
+    error: String,
+  },
+  #[serde(rename_all = "camelCase")]
   #[cfg(any(feature = "embedded-server", feature = "no-server"))]
   LoadAsset {
     asset: String,
     asset_type: String,
+    callback: String,
+    error: String,
+  },
+  #[cfg(feature = "cli")]
+  CliMatches {
+    callback: String,
+    error: String,
+  },
+  #[cfg(any(feature = "all-api", feature = "notification"))]
+  Notification {
+    options: NotificationOptions,
+    callback: String,
+    error: String,
+  },
+  #[cfg(any(feature = "all-api", feature = "notification"))]
+  RequestNotificationPermission {
+    callback: String,
+    error: String,
+  },
+  #[cfg(any(feature = "all-api", feature = "notification"))]
+  IsNotificationPermissionGranted {
     callback: String,
     error: String,
   },

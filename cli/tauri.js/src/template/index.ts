@@ -1,3 +1,4 @@
+import { CargoManifest } from './../types/cargo'
 import { existsSync, removeSync, writeFileSync } from 'fs-extra'
 import { join, normalize, resolve } from 'path'
 import { TauriConfig } from 'types'
@@ -5,9 +6,10 @@ import merge from 'webpack-merge'
 import copyTemplates from '../helpers/copy-templates'
 import logger from '../helpers/logger'
 import defaultConfig from './defaultConfig'
+import chalk from 'chalk'
 
-const log = logger('app:tauri', 'green')
-const warn = logger('app:tauri (template)', 'red')
+const log = logger('app:tauri')
+const warn = logger('app:tauri (template)', chalk.red)
 
 interface InjectOptions {
   force: false | InjectionType
@@ -68,9 +70,17 @@ Run \`tauri init --force template\` to overwrite.`)
       : join('..', tauriPath, 'tauri') // we received a relative path
     return resolvedPath.replace(/\\/g, '/')
   }
+
+  const resolveCurrentTauriVersion = (): string => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
+    const tauriManifest = require('../../../../tauri/Cargo.toml') as CargoManifest
+    const version = tauriManifest.package.version
+    return version.substring(0, version.lastIndexOf('.'))
+  }
+
   const tauriDep = tauriPath
     ? `{ path = "${resolveTauriPath(tauriPath)}" }`
-    : null
+    : `{ version = "${resolveCurrentTauriVersion()}" }`
 
   try {
     removeSync(dir)

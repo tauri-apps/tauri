@@ -1,5 +1,6 @@
 use std::path::PathBuf;
-use serde_repr::{Serialize_repr, Deserialize_repr};
+
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
 #[derive(Serialize_repr, Deserialize_repr, Clone, Debug)]
 #[repr(u16)]
@@ -50,7 +51,7 @@ pub fn resolve_path(path: String, dir: Option<BaseDirectory>) -> crate::Result<S
       base_dir_path_value.push(path);
       Ok(base_dir_path_value.to_string_lossy().to_string())
     } else {
-      Err(crate::Error::from(crate::ErrorKind::Path("unable to determine base dir path".to_string())))
+      Err(crate::Error::Path("unable to determine base dir path".to_string()).into())
     }
   } else {
     Ok(path)
@@ -144,20 +145,20 @@ pub fn resource_dir() -> Option<PathBuf> {
 fn app_name() -> crate::Result<String> {
   let exe = std::env::current_exe()?;
   let app_name = exe
-    .file_name().expect("failed to get exe filename")
+    .file_name()
+    .expect("failed to get exe filename")
     .to_string_lossy();
 
   Ok(app_name.to_string())
 }
 
 pub fn app_dir() -> Option<PathBuf> {
-  dirs::config_dir()
-    .and_then(|mut dir| {
-      if let Ok(app_name) = app_name() {
-        dir.push(app_name);
-        Some(dir)
-      } else {
-        None
-      }
-    })
+  dirs::config_dir().and_then(|mut dir| {
+    if let Ok(app_name) = app_name() {
+      dir.push(app_name);
+      Some(dir)
+    } else {
+      None
+    }
+  })
 }

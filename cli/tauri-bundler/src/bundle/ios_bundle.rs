@@ -9,8 +9,9 @@
 // explanation.
 
 use super::common;
-use crate::{ResultExt, Settings};
+use crate::Settings;
 
+use anyhow::Context;
 use icns;
 use image::png::PngDecoder;
 use image::{self, GenericImageView, ImageDecoder};
@@ -32,25 +33,25 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .join(&app_bundle_name);
   if bundle_dir.exists() {
     fs::remove_dir_all(&bundle_dir)
-      .chain_err(|| format!("Failed to remove old {}", app_bundle_name))?;
+      .with_context(|| format!("Failed to remove old {}", app_bundle_name))?;
   }
   fs::create_dir_all(&bundle_dir)
-    .chain_err(|| format!("Failed to create bundle directory at {:?}", bundle_dir))?;
+    .with_context(|| format!("Failed to create bundle directory at {:?}", bundle_dir))?;
 
   for src in settings.resource_files() {
     let src = src?;
     let dest = bundle_dir.join(common::resource_relpath(&src));
     common::copy_file(&src, &dest)
-      .chain_err(|| format!("Failed to copy resource file {:?}", src))?;
+      .with_context(|| format!("Failed to copy resource file {:?}", src))?;
   }
 
   let icon_filenames =
-    generate_icon_files(&bundle_dir, settings).chain_err(|| "Failed to create app icons")?;
+    generate_icon_files(&bundle_dir, settings).with_context(|| "Failed to create app icons")?;
   generate_info_plist(&bundle_dir, settings, &icon_filenames)
-    .chain_err(|| "Failed to create Info.plist")?;
+    .with_context(|| "Failed to create Info.plist")?;
   let bin_path = bundle_dir.join(&settings.bundle_name());
   common::copy_file(settings.binary_path(), &bin_path)
-    .chain_err(|| format!("Failed to copy binary from {:?}", settings.binary_path()))?;
+    .with_context(|| format!("Failed to copy binary from {:?}", settings.binary_path()))?;
   Ok(vec![bundle_dir])
 }
 

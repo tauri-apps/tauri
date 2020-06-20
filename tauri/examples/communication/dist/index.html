@@ -294,7 +294,6 @@
 
     var dirSelect = document.getElementById('dir')
     for (var key in window.__TAURI__.fs.Dir) {
-      console.log(parseInt(key))
       if (isNaN(parseInt(key))) {
         var value = window.__TAURI__.fs.Dir[key]
         var opt = document.createElement("option")

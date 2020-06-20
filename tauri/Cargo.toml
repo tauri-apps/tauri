@@ -37,6 +37,7 @@ tauri-api = { version = "0.6", path = "../tauri-api" }
 
 [build-dependencies]
 tauri_includedir_codegen = "0.5.2"
+cfg_aliases = "0.1.0"
 
 [dev-dependencies]
 proptest = "0.10.0"

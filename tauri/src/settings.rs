@@ -8,7 +8,7 @@ use tauri_api::path::{resolve_path, BaseDirectory};
 
 #[derive(Default, Deserialize, Serialize)]
 pub struct Settings {
-  #[cfg(any(feature = "all-api", feature = "notification"))]
+  #[cfg(notification)]
   pub allow_notification: Option<bool>,
 }
 

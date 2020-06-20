@@ -72,44 +72,31 @@ switch (navigator.platform) {
 
   function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
 
-/**
- * @typedef {number} BaseDirectory
- */
-/**
- * @enum {BaseDirectory}
- */
-var Dir = {
-  Audio: 1,
-  Cache: 2,
-  Config: 3,
-  Data: 4,
-  LocalData: 5,
-  Desktop: 6,
-  Document: 7,
-  Download: 8,
-  Executable: 9,
-  Font: 10,
-  Home: 11,
-  Picture: 12,
-  Public: 13,
-  Runtime: 14,
-  Template: 15,
-  Video: 16,
-  Resource: 17,
-  App: 18
-}
-
-<% if (ctx.dev) { %>
-/**
- * @name return __whitelistWarning
- * @description Present a stylish warning to the developer that their API
- * call has not been whitelisted in tauri.conf.json
- * @param {String} func - function name to warn
- * @private
- */
-var __whitelistWarning = function (func) {
-    console.warn('%c[Tauri] Danger \ntauri.' + func + ' not whitelisted 💣\n%c\nAdd to tauri.conf.json: \n\ntauri: \n  whitelist: { \n    ' + func + ': true \n\nReference: https://github.com/tauri-apps/tauri/wiki' + func, 'background: red; color: white; font-weight: 800; padding: 2px; font-size:1.5em', ' ')
-    return __reject()
+  /**
+   * @typedef {number} BaseDirectory
+   */
+  /**
+   * @enum {BaseDirectory}
+   */
+  var Dir = {
+    Audio: 1,
+    Cache: 2,
+    Config: 3,
+    Data: 4,
+    LocalData: 5,
+    Desktop: 6,
+    Document: 7,
+    Download: 8,
+    Executable: 9,
+    Font: 10,
+    Home: 11,
+    Picture: 12,
+    Public: 13,
+    Runtime: 14,
+    Template: 15,
+    Video: 16,
+    Resource: 17,
+    App: 18
   }
 
   <% if (ctx.dev) { %>

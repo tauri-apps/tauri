@@ -1,80 +1,83 @@
+import { Options, PartialOptions, Permission } from './types/notification'
 import { promisified } from './tauri'
 
-var __permissionSettable = false
-var __nermission = 'default'
-function __setNotificationPermission(value: 'granted' | 'denied' | 'default') {
-  __permissionSettable = true
-  // @ts-ignore
+let permissionSettable = false
+let permissionValue = 'default'
+function setNotificationPermission(value: Permission): void {
+  permissionSettable = true
+  // @ts-expect-error
   window.Notification.permission = value
-  __permissionSettable = false
+  permissionSettable = false
 }
 
-// @ts-ignore
-window.Notification = function (title, options) {
-  if (options === void 0) {
-    options = {}
-  }
-  options.title = title
-  sendNotification(options)
+// @ts-expect-error
+window.Notification = function (title: string, options?: PartialOptions): void {
+  sendNotification({
+    title,
+    ...options
+  })
 }
+
 window.Notification.requestPermission = requestPermission
 
 Object.defineProperty(window.Notification, 'permission', {
   enumerable: true,
   get: function () {
-    return __nermission
+    return permissionValue
   },
-  set: function (v) {
-    if (!__permissionSettable) {
+  set: function (v: Permission) {
+    if (!permissionSettable) {
       throw new Error('Readonly property')
     }
-    __nermission = v
+    permissionValue = v
   }
 })
 
 isPermissionGranted()
-  .then(function (response) {
+  .then(response => {
     if (response === null) {
-      __setNotificationPermission('default')
+      setNotificationPermission('default')
     } else {
-      __setNotificationPermission(response ? 'granted' : 'denied')
+      setNotificationPermission(response ? 'granted' : 'denied')
     }
   })
+  .catch(err => { throw err })
 
-function isPermissionGranted() {
+async function isPermissionGranted(): Promise<boolean | null> {
   if (window.Notification.permission !== 'default') {
-    return Promise.resolve(window.Notification.permission === 'granted')
+    return await Promise.resolve(window.Notification.permission === 'granted')
   }
-  return promisified({
+  return await promisified({
     cmd: 'isNotificationPermissionGranted'
   })
 }
 
-function requestPermission() {
-  return promisified({
+async function requestPermission(): Promise<Permission> {
+  return await promisified<Permission>({
     cmd: 'requestNotificationPermission'
-  }).then(function (state) {
-    __setNotificationPermission(state)
-    return state
+  }).then(permission => {
+    setNotificationPermission(permission)
+    return permission
   })
 }
 
-function sendNotification(options) {
+function sendNotification(options: Options | string): void {
   if (typeof options === 'object') {
     Object.freeze(options)
   }
 
-  return isPermissionGranted()
-    .then(function (permission) {
+  isPermissionGranted()
+    .then(permission => {
       if (permission) {
         return promisified({
           cmd: 'notification',
           options: typeof options === 'string' ? {
             body: options
           } : options
-        });
+        })
       }
     })
+    .catch(err => { throw err })
 }
 
 export {

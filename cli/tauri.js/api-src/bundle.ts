@@ -1,4 +1,5 @@
 
+import 'regenerator-runtime/runtime'
 import * as cli from './cli'
 import * as dialog from './dialog'
 import * as event from './event'

@@ -36,7 +36,7 @@ function transformCallback(callback: (response: any) => void, once = false) {
   return identifier
 }
 
-function promisified(args: any): Promise<any> {
+function promisified<T>(args: any): Promise<T> {
   return new Promise((resolve, reject) => {
     invoke({
       callback: transformCallback(resolve),

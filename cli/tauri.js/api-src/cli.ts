@@ -1,10 +1,11 @@
+import { CliMatches } from './types/cli'
 import { promisified } from './tauri'
 
 /**
  * gets the CLI matches
  */
-function getMatches(): any {
-  return promisified({
+async function getMatches(): Promise<CliMatches> {
+  return await promisified<CliMatches>({
     cmd: 'cliMatches'
   })
 }

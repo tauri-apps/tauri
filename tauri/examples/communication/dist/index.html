@@ -294,11 +294,14 @@
 
     var dirSelect = document.getElementById('dir')
     for (var key in window.__TAURI__.fs.Dir) {
-      var value = window.__TAURI__.fs.Dir[key]
-      var opt = document.createElement("option")
-      opt.value = value
-      opt.innerHTML = key
-      dirSelect.appendChild(opt)
+      console.log(parseInt(key))
+      if (isNaN(parseInt(key))) {
+        var value = window.__TAURI__.fs.Dir[key]
+        var opt = document.createElement("option")
+        opt.value = value
+        opt.innerHTML = key
+        dirSelect.appendChild(opt)
+      }
     }
 
   </script>

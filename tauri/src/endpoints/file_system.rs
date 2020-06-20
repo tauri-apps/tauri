@@ -206,16 +206,16 @@ pub fn write_binary_file<T: 'static>(
     webview,
     move || {
       base64::decode(contents)
-        .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
+        .map_err(|e| e.into())
         .and_then(|c| {
-          File::create(resolve_path(file, options.and_then(|o| o.dir))?)
-            .map_err(|e| crate::ErrorKind::FileSystem(e.to_string()).into())
-            .and_then(|mut f| {
-              f.write_all(&c)
-                .map_err(|err| err.into())
-                .map(|_| "".to_string())
-            })
+        File::create(resolve_path(file, options.and_then(|o| o.dir))?)
+          .map_err(|e| e.into())
+          .and_then(|mut f| {
+          f.write_all(&c)
+            .map_err(|err| err.into())
+            .map(|_| "".to_string())
         })
+      })
     },
     callback,
     error,

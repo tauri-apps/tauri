@@ -204,18 +204,16 @@ impl<'a> UpdateBuilder<'a> {
       if let Ok(ref res) = resp {
         // got status code 2XX
         if res.status().is_success() {
-          match res.status() {
-            StatusCode::NO_CONTENT => {
-              // bail out...
-              // already up to date
-              // todo(lemarier): we should have error handler
-              // on the client side who ignore these errors
-              bail!(
-                crate::Error::UpToDate,
-                "Remote server announced StatusCode 204"
-              )
-            }
-            _ => (),
+          // if we got 204
+          if StatusCode::NO_CONTENT == res.status() {
+            // bail out...
+            // already up to date
+            // todo(lemarier): we should have error handler
+            // on the client side who ignore these errors
+            bail!(
+              crate::Error::UpToDate,
+              "Remote server announced StatusCode 204"
+            )
           };
 
           let json = resp?.json::<serde_json::Value>()?;
@@ -257,16 +255,16 @@ impl<'a> UpdateBuilder<'a> {
     };
 
     // create our new updater
-    Update::new(
+    Ok(Update {
       target,
       extract_path,
       should_update,
-      final_release.version,
-      final_release.date,
-      final_release.download_url,
-      final_release.body,
-      final_release.signature,
-    )
+      version: final_release.version,
+      date: final_release.date,
+      download_url: final_release.download_url,
+      body: final_release.body,
+      signature: final_release.signature,
+    })
   }
 }
 
@@ -288,28 +286,6 @@ pub struct Update {
 }
 
 impl Update {
-  fn new(
-    target: String,
-    extract_path: PathBuf,
-    should_update: bool,
-    version: String,
-    date: String,
-    download_url: String,
-    body: Option<String>,
-    signature: Option<String>,
-  ) -> Result<Update> {
-    Ok(Update {
-      date,
-      body,
-      download_url,
-      extract_path,
-      should_update,
-      signature,
-      target,
-      version,
-    })
-  }
-
   // Download and install our update
   // @todo(lemarier): Split into download and install (two step) but need to be thread safe
   pub fn download_and_install(&self, pub_key: Option<String>) -> Result {
@@ -328,13 +304,11 @@ impl Update {
     // actually if we use APPIMAGE, our extract path should already
     // be set with our APPIMAGE env variable, we don't need to do
     // anythin with it yet
-    if target == "linux" {
-      if let None = env::var_os("APPIMAGE") {
-        bail!(
-          Error::Config,
-          "APPIMAGE env is not defined -- updates are not supported."
-        )
-      }
+    if target == "linux" && env::var_os("APPIMAGE").is_none() {
+      bail!(
+        Error::Config,
+        "APPIMAGE env is not defined -- updates are not supported."
+      )
     }
 
     // tmp dir

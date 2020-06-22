@@ -156,7 +156,7 @@ impl<'a> UpdateBuilder<'a> {
     let executable_path = if let Some(v) = &self.executable_path {
       v.clone()
     } else {
-      env::current_exe()?
+      env::current_exe().expect("Can't access current executable")
     };
 
     // Did the target is provided by the config?
@@ -363,12 +363,13 @@ impl Update {
     // tmp dir for extraction
     let tmp_dir = tempfile::Builder::new()
       .prefix(&format!("{}_download", bin_name))
-      .tempdir_in(tmp_dir_parent)?;
+      .tempdir_in(tmp_dir_parent)
+      .expect("Can't create temp dir for download process");
 
     // tmp directories are used to create backup of current application
     // if something goes wrong, we can restore to previous state
     let tmp_archive_path = tmp_dir.path().join(detect_archive_in_url(&url, &target));
-    let tmp_archive = File::create(&tmp_archive_path)?;
+    let tmp_archive = File::create(&tmp_archive_path).expect("Can't create tmp archive");
 
     // prepare our download
     use io::BufRead;
@@ -424,8 +425,10 @@ impl Update {
     // Download file
     loop {
       let n = {
-        let buf = src.fill_buf()?;
-        dest.write_all(&buf)?;
+        let buf = src.fill_buf().expect("Something wrong when writing buffer");
+        dest
+          .write_all(&buf)
+          .expect("Can't write buffer to destination path");
         buf.len()
       };
       if n == 0 {
@@ -462,7 +465,7 @@ impl Update {
     // extract using tauri api inside a tmp path
     Extract::from_source(&tmp_archive_path).extract_into(&tmp_dir.path())?;
     // Remove archive (not needed anymore)
-    remove_file(&tmp_archive_path)?;
+    remove_file(&tmp_archive_path).expect("Can't remove tmp file");
     // we copy the files depending of the operating system
     // we run the setup, appimage re-install or overwrite the
     // macos .app
@@ -682,12 +685,18 @@ pub fn verify_signature(
     Signature::decode(&signature_decoded).expect("Something wrong with the signature");
 
   // We need to open the file and extract the datas to make sure its not corrupted
-  let file_open = OpenOptions::new().read(true).open(&archive_path)?;
+  let file_open = OpenOptions::new()
+    .read(true)
+    .open(&archive_path)
+    .expect("Can't open our archive to validate signature");
+
   let mut file_buff: BufReader<File> = BufReader::new(file_open);
 
   // read all bytes since EOF in the buffer
   let mut data = vec![];
-  file_buff.read_to_end(&mut data)?;
+  file_buff
+    .read_to_end(&mut data)
+    .expect("Can't read buffer to validate signature");
 
   // Validate signature or bail out
   public_key_ready.verify(&data, &signature)?;

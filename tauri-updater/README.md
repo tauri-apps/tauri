@@ -156,7 +156,7 @@ When an update is available, Tauri expects the following schema in response to t
 
 ```json
 {
-	"url": "https://mycompany.example.com/myapp/releases/myrelease.tar.gz",
+    "url": "https://mycompany.example.com/myapp/releases/myrelease.tar.gz",
     "version": "0.0.1",
     "notes": "Theses are some release notes",
     "pub_date": "2020-09-18T12:29:53+01:00",

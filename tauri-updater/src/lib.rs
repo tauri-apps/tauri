@@ -17,7 +17,7 @@ use std::{
 };
 use tauri_api::{file::Extract, file::Move, version};
 
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "macos"))]
 use std::process::Command;
 
 #[derive(Debug)]

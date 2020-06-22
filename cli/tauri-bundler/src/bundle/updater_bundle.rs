@@ -188,6 +188,11 @@ mod tests {
   use tauri_updater::verify_signature;
   use totems::assert_ok;
 
+  // we can't test on linux actually as we require an icon
+  // and looks like the resourcepath from the bundler dont use
+  // tauri_dir so the icons aren't working with test build
+
+  #[cfg(not(target_os = "linux"))]
   #[test]
   fn updater_with_signature_bundling() {
     // load our main example

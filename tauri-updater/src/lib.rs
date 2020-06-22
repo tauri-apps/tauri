@@ -17,6 +17,9 @@ use std::{
 };
 use tauri_api::{file::Extract, file::Move, version};
 
+#[cfg(target_os = "linux")]
+use std::process::Command;
+
 #[derive(Debug)]
 pub struct RemoteRelease {
   pub version: String,
@@ -299,6 +302,20 @@ impl Update {
     // make sure we NEED to install it ...
     //current_version
 
+    // make sure we can install the update on linux
+    // We fail here because later we can add more linux support
+    // actually if we use APPIMAGE, our extract path should already
+    // be set with our APPIMAGE env variable, we don't need to do
+    // anythin with it yet
+    if target == "linux" {
+      if let None = env::var_os("APPIMAGE") {
+        bail!(
+          Error::Config,
+          "APPIMAGE env is not defined -- updates are not supported."
+        )
+      }
+    }
+
     // tmp dir
     let tmp_dir_parent = if cfg!(windows) {
       env::var_os("TEMP").map(PathBuf::from)
@@ -425,25 +442,78 @@ impl Update {
     Extract::from_source(&tmp_archive_path).extract_into(&tmp_dir.path())?;
     // Remove archive (not needed anymore)
     remove_file(&tmp_archive_path)?;
-
     // we copy the files depending of the operating system
-    // and we
+    // we run the setup, appimage re-install or overwrite the
+    // macos .app
     copy_files_and_run(tmp_dir, extract_path)?;
 
     Ok(())
   }
 }
 
-// We should have an AppImage
+// We should have an AppImage already installed to be able to copy and install
+// the extract_path is the current AppImage path
+// tmp_dir is where our new AppImage is found
 #[cfg(target_os = "linux")]
-fn copy_files_and_run(_tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Result {
+fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Result {
+  // we delete our current AppImage (we'll create a new one later)
+  remove_file(&extract_path)?;
+
+  // In our tempdir we expect 1 directory (should be the <app>.app)
+  let paths = read_dir(&tmp_dir).unwrap();
+
+  for path in paths {
+    let found_path = path.expect("Unable to extract").path();
+    // make sure it's our .AppImage
+    if found_path.display().to_string().contains(".AppImage") {
+      // Simply overwrite our AppImage (we use the command)
+      // because it prevent failing of bytes stream
+      Command::new("mv")
+        .arg("-f")
+        .arg(&found_path)
+        .arg(&extract_path)
+        .output()?;
+
+      // We now run the AppImage install process
+      Command::new(&extract_path)
+        .env("APPIMAGE_SILENT_INSTALL", "true")
+        .env("APPIMAGE_EXIT_AFTER_INSTALL", "true")
+        .output()?;
+
+      // early finish we have everything we need here
+      return Ok(());
+    }
+  }
+
   Ok(())
 }
 
 // We should have a setup (msi or exe)
 // we run it -- thats it.
 #[cfg(target_os = "windows")]
-fn copy_files_and_run(_tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Result {
+fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Result {
+  for path in paths {
+    let found_path = path.expect("Unable to extract").path();
+    // make sure it's our .msi our .exe
+    if found_path.display().to_string().contains(".exe")
+      || found_path.display().to_string().contains(".msi")
+    {
+      // Simply overwrite our AppImage (we use the command)
+      // because it prevent failing of bytes stream
+      Command::new(found_path)
+        // To be confirmed with WIX if we can build custom args
+        // by example we can pass the _extract_path to tell exactly
+        // where to install the app...
+        .arg("/S")
+        .arg("--updated")
+        .arg("--force")
+        .output()?;
+
+      // early finish we have everything we need here
+      return Ok(());
+    }
+  }
+
   Ok(())
 }
 
@@ -527,6 +597,12 @@ pub fn extract_path_from_executable(executable_path: &PathBuf, target: &str) -> 
       .map(PathBuf::from)
       .expect("Unable to find the extract path")
   };
+
+  // We should use APPIMAGE exposed env variable
+  // This is where our APPIMAGE should sit and should be replaced
+  if target == "linux" && env::var_os("APPIMAGE").is_some() {
+    extract_path = PathBuf::from(env::var_os("APPIMAGE").expect("Unable to extract APPIMAGE path"))
+  }
 
   extract_path
 }

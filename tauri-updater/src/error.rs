@@ -31,6 +31,8 @@ pub enum Error {
   Network(String),
   #[error("{0}")]
   Updater(String),
+  #[error("No updates available: {0}")]
+  UpToDate(String),
 }
 
 pub type Result<T = ()> = anyhow::Result<T, Error>;

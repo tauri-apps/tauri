@@ -5,7 +5,7 @@ pub use error::{Error, Result};
 
 use base64::decode;
 use minisign_verify::{PublicKey, Signature};
-use reqwest::{self, header};
+use reqwest::{self, header, StatusCode};
 use std::{
   cmp::min,
   env,
@@ -189,19 +189,40 @@ impl<'a> UpdateBuilder<'a> {
         &target,
       );
 
+      // we want JSON only
+      let mut headers = header::HeaderMap::new();
+      headers.insert(header::ACCEPT, "application/json".parse().unwrap());
+
       let resp = reqwest::blocking::Client::new()
         .get(&fixed_link)
+        .headers(headers)
         .timeout(Duration::from_secs(5))
         .send();
 
       // If we got a success, we stop the loop
       // and we set our remote_release variable
       if let Ok(ref res) = resp {
+        // got status code 2XX
         if res.status().is_success() {
-          let json = resp?.json::<serde_json::Value>()?;
+          match res.status() {
+            StatusCode::NO_CONTENT => {
+              // bail out...
+              // already up to date
+              // todo(lemarier): we should have error handler
+              // on the client side who ignore these errors
+              bail!(
+                crate::Error::UpToDate,
+                "Remote server announced StatusCode 204"
+              )
+            }
+            _ => (),
+          };
 
-          // Convert
+          let json = resp?.json::<serde_json::Value>()?;
+          // Convert the remote result to our local struct
           let built_release = RemoteRelease::from_release(&json);
+          // make sure all went well and the remote data is compatible
+          // with what we need locally
           match built_release {
             Ok(release) => {
               last_error = None;
@@ -210,7 +231,7 @@ impl<'a> UpdateBuilder<'a> {
             }
             Err(err) => last_error = Some(err),
           }
-        }
+        } // if status code is not 2XX we keep loopin' our urls
       }
     }
 

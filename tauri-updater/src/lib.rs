@@ -436,14 +436,14 @@ impl Update {
 
 // We should have an AppImage
 #[cfg(target_os = "linux")]
-fn copy_files_and_run() -> Result {
+fn copy_files_and_run(_tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Result {
   Ok(())
 }
 
 // We should have a setup (msi or exe)
 // we run it -- thats it.
 #[cfg(target_os = "windows")]
-fn copy_files_and_run() -> Result {
+fn copy_files_and_run(_tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Result {
   Ok(())
 }
 

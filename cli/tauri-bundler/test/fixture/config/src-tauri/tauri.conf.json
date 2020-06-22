@@ -5,20 +5,10 @@
     "beforeDevCommand": "",
     "beforeBuildCommand": ""
   },
+  "ctx": {},
   "tauri": {
     "embeddedServer": {
       "active": false
-    },
-    "bundle": {
-      "active": true,
-      "identifier": "com.tauri.test",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ]
     },
     "updater": {
       "active": true,
@@ -28,11 +18,52 @@
         "https://gist.githubusercontent.com/lemarier/72a2a488f1c87601d11ec44d6a7aff05/raw/f86018772318629b3f15dbb3d15679e7651e36f6/with_sign.json?target={{target}}&version={{current_version}}"
       ]
     },
+    "bundle": {
+      "active": true,
+      "targets": "all",
+      "identifier": "com.tauri.test",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "resources": [],
+      "externalBin": [],
+      "copyright": "",
+      "category": "DeveloperTool",
+      "shortDescription": "",
+      "longDescription": "",
+      "deb": {
+        "depends": [],
+        "useBootstrapper": false
+      },
+      "osx": {
+        "frameworks": [],
+        "minimumSystemVersion": "",
+        "useBootstrapper": false
+      },
+      "exceptionDomain": ""
+    },
     "whitelist": {
       "all": true
     },
     "window": {
-      "title": "Tauri Update test"
+      "title": "Tauri App",
+      "width": 800,
+      "height": 600,
+      "resizable": true,
+      "fullscreen": false
+    },
+    "security": {
+      "csp": "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
+    },
+    "edge": {
+      "active": true
+    },
+    "inliner": {
+      "active": true
     }
   }
 }

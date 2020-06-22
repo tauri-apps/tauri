@@ -513,6 +513,7 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Resu
 // we run it -- thats it.
 #[cfg(target_os = "windows")]
 fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Result {
+  let paths = read_dir(&tmp_dir).unwrap();
   for path in paths {
     let found_path = path.expect("Unable to extract").path();
     // make sure it's our .msi our .exe

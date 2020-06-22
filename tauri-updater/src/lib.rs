@@ -9,7 +9,7 @@ use reqwest::{self, header};
 use std::{
   cmp::min,
   env,
-  fs::{remove_file, File, OpenOptions},
+  fs::{read_dir, remove_file, File, OpenOptions},
   io::{self, BufReader, Read},
   path::{Path, PathBuf},
   str::from_utf8,
@@ -160,7 +160,7 @@ impl<'a> UpdateBuilder<'a> {
     let target = if let Some(t) = &self.target {
       t.clone()
     } else {
-      get_target().to_string()
+      get_target().ok_or_else(|| crate::Error::Config("Unsuported operating system.".into()))?
     };
 
     // Get the extract_path from the provided executable_path
@@ -197,6 +197,7 @@ impl<'a> UpdateBuilder<'a> {
         if res.status().is_success() {
           let json = resp?.json::<serde_json::Value>()?;
 
+          // Convert
           let built_release = RemoteRelease::from_release(&json);
           match built_release {
             Ok(release) => {
@@ -210,6 +211,8 @@ impl<'a> UpdateBuilder<'a> {
       }
     }
 
+    // Last error is cleaned on success -- shouldn't be triggered if
+    // we have a successful call
     if last_error.is_some() {
       bail!(crate::Error::Network, "Api Error: {:?}", last_error)
     }
@@ -219,8 +222,9 @@ impl<'a> UpdateBuilder<'a> {
       bail!(crate::Error::Network, "Unable to extract remote metadata")
     }
 
-    let final_release = remote_release
-      .ok_or_else(|| crate::Error::Network("Unable to unwrap remote metadata".into()))?;
+    // Extracted remote metadata
+    let final_release =
+      remote_release.ok_or_else(|| crate::Error::Network("No remote release available".into()))?;
 
     // did the announced version is greated than our current one?
     let should_update = match version::is_greater(&current_version, &final_release.version) {
@@ -311,6 +315,7 @@ impl Update {
       .subsec_nanos()
       .to_string();
 
+    // get the current app name
     let bin_name = std::env::current_exe()
       .ok()
       .and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
@@ -322,6 +327,8 @@ impl Update {
       .prefix(&format!("{}_download", bin_name))
       .tempdir_in(tmp_dir_parent)?;
 
+    // tmp directories are used to create backup of current application
+    // if something goes wrong, we can restore to previous state
     let tmp_archive_path = tmp_dir.path().join(detect_archive_in_url(&url, &target));
     let tmp_archive = File::create(&tmp_archive_path)?;
 
@@ -333,6 +340,7 @@ impl Update {
     let mut headers = header::HeaderMap::new();
     headers.insert(header::ACCEPT, "application/octet-stream".parse().unwrap());
 
+    // make sure we have a valid agent
     if !headers.contains_key(header::USER_AGENT) {
       headers.insert(
         header::USER_AGENT,
@@ -370,6 +378,7 @@ impl Update {
       )
     }
 
+    // Init the buffer
     let mut src = io::BufReader::new(resp);
     let mut downloaded = 0;
     let mut dest = &tmp_archive;
@@ -393,8 +402,10 @@ impl Update {
       //println!("{}", percent);
     }
 
-    // Validate signature
+    // Validate signature ONLY if pubkey is available in tauri.conf.json
     if let Some(pub_key) = pub_key {
+      // we need an announced signature by the server
+      // if there is no signature, bail out.
       if self.signature.is_none() {
         bail!(
           crate::Error::Updater,
@@ -402,7 +413,7 @@ impl Update {
         )
       }
 
-      // we make sure the archive is valid and signed with our private key
+      // we make sure the archive is valid and signed with the private key linked with the publickey
       verify_signature(
         &tmp_archive_path,
         self.signature.clone().expect("Can't validate signature"),
@@ -410,49 +421,88 @@ impl Update {
       )?;
     }
 
-    // extract using tauri api  inside a tmp path
+    // extract using tauri api inside a tmp path
     Extract::from_source(&tmp_archive_path).extract_into(&tmp_dir.path())?;
-
     // Remove archive (not needed anymore)
     remove_file(&tmp_archive_path)?;
 
-    // Create our temp file -- we'll copy a backup of our destination before copying'
-    //let tmp_file = tmp_dir.path().join(&format!("__{}_backup", bin_name));
-
-    // Walk the temp dir and copy all files by replacing existing files only
-    // and creating directories if needed
-    Move::from_source(&tmp_dir.path())
-      // BACKUPING FILES MAY CAUSE ISSUE..
-      // DISABLED FOR NOW
-      //.replace_using_temp(&tmp_file)
-      .walk_to_dest(&self.extract_path)?;
+    // we copy the files depending of the operating system
+    // and we
+    copy_files_and_run(tmp_dir, extract_path)?;
 
     Ok(())
   }
 }
 
-/// Returns a target os
-pub fn get_target() -> &'static str {
+// We should have an AppImage
+#[cfg(target_os = "linux")]
+fn copy_files_and_run() -> Result {
+  Ok(())
+}
+
+// We should have a setup (msi or exe)
+// we run it -- thats it.
+#[cfg(target_os = "windows")]
+fn copy_files_and_run() -> Result {
+  Ok(())
+}
+
+// We should have a .app example, Tauri.app
+// we need to skip Tauri.app and extract eveything in
+// extract_path (who should equal to) example
+// /Applications/Tauri/ (as we can't extract directly)
+// in /Applications  (directory are automatically extracted)
+#[cfg(target_os = "macos")]
+fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Result {
+  // Create our temp file -- we'll copy a backup of our destination before copying'
+  //let backup_dir = tmp_dir.path().join("__backup");
+
+  // In our tempdir we expect 1 directory (should be the <app>.app)
+  let paths = read_dir(&tmp_dir).unwrap();
+
+  for path in paths {
+    let found_path = path.expect("Unable to extract").path();
+    // make sure it's our .app
+    if found_path.display().to_string().contains(".app") {
+      // Walk the temp dir and copy all files by replacing existing files only
+      // and creating directories if needed
+      Move::from_source(&found_path)
+        // BACKUPING FILES MAY CAUSE ISSUE..
+        // DISABLED FOR NOW
+        //.replace_using_temp(&tmp_file)
+        .walk_to_dest(&extract_path)?;
+
+      // early finish we have everything we need here
+      return Ok(());
+    }
+  }
+
+  Ok(())
+}
+
+/// Returns a target os -- If none,
+/// that mean the updater didnt support
+/// the platform
+pub fn get_target() -> Option<String> {
   if cfg!(target_os = "linux") {
-    "linux"
+    Some("linux".into())
   } else if cfg!(target_os = "macos") {
-    "darwin"
+    Some("darwin".into())
   } else if cfg!(target_os = "windows") {
     if cfg!(target_pointer_width = "32") {
-      "win32"
+      Some("win32".into())
     } else {
-      "win64"
+      Some("win64".into())
     }
   } else if cfg!(target_os = "freebsd") {
-    "freebsd"
+    Some("freebsd".into())
   } else {
-    ""
+    None
   }
 }
 
+/// Get the extract_path from the provided executable_path
 pub fn extract_path_from_executable(executable_path: &PathBuf, target: &str) -> PathBuf {
-  // Get the extract_path from the provided executable_path
-
   // Linux & Windows should need to be extracted in the same directory as the executable
   // C:\Program Files\MyApp\MyApp.exe
   // We need C:\Program Files\MyApp
@@ -468,14 +518,14 @@ pub fn extract_path_from_executable(executable_path: &PathBuf, target: &str) -> 
   // We need to get /Applications/TestApp.app
   // todo(lemarier): Need a better way here
   // Maybe we could search for <*.app> to get the right path
-  if target == "darwin" && extract_path_as_string.contains(".app") {
+  if target == "darwin" && extract_path_as_string.contains("Contents/MacOS") {
     extract_path = extract_path
       .parent()
       .map(PathBuf::from)
       .expect("Unable to find the extract path")
       .parent()
       .map(PathBuf::from)
-      .expect("Unable to find the extract path");
+      .expect("Unable to find the extract path")
   };
 
   extract_path
@@ -651,8 +701,11 @@ mod test {
 
     // configure the updater
     let check_update = builder()
-    .url("https://gist.githubusercontent.com/lemarier/72a2a488f1c87601d11ec44d6a7aff05/raw/f86018772318629b3f15dbb3d15679e7651e36f6/with_sign.json".into())
+    .url("https://gist.githubusercontent.com/lemarier/72a2a488f1c87601d11ec44d6a7aff05/raw/ce9764167cf8bd8f3bab9ca8e7846a0b99c4890d/with_sign.json".into())
+    // It should represent the executable path, that's why we add my_app.exe in our
+    // test path -- in production you shouldn't have to provide it
     .executable_path(&tmp_dir_path.join("my_app.exe"))
+    // make sure we force an update
     .current_version("0.0.1")
     .build();
 
@@ -671,7 +724,8 @@ mod test {
     let install_process = updater.download_and_install(pubkey_test);
     assert_ok!(&install_process);
 
-    // make sure the extraction went well
+    // make sure the extraction went well (it should have skipped the main app.app folder)
+    // as we can't extract in /Applications directly
     let bin_file = tmp_dir_path.join("Contents").join("MacOS").join("app");
     let bin_file_exist = Path::new(&bin_file).exists();
     assert_eq!(bin_file_exist, true);

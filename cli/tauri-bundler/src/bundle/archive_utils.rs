@@ -46,16 +46,23 @@ pub fn tar_and_gzip_to<P: AsRef<Path>>(src_dir: P, dst_file: P) -> crate::Result
 }
 
 /// Writes a tar file to the given writer containing the given directory.
+/// /tmp/test /tmp/archive.tar.gz
 fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> crate::Result<W> {
   let src_dir = src_dir.as_ref();
   let mut tar_builder = tar::Builder::new(dest_file);
+
   for entry in WalkDir::new(&src_dir) {
     let entry = entry?;
     let src_path = entry.path();
     if src_path == src_dir {
       continue;
     }
-    let dest_path = src_path.strip_prefix(&src_dir)?;
+
+    // todo(lemarier): better error catching
+    // We add the .parent() because example if we send a path
+    // /dev/src-tauri/target/debug/bundle/osx/app.app
+    // We need a tar with app.app/<...> (source root folder should be included)
+    let dest_path = src_path.strip_prefix(&src_dir.parent().unwrap())?;
     if entry.file_type().is_dir() {
       tar_builder.append_dir(dest_path, src_path)?;
     } else {

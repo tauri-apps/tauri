@@ -102,7 +102,11 @@ fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let osx_archived = format!("{}.tar.gz", source_path.display());
   let osx_archived_path = PathBuf::from(&osx_archived);
 
-  // Create our gzip file
+  // safe unwrap
+  //let tar_source = &source_path.parent().unwrap().to_path_buf();
+
+  // Create our gzip file (need to send parent)
+  // as we walk the source directory (source isnt added)
   create_tar(&source_path, &osx_archived_path)
     .with_context(|| "Failed to tar.gz update directory")?;
 
@@ -111,7 +115,7 @@ fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 }
 
 // Create simple update-linux_<arch>.tar.gz
-// Including the binary as root
+// Including the AppImage
 // Right now in linux we hot replace the bin and request a restart
 // No assets are replaced
 #[cfg(target_os = "linux")]
@@ -187,21 +191,32 @@ mod tests {
   #[test]
   fn updater_with_signature_bundling() {
     // load our main example
+
     let mut example_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     example_path.push("test");
     example_path.push("fixture");
     example_path.push("config");
     example_path.push("src-tauri");
 
+    // set our tauri dir to the example path
+    std::env::set_var("TAURI_DIR", &example_path);
+
     // Run cargo build in our test project
-    std::process::Command::new("cargo")
+    let output = std::process::Command::new("cargo")
       .arg("build")
       .current_dir(&example_path)
       .output()
       .expect("Failed to execute cargo build");
 
-    // set our tauri dir to the example path
-    std::env::set_var("TAURI_DIR", &example_path);
+    if !output.status.success() {
+      println!("status: {}", output.status);
+      println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+      println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+    }
+
+    assert_eq!(output.status.success(), true);
+
+    println!("Build done");
 
     // set our private key -- this can also be a file path
     std::env::set_var("TAURI_PRIVATE_KEY", "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5dGlHbTEvRFhRRis2STdlTzF3eWhOVk9LNjdGRENJMnFSREE3R2V3b3Rwb0FBQkFBQUFBQUFBQUFBQUlBQUFBQWFNZEJTNXFuVjk0bmdJMENRRXVYNG5QVzBDd1NMOWN4Q2RKRXZxRDZNakw3Y241Vkt3aTg2WGtoajJGS1owV0ZuSmo4ZXJ0ZCtyaWF0RWJObFpnd1EveDB4NzBTU2RweG9ZaUpuc3hnQ3BYVG9HNnBXUW5SZ2Q3b3dvZ3Y2UnhQZ1BQZDU3bXl6d3M9Cg==");

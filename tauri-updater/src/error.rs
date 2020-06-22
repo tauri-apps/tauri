@@ -5,6 +5,8 @@ use {anyhow, base64, minisign_verify, reqwest, semver, serde_json};
 #[derive(Debug, DeriveError)]
 pub enum Error {
   // Error catcher
+  #[error("`{0}`")]
+  Io(#[from] std::io::Error),
   #[error("{0}")]
   Bundler(#[from] anyhow::Error),
   #[error("{0}")]

@@ -99,16 +99,8 @@ fn setup_content() -> crate::Result<Content<String>> {
 // setup content for no-server
 #[cfg(feature = "no-server")]
 fn setup_content() -> crate::Result<Content<String>> {
-  let dist_dir = match option_env!("TAURI_DIST_DIR") {
-    Some(d) => d.to_string(),
-    None => env::current_dir()?
-      .into_os_string()
-      .into_string()
-      .expect("Unable to convert to normal String"),
-  };
-  let index_path = Path::new(&dist_dir).join("index.tauri.html");
-
-  Ok(Content::Html(read_to_string(index_path)?))
+  let html = include_str!(concat!(env!("OUT_DIR"), "/index.tauri.html"));
+  Ok(Content::Html(html.to_string()))
 }
 
 // get the port for the embedded server

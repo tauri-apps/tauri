@@ -2,7 +2,6 @@ use serde::Deserialize;
 
 use once_cell::sync::OnceCell;
 use std::collections::HashMap;
-use std::{fs, path};
 
 static CONFIG: OnceCell<Config> = OnceCell::new();
 
@@ -138,6 +137,7 @@ pub struct CliArg {
   pub requires_if: Option<Vec<String>>,
   pub required_if: Option<Vec<String>>,
   pub require_equals: Option<bool>,
+  pub index: Option<u64>,
 }
 
 #[derive(PartialEq, Deserialize, Debug)]
@@ -276,11 +276,8 @@ pub fn get() -> crate::Result<&'static Config> {
   let config: Config = match option_env!("TAURI_CONFIG") {
     Some(config) => serde_json::from_str(config).expect("failed to parse TAURI_CONFIG env"),
     None => {
-      let env_var = envmnt::get_or("TAURI_DIR", "../dist");
-      let path = path::Path::new(&env_var);
-      let contents = fs::read_to_string(path.join("tauri.conf.json"))?;
-
-      serde_json::from_str(&contents).expect("failed to read tauri.conf.json")
+      let config = include_str!(concat!(env!("OUT_DIR"), "/tauri.conf.json"));
+      serde_json::from_str(&config).expect("failed to read tauri.conf.json")
     }
   };
 

@@ -1,6 +1,6 @@
 {
   "name": "tauri",
-  "version": "0.6.3",
+  "version": "0.7.0",
   "description": "Multi-binding collection of libraries and templates for building Tauri apps",
   "bin": {
     "tauri": "./bin/tauri.js"
@@ -102,6 +102,7 @@
     "lockfile-lint": "4.3.6",
     "promise": "8.1.0",
     "raw-loader": "4.0.1",
+    "toml-loader": "^1.0.0",
     "ts-loader": "7.0.5",
     "typescript": "3.9.5",
     "webpack": "4.43.0",

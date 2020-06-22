@@ -6,7 +6,7 @@ macro_rules! bind_string_arg {
       clap_arg = clap_arg.$clap_field(value);
     }
     clap_arg
-  }}
+  }};
 }
 
 macro_rules! bind_value_arg {
@@ -17,7 +17,7 @@ macro_rules! bind_value_arg {
       clap_arg = clap_arg.$field(value);
     }
     clap_arg
-  }}
+  }};
 }
 
 macro_rules! bind_string_slice_arg {
@@ -29,7 +29,7 @@ macro_rules! bind_string_slice_arg {
       clap_arg = clap_arg.$field(&v);
     }
     clap_arg
-  }}
+  }};
 }
 
 macro_rules! bind_if_arg {
@@ -41,5 +41,5 @@ macro_rules! bind_if_arg {
       clap_arg = clap_arg.$field(&v[0], &v[1]);
     }
     clap_arg
-  }}
+  }};
 }

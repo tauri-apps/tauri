@@ -8938,6 +8938,18 @@ to-regex@^3.0.1, to-regex@^3.0.2:
     regex-not "^1.0.2"
     safe-regex "^1.1.0"
 
+toml-loader@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/toml-loader/-/toml-loader-1.0.0.tgz#05249b9294b623601148260caa480b22a653a19a"
+  integrity sha1-BSSbkpS2I2ARSCYMqkgLIqZToZo=
+  dependencies:
+    toml "^2.2.2"
+
+toml@^2.2.2:
+  version "2.3.6"
+  resolved "https://registry.yarnpkg.com/toml/-/toml-2.3.6.tgz#25b0866483a9722474895559088b436fd11f861b"
+  integrity sha512-gVweAectJU3ebq//Ferr2JUY4WKSDe5N+z0FvjDncLGyHmIDoxgY/2Ie4qfEIDm4IS7OA6Rmdm7pdEEdMcV/xQ==
+
 tough-cookie@^2.3.3, tough-cookie@~2.5.0:
   version "2.5.0"
   resolved "https://registry.yarnpkg.com/tough-cookie/-/tough-cookie-2.5.0.tgz#cd9fb2a0aa1d5a12b473bd9fb96fa3dcff65ade2"

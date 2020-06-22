@@ -176,7 +176,7 @@ fn create_zip(source: &PathBuf, archive_path: &PathBuf) -> crate::Result<()> {
 
 fn create_tar(source: &PathBuf, archive_path: &PathBuf) -> crate::Result<()> {
   archive_utils::tar_and_gzip_to(source, archive_path)
-    .with_context(|| "Failed to zip update directory")?;
+    .with_context(|| "Failed to tar.gz update directory")?;
 
   Ok(())
 }

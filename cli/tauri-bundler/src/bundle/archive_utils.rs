@@ -56,7 +56,11 @@ fn create_tar_from_src<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
   // if it's a file don't need to walkdir
   if file_type.is_file() {
     let mut src_file = fs::File::open(src_dir)?;
-    tar_builder.append_file(".", &mut src_file)?;
+    let file_name = src_dir
+      .file_name()
+      .expect("Can't extract file name from path");
+
+    tar_builder.append_file(file_name, &mut src_file)?;
   } else {
     for entry in WalkDir::new(&src_dir) {
       let entry = entry?;

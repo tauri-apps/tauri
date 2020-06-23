@@ -32,7 +32,12 @@ pub struct RemoteRelease {
 
 impl RemoteRelease {
   // Read JSON and confirm this is a valid Schema
-  fn from_release(release: &serde_json::Value) -> Result<RemoteRelease> {
+  fn from_release(release: &serde_json::Value, target: &String) -> Result<RemoteRelease> {
+    // did we have a platforms field ?
+    // if we did, that mean it's a static JSON
+    let is_dynamic_update = release["platforms"].is_null();
+
+    // Version or name is required for static and dynamic JSON
     let name = match &release["version"].is_null() {
       false => release["version"]
         .as_str()
@@ -44,6 +49,7 @@ impl RemoteRelease {
         .to_string(),
     };
 
+    // pub_date is required
     let date = match &release["pub_date"].is_null() {
       false => release["pub_date"]
         .as_str()
@@ -52,21 +58,41 @@ impl RemoteRelease {
       true => "N/A".to_string(),
     };
 
-    let url = release["url"]
-      .as_str()
-      .ok_or_else(|| crate::Error::Release("Release missing `name` or `url`".into()))?;
-
-    let body = release["notes"].as_str().map(String::from);
-
-    let signature = match &release["signature"].is_null() {
-      false => Some(
-        release["signature"]
-          .as_str()
-          .expect("Can't extract remote version")
-          .to_string(),
-      ),
+    // body is optional
+    let body = match &release["notes"].is_null() {
+      false => release["notes"].as_str().map(String::from),
       true => None,
     };
+
+    // signature is optional
+    let mut signature = match &release["signature"].is_null() {
+      false => release["signature"].as_str().map(String::from),
+      true => None,
+    };
+
+    // url is required but we'll check it later
+    let url;
+    if !is_dynamic_update {
+      // make sure we have an available platform from the static
+      if release["platforms"][target].is_null() {
+        bail!(crate::Error::UpToDate, "Platform not available")
+      }
+      // use provided signature if available
+      signature = match &release["platforms"][target]["signature"].is_null() {
+        false => release["platforms"][target]["signature"]
+          .as_str()
+          .map(String::from),
+        true => None,
+      };
+
+      url = release["platforms"][target]["url"]
+        .as_str()
+        .ok_or_else(|| crate::Error::Release("Release missing `url`".into()))?;
+    } else {
+      url = release["url"]
+        .as_str()
+        .ok_or_else(|| crate::Error::Release("Release missing `url`".into()))?;
+    }
 
     // Return our formatted release
     Ok(RemoteRelease {
@@ -218,7 +244,7 @@ impl<'a> UpdateBuilder<'a> {
 
           let json = resp?.json::<serde_json::Value>()?;
           // Convert the remote result to our local struct
-          let built_release = RemoteRelease::from_release(&json);
+          let built_release = RemoteRelease::from_release(&json, &target);
           // make sure all went well and the remote data is compatible
           // with what we need locally
           match built_release {
@@ -695,6 +721,52 @@ mod test {
     let updater = check_update.expect("Can't check update");
 
     assert_eq!(updater.should_update, true);
+  }
+
+  #[test]
+  fn simple_http_updater_raw_json() {
+    let check_update = builder()
+      .current_version("0.0.0")
+      .url("https://gist.github.com/lemarier/6bc28d06b94958d83eaa2790eef03f32/raw".into())
+      .build();
+
+    assert_ok!(check_update);
+    let updater = check_update.expect("Can't check update");
+
+    assert_eq!(updater.should_update, true);
+  }
+
+  #[test]
+  fn simple_http_updater_raw_json_win64() {
+    let check_update = builder()
+      .current_version("0.0.0")
+      .target("win64")
+      .url("https://gist.github.com/lemarier/6bc28d06b94958d83eaa2790eef03f32/raw".into())
+      .build();
+
+    assert_ok!(check_update);
+    let updater = check_update.expect("Can't check update");
+
+    assert_eq!(updater.should_update, true);
+    assert_eq!(updater.version, "1.0.0");
+    assert_eq!(updater.signature, Some("dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUldUTE5QWWxkQnlZOVJHMWlvTzRUSlQzTHJOMm5waWpic0p0VVI2R0hUNGxhQVMxdzBPRndlbGpXQXJJakpTN0toRURtVzBkcm15R0VaNTJuS1lZRWdzMzZsWlNKUVAzZGdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNTkyOTE1NTIzCWZpbGU6RDpcYVx0YXVyaVx0YXVyaVx0YXVyaVxleGFtcGxlc1xjb21tdW5pY2F0aW9uXHNyYy10YXVyaVx0YXJnZXRcZGVidWdcYXBwLng2NC5tc2kuemlwCitXa1lQc3A2MCs1KzEwZnVhOGxyZ2dGMlZqbjBaVUplWEltYUdyZ255eUF6eVF1dldWZzFObStaVEQ3QU1RS1lzcjhDVU4wWFovQ1p1QjJXbW1YZUJ3PT0K".into()));
+    assert_eq!(
+      updater.download_url,
+      "https://github.com/lemarier/tauri-test/releases/download/v1.0.0/app.x64.msi.zip"
+    );
+  }
+
+  #[test]
+  fn simple_http_updater_raw_json_uptodate() {
+    let check_update = builder()
+      .current_version("10.0.0")
+      .url("https://gist.github.com/lemarier/6bc28d06b94958d83eaa2790eef03f32/raw".into())
+      .build();
+
+    assert_ok!(check_update);
+    let updater = check_update.expect("Can't check update");
+
+    assert_eq!(updater.should_update, false);
   }
 
   #[test]

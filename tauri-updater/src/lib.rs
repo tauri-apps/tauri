@@ -687,9 +687,9 @@ mod test {
   #[test]
   fn simple_http_updater() {
     let check_update = builder()
-    .current_version("0.0.0")
-    .url("https://gist.githubusercontent.com/lemarier/72a2a488f1c87601d11ec44d6a7aff05/raw/f86018772318629b3f15dbb3d15679e7651e36f6/with_sign.json".into())
-    .build();
+      .current_version("0.0.0")
+      .url("https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}".into())
+      .build();
 
     assert_ok!(check_update);
     let updater = check_update.expect("Can't check update");
@@ -700,21 +700,21 @@ mod test {
   #[test]
   fn simple_http_updater_without_version() {
     let check_update = builder()
-    .url("https://gist.githubusercontent.com/lemarier/72a2a488f1c87601d11ec44d6a7aff05/raw/f86018772318629b3f15dbb3d15679e7651e36f6/with_sign.json".into())
-    .build();
+      .url("https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}".into())
+      .build();
 
     assert_ok!(check_update);
     let updater = check_update.expect("Can't check update");
 
-    assert_eq!(updater.should_update, false);
+    assert_eq!(updater.should_update, true);
   }
 
   #[test]
   fn http_updater_uptodate() {
     let check_update = builder()
-    .current_version("10.0.0")
-    .url("https://gist.githubusercontent.com/lemarier/72a2a488f1c87601d11ec44d6a7aff05/raw/f86018772318629b3f15dbb3d15679e7651e36f6/with_sign.json".into())
-    .build();
+      .current_version("10.0.0")
+      .url("https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}".into())
+      .build();
 
     assert_ok!(check_update);
     let updater = check_update.expect("Can't check update");
@@ -725,10 +725,10 @@ mod test {
   #[test]
   fn http_updater_fallback_urls() {
     let check_update = builder()
-    .url("http://badurl.www.tld/1".into())
-    .url("https://gist.githubusercontent.com/lemarier/72a2a488f1c87601d11ec44d6a7aff05/raw/f86018772318629b3f15dbb3d15679e7651e36f6/with_sign.json".into())
-    .current_version("0.0.1")
-    .build();
+      .url("http://badurl.www.tld/1".into())
+      .url("https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}".into())
+      .current_version("0.0.1")
+      .build();
 
     assert_ok!(check_update);
     let updater = check_update.expect("Can't check remote update");
@@ -739,9 +739,12 @@ mod test {
   #[test]
   fn http_updater_fallback_urls_withs_array() {
     let check_update = builder()
-    .urls(&["http://badurl.www.tld/1".into(), "https://gist.githubusercontent.com/lemarier/72a2a488f1c87601d11ec44d6a7aff05/raw/f86018772318629b3f15dbb3d15679e7651e36f6/with_sign.json".into()])
-    .current_version("0.0.1")
-    .build();
+      .urls(&[
+        "http://badurl.www.tld/1".into(),
+        "https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}".into(),
+      ])
+      .current_version("0.0.1")
+      .build();
 
     assert_ok!(check_update);
     let updater = check_update.expect("Can't check remote update");
@@ -785,13 +788,13 @@ mod test {
 
     // configure the updater
     let check_update = builder()
-    .url("https://gist.githubusercontent.com/lemarier/72a2a488f1c87601d11ec44d6a7aff05/raw/ce9764167cf8bd8f3bab9ca8e7846a0b99c4890d/with_sign.json".into())
-    // It should represent the executable path, that's why we add my_app.exe in our
-    // test path -- in production you shouldn't have to provide it
-    .executable_path(&tmp_dir_path.join("my_app.exe"))
-    // make sure we force an update
-    .current_version("0.0.1")
-    .build();
+      .url("https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}".into())
+      // It should represent the executable path, that's why we add my_app.exe in our
+      // test path -- in production you shouldn't have to provide it
+      .executable_path(&tmp_dir_path.join("my_app.exe"))
+      // make sure we force an update
+      .current_version("0.0.1")
+      .build();
 
     // make sure the process worked
     assert_ok!(check_update);
@@ -802,7 +805,7 @@ mod test {
     // make sure we need to update
     assert_eq!(updater.should_update, true);
     // make sure we can read announced version
-    assert_eq!(updater.version, "0.0.4");
+    assert_eq!(updater.version, "1.0.0");
 
     // download, install and validate signature
     let install_process = updater.download_and_install(pubkey_test);

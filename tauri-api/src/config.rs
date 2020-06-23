@@ -329,8 +329,7 @@ mod test {
           dialog: true,
           pubkey: Some(String::from("dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY1OTgxQzc0MjVGNjM0Q0IKUldUTE5QWWxkQnlZOWFBK21kekU4OGgzdStleEtkeStHaFR5NjEyRHovRnlUdzAwWGJxWEU2aGYK")),
           endpoints: Some(vec![
-            "http://badurl.www.tld/1".into(),
-            "https://gist.githubusercontent.com/lemarier/72a2a488f1c87601d11ec44d6a7aff05/raw/a581b13bdf30b50deb7b50490a3f41754dc5e505/with_sign.json?target={{target}}&version={{current_version}}".into()
+            "https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}".into()
           ]),
         },
         bundle: BundleConfig {

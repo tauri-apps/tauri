@@ -27,7 +27,7 @@ pub fn tar_and_gzip_dir<P: AsRef<Path>>(src_dir: P) -> crate::Result<PathBuf> {
   let dest_path = src_dir.with_extension("tar.gz");
   let dest_file = common::create_file(&dest_path)?;
   let gzip_encoder = gzip::Encoder::new(dest_file)?;
-  let gzip_encoder = create_tar_from_dir(src_dir, gzip_encoder)?;
+  let gzip_encoder = create_tar_from_src(src_dir, gzip_encoder)?;
   let mut dest_file = gzip_encoder.finish().into_result()?;
   dest_file.flush()?;
   Ok(dest_path)
@@ -39,7 +39,7 @@ pub fn tar_and_gzip_to<P: AsRef<Path>>(src_dir: P, dst_file: P) -> crate::Result
   let dest_file = common::create_file(&dest_path)?;
   let gzip_encoder = gzip::Encoder::new(dest_file)?;
 
-  let gzip_encoder = create_tar_from_dir(src_dir, gzip_encoder)?;
+  let gzip_encoder = create_tar_from_src(src_dir, gzip_encoder)?;
   let mut dest_file = gzip_encoder.finish().into_result()?;
   dest_file.flush()?;
   Ok(dest_path)
@@ -47,27 +47,35 @@ pub fn tar_and_gzip_to<P: AsRef<Path>>(src_dir: P, dst_file: P) -> crate::Result
 
 /// Writes a tar file to the given writer containing the given directory.
 /// /tmp/test /tmp/archive.tar.gz
-fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> crate::Result<W> {
+fn create_tar_from_src<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> crate::Result<W> {
   let src_dir = src_dir.as_ref();
   let mut tar_builder = tar::Builder::new(dest_file);
 
-  for entry in WalkDir::new(&src_dir) {
-    let entry = entry?;
-    let src_path = entry.path();
-    if src_path == src_dir {
-      continue;
-    }
+  // validate source type
+  let file_type = fs::metadata(src_dir).expect("Can't read source directory");
+  // if it's a file don't need to walkdir
+  if file_type.is_file() {
+    let mut src_file = fs::File::open(src_dir)?;
+    tar_builder.append_file(".", &mut src_file)?;
+  } else {
+    for entry in WalkDir::new(&src_dir) {
+      let entry = entry?;
+      let src_path = entry.path();
+      if src_path == src_dir {
+        continue;
+      }
 
-    // todo(lemarier): better error catching
-    // We add the .parent() because example if we send a path
-    // /dev/src-tauri/target/debug/bundle/osx/app.app
-    // We need a tar with app.app/<...> (source root folder should be included)
-    let dest_path = src_path.strip_prefix(&src_dir.parent().unwrap())?;
-    if entry.file_type().is_dir() {
-      tar_builder.append_dir(dest_path, src_path)?;
-    } else {
-      let mut src_file = fs::File::open(src_path)?;
-      tar_builder.append_file(dest_path, &mut src_file)?;
+      // todo(lemarier): better error catching
+      // We add the .parent() because example if we send a path
+      // /dev/src-tauri/target/debug/bundle/osx/app.app
+      // We need a tar with app.app/<...> (source root folder should be included)
+      let dest_path = src_path.strip_prefix(&src_dir.parent().expect(""))?;
+      if entry.file_type().is_dir() {
+        tar_builder.append_dir(dest_path, src_path)?;
+      } else {
+        let mut src_file = fs::File::open(src_path)?;
+        tar_builder.append_file(dest_path, &mut src_file)?;
+      }
     }
   }
   let dest_file = tar_builder.into_inner()?;

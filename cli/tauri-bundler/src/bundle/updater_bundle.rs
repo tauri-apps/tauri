@@ -188,23 +188,32 @@ mod tests {
   use tauri_updater::verify_signature;
   use totems::assert_ok;
 
-  // we can't test on linux actually as we require an icon
-  // and looks like the resourcepath from the bundler dont use
-  // tauri_dir so the icons aren't working with test build
-
-  #[cfg(not(target_os = "linux"))]
   #[test]
   fn updater_with_signature_bundling() {
-    // load our main example
-
+    // create our example path
     let mut example_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    example_path.push("test");
-    example_path.push("fixture");
-    example_path.push("config");
+    example_path.push("..");
+    example_path.push("..");
+    example_path.push("tauri");
+    example_path.push("examples");
+    example_path.push("communication");
     example_path.push("src-tauri");
+
+    // create our dist path
+    let mut dist_path = example_path.clone();
+    dist_path.push("..");
+    dist_path.push("dist");
+
+    // make sure we can change our current working directory
+    // this allow the icons to works fine for our tests as the icons need
+    // to found in the current working directory
+    assert!(env::set_current_dir(&example_path).is_ok());
 
     // set our tauri dir to the example path
     std::env::set_var("TAURI_DIR", &example_path);
+    std::env::set_var("TAURI_DIST_DIR", &dist_path);
+    // set our private key -- this can also be a file path
+    std::env::set_var("TAURI_PRIVATE_KEY", "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5dGlHbTEvRFhRRis2STdlTzF3eWhOVk9LNjdGRENJMnFSREE3R2V3b3Rwb0FBQkFBQUFBQUFBQUFBQUlBQUFBQWFNZEJTNXFuVjk0bmdJMENRRXVYNG5QVzBDd1NMOWN4Q2RKRXZxRDZNakw3Y241Vkt3aTg2WGtoajJGS1owV0ZuSmo4ZXJ0ZCtyaWF0RWJObFpnd1EveDB4NzBTU2RweG9ZaUpuc3hnQ3BYVG9HNnBXUW5SZ2Q3b3dvZ3Y2UnhQZ1BQZDU3bXl6d3M9Cg==");
 
     // Run cargo build in our test project
     let output = std::process::Command::new("cargo")
@@ -220,11 +229,6 @@ mod tests {
     }
 
     assert_eq!(output.status.success(), true);
-
-    println!("Build done");
-
-    // set our private key -- this can also be a file path
-    std::env::set_var("TAURI_PRIVATE_KEY", "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5dGlHbTEvRFhRRis2STdlTzF3eWhOVk9LNjdGRENJMnFSREE3R2V3b3Rwb0FBQkFBQUFBQUFBQUFBQUlBQUFBQWFNZEJTNXFuVjk0bmdJMENRRXVYNG5QVzBDd1NMOWN4Q2RKRXZxRDZNakw3Y241Vkt3aTg2WGtoajJGS1owV0ZuSmo4ZXJ0ZCtyaWF0RWJObFpnd1EveDB4NzBTU2RweG9ZaUpuc3hnQ3BYVG9HNnBXUW5SZ2Q3b3dvZ3Y2UnhQZ1BQZDU3bXl6d3M9Cg==");
 
     // create fake args
     let temp_args = clap::ArgMatches::new();

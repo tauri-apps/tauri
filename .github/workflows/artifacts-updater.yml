@@ -1,0 +1,57 @@
+name: updater test artifacts
+on:
+  push:
+    branches:
+      - feature/new_updater
+  pull_request:
+    branches:
+      - feature/new_updater
+
+jobs:
+  build-artifacs:
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: install stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: install webkit2gtk (ubuntu only)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0
+      - run: cargo install --path ./cli/tauri-bundler --force
+      - name: build sample artifacts (updater)
+        run: |
+          cd ./tauri/examples/communication/src-tauri
+          cargo build
+          cargo-tauri-bundler tauri-bundler --format updater
+        env:
+          TAURI_PRIVATE_KEY: dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5dGlHbTEvRFhRRis2STdlTzF3eWhOVk9LNjdGRENJMnFSREE3R2V3b3Rwb0FBQkFBQUFBQUFBQUFBQUlBQUFBQWFNZEJTNXFuVjk0bmdJMENRRXVYNG5QVzBDd1NMOWN4Q2RKRXZxRDZNakw3Y241Vkt3aTg2WGtoajJGS1owV0ZuSmo4ZXJ0ZCtyaWF0RWJObFpnd1EveDB4NzBTU2RweG9ZaUpuc3hnQ3BYVG9HNnBXUW5SZ2Q3b3dvZ3Y2UnhQZ1BQZDU3bXl6d3M9Cg==
+          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
+          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
+
+      - uses: actions/upload-artifact@v2
+        if: matrix.platform == 'ubuntu-latest'
+        with:
+          name: linux-updater-artifacts
+          path: ./tauri/examples/communication/src-tauri/target/debug/bundle/appimage/app.AppImage.*
+
+      - uses: actions/upload-artifact@v2
+        if: matrix.platform == 'windows-latest'
+        with:
+          name: windows-updater-artifacts
+          path: ./tauri/examples/communication/src-tauri/target/debug/app.x64.msi.*
+
+      - uses: actions/upload-artifact@v2
+        if: matrix.platform == 'macos-latest'
+        with:
+          name: osx-updater-artifacts
+          path: ./tauri/examples/communication/src-tauri/target/debug/bundle/osx/app.app.tar.*

@@ -124,15 +124,15 @@ Do you want to install the update ?"#,
       &updater
         .download_and_install(pubkey.clone())
         .expect("unable to download");
-    }
 
-    // Ask user if we need to close the app
-    let should_exit = ask(
-      "The installation was successful, do you want to restart the application now?",
-      "Installation complete",
-    );
-    if should_exit == DialogSelection::Yes {
-      exit(1);
+      // Ask user if we need to close the app
+      let should_exit = ask(
+        "The installation was successful, do you want to restart the application now?",
+        "Installation complete",
+      );
+      if should_exit == DialogSelection::Yes {
+        exit(1);
+      }
     }
   }
 

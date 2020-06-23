@@ -3,23 +3,19 @@
 > ⚠️ This project is a working project. Expect breaking changes.
 ---
 
-The updater is focused on making Tauri's application updates **as safe
-and transparent as updates to a website**.
+The updater is focused on making Tauri's application updates **as safe and transparent as updates to a website**.
 
-Instead of publishing a feed of versions from which your app must select,
-Tauri updates to the version your server tells it to. This allows you to
-intelligently update your clients based on the request you give to Tauri.
+Instead of publishing a feed of versions from which your app must select, Tauri updates to the version your server tells it to. This allows you to intelligently update your clients based on the request you give to Tauri.
 
 The server can remotely drive behaviors like rolling back or phased rollouts.
 
-The update JSON Tauri requests should be dynamically generated based on
-criteria in the request, and whether an update is required.
+The update JSON Tauri requests should be dynamically generated based on criteria in the request, and whether an update is required.
 
-Tauri's installer is also designed to be fault tolerant, and ensure that any updates installed are valid and safe.
+Tauri's installer is also designed to be fault-tolerant, and ensure that any updates installed are valid and safe.
 
 # Configuration
 
-Once you have your tauri project ready, you need to configure the updater.
+Once you have your Tauri project ready, you need to configure the updater.
 
 Add this in tauri.config.js
 ```json
@@ -35,42 +31,41 @@ Add this in tauri.config.js
 
 The required keys are "active" and "endpoints", others are optional.
 
-"active" must be a boolean. By default it's set to false.
+"active" must be a boolean. By default, it's set to false.
 
 "endpoints" must be an array. The string `{{target}}` and `{{current_version}}` are automatically replaced in the URL allowing you determine [server-side](#update-server-json-format) if an update is available. If multiple endpoints are specified, the updater will fallback if a server is not responding within the pre-defined timeout.
 
-"dialog" if present must be a boolean. By default it's set to true. If enabled, [events](#events) are turned-off as the updater will handle everything. If you need the custom events, you MUST turn off the built-in dialog.
+"dialog" if present must be a boolean. By default, it's set to true. If enabled, [events](#events) are turned-off as the updater will handle everything. If you need the custom events, you MUST turn off the built-in dialog.
 
-"pubkey" if present must be a valid public-key generated with tauri cli. See [Signing updates](#signing-updates).
+"pubkey" if present must be a valid public-key generated with Tauri cli. See [Signing updates](#signing-updates).
 
 ## Update Requests
 
-Tauri is indifferent to the request the client application provides for
-update checking.
+Tauri is indifferent to the request the client application provides for update checking.
 
 `Accept: application/json` is added to the request headers because Tauri is responsible for parsing the response.
 
-For the requirements imposed on the responses and the body format of an update response see [Server Support](#server-support).
+For the requirements imposed on the responses and the body format of an update, response see [Server Support](#server-support).
 
 Your update request must *at least* include a version identifier so that the server can determine whether an update for this specific version is required.
 
-It may also include other identifying criteria such as operating system version, to allow the server to deliver as fine grained an update as you would like.
+It may also include other identifying criteria such as operating system version, to allow the server to deliver as fine-grained an update as you would like.
 
 How you include the version identifier or other criteria is specific to the server that you are requesting updates from. A common approach is to use query parameters, [Configuration](#configuration) shows an example of this.
 
 ## Built-in dialog
 
-By default, updater use built-in dialog API from Tauri.
+By default, updater uses a built-in dialog API from Tauri.
 
 ![New Update](https://i.imgur.com/6qGiIlJ.png)
 
 The dialog first line of text is represented by the update `note` provided by the [server](#server-support).
 
-If user accept, the download and install is initialized. The user will be then prompted to restart the application.
+If the user accepts, the download and install are initialized. The user will be then prompted to restart the application.
 
 ## Events
 
-**Attention, you need to disable built-in dialog in your [tauri configuration](#configuration), otherwise events aren't emitted.**
+**Attention, you need to disable built-in dialog in your [tauri configuration](#configuration), otherwise, events aren't emitted.**
 
 To know when an update is ready to be installed, you can subscribe to these events:
 
@@ -101,7 +96,7 @@ window.tauri.listen("update-available", function (res) {
 
 ### Emit Install and Download
 
-You need to emit this event to initialize the download and listen the [install progress](#listen-install-progress).
+You need to emit this event to initialize the download and listen to the [install progress](#listen-install-progress).
 
 Event : `updater-install`
 
@@ -143,8 +138,7 @@ window.tauri.listen("update-install-status", function (res) {
 
 # Server Support
 
-Your server should determine whether an update is required based on the
-[Update Request](#update-requests) your client issues.
+Your server should determine whether an update is required based on the [Update Request](#update-requests) your client issues.
 
 If an update is required your server should respond with a status code of [200 OK](http://tools.ietf.org/html/rfc2616#section-10.2.1) and include the [update JSON](#update-server-json-format) in the body. To save redundantly downloading the same version multiple times your server must not inform the client to update.
 
@@ -168,7 +162,34 @@ The only required keys are "url" and "version", the others are optional.
 
 "pub_date" if present must be formatted according to ISO 8601.
 
-"signature" if present must be a valid signature generated with tauri cli. See [Signing updates](#signing-updates).
+"signature" if present must be a valid signature generated with Tauri cli. See [Signing updates](#signing-updates).
+
+## Update File JSON Format
+
+The alternate update technique uses a plain JSON file meaning you can store your update metadata on S3, gist, or another static file store. Tauri will check against the name/version field and if the version is smaller than the current one and the platform is available, the update will be triggered. The format of this file is detailed below:
+
+```json
+{
+	"name":"v1.0.0",
+	"notes":"Test version",
+	"pub_date":"2020-06-22T19:25:57Z",
+	"platforms": {
+		"darwin": {
+			"signature":"",
+			"url":"https://github.com/lemarier/tauri-test/releases/download/v1.0.0/app.app.tar.gz"
+		},
+ 		"linux": {
+			"signature":"",
+			"url":"https://github.com/lemarier/tauri-test/releases/download/v1.0.0/app.AppImage.tar.gz"
+		},
+		"win64": {
+			"signature":"",
+			"url":"https://github.com/lemarier/tauri-test/releases/download/v1.0.0/app.x64.msi.zip"
+		}
+	}
+}
+```
+
 
 # Bundler (Artifacts)
 
@@ -176,9 +197,9 @@ The Tauri bundler will automatically generate update artifacts if the updater is
 
 If the bundler can locate your private and pubkey, your update artifacts will be automatically signed.
 
-The signature can be found in the `sig` file. Signature can be uploaded to github safely or made public as long as your private key is secure.
+The signature can be found in the `sig` file. The signature can be uploaded to GitHub safely or made public as long as your private key is secure.
 
-## MacOS
+## macOS
 
 On MACOS we create a .tar.gz from the whole application. (.app)
 
@@ -204,7 +225,7 @@ target/release/bundle
 
 ## Linux
 
-On Linux we create a .tar.gz from the AppImage.
+On Linux, we create a .tar.gz from the AppImage.
 
 ```
 target/release/bundle
@@ -216,15 +237,15 @@ target/release/bundle
 
 # Signing updates
 
-We offer built-in signature to ensure your update are safe to be installed.
+We offer a built-in signature to ensure your update is safe to be installed.
 
 To sign your updates, you need two things.
 
-The *Public key* (pubkey) should be added inside your tauri.config.js to validate the update archive before installing.
+The *Public-key* (pubkey) should be added inside your tauri.config.js to validate the update archive before installing.
 
 The *Private key* (privkey) is used to sign your update and should NEVER be shared with anyone. Also, if you lost this key, you'll NOT be able to publish a new update to the current user base (if pubkey is set in tauri.config.js). It's important to save it at a safe place and you can always access it.
 
-To generate your keys you need to use the tauri cli. (will be built in tauri main CLI soon)
+To generate your keys you need to use the Tauri cli. (will be built in Tauri main CLI soon)
 
 ```bash
 cargo tauri-sign-updates -g
@@ -246,8 +267,12 @@ OPTIONS:
 
 ***
 
-Environment variabled used to sign:
+Environment variables used to sign:
 
 `TAURI_PRIVATE_KEY`  Path or String of your private key
 
 `TAURI_KEY_PASSWORD`  Your private key password (optional)
+
+## Sample artifacts
+
+Test artifacts actually used in some tests can be [seen here](https://github.com/lemarier/tauri-test/releases/tag/v1.0.0)

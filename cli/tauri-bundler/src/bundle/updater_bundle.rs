@@ -188,6 +188,7 @@ mod tests {
   use tauri_updater::verify_signature;
   use totems::assert_ok;
 
+  #[cfg(target_os = "macos")]
   #[test]
   fn updater_with_signature_bundling() {
     // create our example path

@@ -365,13 +365,12 @@ impl Update {
     // tmp dir for extraction
     let tmp_dir = tempfile::Builder::new()
       .prefix(&format!("{}_download", bin_name))
-      .tempdir_in(tmp_dir_parent)
-      .expect("Can't create temp dir for download process");
+      .tempdir_in(tmp_dir_parent)?;
 
     // tmp directories are used to create backup of current application
     // if something goes wrong, we can restore to previous state
     let tmp_archive_path = tmp_dir.path().join(detect_archive_in_url(&url, &target));
-    let tmp_archive = File::create(&tmp_archive_path).expect("Can't create tmp archive");
+    let tmp_archive = File::create(&tmp_archive_path)?;
 
     // prepare our download
     use io::BufRead;
@@ -427,7 +426,7 @@ impl Update {
     // Download file
     loop {
       let n = {
-        let buf = src.fill_buf().expect("Something wrong when writing buffer");
+        let buf = src.fill_buf()?;
         dest
           .write_all(&buf)
           .expect("Can't write buffer to destination path");
@@ -467,7 +466,7 @@ impl Update {
     // extract using tauri api inside a tmp path
     Extract::from_source(&tmp_archive_path).extract_into(&tmp_dir.path())?;
     // Remove archive (not needed anymore)
-    remove_file(&tmp_archive_path).expect("Can't remove tmp file");
+    remove_file(&tmp_archive_path)?;
     // we copy the files depending of the operating system
     // we run the setup, appimage re-install or overwrite the
     // macos .app

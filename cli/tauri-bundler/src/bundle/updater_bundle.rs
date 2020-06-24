@@ -169,7 +169,8 @@ fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
 #[cfg(target_os = "windows")]
 fn create_zip(source: &PathBuf, archive_path: &PathBuf) -> crate::Result<()> {
-  archive_utils::zip_dir(source, archive_path).with_context(|| "Failed to zip update directory")?;
+  archive_utils::zip_file(source, archive_path)
+    .with_context(|| "Failed to zip update directory")?;
 
   Ok(())
 }

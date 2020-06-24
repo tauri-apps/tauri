@@ -87,6 +87,31 @@ fn create_tar_from_src<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
 }
 
 #[cfg(target_os = "windows")]
+pub fn zip_file(src_file: &PathBuf, dst_file: &PathBuf) -> crate::Result<PathBuf> {
+  let parent_dir = dst_file.parent().expect("No data in parent");
+  fs::create_dir_all(parent_dir)?;
+  let writer = common::create_file(dst_file)?;
+
+  let file_name = src_file
+    .file_name()
+    .expect("Can't extract file name from path");
+
+  let mut zip = zip::ZipWriter::new(writer);
+  let options = FileOptions::default()
+    .compression_method(zip::CompressionMethod::Stored)
+    .unix_permissions(0o755);
+
+  zip.start_file_from_path(&PathBuf::from(file_name), options)?;
+  let mut f = File::open(src_file)?;
+  let mut buffer = Vec::new();
+  f.read_to_end(&mut buffer)?;
+  zip.write_all(&*buffer)?;
+  buffer.clear();
+
+  Ok(dst_file.to_owned())
+}
+
+#[cfg(target_os = "windows")]
 pub fn zip_dir(src_dir: &PathBuf, dst_file: &PathBuf) -> crate::Result<PathBuf> {
   let parent_dir = dst_file.parent().expect("No data in parent");
   fs::create_dir_all(parent_dir)?;

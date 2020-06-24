@@ -222,7 +222,8 @@ impl<'a> UpdateBuilder<'a> {
       let resp = reqwest::blocking::Client::new()
         .get(&fixed_link)
         .headers(headers)
-        .timeout(Duration::from_secs(5))
+        // wait 20sec for the firewall
+        .timeout(Duration::from_secs(20))
         .send();
 
       // If we got a success, we stop the loop
@@ -394,6 +395,8 @@ impl Update {
     // Create our request
     let resp = reqwest::blocking::Client::new()
       .get(&url)
+      // wait 20sec for the firewall
+      .timeout(Duration::from_secs(20))
       .headers(headers)
       .send()?;
 

@@ -340,14 +340,6 @@ impl Update {
       )
     }
 
-    // tmp dir
-    let tmp_dir_parent = if cfg!(windows) {
-      env::var_os("TEMP").map(PathBuf::from)
-    } else {
-      extract_path.parent().map(PathBuf::from)
-    }
-    .ok_or_else(|| crate::Error::Updater("Failed to determine parent dir".into()))?;
-
     // used for temp file name
     // if we cant extract app name, we use unix epoch duration
     let current_time = SystemTime::now()
@@ -361,12 +353,12 @@ impl Update {
       .ok()
       .and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
       .and_then(|s| s.into_string().ok())
-      .unwrap_or(current_time);
+      .unwrap_or(current_time.clone());
 
     // tmp dir for extraction
     let tmp_dir = tempfile::Builder::new()
-      .prefix(&format!("{}_download", bin_name))
-      .tempdir_in(tmp_dir_parent)?;
+      .prefix(&format!("{}_{}_download", bin_name, current_time))
+      .tempdir()?;
 
     // tmp directories are used to create backup of current application
     // if something goes wrong, we can restore to previous state

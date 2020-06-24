@@ -9,7 +9,24 @@ use web_view::WebView;
 
 use tauri_updater;
 
+/// Spawn the update process
 pub fn spawn_update_process(webview: &WebView<'_, ()>) -> crate::Result<()> {
+  if let Err(e) = init_updater(webview) {
+    // we got an error, lets emit it so we can catch it with our event system later
+    let handler = webview.handle();
+    println!("[UPDATE ERROR] {}", e);
+    event::emit(
+      &handler,
+      "updater-error".into(),
+      Some(format!(r#"{{"error":"{:}"}}"#, e,)),
+    );
+  }
+
+  Ok(())
+}
+
+// updater entrypoint
+fn init_updater(webview: &WebView<'_, ()>) -> crate::Result<()> {
   let config = get_config()?;
 
   let handler = webview.handle();
@@ -25,7 +42,9 @@ pub fn spawn_update_process(webview: &WebView<'_, ()>) -> crate::Result<()> {
     .updater
     .endpoints
     .as_ref()
-    .expect("Unable to extract endpoints")
+    // this expect can lead to a panic
+    // we should have a better handling here
+    .expect("Something wrong with endpoints")
     .clone();
 
   // did we have a pubkey?
@@ -38,7 +57,7 @@ pub fn spawn_update_process(webview: &WebView<'_, ()>) -> crate::Result<()> {
   }
 
   // check update inside a new thread
-  spawn(move || {
+  spawn(move || -> crate::Result<()> {
     // todo(lemarier): wait the `update-available` event to be registred before checking our update
     let fivesec = Duration::from_millis(5000);
     sleep(fivesec);
@@ -49,11 +68,9 @@ pub fn spawn_update_process(webview: &WebView<'_, ()>) -> crate::Result<()> {
       // we force the version 0.0.1 for our test
       // should be removed
       .current_version("0.0.1")
-      .build()
-      .expect("Unable to check updates");
+      .build()?;
 
     if updater.should_update {
-      println!("NEW VERSION AVAILABLE");
       // unwrap our body or return an empty string
       let body = updater.body.clone().unwrap_or("".into());
 
@@ -79,9 +96,7 @@ pub fn spawn_update_process(webview: &WebView<'_, ()>) -> crate::Result<()> {
         // init download
         // @todo:(lemarier) maybe emit download progress
         // but its a bit more complexe
-        &updater
-          .download_and_install(pubkey.clone())
-          .expect("unable to download");
+        &updater.download_and_install(pubkey.clone()).unwrap_or(());
 
         event::emit(
           &handler,
@@ -90,6 +105,8 @@ pub fn spawn_update_process(webview: &WebView<'_, ()>) -> crate::Result<()> {
         );
       });
     }
+
+    Ok(())
   });
 
   Ok(())
@@ -104,8 +121,7 @@ fn simple_update_with_dialog(
     // we force the version 0.0.1 for our test
     // should be removed
     .current_version("0.0.1")
-    .build()
-    .expect("Unable to check updates");
+    .build()?;
 
   // we have a new update
   if updater.should_update {
@@ -114,21 +130,27 @@ fn simple_update_with_dialog(
     // Ask user if we need to install
     let should_install = ask(
       &format!(
-        r#"{:}
-Do you want to install the update ?"#,
+        r#"{:} {:} is now available -- you have {:}.
+Would you like to install it now?
+
+Release Notes:
+{:}"#,
+        // todo(lemarier): Replace with app name from cargo maybe?
+        "AppX",
+        updater.version,
+        updater.current_version,
         body
       ),
-      &format!(r#"{:} "#, updater.version),
+      // todo(lemarier): Replace with app name from cargo maybe?
+      &format!(r#"A new version of {:} is available! "#, "AppX"),
     );
     if should_install == DialogSelection::Yes {
-      &updater
-        .download_and_install(pubkey.clone())
-        .expect("unable to download");
+      &updater.download_and_install(pubkey.clone())?;
 
       // Ask user if we need to close the app
       let should_exit = ask(
         "The installation was successful, do you want to restart the application now?",
-        "Installation complete",
+        "Ready to Restart",
       );
       if should_exit == DialogSelection::Yes {
         exit(1);

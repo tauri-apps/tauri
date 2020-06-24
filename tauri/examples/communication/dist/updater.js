@@ -19,3 +19,8 @@ window.tauri.listen("update-available", function (res) {
   console.log("New version available: ");
   console.log(res);
 });
+
+// listen our updates error
+window.tauri.listen("update-error", function (res) {
+  console.log("UPDATE ERROR ", res);
+});

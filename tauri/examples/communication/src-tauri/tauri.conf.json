@@ -58,6 +58,9 @@
     "bundle": {
       "active": true,
       "identifier": "com.tauri.communication",
+      "osx": {
+        "minimumSystemVersion": "10.14.4"
+      },
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",

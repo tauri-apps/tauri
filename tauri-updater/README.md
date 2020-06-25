@@ -199,6 +199,8 @@ If the bundler can locate your private and pubkey, your update artifacts will be
 
 The signature can be found in the `sig` file. The signature can be uploaded to GitHub safely or made public as long as your private key is secure.
 
+You can see how it's [bundled with the CI](https://github.com/tauri-apps/tauri/blob/feature/new_updater/.github/workflows/artifacts-updater.yml#L44)
+
 ## macOS
 
 On MACOS we create a .tar.gz from the whole application. (.app)
@@ -216,11 +218,10 @@ target/release/bundle
 On Windows we create a .zip from the MSI, when downloaded and validated, we run the MSI install.
 
 ```
-target/release/bundle
-└── win
-    └── app.x64.msi
-    └── app.x64.msi.zip (update bundle)
-    └── app.x64.msi.zip.sig (if signature enabled)
+target/release
+└── app.x64.msi
+└── app.x64.msi.zip (update bundle)
+└── app.x64.msi.zip.sig (if signature enabled)
 ```
 
 ## Linux
@@ -272,7 +273,3 @@ Environment variables used to sign:
 `TAURI_PRIVATE_KEY`  Path or String of your private key
 
 `TAURI_KEY_PASSWORD`  Your private key password (optional)
-
-## Sample artifacts
-
-Test artifacts actually used in some tests can be [seen here](https://github.com/lemarier/tauri-test/releases/tag/v1.0.0)

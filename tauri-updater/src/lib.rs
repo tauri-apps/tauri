@@ -876,7 +876,7 @@ mod test {
     // make sure we need to update
     assert_eq!(updater.should_update, true);
     // make sure we can read announced version
-    assert_eq!(updater.version, "1.0.0");
+    assert_eq!(updater.version, "2.0.0");
 
     // download, install and validate signature
     let install_process = updater.download_and_install(pubkey_test);

@@ -52,6 +52,16 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         } => {
           file_system::write_file(webview, file, contents, options, callback, error);
         }
+        #[cfg(any(feature = "all-api", feature = "write-binary-file"))]
+        WriteBinaryFile {
+          file,
+          contents,
+          options,
+          callback,
+          error,
+        } => {
+          file_system::write_binary_file(webview, file, contents, options, callback, error);
+        }
         #[cfg(any(feature = "all-api", feature = "read-dir"))]
         ReadDir {
           path,

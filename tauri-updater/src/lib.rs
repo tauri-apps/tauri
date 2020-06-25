@@ -9,6 +9,7 @@ use reqwest::{self, header, StatusCode};
 use std::{
   cmp::min,
   env,
+  ffi::OsStr,
   fs::{read_dir, remove_file, File, OpenOptions},
   io::{self, BufReader, Read},
   path::{Path, PathBuf},
@@ -485,7 +486,7 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Resu
   for path in paths {
     let found_path = path.expect("Unable to extract").path();
     // make sure it's our .AppImage
-    if found_path.display().to_string().contains(".AppImage") {
+    if found_path.extension() == Some(OsStr::new("AppImage")) {
       // Simply overwrite our AppImage (we use the command)
       // because it prevent failing of bytes stream
       Command::new("mv")
@@ -515,19 +516,19 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
   let paths = read_dir(&tmp_dir).unwrap();
   for path in paths {
     let found_path = path.expect("Unable to extract").path();
-    let path_string = found_path.display().to_string();
-
     // we support 2 type of files exe & msi for now
-    if path_string.contains(".exe") {
+    if found_path.extension() == Some(OsStr::new("exe")) {
       // Run the EXE
       // maybe we can detach and kill the app?
       Command::new(found_path).output()?;
       // early finish we have everything we need here
       return Ok(());
-    } else if path_string.contains(".msi") {
+    } else if found_path.extension() == Some(OsStr::new("msi")) {
       // We have a MSI (wix)
       // maybe we can detach and kill the app?
-      // but I think wix can handle this.
+      // if we do this, we need to copy our MSI
+      // outside of the tempdir as it'll be deleted when the
+      // update process is complete
       Command::new("msiexec.exe")
         .arg("/i")
         .arg(found_path)
@@ -556,7 +557,7 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Resu
   for path in paths {
     let found_path = path.expect("Unable to extract").path();
     // make sure it's our .app
-    if found_path.display().to_string().contains(".app") {
+    if found_path.extension() == Some(OsStr::new("app")) {
       // Walk the temp dir and copy all files by replacing existing files only
       // and creating directories if needed
       Move::from_source(&found_path)

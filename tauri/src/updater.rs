@@ -63,12 +63,7 @@ fn init_updater(webview: &WebView<'_, ()>) -> crate::Result<()> {
     sleep(fivesec);
 
     // Check if we have a new version announced
-    let updater = tauri_updater::builder()
-      .urls(&endpoints[..])
-      // we force the version 0.0.1 for our test
-      // should be removed
-      .current_version("0.0.1")
-      .build()?;
+    let updater = tauri_updater::builder().urls(&endpoints[..]).build()?;
 
     if updater.should_update {
       // unwrap our body or return an empty string
@@ -116,12 +111,7 @@ fn simple_update_with_dialog(
   endpoints: &Vec<String>,
   pubkey: &Option<String>,
 ) -> crate::Result<()> {
-  let updater = tauri_updater::builder()
-    .urls(&endpoints[..])
-    // we force the version 0.0.1 for our test
-    // should be removed
-    .current_version("0.0.1")
-    .build()?;
+  let updater = tauri_updater::builder().urls(&endpoints[..]).build()?;
 
   // we have a new update
   if updater.should_update {

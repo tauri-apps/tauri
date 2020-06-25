@@ -13,7 +13,7 @@ pub struct App {
   version: Option<String>,
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Clone)]
 pub struct AppMeta {
   pub name: String,
   pub version: String,

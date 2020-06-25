@@ -515,21 +515,23 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
   let paths = read_dir(&tmp_dir).unwrap();
   for path in paths {
     let found_path = path.expect("Unable to extract").path();
-    // make sure it's our .msi our .exe
-    if found_path.display().to_string().contains(".exe")
-      || found_path.display().to_string().contains(".msi")
-    {
-      // Simply overwrite our AppImage (we use the command)
-      // because it prevent failing of bytes stream
-      Command::new(found_path)
-        // To be confirmed with WIX if we can build custom args
-        // by example we can pass the _extract_path to tell exactly
-        // where to install the app...
-        .arg("/S")
-        .arg("--updated")
-        .arg("--force")
-        .output()?;
+    let path_string = found_path.display().to_string();
 
+    // we support 2 type of files exe & msi for now
+    if path_string.contains(".exe") {
+      // Run the EXE
+      // maybe we can detach and kill the app?
+      Command::new(found_path).output()?;
+      // early finish we have everything we need here
+      return Ok(());
+    } else if path_string.contains(".msi") {
+      // We have a MSI (wix)
+      // maybe we can detach and kill the app?
+      // but I think wix can handle this.
+      Command::new("msiexec.exe")
+        .arg("/i")
+        .arg(found_path)
+        .output()?;
       // early finish we have everything we need here
       return Ok(());
     }

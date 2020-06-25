@@ -21,6 +21,8 @@ use tauri_api::config::get;
 pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   // setup the content using the config struct depending on the compile target
   let main_content = setup_content()?;
+  #[cfg(feature = "updater")]
+  let app_meta = application.meta();
 
   // setup the server url for the embedded-server
   #[cfg(feature = "embedded-server")]
@@ -55,7 +57,12 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   // Init the updater if required
   // The webview is required for the events
   #[cfg(feature = "updater")]
-  spawn_update_process(&webview)?;
+  {
+    if app_meta.is_some() {
+      let meta = app_meta.expect("Can't extract app metadata").clone();
+      spawn_update_process(&meta, &webview)?;
+    }
+  }
 
   // run the webview
   webview.run()?;

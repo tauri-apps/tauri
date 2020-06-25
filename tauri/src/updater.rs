@@ -1,3 +1,4 @@
+use crate::app;
 use crate::event;
 use std::{
   process::exit,
@@ -10,8 +11,8 @@ use web_view::WebView;
 use tauri_updater;
 
 /// Spawn the update process
-pub fn spawn_update_process(webview: &WebView<'_, ()>) -> crate::Result<()> {
-  if let Err(e) = init_updater(webview) {
+pub fn spawn_update_process(meta: &app::AppMeta, webview: &WebView<'_, ()>) -> crate::Result<()> {
+  if let Err(e) = init_updater(meta, webview) {
     // we got an error, lets emit it so we can catch it with our event system later
     let handler = webview.handle();
     println!("[UPDATE ERROR] {}", e);
@@ -26,9 +27,9 @@ pub fn spawn_update_process(webview: &WebView<'_, ()>) -> crate::Result<()> {
 }
 
 // updater entrypoint
-fn init_updater(webview: &WebView<'_, ()>) -> crate::Result<()> {
+fn init_updater(meta: &app::AppMeta, webview: &WebView<'_, ()>) -> crate::Result<()> {
   let config = get_config()?;
-
+  let meta = meta.clone();
   let handler = webview.handle();
 
   // do nothing if our updater is not active or we can't find endpoints
@@ -53,7 +54,7 @@ fn init_updater(webview: &WebView<'_, ()>) -> crate::Result<()> {
   // if dialog is enabled, events aren't needed so use
   // simple updater
   if config.tauri.updater.dialog {
-    return simple_update_with_dialog(&endpoints, &pubkey);
+    return simple_update_with_dialog(&endpoints, &pubkey, meta);
   }
 
   // check update inside a new thread
@@ -63,7 +64,10 @@ fn init_updater(webview: &WebView<'_, ()>) -> crate::Result<()> {
     sleep(fivesec);
 
     // Check if we have a new version announced
-    let updater = tauri_updater::builder().urls(&endpoints[..]).build()?;
+    let updater = tauri_updater::builder()
+      .urls(&endpoints[..])
+      .current_version(&meta.version)
+      .build()?;
 
     if updater.should_update {
       // unwrap our body or return an empty string
@@ -110,12 +114,18 @@ fn init_updater(webview: &WebView<'_, ()>) -> crate::Result<()> {
 fn simple_update_with_dialog(
   endpoints: &Vec<String>,
   pubkey: &Option<String>,
+  meta: app::AppMeta,
 ) -> crate::Result<()> {
-  let updater = tauri_updater::builder().urls(&endpoints[..]).build()?;
+  let updater = tauri_updater::builder()
+    .urls(&endpoints[..])
+    .current_version(&meta.version)
+    .build()?;
 
   // we have a new update
   if updater.should_update {
     let body = updater.body.clone().unwrap_or("".into());
+
+    let app_name = meta.name;
 
     // Ask user if we need to install
     let should_install = ask(
@@ -126,13 +136,13 @@ Would you like to install it now?
 Release Notes:
 {:}"#,
         // todo(lemarier): Replace with app name from cargo maybe?
-        "AppX",
+        app_name,
         updater.version,
         updater.current_version,
         body
       ),
       // todo(lemarier): Replace with app name from cargo maybe?
-      &format!(r#"A new version of {:} is available! "#, "AppX"),
+      &format!(r#"A new version of {:} is available! "#, app_name),
     );
     if should_install == DialogSelection::Yes {
       &updater.download_and_install(pubkey.clone())?;

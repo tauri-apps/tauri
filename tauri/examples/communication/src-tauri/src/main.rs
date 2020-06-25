@@ -14,6 +14,9 @@ struct Reply {
 
 fn main() {
   tauri::AppBuilder::new()
+    // UGLY FIX TO SET CURRENT APP NAME & VERSION
+    .name(env!("CARGO_PKG_NAME"))
+    .version(env!("CARGO_PKG_VERSION"))
     .setup(|webview, _source| {
       let handle = webview.handle();
       tauri::event::listen(String::from("js-event"), move |msg| {

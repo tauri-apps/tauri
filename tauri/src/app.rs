@@ -9,6 +9,14 @@ pub struct App {
   invoke_handler: Option<InvokeHandler>,
   setup: Option<Setup>,
   splashscreen_html: Option<String>,
+  name: Option<String>,
+  version: Option<String>,
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct AppMeta {
+  pub name: String,
+  pub version: String,
 }
 
 impl App {
@@ -37,6 +45,23 @@ impl App {
   pub fn splashscreen_html(&self) -> Option<&String> {
     self.splashscreen_html.as_ref()
   }
+
+  pub fn meta(&self) -> Option<AppMeta> {
+    if self.version.is_some() && self.name.is_some() {
+      Some(AppMeta {
+        version: self
+          .version
+          .clone()
+          .expect("Something wrong with app version extraction"),
+        name: self
+          .name
+          .clone()
+          .expect("Something wrong with app name extraction"),
+      })
+    } else {
+      None
+    }
+  }
 }
 
 #[derive(Default)]
@@ -44,6 +69,8 @@ pub struct AppBuilder {
   invoke_handler: Option<InvokeHandler>,
   setup: Option<Setup>,
   splashscreen_html: Option<String>,
+  name: Option<String>,
+  version: Option<String>,
 }
 
 impl AppBuilder {
@@ -52,6 +79,8 @@ impl AppBuilder {
       invoke_handler: None,
       setup: None,
       splashscreen_html: None,
+      name: None,
+      version: None,
     }
   }
 
@@ -73,11 +102,23 @@ impl AppBuilder {
     self
   }
 
+  pub fn name(mut self, name: &str) -> Self {
+    self.name = Some(name.to_string());
+    self
+  }
+
+  pub fn version(mut self, version: &str) -> Self {
+    self.version = Some(version.to_string());
+    self
+  }
+
   pub fn build(self) -> App {
     App {
       invoke_handler: self.invoke_handler,
       setup: self.setup,
       splashscreen_html: self.splashscreen_html,
+      name: self.name,
+      version: self.version,
     }
   }
 }

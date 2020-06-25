@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.1]
+
+-   Fixes the Windows build with the latest Windows SDK.
+
 ## [0.7.0]
 
 -   Adds a command line interface option to tauri apps, configurable under tauri.conf.json > tauri > cli.

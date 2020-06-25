@@ -43,7 +43,7 @@ switch (navigator.platform) {
   case "Win32":
   case "Win64":
     break;
-  default: 
+  default:
     window.external = this
     invoke = function (x) {
       window.webkit.messageHandlers.external.postMessage(x);
@@ -322,6 +322,37 @@ switch (navigator.platform) {
 
     <% if (ctx.dev) { %>
       /**
+       * @name writeBinaryFile
+       * @description Write a binary file to the Local Filesystem.
+       * Permissions based on the app's PID owner
+       * @param {Object} cfg
+       * @param {String} cfg.file
+       * @param {String|Binary} cfg.contents
+       * @param {Object} [options]
+       * @param {BaseDirectory} [options.dir]
+       */
+    <% } %>
+    writeBinaryFile: function writeBinaryFile(cfg, options) {
+      <% if (tauri.whitelist.writeBinaryFile === true || tauri.whitelist.all === true) { %>
+        if (_typeof(cfg) === 'object') {
+          Object.freeze(cfg);
+        }
+        return this.promisified({
+          cmd: 'writeBinaryFile',
+          file: cfg.file,
+          contents: cfg.contents,
+          options: options
+        });
+      <% } else { %>
+        <% if (ctx.dev) { %>
+            return __whitelistWarning('writeBinaryFile')
+            <% } %>
+          return __reject()
+          <% } %>
+    },
+
+    <% if (ctx.dev) { %>
+      /**
        * @name readDir
        * @description Reads a directory
        * Permissions based on the app's PID owner
@@ -343,8 +374,7 @@ switch (navigator.platform) {
         <% if (ctx.dev) { %>
             return __whitelistWarning('readDir')
             <% } %>
-          return __reject()
-          <% } %>
+      <% } %>
     },
 
     <% if (ctx.dev) { %>

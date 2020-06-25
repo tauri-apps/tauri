@@ -207,6 +207,28 @@ window.tauri = {
 
 <% if (ctx.dev) { %>
   /**
+   * @name writeBinaryFile
+   * @description Write a binary file to the Local Filesystem.
+   * Permissions based on the app's PID owner
+   * @param {Object} cfg
+   * @param {String} cfg.file
+   * @param {String|Binary} cfg.contents
+   */
+<% } %>
+  writeBinaryFile (cfg) {
+  <% if (tauri.whitelist.writeBinaryFile === true || tauri.whitelist.all === true) { %>
+    Object.freeze(cfg)
+    this.invoke({ cmd: 'writeBinaryFile', file: cfg.file, contents: cfg.contents })
+    <% } else { %>
+  <% if (ctx.dev) { %>
+      __whitelistWarning('writeBinaryFile')
+      <% } %>
+    return __reject
+      <% } %>
+  },
+
+<% if (ctx.dev) { %>
+  /**
    * @name listFiles
    * @description Get the files in a path.
    * Permissions based on the app's PID owner

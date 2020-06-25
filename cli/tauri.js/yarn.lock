@@ -8930,7 +8930,7 @@ to-regex@^3.0.1, to-regex@^3.0.2:
     regex-not "^1.0.2"
     safe-regex "^1.1.0"
 
-toml-loader@^1.0.0:
+toml-loader@1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/toml-loader/-/toml-loader-1.0.0.tgz#05249b9294b623601148260caa480b22a653a19a"
   integrity sha1-BSSbkpS2I2ARSCYMqkgLIqZToZo=

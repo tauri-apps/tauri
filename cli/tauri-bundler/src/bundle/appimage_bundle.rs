@@ -25,6 +25,15 @@ lazy_static! {
 
 // bundle the project.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
+
+  // prerequisite: check if mksquashfs (part of squashfs-tools) is installed
+  Command::new("mksquashfs")
+    .arg("-version")
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .status()
+    .expect("mksquashfs is not installed. Please install squashfs-tools and try again.");
+
   // generate the deb binary name
   let arch = match settings.binary_arch() {
     "x86" => "i386",

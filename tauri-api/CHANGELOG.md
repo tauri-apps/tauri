@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.6.1]
+
+-   Fixes the httpRequest headers usage. It now accepts Strings instead of serde_json::Value.
+
 ## [0.6.0]
 
 -   This adds HttpRequestBuilder, described at "alternatives you've considered" section in undefined.

@@ -242,9 +242,9 @@ We offer a built-in signature to ensure your update is safe to be installed.
 
 To sign your updates, you need two things.
 
-The *Public-key* (pubkey) should be added inside your tauri.config.js to validate the update archive before installing.
+The *Public-key* (pubkey) should be added inside your tauri.config.json to validate the update archive before installing.
 
-The *Private key* (privkey) is used to sign your update and should NEVER be shared with anyone. Also, if you lost this key, you'll NOT be able to publish a new update to the current user base (if pubkey is set in tauri.config.js). It's important to save it at a safe place and you can always access it.
+The *Private key* (privkey) is used to sign your update and should NEVER be shared with anyone. Also, if you lost this key, you'll NOT be able to publish a new update to the current user base (if pubkey is set in tauri.config.json). It's important to save it at a safe place and you can always access it.
 
 To generate your keys you need to use the Tauri cli. (will be built in Tauri main CLI soon)
 

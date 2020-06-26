@@ -181,7 +181,7 @@ fn run() -> crate::Result<()> {
             .long("force")
             .short("f")
             .requires_all(&["generate-key", "write-private-key"])
-            .help("Overwrite private key even if exist on the specified path"),
+            .help("Overwrite private key even if it exists on the specified path"),
         ),
     )
     .get_matches();

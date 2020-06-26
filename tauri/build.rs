@@ -87,6 +87,7 @@ fn shared() {
     read_text_file: { any(all_api, feature = "read-text-file") },
     read_binary_file: { any(all_api, feature = "read-binary-file") },
     write_file: { any(all_api, feature = "write-file") },
+    write_binary_file: { any(all_api, feature = "write-binary-file") },
     read_dir: { any(all_api, feature = "read-dir") },
     copy_file: { any(all_api, feature = "copy-file") },
     create_dir: { any(all_api, feature = "create_dir") },

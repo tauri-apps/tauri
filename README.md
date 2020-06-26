@@ -70,6 +70,7 @@ If you are interested in making a tauri-app, please visit the [documentation web
 - [x] renameFile - rename a file
 - [x] copyFile - copy a file to a new destination
 - [x] writeFile - write file to local filesystem
+- [x] writeBinaryFile - write binary file to local filesystem
 - [x] readBinaryFile - read binary file from local filesystem
 - [x] readTextFile - read text file from local filesystem
 

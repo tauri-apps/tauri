@@ -23,9 +23,14 @@ export interface FsOptions {
   dir?: BaseDirectory
 }
 
-export interface FsFileOption {
+export interface FsTextFileOption {
   path: string
   contents: string
+}
+
+export interface FsBinaryFileOption {
+  path: string
+  contents: ArrayBuffer
 }
 
 export interface FileEntry {

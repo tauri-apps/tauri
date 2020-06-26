@@ -62,6 +62,13 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
+  WriteBinaryFile {
+    file: String,
+    contents: String,
+    options: Option<FileOperationOptions>,
+    callback: String,
+    error: String,
+  },
   ReadDir {
     path: String,
     options: Option<DirOperationOptions>,

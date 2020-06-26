@@ -17,7 +17,7 @@ Tauri's installer is also designed to be fault-tolerant, and ensure that any upd
 
 Once you have your Tauri project ready, you need to configure the updater.
 
-Add this in tauri.config.js
+Add this in tauri.config.json
 ```json
 "updater": {
     "active": true,

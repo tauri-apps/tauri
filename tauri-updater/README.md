@@ -25,7 +25,7 @@ Add this in tauri.config.json
         "https://releases.myapp.com/{target}}/{current_version}}"
     ],
     "dialog": true,
-    "pubkey": "",
+    "pubkey": ""
 }
 ```
 

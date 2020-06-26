@@ -16,7 +16,7 @@ jobs:
           git config --global user.name "${{ github.event.pusher.name }}"
           git config --global user.email "${{ github.event.pusher.email }}"
       - name: covector version
-        uses: jbolda/covector/packages/action@master
+        uses: jbolda/covector/packages/action@main
         id: covector
         with:
           command: 'version'

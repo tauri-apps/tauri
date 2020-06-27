@@ -38,6 +38,7 @@ tauri-updater = { version = "0.5", optional = true,  path = "../tauri-updater" }
 
 [build-dependencies]
 tauri_includedir_codegen = "0.6.0"
+cfg_aliases = "0.1.0"
 
 [dev-dependencies]
 proptest = "0.10.0"

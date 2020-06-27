@@ -1,7 +1,8 @@
 {
   "build": {
     "distDir": "../dist",
-    "devPath": "../dist"
+    "devPath": "../dist",
+    "withGlobalTauri": true
   },
   "ctx": {},
   "tauri": {

@@ -43,21 +43,18 @@ pub struct NotificationOptions {
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   Init {},
-  #[cfg(any(feature = "all-api", feature = "read-text-file"))]
   ReadTextFile {
     path: String,
     options: Option<FileOperationOptions>,
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "read-binary-file"))]
   ReadBinaryFile {
     path: String,
     options: Option<FileOperationOptions>,
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "write-file"))]
   WriteFile {
     file: String,
     contents: String,
@@ -65,7 +62,6 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "write-binary-file"))]
   WriteBinaryFile {
     file: String,
     contents: String,
@@ -73,14 +69,12 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "read-dir"))]
   ReadDir {
     path: String,
     options: Option<DirOperationOptions>,
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "copy-file"))]
   CopyFile {
     source: String,
     destination: String,
@@ -88,21 +82,18 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "create-dir"))]
   CreateDir {
     path: String,
     options: Option<DirOperationOptions>,
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "remove-dir"))]
   RemoveDir {
     path: String,
     options: Option<DirOperationOptions>,
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "remove-file"))]
   RemoveFile {
     path: String,
     options: Option<FileOperationOptions>,
@@ -110,7 +101,6 @@ pub enum Cmd {
     error: String,
   },
   #[serde(rename_all = "camelCase")]
-  #[cfg(any(feature = "all-api", feature = "rename-file"))]
   RenameFile {
     old_path: String,
     new_path: String,
@@ -118,18 +108,15 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "set-title"))]
   SetTitle {
     title: String,
   },
-  #[cfg(any(feature = "all-api", feature = "execute"))]
   Execute {
     command: String,
     args: Vec<String>,
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "open"))]
   Open {
     uri: String,
   },
@@ -138,30 +125,25 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "event"))]
   Listen {
     event: String,
     handler: String,
     once: bool,
   },
-  #[cfg(any(feature = "all-api", feature = "event"))]
   Emit {
     event: String,
     payload: Option<String>,
   },
-  #[cfg(any(feature = "all-api", feature = "open-dialog"))]
   OpenDialog {
     options: OpenDialogOptions,
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "save-dialog"))]
   SaveDialog {
     options: SaveDialogOptions,
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "http-request"))]
   HttpRequest {
     options: Box<HttpRequestOptions>,
     callback: String,
@@ -175,23 +157,19 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
-  #[cfg(feature = "cli")]
   CliMatches {
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "notification"))]
   Notification {
     options: NotificationOptions,
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "notification"))]
   RequestNotificationPermission {
     callback: String,
     error: String,
   },
-  #[cfg(any(feature = "all-api", feature = "notification"))]
   IsNotificationPermissionGranted {
     callback: String,
     error: String,

@@ -20,7 +20,7 @@ module.exports = {
         exclude: /node_modules/
       },
       {
-        test: /templates[\\/](tauri|mutation-observer)\.js/,
+        test: /(templates|api)[\\/].+\.js/,
         use: 'raw-loader'
       },
       {

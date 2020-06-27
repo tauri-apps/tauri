@@ -10,7 +10,7 @@ use std::{
 use web_view::{builder, Content, WebView};
 
 use super::App;
-#[cfg(feature = "embedded-server")]
+#[cfg(embedded_server)]
 use crate::api::tcp::{get_available_port, port_is_available};
 use tauri_api::config::get;
 
@@ -20,7 +20,7 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   let main_content = setup_content()?;
 
   // setup the server url for the embedded-server
-  #[cfg(feature = "embedded-server")]
+  #[cfg(embedded_server)]
   let server_url = {
     if let Content::Url(ref url) = &main_content {
       String::from(url)
@@ -46,7 +46,7 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   )?;
 
   // spawn the embedded server on our server url
-  #[cfg(feature = "embedded-server")]
+  #[cfg(embedded_server)]
   spawn_server(server_url.to_string())?;
 
   // spin up the updater process
@@ -60,7 +60,7 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
 }
 
 // setup content for dev-server
-#[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
+#[cfg(dev)]
 fn setup_content() -> crate::Result<Content<String>> {
   let config = get()?;
   if config.build.dev_path.starts_with("http") {
@@ -79,7 +79,7 @@ fn setup_content() -> crate::Result<Content<String>> {
 }
 
 // setup content for embedded server
-#[cfg(feature = "embedded-server")]
+#[cfg(embedded_server)]
 fn setup_content() -> crate::Result<Content<String>> {
   let (port, valid) = setup_port()?;
   let url = (if valid {
@@ -93,14 +93,14 @@ fn setup_content() -> crate::Result<Content<String>> {
 }
 
 // setup content for no-server
-#[cfg(feature = "no-server")]
+#[cfg(no_server)]
 fn setup_content() -> crate::Result<Content<String>> {
   let html = include_str!(concat!(env!("OUT_DIR"), "/index.tauri.html"));
   Ok(Content::Html(html.to_string()))
 }
 
 // get the port for the embedded server
-#[cfg(feature = "embedded-server")]
+#[cfg(embedded_server)]
 fn setup_port() -> crate::Result<(String, bool)> {
   let config = get()?;
   if config.tauri.embedded_server.port == "random" {
@@ -120,7 +120,7 @@ fn setup_port() -> crate::Result<(String, bool)> {
 }
 
 // setup the server url for embedded server
-#[cfg(feature = "embedded-server")]
+#[cfg(embedded_server)]
 fn setup_server_url(port: String) -> crate::Result<String> {
   let config = get()?;
   let mut url = format!("{}:{}", config.tauri.embedded_server.host, port);
@@ -131,7 +131,7 @@ fn setup_server_url(port: String) -> crate::Result<String> {
 }
 
 // spawn the embedded server
-#[cfg(feature = "embedded-server")]
+#[cfg(embedded_server)]
 fn spawn_server(server_url: String) -> crate::Result<()> {
   spawn(move || {
     let server = tiny_http::Server::http(
@@ -294,13 +294,13 @@ mod test {
     env::set_current_dir(tauri_dir).expect("failed to change cwd");
     let res = super::setup_content();
 
-    #[cfg(feature = "embedded-server")]
+    #[cfg(embedded_server)]
     match res {
       Ok(Content::Url(u)) => assert!(u.contains("http://")),
       _ => assert!(false),
     }
 
-    #[cfg(feature = "no-server")]
+    #[cfg(no_server)]
     match res {
       Ok(Content::Html(s)) => {
         let dist_dir = match option_env!("TAURI_DIST_DIR") {
@@ -319,7 +319,7 @@ mod test {
       _ => assert!(false),
     }
 
-    #[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
+    #[cfg(dev)]
     match res {
       Ok(Content::Url(dp)) => assert_eq!(dp, config.build.dev_path),
       Ok(Content::Html(s)) => {
@@ -334,7 +334,7 @@ mod test {
     }
   }
 
-  #[cfg(feature = "embedded-server")]
+  #[cfg(embedded_server)]
   #[test]
   fn check_setup_port() {
     let res = super::setup_port();
@@ -346,7 +346,7 @@ mod test {
 
   proptest! {
     #![proptest_config(ProptestConfig::with_cases(10000))]
-    #[cfg(feature = "embedded-server")]
+    #[cfg(embedded_server)]
     #[test]
     fn check_server_url(port in (any::<u32>().prop_map(|v| v.to_string()))) {
       let p = port.clone();

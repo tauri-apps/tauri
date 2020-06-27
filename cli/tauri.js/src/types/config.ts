@@ -37,6 +37,7 @@ export interface TauriConfig {
     devPath: string
     beforeDevCommand?: string
     beforeBuildCommand?: string
+    withGlobalTauri?: boolean
   }
   ctx: {
     prod?: boolean

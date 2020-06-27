@@ -4,7 +4,7 @@ addClickEnterHandler(
   document.getElementById('open-url'),
   urlInput,
   function () {
-    window.tauri.open(urlInput.value)
+    window.__TAURI__.window.open(urlInput.value)
   }
 )
 
@@ -14,6 +14,6 @@ addClickEnterHandler(
   document.getElementById('set-title'),
   titleInput,
   function () {
-    window.tauri.setTitle(titleInput.value)
+    window.__TAURI__.window.setTitle(titleInput.value)
   }
 )

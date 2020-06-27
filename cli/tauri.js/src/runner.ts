@@ -9,7 +9,6 @@ import http from 'http'
 import * as net from 'net'
 import os from 'os'
 import { findClosestOpenPort } from './helpers/net'
-import * as entry from './entry'
 import { tauriDir, appDir } from './helpers/app-paths'
 import logger from './helpers/logger'
 import onShutdown from './helpers/on-shutdown'
@@ -75,8 +74,6 @@ class Runner {
     this.__whitelistApi(cfg, cargoManifest)
     this.__rewriteManifest(cargoManifest as unknown as toml.JsonMap)
 
-    entry.generate(tauriDir, cfg)
-
     const runningDevServer = devPath.startsWith('http')
 
     let inlinedAssets: string[] = []
@@ -94,13 +91,13 @@ class Runner {
         selfHandleResponse: true
       })
 
-      proxy.on('proxyRes', function(proxyRes: http.IncomingMessage, req: http.IncomingMessage, res: http.ServerResponse) {
+      proxy.on('proxyRes', function (proxyRes: http.IncomingMessage, req: http.IncomingMessage, res: http.ServerResponse) {
         if (req.url === '/') {
           const body: Uint8Array[] = []
-          proxyRes.on('data', function(chunk: Uint8Array) {
+          proxyRes.on('data', function (chunk: Uint8Array) {
             body.push(chunk)
           })
-          proxyRes.on('end', function() {
+          proxyRes.on('end', function () {
             const bodyStr = body.join('')
             const indexDir = os.tmpdir()
             writeFileSync(path.join(indexDir, 'index.html'), bodyStr)
@@ -227,8 +224,6 @@ class Runner {
     this.__whitelistApi(cfg, cargoManifest as unknown as CargoManifest)
     this.__rewriteManifest(cargoManifest)
 
-    entry.generate(tauriDir, cfg)
-
     const inlinedAssets = (await this.__parseHtml(cfg, cfg.build.distDir)).inlinedAssets
     process.env.TAURI_INLINED_ASSSTS = inlinedAssets.join('|')
 
@@ -307,8 +302,16 @@ class Runner {
         }
 
         const tauriScript = document.createElement('script')
-        tauriScript.text = readFileSync(path.join(tauriDir, 'tauri.js')).toString()
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
+        tauriScript.text = require('../templates/tauri.js').default
         document.head.insertBefore(tauriScript, document.head.firstChild)
+
+        if (cfg.build.withGlobalTauri) {
+          const tauriUmdScript = document.createElement('script')
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
+          tauriUmdScript.text = require('../api/tauri.bundle.umd').default
+          document.head.insertBefore(tauriUmdScript, document.head.firstChild)
+        }
 
         const csp = cfg.tauri.security.csp
         if (csp) {
@@ -501,7 +504,7 @@ class Runner {
     }
 
     if (cfg.tauri.cli) {
-        tomlFeatures.push('cli')
+      tomlFeatures.push('cli')
     }
 
     if (typeof manifest.dependencies.tauri === 'string') {

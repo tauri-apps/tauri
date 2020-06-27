@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html>
+
 <body>
   <script>
-    function callBackEnd (route, args) {
+    function callBackEnd(route, args) {
       console.log(route)
       console.log(args)
       var xhr = new XMLHttpRequest()
@@ -17,15 +18,15 @@
       xhr.send(JSON.stringify(args))
     }
 
-    function reply (args) {
+    function reply(args) {
       return callBackEnd('reply', args)
     }
 
-    function sendError (error) {
+    function sendError(error) {
       return callBackEnd('error', error)
     }
 
-    function testFs (dir) {
+    function testFs(dir) {
       var contents = 'TAURI E2E TEST FILE'
       var commandSuffix = (dir ? 'WithDir' : '')
 
@@ -33,37 +34,54 @@
         dir: dir || null
       }
 
-      return window.tauri.writeFile({
+      return window.__TAURI__.fs.writeFile({
         file: 'tauri-test.txt',
         contents: contents
       }, options).then(function (res) {
-        reply({ cmd: 'writeFile' + commandSuffix })
-        return window.tauri.readTextFile('tauri-test.txt', options).then(function (res) {
+        reply({
+          cmd: 'writeFile' + commandSuffix
+        })
+        return window.__TAURI__.fs.readTextFile('tauri-test.txt', options).then(function (res) {
           if (res === contents) {
-            reply({ cmd: 'readFile' + commandSuffix })
+            reply({
+              cmd: 'readFile' + commandSuffix
+            })
 
-            return window.tauri.readDir('.', options).then(res => {
-              reply({ cmd: 'readDir' + commandSuffix })
-              
-              return window.tauri.copyFile('tauri-test.txt', 'tauri-test-copy.txt', options)
+            return window.__TAURI__.fs.readDir('.', options).then(res => {
+              reply({
+                cmd: 'readDir' + commandSuffix
+              })
+
+              return window.__TAURI__.fs.copyFile('tauri-test.txt', 'tauri-test-copy.txt', options)
                 .then(function (res) {
-                  reply({ cmd: 'copyFile' + commandSuffix })
+                  reply({
+                    cmd: 'copyFile' + commandSuffix
+                  })
 
-                  return window.tauri.createDir('tauri-test-dir', options).then(function (res) {
-                    reply({ cmd: 'createDir' + commandSuffix })
-                    return window.tauri.removeDir('tauri-test-dir', options).then(function (res) {
-                      reply({ cmd: 'removeDir' + commandSuffix })
+                  return window.__TAURI__.fs.createDir('tauri-test-dir', options).then(function (res) {
+                    reply({
+                      cmd: 'createDir' + commandSuffix
                     })
-                  }).then(function (res) {
-                    return window.tauri.renameFile('tauri-test.txt', 'tauri.testt.txt', options).then(function (res) {
-                      reply({ cmd: 'renameFile' + commandSuffix })
-                      return Promise.all([
-                        window.tauri.removeFile('tauri.testt.txt', options),
-                        window.tauri.removeFile('tauri-test-copy.txt', options)
-                      ]).then(function (res) {
-                        reply({ cmd: 'removeFile' + commandSuffix })
+                    return window.__TAURI__.fs.removeDir('tauri-test-dir', options).then(function (res) {
+                      reply({
+                        cmd: 'removeDir' + commandSuffix
                       })
                     })
+                  }).then(function (res) {
+                    return window.__TAURI__.fs.renameFile('tauri-test.txt', 'tauri.testt.txt', options)
+                      .then(function (res) {
+                        reply({
+                          cmd: 'renameFile' + commandSuffix
+                        })
+                        return Promise.all([
+                          window.__TAURI__.fs.removeFile('tauri.testt.txt', options),
+                          window.__TAURI__.fs.removeFile('tauri-test-copy.txt', options)
+                        ]).then(function (res) {
+                          reply({
+                            cmd: 'removeFile' + commandSuffix
+                          })
+                        })
+                      })
                   })
                 })
             })
@@ -74,20 +92,25 @@
       }).catch(sendError)
     }
 
-    window.tauri.listen('reply', function (res) {
-      reply({ cmd: 'listen' })
+    window.__TAURI__.event.listen('reply', function (res) {
+      reply({
+        cmd: 'listen'
+      })
     })
     window.onTauriInit = function () {
-      window.tauri.emit('hello')
+      window.__TAURI__.event.emit('hello')
     }
 
     testFs(null).then(function () {
-      testFs(window.tauri.Dir.Config)
+      testFs(window.__TAURI__.fs.Dir.Config)
     })
 
     setTimeout(function () {
-      window.tauri.invoke({ cmd: 'exit' })
+      window.__TAURI__.invoke({
+        cmd: 'exit'
+      })
     }, 15000)
+
   </script>
 </body>
 

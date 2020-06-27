@@ -2,7 +2,12 @@ use tiny_http::{Header, Response};
 
 /// Returns the HTTP response of the given asset path.
 pub fn asset_response(path: &str) -> Response<std::io::Cursor<Vec<u8>>> {
-  let asset_path = &format!("{}{}", env!("TAURI_DIST_DIR"), path);
+  let asset_path = &format!(
+    "{}{}",
+    option_env!("TAURI_DIST_DIR")
+      .expect("tauri apps should be built with the TAURI_DIST_DIR environment variable"),
+    path
+  );
   let asset = crate::assets::ASSETS
     .get(asset_path)
     .expect(&format!("Could not read asset {}", asset_path))

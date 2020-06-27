@@ -65,7 +65,6 @@ pub enum Cmd {
   /// The init command
   Init {},
   /// The read text file API.
-  #[cfg(any(feature = "all-api", feature = "read-text-file"))]
   ReadTextFile {
     path: String,
     options: Option<FileOperationOptions>,
@@ -73,7 +72,6 @@ pub enum Cmd {
     error: String,
   },
   /// The read binary file API.
-  #[cfg(any(feature = "all-api", feature = "read-binary-file"))]
   ReadBinaryFile {
     path: String,
     options: Option<FileOperationOptions>,
@@ -81,7 +79,6 @@ pub enum Cmd {
     error: String,
   },
   /// The write file API.
-  #[cfg(any(feature = "all-api", feature = "write-file"))]
   WriteFile {
     file: String,
     contents: String,
@@ -89,8 +86,15 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
+  /// The write binary file API.
+  WriteBinaryFile {
+    file: String,
+    contents: String,
+    options: Option<FileOperationOptions>,
+    callback: String,
+    error: String,
+  },
   /// The read dir API.
-  #[cfg(any(feature = "all-api", feature = "read-dir"))]
   ReadDir {
     path: String,
     options: Option<DirOperationOptions>,
@@ -98,7 +102,6 @@ pub enum Cmd {
     error: String,
   },
   /// The copy file API.
-  #[cfg(any(feature = "all-api", feature = "copy-file"))]
   CopyFile {
     source: String,
     destination: String,
@@ -107,7 +110,6 @@ pub enum Cmd {
     error: String,
   },
   /// The create dir API.
-  #[cfg(any(feature = "all-api", feature = "create-dir"))]
   CreateDir {
     path: String,
     options: Option<DirOperationOptions>,
@@ -115,7 +117,6 @@ pub enum Cmd {
     error: String,
   },
   /// The remove dir API.
-  #[cfg(any(feature = "all-api", feature = "remove-dir"))]
   RemoveDir {
     path: String,
     options: Option<DirOperationOptions>,
@@ -123,7 +124,6 @@ pub enum Cmd {
     error: String,
   },
   /// The remove file API.
-  #[cfg(any(feature = "all-api", feature = "remove-file"))]
   RemoveFile {
     path: String,
     options: Option<FileOperationOptions>,
@@ -132,7 +132,6 @@ pub enum Cmd {
   },
   /// The rename file API.
   #[serde(rename_all = "camelCase")]
-  #[cfg(any(feature = "all-api", feature = "rename-file"))]
   RenameFile {
     old_path: String,
     new_path: String,
@@ -141,18 +140,15 @@ pub enum Cmd {
     error: String,
   },
   /// The set webview title API.
-  #[cfg(any(feature = "all-api", feature = "set-title"))]
   SetTitle { title: String },
   /// The execute script API.
-  #[cfg(any(feature = "all-api", feature = "execute"))]
   Execute {
     command: String,
     args: Vec<String>,
     callback: String,
     error: String,
   },
-  /// The open URL in browser API.
-  #[cfg(any(feature = "all-api", feature = "open"))]
+  /// The open URL in browser API
   Open { uri: String },
   ValidateSalt {
     salt: String,
@@ -160,34 +156,29 @@ pub enum Cmd {
     error: String,
   },
   /// The event listen API.
-  #[cfg(any(feature = "all-api", feature = "event"))]
   Listen {
     event: String,
     handler: String,
     once: bool,
   },
   /// The event emit API.
-  #[cfg(any(feature = "all-api", feature = "event"))]
   Emit {
     event: String,
     payload: Option<String>,
   },
   /// The open dialog API.
-  #[cfg(any(feature = "all-api", feature = "open-dialog"))]
   OpenDialog {
     options: OpenDialogOptions,
     callback: String,
     error: String,
   },
   /// The save dialog API.
-  #[cfg(any(feature = "all-api", feature = "save-dialog"))]
   SaveDialog {
     options: SaveDialogOptions,
     callback: String,
     error: String,
   },
   /// The HTTP request API.
-  #[cfg(any(feature = "all-api", feature = "http-request"))]
   HttpRequest {
     options: Box<HttpRequestOptions>,
     callback: String,
@@ -195,7 +186,7 @@ pub enum Cmd {
   },
   /// The load asset into webview API.
   #[serde(rename_all = "camelCase")]
-  #[cfg(any(feature = "embedded-server", feature = "no-server"))]
+  #[cfg(assets)]
   LoadAsset {
     asset: String,
     asset_type: String,
@@ -203,19 +194,15 @@ pub enum Cmd {
     error: String,
   },
   /// The get CLI matches API.
-  #[cfg(feature = "cli")]
   CliMatches { callback: String, error: String },
   /// The show notification API.
-  #[cfg(any(feature = "all-api", feature = "notification"))]
   Notification {
     options: NotificationOptions,
     callback: String,
     error: String,
   },
   /// The request notification permission API.
-  #[cfg(any(feature = "all-api", feature = "notification"))]
   RequestNotificationPermission { callback: String, error: String },
   /// The notification permission check API.
-  #[cfg(any(feature = "all-api", feature = "notification"))]
   IsNotificationPermissionGranted { callback: String, error: String },
 }

@@ -104,6 +104,14 @@ export interface CliArg {
    * i.e. an equals between the option and associated value
    */
   requireEquals?: boolean
+  /**
+   * The positional argument index, starting at 1.
+   * 
+   * The index refers to position according to other positional argument.
+   * It does not define position in the argument list as a whole. When utilized with multiple=true,
+   * only the last positional argument may be defined as multiple (i.e. the one with the highest index).
+   */
+  index?: number
 }
 
 /**
@@ -168,6 +176,7 @@ export interface TauriConfig {
      * a shell command to run before `tauri build` kicks in
      */
     beforeBuildCommand?: string
+    withGlobalTauri?: boolean
   }
   /**
    * the context of the current `tauri dev` or `tauri build`

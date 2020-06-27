@@ -14,7 +14,10 @@ pub fn make_request<T: 'static>(
       let response_type = options.response_type.clone();
       request(options).map(
         |response| match response_type.unwrap_or(ResponseType::Json) {
-          ResponseType::Text => format!(r#""{}""#, response),
+          ResponseType::Text => format!(
+            r#""{}""#,
+            response.replace(r#"""#, r#"\""#).replace(r#"\\""#, r#"\""#)
+          ),
           _ => response,
         },
       )

@@ -16,7 +16,7 @@ jobs:
           git config --global user.name "${{ github.event.pusher.name }}"
           git config --global user.email "${{ github.event.pusher.email }}"
       - name: covector version
-        uses: jbolda/covector/packages/action@master
+        uses: jbolda/covector/packages/action@main
         id: covector
         with:
           command: 'version'
@@ -26,6 +26,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: release/version-updates
           title: Apply Version Updates From Current Changes
+          commit-message: "apply version updates"
           labels: "version updates"
           body: |
             Merging this PR will update the versions on all packages with changes as specified in the `.changes` directory.

@@ -1,4 +1,4 @@
-use crate::config::{Cli, Config};
+use crate::config::{get as get_config, Cli};
 
 use clap::{App, Arg, ArgMatches};
 use serde::Serialize;
@@ -36,16 +36,21 @@ impl Matches {
   }
 }
 
-pub fn get_matches(config: Config) -> Matches {
-  let cli = config.tauri.cli.unwrap();
+pub fn get_matches() -> crate::Result<Matches> {
+  let config = get_config()?;
+  let cli = config
+    .tauri
+    .cli
+    .as_ref()
+    .ok_or(anyhow::anyhow!("CLI configuration not defined"))?;
 
   let about = cli
     .description()
     .unwrap_or(&crate_description!().to_string())
     .to_string();
-  let app = get_app(crate_name!(), Some(&about), &cli);
+  let app = get_app(crate_name!(), Some(&about), cli);
   let matches = app.get_matches();
-  get_matches_internal(&cli, &matches)
+  Ok(get_matches_internal(cli, &matches))
 }
 
 fn get_matches_internal<T: Cli + 'static>(config: &T, matches: &ArgMatches) -> Matches {
@@ -71,7 +76,7 @@ fn map_matches<T: Cli + 'static>(config: &T, matches: &ArgMatches, cli_matches: 
     for arg in args {
       let occurrences = matches.occurrences_of(arg.name.clone());
       let value = if occurrences == 0 || !arg.takes_value.unwrap_or(false) {
-        Value::Null
+        Value::Bool(occurrences > 0)
       } else if arg.multiple.unwrap_or(false) {
         matches
           .values_of(arg.name.clone())
@@ -143,6 +148,7 @@ fn get_app<'a, T: Cli + 'static>(name: &str, about: Option<&'a String>, config: 
       clap_arg = bind_if_arg!(arg, clap_arg, requires_if);
       clap_arg = bind_if_arg!(arg, clap_arg, required_if);
       clap_arg = bind_value_arg!(arg, clap_arg, require_equals);
+      clap_arg = bind_value_arg!(arg, clap_arg, index);
 
       app = app.arg(clap_arg);
     }

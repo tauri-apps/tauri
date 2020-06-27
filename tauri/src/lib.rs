@@ -3,14 +3,14 @@
   windows_subsystem = "windows"
 )]
 
-#[cfg(any(feature = "embedded-server", feature = "no-server"))]
+#[cfg(assets)]
 pub mod assets;
 pub mod event;
-#[cfg(feature = "embedded-server")]
+#[cfg(embedded_server)]
 pub mod server;
 pub mod settings;
 
-#[cfg(feature = "cli")]
+#[cfg(cli)]
 pub mod cli;
 
 mod app;

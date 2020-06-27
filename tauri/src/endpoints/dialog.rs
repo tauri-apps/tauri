@@ -12,6 +12,7 @@ fn map_response(response: Response) -> String {
 }
 
 /// Shows an open dialog.
+#[cfg(open_dialog)]
 pub fn open<T: 'static>(
   webview: &mut WebView<'_, T>,
   options: OpenDialogOptions,
@@ -36,6 +37,7 @@ pub fn open<T: 'static>(
 }
 
 /// Shows a save dialog.
+#[cfg(save_dialog)]
 pub fn save<T: 'static>(
   webview: &mut WebView<'_, T>,
   options: SaveDialogOptions,

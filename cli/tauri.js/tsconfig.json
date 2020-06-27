@@ -12,7 +12,6 @@
     "paths": {
       "types": ["src/types"]
     },
-    "resolveJsonModule": true
   },
-  "include": ["src"]
+  "include": ["src", "api-src"]
 }

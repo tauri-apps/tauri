@@ -43,9 +43,9 @@ pub struct HttpRequestOptions {
   /// The request URL
   pub url: String,
   /// The request query params
-  pub params: Option<HashMap<String, Value>>,
+  pub params: Option<HashMap<String, String>>,
   /// The request headers
-  pub headers: Option<HashMap<String, Value>>,
+  pub headers: Option<HashMap<String, String>>,
   /// The request body
   pub body: Option<Value>,
   /// Whether to follow redirects or not
@@ -90,9 +90,9 @@ pub struct HttpRequestBuilder {
   /// The request URL
   pub url: String,
   /// The request query params
-  pub params: Option<HashMap<String, Value>>,
+  pub params: Option<HashMap<String, String>>,
   /// The request headers
-  pub headers: Option<HashMap<String, Value>>,
+  pub headers: Option<HashMap<String, String>>,
   /// The request body
   pub body: Option<Value>,
   /// Whether to follow redirects or not
@@ -132,12 +132,12 @@ impl HttpRequestBuilder {
     }
   }
 
-  pub fn params(mut self, params: HashMap<String, Value>) -> Self {
+  pub fn params(mut self, params: HashMap<String, String>) -> Self {
     self.params = Some(params);
     self
   }
 
-  pub fn headers(mut self, headers: HashMap<String, Value>) -> Self {
+  pub fn headers(mut self, headers: HashMap<String, String>) -> Self {
     self.headers = Some(headers);
     self
   }
@@ -221,10 +221,7 @@ pub fn make_request(options: HttpRequestOptions) -> crate::Result<String> {
 
   if let Some(headers) = options.headers {
     for (header, header_value) in headers.iter() {
-      builder = builder.header(
-        HeaderName::from_bytes(header.as_bytes())?,
-        format!("{}", header_value),
-      );
+      builder = builder.header(HeaderName::from_bytes(header.as_bytes())?, header_value);
     }
   }
 
@@ -283,7 +280,10 @@ pub fn make_request(options: HttpRequestOptions) -> crate::Result<String> {
   let response = response?;
   if response.is_success() {
     let response_data = match options.response_type.unwrap_or(ResponseType::Json) {
-      ResponseType::Json => response.json()?,
+      ResponseType::Json => {
+        let result = response.json::<Value>()?;
+        serde_json::to_string(&result)?
+      }
       ResponseType::Text => response.text()?,
       ResponseType::Binary => serde_json::to_string(&response.bytes()?)?,
     };

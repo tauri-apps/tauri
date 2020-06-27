@@ -26,13 +26,8 @@ pub fn read_dir<T: 'static>(
       } else {
         (false, None)
       };
-      if recursive {
-        dir::read_dir_recursively(resolve_path(path, dir)?)
-          .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
-      } else {
-        dir::read_dir(resolve_path(path, dir)?)
-          .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
-      }
+      dir::read_dir(resolve_path(path, dir)?, recursive)
+        .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
     },
     callback,
     error,

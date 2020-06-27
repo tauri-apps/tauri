@@ -1,4 +1,3 @@
-use ignore::Walk;
 use serde::Serialize;
 use std::fs::{self, metadata};
 use std::path::{Path, PathBuf};
@@ -16,49 +15,32 @@ pub fn is_dir<P: AsRef<Path>>(path: P) -> crate::Result<bool> {
   metadata(path).map(|md| md.is_dir()).map_err(|e| e.into())
 }
 
-pub fn read_dir_recursively<P: AsRef<Path>>(path: P) -> crate::Result<Vec<DiskEntry>> {
+pub fn read_dir<P: AsRef<Path>>(path: P, recursive: bool) -> crate::Result<Vec<DiskEntry>> {
   let mut files_and_dirs: Vec<DiskEntry> = vec![];
-  for result in Walk::new(path) {
-    if let Ok(entry) = result {
-      let path = entry.clone().into_path();
-      let path_as_string = path.display().to_string();
+  for entry in fs::read_dir(path)? {
+    let path = entry?.path();
+    let path_as_string = path.display().to_string();
 
-      if let Ok(flag) = is_dir(&path_as_string) {
-        files_and_dirs.push(DiskEntry {
-          path,
-          children: if flag {
-            Some(read_dir_recursively(&path_as_string)?)
+    if let Ok(flag) = is_dir(&path_as_string) {
+      files_and_dirs.push(DiskEntry {
+        path: path.clone(),
+        children: if flag {
+          Some(if recursive {
+            read_dir(&path_as_string, true)?
           } else {
-            None
-          },
-          name: entry.file_name().to_str().map(|name| name.to_string()),
-        });
-      }
+            vec![]
+          })
+        } else {
+          None
+        },
+        name: path
+          .file_name()
+          .map(|name| name.to_string_lossy())
+          .map(|name| name.to_string()),
+      });
     }
   }
   Result::Ok(files_and_dirs)
-}
-
-pub fn read_dir<P: AsRef<Path>>(path: P) -> crate::Result<Vec<DiskEntry>> {
-  let paths = fs::read_dir(path)?;
-  let mut dirs: Vec<DiskEntry> = vec![];
-
-  for path in paths {
-    let path = path?.path();
-    let path_as_string = path.display().to_string();
-    let is_dir = is_dir(&path_as_string)?;
-
-    dirs.push(DiskEntry {
-      path: path.to_path_buf(),
-      children: if is_dir { Some(vec![]) } else { None },
-      name: path
-        .file_name()
-        .map(|name| name.to_string_lossy())
-        .map(|name| name.to_string()),
-    });
-  }
-
-  Ok(dirs)
 }
 
 pub fn with_temp_dir<F: FnOnce(&tempfile::TempDir) -> ()>(callback: F) -> crate::Result<()> {
@@ -95,7 +77,7 @@ mod test {
   }
 
   #[test]
-  // check the read_dir_recursively function
+  // check the read_dir function with recursive = true
   fn check_read_dir_recursively() {
     // define a relative directory string test/
     let dir = PathBuf::from("test/");
@@ -106,7 +88,7 @@ mod test {
     file_two.push("test_binary");
 
     // call walk_dir on the directory
-    let res = read_dir_recursively(dir.clone());
+    let res = read_dir(dir.clone(), true);
 
     // assert that the result is Ok()
     assert_ok!(&res);
@@ -153,13 +135,13 @@ mod test {
   }
 
   #[test]
-  // check the read_dir function
+  // check the read_dir function with recursive = false
   fn check_read_dir() {
     // define a relative directory test/
     let dir = PathBuf::from("test/");
 
     // call list_dir_contents on the dir
-    let res = read_dir(dir);
+    let res = read_dir(dir, false);
 
     // assert that the result is Ok()
     assert_ok!(&res);

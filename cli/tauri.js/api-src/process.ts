@@ -12,11 +12,11 @@ async function execute(command: string, args?: string | string[]): Promise<strin
     Object.freeze(args)
   }
 
-  return promisified({
+  return await promisified({
     cmd: 'execute',
     command,
     args: typeof args === 'string' ? [args] : args
-  });
+  })
 }
 
 export {

@@ -16,7 +16,7 @@ async function open(options: OpenDialogOptions = {}): Promise<String | String[]>
     Object.freeze(options)
   }
 
-  return promisified({
+  return await promisified({
     cmd: 'openDialog',
     options
   })
@@ -35,7 +35,7 @@ async function save(options: SaveDialogOptions = {}): Promise<String> {
     Object.freeze(options)
   }
 
-  return promisified({
+  return await promisified({
     cmd: 'saveDialog',
     options
   })

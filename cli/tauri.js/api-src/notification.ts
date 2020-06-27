@@ -11,7 +11,7 @@ function setNotificationPermission(value: Permission): void {
 }
 
 // @ts-expect-error
-window.Notification = function (title: string, options?: PartialOptions): void {
+window.Notification = (title: string, options?: PartialOptions) => {
   sendNotification({
     title,
     ...options
@@ -22,10 +22,8 @@ window.Notification.requestPermission = requestPermission
 
 Object.defineProperty(window.Notification, 'permission', {
   enumerable: true,
-  get: function () {
-    return permissionValue
-  },
-  set: function (v: Permission) {
+  get: () => permissionValue,
+  set(v: Permission) {
     if (!permissionSettable) {
       throw new Error('Readonly property')
     }

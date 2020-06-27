@@ -7,7 +7,7 @@ import { EventCallback } from './types/event'
  * @param event the event name
  * @param handler the event handler callback
  */
-function listen(event: string, handler: EventCallback, once = false) {
+function listen(event: string, handler: EventCallback, once = false): void {
   invoke({
     cmd: 'listen',
     event,
@@ -22,7 +22,7 @@ function listen(event: string, handler: EventCallback, once = false) {
  * @param event the event name
  * @param [payload] the event payload
  */
-function emit(event: string, payload?: string) {
+function emit(event: string, payload?: string): void {
   invoke({
     cmd: 'emit',
     event,

@@ -1,26 +1,26 @@
 declare global {
   interface External {
-    invoke(command: string): void
+    invoke: (command: string) => void
   }
 }
 
-function __s4(): string {
+function s4(): string {
   return Math.floor((1 + Math.random()) * 0x10000)
     .toString(16)
     .substring(1)
 }
 
-function __uid(): string {
-  return __s4() + __s4() + '-' + __s4() + '-' + __s4() + '-' +
-    __s4() + '-' + __s4() + __s4() + __s4()
+function uid(): string {
+  return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+    s4() + '-' + s4() + s4() + s4()
 }
 
-function invoke(args: any) {
+function invoke(args: any): void {
   window.external.invoke(typeof args === 'object' ? JSON.stringify(args) : args)
 }
 
-function transformCallback(callback: (response: any) => void, once = false) {
-  var identifier = __uid();
+function transformCallback(callback?: (response: any) => void, once = false): string {
+  const identifier = uid()
 
   Object.defineProperty(window, identifier, {
     value: (result: any) => {
@@ -28,7 +28,7 @@ function transformCallback(callback: (response: any) => void, once = false) {
         Reflect.deleteProperty(window, identifier)
       }
 
-      return callback && callback(result)
+      return callback?.(result)
     },
     writable: false
   })
@@ -36,27 +36,14 @@ function transformCallback(callback: (response: any) => void, once = false) {
   return identifier
 }
 
-function promisified<T>(args: any): Promise<T> {
-  return new Promise((resolve, reject) => {
+async function promisified<T>(args: any): Promise<T> {
+  return await new Promise((resolve, reject) => {
     invoke({
       callback: transformCallback(resolve),
       error: transformCallback(reject),
       ...args
     })
-  });
-}
-
-// init tauri API
-try {
-  invoke({
-    cmd: 'init'
   })
-} catch (e) {
-  window.addEventListener('DOMContentLoaded', function () {
-    invoke({
-      cmd: 'init'
-    })
-  }, true)
 }
 
 export {

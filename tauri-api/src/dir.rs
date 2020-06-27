@@ -96,40 +96,33 @@ mod test {
     // destruct the OK into a vector of DiskEntry Structs
     if let Ok(vec) = res {
       // assert that the vector length is only 3
-      assert_eq!(vec.len(), 3);
+      assert_eq!(vec.len(), 2);
 
       // get the first DiskEntry
       let first = &vec[0];
       // get the second DiskEntry
       let second = &vec[1];
-      // get the third DiskEntry
-      let third = &vec[2];
 
-      // check the fields for the first DiskEntry
-      assert_eq!(first.path, dir);
-      assert_eq!(first.children.is_some(), true);
-      assert_eq!(first.name, name_from_path(dir));
-
-      if second.path.extension() == Some(OsStr::new(".txt")) {
-        // check the fields for the second DiskEntry
-        assert_eq!(second.path, file_one);
-        assert_eq!(second.children.is_some(), false);
-        assert_eq!(second.name, name_from_path(file_one));
+      if first.path.extension() == Some(OsStr::new(".txt")) {
+        // check the fields for the first DiskEntry
+        assert_eq!(first.path, file_one);
+        assert_eq!(first.children.is_some(), false);
+        assert_eq!(first.name, name_from_path(file_one));
 
         // check the fields for the third DiskEntry
-        assert_eq!(third.path, file_two);
-        assert_eq!(third.children.is_some(), false);
-        assert_eq!(third.name, name_from_path(file_two));
-      } else {
-        // check the fields for the second DiskEntry
         assert_eq!(second.path, file_two);
         assert_eq!(second.children.is_some(), false);
         assert_eq!(second.name, name_from_path(file_two));
+      } else {
+        // check the fields for the second DiskEntry
+        assert_eq!(first.path, file_two);
+        assert_eq!(first.children.is_some(), false);
+        assert_eq!(first.name, name_from_path(file_two));
 
         // check the fields for the third DiskEntry
-        assert_eq!(third.path, file_one);
-        assert_eq!(third.children.is_some(), false);
-        assert_eq!(third.name, name_from_path(file_one));
+        assert_eq!(second.path, file_one);
+        assert_eq!(second.children.is_some(), false);
+        assert_eq!(second.name, name_from_path(file_one));
       }
     }
   }

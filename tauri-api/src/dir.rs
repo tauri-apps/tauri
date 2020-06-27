@@ -1,40 +1,37 @@
-mod utils;
-
 use ignore::Walk;
 use serde::Serialize;
-use tempfile::{self, tempdir};
-
-use utils::get_dir_name_from_path;
-
 use std::fs::{self, metadata};
+use std::path::{Path, PathBuf};
+use tempfile::{self, tempdir};
 
 #[derive(Debug, Serialize)]
 pub struct DiskEntry {
-  pub path: String,
-  pub is_dir: bool,
-  pub name: String,
+  pub path: PathBuf,
+  pub name: Option<String>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub children: Option<Vec<DiskEntry>>,
 }
 
-fn is_dir(file_name: String) -> crate::Result<bool> {
-  match metadata(file_name) {
-    Ok(md) => Result::Ok(md.is_dir()),
-    Err(err) => Result::Err(err.into()),
-  }
+pub fn is_dir<P: AsRef<Path>>(path: P) -> crate::Result<bool> {
+  metadata(path).map(|md| md.is_dir()).map_err(|e| e.into())
 }
 
-pub fn walk_dir(path_copy: String) -> crate::Result<Vec<DiskEntry>> {
-  println!("Trying to walk: {}", path_copy.as_str());
+pub fn read_dir_recursively<P: AsRef<Path>>(path: P) -> crate::Result<Vec<DiskEntry>> {
   let mut files_and_dirs: Vec<DiskEntry> = vec![];
-  for result in Walk::new(path_copy) {
+  for result in Walk::new(path) {
     if let Ok(entry) = result {
-      let display_value = entry.path().display();
-      let _dir_name = display_value.to_string();
+      let path = entry.clone().into_path();
+      let path_as_string = path.display().to_string();
 
-      if let Ok(flag) = is_dir(display_value.to_string()) {
+      if let Ok(flag) = is_dir(&path_as_string) {
         files_and_dirs.push(DiskEntry {
-          path: display_value.to_string(),
-          is_dir: flag,
-          name: display_value.to_string(),
+          path,
+          children: if flag {
+            Some(read_dir_recursively(&path_as_string)?)
+          } else {
+            None
+          },
+          name: entry.file_name().to_str().map(|name| name.to_string()),
         });
       }
     }
@@ -42,18 +39,25 @@ pub fn walk_dir(path_copy: String) -> crate::Result<Vec<DiskEntry>> {
   Result::Ok(files_and_dirs)
 }
 
-pub fn list_dir_contents(dir_path: String) -> crate::Result<Vec<DiskEntry>> {
-  let paths = fs::read_dir(dir_path)?;
+pub fn read_dir<P: AsRef<Path>>(path: P) -> crate::Result<Vec<DiskEntry>> {
+  let paths = fs::read_dir(path)?;
   let mut dirs: Vec<DiskEntry> = vec![];
+
   for path in paths {
-    let dir_path = path.expect("dirpath error").path();
-    let _dir_name = dir_path.display();
+    let path = path?.path();
+    let path_as_string = path.display().to_string();
+    let is_dir = is_dir(&path_as_string)?;
+
     dirs.push(DiskEntry {
-      path: format!("{}", _dir_name),
-      is_dir: true,
-      name: get_dir_name_from_path(_dir_name.to_string()),
+      path: path.to_path_buf(),
+      children: if is_dir { Some(vec![]) } else { None },
+      name: path
+        .file_name()
+        .map(|name| name.to_string_lossy())
+        .map(|name| name.to_string()),
     });
   }
+
   Ok(dirs)
 }
 
@@ -68,30 +72,41 @@ pub fn with_temp_dir<F: FnOnce(&tempfile::TempDir) -> ()>(callback: F) -> crate:
 mod test {
   use super::*;
   use quickcheck_macros::quickcheck;
+  use std::ffi::OsStr;
+  use std::path::PathBuf;
   use totems::assert_ok;
 
   // check is dir function by passing in arbitrary strings
   #[quickcheck]
   fn qc_is_dir(f: String) -> bool {
-    // is the string runs through is_dir and comes out as an OK result then it must be a DIR.
+    // if the string runs through is_dir and comes out as an OK result then it must be a DIR.
     if let Ok(_) = is_dir(f.clone()) {
-      std::path::PathBuf::from(f).exists()
+      PathBuf::from(f).is_dir()
     } else {
       true
     }
   }
 
+  fn name_from_path(path: PathBuf) -> Option<String> {
+    path
+      .file_name()
+      .map(|name| name.to_string_lossy())
+      .map(|name| name.to_string())
+  }
+
   #[test]
-  // check the walk_dir function
-  fn check_walk_dir() {
+  // check the read_dir_recursively function
+  fn check_read_dir_recursively() {
     // define a relative directory string test/
-    let dir = String::from("test/");
+    let dir = PathBuf::from("test/");
     // add the files to this directory
-    let file_one = format!("{}test.txt", &dir).to_string();
-    let file_two = format!("{}test_binary", &dir).to_string();
+    let mut file_one = dir.clone();
+    file_one.push("test.txt");
+    let mut file_two = dir.clone();
+    file_two.push("test_binary");
 
     // call walk_dir on the directory
-    let res = walk_dir(dir.clone());
+    let res = read_dir_recursively(dir.clone());
 
     // assert that the result is Ok()
     assert_ok!(&res);
@@ -110,41 +125,41 @@ mod test {
 
       // check the fields for the first DiskEntry
       assert_eq!(first.path, dir);
-      assert_eq!(first.is_dir, true);
-      assert_eq!(first.name, dir);
+      assert_eq!(first.children.is_some(), true);
+      assert_eq!(first.name, name_from_path(dir));
 
-      if second.path.contains(".txt") {
+      if second.path.extension() == Some(OsStr::new(".txt")) {
         // check the fields for the second DiskEntry
         assert_eq!(second.path, file_one);
-        assert_eq!(second.is_dir, false);
-        assert_eq!(second.name, file_one);
+        assert_eq!(second.children.is_some(), false);
+        assert_eq!(second.name, name_from_path(file_one));
 
         // check the fields for the third DiskEntry
         assert_eq!(third.path, file_two);
-        assert_eq!(third.is_dir, false);
-        assert_eq!(third.name, file_two);
+        assert_eq!(third.children.is_some(), false);
+        assert_eq!(third.name, name_from_path(file_two));
       } else {
         // check the fields for the second DiskEntry
         assert_eq!(second.path, file_two);
-        assert_eq!(second.is_dir, false);
-        assert_eq!(second.name, file_two);
+        assert_eq!(second.children.is_some(), false);
+        assert_eq!(second.name, name_from_path(file_two));
 
         // check the fields for the third DiskEntry
         assert_eq!(third.path, file_one);
-        assert_eq!(third.is_dir, false);
-        assert_eq!(third.name, file_one);
+        assert_eq!(third.children.is_some(), false);
+        assert_eq!(third.name, name_from_path(file_one));
       }
     }
   }
 
   #[test]
-  // check the list_dir_contents function
-  fn check_list_dir_contents() {
-    // define a relative directory string test/
-    let dir = String::from("test/");
+  // check the read_dir function
+  fn check_read_dir() {
+    // define a relative directory test/
+    let dir = PathBuf::from("test/");
 
-    // call list_dir_contents on the dir string
-    let res = list_dir_contents(dir);
+    // call list_dir_contents on the dir
+    let res = read_dir(dir);
 
     // assert that the result is Ok()
     assert_ok!(&res);
@@ -158,26 +173,26 @@ mod test {
       let first = &vec[0];
       let second = &vec[1];
 
-      if first.path.contains(".txt") {
+      if first.path.extension() == Some(OsStr::new(".txt")) {
         // check the fields for the first DiskEntry
-        assert_eq!(first.path, "test/test.txt".to_string());
-        assert_eq!(first.is_dir, true);
-        assert_eq!(first.name, "test.txt".to_string());
+        assert_eq!(first.path, PathBuf::from("test/test.txt"));
+        assert_eq!(first.children.is_some(), true);
+        assert_eq!(first.name, Some("test.txt".to_string()));
 
         // check the fields for the second DiskEntry
-        assert_eq!(second.path, "test/test_binary".to_string());
-        assert_eq!(second.is_dir, true);
-        assert_eq!(second.name, "test_binary".to_string());
+        assert_eq!(second.path, PathBuf::from("test/test_binary"));
+        assert_eq!(second.children.is_some(), true);
+        assert_eq!(second.name, Some("test_binary".to_string()));
       } else {
         // check the fields for the first DiskEntry
-        assert_eq!(second.path, "test/test.txt".to_string());
-        assert_eq!(second.is_dir, true);
-        assert_eq!(second.name, "test.txt".to_string());
+        assert_eq!(second.path, PathBuf::from("test/test.txt"));
+        assert_eq!(second.children.is_some(), true);
+        assert_eq!(second.name, Some("test.txt".to_string()));
 
         // check the fields for the second DiskEntry
-        assert_eq!(first.path, "test/test_binary".to_string());
-        assert_eq!(first.is_dir, true);
-        assert_eq!(first.name, "test_binary".to_string());
+        assert_eq!(first.path, PathBuf::from("test/test_binary"));
+        assert_eq!(first.children.is_some(), true);
+        assert_eq!(first.name, Some("test_binary".to_string()));
       }
     }
   }

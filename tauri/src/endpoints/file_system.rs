@@ -27,10 +27,10 @@ pub fn read_dir<T: 'static>(
         (false, None)
       };
       if recursive {
-        dir::walk_dir(resolve_path(path, dir)?)
+        dir::read_dir_recursively(resolve_path(path, dir)?)
           .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
       } else {
-        dir::list_dir_contents(resolve_path(path, dir)?)
+        dir::read_dir(resolve_path(path, dir)?)
           .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
       }
     },
@@ -216,14 +216,14 @@ pub fn write_binary_file<T: 'static>(
       base64::decode(contents)
         .map_err(|e| e.into())
         .and_then(|c| {
-        File::create(resolve_path(file, options.and_then(|o| o.dir))?)
-          .map_err(|e| e.into())
-          .and_then(|mut f| {
-          f.write_all(&c)
-            .map_err(|err| err.into())
-            .map(|_| "".to_string())
+          File::create(resolve_path(file, options.and_then(|o| o.dir))?)
+            .map_err(|e| e.into())
+            .and_then(|mut f| {
+              f.write_all(&c)
+                .map_err(|err| err.into())
+                .map(|_| "".to_string())
+            })
         })
-      })
     },
     callback,
     error,

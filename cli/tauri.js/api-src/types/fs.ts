@@ -35,7 +35,9 @@ export interface FsBinaryFileOption {
 
 export interface FileEntry {
   path: string
-  // TODO why not camelCase ?
-  is_dir: boolean
-  name: string
+  // name of the directory/file
+  // can be null if the path terminates with `..`
+  name?: string
+  // children of this entry if it's a directory; null otherwise
+  children?: FileEntry[]
 }

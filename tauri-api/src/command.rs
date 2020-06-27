@@ -62,7 +62,7 @@ pub fn spawn_relative_command(
   args: Vec<String>,
   stdout: Stdio,
 ) -> crate::Result<Child> {
-  let cmd = relative_command(command)?;
+  let cmd = command_path(command)?;
   Ok(
     Command::new(cmd)
       .args(args)

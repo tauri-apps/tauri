@@ -103,7 +103,7 @@ mod test {
       // get the second DiskEntry
       let second = &vec[1];
 
-      if first.path.extension() == Some(OsStr::new(".txt")) {
+      if first.path.extension() == Some(OsStr::new("txt")) {
         // check the fields for the first DiskEntry
         assert_eq!(first.path, file_one);
         assert_eq!(first.children.is_some(), false);
@@ -148,25 +148,25 @@ mod test {
       let first = &vec[0];
       let second = &vec[1];
 
-      if first.path.extension() == Some(OsStr::new(".txt")) {
+      if first.path.extension() == Some(OsStr::new("txt")) {
         // check the fields for the first DiskEntry
         assert_eq!(first.path, PathBuf::from("test/test.txt"));
-        assert_eq!(first.children.is_some(), true);
+        assert_eq!(first.children.is_some(), false);
         assert_eq!(first.name, Some("test.txt".to_string()));
 
         // check the fields for the second DiskEntry
         assert_eq!(second.path, PathBuf::from("test/test_binary"));
-        assert_eq!(second.children.is_some(), true);
+        assert_eq!(second.children.is_some(), false);
         assert_eq!(second.name, Some("test_binary".to_string()));
       } else {
         // check the fields for the first DiskEntry
         assert_eq!(second.path, PathBuf::from("test/test.txt"));
-        assert_eq!(second.children.is_some(), true);
+        assert_eq!(second.children.is_some(), false);
         assert_eq!(second.name, Some("test.txt".to_string()));
 
         // check the fields for the second DiskEntry
         assert_eq!(first.path, PathBuf::from("test/test_binary"));
-        assert_eq!(first.children.is_some(), true);
+        assert_eq!(first.children.is_some(), false);
         assert_eq!(first.name, Some("test_binary".to_string()));
       }
     }

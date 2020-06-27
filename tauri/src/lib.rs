@@ -1,25 +1,40 @@
+//! Tauri is a framework for building tiny, blazing fast binaries for all major desktop platforms.
+//! Developers can integrate any front-end framework that compiles to HTML, JS and CSS for building their user interface.
+//! The backend of the application is a rust-sourced binary with an API that the front-end can interact with.
+//!
+//! The user interface in Tauri apps currently leverages Cocoa/WebKit on macOS, gtk-webkit2 on Linux and MSHTML (IE10/11) or Webkit via Edge on Windows.
+//! Tauri uses (and contributes to) the MIT licensed project that you can find at [webview](https://github.com/webview/webview).
+#![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(
   all(not(debug_assertions), target_os = "windows"),
   windows_subsystem = "windows"
 )]
 
+/// The asset management module.
 #[cfg(assets)]
 pub mod assets;
+/// The event system module.
 pub mod event;
+/// The embedded server helpers.
 #[cfg(embedded_server)]
 pub mod server;
+/// The Tauri-specific settings for your app e.g. notification permission status.
 pub mod settings;
 
+/// The CLI args interface.
 #[cfg(cli)]
 pub mod cli;
 
+/// The webview application entry.
 mod app;
+/// The Tauri API endpoints.
 mod endpoints;
-#[allow(dead_code)]
+/// The salt helpers.
 mod salt;
 
 use std::process::Stdio;
 
+/// Alias for a Result with error type anyhow::Error.
 pub use anyhow::Result;
 use threadpool::ThreadPool;
 

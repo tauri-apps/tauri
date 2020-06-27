@@ -27,6 +27,7 @@ pub fn generate() -> String {
 }
 
 /// Generates a static Salt and returns its string representation.
+#[allow(dead_code)]
 pub fn generate_static() -> String {
   let salt = Uuid::new_v4();
   SALTS

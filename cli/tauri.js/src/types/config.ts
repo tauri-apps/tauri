@@ -76,7 +76,7 @@ export interface CliArg {
    */
   conflictsWith?: string
   /**
-   * she same as conflictsWith but allows specifying multiple two-way conflicts per argument
+   * the same as conflictsWith but allows specifying multiple two-way conflicts per argument
    */
   conflictsWithAll?: string
   /**
@@ -106,7 +106,7 @@ export interface CliArg {
   requireEquals?: boolean
   /**
    * The positional argument index, starting at 1.
-   * 
+   *
    * The index refers to position according to other positional argument.
    * It does not define position in the argument list as a whole. When utilized with multiple=true,
    * only the last positional argument may be defined as multiple (i.e. the one with the highest index).

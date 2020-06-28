@@ -26,7 +26,6 @@ lazy_static! {
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the AppImage was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-
   // prerequisite: check if mksquashfs (part of squashfs-tools) is installed
   Command::new("mksquashfs")
     .arg("-version")
@@ -51,7 +50,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let package_dir = base_dir.join(&package_base_name);
 
   // generate deb_folder structure
-  deb_bundle::generate_folders(settings, &package_dir)?;
+  deb_bundle::generate_data(settings, &package_dir)?;
 
   let output_path = settings.project_out_directory().join("bundle/appimage");
   if output_path.exists() {

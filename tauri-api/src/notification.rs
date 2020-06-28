@@ -10,7 +10,7 @@ use std::path::MAIN_SEPARATOR;
 /// ```
 /// use tauri_api::notification::Notification;
 /// // shows a notification with the given title and body
-/// new Notification()
+/// Notification::new()
 ///   .title("New message")
 ///   .body("You've got a new message.")
 ///   .show();

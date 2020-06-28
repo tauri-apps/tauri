@@ -4,6 +4,8 @@ use std::sync::{Arc, Mutex};
 
 use lazy_static::lazy_static;
 use once_cell::sync::Lazy;
+use serde::Serialize;
+use serde_json::Value as JsonValue;
 use web_view::Handle;
 
 /// An event handler.
@@ -55,13 +57,17 @@ pub fn listen<F: FnMut(Option<String>) + Send + 'static>(id: String, handler: F)
 }
 
 /// Emits an event to JS.
-pub fn emit<T: 'static>(webview_handle: &Handle<T>, event: String, payload: Option<String>) {
+pub fn emit<T: 'static, S: Serialize>(
+  webview_handle: &Handle<T>,
+  event: String,
+  payload: Option<S>,
+) -> crate::Result<()> {
   let salt = crate::salt::generate();
 
-  let js_payload = if let Some(payload_str) = payload {
-    payload_str
+  let js_payload = if let Some(payload_value) = payload {
+    serde_json::to_value(payload_value)?
   } else {
-    "void 0".to_string()
+    JsonValue::Null
   };
 
   webview_handle
@@ -75,6 +81,8 @@ pub fn emit<T: 'static>(webview_handle: &Handle<T>, event: String, payload: Opti
       ))
     })
     .expect("Failed to dispatch JS from emit");
+
+  Ok(())
 }
 
 /// Triggers the given event with its payload.

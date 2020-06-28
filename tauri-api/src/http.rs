@@ -221,7 +221,7 @@ impl HttpRequestBuilder {
 ///
 /// The response will be transformed to String,
 /// If reading the response as binary, the byte array will be serialized using serde_json
-pub fn make_request(options: HttpRequestOptions) -> crate::Result<String> {
+pub fn make_request(options: HttpRequestOptions) -> crate::Result<Value> {
   let method = Method::from_bytes(options.method.to_uppercase().as_bytes())?;
   let mut builder = RequestBuilder::new(method, options.url);
   if let Some(params) = options.params {
@@ -291,12 +291,9 @@ pub fn make_request(options: HttpRequestOptions) -> crate::Result<String> {
   let response = response?;
   if response.is_success() {
     let response_data = match options.response_type.unwrap_or(ResponseType::Json) {
-      ResponseType::Json => {
-        let result = response.json::<Value>()?;
-        serde_json::to_string(&result)?
-      }
-      ResponseType::Text => response.text()?,
-      ResponseType::Binary => serde_json::to_string(&response.bytes()?)?,
+      ResponseType::Json => response.json::<Value>()?,
+      ResponseType::Text => Value::String(response.text()?),
+      ResponseType::Binary => Value::String(serde_json::to_string(&response.bytes()?)?),
     };
     Ok(response_data)
   } else {

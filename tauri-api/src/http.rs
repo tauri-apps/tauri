@@ -71,7 +71,6 @@ pub struct HttpRequestOptions {
 /// # Examples
 /// ```
 /// # use tauri_api::http::{ HttpRequestBuilder, HttpRequestOptions, make_request, ResponseType };
-/// # fn main() {
 /// let mut builder = HttpRequestBuilder::new("GET", "http://example.com");
 /// let option = builder.response_type(ResponseType::Text)
 ///                     .follow_redirects(false)
@@ -82,7 +81,6 @@ pub struct HttpRequestOptions {
 /// } else {
 ///   println!("Something Happened!");
 /// }
-/// # }
 /// ```
 pub struct HttpRequestBuilder {
   /// The request method (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS, CONNECT or TRACE)
@@ -114,6 +112,7 @@ pub struct HttpRequestBuilder {
 }
 
 impl HttpRequestBuilder {
+  /// Initializes a new instance of the HttpRequestBuilder.
   pub fn new(method: impl Into<String>, url: impl Into<String>) -> Self {
     Self {
       method: method.into(),
@@ -132,61 +131,73 @@ impl HttpRequestBuilder {
     }
   }
 
+  /// Sets the request params.
   pub fn params(mut self, params: HashMap<String, String>) -> Self {
     self.params = Some(params);
     self
   }
 
+  /// Sets the request headers.
   pub fn headers(mut self, headers: HashMap<String, String>) -> Self {
     self.headers = Some(headers);
     self
   }
 
+  /// Sets the request body.
   pub fn body(mut self, body: Value) -> Self {
     self.body = Some(body);
     self
   }
 
+  /// Sets whether the request should follow redirects or not.
   pub fn follow_redirects(mut self, follow_redirects: bool) -> Self {
     self.follow_redirects = Some(follow_redirects);
     self
   }
 
+  /// Sets the maximum number of redirections.
   pub fn max_redirections(mut self, max_redirections: u32) -> Self {
     self.max_redirections = Some(max_redirections);
     self
   }
 
+  /// Sets the connection timeout.
   pub fn connect_timeout(mut self, connect_timeout: u64) -> Self {
     self.connect_timeout = Some(connect_timeout);
     self
   }
 
+  /// Sets the read timeout.
   pub fn read_timeout(mut self, read_timeout: u64) -> Self {
     self.read_timeout = Some(read_timeout);
     self
   }
 
+  /// Sets the general request timeout.
   pub fn timeout(mut self, timeout: u64) -> Self {
     self.timeout = Some(timeout);
     self
   }
 
+  /// Sets whether the request allows compressed responses or not.
   pub fn allow_compression(mut self, allow_compression: bool) -> Self {
     self.allow_compression = Some(allow_compression);
     self
   }
 
+  /// Sets the type of the request body.
   pub fn body_type(mut self, body_type: BodyType) -> Self {
     self.body_type = Some(body_type);
     self
   }
 
+  /// Sets the type of the response. Interferes with the way we read the response.
   pub fn response_type(mut self, response_type: ResponseType) -> Self {
     self.response_type = Some(response_type);
     self
   }
 
+  /// Builds the HttpRequestOptions.
   pub fn build(self) -> HttpRequestOptions {
     HttpRequestOptions {
       method: self.method,

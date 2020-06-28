@@ -38,6 +38,8 @@ use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
+/// Bundles the project.
+/// Returns a vector of PathBuf that shows where the DEB was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let arch = match settings.binary_arch() {
     "x86" => "i386",
@@ -60,8 +62,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }
   let package_path = base_dir.join(package_name);
 
-  let data_dir =
-    generate_folders(settings, &package_dir).with_context(|| "Failed to build folders")?;
+  let data_dir = generate_data(settings, &package_dir)
+    .with_context(|| "Failed to build data folders and files")?;
   // Generate control files.
   let control_dir = package_dir.join("control");
   generate_control_file(settings, arch, &control_dir, &data_dir)
@@ -87,7 +89,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   Ok(vec![package_path])
 }
 
-pub fn generate_folders(settings: &Settings, package_dir: &Path) -> crate::Result<PathBuf> {
+/// Generate the debian data folders and files.
+pub fn generate_data(settings: &Settings, package_dir: &Path) -> crate::Result<PathBuf> {
   // Generate data files.
   let data_dir = package_dir.join("data");
   let bin_name = settings.binary_name();
@@ -114,6 +117,7 @@ pub fn generate_folders(settings: &Settings, package_dir: &Path) -> crate::Resul
   Ok(data_dir)
 }
 
+/// Generates the bootstrap script file.
 fn generate_bootstrap_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
   let bin_name = settings.binary_name();
   let bin_dir = data_dir.join("usr/bin");
@@ -124,7 +128,7 @@ fn generate_bootstrap_file(settings: &Settings, data_dir: &Path) -> crate::Resul
   write!(
     bootstrapper_file,
     "#!/usr/bin/env sh
-# This bootstraps the $PATH for Tauri, so environments are available.
+# This bootstraps the environment for Tauri, so environments are available.
 export NVM_DIR=\"$([ -z \"${{XDG_CONFIG_HOME-}}\" ] && printf %s \"${{HOME}}/.nvm\" || printf %s \"${{XDG_CONFIG_HOME}}/nvm\")\"
 [ -s \"$NVM_DIR/nvm.sh\" ] && . \"$NVM_DIR/nvm.sh\"
 
@@ -210,6 +214,7 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   Ok(())
 }
 
+/// Generates the debian control file and stores it under the `control_dir`.
 fn generate_control_file(
   settings: &Settings,
   arch: &str,

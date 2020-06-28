@@ -22,6 +22,8 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+/// Bundles the project.
+/// Returns a vector of PathBuf that shows where the .app was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   common::print_warning("iOS bundle support is still experimental.")?;
 
@@ -123,6 +125,7 @@ fn generate_icon_files(bundle_dir: &Path, settings: &Settings) -> crate::Result<
   Ok(filenames)
 }
 
+/// Generates the Info.plist file
 fn generate_info_plist(
   bundle_dir: &Path,
   settings: &Settings,

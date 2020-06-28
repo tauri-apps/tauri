@@ -78,7 +78,10 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           callback,
           error,
         } => {
+          #[cfg(write_binary_file)]
           file_system::write_binary_file(webview, file, contents, options, callback, error);
+          #[cfg(not(write_binary_file))]
+          whitelist_error(webview, error, "writeBinaryFile");
         }
         ReadDir {
           path,

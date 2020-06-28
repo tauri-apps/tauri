@@ -6,7 +6,9 @@ use lazy_static::lazy_static;
 use once_cell::sync::Lazy;
 use web_view::Handle;
 
+/// An event handler.
 struct EventHandler {
+  /// The on event callback.
   on_event: Box<dyn FnMut(Option<String>) + Send>,
 }
 
@@ -18,23 +20,28 @@ lazy_static! {
   static ref EVENT_QUEUE_OBJECT_NAME: String = uuid::Uuid::new_v4().to_string();
 }
 
+/// Gets the listeners map.
 fn listeners() -> &'static Listeners {
   static LISTENERS: Lazy<Listeners> = Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
   &LISTENERS
 }
 
+/// the emit JS function name
 pub fn emit_function_name() -> String {
   EMIT_FUNCTION_NAME.to_string()
 }
 
+/// the event listeners JS object name
 pub fn event_listeners_object_name() -> String {
   EVENT_LISTENERS_OBJECT_NAME.to_string()
 }
 
+/// the event queue JS object name
 pub fn event_queue_object_name() -> String {
   EVENT_QUEUE_OBJECT_NAME.to_string()
 }
 
+/// Adds an event listener for JS events.
 pub fn listen<F: FnMut(Option<String>) + Send + 'static>(id: String, handler: F) {
   let mut l = listeners()
     .lock()
@@ -47,6 +54,7 @@ pub fn listen<F: FnMut(Option<String>) + Send + 'static>(id: String, handler: F)
   );
 }
 
+/// Emits an event to JS.
 pub fn emit<T: 'static>(webview_handle: &Handle<T>, event: String, payload: Option<String>) {
   let salt = crate::salt::generate();
 
@@ -69,6 +77,7 @@ pub fn emit<T: 'static>(webview_handle: &Handle<T>, event: String, payload: Opti
     .expect("Failed to dispatch JS from emit");
 }
 
+/// Triggers the given event with its payload.
 pub fn on_event(event: String, data: Option<String>) {
   let mut l = listeners()
     .lock()

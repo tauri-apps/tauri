@@ -3,18 +3,27 @@ use std::fs::{self, metadata};
 use std::path::{Path, PathBuf};
 use tempfile::{self, tempdir};
 
+/// The result of the `read_dir` function.
+///
+/// A DiskEntry is either a file or a directory.
+/// The `children` Vec is always `Some` if the entry is a directory.
 #[derive(Debug, Serialize)]
 pub struct DiskEntry {
+  /// The path to this entry.
   pub path: PathBuf,
+  /// The name of this entry (file name with extension or directory name)
   pub name: Option<String>,
+  /// The children of this entry if it's a directory.
   #[serde(skip_serializing_if = "Option::is_none")]
   pub children: Option<Vec<DiskEntry>>,
 }
 
+/// Checks if the given path is a directory.
 pub fn is_dir<P: AsRef<Path>>(path: P) -> crate::Result<bool> {
   metadata(path).map(|md| md.is_dir()).map_err(|e| e.into())
 }
 
+/// Reads a directory. Can perform recursive operations.
 pub fn read_dir<P: AsRef<Path>>(path: P, recursive: bool) -> crate::Result<Vec<DiskEntry>> {
   let mut files_and_dirs: Vec<DiskEntry> = vec![];
   for entry in fs::read_dir(path)? {
@@ -43,6 +52,7 @@ pub fn read_dir<P: AsRef<Path>>(path: P, recursive: bool) -> crate::Result<Vec<D
   Result::Ok(files_and_dirs)
 }
 
+/// Runs a closure with a temp dir argument.
 pub fn with_temp_dir<F: FnOnce(&tempfile::TempDir) -> ()>(callback: F) -> crate::Result<()> {
   let dir = tempdir()?;
   callback(&dir);

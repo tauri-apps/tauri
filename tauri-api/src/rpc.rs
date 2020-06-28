@@ -1,8 +1,46 @@
+/// Formats a function to be evaluated as callback.
+/// If the arg is a string literal, it needs the proper quotes.
+///
+/// # Examples
+/// ```
+/// use tauri_api::rpc::format_callback;
+/// // callback with a string argument
+/// // returns `window["callback-function-name"]("the string response")`
+/// format_callback("callback-function-name".to_string(), r#""the string response""#.to_string());
+/// ```
+///
+/// ```
+/// use tauri_api::rpc::format_callback;
+/// use serde::Serialize;
+/// // callback with JSON argument
+/// #[derive(Serialize)]
+/// struct MyResponse {
+///   value: String
+/// }
+/// // this returns `window["callback-function-name"]({value: "some value"})`
+/// format_callback("callback-function-name".to_string(), serde_json::to_string(&MyResponse {
+///   value: "some value".to_string()
+/// }).expect("failed to serialize type"));
+/// ```
 pub fn format_callback(function_name: String, arg: String) -> String {
   let formatted_string = &format!("window[\"{}\"]({})", function_name, arg);
   formatted_string.to_string()
 }
 
+/// Formats a Result type to its callback version.
+/// Useful for Promises handling.
+///
+/// If the Result is Ok, `format_callback` will be called directly.
+/// If the result is an Err, we assume the error message is a string, and quote it.
+///
+/// # Examples
+/// ```
+/// use tauri_api::rpc::format_callback_result;
+/// // returns `window["success_cb"](5)`
+/// format_callback_result(Ok("5".to_string()), "success_cb".to_string(), "error_cb".to_string());
+/// // returns `window["error_cb"]("error message here")`
+/// format_callback_result(Err("error message here".to_string()), "success_cb".to_string(), "error_cb".to_string());
+/// ```
 pub fn format_callback_result(
   result: Result<String, String>,
   callback: String,

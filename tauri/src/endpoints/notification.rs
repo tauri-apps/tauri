@@ -11,12 +11,12 @@ pub fn send<T: 'static>(
     webview,
     move || {
       let mut notification = tauri_api::notification::Notification::new();
-      notification.body(options.body);
+      notification = notification.body(options.body);
       if let Some(title) = options.title {
-        notification.title(title);
+        notification = notification.title(title);
       }
       if let Some(icon) = options.icon {
-        notification.icon(icon);
+        notification = notification.icon(icon);
       }
       notification
         .show()

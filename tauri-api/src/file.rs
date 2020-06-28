@@ -8,12 +8,14 @@ use crate::Error;
 pub use extract::*;
 pub use file_move::*;
 
+/// Reads a string file.
 pub fn read_string(file: String) -> crate::Result<String> {
   fs::read_to_string(file)
     .map_err(|err| Error::File(format!("Read_string failed: {}", err)).into())
     .map(|c| c)
 }
 
+/// Reads a binary file.
 pub fn read_binary(file: String) -> crate::Result<Vec<u8>> {
   fs::read(file)
     .map_err(|err| Error::File(format!("Read_binary failed: {}", err)).into())

@@ -30,21 +30,25 @@ pub fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
   Ok(BufWriter::new(file))
 }
 
+/// Makes a symbolic link to a directory.
 #[cfg(unix)]
 fn symlink_dir(src: &Path, dst: &Path) -> io::Result<()> {
   std::os::unix::fs::symlink(src, dst)
 }
 
+/// Makes a symbolic link to a directory.
 #[cfg(windows)]
 fn symlink_dir(src: &Path, dst: &Path) -> io::Result<()> {
   std::os::windows::fs::symlink_dir(src, dst)
 }
 
+/// Makes a symbolic link to a file.
 #[cfg(unix)]
 fn symlink_file(src: &Path, dst: &Path) -> io::Result<()> {
   std::os::unix::fs::symlink(src, dst)
 }
 
+/// Makes a symbolic link to a file.
 #[cfg(windows)]
 fn symlink_file(src: &Path, dst: &Path) -> io::Result<()> {
   std::os::windows::fs::symlink_file(src, dst)
@@ -157,6 +161,8 @@ pub fn print_finished(output_paths: &Vec<PathBuf>) -> crate::Result<()> {
   Ok(())
 }
 
+/// Safely adds the terminal attribute to the terminal output.
+/// If the terminal doesn't support the attribute, does nothing.
 fn safe_term_attr<T: term::Terminal + ?Sized>(
   output: &mut Box<T>,
   attr: term::Attr,
@@ -167,6 +173,7 @@ fn safe_term_attr<T: term::Terminal + ?Sized>(
   }
 }
 
+/// Prints a formatted bundle progress to stderr.
 fn print_progress(step: &str, msg: &str) -> crate::Result<()> {
   if let Some(mut output) = term::stderr() {
     safe_term_attr(&mut output, term::Attr::Bold)?;

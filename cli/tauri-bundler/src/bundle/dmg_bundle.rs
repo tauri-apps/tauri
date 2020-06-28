@@ -9,9 +9,10 @@ use std::fs::{self, write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
-// create script files to bundle project and execute bundle_script.
+/// Bundles the project.
+/// Returns a vector of PathBuf that shows where the DMG was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  // generate the app.app folder
+  // generate the .app bundle
   osx_bundle::bundle_project(settings)?;
 
   let app_name = settings.bundle_name();

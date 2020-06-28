@@ -15,21 +15,31 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
+/// The type of the package we're bundling.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PackageType {
+  /// The macOS bundle (.app).
   OsxBundle,
+  /// The iOS app bundle.
   IosBundle,
+  /// The Windows bundle (.msi).
   #[cfg(target_os = "windows")]
   WindowsMsi,
+  /// The Linux Debian package bundle (.deb).
   Deb,
+  /// The Linux RPM bundle (.rpm).
   Rpm,
+  /// The Linux AppImage bundle (.AppImage).
   AppImage,
+  /// The macOS DMG bundle (.dmg).
   Dmg,
 }
 
 impl PackageType {
+  /// Maps a short name to a PackageType.
+  /// Possible values are "deb", "ios", "msi", "osx", "rpm", "appimage", "dmg".
   pub fn from_short_name(name: &str) -> Option<PackageType> {
-    // Other types we may eventually want to support: apk
+    // Other types we may eventually want to support: apk.
     match name {
       "deb" => Some(PackageType::Deb),
       "ios" => Some(PackageType::IosBundle),
@@ -43,6 +53,7 @@ impl PackageType {
     }
   }
 
+  /// Gets the short name of this PackageType.
   pub fn short_name(&self) -> &'static str {
     match *self {
       PackageType::Deb => "deb",
@@ -56,6 +67,7 @@ impl PackageType {
     }
   }
 
+  /// Gets the list of the possible package types.
   pub fn all() -> &'static [PackageType] {
     ALL_PACKAGE_TYPES
   }
@@ -72,84 +84,180 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::AppImage,
 ];
 
+/// The build artifact we're bundling.
 #[derive(Clone, Debug)]
 pub enum BuildArtifact {
+  /// The main application.
   Main,
+  /// A named binary which is inside of the [bin] section of your Cargo.toml.
   Bin(String),
+  /// An example app of your crate.
   Example(String),
 }
 
+/// The bundle settings of the BuildArtifact we're bundling.
 #[derive(Clone, Debug, Deserialize, Default)]
 struct BundleSettings {
   // General settings:
+  /// the name of the bundle.
   name: Option<String>,
+  /// the app's identifier.
   identifier: Option<String>,
+  /// the app's icon list.
   icon: Option<Vec<String>>,
+  /// the app's version.
   version: Option<String>,
+  /// the app's resources to bundle.
+  ///
+  /// each item can be a path to a file or a path to a folder.
+  ///
+  /// supports glob patterns.
   resources: Option<Vec<String>>,
+  /// the app's copyright.
   copyright: Option<String>,
+  /// the app's category.
   category: Option<AppCategory>,
+  /// the app's short description.
   short_description: Option<String>,
+  /// the app's long description.
   long_description: Option<String>,
+  /// the app's script to run when unpackaging the bundle.
   script: Option<PathBuf>,
   // OS-specific settings:
+  /// the list of debian dependencies.
   deb_depends: Option<Vec<String>>,
+  /// whether we should use the bootstrap script on debian or not.
+  ///
+  /// this script goal is to allow your app to access environment variables e.g $PATH.
+  ///
+  /// without it, you can't run some applications installed by the user.
   deb_use_bootstrapper: Option<bool>,
+  /// Mac OS X frameworks that need to be bundled with the app.
+  ///
+  /// Each string can either be the name of a framework (without the `.framework` extension, e.g. `"SDL2"`),
+  /// in which case we will search for that framework in the standard install locations (`~/Library/Frameworks/`, `/Library/Frameworks/`, and `/Network/Library/Frameworks/`),
+  /// or a path to a specific framework bundle (e.g. `./data/frameworks/SDL2.framework`).  Note that this setting just makes tauri-bundler copy the specified frameworks into the OS X app bundle
+  /// (under `Foobar.app/Contents/Frameworks/`); you are still responsible for:
+  ///
+  /// - arranging for the compiled binary to link against those frameworks (e.g. by emitting lines like `cargo:rustc-link-lib=framework=SDL2` from your `build.rs` script)
+  ///
+  /// - embedding the correct rpath in your binary (e.g. by running `install_name_tool -add_rpath "@executable_path/../Frameworks" path/to/binary` after compiling)
   osx_frameworks: Option<Vec<String>>,
+  /// A version string indicating the minimum Mac OS X version that the bundled app supports (e.g. `"10.11"`).
+  /// If you are using this config field, you may also want have your `build.rs` script emit `cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET=10.11`.
   osx_minimum_system_version: Option<String>,
+  /// The path to the LICENSE file for macOS apps.
+  /// Currently only used by the dmg bundle.
   osx_license: Option<String>,
+  /// whether we should use the bootstrap script on macOS .app or not.
+  ///
+  /// this script goal is to allow your app to access environment variables e.g $PATH.
+  ///
+  /// without it, you can't run some applications installed by the user.
   osx_use_bootstrapper: Option<bool>,
   // Bundles for other binaries/examples:
+  /// Configuration map for the possible [bin] apps to bundle.
   bin: Option<HashMap<String, BundleSettings>>,
+  /// Configuration map for the possible example apps to bundle.
   example: Option<HashMap<String, BundleSettings>>,
+  /// External binaries to add to the bundle.
+  ///
+  /// Note that each binary name will have the target platform's target triple appended,
+  /// so if you're bundling the `sqlite3` app, the bundler will look for e.g.
+  /// `sqlite3-x86_64-unknown-linux-gnu` on linux,
+  /// and `sqlite3-x86_64-pc-windows-gnu.exe` on windows.
+  ///
+  /// The possible target triples can be seen by running `$ rustup target list`.
   external_bin: Option<Vec<String>>,
+  /// The exception domain to use on the macOS .app bundle.
+  ///
+  /// This allows communication to the outside world e.g. a web server you're shipping.
   exception_domain: Option<String>,
 }
 
+/// The `metadata` section of the package configuration.
+///
+/// # Example Cargo.toml
+/// ```
+/// [package]
+/// name = "..."
+///
+/// [package.metadata.bundle]
+/// identifier = "..."
+/// ...other properties from BundleSettings
+/// ```
 #[derive(Clone, Debug, Deserialize)]
 struct MetadataSettings {
+  /// the bundle settings of the package.
   bundle: Option<BundleSettings>,
 }
 
+/// The `package` section of the app configuration (read from Cargo.toml).
 #[derive(Clone, Debug, Deserialize)]
 struct PackageSettings {
+  /// the package's name.
   name: String,
+  /// the package's version.
   version: String,
+  /// the package's description.
   description: String,
+  /// the package's homepage.
   homepage: Option<String>,
+  /// the package's authors.
   authors: Option<Vec<String>>,
+  /// the package's metadata.
   metadata: Option<MetadataSettings>,
 }
 
+/// The `workspace` section of the app configuration (read from Cargo.toml).
 #[derive(Clone, Debug, Deserialize)]
 struct WorkspaceSettings {
+  /// the workspace members.
   members: Option<Vec<String>>,
 }
 
+/// The Cargo settings (Cargo.toml root descriptor).
 #[derive(Clone, Debug, Deserialize)]
 struct CargoSettings {
-  package: Option<PackageSettings>, // "Ancestor" workspace Cargo.toml files may not have package info
-  workspace: Option<WorkspaceSettings>, // "Ancestor" workspace Cargo.toml files may declare workspaces
+  /// the package settings.
+  ///
+  /// it's optional because ancestor workspace Cargo.toml files may not have package info.
+  package: Option<PackageSettings>,
+  /// the workspace settings.
+  ///
+  /// it's present if the read Cargo.toml belongs to a workspace root.
+  workspace: Option<WorkspaceSettings>,
 }
 
+/// The Settings exposed by the module.
 #[derive(Clone, Debug)]
 pub struct Settings {
+  /// the package settings.
   package: PackageSettings,
-  package_types: Option<Vec<PackageType>>, // If `None`, use the default package type for this os
+  /// the package types we're bundling.
+  ///
+  /// if not present, we'll use the PackageType list for the target OS.
+  package_types: Option<Vec<PackageType>>,
+  /// the target platform of the build
   target: Option<(String, TargetInfo)>,
+  /// the features to use to build the app with `cargo build --features foo bar`.
   features: Option<Vec<String>>,
+  /// the directory where the bundles will be placed.
   project_out_directory: PathBuf,
+  /// the type of build artifact we're bundling.
   build_artifact: BuildArtifact,
+  /// whether we should build the app with release mode or not.
   is_release: bool,
+  /// the path to the binary (project_out_directory + bin_name).
   binary_path: PathBuf,
+  /// the binary name we're bundling.
   binary_name: String,
+  /// the bundle settings.
   bundle_settings: BundleSettings,
 }
 
 impl CargoSettings {
-  /*
-      Try to load a set of CargoSettings from a "Cargo.toml" file in the specified directory
-  */
+  /// Try to load a set of CargoSettings from a "Cargo.toml" file in the specified directory.
   fn load(dir: &PathBuf) -> crate::Result<Self> {
     let toml_path = dir.join("Cargo.toml");
     let mut toml_str = String::new();
@@ -160,6 +268,11 @@ impl CargoSettings {
 }
 
 impl Settings {
+  /// Builds a Settings from the CLI args.
+  ///
+  /// Package settings will be read from Cargo.toml.
+  ///
+  /// Bundle settings will be read from from $TAURI_DIR/tauri.conf.json if it exists and fallback to Cargo.toml's [package.metadata.bundle].
   pub fn new(current_dir: PathBuf, matches: &ArgMatches<'_>) -> crate::Result<Self> {
     let package_types = match matches.values_of("format") {
       Some(names) => {
@@ -258,7 +371,7 @@ impl Settings {
     };
     let binary_path = target_dir.join(&binary_name);
 
-    let bundle_settings = add_external_bin(bundle_settings)?;
+    let bundle_settings = parse_external_bin(bundle_settings)?;
 
     Ok(Settings {
       package,
@@ -274,16 +387,8 @@ impl Settings {
     })
   }
 
-  /*
-      The target_dir where binaries will be compiled to by cargo can vary:
-          - this directory is a member of a workspace project
-          - overridden by CARGO_TARGET_DIR environment variable
-          - specified in build.target-dir configuration key
-          - if the build is a 'release' or 'debug' build
-
-      This function determines where 'target' dir is and suffixes it with 'release' or 'debug'
-      to determine where the compiled binary will be located.
-  */
+  /// This function determines where 'target' dir is and suffixes it with 'release' or 'debug'
+  /// to determine where the compiled binary will be located.
   fn get_target_dir(
     project_root_dir: &PathBuf,
     target: &Option<(String, TargetInfo)>,
@@ -301,16 +406,11 @@ impl Settings {
     path
   }
 
-  /*
-      The specification of the Cargo.toml Manifest that covers the "workspace" section is here:
-      https://doc.rust-lang.org/cargo/reference/manifest.html#the-workspace-section
-
-      Determining if the current project folder is part of a workspace:
-          - Walk up the file system, looking for a Cargo.toml file.
-          - Stop at the first one found.
-          - If one is found before reaching "/" then this folder belongs to that parent workspace,
-            if it contains a [workspace] entry and the project crate name is listed on the "members" array
-  */
+  /// Walks up the file system, looking for a Cargo.toml file
+  /// If one is found before reaching the root, then the current_dir's package belongs to that parent workspace if it's listed on [workspace.members].
+  ///
+  /// If this package is part of a workspace, returns the path to the workspace directory
+  /// Otherwise returns the current directory.
   pub fn get_workspace_dir(current_dir: &PathBuf) -> PathBuf {
     let mut dir = current_dir.clone();
     let project_name = CargoSettings::load(&dir).unwrap().package.unwrap().name;
@@ -344,8 +444,7 @@ impl Settings {
     &self.project_out_directory
   }
 
-  /// Returns the architecture for the binary being bundled (e.g. "arm" or
-  /// "x86" or "x86_64").
+  /// Returns the architecture for the binary being bundled (e.g. "arm", "x86" or "x86_64").
   pub fn binary_arch(&self) -> &str {
     if let Some((_, ref info)) = self.target {
       info.target_arch()
@@ -365,10 +464,13 @@ impl Settings {
   }
 
   /// If a list of package types was specified by the command-line, returns
-  /// that list filtered by the current target's available targets;
-  /// otherwise, if a target triple was specified by the
-  /// command-line, returns the native package type(s) for that target;
-  /// otherwise, returns the native package type(s) for the host platform.
+  /// that list filtered by the current target OS available targets.
+  ///
+  /// If a target triple was specified by the
+  /// command-line, returns the native package type(s) for that target.
+  ///
+  /// Otherwise returns the native package type(s) for the host platform.
+  ///
   /// Fails if the host/target's native package type is not supported.
   pub fn package_types(&self) -> crate::Result<Vec<PackageType>> {
     let target_os = if let Some((_, ref info)) = self.target {
@@ -408,7 +510,7 @@ impl Settings {
   }
 
   /// If the bundle is being cross-compiled, returns the target triple string
-  /// (e.g. `"x86_64-apple-darwin"`).  If the bundle is targeting the host
+  /// (e.g. `"x86_64-apple-darwin"`). If the bundle is targeting the host
   /// environment, returns `None`.
   pub fn target_triple(&self) -> Option<&str> {
     match self.target {
@@ -433,6 +535,7 @@ impl Settings {
     self.is_release
   }
 
+  /// Returns the bundle name, which is either package.metadata.bundle.name or package.name
   pub fn bundle_name(&self) -> &str {
     self
       .bundle_settings
@@ -441,6 +544,7 @@ impl Settings {
       .unwrap_or(&self.package.name)
   }
 
+  /// Returns the bundle's identifier
   pub fn bundle_identifier(&self) -> &str {
     self
       .bundle_settings
@@ -476,11 +580,12 @@ impl Settings {
     }
   }
 
+  /// Returns the OSX exception domain.
   pub fn exception_domain(&self) -> Option<&String> {
     self.bundle_settings.exception_domain.as_ref()
   }
 
-  // copy external binaries to a path.
+  /// Copies external binaries to a path.
   pub fn copy_binaries(&self, path: &Path) -> crate::Result<()> {
     for src in self.external_binaries() {
       let src = src?;
@@ -494,7 +599,7 @@ impl Settings {
     Ok(())
   }
 
-  // copy resources to a path
+  /// Copies resources to a path.
   pub fn copy_resources(&self, path: &Path) -> crate::Result<()> {
     for src in self.resource_files() {
       let src = src?;
@@ -504,6 +609,7 @@ impl Settings {
     Ok(())
   }
 
+  /// Returns the version string of the bundle, which is either package.metadata.version or package.version.
   pub fn version_string(&self) -> &str {
     self
       .bundle_settings
@@ -512,10 +618,12 @@ impl Settings {
       .unwrap_or(&self.package.version)
   }
 
+  /// Returns the copyright text.
   pub fn copyright_string(&self) -> Option<&str> {
     self.bundle_settings.copyright.as_ref().map(String::as_str)
   }
 
+  /// Returns the list of authors name.
   pub fn author_names(&self) -> &[String] {
     match self.package.authors {
       Some(ref names) => names.as_slice(),
@@ -523,6 +631,7 @@ impl Settings {
     }
   }
 
+  /// Returns the authors as a comma-separated string.
   pub fn authors_comma_separated(&self) -> Option<String> {
     let names = self.author_names();
     if names.is_empty() {
@@ -532,6 +641,7 @@ impl Settings {
     }
   }
 
+  /// Returns the package's homepage URL, defaulting to "" if not defined.
   pub fn homepage_url(&self) -> &str {
     &self
       .package
@@ -541,10 +651,12 @@ impl Settings {
       .unwrap_or("")
   }
 
+  /// Returns the app's category.
   pub fn app_category(&self) -> Option<AppCategory> {
     self.bundle_settings.category
   }
 
+  /// Returns the app's short description.
   pub fn short_description(&self) -> &str {
     self
       .bundle_settings
@@ -553,6 +665,7 @@ impl Settings {
       .unwrap_or(&self.package.description)
   }
 
+  /// Returns the app's long description.
   pub fn long_description(&self) -> Option<&str> {
     self
       .bundle_settings
@@ -561,6 +674,7 @@ impl Settings {
       .map(String::as_str)
   }
 
+  /// Returns the dependencies of the debian bundle.
   pub fn debian_dependencies(&self) -> &[String] {
     match self.bundle_settings.deb_depends {
       Some(ref dependencies) => dependencies.as_slice(),
@@ -568,10 +682,12 @@ impl Settings {
     }
   }
 
+  /// Returns whether the debian bundle should use the bootstrap script or not.
   pub fn debian_use_bootstrapper(&self) -> bool {
     self.bundle_settings.deb_use_bootstrapper.unwrap_or(false)
   }
 
+  /// Returns the frameworks to bundle with the macOS .app
   pub fn osx_frameworks(&self) -> &[String] {
     match self.bundle_settings.osx_frameworks {
       Some(ref frameworks) => frameworks.as_slice(),
@@ -579,6 +695,7 @@ impl Settings {
     }
   }
 
+  /// Returns the minimum system version of the macOS bundle.
   pub fn osx_minimum_system_version(&self) -> Option<&str> {
     self
       .bundle_settings
@@ -587,6 +704,7 @@ impl Settings {
       .map(String::as_str)
   }
 
+  /// Returns the path to the DMG bundle license.
   pub fn osx_license(&self) -> Option<&str> {
     self
       .bundle_settings
@@ -595,11 +713,14 @@ impl Settings {
       .map(String::as_str)
   }
 
+  /// Returns whether the macOS .app bundle should use the bootstrap script or not.
   pub fn osx_use_bootstrapper(&self) -> bool {
     self.bundle_settings.osx_use_bootstrapper.unwrap_or(false)
   }
 }
 
+/// Gets the bundle settings from a map.
+/// It can be used to get the bundle settings from the [example] or [bin] section of Cargo.toml
 fn bundle_settings_from_table(
   opt_map: &Option<HashMap<String, BundleSettings>>,
   map_name: &str,
@@ -615,7 +736,8 @@ fn bundle_settings_from_table(
   }
 }
 
-fn add_external_bin(bundle_settings: BundleSettings) -> crate::Result<BundleSettings> {
+/// Parses the external binaries to bundle, adding the target triple suffix to each of them.
+fn parse_external_bin(bundle_settings: BundleSettings) -> crate::Result<BundleSettings> {
   let target_triple = target_triple()?;
   let mut win_paths = Vec::new();
   let external_bin = match bundle_settings.external_bin {
@@ -639,6 +761,7 @@ fn add_external_bin(bundle_settings: BundleSettings) -> crate::Result<BundleSett
   })
 }
 
+/// Returns the first Option with a value, or None if both are None.
 fn options_value<T>(first: Option<T>, second: Option<T>) -> Option<T> {
   if let Some(_) = first {
     first
@@ -647,6 +770,7 @@ fn options_value<T>(first: Option<T>, second: Option<T>) -> Option<T> {
   }
 }
 
+/// Merges the bundle settings from Cargo.toml and tauri.conf.json
 fn merge_settings(
   bundle_settings: BundleSettings,
   config: crate::bundle::tauri_config::BundleConfig,
@@ -680,16 +804,24 @@ fn merge_settings(
   }
 }
 
+/// A helper to iterate through resources.
 pub struct ResourcePaths<'a> {
+  /// the patterns to iterate.
   pattern_iter: std::slice::Iter<'a, String>,
+  /// the glob iterator if the path from the current iteration is a glob pattern.
   glob_iter: Option<glob::Paths>,
+  /// the walkdir iterator if the path from the current iteration is a directory.
   walk_iter: Option<walkdir::IntoIter>,
+  /// whether the resource paths allows directories or not.
   allow_walk: bool,
+  /// the pattern of the current iteration.
   current_pattern: Option<String>,
+  /// whether the current pattern is valid or not.
   current_pattern_is_valid: bool,
 }
 
 impl<'a> ResourcePaths<'a> {
+  /// Creates a new ResourcePaths from a slice of patterns to iterate
   fn new(patterns: &'a [String], allow_walk: bool) -> ResourcePaths<'a> {
     ResourcePaths {
       pattern_iter: patterns.iter(),

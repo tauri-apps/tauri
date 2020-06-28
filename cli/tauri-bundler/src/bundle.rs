@@ -20,6 +20,8 @@ pub use self::settings::{BuildArtifact, PackageType, Settings};
 
 use std::path::PathBuf;
 
+/// Bundles the project.
+/// Returns the list of paths where the bundles can be found.
 pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
   let mut paths = Vec::new();
   let package_types = settings.package_types()?;
@@ -49,7 +51,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
   Ok(paths)
 }
 
-// Check to see if there are icons in the settings struct
+/// Check to see if there are icons in the settings struct
 pub fn check_icons(settings: &Settings) -> crate::Result<bool> {
   // make a peekable iterator of the icon_files
   let mut iter = settings.icon_files().peekable();

@@ -16,6 +16,7 @@ use std::path::MAIN_SEPARATOR;
 ///   .show();
 /// ```
 #[allow(dead_code)]
+#[derive(Default)]
 pub struct Notification {
   /// The notification body.
   body: Option<String>,
@@ -28,11 +29,7 @@ pub struct Notification {
 impl Notification {
   /// Initializes a instance of a Notification.
   pub fn new() -> Self {
-    Self {
-      body: None,
-      title: None,
-      icon: None,
-    }
+    Default::default()
   }
 
   /// Sets the notification body.

@@ -76,7 +76,10 @@ pub fn execute_promise_sync<
 }
 
 /// Asynchronously executes the given task
-/// and evaluates its Result to the JS promise described by the `callback` and `error` function names.
+/// and evaluates its Result to the JS promise described by the `success_callback` and `error_callback` function names.
+///
+/// If the Result `is_ok()`, the callback will be the `success_callback` function name and the argument will be the Ok value.
+/// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
 pub fn execute_promise<
   T: 'static,
   R: Serialize,
@@ -84,17 +87,20 @@ pub fn execute_promise<
 >(
   webview: &mut WebView<'_, T>,
   task: F,
-  callback: String,
-  error: String,
+  success_callback: String,
+  error_callback: String,
 ) {
   let handle = webview.handle();
   POOL.with(|thread| {
     thread.execute(move || {
-      let callback_string =
-        match format_callback_result(task().map_err(|err| err.to_string()), callback, &error) {
-          Ok(callback_string) => callback_string,
-          Err(e) => format_callback(error, e.to_string()),
-        };
+      let callback_string = match format_callback_result(
+        task().map_err(|err| err.to_string()),
+        success_callback,
+        error_callback.clone(),
+      ) {
+        Ok(callback_string) => callback_string,
+        Err(e) => format_callback(error_callback, e.to_string()),
+      };
       handle
         .dispatch(move |_webview| _webview.eval(callback_string.as_str()))
         .expect("Failed to dispatch promise callback")

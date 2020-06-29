@@ -7,6 +7,7 @@ use tauri_api::path::resolve_path;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
+use std::path::PathBuf;
 
 use super::cmd::{DirOperationOptions, FileOperationOptions};
 
@@ -14,7 +15,7 @@ use super::cmd::{DirOperationOptions, FileOperationOptions};
 #[cfg(read_dir)]
 pub fn read_dir<T: 'static>(
   webview: &mut WebView<'_, T>,
-  path: String,
+  path: PathBuf,
   options: Option<DirOperationOptions>,
   callback: String,
   error: String,
@@ -38,8 +39,8 @@ pub fn read_dir<T: 'static>(
 #[cfg(copy_file)]
 pub fn copy_file<T: 'static>(
   webview: &mut WebView<'_, T>,
-  source: String,
-  destination: String,
+  source: PathBuf,
+  destination: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,
   error: String,
@@ -52,7 +53,7 @@ pub fn copy_file<T: 'static>(
           resolve_path(source, Some(dir.clone()))?,
           resolve_path(destination, Some(dir))?,
         ),
-        None => (source, destination),
+        None => (source.into(), destination.into()),
       };
       fs::copy(src, dest).map_err(|e| e.into())
     },
@@ -65,7 +66,7 @@ pub fn copy_file<T: 'static>(
 #[cfg(create_dir)]
 pub fn create_dir<T: 'static>(
   webview: &mut WebView<'_, T>,
-  path: String,
+  path: PathBuf,
   options: Option<DirOperationOptions>,
   callback: String,
   error: String,
@@ -96,7 +97,7 @@ pub fn create_dir<T: 'static>(
 #[cfg(remove_dir)]
 pub fn remove_dir<T: 'static>(
   webview: &mut WebView<'_, T>,
-  path: String,
+  path: PathBuf,
   options: Option<DirOperationOptions>,
   callback: String,
   error: String,
@@ -127,7 +128,7 @@ pub fn remove_dir<T: 'static>(
 #[cfg(remove_file)]
 pub fn remove_file<T: 'static>(
   webview: &mut WebView<'_, T>,
-  path: String,
+  path: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,
   error: String,
@@ -147,8 +148,8 @@ pub fn remove_file<T: 'static>(
 #[cfg(rename_file)]
 pub fn rename_file<T: 'static>(
   webview: &mut WebView<'_, T>,
-  old_path: String,
-  new_path: String,
+  old_path: PathBuf,
+  new_path: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,
   error: String,
@@ -161,7 +162,7 @@ pub fn rename_file<T: 'static>(
           resolve_path(old_path, Some(dir.clone()))?,
           resolve_path(new_path, Some(dir))?,
         ),
-        None => (old_path, new_path),
+        None => (old_path.into(), new_path.into()),
       };
       fs::rename(old, new).map_err(|e| e.into())
     },
@@ -174,7 +175,7 @@ pub fn rename_file<T: 'static>(
 #[cfg(write_file)]
 pub fn write_file<T: 'static>(
   webview: &mut WebView<'_, T>,
-  file: String,
+  path: PathBuf,
   contents: String,
   options: Option<FileOperationOptions>,
   callback: String,
@@ -183,7 +184,7 @@ pub fn write_file<T: 'static>(
   crate::execute_promise(
     webview,
     move || {
-      File::create(resolve_path(file, options.and_then(|o| o.dir))?)
+      File::create(resolve_path(path, options.and_then(|o| o.dir))?)
         .map_err(|e| e.into())
         .and_then(|mut f| f.write_all(contents.as_bytes()).map_err(|err| err.into()))
     },
@@ -196,7 +197,7 @@ pub fn write_file<T: 'static>(
 #[cfg(write_binary_file)]
 pub fn write_binary_file<T: 'static>(
   webview: &mut WebView<'_, T>,
-  file: String,
+  path: PathBuf,
   contents: String,
   options: Option<FileOperationOptions>,
   callback: String,
@@ -208,7 +209,7 @@ pub fn write_binary_file<T: 'static>(
       base64::decode(contents)
         .map_err(|e| e.into())
         .and_then(|c| {
-          File::create(resolve_path(file, options.and_then(|o| o.dir))?)
+          File::create(resolve_path(path, options.and_then(|o| o.dir))?)
             .map_err(|e| e.into())
             .and_then(|mut f| f.write_all(&c).map_err(|err| err.into()))
         })
@@ -222,7 +223,7 @@ pub fn write_binary_file<T: 'static>(
 #[cfg(read_text_file)]
 pub fn read_text_file<T: 'static>(
   webview: &mut WebView<'_, T>,
-  path: String,
+  path: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,
   error: String,
@@ -239,7 +240,7 @@ pub fn read_text_file<T: 'static>(
 #[cfg(read_binary_file)]
 pub fn read_binary_file<T: 'static>(
   webview: &mut WebView<'_, T>,
-  path: String,
+  path: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,
   error: String,

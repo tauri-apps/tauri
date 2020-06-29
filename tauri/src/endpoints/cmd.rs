@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::api::path::BaseDirectory;
 use serde::Deserialize;
 use tauri_api::http::HttpRequestOptions;
@@ -34,7 +36,7 @@ pub struct OpenDialogOptions {
   #[serde(default)]
   pub directory: bool,
   /// The initial path of the dialog.
-  pub default_path: Option<String>,
+  pub default_path: Option<PathBuf>,
 }
 
 /// The options for the save dialog API.
@@ -44,7 +46,7 @@ pub struct SaveDialogOptions {
   /// The initial path of the dialog.
   pub filter: Option<String>,
   /// The initial path of the dialog.
-  pub default_path: Option<String>,
+  pub default_path: Option<PathBuf>,
 }
 
 /// The options for the notification API.
@@ -66,21 +68,21 @@ pub enum Cmd {
   Init {},
   /// The read text file API.
   ReadTextFile {
-    path: String,
+    path: PathBuf,
     options: Option<FileOperationOptions>,
     callback: String,
     error: String,
   },
   /// The read binary file API.
   ReadBinaryFile {
-    path: String,
+    path: PathBuf,
     options: Option<FileOperationOptions>,
     callback: String,
     error: String,
   },
   /// The write file API.
   WriteFile {
-    file: String,
+    path: PathBuf,
     contents: String,
     options: Option<FileOperationOptions>,
     callback: String,
@@ -88,7 +90,7 @@ pub enum Cmd {
   },
   /// The write binary file API.
   WriteBinaryFile {
-    file: String,
+    path: PathBuf,
     contents: String,
     options: Option<FileOperationOptions>,
     callback: String,
@@ -96,36 +98,36 @@ pub enum Cmd {
   },
   /// The read dir API.
   ReadDir {
-    path: String,
+    path: PathBuf,
     options: Option<DirOperationOptions>,
     callback: String,
     error: String,
   },
   /// The copy file API.
   CopyFile {
-    source: String,
-    destination: String,
+    source: PathBuf,
+    destination: PathBuf,
     options: Option<FileOperationOptions>,
     callback: String,
     error: String,
   },
   /// The create dir API.
   CreateDir {
-    path: String,
+    path: PathBuf,
     options: Option<DirOperationOptions>,
     callback: String,
     error: String,
   },
   /// The remove dir API.
   RemoveDir {
-    path: String,
+    path: PathBuf,
     options: Option<DirOperationOptions>,
     callback: String,
     error: String,
   },
   /// The remove file API.
   RemoveFile {
-    path: String,
+    path: PathBuf,
     options: Option<FileOperationOptions>,
     callback: String,
     error: String,
@@ -133,8 +135,8 @@ pub enum Cmd {
   /// The rename file API.
   #[serde(rename_all = "camelCase")]
   RenameFile {
-    old_path: String,
-    new_path: String,
+    old_path: PathBuf,
+    new_path: PathBuf,
     options: Option<FileOperationOptions>,
     callback: String,
     error: String,

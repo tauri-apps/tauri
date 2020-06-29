@@ -20,7 +20,7 @@ pub fn send<T: 'static>(
         notification = notification.icon(icon);
       }
       notification.show()?;
-      Ok("".to_string())
+      Ok(JsonValue::Null)
     },
     callback,
     error,

@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -54,11 +54,11 @@ pub enum BaseDirectory {
 /// # Example
 /// ```
 /// use tauri_api::path::{resolve_path, BaseDirectory};
-/// let path = resolve_path("path/to/something".to_string(), Some(BaseDirectory::Config))
+/// let path = resolve_path("path/to/something", Some(BaseDirectory::Config))
 ///   .expect("failed to resolve path");
 /// // path is equal to "/home/${whoami}/.config/path/to/something" on Linux
 /// ```
-pub fn resolve_path(path: String, dir: Option<BaseDirectory>) -> crate::Result<String> {
+pub fn resolve_path<P: AsRef<Path>>(path: P, dir: Option<BaseDirectory>) -> crate::Result<PathBuf> {
   if let Some(base_dir) = dir {
     let base_dir_path = match base_dir {
       BaseDirectory::Audio => audio_dir(),
@@ -82,12 +82,14 @@ pub fn resolve_path(path: String, dir: Option<BaseDirectory>) -> crate::Result<S
     };
     if let Some(mut base_dir_path_value) = base_dir_path {
       base_dir_path_value.push(path);
-      Ok(base_dir_path_value.to_string_lossy().to_string())
+      Ok(base_dir_path_value)
     } else {
       Err(crate::Error::Path("unable to determine base dir path".to_string()).into())
     }
   } else {
-    Ok(path)
+    let mut dir_path = PathBuf::new();
+    dir_path.push(path);
+    Ok(dir_path)
   }
 }
 

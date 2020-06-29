@@ -44,12 +44,12 @@ pub fn event_queue_object_name() -> String {
 }
 
 /// Adds an event listener for JS events.
-pub fn listen<F: FnMut(Option<String>) + Send + 'static>(id: String, handler: F) {
+pub fn listen<F: FnMut(Option<String>) + Send + 'static>(id: impl Into<String>, handler: F) {
   let mut l = listeners()
     .lock()
     .expect("Failed to lock listeners: listen()");
   l.insert(
-    id,
+    id.into(),
     EventHandler {
       on_event: Box::new(handler),
     },
@@ -59,7 +59,7 @@ pub fn listen<F: FnMut(Option<String>) + Send + 'static>(id: String, handler: F)
 /// Emits an event to JS.
 pub fn emit<T: 'static, S: Serialize>(
   webview_handle: &Handle<T>,
-  event: String,
+  event: impl AsRef<str> + Send + 'static,
   payload: Option<S>,
 ) -> crate::Result<()> {
   let salt = crate::salt::generate();
@@ -75,7 +75,7 @@ pub fn emit<T: 'static, S: Serialize>(
       _webview.eval(&format!(
         "window['{}']({{type: '{}', payload: {}}}, '{}')",
         emit_function_name(),
-        event.as_str(),
+        event.as_ref(),
         js_payload,
         salt
       ))

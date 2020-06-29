@@ -179,7 +179,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           callback,
           error,
         } => {
-          salt::validate(webview, salt, callback, error);
+          salt::validate(webview, salt, callback, error)?;
         }
         Listen {
           event,
@@ -206,7 +206,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           error,
         } => {
           #[cfg(open_dialog)]
-          dialog::open(webview, options, callback, error);
+          dialog::open(webview, options, callback, error)?;
           #[cfg(not(open_dialog))]
           whitelist_error(webview, error, "title");
         }
@@ -216,7 +216,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           error,
         } => {
           #[cfg(save_dialog)]
-          dialog::save(webview, options, callback, error);
+          dialog::save(webview, options, callback, error)?;
           #[cfg(not(save_dialog))]
           throw_whitelist_error(webview, "saveDialog");
         }
@@ -244,7 +244,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           crate::execute_promise(
             webview,
             move || match crate::cli::get_matches() {
-              Some(matches) => Ok(serde_json::to_string(matches)?),
+              Some(matches) => Ok(matches),
               None => Err(anyhow::anyhow!(r#""failed to get matches""#)),
             },
             callback,
@@ -271,7 +271,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         }
         RequestNotificationPermission { callback, error } => {
           #[cfg(notification)]
-          notification::request_permission(webview, callback, error);
+          notification::request_permission(webview, callback, error)?;
           #[cfg(not(notification))]
           whitelist_error(webview, error, "notification");
         }

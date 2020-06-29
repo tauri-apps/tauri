@@ -18,7 +18,7 @@ export interface HttpOptions {
   method: HttpVerb
   url: string
   headers?: Record<string, any>
-  propertys?: Record<string, any>
+  params?: Record<string, any>
   body?: Body
   followRedirects: boolean
   maxRedirections: boolean

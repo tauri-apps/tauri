@@ -32,17 +32,19 @@ mod endpoints;
 /// The salt helpers.
 mod salt;
 
-use std::process::Stdio;
-
 /// Alias for a Result with error type anyhow::Error.
 pub use anyhow::Result;
-use threadpool::ThreadPool;
-
-pub use web_view::Handle;
-use web_view::WebView;
-
 pub use app::*;
 pub use tauri_api as api;
+pub use web_view::Handle;
+
+use std::process::Stdio;
+
+use api::rpc::{format_callback, format_callback_result};
+use serde::Serialize;
+use threadpool::ThreadPool;
+use web_view::WebView;
+
 thread_local!(static POOL: ThreadPool = ThreadPool::new(4));
 
 /// Executes the operation in the thread pool.
@@ -56,33 +58,49 @@ pub fn spawn<F: FnOnce() -> () + Send + 'static>(task: F) {
 
 /// Synchronously executes the given task
 /// and evaluates its Result to the JS promise described by the `callback` and `error` function names.
-pub fn execute_promise_sync<T: 'static, F: FnOnce() -> crate::Result<String> + Send + 'static>(
+pub fn execute_promise_sync<
+  T: 'static,
+  R: Serialize,
+  F: FnOnce() -> crate::Result<R> + Send + 'static,
+>(
   webview: &mut WebView<'_, T>,
   task: F,
   callback: String,
   error: String,
-) {
+) -> crate::Result<()> {
   let handle = webview.handle();
   let callback_string =
-    api::rpc::format_callback_result(task().map_err(|err| err.to_string()), callback, error);
-  handle
-    .dispatch(move |_webview| _webview.eval(callback_string.as_str()))
-    .expect("Failed to dispatch promise callback");
+    format_callback_result(task().map_err(|err| err.to_string()), callback, error)?;
+  handle.dispatch(move |_webview| _webview.eval(callback_string.as_str()))?;
+  Ok(())
 }
 
 /// Asynchronously executes the given task
-/// and evaluates its Result to the JS promise described by the `callback` and `error` function names.
-pub fn execute_promise<T: 'static, F: FnOnce() -> crate::Result<String> + Send + 'static>(
+/// and evaluates its Result to the JS promise described by the `success_callback` and `error_callback` function names.
+///
+/// If the Result `is_ok()`, the callback will be the `success_callback` function name and the argument will be the Ok value.
+/// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
+pub fn execute_promise<
+  T: 'static,
+  R: Serialize,
+  F: FnOnce() -> crate::Result<R> + Send + 'static,
+>(
   webview: &mut WebView<'_, T>,
   task: F,
-  callback: String,
-  error: String,
+  success_callback: String,
+  error_callback: String,
 ) {
   let handle = webview.handle();
   POOL.with(|thread| {
     thread.execute(move || {
-      let callback_string =
-        api::rpc::format_callback_result(task().map_err(|err| err.to_string()), callback, error);
+      let callback_string = match format_callback_result(
+        task().map_err(|err| err.to_string()),
+        success_callback,
+        error_callback.clone(),
+      ) {
+        Ok(callback_string) => callback_string,
+        Err(e) => format_callback(error_callback, e.to_string()),
+      };
       handle
         .dispatch(move |_webview| _webview.eval(callback_string.as_str()))
         .expect("Failed to dispatch promise callback")
@@ -100,11 +118,7 @@ pub fn call<T: 'static>(
 ) {
   execute_promise(
     webview,
-    || {
-      api::command::get_output(command, args, Stdio::piped())
-        .map_err(|err| err)
-        .map(|output| format!(r#""{}""#, output))
-    },
+    || api::command::get_output(command, args, Stdio::piped()),
     callback,
     error,
   );

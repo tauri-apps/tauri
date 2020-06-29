@@ -70,7 +70,7 @@ pub fn load<T: 'static>(
             }
           })
           .map_err(|err| err.into())
-          .map(|_| r#""Asset loaded successfully""#.to_string())
+          .map(|_| "Asset loaded successfully".to_string())
       }
     },
     callback,

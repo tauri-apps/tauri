@@ -1,4 +1,5 @@
 use super::cmd::NotificationOptions;
+use serde_json::Value as JsonValue;
 use web_view::WebView;
 
 pub fn send<T: 'static>(
@@ -18,9 +19,7 @@ pub fn send<T: 'static>(
       if let Some(icon) = options.icon {
         notification = notification.icon(icon);
       }
-      notification
-        .show()
-        .map_err(|e| anyhow::anyhow!(r#""{}""#, e.to_string()))?;
+      notification.show()?;
       Ok("".to_string())
     },
     callback,
@@ -38,9 +37,9 @@ pub fn is_permission_granted<T: 'static>(
     move || {
       let settings = crate::settings::read_settings()?;
       if let Some(allow_notification) = settings.allow_notification {
-        Ok(allow_notification.to_string())
+        Ok(JsonValue::String(allow_notification.to_string()))
       } else {
-        Ok("null".to_string())
+        Ok(JsonValue::Null)
       }
     },
     callback,
@@ -52,7 +51,7 @@ pub fn request_permission<T: 'static>(
   webview: &mut WebView<'_, T>,
   callback: String,
   error: String,
-) {
+) -> crate::Result<()> {
   crate::execute_promise_sync(
     webview,
     move || {
@@ -82,5 +81,6 @@ pub fn request_permission<T: 'static>(
     },
     callback,
     error,
-  );
+  )?;
+  Ok(())
 }

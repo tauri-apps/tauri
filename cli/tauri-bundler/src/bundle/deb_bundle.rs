@@ -48,7 +48,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   };
   let package_base_name = format!(
     "{}_{}_{}",
-    settings.binary_name(),
+    settings.main_binary_name(),
     settings.version_string(),
     arch
   );
@@ -93,12 +93,14 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 pub fn generate_data(settings: &Settings, package_dir: &Path) -> crate::Result<PathBuf> {
   // Generate data files.
   let data_dir = package_dir.join("data");
-  let bin_name = settings.binary_name();
-  let binary_dest = data_dir.join("usr/bin").join(bin_name);
   let bin_dir = data_dir.join("usr/bin");
 
-  common::copy_file(settings.binary_path(), &binary_dest)
-    .with_context(|| "Failed to copy binary file")?;
+  for bin in settings.binaries() {
+    let bin_path = settings.binary_path(bin);
+    common::copy_file(&bin_path, &bin_dir.join(bin.name()))
+      .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+  }
+
   transfer_resource_files(settings, &data_dir).with_context(|| "Failed to copy resource files")?;
 
   settings
@@ -119,7 +121,7 @@ pub fn generate_data(settings: &Settings, package_dir: &Path) -> crate::Result<P
 
 /// Generates the bootstrap script file.
 fn generate_bootstrap_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  let bin_name = settings.binary_name();
+  let bin_name = settings.main_binary_name();
   let bin_dir = data_dir.join("usr/bin");
 
   let bootstrap_file_name = format!("__{}-bootstrapper", bin_name);
@@ -180,7 +182,7 @@ exit 0",
 
 /// Generate the application desktop file and store it under the `data_dir`.
 fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  let bin_name = settings.binary_name();
+  let bin_name = settings.main_binary_name();
   let desktop_file_name = format!("{}.desktop", bin_name);
   let desktop_file_path = data_dir
     .join("usr/share/applications")
@@ -293,7 +295,7 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
 /// Copy the bundle's resource files into an appropriate directory under the
 /// `data_dir`.
 fn transfer_resource_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  let resource_dir = data_dir.join("usr/lib").join(settings.binary_name());
+  let resource_dir = data_dir.join("usr/lib").join(settings.main_binary_name());
   settings.copy_resources(&resource_dir)
 }
 
@@ -306,7 +308,7 @@ fn generate_icon_files(settings: &Settings, data_dir: &PathBuf) -> crate::Result
       width,
       height,
       if is_high_density { "@2x" } else { "" },
-      settings.binary_name()
+      settings.main_binary_name()
     ))
   };
   let mut sizes = BTreeSet::new();

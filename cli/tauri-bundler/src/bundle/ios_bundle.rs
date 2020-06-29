@@ -51,9 +51,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     generate_icon_files(&bundle_dir, settings).with_context(|| "Failed to create app icons")?;
   generate_info_plist(&bundle_dir, settings, &icon_filenames)
     .with_context(|| "Failed to create Info.plist")?;
-  let bin_path = bundle_dir.join(&settings.bundle_name());
-  common::copy_file(settings.binary_path(), &bin_path)
-    .with_context(|| format!("Failed to copy binary from {:?}", settings.binary_path()))?;
+
+  for bin in settings.binaries() {
+    let bin_path = settings.binary_path(bin);
+    common::copy_file(&bin_path, &bundle_dir.join(bin.name()))
+      .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+  }
+
   Ok(vec![bundle_dir])
 }
 
@@ -159,7 +163,7 @@ fn generate_info_plist(
   write!(
     file,
     "  <key>CFBundleExecutable</key>\n  <string>{}</string>\n",
-    settings.binary_name()
+    settings.main_binary_name()
   )?;
   write!(
     file,

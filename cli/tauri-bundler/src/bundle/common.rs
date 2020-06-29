@@ -57,7 +57,9 @@ fn symlink_file(src: &Path, dst: &Path) -> io::Result<()> {
 /// Copies a regular file from one path to another, creating any parent
 /// directories of the destination path as necessary.  Fails if the source path
 /// is a directory or doesn't exist.
-pub fn copy_file(from: &Path, to: &Path) -> crate::Result<()> {
+pub fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> crate::Result<()> {
+  let from = from.as_ref();
+  let to = to.as_ref();
   if !from.exists() {
     return Err(crate::Error::GenericError(format!(
       "{:?} does not exist",
@@ -212,6 +214,7 @@ pub fn print_warning(message: &str) -> crate::Result<()> {
 }
 
 /// Prints a Info message to stderr.
+#[cfg(windows)]
 pub fn print_info(message: &str) -> crate::Result<()> {
   if let Some(mut output) = term::stderr() {
     safe_term_attr(&mut output, term::Attr::Bold)?;

@@ -70,9 +70,9 @@
             <Component Id="Path" Guid="{{{path_component_guid}}}" Win64="$(var.Win64)">
                 <File Id="Path" Source="{{{app_exe_source}}}" KeyPath="yes" Checksum="yes"/>
             </Component>
-            {{#each external_binaries as |external_bin| ~}}
-            <Component Id="{{ external_bin.id }}" Guid="{{external_bin.guid}}" Win64="$(var.Win64)">
-                <File Id="Path_{{ external_bin.id }}" Source="{{external_bin.path}}"  KeyPath="yes"/>
+            {{#each binaries as |bin| ~}}
+            <Component Id="{{ bin.id }}" Guid="{{bin.guid}}" Win64="$(var.Win64)">
+                <File Id="Path_{{ bin.id }}" Source="{{bin.path}}"  KeyPath="yes"/>
             </Component>
             {{/each~}}
             {{{resources}}}
@@ -140,8 +140,8 @@
                 Level="1"
                 Absent="allow">
             <ComponentRef Id="Path"/>
-            {{#each external_binaries as |external_bin| ~}}
-            <ComponentRef Id="{{ external_bin.id }}"/>
+            {{#each binaries as |bin| ~}}
+            <ComponentRef Id="{{ bin.id }}"/>
             {{/each~}}
             </Feature>
         </Feature>

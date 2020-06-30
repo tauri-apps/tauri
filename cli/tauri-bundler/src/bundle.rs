@@ -15,8 +15,10 @@ mod tauri_config;
 #[cfg(target_os = "windows")]
 mod wix;
 
-pub use self::common::{print_error, print_finished, print_info};
-pub use self::settings::{BuildArtifact, PackageType, Settings};
+#[cfg(target_os = "windows")]
+pub use self::common::print_info;
+pub use self::common::{print_error, print_finished};
+pub use self::settings::{PackageType, Settings};
 
 use std::path::PathBuf;
 

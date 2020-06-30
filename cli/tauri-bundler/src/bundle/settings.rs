@@ -239,6 +239,11 @@ impl BundleBinary {
   pub fn name(&self) -> &String {
     &self.name
   }
+
+  #[cfg(windows)]
+  pub fn main(&self) -> bool {
+    self.main
+  }
 }
 
 /// The Settings exposed by the module.

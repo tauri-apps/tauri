@@ -215,7 +215,6 @@ pub fn print_warning(message: &str) -> crate::Result<()> {
 }
 
 /// Prints a Info message to stderr.
-#[cfg(windows)]
 pub fn print_info(message: &str) -> crate::Result<()> {
   if let Some(mut output) = term::stderr() {
     safe_term_attr(&mut output, term::Attr::Bold)?;

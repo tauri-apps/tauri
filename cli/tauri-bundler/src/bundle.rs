@@ -15,7 +15,6 @@ mod tauri_config;
 #[cfg(target_os = "windows")]
 mod wix;
 
-#[cfg(target_os = "windows")]
 pub use self::common::print_info;
 pub use self::common::{print_error, print_finished};
 pub use self::settings::{PackageType, Settings};

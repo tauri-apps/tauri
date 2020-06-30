@@ -333,27 +333,13 @@ fn run_candle(
   let candle_exe = wix_toolset_path.join("candle.exe");
   common::print_info(format!("running candle for {}", wxs_file_name).as_str())?;
 
-  let mut cmd = Command::new(&candle_exe)
+  let mut cmd = Command::new(&candle_exe);
+  cmd
     .args(&args)
     .stdout(Stdio::piped())
-    .current_dir(build_path)
-    .spawn()
-    .expect("error running candle.exe");
-  {
-    let stdout = cmd.stdout.as_mut().expect("Failed to get stdout handle");
-    let reader = BufReader::new(stdout);
+    .current_dir(build_path);
 
-    for line in reader.lines() {
-      common::print_info(line.expect("Failed to get line").as_str())?;
-    }
-  }
-
-  let status = cmd.wait()?;
-  if status.success() {
-    Ok(())
-  } else {
-    Err(crate::Error::CandleError)
-  }
+  common::execute_with_output(&mut cmd).map_err(|_| crate::Error::CandleError)
 }
 
 /// Runs the Light.exe file. Light takes the generated code from Candle and produces an MSI Installer.
@@ -378,27 +364,15 @@ fn run_light(
 
   common::print_info(format!("running light to produce {}", output_path.display()).as_str())?;
 
-  let mut cmd = Command::new(&light_exe)
+  let mut cmd = Command::new(&light_exe);
+  cmd
     .args(&args)
     .stdout(Stdio::piped())
-    .current_dir(build_path)
-    .spawn()
-    .expect("error running light.exe");
-  {
-    let stdout = cmd.stdout.as_mut().expect("Failed to get stdout handle");
-    let reader = BufReader::new(stdout);
+    .current_dir(build_path);
 
-    for line in reader.lines() {
-      common::print_info(line.expect("Failed to get line").as_str())?;
-    }
-  }
-
-  let status = cmd.wait()?;
-  if status.success() {
-    Ok(output_path.to_path_buf())
-  } else {
-    Err(crate::Error::LightError)
-  }
+  common::execute_with_output(&mut cmd)
+    .map(|_| output_path.to_path_buf())
+    .map_err(|_| crate::Error::LightError)
 }
 
 // fn get_icon_data() -> crate::Result<()> {

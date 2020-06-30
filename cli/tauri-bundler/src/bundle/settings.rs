@@ -84,17 +84,6 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::AppImage,
 ];
 
-/// The build artifact we're bundling.
-#[derive(Clone, Debug)]
-pub enum BuildArtifact {
-  /// The main application.
-  Main,
-  /// A named binary which is inside of the [bin] section of your Cargo.toml.
-  Bin(String),
-  /// An example app of your crate.
-  Example(String),
-}
-
 /// The bundle settings of the BuildArtifact we're bundling.
 #[derive(Clone, Debug, Deserialize, Default)]
 struct BundleSettings {
@@ -207,6 +196,8 @@ struct PackageSettings {
   authors: Option<Vec<String>>,
   /// the package's metadata.
   metadata: Option<MetadataSettings>,
+  /// the default binary to run.
+  default_run: Option<String>,
 }
 
 /// The `workspace` section of the app configuration (read from Cargo.toml).
@@ -214,6 +205,12 @@ struct PackageSettings {
 struct WorkspaceSettings {
   /// the workspace members.
   members: Option<Vec<String>>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct BinarySettings {
+  name: String,
+  path: Option<String>,
 }
 
 /// The Cargo settings (Cargo.toml root descriptor).
@@ -227,6 +224,43 @@ struct CargoSettings {
   ///
   /// it's present if the read Cargo.toml belongs to a workspace root.
   workspace: Option<WorkspaceSettings>,
+  /// the binary targets configuration.
+  bin: Option<Vec<BinarySettings>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct BundleBinary {
+  name: String,
+  src_path: Option<String>,
+  main: bool,
+}
+
+impl BundleBinary {
+  pub fn new(name: String, main: bool) -> Self {
+    Self {
+      name: if cfg!(windows) {
+        format!("{}.exe", name)
+      } else {
+        name
+      },
+      src_path: None,
+      main,
+    }
+  }
+
+  pub fn set_src_path(mut self, src_path: Option<String>) -> Self {
+    self.src_path = src_path;
+    self
+  }
+
+  pub fn name(&self) -> &String {
+    &self.name
+  }
+
+  #[cfg(windows)]
+  pub fn main(&self) -> bool {
+    self.main
+  }
 }
 
 /// The Settings exposed by the module.
@@ -244,16 +278,12 @@ pub struct Settings {
   features: Option<Vec<String>>,
   /// the directory where the bundles will be placed.
   project_out_directory: PathBuf,
-  /// the type of build artifact we're bundling.
-  build_artifact: BuildArtifact,
   /// whether we should build the app with release mode or not.
   is_release: bool,
-  /// the path to the binary (project_out_directory + bin_name).
-  binary_path: PathBuf,
-  /// the binary name we're bundling.
-  binary_name: String,
   /// the bundle settings.
   bundle_settings: BundleSettings,
+  /// the binaries to bundle.
+  binaries: Vec<BundleBinary>,
 }
 
 impl CargoSettings {
@@ -294,13 +324,6 @@ impl Settings {
       }
       None => None,
     };
-    let build_artifact = if let Some(bin) = matches.value_of("bin") {
-      BuildArtifact::Bin(bin.to_string())
-    } else if let Some(example) = matches.value_of("example") {
-      BuildArtifact::Example(example.to_string())
-    } else {
-      BuildArtifact::Main
-    };
     let is_release = matches.is_present("release");
     let target = match matches.value_of("target") {
       Some(triple) => Some((triple.to_string(), TargetInfo::from_str(triple)?)),
@@ -329,7 +352,7 @@ impl Settings {
       }
     };
     let workspace_dir = Settings::get_workspace_dir(&current_dir);
-    let target_dir = Settings::get_target_dir(&workspace_dir, &target, is_release, &build_artifact);
+    let target_dir = Settings::get_target_dir(&workspace_dir, &target, is_release);
     let bundle_settings = match tauri_config {
       Ok(config) => merge_settings(BundleSettings::default(), config.tauri.bundle),
       Err(e) => {
@@ -353,23 +376,49 @@ impl Settings {
         }
       }
     };
-    let (bundle_settings, binary_name) = match build_artifact {
-      BuildArtifact::Main => (bundle_settings, package.name.clone()),
-      BuildArtifact::Bin(ref name) => (
-        bundle_settings_from_table(&bundle_settings.bin, "bin", name)?,
-        name.clone(),
-      ),
-      BuildArtifact::Example(ref name) => (
-        bundle_settings_from_table(&bundle_settings.example, "example", name)?,
-        name.clone(),
-      ),
-    };
-    let binary_name = if cfg!(windows) {
-      format!("{}.{}", &binary_name, "exe")
-    } else {
-      binary_name
-    };
-    let binary_path = target_dir.join(&binary_name);
+
+    let mut binaries: Vec<BundleBinary> = vec![];
+    if let Some(bin) = cargo_settings.bin {
+      let default_run = package.default_run.clone().unwrap_or("".to_string());
+      for binary in bin {
+        binaries.push(
+          BundleBinary::new(
+            binary.name.clone(),
+            binary.name.as_str() == package.name || binary.name.as_str() == default_run,
+          )
+          .set_src_path(binary.path),
+        )
+      }
+    }
+
+    let mut bins_path = PathBuf::from(current_dir);
+    bins_path.push("src/bin");
+    if let Ok(fs_bins) = std::fs::read_dir(bins_path) {
+      for entry in fs_bins {
+        let path = entry?.path();
+        if let Some(name) = path.file_stem() {
+          if !binaries.iter().any(|bin| {
+            bin.name.as_str() == name
+              || path.ends_with(bin.src_path.as_ref().unwrap_or(&"".to_string()))
+          }) {
+            binaries.push(BundleBinary::new(name.to_string_lossy().to_string(), false))
+          }
+        }
+      }
+    }
+
+    if let Some(default_run) = package.default_run.as_ref() {
+      if !binaries.iter().any(|bin| bin.name.as_str() == default_run) {
+        binaries.push(BundleBinary::new(default_run.to_string(), true));
+      }
+    }
+
+    if binaries.len() == 1 {
+      binaries.get_mut(0).and_then(|bin| {
+        bin.main = true;
+        Some(bin)
+      });
+    }
 
     let bundle_settings = parse_external_bin(bundle_settings)?;
 
@@ -378,11 +427,9 @@ impl Settings {
       package_types,
       target,
       features,
-      build_artifact,
       is_release,
       project_out_directory: target_dir,
-      binary_path,
-      binary_name,
+      binaries,
       bundle_settings,
     })
   }
@@ -393,16 +440,12 @@ impl Settings {
     project_root_dir: &PathBuf,
     target: &Option<(String, TargetInfo)>,
     is_release: bool,
-    build_artifact: &BuildArtifact,
   ) -> PathBuf {
     let mut path = project_root_dir.join("target");
     if let &Some((ref triple, _)) = target {
       path.push(triple);
     }
     path.push(if is_release { "release" } else { "debug" });
-    if let &BuildArtifact::Example(_) = build_artifact {
-      path.push("examples");
-    }
     path
   }
 
@@ -454,13 +497,25 @@ impl Settings {
   }
 
   /// Returns the file name of the binary being bundled.
-  pub fn binary_name(&self) -> &str {
-    &self.binary_name
+  pub fn main_binary_name(&self) -> &str {
+    self
+      .binaries
+      .iter()
+      .find(|bin| bin.main)
+      .expect("failed to find main binary")
+      .name
+      .as_str()
   }
 
-  /// Returns the path to the binary being bundled.
-  pub fn binary_path(&self) -> &Path {
-    &self.binary_path
+  /// Returns the path to the specified binary.
+  pub fn binary_path(&self, binary: &BundleBinary) -> PathBuf {
+    let mut path = self.project_out_directory.clone();
+    path.push(binary.name());
+    path
+  }
+
+  pub fn binaries(&self) -> &Vec<BundleBinary> {
+    &self.binaries
   }
 
   /// If a list of package types was specified by the command-line, returns
@@ -522,11 +577,6 @@ impl Settings {
   /// Returns the features that is being built.
   pub fn build_features(&self) -> Option<Vec<String>> {
     self.features.to_owned()
-  }
-
-  /// Returns the artifact that is being bundled.
-  pub fn build_artifact(&self) -> &BuildArtifact {
-    &self.build_artifact
   }
 
   /// Returns true if the bundle is being compiled in release mode, false if
@@ -716,23 +766,6 @@ impl Settings {
   /// Returns whether the macOS .app bundle should use the bootstrap script or not.
   pub fn osx_use_bootstrapper(&self) -> bool {
     self.bundle_settings.osx_use_bootstrapper.unwrap_or(false)
-  }
-}
-
-/// Gets the bundle settings from a map.
-/// It can be used to get the bundle settings from the [example] or [bin] section of Cargo.toml
-fn bundle_settings_from_table(
-  opt_map: &Option<HashMap<String, BundleSettings>>,
-  map_name: &str,
-  bundle_name: &str,
-) -> crate::Result<BundleSettings> {
-  if let Some(bundle_settings) = opt_map.as_ref().and_then(|map| map.get(bundle_name)) {
-    Ok(bundle_settings.clone())
-  } else {
-    return Err(crate::Error::GenericError(format!(
-      "No 'bundle:{}:{}' keys section in the tauri.conf.json file",
-      map_name, bundle_name
-    )));
   }
 }
 

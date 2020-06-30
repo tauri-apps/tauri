@@ -57,15 +57,16 @@ lazy_static! {
 /// Mapper between a resource directory name and its ResourceDirectory descriptor.
 type ResourceMap = BTreeMap<String, ResourceDirectory>;
 
-/// An external binary to bundle with WIX.
+/// A binary to bundle with WIX.
+/// External binaries or additional project binaries are represented with this data structure.
 /// This data structure is needed because WIX requires each path to have its own `id` and `guid`.
 #[derive(Serialize)]
-struct ExternalBinary {
+struct Binary {
   /// the GUID to use on the WIX XML.
   guid: String,
   /// the id to use on the WIX XML.
   id: String,
-  /// the external binary path.
+  /// the binary path.
   path: String,
 }
 
@@ -135,8 +136,7 @@ impl ResourceDirectory {
 /// Copies the icons to the binary path, under the `resources` folder,
 /// and returns the path to that directory.
 fn copy_icons(settings: &Settings) -> crate::Result<PathBuf> {
-  let base_dir = settings.binary_path();
-  let base_dir = base_dir.parent().expect("Failed to get dir");
+  let base_dir = settings.project_out_directory();
 
   let resource_dir = base_dir.join("resources");
 
@@ -323,11 +323,20 @@ fn run_candle(
     }
   };
 
+  let main_binary = settings
+    .binaries()
+    .iter()
+    .find(|bin| bin.main())
+    .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
+
   let args = vec![
     "-arch".to_string(),
     arch.to_string(),
     wxs_file_name.to_string(),
-    format!("-dSourceDir={}", settings.binary_path().display()),
+    format!(
+      "-dSourceDir={}",
+      settings.binary_path(main_binary).display()
+    ),
   ];
 
   let candle_exe = wix_toolset_path.join("candle.exe");
@@ -408,7 +417,7 @@ pub fn build_wix_app_installer(
   data.insert("manufacturer", to_json(manufacturer.as_str()));
   let upgrade_code = Uuid::new_v5(
     &Uuid::NAMESPACE_DNS,
-    format!("{}.app.x64", &settings.binary_name()).as_bytes(),
+    format!("{}.app.x64", &settings.main_binary_name()).as_bytes(),
   )
   .to_string();
 
@@ -420,13 +429,13 @@ pub fn build_wix_app_installer(
   let shortcut_guid = generate_package_guid(settings).to_string();
   data.insert("shortcut_guid", to_json(&shortcut_guid.as_str()));
 
-  let app_exe_name = settings.binary_name().to_string();
+  let app_exe_name = settings.main_binary_name().to_string();
   data.insert("app_exe_name", to_json(&app_exe_name));
 
-  let external_binaries = generate_external_binary_data(&settings)?;
+  let binaries = generate_binaries_data(&settings)?;
 
-  let external_binaries_json = to_json(&external_binaries);
-  data.insert("external_binaries", external_binaries_json);
+  let binaries_json = to_json(&binaries);
+  data.insert("binaries", binaries_json);
 
   let resources = generate_resource_data(&settings)?;
   let mut resources_wix_string = String::from("");
@@ -442,7 +451,12 @@ pub fn build_wix_app_installer(
   data.insert("resources", to_json(resources_wix_string));
   data.insert("resource_file_ids", to_json(files_ids));
 
-  let app_exe_source = settings.binary_path().display().to_string();
+  let main_binary = settings
+    .binaries()
+    .iter()
+    .find(|bin| bin.main())
+    .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
+  let app_exe_source = settings.binary_path(main_binary).display().to_string();
 
   data.insert("app_exe_source", to_json(&app_exe_source));
 
@@ -482,9 +496,9 @@ pub fn build_wix_app_installer(
   Ok(target)
 }
 
-/// Generates the data required for the external binaries bundling.
-fn generate_external_binary_data(settings: &Settings) -> crate::Result<Vec<ExternalBinary>> {
-  let mut external_binaries = Vec::new();
+/// Generates the data required for the external binaries and extra binaries bundling.
+fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
+  let mut binaries = Vec::new();
   let regex = Regex::new(r"[^\w\d\.]")?;
   let cwd = std::env::current_dir()?;
   for src in settings.external_binaries() {
@@ -498,8 +512,8 @@ fn generate_external_binary_data(settings: &Settings) -> crate::Result<Vec<Exter
 
     let guid = generate_guid(filename.as_bytes()).to_string();
 
-    external_binaries.push(ExternalBinary {
-      guid: guid,
+    binaries.push(Binary {
+      guid,
       path: cwd
         .join(src)
         .into_os_string()
@@ -509,7 +523,23 @@ fn generate_external_binary_data(settings: &Settings) -> crate::Result<Vec<Exter
     });
   }
 
-  Ok(external_binaries)
+  for bin in settings.binaries() {
+    let filename = bin.name();
+    let guid = generate_guid(filename.as_bytes()).to_string();
+    if !bin.main() {
+      binaries.push(Binary {
+        guid,
+        path: settings
+          .binary_path(bin)
+          .into_os_string()
+          .into_string()
+          .expect("failed to read binary path"),
+        id: regex.replace_all(&filename, "").to_string(),
+      })
+    }
+  }
+
+  Ok(binaries)
 }
 
 /// Generates the data required for the resource bundling on wix

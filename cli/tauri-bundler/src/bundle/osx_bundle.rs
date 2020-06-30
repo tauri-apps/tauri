@@ -73,8 +73,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .copy_binaries(&bin_dir)
     .with_context(|| "Failed to copy external binaries")?;
 
-  copy_binary_to_bundle(&bundle_directory, settings)
-    .with_context(|| format!("Failed to copy binary from {:?}", settings.binary_path()))?;
+  copy_binaries_to_bundle(&bundle_directory, settings)?;
 
   let use_bootstrapper = settings.osx_use_bootstrapper();
   if use_bootstrapper {
@@ -84,13 +83,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   Ok(vec![app_bundle_path])
 }
 
-// Copies the app's binary to the bundle.
-fn copy_binary_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
+// Copies the app's binaries to the bundle.
+fn copy_binaries_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
   let dest_dir = bundle_directory.join("MacOS");
-  common::copy_file(
-    settings.binary_path(),
-    &dest_dir.join(settings.binary_name()),
-  )
+  for bin in settings.binaries() {
+    let bin_path = settings.binary_path(bin);
+    common::copy_file(&bin_path, &dest_dir.join(bin.name()))
+      .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+  }
+  Ok(())
 }
 
 // Creates the bootstrap script file.
@@ -179,7 +180,7 @@ fn create_info_plist(
     if use_bootstrapper {
       "__bootstrapper"
     } else {
-      settings.binary_name()
+      settings.main_binary_name()
     }
   )?;
   if let Some(path) = bundle_icon_file {

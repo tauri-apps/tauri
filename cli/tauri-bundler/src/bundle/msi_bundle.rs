@@ -1,4 +1,3 @@
-use super::common;
 use super::settings::Settings;
 use super::wix;
 

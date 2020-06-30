@@ -231,11 +231,28 @@ struct CargoSettings {
 #[derive(Clone, Debug)]
 pub struct BundleBinary {
   name: String,
-  path: Option<String>,
+  src_path: Option<String>,
   main: bool,
 }
 
 impl BundleBinary {
+  pub fn new(name: String, main: bool) -> Self {
+    Self {
+      name: if cfg!(windows) {
+        format!("{}.exe", name)
+      } else {
+        name
+      },
+      src_path: None,
+      main,
+    }
+  }
+
+  pub fn set_src_path(mut self, src_path: Option<String>) -> Self {
+    self.src_path = src_path;
+    self
+  }
+
   pub fn name(&self) -> &String {
     &self.name
   }
@@ -364,11 +381,13 @@ impl Settings {
     if let Some(bin) = cargo_settings.bin {
       let default_run = package.default_run.clone().unwrap_or("".to_string());
       for binary in bin {
-        binaries.push(BundleBinary {
-          name: binary.name.clone(),
-          path: binary.path,
-          main: binary.name.as_str() == package.name || binary.name.as_str() == default_run,
-        })
+        binaries.push(
+          BundleBinary::new(
+            binary.name.clone(),
+            binary.name.as_str() == package.name || binary.name.as_str() == default_run,
+          )
+          .set_src_path(binary.path),
+        )
       }
     }
 
@@ -380,13 +399,9 @@ impl Settings {
         if let Some(name) = path.file_stem() {
           if !binaries.iter().any(|bin| {
             bin.name.as_str() == name
-              || path.ends_with(bin.path.as_ref().unwrap_or(&"".to_string()))
+              || path.ends_with(bin.src_path.as_ref().unwrap_or(&"".to_string()))
           }) {
-            binaries.push(BundleBinary {
-              name: name.to_string_lossy().to_string(),
-              path: None,
-              main: false,
-            })
+            binaries.push(BundleBinary::new(name.to_string_lossy().to_string(), false))
           }
         }
       }
@@ -394,11 +409,7 @@ impl Settings {
 
     if let Some(default_run) = package.default_run.as_ref() {
       if !binaries.iter().any(|bin| bin.name.as_str() == default_run) {
-        binaries.push(BundleBinary {
-          name: default_run.to_string(),
-          path: None,
-          main: true,
-        })
+        binaries.push(BundleBinary::new(default_run.to_string(), true));
       }
     }
 
@@ -499,7 +510,7 @@ impl Settings {
   /// Returns the path to the specified binary.
   pub fn binary_path(&self, binary: &BundleBinary) -> PathBuf {
     let mut path = self.project_out_directory.clone();
-    path.push(binary.name.clone());
+    path.push(binary.name());
     path
   }
 

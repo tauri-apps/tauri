@@ -11,8 +11,8 @@ use std::path::MAIN_SEPARATOR;
 /// use tauri_api::notification::Notification;
 /// // shows a notification with the given title and body
 /// Notification::new()
-///   .title("New message".to_string())
-///   .body("You've got a new message.".to_string())
+///   .title("New message")
+///   .body("You've got a new message.")
 ///   .show();
 /// ```
 #[allow(dead_code)]
@@ -33,20 +33,20 @@ impl Notification {
   }
 
   /// Sets the notification body.
-  pub fn body(mut self, body: String) -> Self {
-    self.body = Some(body);
+  pub fn body(mut self, body: impl Into<String>) -> Self {
+    self.body = Some(body.into());
     self
   }
 
   /// Sets the notification title.
-  pub fn title(mut self, title: String) -> Self {
-    self.title = Some(title);
+  pub fn title(mut self, title: impl Into<String>) -> Self {
+    self.title = Some(title.into());
     self
   }
 
   /// Sets the notification icon.
-  pub fn icon(mut self, icon: String) -> Self {
-    self.icon = Some(icon);
+  pub fn icon(mut self, icon: impl Into<String>) -> Self {
+    self.icon = Some(icon.into());
     self
   }
 

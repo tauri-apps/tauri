@@ -38,10 +38,10 @@ toml = "0.5.6"
 uuid = { version = "0.8", features = [ "v5" ] }
 walkdir = "2"
 lazy_static = { version = "1.4" }
-handlebars = { version = "3.1" }
+handlebars = { version = "3.2" }
 
 [target."cfg(target_os = \"windows\")".dependencies]
-attohttpc = { version = "0.14.0" }
+attohttpc = { version = "0.15.0" }
 regex = { version = "1" }
 runas = "0.2"
 

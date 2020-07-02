@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 mkdir -p {{app_name}}.AppDir
 cp -r ../deb/{{bundle_name}}/data/usr {{app_name}}.AppDir
 

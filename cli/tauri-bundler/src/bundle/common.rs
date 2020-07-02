@@ -1,8 +1,9 @@
 use std;
 use std::ffi::OsStr;
 use std::fs::{self, File};
-use std::io::{self, BufWriter, Write};
+use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::path::{Component, Path, PathBuf};
+use std::process::{Command, Stdio};
 
 use term;
 use walkdir;
@@ -214,7 +215,6 @@ pub fn print_warning(message: &str) -> crate::Result<()> {
 }
 
 /// Prints a Info message to stderr.
-#[cfg(windows)]
 pub fn print_info(message: &str) -> crate::Result<()> {
   if let Some(mut output) = term::stderr() {
     safe_term_attr(&mut output, term::Attr::Bold)?;
@@ -264,6 +264,28 @@ pub fn print_error(error: &anyhow::Error) -> crate::Result<()> {
     // }
     output.flush()?;
     std::process::exit(1)
+  }
+}
+
+pub fn execute_with_output(cmd: &mut Command) -> crate::Result<()> {
+  let mut child = cmd
+    .stdout(Stdio::piped())
+    .spawn()
+    .expect("failed to spawn command");
+  {
+    let stdout = child.stdout.as_mut().expect("Failed to get stdout handle");
+    let reader = BufReader::new(stdout);
+
+    for line in reader.lines() {
+      print_info(line.expect("Failed to get line").as_str())?;
+    }
+  }
+
+  let status = child.wait()?;
+  if status.success() {
+    Ok(())
+  } else {
+    Err(anyhow::anyhow!("command failed").into())
   }
 }
 

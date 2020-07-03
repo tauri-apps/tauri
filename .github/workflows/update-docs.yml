@@ -1,13 +1,7 @@
 name: update-docs
 
 on:
-  pull_request:
   push:
-    branches:
-      - master
-    paths:
-      - '**/package.json'
-      - '.github/workflows/**'
 
 jobs:
   update-docs:

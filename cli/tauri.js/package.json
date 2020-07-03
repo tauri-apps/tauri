@@ -10,9 +10,10 @@
     "url": "https://opencollective.com/tauri"
   },
   "scripts": {
-    "build": "rollup -c --silent && webpack --progress",
+    "build": "yarn build:api && yarn build:typedefs && yarn build:webpack",
     "build:webpack": "webpack --progress",
-    "build:api": "rollup -c",
+    "build:api": "rollup -c && yarn build:typedefs",
+    "build:typedefs": "yarn tsc ./api-src/index.ts --declaration --emitDeclarationOnly --outDir api",
     "build-release": "yarn build --display none --progress false",
     "test": "jest --runInBand --no-cache --testPathIgnorePatterns=\"(build|dev)\"",
     "pretest": "yarn build",
@@ -116,7 +117,7 @@
     "toml-loader": "1.0.0",
     "ts-loader": "7.0.5",
     "tslib": "2.0.0",
-    "typescript": "3.9.6",
+    "typescript": "^3.9.6",
     "webpack": "4.43.0",
     "webpack-cli": "3.3.12",
     "webpack-node-externals": "1.7.2"

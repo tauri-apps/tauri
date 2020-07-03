@@ -1,5 +1,5 @@
 export interface Options {
-  title?: string
+  title: string
   body?: string
   icon?: string
 }

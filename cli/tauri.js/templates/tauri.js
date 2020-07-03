@@ -181,4 +181,80 @@ switch (navigator.platform) {
       __openLinks()
     }, true)
   }
+
+  let permissionSettable = false
+  let permissionValue = 'default'
+
+  function isPermissionGranted() {
+    if (window.Notification.permission !== 'default') {
+      return Promise.resolve(window.Notification.permission === 'granted')
+    }
+    return window.__TAURI__.promisified({
+      cmd: 'isNotificationPermissionGranted'
+    })
+  }
+
+  function setNotificationPermission(value) {
+    permissionSettable = true
+    window.Notification.permission = value
+    permissionSettable = false
+  }
+
+  function requestPermission() {
+    return window.__TAURI__.promisified({
+      cmd: 'requestNotificationPermission'
+    }).then(function (permission) {
+      setNotificationPermission(permission)
+      return permission
+    })
+  }
+
+  function sendNotification(options) {
+    if (typeof options === 'object') {
+      Object.freeze(options)
+    }
+
+    isPermissionGranted()
+      .then(function (permission) {
+        if (permission) {
+          return window.__TAURI__.promisified({
+            cmd: 'notification',
+            options: typeof options === 'string' ? {
+              body: options
+            } : options
+          })
+        }
+      })
+  }
+
+  window.Notification = function (title, options) {
+    var opts = options || {}
+    sendNotification(Object.assign(opts, {
+      title: title
+    }))
+  }
+
+  window.Notification.requestPermission = requestPermission
+
+  Object.defineProperty(window.Notification, 'permission', {
+    enumerable: true,
+    get: function () {
+      return permissionValue
+    },
+    set: function (v) {
+      if (!permissionSettable) {
+        throw new Error('Readonly property')
+      }
+      permissionValue = v
+    }
+  })
+
+  isPermissionGranted()
+    .then(function (response) {
+      if (response === null) {
+        setNotificationPermission('default')
+      } else {
+        setNotificationPermission(response ? 'granted' : 'denied')
+      }
+    })
 })()

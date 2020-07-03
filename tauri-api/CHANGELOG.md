@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0]
+
+-   The execute_promise and execute_promise_sync helpers now accepts any tauri::Result<T> where T: impl Serialize.
+    This means that you do not need to serialize your response manually or deal with String quotes anymore.
+    As part of this refactor, the event::emit function also supports impl Serialize instead of String.
+-   readDir API refactor. Now returns path, name and children. 
+
 ## [0.6.1]
 
 -   Fixes the httpRequest headers usage. It now accepts Strings instead of serde_json::Value.

@@ -46,6 +46,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore(docs): Update Rust docs"
           branch: docs/release
+          path: tauri-docs
           title: Update Docs
           labels: "new release"
           body: |

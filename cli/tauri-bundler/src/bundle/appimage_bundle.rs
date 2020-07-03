@@ -23,8 +23,17 @@ lazy_static! {
   };
 }
 
-// bundle the project.
+/// Bundles the project.
+/// Returns a vector of PathBuf that shows where the AppImage was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
+  // prerequisite: check if mksquashfs (part of squashfs-tools) is installed
+  Command::new("mksquashfs")
+    .arg("-version")
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .status()
+    .expect("mksquashfs is not installed. Please install squashfs-tools and try again.");
+
   // generate the deb binary name
   let arch = match settings.binary_arch() {
     "x86" => "i386",
@@ -33,7 +42,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   };
   let package_base_name = format!(
     "{}_{}_{}",
-    settings.binary_name(),
+    settings.main_binary_name(),
     settings.version_string(),
     arch
   );
@@ -41,24 +50,24 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let package_dir = base_dir.join(&package_base_name);
 
   // generate deb_folder structure
-  deb_bundle::generate_folders(settings, &package_dir)?;
+  deb_bundle::generate_data(settings, &package_dir)?;
 
   let output_path = settings.project_out_directory().join("bundle/appimage");
   if output_path.exists() {
     remove_dir_all(&output_path)?;
   }
   std::fs::create_dir_all(output_path.clone())?;
-  let app_dir_path = output_path.join(format!("{}.AppDir", settings.binary_name()));
-  let appimage_path = output_path.join(format!("{}.AppImage", settings.binary_name()));
+  let app_dir_path = output_path.join(format!("{}.AppDir", settings.main_binary_name()));
+  let appimage_path = output_path.join(format!("{}.AppImage", settings.main_binary_name()));
   path_utils::create(app_dir_path.clone(), true)?;
 
-  let upcase = settings.binary_name().to_uppercase();
+  let upcase_app_name = settings.main_binary_name().to_uppercase();
 
   // setup data to insert into shell script
   let mut sh_map = BTreeMap::new();
-  sh_map.insert("app_name", settings.binary_name());
+  sh_map.insert("app_name", settings.main_binary_name());
   sh_map.insert("bundle_name", package_base_name.as_str());
-  sh_map.insert("app_name_uppercase", upcase.as_str());
+  sh_map.insert("app_name_uppercase", upcase_app_name.as_str());
 
   // initialize shell script template.
   let temp = HANDLEBARS.render("appimage", &sh_map)?;
@@ -79,19 +88,12 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .expect("Failed to chmod script");
 
   // execute the shell script to build the appimage.
-  let status = Command::new(&sh_file)
-    .current_dir(output_path)
-    .stdout(Stdio::piped())
-    .stderr(Stdio::piped())
-    .status()
-    .expect("Failed to execute shell script");
+  let mut cmd = Command::new(&sh_file);
+  cmd.current_dir(output_path);
 
-  if !status.success() {
-    Err(crate::Error::ShellScriptError(
-      "error running build_appimage.sh".to_owned(),
-    ))
-  } else {
-    remove_dir_all(&package_dir)?;
-    Ok(vec![appimage_path])
-  }
+  common::execute_with_output(&mut cmd)
+    .map_err(|_| crate::Error::ShellScriptError("error running build_appimage.sh".to_owned()))?;
+
+  remove_dir_all(&package_dir)?;
+  Ok(vec![appimage_path])
 }

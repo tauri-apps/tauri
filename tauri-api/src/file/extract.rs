@@ -7,18 +7,25 @@ use std::fs;
 use std::io;
 use std::path;
 
+/// The supported archive formats.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ArchiveFormat {
+  /// Tar archive.
   Tar(Option<Compression>),
+  /// Plain archive.
   Plain(Option<Compression>),
+  /// Zip archive.
   Zip,
 }
 
+/// The supported compression types.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Compression {
+  /// Gz compression (e.g. `.tar.gz` archives)
   Gz,
 }
 
+/// The extract manager.
 #[derive(Debug)]
 pub struct Extract<'a> {
   source: &'a path::Path,

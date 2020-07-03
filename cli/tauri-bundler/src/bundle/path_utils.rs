@@ -1,17 +1,20 @@
 use std::fs::{create_dir, create_dir_all, read_dir, remove_dir_all};
 use std::path::{Path, PathBuf};
 
+/// Directory options.
 #[derive(Clone)]
 pub struct DirOpts {
   pub depth: u64,
 }
 
+/// File options.
 pub struct FileOpts {
   pub overwrite: bool,
   pub skip: bool,
   pub buffer_size: usize,
 }
 
+/// Copy options.
 #[derive(Clone)]
 pub struct Options {
   pub overwrite: bool,
@@ -22,6 +25,7 @@ pub struct Options {
   pub depth: u64,
 }
 
+/// Directory information descriptor
 pub struct DirInfo {
   pub size: u64,
   pub files: Vec<String>,
@@ -57,6 +61,8 @@ impl Default for FileOpts {
   }
 }
 
+/// Creates the given directory path,
+/// erasing it first if specified.
 pub fn create<P>(path: P, erase: bool) -> crate::Result<()>
 where
   P: AsRef<Path>,
@@ -67,6 +73,8 @@ where
   Ok(create_dir(&path)?)
 }
 
+/// Creates all of the directories of the specified path,
+/// erasing it first if specified.
 pub fn create_all<P>(path: P, erase: bool) -> crate::Result<()>
 where
   P: AsRef<Path>,
@@ -77,6 +85,7 @@ where
   Ok(create_dir_all(&path)?)
 }
 
+/// Removes the directory if it exists.
 pub fn remove<P: AsRef<Path>>(path: P) -> crate::Result<()> {
   if path.as_ref().exists() {
     Ok(remove_dir_all(path)?)
@@ -85,6 +94,7 @@ pub fn remove<P: AsRef<Path>>(path: P) -> crate::Result<()> {
   }
 }
 
+/// Copy file with the given options.
 pub fn copy_file<P, Q>(from: P, to: Q, options: &FileOpts) -> crate::Result<u64>
 where
   P: AsRef<Path>,
@@ -124,6 +134,7 @@ where
   Ok(std::fs::copy(from, to)?)
 }
 
+/// Copies the directory with the given options.
 #[allow(dead_code)]
 pub fn copy<P, Q>(from: P, to: Q, options: &Options) -> crate::Result<u64>
 where
@@ -210,6 +221,7 @@ where
   Ok(result)
 }
 
+/// Gets the DirInfo from the directory path with the given options.
 pub fn get_dir_info<P>(path: P, options: &DirOpts) -> crate::Result<DirInfo>
 where
   P: AsRef<Path>,
@@ -223,6 +235,7 @@ where
   _get_dir_info(path, depth)
 }
 
+/// Gets the DirInfo from the directory with the given depth.
 fn _get_dir_info<P>(path: P, mut depth: u64) -> crate::Result<DirInfo>
 where
   P: AsRef<Path>,

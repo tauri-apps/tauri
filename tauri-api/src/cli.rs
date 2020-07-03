@@ -1,4 +1,4 @@
-use crate::config::{get as get_config, Cli};
+use crate::config::{get as get_config, CliConfig};
 
 use clap::{App, Arg, ArgMatches};
 use serde::Serialize;
@@ -8,34 +8,51 @@ use std::collections::HashMap;
 #[macro_use]
 mod macros;
 
+/// The resolution of a arg match.
 #[derive(Default, Debug, Serialize)]
 pub struct ArgData {
+  /// The value of the arg.
+  /// - Value::Bool if it's a flag,
+  /// - Value::Array if it's multiple,
+  /// - Value::String if it has value,
+  /// - Value::Null otherwise.
   value: Value,
+  /// The number of occurrences of the arg.
+  /// e.g. `./app --arg 1 --arg 2 --arg 2 3 4` results in three occurrences.
   occurrences: u64,
 }
 
+/// The matched subcommand.
 #[derive(Default, Debug, Serialize)]
 pub struct SubcommandMatches {
+  /// The subcommand name.
   name: String,
+  /// The subcommand arg matches.
   matches: Matches,
 }
 
+/// The arg matches of a command.
 #[derive(Default, Debug, Serialize)]
 pub struct Matches {
+  /// Data structure mapping each found arg with its resolution.
   args: HashMap<String, ArgData>,
+  /// The matched subcommand if found.
   subcommand: Option<Box<SubcommandMatches>>,
 }
 
 impl Matches {
+  /// Set a arg match.
   pub(crate) fn set_arg(&mut self, name: String, value: ArgData) {
     self.args.insert(name, value);
   }
 
+  /// Sets the subcommand matches.
   pub(crate) fn set_subcommand(&mut self, name: String, matches: Matches) {
     self.subcommand = Some(Box::new(SubcommandMatches { name, matches }));
   }
 }
 
+/// Gets the arg matches of the CLI definition.
 pub fn get_matches() -> crate::Result<Matches> {
   let config = get_config()?;
   let cli = config
@@ -53,7 +70,7 @@ pub fn get_matches() -> crate::Result<Matches> {
   Ok(get_matches_internal(cli, &matches))
 }
 
-fn get_matches_internal<T: Cli + 'static>(config: &T, matches: &ArgMatches) -> Matches {
+fn get_matches_internal(config: &CliConfig, matches: &ArgMatches) -> Matches {
   let mut cli_matches = Matches::default();
   map_matches(config, matches, &mut cli_matches);
 
@@ -71,7 +88,7 @@ fn get_matches_internal<T: Cli + 'static>(config: &T, matches: &ArgMatches) -> M
   cli_matches
 }
 
-fn map_matches<T: Cli + 'static>(config: &T, matches: &ArgMatches, cli_matches: &mut Matches) {
+fn map_matches(config: &CliConfig, matches: &ArgMatches, cli_matches: &mut Matches) {
   if let Some(args) = config.args() {
     for arg in args {
       let occurrences = matches.occurrences_of(arg.name.clone());
@@ -100,7 +117,7 @@ fn map_matches<T: Cli + 'static>(config: &T, matches: &ArgMatches, cli_matches: 
   }
 }
 
-fn get_app<'a, T: Cli + 'static>(name: &str, about: Option<&'a String>, config: &'a T) -> App<'a> {
+fn get_app<'a>(name: &str, about: Option<&'a String>, config: &'a CliConfig) -> App<'a> {
   let mut app = App::new(name)
     .author(crate_authors!())
     .version(crate_version!());
@@ -110,6 +127,12 @@ fn get_app<'a, T: Cli + 'static>(name: &str, about: Option<&'a String>, config: 
   }
   if let Some(long_description) = config.long_description() {
     app = app.long_about(&**long_description);
+  }
+  if let Some(before_help) = config.before_help() {
+    app = app.before_help(&**before_help);
+  }
+  if let Some(after_help) = config.after_help() {
+    app = app.after_help(&**after_help);
   }
 
   if let Some(args) = config.args() {

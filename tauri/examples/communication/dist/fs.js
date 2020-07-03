@@ -1,5 +1,6 @@
 var dirSelect = document.getElementById('dir')
-function getDir () {
+
+function getDir() {
   return dirSelect.value ? parseInt(dir.value) : null
 }
 
@@ -23,8 +24,10 @@ addClickEnterHandler(
   function () {
     var pathToRead = pathInput.value
     var isFile = pathToRead.match(/\S+\.\S+$/g)
-    var opts = { dir: getDir() }
-    var promise = isFile ? window.tauri.readBinaryFile(pathToRead, opts) : window.tauri.readDir(pathToRead, opts)
+    var opts = {
+      dir: getDir()
+    }
+    var promise = isFile ? window.__TAURI__.fs.readBinaryFile(pathToRead, opts) : window.__TAURI__.fs.readDir(pathToRead, opts)
     promise.then(function (response) {
       if (isFile) {
         if (pathToRead.includes('.png') || pathToRead.includes('.jpg')) {
@@ -38,7 +41,7 @@ addClickEnterHandler(
           var fileInput = document.getElementById('file-response')
           fileInput.value = value
           document.getElementById('file-save').addEventListener('click', function () {
-            window.tauri.writeFile({
+            window.__TAURI__.fs.writeFile({
               file: pathToRead,
               contents: fileInput.value
             }, {

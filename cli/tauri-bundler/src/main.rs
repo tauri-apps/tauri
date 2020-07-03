@@ -2,9 +2,9 @@ mod bundle;
 mod error;
 pub use error::{Error, Result};
 
-use crate::bundle::{
-  bundle_project, check_icons, print_info, BuildArtifact, PackageType, Settings,
-};
+#[cfg(windows)]
+use crate::bundle::print_info;
+use crate::bundle::{bundle_project, check_icons, PackageType, Settings};
 
 use clap::{crate_version, App, AppSettings, Arg, SubCommand};
 
@@ -13,21 +13,14 @@ use runas::Command;
 use std::env;
 use std::process;
 
-/// Runs `cargo build` to make sure the binary file is up-to-date.
+// Runs `cargo build` to make sure the binary file is up-to-date.
 fn build_project_if_unbuilt(settings: &Settings) -> crate::Result<()> {
   let mut args = vec!["build".to_string()];
+
   if let Some(triple) = settings.target_triple() {
     args.push(format!("--target={}", triple));
   }
-  match settings.build_artifact() {
-    &BuildArtifact::Main => {}
-    &BuildArtifact::Bin(ref name) => {
-      args.push(format!("--bin={}", name));
-    }
-    &BuildArtifact::Example(ref name) => {
-      args.push(format!("--example={}", name));
-    }
-  }
+
   if settings.is_release_build() {
     args.push("--release".to_string());
   }
@@ -49,6 +42,7 @@ fn build_project_if_unbuilt(settings: &Settings) -> crate::Result<()> {
   Ok(())
 }
 
+// Runs the CLI.
 fn run() -> crate::Result<()> {
   let all_formats: Vec<&str> = PackageType::all()
     .iter()

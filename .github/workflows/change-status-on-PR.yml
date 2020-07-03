@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: covector status
-        uses: jbolda/covector/packages/action@master
+        uses: jbolda/covector/packages/action@covector-v0.1.0
         id: covector
         with:
           command: 'status'

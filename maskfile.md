@@ -58,9 +58,9 @@ if ((Test-Path $dist_path -PathType Any) -Or (Test-Path $src_path -PathType Any)
   cargo install --path cli\tauri-bundler --force
   cargo install cargo-web
 
-  # install the tauri Node CLI.
+  # install the tauri Node CLI and transpile the TS version of the API.
   cd cli\tauri.js
-  yarn; yarn build
+  yarn; yarn build;
 }
 ```
 

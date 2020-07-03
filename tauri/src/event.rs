@@ -4,9 +4,13 @@ use std::sync::{Arc, Mutex};
 
 use lazy_static::lazy_static;
 use once_cell::sync::Lazy;
+use serde::Serialize;
+use serde_json::Value as JsonValue;
 use web_view::Handle;
 
+/// An event handler.
 struct EventHandler {
+  /// The on event callback.
   on_event: Box<dyn FnMut(Option<String>) + Send>,
 }
 
@@ -18,42 +22,52 @@ lazy_static! {
   static ref EVENT_QUEUE_OBJECT_NAME: String = uuid::Uuid::new_v4().to_string();
 }
 
+/// Gets the listeners map.
 fn listeners() -> &'static Listeners {
   static LISTENERS: Lazy<Listeners> = Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
   &LISTENERS
 }
 
+/// the emit JS function name
 pub fn emit_function_name() -> String {
   EMIT_FUNCTION_NAME.to_string()
 }
 
+/// the event listeners JS object name
 pub fn event_listeners_object_name() -> String {
   EVENT_LISTENERS_OBJECT_NAME.to_string()
 }
 
+/// the event queue JS object name
 pub fn event_queue_object_name() -> String {
   EVENT_QUEUE_OBJECT_NAME.to_string()
 }
 
-pub fn listen<F: FnMut(Option<String>) + Send + 'static>(id: String, handler: F) {
+/// Adds an event listener for JS events.
+pub fn listen<F: FnMut(Option<String>) + Send + 'static>(id: impl Into<String>, handler: F) {
   let mut l = listeners()
     .lock()
     .expect("Failed to lock listeners: listen()");
   l.insert(
-    id,
+    id.into(),
     EventHandler {
       on_event: Box::new(handler),
     },
   );
 }
 
-pub fn emit<T: 'static>(webview_handle: &Handle<T>, event: String, payload: Option<String>) {
+/// Emits an event to JS.
+pub fn emit<T: 'static, S: Serialize>(
+  webview_handle: &Handle<T>,
+  event: impl AsRef<str> + Send + 'static,
+  payload: Option<S>,
+) -> crate::Result<()> {
   let salt = crate::salt::generate();
 
-  let js_payload = if let Some(payload_str) = payload {
-    payload_str
+  let js_payload = if let Some(payload_value) = payload {
+    serde_json::to_value(payload_value)?
   } else {
-    "void 0".to_string()
+    JsonValue::Null
   };
 
   webview_handle
@@ -61,14 +75,17 @@ pub fn emit<T: 'static>(webview_handle: &Handle<T>, event: String, payload: Opti
       _webview.eval(&format!(
         "window['{}']({{type: '{}', payload: {}}}, '{}')",
         emit_function_name(),
-        event.as_str(),
+        event.as_ref(),
         js_payload,
         salt
       ))
     })
     .expect("Failed to dispatch JS from emit");
+
+  Ok(())
 }
 
+/// Triggers the given event with its payload.
 pub fn on_event(event: String, data: Option<String>) {
   let mut l = listeners()
     .lock()

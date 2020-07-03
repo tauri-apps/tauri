@@ -16,6 +16,8 @@ export default [{
     'process': './api-src/process.ts',
     'tauri': './api-src/tauri.ts',
     'window': './api-src/window.ts',
+    'cli': './api-src/cli.ts',
+    'notification': './api-src/notification.ts',
   },
   treeshake:      true,
   perf:           true,

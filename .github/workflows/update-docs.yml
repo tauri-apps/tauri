@@ -1,0 +1,53 @@
+name: update-docs
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '**/package.json'
+      - '.github/workflows/**'
+
+jobs:
+  update-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout tauri
+        uses: actions/checkout@v2
+        with:
+          path: tauri
+      - name: checkout tauri-docs
+        uses: actions/checkout@v2
+        with:
+          repository: tauri-apps/tauri-docs
+          path: tauri-docs
+      - name: install webkit2gtk
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0
+      - name: generate rust docs
+        working-directory: tauri
+        run: cargo doc --no-deps
+      - name: run rustdocusaurus
+        uses: tauri-apps/rustdocusaurus/github-action@master
+        with:
+          originPath: ./tauri/target/doc/
+          targetPath: ./tauri-docs/docs/api/rust/
+          sidebarPath: ./tauri-docs/sidebars.json
+          linksRoot: /docs/api/rust/
+          cratesToProcess: "tauri,tauri_api,tauri_utils"
+      - name: git config
+        run: |
+          git config --global user.name "${{ github.event.pusher.name }}"
+          git config --global user.email "${{ github.event.pusher.email }}"
+      - name: create pull request for updated docs
+        uses: tauri-apps/create-pull-request@v2.8.0
+        working-directory: tauri-docs
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: ${{ github.event.head_commit.message }}
+          branch: docs/release
+          title: Update Docs
+          labels: "new release"
+          body: |
+            These are the updated docs from the most recent release.

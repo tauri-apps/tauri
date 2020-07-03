@@ -42,10 +42,9 @@ jobs:
           git config --global user.email "${{ github.event.pusher.email }}"
       - name: create pull request for updated docs
         uses: tauri-apps/create-pull-request@v2.8.0
-        working-directory: tauri-docs
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: ${{ github.event.head_commit.message }}
+          commit-message: "chore(docs): Update Rust docs"
           branch: docs/release
           title: Update Docs
           labels: "new release"

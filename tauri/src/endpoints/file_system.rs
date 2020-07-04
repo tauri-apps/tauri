@@ -53,7 +53,7 @@ pub fn copy_file<T: 'static>(
           resolve_path(source, Some(dir.clone()))?,
           resolve_path(destination, Some(dir))?,
         ),
-        None => (source.into(), destination.into()),
+        None => (source, destination),
       };
       fs::copy(src, dest).map_err(|e| e.into())
     },
@@ -162,7 +162,7 @@ pub fn rename_file<T: 'static>(
           resolve_path(old_path, Some(dir.clone()))?,
           resolve_path(new_path, Some(dir))?,
         ),
-        None => (old_path.into(), new_path.into()),
+        None => (old_path, new_path),
       };
       fs::rename(old, new).map_err(|e| e.into())
     },

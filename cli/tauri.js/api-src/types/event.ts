@@ -1,6 +1,6 @@
-export interface Event {
+export interface Event<T> {
   type: string
-  payload: unknown
+  payload: T
 }
 
-export type EventCallback = (event: Event) => void
+export type EventCallback<T> = (event: Event<T>) => void

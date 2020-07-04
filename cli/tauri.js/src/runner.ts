@@ -141,7 +141,7 @@ class Runner {
       inlinedAssets = (await this.__parseHtml(cfg, devPath)).inlinedAssets
     }
 
-    process.env.TAURI_INLINED_ASSSTS = inlinedAssets.join('|')
+    process.env.TAURI_INLINED_ASSETS = inlinedAssets.join('|')
 
     this.devPath = devPath
 

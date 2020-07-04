@@ -1,13 +1,17 @@
 use std::sync::{Arc, Mutex};
 use web_view::WebView;
 
+/// The plugin interface.
 pub trait Plugin {
+  /// Callback invoked when the webview is created.
   #[allow(unused_variables)]
   fn created(&self, webview: &mut WebView<'_, ()>) {}
 
+  /// Callback invoked when the webview is ready.
   #[allow(unused_variables)]
   fn ready(&self, webview: &mut WebView<'_, ()>) {}
 
+  /// Add invoke_handler API extension commands.
   #[allow(unused_variables)]
   fn extend_api(&self, webview: &mut WebView<'_, ()>, payload: &str) -> Result<bool, String> {
     Err("unknown variant".to_string())
@@ -16,6 +20,7 @@ pub trait Plugin {
 
 thread_local!(static PLUGINS: Arc<Mutex<Vec<Box<dyn Plugin>>>> = Default::default());
 
+/// Registers a plugin.
 pub fn register(ext: impl Plugin + 'static) {
   PLUGINS.with(|plugins| {
     let mut exts = plugins.lock().unwrap();
@@ -51,7 +56,7 @@ pub(crate) fn extend_api(webview: &mut WebView<'_, ()>, arg: &str) -> Result<boo
       match ext.extend_api(webview, arg) {
         Ok(handled) => {
           if handled {
-            return Ok(true)
+            return Ok(true);
           }
         }
         Err(e) => {

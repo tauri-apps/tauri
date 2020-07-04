@@ -29,9 +29,10 @@ pub mod cli;
 mod app;
 /// The Tauri API endpoints.
 mod endpoints;
+/// The plugin manager module contains helpers to manage runtime plugins.
+pub mod plugin;
 /// The salt helpers.
 mod salt;
-pub mod plugin;
 
 /// Alias for a Result with error type anyhow::Error.
 pub use anyhow::Result;

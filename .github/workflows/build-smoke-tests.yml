@@ -3,11 +3,9 @@ name: build smoke tests with source
 on:
   push:
     branches:
-      - dev
-  pull_request:
-    paths:
-      - '**/package.json'
-      - '**/Cargo.toml'
+      - stop-running
+env:
+  RUST_BACKTRACE: 1
 
 jobs:
   node:
@@ -89,7 +87,7 @@ jobs:
       - name: install cli deps via yarn
         working-directory: ./cli/tauri.js
         run: yarn
-      - name: build cli
+      - name: build cli & api
         working-directory: ./cli/tauri.js
         run: yarn build
       - name: cache node modules

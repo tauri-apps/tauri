@@ -1,12 +1,10 @@
-use crate::ResultExt;
-
 use std;
 use std::ffi::OsStr;
 use std::fs::{self, File};
-use std::io::{self, BufWriter, Write};
+use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::path::{Component, Path, PathBuf};
+use std::process::{Command, Stdio};
 
-use error_chain::bail;
 use term;
 use walkdir;
 
@@ -27,27 +25,31 @@ pub fn is_retina<P: AsRef<Path>>(path: P) -> bool {
 /// needed.
 pub fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
   if let Some(parent) = path.parent() {
-    fs::create_dir_all(&parent).chain_err(|| format!("Failed to create directory {:?}", parent))?;
+    fs::create_dir_all(&parent)?;
   }
-  let file = File::create(path).chain_err(|| format!("Failed to create file {:?}", path))?;
+  let file = File::create(path)?;
   Ok(BufWriter::new(file))
 }
 
+/// Makes a symbolic link to a directory.
 #[cfg(unix)]
 fn symlink_dir(src: &Path, dst: &Path) -> io::Result<()> {
   std::os::unix::fs::symlink(src, dst)
 }
 
+/// Makes a symbolic link to a directory.
 #[cfg(windows)]
 fn symlink_dir(src: &Path, dst: &Path) -> io::Result<()> {
   std::os::windows::fs::symlink_dir(src, dst)
 }
 
+/// Makes a symbolic link to a file.
 #[cfg(unix)]
 fn symlink_file(src: &Path, dst: &Path) -> io::Result<()> {
   std::os::unix::fs::symlink(src, dst)
 }
 
+/// Makes a symbolic link to a file.
 #[cfg(windows)]
 fn symlink_file(src: &Path, dst: &Path) -> io::Result<()> {
   std::os::windows::fs::symlink_file(src, dst)
@@ -56,16 +58,24 @@ fn symlink_file(src: &Path, dst: &Path) -> io::Result<()> {
 /// Copies a regular file from one path to another, creating any parent
 /// directories of the destination path as necessary.  Fails if the source path
 /// is a directory or doesn't exist.
-pub fn copy_file(from: &Path, to: &Path) -> crate::Result<()> {
+pub fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> crate::Result<()> {
+  let from = from.as_ref();
+  let to = to.as_ref();
   if !from.exists() {
-    bail!("{:?} does not exist", from);
+    return Err(crate::Error::GenericError(format!(
+      "{:?} does not exist",
+      from
+    )));
   }
   if !from.is_file() {
-    bail!("{:?} is not a file", from);
+    return Err(crate::Error::GenericError(format!(
+      "{:?} is not a file",
+      from
+    )));
   }
   let dest_dir = to.parent().expect("No data in parent");
-  fs::create_dir_all(dest_dir).chain_err(|| format!("Failed to create {:?}", dest_dir))?;
-  fs::copy(from, to).chain_err(|| format!("Failed to copy {:?} to {:?}", from, to))?;
+  fs::create_dir_all(dest_dir)?;
+  fs::copy(from, to)?;
   Ok(())
 }
 
@@ -75,16 +85,25 @@ pub fn copy_file(from: &Path, to: &Path) -> crate::Result<()> {
 /// already exists.
 pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
   if !from.exists() {
-    bail!("{:?} does not exist", from);
+    return Err(crate::Error::GenericError(format!(
+      "{:?} does not exist",
+      from
+    )));
   }
   if !from.is_dir() {
-    bail!("{:?} is not a directory", from);
+    return Err(crate::Error::GenericError(format!(
+      "{:?} is not a Directory",
+      from
+    )));
   }
   if to.exists() {
-    bail!("{:?} already exists", to);
+    return Err(crate::Error::GenericError(format!(
+      "{:?} already exists",
+      from
+    )));
   }
   let parent = to.parent().expect("No data in parent");
-  fs::create_dir_all(parent).chain_err(|| format!("Failed to create {:?}", parent))?;
+  fs::create_dir_all(parent)?;
   for entry in walkdir::WalkDir::new(from) {
     let entry = entry?;
     debug_assert!(entry.path().starts_with(from));
@@ -145,6 +164,8 @@ pub fn print_finished(output_paths: &Vec<PathBuf>) -> crate::Result<()> {
   Ok(())
 }
 
+/// Safely adds the terminal attribute to the terminal output.
+/// If the terminal doesn't support the attribute, does nothing.
 fn safe_term_attr<T: term::Terminal + ?Sized>(
   output: &mut Box<T>,
   attr: term::Attr,
@@ -155,6 +176,7 @@ fn safe_term_attr<T: term::Terminal + ?Sized>(
   }
 }
 
+/// Prints a formatted bundle progress to stderr.
 fn print_progress(step: &str, msg: &str) -> crate::Result<()> {
   if let Some(mut output) = term::stderr() {
     safe_term_attr(&mut output, term::Attr::Bold)?;
@@ -212,7 +234,7 @@ pub fn print_info(message: &str) -> crate::Result<()> {
 }
 
 /// Prints an error to stderr, in the same format that `cargo` uses.
-pub fn print_error(error: &crate::Error) -> crate::Result<()> {
+pub fn print_error(error: &anyhow::Error) -> crate::Result<()> {
   if let Some(mut output) = term::stderr() {
     safe_term_attr(&mut output, term::Attr::Bold)?;
     output.fg(term::color::RED)?;
@@ -221,26 +243,49 @@ pub fn print_error(error: &crate::Error) -> crate::Result<()> {
     safe_term_attr(&mut output, term::Attr::Bold)?;
     writeln!(output, " {}", error)?;
     output.reset()?;
-    for cause in error.iter().skip(1) {
+    for cause in error.chain().skip(1) {
       writeln!(output, "  Caused by: {}", cause)?;
     }
-    if let Some(backtrace) = error.backtrace() {
-      writeln!(output, "{:?}", backtrace)?;
-    }
+    // Add Backtrace once its stable.
+    // if let Some(backtrace) = error.backtrace() {
+    //   writeln!(output, "{:?}", backtrace)?;
+    // }
     output.flush()?;
     std::process::exit(1)
   } else {
     let mut output = io::stderr();
     write!(output, "error:")?;
     writeln!(output, " {}", error)?;
-    for cause in error.iter().skip(1) {
+    for cause in error.chain().skip(1) {
       writeln!(output, "  Caused by: {}", cause)?;
     }
-    if let Some(backtrace) = error.backtrace() {
-      writeln!(output, "{:?}", backtrace)?;
-    }
+    // if let Some(backtrace) = error.backtrace() {
+    //   writeln!(output, "{:?}", backtrace)?;
+    // }
     output.flush()?;
     std::process::exit(1)
+  }
+}
+
+pub fn execute_with_output(cmd: &mut Command) -> crate::Result<()> {
+  let mut child = cmd
+    .stdout(Stdio::piped())
+    .spawn()
+    .expect("failed to spawn command");
+  {
+    let stdout = child.stdout.as_mut().expect("Failed to get stdout handle");
+    let reader = BufReader::new(stdout);
+
+    for line in reader.lines() {
+      print_info(line.expect("Failed to get line").as_str())?;
+    }
+  }
+
+  let status = child.wait()?;
+  if status.success() {
+    Ok(())
+  } else {
+    Err(anyhow::anyhow!("command failed").into())
   }
 }
 

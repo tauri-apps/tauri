@@ -1,47 +1,26 @@
 mod bundle;
+mod error;
+pub use error::{Error, Result};
 
-use crate::bundle::{bundle_project, check_icons, BuildArtifact, PackageType, Settings};
+#[cfg(windows)]
+use crate::bundle::print_info;
+use crate::bundle::{bundle_project, check_icons, PackageType, Settings};
 
 use clap::{crate_version, App, AppSettings, Arg, SubCommand};
-use error_chain::{bail, error_chain};
 
+#[cfg(windows)]
+use runas::Command;
 use std::env;
 use std::process;
 
-error_chain! {
-  foreign_links {
-        Glob(::glob::GlobError);
-        GlobPattern(::glob::PatternError);
-        Io(::std::io::Error);
-        Image(::image::ImageError);
-        Target(::target_build_utils::Error);
-        Term(::term::Error);
-        Toml(::toml::de::Error);
-        Walkdir(::walkdir::Error);
-        StripError(std::path::StripPrefixError);
-        ConvertError(std::num::TryFromIntError);
-        RegexError(::regex::Error) #[cfg(windows)];
-        HttpError(::attohttpc::Error) #[cfg(windows)];
-        Json(::serde_json::error::Error);
-    }
-    errors {}
-}
-
-/// Runs `cargo build` to make sure the binary file is up-to-date.
+// Runs `cargo build` to make sure the binary file is up-to-date.
 fn build_project_if_unbuilt(settings: &Settings) -> crate::Result<()> {
   let mut args = vec!["build".to_string()];
+
   if let Some(triple) = settings.target_triple() {
     args.push(format!("--target={}", triple));
   }
-  match settings.build_artifact() {
-    &BuildArtifact::Main => {}
-    &BuildArtifact::Bin(ref name) => {
-      args.push(format!("--bin={}", name));
-    }
-    &BuildArtifact::Example(ref name) => {
-      args.push(format!("--example={}", name));
-    }
-  }
+
   if settings.is_release_build() {
     args.push("--release".to_string());
   }
@@ -55,14 +34,15 @@ fn build_project_if_unbuilt(settings: &Settings) -> crate::Result<()> {
 
   let status = process::Command::new("cargo").args(args).status()?;
   if !status.success() {
-    bail!(
+    return Err(crate::Error::GenericError(format!(
       "Result of `cargo build` operation was unsuccessful: {}",
       status
-    );
+    )));
   }
   Ok(())
 }
 
+// Runs the CLI.
 fn run() -> crate::Result<()> {
   let all_formats: Vec<&str> = PackageType::all()
     .iter()
@@ -75,7 +55,7 @@ fn run() -> crate::Result<()> {
     .setting(AppSettings::SubcommandRequired)
     .subcommand(
       SubCommand::with_name("tauri-bundler")
-        .author("George Burton <burtonageo@gmail.com>, Lucas Fernandes Gonçalves Nogueira <lucas@quasar.dev>, Daniel Thompson-Yvetot <denjell@sfosc.org>, Tensor Programming <tensordeveloper@gmail.com>")
+        .author("George Burton <burtonageo@gmail.com>, Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>, Daniel Thompson-Yvetot <denjell@sfosc.org>, Tensor Programming <tensordeveloper@gmail.com>")
         .about("Bundle Rust executables into OS bundles")
         .setting(AppSettings::DisableVersion)
         .setting(AppSettings::UnifiedHelpMessage)
@@ -97,6 +77,7 @@ fn run() -> crate::Result<()> {
             .long("format")
             .value_name("FORMAT")
             .possible_values(&all_formats)
+            .multiple(true)
             .help("Which bundle format to produce"),
         )
         .arg(
@@ -126,6 +107,17 @@ fn run() -> crate::Result<()> {
     )
     .get_matches();
 
+  #[cfg(windows)]
+  {
+    print_info("Running Loopback command")?;
+    Command::new("cmd")
+      .args(&vec![
+        "CheckNetIsolation.exe",
+        r#"LoopbackExempt -a -n="Microsoft.Win32WebViewHost_cw5n1h2txyewy""#,
+      ])
+      .force_prompt(true);
+  }
+
   if let Some(m) = m.subcommand_matches("tauri-bundler") {
     if m.is_present("version") {
       println!("{}", crate_version!());
@@ -138,9 +130,7 @@ fn run() -> crate::Result<()> {
             build_project_if_unbuilt(&s)?;
             Ok(s)
           } else {
-            Err(crate::Error::from(
-              "Could not find Icon Paths. Please make sure they exist and are in your Cargo.toml's icon key.",
-            ))
+            Err(crate::Error::IconPathError)
           }
         })
         .and_then(bundle_project)?;
@@ -152,6 +142,6 @@ fn run() -> crate::Result<()> {
 
 fn main() {
   if let Err(error) = run() {
-    bundle::print_error(&error).expect("Failed to call print error in main");
+    bundle::print_error(&error.into()).expect("Failed to call print error in main");
   }
 }

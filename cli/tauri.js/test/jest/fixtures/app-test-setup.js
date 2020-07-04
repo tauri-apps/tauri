@@ -5,6 +5,12 @@ const mockFixtureDir = path.resolve(__dirname, '../fixtures')
 
 module.exports.fixtureDir = mockFixtureDir
 
+function mockResolvePath (basePath, dir) {
+  return dir && path.isAbsolute(dir)
+    ? dir
+    : path.resolve(basePath, dir)
+}
+
 module.exports.initJest = (mockFixture) => {
   jest.setTimeout(720000)
   jest.mock('helpers/non-webpack-require', () => {
@@ -25,8 +31,8 @@ module.exports.initJest = (mockFixture) => {
       appDir,
       tauriDir,
       resolve: {
-        app: dir => path.join(appDir, dir),
-        tauri: dir => path.join(tauriDir, dir)
+        app: dir => mockResolvePath(appDir, dir),
+        tauri: dir => mockResolvePath(tauriDir, dir)
       }
     }
   })
@@ -34,8 +40,35 @@ module.exports.initJest = (mockFixture) => {
   jest.spyOn(process, 'exit').mockImplementation(() => {})
 }
 
-module.exports.startServer = (onReply) => {
+module.exports.startServer = (onSuccess) => {
   const http = require('http')
+
+  const responses = {
+    writeFile: null,
+    readFile: null,
+    writeFileWithDir: null,
+    readFileWithDir: null,
+    readDir: null,
+    readDirWithDir: null,
+    copyFile: null,
+    copyFileWithDir: null,
+    createDir: null,
+    createDirWithDir: null,
+    removeDir: null,
+    removeDirWithDir: null,
+    renameFile: null,
+    renameFileWithDir: null,
+    removeFile: null,
+    renameFileWithDir: null,
+    listen: null
+  }
+  function addResponse (response) {
+    responses[response.cmd] = true
+    if (!Object.values(responses).some(c => c === null)) {
+      server.close(onSuccess)
+    }
+  }
+
   const app = http.createServer((req, res) => {
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*')
@@ -50,16 +83,23 @@ module.exports.startServer = (onReply) => {
     }
 
     if (req.method === 'POST') {
+      let body = ''
+      req.on('data', chunk => {
+        body += chunk.toString()
+      })
       if (req.url === '/reply') {
-        let body = ''
-        req.on('data', chunk => {
-          body += chunk.toString()
-        })
         req.on('end', () => {
-          expect(JSON.parse(body)).toStrictEqual({
-            msg: 'TEST'
-          })
-          server.close(onReply)
+          const json = JSON.parse(body)
+          addResponse(json)
+          res.writeHead(200)
+          res.end()
+        })
+      }
+      if (req.url === '/error') {
+        req.on('end', () => {
+          res.writeHead(200)
+          res.end()
+          throw new Error(body)
         })
       }
     }
@@ -67,5 +107,5 @@ module.exports.startServer = (onReply) => {
 
   const port = 7000
   const server = app.listen(port)
-  return server
+  return { server, responses }
 }

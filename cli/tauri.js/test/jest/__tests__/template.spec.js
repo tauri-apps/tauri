@@ -16,7 +16,7 @@ describe('[CLI] tauri.js template', () => {
       const init = require('api/init')
       init({
         directory: process.cwd(),
-        force: true,
+        force: 'all',
         tauriPath: resolve(__dirname, '../../../../..')
       })
 
@@ -30,7 +30,13 @@ describe('[CLI] tauri.js template', () => {
     }
 
     const build = require('api/build')
-    build().promise.then(() => {
+    build({
+      tauri: {
+        bundle: {
+          targets: ['deb', 'osx', 'msi', 'appimage'] // we can't bundle dmg on CI so we remove it here
+        }
+      }
+    }).promise.then(() => {
       process.chdir(cwd)
       done()
     }).catch(done)

@@ -2,82 +2,118 @@ use super::common;
 use super::osx_bundle;
 use crate::Settings;
 
-use handlebars::Handlebars;
-use lazy_static::lazy_static;
+use anyhow::Context;
 
-use std::collections::BTreeMap;
-use std::fs::{write, File};
-use std::io::Write;
+use std::env;
+use std::fs::{self, write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
-// Create handlebars template for shell scripts
-lazy_static! {
-  static ref HANDLEBARS: Handlebars<'static> = {
-    let mut handlebars = Handlebars::new();
-
-    handlebars
-      .register_template_string("bundle_dmg", include_str!("templates/bundle_dmg"))
-      .expect("Failed to setup handlebars template");
-    handlebars
-  };
-}
-
-// create script files to bundle project and execute bundle_script.
+/// Bundles the project.
+/// Returns a vector of PathBuf that shows where the DMG was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  // generate the app.app folder
+  // generate the .app bundle
   osx_bundle::bundle_project(settings)?;
 
-  // get uppercase string of app name
-  let upcase = settings.binary_name().to_uppercase();
-
-  // generate BTreeMap for templates
-  let mut sh_map = BTreeMap::new();
-  sh_map.insert("app_name", settings.binary_name());
-  sh_map.insert("app_name_upcase", &upcase);
-
-  let bundle_temp = HANDLEBARS
-    .render("bundle_dmg", &sh_map)
-    .or_else(|e| Err(e.to_string()))?;
+  let app_name = settings.bundle_name();
 
   // get the target path
-  let output_path = settings.project_out_directory();
+  let output_path = settings.project_out_directory().join("bundle/dmg");
+  let dmg_name = format!("{}.dmg", app_name.clone());
+  let dmg_path = output_path.join(&dmg_name.clone());
+
+  let bundle_name = &format!("{}.app", app_name);
+  let bundle_dir = settings.project_out_directory().join("bundle/osx");
+  let bundle_path = bundle_dir.join(&bundle_name.clone());
+
+  let support_directory_path = output_path.join("support");
+  if output_path.exists() {
+    fs::remove_dir_all(&output_path)
+      .with_context(|| format!("Failed to remove old {}", dmg_name))?;
+  }
+  fs::create_dir_all(&support_directory_path).with_context(|| {
+    format!(
+      "Failed to create output directory at {:?}",
+      support_directory_path
+    )
+  })?;
 
   // create paths for script
-  let bundle_sh = output_path.join("bundle_dmg.sh");
+  let bundle_script_path = output_path.join("bundle_dmg.sh");
+  let license_script_path = support_directory_path.join("dmg-license.py");
 
-  common::print_bundling(format!("{:?}", &output_path.join(format!("{}.dmg", &upcase))).as_str())?;
+  common::print_bundling(format!("{:?}", &dmg_path.clone()).as_str())?;
 
   // write the scripts
-  write(&bundle_sh, bundle_temp).or_else(|e| Err(e.to_string()))?;
-
-  // copy seticon binary
-  let seticon = include_bytes!("templates/seticon");
-  let seticon_out = &output_path.join("seticon");
-  let mut seticon_buffer = File::create(seticon_out).or_else(|e| Err(e.to_string()))?;
-  seticon_buffer
-    .write_all(seticon)
-    .or_else(|e| Err(e.to_string()))?;
+  write(
+    &bundle_script_path,
+    include_str!("templates/dmg/bundle_dmg"),
+  )?;
+  write(
+    support_directory_path.join("template.applescript"),
+    include_str!("templates/dmg/template.applescript"),
+  )?;
+  write(
+    &license_script_path,
+    include_str!("templates/dmg/dmg-license.py"),
+  )?;
 
   // chmod script for execution
-
   Command::new("chmod")
     .arg("777")
-    .arg(&bundle_sh)
-    .arg(&seticon_out)
-    .current_dir(output_path)
-    .stdout(Stdio::piped())
-    .stderr(Stdio::piped())
-    .spawn()
-    .expect("Failed to chmod script");
-
-  // execute the bundle script
-  Command::new(&bundle_sh)
-    .current_dir(output_path)
+    .arg(&bundle_script_path)
+    .arg(&license_script_path)
+    .current_dir(output_path.clone())
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
     .output()
-    .expect("Failed to execute shell script");
+    .expect("Failed to chmod script");
 
-  Ok(vec![bundle_sh])
+  let mut args = vec![
+    "--volname",
+    &app_name,
+    "--volicon",
+    "../../../../icons/icon.icns",
+    "--icon",
+    &bundle_name,
+    "180",
+    "170",
+    "--app-drop-link",
+    "480",
+    "170",
+    "--window-size",
+    "660",
+    "400",
+    "--hide-extension",
+    &bundle_name,
+  ];
+
+  if let Some(license_path) = settings.osx_license() {
+    args.push("--eula");
+    args.push(license_path);
+  }
+
+  // Issue #592 - Building MacOS dmg files on CI
+  // https://github.com/tauri-apps/tauri/issues/592
+  match env::var_os("CI") {
+    Some(value) => {
+      if value == "true" {
+        args.push("--skip-jenkins");
+      }
+    }
+    None => (),
+  }
+
+  // execute the bundle script
+  let mut cmd = Command::new(&bundle_script_path);
+  cmd
+    .current_dir(bundle_dir.clone())
+    .args(args)
+    .args(vec![dmg_name.as_str(), bundle_name.as_str()]);
+
+  common::execute_with_output(&mut cmd)
+    .map_err(|_| crate::Error::ShellScriptError("error running bundle_dmg.sh".to_owned()))?;
+
+  fs::rename(bundle_dir.join(dmg_name.clone()), dmg_path.clone())?;
+  Ok(vec![bundle_path, dmg_path])
 }

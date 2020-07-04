@@ -1,3 +1,9 @@
+var dirSelect = document.getElementById('dir')
+
+function getDir() {
+  return dirSelect.value ? parseInt(dir.value) : null
+}
+
 function arrayBufferToBase64(buffer, callback) {
   var blob = new Blob([buffer], {
     type: 'application/octet-binary'
@@ -18,7 +24,10 @@ addClickEnterHandler(
   function () {
     var pathToRead = pathInput.value
     var isFile = pathToRead.match(/\S+\.\S+$/g)
-    var promise = isFile ? window.tauri.readBinaryFile(pathToRead) : window.tauri.readDir(pathToRead)
+    var opts = {
+      dir: getDir()
+    }
+    var promise = isFile ? window.__TAURI__.fs.readBinaryFile(pathToRead, opts) : window.__TAURI__.fs.readDir(pathToRead, opts)
     promise.then(function (response) {
       if (isFile) {
         if (pathToRead.includes('.png') || pathToRead.includes('.jpg')) {
@@ -32,9 +41,11 @@ addClickEnterHandler(
           var fileInput = document.getElementById('file-response')
           fileInput.value = value
           document.getElementById('file-save').addEventListener('click', function () {
-            window.tauri.writeFile({
+            window.__TAURI__.fs.writeFile({
               file: pathToRead,
               contents: fileInput.value
+            }, {
+              dir: getDir()
             }).catch(registerResponse)
           })
         }

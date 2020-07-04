@@ -1,7 +1,15 @@
 import { existsSync } from 'fs'
-import { join, normalize, resolve, sep } from 'path'
+import { join, normalize, resolve, sep, isAbsolute } from 'path'
 import logger from './logger'
-const warn = logger('tauri', 'red')
+import chalk from 'chalk'
+
+const warn = logger('tauri', chalk.red)
+
+function resolvePath(basePath: string, dir: string): string {
+  return dir && isAbsolute(dir)
+    ? dir
+    : resolve(basePath, dir)
+}
 
 const getAppDir = (): string => {
   let dir = process.cwd()
@@ -24,8 +32,8 @@ const appDir = getAppDir()
 const tauriDir = resolve(appDir, 'src-tauri')
 
 const resolveDir = {
-  app: (dir: string) => resolve(appDir, dir),
-  tauri: (dir: string) => resolve(tauriDir, dir)
+  app: (dir: string) => resolvePath(appDir, dir),
+  tauri: (dir: string) => resolvePath(tauriDir, dir)
 }
 
 export { appDir, tauriDir, resolveDir as resolve }

@@ -1,12 +1,12 @@
-import { existsSync } from 'fs-extra'
-import { resolve } from 'path'
+import { existsSync, readFileSync } from 'fs-extra'
 import { TauriConfig } from 'types'
 import merge from 'webpack-merge'
 import logger from '../helpers/logger'
 import * as appPaths from './app-paths'
 import nonWebpackRequire from '../helpers/non-webpack-require'
+import chalk from 'chalk'
 
-const error = logger('ERROR:', 'red')
+const error = logger('ERROR:', chalk.red)
 
 const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
   const pkgPath = appPaths.resolve.app('package.json')
@@ -21,8 +21,8 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
     )
     process.exit(1)
   }
-  const tauriConf = nonWebpackRequire(tauriConfPath)
-  const pkg = nonWebpackRequire(pkgPath)
+  const tauriConf = JSON.parse(readFileSync(tauriConfPath).toString()) as TauriConfig
+  const pkg = nonWebpackRequire(pkgPath) as { productName: string }
 
   const config = merge(
     {
@@ -33,7 +33,16 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
           active: true
         },
         bundle: {
-          active: true
+          active: true,
+          icon: [],
+          resources: [],
+          externalBin: [],
+          deb: {
+            depends: []
+          },
+          osx: {
+            frameworks: []
+          }
         },
         whitelist: {
           all: false
@@ -52,19 +61,53 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
         }
       }
     } as any,
-    tauriConf,
+    tauriConf as any,
     cfg as any
   ) as TauriConfig
 
-  const runningDevServer = config.build.devPath && config.build.devPath.startsWith('http')
-  if (!runningDevServer) {
-    config.build.devPath = resolve(appPaths.tauriDir, config.build.devPath)
-  }
-  if (config.build.distDir) {
-    config.build.distDir = resolve(appPaths.tauriDir, config.build.distDir)
+  if (!config.build.devPath || !config.build.distDir) {
+    error('Missing required build configuration in your tauri.conf.json file. Please make sure to add the proper path configuration as described at https://github.com/tauri-apps/tauri/wiki/05.-Tauri-Integration#src-tauritauriconfjson.')
+    process.exit(1)
   }
 
-  process.env.TAURI_DIST_DIR = appPaths.resolve.app(config.build.distDir)
+  const runningDevServer = config.build.devPath?.startsWith('http')
+  if (!runningDevServer) {
+    config.build.devPath = appPaths.resolve.tauri(config.build.devPath)
+    process.env.TAURI_DIST_DIR = config.build.devPath
+  }
+  if (config.build.distDir) {
+    config.build.distDir = appPaths.resolve.tauri(config.build.distDir)
+    process.env.TAURI_DIST_DIR = config.build.distDir
+  }
+
+  // bundle configuration
+  if (config.tauri.bundle) {
+    // OSX
+    if (config.tauri.bundle.osx) {
+      const license = config.tauri.bundle.osx.license
+      if (typeof license === 'string') {
+        config.tauri.bundle.osx.license = appPaths.resolve.tauri(license)
+      } else if (license !== null) {
+        const licensePath = appPaths.resolve.app('LICENSE')
+        if (existsSync(licensePath)) {
+          config.tauri.bundle.osx.license = licensePath
+        }
+      }
+    }
+
+    // targets
+    if (Array.isArray(config.tauri.bundle.targets)) {
+      if (process.platform !== 'win32') {
+        config.tauri.bundle.targets = config.tauri.bundle.targets.filter(t => t !== 'msi')
+      }
+    }
+  }
+
+  if (!process.env.TAURI_DIST_DIR) {
+    error("Couldn't resolve the dist dir. Make sure you have `devPath` or `distDir` under tauri.conf.json > build")
+    process.exit(1)
+  }
+
   process.env.TAURI_DIR = appPaths.tauriDir
   process.env.TAURI_CONFIG = JSON.stringify(config)
 

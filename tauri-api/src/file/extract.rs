@@ -7,18 +7,25 @@ use std::fs;
 use std::io;
 use std::path;
 
+/// The supported archive formats.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ArchiveFormat {
+  /// Tar archive.
   Tar(Option<Compression>),
+  /// Plain archive.
   Plain(Option<Compression>),
+  /// Zip archive.
   Zip,
 }
 
+/// The supported compression types.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Compression {
+  /// Gz compression (e.g. `.tar.gz` archives)
   Gz,
 }
 
+/// The extract manager.
 #[derive(Debug)]
 pub struct Extract<'a> {
   source: &'a path::Path,
@@ -92,9 +99,10 @@ impl<'a> Extract<'a> {
                 }
               }
             }
-            let file_name = self.source.file_name().ok_or_else(|| {
-              crate::ErrorKind::Extract("Extractor source has no file-name".into())
-            })?;
+            let file_name = self
+              .source
+              .file_name()
+              .ok_or_else(|| crate::Error::Extract("Extractor source has no file-name".into()))?;
             let mut out_path = into_dir.join(file_name);
             out_path.set_extension("");
             let mut out_file = fs::File::create(&out_path)?;
@@ -148,9 +156,9 @@ impl<'a> Extract<'a> {
                 }
               }
             }
-            let file_name = file_to_extract.file_name().ok_or_else(|| {
-              crate::ErrorKind::Extract("Extractor source has no file-name".into())
-            })?;
+            let file_name = file_to_extract
+              .file_name()
+              .ok_or_else(|| crate::Error::Extract("Extractor source has no file-name".into()))?;
             let out_path = into_dir.join(file_name);
             let mut out_file = fs::File::create(&out_path)?;
             io::copy(&mut reader, &mut out_file)?;
@@ -162,7 +170,7 @@ impl<'a> Extract<'a> {
               .filter_map(|e| e.ok())
               .find(|e| e.path().ok().filter(|p| p == file_to_extract).is_some())
               .ok_or_else(|| {
-                crate::ErrorKind::Extract(format!(
+                crate::Error::Extract(format!(
                   "Could not find the required path in the archive: {:?}",
                   file_to_extract
                 ))

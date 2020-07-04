@@ -3,7 +3,7 @@ name: clippy and eslint check
 on:
   push:
     branches-ignore:
-      - master
+      - latest
       - dev
 
 jobs:

@@ -3,7 +3,7 @@ name: release-npm
 on:
   push:
     branches:
-      - master
+      - latest
     paths:
       - '**/package.json'
       - '.github/workflows/**'
@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: master
+          ref: latest
       - uses: actions/setup-node@v1
         with:
           node-version: 12

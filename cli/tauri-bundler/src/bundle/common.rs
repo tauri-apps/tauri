@@ -277,7 +277,7 @@ pub fn execute_with_output(cmd: &mut Command) -> crate::Result<()> {
     let reader = BufReader::new(stdout);
 
     for line in reader.lines() {
-      print_info(line.expect("Failed to get line").as_str())?;
+      println!("{}", line.expect("Failed to get line"));
     }
   }
 

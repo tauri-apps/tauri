@@ -225,7 +225,7 @@ class Runner {
     this.__rewriteManifest(cargoManifest)
 
     const inlinedAssets = (await this.__parseHtml(cfg, cfg.build.distDir)).inlinedAssets
-    process.env.TAURI_INLINED_ASSSTS = inlinedAssets.join('|')
+    process.env.TAURI_INLINED_ASSETS = inlinedAssets.join('|')
 
     const features = [
       cfg.tauri.embeddedServer.active ? 'embedded-server' : 'no-server'

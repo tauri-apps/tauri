@@ -142,9 +142,9 @@ mod test {
         // check to see if we get back a handler or not
         match handler {
           // pass on Some(handler)
-          Some(_) => assert!(true),
+          Some(_) => {},
           // Fail on None
-          None => assert!(false)
+          None => panic!("handler is None")
         }
       }
     }

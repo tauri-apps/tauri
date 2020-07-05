@@ -315,13 +315,13 @@ mod test {
       let res = super::init();
       match res {
         Ok(s) => assert_eq!(s, ""),
-        Err(_) => assert!(false),
+        Err(e) => panic!("init Err {:?}", e.to_string()),
       }
     } else if cfg!(event) {
       let res = super::init();
       match res {
         Ok(s) => assert!(s.contains("window.__TAURI__.promisified")),
-        Err(_) => assert!(false),
+        Err(e) => panic!("init Err {:?}", e.to_string()),
       }
     }
   }
@@ -331,11 +331,7 @@ mod test {
     #[cfg(event)]
     #[test]
     fn check_listen_fn(event in "", handler in "", once in proptest::bool::ANY) {
-      let res = super::event::listen_fn(event, handler, once);
-      match res {
-        Ok(_) => assert!(true),
-        Err(_) => assert!(false)
-      }
+      super::event::listen_fn(event, handler, once).expect("listen_fn failed");
     }
   }
 

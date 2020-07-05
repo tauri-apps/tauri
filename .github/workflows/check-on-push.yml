@@ -9,6 +9,9 @@ on:
 jobs:
   clippy_check:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        features: [embedded-server, no-server, all-api]
 
     steps:
       - uses: actions/checkout@v2
@@ -20,6 +23,7 @@ jobs:
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-targets --features ${{ matrix.features }} -- -D warnings
         env:
           TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
           TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri

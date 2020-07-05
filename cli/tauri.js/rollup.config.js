@@ -3,7 +3,6 @@ import { terser } from 'rollup-plugin-terser'
 import resolve from '@rollup/plugin-node-resolve'
 import commonjs from '@rollup/plugin-commonjs'
 import sucrase from '@rollup/plugin-sucrase'
-import cleaner from 'rollup-plugin-cleaner'
 import babel, { getBabelOutputPlugin } from '@rollup/plugin-babel'
 import typescript from '@rollup/plugin-typescript'
 import pkg from './package.json'
@@ -40,11 +39,6 @@ export default [{
     }
   ],
   plugins: [
-    cleaner({
-      targets: [
-        './api/'
-      ]
-    }),
     commonjs({}),
     resolve({
     // pass custom options to the resolve plugin

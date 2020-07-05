@@ -2,6 +2,11 @@ name: update-docs
 
 on:
   push:
+    branches:
+      - latest
+    paths:
+      - '**/package.json'
+      - '.github/workflows/**'
 
 jobs:
   update-docs:

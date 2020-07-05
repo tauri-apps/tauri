@@ -6,7 +6,7 @@ on:
       - dev
 
 jobs:
-  pr-to-master:
+  pr-to-latest:
     runs-on: ubuntu-latest
 
     steps:

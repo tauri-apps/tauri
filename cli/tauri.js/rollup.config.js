@@ -24,7 +24,7 @@ export default [{
   perf:           true,
   output:         [
     {
-      dir: 'api/cjs/',
+      dir: 'api/',
       entryFileNames: '[name].js',
       format:  'cjs',
       exports: 'named',
@@ -32,7 +32,7 @@ export default [{
     },
     {
       dir: 'api/',
-      entryFileNames: '[name].js',
+      entryFileNames: '[name].mjs',
       format:    'esm',
       exports: 'named',
       globals: {}

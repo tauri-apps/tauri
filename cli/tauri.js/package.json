@@ -11,8 +11,8 @@
   },
   "scripts": {
     "build": "yarn build:api && yarn build:typedefs && yarn build:webpack",
-    "build:webpack": "rm ./dist -Rf && webpack --progress",
-    "build:api": "rm ./api -Rf && rollup -c --silent && yarn build:typedefs",
+    "build:webpack": "rm ./dist -R || webpack --progress",
+    "build:api": "rm ./api -R || rollup -c --silent && yarn build:typedefs",
     "build:typedefs": "yarn tsc ./api-src/index.ts --declaration --emitDeclarationOnly --outDir api",
     "build-release": "yarn build --display none --progress false",
     "test": "jest --runInBand --no-cache --testPathIgnorePatterns=\"(build|dev)\"",

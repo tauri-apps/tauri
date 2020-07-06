@@ -95,7 +95,6 @@ mod test {
   use super::*;
   use crate::Error;
   use std::io;
-  use totems::{assert_err, assert_ok};
 
   #[test]
   // test the get_output function with a unix cat command.
@@ -107,7 +106,7 @@ mod test {
     let res = get_output(cmd, vec!["test/test.txt".to_string()], Stdio::piped());
 
     // assert that the result is an Ok() type
-    assert_ok!(&res);
+    assert!(res.is_ok());
 
     // if the assertion passes, assert the incoming data.
     if let Ok(s) = &res {
@@ -126,7 +125,7 @@ mod test {
     let res = get_output(cmd, vec!["test/".to_string()], Stdio::piped());
 
     // assert that the result is an Error type.
-    assert_err!(&res);
+    assert!(res.is_err());
 
     // destruct the Error to check the ErrorKind and test that it is a Command type.
     if let Some(Error::Command(e)) = res.unwrap_err().downcast_ref::<Error>() {
@@ -145,7 +144,7 @@ mod test {
     let res = command_path(cmd);
 
     // assert that the result is an OK() type.
-    assert_ok!(res);
+    assert!(res.is_ok());
   }
 
   #[test]
@@ -158,7 +157,7 @@ mod test {
     let res = spawn_relative_command(cmd, vec!["test/test.txt".to_string()], Stdio::piped());
 
     // this fails because there is no cat binary in the relative parent folder of this current executing command.
-    assert_err!(&res);
+    assert!(res.is_err());
 
     // after asserting that the result is an error, check that the error kind is ErrorKind::Io
     if let Some(s) = res.unwrap_err().downcast_ref::<io::Error>() {

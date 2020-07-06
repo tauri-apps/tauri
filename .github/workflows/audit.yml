@@ -9,7 +9,7 @@ on:
       - "**/Cargo.toml"
 
 jobs:
-  audit:
+  audit-rust:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

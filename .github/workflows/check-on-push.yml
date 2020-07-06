@@ -37,6 +37,8 @@ jobs:
 
   core_clippy_check:
     runs-on: ubuntu-latest
+    defaults:
+      working-directory: ./tauri
     strategy:
       matrix:
         feature: [embedded-server, no-server, all-api]
@@ -48,9 +50,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0
       - run: rustup component add clippy
-      - name: clippy check
-        working-directory: ./tauri
-        uses: actions-rs/clippy-check@v1
+      - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-targets --features ${{ matrix.feature }} -- -D warnings

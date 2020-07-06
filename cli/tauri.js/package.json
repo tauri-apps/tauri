@@ -11,8 +11,8 @@
   },
   "scripts": {
     "build": "yarn build:api && yarn build:typedefs && yarn build:webpack",
-    "build:webpack": "rm ./dist -R || webpack --progress",
-    "build:api": "rm ./api -R || rollup -c --silent && yarn build:typedefs",
+    "build:webpack": "rimraf ./dist && webpack --progress",
+    "build:api": "rimraf ./api && rollup -c --silent && yarn build:typedefs",
     "build:typedefs": "yarn tsc ./api-src/index.ts --declaration --emitDeclarationOnly --outDir api",
     "build-release": "yarn build --display none --progress false",
     "test": "jest --runInBand --no-cache --testPathIgnorePatterns=\"(build|dev)\"",
@@ -111,6 +111,7 @@
     "lockfile-lint": "4.3.7",
     "promise": "8.1.0",
     "raw-loader": "4.0.1",
+    "rimraf": "^3.0.2",
     "rollup": "2.18.2",
     "rollup-plugin-terser": "6.1.0",
     "rollup-plugin-typescript2": "0.27.1",

@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        features: [embedded-server, no-server, all-api]
+        feature: [embedded-server, no-server, all-api]
 
     steps:
       - uses: actions/checkout@v2
@@ -42,7 +42,7 @@ jobs:
         working-directory: ./tauri
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-targets --features ${{ matrix.features }} -- -D warnings
+          args: --all-targets --features ${{ matrix.feature }} -- -D warnings
         env:
           TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
           TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri

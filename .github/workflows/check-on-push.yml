@@ -39,7 +39,8 @@ jobs:
   core_clippy_check:
     runs-on: ubuntu-latest
     defaults:
-      working-directory: ./tauri
+      run:
+        working-directory: ./tauri
     strategy:
       matrix:
         feature: [embedded-server, no-server, all-api]

@@ -38,8 +38,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0
       - run: rustup component add clippy
-      - uses: actions-rs/clippy-check@v1
+      - name: clippy check
         working-directory: ./tauri
+        uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-targets --features ${{ matrix.feature }} -- -D warnings

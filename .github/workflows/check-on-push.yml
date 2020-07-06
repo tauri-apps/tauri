@@ -38,9 +38,6 @@ jobs:
 
   core_clippy_check:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./tauri
     strategy:
       matrix:
         feature: [embedded-server, no-server, all-api]
@@ -55,7 +52,7 @@ jobs:
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-targets --features ${{ matrix.feature }} -- -D warnings
+          args: --manifest-path ./tauri/Cargo.toml --all-targets --features ${{ matrix.feature }} -- -D warnings
           name: core
         env:
           TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist

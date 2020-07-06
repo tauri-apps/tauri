@@ -84,6 +84,10 @@ fn shared() {
     println!("cargo:rerun-if-changed={:?}", tauri_path);
   }
 
+  setup_env_aliases();
+}
+
+fn setup_env_aliases() {
   cfg_aliases! {
     embedded_server: { feature = "embedded-server" },
     no_server: { feature = "no-server" },

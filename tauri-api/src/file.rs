@@ -27,7 +27,6 @@ pub fn read_binary<P: AsRef<Path>>(file: P) -> crate::Result<Vec<u8>> {
 mod test {
   use super::*;
   use crate::Error;
-  use totems::{assert_err, assert_ok};
 
   #[test]
   fn check_read_string() {
@@ -35,7 +34,7 @@ mod test {
 
     let res = read_string(file);
 
-    assert_ok!(res);
+    assert!(res.is_ok());
 
     if let Ok(s) = res {
       assert_eq!(s, "This is a test doc!".to_string());
@@ -48,7 +47,7 @@ mod test {
 
     let res = read_string(file);
 
-    assert_err!(res);
+    assert!(res.is_err());
 
     if let Some(Error::File(e)) = res.unwrap_err().downcast_ref::<Error>() {
       #[cfg(windows)]
@@ -81,7 +80,7 @@ mod test {
 
     let res = read_binary(file);
 
-    assert_ok!(res);
+    assert!(res.is_ok());
 
     if let Ok(vec) = res {
       assert_eq!(vec, expected_vec);
@@ -94,7 +93,7 @@ mod test {
 
     let res = read_binary(file);
 
-    assert_err!(res);
+    assert!(res.is_err());
 
     if let Some(Error::File(e)) = res.unwrap_err().downcast_ref::<Error>() {
       #[cfg(windows)]

@@ -404,7 +404,7 @@ mod test {
         println!("{:?}", c);
         assert_eq!(c, &test_config)
       }
-      Err(_) => assert!(false),
+      Err(e) => panic!("get config failed: {:?}", e.to_string()),
     }
   }
 

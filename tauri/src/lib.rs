@@ -9,6 +9,7 @@
   all(not(debug_assertions), target_os = "windows"),
   windows_subsystem = "windows"
 )]
+//#![deny(clippy::all)]
 
 /// The asset management module.
 #[cfg(assets)]
@@ -145,7 +146,6 @@ mod test {
       // create dummy task function
       let dummy_task = move || {
         format!("{}-run-dummy-task", task);
-        assert!(true);
       };
       // call spawn
       crate::spawn(dummy_task);

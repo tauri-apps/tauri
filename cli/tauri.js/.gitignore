@@ -1,5 +1,6 @@
-# Webpack output
+# Build output
 /dist
+/src/types/config.validator.ts
 
 # Logs
 logs

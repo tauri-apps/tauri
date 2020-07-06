@@ -24,15 +24,24 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
       println!("cargo:rerun-if-changed={}", dist_path_string);
 
-      let inlined_assets = match std::env::var_os("TAURI_INLINED_ASSETS") {
+      let mut inlined_assets = match std::env::var_os("TAURI_INLINED_ASSETS") {
         Some(assets) => assets
           .into_string()
           .unwrap()
           .split('|')
           .map(|s| s.to_string())
+          .filter(|s| s != "")
           .collect(),
         None => Vec::new(),
       };
+
+      // the index.html is parsed so we always ignore it
+      inlined_assets.push("index.html".to_string());
+      if cfg!(feature = "no-server") {
+        // on no-server we include_str() the index.tauri.html on the runner
+        inlined_assets.push("index.tauri.html".to_string());
+      }
+
       // include assets
       tauri_includedir_codegen::start("ASSETS")
         .dir(
@@ -75,6 +84,10 @@ fn shared() {
     println!("cargo:rerun-if-changed={:?}", tauri_path);
   }
 
+  setup_env_aliases();
+}
+
+fn setup_env_aliases() {
   cfg_aliases! {
     embedded_server: { feature = "embedded-server" },
     no_server: { feature = "no-server" },

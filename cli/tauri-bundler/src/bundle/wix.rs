@@ -348,6 +348,7 @@ fn run_candle(
     .stdout(Stdio::piped())
     .current_dir(build_path);
 
+  common::print_info("running candle.exe");
   common::execute_with_output(&mut cmd).map_err(|_| crate::Error::CandleError)
 }
 
@@ -371,14 +372,13 @@ fn run_light(
     args.push(p.to_string());
   }
 
-  common::print_info(format!("running light to produce {}", output_path.display()).as_str())?;
-
   let mut cmd = Command::new(&light_exe);
   cmd
     .args(&args)
     .stdout(Stdio::piped())
     .current_dir(build_path);
 
+  common::print_info(format!("running light to produce {}", output_path.display()).as_str())?;
   common::execute_with_output(&mut cmd)
     .map(|_| output_path.to_path_buf())
     .map_err(|_| crate::Error::LightError)

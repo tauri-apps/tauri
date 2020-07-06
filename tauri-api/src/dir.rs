@@ -66,13 +66,12 @@ mod test {
   use quickcheck_macros::quickcheck;
   use std::ffi::OsStr;
   use std::path::PathBuf;
-  use totems::assert_ok;
 
   // check is dir function by passing in arbitrary strings
   #[quickcheck]
   fn qc_is_dir(f: String) -> bool {
     // if the string runs through is_dir and comes out as an OK result then it must be a DIR.
-    if let Ok(_) = is_dir(f.clone()) {
+    if is_dir(f.clone()).is_ok() {
       PathBuf::from(f).is_dir()
     } else {
       true
@@ -98,10 +97,10 @@ mod test {
     file_two.push("test_binary");
 
     // call walk_dir on the directory
-    let res = read_dir(dir.clone(), true);
+    let res = read_dir(dir, true);
 
     // assert that the result is Ok()
-    assert_ok!(&res);
+    assert!(res.is_ok());
 
     // destruct the OK into a vector of DiskEntry Structs
     if let Ok(vec) = res {
@@ -147,7 +146,7 @@ mod test {
     let res = read_dir(dir, false);
 
     // assert that the result is Ok()
-    assert_ok!(&res);
+    assert!(res.is_ok());
 
     // destruct the vector from the Ok()
     if let Ok(vec) = res {
@@ -194,6 +193,6 @@ mod test {
     let res = with_temp_dir(callback);
 
     // assert that the result is an OK type.
-    assert_ok!(res);
+    assert!(res.is_ok());
   }
 }

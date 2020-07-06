@@ -3,7 +3,7 @@ name: release-cargo
 on:
   push:
     branches:
-      - master
+      - latest
     paths:
       - '**/Cargo.toml'
       - '.github/workflows/**'
@@ -44,7 +44,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: master
+          ref: latest
           toolchain: stable
       - name: get version
         working-directory: ${{ matrix.package.path }}

@@ -7,7 +7,25 @@ on:
       - dev
 
 jobs:
-  clippy_check:
+  workspace_clippy_check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: install webkit2gtk
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0
+      - run: rustup component add clippy
+      - uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-targets -- -D warnings
+        env:
+          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
+          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
+
+  core_clippy_check:
     runs-on: ubuntu-latest
     strategy:
       matrix:

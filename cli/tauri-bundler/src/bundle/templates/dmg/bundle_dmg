@@ -3,7 +3,7 @@
 # Create a read-only disk image of the contents of a folder
 # forked from https://github.com/andreyvit/create-dmg
 
-set -e;
+set -euxo pipefail;
 
 function pure_version() {
 	echo '1.0.0.6'

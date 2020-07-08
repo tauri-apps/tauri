@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.2]
+
+-   Adds tauri.conf.json schema validation to the CLI.
+
 ## [0.8.1]
 
 -   Transpile the TS API to ES5.

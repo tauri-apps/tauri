@@ -8,9 +8,6 @@
   "tauri": {
     "cli": {
       "description": "Tauri communication example",
-      "longDescription": null,
-      "beforeHelp": null,
-      "afterHelp": null,
       "args": [{
         "short": "c",
         "name": "config",
@@ -31,15 +28,11 @@
       "subcommands": {
         "update": {
           "description": "Updates the app",
-          "longDescription": null,
-          "beforeHelp": null,
-          "afterHelp": null,
           "args": [{
             "short": "b",
             "name": "background",
             "description": "Update in background"
-          }],
-          "subcommands": null
+          }]
         }
       }
     },

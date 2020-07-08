@@ -36,6 +36,10 @@ export interface CliArg {
    */
   multiple?: boolean
   /**
+   * specifies that the argument may appear more than once.
+   */
+  multipleOccurrences?: boolean
+  /**
    * specifies a list of possible values for this argument. At runtime, the CLI verifies that only one of the specified values was used, or fails with an error message.
    */
   possibleValues?: string[]
@@ -285,3 +289,5 @@ export interface TauriConfig {
     }
   }
 }
+
+export default TauriConfig

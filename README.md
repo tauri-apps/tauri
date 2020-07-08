@@ -12,7 +12,7 @@
 
 ```yml
 Tauri Apps
-  footprint:   miniscule
+  footprint:   minuscule
   performance: ludicrous
   flexibility: gymnastic
   security:    hardened

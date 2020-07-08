@@ -79,8 +79,10 @@ IMAGEKEY=""
 HDIUTIL_VERBOSITY=""
 SANDBOX_SAFE=0
 SKIP_JENKINS=0
+POSITION_CLAUSE=""
+HIDING_CLAUSE=""
 
-while test "${1:0:1}" = "-"; do
+while [ ! -z ${1+x} ] && test "${1:0:1}" = "-"; do
 	case $1 in
 	--volname)
 		VOLUME_NAME="$2"
@@ -178,7 +180,7 @@ while test "${1:0:1}" = "-"; do
 	esac
 done
 
-test -z "$2" && {
+[ -z ${2+x} ] && {
 	echo "Not enough arguments. Invoke with --help for help."
 	exit 1
 }

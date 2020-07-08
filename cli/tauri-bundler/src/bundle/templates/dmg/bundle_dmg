@@ -3,7 +3,7 @@
 # Create a read-only disk image of the contents of a folder
 # forked from https://github.com/andreyvit/create-dmg
 
-set -euxo pipefail;
+set -eux;
 
 function pure_version() {
 	echo '1.0.0.6'
@@ -193,7 +193,7 @@ DMG_NAME="$(basename "$DMG_PATH")"
 DMG_TEMP_NAME="$DMG_DIR/rw.${DMG_NAME}"
 SRC_FOLDER="$(cd "$2" > /dev/null; pwd)"
 
-test -z "$VOLUME_NAME" && VOLUME_NAME="$(basename "$DMG_PATH" .dmg)"
+[ -z ${VOLUME_NAME+x} ] && VOLUME_NAME="$(basename "$DMG_PATH" .dmg)"
 
 # brew formula will set this as 1 and embed the support scripts
 BREW_INSTALL=0
@@ -231,7 +231,7 @@ function get_size() {
 
 # Create the DMG with the specified size or the hdiutil estimation
 CUSTOM_SIZE=''
-if ! test -z "$DISK_IMAGE_SIZE"; then
+if [ ! -z ${DISK_IMAGE_SIZE+x} ]; then
 	CUSTOM_SIZE="-size ${DISK_IMAGE_SIZE}m"
 fi
 
@@ -247,12 +247,12 @@ fi
 DISK_IMAGE_SIZE=`get_size "${DMG_TEMP_NAME}"`
 
 # Use the custom size if bigger
-if [ $SANDBOX_SAFE -eq 1 ] && [ ! -z "$DISK_IMAGE_SIZE_CUSTOM" ] && [ $DISK_IMAGE_SIZE_CUSTOM -gt $DISK_IMAGE_SIZE ]; then
+if [ $SANDBOX_SAFE -eq 1 ] && [ !  -z ${DISK_IMAGE_SIZE_CUSTOM+x} ] && [ $DISK_IMAGE_SIZE_CUSTOM -gt $DISK_IMAGE_SIZE ]; then
 	DISK_IMAGE_SIZE=$DISK_IMAGE_SIZE_CUSTOM
 fi
 
 # Estimate the additional soruces size
-if ! test -z "$ADD_FILE_SOURCES"; then
+if [ ! -z ${ADD_FILE_SOURCES+x} ]; then
 	for i in "${!ADD_FILE_SOURCES[@]}"
 	do
 		SOURCE_SIZE=`get_size "${ADD_FILE_SOURCES[$i]}"`
@@ -279,29 +279,29 @@ echo "Mount directory: $MOUNT_DIR"
 DEV_NAME=$(hdiutil attach -readwrite -noverify -noautoopen "${DMG_TEMP_NAME}" | egrep --color=never '^/dev/' | sed 1q | awk '{print $1}')
 echo "Device name:     $DEV_NAME"
 
-if ! test -z "$BACKGROUND_FILE"; then
+if [ ! -z ${BACKGROUND_FILE+x} ]; then
 	echo "Copying background file..."
 	test -d "$MOUNT_DIR/.background" || mkdir "$MOUNT_DIR/.background"
 	cp "$BACKGROUND_FILE" "$MOUNT_DIR/.background/$BACKGROUND_FILE_NAME"
 fi
 
-if ! test -z "$APPLICATION_LINK"; then
+if [ ! -z ${APPLICATION_LINK+x} ]; then
 	echo "making link to Applications dir"
 	test -d "$MOUNT_DIR/Applications" || ln -s /Applications "$MOUNT_DIR/Applications"
 fi
 
-if ! test -z "$QL_LINK"; then
+if [ ! -z ${QL_LINK+x} ]; then
 	echo "making link to QuickLook install dir"
 	ln -s "/Library/QuickLook" "$MOUNT_DIR/QuickLook"
 fi
 
-if ! test -z "$VOLUME_ICON_FILE"; then
+if [ ! -z ${VOLUME_ICON_FILE+x} ]; then
 	echo "Copying volume icon file '$VOLUME_ICON_FILE'..."
 	cp "$VOLUME_ICON_FILE" "$MOUNT_DIR/.VolumeIcon.icns"
 	SetFile -c icnC "$MOUNT_DIR/.VolumeIcon.icns"
 fi
 
-if ! test -z "$ADD_FILE_SOURCES"; then
+if [ ! -z ${ADD_FILE_SOURCES+x} ]; then
 	echo "Copying custom files..."
 	for i in "${!ADD_FILE_SOURCES[@]}"
 	do
@@ -347,7 +347,7 @@ else
 	echo "Skipping blessing on sandbox"
 fi
 
-if ! test -z "$VOLUME_ICON_FILE"; then
+if [ ! -z ${VOLUME_ICON_FILE+x} ]; then
 	# tell the volume that it has a special file attribute
 	SetFile -a C "$MOUNT_DIR"
 fi
@@ -362,11 +362,11 @@ hdiutil convert ${HDIUTIL_VERBOSITY} "${DMG_TEMP_NAME}" -format ${FORMAT} ${IMAG
 rm -f "${DMG_TEMP_NAME}"
 
 # adding EULA resources
-if [ ! -z "${EULA_RSRC}" -a "${EULA_RSRC}" != "-null-" ]; then
+if [ ! -z ${EULA_RSRC+x} ]; then
 	echo "adding EULA resources"
 
 	REZ_ARG=""
-	if [ ! -z "${REZ_PATH}" -a "${REZ_PATH}" != "-null-" ]; then
+	if [ ! -z ${REZ_PATH+x} ]; then
 		REZ_ARG="--rez ${REZ_PATH}"
 	fi
 	if [ $BREW_INSTALL -eq 0 ]; then
@@ -378,7 +378,7 @@ EOS
 	fi
 fi
 
-if [ ! -z "${NOINTERNET}" -a "${NOINTERNET}" == 1 ]; then
+if [ ! -z ${NOINTERNET+x} && -a "${NOINTERNET}" == 1 ]; then
 	echo "not setting 'internet-enable' on the dmg"
 else
 	# check if hdiutil supports internet-enable

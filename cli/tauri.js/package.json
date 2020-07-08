@@ -63,7 +63,7 @@
     "is-png": "2.0.0",
     "isbinaryfile": "4.0.6",
     "jsdom": "16.2.2",
-    "lodash": "4.17.18",
+    "lodash": "4.17.19",
     "minimist": "1.2.5",
     "ms": "2.1.2",
     "png2icons": "2.0.1",
@@ -127,7 +127,7 @@
     "webpack-node-externals": "1.7.2"
   },
   "resolutions": {
-    "**/lodash": ">=4.17.18"
+    "**/lodash": ">=4.17.19"
   },
   "husky": {
     "hooks": {

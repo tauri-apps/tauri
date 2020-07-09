@@ -387,7 +387,7 @@ mod test {
         },
         embedded_server: EmbeddedServerConfig {
           host: String::from("http://127.0.0.1"),
-          port: String::from("random"),
+          port: Port::Random,
         },
         bundle: BundleConfig {
           identifier: String::from("com.tauri.communication"),
@@ -483,7 +483,7 @@ mod test {
       },
       embedded_server: EmbeddedServerConfig {
         host: String::from("http://127.0.0.1"),
-        port: String::from("random"),
+        port: Port::Random,
       },
       bundle: BundleConfig {
         identifier: String::from(""),

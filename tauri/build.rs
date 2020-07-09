@@ -78,12 +78,6 @@ pub fn main() {
 }
 
 fn shared() {
-  if let Some(tauri_dir) = std::env::var_os("TAURI_DIR") {
-    let mut tauri_path = std::path::PathBuf::from(tauri_dir);
-    tauri_path.push("tauri.conf.json");
-    println!("cargo:rerun-if-changed={:?}", tauri_path);
-  }
-
   setup_env_aliases();
 }
 

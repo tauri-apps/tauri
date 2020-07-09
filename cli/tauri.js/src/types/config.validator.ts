@@ -411,6 +411,7 @@ export const TauriConfigSchema = {
               "type": "boolean"
             },
             "port": {
+              "description": "enable custom port, instead of using random port",
               "type": "string"
             }
           },

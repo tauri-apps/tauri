@@ -18,7 +18,7 @@ Bumped due to dependency.
 
 -   Fixes the Windows build with the latest Windows SDK.
 
-## [0.6.1] \(Not Published)
+## [0.6.1] - (Not Published)
 
 ## [0.6.0]
 

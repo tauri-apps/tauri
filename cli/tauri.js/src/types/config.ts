@@ -226,7 +226,7 @@ export interface TauriConfig {
       /**
        * the embedded server port number or the 'random' string to generate one at runtime
        */
-      port?: number | 'random'
+      port?: number | 'random' | undefined
     }
     /**
      * tauri bundler configuration

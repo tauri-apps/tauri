@@ -31,7 +31,8 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
       ctx: {},
       tauri: {
         embeddedServer: {
-          active: true
+          active: true,
+          port: "3000"
         },
         bundle: {
           active: true,

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.1]
+
+-   Fixes the config reloading when tauri.conf.json changes.
+
 ## [0.7.0]
 
 -   The execute_promise and execute_promise_sync helpers now accepts any tauri::Result<T> where T: impl Serialize.

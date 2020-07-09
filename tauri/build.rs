@@ -21,6 +21,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
   match env::var_os("TAURI_DIST_DIR") {
     Some(dist_path) => {
       let dist_path_string = dist_path.into_string().unwrap();
+      let dist_path = Path::new(&dist_path_string);
 
       println!("cargo:rerun-if-changed={}", dist_path_string);
 
@@ -36,10 +37,22 @@ pub fn main() -> Result<(), Box<dyn Error>> {
       };
 
       // the index.html is parsed so we always ignore it
-      inlined_assets.push("index.html".to_string());
+      inlined_assets.push(
+        dist_path
+          .join("index.html")
+          .into_os_string()
+          .into_string()
+          .expect("failed to convert dist path to string"),
+      );
       if cfg!(feature = "no-server") {
         // on no-server we include_str() the index.tauri.html on the runner
-        inlined_assets.push("index.tauri.html".to_string());
+        inlined_assets.push(
+          dist_path
+            .join("index.tauri.html")
+            .into_os_string()
+            .into_string()
+            .expect("failed to convert dist path to string"),
+        );
       }
 
       // include assets

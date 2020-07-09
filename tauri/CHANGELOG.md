@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.2]
+
+Bumped due to dependency.
+
 ## [0.7.1]
 
 -   Fixes the assets embedding into the binary.
@@ -14,7 +18,7 @@
 
 -   Fixes the Windows build with the latest Windows SDK.
 
-## [0.6.1] (Not Published)
+## [0.6.1] \(Not Published)
 
 ## [0.6.0]
 

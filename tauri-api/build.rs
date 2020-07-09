@@ -14,6 +14,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
   match env::var_os("TAURI_CONFIG") {
     Some(tauri_config) => {
+      println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
       let tauri_config_string = tauri_config.into_string().unwrap();
       write!(config_file, "{}", tauri_config_string)?;
     }

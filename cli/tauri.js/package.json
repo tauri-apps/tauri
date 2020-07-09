@@ -69,7 +69,7 @@
     "png2icons": "2.0.1",
     "read-chunk": "3.2.0",
     "sharp": "0.25.4",
-    "webpack-merge": "4.2.2",
+    "webpack-merge": "5.0.9",
     "webpack-shell-plugin": "0.5.0"
   },
   "devDependencies": {
@@ -118,13 +118,13 @@
     "rollup-plugin-terser": "6.1.0",
     "rollup-plugin-typescript2": "0.27.1",
     "toml-loader": "1.0.0",
-    "ts-loader": "7.0.5",
+    "ts-loader": "8.0.0",
     "tslib": "2.0.0",
     "typescript": "^3.9.6",
     "typescript-json-validator": "^2.4.2",
     "webpack": "4.43.0",
     "webpack-cli": "3.3.12",
-    "webpack-node-externals": "1.7.2"
+    "webpack-node-externals": "2.3.0"
   },
   "husky": {
     "hooks": {

@@ -409,6 +409,20 @@ export const TauriConfigSchema = {
             "active": {
               "description": "whether we should use the embedded-server or the no-server mode",
               "type": "boolean"
+            },
+            "port": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "random"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "description": "the embedded server port number or the 'random' string to generate one at runtime"
             }
           },
           "type": "object"

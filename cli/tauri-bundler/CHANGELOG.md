@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.3]
+
+-   Fixes the unbound variable issue on the DMG bundler script.
+
 ## [0.8.2]
 
 -   Fixes the AppImage bundler script.

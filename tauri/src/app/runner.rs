@@ -103,19 +103,15 @@ fn setup_content() -> crate::Result<Content<String>> {
 #[cfg(embedded_server)]
 fn setup_port() -> crate::Result<(String, bool)> {
   let config = get()?;
-  if config.tauri.embedded_server.port == "random" {
-    match get_available_port() {
+  match config.tauri.embedded_server.port {
+    tauri_api::config::Port::Random => match get_available_port() {
       Some(available_port) => Ok((available_port.to_string(), true)),
       None => Ok(("0".to_string(), false)),
+    },
+    tauri_api::config::Port::Value(port) => {
+      let port_valid = port_is_available(port);
+      Ok((port.to_string(), port_valid))
     }
-  } else {
-    let port = &config.tauri.embedded_server.port;
-    let port_valid = port_is_available(
-      port
-        .parse::<u16>()
-        .unwrap_or_else(|_| panic!("Invalid port {}", port)),
-    );
-    Ok((port.to_string(), port_valid))
   }
 }
 

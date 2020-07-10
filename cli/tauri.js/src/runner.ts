@@ -18,6 +18,7 @@ import { TauriConfig } from './types/config'
 import { CargoManifest } from './types/cargo'
 import getTauriConfig from './helpers/tauri-config'
 import httpProxy from 'http-proxy'
+import isReachable from 'is-reachable'
 import chalk from 'chalk'
 
 const log = logger('app:tauri')
@@ -67,6 +68,18 @@ class Runner {
       ls.stderr?.pipe(process.stderr)
       ls.stdout?.pipe(process.stdout)
       this.beforeDevProcess = ls
+
+      let devTryCount = 0
+      const devTryTimeout = 3000
+      while (!(await isReachable(devPath))) {
+        log('Waiting for your dev server to start...')
+        await new Promise(resolve => setTimeout(resolve, devTryTimeout))
+        devTryCount++
+        if (devTryCount === 5) {
+          warn(`Couldn't connect to ${devPath} after ${devTryTimeout * devTryCount / 1000}s. Please make sure that's the URL to your dev server.`)
+          process.exit(1)
+        }
+      }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -119,7 +132,11 @@ class Runner {
       })
 
       proxy.on('error', (error: Error, _: http.IncomingMessage, res: http.ServerResponse) => {
-        console.error(error)
+        if (error.message?.includes("ECONNREFUSED")) {
+          warn(`Connection refused to ${devUrl.protocol}//${devUrl.host}. Did you start your dev server? Usually that's done with a \`dev\` or \`serve\` NPM script.`)
+        } else {
+          console.error(error)
+        }
         res.writeHead(500, error.message)
       })
 

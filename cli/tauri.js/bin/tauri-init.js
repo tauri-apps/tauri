@@ -35,7 +35,7 @@ const argv = parseArgs(process.argv.slice(2), {
     D: 'dist-dir',
     P: 'dev-path'
   },
-  boolean: ['h', 'l']
+  boolean: ['h', 'l', 'ci']
 })
 
 if (argv.help) {
@@ -47,6 +47,7 @@ if (argv.help) {
     $ tauri init
   Options
     --help, -h           Displays this message
+    --ci                 Skip prompts
     --force, -f          Force init to overwrite [conf|template|all]
     --log, -l            Logging [boolean]
     --directory, -d      Set target directory for init
@@ -67,49 +68,53 @@ if (!appName) {
   } catch {}
 }
 
-inquirer
-  .prompt([{
-      type: 'input',
-      name: 'appName',
-      message: 'What is your app name?',
-      default: appName
-    }, {
-      type: 'input',
-      name: 'tauri.window.title',
-      message: 'What should the window title be?',
-      default: 'Tauri App',
-      when: () => !argv.W
-    },
-    {
-      type: 'input',
-      name: 'build.distDir',
-      message: 'Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri" folder that will be created?',
-      default: '../dist',
-      when: () => !argv.D
-    },
-    {
-      type: 'input',
-      name: 'build.devPath',
-      message: 'What is the url of your dev server?',
-      default: 'http://localhost:4000',
-      when: () => !argv.P
-    }
-  ])
-  .then(answers => {
-    runInit(answers)
-  })
-  .catch(error => {
-    if (error.isTtyError) {
-      // Prompt couldn't be rendered in the current environment
-      console.log(
-        'It appears your terminal does not support interactive prompts. Using default values.'
-      )
-      runInit()
-    } else {
-      // Something else when wrong
-      console.error('An unknown error occurred:', error)
-    }
-  })
+if (argv.ci) {
+  runInit()
+} else {
+  inquirer
+    .prompt([{
+        type: 'input',
+        name: 'appName',
+        message: 'What is your app name?',
+        default: appName
+      }, {
+        type: 'input',
+        name: 'tauri.window.title',
+        message: 'What should the window title be?',
+        default: 'Tauri App',
+        when: () => !argv.W
+      },
+      {
+        type: 'input',
+        name: 'build.distDir',
+        message: 'Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri" folder that will be created?',
+        default: '../dist',
+        when: () => !argv.D
+      },
+      {
+        type: 'input',
+        name: 'build.devPath',
+        message: 'What is the url of your dev server?',
+        default: 'http://localhost:4000',
+        when: () => !argv.P
+      }
+    ])
+    .then(answers => {
+      runInit(answers)
+    })
+    .catch(error => {
+      if (error.isTtyError) {
+        // Prompt couldn't be rendered in the current environment
+        console.log(
+          'It appears your terminal does not support interactive prompts. Using default values.'
+        )
+        runInit()
+      } else {
+        // Something else when wrong
+        console.error('An unknown error occurred:', error)
+      }
+    })
+}
 
 function runInit(config = {}) {
   const {
@@ -137,10 +142,10 @@ function runInit(config = {}) {
     })
   })
 
-  if (appName) {
+  if (appName || argv.A) {
     const manifestPath = resolve(directory, 'src-tauri/Cargo.toml')
     const cargoManifest = toml.parse(readFileSync(manifestPath).toString())
-    let binName = appName.replace(/ /g, '-')
+    let binName = (appName || argv.A).replace(/ /g, '-')
     cargoManifest.package.name = binName
     cargoManifest.package['default-run'] = binName
     if (cargoManifest.bin && cargoManifest.bin.length) {

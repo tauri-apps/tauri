@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.3]
+
+-   Fixes the wrong cli value on the template that's used by tauri init.
+    Also fixes the template test.
+-   Fixes the tauri icon usage with the --icon flag. Previously, only the -i flag worked.
+
+## [0.8.2]
+
+-   Adds tauri.conf.json schema validation to the CLI.
+
 ## [0.8.1]
 
 -   Transpile the TS API to ES5.

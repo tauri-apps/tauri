@@ -64,6 +64,29 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
 fn setup_content() -> crate::Result<Content<String>> {
   let config = get()?;
   if config.build.dev_path.starts_with("http") {
+    #[cfg(windows)]
+    {
+      let exempt_output = std::process::Command::new("CheckNetIsolation")
+        .args(&vec!["LoopbackExempt", "-s"])
+        .output()
+        .expect("failed to read LoopbackExempt -s");
+
+      if !exempt_output.status.success() {
+        panic!("Failed to execute CheckNetIsolation LoopbackExempt -s");
+      }
+
+      let output_str = String::from_utf8(exempt_output.stdout)?.to_lowercase();
+      if !output_str.contains("win32webviewhost_cw5n1h2txyewy") {
+        println!("Running Loopback command");
+        runas::Command::new("powershell")
+          .args(&vec![
+            "CheckNetIsolation LoopbackExempt -a -n=\"Microsoft.Win32WebViewHost_cw5n1h2txyewy\"",
+          ])
+          .force_prompt(true)
+          .status()
+          .expect("failed to run Loopback command");
+      }
+    }
     Ok(Content::Url(config.build.dev_path.clone()))
   } else {
     let dev_dir = &config.build.dev_path;
@@ -103,19 +126,15 @@ fn setup_content() -> crate::Result<Content<String>> {
 #[cfg(embedded_server)]
 fn setup_port() -> crate::Result<(String, bool)> {
   let config = get()?;
-  if config.tauri.embedded_server.port == "random" {
-    match get_available_port() {
+  match config.tauri.embedded_server.port {
+    tauri_api::config::Port::Random => match get_available_port() {
       Some(available_port) => Ok((available_port.to_string(), true)),
       None => Ok(("0".to_string(), false)),
+    },
+    tauri_api::config::Port::Value(port) => {
+      let port_valid = port_is_available(port);
+      Ok((port.to_string(), port_valid))
     }
-  } else {
-    let port = &config.tauri.embedded_server.port;
-    let port_valid = port_is_available(
-      port
-        .parse::<u16>()
-        .unwrap_or_else(|_| panic!("Invalid port {}", port)),
-    );
-    Ok((port.to_string(), port_valid))
   }
 }
 

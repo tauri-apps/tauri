@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.7.4]
+
+-   Ignoring non UTF-8 characters on the loopback command output.
+    -   [f340b29](https://www.github.com/tauri-apps/tauri/commit/f340b2914dc9c3a94ca8606f4663964fa87b95ea) fix(tauri) addition to the previous commit on 2020-07-10
+
 ## [0.7.3]
 
 -   Properly run the loopback command on Windows.

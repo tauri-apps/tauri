@@ -118,9 +118,7 @@ fn run() -> crate::Result<()> {
           panic!("Failed to execute CheckNetIsolation LoopbackExempt -s");
         }
 
-        let output_str = String::from_utf8(exempt_output.stdout)
-          .map_err(|_| anyhow::anyhow!("failed to convert LoopbackExempt output to String"))?
-          .to_lowercase();
+        let output_str = String::from_utf8_lossy(&exempt_output.stdout).to_lowercase();
         if !output_str.contains("win32webviewhost_cw5n1h2txyewy") {
           println!("Running Loopback command");
           Command::new("powershell")

@@ -3,6 +3,7 @@ use std::net::TcpListener;
 use rand;
 use rand::distributions::{Distribution, Uniform};
 
+/// Gets the first available port between 8000 and 9000.
 pub fn get_available_port() -> Option<u16> {
   let mut rng = rand::thread_rng();
   let die = Uniform::from(8000..9000);
@@ -16,6 +17,7 @@ pub fn get_available_port() -> Option<u16> {
   None
 }
 
+/// Checks if the given port is available to use.
 pub fn port_is_available(port: u16) -> bool {
   TcpListener::bind(("127.0.0.1", port)).is_ok()
 }

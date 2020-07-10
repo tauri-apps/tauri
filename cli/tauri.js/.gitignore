@@ -63,6 +63,9 @@ debug.log
 package-lock.json
 .vscode/settings.json
 
+#api
+api/*
+
 # Tauri output
 bundle.json
 config.json

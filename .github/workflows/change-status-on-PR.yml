@@ -1,0 +1,14 @@
+name: covector status
+on: [pull_request]
+
+jobs:
+  covector:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: covector status
+        uses: jbolda/covector/packages/action@covector-v0.1.0
+        id: covector
+        with:
+          command: 'status'

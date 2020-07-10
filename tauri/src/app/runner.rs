@@ -10,20 +10,17 @@ use std::{
 use web_view::{builder, Content, WebView};
 
 use super::App;
-#[cfg(feature = "embedded-server")]
+#[cfg(embedded_server)]
 use crate::api::tcp::{get_available_port, port_is_available};
-use crate::config::{get, Config};
+use tauri_api::config::get;
 
-// Main entry point function for running the Webview
+/// Main entry point for running the Webview
 pub(crate) fn run(application: &mut App) -> crate::Result<()> {
-  // get the tauri config struct
-  let config = get()?;
-
   // setup the content using the config struct depending on the compile target
-  let main_content = setup_content(config.clone())?;
+  let main_content = setup_content()?;
 
   // setup the server url for the embedded-server
-  #[cfg(feature = "embedded-server")]
+  #[cfg(embedded_server)]
   let server_url = {
     if let Content::Url(ref url) = &main_content {
       String::from(url)
@@ -35,7 +32,6 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   // build the webview
   let webview = build_webview(
     application,
-    config,
     main_content,
     if application.splashscreen_html().is_some() {
       Some(Content::Html(
@@ -50,8 +46,8 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   )?;
 
   // spawn the embedded server on our server url
-  #[cfg(feature = "embedded-server")]
-  spawn_server(server_url.to_string())?;
+  #[cfg(embedded_server)]
+  spawn_server(server_url)?;
 
   // spin up the updater process
   #[cfg(feature = "updater")]
@@ -64,91 +60,101 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
 }
 
 // setup content for dev-server
-#[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
-fn setup_content(config: Config) -> crate::Result<Content<String>> {
+#[cfg(dev)]
+fn setup_content() -> crate::Result<Content<String>> {
+  let config = get()?;
   if config.build.dev_path.starts_with("http") {
-    Ok(Content::Url(config.build.dev_path))
+    #[cfg(windows)]
+    {
+      let exempt_output = std::process::Command::new("CheckNetIsolation")
+        .args(&vec!["LoopbackExempt", "-s"])
+        .output()
+        .expect("failed to read LoopbackExempt -s");
+
+      if !exempt_output.status.success() {
+        panic!("Failed to execute CheckNetIsolation LoopbackExempt -s");
+      }
+
+      let output_str = String::from_utf8_lossy(&exempt_output.stdout).to_lowercase();
+      if !output_str.contains("win32webviewhost_cw5n1h2txyewy") {
+        println!("Running Loopback command");
+        runas::Command::new("powershell")
+          .args(&vec![
+            "CheckNetIsolation LoopbackExempt -a -n=\"Microsoft.Win32WebViewHost_cw5n1h2txyewy\"",
+          ])
+          .force_prompt(true)
+          .status()
+          .expect("failed to run Loopback command");
+      }
+    }
+    Ok(Content::Url(config.build.dev_path.clone()))
   } else {
-    let dist_dir = match option_env!("TAURI_DIST_DIR") {
-      Some(d) => d.to_string(),
-      None => env::current_dir()?
-        .into_os_string()
-        .into_string()
-        .expect("Unable to convert to normal String"),
-    };
-    let dev_path = Path::new(&dist_dir).join("index.tauri.html");
+    let dev_dir = &config.build.dev_path;
+    let dev_path = Path::new(dev_dir).join("index.tauri.html");
+    if !dev_path.exists() {
+      panic!(
+        "Couldn't find 'index.tauri.html' inside {}; did you forget to run 'tauri dev'?",
+        dev_dir
+      );
+    }
     Ok(Content::Html(read_to_string(dev_path)?))
   }
 }
 
 // setup content for embedded server
-#[cfg(feature = "embedded-server")]
-fn setup_content(config: Config) -> crate::Result<Content<String>> {
-  let (port, valid) = setup_port(config.clone()).expect("Unable to setup Port");
-  let url = setup_server_url(config.clone(), valid, port).expect("Unable to setup URL");
+#[cfg(embedded_server)]
+fn setup_content() -> crate::Result<Content<String>> {
+  let (port, valid) = setup_port()?;
+  let url = (if valid {
+    setup_server_url(port)
+  } else {
+    Err(anyhow::anyhow!("invalid port"))
+  })
+  .expect("Unable to setup URL");
 
-  Ok(Content::Url(url.to_string()))
+  Ok(Content::Url(url))
 }
 
 // setup content for no-server
-#[cfg(feature = "no-server")]
-fn setup_content(_: Config) -> crate::Result<Content<String>> {
-  let dist_dir = match option_env!("TAURI_DIST_DIR") {
-    Some(d) => d.to_string(),
-    None => env::current_dir()?
-      .into_os_string()
-      .into_string()
-      .expect("Unable to convert to normal String"),
-  };
-  let index_path = Path::new(dist_dir).join("index.tauri.html");
-
-  Ok(Content::Html(read_to_string(index_path)?))
+#[cfg(no_server)]
+fn setup_content() -> crate::Result<Content<String>> {
+  let html = include_str!(concat!(env!("OUT_DIR"), "/index.tauri.html"));
+  Ok(Content::Html(html.to_string()))
 }
 
 // get the port for the embedded server
-#[cfg(feature = "embedded-server")]
-fn setup_port(config: Config) -> Option<(String, bool)> {
-  if config.tauri.embedded_server.port == "random" {
-    match get_available_port() {
-      Some(available_port) => Some((available_port.to_string(), true)),
-      None => Some(("0".to_string(), false)),
+#[cfg(embedded_server)]
+fn setup_port() -> crate::Result<(String, bool)> {
+  let config = get()?;
+  match config.tauri.embedded_server.port {
+    tauri_api::config::Port::Random => match get_available_port() {
+      Some(available_port) => Ok((available_port.to_string(), true)),
+      None => Ok(("0".to_string(), false)),
+    },
+    tauri_api::config::Port::Value(port) => {
+      let port_valid = port_is_available(port);
+      Ok((port.to_string(), port_valid))
     }
-  } else {
-    let port = config.tauri.embedded_server.port;
-    let port_valid = port_is_available(
-      port
-        .parse::<u16>()
-        .expect(&format!("Invalid port {}", port)),
-    );
-    Some((port, port_valid))
   }
 }
 
 // setup the server url for embedded server
-#[cfg(feature = "embedded-server")]
-fn setup_server_url(config: Config, valid: bool, port: String) -> Option<String> {
-  if valid {
-    let mut url = format!("{}:{}", config.tauri.embedded_server.host, port);
-    if !url.starts_with("http") {
-      url = format!("http://{}", url);
-    }
-    Some(url)
-  } else {
-    None
+#[cfg(embedded_server)]
+fn setup_server_url(port: String) -> crate::Result<String> {
+  let config = get()?;
+  let mut url = format!("{}:{}", config.tauri.embedded_server.host, port);
+  if !url.starts_with("http") {
+    url = format!("http://{}", url);
   }
+  Ok(url)
 }
 
 // spawn the embedded server
-#[cfg(feature = "embedded-server")]
+#[cfg(embedded_server)]
 fn spawn_server(server_url: String) -> crate::Result<()> {
   spawn(move || {
-    let server = tiny_http::Server::http(
-      server_url
-        .clone()
-        .replace("http://", "")
-        .replace("https://", ""),
-    )
-    .expect("Unable to spawn server");
+    let server = tiny_http::Server::http(server_url.replace("http://", "").replace("https://", ""))
+      .expect("Unable to spawn server");
     for request in server.incoming_requests() {
       let url = match request.url() {
         "/" => "/index.tauri.html",
@@ -177,10 +183,10 @@ fn spawn_updater() -> crate::Result<()> {
 // build the webview struct
 fn build_webview(
   application: &mut App,
-  config: Config,
   content: Content<String>,
   splashscreen_content: Option<Content<String>>,
 ) -> crate::Result<WebView<'_, ()>> {
+  let config = get()?;
   let content_clone = match content {
     Content::Html(ref html) => Content::Html(html.clone()),
     Content::Url(ref url) => Content::Url(url.clone()),
@@ -191,7 +197,7 @@ fn build_webview(
   let height = config.tauri.window.height;
   let resizable = config.tauri.window.resizable;
   let fullscreen = config.tauri.window.fullscreen;
-  let title = config.tauri.window.title.into_boxed_str();
+  let title = config.tauri.window.title.clone().into_boxed_str();
 
   let has_splashscreen = splashscreen_content.is_some();
   let mut initialized_splashscreen = false;
@@ -267,6 +273,7 @@ fn build_webview(
   Ok(webview)
 }
 
+// Formats an invoke handler error message to print to console.error
 fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
   format!(
     r#"console.error('failed to match a command for {}, {}')"#,
@@ -278,29 +285,32 @@ fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
 #[cfg(test)]
 mod test {
   use proptest::prelude::*;
+  use std::env;
   use web_view::Content;
 
   #[cfg(not(feature = "embedded-server"))]
-  use std::{env, fs::read_to_string, path::Path};
-
-  fn init_config() -> crate::config::Config {
-    crate::config::get().expect("unable to setup default config")
-  }
+  use std::{fs::read_to_string, path::Path};
 
   #[test]
   fn check_setup_content() {
-    let config = init_config();
-    let _c = config.clone();
+    let tauri_dir = match option_env!("TAURI_DIR") {
+      Some(d) => d.to_string(),
+      None => env::current_dir()
+        .unwrap()
+        .into_os_string()
+        .into_string()
+        .expect("Unable to convert to normal String"),
+    };
+    env::set_current_dir(tauri_dir).expect("failed to change cwd");
+    let res = super::setup_content();
 
-    let res = super::setup_content(config);
-
-    #[cfg(feature = "embedded-server")]
+    #[cfg(embedded_server)]
     match res {
       Ok(Content::Url(u)) => assert!(u.contains("http://")),
-      _ => assert!(false),
+      _ => panic!("setup content failed"),
     }
 
-    #[cfg(feature = "no-server")]
+    #[cfg(no_server)]
     match res {
       Ok(Content::Html(s)) => {
         let dist_dir = match option_env!("TAURI_DIST_DIR") {
@@ -316,57 +326,49 @@ mod test {
           read_to_string(Path::new(&dist_dir).join("index.tauri.html")).unwrap()
         );
       }
-      _ => assert!(false),
+      _ => panic!("setup content failed"),
     }
 
-    #[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
-    match res {
-      Ok(Content::Url(dp)) => assert_eq!(dp, _c.build.dev_path),
-      Ok(Content::Html(s)) => {
-        let dist_dir = match option_env!("TAURI_DIST_DIR") {
-          Some(d) => d.to_string(),
-          None => env::current_dir()
-            .unwrap()
-            .into_os_string()
-            .into_string()
-            .expect("Unable to convert to normal String"),
-        };
-        assert_eq!(
-          s,
-          read_to_string(Path::new(&dist_dir).join("index.tauri.html")).unwrap()
-        );
+    #[cfg(dev)]
+    {
+      let config = tauri_api::config::get().expect("unable to setup default config");
+      match res {
+        Ok(Content::Url(dp)) => assert_eq!(dp, config.build.dev_path),
+        Ok(Content::Html(s)) => {
+          let dev_dir = &config.build.dev_path;
+          let dev_path = Path::new(dev_dir).join("index.tauri.html");
+          assert_eq!(
+            s,
+            read_to_string(dev_path).expect("failed to read dev path")
+          );
+        }
+        _ => panic!("setup content failed"),
       }
-      _ => assert!(false),
     }
   }
 
-  #[cfg(feature = "embedded-server")]
+  #[cfg(embedded_server)]
   #[test]
   fn check_setup_port() {
-    let config = init_config();
-
-    let res = super::setup_port(config);
+    let res = super::setup_port();
     match res {
-      Some((_s, _b)) => assert!(true),
-      _ => assert!(false),
+      Ok((_s, _b)) => {}
+      _ => panic!("setup port failed"),
     }
   }
 
   proptest! {
     #![proptest_config(ProptestConfig::with_cases(10000))]
-    #[cfg(feature = "embedded-server")]
+    #[cfg(embedded_server)]
     #[test]
     fn check_server_url(port in (any::<u32>().prop_map(|v| v.to_string()))) {
-      let config = init_config();
-      let valid = true;
-
       let p = port.clone();
 
-      let res = super::setup_server_url(config, valid, port);
+      let res = super::setup_server_url(port);
 
       match res {
-        Some(url) => assert!(url.contains(&p)),
-        None => assert!(false)
+        Ok(url) => assert!(url.contains(&p)),
+        Err(e) => panic!("setup_server_url Err {:?}", e.to_string())
       }
     }
   }

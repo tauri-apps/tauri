@@ -22,6 +22,8 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+/// Bundles the project.
+/// Returns a vector of PathBuf that shows where the .app was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   common::print_warning("iOS bundle support is still experimental.")?;
 
@@ -49,9 +51,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     generate_icon_files(&bundle_dir, settings).with_context(|| "Failed to create app icons")?;
   generate_info_plist(&bundle_dir, settings, &icon_filenames)
     .with_context(|| "Failed to create Info.plist")?;
-  let bin_path = bundle_dir.join(&settings.bundle_name());
-  common::copy_file(settings.binary_path(), &bin_path)
-    .with_context(|| format!("Failed to copy binary from {:?}", settings.binary_path()))?;
+
+  for bin in settings.binaries() {
+    let bin_path = settings.binary_path(bin);
+    common::copy_file(&bin_path, &bundle_dir.join(bin.name()))
+      .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+  }
+
   Ok(vec![bundle_dir])
 }
 
@@ -123,6 +129,7 @@ fn generate_icon_files(bundle_dir: &Path, settings: &Settings) -> crate::Result<
   Ok(filenames)
 }
 
+/// Generates the Info.plist file
 fn generate_info_plist(
   bundle_dir: &Path,
   settings: &Settings,
@@ -156,7 +163,7 @@ fn generate_info_plist(
   write!(
     file,
     "  <key>CFBundleExecutable</key>\n  <string>{}</string>\n",
-    settings.binary_name()
+    settings.main_binary_name()
   )?;
   write!(
     file,

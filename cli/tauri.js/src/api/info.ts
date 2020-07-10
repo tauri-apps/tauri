@@ -6,8 +6,9 @@ import os from 'os'
 import path from 'path'
 import { appDir, tauriDir } from '../helpers/app-paths'
 import { TauriConfig } from './../types/config'
-import { CargoToml } from './../types/cargo'
+import { CargoLock, CargoManifest } from '../types/cargo'
 import nonWebpackRequire from '../helpers/non-webpack-require'
+import { version } from '../../package.json'
 
 interface DirInfo {
   path: string
@@ -17,7 +18,7 @@ interface DirInfo {
 }
 
 /* eslint-disable security/detect-non-literal-fs-filename */
-function dirTree(filename: string): DirInfo {
+function dirTree(filename: string, recurse = true): DirInfo {
   const stats = fs.lstatSync(filename)
   const info: DirInfo = {
     path: filename,
@@ -26,9 +27,11 @@ function dirTree(filename: string): DirInfo {
 
   if (stats.isDirectory()) {
     info.type = 'folder'
-    info.children = fs.readdirSync(filename).map(function(child: string) {
-      return dirTree(filename + '/' + child)
-    })
+    if (recurse) {
+      info.children = fs.readdirSync(filename).map(function(child: string) {
+        return dirTree(filename + '/' + child, false)
+      })
+    }
   } else {
     info.type = 'file'
   }
@@ -69,44 +72,68 @@ function printInfo(info: Info): void {
   )
 }
 
+function readTomlFile<T extends CargoLock | CargoManifest>(filepath: string): T | null {
+  try {
+    const file = fs.readFileSync(filepath).toString()
+    return toml.parse(file) as unknown as T
+  } catch (_) {
+    return null
+  }
+}
+
 function printAppInfo(tauriDir: string): void {
   printInfo({ key: 'App', section: true })
 
-  try {
-    const tomlPath = path.join(tauriDir, 'Cargo.toml')
-    const tomlFile = fs.readFileSync(tomlPath).toString()
-    const tomlContents = toml.parse(tomlFile) as any as CargoToml
+  const lockPath = path.join(tauriDir, 'Cargo.lock')
+  const lock = readTomlFile<CargoLock>(lockPath)
+  const lockPackages = lock ? lock.package.filter(pkg => pkg.name === 'tauri') : []
 
-    const tauriVersion = (): string => {
-      const tauri = tomlContents.dependencies.tauri
+  const manifestPath = path.join(tauriDir, 'Cargo.toml')
+  const manifest = readTomlFile<CargoManifest>(manifestPath)
+
+  let tauriVersion
+  if (manifest && lock && lockPackages.length === 1) {
+    // everything looks good
+    tauriVersion = chalk.green(lockPackages[0].version)
+  } else if (lock && lockPackages.length === 1) {
+    // good lockfile, but no manifest - will cause problems building
+    tauriVersion = `${chalk.green(lockPackages[0].version)} (${chalk.red('no manifest')})`
+  } else {
+    // we found multiple/none `tauri` packages in the lockfile, or
+    // no manifest. in both cases we want more info on the manifest
+    const manifestVersion = (): string => {
+      const tauri = manifest?.dependencies.tauri
       if (tauri) {
         if (typeof tauri === 'string') {
-          return chalk.green(tauri)
+          return chalk.yellow(tauri)
+        } else if (tauri.version) {
+          return chalk.yellow(tauri.version)
+        } else if (tauri.path) {
+          const manifestPath = path.resolve(tauriDir, tauri.path, 'Cargo.toml')
+          const manifestContent = readTomlFile<CargoManifest>(manifestPath)
+          let pathVersion = manifestContent?.package.version
+          pathVersion = pathVersion ? chalk.yellow(pathVersion) : chalk.red(pathVersion)
+          return `path:${tauri.path} [${pathVersion}]`
         }
-        if (tauri.version) {
-          return chalk.green(tauri.version)
-        }
-        if (tauri.path) {
-          try {
-            const tauriTomlPath = path.resolve(
-              tauriDir,
-              tauri.path,
-              'Cargo.toml'
-            )
-            const tauriTomlFile = fs.readFileSync(tauriTomlPath).toString()
-            const tauriTomlContents = toml.parse(tauriTomlFile) as any as CargoToml
-            return chalk.green(
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-              `${tauriTomlContents.package.version} (from source)`
-            )
-          } catch (_) {}
-        }
+      } else {
+        return chalk.red('no manifest')
       }
-      return chalk.red('unknown')
+      return chalk.red('unknown manifest')
     }
 
-    printInfo({ key: '  tauri', value: tauriVersion() })
-  } catch (_) {}
+    let lockVersion
+    if (lock && lockPackages.length > 0) {
+      lockVersion = chalk.yellow(lockPackages.map(p => p.version).join(', '))
+    } else if (lock && lockPackages.length === 0) {
+      lockVersion = chalk.red('unknown lockfile')
+    } else {
+      lockVersion = chalk.red('no lockfile')
+    }
+
+    tauriVersion = `${manifestVersion()} (${chalk.yellow(lockVersion)})`
+  }
+
+  printInfo({ key: '  tauri.rs', value: tauriVersion })
 
   try {
     const tauriMode = (config: TauriConfig): string => {
@@ -123,7 +150,7 @@ function printAppInfo(tauriDir: string): void {
     printInfo({
       key: '  build-type',
       value:
-        config.tauri.bundle && config.tauri.bundle.active ? 'bundle' : 'build'
+        config.tauri.bundle?.active ? 'bundle' : 'build'
     })
     printInfo({
       key: '  CSP',
@@ -131,7 +158,7 @@ function printAppInfo(tauriDir: string): void {
     })
     printInfo({
       key: '  Windows',
-      value: config.tauri.edge && config.tauri.edge.active ? 'Edge' : 'MSHTML'
+      value: config.tauri.edge?.active ? 'Edge' : 'MSHTML'
     })
     printInfo({
       key: '  distDir',
@@ -160,7 +187,7 @@ module.exports = () => {
   printInfo({ key: '  Node.js', value: chalk.green(process.version.slice(1)) })
   printInfo({
     key: '  tauri.js',
-    value: chalk.green((require('../../package.json') as { version: string }).version)
+    value: chalk.green(version)
   })
   printInfo({ key: 'Rust environment', section: true })
   printInfo({

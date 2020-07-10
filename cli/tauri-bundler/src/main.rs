@@ -2,9 +2,7 @@ mod bundle;
 mod error;
 pub use error::{Error, Result};
 
-use crate::bundle::{
-  bundle_project, check_icons, print_info, BuildArtifact, PackageType, Settings,
-};
+use crate::bundle::{bundle_project, check_icons, PackageType, Settings};
 
 use clap::{crate_version, App, AppSettings, Arg, SubCommand};
 
@@ -13,21 +11,14 @@ use runas::Command;
 use std::env;
 use std::process;
 
-/// Runs `cargo build` to make sure the binary file is up-to-date.
+// Runs `cargo build` to make sure the binary file is up-to-date.
 fn build_project_if_unbuilt(settings: &Settings) -> crate::Result<()> {
   let mut args = vec!["build".to_string()];
+
   if let Some(triple) = settings.target_triple() {
     args.push(format!("--target={}", triple));
   }
-  match settings.build_artifact() {
-    &BuildArtifact::Main => {}
-    &BuildArtifact::Bin(ref name) => {
-      args.push(format!("--bin={}", name));
-    }
-    &BuildArtifact::Example(ref name) => {
-      args.push(format!("--example={}", name));
-    }
-  }
+
   if settings.is_release_build() {
     args.push("--release".to_string());
   }
@@ -49,6 +40,7 @@ fn build_project_if_unbuilt(settings: &Settings) -> crate::Result<()> {
   Ok(())
 }
 
+// Runs the CLI.
 fn run() -> crate::Result<()> {
   let all_formats: Vec<&str> = PackageType::all()
     .iter()
@@ -115,13 +107,30 @@ fn run() -> crate::Result<()> {
 
   #[cfg(windows)]
   {
-    print_info("Running Loopback command")?;
-    Command::new("cmd")
-      .args(&vec![
-        "CheckNetIsolation.exe",
-        r#"LoopbackExempt -a -n="Microsoft.Win32WebViewHost_cw5n1h2txyewy""#,
-      ])
-      .force_prompt(true);
+    if let Ok(tauri_config) = crate::bundle::tauri_config::get() {
+      if tauri_config.tauri.embedded_server.active {
+        let exempt_output = std::process::Command::new("CheckNetIsolation")
+          .args(&vec!["LoopbackExempt", "-s"])
+          .output()
+          .expect("failed to read LoopbackExempt -s");
+
+        if !exempt_output.status.success() {
+          panic!("Failed to execute CheckNetIsolation LoopbackExempt -s");
+        }
+
+        let output_str = String::from_utf8_lossy(&exempt_output.stdout).to_lowercase();
+        if !output_str.contains("win32webviewhost_cw5n1h2txyewy") {
+          println!("Running Loopback command");
+          Command::new("powershell")
+            .args(&vec![
+              "CheckNetIsolation LoopbackExempt -a -n=\"Microsoft.Win32WebViewHost_cw5n1h2txyewy\"",
+            ])
+            .force_prompt(true)
+            .status()
+            .expect("failed to run Loopback command");
+        }
+      }
+    }
   }
 
   if let Some(m) = m.subcommand_matches("tauri-bundler") {

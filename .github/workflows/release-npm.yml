@@ -3,7 +3,7 @@ name: release-npm
 on:
   push:
     branches:
-      - master
+      - latest
     paths:
       - '**/package.json'
       - '.github/workflows/**'
@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: master
+          ref: latest
       - uses: actions/setup-node@v1
         with:
           node-version: 12
@@ -68,7 +68,7 @@ jobs:
         run: |
           echo "# NPM Package Publish" | tee -a ${{runner.workspace }}/notes.md
           echo "\`\`\`" >> ${{runner.workspace }}/notes.md
-          npm publish 2>&1 | tee -a ${{runner.workspace }}/notes.md
+          set -o pipefail && npm publish 2>&1 | tee -a ${{runner.workspace }}/notes.md
           echo "\`\`\`" >> ${{runner.workspace }}/notes.md
       - name: Create Release
         id: create_npm_release
@@ -96,10 +96,11 @@ jobs:
       - name: Tangle Release
         id: tangle_release
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
-        uses: iotaledger/gh-tangle-release@v0.6.0
+        uses: iotaledger/gh-tangle-release@v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IOTA_SEED: ${{ secrets.IOTA_SEED }}
+          IOTA_NODE: "https://iotanode.us:14267"
         with:
           tag_name: ${{ matrix.package.name }}-v${{ env.PACKAGE_VERSION }}
           comment: "Release ${{ matrix.package.name }} v${{ env.PACKAGE_VERSION }} [npmjs.com]"

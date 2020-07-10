@@ -1,11 +1,17 @@
-workspace = {}
+workspace = { }
 
 [package]
 name = "tauri-bundler"
-version = "0.6.0"
-authors = ["George Burton <burtonageo@gmail.com>", "Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>"]
+version = "0.8.4"
+authors = [
+  "George Burton <burtonageo@gmail.com>",
+  "Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>",
+  "Daniel Thompson-Yvetot <denjell@sfosc.org>",
+  "Tensor Programming <tensordeveloper@gmail.com>"
+]
+categories = [ "command-line-utilities", "development-tools::cargo-plugins" ]
 license = "MIT/Apache-2.0"
-keywords = ["bundle", "cargo", "tauri"]
+keywords = [ "bundle", "cargo", "tauri" ]
 repository = "https://github.com/tauri-apps/tauri"
 description = "Wrap rust executables in OS-specific app bundles for Tauri"
 edition = "2018"
@@ -17,35 +23,32 @@ clap = "^2"
 dirs = "2.0.2"
 glob = "0.3.0"
 icns = "0.3"
-image = "0.23.4"
+image = "0.23.6"
 libflate = "1.0"
 md5 = "0.7.0"
 msi = "0.2"
-
-# error handling
 anyhow = "1.0"
 thiserror = "1.0"
-
 serde_json = "1.0"
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0", features = [ "derive" ] }
 strsim = "0.10.0"
 tar = "0.4"
 target_build_utils = "0.3"
 term = "0.6.1"
 toml = "0.5.6"
-uuid = { version = "0.8", features = ["v5"] }
+uuid = { version = "0.8", features = [ "v5" ] }
 walkdir = "2"
 lazy_static = { version = "1.4" }
-handlebars = { version = "3.0" }
+handlebars = { version = "3.2" }
 
-[target.'cfg(target_os = "windows")'.dependencies]
-attohttpc = { version = "0.13.0" }
+[target."cfg(target_os = \"windows\")".dependencies]
+attohttpc = { version = "0.15.0" }
 regex = { version = "1" }
 runas = "0.2"
 
-[target.'cfg(not(target_os = "linux"))'.dependencies]
+[target."cfg(not(target_os = \"linux\"))".dependencies]
 zip = { version = "0.5" }
-sha2 = { version = "0.8" }
+sha2 = { version = "0.9" }
 hex = { version = "0.4" }
 
 [dev-dependencies]

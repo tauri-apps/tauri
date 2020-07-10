@@ -70,9 +70,9 @@
             <Component Id="Path" Guid="{{{path_component_guid}}}" Win64="$(var.Win64)">
                 <File Id="Path" Source="{{{app_exe_source}}}" KeyPath="yes" Checksum="yes"/>
             </Component>
-            {{#each external_binaries as |external_bin| ~}}
-            <Component Id="{{ external_bin.id }}" Guid="{{external_bin.guid}}" Win64="$(var.Win64)">
-                <File Id="Path_{{ external_bin.id }}" Source="{{external_bin.path}}"  KeyPath="yes"/>
+            {{#each binaries as |bin| ~}}
+            <Component Id="{{ bin.id }}" Guid="{{bin.guid}}" Win64="$(var.Win64)">
+                <File Id="Path_{{ bin.id }}" Source="{{bin.path}}"  KeyPath="yes"/>
             </Component>
             {{/each~}}
             {{{resources}}}
@@ -103,7 +103,9 @@
                     Name="{{{product_name}}}"
                     Description="Runs {{{product_name}}}"
                     Target="[!Path]"
-                    Icon="ProductIcon"/>
+                    Icon="ProductIcon">
+                    <ShortcutProperty Key="System.AppUserModel.ID" Value="{{{manufacturer}}}"/>
+                </Shortcut>
                 <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
                 <RegistryValue Root="HKCU" Key="Software\{{{manufacturer}}}\{{{product_name}}}" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
            </Component>
@@ -138,21 +140,25 @@
                 Level="1"
                 Absent="allow">
             <ComponentRef Id="Path"/>
-            {{#each external_binaries as |external_bin| ~}}
-            <ComponentRef Id="{{ external_bin.id }}"/>
+            {{#each binaries as |bin| ~}}
+            <ComponentRef Id="{{ bin.id }}"/>
             {{/each~}}
             </Feature>
         </Feature>
 
         <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" After="CostFinalize"/>
 
+        {{#if embedded_server}}
         <InstallExecuteSequence>
             <Custom Action='LoopBackCmd' After='InstallFiles'/>
         </InstallExecuteSequence>
+        {{/if}}
         
     </Product>
 
+    {{#if embedded_server}}
     <Fragment>
         <CustomAction Id="LoopBackCmd" Directory="ApplicationProgramsFolder" Execute="commit" Impersonate="no" ExeCommand="cmd.exe /c &quot;CheckNetIsolation.exe LoopbackExempt -a -n=&quot;Microsoft.Win32WebViewHost_cw5n1h2txyewy&quot;&quot;" Return="ignore" />
     </Fragment>
+    {{/if}}
 </Wix>

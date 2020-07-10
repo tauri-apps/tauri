@@ -1,6 +1,6 @@
 {
   "name": "tauri",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "Multi-binding collection of libraries and templates for building Tauri apps",
   "bin": {
     "tauri": "./bin/tauri.js"
@@ -125,6 +125,9 @@
     "webpack": "4.43.0",
     "webpack-cli": "3.3.12",
     "webpack-node-externals": "1.7.2"
+  },
+  "resolutions": {
+    "**/lodash": ">=4.17.19"
   },
   "husky": {
     "hooks": {

@@ -223,6 +223,10 @@ export interface TauriConfig {
        * whether we should use the embedded-server or the no-server mode
        */
       active?: boolean
+      /**
+       * the embedded server port number or the 'random' string to generate one at runtime
+       */
+      port?: number | 'random' | undefined
     }
     /**
      * tauri bundler configuration

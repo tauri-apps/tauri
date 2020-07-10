@@ -2,8 +2,6 @@ mod bundle;
 mod error;
 pub use error::{Error, Result};
 
-#[cfg(windows)]
-use crate::bundle::print_info;
 use crate::bundle::{bundle_project, check_icons, PackageType, Settings};
 
 use clap::{crate_version, App, AppSettings, Arg, SubCommand};
@@ -109,13 +107,32 @@ fn run() -> crate::Result<()> {
 
   #[cfg(windows)]
   {
-    print_info("Running Loopback command")?;
-    Command::new("cmd")
-      .args(&vec![
-        "CheckNetIsolation.exe",
-        r#"LoopbackExempt -a -n="Microsoft.Win32WebViewHost_cw5n1h2txyewy""#,
-      ])
-      .force_prompt(true);
+    if let Ok(tauri_config) = crate::bundle::tauri_config::get() {
+      if tauri_config.tauri.embedded_server.active {
+        let exempt_output = std::process::Command::new("CheckNetIsolation")
+          .args(&vec!["LoopbackExempt", "-s"])
+          .output()
+          .expect("failed to read LoopbackExempt -s");
+
+        if !exempt_output.status.success() {
+          panic!("Failed to execute CheckNetIsolation LoopbackExempt -s");
+        }
+
+        let output_str = String::from_utf8(exempt_output.stdout)
+          .map_err(|_| anyhow::anyhow!("failed to convert LoopbackExempt output to String"))?
+          .to_lowercase();
+        if !output_str.contains("win32webviewhost_cw5n1h2txyewy") {
+          println!("Running Loopback command");
+          Command::new("powershell")
+            .args(&vec![
+              "CheckNetIsolation LoopbackExempt -a -n=\"Microsoft.Win32WebViewHost_cw5n1h2txyewy\"",
+            ])
+            .force_prompt(true)
+            .status()
+            .expect("failed to run Loopback command");
+        }
+      }
+    }
   }
 
   if let Some(m) = m.subcommand_matches("tauri-bundler") {

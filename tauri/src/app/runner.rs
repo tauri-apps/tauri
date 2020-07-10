@@ -75,7 +75,7 @@ fn setup_content() -> crate::Result<Content<String>> {
         panic!("Failed to execute CheckNetIsolation LoopbackExempt -s");
       }
 
-      let output_str = String::from_utf8(exempt_output.stdout)?.to_lowercase();
+      let output_str = String::from_utf8_lossy(exempt_output.stdout).to_lowercase();
       if !output_str.contains("win32webviewhost_cw5n1h2txyewy") {
         println!("Running Loopback command");
         runas::Command::new("powershell")

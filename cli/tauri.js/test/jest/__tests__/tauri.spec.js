@@ -27,7 +27,9 @@ describe('[CLI] tauri.js', () => {
   it('will pass on an available command', async () => {
     jest.spyOn(console, 'log')
     jest.mock('fs')
+    try {
     tauri('init')
+    } catch {}
     expect(console.log.mock.calls[0][0].split('.')[0]).toBe('[tauri]: running init')
     jest.clearAllMocks()
   })

@@ -12,7 +12,7 @@
 
 ```yml
 Tauri Apps
-  footprint:   miniscule
+  footprint:   minuscule
   performance: ludicrous
   flexibility: gymnastic
   security:    hardened
@@ -148,7 +148,7 @@ Documentation in a polyglot system is a tricky proposition. To this end, we pref
 Test all the things! We have a number of test suites, but are always looking to improve our coverage:
 - Rust (`cargo test`) => sourced via inline `#[cfg(test)]` declarations
 - TS (`jest`) => via spec files
-- Smoke Tests (run on merges to master)
+- Smoke Tests (run on merges to latest)
 - eslint, clippy
 
 ### CI/CD

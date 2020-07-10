@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.8.4]
+
+-   Bump lodash to 4.17.19
+
+## [0.8.3]
+
+-   Fixes the wrong cli value on the template that's used by tauri init.
+    Also fixes the template test.
+-   Fixes the tauri icon usage with the --icon flag. Previously, only the -i flag worked.
+
+## [0.8.2]
+
+-   Adds tauri.conf.json schema validation to the CLI.
+
+## [0.8.1]
+
+-   Transpile the TS API to ES5.
+    Expose CJS as .js and ESM as .mjs.
+-   Fixes the assets embedding into the binary.
+
 ## [0.8.0]
 
 -   Create UMD, ESM and CJS artifacts for the JavaScript API entry point from TS source using rollup.

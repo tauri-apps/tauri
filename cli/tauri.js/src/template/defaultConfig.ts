@@ -7,7 +7,6 @@ export default {
   },
   ctx: {},
   tauri: {
-    cli: null,
     embeddedServer: {
       active: true
     },

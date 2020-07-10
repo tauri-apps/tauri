@@ -12,7 +12,7 @@ use zip::ZipArchive;
 
 use std::collections::BTreeMap;
 use std::fs::{create_dir_all, remove_dir_all, write, File};
-use std::io::{BufRead, BufReader, Cursor, Read, Write};
+use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -348,6 +348,7 @@ fn run_candle(
     .stdout(Stdio::piped())
     .current_dir(build_path);
 
+  common::print_info("running candle.exe")?;
   common::execute_with_output(&mut cmd).map_err(|_| crate::Error::CandleError)
 }
 
@@ -371,14 +372,13 @@ fn run_light(
     args.push(p.to_string());
   }
 
-  common::print_info(format!("running light to produce {}", output_path.display()).as_str())?;
-
   let mut cmd = Command::new(&light_exe);
   cmd
     .args(&args)
     .stdout(Stdio::piped())
     .current_dir(build_path);
 
+  common::print_info(format!("running light to produce {}", output_path.display()).as_str())?;
   common::execute_with_output(&mut cmd)
     .map(|_| output_path.to_path_buf())
     .map_err(|_| crate::Error::LightError)
@@ -410,6 +410,13 @@ pub fn build_wix_app_installer(
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
   let mut data = BTreeMap::new();
+
+  if let Ok(tauri_config) = crate::bundle::tauri_config::get() {
+    data.insert(
+      "embedded_server",
+      to_json(tauri_config.tauri.embedded_server.active),
+    );
+  }
 
   data.insert("product_name", to_json(settings.bundle_name()));
   data.insert("version", to_json(settings.version_string()));

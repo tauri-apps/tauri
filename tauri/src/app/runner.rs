@@ -49,7 +49,7 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
 
   // spawn the embedded server on our server url
   #[cfg(embedded_server)]
-  spawn_server(server_url.to_string())?;
+  spawn_server(server_url)?;
 
   // spin up the updater process
   #[cfg(feature = "updater")]
@@ -66,6 +66,29 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
 fn setup_content() -> crate::Result<Content<String>> {
   let config = get()?;
   if config.build.dev_path.starts_with("http") {
+    #[cfg(windows)]
+    {
+      let exempt_output = std::process::Command::new("CheckNetIsolation")
+        .args(&vec!["LoopbackExempt", "-s"])
+        .output()
+        .expect("failed to read LoopbackExempt -s");
+
+      if !exempt_output.status.success() {
+        panic!("Failed to execute CheckNetIsolation LoopbackExempt -s");
+      }
+
+      let output_str = String::from_utf8_lossy(&exempt_output.stdout).to_lowercase();
+      if !output_str.contains("win32webviewhost_cw5n1h2txyewy") {
+        println!("Running Loopback command");
+        runas::Command::new("powershell")
+          .args(&vec![
+            "CheckNetIsolation LoopbackExempt -a -n=\"Microsoft.Win32WebViewHost_cw5n1h2txyewy\"",
+          ])
+          .force_prompt(true)
+          .status()
+          .expect("failed to run Loopback command");
+      }
+    }
     Ok(Content::Url(config.build.dev_path.clone()))
   } else {
     let dev_dir = &config.build.dev_path;
@@ -91,7 +114,7 @@ fn setup_content() -> crate::Result<Content<String>> {
   })
   .expect("Unable to setup URL");
 
-  Ok(Content::Url(url.to_string()))
+  Ok(Content::Url(url))
 }
 
 // setup content for no-server
@@ -105,19 +128,15 @@ fn setup_content() -> crate::Result<Content<String>> {
 #[cfg(embedded_server)]
 fn setup_port() -> crate::Result<(String, bool)> {
   let config = get()?;
-  if config.tauri.embedded_server.port == "random" {
-    match get_available_port() {
+  match config.tauri.embedded_server.port {
+    tauri_api::config::Port::Random => match get_available_port() {
       Some(available_port) => Ok((available_port.to_string(), true)),
       None => Ok(("0".to_string(), false)),
+    },
+    tauri_api::config::Port::Value(port) => {
+      let port_valid = port_is_available(port);
+      Ok((port.to_string(), port_valid))
     }
-  } else {
-    let port = &config.tauri.embedded_server.port;
-    let port_valid = port_is_available(
-      port
-        .parse::<u16>()
-        .expect(&format!("Invalid port {}", port)),
-    );
-    Ok((port.to_string(), port_valid))
   }
 }
 
@@ -136,13 +155,8 @@ fn setup_server_url(port: String) -> crate::Result<String> {
 #[cfg(embedded_server)]
 fn spawn_server(server_url: String) -> crate::Result<()> {
   spawn(move || {
-    let server = tiny_http::Server::http(
-      server_url
-        .clone()
-        .replace("http://", "")
-        .replace("https://", ""),
-    )
-    .expect("Unable to spawn server");
+    let server = tiny_http::Server::http(server_url.replace("http://", "").replace("https://", ""))
+      .expect("Unable to spawn server");
     for request in server.incoming_requests() {
       let url = match request.url() {
         "/" => "/index.tauri.html",
@@ -294,19 +308,14 @@ fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
 #[cfg(test)]
 mod test {
   use proptest::prelude::*;
+  use std::env;
   use web_view::Content;
 
   #[cfg(not(feature = "embedded-server"))]
-  use std::{env, fs::read_to_string, path::Path};
-
-  fn init_config() -> &'static tauri_api::config::Config {
-    tauri_api::config::get().expect("unable to setup default config")
-  }
+  use std::{fs::read_to_string, path::Path};
 
   #[test]
   fn check_setup_content() {
-    let config = init_config();
-
     let tauri_dir = match option_env!("TAURI_DIR") {
       Some(d) => d.to_string(),
       None => env::current_dir()
@@ -321,7 +330,7 @@ mod test {
     #[cfg(embedded_server)]
     match res {
       Ok(Content::Url(u)) => assert!(u.contains("http://")),
-      _ => assert!(false),
+      _ => panic!("setup content failed"),
     }
 
     #[cfg(no_server)]
@@ -340,21 +349,24 @@ mod test {
           read_to_string(Path::new(&dist_dir).join("index.tauri.html")).unwrap()
         );
       }
-      _ => assert!(false),
+      _ => panic!("setup content failed"),
     }
 
     #[cfg(dev)]
-    match res {
-      Ok(Content::Url(dp)) => assert_eq!(dp, config.build.dev_path),
-      Ok(Content::Html(s)) => {
-        let dev_dir = &config.build.dev_path;
-        let dev_path = Path::new(dev_dir).join("index.tauri.html");
-        assert_eq!(
-          s,
-          read_to_string(dev_path).expect("failed to read dev path")
-        );
+    {
+      let config = tauri_api::config::get().expect("unable to setup default config");
+      match res {
+        Ok(Content::Url(dp)) => assert_eq!(dp, config.build.dev_path),
+        Ok(Content::Html(s)) => {
+          let dev_dir = &config.build.dev_path;
+          let dev_path = Path::new(dev_dir).join("index.tauri.html");
+          assert_eq!(
+            s,
+            read_to_string(dev_path).expect("failed to read dev path")
+          );
+        }
+        _ => panic!("setup content failed"),
       }
-      _ => assert!(false),
     }
   }
 
@@ -363,8 +375,8 @@ mod test {
   fn check_setup_port() {
     let res = super::setup_port();
     match res {
-      Ok((_s, _b)) => assert!(true),
-      _ => assert!(false),
+      Ok((_s, _b)) => {}
+      _ => panic!("setup port failed"),
     }
   }
 
@@ -379,7 +391,7 @@ mod test {
 
       match res {
         Ok(url) => assert!(url.contains(&p)),
-        Err(_) => assert!(false)
+        Err(e) => panic!("setup_server_url Err {:?}", e.to_string())
       }
     }
   }

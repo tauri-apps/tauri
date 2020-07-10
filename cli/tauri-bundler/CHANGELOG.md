@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.8.4]
+
+-   Properly run the loopback command on Windows.
+
+## [0.8.3]
+
+-   Fixes the unbound variable issue on the DMG bundler script.
+
+## [0.8.2]
+
+-   Fixes the AppImage bundler script.
+
+## [0.8.1]
+
+-   Improves the logging of child processes like bundle_appimage.sh and bundle_dmg.sh.
+
 ## [0.8.0]
 
 -   The bundler now bundles all binaries from your project (undefined) and undefined.

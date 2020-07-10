@@ -56,7 +56,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: tauri-apps/examples
-          ref: master
+          ref: latest
           path: examples
       - name: install rust stable
         uses: actions-rs/toolchain@v1

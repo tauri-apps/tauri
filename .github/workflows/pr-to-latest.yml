@@ -1,4 +1,4 @@
-name: pr-to-master
+name: pr-to-latest
 
 on:
   push:
@@ -6,28 +6,29 @@ on:
       - dev
 
 jobs:
-  pr-to-master:
+  pr-to-latest:
     runs-on: ubuntu-latest
     if: contains(github.event.head_commit.message, 'version updates')
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: master
+          ref: latest
+          fetch-depth: 0
       - name: git config
         run: |
           git config --global user.name "${{ github.event.pusher.name }}"
           git config --global user.email "${{ github.event.pusher.email }}"
       - run: git fetch origin dev
-      - run: git read-tree -u --reset ${{ github.sha }}
+      - run: git merge ${{ github.sha }} --no-ff
       - name: Create Pull Request
         uses: tauri-apps/create-pull-request@v2.8.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: ${{ github.event.head_commit.message }}
-          branch: release/master
+          branch: release/latest
           branch-suffix: short-commit-hash
           title: Publish
           labels: "publish"
           body: |
-            Merging this PR will squash and push all changes to the master branch.
+            Merging this PR will squash and push all changes to the latest branch.
             It will kick off the process to release and publish any packages with an incremented version number.

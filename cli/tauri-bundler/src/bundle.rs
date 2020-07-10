@@ -11,7 +11,7 @@ mod path_utils;
 mod platform;
 mod rpm_bundle;
 mod settings;
-mod tauri_config;
+pub mod tauri_config;
 #[cfg(target_os = "windows")]
 mod wix;
 

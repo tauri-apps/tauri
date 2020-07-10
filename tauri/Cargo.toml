@@ -35,6 +35,10 @@ envmnt = "0.8.3"
 once_cell = "1.4.0"
 tauri-api = { version = "0.7", path = "../tauri-api" }
 
+# this is actually only needed on dev, but we can't specify it yet
+[target."cfg(target_os = \"windows\")".dependencies]
+runas = "0.2"
+
 [build-dependencies]
 tauri_includedir_codegen = "0.6.2"
 cfg_aliases = "0.1.0"

@@ -64,6 +64,29 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
 fn setup_content() -> crate::Result<Content<String>> {
   let config = get()?;
   if config.build.dev_path.starts_with("http") {
+    #[cfg(windows)]
+    {
+      let exempt_output = std::process::Command::new("CheckNetIsolation")
+        .args(&vec!["LoopbackExempt", "-s"])
+        .output()
+        .expect("failed to read LoopbackExempt -s");
+
+      if !exempt_output.status.success() {
+        panic!("Failed to execute CheckNetIsolation LookbackExempt -s");
+      }
+
+      let output_str = String::from_utf8(exempt_output.stdout)?.to_lowercase();
+      if !output_str.contains("win32webviewhost_cw5n1h2txyewy") {
+        println!("Running Loopback command");
+        runas::Command::new("powershell")
+          .args(&vec![
+            "CheckNetIsolation LoopbackExempt -a -n=\"Microsoft.Win32WebViewHost_cw5n1h2txyewy\"",
+          ])
+          .force_prompt(true)
+          .status()
+          .expect("failed to run Loopback command");
+      }
+    }
     Ok(Content::Url(config.build.dev_path.clone()))
   } else {
     let dev_dir = &config.build.dev_path;

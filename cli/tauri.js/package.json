@@ -61,6 +61,7 @@
     "imagemin-pngquant": "9.0.0",
     "imagemin-zopfli": "7.0.0",
     "is-png": "2.0.0",
+    "is-reachable": "^4.0.0",
     "isbinaryfile": "4.0.6",
     "jsdom": "16.2.2",
     "lodash": "4.17.19",

@@ -1,4 +1,5 @@
 {
+  "gitSiteUrl": "https://www.github.com/tauri-apps/tauri/",
   "pkgManagers": {
     "rust": {
       "version": true,

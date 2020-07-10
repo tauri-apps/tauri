@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "0.7.3"
+version = "0.7.4"
 authors = [
   "Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>",
   "Daniel Thompson-Yvetot <denjell@sfosc.org>",

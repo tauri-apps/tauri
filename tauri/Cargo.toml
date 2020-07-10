@@ -1,11 +1,12 @@
 [package]
 name = "tauri"
-version = "0.7.2"
+version = "0.7.3"
 authors = [
   "Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>",
   "Daniel Thompson-Yvetot <denjell@sfosc.org>",
   "Tensor Programming <tensordeveloper@gmail.com>"
 ]
+categories = [ "gui", "web-programming" ]
 license = "MIT"
 homepage = "https://tauri.studio"
 repository = "https://github.com/tauri-apps/tauri"
@@ -34,6 +35,9 @@ thiserror = "1.0.20"
 envmnt = "0.8.3"
 once_cell = "1.4.0"
 tauri-api = { version = "0.7", path = "../tauri-api" }
+
+[target."cfg(target_os = \"windows\")".dependencies]
+runas = "0.2"
 
 [build-dependencies]
 tauri_includedir_codegen = "0.6.2"

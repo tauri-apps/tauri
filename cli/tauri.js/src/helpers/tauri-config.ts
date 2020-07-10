@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'fs-extra'
 import { TauriConfig } from 'types'
-import merge from 'webpack-merge'
+import { merge } from 'webpack-merge'
 import logger from '../helpers/logger'
 import * as appPaths from './app-paths'
 import nonWebpackRequire from '../helpers/non-webpack-require'

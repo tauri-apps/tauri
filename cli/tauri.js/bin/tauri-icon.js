@@ -21,7 +21,7 @@ const argv = parseArgs(process.argv.slice(2), {
     h: 'help',
     l: 'log',
     c: 'config',
-    s: 'source',
+    i: 'icon',
     t: 'target'
   },
   boolean: ['h', 'l']

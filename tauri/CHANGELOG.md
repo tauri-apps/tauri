@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.7.3]
+
+-   Properly run the loopback command on Windows.
+-   Properly ignore the ${distDir}/index.html asset from the asset embbeding. Previously every asset with name matching /(.+)index.html$/g were ignored.
+
 ## [0.7.2]
 
 Bumped due to dependency.

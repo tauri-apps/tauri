@@ -1,5 +1,5 @@
 import { TauriConfig } from 'types'
-import merge from 'webpack-merge'
+import { merge } from 'webpack-merge'
 import Runner from '../runner'
 import getTauriConfig from '../helpers/tauri-config'
 

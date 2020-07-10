@@ -13,6 +13,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           ref: latest
+          fetch-depth: 0
       - name: git config
         run: |
           git config --global user.name "${{ github.event.pusher.name }}"

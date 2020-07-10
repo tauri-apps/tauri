@@ -91,13 +91,13 @@ class Runner {
         selfHandleResponse: true
       })
 
-      proxy.on('proxyRes', function (proxyRes: http.IncomingMessage, req: http.IncomingMessage, res: http.ServerResponse) {
+      proxy.on('proxyRes', (proxyRes: http.IncomingMessage, req: http.IncomingMessage, res: http.ServerResponse) => {
         if (req.url === '/') {
           const body: Uint8Array[] = []
-          proxyRes.on('data', function (chunk: Uint8Array) {
+          proxyRes.on('data', (chunk: Uint8Array) => {
             body.push(chunk)
           })
-          proxyRes.on('end', function () {
+          proxyRes.on('end', () => {
             const bodyStr = body.join('')
             const indexDir = os.tmpdir()
             writeFileSync(path.join(indexDir, 'index.html'), bodyStr)
@@ -339,7 +339,7 @@ class Runner {
         }
       }
 
-      if ((!cfg.ctx.dev && cfg.tauri.embeddedServer.active) || !inlinerEnabled) {
+      if ((!cfg.ctx.dev && cfg.tauri.embeddedServer.active) ?? !inlinerEnabled) {
         const html = rewriteHtml(originalHtml, domInterceptor)
         resolve({ inlinedAssets, html })
       } else {

@@ -75,7 +75,7 @@ class Runner {
         log('Waiting for your dev server to start...')
         await new Promise(resolve => setTimeout(resolve, devTryTimeout))
         devTryCount++
-        if (devTryCount === 5) {
+        if (devTryCount === 10) {
           warn(`Couldn't connect to ${devPath} after ${devTryTimeout * devTryCount / 1000}s. Please make sure that's the URL to your dev server.`)
           process.exit(1)
         }
@@ -132,7 +132,7 @@ class Runner {
       })
 
       proxy.on('error', (error: Error, _: http.IncomingMessage, res: http.ServerResponse) => {
-        if (error.message?.includes("ECONNREFUSED")) {
+        if (error.message?.includes('ECONNREFUSED')) {
           warn(`Connection refused to ${devUrl.protocol}//${devUrl.host}. Did you start your dev server? Usually that's done with a \`dev\` or \`serve\` NPM script.`)
         } else {
           console.error(error)
@@ -356,6 +356,7 @@ class Runner {
         }
       }
 
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
       if ((!cfg.ctx.dev && cfg.tauri.embeddedServer.active) || !inlinerEnabled) {
         const html = rewriteHtml(originalHtml, domInterceptor)
         resolve({ inlinedAssets, html })

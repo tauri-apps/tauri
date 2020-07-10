@@ -60,6 +60,7 @@
     "imagemin-optipng": "8.0.0",
     "imagemin-pngquant": "9.0.0",
     "imagemin-zopfli": "7.0.0",
+    "inquirer": "^7.3.0",
     "is-png": "2.0.0",
     "is-reachable": "^4.0.0",
     "isbinaryfile": "4.0.6",

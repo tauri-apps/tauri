@@ -2,8 +2,6 @@ mod bundle;
 mod error;
 pub use error::{Error, Result};
 
-#[cfg(windows)]
-use crate::bundle::print_info;
 use crate::bundle::{bundle_project, check_icons, PackageType, Settings};
 
 use clap::{crate_version, App, AppSettings, Arg, SubCommand};
@@ -120,7 +118,9 @@ fn run() -> crate::Result<()> {
           panic!("Failed to execute CheckNetIsolation LookbackExempt -s");
         }
 
-        let output_str = String::from_utf8(exempt_output.stdout)?.to_lowercase();
+        let output_str = String::from_utf8(exempt_output.stdout)
+          .map_err(|_| anyhow::anyhow!("failed to convert LoopbackExempt output to String"))?
+          .to_lowercase();
         if !output_str.contains("win32webviewhost_cw5n1h2txyewy") {
           println!("Running Loopback command");
           Command::new("powershell")

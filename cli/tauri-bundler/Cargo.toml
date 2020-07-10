@@ -9,6 +9,7 @@ authors = [
   "Daniel Thompson-Yvetot <denjell@sfosc.org>",
   "Tensor Programming <tensordeveloper@gmail.com>"
 ]
+categories = [ "command-line-utilities", "development-tools::cargo-plugins" ]
 license = "MIT/Apache-2.0"
 keywords = [ "bundle", "cargo", "tauri" ]
 repository = "https://github.com/tauri-apps/tauri"

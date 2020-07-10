@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.4]
+
+-   Properly run the loopback command on Windows.
+
 ## [0.8.3]
 
 -   Fixes the unbound variable issue on the DMG bundler script.

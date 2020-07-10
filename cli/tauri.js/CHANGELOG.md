@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.4]
+
+-   Bump lodash to 4.17.19
+
 ## [0.8.3]
 
 -   Fixes the wrong cli value on the template that's used by tauri init.

@@ -3,7 +3,7 @@
 ## [0.9.0]
 
 -   Fixes a race condition on the beforeDevCommand usage (starting Tauri before the devServer is ready).
-    -   [a26cffc](https://www.github.com/tauri-apps/tauri/commit/a26cffc575bee224a6beb5b7b0565d5583c0131f) fix(tauri.js) beforeDevCommand race condition ([#80](https://www.github.com/tauri-apps/tauri/pull/80)1) on 2020-07-10
+    -   [a26cffc](https://www.github.com/tauri-apps/tauri/commit/a26cffc575bee224a6beb5b7b0565d5583c0131f) fix(tauri.js) beforeDevCommand race condition ([#801](https://www.github.com/tauri-apps/tauri/pull/801)) on 2020-07-10
 -   Revert a nullish coalescing operator that changed embedded server/inliner behavior.
     -   [e7b4951](https://www.github.com/tauri-apps/tauri/commit/e7b495133fe9f4e9f576bb9805bec98b967783eb) fix(tauri.js) revert nullish coalesce addition ([#79](https://www.github.com/tauri-apps/tauri/pull/79)9) on 2020-07-10
 -   Fixes tauri init not generating tauri.conf.json on the Vue CLI Plugin.

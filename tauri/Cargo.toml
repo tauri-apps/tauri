@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "0.7.2"
+version = "0.7.3"
 authors = [
   "Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>",
   "Daniel Thompson-Yvetot <denjell@sfosc.org>",
@@ -36,7 +36,6 @@ envmnt = "0.8.3"
 once_cell = "1.4.0"
 tauri-api = { version = "0.7", path = "../tauri-api" }
 
-# this is actually only needed on dev, but we can't specify it yet
 [target."cfg(target_os = \"windows\")".dependencies]
 runas = "0.2"
 

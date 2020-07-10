@@ -1,4 +1,3 @@
-```md
 ---
 "tauri": minor
 ---

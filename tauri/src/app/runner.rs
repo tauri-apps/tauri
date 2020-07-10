@@ -72,7 +72,7 @@ fn setup_content() -> crate::Result<Content<String>> {
         .expect("failed to read LoopbackExempt -s");
 
       if !exempt_output.status.success() {
-        panic!("Failed to execute CheckNetIsolation LookbackExempt -s");
+        panic!("Failed to execute CheckNetIsolation LoopbackExempt -s");
       }
 
       let output_str = String::from_utf8(exempt_output.stdout)?.to_lowercase();

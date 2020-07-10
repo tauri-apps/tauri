@@ -221,10 +221,12 @@ fn build_webview(
         application.run_setup(webview, source.to_string());
         if source == "window-1" {
           let handle = webview.handle();
-          handle.dispatch(|webview| {
-            crate::plugin::ready(webview);
-            Ok(())
-          }).expect("failed to invoke ready hook");
+          handle
+            .dispatch(|webview| {
+              crate::plugin::ready(webview);
+              Ok(())
+            })
+            .expect("failed to invoke ready hook");
         }
       } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
         let content_href = match content_clone {
@@ -238,36 +240,39 @@ fn build_webview(
             let tauri_handle_error_str = tauri_handle_error.to_string();
             if tauri_handle_error_str.contains("unknown variant") {
               match application.run_invoke_handler(webview, arg) {
-                Ok(handled) => if handled { String::from("") } else { tauri_handle_error_str }
-                Err(e) => e
+                Ok(handled) => {
+                  if handled {
+                    String::from("")
+                  } else {
+                    tauri_handle_error_str
+                  }
+                }
+                Err(e) => e,
               }
             } else {
               tauri_handle_error_str
             }
           })
           .map_err(|app_handle_error| {
-            let app_handle_error_str = app_handle_error.to_string();
-            if app_handle_error_str.contains("unknown variant") {
+            if app_handle_error.contains("unknown variant") {
               match crate::plugin::extend_api(webview, arg) {
                 Ok(handled) => {
                   if handled {
                     String::from("")
                   } else {
-                    app_handle_error_str
+                    app_handle_error
                   }
-                },
-                Err(e) => e
+                }
+                Err(e) => e,
               }
             } else {
-              app_handle_error_str
+              app_handle_error
             }
           })
           .map_err(|e| e.replace("'", "\\'"));
         if let Err(handler_error_message) = endpoint_handle {
           if handler_error_message != "" {
-            webview.eval(
-              &get_api_error_message(arg, handler_error_message)
-            )?;
+            webview.eval(&get_api_error_message(arg, handler_error_message))?;
           }
         }
       }

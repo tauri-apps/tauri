@@ -339,7 +339,7 @@ class Runner {
         }
       }
 
-      if ((!cfg.ctx.dev && cfg.tauri.embeddedServer.active) ?? !inlinerEnabled) {
+      if ((!cfg.ctx.dev && cfg.tauri.embeddedServer.active) || !inlinerEnabled) {
         const html = rewriteHtml(originalHtml, domInterceptor)
         resolve({ inlinedAssets, html })
       } else {

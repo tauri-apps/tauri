@@ -88,7 +88,11 @@ mod test {
     if f != "" && a != "" {
       // call format callback
       let fc = format_callback(f.clone(), a.clone());
-      fc == format!(r#"window["{}"]({})"#, f, serde_json::Value::String(a))
+      fc.contains(&format!(
+        r#"window["{}"]({})"#,
+        f,
+        serde_json::Value::String(a),
+      ))
     } else {
       true
     }
@@ -104,11 +108,10 @@ mod test {
       Err(e) => (ec, e),
     };
 
-    resp
-      == format!(
-        r#"window["{}"]({})"#,
-        function,
-        serde_json::Value::String(value),
-      )
+    resp.contains(&format!(
+      r#"window["{}"]({})"#,
+      function,
+      serde_json::Value::String(value),
+    ))
   }
 }

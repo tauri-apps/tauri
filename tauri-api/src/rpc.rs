@@ -29,7 +29,17 @@ pub fn format_callback<T: Into<JsonValue>, S: AsRef<str> + Display>(
   function_name: S,
   arg: T,
 ) -> String {
-  format!(r#"window["{}"]({})"#, function_name, arg.into().to_string())
+  format!(
+    r#"
+      if (window["{fn}"]) {{
+        window["{fn}"]({arg})
+      }} else {{
+        console.warn("[TAURI] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
+      }}
+    "#,
+    fn = function_name,
+    arg = arg.into().to_string()
+  )
 }
 
 /// Formats a Result type to its Promise response.

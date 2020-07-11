@@ -9,7 +9,7 @@ use std::fmt::Display;
 /// use tauri_api::rpc::format_callback;
 /// // callback with a string argument
 /// let cb = format_callback("callback-function-name", "the string response");
-/// assert_eq!(cb, r#"window["callback-function-name"]("the string response")"#);
+/// assert!(cb.contains(r#"window["callback-function-name"]("the string response")"#));
 /// ```
 ///
 /// ```
@@ -23,13 +23,23 @@ use std::fmt::Display;
 /// let cb = format_callback("callback-function-name", serde_json::to_value(&MyResponse {
 ///   value: "some value".to_string()
 /// }).expect("failed to serialize"));
-/// assert_eq!(cb, r#"window["callback-function-name"]({"value":"some value"})"#);
+/// assert!(cb.contains(r#"window["callback-function-name"]({"value":"some value"})"#));
 /// ```
 pub fn format_callback<T: Into<JsonValue>, S: AsRef<str> + Display>(
   function_name: S,
   arg: T,
 ) -> String {
-  format!(r#"window["{}"]({})"#, function_name, arg.into().to_string())
+  format!(
+    r#"
+      if (window["{fn}"]) {{
+        window["{fn}"]({arg})
+      }} else {{
+        console.warn("[TAURI] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
+      }}
+    "#,
+    fn = function_name,
+    arg = arg.into().to_string()
+  )
 }
 
 /// Formats a Result type to its Promise response.
@@ -48,11 +58,11 @@ pub fn format_callback<T: Into<JsonValue>, S: AsRef<str> + Display>(
 /// use tauri_api::rpc::format_callback_result;
 /// let res: Result<u8, &str> = Ok(5);
 /// let cb = format_callback_result(res, "success_cb".to_string(), "error_cb".to_string()).expect("failed to format");
-/// assert_eq!(cb, r#"window["success_cb"](5)"#);
+/// assert!(cb.contains(r#"window["success_cb"](5)"#));
 ///
 /// let res: Result<&str, &str> = Err("error message here");
 /// let cb = format_callback_result(res, "success_cb".to_string(), "error_cb".to_string()).expect("failed to format");
-/// assert_eq!(cb, r#"window["error_cb"]("error message here")"#);
+/// assert!(cb.contains(r#"window["error_cb"]("error message here")"#));
 /// ```
 pub fn format_callback_result<T: Serialize, E: Serialize>(
   result: Result<T, E>,
@@ -78,7 +88,11 @@ mod test {
     if f != "" && a != "" {
       // call format callback
       let fc = format_callback(f.clone(), a.clone());
-      fc == format!(r#"window["{}"]({})"#, f, serde_json::Value::String(a))
+      fc.contains(&format!(
+        r#"window["{}"]({})"#,
+        f,
+        serde_json::Value::String(a),
+      ))
     } else {
       true
     }
@@ -94,11 +108,10 @@ mod test {
       Err(e) => (ec, e),
     };
 
-    resp
-      == format!(
-        r#"window["{}"]({})"#,
-        function,
-        serde_json::Value::String(value),
-      )
+    resp.contains(&format!(
+      r#"window["{}"]({})"#,
+      function,
+      serde_json::Value::String(value),
+    ))
   }
 }

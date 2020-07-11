@@ -116,6 +116,16 @@ class Runner {
             writeFileSync(path.join(indexDir, 'index.html'), bodyStr)
             self.__parseHtml(cfg, indexDir, false)
               .then(({ html }) => {
+                const headers: { [key: string]: string } = {}
+                if(proxyRes.headers['content-type']) {
+                  headers['content-type'] = proxyRes.headers['content-type']
+                } else {
+                  const charsetMatch = /charset="(\S+)"/g.exec(bodyStr)
+                  if (charsetMatch) {
+                    headers['content-type'] = `'text/html; charset=${charsetMatch[1]}`
+                  }
+                }
+                res.writeHead(200, headers)
                 res.end(html)
               }).catch(err => {
                 res.writeHead(500, JSON.stringify(err))

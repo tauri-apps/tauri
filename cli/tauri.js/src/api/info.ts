@@ -1,10 +1,11 @@
+
 import toml from '@tauri-apps/toml'
 import chalk from 'chalk'
-import { sync as spawn } from 'cross-spawn'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import { appDir, tauriDir } from '../helpers/app-paths'
+import { sync as spawn } from 'cross-spawn'
 import { TauriConfig } from './../types/config'
 import { CargoLock, CargoManifest } from '../types/cargo'
 import nonWebpackRequire from '../helpers/non-webpack-require'
@@ -183,12 +184,22 @@ module.exports = () => {
     ),
     section: true
   })
+  if (os.platform() === 'win32') {
+    const { stdout } = spawn('REG', ['QUERY', 'HKEY_CLASSES_root\\AppX3xxs313wwkfjhythsb8q46xdsq8d2cvv\\Application', '/v', 'ApplicationName'])
+    const match = /{(\S+)}/g.exec(stdout.toString())
+    if (match) {
+      const edgeString = match[1]
+      printInfo({ key: 'Microsoft Edge', value: edgeString.split('?')[0].replace('Microsoft.MicrosoftEdge_', '') })
+    }
+  }
+
   printInfo({ key: 'Node.js environment', section: true })
   printInfo({ key: '  Node.js', value: chalk.green(process.version.slice(1)) })
   printInfo({
     key: '  tauri.js',
     value: chalk.green(version)
   })
+
   printInfo({ key: 'Rust environment', section: true })
   printInfo({
     key: '  rustc',
@@ -199,9 +210,11 @@ module.exports = () => {
     value: getVersion('cargo', [], output => output.split(' ')[1])
   })
   printInfo({ key: '  tauri-bundler', value: getVersion('cargo', ['tauri-bundler']) })
+
   printInfo({ key: 'Global packages', section: true })
   printInfo({ key: '  NPM', value: getVersion('npm') })
   printInfo({ key: '  yarn', value: getVersion('yarn') })
+
   printInfo({ key: 'App directory structure', section: true })
 
   const tree = dirTree(appDir)

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.1]
+
+-   Fixes Edge blank screen on Windows when running tauri dev (Tauri crashing window due to Edge reloading app because of missing Content-Type header).
+    -   Bumped due to a bump in tauri-api.
+    -   [fedee83](https://www.github.com/tauri-apps/tauri/commit/fedee835e36daa4363b91aabd43143e8033c9a5c) fix(tauri.js) windows Edge blank screen on tauri dev ([#808](https://www.github.com/tauri-apps/tauri/pull/808)) on 2020-07-11
+-   Improve the tauri info output on Windows, including the Microsoft Edge version.
+    -   [0d6235e](https://www.github.com/tauri-apps/tauri/commit/0d6235e427c0f8241d1068bdd1e34903eb9298f9) feat(tauri.js) add microsoft edge version to the info output ([#810](https://www.github.com/tauri-apps/tauri/pull/810)) on 2020-07-12
+
 ## [0.9.0]
 
 -   Fixes a race condition on the beforeDevCommand usage (starting Tauri before the devServer is ready).

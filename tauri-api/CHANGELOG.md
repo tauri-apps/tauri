@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.2]
+
+-   Fixes Edge blank screen on Windows when running tauri dev (Tauri crashing window due to Edge reloading app because of missing Content-Type header).
+    -   Bumped due to a bump in tauri-api.
+    -   [fedee83](https://www.github.com/tauri-apps/tauri/commit/fedee835e36daa4363b91aabd43143e8033c9a5c) fix(tauri.js) windows Edge blank screen on tauri dev ([#808](https://www.github.com/tauri-apps/tauri/pull/808)) on 2020-07-11
+
 ## [0.7.1]
 
 -   Fixes the config reloading when tauri.conf.json changes.

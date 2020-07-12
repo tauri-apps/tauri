@@ -2,13 +2,15 @@ use super::cmd::ShortcutHandler;
 use tauri_api::shortcuts::ShortcutManager;
 use web_view::WebView;
 
+use std::sync::Arc;
+
 pub fn add_shortcuts<T: 'static>(
   webview: &mut WebView<'_, T>,
   shortcut_handlers: Vec<ShortcutHandler>,
 ) {
   let callback_handle = webview.handle();
   let error_handle = webview.handle();
-  let callback_handle = std::sync::Arc::new(callback_handle.clone());
+  let callback_handle = Arc::new(callback_handle);
 
   crate::spawn(move || {
     let mut manager = ShortcutManager::new();
@@ -16,7 +18,7 @@ pub fn add_shortcuts<T: 'static>(
       let callback_handle = callback_handle.clone();
 
       let callback_identifier = shortcut_handler.callback.clone();
-      let callback_identifier = std::sync::Arc::new(callback_identifier);
+      let callback_identifier = Arc::new(callback_identifier);
 
       manager.register_shortcut(
         shortcut_handler.shortcut.clone(),

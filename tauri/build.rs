@@ -94,6 +94,7 @@ fn shared() {
   setup_env_aliases();
 }
 
+#[allow(clippy::cognitive_complexity)]
 fn setup_env_aliases() {
   cfg_aliases! {
     embedded_server: { feature = "embedded-server" },

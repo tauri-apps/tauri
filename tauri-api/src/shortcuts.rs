@@ -1,36 +1,21 @@
-#[cfg(not(target_os = "macos"))]
 use hotkey;
 
 /// The shortcut manager builder.
 pub struct ShortcutManager {
-  #[cfg(not(target_os = "macos"))]
   hk: hotkey::Listener,
 }
 
-#[cfg(target_os = "macos")]
-impl ShortcutManager {
-  pub fn new() -> Self {
-    Self {}
+impl Default for ShortcutManager {
+  fn default() -> Self {
+    let hk = hotkey::Listener::new();
+    Self { hk }
   }
-
-  pub fn register_shortcut<H: Fn() + 'static, E: Fn(String)>(
-    &mut self,
-    shortcut: String,
-    handler: H,
-    error: E,
-  ) {
-    error("not implemented on macOS yet".to_string());
-  }
-
-  pub fn listen(self) {}
 }
 
-#[cfg(not(target_os = "macos"))]
 impl ShortcutManager {
   /// Initializes a new instance of the shortcut manager.
   pub fn new() -> Self {
-    let hk = hotkey::Listener::new();
-    Self { hk }
+    Default::default()
   }
 
   /// Registers a new shortcut handler.
@@ -45,7 +30,7 @@ impl ShortcutManager {
     let mut shortcut_modifier: u32 = 0;
     let mut shortcut_key: u32 = 0;
 
-    let mut modifiers = shortcut.split("+").peekable();
+    let mut modifiers = shortcut.split('+').peekable();
     while let Some(key) = modifiers.next() {
       if modifiers.peek().is_some() {
         let hotkey_modifier = match key.to_uppercase().as_str() {
@@ -58,7 +43,7 @@ impl ShortcutManager {
             return;
           }
         };
-        shortcut_modifier = shortcut_modifier | hotkey_modifier;
+        shortcut_modifier |= hotkey_modifier;
       } else {
         let hotkey_key = match key.to_uppercase().as_str() {
           "BACKSPACE" => hotkey::keys::BACKSPACE,

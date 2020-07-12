@@ -48,6 +48,7 @@ If you are interested in making a tauri-app, please visit the [documentation web
 - [x] Device Notifications (toast)
 - [ ] Self Updater (in progress)
 - [ ] deeplink RPC (in progress)
+- [ ] One-Time commands (coming soon)
 - [ ] App Signing (coming soon)
 - [ ] Frameless Mode (coming soon)
 - [ ] Transparent Mode (coming soon)
@@ -73,6 +74,7 @@ If you are interested in making a tauri-app, please visit the [documentation web
 - [x] writeBinaryFile - write binary file to local filesystem
 - [x] readBinaryFile - read binary file from local filesystem
 - [x] readTextFile - read text file from local filesystem
+- [ ] channel - stream constant data to the webview
 
 ### Security Features
 - [x] localhost-free mode (:fire:)
@@ -81,6 +83,13 @@ If you are interested in making a tauri-app, please visit the [documentation web
 - [x] OTP salting of function names and messages at runtime
 - [x] CSP Injection
 - [ ] Frida-based harness for Post-Binary Analysis (in progress)
+
+### Utilities
+- [x] GH Action for creating binaries for all platforms
+- [x] VS Code Extension
+- [x] Tauri Core Plugins
+- [ ] Update core dependencies automatically from the command line
+- [ ] Rust-based CLI with deno binding
 
 ### Comparison between Tauri and Electron
 

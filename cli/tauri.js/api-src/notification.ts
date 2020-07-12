@@ -1,5 +1,13 @@
-import { Options, Permission } from './types/notification'
 import { promisified } from './tauri'
+
+export interface Options {
+  title: string
+  body?: string
+  icon?: string
+}
+
+export type PartialOptions = Omit<Options, 'title'>
+export type Permission = 'granted' | 'denied' | 'default'
 
 async function isPermissionGranted(): Promise<boolean | null> {
   if (window.Notification.permission !== 'default') {

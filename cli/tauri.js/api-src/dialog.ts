@@ -1,5 +1,13 @@
-import { OpenDialogOptions, SaveDialogOptions } from './types/dialog'
 import { promisified } from './tauri'
+
+export interface OpenDialogOptions {
+  filter?: string
+  defaultPath?: string
+  multiple?: boolean
+  directory?: boolean
+}
+
+export type SaveDialogOptions = Pick<OpenDialogOptions, 'filter' | 'defaultPath'>
 
 /**
  * @name openDialog

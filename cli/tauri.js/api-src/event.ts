@@ -1,5 +1,11 @@
 import { invoke, transformCallback } from './tauri'
-import { EventCallback } from './types/event'
+
+export interface Event<T> {
+  type: string
+  payload: T
+}
+
+export type EventCallback<T> = (event: Event<T>) => void
 
 /**
  * listen to an event from the backend

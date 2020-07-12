@@ -19,6 +19,7 @@ export default [{
     'window': './api-src/window.ts',
     'cli': './api-src/cli.ts',
     'notification': './api-src/notification.ts',
+    'global-shortcut': './api-src/global-shortcut.ts',
   },
   treeshake:      true,
   perf:           true,

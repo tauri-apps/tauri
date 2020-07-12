@@ -137,5 +137,8 @@ fn setup_env_aliases() {
 
     // notification
     notification: { any(all_api, feature = "notification") },
+
+    // shortcuts
+    shortcuts: { any(all_api, feature = "shortcuts") },
   }
 }

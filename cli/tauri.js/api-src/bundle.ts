@@ -9,6 +9,7 @@ import * as process from './process'
 import * as tauri from './tauri'
 import * as window from './window'
 import * as notification from './notification'
+import * as globalShortcut from './global-shortcut'
 
 export {
   cli,
@@ -19,5 +20,6 @@ export {
   process,
   tauri,
   window,
-  notification
+  notification,
+  globalShortcut
 }

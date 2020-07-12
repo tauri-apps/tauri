@@ -43,8 +43,9 @@ pub use tauri_utils::*;
 pub use anyhow::Result;
 use thiserror::Error;
 
-#[cfg(feature = "shortcut")]
-pub mod shortcut;
+/// The `shortcuts` management module.
+#[cfg(feature = "shortcuts")]
+pub mod shortcuts;
 
 /// The error types.
 #[derive(Error, Debug)]

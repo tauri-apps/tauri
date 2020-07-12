@@ -45,4 +45,4 @@ quickcheck_macros = "0.9.1"
 [features]
 cli = [ "clap" ]
 notification = [ "notify-rust" ]
-shortcut = ["hotkey"]
+shortcuts = ["hotkey"]

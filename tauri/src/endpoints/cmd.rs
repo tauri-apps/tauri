@@ -50,9 +50,9 @@ pub struct SaveDialogOptions {
 }
 
 /// Shortcut handler options.
-#[cfg(any(feature = "all-api", feature = "shortcut"))]
+#[cfg(shortcuts)]
 #[derive(Deserialize, Clone)]
-pub struct ShortcutHandlerBridge {
+pub struct ShortcutHandler {
   pub shortcut: String,
   pub callback: String,
   pub error: Option<String>,
@@ -198,7 +198,7 @@ pub enum Cmd {
   /// The load asset into webview API.
   #[serde(rename_all = "camelCase")]
   AddShortcuts {
-    shortcut_handlers: Vec<ShortcutHandlerBridge>,
+    shortcut_handlers: Vec<ShortcutHandler>,
   },
   #[serde(rename_all = "camelCase")]
   #[cfg(assets)]

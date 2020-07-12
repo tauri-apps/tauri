@@ -1,18 +1,24 @@
 #[cfg(not(target_os = "macos"))]
 use hotkey;
 
-pub struct ShortcutBuilder {
+/// The shortcut manager builder.
+pub struct ShortcutManager {
   #[cfg(not(target_os = "macos"))]
   hk: hotkey::Listener,
 }
 
 #[cfg(target_os = "macos")]
-impl ShortcutBuilder {
-  pub fn new() -> ShortcutBuilder {
-    ShortcutBuilder {}
+impl ShortcutManager {
+  pub fn new() -> Self {
+    Self {}
   }
 
-  pub fn register_shortcut<H: Fn() + 'static, E: Fn(String)>(&mut self, shortcut: String, handler: H, error: E) {
+  pub fn register_shortcut<H: Fn() + 'static, E: Fn(String)>(
+    &mut self,
+    shortcut: String,
+    handler: H,
+    error: E,
+  ) {
     error("not implemented on macOS yet".to_string());
   }
 
@@ -20,15 +26,20 @@ impl ShortcutBuilder {
 }
 
 #[cfg(not(target_os = "macos"))]
-impl ShortcutBuilder {
-  pub fn new() -> ShortcutBuilder {
+impl ShortcutManager {
+  /// Initializes a new instance of the shortcut manager.
+  pub fn new() -> Self {
     let hk = hotkey::Listener::new();
-    ShortcutBuilder {
-      hk,
-    }
+    Self { hk }
   }
 
-  pub fn register_shortcut<H: Fn() + 'static, E: Fn(String)>(&mut self, shortcut: String, handler: H, error: E) {
+  /// Registers a new shortcut handler.
+  pub fn register_shortcut<H: Fn() + 'static, E: Fn(String)>(
+    &mut self,
+    shortcut: String,
+    handler: H,
+    error: E,
+  ) {
     let hk = &mut self.hk;
 
     let mut shortcut_modifier: u32 = 0;
@@ -70,7 +81,10 @@ impl ShortcutBuilder {
           _ => {
             let chars: Vec<char> = key.chars().collect();
             if chars.len() != 1 {
-              error(format!("shortcut '{}' last element should be a character, found {}", shortcut, key));
+              error(format!(
+                "shortcut '{}' last element should be a character, found {}",
+                shortcut, key
+              ));
               return;
             } else {
               chars[0] as u32
@@ -81,17 +95,14 @@ impl ShortcutBuilder {
       }
     }
 
-    let hotkey_registration = hk.register_hotkey(
-      shortcut_modifier,
-      shortcut_key,
-      handler,
-    );
+    let hotkey_registration = hk.register_hotkey(shortcut_modifier, shortcut_key, handler);
 
     if let Err(e) = hotkey_registration {
       error(e);
     }
   }
 
+  /// Starts listening to the shortcuts.
   pub fn listen(self) {
     self.hk.listen();
   }

@@ -19,7 +19,7 @@ jobs:
           git config --global user.name "${{ github.event.pusher.name }}"
           git config --global user.email "${{ github.event.pusher.email }}"
       - run: git fetch origin dev
-      - run: git merge -Xours ${{ github.sha }} --ff-only
+      - run: git merge -Xours ${{ github.sha }}
       - name: Create Pull Request
         uses: tauri-apps/create-pull-request@v2.8.0
         with:

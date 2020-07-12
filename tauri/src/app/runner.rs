@@ -30,7 +30,7 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   };
 
   // build the webview
-  let webview = build_webview(
+  let mut webview = build_webview(
     application,
     main_content,
     if application.splashscreen_html().is_some() {
@@ -44,6 +44,8 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
       None
     },
   )?;
+
+  crate::plugin::created(&mut webview);
 
   // spawn the embedded server on our server url
   #[cfg(embedded_server)]
@@ -217,6 +219,15 @@ fn build_webview(
           "window-1"
         };
         application.run_setup(webview, source.to_string());
+        if source == "window-1" {
+          let handle = webview.handle();
+          handle
+            .dispatch(|webview| {
+              crate::plugin::ready(webview);
+              Ok(())
+            })
+            .expect("failed to invoke ready hook");
+        }
       } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
         let content_href = match content_clone {
           Content::Html(ref html) => html,
@@ -224,26 +235,43 @@ fn build_webview(
         };
         webview.eval(&format!(r#"window.location.href = "{}""#, content_href))?;
       } else {
-        let handler_error;
-        if let Err(tauri_handle_error) = crate::endpoints::handle(webview, arg) {
-          let tauri_handle_error_str = tauri_handle_error.to_string();
-          if tauri_handle_error_str.contains("unknown variant") {
-            let handled_by_app = application.run_invoke_handler(webview, arg);
-            handler_error = if let Err(e) = handled_by_app {
-              Some(e.replace("'", "\\'"))
-            } else {
-              let handled = handled_by_app.expect("failed to check if the invoke was handled");
-              if handled {
-                None
-              } else {
-                Some(tauri_handle_error_str)
+        let endpoint_handle = crate::endpoints::handle(webview, arg)
+          .map_err(|tauri_handle_error| {
+            let tauri_handle_error_str = tauri_handle_error.to_string();
+            if tauri_handle_error_str.contains("unknown variant") {
+              match application.run_invoke_handler(webview, arg) {
+                Ok(handled) => {
+                  if handled {
+                    String::from("")
+                  } else {
+                    tauri_handle_error_str
+                  }
+                }
+                Err(e) => e,
               }
-            };
-          } else {
-            handler_error = Some(tauri_handle_error_str);
-          }
-
-          if let Some(handler_error_message) = handler_error {
+            } else {
+              tauri_handle_error_str
+            }
+          })
+          .map_err(|app_handle_error| {
+            if app_handle_error.contains("unknown variant") {
+              match crate::plugin::extend_api(webview, arg) {
+                Ok(handled) => {
+                  if handled {
+                    String::from("")
+                  } else {
+                    app_handle_error
+                  }
+                }
+                Err(e) => e,
+              }
+            } else {
+              app_handle_error
+            }
+          })
+          .map_err(|e| e.replace("'", "\\'"));
+        if let Err(handler_error_message) = endpoint_handle {
+          if handler_error_message != "" {
             webview.eval(&get_api_error_message(arg, handler_error_message))?;
           }
         }

@@ -91,6 +91,12 @@ impl AppBuilder {
     self
   }
 
+  /// Adds a plugin to the runtime.
+  pub fn plugin(self, plugin: impl crate::plugin::Plugin + 'static) -> Self {
+    crate::plugin::register(plugin);
+    self
+  }
+
   /// Builds the App.
   pub fn build(self) -> App {
     App {

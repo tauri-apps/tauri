@@ -30,6 +30,8 @@ pub mod cli;
 mod app;
 /// The Tauri API endpoints.
 mod endpoints;
+/// The plugin manager module contains helpers to manage runtime plugins.
+pub mod plugin;
 /// The salt helpers.
 mod salt;
 
@@ -38,13 +40,13 @@ pub use anyhow::Result;
 pub use app::*;
 pub use tauri_api as api;
 pub use web_view::Handle;
+pub use web_view::WebView;
 
 use std::process::Stdio;
 
 use api::rpc::{format_callback, format_callback_result};
 use serde::Serialize;
 use threadpool::ThreadPool;
-use web_view::WebView;
 
 thread_local!(static POOL: ThreadPool = ThreadPool::new(4));
 

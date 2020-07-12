@@ -43,9 +43,9 @@ pub struct HttpRequestOptions {
   /// The request URL
   pub url: String,
   /// The request query params
-  pub params: Option<HashMap<String, Value>>,
+  pub params: Option<HashMap<String, String>>,
   /// The request headers
-  pub headers: Option<HashMap<String, Value>>,
+  pub headers: Option<HashMap<String, String>>,
   /// The request body
   pub body: Option<Value>,
   /// Whether to follow redirects or not
@@ -66,11 +66,162 @@ pub struct HttpRequestOptions {
   pub response_type: Option<ResponseType>,
 }
 
+/// The builder for HttpRequestOptions.
+///
+/// # Examples
+/// ```
+/// # use tauri_api::http::{ HttpRequestBuilder, HttpRequestOptions, make_request, ResponseType };
+/// let mut builder = HttpRequestBuilder::new("GET", "http://example.com");
+/// let option = builder.response_type(ResponseType::Text)
+///                     .follow_redirects(false)
+///                     .build();
+///
+/// if let Ok(response) = make_request(option) {
+///   println!("Response: {}", response);
+/// } else {
+///   println!("Something Happened!");
+/// }
+/// ```
+pub struct HttpRequestBuilder {
+  /// The request method (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS, CONNECT or TRACE)
+  pub method: String,
+  /// The request URL
+  pub url: String,
+  /// The request query params
+  pub params: Option<HashMap<String, String>>,
+  /// The request headers
+  pub headers: Option<HashMap<String, String>>,
+  /// The request body
+  pub body: Option<Value>,
+  /// Whether to follow redirects or not
+  pub follow_redirects: Option<bool>,
+  /// Max number of redirections to follow
+  pub max_redirections: Option<u32>,
+  /// Connect timeout for the request
+  pub connect_timeout: Option<u64>,
+  /// Read timeout for the request
+  pub read_timeout: Option<u64>,
+  /// Timeout for the whole request
+  pub timeout: Option<u64>,
+  /// Whether the request will announce that it accepts compression
+  pub allow_compression: Option<bool>,
+  /// The body type (defaults to Auto)
+  pub body_type: Option<BodyType>,
+  /// The response type (defaults to Json)
+  pub response_type: Option<ResponseType>,
+}
+
+impl HttpRequestBuilder {
+  /// Initializes a new instance of the HttpRequestBuilder.
+  pub fn new(method: impl Into<String>, url: impl Into<String>) -> Self {
+    Self {
+      method: method.into(),
+      url: url.into(),
+      params: None,
+      headers: None,
+      body: None,
+      follow_redirects: None,
+      max_redirections: None,
+      connect_timeout: None,
+      read_timeout: None,
+      timeout: None,
+      allow_compression: None,
+      body_type: None,
+      response_type: None,
+    }
+  }
+
+  /// Sets the request params.
+  pub fn params(mut self, params: HashMap<String, String>) -> Self {
+    self.params = Some(params);
+    self
+  }
+
+  /// Sets the request headers.
+  pub fn headers(mut self, headers: HashMap<String, String>) -> Self {
+    self.headers = Some(headers);
+    self
+  }
+
+  /// Sets the request body.
+  pub fn body(mut self, body: Value) -> Self {
+    self.body = Some(body);
+    self
+  }
+
+  /// Sets whether the request should follow redirects or not.
+  pub fn follow_redirects(mut self, follow_redirects: bool) -> Self {
+    self.follow_redirects = Some(follow_redirects);
+    self
+  }
+
+  /// Sets the maximum number of redirections.
+  pub fn max_redirections(mut self, max_redirections: u32) -> Self {
+    self.max_redirections = Some(max_redirections);
+    self
+  }
+
+  /// Sets the connection timeout.
+  pub fn connect_timeout(mut self, connect_timeout: u64) -> Self {
+    self.connect_timeout = Some(connect_timeout);
+    self
+  }
+
+  /// Sets the read timeout.
+  pub fn read_timeout(mut self, read_timeout: u64) -> Self {
+    self.read_timeout = Some(read_timeout);
+    self
+  }
+
+  /// Sets the general request timeout.
+  pub fn timeout(mut self, timeout: u64) -> Self {
+    self.timeout = Some(timeout);
+    self
+  }
+
+  /// Sets whether the request allows compressed responses or not.
+  pub fn allow_compression(mut self, allow_compression: bool) -> Self {
+    self.allow_compression = Some(allow_compression);
+    self
+  }
+
+  /// Sets the type of the request body.
+  pub fn body_type(mut self, body_type: BodyType) -> Self {
+    self.body_type = Some(body_type);
+    self
+  }
+
+  /// Sets the type of the response. Interferes with the way we read the response.
+  pub fn response_type(mut self, response_type: ResponseType) -> Self {
+    self.response_type = Some(response_type);
+    self
+  }
+
+  /// Builds the HttpRequestOptions.
+  pub fn build(self) -> HttpRequestOptions {
+    HttpRequestOptions {
+      method: self.method,
+      url: self.url,
+      params: self.params,
+      headers: self.headers,
+      body: self.body,
+      follow_redirects: self.follow_redirects,
+      max_redirections: self.max_redirections,
+      connect_timeout: self.connect_timeout,
+      read_timeout: self.read_timeout,
+      timeout: self.timeout,
+      allow_compression: self.allow_compression,
+      body_type: self.body_type,
+      response_type: self.response_type,
+    }
+  }
+}
+
 /// Executes an HTTP request
 ///
 /// The response will be transformed to String,
 /// If reading the response as binary, the byte array will be serialized using serde_json
-pub fn make_request(options: HttpRequestOptions) -> crate::Result<String> {
+pub fn make_request(options: HttpRequestOptions) -> crate::Result<Value> {
   let method = Method::from_bytes(options.method.to_uppercase().as_bytes())?;
   let mut builder = RequestBuilder::new(method, options.url);
   if let Some(params) = options.params {
@@ -81,10 +232,7 @@ pub fn make_request(options: HttpRequestOptions) -> crate::Result<String> {
 
   if let Some(headers) = options.headers {
     for (header, header_value) in headers.iter() {
-      builder = builder.header(
-        HeaderName::from_bytes(header.as_bytes())?,
-        format!("{}", header_value),
-      );
+      builder = builder.header(HeaderName::from_bytes(header.as_bytes())?, header_value);
     }
   }
 
@@ -143,9 +291,9 @@ pub fn make_request(options: HttpRequestOptions) -> crate::Result<String> {
   let response = response?;
   if response.is_success() {
     let response_data = match options.response_type.unwrap_or(ResponseType::Json) {
-      ResponseType::Json => response.json()?,
-      ResponseType::Text => response.text()?,
-      ResponseType::Binary => serde_json::to_string(&response.bytes()?)?,
+      ResponseType::Json => response.json::<Value>()?,
+      ResponseType::Text => Value::String(response.text()?),
+      ResponseType::Binary => Value::String(serde_json::to_string(&response.bytes()?)?),
     };
     Ok(response_data)
   } else {

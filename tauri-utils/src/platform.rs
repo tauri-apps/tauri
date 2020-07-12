@@ -53,6 +53,14 @@ pub fn target_triple() -> Result<String> {
   Ok(format!("{}-{}", arch, os))
 }
 
+/// Computes the resource directory of the current environment.
+///
+/// On Windows, it's the path to the executable.
+///
+/// On Linux, it's `/usr/lib/${exe_name}` when running the bundled app,
+/// and `${exe_dir}/../lib/${exe_name}` when running the app from `src-tauri/target/(debug|release)/`.
+///
+/// On MacOS, it's `${exe_dir}../Resources` (inside .app).
 pub fn resource_dir() -> Result<PathBuf> {
   let exe = std::env::current_exe()?;
   let exe_dir = exe.parent().expect("failed to get exe directory");

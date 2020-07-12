@@ -6,13 +6,13 @@
 
 [![Chat Server](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/SpmNs4S)
 [![devto](https://img.shields.io/badge/blog-dev.to-black.svg)](https://dev.to/tauri)
-[![devto](https://img.shields.io/badge/documentation-wiki-purple.svg)](https://github.com/tauri-apps/tauri/wiki)
+[![devto](https://img.shields.io/badge/documentation-tauri.studio-purple.svg)](https://tauri.studio/docs/getting-started/intro)
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
 [![support](https://img.shields.io/badge/sponsor-open%20collective-blue.svg)](https://opencollective.com/tauri)
 
 ```yml
 Tauri Apps
-  footprint:   miniscule
+  footprint:   minuscule
   performance: ludicrous
   flexibility: gymnastic
   security:    hardened
@@ -37,7 +37,7 @@ The user interface in Tauri apps currently leverages Cocoa/WebKit on macOS, gtk-
 
 
 ## Get Started
-If you are interested in making a tauri-app, plase visit the [wiki](https://github.com/tauri-apps/tauri/wiki) or the [documentation website](https://tauri.studio). This README is directed towards those who are interested in contributing to the core library. But if you just want a quick overview about where `tauri` is at in its development, here's a quick burndown:
+If you are interested in making a tauri-app, please visit the [documentation website](https://tauri.studio). This README is directed towards those who are interested in contributing to the core library. But if you just want a quick overview about where `tauri` is at in its development, here's a quick burndown:
 
 #### App Bundles
 - [x] App Icons
@@ -70,6 +70,7 @@ If you are interested in making a tauri-app, plase visit the [wiki](https://gith
 - [x] renameFile - rename a file
 - [x] copyFile - copy a file to a new destination
 - [x] writeFile - write file to local filesystem
+- [x] writeBinaryFile - write binary file to local filesystem
 - [x] readBinaryFile - read binary file from local filesystem
 - [x] readTextFile - read text file from local filesystem
 
@@ -147,7 +148,7 @@ Documentation in a polyglot system is a tricky proposition. To this end, we pref
 Test all the things! We have a number of test suites, but are always looking to improve our coverage:
 - Rust (`cargo test`) => sourced via inline `#[cfg(test)]` declarations
 - TS (`jest`) => via spec files
-- Smoke Tests (run on merges to master)
+- Smoke Tests (run on merges to latest)
 - eslint, clippy
 
 ### CI/CD

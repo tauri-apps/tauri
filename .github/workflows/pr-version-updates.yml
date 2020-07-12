@@ -1,0 +1,33 @@
+name: pr-version-updates
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  pr-to-latest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: git config
+        run: |
+          git config --global user.name "${{ github.event.pusher.name }}"
+          git config --global user.email "${{ github.event.pusher.email }}"
+      - name: covector version
+        uses: jbolda/covector/packages/action@covector-v0
+        id: covector
+        with:
+          command: 'version'
+      - name: Create Pull Request With Versions Bumped
+        uses: tauri-apps/create-pull-request@v2.8.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: release/version-updates
+          title: Apply Version Updates From Current Changes
+          commit-message: "apply version updates"
+          labels: "version updates"
+          body: ${{ steps.covector.outputs.change }}

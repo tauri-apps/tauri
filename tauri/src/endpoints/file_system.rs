@@ -7,12 +7,15 @@ use tauri_api::path::resolve_path;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
+use std::path::PathBuf;
 
 use super::cmd::{DirOperationOptions, FileOperationOptions};
 
+/// Reads a directory.
+#[cfg(read_dir)]
 pub fn read_dir<T: 'static>(
   webview: &mut WebView<'_, T>,
-  path: String,
+  path: PathBuf,
   options: Option<DirOperationOptions>,
   callback: String,
   error: String,
@@ -25,23 +28,19 @@ pub fn read_dir<T: 'static>(
       } else {
         (false, None)
       };
-      if recursive {
-        dir::walk_dir(resolve_path(path, dir)?)
-          .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
-      } else {
-        dir::list_dir_contents(resolve_path(path, dir)?)
-          .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
-      }
+      dir::read_dir(resolve_path(path, dir)?, recursive)
     },
     callback,
     error,
   );
 }
 
+/// Copies a file.
+#[cfg(copy_file)]
 pub fn copy_file<T: 'static>(
   webview: &mut WebView<'_, T>,
-  source: String,
-  destination: String,
+  source: PathBuf,
+  destination: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,
   error: String,
@@ -56,18 +55,18 @@ pub fn copy_file<T: 'static>(
         ),
         None => (source, destination),
       };
-      fs::copy(src, dest)
-        .map_err(|e| e.into())
-        .map(|_| "".to_string())
+      fs::copy(src, dest).map_err(|e| e.into())
     },
     callback,
     error,
   );
 }
 
+/// Creates a directory.
+#[cfg(create_dir)]
 pub fn create_dir<T: 'static>(
   webview: &mut WebView<'_, T>,
-  path: String,
+  path: PathBuf,
   options: Option<DirOperationOptions>,
   callback: String,
   error: String,
@@ -87,16 +86,18 @@ pub fn create_dir<T: 'static>(
         fs::create_dir(resolved_path)
       };
 
-      response.map_err(|e| e.into()).map(|_| "".to_string())
+      response.map_err(|e| e.into())
     },
     callback,
     error,
   );
 }
 
+/// Removes a directory.
+#[cfg(remove_dir)]
 pub fn remove_dir<T: 'static>(
   webview: &mut WebView<'_, T>,
-  path: String,
+  path: PathBuf,
   options: Option<DirOperationOptions>,
   callback: String,
   error: String,
@@ -116,16 +117,18 @@ pub fn remove_dir<T: 'static>(
         fs::remove_dir(resolved_path)
       };
 
-      response.map_err(|e| e.into()).map(|_| "".to_string())
+      response.map_err(|e| e.into())
     },
     callback,
     error,
   );
 }
 
+/// Removes a file
+#[cfg(remove_file)]
 pub fn remove_file<T: 'static>(
   webview: &mut WebView<'_, T>,
-  path: String,
+  path: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,
   error: String,
@@ -134,19 +137,19 @@ pub fn remove_file<T: 'static>(
     webview,
     move || {
       let resolved_path = resolve_path(path, options.and_then(|o| o.dir))?;
-      fs::remove_file(resolved_path)
-        .map_err(|e| e.into())
-        .map(|_| "".to_string())
+      fs::remove_file(resolved_path).map_err(|e| e.into())
     },
     callback,
     error,
   );
 }
 
+/// Renames a file.
+#[cfg(rename_file)]
 pub fn rename_file<T: 'static>(
   webview: &mut WebView<'_, T>,
-  old_path: String,
-  new_path: String,
+  old_path: PathBuf,
+  new_path: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,
   error: String,
@@ -161,18 +164,18 @@ pub fn rename_file<T: 'static>(
         ),
         None => (old_path, new_path),
       };
-      fs::rename(old, new)
-        .map_err(|e| e.into())
-        .map(|_| "".to_string())
+      fs::rename(old, new).map_err(|e| e.into())
     },
     callback,
     error,
   );
 }
 
+/// Writes a text file.
+#[cfg(write_file)]
 pub fn write_file<T: 'static>(
   webview: &mut WebView<'_, T>,
-  file: String,
+  path: PathBuf,
   contents: String,
   options: Option<FileOperationOptions>,
   callback: String,
@@ -181,12 +184,34 @@ pub fn write_file<T: 'static>(
   crate::execute_promise(
     webview,
     move || {
-      File::create(resolve_path(file, options.and_then(|o| o.dir))?)
+      File::create(resolve_path(path, options.and_then(|o| o.dir))?)
         .map_err(|e| e.into())
-        .and_then(|mut f| {
-          f.write_all(contents.as_bytes())
-            .map_err(|err| err.into())
-            .map(|_| "".to_string())
+        .and_then(|mut f| f.write_all(contents.as_bytes()).map_err(|err| err.into()))
+    },
+    callback,
+    error,
+  );
+}
+
+/// Writes a binary file.
+#[cfg(write_binary_file)]
+pub fn write_binary_file<T: 'static>(
+  webview: &mut WebView<'_, T>,
+  path: PathBuf,
+  contents: String,
+  options: Option<FileOperationOptions>,
+  callback: String,
+  error: String,
+) {
+  crate::execute_promise(
+    webview,
+    move || {
+      base64::decode(contents)
+        .map_err(|e| e.into())
+        .and_then(|c| {
+          File::create(resolve_path(path, options.and_then(|o| o.dir))?)
+            .map_err(|e| e.into())
+            .and_then(|mut f| f.write_all(&c).map_err(|err| err.into()))
         })
     },
     callback,
@@ -194,37 +219,35 @@ pub fn write_file<T: 'static>(
   );
 }
 
+/// Reads a text file.
+#[cfg(read_text_file)]
 pub fn read_text_file<T: 'static>(
   webview: &mut WebView<'_, T>,
-  path: String,
+  path: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,
   error: String,
 ) {
   crate::execute_promise(
     webview,
-    move || {
-      file::read_string(resolve_path(path, options.and_then(|o| o.dir))?)
-        .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
-    },
+    move || file::read_string(resolve_path(path, options.and_then(|o| o.dir))?),
     callback,
     error,
   );
 }
 
+/// Reads a binary file.
+#[cfg(read_binary_file)]
 pub fn read_binary_file<T: 'static>(
   webview: &mut WebView<'_, T>,
-  path: String,
+  path: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,
   error: String,
 ) {
   crate::execute_promise(
     webview,
-    move || {
-      file::read_binary(resolve_path(path, options.and_then(|o| o.dir))?)
-        .and_then(|f| serde_json::to_string(&f).map_err(|err| err.into()))
-    },
+    move || file::read_binary(resolve_path(path, options.and_then(|o| o.dir))?),
     callback,
     error,
   );

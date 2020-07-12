@@ -3,7 +3,7 @@ name: release-cargo
 on:
   push:
     branches:
-      - master
+      - latest
     paths:
       - '**/Cargo.toml'
       - '.github/workflows/**'
@@ -20,26 +20,31 @@ jobs:
             registryName: tauri-bundler
             path: cli/tauri-bundler
             publishPath: cli/tauri-bundler/target/package # not in workspace so target folder is nested
+            auditPath: cli/tauri-bundler
           - name: tauri-utils
             registryName: tauri-utils
             path: tauri-utils
             publishPath: target/package
+            auditPath: ./
           - name: tauri-api
             registryName: tauri-api
             path: tauri-api
             publishPath: target/package
+            auditPath: ./
           - name: tauri-updater
             registryName: tauri-updater
             path: tauri-updater
             publishPath: target/package
+            auditPath: ./
           - name: tauri-core
             registryName: tauri
             path: tauri
             publishPath: target/package
+            auditPath: ./
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: master
+          ref: latest
           toolchain: stable
       - name: get version
         working-directory: ${{ matrix.package.path }}
@@ -54,22 +59,31 @@ jobs:
       - name: cargo login
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         run: cargo login ${{ secrets.crate_token }}
+      - name: cargo generate-lockfile (for audit)
+        if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
+        working-directory: ${{ matrix.package.auditPath }}
+        env:
+          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
+          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
+        run: |
+          echo "This is only for the audit. Lock files are listed in the gitignore so it should not be published."
+          cargo generate-lockfile
       - name: cargo package
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         working-directory: ${{ matrix.package.path }}
         env:
-          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/dist
-          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/src-tauri
+          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
+          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
         run: |
           cargo package --no-verify
           echo "We will publish:" $PACKAGE_VERSION
           echo "This is current latest:" $PUBLISHED_VERSION
       - name: cargo audit
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
-        working-directory: ${{ matrix.package.path }}
+        working-directory: ${{ matrix.package.auditPath }}
         env:
-          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/dist
-          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/src-tauri
+          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
+          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
         run: |
           cargo install cargo-audit
           echo "# Cargo Audit" | tee -a ${{runner.workspace }}/notes.md
@@ -80,12 +94,12 @@ jobs:
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         working-directory: ${{ matrix.package.path }}
         env:
-          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/dist
-          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/test/fixture/src-tauri
+          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
+          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
         run: |
           echo "# Cargo Publish" | tee -a ${{runner.workspace }}/notes.md
           echo "\`\`\`" >> ${{runner.workspace }}/notes.md
-          cargo publish --no-verify 2>&1 | tee -a ${{runner.workspace }}/notes.md
+          set -o pipefail && cargo publish --no-verify 2>&1 | tee -a ${{runner.workspace }}/notes.md
           echo "\`\`\`" >> ${{runner.workspace }}/notes.md
       - name: Create Release
         id: create_crate_release
@@ -100,23 +114,24 @@ jobs:
           draft: false
           prerelease: false
       - name: Upload Release Asset
-        id: upload-release-asset 
+        id: upload-release-asset
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         uses: actions/upload-release-asset@v1.0.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_crate_release.outputs.upload_url }} 
+          upload_url: ${{ steps.create_crate_release.outputs.upload_url }}
           asset_path: ./${{ matrix.package.publishPath }}/${{ matrix.package.registryName }}-${{ env.PACKAGE_VERSION }}.crate
           asset_name: ${{ matrix.package.registryName }}-${{ env.PACKAGE_VERSION }}.crate
           asset_content_type: application/x-gtar
       - name: Tangle Release
         id: tangle_release
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
-        uses: iotaledger/gh-tangle-release@v0.6.0
+        uses: iotaledger/gh-tangle-release@v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IOTA_SEED: ${{ secrets.IOTA_SEED }}
+          IOTA_NODE: "https://iotanode.us:14267"
         with:
           tag_name: ${{ matrix.package.name }}-v${{ env.PACKAGE_VERSION }}
           comment: "Release ${{ matrix.package.name }} v${{ env.PACKAGE_VERSION }} [crates.io]"

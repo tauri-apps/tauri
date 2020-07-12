@@ -22,11 +22,8 @@ fn main() {
           data: "something else".to_string(),
         };
 
-        tauri::event::emit(
-          &handle,
-          String::from("rust-event"),
-          Some(serde_json::to_string(&reply).unwrap()),
-        );
+        tauri::event::emit(&handle, String::from("rust-event"), Some(reply))
+          .expect("failed to emit");
       });
     })
     .invoke_handler(|_webview, arg| {

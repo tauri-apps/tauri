@@ -38,6 +38,8 @@ use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
+/// Bundles the project.
+/// Returns a vector of PathBuf that shows where the DEB was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let arch = match settings.binary_arch() {
     "x86" => "i386",
@@ -46,7 +48,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   };
   let package_base_name = format!(
     "{}_{}_{}",
-    settings.binary_name(),
+    settings.main_binary_name(),
     settings.version_string(),
     arch
   );
@@ -60,8 +62,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }
   let package_path = base_dir.join(package_name);
 
-  let data_dir =
-    generate_folders(settings, &package_dir).with_context(|| "Failed to build folders")?;
+  let data_dir = generate_data(settings, &package_dir)
+    .with_context(|| "Failed to build data folders and files")?;
   // Generate control files.
   let control_dir = package_dir.join("control");
   generate_control_file(settings, arch, &control_dir, &data_dir)
@@ -87,15 +89,18 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   Ok(vec![package_path])
 }
 
-pub fn generate_folders(settings: &Settings, package_dir: &Path) -> crate::Result<PathBuf> {
+/// Generate the debian data folders and files.
+pub fn generate_data(settings: &Settings, package_dir: &Path) -> crate::Result<PathBuf> {
   // Generate data files.
   let data_dir = package_dir.join("data");
-  let bin_name = settings.binary_name();
-  let binary_dest = data_dir.join("usr/bin").join(bin_name);
   let bin_dir = data_dir.join("usr/bin");
 
-  common::copy_file(settings.binary_path(), &binary_dest)
-    .with_context(|| "Failed to copy binary file")?;
+  for bin in settings.binaries() {
+    let bin_path = settings.binary_path(bin);
+    common::copy_file(&bin_path, &bin_dir.join(bin.name()))
+      .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+  }
+
   transfer_resource_files(settings, &data_dir).with_context(|| "Failed to copy resource files")?;
 
   settings
@@ -114,8 +119,9 @@ pub fn generate_folders(settings: &Settings, package_dir: &Path) -> crate::Resul
   Ok(data_dir)
 }
 
+/// Generates the bootstrap script file.
 fn generate_bootstrap_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  let bin_name = settings.binary_name();
+  let bin_name = settings.main_binary_name();
   let bin_dir = data_dir.join("usr/bin");
 
   let bootstrap_file_name = format!("__{}-bootstrapper", bin_name);
@@ -124,7 +130,7 @@ fn generate_bootstrap_file(settings: &Settings, data_dir: &Path) -> crate::Resul
   write!(
     bootstrapper_file,
     "#!/usr/bin/env sh
-# This bootstraps the $PATH for Tauri, so environments are available.
+# This bootstraps the environment for Tauri, so environments are available.
 export NVM_DIR=\"$([ -z \"${{XDG_CONFIG_HOME-}}\" ] && printf %s \"${{HOME}}/.nvm\" || printf %s \"${{XDG_CONFIG_HOME}}/nvm\")\"
 [ -s \"$NVM_DIR/nvm.sh\" ] && . \"$NVM_DIR/nvm.sh\"
 
@@ -176,7 +182,7 @@ exit 0",
 
 /// Generate the application desktop file and store it under the `data_dir`.
 fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  let bin_name = settings.binary_name();
+  let bin_name = settings.main_binary_name();
   let desktop_file_name = format!("{}.desktop", bin_name);
   let desktop_file_path = data_dir
     .join("usr/share/applications")
@@ -210,6 +216,7 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   Ok(())
 }
 
+/// Generates the debian control file and stores it under the `control_dir`.
 fn generate_control_file(
   settings: &Settings,
   arch: &str,
@@ -288,7 +295,7 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
 /// Copy the bundle's resource files into an appropriate directory under the
 /// `data_dir`.
 fn transfer_resource_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  let resource_dir = data_dir.join("usr/lib").join(settings.binary_name());
+  let resource_dir = data_dir.join("usr/lib").join(settings.main_binary_name());
   settings.copy_resources(&resource_dir)
 }
 
@@ -301,7 +308,7 @@ fn generate_icon_files(settings: &Settings, data_dir: &PathBuf) -> crate::Result
       width,
       height,
       if is_high_density { "@2x" } else { "" },
-      settings.binary_name()
+      settings.main_binary_name()
     ))
   };
   let mut sizes = BTreeSet::new();

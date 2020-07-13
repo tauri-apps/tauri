@@ -37,7 +37,13 @@ use std::process::{Command, Stdio};
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the .app was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  let app_bundle_name = format!("{}.app", settings.bundle_name());
+  let package_base_name = format!(
+    "{}_{}_{}",
+    settings.main_binary_name(),
+    settings.version_string(),
+    settings.binary_arch()
+  );
+  let app_bundle_name = format!("{}.app", package_base_name);
   common::print_bundling(&app_bundle_name)?;
   let app_bundle_path = settings
     .project_out_directory()

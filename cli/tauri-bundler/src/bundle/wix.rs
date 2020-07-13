@@ -199,11 +199,19 @@ fn app_installer_dir(settings: &Settings) -> crate::Result<PathBuf> {
     }
   };
 
-  Ok(settings.project_out_directory().to_path_buf().join(format!(
-    "{}.{}.msi",
-    settings.bundle_name(),
+  let package_base_name = format!(
+    "{}_{}_{}",
+    settings.main_binary_name(),
+    settings.version_string(),
     arch
-  )))
+  );
+
+  Ok(
+    settings
+      .project_out_directory()
+      .to_path_buf()
+      .join(format!("bundle/wix/{}.msi", package_base_name)),
+  )
 }
 
 /// Extracts the zips from Wix and VC_REDIST into a useable path.
@@ -407,7 +415,10 @@ pub fn build_wix_app_installer(
   // target only supports x64.
   common::print_info(format!("Target: {}", arch).as_str())?;
 
-  let output_path = settings.project_out_directory().join("wix").join(arch);
+  let output_path = settings
+    .project_out_directory()
+    .join("bundle/wix")
+    .join(arch);
 
   let mut data = BTreeMap::new();
 

@@ -444,6 +444,7 @@ mod test {
       build: BuildConfig {
         dev_path: String::from("../dist"),
       },
+      plugins: Default::default(),
     }
   }
 

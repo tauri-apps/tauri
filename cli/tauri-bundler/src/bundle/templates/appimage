@@ -38,4 +38,5 @@ if lsmod | grep -q fuse; then
 else
   ./appimagetool --appimage-extract
   ./squashfs-root/AppRun {{app_name}}.AppDir {{app_name}}.AppImage
+  rm -rf ./squashfs-root
 fi

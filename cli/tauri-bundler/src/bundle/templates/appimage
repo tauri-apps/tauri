@@ -33,4 +33,9 @@ mksquashfs {{app_name}}.AppDir {{app_name}}.squashfs -root-owned -noappend
 
 wget -q -O appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage || wget -q -O appimagetool https://github.com/AppImage/AppImageKit/releases/download/12/appimagetool-x86_64.AppImage
 chmod +x appimagetool
-./appimagetool {{app_name}}.AppDir {{app_name}}.AppImage
+if lsmod | grep -q fuse; then
+  ./appimagetool {{app_name}}.AppDir {{app_name}}.AppImage
+else
+  ./appimagetool --appimage-extract
+  ./squashfs-root/AppRun {{app_name}}.AppDir {{app_name}}.AppImage
+fi

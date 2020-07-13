@@ -292,6 +292,11 @@ export interface TauriConfig {
       active?: boolean
     }
   }
+  plugins?: {
+    [name: string]: {
+      [key: string]: any
+    }
+  }
 }
 
 export default TauriConfig

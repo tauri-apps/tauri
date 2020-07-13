@@ -1,5 +1,6 @@
 use serde::de::{Deserializer, Error as DeError, Visitor};
 use serde::Deserialize;
+use serde_json::Value as JsonValue;
 
 use once_cell::sync::OnceCell;
 use std::collections::HashMap;
@@ -306,6 +307,8 @@ fn default_dev_path() -> String {
   "".to_string()
 }
 
+type JsonObject = HashMap<String, JsonValue>;
+
 /// The tauri.conf.json mapper.
 #[derive(PartialEq, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -316,6 +319,16 @@ pub struct Config {
   /// The build configuration.
   #[serde(default = "default_build")]
   pub build: BuildConfig,
+  /// The plugins config.
+  #[serde(default)]
+  plugins: HashMap<String, JsonObject>,
+}
+
+impl Config {
+  /// Gets a plugin configuration.
+  pub fn plugin_config<S: AsRef<str>>(&self, plugin_name: S) -> Option<&JsonObject> {
+    self.plugins.get(plugin_name.as_ref())
+  }
 }
 
 fn default_tauri() -> TauriConfig {
@@ -431,6 +444,7 @@ mod test {
       build: BuildConfig {
         dev_path: String::from("../dist"),
       },
+      plugins: Default::default(),
     }
   }
 

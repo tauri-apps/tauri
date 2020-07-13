@@ -15,14 +15,18 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // generate the .app bundle
   osx_bundle::bundle_project(settings)?;
 
-  let app_name = settings.bundle_name();
-
   // get the target path
   let output_path = settings.project_out_directory().join("bundle/dmg");
-  let dmg_name = format!("{}.dmg", app_name.clone());
+  let package_base_name = format!(
+    "{}_{}_{}",
+    settings.main_binary_name(),
+    settings.version_string(),
+    settings.binary_arch()
+  );
+  let dmg_name = format!("{}.dmg", &package_base_name);
   let dmg_path = output_path.join(&dmg_name.clone());
 
-  let bundle_name = &format!("{}.app", app_name);
+  let bundle_name = &format!("{}.app", &package_base_name);
   let bundle_dir = settings.project_out_directory().join("bundle/osx");
   let bundle_path = bundle_dir.join(&bundle_name.clone());
 
@@ -71,7 +75,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let mut args = vec![
     "--volname",
-    &app_name,
+    &package_base_name,
     "--volicon",
     "../../../../icons/icon.icns",
     "--icon",

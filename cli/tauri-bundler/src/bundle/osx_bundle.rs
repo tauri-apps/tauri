@@ -307,7 +307,7 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
         .expect("Couldn't get framework filename");
       common::copy_dir(&src_path, &dest_dir.join(&src_name))?;
       continue;
-    } else if framework.contains("/") {
+    } else if framework.contains('/') {
       return Err(crate::Error::GenericError(format!(
         "Framework path should have .framework extension: {}",
         framework
@@ -414,11 +414,11 @@ fn create_icns_file(
     dest_path.set_extension("icns");
     let icns_file = BufWriter::new(File::create(&dest_path)?);
     family.write(icns_file)?;
-    return Ok(Some(dest_path));
+    Ok(Some(dest_path))
   } else {
-    return Err(crate::Error::GenericError(
+    Err(crate::Error::GenericError(
       "No usable Icon files found".to_owned(),
-    ));
+    ))
   }
 }
 

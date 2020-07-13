@@ -150,7 +150,7 @@ pub fn print_bundling(filename: &str) -> crate::Result<()> {
 
 /// Prints a message to stderr, in the same format that `cargo` uses,
 /// indicating that we have finished the the given bundles.
-pub fn print_finished(output_paths: &Vec<PathBuf>) -> crate::Result<()> {
+pub fn print_finished(output_paths: &[PathBuf]) -> crate::Result<()> {
   let pluralised = if output_paths.len() == 1 {
     "bundle"
   } else {
@@ -167,29 +167,30 @@ pub fn print_finished(output_paths: &Vec<PathBuf>) -> crate::Result<()> {
 /// Safely adds the terminal attribute to the terminal output.
 /// If the terminal doesn't support the attribute, does nothing.
 fn safe_term_attr<T: term::Terminal + ?Sized>(
-  output: &mut Box<T>,
+  output: &mut T,
   attr: term::Attr,
 ) -> term::Result<()> {
-  match output.supports_attr(attr) {
-    true => output.attr(attr),
-    false => Ok(()),
+  if output.supports_attr(attr) {
+    output.attr(attr)
+  } else {
+    Ok(())
   }
 }
 
 /// Prints a formatted bundle progress to stderr.
 fn print_progress(step: &str, msg: &str) -> crate::Result<()> {
   if let Some(mut output) = term::stderr() {
-    safe_term_attr(&mut output, term::Attr::Bold)?;
+    safe_term_attr(&mut *output, term::Attr::Bold)?;
     output.fg(term::color::GREEN)?;
     write!(output, "    {}", step)?;
     output.reset()?;
-    write!(output, " {}\n", msg)?;
+    writeln!(output, " {}", msg)?;
     output.flush()?;
     Ok(())
   } else {
     let mut output = io::stderr();
     write!(output, "    {}", step)?;
-    write!(output, " {}\n", msg)?;
+    writeln!(output, " {}", msg)?;
     output.flush()?;
     Ok(())
   }
@@ -198,17 +199,17 @@ fn print_progress(step: &str, msg: &str) -> crate::Result<()> {
 /// Prints a warning message to stderr, in the same format that `cargo` uses.
 pub fn print_warning(message: &str) -> crate::Result<()> {
   if let Some(mut output) = term::stderr() {
-    safe_term_attr(&mut output, term::Attr::Bold)?;
+    safe_term_attr(&mut *output, term::Attr::Bold)?;
     output.fg(term::color::YELLOW)?;
     write!(output, "warning:")?;
     output.reset()?;
-    write!(output, " {}\n", message)?;
+    writeln!(output, " {}", message)?;
     output.flush()?;
     Ok(())
   } else {
     let mut output = io::stderr();
     write!(output, "warning:")?;
-    write!(output, " {}\n", message)?;
+    writeln!(output, " {}", message)?;
     output.flush()?;
     Ok(())
   }
@@ -217,17 +218,17 @@ pub fn print_warning(message: &str) -> crate::Result<()> {
 /// Prints a Info message to stderr.
 pub fn print_info(message: &str) -> crate::Result<()> {
   if let Some(mut output) = term::stderr() {
-    safe_term_attr(&mut output, term::Attr::Bold)?;
+    safe_term_attr(&mut *output, term::Attr::Bold)?;
     output.fg(term::color::GREEN)?;
     write!(output, "info:")?;
     output.reset()?;
-    write!(output, " {}\n", message)?;
+    writeln!(output, " {}", message)?;
     output.flush()?;
     Ok(())
   } else {
     let mut output = io::stderr();
     write!(output, "info:")?;
-    write!(output, " {}\n", message)?;
+    writeln!(output, " {}", message)?;
     output.flush()?;
     Ok(())
   }
@@ -236,11 +237,11 @@ pub fn print_info(message: &str) -> crate::Result<()> {
 /// Prints an error to stderr, in the same format that `cargo` uses.
 pub fn print_error(error: &anyhow::Error) -> crate::Result<()> {
   if let Some(mut output) = term::stderr() {
-    safe_term_attr(&mut output, term::Attr::Bold)?;
+    safe_term_attr(&mut *output, term::Attr::Bold)?;
     output.fg(term::color::RED)?;
     write!(output, "error:")?;
     output.reset()?;
-    safe_term_attr(&mut output, term::Attr::Bold)?;
+    safe_term_attr(&mut *output, term::Attr::Bold)?;
     writeln!(output, " {}", error)?;
     output.reset()?;
     for cause in error.chain().skip(1) {
@@ -304,7 +305,7 @@ mod tests {
     {
       let mut file =
         create_file(&tmp.path().join("parent/file.txt")).expect("Failed to create file");
-      write!(file, "Hello, world!\n").expect("unable to write file");
+      writeln!(file, "Hello, world!").expect("unable to write file");
     }
     assert!(tmp.path().join("parent").is_dir());
     assert!(tmp.path().join("parent/file.txt").is_file());
@@ -321,7 +322,7 @@ mod tests {
     {
       let mut file =
         create_file(&tmp.path().join("orig/sub/file.txt")).expect("Unable to create file");
-      write!(file, "Hello, world!\n").expect("Unable to write to file");
+      writeln!(file, "Hello, world!").expect("Unable to write to file");
     }
     symlink_file(
       &PathBuf::from("sub/file.txt"),

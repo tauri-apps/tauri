@@ -24,7 +24,12 @@ jobs:
           name: workspace
         env:
           TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
-          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
+          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-taur
+      - uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --manifest-path ./cli/tauri-bundler/Cargo.toml --all-targets -- -D warnings
+          name: bundler
       - uses: actions-rs/toolchain@v1
         with:
             profile: minimal

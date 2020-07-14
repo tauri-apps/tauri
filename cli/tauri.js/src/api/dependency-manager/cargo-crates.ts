@@ -1,5 +1,5 @@
 import { spawnSync } from './../../helpers/spawn'
-import { CargoManifest, CargoManifestDependency } from './../../types/cargo'
+import { CargoManifest, CargoManifestDependency, CargoLock } from './../../types/cargo'
 import { ManagementType, Result } from './types'
 import { getCrateLatestVersion, semverLt } from './util'
 import logger from '../../helpers/logger'
@@ -12,9 +12,12 @@ const log = logger('dependency:crates')
 
 const dependencies = ['tauri']
 
-function getManifest(): CargoManifest {
-  const manifest = readFileSync(appResolve.tauri('Cargo.toml')).toString()
-  return toml.parse(manifest) as any as CargoManifest
+function readToml<T>(tomlPath: string): T | null {
+  if (existsSync(tomlPath)) {
+    const manifest = readFileSync(tomlPath).toString()
+    return toml.parse(manifest) as any as T
+  }
+  return null
 }
 
 function dependencyDefinition(version: string): CargoManifestDependency {
@@ -24,14 +27,28 @@ function dependencyDefinition(version: string): CargoManifestDependency {
 async function manageDependencies(managementType: ManagementType): Promise<Result> {
   const installedDeps = []
   const updatedDeps = []
+  const result: Result = new Map<ManagementType, string[]>()
 
-  const manifest = getManifest()
+  const manifest = readToml<CargoManifest>(appResolve.tauri('Cargo.toml'))
+
+  if (manifest === null) {
+    log('Cargo.toml not found. Skipping crates check...')
+    return result
+  }
+
+  const lockPath = appResolve.tauri('Cargo.lock')
+  if (!existsSync(lockPath)) {
+    spawnSync('cargo', ['generate-lockfile'], tauriDir)
+  }
+  const lock = readToml<CargoLock>(lockPath)
 
   for (const dependency of dependencies) {
+    const lockPackages = lock ? lock.package.filter(pkg => pkg.name === dependency) : []
     // eslint-disable-next-line security/detect-object-injection
     const manifestDep = manifest.dependencies[dependency]
-    // TODO current version should be read from Cargo.lock if it exists
-    const currentVersion = typeof manifestDep === 'string' ? manifestDep : manifestDep?.version
+    const currentVersion = lockPackages.length === 1
+      ? lockPackages[0].version
+      : (typeof manifestDep === 'string' ? manifestDep : manifestDep?.version)
     if (currentVersion === undefined) {
       log(`Installing ${dependency}...`)
       const latestVersion = await getCrateLatestVersion(dependency)
@@ -44,7 +61,7 @@ async function manageDependencies(managementType: ManagementType): Promise<Resul
         const inquired = await inquirer.prompt([{
           type: 'confirm',
           name: 'answer',
-          message: `[CRATES] ${dependency} latest version is ${latestVersion}. Do you want to update?`,
+          message: `[CRATES] "${dependency}" latest version is ${latestVersion}. Do you want to update?`,
           default: false
         }])
         if (inquired.answer) {
@@ -54,10 +71,10 @@ async function manageDependencies(managementType: ManagementType): Promise<Resul
           updatedDeps.push(dependency)
         }
       } else {
-        log(`${dependency} is up to date`)
+        log(`"${dependency}" is up to date`)
       }
     } else {
-      log(`${dependency} is already installed`)
+      log(`"${dependency}" is already installed`)
     }
   }
 
@@ -71,7 +88,6 @@ async function manageDependencies(managementType: ManagementType): Promise<Resul
     spawnSync('cargo', ['update', ...updatedDeps.reduce<string[]>((initialValue, dep) => [...initialValue, '-p', dep], [])], tauriDir)
   }
 
-  const result: Result = new Map<ManagementType, string[]>()
   result.set(ManagementType.Install, installedDeps)
   result.set(ManagementType.Update, updatedDeps)
 

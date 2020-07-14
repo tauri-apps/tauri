@@ -1,0 +1,28 @@
+name: test bundler
+
+on:
+  pull_request:
+    paths:
+      - ./cli/tauri-bundler/**
+env:
+  RUST_BACKTRACE: 1
+
+jobs:
+  build-tauri-bundler:
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: install stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: test
+        run: |
+          cd ./cli/tauri-bundler
+          cargo test

@@ -30,7 +30,7 @@ function dirTree(filename: string, recurse = true): DirInfo {
   if (stats.isDirectory()) {
     info.type = 'folder'
     if (recurse) {
-      info.children = fs.readdirSync(filename).map(function (child: string) {
+      info.children = fs.readdirSync(filename).map(function(child: string) {
         return dirTree(filename + '/' + child, false)
       })
     }

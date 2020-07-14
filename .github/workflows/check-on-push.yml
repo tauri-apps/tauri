@@ -24,7 +24,7 @@ jobs:
           name: workspace
         env:
           TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
-          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-taur
+          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

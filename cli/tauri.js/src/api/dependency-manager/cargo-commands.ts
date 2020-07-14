@@ -25,7 +25,7 @@ async function manageDependencies(managementType: ManagementType): Promise<Resul
         const inquired = await inquirer.prompt([{
           type: 'confirm',
           name: 'answer',
-          message: `[CARGO COMMANDS] ${dependency} latest version is ${latestVersion}. Do you want to update?`,
+          message: `[CARGO COMMANDS] "${dependency}" latest version is ${latestVersion}. Do you want to update?`,
           default: false
         }])
         if (inquired.answer) {
@@ -33,10 +33,10 @@ async function manageDependencies(managementType: ManagementType): Promise<Resul
           updatedDeps.push(dependency)
         }
       } else {
-        log(`${dependency} is up to date`)
+        log(`"${dependency}" is up to date`)
       }
     } else {
-      log(`${dependency} is already installed`)
+      log(`"${dependency}" is already installed`)
     }
   }
 

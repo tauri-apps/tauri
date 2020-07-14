@@ -1,4 +1,4 @@
-name: eslint check
+name: clippy and fmt check
 
 on:
   pull_request:

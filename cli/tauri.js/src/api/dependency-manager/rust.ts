@@ -3,6 +3,8 @@ import { spawnSync } from '../../helpers/spawn'
 import getScriptVersion from '../../helpers/get-script-version'
 import logger from '../../helpers/logger'
 import { createWriteStream, unlinkSync } from 'fs'
+import { resolve } from 'path'
+import { platform } from 'os'
 import https from 'https'
 
 const log = logger('dependency:rust')
@@ -12,11 +14,11 @@ async function download(url: string, dest: string): Promise<void> {
   return await new Promise((resolve, reject) => {
     https.get(url, response => {
       response.pipe(file)
-      file.on('finish', function () {
+      file.on('finish', function() {
         file.close()
         resolve()
       })
-    }).on('error', function (err) {
+    }).on('error', function(err) {
       unlinkSync(dest)
       reject(err.message)
     })
@@ -24,6 +26,9 @@ async function download(url: string, dest: string): Promise<void> {
 };
 
 async function installRustup(): Promise<void> {
+  if (platform() === 'win32') {
+    return spawnSync('powershell', [resolve(__dirname, '../../scripts/rustup-install.ps1')], process.cwd())
+  }
   return await download('https://sh.rustup.rs', 'rustup.sh')
     .then(() => {
       spawnSync('rustup.sh', [], process.cwd())

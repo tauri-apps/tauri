@@ -28,7 +28,7 @@ function getNpmLatestVersion(packageName: string): string {
 }
 
 async function getNpmPackageVersion(packageName: string): Promise<string | null> {
-  return await new Promise((resolve, reject) => {
+  return await new Promise((resolve) => {
     const child = crossSpawnSync('npm', ['list', packageName, 'version', '--depth', '0'], { cwd: appDir })
     const output = String(child.output[1])
     // eslint-disable-next-line security/detect-non-literal-regexp

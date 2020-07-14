@@ -94,7 +94,7 @@
     "@types/jsdom": "16.2.3",
     "@types/lodash": "4.14.157",
     "@types/ms": "0.7.31",
-    "@types/semver": "^7.2.0",
+    "@types/semver": "^7.3.1",
     "@types/sharp": "0.25.0",
     "@types/webpack-merge": "4.1.5",
     "@typescript-eslint/eslint-plugin": "3.6.0",

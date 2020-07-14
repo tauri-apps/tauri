@@ -201,7 +201,7 @@ fn app_installer_dir(settings: &Settings) -> crate::Result<PathBuf> {
 
   let package_base_name = format!(
     "{}_{}_{}",
-    settings.main_binary_name(),
+    settings.main_binary_name().replace(".exe", ""),
     settings.version_string(),
     arch
   );
@@ -210,7 +210,7 @@ fn app_installer_dir(settings: &Settings) -> crate::Result<PathBuf> {
     settings
       .project_out_directory()
       .to_path_buf()
-      .join(format!("bundle/wix/{}.msi", package_base_name)),
+      .join(format!("bundle/msi/{}.msi", package_base_name)),
   )
 }
 
@@ -417,7 +417,7 @@ pub fn build_wix_app_installer(
 
   let output_path = settings
     .project_out_directory()
-    .join("bundle/wix")
+    .join("bundle/msi")
     .join(arch);
 
   let mut data = BTreeMap::new();

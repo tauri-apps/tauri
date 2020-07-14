@@ -311,6 +311,7 @@ mod tests {
     assert!(tmp.path().join("parent/file.txt").is_file());
   }
 
+  #[cfg(not(windows))]
   #[test]
   fn copy_dir_with_symlinks() {
     // Create a directory structure that looks like this:

@@ -3,6 +3,7 @@ name: eslint check
 on:
   pull_request:
     paths:
+      - .github/workflows/core-lint-fmt.yml
       - ./tauri/**
       - ./tauri-utils/**
       - ./tauri-api/**

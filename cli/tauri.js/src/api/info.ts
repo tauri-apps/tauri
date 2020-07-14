@@ -10,6 +10,7 @@ import { TauriConfig } from './../types/config'
 import { CargoLock, CargoManifest } from '../types/cargo'
 import nonWebpackRequire from '../helpers/non-webpack-require'
 import { version } from '../../package.json'
+import getScriptVersion from '../helpers/get-script-version'
 
 interface DirInfo {
   path: string
@@ -29,7 +30,7 @@ function dirTree(filename: string, recurse = true): DirInfo {
   if (stats.isDirectory()) {
     info.type = 'folder'
     if (recurse) {
-      info.children = fs.readdirSync(filename).map(function(child: string) {
+      info.children = fs.readdirSync(filename).map(function (child: string) {
         return dirTree(filename + '/' + child, false)
       })
     }
@@ -45,17 +46,13 @@ function getVersion(
   args: string[] = [],
   formatter?: (output: string) => string
 ): string {
-  try {
-    const child = spawn(command, [...args, '--version'])
-    if (child.status === 0) {
-      const output = String(child.output[1])
-      return chalk
-        .green(formatter === undefined ? output : formatter(output))
-        .replace('\n', '')
-    }
+  const version = getScriptVersion(command, args)
+  if (version === null) {
     return chalk.red('Not installed')
-  } catch (err) {
-    return chalk.red('Not installed')
+  } else {
+    return chalk
+      .green(formatter === undefined ? version : formatter(version))
+      .replace('\n', '')
   }
 }
 
@@ -68,7 +65,7 @@ interface Info {
 function printInfo(info: Info): void {
   console.log(
     `${info.section ? '\n' : ''}${info.key}${
-      info.value === undefined ? '' : ' - ' + info.value
+    info.value === undefined ? '' : ' - ' + info.value
     }`
   )
 }
@@ -173,7 +170,7 @@ function printAppInfo(tauriDir: string): void {
         ? chalk.green(config.build.devPath)
         : chalk.red('unset')
     })
-  } catch (_) {}
+  } catch (_) { }
 }
 
 module.exports = () => {

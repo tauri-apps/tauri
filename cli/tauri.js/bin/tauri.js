@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const cmds = ['init', 'dev', 'build', 'help', 'icon', 'info']
+const cmds = ['init', 'dev', 'build', 'help', 'icon', 'info', 'deps']
 
 const cmd = process.argv[2]
 /**
@@ -45,6 +45,8 @@ const tauri = function (command) {
     console.log(`Invalid command ${command}. Use one of ${cmds.join(',')}.`)
   }
 }
-module.exports = { tauri }
+module.exports = {
+  tauri
+}
 
 tauri(cmd)

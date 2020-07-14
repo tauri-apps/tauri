@@ -269,6 +269,18 @@ export const TauriConfigSchema = {
       },
       "type": "object"
     },
+    "plugins": {
+      "additionalProperties": {
+        "additionalProperties": {
+        },
+        "defaultProperties": [
+        ],
+        "type": "object"
+      },
+      "defaultProperties": [
+      ],
+      "type": "object"
+    },
     "tauri": {
       "additionalProperties": false,
       "defaultProperties": [

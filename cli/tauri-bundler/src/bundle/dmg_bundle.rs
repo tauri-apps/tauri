@@ -21,7 +21,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     "{}_{}_{}",
     settings.main_binary_name(),
     settings.version_string(),
-    settings.binary_arch()
+    match settings.binary_arch() {
+      "x86_64" => "x64",
+      other => other,
+    }
   );
   let dmg_name = format!("{}.dmg", &package_base_name);
   let dmg_path = output_path.join(&dmg_name.clone());

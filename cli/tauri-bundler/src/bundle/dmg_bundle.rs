@@ -70,7 +70,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .arg("777")
     .arg(&bundle_script_path)
     .arg(&license_script_path)
-    .current_dir(output_path.clone())
+    .current_dir(output_path)
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
     .output()
@@ -102,13 +102,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // Issue #592 - Building MacOS dmg files on CI
   // https://github.com/tauri-apps/tauri/issues/592
-  match env::var_os("CI") {
-    Some(value) => {
-      if value == "true" {
-        args.push("--skip-jenkins");
-      }
+  if let Some(value) = env::var_os("CI") {
+    if value == "true" {
+      args.push("--skip-jenkins");
     }
-    None => (),
   }
 
   // execute the bundle script
@@ -122,6 +119,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   common::execute_with_output(&mut cmd)
     .map_err(|_| crate::Error::ShellScriptError("error running bundle_dmg.sh".to_owned()))?;
 
-  fs::rename(bundle_dir.join(dmg_name.clone()), dmg_path.clone())?;
+  fs::rename(bundle_dir.join(dmg_name), dmg_path.clone())?;
   Ok(vec![bundle_path, dmg_path])
 }

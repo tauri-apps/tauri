@@ -59,7 +59,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   std::fs::create_dir_all(output_path.clone())?;
   let app_dir_path = output_path.join(format!("{}.AppDir", settings.main_binary_name()));
   let appimage_path = output_path.join(format!("{}.AppImage", settings.main_binary_name()));
-  path_utils::create(app_dir_path.clone(), true)?;
+  path_utils::create(app_dir_path, true)?;
 
   let upcase_app_name = settings.main_binary_name().to_uppercase();
 

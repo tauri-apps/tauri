@@ -23,11 +23,8 @@ fn build_project_if_unbuilt(settings: &Settings) -> crate::Result<()> {
     args.push("--release".to_string());
   }
 
-  match settings.build_features() {
-    Some(features) => {
-      args.push(format!("--features={}", features.join(" ")));
-    }
-    None => {}
+  if let Some(features) = settings.build_features() {
+    args.push(format!("--features={}", features.join(" ")));
   }
 
   let status = process::Command::new("cargo").args(args).status()?;

@@ -251,7 +251,11 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
             error,
           );
           #[cfg(not(cli))]
-          whitelist_error(webview, error, "cli");
+          api_error(
+            webview,
+            error,
+            "CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri)",
+          );
         }
         Notification {
           options,
@@ -282,18 +286,27 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
 }
 
 #[allow(dead_code)]
+fn api_error<T: 'static>(webview: &mut WebView<'_, T>, error_fn: String, message: &str) {
+  let reject_code = tauri_api::rpc::format_callback(error_fn, message);
+  webview
+    .eval(&reject_code)
+    .expect("failed to eval api error")
+}
+
+#[allow(dead_code)]
 fn whitelist_error<T: 'static>(
   webview: &mut WebView<'_, T>,
   error_fn: String,
   whitelist_key: &str,
 ) {
-  let reject_code = tauri_api::rpc::format_callback(
+  api_error(
+    webview,
     error_fn,
-    format!(r#""'{}' not whitelisted""#, whitelist_key),
-  );
-  webview
-    .eval(&reject_code)
-    .expect("failed to eval whitelist error")
+    &format!(
+      "{}' not whitelisted (https://tauri.studio/docs/api/config#tauri)",
+      whitelist_key
+    ),
+  )
 }
 
 #[allow(dead_code)]

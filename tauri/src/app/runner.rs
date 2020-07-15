@@ -114,9 +114,9 @@ fn setup_content(app_config: &AppConfig) -> crate::Result<Content<String>> {
 // setup content for embedded server
 #[cfg(embedded_server)]
 fn setup_content(app_config: &AppConfig) -> crate::Result<Content<String>> {
-  let (port, valid) = setup_port(&app_config.config)?;
+  let (port, valid) = setup_port(&app_config)?;
   let url = (if valid {
-    setup_server_url(port, &config)
+    setup_server_url(port, &app_config)
   } else {
     Err(anyhow::anyhow!("invalid port"))
   })
@@ -136,8 +136,8 @@ fn setup_content(app_config: &AppConfig) -> crate::Result<Content<String>> {
 
 // get the port for the embedded server
 #[cfg(embedded_server)]
-fn setup_port(config: &Config) -> crate::Result<(String, bool)> {
-  match config.tauri.embedded_server.port {
+fn setup_port(app_config: &AppConfig) -> crate::Result<(String, bool)> {
+  match app_config.config.tauri.embedded_server.port {
     tauri_config::Port::Random => match get_available_port() {
       Some(available_port) => Ok((available_port.to_string(), true)),
       None => Ok(("0".to_string(), false)),
@@ -151,8 +151,8 @@ fn setup_port(config: &Config) -> crate::Result<(String, bool)> {
 
 // setup the server url for embedded server
 #[cfg(embedded_server)]
-fn setup_server_url(port: String, config: &Config) -> crate::Result<String> {
-  let mut url = format!("{}:{}", config.tauri.embedded_server.host, port);
+fn setup_server_url(port: String, app_config: &AppConfig) -> crate::Result<String> {
+  let mut url = format!("{}:{}", app_config.config.tauri.embedded_server.host, port);
   if !url.starts_with("http") {
     url = format!("http://{}", url);
   }

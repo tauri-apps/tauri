@@ -54,6 +54,7 @@ impl PackageType {
   }
 
   /// Gets the short name of this PackageType.
+  #[allow(clippy::trivially_copy_pass_by_ref)]
   pub fn short_name(&self) -> &'static str {
     match *self {
       PackageType::Deb => "deb",
@@ -379,7 +380,10 @@ impl Settings {
 
     let mut binaries: Vec<BundleBinary> = vec![];
     if let Some(bin) = cargo_settings.bin {
-      let default_run = package.default_run.clone().unwrap_or("".to_string());
+      let default_run = package
+        .default_run
+        .clone()
+        .unwrap_or_else(|| "".to_string());
       for binary in bin {
         binaries.push(
           BundleBinary::new(
@@ -391,16 +395,17 @@ impl Settings {
       }
     }
 
-    let mut bins_path = PathBuf::from(current_dir);
+    let mut bins_path = current_dir;
     bins_path.push("src/bin");
     if let Ok(fs_bins) = std::fs::read_dir(bins_path) {
       for entry in fs_bins {
         let path = entry?.path();
         if let Some(name) = path.file_stem() {
-          if !binaries.iter().any(|bin| {
+          let bin_exists = binaries.iter().any(|bin| {
             bin.name.as_str() == name
               || path.ends_with(bin.src_path.as_ref().unwrap_or(&"".to_string()))
-          }) {
+          });
+          if !bin_exists {
             binaries.push(BundleBinary::new(name.to_string_lossy().to_string(), false))
           }
         }
@@ -442,7 +447,7 @@ impl Settings {
     is_release: bool,
   ) -> PathBuf {
     let mut path = project_root_dir.join("target");
-    if let &Some((ref triple, _)) = target {
+    if let Some((ref triple, _)) = *target {
       path.push(triple);
     }
     path.push(if is_release { "release" } else { "debug" });
@@ -459,22 +464,18 @@ impl Settings {
     let project_name = CargoSettings::load(&dir).unwrap().package.unwrap().name;
 
     while dir.pop() {
-      match CargoSettings::load(&dir) {
-        Ok(cargo_settings) => match cargo_settings.workspace {
-          Some(workspace_settings) => {
-            if workspace_settings.members.is_some()
-              && workspace_settings
-                .members
-                .expect("Couldn't get members")
-                .iter()
-                .any(|member| member.as_str() == project_name)
-            {
-              return dir;
-            }
+      if let Ok(cargo_settings) = CargoSettings::load(&dir) {
+        if let Some(workspace_settings) = cargo_settings.workspace {
+          if workspace_settings.members.is_some()
+            && workspace_settings
+              .members
+              .expect("Couldn't get members")
+              .iter()
+              .any(|member| member.as_str() == project_name)
+          {
+            return dir;
           }
-          None => {}
-        },
-        Err(_) => {}
+        }
       }
     }
 
@@ -796,7 +797,7 @@ fn parse_external_bin(bundle_settings: BundleSettings) -> crate::Result<BundleSe
 
 /// Returns the first Option with a value, or None if both are None.
 fn options_value<T>(first: Option<T>, second: Option<T>) -> Option<T> {
-  if let Some(_) = first {
+  if first.is_some() {
     first
   } else {
     second
@@ -905,14 +906,12 @@ impl<'a> Iterator for ResourcePaths<'a> {
           }
           self.current_pattern_is_valid = true;
           return Some(Ok(path));
-        } else {
-          if let Some(current_path) = &self.current_pattern {
-            if !self.current_pattern_is_valid {
-              return Some(Err(crate::Error::GenericError(format!(
-                "Path matching '{}' not found",
-                current_path
-              ))));
-            }
+        } else if let Some(current_path) = &self.current_pattern {
+          if !self.current_pattern_is_valid {
+            return Some(Err(crate::Error::GenericError(format!(
+              "Path matching '{}' not found",
+              current_path
+            ))));
           }
         }
       }
@@ -1035,17 +1034,17 @@ mod tests {
 
     let bins = bundle.bin.as_ref().expect("Failed to get bin ref");
     assert!(bins.contains_key("foo"));
-    let foo: &BundleSettings = bins.get("foo").expect("Failed to get foo bundle settings");
-    assert_eq!(foo.name, Some("Foo App".to_string()));
+    let foo_settings: &BundleSettings = bins.get("foo").expect("Failed to get foo bundle settings");
+    assert_eq!(foo_settings.name, Some("Foo App".to_string()));
     assert!(bins.contains_key("bar"));
-    let bar: &BundleSettings = bins.get("bar").expect("Failed to get bar bundle settings");
-    assert_eq!(bar.name, Some("Bar App".to_string()));
+    let bar_settings: &BundleSettings = bins.get("bar").expect("Failed to get bar bundle settings");
+    assert_eq!(bar_settings.name, Some("Bar App".to_string()));
 
     let examples = bundle.example.as_ref().expect("Failed to get example ref");
     assert!(examples.contains_key("baz"));
-    let baz: &BundleSettings = examples
+    let baz_settings: &BundleSettings = examples
       .get("baz")
       .expect("Failed to get baz bundle settings");
-    assert_eq!(baz.name, Some("Baz Example".to_string()));
+    assert_eq!(baz_settings.name, Some("Baz Example".to_string()));
   }
 }

@@ -1,6 +1,14 @@
-name: test library
+name: test core
 
-on: pull_request
+on:
+  pull_request:
+    paths:
+      - .github/workflows/test-core.yml
+      - ./cli/**
+      - ./tauri/**
+      - ./tauri-api/**
+      - ./tauri-utils/**
+
 env:
   RUST_BACKTRACE: 1
 
@@ -37,25 +45,6 @@ jobs:
         env:
           TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
           TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
-
-  build-tauri-bundler:
-    runs-on: ${{ matrix.platform }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [ubuntu-latest, macos-latest, windows-latest]
-
-    steps:
-      - uses: actions/checkout@v2
-      - name: install stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-      - name: build
-        run: |
-          cd ./cli/tauri-bundler
-          cargo build
 
   test-tauri-js-cli:
     runs-on: ${{ matrix.platform }}

@@ -4,7 +4,7 @@ use quote::quote;
 use std::path::{Path, PathBuf};
 use syn::Lit::Str;
 use syn::Meta::NameValue;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{parse_macro_input, DeriveInput, MetaNameValue};
 use tauri_config::Config;
 
 const DEFAULT_CONFIG_FILE: &str = "tauri.conf.json";
@@ -22,34 +22,32 @@ pub fn from_tauri_config(ast: TokenStream) -> TokenStream {
   let app_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
 
   // quick way of parsing #[tauri_config_path = "path_goes_here"]
-  let attr = input
-    .attrs
-    .into_iter()
-    .filter(|attr| attr.path.is_ident("tauri_config_path"))
-    .next();
   let mut config_file_path = DEFAULT_CONFIG_FILE.into();
-  if let Some(attr) = attr {
+  let tauri_config_path_attr = input
+    .attrs
+    .iter()
+    .find(|attr| attr.path.is_ident("tauri_config_path"));
+  if let Some(attr) = tauri_config_path_attr {
     if let Ok(meta) = attr.parse_meta() {
-      if let NameValue(meta) = meta {
-        if meta.path.is_ident("tauri_config_path") {
-          if let Str(lit) = meta.lit {
-            config_file_path = lit.value()
-          }
-        }
+      if let NameValue(MetaNameValue { lit: Str(path), .. }) = meta {
+        config_file_path = path.value()
       }
     }
   }
 
   let full_config_path = Path::new(&app_dir).join(config_file_path);
   let config = Config::read(&full_config_path).unwrap();
-
-  // let's rewrite some index.html
   let config_dir = full_config_path.parent().unwrap();
   let dist_dir = config_dir.join(config.build.dist);
 
+  // generate the assets into a perfect hash function
   let assets_codegen = generate_assets(&dist_dir).unwrap();
+
+  // copy over the build tauri index file from `tauri dev/build`
+  // should be possible to do the manipulations during this codegen too in the future, if wanted
   let tauri_index_html = dist_dir.join("index.tauri.html");
 
+  // format paths at string to use them in quote!
   let tauri_config_path = full_config_path.display().to_string();
   let assets_codegen = assets_codegen.display().to_string();
   let tauri_index_html = tauri_index_html.display().to_string();

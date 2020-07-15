@@ -2,4 +2,4 @@
 "tauri.js": patch
 ---
 
-The Node.js CLI now exits when running with administrator privileges.
+Prevent running the `dev` pipeline when running with administrator privileges.

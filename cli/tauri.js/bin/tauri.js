@@ -1,17 +1,5 @@
 #!/usr/bin/env node
 
-const { platform } = require('os')
-if (platform() === 'win32' && !process.env.CI) {
-  const { resolve } = require('path')
-  const { sync: spawnSync } = require('cross-spawn')
-  const child = spawnSync('powershell', [resolve(__dirname, '../scripts/is-admin.ps1')])
-  const response = String(child.output[1]).replace('\n', '').trim()
-  if (response === 'True') {
-    console.error(`Administrator privileges detected. Tauri doesn't work when running as admin, see https://github.com/Boscop/web-view/issues/96`)
-    process.exit(1)
-  }
-}
-
 const cmds = ['init', 'dev', 'build', 'help', 'icon', 'info', 'deps']
 
 const cmd = process.argv[2]

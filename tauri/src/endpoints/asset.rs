@@ -7,6 +7,7 @@ pub fn load(
   asset_type: String,
   callback: String,
   error: String,
+  assets: &'static tauri_includedir::Files,
 ) {
   let mut webview_mut = webview.as_mut();
   crate::execute_promise(
@@ -19,7 +20,7 @@ pub fn load(
       });
       let mut read_asset;
       loop {
-        read_asset = crate::assets::ASSETS.get(&format!(
+        read_asset = assets.get(&format!(
           "{}/{}",
           option_env!("TAURI_DIST_DIR")
             .expect("tauri apps should be built with the TAURI_DIST_DIR environment variable"),

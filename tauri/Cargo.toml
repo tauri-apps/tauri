@@ -21,8 +21,7 @@ features = [ "all-api" ]
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
 webview_rust = { version = "0.1", git = "https://github.com/webview/webview_rust.git", branch = "fix/eval-webviewmut" }
-tauri_includedir = "0.6.0"
-phf = "0.8.0"
+tauri_includedir = { git = "https://github.com/chippers/tauri-includedir", branch = "tauri_no_build_env" }
 base64 = "0.12.3"
 webbrowser = "0.5.4"
 lazy_static = "1.4.0"
@@ -33,6 +32,8 @@ anyhow = "1.0.31"
 thiserror = "1.0.20"
 envmnt = "0.8.3"
 once_cell = "1.4.0"
+tauri-config = { version = "0.1", path = "../tauri-config" }
+tauri-config-derive = { version = "0.1", path = "../tauri-config-derive" }
 tauri-api = { version = "0.7", path = "../tauri-api" }
 urlencoding = "1.1.1"
 
@@ -40,7 +41,7 @@ urlencoding = "1.1.1"
 runas = "0.2"
 
 [build-dependencies]
-tauri_includedir_codegen = "0.6.2"
+tauri_includedir_codegen = { git = "https://github.com/chippers/tauri-includedir", branch = "tauri_no_build_env" }
 cfg_aliases = "0.1.0"
 
 [dev-dependencies]
@@ -75,3 +76,4 @@ notification = [ "tauri-api/notification" ]
 [[example]]
 name = "communication"
 path = "examples/communication/src-tauri/src/main.rs"
+test = true

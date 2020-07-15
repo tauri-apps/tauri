@@ -2,10 +2,12 @@ use serde::de::{Deserializer, Error as DeError, Visitor};
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
 
-use once_cell::sync::OnceCell;
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::BufReader;
+use std::path::Path;
 
-static CONFIG: OnceCell<Config> = OnceCell::new();
+//static CONFIG: OnceCell<Config> = OnceCell::new();
 
 /// The window configuration object.
 #[derive(PartialEq, Deserialize, Debug)]
@@ -215,7 +217,7 @@ pub struct CliArg {
 }
 
 /// The CLI root command definition.
-#[derive(PartialEq, Deserialize, Debug)]
+#[derive(PartialEq, Deserialize, Debug, Default)]
 #[serde(tag = "cli", rename_all = "camelCase")]
 pub struct CliConfig {
   description: Option<String>,
@@ -301,16 +303,22 @@ pub struct BuildConfig {
   /// the devPath config.
   #[serde(default = "default_dev_path")]
   pub dev_path: String,
+  /// the dist config.
+  #[serde(default = "default_dist_path")]
+  pub dist: String,
 }
 
 fn default_dev_path() -> String {
   "".to_string()
 }
+fn default_dist_path() -> String {
+  "../dist".to_string()
+}
 
 type JsonObject = HashMap<String, JsonValue>;
 
 /// The tauri.conf.json mapper.
-#[derive(PartialEq, Deserialize, Debug)]
+#[derive(PartialEq, Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
   /// The Tauri configuration.
@@ -329,6 +337,23 @@ impl Config {
   pub fn plugin_config<S: AsRef<str>>(&self, plugin_name: S) -> Option<&JsonObject> {
     self.plugins.get(plugin_name.as_ref())
   }
+
+  pub fn read(path: impl AsRef<Path>) -> anyhow::Result<Self> {
+    let file = File::open(path.as_ref())?;
+    let buf = BufReader::new(file);
+    serde_json::from_reader(buf).map_err(Into::into)
+  }
+}
+
+impl Default for TauriConfig {
+  fn default() -> Self {
+    Self {
+      window: default_window(),
+      embedded_server: default_embedded_server(),
+      cli: None,
+      bundle: default_bundle(),
+    }
+  }
 }
 
 fn default_tauri() -> TauriConfig {
@@ -340,31 +365,31 @@ fn default_tauri() -> TauriConfig {
   }
 }
 
-fn default_build() -> BuildConfig {
-  BuildConfig {
-    dev_path: default_dev_path(),
+impl Default for BuildConfig {
+  fn default() -> Self {
+    Self {
+      dev_path: default_dev_path(),
+      dist: default_dist_path(),
+    }
   }
 }
 
-/// Gets the static parsed config from `tauri.conf.json`.
-pub fn get() -> crate::Result<&'static Config> {
-  if let Some(config) = CONFIG.get() {
-    return Ok(config);
+fn default_build() -> BuildConfig {
+  BuildConfig {
+    dev_path: default_dev_path(),
+    dist: default_dist_path(),
   }
-  let config: Config = match option_env!("TAURI_CONFIG") {
-    Some(config) => serde_json::from_str(config).expect("failed to parse TAURI_CONFIG env"),
-    None => {
-      let config = include_str!(concat!(env!("OUT_DIR"), "/tauri.conf.json"));
-      serde_json::from_str(&config).expect("failed to read tauri.conf.json")
-    }
-  };
+}
 
-  CONFIG
-    .set(config)
-    .map_err(|_| anyhow::anyhow!("failed to set CONFIG"))?;
-
-  let config = CONFIG.get().unwrap();
-  Ok(config)
+// Not public API
+#[doc(hidden)]
+pub mod private {
+  pub trait AsTauriConfig {
+    fn config_path() -> &'static std::path::Path;
+    fn raw_config() -> &'static str;
+    fn assets() -> &'static tauri_includedir::Files;
+    fn raw_index() -> &'static str;
+  }
 }
 
 #[cfg(test)]

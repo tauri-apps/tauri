@@ -11,9 +11,6 @@
 )]
 //#![deny(clippy::all)]
 
-/// The asset management module.
-#[cfg(assets)]
-pub mod assets;
 /// The event system module.
 pub mod event;
 /// The embedded server helpers.
@@ -39,6 +36,10 @@ mod salt;
 pub use anyhow::Result;
 pub use app::*;
 pub use tauri_api as api;
+pub use tauri_config as config;
+pub use tauri_config_derive::FromTauriConfig;
+#[doc(hidden)]
+pub use tauri_includedir;
 pub use webview_rust_sys::{Webview, WebviewMut};
 
 use std::process::Stdio;

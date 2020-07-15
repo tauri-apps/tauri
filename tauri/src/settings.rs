@@ -1,10 +1,11 @@
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
-use std::fs::File;
-use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tauri_api::file::read_string;
 use tauri_api::path::{resolve_path, BaseDirectory};
+
+#[cfg(notification)]
+use std::{fs::File, io::Write, path::Path};
 
 /// Tauri Settings.
 #[derive(Default, Deserialize, Serialize)]
@@ -20,6 +21,7 @@ fn get_settings_path() -> tauri_api::Result<PathBuf> {
 }
 
 /// Write the settings to the file system.
+#[cfg(notification)]
 pub(crate) fn write_settings(settings: Settings) -> crate::Result<()> {
   let settings_path = get_settings_path()?;
   let settings_folder = Path::new(&settings_path).parent().unwrap();

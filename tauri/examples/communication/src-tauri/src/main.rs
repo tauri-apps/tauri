@@ -6,14 +6,25 @@
 mod cmd;
 
 use serde::Serialize;
+use tauri::FromTauriConfig;
 
 #[derive(Serialize)]
 struct Reply {
   data: String,
 }
 
+#[cfg(not(test))]
+#[derive(FromTauriConfig)]
+pub(crate) struct Config;
+
+#[cfg(test)]
+#[derive(FromTauriConfig)]
+#[tauri_config_path = "examples/communication/src-tauri/tauri.conf.json"]
+struct Config;
+
 fn main() {
-  tauri::AppBuilder::new()
+  let config = Config {};
+  tauri::AppBuilder::new(config)
     .setup(|webview, _source| {
       let mut webview = webview.as_mut();
       tauri::event::listen(String::from("js-event"), move |msg| {

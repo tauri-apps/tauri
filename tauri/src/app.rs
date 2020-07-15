@@ -1,3 +1,5 @@
+use tauri_config::private::AsTauriConfig;
+use tauri_config::Config;
 use webview_rust_sys::Webview;
 
 mod runner;
@@ -13,6 +15,8 @@ pub struct App {
   setup: Option<Setup>,
   /// The HTML of the splashscreen to render.
   splashscreen_html: Option<String>,
+  /// The config used
+  pub(crate) config: AppConfig,
 }
 
 impl App {
@@ -50,7 +54,6 @@ impl App {
 }
 
 /// The App builder.
-#[derive(Default)]
 pub struct AppBuilder {
   /// The JS message handler.
   invoke_handler: Option<InvokeHandler>,
@@ -58,15 +61,22 @@ pub struct AppBuilder {
   setup: Option<Setup>,
   /// The HTML of the splashscreen to render.
   splashscreen_html: Option<String>,
+  /// The config used
+  config: AppConfig,
 }
 
 impl AppBuilder {
   /// Creates a new App bulder.
-  pub fn new() -> Self {
+  pub fn new<TauriConfig: AsTauriConfig>() -> Self {
     Self {
       invoke_handler: None,
       setup: None,
       splashscreen_html: None,
+      config: AppConfig {
+        config: serde_json::from_str(TauriConfig::raw_config()).unwrap(),
+        /*assets: TauriConfig::assets(),
+        index: TauriConfig::raw_index(),*/
+      },
     }
   }
 
@@ -103,6 +113,13 @@ impl AppBuilder {
       invoke_handler: self.invoke_handler,
       setup: self.setup,
       splashscreen_html: self.splashscreen_html,
+      config: self.config,
     }
   }
+}
+
+pub(crate) struct AppConfig {
+  pub(crate) config: Config,
+  /*pub(crate) assets: &'static tauri_includedir::Files,
+  pub(crate) index: &'static str,*/
 }

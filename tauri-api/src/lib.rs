@@ -7,8 +7,6 @@
 
 /// The Command API module allows you to manage child processes.
 pub mod command;
-/// The Config module allows you to read the configuration from `tauri.conf.json`.
-pub mod config;
 /// The Dialog API module allows you to show messages and prompt for file paths.
 pub mod dialog;
 /// The Dir module is a helper for file system directory management.

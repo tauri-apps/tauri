@@ -3,8 +3,8 @@ name: test bundler
 on:
   pull_request:
     paths:
-      - .github/workflows/test-bundler.yml
-      - ./cli/tauri-bundler/**
+      - '.github/workflows/test-bundler.yml'
+      - './cli/tauri-bundler/**'
 env:
   RUST_BACKTRACE: 1
 

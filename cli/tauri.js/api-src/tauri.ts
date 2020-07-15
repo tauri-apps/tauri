@@ -36,6 +36,13 @@ function transformCallback(callback?: (response: any) => void, once = false): st
   return identifier
 }
 
+/**
+ * sends an asynchronous command to the backend
+ *
+ * @param args
+ *
+ * @return {Promise<T>} Promise resolving or rejecting to the backend response
+ */
 async function promisified<T>(args: any): Promise<T> {
   return await new Promise((resolve, reject) => {
     invoke({

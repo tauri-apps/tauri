@@ -9,14 +9,14 @@ const log = logger('dependency:manager')
 module.exports = {
   async installDependencies() {
     log('Installing missing dependencies...')
-    await rust.install()
+    rust.install()
     await cargoCommands.install()
     await cargoCrates.install()
     await npmPackages.install()
   },
   async updateDependencies() {
     log('Updating dependencies...')
-    await rust.update()
+    rust.update()
     await cargoCommands.update()
     await cargoCrates.update()
     await npmPackages.update()

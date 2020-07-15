@@ -25,21 +25,17 @@ async function download(url: string, dest: string): Promise<void> {
   })
 };
 
-async function installRustup(): Promise<void> {
+function installRustup(): void {
   if (platform() === 'win32') {
-    return spawnSync('powershell', [resolve(__dirname, '../../scripts/rustup-install.ps1')], process.cwd())
+    return spawnSync('powershell', [resolve(__dirname, '../../scripts/rustup-init.exe')], process.cwd())
   }
-  return await download('https://sh.rustup.rs', 'rustup.sh')
-    .then(() => {
-      spawnSync('rustup.sh', [], process.cwd())
-      unlinkSync('rustup.sh')
-    })
+  return spawnSync('/bin/sh', [resolve(__dirname, '../../scripts/rustup-init.sh')], process.cwd())
 }
 
-async function manageDependencies(managementType: ManagementType): Promise<void> {
+function manageDependencies(managementType: ManagementType): void {
   if (getScriptVersion('rustup') === null) {
     log('Installing rustup...')
-    await installRustup()
+    installRustup()
   }
 
   if (managementType === ManagementType.Update) {
@@ -47,12 +43,12 @@ async function manageDependencies(managementType: ManagementType): Promise<void>
   }
 }
 
-async function install(): Promise<void> {
-  return await manageDependencies(ManagementType.Install)
+function install(): void {
+  return manageDependencies(ManagementType.Install)
 }
 
-async function update(): Promise<void> {
-  return await manageDependencies(ManagementType.Update)
+function update(): void {
+  return manageDependencies(ManagementType.Update)
 }
 
 export {

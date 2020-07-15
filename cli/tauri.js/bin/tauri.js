@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const { platform } = require('os')
-if (platform() === 'win32') {
+if (platform() === 'win32' && !process.env.CI) {
   const { resolve } = require('path')
   const { sync: spawnSync } = require('cross-spawn')
   const child = spawnSync('powershell', [resolve(__dirname, '../scripts/is-admin.ps1')])

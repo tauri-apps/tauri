@@ -1,0 +1,54 @@
+name: test bundler
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/test-bundler.yml
+      - ./cli/tauri-bundler/**
+env:
+  RUST_BACKTRACE: 1
+
+jobs:
+  build-tauri-bundler:
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: install stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: test
+        run: |
+          cd ./cli/tauri-bundler
+          cargo test
+
+  clippy-fmt-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - run: rustup component add clippy
+      - name: clippy check
+        uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --manifest-path ./cli/tauri-bundler/Cargo.toml --all-targets -- -D warnings
+          name: bundler
+      - name: install rustfmt
+        uses: actions-rs/toolchain@v1
+        with:
+            profile: minimal
+            toolchain: nightly
+            override: true
+            components: rustfmt
+      - name: fmt check
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --manifest-path ./cli/tauri-bundler/Cargo.toml --all -- --check

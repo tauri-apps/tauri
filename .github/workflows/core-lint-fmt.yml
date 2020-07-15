@@ -1,10 +1,12 @@
-name: clippy, fmt and eslint check
+name: clippy and fmt check
 
 on:
-  push:
-    branches-ignore:
-      - latest
-      - dev
+  pull_request:
+    paths:
+      - .github/workflows/core-lint-fmt.yml
+      - ./tauri/**
+      - ./tauri-utils/**
+      - ./tauri-api/**
 
 jobs:
   workspace_clippy_fmt_check:
@@ -25,11 +27,6 @@ jobs:
         env:
           TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
           TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
-      - uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --manifest-path ./cli/tauri-bundler/Cargo.toml --all-targets -- -D warnings
-          name: bundler
       - uses: actions-rs/toolchain@v1
         with:
             profile: minimal
@@ -62,15 +59,3 @@ jobs:
         env:
           TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
           TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
-
-  eslint-check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v1
-      - name: install deps via yarn
-        working-directory: ./cli/tauri.js
-        run: yarn
-      - name: run eslint
-        working-directory: ./cli/tauri.js
-        run: yarn lint

@@ -11,6 +11,9 @@ const {
   merge
 } = require('lodash')
 const toml = require('@tauri-apps/toml')
+const {
+  installDependencies
+} = require('../dist/api/dependency-manager')
 
 /**
  * @type {object}
@@ -153,4 +156,6 @@ function runInit(config = {}) {
     }
     writeFileSync(manifestPath, toml.stringify(cargoManifest))
   }
+
+  installDependencies()
 }

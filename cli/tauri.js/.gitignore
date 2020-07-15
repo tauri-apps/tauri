@@ -65,10 +65,3 @@ package-lock.json
 
 #api
 api/*
-
-# Tauri output
-bundle.json
-config.json
-
-# rust compiled folders
-target

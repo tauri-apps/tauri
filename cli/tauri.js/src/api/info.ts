@@ -9,8 +9,17 @@ import { sync as spawn } from 'cross-spawn'
 import { TauriConfig } from './../types/config'
 import { CargoLock, CargoManifest } from '../types/cargo'
 import nonWebpackRequire from '../helpers/non-webpack-require'
-import { version } from '../../package.json'
+import packageJson from '../../package.json'
 import getScriptVersion from '../helpers/get-script-version'
+import { semverLt, getNpmLatestVersion, getCrateLatestVersion } from './dependency-manager/util'
+
+async function crateLatestVersion(name: string): Promise<string | undefined> {
+  try {
+    return await getCrateLatestVersion(name)
+  } catch {
+    return undefined
+  }
+}
 
 interface DirInfo {
   path: string
@@ -50,9 +59,7 @@ function getVersion(
   if (version === null) {
     return chalk.red('Not installed')
   } else {
-    return chalk
-      .green(formatter === undefined ? version : formatter(version))
-      .replace('\n', '')
+    return chalk.green(formatter === undefined ? version : formatter(version))
   }
 }
 
@@ -60,13 +67,31 @@ interface Info {
   section?: boolean
   key: string
   value?: string
+  suffix?: string
 }
 
 function printInfo(info: Info): void {
+  const suffix = info.suffix ? ` ${info.suffix}` : ''
   console.log(
     `${info.section ? '\n' : ''}${info.key}${
     info.value === undefined ? '' : ' - ' + info.value
-    }`
+    }${suffix}`
+  )
+}
+
+interface Version {
+  section?: boolean
+  key: string
+  version?: string | null
+  targetVersion?: string
+}
+
+function printVersion(info: Version): void {
+  const outdated = info.version && info.targetVersion && semverLt(info.version, info.targetVersion)
+  console.log(
+    `${info.section ? '\n' : ''}${info.key}${
+    info.version ? ' - ' + chalk.green(info.version) : chalk.red('Not installed')
+    }` + (outdated && info.targetVersion ? ` (${chalk.red('outdated, latest: ' + info.targetVersion)})` : '')
   )
 }
 
@@ -79,7 +104,7 @@ function readTomlFile<T extends CargoLock | CargoManifest>(filepath: string): T 
   }
 }
 
-function printAppInfo(tauriDir: string): void {
+async function printAppInfo(tauriDir: string): Promise<void> {
   printInfo({ key: 'App', section: true })
 
   const lockPath = path.join(tauriDir, 'Cargo.lock')
@@ -90,11 +115,14 @@ function printAppInfo(tauriDir: string): void {
   const manifest = readTomlFile<CargoManifest>(manifestPath)
 
   let tauriVersion
+  const foundTauriVersions = []
   if (manifest && lock && lockPackages.length === 1) {
     // everything looks good
+    foundTauriVersions.push(lockPackages[0].version)
     tauriVersion = chalk.green(lockPackages[0].version)
   } else if (lock && lockPackages.length === 1) {
     // good lockfile, but no manifest - will cause problems building
+    foundTauriVersions.push(lockPackages[0].version)
     tauriVersion = `${chalk.green(lockPackages[0].version)} (${chalk.red('no manifest')})`
   } else {
     // we found multiple/none `tauri` packages in the lockfile, or
@@ -103,8 +131,10 @@ function printAppInfo(tauriDir: string): void {
       const tauri = manifest?.dependencies.tauri
       if (tauri) {
         if (typeof tauri === 'string') {
+          foundTauriVersions.push(tauri)
           return chalk.yellow(tauri)
         } else if (tauri.version) {
+          foundTauriVersions.push(tauri.version)
           return chalk.yellow(tauri.version)
         } else if (tauri.path) {
           const manifestPath = path.resolve(tauriDir, tauri.path, 'Cargo.toml')
@@ -131,7 +161,15 @@ function printAppInfo(tauriDir: string): void {
     tauriVersion = `${manifestVersion()} (${chalk.yellow(lockVersion)})`
   }
 
-  printInfo({ key: '  tauri.rs', value: tauriVersion })
+  const tauriVersionString = foundTauriVersions.reduce((old, current) => semverLt(old, current) ? current : old, '0.0.0')
+  const latestTauriCore = await crateLatestVersion('tauri')
+  printInfo({
+    key: '  tauri.rs',
+    value: tauriVersion,
+    suffix: tauriVersionString !== '0.0.0' && latestTauriCore && semverLt(tauriVersionString, latestTauriCore)
+      ? `(${chalk.red('outdated, latest: ' + latestTauriCore)})`
+      : undefined
+  })
 
   try {
     const tauriMode = (config: TauriConfig): string => {
@@ -173,7 +211,7 @@ function printAppInfo(tauriDir: string): void {
   } catch (_) { }
 }
 
-module.exports = () => {
+module.exports = async () => {
   printInfo({
     key: 'Operating System',
     value: chalk.green(
@@ -191,10 +229,11 @@ module.exports = () => {
   }
 
   printInfo({ key: 'Node.js environment', section: true })
-  printInfo({ key: '  Node.js', value: chalk.green(process.version.slice(1)) })
-  printInfo({
+  printVersion({ key: '  Node.js', version: process.version.slice(1), targetVersion: packageJson.engines.node.replace('>= ', '') })
+  printVersion({
     key: '  tauri.js',
-    value: chalk.green(version)
+    version: packageJson.version,
+    targetVersion: getNpmLatestVersion('tauri')
   })
 
   printInfo({ key: 'Rust environment', section: true })
@@ -206,7 +245,11 @@ module.exports = () => {
     key: '  cargo',
     value: getVersion('cargo', [], output => output.split(' ')[1])
   })
-  printInfo({ key: '  tauri-bundler', value: getVersion('cargo', ['tauri-bundler']) })
+  printVersion({
+    key: '  tauri-bundler',
+    version: getScriptVersion('cargo', ['tauri-bundler']),
+    targetVersion: await crateLatestVersion('tauri-bundler')
+  })
 
   printInfo({ key: 'Global packages', section: true })
   printInfo({ key: '  NPM', value: getVersion('npm') })
@@ -221,7 +264,7 @@ module.exports = () => {
       console.log(`/${artifact.name}`)
     }
   }
-  printAppInfo(tauriDir)
+  await printAppInfo(tauriDir)
 }
 
 /* eslint-enable security/detect-non-literal-fs-filename */

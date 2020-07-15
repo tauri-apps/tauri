@@ -4,10 +4,10 @@ on:
   pull_request:
     paths:
       - '.github/workflows/test-core.yml'
-      - './cli/**'
-      - './tauri/**'
-      - './tauri-api/**'
-      - './tauri-utils/**'
+      - 'cli/**'
+      - 'tauri/**'
+      - 'tauri-api/**'
+      - 'tauri-utils/**'
 
 env:
   RUST_BACKTRACE: 1

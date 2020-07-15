@@ -15,6 +15,11 @@ function uid(): string {
     s4() + '-' + s4() + s4() + s4()
 }
 
+/**
+ * sends a synchronous command to the backend
+ *
+ * @param args
+ */
 function invoke(args: any): void {
   window.external.invoke(typeof args === 'object' ? JSON.stringify(args) : args)
 }
@@ -36,6 +41,13 @@ function transformCallback(callback?: (response: any) => void, once = false): st
   return identifier
 }
 
+/**
+ * sends an asynchronous command to the backend
+ *
+ * @param args
+ *
+ * @return {Promise<T>} Promise resolving or rejecting to the backend response
+ */
 async function promisified<T>(args: any): Promise<T> {
   return await new Promise((resolve, reject) => {
     invoke({

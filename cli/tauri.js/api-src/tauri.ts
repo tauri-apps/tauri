@@ -15,6 +15,11 @@ function uid(): string {
     s4() + '-' + s4() + s4() + s4()
 }
 
+/**
+ * sends a synchronous command to the backend
+ *
+ * @param args
+ */
 function invoke(args: any): void {
   window.external.invoke(typeof args === 'object' ? JSON.stringify(args) : args)
 }

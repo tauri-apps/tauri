@@ -25,10 +25,10 @@ Please visit the main readme for further information about contributing.
 
 ## Installation
 
-The preferred method is to install this module locally as a dev dependency:
+The preferred method is to install this module locally as a dependency:
 ```
-$ npm install --save-dev tauri
-$ yarn add --dev tauri
+$ npm install tauri
+$ yarn add tauri
 ```
 
 ## Semver

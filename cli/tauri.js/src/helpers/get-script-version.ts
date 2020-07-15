@@ -8,7 +8,7 @@ export default function getVersion(
     const child = spawn(command, [...args, '--version'])
     if (child.status === 0) {
       const output = String(child.output[1])
-      return output
+      return output.replace(/\n/g, '')
     }
     return null
   } catch (err) {

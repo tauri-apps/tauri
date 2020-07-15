@@ -3,8 +3,8 @@ name: eslint check
 on:
   pull_request:
     paths:
-      - .github/workflows/js-lint.yml
-      - ./cli/tauri.js/**
+      - '.github/workflows/js-lint.yml'
+      - './cli/tauri.js/**'
 
 jobs:
   eslint-check:

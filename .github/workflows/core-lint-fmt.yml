@@ -3,10 +3,10 @@ name: clippy and fmt check
 on:
   pull_request:
     paths:
-      - .github/workflows/core-lint-fmt.yml
-      - ./tauri/**
-      - ./tauri-utils/**
-      - ./tauri-api/**
+      - '.github/workflows/core-lint-fmt.yml'
+      - './tauri/**'
+      - './tauri-utils/**'
+      - './tauri-api/**'
 
 jobs:
   workspace_clippy_fmt_check:

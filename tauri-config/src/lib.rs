@@ -7,8 +7,6 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
-//static CONFIG: OnceCell<Config> = OnceCell::new();
-
 /// The window configuration object.
 #[derive(PartialEq, Deserialize, Debug)]
 #[serde(tag = "window", rename_all = "camelCase")]
@@ -217,7 +215,7 @@ pub struct CliArg {
 }
 
 /// The CLI root command definition.
-#[derive(PartialEq, Deserialize, Debug, Default)]
+#[derive(PartialEq, Deserialize, Debug)]
 #[serde(tag = "cli", rename_all = "camelCase")]
 pub struct CliConfig {
   description: Option<String>,
@@ -318,7 +316,7 @@ fn default_dist_path() -> String {
 type JsonObject = HashMap<String, JsonValue>;
 
 /// The tauri.conf.json mapper.
-#[derive(PartialEq, Deserialize, Debug, Default)]
+#[derive(PartialEq, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
   /// The Tauri configuration.
@@ -345,32 +343,12 @@ impl Config {
   }
 }
 
-impl Default for TauriConfig {
-  fn default() -> Self {
-    Self {
-      window: default_window(),
-      embedded_server: default_embedded_server(),
-      cli: None,
-      bundle: default_bundle(),
-    }
-  }
-}
-
 fn default_tauri() -> TauriConfig {
   TauriConfig {
     window: default_window(),
     embedded_server: default_embedded_server(),
     cli: None,
     bundle: default_bundle(),
-  }
-}
-
-impl Default for BuildConfig {
-  fn default() -> Self {
-    Self {
-      dev_path: default_dev_path(),
-      dist: default_dist_path(),
-    }
   }
 }
 

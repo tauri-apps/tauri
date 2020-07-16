@@ -2,7 +2,6 @@ use super::category::AppCategory;
 use crate::bundle::common;
 use crate::bundle::platform::target_triple;
 
-use clap::ArgMatches;
 use glob;
 use serde::Deserialize;
 use target_build_utils::TargetInfo;
@@ -298,49 +297,46 @@ impl CargoSettings {
   }
 }
 
-impl Settings {
+#[derive(Default)]
+pub struct SettingsBuilder {
+  target_triple: Option<String>,
+  release: bool,
+  package_types: Option<Vec<PackageType>>,
+  features: Option<Vec<String>>,
+}
+
+impl SettingsBuilder {
+  pub fn new() -> Self {
+    Default::default()
+  }
+
+  pub fn target(mut self, target_triple: String) -> Self {
+    self.target_triple = Some(target_triple);
+    self
+  }
+
+  pub fn release(mut self) -> Self {
+    self.release = true;
+    self
+  }
+
+  pub fn package_types(mut self, package_types: Vec<PackageType>) -> Self {
+    self.package_types = Some(package_types);
+    self
+  }
+
+  pub fn features(mut self, features: Vec<String>) -> Self {
+    self.features = Some(features);
+    self
+  }
+
   /// Builds a Settings from the CLI args.
   ///
   /// Package settings will be read from Cargo.toml.
   ///
   /// Bundle settings will be read from from $TAURI_DIR/tauri.conf.json if it exists and fallback to Cargo.toml's [package.metadata.bundle].
-  pub fn new(current_dir: PathBuf, matches: &ArgMatches<'_>) -> crate::Result<Self> {
-    let package_types = match matches.values_of("format") {
-      Some(names) => {
-        let mut types = vec![];
-        for name in names {
-          match PackageType::from_short_name(name) {
-            Some(package_type) => {
-              types.push(package_type);
-            }
-            None => {
-              return Err(crate::Error::GenericError(format!(
-                "Unsupported bundle format: {}",
-                name
-              )));
-            }
-          }
-        }
-        Some(types)
-      }
-      None => None,
-    };
-    let is_release = matches.is_present("release");
-    let target = match matches.value_of("target") {
-      Some(triple) => Some((triple.to_string(), TargetInfo::from_str(triple)?)),
-      None => None,
-    };
-    let features = if matches.is_present("features") {
-      Some(
-        matches
-          .values_of("features")
-          .expect("Couldn't get the features")
-          .map(|s| s.to_string())
-          .collect(),
-      )
-    } else {
-      None
-    };
+  pub fn build(self) -> crate::Result<Settings> {
+    let current_dir = std::env::current_dir()?;
     let cargo_settings = CargoSettings::load(&current_dir)?;
     let tauri_config = super::tauri_config::get();
 
@@ -353,7 +349,12 @@ impl Settings {
       }
     };
     let workspace_dir = Settings::get_workspace_dir(&current_dir);
-    let target_dir = Settings::get_target_dir(&workspace_dir, &target, is_release);
+    let target = if let Some(target_triple) = self.target_triple {
+      Some((target_triple.clone(), TargetInfo::from_str(&target_triple)?))
+    } else {
+      None
+    };
+    let target_dir = Settings::get_target_dir(&workspace_dir, &target, self.release);
     let bundle_settings = match tauri_config {
       Ok(config) => merge_settings(BundleSettings::default(), config.tauri.bundle),
       Err(e) => {
@@ -429,16 +430,18 @@ impl Settings {
 
     Ok(Settings {
       package,
-      package_types,
+      package_types: self.package_types,
       target,
-      features,
-      is_release,
+      features: self.features,
+      is_release: self.release,
       project_out_directory: target_dir,
       binaries,
       bundle_settings,
     })
   }
+}
 
+impl Settings {
   /// This function determines where 'target' dir is and suffixes it with 'release' or 'debug'
   /// to determine where the compiled binary will be located.
   fn get_target_dir(

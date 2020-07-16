@@ -17,7 +17,7 @@ mod wix;
 
 pub use self::common::print_info;
 pub use self::common::{print_error, print_finished};
-pub use self::settings::{PackageType, Settings};
+pub use self::settings::{PackageType, Settings, SettingsBuilder};
 
 use std::path::PathBuf;
 

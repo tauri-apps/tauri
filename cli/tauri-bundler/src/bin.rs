@@ -2,7 +2,9 @@
 use tauri_bundler::bundle::tauri_config::get as get_tauri_config;
 use tauri_bundler::{
   build_project,
-  bundle::{bundle_project, check_icons, print_error, print_finished, PackageType, Settings},
+  bundle::{
+    bundle_project, check_icons, print_error, print_finished, PackageType, SettingsBuilder,
+  },
 };
 pub use tauri_bundler::{Error, Result};
 
@@ -105,13 +107,38 @@ fn run() -> crate::Result<()> {
     }
   }
 
-  if let Some(m) = m.subcommand_matches("tauri-bundler") {
-    if m.is_present("version") {
+  if let Some(matches) = m.subcommand_matches("tauri-bundler") {
+    if matches.is_present("version") {
       println!("{}", crate_version!());
     } else {
-      let output_paths = env::current_dir()
-        .map_err(From::from)
-        .and_then(|d| Settings::new(d, m))
+      let mut settings_builder = SettingsBuilder::new();
+      if let Some(names) = matches.values_of("format") {
+        let mut types = vec![];
+        for name in names {
+          match PackageType::from_short_name(name) {
+            Some(package_type) => {
+              types.push(package_type);
+            }
+            None => {
+              return Err(crate::Error::GenericError(format!(
+                "Unsupported bundle format: {}",
+                name
+              )));
+            }
+          }
+        }
+        settings_builder = settings_builder.package_types(types);
+      }
+
+      if let Some(triple) = matches.value_of("target") {
+        settings_builder = settings_builder.target(triple.to_string());
+      }
+      if let Some(features) = matches.values_of_lossy("features") {
+        settings_builder = settings_builder.features(features);
+      }
+
+      let output_paths = settings_builder
+        .build()
         .and_then(|s| {
           if check_icons(&s)? {
             build_project(&s)?;

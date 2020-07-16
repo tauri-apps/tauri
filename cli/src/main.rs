@@ -4,8 +4,11 @@ use std::convert::TryInto;
 
 mod build;
 mod dev;
+mod helpers;
 mod info;
 mod init;
+
+pub use helpers::Logger;
 
 fn init_command(matches: &ArgMatches) -> Result<()> {
   let force = matches.value_of("force");

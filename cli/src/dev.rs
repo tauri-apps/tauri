@@ -1,4 +1,4 @@
-use crate::helpers::{config::get as get_config, TauriHtml};
+use crate::helpers::{config::get as get_config, Logger, TauriHtml};
 use attohttpc::{Method, RequestBuilder};
 use http::header::HeaderName;
 use tiny_http::{Response, Server};
@@ -20,11 +20,14 @@ impl Dev {
   }
 
   pub fn run(self) -> crate::Result<()> {
+    let logger = Logger::new("tauri:dev");
     let config = get_config()?;
     let dev_path = Url::parse(&config.build.dev_path)?;
-    let dev_port = dev_path.port().unwrap_or(80);
+    let dev_port = dev_path.port().unwrap_or(80) + 1;
+    logger.log(format!("starting dev proxy on port {}", dev_port));
     std::thread::spawn(move || proxy_dev_server(&dev_path, dev_port));
-    unimplemented!()
+
+    Ok(())
   }
 }
 
@@ -34,7 +37,7 @@ fn proxy_dev_server(dev_path: &Url, dev_port: u16) -> crate::Result<()> {
   let server_url = format!(
     "{}:{}",
     dev_path.host_str().expect("failed to read dev_path host"),
-    dev_port + 1,
+    dev_port,
   );
   let server = Server::http(server_url).expect("failed to create proxy server");
   for request in server.incoming_requests() {

@@ -55,8 +55,8 @@ pub fn request_permission<T: 'static>(
     webview,
     move || {
       let mut settings = crate::settings::read_settings()?;
-      let granted = r#""granted""#.to_string();
-      let denied = r#""denied""#.to_string();
+      let granted = "granted".to_string();
+      let denied = "denied".to_string();
       if let Some(allow_notification) = settings.allow_notification {
         return Ok(if allow_notification { granted } else { denied });
       }
@@ -75,7 +75,7 @@ pub fn request_permission<T: 'static>(
           crate::settings::write_settings(settings)?;
           Ok(denied)
         }
-        _ => Ok(r#""default""#.to_string()),
+        _ => Ok("default".to_string()),
       }
     },
     callback,

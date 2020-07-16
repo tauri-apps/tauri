@@ -1,41 +1,16 @@
-mod bundle;
-mod error;
-pub use error::{Error, Result};
-
-use crate::bundle::{bundle_project, check_icons, PackageType, Settings};
+#[cfg(windows)]
+use tauri_bundler::bundle::tauri_config::get as get_tauri_config;
+use tauri_bundler::{
+  build_project,
+  bundle::{bundle_project, check_icons, print_error, print_finished, PackageType, Settings},
+};
+pub use tauri_bundler::{Error, Result};
 
 use clap::{crate_version, App, AppSettings, Arg, SubCommand};
 
 #[cfg(windows)]
 use runas::Command;
 use std::env;
-use std::process;
-
-// Runs `cargo build` to make sure the binary file is up-to-date.
-fn build_project_if_unbuilt(settings: &Settings) -> crate::Result<()> {
-  let mut args = vec!["build".to_string()];
-
-  if let Some(triple) = settings.target_triple() {
-    args.push(format!("--target={}", triple));
-  }
-
-  if settings.is_release_build() {
-    args.push("--release".to_string());
-  }
-
-  if let Some(features) = settings.build_features() {
-    args.push(format!("--features={}", features.join(" ")));
-  }
-
-  let status = process::Command::new("cargo").args(args).status()?;
-  if !status.success() {
-    return Err(crate::Error::GenericError(format!(
-      "Result of `cargo build` operation was unsuccessful: {}",
-      status
-    )));
-  }
-  Ok(())
-}
 
 // Runs the CLI.
 fn run() -> crate::Result<()> {
@@ -104,7 +79,7 @@ fn run() -> crate::Result<()> {
 
   #[cfg(windows)]
   {
-    if let Ok(tauri_config) = crate::bundle::tauri_config::get() {
+    if let Ok(tauri_config) = get_tauri_config() {
       if tauri_config.tauri.embedded_server.active {
         let exempt_output = std::process::Command::new("CheckNetIsolation")
           .args(&vec!["LoopbackExempt", "-s"])
@@ -139,14 +114,14 @@ fn run() -> crate::Result<()> {
         .and_then(|d| Settings::new(d, m))
         .and_then(|s| {
           if check_icons(&s)? {
-            build_project_if_unbuilt(&s)?;
+            build_project(&s)?;
             Ok(s)
           } else {
             Err(crate::Error::IconPathError)
           }
         })
         .and_then(bundle_project)?;
-      bundle::print_finished(&output_paths)?;
+      print_finished(&output_paths)?;
     }
   }
   Ok(())
@@ -154,6 +129,6 @@ fn run() -> crate::Result<()> {
 
 fn main() {
   if let Err(error) = run() {
-    bundle::print_error(&error.into()).expect("Failed to call print error in main");
+    print_error(&error.into()).expect("Failed to call print error in main");
   }
 }

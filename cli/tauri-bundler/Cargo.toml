@@ -1,5 +1,3 @@
-workspace = { }
-
 [package]
 name = "tauri-bundler"
 version = "0.8.5"
@@ -56,4 +54,8 @@ tempfile = "3"
 
 [[bin]]
 name = "cargo-tauri-bundler"
-path = "src/main.rs"
+path = "src/bin.rs"
+
+[lib]
+name = "tauri_bundler"
+path = "src/lib.rs"

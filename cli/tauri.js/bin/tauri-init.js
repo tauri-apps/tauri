@@ -119,7 +119,7 @@ if (argv.ci) {
     })
 }
 
-function runInit(config = {}) {
+async function runInit(config = {}) {
   const {
     appName,
     ...configOptions
@@ -157,5 +157,5 @@ function runInit(config = {}) {
     writeFileSync(manifestPath, toml.stringify(cargoManifest))
   }
 
-  installDependencies()
+  await installDependencies()
 }

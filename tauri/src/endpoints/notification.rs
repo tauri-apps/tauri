@@ -11,10 +11,9 @@ pub fn send<T: 'static>(
   crate::execute_promise(
     webview,
     move || {
-      let mut notification = tauri_api::notification::Notification::new();
-      notification = notification.body(options.body);
-      if let Some(title) = options.title {
-        notification = notification.title(title);
+      let mut notification = tauri_api::notification::Notification::new().title(options.title);
+      if let Some(body) = options.body {
+        notification = notification.body(body);
       }
       if let Some(icon) = options.icon {
         notification = notification.icon(icon);

@@ -53,9 +53,9 @@ pub struct SaveDialogOptions {
 #[derive(Deserialize)]
 pub struct NotificationOptions {
   /// The notification title.
-  pub title: Option<String>,
+  pub title: String,
   /// The notification body.
-  pub body: String,
+  pub body: Option<String>,
   /// The notification icon.
   pub icon: Option<String>,
 }

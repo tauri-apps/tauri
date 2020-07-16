@@ -220,7 +220,7 @@ switch (navigator.platform) {
           return window.__TAURI__.promisified({
             cmd: 'notification',
             options: typeof options === 'string' ? {
-              body: options
+              title: options
             } : options
           })
         }

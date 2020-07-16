@@ -1,8 +1,10 @@
-use crate::helpers::{config::get as get_config, Logger, TauriHtml};
+use crate::helpers::{app_paths::app_dir, config::get as get_config, Logger, TauriHtml};
 use attohttpc::{Method, RequestBuilder};
 use http::header::HeaderName;
 use tiny_http::{Response, Server};
 use url::Url;
+
+use std::process::Command;
 
 #[derive(Default)]
 pub struct Dev {
@@ -22,8 +24,29 @@ impl Dev {
   pub fn run(self) -> crate::Result<()> {
     let logger = Logger::new("tauri:dev");
     let config = get_config()?;
+
+    if let Some(before_build) = &config.build.before_build_command {
+      let mut cmd: Option<&str> = None;
+      let mut args: Vec<&str> = vec![];
+      for token in before_build.split(" ") {
+        if cmd.is_none() {
+          cmd = Some(token);
+        } else {
+          args.push(token)
+        }
+      }
+
+      if let Some(cmd) = cmd {
+        Command::new(cmd)
+          .args(args)
+          .current_dir(app_dir())
+          .spawn()?;
+      }
+    }
+
     let dev_path = Url::parse(&config.build.dev_path)?;
     let dev_port = dev_path.port().unwrap_or(80) + 1;
+
     logger.log(format!("starting dev proxy on port {}", dev_port));
     std::thread::spawn(move || proxy_dev_server(&dev_path, dev_port));
 

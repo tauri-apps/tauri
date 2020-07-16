@@ -3,12 +3,17 @@ use tauri_bundler::{
   bundle::{bundle_project, PackageType, SettingsBuilder},
 };
 
-use crate::helpers::{app_paths::tauri_dir, config::get as get_config, TauriHtml};
+use crate::helpers::{
+  app_paths::{app_dir, tauri_dir},
+  config::get as get_config,
+  execute_with_output, TauriHtml,
+};
 use std::env::{set_current_dir, set_var};
 use std::fs::read_to_string;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
+use std::process::Command;
 
 #[derive(Default)]
 pub struct Build {
@@ -75,6 +80,24 @@ impl Build {
     tauri_index_html_file.write_all(tauri_html.as_bytes())?;
 
     let settings = settings_builder.build()?;
+
+    if let Some(before_build) = &config.build.before_build_command {
+      let mut cmd: Option<&str> = None;
+      let mut args: Vec<&str> = vec![];
+      for token in before_build.split(" ") {
+        if cmd.is_none() {
+          cmd = Some(token);
+        } else {
+          args.push(token)
+        }
+      }
+
+      if let Some(cmd) = cmd {
+        let mut command = Command::new(cmd);
+        command.args(args).current_dir(app_dir());
+        execute_with_output(&mut command)?;
+      }
+    }
 
     build_project(&settings)?;
     bundle_project(settings)?;

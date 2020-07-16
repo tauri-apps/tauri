@@ -315,6 +315,8 @@ pub struct BuildConfig {
   pub dev_path: String,
   #[serde(default = "default_dist_dir")]
   pub dist_dir: String,
+  pub before_dev_command: Option<String>,
+  pub before_build_command: Option<String>,
 }
 
 fn default_dev_path() -> String {
@@ -356,6 +358,8 @@ fn default_build() -> BuildConfig {
   BuildConfig {
     dev_path: default_dev_path(),
     dist_dir: default_dist_dir(),
+    before_dev_command: None,
+    before_build_command: None,
   }
 }
 

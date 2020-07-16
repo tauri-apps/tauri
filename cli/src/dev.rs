@@ -1,12 +1,25 @@
-use crate::helpers::{app_paths::app_dir, config::get as get_config, Logger, TauriHtml};
+use crate::helpers::{
+  app_paths::{app_dir, tauri_dir},
+  config::get as get_config,
+  execute_with_output, Logger, TauriHtml,
+};
 use attohttpc::{Method, RequestBuilder};
 use http::header::HeaderName;
 use tiny_http::{Response, Server};
 use url::Url;
 
-use std::process::{exit, Command};
+use std::env::set_var;
+use std::process::{exit, Child, Command};
 use std::thread::sleep;
 use std::time::Duration;
+
+struct ChildGuard(Child);
+
+impl Drop for ChildGuard {
+  fn drop(&mut self) {
+    let _ = self.0.kill();
+  }
+}
 
 #[derive(Default)]
 pub struct Dev {
@@ -26,6 +39,7 @@ impl Dev {
   pub fn run(self) -> crate::Result<()> {
     let logger = Logger::new("tauri:dev");
     let config = get_config()?;
+    let mut _guard = None;
 
     if let Some(before_dev) = &config.build.before_dev_command {
       let mut cmd: Option<&str> = None;
@@ -40,10 +54,9 @@ impl Dev {
 
       if let Some(cmd) = cmd {
         logger.log(format!("Running `{}`", before_dev));
-        Command::new(cmd)
-          .args(args)
-          .current_dir(app_dir())
-          .spawn()?;
+        let mut command = Command::new(cmd);
+        command.args(args).current_dir(app_dir()).spawn()?;
+        _guard = Some(command);
       }
     }
 
@@ -71,6 +84,14 @@ impl Dev {
 
     logger.log(format!("starting dev proxy on port {}", proxy_port));
     std::thread::spawn(move || proxy_dev_server(&dev_path, proxy_port));
+
+    let tauri_path = tauri_dir();
+    set_var("TAURI_DIR", &tauri_path);
+    set_var("TAURI_DIST_DIR", tauri_path.join(&config.build.dist_dir));
+
+    let mut cargo_cmd = Command::new("cargo");
+    cargo_cmd.arg("run").current_dir(tauri_dir());
+    execute_with_output(&mut cargo_cmd)?;
 
     Ok(())
   }

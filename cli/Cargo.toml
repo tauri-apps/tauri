@@ -10,4 +10,5 @@ edition = "2018"
 clap = { version = "3.0.0-beta.1", features = ["yaml"] }
 anyhow = "1.0"
 tauri-bundler = { path = "./tauri-bundler" }
-term = "0.6.1"
+term = "0.6"
+once_cell = "1.4"

@@ -1,7 +1,9 @@
 use std::env::current_dir;
 use std::path::PathBuf;
 
-pub fn app_dir() -> PathBuf {
+use once_cell::sync::Lazy;
+
+fn get_app_dir() -> PathBuf {
   let mut dir = current_dir().expect("failed to read cwd");
 
   let mut count = 0;
@@ -22,6 +24,11 @@ pub fn app_dir() -> PathBuf {
   }
 
   panic!("Couldn't recognize the current folder as a Tauri project.")
+}
+
+pub fn app_dir() -> &'static PathBuf {
+  static APP_DIR: Lazy<PathBuf> = Lazy::new(get_app_dir);
+  &APP_DIR
 }
 
 pub fn tauri_dir() -> PathBuf {

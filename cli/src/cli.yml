@@ -1,0 +1,58 @@
+name: Tauri CLI
+version: '0.1.0'
+author: Lucas Nogueira <lucas@tauri.studio>
+about: The Tauri command line interface.
+subcommands:
+  - dev:
+    about: Tauri dev.
+    args:
+      - exit-on-panic:
+          short: e
+          about: Exit on panic
+  - build:
+    about: Tauri build.
+    args:
+      - debug:
+          short: d
+          about: Builds with the debug flag
+      - target:
+          short: t
+          about: list of target triples to build against
+          takes_value: true
+          multiple: true
+  - info:
+    about: Shows information about Tauri dependencies
+  - init:
+    about: Initializes a Tauri project
+    args:
+      - force:
+          short: f
+          about: Force init to overwrite [conf|template|all]
+          takes_value: true
+      - log:
+          short: l
+          about: Enables logging
+      - directory:
+          short: d
+          about: Set target directory for init
+          takes_value: true
+      - tauri-path:
+          short: t
+          about: Path of the Tauri project to use (relative to the cwd)
+          takes_value: true
+      - app-name:
+          short: A
+          about: Name of your Tauri application
+          takes_value: true
+      - window-title:
+          short: W
+          about: Window title of your Tauri application
+          takes_value: true
+      - dist-dir:
+          short: D
+          about: Web assets location, relative to <project-dir>/src-tauri
+          takes_value: true
+      - dev-path:
+          short: P
+          about: Url of your dev server
+          takes_value: true

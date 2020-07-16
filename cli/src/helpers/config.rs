@@ -1,6 +1,7 @@
 use once_cell::sync::OnceCell;
 use serde::de::{Deserializer, Error as DeError, Visitor};
-use serde::Deserialize;
+use serde::ser::Serializer;
+use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 
 use std::collections::HashMap;
@@ -10,7 +11,7 @@ use std::io::BufReader;
 static CONFIG: OnceCell<Config> = OnceCell::new();
 
 /// The window configuration object.
-#[derive(PartialEq, Deserialize, Debug)]
+#[derive(PartialEq, Clone, Deserialize, Serialize, Debug)]
 #[serde(tag = "window", rename_all = "camelCase")]
 pub struct WindowConfig {
   /// The window width.
@@ -57,7 +58,7 @@ fn default_window() -> WindowConfig {
 }
 
 /// The embedded server port.
-#[derive(PartialEq, Debug, Deserialize)]
+#[derive(PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub enum Port {
   /// Port with a numeric value.
   Value(u16),
@@ -66,7 +67,7 @@ pub enum Port {
 }
 
 /// The embeddedServer configuration object.
-#[derive(PartialEq, Deserialize, Debug)]
+#[derive(PartialEq, Clone, Deserialize, Serialize, Debug)]
 #[serde(tag = "embeddedServer", rename_all = "camelCase")]
 pub struct EmbeddedServerConfig {
   /// Whether the embeddedServer is active or not
@@ -76,12 +77,26 @@ pub struct EmbeddedServerConfig {
   pub host: String,
   /// The embedded server port.
   /// If it's `random`, we'll generate one at runtime.
-  #[serde(default = "default_port", deserialize_with = "port_deserializer")]
+  #[serde(
+    default = "default_port",
+    deserialize_with = "port_deserializer",
+    serialize_with = "port_serializer"
+  )]
   pub port: Port,
 }
 
 fn default_host() -> String {
   "http://127.0.0.1".to_string()
+}
+
+fn port_serializer<S>(x: &Port, s: S) -> std::result::Result<S::Ok, S::Error>
+where
+  S: Serializer,
+{
+  match x {
+    &Port::Random => s.serialize_str("random"),
+    &Port::Value(val) => s.serialize_u16(val),
+  }
 }
 
 fn port_deserializer<'de, D>(deserializer: D) -> Result<Port, D::Error>
@@ -133,7 +148,7 @@ fn default_embedded_server() -> EmbeddedServerConfig {
 }
 
 /// A CLI argument definition
-#[derive(PartialEq, Deserialize, Debug, Default)]
+#[derive(PartialEq, Clone, Deserialize, Serialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct CliArg {
   /// The short version of the argument, without the preceding -.
@@ -220,7 +235,7 @@ pub struct CliArg {
 }
 
 /// The CLI root command definition.
-#[derive(PartialEq, Deserialize, Debug)]
+#[derive(PartialEq, Clone, Deserialize, Serialize, Debug)]
 #[serde(tag = "cli", rename_all = "camelCase")]
 pub struct CliConfig {
   description: Option<String>,
@@ -268,7 +283,7 @@ impl CliConfig {
 }
 
 /// The bundler configuration object.
-#[derive(PartialEq, Deserialize, Debug)]
+#[derive(PartialEq, Clone, Deserialize, Serialize, Debug)]
 #[serde(tag = "bundle", rename_all = "camelCase")]
 pub struct BundleConfig {
   /// The bundle identifier.
@@ -282,7 +297,7 @@ fn default_bundle() -> BundleConfig {
 }
 
 /// The Tauri configuration object.
-#[derive(PartialEq, Deserialize, Debug)]
+#[derive(PartialEq, Clone, Deserialize, Serialize, Debug)]
 #[serde(tag = "tauri", rename_all = "camelCase")]
 pub struct TauriConfig {
   /// The window configuration.
@@ -301,13 +316,13 @@ pub struct TauriConfig {
   pub inliner: InlinerConfig,
 }
 
-#[derive(Default, PartialEq, Deserialize, Debug)]
+#[derive(Default, PartialEq, Clone, Deserialize, Serialize, Debug)]
 pub struct InlinerConfig {
   pub active: bool,
 }
 
 /// The Build configuration object.
-#[derive(PartialEq, Deserialize, Debug)]
+#[derive(PartialEq, Clone, Deserialize, Serialize, Debug)]
 #[serde(tag = "build", rename_all = "camelCase")]
 pub struct BuildConfig {
   /// the devPath config.
@@ -317,6 +332,8 @@ pub struct BuildConfig {
   pub dist_dir: String,
   pub before_dev_command: Option<String>,
   pub before_build_command: Option<String>,
+  #[serde(default)]
+  pub with_global_tauri: bool,
 }
 
 fn default_dev_path() -> String {
@@ -330,7 +347,7 @@ fn default_dist_dir() -> String {
 type JsonObject = HashMap<String, JsonValue>;
 
 /// The tauri.conf.json mapper.
-#[derive(PartialEq, Deserialize, Debug)]
+#[derive(PartialEq, Clone, Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
   /// The Tauri configuration.
@@ -360,6 +377,7 @@ fn default_build() -> BuildConfig {
     dist_dir: default_dist_dir(),
     before_dev_command: None,
     before_build_command: None,
+    with_global_tauri: false,
   }
 }
 

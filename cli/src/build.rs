@@ -74,6 +74,7 @@ impl Build {
     let index_html_path = PathBuf::from(&config.build.dist_dir).join("index.html");
     let tauri_html = TauriHtml::new(&config.build.dist_dir, read_to_string(index_html_path)?)
       .inliner_enabled(config.tauri.inliner.active)
+      .global_tauri(config.build.with_global_tauri)
       .generate()?;
     let tauri_index_html_path = PathBuf::from(&config.build.dist_dir).join("index.tauri.html");
     let mut tauri_index_html_file = File::create(tauri_index_html_path)?;

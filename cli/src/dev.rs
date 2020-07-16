@@ -80,14 +80,22 @@ impl Dev {
       }
     }
 
+    let proxy_path = dev_path.clone();
     let proxy_port = dev_port + 1;
 
     logger.log(format!("starting dev proxy on port {}", proxy_port));
-    std::thread::spawn(move || proxy_dev_server(&dev_path, proxy_port));
+    std::thread::spawn(move || proxy_dev_server(&proxy_path, proxy_port));
 
     let tauri_path = tauri_dir();
+    let mut config_mut = config.clone();
+    config_mut.build.dev_path = format!(
+      "http://{}:{}",
+      dev_path.host_str().expect("failed to read dev_path host"),
+      proxy_port
+    );
     set_var("TAURI_DIR", &tauri_path);
     set_var("TAURI_DIST_DIR", tauri_path.join(&config.build.dist_dir));
+    set_var("TAURI_CONFIG", serde_json::to_string(&config_mut)?);
 
     let mut cargo_cmd = Command::new("cargo");
     cargo_cmd.arg("run").current_dir(tauri_dir());
@@ -122,7 +130,9 @@ fn proxy_dev_server(dev_path: &Url, dev_port: u16) -> crate::Result<()> {
 
     if request_url == "/" {
       let response = request_builder.send()?.text()?;
-      let tauri_html = TauriHtml::new(&config.build.dist_dir, response).generate()?;
+      let tauri_html = TauriHtml::new(&config.build.dist_dir, response)
+        .global_tauri(config.build.with_global_tauri)
+        .generate()?;
       request.respond(Response::from_data(tauri_html))?;
     } else {
       let response = request_builder.send()?.bytes()?;

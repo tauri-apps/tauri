@@ -37,6 +37,8 @@ use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
+/// Bundles the project.
+/// Returns a vector of PathBuf that shows where the DEB was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let arch = match settings.binary_arch() {
     "x86" => "i386",
@@ -45,7 +47,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   };
   let package_base_name = format!(
     "{}_{}_{}",
-    settings.binary_name(),
+    settings.main_binary_name(),
     settings.version_string(),
     arch
   );
@@ -59,8 +61,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }
   let package_path = base_dir.join(package_name);
 
-  let data_dir =
-    generate_folders(settings, &package_dir).with_context(|| "Failed to build folders")?;
+  let data_dir = generate_data(settings, &package_dir)
+    .with_context(|| "Failed to build data folders and files")?;
   // Generate control files.
   let control_dir = package_dir.join("control");
   generate_control_file(settings, arch, &control_dir, &data_dir)
@@ -86,15 +88,18 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   Ok(vec![package_path])
 }
 
-pub fn generate_folders(settings: &Settings, package_dir: &Path) -> crate::Result<PathBuf> {
+/// Generate the debian data folders and files.
+pub fn generate_data(settings: &Settings, package_dir: &Path) -> crate::Result<PathBuf> {
   // Generate data files.
   let data_dir = package_dir.join("data");
-  let bin_name = settings.binary_name();
-  let binary_dest = data_dir.join("usr/bin").join(bin_name);
   let bin_dir = data_dir.join("usr/bin");
 
-  common::copy_file(settings.binary_path(), &binary_dest)
-    .with_context(|| "Failed to copy binary file")?;
+  for bin in settings.binaries() {
+    let bin_path = settings.binary_path(bin);
+    common::copy_file(&bin_path, &bin_dir.join(bin.name()))
+      .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+  }
+
   transfer_resource_files(settings, &data_dir).with_context(|| "Failed to copy resource files")?;
 
   settings
@@ -113,8 +118,9 @@ pub fn generate_folders(settings: &Settings, package_dir: &Path) -> crate::Resul
   Ok(data_dir)
 }
 
+/// Generates the bootstrap script file.
 fn generate_bootstrap_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  let bin_name = settings.binary_name();
+  let bin_name = settings.main_binary_name();
   let bin_dir = data_dir.join("usr/bin");
 
   let bootstrap_file_name = format!("__{}-bootstrapper", bin_name);
@@ -123,7 +129,7 @@ fn generate_bootstrap_file(settings: &Settings, data_dir: &Path) -> crate::Resul
   write!(
     bootstrapper_file,
     "#!/usr/bin/env sh
-# This bootstraps the $PATH for Tauri, so environments are available.
+# This bootstraps the environment for Tauri, so environments are available.
 export NVM_DIR=\"$([ -z \"${{XDG_CONFIG_HOME-}}\" ] && printf %s \"${{HOME}}/.nvm\" || printf %s \"${{XDG_CONFIG_HOME}}/nvm\")\"
 [ -s \"$NVM_DIR/nvm.sh\" ] && . \"$NVM_DIR/nvm.sh\"
 
@@ -175,7 +181,7 @@ exit 0",
 
 /// Generate the application desktop file and store it under the `data_dir`.
 fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  let bin_name = settings.binary_name();
+  let bin_name = settings.main_binary_name();
   let desktop_file_name = format!("{}.desktop", bin_name);
   let desktop_file_path = data_dir
     .join("usr/share/applications")
@@ -183,32 +189,33 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   let file = &mut common::create_file(&desktop_file_path)?;
   // For more information about the format of this file, see
   // https://developer.gnome.org/integration-guide/stable/desktop-files.html.en
-  write!(file, "[Desktop Entry]\n")?;
-  write!(file, "Encoding=UTF-8\n")?;
+  writeln!(file, "[Desktop Entry]")?;
+  writeln!(file, "Encoding=UTF-8")?;
   if let Some(category) = settings.app_category() {
-    write!(file, "Categories={}\n", category.gnome_desktop_categories())?;
+    write!(file, "Categories={}", category.gnome_desktop_categories())?;
   }
   if !settings.short_description().is_empty() {
-    write!(file, "Comment={}\n", settings.short_description())?;
+    writeln!(file, "Comment={}", settings.short_description())?;
   }
   let use_bootstrapper = settings.debian_use_bootstrapper();
-  write!(
+  writeln!(
     file,
-    "Exec={}\n",
+    "Exec={}",
     if use_bootstrapper {
       format!("__{}-bootstrapper", bin_name)
     } else {
       bin_name.to_string()
     }
   )?;
-  write!(file, "Icon={}\n", bin_name)?;
-  write!(file, "Name={}\n", settings.bundle_name())?;
-  write!(file, "Terminal=false\n")?;
-  write!(file, "Type=Application\n")?;
-  write!(file, "Version={}\n", settings.version_string())?;
+  writeln!(file, "Icon={}", bin_name)?;
+  writeln!(file, "Name={}", settings.bundle_name())?;
+  writeln!(file, "Terminal=false")?;
+  writeln!(file, "Type=Application")?;
+  writeln!(file, "Version={}", settings.version_string())?;
   Ok(())
 }
 
+/// Generates the debian control file and stores it under the `control_dir`.
 fn generate_control_file(
   settings: &Settings,
   arch: &str,
@@ -227,7 +234,9 @@ fn generate_control_file(
   writeln!(&mut file, "Version: {}", settings.version_string())?;
   writeln!(&mut file, "Architecture: {}", arch)?;
   writeln!(&mut file, "Installed-Size: {}", total_dir_size(data_dir)?)?;
-  let authors = settings.authors_comma_separated().unwrap_or(String::new());
+  let authors = settings
+    .authors_comma_separated()
+    .unwrap_or_else(String::new);
   writeln!(&mut file, "Maintainer: {}", authors)?;
   if !settings.homepage_url().is_empty() {
     writeln!(&mut file, "Homepage: {}", settings.homepage_url())?;
@@ -279,7 +288,7 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
       let msg = format!("Non-UTF-8 path: {:?}", rel_path);
       io::Error::new(io::ErrorKind::InvalidData, msg)
     })?;
-    write!(md5sums_file, "  {}\n", path_str)?;
+    writeln!(md5sums_file, "  {}", path_str)?;
   }
   Ok(())
 }
@@ -287,7 +296,7 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
 /// Copy the bundle's resource files into an appropriate directory under the
 /// `data_dir`.
 fn transfer_resource_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  let resource_dir = data_dir.join("usr/lib").join(settings.binary_name());
+  let resource_dir = data_dir.join("usr/lib").join(settings.main_binary_name());
   settings.copy_resources(&resource_dir)
 }
 
@@ -300,7 +309,7 @@ fn generate_icon_files(settings: &Settings, data_dir: &PathBuf) -> crate::Result
       width,
       height,
       if is_high_density { "@2x" } else { "" },
-      settings.binary_name()
+      settings.main_binary_name()
     ))
   };
   let mut sizes = BTreeSet::new();

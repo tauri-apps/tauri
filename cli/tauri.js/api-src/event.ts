@@ -1,5 +1,11 @@
 import { invoke, transformCallback } from './tauri'
-import { EventCallback } from './types/event'
+
+export interface Event<T> {
+  type: string
+  payload: T
+}
+
+export type EventCallback<T> = (event: Event<T>) => void
 
 /**
  * listen to an event from the backend
@@ -7,7 +13,7 @@ import { EventCallback } from './types/event'
  * @param event the event name
  * @param handler the event handler callback
  */
-function listen(event: string, handler: EventCallback, once = false): void {
+function listen<T>(event: string, handler: EventCallback<T>, once = false): void {
   invoke({
     cmd: 'listen',
     event,

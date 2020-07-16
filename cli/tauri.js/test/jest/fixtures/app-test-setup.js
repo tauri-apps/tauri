@@ -5,10 +5,10 @@ const mockFixtureDir = path.resolve(__dirname, '../fixtures')
 
 module.exports.fixtureDir = mockFixtureDir
 
-function mockResolvePath (basePath, dir) {
-  return dir && path.isAbsolute(dir)
-    ? dir
-    : path.resolve(basePath, dir)
+function mockResolvePath(basePath, dir) {
+  return dir && path.isAbsolute(dir) ?
+    dir :
+    path.resolve(basePath, dir)
 }
 
 module.exports.initJest = (mockFixture) => {
@@ -36,8 +36,6 @@ module.exports.initJest = (mockFixture) => {
       }
     }
   })
-
-  jest.spyOn(process, 'exit').mockImplementation(() => {})
 }
 
 module.exports.startServer = (onSuccess) => {
@@ -62,7 +60,8 @@ module.exports.startServer = (onSuccess) => {
     renameFileWithDir: null,
     listen: null
   }
-  function addResponse (response) {
+
+  function addResponse(response) {
     responses[response.cmd] = true
     if (!Object.values(responses).some(c => c === null)) {
       server.close(onSuccess)
@@ -107,5 +106,8 @@ module.exports.startServer = (onSuccess) => {
 
   const port = 7000
   const server = app.listen(port)
-  return { server, responses }
+  return {
+    server,
+    responses
+  }
 }

@@ -34,8 +34,19 @@ use std::io::{self, BufWriter};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+/// Bundles the project.
+/// Returns a vector of PathBuf that shows where the .app was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  let app_bundle_name = format!("{}.app", settings.bundle_name());
+  let package_base_name = format!(
+    "{}_{}_{}",
+    settings.main_binary_name(),
+    settings.version_string(),
+    match settings.binary_arch() {
+      "x86_64" => "x64",
+      other => other,
+    }
+  );
+  let app_bundle_name = format!("{}.app", package_base_name);
   common::print_bundling(&app_bundle_name)?;
   let app_bundle_path = settings
     .project_out_directory()
@@ -71,8 +82,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .copy_binaries(&bin_dir)
     .with_context(|| "Failed to copy external binaries")?;
 
-  copy_binary_to_bundle(&bundle_directory, settings)
-    .with_context(|| format!("Failed to copy binary from {:?}", settings.binary_path()))?;
+  copy_binaries_to_bundle(&bundle_directory, settings)?;
 
   let use_bootstrapper = settings.osx_use_bootstrapper();
   if use_bootstrapper {
@@ -82,21 +92,25 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   Ok(vec![app_bundle_path])
 }
 
-fn copy_binary_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
+// Copies the app's binaries to the bundle.
+fn copy_binaries_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
   let dest_dir = bundle_directory.join("MacOS");
-  common::copy_file(
-    settings.binary_path(),
-    &dest_dir.join(settings.binary_name()),
-  )
+  for bin in settings.binaries() {
+    let bin_path = settings.binary_path(bin);
+    common::copy_file(&bin_path, &dest_dir.join(bin.name()))
+      .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+  }
+  Ok(())
 }
 
+// Creates the bootstrap script file.
 fn create_bootstrapper(bundle_dir: &Path, settings: &Settings) -> crate::Result<()> {
   let file = &mut common::create_file(&bundle_dir.join("MacOS/__bootstrapper"))?;
   // Create a shell script to bootstrap the  $PATH for Tauri, so environments like node are available.
   write!(
     file,
     "#!/usr/bin/env sh
-# This bootstraps the $PATH for Tauri, so environments are available.
+# This bootstraps the environment for Tauri, so environments are available.
 
 if [ -e ~/.bash_profile ]
 then 
@@ -142,6 +156,7 @@ exit 0",
   Ok(())
 }
 
+// Creates the Info.plist file.
 fn create_info_plist(
   bundle_dir: &Path,
   bundle_icon_file: Option<PathBuf>,
@@ -174,7 +189,7 @@ fn create_info_plist(
     if use_bootstrapper {
       "__bootstrapper"
     } else {
-      settings.binary_name()
+      settings.main_binary_name()
     }
   )?;
   if let Some(path) = bundle_icon_file {
@@ -266,6 +281,7 @@ fn create_info_plist(
   Ok(())
 }
 
+// Copies the framework under `{src_dir}/{framework}.framework` to `{dest_dir}/{framework}.framework`.
 fn copy_framework_from(dest_dir: &Path, framework: &str, src_dir: &Path) -> crate::Result<bool> {
   let src_name = format!("{}.framework", framework);
   let src_path = src_dir.join(&src_name);
@@ -277,6 +293,7 @@ fn copy_framework_from(dest_dir: &Path, framework: &str, src_dir: &Path) -> crat
   }
 }
 
+// Copies the OSX bundle frameworks to the .app
 fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
   let frameworks = settings.osx_frameworks();
   if frameworks.is_empty() {
@@ -293,7 +310,7 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
         .expect("Couldn't get framework filename");
       common::copy_dir(&src_path, &dest_dir.join(&src_name))?;
       continue;
-    } else if framework.contains("/") {
+    } else if framework.contains('/') {
       return Err(crate::Error::GenericError(format!(
         "Framework path should have .framework extension: {}",
         framework
@@ -321,9 +338,9 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
   Ok(())
 }
 
-/// Given a list of icon files, try to produce an ICNS file in the resources
-/// directory and return the path to it.  Returns `Ok(None)` if no usable icons
-/// were provided.
+// Given a list of icon files, try to produce an ICNS file in the resources
+// directory and return the path to it.  Returns `Ok(None)` if no usable icons
+// were provided.
 fn create_icns_file(
   resources_dir: &PathBuf,
   settings: &Settings,
@@ -400,15 +417,15 @@ fn create_icns_file(
     dest_path.set_extension("icns");
     let icns_file = BufWriter::new(File::create(&dest_path)?);
     family.write(icns_file)?;
-    return Ok(Some(dest_path));
+    Ok(Some(dest_path))
   } else {
-    return Err(crate::Error::GenericError(
+    Err(crate::Error::GenericError(
       "No usable Icon files found".to_owned(),
-    ));
+    ))
   }
 }
 
-/// Converts an image::DynamicImage into an icns::Image.
+// Converts an image::DynamicImage into an icns::Image.
 fn make_icns_image(img: image::DynamicImage) -> io::Result<icns::Image> {
   let pixel_format = match img.color() {
     image::ColorType::Rgba8 => icns::PixelFormat::RGBA,

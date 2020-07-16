@@ -6,17 +6,19 @@ on:
       - dev
 
 jobs:
-  pr-to-master:
+  pr-to-latest:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: git config
         run: |
           git config --global user.name "${{ github.event.pusher.name }}"
           git config --global user.email "${{ github.event.pusher.email }}"
       - name: covector version
-        uses: jbolda/covector/packages/action@main
+        uses: jbolda/covector/packages/action@covector-v0
         id: covector
         with:
           command: 'version'
@@ -28,6 +30,4 @@ jobs:
           title: Apply Version Updates From Current Changes
           commit-message: "apply version updates"
           labels: "version updates"
-          body: |
-            Merging this PR will update the versions on all packages with changes as specified in the `.changes` directory.
-            It will kick off the process to release and publish any packages with an incremented version number.
+          body: ${{ steps.covector.outputs.change }}

@@ -1,5 +1,6 @@
 use tiny_http::{Header, Response};
 
+/// Returns the HTTP response of the given asset path.
 pub fn asset_response(path: &str) -> Response<std::io::Cursor<Vec<u8>>> {
   let asset_path = &format!(
     "{}{}",
@@ -9,7 +10,7 @@ pub fn asset_response(path: &str) -> Response<std::io::Cursor<Vec<u8>>> {
   );
   let asset = crate::assets::ASSETS
     .get(asset_path)
-    .expect(&format!("Could not read asset {}", asset_path))
+    .unwrap_or_else(|_| panic!("Could not read asset {}", asset_path))
     .into_owned();
   let mut response = Response::from_data(asset);
   let header;

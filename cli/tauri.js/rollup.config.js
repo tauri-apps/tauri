@@ -3,7 +3,8 @@ import { terser } from 'rollup-plugin-terser'
 import resolve from '@rollup/plugin-node-resolve'
 import commonjs from '@rollup/plugin-commonjs'
 import sucrase from '@rollup/plugin-sucrase'
-import { getBabelOutputPlugin } from '@rollup/plugin-babel'
+import babel, { getBabelOutputPlugin } from '@rollup/plugin-babel'
+import typescript from '@rollup/plugin-typescript'
 import pkg from './package.json'
 
 export default [{
@@ -16,39 +17,46 @@ export default [{
     'process': './api-src/process.ts',
     'tauri': './api-src/tauri.ts',
     'window': './api-src/window.ts',
+    'cli': './api-src/cli.ts',
+    'notification': './api-src/notification.ts',
   },
   treeshake:      true,
   perf:           true,
   output:         [
     {
-      dir: 'api/', // if you want to consume in node but want it tiny
+      dir: 'api/',
       entryFileNames: '[name].js',
       format:  'cjs',
-      plugins: [ terser() ],
       exports: 'named',
       globals: {}
     },
     {
-      dir: 'api/esm/',  // if you will be transpiling and minifying yourself
-      entryFileNames: '[name].js',
+      dir: 'api/',
+      entryFileNames: '[name].mjs',
       format:    'esm',
-      sourcemap: true,
       exports: 'named',
       globals: {}
     }
   ],
   plugins: [
     commonjs({}),
-    sucrase({
-      exclude: ['node_modules'],
-      transforms: ['typescript']
-    }),
     resolve({
     // pass custom options to the resolve plugin
       customResolveOptions: {
         moduleDirectory: 'node_modules'
       }
-    })
+    }),
+    typescript({
+      tsconfig: './api-src/tsconfig.json'
+    }),
+    babel({
+      configFile: false,
+      presets: [
+        ['@babel/preset-env'],
+        ['@babel/preset-typescript']
+      ]
+    }),
+    terser()
   ],
   external: [
     ...Object.keys(pkg.dependencies || {}),

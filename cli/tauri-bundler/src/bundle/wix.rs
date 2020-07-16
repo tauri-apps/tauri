@@ -12,7 +12,7 @@ use zip::ZipArchive;
 
 use std::collections::BTreeMap;
 use std::fs::{create_dir_all, remove_dir_all, write, File};
-use std::io::{BufRead, BufReader, Cursor, Read, Write};
+use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -35,7 +35,7 @@ pub const WIX_SHA256: &str = "2c1888d5d1dba377fc7fa14444cf556963747ff9a0a289a359
 // const VC_REDIST_X64_SHA256: &str =
 //   "d6cd2445f68815fe02489fafe0127819e44851e26dfbe702612bc0d223cbbc2b";
 
-// A v4 UUID that was generated specifically for cargo-bundle, to be used as a
+// A v4 UUID that was generated specifically for tauri-bundler, to be used as a
 // namespace for generating v5 UUIDs from bundle identifier strings.
 const UUID_NAMESPACE: [u8; 16] = [
   0xfd, 0x85, 0x95, 0xa8, 0x17, 0xa3, 0x47, 0x4e, 0xa6, 0x16, 0x76, 0x14, 0x8d, 0xfa, 0x0c, 0x7b,
@@ -54,35 +54,53 @@ lazy_static! {
   };
 }
 
+/// Mapper between a resource directory name and its ResourceDirectory descriptor.
 type ResourceMap = BTreeMap<String, ResourceDirectory>;
 
+/// A binary to bundle with WIX.
+/// External binaries or additional project binaries are represented with this data structure.
+/// This data structure is needed because WIX requires each path to have its own `id` and `guid`.
 #[derive(Serialize)]
-struct ExternalBinary {
+struct Binary {
+  /// the GUID to use on the WIX XML.
   guid: String,
+  /// the id to use on the WIX XML.
   id: String,
+  /// the binary path.
   path: String,
 }
 
+/// A Resource file to bundle with WIX.
+/// This data structure is needed because WIX requires each path to have its own `id` and `guid`.
 #[derive(Serialize, Clone)]
 struct ResourceFile {
+  /// the GUID to use on the WIX XML.
   guid: String,
+  /// the id to use on the WIX XML.
   id: String,
+  /// the file path.
   path: String,
 }
 
+/// A resource directory to bundle with WIX.
+/// This data structure is needed because WIX requires each path to have its own `id` and `guid`.
 #[derive(Serialize)]
 struct ResourceDirectory {
+  /// the directory name of the described resource.
   name: String,
+  /// the files of the described resource directory.
   files: Vec<ResourceFile>,
+  /// the directories that are children of the described resource directory.
   directories: Vec<ResourceDirectory>,
 }
 
 impl ResourceDirectory {
+  /// Adds a file to this directory descriptor.
   fn add_file(&mut self, file: ResourceFile) {
     self.files.push(file);
   }
 
-  // generates the wix XML string to bundle this directory resources recursively
+  /// Generates the wix XML string to bundle this directory resources recursively
   fn get_wix_data(self) -> crate::Result<(String, Vec<String>)> {
     let mut files = String::from("");
     let mut file_ids = Vec::new();
@@ -115,9 +133,10 @@ impl ResourceDirectory {
   }
 }
 
+/// Copies the icons to the binary path, under the `resources` folder,
+/// and returns the path to that directory.
 fn copy_icons(settings: &Settings) -> crate::Result<PathBuf> {
-  let base_dir = settings.binary_path();
-  let base_dir = base_dir.parent().expect("Failed to get dir");
+  let base_dir = settings.project_out_directory();
 
   let resource_dir = base_dir.join("resources");
 
@@ -144,7 +163,7 @@ fn copy_icons(settings: &Settings) -> crate::Result<PathBuf> {
   Ok(resource_dir)
 }
 
-// Function used to download Wix and VC_REDIST. Checks SHA256 to verify the download.
+/// Function used to download Wix and VC_REDIST. Checks SHA256 to verify the download.
 fn download_and_verify(url: &str, hash: &str) -> crate::Result<Vec<u8>> {
   common::print_info(format!("Downloading {}", url).as_str())?;
 
@@ -167,6 +186,7 @@ fn download_and_verify(url: &str, hash: &str) -> crate::Result<Vec<u8>> {
   }
 }
 
+/// The installer directory of the app.
 fn app_installer_dir(settings: &Settings) -> crate::Result<PathBuf> {
   let arch = match settings.binary_arch() {
     "x86" => "x86",
@@ -179,14 +199,22 @@ fn app_installer_dir(settings: &Settings) -> crate::Result<PathBuf> {
     }
   };
 
-  Ok(settings.project_out_directory().to_path_buf().join(format!(
-    "{}.{}.msi",
-    settings.bundle_name(),
+  let package_base_name = format!(
+    "{}_{}_{}",
+    settings.main_binary_name().replace(".exe", ""),
+    settings.version_string(),
     arch
-  )))
+  );
+
+  Ok(
+    settings
+      .project_out_directory()
+      .to_path_buf()
+      .join(format!("bundle/msi/{}.msi", package_base_name)),
+  )
 }
 
-// Extracts the zips from Wix and VC_REDIST into a useable path.
+/// Extracts the zips from Wix and VC_REDIST into a useable path.
 fn extract_zip(data: &Vec<u8>, path: &Path) -> crate::Result<()> {
   let cursor = Cursor::new(data);
 
@@ -211,18 +239,18 @@ fn extract_zip(data: &Vec<u8>, path: &Path) -> crate::Result<()> {
   Ok(())
 }
 
-// Generates the UUID for the Wix template.
+/// Generates the UUID for the Wix template.
 fn generate_package_guid(settings: &Settings) -> Uuid {
   generate_guid(settings.bundle_identifier().as_bytes())
 }
 
+/// Generates a GUID.
 fn generate_guid(key: &[u8]) -> Uuid {
   let namespace = Uuid::from_bytes(UUID_NAMESPACE);
   Uuid::new_v5(&namespace, key)
 }
 
 // Specifically goes and gets Wix and verifies the download via Sha256
-
 pub fn get_and_extract_wix(path: &Path) -> crate::Result<()> {
   common::print_info("Verifying wix package")?;
 
@@ -285,7 +313,7 @@ pub fn get_and_extract_wix(path: &Path) -> crate::Result<()> {
 //   }
 // }
 
-// Runs the Candle.exe executable for Wix.  Candle parses the wxs file and generates the code for building the installer.
+/// Runs the Candle.exe executable for Wix. Candle parses the wxs file and generates the code for building the installer.
 fn run_candle(
   settings: &Settings,
   wix_toolset_path: &Path,
@@ -303,40 +331,36 @@ fn run_candle(
     }
   };
 
+  let main_binary = settings
+    .binaries()
+    .iter()
+    .find(|bin| bin.main())
+    .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
+
   let args = vec![
     "-arch".to_string(),
     arch.to_string(),
     wxs_file_name.to_string(),
-    format!("-dSourceDir={}", settings.binary_path().display()),
+    format!(
+      "-dSourceDir={}",
+      settings.binary_path(main_binary).display()
+    ),
   ];
 
   let candle_exe = wix_toolset_path.join("candle.exe");
   common::print_info(format!("running candle for {}", wxs_file_name).as_str())?;
 
-  let mut cmd = Command::new(&candle_exe)
+  let mut cmd = Command::new(&candle_exe);
+  cmd
     .args(&args)
     .stdout(Stdio::piped())
-    .current_dir(build_path)
-    .spawn()
-    .expect("error running candle.exe");
-  {
-    let stdout = cmd.stdout.as_mut().expect("Failed to get stdout handle");
-    let reader = BufReader::new(stdout);
+    .current_dir(build_path);
 
-    for line in reader.lines() {
-      common::print_info(line.expect("Failed to get line").as_str())?;
-    }
-  }
-
-  let status = cmd.wait()?;
-  if status.success() {
-    Ok(())
-  } else {
-    Err(crate::Error::CandleError)
-  }
+  common::print_info("running candle.exe")?;
+  common::execute_with_output(&mut cmd).map_err(|_| crate::Error::CandleError)
 }
 
-// Runs the Light.exe file.  Light takes the generated code from Candle and produces an MSI Installer.
+/// Runs the Light.exe file. Light takes the generated code from Candle and produces an MSI Installer.
 fn run_light(
   wix_toolset_path: &Path,
   build_path: &Path,
@@ -356,36 +380,23 @@ fn run_light(
     args.push(p.to_string());
   }
 
-  common::print_info(format!("running light to produce {}", output_path.display()).as_str())?;
-
-  let mut cmd = Command::new(&light_exe)
+  let mut cmd = Command::new(&light_exe);
+  cmd
     .args(&args)
     .stdout(Stdio::piped())
-    .current_dir(build_path)
-    .spawn()
-    .expect("error running light.exe");
-  {
-    let stdout = cmd.stdout.as_mut().expect("Failed to get stdout handle");
-    let reader = BufReader::new(stdout);
+    .current_dir(build_path);
 
-    for line in reader.lines() {
-      common::print_info(line.expect("Failed to get line").as_str())?;
-    }
-  }
-
-  let status = cmd.wait()?;
-  if status.success() {
-    Ok(output_path.to_path_buf())
-  } else {
-    Err(crate::Error::LightError)
-  }
+  common::print_info(format!("running light to produce {}", output_path.display()).as_str())?;
+  common::execute_with_output(&mut cmd)
+    .map(|_| output_path.to_path_buf())
+    .map_err(|_| crate::Error::LightError)
 }
 
 // fn get_icon_data() -> crate::Result<()> {
 //   Ok(())
 // }
 
-// Entry point for bundling and creating the MSI installer.  For now the only supported platform is Windows x64.
+// Entry point for bundling and creating the MSI installer. For now the only supported platform is Windows x64.
 pub fn build_wix_app_installer(
   settings: &Settings,
   wix_toolset_path: &Path,
@@ -401,13 +412,22 @@ pub fn build_wix_app_installer(
     }
   };
 
-  // common::print_warning("Only x64 supported")?;
   // target only supports x64.
   common::print_info(format!("Target: {}", arch).as_str())?;
 
-  let output_path = settings.project_out_directory().join("wix").join(arch);
+  let output_path = settings
+    .project_out_directory()
+    .join("bundle/msi")
+    .join(arch);
 
   let mut data = BTreeMap::new();
+
+  if let Ok(tauri_config) = crate::bundle::tauri_config::get() {
+    data.insert(
+      "embedded_server",
+      to_json(tauri_config.tauri.embedded_server.active),
+    );
+  }
 
   data.insert("product_name", to_json(settings.bundle_name()));
   data.insert("version", to_json(settings.version_string()));
@@ -415,7 +435,7 @@ pub fn build_wix_app_installer(
   data.insert("manufacturer", to_json(manufacturer.as_str()));
   let upgrade_code = Uuid::new_v5(
     &Uuid::NAMESPACE_DNS,
-    format!("{}.app.x64", &settings.binary_name()).as_bytes(),
+    format!("{}.app.x64", &settings.main_binary_name()).as_bytes(),
   )
   .to_string();
 
@@ -427,13 +447,13 @@ pub fn build_wix_app_installer(
   let shortcut_guid = generate_package_guid(settings).to_string();
   data.insert("shortcut_guid", to_json(&shortcut_guid.as_str()));
 
-  let app_exe_name = settings.binary_name().to_string();
+  let app_exe_name = settings.main_binary_name().to_string();
   data.insert("app_exe_name", to_json(&app_exe_name));
 
-  let external_binaries = generate_external_binary_data(&settings)?;
+  let binaries = generate_binaries_data(&settings)?;
 
-  let external_binaries_json = to_json(&external_binaries);
-  data.insert("external_binaries", external_binaries_json);
+  let binaries_json = to_json(&binaries);
+  data.insert("binaries", binaries_json);
 
   let resources = generate_resource_data(&settings)?;
   let mut resources_wix_string = String::from("");
@@ -449,7 +469,12 @@ pub fn build_wix_app_installer(
   data.insert("resources", to_json(resources_wix_string));
   data.insert("resource_file_ids", to_json(files_ids));
 
-  let app_exe_source = settings.binary_path().display().to_string();
+  let main_binary = settings
+    .binaries()
+    .iter()
+    .find(|bin| bin.main())
+    .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
+  let app_exe_source = settings.binary_path(main_binary).display().to_string();
 
   data.insert("app_exe_source", to_json(&app_exe_source));
 
@@ -489,8 +514,9 @@ pub fn build_wix_app_installer(
   Ok(target)
 }
 
-fn generate_external_binary_data(settings: &Settings) -> crate::Result<Vec<ExternalBinary>> {
-  let mut external_binaries = Vec::new();
+/// Generates the data required for the external binaries and extra binaries bundling.
+fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
+  let mut binaries = Vec::new();
   let regex = Regex::new(r"[^\w\d\.]")?;
   let cwd = std::env::current_dir()?;
   for src in settings.external_binaries() {
@@ -504,8 +530,8 @@ fn generate_external_binary_data(settings: &Settings) -> crate::Result<Vec<Exter
 
     let guid = generate_guid(filename.as_bytes()).to_string();
 
-    external_binaries.push(ExternalBinary {
-      guid: guid,
+    binaries.push(Binary {
+      guid,
       path: cwd
         .join(src)
         .into_os_string()
@@ -515,10 +541,26 @@ fn generate_external_binary_data(settings: &Settings) -> crate::Result<Vec<Exter
     });
   }
 
-  Ok(external_binaries)
+  for bin in settings.binaries() {
+    let filename = bin.name();
+    let guid = generate_guid(filename.as_bytes()).to_string();
+    if !bin.main() {
+      binaries.push(Binary {
+        guid,
+        path: settings
+          .binary_path(bin)
+          .into_os_string()
+          .into_string()
+          .expect("failed to read binary path"),
+        id: regex.replace_all(&filename, "").to_string(),
+      })
+    }
+  }
+
+  Ok(binaries)
 }
 
-// generates the data required for the resource bundling on wix
+/// Generates the data required for the resource bundling on wix
 fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
   let mut resources = ResourceMap::new();
   let regex = Regex::new(r"[^\w\d\.]")?;

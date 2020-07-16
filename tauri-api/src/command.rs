@@ -8,6 +8,7 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 use tauri_utils::platform;
 
+/// Gets the output of the given command.
 #[cfg(not(windows))]
 pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> crate::Result<String> {
   let output = Command::new(cmd).args(args).stdout(stdout).output()?;
@@ -19,6 +20,7 @@ pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> crate::Resul
   }
 }
 
+/// Gets the output of the given command.
 #[cfg(windows)]
 pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> crate::Result<String> {
   let output = Command::new(cmd)
@@ -34,21 +36,7 @@ pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> crate::Resul
   }
 }
 
-pub fn format_command(path: String, command: String) -> String {
-  if cfg!(windows) {
-    format!("{}/./{}.exe", path, command)
-  } else {
-    format!("{}/./{}", path, command)
-  }
-}
-
-pub fn relative_command(command: String) -> crate::Result<String> {
-  match std::env::current_exe()?.parent() {
-    Some(exe_dir) => Ok(format_command(exe_dir.display().to_string(), command)),
-    None => Err(crate::Error::Command("Could not evaluate executable dir".to_string()).into()),
-  }
-}
-
+/// Gets the path to command relative to the current executable path.
 #[cfg(not(windows))]
 pub fn command_path(command: String) -> crate::Result<String> {
   match std::env::current_exe()?.parent() {
@@ -57,6 +45,7 @@ pub fn command_path(command: String) -> crate::Result<String> {
   }
 }
 
+/// Gets the path to command relative to the current executable path.
 #[cfg(windows)]
 pub fn command_path(command: String) -> crate::Result<String> {
   match std::env::current_exe()?.parent() {
@@ -65,13 +54,15 @@ pub fn command_path(command: String) -> crate::Result<String> {
   }
 }
 
+/// Spawns a process with a command string relative to the current executable path.
+/// For example, if your app bundles two executables, you don't need to worry about its path and just run `second-app`.
 #[cfg(windows)]
 pub fn spawn_relative_command(
   command: String,
   args: Vec<String>,
   stdout: Stdio,
 ) -> crate::Result<Child> {
-  let cmd = relative_command(command)?;
+  let cmd = command_path(command)?;
   Ok(
     Command::new(cmd)
       .args(args)
@@ -81,16 +72,19 @@ pub fn spawn_relative_command(
   )
 }
 
+/// Spawns a process with a command string relative to the current executable path.
+/// For example, if your app bundles two executables, you don't need to worry about its path and just run `second-app`.
 #[cfg(not(windows))]
 pub fn spawn_relative_command(
   command: String,
   args: Vec<String>,
   stdout: Stdio,
 ) -> crate::Result<Child> {
-  let cmd = relative_command(command)?;
+  let cmd = command_path(command)?;
   Ok(Command::new(cmd).args(args).stdout(stdout).spawn()?)
 }
 
+/// Gets the binary command with the current target triple.
 pub fn binary_command(binary_name: String) -> crate::Result<String> {
   Ok(format!("{}-{}", binary_name, platform::target_triple()?))
 }
@@ -101,7 +95,6 @@ mod test {
   use super::*;
   use crate::Error;
   use std::io;
-  use totems::{assert_err, assert_ok};
 
   #[test]
   // test the get_output function with a unix cat command.
@@ -113,7 +106,7 @@ mod test {
     let res = get_output(cmd, vec!["test/test.txt".to_string()], Stdio::piped());
 
     // assert that the result is an Ok() type
-    assert_ok!(&res);
+    assert!(res.is_ok());
 
     // if the assertion passes, assert the incoming data.
     if let Ok(s) = &res {
@@ -132,39 +125,12 @@ mod test {
     let res = get_output(cmd, vec!["test/".to_string()], Stdio::piped());
 
     // assert that the result is an Error type.
-    assert_err!(&res);
+    assert!(res.is_err());
 
     // destruct the Error to check the ErrorKind and test that it is a Command type.
     if let Some(Error::Command(e)) = res.unwrap_err().downcast_ref::<Error>() {
       // assert that the message in the error matches this string.
       assert_eq!(*e, "cat: test/: Is a directory\n".to_string());
-    }
-  }
-
-  #[test]
-  // test the relative_command function
-  fn check_relateive_cmd() {
-    // generate a cat string
-    let cmd = String::from("cat");
-
-    // call relative command on the cat string
-    let res = relative_command(cmd.clone());
-
-    // assert that the result comes back with Ok()
-    assert_ok!(res);
-
-    // get the parent directory of the current executable.
-    let current_exe = std::env::current_exe()
-      .unwrap()
-      .parent()
-      .unwrap()
-      .display()
-      .to_string();
-
-    // check the string inside of the Ok
-    if let Ok(s) = &res {
-      // match the string against the call to format command with the current_exe.
-      assert_eq!(*s, format_command(current_exe, cmd));
     }
   }
 
@@ -178,7 +144,7 @@ mod test {
     let res = command_path(cmd);
 
     // assert that the result is an OK() type.
-    assert_ok!(res);
+    assert!(res.is_ok());
   }
 
   #[test]
@@ -191,7 +157,7 @@ mod test {
     let res = spawn_relative_command(cmd, vec!["test/test.txt".to_string()], Stdio::piped());
 
     // this fails because there is no cat binary in the relative parent folder of this current executing command.
-    assert_err!(&res);
+    assert!(res.is_err());
 
     // after asserting that the result is an error, check that the error kind is ErrorKind::Io
     if let Some(s) = res.unwrap_err().downcast_ref::<io::Error>() {

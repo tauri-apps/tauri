@@ -14,21 +14,21 @@
 [![support](https://img.shields.io/badge/sponsor-Opencollective-blue.svg)](https://opencollective.com/tauri)
 
 
-Tauri is a tool for building tiny, blazing fast binaries for all major desktop platforms. You can use any front-end framework that compiles to HTML,JS and CSS for building your interface.
+Tauri is a tool for building tiny, blazing fast binaries for all major desktop platforms. You can use any front-end framework that compiles to HTML, JS and CSS for building your interface.
 
-| Component | Version |
-|-----------|---------|
-| tauri.js  | ![](https://img.shields.io/npm/v/tauri.svg)
+| Component | Version                                     |
+| --------- | ------------------------------------------- |
+| tauri.js  | ![](https://img.shields.io/npm/v/tauri.svg) |
 
 
 Please visit the main readme for further information about contributing.
 
 ## Installation
 
-The preferred method is to install this module locally as a dev dependency:
+The preferred method is to install this module locally as a dependency:
 ```
-$ npm install --save-dev tauri
-$ yarn add --dev tauri
+$ npm install tauri
+$ yarn add tauri
 ```
 
 ## Semver

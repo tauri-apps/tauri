@@ -1,13 +1,8 @@
 {
   "compilerOptions": {
-    "outDir": "./dist/",
     "strict": true,
-    "module": "commonjs",
-    "target": "es5",
     "allowJs": true,
     "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "moduleResolution": "node",
     "baseUrl": ".",
     "paths": {
       "types": ["@types"]

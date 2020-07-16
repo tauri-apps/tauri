@@ -18,6 +18,7 @@ import { TauriConfig } from './types/config'
 import { CargoManifest } from './types/cargo'
 import getTauriConfig from './helpers/tauri-config'
 import httpProxy from 'http-proxy'
+import isReachable from 'is-reachable'
 import chalk from 'chalk'
 
 const log = logger('app:tauri')
@@ -67,6 +68,18 @@ class Runner {
       ls.stderr?.pipe(process.stderr)
       ls.stdout?.pipe(process.stdout)
       this.beforeDevProcess = ls
+
+      let devTryCount = 0
+      const devTryTimeout = 3000
+      while (!(await isReachable(devPath))) {
+        log('Waiting for your dev server to start...')
+        await new Promise(resolve => setTimeout(resolve, devTryTimeout))
+        devTryCount++
+        if (devTryCount === 10) {
+          warn(`Couldn't connect to ${devPath} after ${devTryTimeout * devTryCount / 1000}s. Please make sure that's the URL to your dev server.`)
+          process.exit(1)
+        }
+      }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -91,18 +104,28 @@ class Runner {
         selfHandleResponse: true
       })
 
-      proxy.on('proxyRes', function (proxyRes: http.IncomingMessage, req: http.IncomingMessage, res: http.ServerResponse) {
+      proxy.on('proxyRes', (proxyRes: http.IncomingMessage, req: http.IncomingMessage, res: http.ServerResponse) => {
         if (req.url === '/') {
           const body: Uint8Array[] = []
-          proxyRes.on('data', function (chunk: Uint8Array) {
+          proxyRes.on('data', (chunk: Uint8Array) => {
             body.push(chunk)
           })
-          proxyRes.on('end', function () {
+          proxyRes.on('end', () => {
             const bodyStr = body.join('')
             const indexDir = os.tmpdir()
             writeFileSync(path.join(indexDir, 'index.html'), bodyStr)
             self.__parseHtml(cfg, indexDir, false)
               .then(({ html }) => {
+                const headers: { [key: string]: string } = {}
+                if(proxyRes.headers['content-type']) {
+                  headers['content-type'] = proxyRes.headers['content-type']
+                } else {
+                  const charsetMatch = /charset="(\S+)"/g.exec(bodyStr)
+                  if (charsetMatch) {
+                    headers['content-type'] = `'text/html; charset=${charsetMatch[1]}`
+                  }
+                }
+                res.writeHead(200, headers)
                 res.end(html)
               }).catch(err => {
                 res.writeHead(500, JSON.stringify(err))
@@ -119,7 +142,11 @@ class Runner {
       })
 
       proxy.on('error', (error: Error, _: http.IncomingMessage, res: http.ServerResponse) => {
-        console.error(error)
+        if (error.message?.includes('ECONNREFUSED')) {
+          warn(`Connection refused to ${devUrl.protocol}//${devUrl.host}. Did you start your dev server? Usually that's done with a \`dev\` or \`serve\` NPM script.`)
+        } else {
+          console.error(error)
+        }
         res.writeHead(500, error.message)
       })
 
@@ -141,7 +168,7 @@ class Runner {
       inlinedAssets = (await this.__parseHtml(cfg, devPath)).inlinedAssets
     }
 
-    process.env.TAURI_INLINED_ASSSTS = inlinedAssets.join('|')
+    process.env.TAURI_INLINED_ASSETS = inlinedAssets.join('|')
 
     this.devPath = devPath
 
@@ -225,7 +252,7 @@ class Runner {
     this.__rewriteManifest(cargoManifest)
 
     const inlinedAssets = (await this.__parseHtml(cfg, cfg.build.distDir)).inlinedAssets
-    process.env.TAURI_INLINED_ASSSTS = inlinedAssets.join('|')
+    process.env.TAURI_INLINED_ASSETS = inlinedAssets.join('|')
 
     const features = [
       cfg.tauri.embeddedServer.active ? 'embedded-server' : 'no-server'
@@ -339,6 +366,7 @@ class Runner {
         }
       }
 
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
       if ((!cfg.ctx.dev && cfg.tauri.embeddedServer.active) || !inlinerEnabled) {
         const html = rewriteHtml(originalHtml, domInterceptor)
         resolve({ inlinedAssets, html })

@@ -1,45 +1,13 @@
-import { Options, PartialOptions, Permission } from './types/notification'
 import { promisified } from './tauri'
 
-let permissionSettable = false
-let permissionValue = 'default'
-function setNotificationPermission(value: Permission): void {
-  permissionSettable = true
-  // @ts-expect-error
-  window.Notification.permission = value
-  permissionSettable = false
+export interface Options {
+  title: string
+  body?: string
+  icon?: string
 }
 
-// @ts-expect-error
-window.Notification = (title: string, options?: PartialOptions) => {
-  sendNotification({
-    title,
-    ...options
-  })
-}
-
-window.Notification.requestPermission = requestPermission
-
-Object.defineProperty(window.Notification, 'permission', {
-  enumerable: true,
-  get: () => permissionValue,
-  set(v: Permission) {
-    if (!permissionSettable) {
-      throw new Error('Readonly property')
-    }
-    permissionValue = v
-  }
-})
-
-isPermissionGranted()
-  .then(response => {
-    if (response === null) {
-      setNotificationPermission('default')
-    } else {
-      setNotificationPermission(response ? 'granted' : 'denied')
-    }
-  })
-  .catch(err => { throw err })
+export type PartialOptions = Omit<Options, 'title'>
+export type Permission = 'granted' | 'denied' | 'default'
 
 async function isPermissionGranted(): Promise<boolean | null> {
   if (window.Notification.permission !== 'default') {
@@ -51,34 +19,21 @@ async function isPermissionGranted(): Promise<boolean | null> {
 }
 
 async function requestPermission(): Promise<Permission> {
-  return await promisified<Permission>({
-    cmd: 'requestNotificationPermission'
-  }).then(permission => {
-    setNotificationPermission(permission)
-    return permission
-  })
+  return await window.Notification.requestPermission()
 }
 
 function sendNotification(options: Options | string): void {
-  if (typeof options === 'object') {
-    Object.freeze(options)
+  if (typeof options === 'string') {
+    // eslint-disable-next-line no-new
+    new window.Notification(options)
+  } else {
+    // eslint-disable-next-line no-new
+    new window.Notification(options.title, options)
   }
-
-  isPermissionGranted()
-    .then(permission => {
-      if (permission) {
-        return promisified({
-          cmd: 'notification',
-          options: typeof options === 'string' ? {
-            body: options
-          } : options
-        })
-      }
-    })
-    .catch(err => { throw err })
 }
 
 export {
   sendNotification,
+  requestPermission,
   isPermissionGranted
 }

@@ -1,0 +1,20 @@
+name: eslint check
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/js-lint.yml'
+      - 'cli/tauri.js/**'
+
+jobs:
+  eslint-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+      - name: install deps via yarn
+        working-directory: ./cli/tauri.js
+        run: yarn
+      - name: run eslint
+        working-directory: ./cli/tauri.js
+        run: yarn lint

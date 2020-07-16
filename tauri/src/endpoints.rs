@@ -60,25 +60,28 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           whitelist_error(webview, error, "readBinaryFile");
         }
         WriteFile {
-          file,
+          path,
           contents,
           options,
           callback,
           error,
         } => {
           #[cfg(write_file)]
-          file_system::write_file(webview, file, contents, options, callback, error);
+          file_system::write_file(webview, path, contents, options, callback, error);
           #[cfg(not(write_file))]
           whitelist_error(webview, error, "writeFile");
         }
         WriteBinaryFile {
-          file,
+          path,
           contents,
           options,
           callback,
           error,
         } => {
-          file_system::write_binary_file(webview, file, contents, options, callback, error);
+          #[cfg(write_binary_file)]
+          file_system::write_binary_file(webview, path, contents, options, callback, error);
+          #[cfg(not(write_binary_file))]
+          whitelist_error(webview, error, "writeBinaryFile");
         }
         ReadDir {
           path,
@@ -176,7 +179,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           callback,
           error,
         } => {
-          salt::validate(webview, salt, callback, error);
+          salt::validate(webview, salt, callback, error)?;
         }
         Listen {
           event,
@@ -203,7 +206,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           error,
         } => {
           #[cfg(open_dialog)]
-          dialog::open(webview, options, callback, error);
+          dialog::open(webview, options, callback, error)?;
           #[cfg(not(open_dialog))]
           whitelist_error(webview, error, "title");
         }
@@ -213,7 +216,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           error,
         } => {
           #[cfg(save_dialog)]
-          dialog::save(webview, options, callback, error);
+          dialog::save(webview, options, callback, error)?;
           #[cfg(not(save_dialog))]
           throw_whitelist_error(webview, "saveDialog");
         }
@@ -241,14 +244,18 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           crate::execute_promise(
             webview,
             move || match crate::cli::get_matches() {
-              Some(matches) => Ok(serde_json::to_string(matches)?),
+              Some(matches) => Ok(matches),
               None => Err(anyhow::anyhow!(r#""failed to get matches""#)),
             },
             callback,
             error,
           );
           #[cfg(not(cli))]
-          whitelist_error(webview, error, "cli");
+          api_error(
+            webview,
+            error,
+            "CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri)",
+          );
         }
         Notification {
           options,
@@ -268,7 +275,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         }
         RequestNotificationPermission { callback, error } => {
           #[cfg(notification)]
-          notification::request_permission(webview, callback, error);
+          notification::request_permission(webview, callback, error)?;
           #[cfg(not(notification))]
           whitelist_error(webview, error, "notification");
         }
@@ -279,18 +286,27 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
 }
 
 #[allow(dead_code)]
+fn api_error<T: 'static>(webview: &mut WebView<'_, T>, error_fn: String, message: &str) {
+  let reject_code = tauri_api::rpc::format_callback(error_fn, message);
+  webview
+    .eval(&reject_code)
+    .expect("failed to eval api error")
+}
+
+#[allow(dead_code)]
 fn whitelist_error<T: 'static>(
   webview: &mut WebView<'_, T>,
   error_fn: String,
   whitelist_key: &str,
 ) {
-  let reject_code = tauri_api::rpc::format_callback(
+  api_error(
+    webview,
     error_fn,
-    format!(r#""'{}' not whitelisted""#, whitelist_key),
-  );
-  webview
-    .eval(&reject_code)
-    .expect("failed to eval whitelist error")
+    &format!(
+      "{}' not whitelisted (https://tauri.studio/docs/api/config#tauri)",
+      whitelist_key
+    ),
+  )
 }
 
 #[allow(dead_code)]
@@ -312,13 +328,13 @@ mod test {
       let res = super::init();
       match res {
         Ok(s) => assert_eq!(s, ""),
-        Err(_) => assert!(false),
+        Err(e) => panic!("init Err {:?}", e.to_string()),
       }
     } else if cfg!(event) {
       let res = super::init();
       match res {
         Ok(s) => assert!(s.contains("window.__TAURI__.promisified")),
-        Err(_) => assert!(false),
+        Err(e) => panic!("init Err {:?}", e.to_string()),
       }
     }
   }
@@ -328,11 +344,7 @@ mod test {
     #[cfg(event)]
     #[test]
     fn check_listen_fn(event in "", handler in "", once in proptest::bool::ANY) {
-      let res = super::event::listen_fn(event, handler, once);
-      match res {
-        Ok(_) => assert!(true),
-        Err(_) => assert!(false)
-      }
+      super::event::listen_fn(event, handler, once).expect("listen_fn failed");
     }
   }
 

@@ -22,6 +22,8 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+/// Bundles the project.
+/// Returns a vector of PathBuf that shows where the .app was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   common::print_warning("iOS bundle support is still experimental.")?;
 
@@ -49,9 +51,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     generate_icon_files(&bundle_dir, settings).with_context(|| "Failed to create app icons")?;
   generate_info_plist(&bundle_dir, settings, &icon_filenames)
     .with_context(|| "Failed to create Info.plist")?;
-  let bin_path = bundle_dir.join(&settings.bundle_name());
-  common::copy_file(settings.binary_path(), &bin_path)
-    .with_context(|| format!("Failed to copy binary from {:?}", settings.binary_path()))?;
+
+  for bin in settings.binaries() {
+    let bin_path = settings.binary_path(bin);
+    common::copy_file(&bin_path, &bundle_dir.join(bin.name()))
+      .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+  }
+
   Ok(vec![bundle_dir])
 }
 
@@ -123,65 +129,66 @@ fn generate_icon_files(bundle_dir: &Path, settings: &Settings) -> crate::Result<
   Ok(filenames)
 }
 
+/// Generates the Info.plist file
 fn generate_info_plist(
   bundle_dir: &Path,
   settings: &Settings,
-  icon_filenames: &Vec<String>,
+  icon_filenames: &[String],
 ) -> crate::Result<()> {
   let file = &mut common::create_file(&bundle_dir.join("Info.plist"))?;
-  write!(
+  writeln!(
     file,
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
           <!DOCTYPE plist PUBLIC \"-//Apple Computer//DTD PLIST 1.0//EN\" \
           \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n\
           <plist version=\"1.0\">\n\
-          <dict>\n"
+          <dict>"
   )?;
 
-  write!(
+  writeln!(
     file,
-    "  <key>CFBundleIdentifier</key>\n  <string>{}</string>\n",
+    "  <key>CFBundleIdentifier</key>\n  <string>{}</string>",
     settings.bundle_identifier()
   )?;
-  write!(
+  writeln!(
     file,
-    "  <key>CFBundleDisplayName</key>\n  <string>{}</string>\n",
+    "  <key>CFBundleDisplayName</key>\n  <string>{}</string>",
     settings.bundle_name()
   )?;
-  write!(
+  writeln!(
     file,
-    "  <key>CFBundleName</key>\n  <string>{}</string>\n",
+    "  <key>CFBundleName</key>\n  <string>{}</string>",
     settings.bundle_name()
   )?;
-  write!(
+  writeln!(
     file,
-    "  <key>CFBundleExecutable</key>\n  <string>{}</string>\n",
-    settings.binary_name()
+    "  <key>CFBundleExecutable</key>\n  <string>{}</string>",
+    settings.main_binary_name()
   )?;
-  write!(
+  writeln!(
     file,
-    "  <key>CFBundleVersion</key>\n  <string>{}</string>\n",
+    "  <key>CFBundleVersion</key>\n  <string>{}</string>",
     settings.version_string()
   )?;
-  write!(
+  writeln!(
     file,
-    "  <key>CFBundleShortVersionString</key>\n  <string>{}</string>\n",
+    "  <key>CFBundleShortVersionString</key>\n  <string>{}</string>",
     settings.version_string()
   )?;
-  write!(
+  writeln!(
     file,
-    "  <key>CFBundleDevelopmentRegion</key>\n  <string>en_US</string>\n"
+    "  <key>CFBundleDevelopmentRegion</key>\n  <string>en_US</string>"
   )?;
 
   if !icon_filenames.is_empty() {
-    write!(file, "  <key>CFBundleIconFiles</key>\n  <array>\n")?;
+    writeln!(file, "  <key>CFBundleIconFiles</key>\n  <array>")?;
     for filename in icon_filenames {
-      write!(file, "    <string>{}</string>\n", filename)?;
+      writeln!(file, "    <string>{}</string>", filename)?;
     }
-    write!(file, "  </array>\n")?;
+    writeln!(file, "  </array>")?;
   }
-  write!(file, "  <key>LSRequiresIPhoneOS</key>\n  <true/>\n")?;
-  write!(file, "</dict>\n</plist>\n")?;
+  writeln!(file, "  <key>LSRequiresIPhoneOS</key>\n  <true/>")?;
+  writeln!(file, "</dict>\n</plist>")?;
   file.flush()?;
   Ok(())
 }

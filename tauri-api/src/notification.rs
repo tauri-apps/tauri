@@ -3,37 +3,54 @@ use crate::config::get as get_config;
 #[cfg(windows)]
 use std::path::MAIN_SEPARATOR;
 
+/// The Notification definition.
+/// Allows you to construct a Notification data and send it.
+///
+/// # Example
+/// ```
+/// use tauri_api::notification::Notification;
+/// // shows a notification with the given title and body
+/// Notification::new()
+///   .title("New message")
+///   .body("You've got a new message.")
+///   .show();
+/// ```
 #[allow(dead_code)]
+#[derive(Default)]
 pub struct Notification {
+  /// The notification body.
   body: Option<String>,
+  /// The notification title.
   title: Option<String>,
+  /// The notification icon.
   icon: Option<String>,
 }
 
 impl Notification {
+  /// Initializes a instance of a Notification.
   pub fn new() -> Self {
-    Self {
-      body: None,
-      title: None,
-      icon: None,
-    }
+    Default::default()
   }
 
-  pub fn body(&mut self, body: String) -> &mut Self {
-    self.body = Some(body);
+  /// Sets the notification body.
+  pub fn body(mut self, body: impl Into<String>) -> Self {
+    self.body = Some(body.into());
     self
   }
 
-  pub fn title(&mut self, title: String) -> &mut Self {
-    self.title = Some(title);
+  /// Sets the notification title.
+  pub fn title(mut self, title: impl Into<String>) -> Self {
+    self.title = Some(title.into());
     self
   }
 
-  pub fn icon(&mut self, icon: String) -> &mut Self {
-    self.icon = Some(icon);
+  /// Sets the notification icon.
+  pub fn icon(mut self, icon: impl Into<String>) -> Self {
+    self.icon = Some(icon.into());
     self
   }
 
+  /// Shows the notification.
   pub fn show(self) -> crate::Result<()> {
     let mut notification = notify_rust::Notification::new();
     if let Some(body) = self.body {

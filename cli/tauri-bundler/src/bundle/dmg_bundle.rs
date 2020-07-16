@@ -9,19 +9,27 @@ use std::fs::{self, write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
-// create script files to bundle project and execute bundle_script.
+/// Bundles the project.
+/// Returns a vector of PathBuf that shows where the DMG was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  // generate the app.app folder
+  // generate the .app bundle
   osx_bundle::bundle_project(settings)?;
-
-  let app_name = settings.bundle_name();
 
   // get the target path
   let output_path = settings.project_out_directory().join("bundle/dmg");
-  let dmg_name = format!("{}.dmg", app_name.clone());
+  let package_base_name = format!(
+    "{}_{}_{}",
+    settings.main_binary_name(),
+    settings.version_string(),
+    match settings.binary_arch() {
+      "x86_64" => "x64",
+      other => other,
+    }
+  );
+  let dmg_name = format!("{}.dmg", &package_base_name);
   let dmg_path = output_path.join(&dmg_name.clone());
 
-  let bundle_name = &format!("{}.app", app_name);
+  let bundle_name = &format!("{}.app", &package_base_name);
   let bundle_dir = settings.project_out_directory().join("bundle/osx");
   let bundle_path = bundle_dir.join(&bundle_name.clone());
 
@@ -62,7 +70,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .arg("777")
     .arg(&bundle_script_path)
     .arg(&license_script_path)
-    .current_dir(output_path.clone())
+    .current_dir(output_path)
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
     .output()
@@ -70,7 +78,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let mut args = vec![
     "--volname",
-    &app_name,
+    &package_base_name,
     "--volicon",
     "../../../../icons/icon.icns",
     "--icon",
@@ -94,29 +102,23 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // Issue #592 - Building MacOS dmg files on CI
   // https://github.com/tauri-apps/tauri/issues/592
-  match env::var_os("CI") {
-    Some(value) => {
-      if value == "true" {
-        args.push("--skip-jenkins");
-      }
+  if let Some(value) = env::var_os("CI") {
+    if value == "true" {
+      args.push("--skip-jenkins");
     }
-    None => (),
   }
 
   // execute the bundle script
-  let status = Command::new(&bundle_script_path)
+  let mut cmd = Command::new(&bundle_script_path);
+  cmd
     .current_dir(bundle_dir.clone())
     .args(args)
-    .args(vec![dmg_name.as_str(), bundle_name.as_str()])
-    .status()
-    .expect("Failed to execute shell script");
+    .args(vec![dmg_name.as_str(), bundle_name.as_str()]);
 
-  if !status.success() {
-    Err(crate::Error::ShellScriptError(
-      "error running bundle_dmg.sh".to_owned(),
-    ))
-  } else {
-    fs::rename(bundle_dir.join(dmg_name.clone()), dmg_path.clone())?;
-    Ok(vec![bundle_path, dmg_path])
-  }
+  common::print_info("running bundle_dmg.sh")?;
+  common::execute_with_output(&mut cmd)
+    .map_err(|_| crate::Error::ShellScriptError("error running bundle_dmg.sh".to_owned()))?;
+
+  fs::rename(bundle_dir.join(dmg_name), dmg_path.clone())?;
+  Ok(vec![bundle_path, dmg_path])
 }

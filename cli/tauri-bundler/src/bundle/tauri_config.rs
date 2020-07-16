@@ -52,10 +52,18 @@ pub struct BundleConfig {
 }
 
 #[derive(PartialEq, Deserialize, Clone, Debug, Default)]
+#[serde(tag = "embeddedServer", rename_all = "camelCase")]
+pub struct EmbeddedServerConfig {
+  pub active: bool,
+}
+
+#[derive(PartialEq, Deserialize, Clone, Debug, Default)]
 #[serde(tag = "tauri", rename_all = "camelCase")]
 pub struct TauriConfig {
   #[serde(default)]
   pub bundle: BundleConfig,
+  #[serde(default)]
+  pub embedded_server: EmbeddedServerConfig,
   pub updater: Option<UpdaterConfig>,
 }
 

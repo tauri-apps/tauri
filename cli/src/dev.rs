@@ -4,7 +4,9 @@ use http::header::HeaderName;
 use tiny_http::{Response, Server};
 use url::Url;
 
-use std::process::Command;
+use std::process::{exit, Command};
+use std::thread::sleep;
+use std::time::Duration;
 
 #[derive(Default)]
 pub struct Dev {
@@ -25,10 +27,10 @@ impl Dev {
     let logger = Logger::new("tauri:dev");
     let config = get_config()?;
 
-    if let Some(before_build) = &config.build.before_build_command {
+    if let Some(before_dev) = &config.build.before_dev_command {
       let mut cmd: Option<&str> = None;
       let mut args: Vec<&str> = vec![];
-      for token in before_build.split(" ") {
+      for token in before_dev.split(" ") {
         if cmd.is_none() {
           cmd = Some(token);
         } else {
@@ -37,6 +39,7 @@ impl Dev {
       }
 
       if let Some(cmd) = cmd {
+        logger.log(format!("Running `{}`", before_dev));
         Command::new(cmd)
           .args(args)
           .current_dir(app_dir())
@@ -45,10 +48,29 @@ impl Dev {
     }
 
     let dev_path = Url::parse(&config.build.dev_path)?;
-    let dev_port = dev_path.port().unwrap_or(80) + 1;
+    let dev_port = dev_path.port().unwrap_or(80);
 
-    logger.log(format!("starting dev proxy on port {}", dev_port));
-    std::thread::spawn(move || proxy_dev_server(&dev_path, dev_port));
+    let timeout = Duration::from_secs(3);
+    let wait_time = Duration::from_secs(30);
+    let mut total_time = timeout;
+    while let Err(_) = RequestBuilder::new(Method::GET, &dev_path).send() {
+      logger.warn("Waiting for your dev server to start...");
+      sleep(timeout);
+      total_time += timeout;
+      if total_time == wait_time {
+        logger.error(format!(
+          "Couldn't connect to {} after {}s. Please make sure that's the URL to your dev server.",
+          dev_path,
+          total_time.as_secs()
+        ));
+        exit(1);
+      }
+    }
+
+    let proxy_port = dev_port + 1;
+
+    logger.log(format!("starting dev proxy on port {}", proxy_port));
+    std::thread::spawn(move || proxy_dev_server(&dev_path, proxy_port));
 
     Ok(())
   }

@@ -69,6 +69,8 @@ pub enum Port {
 #[derive(PartialEq, Deserialize, Debug)]
 #[serde(tag = "embeddedServer", rename_all = "camelCase")]
 pub struct EmbeddedServerConfig {
+  /// Whether the embeddedServer is active or not
+  pub active: bool,
   /// The embedded server host.
   #[serde(default = "default_host")]
   pub host: String,
@@ -124,6 +126,7 @@ fn default_port() -> Port {
 
 fn default_embedded_server() -> EmbeddedServerConfig {
   EmbeddedServerConfig {
+    active: false,
     host: default_host(),
     port: default_port(),
   }
@@ -303,10 +306,16 @@ pub struct BuildConfig {
   /// the devPath config.
   #[serde(default = "default_dev_path")]
   pub dev_path: String,
+  #[serde(default = "default_dist_dir")]
+  pub dist_dir: String,
 }
 
 fn default_dev_path() -> String {
   "".to_string()
+}
+
+fn default_dist_dir() -> String {
+  "../dist".to_string()
 }
 
 type JsonObject = HashMap<String, JsonValue>;
@@ -338,6 +347,7 @@ fn default_tauri() -> TauriConfig {
 fn default_build() -> BuildConfig {
   BuildConfig {
     dev_path: default_dev_path(),
+    dist_dir: default_dist_dir(),
   }
 }
 

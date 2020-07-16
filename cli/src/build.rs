@@ -3,7 +3,7 @@ use tauri_bundler::{
   bundle::{bundle_project, PackageType, SettingsBuilder},
 };
 
-use crate::helpers::app_paths::tauri_dir;
+use crate::helpers::{app_paths::tauri_dir, config::get as get_config};
 use std::env::{set_current_dir, set_var};
 
 #[derive(Default)]
@@ -28,7 +28,14 @@ impl Build {
   }
 
   pub fn run(self) -> crate::Result<()> {
-    let mut settings_builder = SettingsBuilder::new().features(vec!["embedded-server".to_string()]);
+    let config = get_config()?;
+    let feature = if config.tauri.embedded_server.active {
+      "embedded-server"
+    } else {
+      "no-server"
+    };
+
+    let mut settings_builder = SettingsBuilder::new().features(vec![feature.to_string()]);
     if !self.debug {
       settings_builder = settings_builder.release();
     }
@@ -52,7 +59,9 @@ impl Build {
 
     let tauri_path = tauri_dir();
     set_current_dir(&tauri_path)?;
-    set_var("TAURI_DIR", tauri_path);
+    set_var("TAURI_DIR", &tauri_path);
+    set_var("TAURI_DIST_DIR", tauri_path.join(&config.build.dist_dir));
+
     let settings = settings_builder.build()?;
 
     build_project(&settings)?;

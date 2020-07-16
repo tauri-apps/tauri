@@ -297,6 +297,13 @@ pub struct TauriConfig {
   /// The bundler configuration.
   #[serde(default = "default_bundle")]
   pub bundle: BundleConfig,
+  #[serde(default)]
+  pub inliner: InlinerConfig,
+}
+
+#[derive(Default, PartialEq, Deserialize, Debug)]
+pub struct InlinerConfig {
+  pub active: bool,
 }
 
 /// The Build configuration object.
@@ -341,6 +348,7 @@ fn default_tauri() -> TauriConfig {
     embedded_server: default_embedded_server(),
     cli: None,
     bundle: default_bundle(),
+    inliner: Default::default(),
   }
 }
 

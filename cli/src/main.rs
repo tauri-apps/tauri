@@ -51,7 +51,7 @@ fn dev_command(matches: &ArgMatches) -> Result<()> {
 }
 
 fn build_command(matches: &ArgMatches) -> Result<()> {
-  let debug = matches.is_present("exit_on_panic");
+  let debug = matches.is_present("debug");
   let targets = matches.values_of_lossy("target");
 
   let mut build_runner = build::Build::new();

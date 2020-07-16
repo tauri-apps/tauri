@@ -3,8 +3,12 @@ use tauri_bundler::{
   bundle::{bundle_project, PackageType, SettingsBuilder},
 };
 
-use crate::helpers::{app_paths::tauri_dir, config::get as get_config};
+use crate::helpers::{app_paths::tauri_dir, config::get as get_config, TauriHtml};
 use std::env::{set_current_dir, set_var};
+use std::fs::read_to_string;
+use std::fs::File;
+use std::io::Write;
+use std::path::PathBuf;
 
 #[derive(Default)]
 pub struct Build {
@@ -61,6 +65,14 @@ impl Build {
     set_current_dir(&tauri_path)?;
     set_var("TAURI_DIR", &tauri_path);
     set_var("TAURI_DIST_DIR", tauri_path.join(&config.build.dist_dir));
+
+    let index_html_path = PathBuf::from(&config.build.dist_dir).join("index.html");
+    let tauri_html = TauriHtml::new(&config.build.dist_dir, read_to_string(index_html_path)?)
+      .inliner_enabled(config.tauri.inliner.active)
+      .generate()?;
+    let tauri_index_html_path = PathBuf::from(&config.build.dist_dir).join("index.tauri.html");
+    let mut tauri_index_html_file = File::create(tauri_index_html_path)?;
+    tauri_index_html_file.write_all(tauri_html.as_bytes())?;
 
     let settings = settings_builder.build()?;
 

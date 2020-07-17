@@ -288,16 +288,11 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
 #[allow(dead_code)]
 fn api_error(webview: &mut Webview, error_fn: String, message: &str) {
   let reject_code = tauri_api::rpc::format_callback(error_fn, message);
-  webview
-    .eval(&reject_code)
+  webview.eval(&reject_code)
 }
 
 #[allow(dead_code)]
-fn whitelist_error(
-  webview: &mut Webview,
-  error_fn: String,
-  whitelist_key: &str,
-) {
+fn whitelist_error(webview: &mut Webview, error_fn: String, whitelist_key: &str) {
   api_error(
     webview,
     error_fn,
@@ -311,8 +306,7 @@ fn whitelist_error(
 #[allow(dead_code)]
 fn throw_whitelist_error(webview: &mut Webview, whitelist_key: &str) {
   let reject_code = format!(r#"throw new Error("'{}' not whitelisted")"#, whitelist_key);
-  webview
-    .eval(&reject_code)
+  webview.eval(&reject_code)
 }
 
 #[cfg(test)]

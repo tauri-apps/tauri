@@ -2,12 +2,7 @@ use super::cmd::NotificationOptions;
 use serde_json::Value as JsonValue;
 use webview_rust_sys::Webview;
 
-pub fn send(
-  webview: &mut Webview,
-  options: NotificationOptions,
-  callback: String,
-  error: String,
-) {
+pub fn send(webview: &mut Webview, options: NotificationOptions, callback: String, error: String) {
   crate::execute_promise(
     webview,
     move || {
@@ -26,11 +21,7 @@ pub fn send(
   );
 }
 
-pub fn is_permission_granted(
-  webview: &mut Webview,
-  callback: String,
-  error: String,
-) {
+pub fn is_permission_granted(webview: &mut Webview, callback: String, error: String) {
   crate::execute_promise(
     webview,
     move || {

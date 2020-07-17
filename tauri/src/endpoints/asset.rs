@@ -1,8 +1,8 @@
 use std::path::PathBuf;
-use web_view::WebView;
+use webview_rust_sys::Webview;
 
-pub fn load<T: 'static>(
-  webview: &mut WebView<'_, T>,
+pub fn load(
+  webview: &mut Webview,
   asset: String,
   asset_type: String,
   callback: String,

@@ -39,8 +39,7 @@ mod salt;
 pub use anyhow::Result;
 pub use app::*;
 pub use tauri_api as api;
-pub use web_view::Handle;
-pub use web_view::WebView;
+pub use webview_rust_sys::{Webview, WebviewMut};
 
 use std::process::Stdio;
 
@@ -62,19 +61,17 @@ pub fn spawn<F: FnOnce() -> () + Send + 'static>(task: F) {
 /// Synchronously executes the given task
 /// and evaluates its Result to the JS promise described by the `callback` and `error` function names.
 pub fn execute_promise_sync<
-  T: 'static,
   R: Serialize,
   F: FnOnce() -> crate::Result<R> + Send + 'static,
 >(
-  webview: &mut WebView<'_, T>,
+  webview: &mut Webview,
   task: F,
   callback: String,
   error: String,
 ) -> crate::Result<()> {
-  let handle = webview.handle();
   let callback_string =
     format_callback_result(task().map_err(|err| err.to_string()), callback, error)?;
-  handle.dispatch(move |_webview| _webview.eval(callback_string.as_str()))?;
+  webview.dispatch(move |w| w.eval(callback_string.as_str()));
   Ok(())
 }
 
@@ -84,16 +81,15 @@ pub fn execute_promise_sync<
 /// If the Result `is_ok()`, the callback will be the `success_callback` function name and the argument will be the Ok value.
 /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
 pub fn execute_promise<
-  T: 'static,
   R: Serialize,
   F: FnOnce() -> crate::Result<R> + Send + 'static,
 >(
-  webview: &mut WebView<'_, T>,
+  webview: &mut Webview,
   task: F,
   success_callback: String,
   error_callback: String,
 ) {
-  let handle = webview.handle();
+  let mut webview = webview.as_mut();
   POOL.with(|thread| {
     thread.execute(move || {
       let callback_string = match format_callback_result(
@@ -104,16 +100,15 @@ pub fn execute_promise<
         Ok(callback_string) => callback_string,
         Err(e) => format_callback(error_callback, e.to_string()),
       };
-      handle
-        .dispatch(move |_webview| _webview.eval(callback_string.as_str()))
-        .expect("Failed to dispatch promise callback")
+      webview.eval(callback_string.as_str())
+        .expect("Failed to dispatch promise callback");
     });
   });
 }
 
 /// Calls the given command and evaluates its output to the JS promise described by the `callback` and `error` function names.
-pub fn call<T: 'static>(
-  webview: &mut WebView<'_, T>,
+pub fn call(
+  webview: &mut Webview,
   command: String,
   args: Vec<String>,
   callback: String,
@@ -128,11 +123,10 @@ pub fn call<T: 'static>(
 }
 
 /// Closes the splashscreen.
-pub fn close_splashscreen<T: 'static>(webview_handle: &Handle<T>) -> crate::Result<()> {
-  webview_handle.dispatch(|webview| {
-    // send a signal to the runner so it knows that it should redirect to the main app content
-    webview.eval(r#"window.external.invoke(JSON.stringify({ cmd: "closeSplashscreen" }))"#)
-  })?;
+pub fn close_splashscreen(webview: &mut Webview) -> crate::Result<()> {
+  // send a signal to the runner so it knows that it should redirect to the main app content
+  webview.eval(r#"window.external.invoke(JSON.stringify({ cmd: "closeSplashscreen" }))"#);
+
   Ok(())
 }
 

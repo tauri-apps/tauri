@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use once_cell::sync::Lazy;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
-use web_view::Handle;
+use webview_rust_sys::Webview;
 
 /// An event handler.
 struct EventHandler {
@@ -58,7 +58,7 @@ pub fn listen<F: FnMut(Option<String>) + Send + 'static>(id: impl Into<String>, 
 
 /// Emits an event to JS.
 pub fn emit<T: 'static, S: Serialize>(
-  webview_handle: &Handle<T>,
+  webview_handle: &mut Webview,
   event: impl AsRef<str> + Send + 'static,
   payload: Option<S>,
 ) -> crate::Result<()> {
@@ -79,8 +79,7 @@ pub fn emit<T: 'static, S: Serialize>(
         js_payload,
         salt
       ))
-    })
-    .expect("Failed to dispatch JS from emit");
+    });
 
   Ok(())
 }

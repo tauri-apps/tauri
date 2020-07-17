@@ -19,10 +19,10 @@ mod http;
 #[cfg(notification)]
 mod notification;
 
-use web_view::WebView;
+use webview_rust_sys::Webview;
 
 #[allow(unused_variables)]
-pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> crate::Result<()> {
+pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
     Err(e) => Err(e.into()),
@@ -35,7 +35,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
                 window.external.invoke('{{"cmd":"__initialized"}}')
               "#,
             event_init = event_init
-          ))?;
+          ));
         }
         ReadTextFile {
           path,
@@ -153,7 +153,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         }
         SetTitle { title } => {
           #[cfg(set_title)]
-          webview.set_title(&title)?;
+          webview.set_title(&title);
           #[cfg(not(set_title))]
           throw_whitelist_error(webview, "title");
         }
@@ -189,7 +189,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           #[cfg(event)]
           {
             let js_string = event::listen_fn(event, handler, once)?;
-            webview.eval(&js_string)?;
+            webview.eval(&js_string);
           }
           #[cfg(not(event))]
           throw_whitelist_error(webview, "event");
@@ -286,16 +286,15 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
 }
 
 #[allow(dead_code)]
-fn api_error<T: 'static>(webview: &mut WebView<'_, T>, error_fn: String, message: &str) {
+fn api_error(webview: &mut Webview, error_fn: String, message: &str) {
   let reject_code = tauri_api::rpc::format_callback(error_fn, message);
   webview
     .eval(&reject_code)
-    .expect("failed to eval api error")
 }
 
 #[allow(dead_code)]
-fn whitelist_error<T: 'static>(
-  webview: &mut WebView<'_, T>,
+fn whitelist_error(
+  webview: &mut Webview,
   error_fn: String,
   whitelist_key: &str,
 ) {
@@ -310,11 +309,10 @@ fn whitelist_error<T: 'static>(
 }
 
 #[allow(dead_code)]
-fn throw_whitelist_error<T: 'static>(webview: &mut WebView<'_, T>, whitelist_key: &str) {
+fn throw_whitelist_error(webview: &mut Webview, whitelist_key: &str) {
   let reject_code = format!(r#"throw new Error("'{}' not whitelisted")"#, whitelist_key);
   webview
     .eval(&reject_code)
-    .expect("failed to eval whitelist error")
 }
 
 #[cfg(test)]

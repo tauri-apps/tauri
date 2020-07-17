@@ -1,9 +1,9 @@
 use super::cmd::NotificationOptions;
 use serde_json::Value as JsonValue;
-use web_view::WebView;
+use webview_rust_sys::Webview;
 
-pub fn send<T: 'static>(
-  webview: &mut WebView<'_, T>,
+pub fn send(
+  webview: &mut Webview,
   options: NotificationOptions,
   callback: String,
   error: String,
@@ -26,8 +26,8 @@ pub fn send<T: 'static>(
   );
 }
 
-pub fn is_permission_granted<T: 'static>(
-  webview: &mut WebView<'_, T>,
+pub fn is_permission_granted(
+  webview: &mut Webview,
   callback: String,
   error: String,
 ) {
@@ -46,8 +46,8 @@ pub fn is_permission_granted<T: 'static>(
   );
 }
 
-pub fn request_permission<T: 'static>(
-  webview: &mut WebView<'_, T>,
+pub fn request_permission(
+  webview: &mut Webview,
   callback: String,
   error: String,
 ) -> crate::Result<()> {

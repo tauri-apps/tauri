@@ -120,7 +120,7 @@ pub fn call(
 /// Closes the splashscreen.
 pub fn close_splashscreen(webview: &mut Webview) -> crate::Result<()> {
   // send a signal to the runner so it knows that it should redirect to the main app content
-  webview.eval(r#"window.external.invoke(JSON.stringify({ cmd: "closeSplashscreen" }))"#);
+  webview.eval(r#"window.__TAURI_INVOKE_HANDLER__({ cmd: "closeSplashscreen" })"#);
 
   Ok(())
 }

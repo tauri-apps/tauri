@@ -7,6 +7,28 @@ if (!String.prototype.startsWith) {
 }
 
 (function () {
+  function webviewBind (name) {
+    var RPC = window._rpc = (window._rpc || { nextSeq: 1 });
+    window[name] = function () {
+      var seq = RPC.nextSeq++;
+      var promise = new Promise(function (resolve, reject) {
+        RPC[seq] = {
+          resolve: resolve,
+          reject: reject,
+        };
+      });
+      window.external.invoke(JSON.stringify({
+        id: seq,
+        method: name,
+        params: Array.prototype.slice.call(arguments),
+      }));
+      return promise;
+    }
+  }
+  if (!window.__TAURI_INVOKE_HANDLER__) {
+    webviewBind('__TAURI_INVOKE_HANDLER__')
+  }
+
   function s4() {
     return Math.floor((1 + Math.random()) * 0x10000)
       .toString(16)

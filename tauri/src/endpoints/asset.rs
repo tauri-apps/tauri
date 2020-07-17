@@ -8,7 +8,7 @@ pub fn load(
   callback: String,
   error: String,
 ) {
-  let handle = webview.handle();
+  let mut webview_mut = webview.as_mut();
   crate::execute_promise(
     webview,
     move || {
@@ -58,19 +58,30 @@ pub fn load(
           base64::encode(&read_asset.expect("Failed to read asset type").into_owned())
         ))
       } else {
-        handle
-          .dispatch(move |_webview| {
-            let asset_bytes = &read_asset.expect("Failed to read asset type").into_owned();
-            let asset_str =
-              &std::str::from_utf8(asset_bytes).expect("failed to convert asset bytes to u8 slice");
-            if asset_type == "stylesheet" {
-              _webview.inject_css(asset_str)
-            } else {
-              _webview.eval(asset_str)
-            }
-          })
-          .map_err(|err| err.into())
-          .map(|_| "Asset loaded successfully".to_string())
+        let asset_bytes = read_asset.expect("Failed to read asset type");
+        webview_mut.dispatch(move |webview_ref| {
+          let asset_str =
+            std::str::from_utf8(&asset_bytes).expect("failed to convert asset bytes to u8 slice");
+          if asset_type == "stylesheet" {
+            webview_ref.eval(&format!(
+              r#"
+                (function () {{
+                  var css = document.createElement('style')
+                  css.type = 'text/css'
+                  if (css.styleSheet)  
+                      css.styleSheet.cssText = {css}
+                  else  
+                      css.appendChild(document.createTextNode({css}))
+                  document.getElementsByTagName("head")[0].appendChild(css);
+                }})()
+              "#,
+              css = asset_str
+            ));
+          } else {
+            webview_ref.eval(asset_str);
+          }
+        })?;
+        Ok("Asset loaded successfully".to_string())
       }
     },
     callback,

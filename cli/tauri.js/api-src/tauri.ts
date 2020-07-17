@@ -1,6 +1,6 @@
 declare global {
-  interface External {
-    invoke: (command: string) => void
+  interface Window {
+    __TAURI_INVOKE_HANDLER__: (command: string) => void
   }
 }
 
@@ -21,7 +21,7 @@ function uid(): string {
  * @param args
  */
 function invoke(args: any): void {
-  window.external.invoke(typeof args === 'object' ? JSON.stringify(args) : args)
+  window.__TAURI_INVOKE_HANDLER__(args)
 }
 
 function transformCallback(callback?: (response: any) => void, once = false): string {

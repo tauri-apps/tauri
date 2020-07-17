@@ -54,9 +54,6 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
         security: {
           csp: "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
         },
-        edge: {
-          active: true
-        },
         inliner: {
           active: true
         }

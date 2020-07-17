@@ -1,5 +1,5 @@
 document.getElementById('log').addEventListener('click', function () {
-  window.__TAURI__.invoke({
+  window.__TAURI__.tauri.invoke({
     cmd: 'logOperation',
     event: 'tauri-click',
     payload: 'this payload is optional because we used Option in Rust'
@@ -7,7 +7,7 @@ document.getElementById('log').addEventListener('click', function () {
 })
 
 document.getElementById('request').addEventListener('click', function () {
-  window.__TAURI__.promisified({
+  window.__TAURI__.tauri.promisified({
     cmd: 'performRequest',
     endpoint: 'dummy endpoint arg',
     body: {

@@ -60,10 +60,7 @@ pub fn spawn<F: FnOnce() -> () + Send + 'static>(task: F) {
 
 /// Synchronously executes the given task
 /// and evaluates its Result to the JS promise described by the `callback` and `error` function names.
-pub fn execute_promise_sync<
-  R: Serialize,
-  F: FnOnce() -> crate::Result<R> + Send + 'static,
->(
+pub fn execute_promise_sync<R: Serialize, F: FnOnce() -> crate::Result<R> + Send + 'static>(
   webview: &mut Webview,
   task: F,
   callback: String,
@@ -80,10 +77,7 @@ pub fn execute_promise_sync<
 ///
 /// If the Result `is_ok()`, the callback will be the `success_callback` function name and the argument will be the Ok value.
 /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
-pub fn execute_promise<
-  R: Serialize,
-  F: FnOnce() -> crate::Result<R> + Send + 'static,
->(
+pub fn execute_promise<R: Serialize, F: FnOnce() -> crate::Result<R> + Send + 'static>(
   webview: &mut Webview,
   task: F,
   success_callback: String,
@@ -100,7 +94,8 @@ pub fn execute_promise<
         Ok(callback_string) => callback_string,
         Err(e) => format_callback(error_callback, e.to_string()),
       };
-      webview.eval(callback_string.as_str())
+      webview
+        .dispatch(move |webview_ref| webview_ref.eval(callback_string.as_str()))
         .expect("Failed to dispatch promise callback");
     });
   });

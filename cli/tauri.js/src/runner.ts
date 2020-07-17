@@ -117,7 +117,7 @@ class Runner {
             self.__parseHtml(cfg, indexDir, false)
               .then(({ html }) => {
                 const headers: { [key: string]: string } = {}
-                if(proxyRes.headers['content-type']) {
+                if (proxyRes.headers['content-type']) {
                   headers['content-type'] = proxyRes.headers['content-type']
                 } else {
                   const charsetMatch = /charset="(\S+)"/g.exec(bodyStr)
@@ -525,10 +525,6 @@ class Runner {
         w => cfg.tauri.whitelist[String(w)]
       )
       tomlFeatures.push(...whitelist.map(toKebabCase))
-    }
-
-    if (cfg.tauri.edge.active) {
-      tomlFeatures.push('edge')
     }
 
     if (cfg.tauri.cli) {

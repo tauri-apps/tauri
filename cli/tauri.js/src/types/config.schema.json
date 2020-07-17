@@ -391,17 +391,6 @@
           "$ref": "#/definitions/CliConfig",
           "description": "app's CLI definition"
         },
-        "edge": {
-          "additionalProperties": false,
-          "defaultProperties": [
-          ],
-          "properties": {
-            "active": {
-              "type": "boolean"
-            }
-          },
-          "type": "object"
-        },
         "embeddedServer": {
           "additionalProperties": false,
           "defaultProperties": [
@@ -496,7 +485,6 @@
       },
       "required": [
         "bundle",
-        "edge",
         "embeddedServer",
         "inliner",
         "security",

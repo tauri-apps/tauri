@@ -7,7 +7,7 @@ use std::{
   thread::spawn,
 };
 
-use webview_rust_sys::{Webview, WebviewBuilder, SizeHint};
+use webview_rust_sys::{SizeHint, Webview, WebviewBuilder};
 
 use super::App;
 #[cfg(embedded_server)]
@@ -202,8 +202,12 @@ fn build_webview(
   // get properties from config struct
   let width = config.tauri.window.width;
   let height = config.tauri.window.height;
-  let resizable = if config.tauri.window.resizable { SizeHint::NONE } else { SizeHint::FIXED };
-  let fullscreen = config.tauri.window.fullscreen;
+  let resizable = if config.tauri.window.resizable {
+    SizeHint::NONE
+  } else {
+    SizeHint::FIXED
+  };
+  // let fullscreen = config.tauri.window.fullscreen;
   let title = config.tauri.window.title.clone().into_boxed_str();
 
   let has_splashscreen = splashscreen_content.is_some();
@@ -224,7 +228,6 @@ fn build_webview(
     .debug(debug)
     .url(&url)
     .build();
-  
   // TODO waiting for webview window API
   // webview.set_fullscreen(fullscreen);
 
@@ -233,12 +236,13 @@ fn build_webview(
     let path = Path::new(&env_var);
     let contents = fs::read_to_string(path.join("/tauri.js"))?;
     // inject the tauri.js entry point
-    webview
-      .dispatch(move |_webview| _webview.eval(&contents));
+    webview.dispatch(move |_webview| _webview.eval(&contents));
   }
 
   let mut w = webview.clone();
-  webview.bind("Test", move |seq, arg| {
+  webview.bind("__TAURI_INVOKE_HANDLER__", move |_, arg| {
+    // transform `[payload]` to `payload`
+    let arg = arg.chars().skip(1).take(arg.len() - 2).collect::<String>();
     if arg == r#"{"cmd":"__initialized"}"# {
       let source = if has_splashscreen && !initialized_splashscreen {
         initialized_splashscreen = true;
@@ -248,10 +252,9 @@ fn build_webview(
       };
       application.run_setup(&mut w, source.to_string());
       if source == "window-1" {
-        w
-          .dispatch(|w| {
-            crate::plugin::ready(w);
-          });
+        w.dispatch(|w| {
+          crate::plugin::ready(w);
+        });
       }
     } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
       let content_href = match content_clone {
@@ -260,11 +263,11 @@ fn build_webview(
       };
       w.eval(&format!(r#"window.location.href = "{}""#, content_href));
     } else {
-      let endpoint_handle = crate::endpoints::handle(&mut w, arg)
+      let endpoint_handle = crate::endpoints::handle(&mut w, &arg)
         .map_err(|tauri_handle_error| {
           let tauri_handle_error_str = tauri_handle_error.to_string();
           if tauri_handle_error_str.contains("unknown variant") {
-            match application.run_invoke_handler(&mut w, arg) {
+            match application.run_invoke_handler(&mut w, &arg) {
               Ok(handled) => {
                 if handled {
                   String::from("")
@@ -280,7 +283,7 @@ fn build_webview(
         })
         .map_err(|app_handle_error| {
           if app_handle_error.contains("unknown variant") {
-            match crate::plugin::extend_api(&mut w, arg) {
+            match crate::plugin::extend_api(&mut w, &arg) {
               Ok(handled) => {
                 if handled {
                   String::from("")
@@ -297,7 +300,7 @@ fn build_webview(
         .map_err(|e| e.replace("'", "\\'"));
       if let Err(handler_error_message) = endpoint_handle {
         if handler_error_message != "" {
-          w.eval(&get_api_error_message(arg, handler_error_message));
+          w.eval(&get_api_error_message(&arg, handler_error_message));
         }
       }
     }
@@ -317,9 +320,9 @@ fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
 
 #[cfg(test)]
 mod test {
+  use super::Content;
   use proptest::prelude::*;
   use std::env;
-  use super::Content;
 
   #[cfg(not(feature = "embedded-server"))]
   use std::{fs::read_to_string, path::Path};

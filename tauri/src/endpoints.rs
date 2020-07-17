@@ -32,7 +32,7 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           let event_init = init()?;
           webview.eval(&format!(
             r#"{event_init}
-                window.external.invoke('{{"cmd":"__initialized"}}')
+                window.__TAURI_INVOKE_HANDLER__({{ cmd: "__initialized" }})
               "#,
             event_init = event_init
           ));

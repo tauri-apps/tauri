@@ -75,8 +75,9 @@ TODO.md
 # rust compiled folders
 target
 
-# Cargo lock for libs
+# lock for libs
 Cargo.lock
+yarn.lock
 
 /cli/tauri.js/test/jest/tmp
 

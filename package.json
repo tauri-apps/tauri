@@ -1,0 +1,10 @@
+{
+  "name": "tauri-workspace",
+  "version": "0.0.0",
+  "repository": "https://github.com/tauri-apps/tauri.git",
+  "license": "MIT",
+  "private": true,
+  "devDependencies": {
+    "covector": "^0.2.5"
+  }
+}

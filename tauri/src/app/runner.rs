@@ -14,6 +14,7 @@ use super::App;
 use crate::api::tcp::{get_available_port, port_is_available};
 use tauri_api::config::get;
 
+#[allow(dead_code)]
 enum Content<T> {
   Html(T),
   Url(T),
@@ -104,7 +105,10 @@ fn setup_content() -> crate::Result<Content<String>> {
         dev_dir
       );
     }
-    Ok(Content::Html(read_to_string(dev_path)?))
+    Ok(Content::Html(format!(
+      "data:text/html,{}",
+      urlencoding::encode(&read_to_string(dev_path)?)
+    )))
   }
 }
 
@@ -126,7 +130,10 @@ fn setup_content() -> crate::Result<Content<String>> {
 #[cfg(no_server)]
 fn setup_content() -> crate::Result<Content<String>> {
   let html = include_str!(concat!(env!("OUT_DIR"), "/index.tauri.html"));
-  Ok(Content::Html(html.to_string()))
+  Ok(Content::Html(format!(
+    "data:text/html,{}",
+    urlencoding::encode(html)
+  )))
 }
 
 // get the port for the embedded server

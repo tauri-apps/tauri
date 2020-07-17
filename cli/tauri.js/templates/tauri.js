@@ -122,19 +122,6 @@ if (!String.prototype.startsWith) {
     })
   }
 
-  // init tauri API
-  try {
-    window.__TAURI_INVOKE_HANDLER__({
-      cmd: 'init'
-    })
-  } catch (e) {
-    window.addEventListener('DOMContentLoaded', function () {
-      window.__TAURI_INVOKE_HANDLER__({
-        cmd: 'init'
-      })
-    }, true)
-  }
-
   document.addEventListener('error', function (e) {
     var target = e.target
     while (target != null) {

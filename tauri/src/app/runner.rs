@@ -194,6 +194,43 @@ fn spawn_updater() -> crate::Result<()> {
   Ok(())
 }
 
+pub fn init() -> String {
+  #[cfg(not(event))]
+  return String::from("");
+  #[cfg(event)]
+  return format!(
+    "
+      window['{queue}'] = [];
+      window['{fn}'] = function (payload, salt, ignoreQueue) {{
+      const listeners = (window['{listeners}'] && window['{listeners}'][payload.type]) || []
+      if (!ignoreQueue && listeners.length === 0) {{
+        window['{queue}'].push({{
+          payload: payload,
+          salt: salt
+        }})
+      }}
+
+      if (listeners.length > 0) {{
+        window.__TAURI__.promisified({{
+          cmd: 'validateSalt',
+          salt: salt
+        }}).then(function () {{
+          for (let i = listeners.length - 1; i >= 0; i--) {{
+            const listener = listeners[i]
+            if (listener.once)
+              listeners.splice(i, 1)
+            listener.handler(payload)
+          }}
+        }})
+      }}
+    }}
+    ",
+    fn = crate::event::emit_function_name(),
+    queue = crate::event::event_queue_object_name(),
+    listeners = crate::event::event_listeners_object_name()
+  );
+}
+
 // build the webview struct
 fn build_webview(
   application: &mut App,
@@ -228,6 +265,19 @@ fn build_webview(
   };
 
   let mut webview = WebviewBuilder::new()
+    .init(&format!(
+      r#"
+        {event_init}
+        if (window.__TAURI_INVOKE_HANDLER__) {{
+          window.__TAURI_INVOKE_HANDLER__({{ cmd: "__initialized" }})
+        }} else {{
+          window.addEventListener('DOMContentLoaded', function () {{
+            window.__TAURI_INVOKE_HANDLER__({{ cmd: "__initialized" }})
+          }})
+        }}
+      "#,
+      event_init = init()
+    ))
     .title(Box::leak(title))
     .width(width as usize)
     .height(height as usize)

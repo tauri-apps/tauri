@@ -1,10 +1,7 @@
 mod cmd;
 #[allow(unused_imports)]
 mod file_system;
-mod init;
 mod salt;
-
-use init::init;
 
 #[cfg(assets)]
 mod asset;
@@ -28,15 +25,6 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
     Err(e) => Err(e.into()),
     Ok(command) => {
       match command {
-        Init {} => {
-          let event_init = init()?;
-          webview.eval(&format!(
-            r#"{event_init}
-                window.__TAURI_INVOKE_HANDLER__({{ cmd: "__initialized" }})
-              "#,
-            event_init = event_init
-          ));
-        }
         ReadTextFile {
           path,
           options,
@@ -312,24 +300,6 @@ fn throw_whitelist_error(webview: &mut Webview, whitelist_key: &str) {
 #[cfg(test)]
 mod test {
   use proptest::prelude::*;
-
-  #[test]
-  // test to see if check init produces a string or not.
-  fn check_init() {
-    if cfg!(not(event)) {
-      let res = super::init();
-      match res {
-        Ok(s) => assert_eq!(s, ""),
-        Err(e) => panic!("init Err {:?}", e.to_string()),
-      }
-    } else if cfg!(event) {
-      let res = super::init();
-      match res {
-        Ok(s) => assert!(s.contains("window.__TAURI__.promisified")),
-        Err(e) => panic!("init Err {:?}", e.to_string()),
-      }
-    }
-  }
 
   // check the listen_fn for various usecases.
   proptest! {

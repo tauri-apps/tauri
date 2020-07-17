@@ -366,7 +366,12 @@ mod test {
         };
         assert_eq!(
           s,
-          read_to_string(Path::new(&dist_dir).join("index.tauri.html")).unwrap()
+          format!(
+            "data:text/html,{}",
+            urlencoding::encode(
+              &read_to_string(Path::new(&dist_dir).join("index.tauri.html")).unwrap()
+            )
+          )
         );
       }
       _ => panic!("setup content failed"),
@@ -382,7 +387,10 @@ mod test {
           let dev_path = Path::new(dev_dir).join("index.tauri.html");
           assert_eq!(
             s,
-            read_to_string(dev_path).expect("failed to read dev path")
+            format!(
+              "data:text/html,{}",
+              urlencoding::encode(&read_to_string(dev_path).expect("failed to read dev path"))
+            )
           );
         }
         _ => panic!("setup content failed"),

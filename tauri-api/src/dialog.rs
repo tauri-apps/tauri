@@ -34,6 +34,16 @@ pub fn ask(message: impl AsRef<str>, title: impl AsRef<str>) -> DialogSelection 
     .show()
 }
 
+/// Displays a message dialog.
+pub fn message(message: impl AsRef<str>, title: impl AsRef<str>) {
+  DialogBuilder::new()
+    .message(message.as_ref())
+    .title(title.as_ref())
+    .style(DialogStyle::Info)
+    .build()
+    .show();
+}
+
 /// Open single select file dialog
 pub fn select(
   filter_list: Option<impl AsRef<str>>,

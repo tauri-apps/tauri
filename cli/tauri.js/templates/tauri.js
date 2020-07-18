@@ -247,4 +247,18 @@ if (!String.prototype.startsWith) {
         setNotificationPermission(response ? 'granted' : 'denied')
       }
     })
+
+  window.alert = function (message) {
+    window.__TAURI_INVOKE_HANDLER__({
+      cmd: 'messageDialog',
+      message: message
+    })
+  }
+
+  window.confirm = function (message) {
+    return window.__TAURI__.promisified({
+      cmd: 'askDialog',
+      message: message
+    })
+  }
 })()

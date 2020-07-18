@@ -5,6 +5,6 @@
   "license": "MIT",
   "private": true,
   "devDependencies": {
-    "covector": "^0.2.5"
+    "covector": "^0.2.6"
   }
 }

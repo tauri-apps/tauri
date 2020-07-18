@@ -51,8 +51,8 @@ function transformCallback(callback?: (response: any) => void, once = false): st
 async function promisified<T>(args: any): Promise<T> {
   return await new Promise((resolve, reject) => {
     invoke({
-      callback: transformCallback(resolve),
-      error: transformCallback(reject),
+      callback: transformCallback(resolve, true),
+      error: transformCallback(reject, true),
       ...args
     })
   })

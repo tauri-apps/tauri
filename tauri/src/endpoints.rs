@@ -7,7 +7,6 @@ mod salt;
 mod asset;
 #[cfg(open)]
 mod browser;
-#[cfg(any(open_dialog, save_dialog))]
 mod dialog;
 #[cfg(event)]
 mod event;
@@ -207,6 +206,37 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           dialog::save(webview, options, callback, error)?;
           #[cfg(not(save_dialog))]
           throw_whitelist_error(webview, "saveDialog");
+        }
+        MessageDialog { message } => {
+          let exe = std::env::current_exe()?;
+          let exe_dir = exe.parent().expect("failed to get exe directory");
+          let app_name = exe
+            .file_name()
+            .expect("failed to get exe filename")
+            .to_string_lossy();
+          dialog::message(app_name.to_string(), message);
+        }
+        AskDialog {
+          title,
+          message,
+          callback,
+          error,
+        } => {
+          let exe = std::env::current_exe()?;
+          dialog::ask(
+            webview,
+            title.unwrap_or_else(|| {
+              let exe_dir = exe.parent().expect("failed to get exe directory");
+              exe
+                .file_name()
+                .expect("failed to get exe filename")
+                .to_string_lossy()
+                .to_string()
+            }),
+            message,
+            callback,
+            error,
+          )?;
         }
         HttpRequest {
           options,

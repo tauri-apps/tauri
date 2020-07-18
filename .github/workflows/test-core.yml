@@ -47,12 +47,12 @@ jobs:
           TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
 
   test-tauri-cli:
-    runs-on: ubuntu-latest
+    runs-on: matrix.platform
 
     strategy:
       fail-fast: false
       matrix:
-        target: [x86_64-unknown-linux-gnu, x86_64-pc-windows-gnu, i686-pc-windows-gnu]
+        platform: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
       - uses: actions/checkout@v2
@@ -60,7 +60,6 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          target: ${{ matrix.target }}
           override: true
       - name: build api
         working-directory: ./cli/tauri.js
@@ -68,9 +67,8 @@ jobs:
       - name: build CLI
         uses: actions-rs/cargo@v1
         with:
-          use-cross: true
           command: build
-          args: --manifest-path ./cli/Cargo.toml --target ${{ matrix.target }}
+          args: --manifest-path ./cli/Cargo.toml
 
   test-tauri-js-cli:
     runs-on: ${{ matrix.platform }}

@@ -16,6 +16,10 @@
       "manager": "javascript",
       "dependencies": ["tauri"]
     },
+    "tauri-cli": {
+      "path": "./cli",
+      "manager": "rust"
+    },
     "tauri-bundler": {
       "path": "./cli/tauri-bundler",
       "manager": "rust"

@@ -64,8 +64,6 @@ pub struct NotificationOptions {
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
-  /// The init command
-  Init {},
   /// The read text file API.
   ReadTextFile {
     path: PathBuf,

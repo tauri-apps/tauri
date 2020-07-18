@@ -1,10 +1,7 @@
 mod cmd;
 #[allow(unused_imports)]
 mod file_system;
-mod init;
 mod salt;
-
-use init::init;
 
 #[cfg(assets)]
 mod asset;
@@ -19,24 +16,15 @@ mod http;
 #[cfg(notification)]
 mod notification;
 
-use web_view::WebView;
+use webview_rust_sys::Webview;
 
 #[allow(unused_variables)]
-pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> crate::Result<()> {
+pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
     Err(e) => Err(e.into()),
     Ok(command) => {
       match command {
-        Init {} => {
-          let event_init = init()?;
-          webview.eval(&format!(
-            r#"{event_init}
-                window.external.invoke('{{"cmd":"__initialized"}}')
-              "#,
-            event_init = event_init
-          ))?;
-        }
         ReadTextFile {
           path,
           options,
@@ -153,7 +141,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
         }
         SetTitle { title } => {
           #[cfg(set_title)]
-          webview.set_title(&title)?;
+          webview.set_title(&title);
           #[cfg(not(set_title))]
           throw_whitelist_error(webview, "title");
         }
@@ -189,7 +177,7 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
           #[cfg(event)]
           {
             let js_string = event::listen_fn(event, handler, once)?;
-            webview.eval(&js_string)?;
+            webview.eval(&js_string);
           }
           #[cfg(not(event))]
           throw_whitelist_error(webview, "event");
@@ -286,19 +274,13 @@ pub(crate) fn handle<T: 'static>(webview: &mut WebView<'_, T>, arg: &str) -> cra
 }
 
 #[allow(dead_code)]
-fn api_error<T: 'static>(webview: &mut WebView<'_, T>, error_fn: String, message: &str) {
+fn api_error(webview: &mut Webview, error_fn: String, message: &str) {
   let reject_code = tauri_api::rpc::format_callback(error_fn, message);
-  webview
-    .eval(&reject_code)
-    .expect("failed to eval api error")
+  webview.eval(&reject_code)
 }
 
 #[allow(dead_code)]
-fn whitelist_error<T: 'static>(
-  webview: &mut WebView<'_, T>,
-  error_fn: String,
-  whitelist_key: &str,
-) {
+fn whitelist_error(webview: &mut Webview, error_fn: String, whitelist_key: &str) {
   api_error(
     webview,
     error_fn,
@@ -310,34 +292,14 @@ fn whitelist_error<T: 'static>(
 }
 
 #[allow(dead_code)]
-fn throw_whitelist_error<T: 'static>(webview: &mut WebView<'_, T>, whitelist_key: &str) {
+fn throw_whitelist_error(webview: &mut Webview, whitelist_key: &str) {
   let reject_code = format!(r#"throw new Error("'{}' not whitelisted")"#, whitelist_key);
-  webview
-    .eval(&reject_code)
-    .expect("failed to eval whitelist error")
+  webview.eval(&reject_code)
 }
 
 #[cfg(test)]
 mod test {
   use proptest::prelude::*;
-
-  #[test]
-  // test to see if check init produces a string or not.
-  fn check_init() {
-    if cfg!(not(event)) {
-      let res = super::init();
-      match res {
-        Ok(s) => assert_eq!(s, ""),
-        Err(e) => panic!("init Err {:?}", e.to_string()),
-      }
-    } else if cfg!(event) {
-      let res = super::init();
-      match res {
-        Ok(s) => assert!(s.contains("window.__TAURI__.promisified")),
-        Err(e) => panic!("init Err {:?}", e.to_string()),
-      }
-    }
-  }
 
   // check the listen_fn for various usecases.
   proptest! {

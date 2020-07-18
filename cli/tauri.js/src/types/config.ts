@@ -285,9 +285,6 @@ export interface TauriConfig {
     security: {
       csp?: string
     }
-    edge: {
-      active?: boolean
-    }
     inliner: {
       active?: boolean
     }

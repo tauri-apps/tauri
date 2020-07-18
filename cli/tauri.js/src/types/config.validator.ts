@@ -401,17 +401,6 @@ export const TauriConfigSchema = {
           "$ref": "#/definitions/CliConfig",
           "description": "app's CLI definition"
         },
-        "edge": {
-          "additionalProperties": false,
-          "defaultProperties": [
-          ],
-          "properties": {
-            "active": {
-              "type": "boolean"
-            }
-          },
-          "type": "object"
-        },
         "embeddedServer": {
           "additionalProperties": false,
           "defaultProperties": [
@@ -506,7 +495,6 @@ export const TauriConfigSchema = {
       },
       "required": [
         "bundle",
-        "edge",
         "embeddedServer",
         "inliner",
         "security",

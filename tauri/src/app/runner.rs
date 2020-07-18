@@ -7,12 +7,18 @@ use std::{
   thread::spawn,
 };
 
-use web_view::{builder, Content, WebView};
+use webview_rust_sys::{SizeHint, Webview, WebviewBuilder};
 
 use super::App;
 #[cfg(embedded_server)]
 use crate::api::tcp::{get_available_port, port_is_available};
 use tauri_api::config::get;
+
+#[allow(dead_code)]
+enum Content<T> {
+  Html(T),
+  Url(T),
+}
 
 /// Main entry point for running the Webview
 pub(crate) fn run(application: &mut App) -> crate::Result<()> {
@@ -56,7 +62,7 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   spawn_updater()?;
 
   // run the webview
-  webview.run()?;
+  webview.run();
 
   Ok(())
 }
@@ -99,7 +105,10 @@ fn setup_content() -> crate::Result<Content<String>> {
         dev_dir
       );
     }
-    Ok(Content::Html(read_to_string(dev_path)?))
+    Ok(Content::Html(format!(
+      "data:text/html,{}",
+      urlencoding::encode(&read_to_string(dev_path)?)
+    )))
   }
 }
 
@@ -121,7 +130,10 @@ fn setup_content() -> crate::Result<Content<String>> {
 #[cfg(no_server)]
 fn setup_content() -> crate::Result<Content<String>> {
   let html = include_str!(concat!(env!("OUT_DIR"), "/index.tauri.html"));
-  Ok(Content::Html(html.to_string()))
+  Ok(Content::Html(format!(
+    "data:text/html,{}",
+    urlencoding::encode(html)
+  )))
 }
 
 // get the port for the embedded server
@@ -182,12 +194,49 @@ fn spawn_updater() -> crate::Result<()> {
   Ok(())
 }
 
+pub fn init() -> String {
+  #[cfg(not(event))]
+  return String::from("");
+  #[cfg(event)]
+  return format!(
+    "
+      window['{queue}'] = [];
+      window['{fn}'] = function (payload, salt, ignoreQueue) {{
+      const listeners = (window['{listeners}'] && window['{listeners}'][payload.type]) || []
+      if (!ignoreQueue && listeners.length === 0) {{
+        window['{queue}'].push({{
+          payload: payload,
+          salt: salt
+        }})
+      }}
+
+      if (listeners.length > 0) {{
+        window.__TAURI__.promisified({{
+          cmd: 'validateSalt',
+          salt: salt
+        }}).then(function () {{
+          for (let i = listeners.length - 1; i >= 0; i--) {{
+            const listener = listeners[i]
+            if (listener.once)
+              listeners.splice(i, 1)
+            listener.handler(payload)
+          }}
+        }})
+      }}
+    }}
+    ",
+    fn = crate::event::emit_function_name(),
+    queue = crate::event::event_queue_object_name(),
+    listeners = crate::event::event_listeners_object_name()
+  );
+}
+
 // build the webview struct
 fn build_webview(
   application: &mut App,
   content: Content<String>,
   splashscreen_content: Option<Content<String>>,
-) -> crate::Result<WebView<'_, ()>> {
+) -> crate::Result<Webview> {
   let config = get()?;
   let content_clone = match content {
     Content::Html(ref html) => Content::Html(html.clone()),
@@ -197,106 +246,122 @@ fn build_webview(
   // get properties from config struct
   let width = config.tauri.window.width;
   let height = config.tauri.window.height;
-  let resizable = config.tauri.window.resizable;
-  let fullscreen = config.tauri.window.fullscreen;
+  let resizable = if config.tauri.window.resizable {
+    SizeHint::NONE
+  } else {
+    SizeHint::FIXED
+  };
+  // let fullscreen = config.tauri.window.fullscreen;
   let title = config.tauri.window.title.clone().into_boxed_str();
 
   let has_splashscreen = splashscreen_content.is_some();
   let mut initialized_splashscreen = false;
+  let url = match splashscreen_content {
+    Some(Content::Html(s)) => s,
+    _ => match content {
+      Content::Html(s) => s,
+      Content::Url(s) => s,
+    },
+  };
 
-  let mut webview = builder()
+  let mut webview = WebviewBuilder::new()
+    .init(&format!(
+      r#"
+        {event_init}
+        if (window.__TAURI_INVOKE_HANDLER__) {{
+          window.__TAURI_INVOKE_HANDLER__({{ cmd: "__initialized" }})
+        }} else {{
+          window.addEventListener('DOMContentLoaded', function () {{
+            window.__TAURI_INVOKE_HANDLER__({{ cmd: "__initialized" }})
+          }})
+        }}
+      "#,
+      event_init = init()
+    ))
     .title(Box::leak(title))
-    .size(width, height)
-    .resizable(resizable)
+    .width(width as usize)
+    .height(height as usize)
+    .resize(resizable)
     .debug(debug)
-    .user_data(())
-    .invoke_handler(move |webview, arg| {
-      if arg == r#"{"cmd":"__initialized"}"# {
-        let source = if has_splashscreen && !initialized_splashscreen {
-          initialized_splashscreen = true;
-          "splashscreen"
-        } else {
-          "window-1"
-        };
-        application.run_setup(webview, source.to_string());
-        if source == "window-1" {
-          let handle = webview.handle();
-          handle
-            .dispatch(|webview| {
-              crate::plugin::ready(webview);
-              Ok(())
-            })
-            .expect("failed to invoke ready hook");
-        }
-      } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
-        let content_href = match content_clone {
-          Content::Html(ref html) => html,
-          Content::Url(ref url) => url,
-        };
-        webview.eval(&format!(r#"window.location.href = "{}""#, content_href))?;
-      } else {
-        let endpoint_handle = crate::endpoints::handle(webview, arg)
-          .map_err(|tauri_handle_error| {
-            let tauri_handle_error_str = tauri_handle_error.to_string();
-            if tauri_handle_error_str.contains("unknown variant") {
-              match application.run_invoke_handler(webview, arg) {
-                Ok(handled) => {
-                  if handled {
-                    String::from("")
-                  } else {
-                    tauri_handle_error_str
-                  }
-                }
-                Err(e) => e,
-              }
-            } else {
-              tauri_handle_error_str
-            }
-          })
-          .map_err(|app_handle_error| {
-            if app_handle_error.contains("unknown variant") {
-              match crate::plugin::extend_api(webview, arg) {
-                Ok(handled) => {
-                  if handled {
-                    String::from("")
-                  } else {
-                    app_handle_error
-                  }
-                }
-                Err(e) => e,
-              }
-            } else {
-              app_handle_error
-            }
-          })
-          .map_err(|e| e.replace("'", "\\'"));
-        if let Err(handler_error_message) = endpoint_handle {
-          if handler_error_message != "" {
-            webview.eval(&get_api_error_message(arg, handler_error_message))?;
-          }
-        }
-      }
-
-      Ok(())
-    })
-    .content(if splashscreen_content.is_some() {
-      splashscreen_content.expect("failed to get splashscreen content")
-    } else {
-      content
-    })
-    .build()?;
-
-  webview.set_fullscreen(fullscreen);
+    .url(&url)
+    .build();
+  // TODO waiting for webview window API
+  // webview.set_fullscreen(fullscreen);
 
   if has_splashscreen {
     let env_var = envmnt::get_or("TAURI_DIR", "../dist");
     let path = Path::new(&env_var);
     let contents = fs::read_to_string(path.join("/tauri.js"))?;
     // inject the tauri.js entry point
-    webview
-      .handle()
-      .dispatch(move |_webview| _webview.eval(&contents))?;
+    webview.dispatch(move |_webview| _webview.eval(&contents));
   }
+
+  let mut w = webview.clone();
+  webview.bind("__TAURI_INVOKE_HANDLER__", move |_, arg| {
+    // transform `[payload]` to `payload`
+    let arg = arg.chars().skip(1).take(arg.len() - 2).collect::<String>();
+    if arg == r#"{"cmd":"__initialized"}"# {
+      let source = if has_splashscreen && !initialized_splashscreen {
+        initialized_splashscreen = true;
+        "splashscreen"
+      } else {
+        "window-1"
+      };
+      application.run_setup(&mut w, source.to_string());
+      if source == "window-1" {
+        w.dispatch(|w| {
+          crate::plugin::ready(w);
+        });
+      }
+    } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
+      let content_href = match content_clone {
+        Content::Html(ref html) => html,
+        Content::Url(ref url) => url,
+      };
+      w.eval(&format!(r#"window.location.href = "{}""#, content_href));
+    } else {
+      let endpoint_handle = crate::endpoints::handle(&mut w, &arg)
+        .map_err(|tauri_handle_error| {
+          let tauri_handle_error_str = tauri_handle_error.to_string();
+          if tauri_handle_error_str.contains("unknown variant") {
+            match application.run_invoke_handler(&mut w, &arg) {
+              Ok(handled) => {
+                if handled {
+                  String::from("")
+                } else {
+                  tauri_handle_error_str
+                }
+              }
+              Err(e) => e,
+            }
+          } else {
+            tauri_handle_error_str
+          }
+        })
+        .map_err(|app_handle_error| {
+          if app_handle_error.contains("unknown variant") {
+            match crate::plugin::extend_api(&mut w, &arg) {
+              Ok(handled) => {
+                if handled {
+                  String::from("")
+                } else {
+                  app_handle_error
+                }
+              }
+              Err(e) => e,
+            }
+          } else {
+            app_handle_error
+          }
+        })
+        .map_err(|e| e.replace("'", "\\'"));
+      if let Err(handler_error_message) = endpoint_handle {
+        if handler_error_message != "" {
+          w.eval(&get_api_error_message(&arg, handler_error_message));
+        }
+      }
+    }
+  });
 
   Ok(webview)
 }
@@ -312,9 +377,9 @@ fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
 
 #[cfg(test)]
 mod test {
+  use super::Content;
   use proptest::prelude::*;
   use std::env;
-  use web_view::Content;
 
   #[cfg(not(feature = "embedded-server"))]
   use std::{fs::read_to_string, path::Path};
@@ -351,7 +416,12 @@ mod test {
         };
         assert_eq!(
           s,
-          read_to_string(Path::new(&dist_dir).join("index.tauri.html")).unwrap()
+          format!(
+            "data:text/html,{}",
+            urlencoding::encode(
+              &read_to_string(Path::new(&dist_dir).join("index.tauri.html")).unwrap()
+            )
+          )
         );
       }
       _ => panic!("setup content failed"),
@@ -367,7 +437,10 @@ mod test {
           let dev_path = Path::new(dev_dir).join("index.tauri.html");
           assert_eq!(
             s,
-            read_to_string(dev_path).expect("failed to read dev path")
+            format!(
+              "data:text/html,{}",
+              urlencoding::encode(&read_to_string(dev_path).expect("failed to read dev path"))
+            )
           );
         }
         _ => panic!("setup content failed"),

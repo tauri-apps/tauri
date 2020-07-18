@@ -1,7 +1,7 @@
 use super::cmd::{OpenDialogOptions, SaveDialogOptions};
 use crate::api::dialog::{pick_folder, save_file, select, select_multiple, Response};
 use serde_json::Value as JsonValue;
-use web_view::WebView;
+use webview_rust_sys::Webview;
 
 /// maps a dialog response to a JS value to eval
 fn map_response(response: Response) -> JsonValue {
@@ -14,8 +14,8 @@ fn map_response(response: Response) -> JsonValue {
 
 /// Shows an open dialog.
 #[cfg(open_dialog)]
-pub fn open<T: 'static>(
-  webview: &mut WebView<'_, T>,
+pub fn open(
+  webview: &mut Webview,
   options: OpenDialogOptions,
   callback: String,
   error: String,
@@ -40,8 +40,8 @@ pub fn open<T: 'static>(
 
 /// Shows a save dialog.
 #[cfg(save_dialog)]
-pub fn save<T: 'static>(
-  webview: &mut WebView<'_, T>,
+pub fn save(
+  webview: &mut Webview,
   options: SaveDialogOptions,
   callback: String,
   error: String,

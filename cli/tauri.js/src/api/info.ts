@@ -193,10 +193,6 @@ async function printAppInfo(tauriDir: string): Promise<void> {
       value: config.tauri.security ? config.tauri.security.csp : 'unset'
     })
     printInfo({
-      key: '  Windows',
-      value: config.tauri.edge?.active ? 'Edge' : 'MSHTML'
-    })
-    printInfo({
       key: '  distDir',
       value: config.build
         ? chalk.green(config.build.distDir)

@@ -167,14 +167,12 @@ struct BundleSettings {
 /// The `metadata` section of the package configuration.
 ///
 /// # Example Cargo.toml
-/// ```
 /// [package]
 /// name = "..."
 ///
 /// [package.metadata.bundle]
 /// identifier = "..."
 /// ...other properties from BundleSettings
-/// ```
 #[derive(Clone, Debug, Deserialize)]
 struct MetadataSettings {
   /// the bundle settings of the package.

@@ -18,7 +18,7 @@ inline_assets = "0.4"
 kuchiki = "0.8"
 html5ever = "0.25"
 tiny_http = "0.7"
-attohttpc = "0.15.0"
+reqwest = { version = "0.10", features = ["blocking"] }
 url = "2.1"
 http = "0.2"
 handlebars = "3.2"

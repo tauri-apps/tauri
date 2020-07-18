@@ -3,9 +3,9 @@ use crate::helpers::{
   config::{get as get_config, reload as reload_config},
   Logger, TauriHtml,
 };
-use attohttpc::{Method, RequestBuilder};
 use http::header::HeaderName;
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
+use reqwest::{blocking::Client, Method};
 use shared_child::SharedChild;
 use tiny_http::{Response, Server};
 use url::Url;
@@ -78,7 +78,7 @@ impl Dev {
       let timeout = Duration::from_secs(3);
       let wait_time = Duration::from_secs(30);
       let mut total_time = timeout;
-      while let Err(_) = RequestBuilder::new(Method::GET, &dev_path).send() {
+      while let Err(_) = Client::new().get(&config.build.dev_path).send() {
         logger.warn("Waiting for your dev server to start...");
         sleep(timeout);
         total_time += timeout;
@@ -189,18 +189,21 @@ fn proxy_dev_server(dev_path: &Url, dev_port: u16) -> crate::Result<()> {
     dev_port,
   );
   let server = Server::http(server_url).expect("failed to create proxy server");
+  let client = Client::new();
   for request in server.incoming_requests() {
     let request_url = request.url();
-    let mut request_builder = RequestBuilder::new(
+    let mut request_builder = client.request(
       Method::from_bytes(request.method().to_string().as_bytes()).unwrap(),
-      dev_path.join(&request_url)?.to_string(),
+      &dev_path.join(&request_url)?.to_string(),
     );
 
     for header in request.headers() {
-      request_builder = request_builder.header(
-        HeaderName::from_bytes(header.field.as_str().as_bytes())?,
-        header.value.as_str(),
-      );
+      if header.field.as_str() != "Accept-Encoding" {
+        request_builder = request_builder.header(
+          HeaderName::from_bytes(header.field.as_str().as_bytes())?,
+          header.value.as_str(),
+        );
+      }
     }
 
     if request_url == "/" {
@@ -210,8 +213,8 @@ fn proxy_dev_server(dev_path: &Url, dev_port: u16) -> crate::Result<()> {
         .generate()?;
       request.respond(Response::from_data(tauri_html))?;
     } else {
-      let response = request_builder.send()?.bytes()?;
-      request.respond(Response::from_data(response))?;
+      let response = request_builder.send()?.text()?;
+      request.respond(Response::from_string(response))?;
     }
   }
   Ok(())

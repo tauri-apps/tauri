@@ -106,9 +106,18 @@ if (!String.prototype.startsWith) {
     var _this = this
 
     return new Promise(function (resolve, reject) {
+      var callback = _this.transformCallback(function (r) {
+        resolve(r)
+        delete window[error]
+      }, true)
+      var error = _this.transformCallback(function (e) {
+        reject(e)
+        delete window[callback]
+      }, true)
+
       window.__TAURI_INVOKE_HANDLER__(_objectSpread({
-        callback: _this.transformCallback(resolve, true),
-        error: _this.transformCallback(reject, true)
+        callback: callback,
+        error: error
       }, args))
     })
   }

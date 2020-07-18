@@ -5,6 +5,8 @@
       "version": true,
       "getPublishedVersion": "cargo search ${ pkg.pkg } --limit 1 | sed -nE 's/^[^\"]*\"//; s/\".*//1p' -",
       "prepublish": [
+        "sudo apt-get update",
+        "sudo apt-get install -y webkit2gtk-4.0",
         {
           "command": "cargo generate-lockfile",
           "dryRunCommand": true,

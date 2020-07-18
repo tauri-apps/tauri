@@ -46,7 +46,7 @@ fn init_command(matches: &ArgMatches) -> Result<()> {
 }
 
 fn dev_command(matches: &ArgMatches) -> Result<()> {
-  let exit_on_panic = matches.is_present("exit_on_panic");
+  let exit_on_panic = matches.is_present("exit-on-panic");
   dev::Dev::new().exit_on_panic(exit_on_panic).run()
 }
 

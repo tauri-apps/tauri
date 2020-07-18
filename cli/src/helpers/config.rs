@@ -382,9 +382,11 @@ fn default_build() -> BuildConfig {
 }
 
 /// Gets the static parsed config from `tauri.conf.json`.
-pub fn get() -> crate::Result<&'static Config> {
+fn get_internal(reload: bool) -> crate::Result<&'static Config> {
   if let Some(config) = CONFIG.get() {
-    return Ok(config);
+    if !reload {
+      return Ok(config);
+    }
   }
 
   let path = super::app_paths::tauri_dir().join("tauri.conf.json");
@@ -398,4 +400,12 @@ pub fn get() -> crate::Result<&'static Config> {
 
   let config = CONFIG.get().unwrap();
   Ok(config)
+}
+
+pub fn get() -> crate::Result<&'static Config> {
+  get_internal(false)
+}
+
+pub fn reload() -> crate::Result<&'static Config> {
+  get_internal(true)
 }

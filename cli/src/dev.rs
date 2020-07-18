@@ -1,15 +1,20 @@
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
-  config::get as get_config,
-  execute_with_output, Logger, TauriHtml,
+  config::{get as get_config, reload as reload_config},
+  Logger, TauriHtml,
 };
 use attohttpc::{Method, RequestBuilder};
 use http::header::HeaderName;
+use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
+use shared_child::SharedChild;
 use tiny_http::{Response, Server};
 use url::Url;
 
 use std::env::set_var;
+use std::ffi::OsStr;
 use std::process::{exit, Child, Command};
+use std::sync::mpsc::{channel, Receiver};
+use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -38,8 +43,12 @@ impl Dev {
 
   pub fn run(self) -> crate::Result<()> {
     let logger = Logger::new("tauri:dev");
+    let tauri_path = tauri_dir();
     let config = get_config()?;
+    let mut config_mut = config.clone();
     let mut _guard = None;
+    let mut process: Arc<SharedChild>;
+    let new_dev_path: String;
 
     if let Some(before_dev) = &config.build.before_dev_command {
       let mut cmd: Option<&str> = None;
@@ -60,48 +69,114 @@ impl Dev {
       }
     }
 
-    let dev_path = Url::parse(&config.build.dev_path)?;
-    let dev_port = dev_path.port().unwrap_or(80);
+    let running_dev_server = config.build.dev_path.starts_with("http");
 
-    let timeout = Duration::from_secs(3);
-    let wait_time = Duration::from_secs(30);
-    let mut total_time = timeout;
-    while let Err(_) = RequestBuilder::new(Method::GET, &dev_path).send() {
-      logger.warn("Waiting for your dev server to start...");
-      sleep(timeout);
-      total_time += timeout;
-      if total_time == wait_time {
-        logger.error(format!(
-          "Couldn't connect to {} after {}s. Please make sure that's the URL to your dev server.",
-          dev_path,
-          total_time.as_secs()
-        ));
-        exit(1);
+    if running_dev_server {
+      let dev_path = Url::parse(&config.build.dev_path)?;
+      let dev_port = dev_path.port().unwrap_or(80);
+
+      let timeout = Duration::from_secs(3);
+      let wait_time = Duration::from_secs(30);
+      let mut total_time = timeout;
+      while let Err(_) = RequestBuilder::new(Method::GET, &dev_path).send() {
+        logger.warn("Waiting for your dev server to start...");
+        sleep(timeout);
+        total_time += timeout;
+        if total_time == wait_time {
+          logger.error(format!(
+            "Couldn't connect to {} after {}s. Please make sure that's the URL to your dev server.",
+            dev_path,
+            total_time.as_secs()
+          ));
+          exit(1);
+        }
       }
+
+      let proxy_path = dev_path.clone();
+      let proxy_port = dev_port + 1;
+
+      logger.log(format!("starting dev proxy on port {}", proxy_port));
+      std::thread::spawn(move || proxy_dev_server(&proxy_path, proxy_port));
+
+      new_dev_path = format!(
+        "http://{}:{}",
+        dev_path.host_str().expect("failed to read dev_path host"),
+        proxy_port
+      );
+    } else {
+      new_dev_path = tauri_dir()
+        .join(&config.build.dev_path)
+        .to_string_lossy()
+        .to_string();
     }
 
-    let proxy_path = dev_path.clone();
-    let proxy_port = dev_port + 1;
+    config_mut.build.dev_path = new_dev_path.clone();
 
-    logger.log(format!("starting dev proxy on port {}", proxy_port));
-    std::thread::spawn(move || proxy_dev_server(&proxy_path, proxy_port));
-
-    let tauri_path = tauri_dir();
-    let mut config_mut = config.clone();
-    config_mut.build.dev_path = format!(
-      "http://{}:{}",
-      dev_path.host_str().expect("failed to read dev_path host"),
-      proxy_port
-    );
     set_var("TAURI_DIR", &tauri_path);
     set_var("TAURI_DIST_DIR", tauri_path.join(&config.build.dist_dir));
     set_var("TAURI_CONFIG", serde_json::to_string(&config_mut)?);
 
-    let mut cargo_cmd = Command::new("cargo");
-    cargo_cmd.arg("run").current_dir(tauri_dir());
-    execute_with_output(&mut cargo_cmd)?;
+    let (child_wait_tx, child_wait_rx) = channel();
+    let child_wait_rx = Arc::new(Mutex::new(child_wait_rx));
 
-    Ok(())
+    process = self.start_app(child_wait_rx.clone());
+
+    let (tx, rx) = channel();
+
+    let mut watcher = watcher(tx, Duration::from_secs(2)).unwrap();
+    watcher.watch(tauri_path.join("src"), RecursiveMode::Recursive)?;
+    watcher.watch(tauri_path.join("Cargo.toml"), RecursiveMode::Recursive)?;
+    watcher.watch(tauri_path.join("tauri.conf.json"), RecursiveMode::Recursive)?;
+    if !running_dev_server {
+      watcher.watch(config_mut.build.dev_path, RecursiveMode::Recursive)?;
+    }
+
+    loop {
+      if let Ok(event) = rx.recv() {
+        let event_path = match event {
+          DebouncedEvent::Create(path) => Some(path),
+          DebouncedEvent::Remove(path) => Some(path),
+          DebouncedEvent::Rename(_, dest) => Some(dest),
+          DebouncedEvent::Write(path) => Some(path),
+          _ => None,
+        };
+
+        if let Some(event_path) = event_path {
+          let _ = child_wait_tx.send(true);
+          process.kill()?;
+          if event_path.file_name() == Some(OsStr::new("tauri.conf.json")) {
+            config_mut = reload_config()?.clone();
+            config_mut.build.dev_path = new_dev_path.clone();
+            set_var("TAURI_CONFIG", serde_json::to_string(&config_mut)?);
+          }
+
+          process = self.start_app(child_wait_rx.clone());
+        }
+      }
+    }
+  }
+
+  fn start_app(&self, child_wait_rx: Arc<Mutex<Receiver<bool>>>) -> Arc<SharedChild> {
+    let mut command = Command::new("cargo");
+    command.arg("run").current_dir(tauri_dir());
+    let child = SharedChild::spawn(&mut command).expect("failed to run cargo");
+    let child_arc = Arc::new(child);
+
+    if self.exit_on_panic {
+      let child_clone = child_arc.clone();
+      std::thread::spawn(move || {
+        child_clone.wait().expect("failed to wait on child");
+        if let Err(_) = child_wait_rx
+          .lock()
+          .expect("failed to get child_wait_rx lock")
+          .try_recv()
+        {
+          std::process::exit(1);
+        }
+      });
+    }
+
+    child_arc
   }
 }
 

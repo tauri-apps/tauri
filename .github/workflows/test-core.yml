@@ -47,7 +47,7 @@ jobs:
           TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
 
   test-tauri-cli:
-    runs-on: matrix.platform
+    runs-on: ${{ matrix.platform }}
 
     strategy:
       fail-fast: false

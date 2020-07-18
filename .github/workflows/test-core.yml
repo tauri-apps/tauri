@@ -62,7 +62,11 @@ jobs:
           toolchain: stable
           target: ${{ matrix.target }}
           override: true
-      - uses: actions-rs/cargo@v1
+      - name: build api
+        working-directory: ./cli/tauri.js
+        run: yarn && yarn build:api
+      - name: build CLI
+        uses: actions-rs/cargo@v1
         with:
           use-cross: true
           command: build

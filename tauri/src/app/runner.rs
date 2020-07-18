@@ -12,7 +12,7 @@ use webview_rust_sys::{SizeHint, Webview, WebviewBuilder};
 use super::App;
 #[cfg(embedded_server)]
 use crate::api::tcp::{get_available_port, port_is_available};
-use tauri_api::config::get;
+use crate::app::AppConfig;
 
 #[allow(dead_code)]
 enum Content<T> {
@@ -23,7 +23,7 @@ enum Content<T> {
 /// Main entry point for running the Webview
 pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   // setup the content using the config struct depending on the compile target
-  let main_content = setup_content()?;
+  let main_content = setup_content(&application.config)?;
 
   // setup the server url for the embedded-server
   #[cfg(embedded_server)]
@@ -69,8 +69,8 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
 
 // setup content for dev-server
 #[cfg(dev)]
-fn setup_content() -> crate::Result<Content<String>> {
-  let config = get()?;
+fn setup_content(app_config: &AppConfig) -> crate::Result<Content<String>> {
+  let config = &app_config.config;
   if config.build.dev_path.starts_with("http") {
     #[cfg(windows)]
     {
@@ -114,10 +114,10 @@ fn setup_content() -> crate::Result<Content<String>> {
 
 // setup content for embedded server
 #[cfg(embedded_server)]
-fn setup_content() -> crate::Result<Content<String>> {
-  let (port, valid) = setup_port()?;
+fn setup_content(app_config: &AppConfig) -> crate::Result<Content<String>> {
+  let (port, valid) = setup_port(&app_config)?;
   let url = (if valid {
-    setup_server_url(port)
+    setup_server_url(port, &app_config)
   } else {
     Err(anyhow::anyhow!("invalid port"))
   })
@@ -128,24 +128,23 @@ fn setup_content() -> crate::Result<Content<String>> {
 
 // setup content for no-server
 #[cfg(no_server)]
-fn setup_content() -> crate::Result<Content<String>> {
-  let html = include_str!(concat!(env!("OUT_DIR"), "/index.tauri.html"));
+fn setup_content(app_config: &AppConfig) -> crate::Result<Content<String>> {
   Ok(Content::Html(format!(
     "data:text/html,{}",
-    urlencoding::encode(html)
+    urlencoding::encode(app_config.index)
   )))
 }
 
 // get the port for the embedded server
 #[cfg(embedded_server)]
-fn setup_port() -> crate::Result<(String, bool)> {
-  let config = get()?;
+fn setup_port(app_config: &AppConfig) -> crate::Result<(String, bool)> {
+  let config = &app_config.config;
   match config.tauri.embedded_server.port {
-    tauri_api::config::Port::Random => match get_available_port() {
+    tauri_config::Port::Random => match get_available_port() {
       Some(available_port) => Ok((available_port.to_string(), true)),
       None => Ok(("0".to_string(), false)),
     },
-    tauri_api::config::Port::Value(port) => {
+    tauri_config::Port::Value(port) => {
       let port_valid = port_is_available(port);
       Ok((port.to_string(), port_valid))
     }
@@ -154,8 +153,8 @@ fn setup_port() -> crate::Result<(String, bool)> {
 
 // setup the server url for embedded server
 #[cfg(embedded_server)]
-fn setup_server_url(port: String) -> crate::Result<String> {
-  let config = get()?;
+fn setup_server_url(port: String, app_config: &AppConfig) -> crate::Result<String> {
+  let config = &app_config.config;
   let mut url = format!("{}:{}", config.tauri.embedded_server.host, port);
   if !url.starts_with("http") {
     url = format!("http://{}", url);
@@ -237,7 +236,7 @@ fn build_webview(
   content: Content<String>,
   splashscreen_content: Option<Content<String>>,
 ) -> crate::Result<Webview> {
-  let config = get()?;
+  let config = &application.config.config;
   let content_clone = match content {
     Content::Html(ref html) => Content::Html(html.clone()),
     Content::Url(ref url) => Content::Url(url.clone()),
@@ -320,7 +319,7 @@ fn build_webview(
       };
       w.eval(&format!(r#"window.location.href = "{}""#, content_href));
     } else {
-      let endpoint_handle = crate::endpoints::handle(&mut w, &arg)
+      let endpoint_handle = crate::endpoints::handle(&mut w, &arg, &application.config)
         .map_err(|tauri_handle_error| {
           let tauri_handle_error_str = tauri_handle_error.to_string();
           if tauri_handle_error_str.contains("unknown variant") {

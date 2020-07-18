@@ -1,6 +1,4 @@
 #[cfg(windows)]
-use crate::config::get as get_config;
-#[cfg(windows)]
 use std::path::MAIN_SEPARATOR;
 
 /// The Notification definition.
@@ -10,7 +8,7 @@ use std::path::MAIN_SEPARATOR;
 /// ```
 /// use tauri_api::notification::Notification;
 /// // shows a notification with the given title and body
-/// Notification::new()
+/// Notification::new("studio.tauri.example")
 ///   .title("New message")
 ///   .body("You've got a new message.")
 ///   .show();
@@ -24,12 +22,17 @@ pub struct Notification {
   title: Option<String>,
   /// The notification icon.
   icon: Option<String>,
+  /// The notification identifier
+  identifier: String,
 }
 
 impl Notification {
   /// Initializes a instance of a Notification.
-  pub fn new() -> Self {
-    Default::default()
+  pub fn new(identifier: impl Into<String>) -> Self {
+    Self {
+      identifier: identifier.into(),
+      ..Default::default()
+    }
   }
 
   /// Sets the notification body.
@@ -71,9 +74,7 @@ impl Notification {
       if !(curr_dir.ends_with(format!("{S}target{S}debug", S = MAIN_SEPARATOR).as_str())
         || curr_dir.ends_with(format!("{S}target{S}release", S = MAIN_SEPARATOR).as_str()))
       {
-        let config = get_config()?;
-        let identifier = config.tauri.bundle.identifier.clone();
-        notification.app_id(&identifier);
+        notification.app_id(&self.identifier);
       }
     }
     notification

@@ -16,10 +16,15 @@ mod http;
 #[cfg(notification)]
 mod notification;
 
+use crate::app::AppConfig;
 use webview_rust_sys::Webview;
 
 #[allow(unused_variables)]
-pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
+pub(crate) fn handle(
+  webview: &mut Webview,
+  arg: &str,
+  app_config: &AppConfig,
+) -> crate::Result<()> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
     Err(e) => Err(e.into()),
@@ -225,7 +230,14 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           callback,
           error,
         } => {
-          asset::load(webview, asset, asset_type, callback, error);
+          asset::load(
+            webview,
+            asset,
+            asset_type,
+            callback,
+            error,
+            &app_config.assets,
+          );
         }
         CliMatches { callback, error } => {
           #[cfg(cli)]
@@ -251,7 +263,7 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           error,
         } => {
           #[cfg(notification)]
-          notification::send(webview, options, callback, error);
+          notification::send(webview, options, callback, error, &app_config.config);
           #[cfg(not(notification))]
           whitelist_error(webview, error, "notification");
         }

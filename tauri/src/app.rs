@@ -1,9 +1,19 @@
+use std::marker::PhantomData;
+use tauri_config::private::AsTauriConfig;
+use tauri_config::Config;
 use webview_rust_sys::Webview;
 
 mod runner;
 
 type InvokeHandler = Box<dyn FnMut(&mut Webview, &str) -> Result<(), String>>;
 type Setup = Box<dyn FnMut(&mut Webview, String)>;
+
+/// Configuration for the application's internal use.
+pub(crate) struct AppConfig {
+  pub config: Config,
+  pub assets: &'static tauri_includedir::Files,
+  pub index: &'static str,
+}
 
 /// The application runner.
 pub struct App {
@@ -13,6 +23,8 @@ pub struct App {
   setup: Option<Setup>,
   /// The HTML of the splashscreen to render.
   splashscreen_html: Option<String>,
+  /// The configuration the App was created with
+  pub(crate) config: AppConfig,
 }
 
 impl App {
@@ -51,22 +63,25 @@ impl App {
 
 /// The App builder.
 #[derive(Default)]
-pub struct AppBuilder {
+pub struct AppBuilder<Config: AsTauriConfig> {
   /// The JS message handler.
   invoke_handler: Option<InvokeHandler>,
   /// The setup callback, invoked when the webview is ready.
   setup: Option<Setup>,
   /// The HTML of the splashscreen to render.
   splashscreen_html: Option<String>,
+  /// The configuration used
+  config: PhantomData<Config>,
 }
 
-impl AppBuilder {
-  /// Creates a new App bulder.
+impl<Config: AsTauriConfig> AppBuilder<Config> {
+  /// Creates a new App builder.
   pub fn new() -> Self {
     Self {
       invoke_handler: None,
       setup: None,
       splashscreen_html: None,
+      config: Default::default(),
     }
   }
 
@@ -98,11 +113,17 @@ impl AppBuilder {
   }
 
   /// Builds the App.
-  pub fn build(self) -> App {
-    App {
+  pub fn build(self) -> crate::Result<App> {
+    let config = serde_json::from_str(Config::raw_config())?;
+    Ok(App {
       invoke_handler: self.invoke_handler,
       setup: self.setup,
       splashscreen_html: self.splashscreen_html,
-    }
+      config: AppConfig {
+        config,
+        assets: Config::assets(),
+        index: Config::raw_index(),
+      },
+    })
   }
 }

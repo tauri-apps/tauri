@@ -1,0 +1,24 @@
+[package]
+name = "tauri-macros"
+version = "0.1.0"
+authors = [
+  "Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>",
+  "Daniel Thompson-Yvetot <denjell@sfosc.org>",
+  "Tensor Programming <tensordeveloper@gmail.com>"
+]
+categories = [ "gui", "os", "filesystem", "web-programming" ]
+license = "MIT"
+homepage = "https://tauri.studio"
+repository = "https://github.com/tauri-apps/tauri"
+description = "Macros for the tauri crate."
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+anyhow = "1"
+quote = "1"
+syn = { version = "1", features = ["extra-traits"] }
+tauri-config = { version = "0.1", path = "../tauri-config" }
+tauri_includedir_codegen = { git = "https://github.com/chippers/tauri-includedir", branch = "tauri_no_build_env" }

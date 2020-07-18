@@ -1,6 +1,7 @@
 pub mod app_paths;
 pub mod config;
 mod logger;
+pub mod manifest;
 mod tauri_html;
 
 pub use logger::Logger;

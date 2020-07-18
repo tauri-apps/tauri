@@ -6,7 +6,9 @@ use tauri_bundler::{
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
   config::get as get_config,
-  execute_with_output, TauriHtml,
+  execute_with_output,
+  manifest::rewrite_manifest,
+  TauriHtml,
 };
 use std::env::{set_current_dir, set_var};
 use std::fs::read_to_string;
@@ -70,6 +72,8 @@ impl Build {
     set_current_dir(&tauri_path)?;
     set_var("TAURI_DIR", &tauri_path);
     set_var("TAURI_DIST_DIR", tauri_path.join(&config.build.dist_dir));
+
+    rewrite_manifest()?;
 
     let index_html_path = PathBuf::from(&config.build.dist_dir).join("index.html");
     let tauri_html = TauriHtml::new(&config.build.dist_dir, read_to_string(index_html_path)?)

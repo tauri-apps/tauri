@@ -1,8 +1,10 @@
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
   config::{get as get_config, reload as reload_config},
+  manifest::rewrite_manifest,
   Logger, TauriHtml,
 };
+
 use attohttpc::{Method, RequestBuilder};
 use http::header::HeaderName;
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
@@ -116,6 +118,8 @@ impl Dev {
     set_var("TAURI_DIST_DIR", tauri_path.join(&config.build.dist_dir));
     set_var("TAURI_CONFIG", serde_json::to_string(&config_mut)?);
 
+    rewrite_manifest()?;
+
     let (child_wait_tx, child_wait_rx) = channel();
     let child_wait_rx = Arc::new(Mutex::new(child_wait_rx));
 
@@ -146,6 +150,7 @@ impl Dev {
           process.kill()?;
           if event_path.file_name() == Some(OsStr::new("tauri.conf.json")) {
             config_mut = reload_config()?.clone();
+            rewrite_manifest()?;
             config_mut.build.dev_path = new_dev_path.clone();
             set_var("TAURI_CONFIG", serde_json::to_string(&config_mut)?);
           }

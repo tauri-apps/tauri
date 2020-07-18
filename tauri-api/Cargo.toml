@@ -32,7 +32,7 @@ nfd = "0.0.4"
 tauri-dialog = "0.1.0"
 attohttpc = { version = "0.15.0", features = [ "json", "form" ] }
 http = "0.2"
-tauri-config = { version = "0.1", path = "../tauri-config" }
+tauri_includedir = { git = "https://github.com/chippers/tauri-includedir", branch = "tauri_no_build_env" }
 tauri-utils = { version = "0.5", path = "../tauri-utils" }
 clap = { git = "https://github.com/clap-rs/clap", rev = "1a276f8", version = "3.0.0-beta.1", optional = true }
 notify-rust = { version = "4.0.0", optional = true }

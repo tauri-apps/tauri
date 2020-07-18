@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use syn::Lit::Str;
 use syn::Meta::NameValue;
 use syn::{parse_macro_input, DeriveInput, MetaNameValue};
-use tauri_config::Config;
+use tauri_api::config::Config;
 
 const DEFAULT_CONFIG_FILE: &str = "tauri.conf.json";
 const GENERATED_ASSETS_FILE: &str = "tauri_assets.rs";
@@ -55,7 +55,7 @@ pub fn from_tauri_config(ast: TokenStream) -> TokenStream {
   let output = quote! {
       use tauri::tauri_includedir;
       include!(#assets_codegen);
-      impl tauri::config::private::AsTauriConfig for #name {
+      impl tauri::api::private::AsTauriConfig for #name {
           fn config_path() -> &'static std::path::Path {
               std::path::Path::new(#tauri_config_path)
           }

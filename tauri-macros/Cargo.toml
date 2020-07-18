@@ -20,5 +20,5 @@ proc-macro = true
 anyhow = "1"
 quote = "1"
 syn = { version = "1", features = ["extra-traits"] }
-tauri-config = { version = "0.1", path = "../tauri-config" }
+tauri-api = { version = "0.7", path = "../tauri-api" }
 tauri_includedir_codegen = { git = "https://github.com/chippers/tauri-includedir", branch = "tauri_no_build_env" }

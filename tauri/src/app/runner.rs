@@ -140,11 +140,11 @@ fn setup_content(app_config: &AppConfig) -> crate::Result<Content<String>> {
 fn setup_port(app_config: &AppConfig) -> crate::Result<(String, bool)> {
   let config = &app_config.config;
   match config.tauri.embedded_server.port {
-    tauri_config::Port::Random => match get_available_port() {
+    tauri_api::config::Port::Random => match get_available_port() {
       Some(available_port) => Ok((available_port.to_string(), true)),
       None => Ok(("0".to_string(), false)),
     },
-    tauri_config::Port::Value(port) => {
+    tauri_api::config::Port::Value(port) => {
       let port_valid = port_is_available(port);
       Ok((port.to_string(), port_valid))
     }

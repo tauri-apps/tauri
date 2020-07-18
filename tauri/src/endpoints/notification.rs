@@ -1,7 +1,7 @@
 use super::cmd::NotificationOptions;
 use serde_json::Value as JsonValue;
+use tauri_api::config::Config;
 use tauri_api::notification::Notification;
-use tauri_config::Config;
 use webview_rust_sys::Webview;
 
 pub fn send(

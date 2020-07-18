@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
-use tauri_config::private::AsTauriConfig;
-use tauri_config::Config;
+use tauri_api::config::Config;
+use tauri_api::private::AsTauriConfig;
 use webview_rust_sys::Webview;
 
 mod runner;

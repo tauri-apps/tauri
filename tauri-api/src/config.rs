@@ -336,6 +336,7 @@ impl Config {
     self.plugins.get(plugin_name.as_ref())
   }
 
+  /// Read a configuration file from the passed path
   pub fn read(path: impl AsRef<Path>) -> anyhow::Result<Self> {
     let file = File::open(path.as_ref())?;
     let buf = BufReader::new(file);
@@ -356,17 +357,6 @@ fn default_build() -> BuildConfig {
   BuildConfig {
     dev_path: default_dev_path(),
     dist: default_dist_path(),
-  }
-}
-
-// Not public API
-#[doc(hidden)]
-pub mod private {
-  pub trait AsTauriConfig {
-    fn config_path() -> &'static std::path::Path;
-    fn raw_config() -> &'static str;
-    fn assets() -> &'static tauri_includedir::Files;
-    fn raw_index() -> &'static str;
   }
 }
 

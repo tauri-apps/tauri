@@ -34,7 +34,6 @@ thiserror = "1.0.20"
 envmnt = "0.8.3"
 once_cell = "1.4.0"
 tauri-api = { version = "0.7", path = "../tauri-api" }
-tauri-config = { version = "0.1", path = "../tauri-config" }
 tauri-macros = { version = "0.1", path = "../tauri-macros" }
 urlencoding = "1.1.1"
 

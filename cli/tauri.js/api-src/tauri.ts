@@ -50,9 +50,18 @@ function transformCallback(callback?: (response: any) => void, once = false): st
  */
 async function promisified<T>(args: any): Promise<T> {
   return await new Promise((resolve, reject) => {
+    const callback = transformCallback(e => {
+      resolve(e)
+      Reflect.deleteProperty(window, error)
+    }, true)
+    const error = transformCallback(e => {
+      reject(e)
+      Reflect.deleteProperty(window, callback)
+    }, true)
+
     invoke({
-      callback: transformCallback(resolve),
-      error: transformCallback(reject),
+      callback,
+      error,
       ...args
     })
   })

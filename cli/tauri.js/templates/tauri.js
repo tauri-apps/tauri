@@ -88,8 +88,7 @@ if (!String.prototype.startsWith) {
     window.__TAURI__ = {}
   }
 
-  window.__TAURI__.transformCallback = function transformCallback(callback) {
-    var once = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false
+  window.__TAURI__.transformCallback = function transformCallback(callback, once) {
     var identifier = uid()
 
     window[identifier] = function (result) {
@@ -107,9 +106,18 @@ if (!String.prototype.startsWith) {
     var _this = this
 
     return new Promise(function (resolve, reject) {
+      var callback = _this.transformCallback(function (r) {
+        resolve(r)
+        delete window[error]
+      }, true)
+      var error = _this.transformCallback(function (e) {
+        reject(e)
+        delete window[callback]
+      }, true)
+
       window.__TAURI_INVOKE_HANDLER__(_objectSpread({
-        callback: _this.transformCallback(resolve),
-        error: _this.transformCallback(reject)
+        callback: callback,
+        error: error
       }, args))
     })
   }

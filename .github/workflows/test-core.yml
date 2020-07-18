@@ -46,6 +46,28 @@ jobs:
           TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
           TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
 
+  test-tauri-cli:
+    runs-on: macos-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_64-unknown-linux-gnu, x86_64-pc-windows-gnu, i686-pc-windows-gnu, x86_64-apple-darwin]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: install stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --target ${{ matrix.target }}
+
   test-tauri-js-cli:
     runs-on: ${{ matrix.platform }}
 

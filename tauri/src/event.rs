@@ -59,7 +59,7 @@ pub fn listen<F: FnMut(Option<String>) + Send + 'static>(id: impl Into<String>, 
 /// Emits an event to JS.
 pub fn emit<S: Serialize>(
   webview: &mut WebviewMut,
-  event: impl AsRef<str> + Send + Sync + 'static,
+  event: impl AsRef<str> + Send + 'static,
   payload: Option<S>,
 ) -> crate::Result<()> {
   let salt = crate::salt::generate();

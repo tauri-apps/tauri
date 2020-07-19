@@ -12,10 +12,6 @@ const error = logger('ERROR:', chalk.red)
 const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
   const pkgPath = appPaths.resolve.app('package.json')
   const tauriConfPath = appPaths.resolve.tauri('tauri.conf.json')
-  if (!existsSync(pkgPath)) {
-    error("Could not find a package.json in your app's directory.")
-    process.exit(1)
-  }
   if (!existsSync(tauriConfPath)) {
     error(
       "Could not find a tauri config (tauri.conf.json) in your app's directory."
@@ -23,7 +19,7 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
     process.exit(1)
   }
   const tauriConf = JSON.parse(readFileSync(tauriConfPath).toString()) as TauriConfig
-  const pkg = nonWebpackRequire(pkgPath) as { productName: string }
+  const pkg = existsSync(pkgPath) ? nonWebpackRequire(pkgPath) as { productName: string } : null
 
   const config = merge(
     {
@@ -49,7 +45,7 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
           all: false
         },
         window: {
-          title: pkg.productName
+          title: pkg?.productName ?? 'Tauri App'
         },
         security: {
           csp: "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"

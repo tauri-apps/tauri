@@ -53,7 +53,7 @@
         },
         {
           "command": "cargo publish --no-verify",
-          "dryRunCommand": "echo publish { pkg.pkg } should run here",
+          "dryRunCommand": "cargo publish --no-verify --dry-run",
           "pipe": true
         },
         {
@@ -122,7 +122,7 @@
         },
         {
           "command": "npm publish --access public",
-          "dryRunCommand": "echo publish ${ pkg.pkg } should run here",
+          "dryRunCommand": "npm publish --dry-run --access public",
           "pipe": true
         },
         {

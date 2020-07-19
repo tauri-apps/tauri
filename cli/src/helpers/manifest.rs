@@ -24,11 +24,11 @@ pub fn rewrite_manifest() -> crate::Result<()> {
   if let Some(tauri) = tauri {
     let mut features: Array = Default::default();
 
-    let whitelist = &config.tauri.whitelist;
-    if *whitelist.get("all").unwrap_or(&false) {
+    let allowlist = &config.tauri.allowlist;
+    if *allowlist.get("all").unwrap_or(&false) {
       features.push("all-api".to_string()).unwrap();
     } else {
-      for (feature, enabled) in whitelist.iter() {
+      for (feature, enabled) in allowlist.iter() {
         if *enabled {
           features.push(feature.to_case(Case::Kebab)).unwrap();
         }

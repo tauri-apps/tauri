@@ -315,7 +315,7 @@ pub struct TauriConfig {
   #[serde(default)]
   pub inliner: InlinerConfig,
   #[serde(default)]
-  pub whitelist: HashMap<String, bool>,
+  pub allowlist: HashMap<String, bool>,
 }
 
 #[derive(Default, PartialEq, Clone, Deserialize, Serialize, Debug)]
@@ -370,7 +370,7 @@ fn default_tauri() -> TauriConfig {
     cli: None,
     bundle: default_bundle(),
     inliner: Default::default(),
-    whitelist: Default::default(),
+    allowlist: Default::default(),
   }
 }
 

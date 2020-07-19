@@ -8,12 +8,10 @@ const {
   writeFileSync
 } = require('fs')
 const {
-  merge
+  merge,
+  kebabCase
 } = require('lodash')
 const toml = require('@tauri-apps/toml')
-const {
-  installDependencies
-} = require('../dist/api/dependency-manager')
 
 /**
  * @type {object}
@@ -148,7 +146,7 @@ async function runInit(config = {}) {
   if (appName || argv.A) {
     const manifestPath = resolve(directory, 'src-tauri/Cargo.toml')
     const cargoManifest = toml.parse(readFileSync(manifestPath).toString())
-    let binName = (appName || argv.A).replace(/ /g, '-')
+    let binName = kebabCase(appName || argv.A)
     cargoManifest.package.name = binName
     cargoManifest.package['default-run'] = binName
     if (cargoManifest.bin && cargoManifest.bin.length) {
@@ -157,5 +155,8 @@ async function runInit(config = {}) {
     writeFileSync(manifestPath, toml.stringify(cargoManifest))
   }
 
+  const {
+    installDependencies
+  } = require('../dist/api/dependency-manager')
   await installDependencies()
 }

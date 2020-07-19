@@ -32,7 +32,7 @@ export default {
       },
       exceptionDomain: ''
     },
-    whitelist: {
+    allowlist: {
       all: true
     },
     window: {

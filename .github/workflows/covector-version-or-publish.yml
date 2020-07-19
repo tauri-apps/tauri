@@ -29,6 +29,7 @@ jobs:
         with:
           command: 'version-or-publish'
       - name: Create Pull Request With Versions Bumped
+        if: ${{ steps.covector.outputs.command }} == 'version'
         uses: tauri-apps/create-pull-request@v2.8.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -41,6 +42,7 @@ jobs:
   tangle:
     runs-on: ubuntu-latest
     needs: version-or-publish
+    if: ${{ needs.version-or-publish.outputs.covector.successfulPublish }} == 'true'
     strategy:
       fail-fast: false
       matrix:

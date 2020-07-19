@@ -287,6 +287,22 @@ export const TauriConfigSchema = {
       ],
       "description": "tauri root configuration object",
       "properties": {
+        "allowlist": {
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "defaultProperties": [
+          ],
+          "properties": {
+            "all": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "all"
+          ],
+          "type": "object"
+        },
         "bundle": {
           "additionalProperties": false,
           "defaultProperties": [
@@ -450,22 +466,6 @@ export const TauriConfigSchema = {
           },
           "type": "object"
         },
-        "whitelist": {
-          "additionalProperties": {
-            "type": "boolean"
-          },
-          "defaultProperties": [
-          ],
-          "properties": {
-            "all": {
-              "type": "boolean"
-            }
-          },
-          "required": [
-            "all"
-          ],
-          "type": "object"
-        },
         "window": {
           "additionalProperties": false,
           "defaultProperties": [
@@ -494,11 +494,11 @@ export const TauriConfigSchema = {
         }
       },
       "required": [
+        "allowlist",
         "bundle",
         "embeddedServer",
         "inliner",
         "security",
-        "whitelist",
         "window"
       ],
       "type": "object"

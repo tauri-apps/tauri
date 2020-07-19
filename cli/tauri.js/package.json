@@ -10,11 +10,10 @@
     "url": "https://opencollective.com/tauri"
   },
   "scripts": {
-    "build": "yarn build:api && yarn build:typedefs && yarn build:webpack",
+    "build": "yarn build:api && yarn build:webpack",
     "build:webpack": "rimraf ./dist && yarn build:typevalidators && webpack --progress",
     "build:typevalidators": "node ./build/type-validators",
-    "build:api": "rimraf ./api && rollup -c --silent && yarn build:typedefs",
-    "build:typedefs": "yarn tsc ./api-src/index.ts --declaration --emitDeclarationOnly --outDir api",
+    "build:api": "rimraf ./api && rollup -c --silent",
     "build-release": "yarn build --display none --progress false",
     "test": "jest --runInBand --no-cache --testPathIgnorePatterns=\"(build|dev)\"",
     "pretest": "yarn build",

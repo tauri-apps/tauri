@@ -47,7 +47,7 @@ export default [{
       }
     }),
     typescript({
-      tsconfig: './api-src/tsconfig.json'
+      tsconfig: './tsconfig.api.json'
     }),
     babel({
       configFile: false,

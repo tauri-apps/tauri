@@ -8,6 +8,8 @@ on:
     paths:
       - "**/Cargo.lock"
       - "**/Cargo.toml"
+      - "**/package.json"
+      - "**/yarn.lock"
 
 jobs:
   audit-rust:
@@ -18,6 +20,11 @@ jobs:
         uses: actions-rs/audit-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+
+  audit-js:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
       - name: yarn audit
         working-directory: cli/tauri.js
         run: yarn audit

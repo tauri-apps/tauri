@@ -33,7 +33,7 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           #[cfg(read_text_file)]
           file_system::read_text_file(webview, path, options, callback, error);
           #[cfg(not(read_text_file))]
-          whitelist_error(webview, error, "readTextFile");
+          allowlist_error(webview, error, "readTextFile");
         }
         ReadBinaryFile {
           path,
@@ -44,7 +44,7 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           #[cfg(read_binary_file)]
           file_system::read_binary_file(webview, path, options, callback, error);
           #[cfg(not(read_binary_file))]
-          whitelist_error(webview, error, "readBinaryFile");
+          allowlist_error(webview, error, "readBinaryFile");
         }
         WriteFile {
           path,
@@ -56,7 +56,7 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           #[cfg(write_file)]
           file_system::write_file(webview, path, contents, options, callback, error);
           #[cfg(not(write_file))]
-          whitelist_error(webview, error, "writeFile");
+          allowlist_error(webview, error, "writeFile");
         }
         WriteBinaryFile {
           path,
@@ -68,7 +68,7 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           #[cfg(write_binary_file)]
           file_system::write_binary_file(webview, path, contents, options, callback, error);
           #[cfg(not(write_binary_file))]
-          whitelist_error(webview, error, "writeBinaryFile");
+          allowlist_error(webview, error, "writeBinaryFile");
         }
         ReadDir {
           path,
@@ -79,7 +79,7 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           #[cfg(read_dir)]
           file_system::read_dir(webview, path, options, callback, error);
           #[cfg(not(read_dir))]
-          whitelist_error(webview, error, "readDir");
+          allowlist_error(webview, error, "readDir");
         }
         CopyFile {
           source,
@@ -91,7 +91,7 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           #[cfg(copy_file)]
           file_system::copy_file(webview, source, destination, options, callback, error);
           #[cfg(not(copy_file))]
-          whitelist_error(webview, error, "copyFile");
+          allowlist_error(webview, error, "copyFile");
         }
         CreateDir {
           path,
@@ -102,7 +102,7 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           #[cfg(create_dir)]
           file_system::create_dir(webview, path, options, callback, error);
           #[cfg(not(create_dir))]
-          whitelist_error(webview, error, "createDir");
+          allowlist_error(webview, error, "createDir");
         }
         RemoveDir {
           path,
@@ -113,7 +113,7 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           #[cfg(remove_dir)]
           file_system::remove_dir(webview, path, options, callback, error);
           #[cfg(not(remove_dir))]
-          whitelist_error(webview, error, "removeDir");
+          allowlist_error(webview, error, "removeDir");
         }
         RemoveFile {
           path,
@@ -124,7 +124,7 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           #[cfg(remove_file)]
           file_system::remove_file(webview, path, options, callback, error);
           #[cfg(not(remove_file))]
-          whitelist_error(webview, error, "removeFile");
+          allowlist_error(webview, error, "removeFile");
         }
         RenameFile {
           old_path,
@@ -136,13 +136,13 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           #[cfg(rename_file)]
           file_system::rename_file(webview, old_path, new_path, options, callback, error);
           #[cfg(not(rename_file))]
-          whitelist_error(webview, error, "renameFile");
+          allowlist_error(webview, error, "renameFile");
         }
         SetTitle { title } => {
           #[cfg(set_title)]
           webview.set_title(&title);
           #[cfg(not(set_title))]
-          throw_whitelist_error(webview, "title");
+          throw_allowlist_error(webview, "title");
         }
         Execute {
           command,
@@ -153,13 +153,13 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           #[cfg(execute)]
           crate::call(webview, command, args, callback, error);
           #[cfg(not(execute))]
-          throw_whitelist_error(webview, "execute");
+          throw_allowlist_error(webview, "execute");
         }
         Open { uri } => {
           #[cfg(open)]
           browser::open(uri);
           #[cfg(not(open))]
-          throw_whitelist_error(webview, "open");
+          throw_allowlist_error(webview, "open");
         }
         ValidateSalt {
           salt,
@@ -179,13 +179,13 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
             webview.eval(&js_string);
           }
           #[cfg(not(event))]
-          throw_whitelist_error(webview, "event");
+          throw_allowlist_error(webview, "event");
         }
         Emit { event, payload } => {
           #[cfg(event)]
           crate::event::on_event(event, payload);
           #[cfg(not(event))]
-          throw_whitelist_error(webview, "event");
+          throw_allowlist_error(webview, "event");
         }
         OpenDialog {
           options,
@@ -195,7 +195,7 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           #[cfg(open_dialog)]
           dialog::open(webview, options, callback, error)?;
           #[cfg(not(open_dialog))]
-          whitelist_error(webview, error, "title");
+          allowlist_error(webview, error, "title");
         }
         SaveDialog {
           options,
@@ -205,7 +205,7 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           #[cfg(save_dialog)]
           dialog::save(webview, options, callback, error)?;
           #[cfg(not(save_dialog))]
-          throw_whitelist_error(webview, "saveDialog");
+          throw_allowlist_error(webview, "saveDialog");
         }
         MessageDialog { message } => {
           let exe = std::env::current_exe()?;
@@ -246,7 +246,7 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           #[cfg(http_request)]
           http::make_request(webview, *options, callback, error);
           #[cfg(not(http_request))]
-          whitelist_error(webview, error, "httpRequest");
+          allowlist_error(webview, error, "httpRequest");
         }
         #[cfg(assets)]
         LoadAsset {
@@ -272,7 +272,7 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           api_error(
             webview,
             error,
-            "CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri)",
+            "CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)",
           );
         }
         Notification {
@@ -283,19 +283,19 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           #[cfg(notification)]
           notification::send(webview, options, callback, error);
           #[cfg(not(notification))]
-          whitelist_error(webview, error, "notification");
+          allowlist_error(webview, error, "notification");
         }
         IsNotificationPermissionGranted { callback, error } => {
           #[cfg(notification)]
           notification::is_permission_granted(webview, callback, error);
           #[cfg(not(notification))]
-          whitelist_error(webview, error, "notification");
+          allowlist_error(webview, error, "notification");
         }
         RequestNotificationPermission { callback, error } => {
           #[cfg(notification)]
           notification::request_permission(webview, callback, error)?;
           #[cfg(not(notification))]
-          whitelist_error(webview, error, "notification");
+          allowlist_error(webview, error, "notification");
         }
       }
       Ok(())
@@ -310,20 +310,23 @@ fn api_error(webview: &mut Webview, error_fn: String, message: &str) {
 }
 
 #[allow(dead_code)]
-fn whitelist_error(webview: &mut Webview, error_fn: String, whitelist_key: &str) {
+fn allowlist_error(webview: &mut Webview, error_fn: String, allowlist_key: &str) {
   api_error(
     webview,
     error_fn,
     &format!(
-      "{}' not whitelisted (https://tauri.studio/docs/api/config#tauri)",
-      whitelist_key
+      "{}' not on the allowlist (https://tauri.studio/docs/api/config#tauri.allowlist)",
+      allowlist_key
     ),
   )
 }
 
 #[allow(dead_code)]
-fn throw_whitelist_error(webview: &mut Webview, whitelist_key: &str) {
-  let reject_code = format!(r#"throw new Error("'{}' not whitelisted")"#, whitelist_key);
+fn throw_allowlist_error(webview: &mut Webview, allowlist_key: &str) {
+  let reject_code = format!(
+    r#"throw new Error("'{}' not on the allowlist")"#,
+    allowlist_key
+  );
   webview.eval(&reject_code)
 }
 

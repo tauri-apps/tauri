@@ -45,7 +45,7 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
             frameworks: []
           }
         },
-        whitelist: {
+        allowlist: {
           all: false
         },
         window: {

@@ -271,7 +271,7 @@ export interface TauriConfig {
       }
       exceptionDomain?: string
     }
-    whitelist: {
+    allowlist: {
       all: boolean
       [index: string]: boolean
     }

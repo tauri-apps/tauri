@@ -277,6 +277,22 @@
       ],
       "description": "tauri root configuration object",
       "properties": {
+        "allowlist": {
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "defaultProperties": [
+          ],
+          "properties": {
+            "all": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "all"
+          ],
+          "type": "object"
+        },
         "bundle": {
           "additionalProperties": false,
           "defaultProperties": [
@@ -440,22 +456,6 @@
           },
           "type": "object"
         },
-        "whitelist": {
-          "additionalProperties": {
-            "type": "boolean"
-          },
-          "defaultProperties": [
-          ],
-          "properties": {
-            "all": {
-              "type": "boolean"
-            }
-          },
-          "required": [
-            "all"
-          ],
-          "type": "object"
-        },
         "window": {
           "additionalProperties": false,
           "defaultProperties": [
@@ -484,11 +484,11 @@
         }
       },
       "required": [
+        "allowlist",
         "bundle",
         "embeddedServer",
         "inliner",
         "security",
-        "whitelist",
         "window"
       ],
       "type": "object"

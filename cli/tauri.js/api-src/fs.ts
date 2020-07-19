@@ -96,7 +96,7 @@ async function writeFile(file: FsTextFileOption, options: FsOptions = {}): Promi
 
   return await promisified({
     cmd: 'writeFile',
-    file: file.path,
+    path: file.path,
     contents: file.contents,
     options
   })
@@ -155,7 +155,7 @@ async function writeBinaryFile(file: FsBinaryFileOption, options: FsOptions = {}
 
   return await promisified({
     cmd: 'writeFile',
-    file: file.path,
+    path: file.path,
     contents: arrayBufferToBase64(file.contents),
     options
   })

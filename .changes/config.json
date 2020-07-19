@@ -83,12 +83,12 @@
           "dryRunCommand": true
         },
         {
-          "command": "echo \"# Yarn Audit\"",
+          "command": "echo \"# Yarn Audit\n\"",
           "dryRunCommand": true,
           "pipe": true
         },
         {
-          "command": "echo \"\\`\\`\\`\"",
+          "command": "echo \"<details>\n<summary>click to view</summary>\n\n\\`\\`\\`\"",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -99,7 +99,7 @@
           "pipe": true
         },
         {
-          "command": "echo \"\\`\\`\\`\"",
+          "command": "echo \"\\`\\`\\`\n\n</details>\n\"",
           "dryRunCommand": true,
           "pipe": true
         },

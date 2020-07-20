@@ -85,7 +85,7 @@ async function manageDependencies(managementType: ManagementType): Promise<Resul
     if (!existsSync(appResolve.tauri('Cargo.lock'))) {
       spawnSync('cargo', ['generate-lockfile'], tauriDir)
     }
-    spawnSync('cargo', ['update', ...updatedDeps.reduce<string[]>((initialValue, dep) => [...initialValue, '-p', dep], [])], tauriDir)
+    spawnSync('cargo', ['update', '--aggressive', ...updatedDeps.reduce<string[]>((initialValue, dep) => [...initialValue, '-p', dep], [])], tauriDir)
   }
 
   result.set(ManagementType.Install, installedDeps)

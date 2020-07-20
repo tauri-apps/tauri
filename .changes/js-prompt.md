@@ -1,5 +1,6 @@
 ---
 "tauri": patch
+"tauri-api": patch
 ---
 
 Use native dialog on `window.alert` and `window.confirm`.

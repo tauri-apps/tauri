@@ -414,14 +414,9 @@ mod test {
       match res {
         Ok(Content::Url(dp)) => assert_eq!(dp, config.build.dev_path),
         Ok(Content::Html(s)) => {
-          let dev_dir = &config.build.dev_path;
-          let dev_path = Path::new(dev_dir).join("index.tauri.html");
           assert_eq!(
             s,
-            format!(
-              "data:text/html,{}",
-              urlencoding::encode(&read_to_string(dev_path).expect("failed to read dev path"))
-            )
+            format!("data:text/html,{}", urlencoding::encode(app_config.index))
           );
         }
         _ => panic!("setup content failed"),

@@ -3,9 +3,6 @@ use serde::Deserialize;
 use serde_json::Value as JsonValue;
 
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::BufReader;
-use std::path::Path;
 
 /// The window configuration object.
 #[derive(PartialEq, Deserialize, Debug)]
@@ -360,13 +357,6 @@ impl Config {
   /// Gets a plugin configuration.
   pub fn plugin_config<S: AsRef<str>>(&self, plugin_name: S) -> Option<&JsonObject> {
     self.plugins.get(plugin_name.as_ref())
-  }
-
-  /// Read a configuration file from the passed path
-  pub fn read(path: impl AsRef<Path>) -> anyhow::Result<Self> {
-    let file = File::open(path.as_ref())?;
-    let buf = BufReader::new(file);
-    serde_json::from_reader(buf).map_err(Into::into)
   }
 }
 

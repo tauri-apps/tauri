@@ -8,6 +8,8 @@ pub(crate) enum Error {
   EnvOutDir,
   EnvCargoManifestDir,
   IncludeDirPrefix,
+  ConfigDir,
+  Serde(PathBuf, serde_json::Error),
   Io(PathBuf, IoError),
 }
 
@@ -20,13 +22,21 @@ impl From<Error> for TokenStream {
         "Unable to find CARGO_MANIFEST_DIR environmental variable from tauri-macros".into()
       }
       IncludeDirPrefix => "Invalid directory prefix encountered while including assets".into(),
+      ConfigDir => {
+        "Unable to get the directory the config file was found in during tauri-macros".into()
+      }
+      Serde(path, error) => format!(
+        "{:?} encountered for {} during tauri-macros",
+        error,
+        path.display()
+      ),
       Io(path, error) => format!(
-        "IO error {:?} encountered for {} during tauri-macros",
+        "{:?} encountered for {} during tauri-macros",
         error.kind(),
         path.display()
       ),
     };
 
-    quote!(compile_error!(#error)).into()
+    quote!(compile_error!(#error);).into()
   }
 }

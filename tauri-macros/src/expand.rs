@@ -4,6 +4,8 @@ use crate::{Env, DEFAULT_CONFIG_FILE};
 use proc_macro2::TokenStream;
 use quote::quote;
 use std::collections::HashSet;
+use std::fs::File;
+use std::io::BufReader;
 use std::path::Path;
 use syn::{DeriveInput, Lit::Str, Meta::NameValue, MetaNameValue};
 use tauri_api::assets::Compression;
@@ -28,12 +30,12 @@ pub(crate) fn from_tauri_config(input: DeriveInput) -> Result<TokenStream, Error
   }
 
   let full_config_path = Path::new(&env.manifest).join(config_file_path);
-  let config = Config::read(&full_config_path).unwrap();
-  let config_dir = full_config_path.parent().unwrap();
+  let config = read_config(&full_config_path)?;
+  let config_dir = full_config_path.parent().ok_or(Error::ConfigDir)?;
   let dist_dir = config_dir.join(config.build.dist);
 
   // generate the assets into a perfect hash function
-  let assets = generate_assets(&dist_dir)?; //.unwrap();
+  let assets = generate_assets(&dist_dir)?;
 
   // should be possible to do the index.tauri.hmtl manipulations during this macro too in the future
   let tauri_index_html = dist_dir.join("index.tauri.html");
@@ -65,6 +67,12 @@ pub(crate) fn from_tauri_config(input: DeriveInput) -> Result<TokenStream, Error
           }
       }
   })
+}
+
+fn read_config(path: &Path) -> Result<Config, Error> {
+  let file = File::open(&path).map_err(|e| Error::Io(path.into(), e))?;
+  let reader = BufReader::new(file);
+  serde_json::from_reader(reader).map_err(|e| Error::Serde(path.into(), e))
 }
 
 /// Generates a perfect hash function from `phf` of the assets in dist directory

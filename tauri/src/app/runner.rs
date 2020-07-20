@@ -378,24 +378,20 @@ fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
 #[cfg(test)]
 mod test {
   use super::Content;
+  use crate::AppConfig;
+  use crate::FromTauriConfig;
   use proptest::prelude::*;
-  use std::env;
-
   #[cfg(not(feature = "embedded-server"))]
   use std::{fs::read_to_string, path::Path};
 
   #[test]
   fn check_setup_content() {
-    let tauri_dir = match option_env!("TAURI_DIR") {
-      Some(d) => d.to_string(),
-      None => env::current_dir()
-        .unwrap()
-        .into_os_string()
-        .into_string()
-        .expect("Unable to convert to normal String"),
-    };
-    env::set_current_dir(tauri_dir).expect("failed to change cwd");
-    let res = super::setup_content();
+    #[derive(FromTauriConfig)]
+    #[tauri_config_path = "test/fixture/src-tauri/tauri.conf.json"]
+    struct Config;
+
+    let app_config = AppConfig::new::<Config>().unwrap();
+    let res = super::setup_content(&app_config);
 
     #[cfg(embedded_server)]
     match res {
@@ -406,14 +402,7 @@ mod test {
     #[cfg(no_server)]
     match res {
       Ok(Content::Html(s)) => {
-        let dist_dir = match option_env!("TAURI_DIST_DIR") {
-          Some(d) => d.to_string(),
-          None => env::current_dir()
-            .unwrap()
-            .into_os_string()
-            .into_string()
-            .expect("Unable to convert to normal String"),
-        };
+        let dist_dir = &app_config.config.build.dist;
         assert_eq!(
           s,
           format!(
@@ -429,7 +418,7 @@ mod test {
 
     #[cfg(dev)]
     {
-      let config = tauri_api::config::get().expect("unable to setup default config");
+      let config = &app_config.config;
       match res {
         Ok(Content::Url(dp)) => assert_eq!(dp, config.build.dev_path),
         Ok(Content::Html(s)) => {

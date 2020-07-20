@@ -9,6 +9,7 @@
       "active": true
     },
     "bundle": {
+      "identifier": "studio.tauri.example",
       "active": true
     },
     "allowlist": {

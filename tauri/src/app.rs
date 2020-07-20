@@ -15,6 +15,16 @@ pub(crate) struct AppConfig {
   pub index: &'static str,
 }
 
+impl AppConfig {
+  pub fn new<Config: AsTauriConfig>() -> crate::Result<Self> {
+    Ok(Self {
+      config: serde_json::from_str(Config::raw_config())?,
+      assets: Config::assets(),
+      index: Config::raw_index(),
+    })
+  }
+}
+
 /// The application runner.
 pub struct App {
   /// The JS message handler.
@@ -114,16 +124,11 @@ impl<Config: AsTauriConfig> AppBuilder<Config> {
 
   /// Builds the App.
   pub fn build(self) -> crate::Result<App> {
-    let config = serde_json::from_str(Config::raw_config())?;
     Ok(App {
       invoke_handler: self.invoke_handler,
       setup: self.setup,
       splashscreen_html: self.splashscreen_html,
-      config: AppConfig {
-        config,
-        assets: Config::assets(),
-        index: Config::raw_index(),
-      },
+      config: AppConfig::new::<Config>()?,
     })
   }
 }

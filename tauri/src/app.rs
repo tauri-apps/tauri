@@ -11,7 +11,7 @@ type Setup = Box<dyn FnMut(&mut Webview, String)>;
 /// Configuration for the application's internal use.
 pub(crate) struct AppConfig {
   pub config: Config,
-  pub assets: &'static tauri_includedir::Files,
+  pub assets: &'static tauri_api::assets::Assets,
   pub index: &'static str,
 }
 

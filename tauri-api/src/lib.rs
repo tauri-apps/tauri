@@ -5,6 +5,8 @@
   windows_subsystem = "windows"
 )]
 
+/// The Assets module allows you to read files that have been bundled by tauri
+pub mod assets;
 /// The Command API module allows you to manage child processes.
 pub mod command;
 /// The Config module allows you to read the configuration from `tauri.conf.json`.
@@ -72,7 +74,7 @@ pub mod private {
   pub trait AsTauriConfig {
     fn config_path() -> &'static std::path::Path;
     fn raw_config() -> &'static str;
-    fn assets() -> &'static tauri_includedir::Files;
+    fn assets() -> &'static crate::assets::Assets;
     fn raw_index() -> &'static str;
   }
 }

@@ -39,9 +39,6 @@ pub use tauri_api as api;
 pub use tauri_macros::FromTauriConfig;
 pub use webview_rust_sys::{Webview, WebviewMut};
 
-#[doc(hidden)]
-pub use tauri_includedir;
-
 use std::process::Stdio;
 
 use api::rpc::{format_callback, format_callback_result};

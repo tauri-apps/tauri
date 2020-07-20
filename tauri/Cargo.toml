@@ -21,7 +21,6 @@ features = [ "all-api" ]
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
 webview_rust = { version = "0.1", git = "https://github.com/webview/webview_rust.git", branch = "dev" }
-tauri_includedir = { git = "https://github.com/chippers/tauri-includedir", branch = "tauri_no_build_env" }
 phf = "0.8.0"
 base64 = "0.12.3"
 webbrowser = "0.5.4"
@@ -41,7 +40,6 @@ urlencoding = "1.1.1"
 runas = "0.2"
 
 [build-dependencies]
-tauri_includedir_codegen = { git = "https://github.com/chippers/tauri-includedir", branch = "tauri_no_build_env" }
 cfg_aliases = "0.1.0"
 
 [dev-dependencies]

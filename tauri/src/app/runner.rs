@@ -27,12 +27,10 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
 
   // setup the server url for the embedded-server
   #[cfg(embedded_server)]
-  let server_url = {
-    if let Content::Url(ref url) = &main_content {
-      String::from(url)
-    } else {
-      String::from("")
-    }
+  let server_url = if let Content::Url(url) = &main_content {
+    String::from(url)
+  } else {
+    String::from("")
   };
 
   // build the webview
@@ -55,7 +53,7 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
 
   // spawn the embedded server on our server url
   #[cfg(embedded_server)]
-  spawn_server(server_url)?;
+  spawn_server(server_url, &application.config)?;
 
   // spin up the updater process
   #[cfg(feature = "updater")]
@@ -164,7 +162,8 @@ fn setup_server_url(port: String, app_config: &AppConfig) -> crate::Result<Strin
 
 // spawn the embedded server
 #[cfg(embedded_server)]
-fn spawn_server(server_url: String) -> crate::Result<()> {
+fn spawn_server(server_url: String, app_config: &AppConfig) -> crate::Result<()> {
+  let assets = app_config.assets;
   spawn(move || {
     let server = tiny_http::Server::http(server_url.replace("http://", "").replace("https://", ""))
       .expect("Unable to spawn server");
@@ -175,7 +174,7 @@ fn spawn_server(server_url: String) -> crate::Result<()> {
       }
       .to_string();
       request
-        .respond(crate::server::asset_response(&url))
+        .respond(crate::server::asset_response(&url, assets))
         .expect("unable to setup response");
     }
   });

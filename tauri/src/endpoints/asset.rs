@@ -7,7 +7,7 @@ pub fn load(
   asset_type: String,
   callback: String,
   error: String,
-  assets: &'static tauri_includedir::Files,
+  assets: &'static tauri_api::assets::Assets,
 ) {
   let mut webview_mut = webview.as_mut();
   crate::execute_promise(

@@ -1,16 +1,11 @@
+use tauri_api::assets::Assets;
 use tiny_http::{Header, Response};
 
 /// Returns the HTTP response of the given asset path.
-pub fn asset_response(path: &str) -> Response<std::io::Cursor<Vec<u8>>> {
-  let asset_path = &format!(
-    "{}{}",
-    option_env!("TAURI_DIST_DIR")
-      .expect("tauri apps should be built with the TAURI_DIST_DIR environment variable"),
-    path
-  );
-  let asset = crate::assets::ASSETS
-    .get(asset_path)
-    .unwrap_or_else(|_| panic!("Could not read asset {}", asset_path))
+pub fn asset_response(path: &str, assets: &'static Assets) -> Response<std::io::Cursor<Vec<u8>>> {
+  let asset = assets
+    .get(path)
+    .unwrap_or_else(|_| panic!("Could not read asset {}", path))
     .into_owned();
   let mut response = Response::from_data(asset);
   let header;

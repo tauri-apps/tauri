@@ -21,6 +21,9 @@ fn to_key(path: &Path, prefix: &Path) -> Result<String, Error> {
     Cow::Owned(Path::new(&Component::RootDir).join(path))
   };
 
+  #[cfg(not(windows))]
+  let path = path.to_string_lossy().to_string();
+
   // change windows type paths to the unix counterparts
   #[cfg(windows)]
   let path = {

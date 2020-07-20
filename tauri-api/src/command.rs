@@ -96,7 +96,7 @@ mod test {
   use std::io;
 
   #[cfg(not(windows))]
-  #[cfg(test)]
+  #[test]
   // test the get_output function with a unix cat command.
   fn test_cmd_output() {
     // create a string with cat in it.
@@ -116,7 +116,7 @@ mod test {
   }
 
   #[cfg(not(windows))]
-  #[cfg(test)]
+  #[test]
   // test the failure case for get_output
   fn test_cmd_fail() {
     use crate::Error;

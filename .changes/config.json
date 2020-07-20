@@ -154,24 +154,24 @@
       "path": "./cli/tauri-bundler",
       "manager": "rust"
     },
-    "tauri": {
-      "path": "./tauri",
-      "manager": "rust",
-      "dependencies": ["tauri-api", "tauri-updater"]
+    "tauri-utils": {
+      "path": "./tauri-utils",
+      "manager": "rust"
     },
     "tauri-api": {
       "path": "./tauri-api",
       "manager": "rust",
       "dependencies": ["tauri-utils"]
     },
-    "tauri-utils": {
-      "path": "./tauri-utils",
-      "manager": "rust"
-    },
     "tauri-updater": {
       "path": "./tauri-updater",
       "manager": "rust",
       "publish": false
+    },
+    "tauri": {
+      "path": "./tauri",
+      "manager": "rust",
+      "dependencies": ["tauri-api", "tauri-updater"]
     }
   }
 }

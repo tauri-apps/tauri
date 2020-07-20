@@ -28,6 +28,7 @@ jobs:
         id: covector
         with:
           command: 'version-or-publish'
+          createRelease: true
       - name: Create Pull Request With Versions Bumped
         if: ${{ steps.covector.outputs.command }} == 'version'
         uses: tauri-apps/create-pull-request@v2.8.0
@@ -39,10 +40,37 @@ jobs:
           labels: "version updates"
           body: ${{ steps.covector.outputs.change }}
 
-  tangle:
+  dump-job-context:
     runs-on: ubuntu-latest
     needs: version-or-publish
-    if: ${{ needs.version-or-publish.outputs.covector.successfulPublish }} == 'true'
+    steps:
+      - name: dump all output
+        env:
+          OUTPUT_CONTEXT: ${{ toJson(needs.version-or-publish.outputs) }}
+        run: echo "$OUTPUT_CONTEXT"
+      - name: dump covector output
+        env:
+          COVECTOR_CONTEXT: ${{ toJson(needs.version-or-publish.outputs.covector) }}
+        run: echo "$COVECTOR_CONTEXT"
+      - name: test successfulPublish
+        if: ${{ needs.version-or-publish.outputs.covector.successfulPublish }} == 'true'
+        run: echo this should be skipped
+      - run: echo ::set-env name=PUBLISHED::$(jq '.${{ matrix.package.name }}.command' ${{ needs.version-or-publish.outputs.covector.change }})
+      - run: echo ::set-env name=PACKAGE_VERSION::$(jq '.${{ matrix.package.name }}.pkg.pkgFile.version' ${{ needs.version-or-publish.outputs.covector.change }})
+      - name: test published false
+        if:  env.PUBLISHED != 'false'
+        run: echo published
+      - name: test published start
+        if:  startsWith(env.PUBLISHED, 'parse error') != true
+        run: echo published
+      - name: test pkg version
+        if:  startsWith(env.PACKAGE_VERSION, 'parse error') != true
+        run: echo published
+
+  tangle:
+    runs-on: ubuntu-latest
+    needs: [version-or-publish, dump-job-context]
+    if: false && ${{ needs.version-or-publish.outputs.covector.successfulPublish }} == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -65,7 +93,7 @@ jobs:
       - run: echo ::set-env name=PUBLISHED::$(jq '.${{ matrix.package.name }}.command' ${{ needs.version-or-publish.outputs.covector.change }})
       - run: echo ::set-env name=PACKAGE_VERSION::$(jq '.${{ matrix.package.name }}.pkg.pkgFile.version' ${{ needs.version-or-publish.outputs.covector.change }})
       - name: Tangle Release
-        if:  env.PUBLISHED != 'false' && !startsWith(env.PUBLISHED, 'parse error') && !startsWith(env.PACKAGE_VERSION, 'parse error')
+        if:  env.PUBLISHED != 'false' && startsWith(env.PUBLISHED, 'parse error') != true && startsWith(env.PACKAGE_VERSION, 'parse error') != true
         id: tangle_release
         uses: iotaledger/gh-tangle-release@v0.6.2
         env:
@@ -74,4 +102,4 @@ jobs:
           IOTA_NODE: "https://iotanode.us:14267"
         with:
           tag_name: ${{ matrix.package.name }}-v${{ env.PACKAGE_VERSION }}
-          comment: "Release ${{ matrix.package.name }} v${{ env.PACKAGE_VERSION }} [npmjs.com]"
+          comment: "Release ${{ matrix.package.name }} v${{ env.PACKAGE_VERSION }}"

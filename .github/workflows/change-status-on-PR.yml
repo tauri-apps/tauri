@@ -23,11 +23,11 @@ jobs:
     steps:
       - name: dump all output
         env:
-          OUTPUT_CONTEXT: ${{ toJson(needs) }}
+          OUTPUT_CONTEXT: ${{ toJson(needs.covector) }}
         run: echo "$OUTPUT_CONTEXT"
       - name: dump covector output
         env:
-          COVECTOR_CONTEXT: ${{ toJson(needs.change) }}
+          COVECTOR_CONTEXT: ${{ toJson(needs.covector.change) }}
         run: echo "$COVECTOR_CONTEXT"
       - name: test successfulPublish
         if: ${{ needs.covector.covector.successfulPublish }} == 'true'

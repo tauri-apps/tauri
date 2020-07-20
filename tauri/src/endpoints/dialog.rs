@@ -4,7 +4,7 @@ use crate::api::dialog::{
   DialogSelection, Response,
 };
 use serde_json::Value as JsonValue;
-use webview_rust_sys::Webview;
+use webview_official::Webview;
 
 /// maps a dialog response to a JS value to eval
 #[cfg(any(open_dialog, save_dialog))]

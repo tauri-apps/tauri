@@ -1,6 +1,6 @@
 use super::cmd::NotificationOptions;
 use serde_json::Value as JsonValue;
-use webview_rust_sys::Webview;
+use webview_official::Webview;
 
 pub fn send(webview: &mut Webview, options: NotificationOptions, callback: String, error: String) {
   crate::execute_promise(

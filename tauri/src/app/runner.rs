@@ -273,8 +273,10 @@ fn build_webview(
             window.__TAURI_INVOKE_HANDLER__({{ cmd: "__initialized" }})
           }})
         }}
+        {plugin_init}
       "#,
-      event_init = init()
+      event_init = init(),
+      plugin_init = crate::plugin::init_script()
     ))
     .title(Box::leak(title))
     .width(width as usize)

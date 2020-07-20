@@ -11,7 +11,7 @@
     "bundle": {
       "active": true
     },
-    "whitelist": {
+    "allowlist": {
       "all": true
     },
     "window": {

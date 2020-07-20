@@ -84,7 +84,7 @@ class Runner {
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const cargoManifest = this.__getManifest() as any as CargoManifest
-    this.__whitelistApi(cfg, cargoManifest)
+    this.__allowlistApi(cfg, cargoManifest)
     this.__rewriteManifest(cargoManifest as unknown as toml.JsonMap)
 
     const runningDevServer = devPath.startsWith('http')
@@ -248,7 +248,7 @@ class Runner {
     }
 
     const cargoManifest = this.__getManifest()
-    this.__whitelistApi(cfg, cargoManifest as unknown as CargoManifest)
+    this.__allowlistApi(cfg, cargoManifest as unknown as CargoManifest)
     this.__rewriteManifest(cargoManifest)
 
     const inlinedAssets = (await this.__parseHtml(cfg, cfg.build.distDir)).inlinedAssets
@@ -507,13 +507,13 @@ class Runner {
     }, WATCHER_INTERVAL * 2)
   }
 
-  __whitelistApi(
+  __allowlistApi(
     cfg: TauriConfig,
     manifest: CargoManifest
   ): void {
     const tomlFeatures = []
 
-    if (cfg.tauri.whitelist.all) {
+    if (cfg.tauri.allowlist.all) {
       tomlFeatures.push('all-api')
     } else {
       const toKebabCase = (value: string): string => {
@@ -521,10 +521,10 @@ class Runner {
           .replace(/\s+/g, '-')
           .toLowerCase()
       }
-      const whitelist = Object.keys(cfg.tauri.whitelist).filter(
-        w => cfg.tauri.whitelist[String(w)]
+      const allowlist = Object.keys(cfg.tauri.allowlist).filter(
+        w => cfg.tauri.allowlist[String(w)]
       )
-      tomlFeatures.push(...whitelist.map(toKebabCase))
+      tomlFeatures.push(...allowlist.map(toKebabCase))
     }
 
     if (cfg.tauri.cli) {

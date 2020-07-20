@@ -4,8 +4,6 @@ on: [pull_request]
 jobs:
   covector:
     runs-on: ubuntu-latest
-    outputs:
-      change: ${{ steps.covector.outputs.change }}
 
     steps:
       - uses: actions/checkout@v2
@@ -16,19 +14,3 @@ jobs:
         id: covector
         with:
           command: 'status'
-
-  dump-job-context:
-    runs-on: ubuntu-latest
-    needs: covector
-    steps:
-      - name: dump all output
-        env:
-          OUTPUT_CONTEXT: ${{ toJson(needs.covector.outputs) }}
-        run: echo "$OUTPUT_CONTEXT"
-      - name: dump covector output
-        env:
-          COVECTOR_CONTEXT: ${{ toJson(needs.covector.outputs.change) }}
-        run: echo "$COVECTOR_CONTEXT"
-      - name: test successfulPublish
-        if: ${{ needs.covector.covector.successfulPublish }} == 'true'
-        run: echo this should be skipped

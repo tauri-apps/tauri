@@ -8,6 +8,10 @@ on:
 jobs:
   version-or-publish:
     runs-on: ubuntu-latest
+    outputs:
+      change: ${{ steps.covector.outputs.change }}
+      commandRan: ${{ steps.covector.outputs.commandRan }}
+      successfulPublish: ${{ steps.covector.outputs.successfulPublish }}
 
     steps:
       - uses: actions/checkout@v2
@@ -50,13 +54,13 @@ jobs:
         run: echo "$OUTPUT_CONTEXT"
       - name: dump covector output
         env:
-          COVECTOR_CONTEXT: ${{ toJson(needs.version-or-publish.outputs.covector) }}
+          COVECTOR_CONTEXT: ${{ toJson(needs.version-or-publish.outputs.change) }}
         run: echo "$COVECTOR_CONTEXT"
       - name: test successfulPublish
-        if: ${{ needs.version-or-publish.outputs.covector.successfulPublish }} == 'true'
+        if: ${{ needs.version-or-publish.outputs.successfulPublish }} == 'true'
         run: echo this should be skipped
-      - run: echo ::set-env name=PUBLISHED::$(jq '.${{ matrix.package.name }}.command' ${{ needs.version-or-publish.outputs.covector.change }})
-      - run: echo ::set-env name=PACKAGE_VERSION::$(jq '.${{ matrix.package.name }}.pkg.pkgFile.version' ${{ needs.version-or-publish.outputs.covector.change }})
+      - run: echo ::set-env name=PUBLISHED::$(jq '.${{ matrix.package.name }}.command' ${{ needs.version-or-publish.outputs.change }})
+      - run: echo ::set-env name=PACKAGE_VERSION::$(jq '.${{ matrix.package.name }}.pkg.pkgFile.version' ${{ needs.version-or-publish.outputs.change }})
       - name: test published false
         if:  env.PUBLISHED != 'false'
         run: echo published

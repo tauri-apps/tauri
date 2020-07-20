@@ -93,10 +93,9 @@ pub fn binary_command(binary_name: String) -> crate::Result<String> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::Error;
   use std::io;
 
-  #[cfg_attr(not(windows), test)]
+  #[cfg(all(not(windows), test))]
   // test the get_output function with a unix cat command.
   fn test_cmd_output() {
     // create a string with cat in it.
@@ -115,9 +114,11 @@ mod test {
     }
   }
 
-  #[cfg_attr(not(windows), test)]
+  #[cfg(all(not(windows), test))]
   // test the failure case for get_output
   fn test_cmd_fail() {
+    use crate::Error;
+
     // queue up a string with cat in it.
     let cmd = String::from("cat");
 

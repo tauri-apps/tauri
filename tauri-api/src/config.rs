@@ -373,84 +373,8 @@ impl Config {
 #[cfg(test)]
 mod test {
   use super::*;
-  // generate a test_config based on the test fixture
-  fn create_test_config() -> Config {
-    let mut subcommands = std::collections::HashMap::new();
-    subcommands.insert(
-      "update".to_string(),
-      CliConfig {
-        description: Some("Updates the app".to_string()),
-        long_description: None,
-        before_help: None,
-        after_help: None,
-        args: Some(vec![CliArg {
-          short: Some('b'),
-          name: "background".to_string(),
-          description: Some("Update in background".to_string()),
-          ..Default::default()
-        }]),
-        subcommands: None,
-      },
-    );
-    Config {
-      tauri: TauriConfig {
-        window: WindowConfig {
-          width: 800,
-          height: 600,
-          resizable: true,
-          title: String::from("Tauri API Validation"),
-          fullscreen: false,
-        },
-        embedded_server: EmbeddedServerConfig {
-          host: String::from("http://127.0.0.1"),
-          port: Port::Random,
-        },
-        bundle: BundleConfig {
-          identifier: String::from("com.tauri.communication"),
-        },
-        cli: Some(CliConfig {
-          description: Some("Tauri communication example".to_string()),
-          long_description: None,
-          before_help: None,
-          after_help: None,
-          args: Some(vec![
-            CliArg {
-              short: Some('c'),
-              name: "config".to_string(),
-              takes_value: Some(true),
-              description: Some("Config path".to_string()),
-              ..Default::default()
-            },
-            CliArg {
-              short: Some('t'),
-              name: "theme".to_string(),
-              takes_value: Some(true),
-              description: Some("App theme".to_string()),
-              possible_values: Some(vec![
-                "light".to_string(),
-                "dark".to_string(),
-                "system".to_string(),
-              ]),
-              ..Default::default()
-            },
-            CliArg {
-              short: Some('v'),
-              name: "verbose".to_string(),
-              multiple_occurrences: Some(true),
-              description: Some("Verbosity level".to_string()),
-              ..Default::default()
-            },
-          ]),
-          subcommands: Some(subcommands),
-        }),
-      },
-      build: BuildConfig {
-        dev_path: String::from("../dist"),
-        ..Default::default()
-      },
-      plugins: Default::default(),
-    }
-  }
+
+  // TODO: create a test that compares a config to a json config
 
   #[test]
   // test all of the default functions

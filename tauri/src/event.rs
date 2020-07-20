@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use once_cell::sync::Lazy;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
-use webview_rust_sys::WebviewMut;
+use webview_official::WebviewMut;
 
 /// An event handler.
 struct EventHandler {

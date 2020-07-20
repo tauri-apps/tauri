@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use webview_rust_sys::Webview;
+use webview_official::Webview;
 
 pub fn load(
   webview: &mut Webview,

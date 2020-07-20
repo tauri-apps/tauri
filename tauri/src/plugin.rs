@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex};
-use webview_rust_sys::Webview;
+use webview_official::Webview;
 
 /// The plugin interface.
 pub trait Plugin {

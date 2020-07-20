@@ -7,7 +7,7 @@ use std::{
   thread::spawn,
 };
 
-use webview_rust_sys::{SizeHint, Webview, WebviewBuilder};
+use webview_official::{SizeHint, Webview, WebviewBuilder};
 
 use super::App;
 #[cfg(embedded_server)]

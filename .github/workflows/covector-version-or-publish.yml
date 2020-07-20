@@ -74,4 +74,4 @@ jobs:
           IOTA_NODE: "https://iotanode.us:14267"
         with:
           tag_name: ${{ matrix.package.name }}-v${{ env.PACKAGE_VERSION }}
-          comment: "Release ${{ matrix.package.name }} v${{ env.PACKAGE_VERSION }} [npmjs.com]"
+          comment: "Release ${{ matrix.package.name }} v${{ env.PACKAGE_VERSION }}"

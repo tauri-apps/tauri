@@ -453,26 +453,6 @@ mod test {
   }
 
   #[test]
-  // test the get function.  Will only resolve to true if the TAURI_CONFIG variable is set properly to the fixture.
-  fn test_get() {
-    // get test_config
-    let test_config = create_test_config();
-
-    // call get();
-    let config = get();
-
-    // check to see if there is an OK or Err, on Err fail test.
-    match config {
-      // On Ok, check that the config is the same as the test config.
-      Ok(c) => {
-        println!("{:?}", c);
-        assert_eq!(c, &test_config)
-      }
-      Err(e) => panic!("get config failed: {:?}", e.to_string()),
-    }
-  }
-
-  #[test]
   // test all of the default functions
   fn test_defaults() {
     // get default tauri config

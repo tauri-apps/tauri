@@ -15,7 +15,7 @@ mod http;
 #[cfg(notification)]
 mod notification;
 
-use webview_rust_sys::Webview;
+use webview_official::Webview;
 
 #[allow(unused_variables)]
 pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {

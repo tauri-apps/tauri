@@ -1,4 +1,4 @@
-use webview_rust_sys::Webview;
+use webview_official::Webview;
 
 mod runner;
 

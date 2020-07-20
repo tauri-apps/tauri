@@ -1,4 +1,4 @@
-use webview_rust_sys::Webview;
+use webview_official::Webview;
 
 use tauri_api::dir;
 use tauri_api::file;

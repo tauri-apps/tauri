@@ -1,5 +1,5 @@
 use tauri_api::http::{make_request as request, HttpRequestOptions};
-use webview_rust_sys::Webview;
+use webview_official::Webview;
 
 /// Makes an HTTP request and resolves the response to the webview
 pub fn make_request(

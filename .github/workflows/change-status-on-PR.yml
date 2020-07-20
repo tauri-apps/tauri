@@ -14,3 +14,19 @@ jobs:
         id: covector
         with:
           command: 'status'
+
+  dump-job-context:
+    runs-on: ubuntu-latest
+    needs: covector
+    steps:
+      - name: dump all output
+        env:
+          OUTPUT_CONTEXT: ${{ toJson(needs.covector.outputs) }}
+        run: echo "$OUTPUT_CONTEXT"
+      - name: dump covector output
+        env:
+          COVECTOR_CONTEXT: ${{ toJson(needs.covector.outputs.covector) }}
+        run: echo "$COVECTOR_CONTEXT"
+      - name: test successfulPublish
+        if: ${{ needs.covector.outputs.covector.successfulPublish }} == 'true'
+        run: echo this should be skipped

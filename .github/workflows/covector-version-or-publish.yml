@@ -66,7 +66,7 @@ jobs:
       - run: echo ::set-env name=PUBLISHED::$(jq '.${{ matrix.package.name }}.command' ${{ needs.version-or-publish.outputs.covector.change }})
       - run: echo ::set-env name=PACKAGE_VERSION::$(jq '.${{ matrix.package.name }}.pkg.pkgFile.version' ${{ needs.version-or-publish.outputs.covector.change }})
       - name: Tangle Release
-        if:  env.PUBLISHED != 'false' && !startsWith(env.PUBLISHED, 'parse error') && !startsWith(env.PACKAGE_VERSION, 'parse error')
+        if:  env.PUBLISHED != 'false' && startsWith(env.PUBLISHED, 'parse error') != true && startsWith(env.PACKAGE_VERSION, 'parse error') != true
         id: tangle_release
         uses: iotaledger/gh-tangle-release@v0.6.2
         env:

@@ -381,15 +381,13 @@ mod test {
   use crate::AppConfig;
   use crate::FromTauriConfig;
   use proptest::prelude::*;
-  #[cfg(not(feature = "embedded-server"))]
-  use std::{fs::read_to_string, path::Path};
+
+  #[derive(FromTauriConfig)]
+  #[tauri_config_path = "test/fixture/src-tauri/tauri.conf.json"]
+  struct Config;
 
   #[test]
   fn check_setup_content() {
-    #[derive(FromTauriConfig)]
-    #[tauri_config_path = "test/fixture/src-tauri/tauri.conf.json"]
-    struct Config;
-
     let app_config = AppConfig::new::<Config>().unwrap();
     let res = super::setup_content(&app_config);
 
@@ -402,15 +400,9 @@ mod test {
     #[cfg(no_server)]
     match res {
       Ok(Content::Html(s)) => {
-        let dist_dir = &app_config.config.build.dist;
         assert_eq!(
           s,
-          format!(
-            "data:text/html,{}",
-            urlencoding::encode(
-              &read_to_string(Path::new(&dist_dir).join("index.tauri.html")).unwrap()
-            )
-          )
+          format!("data:text/html,{}", urlencoding::encode(app_config.index))
         );
       }
       _ => panic!("setup content failed"),
@@ -440,7 +432,8 @@ mod test {
   #[cfg(embedded_server)]
   #[test]
   fn check_setup_port() {
-    let res = super::setup_port();
+    let app_config = AppConfig::new::<Config>().unwrap();
+    let res = super::setup_port(&app_config);
     match res {
       Ok((_s, _b)) => {}
       _ => panic!("setup port failed"),
@@ -453,8 +446,9 @@ mod test {
     #[test]
     fn check_server_url(port in (any::<u32>().prop_map(|v| v.to_string()))) {
       let p = port.clone();
+      let app_config = AppConfig::new::<Config>().unwrap();
 
-      let res = super::setup_server_url(port);
+      let res = super::setup_server_url(port, &app_config);
 
       match res {
         Ok(url) => assert!(url.contains(&p)),

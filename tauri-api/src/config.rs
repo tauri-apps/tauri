@@ -44,13 +44,15 @@ fn default_title() -> String {
   "Tauri App".to_string()
 }
 
-fn default_window() -> WindowConfig {
-  WindowConfig {
-    width: default_width(),
-    height: default_height(),
-    resizable: default_resizable(),
-    title: default_title(),
-    fullscreen: false,
+impl Default for WindowConfig {
+  fn default() -> Self {
+    Self {
+      width: default_width(),
+      height: default_height(),
+      resizable: default_resizable(),
+      title: default_title(),
+      fullscreen: false,
+    }
   }
 }
 
@@ -78,6 +80,19 @@ pub struct EmbeddedServerConfig {
 
 fn default_host() -> String {
   "http://127.0.0.1".to_string()
+}
+
+fn default_port() -> Port {
+  Port::Random
+}
+
+impl Default for EmbeddedServerConfig {
+  fn default() -> Self {
+    Self {
+      host: default_host(),
+      port: default_port(),
+    }
+  }
 }
 
 fn port_deserializer<'de, D>(deserializer: D) -> Result<Port, D::Error>
@@ -114,17 +129,6 @@ where
   }
 
   deserializer.deserialize_any(PortDeserializer {})
-}
-
-fn default_port() -> Port {
-  Port::Random
-}
-
-fn default_embedded_server() -> EmbeddedServerConfig {
-  EmbeddedServerConfig {
-    host: default_host(),
-    port: default_port(),
-  }
 }
 
 /// A CLI argument definition
@@ -270,9 +274,11 @@ pub struct BundleConfig {
   pub identifier: String,
 }
 
-fn default_bundle() -> BundleConfig {
-  BundleConfig {
-    identifier: String::from(""),
+impl Default for BundleConfig {
+  fn default() -> Self {
+    Self {
+      identifier: String::from(""),
+    }
   }
 }
 
@@ -281,17 +287,28 @@ fn default_bundle() -> BundleConfig {
 #[serde(tag = "tauri", rename_all = "camelCase")]
 pub struct TauriConfig {
   /// The window configuration.
-  #[serde(default = "default_window")]
+  #[serde(default)]
   pub window: WindowConfig,
   /// The embeddedServer configuration.
-  #[serde(default = "default_embedded_server")]
+  #[serde(default)]
   pub embedded_server: EmbeddedServerConfig,
   /// The CLI configuration.
   #[serde(default)]
   pub cli: Option<CliConfig>,
   /// The bundler configuration.
-  #[serde(default = "default_bundle")]
+  #[serde(default)]
   pub bundle: BundleConfig,
+}
+
+impl Default for TauriConfig {
+  fn default() -> Self {
+    Self {
+      window: WindowConfig::default(),
+      embedded_server: EmbeddedServerConfig::default(),
+      cli: None,
+      bundle: BundleConfig::default(),
+    }
+  }
 }
 
 /// The Build configuration object.
@@ -313,6 +330,15 @@ fn default_dist_path() -> String {
   "../dist".to_string()
 }
 
+impl Default for BuildConfig {
+  fn default() -> Self {
+    Self {
+      dev_path: default_dev_path(),
+      dist: default_dist_path(),
+    }
+  }
+}
+
 type JsonObject = HashMap<String, JsonValue>;
 
 /// The tauri.conf.json mapper.
@@ -320,10 +346,10 @@ type JsonObject = HashMap<String, JsonValue>;
 #[serde(rename_all = "camelCase")]
 pub struct Config {
   /// The Tauri configuration.
-  #[serde(default = "default_tauri")]
+  #[serde(default)]
   pub tauri: TauriConfig,
   /// The build configuration.
-  #[serde(default = "default_build")]
+  #[serde(default)]
   pub build: BuildConfig,
   /// The plugins config.
   #[serde(default)]
@@ -341,22 +367,6 @@ impl Config {
     let file = File::open(path.as_ref())?;
     let buf = BufReader::new(file);
     serde_json::from_reader(buf).map_err(Into::into)
-  }
-}
-
-fn default_tauri() -> TauriConfig {
-  TauriConfig {
-    window: default_window(),
-    embedded_server: default_embedded_server(),
-    cli: None,
-    bundle: default_bundle(),
-  }
-}
-
-fn default_build() -> BuildConfig {
-  BuildConfig {
-    dev_path: default_dev_path(),
-    dist: default_dist_path(),
   }
 }
 
@@ -436,6 +446,7 @@ mod test {
       },
       build: BuildConfig {
         dev_path: String::from("../dist"),
+        ..Default::default()
       },
       plugins: Default::default(),
     }
@@ -465,19 +476,19 @@ mod test {
   // test all of the default functions
   fn test_defaults() {
     // get default tauri config
-    let t_config = default_tauri();
+    let t_config = TauriConfig::default();
     // get default build config
-    let b_config = default_build();
+    let b_config = BuildConfig::default();
     // get default dev path
     let d_path = default_dev_path();
     // get default embedded server
-    let de_server = default_embedded_server();
+    let de_server = EmbeddedServerConfig::default();
     // get default window
-    let d_window = default_window();
+    let d_window = WindowConfig::default();
     // get default title
     let d_title = default_title();
     // get default bundle
-    let d_bundle = default_bundle();
+    let d_bundle = BundleConfig::default();
 
     // create a tauri config.
     let tauri = TauriConfig {
@@ -501,6 +512,7 @@ mod test {
     // create a build config
     let build = BuildConfig {
       dev_path: String::from(""),
+      dist: String::from("../dist"),
     };
 
     // test the configs

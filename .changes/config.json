@@ -36,8 +36,7 @@
         },
         {
           "command": "cargo package --no-verify --allow-dirty",
-          "dryRunCommand": true,
-          "pipe": true
+          "dryRunCommand": true
         }
       ],
       "publish": [
@@ -53,7 +52,7 @@
         },
         {
           "command": "cargo publish --no-verify",
-          "dryRunCommand": "cargo publish --no-verify --dry-run",
+          "dryRunCommand": "cargo publish --no-verify --dry-run --allow-dirty",
           "pipe": true
         },
         {
@@ -105,8 +104,7 @@
         },
         {
           "command": "npm pack",
-          "dryRunCommand": true,
-          "pipe": true
+          "dryRunCommand": true
         }
       ],
       "publish": [

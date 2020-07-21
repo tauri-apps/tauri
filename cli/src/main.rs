@@ -1,5 +1,5 @@
 pub use anyhow::Result;
-use clap::{load_yaml, App, AppSettings, ArgMatches};
+use clap::{crate_version, load_yaml, App, AppSettings, ArgMatches};
 use std::convert::TryInto;
 
 mod build;
@@ -71,8 +71,13 @@ fn info_command() -> Result<()> {
 
 fn main() -> Result<()> {
   let yaml = load_yaml!("cli.yml");
-  let app = App::from(yaml).setting(AppSettings::ArgRequiredElseHelp);
-  let matches = app.get_matches();
+  let app = App::from(yaml)
+    .version(crate_version!())
+    .setting(AppSettings::ArgRequiredElseHelp)
+    .setting(AppSettings::GlobalVersion)
+    .setting(AppSettings::SubcommandRequired);
+  let app_matches = app.get_matches();
+  let matches = app_matches.subcommand_matches("tauri").unwrap();
 
   if let Some(matches) = matches.subcommand_matches("init") {
     init_command(&matches)?;

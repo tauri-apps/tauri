@@ -1,5 +1,3 @@
-#[cfg(windows)]
-use tauri_bundler::bundle::tauri_config::get as get_tauri_config;
 use tauri_bundler::{
   build_project,
   bundle::{
@@ -78,34 +76,6 @@ fn run() -> crate::Result<()> {
         ),
     )
     .get_matches();
-
-  #[cfg(windows)]
-  {
-    if let Ok(tauri_config) = get_tauri_config() {
-      if tauri_config.tauri.embedded_server.active {
-        let exempt_output = std::process::Command::new("CheckNetIsolation")
-          .args(&vec!["LoopbackExempt", "-s"])
-          .output()
-          .expect("failed to read LoopbackExempt -s");
-
-        if !exempt_output.status.success() {
-          panic!("Failed to execute CheckNetIsolation LoopbackExempt -s");
-        }
-
-        let output_str = String::from_utf8_lossy(&exempt_output.stdout).to_lowercase();
-        if !output_str.contains("win32webviewhost_cw5n1h2txyewy") {
-          println!("Running Loopback command");
-          Command::new("powershell")
-            .args(&vec![
-              "CheckNetIsolation LoopbackExempt -a -n=\"Microsoft.Win32WebViewHost_cw5n1h2txyewy\"",
-            ])
-            .force_prompt(true)
-            .status()
-            .expect("failed to run Loopback command");
-        }
-      }
-    }
-  }
 
   if let Some(matches) = m.subcommand_matches("tauri-bundler") {
     if matches.is_present("version") {

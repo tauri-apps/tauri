@@ -1,69 +1,72 @@
-name: Tauri CLI
-version: '0.1.0'
+name: cargo-tauri
+bin_name: cargo
 author: Lucas Nogueira <lucas@tauri.studio>
 about: The Tauri command line interface.
 subcommands:
-  - dev:
-      about: Tauri dev.
-      args:
-        - exit-on-panic:
-            short: e
-            long: exit-on-panic
-            about: Exit on panic
-  - build:
-      about: Tauri build.
-      args:
-        - debug:
-            short: d
-            long: debug
-            about: Builds with the debug flag
-        - target:
-            short: t
-            long: target
-            about: list of target triples to build against
-            takes_value: true
-            multiple: true
-  - info:
-      about: Shows information about Tauri dependencies
-  - init:
-      about: Initializes a Tauri project
-      args:
-        - force:
-            short: f
-            long: force
-            about: Force init to overwrite [conf|template|all]
-            takes_value: true
-        - log:
-            short: l
-            long: log
-            about: Enables logging
-        - directory:
-            short: d
-            long: directory
-            about: Set target directory for init
-            takes_value: true
-        - tauri-path:
-            short: t
-            long: tauri-path
-            about: Path of the Tauri project to use (relative to the cwd)
-            takes_value: true
-        - app-name:
-            short: A
-            long: app-name
-            about: Name of your Tauri application
-            takes_value: true
-        - window-title:
-            short: W
-            long: window-title
-            about: Window title of your Tauri application
-            takes_value: true
-        - dist-dir:
-            short: D
-            long: dist-dir
-            about: Web assets location, relative to <project-dir>/src-tauri
-            takes_value: true
-        - dev-path:
-            short: P
-            long: dev-path
-            about: Url of your dev server
-            takes_value: true
+  - tauri:
+      about: Tauri CLI
+      subcommands:
+        - dev:
+            about: Tauri dev.
+            args:
+                - exit-on-panic:
+                    short: e
+                    long: exit-on-panic
+                    about: Exit on panic
+        - build:
+            about: Tauri build.
+            args:
+                - debug:
+                    short: d
+                    long: debug
+                    about: Builds with the debug flag
+                - target:
+                    short: t
+                    long: target
+                    about: list of target triples to build against
+                    takes_value: true
+                    multiple: true
+        - info:
+            about: Shows information about Tauri dependencies
+        - init:
+            about: Initializes a Tauri project
+            args:
+                - force:
+                    short: f
+                    long: force
+                    about: Force init to overwrite [conf|template|all]
+                    takes_value: true
+                - log:
+                    short: l
+                    long: log
+                    about: Enables logging
+                - directory:
+                    short: d
+                    long: directory
+                    about: Set target directory for init
+                    takes_value: true
+                - tauri-path:
+                    short: t
+                    long: tauri-path
+                    about: Path of the Tauri project to use (relative to the cwd)
+                    takes_value: true
+                - app-name:
+                    short: A
+                    long: app-name
+                    about: Name of your Tauri application
+                    takes_value: true
+                - window-title:
+                    short: W
+                    long: window-title
+                    about: Window title of your Tauri application
+                    takes_value: true
+                - dist-dir:
+                    short: D
+                    long: dist-dir
+                    about: Web assets location, relative to <project-dir>/src-tauri
+                    takes_value: true
+                - dev-path:
+                    short: P
+                    long: dev-path
+                    about: Url of your dev server
+                    takes_value: true

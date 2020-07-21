@@ -19,10 +19,6 @@ pub mod server;
 /// The Tauri-specific settings for your app e.g. notification permission status.
 pub mod settings;
 
-/// The CLI args interface.
-#[cfg(cli)]
-pub mod cli;
-
 /// The webview application entry.
 mod app;
 /// The Tauri API endpoints.

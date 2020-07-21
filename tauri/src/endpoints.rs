@@ -271,15 +271,12 @@ pub(crate) fn handle(
         }
         CliMatches { callback, error } => {
           #[cfg(cli)]
-          crate::execute_promise(
-            webview,
-            move || match crate::cli::get_matches() {
-              Some(matches) => Ok(matches),
-              None => Err(anyhow::anyhow!(r#""failed to get matches""#)),
-            },
-            callback,
-            error,
-          );
+          {
+            // TODO: memoize this?  previous used a static but that's not possible anymore
+            let matches = tauri_api::cli::get_matches(&app_config.config)
+              .map_err(|_| anyhow::anyhow!(r#""failed to get matches""#));
+            crate::execute_promise(webview, move || matches, callback, error);
+          }
           #[cfg(not(cli))]
           api_error(
             webview,

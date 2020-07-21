@@ -53,9 +53,9 @@ pub struct SaveDialogOptions {
 #[derive(Deserialize)]
 pub struct NotificationOptions {
   /// The notification title.
-  pub title: Option<String>,
+  pub title: String,
   /// The notification body.
-  pub body: String,
+  pub body: Option<String>,
   /// The notification icon.
   pub icon: Option<String>,
 }
@@ -64,8 +64,6 @@ pub struct NotificationOptions {
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
-  /// The init command
-  Init {},
   /// The read text file API.
   ReadTextFile {
     path: PathBuf,
@@ -142,7 +140,9 @@ pub enum Cmd {
     error: String,
   },
   /// The set webview title API.
-  SetTitle { title: String },
+  SetTitle {
+    title: String,
+  },
   /// The execute script API.
   Execute {
     command: String,
@@ -151,7 +151,9 @@ pub enum Cmd {
     error: String,
   },
   /// The open URL in browser API
-  Open { uri: String },
+  Open {
+    uri: String,
+  },
   ValidateSalt {
     salt: String,
     callback: String,
@@ -180,6 +182,15 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
+  MessageDialog {
+    message: String,
+  },
+  AskDialog {
+    title: Option<String>,
+    message: String,
+    callback: String,
+    error: String,
+  },
   /// The HTTP request API.
   HttpRequest {
     options: Box<HttpRequestOptions>,
@@ -196,7 +207,10 @@ pub enum Cmd {
     error: String,
   },
   /// The get CLI matches API.
-  CliMatches { callback: String, error: String },
+  CliMatches {
+    callback: String,
+    error: String,
+  },
   /// The show notification API.
   Notification {
     options: NotificationOptions,
@@ -204,7 +218,13 @@ pub enum Cmd {
     error: String,
   },
   /// The request notification permission API.
-  RequestNotificationPermission { callback: String, error: String },
+  RequestNotificationPermission {
+    callback: String,
+    error: String,
+  },
   /// The notification permission check API.
-  IsNotificationPermissionGranted { callback: String, error: String },
+  IsNotificationPermissionGranted {
+    callback: String,
+    error: String,
+  },
 }

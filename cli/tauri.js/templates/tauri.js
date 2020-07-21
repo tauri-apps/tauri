@@ -6,31 +6,29 @@ if (!String.prototype.startsWith) {
   }
 }
 
-// makes the window.external.invoke API available after window.location.href changes
-switch (navigator.platform) {
-  case "Macintosh":
-  case "MacPPC":
-  case "MacIntel":
-  case "Mac68K":
-    window.external = this
-    invoke = function (x) {
-      webkit.messageHandlers.invoke.postMessage(x);
-    }
-    break;
-  case "Windows":
-  case "WinCE":
-  case "Win32":
-  case "Win64":
-    break;
-  default:
-    window.external = this
-    invoke = function (x) {
-      window.webkit.messageHandlers.external.postMessage(x);
-    }
-    break;
-}
-
 (function () {
+  function webviewBind (name) {
+    var RPC = window._rpc = (window._rpc || { nextSeq: 1 });
+    window[name] = function () {
+      var seq = RPC.nextSeq++;
+      var promise = new Promise(function (resolve, reject) {
+        RPC[seq] = {
+          resolve: resolve,
+          reject: reject,
+        };
+      });
+      window.external.invoke(JSON.stringify({
+        id: seq,
+        method: name,
+        params: Array.prototype.slice.call(arguments),
+      }));
+      return promise;
+    }
+  }
+  if (!window.__TAURI_INVOKE_HANDLER__) {
+    webviewBind('__TAURI_INVOKE_HANDLER__')
+  }
+
   function s4() {
     return Math.floor((1 + Math.random()) * 0x10000)
       .toString(16)
@@ -89,12 +87,8 @@ switch (navigator.platform) {
   if (!window.__TAURI__) {
     window.__TAURI__ = {}
   }
-  window.__TAURI__.invoke = function invoke(args) {
-    window.external.invoke(JSON.stringify(args))
-  }
 
-  window.__TAURI__.transformCallback = function transformCallback(callback) {
-    var once = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false
+  window.__TAURI__.transformCallback = function transformCallback(callback, once) {
     var identifier = uid()
 
     window[identifier] = function (result) {
@@ -109,12 +103,21 @@ switch (navigator.platform) {
   }
 
   window.__TAURI__.promisified = function promisified(args) {
-    var _this = this;
+    var _this = this
 
     return new Promise(function (resolve, reject) {
-      _this.invoke(_objectSpread({
-        callback: _this.transformCallback(resolve),
-        error: _this.transformCallback(reject)
+      var callback = _this.transformCallback(function (r) {
+        resolve(r)
+        delete window[error]
+      }, true)
+      var error = _this.transformCallback(function (e) {
+        reject(e)
+        delete window[callback]
+      }, true)
+
+      window.__TAURI_INVOKE_HANDLER__(_objectSpread({
+        callback: callback,
+        error: error
       }, args))
     })
   }
@@ -125,19 +128,6 @@ switch (navigator.platform) {
       asset: assetName,
       assetType: assetType || 'unknown'
     })
-  }
-
-  // init tauri API
-  try {
-    window.__TAURI__.invoke({
-      cmd: 'init'
-    })
-  } catch (e) {
-    window.addEventListener('DOMContentLoaded', function () {
-      window.__TAURI__.invoke({
-        cmd: 'init'
-      })
-    }, true)
   }
 
   document.addEventListener('error', function (e) {
@@ -161,7 +151,7 @@ switch (navigator.platform) {
       while (target != null) {
         if (target.matches ? target.matches('a') : target.msMatchesSelector('a')) {
           if (target.href && target.href.startsWith('http') && target.target === '_blank') {
-            window.__TAURI__.invoke({
+            window.__TAURI_INVOKE_HANDLER__({
               cmd: 'open',
               uri: target.href
             })
@@ -220,7 +210,7 @@ switch (navigator.platform) {
           return window.__TAURI__.promisified({
             cmd: 'notification',
             options: typeof options === 'string' ? {
-              body: options
+              title: options
             } : options
           })
         }
@@ -257,4 +247,18 @@ switch (navigator.platform) {
         setNotificationPermission(response ? 'granted' : 'denied')
       }
     })
+
+  window.alert = function (message) {
+    window.__TAURI_INVOKE_HANDLER__({
+      cmd: 'messageDialog',
+      message: message
+    })
+  }
+
+  window.confirm = function (message) {
+    return window.__TAURI__.promisified({
+      cmd: 'askDialog',
+      message: message
+    })
+  }
 })()

@@ -1,9 +1,9 @@
 use tauri_api::http::{make_request as request, HttpRequestOptions};
-use web_view::WebView;
+use webview_official::Webview;
 
 /// Makes an HTTP request and resolves the response to the webview
-pub fn make_request<T: 'static>(
-  webview: &mut WebView<'_, T>,
+pub fn make_request(
+  webview: &mut Webview,
   options: HttpRequestOptions,
   callback: String,
   error: String,

@@ -1,6 +1,6 @@
 [package]
 name = "tauri-api"
-version = "0.7.2"
+version = "0.7.3"
 authors = [
   "Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>",
   "Daniel Thompson-Yvetot <denjell@sfosc.org>",

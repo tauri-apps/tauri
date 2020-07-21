@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.3]
+
+-   Use native dialog on `window.alert` and `window.confirm`.
+    Since every communication with the webview is asynchronous, the `window.confirm` returns a Promise resolving to a boolean value.
+        - [0245833](https://www.github.com/tauri-apps/tauri/commit/0245833bb56d5462a4e1249eb1e2f9f5e477592d) feat(tauri) make `window.alert` and `window.confirm` available, fix [#848](https://www.github.com/tauri-apps/tauri/pull/848) ([#854](https://www.github.com/tauri-apps/tauri/pull/854)) on 2020-07-18
+        - [dac0ae9](https://www.github.com/tauri-apps/tauri/commit/dac0ae976ea1b419ed5af078d00106b1476dee04) chore(changes) add tauri-api to JS dialogs changefile on 2020-07-19
+
 ## [0.7.2]
 
 -   Fixes Edge blank screen on Windows when running tauri dev (Tauri crashing window due to Edge reloading app because of missing Content-Type header).

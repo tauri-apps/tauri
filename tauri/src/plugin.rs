@@ -1,19 +1,23 @@
 use std::sync::{Arc, Mutex};
-use web_view::WebView;
+use webview_official::Webview;
 
 /// The plugin interface.
 pub trait Plugin {
+  /// The JS script to evaluate on init.
+  fn init_script(&self) -> Option<String> {
+    None
+  }
   /// Callback invoked when the webview is created.
   #[allow(unused_variables)]
-  fn created(&self, webview: &mut WebView<'_, ()>) {}
+  fn created(&self, webview: &mut Webview) {}
 
   /// Callback invoked when the webview is ready.
   #[allow(unused_variables)]
-  fn ready(&self, webview: &mut WebView<'_, ()>) {}
+  fn ready(&self, webview: &mut Webview) {}
 
   /// Add invoke_handler API extension commands.
   #[allow(unused_variables)]
-  fn extend_api(&self, webview: &mut WebView<'_, ()>, payload: &str) -> Result<bool, String> {
+  fn extend_api(&self, webview: &mut Webview, payload: &str) -> Result<bool, String> {
     Err("unknown variant".to_string())
   }
 }
@@ -37,19 +41,31 @@ fn run_plugin<T: FnMut(&Box<dyn Plugin>)>(mut callback: T) {
   });
 }
 
-pub(crate) fn created(webview: &mut WebView<'_, ()>) {
+pub(crate) fn init_script() -> String {
+  let mut init = String::new();
+
+  run_plugin(|plugin| {
+    if let Some(init_script) = plugin.init_script() {
+      init.push_str(&format!("(function () {{ {} }})();", init_script));
+    }
+  });
+
+  init
+}
+
+pub(crate) fn created(webview: &mut Webview) {
   run_plugin(|ext| {
     ext.created(webview);
   });
 }
 
-pub(crate) fn ready(webview: &mut WebView<'_, ()>) {
+pub(crate) fn ready(webview: &mut Webview) {
   run_plugin(|ext| {
     ext.ready(webview);
   });
 }
 
-pub(crate) fn extend_api(webview: &mut WebView<'_, ()>, arg: &str) -> Result<bool, String> {
+pub(crate) fn extend_api(webview: &mut Webview, arg: &str) -> Result<bool, String> {
   PLUGINS.with(|plugins| {
     let exts = plugins.lock().unwrap();
     for ext in exts.iter() {

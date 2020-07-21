@@ -11,7 +11,7 @@
     "bundle": {
       "active": true
     },
-    "whitelist": {
+    "allowlist": {
       "all": true
     },
     "window": {
@@ -19,7 +19,9 @@
     },
     "security": {
       "csp": "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
+    },
+    "inliner": {
+      "active": true
     }
-  },
-  "edge": true
+  }
 }

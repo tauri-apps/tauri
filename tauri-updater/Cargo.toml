@@ -14,7 +14,7 @@ serde_json = "1.0"
 tempfile = "3.1"
 reqwest = { version = "0.10", features = ["blocking", "json"] }
 serde = "1.0"
-tauri-api = { version = "0.6", path = "../tauri-api" }
+tauri-api = { version = "0.7.2", path = "../tauri-api" }
 tauri-utils = { version = "0.5", path = "../tauri-utils" }
 semver = "0.9"
 minisign-verify = "0.1.8"

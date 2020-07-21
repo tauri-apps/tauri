@@ -32,7 +32,7 @@ export default {
       },
       exceptionDomain: ''
     },
-    whitelist: {
+    allowlist: {
       all: true
     },
     window: {
@@ -44,9 +44,6 @@ export default {
     },
     security: {
       csp: "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
-    },
-    edge: {
-      active: true
     },
     inliner: {
       active: true

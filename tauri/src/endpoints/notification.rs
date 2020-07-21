@@ -1,20 +1,14 @@
 use super::cmd::NotificationOptions;
 use serde_json::Value as JsonValue;
-use web_view::WebView;
+use webview_official::Webview;
 
-pub fn send<T: 'static>(
-  webview: &mut WebView<'_, T>,
-  options: NotificationOptions,
-  callback: String,
-  error: String,
-) {
+pub fn send(webview: &mut Webview, options: NotificationOptions, callback: String, error: String) {
   crate::execute_promise(
     webview,
     move || {
-      let mut notification = tauri_api::notification::Notification::new();
-      notification = notification.body(options.body);
-      if let Some(title) = options.title {
-        notification = notification.title(title);
+      let mut notification = tauri_api::notification::Notification::new().title(options.title);
+      if let Some(body) = options.body {
+        notification = notification.body(body);
       }
       if let Some(icon) = options.icon {
         notification = notification.icon(icon);
@@ -27,11 +21,7 @@ pub fn send<T: 'static>(
   );
 }
 
-pub fn is_permission_granted<T: 'static>(
-  webview: &mut WebView<'_, T>,
-  callback: String,
-  error: String,
-) {
+pub fn is_permission_granted(webview: &mut Webview, callback: String, error: String) {
   crate::execute_promise(
     webview,
     move || {
@@ -47,8 +37,8 @@ pub fn is_permission_granted<T: 'static>(
   );
 }
 
-pub fn request_permission<T: 'static>(
-  webview: &mut WebView<'_, T>,
+pub fn request_permission(
+  webview: &mut Webview,
   callback: String,
   error: String,
 ) -> crate::Result<()> {
@@ -56,8 +46,8 @@ pub fn request_permission<T: 'static>(
     webview,
     move || {
       let mut settings = crate::settings::read_settings()?;
-      let granted = r#""granted""#.to_string();
-      let denied = r#""denied""#.to_string();
+      let granted = "granted".to_string();
+      let denied = "denied".to_string();
       if let Some(allow_notification) = settings.allow_notification {
         return Ok(if allow_notification { granted } else { denied });
       }
@@ -76,7 +66,7 @@ pub fn request_permission<T: 'static>(
           crate::settings::write_settings(settings)?;
           Ok(denied)
         }
-        _ => Ok(r#""default""#.to_string()),
+        _ => Ok("default".to_string()),
       }
     },
     callback,

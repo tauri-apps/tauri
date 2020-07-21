@@ -18,14 +18,14 @@ fn main() {
     .name(env!("CARGO_PKG_NAME"))
     .version(env!("CARGO_PKG_VERSION"))
     .setup(|webview, _source| {
-      let handle = webview.handle();
+      let mut webview = webview.as_mut();
       tauri::event::listen(String::from("js-event"), move |msg| {
         println!("got js-event with message '{:?}'", msg);
         let reply = Reply {
           data: "something else".to_string(),
         };
 
-        tauri::event::emit(&handle, String::from("rust-event"), Some(reply))
+        tauri::event::emit(&mut webview, String::from("rust-event"), Some(reply))
           .expect("failed to emit");
       });
     })

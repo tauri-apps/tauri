@@ -276,7 +276,7 @@ export interface TauriConfig {
       pubkey: string
       endpoints: string[]
     }
-    whitelist: {
+    allowlist: {
       all: boolean
       [index: string]: boolean
     }
@@ -289,9 +289,6 @@ export interface TauriConfig {
     }
     security: {
       csp?: string
-    }
-    edge: {
-      active?: boolean
     }
     inliner: {
       active?: boolean

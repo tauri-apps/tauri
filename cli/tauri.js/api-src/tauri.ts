@@ -1,6 +1,6 @@
 declare global {
-  interface External {
-    invoke: (command: string) => void
+  interface Window {
+    __TAURI_INVOKE_HANDLER__: (command: string) => void
   }
 }
 
@@ -21,7 +21,7 @@ function uid(): string {
  * @param args
  */
 function invoke(args: any): void {
-  window.external.invoke(typeof args === 'object' ? JSON.stringify(args) : args)
+  window.__TAURI_INVOKE_HANDLER__(args)
 }
 
 function transformCallback(callback?: (response: any) => void, once = false): string {
@@ -50,9 +50,18 @@ function transformCallback(callback?: (response: any) => void, once = false): st
  */
 async function promisified<T>(args: any): Promise<T> {
   return await new Promise((resolve, reject) => {
+    const callback = transformCallback(e => {
+      resolve(e)
+      Reflect.deleteProperty(window, error)
+    }, true)
+    const error = transformCallback(e => {
+      reject(e)
+      Reflect.deleteProperty(window, callback)
+    }, true)
+
     invoke({
-      callback: transformCallback(resolve),
-      error: transformCallback(reject),
+      callback,
+      error,
       ...args
     })
   })

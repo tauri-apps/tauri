@@ -1,4 +1,4 @@
-use web_view::WebView;
+use webview_official::Webview;
 
 use tauri_api::dir;
 use tauri_api::file;
@@ -13,8 +13,8 @@ use super::cmd::{DirOperationOptions, FileOperationOptions};
 
 /// Reads a directory.
 #[cfg(read_dir)]
-pub fn read_dir<T: 'static>(
-  webview: &mut WebView<'_, T>,
+pub fn read_dir(
+  webview: &mut Webview,
   path: PathBuf,
   options: Option<DirOperationOptions>,
   callback: String,
@@ -37,8 +37,8 @@ pub fn read_dir<T: 'static>(
 
 /// Copies a file.
 #[cfg(copy_file)]
-pub fn copy_file<T: 'static>(
-  webview: &mut WebView<'_, T>,
+pub fn copy_file(
+  webview: &mut Webview,
   source: PathBuf,
   destination: PathBuf,
   options: Option<FileOperationOptions>,
@@ -64,8 +64,8 @@ pub fn copy_file<T: 'static>(
 
 /// Creates a directory.
 #[cfg(create_dir)]
-pub fn create_dir<T: 'static>(
-  webview: &mut WebView<'_, T>,
+pub fn create_dir(
+  webview: &mut Webview,
   path: PathBuf,
   options: Option<DirOperationOptions>,
   callback: String,
@@ -95,8 +95,8 @@ pub fn create_dir<T: 'static>(
 
 /// Removes a directory.
 #[cfg(remove_dir)]
-pub fn remove_dir<T: 'static>(
-  webview: &mut WebView<'_, T>,
+pub fn remove_dir(
+  webview: &mut Webview,
   path: PathBuf,
   options: Option<DirOperationOptions>,
   callback: String,
@@ -126,8 +126,8 @@ pub fn remove_dir<T: 'static>(
 
 /// Removes a file
 #[cfg(remove_file)]
-pub fn remove_file<T: 'static>(
-  webview: &mut WebView<'_, T>,
+pub fn remove_file(
+  webview: &mut Webview,
   path: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,
@@ -146,8 +146,8 @@ pub fn remove_file<T: 'static>(
 
 /// Renames a file.
 #[cfg(rename_file)]
-pub fn rename_file<T: 'static>(
-  webview: &mut WebView<'_, T>,
+pub fn rename_file(
+  webview: &mut Webview,
   old_path: PathBuf,
   new_path: PathBuf,
   options: Option<FileOperationOptions>,
@@ -173,8 +173,8 @@ pub fn rename_file<T: 'static>(
 
 /// Writes a text file.
 #[cfg(write_file)]
-pub fn write_file<T: 'static>(
-  webview: &mut WebView<'_, T>,
+pub fn write_file(
+  webview: &mut Webview,
   path: PathBuf,
   contents: String,
   options: Option<FileOperationOptions>,
@@ -195,8 +195,8 @@ pub fn write_file<T: 'static>(
 
 /// Writes a binary file.
 #[cfg(write_binary_file)]
-pub fn write_binary_file<T: 'static>(
-  webview: &mut WebView<'_, T>,
+pub fn write_binary_file(
+  webview: &mut Webview,
   path: PathBuf,
   contents: String,
   options: Option<FileOperationOptions>,
@@ -221,8 +221,8 @@ pub fn write_binary_file<T: 'static>(
 
 /// Reads a text file.
 #[cfg(read_text_file)]
-pub fn read_text_file<T: 'static>(
-  webview: &mut WebView<'_, T>,
+pub fn read_text_file(
+  webview: &mut Webview,
   path: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,
@@ -238,8 +238,8 @@ pub fn read_text_file<T: 'static>(
 
 /// Reads a binary file.
 #[cfg(read_binary_file)]
-pub fn read_binary_file<T: 'static>(
-  webview: &mut WebView<'_, T>,
+pub fn read_binary_file(
+  webview: &mut Webview,
   path: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,

@@ -16,6 +16,8 @@ pub mod tauri_config;
 mod wix;
 
 #[cfg(windows)]
+use std::process::Command;
+#[cfg(windows)]
 use tauri_config::get as get_tauri_config;
 
 pub use self::common::print_info;
@@ -56,7 +58,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
   {
     if let Ok(tauri_config) = get_tauri_config() {
       if tauri_config.tauri.embedded_server.active {
-        let exempt_output = std::process::Command::new("CheckNetIsolation")
+        let exempt_output = Command::new("CheckNetIsolation")
           .args(&vec!["LoopbackExempt", "-s"])
           .output()
           .expect("failed to read LoopbackExempt -s");
@@ -68,7 +70,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
         let output_str = String::from_utf8_lossy(&exempt_output.stdout).to_lowercase();
         if !output_str.contains("win32webviewhost_cw5n1h2txyewy") {
           println!("Running Loopback command");
-          Command::new("powershell")
+          runas::Command::new("powershell")
             .args(&vec![
               "CheckNetIsolation LoopbackExempt -a -n=\"Microsoft.Win32WebViewHost_cw5n1h2txyewy\"",
             ])

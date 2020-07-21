@@ -1,4 +1,3 @@
-$ErrorActionPreference = "Stop"
 Write-Output "Checking tauri crates"
 
 

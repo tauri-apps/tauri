@@ -39,7 +39,7 @@ mod salt;
 pub use anyhow::Result;
 pub use app::*;
 pub use tauri_api as api;
-pub use webview_rust_sys::{Webview, WebviewMut};
+pub use webview_official::{Webview, WebviewMut};
 
 use std::process::Stdio;
 

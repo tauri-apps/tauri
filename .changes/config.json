@@ -3,18 +3,150 @@
   "pkgManagers": {
     "rust": {
       "version": true,
-      "publish": false
+      "getPublishedVersion": "cargo search ${ pkg.pkg } --limit 1 | sed -nE 's/^[^\"]*\"//; s/\".*//1p' -",
+      "prepublish": [
+        "sudo apt-get update",
+        "sudo apt-get install -y webkit2gtk-4.0",
+        {
+          "command": "cargo generate-lockfile",
+          "dryRunCommand": true,
+          "runFromRoot": true,
+          "pipe": true
+        },
+        {
+          "command": "echo \"# Cargo Audit\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "echo \"\\`\\`\\`\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "cargo audit",
+          "dryRunCommand": true,
+          "runFromRoot": true,
+          "pipe": true
+        },
+        {
+          "command": "echo \"\\`\\`\\`\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "cargo package --no-verify --allow-dirty",
+          "dryRunCommand": true
+        }
+      ],
+      "publish": [
+        {
+          "command": "echo \"# Cargo Publish\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "echo \"\\`\\`\\`\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "cargo publish --no-verify",
+          "dryRunCommand": "cargo publish --no-verify --dry-run --allow-dirty",
+          "pipe": true
+        },
+        {
+          "command": "echo \"\\`\\`\\`\"",
+          "dryRunCommand": true,
+          "pipe": true
+        }
+      ],
+      "postpublish": [
+        "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor } -f",
+        "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor }.${ pkgFile.versionMinor } -f",
+        "git push --tags -f"
+      ],
+      "assets": [
+        {
+          "path": "${ pkg.path }/${ pkg.pkg }-${ pkgFile.version }.crate",
+          "name": "${ pkg.pkg }-${ pkgFile.version }.crate"
+        }
+      ]
     },
     "javascript": {
       "version": true,
-      "publish": false
+      "getPublishedVersion": "npm view ${ pkgFile.pkg.name } version",
+      "prepublish": [
+        {
+          "command": "yarn",
+          "dryRunCommand": true
+        },
+        {
+          "command": "echo \"# Yarn Audit\n\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "echo \"<details>\n<summary>click to view</summary>\n\n\\`\\`\\`\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "yarn audit",
+          "dryRunCommand": true,
+          "runFromRoot": true,
+          "pipe": true
+        },
+        {
+          "command": "echo \"\\`\\`\\`\n\n</details>\n\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "npm pack",
+          "dryRunCommand": true
+        }
+      ],
+      "publish": [
+        {
+          "command": "echo \"# NPM Package Publish\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "echo \"\\`\\`\\`\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "npm publish --access public",
+          "dryRunCommand": "npm publish --dry-run --access public",
+          "pipe": true
+        },
+        {
+          "command": "echo \"\\`\\`\\`\"",
+          "dryRunCommand": true,
+          "pipe": true
+        }
+      ],
+      "postpublish": [
+        "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor } -f",
+        "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor }.${ pkgFile.versionMinor } -f",
+        "git push --tags -f"
+      ]
     }
   },
   "packages": {
     "tauri.js": {
       "path": "./cli/tauri.js",
       "manager": "javascript",
-      "dependencies": ["tauri"]
+      "dependencies": ["tauri"],
+      "assets": [
+        {
+          "path": "./cli/tauri.js/tauri-${ pkgFile.version }.tgz",
+          "name": "tauri.js-${ pkgFile.version }.tgz"
+        }
+      ]
     },
     "tauri-cli": {
       "path": "./cli",
@@ -24,23 +156,24 @@
       "path": "./cli/tauri-bundler",
       "manager": "rust"
     },
-    "tauri": {
-      "path": "./tauri",
-      "manager": "rust",
-      "dependencies": ["tauri-api", "tauri-updater"]
+    "tauri-utils": {
+      "path": "./tauri-utils",
+      "manager": "rust"
     },
     "tauri-api": {
       "path": "./tauri-api",
       "manager": "rust",
       "dependencies": ["tauri-utils"]
     },
-    "tauri-utils": {
-      "path": "./tauri-utils",
-      "manager": "rust"
-    },
     "tauri-updater": {
       "path": "./tauri-updater",
-      "manager": "rust"
+      "manager": "rust",
+      "publish": false
+    },
+    "tauri": {
+      "path": "./tauri",
+      "manager": "rust",
+      "dependencies": ["tauri-api", "tauri-updater"]
     }
   }
 }

@@ -1,8 +1,12 @@
 use std::sync::{Arc, Mutex};
-use webview_rust_sys::Webview;
+use webview_official::Webview;
 
 /// The plugin interface.
 pub trait Plugin {
+  /// The JS script to evaluate on init.
+  fn init_script(&self) -> Option<String> {
+    None
+  }
   /// Callback invoked when the webview is created.
   #[allow(unused_variables)]
   fn created(&self, webview: &mut Webview) {}
@@ -35,6 +39,18 @@ fn run_plugin<T: FnMut(&Box<dyn Plugin>)>(mut callback: T) {
       callback(ext);
     }
   });
+}
+
+pub(crate) fn init_script() -> String {
+  let mut init = String::new();
+
+  run_plugin(|plugin| {
+    if let Some(init_script) = plugin.init_script() {
+      init.push_str(&format!("(function () {{ {} }})();", init_script));
+    }
+  });
+
+  init
 }
 
 pub(crate) fn created(webview: &mut Webview) {

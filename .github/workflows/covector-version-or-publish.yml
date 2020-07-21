@@ -37,7 +37,7 @@ jobs:
           command: 'version-or-publish'
           createRelease: true
       - name: Create Pull Request With Versions Bumped
-        if: ${{ steps.covector.outputs.command }} == 'version'
+        if: steps.covector.outputs.command == 'version'
         uses: tauri-apps/create-pull-request@v2.8.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,7 +1,7 @@
 use super::{app_paths::tauri_dir, config::get as get_config};
 
 use convert_case::{Case, Casing};
-use toml_edit::{Array, Document, Item, Value};
+use toml_edit::{Array, Document, Value};
 
 use std::fs::File;
 use std::io::{Read, Write};

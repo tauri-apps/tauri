@@ -286,12 +286,15 @@ impl CliConfig {
 #[derive(PartialEq, Clone, Deserialize, Serialize, Debug)]
 #[serde(tag = "bundle", rename_all = "camelCase")]
 pub struct BundleConfig {
+  #[serde(default)]
+  pub active: bool,
   /// The bundle identifier.
   pub identifier: String,
 }
 
 fn default_bundle() -> BundleConfig {
   BundleConfig {
+    active: false,
     identifier: String::from(""),
   }
 }

@@ -105,7 +105,9 @@ impl Build {
     }
 
     build_project(&settings)?;
-    bundle_project(settings)?;
+    if config.tauri.bundle.active {
+      bundle_project(settings)?;
+    }
     Ok(())
   }
 }

@@ -19,7 +19,7 @@ fn map_response(response: Response) -> JsonValue {
 /// Shows an open dialog.
 #[cfg(open_dialog)]
 pub fn open(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   options: OpenDialogOptions,
   callback: String,
   error: String,
@@ -45,7 +45,7 @@ pub fn open(
 /// Shows a save dialog.
 #[cfg(save_dialog)]
 pub fn save(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   options: SaveDialogOptions,
   callback: String,
   error: String,
@@ -66,7 +66,7 @@ pub fn message(title: String, message: String) {
 
 /// Shows a dialog with a yes/no question.
 pub fn ask(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   title: String,
   message: String,
   callback: String,

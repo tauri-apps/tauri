@@ -236,7 +236,7 @@ fn build_webview(
   application: &mut App,
   content: Content<String>,
   splashscreen_content: Option<Content<String>>,
-) -> crate::Result<Webview> {
+) -> crate::Result<Webview<'_>> {
   let config = get()?;
   let content_clone = match content {
     Content::Html(ref html) => Content::Html(html.clone()),
@@ -264,28 +264,30 @@ fn build_webview(
     },
   };
 
-  let mut webview = WebviewBuilder::new()
-    .init(&format!(
-      r#"
-        {event_init}
-        if (window.__TAURI_INVOKE_HANDLER__) {{
+  let init = format!(
+    r#"
+      {event_init}
+      if (window.__TAURI_INVOKE_HANDLER__) {{
+        window.__TAURI_INVOKE_HANDLER__({{ cmd: "__initialized" }})
+      }} else {{
+        window.addEventListener('DOMContentLoaded', function () {{
           window.__TAURI_INVOKE_HANDLER__({{ cmd: "__initialized" }})
-        }} else {{
-          window.addEventListener('DOMContentLoaded', function () {{
-            window.__TAURI_INVOKE_HANDLER__({{ cmd: "__initialized" }})
-          }})
-        }}
-        {plugin_init}
-      "#,
-      event_init = init(),
-      plugin_init = crate::plugin::init_script()
-    ))
+        }})
+      }}
+      {plugin_init}
+    "#,
+    event_init = init(),
+    plugin_init = crate::plugin::init_script()
+  );
+
+  let mut webview = WebviewBuilder::new()
+    .init(Box::leak(init.into_boxed_str()))
     .title(Box::leak(title))
     .width(width as usize)
     .height(height as usize)
     .resize(resizable)
     .debug(debug)
-    .url(&url)
+    .url(Box::leak(url.into_boxed_str()))
     .build();
   // TODO waiting for webview window API
   // webview.set_fullscreen(fullscreen);

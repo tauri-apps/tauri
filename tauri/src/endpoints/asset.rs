@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use webview_official::Webview;
 
 pub fn load(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   asset: String,
   asset_type: String,
   callback: String,

@@ -2,7 +2,12 @@ use super::cmd::NotificationOptions;
 use serde_json::Value as JsonValue;
 use webview_official::Webview;
 
-pub fn send(webview: &mut Webview<'_>, options: NotificationOptions, callback: String, error: String) {
+pub fn send(
+  webview: &mut Webview<'_>,
+  options: NotificationOptions,
+  callback: String,
+  error: String,
+) {
   crate::execute_promise(
     webview,
     move || {

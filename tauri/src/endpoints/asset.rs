@@ -65,15 +65,15 @@ pub fn load(
           if asset_type == "stylesheet" {
             webview_ref.eval(&format!(
               r#"
-                (function () {{
+                (function (content) {{
                   var css = document.createElement('style')
                   css.type = 'text/css'
-                  if (css.styleSheet)  
-                      css.styleSheet.cssText = {css}
-                  else  
-                      css.appendChild(document.createTextNode({css}))
+                  if (css.styleSheet)
+                      css.styleSheet.cssText = content
+                  else
+                      css.appendChild(document.createTextNode(content))
                   document.getElementsByTagName("head")[0].appendChild(css);
-                }})()
+                }})("{css}")
               "#,
               css = asset_str
             ));

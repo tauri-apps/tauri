@@ -1370,10 +1370,10 @@
   dependencies:
     "@types/node" "*"
 
-"@types/inquirer@6.5.0":
-  version "6.5.0"
-  resolved "https://registry.yarnpkg.com/@types/inquirer/-/inquirer-6.5.0.tgz#b83b0bf30b88b8be7246d40e51d32fe9d10e09be"
-  integrity sha512-rjaYQ9b9y/VFGOpqBEXRavc3jh0a+e6evAbI31tMda8VlPaSy0AZJfXsvmIe3wklc7W6C3zCSfleuMXR7NOyXw==
+"@types/inquirer@7.3.0":
+  version "7.3.0"
+  resolved "https://registry.yarnpkg.com/@types/inquirer/-/inquirer-7.3.0.tgz#a1233632ea6249f14eb481dae91138e747b85664"
+  integrity sha512-wcPs5jTrZYQBzzPlvUEzBcptzO4We2sijSvkBq8oAKRMJoH8PvrmP6QQnxLB5RScNUmRfujxA+ngxD4gk4xe7Q==
   dependencies:
     "@types/through" "*"
     rxjs "^6.4.0"

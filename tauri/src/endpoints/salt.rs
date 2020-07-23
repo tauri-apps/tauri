@@ -2,7 +2,7 @@ use webview_official::Webview;
 
 /// Validates a salt.
 pub fn validate(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   salt: String,
   callback: String,
   error: String,

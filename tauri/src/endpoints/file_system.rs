@@ -14,7 +14,7 @@ use super::cmd::{DirOperationOptions, FileOperationOptions};
 /// Reads a directory.
 #[cfg(read_dir)]
 pub fn read_dir(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   path: PathBuf,
   options: Option<DirOperationOptions>,
   callback: String,
@@ -38,7 +38,7 @@ pub fn read_dir(
 /// Copies a file.
 #[cfg(copy_file)]
 pub fn copy_file(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   source: PathBuf,
   destination: PathBuf,
   options: Option<FileOperationOptions>,
@@ -65,7 +65,7 @@ pub fn copy_file(
 /// Creates a directory.
 #[cfg(create_dir)]
 pub fn create_dir(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   path: PathBuf,
   options: Option<DirOperationOptions>,
   callback: String,
@@ -96,7 +96,7 @@ pub fn create_dir(
 /// Removes a directory.
 #[cfg(remove_dir)]
 pub fn remove_dir(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   path: PathBuf,
   options: Option<DirOperationOptions>,
   callback: String,
@@ -127,7 +127,7 @@ pub fn remove_dir(
 /// Removes a file
 #[cfg(remove_file)]
 pub fn remove_file(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   path: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,
@@ -147,7 +147,7 @@ pub fn remove_file(
 /// Renames a file.
 #[cfg(rename_file)]
 pub fn rename_file(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   old_path: PathBuf,
   new_path: PathBuf,
   options: Option<FileOperationOptions>,
@@ -174,7 +174,7 @@ pub fn rename_file(
 /// Writes a text file.
 #[cfg(write_file)]
 pub fn write_file(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   path: PathBuf,
   contents: String,
   options: Option<FileOperationOptions>,
@@ -196,7 +196,7 @@ pub fn write_file(
 /// Writes a binary file.
 #[cfg(write_binary_file)]
 pub fn write_binary_file(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   path: PathBuf,
   contents: String,
   options: Option<FileOperationOptions>,
@@ -222,7 +222,7 @@ pub fn write_binary_file(
 /// Reads a text file.
 #[cfg(read_text_file)]
 pub fn read_text_file(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   path: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,
@@ -239,7 +239,7 @@ pub fn read_text_file(
 /// Reads a binary file.
 #[cfg(read_binary_file)]
 pub fn read_binary_file(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   path: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,

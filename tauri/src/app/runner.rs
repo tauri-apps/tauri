@@ -87,7 +87,7 @@ fn setup_content() -> crate::Result<Content<String>> {
       if !output_str.contains("win32webviewhost_cw5n1h2txyewy") {
         println!("Running Loopback command");
         runas::Command::new("powershell")
-          .args(&vec![
+          .args(&[
             "CheckNetIsolation LoopbackExempt -a -n=\"Microsoft.Win32WebViewHost_cw5n1h2txyewy\"",
           ])
           .force_prompt(true)

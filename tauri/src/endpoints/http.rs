@@ -3,7 +3,7 @@ use webview_official::Webview;
 
 /// Makes an HTTP request and resolves the response to the webview
 pub fn make_request(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   options: HttpRequestOptions,
   callback: String,
   error: String,

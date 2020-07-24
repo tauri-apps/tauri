@@ -55,7 +55,7 @@ pub fn spawn<F: FnOnce() -> () + Send + 'static>(task: F) {
 /// Synchronously executes the given task
 /// and evaluates its Result to the JS promise described by the `callback` and `error` function names.
 pub fn execute_promise_sync<R: Serialize, F: FnOnce() -> crate::Result<R> + Send + 'static>(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   task: F,
   callback: String,
   error: String,
@@ -72,7 +72,7 @@ pub fn execute_promise_sync<R: Serialize, F: FnOnce() -> crate::Result<R> + Send
 /// If the Result `is_ok()`, the callback will be the `success_callback` function name and the argument will be the Ok value.
 /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
 pub fn execute_promise<R: Serialize, F: FnOnce() -> crate::Result<R> + Send + 'static>(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   task: F,
   success_callback: String,
   error_callback: String,
@@ -97,7 +97,7 @@ pub fn execute_promise<R: Serialize, F: FnOnce() -> crate::Result<R> + Send + 's
 
 /// Calls the given command and evaluates its output to the JS promise described by the `callback` and `error` function names.
 pub fn call(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   command: String,
   args: Vec<String>,
   callback: String,
@@ -112,7 +112,7 @@ pub fn call(
 }
 
 /// Closes the splashscreen.
-pub fn close_splashscreen(webview: &mut Webview) -> crate::Result<()> {
+pub fn close_splashscreen(webview: &mut Webview<'_>) -> crate::Result<()> {
   // send a signal to the runner so it knows that it should redirect to the main app content
   webview.eval(r#"window.__TAURI_INVOKE_HANDLER__({ cmd: "closeSplashscreen" })"#);
 

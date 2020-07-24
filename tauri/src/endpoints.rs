@@ -20,7 +20,7 @@ use webview_official::Webview;
 
 #[allow(unused_variables)]
 pub(crate) fn handle(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   arg: &str,
   app_config: &AppConfig,
 ) -> crate::Result<()> {
@@ -313,13 +313,13 @@ pub(crate) fn handle(
 }
 
 #[allow(dead_code)]
-fn api_error(webview: &mut Webview, error_fn: String, message: &str) {
+fn api_error(webview: &mut Webview<'_>, error_fn: String, message: &str) {
   let reject_code = tauri_api::rpc::format_callback(error_fn, message);
   webview.eval(&reject_code)
 }
 
 #[allow(dead_code)]
-fn allowlist_error(webview: &mut Webview, error_fn: String, allowlist_key: &str) {
+fn allowlist_error(webview: &mut Webview<'_>, error_fn: String, allowlist_key: &str) {
   api_error(
     webview,
     error_fn,
@@ -331,7 +331,7 @@ fn allowlist_error(webview: &mut Webview, error_fn: String, allowlist_key: &str)
 }
 
 #[allow(dead_code)]
-fn throw_allowlist_error(webview: &mut Webview, allowlist_key: &str) {
+fn throw_allowlist_error(webview: &mut Webview<'_>, allowlist_key: &str) {
   let reject_code = format!(
     r#"throw new Error("'{}' not on the allowlist")"#,
     allowlist_key

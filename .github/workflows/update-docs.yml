@@ -1,12 +1,7 @@
 name: update-docs
 
 on:
-  push:
-    branches:
-      - latest
-    paths:
-      - '**/package.json'
-      - '.github/workflows/**'
+  workflow_dispatch:
 
 jobs:
   update-docs:
@@ -29,7 +24,7 @@ jobs:
         working-directory: tauri
         run: cargo doc --no-deps
       - name: run rustdocusaurus
-        uses: tauri-apps/rustdocusaurus/github-action@master
+        uses: tauri-apps/rustdocusaurus/github-action@v1
         with:
           originPath: ./tauri/target/doc/
           targetPath: ./tauri-docs/docs/api/rust/

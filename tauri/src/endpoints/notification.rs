@@ -5,13 +5,14 @@ use tauri_api::notification::Notification;
 use webview_official::Webview;
 
 pub fn send(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   options: NotificationOptions,
   callback: String,
   error: String,
   config: &Config,
 ) {
   let identifier = config.tauri.bundle.identifier.clone();
+
   crate::execute_promise(
     webview,
     move || {
@@ -30,7 +31,7 @@ pub fn send(
   );
 }
 
-pub fn is_permission_granted(webview: &mut Webview, callback: String, error: String) {
+pub fn is_permission_granted(webview: &mut Webview<'_>, callback: String, error: String) {
   crate::execute_promise(
     webview,
     move || {
@@ -47,7 +48,7 @@ pub fn is_permission_granted(webview: &mut Webview, callback: String, error: Str
 }
 
 pub fn request_permission(
-  webview: &mut Webview,
+  webview: &mut Webview<'_>,
   callback: String,
   error: String,
 ) -> crate::Result<()> {

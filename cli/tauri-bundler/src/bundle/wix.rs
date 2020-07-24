@@ -123,11 +123,15 @@ impl ResourceDirectory {
       }
       directories.push_str(wix_string.as_str());
     }
-    let wix_string = format!(
-      r#"<Directory Id="{name}" Name="{name}">{contents}</Directory>"#,
-      name = self.name,
-      contents = format!("{}{}", files, directories)
-    );
+    let wix_string = if self.name == "" {
+      format!("{}{}", files, directories)
+    } else {
+      format!(
+        r#"<Directory Id="{name}" Name="{name}">{contents}</Directory>"#,
+        name = self.name,
+        contents = format!("{}{}", files, directories)
+      )
+    };
 
     Ok((wix_string, file_ids))
   }
@@ -565,6 +569,40 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
   let mut resources = ResourceMap::new();
   let regex = Regex::new(r"[^\w\d\.]")?;
   let cwd = std::env::current_dir()?;
+
+  let mut dlls = vec![];
+  for dll in glob::glob(
+    settings
+      .project_out_directory()
+      .join("*.dll")
+      .to_string_lossy()
+      .to_string()
+      .as_str(),
+  )? {
+    let path = dll?;
+    let filename = path
+      .file_name()
+      .expect("failed to extract resource filename")
+      .to_os_string()
+      .into_string()
+      .expect("failed to convert resource filename to string");
+    dlls.push(ResourceFile {
+      guid: generate_guid(filename.as_bytes()).to_string(),
+      path: path.to_string_lossy().to_string(),
+      id: regex.replace_all(&filename, "").to_string(),
+    });
+  }
+  if dlls.len() > 0 {
+    resources.insert(
+      "".to_string(),
+      ResourceDirectory {
+        name: "".to_string(),
+        directories: vec![],
+        files: dlls,
+      },
+    );
+  }
+
   for src in settings.resource_files() {
     let src = src?;
 

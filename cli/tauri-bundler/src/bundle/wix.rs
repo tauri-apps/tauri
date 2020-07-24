@@ -123,11 +123,15 @@ impl ResourceDirectory {
       }
       directories.push_str(wix_string.as_str());
     }
-    let wix_string = format!(
-      r#"<Directory Id="{name}" Name="{name}">{contents}</Directory>"#,
-      name = self.name,
-      contents = format!("{}{}", files, directories)
-    );
+    let wix_string = if self.name == "" {
+      format!("{}{}", files, directories)
+    } else {
+      format!(
+        r#"<Directory Id="{name}" Name="{name}">{contents}</Directory>"#,
+        name = self.name,
+        contents = format!("{}{}", files, directories)
+      )
+    };
 
     Ok((wix_string, file_ids))
   }
@@ -215,7 +219,7 @@ fn app_installer_dir(settings: &Settings) -> crate::Result<PathBuf> {
 }
 
 /// Extracts the zips from Wix and VC_REDIST into a useable path.
-fn extract_zip(data: &Vec<u8>, path: &Path) -> crate::Result<()> {
+fn extract_zip(data: &[u8], path: &Path) -> crate::Result<()> {
   let cursor = Cursor::new(data);
 
   let mut zipa = ZipArchive::new(cursor)?;
@@ -377,7 +381,7 @@ fn run_light(
   ];
 
   for p in wixobjs {
-    args.push(p.to_string());
+    args.push((*p).to_string());
   }
 
   let mut cmd = Command::new(&light_exe);
@@ -488,13 +492,13 @@ pub fn build_wix_app_installer(
   let temp = HANDLEBARS.render("main.wxs", &data)?;
 
   if output_path.exists() {
-    remove_dir_all(&output_path).or_else(|e| Err(e))?;
+    remove_dir_all(&output_path)?;
   }
 
-  create_dir_all(&output_path).or_else(|e| Err(e))?;
+  create_dir_all(&output_path)?;
 
   let main_wxs_path = output_path.join("main.wxs");
-  write(&main_wxs_path, temp).or_else(|e| Err(e))?;
+  write(&main_wxs_path, temp)?;
 
   let input_basenames = vec!["main"];
 
@@ -565,6 +569,40 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
   let mut resources = ResourceMap::new();
   let regex = Regex::new(r"[^\w\d\.]")?;
   let cwd = std::env::current_dir()?;
+
+  let mut dlls = vec![];
+  for dll in glob::glob(
+    settings
+      .project_out_directory()
+      .join("*.dll")
+      .to_string_lossy()
+      .to_string()
+      .as_str(),
+  )? {
+    let path = dll?;
+    let filename = path
+      .file_name()
+      .expect("failed to extract resource filename")
+      .to_os_string()
+      .into_string()
+      .expect("failed to convert resource filename to string");
+    dlls.push(ResourceFile {
+      guid: generate_guid(filename.as_bytes()).to_string(),
+      path: path.to_string_lossy().to_string(),
+      id: regex.replace_all(&filename, "").to_string(),
+    });
+  }
+  if !dlls.is_empty() {
+    resources.insert(
+      "".to_string(),
+      ResourceDirectory {
+        name: "".to_string(),
+        directories: vec![],
+        files: dlls,
+      },
+    );
+  }
+
   for src in settings.resource_files() {
     let src = src?;
 

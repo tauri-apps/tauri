@@ -219,7 +219,7 @@ fn app_installer_dir(settings: &Settings) -> crate::Result<PathBuf> {
 }
 
 /// Extracts the zips from Wix and VC_REDIST into a useable path.
-fn extract_zip(data: &Vec<u8>, path: &Path) -> crate::Result<()> {
+fn extract_zip(data: &[u8], path: &Path) -> crate::Result<()> {
   let cursor = Cursor::new(data);
 
   let mut zipa = ZipArchive::new(cursor)?;
@@ -381,7 +381,7 @@ fn run_light(
   ];
 
   for p in wixobjs {
-    args.push(p.to_string());
+    args.push((*p).to_string());
   }
 
   let mut cmd = Command::new(&light_exe);
@@ -492,13 +492,13 @@ pub fn build_wix_app_installer(
   let temp = HANDLEBARS.render("main.wxs", &data)?;
 
   if output_path.exists() {
-    remove_dir_all(&output_path).or_else(|e| Err(e))?;
+    remove_dir_all(&output_path)?;
   }
 
-  create_dir_all(&output_path).or_else(|e| Err(e))?;
+  create_dir_all(&output_path)?;
 
   let main_wxs_path = output_path.join("main.wxs");
-  write(&main_wxs_path, temp).or_else(|e| Err(e))?;
+  write(&main_wxs_path, temp)?;
 
   let input_basenames = vec!["main"];
 
@@ -592,7 +592,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       id: regex.replace_all(&filename, "").to_string(),
     });
   }
-  if dlls.len() > 0 {
+  if !dlls.is_empty() {
     resources.insert(
       "".to_string(),
       ResourceDirectory {

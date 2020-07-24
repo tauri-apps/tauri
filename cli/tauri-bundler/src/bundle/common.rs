@@ -290,6 +290,21 @@ pub fn execute_with_output(cmd: &mut Command) -> crate::Result<()> {
   }
 }
 
+pub fn execute_silently(cmd: &mut Command) -> crate::Result<()> {
+  let mut child = cmd
+    .stdout(Stdio::null())
+    .stderr(Stdio::null())
+    .spawn()
+    .expect("failed to spawn command");
+
+  let status = child.wait()?;
+  if status.success() {
+    Ok(())
+  } else {
+    Err(anyhow::anyhow!("command failed").into())
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::{copy_dir, create_file, is_retina, resource_relpath, symlink_file};

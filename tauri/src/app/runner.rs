@@ -25,13 +25,18 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   // setup the content using the config struct depending on the compile target
   let main_content = setup_content(&application.config)?;
 
-  // setup the server url for the embedded-server
   #[cfg(embedded_server)]
-  let server_url = if let Content::Url(url) = &main_content {
-    String::from(url)
-  } else {
-    String::from("")
-  };
+  {
+    // setup the server url for the embedded-server
+    let server_url = if let Content::Url(url) = &main_content {
+      String::from(url)
+    } else {
+      String::from("")
+    };
+
+    // spawn the embedded server on our server url
+    spawn_server(server_url, &application.config)?;
+  }
 
   // build the webview
   let mut webview = build_webview(
@@ -50,10 +55,6 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   )?;
 
   crate::plugin::created(&mut webview);
-
-  // spawn the embedded server on our server url
-  #[cfg(embedded_server)]
-  spawn_server(server_url, &application.config)?;
 
   // spin up the updater process
   #[cfg(feature = "updater")]

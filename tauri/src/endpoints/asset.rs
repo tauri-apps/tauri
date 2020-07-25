@@ -1,3 +1,4 @@
+use std::fmt::{self, Write};
 use std::io::Read;
 use tauri_api::assets::{AssetFetch, Assets};
 use webview_official::Webview;
@@ -61,7 +62,7 @@ pub fn load(
                   else
                       css.appendChild(document.createTextNode(content))
                   document.getElementsByTagName("head")[0].appendChild(css);
-                }})("{css}")
+                }})(`{css}`)
               "#,
               css = asset_str
             ));

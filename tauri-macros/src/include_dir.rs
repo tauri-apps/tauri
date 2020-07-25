@@ -98,7 +98,14 @@ impl IncludeDir {
   pub fn set_filter(mut self, filter: HashSet<PathBuf>) -> Result<Self, Error> {
     self.filter = filter
       .iter()
-      .map(|path| self.relative(path).map(Assets::format_key))
+      .map(|path| {
+        let path = if path.starts_with(&self.prefix) {
+          self.relative(path)?
+        } else {
+          &path
+        };
+        Ok(Assets::format_key(path))
+      })
       .collect::<Result<_, _>>()?;
 
     Ok(self)

@@ -74,7 +74,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // create the shell script file in the target/ folder.
   let sh_file = output_path.join("build_appimage.sh");
-  common::print_bundling(format!("{:?}", &appimage_path).as_str())?;
+  common::print_bundling(&appimage_path.file_name().unwrap().to_str().unwrap())?;
   write(&sh_file, temp)?;
 
   // chmod script for execution

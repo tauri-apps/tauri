@@ -1,4 +1,5 @@
-use std::path::PathBuf;
+use std::io::Read;
+use tauri_api::assets::{AssetFetch, Assets};
 use webview_official::Webview;
 
 pub fn load(
@@ -13,37 +14,24 @@ pub fn load(
   crate::execute_promise(
     webview,
     move || {
-      let mut path = PathBuf::from(if asset.starts_with('/') {
-        asset.replacen("/", "", 1)
+      // strip "about:" uri scheme if it exists
+      let asset = if asset.starts_with("about:") {
+        &asset[6..]
       } else {
-        asset.clone()
-      });
-      let mut read_asset;
-      loop {
-        read_asset = assets.get(&format!(
-          "{}/{}",
-          option_env!("TAURI_DIST_DIR")
-            .expect("tauri apps should be built with the TAURI_DIST_DIR environment variable"),
-          path.to_string_lossy()
-        ));
-        if read_asset.is_err() {
-          match path.iter().next() {
-            Some(component) => {
-              let first_component = component.to_str().expect("failed to read path component");
-              path = PathBuf::from(path.to_string_lossy().replacen(
-                format!("{}/", first_component).as_str(),
-                "",
-                1,
-              ));
-            }
-            None => {
-              return Err(anyhow::anyhow!("Asset '{}' not found", asset));
-            }
-          }
-        } else {
-          break;
-        }
-      }
+        &asset
+      };
+
+      // TODO: previously would strip away parents to try and handle webpack public path
+      // how should that condition be handled now?
+      let asset_bytes = assets
+        .get(&Assets::format_key(asset), AssetFetch::Decompress)
+        .ok_or_else(|| anyhow::anyhow!("Asset '{}' not found", asset))
+        .and_then(|(read, _)| {
+          read
+            .bytes()
+            .collect::<Result<Vec<u8>, _>>()
+            .map_err(Into::into)
+        })?;
 
       if asset_type == "image" {
         let ext = if asset.ends_with("gif") {
@@ -56,10 +44,9 @@ pub fn load(
         Ok(format!(
           r#""data:image/{};base64,{}""#,
           ext,
-          base64::encode(&read_asset.expect("Failed to read asset type").into_owned())
+          base64::encode(&asset_bytes)
         ))
       } else {
-        let asset_bytes = read_asset.expect("Failed to read asset type");
         webview_mut.dispatch(move |webview_ref| {
           let asset_str =
             std::str::from_utf8(&asset_bytes).expect("failed to convert asset bytes to u8 slice");

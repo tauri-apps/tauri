@@ -2,58 +2,21 @@ use crate::error::Error;
 use proc_macro2::TokenStream;
 use quote::quote;
 use quote::TokenStreamExt;
-use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
-use std::path::{Component, Path, PathBuf};
-use tauri_api::assets::Compression;
+use std::env::var;
+use std::fs::{create_dir_all, File};
+use std::io::{BufReader, BufWriter};
+use std::path::{Path, PathBuf};
+use tauri_api::assets::{Assets, Compression};
 use walkdir::WalkDir;
 
-fn to_key(path: &Path, prefix: &Path) -> Result<String, Error> {
-  // strip the prefix to remove the manifest + dist dir
-  let path = path
-    .strip_prefix(prefix)
-    .map_err(|_| Error::IncludeDirPrefix)?;
-
-  // add in root to mimic how it is used from a server url
-  let path = if path.has_root() {
-    Cow::Borrowed(path)
-  } else {
-    Cow::Owned(Path::new(&Component::RootDir).join(path))
-  };
-
-  #[cfg(not(windows))]
-  let path = path.to_string_lossy().to_string();
-
-  // change windows type paths to the unix counterparts
-  #[cfg(windows)]
-  let path = {
-    let mut buf = String::new();
-    for component in path.components() {
-      match component {
-        Component::RootDir => buf.push('/'),
-        Component::CurDir => buf.push_str("./"),
-        Component::ParentDir => buf.push_str("../"),
-        Component::Prefix(prefix) => buf.push_str(&prefix.as_os_str().to_string_lossy()),
-        Component::Normal(s) => {
-          buf.push_str(&s.to_string_lossy());
-          buf.push('/')
-        }
-      }
-    }
-
-    // remove the last slash
-    if buf != "/" {
-      buf.pop();
-    }
-
-    buf
-  };
-
-  Ok(path)
+enum Asset {
+  Identity(PathBuf),
+  Compressed(PathBuf, PathBuf),
 }
 
 pub(crate) struct IncludeDir {
-  files: HashMap<String, (Compression, PathBuf)>,
+  assets: HashMap<String, Asset>,
   filter: HashSet<String>,
   prefix: PathBuf,
 }
@@ -61,21 +24,57 @@ pub(crate) struct IncludeDir {
 impl IncludeDir {
   pub fn new(prefix: impl Into<PathBuf>) -> Self {
     Self {
-      files: HashMap::new(),
+      assets: HashMap::new(),
       filter: HashSet::new(),
       prefix: prefix.into(),
     }
   }
 
+  /// get a relative path based on the `IncludeDir`'s prefix
+  fn relative<'p>(&self, path: &'p Path) -> Result<&'p Path, Error> {
+    path
+      .strip_prefix(&self.prefix)
+      .map_err(|_| Error::IncludeDirPrefix)
+  }
+
   pub fn file(mut self, path: impl Into<PathBuf>, comp: Compression) -> Result<Self, Error> {
     let path = path.into();
-    let key = to_key(&path, &self.prefix)?;
+    let relative = self.relative(&path)?;
+    let key = Assets::format_key(&relative);
 
-    match comp {
-      Compression::None => self.files.insert(key, (comp, path)),
-      Compression::Gzip => todo!(),
+    let asset = match comp {
+      Compression::None => Asset::Identity(path),
+      Compression::Brotli => {
+        let cache = var("OUT_DIR")
+          .map_err(|_| Error::EnvOutDir)
+          .map(|out| Path::new(&out).join(".tauri-assets").join(relative))
+          .and_then(|mut out| {
+            let filename = out.file_name().ok_or(Error::IncludeDirEmptyFilename)?;
+            let filename = format!("{}.br", filename.to_string_lossy());
+            out.set_file_name(&filename);
+            Ok(out)
+          })?;
+
+        // make sure the parent directory is created
+        let cache_parent = cache.parent().ok_or(Error::IncludeDirCacheDir)?;
+        create_dir_all(&cache_parent).map_err(|e| Error::Io(cache_parent.into(), e))?;
+
+        // open original asset path
+        let reader = File::open(&path).map_err(|e| Error::Io(path.to_path_buf(), e))?;
+        let mut reader = BufReader::new(reader);
+
+        // open cache path
+        let writer = File::create(&cache).map_err(|e| Error::Io(cache.to_path_buf(), e))?;
+        let mut writer = BufWriter::new(writer);
+
+        let _ = brotli::BrotliCompress(&mut reader, &mut writer, &Default::default())
+          .map_err(|e| Error::Io(cache.to_path_buf(), e))?;
+
+        Asset::Compressed(path, cache)
+      }
     };
 
+    self.assets.insert(key, asset);
     Ok(self)
   }
 
@@ -95,34 +94,52 @@ impl IncludeDir {
     Ok(self)
   }
 
-  pub fn set_filter(mut self, filter: HashSet<String>) -> Self {
-    self.filter = filter;
-    self
+  /// Set list of files to not embed. Paths should be relative to the dist dir
+  pub fn set_filter(mut self, filter: HashSet<PathBuf>) -> Result<Self, Error> {
+    self.filter = filter
+      .iter()
+      .map(|path| self.relative(path).map(Assets::format_key))
+      .collect::<Result<_, _>>()?;
+
+    Ok(self)
   }
 
   pub fn build(self) -> Result<TokenStream, Error> {
     let mut matches = TokenStream::new();
-    for (name, (compression, include)) in &self.files {
-      let include = include.display().to_string();
-      if self.filter.contains(&include) {
+    for (key, asset) in self.assets {
+      if self.filter.contains(&key) {
         continue;
       }
 
-      let comp = match compression {
-        Compression::None => quote! {::tauri::api::assets::Compression::None},
-        Compression::Gzip => quote! {::tauri::api::assets::Compression::Gzip},
+      let value = match asset {
+        Asset::Identity(path) => {
+          let path = path.display().to_string();
+          quote! {
+            (::tauri::api::assets::Compression::None, include_bytes!(#path))
+          }
+        }
+        Asset::Compressed(path, cache) => {
+          let path = path.display().to_string();
+          let cache = cache.display().to_string();
+          quote! {
+            {
+              // make compiler check asset file for re-run.
+              const _: &[u8] = include_bytes!(#path);
+
+              (::tauri::api::assets::Compression::Brotli, include_bytes!(#cache))
+            }
+          }
+        }
       };
 
       matches.append_all(quote! {
-        #name => (#comp, include_bytes!(#include)),
+        #key => #value,
       })
     }
 
     Ok(quote! {
-      ::tauri::api::assets::Assets {
-        files: phf_map! {
-          #matches
-        }
+      phf_map! {
+        #matches
       }
     })
   }

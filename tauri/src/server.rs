@@ -1,33 +1,39 @@
-use tauri_api::assets::Assets;
-use tiny_http::{Header, Response};
+use std::io::Read;
+use tauri_api::assets::{AssetFetch, Assets};
+use tiny_http::{Response, StatusCode};
 
 /// Returns the HTTP response of the given asset path.
-pub fn asset_response(path: &str, assets: &'static Assets) -> Response<std::io::Cursor<Vec<u8>>> {
-  let asset = assets
-    .get(path)
-    .unwrap_or_else(|_| panic!("Could not read asset {}", path))
-    .into_owned();
-  let mut response = Response::from_data(asset);
-  let header;
+pub fn asset_response(path: &str, assets: &'static Assets) -> Response<impl Read> {
+  let (asset, _) = assets
+    .get(path, AssetFetch::Compress)
+    .unwrap_or_else(|| panic!("Could not read asset {}", path));
 
-  if path.ends_with(".svg") {
-    header = Header::from_bytes(&b"Content-Type"[..], &b"image/svg+xml"[..])
-      .expect("Could not add svg+xml header");
+  let mut headers = Vec::new();
+
+  // Content-Encoding
+  const BROTLI_HEADER: &str = "Content-Encoding: br";
+  let content_encoding = BROTLI_HEADER
+    .parse()
+    .unwrap_or_else(|_| panic!("Could not add {} header", BROTLI_HEADER));
+  headers.push(content_encoding);
+
+  // Content-Type
+  let mime = if path.ends_with(".svg") {
+    "Content-Type: image/svg+xml"
   } else if path.ends_with(".css") {
-    header =
-      Header::from_bytes(&b"Content-Type"[..], &b"text/css"[..]).expect("Could not add css header");
+    "Content-Type: text/css"
   } else if path.ends_with(".html") {
-    header = Header::from_bytes(&b"Content-Type"[..], &b"text/html"[..])
-      .expect("Could not add html header");
+    "Content-Type: text/html"
   } else if path.ends_with(".js") {
-    header = Header::from_bytes(&b"Content-Type"[..], &b"text/javascript"[..])
-      .expect("Could not add Javascript header");
+    "Content-Type: text/javascript"
   } else {
-    header = Header::from_bytes(&b"Content-Type"[..], &b"application/octet-stream"[..])
-      .expect("Could not add octet-stream header");
-  }
+    "Content-Type: application/octet-stream"
+  };
 
-  response.add_header(header);
+  let content_type = mime
+    .parse()
+    .unwrap_or_else(|_| panic!("Could not add {} header", mime));
+  headers.push(content_type);
 
-  response
+  Response::new(StatusCode(200), headers, asset, None, None)
 }

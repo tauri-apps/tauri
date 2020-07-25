@@ -8,6 +8,8 @@ pub(crate) enum Error {
   EnvOutDir,
   EnvCargoManifestDir,
   IncludeDirPrefix,
+  IncludeDirCacheDir,
+  IncludeDirEmptyFilename,
   ConfigDir,
   Serde(PathBuf, serde_json::Error),
   Io(PathBuf, IoError),
@@ -22,6 +24,10 @@ impl From<Error> for TokenStream {
         "Unable to find CARGO_MANIFEST_DIR environmental variable from tauri-macros".into()
       }
       IncludeDirPrefix => "Invalid directory prefix encountered while including assets".into(),
+      IncludeDirCacheDir => {
+        "Unable to find cache directory to compress assets into during tauri-macros".into()
+      }
+      IncludeDirEmptyFilename => "Asset included during tauri-macros has empty filename".into(),
       ConfigDir => {
         "Unable to get the directory the config file was found in during tauri-macros".into()
       }

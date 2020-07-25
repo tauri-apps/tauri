@@ -17,6 +17,7 @@ edition = "2018"
 proc-macro = true
 
 [dependencies]
+brotli = "3"
 proc-macro2 = "1"
 quote = "1"
 serde = {version = "1", features = ["derive"]}

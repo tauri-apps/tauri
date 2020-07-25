@@ -298,6 +298,17 @@ impl CargoSettings {
   }
 }
 
+#[derive(Deserialize)]
+struct CargoBuildConfig {
+  #[serde(rename = "target-dir")]
+  target_dir: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct CargoConfig {
+  build: Option<CargoBuildConfig>,
+}
+
 impl Settings {
   /// Builds a Settings from the CLI args.
   ///
@@ -353,7 +364,7 @@ impl Settings {
       }
     };
     let workspace_dir = Settings::get_workspace_dir(&current_dir);
-    let target_dir = Settings::get_target_dir(&workspace_dir, &target, is_release);
+    let target_dir = Settings::get_target_dir(&workspace_dir, &target, is_release)?;
     let bundle_settings = match tauri_config {
       Ok(config) => merge_settings(BundleSettings::default(), config.tauri.bundle),
       Err(e) => {
@@ -445,13 +456,42 @@ impl Settings {
     project_root_dir: &PathBuf,
     target: &Option<(String, TargetInfo)>,
     is_release: bool,
-  ) -> PathBuf {
-    let mut path = project_root_dir.join("target");
+  ) -> crate::Result<PathBuf> {
+    let mut path: PathBuf = match std::env::var_os("CARGO_TARGET_DIR") {
+      Some(target_dir) => target_dir.into(),
+      None => {
+        let mut root_dir = project_root_dir.clone();
+        let target_path: Option<PathBuf> = loop {
+          // cargo reads configs under .cargo/config.toml or .cargo/config
+          let mut cargo_config_path = root_dir.join(".cargo/config");
+          if !cargo_config_path.exists() {
+            cargo_config_path = root_dir.join(".cargo/config.toml");
+          }
+          // if the path exists, parse it
+          if cargo_config_path.exists() {
+            let mut config_str = String::new();
+            let mut config_file = File::open(cargo_config_path)?;
+            config_file.read_to_string(&mut config_str)?;
+            let config: CargoConfig = toml::from_str(&config_str)?;
+            if let Some(build) = config.build {
+              if let Some(target_dir) = build.target_dir {
+                break Some(target_dir.into());
+              }
+            }
+          }
+          if !root_dir.pop() {
+            break None;
+          }
+        };
+        target_path.unwrap_or_else(|| project_root_dir.join("target"))
+      }
+    };
+
     if let Some((ref triple, _)) = *target {
       path.push(triple);
     }
     path.push(if is_release { "release" } else { "debug" });
-    path
+    Ok(path)
   }
 
   /// Walks up the file system, looking for a Cargo.toml file

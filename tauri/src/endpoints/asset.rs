@@ -73,7 +73,7 @@ pub fn load(
                   else
                       css.appendChild(document.createTextNode(content))
                   document.getElementsByTagName("head")[0].appendChild(css);
-                }})("{css}")
+                }})(`{css}`)
               "#,
               css = asset_str
             ));

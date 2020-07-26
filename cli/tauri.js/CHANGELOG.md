@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.0]
+
+-   Fixes the Webview initialization on Windows.
+    -   [4abd12c](https://www.github.com/tauri-apps/tauri/commit/4abd12c2a42b5ace8527114ab64da38f4486754f) fix(tauri) webview initialization on windows, fixes [#879](https://www.github.com/tauri-apps/tauri/pull/879) ([#885](https://www.github.com/tauri-apps/tauri/pull/885)) on 2020-07-23
+
 ## [0.10.0]
 
 -   Fixes the `writeFile` and `writeBinaryFile` usage.

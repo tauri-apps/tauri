@@ -92,10 +92,14 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   cmd.current_dir(output_path);
 
   common::execute_with_verbosity(&mut cmd, &settings).map_err(|_| {
-    crate::Error::ShellScriptError(
-      "error running build_appimage.sh, try running with --verbose to see command output"
-        .to_owned(),
-    )
+    crate::Error::ShellScriptError(format!(
+      "error running appimage.sh{}",
+      if settings.is_verbose() {
+        ""
+      } else {
+        ", try running with --verbose to see command output"
+      }
+    ))
   })?;
 
   remove_dir_all(&package_dir)?;

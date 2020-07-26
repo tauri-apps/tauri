@@ -361,7 +361,16 @@ fn run_candle(
     .current_dir(build_path);
 
   common::print_info("running candle.exe")?;
-  common::execute_with_verbosity(&mut cmd, &settings).map_err(|_| crate::Error::CandleError)
+  common::execute_with_verbosity(&mut cmd, &settings).map_err(|_| {
+    crate::Error::ShellScriptError(format!(
+      "error running candle.exe{}",
+      if settings.is_verbose() {
+        ""
+      } else {
+        ", try running with --verbose to see command output"
+      }
+    ))
+  })
 }
 
 /// Runs the Light.exe file. Light takes the generated code from Candle and produces an MSI Installer.
@@ -394,7 +403,16 @@ fn run_light(
   common::print_info(format!("running light to produce {}", output_path.display()).as_str())?;
   common::execute_with_verbosity(&mut cmd, &settings)
     .map(|_| output_path.to_path_buf())
-    .map_err(|_| crate::Error::LightError)
+    .map_err(|_| {
+      crate::Error::ShellScriptError(format!(
+        "error running light.exe{}",
+        if settings.is_verbose() {
+          ""
+        } else {
+          ", try running with --verbose to see command output"
+        }
+      ))
+    })
 }
 
 // fn get_icon_data() -> crate::Result<()> {

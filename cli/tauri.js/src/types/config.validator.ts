@@ -502,6 +502,10 @@ export const TauriConfigSchema = {
         "window"
       ],
       "type": "object"
+    },
+    "verbose": {
+      "description": "Whether or not to enable verbose logging",
+      "type": "boolean"
     }
   },
   "required": [

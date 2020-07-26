@@ -91,7 +91,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let mut cmd = Command::new(&sh_file);
   cmd.current_dir(output_path);
 
-  common::execute_silently(&mut cmd)
+  common::execute_with_verbosity(&mut cmd, &settings)
     .map_err(|_| crate::Error::ShellScriptError("error running build_appimage.sh".to_owned()))?;
 
   remove_dir_all(&package_dir)?;

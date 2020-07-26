@@ -98,6 +98,10 @@ fn run() -> crate::Result<()> {
             .long("version")
             .short("v")
             .help("Read the version of the bundler"),
+        ).arg(
+          Arg::with_name("verbose")
+            .long("verbose")
+            .help("Enable verbose output"),
         ),
     )
     .get_matches();

@@ -370,6 +370,7 @@ fn run_light(
   build_path: &Path,
   wixobjs: &[&str],
   output_path: &Path,
+  settings: &Settings,
 ) -> crate::Result<PathBuf> {
   let light_exe = wix_toolset_path.join("light.exe");
 
@@ -512,7 +513,8 @@ pub fn build_wix_app_installer(
     &wix_toolset_path,
     &output_path,
     &wixobjs,
-    &app_installer_dir(settings)?,
+    &app_installer_dir(&settings)?,
+    &settings,
   )?;
 
   Ok(target)

@@ -74,7 +74,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // create the shell script file in the target/ folder.
   let sh_file = output_path.join("build_appimage.sh");
-  common::print_bundling(format!("{:?}", &appimage_path).as_str())?;
+  common::print_bundling(&appimage_path.file_name().unwrap().to_str().unwrap())?;
   write(&sh_file, temp)?;
 
   // chmod script for execution
@@ -91,9 +91,16 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let mut cmd = Command::new(&sh_file);
   cmd.current_dir(output_path);
 
-  common::print_info("running build_appimage.sh")?;
-  common::execute_with_output(&mut cmd)
-    .map_err(|_| crate::Error::ShellScriptError("error running build_appimage.sh".to_owned()))?;
+  common::execute_with_verbosity(&mut cmd, &settings).map_err(|_| {
+    crate::Error::ShellScriptError(format!(
+      "error running appimage.sh{}",
+      if settings.is_verbose() {
+        ""
+      } else {
+        ", try running with --verbose to see command output"
+      }
+    ))
+  })?;
 
   remove_dir_all(&package_dir)?;
   Ok(vec![appimage_path])

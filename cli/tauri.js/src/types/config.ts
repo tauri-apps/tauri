@@ -294,6 +294,10 @@ export interface TauriConfig {
       [key: string]: any
     }
   }
+  /**
+   * Whether or not to enable verbose logging
+   */
+  verbose?: boolean
 }
 
 export default TauriConfig

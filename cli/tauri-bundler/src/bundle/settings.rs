@@ -281,6 +281,8 @@ pub struct Settings {
   project_out_directory: PathBuf,
   /// whether we should build the app with release mode or not.
   is_release: bool,
+  /// whether or not to enable verbose logging
+  is_verbose: bool,
   /// the bundle settings.
   bundle_settings: BundleSettings,
   /// the binaries to bundle.
@@ -337,6 +339,7 @@ impl Settings {
       None => None,
     };
     let is_release = matches.is_present("release");
+    let is_verbose = matches.is_present("verbose");
     let target = match matches.value_of("target") {
       Some(triple) => Some((triple.to_string(), TargetInfo::from_str(triple)?)),
       None => None,
@@ -444,6 +447,7 @@ impl Settings {
       target,
       features,
       is_release,
+      is_verbose,
       project_out_directory: target_dir,
       binaries,
       bundle_settings,
@@ -624,6 +628,11 @@ impl Settings {
   /// it's being compiled in debug mode.
   pub fn is_release_build(&self) -> bool {
     self.is_release
+  }
+
+  /// Returns true if verbose logging is enabled
+  pub fn is_verbose(&self) -> bool {
+    self.is_verbose
   }
 
   /// Returns the bundle name, which is either package.metadata.bundle.name or package.name

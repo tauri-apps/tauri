@@ -1,12 +1,9 @@
 //! Assets handled by Tauri during compile time and runtime.
 
-use brotli::{CompressorReader, Decompressor};
+use flate2::read::{GzDecoder, GzEncoder};
 pub use phf;
 use std::io::Read;
 use std::path::{Component, Path, PathBuf};
-
-/// Size of the buffer used by (Brotli)[https://crates.io/crates/brotli] to compress/decompress
-const ENCODING_BUFFER: usize = 4096;
 
 /// Type of compression applied to an asset
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -14,8 +11,8 @@ pub enum AssetCompression {
   /// No compression applied
   None,
 
-  /// Compressed with (Brotli)[https://crates.io/crates/brotli]
-  Brotli,
+  /// Compressed with (gzip)[https://crates.io/crates/flate2]
+  Gzip,
 }
 
 /// How the embedded asset should be fetched from `Assets`
@@ -93,17 +90,17 @@ impl Assets {
     let &(compression, content) = self.inner.get(&*key)?;
     Some(match (compression, fetch) {
       // content is already in compression format expected
-      (_, Identity) | (None, Decompress) | (Brotli, Compress) => (Box::new(content), compression),
+      (_, Identity) | (None, Decompress) | (Gzip, Compress) => (Box::new(content), compression),
 
       // content is uncompressed, but fetched with compression
       (None, Compress) => {
-        let compressor = CompressorReader::new(content, ENCODING_BUFFER, 4, 22);
-        (Box::new(compressor), Brotli)
+        let compressor = GzEncoder::new(content, flate2::Compression::new(6));
+        (Box::new(compressor), Gzip)
       }
 
       // content is compressed, but fetched with decompression
-      (Brotli, Decompress) => {
-        let decompressor = Decompressor::new(content, ENCODING_BUFFER);
+      (Gzip, Decompress) => {
+        let decompressor = GzDecoder::new(content);
         (Box::new(decompressor), None)
       }
     })

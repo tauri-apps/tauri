@@ -11,10 +11,10 @@ pub fn asset_response(path: &str, assets: &'static Assets) -> Response<impl Read
   let mut headers = Vec::new();
 
   // Content-Encoding
-  const BROTLI_HEADER: &str = "Content-Encoding: br";
-  let content_encoding = BROTLI_HEADER
+  const CONTENT_ENCODING: &str = "Content-Encoding: gzip";
+  let content_encoding = CONTENT_ENCODING
     .parse()
-    .unwrap_or_else(|_| panic!("Could not add {} header", BROTLI_HEADER));
+    .unwrap_or_else(|_| panic!("Could not add {} header", CONTENT_ENCODING));
   headers.push(content_encoding);
 
   // Content-Type

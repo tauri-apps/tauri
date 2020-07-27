@@ -101,7 +101,7 @@ fn generate_asset_map(dist: &Path) -> Result<TokenStream, Error> {
   inline_assets.insert("/index.html".into());
 
   IncludeDir::new(&dist)
-    .dir(&dist, AssetCompression::Brotli)?
+    .dir(&dist, AssetCompression::Gzip)?
     .set_filter(inline_assets)?
     .build()
 }

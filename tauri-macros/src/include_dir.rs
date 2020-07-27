@@ -1,4 +1,5 @@
 use crate::error::Error;
+use flate2::bufread::GzEncoder;
 use proc_macro2::TokenStream;
 use quote::quote;
 use quote::TokenStreamExt;
@@ -44,7 +45,7 @@ impl IncludeDir {
 
     let asset = match comp {
       AssetCompression::None => Asset::Identity(path),
-      AssetCompression::Brotli => {
+      AssetCompression::Gzip => {
         let cache = var("OUT_DIR")
           .map_err(|_| Error::EnvOutDir)
           .map(|out| Path::new(&out).join(".tauri-assets").join(relative))
@@ -61,14 +62,14 @@ impl IncludeDir {
 
         // open original asset path
         let reader = File::open(&path).map_err(|e| Error::Io(path.to_path_buf(), e))?;
-        let mut reader = BufReader::new(reader);
+        let reader = BufReader::new(reader);
+        let mut reader = GzEncoder::new(reader, flate2::Compression::best());
 
         // open cache path
         let writer = File::create(&cache).map_err(|e| Error::Io(cache.to_path_buf(), e))?;
         let mut writer = BufWriter::new(writer);
 
-        let _ = brotli::BrotliCompress(&mut reader, &mut writer, &Default::default())
-          .map_err(|e| Error::Io(cache.to_path_buf(), e))?;
+        std::io::copy(&mut reader, &mut writer).map_err(|e| Error::Io(path.to_path_buf(), e))?;
 
         Asset::Compressed(path, cache)
       }
@@ -134,7 +135,7 @@ impl IncludeDir {
               // rely on dead code elimination to remove it from target binary
               const _: &[u8] = include_bytes!(#path);
 
-              (AssetCompression::Brotli, include_bytes!(#cache))
+              (AssetCompression::Gzip, include_bytes!(#cache))
             }
           }
         }

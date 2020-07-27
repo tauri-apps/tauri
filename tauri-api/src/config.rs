@@ -73,6 +73,14 @@ pub struct EmbeddedServerConfig {
   /// If it's `random`, we'll generate one at runtime.
   #[serde(default = "default_port", deserialize_with = "port_deserializer")]
   pub port: Port,
+
+  /// The base path of the embedded server.
+  /// The path should always start and end in a forward slash, which the deserializer will ensure
+  #[serde(
+    default = "default_public_path",
+    deserialize_with = "public_path_deserializer"
+  )]
+  pub public_path: String,
 }
 
 fn default_host() -> String {
@@ -83,11 +91,16 @@ fn default_port() -> Port {
   Port::Random
 }
 
+fn default_public_path() -> String {
+  "/".to_string()
+}
+
 impl Default for EmbeddedServerConfig {
   fn default() -> Self {
     Self {
       host: default_host(),
       port: default_port(),
+      public_path: default_public_path(),
     }
   }
 }
@@ -126,6 +139,47 @@ where
   }
 
   deserializer.deserialize_any(PortDeserializer {})
+}
+
+fn public_path_deserializer<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+  D: Deserializer<'de>,
+{
+  struct PublicPathDeserializer;
+
+  impl<'de> Visitor<'de> for PublicPathDeserializer {
+    type Value = String;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+      formatter.write_str("a string starting and ending in a forward slash /")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+      E: DeError,
+    {
+      match value.len() {
+        0 => return Ok("/".into()),
+        1 if value == "/" => return Ok("/".into()),
+        1 => return Ok(format!("/{}/", value)),
+        _ => {}
+      }
+
+      // we know there are at least 2 characters in the string
+      let mut chars = value.chars();
+      let first = chars.next().unwrap();
+      let last = chars.last().unwrap();
+
+      match (first == '/', last == '/') {
+        (true, true) => Ok(value.into()),
+        (true, false) => Ok(format!("{}/", value)),
+        (false, true) => Ok(format!("/{}", value)),
+        _ => Ok(format!("/{}/", value)),
+      }
+    }
+  }
+
+  deserializer.deserialize_any(PublicPathDeserializer {})
 }
 
 /// A CLI argument definition
@@ -396,6 +450,7 @@ mod test {
       embedded_server: EmbeddedServerConfig {
         host: String::from("http://127.0.0.1"),
         port: Port::Random,
+        public_path: "/".into(),
       },
       bundle: BundleConfig {
         identifier: String::from(""),

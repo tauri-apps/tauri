@@ -8,15 +8,16 @@ mod runner;
 type InvokeHandler = Box<dyn FnMut(&mut Webview<'_>, &str) -> Result<(), String>>;
 type Setup = Box<dyn FnMut(&mut Webview<'_>, String)>;
 
-/// Configuration for the application's internal use.
-pub(crate) struct AppContext {
-  pub config: Config,
-  pub assets: &'static tauri_api::assets::Assets,
-  pub index: &'static str,
+/// `App` runtime information.
+pub struct AppContext {
+  pub(crate) config: Config,
+  pub(crate) assets: &'static tauri_api::assets::Assets,
+  #[allow(dead_code)]
+  pub(crate) index: &'static str,
 }
 
 impl AppContext {
-  pub fn new<Config: AsTauriConfig>() -> crate::Result<Self> {
+  pub(crate) fn new<Config: AsTauriConfig>() -> crate::Result<Self> {
     Ok(Self {
       config: serde_json::from_str(Config::raw_config())?,
       assets: Config::assets(),

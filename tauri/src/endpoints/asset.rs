@@ -1,3 +1,4 @@
+use crate::AppContext;
 use std::io::Read;
 use tauri_api::assets::{AssetFetch, Assets};
 use webview_official::Webview;
@@ -8,9 +9,11 @@ pub fn load(
   asset_type: String,
   callback: String,
   error: String,
-  assets: &'static tauri_api::assets::Assets,
+  ctx: &AppContext,
 ) {
   let mut webview_mut = webview.as_mut();
+  let assets = ctx.assets;
+  let public_path = ctx.config.tauri.embedded_server.public_path.clone();
   crate::execute_promise(
     webview,
     move || {
@@ -21,10 +24,21 @@ pub fn load(
         &asset
       };
 
-      // TODO: previously would strip away parents to try and handle webpack public path
+      // handle public path setting from tauri.conf > tauri > embeddedServer > publicPath
+      let asset = if asset.starts_with(&public_path) {
+        &asset[public_path.len() - 1..]
+      } else {
+        eprintln!(
+          "found url not matching public path.\nasset url: {}\npublic path: {}",
+          asset, public_path
+        );
+        asset
+      }
+      .to_string();
+
       // how should that condition be handled now?
       let asset_bytes = assets
-        .get(&Assets::format_key(asset), AssetFetch::Decompress)
+        .get(&Assets::format_key(&asset), AssetFetch::Decompress)
         .ok_or_else(|| anyhow::anyhow!("Asset '{}' not found", asset))
         .and_then(|(read, _)| {
           read

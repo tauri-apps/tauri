@@ -163,15 +163,27 @@ fn setup_server_url(port: String, app_config: &AppContext) -> crate::Result<Stri
 
 // spawn the embedded server
 #[cfg(embedded_server)]
-fn spawn_server(server_url: String, app_config: &AppContext) -> crate::Result<()> {
-  let assets = app_config.assets;
+fn spawn_server(server_url: String, ctx: &AppContext) -> crate::Result<()> {
+  let assets = ctx.assets;
+  let public_path = ctx.config.tauri.embedded_server.public_path.clone();
   spawn(move || {
     let server = tiny_http::Server::http(server_url.replace("http://", "").replace("https://", ""))
       .expect("Unable to spawn server");
     for request in server.incoming_requests() {
-      let url = match request.url() {
+      let url = request.url();
+      let url = match url {
         "/" => "/index.tauri.html",
-        url => url,
+        url => {
+          if url.starts_with(&public_path) {
+            &url[public_path.len() - 1..]
+          } else {
+            eprintln!(
+              "found url not matching public path.\nurl: {}\npublic path: {}",
+              url, public_path
+            );
+            url
+          }
+        }
       }
       .to_string();
       request

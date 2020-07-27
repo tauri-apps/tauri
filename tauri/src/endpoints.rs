@@ -256,7 +256,7 @@ pub(crate) fn handle(webview: &mut Webview<'_>, arg: &str, ctx: &AppContext) -> 
           callback,
           error,
         } => {
-          asset::load(webview, asset, asset_type, callback, error, &ctx.assets);
+          asset::load(webview, asset, asset_type, callback, error, &ctx);
         }
         CliMatches { callback, error } => {
           #[cfg(cli)]

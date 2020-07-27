@@ -9,13 +9,13 @@ type InvokeHandler = Box<dyn FnMut(&mut Webview<'_>, &str) -> Result<(), String>
 type Setup = Box<dyn FnMut(&mut Webview<'_>, String)>;
 
 /// Configuration for the application's internal use.
-pub(crate) struct AppConfig {
+pub(crate) struct AppContext {
   pub config: Config,
   pub assets: &'static tauri_api::assets::Assets,
   pub index: &'static str,
 }
 
-impl AppConfig {
+impl AppContext {
   pub fn new<Config: AsTauriConfig>() -> crate::Result<Self> {
     Ok(Self {
       config: serde_json::from_str(Config::raw_config())?,
@@ -34,7 +34,7 @@ pub struct App {
   /// The HTML of the splashscreen to render.
   splashscreen_html: Option<String>,
   /// The configuration the App was created with
-  pub(crate) config: AppConfig,
+  pub(crate) ctx: AppContext,
 }
 
 impl App {
@@ -128,7 +128,7 @@ impl<Config: AsTauriConfig> AppBuilder<Config> {
       invoke_handler: self.invoke_handler,
       setup: self.setup,
       splashscreen_html: self.splashscreen_html,
-      config: AppConfig::new::<Config>()?,
+      ctx: AppContext::new::<Config>()?,
     })
   }
 }

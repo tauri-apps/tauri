@@ -15,15 +15,11 @@ mod http;
 #[cfg(notification)]
 mod notification;
 
-use crate::app::AppConfig;
+use crate::app::AppContext;
 use webview_official::Webview;
 
 #[allow(unused_variables)]
-pub(crate) fn handle(
-  webview: &mut Webview<'_>,
-  arg: &str,
-  app_config: &AppConfig,
-) -> crate::Result<()> {
+pub(crate) fn handle(webview: &mut Webview<'_>, arg: &str, ctx: &AppContext) -> crate::Result<()> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
     Err(e) => Err(e.into()),
@@ -260,14 +256,7 @@ pub(crate) fn handle(
           callback,
           error,
         } => {
-          asset::load(
-            webview,
-            asset,
-            asset_type,
-            callback,
-            error,
-            &app_config.assets,
-          );
+          asset::load(webview, asset, asset_type, callback, error, &ctx.assets);
         }
         CliMatches { callback, error } => {
           #[cfg(cli)]
@@ -290,7 +279,7 @@ pub(crate) fn handle(
           error,
         } => {
           #[cfg(notification)]
-          notification::send(webview, options, callback, error, &app_config.config);
+          notification::send(webview, options, callback, error, &ctx.config);
           #[cfg(not(notification))]
           allowlist_error(webview, error, "notification");
         }

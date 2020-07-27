@@ -12,7 +12,7 @@ use webview_official::{SizeHint, Webview, WebviewBuilder};
 use super::App;
 #[cfg(embedded_server)]
 use crate::api::tcp::{get_available_port, port_is_available};
-use crate::app::AppConfig;
+use crate::app::AppContext;
 
 #[allow(dead_code)]
 enum Content<T> {
@@ -23,7 +23,7 @@ enum Content<T> {
 /// Main entry point for running the Webview
 pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   // setup the content using the config struct depending on the compile target
-  let main_content = setup_content(&application.config)?;
+  let main_content = setup_content(&application.ctx)?;
 
   #[cfg(embedded_server)]
   {
@@ -35,7 +35,7 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
     };
 
     // spawn the embedded server on our server url
-    spawn_server(server_url, &application.config)?;
+    spawn_server(server_url, &application.ctx)?;
   }
 
   // build the webview
@@ -68,7 +68,7 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
 
 // setup content for dev-server
 #[cfg(dev)]
-fn setup_content(app_config: &AppConfig) -> crate::Result<Content<String>> {
+fn setup_content(app_config: &AppContext) -> crate::Result<Content<String>> {
   let config = &app_config.config;
   if config.build.dev_path.starts_with("http") {
     #[cfg(windows)]
@@ -113,7 +113,7 @@ fn setup_content(app_config: &AppConfig) -> crate::Result<Content<String>> {
 
 // setup content for embedded server
 #[cfg(embedded_server)]
-fn setup_content(app_config: &AppConfig) -> crate::Result<Content<String>> {
+fn setup_content(app_config: &AppContext) -> crate::Result<Content<String>> {
   let (port, valid) = setup_port(&app_config)?;
   let url = (if valid {
     setup_server_url(port, &app_config)
@@ -127,7 +127,7 @@ fn setup_content(app_config: &AppConfig) -> crate::Result<Content<String>> {
 
 // setup content for no-server
 #[cfg(no_server)]
-fn setup_content(app_config: &AppConfig) -> crate::Result<Content<String>> {
+fn setup_content(app_config: &AppContext) -> crate::Result<Content<String>> {
   Ok(Content::Html(format!(
     "data:text/html,{}",
     urlencoding::encode(app_config.index)
@@ -136,7 +136,7 @@ fn setup_content(app_config: &AppConfig) -> crate::Result<Content<String>> {
 
 // get the port for the embedded server
 #[cfg(embedded_server)]
-fn setup_port(app_config: &AppConfig) -> crate::Result<(String, bool)> {
+fn setup_port(app_config: &AppContext) -> crate::Result<(String, bool)> {
   let config = &app_config.config;
   match config.tauri.embedded_server.port {
     tauri_api::config::Port::Random => match get_available_port() {
@@ -152,7 +152,7 @@ fn setup_port(app_config: &AppConfig) -> crate::Result<(String, bool)> {
 
 // setup the server url for embedded server
 #[cfg(embedded_server)]
-fn setup_server_url(port: String, app_config: &AppConfig) -> crate::Result<String> {
+fn setup_server_url(port: String, app_config: &AppContext) -> crate::Result<String> {
   let config = &app_config.config;
   let mut url = format!("{}:{}", config.tauri.embedded_server.host, port);
   if !url.starts_with("http") {
@@ -163,7 +163,7 @@ fn setup_server_url(port: String, app_config: &AppConfig) -> crate::Result<Strin
 
 // spawn the embedded server
 #[cfg(embedded_server)]
-fn spawn_server(server_url: String, app_config: &AppConfig) -> crate::Result<()> {
+fn spawn_server(server_url: String, app_config: &AppContext) -> crate::Result<()> {
   let assets = app_config.assets;
   spawn(move || {
     let server = tiny_http::Server::http(server_url.replace("http://", "").replace("https://", ""))
@@ -236,7 +236,7 @@ fn build_webview(
   content: Content<String>,
   splashscreen_content: Option<Content<String>>,
 ) -> crate::Result<Webview<'_>> {
-  let config = &application.config.config;
+  let config = &application.ctx.config;
   let content_clone = match content {
     Content::Html(ref html) => Content::Html(html.clone()),
     Content::Url(ref url) => Content::Url(url.clone()),
@@ -322,7 +322,7 @@ fn build_webview(
       };
       w.eval(&format!(r#"window.location.href = "{}""#, content_href));
     } else {
-      let endpoint_handle = crate::endpoints::handle(&mut w, &arg, &application.config)
+      let endpoint_handle = crate::endpoints::handle(&mut w, &arg, &application.ctx)
         .map_err(|tauri_handle_error| {
           let tauri_handle_error_str = tauri_handle_error.to_string();
           if tauri_handle_error_str.contains("unknown variant") {
@@ -380,7 +380,7 @@ fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
 #[cfg(test)]
 mod test {
   use super::Content;
-  use crate::AppConfig;
+  use crate::AppContext;
   use crate::FromTauriConfig;
   use proptest::prelude::*;
 
@@ -390,7 +390,7 @@ mod test {
 
   #[test]
   fn check_setup_content() {
-    let app_config = AppConfig::new::<Config>().unwrap();
+    let app_config = AppContext::new::<Config>().unwrap();
     let res = super::setup_content(&app_config);
 
     #[cfg(embedded_server)]
@@ -429,7 +429,7 @@ mod test {
   #[cfg(embedded_server)]
   #[test]
   fn check_setup_port() {
-    let app_config = AppConfig::new::<Config>().unwrap();
+    let app_config = AppContext::new::<Config>().unwrap();
     let res = super::setup_port(&app_config);
     match res {
       Ok((_s, _b)) => {}
@@ -443,7 +443,7 @@ mod test {
     #[test]
     fn check_server_url(port in (any::<u32>().prop_map(|v| v.to_string()))) {
       let p = port.clone();
-      let app_config = AppConfig::new::<Config>().unwrap();
+      let app_config = AppContext::new::<Config>().unwrap();
 
       let res = super::setup_server_url(port, &app_config);
 

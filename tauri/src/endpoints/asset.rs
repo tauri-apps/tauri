@@ -1,4 +1,3 @@
-use std::fmt::{self, Write};
 use std::io::Read;
 use tauri_api::assets::{AssetFetch, Assets};
 use webview_official::Webview;

@@ -116,8 +116,16 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .args(vec![dmg_name.as_str(), bundle_name.as_str()]);
 
   common::print_info("running bundle_dmg.sh")?;
-  common::execute_with_output(&mut cmd)
-    .map_err(|_| crate::Error::ShellScriptError("error running bundle_dmg.sh".to_owned()))?;
+  common::execute_with_verbosity(&mut cmd, &settings).map_err(|_| {
+    crate::Error::ShellScriptError(format!(
+      "error running bundle_dmg.sh{}",
+      if settings.is_verbose() {
+        ""
+      } else {
+        ", try running with --verbose to see command output"
+      }
+    ))
+  })?;
 
   fs::rename(bundle_dir.join(dmg_name), dmg_path.clone())?;
   Ok(vec![bundle_path, dmg_path])

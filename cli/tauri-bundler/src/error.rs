@@ -55,10 +55,6 @@ pub enum Error {
   HashError,
   #[error("Architecture Error: `{0}`")]
   ArchError(String),
-  #[error("Error running Candle.exe")]
-  CandleError,
-  #[error("Error running Light.exe")]
-  LightError,
   #[error(
     "Couldn't get tauri config; please specify the TAURI_CONFIG or TAURI_DIR environment variables"
   )]

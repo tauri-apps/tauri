@@ -271,6 +271,7 @@ class Runner {
           )
         ]
           .concat(cfg.ctx.debug ? [] : ['--release'])
+          .concat(cfg.verbose ? ['--verbose'] : [])
           .concat(target ? ['--target', target] : [])
       })
 

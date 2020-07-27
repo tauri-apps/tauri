@@ -1,3 +1,4 @@
+use crate::Settings;
 use std;
 use std::ffi::OsStr;
 use std::fs::{self, File};
@@ -268,12 +269,18 @@ pub fn print_error(error: &anyhow::Error) -> crate::Result<()> {
   }
 }
 
-pub fn execute_with_output(cmd: &mut Command) -> crate::Result<()> {
+pub fn execute_with_verbosity(cmd: &mut Command, settings: &Settings) -> crate::Result<()> {
+  let stdio_config = if settings.is_verbose() {
+    Stdio::piped
+  } else {
+    Stdio::null
+  };
   let mut child = cmd
-    .stdout(Stdio::piped())
+    .stdout(stdio_config())
+    .stderr(stdio_config())
     .spawn()
     .expect("failed to spawn command");
-  {
+  if settings.is_verbose() {
     let stdout = child.stdout.as_mut().expect("Failed to get stdout handle");
     let reader = BufReader::new(stdout);
 

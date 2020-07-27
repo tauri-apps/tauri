@@ -262,8 +262,7 @@ pub(crate) fn handle(webview: &mut Webview<'_>, arg: &str, ctx: &AppContext) -> 
           #[cfg(cli)]
           {
             // TODO: memoize this?  previous used a static but that's not possible anymore
-            let matches = tauri_api::cli::get_matches(&app_config.config)
-              .map_err(|_| anyhow::anyhow!(r#""failed to get matches""#));
+            let matches = tauri_api::cli::get_matches(&ctx.config);
             crate::execute_promise(webview, move || matches, callback, error);
           }
           #[cfg(not(cli))]

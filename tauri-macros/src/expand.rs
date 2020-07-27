@@ -9,7 +9,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use syn::{DeriveInput, Lit::Str, Meta::NameValue, MetaNameValue};
-use tauri_api::assets::Compression;
+use tauri_api::assets::AssetCompression;
 use tauri_api::config::Config;
 
 pub(crate) fn from_tauri_config(input: DeriveInput) -> Result<TokenStream, Error> {
@@ -61,7 +61,7 @@ pub(crate) fn from_tauri_config(input: DeriveInput) -> Result<TokenStream, Error
           }
 
           fn assets() -> &'static ::tauri::api::assets::Assets {
-            use ::tauri::api::assets::{Assets, phf, phf::phf_map};
+            use ::tauri::api::assets::{Assets, AssetCompression, phf, phf::phf_map};
             static ASSETS: Assets = Assets::new(#assets);
             &ASSETS
           }
@@ -84,6 +84,7 @@ fn read_config(path: &Path) -> Result<Config, Error> {
 ///
 /// The `TokenStream` produced by this function expects to have `phf` and
 /// `phf_map` paths available. Make sure to `use` these so the macro has access to them.
+/// It also expects `AssetCompression` to be in path.
 fn generate_asset_map(dist: &Path) -> Result<TokenStream, Error> {
   let mut inline_assets = HashSet::new();
   if let Ok(assets) = std::env::var("TAURI_INLINED_ASSETS") {
@@ -100,7 +101,7 @@ fn generate_asset_map(dist: &Path) -> Result<TokenStream, Error> {
   inline_assets.insert("/index.html".into());
 
   IncludeDir::new(&dist)
-    .dir(&dist, Compression::Brotli)?
+    .dir(&dist, AssetCompression::Brotli)?
     .set_filter(inline_assets)?
     .build()
 }

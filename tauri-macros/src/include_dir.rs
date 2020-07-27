@@ -7,7 +7,7 @@ use std::env::var;
 use std::fs::{create_dir_all, File};
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
-use tauri_api::assets::{Assets, Compression};
+use tauri_api::assets::{AssetCompression, Assets};
 use walkdir::WalkDir;
 
 enum Asset {
@@ -37,14 +37,14 @@ impl IncludeDir {
       .map_err(|_| Error::IncludeDirPrefix)
   }
 
-  pub fn file(mut self, path: impl Into<PathBuf>, comp: Compression) -> Result<Self, Error> {
+  pub fn file(mut self, path: impl Into<PathBuf>, comp: AssetCompression) -> Result<Self, Error> {
     let path = path.into();
     let relative = self.relative(&path)?;
     let key = Assets::format_key(&relative);
 
     let asset = match comp {
-      Compression::None => Asset::Identity(path),
-      Compression::Brotli => {
+      AssetCompression::None => Asset::Identity(path),
+      AssetCompression::Brotli => {
         let cache = var("OUT_DIR")
           .map_err(|_| Error::EnvOutDir)
           .map(|out| Path::new(&out).join(".tauri-assets").join(relative))
@@ -78,7 +78,7 @@ impl IncludeDir {
     Ok(self)
   }
 
-  pub fn dir(mut self, path: impl AsRef<Path>, comp: Compression) -> Result<Self, Error> {
+  pub fn dir(mut self, path: impl AsRef<Path>, comp: AssetCompression) -> Result<Self, Error> {
     let path = path.as_ref();
     let walker = WalkDir::new(&path).follow_links(true);
     for entry in walker.into_iter() {
@@ -122,7 +122,7 @@ impl IncludeDir {
         Asset::Identity(path) => {
           let path = path.display().to_string();
           quote! {
-            (::tauri::api::assets::Compression::None, include_bytes!(#path))
+            (AssetCompression::None, include_bytes!(#path))
           }
         }
         Asset::Compressed(path, cache) => {
@@ -131,9 +131,10 @@ impl IncludeDir {
           quote! {
             {
               // make compiler check asset file for re-run.
+              // rely on dead code elimination to remove it from target binary
               const _: &[u8] = include_bytes!(#path);
 
-              (::tauri::api::assets::Compression::Brotli, include_bytes!(#cache))
+              (AssetCompression::Brotli, include_bytes!(#cache))
             }
           }
         }

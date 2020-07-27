@@ -1,19 +1,24 @@
-#![allow(missing_docs)]
-/// TODO: proper documentation for this module
-pub use phf;
+//! Assets handled by Tauri during compile time and runtime.
 
 use brotli::{CompressorReader, Decompressor};
+pub use phf;
 use std::io::Read;
 use std::path::{Component, Path, PathBuf};
 
+/// Size of the buffer used by (Brotli)[https://crates.io/crates/brotli] to compress/decompress
 const ENCODING_BUFFER: usize = 4096;
 
+/// Type of compression applied to an asset
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Compression {
+pub enum AssetCompression {
+  /// No compression applied
   None,
+
+  /// Compressed with (Brotli)[https://crates.io/crates/brotli]
   Brotli,
 }
 
+/// How the embedded asset should be fetched from `Assets`
 pub enum AssetFetch {
   /// Do not modify the compression
   Identity,
@@ -27,12 +32,12 @@ pub enum AssetFetch {
 
 /// Runtime access to the included files
 pub struct Assets {
-  inner: phf::Map<&'static str, (Compression, &'static [u8])>,
+  inner: phf::Map<&'static str, (AssetCompression, &'static [u8])>,
 }
 
 impl Assets {
   /// Create `Assets` container from `phf::Map`
-  pub const fn new(map: phf::Map<&'static str, (Compression, &'static [u8])>) -> Self {
+  pub const fn new(map: phf::Map<&'static str, (AssetCompression, &'static [u8])>) -> Self {
     Self { inner: map }
   }
 
@@ -81,25 +86,25 @@ impl Assets {
     &self,
     path: impl Into<PathBuf>,
     fetch: AssetFetch,
-  ) -> Option<(Box<dyn Read>, Compression)> {
+  ) -> Option<(Box<dyn Read>, AssetCompression)> {
+    use self::{AssetCompression::*, AssetFetch::*};
+
     let key = Self::format_key(path);
     let &(compression, content) = self.inner.get(&*key)?;
     Some(match (compression, fetch) {
       // content is already in compression format expected
-      (_, AssetFetch::Identity)
-      | (Compression::None, AssetFetch::Decompress)
-      | (Compression::Brotli, AssetFetch::Compress) => (Box::new(content), compression),
+      (_, Identity) | (None, Decompress) | (Brotli, Compress) => (Box::new(content), compression),
 
       // content is uncompressed, but fetched with compression
-      (Compression::None, AssetFetch::Compress) => {
+      (None, Compress) => {
         let compressor = CompressorReader::new(content, ENCODING_BUFFER, 4, 22);
-        (Box::new(compressor), Compression::Brotli)
+        (Box::new(compressor), Brotli)
       }
 
       // content is compressed, but fetched with decompression
-      (Compression::Brotli, AssetFetch::Decompress) => {
+      (Brotli, Decompress) => {
         let decompressor = Decompressor::new(content, ENCODING_BUFFER);
-        (Box::new(decompressor), Compression::None)
+        (Box::new(decompressor), None)
       }
     })
   }

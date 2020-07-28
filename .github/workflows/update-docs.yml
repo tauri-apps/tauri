@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       gitName:
-        description: 'git name for PR"
+        description: 'git name for PR'
         required: false
         default: 'tauri-bot'
       gitEmail:
-        description: 'git email for PR"
+        description: 'git email for PR'
         required: false
         default: 'tauri-bot@tauri.studio'
 

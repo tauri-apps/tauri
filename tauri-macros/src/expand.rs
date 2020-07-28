@@ -35,7 +35,7 @@ pub(crate) fn from_tauri_config(input: DeriveInput) -> Result<TokenStream, Error
     .map_err(|_| Error::EnvCargoManifestDir)?;
 
   let full_config_path = Path::new(&manifest).join(config_file_path);
-  let config = read_config(&full_config_path)?;
+  let config = get_config(&full_config_path)?;
   let config_dir = full_config_path.parent().ok_or(Error::ConfigDir)?;
   let dist_dir = config_dir.join(config.build.dist);
 
@@ -74,10 +74,17 @@ pub(crate) fn from_tauri_config(input: DeriveInput) -> Result<TokenStream, Error
   })
 }
 
-fn read_config(path: &Path) -> Result<Config, Error> {
-  let file = File::open(&path).map_err(|e| Error::Io(path.into(), e))?;
-  let reader = BufReader::new(file);
-  serde_json::from_reader(reader).map_err(|e| Error::Serde(path.into(), e))
+fn get_config(path: &Path) -> Result<Config, Error> {
+  match var("TAURI_CONFIG") {
+    Ok(custom_config) => {
+      serde_json::from_str(&custom_config).map_err(|e| Error::Serde("TAURI_CONFIG".into(), e))
+    }
+    Err(_) => {
+      let file = File::open(&path).map_err(|e| Error::Io(path.into(), e))?;
+      let reader = BufReader::new(file);
+      serde_json::from_reader(reader).map_err(|e| Error::Serde(path.into(), e))
+    }
+  }
 }
 
 /// Generates a perfect hash function from `phf` of the assets in dist directory

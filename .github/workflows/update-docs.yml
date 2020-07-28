@@ -2,6 +2,15 @@ name: update-docs
 
 on:
   workflow_dispatch:
+    inputs:
+      gitName:
+        description: 'git name for PR"
+        required: false
+        default: 'tauri-bot'
+      gitEmail:
+        description: 'git email for PR"
+        required: false
+        default: 'tauri-bot@tauri.studio'
 
 jobs:
   update-docs:
@@ -33,8 +42,8 @@ jobs:
           cratesToProcess: "tauri,tauri_api,tauri_utils"
       - name: git config
         run: |
-          git config --global user.name "${{ github.event.pusher.name }}"
-          git config --global user.email "${{ github.event.pusher.email }}"
+          git config --global user.name "${{ github.event.inputs.gitName }}"
+          git config --global user.email "${{ github.event.inputs.gitEmail }}"
       - name: create pull request for updated docs
         uses: tauri-apps/create-pull-request@v2.8.0
         with:

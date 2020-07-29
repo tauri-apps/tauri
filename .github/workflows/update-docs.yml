@@ -36,7 +36,7 @@ jobs:
         uses: tauri-apps/rustdocusaurus/github-action@v1
         with:
           originPath: ./tauri/target/doc/
-          targetPath: ./tauri-docs/docs/api/rust/
+          targetPath: ./tauri-docs/docs/en/api/rust/
           sidebarPath: ./tauri-docs/sidebars.json
           linksRoot: /docs/api/rust/
           cratesToProcess: "tauri,tauri_api,tauri_utils"

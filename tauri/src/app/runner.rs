@@ -380,11 +380,11 @@ fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
 
 // Transform `[payload]` to `payload`
 fn format_arg(arg: &str) -> String {
-  return arg
+  arg
     .chars()
     .skip(1)
     .take(arg.chars().count() - 2)
-    .collect::<String>();
+    .collect::<String>()
 }
 
 #[cfg(test)]

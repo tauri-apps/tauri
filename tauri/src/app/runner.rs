@@ -302,8 +302,7 @@ fn build_webview(
 
   let mut w = webview.clone();
   webview.bind("__TAURI_INVOKE_HANDLER__", move |_, arg| {
-    // transform `[payload]` to `payload`
-    let arg = arg.chars().skip(1).take(arg.len() - 2).collect::<String>();
+    let arg = format_arg(arg);
     if arg == r#"{"cmd":"__initialized"}"# {
       let source = if has_splashscreen && !initialized_splashscreen {
         initialized_splashscreen = true;
@@ -377,6 +376,15 @@ fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
     arg.replace("'", "\\'"),
     handler_error_message
   )
+}
+
+// Transform `[payload]` to `payload`
+fn format_arg(arg: &str) -> String {
+  return arg
+    .chars()
+    .skip(1)
+    .take(arg.chars().count() - 2)
+    .collect::<String>();
 }
 
 #[cfg(test)]
@@ -475,6 +483,15 @@ mod test {
         Ok(url) => assert!(url.contains(&p)),
         Err(e) => panic!("setup_server_url Err {:?}", e.to_string())
       }
+    }
+  }
+
+  #[test]
+  fn test_format_arg() {
+    let input = &["[payload]", "[påyløad]"];
+    let expected = &[String::from("payload"), String::from("påyløad")];
+    for (i, e) in input.iter().zip(expected) {
+      assert_eq!(&super::format_arg(i), e);
     }
   }
 }

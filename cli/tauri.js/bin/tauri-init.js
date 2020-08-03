@@ -128,7 +128,7 @@ async function runInit(config = {}) {
       },
       tauri: {
         window: {
-          title: argv.w
+          title: argv.W
         }
       }
     })

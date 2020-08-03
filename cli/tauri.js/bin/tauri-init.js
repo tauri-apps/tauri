@@ -124,7 +124,7 @@ async function runInit(config = {}) {
     customConfig: merge(configOptions, {
       build: {
         distDir: argv.D,
-        devPath: argv.p
+        devPath: argv.P
       },
       tauri: {
         window: {

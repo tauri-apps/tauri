@@ -6,7 +6,7 @@ mod error;
 mod expand;
 mod include_dir;
 
-const DEFAULT_CONFIG_FILE: &str = "tauri.conff.json";
+const DEFAULT_CONFIG_FILE: &str = "tauri.conf.json";
 
 #[proc_macro_derive(FromTauriConfig, attributes(tauri_config_path))]
 pub fn from_tauri_config(ast: TokenStream) -> TokenStream {

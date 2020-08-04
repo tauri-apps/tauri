@@ -5,7 +5,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use std::collections::HashSet;
 use std::env::var;
-use std::fs::{canonicalize, File};
+use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use syn::{DeriveInput, Lit::Str, Meta::NameValue, MetaNameValue};
@@ -31,8 +31,8 @@ pub(crate) fn from_tauri_config(input: DeriveInput) -> Result<TokenStream, Error
 
   // grab the manifest of the application the macro is in
   let manifest = var("CARGO_MANIFEST_DIR")
-    .map_err(|_| Error::EnvCargoManifestDir)
-    .and_then(|p| canonicalize(&p).map_err(|e| Error::Io(PathBuf::from(p), e)))?;
+    .map(PathBuf::from)
+    .map_err(|_| Error::EnvCargoManifestDir)?;
 
   let full_config_path = Path::new(&manifest).join(config_file_path);
   let config = get_config(&full_config_path)?;

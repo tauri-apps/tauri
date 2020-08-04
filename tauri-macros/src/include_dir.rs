@@ -5,7 +5,7 @@ use quote::quote;
 use quote::TokenStreamExt;
 use std::collections::{HashMap, HashSet};
 use std::env::var;
-use std::fs::{create_dir_all, File};
+use std::fs::{canonicalize, create_dir_all, File};
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
 use tauri_api::assets::{AssetCompression, Assets};
@@ -48,6 +48,7 @@ impl IncludeDir {
       AssetCompression::Gzip => {
         let cache = var("OUT_DIR")
           .map_err(|_| Error::EnvOutDir)
+          .and_then(|p| canonicalize(&p).map_err(|e| Error::Io(PathBuf::from(p), e)))
           .map(|out| Path::new(&out).join(".tauri-assets").join(relative))
           .and_then(|mut out| {
             let filename = out.file_name().ok_or(Error::IncludeDirEmptyFilename)?;

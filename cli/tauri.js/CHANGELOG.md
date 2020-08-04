@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.1]
+
+-   Fix command line arguments -W (window title) and -P (dev server uri) to work as intended.
+    -   [e1fd626](https://www.github.com/tauri-apps/tauri/commit/e1fd626453bf6310b18e48472aa831c367212290) Fix typos referring to CLI args in init command ([#921](https://www.github.com/tauri-apps/tauri/pull/921)) on 2020-08-03
+
 ## [0.11.0]
 
 -   Fixes the Webview initialization on Windows.

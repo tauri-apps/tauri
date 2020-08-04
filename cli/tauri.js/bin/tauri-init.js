@@ -1,17 +1,7 @@
 const parseArgs = require('minimist')
 const inquirer = require('inquirer')
-const {
-  resolve
-} = require('path')
-const {
-  readFileSync,
-  writeFileSync
-} = require('fs')
-const {
-  merge,
-  kebabCase
-} = require('lodash')
-const toml = require('@tauri-apps/toml')
+const { resolve } = require('path')
+const { merge } = require('lodash')
 
 /**
  * @type {object}
@@ -130,30 +120,19 @@ async function runInit(config = {}) {
     force: argv.f || null,
     logging: argv.l || null,
     tauriPath: argv.t || null,
+    appName: appName || argv.A || null,
     customConfig: merge(configOptions, {
       build: {
         distDir: argv.D,
-        devPath: argv.p
+        devPath: argv.P
       },
       tauri: {
         window: {
-          title: argv.w
+          title: argv.W
         }
       }
     })
   })
-
-  if (appName || argv.A) {
-    const manifestPath = resolve(directory, 'src-tauri/Cargo.toml')
-    const cargoManifest = toml.parse(readFileSync(manifestPath).toString())
-    let binName = kebabCase(appName || argv.A)
-    cargoManifest.package.name = binName
-    cargoManifest.package['default-run'] = binName
-    if (cargoManifest.bin && cargoManifest.bin.length) {
-      cargoManifest.bin[0].name = binName
-    }
-    writeFileSync(manifestPath, toml.stringify(cargoManifest))
-  }
 
   const {
     installDependencies

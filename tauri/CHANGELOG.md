@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.1]
+
+-   Adjust payload formatting to handle multibyte characters in front-end message
+    payloads.
+        - [df70ca5](https://www.github.com/tauri-apps/tauri/commit/df70ca51965665952a74161cc6eb1ff19eae45e2) Fix [#912](https://www.github.com/tauri-apps/tauri/pull/912) multibyte character breaks message ([#914](https://www.github.com/tauri-apps/tauri/pull/914)) on 2020-08-01
+
 ## [0.9.0]
 
 -   Make sure CSS content loaded with the `loadAsset` API is inside a template string and not injected raw.

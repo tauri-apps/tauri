@@ -1,6 +1,10 @@
 export interface CargoManifest {
   dependencies: { [k: string]: string | CargoManifestDependency }
-  package: { version: string }
+  package: { version: string, name: string, 'default-run': string }
+  bin: Array<{
+    name: string
+    path: string
+  }>
 }
 
 export interface CargoManifestDependency {

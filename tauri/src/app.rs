@@ -11,8 +11,9 @@ type Setup = Box<dyn FnMut(&mut Webview<'_>, String)>;
 /// `App` runtime information.
 pub struct AppContext {
   pub(crate) config: Config,
+  #[cfg(assets)]
   pub(crate) assets: &'static tauri_api::assets::Assets,
-  #[allow(dead_code)]
+  #[cfg(any(dev, no_server))]
   pub(crate) index: &'static str,
 }
 
@@ -20,7 +21,9 @@ impl AppContext {
   pub(crate) fn new<Config: AsTauriConfig>() -> crate::Result<Self> {
     Ok(Self {
       config: serde_json::from_str(Config::raw_config())?,
+      #[cfg(assets)]
       assets: Config::assets(),
+      #[cfg(any(dev, no_server))]
       index: Config::raw_index(),
     })
   }

@@ -1,4 +1,4 @@
-use proc_macro::TokenStream;
+use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use std::io::Error as IoError;
 use std::path::PathBuf;
@@ -15,10 +15,10 @@ pub(crate) enum Error {
   Io(PathBuf, IoError),
 }
 
-/// Output a compiler error to the ast being transformed
-impl From<Error> for TokenStream {
-  fn from(error: Error) -> Self {
-    let error: String = match error {
+impl Error {
+  /// Output a compiler error to the ast being transformed
+  pub(crate) fn into_compile_error(self, struct_: &Ident) -> TokenStream {
+    let error: String = match self {
       EnvOutDir => "Unable to find OUT_DIR environmental variable from tauri-macros".into(),
       EnvCargoManifestDir => {
         "Unable to find CARGO_MANIFEST_DIR environmental variable from tauri-macros".into()
@@ -43,6 +43,28 @@ impl From<Error> for TokenStream {
       ),
     };
 
-    quote!(compile_error!(#error);).into()
+    quote! {
+      compile_error!(#error);
+
+      impl ::tauri::api::private::AsTauriConfig for #struct_ {
+        fn config_path() -> &'static std::path::Path {
+          unimplemented!()
+        }
+
+        /// Make the file a dependency for the compiler
+        fn raw_config() -> &'static str {
+          unimplemented!()
+        }
+
+        fn assets() -> &'static ::tauri::api::assets::Assets {
+          unimplemented!()
+        }
+
+        /// Make the index.tauri.html a dependency for the compiler
+        fn raw_index() -> &'static str {
+          unimplemented!()
+        }
+      }
+    }
   }
 }

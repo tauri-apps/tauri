@@ -96,17 +96,9 @@ fn setup_content(app_config: &AppContext) -> crate::Result<Content<String>> {
     }
     Ok(Content::Url(config.build.dev_path.clone()))
   } else {
-    let dev_dir = &config.build.dev_path;
-    let dev_path = Path::new(dev_dir).join("index.tauri.html");
-    if !dev_path.exists() {
-      panic!(
-        "Couldn't find 'index.tauri.html' inside {}; did you forget to run 'tauri dev'?",
-        dev_dir
-      );
-    }
     Ok(Content::Html(format!(
       "data:text/html,{}",
-      urlencoding::encode(&read_to_string(dev_path)?)
+      urlencoding::encode(app_config.index)
     )))
   }
 }

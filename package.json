@@ -9,6 +9,7 @@
     "directory": "cli/tauri.js"
   },
   "devDependencies": {
+    "@iota/gh-tangle-release": "^0.7.0",
     "covector": "^0.2.6"
   }
 }

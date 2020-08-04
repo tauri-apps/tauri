@@ -64,7 +64,8 @@
       "postpublish": [
         "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor } -f",
         "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor }.${ pkgFile.versionMinor } -f",
-        "git push --tags -f"
+        "git push --tags -f",
+        "yarn gh-tangle-release --github-token asdasd --node https://iotanode.us:14267 --owner tauri-apps --repository tauri --release-tag ${ pkg.pkg }-v${ pkgFile.version } --seed AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
       ],
       "assets": [
         {
@@ -132,7 +133,8 @@
       "postpublish": [
         "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor } -f",
         "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor }.${ pkgFile.versionMinor } -f",
-        "git push --tags -f"
+        "git push --tags -f",
+        "yarn gh-tangle-release --github-token asdasd --node https://iotanode.us:14267 --owner tauri-apps --repository tauri --release-tag ${ pkg.pkg }-v${ pkgFile.version } --seed AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
       ]
     }
   },

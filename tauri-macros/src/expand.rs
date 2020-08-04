@@ -37,7 +37,7 @@ pub(crate) fn from_tauri_config(input: DeriveInput) -> Result<TokenStream, Error
   let full_config_path = Path::new(&manifest).join(config_file_path);
   let config = get_config(&full_config_path)?;
   let config_dir = full_config_path.parent().ok_or(Error::ConfigDir)?;
-  let dist_dir = config_dir.join(config.build.dist);
+  let dist_dir = config_dir.join(config.build.dist_dir);
 
   // generate the assets into a perfect hash function
   let assets = generate_asset_map(&dist_dir)?;

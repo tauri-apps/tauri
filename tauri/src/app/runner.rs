@@ -304,7 +304,7 @@ fn build_webview(
   // webview.set_fullscreen(fullscreen);
 
   if has_splashscreen {
-    let path = Path::new(&config.build.dist).join("tauri.js");
+    let path = Path::new(&config.build.dist_dir).join("tauri.js");
     let contents = fs::read_to_string(path)?;
     // inject the tauri.js entry point
     webview.dispatch(move |_webview| _webview.eval(&contents));

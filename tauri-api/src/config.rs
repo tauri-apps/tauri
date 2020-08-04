@@ -371,7 +371,7 @@ pub struct BuildConfig {
   pub dev_path: String,
   /// the dist config.
   #[serde(default = "default_dist_path")]
-  pub dist: String,
+  pub dist_dir: String,
 }
 
 fn default_dev_path() -> String {
@@ -385,7 +385,7 @@ impl Default for BuildConfig {
   fn default() -> Self {
     Self {
       dev_path: default_dev_path(),
-      dist: default_dist_path(),
+      dist_dir: default_dist_path(),
     }
   }
 }
@@ -461,7 +461,7 @@ mod test {
     // create a build config
     let build = BuildConfig {
       dev_path: String::from(""),
-      dist: String::from("../dist"),
+      dist_dir: String::from("../dist"),
     };
 
     // test the configs

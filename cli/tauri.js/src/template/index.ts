@@ -1,12 +1,14 @@
 import { CargoManifest } from './../types/cargo'
 import { existsSync, removeSync, writeFileSync } from 'fs-extra'
 import { join, normalize, resolve } from 'path'
-import { TauriConfig } from 'types'
+import { TauriConfig, TauriBuildConfig } from 'types'
 import { merge } from 'webpack-merge'
 import copyTemplates from '../helpers/copy-templates'
 import logger from '../helpers/logger'
 import defaultConfig from './defaultConfig'
 import chalk from 'chalk'
+import { allRecipes, Recipe } from '../api/recipes'
+import { get } from 'lodash'
 
 const log = logger('app:tauri')
 const warn = logger('app:tauri (template)', chalk.red)
@@ -45,9 +47,28 @@ const injectConfFile = (
       }
       /* eslint-enable security/detect-object-injection */
     })
+
+    // If a recipe is present in the build config, then
+    // we will run the custom config through the recipe's
+    // modification to make sure any needed recipe config is applied.
+    if (customConfig.build !== undefined) {
+      const build: TauriBuildConfig = customConfig.build
+
+      if (build.recipe !== undefined) {
+        const recipeName: string = build.recipe
+
+        const recipe: Recipe | undefined = get(allRecipes, recipeName, undefined)
+
+        if (recipe !== undefined) {
+          customConfig.build = recipe.configUpdate(build)
+        }
+      }
+    }
+
     const finalConf = merge(defaultConfig as any, customConfig as any) as UnknownObject
 
     writeFileSync(path, JSON.stringify(finalConf, undefined, 2))
+
     if (logging) log('Successfully wrote tauri.conf.json')
   }
 }

@@ -2,6 +2,12 @@ const parseArgs = require('minimist')
 const inquirer = require('inquirer')
 const { resolve } = require('path')
 const { merge } = require('lodash')
+const { 
+  recipeShortNames, 
+  recipeDescriptiveNames, 
+  recipeByDescriptiveName, 
+  recipeByShortName 
+} = require('../dist/api/recipes')
 
 /**
  * @type {object}
@@ -13,6 +19,8 @@ const { merge } = require('lodash')
  * @property {boolean} log
  * @property {boolean} d
  * @property {boolean} directory
+ * @property {string} r
+ * @property {string} recipe
  */
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
@@ -24,7 +32,8 @@ const argv = parseArgs(process.argv.slice(2), {
     A: 'app-name',
     W: 'window-title',
     D: 'dist-dir',
-    P: 'dev-path'
+    P: 'dev-path',
+    r: 'recipe'
   },
   boolean: ['h', 'l', 'ci']
 })
@@ -47,6 +56,8 @@ if (argv.help) {
     --window-title, -W   Window title of your Tauri application
     --dist-dir, -D       Web assets location, relative to <project-dir>/src-tauri
     --dev-path, -P       Url of your dev server
+    --recipe, -r         Add UI framework recipe. None by default. 
+                         Supported recipes: [${recipeShortNames.join('|')}]
     `)
   process.exit(0)
 }
@@ -76,23 +87,34 @@ if (argv.ci) {
         when: () => !argv.W
       },
       {
-        type: 'input',
-        name: 'build.distDir',
-        message: 'Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri" folder that will be created?',
-        default: '../dist',
-        when: () => !argv.D
-      },
-      {
-        type: 'input',
-        name: 'build.devPath',
-        message: 'What is the url of your dev server?',
-        default: 'http://localhost:4000',
-        when: () => !argv.P
+        type: 'list',
+        name: 'recipeName',
+        message: 'Would you like to add a UI recipe?',
+        choices: recipeDescriptiveNames,
+        default: 'No recipe',
+        when: () => !argv.r
       }
     ])
-    .then(answers => {
-      runInit(answers)
-    })
+    .then(answers =>
+      inquirer
+        .prompt([
+          {
+            type: 'input',
+            name: 'build.devPath',
+            message: 'What is the url of your dev server?',
+            default: 'http://localhost:4000',
+            when: () => !argv.P && !argv.p && answers.recipe === 'No recipe'
+          },
+          {
+            type: 'input',
+            name: 'build.distDir',
+            message: 'Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri" folder that will be created?',
+            default: '../dist',
+            when: () => !argv.D && answers.recipe === 'No recipe'
+          }
+        ])
+        .then(answers2 => runInit({...answers, ...answers2}))
+    )
     .catch(error => {
       if (error.isTtyError) {
         // Prompt couldn't be rendered in the current environment
@@ -110,9 +132,20 @@ if (argv.ci) {
 async function runInit(config = {}) {
   const {
     appName,
+    recipeName,
     ...configOptions
   } = config
   const init = require('../dist/api/init')
+
+  let recipe;
+  let recipeSelection = 'none'
+  if (recipeName !== undefined) {
+    recipe = recipeByDescriptiveName(recipeName)
+    recipeSelection = recipe.shortName
+  } else if (argv.r) {
+    recipe = recipeByShortName(argv.r)
+    recipeSelection = recipe.shortName
+  }
 
   const directory = argv.d || process.cwd()
   init({
@@ -124,7 +157,8 @@ async function runInit(config = {}) {
     customConfig: merge(configOptions, {
       build: {
         distDir: argv.D,
-        devPath: argv.P
+        devPath: argv.P,
+        recipe: recipeSelection
       },
       tauri: {
         window: {
@@ -133,9 +167,19 @@ async function runInit(config = {}) {
       }
     })
   })
-
+   
   const {
     installDependencies
   } = require('../dist/api/dependency-manager')
   await installDependencies()
+  
+  if (recipe !== undefined) {
+    const {
+      installRecipeDependencies,
+      runRecipePostConfig
+    } = require('../dist/api/recipes/install')
+  
+    await installRecipeDependencies(recipe, directory)
+    await runRecipePostConfig(recipe, directory)
+  }
 }

@@ -50,6 +50,15 @@ function installNpmPackage(packageName: string): void {
   }
 }
 
+function installNpmDevPackage(packageName: string): void {
+  const usesYarn = existsSync(appResolve.app('yarn.lock'))
+  if (usesYarn) {
+    spawnSync('yarn', ['add', packageName, '--dev'], appDir)
+  } else {
+    spawnSync('npm', ['install', packageName, '--save-dev'], appDir)
+  }
+}
+
 function updateNpmPackage(packageName: string): void {
   const usesYarn = existsSync(appResolve.app('yarn.lock'))
   if (usesYarn) {
@@ -77,6 +86,7 @@ export {
   getNpmLatestVersion,
   getNpmPackageVersion,
   installNpmPackage,
+  installNpmDevPackage,
   updateNpmPackage,
   padVersion,
   semverLt

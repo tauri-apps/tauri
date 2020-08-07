@@ -204,15 +204,11 @@ export const TauriConfigSchema = {
         }
       },
       "type": "object"
-    }
-  },
-  "description": "Tauri configuration",
-  "properties": {
-    "build": {
+    },
+    "TauriBuildConfig": {
       "additionalProperties": false,
       "defaultProperties": [
       ],
-      "description": "build/dev configuration",
       "properties": {
         "beforeBuildCommand": {
           "description": "a shell command to run before `tauri build` kicks in",
@@ -230,6 +226,9 @@ export const TauriConfigSchema = {
           "description": "the path to the app's dist dir\nthis path must contain your index.html file",
           "type": "string"
         },
+        "recipe": {
+          "type": "string"
+        },
         "withGlobalTauri": {
           "type": "boolean"
         }
@@ -239,6 +238,13 @@ export const TauriConfigSchema = {
         "distDir"
       ],
       "type": "object"
+    }
+  },
+  "description": "Tauri configuration",
+  "properties": {
+    "build": {
+      "$ref": "#/definitions/TauriBuildConfig",
+      "description": "build/dev configuration"
     },
     "ctx": {
       "additionalProperties": false,

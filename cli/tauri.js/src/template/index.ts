@@ -7,8 +7,7 @@ import copyTemplates from '../helpers/copy-templates'
 import logger from '../helpers/logger'
 import defaultConfig from './defaultConfig'
 import chalk from 'chalk'
-import { allRecipes, Recipe } from '../api/recipes'
-import { get } from 'lodash'
+import { Recipe, recipeByShortName } from '../api/recipes'
 
 const log = logger('app:tauri')
 const warn = logger('app:tauri (template)', chalk.red)
@@ -57,7 +56,7 @@ const injectConfFile = (
       if (build.recipe !== undefined) {
         const recipeName: string = build.recipe
 
-        const recipe: Recipe | undefined = get(allRecipes, recipeName, undefined)
+        const recipe: Recipe | undefined = recipeByShortName(recipeName)
 
         if (recipe !== undefined) {
           customConfig.build = recipe.configUpdate(build)

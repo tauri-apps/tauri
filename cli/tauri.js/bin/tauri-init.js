@@ -103,14 +103,14 @@ if (argv.ci) {
             name: 'build.devPath',
             message: 'What is the url of your dev server?',
             default: 'http://localhost:4000',
-            when: () => !argv.P && !argv.p && answers.recipe === 'No recipe'
+            when: () => !argv.P && !argv.p && answers.recipeName === 'No recipe'
           },
           {
             type: 'input',
             name: 'build.distDir',
             message: 'Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri" folder that will be created?',
             default: '../dist',
-            when: () => !argv.D && answers.recipe === 'No recipe'
+            when: () => !argv.D && answers.recipeName === 'No recipe'
           }
         ])
         .then(answers2 => runInit({...answers, ...answers2}))

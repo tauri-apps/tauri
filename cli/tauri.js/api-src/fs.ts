@@ -45,15 +45,18 @@ export interface FileEntry {
 }
 
 /**
- * reads a file as text
- *
- * @param filePath path to the file
- * @param [options] configuration object
- * @param [options.dir] base directory
- * @return
+ * @name readTextFile
+ * @description Reads a file as text
+ * @param {string} filePath path to the file
+ * @param {FsOptions} [options] configuration object
+ * @param {BaseDirectory} [options.dir] base directory
+ * @return {Promise<string>}
  */
-async function readTextFile(filePath: string, options: FsOptions = {}): Promise<string> {
-  return await promisified({
+async function readTextFile(
+  filePath: string,
+  options: FsOptions = {}
+): Promise<string> {
+  return await promisified<string>({
     cmd: 'readTextFile',
     path: filePath,
     options
@@ -61,15 +64,18 @@ async function readTextFile(filePath: string, options: FsOptions = {}): Promise<
 }
 
 /**
- * reads a file as binary
- *
- * @param filePath path to the file
- * @param {Object} [options] configuration object
+ * @name readBinaryFile
+ * @description Reads a file as binary
+ * @param {string} filePath path to the file
+ * @param {FsOptions} [options] configuration object
  * @param {BaseDirectory} [options.dir] base directory
- * @return {Promise<int[]>}
+ * @return {Promise<number[]>}
  */
-async function readBinaryFile(filePath: string, options: FsOptions = {}): Promise<string> {
-  return await promisified({
+async function readBinaryFile(
+  filePath: string,
+  options: FsOptions = {}
+): Promise<number[]> {
+  return await promisified<number[]>({
     cmd: 'readBinaryFile',
     path: filePath,
     options

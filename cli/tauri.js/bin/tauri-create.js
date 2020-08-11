@@ -22,29 +22,42 @@ const {
  * @property {string} r
  * @property {string} recipe
  */
-const argv = parseArgs(process.argv.slice(2), {
-  alias: {
-    h: 'help',
-    f: 'force',
-    l: 'log',
-    d: 'directory',
-    t: 'tauri-path',
-    A: 'app-name',
-    W: 'window-title',
-    D: 'dist-dir',
-    P: 'dev-path',
-    r: 'recipe'
-  },
-  boolean: ['h', 'l', 'ci']
-})
+function main(cliArgs) {
+  const argv = parseArgs(cliArgs, {
+    alias: {
+      h: 'help',
+      f: 'force',
+      l: 'log',
+      d: 'directory',
+      t: 'tauri-path',
+      A: 'app-name',
+      W: 'window-title',
+      D: 'dist-dir',
+      P: 'dev-path',
+      r: 'recipe'
+    },
+    boolean: ['h', 'l', 'ci']
+  })
 
-if (argv.help) {
+  if (argv.help) {
+    printUsage()
+    return 0
+  }
+
+  if (argv.ci) {
+    runInit(argv)
+  } else {
+    getOptionsInteractive(argv).then(responses => runInit(argv, responses))
+  }
+}
+
+function printUsage() {
   console.log(`
   Description
     Inits the Tauri template. If Tauri cannot find the tauri.conf.json
     it will create one.
   Usage
-    $ tauri init
+    $ tauri create
   Options
     --help, -h           Displays this message
     --ci                 Skip prompts
@@ -59,26 +72,23 @@ if (argv.help) {
     --recipe, -r         Add UI framework recipe. None by default. 
                          Supported recipes: [${recipeShortNames.join('|')}]
     `)
-  process.exit(0)
 }
 
-let appName = argv.A
-if (!appName) {
-  try {
-    const packageJson = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json')).toString())
-    appName = packageJson.displayName || packageJson.name
-  } catch {}
-}
+const getOptionsInteractive = (argv) => {
+  let defaultAppName = argv.A
+  if (!defaultAppName) {
+    try {
+      const packageJson = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json')).toString())
+      defaultAppName = packageJson.displayName || packageJson.name
+    } catch {}
+  }
 
-if (argv.ci) {
-  runInit()
-} else {
-  inquirer
+  return inquirer
     .prompt([{
         type: 'input',
         name: 'appName',
         message: 'What is your app name?',
-        default: appName
+        default: defaultAppName
       }, {
         type: 'input',
         name: 'tauri.window.title',
@@ -103,17 +113,17 @@ if (argv.ci) {
             name: 'build.devPath',
             message: 'What is the url of your dev server?',
             default: 'http://localhost:4000',
-            when: () => !argv.P && !argv.p && answers.recipeName === 'No recipe'
+            when: () => !argv.P && !argv.p && answers.recipeName === 'No recipe' || argv.r === 'none'
           },
           {
             type: 'input',
             name: 'build.distDir',
             message: 'Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri" folder that will be created?',
             default: '../dist',
-            when: () => !argv.D && answers.recipeName === 'No recipe'
+            when: () => !argv.D && answers.recipeName === 'No recipe' || argv.r === 'none'
           }
         ])
-        .then(answers2 => runInit({...answers, ...answers2}))
+        .then(answers2 => ({...answers, ...answers2}))
     )
     .catch(error => {
       if (error.isTtyError) {
@@ -129,7 +139,8 @@ if (argv.ci) {
     })
 }
 
-async function runInit(config = {}) {
+
+async function runInit(argv, config = {}) {
   const {
     appName,
     recipeName,
@@ -183,3 +194,5 @@ async function runInit(config = {}) {
     await runRecipePostConfig(recipe, directory)
   }
 }
+
+module.exports = main

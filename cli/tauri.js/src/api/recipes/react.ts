@@ -9,9 +9,7 @@ const log = logger('react-recipe')
 
 const completeLogMsg = `
   Your installation completed.
-  Run these commands to start:
-    For development server (provides UI): cd ${uiAppDir}; yarn start
-    For tauri (runs desktop app) in this directory: yarn tauri dev  
+  To start, run yarn tauri dev
 `
 
 const reactjs: Recipe = {
@@ -20,7 +18,9 @@ const reactjs: Recipe = {
   configUpdate: (cfg: TauriBuildConfig): TauriBuildConfig => ({
     ...cfg,
     distDir: `../${uiAppDir}/build`,
-    devPath: 'http://localhost:3000'
+    devPath: 'http://localhost:3000',
+    beforeDevCommand: `yarn --cwd ${uiAppDir} start`,
+    beforeBuildCommand: `yarn --cwd ${uiAppDir} build`
   }),
   extraNpmDevDependencies: ['create-react-app'],
   extraNpmDependencies: ['react'],

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const cmds = ['create', 'dev', 'build', 'help', 'icon', 'info', 'deps']
+const cmds = ['create', 'init', 'dev', 'build', 'help', 'icon', 'info', 'deps']
 
 const cmd = process.argv[2]
 /**
@@ -40,7 +40,7 @@ const tauri = function (command) {
     }
     console.log(`[tauri]: running ${command}`)
     // eslint-disable-next-line security/detect-non-literal-require
-    if ('create' === command) {
+    if (['create', 'init'].includes(command)) {
       require(`./tauri-${command}`)(process.argv.slice(2))
     } else {
       require(`./tauri-${command}`)

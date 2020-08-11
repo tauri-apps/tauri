@@ -1,6 +1,5 @@
 const parseArgs = require('minimist')
 const tauriCreate = require('./tauri-create')
-const { recipeShortNames } = require('../dist/api/recipes')
 
 /**
  * init is an alias for create -r none, same as 

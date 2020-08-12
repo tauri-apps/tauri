@@ -22,6 +22,7 @@
     "lint": "eslint --ext ts ./src/**/*.ts ./api-src/**/*.ts",
     "lint-fix": "eslint --fix --ext ts ./src/**/*.ts",
     "lint:lockfile": "lockfile-lint --path yarn.lock --type yarn --validate-https --allowed-hosts npm yarn",
+    "format": "prettier --write --end-of-line=auto \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
     "build:tauri[rust]": "cd ../tauri && TAURI_DIST_DIR=../../test/fixture/dist TAURI_DIR=../test/fixture cargo publish --dry-run --allow-dirty"
   },
   "repository": {
@@ -115,6 +116,7 @@
     "jest-mock-process": "1.4.0",
     "lint-staged": "10.2.11",
     "lockfile-lint": "4.3.7",
+    "prettier": "2.0.5",
     "promise": "8.1.0",
     "raw-loader": "4.0.1",
     "rimraf": "3.0.2",
@@ -139,6 +141,7 @@
     }
   },
   "lint-staged": [
-    "eslint --fix"
+    "eslint --fix",
+    "prettier --write --end-of-line=auto \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore"
   ]
 }

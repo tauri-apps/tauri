@@ -140,8 +140,8 @@
       "pre-commit": "lint-staged"
     }
   },
-  "lint-staged": [
-    "eslint --fix",
-    "prettier --write --end-of-line=auto \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore"
-  ]
+  "lint-staged": {
+    "*.{ts,tsx}": "eslint --fix",
+    "*.{js,jsx,ts,tsx,md,html,css,json}": "prettier --write --end-of-line=auto --ignore-path .gitignore"
+  }
 }

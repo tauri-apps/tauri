@@ -226,9 +226,6 @@ export const TauriConfigSchema = {
           "description": "the path to the app's dist dir\nthis path must contain your index.html file",
           "type": "string"
         },
-        "recipe": {
-          "type": "string"
-        },
         "withGlobalTauri": {
           "type": "boolean"
         }

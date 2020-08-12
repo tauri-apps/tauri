@@ -150,15 +150,25 @@ async function runInit(argv, config = {}) {
 
   let recipe;
   let recipeSelection = 'none'
+
   if (recipeName !== undefined) {
     recipe = recipeByDescriptiveName(recipeName)
-    recipeSelection = recipe.shortName
   } else if (argv.r) {
     recipe = recipeByShortName(argv.r)
+  }
+
+  let buildConfig = {
+    distDir: argv.D,
+    devPath: argv.P
+  }
+
+  if (recipe !== undefined) {
     recipeSelection = recipe.shortName
+    buildConfig = recipe.configUpdate(buildConfig)
   }
 
   const directory = argv.d || process.cwd()
+  
   init({
     directory,
     force: argv.f || null,
@@ -166,11 +176,7 @@ async function runInit(argv, config = {}) {
     tauriPath: argv.t || null,
     appName: appName || argv.A || null,
     customConfig: merge(configOptions, {
-      build: {
-        distDir: argv.D,
-        devPath: argv.P,
-        recipe: recipeSelection
-      },
+      build: buildConfig,
       tauri: {
         window: {
           title: argv.W

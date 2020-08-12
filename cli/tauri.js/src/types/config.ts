@@ -174,7 +174,6 @@ export interface TauriBuildConfig {
    */
   beforeBuildCommand?: string
   withGlobalTauri?: boolean
-  recipe?: string
 }
 
 /**

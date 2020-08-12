@@ -1,13 +1,11 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "defaultProperties": [
-  ],
+  "defaultProperties": [],
   "definitions": {
     "CliArg": {
       "additionalProperties": false,
-      "defaultProperties": [
-      ],
+      "defaultProperties": [],
       "description": "A CLI argument definition",
       "properties": {
         "conflictsWith": {
@@ -149,15 +147,12 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "name"
-      ],
+      "required": ["name"],
       "type": "object"
     },
     "CliConfig": {
       "additionalProperties": false,
-      "defaultProperties": [
-      ],
+      "defaultProperties": [],
       "description": "describes a CLI configuration",
       "properties": {
         "afterHelp": {
@@ -187,8 +182,7 @@
           "additionalProperties": {
             "$ref": "#/definitions/CliConfig"
           },
-          "defaultProperties": [
-          ],
+          "defaultProperties": [],
           "description": "list of subcommands of this command\n\nsubcommands are effectively sub-apps, because they can contain their own arguments, subcommands, usage, etc.\nthey also function just like the app command, in that they get their own auto generated help and usage",
           "type": "object"
         }
@@ -200,8 +194,7 @@
   "properties": {
     "build": {
       "additionalProperties": false,
-      "defaultProperties": [
-      ],
+      "defaultProperties": [],
       "description": "build/dev configuration",
       "properties": {
         "beforeBuildCommand": {
@@ -224,16 +217,12 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "devPath",
-        "distDir"
-      ],
+      "required": ["devPath", "distDir"],
       "type": "object"
     },
     "ctx": {
       "additionalProperties": false,
-      "defaultProperties": [
-      ],
+      "defaultProperties": [],
       "description": "the context of the current `tauri dev` or `tauri build`",
       "properties": {
         "debug": {
@@ -261,42 +250,34 @@
     },
     "plugins": {
       "additionalProperties": {
-        "additionalProperties": {
-        },
-        "defaultProperties": [
-        ],
+        "additionalProperties": {},
+        "defaultProperties": [],
         "type": "object"
       },
-      "defaultProperties": [
-      ],
+      "defaultProperties": [],
       "type": "object"
     },
     "tauri": {
       "additionalProperties": false,
-      "defaultProperties": [
-      ],
+      "defaultProperties": [],
       "description": "tauri root configuration object",
       "properties": {
         "allowlist": {
           "additionalProperties": {
             "type": "boolean"
           },
-          "defaultProperties": [
-          ],
+          "defaultProperties": [],
           "properties": {
             "all": {
               "type": "boolean"
             }
           },
-          "required": [
-            "all"
-          ],
+          "required": ["all"],
           "type": "object"
         },
         "bundle": {
           "additionalProperties": false,
-          "defaultProperties": [
-          ],
+          "defaultProperties": [],
           "description": "tauri bundler configuration",
           "properties": {
             "active": {
@@ -311,8 +292,7 @@
             },
             "deb": {
               "additionalProperties": false,
-              "defaultProperties": [
-              ],
+              "defaultProperties": [],
               "properties": {
                 "depends": {
                   "items": {
@@ -351,8 +331,7 @@
             },
             "osx": {
               "additionalProperties": false,
-              "defaultProperties": [
-              ],
+              "defaultProperties": [],
               "properties": {
                 "frameworks": {
                   "items": {
@@ -397,10 +376,7 @@
               "description": "the bundle targets, currently supports [\"deb\", \"osx\", \"msi\", \"appimage\", \"dmg\"] or \"all\""
             }
           },
-          "required": [
-            "icon",
-            "identifier"
-          ],
+          "required": ["icon", "identifier"],
           "type": "object"
         },
         "cli": {
@@ -409,8 +385,7 @@
         },
         "embeddedServer": {
           "additionalProperties": false,
-          "defaultProperties": [
-          ],
+          "defaultProperties": [],
           "description": "the embedded server configuration",
           "properties": {
             "active": {
@@ -420,9 +395,7 @@
             "port": {
               "anyOf": [
                 {
-                  "enum": [
-                    "random"
-                  ],
+                  "enum": ["random"],
                   "type": "string"
                 },
                 {
@@ -436,8 +409,7 @@
         },
         "inliner": {
           "additionalProperties": false,
-          "defaultProperties": [
-          ],
+          "defaultProperties": [],
           "properties": {
             "active": {
               "type": "boolean"
@@ -447,8 +419,7 @@
         },
         "security": {
           "additionalProperties": false,
-          "defaultProperties": [
-          ],
+          "defaultProperties": [],
           "properties": {
             "csp": {
               "type": "string"
@@ -458,8 +429,7 @@
         },
         "window": {
           "additionalProperties": false,
-          "defaultProperties": [
-          ],
+          "defaultProperties": [],
           "properties": {
             "fullscreen": {
               "type": "boolean"
@@ -477,9 +447,7 @@
               "type": "number"
             }
           },
-          "required": [
-            "title"
-          ],
+          "required": ["title"],
           "type": "object"
         }
       },
@@ -498,10 +466,6 @@
       "type": "boolean"
     }
   },
-  "required": [
-    "build",
-    "ctx",
-    "tauri"
-  ],
+  "required": ["build", "ctx", "tauri"],
   "type": "object"
 }

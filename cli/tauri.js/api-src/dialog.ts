@@ -1,13 +1,16 @@
-import { promisified } from './tauri'
+import { promisified } from "./tauri";
 
 export interface OpenDialogOptions {
-  filter?: string
-  defaultPath?: string
-  multiple?: boolean
-  directory?: boolean
+  filter?: string;
+  defaultPath?: string;
+  multiple?: boolean;
+  directory?: boolean;
 }
 
-export type SaveDialogOptions = Pick<OpenDialogOptions, 'filter' | 'defaultPath'>
+export type SaveDialogOptions = Pick<
+  OpenDialogOptions,
+  "filter" | "defaultPath"
+>;
 
 /**
  * @name openDialog
@@ -22,14 +25,14 @@ export type SaveDialogOptions = Pick<OpenDialogOptions, 'filter' | 'defaultPath'
 async function open(
   options: OpenDialogOptions = {}
 ): Promise<string | string[]> {
-  if (typeof options === 'object') {
-    Object.freeze(options)
+  if (typeof options === "object") {
+    Object.freeze(options);
   }
 
   return await promisified({
-    cmd: 'openDialog',
-    options
-  })
+    cmd: "openDialog",
+    options,
+  });
 }
 
 /**
@@ -41,17 +44,14 @@ async function open(
  * @returns {Promise<string>} Promise resolving to the select path
  */
 async function save(options: SaveDialogOptions = {}): Promise<string> {
-  if (typeof options === 'object') {
-    Object.freeze(options)
+  if (typeof options === "object") {
+    Object.freeze(options);
   }
 
   return await promisified({
-    cmd: 'saveDialog',
-    options
-  })
+    cmd: "saveDialog",
+    options,
+  });
 }
 
-export {
-  open,
-  save
-}
+export { open, save };

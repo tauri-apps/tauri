@@ -1,3 +1,4 @@
 module.exports = {
-  process: content => `module.exports = {default: ${JSON.stringify(content)}}`
-}
+  process: (content) =>
+    `module.exports = {default: ${JSON.stringify(content)}}`,
+};

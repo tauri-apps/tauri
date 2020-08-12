@@ -1,14 +1,14 @@
-const parseArgs = require('minimist')
+const parseArgs = require("minimist");
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
-    h: 'help',
-    d: 'debug',
-    t: 'target',
-    v: 'verbose'
+    h: "help",
+    d: "debug",
+    t: "target",
+    v: "verbose",
   },
-  boolean: ['h', 'd', 'v']
-})
+  boolean: ["h", "d", "v"],
+});
 
 if (argv.help) {
   console.log(`
@@ -21,20 +21,20 @@ if (argv.help) {
     --debug, -d    Builds with the debug flag
     --target, -t   Comma-separated list of target triples to build against
     --verbose, -v  Enable verbose logging
-  `)
-  process.exit(0)
+  `);
+  process.exit(0);
 }
 
-async function run () {
-  const build = require('../dist/api/build')
+async function run() {
+  const build = require("../dist/api/build");
 
   await build({
     ctx: {
       debug: argv.debug,
-      target: argv.target
+      target: argv.target,
     },
-    verbose: argv.verbose
-  }).promise
+    verbose: argv.verbose,
+  }).promise;
 }
 
-run()
+run();

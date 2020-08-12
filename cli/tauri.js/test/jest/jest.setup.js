@@ -1,9 +1,9 @@
-jest.setTimeout(50000)
+jest.setTimeout(50000);
 
-global.Promise = require('promise')
+global.Promise = require("promise");
 
 setTimeout(() => {
   // do nothing
-}, 1)
+}, 1);
 
-require('dotenv').config({ path: '.env.jest' })
+require("dotenv").config({ path: ".env.jest" });

@@ -1,17 +1,17 @@
-import { sync as spawn } from 'cross-spawn'
+import { sync as spawn } from "cross-spawn";
 
 export default function getVersion(
   command: string,
   args: string[] = []
 ): string | null {
   try {
-    const child = spawn(command, [...args, '--version'])
+    const child = spawn(command, [...args, "--version"]);
     if (child.status === 0) {
-      const output = String(child.output[1])
-      return output.replace(/\n/g, '')
+      const output = String(child.output[1]);
+      return output.replace(/\n/g, "");
     }
-    return null
+    return null;
   } catch (err) {
-    return null
+    return null;
   }
 }

@@ -1,4 +1,4 @@
-import { promisified } from './tauri'
+import { promisified } from "./tauri";
 
 export interface ArgMatch {
   /**
@@ -6,21 +6,21 @@ export interface ArgMatch {
    * boolean if flag
    * string[] or null if takes multiple values
    */
-  value: string | boolean | string[] | null
+  value: string | boolean | string[] | null;
   /**
    * number of occurrences
    */
-  occurrences: number
+  occurrences: number;
 }
 
 export interface SubcommandMatch {
-  name: string
-  matches: CliMatches
+  name: string;
+  matches: CliMatches;
 }
 
 export interface CliMatches {
-  args: { [name: string]: ArgMatch }
-  subcommand: SubcommandMatch | null
+  args: { [name: string]: ArgMatch };
+  subcommand: SubcommandMatch | null;
 }
 
 /**
@@ -28,10 +28,8 @@ export interface CliMatches {
  */
 async function getMatches(): Promise<CliMatches> {
   return await promisified<CliMatches>({
-    cmd: 'cliMatches'
-  })
+    cmd: "cliMatches",
+  });
 }
 
-export {
-  getMatches
-}
+export { getMatches };

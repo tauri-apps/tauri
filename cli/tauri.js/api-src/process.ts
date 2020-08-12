@@ -1,4 +1,4 @@
-import { promisified } from './tauri'
+import { promisified } from "./tauri";
 
 /**
  * spawns a process
@@ -7,18 +7,19 @@ import { promisified } from './tauri'
  * @param [args] command args
  * @return promise resolving to the stdout text
  */
-async function execute(command: string, args?: string | string[]): Promise<string> {
-  if (typeof args === 'object') {
-    Object.freeze(args)
+async function execute(
+  command: string,
+  args?: string | string[]
+): Promise<string> {
+  if (typeof args === "object") {
+    Object.freeze(args);
   }
 
   return await promisified({
-    cmd: 'execute',
+    cmd: "execute",
     command,
-    args: typeof args === 'string' ? [args] : args
-  })
+    args: typeof args === "string" ? [args] : args,
+  });
 }
 
-export {
-  execute
-}
+export { execute };

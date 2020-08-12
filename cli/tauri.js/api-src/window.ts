@@ -1,4 +1,4 @@
-import { invoke } from './tauri'
+import { invoke } from "./tauri";
 
 /**
  * sets the window title
@@ -7,9 +7,9 @@ import { invoke } from './tauri'
  */
 function setTitle(title: string): void {
   invoke({
-    cmd: 'setTitle',
-    title
-  })
+    cmd: "setTitle",
+    title,
+  });
 }
 
 /**
@@ -19,12 +19,9 @@ function setTitle(title: string): void {
  */
 function open(url: string): void {
   invoke({
-    cmd: 'open',
-    uri: url
-  })
+    cmd: "open",
+    uri: url,
+  });
 }
 
-export {
-  setTitle,
-  open
-}
+export { setTitle, open };

@@ -1,6 +1,6 @@
 export enum ManagementType {
   Install,
-  Update
+  Update,
 }
 
-export type Result = Map<ManagementType, string[]>
+export type Result = Map<ManagementType, string[]>;

@@ -7,7 +7,7 @@ module.exports = {
   },
 
   parser: "@typescript-eslint/parser",
-  //asdsa
+
   extends: [
     "standard-with-typescript",
     "plugin:@typescript-eslint/recommended-requiring-type-checking",

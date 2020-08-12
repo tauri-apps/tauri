@@ -1,5 +1,5 @@
-const parseArgs = require('minimist')
-const { tauricon } = require('../dist/api/tauricon')
+const parseArgs = require("minimist");
+const { tauricon } = require("../dist/api/tauricon");
 
 /**
  * @type {object}
@@ -18,14 +18,14 @@ const { tauricon } = require('../dist/api/tauricon')
  */
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
-    h: 'help',
-    l: 'log',
-    c: 'config',
-    i: 'icon',
-    t: 'target'
+    h: "help",
+    l: "log",
+    c: "config",
+    i: "icon",
+    t: "target",
   },
-  boolean: ['h', 'l']
-})
+  boolean: ["h", "l"],
+});
 
 if (argv.help) {
   console.log(`
@@ -41,18 +41,17 @@ if (argv.help) {
     --icon, i           Source icon (png, 1240x1240 with transparency)
     --target, t         Target folder (default: 'src-tauri/icons')
     --compression, c    Compression type [pngquant|optipng|zopfli]
-    `)
-  process.exit(0)
+    `);
+  process.exit(0);
 }
 
-tauricon.make(
-  argv.i,
-  argv.t,
-  argv.c || 'optipng'
-).then(() => {
-  // TODO: use logger module for prettier output
-  console.log('app:tauri (tauricon) Completed')
-}).catch(e => {
-  // TODO: use logger module for prettier output
-  console.error('app:tauri (icon)', e)
-})
+tauricon
+  .make(argv.i, argv.t, argv.c || "optipng")
+  .then(() => {
+    // TODO: use logger module for prettier output
+    console.log("app:tauri (tauricon) Completed");
+  })
+  .catch((e) => {
+    // TODO: use logger module for prettier output
+    console.error("app:tauri (icon)", e);
+  });

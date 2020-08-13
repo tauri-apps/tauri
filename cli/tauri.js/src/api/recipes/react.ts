@@ -30,7 +30,7 @@ const reactjs: Recipe = {
     ...cfg,
     distDir: `../${uiAppDir}/build`,
     devPath: 'http://localhost:3000',
-    beforeDevCommand: `BROWSER=none yarn --cwd ${uiAppDir} start`,
+    beforeDevCommand: `yarn --cwd ${uiAppDir} start`,
     beforeBuildCommand: `yarn --cwd ${uiAppDir} build`
   }),
   extraNpmDevDependencies: ['create-react-app'],

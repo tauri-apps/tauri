@@ -355,9 +355,9 @@ class Runner {
           interceptor(dom)
         }
 
-        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
         if (
           !(
+            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
             (cfg.ctx.dev && cfg.build.devPath.startsWith('http')) ||
             cfg.tauri.embeddedServer.active
           )
@@ -427,8 +427,8 @@ class Runner {
             }
           }
 
-      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
       if (
+        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
         (!cfg.ctx.dev && cfg.tauri.embeddedServer.active) ||
         !inlinerEnabled
       ) {

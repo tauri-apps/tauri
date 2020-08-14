@@ -14,13 +14,13 @@ function uid(): string {
   return (
     s4() +
     s4() +
-    "-" +
+    '-' +
     s4() +
-    "-" +
+    '-' +
     s4() +
-    "-" +
+    '-' +
     s4() +
-    "-" +
+    '-' +
     s4() +
     s4() +
     s4()
@@ -50,7 +50,7 @@ function transformCallback(
 
       return callback?.(result);
     },
-    writable: false,
+    writable: false
   });
 
   return identifier;
@@ -77,7 +77,7 @@ async function promisified<T>(args: any): Promise<T> {
     invoke({
       callback,
       error,
-      ...args,
+      ...args
     });
   });
 }

@@ -1,9 +1,9 @@
-import crossSpawn from "cross-spawn";
-import logger from "./logger";
-import chalk from "chalk";
+import crossSpawn from 'cross-spawn';
+import logger from './logger';
+import chalk from 'chalk';
 
-const log = logger("app:spawn");
-const warn = logger("app:spawn", chalk.red);
+const log = logger('app:spawn');
+const warn = logger('app:spawn', chalk.red);
 
 /*
   Returns pid, takes onClose
@@ -14,17 +14,17 @@ export const spawn = (
   cwd: string,
   onClose?: (code: number, pid: number) => void
 ): number => {
-  log(`Running "${cmd} ${params.join(" ")}"`);
+  log(`Running "${cmd} ${params.join(' ')}"`);
   log();
 
   // TODO: move to execa?
   const runner = crossSpawn(cmd, params, {
-    stdio: "inherit",
+    stdio: 'inherit',
     cwd,
-    env: process.env,
+    env: process.env
   });
 
-  runner.on("close", (code) => {
+  runner.on('close', (code) => {
     log();
     if (code) {
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -47,12 +47,12 @@ export const spawnSync = (
   cwd: string,
   onFail?: () => void
 ): void => {
-  log(`[sync] Running "${cmd} ${params.join(" ")}"`);
+  log(`[sync] Running "${cmd} ${params.join(' ')}"`);
   log();
 
   const runner = crossSpawn.sync(cmd, params, {
-    stdio: "inherit",
-    cwd,
+    stdio: 'inherit',
+    cwd
   });
 
   // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing

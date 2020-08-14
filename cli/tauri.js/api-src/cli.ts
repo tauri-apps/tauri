@@ -1,4 +1,4 @@
-import { promisified } from "./tauri";
+import { promisified } from './tauri';
 
 export interface ArgMatch {
   /**
@@ -28,7 +28,7 @@ export interface CliMatches {
  */
 async function getMatches(): Promise<CliMatches> {
   return await promisified<CliMatches>({
-    cmd: "cliMatches",
+    cmd: 'cliMatches'
   });
 }
 

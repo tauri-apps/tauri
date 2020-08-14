@@ -1,8 +1,8 @@
-const { exec } = require("child_process");
-const { readFileSync, writeFileSync } = require("fs");
-const { resolve } = require("path");
+const { exec } = require('child_process');
+const { readFileSync, writeFileSync } = require('fs');
+const { resolve } = require('path');
 
-const sourcePath = resolve(__dirname, "../src/types/config.ts");
+const sourcePath = resolve(__dirname, '../src/types/config.ts');
 
 exec(
   `typescript-json-validator --noExtraProps ${sourcePath} TauriConfig`,
@@ -13,7 +13,7 @@ exec(
     } else {
       const configValidatorPath = resolve(
         __dirname,
-        "../src/types/config.validator.ts"
+        '../src/types/config.validator.ts'
       );
       const configValidator = readFileSync(configValidatorPath).toString();
       writeFileSync(

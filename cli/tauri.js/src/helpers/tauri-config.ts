@@ -1,17 +1,17 @@
-import { existsSync, readFileSync } from "fs-extra";
-import { TauriConfig } from "types";
-import { merge } from "webpack-merge";
-import logger from "../helpers/logger";
-import * as appPaths from "./app-paths";
-import nonWebpackRequire from "../helpers/non-webpack-require";
-import chalk from "chalk";
-import { isTauriConfig, ajv } from "../types/config.validator";
+import { existsSync, readFileSync } from 'fs-extra';
+import { TauriConfig } from 'types';
+import { merge } from 'webpack-merge';
+import logger from '../helpers/logger';
+import * as appPaths from './app-paths';
+import nonWebpackRequire from '../helpers/non-webpack-require';
+import chalk from 'chalk';
+import { isTauriConfig, ajv } from '../types/config.validator';
 
-const error = logger("ERROR:", chalk.red);
+const error = logger('ERROR:', chalk.red);
 
 const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
-  const pkgPath = appPaths.resolve.app("package.json");
-  const tauriConfPath = appPaths.resolve.tauri("tauri.conf.json");
+  const pkgPath = appPaths.resolve.app('package.json');
+  const tauriConfPath = appPaths.resolve.tauri('tauri.conf.json');
   if (!existsSync(tauriConfPath)) {
     error(
       "Could not find a tauri config (tauri.conf.json) in your app's directory."
@@ -31,7 +31,7 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
       ctx: {},
       tauri: {
         embeddedServer: {
-          active: true,
+          active: true
         },
         bundle: {
           active: true,
@@ -39,26 +39,26 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
           resources: [],
           externalBin: [],
           deb: {
-            depends: [],
+            depends: []
           },
           osx: {
-            frameworks: [],
-          },
+            frameworks: []
+          }
         },
         allowlist: {
-          all: false,
+          all: false
         },
         window: {
-          title: pkg?.productName ?? "Tauri App",
+          title: pkg?.productName ?? 'Tauri App'
         },
         security: {
           csp:
-            "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'",
+            "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
         },
         inliner: {
-          active: true,
-        },
-      },
+          active: true
+        }
+      }
     } as any,
     tauriConf as any,
     cfg as any
@@ -68,21 +68,21 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
     const messages = ajv
       .errorsText(
         isTauriConfig.errors
-          ?.filter((e) => e.keyword !== "if")
+          ?.filter((e) => e.keyword !== 'if')
           .map((e) => {
-            e.dataPath = e.dataPath.replace(/\./g, " > ");
+            e.dataPath = e.dataPath.replace(/\./g, ' > ');
             if (
-              e.keyword === "additionalProperties" &&
-              typeof e.message === "string" &&
-              "additionalProperty" in e.params
+              e.keyword === 'additionalProperties' &&
+              typeof e.message === 'string' &&
+              'additionalProperty' in e.params
             ) {
               e.message = `has unknown property ${e.params.additionalProperty}`;
             }
             return e;
           }),
-        { dataVar: "tauri.conf.json", separator: "\n" }
+        { dataVar: 'tauri.conf.json', separator: '\n' }
       )
-      .split("\n");
+      .split('\n');
 
     for (const message of messages) {
       error(message);
@@ -90,7 +90,7 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
     process.exit(1);
   }
 
-  const runningDevServer = config.build.devPath?.startsWith("http");
+  const runningDevServer = config.build.devPath?.startsWith('http');
   if (!runningDevServer) {
     config.build.devPath = appPaths.resolve.tauri(config.build.devPath);
     process.env.TAURI_DIST_DIR = config.build.devPath;
@@ -103,10 +103,10 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
   // OSX bundle config
   if (config.tauri.bundle.osx) {
     const license = config.tauri.bundle.osx.license;
-    if (typeof license === "string") {
+    if (typeof license === 'string') {
       config.tauri.bundle.osx.license = appPaths.resolve.tauri(license);
     } else if (license !== null) {
-      const licensePath = appPaths.resolve.app("LICENSE");
+      const licensePath = appPaths.resolve.app('LICENSE');
       if (existsSync(licensePath)) {
         config.tauri.bundle.osx.license = licensePath;
       }
@@ -115,9 +115,9 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
 
   // bundle targets
   if (Array.isArray(config.tauri.bundle.targets)) {
-    if (process.platform !== "win32") {
+    if (process.platform !== 'win32') {
       config.tauri.bundle.targets = config.tauri.bundle.targets.filter(
-        (t) => t !== "msi"
+        (t) => t !== 'msi'
       );
     }
   }

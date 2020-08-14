@@ -1,13 +1,13 @@
-const parseArgs = require("minimist");
+const parseArgs = require('minimist');
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
-    h: "help",
-    d: "debug",
-    t: "target",
-    v: "verbose",
+    h: 'help',
+    d: 'debug',
+    t: 'target',
+    v: 'verbose'
   },
-  boolean: ["h", "d", "v"],
+  boolean: ['h', 'd', 'v']
 });
 
 if (argv.help) {
@@ -26,14 +26,14 @@ if (argv.help) {
 }
 
 async function run() {
-  const build = require("../dist/api/build");
+  const build = require('../dist/api/build');
 
   await build({
     ctx: {
       debug: argv.debug,
-      target: argv.target,
+      target: argv.target
     },
-    verbose: argv.verbose,
+    verbose: argv.verbose
   }).promise;
 }
 

@@ -1,4 +1,4 @@
-const info = require("../dist/api/info");
+const info = require('../dist/api/info');
 
 async function run() {
   await info();

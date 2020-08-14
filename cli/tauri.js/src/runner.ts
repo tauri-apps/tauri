@@ -1,28 +1,28 @@
-import Inliner from "@tauri-apps/tauri-inliner";
-import toml, { JsonMap } from "@tauri-apps/toml";
-import chokidar, { FSWatcher } from "chokidar";
-import { existsSync, readFileSync, writeFileSync } from "fs-extra";
-import { JSDOM } from "jsdom";
-import { debounce, template } from "lodash";
-import path from "path";
-import http from "http";
-import * as net from "net";
-import os from "os";
-import { findClosestOpenPort } from "./helpers/net";
-import { tauriDir, appDir } from "./helpers/app-paths";
-import logger from "./helpers/logger";
-import onShutdown from "./helpers/on-shutdown";
-import { spawn, spawnSync } from "./helpers/spawn";
-import { exec, ChildProcess } from "child_process";
-import { TauriConfig } from "./types/config";
-import { CargoManifest } from "./types/cargo";
-import getTauriConfig from "./helpers/tauri-config";
-import httpProxy from "http-proxy";
-import isReachable from "is-reachable";
-import chalk from "chalk";
+import Inliner from '@tauri-apps/tauri-inliner';
+import toml, { JsonMap } from '@tauri-apps/toml';
+import chokidar, { FSWatcher } from 'chokidar';
+import { existsSync, readFileSync, writeFileSync } from 'fs-extra';
+import { JSDOM } from 'jsdom';
+import { debounce, template } from 'lodash';
+import path from 'path';
+import http from 'http';
+import * as net from 'net';
+import os from 'os';
+import { findClosestOpenPort } from './helpers/net';
+import { tauriDir, appDir } from './helpers/app-paths';
+import logger from './helpers/logger';
+import onShutdown from './helpers/on-shutdown';
+import { spawn, spawnSync } from './helpers/spawn';
+import { exec, ChildProcess } from 'child_process';
+import { TauriConfig } from './types/config';
+import { CargoManifest } from './types/cargo';
+import getTauriConfig from './helpers/tauri-config';
+import httpProxy from 'http-proxy';
+import isReachable from 'is-reachable';
+import chalk from 'chalk';
 
-const log = logger("app:tauri");
-const warn = logger("app:tauri (runner)", chalk.red);
+const log = logger('app:tauri');
+const warn = logger('app:tauri (runner)', chalk.red);
 
 const WATCHER_INTERVAL = 1000;
 
@@ -55,12 +55,12 @@ class Runner {
     }
 
     if (!this.beforeDevProcess && cfg.build.beforeDevCommand) {
-      log("Running `" + cfg.build.beforeDevCommand + "`");
+      log('Running `' + cfg.build.beforeDevCommand + '`');
       const ls = exec(
         cfg.build.beforeDevCommand,
         {
           cwd: appDir,
-          env: process.env,
+          env: process.env
         },
         (error) => {
           if (error) {
@@ -76,7 +76,7 @@ class Runner {
       let devTryCount = 0;
       const devTryTimeout = 3000;
       while (!(await isReachable(devPath))) {
-        log("Waiting for your dev server to start...");
+        log('Waiting for your dev server to start...');
         await new Promise((resolve) => setTimeout(resolve, devTryTimeout));
         devTryCount++;
         if (devTryCount === 10) {
@@ -95,7 +95,7 @@ class Runner {
     this.__allowlistApi(cfg, cargoManifest);
     this.__rewriteManifest((cargoManifest as unknown) as toml.JsonMap);
 
-    const runningDevServer = devPath.startsWith("http");
+    const runningDevServer = devPath.startsWith('http');
 
     let inlinedAssets: string[] = [];
 
@@ -107,38 +107,38 @@ class Runner {
         ws: true,
         target: {
           host: devUrl.hostname,
-          port: devUrl.port,
+          port: devUrl.port
         },
-        selfHandleResponse: true,
+        selfHandleResponse: true
       });
 
       proxy.on(
-        "proxyRes",
+        'proxyRes',
         (
           proxyRes: http.IncomingMessage,
           req: http.IncomingMessage,
           res: http.ServerResponse
         ) => {
-          if (req.url === "/") {
+          if (req.url === '/') {
             const body: Uint8Array[] = [];
-            proxyRes.on("data", (chunk: Uint8Array) => {
+            proxyRes.on('data', (chunk: Uint8Array) => {
               body.push(chunk);
             });
-            proxyRes.on("end", () => {
-              const bodyStr = body.join("");
+            proxyRes.on('end', () => {
+              const bodyStr = body.join('');
               const indexDir = os.tmpdir();
-              writeFileSync(path.join(indexDir, "index.html"), bodyStr);
+              writeFileSync(path.join(indexDir, 'index.html'), bodyStr);
               self
                 .__parseHtml(cfg, indexDir, false)
                 .then(({ html }) => {
                   const headers: { [key: string]: string } = {};
-                  if (proxyRes.headers["content-type"]) {
-                    headers["content-type"] = proxyRes.headers["content-type"];
+                  if (proxyRes.headers['content-type']) {
+                    headers['content-type'] = proxyRes.headers['content-type'];
                   } else {
                     const charsetMatch = /charset="(\S+)"/g.exec(bodyStr);
                     if (charsetMatch) {
                       headers[
-                        "content-type"
+                        'content-type'
                       ] = `'text/html; charset=${charsetMatch[1]}`;
                     }
                   }
@@ -161,9 +161,9 @@ class Runner {
       );
 
       proxy.on(
-        "error",
+        'error',
         (error: Error, _: http.IncomingMessage, res: http.ServerResponse) => {
-          if (error.message?.includes("ECONNREFUSED")) {
+          if (error.message?.includes('ECONNREFUSED')) {
             warn(
               `Connection refused to ${devUrl.protocol}//${devUrl.host}. Did you start your dev server? Usually that's done with a \`dev\` or \`serve\` NPM script.`
             );
@@ -175,10 +175,10 @@ class Runner {
       );
 
       const proxyServer = http.createServer((req, res) => {
-        delete req.headers["accept-encoding"];
+        delete req.headers['accept-encoding'];
         proxy.web(req, res);
       });
-      proxyServer.on("upgrade", (req, socket, head) => {
+      proxyServer.on('upgrade', (req, socket, head) => {
         proxy.ws(req, socket, head);
       });
 
@@ -195,15 +195,15 @@ class Runner {
       inlinedAssets = (await this.__parseHtml(cfg, devPath)).inlinedAssets;
     }
 
-    process.env.TAURI_INLINED_ASSETS = inlinedAssets.join("|");
+    process.env.TAURI_INLINED_ASSETS = inlinedAssets.join('|');
 
     this.devPath = devPath;
 
     const startDevTauri = async (): Promise<void> => {
       return await this.__runCargoCommand({
-        cargoArgs: ["run"],
+        cargoArgs: ['run'],
         dev: true,
-        exitOnPanic: cfg.ctx.exitOnPanic,
+        exitOnPanic: cfg.ctx.exitOnPanic
       });
     };
 
@@ -212,7 +212,7 @@ class Runner {
 
     let tauriPaths: string[] = [];
     if (
-      typeof cargoManifest.dependencies.tauri !== "string" &&
+      typeof cargoManifest.dependencies.tauri !== 'string' &&
       cargoManifest.dependencies.tauri.path
     ) {
       const tauriPath = path.resolve(
@@ -223,7 +223,7 @@ class Runner {
         tauriPath,
         `${tauriPath}-api`,
         `${tauriPath}-updater`,
-        `${tauriPath}-utils`,
+        `${tauriPath}-utils`
       ];
     }
 
@@ -232,32 +232,32 @@ class Runner {
       this.tauriWatcher = chokidar
         .watch(
           [
-            path.join(tauriDir, "src"),
-            path.join(tauriDir, "Cargo.toml"),
-            path.join(tauriDir, "build.rs"),
-            path.join(tauriDir, "tauri.conf.json"),
-            ...tauriPaths,
+            path.join(tauriDir, 'src'),
+            path.join(tauriDir, 'Cargo.toml'),
+            path.join(tauriDir, 'build.rs'),
+            path.join(tauriDir, 'tauri.conf.json'),
+            ...tauriPaths
           ].concat(runningDevServer ? [] : [devPath]),
           {
             ignoreInitial: true,
             ignored: [
-              runningDevServer ? null : path.join(devPath, "index.tauri.html"),
-            ].concat(path.join(tauriDir, "target")),
+              runningDevServer ? null : path.join(devPath, 'index.tauri.html')
+            ].concat(path.join(tauriDir, 'target'))
           }
         )
         .on(
-          "change",
+          'change',
           debounce((changedPath: string) => {
             if (
               this.rewritingToml &&
-              changedPath.startsWith(path.join(tauriDir, "Cargo.toml"))
+              changedPath.startsWith(path.join(tauriDir, 'Cargo.toml'))
             ) {
               return;
             }
             (this.pid ? this.__stopCargo() : Promise.resolve())
               .then(() => {
                 const shouldTriggerRun =
-                  changedPath.includes("tauri.conf.json") ||
+                  changedPath.includes('tauri.conf.json') ||
                   changedPath.startsWith(devPath);
                 if (shouldTriggerRun) {
                   this.run(getTauriConfig({ ctx: cfg.ctx })).catch((e) => {
@@ -282,7 +282,7 @@ class Runner {
 
   async build(cfg: TauriConfig): Promise<void> {
     if (cfg.build.beforeBuildCommand) {
-      const [command, ...args] = cfg.build.beforeBuildCommand.split(" ");
+      const [command, ...args] = cfg.build.beforeBuildCommand.split(' ');
       spawnSync(command, args, appDir);
     }
 
@@ -292,27 +292,27 @@ class Runner {
 
     const inlinedAssets = (await this.__parseHtml(cfg, cfg.build.distDir))
       .inlinedAssets;
-    process.env.TAURI_INLINED_ASSETS = inlinedAssets.join("|");
+    process.env.TAURI_INLINED_ASSETS = inlinedAssets.join('|');
 
     const features = [
-      cfg.tauri.embeddedServer.active ? "embedded-server" : "no-server",
+      cfg.tauri.embeddedServer.active ? 'embedded-server' : 'no-server'
     ];
 
     const buildFn = async (target?: string): Promise<void> =>
       await this.__runCargoCommand({
         cargoArgs: [
-          cfg.tauri.bundle.active ? "tauri-bundler" : "build",
-          "--features",
+          cfg.tauri.bundle.active ? 'tauri-bundler' : 'build',
+          '--features',
           ...features,
           ...(cfg.tauri.bundle.active &&
           Array.isArray(cfg.tauri.bundle.targets) &&
           cfg.tauri.bundle.targets.length
-            ? ["--format"].concat(cfg.tauri.bundle.targets)
-            : []),
+            ? ['--format'].concat(cfg.tauri.bundle.targets)
+            : [])
         ]
-          .concat(cfg.ctx.debug ? [] : ["--release"])
-          .concat(cfg.verbose ? ["--verbose"] : [])
-          .concat(target ? ["--target", target] : []),
+          .concat(cfg.ctx.debug ? [] : ['--release'])
+          .concat(cfg.verbose ? ['--verbose'] : [])
+          .concat(target ? ['--target', target] : [])
       });
 
     if (!cfg.ctx.target) {
@@ -320,7 +320,7 @@ class Runner {
       // build only for the current platform
       await buildFn();
     } else {
-      const targets = cfg.ctx.target.split(",");
+      const targets = cfg.ctx.target.split(',');
 
       for (const target of targets) {
         await buildFn(target);
@@ -336,12 +336,12 @@ class Runner {
     const inlinedAssets: string[] = [];
 
     return await new Promise((resolve, reject) => {
-      const indexPath = path.join(indexDir, "index.html");
+      const indexPath = path.join(indexDir, 'index.html');
       if (!existsSync(indexPath)) {
         warn(
           `Error: cannot find index.html in "${indexDir}". Did you forget to build your web code or update the build.distDir in tauri.conf.json?`
         );
-        reject(new Error("Could not find index.html in dist dir."));
+        reject(new Error('Could not find index.html in dist dir.'));
       }
       const originalHtml = readFileSync(indexPath).toString();
 
@@ -358,29 +358,29 @@ class Runner {
         // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
         if (
           !(
-            (cfg.ctx.dev && cfg.build.devPath.startsWith("http")) ||
+            (cfg.ctx.dev && cfg.build.devPath.startsWith('http')) ||
             cfg.tauri.embeddedServer.active
           )
         ) {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
-          const mutationObserverTemplate = require("../templates/mutation-observer")
+          const mutationObserverTemplate = require('../templates/mutation-observer')
             .default;
           const compiledMutationObserver = template(mutationObserverTemplate);
 
-          const bodyMutationObserverScript = document.createElement("script");
+          const bodyMutationObserverScript = document.createElement('script');
           bodyMutationObserverScript.text = compiledMutationObserver({
-            target: "body",
-            inlinedAssets: JSON.stringify(inlinedAssets),
+            target: 'body',
+            inlinedAssets: JSON.stringify(inlinedAssets)
           });
           document.body.insertBefore(
             bodyMutationObserverScript,
             document.body.firstChild
           );
 
-          const headMutationObserverScript = document.createElement("script");
+          const headMutationObserverScript = document.createElement('script');
           headMutationObserverScript.text = compiledMutationObserver({
-            target: "head",
-            inlinedAssets: JSON.stringify(inlinedAssets),
+            target: 'head',
+            inlinedAssets: JSON.stringify(inlinedAssets)
           });
           document.head.insertBefore(
             headMutationObserverScript,
@@ -388,28 +388,28 @@ class Runner {
           );
         }
 
-        const tauriScript = document.createElement("script");
+        const tauriScript = document.createElement('script');
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
-        tauriScript.text = require("../templates/tauri.js").default;
+        tauriScript.text = require('../templates/tauri.js').default;
         document.head.insertBefore(tauriScript, document.head.firstChild);
 
         if (cfg.build.withGlobalTauri) {
-          const tauriUmdScript = document.createElement("script");
+          const tauriUmdScript = document.createElement('script');
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
-          tauriUmdScript.text = require("../api/tauri.bundle.umd").default;
+          tauriUmdScript.text = require('../api/tauri.bundle.umd').default;
           document.head.insertBefore(tauriUmdScript, document.head.firstChild);
         }
 
         const csp = cfg.tauri.security.csp;
         if (csp) {
-          const cspTag = document.createElement("meta");
-          cspTag.setAttribute("http-equiv", "Content-Security-Policy");
-          cspTag.setAttribute("content", csp);
+          const cspTag = document.createElement('meta');
+          cspTag.setAttribute('http-equiv', 'Content-Security-Policy');
+          cspTag.setAttribute('content', csp);
           document.head.appendChild(cspTag);
         }
 
         const newHtml = dom.serialize();
-        writeFileSync(path.join(indexDir, "index.tauri.html"), newHtml);
+        writeFileSync(path.join(indexDir, 'index.tauri.html'), newHtml);
         return newHtml;
       };
 
@@ -419,10 +419,10 @@ class Runner {
             const document = dom.window.document;
             if (!cfg.ctx.dev) {
               document
-                .querySelectorAll("link")
+                .querySelectorAll('link')
                 .forEach((link: HTMLLinkElement) => {
-                  link.removeAttribute("rel");
-                  link.removeAttribute("as");
+                  link.removeAttribute('rel');
+                  link.removeAttribute('as');
                 });
             }
           };
@@ -451,7 +451,7 @@ class Runner {
           }
         );
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-        inliner.on("progress", (event: string) => {
+        inliner.on('progress', (event: string) => {
           const match = event.match(/([\S\d]+)\.([\S\d]+)/g);
           match && inlinedAssets.push(match[0]);
         });
@@ -471,7 +471,7 @@ class Runner {
     cargoArgs,
     extraArgs,
     dev = false,
-    exitOnPanic = true,
+    exitOnPanic = true
   }: {
     cargoArgs: string[];
     extraArgs?: string[];
@@ -480,9 +480,9 @@ class Runner {
   }): Promise<void> {
     return await new Promise((resolve, reject) => {
       this.pid = spawn(
-        "cargo",
+        'cargo',
 
-        extraArgs ? cargoArgs.concat(["--"]).concat(extraArgs) : cargoArgs,
+        extraArgs ? cargoArgs.concat(['--']).concat(extraArgs) : cargoArgs,
 
         tauriDir,
 
@@ -507,10 +507,10 @@ class Runner {
 
           if (code) {
             warn();
-            warn("⚠️  [FAIL] Cargo CLI has failed");
+            warn('⚠️  [FAIL] Cargo CLI has failed');
             warn();
             reject(
-              new Error("Cargo failed with status code " + code.toString())
+              new Error('Cargo failed with status code ' + code.toString())
             );
             process.exit(1);
           } else if (!dev) {
@@ -519,7 +519,7 @@ class Runner {
 
           if (dev) {
             warn();
-            warn("Cargo process was killed. Exiting...");
+            warn('Cargo process was killed. Exiting...');
             warn();
             process.exit(0);
           }
@@ -539,7 +539,7 @@ class Runner {
       return await Promise.resolve();
     }
 
-    log("Shutting down tauri process...");
+    log('Shutting down tauri process...');
 
     return await new Promise((resolve, reject) => {
       this.killPromise = resolve;
@@ -553,7 +553,7 @@ class Runner {
   }
 
   __getManifestPath(): string {
-    return path.join(tauriDir, "Cargo.toml");
+    return path.join(tauriDir, 'Cargo.toml');
   }
 
   __getManifest(): JsonMap {
@@ -578,12 +578,12 @@ class Runner {
     const tomlFeatures = [];
 
     if (cfg.tauri.allowlist.all) {
-      tomlFeatures.push("all-api");
+      tomlFeatures.push('all-api');
     } else {
       const toKebabCase = (value: string): string => {
         return value
-          .replace(/([a-z])([A-Z])/g, "$1-$2")
-          .replace(/\s+/g, "-")
+          .replace(/([a-z])([A-Z])/g, '$1-$2')
+          .replace(/\s+/g, '-')
           .toLowerCase();
       };
       const allowlist = Object.keys(cfg.tauri.allowlist).filter(
@@ -593,13 +593,13 @@ class Runner {
     }
 
     if (cfg.tauri.cli) {
-      tomlFeatures.push("cli");
+      tomlFeatures.push('cli');
     }
 
-    if (typeof manifest.dependencies.tauri === "string") {
+    if (typeof manifest.dependencies.tauri === 'string') {
       manifest.dependencies.tauri = {
         version: manifest.dependencies.tauri,
-        features: tomlFeatures,
+        features: tomlFeatures
       };
     } else {
       manifest.dependencies.tauri.features = tomlFeatures;

@@ -1,18 +1,18 @@
-const path = require("path");
-const fixtureSetup = require("../fixtures/app-test-setup");
-const distDir = path.resolve(fixtureSetup.fixtureDir, "app", "dist");
+const path = require('path');
+const fixtureSetup = require('../fixtures/app-test-setup');
+const distDir = path.resolve(fixtureSetup.fixtureDir, 'app', 'dist');
 
 function startDevServer() {
-  const http = require("http");
-  const { statSync, createReadStream } = require("fs");
+  const http = require('http');
+  const { statSync, createReadStream } = require('fs');
   const app = http.createServer((req, res) => {
-    if (req.method === "GET") {
-      if (req.url === "/") {
-        const indexPath = path.join(distDir, "index.html");
+    if (req.method === 'GET') {
+      if (req.url === '/') {
+        const indexPath = path.join(distDir, 'index.html');
         const stat = statSync(indexPath);
         res.writeHead(200, {
-          "Content-Type": "text/html",
-          "Content-Length": stat.size,
+          'Content-Type': 'text/html',
+          'Content-Length': stat.size
         });
         createReadStream(indexPath).pipe(res);
       }
@@ -24,24 +24,24 @@ function startDevServer() {
   const server = app.listen(port);
   return {
     server,
-    url: `http://localhost:${port}`,
+    url: `http://localhost:${port}`
   };
 }
 
 function runDevTest(tauriConfig) {
-  fixtureSetup.initJest("app");
-  const dev = require("api/dev");
+  fixtureSetup.initJest('app');
+  const dev = require('api/dev');
   return new Promise(async (resolve, reject) => {
     try {
       const { promise, runner } = dev(tauriConfig);
 
-      const isRunning = require("is-running");
+      const isRunning = require('is-running');
       let success = false;
       const checkIntervalId = setInterval(async () => {
         if (!isRunning(runner.pid) && !success) {
           const failedCommands = Object.keys(responses)
             .filter((k) => responses[k] === null)
-            .join(", ");
+            .join(', ');
           server.close(() => reject("App didn't reply to " + failedCommands));
         }
       }, 2000);
@@ -64,9 +64,9 @@ function runDevTest(tauriConfig) {
   });
 }
 
-describe("Tauri Dev", () => {
+describe('Tauri Dev', () => {
   const build = {
-    distDir: distDir,
+    distDir: distDir
   };
 
   const devServer = startDevServer();
@@ -75,17 +75,17 @@ describe("Tauri Dev", () => {
     url
     ${devServer.url}
     ${distDir}
-  `("works with dev pointing to $url", ({ url }) => {
-    const runningDevServer = url.startsWith("http");
+  `('works with dev pointing to $url', ({ url }) => {
+    const runningDevServer = url.startsWith('http');
     const promise = runDevTest({
       build: {
         ...build,
-        devPath: url,
+        devPath: url
       },
       ctx: {
         debug: true,
-        dev: true,
-      },
+        dev: true
+      }
     });
 
     promise.then(() => {

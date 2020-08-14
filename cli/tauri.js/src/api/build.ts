@@ -1,7 +1,7 @@
-import { TauriConfig } from "types";
-import { merge } from "webpack-merge";
-import Runner from "../runner";
-import getTauriConfig from "../helpers/tauri-config";
+import { TauriConfig } from 'types';
+import { merge } from 'webpack-merge';
+import Runner from '../runner';
+import getTauriConfig from '../helpers/tauri-config';
 
 interface BuildResult {
   promise: Promise<void>;
@@ -14,8 +14,8 @@ module.exports = (config: TauriConfig): BuildResult => {
     merge(
       {
         ctx: {
-          prod: true,
-        },
+          prod: true
+        }
       } as any,
       config as any
     ) as TauriConfig
@@ -23,6 +23,6 @@ module.exports = (config: TauriConfig): BuildResult => {
 
   return {
     runner: tauri,
-    promise: tauri.build(tauriConfig),
+    promise: tauri.build(tauriConfig)
   };
 };

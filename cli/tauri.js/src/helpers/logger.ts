@@ -1,5 +1,5 @@
-import chalk from "chalk";
-import ms from "ms";
+import chalk from 'chalk';
+import ms from 'ms';
 
 let prevTime: number;
 

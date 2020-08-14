@@ -1,13 +1,13 @@
-const path = require("path");
-const fixtureSetup = require("../fixtures/app-test-setup");
-const appDir = path.join(fixtureSetup.fixtureDir, "app");
-const distDir = path.join(appDir, "dist");
+const path = require('path');
+const fixtureSetup = require('../fixtures/app-test-setup');
+const appDir = path.join(fixtureSetup.fixtureDir, 'app');
+const distDir = path.join(appDir, 'dist');
 
-const spawn = require("helpers/spawn").spawn;
+const spawn = require('helpers/spawn').spawn;
 
 function runBuildTest(tauriConfig) {
-  fixtureSetup.initJest("app");
-  const build = require("api/build");
+  fixtureSetup.initJest('app');
+  const build = require('api/build');
   return new Promise(async (resolve, reject) => {
     try {
       let success = false;
@@ -22,14 +22,14 @@ function runBuildTest(tauriConfig) {
       const result = build(tauriConfig);
       await result.promise;
 
-      const artifactFolder = tauriConfig.ctx.debug ? "debug" : "release";
+      const artifactFolder = tauriConfig.ctx.debug ? 'debug' : 'release';
       const artifactPath = path.resolve(
         appDir,
         `src-tauri/target/${artifactFolder}/app`
       );
 
       const appPid = spawn(
-        process.platform === "win32"
+        process.platform === 'win32'
           ? `${artifactPath}.exe`
           : artifactPath.replace(
               `${artifactFolder}/app`,
@@ -47,7 +47,7 @@ function runBuildTest(tauriConfig) {
             } catch {}
             const failedCommands = Object.keys(responses)
               .filter((k) => responses[k] === null)
-              .join(", ");
+              .join(', ');
             reject("App didn't reply to " + failedCommands);
           });
         }
@@ -58,29 +58,29 @@ function runBuildTest(tauriConfig) {
   });
 }
 
-describe("Tauri Build", () => {
+describe('Tauri Build', () => {
   const build = {
     devPath: distDir,
-    distDir: distDir,
+    distDir: distDir
   };
 
   it.each`
     mode                 | flag
-    ${"embedded-server"} | ${"debug"}
-    ${"embedded-server"} | ${"release"}
-    ${"no-server"}       | ${"debug"}
-    ${"no-server"}       | ${"release"}
-  `("works with the $mode $flag mode", ({ mode, flag }) => {
+    ${'embedded-server'} | ${'debug'}
+    ${'embedded-server'} | ${'release'}
+    ${'no-server'}       | ${'debug'}
+    ${'no-server'}       | ${'release'}
+  `('works with the $mode $flag mode', ({ mode, flag }) => {
     return runBuildTest({
       build,
       ctx: {
-        debug: flag === "debug",
+        debug: flag === 'debug'
       },
       tauri: {
         embeddedServer: {
-          active: mode === "embedded-server",
-        },
-      },
+          active: mode === 'embedded-server'
+        }
+      }
     });
   });
 });

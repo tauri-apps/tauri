@@ -1,19 +1,19 @@
-import { ManagementType, Result } from "./types";
+import { ManagementType, Result } from './types';
 import {
   getNpmLatestVersion,
   getNpmPackageVersion,
   installNpmPackage,
   updateNpmPackage,
-  semverLt,
-} from "./util";
-import logger from "../../helpers/logger";
-import { resolve } from "../../helpers/app-paths";
-import inquirer from "inquirer";
-import { existsSync } from "fs";
+  semverLt
+} from './util';
+import logger from '../../helpers/logger';
+import { resolve } from '../../helpers/app-paths';
+import inquirer from 'inquirer';
+import { existsSync } from 'fs';
 
-const log = logger("dependency:npm-packages");
+const log = logger('dependency:npm-packages');
 
-const dependencies = ["tauri"];
+const dependencies = ['tauri'];
 
 async function manageDependencies(
   managementType: ManagementType
@@ -21,7 +21,7 @@ async function manageDependencies(
   const installedDeps = [];
   const updatedDeps = [];
 
-  if (existsSync(resolve.app("package.json"))) {
+  if (existsSync(resolve.app('package.json'))) {
     for (const dependency of dependencies) {
       const currentVersion = await getNpmPackageVersion(dependency);
       if (currentVersion === null) {
@@ -33,11 +33,11 @@ async function manageDependencies(
         if (semverLt(currentVersion, latestVersion)) {
           const inquired = await inquirer.prompt([
             {
-              type: "confirm",
-              name: "answer",
+              type: 'confirm',
+              name: 'answer',
               message: `[NPM]: "${dependency}" latest version is ${latestVersion}. Do you want to update?`,
-              default: false,
-            },
+              default: false
+            }
           ]);
           if (inquired.answer) {
             log(`Updating ${dependency}...`);

@@ -1,4 +1,4 @@
-import { promisified } from "./tauri";
+import { promisified } from './tauri';
 
 export enum BaseDirectory {
   Audio = 1,
@@ -18,7 +18,7 @@ export enum BaseDirectory {
   Template,
   Video,
   Resource,
-  App,
+  App
 }
 
 export interface FsOptions {
@@ -57,9 +57,9 @@ async function readTextFile(
   options: FsOptions = {}
 ): Promise<string> {
   return await promisified<string>({
-    cmd: "readTextFile",
+    cmd: 'readTextFile',
     path: filePath,
-    options,
+    options
   });
 }
 
@@ -76,9 +76,9 @@ async function readBinaryFile(
   options: FsOptions = {}
 ): Promise<number[]> {
   return await promisified<number[]>({
-    cmd: "readBinaryFile",
+    cmd: 'readBinaryFile',
     path: filePath,
-    options,
+    options
   });
 }
 
@@ -96,18 +96,18 @@ async function writeFile(
   file: FsTextFileOption,
   options: FsOptions = {}
 ): Promise<void> {
-  if (typeof options === "object") {
+  if (typeof options === 'object') {
     Object.freeze(options);
   }
-  if (typeof file === "object") {
+  if (typeof file === 'object') {
     Object.freeze(file);
   }
 
   return await promisified({
-    cmd: "writeFile",
+    cmd: 'writeFile',
     path: file.path,
     contents: file.contents,
-    options,
+    options
   });
 }
 
@@ -124,7 +124,7 @@ function uint8ArrayToString(arr: Uint8Array): string {
     return String.fromCharCode.apply(null, Array.from(arr));
   }
 
-  let result = "";
+  let result = '';
   const arrLen = arr.length;
   for (let i = 0; i < arrLen; i++) {
     const chunk = arr.subarray(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
@@ -158,18 +158,18 @@ async function writeBinaryFile(
   file: FsBinaryFileOption,
   options: FsOptions = {}
 ): Promise<void> {
-  if (typeof options === "object") {
+  if (typeof options === 'object') {
     Object.freeze(options);
   }
-  if (typeof file === "object") {
+  if (typeof file === 'object') {
     Object.freeze(file);
   }
 
   return await promisified({
-    cmd: "writeFile",
+    cmd: 'writeFile',
     path: file.path,
     contents: arrayBufferToBase64(file.contents),
-    options,
+    options
   });
 }
 
@@ -187,9 +187,9 @@ async function readDir(
   options: FsOptions = {}
 ): Promise<FileEntry[]> {
   return await promisified({
-    cmd: "readDir",
+    cmd: 'readDir',
     path: dir,
-    options,
+    options
   });
 }
 
@@ -206,9 +206,9 @@ async function readDir(
  */
 async function createDir(dir: string, options: FsOptions = {}): Promise<void> {
   return await promisified({
-    cmd: "createDir",
+    cmd: 'createDir',
     path: dir,
-    options,
+    options
   });
 }
 
@@ -224,9 +224,9 @@ async function createDir(dir: string, options: FsOptions = {}): Promise<void> {
  */
 async function removeDir(dir: string, options: FsOptions = {}): Promise<void> {
   return await promisified({
-    cmd: "removeDir",
+    cmd: 'removeDir',
     path: dir,
-    options,
+    options
   });
 }
 
@@ -245,10 +245,10 @@ async function copyFile(
   options: FsOptions = {}
 ): Promise<void> {
   return await promisified({
-    cmd: "copyFile",
+    cmd: 'copyFile',
     source,
     destination,
-    options,
+    options
   });
 }
 
@@ -265,9 +265,9 @@ async function removeFile(
   options: FsOptions = {}
 ): Promise<void> {
   return await promisified({
-    cmd: "removeFile",
+    cmd: 'removeFile',
     path: file,
-    options: options,
+    options: options
   });
 }
 
@@ -286,10 +286,10 @@ async function renameFile(
   options: FsOptions = {}
 ): Promise<void> {
   return await promisified({
-    cmd: "renameFile",
+    cmd: 'renameFile',
     oldPath,
     newPath,
-    options,
+    options
   });
 }
 
@@ -304,5 +304,5 @@ export {
   removeDir,
   copyFile,
   removeFile,
-  renameFile,
+  renameFile
 };

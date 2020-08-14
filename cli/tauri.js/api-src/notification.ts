@@ -1,4 +1,4 @@
-import { promisified } from "./tauri";
+import { promisified } from './tauri';
 
 export interface Options {
   title: string;
@@ -6,15 +6,15 @@ export interface Options {
   icon?: string;
 }
 
-export type PartialOptions = Omit<Options, "title">;
-export type Permission = "granted" | "denied" | "default";
+export type PartialOptions = Omit<Options, 'title'>;
+export type Permission = 'granted' | 'denied' | 'default';
 
 async function isPermissionGranted(): Promise<boolean | null> {
-  if (window.Notification.permission !== "default") {
-    return await Promise.resolve(window.Notification.permission === "granted");
+  if (window.Notification.permission !== 'default') {
+    return await Promise.resolve(window.Notification.permission === 'granted');
   }
   return await promisified({
-    cmd: "isNotificationPermissionGranted",
+    cmd: 'isNotificationPermissionGranted'
   });
 }
 
@@ -23,7 +23,7 @@ async function requestPermission(): Promise<Permission> {
 }
 
 function sendNotification(options: Options | string): void {
-  if (typeof options === "string") {
+  if (typeof options === 'string') {
     // eslint-disable-next-line no-new
     new window.Notification(options);
   } else {

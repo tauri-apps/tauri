@@ -1,2 +1,2 @@
-import * as api from "./bundle";
+import * as api from './bundle';
 export default api;

@@ -1,11 +1,11 @@
-const parseArgs = require("minimist");
+const parseArgs = require('minimist');
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
-    h: "help",
-    e: "exit-on-panic",
+    h: 'help',
+    e: 'exit-on-panic'
   },
-  boolean: ["h", "e"],
+  boolean: ['h', 'e']
 });
 
 if (argv.help) {
@@ -21,12 +21,12 @@ if (argv.help) {
 }
 
 async function run() {
-  const dev = require("../dist/api/dev");
+  const dev = require('../dist/api/dev');
 
   await dev({
     ctx: {
-      exitOnPanic: argv["exit-on-panic"],
-    },
+      exitOnPanic: argv['exit-on-panic']
+    }
   }).promise;
 }
 

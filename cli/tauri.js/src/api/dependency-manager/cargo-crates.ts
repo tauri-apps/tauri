@@ -1,20 +1,20 @@
-import { spawnSync } from "./../../helpers/spawn";
+import { spawnSync } from './../../helpers/spawn';
 import {
   CargoManifest,
   CargoManifestDependency,
-  CargoLock,
-} from "./../../types/cargo";
-import { ManagementType, Result } from "./types";
-import { getCrateLatestVersion, semverLt } from "./util";
-import logger from "../../helpers/logger";
-import { resolve as appResolve, tauriDir } from "../../helpers/app-paths";
-import { readFileSync, writeFileSync, existsSync } from "fs";
-import toml from "@tauri-apps/toml";
-import inquirer from "inquirer";
+  CargoLock
+} from './../../types/cargo';
+import { ManagementType, Result } from './types';
+import { getCrateLatestVersion, semverLt } from './util';
+import logger from '../../helpers/logger';
+import { resolve as appResolve, tauriDir } from '../../helpers/app-paths';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+import toml from '@tauri-apps/toml';
+import inquirer from 'inquirer';
 
-const log = logger("dependency:crates");
+const log = logger('dependency:crates');
 
-const dependencies = ["tauri"];
+const dependencies = ['tauri'];
 
 function readToml<T>(tomlPath: string): T | null {
   if (existsSync(tomlPath)) {
@@ -25,7 +25,7 @@ function readToml<T>(tomlPath: string): T | null {
 }
 
 function dependencyDefinition(version: string): CargoManifestDependency {
-  return { version: version.substring(0, version.lastIndexOf(".")) };
+  return { version: version.substring(0, version.lastIndexOf('.')) };
 }
 
 async function manageDependencies(
@@ -35,16 +35,16 @@ async function manageDependencies(
   const updatedDeps = [];
   const result: Result = new Map<ManagementType, string[]>();
 
-  const manifest = readToml<CargoManifest>(appResolve.tauri("Cargo.toml"));
+  const manifest = readToml<CargoManifest>(appResolve.tauri('Cargo.toml'));
 
   if (manifest === null) {
-    log("Cargo.toml not found. Skipping crates check...");
+    log('Cargo.toml not found. Skipping crates check...');
     return result;
   }
 
-  const lockPath = appResolve.tauri("Cargo.lock");
+  const lockPath = appResolve.tauri('Cargo.lock');
   if (!existsSync(lockPath)) {
-    spawnSync("cargo", ["generate-lockfile"], tauriDir);
+    spawnSync('cargo', ['generate-lockfile'], tauriDir);
   }
   const lock = readToml<CargoLock>(lockPath);
 
@@ -57,7 +57,7 @@ async function manageDependencies(
     const currentVersion =
       lockPackages.length === 1
         ? lockPackages[0].version
-        : typeof manifestDep === "string"
+        : typeof manifestDep === 'string'
         ? manifestDep
         : manifestDep?.version;
     if (currentVersion === undefined) {
@@ -71,11 +71,11 @@ async function manageDependencies(
       if (semverLt(currentVersion, latestVersion)) {
         const inquired = await inquirer.prompt([
           {
-            type: "confirm",
-            name: "answer",
+            type: 'confirm',
+            name: 'answer',
             message: `[CRATES] "${dependency}" latest version is ${latestVersion}. Do you want to update?`,
-            default: false,
-          },
+            default: false
+          }
         ]);
         if (inquired.answer) {
           log(`Updating ${dependency}...`);
@@ -95,23 +95,23 @@ async function manageDependencies(
 
   if (installedDeps.length || updatedDeps.length) {
     writeFileSync(
-      appResolve.tauri("Cargo.toml"),
+      appResolve.tauri('Cargo.toml'),
       toml.stringify(manifest as any)
     );
   }
   if (updatedDeps.length) {
-    if (!existsSync(appResolve.tauri("Cargo.lock"))) {
-      spawnSync("cargo", ["generate-lockfile"], tauriDir);
+    if (!existsSync(appResolve.tauri('Cargo.lock'))) {
+      spawnSync('cargo', ['generate-lockfile'], tauriDir);
     }
     spawnSync(
-      "cargo",
+      'cargo',
       [
-        "update",
-        "--aggressive",
+        'update',
+        '--aggressive',
         ...updatedDeps.reduce<string[]>(
-          (initialValue, dep) => [...initialValue, "-p", dep],
+          (initialValue, dep) => [...initialValue, '-p', dep],
           []
-        ),
+        )
       ],
       tauriDir
     );

@@ -1,16 +1,16 @@
-const express = require("express");
-const cors = require("cors");
+const express = require('express');
+const cors = require('cors');
 const app = express();
 app.use(cors());
 app.use(express.json());
 const port = 7000;
 let appPid;
 
-app.post("/reply", (req, res) => {
-  if (req.body && req.body.msg !== "TEST") {
+app.post('/reply', (req, res) => {
+  if (req.body && req.body.msg !== 'TEST') {
     throw new Error(`unexpected reply ${JSON.stringify(req.body)}`);
   }
-  console.log("App event replied");
+  console.log('App event replied');
   exit(0);
 });
 
@@ -24,29 +24,29 @@ const exit = (code) => {
   process.exit(code);
 };
 
-const path = require("path");
-const dist = path.resolve(__dirname, "dist");
+const path = require('path');
+const dist = path.resolve(__dirname, 'dist');
 
-const build = require("../cli/tauri.js/dist/api/build");
+const build = require('../cli/tauri.js/dist/api/build');
 build({
   build: {
-    devPath: dist,
+    devPath: dist
   },
   ctx: {
-    debug: true,
+    debug: true
   },
   tauri: {
     embeddedServer: {
-      active: true,
-    },
-  },
+      active: true
+    }
+  }
 }).then(() => {
-  const spawn = require("../cli/tauri.js/dist/helpers/spawn").spawn;
-  const artifactPath = path.resolve(__dirname, "src-tauri/target/debug/app");
+  const spawn = require('../cli/tauri.js/dist/helpers/spawn').spawn;
+  const artifactPath = path.resolve(__dirname, 'src-tauri/target/debug/app');
   appPid = spawn(
-    process.platform === "win32"
+    process.platform === 'win32'
       ? `${artifactPath}.exe`
-      : artifactPath.replace("debug/app", "debug/./app"),
+      : artifactPath.replace('debug/app', 'debug/./app'),
     [],
     null
   );

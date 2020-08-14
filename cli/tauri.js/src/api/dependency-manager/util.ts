@@ -1,12 +1,12 @@
-import https from "https";
-import { IncomingMessage } from "http";
-import { spawnSync } from "../../helpers/spawn";
-import { sync as crossSpawnSync } from "cross-spawn";
-import { appDir, resolve as appResolve } from "../../helpers/app-paths";
-import { existsSync } from "fs";
-import semver from "semver";
+import https from 'https';
+import { IncomingMessage } from 'http';
+import { spawnSync } from '../../helpers/spawn';
+import { sync as crossSpawnSync } from 'cross-spawn';
+import { appDir, resolve as appResolve } from '../../helpers/app-paths';
+import { existsSync } from 'fs';
+import semver from 'semver';
 
-const BASE_URL = "https://docs.rs/crate/";
+const BASE_URL = 'https://docs.rs/crate/';
 
 async function getCrateLatestVersion(crateName: string): Promise<string> {
   return await new Promise((resolve, reject) => {
@@ -15,7 +15,7 @@ async function getCrateLatestVersion(crateName: string): Promise<string> {
       if (res.statusCode !== 302 || !res.headers.location) {
         reject(res);
       } else {
-        const version = res.headers.location.replace(url + "/", "");
+        const version = res.headers.location.replace(url + '/', '');
         resolve(version);
       }
     });
@@ -23,10 +23,10 @@ async function getCrateLatestVersion(crateName: string): Promise<string> {
 }
 
 function getNpmLatestVersion(packageName: string): string {
-  const child = crossSpawnSync("npm", ["show", packageName, "version"], {
-    cwd: appDir,
+  const child = crossSpawnSync('npm', ['show', packageName, 'version'], {
+    cwd: appDir
   });
-  return String(child.output[1]).replace("\n", "");
+  return String(child.output[1]).replace('\n', '');
 }
 
 async function getNpmPackageVersion(
@@ -34,13 +34,13 @@ async function getNpmPackageVersion(
 ): Promise<string | null> {
   return await new Promise((resolve) => {
     const child = crossSpawnSync(
-      "npm",
-      ["list", packageName, "version", "--depth", "0"],
+      'npm',
+      ['list', packageName, 'version', '--depth', '0'],
       { cwd: appDir }
     );
     const output = String(child.output[1]);
     // eslint-disable-next-line security/detect-non-literal-regexp
-    const matches = new RegExp(packageName + "@(\\S+)", "g").exec(output);
+    const matches = new RegExp(packageName + '@(\\S+)', 'g').exec(output);
     if (matches?.[1]) {
       resolve(matches[1]);
     } else {
@@ -50,20 +50,20 @@ async function getNpmPackageVersion(
 }
 
 function installNpmPackage(packageName: string): void {
-  const usesYarn = existsSync(appResolve.app("yarn.lock"));
+  const usesYarn = existsSync(appResolve.app('yarn.lock'));
   if (usesYarn) {
-    spawnSync("yarn", ["add", packageName], appDir);
+    spawnSync('yarn', ['add', packageName], appDir);
   } else {
-    spawnSync("npm", ["install", packageName], appDir);
+    spawnSync('npm', ['install', packageName], appDir);
   }
 }
 
 function updateNpmPackage(packageName: string): void {
-  const usesYarn = existsSync(appResolve.app("yarn.lock"));
+  const usesYarn = existsSync(appResolve.app('yarn.lock'));
   if (usesYarn) {
-    spawnSync("yarn", ["upgrade", packageName, "--latest"], appDir);
+    spawnSync('yarn', ['upgrade', packageName, '--latest'], appDir);
   } else {
-    spawnSync("npm", ["install", `${packageName}@latest`], appDir);
+    spawnSync('npm', ['install', `${packageName}@latest`], appDir);
   }
 }
 
@@ -71,7 +71,7 @@ function padVersion(version: string): string {
   let count = (version.match(/\./g) ?? []).length;
   while (count < 2) {
     count++;
-    version += ".0";
+    version += '.0';
   }
   return version;
 }
@@ -87,5 +87,5 @@ export {
   installNpmPackage,
   updateNpmPackage,
   padVersion,
-  semverLt,
+  semverLt
 };

@@ -17,13 +17,13 @@ if (!String.prototype.startsWith) {
     return (
       s4() +
       s4() +
-      "-" +
+      '-' +
       s4() +
-      "-" +
+      '-' +
       s4() +
-      "-" +
+      '-' +
       s4() +
-      "-" +
+      '-' +
       s4() +
       s4() +
       s4()
@@ -74,7 +74,7 @@ if (!String.prototype.startsWith) {
         value: value,
         enumerable: true,
         configurable: true,
-        writable: true,
+        writable: true
       });
     } else {
       obj[key] = value;
@@ -120,7 +120,7 @@ if (!String.prototype.startsWith) {
         _objectSpread(
           {
             callback: callback,
-            error: error,
+            error: error
           },
           args
         )
@@ -130,23 +130,23 @@ if (!String.prototype.startsWith) {
 
   window.__TAURI__.loadAsset = function loadAsset(assetName, assetType) {
     return this.promisified({
-      cmd: "loadAsset",
+      cmd: 'loadAsset',
       asset: assetName,
-      assetType: assetType || "unknown",
+      assetType: assetType || 'unknown'
     });
   };
 
   document.addEventListener(
-    "error",
+    'error',
     function (e) {
       var target = e.target;
       while (target != null) {
         if (
           target.matches
-            ? target.matches("img")
-            : target.msMatchesSelector("img")
+            ? target.matches('img')
+            : target.msMatchesSelector('img')
         ) {
-          window.__TAURI__.loadAsset(target.src, "image").then(function (img) {
+          window.__TAURI__.loadAsset(target.src, 'image').then(function (img) {
             target.src = img;
           });
           break;
@@ -159,22 +159,22 @@ if (!String.prototype.startsWith) {
 
   // open <a href="..."> links with the Tauri API
   function __openLinks() {
-    document.querySelector("body").addEventListener(
-      "click",
+    document.querySelector('body').addEventListener(
+      'click',
       function (e) {
         var target = e.target;
         while (target != null) {
           if (
-            target.matches ? target.matches("a") : target.msMatchesSelector("a")
+            target.matches ? target.matches('a') : target.msMatchesSelector('a')
           ) {
             if (
               target.href &&
-              target.href.startsWith("http") &&
-              target.target === "_blank"
+              target.href.startsWith('http') &&
+              target.target === '_blank'
             ) {
               window.__TAURI_INVOKE_HANDLER__({
-                cmd: "open",
-                uri: target.href,
+                cmd: 'open',
+                uri: target.href
               });
               e.preventDefault();
             }
@@ -188,13 +188,13 @@ if (!String.prototype.startsWith) {
   }
 
   if (
-    document.readyState === "complete" ||
-    document.readyState === "interactive"
+    document.readyState === 'complete' ||
+    document.readyState === 'interactive'
   ) {
     __openLinks();
   } else {
     window.addEventListener(
-      "DOMContentLoaded",
+      'DOMContentLoaded',
       function () {
         __openLinks();
       },
@@ -203,14 +203,14 @@ if (!String.prototype.startsWith) {
   }
 
   let permissionSettable = false;
-  let permissionValue = "default";
+  let permissionValue = 'default';
 
   function isPermissionGranted() {
-    if (window.Notification.permission !== "default") {
-      return Promise.resolve(window.Notification.permission === "granted");
+    if (window.Notification.permission !== 'default') {
+      return Promise.resolve(window.Notification.permission === 'granted');
     }
     return window.__TAURI__.promisified({
-      cmd: "isNotificationPermissionGranted",
+      cmd: 'isNotificationPermissionGranted'
     });
   }
 
@@ -223,7 +223,7 @@ if (!String.prototype.startsWith) {
   function requestPermission() {
     return window.__TAURI__
       .promisified({
-        cmd: "requestNotificationPermission",
+        cmd: 'requestNotificationPermission'
       })
       .then(function (permission) {
         setNotificationPermission(permission);
@@ -232,20 +232,20 @@ if (!String.prototype.startsWith) {
   }
 
   function sendNotification(options) {
-    if (typeof options === "object") {
+    if (typeof options === 'object') {
       Object.freeze(options);
     }
 
     isPermissionGranted().then(function (permission) {
       if (permission) {
         return window.__TAURI__.promisified({
-          cmd: "notification",
+          cmd: 'notification',
           options:
-            typeof options === "string"
+            typeof options === 'string'
               ? {
-                  title: options,
+                  title: options
                 }
-              : options,
+              : options
         });
       }
     });
@@ -255,45 +255,45 @@ if (!String.prototype.startsWith) {
     var opts = options || {};
     sendNotification(
       Object.assign(opts, {
-        title: title,
+        title: title
       })
     );
   };
 
   window.Notification.requestPermission = requestPermission;
 
-  Object.defineProperty(window.Notification, "permission", {
+  Object.defineProperty(window.Notification, 'permission', {
     enumerable: true,
     get: function () {
       return permissionValue;
     },
     set: function (v) {
       if (!permissionSettable) {
-        throw new Error("Readonly property");
+        throw new Error('Readonly property');
       }
       permissionValue = v;
-    },
+    }
   });
 
   isPermissionGranted().then(function (response) {
     if (response === null) {
-      setNotificationPermission("default");
+      setNotificationPermission('default');
     } else {
-      setNotificationPermission(response ? "granted" : "denied");
+      setNotificationPermission(response ? 'granted' : 'denied');
     }
   });
 
   window.alert = function (message) {
     window.__TAURI_INVOKE_HANDLER__({
-      cmd: "messageDialog",
-      message: message,
+      cmd: 'messageDialog',
+      message: message
     });
   };
 
   window.confirm = function (message) {
     return window.__TAURI__.promisified({
-      cmd: "askDialog",
-      message: message,
+      cmd: 'askDialog',
+      message: message
     });
   };
 })();

@@ -1,22 +1,22 @@
-import { CargoManifest } from "./../types/cargo";
-import { existsSync, removeSync, writeFileSync } from "fs-extra";
-import { join, normalize, resolve } from "path";
-import { TauriConfig } from "types";
-import { merge } from "webpack-merge";
-import copyTemplates from "../helpers/copy-templates";
-import logger from "../helpers/logger";
-import defaultConfig from "./defaultConfig";
-import chalk from "chalk";
+import { CargoManifest } from './../types/cargo';
+import { existsSync, removeSync, writeFileSync } from 'fs-extra';
+import { join, normalize, resolve } from 'path';
+import { TauriConfig } from 'types';
+import { merge } from 'webpack-merge';
+import copyTemplates from '../helpers/copy-templates';
+import logger from '../helpers/logger';
+import defaultConfig from './defaultConfig';
+import chalk from 'chalk';
 
-const log = logger("app:tauri");
-const warn = logger("app:tauri (template)", chalk.red);
+const log = logger('app:tauri');
+const warn = logger('app:tauri (template)', chalk.red);
 
 interface InjectOptions {
   force: false | InjectionType;
   logging: boolean;
   tauriPath?: string;
 }
-type InjectionType = "conf" | "template" | "all";
+type InjectionType = 'conf' | 'template' | 'all';
 
 interface UnknownObject {
   [index: string]: any;
@@ -27,8 +27,8 @@ const injectConfFile = (
   { force, logging }: InjectOptions,
   customConfig: Partial<TauriConfig> = {}
 ): boolean | undefined => {
-  const path = join(injectPath, "tauri.conf.json");
-  if (existsSync(path) && force !== "conf" && force !== "all") {
+  const path = join(injectPath, 'tauri.conf.json');
+  if (existsSync(path) && force !== 'conf' && force !== 'all') {
     warn(`tauri.conf.json found in ${path}
   Run \`tauri init --force conf\` to overwrite.`);
     if (!force) return false;
@@ -51,7 +51,7 @@ const injectConfFile = (
     ) as UnknownObject;
 
     writeFileSync(path, JSON.stringify(finalConf, undefined, 2));
-    if (logging) log("Successfully wrote tauri.conf.json");
+    if (logging) log('Successfully wrote tauri.conf.json');
   }
 };
 
@@ -59,8 +59,8 @@ const injectTemplate = (
   injectPath: string,
   { force, logging, tauriPath }: InjectOptions
 ): boolean | undefined => {
-  const dir = normalize(join(injectPath, "src-tauri"));
-  if (existsSync(dir) && force !== "template" && force !== "all") {
+  const dir = normalize(join(injectPath, 'src-tauri'));
+  if (existsSync(dir) && force !== 'template' && force !== 'all') {
     warn(`Tauri dir (${dir}) not empty.
 Run \`tauri init --force template\` to overwrite.`);
     if (!force) return false;
@@ -68,17 +68,17 @@ Run \`tauri init --force template\` to overwrite.`);
 
   const resolveTauriPath = (tauriPath: string): string => {
     const resolvedPath =
-      tauriPath.startsWith("/") || /^\S:/g.test(tauriPath)
-        ? join(tauriPath, "tauri") // we received a full path as argument
-        : join("..", tauriPath, "tauri"); // we received a relative path
-    return resolvedPath.replace(/\\/g, "/");
+      tauriPath.startsWith('/') || /^\S:/g.test(tauriPath)
+        ? join(tauriPath, 'tauri') // we received a full path as argument
+        : join('..', tauriPath, 'tauri'); // we received a relative path
+    return resolvedPath.replace(/\\/g, '/');
   };
 
   const resolveCurrentTauriVersion = (): string => {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
-    const tauriManifest = require("../../../../tauri/Cargo.toml") as CargoManifest;
+    const tauriManifest = require('../../../../tauri/Cargo.toml') as CargoManifest;
     const version = tauriManifest.package.version;
-    return version.substring(0, version.lastIndexOf("."));
+    return version.substring(0, version.lastIndexOf('.'));
   };
 
   const tauriDep = tauriPath
@@ -87,13 +87,13 @@ Run \`tauri init --force template\` to overwrite.`);
 
   removeSync(dir);
   copyTemplates({
-    source: resolve(__dirname, "../../templates/src-tauri"),
+    source: resolve(__dirname, '../../templates/src-tauri'),
     scope: {
-      tauriDep,
+      tauriDep
     },
-    target: dir,
+    target: dir
   });
-  if (logging) log("Successfully wrote src-tauri");
+  if (logging) log('Successfully wrote src-tauri');
 };
 
 const inject = (
@@ -102,16 +102,16 @@ const inject = (
   { force = false, logging = false, tauriPath }: InjectOptions,
   customConfig?: Partial<TauriConfig>
 ): boolean => {
-  if (typeof type !== "string" || typeof injectPath !== "string") {
-    warn("- internal error. Required params missing.");
+  if (typeof type !== 'string' || typeof injectPath !== 'string') {
+    warn('- internal error. Required params missing.');
     return false;
   }
-  if (type === "template" || type === "all") {
+  if (type === 'template' || type === 'all') {
     injectTemplate(injectPath, { force, logging, tauriPath });
   }
-  if (type === "conf" || type === "all") {
+  if (type === 'conf' || type === 'all') {
     injectConfFile(
-      join(injectPath, "src-tauri"),
+      join(injectPath, 'src-tauri'),
       { force, logging },
       customConfig
     );

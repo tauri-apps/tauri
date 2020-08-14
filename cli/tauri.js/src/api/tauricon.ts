@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 /* eslint-disable @typescript-eslint/restrict-template-expressions, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
 
@@ -14,24 +14,24 @@
  * @license MIT
  */
 
-import { access, ensureDir, ensureFileSync, writeFileSync } from "fs-extra";
-import imagemin, { Plugin } from "imagemin";
-import optipng from "imagemin-optipng";
-import pngquant, { Options as PngQuantOptions } from "imagemin-pngquant";
-import zopfli from "imagemin-zopfli";
-import isPng from "is-png";
-import path from "path";
-import * as png2icons from "png2icons";
-import readChunk from "read-chunk";
-import sharp from "sharp";
-import { appDir, tauriDir } from "../helpers/app-paths";
-import logger from "../helpers/logger";
-import * as settings from "../helpers/tauricon.config";
-import chalk from "chalk";
-import { version } from "../../package.json";
+import { access, ensureDir, ensureFileSync, writeFileSync } from 'fs-extra';
+import imagemin, { Plugin } from 'imagemin';
+import optipng from 'imagemin-optipng';
+import pngquant, { Options as PngQuantOptions } from 'imagemin-pngquant';
+import zopfli from 'imagemin-zopfli';
+import isPng from 'is-png';
+import path from 'path';
+import * as png2icons from 'png2icons';
+import readChunk from 'read-chunk';
+import sharp from 'sharp';
+import { appDir, tauriDir } from '../helpers/app-paths';
+import logger from '../helpers/logger';
+import * as settings from '../helpers/tauricon.config';
+import chalk from 'chalk';
+import { version } from '../../package.json';
 
-const log = logger("app:spawn");
-const warn = logger("app:spawn", chalk.red);
+const log = logger('app:spawn');
+const warn = logger('app:spawn', chalk.red);
 
 let image: boolean | sharp.Sharp = false;
 const spinnerInterval = false;
@@ -61,7 +61,7 @@ const checkSrc = async (src: string): Promise<boolean | sharp.Sharp> => {
     if (!srcExists) {
       image = false;
       if (spinnerInterval) clearInterval(spinnerInterval);
-      warn("[ERROR] Source image for tauricon not found");
+      warn('[ERROR] Source image for tauricon not found');
       process.exit(1);
     } else {
       const buffer = await readChunk(src, 0, 8);
@@ -70,7 +70,7 @@ const checkSrc = async (src: string): Promise<boolean | sharp.Sharp> => {
       } else {
         image = false;
         if (spinnerInterval) clearInterval(spinnerInterval);
-        warn("[ERROR] Source image for tauricon is not a png");
+        warn('[ERROR] Source image for tauricon is not a png');
         process.exit(1);
       }
     }
@@ -124,7 +124,7 @@ const hexToRgb = (
     ? {
         r: parseInt(result[1], 16),
         g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16),
+        b: parseInt(result[3], 16)
       }
     : undefined;
 };
@@ -164,13 +164,13 @@ const progress = (msg: string): void => {
  */
 const spinner = (): NodeJS.Timeout => {
   return setInterval(() => {
-    process.stdout.write("/ \r");
+    process.stdout.write('/ \r');
     setTimeout(() => {
-      process.stdout.write("- \r");
+      process.stdout.write('- \r');
       setTimeout(() => {
-        process.stdout.write("\\ \r");
+        process.stdout.write('\\ \r');
         setTimeout(() => {
-          process.stdout.write("| \r");
+          process.stdout.write('| \r');
         }, 100);
       }, 100);
     }, 100);
@@ -180,14 +180,14 @@ const spinner = (): NodeJS.Timeout => {
 const tauricon = (exports.tauricon = {
   validate: async function (src: string, target: string) {
     await validate(src, target);
-    return typeof image === "object";
+    return typeof image === 'object';
   },
   version: function () {
     return version;
   },
   make: async function (
-    src: string = path.resolve(appDir, "app-icon.png"),
-    target: string = path.resolve(tauriDir, "icons"),
+    src: string = path.resolve(appDir, 'app-icon.png'),
+    target: string = path.resolve(tauriDir, 'icons'),
     strategy: string,
     // TODO: proper type for options
     options: { [index: string]: any }
@@ -195,17 +195,17 @@ const tauricon = (exports.tauricon = {
     const spinnerInterval = spinner();
     options = options || settings.options.tauri;
     await this.validate(src, target);
-    progress("Building Tauri icns and ico");
+    progress('Building Tauri icns and ico');
     await this.icns(src, target, options, strategy);
-    progress("Building Tauri png icons");
+    progress('Building Tauri png icons');
     await this.build(src, target, options);
     if (strategy) {
       progress(`Minifying assets with ${strategy}`);
-      await this.minify(target, options, strategy, "batch");
+      await this.minify(target, options, strategy, 'batch');
     } else {
-      log("no minify strategy");
+      log('no minify strategy');
     }
-    progress("Tauricon Finished");
+    progress('Tauricon Finished');
     clearInterval(spinnerInterval);
     return true;
   },
@@ -235,10 +235,10 @@ const tauricon = (exports.tauricon = {
           const rgb = hexToRgb(options.background_color) || {
             r: undefined,
             g: undefined,
-            b: undefined,
+            b: undefined
           };
           pngImage.flatten({
-            background: { r: rgb.r, g: rgb.g, b: rgb.b, alpha: 1 },
+            background: { r: rgb.r, g: rgb.g, b: rgb.b, alpha: 1 }
           });
         }
         pngImage.png();
@@ -273,7 +273,7 @@ const tauricon = (exports.tauricon = {
           const pvar: [string, number, number] = [
             output,
             size,
-            option.background,
+            option.background
           ];
           await buildify2(pvar);
         }
@@ -301,7 +301,7 @@ const tauricon = (exports.tauricon = {
     const rgb = hexToRgb(options.background_color) || {
       r: undefined,
       g: undefined,
-      b: undefined,
+      b: undefined
     };
 
     // three options
@@ -315,7 +315,7 @@ const tauricon = (exports.tauricon = {
       // prevent overlay or pure
       block = true;
     }
-    if (block || options.splashscreen_type === "generate") {
+    if (block || options.splashscreen_type === 'generate') {
       await this.validate(src, target);
       if (!image) {
         process.exit(1);
@@ -331,22 +331,22 @@ const tauricon = (exports.tauricon = {
             r: rgb.r,
             g: rgb.g,
             b: rgb.b,
-            alpha: 1,
-          },
+            alpha: 1
+          }
         })
         .flatten({ background: { r: rgb.r, g: rgb.g, b: rgb.b, alpha: 1 } });
-    } else if (options.splashscreen_type === "overlay") {
+    } else if (options.splashscreen_type === 'overlay') {
       sharpSrc = sharp(splashSrc)
         .flatten({ background: { r: rgb.r, g: rgb.g, b: rgb.b, alpha: 1 } })
         .composite([
           {
-            input: src,
+            input: src
             // blend: 'multiply' <= future work, maybe just a gag
-          },
+          }
         ]);
-    } else if (options.splashscreen_type === "pure") {
+    } else if (options.splashscreen_type === 'pure') {
       sharpSrc = sharp(splashSrc).flatten({
-        background: { r: rgb.r, g: rgb.g, b: rgb.b, alpha: 1 },
+        background: { r: rgb.r, g: rgb.g, b: rgb.b, alpha: 1 }
       });
     } else {
       throw new Error(
@@ -398,54 +398,54 @@ const tauricon = (exports.tauricon = {
       strategy = minify.type;
     }
     switch (strategy) {
-      case "pngquant":
+      case 'pngquant':
         // TODO: is minify.pngquantOptions the proper format?
         cmd = pngquant((minify.pngquantOptions as any) as PngQuantOptions);
         break;
-      case "optipng":
+      case 'optipng':
         cmd = optipng(minify.optipngOptions);
         break;
-      case "zopfli":
+      case 'zopfli':
         cmd = zopfli(minify.zopfliOptions);
         break;
       default:
-        throw new Error("unknown strategy" + strategy);
+        throw new Error('unknown strategy' + strategy);
     }
 
     const minifier = async (pvar: string[], cmd: Plugin): Promise<void> => {
       await imagemin([pvar[0]], {
         destination: pvar[1],
-        plugins: [cmd],
+        plugins: [cmd]
       }).catch((err) => {
         warn(err);
       });
     };
 
     switch (mode) {
-      case "singlefile":
+      case 'singlefile':
         await minifier([target, path.dirname(target)], cmd);
         break;
-      case "batch":
+      case 'batch':
         // eslint-disable-next-line no-case-declarations
         const folders = uniqueFolders(options);
         // eslint-disable-next-line @typescript-eslint/no-for-in-array
         for (const n in folders) {
           const folder = folders[Number(n)];
-          log("batch minify:" + String(folder));
+          log('batch minify:' + String(folder));
           await minifier(
             [
               `${target}${path.sep}${folder}${path.sep}*.png`,
-              `${target}${path.sep}${folder}`,
+              `${target}${path.sep}${folder}`
             ],
             cmd
           );
         }
         break;
       default:
-        warn("[ERROR] Minify mode must be one of [ singlefile | batch]");
+        warn('[ERROR] Minify mode must be one of [ singlefile | batch]');
         process.exit(1);
     }
-    return "minified";
+    return 'minified';
   },
 
   /**
@@ -474,27 +474,27 @@ const tauricon = (exports.tauricon = {
 
       const out = png2icons.createICNS(buf, png2icons.BICUBIC, 0);
       if (out === null) {
-        throw new Error("Failed to create icon.icns");
+        throw new Error('Failed to create icon.icns');
       }
-      ensureFileSync(path.join(target, "/icon.icns"));
-      writeFileSync(path.join(target, "/icon.icns"), out);
+      ensureFileSync(path.join(target, '/icon.icns'));
+      writeFileSync(path.join(target, '/icon.icns'), out);
 
       const out2 = png2icons.createICO(buf, png2icons.BICUBIC, 0, true);
       if (out2 === null) {
-        throw new Error("Failed to create icon.ico");
+        throw new Error('Failed to create icon.ico');
       }
-      ensureFileSync(path.join(target, "/icon.ico"));
-      writeFileSync(path.join(target, "/icon.ico"), out2);
+      ensureFileSync(path.join(target, '/icon.ico'));
+      writeFileSync(path.join(target, '/icon.ico'), out2);
     } catch (err) {
       console.error(err);
       throw err;
     }
-  },
+  }
 });
 /* eslint-enable @typescript-eslint/restrict-template-expressions */
 
-if (typeof exports !== "undefined") {
-  if (typeof module !== "undefined" && module.exports) {
+if (typeof exports !== 'undefined') {
+  if (typeof module !== 'undefined' && module.exports) {
     exports = module.exports = tauricon;
   }
   exports.tauricon = tauricon;

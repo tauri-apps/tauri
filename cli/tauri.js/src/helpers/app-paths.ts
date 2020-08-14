@@ -1,9 +1,9 @@
-import { existsSync } from "fs";
-import { join, normalize, resolve, sep, isAbsolute } from "path";
-import logger from "./logger";
-import chalk from "chalk";
+import { existsSync } from 'fs';
+import { join, normalize, resolve, sep, isAbsolute } from 'path';
+import logger from './logger';
+import chalk from 'chalk';
 
-const warn = logger("tauri", chalk.red);
+const warn = logger('tauri', chalk.red);
 
 function resolvePath(basePath: string, dir: string): string {
   return dir && isAbsolute(dir) ? dir : resolve(basePath, dir);
@@ -15,11 +15,11 @@ const getAppDir = (): string => {
 
   // only go up three folders max
   while (dir.length > 0 && !dir.endsWith(sep) && count <= 2) {
-    if (existsSync(join(dir, "src-tauri", "tauri.conf.json"))) {
+    if (existsSync(join(dir, 'src-tauri', 'tauri.conf.json'))) {
       return dir;
     }
     count++;
-    dir = normalize(join(dir, ".."));
+    dir = normalize(join(dir, '..'));
   }
 
   warn(
@@ -29,11 +29,11 @@ const getAppDir = (): string => {
 };
 
 const appDir = getAppDir();
-const tauriDir = resolve(appDir, "src-tauri");
+const tauriDir = resolve(appDir, 'src-tauri');
 
 const resolveDir = {
   app: (dir: string) => resolvePath(appDir, dir),
-  tauri: (dir: string) => resolvePath(tauriDir, dir),
+  tauri: (dir: string) => resolvePath(tauriDir, dir)
 };
 
 export { appDir, tauriDir, resolveDir as resolve };

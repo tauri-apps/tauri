@@ -19,8 +19,8 @@ exec(
       writeFileSync(
         configValidatorPath,
         configValidator.replace(
-          `import Ajv = require('ajv');`,
-          `import Ajv from 'ajv';`
+          `import Ajv = require('ajv')`,
+          `import Ajv from 'ajv'`
         )
       )
     }

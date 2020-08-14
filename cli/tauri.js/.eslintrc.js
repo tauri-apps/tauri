@@ -14,7 +14,8 @@ module.exports = {
     'plugin:lodash-template/recommended',
     // TODO: make this work with typescript
     // 'plugin:node/recommended'
-    'prettier'
+    'prettier',
+    'prettier/@typescript-eslint'
   ],
 
   plugins: ['@typescript-eslint', 'node', 'security'],
@@ -58,7 +59,6 @@ module.exports = {
         anonymous: 'never',
         named: 'never'
       }
-    ],
-    'prettier/prettier': 2
+    ]
   }
 };

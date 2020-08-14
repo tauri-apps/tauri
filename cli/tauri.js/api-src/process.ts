@@ -1,4 +1,4 @@
-import { promisified } from './tauri';
+import { promisified } from './tauri'
 
 /**
  * spawns a process
@@ -12,14 +12,14 @@ async function execute(
   args?: string | string[]
 ): Promise<string> {
   if (typeof args === 'object') {
-    Object.freeze(args);
+    Object.freeze(args)
   }
 
   return await promisified({
     cmd: 'execute',
     command,
     args: typeof args === 'string' ? [args] : args
-  });
+  })
 }
 
-export { execute };
+export { execute }

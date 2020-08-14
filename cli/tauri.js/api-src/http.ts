@@ -1,4 +1,4 @@
-import { promisified } from './tauri';
+import { promisified } from './tauri'
 
 export enum ResponseType {
   JSON = 1,
@@ -12,7 +12,7 @@ export enum BodyType {
   Auto = 3
 }
 
-export type Body = object | string | BinaryType;
+export type Body = object | string | BinaryType
 
 export type HttpVerb =
   | 'GET'
@@ -23,25 +23,25 @@ export type HttpVerb =
   | 'HEAD'
   | 'OPTIONS'
   | 'CONNECT'
-  | 'TRACE';
+  | 'TRACE'
 
 export interface HttpOptions {
-  method: HttpVerb;
-  url: string;
-  headers?: Record<string, any>;
-  params?: Record<string, any>;
-  body?: Body;
-  followRedirects: boolean;
-  maxRedirections: boolean;
-  connectTimeout: number;
-  readTimeout: number;
-  timeout: number;
-  allowCompression: boolean;
-  responseType?: ResponseType;
-  bodyType: BodyType;
+  method: HttpVerb
+  url: string
+  headers?: Record<string, any>
+  params?: Record<string, any>
+  body?: Body
+  followRedirects: boolean
+  maxRedirections: boolean
+  connectTimeout: number
+  readTimeout: number
+  timeout: number
+  allowCompression: boolean
+  responseType?: ResponseType
+  bodyType: BodyType
 }
 
-export type PartialOptions = Omit<HttpOptions, 'method' | 'url'>;
+export type PartialOptions = Omit<HttpOptions, 'method' | 'url'>
 
 /**
  * makes a HTTP request
@@ -54,7 +54,7 @@ async function request<T>(options: HttpOptions): Promise<T> {
   return await promisified({
     cmd: 'httpRequest',
     options: options
-  });
+  })
 }
 
 /**
@@ -70,7 +70,7 @@ async function get<T>(url: string, options: PartialOptions): Promise<T> {
     method: 'GET',
     url,
     ...options
-  });
+  })
 }
 
 /**
@@ -92,7 +92,7 @@ async function post<T>(
     url,
     body,
     ...options
-  });
+  })
 }
 
 /**
@@ -114,7 +114,7 @@ async function put<T>(
     url,
     body,
     ...options
-  });
+  })
 }
 
 /**
@@ -130,7 +130,7 @@ async function patch<T>(url: string, options: PartialOptions): Promise<T> {
     method: 'PATCH',
     url,
     ...options
-  });
+  })
 }
 
 /**
@@ -149,7 +149,7 @@ async function deleteRequest<T>(
     method: 'DELETE',
     url,
     ...options
-  });
+  })
 }
 
 export default {
@@ -161,4 +161,4 @@ export default {
   delete: deleteRequest,
   ResponseType,
   BodyType
-};
+}

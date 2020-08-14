@@ -1,11 +1,11 @@
-import { invoke, transformCallback } from './tauri';
+import { invoke, transformCallback } from './tauri'
 
 export interface Event<T> {
-  type: string;
-  payload: T;
+  type: string
+  payload: T
 }
 
-export type EventCallback<T> = (event: Event<T>) => void;
+export type EventCallback<T> = (event: Event<T>) => void
 
 /**
  * listen to an event from the backend
@@ -23,7 +23,7 @@ function listen<T>(
     event,
     handler: transformCallback(handler, once),
     once
-  });
+  })
 }
 
 /**
@@ -37,7 +37,7 @@ function emit(event: string, payload?: string): void {
     cmd: 'emit',
     event,
     payload
-  });
+  })
 }
 
-export { listen, emit };
+export { listen, emit }

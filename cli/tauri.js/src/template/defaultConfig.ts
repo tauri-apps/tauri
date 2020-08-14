@@ -56,4 +56,4 @@ export default {
       active: true
     }
   }
-};
+}

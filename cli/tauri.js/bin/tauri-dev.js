@@ -1,4 +1,4 @@
-const parseArgs = require('minimist');
+const parseArgs = require('minimist')
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
@@ -6,7 +6,7 @@ const argv = parseArgs(process.argv.slice(2), {
     e: 'exit-on-panic'
   },
   boolean: ['h', 'e']
-});
+})
 
 if (argv.help) {
   console.log(`
@@ -16,18 +16,18 @@ if (argv.help) {
     $ tauri dev
   Options
     --help, -h     Displays this message
-  `);
-  process.exit(0);
+  `)
+  process.exit(0)
 }
 
 async function run() {
-  const dev = require('../dist/api/dev');
+  const dev = require('../dist/api/dev')
 
   await dev({
     ctx: {
       exitOnPanic: argv['exit-on-panic']
     }
-  }).promise;
+  }).promise
 }
 
-run();
+run()

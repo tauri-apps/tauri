@@ -1,4 +1,4 @@
-import { promisified } from './tauri';
+import { promisified } from './tauri'
 
 export enum BaseDirectory {
   Audio = 1,
@@ -22,26 +22,26 @@ export enum BaseDirectory {
 }
 
 export interface FsOptions {
-  dir?: BaseDirectory;
+  dir?: BaseDirectory
 }
 
 export interface FsTextFileOption {
-  path: string;
-  contents: string;
+  path: string
+  contents: string
 }
 
 export interface FsBinaryFileOption {
-  path: string;
-  contents: ArrayBuffer;
+  path: string
+  contents: ArrayBuffer
 }
 
 export interface FileEntry {
-  path: string;
+  path: string
   // name of the directory/file
   // can be null if the path terminates with `..`
-  name?: string;
+  name?: string
   // children of this entry if it's a directory; null otherwise
-  children?: FileEntry[];
+  children?: FileEntry[]
 }
 
 /**
@@ -60,7 +60,7 @@ async function readTextFile(
     cmd: 'readTextFile',
     path: filePath,
     options
-  });
+  })
 }
 
 /**
@@ -79,7 +79,7 @@ async function readBinaryFile(
     cmd: 'readBinaryFile',
     path: filePath,
     options
-  });
+  })
 }
 
 /**
@@ -97,10 +97,10 @@ async function writeFile(
   options: FsOptions = {}
 ): Promise<void> {
   if (typeof options === 'object') {
-    Object.freeze(options);
+    Object.freeze(options)
   }
   if (typeof file === 'object') {
-    Object.freeze(file);
+    Object.freeze(file)
   }
 
   return await promisified({
@@ -108,10 +108,10 @@ async function writeFile(
     path: file.path,
     contents: file.contents,
     options
-  });
+  })
 }
 
-const CHUNK_SIZE = 65536;
+const CHUNK_SIZE = 65536
 
 /**
  * convert an Uint8Array to ascii string
@@ -121,16 +121,16 @@ const CHUNK_SIZE = 65536;
  */
 function uint8ArrayToString(arr: Uint8Array): string {
   if (arr.length < CHUNK_SIZE) {
-    return String.fromCharCode.apply(null, Array.from(arr));
+    return String.fromCharCode.apply(null, Array.from(arr))
   }
 
-  let result = '';
-  const arrLen = arr.length;
+  let result = ''
+  const arrLen = arr.length
   for (let i = 0; i < arrLen; i++) {
-    const chunk = arr.subarray(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
-    result += String.fromCharCode.apply(null, Array.from(chunk));
+    const chunk = arr.subarray(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
+    result += String.fromCharCode.apply(null, Array.from(chunk))
   }
-  return result;
+  return result
 }
 
 /**
@@ -140,8 +140,8 @@ function uint8ArrayToString(arr: Uint8Array): string {
  * @return base64 encoded string
  */
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const str = uint8ArrayToString(new Uint8Array(buffer));
-  return btoa(str);
+  const str = uint8ArrayToString(new Uint8Array(buffer))
+  return btoa(str)
 }
 
 /**
@@ -159,10 +159,10 @@ async function writeBinaryFile(
   options: FsOptions = {}
 ): Promise<void> {
   if (typeof options === 'object') {
-    Object.freeze(options);
+    Object.freeze(options)
   }
   if (typeof file === 'object') {
-    Object.freeze(file);
+    Object.freeze(file)
   }
 
   return await promisified({
@@ -170,7 +170,7 @@ async function writeBinaryFile(
     path: file.path,
     contents: arrayBufferToBase64(file.contents),
     options
-  });
+  })
 }
 
 /**
@@ -190,7 +190,7 @@ async function readDir(
     cmd: 'readDir',
     path: dir,
     options
-  });
+  })
 }
 
 /**
@@ -209,7 +209,7 @@ async function createDir(dir: string, options: FsOptions = {}): Promise<void> {
     cmd: 'createDir',
     path: dir,
     options
-  });
+  })
 }
 
 /**
@@ -227,7 +227,7 @@ async function removeDir(dir: string, options: FsOptions = {}): Promise<void> {
     cmd: 'removeDir',
     path: dir,
     options
-  });
+  })
 }
 
 /**
@@ -249,7 +249,7 @@ async function copyFile(
     source,
     destination,
     options
-  });
+  })
 }
 
 /**
@@ -268,7 +268,7 @@ async function removeFile(
     cmd: 'removeFile',
     path: file,
     options: options
-  });
+  })
 }
 
 /**
@@ -290,7 +290,7 @@ async function renameFile(
     oldPath,
     newPath,
     options
-  });
+  })
 }
 
 export {
@@ -305,4 +305,4 @@ export {
   copyFile,
   removeFile,
   renameFile
-};
+}

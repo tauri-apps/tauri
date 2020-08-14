@@ -1,15 +1,15 @@
-import { TauriConfig } from 'types';
-import { merge } from 'webpack-merge';
-import Runner from '../runner';
-import getTauriConfig from '../helpers/tauri-config';
+import { TauriConfig } from 'types'
+import { merge } from 'webpack-merge'
+import Runner from '../runner'
+import getTauriConfig from '../helpers/tauri-config'
 
 interface BuildResult {
-  promise: Promise<void>;
-  runner: Runner;
+  promise: Promise<void>
+  runner: Runner
 }
 
 module.exports = (config: TauriConfig): BuildResult => {
-  const tauri = new Runner();
+  const tauri = new Runner()
   const tauriConfig = getTauriConfig(
     merge(
       {
@@ -19,10 +19,10 @@ module.exports = (config: TauriConfig): BuildResult => {
       } as any,
       config as any
     ) as TauriConfig
-  );
+  )
 
   return {
     runner: tauri,
     promise: tauri.build(tauriConfig)
-  };
-};
+  }
+}

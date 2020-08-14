@@ -53,4 +53,4 @@ module.exports = {
     '@typescript-eslint/default-param-last': 'off',
     '@typescript-eslint/strict-boolean-expressions': 0
   }
-};
+}

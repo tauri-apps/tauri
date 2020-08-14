@@ -1,6 +1,6 @@
-const path = require('path');
-const nodeExternals = require('webpack-node-externals');
-const CopyWebpackPlugin = require('copy-webpack-plugin');
+const path = require('path')
+const nodeExternals = require('webpack-node-externals')
+const CopyWebpackPlugin = require('copy-webpack-plugin')
 
 module.exports = {
   entry: {
@@ -51,29 +51,29 @@ module.exports = {
           from: './src/types/config.validator.ts',
           to: '../src/types/config.schema.json',
           transform(content) {
-            return schemaParser('TauriConfigSchema', content.toString());
+            return schemaParser('TauriConfigSchema', content.toString())
           }
         }
       ]
     })
   ]
-};
+}
 
 function schemaParser(schemaName, content) {
-  const lines = content.split('\n');
-  const output = [];
+  const lines = content.split('\n')
+  const output = []
 
   for (const line of lines) {
     if (line === `export const ${schemaName} = {`) {
-      output.push('{');
+      output.push('{')
     } else if (output.length) {
       if (line === '};') {
-        output.push('}');
-        break;
+        output.push('}')
+        break
       }
-      output.push(line);
+      output.push(line)
     }
   }
 
-  return output.join('\n');
+  return output.join('\n')
 }

@@ -71,4 +71,4 @@ export const options = {
     // todo: look at capacitor and cordova for insight into what icons
     // we need for those distribution targets
   }
-};
+}

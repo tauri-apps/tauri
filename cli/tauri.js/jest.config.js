@@ -43,4 +43,4 @@ module.exports = {
       './test/jest/raw-loader-transformer.js',
     '\\.(js|ts)$': 'babel-jest'
   }
-};
+}

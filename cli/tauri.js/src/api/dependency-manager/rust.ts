@@ -9,6 +9,7 @@ import https from 'https'
 
 const log = logger('dependency:rust')
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function download(url: string, dest: string): Promise<void> {
   const file = createWriteStream(dest)
   return await new Promise((resolve, reject) => {

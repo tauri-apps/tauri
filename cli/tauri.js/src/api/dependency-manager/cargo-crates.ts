@@ -69,6 +69,7 @@ async function manageDependencies(
     } else if (managementType === ManagementType.Update) {
       const latestVersion = await getCrateLatestVersion(dependency)
       if (semverLt(currentVersion, latestVersion)) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
         const inquired = await inquirer.prompt([
           {
             type: 'confirm',
@@ -77,6 +78,7 @@ async function manageDependencies(
             default: false
           }
         ])
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
         if (inquired.answer) {
           log(`Updating ${dependency}...`)
           // eslint-disable-next-line security/detect-object-injection

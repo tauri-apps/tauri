@@ -357,9 +357,12 @@ class Runner {
 
         if (
           !(
-            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-            (cfg.ctx.dev && cfg.build.devPath.startsWith('http')) ||
-            cfg.tauri.embeddedServer.active
+            /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
+            (
+              (cfg.ctx.dev && cfg.build.devPath.startsWith('http')) ||
+              cfg.tauri.embeddedServer.active
+            )
+            /* eslint-enable */
           )
         ) {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access

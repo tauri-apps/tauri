@@ -18,3 +18,6 @@ jobs:
       - name: run eslint
         working-directory: ./cli/tauri.js
         run: yarn lint
+      - name: run prettier
+        working-directory: ./clu/tauri.js
+        run: yarn format:check

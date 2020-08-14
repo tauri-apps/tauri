@@ -14,6 +14,7 @@ module.exports = {
     "plugin:lodash-template/recommended",
     // TODO: make this work with typescript
     // 'plugin:node/recommended'
+    "prettier",
   ],
 
   plugins: ["@typescript-eslint", "node", "security"],

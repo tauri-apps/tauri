@@ -1,5 +1,12 @@
 import { ManagementType, Result } from './types'
-import { getNpmLatestVersion, getNpmPackageVersion, installNpmPackage, updateNpmPackage, semverLt } from './util'
+import {
+  getNpmLatestVersion,
+  getNpmPackageVersion,
+  installNpmPackage,
+  installNpmDevPackage,
+  updateNpmPackage,
+  semverLt
+} from './util'
 import logger from '../../helpers/logger'
 import { resolve } from '../../helpers/app-paths'
 import inquirer from 'inquirer'
@@ -7,9 +14,7 @@ import { existsSync } from 'fs'
 
 const log = logger('dependency:npm-packages')
 
-const dependencies = ['tauri']
-
-async function manageDependencies(managementType: ManagementType): Promise<Result> {
+async function manageDependencies(managementType: ManagementType, dependencies: string[]): Promise<Result> {
   const installedDeps = []
   const updatedDeps = []
 
@@ -18,7 +23,11 @@ async function manageDependencies(managementType: ManagementType): Promise<Resul
       const currentVersion = await getNpmPackageVersion(dependency)
       if (currentVersion === null) {
         log(`Installing ${dependency}...`)
-        installNpmPackage(dependency)
+        if (managementType === ManagementType.Install) {
+          installNpmPackage(dependency)
+        } else if (managementType === ManagementType.InstallDev) {
+          installNpmDevPackage(dependency)
+        }
         installedDeps.push(dependency)
       } else if (managementType === ManagementType.Update) {
         const latestVersion = getNpmLatestVersion(dependency)
@@ -50,15 +59,27 @@ async function manageDependencies(managementType: ManagementType): Promise<Resul
   return result
 }
 
+const dependencies = ['tauri']
+
 async function install(): Promise<Result> {
-  return await manageDependencies(ManagementType.Install)
+  return await manageDependencies(ManagementType.Install, dependencies)
+}
+
+async function installThese(dependencies: string[]): Promise<Result> {
+  return await manageDependencies(ManagementType.Install, dependencies)
+}
+
+async function installTheseDev(dependencies: string[]): Promise<Result> {
+  return await manageDependencies(ManagementType.InstallDev, dependencies)
 }
 
 async function update(): Promise<Result> {
-  return await manageDependencies(ManagementType.Update)
+  return await manageDependencies(ManagementType.Update, dependencies)
 }
 
 export {
   install,
+  installThese,
+  installTheseDev,
   update
 }

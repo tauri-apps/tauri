@@ -17,6 +17,9 @@ jobs:
       - name: install deps via yarn
         working-directory: ./cli/tauri.js
         run: yarn
+      - name: yarn build
+        working-directory: ./cli/tauri.js
+        run: yarn build
       - name: run eslint
         working-directory: ./cli/tauri.js
         run: yarn lint

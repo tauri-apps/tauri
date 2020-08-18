@@ -20,14 +20,12 @@ const none = {
   postConfiguration: (cwd: string) => {}
 }
 
-export const allRecipes: Recipe[] = [
-  none,
-  reactjs,
-  reactts
-]
+export const allRecipes: Recipe[] = [none, reactjs, reactts]
 
-export const recipeNames: Array<[string, string]> =
-  map(allRecipes, (r: Recipe) => [r.shortName, r.descriptiveName])
+export const recipeNames: Array<[string, string]> = map(
+  allRecipes,
+  (r: Recipe) => [r.shortName, r.descriptiveName]
+)
 
 export const recipeByShortName = (name: string): Recipe | undefined =>
   find(allRecipes, (r: Recipe) => r.shortName === name)
@@ -35,6 +33,12 @@ export const recipeByShortName = (name: string): Recipe | undefined =>
 export const recipeByDescriptiveName = (name: string): Recipe | undefined =>
   find(allRecipes, (r: Recipe) => r.descriptiveName === name)
 
-export const recipeShortNames: string[] = map(allRecipes, (r: Recipe) => r.shortName)
+export const recipeShortNames: string[] = map(
+  allRecipes,
+  (r: Recipe) => r.shortName
+)
 
-export const recipeDescriptiveNames: string[] = map(allRecipes, (r: Recipe) => r.descriptiveName)
+export const recipeDescriptiveNames: string[] = map(
+  allRecipes,
+  (r: Recipe) => r.descriptiveName
+)

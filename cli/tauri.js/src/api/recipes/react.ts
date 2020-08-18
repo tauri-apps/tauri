@@ -45,14 +45,21 @@ const reactts: Recipe = {
   ...reactjs,
   descriptiveName: 'React with Typescript',
   shortName: 'reactts',
-  extraNpmDependencies: ['typescript', '@types/node', '@types/react', '@types/react-dom', '@types/jest'],
+  extraNpmDependencies: [
+    'typescript',
+    '@types/node',
+    '@types/react',
+    '@types/react-dom',
+    '@types/jest'
+  ],
   postConfiguration: (cwd: string) => {
-    spawnSync('yarn', ['create-react-app', '--template', 'typescript', uiAppDir], cwd)
+    spawnSync(
+      'yarn',
+      ['create-react-app', '--template', 'typescript', uiAppDir],
+      cwd
+    )
     afterCra()
   }
 }
 
-export {
-  reactjs,
-  reactts
-}
+export { reactjs, reactts }

@@ -365,6 +365,7 @@ class Runner {
             /* eslint-enable */
           )
         ) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
           const mutationObserverTemplate = require('../templates/mutation-observer')
             .default
           const compiledMutationObserver = template(mutationObserverTemplate)

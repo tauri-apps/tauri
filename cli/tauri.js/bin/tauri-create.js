@@ -2,11 +2,11 @@ const parseArgs = require('minimist')
 const inquirer = require('inquirer')
 const { resolve } = require('path')
 const { merge } = require('lodash')
-const { 
-  recipeShortNames, 
-  recipeDescriptiveNames, 
-  recipeByDescriptiveName, 
-  recipeByShortName 
+const {
+  recipeShortNames,
+  recipeDescriptiveNames,
+  recipeByDescriptiveName,
+  recipeByShortName
 } = require('../dist/api/recipes')
 
 /**
@@ -47,7 +47,7 @@ function main(cliArgs) {
   if (argv.ci) {
     runInit(argv)
   } else {
-    getOptionsInteractive(argv).then(responses => runInit(argv, responses))
+    getOptionsInteractive(argv).then((responses) => runInit(argv, responses))
   }
 }
 
@@ -78,18 +78,22 @@ const getOptionsInteractive = (argv) => {
   let defaultAppName = argv.A
   if (!defaultAppName) {
     try {
-      const packageJson = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json')).toString())
+      const packageJson = JSON.parse(
+        readFileSync(resolve(process.cwd(), 'package.json')).toString()
+      )
       defaultAppName = packageJson.displayName || packageJson.name
     } catch {}
   }
 
   return inquirer
-    .prompt([{
+    .prompt([
+      {
         type: 'input',
         name: 'appName',
         message: 'What is your app name?',
         default: defaultAppName
-      }, {
+      },
+      {
         type: 'input',
         name: 'tauri.window.title',
         message: 'What should the window title be?',
@@ -105,7 +109,7 @@ const getOptionsInteractive = (argv) => {
         when: () => !argv.r
       }
     ])
-    .then(answers =>
+    .then((answers) =>
       inquirer
         .prompt([
           {
@@ -113,19 +117,24 @@ const getOptionsInteractive = (argv) => {
             name: 'build.devPath',
             message: 'What is the url of your dev server?',
             default: 'http://localhost:4000',
-            when: () => !argv.P && !argv.p && answers.recipeName === 'No recipe' || argv.r === 'none'
+            when: () =>
+              (!argv.P && !argv.p && answers.recipeName === 'No recipe') ||
+              argv.r === 'none'
           },
           {
             type: 'input',
             name: 'build.distDir',
-            message: 'Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri" folder that will be created?',
+            message:
+              'Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri" folder that will be created?',
             default: '../dist',
-            when: () => !argv.D && answers.recipeName === 'No recipe' || argv.r === 'none'
+            when: () =>
+              (!argv.D && answers.recipeName === 'No recipe') ||
+              argv.r === 'none'
           }
         ])
-        .then(answers2 => ({...answers, ...answers2}))
+        .then((answers2) => ({ ...answers, ...answers2 }))
     )
-    .catch(error => {
+    .catch((error) => {
       if (error.isTtyError) {
         // Prompt couldn't be rendered in the current environment
         console.log(
@@ -139,16 +148,11 @@ const getOptionsInteractive = (argv) => {
     })
 }
 
-
 async function runInit(argv, config = {}) {
-  const {
-    appName,
-    recipeName,
-    ...configOptions
-  } = config
+  const { appName, recipeName, ...configOptions } = config
   const init = require('../dist/api/init')
 
-  let recipe;
+  let recipe
   let recipeSelection = 'none'
 
   if (recipeName !== undefined) {
@@ -168,7 +172,7 @@ async function runInit(argv, config = {}) {
   }
 
   const directory = argv.d || process.cwd()
-  
+
   init({
     directory,
     force: argv.f || null,
@@ -184,18 +188,16 @@ async function runInit(argv, config = {}) {
       }
     })
   })
-   
-  const {
-    installDependencies
-  } = require('../dist/api/dependency-manager')
+
+  const { installDependencies } = require('../dist/api/dependency-manager')
   await installDependencies()
-  
+
   if (recipe !== undefined) {
     const {
       installRecipeDependencies,
       runRecipePostConfig
     } = require('../dist/api/recipes/install')
-  
+
     await installRecipeDependencies(recipe, directory)
     await runRecipePostConfig(recipe, directory)
   }

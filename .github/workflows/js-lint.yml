@@ -16,8 +16,9 @@ jobs:
         working-directory: ./cli/tauri.js
         run: yarn
       - name: run eslint
-        working-directory: ./cli/tauri.js
-        run: yarn lint
+        run: |
+          cd ./cli/tauri.js
+          yarn lint
       - name: run prettier
         working-directory: ./cli/tauri.js
         run: yarn format:check

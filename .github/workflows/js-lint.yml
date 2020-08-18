@@ -15,14 +15,14 @@ jobs:
         with:
           node-version: '12'
       - name: install deps via yarn
-        working-directory: /cli/tauri.js/
+        working-directory: ./cli/tauri.js/
         run: yarn
       - name: yarn build
-        working-directory: /cli/tauri.js/
+        working-directory: ./cli/tauri.js/
         run: yarn build
       - name: run eslint
-        working-directory: /cli/tauri.js/
+        working-directory: ./cli/tauri.js/
         run: yarn lint
       - name: run prettier
-        working-directory: /cli/tauri.js/
+        working-directory: ./cli/tauri.js/
         run: yarn format:check

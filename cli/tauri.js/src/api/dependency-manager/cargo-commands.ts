@@ -33,7 +33,6 @@ async function manageDependencies(
             default: false
           }
         ])
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
         if (inquired.answer) {
           spawnSync('cargo', ['install', dependency, '--force'])
           updatedDeps.push(dependency)

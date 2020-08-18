@@ -61,7 +61,7 @@ pub struct AppBuilder {
 }
 
 impl AppBuilder {
-  /// Creates a new App bulder.
+  /// Creates a new App builder.
   pub fn new() -> Self {
     Self {
       invoke_handler: None,

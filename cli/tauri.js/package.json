@@ -122,7 +122,7 @@
     "promise": "8.1.0",
     "raw-loader": "4.0.1",
     "rimraf": "3.0.2",
-    "rollup": "2.22.2",
+    "rollup": "2.26.4",
     "rollup-plugin-terser": "6.1.0",
     "rollup-plugin-typescript2": "0.27.1",
     "toml-loader": "1.0.0",

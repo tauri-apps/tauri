@@ -19,4 +19,4 @@ tempdir = "0.3"
 tauri-api = { version = "0.5", path = "../tauri-api" }
 tauri-utils = { version = "0.5", path = "../tauri-utils" }
 anyhow = "1.0.31"
-thiserror = "1.0.19"
+thiserror = "1.0.20"

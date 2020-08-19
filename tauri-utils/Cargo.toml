@@ -12,4 +12,4 @@ edition = "2018"
 [dependencies]
 sysinfo = "0.10"
 anyhow = "1.0.31"
-thiserror = "1.0.19"
+thiserror = "1.0.20"

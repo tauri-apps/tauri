@@ -83,7 +83,7 @@
     "@rollup/plugin-babel": "5.1.0",
     "@rollup/plugin-commonjs": "14.0.0",
     "@rollup/plugin-json": "4.1.0",
-    "@rollup/plugin-node-resolve": "8.4.0",
+    "@rollup/plugin-node-resolve": "9.0.0",
     "@rollup/plugin-sucrase": "3.1.0",
     "@rollup/plugin-typescript": "5.0.2",
     "@types/cross-spawn": "6.0.2",

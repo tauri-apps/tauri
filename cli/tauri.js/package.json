@@ -66,7 +66,7 @@
     "is-reachable": "4.0.0",
     "isbinaryfile": "4.0.6",
     "jsdom": "16.3.0",
-    "lodash": "4.17.19",
+    "lodash": "4.17.20",
     "minimist": "1.2.5",
     "ms": "2.1.2",
     "png2icons": "2.0.1",
@@ -93,7 +93,7 @@
     "@types/imagemin-optipng": "5.2.0",
     "@types/inquirer": "7.3.0",
     "@types/jsdom": "16.2.3",
-    "@types/lodash": "4.14.158",
+    "@types/lodash": "4.14.159",
     "@types/ms": "0.7.31",
     "@types/semver": "7.3.1",
     "@types/sharp": "0.25.1",
@@ -135,7 +135,7 @@
     "webpack-node-externals": "2.5.0"
   },
   "resolutions": {
-    "**/lodash": ">=4.17.19"
+    "**/lodash": "4.17.20"
   },
   "husky": {
     "hooks": {

@@ -114,7 +114,7 @@
     "eslint-plugin-standard": "4.0.1",
     "husky": "4.2.5",
     "is-running": "2.1.0",
-    "jest": "26.1.0",
+    "jest": "26.4.0",
     "jest-mock-process": "1.4.0",
     "lint-staged": "10.2.11",
     "lockfile-lint": "4.3.7",

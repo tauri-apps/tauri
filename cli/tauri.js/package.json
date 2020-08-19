@@ -73,7 +73,7 @@
     "read-chunk": "3.2.0",
     "semver": "7.3.2",
     "sharp": "0.25.4",
-    "webpack-merge": "5.0.9",
+    "webpack-merge": "5.1.2",
     "webpack-shell-plugin": "0.5.0"
   },
   "devDependencies": {

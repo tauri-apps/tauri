@@ -25,7 +25,7 @@ if (argv.help) {
   process.exit(0)
 }
 
-async function run () {
+async function run() {
   const build = require('../dist/api/build')
 
   await build({

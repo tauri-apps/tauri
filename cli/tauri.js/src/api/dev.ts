@@ -17,10 +17,14 @@ interface DevResult {
 
 module.exports = (config: TauriConfig): DevResult => {
   if (platform() === 'win32') {
-    const child = spawnSync('powershell', [resolve(__dirname, '../../scripts/is-admin.ps1')])
+    const child = spawnSync('powershell', [
+      resolve(__dirname, '../../scripts/is-admin.ps1')
+    ])
     const response = String(child.output[1]).replace('\n', '').trim()
     if (response === 'True') {
-      error('Administrator privileges detected. Tauri doesn\'t work when running as admin, see https://github.com/Boscop/web-view/issues/96')
+      error(
+        "Administrator privileges detected. Tauri doesn't work when running as admin, see https://github.com/Boscop/web-view/issues/96"
+      )
       process.exit(1)
     }
   }

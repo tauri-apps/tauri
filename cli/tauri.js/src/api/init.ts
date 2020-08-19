@@ -26,14 +26,19 @@ module.exports = (args: {
   )
   if (args.appName) {
     const manifestPath = resolve(args.directory, 'src-tauri/Cargo.toml')
-    const cargoManifest = toml.parse(readFileSync(manifestPath).toString()) as unknown as CargoManifest
+    const cargoManifest = (toml.parse(
+      readFileSync(manifestPath).toString()
+    ) as unknown) as CargoManifest
     const binName = kebabCase(args.appName)
     cargoManifest.package.name = binName
     cargoManifest.package['default-run'] = binName
     if (cargoManifest.bin?.length) {
       cargoManifest.bin[0].name = binName
     }
-    writeFileSync(manifestPath, toml.stringify(cargoManifest as unknown as JsonMap))
+    writeFileSync(
+      manifestPath,
+      toml.stringify((cargoManifest as unknown) as JsonMap)
+    )
   }
   return injectResult
 }

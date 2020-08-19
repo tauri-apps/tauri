@@ -1,5 +1,9 @@
 import { spawnSync } from './../../helpers/spawn'
-import { CargoManifest, CargoManifestDependency, CargoLock } from './../../types/cargo'
+import {
+  CargoManifest,
+  CargoManifestDependency,
+  CargoLock
+} from './../../types/cargo'
 import { ManagementType, Result } from './types'
 import { getCrateLatestVersion, semverLt } from './util'
 import logger from '../../helpers/logger'
@@ -15,7 +19,7 @@ const dependencies = ['tauri']
 function readToml<T>(tomlPath: string): T | null {
   if (existsSync(tomlPath)) {
     const manifest = readFileSync(tomlPath).toString()
-    return toml.parse(manifest) as any as T
+    return (toml.parse(manifest) as any) as T
   }
   return null
 }
@@ -24,7 +28,9 @@ function dependencyDefinition(version: string): CargoManifestDependency {
   return { version: version.substring(0, version.lastIndexOf('.')) }
 }
 
-async function manageDependencies(managementType: ManagementType): Promise<Result> {
+async function manageDependencies(
+  managementType: ManagementType
+): Promise<Result> {
   const installedDeps = []
   const updatedDeps = []
   const result: Result = new Map<ManagementType, string[]>()
@@ -43,12 +49,17 @@ async function manageDependencies(managementType: ManagementType): Promise<Resul
   const lock = readToml<CargoLock>(lockPath)
 
   for (const dependency of dependencies) {
-    const lockPackages = lock ? lock.package.filter(pkg => pkg.name === dependency) : []
+    const lockPackages = lock
+      ? lock.package.filter((pkg) => pkg.name === dependency)
+      : []
     // eslint-disable-next-line security/detect-object-injection
     const manifestDep = manifest.dependencies[dependency]
-    const currentVersion = lockPackages.length === 1
-      ? lockPackages[0].version
-      : (typeof manifestDep === 'string' ? manifestDep : manifestDep?.version)
+    const currentVersion =
+      lockPackages.length === 1
+        ? lockPackages[0].version
+        : typeof manifestDep === 'string'
+        ? manifestDep
+        : manifestDep?.version
     if (currentVersion === undefined) {
       log(`Installing ${dependency}...`)
       const latestVersion = await getCrateLatestVersion(dependency)
@@ -58,16 +69,22 @@ async function manageDependencies(managementType: ManagementType): Promise<Resul
     } else if (managementType === ManagementType.Update) {
       const latestVersion = await getCrateLatestVersion(dependency)
       if (semverLt(currentVersion, latestVersion)) {
-        const inquired = await inquirer.prompt([{
-          type: 'confirm',
-          name: 'answer',
-          message: `[CRATES] "${dependency}" latest version is ${latestVersion}. Do you want to update?`,
-          default: false
-        }])
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
+        const inquired = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'answer',
+            message: `[CRATES] "${dependency}" latest version is ${latestVersion}. Do you want to update?`,
+            default: false
+          }
+        ])
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
         if (inquired.answer) {
           log(`Updating ${dependency}...`)
           // eslint-disable-next-line security/detect-object-injection
-          manifest.dependencies[dependency] = dependencyDefinition(latestVersion)
+          manifest.dependencies[dependency] = dependencyDefinition(
+            latestVersion
+          )
           updatedDeps.push(dependency)
         }
       } else {
@@ -79,13 +96,27 @@ async function manageDependencies(managementType: ManagementType): Promise<Resul
   }
 
   if (installedDeps.length || updatedDeps.length) {
-    writeFileSync(appResolve.tauri('Cargo.toml'), toml.stringify(manifest as any))
+    writeFileSync(
+      appResolve.tauri('Cargo.toml'),
+      toml.stringify(manifest as any)
+    )
   }
   if (updatedDeps.length) {
     if (!existsSync(appResolve.tauri('Cargo.lock'))) {
       spawnSync('cargo', ['generate-lockfile'], tauriDir)
     }
-    spawnSync('cargo', ['update', '--aggressive', ...updatedDeps.reduce<string[]>((initialValue, dep) => [...initialValue, '-p', dep], [])], tauriDir)
+    spawnSync(
+      'cargo',
+      [
+        'update',
+        '--aggressive',
+        ...updatedDeps.reduce<string[]>(
+          (initialValue, dep) => [...initialValue, '-p', dep],
+          []
+        )
+      ],
+      tauriDir
+    )
   }
 
   result.set(ManagementType.Install, installedDeps)
@@ -102,7 +133,4 @@ async function update(): Promise<Result> {
   return await manageDependencies(ManagementType.Update)
 }
 
-export {
-  install,
-  update
-}
+export { install, update }

@@ -11,8 +11,20 @@ function s4(): string {
 }
 
 function uid(): string {
-  return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
-    s4() + '-' + s4() + s4() + s4()
+  return (
+    s4() +
+    s4() +
+    '-' +
+    s4() +
+    '-' +
+    s4() +
+    '-' +
+    s4() +
+    '-' +
+    s4() +
+    s4() +
+    s4()
+  )
 }
 
 /**
@@ -24,7 +36,10 @@ function invoke(args: any): void {
   window.__TAURI_INVOKE_HANDLER__(args)
 }
 
-function transformCallback(callback?: (response: any) => void, once = false): string {
+function transformCallback(
+  callback?: (response: any) => void,
+  once = false
+): string {
   const identifier = uid()
 
   Object.defineProperty(window, identifier, {
@@ -50,11 +65,11 @@ function transformCallback(callback?: (response: any) => void, once = false): st
  */
 async function promisified<T>(args: any): Promise<T> {
   return await new Promise((resolve, reject) => {
-    const callback = transformCallback(e => {
+    const callback = transformCallback((e) => {
       resolve(e)
       Reflect.deleteProperty(window, error)
     }, true)
-    const error = transformCallback(e => {
+    const error = transformCallback((e) => {
       reject(e)
       Reflect.deleteProperty(window, callback)
     }, true)
@@ -67,8 +82,4 @@ async function promisified<T>(args: any): Promise<T> {
   })
 }
 
-export {
-  invoke,
-  transformCallback,
-  promisified
-}
+export { invoke, transformCallback, promisified }

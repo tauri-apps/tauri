@@ -14,9 +14,11 @@ app.post('/reply', (req, res) => {
   exit(0)
 })
 
-const server = app.listen(port, () => console.log(`Test listening on port ${port}!`))
+const server = app.listen(port, () =>
+  console.log(`Test listening on port ${port}!`)
+)
 
-const exit = code => {
+const exit = (code) => {
   server.close()
   process.kill(appPid)
   process.exit(code)
@@ -42,7 +44,9 @@ build({
   const spawn = require('../cli/tauri.js/dist/helpers/spawn').spawn
   const artifactPath = path.resolve(__dirname, 'src-tauri/target/debug/app')
   appPid = spawn(
-    process.platform === 'win32' ? `${artifactPath}.exe` : artifactPath.replace('debug/app', 'debug/./app'),
+    process.platform === 'win32'
+      ? `${artifactPath}.exe`
+      : artifactPath.replace('debug/app', 'debug/./app'),
     [],
     null
   )

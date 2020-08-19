@@ -2,9 +2,9 @@ const parseArgs = require('minimist')
 const tauriCreate = require('./tauri-create')
 
 /**
- * init is an alias for create -r none, same as 
+ * init is an alias for create -r none, same as
  * creating a fresh tauri project with no UI recipe applied.
- * 
+ *
  * @type {object}
  * @property {boolean} h
  * @property {boolean} help
@@ -18,7 +18,7 @@ const tauriCreate = require('./tauri-create')
 function main(cliArgs) {
   const argv = parseArgs(cliArgs, {
     alias: {
-      h: 'help',
+      h: 'help'
     },
     boolean: ['h']
   })
@@ -31,7 +31,6 @@ function main(cliArgs) {
   // delegate actual work to create command
   tauriCreate([...cliArgs, '-r', 'none'])
 }
-
 
 function printUsage() {
   console.log(`

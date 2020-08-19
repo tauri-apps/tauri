@@ -10,11 +10,17 @@ const cmd = process.argv[2]
  * @param {string|array} command
  */
 const tauri = function (command) {
-  if (typeof command === 'object') { // technically we just care about an array
+  if (typeof command === 'object') {
+    // technically we just care about an array
     command = command[0]
   }
 
-  if (!command || command === '-h' || command === '--help' || command === 'help') {
+  if (
+    !command ||
+    command === '-h' ||
+    command === '--help' ||
+    command === 'help'
+  ) {
     console.log(`
     Description
       This is the Tauri CLI.

@@ -14,7 +14,10 @@ import { existsSync } from 'fs'
 
 const log = logger('dependency:npm-packages')
 
-async function manageDependencies(managementType: ManagementType, dependencies: string[]): Promise<Result> {
+async function manageDependencies(
+  managementType: ManagementType,
+  dependencies: string[]
+): Promise<Result> {
   const installedDeps = []
   const updatedDeps = []
 
@@ -32,12 +35,16 @@ async function manageDependencies(managementType: ManagementType, dependencies: 
       } else if (managementType === ManagementType.Update) {
         const latestVersion = getNpmLatestVersion(dependency)
         if (semverLt(currentVersion, latestVersion)) {
-          const inquired = await inquirer.prompt([{
-            type: 'confirm',
-            name: 'answer',
-            message: `[NPM]: "${dependency}" latest version is ${latestVersion}. Do you want to update?`,
-            default: false
-          }])
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
+          const inquired = await inquirer.prompt([
+            {
+              type: 'confirm',
+              name: 'answer',
+              message: `[NPM]: "${dependency}" latest version is ${latestVersion}. Do you want to update?`,
+              default: false
+            }
+          ])
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
           if (inquired.answer) {
             log(`Updating ${dependency}...`)
             updateNpmPackage(dependency)
@@ -77,9 +84,4 @@ async function update(): Promise<Result> {
   return await manageDependencies(ManagementType.Update, dependencies)
 }
 
-export {
-  install,
-  installThese,
-  installTheseDev,
-  update
-}
+export { install, installThese, installTheseDev, update }

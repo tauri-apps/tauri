@@ -19,9 +19,11 @@
     "pretest": "yarn build",
     "prepublishOnly": "yarn build-release",
     "test:local": "jest --runInBand",
-    "lint": "eslint --ext ts ./src/**/*.ts ./api-src/**/*.ts",
-    "lint-fix": "eslint --fix --ext ts ./src/**/*.ts",
+    "lint": "eslint --ext ts \"./src/**/*.ts\" \"./api-src/**/*.ts\"",
+    "lint-fix": "eslint --fix --ext ts \"./src/**/*.ts\" \"./api-src/**/*.ts\"",
     "lint:lockfile": "lockfile-lint --path yarn.lock --type yarn --validate-https --allowed-hosts npm yarn",
+    "format": "prettier --write --end-of-line=auto !./**/mutation-observer.js !./**/config.validator.js \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
+    "format:check": "prettier --check --end-of-line=auto !./**/mutation-observer.js \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
     "build:tauri[rust]": "cd ../tauri && TAURI_DIST_DIR=../../test/fixture/dist TAURI_DIR=../test/fixture cargo publish --dry-run --allow-dirty"
   },
   "repository": {
@@ -96,12 +98,13 @@
     "@types/semver": "7.3.1",
     "@types/sharp": "0.25.1",
     "@types/webpack-merge": "4.1.5",
-    "@typescript-eslint/eslint-plugin": "3.7.0",
-    "@typescript-eslint/parser": "3.7.0",
+    "@typescript-eslint/eslint-plugin": "3.9.1",
+    "@typescript-eslint/parser": "3.9.1",
     "babel-jest": "26.1.0",
     "copy-webpack-plugin": "6.0.3",
     "dotenv": "8.2.0",
-    "eslint": "7.5.0",
+    "eslint": "7.7.0",
+    "eslint-config-prettier": "6.11.0",
     "eslint-config-standard-with-typescript": "18.0.2",
     "eslint-plugin-import": "2.22.0",
     "eslint-plugin-lodash-template": "0.19.0",
@@ -115,6 +118,7 @@
     "jest-mock-process": "1.4.0",
     "lint-staged": "10.2.11",
     "lockfile-lint": "4.3.7",
+    "prettier": "2.0.5",
     "promise": "8.1.0",
     "raw-loader": "4.0.1",
     "rimraf": "3.0.2",
@@ -138,7 +142,8 @@
       "pre-commit": "lint-staged"
     }
   },
-  "lint-staged": [
-    "eslint --fix"
-  ]
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,md,html,css,json}": "prettier --write --end-of-line=auto !./**/mutation-observer.js !./**/config.validator.js \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
+    "*.{ts,tsx}": "eslint --fix --ext ts ./src/**/*.ts ./api-src/**/*.ts"
+  }
 }

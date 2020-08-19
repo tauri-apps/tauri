@@ -18,7 +18,7 @@ export enum BaseDirectory {
   Template,
   Video,
   Resource,
-  App,
+  App
 }
 
 export interface FsOptions {
@@ -92,7 +92,10 @@ async function readBinaryFile(
  * @param [options.dir] base directory
  * @return
  */
-async function writeFile(file: FsTextFileOption, options: FsOptions = {}): Promise<void> {
+async function writeFile(
+  file: FsTextFileOption,
+  options: FsOptions = {}
+): Promise<void> {
   if (typeof options === 'object') {
     Object.freeze(options)
   }
@@ -151,7 +154,10 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
  * @param [options.dir] base directory
  * @return
  */
-async function writeBinaryFile(file: FsBinaryFileOption, options: FsOptions = {}): Promise<void> {
+async function writeBinaryFile(
+  file: FsBinaryFileOption,
+  options: FsOptions = {}
+): Promise<void> {
   if (typeof options === 'object') {
     Object.freeze(options)
   }
@@ -176,7 +182,10 @@ async function writeBinaryFile(file: FsBinaryFileOption, options: FsOptions = {}
  * @param [options.dir] base directory
  * @return
  */
-async function readDir(dir: string, options: FsOptions = {}): Promise<FileEntry[]> {
+async function readDir(
+  dir: string,
+  options: FsOptions = {}
+): Promise<FileEntry[]> {
   return await promisified({
     cmd: 'readDir',
     path: dir,
@@ -230,7 +239,11 @@ async function removeDir(dir: string, options: FsOptions = {}): Promise<void> {
  * @param [options.dir] base directory
  * @return
  */
-async function copyFile(source: string, destination: string, options: FsOptions = {}): Promise<void> {
+async function copyFile(
+  source: string,
+  destination: string,
+  options: FsOptions = {}
+): Promise<void> {
   return await promisified({
     cmd: 'copyFile',
     source,
@@ -247,7 +260,10 @@ async function copyFile(source: string, destination: string, options: FsOptions 
  * @param [options.dir] base directory
  * @return
  */
-async function removeFile(file: string, options: FsOptions = {}): Promise<void> {
+async function removeFile(
+  file: string,
+  options: FsOptions = {}
+): Promise<void> {
   return await promisified({
     cmd: 'removeFile',
     path: file,
@@ -264,7 +280,11 @@ async function removeFile(file: string, options: FsOptions = {}): Promise<void> 
  * @param [options.dir] base directory
  * @return
  */
-async function renameFile(oldPath: string, newPath: string, options: FsOptions = {}): Promise<void> {
+async function renameFile(
+  oldPath: string,
+  newPath: string,
+  options: FsOptions = {}
+): Promise<void> {
   return await promisified({
     cmd: 'renameFile',
     oldPath,

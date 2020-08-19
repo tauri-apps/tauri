@@ -7,7 +7,10 @@ export interface OpenDialogOptions {
   directory?: boolean
 }
 
-export type SaveDialogOptions = Pick<OpenDialogOptions, 'filter' | 'defaultPath'>
+export type SaveDialogOptions = Pick<
+  OpenDialogOptions,
+  'filter' | 'defaultPath'
+>
 
 /**
  * @name openDialog
@@ -51,7 +54,4 @@ async function save(options: SaveDialogOptions = {}): Promise<string> {
   })
 }
 
-export {
-  open,
-  save
-}
+export { open, save }

@@ -9,7 +9,9 @@ const log = logger('dependency:cargo-commands')
 
 const dependencies = ['tauri-bundler']
 
-async function manageDependencies(managementType: ManagementType): Promise<Result> {
+async function manageDependencies(
+  managementType: ManagementType
+): Promise<Result> {
   const installedDeps = []
   const updatedDeps = []
 
@@ -22,12 +24,16 @@ async function manageDependencies(managementType: ManagementType): Promise<Resul
     } else if (managementType === ManagementType.Update) {
       const latestVersion = await getCrateLatestVersion(dependency)
       if (semverLt(currentVersion, latestVersion)) {
-        const inquired = await inquirer.prompt([{
-          type: 'confirm',
-          name: 'answer',
-          message: `[CARGO COMMANDS] "${dependency}" latest version is ${latestVersion}. Do you want to update?`,
-          default: false
-        }])
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        const inquired = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'answer',
+            message: `[CARGO COMMANDS] "${dependency}" latest version is ${latestVersion}. Do you want to update?`,
+            default: false
+          }
+        ])
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         if (inquired.answer) {
           spawnSync('cargo', ['install', dependency, '--force'])
           updatedDeps.push(dependency)
@@ -55,7 +61,4 @@ async function update(): Promise<Result> {
   return await manageDependencies(ManagementType.Update)
 }
 
-export {
-  install,
-  update
-}
+export { install, update }

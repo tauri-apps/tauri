@@ -18,7 +18,8 @@ module.exports = {
   mode: process.env.NODE_ENV || 'development',
   devtool: 'source-map',
   module: {
-    rules: [{
+    rules: [
+      {
         test: /\.tsx?$/,
         use: 'ts-loader',
         exclude: /node_modules/
@@ -47,13 +48,15 @@ module.exports = {
   target: 'node',
   plugins: [
     new CopyWebpackPlugin({
-      patterns: [{
-        from: './src/types/config.validator.ts',
-        to: '../src/types/config.schema.json',
-        transform(content) {
-          return schemaParser('TauriConfigSchema', content.toString())
+      patterns: [
+        {
+          from: './src/types/config.validator.ts',
+          to: '../src/types/config.schema.json',
+          transform(content) {
+            return schemaParser('TauriConfigSchema', content.toString())
+          }
         }
-      }]
+      ]
     })
   ]
 }
@@ -74,5 +77,5 @@ function schemaParser(schemaName, content) {
     }
   }
 
-  return output.join("\n")
+  return output.join('\n')
 }

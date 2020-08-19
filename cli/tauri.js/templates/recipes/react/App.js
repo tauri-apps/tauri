@@ -1,8 +1,8 @@
-import React from 'react';
-import logo from './logo.svg';
-import tauriCircles from './tauri.svg';
-import tauriWord from './wordmark.svg';
-import './App.css';
+import React from 'react'
+import logo from './logo.svg'
+import tauriCircles from './tauri.svg'
+import tauriWord from './wordmark.svg'
+import './App.css'
 
 function App() {
   return (
@@ -17,7 +17,7 @@ function App() {
           href="https://tauri.studio"
           target="_blank"
           rel="noopener noreferrer"
-          >
+        >
           Learn Tauri
         </a>
         <img src={logo} className="App-logo rotate" alt="logo" />
@@ -34,7 +34,7 @@ function App() {
         </p>
       </header>
     </div>
-  );
+  )
 }
 
-export default App;
+export default App

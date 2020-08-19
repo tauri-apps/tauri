@@ -1,4 +1,3 @@
-
 import 'regenerator-runtime/runtime'
 import * as cli from './cli'
 import * as dialog from './dialog'
@@ -10,14 +9,4 @@ import * as tauri from './tauri'
 import * as window from './window'
 import * as notification from './notification'
 
-export {
-  cli,
-  dialog,
-  event,
-  fs,
-  http,
-  process,
-  tauri,
-  window,
-  notification
-}
+export { cli, dialog, event, fs, http, process, tauri, window, notification }

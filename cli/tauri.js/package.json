@@ -130,7 +130,7 @@
     "tslib": "2.0.0",
     "typescript": "3.9.7",
     "typescript-json-validator": "2.4.2",
-    "webpack": "4.43.0",
+    "webpack": "4.44.1",
     "webpack-cli": "3.3.12",
     "webpack-node-externals": "2.5.0"
   },

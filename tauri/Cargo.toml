@@ -44,7 +44,7 @@ tauri_includedir_codegen = "0.6.2"
 cfg_aliases = "0.1.0"
 
 [dev-dependencies]
-proptest = "0.10.0"
+proptest = "0.10.1"
 serde_json = "1.0"
 tauri = { path = ".", features = [ "all-api" ] }
 serde = { version = "1.0", features = [ "derive" ] }

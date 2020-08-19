@@ -10,7 +10,7 @@ edition = "2018"
 exclude = ["test/fixture/**"]
 
 [dependencies]
-attohttpc = {version = "0.10.1", features=["json", "compress" ]}
+attohttpc = {version = "0.15.0", features=["json", "compress" ]}
 # pbr = "1"
 serde_json = "1.0"
 serde = "1.0"

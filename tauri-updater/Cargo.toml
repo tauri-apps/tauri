@@ -14,7 +14,7 @@ attohttpc = {version = "0.10.1", features=["json", "compress" ]}
 # pbr = "1"
 serde_json = "1.0"
 serde = "1.0"
-zip = "0.5.3"
+zip = "0.5.6"
 tempdir = "0.3"
 tauri-api = { version = "0.5", path = "../tauri-api" }
 tauri-utils = { version = "0.5", path = "../tauri-utils" }

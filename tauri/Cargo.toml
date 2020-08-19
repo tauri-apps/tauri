@@ -32,7 +32,7 @@ uuid = { version = "0.8.1", features = [ "v4" ] }
 anyhow = "1.0.31"
 thiserror = "1.0.20"
 envmnt = "0.8.4"
-once_cell = "1.4.0"
+once_cell = "1.4.1"
 tauri-api = { version = "0.7.3", path = "../tauri-api" }
 urlencoding = "1.1.1"
 

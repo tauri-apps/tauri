@@ -52,7 +52,7 @@
     "@tauri-apps/tauri-inliner": "1.14.1",
     "@tauri-apps/toml": "2.2.4",
     "chalk": "4.1.0",
-    "chokidar": "3.4.1",
+    "chokidar": "3.4.2",
     "cross-spawn": "7.0.3",
     "fast-glob": "3.2.4",
     "fs-extra": "9.0.1",

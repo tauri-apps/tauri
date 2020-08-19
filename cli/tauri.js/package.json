@@ -126,7 +126,7 @@
     "rollup-plugin-terser": "6.1.0",
     "rollup-plugin-typescript2": "0.27.1",
     "toml-loader": "1.0.0",
-    "ts-loader": "8.0.1",
+    "ts-loader": "8.0.2",
     "tslib": "2.0.0",
     "typescript": "3.9.7",
     "typescript-json-validator": "2.4.2",

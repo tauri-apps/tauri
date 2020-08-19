@@ -91,7 +91,8 @@ const getOptionsInteractive = (argv) => {
         type: 'input',
         name: 'appName',
         message: 'What is your app name?',
-        default: defaultAppName
+        default: defaultAppName,
+        when: !argv.A
       },
       {
         type: 'input',

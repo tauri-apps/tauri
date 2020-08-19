@@ -132,7 +132,7 @@
     "typescript-json-validator": "2.4.2",
     "webpack": "4.43.0",
     "webpack-cli": "3.3.12",
-    "webpack-node-externals": "2.5.0"
+    "webpack-node-externals": "2.5.1"
   },
   "resolutions": {
     "**/lodash": ">=4.17.19"

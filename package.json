@@ -12,7 +12,7 @@
     "format": "prettier --write --end-of-line=auto \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore"
   },
   "devDependencies": {
-    "covector": "^0.2.6",
+    "covector": "^0.3.0",
     "prettier": "^2.0.5"
   }
 }

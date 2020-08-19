@@ -124,7 +124,7 @@
     "rimraf": "3.0.2",
     "rollup": "2.22.2",
     "rollup-plugin-terser": "6.1.0",
-    "rollup-plugin-typescript2": "0.27.1",
+    "rollup-plugin-typescript2": "0.27.2",
     "toml-loader": "1.0.0",
     "ts-loader": "8.0.1",
     "tslib": "2.0.0",

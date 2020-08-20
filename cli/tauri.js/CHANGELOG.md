@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.12.0]
+
+-   -   Break out TauriBuildConfig interface from TauriConfig build property
+-   Create recipes. A recipe:
+    -   Updates the TauriBuildConfig during the init process
+    -   Specifies npm dev and production dependencies to be installed
+    -   Runs extra installation scripts
+-   Create React JS and React TS recipes
+-   Add new top level command `create`, which accepts a recipe as a CLI, or runs 
+    interactively, prompting for a recipe out of a menu of choices defined by `api/recipes/index`
+-   Refactor `init` command so that it is just an alias for `create` with no recipe
+    -   [43a8c4d](https://www.github.com/tauri-apps/tauri/commit/43a8c4d2bcc2461232e2ddfdf2506d3b4d68471d) fix [#920](https://www.github.com/tauri-apps/tauri/pull/920): Create recipes  ([#930](https://www.github.com/tauri-apps/tauri/pull/930)) on 2020-08-17
+-   Bump all deps as noted in #975, #976, #977, #978, and #979.
+    -   [06dd75b](https://www.github.com/tauri-apps/tauri/commit/06dd75b68a15d388808c51ae2bf50554ae761d9d) chore: bump all js/rust deps ([#983](https://www.github.com/tauri-apps/tauri/pull/983)) on 2020-08-20
+-   -   Make interactive prompt not ask for app name supplied as cli arg
+    -   [59e0de7](https://www.github.com/tauri-apps/tauri/commit/59e0de765046a240d6c9ff3ddcd7a98e8f765512) Fix cli no prompt for app-name cli arg ([#980](https://www.github.com/tauri-apps/tauri/pull/980)) on 2020-08-19
+-   -   Change `String` to `string` type for `open` and `save` methods
+    -   [0a5bac1](https://www.github.com/tauri-apps/tauri/commit/0a5bac1dd641792a64f79ec90e2a357f18280776) fix(tauri.js): fix typings for open and save dialogs ([#926](https://www.github.com/tauri-apps/tauri/pull/926)) on 2020-08-08
+-   Format all code with prettier. This technically should only affect code styles, but noting for posterity.
+    -   [6a21965](https://www.github.com/tauri-apps/tauri/commit/6a21965ff302940bcbdefa16490249ec7d0c1f2e) chore: add prettier for js formatting ([#937](https://www.github.com/tauri-apps/tauri/pull/937)) on 2020-08-18
+-   -   Set correct promise resolve type which returns from `readBinaryFile`
+-   Add types to JSDoc annotations
+    -   [f98d4b9](https://www.github.com/tauri-apps/tauri/commit/f98d4b9076b51a7fc9eca12b4bed2cd3b466c6bc) fix(tauri.js): fix return type for `readBinaryFile` api method ([#927](https://www.github.com/tauri-apps/tauri/pull/927)) on 2020-08-08
+
 ## [0.11.1]
 
 -   Fix command line arguments -W (window title) and -P (dev server uri) to work as intended.

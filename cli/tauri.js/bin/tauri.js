@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const cmds = ['init', 'dev', 'build', 'help', 'icon', 'info', 'deps']
+const cmds = ['create', 'init', 'dev', 'build', 'help', 'icon', 'info', 'deps']
 
 const cmd = process.argv[2]
 /**
@@ -10,11 +10,17 @@ const cmd = process.argv[2]
  * @param {string|array} command
  */
 const tauri = function (command) {
-  if (typeof command === 'object') { // technically we just care about an array
+  if (typeof command === 'object') {
+    // technically we just care about an array
     command = command[0]
   }
 
-  if (!command || command === '-h' || command === '--help' || command === 'help') {
+  if (
+    !command ||
+    command === '-h' ||
+    command === '--help' ||
+    command === 'help'
+  ) {
     console.log(`
     Description
       This is the Tauri CLI.
@@ -40,7 +46,11 @@ const tauri = function (command) {
     }
     console.log(`[tauri]: running ${command}`)
     // eslint-disable-next-line security/detect-non-literal-require
-    require(`./tauri-${command}`)
+    if (['create', 'init'].includes(command)) {
+      require(`./tauri-${command}`)(process.argv.slice(2))
+    } else {
+      require(`./tauri-${command}`)
+    }
   } else {
     console.log(`Invalid command ${command}. Use one of ${cmds.join(',')}.`)
   }

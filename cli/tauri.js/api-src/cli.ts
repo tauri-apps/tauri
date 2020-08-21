@@ -32,6 +32,4 @@ async function getMatches(): Promise<CliMatches> {
   })
 }
 
-export {
-  getMatches
-}
+export { getMatches }

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.7.4]
+
+-   Bump all deps as noted in #975, #976, #977, #978, and #979.
+    -   [06dd75b](https://www.github.com/tauri-apps/tauri/commit/06dd75b68a15d388808c51ae2bf50554ae761d9d) chore: bump all js/rust deps ([#983](https://www.github.com/tauri-apps/tauri/pull/983)) on 2020-08-20
+
 ## [0.7.3]
 
 -   Use native dialog on `window.alert` and `window.confirm`.

@@ -14,7 +14,13 @@ export default {
       active: true,
       targets: 'all', // or an array of targets
       identifier: 'com.tauri.dev',
-      icon: ['icons/32x32.png', 'icons/128x128.png', 'icons/128x128@2x.png', 'icons/icon.icns', 'icons/icon.ico'],
+      icon: [
+        'icons/32x32.png',
+        'icons/128x128.png',
+        'icons/128x128@2x.png',
+        'icons/icon.icns',
+        'icons/icon.ico'
+      ],
       resources: [],
       externalBin: [],
       copyright: '',
@@ -43,7 +49,8 @@ export default {
       fullscreen: false
     },
     security: {
-      csp: "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
+      csp:
+        "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
     },
     inliner: {
       active: true

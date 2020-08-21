@@ -6,9 +6,7 @@ import chalk from 'chalk'
 const warn = logger('tauri', chalk.red)
 
 function resolvePath(basePath: string, dir: string): string {
-  return dir && isAbsolute(dir)
-    ? dir
-    : resolve(basePath, dir)
+  return dir && isAbsolute(dir) ? dir : resolve(basePath, dir)
 }
 
 const getAppDir = (): string => {
@@ -24,7 +22,9 @@ const getAppDir = (): string => {
     dir = normalize(join(dir, '..'))
   }
 
-  warn('Couldn\'t find recognize the current folder as a part of a Tauri project')
+  warn(
+    "Couldn't find recognize the current folder as a part of a Tauri project"
+  )
   process.exit(1)
 }
 

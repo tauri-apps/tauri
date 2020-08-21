@@ -1,11 +1,6 @@
 const fixtureSetup = require('../fixtures/app-test-setup')
-const {
-  resolve
-} = require('path')
-const {
-  writeFileSync,
-  readFileSync
-} = require('fs')
+const { resolve } = require('path')
+const { writeFileSync, readFileSync } = require('fs')
 
 describe('[CLI] tauri.js template', () => {
   it('init a project and builds it', async () => {

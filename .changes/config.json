@@ -34,8 +34,8 @@
           "dryRunCommand": true,
           "pipe": true
         }
-      ]
-      "publish": [,
+      ],
+      "publish": [
         {
           "command": "cargo package --allow-dirty",
           "dryRunCommand": true

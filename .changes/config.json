@@ -33,13 +33,13 @@
           "command": "echo \"\\`\\`\\`\"",
           "dryRunCommand": true,
           "pipe": true
-        },
-        {
-          "command": "cargo package --no-verify --allow-dirty",
-          "dryRunCommand": true
         }
-      ],
-      "publish": [
+      ]
+      "publish": [,
+        {
+          "command": "cargo package --allow-dirty",
+          "dryRunCommand": true
+        },
         {
           "command": "echo \"# Cargo Publish\"",
           "dryRunCommand": true,

@@ -1,9 +1,9 @@
-<?if $(sys.BUILDARCH)="x86"?>
-    <?define Win64 = "no" ?>
-    <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
-<?elseif $(sys.BUILDARCH)="x64"?>
+<?if $(var.Platform) = x64 ?>
     <?define Win64 = "yes" ?>
     <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+<?else?>
+  <?define Win64 = "no" ?>
+  <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
 <?else?>
     <?error Unsupported value of sys.BUILDARCH=$(sys.BUILDARCH)?>
 <?endif?>
@@ -24,13 +24,16 @@
                  Languages="1033"
                  Compressed="yes"
                  InstallScope="perMachine"
-                 SummaryCodepage="1252"/>
+                 SummaryCodepage="1252"
+                 Platform="$(var.Platform)"/>
 
-         <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed."
-                  MigrateFeatures="yes" />
+         <MajorUpgrade
+            Schedule="afterInstallInitialize" 
+            DowngradeErrorMessage="A newer version of [ProductName] is already installed.  Setup will now exit."
+            MigrateFeatures="yes" />
 
 
-        <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
+        <Media Id="1" Cabinet="media1.cab" EmbedCab="yes" />
         
         <WixVariable Id="WixUIBannerBmp" Value="{{{icon_path}}}" />
         

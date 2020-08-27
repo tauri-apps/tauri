@@ -156,7 +156,7 @@ if __name__ == '__main__':
     options, args = parser.parse_args()
     cond = len(args) != 2
     if not os.path.exists(options.rez):
-        print('Failed to find Rez at "%s"!\n' % options.rez)
+        print('Failed to find Rez at "%s"! Run `xcode-select --install` and try again.\n' % options.rez)
         cond = True
     if cond:
         parser.print_usage()

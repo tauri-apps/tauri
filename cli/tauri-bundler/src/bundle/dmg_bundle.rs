@@ -6,7 +6,7 @@ use anyhow::Context;
 
 use std::env;
 use std::fs::{self, write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 /// Bundles the project.
@@ -51,20 +51,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   common::print_bundling(format!("{:?}", &dmg_path.clone()).as_str())?;
 
-  // check if xcode tools are installed
-  let xcode_rez_path = "/Applications/Xcode.app/Contents/Developer/Tools/Rez";
-  let xcode_tools_rez_path = "/Library/Developer/CommandLineTools/usr/bin/Rez";
-
-  let rez_path = if Path::new(xcode_rez_path).exists() {
-    xcode_rez_path
-  } else if Path::new(xcode_tools_rez_path).exists() {
-    xcode_tools_rez_path
-  } else {
-    crate::Error::ShellScriptError(String::from(
-      "xcode tools not installed! Run `xcode-select --install` and try again.",
-    ))
-  };
-
   // write the scripts
   write(
     &bundle_script_path,
@@ -107,8 +93,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     "400",
     "--hide-extension",
     &bundle_name,
-    "--rez",
-    &rez_path,
   ];
 
   if let Some(license_path) = settings.osx_license() {

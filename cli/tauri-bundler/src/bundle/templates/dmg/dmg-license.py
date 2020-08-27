@@ -140,7 +140,7 @@ if __name__ == '__main__':
         '--rez',
         '-r',
         action='store',
-        default='/Applications/Xcode.app/Contents/Developer/Tools/Rez',
+        default='${xcode-select --print-path}',
         help='The path to the Rez tool. Defaults to %default'
     )
     parser.add_option(

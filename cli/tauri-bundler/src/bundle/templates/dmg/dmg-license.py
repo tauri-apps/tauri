@@ -30,6 +30,7 @@ import sys
 import tempfile
 import optparse
 
+REZ_PATH = os.popen('xcode-select --print-path', 'r').read().strip()
 
 class Path(str):
     def __enter__(self):
@@ -140,7 +141,7 @@ if __name__ == '__main__':
         '--rez',
         '-r',
         action='store',
-        default='${xcode-select --print-path}',
+        default=REZ_PATH,
         help='The path to the Rez tool. Defaults to %default'
     )
     parser.add_option(

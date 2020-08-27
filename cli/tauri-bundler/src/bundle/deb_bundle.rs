@@ -193,7 +193,7 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   writeln!(file, "[Desktop Entry]")?;
   writeln!(file, "Encoding=UTF-8")?;
   if let Some(category) = settings.app_category() {
-    write!(file, "Categories={}", category.gnome_desktop_categories())?;
+    writeln!(file, "Categories={}", category.gnome_desktop_categories())?;
   }
   if !settings.short_description().is_empty() {
     writeln!(file, "Comment={}", settings.short_description())?;

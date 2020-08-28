@@ -79,7 +79,7 @@ jobs:
         working-directory: cli/tauri-bundler
         run: cargo install tauri-bundler --path . --force
       - name: build tauri app
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@fix/paths-expect-arrays
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:

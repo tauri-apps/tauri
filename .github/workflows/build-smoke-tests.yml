@@ -16,6 +16,14 @@ on:
         description: 'Directory we expect to run in.'
         required: false
         default: 'tauri/examples/communication'
+      buildAssets:
+        description: 'Command to build the assets.'
+        required: false
+        default: 'echo no build needed'
+      buildTauri:
+        description: 'Command to build the Tauri app.'
+        required: false
+        default: 'yarn tauri build'
 env:
   RUST_BACKTRACE: 1
 
@@ -66,7 +74,7 @@ jobs:
         run: yarn
       - name: build assets
         working-directory: 'tauri/examples/communication' # ${{ github.event.inputs.dir }}
-        run: yarn build
+        run: 'echo no build needed' # ${{ github.event.inputs.buildAssets }}
       - name: cargo install tauri-bundler --force
         working-directory: cli/tauri-bundler
         run: cargo install tauri-bundler --path . --force
@@ -77,6 +85,7 @@ jobs:
         with:
           includeDebug: true
           projectPath: 'tauri/examples/communication' # ${{ github.event.inputs.dir }}
+          npmScript: 'yarn tauri build' # ${{ github.event.inputs.buildTauri }}
       - uses: actions/upload-artifact@v2
         if: success()
         with:

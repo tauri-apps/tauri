@@ -23,7 +23,7 @@ on:
       buildTauri:
         description: 'Command to build the Tauri app.'
         required: false
-        default: 'yarn tauri build'
+        default: 'tauri'
 env:
   RUST_BACKTRACE: 1
 
@@ -85,7 +85,7 @@ jobs:
         with:
           includeDebug: true
           projectPath: 'tauri/examples/communication' # ${{ github.event.inputs.dir }}
-          npmScript: 'yarn tauri build' # ${{ github.event.inputs.buildTauri }}
+          npmScript: 'tauri' # ${{ github.event.inputs.buildTauri }}
       - uses: actions/upload-artifact@v2
         if: success()
         with:

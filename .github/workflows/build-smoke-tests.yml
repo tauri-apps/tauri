@@ -39,8 +39,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          repository: ${{ github.event.inputs.repository }}
-          ref: ${{ github.event.inputs.ref }}
+          repository: 'tauri-apps/tauri' # ${{ github.event.inputs.repository }}
+          ref: dev # ${{ github.event.inputs.ref }}
       - name: setup node
         uses: actions/setup-node@v1
         with:
@@ -55,11 +55,17 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0
-      - name: yarn
-        working-directory: ${{ github.event.inputs.dir }}
+      - name: yarn install for cli
+        working-directory: cli/tauri.js
+        run: yarn
+      - name: build tauri.js
+        working-directory: cli/tauri.js
+        run: yarn build-release
+      - name: yarn install for assets
+        working-directory: 'tauri/examples/communication' # ${{ github.event.inputs.dir }}
         run: yarn
       - name: build assets
-        working-directory: ${{ github.event.inputs.dir }}
+        working-directory: 'tauri/examples/communication' # ${{ github.event.inputs.dir }}
         run: yarn build
       - name: cargo install tauri-bundler --force
         working-directory: cli/tauri-bundler
@@ -70,9 +76,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           includeDebug: true
-          projectPath: ${{ github.event.inputs.dir }}
+          projectPath: 'tauri/examples/communication' # ${{ github.event.inputs.dir }}
       - uses: actions/upload-artifact@v2
         if: success()
         with:
           name: tauri-app.${{ matrix.platform }}
-          path: ${{ format('./{0}/src-tauri/{1}/**', github.event.inputs.dir, matrix.releaseFolder ) }}
+          path: ${{ format('./{0}/src-tauri/{1}/**', 'tauri/examples/communication' , matrix.releaseFolder ) }}

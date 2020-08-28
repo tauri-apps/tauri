@@ -85,7 +85,7 @@ jobs:
         with:
           includeDebug: true
           projectPath: 'tauri/examples/communication' # ${{ github.event.inputs.dir }}
-          npmScript: '' # ${{ github.event.inputs.buildTauri }}
+          # npmScript: 'yarn tauri build' # ${{ github.event.inputs.buildTauri }}
       - uses: actions/upload-artifact@v2
         if: success()
         with:

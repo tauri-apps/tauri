@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.3]
+
+-   Improve checking for Xcode command line tools to allow builds on mac
+    -   [7a788fd](https://www.github.com/tauri-apps/tauri/commit/7a788fdceebc2bf6b7b46ebe54e98597d4a71529) fix: improve checking for Rez (fix [#994](https://www.github.com/tauri-apps/tauri/pull/994)) ([#995](https://www.github.com/tauri-apps/tauri/pull/995)) on 2020-08-28
+-   add a newline after Categories in deb .desktop file generation to fix issues #899 and #925.
+    -   [37bcf5f](https://www.github.com/tauri-apps/tauri/commit/37bcf5fea154bdefbca2692b69aafaabba8c23e2) fix(bundler) missing newline in deb desktop file generation (fix: [#899](https://www.github.com/tauri-apps/tauri/pull/899), [#925](https://www.github.com/tauri-apps/tauri/pull/925)) ([#998](https://www.github.com/tauri-apps/tauri/pull/998)) on 2020-08-27
+
 ## [0.9.2]
 
 -   Bump all deps as noted in #975, #976, #977, #978, and #979.

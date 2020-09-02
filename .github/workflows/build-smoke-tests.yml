@@ -16,10 +16,6 @@ on:
         description: 'Directory we expect to run in.'
         required: false
         default: 'tauri/examples/communication'
-      dirLevels:
-        descriptions: 'Directory traversals to get back to root.'
-        required: false
-        default: '../../../'
       buildAssets:
         description: 'Command to build the assets.'
         required: false
@@ -76,12 +72,10 @@ jobs:
         run: yarn
       - name: build tauri.js
         working-directory: tauri/cli/tauri.js
-        run: yarn build-release
-      - name: yarn install dev cli for assets
+        run: yarn build-release && yarn add global $PWD
+      - name: yarn install
         working-directory: 'example/tauri/examples/communication' # ${{ github.event.inputs.dir }}
-        run: yarn add $TAURI_CLI_DEV
-        env:
-          TAURI_CLI_DEV: 'link: ./../../../tauri/cli/tauri.js/' # ${{ github.events.input.dirLevels }}
+        run: yarn
       - name: build assets
         working-directory: 'example/tauri/examples/communication' # ${{ github.event.inputs.dir }}
         run: 'echo no build needed' # ${{ github.event.inputs.buildAssets }}
@@ -89,13 +83,13 @@ jobs:
         working-directory: tauri/cli/tauri-bundler
         run: cargo install tauri-bundler --path . --force
       - name: build tauri app
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@fix/paths-expect-arrays
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           includeDebug: true
           projectPath: 'example/tauri/examples/communication' # ${{ github.event.inputs.dir }}
-          npmScript: 'tauri' # ${{ github.event.inputs.buildTauri }}
+          preferGlobal: true
       - uses: actions/upload-artifact@v2
         if: success()
         with:

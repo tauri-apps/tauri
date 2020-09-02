@@ -72,7 +72,7 @@ jobs:
         run: yarn
       - name: build tauri.js
         working-directory: tauri/cli/tauri.js
-        run: yarn build-release && yarn add global $PWD
+        run: yarn build-release && yarn global add $PWD
       - name: install and build assets
         working-directory: 'example/tauri/examples/communication' # ${{ github.event.inputs.dir }}
         run: 'echo no build needed' # ${{ github.event.inputs.buildAssets }}

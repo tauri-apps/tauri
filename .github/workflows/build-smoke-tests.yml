@@ -1,7 +1,6 @@
 name: build smoke test with source
 
 on:
-  pull_request:
   workflow_dispatch:
     inputs:
       repository:

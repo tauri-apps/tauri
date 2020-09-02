@@ -1,7 +1,6 @@
 name: build smoke test with source
 
 on:
-  pull_request:
   workflow_dispatch:
     inputs:
       repository:
@@ -16,6 +15,10 @@ on:
         description: 'Directory we expect to run in.'
         required: false
         default: 'tauri/examples/communication'
+      dirLevels:
+        descriptions: 'Directory traversals to get back to root.'
+        required: false
+        default: '../../../'
       buildAssets:
         description: 'Command to build the assets.'
         required: false
@@ -47,8 +50,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          repository: 'tauri-apps/tauri' # ${{ github.event.inputs.repository }}
-          ref: dev # ${{ github.event.inputs.ref }}
+          path: tauri
+      - uses: actions/checkout@v2
+        with:
+          repository: ${{ github.event.inputs.repository }}
+          ref: ${{ github.event.inputs.ref }}
+          path: example
       - name: setup node
         uses: actions/setup-node@v1
         with:
@@ -64,19 +71,21 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0
       - name: yarn install for cli
-        working-directory: cli/tauri.js
+        working-directory: tauri/cli/tauri.js
         run: yarn
       - name: build tauri.js
-        working-directory: cli/tauri.js
+        working-directory: tauri/cli/tauri.js
         run: yarn build-release
-      - name: yarn install for assets
-        working-directory: 'tauri/examples/communication' # ${{ github.event.inputs.dir }}
-        run: yarn
+      - name: yarn install dev cli for assets
+        working-directory: 'example/tauri/examples/communication' # ${{ github.event.inputs.dir }}
+        run: yarn add $TAURI_CLI_DEV
+        env:
+          TAURI_CLI_DEV: 'link: ./../../../tauri/cli/tauri.js/' # ${{ github.events.input.dirLevels }}
       - name: build assets
-        working-directory: 'tauri/examples/communication' # ${{ github.event.inputs.dir }}
+        working-directory: 'example/tauri/examples/communication' # ${{ github.event.inputs.dir }}
         run: 'echo no build needed' # ${{ github.event.inputs.buildAssets }}
       - name: cargo install tauri-bundler --force
-        working-directory: cli/tauri-bundler
+        working-directory: tauri/cli/tauri-bundler
         run: cargo install tauri-bundler --path . --force
       - name: build tauri app
         uses: tauri-apps/tauri-action@v0
@@ -84,10 +93,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           includeDebug: true
-          projectPath: 'tauri/examples/communication' # ${{ github.event.inputs.dir }}
+          projectPath: 'example/tauri/examples/communication' # ${{ github.event.inputs.dir }}
           npmScript: 'tauri' # ${{ github.event.inputs.buildTauri }}
       - uses: actions/upload-artifact@v2
         if: success()
         with:
           name: tauri-app.${{ matrix.platform }}
-          path: ${{ format('./{0}/src-tauri/{1}/**', 'tauri/examples/communication' , matrix.releaseFolder ) }}
+          path: ${{ format('./{0}/src-tauri/{1}/**', 'example/tauri/examples/communication' , matrix.releaseFolder ) }} # ${{ github.event.inputs.dir }}

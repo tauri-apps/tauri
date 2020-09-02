@@ -72,19 +72,16 @@ jobs:
         run: yarn
       - name: build tauri.js
         working-directory: tauri/cli/tauri.js
-        run: yarn build-release && yarn global add $PWD
-      - name: bin
-        working-directory: tauri/cli/tauri.js
-        run: yarn global bin
+        run: |
+          yarn build-release
+          yarn global add $PWD
+          echo "::add-path::$(yarn global bin)"
       - name: install and build assets
         working-directory: 'example/tauri/examples/communication' # ${{ github.event.inputs.dir }}
         run: 'echo no build needed' # ${{ github.event.inputs.buildAssets }}
       - name: cargo install tauri-bundler --force
         working-directory: tauri/cli/tauri-bundler
         run: cargo install tauri-bundler --path . --force
-      - name: bin example
-        working-directory: example/tauri/examples/communication
-        run: yarn global bin && yarn global list
       - name: build raw
         working-directory: 'example/tauri/examples/communication' # ${{ github.event.inputs.dir }}
         run: tauri build

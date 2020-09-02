@@ -79,14 +79,17 @@ jobs:
       - name: cargo install tauri-bundler --force
         working-directory: tauri/cli/tauri-bundler
         run: cargo install tauri-bundler --path . --force
-      - name: build tauri app
-        uses: tauri-apps/tauri-action@fix/paths-expect-arrays
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          includeDebug: true
-          projectPath: 'example/tauri/examples/communication' # ${{ github.event.inputs.dir }}
-          preferGlobal: true
+      - name: build raw
+        working-directory: 'example/tauri/examples/communication' # ${{ github.event.inputs.dir }}
+        run: tauri build
+      # - name: build tauri app
+      #   uses: tauri-apps/tauri-action@fix/paths-expect-arrays
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     includeDebug: true
+      #     projectPath: 'example/tauri/examples/communication' # ${{ github.event.inputs.dir }}
+      #     preferGlobal: true
       - uses: actions/upload-artifact@v2
         if: success()
         with:

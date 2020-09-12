@@ -9,7 +9,7 @@ cp -r ../deb/{{bundle_name}}/data/usr {{app_name}}.AppDir
 
 cd {{app_name}}.AppDir
 
-wget -q -O AppRun https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-x86_64 || wget -q -O AppRun https://github.com/AppImage/AppImageKit/releases/download/12/AppRun-aarch64
+wget -q -O -4 AppRun https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-x86_64 || wget -q -O -4 AppRun https://github.com/AppImage/AppImageKit/releases/download/12/AppRun-aarch64
 chmod +x AppRun
 
 cp usr/share/icons/hicolor/256x256/apps/{{app_name}}.png {{app_name}}.png
@@ -31,7 +31,7 @@ mv {{app_name}}.desktop {{app_name}}.AppDir/{{app_name}}.desktop
 
 mksquashfs {{app_name}}.AppDir {{app_name}}.squashfs -root-owned -noappend
 
-wget -q -O appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage || wget -q -O appimagetool https://github.com/AppImage/AppImageKit/releases/download/12/appimagetool-x86_64.AppImage
+wget -q -O -4 appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage || wget -q -O -4 appimagetool https://github.com/AppImage/AppImageKit/releases/download/12/appimagetool-x86_64.AppImage
 chmod +x appimagetool
 if lsmod | grep -q fuse; then
   ./appimagetool {{app_name}}.AppDir {{app_name}}.AppImage

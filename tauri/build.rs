@@ -115,6 +115,9 @@ fn setup_env_aliases() {
     remove_file: { any(all_api, feature = "remove-file") },
     rename_file: { any(all_api, feature = "rename-file") },
 
+    // js path api
+    path_api: { any(all_api, feature = "path-api") },
+
     // window
     set_title: { any(all_api, feature = "set-title") },
     open: { any(all_api, feature = "open") },

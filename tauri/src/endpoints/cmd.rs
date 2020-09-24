@@ -139,12 +139,6 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
-  /// The Directories API
-  GetDirectory {
-    directory: BaseDirectory,
-    callback: String,
-    error: String,
-  },
   /// The resolve path API
   ResolvePath {
     path: String,

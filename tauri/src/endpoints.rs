@@ -139,16 +139,6 @@ pub(crate) fn handle(webview: &mut Webview<'_>, arg: &str) -> crate::Result<()> 
           #[cfg(not(rename_file))]
           allowlist_error(webview, error, "renameFile");
         }
-        GetDirectory {
-          directory,
-          callback,
-          error,
-        } => {
-          #[cfg(path_api)]
-          path::get_directory(webview, directory, callback, error);
-          #[cfg(not(path_api))]
-          allowlist_error(webview, error, "pathApi");
-        }
         ResolvePath {
           path,
           directory,

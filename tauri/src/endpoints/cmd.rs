@@ -139,6 +139,13 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
+  /// The resolve path API
+  ResolvePath {
+    path: String,
+    directory: Option<BaseDirectory>,
+    callback: String,
+    error: String,
+  },
   /// The set webview title API.
   SetTitle {
     title: String,

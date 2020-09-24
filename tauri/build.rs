@@ -94,6 +94,7 @@ fn shared() {
   setup_env_aliases();
 }
 
+#[allow(clippy::cognitive_complexity)]
 fn setup_env_aliases() {
   cfg_aliases! {
     embedded_server: { feature = "embedded-server" },
@@ -114,6 +115,9 @@ fn setup_env_aliases() {
     remove_dir: { any(all_api, feature = "remove-dir") },
     remove_file: { any(all_api, feature = "remove-file") },
     rename_file: { any(all_api, feature = "rename-file") },
+
+    // js path api
+    path_api: { any(all_api, feature = "path-api") },
 
     // window
     set_title: { any(all_api, feature = "set-title") },

@@ -57,7 +57,7 @@ impl Build {
       settings_builder = settings_builder.release();
     }
     if self.verbose {
-      settings_builder.verbose();
+      settings_builder = settings_builder.verbose();
     }
     if let Some(names) = self.targets {
       let mut types = vec![];

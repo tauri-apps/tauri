@@ -20,6 +20,10 @@ subcommands:
                     short: d
                     long: debug
                     about: Builds with the debug flag
+                - verbose:
+                    short: v
+                    long: verbose
+                    about: Enables verbose logging
                 - target:
                     short: t
                     long: target

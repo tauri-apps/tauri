@@ -7,7 +7,10 @@ import { promisified } from './tauri'
  * @param [args] command args
  * @return promise resolving to the stdout text
  */
-async function execute(command: string, args?: string | string[]): Promise<string> {
+async function execute(
+  command: string,
+  args?: string | string[]
+): Promise<string> {
   if (typeof args === 'object') {
     Object.freeze(args)
   }
@@ -19,6 +22,4 @@ async function execute(command: string, args?: string | string[]): Promise<strin
   })
 }
 
-export {
-  execute
-}
+export { execute }

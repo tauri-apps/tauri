@@ -7,6 +7,7 @@
       "prepublish": [
         "sudo apt-get update",
         "sudo apt-get install -y webkit2gtk-4.0",
+        "cargo install cargo-audit --features=fix",
         {
           "command": "cargo generate-lockfile",
           "dryRunCommand": true,
@@ -24,7 +25,7 @@
           "pipe": true
         },
         {
-          "command": "cargo audit",
+          "command": "cargo audit fix --dry-run true",
           "dryRunCommand": true,
           "runFromRoot": true,
           "pipe": true
@@ -33,13 +34,13 @@
           "command": "echo \"\\`\\`\\`\"",
           "dryRunCommand": true,
           "pipe": true
-        },
-        {
-          "command": "cargo package --no-verify --allow-dirty",
-          "dryRunCommand": true
         }
       ],
       "publish": [
+        {
+          "command": "cargo package --allow-dirty",
+          "dryRunCommand": true
+        },
         {
           "command": "echo \"# Cargo Publish\"",
           "dryRunCommand": true,

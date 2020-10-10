@@ -32,8 +32,4 @@ function sendNotification(options: Options | string): void {
   }
 }
 
-export {
-  sendNotification,
-  requestPermission,
-  isPermissionGranted
-}
+export { sendNotification, requestPermission, isPermissionGranted }

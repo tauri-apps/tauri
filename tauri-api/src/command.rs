@@ -4,7 +4,7 @@ use std::process::{Child, Command, Stdio};
 use std::os::windows::process::CommandExt;
 
 #[cfg(windows)]
-const CREATE_NO_WINDOW: u32 = 0x08000000;
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 use tauri_utils::platform;
 
@@ -93,9 +93,9 @@ pub fn binary_command(binary_name: String) -> crate::Result<String> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::Error;
   use std::io;
 
+  #[cfg(not(windows))]
   #[test]
   // test the get_output function with a unix cat command.
   fn test_cmd_output() {
@@ -115,9 +115,12 @@ mod test {
     }
   }
 
+  #[cfg(not(windows))]
   #[test]
   // test the failure case for get_output
   fn test_cmd_fail() {
+    use crate::Error;
+
     // queue up a string with cat in it.
     let cmd = String::from("cat");
 

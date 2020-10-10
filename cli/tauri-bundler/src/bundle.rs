@@ -71,7 +71,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
         if !output_str.contains("win32webviewhost_cw5n1h2txyewy") {
           println!("Running Loopback command");
           runas::Command::new("powershell")
-            .args(&vec![
+            .args(&[
               "CheckNetIsolation LoopbackExempt -a -n=\"Microsoft.Win32WebViewHost_cw5n1h2txyewy\"",
             ])
             .force_prompt(true)

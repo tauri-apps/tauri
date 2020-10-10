@@ -30,6 +30,7 @@ import sys
 import tempfile
 import optparse
 
+REZ_PATH = os.popen('xcode-select --print-path', 'r').read().strip()
 
 class Path(str):
     def __enter__(self):
@@ -140,7 +141,7 @@ if __name__ == '__main__':
         '--rez',
         '-r',
         action='store',
-        default='/Applications/Xcode.app/Contents/Developer/Tools/Rez',
+        default=REZ_PATH,
         help='The path to the Rez tool. Defaults to %default'
     )
     parser.add_option(
@@ -155,7 +156,7 @@ if __name__ == '__main__':
     options, args = parser.parse_args()
     cond = len(args) != 2
     if not os.path.exists(options.rez):
-        print('Failed to find Rez at "%s"!\n' % options.rez)
+        print('Failed to find Rez at "%s"! Run `xcode-select --install` and try again.\n' % options.rez)
         cond = True
     if cond:
         parser.print_usage()

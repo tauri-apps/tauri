@@ -14,7 +14,16 @@ export enum BodyType {
 
 export type Body = object | string | BinaryType
 
-export type HttpVerb = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS' | 'CONNECT' | 'TRACE'
+export type HttpVerb =
+  | 'GET'
+  | 'POST'
+  | 'PUT'
+  | 'DELETE'
+  | 'PATCH'
+  | 'HEAD'
+  | 'OPTIONS'
+  | 'CONNECT'
+  | 'TRACE'
 
 export interface HttpOptions {
   method: HttpVerb
@@ -73,7 +82,11 @@ async function get<T>(url: string, options: PartialOptions): Promise<T> {
  *
  * @return promise resolving to the response
  */
-async function post<T>(url: string, body: Body, options: PartialOptions): Promise<T> {
+async function post<T>(
+  url: string,
+  body: Body,
+  options: PartialOptions
+): Promise<T> {
   return await request({
     method: 'POST',
     url,
@@ -91,7 +104,11 @@ async function post<T>(url: string, body: Body, options: PartialOptions): Promis
  *
  * @return promise resolving to the response
  */
-async function put<T>(url: string, body: Body, options: PartialOptions): Promise<T> {
+async function put<T>(
+  url: string,
+  body: Body,
+  options: PartialOptions
+): Promise<T> {
   return await request({
     method: 'PUT',
     url,
@@ -124,7 +141,10 @@ async function patch<T>(url: string, options: PartialOptions): Promise<T> {
  *
  * @return promise resolving to the response
  */
-async function deleteRequest<T>(url: string, options: PartialOptions): Promise<T> {
+async function deleteRequest<T>(
+  url: string,
+  options: PartialOptions
+): Promise<T> {
   return await request({
     method: 'DELETE',
     url,

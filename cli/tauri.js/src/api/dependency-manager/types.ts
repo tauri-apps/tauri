@@ -1,5 +1,6 @@
 export enum ManagementType {
   Install,
+  InstallDev,
   Update
 }
 

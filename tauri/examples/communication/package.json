@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "tauri": "tauri",
     "build": "tauri build"
   },
   "private": true,

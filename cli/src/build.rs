@@ -20,6 +20,7 @@ use std::process::Command;
 #[derive(Default)]
 pub struct Build {
   debug: bool,
+  verbose: bool,
   targets: Option<Vec<String>>,
 }
 
@@ -30,6 +31,11 @@ impl Build {
 
   pub fn debug(mut self) -> Self {
     self.debug = true;
+    self
+  }
+
+  pub fn verbose(mut self) -> Self {
+    self.verbose = true;
     self
   }
 
@@ -49,6 +55,9 @@ impl Build {
     let mut settings_builder = SettingsBuilder::new().features(vec![feature.to_string()]);
     if !self.debug {
       settings_builder = settings_builder.release();
+    }
+    if self.verbose {
+      settings_builder.verbose();
     }
     if let Some(names) = self.targets {
       let mut types = vec![];

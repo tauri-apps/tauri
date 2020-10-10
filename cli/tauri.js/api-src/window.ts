@@ -24,7 +24,4 @@ function open(url: string): void {
   })
 }
 
-export {
-  setTitle,
-  open
-}
+export { setTitle, open }

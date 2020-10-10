@@ -7,6 +7,8 @@ module.exports = {
     'api/build': './src/api/build.ts',
     'api/dev': './src/api/dev.ts',
     'api/init': './src/api/init.ts',
+    'api/recipes': './src/api/recipes/index.ts',
+    'api/recipes/install': './src/api/recipes/install.ts',
     'api/tauricon': './src/api/tauricon.ts',
     'api/info': './src/api/info.ts',
     'api/dependency-manager': './src/api/dependency-manager/index.ts',
@@ -16,7 +18,8 @@ module.exports = {
   mode: process.env.NODE_ENV || 'development',
   devtool: 'source-map',
   module: {
-    rules: [{
+    rules: [
+      {
         test: /\.tsx?$/,
         use: 'ts-loader',
         exclude: /node_modules/
@@ -45,13 +48,15 @@ module.exports = {
   target: 'node',
   plugins: [
     new CopyWebpackPlugin({
-      patterns: [{
-        from: './src/types/config.validator.ts',
-        to: '../src/types/config.schema.json',
-        transform(content) {
-          return schemaParser('TauriConfigSchema', content.toString())
+      patterns: [
+        {
+          from: './src/types/config.validator.ts',
+          to: '../src/types/config.schema.json',
+          transform(content) {
+            return schemaParser('TauriConfigSchema', content.toString())
+          }
         }
-      }]
+      ]
     })
   ]
 }
@@ -72,5 +77,5 @@ function schemaParser(schemaName, content) {
     }
   }
 
-  return output.join("\n")
+  return output.join('\n')
 }

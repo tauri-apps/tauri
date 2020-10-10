@@ -52,11 +52,15 @@ fn dev_command(matches: &ArgMatches) -> Result<()> {
 
 fn build_command(matches: &ArgMatches) -> Result<()> {
   let debug = matches.is_present("debug");
+  let verbose = matches.is_present("verbose");
   let targets = matches.values_of_lossy("target");
 
   let mut build_runner = build::Build::new();
   if debug {
     build_runner = build_runner.debug();
+  }
+  if verbose {
+    build_runner = build_runner.verbose();
   }
   if let Some(targets) = targets {
     build_runner = build_runner.targets(targets);

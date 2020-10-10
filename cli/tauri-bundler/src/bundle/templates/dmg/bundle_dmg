@@ -54,7 +54,7 @@ function usage() {
 	echo "  --disk-image-size x"
 	echo "      set the disk image size manually to x MB"
 	echo "  --hdiutil-verbose"
-	echo "      execute hdiutil in verbose mode"  
+	echo "      execute hdiutil in verbose mode"
 	echo "  --hdiutil-quiet"
 	echo "      execute hdiutil in quiet mode"
 	echo "  --sandbox-safe"
@@ -158,10 +158,10 @@ while [ ! -z ${1+x} ] && test "${1:0:1}" = "-"; do
 		shift;;
 	--hdiutil-quiet)
 		HDIUTIL_VERBOSITY='-quiet'
-		shift;; 
+		shift;;
 	--sandbox-safe)
 		SANDBOX_SAFE=1
-		shift;; 
+		shift;;
 	--rez)
 		REZ_PATH=$2
 		shift; shift;;
@@ -237,7 +237,7 @@ fi
 
 if [ $SANDBOX_SAFE -eq 0 ]; then
 	hdiutil create ${HDIUTIL_VERBOSITY} -srcfolder "$SRC_FOLDER" -volname "${VOLUME_NAME}" -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDRW ${CUSTOM_SIZE} "${DMG_TEMP_NAME}"
-else	
+else
 	hdiutil makehybrid ${HDIUTIL_VERBOSITY} -default-volume-name "${VOLUME_NAME}" -hfs -o "${DMG_TEMP_NAME}" "$SRC_FOLDER"
 	hdiutil convert -format UDRW -ov -o "${DMG_TEMP_NAME}" "${DMG_TEMP_NAME}"
 	DISK_IMAGE_SIZE_CUSTOM=$DISK_IMAGE_SIZE
@@ -271,9 +271,11 @@ echo "Mounting disk image..."
 MOUNT_DIR="/Volumes/${VOLUME_NAME}"
 
 # try unmount dmg if it was mounted previously (e.g. developer mounted dmg, installed app and forgot to unmount it)
-echo "Unmounting disk image..."
 DEV_NAME=$(hdiutil info | egrep --color=never '^/dev/' | sed 1q | awk '{print $1}')
-test -d "${MOUNT_DIR}" && hdiutil detach "${DEV_NAME}"
+if [ test -d "${MOUNT_DIR}" ]; then
+  echo "Unmounting previously mounted disk image..."
+  hdiutil detach "${DEV_NAME}"
+fi
 
 echo "Mount directory: $MOUNT_DIR"
 DEV_NAME=$(hdiutil attach -readwrite -noverify -noautoopen "${DMG_TEMP_NAME}" | egrep --color=never '^/dev/' | sed 1q | awk '{print $1}')
@@ -325,7 +327,7 @@ EOS
 
 if [ $SKIP_JENKINS -eq 0 ]; then
 	applescript_source | sed -e "s/WINX/$WINX/g" -e "s/WINY/$WINY/g" -e "s/WINW/$WINW/g" -e "s/WINH/$WINH/g" -e "s/BACKGROUND_CLAUSE/$BACKGROUND_CLAUSE/g" -e "s/REPOSITION_HIDDEN_FILES_CLAUSE/$REPOSITION_HIDDEN_FILES_CLAUSE/g" -e "s/ICON_SIZE/$ICON_SIZE/g" -e "s/TEXT_SIZE/$TEXT_SIZE/g" | perl -pe  "s/POSITION_CLAUSE/$POSITION_CLAUSE/g" | perl -pe "s/QL_CLAUSE/$QL_CLAUSE/g" | perl -pe "s/APPLICATION_CLAUSE/$APPLICATION_CLAUSE/g" | perl -pe "s/HIDING_CLAUSE/$HIDING_CLAUSE/" >"$APPLESCRIPT"
-	sleep 2 # pause to workaround occasional "Can’t get disk" (-1728) issues  
+	sleep 2 # pause to workaround occasional "Can’t get disk" (-1728) issues
 	echo "Running Applescript: /usr/bin/osascript \"${APPLESCRIPT}\" \"${VOLUME_NAME}\""
 	(/usr/bin/osascript "${APPLESCRIPT}" "${VOLUME_NAME}" || if [[ "$?" -ne 0 ]]; then echo "Failed running AppleScript"; hdiutil detach "${DEV_NAME}"; exit 64; fi)
 	echo "Done running the applescript..."
@@ -384,7 +386,7 @@ else
 	# check if hdiutil supports internet-enable
 	# support was removed in macOS 10.15
 	# https://github.com/andreyvit/create-dmg/issues/76
-	if hdiutil internet-enable -help >/dev/null 2>/dev/null 
+	if hdiutil internet-enable -help >/dev/null 2>/dev/null
 	then
 		hdiutil internet-enable -yes "${DMG_DIR}/${DMG_NAME}"
 	else

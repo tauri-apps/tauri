@@ -2,8 +2,8 @@ use webview_official::Webview;
 
 mod runner;
 
-type InvokeHandler = Box<dyn FnMut(&mut Webview, &str) -> Result<(), String>>;
-type Setup = Box<dyn FnMut(&mut Webview, String)>;
+type InvokeHandler = Box<dyn FnMut(&mut Webview<'_>, &str) -> Result<(), String>>;
+type Setup = Box<dyn FnMut(&mut Webview<'_>, String)>;
 
 /// The application runner.
 pub struct App {
@@ -26,7 +26,7 @@ impl App {
   /// The message is considered consumed if the handler exists and returns an Ok Result.
   pub(crate) fn run_invoke_handler(
     &mut self,
-    webview: &mut Webview,
+    webview: &mut Webview<'_>,
     arg: &str,
   ) -> Result<bool, String> {
     if let Some(ref mut invoke_handler) = self.invoke_handler {
@@ -37,7 +37,7 @@ impl App {
   }
 
   /// Runs the setup callback if defined.
-  pub(crate) fn run_setup(&mut self, webview: &mut Webview, source: String) {
+  pub(crate) fn run_setup(&mut self, webview: &mut Webview<'_>, source: String) {
     if let Some(ref mut setup) = self.setup {
       setup(webview, source);
     }
@@ -61,7 +61,7 @@ pub struct AppBuilder {
 }
 
 impl AppBuilder {
-  /// Creates a new App bulder.
+  /// Creates a new App builder.
   pub fn new() -> Self {
     Self {
       invoke_handler: None,
@@ -71,7 +71,7 @@ impl AppBuilder {
   }
 
   /// Defines the JS message handler callback.
-  pub fn invoke_handler<F: FnMut(&mut Webview, &str) -> Result<(), String> + 'static>(
+  pub fn invoke_handler<F: FnMut(&mut Webview<'_>, &str) -> Result<(), String> + 'static>(
     mut self,
     invoke_handler: F,
   ) -> Self {
@@ -80,7 +80,7 @@ impl AppBuilder {
   }
 
   /// Defines the setup callback.
-  pub fn setup<F: FnMut(&mut Webview, String) + 'static>(mut self, setup: F) -> Self {
+  pub fn setup<F: FnMut(&mut Webview<'_>, String) + 'static>(mut self, setup: F) -> Self {
     self.setup = Some(Box::new(setup));
     self
   }

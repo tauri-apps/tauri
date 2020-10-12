@@ -13,7 +13,8 @@ module.exports = {
     'api/info': './src/api/info.ts',
     'api/dependency-manager': './src/api/dependency-manager/index.ts',
     'helpers/tauri-config': './src/helpers/tauri-config.ts',
-    'helpers/spawn': './src/helpers/spawn.ts'
+    'helpers/spawn': './src/helpers/spawn.ts',
+    'helpers/rust-cli': './src/helpers/rust-cli.ts'
   },
   mode: process.env.NODE_ENV || 'development',
   devtool: 'source-map',

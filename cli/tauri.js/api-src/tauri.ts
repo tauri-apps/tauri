@@ -67,13 +67,13 @@ async function promisified<T>(args: any): Promise<T> {
   return await new Promise((resolve, reject) => {
     const callback = transformCallback((e) => {
       resolve(e)
-      if(Reflect.has(window, error)) {
+      if (Reflect.has(window, error)) {
         Reflect.deleteProperty(window, error)
       }
     }, true)
     const error = transformCallback((e) => {
       reject(e)
-      if(Reflect.has(window, callback)) {
+      if (Reflect.has(window, callback)) {
         Reflect.deleteProperty(window, callback)
       }
     }, true)

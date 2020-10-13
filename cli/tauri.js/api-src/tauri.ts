@@ -44,7 +44,7 @@ function transformCallback(
 
   Object.defineProperty(window, identifier, {
     value: (result: any) => {
-      if (once) {
+      if (once && Reflect.has(window, identifier)) {
         Reflect.deleteProperty(window, identifier)
       }
 
@@ -67,11 +67,15 @@ async function promisified<T>(args: any): Promise<T> {
   return await new Promise((resolve, reject) => {
     const callback = transformCallback((e) => {
       resolve(e)
-      Reflect.deleteProperty(window, error)
+      if(Reflect.has(window, error)) {
+        Reflect.deleteProperty(window, error)
+      }
     }, true)
     const error = transformCallback((e) => {
       reject(e)
-      Reflect.deleteProperty(window, callback)
+      if(Reflect.has(window, callback)) {
+        Reflect.deleteProperty(window, callback)
+      }
     }, true)
 
     invoke({

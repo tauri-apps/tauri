@@ -5,7 +5,7 @@ Hi! We, the maintainers, are really excited that you are interested in contribut
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Issue Reporting Guidelines](#issue-reporting-guidelines)
 - [Pull Request Guidelines](#pull-request-guidelines)
-- [Development Setup](#development-setup)
+- [Development Guide](#development-guide)
 - [Project Structure](#project-structure)
 - [Financial Contribution](#financial-contribution)
 
@@ -40,14 +40,43 @@ Hi! We, the maintainers, are really excited that you are interested in contribut
 - It's OK to have multiple small commits as you work on the PR - we will let GitHub automatically squash it before merging.
 
 - If adding new feature:
+
   - Provide convincing reason to add this feature. Ideally you should open a suggestion issue first and have it greenlighted before working on it.
 
 - If fixing a bug:
   - If you are resolving a special issue, add `(fix: #xxxx[,#xxx])` (#xxxx is the issue id) in your PR title for a better release log, e.g. `fix: update entities encoding/decoding (fix #3899)`.
   - Provide detailed description of the bug in the PR. Live demo preferred.
 
-## Development Setup
-TO BE UPDATED. 
+## Development Guide
+
+### General Setup
+
+First, [join our Discord server](https://discord.gg/SpmNs4S) and let us know that you want to contribute. This way we can point you in the right direction and help ensure your contribution will be as helpful as possible. We also recommend you read the [technical details page](https://tauri.studio/en/docs/getting-started/technical-details) to learn how Tauri works under the hood and familiarize yourself with the codebase.
+
+To set up your machine for development, follow the [Tauri setup guide](https://tauri.studio/en/docs/getting-started/intro#setting-up-your-environment) to get all the tools you need to develop Tauri apps. The only additional tool you may need is [Yarn](https://yarnpkg.com/), it is only required if you are developing the Node CLI/API (`tauri.js`). Next, clone the Tauri repo. It is structured as a monorepo, which means that all the various Tauri packages are under the same repository. The development process varies depending on what part of Tauri you are contributing to.
+
+### Developing The CLI and API (`tauri.js`)
+
+The code for `tauri.js` is located in `[Tauri repo root]/cli/tauri.js`. Open a terminal, `cd` into that directory, and install deps by running `yarn install`. The code for the API (ie notifications, filesystem, etc...) is in `api-src` (not `src/api`), and the code for the CLI (the build, dev, init, etc... commands) is in `src`. There are a few package scripts you should be aware of:
+
+- `build` builds both the API and CLI
+- `build:api` builds the API
+- `build:webpack` builds the CLI
+- `test` runs the unit and e2e test suite
+- `lint` runs ESLint to catch linting errors
+- `format` formats code with Prettier to match the style guide
+
+To test your changes, we recommend using the `[Tauri repo root]/tauri/examples/communication` app. It automatically uses the local version of `tauri.js`. You will need to rebuild `tauri.js` after every change by running `yarn build` in the `tauri.js` directory.
+
+If you want to use your local code in another app, we recommend using [Yarn link](https://classic.yarnpkg.com/en/docs/cli/link/). First, run `yarn link` in the `tauri.js` directory, then run `yarn link tauri.js` in your test project's directory. This will link the CLI and API for that project. To run CLI commands, use `yarn tauri [command name]`, ie `yarn tauri build`. You only need to link once, but will need to rebuild every time.
+
+### Developing Tauri Bundler
+
+The code for the bundler is located in `[Tauri repo root]/cli/tauri-bundler`. After making your changes to the code, run `cargo install --path .` in the bundler directory. This will update the global `tauri-bundler` Cargo install to use your local code. Now, all of your Tauri projects will use the local code when bundling. The Cargo install needs to be run after every change.
+
+### Developing Tauri Core
+
+The code for Tauri core is located in `[Tauri repo root]/tauri`. The easiest way to test your changes is to use the `[Tauri repo root]/tauri/examples/communication` app. It automatically rebuilds and uses your local codebase. Just run `yarn tauri build` or `yarn tauri dev` in the communication app directory after making changes to test them out. To use your local changes in another project, edit its `src-tauri/Cargo.toml` file so that the `tauri` key looks like `tauri = { path = "PATH", features = [ "all-api", "cli" ] }`, where `PATH` is the relative path to `[Tauri repo root]/tauri`.
 
 ## Financial Contribution
 

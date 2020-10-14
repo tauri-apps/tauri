@@ -30,7 +30,7 @@ thiserror = "1.0.21"
 rand = "0.7"
 nfd = "0.0.4"
 tauri-dialog = "0.1.0"
-attohttpc = { version = "0.15.0", features = [ "json", "form" ] }
+attohttpc = { version = "0.16.0", features = [ "json", "form" ] }
 http = "0.2"
 tauri-utils = { version = "0.5", path = "../tauri-utils" }
 clap = { git = "https://github.com/clap-rs/clap", rev = "1a276f8", version = "3.0.0-beta.1", optional = true }

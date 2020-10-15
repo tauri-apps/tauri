@@ -68,7 +68,7 @@ The code for `tauri.js` is located in `[Tauri repo root]/cli/tauri.js`. Open a t
 
 To test your changes, we recommend using the `[Tauri repo root]/tauri/examples/communication` app. It automatically uses the local version of `tauri.js`. You will need to rebuild `tauri.js` after every change by running `yarn build` in the `tauri.js` directory.
 
-If you want to use your local code in another app, we recommend using [Yarn link](https://classic.yarnpkg.com/en/docs/cli/link/). First, run `yarn link` in the `tauri.js` directory, then run `yarn link tauri.js` in your test project's directory. This will link the CLI and API for that project. To run CLI commands, use `yarn tauri [command name]`, ie `yarn tauri build`. You only need to link once, but will need to rebuild every time.
+If you want to use your local code in another app, we recommend using [Yarn link](https://classic.yarnpkg.com/en/docs/cli/link/). First, run `yarn link` in the `tauri.js` directory, then run `yarn link tauri` in your test project's directory. This will link the CLI and API for that project. To run CLI commands, use `yarn tauri [command name]`, ie `yarn tauri build`. You only need to link once, but will need to rebuild every time.
 
 ### Developing Tauri Bundler
 

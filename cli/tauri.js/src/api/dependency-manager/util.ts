@@ -5,8 +5,18 @@ import { sync as crossSpawnSync } from 'cross-spawn'
 import { appDir, resolve as appResolve } from '../../helpers/app-paths'
 import { existsSync } from 'fs'
 import semver from 'semver'
+import { lookpath } from 'lookpath'
 
 const BASE_URL = 'https://docs.rs/crate/'
+
+async function useYarn(): Promise<boolean> {
+  const hasYarnLockfile = existsSync(appResolve.app('yarn.lock'))
+  if (hasYarnLockfile) {
+    return true
+  } else {
+    return (await lookpath('npm')) === undefined
+  }
+}
 
 async function getCrateLatestVersion(crateName: string): Promise<string> {
   return await new Promise((resolve, reject) => {
@@ -22,45 +32,51 @@ async function getCrateLatestVersion(crateName: string): Promise<string> {
   })
 }
 
-function getNpmLatestVersion(packageName: string): string {
-  const child = crossSpawnSync('npm', ['show', packageName, 'version'], {
-    cwd: appDir
-  })
-  return String(child.output[1]).replace('\n', '')
+async function getNpmLatestVersion(packageName: string): Promise<string> {
+  if (await useYarn()) {
+    const child = crossSpawnSync('yarn', ['info', packageName, 'versions', '--json'], {
+      cwd: appDir
+    })
+    const output = String(child.output[1])
+    const packageJson = JSON.parse(output) as { data: string[] }
+    return packageJson.data[packageJson.data.length - 1]
+  }
+  else {
+    const child = crossSpawnSync('npm', ['show', packageName, 'version'], {
+      cwd: appDir
+    })
+    return String(child.output[1]).replace('\n', '')
+  }
 }
 
 async function getNpmPackageVersion(
   packageName: string
 ): Promise<string | null> {
-  return await new Promise((resolve) => {
-    const child = crossSpawnSync(
-      'npm',
-      ['list', packageName, 'version', '--depth', '0'],
-      { cwd: appDir }
-    )
-    const output = String(child.output[1])
-    // eslint-disable-next-line security/detect-non-literal-regexp
-    const matches = new RegExp(packageName + '@(\\S+)', 'g').exec(output)
-    if (matches?.[1]) {
-      resolve(matches[1])
-    } else {
-      resolve(null)
-    }
-  })
+  const child = (await useYarn()) ? crossSpawnSync('yarn', ['list', '--patern', packageName, '--depth', '0']) : crossSpawnSync(
+    'npm',
+    ['list', packageName, 'version', '--depth', '0'],
+    { cwd: appDir }
+  )
+  const output = String(child.output[1])
+  // eslint-disable-next-line security/detect-non-literal-regexp
+  const matches = new RegExp(packageName + '@(\\S+)', 'g').exec(output)
+  if (matches?.[1]) {
+    return matches[1]
+  } else {
+    return null
+  }
 }
 
-function installNpmPackage(packageName: string): void {
-  const usesYarn = existsSync(appResolve.app('yarn.lock'))
-  if (usesYarn) {
+async function installNpmPackage(packageName: string): Promise<void> {
+  if (await useYarn()) {
     spawnSync('yarn', ['add', packageName], appDir)
   } else {
     spawnSync('npm', ['install', packageName], appDir)
   }
 }
 
-function installNpmDevPackage(packageName: string): void {
-  const usesYarn = existsSync(appResolve.app('yarn.lock'))
-  if (usesYarn) {
+async function installNpmDevPackage(packageName: string): Promise<void> {
+  if (await useYarn()) {
     spawnSync('yarn', ['add', packageName, '--dev'], appDir)
   } else {
     spawnSync('npm', ['install', packageName, '--save-dev'], appDir)

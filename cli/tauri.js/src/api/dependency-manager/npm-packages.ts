@@ -33,7 +33,7 @@ async function manageDependencies(
         }
         installedDeps.push(dependency)
       } else if (managementType === ManagementType.Update) {
-        const latestVersion = getNpmLatestVersion(dependency)
+        const latestVersion = await getNpmLatestVersion(dependency)
         if (semverLt(currentVersion, latestVersion)) {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
           const inquired = await inquirer.prompt([

@@ -97,7 +97,6 @@
     "@types/ms": "0.7.31",
     "@types/semver": "7.3.4",
     "@types/sharp": "0.26.0",
-    "@types/webpack-merge": "4.1.5",
     "@typescript-eslint/eslint-plugin": "4.4.0",
     "@typescript-eslint/parser": "4.4.0",
     "babel-jest": "26.5.2",

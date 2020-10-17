@@ -63,7 +63,7 @@
     "imagemin-zopfli": "7.0.0",
     "inquirer": "7.3.3",
     "is-png": "2.0.0",
-    "is-reachable": "4.0.0",
+    "is-reachable": "5.0.0",
     "isbinaryfile": "4.0.6",
     "jsdom": "16.4.0",
     "lodash": "4.17.20",
@@ -97,7 +97,6 @@
     "@types/ms": "0.7.31",
     "@types/semver": "7.3.4",
     "@types/sharp": "0.26.0",
-    "@types/webpack-merge": "4.1.5",
     "@typescript-eslint/eslint-plugin": "4.4.1",
     "@typescript-eslint/parser": "4.4.1",
     "babel-jest": "26.5.2",
@@ -130,8 +129,8 @@
     "tslib": "2.0.3",
     "typescript": "4.0.3",
     "typescript-json-validator": "2.4.2",
-    "webpack": "4.44.2",
-    "webpack-cli": "3.3.12",
+    "webpack": "5.1.3",
+    "webpack-cli": "4.0.0",
     "webpack-node-externals": "2.5.2"
   },
   "resolutions": {

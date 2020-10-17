@@ -22,7 +22,7 @@ use crate::Settings;
 
 use anyhow::Context;
 use chrono;
-use dirs;
+use dirs_next;
 use icns;
 use image::{self, GenericImageView};
 

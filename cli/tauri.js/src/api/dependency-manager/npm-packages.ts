@@ -27,9 +27,9 @@ async function manageDependencies(
       if (currentVersion === null) {
         log(`Installing ${dependency}...`)
         if (managementType === ManagementType.Install) {
-          installNpmPackage(dependency)
+          await installNpmPackage(dependency)
         } else if (managementType === ManagementType.InstallDev) {
-          installNpmDevPackage(dependency)
+          await installNpmDevPackage(dependency)
         }
         installedDeps.push(dependency)
       } else if (managementType === ManagementType.Update) {

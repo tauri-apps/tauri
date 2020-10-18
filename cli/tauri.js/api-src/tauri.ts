@@ -50,7 +50,8 @@ function transformCallback(
 
       return callback?.(result)
     },
-    writable: false
+    writable: false,
+    configurable: true
   })
 
   return identifier

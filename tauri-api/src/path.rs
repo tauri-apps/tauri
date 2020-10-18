@@ -6,7 +6,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 /// The base directory is the optional root of a FS operation.
 /// If informed by the API call, all paths will be relative to the path of the given directory.
 ///
-/// For more information, check the [dirs documentation](https://docs.rs/dirs/).
+/// For more information, check the [dirs_next documentation](https://docs.rs/dirs_next/).
 #[derive(Serialize_repr, Deserialize_repr, Clone, Debug)]
 #[repr(u16)]
 pub enum BaseDirectory {
@@ -95,82 +95,82 @@ pub fn resolve_path<P: AsRef<Path>>(path: P, dir: Option<BaseDirectory>) -> crat
 
 /// Returns the path to the user's audio directory.
 pub fn audio_dir() -> Option<PathBuf> {
-  dirs::audio_dir()
+  dirs_next::audio_dir()
 }
 
 /// Returns the path to the user's cache directory.
 pub fn cache_dir() -> Option<PathBuf> {
-  dirs::cache_dir()
+  dirs_next::cache_dir()
 }
 
 /// Returns the path to the user's config directory.
 pub fn config_dir() -> Option<PathBuf> {
-  dirs::config_dir()
+  dirs_next::config_dir()
 }
 
 /// Returns the path to the user's data directory.
 pub fn data_dir() -> Option<PathBuf> {
-  dirs::data_dir()
+  dirs_next::data_dir()
 }
 
 /// Returns the path to the user's local data directory.
 pub fn local_data_dir() -> Option<PathBuf> {
-  dirs::data_local_dir()
+  dirs_next::data_local_dir()
 }
 
 /// Returns the path to the user's desktop directory.
 pub fn desktop_dir() -> Option<PathBuf> {
-  dirs::desktop_dir()
+  dirs_next::desktop_dir()
 }
 
 /// Returns the path to the user's document directory.
 pub fn document_dir() -> Option<PathBuf> {
-  dirs::document_dir()
+  dirs_next::document_dir()
 }
 
 /// Returns the path to the user's download directory.
 pub fn download_dir() -> Option<PathBuf> {
-  dirs::download_dir()
+  dirs_next::download_dir()
 }
 
 /// Returns the path to the user's executable directory.
 pub fn executable_dir() -> Option<PathBuf> {
-  dirs::executable_dir()
+  dirs_next::executable_dir()
 }
 
 /// Returns the path to the user's font directory.
 pub fn font_dir() -> Option<PathBuf> {
-  dirs::font_dir()
+  dirs_next::font_dir()
 }
 
 /// Returns the path to the user's home directory.
 pub fn home_dir() -> Option<PathBuf> {
-  dirs::home_dir()
+  dirs_next::home_dir()
 }
 
 /// Returns the path to the user's picture directory.
 pub fn picture_dir() -> Option<PathBuf> {
-  dirs::picture_dir()
+  dirs_next::picture_dir()
 }
 
 /// Returns the path to the user's public directory.
 pub fn public_dir() -> Option<PathBuf> {
-  dirs::public_dir()
+  dirs_next::public_dir()
 }
 
 /// Returns the path to the user's runtime directory.
 pub fn runtime_dir() -> Option<PathBuf> {
-  dirs::runtime_dir()
+  dirs_next::runtime_dir()
 }
 
 /// Returns the path to the user's template directory.
 pub fn template_dir() -> Option<PathBuf> {
-  dirs::template_dir()
+  dirs_next::template_dir()
 }
 
 /// Returns the path to the user's video dir
 pub fn video_dir() -> Option<PathBuf> {
-  dirs::video_dir()
+  dirs_next::video_dir()
 }
 
 /// Returns the path to the resource directory of this app.
@@ -190,7 +190,7 @@ fn app_name() -> crate::Result<String> {
 
 /// Returns the path to the suggested directory for your app config files.
 pub fn app_dir() -> Option<PathBuf> {
-  dirs::config_dir().and_then(|mut dir| {
+  dirs_next::config_dir().and_then(|mut dir| {
     if let Ok(app_name) = app_name() {
       dir.push(app_name);
       Some(dir)

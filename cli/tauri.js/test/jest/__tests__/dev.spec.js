@@ -66,7 +66,8 @@ function runDevTest(tauriConfig) {
 
 describe('Tauri Dev', () => {
   const build = {
-    distDir: distDir
+    distDir: distDir,
+    withGlobalTauri: true
   }
 
   const devServer = startDevServer()

@@ -61,7 +61,8 @@ function runBuildTest(tauriConfig) {
 describe('Tauri Build', () => {
   const build = {
     devPath: distDir,
-    distDir: distDir
+    distDir: distDir,
+    withGlobalTauri: true
   }
 
   it.each`
@@ -77,6 +78,9 @@ describe('Tauri Build', () => {
         debug: flag === 'debug'
       },
       tauri: {
+        allowlist: {
+          all: true
+        },
         embeddedServer: {
           active: mode === 'embedded-server'
         }

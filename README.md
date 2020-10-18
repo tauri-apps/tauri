@@ -97,13 +97,13 @@ If you are interested in making a tauri-app, please visit the [documentation web
 |--|--------|----------|
 | Binary Size MacOS | 0.6 MB (1) | 47.7 MB |
 | Memory Consumption MacOS | 13 MB | 34.1 MB |
+| Launch Time TBD platform/specs | TBD | TBD |
 | Interface Service Provider | Varies | Chromium |
 | Backend Binding | Rust | Node.js (ECMAScript) |
 | Underlying Engine | C/C++ | V8 (C/C++) |
 | FLOSS | Yes | No |
-| Multithreading | Yes | No |
+| Multithreading | Yes | Yes |
 | Bytecode Delivery | Yes | No |
-| Can Render PDF | Yes | No |
 | Multiple Windows | Soon | Yes |
 | Auto Updater | Soon | Yes (2) |
 | Cross Platform | Yes | Yes |

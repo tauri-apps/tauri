@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.7.5]
+
+-   `dirs` crate is unmaintained, now using `dirs-next` instead.
+    -   [82cda98](https://www.github.com/tauri-apps/tauri/commit/82cda98532975c6d4b1c93bf2f326173f39e0964) chore(tauri) `dirs` crate is unmaintained, use `dirst-next` instead ([#1057](https://www.github.com/tauri-apps/tauri/pull/1057)) on 2020-10-17
+
 ## [0.7.4]
 
 -   Bump all deps as noted in #975, #976, #977, #978, and #979.

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.10.0]
+
+-   Adds missing APIs features from `allowlist` to the tauri crate's manifest file.
+    -   [2c0f09c](https://www.github.com/tauri-apps/tauri/commit/2c0f09c85c8a60c2fa304fb25174d5020663f0d7) fix(tauri) add missing API features, closes [#1023](https://www.github.com/tauri-apps/tauri/pull/1023) ([#1052](https://www.github.com/tauri-apps/tauri/pull/1052)) on 2020-10-17
+-   Adds a path resolution API (e.g. getting the download directory or resolving a path to the home directory).
+    -   [771e401](https://www.github.com/tauri-apps/tauri/commit/771e4019b8cfd1973015ffa632c9d6c6b82c5657) feat: Port path api to js ([#1006](https://www.github.com/tauri-apps/tauri/pull/1006)) on 2020-09-24
+-   Update minimum Rust version to 1.42.0 due to a dependency update.
+    -   [d13dcd9](https://www.github.com/tauri-apps/tauri/commit/d13dcd9fd8d30b1db147a78cecb878e924382274) chore(deps) Update Tauri Bundler ([#1045](https://www.github.com/tauri-apps/tauri/pull/1045)) on 2020-10-17
+
 ## [0.9.2]
 
 -   Bump all deps as noted in #975, #976, #977, #978, and #979.

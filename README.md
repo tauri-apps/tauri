@@ -113,8 +113,6 @@ If you are interested in making a tauri-app, please visit the [documentation web
 | Linux Binary | Yes | Yes |
 | iOS Binary | Soon | No |
 | Android Binary | Soon | No |
-| Localhost Server | Yes | Yes |
-| No localhost option | Yes | No |
 | Desktop Tray | Soon | Yes |
 | Splashscreen | Yes | Yes |
 | Sidecar Binaries | Yes | No |

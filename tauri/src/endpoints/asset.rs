@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use webview_official::Webview;
 
+#[allow(clippy::option_env_unwrap)]
 pub fn load(
   webview: &mut Webview<'_>,
   asset: String,

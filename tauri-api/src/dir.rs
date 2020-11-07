@@ -53,7 +53,7 @@ pub fn read_dir<P: AsRef<Path>>(path: P, recursive: bool) -> crate::Result<Vec<D
 }
 
 /// Runs a closure with a temp dir argument.
-pub fn with_temp_dir<F: FnOnce(&tempfile::TempDir) -> ()>(callback: F) -> crate::Result<()> {
+pub fn with_temp_dir<F: FnOnce(&tempfile::TempDir)>(callback: F) -> crate::Result<()> {
   let dir = tempdir()?;
   callback(&dir);
   dir.close()?;

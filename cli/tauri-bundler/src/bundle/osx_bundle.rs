@@ -21,9 +21,6 @@ use super::common;
 use crate::Settings;
 
 use anyhow::Context;
-use chrono;
-use dirs_next;
-use icns;
 use image::{self, GenericImageView};
 
 use std::cmp::min;

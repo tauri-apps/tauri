@@ -1,7 +1,4 @@
 use either::{self, Either};
-use flate2;
-use tar;
-use zip;
 
 use std::fs;
 use std::io;

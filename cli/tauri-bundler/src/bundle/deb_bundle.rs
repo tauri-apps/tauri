@@ -22,14 +22,10 @@ use super::common;
 use crate::Settings;
 
 use anyhow::Context;
-use ar;
-use icns;
 use image::png::PngDecoder;
 use image::{self, GenericImageView, ImageDecoder};
 use libflate::gzip;
-use md5;
 use std::process::{Command, Stdio};
-use tar;
 use walkdir::WalkDir;
 
 use std::collections::BTreeSet;

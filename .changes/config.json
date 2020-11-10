@@ -111,7 +111,7 @@
       ],
       "publish": [
         {
-          "command": "echo \"# NPM Package Publish\"",
+          "command": "echo \"# Yarn Package Publish\"",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -121,7 +121,7 @@
           "pipe": true
         },
         {
-          "command": "npm publish --access public",
+          "command": "yarn publish --access public",
           "dryRunCommand": "npm publish --dry-run --access public",
           "pipe": true
         },

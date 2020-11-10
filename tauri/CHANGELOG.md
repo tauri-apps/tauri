@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.10.0]
+
+-   Adds missing APIs features from `allowlist` to the tauri crate's manifest file.
+    -   [2c0f09c](https://www.github.com/tauri-apps/tauri/commit/2c0f09c85c8a60c2fa304fb25174d5020663f0d7) fix(tauri) add missing API features, closes [#1023](https://www.github.com/tauri-apps/tauri/pull/1023) ([#1052](https://www.github.com/tauri-apps/tauri/pull/1052)) on 2020-10-17
+    -   [72996be](https://www.github.com/tauri-apps/tauri/commit/72996be1bd3eb878c4cf30bfec79058071c26d7a) apply version updates ([#1024](https://www.github.com/tauri-apps/tauri/pull/1024)) on 2020-10-21
+    -   [4913f9b](https://www.github.com/tauri-apps/tauri/commit/4913f9b74b3794408e894f5800770721fe89a100) Revert "apply version updates ([#1024](https://www.github.com/tauri-apps/tauri/pull/1024))" ([#1076](https://www.github.com/tauri-apps/tauri/pull/1076)) on 2020-11-10
+-   Adds a path resolution API (e.g. getting the download directory or resolving a path to the home directory).
+    -   [771e401](https://www.github.com/tauri-apps/tauri/commit/771e4019b8cfd1973015ffa632c9d6c6b82c5657) feat: Port path api to js ([#1006](https://www.github.com/tauri-apps/tauri/pull/1006)) on 2020-09-24
+    -   [72996be](https://www.github.com/tauri-apps/tauri/commit/72996be1bd3eb878c4cf30bfec79058071c26d7a) apply version updates ([#1024](https://www.github.com/tauri-apps/tauri/pull/1024)) on 2020-10-21
+    -   [4913f9b](https://www.github.com/tauri-apps/tauri/commit/4913f9b74b3794408e894f5800770721fe89a100) Revert "apply version updates ([#1024](https://www.github.com/tauri-apps/tauri/pull/1024))" ([#1076](https://www.github.com/tauri-apps/tauri/pull/1076)) on 2020-11-10
+-   Update minimum Rust version to 1.42.0 due to a dependency update.
+    -   [d13dcd9](https://www.github.com/tauri-apps/tauri/commit/d13dcd9fd8d30b1db147a78cecb878e924382274) chore(deps) Update Tauri Bundler ([#1045](https://www.github.com/tauri-apps/tauri/pull/1045)) on 2020-10-17
+    -   [72996be](https://www.github.com/tauri-apps/tauri/commit/72996be1bd3eb878c4cf30bfec79058071c26d7a) apply version updates ([#1024](https://www.github.com/tauri-apps/tauri/pull/1024)) on 2020-10-21
+    -   [4913f9b](https://www.github.com/tauri-apps/tauri/commit/4913f9b74b3794408e894f5800770721fe89a100) Revert "apply version updates ([#1024](https://www.github.com/tauri-apps/tauri/pull/1024))" ([#1076](https://www.github.com/tauri-apps/tauri/pull/1076)) on 2020-11-10
+-   Minimum Rust version updated to 1.47.0. Run `$ rustup update` to update to the latest version.
+    -   [b4544b6](https://www.github.com/tauri-apps/tauri/commit/b4544b63f268dc6f3f47a4bfbad5d72cceee8698) chore(deps) Update Tauri API ([#1072](https://www.github.com/tauri-apps/tauri/pull/1072)) on 2020-11-07
+
 ## [0.9.2]
 
 -   Bump all deps as noted in #975, #976, #977, #978, and #979.

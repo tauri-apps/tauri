@@ -5,7 +5,6 @@
 -   `dirs` crate is unmaintained, now using `dirs-next` instead.
     -   [82cda98](https://www.github.com/tauri-apps/tauri/commit/82cda98532975c6d4b1c93bf2f326173f39e0964) chore(tauri) `dirs` crate is unmaintained, use `dirst-next` instead ([#1057](https://www.github.com/tauri-apps/tauri/pull/1057)) on 2020-10-17
     -   [72996be](https://www.github.com/tauri-apps/tauri/commit/72996be1bd3eb878c4cf30bfec79058071c26d7a) apply version updates ([#1024](https://www.github.com/tauri-apps/tauri/pull/1024)) on 2020-10-21
-    -   [4913f9b](https://www.github.com/tauri-apps/tauri/commit/4913f9b74b3794408e894f5800770721fe89a100) Revert "apply version updates ([#1024](https://www.github.com/tauri-apps/tauri/pull/1024))" ([#1076](https://www.github.com/tauri-apps/tauri/pull/1076)) on 2020-11-10
 
 ## [0.7.4]
 

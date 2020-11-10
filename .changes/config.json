@@ -25,7 +25,7 @@
           "pipe": true
         },
         {
-          "command": "cargo audit fix --dry-run true",
+          "command": "cargo audit ${ process.env.CARGO_AUDIT_OPTIONS || '' }",
           "dryRunCommand": true,
           "runFromRoot": true,
           "pipe": true

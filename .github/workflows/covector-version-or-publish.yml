@@ -38,7 +38,7 @@ jobs:
           createRelease: true
       - name: Create Pull Request With Versions Bumped
         if: steps.covector.outputs.commandRan == 'version'
-        uses: tauri-apps/create-pull-request@v2.8.0
+        uses: tauri-apps/create-pull-request@v3.4.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: release/version-updates
@@ -81,7 +81,7 @@ jobs:
           git config --global user.name "${{ github.event.pusher.name }}"
           git config --global user.email "${{ github.event.pusher.email }}"
       - name: create pull request for updated docs
-        uses: tauri-apps/create-pull-request@v2.8.0
+        uses: tauri-apps/create-pull-request@v3.4.1
         with:
           token: ${{ secrets.TAURI_BOT_PAT }}
           commit-message: "chore(docs): Update Rust docs"

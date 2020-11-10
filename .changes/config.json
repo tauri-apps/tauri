@@ -1,5 +1,6 @@
 {
   "gitSiteUrl": "https://www.github.com/tauri-apps/tauri/",
+  "timeout": 3600000,
   "pkgManagers": {
     "rust": {
       "version": true,

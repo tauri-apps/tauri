@@ -8,6 +8,7 @@ on:
 jobs:
   version-or-publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 65
     outputs:
       change: ${{ steps.covector.outputs.change }}
       commandRan: ${{ steps.covector.outputs.commandRan }}
@@ -19,7 +20,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v1
         with:
-          node-version: 12
+          node-version: 14
           registry-url: 'https://registry.npmjs.org'
       - name: cargo login
         run: cargo login ${{ secrets.crate_token }}

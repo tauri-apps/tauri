@@ -1,12 +1,5 @@
 # Changelog
 
-## [0.13.0]
-
--   Fixes `Reflect.deleteProperty` on promisified API calls failing with `Unable to delete property` by making it configurable.
-    -   [c8b167a](https://www.github.com/tauri-apps/tauri/commit/c8b167adb3561db182bc8f6e4d8753ce1ae3f450) fix(tauri.js) promisified API fails on Reflect.deleteProperty, fix [#1038](https://www.github.com/tauri-apps/tauri/pull/1038) ([#1056](https://www.github.com/tauri-apps/tauri/pull/1056)) on 2020-10-17
--   Adds a path resolution API (e.g. getting the download directory or resolving a path to the home directory).
-    -   [771e401](https://www.github.com/tauri-apps/tauri/commit/771e4019b8cfd1973015ffa632c9d6c6b82c5657) feat: Port path api to js ([#1006](https://www.github.com/tauri-apps/tauri/pull/1006)) on 2020-09-24
-
 ## [0.12.0]
 
 -   Break out TauriBuildConfig interface from TauriConfig build property

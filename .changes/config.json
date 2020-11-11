@@ -140,6 +140,7 @@
   },
   "packages": {
     "tauri.js": {
+      "publish": false,
       "path": "./cli/tauri.js",
       "manager": "javascript",
       "dependencies": ["tauri"],

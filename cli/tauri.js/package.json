@@ -14,7 +14,7 @@
     "build:webpack": "rimraf ./dist && yarn build:typevalidators && webpack --progress",
     "build:typevalidators": "node ./build/type-validators",
     "build:api": "rimraf ./api && rollup -c --silent",
-    "build-release": "yarn build --display none --progress false",
+    "build-release": "yarn build:api && rimraf ./dist && yarn build:typevalidators && webpack",
     "test": "jest --runInBand --no-cache --testPathIgnorePatterns=\"(build|dev)\"",
     "pretest": "yarn build",
     "prepublishOnly": "yarn build-release",

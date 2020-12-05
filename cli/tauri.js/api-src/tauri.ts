@@ -1,4 +1,5 @@
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Window {
     __TAURI_INVOKE_HANDLER__: (command: string) => void
   }

@@ -1,0 +1,5 @@
+---
+"tauri.js": patch
+---
+
+Fixes an issue with the dependency updater when NPM isn't installed.

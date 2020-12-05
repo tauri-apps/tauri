@@ -5,7 +5,6 @@ import { sync as crossSpawnSync } from 'cross-spawn'
 import { appDir, resolve as appResolve } from '../../helpers/app-paths'
 import { existsSync } from 'fs'
 import semver from 'semver'
-import { lookpath } from 'lookpath'
 
 const BASE_URL = 'https://docs.rs/crate/'
 
@@ -34,14 +33,17 @@ async function getCrateLatestVersion(crateName: string): Promise<string> {
 
 async function getNpmLatestVersion(packageName: string): Promise<string> {
   if (await useYarn()) {
-    const child = crossSpawnSync('yarn', ['info', packageName, 'versions', '--json'], {
-      cwd: appDir
-    })
+    const child = crossSpawnSync(
+      'yarn',
+      ['info', packageName, 'versions', '--json'],
+      {
+        cwd: appDir
+      }
+    )
     const output = String(child.output[1])
     const packageJson = JSON.parse(output) as { data: string[] }
     return packageJson.data[packageJson.data.length - 1]
-  }
-  else {
+  } else {
     const child = crossSpawnSync('npm', ['show', packageName, 'version'], {
       cwd: appDir
     })
@@ -52,11 +54,11 @@ async function getNpmLatestVersion(packageName: string): Promise<string> {
 async function getNpmPackageVersion(
   packageName: string
 ): Promise<string | null> {
-  const child = (await useYarn()) ? crossSpawnSync('yarn', ['list', '--patern', packageName, '--depth', '0']) : crossSpawnSync(
-    'npm',
-    ['list', packageName, 'version', '--depth', '0'],
-    { cwd: appDir }
-  )
+  const child = (await useYarn())
+    ? crossSpawnSync('yarn', ['list', '--patern', packageName, '--depth', '0'])
+    : crossSpawnSync('npm', ['list', packageName, 'version', '--depth', '0'], {
+        cwd: appDir
+      })
   const output = String(child.output[1])
   // eslint-disable-next-line security/detect-non-literal-regexp
   const matches = new RegExp(packageName + '@(\\S+)', 'g').exec(output)

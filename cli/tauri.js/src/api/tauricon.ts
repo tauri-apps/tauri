@@ -110,14 +110,12 @@ const hexToRgb = (
   // https://stackoverflow.com/questions/5623838/rgb-to-hex-and-hex-to-rgb
   // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
   const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i
-  hex = hex.replace(shorthandRegex, function (
-    m: string,
-    r: string,
-    g: string,
-    b: string
-  ) {
-    return r + r + g + g + b + b
-  })
+  hex = hex.replace(
+    shorthandRegex,
+    function (m: string, r: string, g: string, b: string) {
+      return r + r + g + g + b + b
+    }
+  )
 
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
   return result

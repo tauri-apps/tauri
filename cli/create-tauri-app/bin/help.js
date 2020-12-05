@@ -1,3 +1,8 @@
+/* -- NOTES --
+ * help message
+ * triggers whenever there's '-h' or '--help' flag
+**/
+
 module.exports = () => {
   console.log(`create-tauri-app v0.1.0
 

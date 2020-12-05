@@ -210,9 +210,17 @@ module.exports = main;
 
 /* will merge these later
 
+/* --NOTES--
+ * Entry point of create-tauri-app
+**/
+
 const cmd = process.argv[2]
 
 const tauri = (command) => {
+  /* --NOTES--
+   * parse arguments
+   * trigger the required action
+  **/
   if (
     !command ||
     command === '-h' ||

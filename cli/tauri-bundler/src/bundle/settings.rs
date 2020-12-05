@@ -3,13 +3,9 @@ use crate::bundle::common;
 use crate::bundle::platform::target_triple;
 
 use clap::ArgMatches;
-use glob;
 use serde::Deserialize;
 use target_build_utils::TargetInfo;
-use toml;
-use walkdir;
 
-use std;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
@@ -433,10 +429,9 @@ impl Settings {
     }
 
     if binaries.len() == 1 {
-      binaries.get_mut(0).and_then(|bin| {
+      if let Some(bin) = binaries.get_mut(0) {
         bin.main = true;
-        Some(bin)
-      });
+      }
     }
 
     let bundle_settings = parse_external_bin(bundle_settings)?;
@@ -961,7 +956,6 @@ impl<'a> Iterator for ResourcePaths<'a> {
 #[cfg(test)]
 mod tests {
   use super::{AppCategory, BundleSettings, CargoSettings};
-  use toml;
 
   #[test]
   fn parse_cargo_toml() {

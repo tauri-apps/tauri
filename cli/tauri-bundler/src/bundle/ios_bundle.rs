@@ -12,7 +12,6 @@ use super::common;
 use crate::Settings;
 
 use anyhow::Context;
-use icns;
 use image::png::PngDecoder;
 use image::{self, GenericImageView, ImageDecoder};
 

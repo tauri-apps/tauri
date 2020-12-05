@@ -11,16 +11,12 @@ pub use file_move::*;
 
 /// Reads a string file.
 pub fn read_string<P: AsRef<Path>>(file: P) -> crate::Result<String> {
-  fs::read_to_string(file)
-    .map_err(|err| Error::File(format!("Read_string failed: {}", err)).into())
-    .map(|c| c)
+  fs::read_to_string(file).map_err(|err| Error::File(format!("Read_string failed: {}", err)).into())
 }
 
 /// Reads a binary file.
 pub fn read_binary<P: AsRef<Path>>(file: P) -> crate::Result<Vec<u8>> {
-  fs::read(file)
-    .map_err(|err| Error::File(format!("Read_binary failed: {}", err)).into())
-    .map(|b| b)
+  fs::read(file).map_err(|err| Error::File(format!("Read_binary failed: {}", err)).into())
 }
 
 #[cfg(test)]

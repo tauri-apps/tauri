@@ -8,6 +8,7 @@ on:
 jobs:
   version-or-publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 65
     outputs:
       change: ${{ steps.covector.outputs.change }}
       commandRan: ${{ steps.covector.outputs.commandRan }}
@@ -19,7 +20,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v1
         with:
-          node-version: 12
+          node-version: 14
           registry-url: 'https://registry.npmjs.org'
       - name: cargo login
         run: cargo login ${{ secrets.crate_token }}
@@ -32,13 +33,14 @@ jobs:
         id: covector
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          CARGO_AUDIT_OPTIONS: ${{ secrets.CARGO_AUDIT_OPTIONS }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           command: 'version-or-publish'
           createRelease: true
       - name: Create Pull Request With Versions Bumped
         if: steps.covector.outputs.commandRan == 'version'
-        uses: tauri-apps/create-pull-request@v2.8.0
+        uses: tauri-apps/create-pull-request@v3.4.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: release/version-updates
@@ -81,7 +83,7 @@ jobs:
           git config --global user.name "${{ github.event.pusher.name }}"
           git config --global user.email "${{ github.event.pusher.email }}"
       - name: create pull request for updated docs
-        uses: tauri-apps/create-pull-request@v2.8.0
+        uses: tauri-apps/create-pull-request@v3.4.1
         with:
           token: ${{ secrets.TAURI_BOT_PAT }}
           commit-message: "chore(docs): Update Rust docs"

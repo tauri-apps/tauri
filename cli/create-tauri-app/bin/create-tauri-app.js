@@ -207,3 +207,25 @@ async function runInit(argv, config = {}) {
 }
 
 module.exports = main;
+
+/* will merge these later
+
+const cmd = process.argv[2]
+
+const tauri = (command) => {
+  if (
+    !command ||
+    command === '-h' ||
+    command === '--help' ||
+    command === 'help'
+  ) {
+    require("./help.js")();
+    process.exit(0)
+    // eslint-disable-next-line no-unreachable
+    return false // do this for node consumers and tests
+  }
+}
+
+tauri(cmd)
+
+*/

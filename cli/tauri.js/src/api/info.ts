@@ -265,7 +265,7 @@ module.exports = async () => {
   printVersion({
     key: '  tauri.js',
     version: packageJson.version,
-    targetVersion: getNpmLatestVersion('tauri')
+    targetVersion: await getNpmLatestVersion('tauri')
   })
 
   printInfo({ key: 'Rust environment', section: true })

@@ -7732,7 +7732,7 @@ resolve@1.17.0, resolve@^1.10.0, resolve@^1.10.1, resolve@^1.13.1, resolve@^1.15
   dependencies:
     path-parse "^1.0.6"
 
-resolve@^1.19.0:
+resolve@^1.18.1, resolve@^1.19.0:
   version "1.19.0"
   resolved "https://registry.yarnpkg.com/resolve/-/resolve-1.19.0.tgz#1af5bf630409734a067cae29318aac7fa29a267c"
   integrity sha512-rArEXAgsBG4UgRGcynxWIWKFvh/XZCcS8UJdHhwy91zwAvCZIbcs+vAbflgBnNjYMs/i/i+/Ux6IZhML1yPvxg==

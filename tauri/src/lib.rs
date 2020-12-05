@@ -50,7 +50,7 @@ use threadpool::ThreadPool;
 thread_local!(static POOL: ThreadPool = ThreadPool::new(4));
 
 /// Executes the operation in the thread pool.
-pub fn spawn<F: FnOnce() -> () + Send + 'static>(task: F) {
+pub fn spawn<F: FnOnce() + Send + 'static>(task: F) {
   POOL.with(|thread| {
     thread.execute(move || {
       task();

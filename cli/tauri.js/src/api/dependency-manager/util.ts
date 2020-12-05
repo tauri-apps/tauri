@@ -23,7 +23,12 @@ async function getCrateLatestVersion(crateName: string): Promise<string> {
 }
 
 function getNpmLatestVersion(packageName: string): string {
-  const child = crossSpawnSync('npm', ['show', packageName, 'version'], {
+  const usesYarn = existsSync(appResolve.app('yarn.lock'))
+  const cmd = usesYarn ? 'yarn' : 'npm'
+  const args = usesYarn
+    ? ['--silent', 'info', packageName, 'version']
+    : ['show', packageName, 'version']
+  const child = crossSpawnSync(cmd, args, {
     cwd: appDir
   })
   return String(child.output[1]).replace('\n', '')
@@ -32,12 +37,13 @@ function getNpmLatestVersion(packageName: string): string {
 async function getNpmPackageVersion(
   packageName: string
 ): Promise<string | null> {
+  const usesYarn = existsSync(appResolve.app('yarn.lock'))
+  const cmd = usesYarn ? 'yarn' : 'npm'
+  const args = usesYarn
+    ? ['--silent', 'list', packageName, 'version', '--depth', '0']
+    : ['list', packageName, 'version', '--depth', '0']
   return await new Promise((resolve) => {
-    const child = crossSpawnSync(
-      'npm',
-      ['list', packageName, 'version', '--depth', '0'],
-      { cwd: appDir }
-    )
+    const child = crossSpawnSync(cmd, args, { cwd: appDir })
     const output = String(child.output[1])
     // eslint-disable-next-line security/detect-non-literal-regexp
     const matches = new RegExp(packageName + '@(\\S+)', 'g').exec(output)

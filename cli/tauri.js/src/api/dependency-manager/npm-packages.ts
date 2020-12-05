@@ -11,6 +11,7 @@ import logger from '../../helpers/logger'
 import { resolve } from '../../helpers/app-paths'
 import inquirer from 'inquirer'
 import { existsSync } from 'fs'
+import { sync as crossSpawnSync } from 'cross-spawn'
 
 const log = logger('dependency:npm-packages')
 
@@ -20,6 +21,17 @@ async function manageDependencies(
 ): Promise<Result> {
   const installedDeps = []
   const updatedDeps = []
+
+  const npmChild = crossSpawnSync('npm', ['--version'])
+  const yarnChild = crossSpawnSync('yarn', ['--version'])
+  if (
+    (npmChild.status ?? npmChild.error) &&
+    (yarnChild.status ?? yarnChild.error)
+  ) {
+    throw new Error(
+      'must have `npm` or `yarn` installed to manage dependenices'
+    )
+  }
 
   if (existsSync(resolve.app('package.json'))) {
     for (const dependency of dependencies) {

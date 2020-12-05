@@ -67,7 +67,6 @@
     "isbinaryfile": "4.0.6",
     "jsdom": "16.4.0",
     "lodash": "4.17.20",
-    "lookpath": "^1.1.0",
     "minimist": "1.2.5",
     "ms": "2.1.2",
     "png2icons": "2.0.1",

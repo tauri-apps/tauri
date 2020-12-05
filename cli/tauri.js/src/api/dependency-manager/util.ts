@@ -13,7 +13,10 @@ async function useYarn(): Promise<boolean> {
   if (hasYarnLockfile) {
     return true
   } else {
-    return (await lookpath('npm')) === undefined
+    return await new Promise((resolve) => {
+      const child = crossSpawnSync('npm', ['--version'])
+      resolve(!!(child.status ?? child.error))
+    })
   }
 }
 
@@ -55,7 +58,13 @@ async function getNpmPackageVersion(
   packageName: string
 ): Promise<string | null> {
   const child = (await useYarn())
-    ? crossSpawnSync('yarn', ['list', '--patern', packageName, '--depth', '0'])
+    ? crossSpawnSync(
+        'yarn',
+        ['list', '--patern', packageName, '--depth', '0'],
+        {
+          cwd: appDir
+        }
+      )
     : crossSpawnSync('npm', ['list', packageName, 'version', '--depth', '0'], {
         cwd: appDir
       })

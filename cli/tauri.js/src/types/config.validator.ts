@@ -526,9 +526,9 @@ export const TauriConfigSchema = {
 }
 export type ValidateFunction<T> = ((data: unknown) => data is T) &
   Pick<Ajv.ValidateFunction, 'errors'>
-export const isTauriConfig = ajv.compile(TauriConfigSchema) as ValidateFunction<
-  TauriConfig
->
+export const isTauriConfig = ajv.compile(
+  TauriConfigSchema
+) as ValidateFunction<TauriConfig>
 export default function validate(value: unknown): TauriConfig {
   if (isTauriConfig(value)) {
     return value

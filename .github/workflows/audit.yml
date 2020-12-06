@@ -26,5 +26,5 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: yarn audit
-        working-directory: cli/tauri.js
+        working-directory: cli/bindings/tauri.js
         run: yarn audit

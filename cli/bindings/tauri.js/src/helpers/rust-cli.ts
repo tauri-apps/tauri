@@ -5,7 +5,7 @@ import { CargoManifest } from '../types/cargo'
 
 const currentTauriCliVersion = (): string => {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
-  const tauriCliManifest = require('../../../Cargo.toml') as CargoManifest
+  const tauriCliManifest = require('../../../../Cargo.toml') as CargoManifest
   return tauriCliManifest.package.version
 }
 

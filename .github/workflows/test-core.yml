@@ -62,7 +62,7 @@ jobs:
           toolchain: stable
           override: true
       - name: build api
-        working-directory: ./cli/tauri.js
+        working-directory: ./cli/bindings/tauri.js
         run: yarn && yarn build:api
       - name: build CLI
         uses: actions-rs/cargo@v1
@@ -89,11 +89,11 @@ jobs:
       - name: test
         timeout-minutes: 15
         run: |
-          cd ./cli/tauri.js
+          cd ./cli/bindings/tauri.js
           yarn
           yarn test
       - name: run release build
         timeout-minutes: 15
-        working-directory: cli/tauri.js
+        working-directory: cli/bindings/tauri.js
         run: yarn build-release
         

@@ -140,12 +140,12 @@
   },
   "packages": {
     "tauri.js": {
-      "path": "./cli/tauri.js",
+      "path": "./cli/bindings/tauri.js",
       "manager": "javascript",
       "dependencies": ["tauri"],
       "assets": [
         {
-          "path": "./cli/tauri.js/tauri-${ pkgFile.version }.tgz",
+          "path": "./cli/bindings/tauri.js/tauri-${ pkgFile.version }.tgz",
           "name": "tauri.js-${ pkgFile.version }.tgz"
         }
       ]

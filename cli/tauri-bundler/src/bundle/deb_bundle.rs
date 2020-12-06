@@ -174,9 +174,7 @@ exit 0",
     .status()?;
 
   if !status.success() {
-    return Err(anyhow::anyhow!(
-      "failed to make the bootstrapper an executable",
-    ).into());
+    return Err(anyhow::anyhow!("failed to make the bootstrapper an executable",).into());
   }
 
   Ok(())

@@ -60,7 +60,7 @@ pub enum Error {
   #[error("`{0}`")]
   GenericError(String),
   #[error("string is not UTF-8")]
-  Utf8(#[from] std::str::Utf8Error)
+  Utf8(#[from] std::str::Utf8Error),
 }
 
 pub type Result<T> = anyhow::Result<T, Error>;

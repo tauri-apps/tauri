@@ -32,8 +32,6 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use regex::Regex;
-use tempfile;
-use zip;
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the .app was created.
@@ -108,14 +106,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
 fn sign(app_bundle_path: PathBuf, identity: &str, settings: &Settings) -> crate::Result<()> {
   common::print_info(format!(r#"signing app with identity "{}""#, identity).as_str())?;
-  let mut args = vec![
-    "--deep",
-    "--force",
-    "-s",
-    identity,
-    "--options",
-    "runtime"
-  ];
+  let mut args = vec!["--deep", "--force", "-s", identity, "--options", "runtime"];
   if let Some(entitlements_path) = settings.osx_entitlements() {
     common::print_info(format!("using entitlements file at {}", entitlements_path).as_str())?;
     args.push("--entitlements");
@@ -170,10 +161,13 @@ fn notarize(
     .output()?;
 
   if !output.status.success() {
-    return Err(anyhow::anyhow!(format!(
-      "failed to upload app to Apple's notarization servers. {}",
-      std::str::from_utf8(&output.stdout)?
-    )).into());
+    return Err(
+      anyhow::anyhow!(format!(
+        "failed to upload app to Apple's notarization servers. {}",
+        std::str::from_utf8(&output.stdout)?
+      ))
+      .into(),
+    );
   }
 
   let regex = Regex::new(r"\nRequestUUID = (.+?)\n")?;
@@ -185,10 +179,13 @@ fn notarize(
     get_notarization_status(uuid, auth_args)?;
     staple_app(app_bundle_path.clone())?;
   } else {
-    return Err(anyhow::anyhow!(format!(
-      "failed to parse RequestUUID from upload output. {}",
-      stdout
-    )).into());
+    return Err(
+      anyhow::anyhow!(format!(
+        "failed to parse RequestUUID from upload output. {}",
+        stdout
+      ))
+      .into(),
+    );
   }
 
   Ok(())
@@ -211,10 +208,13 @@ fn staple_app(mut app_bundle_path: PathBuf) -> crate::Result<()> {
     .output()?;
 
   if !output.status.success() {
-    Err(anyhow::anyhow!(format!(
-      "failed to staple app. {}",
-      std::str::from_utf8(&output.stdout)?
-    )).into())
+    Err(
+      anyhow::anyhow!(format!(
+        "failed to staple app. {}",
+        std::str::from_utf8(&output.stdout)?
+      ))
+      .into(),
+    )
   } else {
     Ok(())
   }
@@ -229,32 +229,36 @@ fn get_notarization_status(uuid: String, auth_args: Vec<String>) -> crate::Resul
     .output()?;
 
   if !output.status.success() {
-    get_notarization_status(uuid, auth_args.clone())
+    get_notarization_status(uuid, auth_args)
   } else {
     let regex = Regex::new(r"\n *Status: (.+?)\n")?;
     let stdout = std::str::from_utf8(&output.stdout)?;
     if let Some(status) = regex.captures_iter(stdout).next() {
       let status = status[1].to_string();
       if status == "in progress" {
-        get_notarization_status(uuid, auth_args.clone())
-      } else {
-        if status == "invalid" {
-          Err(anyhow::anyhow!(format!(
+        get_notarization_status(uuid, auth_args)
+      } else if status == "invalid" {
+        Err(
+          anyhow::anyhow!(format!(
             "Apple failed to notarize your app. {}",
             std::str::from_utf8(&output.stdout)?
-          )).into())
-        } else if status != "success" {
-          Err(anyhow::anyhow!(format!(
+          ))
+          .into(),
+        )
+      } else if status != "success" {
+        Err(
+          anyhow::anyhow!(format!(
             "Unknown notarize status {}. {}",
             status,
             std::str::from_utf8(&output.stdout)?
-          )).into())
-        } else {
-          Ok(())
-        }
+          ))
+          .into(),
+        )
+      } else {
+        Ok(())
       }
     } else {
-      get_notarization_status(uuid, auth_args.clone())
+      get_notarization_status(uuid, auth_args)
     }
   }
 }
@@ -266,12 +270,10 @@ fn notarize_auth_args() -> crate::Result<Vec<String>> {
   ) {
     (Some(apple_id), Some(apple_password)) => {
       let apple_id = apple_id
-        .clone()
         .to_str()
         .expect("failed to convert APPLE_ID to string")
         .to_string();
       let apple_password = apple_password
-        .clone()
         .to_str()
         .expect("failed to convert APPLE_PASSWORD to string")
         .to_string();
@@ -285,8 +287,8 @@ fn notarize_auth_args() -> crate::Result<Vec<String>> {
     _ => {
       match (std::env::var_os("APPLE_API_KEY"), std::env::var_os("APPLE_API_ISSUER")) {
         (Some(api_key), Some(api_issuer)) => {
-          let api_key = api_key.clone().to_str().expect("failed to convert APPLE_API_KEY to string").to_string();
-          let api_issuer = api_issuer.clone().to_str().expect("failed to convert APPLE_API_ISSUER to string").to_string();
+          let api_key = api_key.to_str().expect("failed to convert APPLE_API_KEY to string").to_string();
+          let api_issuer = api_issuer.to_str().expect("failed to convert APPLE_API_ISSUER to string").to_string();
           Ok(vec!["--apiKey".to_string(), api_key, "--apiIssuer".to_string(), api_issuer])
         },
         _ => Err(anyhow::anyhow!("no APPLE_ID & APPLE_PASSWORD or APPLE_API_KEY & APPLE_API_ISSUER environment variables found").into())
@@ -294,7 +296,6 @@ fn notarize_auth_args() -> crate::Result<Vec<String>> {
     }
   }
 }
-
 
 // Copies the app's binaries to the bundle.
 fn copy_binaries_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
@@ -358,9 +359,7 @@ exit 0",
     .status()?;
 
   if !status.success() {
-    return Err(anyhow::anyhow!(
-      "failed to make the bootstrapper an executable",
-    ).into());
+    return Err(anyhow::anyhow!("failed to make the bootstrapper an executable",).into());
   }
 
   Ok(())

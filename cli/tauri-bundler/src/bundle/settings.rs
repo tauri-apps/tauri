@@ -681,21 +681,21 @@ impl Settings {
   }
 
   pub fn osx_signing_identity(&self) -> Option<&String> {
-    return self.bundle_settings.osx_signing_identity.as_ref();
+    self.bundle_settings.osx_signing_identity.as_ref()
   }
 
   pub fn osx_entitlements(&self) -> Option<&String> {
-    return self.bundle_settings.osx_entitlements.as_ref();
+    self.bundle_settings.osx_entitlements.as_ref()
   }
 
   #[cfg(target_os = "windows")]
   pub fn windows_digest_algorithm(&self) -> Option<&String> {
-    return self.bundle_settings.windows_digest_algorithm.as_ref();
+    self.bundle_settings.windows_digest_algorithm.as_ref()
   }
 
   #[cfg(target_os = "windows")]
   pub fn windows_certificate_thumbprint(&self) -> Option<&String> {
-    return self.bundle_settings.windows_certificate_thumbprint.as_ref();
+    self.bundle_settings.windows_certificate_thumbprint.as_ref()
   }
 
   #[cfg(target_os = "windows")]
@@ -888,10 +888,7 @@ fn merge_settings(
       config.osx.signing_identity,
       bundle_settings.osx_signing_identity,
     ),
-    osx_entitlements: options_value(
-      config.osx.entitlements,
-      bundle_settings.osx_entitlements
-    ),
+    osx_entitlements: options_value(config.osx.entitlements, bundle_settings.osx_entitlements),
     windows_digest_algorithm: options_value(
       config.windows.digest_algorithm,
       bundle_settings.windows_digest_algorithm,

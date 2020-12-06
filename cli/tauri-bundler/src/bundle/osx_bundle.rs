@@ -102,6 +102,8 @@ fn sign(app_bundle_path: PathBuf, identity: &str, settings: &Settings) -> crate:
     "--force",
     "-s",
     identity,
+    "--options",
+    "runtime"
   ];
   if let Some(entitlements_path) = settings.osx_entitlements() {
     common::print_info(format!("using entitlements file at {}", entitlements_path).as_str())?;

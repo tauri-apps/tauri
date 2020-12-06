@@ -4,8 +4,6 @@ const CopyWebpackPlugin = require('copy-webpack-plugin')
 
 module.exports = {
   entry: {
-    'api/build': './src/api/build.ts',
-    'api/dev': './src/api/dev.ts',
     'api/init': './src/api/init.ts',
     'api/recipes': './src/api/recipes/index.ts',
     'api/recipes/install': './src/api/recipes/install.ts',

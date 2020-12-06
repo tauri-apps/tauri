@@ -15,10 +15,10 @@ export function runOnRustCli(command: string, args: string[]): void {
   if (existsSync(targetCliPath)) {
     spawnSync(targetCliPath, ['tauri', command, ...args], process.cwd())
   } else {
-    const localCliPath = resolve(targetPath, '../target/release/cargo-tauri')
     if (existsSync(resolve(targetPath, '../tauri-bundler'))) { // running local CLI
       const cliPath = resolve(targetPath, '..')
       spawnSync('cargo', ['build', '--release'], cliPath)
+      const localCliPath = resolve(targetPath, '../target/release/cargo-tauri')
       spawnSync(localCliPath, ['tauri', command, ...args], process.cwd())
     } else {
       spawnSync('cargo', ['install', '--root', targetPath, 'tauri-cli', '--version', currentTauriCliVersion()], process.cwd())

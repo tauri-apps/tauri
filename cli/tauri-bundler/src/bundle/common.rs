@@ -1,13 +1,9 @@
 use crate::Settings;
-use std;
 use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
-
-use term;
-use walkdir;
 
 /// Returns true if the path has a filename indicating that it is a high-desity
 /// "retina" icon.  Specifically, returns true the the file stem ends with
@@ -300,10 +296,8 @@ pub fn execute_with_verbosity(cmd: &mut Command, settings: &Settings) -> crate::
 #[cfg(test)]
 mod tests {
   use super::{copy_dir, create_file, is_retina, resource_relpath, symlink_file};
-  use std;
   use std::io::Write;
   use std::path::PathBuf;
-  use tempfile;
 
   #[test]
   fn create_file_with_parent_dirs() {

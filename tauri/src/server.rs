@@ -1,6 +1,7 @@
 use tiny_http::{Header, Response};
 
 /// Returns the HTTP response of the given asset path.
+#[allow(clippy::option_env_unwrap)]
 pub fn asset_response(path: &str) -> Response<std::io::Cursor<Vec<u8>>> {
   let asset_path = &format!(
     "{}{}",

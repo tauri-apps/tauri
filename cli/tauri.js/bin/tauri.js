@@ -22,7 +22,6 @@ const tauri = function (command) {
     if (process.argv && !process.env.test) {
       process.argv.splice(0, 3)
     }
-    console.log(process.argv)
     runOnRustCli(command, process.argv || [])
     return
   }

@@ -1,5 +1,6 @@
 {
   "gitSiteUrl": "https://www.github.com/tauri-apps/tauri/",
+  "timeout": 3600000,
   "pkgManagers": {
     "rust": {
       "version": true,
@@ -25,7 +26,7 @@
           "pipe": true
         },
         {
-          "command": "cargo audit fix --dry-run true",
+          "command": "cargo audit ${ process.env.CARGO_AUDIT_OPTIONS || '' }",
           "dryRunCommand": true,
           "runFromRoot": true,
           "pipe": true
@@ -110,7 +111,7 @@
       ],
       "publish": [
         {
-          "command": "echo \"# NPM Package Publish\"",
+          "command": "echo \"# Yarn Package Publish\"",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -120,7 +121,7 @@
           "pipe": true
         },
         {
-          "command": "npm publish --access public",
+          "command": "yarn publish --access public --loglevel silly",
           "dryRunCommand": "npm publish --dry-run --access public",
           "pipe": true
         },

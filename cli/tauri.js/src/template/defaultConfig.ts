@@ -12,8 +12,15 @@ export default {
     },
     bundle: {
       active: true,
+      targets: 'all', // or an array of targets
       identifier: 'com.tauri.dev',
-      icon: ['icons/32x32.png', 'icons/128x128.png', 'icons/128x128@2x.png', 'icons/icon.icns', 'icons/icon.ico'],
+      icon: [
+        'icons/32x32.png',
+        'icons/128x128.png',
+        'icons/128x128@2x.png',
+        'icons/icon.icns',
+        'icons/icon.ico'
+      ],
       resources: [],
       externalBin: [],
       copyright: '',
@@ -21,10 +28,13 @@ export default {
       shortDescription: '',
       longDescription: '',
       deb: {
-        depends: []
+        depends: [],
+        useBootstrapper: false
       },
       osx: {
         frameworks: [],
+        minimumSystemVersion: '',
+        useBootstrapper: false,
         minimumSystemVersion: '',
         signingIdentity: '',
         entitlements: ''
@@ -36,7 +46,7 @@ export default {
       },
       exceptionDomain: ''
     },
-    whitelist: {
+    allowlist: {
       all: true
     },
     window: {
@@ -47,10 +57,8 @@ export default {
       fullscreen: false
     },
     security: {
-      csp: "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
-    },
-    edge: {
-      active: true
+      csp:
+        "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
     },
     inliner: {
       active: true

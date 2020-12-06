@@ -31,7 +31,7 @@ Hi! We, the maintainers, are really excited that you are interested in contribut
 
 ## Pull Request Guidelines
 
-- The `master` branch is basically just a snapshot of the latest stable release. All development should be done in dedicated branches. **Do not submit PRs against the `master` branch.**
+- The `latest` branch is basically just a snapshot of the latest stable release. All development should be done in dedicated branches. **Do not submit PRs against the `latest` branch.**
 
 - Checkout a topic branch from the relevant branch, e.g. `dev`, and merge back against that branch.
 
@@ -51,4 +51,4 @@ TO BE UPDATED.
 
 ## Financial Contribution
 
-Tauri is an MIT-licensed open source project. Its ongoing development can be supported via open-collective.
+Tauri is an MIT-licensed open source project. Its ongoing development can be supported via [Github Sponsors](https://github.com/sponsors/nothingismagick) or [Open Collective](https://opencollective.com/tauri). We prefer Github Sponsors as donations made are doubled through the matching fund program.

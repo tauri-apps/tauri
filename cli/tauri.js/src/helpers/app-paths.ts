@@ -1,12 +1,12 @@
 import { existsSync } from 'fs'
-import { join, normalize, resolve, sep } from 'path'
+import { join, normalize, resolve, sep, isAbsolute } from 'path'
 import logger from './logger'
-const warn = logger('tauri', 'red')
+import chalk from 'chalk'
+
+const warn = logger('tauri', chalk.red)
 
 function resolvePath(basePath: string, dir: string): string {
-  return dir.startsWith('/') || /^\S:/g.test(dir)
-    ? dir
-    : resolve(basePath, dir)
+  return dir && isAbsolute(dir) ? dir : resolve(basePath, dir)
 }
 
 const getAppDir = (): string => {
@@ -22,7 +22,9 @@ const getAppDir = (): string => {
     dir = normalize(join(dir, '..'))
   }
 
-  warn('Couldn\'t find recognize the current folder as a part of a Tauri project')
+  warn(
+    "Couldn't find recognize the current folder as a part of a Tauri project"
+  )
   process.exit(1)
 }
 

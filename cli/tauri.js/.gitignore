@@ -1,5 +1,7 @@
-# Webpack output
+# Build output
 /dist
+/api
+
 
 # Logs
 logs
@@ -62,10 +64,3 @@ typings/
 debug.log
 package-lock.json
 .vscode/settings.json
-
-# Tauri output
-bundle.json
-config.json
-
-# rust compiled folders
-target

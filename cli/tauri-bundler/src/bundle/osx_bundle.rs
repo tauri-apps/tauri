@@ -18,12 +18,9 @@
 // files into the `Contents` directory of the bundle.
 
 use super::common;
-use crate::{ResultExt, Settings};
+use crate::Settings;
 
-use chrono;
-use dirs;
-use error_chain::bail;
-use icns;
+use anyhow::Context;
 use image::{self, GenericImageView};
 
 use std::cmp::min;
@@ -38,8 +35,19 @@ use regex::Regex;
 use tempfile;
 use zip;
 
+/// Bundles the project.
+/// Returns a vector of PathBuf that shows where the .app was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  let app_bundle_name = format!("{}.app", settings.bundle_name());
+  let package_base_name = format!(
+    "{}_{}_{}",
+    settings.main_binary_name(),
+    settings.version_string(),
+    match settings.binary_arch() {
+      "x86_64" => "x64",
+      other => other,
+    }
+  );
+  let app_bundle_name = format!("{}.app", package_base_name);
   common::print_bundling(&app_bundle_name)?;
   let app_bundle_path = settings
     .project_out_directory()
@@ -47,10 +55,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .join(&app_bundle_name);
   if app_bundle_path.exists() {
     fs::remove_dir_all(&app_bundle_path)
-      .chain_err(|| format!("Failed to remove old {}", app_bundle_name))?;
+      .with_context(|| format!("Failed to remove old {}", app_bundle_name))?;
   }
   let bundle_directory = app_bundle_path.join("Contents");
-  fs::create_dir_all(&bundle_directory).chain_err(|| {
+  fs::create_dir_all(&bundle_directory).with_context(|| {
     format!(
       "Failed to create bundle directory at {:?}",
       bundle_directory
@@ -61,24 +69,27 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let bin_dir = bundle_directory.join("MacOS");
 
   let bundle_icon_file: Option<PathBuf> =
-    { create_icns_file(&resources_dir, settings).chain_err(|| "Failed to create app icon")? };
+    { create_icns_file(&resources_dir, settings).with_context(|| "Failed to create app icon")? };
 
   create_info_plist(&bundle_directory, bundle_icon_file, settings)
-    .chain_err(|| "Failed to create Info.plist")?;
+    .with_context(|| "Failed to create Info.plist")?;
 
   copy_frameworks_to_bundle(&bundle_directory, settings)
-    .chain_err(|| "Failed to bundle frameworks")?;
+    .with_context(|| "Failed to bundle frameworks")?;
 
   settings.copy_resources(&resources_dir)?;
 
   settings
     .copy_binaries(&bin_dir)
-    .chain_err(|| "Failed to copy external binaries")?;
+    .with_context(|| "Failed to copy external binaries")?;
 
-  copy_binary_to_bundle(&bundle_directory, settings)
-    .chain_err(|| format!("Failed to copy binary from {:?}", settings.binary_path()))?;
+  copy_binaries_to_bundle(&bundle_directory, settings)?;
 
-  create_path_hook(&bundle_directory, settings).chain_err(|| "Failed to create _boot wrapper")?;
+  let use_bootstrapper = settings.osx_use_bootstrapper();
+  if use_bootstrapper {
+    create_bootstrapper(&bundle_directory, settings)
+      .with_context(|| "Failed to create OSX bootstrapper")?;
+  }
 
   if let Some(identity) = settings.osx_signing_identity() {
     sign(app_bundle_path.clone(), identity, &settings)?;
@@ -115,7 +126,7 @@ fn sign(app_bundle_path: PathBuf, identity: &str, settings: &Settings) -> crate:
     .arg(app_bundle_path.to_string_lossy().to_string())
     .status()?;
   if !status.success() {
-    return Err(crate::Error::from("failed to sign app"));
+    return Err(anyhow::anyhow!("failed to sign app").into());
   }
   Ok(())
 }
@@ -159,13 +170,14 @@ fn notarize(
     .output()?;
 
   if !output.status.success() {
-    return Err(crate::Error::from(format!(
+    return Err(anyhow::anyhow!(format!(
       "failed to upload app to Apple's notarization servers. {}",
       std::str::from_utf8(&output.stdout)?
-    )));
+    )).into());
   }
 
   let regex = Regex::new(r"\nRequestUUID = (.+?)\n")?;
+
   let stdout = std::str::from_utf8(&output.stdout)?;
   if let Some(uuid) = regex.captures_iter(stdout).next() {
     common::print_info("notarization started; waiting for Apple response...")?;
@@ -173,10 +185,10 @@ fn notarize(
     get_notarization_status(uuid, auth_args)?;
     staple_app(app_bundle_path.clone())?;
   } else {
-    return Err(crate::Error::from(format!(
+    return Err(anyhow::anyhow!(format!(
       "failed to parse RequestUUID from upload output. {}",
       stdout
-    )));
+    )).into());
   }
 
   Ok(())
@@ -199,10 +211,10 @@ fn staple_app(mut app_bundle_path: PathBuf) -> crate::Result<()> {
     .output()?;
 
   if !output.status.success() {
-    Err(crate::Error::from(format!(
+    Err(anyhow::anyhow!(format!(
       "failed to staple app. {}",
       std::str::from_utf8(&output.stdout)?
-    )))
+    )).into())
   } else {
     Ok(())
   }
@@ -227,16 +239,16 @@ fn get_notarization_status(uuid: String, auth_args: Vec<String>) -> crate::Resul
         get_notarization_status(uuid, auth_args.clone())
       } else {
         if status == "invalid" {
-          Err(crate::Error::from(format!(
+          Err(anyhow::anyhow!(format!(
             "Apple failed to notarize your app. {}",
             std::str::from_utf8(&output.stdout)?
-          )))
+          )).into())
         } else if status != "success" {
-          Err(crate::Error::from(format!(
+          Err(anyhow::anyhow!(format!(
             "Unknown notarize status {}. {}",
             status,
             std::str::from_utf8(&output.stdout)?
-          )))
+          )).into())
         } else {
           Ok(())
         }
@@ -277,27 +289,32 @@ fn notarize_auth_args() -> crate::Result<Vec<String>> {
           let api_issuer = api_issuer.clone().to_str().expect("failed to convert APPLE_API_ISSUER to string").to_string();
           Ok(vec!["--apiKey".to_string(), api_key, "--apiIssuer".to_string(), api_issuer])
         },
-        _ => Err(crate::Error::from("no APPLE_ID & APPLE_PASSWORD or APPLE_API_KEY & APPLE_API_ISSUER environment variables found"))
+        _ => Err(anyhow::anyhow!("no APPLE_ID & APPLE_PASSWORD or APPLE_API_KEY & APPLE_API_ISSUER environment variables found").into())
       }
     }
   }
 }
 
-fn copy_binary_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
+
+// Copies the app's binaries to the bundle.
+fn copy_binaries_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
   let dest_dir = bundle_directory.join("MacOS");
-  common::copy_file(
-    settings.binary_path(),
-    &dest_dir.join(settings.binary_name()),
-  )
+  for bin in settings.binaries() {
+    let bin_path = settings.binary_path(bin);
+    common::copy_file(&bin_path, &dest_dir.join(bin.name()))
+      .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+  }
+  Ok(())
 }
 
-fn create_path_hook(bundle_dir: &Path, settings: &Settings) -> crate::Result<()> {
+// Creates the bootstrap script file.
+fn create_bootstrapper(bundle_dir: &Path, settings: &Settings) -> crate::Result<()> {
   let file = &mut common::create_file(&bundle_dir.join("MacOS/__bootstrapper"))?;
   // Create a shell script to bootstrap the  $PATH for Tauri, so environments like node are available.
   write!(
     file,
     "#!/usr/bin/env sh
-# This bootstraps the $PATH for Tauri, so environments are available.
+# This bootstraps the environment for Tauri, so environments are available.
 
 if [ -e ~/.bash_profile ]
 then 
@@ -341,14 +358,15 @@ exit 0",
     .status()?;
 
   if !status.success() {
-    return Err(crate::Error::from(
+    return Err(anyhow::anyhow!(
       "failed to make the bootstrapper an executable",
-    ));
+    ).into());
   }
 
   Ok(())
 }
 
+// Creates the Info.plist file.
 fn create_info_plist(
   bundle_dir: &Path,
   bundle_icon_file: Option<PathBuf>,
@@ -356,6 +374,7 @@ fn create_info_plist(
 ) -> crate::Result<()> {
   let build_number = chrono::Utc::now().format("%Y%m%d.%H%M%S");
   let file = &mut common::create_file(&bundle_dir.join("Info.plist"))?;
+  let use_bootstrapper = settings.osx_use_bootstrapper();
   write!(
     file,
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
@@ -376,9 +395,12 @@ fn create_info_plist(
   )?;
   write!(
     file,
-    // Here we should only use this technique if they have specified
-    // that they want to use the resources
-    "  <key>CFBundleExecutable</key>\n  <string>__bootstrapper</string>\n"
+    "  <key>CFBundleExecutable</key>\n  <string>{}</string>\n",
+    if use_bootstrapper {
+      "__bootstrapper"
+    } else {
+      settings.main_binary_name()
+    }
   )?;
   if let Some(path) = bundle_icon_file {
     write!(
@@ -469,6 +491,7 @@ fn create_info_plist(
   Ok(())
 }
 
+// Copies the framework under `{src_dir}/{framework}.framework` to `{dest_dir}/{framework}.framework`.
 fn copy_framework_from(dest_dir: &Path, framework: &str, src_dir: &Path) -> crate::Result<bool> {
   let src_name = format!("{}.framework", framework);
   let src_path = src_dir.join(&src_name);
@@ -480,6 +503,7 @@ fn copy_framework_from(dest_dir: &Path, framework: &str, src_dir: &Path) -> crat
   }
 }
 
+// Copies the OSX bundle frameworks to the .app
 fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
   let frameworks = settings.osx_frameworks();
   if frameworks.is_empty() {
@@ -487,7 +511,7 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
   }
   let dest_dir = bundle_directory.join("Frameworks");
   fs::create_dir_all(&bundle_directory)
-    .chain_err(|| format!("Failed to create Frameworks directory at {:?}", dest_dir))?;
+    .with_context(|| format!("Failed to create Frameworks directory at {:?}", dest_dir))?;
   for framework in frameworks.iter() {
     if framework.ends_with(".framework") {
       let src_path = PathBuf::from(framework);
@@ -496,13 +520,13 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
         .expect("Couldn't get framework filename");
       common::copy_dir(&src_path, &dest_dir.join(&src_name))?;
       continue;
-    } else if framework.contains("/") {
-      bail!(
+    } else if framework.contains('/') {
+      return Err(crate::Error::GenericError(format!(
         "Framework path should have .framework extension: {}",
         framework
-      );
+      )));
     }
-    if let Some(home_dir) = dirs::home_dir() {
+    if let Some(home_dir) = dirs_next::home_dir() {
       if copy_framework_from(&dest_dir, framework, &home_dir.join("Library/Frameworks/"))? {
         continue;
       }
@@ -516,14 +540,17 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
     {
       continue;
     }
-    bail!("Could not locate {}.framework", framework);
+    return Err(crate::Error::GenericError(format!(
+      "Could not locate framework: {}",
+      framework
+    )));
   }
   Ok(())
 }
 
-/// Given a list of icon files, try to produce an ICNS file in the resources
-/// directory and return the path to it.  Returns `Ok(None)` if no usable icons
-/// were provided.
+// Given a list of icon files, try to produce an ICNS file in the resources
+// directory and return the path to it.  Returns `Ok(None)` if no usable icons
+// were provided.
 fn create_icns_file(
   resources_dir: &PathBuf,
   settings: &Settings,
@@ -600,13 +627,15 @@ fn create_icns_file(
     dest_path.set_extension("icns");
     let icns_file = BufWriter::new(File::create(&dest_path)?);
     family.write(icns_file)?;
-    return Ok(Some(dest_path));
+    Ok(Some(dest_path))
+  } else {
+    Err(crate::Error::GenericError(
+      "No usable Icon files found".to_owned(),
+    ))
   }
-
-  bail!("No usable icon files found.");
 }
 
-/// Converts an image::DynamicImage into an icns::Image.
+// Converts an image::DynamicImage into an icns::Image.
 fn make_icns_image(img: image::DynamicImage) -> io::Result<icns::Image> {
   let pixel_format = match img.color() {
     image::ColorType::Rgba8 => icns::PixelFormat::RGBA,

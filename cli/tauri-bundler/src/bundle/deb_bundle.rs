@@ -19,16 +19,13 @@
 // generate postinst or prerm files.
 
 use super::common;
-use crate::{ResultExt, Settings};
+use crate::Settings;
 
-use ar;
-use icns;
+use anyhow::Context;
 use image::png::PngDecoder;
 use image::{self, GenericImageView, ImageDecoder};
 use libflate::gzip;
-use md5;
 use std::process::{Command, Stdio};
-use tar;
 use walkdir::WalkDir;
 
 use std::collections::BTreeSet;
@@ -37,6 +34,8 @@ use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
+/// Bundles the project.
+/// Returns a vector of PathBuf that shows where the DEB was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let arch = match settings.binary_arch() {
     "x86" => "i386",
@@ -45,7 +44,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   };
   let package_base_name = format!(
     "{}_{}_{}",
-    settings.binary_name(),
+    settings.main_binary_name(),
     settings.version_string(),
     arch
   );
@@ -55,62 +54,70 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let package_dir = base_dir.join(&package_base_name);
   if package_dir.exists() {
     fs::remove_dir_all(&package_dir)
-      .chain_err(|| format!("Failed to remove old {}", package_base_name))?;
+      .with_context(|| format!("Failed to remove old {}", package_base_name))?;
   }
   let package_path = base_dir.join(package_name);
 
-  let data_dir =
-    generate_folders(settings, &package_dir).chain_err(|| "Failed to build folders")?;
+  let data_dir = generate_data(settings, &package_dir)
+    .with_context(|| "Failed to build data folders and files")?;
   // Generate control files.
   let control_dir = package_dir.join("control");
   generate_control_file(settings, arch, &control_dir, &data_dir)
-    .chain_err(|| "Failed to create control file")?;
-  generate_md5sums(&control_dir, &data_dir).chain_err(|| "Failed to create md5sums file")?;
+    .with_context(|| "Failed to create control file")?;
+  generate_md5sums(&control_dir, &data_dir).with_context(|| "Failed to create md5sums file")?;
 
   // Generate `debian-binary` file; see
   // http://www.tldp.org/HOWTO/Debian-Binary-Package-Building-HOWTO/x60.html#AEN66
   let debian_binary_path = package_dir.join("debian-binary");
   create_file_with_data(&debian_binary_path, "2.0\n")
-    .chain_err(|| "Failed to create debian-binary file")?;
+    .with_context(|| "Failed to create debian-binary file")?;
 
   // Apply tar/gzip/ar to create the final package file.
   let control_tar_gz_path =
-    tar_and_gzip_dir(control_dir).chain_err(|| "Failed to tar/gzip control directory")?;
+    tar_and_gzip_dir(control_dir).with_context(|| "Failed to tar/gzip control directory")?;
   let data_tar_gz_path =
-    tar_and_gzip_dir(data_dir).chain_err(|| "Failed to tar/gzip data directory")?;
+    tar_and_gzip_dir(data_dir).with_context(|| "Failed to tar/gzip data directory")?;
   create_archive(
     vec![debian_binary_path, control_tar_gz_path, data_tar_gz_path],
     &package_path,
   )
-  .chain_err(|| "Failed to create package archive")?;
+  .with_context(|| "Failed to create package archive")?;
   Ok(vec![package_path])
 }
 
-pub fn generate_folders(settings: &Settings, package_dir: &Path) -> crate::Result<PathBuf> {
+/// Generate the debian data folders and files.
+pub fn generate_data(settings: &Settings, package_dir: &Path) -> crate::Result<PathBuf> {
   // Generate data files.
   let data_dir = package_dir.join("data");
-  let bin_name = settings.binary_name();
-  let binary_dest = data_dir.join("usr/bin").join(bin_name);
   let bin_dir = data_dir.join("usr/bin");
 
-  common::copy_file(settings.binary_path(), &binary_dest)
-    .chain_err(|| "Failed to copy binary file")?;
-  transfer_resource_files(settings, &data_dir).chain_err(|| "Failed to copy resource files")?;
+  for bin in settings.binaries() {
+    let bin_path = settings.binary_path(bin);
+    common::copy_file(&bin_path, &bin_dir.join(bin.name()))
+      .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+  }
+
+  transfer_resource_files(settings, &data_dir).with_context(|| "Failed to copy resource files")?;
 
   settings
     .copy_binaries(&bin_dir)
-    .chain_err(|| "Failed to copy external binaries")?;
+    .with_context(|| "Failed to copy external binaries")?;
 
-  generate_icon_files(settings, &data_dir).chain_err(|| "Failed to create icon files")?;
-  generate_desktop_file(settings, &data_dir).chain_err(|| "Failed to create desktop file")?;
+  generate_icon_files(settings, &data_dir).with_context(|| "Failed to create icon files")?;
+  generate_desktop_file(settings, &data_dir).with_context(|| "Failed to create desktop file")?;
 
-  generate_bootstrap_file(settings, &data_dir).chain_err(|| "Failed to generate bootstrap file")?;
+  let use_bootstrapper = settings.debian_use_bootstrapper();
+  if use_bootstrapper {
+    generate_bootstrap_file(settings, &data_dir)
+      .with_context(|| "Failed to generate bootstrap file")?;
+  }
 
   Ok(data_dir)
 }
 
+/// Generates the bootstrap script file.
 fn generate_bootstrap_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  let bin_name = settings.binary_name();
+  let bin_name = settings.main_binary_name();
   let bin_dir = data_dir.join("usr/bin");
 
   let bootstrap_file_name = format!("__{}-bootstrapper", bin_name);
@@ -119,7 +126,7 @@ fn generate_bootstrap_file(settings: &Settings, data_dir: &Path) -> crate::Resul
   write!(
     bootstrapper_file,
     "#!/usr/bin/env sh
-# This bootstraps the $PATH for Tauri, so environments are available.
+# This bootstraps the environment for Tauri, so environments are available.
 export NVM_DIR=\"$([ -z \"${{XDG_CONFIG_HOME-}}\" ] && printf %s \"${{HOME}}/.nvm\" || printf %s \"${{XDG_CONFIG_HOME}}/nvm\")\"
 [ -s \"$NVM_DIR/nvm.sh\" ] && . \"$NVM_DIR/nvm.sh\"
 
@@ -167,9 +174,9 @@ exit 0",
     .status()?;
 
   if !status.success() {
-    return Err(crate::Error::from(
+    return Err(anyhow::anyhow!(
       "failed to make the bootstrapper an executable",
-    ));
+    ).into());
   }
 
   Ok(())
@@ -177,7 +184,7 @@ exit 0",
 
 /// Generate the application desktop file and store it under the `data_dir`.
 fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  let bin_name = settings.binary_name();
+  let bin_name = settings.main_binary_name();
   let desktop_file_name = format!("{}.desktop", bin_name);
   let desktop_file_path = data_dir
     .join("usr/share/applications")
@@ -185,23 +192,33 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   let file = &mut common::create_file(&desktop_file_path)?;
   // For more information about the format of this file, see
   // https://developer.gnome.org/integration-guide/stable/desktop-files.html.en
-  write!(file, "[Desktop Entry]\n")?;
-  write!(file, "Encoding=UTF-8\n")?;
+  writeln!(file, "[Desktop Entry]")?;
+  writeln!(file, "Encoding=UTF-8")?;
   if let Some(category) = settings.app_category() {
-    write!(file, "Categories={}\n", category.gnome_desktop_categories())?;
+    writeln!(file, "Categories={}", category.gnome_desktop_categories())?;
   }
   if !settings.short_description().is_empty() {
-    write!(file, "Comment={}\n", settings.short_description())?;
+    writeln!(file, "Comment={}", settings.short_description())?;
   }
-  write!(file, "Exec=__{}-bootstrapper\n", bin_name)?;
-  write!(file, "Icon={}\n", bin_name)?;
-  write!(file, "Name={}\n", settings.bundle_name())?;
-  write!(file, "Terminal=false\n")?;
-  write!(file, "Type=Application\n")?;
-  write!(file, "Version={}\n", settings.version_string())?;
+  let use_bootstrapper = settings.debian_use_bootstrapper();
+  writeln!(
+    file,
+    "Exec={}",
+    if use_bootstrapper {
+      format!("__{}-bootstrapper", bin_name)
+    } else {
+      bin_name.to_string()
+    }
+  )?;
+  writeln!(file, "Icon={}", bin_name)?;
+  writeln!(file, "Name={}", settings.bundle_name())?;
+  writeln!(file, "Terminal=false")?;
+  writeln!(file, "Type=Application")?;
+  writeln!(file, "Version={}", settings.version_string())?;
   Ok(())
 }
 
+/// Generates the debian control file and stores it under the `control_dir`.
 fn generate_control_file(
   settings: &Settings,
   arch: &str,
@@ -220,7 +237,9 @@ fn generate_control_file(
   writeln!(&mut file, "Version: {}", settings.version_string())?;
   writeln!(&mut file, "Architecture: {}", arch)?;
   writeln!(&mut file, "Installed-Size: {}", total_dir_size(data_dir)?)?;
-  let authors = settings.authors_comma_separated().unwrap_or(String::new());
+  let authors = settings
+    .authors_comma_separated()
+    .unwrap_or_else(String::new);
   writeln!(&mut file, "Maintainer: {}", authors)?;
   if !settings.homepage_url().is_empty() {
     writeln!(&mut file, "Homepage: {}", settings.homepage_url())?;
@@ -272,7 +291,7 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
       let msg = format!("Non-UTF-8 path: {:?}", rel_path);
       io::Error::new(io::ErrorKind::InvalidData, msg)
     })?;
-    write!(md5sums_file, "  {}\n", path_str)?;
+    writeln!(md5sums_file, "  {}", path_str)?;
   }
   Ok(())
 }
@@ -280,7 +299,7 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
 /// Copy the bundle's resource files into an appropriate directory under the
 /// `data_dir`.
 fn transfer_resource_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  let resource_dir = data_dir.join("usr/lib").join(settings.binary_name());
+  let resource_dir = data_dir.join("usr/lib").join(settings.main_binary_name());
   settings.copy_resources(&resource_dir)
 }
 
@@ -293,7 +312,7 @@ fn generate_icon_files(settings: &Settings, data_dir: &PathBuf) -> crate::Result
       width,
       height,
       if is_high_density { "@2x" } else { "" },
-      settings.binary_name()
+      settings.main_binary_name()
     ))
   };
   let mut sizes = BTreeSet::new();

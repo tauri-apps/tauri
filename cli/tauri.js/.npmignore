@@ -4,3 +4,4 @@ node_modules
 .github
 .idea
 SECURITY.md
+build

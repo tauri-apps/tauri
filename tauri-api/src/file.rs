@@ -2,29 +2,27 @@ mod extract;
 mod file_move;
 
 use std::fs;
+use std::path::Path;
 
-use crate::{Error, ErrorKind};
+use crate::Error;
 
 pub use extract::*;
 pub use file_move::*;
 
-pub fn read_string(file: String) -> crate::Result<String> {
-  fs::read_to_string(file)
-    .map_err(|err| Error::from(ErrorKind::File(format!("Read_string failed: {}", err))))
-    .map(|c| c)
+/// Reads a string file.
+pub fn read_string<P: AsRef<Path>>(file: P) -> crate::Result<String> {
+  fs::read_to_string(file).map_err(|err| Error::File(format!("Read_string failed: {}", err)).into())
 }
 
-pub fn read_binary(file: String) -> crate::Result<Vec<u8>> {
-  fs::read(file)
-    .map_err(|err| Error::from(ErrorKind::File(format!("Read_binary failed: {}", err))))
-    .map(|b| b)
+/// Reads a binary file.
+pub fn read_binary<P: AsRef<Path>>(file: P) -> crate::Result<Vec<u8>> {
+  fs::read(file).map_err(|err| Error::File(format!("Read_binary failed: {}", err)).into())
 }
 
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::{Error, ErrorKind};
-  use totems::{assert_err, assert_ok};
+  use crate::Error;
 
   #[test]
   fn check_read_string() {
@@ -32,7 +30,7 @@ mod test {
 
     let res = read_string(file);
 
-    assert_ok!(res);
+    assert!(res.is_ok());
 
     if let Ok(s) = res {
       assert_eq!(s, "This is a test doc!".to_string());
@@ -45,17 +43,17 @@ mod test {
 
     let res = read_string(file);
 
-    assert_err!(res);
+    assert!(res.is_err());
 
-    if let Err(Error(ErrorKind::File(e), _)) = res {
+    if let Some(Error::File(e)) = res.unwrap_err().downcast_ref::<Error>() {
       #[cfg(windows)]
       assert_eq!(
-        e,
+        *e,
         "Read_string failed: Access is denied. (os error 5)".to_string()
       );
       #[cfg(not(windows))]
       assert_eq!(
-        e,
+        *e,
         "Read_string failed: Is a directory (os error 21)".to_string()
       );
     }
@@ -78,7 +76,7 @@ mod test {
 
     let res = read_binary(file);
 
-    assert_ok!(res);
+    assert!(res.is_ok());
 
     if let Ok(vec) = res {
       assert_eq!(vec, expected_vec);
@@ -91,17 +89,17 @@ mod test {
 
     let res = read_binary(file);
 
-    assert_err!(res);
+    assert!(res.is_err());
 
-    if let Err(Error(ErrorKind::File(e), _)) = res {
+    if let Some(Error::File(e)) = res.unwrap_err().downcast_ref::<Error>() {
       #[cfg(windows)]
       assert_eq!(
-        e,
+        *e,
         "Read_binary failed: Access is denied. (os error 5)".to_string()
       );
       #[cfg(not(windows))]
       assert_eq!(
-        e,
+        *e,
         "Read_binary failed: Is a directory (os error 21)".to_string()
       );
     }

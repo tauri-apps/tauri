@@ -3,13 +3,18 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use lazy_static::lazy_static;
-use web_view::Handle;
+use once_cell::sync::Lazy;
+use serde::Serialize;
+use serde_json::Value as JsonValue;
+use webview_official::WebviewMut;
 
+/// An event handler.
 struct EventHandler {
-  on_event: Box<dyn FnMut(Option<String>)>,
+  /// The on event callback.
+  on_event: Box<dyn FnMut(Option<String>) + Send>,
 }
 
-thread_local!(static LISTENERS: Arc<Mutex<HashMap<String, EventHandler>>> = Arc::new(Mutex::new(HashMap::new())));
+type Listeners = Arc<Mutex<HashMap<String, EventHandler>>>;
 
 lazy_static! {
   static ref EMIT_FUNCTION_NAME: String = uuid::Uuid::new_v4().to_string();
@@ -17,67 +22,77 @@ lazy_static! {
   static ref EVENT_QUEUE_OBJECT_NAME: String = uuid::Uuid::new_v4().to_string();
 }
 
+/// Gets the listeners map.
+fn listeners() -> &'static Listeners {
+  static LISTENERS: Lazy<Listeners> = Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
+  &LISTENERS
+}
+
+/// the emit JS function name
 pub fn emit_function_name() -> String {
   EMIT_FUNCTION_NAME.to_string()
 }
 
+/// the event listeners JS object name
 pub fn event_listeners_object_name() -> String {
   EVENT_LISTENERS_OBJECT_NAME.to_string()
 }
 
+/// the event queue JS object name
 pub fn event_queue_object_name() -> String {
   EVENT_QUEUE_OBJECT_NAME.to_string()
 }
 
-pub fn listen<F: FnMut(Option<String>) + 'static>(id: String, handler: F) {
-  LISTENERS.with(|listeners| {
-    let mut l = listeners
-      .lock()
-      .expect("Failed to lock listeners: listen()");
-    l.insert(
-      id,
-      EventHandler {
-        on_event: Box::new(handler),
-      },
-    );
-  });
+/// Adds an event listener for JS events.
+pub fn listen<F: FnMut(Option<String>) + Send + 'static>(id: impl Into<String>, handler: F) {
+  let mut l = listeners()
+    .lock()
+    .expect("Failed to lock listeners: listen()");
+  l.insert(
+    id.into(),
+    EventHandler {
+      on_event: Box::new(handler),
+    },
+  );
 }
 
-pub fn emit<T: 'static>(webview_handle: &Handle<T>, event: String, payload: Option<String>) {
+/// Emits an event to JS.
+pub fn emit<S: Serialize>(
+  webview: &mut WebviewMut,
+  event: impl AsRef<str> + Send + 'static,
+  payload: Option<S>,
+) -> crate::Result<()> {
   let salt = crate::salt::generate();
 
-  let js_payload = if let Some(payload_str) = payload {
-    payload_str
+  let js_payload = if let Some(payload_value) = payload {
+    serde_json::to_value(payload_value)?
   } else {
-    "void 0".to_string()
+    JsonValue::Null
   };
 
-  webview_handle
-    .dispatch(move |_webview| {
-      _webview.eval(&format!(
-        "window['{}']({{type: '{}', payload: {}}}, '{}')",
-        emit_function_name(),
-        event.as_str(),
-        js_payload,
-        salt
-      ))
-    })
-    .expect("Failed to dispatch JS from emit");
+  webview.dispatch(move |webview_ref| {
+    webview_ref.eval(&format!(
+      "window['{}']({{type: '{}', payload: {}}}, '{}')",
+      emit_function_name(),
+      event.as_ref(),
+      js_payload,
+      salt
+    ))
+  })?;
+
+  Ok(())
 }
 
+/// Triggers the given event with its payload.
 pub fn on_event(event: String, data: Option<String>) {
-  LISTENERS.with(|listeners| {
-    let mut l = listeners
-      .lock()
-      .expect("Failed to lock listeners: on_event()");
+  let mut l = listeners()
+    .lock()
+    .expect("Failed to lock listeners: on_event()");
 
-    let key = event.clone();
-
-    if l.contains_key(&key) {
-      let handler = l.get_mut(&key).expect("Failed to get mutable handler");
-      (handler.on_event)(data);
-    }
-  });
+  if l.contains_key(&event) {
+    let handler = l.get_mut(&event).expect("Failed to get mutable handler");
+    (handler.on_event)(data);
+  }
 }
 
 #[cfg(test)]
@@ -100,14 +115,11 @@ mod test {
       // pass e and an dummy func into listen
       listen(e, event_fn);
 
-      // open listeners
-      LISTENERS.with(|lis| {
-        // lock mutex
-        let l = lis.lock().unwrap();
+      // lock mutex
+      let l = listeners().lock().unwrap();
 
-        // check if the generated key is in the map
-        assert_eq!(l.contains_key(&key), true);
-      });
+      // check if the generated key is in the map
+      assert_eq!(l.contains_key(&key), true);
     }
 
     #[test]
@@ -118,24 +130,21 @@ mod test {
        // pass e and an dummy func into listen
        listen(e, event_fn);
 
-       // open listeners
-       LISTENERS.with(|lis| {
-         // lock mutex
-        let mut l = lis.lock().unwrap();
+       // lock mutex
+       let mut l = listeners().lock().unwrap();
 
-        // check if l contains key
-        if l.contains_key(&key) {
-          // grab key if it exists
-          let handler = l.get_mut(&key);
-          // check to see if we get back a handler or not
-          match handler {
-            // pass on Some(handler)
-            Some(_) => assert!(true),
-            // Fail on None
-            None => assert!(false)
-          }
+       // check if l contains key
+       if l.contains_key(&key) {
+        // grab key if it exists
+        let handler = l.get_mut(&key);
+        // check to see if we get back a handler or not
+        match handler {
+          // pass on Some(handler)
+          Some(_) => {},
+          // Fail on None
+          None => panic!("handler is None")
         }
-      });
+      }
     }
 
     #[test]
@@ -148,14 +157,11 @@ mod test {
       // call on event with e and d.
       on_event(e, Some(d));
 
-      // open listeners
-      LISTENERS.with(|list| {
-        // lock the mutex
-        let l = list.lock().unwrap();
+      // lock the mutex
+      let l = listeners().lock().unwrap();
 
-        // assert that the key is contained in the listeners map
-        assert!(l.contains_key(&key));
-      });
+      // assert that the key is contained in the listeners map
+      assert!(l.contains_key(&key));
     }
   }
 }

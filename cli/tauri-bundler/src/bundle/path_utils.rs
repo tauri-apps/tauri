@@ -1,17 +1,20 @@
 use std::fs::{create_dir, create_dir_all, read_dir, remove_dir_all};
 use std::path::{Path, PathBuf};
 
+/// Directory options.
 #[derive(Clone)]
 pub struct DirOpts {
   pub depth: u64,
 }
 
+/// File options.
 pub struct FileOpts {
   pub overwrite: bool,
   pub skip: bool,
   pub buffer_size: usize,
 }
 
+/// Copy options.
 #[derive(Clone)]
 pub struct Options {
   pub overwrite: bool,
@@ -22,6 +25,7 @@ pub struct Options {
   pub depth: u64,
 }
 
+/// Directory information descriptor
 pub struct DirInfo {
   pub size: u64,
   pub files: Vec<String>,
@@ -57,6 +61,8 @@ impl Default for FileOpts {
   }
 }
 
+/// Creates the given directory path,
+/// erasing it first if specified.
 pub fn create<P>(path: P, erase: bool) -> crate::Result<()>
 where
   P: AsRef<Path>,
@@ -67,6 +73,8 @@ where
   Ok(create_dir(&path)?)
 }
 
+/// Creates all of the directories of the specified path,
+/// erasing it first if specified.
 pub fn create_all<P>(path: P, erase: bool) -> crate::Result<()>
 where
   P: AsRef<Path>,
@@ -77,6 +85,7 @@ where
   Ok(create_dir_all(&path)?)
 }
 
+/// Removes the directory if it exists.
 pub fn remove<P: AsRef<Path>>(path: P) -> crate::Result<()> {
   if path.as_ref().exists() {
     Ok(remove_dir_all(path)?)
@@ -85,6 +94,7 @@ pub fn remove<P: AsRef<Path>>(path: P) -> crate::Result<()> {
   }
 }
 
+/// Copy file with the given options.
 pub fn copy_file<P, Q>(from: P, to: Q, options: &FileOpts) -> crate::Result<u64>
 where
   P: AsRef<Path>,
@@ -94,17 +104,21 @@ where
   if !from.exists() {
     if let Some(msg) = from.to_str() {
       let msg = format!("Path \"{}\" does not exist or you don't have access", msg);
-      return Err(msg.into());
+      return Err(crate::Error::PathUtilError(msg));
     }
-    return Err("Path does not exist Or you don't have access!".into());
+    return Err(crate::Error::PathUtilError(
+      "Path does not exist or you don't have access!".to_owned(),
+    ));
   }
 
   if !from.is_file() {
     if let Some(msg) = from.to_str() {
       let msg = format!("Path \"{}\" is not a file!", msg);
-      return Err(msg.into());
+      return Err(crate::Error::PathUtilError(msg));
     }
-    return Err("Path is not a file!".into());
+    return Err(crate::Error::PathUtilError(
+      "Path is not a file!".to_owned(),
+    ));
   }
   if !options.overwrite && to.as_ref().exists() {
     if options.skip {
@@ -113,13 +127,14 @@ where
 
     if let Some(msg) = to.as_ref().to_str() {
       let msg = format!("Path \"{}\" is exist", msg);
-      return Err(msg.into());
+      return Err(crate::Error::PathUtilError(msg));
     }
   }
 
   Ok(std::fs::copy(from, to)?)
 }
 
+/// Copies the directory with the given options.
 #[allow(dead_code)]
 pub fn copy<P, Q>(from: P, to: Q, options: &Options) -> crate::Result<u64>
 where
@@ -130,22 +145,28 @@ where
   if !from.exists() {
     if let Some(msg) = from.to_str() {
       let msg = format!("Path \"{}\" does not exist or you don't have access!", msg);
-      return Err(msg.into());
+      return Err(crate::Error::PathUtilError(msg));
     }
-    return Err("Path does not exist Or you don't have access!".into());
+    return Err(crate::Error::PathUtilError(
+      "Path does not exist or you don't have access".to_owned(),
+    ));
   }
   if !from.is_dir() {
     if let Some(msg) = from.to_str() {
       let msg = format!("Path \"{}\" is not a directory!", msg);
-      return Err(msg.into());
+      return Err(crate::Error::PathUtilError(msg));
     }
-    return Err("Path is not a directory!".into());
+    return Err(crate::Error::PathUtilError(
+      "Path is not a directory".to_owned(),
+    ));
   }
   let dir_name;
   if let Some(val) = from.components().last() {
     dir_name = val.as_os_str();
   } else {
-    return Err("Invalid folder from".into());
+    return Err(crate::Error::PathUtilError(
+      "Invalid Folder form".to_owned(),
+    ));
   }
   let mut to: PathBuf = to.as_ref().to_path_buf();
   if !options.content_only && (!options.copy_files || to.exists()) {
@@ -192,7 +213,7 @@ where
         }
         Err(err) => {
           let err_msg = err.to_string();
-          return Err(err_msg.into());
+          return Err(crate::Error::PathUtilError(err_msg));
         }
       }
     }
@@ -200,6 +221,7 @@ where
   Ok(result)
 }
 
+/// Gets the DirInfo from the directory path with the given options.
 pub fn get_dir_info<P>(path: P, options: &DirOpts) -> crate::Result<DirInfo>
 where
   P: AsRef<Path>,
@@ -213,6 +235,7 @@ where
   _get_dir_info(path, depth)
 }
 
+/// Gets the DirInfo from the directory with the given depth.
 fn _get_dir_info<P>(path: P, mut depth: u64) -> crate::Result<DirInfo>
 where
   P: AsRef<Path>,
@@ -222,7 +245,7 @@ where
   let mut size = 0;
   let item = path.as_ref().to_str();
   if item.is_none() {
-    return Err("Invalid path".into());
+    return Err(crate::Error::PathUtilError("Invalid Path".to_owned()));
   }
   let item = item.expect("Item had no data").to_string();
 

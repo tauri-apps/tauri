@@ -1,18 +1,18 @@
-use web_view::WebView;
+use webview_official::Webview;
 
-pub fn validate<T: 'static>(
-  webview: &mut WebView<'_, T>,
+/// Validates a salt.
+pub fn validate(
+  webview: &mut Webview<'_>,
   salt: String,
   callback: String,
   error: String,
-) {
+) -> crate::Result<()> {
   let response = if crate::salt::is_valid(salt) {
-    Ok("'VALID'".to_string())
+    Ok("Valid")
   } else {
-    Err("'INVALID SALT'".to_string())
+    Err("Invalid salt")
   };
-  let callback_string = crate::api::rpc::format_callback_result(response, callback, error);
-  webview
-    .eval(callback_string.as_str())
-    .expect("Failed to eval JS from validate()");
+  let callback_string = crate::api::rpc::format_callback_result(response, callback, error)?;
+  webview.eval(callback_string.as_str());
+  Ok(())
 }

@@ -21,16 +21,15 @@ icon = [
 ]
 
 [dependencies]
-serde_json = "1.0.48"
+serde_json = "1.0.60"
 serde = "1.0"
 serde_derive = "1.0"
-tiny_http = "0.6"
+tiny_http = "0.7"
 phf = "0.8.0"
-includedir = "0.5.0"
-tauri = { path = "../../../../../../../tauri", features = [ "all-api", "edge" ] }
+includedir = "0.6.0"
+tauri = { path = "../../../../../../../tauri", features = [ "all-api" ] }
 
 [features]
-dev-server = [ "tauri/dev-server" ]
 embedded-server = [ "tauri/embedded-server" ]
 no-server = [ "tauri/no-server" ]
 

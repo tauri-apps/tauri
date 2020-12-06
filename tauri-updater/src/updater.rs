@@ -160,27 +160,27 @@ impl UpdateBuilder {
       release: if let Some(ref release) = self.release {
         release.to_owned()
       } else {
-        bail!(crate::ErrorKind::Config, "`release` required")
+        return Err(crate::Error::Config("`release`".into()).into());
       },
       bin_name: if let Some(ref name) = self.bin_name {
         name.to_owned()
       } else {
-        bail!(crate::ErrorKind::Config, "`bin_name` required")
+        return Err(crate::Error::Config("`bin_name`".into()).into());
       },
       bin_install_path: if let Some(ref path) = self.bin_install_path {
         path.to_owned()
       } else {
-        bail!(crate::ErrorKind::Config, "`bin_install_path` required")
+        return Err(crate::Error::Config("`bin_install_path`".into()).into());
       },
       bin_path_in_archive: if let Some(ref path) = self.bin_path_in_archive {
         path.to_owned()
       } else {
-        bail!(crate::ErrorKind::Config, "`bin_path_in_archive` required")
+        return Err(crate::Error::Config("`bin_path_in_archive`".into()).into());
       },
       current_version: if let Some(ref ver) = self.current_version {
         ver.to_owned()
       } else {
-        bail!(crate::ErrorKind::Config, "`current_version` required")
+        return Err(crate::Error::Config("`current_version`".into()).into());
       },
       show_download_progress: self.show_download_progress,
       show_output: self.show_output,
@@ -236,7 +236,7 @@ impl Update {
     let tmp_dir_parent = self
       .bin_install_path
       .parent()
-      .ok_or_else(|| crate::ErrorKind::Updater("Failed to determine parent dir".into()))?;
+      .ok_or_else(|| crate::Error::Updater)?;
     let tmp_dir =
       tempdir::TempDir::new_in(&tmp_dir_parent, &format!("{}_download", self.bin_name))?;
     let tmp_archive_path = tmp_dir.path().join(&self.release.asset_name);

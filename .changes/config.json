@@ -1,0 +1,177 @@
+{
+  "gitSiteUrl": "https://www.github.com/tauri-apps/tauri/",
+  "timeout": 3600000,
+  "pkgManagers": {
+    "rust": {
+      "version": true,
+      "getPublishedVersion": "cargo search ${ pkg.pkg } --limit 1 | sed -nE 's/^[^\"]*\"//; s/\".*//1p' -",
+      "prepublish": [
+        "sudo apt-get update",
+        "sudo apt-get install -y webkit2gtk-4.0",
+        "cargo install cargo-audit --features=fix",
+        {
+          "command": "cargo generate-lockfile",
+          "dryRunCommand": true,
+          "runFromRoot": true,
+          "pipe": true
+        },
+        {
+          "command": "echo \"# Cargo Audit\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "echo \"\\`\\`\\`\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "cargo audit ${ process.env.CARGO_AUDIT_OPTIONS || '' }",
+          "dryRunCommand": true,
+          "runFromRoot": true,
+          "pipe": true
+        },
+        {
+          "command": "echo \"\\`\\`\\`\"",
+          "dryRunCommand": true,
+          "pipe": true
+        }
+      ],
+      "publish": [
+        {
+          "command": "cargo package --allow-dirty",
+          "dryRunCommand": true
+        },
+        {
+          "command": "echo \"# Cargo Publish\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "echo \"\\`\\`\\`\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "cargo publish --no-verify",
+          "dryRunCommand": "cargo publish --no-verify --dry-run --allow-dirty",
+          "pipe": true
+        },
+        {
+          "command": "echo \"\\`\\`\\`\"",
+          "dryRunCommand": true,
+          "pipe": true
+        }
+      ],
+      "postpublish": [
+        "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor } -f",
+        "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor }.${ pkgFile.versionMinor } -f",
+        "git push --tags -f"
+      ],
+      "assets": [
+        {
+          "path": "${ pkg.path }/${ pkg.pkg }-${ pkgFile.version }.crate",
+          "name": "${ pkg.pkg }-${ pkgFile.version }.crate"
+        }
+      ]
+    },
+    "javascript": {
+      "version": true,
+      "getPublishedVersion": "npm view ${ pkgFile.pkg.name } version",
+      "prepublish": [
+        {
+          "command": "yarn",
+          "dryRunCommand": true
+        },
+        {
+          "command": "echo \"# Yarn Audit\n\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "echo \"<details>\n<summary>click to view</summary>\n\n\\`\\`\\`\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "yarn audit",
+          "dryRunCommand": true,
+          "runFromRoot": true,
+          "pipe": true
+        },
+        {
+          "command": "echo \"\\`\\`\\`\n\n</details>\n\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "npm pack",
+          "dryRunCommand": true
+        }
+      ],
+      "publish": [
+        {
+          "command": "echo \"# Yarn Package Publish\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "echo \"\\`\\`\\`\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "yarn publish --access public --loglevel silly",
+          "dryRunCommand": "npm publish --dry-run --access public",
+          "pipe": true
+        },
+        {
+          "command": "echo \"\\`\\`\\`\"",
+          "dryRunCommand": true,
+          "pipe": true
+        }
+      ],
+      "postpublish": [
+        "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor } -f",
+        "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor }.${ pkgFile.versionMinor } -f",
+        "git push --tags -f"
+      ]
+    }
+  },
+  "packages": {
+    "tauri.js": {
+      "path": "./cli/tauri.js",
+      "manager": "javascript",
+      "dependencies": ["tauri"],
+      "assets": [
+        {
+          "path": "./cli/tauri.js/tauri-${ pkgFile.version }.tgz",
+          "name": "tauri.js-${ pkgFile.version }.tgz"
+        }
+      ]
+    },
+    "tauri-bundler": {
+      "path": "./cli/tauri-bundler",
+      "manager": "rust"
+    },
+    "tauri-utils": {
+      "path": "./tauri-utils",
+      "manager": "rust"
+    },
+    "tauri-api": {
+      "path": "./tauri-api",
+      "manager": "rust",
+      "dependencies": ["tauri-utils"]
+    },
+    "tauri-updater": {
+      "path": "./tauri-updater",
+      "manager": "rust",
+      "publish": false
+    },
+    "tauri": {
+      "path": "./tauri",
+      "manager": "rust",
+      "dependencies": ["tauri-api", "tauri-updater"]
+    }
+  }
+}

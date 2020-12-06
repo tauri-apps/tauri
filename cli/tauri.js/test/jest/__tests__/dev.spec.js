@@ -3,29 +3,29 @@ const fixtureSetup = require('../fixtures/app-test-setup')
 const distDir = path.resolve(fixtureSetup.fixtureDir, 'app', 'dist')
 
 function startDevServer() {
-    const http = require('http')
-    const { statSync, createReadStream } = require('fs')
-    const app = http.createServer((req, res) => {
-      if (req.method === 'GET') {
-        if (req.url === '/') {
-          const indexPath = path.join(distDir, 'index.html')
-          const stat = statSync(indexPath)
-          res.writeHead(200, {
-            'Content-Type': 'text/html',
-            'Content-Length': stat.size
-          })
-          createReadStream(indexPath).pipe(res)
-        }
+  const http = require('http')
+  const { statSync, createReadStream } = require('fs')
+  const app = http.createServer((req, res) => {
+    if (req.method === 'GET') {
+      if (req.url === '/') {
+        const indexPath = path.join(distDir, 'index.html')
+        const stat = statSync(indexPath)
+        res.writeHead(200, {
+          'Content-Type': 'text/html',
+          'Content-Length': stat.size
+        })
+        createReadStream(indexPath).pipe(res)
       }
-    })
-
-    const port = 7001
-
-    const server = app.listen(port)
-    return {
-        server,
-        url: `http://localhost:${port}`
     }
+  })
+
+  const port = 7001
+
+  const server = app.listen(port)
+  return {
+    server,
+    url: `http://localhost:${port}`
+  }
 }
 
 function runDevTest(tauriConfig) {
@@ -39,11 +39,14 @@ function runDevTest(tauriConfig) {
       let success = false
       const checkIntervalId = setInterval(async () => {
         if (!isRunning(runner.pid) && !success) {
-          server.close(() => reject("App didn't reply"))
+          const failedCommands = Object.keys(responses)
+            .filter((k) => responses[k] === null)
+            .join(', ')
+          server.close(() => reject("App didn't reply to " + failedCommands))
         }
       }, 2000)
 
-      const server = fixtureSetup.startServer(async () => {
+      const { server, responses } = fixtureSetup.startServer(async () => {
         success = true
         clearInterval(checkIntervalId)
         // wait for the app process to be killed
@@ -63,7 +66,8 @@ function runDevTest(tauriConfig) {
 
 describe('Tauri Dev', () => {
   const build = {
-    distDir: distDir
+    distDir: distDir,
+    withGlobalTauri: true
   }
 
   const devServer = startDevServer()

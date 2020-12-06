@@ -1,21 +1,29 @@
-use crate::api::dialog::{select, select_multiple, save_file, pick_folder, Response};
 use super::cmd::{OpenDialogOptions, SaveDialogOptions};
-use web_view::WebView;
+use crate::api::dialog::{
+  ask as ask_dialog, message as message_dialog, pick_folder, save_file, select, select_multiple,
+  DialogSelection, Response,
+};
+use serde_json::Value as JsonValue;
+use webview_official::Webview;
 
-fn map_response(response: Response) -> String {
+/// maps a dialog response to a JS value to eval
+#[cfg(any(open_dialog, save_dialog))]
+fn map_response(response: Response) -> JsonValue {
   match response {
-    Response::Okay(path) => format!(r#""{}""#, path).replace("\\", "\\\\"),
-    Response::OkayMultiple(paths) => format!("{:?}", paths),
-    Response::Cancel => panic!("unexpected response type")
+    Response::Okay(path) => path.into(),
+    Response::OkayMultiple(paths) => paths.into(),
+    Response::Cancel => JsonValue::Null,
   }
 }
 
-pub fn open<T: 'static>(
-  webview: &mut WebView<'_, T>,
+/// Shows an open dialog.
+#[cfg(open_dialog)]
+pub fn open(
+  webview: &mut Webview<'_>,
   options: OpenDialogOptions,
   callback: String,
   error: String,
-) {
+) -> crate::Result<()> {
   crate::execute_promise_sync(
     webview,
     move || {
@@ -26,29 +34,52 @@ pub fn open<T: 'static>(
       } else {
         select(options.filter, options.default_path)
       };
-      response
-        .map(map_response)
-        .map_err(|e| crate::ErrorKind::Dialog(e.to_string()).into())
+      response.map(map_response)
     },
     callback,
     error,
-  );
+  )?;
+  Ok(())
 }
 
-pub fn save<T: 'static>(
-  webview: &mut WebView<'_, T>,
+/// Shows a save dialog.
+#[cfg(save_dialog)]
+pub fn save(
+  webview: &mut Webview<'_>,
   options: SaveDialogOptions,
   callback: String,
   error: String,
-) {
+) -> crate::Result<()> {
   crate::execute_promise_sync(
     webview,
-    move || {
-      save_file(options.filter, options.default_path)
-        .map(map_response)
-        .map_err(|e| crate::ErrorKind::Dialog(e.to_string()).into())
+    move || save_file(options.filter, options.default_path).map(map_response),
+    callback,
+    error,
+  )?;
+  Ok(())
+}
+
+/// Shows a message in a dialog.
+pub fn message(title: String, message: String) {
+  message_dialog(message, title);
+}
+
+/// Shows a dialog with a yes/no question.
+pub fn ask(
+  webview: &mut Webview<'_>,
+  title: String,
+  message: String,
+  callback: String,
+  error: String,
+) -> crate::Result<()> {
+  crate::execute_promise_sync(
+    webview,
+    move || match ask_dialog(message, title) {
+      DialogSelection::Yes => Ok(true),
+      _ => Ok(false),
     },
     callback,
     error,
-  );
+  )?;
+  Ok(())
 }

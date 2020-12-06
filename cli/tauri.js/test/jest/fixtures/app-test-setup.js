@@ -5,16 +5,14 @@ const mockFixtureDir = path.resolve(__dirname, '../fixtures')
 
 module.exports.fixtureDir = mockFixtureDir
 
-function mockResolvePath (basePath, dir) {
-  return dir.startsWith('/') || /^\S:/g.test(dir)
-    ? dir
-    : path.resolve(basePath, dir)
+function mockResolvePath(basePath, dir) {
+  return dir && path.isAbsolute(dir) ? dir : path.resolve(basePath, dir)
 }
 
 module.exports.initJest = (mockFixture) => {
   jest.setTimeout(720000)
   jest.mock('helpers/non-webpack-require', () => {
-    return path => {
+    return (path) => {
       const value = require('fs').readFileSync(path).toString()
       if (path.endsWith('.json')) {
         return JSON.parse(value)
@@ -31,13 +29,11 @@ module.exports.initJest = (mockFixture) => {
       appDir,
       tauriDir,
       resolve: {
-        app: dir => mockResolvePath(appDir, dir),
-        tauri: dir => mockResolvePath(tauriDir, dir)
+        app: (dir) => mockResolvePath(appDir, dir),
+        tauri: (dir) => mockResolvePath(tauriDir, dir)
       }
     }
   })
-
-  jest.spyOn(process, 'exit').mockImplementation(() => {})
 }
 
 module.exports.startServer = (onSuccess) => {
@@ -62,9 +58,10 @@ module.exports.startServer = (onSuccess) => {
     renameFileWithDir: null,
     listen: null
   }
-  function addResponse (response) {
+
+  function addResponse(response) {
     responses[response.cmd] = true
-    if (!Object.values(responses).some(c => c === null)) {
+    if (!Object.values(responses).some((c) => c === null)) {
       server.close(onSuccess)
     }
   }
@@ -84,7 +81,7 @@ module.exports.startServer = (onSuccess) => {
 
     if (req.method === 'POST') {
       let body = ''
-      req.on('data', chunk => {
+      req.on('data', (chunk) => {
         body += chunk.toString()
       })
       if (req.url === '/reply') {
@@ -107,5 +104,8 @@ module.exports.startServer = (onSuccess) => {
 
   const port = 7000
   const server = app.listen(port)
-  return server
+  return {
+    server,
+    responses
+  }
 }

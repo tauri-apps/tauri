@@ -1,5 +1,7 @@
 'use strict'
 
+/* eslint-disable @typescript-eslint/restrict-template-expressions, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
+
 /**
  * This is a module that takes an original image and resizes
  * it to common icon sizes and will put them in a folder.
@@ -15,7 +17,7 @@
 import { access, ensureDir, ensureFileSync, writeFileSync } from 'fs-extra'
 import imagemin, { Plugin } from 'imagemin'
 import optipng from 'imagemin-optipng'
-import pngquant from 'imagemin-pngquant'
+import pngquant, { Options as PngQuantOptions } from 'imagemin-pngquant'
 import zopfli from 'imagemin-zopfli'
 import isPng from 'is-png'
 import path from 'path'
@@ -25,14 +27,16 @@ import sharp from 'sharp'
 import { appDir, tauriDir } from '../helpers/app-paths'
 import logger from '../helpers/logger'
 import * as settings from '../helpers/tauricon.config'
+import chalk from 'chalk'
+import { version } from '../../package.json'
 
 const log = logger('app:spawn')
-const warn = logger('app:spawn', 'red')
+const warn = logger('app:spawn', chalk.red)
 
 let image: boolean | sharp.Sharp = false
 const spinnerInterval = false
 
-const exists = async function(file: string | Buffer): Promise<boolean> {
+const exists = async function (file: string | Buffer): Promise<boolean> {
   try {
     await access(file)
     return true
@@ -102,26 +106,24 @@ const uniqueFolders = (options: { [index: string]: any }): any[] => {
  */
 const hexToRgb = (
   hex: string
-): { r: number, g: number, b: number } | undefined => {
+): { r: number; g: number; b: number } | undefined => {
   // https://stackoverflow.com/questions/5623838/rgb-to-hex-and-hex-to-rgb
   // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
   const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i
-  hex = hex.replace(shorthandRegex, function(
-    m: string,
-    r: string,
-    g: string,
-    b: string
-  ) {
-    return r + r + g + g + b + b
-  })
+  hex = hex.replace(
+    shorthandRegex,
+    function (m: string, r: string, g: string, b: string) {
+      return r + r + g + g + b + b
+    }
+  )
 
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
   return result
     ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16)
-    }
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      }
     : undefined
 }
 
@@ -173,16 +175,15 @@ const spinner = (): NodeJS.Timeout => {
   }, 500)
 }
 
-/* eslint-disable @typescript-eslint/restrict-template-expressions */
 const tauricon = (exports.tauricon = {
-  validate: async function(src: string, target: string) {
+  validate: async function (src: string, target: string) {
     await validate(src, target)
     return typeof image === 'object'
   },
-  version: function() {
-    return require('../../package.json').version
+  version: function () {
+    return version
   },
-  make: async function(
+  make: async function (
     src: string = path.resolve(appDir, 'app-icon.png'),
     target: string = path.resolve(tauriDir, 'icons'),
     strategy: string,
@@ -214,7 +215,7 @@ const tauricon = (exports.tauricon = {
    * @param {string} target - where to drop the images
    * @param {object} options - js object that defines path and sizes
    */
-  build: async function(
+  build: async function (
     src: string,
     target: string,
     // TODO: proper type for options
@@ -222,7 +223,7 @@ const tauricon = (exports.tauricon = {
   ) {
     await this.validate(src, target)
     const sharpSrc = sharp(src) // creates the image object
-    const buildify2 = async function(
+    const buildify2 = async function (
       pvar: [string, number, number]
     ): Promise<void> {
       try {
@@ -285,7 +286,7 @@ const tauricon = (exports.tauricon = {
    * @param {string} target - where to drop the images
    * @param {object} options - js object that defines path and sizes
    */
-  splash: async function(
+  splash: async function (
     src: string,
     splashSrc: string,
     target: string,
@@ -345,9 +346,11 @@ const tauricon = (exports.tauricon = {
       sharpSrc = sharp(splashSrc).flatten({
         background: { r: rgb.r, g: rgb.g, b: rgb.b, alpha: 1 }
       })
+    } else {
+      throw new Error(
+        `unknown options.splashscreen_type: ${options.splashscreen_type}`
+      )
     }
-    // TODO: determine if this really could be undefined
-    // @ts-ignore
     const data = await sharpSrc.toBuffer()
 
     for (const optionKey in options) {
@@ -380,7 +383,7 @@ const tauricon = (exports.tauricon = {
    * @param {string} strategy - which minify strategy to use
    * @param {string} mode - singlefile or batch
    */
-  minify: async function(
+  minify: async function (
     target: string,
     // TODO: proper type for options
     options: { [index: string]: any },
@@ -389,14 +392,13 @@ const tauricon = (exports.tauricon = {
   ) {
     let cmd: Plugin
     const minify = settings.options.minify
-    if (!minify.available.find(x => x === strategy)) {
+    if (!minify.available.find((x) => x === strategy)) {
       strategy = minify.type
     }
     switch (strategy) {
       case 'pngquant':
         // TODO: is minify.pngquantOptions the proper format?
-        // @ts-ignore
-        cmd = pngquant(minify.pngquantOptions)
+        cmd = pngquant((minify.pngquantOptions as any) as PngQuantOptions)
         break
       case 'optipng':
         cmd = optipng(minify.optipngOptions)
@@ -404,21 +406,22 @@ const tauricon = (exports.tauricon = {
       case 'zopfli':
         cmd = zopfli(minify.zopfliOptions)
         break
+      default:
+        throw new Error('unknown strategy' + strategy)
     }
 
-    const __minifier = async (pvar: string[]): Promise<string | void> => {
+    const minifier = async (pvar: string[], cmd: Plugin): Promise<void> => {
       await imagemin([pvar[0]], {
         destination: pvar[1],
         plugins: [cmd]
-      }).catch(err => {
+      }).catch((err) => {
         warn(err)
       })
     }
+
     switch (mode) {
       case 'singlefile':
-        // TODO: the __minifier function only accepts one arg, why is cmd passed?
-        // @ts-ignore
-        await __minifier([target, path.dirname(target)], cmd)
+        await minifier([target, path.dirname(target)], cmd)
         break
       case 'batch':
         // eslint-disable-next-line no-case-declarations
@@ -426,16 +429,12 @@ const tauricon = (exports.tauricon = {
         // eslint-disable-next-line @typescript-eslint/no-for-in-array
         for (const n in folders) {
           const folder = folders[Number(n)]
-          // TODO: The log argument doesn't accept multiple args, should this be fixed?
-          // @ts-ignore
-          log('batch minify:', folder)
-          await __minifier(
+          log('batch minify:' + String(folder))
+          await minifier(
             [
               `${target}${path.sep}${folder}${path.sep}*.png`,
               `${target}${path.sep}${folder}`
             ],
-            // TODO: the __minifier function only accepts one arg, why is this here?
-            // @ts-ignore
             cmd
           )
         }
@@ -455,7 +454,7 @@ const tauricon = (exports.tauricon = {
    * @param {object} options
    * @param {string} strategy
    */
-  icns: async function(
+  icns: async function (
     src: string,
     target: string,
     // TODO: proper type for options
@@ -472,10 +471,16 @@ const tauricon = (exports.tauricon = {
       const buf = await sharpSrc.toBuffer()
 
       const out = png2icons.createICNS(buf, png2icons.BICUBIC, 0)
+      if (out === null) {
+        throw new Error('Failed to create icon.icns')
+      }
       ensureFileSync(path.join(target, '/icon.icns'))
       writeFileSync(path.join(target, '/icon.icns'), out)
 
       const out2 = png2icons.createICO(buf, png2icons.BICUBIC, 0, true)
+      if (out2 === null) {
+        throw new Error('Failed to create icon.ico')
+      }
       ensureFileSync(path.join(target, '/icon.ico'))
       writeFileSync(path.join(target, '/icon.ico'), out2)
     } catch (err) {

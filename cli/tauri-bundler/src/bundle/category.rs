@@ -1,8 +1,5 @@
 use std::fmt;
 
-use serde;
-use strsim;
-
 const CONFIDENCE_THRESHOLD: f64 = 0.8;
 
 const OSX_APP_CATEGORY_PREFIX: &str = "public.app-category.";
@@ -10,6 +7,8 @@ const OSX_APP_CATEGORY_PREFIX: &str = "public.app-category.";
 // TODO: RIght now, these categories correspond to LSApplicationCategoryType
 // values for OS X.  There are also some additional GNOME registered categories
 // that don't fit these; we should add those here too.
+/// The possible app categories.
+/// Corresponds to `LSApplicationCategoryType` on macOS and the GNOME desktop categories on Debian.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AppCategory {
   Business,
@@ -131,7 +130,7 @@ impl AppCategory {
 
   /// Map an AppCategory to the closest set of GNOME desktop registered
   /// categories that matches that category.
-  pub fn gnome_desktop_categories(&self) -> &'static str {
+  pub fn gnome_desktop_categories(self) -> &'static str {
     match &self {
       AppCategory::Business => "Office;",
       AppCategory::DeveloperTool => "Development;",
@@ -178,7 +177,7 @@ impl AppCategory {
 
   /// Map an AppCategory to the closest LSApplicationCategoryType value that
   /// matches that category.
-  pub fn osx_application_category_type(&self) -> &'static str {
+  pub fn osx_application_category_type(self) -> &'static str {
     match &self {
       AppCategory::Business => "public.app-category.business",
       AppCategory::DeveloperTool => "public.app-category.developer-tools",

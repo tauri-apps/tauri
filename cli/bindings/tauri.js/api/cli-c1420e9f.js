@@ -1,0 +1,1 @@
+import{_ as t,a as e,p as a}from"./tauri-2d4a73a3.js";function r(){return t(this,void 0,void 0,(function(){return e(this,(function(t){switch(t.label){case 0:return[4,a({cmd:"cliMatches"})];case 1:return[2,t.sent()]}}))}))}var s=Object.freeze({__proto__:null,getMatches:r});export{s as c,r as g};

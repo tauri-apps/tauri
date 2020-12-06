@@ -1,0 +1,1 @@
+"use strict";var e=require("./tauri-fa600dd3.js");function t(){return e.__awaiter(this,void 0,void 0,(function(){return e.__generator(this,(function(t){switch(t.label){case 0:return[4,e.promisified({cmd:"cliMatches"})];case 1:return[2,t.sent()]}}))}))}var r=Object.freeze({__proto__:null,getMatches:t});exports.cli=r,exports.getMatches=t;

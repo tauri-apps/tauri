@@ -10,20 +10,18 @@
     "url": "https://opencollective.com/tauri"
   },
   "scripts": {
-    "build": "yarn build:api && yarn build:webpack",
-    "build:webpack": "rimraf ./dist && yarn build:typevalidators && webpack --progress",
     "build:typevalidators": "node ./build/type-validators",
-    "build:api": "rimraf ./api && rollup -c --silent",
-    "build-release": "yarn build:api && rimraf ./dist && yarn build:typevalidators && webpack",
+    "build": "rimraf ./dist && yarn build:typevalidators && webpack --progress",
+    "build-release": "rimraf ./dist && yarn build:typevalidators && webpack",
     "test": "jest --runInBand --no-cache --testPathIgnorePatterns=\"(build|dev)\"",
     "pretest": "yarn build",
     "prepublishOnly": "yarn build-release",
     "test:local": "jest --runInBand",
-    "lint": "eslint --ext ts \"./src/**/*.ts\" \"./api-src/**/*.ts\"",
-    "lint-fix": "eslint --fix --ext ts \"./src/**/*.ts\" \"./api-src/**/*.ts\"",
+    "lint": "eslint --ext ts \"./src/**/*.ts\"",
+    "lint-fix": "eslint --fix --ext ts \"./src/**/*.ts\"",
     "lint:lockfile": "lockfile-lint --path yarn.lock --type yarn --validate-https --allowed-hosts npm yarn",
-    "format": "prettier --write --end-of-line=auto !./**/mutation-observer.js !./**/config.validator.js \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
-    "format:check": "prettier --check --end-of-line=auto !./**/mutation-observer.js \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
+    "format": "prettier --write --end-of-line=auto !./**/config.validator.js \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
+    "format:check": "prettier --check --end-of-line=auto \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
     "build:tauri[rust]": "cd ../tauri && TAURI_DIST_DIR=../../test/fixture/dist TAURI_DIR=../test/fixture cargo publish --dry-run --allow-dirty"
   },
   "repository": {
@@ -49,7 +47,6 @@
     "yarn": ">= 1.19.1"
   },
   "dependencies": {
-    "@tauri-apps/tauri-inliner": "1.14.1",
     "@tauri-apps/toml": "2.2.4",
     "chalk": "4.1.0",
     "chokidar": "3.4.3",
@@ -80,12 +77,6 @@
     "@babel/core": "7.12.9",
     "@babel/preset-env": "7.12.7",
     "@babel/preset-typescript": "7.12.7",
-    "@rollup/plugin-babel": "5.2.2",
-    "@rollup/plugin-commonjs": "17.0.0",
-    "@rollup/plugin-json": "4.1.0",
-    "@rollup/plugin-node-resolve": "11.0.0",
-    "@rollup/plugin-sucrase": "3.1.0",
-    "@rollup/plugin-typescript": "8.0.0",
     "@types/cross-spawn": "6.0.2",
     "@types/fs-extra": "9.0.4",
     "@types/http-proxy": "1.17.4",
@@ -121,9 +112,6 @@
     "promise": "8.1.0",
     "raw-loader": "4.0.2",
     "rimraf": "3.0.2",
-    "rollup": "2.34.1",
-    "rollup-plugin-terser": "7.0.2",
-    "rollup-plugin-typescript2": "0.29.0",
     "toml-loader": "1.0.0",
     "ts-loader": "8.0.11",
     "tslib": "2.0.3",
@@ -142,7 +130,7 @@
     }
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,md,html,css,json}": "prettier --write --end-of-line=auto !./**/mutation-observer.js !./**/config.validator.js \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
-    "*.{ts,tsx}": "eslint --fix --ext ts ./src/**/*.ts ./api-src/**/*.ts"
+    "*.{js,jsx,ts,tsx,md,html,css,json}": "prettier --write --end-of-line=auto !./**/config.validator.js \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
+    "*.{ts,tsx}": "eslint --fix --ext ts ./src/**/*.ts"
   }
 }

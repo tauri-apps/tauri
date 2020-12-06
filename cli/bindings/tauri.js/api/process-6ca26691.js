@@ -1,0 +1,1 @@
+import{_ as e,a as t,p as r}from"./tauri-2d4a73a3.js";function a(a,n){return e(this,void 0,void 0,(function(){return t(this,(function(e){switch(e.label){case 0:return"object"==typeof n&&Object.freeze(n),[4,r({cmd:"execute",command:a,args:"string"==typeof n?[n]:n})];case 1:return[2,e.sent()]}}))}))}var n=Object.freeze({__proto__:null,execute:a});export{a as e,n as p};

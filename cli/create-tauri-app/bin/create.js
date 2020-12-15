@@ -27,7 +27,6 @@ module.exports = (appName, args) => {
     })
 
     process.chdir(appName)
-    await execa('npm', ['install']);
 
     const { installDependencies } = require('tauri/dist/api/dependency-manager')
     await installDependencies()

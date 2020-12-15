@@ -231,6 +231,8 @@ const tauri = (command) => {
     process.exit(0)
     // eslint-disable-next-line no-unreachable
     return false // do this for node consumers and tests
+  } else {
+    require("./create.js")(command, {})
   }
 }
 

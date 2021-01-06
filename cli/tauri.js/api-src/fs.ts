@@ -166,7 +166,7 @@ async function writeBinaryFile(
   }
 
   return await promisified({
-    cmd: 'writeFile',
+    cmd: 'writeBinaryFile',
     path: file.path,
     contents: arrayBufferToBase64(file.contents),
     options

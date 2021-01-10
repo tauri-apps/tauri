@@ -25,6 +25,11 @@ export interface FsOptions {
   dir?: BaseDirectory
 }
 
+export interface FsDirOptions {
+  dir?: BaseDirectory
+  recursive?: boolean
+}
+
 export interface FsTextFileOption {
   path: string
   contents: string
@@ -184,7 +189,7 @@ async function writeBinaryFile(
  */
 async function readDir(
   dir: string,
-  options: FsOptions = {}
+  options: FsDirOptions = {}
 ): Promise<FileEntry[]> {
   return await promisified({
     cmd: 'readDir',
@@ -204,7 +209,7 @@ async function readDir(
  * @param [options.dir] base directory
  * @return
  */
-async function createDir(dir: string, options: FsOptions = {}): Promise<void> {
+async function createDir(dir: string, options: FsDirOptions = {}): Promise<void> {
   return await promisified({
     cmd: 'createDir',
     path: dir,
@@ -222,7 +227,7 @@ async function createDir(dir: string, options: FsOptions = {}): Promise<void> {
  * @param [options.dir] base directory
  * @return
  */
-async function removeDir(dir: string, options: FsOptions = {}): Promise<void> {
+async function removeDir(dir: string, options: FsDirOptions = {}): Promise<void> {
   return await promisified({
     cmd: 'removeDir',
     path: dir,

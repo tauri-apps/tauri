@@ -1,19 +1,19 @@
-var urlInput = document.getElementById('url')
+var urlInput = document.getElementById("url");
 
 addClickEnterHandler(
-  document.getElementById('open-url'),
+  document.getElementById("open-url"),
   urlInput,
   function () {
-    window.__TAURI__.window.open(urlInput.value)
+    window.__TAURI__.window.open(urlInput.value);
   }
-)
+);
 
-var titleInput = document.getElementById('title')
+var titleInput = document.getElementById("title");
 
 addClickEnterHandler(
-  document.getElementById('set-title'),
+  document.getElementById("set-title"),
   titleInput,
   function () {
-    window.__TAURI__.window.setTitle(titleInput.value)
+    window.__TAURI__.window.setTitle(titleInput.value);
   }
-)
+);

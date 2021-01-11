@@ -209,7 +209,10 @@ async function readDir(
  * @param [options.dir] base directory
  * @return
  */
-async function createDir(dir: string, options: FsDirOptions = {}): Promise<void> {
+async function createDir(
+  dir: string,
+  options: FsDirOptions = {}
+): Promise<void> {
   return await promisified({
     cmd: 'createDir',
     path: dir,
@@ -227,7 +230,10 @@ async function createDir(dir: string, options: FsDirOptions = {}): Promise<void>
  * @param [options.dir] base directory
  * @return
  */
-async function removeDir(dir: string, options: FsDirOptions = {}): Promise<void> {
+async function removeDir(
+  dir: string,
+  options: FsDirOptions = {}
+): Promise<void> {
   return await promisified({
     cmd: 'removeDir',
     path: dir,

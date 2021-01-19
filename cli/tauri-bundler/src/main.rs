@@ -4,7 +4,7 @@ mod sign;
 
 pub use error::{Error, Result};
 
-use crate::bundle::{bundle_project, check_icons, BuildArtifact, PackageType, Settings};
+use crate::bundle::{bundle_project, check_icons, PackageType, Settings};
 
 #[cfg(windows)]
 use crate::bundle::print_info;

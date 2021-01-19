@@ -466,6 +466,30 @@ export const TauriConfigSchema = {
           },
           "type": "object"
         },
+        "updater": {
+          "additionalProperties": false,
+          "defaultProperties": [
+          ],
+          "properties": {
+            "active": {
+              "type": "boolean"
+            },
+            "endpoints": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "pubkey": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "endpoints",
+            "pubkey"
+          ],
+          "type": "object"
+        },
         "window": {
           "additionalProperties": false,
           "defaultProperties": [
@@ -499,6 +523,7 @@ export const TauriConfigSchema = {
         "embeddedServer",
         "inliner",
         "security",
+        "updater",
         "window"
       ],
       "type": "object"

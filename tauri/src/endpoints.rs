@@ -1,6 +1,7 @@
 mod cmd;
 #[allow(unused_imports)]
 mod file_system;
+mod path;
 mod salt;
 
 #[cfg(assets)]
@@ -18,7 +19,7 @@ mod notification;
 use webview_official::Webview;
 
 #[allow(unused_variables)]
-pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
+pub(crate) fn handle(webview: &mut Webview<'_>, arg: &str) -> crate::Result<()> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
     Err(e) => Err(e.into()),
@@ -137,6 +138,17 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
           file_system::rename_file(webview, old_path, new_path, options, callback, error);
           #[cfg(not(rename_file))]
           allowlist_error(webview, error, "renameFile");
+        }
+        ResolvePath {
+          path,
+          directory,
+          callback,
+          error,
+        } => {
+          #[cfg(path_api)]
+          path::resolve_path(webview, path, directory, callback, error);
+          #[cfg(not(path_api))]
+          allowlist_error(webview, error, "pathApi");
         }
         SetTitle { title } => {
           #[cfg(set_title)]
@@ -304,13 +316,13 @@ pub(crate) fn handle(webview: &mut Webview, arg: &str) -> crate::Result<()> {
 }
 
 #[allow(dead_code)]
-fn api_error(webview: &mut Webview, error_fn: String, message: &str) {
+fn api_error(webview: &mut Webview<'_>, error_fn: String, message: &str) {
   let reject_code = tauri_api::rpc::format_callback(error_fn, message);
   webview.eval(&reject_code)
 }
 
 #[allow(dead_code)]
-fn allowlist_error(webview: &mut Webview, error_fn: String, allowlist_key: &str) {
+fn allowlist_error(webview: &mut Webview<'_>, error_fn: String, allowlist_key: &str) {
   api_error(
     webview,
     error_fn,
@@ -322,7 +334,7 @@ fn allowlist_error(webview: &mut Webview, error_fn: String, allowlist_key: &str)
 }
 
 #[allow(dead_code)]
-fn throw_allowlist_error(webview: &mut Webview, allowlist_key: &str) {
+fn throw_allowlist_error(webview: &mut Webview<'_>, allowlist_key: &str) {
   let reject_code = format!(
     r#"throw new Error("'{}' not on the allowlist")"#,
     allowlist_key

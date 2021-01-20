@@ -1,34 +1,62 @@
 import { ManagementType, Result } from './types'
-import { getNpmLatestVersion, getNpmPackageVersion, installNpmPackage, updateNpmPackage, semverLt } from './util'
+import {
+  getNpmLatestVersion,
+  getNpmPackageVersion,
+  installNpmPackage,
+  installNpmDevPackage,
+  updateNpmPackage,
+  semverLt
+} from './util'
 import logger from '../../helpers/logger'
 import { resolve } from '../../helpers/app-paths'
 import inquirer from 'inquirer'
 import { existsSync } from 'fs'
+import { sync as crossSpawnSync } from 'cross-spawn'
 
 const log = logger('dependency:npm-packages')
 
-const dependencies = ['tauri']
-
-async function manageDependencies(managementType: ManagementType): Promise<Result> {
+async function manageDependencies(
+  managementType: ManagementType,
+  dependencies: string[]
+): Promise<Result> {
   const installedDeps = []
   const updatedDeps = []
+
+  const npmChild = crossSpawnSync('npm', ['--version'])
+  const yarnChild = crossSpawnSync('yarn', ['--version'])
+  if (
+    (npmChild.status ?? npmChild.error) &&
+    (yarnChild.status ?? yarnChild.error)
+  ) {
+    throw new Error(
+      'must have `npm` or `yarn` installed to manage dependenices'
+    )
+  }
 
   if (existsSync(resolve.app('package.json'))) {
     for (const dependency of dependencies) {
       const currentVersion = await getNpmPackageVersion(dependency)
       if (currentVersion === null) {
         log(`Installing ${dependency}...`)
-        installNpmPackage(dependency)
+        if (managementType === ManagementType.Install) {
+          await installNpmPackage(dependency)
+        } else if (managementType === ManagementType.InstallDev) {
+          await installNpmDevPackage(dependency)
+        }
         installedDeps.push(dependency)
       } else if (managementType === ManagementType.Update) {
-        const latestVersion = getNpmLatestVersion(dependency)
+        const latestVersion = await getNpmLatestVersion(dependency)
         if (semverLt(currentVersion, latestVersion)) {
-          const inquired = await inquirer.prompt([{
-            type: 'confirm',
-            name: 'answer',
-            message: `[NPM]: "${dependency}" latest version is ${latestVersion}. Do you want to update?`,
-            default: false
-          }])
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
+          const inquired = await inquirer.prompt([
+            {
+              type: 'confirm',
+              name: 'answer',
+              message: `[NPM]: "${dependency}" latest version is ${latestVersion}. Do you want to update?`,
+              default: false
+            }
+          ])
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
           if (inquired.answer) {
             log(`Updating ${dependency}...`)
             updateNpmPackage(dependency)
@@ -50,15 +78,22 @@ async function manageDependencies(managementType: ManagementType): Promise<Resul
   return result
 }
 
+const dependencies = ['tauri']
+
 async function install(): Promise<Result> {
-  return await manageDependencies(ManagementType.Install)
+  return await manageDependencies(ManagementType.Install, dependencies)
+}
+
+async function installThese(dependencies: string[]): Promise<Result> {
+  return await manageDependencies(ManagementType.Install, dependencies)
+}
+
+async function installTheseDev(dependencies: string[]): Promise<Result> {
+  return await manageDependencies(ManagementType.InstallDev, dependencies)
 }
 
 async function update(): Promise<Result> {
-  return await manageDependencies(ManagementType.Update)
+  return await manageDependencies(ManagementType.Update, dependencies)
 }
 
-export {
-  install,
-  update
-}
+export { install, installThese, installTheseDev, update }

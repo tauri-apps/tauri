@@ -34,7 +34,7 @@ const injectConfFile = (
     if (!force) return false
   } else {
     removeSync(path)
-    Object.keys(defaultConfig).forEach(key => {
+    Object.keys(defaultConfig).forEach((key) => {
       // Options marked `null` should be removed
       /* eslint-disable security/detect-object-injection */
       if ((customConfig as UnknownObject)[key] === null) {
@@ -45,7 +45,10 @@ const injectConfFile = (
       }
       /* eslint-enable security/detect-object-injection */
     })
-    const finalConf = merge(defaultConfig as any, customConfig as any) as UnknownObject
+    const finalConf = merge(
+      defaultConfig as any,
+      customConfig as any
+    ) as UnknownObject
 
     writeFileSync(path, JSON.stringify(finalConf, undefined, 2))
     if (logging) log('Successfully wrote tauri.conf.json')
@@ -64,9 +67,10 @@ Run \`tauri init --force template\` to overwrite.`)
   }
 
   const resolveTauriPath = (tauriPath: string): string => {
-    const resolvedPath = tauriPath.startsWith('/') || /^\S:/g.test(tauriPath)
-      ? join(tauriPath, 'tauri') // we received a full path as argument
-      : join('..', tauriPath, 'tauri') // we received a relative path
+    const resolvedPath =
+      tauriPath.startsWith('/') || /^\S:/g.test(tauriPath)
+        ? join(tauriPath, 'tauri') // we received a full path as argument
+        : join('..', tauriPath, 'tauri') // we received a relative path
     return resolvedPath.replace(/\\/g, '/')
   }
 
@@ -106,7 +110,11 @@ const inject = (
     injectTemplate(injectPath, { force, logging, tauriPath })
   }
   if (type === 'conf' || type === 'all') {
-    injectConfFile(join(injectPath, 'src-tauri'), { force, logging }, customConfig)
+    injectConfFile(
+      join(injectPath, 'src-tauri'),
+      { force, logging },
+      customConfig
+    )
   }
   return true
 }

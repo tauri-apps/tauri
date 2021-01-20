@@ -103,7 +103,8 @@
                     Name="{{{product_name}}}"
                     Description="Runs {{{product_name}}}"
                     Target="[!Path]"
-                    Icon="ProductIcon">
+                    Icon="ProductIcon"
+                    WorkingDirectory="INSTALLDIR">
                     <ShortcutProperty Key="System.AppUserModel.ID" Value="{{{manufacturer}}}"/>
                 </Shortcut>
                 <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>

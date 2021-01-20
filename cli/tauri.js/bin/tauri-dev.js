@@ -20,7 +20,7 @@ if (argv.help) {
   process.exit(0)
 }
 
-async function run () {
+async function run() {
   const dev = require('../dist/api/dev')
 
   await dev({

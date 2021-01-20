@@ -8,31 +8,37 @@
   "tauri": {
     "cli": {
       "description": "Tauri communication example",
-      "args": [{
-        "short": "c",
-        "name": "config",
-        "takesValue": true,
-        "description": "Config path"
-      }, {
-        "short": "t",
-        "name": "theme",
-        "takesValue": true,
-        "description": "App theme",
-        "possibleValues": ["light", "dark", "system"]
-      }, {
-        "short": "v",
-        "name": "verbose",
-        "multipleOccurrences": true,
-        "description": "Verbosity level"
-      }],
+      "args": [
+        {
+          "short": "c",
+          "name": "config",
+          "takesValue": true,
+          "description": "Config path"
+        },
+        {
+          "short": "t",
+          "name": "theme",
+          "takesValue": true,
+          "description": "App theme",
+          "possibleValues": ["light", "dark", "system"]
+        },
+        {
+          "short": "v",
+          "name": "verbose",
+          "multipleOccurrences": true,
+          "description": "Verbosity level"
+        }
+      ],
       "subcommands": {
         "update": {
           "description": "Updates the app",
-          "args": [{
-            "short": "b",
-            "name": "background",
-            "description": "Update in background"
-          }]
+          "args": [
+            {
+              "short": "b",
+              "name": "background",
+              "description": "Update in background"
+            }
+          ]
         }
       }
     },

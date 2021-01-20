@@ -7,19 +7,24 @@ export interface OpenDialogOptions {
   directory?: boolean
 }
 
-export type SaveDialogOptions = Pick<OpenDialogOptions, 'filter' | 'defaultPath'>
+export type SaveDialogOptions = Pick<
+  OpenDialogOptions,
+  'filter' | 'defaultPath'
+>
 
 /**
  * @name openDialog
  * @description Open a file/directory selection dialog
- * @param [options]
- * @param [options.filter]
- * @param [options.defaultPath]
- * @param [options.multiple=false]
- * @param [options.directory=false]
- * @returns promise resolving to the select path(s)
+ * @param {Object} [options]
+ * @param {string} [options.filter]
+ * @param {string} [options.defaultPath]
+ * @param {boolean} [options.multiple=false]
+ * @param {boolean} [options.directory=false]
+ * @returns {Promise<string | string[]>} Promise resolving to the select path(s)
  */
-async function open(options: OpenDialogOptions = {}): Promise<String | String[]> {
+async function open(
+  options: OpenDialogOptions = {}
+): Promise<string | string[]> {
   if (typeof options === 'object') {
     Object.freeze(options)
   }
@@ -33,12 +38,12 @@ async function open(options: OpenDialogOptions = {}): Promise<String | String[]>
 /**
  * @name save
  * @description Open a file/directory save dialog
- * @param [options]
- * @param [options.filter]
- * @param [options.defaultPath]
- * @returns promise resolving to the select path
+ * @param {Object} [options]
+ * @param {string} [options.filter]
+ * @param {string} [options.defaultPath]
+ * @returns {Promise<string>} Promise resolving to the select path
  */
-async function save(options: SaveDialogOptions = {}): Promise<String> {
+async function save(options: SaveDialogOptions = {}): Promise<string> {
   if (typeof options === 'object') {
     Object.freeze(options)
   }
@@ -49,7 +54,4 @@ async function save(options: SaveDialogOptions = {}): Promise<String> {
   })
 }
 
-export {
-  open,
-  save
-}
+export { open, save }

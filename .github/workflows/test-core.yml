@@ -68,3 +68,8 @@ jobs:
           cd ./cli/tauri.js
           yarn
           yarn test
+      - name: run release build
+        timeout-minutes: 15
+        working-directory: cli/tauri.js
+        run: yarn build-release
+        

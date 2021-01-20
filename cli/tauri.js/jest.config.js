@@ -38,8 +38,10 @@ module.exports = {
     '^test/(.*)$': '<rootDir>/test/$1',
     '../../package.json': '<rootDir>/package.json'
   },
-  "transform": {
-    "templates[\\\\/](tauri|mutation-observer)\.js": "./test/jest/raw-loader-transformer.js",
-    "\\.(js|ts)$": "babel-jest"
+  transform: {
+    'templates[\\\\/](tauri|mutation-observer).js':
+      './test/jest/raw-loader-transformer.js',
+    'api[\\\\/]tauri.bundle.umd.js': './test/jest/raw-loader-transformer.js',
+    '\\.(js|ts)$': 'babel-jest'
   }
 }

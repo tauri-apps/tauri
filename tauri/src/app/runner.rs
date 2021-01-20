@@ -98,7 +98,7 @@ fn setup_content() -> crate::Result<Content<String>> {
       if !output_str.contains("win32webviewhost_cw5n1h2txyewy") {
         println!("Running Loopback command");
         runas::Command::new("powershell")
-          .args(&vec![
+          .args(&[
             "CheckNetIsolation LoopbackExempt -a -n=\"Microsoft.Win32WebViewHost_cw5n1h2txyewy\"",
           ])
           .force_prompt(true)
@@ -195,8 +195,6 @@ fn spawn_server(server_url: String) -> crate::Result<()> {
   Ok(())
 }
 
-<<<<<<< HEAD
-=======
 // spawn an updater process.
 #[cfg(feature = "updater")]
 fn spawn_updater() -> crate::Result<()> {
@@ -244,13 +242,12 @@ pub fn init() -> String {
   );
 }
 
->>>>>>> origin/dev
 // build the webview struct
 fn build_webview(
   application: &mut App,
   content: Content<String>,
   splashscreen_content: Option<Content<String>>,
-) -> crate::Result<Webview> {
+) -> crate::Result<Webview<'_>> {
   let config = get()?;
   let content_clone = match content {
     Content::Html(ref html) => Content::Html(html.clone()),
@@ -278,28 +275,30 @@ fn build_webview(
     },
   };
 
-  let mut webview = WebviewBuilder::new()
-    .init(&format!(
-      r#"
-        {event_init}
-        if (window.__TAURI_INVOKE_HANDLER__) {{
+  let init = format!(
+    r#"
+      {event_init}
+      if (window.__TAURI_INVOKE_HANDLER__) {{
+        window.__TAURI_INVOKE_HANDLER__({{ cmd: "__initialized" }})
+      }} else {{
+        window.addEventListener('DOMContentLoaded', function () {{
           window.__TAURI_INVOKE_HANDLER__({{ cmd: "__initialized" }})
-        }} else {{
-          window.addEventListener('DOMContentLoaded', function () {{
-            window.__TAURI_INVOKE_HANDLER__({{ cmd: "__initialized" }})
-          }})
-        }}
-        {plugin_init}
-      "#,
-      event_init = init(),
-      plugin_init = crate::plugin::init_script()
-    ))
+        }})
+      }}
+      {plugin_init}
+    "#,
+    event_init = init(),
+    plugin_init = crate::plugin::init_script()
+  );
+
+  let mut webview = WebviewBuilder::new()
+    .init(Box::leak(init.into_boxed_str()))
     .title(Box::leak(title))
     .width(width as usize)
     .height(height as usize)
     .resize(resizable)
     .debug(debug)
-    .url(&url)
+    .url(Box::leak(url.into_boxed_str()))
     .build();
   // TODO waiting for webview window API
   // webview.set_fullscreen(fullscreen);
@@ -314,8 +313,7 @@ fn build_webview(
 
   let mut w = webview.clone();
   webview.bind("__TAURI_INVOKE_HANDLER__", move |_, arg| {
-    // transform `[payload]` to `payload`
-    let arg = arg.chars().skip(1).take(arg.len() - 2).collect::<String>();
+    let arg = format_arg(arg);
     if arg == r#"{"cmd":"__initialized"}"# {
       let source = if has_splashscreen && !initialized_splashscreen {
         initialized_splashscreen = true;
@@ -389,6 +387,15 @@ fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
     arg.replace("'", "\\'"),
     handler_error_message
   )
+}
+
+// Transform `[payload]` to `payload`
+fn format_arg(arg: &str) -> String {
+  arg
+    .chars()
+    .skip(1)
+    .take(arg.chars().count() - 2)
+    .collect::<String>()
 }
 
 #[cfg(test)]
@@ -487,6 +494,15 @@ mod test {
         Ok(url) => assert!(url.contains(&p)),
         Err(e) => panic!("setup_server_url Err {:?}", e.to_string())
       }
+    }
+  }
+
+  #[test]
+  fn test_format_arg() {
+    let input = &["[payload]", "[påyløad]"];
+    let expected = &[String::from("payload"), String::from("påyløad")];
+    for (i, e) in input.iter().zip(expected) {
+      assert_eq!(&super::format_arg(i), e);
     }
   }
 }

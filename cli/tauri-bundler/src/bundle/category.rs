@@ -1,8 +1,5 @@
 use std::fmt;
 
-use serde;
-use strsim;
-
 const CONFIDENCE_THRESHOLD: f64 = 0.8;
 
 const OSX_APP_CATEGORY_PREFIX: &str = "public.app-category.";

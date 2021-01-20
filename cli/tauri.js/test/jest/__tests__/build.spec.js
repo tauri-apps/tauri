@@ -23,10 +23,18 @@ function runBuildTest(tauriConfig) {
       await result.promise
 
       const artifactFolder = tauriConfig.ctx.debug ? 'debug' : 'release'
-      const artifactPath = path.resolve(appDir, `src-tauri/target/${artifactFolder}/app`)
+      const artifactPath = path.resolve(
+        appDir,
+        `src-tauri/target/${artifactFolder}/app`
+      )
 
       const appPid = spawn(
-        process.platform === 'win32' ? `${artifactPath}.exe` : artifactPath.replace(`${artifactFolder}/app`, `${artifactFolder}/./app`),
+        process.platform === 'win32'
+          ? `${artifactPath}.exe`
+          : artifactPath.replace(
+              `${artifactFolder}/app`,
+              `${artifactFolder}/./app`
+            ),
         [],
         null
       )
@@ -37,7 +45,9 @@ function runBuildTest(tauriConfig) {
             try {
               process.kill(appPid)
             } catch {}
-            const failedCommands = Object.keys(responses).filter(k => responses[k] === null).join(', ')
+            const failedCommands = Object.keys(responses)
+              .filter((k) => responses[k] === null)
+              .join(', ')
             reject("App didn't reply to " + failedCommands)
           })
         }
@@ -51,15 +61,16 @@ function runBuildTest(tauriConfig) {
 describe('Tauri Build', () => {
   const build = {
     devPath: distDir,
-    distDir: distDir
+    distDir: distDir,
+    withGlobalTauri: true
   }
 
   it.each`
-    mode                  | flag
-    ${'embedded-server'}  | ${'debug'}
-    ${'embedded-server'}  | ${'release'}
-    ${'no-server'}        | ${'debug'}
-    ${'no-server'}        | ${'release'}
+    mode                 | flag
+    ${'embedded-server'} | ${'debug'}
+    ${'embedded-server'} | ${'release'}
+    ${'no-server'}       | ${'debug'}
+    ${'no-server'}       | ${'release'}
   `('works with the $mode $flag mode', ({ mode, flag }) => {
     return runBuildTest({
       build,
@@ -67,6 +78,9 @@ describe('Tauri Build', () => {
         debug: flag === 'debug'
       },
       tauri: {
+        allowlist: {
+          all: true
+        },
         embeddedServer: {
           active: mode === 'embedded-server'
         }

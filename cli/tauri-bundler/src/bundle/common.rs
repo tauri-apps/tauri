@@ -1,12 +1,9 @@
-use std;
+use crate::Settings;
 use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
-
-use term;
-use walkdir;
 
 /// Returns true if the path has a filename indicating that it is a high-desity
 /// "retina" icon.  Specifically, returns true the the file stem ends with
@@ -268,12 +265,18 @@ pub fn print_error(error: &anyhow::Error) -> crate::Result<()> {
   }
 }
 
-pub fn execute_with_output(cmd: &mut Command) -> crate::Result<()> {
+pub fn execute_with_verbosity(cmd: &mut Command, settings: &Settings) -> crate::Result<()> {
+  let stdio_config = if settings.is_verbose() {
+    Stdio::piped
+  } else {
+    Stdio::null
+  };
   let mut child = cmd
-    .stdout(Stdio::piped())
+    .stdout(stdio_config())
+    .stderr(stdio_config())
     .spawn()
     .expect("failed to spawn command");
-  {
+  if settings.is_verbose() {
     let stdout = child.stdout.as_mut().expect("Failed to get stdout handle");
     let reader = BufReader::new(stdout);
 
@@ -293,10 +296,8 @@ pub fn execute_with_output(cmd: &mut Command) -> crate::Result<()> {
 #[cfg(test)]
 mod tests {
   use super::{copy_dir, create_file, is_retina, resource_relpath, symlink_file};
-  use std;
   use std::io::Write;
   use std::path::PathBuf;
-  use tempfile;
 
   #[test]
   fn create_file_with_parent_dirs() {

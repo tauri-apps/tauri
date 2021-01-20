@@ -24,7 +24,7 @@ export const spawn = (
     env: process.env
   })
 
-  runner.on('close', code => {
+  runner.on('close', (code) => {
     log()
     if (code) {
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions

@@ -11,9 +11,11 @@ module.exports = {
   extends: [
     'standard-with-typescript',
     'plugin:@typescript-eslint/recommended-requiring-type-checking',
-    'plugin:lodash-template/recommended'
+    'plugin:lodash-template/recommended',
     // TODO: make this work with typescript
     // 'plugin:node/recommended'
+    'prettier',
+    'prettier/@typescript-eslint'
   ],
 
   plugins: ['@typescript-eslint', 'node', 'security'],
@@ -49,14 +51,6 @@ module.exports = {
     'security/detect-pseudoRandomBytes': 'error',
     'space-before-function-paren': 'off',
     '@typescript-eslint/default-param-last': 'off',
-    '@typescript-eslint/strict-boolean-expressions': 0,
-    '@typescript-eslint/space-before-function-paren': [
-      'error',
-      {
-        asyncArrow: 'always',
-        anonymous: 'never',
-        named: 'never'
-      }
-    ]
+    '@typescript-eslint/strict-boolean-expressions': 0
   }
 }

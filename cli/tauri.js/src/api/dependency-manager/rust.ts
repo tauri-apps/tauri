@@ -9,27 +9,38 @@ import https from 'https'
 
 const log = logger('dependency:rust')
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function download(url: string, dest: string): Promise<void> {
   const file = createWriteStream(dest)
   return await new Promise((resolve, reject) => {
-    https.get(url, response => {
-      response.pipe(file)
-      file.on('finish', function() {
-        file.close()
-        resolve()
+    https
+      .get(url, (response) => {
+        response.pipe(file)
+        file.on('finish', function () {
+          file.close()
+          resolve()
+        })
       })
-    }).on('error', function(err) {
-      unlinkSync(dest)
-      reject(err.message)
-    })
+      .on('error', function (err) {
+        unlinkSync(dest)
+        reject(err.message)
+      })
   })
-};
+}
 
 function installRustup(): void {
   if (platform() === 'win32') {
-    return spawnSync('powershell', [resolve(__dirname, '../../scripts/rustup-init.exe')], process.cwd())
+    return spawnSync(
+      'powershell',
+      [resolve(__dirname, '../../scripts/rustup-init.exe')],
+      process.cwd()
+    )
   }
-  return spawnSync('/bin/sh', [resolve(__dirname, '../../scripts/rustup-init.sh')], process.cwd())
+  return spawnSync(
+    '/bin/sh',
+    [resolve(__dirname, '../../scripts/rustup-init.sh')],
+    process.cwd()
+  )
 }
 
 function manageDependencies(managementType: ManagementType): void {
@@ -51,7 +62,4 @@ function update(): void {
   return manageDependencies(ManagementType.Update)
 }
 
-export {
-  install,
-  update
-}
+export { install, update }

@@ -18,8 +18,12 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
     )
     process.exit(1)
   }
-  const tauriConf = JSON.parse(readFileSync(tauriConfPath).toString()) as TauriConfig
-  const pkg = existsSync(pkgPath) ? nonWebpackRequire(pkgPath) as { productName: string } : null
+  const tauriConf = JSON.parse(
+    readFileSync(tauriConfPath).toString()
+  ) as TauriConfig
+  const pkg = existsSync(pkgPath)
+    ? (nonWebpackRequire(pkgPath) as { productName: string })
+    : null
 
   const config = merge(
     {
@@ -48,7 +52,8 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
           title: pkg?.productName ?? 'Tauri App'
         },
         security: {
-          csp: "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
+          csp:
+            "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
         },
         inliner: {
           active: true
@@ -60,15 +65,24 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
   ) as TauriConfig
 
   if (!isTauriConfig(config)) {
-    const messages = ajv.errorsText(
-      isTauriConfig.errors?.filter(e => e.keyword !== 'if').map(e => {
-        e.dataPath = e.dataPath.replace(/\./g, ' > ')
-        if (e.keyword === 'additionalProperties' && typeof e.message === 'string' && 'additionalProperty' in e.params) {
-          e.message = `has unknown property ${e.params.additionalProperty}`
-        }
-        return e
-      }), { dataVar: 'tauri.conf.json', separator: '\n' }
-    ).split('\n')
+    const messages = ajv
+      .errorsText(
+        isTauriConfig.errors
+          ?.filter((e) => e.keyword !== 'if')
+          .map((e) => {
+            e.dataPath = e.dataPath.replace(/\./g, ' > ')
+            if (
+              e.keyword === 'additionalProperties' &&
+              typeof e.message === 'string' &&
+              'additionalProperty' in e.params
+            ) {
+              e.message = `has unknown property ${e.params.additionalProperty}`
+            }
+            return e
+          }),
+        { dataVar: 'tauri.conf.json', separator: '\n' }
+      )
+      .split('\n')
 
     for (const message of messages) {
       error(message)
@@ -102,7 +116,9 @@ const getTauriConfig = (cfg: Partial<TauriConfig>): TauriConfig => {
   // bundle targets
   if (Array.isArray(config.tauri.bundle.targets)) {
     if (process.platform !== 'win32') {
-      config.tauri.bundle.targets = config.tauri.bundle.targets.filter(t => t !== 'msi')
+      config.tauri.bundle.targets = config.tauri.bundle.targets.filter(
+        (t) => t !== 'msi'
+      )
     }
   }
 

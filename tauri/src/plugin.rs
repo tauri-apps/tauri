@@ -9,15 +9,15 @@ pub trait Plugin {
   }
   /// Callback invoked when the webview is created.
   #[allow(unused_variables)]
-  fn created(&self, webview: &mut Webview) {}
+  fn created(&self, webview: &mut Webview<'_>) {}
 
   /// Callback invoked when the webview is ready.
   #[allow(unused_variables)]
-  fn ready(&self, webview: &mut Webview) {}
+  fn ready(&self, webview: &mut Webview<'_>) {}
 
   /// Add invoke_handler API extension commands.
   #[allow(unused_variables)]
-  fn extend_api(&self, webview: &mut Webview, payload: &str) -> Result<bool, String> {
+  fn extend_api(&self, webview: &mut Webview<'_>, payload: &str) -> Result<bool, String> {
     Err("unknown variant".to_string())
   }
 }
@@ -53,19 +53,19 @@ pub(crate) fn init_script() -> String {
   init
 }
 
-pub(crate) fn created(webview: &mut Webview) {
+pub(crate) fn created(webview: &mut Webview<'_>) {
   run_plugin(|ext| {
     ext.created(webview);
   });
 }
 
-pub(crate) fn ready(webview: &mut Webview) {
+pub(crate) fn ready(webview: &mut Webview<'_>) {
   run_plugin(|ext| {
     ext.ready(webview);
   });
 }
 
-pub(crate) fn extend_api(webview: &mut Webview, arg: &str) -> Result<bool, String> {
+pub(crate) fn extend_api(webview: &mut Webview<'_>, arg: &str) -> Result<bool, String> {
   PLUGINS.with(|plugins| {
     let exts = plugins.lock().unwrap();
     for ext in exts.iter() {

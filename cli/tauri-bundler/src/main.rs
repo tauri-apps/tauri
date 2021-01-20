@@ -107,6 +107,10 @@ fn run() -> crate::Result<()> {
             .long("version")
             .short("v")
             .help("Read the version of the bundler"),
+        ).arg(
+          Arg::with_name("verbose")
+            .long("verbose")
+            .help("Enable verbose output"),
         ),
     )
     .subcommand(
@@ -194,7 +198,7 @@ fn run() -> crate::Result<()> {
         if !output_str.contains("win32webviewhost_cw5n1h2txyewy") {
           println!("Running Loopback command");
           Command::new("powershell")
-            .args(&vec![
+            .args(&[
               "CheckNetIsolation LoopbackExempt -a -n=\"Microsoft.Win32WebViewHost_cw5n1h2txyewy\"",
             ])
             .force_prompt(true)

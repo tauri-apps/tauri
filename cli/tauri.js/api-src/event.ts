@@ -13,7 +13,11 @@ export type EventCallback<T> = (event: Event<T>) => void
  * @param event the event name
  * @param handler the event handler callback
  */
-function listen<T>(event: string, handler: EventCallback<T>, once = false): void {
+function listen<T>(
+  event: string,
+  handler: EventCallback<T>,
+  once = false
+): void {
   invoke({
     cmd: 'listen',
     event,
@@ -36,7 +40,4 @@ function emit(event: string, payload?: string): void {
   })
 }
 
-export {
-  listen,
-  emit
-}
+export { listen, emit }

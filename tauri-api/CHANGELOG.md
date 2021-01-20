@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.7.5]
+
+-   `dirs` crate is unmaintained, now using `dirs-next` instead.
+    -   [82cda98](https://www.github.com/tauri-apps/tauri/commit/82cda98532975c6d4b1c93bf2f326173f39e0964) chore(tauri) `dirs` crate is unmaintained, use `dirst-next` instead ([#1057](https://www.github.com/tauri-apps/tauri/pull/1057)) on 2020-10-17
+    -   [72996be](https://www.github.com/tauri-apps/tauri/commit/72996be1bd3eb878c4cf30bfec79058071c26d7a) apply version updates ([#1024](https://www.github.com/tauri-apps/tauri/pull/1024)) on 2020-10-21
+
+## [0.7.4]
+
+-   Bump all deps as noted in #975, #976, #977, #978, and #979.
+    -   [06dd75b](https://www.github.com/tauri-apps/tauri/commit/06dd75b68a15d388808c51ae2bf50554ae761d9d) chore: bump all js/rust deps ([#983](https://www.github.com/tauri-apps/tauri/pull/983)) on 2020-08-20
+
 ## [0.7.3]
 
 -   Use native dialog on `window.alert` and `window.confirm`.

@@ -8,6 +8,7 @@ on:
 jobs:
   version-or-publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 65
     outputs:
       change: ${{ steps.covector.outputs.change }}
       commandRan: ${{ steps.covector.outputs.commandRan }}
@@ -19,7 +20,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v1
         with:
-          node-version: 12
+          node-version: 14
           registry-url: 'https://registry.npmjs.org'
       - name: cargo login
         run: cargo login ${{ secrets.crate_token }}
@@ -32,13 +33,14 @@ jobs:
         id: covector
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          CARGO_AUDIT_OPTIONS: ${{ secrets.CARGO_AUDIT_OPTIONS }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           command: 'version-or-publish'
           createRelease: true
       - name: Create Pull Request With Versions Bumped
-        if: ${{ steps.covector.outputs.command }} == 'version'
-        uses: tauri-apps/create-pull-request@v2.8.0
+        if: steps.covector.outputs.commandRan == 'version'
+        uses: tauri-apps/create-pull-request@v3.4.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: release/version-updates
@@ -46,6 +48,51 @@ jobs:
           commit-message: "apply version updates"
           labels: "version updates"
           body: ${{ steps.covector.outputs.change }}
+
+  update-docs:
+    needs: version-or-publish
+    if: needs.version-or-publish.outputs.successfulPublish == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout tauri
+        uses: actions/checkout@v2
+        with:
+          path: tauri
+      - name: checkout tauri-docs
+        uses: actions/checkout@v2
+        with:
+          repository: tauri-apps/tauri-docs
+          path: tauri-docs
+      - name: install webkit2gtk
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0
+      - name: generate rust docs
+        working-directory: tauri
+        run: cargo doc --no-deps
+      - name: run rustdocusaurus
+        uses: tauri-apps/rustdocusaurus/github-action@v1
+        with:
+          originPath: ./tauri/target/doc/
+          targetPath: ./tauri-docs/docs/en/api/rust/
+          sidebarPath: ./tauri-docs/sidebars.json
+          linksRoot: /docs/api/rust/
+          cratesToProcess: "tauri,tauri_api,tauri_utils"
+      - name: git config
+        run: |
+          git config --global user.name "${{ github.event.pusher.name }}"
+          git config --global user.email "${{ github.event.pusher.email }}"
+      - name: create pull request for updated docs
+        uses: tauri-apps/create-pull-request@v3.4.1
+        with:
+          token: ${{ secrets.TAURI_BOT_PAT }}
+          commit-message: "chore(docs): Update Rust docs"
+          branch: docs/release
+          path: tauri-docs
+          title: Update Docs
+          labels: "new release"
+          body: |
+            These are the updated docs from the most recent release.
 
   tangle:
     runs-on: ubuntu-latest

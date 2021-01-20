@@ -23,11 +23,10 @@ use super::common;
 use crate::Settings;
 
 use anyhow::Context;
-use ar;
-use icns;
 use image::png::PngDecoder;
 use image::{self, GenericImageView, ImageDecoder};
 use md5;
+use libflate::gzip;
 use std::process::{Command, Stdio};
 use walkdir::WalkDir;
 
@@ -192,7 +191,7 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   writeln!(file, "[Desktop Entry]")?;
   writeln!(file, "Encoding=UTF-8")?;
   if let Some(category) = settings.app_category() {
-    write!(file, "Categories={}", category.gnome_desktop_categories())?;
+    writeln!(file, "Categories={}", category.gnome_desktop_categories())?;
   }
   if !settings.short_description().is_empty() {
     writeln!(file, "Comment={}", settings.short_description())?;

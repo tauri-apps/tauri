@@ -20,7 +20,9 @@ describe('[CLI] tauri.js', () => {
   it('will not run an unavailable command', async () => {
     jest.spyOn(console, 'log')
     tauri('foo')
-    expect(console.log.mock.calls[0][0].split('.')[0]).toBe('Invalid command foo')
+    expect(console.log.mock.calls[0][0].split('.')[0]).toBe(
+      'Invalid command foo'
+    )
     jest.clearAllMocks()
   })
 
@@ -28,9 +30,11 @@ describe('[CLI] tauri.js', () => {
     jest.spyOn(console, 'log')
     jest.mock('fs')
     try {
-    tauri('init')
+      tauri('init')
     } catch {}
-    expect(console.log.mock.calls[0][0].split('.')[0]).toBe('[tauri]: running init')
+    expect(console.log.mock.calls[0][0].split('.')[0]).toBe(
+      '[tauri]: running init'
+    )
     jest.clearAllMocks()
   })
   it('gets you help', async () => {

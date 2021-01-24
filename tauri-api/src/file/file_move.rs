@@ -56,8 +56,8 @@ impl<'a> Move<'a> {
     Ok(())
   }
 
-  // Walk in the source and copy all files and create directories if needed by
-  // replacing existing elements. (equivalent to a cp -R)
+  /// Walk in the source and copy all files and create directories if needed by
+  /// replacing existing elements. (equivalent to a cp -R)
   pub fn walk_to_dest(&self, dest: &path::Path) -> crate::Result<()> {
     match self.temp {
       None => {

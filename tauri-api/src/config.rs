@@ -108,6 +108,7 @@ fn default_updater() -> UpdaterConfig {
 
 #[derive(PartialEq, Deserialize, Debug)]
 #[serde(tag = "embeddedServer", rename_all = "camelCase")]
+/// Config for the embeddedServer mode.
 pub struct EmbeddedServerConfig {
   /// The embedded server host.
   #[serde(default = "default_host")]

@@ -1,36 +1,36 @@
 use crate::app;
 use crate::event;
+use crate::Webview;
 use std::{
   process::exit,
   thread::{sleep, spawn},
   time::Duration,
 };
 use tauri_api::{config::get as get_config, dialog::ask, dialog::DialogSelection};
-use web_view::WebView;
 
 use tauri_updater;
 
 /// Spawn the update process
-pub fn spawn_update_process(meta: &app::AppMeta, webview: &WebView<'_, ()>) -> crate::Result<()> {
+pub fn spawn_update_process(meta: &app::AppMeta, webview: &mut Webview<'_>) -> crate::Result<()> {
   if let Err(e) = init_updater(meta, webview) {
     // we got an error, lets emit it so we can catch it with our event system later
-    let handler = webview.handle();
+    let mut webview_ = webview.as_mut();
     println!("[UPDATE ERROR] {}", e);
     event::emit(
-      &handler,
-      "updater-error".into(),
+      &mut webview_,
+      "updater-error",
       Some(format!(r#"{{"error":"{:}"}}"#, e,)),
-    );
+    )?;
   }
 
   Ok(())
 }
 
 // updater entrypoint
-fn init_updater(meta: &app::AppMeta, webview: &WebView<'_, ()>) -> crate::Result<()> {
+fn init_updater(meta: &app::AppMeta, webview: &mut Webview<'_>) -> crate::Result<()> {
   let config = get_config()?;
   let meta = meta.clone();
-  let handler = webview.handle();
+  let mut webview_ = webview.as_mut();
 
   // do nothing if our updater is not active or we can't find endpoints
   if !config.tauri.updater.active || config.tauri.updater.endpoints.is_none() {
@@ -75,20 +75,21 @@ fn init_updater(meta: &app::AppMeta, webview: &WebView<'_, ()>) -> crate::Result
 
       // tell the world about our new update
       event::emit(
-        &handler,
-        "update-available".into(),
+        &mut webview_,
+        "update-available",
         Some(format!(
           r#"{{"version":"{:}", "date":"{:}", "body":"{:}"}}"#,
           updater.version, updater.date, body,
         )),
-      );
+      )?;
 
       // we listen to our event to trigger the download
       event::listen(String::from("updater-install"), move |_msg| {
         // set status to downloading
-        event::emit(
-          &handler,
-          "update-install-status".into(),
+        // TODO handle error
+        let _ = event::emit(
+          &mut webview_,
+          "update-install-status",
           Some(format!(r#"{{"status":"PENDING"}}"#)),
         );
 
@@ -97,9 +98,10 @@ fn init_updater(meta: &app::AppMeta, webview: &WebView<'_, ()>) -> crate::Result
         // but its a bit more complexe
         &updater.download_and_install(pubkey.clone()).unwrap_or(());
 
-        event::emit(
-          &handler,
-          "update-install-status".into(),
+        // TODO handle error
+        let _ = event::emit(
+          &mut webview_,
+          "update-install-status",
           Some(format!(r#"{{"status":"DONE"}}"#)),
         );
       });

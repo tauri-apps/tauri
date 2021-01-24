@@ -68,7 +68,7 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   {
     if app_meta.is_some() {
       let meta = app_meta.expect("Can't extract app metadata").clone();
-      spawn_update_process(&meta, &webview)?;
+      spawn_update_process(&meta, &mut webview)?;
     }
   }
 

@@ -1,5 +1,4 @@
 const path = require("path");
-const execa = require("execa");
 const scaffe = require("scaffe");
 const init = require("tauri/dist/api/init");
 

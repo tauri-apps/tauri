@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.14.1]
+
+-   Fixed a TypeScript issue where it didn't allow you to put the "recursive" option in the directory functions.
+    -   [2fd1067](https://www.github.com/tauri-apps/tauri/commit/2fd1067a4c7ef86dda074867b6a6702527962829) Fix: add recursive option to directory APIs ([#1141](https://www.github.com/tauri-apps/tauri/pull/1141)) on 2021-01-12
+
 ## [0.14.0]
 
 -   Update the tauri template to properly set the app icon id on Windows so the webview can load the executable icon.

@@ -139,6 +139,16 @@
     }
   },
   "packages": {
+    "api-definitions": {
+      "path": "./cli/api-definitions",
+      "manager": "javascript",
+      "assets": [
+        {
+          "path": "./cli/api-definitions/tauri-${ pkgFile.version }.tgz",
+          "name": "api-${ pkgFile.version }.tgz"
+        }
+      ]
+    },
     "tauri.js": {
       "path": "./cli/bindings/tauri.js",
       "manager": "javascript",
@@ -175,7 +185,7 @@
     "tauri": {
       "path": "./tauri",
       "manager": "rust",
-      "dependencies": ["tauri-api", "tauri-updater"]
+      "dependencies": ["api-definitions", "tauri-api", "tauri-updater"]
     }
   }
 }

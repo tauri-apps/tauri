@@ -1,7 +1,7 @@
 {
-  "name": "tauri",
+  "name": "@tauri-apps/cli",
   "version": "0.13.0",
-  "description": "Multi-binding collection of libraries and templates for building Tauri apps",
+  "description": "Command line interface for building Tauri apps",
   "bin": {
     "tauri": "./bin/tauri.js"
   },

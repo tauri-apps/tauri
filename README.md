@@ -95,7 +95,7 @@ If you are interested in making a tauri-app, please visit the [documentation web
 
 | Detail | Tauri | Electron |
 |--|--------|----------|
-| Binary Size MacOS | 0.6 MB (1) | 47.7 MB |
+| Binary Size MacOS | 0.6 MB | 147.7 MB |
 | Memory Consumption MacOS | 13 MB | 34.1 MB |
 | Interface Service Provider | Varies | Chromium |
 | Backend Binding | Rust | Node.js (ECMAScript) |

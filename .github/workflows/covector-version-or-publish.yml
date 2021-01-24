@@ -117,8 +117,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - run: echo ::set-env name=PUBLISHED::$(jq '.${{ matrix.package.name }}.command' ${{ needs.version-or-publish.outputs.change }})
-      - run: echo ::set-env name=PACKAGE_VERSION::$(jq '.${{ matrix.package.name }}.pkg.pkgFile.version' ${{ needs.version-or-publish.outputs.change }})
+      - run: echo "PUBLISHED=$(jq '.${{ matrix.package.name }}.command' ${{ needs.version-or-publish.outputs.change }})" >> $GITHUB_ENV
+      - run: echo "PACKAGE_VERSION=$(jq '.${{ matrix.package.name }}.pkg.pkgFile.version' ${{ needs.version-or-publish.outputs.change }})" >> $GITHUB_ENV
       - name: Tangle Release
         if:  env.PUBLISHED != 'false' && startsWith(env.PUBLISHED, 'parse error') != true && startsWith(env.PACKAGE_VERSION, 'parse error') != true
         id: tangle_release

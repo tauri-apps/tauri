@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.1]
+
+-   Update webview-official dependency which fix compatibility on macOS.
+    -   [692312a](https://www.github.com/tauri-apps/tauri/commit/692312a0f51a05dd418d9cad553a695f3347b943) chore(deps) Update webview-official ([#1152](https://www.github.com/tauri-apps/tauri/pull/1152)) on 2021-01-24
+
 ## [0.11.0]
 
 -   Match writeBinaryFile command name between js and rust

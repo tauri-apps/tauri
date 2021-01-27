@@ -68,7 +68,7 @@ function schemaParser(schemaName, content) {
     if (line === `export const ${schemaName} = {`) {
       output.push('{')
     } else if (output.length) {
-      if (line === '};') {
+      if (line === '}') {
         output.push('}')
         break
       }
@@ -76,5 +76,7 @@ function schemaParser(schemaName, content) {
     }
   }
 
-  return output.join('\n')
+  const json = output.join('\n')
+  const object = eval(`(${json})`)
+  return JSON.stringify(object, null, 2)
 }

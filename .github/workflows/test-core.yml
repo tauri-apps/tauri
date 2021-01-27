@@ -62,8 +62,8 @@ jobs:
           toolchain: stable
           override: true
       - name: build api
-        working-directory: ./cli/bindings/tauri.js
-        run: yarn && yarn build:api
+        working-directory: ./cli/api-definitions
+        run: yarn && yarn build
       - name: build CLI
         uses: actions-rs/cargo@v1
         with:

@@ -36,6 +36,17 @@
     },
     {
       "enabled": true,
+      "paths": ["cli/**"],
+      "groupName": "Tauri CLI",
+      "groupSlug": "allTauriCLI",
+      "commitMessagePrefix": "chore(deps)",
+      "lockFileMaintenance": {
+        "enabled": true
+      },
+      "rebaseConflictedPrs": false
+    },
+    {
+      "enabled": true,
       "paths": ["cli/tauri-bundler/**"],
       "groupName": "Tauri Bundler",
       "groupSlug": "allTauriBundler",
@@ -50,6 +61,17 @@
       "paths": ["cli/bindings/tauri.js/**"],
       "groupName": "Tauri JS CLI",
       "groupSlug": "allTauriJSCLI",
+      "commitMessagePrefix": "chore(deps)",
+      "lockFileMaintenance": {
+        "enabled": true
+      },
+      "rebaseConflictedPrs": false
+    },
+    {
+      "enabled": true,
+      "paths": ["cli/api-definitions/**"],
+      "groupName": "Tauri API Definitions",
+      "groupSlug": "allTauriAPIDefinitions",
       "commitMessagePrefix": "chore(deps)",
       "lockFileMaintenance": {
         "enabled": true

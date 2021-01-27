@@ -1,1 +1,0 @@
-"use strict";Object.defineProperty(exports,"__esModule",{value:!0}),require("./tauri-fa600dd3.js");var e=require("./notification-1623f2db.js");exports.isPermissionGranted=e.isPermissionGranted,exports.requestPermission=e.requestPermission,exports.sendNotification=e.sendNotification;

@@ -1,1 +1,0 @@
-"use strict";var e=require("./tauri-fa600dd3.js");function t(t){e.invoke({cmd:"setTitle",title:t})}function i(t){e.invoke({cmd:"open",uri:t})}var o=Object.freeze({__proto__:null,setTitle:t,open:i});exports.open=i,exports.setTitle=t,exports.window=o;

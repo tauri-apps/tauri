@@ -18,7 +18,7 @@ const tauri = function (command) {
   }
 
   if (rustCliCmds.includes(command)) {
-    const {  runOnRustCli } = require('../dist/helpers/rust-cli')
+    const { runOnRustCli } = require('../dist/helpers/rust-cli')
     if (process.argv && !process.env.test) {
       process.argv.splice(0, 3)
     }

@@ -39,8 +39,7 @@ module.exports = {
     '../../package.json': '<rootDir>/package.json'
   },
   transform: {
-    'templates[\\\\/]tauri.js':
-      './test/jest/raw-loader-transformer.js',
+    'templates[\\\\/]tauri.js': './test/jest/raw-loader-transformer.js',
     '\\.(js|ts)$': 'babel-jest'
   }
 }

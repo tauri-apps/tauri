@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::convert::TryFrom;
 use std::path::PathBuf;
 

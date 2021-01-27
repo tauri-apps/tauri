@@ -55,7 +55,7 @@ impl Dev {
     if let Some(before_dev) = &config.build.before_dev_command {
       let mut cmd: Option<&str> = None;
       let mut args: Vec<&str> = vec![];
-      for token in before_dev.split(" ") {
+      for token in before_dev.split(' ') {
         if cmd.is_none() {
           cmd = Some(token);
         } else {
@@ -80,7 +80,7 @@ impl Dev {
       let timeout = Duration::from_secs(3);
       let wait_time = Duration::from_secs(30);
       let mut total_time = timeout;
-      while let Err(_) = RequestBuilder::new(Method::GET, &dev_path).send() {
+      while RequestBuilder::new(Method::GET, &dev_path).send().is_err() {
         logger.warn("Waiting for your dev server to start...");
         sleep(timeout);
         total_time += timeout;
@@ -171,10 +171,11 @@ impl Dev {
       let child_clone = child_arc.clone();
       std::thread::spawn(move || {
         child_clone.wait().expect("failed to wait on child");
-        if let Err(_) = child_wait_rx
+        if child_wait_rx
           .lock()
           .expect("failed to get child_wait_rx lock")
           .try_recv()
+          .is_err()
         {
           std::process::exit(1);
         }

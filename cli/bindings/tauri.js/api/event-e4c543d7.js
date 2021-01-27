@@ -1,1 +1,0 @@
-import{i as e,t}from"./tauri-2d4a73a3.js";function a(a,n,i){void 0===i&&(i=!1),e({cmd:"listen",event:a,handler:t(n,i),once:i})}function n(t,a){e({cmd:"emit",event:t,payload:a})}var i=Object.freeze({__proto__:null,listen:a,emit:n});export{n as a,i as e,a as l};

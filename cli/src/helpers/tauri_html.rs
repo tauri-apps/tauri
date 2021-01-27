@@ -16,7 +16,7 @@ fn handlebars() -> &'static Handlebars<'static> {
         "mutation-observer.js",
         include_str!("../templates/mutation-observer.js"),
       )
-      .or_else(|e| Err(e.to_string()))
+      .map_err(|e| e.to_string())
       .expect("Failed to setup handlebar template");
     handlebars
   });

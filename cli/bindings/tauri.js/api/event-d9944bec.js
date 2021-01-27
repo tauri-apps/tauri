@@ -1,1 +1,0 @@
-"use strict";var e=require("./tauri-fa600dd3.js");function t(t,n,i){void 0===i&&(i=!1),e.invoke({cmd:"listen",event:t,handler:e.transformCallback(n,i),once:i})}function n(t,n){e.invoke({cmd:"emit",event:t,payload:n})}var i=Object.freeze({__proto__:null,listen:t,emit:n});exports.emit=n,exports.event=i,exports.listen=t;

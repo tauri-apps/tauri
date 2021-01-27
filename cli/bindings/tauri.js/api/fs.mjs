@@ -1,1 +1,0 @@
-import"./tauri-2d4a73a3.js";export{B as BaseDirectory,B as Dir,g as copyFile,d as createDir,a as readBinaryFile,c as readDir,r as readTextFile,e as removeDir,h as removeFile,i as renameFile,b as writeBinaryFile,w as writeFile}from"./fs-55ffecf1.js";

@@ -94,8 +94,8 @@ where
   S: Serializer,
 {
   match x {
-    &Port::Random => s.serialize_str("random"),
-    &Port::Value(val) => s.serialize_u16(val),
+    Port::Random => s.serialize_str("random"),
+    Port::Value(val) => s.serialize_u16(*val),
   }
 }
 
@@ -246,6 +246,7 @@ pub struct CliConfig {
   subcommands: Option<HashMap<String, CliConfig>>,
 }
 
+#[allow(dead_code)]
 impl CliConfig {
   /// List of args for the command
   pub fn args(&self) -> Option<&Vec<CliArg>> {

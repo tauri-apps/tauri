@@ -8,7 +8,9 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     .exists()
   {
     println!("cargo:rerun-if-changed=./api-definition");
-    let exit_status = Command::new("yarn").current_dir("./api-definitions").status()?;
+    let exit_status = Command::new("yarn")
+      .current_dir("./api-definitions")
+      .status()?;
     if !exit_status.success() {
       panic!("Failed to install @tauri-apps/api yarn deps");
     }

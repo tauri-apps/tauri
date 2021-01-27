@@ -28,6 +28,6 @@ pub fn execute_with_output(cmd: &mut Command) -> crate::Result<()> {
   if status.success() {
     Ok(())
   } else {
-    Err(anyhow::anyhow!("command failed").into())
+    Err(anyhow::anyhow!("command failed"))
   }
 }

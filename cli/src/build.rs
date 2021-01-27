@@ -98,7 +98,7 @@ impl Build {
     if let Some(before_build) = &config.build.before_build_command {
       let mut cmd: Option<&str> = None;
       let mut args: Vec<&str> = vec![];
-      for token in before_build.split(" ") {
+      for token in before_build.split(' ') {
         if cmd.is_none() {
           cmd = Some(token);
         } else {

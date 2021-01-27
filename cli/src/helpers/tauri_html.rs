@@ -1,8 +1,8 @@
 use handlebars::Handlebars;
 use html5ever::{interface::QualName, namespace_url, ns, LocalName};
-use inline_assets::inline_html_string;
 use kuchiki::{traits::*, NodeRef};
 use once_cell::sync::Lazy;
+use tauri_inliner::inline_html_string;
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -84,8 +84,9 @@ impl TauriHtml {
       target.as_node().prepend(tauri_script);
 
       if self.global_tauri {
-        let global_api_script =
-          create_script_element(include_str!("../../api-definitions/dist/tauri.bundle.umd.js"));
+        let global_api_script = create_script_element(include_str!(
+          "../../api-definitions/dist/tauri.bundle.umd.js"
+        ));
         target.as_node().prepend(global_api_script);
       }
     }

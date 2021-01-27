@@ -149,24 +149,25 @@
         }
       ]
     },
+    "tauri-bundler": {
+      "path": "./cli/tauri-bundler",
+      "manager": "rust"
+    },
+    "tauri-cli": {
+      "path": "./cli",
+      "manager": "rust",
+      "dependencies": ["api-definitions", "tauri-bundler", "tauri"]
+    },
     "tauri.js": {
       "path": "./cli/bindings/tauri.js",
       "manager": "javascript",
-      "dependencies": ["tauri"],
+      "dependencies": ["tauri-cli"],
       "assets": [
         {
           "path": "./cli/bindings/tauri.js/tauri-${ pkgFile.version }.tgz",
           "name": "tauri.js-${ pkgFile.version }.tgz"
         }
       ]
-    },
-    "tauri-cli": {
-      "path": "./cli",
-      "manager": "rust"
-    },
-    "tauri-bundler": {
-      "path": "./cli/tauri-bundler",
-      "manager": "rust"
     },
     "tauri-utils": {
       "path": "./tauri-utils",

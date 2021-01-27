@@ -2,7 +2,6 @@ use super::category::AppCategory;
 use crate::bundle::common;
 use crate::bundle::platform::target_triple;
 
-use glob;
 use serde::Deserialize;
 use target_build_utils::TargetInfo;
 

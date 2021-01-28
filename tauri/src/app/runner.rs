@@ -312,9 +312,7 @@ fn build_webview(
       };
       application.run_setup(&mut w, source.to_string());
       if source == "window-1" {
-        w.dispatch(|w| {
-          crate::plugin::ready(w);
-        });
+        crate::plugin::ready(&mut w);
       }
     } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
       let content_href = match content_clone {

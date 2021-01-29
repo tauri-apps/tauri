@@ -47,13 +47,22 @@ fn init_command(matches: &ArgMatches) -> Result<()> {
 
 fn dev_command(matches: &ArgMatches) -> Result<()> {
   let exit_on_panic = matches.is_present("exit-on-panic");
-  dev::Dev::new().exit_on_panic(exit_on_panic).run()
+  let config = matches.value_of("config");
+
+  let mut dev_runner = dev::Dev::new().exit_on_panic(exit_on_panic);
+
+  if let Some(config) = config {
+    dev_runner = dev_runner.config(config.to_string());
+  }
+
+  dev_runner.run()
 }
 
 fn build_command(matches: &ArgMatches) -> Result<()> {
   let debug = matches.is_present("debug");
   let verbose = matches.is_present("verbose");
   let targets = matches.values_of_lossy("target");
+  let config = matches.value_of("config");
 
   let mut build_runner = build::Build::new();
   if debug {
@@ -64,6 +73,9 @@ fn build_command(matches: &ArgMatches) -> Result<()> {
   }
   if let Some(targets) = targets {
     build_runner = build_runner.targets(targets);
+  }
+  if let Some(config) = config {
+    build_runner = build_runner.config(config.to_string());
   }
 
   build_runner.run()

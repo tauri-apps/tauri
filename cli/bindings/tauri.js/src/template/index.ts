@@ -1,6 +1,6 @@
 import { CargoManifest } from './../types/cargo'
 import { existsSync, removeSync, writeFileSync } from 'fs-extra'
-import { join, normalize, resolve } from 'path'
+import { join, normalize, resolve, isAbsolute } from 'path'
 import { TauriConfig } from 'types'
 import { merge } from 'webpack-merge'
 import copyTemplates from '../helpers/copy-templates'
@@ -67,10 +67,9 @@ Run \`tauri init --force template\` to overwrite.`)
   }
 
   const resolveTauriPath = (tauriPath: string): string => {
-    const resolvedPath =
-      tauriPath.startsWith('/') || /^\S:/g.test(tauriPath)
-        ? join(tauriPath, 'tauri') // we received a full path as argument
-        : join('..', tauriPath, 'tauri') // we received a relative path
+    const resolvedPath = isAbsolute(tauriPath)
+      ? join(tauriPath, 'tauri') // we received a full path as argument
+      : join('..', tauriPath, 'tauri') // we received a relative path
     return resolvedPath.replace(/\\/g, '/')
   }
 

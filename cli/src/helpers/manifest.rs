@@ -1,4 +1,4 @@
-use super::{app_paths::tauri_dir, config::get as get_config};
+use super::{app_paths::tauri_dir, config::Config};
 
 use convert_case::{Case, Casing};
 use toml_edit::{Array, Document, Value};
@@ -6,8 +6,7 @@ use toml_edit::{Array, Document, Value};
 use std::fs::File;
 use std::io::{Read, Write};
 
-pub fn rewrite_manifest() -> crate::Result<()> {
-  let config = get_config()?;
+pub fn rewrite_manifest(config: &Config) -> crate::Result<()> {
   let manifest_path = tauri_dir().join("Cargo.toml");
   let mut manifest_str = String::new();
   let mut manifest_file = File::open(&manifest_path)?;

@@ -1,6 +1,6 @@
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
-  config::{get as get_config, reload as reload_config},
+  config::{get as get_config, reload as reload_config, Config},
   manifest::rewrite_manifest,
   Logger, TauriHtml,
 };
@@ -31,11 +31,17 @@ impl Drop for ChildGuard {
 #[derive(Default)]
 pub struct Dev {
   exit_on_panic: bool,
+  config: Option<String>,
 }
 
 impl Dev {
   pub fn new() -> Self {
     Default::default()
+  }
+
+  pub fn config(mut self, config: String) -> Self {
+    self.config.replace(config);
+    self
   }
 
   pub fn exit_on_panic(mut self, exit_on_panic: bool) -> Self {
@@ -46,7 +52,7 @@ impl Dev {
   pub fn run(self) -> crate::Result<()> {
     let logger = Logger::new("tauri:dev");
     let tauri_path = tauri_dir();
-    let config = get_config()?;
+    let config = get_config(self.config.as_deref())?;
     let mut config_mut = config.clone();
     let mut _guard = None;
     let mut process: Arc<SharedChild>;
@@ -56,7 +62,7 @@ impl Dev {
       let mut cmd: Option<&str> = None;
       let mut args: Vec<&str> = vec![];
       for token in before_dev.split(' ') {
-        if cmd.is_none() {
+        if cmd.is_none() && !token.is_empty() {
           cmd = Some(token);
         } else {
           args.push(token)
@@ -98,7 +104,8 @@ impl Dev {
       let proxy_port = dev_port + 1;
 
       logger.log(format!("starting dev proxy on port {}", proxy_port));
-      std::thread::spawn(move || proxy_dev_server(&proxy_path, proxy_port));
+      let config_ = config.clone();
+      std::thread::spawn(move || proxy_dev_server(&config_, &proxy_path, proxy_port));
 
       new_dev_path = format!(
         "http://{}:{}",
@@ -118,7 +125,7 @@ impl Dev {
     set_var("TAURI_DIST_DIR", tauri_path.join(&config.build.dist_dir));
     set_var("TAURI_CONFIG", serde_json::to_string(&config_mut)?);
 
-    rewrite_manifest()?;
+    rewrite_manifest(&config)?;
 
     let (child_wait_tx, child_wait_rx) = channel();
     let child_wait_rx = Arc::new(Mutex::new(child_wait_rx));
@@ -132,7 +139,10 @@ impl Dev {
     watcher.watch(tauri_path.join("Cargo.toml"), RecursiveMode::Recursive)?;
     watcher.watch(tauri_path.join("tauri.conf.json"), RecursiveMode::Recursive)?;
     if !running_dev_server {
-      watcher.watch(config_mut.build.dev_path, RecursiveMode::Recursive)?;
+      watcher.watch(
+        config_mut.build.dev_path.to_string(),
+        RecursiveMode::Recursive,
+      )?;
     }
 
     loop {
@@ -149,8 +159,8 @@ impl Dev {
           let _ = child_wait_tx.send(true);
           process.kill()?;
           if event_path.file_name() == Some(OsStr::new("tauri.conf.json")) {
-            config_mut = reload_config()?.clone();
-            rewrite_manifest()?;
+            config_mut = reload_config(Some(&serde_json::to_string(&config_mut)?))?.clone();
+            rewrite_manifest(&config_mut)?;
             config_mut.build.dev_path = new_dev_path.clone();
             set_var("TAURI_CONFIG", serde_json::to_string(&config_mut)?);
           }
@@ -186,9 +196,7 @@ impl Dev {
   }
 }
 
-fn proxy_dev_server(dev_path: &Url, dev_port: u16) -> crate::Result<()> {
-  let config = get_config()?;
-
+fn proxy_dev_server(config: &Config, dev_path: &Url, dev_port: u16) -> crate::Result<()> {
   let server_url = format!(
     "{}:{}",
     dev_path.host_str().expect("failed to read dev_path host"),

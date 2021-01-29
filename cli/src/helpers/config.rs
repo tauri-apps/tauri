@@ -1,3 +1,4 @@
+use json_patch::merge;
 use once_cell::sync::OnceCell;
 use serde::de::{Deserializer, Error as DeError, Visitor};
 use serde::ser::Serializer;
@@ -389,7 +390,7 @@ fn default_build() -> BuildConfig {
 }
 
 /// Gets the static parsed config from `tauri.conf.json`.
-fn get_internal(reload: bool) -> crate::Result<&'static Config> {
+fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<&'static Config> {
   if let Some(config) = CONFIG.get() {
     if !reload {
       return Ok(config);
@@ -399,7 +400,14 @@ fn get_internal(reload: bool) -> crate::Result<&'static Config> {
   let path = super::app_paths::tauri_dir().join("tauri.conf.json");
   let file = File::open(path)?;
   let buf = BufReader::new(file);
-  let config = serde_json::from_reader(buf)?;
+  let mut config: JsonValue = serde_json::from_reader(buf)?;
+
+  if let Some(merge_config) = merge_config {
+    let merge_config: JsonValue = serde_json::from_str(&merge_config)?;
+    merge(&mut config, &merge_config);
+  }
+
+  let config = serde_json::from_value(config)?;
 
   CONFIG
     .set(config)
@@ -409,10 +417,10 @@ fn get_internal(reload: bool) -> crate::Result<&'static Config> {
   Ok(config)
 }
 
-pub fn get() -> crate::Result<&'static Config> {
-  get_internal(false)
+pub fn get(merge_config: Option<&str>) -> crate::Result<&'static Config> {
+  get_internal(merge_config, false)
 }
 
-pub fn reload() -> crate::Result<&'static Config> {
-  get_internal(true)
+pub fn reload(merge_config: Option<&str>) -> crate::Result<&'static Config> {
+  get_internal(merge_config, true)
 }

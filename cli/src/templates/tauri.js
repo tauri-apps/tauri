@@ -90,7 +90,7 @@ switch (navigator.platform) {
     window.__TAURI__ = {}
   }
   window.__TAURI__.invoke = function invoke(args) {
-    window.external.invoke(JSON.stringify(args))
+    window.__TAURI_INVOKE_HANDLER__(args)
   }
 
   window.__TAURI__.transformCallback = function transformCallback(callback) {

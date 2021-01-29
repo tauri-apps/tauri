@@ -31,6 +31,7 @@ module.exports = {
   moduleFileExtensions: ['ts', 'js', 'json'],
   moduleNameMapper: {
     '^~/(.*)$': '<rootDir>/$1',
+    '^dist/(.*)$': '<rootDir>/dist/$1',
     '^bin/(.*)$': '<rootDir>/bin/$1',
     '^helpers/(.*)$': '<rootDir>/src/helpers/$1',
     '^api/(.*)$': '<rootDir>/src/api/$1',

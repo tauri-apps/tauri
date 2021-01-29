@@ -22,6 +22,7 @@ pub struct Build {
   debug: bool,
   verbose: bool,
   targets: Option<Vec<String>>,
+  config: Option<String>,
 }
 
 impl Build {
@@ -44,8 +45,13 @@ impl Build {
     self
   }
 
+  pub fn config(mut self, config: String) -> Self {
+    self.config.replace(config);
+    self
+  }
+
   pub fn run(self) -> crate::Result<()> {
-    let config = get_config()?;
+    let config = get_config(self.config.as_deref())?;
     let feature = if config.tauri.embedded_server.active {
       "embedded-server"
     } else {
@@ -82,7 +88,7 @@ impl Build {
     set_var("TAURI_DIR", &tauri_path);
     set_var("TAURI_DIST_DIR", tauri_path.join(&config.build.dist_dir));
 
-    rewrite_manifest()?;
+    rewrite_manifest(&config)?;
 
     let index_html_path = PathBuf::from(&config.build.dist_dir).join("index.html");
     let tauri_html = TauriHtml::new(&config.build.dist_dir, read_to_string(index_html_path)?)
@@ -99,7 +105,7 @@ impl Build {
       let mut cmd: Option<&str> = None;
       let mut args: Vec<&str> = vec![];
       for token in before_build.split(' ') {
-        if cmd.is_none() {
+        if cmd.is_none() && !token.is_empty() {
           cmd = Some(token);
         } else {
           args.push(token)

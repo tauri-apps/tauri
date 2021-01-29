@@ -9,6 +9,11 @@ subcommands:
         - dev:
             about: Tauri dev.
             args:
+                - config:
+                    short: c
+                    long: config
+                    about: config JSON to merge with tauri.conf.json
+                    takes_value: true
                 - exit-on-panic:
                     short: e
                     long: exit-on-panic
@@ -30,6 +35,11 @@ subcommands:
                     about: list of target triples to build against
                     takes_value: true
                     multiple: true
+                - config:
+                    short: c
+                    long: config
+                    about: config JSON to merge with tauri.conf.json
+                    takes_value: true
         - info:
             about: Shows information about Tauri dependencies
         - init:

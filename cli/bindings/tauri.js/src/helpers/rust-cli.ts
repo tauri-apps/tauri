@@ -1,6 +1,6 @@
 import { existsSync } from 'fs'
 import { resolve, join } from 'path'
-import { spawnSync } from './spawn'
+import { spawnSync, spawn } from './spawn'
 import { CargoManifest } from '../types/cargo'
 
 const currentTauriCliVersion = (): string => {
@@ -9,18 +9,50 @@ const currentTauriCliVersion = (): string => {
   return tauriCliManifest.package.version
 }
 
-export function runOnRustCli(command: string, args: string[]): void {
+export function runOnRustCli(
+  command: string,
+  args: string[]
+): { pid: number; promise: Promise<void> } {
   const targetPath = resolve(__dirname, '../..')
   const targetCliPath = join(targetPath, 'bin/cargo-tauri')
+
+  let resolveCb: () => void
+  let rejectCb: () => void
+  let pid: number
+  const promise = new Promise<void>((resolve, reject) => {
+    resolveCb = resolve
+    rejectCb = () => reject(new Error())
+  })
+  const onClose = (code: number, pid: number): void => {
+    if (code === 0) {
+      resolveCb()
+    } else {
+      rejectCb()
+    }
+  }
+
   if (existsSync(targetCliPath)) {
-    spawnSync(targetCliPath, ['tauri', command, ...args], process.cwd())
+    pid = spawn(
+      targetCliPath,
+      ['tauri', command, ...args],
+      process.cwd(),
+      onClose
+    )
   } else {
-    if (existsSync(resolve(targetPath, '../tauri-bundler'))) {
+    if (existsSync(resolve(targetPath, '../../tauri-bundler'))) {
       // running local CLI
-      const cliPath = resolve(targetPath, '..')
+      const cliPath = resolve(targetPath, '../..')
       spawnSync('cargo', ['build', '--release'], cliPath)
-      const localCliPath = resolve(targetPath, '../target/release/cargo-tauri')
-      spawnSync(localCliPath, ['tauri', command, ...args], process.cwd())
+      const localCliPath = resolve(
+        targetPath,
+        '../../target/release/cargo-tauri'
+      )
+      pid = spawn(
+        localCliPath,
+        ['tauri', command, ...args],
+        process.cwd(),
+        onClose
+      )
     } else {
       spawnSync(
         'cargo',
@@ -34,7 +66,14 @@ export function runOnRustCli(command: string, args: string[]): void {
         ],
         process.cwd()
       )
-      spawnSync(targetCliPath, ['tauri', command, ...args], process.cwd())
+      pid = spawn(
+        targetCliPath,
+        ['tauri', command, ...args],
+        process.cwd(),
+        onClose
+      )
     }
   }
+
+  return { pid, promise }
 }

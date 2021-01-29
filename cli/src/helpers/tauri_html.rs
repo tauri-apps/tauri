@@ -84,9 +84,10 @@ impl TauriHtml {
       target.as_node().prepend(tauri_script);
 
       if self.global_tauri {
-        let global_api_script = create_script_element(include_str!(
-          "../../api-definitions/dist/tauri.bundle.umd.js"
-        ));
+        let global_api_script = create_script_element(include_str!(concat!(
+          env!("OUT_DIR"),
+          "/tauri.bundle.umd.js"
+        )));
         target.as_node().prepend(global_api_script);
       }
     }

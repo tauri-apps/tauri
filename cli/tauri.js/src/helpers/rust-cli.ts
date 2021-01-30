@@ -5,7 +5,7 @@ import { CargoManifest } from '../types/cargo'
 
 const currentTauriCliVersion = (): string => {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
-  const tauriCliManifest = require('../../../../Cargo.toml') as CargoManifest
+  const tauriCliManifest = require('../../../core/Cargo.toml') as CargoManifest
   return tauriCliManifest.package.version
 }
 
@@ -39,13 +39,13 @@ export function runOnRustCli(
       onClose
     )
   } else {
-    if (existsSync(resolve(targetPath, '../../tauri-bundler'))) {
+    if (existsSync(resolve(targetPath, '../tauri-bundler'))) {
       // running local CLI
-      const cliPath = resolve(targetPath, '../..')
+      const cliPath = resolve(targetPath, '../core')
       spawnSync('cargo', ['build', '--release'], cliPath)
       const localCliPath = resolve(
         targetPath,
-        '../../target/release/cargo-tauri'
+        '../core/target/release/cargo-tauri'
       )
       pid = spawn(
         localCliPath,

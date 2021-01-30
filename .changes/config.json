@@ -154,17 +154,17 @@
       "manager": "rust"
     },
     "tauri-cli": {
-      "path": "./cli",
+      "path": "./cli/core",
       "manager": "rust",
       "dependencies": ["api-definitions", "tauri-bundler", "tauri"]
     },
     "tauri.js": {
-      "path": "./cli/bindings/tauri.js",
+      "path": "./cli/tauri.js",
       "manager": "javascript",
       "dependencies": ["tauri-cli"],
       "assets": [
         {
-          "path": "./cli/bindings/tauri.js/tauri-${ pkgFile.version }.tgz",
+          "path": "./cli/tauri.js/tauri-${ pkgFile.version }.tgz",
           "name": "tauri.js-${ pkgFile.version }.tgz"
         }
       ]

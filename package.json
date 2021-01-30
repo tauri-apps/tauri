@@ -6,7 +6,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/tauri-apps/tauri.git",
-    "directory": "cli/bindings/tauri.js"
+    "directory": "cli/tauri.js"
   },
   "scripts": {
     "format": "prettier --write --end-of-line=auto \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore"

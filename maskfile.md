@@ -12,7 +12,7 @@ cargo build
 cargo install --path cli/tauri-bundler --force
 cargo install cargo-web 			# used by example rust/yew
 
-cd cli/bindings/tauri.js
+cd cli/tauri.js
 yarn && yarn build
 ```
 
@@ -76,7 +76,7 @@ case "$PWD" in
   cargo web deploy
   [ $example = `basename $(dirname $PWD)` ] && cd ..
 
-  yarn add tauri@link:../../../cli/bindings/tauri.js
+  yarn add tauri@link:../../../cli/tauri.js
   yarn && yarn tauri dev
 ;;
 *)

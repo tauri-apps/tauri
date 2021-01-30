@@ -10,6 +10,6 @@
   },
   "private": true,
   "dependencies": {
-    "tauri": "link:../../../cli/bindings/tauri.js"
+    "tauri": "link:../../../cli/tauri.js"
   }
 }

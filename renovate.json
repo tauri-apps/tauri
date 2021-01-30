@@ -36,7 +36,7 @@
     },
     {
       "enabled": true,
-      "paths": ["cli/**"],
+      "paths": ["cli/core/**"],
       "groupName": "Tauri CLI",
       "groupSlug": "allTauriCLI",
       "commitMessagePrefix": "chore(deps)",
@@ -58,7 +58,7 @@
     },
     {
       "enabled": true,
-      "paths": ["cli/bindings/tauri.js/**"],
+      "paths": ["cli/tauri.js/**"],
       "groupName": "Tauri JS CLI",
       "groupSlug": "allTauriJSCLI",
       "commitMessagePrefix": "chore(deps)",

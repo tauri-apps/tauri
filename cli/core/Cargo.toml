@@ -5,7 +5,6 @@ name = "tauri-cli"
 version = "0.1.0"
 authors = ["Lucas Nogueira <lucas@tauri.studio>"]
 edition = "2018"
-exclude = ["/bindings", "/api-definitions"]
 
 [[bin]]
 name = "cargo-tauri"
@@ -14,7 +13,7 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "3.0.0-beta.1", features = ["yaml"] }
 anyhow = "1.0"
-tauri-bundler = { path = "./tauri-bundler" }
+tauri-bundler = { path = "../tauri-bundler" }
 colored = "2.0"
 once_cell = "1.4"
 serde = { version = "1.0", features = ["derive"] }

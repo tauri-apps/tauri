@@ -68,7 +68,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --manifest-path ./cli/Cargo.toml
+          args: --manifest-path ./cli/core/Cargo.toml
 
   test-tauri-js-cli:
     runs-on: ${{ matrix.platform }}
@@ -89,11 +89,11 @@ jobs:
       - name: test
         timeout-minutes: 15
         run: |
-          cd ./cli/bindings/tauri.js
+          cd ./cli/tauri.js
           yarn
           yarn test
       - name: run release build
         timeout-minutes: 15
-        working-directory: cli/bindings/tauri.js
+        working-directory: cli/tauri.js
         run: yarn build-release
         

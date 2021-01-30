@@ -15,7 +15,9 @@
 
 /cli/tauri-bundler/ @tauri-apps/bundler
 
-/cli/bindings/tauri.js/ @tauri-apps/js-cli
+/cli/core/ @tauri-apps/core
+
+/cli/tauri.js/ @tauri-apps/js-cli
 
 /tauri-update/ @tauri-apps/core
 

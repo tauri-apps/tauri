@@ -57,6 +57,11 @@ jobs:
         command: install
         args: cargo-udeps --locked
 
+    - name: Install required packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install libudev-dev libusb-1.0-0-dev
+
     - uses: actions-rs/cargo@v1
       with:
         command: udeps

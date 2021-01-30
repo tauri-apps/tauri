@@ -70,9 +70,9 @@ jobs:
     - uses: actions-rs/cargo@v1
       with:
         command: udeps
-        args: --manifest-path ./cli/tauri-bundler --all-targets --all-features
+        args: --manifest-path ./cli/tauri-bundler/Cargo.toml --all-targets --all-features
 
     - uses: actions-rs/cargo@v1
       with:
         command: udeps
-        args: --manifest-path ./cli/core --all-targets --all-features
+        args: --manifest-path ./cli/core/Cargo.toml --all-targets --all-features

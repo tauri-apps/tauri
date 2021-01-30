@@ -305,7 +305,7 @@ fn build_webview<'a>(
   }
 
   let w = webview.as_mut();
-  let application = Arc::new(crate::async_runtime::Mutex::new(application));
+  let application = Arc::new(application);
 
   webview.bind("__TAURI_INVOKE_HANDLER__", move |_, arg| {
     let arg = arg.to_string();
@@ -316,7 +316,6 @@ fn build_webview<'a>(
 
     crate::async_runtime::spawn(async move {
       let arg = format_arg(&arg);
-      let app = application.lock().await;
 
       if arg == r#"{"cmd":"__initialized"}"# {
         let source = if has_splashscreen && !initialized_splashscreen.load(Ordering::Relaxed) {
@@ -325,7 +324,7 @@ fn build_webview<'a>(
         } else {
           "window-1"
         };
-        app.run_setup(&mut w, source.to_string()).await;
+        application.run_setup(&mut w, source.to_string()).await;
         if source == "window-1" {
           crate::plugin::ready(&mut w).await;
         }
@@ -340,7 +339,7 @@ fn build_webview<'a>(
           .map_err(|e| e.to_string());
         if let Err(ref tauri_handle_error) = endpoint_handle {
           if tauri_handle_error.contains("unknown variant") {
-            let error = match app.run_invoke_handler(&mut w, &arg).await {
+            let error = match application.run_invoke_handler(&mut w, &arg).await {
               Ok(handled) => {
                 if handled {
                   String::from("")

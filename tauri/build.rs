@@ -31,7 +31,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
           .unwrap()
           .split('|')
           .map(|s| s.to_string())
-          .filter(|s| s != "")
+          .filter(|s| !s.is_empty())
           .collect(),
         None => Vec::new(),
       };

@@ -85,7 +85,7 @@ mod test {
   #[quickcheck]
   fn qc_formating(f: String, a: String) -> bool {
     // can not accept empty strings
-    if f != "" && a != "" {
+    if !f.is_empty() && !a.is_empty() {
       // call format callback
       let fc = format_callback(f.clone(), a.clone());
       fc.contains(&format!(

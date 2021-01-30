@@ -31,6 +31,7 @@ module.exports = {
   moduleFileExtensions: ['ts', 'js', 'json'],
   moduleNameMapper: {
     '^~/(.*)$': '<rootDir>/$1',
+    '^dist/(.*)$': '<rootDir>/dist/$1',
     '^bin/(.*)$': '<rootDir>/bin/$1',
     '^helpers/(.*)$': '<rootDir>/src/helpers/$1',
     '^api/(.*)$': '<rootDir>/src/api/$1',
@@ -39,9 +40,7 @@ module.exports = {
     '../../package.json': '<rootDir>/package.json'
   },
   transform: {
-    'templates[\\\\/](tauri|mutation-observer).js':
-      './test/jest/raw-loader-transformer.js',
-    'api[\\\\/]tauri.bundle.umd.js': './test/jest/raw-loader-transformer.js',
+    'templates[\\\\/]tauri.js': './test/jest/raw-loader-transformer.js',
     '\\.(js|ts)$': 'babel-jest'
   }
 }

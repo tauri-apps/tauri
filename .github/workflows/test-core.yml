@@ -46,6 +46,30 @@ jobs:
           TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
           TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
 
+  test-tauri-cli:
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: install stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: build api
+        working-directory: ./api
+        run: yarn && yarn build
+      - name: build CLI
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path ./cli/core/Cargo.toml
+
   test-tauri-js-cli:
     runs-on: ${{ matrix.platform }}
 
@@ -61,9 +85,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0
-      - run: cargo install --path ./cli/tauri-bundler --force
       - name: test
-        timeout-minutes: 15
+        timeout-minutes: 30
         run: |
           cd ./cli/tauri.js
           yarn

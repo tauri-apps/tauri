@@ -76,7 +76,7 @@ TODO.md
 target
 
 # lock for libs
-Cargo.lock
+/Cargo.lock
 yarn.lock
 
 /cli/tauri.js/test/jest/tmp

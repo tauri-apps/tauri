@@ -1,8 +1,6 @@
 use tauri_bundler::{
   build_project,
-  bundle::{
-    bundle_project, check_icons, print_error, print_finished, PackageType, SettingsBuilder,
-  },
+  bundle::{bundle_project, check_icons, print_error, PackageType, SettingsBuilder},
 };
 pub use tauri_bundler::{Error, Result};
 
@@ -118,7 +116,6 @@ fn run() -> crate::Result<()> {
           }
         })
         .and_then(bundle_project)?;
-      print_finished(&output_paths)?;
     }
   }
   Ok(())

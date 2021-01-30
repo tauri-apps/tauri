@@ -54,7 +54,7 @@ pub fn load(
           "jpeg"
         };
         Ok(format!(
-          r#""data:image/{};base64,{}""#,
+          r#"data:image/{};base64,{}"#,
           ext,
           base64::encode(&read_asset.expect("Failed to read asset type").into_owned())
         ))

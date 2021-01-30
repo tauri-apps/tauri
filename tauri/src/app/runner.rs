@@ -1,11 +1,4 @@
-#[allow(unused_imports)]
-use std::{
-  env,
-  fs::{self, read_to_string},
-  path::Path,
-  process::Stdio,
-  thread::spawn,
-};
+use std::path::Path;
 
 use webview_official::{SizeHint, Webview, WebviewBuilder};
 
@@ -112,7 +105,7 @@ fn setup_content() -> crate::Result<Content<String>> {
     }
     Ok(Content::Html(format!(
       "data:text/html,{}",
-      urlencoding::encode(&read_to_string(dev_path)?)
+      urlencoding::encode(&std::fs::read_to_string(dev_path)?)
     )))
   }
 }
@@ -173,7 +166,7 @@ fn setup_server_url(port: String) -> crate::Result<String> {
 // spawn the embedded server
 #[cfg(embedded_server)]
 fn spawn_server(server_url: String) {
-  spawn(move || {
+  std::thread::spawn(move || {
     let server = tiny_http::Server::http(server_url.replace("http://", "").replace("https://", ""))
       .expect("Unable to spawn server");
     for request in server.incoming_requests() {
@@ -192,9 +185,13 @@ fn spawn_server(server_url: String) {
 // spawn an updater process.
 #[cfg(feature = "updater")]
 fn spawn_updater() {
-  spawn(|| {
-    tauri_api::command::spawn_relative_command("updater".to_string(), Vec::new(), Stdio::inherit())
-      .expect("Unable to spawn relative command");
+  std::thread::spawn(|| {
+    tauri_api::command::spawn_relative_command(
+      "updater".to_string(),
+      Vec::new(),
+      std::process::Stdio::inherit(),
+    )
+    .expect("Unable to spawn relative command");
   });
 }
 
@@ -299,7 +296,7 @@ fn build_webview(
   if has_splashscreen {
     let env_var = envmnt::get_or("TAURI_DIR", "../dist");
     let path = Path::new(&env_var);
-    let contents = fs::read_to_string(path.join("/tauri.js"))?;
+    let contents = std::fs::read_to_string(path.join("/tauri.js"))?;
     // inject the tauri.js entry point
     webview.dispatch(move |_webview| _webview.eval(&contents));
   }
@@ -430,7 +427,8 @@ mod test {
           format!(
             "data:text/html,{}",
             urlencoding::encode(
-              &std::fs::read_to_string(std::path::Path::new(&dist_dir).join("index.tauri.html")).unwrap()
+              &std::fs::read_to_string(std::path::Path::new(&dist_dir).join("index.tauri.html"))
+                .unwrap()
             )
           )
         );
@@ -450,7 +448,9 @@ mod test {
             s,
             format!(
               "data:text/html,{}",
-              urlencoding::encode(&read_to_string(dev_path).expect("failed to read dev path"))
+              urlencoding::encode(
+                &std::fs::read_to_string(dev_path).expect("failed to read dev path")
+              )
             )
           );
         }

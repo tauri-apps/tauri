@@ -76,7 +76,8 @@ pub fn load(
                   document.getElementsByTagName("head")[0].appendChild(css);
                 }})(`{css}`)
               "#,
-              css = asset_str
+              // Escape octal sequences, which aren't allowed in template literals
+              css = asset_str.replace("\\", "\\\\").as_str()
             ));
           } else {
             webview_ref.eval(asset_str);

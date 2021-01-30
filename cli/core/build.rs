@@ -11,7 +11,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
   let dest_bundle_umd_path = Path::new(&out_dir).join("tauri.bundle.umd.js");
   let mut bundle_umd_file = BufWriter::new(File::create(&dest_bundle_umd_path)?);
 
-  let bundle_umd_path = current_dir()?.join("../api-definitions/dist/tauri.bundle.umd.js");
+  let bundle_umd_path = current_dir()?.join("../../api/dist/tauri.bundle.umd.js");
   println!("cargo:rerun-if-changed={:?}", bundle_umd_path);
   if let Ok(bundle_umd_js) = read_to_string(bundle_umd_path) {
     write!(bundle_umd_file, "{}", bundle_umd_js)?;

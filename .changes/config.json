@@ -139,12 +139,12 @@
     }
   },
   "packages": {
-    "api-definitions": {
-      "path": "./cli/api-definitions",
+    "api": {
+      "path": "./api",
       "manager": "javascript",
       "assets": [
         {
-          "path": "./cli/api-definitions/tauri-${ pkgFile.version }.tgz",
+          "path": "./api/tauri-${ pkgFile.version }.tgz",
           "name": "api-${ pkgFile.version }.tgz"
         }
       ]
@@ -156,7 +156,7 @@
     "tauri-cli": {
       "path": "./cli/core",
       "manager": "rust",
-      "dependencies": ["api-definitions", "tauri-bundler", "tauri"]
+      "dependencies": ["api", "tauri-bundler", "tauri"]
     },
     "tauri.js": {
       "path": "./cli/tauri.js",
@@ -186,7 +186,7 @@
     "tauri": {
       "path": "./tauri",
       "manager": "rust",
-      "dependencies": ["api-definitions", "tauri-api", "tauri-updater"]
+      "dependencies": ["api", "tauri-api", "tauri-updater"]
     }
   }
 }

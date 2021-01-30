@@ -69,7 +69,7 @@
     },
     {
       "enabled": true,
-      "paths": ["cli/api-definitions/**"],
+      "paths": ["api/**"],
       "groupName": "Tauri API Definitions",
       "groupSlug": "allTauriAPIDefinitions",
       "commitMessagePrefix": "chore(deps)",

@@ -62,7 +62,7 @@ jobs:
           toolchain: stable
           override: true
       - name: build api
-        working-directory: ./cli/api-definitions
+        working-directory: ./api
         run: yarn && yarn build
       - name: build CLI
         uses: actions-rs/cargo@v1

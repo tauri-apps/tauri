@@ -72,7 +72,6 @@ jobs:
 
   test-tauri-js-cli:
     runs-on: ${{ matrix.platform }}
-    timeout-minutes: 30
 
     strategy:
       fail-fast: false
@@ -87,7 +86,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0
       - name: test
-        timeout-minutes: 15
+        timeout-minutes: 30
         run: |
           cd ./cli/tauri.js
           yarn

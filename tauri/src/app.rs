@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 mod runner;
 
-type InvokeHandler = (dyn Fn(WebviewMut, String) -> BoxFuture<'static, Result<(), String>> + Send);
+type InvokeHandler = dyn Fn(WebviewMut, String) -> BoxFuture<'static, Result<(), String>> + Send;
 type Setup = dyn Fn(WebviewMut, String) -> BoxFuture<'static, ()> + Send;
 
 /// The application runner.
@@ -18,8 +18,6 @@ pub struct App {
   /// The HTML of the splashscreen to render.
   splashscreen_html: Option<String>,
 }
-
-unsafe impl Send for App {}
 
 impl App {
   /// Runs the app until it finishes.

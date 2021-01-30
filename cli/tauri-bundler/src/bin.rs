@@ -105,7 +105,7 @@ fn run() -> crate::Result<()> {
         settings_builder = settings_builder.features(features);
       }
 
-      let output_paths = settings_builder
+      settings_builder
         .build()
         .and_then(|s| {
           if check_icons(&s)? {

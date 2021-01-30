@@ -1,7 +1,9 @@
+use crate::async_runtime::Mutex;
+
 use once_cell::sync::Lazy;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 use webview_official::WebviewMut;
+
+use std::sync::Arc;
 
 /// The plugin interface.
 #[async_trait::async_trait]

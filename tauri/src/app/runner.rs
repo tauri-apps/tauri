@@ -305,7 +305,7 @@ fn build_webview<'a>(
   }
 
   let w = webview.as_mut();
-  let application = Arc::new(tokio::sync::Mutex::new(application));
+  let application = Arc::new(crate::async_runtime::Mutex::new(application));
 
   webview.bind("__TAURI_INVOKE_HANDLER__", move |_, arg| {
     let arg = arg.to_string();

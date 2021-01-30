@@ -1,5 +1,5 @@
+use crate::async_runtime::Mutex;
 use futures::future::BoxFuture;
-use tokio::sync::Mutex;
 use webview_official::WebviewMut;
 
 use std::sync::Arc;

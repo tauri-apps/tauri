@@ -9,7 +9,6 @@ git clone --recursive git@github.com:tauri-apps/examples.git \
 || (cd examples && git pull origin dev; cd ..) 		# always prepare up-to-date examples in case it's already available
 
 cargo build
-cargo install --path cli/tauri-bundler --force
 cargo install cargo-web 			# used by example rust/yew
 
 cd cli/tauri.js
@@ -46,7 +45,6 @@ $env:TAURI_DIR = Resolve-Path $src_path
 
 # build and install everything Rust related.
 cargo build
-cargo install --path cli\tauri-bundler --force
 cargo install cargo-web
 
 # install the tauri Node CLI and transpile the TS version of the API.

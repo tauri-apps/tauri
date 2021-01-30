@@ -1,20 +1,25 @@
 use futures::future::BoxFuture;
+use tokio::sync::Mutex;
 use webview_official::WebviewMut;
+
+use std::sync::Arc;
 
 mod runner;
 
-type InvokeHandler = dyn Fn(WebviewMut, String) -> BoxFuture<'static, Result<(), String>>;
-type Setup = dyn Fn(WebviewMut, String) -> BoxFuture<'static, ()>;
+type InvokeHandler = (dyn Fn(WebviewMut, String) -> BoxFuture<'static, Result<(), String>> + Send);
+type Setup = dyn Fn(WebviewMut, String) -> BoxFuture<'static, ()> + Send;
 
 /// The application runner.
 pub struct App {
   /// The JS message handler.
-  invoke_handler: Option<Box<InvokeHandler>>,
+  invoke_handler: Option<Arc<Mutex<Box<InvokeHandler>>>>,
   /// The setup callback, invoked when the webview is ready.
-  setup: Option<Box<Setup>>,
+  setup: Option<Arc<Mutex<Box<Setup>>>>,
   /// The HTML of the splashscreen to render.
   splashscreen_html: Option<String>,
 }
+
+unsafe impl Send for App {}
 
 impl App {
   /// Runs the app until it finishes.
@@ -31,9 +36,9 @@ impl App {
     arg: &str,
   ) -> Result<bool, String> {
     if let Some(ref invoke_handler) = self.invoke_handler {
-      invoke_handler(webview.clone(), arg.to_string())
-        .await
-        .map(|_| true)
+      let invoke_handler = invoke_handler.lock().await;
+      let fut = invoke_handler(webview.clone(), arg.to_string());
+      fut.await.map(|_| true)
     } else {
       Ok(false)
     }
@@ -42,7 +47,9 @@ impl App {
   /// Runs the setup callback if defined.
   pub(crate) async fn run_setup(&self, webview: &mut WebviewMut, source: String) {
     if let Some(ref setup) = self.setup {
-      setup(webview.clone(), source).await;
+      let setup = setup.lock().await;
+      let fut = setup(webview.clone(), source);
+      fut.await;
     }
   }
 
@@ -56,9 +63,9 @@ impl App {
 #[derive(Default)]
 pub struct AppBuilder {
   /// The JS message handler.
-  invoke_handler: Option<Box<InvokeHandler>>,
+  invoke_handler: Option<Arc<Mutex<Box<InvokeHandler>>>>,
   /// The setup callback, invoked when the webview is ready.
-  setup: Option<Box<Setup>>,
+  setup: Option<Arc<Mutex<Box<Setup>>>>,
   /// The HTML of the splashscreen to render.
   splashscreen_html: Option<String>,
 }
@@ -81,9 +88,9 @@ impl AppBuilder {
     mut self,
     invoke_handler: F,
   ) -> Self {
-    self.invoke_handler = Some(Box::new(move |webview, arg| {
+    self.invoke_handler = Some(Arc::new(Mutex::new(Box::new(move |webview, arg| {
       Box::pin(invoke_handler(webview, arg))
-    }));
+    }))));
     self
   }
 
@@ -95,9 +102,9 @@ impl AppBuilder {
     mut self,
     setup: F,
   ) -> Self {
-    self.setup = Some(Box::new(move |webview, source| {
+    self.setup = Some(Arc::new(Mutex::new(Box::new(move |webview, source| {
       Box::pin(setup(webview, source))
-    }));
+    }))));
     self
   }
 

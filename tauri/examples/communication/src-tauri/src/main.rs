@@ -14,8 +14,8 @@ struct Reply {
 
 fn main() {
   tauri::AppBuilder::new()
-    .setup(|webview, _source| {
-      let mut webview = webview.as_mut();
+    .setup(|webview, _source| async move {
+      let mut webview = webview.clone();
       tauri::event::listen(String::from("js-event"), move |msg| {
         println!("got js-event with message '{:?}'", msg);
         let reply = Reply {
@@ -26,9 +26,9 @@ fn main() {
           .expect("failed to emit");
       });
     })
-    .invoke_handler(|_webview, arg| {
+    .invoke_handler(|mut webview, arg| async move {
       use cmd::Cmd::*;
-      match serde_json::from_str(arg) {
+      match serde_json::from_str(&arg) {
         Err(e) => Err(e.to_string()),
         Ok(command) => {
           match command {
@@ -44,8 +44,8 @@ fn main() {
               // tauri::execute_promise is a helper for APIs that uses the tauri.promisified JS function
               // so you can easily communicate between JS and Rust with promises
               tauri::execute_promise(
-                _webview,
-                move || {
+                &mut webview,
+                async move {
                   println!("{} {:?}", endpoint, body);
                   // perform an async operation here
                   // if the returned value is Ok, the promise will be resolved with its value
@@ -56,6 +56,7 @@ fn main() {
                 callback,
                 error,
               )
+              .await
             }
           }
           Ok(())

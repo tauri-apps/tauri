@@ -5,11 +5,6 @@
 //! The user interface in Tauri apps currently leverages Cocoa/WebKit on macOS, gtk-webkit2 on Linux and MSHTML (IE10/11) or Webkit via Edge on Windows.
 //! Tauri uses (and contributes to) the MIT licensed project that you can find at [webview](https://github.com/webview/webview).
 #![warn(missing_docs, rust_2018_idioms)]
-#![cfg_attr(
-  all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
-)]
-//#![deny(clippy::all)]
 
 /// The asset management module.
 #[cfg(assets)]
@@ -35,6 +30,8 @@ pub mod plugin;
 /// The salt helpers.
 mod salt;
 
+pub(crate) mod async_runtime;
+
 /// Alias for a Result with error type anyhow::Error.
 pub use anyhow::Result;
 pub use app::*;
@@ -45,31 +42,24 @@ use std::process::Stdio;
 
 use api::rpc::{format_callback, format_callback_result};
 use serde::Serialize;
-use threadpool::ThreadPool;
-
-thread_local!(static POOL: ThreadPool = ThreadPool::new(4));
-
-/// Executes the operation in the thread pool.
-pub fn spawn<F: FnOnce() + Send + 'static>(task: F) {
-  POOL.with(|thread| {
-    thread.execute(move || {
-      task();
-    });
-  });
-}
 
 /// Synchronously executes the given task
 /// and evaluates its Result to the JS promise described by the `callback` and `error` function names.
-pub fn execute_promise_sync<R: Serialize, F: FnOnce() -> crate::Result<R> + Send + 'static>(
-  webview: &mut Webview<'_>,
+pub fn execute_promise_sync<
+  R: Serialize,
+  F: futures::Future<Output = Result<R>> + Send + 'static,
+>(
+  webview: &mut WebviewMut,
   task: F,
   callback: String,
   error: String,
 ) -> crate::Result<()> {
-  let callback_string =
-    format_callback_result(task().map_err(|err| err.to_string()), callback, error)?;
-  webview.dispatch(move |w| w.eval(callback_string.as_str()));
-  Ok(())
+  async_runtime::block_on(async move {
+    let callback_string =
+      format_callback_result(task.await.map_err(|err| err.to_string()), callback, error)?;
+    webview.dispatch(move |w| w.eval(callback_string.as_str()))?;
+    Ok(())
+  })
 }
 
 /// Asynchronously executes the given task
@@ -77,33 +67,31 @@ pub fn execute_promise_sync<R: Serialize, F: FnOnce() -> crate::Result<R> + Send
 ///
 /// If the Result `is_ok()`, the callback will be the `success_callback` function name and the argument will be the Ok value.
 /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
-pub fn execute_promise<R: Serialize, F: FnOnce() -> crate::Result<R> + Send + 'static>(
-  webview: &mut Webview<'_>,
+pub async fn execute_promise<
+  R: Serialize,
+  F: futures::Future<Output = Result<R>> + Send + 'static,
+>(
+  webview: &mut WebviewMut,
   task: F,
   success_callback: String,
   error_callback: String,
 ) {
-  let mut webview = webview.as_mut();
-  POOL.with(|thread| {
-    thread.execute(move || {
-      let callback_string = match format_callback_result(
-        task().map_err(|err| err.to_string()),
-        success_callback,
-        error_callback.clone(),
-      ) {
-        Ok(callback_string) => callback_string,
-        Err(e) => format_callback(error_callback, e.to_string()),
-      };
-      webview
-        .dispatch(move |webview_ref| webview_ref.eval(callback_string.as_str()))
-        .expect("Failed to dispatch promise callback");
-    });
-  });
+  let callback_string = match format_callback_result(
+    task.await.map_err(|err| err.to_string()),
+    success_callback,
+    error_callback.clone(),
+  ) {
+    Ok(callback_string) => callback_string,
+    Err(e) => format_callback(error_callback, e.to_string()),
+  };
+  webview
+    .dispatch(move |webview_ref| webview_ref.eval(callback_string.as_str()))
+    .expect("Failed to dispatch promise callback");
 }
 
 /// Calls the given command and evaluates its output to the JS promise described by the `callback` and `error` function names.
-pub fn call(
-  webview: &mut Webview<'_>,
+pub async fn call(
+  webview: &mut WebviewMut,
   command: String,
   args: Vec<String>,
   callback: String,
@@ -111,10 +99,11 @@ pub fn call(
 ) {
   execute_promise(
     webview,
-    || api::command::get_output(command, args, Stdio::piped()),
+    async move { api::command::get_output(command, args, Stdio::piped()) },
     callback,
     error,
-  );
+  )
+  .await;
 }
 
 /// Closes the splashscreen.

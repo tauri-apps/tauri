@@ -44,7 +44,8 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
     },
   )?;
 
-  crate::plugin::created(&mut webview);
+  let mut webview_ = webview.as_mut();
+  crate::async_runtime::block_on(crate::plugin::created(&mut webview_));
 
   // spawn the embedded server on our server url
   #[cfg(embedded_server)]
@@ -278,7 +279,7 @@ fn build_webview(
       {plugin_init}
     "#,
     event_init = init(),
-    plugin_init = crate::plugin::init_script()
+    plugin_init = crate::async_runtime::block_on(crate::plugin::init_script())
   );
 
   let mut webview = WebviewBuilder::new()
@@ -311,9 +312,10 @@ fn build_webview(
       } else {
         "window-1"
       };
-      application.run_setup(&mut w, source.to_string());
+      crate::async_runtime::block_on(application.run_setup(&mut w.as_mut(), source.to_string()));
       if source == "window-1" {
-        crate::plugin::ready(&mut w);
+        let mut webview_ = w.as_mut();
+        crate::async_runtime::block_on(crate::plugin::ready(&mut webview_));
       }
     } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
       let content_href = match content_clone {
@@ -322,46 +324,52 @@ fn build_webview(
       };
       w.eval(&format!(r#"window.location.href = "{}""#, content_href));
     } else {
-      let endpoint_handle = crate::endpoints::handle(&mut w, &arg)
-        .map_err(|tauri_handle_error| {
-          let tauri_handle_error_str = tauri_handle_error.to_string();
-          if tauri_handle_error_str.contains("unknown variant") {
-            match application.run_invoke_handler(&mut w, &arg) {
-              Ok(handled) => {
-                if handled {
-                  String::from("")
-                } else {
-                  tauri_handle_error_str
-                }
+      let mut w = w.as_mut();
+      let mut endpoint_handle = crate::async_runtime::block_on(crate::endpoints::handle(
+        &mut w, &arg,
+      ))
+      .map_err(|tauri_handle_error| {
+        let tauri_handle_error_str = tauri_handle_error.to_string();
+        if tauri_handle_error_str.contains("unknown variant") {
+          match crate::async_runtime::block_on(application.run_invoke_handler(&mut w, &arg)) {
+            Ok(handled) => {
+              if handled {
+                String::from("")
+              } else {
+                tauri_handle_error_str
               }
-              Err(e) => e,
             }
-          } else {
-            tauri_handle_error_str
+            Err(e) => e,
           }
-        })
-        .map_err(|app_handle_error| {
-          if app_handle_error.contains("unknown variant") {
-            match crate::plugin::extend_api(&mut w, &arg) {
-              Ok(handled) => {
-                if handled {
-                  String::from("")
-                } else {
-                  app_handle_error
-                }
-              }
-              Err(e) => e,
-            }
-          } else {
-            app_handle_error
-          }
-        })
-        .map_err(|e| e.replace("'", "\\'"));
-      if let Err(handler_error_message) = endpoint_handle {
-        if !handler_error_message.is_empty() {
-          w.eval(&get_api_error_message(&arg, handler_error_message));
+        } else {
+          tauri_handle_error_str
         }
-      }
+      });
+      crate::async_runtime::spawn(async move {
+        if let Err(ref app_handle_error) = endpoint_handle {
+          if app_handle_error.contains("unknown variant") {
+            let error = match crate::plugin::extend_api(&mut w, &arg).await {
+              Ok(handled) => {
+                if handled {
+                  String::from("")
+                } else {
+                  app_handle_error.to_string()
+                }
+              }
+              Err(e) => e,
+            };
+            endpoint_handle = Err(error);
+          }
+        }
+        endpoint_handle = endpoint_handle.map_err(|e| e.replace("'", "\\'"));
+        if let Err(handler_error_message) = endpoint_handle {
+          if !handler_error_message.is_empty() {
+            let _ = w.dispatch(move |w| {
+              w.eval(&get_api_error_message(&arg, handler_error_message));
+            });
+          }
+        }
+      });
     }
   });
 

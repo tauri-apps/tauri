@@ -75,7 +75,7 @@ Run \`tauri init --force template\` to overwrite.`)
 
   const resolveCurrentTauriVersion = (): string => {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
-    const tauriManifest = require('../../../../../tauri/Cargo.toml') as CargoManifest
+    const tauriManifest = require('../../../../tauri/Cargo.toml') as CargoManifest
     const version = tauriManifest.package.version
     return version.substring(0, version.lastIndexOf('.'))
   }

@@ -3,8 +3,8 @@ use webview_official::WebviewMut;
 
 mod runner;
 
-type InvokeHandler = dyn FnMut(WebviewMut, String) -> BoxFuture<'static, Result<(), String>>;
-type Setup = dyn FnMut(WebviewMut, String) -> BoxFuture<'static, ()>;
+type InvokeHandler = dyn Fn(WebviewMut, String) -> BoxFuture<'static, Result<(), String>>;
+type Setup = dyn Fn(WebviewMut, String) -> BoxFuture<'static, ()>;
 
 /// The application runner.
 pub struct App {
@@ -18,19 +18,19 @@ pub struct App {
 
 impl App {
   /// Runs the app until it finishes.
-  pub fn run(mut self) {
-    runner::run(&mut self).expect("Failed to build webview");
+  pub fn run(self) {
+    runner::run(self).expect("Failed to build webview");
   }
 
   /// Runs the invoke handler if defined.
   /// Returns whether the message was consumed or not.
   /// The message is considered consumed if the handler exists and returns an Ok Result.
   pub(crate) async fn run_invoke_handler(
-    &mut self,
+    &self,
     webview: &mut WebviewMut,
     arg: &str,
   ) -> Result<bool, String> {
-    if let Some(ref mut invoke_handler) = self.invoke_handler {
+    if let Some(ref invoke_handler) = self.invoke_handler {
       invoke_handler(webview.clone(), arg.to_string())
         .await
         .map(|_| true)
@@ -40,8 +40,8 @@ impl App {
   }
 
   /// Runs the setup callback if defined.
-  pub(crate) async fn run_setup(&mut self, webview: &mut WebviewMut, source: String) {
-    if let Some(ref mut setup) = self.setup {
+  pub(crate) async fn run_setup(&self, webview: &mut WebviewMut, source: String) {
+    if let Some(ref setup) = self.setup {
       setup(webview.clone(), source).await;
     }
   }
@@ -76,10 +76,10 @@ impl AppBuilder {
   /// Defines the JS message handler callback.
   pub fn invoke_handler<
     T: futures::Future<Output = Result<(), String>> + Send + 'static,
-    F: FnMut(WebviewMut, String) -> T + Send + 'static,
+    F: Fn(WebviewMut, String) -> T + Send + 'static,
   >(
     mut self,
-    mut invoke_handler: F,
+    invoke_handler: F,
   ) -> Self {
     self.invoke_handler = Some(Box::new(move |webview, arg| {
       Box::pin(invoke_handler(webview, arg))
@@ -90,10 +90,10 @@ impl AppBuilder {
   /// Defines the setup callback.
   pub fn setup<
     T: futures::Future<Output = ()> + Send + 'static,
-    F: FnMut(WebviewMut, String) -> T + Send + 'static,
+    F: Fn(WebviewMut, String) -> T + Send + 'static,
   >(
     mut self,
-    mut setup: F,
+    setup: F,
   ) -> Self {
     self.setup = Some(Box::new(move |webview, source| {
       Box::pin(setup(webview, source))

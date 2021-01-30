@@ -14,7 +14,7 @@ enum Content<T> {
 }
 
 /// Main entry point for running the Webview
-pub(crate) fn run(application: &mut App) -> crate::Result<()> {
+pub(crate) fn run(application: App) -> crate::Result<()> {
   // setup the content using the config struct depending on the compile target
   let main_content = setup_content()?;
 
@@ -28,21 +28,19 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
     }
   };
 
+  let splashscreen_content = if application.splashscreen_html().is_some() {
+    Some(Content::Html(
+      application
+        .splashscreen_html()
+        .expect("failed to get splashscreen_html")
+        .to_string(),
+    ))
+  } else {
+    None
+  };
+
   // build the webview
-  let mut webview = build_webview(
-    application,
-    main_content,
-    if application.splashscreen_html().is_some() {
-      Some(Content::Html(
-        application
-          .splashscreen_html()
-          .expect("failed to get splashscreen_html")
-          .to_string(),
-      ))
-    } else {
-      None
-    },
-  )?;
+  let mut webview = build_webview(application, main_content, splashscreen_content)?;
 
   let mut webview_ = webview.as_mut();
   crate::async_runtime::block_on(crate::plugin::created(&mut webview_));
@@ -234,11 +232,11 @@ pub fn init() -> String {
 }
 
 // build the webview struct
-fn build_webview(
-  application: &mut App,
+fn build_webview<'a>(
+  application: App,
   content: Content<String>,
   splashscreen_content: Option<Content<String>>,
-) -> crate::Result<Webview<'_>> {
+) -> crate::Result<Webview<'a>> {
   let config = get()?;
   let content_clone = match content {
     Content::Html(ref html) => Content::Html(html.clone()),

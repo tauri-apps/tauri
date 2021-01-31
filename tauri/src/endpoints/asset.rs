@@ -46,16 +46,24 @@ pub fn load(
       }
 
       if asset_type == "image" {
-        let ext = if asset.ends_with("gif") {
+        let mime_type = if asset.ends_with("gif") {
           "gif"
+        } else if asset.ends_with("apng") {
+          "apng"
         } else if asset.ends_with("png") {
           "png"
+        } else if asset.ends_with("avif") {
+          "avif"
+        } else if asset.ends_with("webp") {
+          "webp"
+        } else if asset.ends_with("svg") {
+          "svg+xml"
         } else {
           "jpeg"
         };
         Ok(format!(
-          r#""data:image/{};base64,{}""#,
-          ext,
+          r#"data:image/{};base64,{}"#,
+          mime_type,
           base64::encode(&read_asset.expect("Failed to read asset type").into_owned())
         ))
       } else {

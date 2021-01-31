@@ -77,7 +77,7 @@ target
 
 # lock for libs
 /Cargo.lock
-yarn.lock
+/yarn.lock
 
 /cli/tauri.js/test/jest/tmp
 

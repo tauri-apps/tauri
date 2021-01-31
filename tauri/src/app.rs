@@ -87,7 +87,7 @@ impl AppBuilder {
 
   /// Defines the splashscreen HTML to render.
   pub fn splashscreen_html(mut self, html: &str) -> Self {
-    self.splashscreen_html = Some(html.to_string());
+    self.splashscreen_html = Some(format!("data:text/html,{}", urlencoding::encode(html)));
     self
   }
 

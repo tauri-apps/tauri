@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use webview_official::{SizeHint, Webview, WebviewBuilder};
 
 use super::App;
@@ -32,13 +30,8 @@ pub(crate) fn run(application: &mut App) -> crate::Result<()> {
   let mut webview = build_webview(
     application,
     main_content,
-    if application.splashscreen_html().is_some() {
-      Some(Content::Html(
-        application
-          .splashscreen_html()
-          .expect("failed to get splashscreen_html")
-          .to_string(),
-      ))
+    if let Some(html) = application.splashscreen_html() {
+      Some(Content::Html(html.to_string()))
     } else {
       None
     },
@@ -96,7 +89,7 @@ fn setup_content() -> crate::Result<Content<String>> {
     Ok(Content::Url(config.build.dev_path.clone()))
   } else {
     let dev_dir = &config.build.dev_path;
-    let dev_path = Path::new(dev_dir).join("index.tauri.html");
+    let dev_path = std::path::Path::new(dev_dir).join("index.tauri.html");
     if !dev_path.exists() {
       panic!(
         "Couldn't find 'index.tauri.html' inside {}; did you forget to run 'tauri dev'?",
@@ -257,6 +250,7 @@ fn build_webview(
 
   let has_splashscreen = splashscreen_content.is_some();
   let mut initialized_splashscreen = false;
+  let mut hid_splashscreen = false;
   let url = match splashscreen_content {
     Some(Content::Html(s)) => s,
     _ => match content {
@@ -293,14 +287,6 @@ fn build_webview(
   // TODO waiting for webview window API
   // webview.set_fullscreen(fullscreen);
 
-  if has_splashscreen {
-    let env_var = envmnt::get_or("TAURI_DIR", "../dist");
-    let path = Path::new(&env_var);
-    let contents = std::fs::read_to_string(path.join("/tauri.js"))?;
-    // inject the tauri.js entry point
-    webview.dispatch(move |_webview| _webview.eval(&contents));
-  }
-
   let mut w = webview.clone();
   webview.bind("__TAURI_INVOKE_HANDLER__", move |_, arg| {
     let arg = format_arg(arg);
@@ -316,11 +302,14 @@ fn build_webview(
         crate::plugin::ready(&mut w);
       }
     } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
-      let content_href = match content_clone {
-        Content::Html(ref html) => html,
-        Content::Url(ref url) => url,
-      };
-      w.eval(&format!(r#"window.location.href = "{}""#, content_href));
+      if !hid_splashscreen {
+        let content_href = match content_clone {
+          Content::Html(ref html) => html,
+          Content::Url(ref url) => url,
+        };
+        w.eval(&format!(r#"window.location.href = "{}""#, content_href));
+        hid_splashscreen = true;
+      }
     } else {
       let endpoint_handle = crate::endpoints::handle(&mut w, &arg)
         .map_err(|tauri_handle_error| {

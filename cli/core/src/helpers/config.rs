@@ -397,10 +397,8 @@ fn default_build() -> BuildConfig {
 
 /// Gets the static parsed config from `tauri.conf.json`.
 fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<ConfigHandle> {
-  if config_handle().lock().unwrap().is_some() {
-    if !reload {
-      return Ok(config_handle().clone());
-    }
+  if !reload && config_handle().lock().unwrap().is_some() {
+    return Ok(config_handle().clone());
   }
 
   let path = super::app_paths::tauri_dir().join("tauri.conf.json");

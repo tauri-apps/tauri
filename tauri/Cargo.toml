@@ -26,7 +26,7 @@ phf = "0.8.0"
 base64 = "0.13.0"
 webbrowser = "0.5.5"
 lazy_static = "1.4.0"
-tiny_http = { version = "0.7", optional = true }
+tiny_http = { version = "0.8", optional = true }
 threadpool = "1.8"
 uuid = { version = "0.8.2", features = [ "v4" ] }
 anyhow = "1.0.38"

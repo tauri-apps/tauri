@@ -1,6 +1,6 @@
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
-  config::{get as get_config, reload as reload_config, Config},
+  config::{get as get_config, reload as reload_config, ConfigHandle},
   manifest::rewrite_manifest,
   Logger, TauriHtml,
 };
@@ -52,11 +52,19 @@ impl Dev {
   pub fn run(self) -> crate::Result<()> {
     let logger = Logger::new("tauri:dev");
     let tauri_path = tauri_dir();
-    let config = get_config(self.config.as_deref())?;
+    let merge_config = self.config.clone();
+    let config = get_config(merge_config.as_deref())?;
     let mut _guard = None;
     let mut process: Arc<SharedChild>;
 
-    if let Some(before_dev) = &config.lock().unwrap().build.before_dev_command {
+    if let Some(before_dev) = &config
+      .lock()
+      .unwrap()
+      .as_ref()
+      .unwrap()
+      .build
+      .before_dev_command
+    {
       let mut cmd: Option<&str> = None;
       let mut args: Vec<&str> = vec![];
       for token in before_dev.split(' ') {
@@ -75,10 +83,17 @@ impl Dev {
       }
     }
 
-    let running_dev_server = config.lock().unwrap().build.dev_path.starts_with("http");
+    let running_dev_server = config
+      .lock()
+      .unwrap()
+      .as_ref()
+      .unwrap()
+      .build
+      .dev_path
+      .starts_with("http");
 
     let new_dev_path = if running_dev_server {
-      let dev_path = Url::parse(&config.lock().unwrap().build.dev_path)?;
+      let dev_path = Url::parse(&config.lock().unwrap().as_ref().unwrap().build.dev_path)?;
       let dev_port = dev_path.port().unwrap_or(80);
 
       let timeout = Duration::from_secs(3);
@@ -112,17 +127,17 @@ impl Dev {
       )
     } else {
       tauri_dir()
-        .join(&config.lock().unwrap().build.dev_path)
+        .join(&config.lock().unwrap().as_ref().unwrap().build.dev_path)
         .to_string_lossy()
         .to_string()
     };
 
-    (*config.lock().unwrap()).build.dev_path = new_dev_path;
+    (*config.lock().unwrap()).as_mut().unwrap().build.dev_path = new_dev_path.to_string();
 
     set_var("TAURI_DIR", &tauri_path);
     set_var(
       "TAURI_DIST_DIR",
-      tauri_path.join(&config.lock().unwrap().build.dist_dir),
+      tauri_path.join(&config.lock().unwrap().as_ref().unwrap().build.dist_dir),
     );
     set_var(
       "TAURI_CONFIG",
@@ -144,7 +159,14 @@ impl Dev {
     watcher.watch(tauri_path.join("tauri.conf.json"), RecursiveMode::Recursive)?;
     if !running_dev_server {
       watcher.watch(
-        config.lock().unwrap().build.dev_path.to_string(),
+        config
+          .lock()
+          .unwrap()
+          .as_ref()
+          .unwrap()
+          .build
+          .dev_path
+          .to_string(),
         RecursiveMode::Recursive,
       )?;
     }
@@ -163,7 +185,8 @@ impl Dev {
           let _ = child_wait_tx.send(true);
           process.kill()?;
           if event_path.file_name() == Some(OsStr::new("tauri.conf.json")) {
-            reload_config()?;
+            reload_config(merge_config.as_deref())?;
+            (*config.lock().unwrap()).as_mut().unwrap().build.dev_path = new_dev_path.to_string();
             rewrite_manifest(config.clone())?;
             set_var("TAURI_CONFIG", serde_json::to_string(&*config)?);
           }
@@ -199,11 +222,7 @@ impl Dev {
   }
 }
 
-fn proxy_dev_server(
-  config: Arc<Mutex<Config>>,
-  dev_path: &Url,
-  dev_port: u16,
-) -> crate::Result<()> {
+fn proxy_dev_server(config: ConfigHandle, dev_path: &Url, dev_port: u16) -> crate::Result<()> {
   let server_url = format!(
     "{}:{}",
     dev_path.host_str().expect("failed to read dev_path host"),
@@ -225,7 +244,8 @@ fn proxy_dev_server(
     }
 
     if request_url == "/" {
-      let config = config.lock().unwrap();
+      let config_guard = config.lock().unwrap();
+      let config = config_guard.as_ref().unwrap();
       let response = request_builder.send()?.text()?;
       let tauri_html = TauriHtml::new(&config.build.dist_dir, response)
         .global_tauri(config.build.with_global_tauri)

@@ -52,7 +52,8 @@ impl Build {
 
   pub fn run(self) -> crate::Result<()> {
     let config = get_config(self.config.as_deref())?;
-    let config_ = config.lock().unwrap();
+    let config_guard = config.lock().unwrap();
+    let config_ = config_guard.as_ref().unwrap();
 
     let feature = if config_.tauri.embedded_server.active {
       "embedded-server"
@@ -90,9 +91,11 @@ impl Build {
     set_var("TAURI_DIR", &tauri_path);
     set_var("TAURI_DIST_DIR", tauri_path.join(&config_.build.dist_dir));
 
-    drop(config_);
+    drop(config_guard);
     rewrite_manifest(config.clone())?;
-    let config_ = config.lock().unwrap();
+
+    let config_guard = config.lock().unwrap();
+    let config_ = config_guard.as_ref().unwrap();
 
     let index_html_path = PathBuf::from(&config_.build.dist_dir).join("index.html");
     let tauri_html = TauriHtml::new(&config_.build.dist_dir, read_to_string(index_html_path)?)

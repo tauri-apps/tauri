@@ -10,7 +10,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::sync::{Arc, Mutex};
 
-type ConfigHandle = Arc<Mutex<Option<Arc<Mutex<Config>>>>>;
+pub type ConfigHandle = Arc<Mutex<Option<Config>>>;
 
 fn config_handle() -> &'static ConfigHandle {
   static CONFING_HANDLE: Lazy<ConfigHandle> = Lazy::new(Default::default);
@@ -396,14 +396,10 @@ fn default_build() -> BuildConfig {
 }
 
 /// Gets the static parsed config from `tauri.conf.json`.
-fn get_internal(
-  merge_config: Option<&str>,
-  reload: bool,
-  file_first: bool,
-) -> crate::Result<Arc<Mutex<Config>>> {
-  if let Some(config) = &*config_handle().lock().unwrap() {
+fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<ConfigHandle> {
+  if config_handle().lock().unwrap().is_some() {
     if !reload {
-      return Ok(config.clone());
+      return Ok(config_handle().clone());
     }
   }
 
@@ -413,32 +409,21 @@ fn get_internal(
   let mut config: JsonValue = serde_json::from_reader(buf)?;
 
   if let Some(merge_config) = merge_config {
-    let mut merge_config: JsonValue = serde_json::from_str(&merge_config)?;
-    if file_first {
-      merge(&mut config, &merge_config);
-    } else {
-      merge(&mut merge_config, &config);
-      config = merge_config;
-    }
+    let merge_config: JsonValue = serde_json::from_str(&merge_config)?;
+    merge(&mut config, &merge_config);
   }
 
   let config = serde_json::from_value(config)?;
-  let mut handle = config_handle().lock().unwrap();
+  *config_handle().lock().unwrap() = Some(config);
 
-  if let Some(config_mutex) = &*handle {
-    *config_mutex.lock().unwrap() = config;
-  } else {
-    *handle = Some(Arc::new(Mutex::new(config)));
-  }
-
-  Ok(handle.as_ref().unwrap().clone())
+  Ok(config_handle().clone())
 }
 
-pub fn get(merge_config: Option<&str>) -> crate::Result<Arc<Mutex<Config>>> {
-  get_internal(merge_config, false, true)
+pub fn get(merge_config: Option<&str>) -> crate::Result<ConfigHandle> {
+  get_internal(merge_config, false)
 }
 
-pub fn reload() -> crate::Result<()> {
-  get_internal(Some(&serde_json::to_string(&*get(None)?)?), true, false)?;
+pub fn reload(merge_config: Option<&str>) -> crate::Result<()> {
+  get_internal(merge_config, true)?;
   Ok(())
 }

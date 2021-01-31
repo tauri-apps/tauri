@@ -53,12 +53,10 @@ impl Dev {
     let logger = Logger::new("tauri:dev");
     let tauri_path = tauri_dir();
     let config = get_config(self.config.as_deref())?;
-    let mut config_mut = config.clone();
     let mut _guard = None;
     let mut process: Arc<SharedChild>;
-    let new_dev_path: String;
 
-    if let Some(before_dev) = &config.build.before_dev_command {
+    if let Some(before_dev) = &config.lock().unwrap().build.before_dev_command {
       let mut cmd: Option<&str> = None;
       let mut args: Vec<&str> = vec![];
       for token in before_dev.split(' ') {
@@ -77,10 +75,10 @@ impl Dev {
       }
     }
 
-    let running_dev_server = config.build.dev_path.starts_with("http");
+    let running_dev_server = config.lock().unwrap().build.dev_path.starts_with("http");
 
-    if running_dev_server {
-      let dev_path = Url::parse(&config.build.dev_path)?;
+    let new_dev_path = if running_dev_server {
+      let dev_path = Url::parse(&config.lock().unwrap().build.dev_path)?;
       let dev_port = dev_path.port().unwrap_or(80);
 
       let timeout = Duration::from_secs(3);
@@ -105,27 +103,33 @@ impl Dev {
 
       logger.log(format!("starting dev proxy on port {}", proxy_port));
       let config_ = config.clone();
-      std::thread::spawn(move || proxy_dev_server(&config_, &proxy_path, proxy_port));
+      std::thread::spawn(move || proxy_dev_server(config_, &proxy_path, proxy_port));
 
-      new_dev_path = format!(
+      format!(
         "http://{}:{}",
         dev_path.host_str().expect("failed to read dev_path host"),
         proxy_port
-      );
+      )
     } else {
-      new_dev_path = tauri_dir()
-        .join(&config.build.dev_path)
+      tauri_dir()
+        .join(&config.lock().unwrap().build.dev_path)
         .to_string_lossy()
-        .to_string();
-    }
+        .to_string()
+    };
 
-    config_mut.build.dev_path = new_dev_path.clone();
+    (*config.lock().unwrap()).build.dev_path = new_dev_path;
 
     set_var("TAURI_DIR", &tauri_path);
-    set_var("TAURI_DIST_DIR", tauri_path.join(&config.build.dist_dir));
-    set_var("TAURI_CONFIG", serde_json::to_string(&config_mut)?);
+    set_var(
+      "TAURI_DIST_DIR",
+      tauri_path.join(&config.lock().unwrap().build.dist_dir),
+    );
+    set_var(
+      "TAURI_CONFIG",
+      serde_json::to_string(&*config.lock().unwrap())?,
+    );
 
-    rewrite_manifest(&config)?;
+    rewrite_manifest(config.clone())?;
 
     let (child_wait_tx, child_wait_rx) = channel();
     let child_wait_rx = Arc::new(Mutex::new(child_wait_rx));
@@ -140,7 +144,7 @@ impl Dev {
     watcher.watch(tauri_path.join("tauri.conf.json"), RecursiveMode::Recursive)?;
     if !running_dev_server {
       watcher.watch(
-        config_mut.build.dev_path.to_string(),
+        config.lock().unwrap().build.dev_path.to_string(),
         RecursiveMode::Recursive,
       )?;
     }
@@ -159,10 +163,9 @@ impl Dev {
           let _ = child_wait_tx.send(true);
           process.kill()?;
           if event_path.file_name() == Some(OsStr::new("tauri.conf.json")) {
-            config_mut = reload_config(Some(&serde_json::to_string(&config_mut)?))?.clone();
-            rewrite_manifest(&config_mut)?;
-            config_mut.build.dev_path = new_dev_path.clone();
-            set_var("TAURI_CONFIG", serde_json::to_string(&config_mut)?);
+            reload_config()?;
+            rewrite_manifest(config.clone())?;
+            set_var("TAURI_CONFIG", serde_json::to_string(&*config)?);
           }
 
           process = self.start_app(child_wait_rx.clone());
@@ -196,7 +199,11 @@ impl Dev {
   }
 }
 
-fn proxy_dev_server(config: &Config, dev_path: &Url, dev_port: u16) -> crate::Result<()> {
+fn proxy_dev_server(
+  config: Arc<Mutex<Config>>,
+  dev_path: &Url,
+  dev_port: u16,
+) -> crate::Result<()> {
   let server_url = format!(
     "{}:{}",
     dev_path.host_str().expect("failed to read dev_path host"),
@@ -218,6 +225,7 @@ fn proxy_dev_server(config: &Config, dev_path: &Url, dev_port: u16) -> crate::Re
     }
 
     if request_url == "/" {
+      let config = config.lock().unwrap();
       let response = request_builder.send()?.text()?;
       let tauri_html = TauriHtml::new(&config.build.dist_dir, response)
         .global_tauri(config.build.with_global_tauri)

@@ -5,8 +5,9 @@ use toml_edit::{Array, Document, Value};
 
 use std::fs::File;
 use std::io::{Read, Write};
+use std::sync::{Arc, Mutex};
 
-pub fn rewrite_manifest(config: &Config) -> crate::Result<()> {
+pub fn rewrite_manifest(config: Arc<Mutex<Config>>) -> crate::Result<()> {
   let manifest_path = tauri_dir().join("Cargo.toml");
   let mut manifest_str = String::new();
   let mut manifest_file = File::open(&manifest_path)?;
@@ -20,6 +21,9 @@ pub fn rewrite_manifest(config: &Config) -> crate::Result<()> {
 
   let entry = dependencies.entry("tauri");
   let tauri = entry.as_value_mut();
+
+  let config = config.lock().unwrap();
+
   if let Some(tauri) = tauri {
     let mut features: Array = Default::default();
 

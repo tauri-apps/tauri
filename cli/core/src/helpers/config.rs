@@ -1,5 +1,5 @@
 use json_patch::merge;
-use once_cell::sync::OnceCell;
+use once_cell::sync::Lazy;
 use serde::de::{Deserializer, Error as DeError, Visitor};
 use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
@@ -8,8 +8,14 @@ use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
+use std::sync::{Arc, Mutex};
 
-static CONFIG: OnceCell<Config> = OnceCell::new();
+type ConfigHandle = Arc<Mutex<Option<Arc<Mutex<Config>>>>>;
+
+fn config_handle() -> &'static ConfigHandle {
+  static CONFING_HANDLE: Lazy<ConfigHandle> = Lazy::new(Default::default);
+  &CONFING_HANDLE
+}
 
 /// The window configuration object.
 #[derive(PartialEq, Clone, Deserialize, Serialize, Debug)]
@@ -390,10 +396,14 @@ fn default_build() -> BuildConfig {
 }
 
 /// Gets the static parsed config from `tauri.conf.json`.
-fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<&'static Config> {
-  if let Some(config) = CONFIG.get() {
+fn get_internal(
+  merge_config: Option<&str>,
+  reload: bool,
+  file_first: bool,
+) -> crate::Result<Arc<Mutex<Config>>> {
+  if let Some(config) = &*config_handle().lock().unwrap() {
     if !reload {
-      return Ok(config);
+      return Ok(config.clone());
     }
   }
 
@@ -403,24 +413,32 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<&'sta
   let mut config: JsonValue = serde_json::from_reader(buf)?;
 
   if let Some(merge_config) = merge_config {
-    let merge_config: JsonValue = serde_json::from_str(&merge_config)?;
-    merge(&mut config, &merge_config);
+    let mut merge_config: JsonValue = serde_json::from_str(&merge_config)?;
+    if file_first {
+      merge(&mut config, &merge_config);
+    } else {
+      merge(&mut merge_config, &config);
+      config = merge_config;
+    }
   }
 
   let config = serde_json::from_value(config)?;
+  let mut handle = config_handle().lock().unwrap();
 
-  CONFIG
-    .set(config)
-    .map_err(|_| anyhow::anyhow!("failed to set CONFIG"))?;
+  if let Some(config_mutex) = &*handle {
+    *config_mutex.lock().unwrap() = config;
+  } else {
+    *handle = Some(Arc::new(Mutex::new(config)));
+  }
 
-  let config = CONFIG.get().unwrap();
-  Ok(config)
+  Ok(handle.as_ref().unwrap().clone())
 }
 
-pub fn get(merge_config: Option<&str>) -> crate::Result<&'static Config> {
-  get_internal(merge_config, false)
+pub fn get(merge_config: Option<&str>) -> crate::Result<Arc<Mutex<Config>>> {
+  get_internal(merge_config, false, true)
 }
 
-pub fn reload(merge_config: Option<&str>) -> crate::Result<&'static Config> {
-  get_internal(merge_config, true)
+pub fn reload() -> crate::Result<()> {
+  get_internal(Some(&serde_json::to_string(&*get(None)?)?), true, false)?;
+  Ok(())
 }

@@ -147,7 +147,9 @@
           "type": "boolean"
         }
       },
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "type": "object"
     },
     "CliConfig": {
@@ -213,7 +215,10 @@
           "type": "boolean"
         }
       },
-      "required": ["devPath", "distDir"],
+      "required": [
+        "devPath",
+        "distDir"
+      ],
       "type": "object"
     }
   },
@@ -275,7 +280,9 @@
               "type": "boolean"
             }
           },
-          "required": ["all"],
+          "required": [
+            "all"
+          ],
           "type": "object"
         },
         "bundle": {
@@ -379,7 +386,10 @@
               "description": "the bundle targets, currently supports [\"deb\", \"osx\", \"msi\", \"appimage\", \"dmg\"] or \"all\""
             }
           },
-          "required": ["icon", "identifier"],
+          "required": [
+            "icon",
+            "identifier"
+          ],
           "type": "object"
         },
         "cli": {
@@ -398,7 +408,9 @@
             "port": {
               "anyOf": [
                 {
-                  "enum": ["random"],
+                  "enum": [
+                    "random"
+                  ],
                   "type": "string"
                 },
                 {
@@ -450,7 +462,9 @@
               "type": "number"
             }
           },
-          "required": ["title"],
+          "required": [
+            "title"
+          ],
           "type": "object"
         }
       },
@@ -469,6 +483,10 @@
       "type": "boolean"
     }
   },
-  "required": ["build", "ctx", "tauri"],
+  "required": [
+    "build",
+    "ctx",
+    "tauri"
+  ],
   "type": "object"
 }

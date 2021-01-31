@@ -4,8 +4,7 @@ const CopyWebpackPlugin = require('copy-webpack-plugin')
 
 module.exports = {
   entry: {
-    'api/build': './src/api/build.ts',
-    'api/dev': './src/api/dev.ts',
+    'api/cli': './src/api/cli.ts',
     'api/init': './src/api/init.ts',
     'api/recipes': './src/api/recipes/index.ts',
     'api/recipes/install': './src/api/recipes/install.ts',
@@ -13,7 +12,8 @@ module.exports = {
     'api/info': './src/api/info.ts',
     'api/dependency-manager': './src/api/dependency-manager/index.ts',
     'helpers/tauri-config': './src/helpers/tauri-config.ts',
-    'helpers/spawn': './src/helpers/spawn.ts'
+    'helpers/spawn': './src/helpers/spawn.ts',
+    'helpers/rust-cli': './src/helpers/rust-cli.ts'
   },
   mode: process.env.NODE_ENV || 'development',
   devtool: 'source-map',
@@ -69,7 +69,7 @@ function schemaParser(schemaName, content) {
     if (line === `export const ${schemaName} = {`) {
       output.push('{')
     } else if (output.length) {
-      if (line === '};') {
+      if (line === '}') {
         output.push('}')
         break
       }
@@ -77,5 +77,7 @@ function schemaParser(schemaName, content) {
     }
   }
 
-  return output.join('\n')
+  const json = output.join('\n')
+  const object = eval(`(${json})`)
+  return JSON.stringify(object, null, 2)
 }

@@ -153,7 +153,7 @@ impl Dev {
 
     let (tx, rx) = channel();
 
-    let mut watcher = watcher(tx, Duration::from_secs(2)).unwrap();
+    let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
     watcher.watch(tauri_path.join("src"), RecursiveMode::Recursive)?;
     watcher.watch(tauri_path.join("Cargo.toml"), RecursiveMode::Recursive)?;
     watcher.watch(tauri_path.join("tauri.conf.json"), RecursiveMode::Recursive)?;
@@ -182,8 +182,6 @@ impl Dev {
         };
 
         if let Some(event_path) = event_path {
-          let _ = child_wait_tx.send(true);
-          process.kill()?;
           if event_path.file_name() == Some(OsStr::new("tauri.conf.json")) {
             reload_config(merge_config.as_deref())?;
             (*config.lock().unwrap()).as_mut().unwrap().build.dev_path = new_dev_path.to_string();
@@ -193,6 +191,8 @@ impl Dev {
             // When tauri.conf.json is changed, rewrite_manifest will be called
             // which will trigger the watcher again
             // So the app should only be started when a file other than tauri.conf.json is changed
+            let _ = child_wait_tx.send(true);
+            process.kill()?;
             process = self.start_app(child_wait_rx.clone());
           }
         }

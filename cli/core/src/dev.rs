@@ -189,9 +189,12 @@ impl Dev {
             (*config.lock().unwrap()).as_mut().unwrap().build.dev_path = new_dev_path.to_string();
             rewrite_manifest(config.clone())?;
             set_var("TAURI_CONFIG", serde_json::to_string(&*config)?);
+          } else {
+            // When tauri.conf.json is changed, rewrite_manifest will be called
+            // which will trigger the watcher again
+            // So the app should only be started when a file other than tauri.conf.json is changed
+            process = self.start_app(child_wait_rx.clone());
           }
-
-          process = self.start_app(child_wait_rx.clone());
         }
       }
     }

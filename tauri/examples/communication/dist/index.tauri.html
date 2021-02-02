@@ -142,11 +142,7 @@ if (!String.prototype.startsWith) {
     function (e) {
       var target = e.target
       while (target != null) {
-        if (
-          target.matches
-            ? target.matches('img')
-            : target.msMatchesSelector('img')
-        ) {
+        if (target.matches('img')) {
           window.__TAURI__.loadAsset(target.src, 'image').then(function (img) {
             target.src = img
           })

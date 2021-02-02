@@ -14,19 +14,11 @@ use url::Url;
 
 use std::env::set_var;
 use std::ffi::OsStr;
-use std::process::{exit, Child, Command};
+use std::process::{exit, Command};
 use std::sync::mpsc::{channel, Receiver};
 use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
-
-struct ChildGuard(Child);
-
-impl Drop for ChildGuard {
-  fn drop(&mut self) {
-    let _ = self.0.kill();
-  }
-}
 
 #[derive(Default)]
 pub struct Dev {
@@ -191,7 +183,7 @@ impl Dev {
             // When tauri.conf.json is changed, rewrite_manifest will be called
             // which will trigger the watcher again
             // So the app should only be started when a file other than tauri.conf.json is changed
-            let _ = child_wait_tx.send(true);
+            let _ = child_wait_tx.send(());
             process.kill()?;
             process = self.start_app(child_wait_rx.clone());
           }
@@ -200,26 +192,34 @@ impl Dev {
     }
   }
 
-  fn start_app(&self, child_wait_rx: Arc<Mutex<Receiver<bool>>>) -> Arc<SharedChild> {
+  fn start_app(&self, child_wait_rx: Arc<Mutex<Receiver<()>>>) -> Arc<SharedChild> {
     let mut command = Command::new("cargo");
     command.arg("run").current_dir(tauri_dir());
     let child = SharedChild::spawn(&mut command).expect("failed to run cargo");
     let child_arc = Arc::new(child);
 
-    if self.exit_on_panic {
-      let child_clone = child_arc.clone();
-      std::thread::spawn(move || {
-        child_clone.wait().expect("failed to wait on child");
-        if child_wait_rx
+    let child_clone = child_arc.clone();
+    let exit_on_panic = self.exit_on_panic;
+    std::thread::spawn(move || {
+      let status = child_clone.wait().expect("failed to wait on child");
+      if exit_on_panic {
+        // we exit if the status is a success code (app closed) or code is 101 (compilation error)
+        // if the process wasn't killed by the file watcher
+        if (status.success() || status.code() == Some(101))
+          // `child_wait_rx` indicates that the process was killed by the file watcher
+          && child_wait_rx
           .lock()
           .expect("failed to get child_wait_rx lock")
           .try_recv()
           .is_err()
         {
-          std::process::exit(1);
+          exit(0);
         }
-      });
-    }
+      } else if status.success() {
+        // if we're no exiting on panic, we only exit if the status is a success code (app closed)
+        exit(0);
+      }
+    });
 
     child_arc
   }

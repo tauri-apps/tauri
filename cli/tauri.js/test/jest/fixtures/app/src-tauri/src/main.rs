@@ -6,7 +6,7 @@ extern crate serde_json;
 
 fn main() {
   tauri::AppBuilder::new()
-    .setup(|webview, _| {
+    .setup(|webview, _| async move {
       let mut webview_ = webview.as_mut();
       tauri::event::listen(String::from("hello"), move |_| {
         tauri::event::emit(
@@ -16,11 +16,13 @@ fn main() {
         )
         .unwrap();
       });
-      webview.eval("window.onTauriInit && window.onTauriInit()");
+      let _ = webview.dispatch(|w| {
+        w.eval("window.onTauriInit && window.onTauriInit()");
+      });
     })
-    .invoke_handler(|webview, arg| {
+    .invoke_handler(|webview, arg| async move {
       use cmd::Cmd::*;
-      match serde_json::from_str(arg) {
+      match serde_json::from_str(&arg) {
         Err(e) => Err(e.to_string()),
         Ok(command) => {
           match command {

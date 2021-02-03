@@ -3,7 +3,8 @@ use webview_official::WebviewMut;
 
 mod runner;
 
-type InvokeHandler = dyn Fn(WebviewMut, String) -> BoxFuture<'static, Result<(), String>> + Send + Sync;
+type InvokeHandler =
+  dyn Fn(WebviewMut, String) -> BoxFuture<'static, Result<(), String>> + Send + Sync;
 type Setup = dyn Fn(WebviewMut, String) -> BoxFuture<'static, ()> + Send + Sync;
 
 /// The application runner.

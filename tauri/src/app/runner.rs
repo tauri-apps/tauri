@@ -309,8 +309,8 @@ fn build_webview<'a>(
 
   webview.bind("__TAURI_INVOKE_HANDLER__", move |_, arg| {
     let arg = arg.to_string();
-    let mut w = w.clone();
     let application = application.clone();
+    let mut w = w.clone();
     let content_url = content_url.to_string();
     let initialized_splashscreen = initialized_splashscreen.clone();
 

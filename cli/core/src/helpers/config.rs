@@ -1,5 +1,5 @@
 use json_patch::merge;
-use once_cell::sync::OnceCell;
+use once_cell::sync::Lazy;
 use serde::de::{Deserializer, Error as DeError, Visitor};
 use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
@@ -8,8 +8,14 @@ use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
+use std::sync::{Arc, Mutex};
 
-static CONFIG: OnceCell<Config> = OnceCell::new();
+pub type ConfigHandle = Arc<Mutex<Option<Config>>>;
+
+fn config_handle() -> &'static ConfigHandle {
+  static CONFING_HANDLE: Lazy<ConfigHandle> = Lazy::new(Default::default);
+  &CONFING_HANDLE
+}
 
 /// The window configuration object.
 #[derive(PartialEq, Clone, Deserialize, Serialize, Debug)]
@@ -390,11 +396,9 @@ fn default_build() -> BuildConfig {
 }
 
 /// Gets the static parsed config from `tauri.conf.json`.
-fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<&'static Config> {
-  if let Some(config) = CONFIG.get() {
-    if !reload {
-      return Ok(config);
-    }
+fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<ConfigHandle> {
+  if !reload && config_handle().lock().unwrap().is_some() {
+    return Ok(config_handle().clone());
   }
 
   let path = super::app_paths::tauri_dir().join("tauri.conf.json");
@@ -408,19 +412,16 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<&'sta
   }
 
   let config = serde_json::from_value(config)?;
+  *config_handle().lock().unwrap() = Some(config);
 
-  CONFIG
-    .set(config)
-    .map_err(|_| anyhow::anyhow!("failed to set CONFIG"))?;
-
-  let config = CONFIG.get().unwrap();
-  Ok(config)
+  Ok(config_handle().clone())
 }
 
-pub fn get(merge_config: Option<&str>) -> crate::Result<&'static Config> {
+pub fn get(merge_config: Option<&str>) -> crate::Result<ConfigHandle> {
   get_internal(merge_config, false)
 }
 
-pub fn reload(merge_config: Option<&str>) -> crate::Result<&'static Config> {
-  get_internal(merge_config, true)
+pub fn reload(merge_config: Option<&str>) -> crate::Result<()> {
+  get_internal(merge_config, true)?;
+  Ok(())
 }

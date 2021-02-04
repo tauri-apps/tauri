@@ -42,7 +42,7 @@ pub use webview::*;
 
 /// The Tauri webview implementations.
 pub mod flavors {
-  pub use super::webview::official::WebviewOfficial as Official;
+  pub use webview_official::Webview as Official;
 }
 
 use std::process::Stdio;

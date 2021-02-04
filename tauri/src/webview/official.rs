@@ -1,12 +1,6 @@
 use super::{PluginStore, SizeHint, Webview, WebviewBuilder};
 use once_cell::sync::Lazy;
 
-type WebviewRef = webview_official::Webview;
-
-/// The webview implementation from https://github.com/webview/webview
-#[derive(Clone)]
-pub struct WebviewOfficial(WebviewRef);
-
 #[derive(Default)]
 pub struct WebviewOfficialBuilder {
   title: Option<String>,
@@ -18,7 +12,7 @@ pub struct WebviewOfficialBuilder {
 }
 
 impl WebviewBuilder for WebviewOfficialBuilder {
-  type WebviewObject = WebviewOfficial;
+  type WebviewObject = webview_official::Webview;
 
   fn new() -> Self {
     WebviewOfficialBuilder::default()
@@ -88,28 +82,28 @@ impl WebviewBuilder for WebviewOfficialBuilder {
       },
     );
 
-    WebviewOfficial(w)
+    w
   }
 }
 
-impl Webview for WebviewOfficial {
+impl Webview for webview_official::Webview {
   type Builder = WebviewOfficialBuilder;
 
   fn plugin_store() -> &'static PluginStore<Self> {
-    static PLUGINS: Lazy<PluginStore<WebviewOfficial>> = Lazy::new(Default::default);
+    static PLUGINS: Lazy<PluginStore<webview_official::Webview>> = Lazy::new(Default::default);
     &PLUGINS
   }
 
   fn init(&mut self, js: &str) {
-    self.0.init(js);
+    self.init(js);
   }
 
   fn set_title(&mut self, title: &str) {
-    self.0.set_title(title);
+    self.set_title(title);
   }
 
   fn set_size(&mut self, width: i32, height: i32, hint: SizeHint) {
-    self.0.set_size(
+    self.set_size(
       width,
       height,
       match hint {
@@ -122,30 +116,28 @@ impl Webview for WebviewOfficial {
   }
 
   fn terminate(&mut self) {
-    self.0.terminate();
+    self.terminate();
   }
 
   fn eval(&mut self, js: &str) {
-    self.0.eval(js);
+    self.eval(js);
   }
 
   fn dispatch<F>(&mut self, f: F)
   where
     F: FnOnce(&mut Self) + Send + 'static,
   {
-    self.0.dispatch(move |w| {
-      f(&mut Self(w));
-    });
+    self.dispatch(f);
   }
 
   fn bind<F>(&mut self, name: &str, f: F)
   where
     F: FnMut(&str, &str),
   {
-    self.0.bind(name, f);
+    self.bind(name, f);
   }
 
   fn run(&mut self) {
-    self.0.run();
+    self.run();
   }
 }

@@ -1,10 +1,10 @@
 #![cfg(path_api)]
+use crate::WebviewMut;
 use tauri_api::path;
 use tauri_api::path::BaseDirectory;
-use webview_official::WebviewMut;
 
-pub async fn resolve_path(
-  webview: &mut WebviewMut,
+pub async fn resolve_path<W: WebviewMut>(
+  webview: &mut W,
   path: String,
   directory: Option<BaseDirectory>,
   callback: String,

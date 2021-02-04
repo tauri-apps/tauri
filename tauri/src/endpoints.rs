@@ -16,10 +16,13 @@ mod http;
 #[cfg(notification)]
 mod notification;
 
-use webview_official::WebviewMut;
+use crate::{Webview, WebviewMut};
 
 #[allow(unused_variables)]
-pub(crate) async fn handle(webview: &mut WebviewMut, arg: &str) -> crate::Result<()> {
+pub(crate) async fn handle<W: WebviewMut + 'static>(
+  webview: &mut W,
+  arg: &str,
+) -> crate::Result<()> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
     Err(e) => Err(e.into()),
@@ -323,7 +326,7 @@ pub(crate) async fn handle(webview: &mut WebviewMut, arg: &str) -> crate::Result
 }
 
 #[allow(dead_code)]
-fn api_error(webview: &mut WebviewMut, error_fn: String, message: &str) {
+fn api_error<W: WebviewMut>(webview: &mut W, error_fn: String, message: &str) {
   let reject_code = tauri_api::rpc::format_callback(error_fn, message);
   let _ = webview.dispatch(move |w| {
     w.eval(&reject_code);
@@ -331,7 +334,7 @@ fn api_error(webview: &mut WebviewMut, error_fn: String, message: &str) {
 }
 
 #[allow(dead_code)]
-fn allowlist_error(webview: &mut WebviewMut, error_fn: String, allowlist_key: &str) {
+fn allowlist_error<W: WebviewMut>(webview: &mut W, error_fn: String, allowlist_key: &str) {
   api_error(
     webview,
     error_fn,
@@ -343,7 +346,7 @@ fn allowlist_error(webview: &mut WebviewMut, error_fn: String, allowlist_key: &s
 }
 
 #[allow(dead_code)]
-fn throw_allowlist_error(webview: &mut WebviewMut, allowlist_key: &str) {
+fn throw_allowlist_error<W: WebviewMut>(webview: &mut W, allowlist_key: &str) {
   let reject_code = format!(
     r#"throw new Error("'{}' not on the allowlist")"#,
     allowlist_key

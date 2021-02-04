@@ -6,7 +6,7 @@ use std::{
   },
 };
 
-use webview_official::{SizeHint, Webview, WebviewBuilder};
+use crate::{SizeHint, Webview, WebviewBuilder, WebviewMut};
 
 use super::App;
 #[cfg(embedded_server)]
@@ -20,7 +20,7 @@ enum Content<T> {
 }
 
 /// Main entry point for running the Webview
-pub(crate) fn run(application: App) -> crate::Result<()> {
+pub(crate) fn run<W: Webview + 'static>(application: App<W>) -> crate::Result<()> {
   // setup the content using the config struct depending on the compile target
   let main_content = setup_content()?;
 
@@ -48,8 +48,8 @@ pub(crate) fn run(application: App) -> crate::Result<()> {
   // build the webview
   let mut webview = build_webview(application, main_content, splashscreen_content)?;
 
-  let mut webview_ = webview.as_mut();
-  crate::async_runtime::spawn(async move { crate::plugin::created(&mut webview_).await });
+  // let mut webview_ = webview.as_mut();
+  // TODO crate::async_runtime::spawn(async move { crate::plugin::created(&mut webview_).await });
 
   // spawn the embedded server on our server url
   #[cfg(embedded_server)]
@@ -238,11 +238,11 @@ pub fn init() -> String {
 }
 
 // build the webview struct
-fn build_webview<'a>(
-  application: App,
+fn build_webview<'a, W: Webview + 'static>(
+  application: App<W>,
   content: Content<String>,
   splashscreen_content: Option<Content<String>>,
-) -> crate::Result<Webview<'a>> {
+) -> crate::Result<W> {
   let config = get()?;
   let debug = cfg!(debug_assertions);
   // get properties from config struct
@@ -254,7 +254,7 @@ fn build_webview<'a>(
     SizeHint::FIXED
   };
   // let fullscreen = config.tauri.window.fullscreen;
-  let title = config.tauri.window.title.clone().into_boxed_str();
+  let title = config.tauri.window.title.clone();
 
   let has_splashscreen = splashscreen_content.is_some();
   let initialized_splashscreen = Arc::new(AtomicBool::new(false));
@@ -281,18 +281,18 @@ fn build_webview<'a>(
       {plugin_init}
     "#,
     event_init = init(),
-    plugin_init = crate::async_runtime::block_on(crate::plugin::init_script())
+    plugin_init = "" // TODO crate::async_runtime::block_on(crate::plugin::init_script())
   );
 
-  let mut webview = WebviewBuilder::new()
-    .init(Box::leak(init.into_boxed_str()))
-    .title(Box::leak(title))
-    .width(width as usize)
-    .height(height as usize)
-    .resize(resizable)
-    .debug(debug)
-    .url(Box::leak(url.into_boxed_str()))
-    .build();
+  let mut webview_builder = W::Builder::new();
+  webview_builder.init(&init);
+  webview_builder.title(&title);
+  webview_builder.width(width as usize);
+  webview_builder.height(height as usize);
+  webview_builder.resizable(resizable);
+  webview_builder.debug(debug);
+  webview_builder.url(&url);
+  let mut webview = webview_builder.finish();
   // TODO waiting for webview window API
   // webview.set_fullscreen(fullscreen);
 
@@ -326,7 +326,7 @@ fn build_webview<'a>(
         };
         application.run_setup(&mut w, source.to_string()).await;
         if source == "window-1" {
-          crate::plugin::ready(&mut w).await;
+          // TODO crate::plugin::ready(&mut w).await;
         }
       } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
         w.dispatch(move |w| {
@@ -354,7 +354,8 @@ fn build_webview<'a>(
         }
         if let Err(ref app_handle_error) = endpoint_handle {
           if app_handle_error.contains("unknown variant") {
-            let error = match crate::plugin::extend_api(&mut w, &arg).await {
+            // TODO
+            /* let error = match crate::plugin::extend_api(&mut w, &arg).await {
               Ok(handled) => {
                 if handled {
                   String::from("")
@@ -364,7 +365,7 @@ fn build_webview<'a>(
               }
               Err(e) => e,
             };
-            endpoint_handle = Err(error);
+            endpoint_handle = Err(error);*/
           }
         }
         endpoint_handle = endpoint_handle.map_err(|e| e.replace("'", "\\'"));

@@ -1,8 +1,8 @@
-use webview_official::WebviewMut;
+use crate::{Webview, WebviewMut};
 
 /// Validates a salt.
-pub fn validate(
-  webview: &mut WebviewMut,
+pub fn validate<W: WebviewMut>(
+  webview: &mut W,
   salt: String,
   callback: String,
   error: String,

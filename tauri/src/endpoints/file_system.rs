@@ -1,4 +1,4 @@
-use webview_official::WebviewMut;
+use crate::WebviewMut;
 
 use tauri_api::dir;
 use tauri_api::file;
@@ -13,8 +13,8 @@ use super::cmd::{DirOperationOptions, FileOperationOptions};
 
 /// Reads a directory.
 #[cfg(read_dir)]
-pub async fn read_dir(
-  webview: &mut WebviewMut,
+pub async fn read_dir<W: WebviewMut>(
+  webview: &mut W,
   path: PathBuf,
   options: Option<DirOperationOptions>,
   callback: String,
@@ -38,8 +38,8 @@ pub async fn read_dir(
 
 /// Copies a file.
 #[cfg(copy_file)]
-pub async fn copy_file(
-  webview: &mut WebviewMut,
+pub async fn copy_file<W: WebviewMut>(
+  webview: &mut W,
   source: PathBuf,
   destination: PathBuf,
   options: Option<FileOperationOptions>,
@@ -66,8 +66,8 @@ pub async fn copy_file(
 
 /// Creates a directory.
 #[cfg(create_dir)]
-pub async fn create_dir(
-  webview: &mut WebviewMut,
+pub async fn create_dir<W: WebviewMut>(
+  webview: &mut W,
   path: PathBuf,
   options: Option<DirOperationOptions>,
   callback: String,
@@ -98,8 +98,8 @@ pub async fn create_dir(
 
 /// Removes a directory.
 #[cfg(remove_dir)]
-pub async fn remove_dir(
-  webview: &mut WebviewMut,
+pub async fn remove_dir<W: WebviewMut>(
+  webview: &mut W,
   path: PathBuf,
   options: Option<DirOperationOptions>,
   callback: String,
@@ -130,8 +130,8 @@ pub async fn remove_dir(
 
 /// Removes a file
 #[cfg(remove_file)]
-pub async fn remove_file(
-  webview: &mut WebviewMut,
+pub async fn remove_file<W: WebviewMut>(
+  webview: &mut W,
   path: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,
@@ -151,8 +151,8 @@ pub async fn remove_file(
 
 /// Renames a file.
 #[cfg(rename_file)]
-pub async fn rename_file(
-  webview: &mut WebviewMut,
+pub async fn rename_file<W: WebviewMut>(
+  webview: &mut W,
   old_path: PathBuf,
   new_path: PathBuf,
   options: Option<FileOperationOptions>,
@@ -179,8 +179,8 @@ pub async fn rename_file(
 
 /// Writes a text file.
 #[cfg(write_file)]
-pub async fn write_file(
-  webview: &mut WebviewMut,
+pub async fn write_file<W: WebviewMut>(
+  webview: &mut W,
   path: PathBuf,
   contents: String,
   options: Option<FileOperationOptions>,
@@ -202,8 +202,8 @@ pub async fn write_file(
 
 /// Writes a binary file.
 #[cfg(write_binary_file)]
-pub async fn write_binary_file(
-  webview: &mut WebviewMut,
+pub async fn write_binary_file<W: WebviewMut>(
+  webview: &mut W,
   path: PathBuf,
   contents: String,
   options: Option<FileOperationOptions>,
@@ -229,8 +229,8 @@ pub async fn write_binary_file(
 
 /// Reads a text file.
 #[cfg(read_text_file)]
-pub async fn read_text_file(
-  webview: &mut WebviewMut,
+pub async fn read_text_file<W: WebviewMut>(
+  webview: &mut W,
   path: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,
@@ -247,8 +247,8 @@ pub async fn read_text_file(
 
 /// Reads a binary file.
 #[cfg(read_binary_file)]
-pub async fn read_binary_file(
-  webview: &mut WebviewMut,
+pub async fn read_binary_file<W: WebviewMut>(
+  webview: &mut W,
   path: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,

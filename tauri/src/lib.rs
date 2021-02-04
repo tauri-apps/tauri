@@ -29,6 +29,8 @@ mod endpoints;
 pub mod plugin;
 /// The salt helpers.
 mod salt;
+/// Webview interface.
+mod webview;
 
 pub(crate) mod async_runtime;
 
@@ -36,7 +38,8 @@ pub(crate) mod async_runtime;
 pub use anyhow::Result;
 pub use app::*;
 pub use tauri_api as api;
-pub use webview_official::{Webview, WebviewMut};
+pub use webview::*;
+pub use webview_official::Webview as OfficialWebview;
 
 use std::process::Stdio;
 
@@ -46,10 +49,11 @@ use serde::Serialize;
 /// Synchronously executes the given task
 /// and evaluates its Result to the JS promise described by the `callback` and `error` function names.
 pub fn execute_promise_sync<
+  W: WebviewMut,
   R: Serialize,
   F: futures::Future<Output = Result<R>> + Send + 'static,
 >(
-  webview: &mut WebviewMut,
+  webview: &mut W,
   task: F,
   callback: String,
   error: String,
@@ -68,10 +72,11 @@ pub fn execute_promise_sync<
 /// If the Result `is_ok()`, the callback will be the `success_callback` function name and the argument will be the Ok value.
 /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
 pub async fn execute_promise<
+  W: WebviewMut,
   R: Serialize,
   F: futures::Future<Output = Result<R>> + Send + 'static,
 >(
-  webview: &mut WebviewMut,
+  webview: &mut W,
   task: F,
   success_callback: String,
   error_callback: String,
@@ -90,8 +95,8 @@ pub async fn execute_promise<
 }
 
 /// Calls the given command and evaluates its output to the JS promise described by the `callback` and `error` function names.
-pub async fn call(
-  webview: &mut WebviewMut,
+pub async fn call<W: WebviewMut>(
+  webview: &mut W,
   command: String,
   args: Vec<String>,
   callback: String,
@@ -107,7 +112,7 @@ pub async fn call(
 }
 
 /// Closes the splashscreen.
-pub fn close_splashscreen(webview: &mut Webview<'_>) -> crate::Result<()> {
+pub fn close_splashscreen<W: Webview>(webview: &mut W) -> crate::Result<()> {
   // send a signal to the runner so it knows that it should redirect to the main app content
   webview.eval(r#"window.__TAURI_INVOKE_HANDLER__({ cmd: "closeSplashscreen" })"#);
 

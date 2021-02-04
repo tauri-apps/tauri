@@ -1,1 +1,166 @@
+* {
+  font-family: Arial, Helvetica, sans-serif;
+}
 
+body {
+  background: #889;
+}
+
+.logo-container {
+  width: 95%;
+  margin: 0px auto;
+  overflow: hidden;
+}
+
+.logo-link {
+  font-weight: 700;
+  position: absolute;
+  top: 150px;
+  right: 10px;
+}
+
+.logo {
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  position: fixed;
+  z-index: 10;
+  top: 7px;
+  right: 10px;
+}
+
+#response {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 440px;
+  min-height: 110px;
+  background: #aab;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 12px;
+  word-wrap: break-word;
+  padding: 5px;
+  border-radius: 5px;
+  overflow-y: auto;
+}
+
+input,
+select {
+  background: white;
+  font-family: system-ui, sans-serif;
+  border: 0;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  line-height: 1.2;
+  padding: 0.25rem 0.5rem;
+  margin: 0.25rem;
+}
+
+button:hover,
+button:focus {
+  background: #0053ba;
+}
+
+button:focus {
+  outline: 1px solid #fff;
+  outline-offset: -4px;
+}
+
+button:active {
+  transform: scale(0.99);
+}
+
+.button {
+  border: 0;
+  border-radius: 0.25rem;
+  background: #1e88e5;
+  color: white;
+  font-family: system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-decoration: none;
+  padding: 0.25rem 0.5rem;
+  margin: 0.25rem;
+  cursor: pointer;
+}
+
+.bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  text-align: center;
+  width: 100%;
+  padding: 5px;
+  background: #333;
+  color: #eef;
+}
+
+.dark-link {
+  color: white;
+  text-decoration: none !important;
+}
+
+.tabs-container {
+  position: fixed;
+  height: 400px;
+  top: 20px;
+  left: 10px;
+  right: 10px;
+  z-index: 9;
+}
+
+.tabs {
+  position: relative;
+  min-height: 400px;
+  clear: both;
+}
+
+.tab {
+  float: left;
+}
+
+.tab>label {
+  background: #eee;
+  padding: 10px;
+  border: 1px solid transparent;
+  margin-left: -1px;
+  position: relative;
+  left: 1px;
+}
+
+.tabs>.tabber {
+  border-top-left-radius: 5px;
+}
+
+.tabs>.tabber~.tabber {
+  border-top-left-radius: none;
+}
+
+.tab [type="radio"] {
+  display: none;
+}
+
+.content {
+  position: absolute;
+  top: 28px;
+  left: 0;
+  background: #bbc;
+  right: 0;
+  bottom: 0;
+  padding: 20px;
+  border: 1px solid transparent;
+  border-top-right-radius: 5px;
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+}
+
+[type="radio"]:checked~label {
+  background: #bbc;
+  border-bottom: 1px solid transparent;
+  z-index: 2;
+}
+
+[type="radio"]:checked~label~.content {
+  z-index: 1;
+}

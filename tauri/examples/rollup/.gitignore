@@ -1,4 +1,5 @@
 /node_modules/
 /public/build/
+/public/index.tauri.html
 
 .DS_Store

@@ -2,7 +2,18 @@
   "name": "@tauri-apps/api",
   "version": "0.1.0",
   "description": "Tauri API definitions",
-  "main": "./dist/index",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./cli": "./dist/cli.js",
+    "./dialog": "./dist/dialog.js",
+    "./event": "./dist/event.js",
+    "./fs": "./dist/fs.js",
+    "./http": "./dist/http.js",
+    "./notification": "./dist/notification.js",
+    "./tauri": "./dist/tauri.js",
+    "./window": "./dist/window.js"
+  },
   "funding": {
     "type": "opencollective",
     "url": "https://opencollective.com/tauri"

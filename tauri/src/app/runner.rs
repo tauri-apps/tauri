@@ -6,7 +6,7 @@ use std::{
   },
 };
 
-use crate::{SizeHint, Webview, WebviewBuilder, WebviewMut};
+use crate::{SizeHint, Webview, WebviewBuilder};
 
 use super::App;
 #[cfg(embedded_server)]
@@ -48,7 +48,7 @@ pub(crate) fn run<W: Webview + 'static>(application: App<W>) -> crate::Result<()
   // build the webview
   let mut webview = build_webview(application, main_content, splashscreen_content)?;
 
-  let mut webview_ = webview.as_mut();
+  let mut webview_ = webview.clone();
   crate::async_runtime::spawn(async move {
     crate::plugin::created(W::plugin_store(), &mut webview_).await
   });
@@ -306,7 +306,7 @@ fn build_webview<W: Webview + 'static>(
     webview.dispatch(move |_webview| _webview.eval(&contents));
   }
 
-  let w = webview.as_mut();
+  let w = webview.clone();
   let application = Arc::new(application);
 
   webview.bind("__TAURI_INVOKE_HANDLER__", move |_, arg| {
@@ -333,8 +333,7 @@ fn build_webview<W: Webview + 'static>(
       } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
         w.dispatch(move |w| {
           w.eval(&format!(r#"window.location.href = "{}""#, content_url));
-        })
-        .unwrap();
+        });
       } else {
         let mut endpoint_handle = crate::endpoints::handle(&mut w, &arg)
           .await

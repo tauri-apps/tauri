@@ -1,8 +1,8 @@
-use crate::WebviewMut;
+use crate::Webview;
 use tauri_api::http::{make_request as request, HttpRequestOptions};
 
 /// Makes an HTTP request and resolves the response to the webview
-pub async fn make_request<W: WebviewMut>(
+pub async fn make_request<W: Webview>(
   webview: &mut W,
   options: HttpRequestOptions,
   callback: String,

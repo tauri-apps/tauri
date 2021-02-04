@@ -1,5 +1,11 @@
-use super::{PluginStore, SizeHint, Webview, WebviewBuilder, WebviewMut};
+use super::{PluginStore, SizeHint, Webview, WebviewBuilder};
 use once_cell::sync::Lazy;
+
+type WebviewRef = webview_official::Webview;
+
+/// The webview implementation from https://github.com/webview/webview
+#[derive(Clone)]
+pub struct WebviewOfficial(WebviewRef);
 
 #[derive(Default)]
 pub struct WebviewOfficialBuilder {
@@ -12,7 +18,7 @@ pub struct WebviewOfficialBuilder {
 }
 
 impl WebviewBuilder for WebviewOfficialBuilder {
-  type WebviewObject = webview_official::Webview;
+  type WebviewObject = WebviewOfficial;
 
   fn new() -> Self {
     WebviewOfficialBuilder::default()
@@ -82,33 +88,28 @@ impl WebviewBuilder for WebviewOfficialBuilder {
       },
     );
 
-    w
+    WebviewOfficial(w)
   }
 }
 
-impl Webview for webview_official::Webview {
+impl Webview for WebviewOfficial {
   type Builder = WebviewOfficialBuilder;
-  type Mut = webview_official::WebviewMut;
 
-  fn plugin_store() -> &'static PluginStore<Self::Mut> {
-    static PLUGINS: Lazy<PluginStore<webview_official::WebviewMut>> = Lazy::new(Default::default);
+  fn plugin_store() -> &'static PluginStore<Self> {
+    static PLUGINS: Lazy<PluginStore<WebviewOfficial>> = Lazy::new(Default::default);
     &PLUGINS
   }
 
   fn init(&mut self, js: &str) {
-    self.init(js)
+    self.0.init(js);
   }
 
   fn set_title(&mut self, title: &str) {
-    self.set_title(title)
-  }
-
-  fn as_mut(&mut self) -> Self::Mut {
-    self.as_mut()
+    self.0.set_title(title);
   }
 
   fn set_size(&mut self, width: i32, height: i32, hint: SizeHint) {
-    self.set_size(
+    self.0.set_size(
       width,
       height,
       match hint {
@@ -117,59 +118,34 @@ impl Webview for webview_official::Webview {
         SizeHint::MAX => webview_official::SizeHint::MAX,
         SizeHint::FIXED => webview_official::SizeHint::FIXED,
       },
-    )
+    );
   }
 
   fn terminate(&mut self) {
-    self.terminate()
+    self.0.terminate();
   }
 
   fn eval(&mut self, js: &str) {
-    self.eval(js)
+    self.0.eval(js);
   }
 
   fn dispatch<F>(&mut self, f: F)
   where
     F: FnOnce(&mut Self) + Send + 'static,
   {
-    self.dispatch(|webview| f(webview))
+    self.0.dispatch(move |w| {
+      f(&mut Self(w));
+    });
   }
 
   fn bind<F>(&mut self, name: &str, f: F)
   where
     F: FnMut(&str, &str),
   {
-    self.bind(name, f)
+    self.0.bind(name, f);
   }
 
   fn run(&mut self) {
-    self.run()
-  }
-}
-
-impl WebviewMut for webview_official::WebviewMut {
-  type WebviewObject = webview_official::Webview;
-  type Error = webview_official::Error;
-
-  fn terminate(&mut self) -> Result<(), Self::Error> {
-    self.terminate()
-  }
-
-  fn eval(&mut self, js: &str) -> Result<(), Self::Error> {
-    self.eval(js)
-  }
-
-  fn dispatch<F>(&mut self, f: F) -> Result<(), Self::Error>
-  where
-    F: FnOnce(&mut Self::WebviewObject) + Send + 'static,
-  {
-    self.dispatch(f)
-  }
-
-  fn bind<F>(&mut self, name: &str, f: F) -> Result<(), Self::Error>
-  where
-    F: FnMut(&str, &str) + 'static,
-  {
-    self.bind(name, f)
+    self.0.run();
   }
 }

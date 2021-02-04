@@ -1,4 +1,4 @@
-mod official;
+pub(crate) mod official;
 
 /// Size hints.
 pub enum SizeHint {
@@ -46,23 +46,18 @@ pub trait WebviewBuilder: Sized {
 }
 
 /// Webview core API.
-pub trait Webview: Sized {
-  /// The `as_mut` type.
-  type Mut: WebviewMut;
+pub trait Webview: Clone + Send + Sync + Sized {
   /// The builder type.
   type Builder: WebviewBuilder<WebviewObject = Self>;
 
   /// Returns the static plugin collection.
-  fn plugin_store() -> &'static PluginStore<Self::Mut>;
+  fn plugin_store() -> &'static PluginStore<Self>;
 
   /// Adds an init JS code.
   fn init(&mut self, js: &str);
 
   /// Sets the window title.
   fn set_title(&mut self, title: &str);
-
-  /// Get a handle to a thread safe webview value.
-  fn as_mut(&mut self) -> Self::Mut;
 
   /// Sets the window size.
   fn set_size(&mut self, width: i32, height: i32, hint: SizeHint);
@@ -85,28 +80,4 @@ pub trait Webview: Sized {
 
   /// Run the webview event loop.
   fn run(&mut self);
-}
-
-/// A thread safe webview handle.
-pub trait WebviewMut: Clone + Send + Sync {
-  /// The error type for the APIs.
-  type Error: std::error::Error + Send + Sync + 'static;
-  /// The parent webview type, used for Dispatch.
-  type WebviewObject: Webview;
-
-  /// terminate the webview.
-  fn terminate(&mut self) -> Result<(), Self::Error>;
-
-  /// eval a string as JS code.
-  fn eval(&mut self, js: &str) -> Result<(), Self::Error>;
-
-  /// Dispatches a closure to run on the main thread.
-  fn dispatch<F>(&mut self, f: F) -> Result<(), Self::Error>
-  where
-    F: FnOnce(&mut Self::WebviewObject) + Send + 'static;
-
-  /// Binds a new API on the webview.
-  fn bind<F>(&mut self, name: &str, f: F) -> Result<(), Self::Error>
-  where
-    F: FnMut(&str, &str) + 'static;
 }

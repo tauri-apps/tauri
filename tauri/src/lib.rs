@@ -39,7 +39,11 @@ pub use anyhow::Result;
 pub use app::*;
 pub use tauri_api as api;
 pub use webview::*;
-pub use webview_official::Webview as OfficialWebview;
+
+/// The Tauri webview implementations.
+pub mod flavors {
+  pub use webview_official::Webview as Official;
+}
 
 use std::process::Stdio;
 

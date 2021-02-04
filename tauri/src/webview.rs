@@ -18,6 +18,8 @@ impl Default for SizeHint {
   }
 }
 
+pub use crate::plugin::PluginStore;
+
 /// The webview builder.
 pub trait WebviewBuilder: Sized {
   /// The webview object that this builder creates.
@@ -49,6 +51,9 @@ pub trait Webview: Sized {
   type Mut: WebviewMut;
   /// The builder type.
   type Builder: WebviewBuilder<WebviewObject = Self>;
+
+  /// Returns the static plugin collection.
+  fn plugin_store() -> &'static PluginStore<Self::Mut>;
 
   /// Adds an init JS code.
   fn init(&mut self, js: &str);

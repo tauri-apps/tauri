@@ -1,4 +1,5 @@
-use super::{SizeHint, Webview, WebviewBuilder, WebviewMut};
+use super::{PluginStore, SizeHint, Webview, WebviewBuilder, WebviewMut};
+use once_cell::sync::Lazy;
 
 #[derive(Default)]
 pub struct WebviewOfficialBuilder {
@@ -88,6 +89,11 @@ impl WebviewBuilder for WebviewOfficialBuilder {
 impl Webview for webview_official::Webview {
   type Builder = WebviewOfficialBuilder;
   type Mut = webview_official::WebviewMut;
+
+  fn plugin_store() -> &'static PluginStore<Self::Mut> {
+    static PLUGINS: Lazy<PluginStore<webview_official::WebviewMut>> = Lazy::new(Default::default);
+    &PLUGINS
+  }
 
   fn init(&mut self, js: &str) {
     self.init(js)

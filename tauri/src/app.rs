@@ -108,13 +108,16 @@ impl<W: Webview> AppBuilder<W> {
   }
 
   /// Adds a plugin to the runtime.
-  /*pub fn plugin(
+  pub fn plugin(
     self,
     plugin: impl crate::plugin::Plugin<W::Mut> + Send + Sync + Sync + 'static,
-  ) -> Self {
-    // TODO crate::async_runtime::block_on(crate::plugin::register(plugin));
+  ) -> Self
+  where
+    <W as Webview>::Mut: 'static,
+  {
+    crate::async_runtime::block_on(crate::plugin::register(W::plugin_store(), plugin));
     self
-  }*/
+  }
 
   /// Builds the App.
   pub fn build(self) -> App<W> {

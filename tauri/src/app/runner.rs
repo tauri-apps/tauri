@@ -48,8 +48,10 @@ pub(crate) fn run<W: Webview + 'static>(application: App<W>) -> crate::Result<()
   // build the webview
   let mut webview = build_webview(application, main_content, splashscreen_content)?;
 
-  // let mut webview_ = webview.as_mut();
-  // TODO crate::async_runtime::spawn(async move { crate::plugin::created(&mut webview_).await });
+  let mut webview_ = webview.as_mut();
+  crate::async_runtime::spawn(async move {
+    crate::plugin::created(W::plugin_store(), &mut webview_).await
+  });
 
   // spawn the embedded server on our server url
   #[cfg(embedded_server)]
@@ -238,7 +240,7 @@ pub fn init() -> String {
 }
 
 // build the webview struct
-fn build_webview<'a, W: Webview + 'static>(
+fn build_webview<W: Webview + 'static>(
   application: App<W>,
   content: Content<String>,
   splashscreen_content: Option<Content<String>>,
@@ -281,7 +283,7 @@ fn build_webview<'a, W: Webview + 'static>(
       {plugin_init}
     "#,
     event_init = init(),
-    plugin_init = "" // TODO crate::async_runtime::block_on(crate::plugin::init_script())
+    plugin_init = crate::async_runtime::block_on(crate::plugin::init_script(W::plugin_store()))
   );
 
   let mut webview_builder = W::Builder::new();
@@ -326,7 +328,7 @@ fn build_webview<'a, W: Webview + 'static>(
         };
         application.run_setup(&mut w, source.to_string()).await;
         if source == "window-1" {
-          // TODO crate::plugin::ready(&mut w).await;
+          crate::plugin::ready(W::plugin_store(), &mut w).await;
         }
       } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
         w.dispatch(move |w| {
@@ -354,8 +356,7 @@ fn build_webview<'a, W: Webview + 'static>(
         }
         if let Err(ref app_handle_error) = endpoint_handle {
           if app_handle_error.contains("unknown variant") {
-            // TODO
-            /* let error = match crate::plugin::extend_api(&mut w, &arg).await {
+            let error = match crate::plugin::extend_api(W::plugin_store(), &mut w, &arg).await {
               Ok(handled) => {
                 if handled {
                   String::from("")
@@ -365,7 +366,7 @@ fn build_webview<'a, W: Webview + 'static>(
               }
               Err(e) => e,
             };
-            endpoint_handle = Err(error);*/
+            endpoint_handle = Err(error);
           }
         }
         endpoint_handle = endpoint_handle.map_err(|e| e.replace("'", "\\'"));

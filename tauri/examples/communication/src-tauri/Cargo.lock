@@ -1884,6 +1884,7 @@ dependencies = [
 [[package]]
 name = "webview-official-sys"
 version = "0.1.2"
+source = "git+https://github.com/webview/webview_rust?branch=feat/remove-lifetime#45768b67847436934a8ecc1d71c5035cee1079c7"
 dependencies = [
  "cc",
  "pkg-config",
@@ -1892,6 +1893,7 @@ dependencies = [
 [[package]]
 name = "webview_official"
 version = "0.1.1"
+source = "git+https://github.com/webview/webview_rust?branch=feat/remove-lifetime#45768b67847436934a8ecc1d71c5035cee1079c7"
 dependencies = [
  "webview-official-sys",
 ]

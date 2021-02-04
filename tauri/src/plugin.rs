@@ -1,7 +1,6 @@
 use crate::async_runtime::Mutex;
 
 use crate::WebviewMut;
-use once_cell::sync::Lazy;
 
 use std::sync::Arc;
 
@@ -27,23 +26,22 @@ pub trait Plugin<W: WebviewMut + 'static>: Sync {
   }
 }
 
-/* type PluginStore<W: WebviewMut> = Arc<Mutex<Vec<Box<dyn Plugin<W> + Sync + Send>>>>;
-
-fn plugins<W: WebviewMut>() -> &'static PluginStore<W> {
-  static PLUGINS: Lazy<PluginStore<W>> = Lazy::new(Default::default);
-  &PLUGINS
-}
+/// Plugin collection type.
+pub type PluginStore<W> = Arc<Mutex<Vec<Box<dyn Plugin<W> + Sync + Send>>>>;
 
 /// Registers a plugin.
-pub async fn register<W: WebviewMut + 'static>(plugin: impl Plugin<W> + Sync + Send + 'static) {
-  let mut plugins = plugins().lock().await;
+pub async fn register<W: WebviewMut + 'static>(
+  store: &PluginStore<W>,
+  plugin: impl Plugin<W> + Sync + Send + 'static,
+) {
+  let mut plugins = store.lock().await;
   plugins.push(Box::new(plugin));
 }
 
-pub(crate) async fn init_script() -> String {
+pub(crate) async fn init_script<W: WebviewMut + 'static>(store: &PluginStore<W>) -> String {
   let mut init = String::new();
 
-  let plugins = plugins().lock().await;
+  let plugins = store.lock().await;
   for plugin in plugins.iter() {
     if let Some(init_script) = plugin.init_script().await {
       init.push_str(&format!("(function () {{ {} }})();", init_script));
@@ -53,22 +51,26 @@ pub(crate) async fn init_script() -> String {
   init
 }
 
-pub(crate) async fn created<W: WebviewMut>(webview: &mut W) {
-  let plugins = plugins().lock().await;
+pub(crate) async fn created<W: WebviewMut + 'static>(store: &PluginStore<W>, webview: &mut W) {
+  let plugins = store.lock().await;
   for plugin in plugins.iter() {
     plugin.created(webview.clone()).await;
   }
 }
 
-pub(crate) async fn ready<W: WebviewMut>(webview: &mut W) {
-  let plugins = plugins().lock().await;
+pub(crate) async fn ready<W: WebviewMut + 'static>(store: &PluginStore<W>, webview: &mut W) {
+  let plugins = store.lock().await;
   for plugin in plugins.iter() {
     plugin.ready(webview.clone()).await;
   }
 }
 
-pub(crate) async fn extend_api<W: WebviewMut>(webview: &mut W, arg: &str) -> Result<bool, String> {
-  let plugins = plugins().lock().await;
+pub(crate) async fn extend_api<W: WebviewMut + 'static>(
+  store: &PluginStore<W>,
+  webview: &mut W,
+  arg: &str,
+) -> Result<bool, String> {
+  let plugins = store.lock().await;
   for ext in plugins.iter() {
     match ext.extend_api(webview.clone(), arg).await {
       Ok(handled) => {
@@ -84,4 +86,4 @@ pub(crate) async fn extend_api<W: WebviewMut>(webview: &mut W, arg: &str) -> Res
     }
   }
   Ok(false)
-}*/
+}

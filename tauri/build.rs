@@ -21,18 +21,40 @@ pub fn main() -> Result<(), Box<dyn Error>> {
   match env::var_os("TAURI_DIST_DIR") {
     Some(dist_path) => {
       let dist_path_string = dist_path.into_string().unwrap();
+      let dist_path = Path::new(&dist_path_string);
 
       println!("cargo:rerun-if-changed={}", dist_path_string);
 
-      let inlined_assets = match std::env::var_os("TAURI_INLINED_ASSETS") {
+      let mut inlined_assets = match std::env::var_os("TAURI_INLINED_ASSETS") {
         Some(assets) => assets
           .into_string()
           .unwrap()
           .split('|')
           .map(|s| s.to_string())
+          .filter(|s| !s.is_empty())
           .collect(),
         None => Vec::new(),
       };
+
+      // the index.html is parsed so we always ignore it
+      inlined_assets.push(
+        dist_path
+          .join("index.html")
+          .into_os_string()
+          .into_string()
+          .expect("failed to convert dist path to string"),
+      );
+      if cfg!(feature = "no-server") {
+        // on no-server we include_str() the index.tauri.html on the runner
+        inlined_assets.push(
+          dist_path
+            .join("index.tauri.html")
+            .into_os_string()
+            .into_string()
+            .expect("failed to convert dist path to string"),
+        );
+      }
+
       // include assets
       tauri_includedir_codegen::start("ASSETS")
         .dir(
@@ -69,12 +91,11 @@ pub fn main() {
 }
 
 fn shared() {
-  if let Some(tauri_dir) = std::env::var_os("TAURI_DIR") {
-    let mut tauri_path = std::path::PathBuf::from(tauri_dir);
-    tauri_path.push("tauri.conf.json");
-    println!("cargo:rerun-if-changed={:?}", tauri_path);
-  }
+  setup_env_aliases();
+}
 
+#[allow(clippy::cognitive_complexity)]
+fn setup_env_aliases() {
   cfg_aliases! {
     embedded_server: { feature = "embedded-server" },
     no_server: { feature = "no-server" },
@@ -94,6 +115,9 @@ fn shared() {
     remove_dir: { any(all_api, feature = "remove-dir") },
     remove_file: { any(all_api, feature = "remove-file") },
     rename_file: { any(all_api, feature = "rename-file") },
+
+    // js path api
+    path_api: { any(all_api, feature = "path-api") },
 
     // window
     set_title: { any(all_api, feature = "set-title") },

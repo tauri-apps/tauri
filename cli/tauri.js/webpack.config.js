@@ -1,20 +1,25 @@
 const path = require('path')
 const nodeExternals = require('webpack-node-externals')
+const CopyWebpackPlugin = require('copy-webpack-plugin')
 
 module.exports = {
   entry: {
-    'api/build': './src/api/build.ts',
-    'api/dev': './src/api/dev.ts',
+    'api/cli': './src/api/cli.ts',
     'api/init': './src/api/init.ts',
+    'api/recipes': './src/api/recipes/index.ts',
+    'api/recipes/install': './src/api/recipes/install.ts',
     'api/tauricon': './src/api/tauricon.ts',
     'api/info': './src/api/info.ts',
+    'api/dependency-manager': './src/api/dependency-manager/index.ts',
     'helpers/tauri-config': './src/helpers/tauri-config.ts',
-    'helpers/spawn': './src/helpers/spawn.ts'
+    'helpers/spawn': './src/helpers/spawn.ts',
+    'helpers/rust-cli': './src/helpers/rust-cli.ts'
   },
   mode: process.env.NODE_ENV || 'development',
   devtool: 'source-map',
   module: {
-    rules: [{
+    rules: [
+      {
         test: /\.tsx?$/,
         use: 'ts-loader',
         exclude: /node_modules/
@@ -40,5 +45,39 @@ module.exports = {
     path: path.resolve(__dirname, 'dist')
   },
   externals: [nodeExternals()],
-  target: 'node'
+  target: 'node',
+  plugins: [
+    new CopyWebpackPlugin({
+      patterns: [
+        {
+          from: './src/types/config.validator.ts',
+          to: '../src/types/config.schema.json',
+          transform(content) {
+            return schemaParser('TauriConfigSchema', content.toString())
+          }
+        }
+      ]
+    })
+  ]
+}
+
+function schemaParser(schemaName, content) {
+  const lines = content.split('\n')
+  const output = []
+
+  for (const line of lines) {
+    if (line === `export const ${schemaName} = {`) {
+      output.push('{')
+    } else if (output.length) {
+      if (line === '}') {
+        output.push('}')
+        break
+      }
+      output.push(line)
+    }
+  }
+
+  const json = output.join('\n')
+  const object = eval(`(${json})`)
+  return JSON.stringify(object, null, 2)
 }

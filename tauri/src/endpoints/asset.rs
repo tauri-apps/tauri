@@ -1,17 +1,18 @@
 use std::path::PathBuf;
-use web_view::WebView;
+use webview_official::WebviewMut;
 
-pub fn load<T: 'static>(
-  webview: &mut WebView<'_, T>,
+#[allow(clippy::option_env_unwrap)]
+pub async fn load(
+  webview: &mut WebviewMut,
   asset: String,
   asset_type: String,
   callback: String,
   error: String,
 ) {
-  let handle = webview.handle();
+  let mut webview_mut = webview.clone();
   crate::execute_promise(
     webview,
-    move || {
+    async move {
       let mut path = PathBuf::from(if asset.starts_with('/') {
         asset.replacen("/", "", 1)
       } else {
@@ -45,35 +46,56 @@ pub fn load<T: 'static>(
       }
 
       if asset_type == "image" {
-        let ext = if asset.ends_with("gif") {
+        let mime_type = if asset.ends_with("gif") {
           "gif"
+        } else if asset.ends_with("apng") {
+          "apng"
         } else if asset.ends_with("png") {
           "png"
+        } else if asset.ends_with("avif") {
+          "avif"
+        } else if asset.ends_with("webp") {
+          "webp"
+        } else if asset.ends_with("svg") {
+          "svg+xml"
         } else {
           "jpeg"
         };
         Ok(format!(
-          r#""data:image/{};base64,{}""#,
-          ext,
+          r#"data:image/{};base64,{}"#,
+          mime_type,
           base64::encode(&read_asset.expect("Failed to read asset type").into_owned())
         ))
       } else {
-        handle
-          .dispatch(move |_webview| {
-            let asset_bytes = &read_asset.expect("Failed to read asset type").into_owned();
-            let asset_str =
-              &std::str::from_utf8(asset_bytes).expect("failed to convert asset bytes to u8 slice");
-            if asset_type == "stylesheet" {
-              _webview.inject_css(asset_str)
-            } else {
-              _webview.eval(asset_str)
-            }
-          })
-          .map_err(|err| err.into())
-          .map(|_| "Asset loaded successfully".to_string())
+        let asset_bytes = read_asset.expect("Failed to read asset type");
+        webview_mut.dispatch(move |webview_ref| {
+          let asset_str =
+            std::str::from_utf8(&asset_bytes).expect("failed to convert asset bytes to u8 slice");
+          if asset_type == "stylesheet" {
+            webview_ref.eval(&format!(
+              r#"
+                (function (content) {{
+                  var css = document.createElement('style')
+                  css.type = 'text/css'
+                  if (css.styleSheet)
+                      css.styleSheet.cssText = content
+                  else
+                      css.appendChild(document.createTextNode(content))
+                  document.getElementsByTagName("head")[0].appendChild(css);
+                }})(`{css}`)
+              "#,
+              // Escape octal sequences, which aren't allowed in template literals
+              css = asset_str.replace("\\", "\\\\").as_str()
+            ));
+          } else {
+            webview_ref.eval(asset_str);
+          }
+        })?;
+        Ok("Asset loaded successfully".to_string())
       }
     },
     callback,
     error,
-  );
+  )
+  .await;
 }

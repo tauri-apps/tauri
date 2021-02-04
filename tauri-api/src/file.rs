@@ -11,23 +11,18 @@ pub use file_move::*;
 
 /// Reads a string file.
 pub fn read_string<P: AsRef<Path>>(file: P) -> crate::Result<String> {
-  fs::read_to_string(file)
-    .map_err(|err| Error::File(format!("Read_string failed: {}", err)).into())
-    .map(|c| c)
+  fs::read_to_string(file).map_err(|err| Error::File(format!("Read_string failed: {}", err)).into())
 }
 
 /// Reads a binary file.
 pub fn read_binary<P: AsRef<Path>>(file: P) -> crate::Result<Vec<u8>> {
-  fs::read(file)
-    .map_err(|err| Error::File(format!("Read_binary failed: {}", err)).into())
-    .map(|b| b)
+  fs::read(file).map_err(|err| Error::File(format!("Read_binary failed: {}", err)).into())
 }
 
 #[cfg(test)]
 mod test {
   use super::*;
   use crate::Error;
-  use totems::{assert_err, assert_ok};
 
   #[test]
   fn check_read_string() {
@@ -35,7 +30,7 @@ mod test {
 
     let res = read_string(file);
 
-    assert_ok!(res);
+    assert!(res.is_ok());
 
     if let Ok(s) = res {
       assert_eq!(s, "This is a test doc!".to_string());
@@ -48,7 +43,7 @@ mod test {
 
     let res = read_string(file);
 
-    assert_err!(res);
+    assert!(res.is_err());
 
     if let Some(Error::File(e)) = res.unwrap_err().downcast_ref::<Error>() {
       #[cfg(windows)]
@@ -81,7 +76,7 @@ mod test {
 
     let res = read_binary(file);
 
-    assert_ok!(res);
+    assert!(res.is_ok());
 
     if let Ok(vec) = res {
       assert_eq!(vec, expected_vec);
@@ -94,7 +89,7 @@ mod test {
 
     let res = read_binary(file);
 
-    assert_err!(res);
+    assert!(res.is_err());
 
     if let Some(Error::File(e)) = res.unwrap_err().downcast_ref::<Error>() {
       #[cfg(windows)]

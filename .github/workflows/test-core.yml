@@ -1,0 +1,98 @@
+name: test core
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/test-core.yml'
+      - 'cli/**'
+      - 'tauri/**'
+      - 'tauri-api/**'
+      - 'tauri-utils/**'
+
+env:
+  RUST_BACKTRACE: 1
+
+jobs:
+  build-tauri-core:
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: install stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: install webkit2gtk (ubuntu only)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0
+      - name: build
+        run: |
+          cd ./tauri
+          cargo build
+        env:
+          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
+          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
+      - name: test
+        run: |
+          cargo test
+        env:
+          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
+          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
+
+  test-tauri-cli:
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: install stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: build api
+        working-directory: ./api
+        run: yarn && yarn build
+      - name: build CLI
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path ./cli/core/Cargo.toml
+
+  test-tauri-js-cli:
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: install webkit2gtk (ubuntu only)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0
+      - name: test
+        timeout-minutes: 30
+        run: |
+          cd ./cli/tauri.js
+          yarn
+          yarn test
+      - name: run release build
+        timeout-minutes: 15
+        working-directory: cli/tauri.js
+        run: yarn build-release
+        

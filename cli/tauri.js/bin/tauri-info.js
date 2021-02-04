@@ -1,3 +1,7 @@
 const info = require('../dist/api/info')
 
-info()
+async function run() {
+  await info()
+}
+
+run()

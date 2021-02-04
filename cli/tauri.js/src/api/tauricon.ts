@@ -36,7 +36,7 @@ const warn = logger('app:spawn', chalk.red)
 let image: boolean | sharp.Sharp = false
 const spinnerInterval = false
 
-const exists = async function(file: string | Buffer): Promise<boolean> {
+const exists = async function (file: string | Buffer): Promise<boolean> {
   try {
     await access(file)
     return true
@@ -106,26 +106,24 @@ const uniqueFolders = (options: { [index: string]: any }): any[] => {
  */
 const hexToRgb = (
   hex: string
-): { r: number, g: number, b: number } | undefined => {
+): { r: number; g: number; b: number } | undefined => {
   // https://stackoverflow.com/questions/5623838/rgb-to-hex-and-hex-to-rgb
   // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
   const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i
-  hex = hex.replace(shorthandRegex, function(
-    m: string,
-    r: string,
-    g: string,
-    b: string
-  ) {
-    return r + r + g + g + b + b
-  })
+  hex = hex.replace(
+    shorthandRegex,
+    function (m: string, r: string, g: string, b: string) {
+      return r + r + g + g + b + b
+    }
+  )
 
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
   return result
     ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16)
-    }
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      }
     : undefined
 }
 
@@ -178,14 +176,14 @@ const spinner = (): NodeJS.Timeout => {
 }
 
 const tauricon = (exports.tauricon = {
-  validate: async function(src: string, target: string) {
+  validate: async function (src: string, target: string) {
     await validate(src, target)
     return typeof image === 'object'
   },
-  version: function() {
+  version: function () {
     return version
   },
-  make: async function(
+  make: async function (
     src: string = path.resolve(appDir, 'app-icon.png'),
     target: string = path.resolve(tauriDir, 'icons'),
     strategy: string,
@@ -217,7 +215,7 @@ const tauricon = (exports.tauricon = {
    * @param {string} target - where to drop the images
    * @param {object} options - js object that defines path and sizes
    */
-  build: async function(
+  build: async function (
     src: string,
     target: string,
     // TODO: proper type for options
@@ -225,7 +223,7 @@ const tauricon = (exports.tauricon = {
   ) {
     await this.validate(src, target)
     const sharpSrc = sharp(src) // creates the image object
-    const buildify2 = async function(
+    const buildify2 = async function (
       pvar: [string, number, number]
     ): Promise<void> {
       try {
@@ -288,7 +286,7 @@ const tauricon = (exports.tauricon = {
    * @param {string} target - where to drop the images
    * @param {object} options - js object that defines path and sizes
    */
-  splash: async function(
+  splash: async function (
     src: string,
     splashSrc: string,
     target: string,
@@ -349,7 +347,9 @@ const tauricon = (exports.tauricon = {
         background: { r: rgb.r, g: rgb.g, b: rgb.b, alpha: 1 }
       })
     } else {
-      throw new Error(`unknown options.splashscreen_type: ${options.splashscreen_type}`)
+      throw new Error(
+        `unknown options.splashscreen_type: ${options.splashscreen_type}`
+      )
     }
     const data = await sharpSrc.toBuffer()
 
@@ -383,7 +383,7 @@ const tauricon = (exports.tauricon = {
    * @param {string} strategy - which minify strategy to use
    * @param {string} mode - singlefile or batch
    */
-  minify: async function(
+  minify: async function (
     target: string,
     // TODO: proper type for options
     options: { [index: string]: any },
@@ -392,13 +392,13 @@ const tauricon = (exports.tauricon = {
   ) {
     let cmd: Plugin
     const minify = settings.options.minify
-    if (!minify.available.find(x => x === strategy)) {
+    if (!minify.available.find((x) => x === strategy)) {
       strategy = minify.type
     }
     switch (strategy) {
       case 'pngquant':
         // TODO: is minify.pngquantOptions the proper format?
-        cmd = pngquant(minify.pngquantOptions as any as PngQuantOptions)
+        cmd = pngquant((minify.pngquantOptions as any) as PngQuantOptions)
         break
       case 'optipng':
         cmd = optipng(minify.optipngOptions)
@@ -414,7 +414,7 @@ const tauricon = (exports.tauricon = {
       await imagemin([pvar[0]], {
         destination: pvar[1],
         plugins: [cmd]
-      }).catch(err => {
+      }).catch((err) => {
         warn(err)
       })
     }
@@ -454,7 +454,7 @@ const tauricon = (exports.tauricon = {
    * @param {object} options
    * @param {string} strategy
    */
-  icns: async function(
+  icns: async function (
     src: string,
     target: string,
     // TODO: proper type for options

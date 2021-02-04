@@ -1,0 +1,18 @@
+{
+  "name": "tauri-workspace",
+  "version": "0.0.0",
+  "license": "MIT",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tauri-apps/tauri.git",
+    "directory": "cli/tauri.js"
+  },
+  "scripts": {
+    "format": "prettier --write --end-of-line=auto \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore"
+  },
+  "devDependencies": {
+    "covector": "^0.2.6",
+    "prettier": "^2.0.5"
+  }
+}

@@ -1,4 +1,6 @@
+use serde::de::{Deserializer, Error as DeError, Visitor};
 use serde::Deserialize;
+use serde_json::Value as JsonValue;
 
 use once_cell::sync::OnceCell;
 use std::collections::HashMap;
@@ -52,6 +54,15 @@ fn default_window() -> WindowConfig {
   }
 }
 
+/// The embedded server port.
+#[derive(PartialEq, Debug, Deserialize)]
+pub enum Port {
+  /// Port with a numeric value.
+  Value(u16),
+  /// Random port.
+  Random,
+}
+
 /// The embeddedServer configuration object.
 #[derive(PartialEq, Deserialize, Debug)]
 #[serde(tag = "embeddedServer", rename_all = "camelCase")]
@@ -61,16 +72,52 @@ pub struct EmbeddedServerConfig {
   pub host: String,
   /// The embedded server port.
   /// If it's `random`, we'll generate one at runtime.
-  #[serde(default = "default_port")]
-  pub port: String,
+  #[serde(default = "default_port", deserialize_with = "port_deserializer")]
+  pub port: Port,
 }
 
 fn default_host() -> String {
   "http://127.0.0.1".to_string()
 }
 
-fn default_port() -> String {
-  "random".to_string()
+fn port_deserializer<'de, D>(deserializer: D) -> Result<Port, D::Error>
+where
+  D: Deserializer<'de>,
+{
+  struct PortDeserializer;
+
+  impl<'de> Visitor<'de> for PortDeserializer {
+    type Value = Port;
+    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+      formatter.write_str("a port number or the 'random' string")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+      E: DeError,
+    {
+      if value != "random" {
+        Err(DeError::custom(
+          "expected a 'random' string or a port number",
+        ))
+      } else {
+        Ok(Port::Random)
+      }
+    }
+
+    fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
+    where
+      E: DeError,
+    {
+      Ok(Port::Value(value as u16))
+    }
+  }
+
+  deserializer.deserialize_any(PortDeserializer {})
+}
+
+fn default_port() -> Port {
+  Port::Random
 }
 
 fn default_embedded_server() -> EmbeddedServerConfig {
@@ -260,6 +307,8 @@ fn default_dev_path() -> String {
   "".to_string()
 }
 
+type JsonObject = HashMap<String, JsonValue>;
+
 /// The tauri.conf.json mapper.
 #[derive(PartialEq, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -270,6 +319,16 @@ pub struct Config {
   /// The build configuration.
   #[serde(default = "default_build")]
   pub build: BuildConfig,
+  /// The plugins config.
+  #[serde(default)]
+  plugins: HashMap<String, JsonObject>,
+}
+
+impl Config {
+  /// Gets a plugin configuration.
+  pub fn plugin_config<S: AsRef<str>>(&self, plugin_name: S) -> Option<&JsonObject> {
+    self.plugins.get(plugin_name.as_ref())
+  }
 }
 
 fn default_tauri() -> TauriConfig {
@@ -341,7 +400,7 @@ mod test {
         },
         embedded_server: EmbeddedServerConfig {
           host: String::from("http://127.0.0.1"),
-          port: String::from("random"),
+          port: Port::Random,
         },
         bundle: BundleConfig {
           identifier: String::from("com.tauri.communication"),
@@ -385,6 +444,7 @@ mod test {
       build: BuildConfig {
         dev_path: String::from("../dist"),
       },
+      plugins: Default::default(),
     }
   }
 
@@ -404,7 +464,7 @@ mod test {
         println!("{:?}", c);
         assert_eq!(c, &test_config)
       }
-      Err(_) => assert!(false),
+      Err(e) => panic!("get config failed: {:?}", e.to_string()),
     }
   }
 
@@ -437,7 +497,7 @@ mod test {
       },
       embedded_server: EmbeddedServerConfig {
         host: String::from("http://127.0.0.1"),
-        port: String::from("random"),
+        port: Port::Random,
       },
       bundle: BundleConfig {
         identifier: String::from(""),

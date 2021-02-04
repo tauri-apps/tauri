@@ -1,0 +1,78 @@
+name: Udeps
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/udeps.yml'
+      - 'cli/tauri-bundler/**'
+      - 'cli/core/**'
+      - 'tauri/**'
+      - 'tauri-api/**'
+      - 'tauri-utils/**'
+
+jobs:
+  udeps:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: nightly
+        override: true
+
+    - name: Cache cargo registry
+      uses: actions/cache@v2
+      with:
+        path: ~/.cargo/registry
+        key: ubuntu-latest-nightly-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
+
+    - name: Cache cargo index
+      uses: actions/cache@v2
+      with:
+        path: ~/.cargo/git
+        key: ubuntu-latest-nightly-cargo-index-${{ hashFiles('**/Cargo.toml') }}
+
+    - name: Cache core cargo target
+      uses: actions/cache@v2
+      with:
+        path: target
+        key: ubuntu-latest-nightly-cargo-build-target-${{ hashFiles('**/Cargo.toml') }}
+
+    - name: Cache bundler cargo target
+      uses: actions/cache@v2
+      with:
+        path: cli/tauri-bundler/target
+        key: ubuntu-latest-nightly-cargo-build-bundler-target-${{ hashFiles('**/Cargo.toml') }}
+
+    - name: Cache CLI cargo target
+      uses: actions/cache@v2
+      with:
+        path: cli/core/target
+        key: ubuntu-latest-nightly-cargo-build-cli-target-${{ hashFiles('**/Cargo.toml') }}
+
+    - uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: cargo-udeps --locked
+
+    - name: Install required packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y webkit2gtk-4.0
+
+    - uses: actions-rs/cargo@v1
+      with:
+        command: udeps
+        args: --all-targets --all-features
+
+    - uses: actions-rs/cargo@v1
+      with:
+        command: udeps
+        args: --manifest-path ./cli/tauri-bundler/Cargo.toml --all-targets --all-features
+
+    - uses: actions-rs/cargo@v1
+      with:
+        command: udeps
+        args: --manifest-path ./cli/core/Cargo.toml --all-targets --all-features

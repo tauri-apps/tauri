@@ -24,7 +24,7 @@ export const spawn = (
     env: process.env
   })
 
-  runner.on('close', code => {
+  runner.on('close', (code) => {
     log()
     if (code) {
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -32,7 +32,7 @@ export const spawn = (
     }
 
     // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
-    onClose && onClose(code, runner.pid)
+    onClose && onClose(code ?? 0, runner.pid)
   })
 
   return runner.pid

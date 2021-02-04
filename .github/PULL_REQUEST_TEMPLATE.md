@@ -30,7 +30,6 @@ If yes, please describe the impact and migration path for existing applications 
 
 **The PR fulfills these requirements:**
 
-- [ ] It's submitted to the `dev` branch and _not_ the `master` branch
 - [ ] When resolving a specific issue, it's referenced in the PR's title (e.g. `fix: #xxx[,#xxx]`, where "xxx" is the issue number)
 - [ ] A change file is added if any packages will require a version bump due to this PR per [the instructions in the readme](https://github.com/tauri-apps/tauri/blob/dev/.changes/readme.md).
 

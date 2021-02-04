@@ -11,7 +11,7 @@
     "baseUrl": ".",
     "paths": {
       "types": ["src/types"]
-    },
+    }
   },
   "include": ["src", "api-src"]
 }

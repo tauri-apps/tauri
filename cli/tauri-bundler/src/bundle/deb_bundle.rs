@@ -22,14 +22,10 @@ use super::common;
 use crate::Settings;
 
 use anyhow::Context;
-use ar;
-use icns;
 use image::png::PngDecoder;
 use image::{self, GenericImageView, ImageDecoder};
 use libflate::gzip;
-use md5;
 use std::process::{Command, Stdio};
-use tar;
 use walkdir::WalkDir;
 
 use std::collections::BTreeSet;
@@ -190,29 +186,29 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   let file = &mut common::create_file(&desktop_file_path)?;
   // For more information about the format of this file, see
   // https://developer.gnome.org/integration-guide/stable/desktop-files.html.en
-  write!(file, "[Desktop Entry]\n")?;
-  write!(file, "Encoding=UTF-8\n")?;
+  writeln!(file, "[Desktop Entry]")?;
+  writeln!(file, "Encoding=UTF-8")?;
   if let Some(category) = settings.app_category() {
-    write!(file, "Categories={}\n", category.gnome_desktop_categories())?;
+    writeln!(file, "Categories={}", category.gnome_desktop_categories())?;
   }
   if !settings.short_description().is_empty() {
-    write!(file, "Comment={}\n", settings.short_description())?;
+    writeln!(file, "Comment={}", settings.short_description())?;
   }
   let use_bootstrapper = settings.debian_use_bootstrapper();
-  write!(
+  writeln!(
     file,
-    "Exec={}\n",
+    "Exec={}",
     if use_bootstrapper {
       format!("__{}-bootstrapper", bin_name)
     } else {
       bin_name.to_string()
     }
   )?;
-  write!(file, "Icon={}\n", bin_name)?;
-  write!(file, "Name={}\n", settings.bundle_name())?;
-  write!(file, "Terminal=false\n")?;
-  write!(file, "Type=Application\n")?;
-  write!(file, "Version={}\n", settings.version_string())?;
+  writeln!(file, "Icon={}", bin_name)?;
+  writeln!(file, "Name={}", settings.bundle_name())?;
+  writeln!(file, "Terminal=false")?;
+  writeln!(file, "Type=Application")?;
+  writeln!(file, "Version={}", settings.version_string())?;
   Ok(())
 }
 
@@ -235,7 +231,9 @@ fn generate_control_file(
   writeln!(&mut file, "Version: {}", settings.version_string())?;
   writeln!(&mut file, "Architecture: {}", arch)?;
   writeln!(&mut file, "Installed-Size: {}", total_dir_size(data_dir)?)?;
-  let authors = settings.authors_comma_separated().unwrap_or(String::new());
+  let authors = settings
+    .authors_comma_separated()
+    .unwrap_or_else(String::new);
   writeln!(&mut file, "Maintainer: {}", authors)?;
   if !settings.homepage_url().is_empty() {
     writeln!(&mut file, "Homepage: {}", settings.homepage_url())?;
@@ -287,7 +285,7 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
       let msg = format!("Non-UTF-8 path: {:?}", rel_path);
       io::Error::new(io::ErrorKind::InvalidData, msg)
     })?;
-    write!(md5sums_file, "  {}\n", path_str)?;
+    writeln!(md5sums_file, "  {}", path_str)?;
   }
   Ok(())
 }

@@ -3,7 +3,7 @@
 # Create a read-only disk image of the contents of a folder
 # forked from https://github.com/andreyvit/create-dmg
 
-set -e;
+set -eux;
 
 function pure_version() {
 	echo '1.0.0.6'
@@ -54,7 +54,7 @@ function usage() {
 	echo "  --disk-image-size x"
 	echo "      set the disk image size manually to x MB"
 	echo "  --hdiutil-verbose"
-	echo "      execute hdiutil in verbose mode"  
+	echo "      execute hdiutil in verbose mode"
 	echo "  --hdiutil-quiet"
 	echo "      execute hdiutil in quiet mode"
 	echo "  --sandbox-safe"
@@ -79,8 +79,10 @@ IMAGEKEY=""
 HDIUTIL_VERBOSITY=""
 SANDBOX_SAFE=0
 SKIP_JENKINS=0
+POSITION_CLAUSE=""
+HIDING_CLAUSE=""
 
-while test "${1:0:1}" = "-"; do
+while [ ! -z ${1+x} ] && test "${1:0:1}" = "-"; do
 	case $1 in
 	--volname)
 		VOLUME_NAME="$2"
@@ -156,10 +158,10 @@ while test "${1:0:1}" = "-"; do
 		shift;;
 	--hdiutil-quiet)
 		HDIUTIL_VERBOSITY='-quiet'
-		shift;; 
+		shift;;
 	--sandbox-safe)
 		SANDBOX_SAFE=1
-		shift;; 
+		shift;;
 	--rez)
 		REZ_PATH=$2
 		shift; shift;;
@@ -178,7 +180,7 @@ while test "${1:0:1}" = "-"; do
 	esac
 done
 
-test -z "$2" && {
+[ -z ${2+x} ] && {
 	echo "Not enough arguments. Invoke with --help for help."
 	exit 1
 }
@@ -191,7 +193,7 @@ DMG_NAME="$(basename "$DMG_PATH")"
 DMG_TEMP_NAME="$DMG_DIR/rw.${DMG_NAME}"
 SRC_FOLDER="$(cd "$2" > /dev/null; pwd)"
 
-test -z "$VOLUME_NAME" && VOLUME_NAME="$(basename "$DMG_PATH" .dmg)"
+[ -z ${VOLUME_NAME+x} ] && VOLUME_NAME="$(basename "$DMG_PATH" .dmg)"
 
 # brew formula will set this as 1 and embed the support scripts
 BREW_INSTALL=0
@@ -229,13 +231,13 @@ function get_size() {
 
 # Create the DMG with the specified size or the hdiutil estimation
 CUSTOM_SIZE=''
-if ! test -z "$DISK_IMAGE_SIZE"; then
+if [ ! -z ${DISK_IMAGE_SIZE+x} ]; then
 	CUSTOM_SIZE="-size ${DISK_IMAGE_SIZE}m"
 fi
 
 if [ $SANDBOX_SAFE -eq 0 ]; then
 	hdiutil create ${HDIUTIL_VERBOSITY} -srcfolder "$SRC_FOLDER" -volname "${VOLUME_NAME}" -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDRW ${CUSTOM_SIZE} "${DMG_TEMP_NAME}"
-else	
+else
 	hdiutil makehybrid ${HDIUTIL_VERBOSITY} -default-volume-name "${VOLUME_NAME}" -hfs -o "${DMG_TEMP_NAME}" "$SRC_FOLDER"
 	hdiutil convert -format UDRW -ov -o "${DMG_TEMP_NAME}" "${DMG_TEMP_NAME}"
 	DISK_IMAGE_SIZE_CUSTOM=$DISK_IMAGE_SIZE
@@ -245,12 +247,12 @@ fi
 DISK_IMAGE_SIZE=`get_size "${DMG_TEMP_NAME}"`
 
 # Use the custom size if bigger
-if [ $SANDBOX_SAFE -eq 1 ] && [ ! -z "$DISK_IMAGE_SIZE_CUSTOM" ] && [ $DISK_IMAGE_SIZE_CUSTOM -gt $DISK_IMAGE_SIZE ]; then
+if [ $SANDBOX_SAFE -eq 1 ] && [ !  -z ${DISK_IMAGE_SIZE_CUSTOM+x} ] && [ $DISK_IMAGE_SIZE_CUSTOM -gt $DISK_IMAGE_SIZE ]; then
 	DISK_IMAGE_SIZE=$DISK_IMAGE_SIZE_CUSTOM
 fi
 
 # Estimate the additional soruces size
-if ! test -z "$ADD_FILE_SOURCES"; then
+if [ ! -z ${ADD_FILE_SOURCES+x} ]; then
 	for i in "${!ADD_FILE_SOURCES[@]}"
 	do
 		SOURCE_SIZE=`get_size "${ADD_FILE_SOURCES[$i]}"`
@@ -269,37 +271,39 @@ echo "Mounting disk image..."
 MOUNT_DIR="/Volumes/${VOLUME_NAME}"
 
 # try unmount dmg if it was mounted previously (e.g. developer mounted dmg, installed app and forgot to unmount it)
-echo "Unmounting disk image..."
 DEV_NAME=$(hdiutil info | egrep --color=never '^/dev/' | sed 1q | awk '{print $1}')
-test -d "${MOUNT_DIR}" && hdiutil detach "${DEV_NAME}"
+if [ test -d "${MOUNT_DIR}" ]; then
+  echo "Unmounting previously mounted disk image..."
+  hdiutil detach "${DEV_NAME}"
+fi
 
 echo "Mount directory: $MOUNT_DIR"
 DEV_NAME=$(hdiutil attach -readwrite -noverify -noautoopen "${DMG_TEMP_NAME}" | egrep --color=never '^/dev/' | sed 1q | awk '{print $1}')
 echo "Device name:     $DEV_NAME"
 
-if ! test -z "$BACKGROUND_FILE"; then
+if [ ! -z ${BACKGROUND_FILE+x} ]; then
 	echo "Copying background file..."
 	test -d "$MOUNT_DIR/.background" || mkdir "$MOUNT_DIR/.background"
 	cp "$BACKGROUND_FILE" "$MOUNT_DIR/.background/$BACKGROUND_FILE_NAME"
 fi
 
-if ! test -z "$APPLICATION_LINK"; then
+if [ ! -z ${APPLICATION_LINK+x} ]; then
 	echo "making link to Applications dir"
 	test -d "$MOUNT_DIR/Applications" || ln -s /Applications "$MOUNT_DIR/Applications"
 fi
 
-if ! test -z "$QL_LINK"; then
+if [ ! -z ${QL_LINK+x} ]; then
 	echo "making link to QuickLook install dir"
 	ln -s "/Library/QuickLook" "$MOUNT_DIR/QuickLook"
 fi
 
-if ! test -z "$VOLUME_ICON_FILE"; then
+if [ ! -z ${VOLUME_ICON_FILE+x} ]; then
 	echo "Copying volume icon file '$VOLUME_ICON_FILE'..."
 	cp "$VOLUME_ICON_FILE" "$MOUNT_DIR/.VolumeIcon.icns"
 	SetFile -c icnC "$MOUNT_DIR/.VolumeIcon.icns"
 fi
 
-if ! test -z "$ADD_FILE_SOURCES"; then
+if [ ! -z ${ADD_FILE_SOURCES+x} ]; then
 	echo "Copying custom files..."
 	for i in "${!ADD_FILE_SOURCES[@]}"
 	do
@@ -323,7 +327,7 @@ EOS
 
 if [ $SKIP_JENKINS -eq 0 ]; then
 	applescript_source | sed -e "s/WINX/$WINX/g" -e "s/WINY/$WINY/g" -e "s/WINW/$WINW/g" -e "s/WINH/$WINH/g" -e "s/BACKGROUND_CLAUSE/$BACKGROUND_CLAUSE/g" -e "s/REPOSITION_HIDDEN_FILES_CLAUSE/$REPOSITION_HIDDEN_FILES_CLAUSE/g" -e "s/ICON_SIZE/$ICON_SIZE/g" -e "s/TEXT_SIZE/$TEXT_SIZE/g" | perl -pe  "s/POSITION_CLAUSE/$POSITION_CLAUSE/g" | perl -pe "s/QL_CLAUSE/$QL_CLAUSE/g" | perl -pe "s/APPLICATION_CLAUSE/$APPLICATION_CLAUSE/g" | perl -pe "s/HIDING_CLAUSE/$HIDING_CLAUSE/" >"$APPLESCRIPT"
-	sleep 2 # pause to workaround occasional "Can’t get disk" (-1728) issues  
+	sleep 2 # pause to workaround occasional "Can’t get disk" (-1728) issues
 	echo "Running Applescript: /usr/bin/osascript \"${APPLESCRIPT}\" \"${VOLUME_NAME}\""
 	(/usr/bin/osascript "${APPLESCRIPT}" "${VOLUME_NAME}" || if [[ "$?" -ne 0 ]]; then echo "Failed running AppleScript"; hdiutil detach "${DEV_NAME}"; exit 64; fi)
 	echo "Done running the applescript..."
@@ -345,7 +349,7 @@ else
 	echo "Skipping blessing on sandbox"
 fi
 
-if ! test -z "$VOLUME_ICON_FILE"; then
+if [ ! -z ${VOLUME_ICON_FILE+x} ]; then
 	# tell the volume that it has a special file attribute
 	SetFile -a C "$MOUNT_DIR"
 fi
@@ -360,11 +364,11 @@ hdiutil convert ${HDIUTIL_VERBOSITY} "${DMG_TEMP_NAME}" -format ${FORMAT} ${IMAG
 rm -f "${DMG_TEMP_NAME}"
 
 # adding EULA resources
-if [ ! -z "${EULA_RSRC}" -a "${EULA_RSRC}" != "-null-" ]; then
+if [ ! -z ${EULA_RSRC+x} ]; then
 	echo "adding EULA resources"
 
 	REZ_ARG=""
-	if [ ! -z "${REZ_PATH}" -a "${REZ_PATH}" != "-null-" ]; then
+	if [ ! -z ${REZ_PATH+x} ]; then
 		REZ_ARG="--rez ${REZ_PATH}"
 	fi
 	if [ $BREW_INSTALL -eq 0 ]; then
@@ -376,13 +380,13 @@ EOS
 	fi
 fi
 
-if [ ! -z "${NOINTERNET}" -a "${NOINTERNET}" == 1 ]; then
+if [ ! -z ${NOINTERNET+x} && -a "${NOINTERNET}" == 1 ]; then
 	echo "not setting 'internet-enable' on the dmg"
 else
 	# check if hdiutil supports internet-enable
 	# support was removed in macOS 10.15
 	# https://github.com/andreyvit/create-dmg/issues/76
-	if hdiutil internet-enable -help >/dev/null 2>/dev/null 
+	if hdiutil internet-enable -help >/dev/null 2>/dev/null
 	then
 		hdiutil internet-enable -yes "${DMG_DIR}/${DMG_NAME}"
 	else

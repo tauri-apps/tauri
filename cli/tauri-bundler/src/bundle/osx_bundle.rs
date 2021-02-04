@@ -21,9 +21,6 @@ use super::common;
 use crate::Settings;
 
 use anyhow::Context;
-use chrono;
-use dirs;
-use icns;
 use image::{self, GenericImageView};
 
 use std::cmp::min;
@@ -37,7 +34,16 @@ use std::process::{Command, Stdio};
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the .app was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  let app_bundle_name = format!("{}.app", settings.bundle_name());
+  let package_base_name = format!(
+    "{}_{}_{}",
+    settings.main_binary_name(),
+    settings.version_string(),
+    match settings.binary_arch() {
+      "x86_64" => "x64",
+      other => other,
+    }
+  );
+  let app_bundle_name = format!("{}.app", package_base_name);
   common::print_bundling(&app_bundle_name)?;
   let app_bundle_path = settings
     .project_out_directory()
@@ -301,13 +307,13 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
         .expect("Couldn't get framework filename");
       common::copy_dir(&src_path, &dest_dir.join(&src_name))?;
       continue;
-    } else if framework.contains("/") {
+    } else if framework.contains('/') {
       return Err(crate::Error::GenericError(format!(
         "Framework path should have .framework extension: {}",
         framework
       )));
     }
-    if let Some(home_dir) = dirs::home_dir() {
+    if let Some(home_dir) = dirs_next::home_dir() {
       if copy_framework_from(&dest_dir, framework, &home_dir.join("Library/Frameworks/"))? {
         continue;
       }
@@ -408,11 +414,11 @@ fn create_icns_file(
     dest_path.set_extension("icns");
     let icns_file = BufWriter::new(File::create(&dest_path)?);
     family.write(icns_file)?;
-    return Ok(Some(dest_path));
+    Ok(Some(dest_path))
   } else {
-    return Err(crate::Error::GenericError(
+    Err(crate::Error::GenericError(
       "No usable Icon files found".to_owned(),
-    ));
+    ))
   }
 }
 

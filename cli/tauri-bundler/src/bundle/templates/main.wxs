@@ -103,7 +103,8 @@
                     Name="{{{product_name}}}"
                     Description="Runs {{{product_name}}}"
                     Target="[!Path]"
-                    Icon="ProductIcon">
+                    Icon="ProductIcon"
+                    WorkingDirectory="INSTALLDIR">
                     <ShortcutProperty Key="System.AppUserModel.ID" Value="{{{manufacturer}}}"/>
                 </Shortcut>
                 <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
@@ -148,13 +149,17 @@
 
         <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" After="CostFinalize"/>
 
+        {{#if embedded_server}}
         <InstallExecuteSequence>
             <Custom Action='LoopBackCmd' After='InstallFiles'/>
         </InstallExecuteSequence>
+        {{/if}}
         
     </Product>
 
+    {{#if embedded_server}}
     <Fragment>
         <CustomAction Id="LoopBackCmd" Directory="ApplicationProgramsFolder" Execute="commit" Impersonate="no" ExeCommand="cmd.exe /c &quot;CheckNetIsolation.exe LoopbackExempt -a -n=&quot;Microsoft.Win32WebViewHost_cw5n1h2txyewy&quot;&quot;" Return="ignore" />
     </Fragment>
+    {{/if}}
 </Wix>

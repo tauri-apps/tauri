@@ -2,17 +2,13 @@
 
 ## prepare
 
-> Setup all stuffs needed for runing the examples
+> Setup all stuffs needed for running the examples
 
 ```sh
 git clone --recursive git@github.com:tauri-apps/examples.git \
-|| (cd examples && git pull origin master; cd ..) 		# always prepare up-to-date examples in case it's already available
-
-export TAURI_DIST_DIR=$PWD/tauri/test/fixture/dist
-export TAURI_DIR=$PWD/tauri/test/fixture/src-tauri
+|| (cd examples && git pull origin dev; cd ..) 		# always prepare up-to-date examples in case it's already available
 
 cargo build
-cargo install --path cli/tauri-bundler --force
 cargo install cargo-web 			# used by example rust/yew
 
 cd cli/tauri.js
@@ -27,10 +23,6 @@ Push-Location $MyInvocation.MyCommand.Path
 # send git stderr to powershell stdout
 $env:GIT_REDIRECT_STDERR = '2>&1'
 
-# dist and src paths.
-$dist_path = "tauri\test\fixture\dist"
-$src_path = "tauri\test\fixture\src-tauri"
-
 # if the examples path doesn't exist.
 if (-Not (Test-Path $CWD\examples -PathType Any)) {
   Start-Job -ScriptBlock {
@@ -44,24 +36,20 @@ if (-Not (Test-Path $CWD\examples -PathType Any)) {
   } | Receive-Job -AutoRemoveJob -Wait
 }
 
-# Enter the examples folder and pull the latest data from origin/master
-cd examples; git pull origin master; cd ..
+# Enter the examples folder and pull the latest data from origin/dev
+cd examples; git pull origin dev; cd ..
 
-# Check that dist_path and src_path exist.
-if ((Test-Path $dist_path -PathType Any) -Or (Test-Path $src_path -PathType Any)) {
-  # set the env vars.
-  $env:TAURI_DIST_DIR = Resolve-Path $dist_path
-  $env:TAURI_DIR = Resolve-Path $src_path
+# set the env vars.
+$env:TAURI_DIST_DIR = Resolve-Path $dist_path
+$env:TAURI_DIR = Resolve-Path $src_path
 
-  # build and install everything Rust related.
-  cargo build
-  cargo install --path cli\tauri-bundler --force
-  cargo install cargo-web
+# build and install everything Rust related.
+cargo build
+cargo install cargo-web
 
-  # install the tauri Node CLI and transpile the TS version of the API.
-  cd cli\tauri.js
-  yarn; yarn build;
-}
+# install the tauri Node CLI and transpile the TS version of the API.
+cd cli\tauri.js
+yarn; yarn build;
 ```
 
 ## run
@@ -73,7 +61,6 @@ if ((Test-Path $dist_path -PathType Any) -Or (Test-Path $src_path -PathType Any)
 > Run specific example in dev mode
 
 ```sh
-source .scripts/init_env.sh
 shopt -s globstar
 
 cd examples/**/$example 2>/dev/null \
@@ -81,7 +68,7 @@ cd examples/**/$example 2>/dev/null \
 
 case "$PWD" in
 */node/*)
-  yarn && yarn tauri:source dev
+  yarn && yarn tauri:dev
 ;;
 */rust/*)
   cargo web deploy
@@ -126,7 +113,7 @@ if ($example_path -eq $null) {
 switch ($example_path.parent) {
   # if node, run yarn.
   {"vanillajs" -Or "react" -Or "svelte" -Or "vue"} {
-    cd $example_path.FullName; yarn; yarn tauri dev
+    cd $example_path.FullName; yarn; yarn tauri:dev
   }
   # if rust, run cargo web deploy
   "yew" {

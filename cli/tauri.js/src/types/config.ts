@@ -36,6 +36,10 @@ export interface CliArg {
    */
   multiple?: boolean
   /**
+   * specifies that the argument may appear more than once.
+   */
+  multipleOccurrences?: boolean
+  /**
    * specifies a list of possible values for this argument. At runtime, the CLI verifies that only one of the specified values was used, or fails with an error message.
    */
   possibleValues?: string[]
@@ -151,6 +155,27 @@ export interface CliConfig {
   subcommands?: { [name: string]: CliConfig }
 }
 
+export interface TauriBuildConfig {
+  /**
+   * the path to the app's dist dir
+   * this path must contain your index.html file
+   */
+  distDir: string
+  /**
+   * the app's dev server URL, or the path to the directory containing an index.html to open
+   */
+  devPath: string
+  /**
+   * a shell command to run before `tauri dev` kicks in
+   */
+  beforeDevCommand?: string
+  /**
+   * a shell command to run before `tauri build` kicks in
+   */
+  beforeBuildCommand?: string
+  withGlobalTauri?: boolean
+}
+
 /**
  * Tauri configuration
  */
@@ -158,26 +183,7 @@ export interface TauriConfig {
   /**
    * build/dev configuration
    */
-  build: {
-    /**
-     * the path to the app's dist dir
-     * this path must contain your index.html file
-     */
-    distDir: string
-    /**
-     * the app's dev server URL, or the path to the directory containing an index.html to open
-     */
-    devPath: string
-    /**
-     * a shell command to run before `tauri dev` kicks in
-     */
-    beforeDevCommand?: string
-    /**
-     * a shell command to run before `tauri build` kicks in
-     */
-    beforeBuildCommand?: string
-    withGlobalTauri?: boolean
-  }
+  build: TauriBuildConfig
   /**
    * the context of the current `tauri dev` or `tauri build`
    */
@@ -219,6 +225,10 @@ export interface TauriConfig {
        * whether we should use the embedded-server or the no-server mode
        */
       active?: boolean
+      /**
+       * the embedded server port number or the 'random' string to generate one at runtime
+       */
+      port?: number | 'random' | undefined
     }
     /**
      * tauri bundler configuration
@@ -263,7 +273,7 @@ export interface TauriConfig {
       }
       exceptionDomain?: string
     }
-    whitelist: {
+    allowlist: {
       all: boolean
       [index: string]: boolean
     }
@@ -277,11 +287,19 @@ export interface TauriConfig {
     security: {
       csp?: string
     }
-    edge: {
-      active?: boolean
-    }
     inliner: {
       active?: boolean
     }
   }
+  plugins?: {
+    [name: string]: {
+      [key: string]: any
+    }
+  }
+  /**
+   * Whether or not to enable verbose logging
+   */
+  verbose?: boolean
 }
+
+export default TauriConfig

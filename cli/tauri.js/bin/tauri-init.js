@@ -1,6 +1,10 @@
 const parseArgs = require('minimist')
+const tauriCreate = require('./tauri-create')
 
 /**
+ * init is an alias for create -r none, same as
+ * creating a fresh tauri project with no UI recipe applied.
+ *
  * @type {object}
  * @property {boolean} h
  * @property {boolean} help
@@ -11,18 +15,24 @@ const parseArgs = require('minimist')
  * @property {boolean} d
  * @property {boolean} directory
  */
-const argv = parseArgs(process.argv.slice(2), {
-  alias: {
-    h: 'help',
-    f: 'force',
-    l: 'log',
-    d: 'directory',
-    t: 'tauri-path'
-  },
-  boolean: ['h', 'l']
-})
+function main(cliArgs) {
+  const argv = parseArgs(cliArgs, {
+    alias: {
+      h: 'help'
+    },
+    boolean: ['h']
+  })
 
-if (argv.help) {
+  if (argv.help) {
+    printUsage()
+    process.exit(0)
+  }
+
+  // delegate actual work to create command
+  tauriCreate([...cliArgs, '-r', 'none'])
+}
+
+function printUsage() {
   console.log(`
   Description
     Inits the Tauri template. If Tauri cannot find the tauri.conf.json
@@ -30,20 +40,17 @@ if (argv.help) {
   Usage
     $ tauri init
   Options
-    --help, -h        Displays this message
-    --force, -f       Force init to overwrite [conf|template|all]
-    --log, -l         Logging [boolean]
-    --directory, -d   Set target directory for init
-    --tauri-path, -t   Path of the Tauri project to use (relative to the cwd)
+    --help, -h           Displays this message
+    --ci                 Skip prompts
+    --force, -f          Force init to overwrite [conf|template|all]
+    --log, -l            Logging [boolean]
+    --directory, -d      Set target directory for init
+    --tauri-path, -t     Path of the Tauri project to use (relative to the cwd)
+    --app-name, -A       Name of your Tauri application
+    --window-title, -W   Window title of your Tauri application
+    --dist-dir, -D       Web assets location, relative to <project-dir>/src-tauri
+    --dev-path, -P       Url of your dev server
     `)
-  process.exit(0)
 }
 
-const init = require('../dist/api/init')
-
-init({
-  directory: argv.d || process.cwd(),
-  force: argv.f || null,
-  logging: argv.l || null,
-  tauriPath: argv.t || null
-})
+module.exports = main

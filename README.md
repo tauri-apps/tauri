@@ -6,13 +6,13 @@
 
 [![Chat Server](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/SpmNs4S)
 [![devto](https://img.shields.io/badge/blog-dev.to-black.svg)](https://dev.to/tauri)
-[![devto](https://img.shields.io/badge/documentation-wiki-purple.svg)](https://github.com/tauri-apps/tauri/wiki)
+[![devto](https://img.shields.io/badge/documentation-tauri.studio-purple.svg)](https://tauri.studio/docs/getting-started/intro)
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
 [![support](https://img.shields.io/badge/sponsor-open%20collective-blue.svg)](https://opencollective.com/tauri)
 
 ```yml
 Tauri Apps
-  footprint:   miniscule
+  footprint:   minuscule
   performance: ludicrous
   flexibility: gymnastic
   security:    hardened
@@ -33,7 +33,7 @@ Tauri Apps
 ## Introduction
 Tauri is a framework for building tiny, blazing fast binaries for all major desktop platforms. Developers can integrate any front-end framework that compiles to HTML, JS and CSS for building their user interface. The backend of the application is a rust-sourced binary with an API that the front-end can interact with.
 
-The user interface in Tauri apps currently leverages Cocoa/WebKit on macOS, gtk-webkit2 on Linux and MSHTML (IE10/11) or Webkit via Edge on Windows. **Tauri** uses (and contributes to) the MIT licensed project that you can find at [webview](https://github.com/zserge/webview).
+The user interface in Tauri apps currently leverages Cocoa/WebKit on macOS, gtk-webkit2 on Linux and MSHTML (IE10/11) or Webkit via Edge on Windows. **Tauri** uses (and contributes to) the MIT licensed project that you can find at [webview](https://github.com/webview/webview) and the [related webview organization](https://github.com/webview).
 
 
 ## Get Started
@@ -48,6 +48,7 @@ If you are interested in making a tauri-app, please visit the [documentation web
 - [x] Device Notifications (toast)
 - [ ] Self Updater (in progress)
 - [ ] deeplink RPC (in progress)
+- [ ] One-Time commands (coming soon)
 - [ ] App Signing (coming soon)
 - [ ] Frameless Mode (coming soon)
 - [ ] Transparent Mode (coming soon)
@@ -73,6 +74,7 @@ If you are interested in making a tauri-app, please visit the [documentation web
 - [x] writeBinaryFile - write binary file to local filesystem
 - [x] readBinaryFile - read binary file from local filesystem
 - [x] readTextFile - read text file from local filesystem
+- [ ] channel - stream constant data to the webview
 
 ### Security Features
 - [x] localhost-free mode (:fire:)
@@ -81,6 +83,13 @@ If you are interested in making a tauri-app, please visit the [documentation web
 - [x] OTP salting of function names and messages at runtime
 - [x] CSP Injection
 - [ ] Frida-based harness for Post-Binary Analysis (in progress)
+
+### Utilities
+- [x] GH Action for creating binaries for all platforms
+- [x] VS Code Extension
+- [x] Tauri Core Plugins
+- [ ] Update core dependencies automatically from the command line
+- [ ] Rust-based CLI with deno binding
 
 ### Comparison between Tauri and Electron
 
@@ -148,7 +157,7 @@ Documentation in a polyglot system is a tricky proposition. To this end, we pref
 Test all the things! We have a number of test suites, but are always looking to improve our coverage:
 - Rust (`cargo test`) => sourced via inline `#[cfg(test)]` declarations
 - TS (`jest`) => via spec files
-- Smoke Tests (run on merges to master)
+- Smoke Tests (run on merges to latest)
 - eslint, clippy
 
 ### CI/CD

@@ -21,7 +21,7 @@ const copyTemplates = ({
   for (const rawPath of files) {
     const targetRelativePath = rawPath
       .split('/')
-      .map(name => {
+      .map((name) => {
         // dotfiles are ignored when published to npm, therefore in templates
         // we need to use underscore instead (e.g. "_gitignore")
         if (name.startsWith('_') && name.charAt(1) !== '_') {

@@ -15,14 +15,21 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // generate the .app bundle
   osx_bundle::bundle_project(settings)?;
 
-  let app_name = settings.bundle_name();
-
   // get the target path
   let output_path = settings.project_out_directory().join("bundle/dmg");
-  let dmg_name = format!("{}.dmg", app_name.clone());
-  let dmg_path = output_path.join(&dmg_name.clone());
+  let package_base_name = format!(
+    "{}_{}_{}",
+    settings.main_binary_name(),
+    settings.version_string(),
+    match settings.binary_arch() {
+      "x86_64" => "x64",
+      other => other,
+    }
+  );
+  let dmg_name = format!("{}.dmg", &package_base_name);
+  let dmg_path = output_path.join(&dmg_name);
 
-  let bundle_name = &format!("{}.app", app_name);
+  let bundle_name = &format!("{}.app", &package_base_name);
   let bundle_dir = settings.project_out_directory().join("bundle/osx");
   let bundle_path = bundle_dir.join(&bundle_name.clone());
 
@@ -42,7 +49,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let bundle_script_path = output_path.join("bundle_dmg.sh");
   let license_script_path = support_directory_path.join("dmg-license.py");
 
-  common::print_bundling(format!("{:?}", &dmg_path.clone()).as_str())?;
+  common::print_bundling(format!("{:?}", &dmg_path).as_str())?;
 
   // write the scripts
   write(
@@ -63,7 +70,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .arg("777")
     .arg(&bundle_script_path)
     .arg(&license_script_path)
-    .current_dir(output_path.clone())
+    .current_dir(output_path)
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
     .output()
@@ -71,7 +78,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let mut args = vec![
     "--volname",
-    &app_name,
+    &package_base_name,
     "--volicon",
     "../../../../icons/icon.icns",
     "--icon",
@@ -95,13 +102,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // Issue #592 - Building MacOS dmg files on CI
   // https://github.com/tauri-apps/tauri/issues/592
-  match env::var_os("CI") {
-    Some(value) => {
-      if value == "true" {
-        args.push("--skip-jenkins");
-      }
+  if let Some(value) = env::var_os("CI") {
+    if value == "true" {
+      args.push("--skip-jenkins");
     }
-    None => (),
   }
 
   // execute the bundle script
@@ -111,9 +115,18 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .args(args)
     .args(vec![dmg_name.as_str(), bundle_name.as_str()]);
 
-  common::execute_with_output(&mut cmd)
-    .map_err(|_| crate::Error::ShellScriptError("error running bundle_dmg.sh".to_owned()))?;
+  common::print_info("running bundle_dmg.sh")?;
+  common::execute_with_verbosity(&mut cmd, &settings).map_err(|_| {
+    crate::Error::ShellScriptError(format!(
+      "error running bundle_dmg.sh{}",
+      if settings.is_verbose() {
+        ""
+      } else {
+        ", try running with --verbose to see command output"
+      }
+    ))
+  })?;
 
-  fs::rename(bundle_dir.join(dmg_name.clone()), dmg_path.clone())?;
+  fs::rename(bundle_dir.join(dmg_name), dmg_path.clone())?;
   Ok(vec![bundle_path, dmg_path])
 }

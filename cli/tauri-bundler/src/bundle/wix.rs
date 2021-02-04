@@ -12,7 +12,7 @@ use zip::ZipArchive;
 
 use std::collections::BTreeMap;
 use std::fs::{create_dir_all, remove_dir_all, write, File};
-use std::io::{BufRead, BufReader, Cursor, Read, Write};
+use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -123,11 +123,15 @@ impl ResourceDirectory {
       }
       directories.push_str(wix_string.as_str());
     }
-    let wix_string = format!(
-      r#"<Directory Id="{name}" Name="{name}">{contents}</Directory>"#,
-      name = self.name,
-      contents = format!("{}{}", files, directories)
-    );
+    let wix_string = if self.name == "" {
+      format!("{}{}", files, directories)
+    } else {
+      format!(
+        r#"<Directory Id="{name}" Name="{name}">{contents}</Directory>"#,
+        name = self.name,
+        contents = format!("{}{}", files, directories)
+      )
+    };
 
     Ok((wix_string, file_ids))
   }
@@ -199,15 +203,23 @@ fn app_installer_dir(settings: &Settings) -> crate::Result<PathBuf> {
     }
   };
 
-  Ok(settings.project_out_directory().to_path_buf().join(format!(
-    "{}.{}.msi",
-    settings.bundle_name(),
+  let package_base_name = format!(
+    "{}_{}_{}",
+    settings.main_binary_name().replace(".exe", ""),
+    settings.version_string(),
     arch
-  )))
+  );
+
+  Ok(
+    settings
+      .project_out_directory()
+      .to_path_buf()
+      .join(format!("bundle/msi/{}.msi", package_base_name)),
+  )
 }
 
 /// Extracts the zips from Wix and VC_REDIST into a useable path.
-fn extract_zip(data: &Vec<u8>, path: &Path) -> crate::Result<()> {
+fn extract_zip(data: &[u8], path: &Path) -> crate::Result<()> {
   let cursor = Cursor::new(data);
 
   let mut zipa = ZipArchive::new(cursor)?;
@@ -348,7 +360,17 @@ fn run_candle(
     .stdout(Stdio::piped())
     .current_dir(build_path);
 
-  common::execute_with_output(&mut cmd).map_err(|_| crate::Error::CandleError)
+  common::print_info("running candle.exe")?;
+  common::execute_with_verbosity(&mut cmd, &settings).map_err(|_| {
+    crate::Error::ShellScriptError(format!(
+      "error running candle.exe{}",
+      if settings.is_verbose() {
+        ""
+      } else {
+        ", try running with --verbose to see command output"
+      }
+    ))
+  })
 }
 
 /// Runs the Light.exe file. Light takes the generated code from Candle and produces an MSI Installer.
@@ -357,6 +379,7 @@ fn run_light(
   build_path: &Path,
   wixobjs: &[&str],
   output_path: &Path,
+  settings: &Settings,
 ) -> crate::Result<PathBuf> {
   let light_exe = wix_toolset_path.join("light.exe");
 
@@ -368,10 +391,8 @@ fn run_light(
   ];
 
   for p in wixobjs {
-    args.push(p.to_string());
+    args.push((*p).to_string());
   }
-
-  common::print_info(format!("running light to produce {}", output_path.display()).as_str())?;
 
   let mut cmd = Command::new(&light_exe);
   cmd
@@ -379,9 +400,19 @@ fn run_light(
     .stdout(Stdio::piped())
     .current_dir(build_path);
 
-  common::execute_with_output(&mut cmd)
+  common::print_info(format!("running light to produce {}", output_path.display()).as_str())?;
+  common::execute_with_verbosity(&mut cmd, &settings)
     .map(|_| output_path.to_path_buf())
-    .map_err(|_| crate::Error::LightError)
+    .map_err(|_| {
+      crate::Error::ShellScriptError(format!(
+        "error running light.exe{}",
+        if settings.is_verbose() {
+          ""
+        } else {
+          ", try running with --verbose to see command output"
+        }
+      ))
+    })
 }
 
 // fn get_icon_data() -> crate::Result<()> {
@@ -407,9 +438,19 @@ pub fn build_wix_app_installer(
   // target only supports x64.
   common::print_info(format!("Target: {}", arch).as_str())?;
 
-  let output_path = settings.project_out_directory().join("wix").join(arch);
+  let output_path = settings
+    .project_out_directory()
+    .join("bundle/msi")
+    .join(arch);
 
   let mut data = BTreeMap::new();
+
+  if let Ok(tauri_config) = crate::bundle::tauri_config::get() {
+    data.insert(
+      "embedded_server",
+      to_json(tauri_config.tauri.embedded_server.active),
+    );
+  }
 
   data.insert("product_name", to_json(settings.bundle_name()));
   data.insert("version", to_json(settings.version_string()));
@@ -470,13 +511,13 @@ pub fn build_wix_app_installer(
   let temp = HANDLEBARS.render("main.wxs", &data)?;
 
   if output_path.exists() {
-    remove_dir_all(&output_path).or_else(|e| Err(e))?;
+    remove_dir_all(&output_path)?;
   }
 
-  create_dir_all(&output_path).or_else(|e| Err(e))?;
+  create_dir_all(&output_path)?;
 
   let main_wxs_path = output_path.join("main.wxs");
-  write(&main_wxs_path, temp).or_else(|e| Err(e))?;
+  write(&main_wxs_path, temp)?;
 
   let input_basenames = vec!["main"];
 
@@ -490,7 +531,8 @@ pub fn build_wix_app_installer(
     &wix_toolset_path,
     &output_path,
     &wixobjs,
-    &app_installer_dir(settings)?,
+    &app_installer_dir(&settings)?,
+    &settings,
   )?;
 
   Ok(target)
@@ -547,6 +589,40 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
   let mut resources = ResourceMap::new();
   let regex = Regex::new(r"[^\w\d\.]")?;
   let cwd = std::env::current_dir()?;
+
+  let mut dlls = vec![];
+  for dll in glob::glob(
+    settings
+      .project_out_directory()
+      .join("*.dll")
+      .to_string_lossy()
+      .to_string()
+      .as_str(),
+  )? {
+    let path = dll?;
+    let filename = path
+      .file_name()
+      .expect("failed to extract resource filename")
+      .to_os_string()
+      .into_string()
+      .expect("failed to convert resource filename to string");
+    dlls.push(ResourceFile {
+      guid: generate_guid(filename.as_bytes()).to_string(),
+      path: path.to_string_lossy().to_string(),
+      id: regex.replace_all(&filename, "").to_string(),
+    });
+  }
+  if !dlls.is_empty() {
+    resources.insert(
+      "".to_string(),
+      ResourceDirectory {
+        name: "".to_string(),
+        directories: vec![],
+        files: dlls,
+      },
+    );
+  }
+
   for src in settings.resource_files() {
     let src = src?;
 

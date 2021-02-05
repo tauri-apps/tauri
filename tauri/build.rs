@@ -69,8 +69,16 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
       let dist_path = Path::new(&dist_path_string);
 
-      write!(index_html_file, "{}", read_to_string(dist_path.join("index.tauri.html"))?)?;
-      write!(tauri_script_file, "{}", read_to_string(dist_path.join("__tauri.js"))?)?;
+      write!(
+        index_html_file,
+        "{}",
+        read_to_string(dist_path.join("index.tauri.html"))?
+      )?;
+      write!(
+        tauri_script_file,
+        "{}",
+        read_to_string(dist_path.join("__tauri.js"))?
+      )?;
     }
     None => {
       // dummy assets

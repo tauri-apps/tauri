@@ -218,23 +218,22 @@ const argv = parseArgs(process.argv.slice(2));
  * Tauri Commands
  *
  * @param {Object} argv
- *
-const tauri = (argv) => {
-  if (argv["h"] || argv["help"]) {
+*
+const tauri = (args) => {
+  if (args["h"] || args["help"]) {
     require("./help.js")();
     return false // do this for node consumers and tests
   }
 
-  if(argv["v"] || argv["version"]){
-    console.log(require('../package.json').version)
+  if(args["v"] || args["version"]){
+    console.log(require("../package.json").version)
     return false // do this for node consumers and tests
   }
 
-  if(argv["_"].length === 1){
-    const name = argv["_"][0]
-    require("./create.js")(name, argv)
+  if(args["_"].length === 1){
+    require("./create.js")(args)
   }
-  else if(argv["_"].length > 1){
+  else if(args["_"].length > 1){
     console.log("ERR: Too many arguments.")
   } else {
     require("./help.js")();

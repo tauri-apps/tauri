@@ -1884,7 +1884,8 @@ dependencies = [
 [[package]]
 name = "webview-official-sys"
 version = "0.1.2"
-source = "git+https://github.com/webview/webview_rust?branch=feat/remove-lifetime#778aa08957e18b925f9e36fdae2dfaa9aac54334"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c4aec5fdf5bc938ba5fe47d23b8e02d6beaee395a91e16f0b2eec984a9a9e1d2"
 dependencies = [
  "cc",
  "pkg-config",
@@ -1892,8 +1893,9 @@ dependencies = [
 
 [[package]]
 name = "webview_official"
-version = "0.1.1"
-source = "git+https://github.com/webview/webview_rust?branch=feat/remove-lifetime#778aa08957e18b925f9e36fdae2dfaa9aac54334"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b38277d3fa288b13db39eeb153f9b8ee3d8e3181648ade05264c1ba99e774999"
 dependencies = [
  "webview-official-sys",
 ]

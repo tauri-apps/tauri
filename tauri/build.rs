@@ -18,6 +18,9 @@ pub fn main() -> Result<(), Box<dyn Error>> {
   let dest_index_html_path = Path::new(&out_dir).join("index.tauri.html");
   let mut index_html_file = BufWriter::new(File::create(&dest_index_html_path)?);
 
+  let dest_tauri_script_path = Path::new(&out_dir).join("__tauri.js");
+  let mut tauri_script_file = BufWriter::new(File::create(&dest_tauri_script_path)?);
+
   match env::var_os("TAURI_DIST_DIR") {
     Some(dist_path) => {
       let dist_path_string = dist_path.into_string().unwrap();
@@ -64,10 +67,10 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         .build("data.rs", inlined_assets)
         .expect("failed to build data.rs");
 
-      let original_index_html_path = Path::new(&dist_path_string).join("index.tauri.html");
-      let original_index_html = read_to_string(original_index_html_path)?;
+      let dist_path = Path::new(&dist_path_string);
 
-      write!(index_html_file, "{}", original_index_html)?;
+      write!(index_html_file, "{}", read_to_string(dist_path.join("index.tauri.html"))?)?;
+      write!(tauri_script_file, "{}", read_to_string(dist_path.join("__tauri.js"))?)?;
     }
     None => {
       // dummy assets
@@ -78,6 +81,10 @@ pub fn main() -> Result<(), Box<dyn Error>> {
       write!(
         index_html_file,
         "<html><body>Build error: Couldn't find ENV: TAURI_DIST_DIR</body></html>"
+      )?;
+      write!(
+        tauri_script_file,
+        r#"console.warning("Couldn't find ENV: TAURI_DIST_DIR, the Tauri API won't work. Please rebuild with the Tauri CLI.")"#,
       )?;
       println!("Build error: Couldn't find ENV: TAURI_DIST_DIR");
     }

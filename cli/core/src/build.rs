@@ -8,7 +8,7 @@ use crate::helpers::{
   config::get as get_config,
   execute_with_output,
   manifest::rewrite_manifest,
-  TauriHtml,
+  TauriHtml, TauriScript,
 };
 use std::env::{set_current_dir, set_var};
 use std::fs::read_to_string;
@@ -97,14 +97,22 @@ impl Build {
     let config_guard = config.lock().unwrap();
     let config_ = config_guard.as_ref().unwrap();
 
+    // index.tauri.html
     let index_html_path = PathBuf::from(&config_.build.dist_dir).join("index.html");
     let tauri_html = TauriHtml::new(&config_.build.dist_dir, read_to_string(index_html_path)?)
       .inliner_enabled(config_.tauri.inliner.active && !config_.tauri.embedded_server.active)
-      .global_tauri(config_.build.with_global_tauri)
-      .generate()?;
+      .get()?;
     let tauri_index_html_path = PathBuf::from(&config_.build.dist_dir).join("index.tauri.html");
     let mut tauri_index_html_file = File::create(tauri_index_html_path)?;
     tauri_index_html_file.write_all(tauri_html.as_bytes())?;
+
+    // __tauri.js
+    let tauri_script = TauriScript::new()
+      .global_tauri(config_.build.with_global_tauri)
+      .get();
+    let tauri_script_path = PathBuf::from(&config_.build.dist_dir).join("__tauri.js");
+    let mut tauri_script_file = File::create(tauri_script_path)?;
+    tauri_script_file.write_all(tauri_script.as_bytes())?;
 
     let settings = settings_builder.build()?;
 

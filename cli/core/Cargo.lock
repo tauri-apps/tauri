@@ -2423,7 +2423,6 @@ dependencies = [
  "clap 3.0.0-beta.2",
  "colored",
  "convert_case",
- "handlebars",
  "html5ever",
  "http",
  "json-patch",

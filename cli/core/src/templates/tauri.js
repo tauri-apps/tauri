@@ -116,15 +116,29 @@ if (!String.prototype.startsWith) {
         delete window[callback]
       }, true)
 
-      window.__TAURI_INVOKE_HANDLER__(
-        _objectSpread(
-          {
-            callback: callback,
-            error: error
-          },
-          args
+      if (window.__TAURI_INVOKE_HANDLER__) {
+        window.__TAURI_INVOKE_HANDLER__(
+          _objectSpread(
+            {
+              callback: callback,
+              error: error
+            },
+            args
+          )
         )
-      )
+      } else {
+        window.addEventListener('DOMContentLoaded', function () {
+          window.__TAURI_INVOKE_HANDLER__(
+            _objectSpread(
+              {
+                callback: callback,
+                error: error
+              },
+              args
+            )
+          )
+        })
+      }
     })
   }
 

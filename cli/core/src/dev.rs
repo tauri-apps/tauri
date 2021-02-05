@@ -2,7 +2,7 @@ use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
   config::{get as get_config, reload as reload_config, ConfigHandle},
   manifest::rewrite_manifest,
-  Logger, TauriHtml,
+  Logger, TauriHtml, TauriScript,
 };
 
 use attohttpc::{Method, RequestBuilder};
@@ -14,6 +14,9 @@ use url::Url;
 
 use std::env::set_var;
 use std::ffi::OsStr;
+use std::fs::File;
+use std::io::Write;
+use std::path::PathBuf;
 use std::process::{exit, Command};
 use std::sync::mpsc::{channel, Receiver};
 use std::sync::{Arc, Mutex};
@@ -138,6 +141,18 @@ impl Dev {
 
     rewrite_manifest(config.clone())?;
 
+    // __tauri.js
+    {
+      let config_guard = config.lock().unwrap();
+      let config_ = config_guard.as_ref().unwrap();
+      let tauri_script = TauriScript::new()
+        .global_tauri(config_.build.with_global_tauri)
+        .get();
+      let tauri_script_path = PathBuf::from(&config_.build.dist_dir).join("__tauri.js");
+      let mut tauri_script_file = File::create(tauri_script_path)?;
+      tauri_script_file.write_all(tauri_script.as_bytes())?;
+    }
+
     let (child_wait_tx, child_wait_rx) = channel();
     let child_wait_rx = Arc::new(Mutex::new(child_wait_rx));
 
@@ -250,9 +265,7 @@ fn proxy_dev_server(config: ConfigHandle, dev_path: &Url, dev_port: u16) -> crat
       let config_guard = config.lock().unwrap();
       let config = config_guard.as_ref().unwrap();
       let response = request_builder.send()?.text()?;
-      let tauri_html = TauriHtml::new(&config.build.dist_dir, response)
-        .global_tauri(config.build.with_global_tauri)
-        .generate()?;
+      let tauri_html = TauriHtml::new(&config.build.dist_dir, response).get()?;
       request.respond(Response::from_data(tauri_html))?;
     } else {
       let response = request_builder.send()?.bytes()?;

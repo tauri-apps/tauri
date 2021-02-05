@@ -2,10 +2,10 @@ pub mod app_paths;
 pub mod config;
 mod logger;
 pub mod manifest;
-mod tauri_html;
+mod tauri_entry;
 
 pub use logger::Logger;
-pub use tauri_html::TauriHtml;
+pub use tauri_entry::{TauriHtml, TauriScript};
 
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};

@@ -272,6 +272,7 @@ fn build_webview<W: Webview + 'static>(
 
   let init = format!(
     r#"
+      {tauri_init}
       {event_init}
       if (window.__TAURI_INVOKE_HANDLER__) {{
         window.__TAURI_INVOKE_HANDLER__({{ cmd: "__initialized" }})
@@ -282,6 +283,7 @@ fn build_webview<W: Webview + 'static>(
       }}
       {plugin_init}
     "#,
+    tauri_init = include_str!(concat!(env!("OUT_DIR"), "/__tauri.js")),
     event_init = init(),
     plugin_init = crate::async_runtime::block_on(crate::plugin::init_script(W::plugin_store()))
   );

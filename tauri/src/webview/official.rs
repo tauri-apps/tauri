@@ -18,37 +18,37 @@ impl WebviewBuilder for WebviewOfficialBuilder {
     WebviewOfficialBuilder::default()
   }
 
-  fn debug(&mut self, debug: bool) -> &mut Self {
+  fn debug(mut self, debug: bool) -> Self {
     self.debug = debug;
     self
   }
 
-  fn title(&mut self, title: &str) -> &mut Self {
+  fn title(mut self, title: &str) -> Self {
     self.title = Some(title.to_string());
     self
   }
 
-  fn url(&mut self, url: &str) -> &mut Self {
+  fn url(mut self, url: &str) -> Self {
     self.url = Some(url.to_string());
     self
   }
 
-  fn init(&mut self, init: &str) -> &mut Self {
+  fn init(mut self, init: &str) -> Self {
     self.init = Some(init.to_string());
     self
   }
 
-  fn width(&mut self, width: usize) -> &mut Self {
+  fn width(mut self, width: usize) -> Self {
     self.size.0 = width;
     self
   }
 
-  fn height(&mut self, height: usize) -> &mut Self {
+  fn height(mut self, height: usize) -> Self {
     self.size.1 = height;
     self
   }
 
-  fn resizable(&mut self, hint: SizeHint) -> &mut Self {
+  fn resizable(mut self, hint: SizeHint) -> Self {
     self.size.2 = hint;
     self
   }

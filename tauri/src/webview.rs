@@ -28,19 +28,19 @@ pub trait WebviewBuilder: Sized {
   /// Initializes a new instance of the builder.
   fn new() -> Self;
   /// Sets the debug flag.
-  fn debug(&mut self, debug: bool) -> &mut Self;
+  fn debug(self, debug: bool) -> Self;
   /// Sets the window title.
-  fn title(&mut self, title: &str) -> &mut Self;
+  fn title(self, title: &str) -> Self;
   /// Sets the initial url.
-  fn url(&mut self, url: &str) -> &mut Self;
+  fn url(self, url: &str) -> Self;
   /// Sets the init script.
-  fn init(&mut self, init: &str) -> &mut Self;
+  fn init(self, init: &str) -> Self;
   /// Sets the window width.
-  fn width(&mut self, width: usize) -> &mut Self;
+  fn width(self, width: usize) -> Self;
   /// Sets the window height.
-  fn height(&mut self, height: usize) -> &mut Self;
+  fn height(self, height: usize) -> Self;
   /// Whether the window is resizable or not.
-  fn resizable(&mut self, resizable: SizeHint) -> &mut Self;
+  fn resizable(self, resizable: SizeHint) -> Self;
   /// Builds the webview instance.
   fn finish(self) -> Self::WebviewObject;
 }

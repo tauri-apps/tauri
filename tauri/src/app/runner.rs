@@ -286,15 +286,15 @@ fn build_webview<W: Webview + 'static>(
     plugin_init = crate::async_runtime::block_on(crate::plugin::init_script(W::plugin_store()))
   );
 
-  let mut webview_builder = W::Builder::new();
-  webview_builder.init(&init);
-  webview_builder.title(&title);
-  webview_builder.width(width as usize);
-  webview_builder.height(height as usize);
-  webview_builder.resizable(resizable);
-  webview_builder.debug(debug);
-  webview_builder.url(&url);
-  let mut webview = webview_builder.finish();
+  let mut webview = W::Builder::new()
+    .init(&init)
+    .title(&title)
+    .width(width as usize)
+    .height(height as usize)
+    .resizable(resizable)
+    .debug(debug)
+    .url(&url)
+    .finish();
   // TODO waiting for webview window API
   // webview.set_fullscreen(fullscreen);
 

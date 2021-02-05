@@ -1,9 +1,5 @@
 //! The Tauri API interface.
 #![warn(missing_docs, rust_2018_idioms)]
-#![cfg_attr(
-  all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
-)]
 
 /// The Command API module allows you to manage child processes.
 pub mod command;

@@ -6,13 +6,11 @@
 mod cmd;
 
 fn main() {
-  tauri::AppBuilder::new()
-    .invoke_handler(|_webview, arg| {
+  tauri::AppBuilder::<tauri::flavors::Official>::new()
+    .invoke_handler(|_webview, arg| async move {
       use cmd::Cmd::*;
-      match serde_json::from_str(arg) {
-        Err(e) => {
-          Err(e.to_string())
-        }
+      match serde_json::from_str(&arg) {
+        Err(e) => Err(e.to_string()),
         Ok(command) => {
           match command {
             // definitions for your custom commands from Cmd here

@@ -1,87 +1,89 @@
-use std::sync::{Arc, Mutex};
-use webview_official::Webview;
+use crate::async_runtime::Mutex;
+
+use crate::Webview;
+
+use std::sync::Arc;
 
 /// The plugin interface.
-pub trait Plugin {
+#[async_trait::async_trait]
+pub trait Plugin<W: Webview + 'static>: Sync {
   /// The JS script to evaluate on init.
-  fn init_script(&self) -> Option<String> {
+  async fn init_script(&self) -> Option<String> {
     None
   }
   /// Callback invoked when the webview is created.
   #[allow(unused_variables)]
-  fn created(&self, webview: &mut Webview<'_>) {}
+  async fn created(&self, webview: W) {}
 
   /// Callback invoked when the webview is ready.
   #[allow(unused_variables)]
-  fn ready(&self, webview: &mut Webview<'_>) {}
+  async fn ready(&self, webview: W) {}
 
   /// Add invoke_handler API extension commands.
   #[allow(unused_variables)]
-  fn extend_api(&self, webview: &mut Webview<'_>, payload: &str) -> Result<bool, String> {
+  async fn extend_api(&self, webview: W, payload: &str) -> Result<bool, String> {
     Err("unknown variant".to_string())
   }
 }
 
-thread_local!(static PLUGINS: Arc<Mutex<Vec<Box<dyn Plugin>>>> = Default::default());
+/// Plugin collection type.
+pub type PluginStore<W> = Arc<Mutex<Vec<Box<dyn Plugin<W> + Sync + Send>>>>;
 
 /// Registers a plugin.
-pub fn register(ext: impl Plugin + 'static) {
-  PLUGINS.with(|plugins| {
-    let mut exts = plugins.lock().unwrap();
-    exts.push(Box::new(ext));
-  });
+pub async fn register<W: Webview + 'static>(
+  store: &PluginStore<W>,
+  plugin: impl Plugin<W> + Sync + Send + 'static,
+) {
+  let mut plugins = store.lock().await;
+  plugins.push(Box::new(plugin));
 }
 
-fn run_plugin<T: FnMut(&Box<dyn Plugin>)>(mut callback: T) {
-  PLUGINS.with(|plugins| {
-    let exts = plugins.lock().unwrap();
-    for ext in exts.iter() {
-      callback(ext);
-    }
-  });
-}
-
-pub(crate) fn init_script() -> String {
+pub(crate) async fn init_script<W: Webview + 'static>(store: &PluginStore<W>) -> String {
   let mut init = String::new();
 
-  run_plugin(|plugin| {
-    if let Some(init_script) = plugin.init_script() {
+  let plugins = store.lock().await;
+  for plugin in plugins.iter() {
+    if let Some(init_script) = plugin.init_script().await {
       init.push_str(&format!("(function () {{ {} }})();", init_script));
     }
-  });
+  }
 
   init
 }
 
-pub(crate) fn created(webview: &mut Webview<'_>) {
-  run_plugin(|ext| {
-    ext.created(webview);
-  });
+pub(crate) async fn created<W: Webview + 'static>(store: &PluginStore<W>, webview: &mut W) {
+  let plugins = store.lock().await;
+  for plugin in plugins.iter() {
+    plugin.created(webview.clone()).await;
+  }
 }
 
-pub(crate) fn ready(webview: &mut Webview<'_>) {
-  run_plugin(|ext| {
-    ext.ready(webview);
-  });
+pub(crate) async fn ready<W: Webview + 'static>(store: &PluginStore<W>, webview: &mut W) {
+  let plugins = store.lock().await;
+  for plugin in plugins.iter() {
+    plugin.ready(webview.clone()).await;
+  }
 }
 
-pub(crate) fn extend_api(webview: &mut Webview<'_>, arg: &str) -> Result<bool, String> {
-  PLUGINS.with(|plugins| {
-    let exts = plugins.lock().unwrap();
-    for ext in exts.iter() {
-      match ext.extend_api(webview, arg) {
-        Ok(handled) => {
-          if handled {
-            return Ok(true);
-          }
+pub(crate) async fn extend_api<W: Webview + 'static>(
+  store: &PluginStore<W>,
+  webview: &mut W,
+  arg: &str,
+) -> Result<bool, String> {
+  let plugins = store.lock().await;
+  for ext in plugins.iter() {
+    match ext.extend_api(webview.clone(), arg).await {
+      Ok(handled) => {
+        if handled {
+          return Ok(true);
         }
-        Err(e) => {
-          if !e.contains("unknown variant") {
-            return Err(e);
-          }
+      }
+      Err(e) => {
+        if !e.contains("unknown variant") {
+          return Err(e);
         }
       }
     }
-    Ok(false)
-  })
+  }
+  Ok(false)
 }

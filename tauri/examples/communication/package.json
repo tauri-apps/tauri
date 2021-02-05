@@ -5,11 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "tauri": "tauri",
-    "build": "tauri build"
+    "build": "node ../../../cli/tauri.js/bin/tauri build"
   },
-  "private": true,
-  "dependencies": {
-    "tauri": "link:../../../cli/tauri.js"
-  }
+  "private": true
 }

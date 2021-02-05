@@ -1,6 +1,5 @@
 use cfg_aliases::cfg_aliases;
 
-#[cfg(any(feature = "embedded-server", feature = "no-server"))]
 use std::{
   env,
   error::Error,
@@ -11,7 +10,7 @@ use std::{
 
 #[cfg(any(feature = "embedded-server", feature = "no-server"))]
 pub fn main() -> Result<(), Box<dyn Error>> {
-  shared();
+  shared()?;
 
   let out_dir = env::var("OUT_DIR")?;
 
@@ -64,10 +63,11 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         .build("data.rs", inlined_assets)
         .expect("failed to build data.rs");
 
-      let original_index_html_path = Path::new(&dist_path_string).join("index.tauri.html");
-      let original_index_html = read_to_string(original_index_html_path)?;
-
-      write!(index_html_file, "{}", original_index_html)?;
+      write!(
+        index_html_file,
+        "{}",
+        read_to_string(dist_path.join("index.tauri.html"))?
+      )?;
     }
     None => {
       // dummy assets
@@ -86,12 +86,37 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 }
 
 #[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
-pub fn main() {
-  shared();
+pub fn main() -> Result<(), Box<dyn Error>> {
+  shared()
 }
 
-fn shared() {
+fn shared() -> Result<(), Box<dyn Error>> {
+  let out_dir = env::var("OUT_DIR")?;
+  let dest_tauri_script_path = Path::new(&out_dir).join("__tauri.js");
+  let mut tauri_script_file = BufWriter::new(File::create(&dest_tauri_script_path)?);
+
+  match env::var_os("TAURI_DIST_DIR") {
+    Some(dist_path) => {
+      let dist_path_string = dist_path.into_string().unwrap();
+      let dist_path = Path::new(&dist_path_string);
+
+      write!(
+        tauri_script_file,
+        "{}",
+        read_to_string(dist_path.join("__tauri.js"))?
+      )?;
+    }
+    None => {
+      write!(
+        tauri_script_file,
+        r#"console.warning("Couldn't find ENV: TAURI_DIST_DIR, the Tauri API won't work. Please rebuild with the Tauri CLI.")"#,
+      )?;
+    }
+  }
+
   setup_env_aliases();
+
+  Ok(())
 }
 
 #[allow(clippy::cognitive_complexity)]

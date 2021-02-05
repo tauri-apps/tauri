@@ -1,2 +1,3 @@
 src-tauri
 dist/index.tauri.html
+dist/__tauri.js

@@ -1,4 +1,4 @@
-(function () {
+function __tauri_mutation_observer (target) {
   function loadAsset(path, type) {
     if (path) {
       window.__TAURI__.loadAsset(path, type)
@@ -23,14 +23,25 @@
     })
   })
 
-  {{#if (eq target "body")}}
-    var target = document.documentElement
-  {{ else }}
-    var target = document.head
-  {{/if}}
-
   observer.observe(target, {
     childList: true,
     subtree: true
   })
-})()
+}
+
+__tauri_mutation_observer(document.documentElement)
+if (
+  document.readyState === 'complete' ||
+  document.readyState === 'interactive'
+) {
+  __tauri_mutation_observer(document.head)
+} else {
+  window.addEventListener(
+    'DOMContentLoaded',
+    function () {
+      __tauri_mutation_observer(document.head)
+    },
+    true
+  )
+}
+

@@ -1,10 +1,10 @@
 #![cfg(path_api)]
+use crate::Webview;
 use tauri_api::path;
 use tauri_api::path::BaseDirectory;
-use webview_official::Webview;
 
-pub fn resolve_path(
-  webview: &mut Webview<'_>,
+pub async fn resolve_path<W: Webview>(
+  webview: &mut W,
   path: String,
   directory: Option<BaseDirectory>,
   callback: String,
@@ -12,8 +12,9 @@ pub fn resolve_path(
 ) {
   crate::execute_promise(
     webview,
-    move || path::resolve_path(path, directory),
+    async move { path::resolve_path(path, directory) },
     callback,
     error,
   )
+  .await
 }

@@ -1,18 +1,18 @@
+use crate::Webview;
 use std::path::PathBuf;
-use webview_official::Webview;
 
 #[allow(clippy::option_env_unwrap)]
-pub fn load(
-  webview: &mut Webview<'_>,
+pub async fn load<W: Webview + 'static>(
+  webview: &mut W,
   asset: String,
   asset_type: String,
   callback: String,
   error: String,
 ) {
-  let mut webview_mut = webview.as_mut();
+  let mut webview_mut = webview.clone();
   crate::execute_promise(
     webview,
-    move || {
+    async move {
       let mut path = PathBuf::from(if asset.starts_with('/') {
         asset.replacen("/", "", 1)
       } else {
@@ -90,11 +90,12 @@ pub fn load(
           } else {
             webview_ref.eval(asset_str);
           }
-        })?;
+        });
         Ok("Asset loaded successfully".to_string())
       }
     },
     callback,
     error,
-  );
+  )
+  .await;
 }

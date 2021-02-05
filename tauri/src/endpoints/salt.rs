@@ -1,8 +1,8 @@
-use webview_official::Webview;
+use crate::Webview;
 
 /// Validates a salt.
-pub fn validate(
-  webview: &mut Webview<'_>,
+pub fn validate<W: Webview>(
+  webview: &mut W,
   salt: String,
   callback: String,
   error: String,
@@ -13,6 +13,8 @@ pub fn validate(
     Err("Invalid salt")
   };
   let callback_string = crate::api::rpc::format_callback_result(response, callback, error)?;
-  webview.eval(callback_string.as_str());
+  webview.dispatch(move |w| {
+    w.eval(callback_string.as_str());
+  });
   Ok(())
 }

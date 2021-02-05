@@ -1,0 +1,6 @@
+/node_modules/
+/public/build/
+/public/index.tauri.html
+/public/__tauri.js
+
+.DS_Store

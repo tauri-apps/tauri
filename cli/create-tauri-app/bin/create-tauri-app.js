@@ -210,32 +210,37 @@ module.exports = main;
 
 /* will merge these later
 
-/* --NOTES--
- * Entry point of create-tauri-app
-**/
+const parseArgs = require('minimist')
+const argv = parseArgs(process.argv.slice(2));
 
-const cmd = process.argv[2]
-
-const tauri = (command) => {
-  /* --NOTES--
-   * parse arguments
-   * trigger the required action
-  **/
-  if (
-    !command ||
-    command === '-h' ||
-    command === '--help' ||
-    command === 'help'
-  ) {
+/**
+ * @description This is the bootstrapper that in turn calls subsequent
+ * Tauri Commands
+ *
+ * @param {Object} argv
+ *
+const tauri = (argv) => {
+  if (argv["h"] || argv["help"]) {
     require("./help.js")();
-    process.exit(0)
-    // eslint-disable-next-line no-unreachable
     return false // do this for node consumers and tests
+  }
+
+  if(argv["v"] || argv["version"]){
+    console.log(require('../package.json').version)
+    return false // do this for node consumers and tests
+  }
+
+  if(argv["_"].length === 1){
+    const name = argv["_"][0]
+    require("./create.js")(name, argv)
+  }
+  else if(argv["_"].length > 1){
+    console.log("ERR: Too many arguments.")
   } else {
-    require("./create.js")(command, {})
+    require("./help.js")();
+    return false // do this for node consumers and tests
   }
 }
 
-tauri(cmd)
-
+tauri(argv)
 */

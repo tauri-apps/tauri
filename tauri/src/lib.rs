@@ -29,6 +29,8 @@ mod endpoints;
 pub mod plugin;
 /// The salt helpers.
 mod salt;
+/// Webview interface.
+mod webview;
 
 pub(crate) mod async_runtime;
 
@@ -36,7 +38,12 @@ pub(crate) mod async_runtime;
 pub use anyhow::Result;
 pub use app::*;
 pub use tauri_api as api;
-pub use webview_official::{Webview, WebviewMut};
+pub use webview::*;
+
+/// The Tauri webview implementations.
+pub mod flavors {
+  pub use webview_official::Webview as Official;
+}
 
 use std::process::Stdio;
 
@@ -46,10 +53,11 @@ use serde::Serialize;
 /// Synchronously executes the given task
 /// and evaluates its Result to the JS promise described by the `callback` and `error` function names.
 pub fn execute_promise_sync<
+  W: Webview,
   R: Serialize,
   F: futures::Future<Output = Result<R>> + Send + 'static,
 >(
-  webview: &mut WebviewMut,
+  webview: &mut W,
   task: F,
   callback: String,
   error: String,
@@ -57,7 +65,7 @@ pub fn execute_promise_sync<
   async_runtime::block_on(async move {
     let callback_string =
       format_callback_result(task.await.map_err(|err| err.to_string()), callback, error)?;
-    webview.dispatch(move |w| w.eval(callback_string.as_str()))?;
+    webview.dispatch(move |w| w.eval(callback_string.as_str()));
     Ok(())
   })
 }
@@ -68,10 +76,11 @@ pub fn execute_promise_sync<
 /// If the Result `is_ok()`, the callback will be the `success_callback` function name and the argument will be the Ok value.
 /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
 pub async fn execute_promise<
+  W: Webview,
   R: Serialize,
   F: futures::Future<Output = Result<R>> + Send + 'static,
 >(
-  webview: &mut WebviewMut,
+  webview: &mut W,
   task: F,
   success_callback: String,
   error_callback: String,
@@ -84,14 +93,12 @@ pub async fn execute_promise<
     Ok(callback_string) => callback_string,
     Err(e) => format_callback(error_callback, e.to_string()),
   };
-  webview
-    .dispatch(move |webview_ref| webview_ref.eval(callback_string.as_str()))
-    .expect("Failed to dispatch promise callback");
+  webview.dispatch(move |webview_ref| webview_ref.eval(callback_string.as_str()));
 }
 
 /// Calls the given command and evaluates its output to the JS promise described by the `callback` and `error` function names.
-pub async fn call(
-  webview: &mut WebviewMut,
+pub async fn call<W: Webview>(
+  webview: &mut W,
   command: String,
   args: Vec<String>,
   callback: String,
@@ -107,7 +114,7 @@ pub async fn call(
 }
 
 /// Closes the splashscreen.
-pub fn close_splashscreen(webview: &mut Webview<'_>) -> crate::Result<()> {
+pub fn close_splashscreen<W: Webview>(webview: &mut W) -> crate::Result<()> {
   // send a signal to the runner so it knows that it should redirect to the main app content
   webview.eval(r#"window.__TAURI_INVOKE_HANDLER__({ cmd: "closeSplashscreen" })"#);
 

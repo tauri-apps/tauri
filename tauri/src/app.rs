@@ -1,23 +1,22 @@
+use crate::Webview;
 use futures::future::BoxFuture;
-use webview_official::WebviewMut;
 
 mod runner;
 
-type InvokeHandler =
-  dyn Fn(WebviewMut, String) -> BoxFuture<'static, Result<(), String>> + Send + Sync;
-type Setup = dyn Fn(WebviewMut, String) -> BoxFuture<'static, ()> + Send + Sync;
+type InvokeHandler<W> = dyn Fn(W, String) -> BoxFuture<'static, Result<(), String>> + Send + Sync;
+type Setup<W> = dyn Fn(W, String) -> BoxFuture<'static, ()> + Send + Sync;
 
 /// The application runner.
-pub struct App {
+pub struct App<W: Webview> {
   /// The JS message handler.
-  invoke_handler: Option<Box<InvokeHandler>>,
+  invoke_handler: Option<Box<InvokeHandler<W>>>,
   /// The setup callback, invoked when the webview is ready.
-  setup: Option<Box<Setup>>,
+  setup: Option<Box<Setup<W>>>,
   /// The HTML of the splashscreen to render.
   splashscreen_html: Option<String>,
 }
 
-impl App {
+impl<W: Webview + 'static> App<W> {
   /// Runs the app until it finishes.
   pub fn run(self) {
     runner::run(self).expect("Failed to build webview");
@@ -28,7 +27,7 @@ impl App {
   /// The message is considered consumed if the handler exists and returns an Ok Result.
   pub(crate) async fn run_invoke_handler(
     &self,
-    webview: &mut WebviewMut,
+    webview: &mut W,
     arg: &str,
   ) -> Result<bool, String> {
     if let Some(ref invoke_handler) = self.invoke_handler {
@@ -40,7 +39,7 @@ impl App {
   }
 
   /// Runs the setup callback if defined.
-  pub(crate) async fn run_setup(&self, webview: &mut WebviewMut, source: String) {
+  pub(crate) async fn run_setup(&self, webview: &mut W, source: String) {
     if let Some(ref setup) = self.setup {
       let fut = setup(webview.clone(), source);
       fut.await;
@@ -55,16 +54,16 @@ impl App {
 
 /// The App builder.
 #[derive(Default)]
-pub struct AppBuilder {
+pub struct AppBuilder<W: Webview> {
   /// The JS message handler.
-  invoke_handler: Option<Box<InvokeHandler>>,
+  invoke_handler: Option<Box<InvokeHandler<W>>>,
   /// The setup callback, invoked when the webview is ready.
-  setup: Option<Box<Setup>>,
+  setup: Option<Box<Setup<W>>>,
   /// The HTML of the splashscreen to render.
   splashscreen_html: Option<String>,
 }
 
-impl AppBuilder {
+impl<W: Webview + 'static> AppBuilder<W> {
   /// Creates a new App builder.
   pub fn new() -> Self {
     Self {
@@ -77,7 +76,7 @@ impl AppBuilder {
   /// Defines the JS message handler callback.
   pub fn invoke_handler<
     T: futures::Future<Output = Result<(), String>> + Send + Sync + 'static,
-    F: Fn(WebviewMut, String) -> T + Send + Sync + 'static,
+    F: Fn(W, String) -> T + Send + Sync + 'static,
   >(
     mut self,
     invoke_handler: F,
@@ -91,7 +90,7 @@ impl AppBuilder {
   /// Defines the setup callback.
   pub fn setup<
     T: futures::Future<Output = ()> + Send + Sync + 'static,
-    F: Fn(WebviewMut, String) -> T + Send + Sync + 'static,
+    F: Fn(W, String) -> T + Send + Sync + 'static,
   >(
     mut self,
     setup: F,
@@ -109,13 +108,16 @@ impl AppBuilder {
   }
 
   /// Adds a plugin to the runtime.
-  pub fn plugin(self, plugin: impl crate::plugin::Plugin + Send + Sync + Sync + 'static) -> Self {
-    crate::async_runtime::block_on(crate::plugin::register(plugin));
+  pub fn plugin(
+    self,
+    plugin: impl crate::plugin::Plugin<W> + Send + Sync + Sync + 'static,
+  ) -> Self {
+    crate::async_runtime::block_on(crate::plugin::register(W::plugin_store(), plugin));
     self
   }
 
   /// Builds the App.
-  pub fn build(self) -> App {
+  pub fn build(self) -> App<W> {
     App {
       invoke_handler: self.invoke_handler,
       setup: self.setup,

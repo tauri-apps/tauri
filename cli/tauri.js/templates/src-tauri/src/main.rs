@@ -6,7 +6,7 @@
 mod cmd;
 
 fn main() {
-  tauri::AppBuilder::new()
+  tauri::AppBuilder::<tauri::flavors::Official>::new()
     .invoke_handler(|_webview, arg| async move {
       use cmd::Cmd::*;
       match serde_json::from_str(&arg) {

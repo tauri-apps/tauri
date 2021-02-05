@@ -1,9 +1,9 @@
+use crate::Webview;
 use std::path::PathBuf;
-use webview_official::WebviewMut;
 
 #[allow(clippy::option_env_unwrap)]
-pub async fn load(
-  webview: &mut WebviewMut,
+pub async fn load<W: Webview + 'static>(
+  webview: &mut W,
   asset: String,
   asset_type: String,
   callback: String,
@@ -90,7 +90,7 @@ pub async fn load(
           } else {
             webview_ref.eval(asset_str);
           }
-        })?;
+        });
         Ok("Asset loaded successfully".to_string())
       }
     },

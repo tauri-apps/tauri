@@ -1,49 +1,47 @@
 use crate::async_runtime::Mutex;
 
-use once_cell::sync::Lazy;
-use webview_official::WebviewMut;
+use crate::Webview;
 
 use std::sync::Arc;
 
 /// The plugin interface.
 #[async_trait::async_trait]
-pub trait Plugin: Sync {
+pub trait Plugin<W: Webview + 'static>: Sync {
   /// The JS script to evaluate on init.
   async fn init_script(&self) -> Option<String> {
     None
   }
   /// Callback invoked when the webview is created.
   #[allow(unused_variables)]
-  async fn created(&self, webview: WebviewMut) {}
+  async fn created(&self, webview: W) {}
 
   /// Callback invoked when the webview is ready.
   #[allow(unused_variables)]
-  async fn ready(&self, webview: WebviewMut) {}
+  async fn ready(&self, webview: W) {}
 
   /// Add invoke_handler API extension commands.
   #[allow(unused_variables)]
-  async fn extend_api(&self, webview: WebviewMut, payload: &str) -> Result<bool, String> {
+  async fn extend_api(&self, webview: W, payload: &str) -> Result<bool, String> {
     Err("unknown variant".to_string())
   }
 }
 
-type PluginStore = Arc<Mutex<Vec<Box<dyn Plugin + Sync + Send>>>>;
-
-fn plugins() -> &'static PluginStore {
-  static PLUGINS: Lazy<PluginStore> = Lazy::new(Default::default);
-  &PLUGINS
-}
+/// Plugin collection type.
+pub type PluginStore<W> = Arc<Mutex<Vec<Box<dyn Plugin<W> + Sync + Send>>>>;
 
 /// Registers a plugin.
-pub async fn register(plugin: impl Plugin + Sync + Send + 'static) {
-  let mut plugins = plugins().lock().await;
+pub async fn register<W: Webview + 'static>(
+  store: &PluginStore<W>,
+  plugin: impl Plugin<W> + Sync + Send + 'static,
+) {
+  let mut plugins = store.lock().await;
   plugins.push(Box::new(plugin));
 }
 
-pub(crate) async fn init_script() -> String {
+pub(crate) async fn init_script<W: Webview + 'static>(store: &PluginStore<W>) -> String {
   let mut init = String::new();
 
-  let plugins = plugins().lock().await;
+  let plugins = store.lock().await;
   for plugin in plugins.iter() {
     if let Some(init_script) = plugin.init_script().await {
       init.push_str(&format!("(function () {{ {} }})();", init_script));
@@ -53,22 +51,26 @@ pub(crate) async fn init_script() -> String {
   init
 }
 
-pub(crate) async fn created(webview: &mut WebviewMut) {
-  let plugins = plugins().lock().await;
+pub(crate) async fn created<W: Webview + 'static>(store: &PluginStore<W>, webview: &mut W) {
+  let plugins = store.lock().await;
   for plugin in plugins.iter() {
     plugin.created(webview.clone()).await;
   }
 }
 
-pub(crate) async fn ready(webview: &mut WebviewMut) {
-  let plugins = plugins().lock().await;
+pub(crate) async fn ready<W: Webview + 'static>(store: &PluginStore<W>, webview: &mut W) {
+  let plugins = store.lock().await;
   for plugin in plugins.iter() {
     plugin.ready(webview.clone()).await;
   }
 }
 
-pub(crate) async fn extend_api(webview: &mut WebviewMut, arg: &str) -> Result<bool, String> {
-  let plugins = plugins().lock().await;
+pub(crate) async fn extend_api<W: Webview + 'static>(
+  store: &PluginStore<W>,
+  webview: &mut W,
+  arg: &str,
+) -> Result<bool, String> {
+  let plugins = store.lock().await;
   for ext in plugins.iter() {
     match ext.extend_api(webview.clone(), arg).await {
       Ok(handled) => {

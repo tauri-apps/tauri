@@ -1883,9 +1883,9 @@ dependencies = [
 
 [[package]]
 name = "webview-official-sys"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ea5c146a1d2e1b41bf9318fb17bb4b4cf809fd1b8d537318473b27aec178a61"
+checksum = "c4aec5fdf5bc938ba5fe47d23b8e02d6beaee395a91e16f0b2eec984a9a9e1d2"
 dependencies = [
  "cc",
  "pkg-config",
@@ -1893,9 +1893,9 @@ dependencies = [
 
 [[package]]
 name = "webview_official"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef1d99ead69b8f362550a88e161590acfe53e7698edfaecc98be15738a23d191"
+checksum = "b38277d3fa288b13db39eeb153f9b8ee3d8e3181648ade05264c1ba99e774999"
 dependencies = [
  "webview-official-sys",
 ]

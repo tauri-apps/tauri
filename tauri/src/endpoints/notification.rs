@@ -2,6 +2,8 @@ use super::cmd::NotificationOptions;
 use crate::WebviewDispatcher;
 use serde_json::Value as JsonValue;
 
+use std::sync::mpsc::Sender;
+
 pub async fn send<W: WebviewDispatcher>(
   webview: &mut W,
   options: NotificationOptions,
@@ -48,14 +50,16 @@ pub async fn is_permission_granted<W: WebviewDispatcher>(
   .await;
 }
 
-pub fn request_permission<W: WebviewDispatcher>(
+pub fn request_permission<W: WebviewDispatcher + 'static>(
   webview: &mut W,
+  sync_task_sender: &Sender<crate::SyncTask>,
   callback: String,
   error: String,
 ) -> crate::Result<()> {
   crate::execute_promise_sync(
     webview,
-    async move {
+    sync_task_sender,
+    move || {
       let mut settings = crate::settings::read_settings()?;
       let granted = "granted".to_string();
       let denied = "denied".to_string();
@@ -82,6 +86,6 @@ pub fn request_permission<W: WebviewDispatcher>(
     },
     callback,
     error,
-  )?;
+  );
   Ok(())
 }

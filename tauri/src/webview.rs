@@ -31,10 +31,10 @@ pub trait WebviewBuilder: Sized {
   fn bind<F>(self, name: &str, f: F) -> Self
   where
     F: FnMut(
-        &<<Self as WebviewBuilder>::WebviewObject as Webview>::Dispatcher,
-        i8,
-        Vec<String>,
-      ) -> i32
+      &<<Self as WebviewBuilder>::WebviewObject as Webview>::Dispatcher,
+      i8,
+      Vec<String>,
+    ) -> i32
       + Send
       + 'static;
   /// Sets the debug flag.
@@ -87,5 +87,5 @@ pub trait Webview: Sized {
   fn dispatcher(&mut self) -> Self::Dispatcher;
 
   /// Run the webview event loop.
-  fn run(&mut self);
+  fn run<F: Fn()>(self, event_loop: F);
 }

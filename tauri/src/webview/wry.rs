@@ -62,10 +62,10 @@ impl WebviewBuilder for WryWebviewBuilder {
   fn bind<F>(mut self, name: &str, f: F) -> Self
   where
     F: FnMut(
-        &<<Self as WebviewBuilder>::WebviewObject as Webview>::Dispatcher,
-        i8,
-        Vec<String>,
-      ) -> i32
+      &<<Self as WebviewBuilder>::WebviewObject as Webview>::Dispatcher,
+      i8,
+      Vec<String>,
+    ) -> i32
       + Send
       + 'static,
   {
@@ -166,9 +166,10 @@ impl Webview for WryWebview {
     }
   }
 
-  fn run(&mut self) {
+  fn run<F: Fn()>(mut self, event_loop: F) {
     #[cfg(target_os = "linux")]
     loop {
+      event_loop();
       self.inner.evaluate().unwrap();
       gtk::main_iteration();
     }

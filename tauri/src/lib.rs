@@ -34,6 +34,9 @@ mod webview;
 
 pub(crate) mod async_runtime;
 
+/// A task to run on the main thread.
+pub type SyncTask = Box<dyn FnOnce() + Send>;
+
 /// Alias for a Result with error type anyhow::Error.
 pub use anyhow::Result;
 pub use app::*;
@@ -45,7 +48,7 @@ pub mod flavors {
   pub use super::webview::wry::WryWebview as Wry;
 }
 
-use std::process::Stdio;
+use std::{process::Stdio, sync::mpsc::Sender};
 
 use api::rpc::{format_callback, format_callback_result};
 use serde::Serialize;
@@ -53,21 +56,30 @@ use serde::Serialize;
 /// Synchronously executes the given task
 /// and evaluates its Result to the JS promise described by the `callback` and `error` function names.
 pub fn execute_promise_sync<
-  W: WebviewDispatcher,
+  W: WebviewDispatcher + 'static,
   R: Serialize,
-  F: futures::Future<Output = Result<R>> + Send + 'static,
+  F: FnOnce() -> Result<R> + Send + 'static,
 >(
   webview: &mut W,
+  sync_task_sender: &Sender<crate::SyncTask>,
   task: F,
   callback: String,
   error: String,
-) -> crate::Result<()> {
-  async_runtime::block_on(async move {
-    let callback_string =
-      format_callback_result(task.await.map_err(|err| err.to_string()), callback, error)?;
-    webview.eval(callback_string.as_str());
-    Ok(())
-  })
+) {
+  let mut webview = webview.clone();
+  sync_task_sender
+    .send(Box::new(move || {
+      let callback_string =
+        match format_callback_result(task().map_err(|err| err.to_string()), &callback, &error) {
+          Ok(js) => js,
+          Err(e) => {
+            format_callback_result(Result::<(), String>::Err(e.to_string()), &callback, &error)
+              .unwrap()
+          }
+        };
+      webview.eval(callback_string.as_str());
+    }))
+    .unwrap();
 }
 
 /// Asynchronously executes the given task

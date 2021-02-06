@@ -34,7 +34,7 @@ function uid(): string {
  * @param args
  */
 function invoke(args: any): void {
-  window.__TAURI_INVOKE_HANDLER__(args);
+  window.__TAURI_INVOKE_HANDLER__(JSON.stringify(args));
 }
 
 function transformCallback(

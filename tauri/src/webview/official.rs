@@ -20,7 +20,13 @@ impl WebviewBuilder for WebviewOfficialBuilder {
 
   fn bind<F>(self, _name: &str, _f: F) -> Self
   where
-    F: FnMut(<<Self as WebviewBuilder>::WebviewObject as Webview>::Dispatcher, &str, &str),
+    F: FnMut(
+        &<<Self as WebviewBuilder>::WebviewObject as Webview>::Dispatcher,
+        i8,
+        Vec<String>,
+      ) -> i32
+      + Send
+      + 'static,
   {
     self
   }
@@ -60,7 +66,7 @@ impl WebviewBuilder for WebviewOfficialBuilder {
     self
   }
 
-  fn finish(self) -> Self::WebviewObject {
+  fn finish(self) -> crate::Result<Self::WebviewObject> {
     let mut w = webview_official::Webview::create(self.debug, None);
     if let Some(title) = self.title {
       w.set_title(&title);
@@ -89,7 +95,7 @@ impl WebviewBuilder for WebviewOfficialBuilder {
       },
     );
 
-    w
+    Ok(w)
   }
 }
 
@@ -106,10 +112,6 @@ impl Webview for webview_official::Webview {
   fn plugin_store() -> &'static PluginStore<Self::Dispatcher> {
     static PLUGINS: Lazy<PluginStore<webview_official::Webview>> = Lazy::new(Default::default);
     &PLUGINS
-  }
-
-  fn init(&mut self, js: &str) {
-    self.init(js);
   }
 
   fn set_title(&mut self, title: &str) {
@@ -135,13 +137,6 @@ impl Webview for webview_official::Webview {
 
   fn eval(&mut self, js: &str) {
     self.eval(js);
-  }
-
-  fn dispatch<F>(&mut self, f: F)
-  where
-    F: FnOnce(&mut Self) + Send + 'static,
-  {
-    self.dispatch(f);
   }
 
   fn dispatcher(&mut self) -> Self::Dispatcher {

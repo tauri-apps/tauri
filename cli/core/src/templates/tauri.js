@@ -118,24 +118,24 @@ if (!String.prototype.startsWith) {
 
       if (window.__TAURI_INVOKE_HANDLER__) {
         window.__TAURI_INVOKE_HANDLER__(
-          _objectSpread(
+          JSON.stringify(_objectSpread(
             {
               callback: callback,
               error: error
             },
             args
-          )
+          ))
         )
       } else {
         window.addEventListener('DOMContentLoaded', function () {
           window.__TAURI_INVOKE_HANDLER__(
-            _objectSpread(
+            JSON.stringify(_objectSpread(
               {
                 callback: callback,
                 error: error
               },
               args
-            )
+            ))
           )
         })
       }
@@ -182,10 +182,10 @@ if (!String.prototype.startsWith) {
               target.href.startsWith('http') &&
               target.target === '_blank'
             ) {
-              window.__TAURI_INVOKE_HANDLER__({
+              window.__TAURI_INVOKE_HANDLER__(JSON.stringify({
                 cmd: 'open',
                 uri: target.href
-              })
+              }))
               e.preventDefault()
             }
             break
@@ -294,10 +294,10 @@ if (!String.prototype.startsWith) {
   })
 
   window.alert = function (message) {
-    window.__TAURI_INVOKE_HANDLER__({
+    window.__TAURI_INVOKE_HANDLER__(JSON.stringify({
       cmd: 'messageDialog',
       message: message
-    })
+    }))
   }
 
   window.confirm = function (message) {

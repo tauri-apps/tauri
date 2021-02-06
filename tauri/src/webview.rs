@@ -1,4 +1,5 @@
 pub(crate) mod official;
+pub(crate) mod wry;
 
 /// Size hints.
 pub enum SizeHint {
@@ -30,7 +31,13 @@ pub trait WebviewBuilder: Sized {
   /// Binds a new API on the webview.
   fn bind<F>(self, name: &str, f: F) -> Self
   where
-    F: FnMut(<<Self as WebviewBuilder>::WebviewObject as Webview>::Dispatcher, &str, &str);
+    F: FnMut(
+        &<<Self as WebviewBuilder>::WebviewObject as Webview>::Dispatcher,
+        i8,
+        Vec<String>,
+      ) -> i32
+      + Send
+      + 'static;
   /// Sets the debug flag.
   fn debug(self, debug: bool) -> Self;
   /// Sets the window title.
@@ -46,7 +53,7 @@ pub trait WebviewBuilder: Sized {
   /// Whether the window is resizable or not.
   fn resizable(self, resizable: SizeHint) -> Self;
   /// Builds the webview instance.
-  fn finish(self) -> Self::WebviewObject;
+  fn finish(self) -> crate::Result<Self::WebviewObject>;
 }
 
 /// Webview dispatcher. A thread-safe handle to the webview API.
@@ -65,9 +72,6 @@ pub trait Webview: Sized {
   /// Returns the static plugin collection.
   fn plugin_store() -> &'static PluginStore<Self::Dispatcher>;
 
-  /// Adds an init JS code.
-  fn init(&mut self, js: &str);
-
   /// Sets the window title.
   fn set_title(&mut self, title: &str);
 
@@ -79,11 +83,6 @@ pub trait Webview: Sized {
 
   /// eval a string as JS code.
   fn eval(&mut self, js: &str);
-
-  /// Dispatches a closure to run on the main thread.
-  fn dispatch<F>(&mut self, f: F)
-  where
-    F: FnOnce(&mut Self) + Send + 'static;
 
   /// Gets an instance of the webview dispatcher.
   fn dispatcher(&mut self) -> Self::Dispatcher;

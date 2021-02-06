@@ -275,10 +275,10 @@ fn build_webview<W: Webview + 'static>(
       {tauri_init}
       {event_init}
       if (window.__TAURI_INVOKE_HANDLER__) {{
-        window.__TAURI_INVOKE_HANDLER__({{ cmd: "__initialized" }})
+        window.__TAURI_INVOKE_HANDLER__(JSON.stringify({{ cmd: "__initialized" }}))
       }} else {{
         window.addEventListener('DOMContentLoaded', function () {{
-          window.__TAURI_INVOKE_HANDLER__({{ cmd: "__initialized" }})
+          window.__TAURI_INVOKE_HANDLER__(JSON.stringify({{ cmd: "__initialized" }}))
         }})
       }}
       {plugin_init}
@@ -299,15 +299,13 @@ fn build_webview<W: Webview + 'static>(
     .debug(debug)
     .url(&url)
     .bind("__TAURI_INVOKE_HANDLER__", move |dispatcher, _, arg| {
-      let arg = arg.to_string();
+      let arg = arg.into_iter().next().unwrap_or_else(|| String::new());
       let application = application.clone();
       let mut dispatcher = dispatcher.clone();
       let content_url = content_url.to_string();
       let initialized_splashscreen = initialized_splashscreen.clone();
 
       crate::async_runtime::spawn(async move {
-        let arg = format_arg(&arg);
-
         if arg == r#"{"cmd":"__initialized"}"# {
           let source = if has_splashscreen && !initialized_splashscreen.load(Ordering::Relaxed) {
             initialized_splashscreen.swap(true, Ordering::Relaxed);
@@ -366,8 +364,9 @@ fn build_webview<W: Webview + 'static>(
           }
         }
       });
+      0
     })
-    .finish();
+    .finish()?;
   // TODO waiting for webview window API
   // webview.set_fullscreen(fullscreen);
 
@@ -376,7 +375,7 @@ fn build_webview<W: Webview + 'static>(
     let path = Path::new(&env_var);
     let contents = std::fs::read_to_string(path.join("/tauri.js"))?;
     // inject the tauri.js entry point
-    webview.dispatch(move |_webview| _webview.eval(&contents));
+    webview.eval(&contents);
   }
 
   Ok(webview)
@@ -389,15 +388,6 @@ fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
     arg.replace("'", "\\'"),
     handler_error_message
   )
-}
-
-// Transform `[payload]` to `payload`
-fn format_arg(arg: &str) -> String {
-  arg
-    .chars()
-    .skip(1)
-    .take(arg.chars().count() - 2)
-    .collect::<String>()
 }
 
 #[cfg(test)]
@@ -496,15 +486,6 @@ mod test {
         Ok(url) => assert!(url.contains(&p)),
         Err(e) => panic!("setup_server_url Err {:?}", e.to_string())
       }
-    }
-  }
-
-  #[test]
-  fn test_format_arg() {
-    let input = &["[payload]", "[påyløad]"];
-    let expected = &[String::from("payload"), String::from("påyløad")];
-    for (i, e) in input.iter().zip(expected) {
-      assert_eq!(&super::format_arg(i), e);
     }
   }
 }

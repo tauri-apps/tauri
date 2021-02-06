@@ -42,6 +42,7 @@ pub use webview::*;
 
 /// The Tauri webview implementations.
 pub mod flavors {
+  pub use super::webview::wry::WryWebview;
   pub use webview_official::Webview as Official;
 }
 
@@ -116,7 +117,7 @@ pub async fn call<W: WebviewDispatcher>(
 /// Closes the splashscreen.
 pub fn close_splashscreen<W: WebviewDispatcher>(webview: &mut W) -> crate::Result<()> {
   // send a signal to the runner so it knows that it should redirect to the main app content
-  webview.eval(r#"window.__TAURI_INVOKE_HANDLER__({ cmd: "closeSplashscreen" })"#);
+  webview.eval(r#"window.__TAURI_INVOKE_HANDLER__(JSON.stringify({ cmd: "closeSplashscreen" }))"#);
 
   Ok(())
 }

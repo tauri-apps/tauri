@@ -1546,7 +1546,6 @@ dependencies = [
  "urlencoding",
  "uuid",
  "webbrowser",
- "webview_official",
 ]
 
 [[package]]
@@ -1914,25 +1913,6 @@ dependencies = [
  "web-sys",
  "widestring",
  "winapi",
-]
-
-[[package]]
-name = "webview-official-sys"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4aec5fdf5bc938ba5fe47d23b8e02d6beaee395a91e16f0b2eec984a9a9e1d2"
-dependencies = [
- "cc",
- "pkg-config",
-]
-
-[[package]]
-name = "webview_official"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef1d99ead69b8f362550a88e161590acfe53e7698edfaecc98be15738a23d191"
-dependencies = [
- "webview-official-sys",
 ]
 
 [[package]]

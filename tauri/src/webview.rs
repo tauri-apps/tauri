@@ -1,4 +1,3 @@
-pub(crate) mod official;
 pub(crate) mod wry;
 
 /// Size hints.

@@ -27,6 +27,10 @@ pub trait WebviewBuilder: Sized {
 
   /// Initializes a new instance of the builder.
   fn new() -> Self;
+  /// Binds a new API on the webview.
+  fn bind<F>(self, name: &str, f: F) -> Self
+  where
+    F: FnMut(<<Self as WebviewBuilder>::WebviewObject as Webview>::Dispatcher, &str, &str);
   /// Sets the debug flag.
   fn debug(self, debug: bool) -> Self;
   /// Sets the window title.
@@ -45,13 +49,21 @@ pub trait WebviewBuilder: Sized {
   fn finish(self) -> Self::WebviewObject;
 }
 
+/// Webview dispatcher. A thread-safe handle to the webview API.
+pub trait WebviewDispatcher: Clone + Send + Sync + Sized {
+  /// Eval a JS string.
+  fn eval(&mut self, js: &str);
+}
+
 /// Webview core API.
-pub trait Webview: Clone + Send + Sync + Sized {
+pub trait Webview: Sized {
   /// The builder type.
   type Builder: WebviewBuilder<WebviewObject = Self>;
+  /// The dispatcher type.
+  type Dispatcher: WebviewDispatcher;
 
   /// Returns the static plugin collection.
-  fn plugin_store() -> &'static PluginStore<Self>;
+  fn plugin_store() -> &'static PluginStore<Self::Dispatcher>;
 
   /// Adds an init JS code.
   fn init(&mut self, js: &str);
@@ -73,10 +85,8 @@ pub trait Webview: Clone + Send + Sync + Sized {
   where
     F: FnOnce(&mut Self) + Send + 'static;
 
-  /// Binds a new API on the webview.
-  fn bind<F>(&mut self, name: &str, f: F)
-  where
-    F: FnMut(&str, &str);
+  /// Gets an instance of the webview dispatcher.
+  fn dispatcher(&mut self) -> Self::Dispatcher;
 
   /// Run the webview event loop.
   fn run(&mut self);

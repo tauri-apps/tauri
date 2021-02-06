@@ -1,8 +1,8 @@
 use super::cmd::NotificationOptions;
-use crate::Webview;
+use crate::WebviewDispatcher;
 use serde_json::Value as JsonValue;
 
-pub async fn send<W: Webview>(
+pub async fn send<W: WebviewDispatcher>(
   webview: &mut W,
   options: NotificationOptions,
   callback: String,
@@ -27,7 +27,11 @@ pub async fn send<W: Webview>(
   .await;
 }
 
-pub async fn is_permission_granted<W: Webview>(webview: &mut W, callback: String, error: String) {
+pub async fn is_permission_granted<W: WebviewDispatcher>(
+  webview: &mut W,
+  callback: String,
+  error: String,
+) {
   crate::execute_promise(
     webview,
     async move {
@@ -44,7 +48,7 @@ pub async fn is_permission_granted<W: Webview>(webview: &mut W, callback: String
   .await;
 }
 
-pub fn request_permission<W: Webview>(
+pub fn request_permission<W: WebviewDispatcher>(
   webview: &mut W,
   callback: String,
   error: String,

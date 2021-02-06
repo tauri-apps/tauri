@@ -1,9 +1,9 @@
 #![cfg(path_api)]
-use crate::Webview;
+use crate::WebviewDispatcher;
 use tauri_api::path;
 use tauri_api::path::BaseDirectory;
 
-pub async fn resolve_path<W: Webview>(
+pub async fn resolve_path<W: WebviewDispatcher>(
   webview: &mut W,
   path: String,
   directory: Option<BaseDirectory>,

@@ -3,7 +3,7 @@ use crate::api::dialog::{
   ask as ask_dialog, message as message_dialog, pick_folder, save_file, select, select_multiple,
   DialogSelection, Response,
 };
-use crate::Webview;
+use crate::WebviewDispatcher;
 use serde_json::Value as JsonValue;
 
 /// maps a dialog response to a JS value to eval
@@ -18,7 +18,7 @@ fn map_response(response: Response) -> JsonValue {
 
 /// Shows an open dialog.
 #[cfg(open_dialog)]
-pub fn open<W: Webview>(
+pub fn open<W: WebviewDispatcher>(
   webview: &mut W,
   options: OpenDialogOptions,
   callback: String,
@@ -44,7 +44,7 @@ pub fn open<W: Webview>(
 
 /// Shows a save dialog.
 #[cfg(save_dialog)]
-pub fn save<W: Webview>(
+pub fn save<W: WebviewDispatcher>(
   webview: &mut W,
   options: SaveDialogOptions,
   callback: String,
@@ -65,7 +65,7 @@ pub fn message(title: String, message: String) {
 }
 
 /// Shows a dialog with a yes/no question.
-pub fn ask<W: Webview>(
+pub fn ask<W: WebviewDispatcher>(
   webview: &mut W,
   title: String,
   message: String,

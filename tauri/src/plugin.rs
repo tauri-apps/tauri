@@ -1,12 +1,12 @@
 use crate::async_runtime::Mutex;
 
-use crate::Webview;
+use crate::WebviewDispatcher;
 
 use std::sync::Arc;
 
 /// The plugin interface.
 #[async_trait::async_trait]
-pub trait Plugin<W: Webview + 'static>: Sync {
+pub trait Plugin<W: WebviewDispatcher + 'static>: Sync {
   /// The JS script to evaluate on init.
   async fn init_script(&self) -> Option<String> {
     None
@@ -30,7 +30,7 @@ pub trait Plugin<W: Webview + 'static>: Sync {
 pub type PluginStore<W> = Arc<Mutex<Vec<Box<dyn Plugin<W> + Sync + Send>>>>;
 
 /// Registers a plugin.
-pub async fn register<W: Webview + 'static>(
+pub async fn register<W: WebviewDispatcher + 'static>(
   store: &PluginStore<W>,
   plugin: impl Plugin<W> + Sync + Send + 'static,
 ) {
@@ -38,7 +38,7 @@ pub async fn register<W: Webview + 'static>(
   plugins.push(Box::new(plugin));
 }
 
-pub(crate) async fn init_script<W: Webview + 'static>(store: &PluginStore<W>) -> String {
+pub(crate) async fn init_script<W: WebviewDispatcher + 'static>(store: &PluginStore<W>) -> String {
   let mut init = String::new();
 
   let plugins = store.lock().await;
@@ -51,21 +51,24 @@ pub(crate) async fn init_script<W: Webview + 'static>(store: &PluginStore<W>) ->
   init
 }
 
-pub(crate) async fn created<W: Webview + 'static>(store: &PluginStore<W>, webview: &mut W) {
+pub(crate) async fn created<W: WebviewDispatcher + 'static>(
+  store: &PluginStore<W>,
+  webview: &mut W,
+) {
   let plugins = store.lock().await;
   for plugin in plugins.iter() {
     plugin.created(webview.clone()).await;
   }
 }
 
-pub(crate) async fn ready<W: Webview + 'static>(store: &PluginStore<W>, webview: &mut W) {
+pub(crate) async fn ready<W: WebviewDispatcher + 'static>(store: &PluginStore<W>, webview: &mut W) {
   let plugins = store.lock().await;
   for plugin in plugins.iter() {
     plugin.ready(webview.clone()).await;
   }
 }
 
-pub(crate) async fn extend_api<W: Webview + 'static>(
+pub(crate) async fn extend_api<W: WebviewDispatcher + 'static>(
   store: &PluginStore<W>,
   webview: &mut W,
   arg: &str,

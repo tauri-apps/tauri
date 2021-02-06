@@ -1,4 +1,4 @@
-use super::{PluginStore, SizeHint, Webview, WebviewBuilder};
+use super::{PluginStore, SizeHint, Webview, WebviewBuilder, WebviewDispatcher};
 use once_cell::sync::Lazy;
 
 #[derive(Default)]
@@ -16,6 +16,13 @@ impl WebviewBuilder for WebviewOfficialBuilder {
 
   fn new() -> Self {
     WebviewOfficialBuilder::default()
+  }
+
+  fn bind<F>(self, _name: &str, _f: F) -> Self
+  where
+    F: FnMut(<<Self as WebviewBuilder>::WebviewObject as Webview>::Dispatcher, &str, &str),
+  {
+    self
   }
 
   fn debug(mut self, debug: bool) -> Self {
@@ -86,10 +93,17 @@ impl WebviewBuilder for WebviewOfficialBuilder {
   }
 }
 
+impl WebviewDispatcher for webview_official::Webview {
+  fn eval(&mut self, js: &str) {
+    webview_official::Webview::eval(self, js);
+  }
+}
+
 impl Webview for webview_official::Webview {
   type Builder = WebviewOfficialBuilder;
+  type Dispatcher = webview_official::Webview;
 
-  fn plugin_store() -> &'static PluginStore<Self> {
+  fn plugin_store() -> &'static PluginStore<Self::Dispatcher> {
     static PLUGINS: Lazy<PluginStore<webview_official::Webview>> = Lazy::new(Default::default);
     &PLUGINS
   }
@@ -130,11 +144,8 @@ impl Webview for webview_official::Webview {
     self.dispatch(f);
   }
 
-  fn bind<F>(&mut self, name: &str, f: F)
-  where
-    F: FnMut(&str, &str),
-  {
-    self.bind(name, f);
+  fn dispatcher(&mut self) -> Self::Dispatcher {
+    self.clone()
   }
 
   fn run(&mut self) {

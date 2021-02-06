@@ -78,9 +78,6 @@ jobs:
       - name: install and build assets
         working-directory: 'example/${{ github.event.inputs.dir }}'
         run: ${{ github.event.inputs.buildAssets }}
-      - name: cargo install tauri-bundler --force
-        working-directory: tauri/cli/tauri-bundler
-        run: cargo install tauri-bundler --path . --force
       - name: build tauri app
         uses: tauri-apps/tauri-action@v0
         env:

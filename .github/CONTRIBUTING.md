@@ -72,7 +72,7 @@ If you want to use your local code in another app, we recommend using [Yarn link
 
 ### Developing Tauri Bundler
 
-The code for the bundler is located in `[Tauri repo root]/cli/tauri-bundler`. After making your changes to the code, run `cargo install --path .` in the bundler directory. This will update the global `tauri-bundler` Cargo install to use your local code. Now, all of your Tauri projects will use the local code when bundling. The Cargo install needs to be run after every change.
+The code for the bundler is located in `[Tauri repo root]/cli/tauri-bundler`. Build the Tauri CLI on `[Tauri repo root]/cli/core` with `$ cargo build`. This is handled automatically when using the JS CLI.
 
 ### Developing Tauri Core
 

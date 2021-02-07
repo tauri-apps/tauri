@@ -22,8 +22,6 @@ serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
 webview_official = "0.0.4"
 base64 = "0.13.0"
-webview_official = "0.0.3"
-base64 = "0.12.3"
 webbrowser = "0.5.5"
 lazy_static = "1.4.0"
 tiny_http = { version = "0.7", optional = true }

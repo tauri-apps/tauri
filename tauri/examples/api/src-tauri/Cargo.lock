@@ -657,16 +657,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 
 [[package]]
-name = "envmnt"
-version = "0.8.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2d328fc287c61314c4a61af7cfdcbd7e678e39778488c7cb13ec133ce0f4059"
-dependencies = [
- "fsio",
- "indexmap",
-]
-
-[[package]]
 name = "failure"
 version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2388,7 +2378,6 @@ dependencies = [
  "async-trait",
  "base64",
  "cfg_aliases",
- "envmnt",
  "futures",
  "lazy_static",
  "once_cell",

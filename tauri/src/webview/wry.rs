@@ -15,24 +15,45 @@ use std::{
   sync::{Arc, Mutex},
 };
 
-use super::{SizeHint, Webview, WebviewBuilder, WebviewDispatcher};
+#[cfg(target_os = "linux")]
+use std::sync::mpsc::{channel, Receiver, Sender};
+
+use super::{Event, SizeHint, Webview, WebviewBuilder, WebviewDispatcher};
 use crate::plugin::PluginStore;
+
+#[cfg(target_os = "linux")]
+#[derive(Clone)]
+struct EventLoopProxy(Arc<Mutex<Sender<Event>>>);
+
+impl EventLoopProxy {
+  #[cfg(target_os = "linux")]
+  fn send_event(&self, event: Event) {
+    self.0.lock().unwrap().send(event).unwrap()
+  }
+}
+
+type BindHandler = Box<dyn FnMut(&WryDispatcher, i8, Vec<String>) -> i32 + Send>;
 
 /// The wry webview builder.
 #[derive(Default)]
 pub struct WryWebviewBuilder {
-  bind: HashMap<String, Box<dyn FnMut(&WryDispatcher, i8, Vec<String>) -> i32 + Send>>,
+  bind: HashMap<String, BindHandler>,
   title: Option<String>,
   init: Option<String>,
   url: Option<String>,
 }
 
 impl WryWebviewBuilder {
-  fn build_webview(self, window: Window) -> crate::Result<wry::WebView> {
+  fn build_webview(
+    self,
+    window: Window,
+    event_loop_proxy: EventLoopProxy,
+  ) -> crate::Result<wry::WebView> {
     let mut webview_builder = wry::WebViewBuilder::new(window)?;
 
     let dispatcher = WryDispatcher {
       inner: Arc::new(Mutex::new(webview_builder.dispatch_sender())),
+      event_loop_proxy,
     };
 
     for (name, mut f) in self.bind {
@@ -62,10 +83,10 @@ impl WebviewBuilder for WryWebviewBuilder {
   fn bind<F>(mut self, name: &str, f: F) -> Self
   where
     F: FnMut(
-      &<<Self as WebviewBuilder>::WebviewObject as Webview>::Dispatcher,
-      i8,
-      Vec<String>,
-    ) -> i32
+        &<<Self as WebviewBuilder>::WebviewObject as Webview>::Dispatcher,
+        i8,
+        Vec<String>,
+      ) -> i32
       + Send
       + 'static,
   {
@@ -109,8 +130,14 @@ impl WebviewBuilder for WryWebviewBuilder {
     {
       gtk::init().unwrap();
       let window = Window::new(WindowType::Toplevel);
-      let webview = self.build_webview(window)?;
-      Ok(WryWebview { inner: webview })
+      let (event_loop_proxy_tx, event_loop_proxy_rx) = channel();
+      let event_loop_proxy = EventLoopProxy(Arc::new(Mutex::new(event_loop_proxy_tx)));
+      let webview = self.build_webview(window, event_loop_proxy.clone())?;
+      Ok(WryWebview {
+        inner: webview,
+        event_loop_proxy,
+        event_loop_proxy_rx,
+      })
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -128,17 +155,25 @@ impl WebviewBuilder for WryWebviewBuilder {
 #[derive(Clone)]
 pub struct WryDispatcher {
   inner: Arc<Mutex<wry::DispatchSender>>,
+  event_loop_proxy: EventLoopProxy,
 }
 
 impl WebviewDispatcher for WryDispatcher {
   fn eval(&mut self, js: &str) {
     self.inner.lock().unwrap().send(js).unwrap();
   }
+
+  fn send_event(&self, event: Event) {
+    self.event_loop_proxy.send_event(event)
+  }
 }
 
 /// A wrapper around wry's webview.
 pub struct WryWebview {
   inner: wry::WebView,
+  event_loop_proxy: EventLoopProxy,
+  #[cfg(target_os = "linux")]
+  event_loop_proxy_rx: Receiver<Event>,
 }
 
 impl Webview for WryWebview {
@@ -163,13 +198,18 @@ impl Webview for WryWebview {
   fn dispatcher(&mut self) -> Self::Dispatcher {
     WryDispatcher {
       inner: Arc::new(Mutex::new(self.inner.dispatch_sender())),
+      event_loop_proxy: self.event_loop_proxy.clone(),
     }
   }
 
-  fn run<F: Fn()>(mut self, event_loop: F) {
+  fn run(mut self) {
     #[cfg(target_os = "linux")]
     loop {
-      event_loop();
+      while let Ok(event) = self.event_loop_proxy_rx.try_recv() {
+        match event {
+          Event::Run(closure) => closure(),
+        }
+      }
       self.inner.evaluate().unwrap();
       gtk::main_iteration();
     }

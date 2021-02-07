@@ -16,14 +16,11 @@ mod http;
 #[cfg(notification)]
 mod notification;
 
-use crate::WebviewDispatcher;
-
-use std::sync::mpsc::Sender;
+use crate::{Event, WebviewDispatcher};
 
 #[allow(unused_variables)]
 pub(crate) async fn handle<W: WebviewDispatcher + 'static>(
   webview: &mut W,
-  sync_task_sender: Sender<crate::SyncTask>,
   arg: &str,
 ) -> crate::Result<()> {
   use cmd::Cmd::*;
@@ -214,7 +211,7 @@ pub(crate) async fn handle<W: WebviewDispatcher + 'static>(
           error,
         } => {
           #[cfg(open_dialog)]
-          dialog::open(webview, &sync_task_sender, options, callback, error)?;
+          dialog::open(webview, options, callback, error)?;
           #[cfg(not(open_dialog))]
           allowlist_error(webview, error, "title");
         }
@@ -224,7 +221,7 @@ pub(crate) async fn handle<W: WebviewDispatcher + 'static>(
           error,
         } => {
           #[cfg(save_dialog)]
-          dialog::save(webview, &sync_task_sender, options, callback, error)?;
+          dialog::save(webview, options, callback, error)?;
           #[cfg(not(save_dialog))]
           throw_allowlist_error(webview, "saveDialog");
         }
@@ -236,11 +233,9 @@ pub(crate) async fn handle<W: WebviewDispatcher + 'static>(
             .expect("failed to get exe filename")
             .to_string_lossy()
             .to_string();
-          sync_task_sender
-            .send(Box::new(move || {
-              dialog::message(app_name, message);
-            }))
-            .unwrap();
+          webview.send_event(Event::Run(Box::new(move || {
+            dialog::message(app_name, message);
+          })));
         }
         AskDialog {
           title,
@@ -251,7 +246,6 @@ pub(crate) async fn handle<W: WebviewDispatcher + 'static>(
           let exe = std::env::current_exe()?;
           dialog::ask(
             webview,
-            &sync_task_sender,
             title.unwrap_or_else(|| {
               let exe_dir = exe.parent().expect("failed to get exe directory");
               exe
@@ -323,7 +317,7 @@ pub(crate) async fn handle<W: WebviewDispatcher + 'static>(
         }
         RequestNotificationPermission { callback, error } => {
           #[cfg(notification)]
-          notification::request_permission(webview, &sync_task_sender, callback, error)?;
+          notification::request_permission(webview, callback, error)?;
           #[cfg(not(notification))]
           allowlist_error(webview, error, "notification");
         }

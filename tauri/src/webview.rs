@@ -20,6 +20,12 @@ impl Default for SizeHint {
 
 pub use crate::plugin::PluginStore;
 
+/// An event to be posted to the webview event loop.
+pub enum Event {
+  /// Run the given closure.
+  Run(crate::SyncTask),
+}
+
 /// The webview builder.
 pub trait WebviewBuilder: Sized {
   /// The webview object that this builder creates.
@@ -31,10 +37,10 @@ pub trait WebviewBuilder: Sized {
   fn bind<F>(self, name: &str, f: F) -> Self
   where
     F: FnMut(
-      &<<Self as WebviewBuilder>::WebviewObject as Webview>::Dispatcher,
-      i8,
-      Vec<String>,
-    ) -> i32
+        &<<Self as WebviewBuilder>::WebviewObject as Webview>::Dispatcher,
+        i8,
+        Vec<String>,
+      ) -> i32
       + Send
       + 'static;
   /// Sets the debug flag.
@@ -59,6 +65,8 @@ pub trait WebviewBuilder: Sized {
 pub trait WebviewDispatcher: Clone + Send + Sync + Sized {
   /// Eval a JS string.
   fn eval(&mut self, js: &str);
+  /// Sends a event to the webview event loop.
+  fn send_event(&self, event: Event);
 }
 
 /// Webview core API.
@@ -87,5 +95,5 @@ pub trait Webview: Sized {
   fn dispatcher(&mut self) -> Self::Dispatcher;
 
   /// Run the webview event loop.
-  fn run<F: Fn()>(self, event_loop: F);
+  fn run(self);
 }

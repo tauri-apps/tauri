@@ -2,7 +2,6 @@ use std::{
   path::Path,
   sync::{
     atomic::{AtomicBool, Ordering},
-    mpsc::{channel, Sender},
     Arc,
   },
 };
@@ -46,15 +45,8 @@ pub(crate) fn run<W: Webview + 'static>(application: App<W>) -> crate::Result<()
     None
   };
 
-  let (sync_task_sender, sync_task_receiver) = channel();
-
   // build the webview
-  let mut webview = build_webview(
-    application,
-    main_content,
-    splashscreen_content,
-    sync_task_sender,
-  )?;
+  let mut webview = build_webview(application, main_content, splashscreen_content)?;
 
   let mut dispatcher = webview.dispatcher();
   crate::async_runtime::spawn(async move {
@@ -70,11 +62,7 @@ pub(crate) fn run<W: Webview + 'static>(application: App<W>) -> crate::Result<()
   spawn_updater();
 
   // run the webview
-  webview.run(|| {
-    while let Ok(task) = sync_task_receiver.try_recv() {
-      task();
-    }
-  });
+  webview.run();
 
   Ok(())
 }
@@ -256,7 +244,6 @@ fn build_webview<W: Webview + 'static>(
   application: App<W>,
   content: Content<String>,
   splashscreen_content: Option<Content<String>>,
-  sync_task_sender: Sender<crate::SyncTask>,
 ) -> crate::Result<W> {
   let config = get()?;
   let debug = cfg!(debug_assertions);
@@ -312,12 +299,11 @@ fn build_webview<W: Webview + 'static>(
     .debug(debug)
     .url(&url)
     .bind("__TAURI_INVOKE_HANDLER__", move |dispatcher, _, arg| {
-      let arg = arg.into_iter().next().unwrap_or_else(|| String::new());
+      let arg = arg.into_iter().next().unwrap_or_else(String::new);
       let application = application.clone();
       let mut dispatcher = dispatcher.clone();
       let content_url = content_url.to_string();
       let initialized_splashscreen = initialized_splashscreen.clone();
-      let sync_task_sender = sync_task_sender.clone();
 
       crate::async_runtime::spawn(async move {
         if arg == r#"{"cmd":"__initialized"}"# {
@@ -336,10 +322,9 @@ fn build_webview<W: Webview + 'static>(
         } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
           dispatcher.eval(&format!(r#"window.location.href = "{}""#, content_url));
         } else {
-          let mut endpoint_handle =
-            crate::endpoints::handle(&mut dispatcher, sync_task_sender, &arg)
-              .await
-              .map_err(|e| e.to_string());
+          let mut endpoint_handle = crate::endpoints::handle(&mut dispatcher, &arg)
+            .await
+            .map_err(|e| e.to_string());
           if let Err(ref tauri_handle_error) = endpoint_handle {
             if tauri_handle_error.contains("unknown variant") {
               let error = match application.run_invoke_handler(&mut dispatcher, &arg).await {

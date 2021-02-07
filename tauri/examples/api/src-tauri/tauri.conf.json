@@ -44,7 +44,7 @@
       }
     },
     "embeddedServer": {
-      "active": false
+      "active": true
     },
     "bundle": {
       "active": true,

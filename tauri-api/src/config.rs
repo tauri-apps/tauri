@@ -304,7 +304,7 @@ pub struct BuildConfig {
 }
 
 fn default_dev_path() -> String {
-  "".to_string()
+  "http://localhost:8080".to_string()
 }
 
 type JsonObject = HashMap<String, JsonValue>;
@@ -372,30 +372,13 @@ mod test {
   use super::*;
   // generate a test_config based on the test fixture
   fn create_test_config() -> Config {
-    let mut subcommands = std::collections::HashMap::new();
-    subcommands.insert(
-      "update".to_string(),
-      CliConfig {
-        description: Some("Updates the app".to_string()),
-        long_description: None,
-        before_help: None,
-        after_help: None,
-        args: Some(vec![CliArg {
-          short: Some('b'),
-          name: "background".to_string(),
-          description: Some("Update in background".to_string()),
-          ..Default::default()
-        }]),
-        subcommands: None,
-      },
-    );
     Config {
       tauri: TauriConfig {
         window: WindowConfig {
           width: 800,
           height: 600,
           resizable: true,
-          title: String::from("Tauri API Validation"),
+          title: String::from("Tauri App"),
           fullscreen: false,
         },
         embedded_server: EmbeddedServerConfig {
@@ -403,46 +386,12 @@ mod test {
           port: Port::Random,
         },
         bundle: BundleConfig {
-          identifier: String::from("com.tauri.communication"),
+          identifier: String::from(""),
         },
-        cli: Some(CliConfig {
-          description: Some("Tauri communication example".to_string()),
-          long_description: None,
-          before_help: None,
-          after_help: None,
-          args: Some(vec![
-            CliArg {
-              short: Some('c'),
-              name: "config".to_string(),
-              takes_value: Some(true),
-              description: Some("Config path".to_string()),
-              ..Default::default()
-            },
-            CliArg {
-              short: Some('t'),
-              name: "theme".to_string(),
-              takes_value: Some(true),
-              description: Some("App theme".to_string()),
-              possible_values: Some(vec![
-                "light".to_string(),
-                "dark".to_string(),
-                "system".to_string(),
-              ]),
-              ..Default::default()
-            },
-            CliArg {
-              short: Some('v'),
-              name: "verbose".to_string(),
-              multiple_occurrences: Some(true),
-              description: Some("Verbosity level".to_string()),
-              ..Default::default()
-            },
-          ]),
-          subcommands: Some(subcommands),
-        }),
+        cli: None,
       },
       build: BuildConfig {
-        dev_path: String::from("../dist"),
+        dev_path: String::from("http://localhost:8080"),
       },
       plugins: Default::default(),
     }
@@ -507,7 +456,7 @@ mod test {
 
     // create a build config
     let build = BuildConfig {
-      dev_path: String::from(""),
+      dev_path: String::from("http://localhost:8080"),
     };
 
     // test the configs
@@ -515,7 +464,7 @@ mod test {
     assert_eq!(b_config, build);
     assert_eq!(de_server, tauri.embedded_server);
     assert_eq!(d_bundle, tauri.bundle);
-    assert_eq!(d_path, String::from(""));
+    assert_eq!(d_path, String::from("http://localhost:8080"));
     assert_eq!(d_title, tauri.window.title);
     assert_eq!(d_window, tauri.window);
   }

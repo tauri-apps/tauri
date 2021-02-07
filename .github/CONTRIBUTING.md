@@ -53,7 +53,9 @@ Hi! We, the maintainers, are really excited that you are interested in contribut
 
 First, [join our Discord server](https://discord.gg/SpmNs4S) and let us know that you want to contribute. This way we can point you in the right direction and help ensure your contribution will be as helpful as possible. We also recommend you read the [technical details page](https://tauri.studio/en/docs/getting-started/technical-details) to learn how Tauri works under the hood and familiarize yourself with the codebase.
 
-To set up your machine for development, follow the [Tauri setup guide](https://tauri.studio/en/docs/getting-started/intro#setting-up-your-environment) to get all the tools you need to develop Tauri apps. The only additional tool you may need is [Yarn](https://yarnpkg.com/), it is only required if you are developing the Node CLI/API (`tauri.js`). Next, clone the Tauri repo. It is structured as a monorepo, which means that all the various Tauri packages are under the same repository. The development process varies depending on what part of Tauri you are contributing to.
+To set up your machine for development, follow the [Tauri setup guide](https://tauri.studio/en/docs/getting-started/intro#setting-up-your-environment) to get all the tools you need to develop Tauri apps. The only additional tool you may need is [Yarn](https://yarnpkg.com/), it is only required if you are developing the Node CLI/API (`cli/tauri.js` and `api`). Next, clone the Tauri repo. It is structured as a monorepo, which means that all the various Tauri packages are under the same repository. The development process varies depending on what part of Tauri you are contributing to.
+
+To build all Tauri packages (`@tauri-apps/api`, `Core Rust CLI`, `@tauri-apps/cli`), use the `.scripts/setup.sh` (Linux and macOS) or `.scripts/setup.ps1` (Windows) scripts.
 
 ### Developing The CLI and API (`tauri.js`)
 

@@ -152,7 +152,8 @@ impl ApplicationExt for WryApplication {
   }
 
   fn new() -> crate::Result<Self> {
-    let app = wry::Application::new()?;
+    let app =
+      wry::Application::new().map_err(|_| anyhow::anyhow!("failed to create application"))?;
     let dispatcher = app.dispatcher();
     let windows = Arc::new(Mutex::new(HashMap::new()));
 
@@ -172,7 +173,10 @@ impl ApplicationExt for WryApplication {
   }
 
   fn create_window(&self, window_builder: Self::WindowBuilder) -> crate::Result<Self::Window> {
-    let window = self.inner.create_window(window_builder.finish()?)?;
+    let window = self
+      .inner
+      .create_window(window_builder.finish()?)
+      .map_err(|_| anyhow::anyhow!("failed to create window"))?;
     Ok(window)
   }
 
@@ -207,7 +211,8 @@ impl ApplicationExt for WryApplication {
 
     self
       .inner
-      .create_webview(window, webview_builder.finish()?, Some(wry_callbacks))?;
+      .create_webview(window, webview_builder.finish()?, Some(wry_callbacks))
+      .map_err(|_| anyhow::anyhow!("failed to create webview"))?;
     Ok(())
   }
 

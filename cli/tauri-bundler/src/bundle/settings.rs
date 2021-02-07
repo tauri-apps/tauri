@@ -3,13 +3,9 @@ use crate::bundle::common;
 use crate::bundle::platform::target_triple;
 
 use clap::ArgMatches;
-use glob;
 use serde::Deserialize;
 use target_build_utils::TargetInfo;
-use toml;
-use walkdir;
 
-use std;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
@@ -433,10 +429,9 @@ impl Settings {
     }
 
     if binaries.len() == 1 {
-      binaries.get_mut(0).and_then(|bin| {
+      if let Some(bin) = binaries.get_mut(0) {
         bin.main = true;
-        Some(bin)
-      });
+      }
     }
 
     let bundle_settings = parse_external_bin(bundle_settings)?;
@@ -646,12 +641,7 @@ impl Settings {
 
   /// Returns the bundle's identifier
   pub fn bundle_identifier(&self) -> &str {
-    self
-      .bundle_settings
-      .identifier
-      .as_ref()
-      .map(String::as_str)
-      .unwrap_or("")
+    self.bundle_settings.identifier.as_deref().unwrap_or("")
   }
 
   /// Returns an iterator over the icon files to be used for this bundle.
@@ -720,7 +710,7 @@ impl Settings {
 
   /// Returns the copyright text.
   pub fn copyright_string(&self) -> Option<&str> {
-    self.bundle_settings.copyright.as_ref().map(String::as_str)
+    self.bundle_settings.copyright.as_deref()
   }
 
   /// Returns the list of authors name.
@@ -743,12 +733,7 @@ impl Settings {
 
   /// Returns the package's homepage URL, defaulting to "" if not defined.
   pub fn homepage_url(&self) -> &str {
-    &self
-      .package
-      .homepage
-      .as_ref()
-      .map(String::as_str)
-      .unwrap_or("")
+    &self.package.homepage.as_deref().unwrap_or("")
   }
 
   /// Returns the app's category.
@@ -767,11 +752,7 @@ impl Settings {
 
   /// Returns the app's long description.
   pub fn long_description(&self) -> Option<&str> {
-    self
-      .bundle_settings
-      .long_description
-      .as_ref()
-      .map(String::as_str)
+    self.bundle_settings.long_description.as_deref()
   }
 
   /// Returns the dependencies of the debian bundle.
@@ -797,20 +778,12 @@ impl Settings {
 
   /// Returns the minimum system version of the macOS bundle.
   pub fn osx_minimum_system_version(&self) -> Option<&str> {
-    self
-      .bundle_settings
-      .osx_minimum_system_version
-      .as_ref()
-      .map(String::as_str)
+    self.bundle_settings.osx_minimum_system_version.as_deref()
   }
 
   /// Returns the path to the DMG bundle license.
   pub fn osx_license(&self) -> Option<&str> {
-    self
-      .bundle_settings
-      .osx_license
-      .as_ref()
-      .map(String::as_str)
+    self.bundle_settings.osx_license.as_deref()
   }
 
   /// Returns whether the macOS .app bundle should use the bootstrap script or not.
@@ -983,7 +956,6 @@ impl<'a> Iterator for ResourcePaths<'a> {
 #[cfg(test)]
 mod tests {
   use super::{AppCategory, BundleSettings, CargoSettings};
-  use toml;
 
   #[test]
   fn parse_cargo_toml() {

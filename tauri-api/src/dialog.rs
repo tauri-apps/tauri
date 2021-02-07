@@ -23,7 +23,7 @@ fn open_dialog_internal(
   }
 }
 
-/// Displays a dialog with a message and an optional title with a "yes" and a "no" button.
+/// Displays a dialog with a message and an optional title with a "yes" and a "no" button
 pub fn ask(message: impl AsRef<str>, title: impl AsRef<str>) -> DialogSelection {
   DialogBuilder::new()
     .message(message.as_ref())
@@ -34,7 +34,7 @@ pub fn ask(message: impl AsRef<str>, title: impl AsRef<str>) -> DialogSelection 
     .show()
 }
 
-/// Displays a message dialog.
+/// Displays a message dialog
 pub fn message(message: impl AsRef<str>, title: impl AsRef<str>) {
   DialogBuilder::new()
     .message(message.as_ref())
@@ -52,7 +52,7 @@ pub fn select(
   open_dialog_internal(DialogType::SingleFile, filter_list, default_path)
 }
 
-/// Open mulitple select file dialog
+/// Open multiple select file dialog
 pub fn select_multiple(
   filter_list: Option<impl AsRef<str>>,
   default_path: Option<impl AsRef<Path>>,

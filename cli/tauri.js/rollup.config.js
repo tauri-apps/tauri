@@ -11,6 +11,7 @@ export default [
   {
     input: {
       fs: './api-src/fs.ts',
+      path: './api-src/path.ts',
       dialog: './api-src/dialog.ts',
       event: './api-src/event.ts',
       http: './api-src/http.ts',

@@ -3,6 +3,7 @@ use std::io::Read;
 use tauri_api::assets::{AssetFetch, Assets};
 use webview_official::Webview;
 
+#[allow(clippy::option_env_unwrap)]
 pub fn load(
   webview: &mut Webview<'_>,
   asset: String,

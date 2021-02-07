@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-bundler"
-version = "0.9.2"
+version = "0.9.4"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>",
@@ -20,13 +20,13 @@ edition = "2018"
 ar = "0.8.0"
 chrono = "0.4"
 clap = "^2"
-dirs = "2.0.2"
+dirs-next = "2.0.0"
 glob = "0.3.0"
 icns = "0.3"
-image = "0.23.8"
+image = "0.23.12"
 libflate = "1.0"
 md5 = "0.7.0"
-msi = "0.2"
+msi = "0.3"
 anyhow = "1.0"
 thiserror = "1.0"
 serde_json = "1.0"
@@ -35,14 +35,14 @@ strsim = "0.10.0"
 tar = "0.4"
 target_build_utils = "0.3"
 term = "0.6.1"
-toml = "0.5.6"
+toml = "0.5.8"
 uuid = { version = "0.8", features = [ "v5" ] }
 walkdir = "2"
 lazy_static = { version = "1.4" }
-handlebars = { version = "3.4" }
+handlebars = { version = "3.5" }
 
 [target."cfg(target_os = \"windows\")".dependencies]
-attohttpc = { version = "0.15.0" }
+attohttpc = { version = "0.16.0" }
 regex = { version = "1" }
 runas = "0.2"
 

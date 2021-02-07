@@ -1,6 +1,7 @@
 mod cmd;
 #[allow(unused_imports)]
 mod file_system;
+mod path;
 mod salt;
 
 #[cfg(assets)]
@@ -138,6 +139,17 @@ pub(crate) fn handle(webview: &mut Webview<'_>, arg: &str, ctx: &AppContext) -> 
           file_system::rename_file(webview, old_path, new_path, options, callback, error);
           #[cfg(not(rename_file))]
           allowlist_error(webview, error, "renameFile");
+        }
+        ResolvePath {
+          path,
+          directory,
+          callback,
+          error,
+        } => {
+          #[cfg(path_api)]
+          path::resolve_path(webview, path, directory, callback, error);
+          #[cfg(not(path_api))]
+          allowlist_error(webview, error, "pathApi");
         }
         SetTitle { title } => {
           #[cfg(set_title)]

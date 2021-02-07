@@ -45,7 +45,7 @@ jobs:
           git config --global user.name "${{ github.event.inputs.gitName }}"
           git config --global user.email "${{ github.event.inputs.gitEmail }}"
       - name: create pull request for updated docs
-        uses: tauri-apps/create-pull-request@v2.8.0
+        uses: tauri-apps/create-pull-request@v3.4.1
         with:
           token: ${{ secrets.TAURI_BOT_PAT }}
           commit-message: "chore(docs): Update Rust docs"

@@ -21,9 +21,6 @@ use super::common;
 use crate::Settings;
 
 use anyhow::Context;
-use chrono;
-use dirs;
-use icns;
 use image::{self, GenericImageView};
 
 use std::cmp::min;
@@ -316,7 +313,7 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
         framework
       )));
     }
-    if let Some(home_dir) = dirs::home_dir() {
+    if let Some(home_dir) = dirs_next::home_dir() {
       if copy_framework_from(&dest_dir, framework, &home_dir.join("Library/Frameworks/"))? {
         continue;
       }

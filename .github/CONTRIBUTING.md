@@ -51,4 +51,4 @@ TO BE UPDATED.
 
 ## Financial Contribution
 
-Tauri is an MIT-licensed open source project. Its ongoing development can be supported via open-collective.
+Tauri is an MIT-licensed open source project. Its ongoing development can be supported via [Github Sponsors](https://github.com/sponsors/nothingismagick) or [Open Collective](https://opencollective.com/tauri). We prefer Github Sponsors as donations made are doubled through the matching fund program.

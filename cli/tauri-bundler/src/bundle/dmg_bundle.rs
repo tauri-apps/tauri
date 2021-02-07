@@ -27,7 +27,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     }
   );
   let dmg_name = format!("{}.dmg", &package_base_name);
-  let dmg_path = output_path.join(&dmg_name.clone());
+  let dmg_path = output_path.join(&dmg_name);
 
   let bundle_name = &format!("{}.app", &package_base_name);
   let bundle_dir = settings.project_out_directory().join("bundle/osx");
@@ -49,7 +49,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let bundle_script_path = output_path.join("bundle_dmg.sh");
   let license_script_path = support_directory_path.join("dmg-license.py");
 
-  common::print_bundling(format!("{:?}", &dmg_path.clone()).as_str())?;
+  common::print_bundling(format!("{:?}", &dmg_path).as_str())?;
 
   // write the scripts
   write(

@@ -1,7 +1,5 @@
 use crate::Error;
 
-use sysinfo;
-
 pub use sysinfo::{Process, ProcessExt, Signal, System, SystemExt};
 
 /// Gets the parent process

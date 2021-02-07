@@ -41,11 +41,13 @@ pub type SyncTask = Box<dyn FnOnce() + Send>;
 pub use anyhow::Result;
 pub use app::*;
 pub use tauri_api as api;
-pub use webview::*;
+pub use webview::{
+  ApplicationDispatcherExt, ApplicationExt, Callback, Event, WebviewBuilderExt, WindowBuilderExt,
+};
 
 /// The Tauri webview implementations.
 pub mod flavors {
-  pub use super::webview::wry::WryWebview as Wry;
+  pub use super::webview::wry::WryApplication as Wry;
 }
 
 use std::process::Stdio;
@@ -56,17 +58,17 @@ use serde::Serialize;
 /// Synchronously executes the given task
 /// and evaluates its Result to the JS promise described by the `callback` and `error` function names.
 pub fn execute_promise_sync<
-  W: WebviewDispatcher + 'static,
+  D: ApplicationDispatcherExt + 'static,
   R: Serialize,
   F: FnOnce() -> Result<R> + Send + 'static,
 >(
-  webview: &mut W,
+  dispatcher: &mut D,
   task: F,
   callback: String,
   error: String,
 ) {
-  let mut webview_ = webview.clone();
-  webview.send_event(Event::Run(Box::new(move || {
+  let mut dispatcher_ = dispatcher.clone();
+  dispatcher.send_event(Event::Run(Box::new(move || {
     let callback_string =
       match format_callback_result(task().map_err(|err| err.to_string()), &callback, &error) {
         Ok(js) => js,
@@ -75,7 +77,7 @@ pub fn execute_promise_sync<
             .unwrap()
         }
       };
-    webview_.eval(callback_string.as_str());
+    dispatcher_.eval(callback_string.as_str());
   })));
 }
 
@@ -85,11 +87,11 @@ pub fn execute_promise_sync<
 /// If the Result `is_ok()`, the callback will be the `success_callback` function name and the argument will be the Ok value.
 /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
 pub async fn execute_promise<
-  W: WebviewDispatcher,
+  D: ApplicationDispatcherExt,
   R: Serialize,
   F: futures::Future<Output = Result<R>> + Send + 'static,
 >(
-  webview: &mut W,
+  dispatcher: &mut D,
   task: F,
   success_callback: String,
   error_callback: String,
@@ -102,19 +104,19 @@ pub async fn execute_promise<
     Ok(callback_string) => callback_string,
     Err(e) => format_callback(error_callback, e.to_string()),
   };
-  webview.eval(callback_string.as_str());
+  dispatcher.eval(callback_string.as_str());
 }
 
 /// Calls the given command and evaluates its output to the JS promise described by the `callback` and `error` function names.
-pub async fn call<W: WebviewDispatcher>(
-  webview: &mut W,
+pub async fn call<D: ApplicationDispatcherExt>(
+  dispatcher: &mut D,
   command: String,
   args: Vec<String>,
   callback: String,
   error: String,
 ) {
   execute_promise(
-    webview,
+    dispatcher,
     async move { api::command::get_output(command, args, Stdio::piped()) },
     callback,
     error,
@@ -123,9 +125,10 @@ pub async fn call<W: WebviewDispatcher>(
 }
 
 /// Closes the splashscreen.
-pub fn close_splashscreen<W: WebviewDispatcher>(webview: &mut W) -> crate::Result<()> {
+pub fn close_splashscreen<D: ApplicationDispatcherExt>(dispatcher: &mut D) -> crate::Result<()> {
   // send a signal to the runner so it knows that it should redirect to the main app content
-  webview.eval(r#"window.__TAURI_INVOKE_HANDLER__(JSON.stringify({ cmd: "closeSplashscreen" }))"#);
+  dispatcher
+    .eval(r#"window.__TAURI_INVOKE_HANDLER__(JSON.stringify({ cmd: "closeSplashscreen" }))"#);
 
   Ok(())
 }

@@ -1,8 +1,8 @@
-use crate::WebviewDispatcher;
+use crate::ApplicationDispatcherExt;
 
 /// Validates a salt.
-pub fn validate<W: WebviewDispatcher>(
-  webview: &mut W,
+pub fn validate<D: ApplicationDispatcherExt>(
+  dispatcher: &mut D,
   salt: String,
   callback: String,
   error: String,
@@ -13,6 +13,6 @@ pub fn validate<W: WebviewDispatcher>(
     Err("Invalid salt")
   };
   let callback_string = crate::api::rpc::format_callback_result(response, callback, error)?;
-  webview.eval(callback_string.as_str());
+  dispatcher.eval(callback_string.as_str());
   Ok(())
 }

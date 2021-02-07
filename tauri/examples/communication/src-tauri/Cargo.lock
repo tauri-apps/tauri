@@ -2391,7 +2391,6 @@ dependencies = [
  "cfg_aliases",
  "envmnt",
  "futures",
- "gtk",
  "lazy_static",
  "once_cell",
  "phf",
@@ -3121,14 +3120,14 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38673d7d35d90575ce48b58896543f3324144d65465f80159dd1c752f0297748"
+version = "0.4.1"
+source = "git+https://github.com/tauri-apps/wry?branch=feat/window-communication#b4e16b5e2f9e82ecd36fd229e8b90fc81a55b293"
 dependencies = [
  "cc",
  "cocoa",
  "core-graphics 0.22.2",
  "gio",
+ "glib",
  "gtk",
  "libc",
  "objc",

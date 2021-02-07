@@ -1,12 +1,9 @@
-use std::{
-  path::Path,
-  sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-  },
+use std::sync::{
+  atomic::{AtomicBool, Ordering},
+  Arc,
 };
 
-use crate::{SizeHint, Webview, WebviewBuilder, WebviewDispatcher};
+use crate::{ApplicationDispatcherExt, ApplicationExt, WebviewBuilderExt, WindowBuilderExt};
 
 use super::App;
 #[cfg(embedded_server)]
@@ -20,7 +17,7 @@ enum Content<T> {
 }
 
 /// Main entry point for running the Webview
-pub(crate) fn run<W: Webview + 'static>(application: App<W>) -> crate::Result<()> {
+pub(crate) fn run<A: ApplicationExt + 'static>(application: App<A>) -> crate::Result<()> {
   // setup the content using the config struct depending on the compile target
   let main_content = setup_content()?;
 
@@ -46,11 +43,11 @@ pub(crate) fn run<W: Webview + 'static>(application: App<W>) -> crate::Result<()
   };
 
   // build the webview
-  let mut webview = build_webview(application, main_content, splashscreen_content)?;
+  let (webview_application, mut dispatcher) =
+    build_webview(application, main_content, splashscreen_content)?;
 
-  let mut dispatcher = webview.dispatcher();
   crate::async_runtime::spawn(async move {
-    crate::plugin::created(W::plugin_store(), &mut dispatcher).await
+    crate::plugin::created(A::plugin_store(), &mut dispatcher).await
   });
 
   // spawn the embedded server on our server url
@@ -62,7 +59,7 @@ pub(crate) fn run<W: Webview + 'static>(application: App<W>) -> crate::Result<()
   spawn_updater();
 
   // run the webview
-  webview.run();
+  webview_application.run();
 
   Ok(())
 }
@@ -103,7 +100,7 @@ fn setup_content() -> crate::Result<Content<String>> {
     Ok(Content::Url(config.build.dev_path.clone()))
   } else {
     let dev_dir = &config.build.dev_path;
-    let dev_path = Path::new(dev_dir).join("index.tauri.html");
+    let dev_path = std::path::Path::new(dev_dir).join("index.tauri.html");
     if !dev_path.exists() {
       panic!(
         "Couldn't find 'index.tauri.html' inside {}; did you forget to run 'tauri dev'?",
@@ -240,21 +237,17 @@ pub fn init() -> String {
 }
 
 // build the webview struct
-fn build_webview<W: Webview + 'static>(
-  application: App<W>,
+fn build_webview<A: ApplicationExt + 'static>(
+  application: App<A>,
   content: Content<String>,
   splashscreen_content: Option<Content<String>>,
-) -> crate::Result<W> {
+) -> crate::Result<(A, A::Dispatcher)> {
   let config = get()?;
-  let debug = cfg!(debug_assertions);
+  // TODO let debug = cfg!(debug_assertions);
   // get properties from config struct
-  let width = config.tauri.window.width;
-  let height = config.tauri.window.height;
-  let resizable = if config.tauri.window.resizable {
-    SizeHint::NONE
-  } else {
-    SizeHint::FIXED
-  };
+  // TODO let width = config.tauri.window.width;
+  // TODO let height = config.tauri.window.height;
+  let resizable = config.tauri.window.resizable;
   // let fullscreen = config.tauri.window.fullscreen;
   let title = config.tauri.window.title.clone();
 
@@ -285,20 +278,21 @@ fn build_webview<W: Webview + 'static>(
     "#,
     tauri_init = include_str!(concat!(env!("OUT_DIR"), "/__tauri.js")),
     event_init = init(),
-    plugin_init = crate::async_runtime::block_on(crate::plugin::init_script(W::plugin_store()))
+    plugin_init = crate::async_runtime::block_on(crate::plugin::init_script(A::plugin_store()))
   );
 
   let application = Arc::new(application);
 
-  let mut webview = W::Builder::new()
-    .init(&init)
-    .title(&title)
-    .width(width as usize)
-    .height(height as usize)
-    .resizable(resizable)
-    .debug(debug)
-    .url(&url)
-    .bind("__TAURI_INVOKE_HANDLER__", move |dispatcher, _, arg| {
+  let mut webview_application = A::new()?;
+
+  let main_window =
+    webview_application.create_window(A::WindowBuilder::new().resizable(resizable).title(title))?;
+
+  let dispatcher = webview_application.dispatcher(&main_window);
+
+  let tauri_invoke_handler = crate::Callback::<A::Dispatcher> {
+    name: "__TAURI_INVOKE_HANDLER__".to_string(),
+    function: Box::new(move |dispatcher, _, arg| {
       let arg = arg.into_iter().next().unwrap_or_else(String::new);
       let application = application.clone();
       let mut dispatcher = dispatcher.clone();
@@ -317,7 +311,7 @@ fn build_webview<W: Webview + 'static>(
             .run_setup(&mut dispatcher, source.to_string())
             .await;
           if source == "window-1" {
-            crate::plugin::ready(W::plugin_store(), &mut dispatcher).await;
+            crate::plugin::ready(A::plugin_store(), &mut dispatcher).await;
           }
         } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
           dispatcher.eval(&format!(r#"window.location.href = "{}""#, content_url));
@@ -343,7 +337,7 @@ fn build_webview<W: Webview + 'static>(
           if let Err(ref app_handle_error) = endpoint_handle {
             if app_handle_error.contains("unknown variant") {
               let error =
-                match crate::plugin::extend_api(W::plugin_store(), &mut dispatcher, &arg).await {
+                match crate::plugin::extend_api(A::plugin_store(), &mut dispatcher, &arg).await {
                   Ok(handled) => {
                     if handled {
                       String::from("")
@@ -365,20 +359,21 @@ fn build_webview<W: Webview + 'static>(
         }
       });
       0
-    })
-    .finish()?;
+    }),
+  };
+
+  webview_application.create_webview(
+    A::WebviewBuilder::new()
+      .url(url)
+      .initialization_script(&init),
+    main_window,
+    vec![tauri_invoke_handler],
+  )?;
+
   // TODO waiting for webview window API
   // webview.set_fullscreen(fullscreen);
 
-  if has_splashscreen {
-    let env_var = envmnt::get_or("TAURI_DIR", "../dist");
-    let path = Path::new(&env_var);
-    let contents = std::fs::read_to_string(path.join("/tauri.js"))?;
-    // inject the tauri.js entry point
-    webview.eval(&contents);
-  }
-
-  Ok(webview)
+  Ok((webview_application, dispatcher))
 }
 
 // Formats an invoke handler error message to print to console.error

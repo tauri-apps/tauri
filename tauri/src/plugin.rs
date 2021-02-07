@@ -1,44 +1,46 @@
 use crate::async_runtime::Mutex;
 
-use crate::WebviewDispatcher;
+use crate::ApplicationDispatcherExt;
 
 use std::sync::Arc;
 
 /// The plugin interface.
 #[async_trait::async_trait]
-pub trait Plugin<W: WebviewDispatcher + 'static>: Sync {
+pub trait Plugin<D: ApplicationDispatcherExt + 'static>: Sync {
   /// The JS script to evaluate on init.
   async fn init_script(&self) -> Option<String> {
     None
   }
   /// Callback invoked when the webview is created.
   #[allow(unused_variables)]
-  async fn created(&self, webview: W) {}
+  async fn created(&self, dispatcher: D) {}
 
   /// Callback invoked when the webview is ready.
   #[allow(unused_variables)]
-  async fn ready(&self, webview: W) {}
+  async fn ready(&self, dispatcher: D) {}
 
   /// Add invoke_handler API extension commands.
   #[allow(unused_variables)]
-  async fn extend_api(&self, webview: W, payload: &str) -> Result<bool, String> {
+  async fn extend_api(&self, dispatcher: D, payload: &str) -> Result<bool, String> {
     Err("unknown variant".to_string())
   }
 }
 
 /// Plugin collection type.
-pub type PluginStore<W> = Arc<Mutex<Vec<Box<dyn Plugin<W> + Sync + Send>>>>;
+pub type PluginStore<D> = Arc<Mutex<Vec<Box<dyn Plugin<D> + Sync + Send>>>>;
 
 /// Registers a plugin.
-pub async fn register<W: WebviewDispatcher + 'static>(
-  store: &PluginStore<W>,
-  plugin: impl Plugin<W> + Sync + Send + 'static,
+pub async fn register<D: ApplicationDispatcherExt + 'static>(
+  store: &PluginStore<D>,
+  plugin: impl Plugin<D> + Sync + Send + 'static,
 ) {
   let mut plugins = store.lock().await;
   plugins.push(Box::new(plugin));
 }
 
-pub(crate) async fn init_script<W: WebviewDispatcher + 'static>(store: &PluginStore<W>) -> String {
+pub(crate) async fn init_script<D: ApplicationDispatcherExt + 'static>(
+  store: &PluginStore<D>,
+) -> String {
   let mut init = String::new();
 
   let plugins = store.lock().await;
@@ -51,31 +53,34 @@ pub(crate) async fn init_script<W: WebviewDispatcher + 'static>(store: &PluginSt
   init
 }
 
-pub(crate) async fn created<W: WebviewDispatcher + 'static>(
-  store: &PluginStore<W>,
-  webview: &mut W,
+pub(crate) async fn created<D: ApplicationDispatcherExt + 'static>(
+  store: &PluginStore<D>,
+  dispatcher: &mut D,
 ) {
   let plugins = store.lock().await;
   for plugin in plugins.iter() {
-    plugin.created(webview.clone()).await;
+    plugin.created(dispatcher.clone()).await;
   }
 }
 
-pub(crate) async fn ready<W: WebviewDispatcher + 'static>(store: &PluginStore<W>, webview: &mut W) {
+pub(crate) async fn ready<D: ApplicationDispatcherExt + 'static>(
+  store: &PluginStore<D>,
+  dispatcher: &mut D,
+) {
   let plugins = store.lock().await;
   for plugin in plugins.iter() {
-    plugin.ready(webview.clone()).await;
+    plugin.ready(dispatcher.clone()).await;
   }
 }
 
-pub(crate) async fn extend_api<W: WebviewDispatcher + 'static>(
-  store: &PluginStore<W>,
-  webview: &mut W,
+pub(crate) async fn extend_api<D: ApplicationDispatcherExt + 'static>(
+  store: &PluginStore<D>,
+  dispatcher: &mut D,
   arg: &str,
 ) -> Result<bool, String> {
   let plugins = store.lock().await;
   for ext in plugins.iter() {
-    match ext.extend_api(webview.clone(), arg).await {
+    match ext.extend_api(dispatcher.clone(), arg).await {
       Ok(handled) => {
         if handled {
           return Ok(true);

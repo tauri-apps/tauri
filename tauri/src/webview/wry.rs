@@ -1,214 +1,149 @@
-#[cfg(not(target_os = "linux"))]
-use wry::platform::{
-  event::{Event, StartCause, WindowEvent},
-  event_loop::{ControlFlow, EventLoop, EventLoopProxy as WinitEventLoopProxy},
-  window::Window,
+use super::{
+  ApplicationDispatcherExt, ApplicationExt, Callback, Event, WebviewBuilderExt, WindowBuilderExt,
 };
 
-#[cfg(target_os = "linux")]
-use wry::platform::{Window, WindowType};
+use wry::{ApplicationDispatcher, ApplicationExt as _, WindowExt};
 
 use once_cell::sync::Lazy;
+
+use crate::plugin::PluginStore;
 
 use std::{
   collections::HashMap,
   sync::{Arc, Mutex},
 };
 
-#[cfg(target_os = "linux")]
-use std::sync::mpsc::{channel, Receiver, Sender};
-
-use super::{Event as CustomEvent, SizeHint, Webview, WebviewBuilder, WebviewDispatcher};
-use crate::plugin::PluginStore;
-
-#[cfg(target_os = "linux")]
-#[derive(Clone)]
-struct EventLoopProxy(Arc<Mutex<Sender<CustomEvent>>>);
-
-#[cfg(not(target_os = "linux"))]
-#[derive(Clone)]
-struct EventLoopProxy(Arc<Mutex<WinitEventLoopProxy<CustomEvent>>>);
-
-impl EventLoopProxy {
-  #[cfg(target_os = "linux")]
-  fn send_event(&self, event: CustomEvent) {
-    self.0.lock().unwrap().send(event).unwrap()
-  }
-
-  #[cfg(not(target_os = "linux"))]
-  fn send_event(&self, event: CustomEvent) {
-    self
-      .0
-      .lock()
-      .unwrap()
-      .send_event(event)
-      .unwrap_or_else(|_| panic!("failed to send event to winit event loop"))
-  }
-}
-
-type BindHandler = Box<dyn FnMut(&WryDispatcher, i8, Vec<String>) -> i32 + Send>;
-
-/// The wry webview builder.
-#[derive(Default)]
-pub struct WryWebviewBuilder {
-  bind: HashMap<String, BindHandler>,
-  title: Option<String>,
-  init: Option<String>,
-  url: Option<String>,
-}
-
-impl WryWebviewBuilder {
-  fn build_webview(
-    self,
-    window: Window,
-    event_loop_proxy: EventLoopProxy,
-  ) -> crate::Result<wry::WebView> {
-    let mut webview_builder = wry::WebViewBuilder::new(window)
-      .map_err(|_| anyhow::anyhow!("failed to initialize webview builder"))?;
-
-    let dispatcher = WryDispatcher {
-      inner: Arc::new(Mutex::new(webview_builder.dispatch_sender())),
-      event_loop_proxy,
-    };
-
-    for (name, mut f) in self.bind {
-      let dispatcher = dispatcher.clone();
-      webview_builder = webview_builder
-        .bind(&name, move |seq, req| f(&dispatcher, seq, req))
-        .map_err(|_| anyhow::anyhow!("failed to bind"))?;
-    }
-
-    if let Some(init) = self.init {
-      webview_builder = webview_builder
-        .init(&init)
-        .map_err(|_| anyhow::anyhow!("failed set init script"))?;
-    }
-
-    if let Some(url) = self.url {
-      webview_builder = webview_builder
-        .load_url(&url)
-        .map_err(|_| anyhow::anyhow!("failed to load url"))?;
-    }
-
-    Ok(
-      webview_builder
-        .build()
-        .map_err(|_| anyhow::anyhow!("failed to build webview"))?,
-    )
-  }
-}
-
-impl WebviewBuilder for WryWebviewBuilder {
-  type WebviewObject = WryWebview;
+impl WindowBuilderExt for wry::AppWindowAttributes {
+  type Window = Self;
 
   fn new() -> Self {
-    WryWebviewBuilder::default()
+    Default::default()
   }
 
-  fn bind<F>(mut self, name: &str, f: F) -> Self
-  where
-    F: FnMut(
-      &<<Self as WebviewBuilder>::WebviewObject as Webview>::Dispatcher,
-      i8,
-      Vec<String>,
-    ) -> i32
-      + Send
-      + 'static,
-  {
-    self.bind.insert(name.to_string(), Box::new(f));
+  fn resizable(mut self, resizable: bool) -> Self {
+    self.resizable = resizable;
     self
   }
 
-  fn debug(self, _debug: bool) -> Self {
+  fn title(mut self, title: String) -> Self {
+    self.title = title;
     self
   }
 
-  fn title(mut self, title: &str) -> Self {
-    self.title = Some(title.to_string());
+  fn maximized(mut self, maximized: bool) -> Self {
+    self.maximized = maximized;
     self
   }
 
-  fn url(mut self, url: &str) -> Self {
-    self.url = Some(url.to_string());
+  fn visible(mut self, visible: bool) -> Self {
+    self.visible = visible;
     self
   }
 
-  fn init(mut self, init: &str) -> Self {
-    self.init = Some(init.to_string());
+  fn transparent(mut self, transparent: bool) -> Self {
+    self.transparent = transparent;
     self
   }
 
-  fn width(self, _width: usize) -> Self {
+  fn decorations(mut self, decorations: bool) -> Self {
+    self.decorations = decorations;
     self
   }
 
-  fn height(self, _height: usize) -> Self {
+  /// Whether the window should always be on top of other windows.
+  fn always_on_top(mut self, always_on_top: bool) -> Self {
+    self.always_on_top = always_on_top;
     self
   }
 
-  fn resizable(self, _hint: SizeHint) -> Self {
-    self
-  }
-
-  fn finish(self) -> crate::Result<Self::WebviewObject> {
-    #[cfg(target_os = "linux")]
-    {
-      gtk::init().unwrap();
-      let window = Window::new(WindowType::Toplevel);
-      let (event_loop_proxy_tx, event_loop_proxy_rx) = channel();
-      let event_loop_proxy = EventLoopProxy(Arc::new(Mutex::new(event_loop_proxy_tx)));
-      let webview = self.build_webview(window, event_loop_proxy.clone())?;
-      Ok(WryWebview {
-        inner: webview,
-        event_loop_proxy,
-        event_loop_proxy_rx,
-      })
-    }
-
-    #[cfg(not(target_os = "linux"))]
-    {
-      let event_loop = EventLoop::<CustomEvent>::with_user_event();
-      let event_loop_proxy = EventLoopProxy(Arc::new(Mutex::new(event_loop.create_proxy())));
-      let window = Window::new(&event_loop)?;
-      let webview = self.build_webview(window, event_loop_proxy.clone())?;
-      Ok(WryWebview {
-        inner: webview,
-        event_loop_proxy,
-        event_loop,
-      })
-    }
+  /// build the window.
+  fn finish(self) -> crate::Result<Self::Window> {
+    Ok(self)
   }
 }
 
-/// The wry Webview dispatcher.
+/// The webview builder.
+impl WebviewBuilderExt for wry::WebViewAttributes {
+  /// The webview object that this builder creates.
+  type Webview = Self;
+
+  fn new() -> Self {
+    Default::default()
+  }
+
+  fn url(mut self, url: String) -> Self {
+    self.url.replace(url);
+    self
+  }
+
+  fn initialization_script(mut self, init: &str) -> Self {
+    self.initialization_script.push(init.to_string());
+    self
+  }
+
+  fn finish(self) -> crate::Result<Self::Webview> {
+    Ok(self)
+  }
+}
+
 #[derive(Clone)]
 pub struct WryDispatcher {
-  inner: Arc<Mutex<wry::DispatchSender>>,
-  event_loop_proxy: EventLoopProxy,
+  inner: Arc<Mutex<wry::AppDispatcher<Event>>>,
+  current_window: wry::WindowId,
+  windows: Arc<Mutex<HashMap<String, wry::WindowId>>>,
 }
 
-impl WebviewDispatcher for WryDispatcher {
+impl ApplicationDispatcherExt for WryDispatcher {
   fn eval(&mut self, js: &str) {
-    self.inner.lock().unwrap().send(js).unwrap();
+    #[cfg(target_os = "linux")]
+    let window_id = self.current_window;
+    #[cfg(not(target_os = "linux"))]
+    let window_id = self.current_window.clone();
+
+    self
+      .inner
+      .lock()
+      .unwrap()
+      .dispatch_message(wry::Message::Script(window_id, js.to_string()))
+      .unwrap();
   }
 
-  fn send_event(&self, event: CustomEvent) {
-    self.event_loop_proxy.send_event(event)
+  fn eval_on_window(&mut self, window_id: &str, js: &str) {
+    if let Some(window_id) = self.windows.lock().unwrap().get(window_id) {
+      #[cfg(target_os = "linux")]
+      let window_id = *window_id;
+      #[cfg(not(target_os = "linux"))]
+      let window_id = window_id.clone();
+      self
+        .inner
+        .lock()
+        .unwrap()
+        .dispatch_message(wry::Message::Script(window_id, js.to_string()))
+        .unwrap();
+    }
+  }
+
+  fn send_event(&self, event: Event) {
+    self
+      .inner
+      .lock()
+      .unwrap()
+      .dispatch_message(wry::Message::Custom(event))
+      .unwrap();
   }
 }
 
-/// A wrapper around wry's webview.
-pub struct WryWebview {
-  inner: wry::WebView,
-  event_loop_proxy: EventLoopProxy,
-  #[cfg(target_os = "linux")]
-  event_loop_proxy_rx: Receiver<CustomEvent>,
-  #[cfg(not(target_os = "linux"))]
-  event_loop: EventLoop<CustomEvent>,
+/// A wrapper around the wry Application interface.
+pub struct WryApplication {
+  inner: wry::Application<Event>,
+  windows: Arc<Mutex<HashMap<String, wry::WindowId>>>,
+  dispatcher_handle: Arc<Mutex<wry::AppDispatcher<Event>>>,
 }
 
-impl Webview for WryWebview {
-  type Builder = WryWebviewBuilder;
+impl ApplicationExt for WryApplication {
+  type WebviewBuilder = wry::WebViewAttributes;
+  type WindowBuilder = wry::AppWindowAttributes;
+  type Window = wry::Window;
   type Dispatcher = WryDispatcher;
 
   fn plugin_store() -> &'static PluginStore<Self::Dispatcher> {
@@ -216,61 +151,67 @@ impl Webview for WryWebview {
     &PLUGINS
   }
 
-  fn set_title(&mut self, _title: &str) {}
+  fn new() -> crate::Result<Self> {
+    let app = wry::Application::new()?;
+    let dispatcher = app.dispatcher();
+    let windows = Arc::new(Mutex::new(HashMap::new()));
 
-  fn set_size(&mut self, _width: i32, _height: i32, _hint: SizeHint) {}
-
-  fn terminate(&mut self) {}
-
-  fn eval(&mut self, js: &str) {
-    self.inner.dispatch(js).unwrap();
+    Ok(Self {
+      inner: app,
+      windows,
+      dispatcher_handle: Arc::new(Mutex::new(dispatcher)),
+    })
   }
 
-  fn dispatcher(&mut self) -> Self::Dispatcher {
+  fn dispatcher(&self, window: &Self::Window) -> Self::Dispatcher {
     WryDispatcher {
-      inner: Arc::new(Mutex::new(self.inner.dispatch_sender())),
-      event_loop_proxy: self.event_loop_proxy.clone(),
+      inner: self.dispatcher_handle.clone(),
+      windows: self.windows.clone(),
+      current_window: window.id(),
     }
   }
 
-  #[allow(unused_mut)]
-  fn run(mut self) {
-    #[cfg(target_os = "linux")]
-    loop {
-      while let Ok(event) = self.event_loop_proxy_rx.try_recv() {
-        match event {
-          CustomEvent::Run(closure) => closure(),
-        }
-      }
-      self.inner.evaluate().unwrap();
-      gtk::main_iteration();
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-      let mut webview = self.inner;
-      self.event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
+  fn create_window(&self, window_builder: Self::WindowBuilder) -> crate::Result<Self::Window> {
+    let window = self.inner.create_window(window_builder.finish()?)?;
+    Ok(window)
+  }
 
-        match event {
-          Event::NewEvents(StartCause::Init) => {}
-          Event::WindowEvent {
-            event: WindowEvent::CloseRequested,
-            ..
-          } => *control_flow = ControlFlow::Exit,
-          Event::WindowEvent {
-            event: WindowEvent::Resized(_),
-            ..
-          } => {
-            webview.resize();
-          }
-          Event::UserEvent(user_event) => match user_event {
-            CustomEvent::Run(closure) => closure(),
-          },
-          _ => {
-            webview.evaluate().unwrap();
-          }
-        }
-      });
+  fn create_webview(
+    &mut self,
+    webview_builder: Self::WebviewBuilder,
+    window: Self::Window,
+    callbacks: Vec<Callback<Self::Dispatcher>>,
+  ) -> crate::Result<()> {
+    let mut wry_callbacks = Vec::new();
+    for mut callback in callbacks {
+      let dispatcher_handle = self.dispatcher_handle.clone();
+      let windows = self.windows.clone();
+      let window_id = window.id();
+
+      let callback = wry::Callback {
+        name: callback.name.to_string(),
+        function: Box::new(move |_, seq, req| {
+          (callback.function)(
+            &WryDispatcher {
+              inner: dispatcher_handle.clone(),
+              windows: windows.clone(),
+              current_window: window_id,
+            },
+            seq,
+            req,
+          )
+        }),
+      };
+      wry_callbacks.push(callback);
     }
+
+    self
+      .inner
+      .create_webview(window, webview_builder.finish()?, Some(wry_callbacks))?;
+    Ok(())
+  }
+
+  fn run(self) {
+    wry::Application::run(self.inner)
   }
 }

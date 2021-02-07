@@ -1,15 +1,15 @@
 use super::cmd::NotificationOptions;
-use crate::WebviewDispatcher;
+use crate::ApplicationDispatcherExt;
 use serde_json::Value as JsonValue;
 
-pub async fn send<W: WebviewDispatcher>(
-  webview: &mut W,
+pub async fn send<D: ApplicationDispatcherExt>(
+  dispatcher: &mut D,
   options: NotificationOptions,
   callback: String,
   error: String,
 ) {
   crate::execute_promise(
-    webview,
+    dispatcher,
     async move {
       let mut notification = tauri_api::notification::Notification::new().title(options.title);
       if let Some(body) = options.body {
@@ -27,13 +27,13 @@ pub async fn send<W: WebviewDispatcher>(
   .await;
 }
 
-pub async fn is_permission_granted<W: WebviewDispatcher>(
-  webview: &mut W,
+pub async fn is_permission_granted<D: ApplicationDispatcherExt>(
+  dispatcher: &mut D,
   callback: String,
   error: String,
 ) {
   crate::execute_promise(
-    webview,
+    dispatcher,
     async move {
       let settings = crate::settings::read_settings()?;
       if let Some(allow_notification) = settings.allow_notification {
@@ -48,13 +48,13 @@ pub async fn is_permission_granted<W: WebviewDispatcher>(
   .await;
 }
 
-pub fn request_permission<W: WebviewDispatcher + 'static>(
-  webview: &mut W,
+pub fn request_permission<D: ApplicationDispatcherExt + 'static>(
+  dispatcher: &mut D,
   callback: String,
   error: String,
 ) -> crate::Result<()> {
   crate::execute_promise_sync(
-    webview,
+    dispatcher,
     move || {
       let mut settings = crate::settings::read_settings()?;
       let granted = "granted".to_string();

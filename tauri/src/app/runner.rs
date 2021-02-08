@@ -167,8 +167,8 @@ fn spawn_server(server_url: String, ctx: &AppContext) -> crate::Result<()> {
     let server = tiny_http::Server::http(server_url.replace("http://", "").replace("https://", ""))
       .expect("Unable to spawn server");
     for request in server.incoming_requests() {
-      let url = request.url();
-      let url = match url {
+      let url = request.url().replace(&server_url, "");
+      let url = match url.as_str() {
         "/" => "/index.tauri.html",
         url => {
           if url.starts_with(&public_path) {

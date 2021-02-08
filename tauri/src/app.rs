@@ -1,12 +1,13 @@
+use crate::ApplicationExt;
+use futures::future::BoxFuture;
 use std::marker::PhantomData;
 use tauri_api::config::Config;
 use tauri_api::private::AsTauriConfig;
-use webview_official::Webview;
 
 mod runner;
 
-type InvokeHandler = Box<dyn FnMut(&mut Webview<'_>, &str) -> Result<(), String>>;
-type Setup = Box<dyn FnMut(&mut Webview<'_>, String)>;
+type InvokeHandler<W> = dyn Fn(W, String) -> BoxFuture<'static, Result<(), String>> + Send + Sync;
+type Setup<W> = dyn Fn(W, String) -> BoxFuture<'static, ()> + Send + Sync;
 
 /// `App` runtime information.
 pub struct AppContext {
@@ -30,42 +31,44 @@ impl AppContext {
 }
 
 /// The application runner.
-pub struct App {
+pub struct App<A: ApplicationExt> {
   /// The JS message handler.
-  invoke_handler: Option<InvokeHandler>,
+  invoke_handler: Option<Box<InvokeHandler<A::Dispatcher>>>,
   /// The setup callback, invoked when the webview is ready.
-  setup: Option<Setup>,
+  setup: Option<Box<Setup<A::Dispatcher>>>,
   /// The HTML of the splashscreen to render.
   splashscreen_html: Option<String>,
   /// The configuration the App was created with
   pub(crate) ctx: AppContext,
 }
 
-impl App {
+impl<A: ApplicationExt + 'static> App<A> {
   /// Runs the app until it finishes.
-  pub fn run(mut self) {
-    runner::run(&mut self).expect("Failed to build webview");
+  pub fn run(self) {
+    runner::run(self).expect("Failed to build webview");
   }
 
   /// Runs the invoke handler if defined.
   /// Returns whether the message was consumed or not.
   /// The message is considered consumed if the handler exists and returns an Ok Result.
-  pub(crate) fn run_invoke_handler(
-    &mut self,
-    webview: &mut Webview<'_>,
+  pub(crate) async fn run_invoke_handler(
+    &self,
+    dispatcher: &mut A::Dispatcher,
     arg: &str,
   ) -> Result<bool, String> {
-    if let Some(ref mut invoke_handler) = self.invoke_handler {
-      invoke_handler(webview, arg).map(|_| true)
+    if let Some(ref invoke_handler) = self.invoke_handler {
+      let fut = invoke_handler(dispatcher.clone(), arg.to_string());
+      fut.await.map(|_| true)
     } else {
       Ok(false)
     }
   }
 
   /// Runs the setup callback if defined.
-  pub(crate) fn run_setup(&mut self, webview: &mut Webview<'_>, source: String) {
-    if let Some(ref mut setup) = self.setup {
-      setup(webview, source);
+  pub(crate) async fn run_setup(&self, dispatcher: &mut A::Dispatcher, source: String) {
+    if let Some(ref setup) = self.setup {
+      let fut = setup(dispatcher.clone(), source);
+      fut.await;
     }
   }
 
@@ -77,18 +80,18 @@ impl App {
 
 /// The App builder.
 #[derive(Default)]
-pub struct AppBuilder<Config: AsTauriConfig> {
+pub struct AppBuilder<A: ApplicationExt, Config: AsTauriConfig> {
   /// The JS message handler.
-  invoke_handler: Option<InvokeHandler>,
+  invoke_handler: Option<Box<InvokeHandler<A::Dispatcher>>>,
   /// The setup callback, invoked when the webview is ready.
-  setup: Option<Setup>,
+  setup: Option<Box<Setup<A::Dispatcher>>>,
   /// The HTML of the splashscreen to render.
   splashscreen_html: Option<String>,
   /// The configuration used
   config: PhantomData<Config>,
 }
 
-impl<Config: AsTauriConfig> AppBuilder<Config> {
+impl<A: ApplicationExt + 'static, Config: AsTauriConfig> AppBuilder<A> {
   /// Creates a new App builder.
   pub fn new() -> Self {
     Self {
@@ -100,17 +103,30 @@ impl<Config: AsTauriConfig> AppBuilder<Config> {
   }
 
   /// Defines the JS message handler callback.
-  pub fn invoke_handler<F: FnMut(&mut Webview<'_>, &str) -> Result<(), String> + 'static>(
+  pub fn invoke_handler<
+    T: futures::Future<Output = Result<(), String>> + Send + Sync + 'static,
+    F: Fn(A::Dispatcher, String) -> T + Send + Sync + 'static,
+  >(
     mut self,
     invoke_handler: F,
   ) -> Self {
-    self.invoke_handler = Some(Box::new(invoke_handler));
+    self.invoke_handler = Some(Box::new(move |dispatcher, arg| {
+      Box::pin(invoke_handler(dispatcher, arg))
+    }));
     self
   }
 
   /// Defines the setup callback.
-  pub fn setup<F: FnMut(&mut Webview<'_>, String) + 'static>(mut self, setup: F) -> Self {
-    self.setup = Some(Box::new(setup));
+  pub fn setup<
+    T: futures::Future<Output = ()> + Send + Sync + 'static,
+    F: Fn(A::Dispatcher, String) -> T + Send + Sync + 'static,
+  >(
+    mut self,
+    setup: F,
+  ) -> Self {
+    self.setup = Some(Box::new(move |dispatcher, source| {
+      Box::pin(setup(dispatcher, source))
+    }));
     self
   }
 
@@ -121,14 +137,17 @@ impl<Config: AsTauriConfig> AppBuilder<Config> {
   }
 
   /// Adds a plugin to the runtime.
-  pub fn plugin(self, plugin: impl crate::plugin::Plugin + 'static) -> Self {
-    crate::plugin::register(plugin);
+  pub fn plugin(
+    self,
+    plugin: impl crate::plugin::Plugin<A::Dispatcher> + Send + Sync + Sync + 'static,
+  ) -> Self {
+    crate::async_runtime::block_on(crate::plugin::register(A::plugin_store(), plugin));
     self
   }
 
   /// Builds the App.
-  pub fn build(self) -> crate::Result<App> {
-    Ok(App {
+  pub fn build(self) -> App<A> {
+    App {
       invoke_handler: self.invoke_handler,
       setup: self.setup,
       splashscreen_html: self.splashscreen_html,

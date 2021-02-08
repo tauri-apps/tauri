@@ -2,11 +2,11 @@ use std::boxed::Box;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use crate::ApplicationDispatcherExt;
 use lazy_static::lazy_static;
 use once_cell::sync::Lazy;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
-use webview_official::WebviewMut;
 
 /// An event handler.
 struct EventHandler {
@@ -57,8 +57,8 @@ pub fn listen<F: FnMut(Option<String>) + Send + 'static>(id: impl Into<String>, 
 }
 
 /// Emits an event to JS.
-pub fn emit<S: Serialize>(
-  webview: &mut WebviewMut,
+pub fn emit<D: ApplicationDispatcherExt, S: Serialize>(
+  dispatcher: &mut D,
   event: impl AsRef<str> + Send + 'static,
   payload: Option<S>,
 ) -> crate::Result<()> {
@@ -70,15 +70,13 @@ pub fn emit<S: Serialize>(
     JsonValue::Null
   };
 
-  webview.dispatch(move |webview_ref| {
-    webview_ref.eval(&format!(
-      "window['{}']({{type: '{}', payload: {}}}, '{}')",
-      emit_function_name(),
-      event.as_ref(),
-      js_payload,
-      salt
-    ))
-  })?;
+  dispatcher.eval(&format!(
+    "window['{}']({{type: '{}', payload: {}}}, '{}')",
+    emit_function_name(),
+    event.as_ref(),
+    js_payload,
+    salt
+  ));
 
   Ok(())
 }

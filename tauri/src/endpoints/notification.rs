@@ -1,11 +1,11 @@
 use super::cmd::NotificationOptions;
+use crate::ApplicationDispatcherExt;
 use serde_json::Value as JsonValue;
 use tauri_api::config::Config;
 use tauri_api::notification::Notification;
-use webview_official::Webview;
 
-pub fn send(
-  webview: &mut Webview<'_>,
+pub async fn send<D: ApplicationDispatcherExt>(
+  dispatcher: &mut D,
   options: NotificationOptions,
   callback: String,
   error: String,
@@ -14,8 +14,8 @@ pub fn send(
   let identifier = config.tauri.bundle.identifier.clone();
 
   crate::execute_promise(
-    webview,
-    move || {
+    dispatcher,
+    async move {
       let mut notification = Notification::new(identifier).title(options.title);
       if let Some(body) = options.body {
         notification = notification.body(body);
@@ -28,13 +28,18 @@ pub fn send(
     },
     callback,
     error,
-  );
+  )
+  .await;
 }
 
-pub fn is_permission_granted(webview: &mut Webview<'_>, callback: String, error: String) {
+pub async fn is_permission_granted<D: ApplicationDispatcherExt>(
+  dispatcher: &mut D,
+  callback: String,
+  error: String,
+) {
   crate::execute_promise(
-    webview,
-    move || {
+    dispatcher,
+    async move {
       let settings = crate::settings::read_settings()?;
       if let Some(allow_notification) = settings.allow_notification {
         Ok(JsonValue::String(allow_notification.to_string()))
@@ -44,16 +49,17 @@ pub fn is_permission_granted(webview: &mut Webview<'_>, callback: String, error:
     },
     callback,
     error,
-  );
+  )
+  .await;
 }
 
-pub fn request_permission(
-  webview: &mut Webview<'_>,
+pub fn request_permission<D: ApplicationDispatcherExt + 'static>(
+  dispatcher: &mut D,
   callback: String,
   error: String,
 ) -> crate::Result<()> {
   crate::execute_promise_sync(
-    webview,
+    dispatcher,
     move || {
       let mut settings = crate::settings::read_settings()?;
       let granted = "granted".to_string();
@@ -81,6 +87,6 @@ pub fn request_permission(
     },
     callback,
     error,
-  )?;
+  );
   Ok(())
 }

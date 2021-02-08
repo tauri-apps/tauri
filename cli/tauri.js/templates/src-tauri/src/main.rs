@@ -9,10 +9,10 @@ mod cmd;
 struct Config;
 
 fn main() {
-  tauri::AppBuilder::<Config>::new()
-    .invoke_handler(|_webview, arg| {
+  tauri::AppBuilder::<tauri::flavors::Wry, Config>::new()
+    .invoke_handler(|_webview, arg| async move {
       use cmd::Cmd::*;
-      match serde_json::from_str(arg) {
+      match serde_json::from_str(&arg) {
         Err(e) => Err(e.to_string()),
         Ok(command) => {
           match command {

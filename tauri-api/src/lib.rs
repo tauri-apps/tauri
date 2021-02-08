@@ -1,9 +1,5 @@
 //! The Tauri API interface.
 #![warn(missing_docs, rust_2018_idioms)]
-#![cfg_attr(
-  all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
-)]
 
 /// The Assets module allows you to read files that have been bundled by tauri
 pub mod assets;

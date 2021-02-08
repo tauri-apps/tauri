@@ -30,15 +30,16 @@ function startDevServer() {
 
 function runDevTest(tauriConfig) {
   fixtureSetup.initJest('app')
-  const dev = require('api/dev')
+  const { dev } = require('dist/api/cli')
   return new Promise(async (resolve, reject) => {
     try {
-      const { promise, runner } = dev(tauriConfig)
+      process.chdir(path.join(fixtureSetup.fixtureDir, 'app'))
+      const { promise, pid } = dev({ config: tauriConfig })
 
       const isRunning = require('is-running')
       let success = false
       const checkIntervalId = setInterval(async () => {
-        if (!isRunning(runner.pid) && !success) {
+        if (!isRunning(pid) && !success) {
           const failedCommands = Object.keys(responses)
             .filter((k) => responses[k] === null)
             .join(', ')
@@ -52,7 +53,7 @@ function runDevTest(tauriConfig) {
         // wait for the app process to be killed
         setTimeout(async () => {
           try {
-            await runner.stop()
+            process.kill(pid)
           } catch {}
           resolve()
         }, 2000)
@@ -82,10 +83,6 @@ describe('Tauri Dev', () => {
       build: {
         ...build,
         devPath: url
-      },
-      ctx: {
-        debug: true,
-        dev: true
       }
     })
 

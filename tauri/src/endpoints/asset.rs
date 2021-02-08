@@ -1,23 +1,22 @@
-use crate::AppContext;
+use crate::ApplicationDispatcherExt;
 use std::io::Read;
 use tauri_api::assets::{AssetFetch, Assets};
-use webview_official::Webview;
 
 #[allow(clippy::option_env_unwrap)]
-pub fn load(
-  webview: &mut Webview<'_>,
+pub async fn load<D: ApplicationDispatcherExt + 'static>(
+  dispatcher: &mut D,
   asset: String,
   asset_type: String,
   callback: String,
   error: String,
   ctx: &AppContext,
 ) {
-  let mut webview_mut = webview.as_mut();
+  let mut dispatcher_ = dispatcher.clone();
   let assets = ctx.assets;
   let public_path = ctx.config.tauri.embedded_server.public_path.clone();
   crate::execute_promise(
-    webview,
-    move || {
+    dispatcher,
+    async move {
       // strip "about:" uri scheme if it exists
       let asset = if asset.starts_with("about:") {
         &asset[6..]
@@ -49,10 +48,18 @@ pub fn load(
         })?;
 
       if asset_type == "image" {
-        let ext = if asset.ends_with("gif") {
+        let mime_type = if asset.ends_with("gif") {
           "gif"
+        } else if asset.ends_with("apng") {
+          "apng"
         } else if asset.ends_with("png") {
           "png"
+        } else if asset.ends_with("avif") {
+          "avif"
+        } else if asset.ends_with("webp") {
+          "webp"
+        } else if asset.ends_with("svg") {
+          "svg+xml"
         } else {
           "jpeg"
         };
@@ -78,16 +85,17 @@ pub fn load(
                   document.getElementsByTagName("head")[0].appendChild(css);
                 }})(`{css}`)
               "#,
-              css = asset_str
-            ));
-          } else {
-            webview_ref.eval(asset_str);
-          }
-        })?;
+            // Escape octal sequences, which aren't allowed in template literals
+            css = asset_str.replace("\\", "\\\\").as_str()
+          ));
+        } else {
+          dispatcher_.eval(asset_str);
+        }
         Ok("Asset loaded successfully".to_string())
       }
     },
     callback,
     error,
-  );
+  )
+  .await;
 }

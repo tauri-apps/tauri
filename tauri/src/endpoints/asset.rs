@@ -1,4 +1,4 @@
-use crate::ApplicationDispatcherExt;
+use crate::{AppContext, ApplicationDispatcherExt};
 use std::io::Read;
 use tauri_api::assets::{AssetFetch, Assets};
 
@@ -65,16 +65,15 @@ pub async fn load<D: ApplicationDispatcherExt + 'static>(
         };
         Ok(format!(
           r#""data:image/{};base64,{}""#,
-          ext,
+          mime_type,
           base64::encode(&asset_bytes)
         ))
       } else {
-        webview_mut.dispatch(move |webview_ref| {
-          let asset_str =
-            std::str::from_utf8(&asset_bytes).expect("failed to convert asset bytes to u8 slice");
-          if asset_type == "stylesheet" {
-            webview_ref.eval(&format!(
-              r#"
+        let asset_str =
+          std::str::from_utf8(&asset_bytes).expect("failed to convert asset bytes to u8 slice");
+        if asset_type == "stylesheet" {
+          dispatcher_.eval(&format!(
+            r#"
                 (function (content) {{
                   var css = document.createElement('style')
                   css.type = 'text/css'

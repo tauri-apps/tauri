@@ -16,7 +16,7 @@ mod http;
 #[cfg(notification)]
 mod notification;
 
-use crate::{ApplicationDispatcherExt, Event, app::AppContext};
+use crate::{app::AppContext, ApplicationDispatcherExt, Event};
 
 #[allow(unused_variables)]
 pub(crate) async fn handle<D: ApplicationDispatcherExt + 'static>(
@@ -278,14 +278,14 @@ pub(crate) async fn handle<D: ApplicationDispatcherExt + 'static>(
           callback,
           error,
         } => {
-          asset::load(dispatcher, asset, asset_type, callback, error, &ctx);
+          asset::load(dispatcher, asset, asset_type, callback, error, &ctx).await;
         }
         CliMatches { callback, error } => {
           #[cfg(cli)]
           {
             // TODO: memoize this?  previous used a static but that's not possible anymore
             let matches = tauri_api::cli::get_matches(&ctx.config);
-            crate::execute_promise(webview, move || matches, callback, error).await;
+            crate::execute_promise(dispatcher, async move { matches }, callback, error).await;
           }
           #[cfg(not(cli))]
           api_error(
@@ -300,7 +300,7 @@ pub(crate) async fn handle<D: ApplicationDispatcherExt + 'static>(
           error,
         } => {
           #[cfg(notification)]
-          notification::send(dispatcher, options, callback, error, &ctx.config);
+          notification::send(dispatcher, options, callback, error, &ctx.config).await;
           #[cfg(not(notification))]
           allowlist_error(dispatcher, error, "notification");
         }

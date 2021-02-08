@@ -12,8 +12,12 @@ struct Reply {
   data: String,
 }
 
+#[derive(tauri::FromTauriConfig)]
+#[tauri_config_path = "examples/api/src-tauri/tauri.conf.json"]
+struct Config;
+
 fn main() {
-  tauri::AppBuilder::<tauri::flavors::Wry>::new()
+  tauri::AppBuilder::<tauri::flavors::Wry, Config>::new()
     .setup(|webview, _source| async move {
       let mut webview = webview.clone();
       tauri::event::listen(String::from("js-event"), move |msg| {

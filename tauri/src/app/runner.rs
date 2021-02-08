@@ -35,6 +35,17 @@ pub(crate) fn run<A: ApplicationExt + 'static>(application: App<A>) -> crate::Re
     spawn_server(server_url, &application.ctx)?;
   }
 
+  let splashscreen_content = if application.splashscreen_html().is_some() {
+    Some(Content::Html(
+      application
+        .splashscreen_html()
+        .expect("failed to get splashscreen_html")
+        .to_string(),
+    ))
+  } else {
+    None
+  };
+
   // build the webview
   let (webview_application, mut dispatcher) =
     build_webview(application, main_content, splashscreen_content)?;
@@ -54,7 +65,7 @@ pub(crate) fn run<A: ApplicationExt + 'static>(application: App<A>) -> crate::Re
 }
 
 #[cfg(all(embedded_server, no_server))]
-fn setup_content() -> crate::Result<Content<String>> {
+fn setup_content(_app_config: &AppContext) -> crate::Result<Content<String>> {
   panic!("only one of `embedded-server` and `no-server` is allowed")
 }
 
@@ -152,7 +163,7 @@ fn setup_server_url(port: String, app_config: &AppContext) -> crate::Result<Stri
 fn spawn_server(server_url: String, ctx: &AppContext) -> crate::Result<()> {
   let assets = ctx.assets;
   let public_path = ctx.config.tauri.embedded_server.public_path.clone();
-  spawn(move || {
+  std::thread::spawn(move || {
     let server = tiny_http::Server::http(server_url.replace("http://", "").replace("https://", ""))
       .expect("Unable to spawn server");
     for request in server.incoming_requests() {
@@ -177,6 +188,7 @@ fn spawn_server(server_url: String, ctx: &AppContext) -> crate::Result<()> {
         .expect("unable to setup response");
     }
   });
+  Ok(())
 }
 
 // spawn an updater process.
@@ -269,7 +281,7 @@ fn build_webview<A: ApplicationExt + 'static>(
       }}
       {plugin_init}
     "#,
-    tauri_init = include_str!(concat!(env!("OUT_DIR"), "/__tauri.js")),
+    tauri_init = application.ctx.tauri_script,
     event_init = init(),
     plugin_init = crate::async_runtime::block_on(crate::plugin::init_script(A::plugin_store()))
   );
@@ -309,9 +321,10 @@ fn build_webview<A: ApplicationExt + 'static>(
         } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
           dispatcher.eval(&format!(r#"window.location.href = "{}""#, content_url));
         } else {
-          let mut endpoint_handle = crate::endpoints::handle(&mut dispatcher, &arg)
-            .await
-            .map_err(|e| e.to_string());
+          let mut endpoint_handle =
+            crate::endpoints::handle(&mut dispatcher, &arg, &application.ctx)
+              .await
+              .map_err(|e| e.to_string());
           if let Err(ref tauri_handle_error) = endpoint_handle {
             if tauri_handle_error.contains("unknown variant") {
               let error = match application.run_invoke_handler(&mut dispatcher, &arg).await {

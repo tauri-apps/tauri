@@ -12,9 +12,11 @@ type Setup<W> = dyn Fn(W, String) -> BoxFuture<'static, ()> + Send + Sync;
 /// `App` runtime information.
 pub struct AppContext {
   pub(crate) config: Config,
+  pub(crate) tauri_script: &'static str,
   #[cfg(assets)]
   pub(crate) assets: &'static tauri_api::assets::Assets,
   #[cfg(any(dev, no_server))]
+  #[allow(dead_code)]
   pub(crate) index: &'static str,
 }
 
@@ -22,6 +24,7 @@ impl AppContext {
   pub(crate) fn new<Config: AsTauriConfig>() -> crate::Result<Self> {
     Ok(Self {
       config: serde_json::from_str(Config::raw_config())?,
+      tauri_script: Config::raw_tauri_script(),
       #[cfg(assets)]
       assets: Config::assets(),
       #[cfg(any(dev, no_server))]
@@ -91,7 +94,7 @@ pub struct AppBuilder<A: ApplicationExt, Config: AsTauriConfig> {
   config: PhantomData<Config>,
 }
 
-impl<A: ApplicationExt + 'static, Config: AsTauriConfig> AppBuilder<A> {
+impl<A: ApplicationExt + 'static, Config: AsTauriConfig> AppBuilder<A, Config> {
   /// Creates a new App builder.
   pub fn new() -> Self {
     Self {
@@ -146,8 +149,8 @@ impl<A: ApplicationExt + 'static, Config: AsTauriConfig> AppBuilder<A> {
   }
 
   /// Builds the App.
-  pub fn build(self) -> App<A> {
-    App {
+  pub fn build(self) -> crate::Result<App<A>> {
+    Ok(App {
       invoke_handler: self.invoke_handler,
       setup: self.setup,
       splashscreen_html: self.splashscreen_html,

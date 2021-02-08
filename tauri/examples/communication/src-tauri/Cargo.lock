@@ -1717,17 +1717,9 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3dfb61232e34fcb633f43d12c58f83c1df82962dcdfa565a4e866ffc17dafe12"
 dependencies = [
+ "phf_macros",
  "phf_shared",
-]
-
-[[package]]
-name = "phf_codegen"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cbffee61585b0411840d3ece935cce9cb6321f01c45477d30066498cd5e1a815"
-dependencies = [
- "phf_generator",
- "phf_shared",
+ "proc-macro-hack",
 ]
 
 [[package]]
@@ -1738,6 +1730,20 @@ checksum = "17367f0cc86f2d25802b2c26ee58a7b23faeccf78a396094c13dced0d0182526"
 dependencies = [
  "phf_shared",
  "rand 0.7.3",
+]
+
+[[package]]
+name = "phf_macros"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f6fde18ff429ffc8fe78e2bf7f8b7a5a5a6e2a8b58bc5a9ac69198bbda9189c"
+dependencies = [
+ "phf_generator",
+ "phf_shared",
+ "proc-macro-hack",
+ "proc-macro2",
+ "quote 1.0.8",
+ "syn 1.0.60",
 ]
 
 [[package]]
@@ -2375,13 +2381,11 @@ dependencies = [
  "futures",
  "lazy_static",
  "once_cell",
- "phf",
  "runas",
  "serde",
  "serde_json",
  "tauri-api",
- "tauri_includedir",
- "tauri_includedir_codegen",
+ "tauri-macros",
  "thiserror",
  "tiny_http",
  "tokio",
@@ -2405,6 +2409,7 @@ dependencies = [
  "nfd",
  "notify-rust",
  "once_cell",
+ "phf",
  "rand 0.8.3",
  "semver",
  "serde",
@@ -2438,33 +2443,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-macros"
+version = "0.1.0"
+dependencies = [
+ "flate2",
+ "proc-macro2",
+ "quote 1.0.8",
+ "serde",
+ "serde_json",
+ "syn 1.0.60",
+ "tauri-api",
+ "walkdir",
+]
+
+[[package]]
 name = "tauri-utils"
 version = "0.5.1"
 dependencies = [
  "anyhow",
  "sysinfo",
  "thiserror",
-]
-
-[[package]]
-name = "tauri_includedir"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7a3644510b11203f42cf6e6384d5c46e0d20e426aa6e05b9110f5e4583a1032"
-dependencies = [
- "flate2",
- "phf",
-]
-
-[[package]]
-name = "tauri_includedir_codegen"
-version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afccce834cf6062a1a19d2d0018fd2a5a2d13d75f547ed0dac2cc3d9813b6ae7"
-dependencies = [
- "flate2",
- "phf_codegen",
- "walkdir",
 ]
 
 [[package]]

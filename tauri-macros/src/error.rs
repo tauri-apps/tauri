@@ -64,6 +64,11 @@ impl Error {
         fn raw_index() -> &'static str {
           unimplemented!()
         }
+
+        /// Make the __tauri.js a dependency for the compiler
+        fn raw_tauri_script() -> &'static str {
+          unimplemented!()
+        }
       }
     }
   }

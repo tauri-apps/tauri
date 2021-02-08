@@ -43,11 +43,13 @@ pub(crate) fn from_tauri_config(input: DeriveInput) -> Result<TokenStream, Error
   let assets = generate_asset_map(&dist_dir)?;
 
   // should be possible to do the index.tauri.hmtl manipulations during this macro too in the future
-  let tauri_index_html = dist_dir.join("index.tauri.html");
+  let tauri_index_html_path = dist_dir.join("index.tauri.html");
+  let tauri_script_path = dist_dir.join("__tauri.js");
 
   // format paths into a string to use them in quote!
   let tauri_config_path = full_config_path.display().to_string();
-  let tauri_index_html = tauri_index_html.display().to_string();
+  let tauri_index_html_path = tauri_index_html_path.display().to_string();
+  let tauri_script_path = tauri_script_path.display().to_string();
 
   Ok(quote! {
       impl ::tauri::api::private::AsTauriConfig for #name {
@@ -68,7 +70,12 @@ pub(crate) fn from_tauri_config(input: DeriveInput) -> Result<TokenStream, Error
 
           /// Make the index.tauri.html a dependency for the compiler
           fn raw_index() -> &'static str {
-            include_str!(#tauri_index_html)
+            include_str!(#tauri_index_html_path)
+          }
+
+          /// Make the __tauri.js a dependency for the compiler
+          fn raw_tauri_script() -> &'static str {
+            include_str!(#tauri_script_path)
           }
       }
   })

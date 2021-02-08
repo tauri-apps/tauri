@@ -36,5 +36,6 @@ fn main() {
       }
     })
     .build()
+    .unwrap()
     .run();
 }

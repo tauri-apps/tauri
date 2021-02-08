@@ -13,7 +13,6 @@ struct Reply {
 }
 
 #[derive(tauri::FromTauriConfig)]
-#[tauri_config_path = "examples/api/src-tauri/tauri.conf.json"]
 struct Config;
 
 fn main() {
@@ -68,5 +67,6 @@ fn main() {
       }
     })
     .build()
+    .unwrap()
     .run();
 }

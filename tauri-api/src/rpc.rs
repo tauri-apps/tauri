@@ -1,6 +1,5 @@
 use serde::Serialize;
 use serde_json::Value as JsonValue;
-use std::fmt::Display;
 
 /// Formats a function name and argument to be evaluated as callback.
 ///
@@ -25,10 +24,7 @@ use std::fmt::Display;
 /// }).expect("failed to serialize"));
 /// assert!(cb.contains(r#"window["callback-function-name"]({"value":"some value"})"#));
 /// ```
-pub fn format_callback<T: Into<JsonValue>, S: AsRef<str> + Display>(
-  function_name: S,
-  arg: T,
-) -> String {
+pub fn format_callback<T: Into<JsonValue>, S: AsRef<str>>(function_name: S, arg: T) -> String {
   format!(
     r#"
       if (window["{fn}"]) {{
@@ -37,7 +33,7 @@ pub fn format_callback<T: Into<JsonValue>, S: AsRef<str> + Display>(
         console.warn("[TAURI] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
       }}
     "#,
-    fn = function_name,
+    fn = function_name.as_ref(),
     arg = arg.into().to_string()
   )
 }
@@ -57,17 +53,17 @@ pub fn format_callback<T: Into<JsonValue>, S: AsRef<str> + Display>(
 /// ```
 /// use tauri_api::rpc::format_callback_result;
 /// let res: Result<u8, &str> = Ok(5);
-/// let cb = format_callback_result(res, "success_cb".to_string(), "error_cb".to_string()).expect("failed to format");
+/// let cb = format_callback_result(res, "success_cb", "error_cb").expect("failed to format");
 /// assert!(cb.contains(r#"window["success_cb"](5)"#));
 ///
 /// let res: Result<&str, &str> = Err("error message here");
-/// let cb = format_callback_result(res, "success_cb".to_string(), "error_cb".to_string()).expect("failed to format");
+/// let cb = format_callback_result(res, "success_cb", "error_cb").expect("failed to format");
 /// assert!(cb.contains(r#"window["error_cb"]("error message here")"#));
 /// ```
 pub fn format_callback_result<T: Serialize, E: Serialize>(
   result: Result<T, E>,
-  success_callback: String,
-  error_callback: String,
+  success_callback: impl AsRef<str>,
+  error_callback: impl AsRef<str>,
 ) -> crate::Result<String> {
   let rpc = match result {
     Ok(res) => format_callback(success_callback, serde_json::to_value(res)?),

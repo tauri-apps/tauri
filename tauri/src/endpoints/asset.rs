@@ -1,17 +1,17 @@
-use crate::Webview;
+use crate::ApplicationDispatcherExt;
 use std::path::PathBuf;
 
 #[allow(clippy::option_env_unwrap)]
-pub async fn load<W: Webview + 'static>(
-  webview: &mut W,
+pub async fn load<D: ApplicationDispatcherExt + 'static>(
+  dispatcher: &mut D,
   asset: String,
   asset_type: String,
   callback: String,
   error: String,
 ) {
-  let mut webview_mut = webview.clone();
+  let mut dispatcher_ = dispatcher.clone();
   crate::execute_promise(
-    webview,
+    dispatcher,
     async move {
       let mut path = PathBuf::from(if asset.starts_with('/') {
         asset.replacen("/", "", 1)
@@ -68,12 +68,11 @@ pub async fn load<W: Webview + 'static>(
         ))
       } else {
         let asset_bytes = read_asset.expect("Failed to read asset type");
-        webview_mut.dispatch(move |webview_ref| {
-          let asset_str =
-            std::str::from_utf8(&asset_bytes).expect("failed to convert asset bytes to u8 slice");
-          if asset_type == "stylesheet" {
-            webview_ref.eval(&format!(
-              r#"
+        let asset_str =
+          std::str::from_utf8(&asset_bytes).expect("failed to convert asset bytes to u8 slice");
+        if asset_type == "stylesheet" {
+          dispatcher_.eval(&format!(
+            r#"
                 (function (content) {{
                   var css = document.createElement('style')
                   css.type = 'text/css'
@@ -84,13 +83,12 @@ pub async fn load<W: Webview + 'static>(
                   document.getElementsByTagName("head")[0].appendChild(css);
                 }})(`{css}`)
               "#,
-              // Escape octal sequences, which aren't allowed in template literals
-              css = asset_str.replace("\\", "\\\\").as_str()
-            ));
-          } else {
-            webview_ref.eval(asset_str);
-          }
-        });
+            // Escape octal sequences, which aren't allowed in template literals
+            css = asset_str.replace("\\", "\\\\").as_str()
+          ));
+        } else {
+          dispatcher_.eval(asset_str);
+        }
         Ok("Asset loaded successfully".to_string())
       }
     },

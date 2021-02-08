@@ -13,7 +13,7 @@ struct Reply {
 }
 
 fn main() {
-  tauri::AppBuilder::new()
+  tauri::AppBuilder::<tauri::flavors::Wry>::new()
     .setup(|webview, _source| async move {
       let mut webview = webview.clone();
       tauri::event::listen(String::from("js-event"), move |msg| {

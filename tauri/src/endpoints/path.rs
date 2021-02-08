@@ -1,17 +1,17 @@
 #![cfg(path_api)]
-use crate::Webview;
+use crate::ApplicationDispatcherExt;
 use tauri_api::path;
 use tauri_api::path::BaseDirectory;
 
-pub async fn resolve_path<W: Webview>(
-  webview: &mut W,
+pub async fn resolve_path<D: ApplicationDispatcherExt>(
+  dispatcher: &mut D,
   path: String,
   directory: Option<BaseDirectory>,
   callback: String,
   error: String,
 ) {
   crate::execute_promise(
-    webview,
+    dispatcher,
     async move { path::resolve_path(path, directory) },
     callback,
     error,

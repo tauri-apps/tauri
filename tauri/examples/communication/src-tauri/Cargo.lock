@@ -3103,7 +3103,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.4.1"
-source = "git+https://github.com/tauri-apps/wry?branch=feat/window-communication#ac8b4759d7dfd01129dd0cb5559c7a52c7cf7f74"
+source = "git+https://github.com/tauri-apps/wry?rev=42f4f2133f7921ed5adc47908787094da8abeac5#42f4f2133f7921ed5adc47908787094da8abeac5"
 dependencies = [
  "cc",
  "cocoa",

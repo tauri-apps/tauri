@@ -216,7 +216,12 @@ impl ApplicationExt for WryApplication {
     Ok(())
   }
 
-  fn run(self) {
+  fn run(mut self) {
+    self.inner.set_message_handler(|message| {
+      match message {
+        Event::Run(task) => task(),
+      }
+    });
     wry::Application::run(self.inner)
   }
 }

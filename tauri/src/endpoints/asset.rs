@@ -1,4 +1,4 @@
-use crate::{Context, ApplicationDispatcherExt};
+use crate::{ApplicationDispatcherExt, Context};
 use std::io::Read;
 use tauri_api::assets::{AssetFetch, Assets};
 

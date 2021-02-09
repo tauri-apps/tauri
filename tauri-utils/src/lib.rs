@@ -3,12 +3,12 @@
 
 /// The Assets module allows you to read files that have been bundled by tauri
 pub mod assets;
+/// Tauri config definition.
+pub mod config;
 /// Platform helpers
 pub mod platform;
 /// Process helpers
 pub mod process;
-/// Tauri config definition.
-pub mod config;
 
 pub use anyhow::Result;
 use thiserror::Error;

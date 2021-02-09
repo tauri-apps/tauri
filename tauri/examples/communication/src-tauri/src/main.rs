@@ -18,19 +18,19 @@ struct Config;
 
 fn main() {
   tauri::AppBuilder::<tauri::flavors::Wry, Config>::new()
-    .setup(|webview, _source| async move {
-      let mut webview = webview.clone();
+    .setup(|dispatcher, _source| async move {
+      let mut dispatcher = dispatcher.clone();
       tauri::event::listen(String::from("js-event"), move |msg| {
         println!("got js-event with message '{:?}'", msg);
         let reply = Reply {
           data: "something else".to_string(),
         };
 
-        tauri::event::emit(&mut webview, String::from("rust-event"), Some(reply))
+        tauri::event::emit(&mut dispatcher, String::from("rust-event"), Some(reply))
           .expect("failed to emit");
       });
     })
-    .invoke_handler(|mut webview, arg| async move {
+    .invoke_handler(|mut dispatcher, arg| async move {
       use cmd::Cmd::*;
       match serde_json::from_str(&arg) {
         Err(e) => Err(e.to_string()),

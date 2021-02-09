@@ -283,7 +283,6 @@ pub(crate) async fn handle<D: ApplicationDispatcherExt + 'static>(
         CliMatches { callback, error } => {
           #[cfg(cli)]
           {
-            // TODO: memoize this?  previous used a static but that's not possible anymore
             let matches = tauri_api::cli::get_matches(&ctx.config);
             crate::execute_promise(dispatcher, async move { matches }, callback, error).await;
           }

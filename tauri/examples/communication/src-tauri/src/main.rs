@@ -14,7 +14,7 @@ struct Reply {
 
 #[derive(tauri::FromTauriContext)]
 #[config_path = "examples/communication/src-tauri/tauri.conf.json"]
-struct Config;
+struct Context;
 
 fn main() {
   tauri::AppBuilder::<tauri::flavors::Wry, Config>::new()

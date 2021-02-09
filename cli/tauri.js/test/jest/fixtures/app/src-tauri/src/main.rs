@@ -3,7 +3,7 @@ mod cmd;
 use tauri::ApplicationDispatcherExt;
 
 #[derive(tauri::FromTauriContext)]
-struct Config;
+struct Context;
 
 fn main() {
   tauri::AppBuilder::<tauri::flavors::Wry, Config>::new()

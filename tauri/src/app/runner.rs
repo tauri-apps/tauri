@@ -400,7 +400,7 @@ mod test {
 
   #[derive(FromTauriContext)]
   #[config_path = "test/fixture/src-tauri/tauri.conf.json"]
-  struct Config;
+  struct Context;
 
   #[test]
   fn check_setup_content() {

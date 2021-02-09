@@ -390,10 +390,8 @@ impl Default for BuildConfig {
   }
 }
 
-type JsonObject = HashMap<String, JsonValue>;
-
 /// The tauri.conf.json mapper.
-#[derive(PartialEq, Deserialize, Debug)]
+#[derive(Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
   /// The Tauri configuration.
@@ -404,13 +402,21 @@ pub struct Config {
   pub build: BuildConfig,
   /// The plugins config.
   #[serde(default)]
-  plugins: HashMap<String, JsonObject>,
+  pub plugins: PluginConfig,
 }
 
-impl Config {
+/// The plugin configs holds a HashMap mapping a plugin name to its configuration object.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+pub struct PluginConfig(HashMap<String, JsonValue>);
+
+impl PluginConfig {
   /// Gets a plugin configuration.
-  pub fn plugin_config<S: AsRef<str>>(&self, plugin_name: S) -> Option<&JsonObject> {
-    self.plugins.get(plugin_name.as_ref())
+  pub fn get<S: AsRef<str>>(&self, plugin_name: S) -> String {
+    self
+      .0
+      .get(plugin_name.as_ref())
+      .map(|config| config.to_string())
+      .unwrap_or_else(|| "{}".to_string())
   }
 }
 

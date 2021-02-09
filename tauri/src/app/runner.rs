@@ -18,6 +18,11 @@ enum Content<T> {
 
 /// Main entry point for running the Webview
 pub(crate) fn run<A: ApplicationExt + 'static>(application: App<A>) -> crate::Result<()> {
+  let plugin_config = application.context.config.plugins.clone();
+  crate::async_runtime::block_on(async move {
+    crate::plugin::initialize(A::plugin_store(), plugin_config).await
+  })?;
+
   // setup the content using the config struct depending on the compile target
   let main_content = setup_content(&application.context)?;
 
@@ -344,14 +349,8 @@ fn build_webview<A: ApplicationExt + 'static>(
             if app_handle_error.contains("unknown variant") {
               let error =
                 match crate::plugin::extend_api(A::plugin_store(), &mut dispatcher, &arg).await {
-                  Ok(handled) => {
-                    if handled {
-                      String::from("")
-                    } else {
-                      app_handle_error.to_string()
-                    }
-                  }
-                  Err(e) => e,
+                  Ok(_) => String::from(""),
+                  Err(e) => e.to_string(),
                 };
               endpoint_handle = Err(error);
             }

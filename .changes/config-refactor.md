@@ -5,9 +5,9 @@
 ---
 
 The Tauri files are now read on the app space instead of the `tauri` create.
-You need to add a `Config` struct that derives `tauri::FromTauriConfig`:
+You need to add a `Config` struct that derives `tauri::FromTauriContext`:
 ```rust
-#[derive(tauri::FromTauriConfig)]
+#[derive(tauri::FromTauriContext)]
 struct Config;
 
 fn main() {

@@ -5,7 +5,7 @@
 
 mod cmd;
 
-#[derive(tauri::FromTauriConfig)]
+#[derive(tauri::FromTauriContext)]
 struct Config;
 
 fn main() {

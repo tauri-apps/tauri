@@ -34,7 +34,7 @@ pub type SyncTask = Box<dyn FnOnce() + Send>;
 pub use anyhow::Result;
 pub use app::*;
 pub use tauri_api as api;
-pub use tauri_macros::FromTauriConfig;
+pub use tauri_macros::FromTauriContext;
 pub use webview::{
   ApplicationDispatcherExt, ApplicationExt, Callback, Event, WebviewBuilderExt, WindowBuilderExt,
 };

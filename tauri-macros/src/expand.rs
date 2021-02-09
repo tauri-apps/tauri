@@ -11,16 +11,16 @@ use std::path::{Path, PathBuf};
 use syn::{DeriveInput, Lit::Str, Meta::NameValue, MetaNameValue};
 use tauri_utils::{assets::AssetCompression, config::Config};
 
-pub(crate) fn from_tauri_config(input: DeriveInput) -> Result<TokenStream, Error> {
+pub(crate) fn load_context(input: DeriveInput) -> Result<TokenStream, Error> {
   let name = input.ident;
 
-  // quick way of parsing #[tauri_config_path = "path_goes_here"]
+  // quick way of parsing #[config_path = "path_goes_here"]
   let mut config_file_path = DEFAULT_CONFIG_FILE.into();
-  let tauri_config_path_attr = input
+  let config_path_attr = input
     .attrs
     .iter()
-    .find(|attr| attr.path.is_ident("tauri_config_path"));
-  if let Some(attr) = tauri_config_path_attr {
+    .find(|attr| attr.path.is_ident("config_path"));
+  if let Some(attr) = config_path_attr {
     if let Ok(meta) = attr.parse_meta() {
       if let NameValue(MetaNameValue { lit: Str(path), .. }) = meta {
         config_file_path = path.value()
@@ -51,7 +51,7 @@ pub(crate) fn from_tauri_config(input: DeriveInput) -> Result<TokenStream, Error
   let tauri_script_path = tauri_script_path.display().to_string();
 
   Ok(quote! {
-      impl ::tauri::api::private::AsTauriConfig for #name {
+      impl ::tauri::api::private::AsTauriContext for #name {
           fn config_path() -> &'static std::path::Path {
               std::path::Path::new(#tauri_config_path)
           }

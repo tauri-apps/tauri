@@ -8,7 +8,7 @@ use crate::{ApplicationDispatcherExt, ApplicationExt, WebviewBuilderExt, WindowB
 use super::App;
 #[cfg(embedded_server)]
 use crate::api::tcp::{get_available_port, port_is_available};
-use crate::app::AppContext;
+use crate::app::Context;
 
 #[allow(dead_code)]
 enum Content<T> {
@@ -19,7 +19,7 @@ enum Content<T> {
 /// Main entry point for running the Webview
 pub(crate) fn run<A: ApplicationExt + 'static>(application: App<A>) -> crate::Result<()> {
   // setup the content using the config struct depending on the compile target
-  let main_content = setup_content(&application.ctx)?;
+  let main_content = setup_content(&application.context)?;
 
   #[cfg(embedded_server)]
   {
@@ -32,7 +32,7 @@ pub(crate) fn run<A: ApplicationExt + 'static>(application: App<A>) -> crate::Re
 
     // spawn the embedded server on our server url
     #[cfg(embedded_server)]
-    spawn_server(server_url, &application.ctx)?;
+    spawn_server(server_url, &application.context)?;
   }
 
   let splashscreen_content = if application.splashscreen_html().is_some() {
@@ -65,14 +65,14 @@ pub(crate) fn run<A: ApplicationExt + 'static>(application: App<A>) -> crate::Re
 }
 
 #[cfg(all(embedded_server, no_server))]
-fn setup_content(_app_config: &AppContext) -> crate::Result<Content<String>> {
+fn setup_content(_: &AppContext) -> crate::Result<Content<String>> {
   panic!("only one of `embedded-server` and `no-server` is allowed")
 }
 
 // setup content for dev-server
 #[cfg(dev)]
-fn setup_content(app_config: &AppContext) -> crate::Result<Content<String>> {
-  let config = &app_config.config;
+fn setup_content(context: &Context) -> crate::Result<Content<String>> {
+  let config = &context.config;
   if config.build.dev_path.starts_with("http") {
     #[cfg(windows)]
     {
@@ -101,17 +101,17 @@ fn setup_content(app_config: &AppContext) -> crate::Result<Content<String>> {
   } else {
     Ok(Content::Html(format!(
       "data:text/html,{}",
-      urlencoding::encode(app_config.index)
+      urlencoding::encode(context.index)
     )))
   }
 }
 
 // setup content for embedded server
 #[cfg(all(embedded_server, not(no_server)))]
-fn setup_content(app_config: &AppContext) -> crate::Result<Content<String>> {
-  let (port, valid) = setup_port(&app_config)?;
+fn setup_content(context: &AppContext) -> crate::Result<Content<String>> {
+  let (port, valid) = setup_port(&context)?;
   let url = (if valid {
-    setup_server_url(port, &app_config)
+    setup_server_url(port, &context)
   } else {
     Err(anyhow::anyhow!("invalid port"))
   })
@@ -122,18 +122,18 @@ fn setup_content(app_config: &AppContext) -> crate::Result<Content<String>> {
 
 // setup content for no-server
 #[cfg(all(no_server, not(embedded_server)))]
-fn setup_content(app_config: &AppContext) -> crate::Result<Content<String>> {
+fn setup_content(context: &AppContext) -> crate::Result<Content<String>> {
   Ok(Content::Html(format!(
     "data:text/html,{}",
-    urlencoding::encode(app_config.index)
+    urlencoding::encode(context.index)
   )))
 }
 
 // get the port for the embedded server
 #[cfg(embedded_server)]
 #[allow(dead_code)]
-fn setup_port(app_config: &AppContext) -> crate::Result<(String, bool)> {
-  let config = &app_config.config;
+fn setup_port(context: &AppContext) -> crate::Result<(String, bool)> {
+  let config = &context.config;
   match config.tauri.embedded_server.port {
     tauri_api::config::Port::Random => match get_available_port() {
       Some(available_port) => Ok((available_port.to_string(), true)),
@@ -149,8 +149,8 @@ fn setup_port(app_config: &AppContext) -> crate::Result<(String, bool)> {
 // setup the server url for embedded server
 #[cfg(embedded_server)]
 #[allow(dead_code)]
-fn setup_server_url(port: String, app_config: &AppContext) -> crate::Result<String> {
-  let config = &app_config.config;
+fn setup_server_url(port: String, context: &AppContext) -> crate::Result<String> {
+  let config = &context.config;
   let mut url = format!("{}:{}", config.tauri.embedded_server.host, port);
   if !url.starts_with("http") {
     url = format!("http://{}", url);
@@ -160,9 +160,9 @@ fn setup_server_url(port: String, app_config: &AppContext) -> crate::Result<Stri
 
 // spawn the embedded server
 #[cfg(embedded_server)]
-fn spawn_server(server_url: String, ctx: &AppContext) -> crate::Result<()> {
-  let assets = ctx.assets;
-  let public_path = ctx.config.tauri.embedded_server.public_path.clone();
+fn spawn_server(server_url: String, context: &AppContext) -> crate::Result<()> {
+  let assets = context.assets;
+  let public_path = context.config.tauri.embedded_server.public_path.clone();
   std::thread::spawn(move || {
     let server = tiny_http::Server::http(server_url.replace("http://", "").replace("https://", ""))
       .expect("Unable to spawn server");
@@ -247,7 +247,7 @@ fn build_webview<A: ApplicationExt + 'static>(
   content: Content<String>,
   splashscreen_content: Option<Content<String>>,
 ) -> crate::Result<(A, A::Dispatcher)> {
-  let config = &application.ctx.config;
+  let config = &application.context.config;
   // TODO let debug = cfg!(debug_assertions);
   // get properties from config struct
   // TODO let width = config.tauri.window.width;
@@ -281,7 +281,7 @@ fn build_webview<A: ApplicationExt + 'static>(
       }}
       {plugin_init}
     "#,
-    tauri_init = application.ctx.tauri_script,
+    tauri_init = application.context.tauri_script,
     event_init = init(),
     plugin_init = crate::async_runtime::block_on(crate::plugin::init_script(A::plugin_store()))
   );
@@ -322,7 +322,7 @@ fn build_webview<A: ApplicationExt + 'static>(
           dispatcher.eval(&format!(r#"window.location.href = "{}""#, content_url));
         } else {
           let mut endpoint_handle =
-            crate::endpoints::handle(&mut dispatcher, &arg, &application.ctx)
+            crate::endpoints::handle(&mut dispatcher, &arg, &application.context)
               .await
               .map_err(|e| e.to_string());
           if let Err(ref tauri_handle_error) = endpoint_handle {
@@ -395,17 +395,17 @@ fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
 mod test {
   use super::Content;
   use crate::AppContext;
-  use crate::FromTauriConfig;
+  use crate::FromTauriContext;
   use proptest::prelude::*;
 
-  #[derive(FromTauriConfig)]
-  #[tauri_config_path = "test/fixture/src-tauri/tauri.conf.json"]
+  #[derive(FromTauriContext)]
+  #[config_path = "test/fixture/src-tauri/tauri.conf.json"]
   struct Config;
 
   #[test]
   fn check_setup_content() {
-    let app_config = AppContext::new::<Config>().unwrap();
-    let res = super::setup_content(&app_config);
+    let context = AppContext::new::<Config>().unwrap();
+    let res = super::setup_content(&context);
 
     #[cfg(embedded_server)]
     match res {
@@ -418,7 +418,7 @@ mod test {
       Ok(Content::Html(s)) => {
         assert_eq!(
           s,
-          format!("data:text/html,{}", urlencoding::encode(app_config.index))
+          format!("data:text/html,{}", urlencoding::encode(context.index))
         );
       }
       _ => panic!("setup content failed"),
@@ -426,13 +426,13 @@ mod test {
 
     #[cfg(dev)]
     {
-      let config = &app_config.config;
+      let config = &context.config;
       match res {
         Ok(Content::Url(dp)) => assert_eq!(dp, config.build.dev_path),
         Ok(Content::Html(s)) => {
           assert_eq!(
             s,
-            format!("data:text/html,{}", urlencoding::encode(app_config.index))
+            format!("data:text/html,{}", urlencoding::encode(context.index))
           );
         }
         _ => panic!("setup content failed"),
@@ -443,8 +443,8 @@ mod test {
   #[cfg(embedded_server)]
   #[test]
   fn check_setup_port() {
-    let app_config = AppContext::new::<Config>().unwrap();
-    let res = super::setup_port(&app_config);
+    let context = AppContext::new::<Config>().unwrap();
+    let res = super::setup_port(&context);
     match res {
       Ok((_s, _b)) => {}
       _ => panic!("setup port failed"),
@@ -457,9 +457,9 @@ mod test {
     #[test]
     fn check_server_url(port in (any::<u32>().prop_map(|v| v.to_string()))) {
       let p = port.clone();
-      let app_config = AppContext::new::<Config>().unwrap();
+      let context = AppContext::new::<Config>().unwrap();
 
-      let res = super::setup_server_url(port, &app_config);
+      let res = super::setup_server_url(port, &context);
 
       match res {
         Ok(url) => assert!(url.contains(&p)),

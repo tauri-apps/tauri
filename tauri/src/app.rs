@@ -2,7 +2,7 @@ use crate::ApplicationExt;
 use futures::future::BoxFuture;
 use std::marker::PhantomData;
 use tauri_api::config::Config;
-use tauri_api::private::AsTauriConfig;
+use tauri_api::private::AsTauriContext;
 
 mod runner;
 
@@ -10,7 +10,7 @@ type InvokeHandler<W> = dyn Fn(W, String) -> BoxFuture<'static, Result<(), Strin
 type Setup<W> = dyn Fn(W, String) -> BoxFuture<'static, ()> + Send + Sync;
 
 /// `App` runtime information.
-pub struct AppContext {
+pub struct Context {
   pub(crate) config: Config,
   pub(crate) tauri_script: &'static str,
   #[cfg(assets)]
@@ -20,15 +20,15 @@ pub struct AppContext {
   pub(crate) index: &'static str,
 }
 
-impl AppContext {
-  pub(crate) fn new<Config: AsTauriConfig>() -> crate::Result<Self> {
+impl Context {
+  pub(crate) fn new<Context: AsTauriContext>() -> crate::Result<Self> {
     Ok(Self {
-      config: serde_json::from_str(Config::raw_config())?,
-      tauri_script: Config::raw_tauri_script(),
+      config: serde_json::from_str(Context::raw_config())?,
+      tauri_script: Context::raw_tauri_script(),
       #[cfg(assets)]
-      assets: Config::assets(),
+      assets: Context::assets(),
       #[cfg(any(dev, no_server))]
-      index: Config::raw_index(),
+      index: Context::raw_index(),
     })
   }
 }
@@ -41,8 +41,8 @@ pub struct App<A: ApplicationExt> {
   setup: Option<Box<Setup<A::Dispatcher>>>,
   /// The HTML of the splashscreen to render.
   splashscreen_html: Option<String>,
-  /// The configuration the App was created with
-  pub(crate) ctx: AppContext,
+  /// The context the App was created with
+  pub(crate) context: Context,
 }
 
 impl<A: ApplicationExt + 'static> App<A> {
@@ -83,7 +83,7 @@ impl<A: ApplicationExt + 'static> App<A> {
 
 /// The App builder.
 #[derive(Default)]
-pub struct AppBuilder<A: ApplicationExt, Config: AsTauriConfig> {
+pub struct AppBuilder<A: ApplicationExt, C: AsTauriContext> {
   /// The JS message handler.
   invoke_handler: Option<Box<InvokeHandler<A::Dispatcher>>>,
   /// The setup callback, invoked when the webview is ready.
@@ -91,10 +91,10 @@ pub struct AppBuilder<A: ApplicationExt, Config: AsTauriConfig> {
   /// The HTML of the splashscreen to render.
   splashscreen_html: Option<String>,
   /// The configuration used
-  config: PhantomData<Config>,
+  config: PhantomData<C>,
 }
 
-impl<A: ApplicationExt + 'static, Config: AsTauriConfig> AppBuilder<A, Config> {
+impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<A, C> {
   /// Creates a new App builder.
   pub fn new() -> Self {
     Self {
@@ -154,7 +154,7 @@ impl<A: ApplicationExt + 'static, Config: AsTauriConfig> AppBuilder<A, Config> {
       invoke_handler: self.invoke_handler,
       setup: self.setup,
       splashscreen_html: self.splashscreen_html,
-      ctx: AppContext::new::<Config>()?,
+      context: Context::new::<C>()?,
     })
   }
 }

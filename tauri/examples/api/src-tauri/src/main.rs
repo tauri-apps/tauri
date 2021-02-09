@@ -12,7 +12,7 @@ struct Reply {
   data: String,
 }
 
-#[derive(tauri::FromTauriConfig)]
+#[derive(tauri::FromTauriContext)]
 struct Config;
 
 fn main() {

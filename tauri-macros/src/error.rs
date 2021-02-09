@@ -46,7 +46,7 @@ impl Error {
     quote! {
       compile_error!(#error);
 
-      impl ::tauri::api::private::AsTauriConfig for #struct_ {
+      impl ::tauri::api::private::AsTauriContext for #struct_ {
         fn config_path() -> &'static std::path::Path {
           unimplemented!()
         }

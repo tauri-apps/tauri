@@ -16,13 +16,13 @@ mod http;
 #[cfg(notification)]
 mod notification;
 
-use crate::{app::AppContext, ApplicationDispatcherExt, Event};
+use crate::{app::Context, ApplicationDispatcherExt, Event};
 
 #[allow(unused_variables)]
 pub(crate) async fn handle<D: ApplicationDispatcherExt + 'static>(
   dispatcher: &mut D,
   arg: &str,
-  ctx: &AppContext,
+  context: &Context,
 ) -> crate::Result<()> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
@@ -278,12 +278,12 @@ pub(crate) async fn handle<D: ApplicationDispatcherExt + 'static>(
           callback,
           error,
         } => {
-          asset::load(dispatcher, asset, asset_type, callback, error, &ctx).await;
+          asset::load(dispatcher, asset, asset_type, callback, error, &context).await;
         }
         CliMatches { callback, error } => {
           #[cfg(cli)]
           {
-            let matches = tauri_api::cli::get_matches(&ctx.config);
+            let matches = tauri_api::cli::get_matches(&context.config);
             crate::execute_promise(dispatcher, async move { matches }, callback, error).await;
           }
           #[cfg(not(cli))]
@@ -299,7 +299,7 @@ pub(crate) async fn handle<D: ApplicationDispatcherExt + 'static>(
           error,
         } => {
           #[cfg(notification)]
-          notification::send(dispatcher, options, callback, error, &ctx.config).await;
+          notification::send(dispatcher, options, callback, error, &context.config).await;
           #[cfg(not(notification))]
           allowlist_error(dispatcher, error, "notification");
         }

@@ -12,8 +12,8 @@ struct Reply {
   data: String,
 }
 
-#[derive(tauri::FromTauriConfig)]
-#[tauri_config_path = "examples/communication/src-tauri/tauri.conf.json"]
+#[derive(tauri::FromTauriContext)]
+#[config_path = "examples/communication/src-tauri/tauri.conf.json"]
 struct Config;
 
 fn main() {

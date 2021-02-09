@@ -8,12 +8,12 @@ mod include_dir;
 
 const DEFAULT_CONFIG_FILE: &str = "tauri.conf.json";
 
-#[proc_macro_derive(FromTauriConfig, attributes(tauri_config_path))]
-pub fn from_tauri_config(ast: TokenStream) -> TokenStream {
+#[proc_macro_derive(FromTauriContext, attributes(config_path))]
+pub fn load_context(ast: TokenStream) -> TokenStream {
   let input = parse_macro_input!(ast as DeriveInput);
   let name = input.ident.clone();
 
-  expand::from_tauri_config(input)
+  expand::load_context(input)
     .unwrap_or_else(|e| e.into_compile_error(&name))
     .into()
 }

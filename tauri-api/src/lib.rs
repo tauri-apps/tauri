@@ -66,7 +66,7 @@ pub enum Error {
 // Not public API
 #[doc(hidden)]
 pub mod private {
-  pub trait AsTauriConfig {
+  pub trait AsTauriContext {
     fn config_path() -> &'static std::path::Path;
     fn raw_config() -> &'static str;
     fn assets() -> &'static crate::assets::Assets;

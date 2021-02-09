@@ -1,47 +1,47 @@
-import { promisified } from "./tauri";
+import { promisified } from './tauri'
 
 export enum ResponseType {
   JSON = 1,
   Text = 2,
-  Binary = 3,
+  Binary = 3
 }
 
 export enum BodyType {
   Form = 1,
   File = 2,
-  Auto = 3,
+  Auto = 3
 }
 
-export type Body = object | string | BinaryType;
+export type Body = object | string | BinaryType
 
 export type HttpVerb =
-  | "GET"
-  | "POST"
-  | "PUT"
-  | "DELETE"
-  | "PATCH"
-  | "HEAD"
-  | "OPTIONS"
-  | "CONNECT"
-  | "TRACE";
+  | 'GET'
+  | 'POST'
+  | 'PUT'
+  | 'DELETE'
+  | 'PATCH'
+  | 'HEAD'
+  | 'OPTIONS'
+  | 'CONNECT'
+  | 'TRACE'
 
 export interface HttpOptions {
-  method: HttpVerb;
-  url: string;
-  headers?: Record<string, any>;
-  params?: Record<string, any>;
-  body?: Body;
-  followRedirects: boolean;
-  maxRedirections: boolean;
-  connectTimeout: number;
-  readTimeout: number;
-  timeout: number;
-  allowCompression: boolean;
-  responseType?: ResponseType;
-  bodyType: BodyType;
+  method: HttpVerb
+  url: string
+  headers?: Record<string, any>
+  params?: Record<string, any>
+  body?: Body
+  followRedirects: boolean
+  maxRedirections: boolean
+  connectTimeout: number
+  readTimeout: number
+  timeout: number
+  allowCompression: boolean
+  responseType?: ResponseType
+  bodyType: BodyType
 }
 
-export type PartialOptions = Omit<HttpOptions, "method" | "url">;
+export type PartialOptions = Omit<HttpOptions, 'method' | 'url'>
 
 /**
  * makes a HTTP request
@@ -52,9 +52,9 @@ export type PartialOptions = Omit<HttpOptions, "method" | "url">;
  */
 async function request<T>(options: HttpOptions): Promise<T> {
   return await promisified({
-    cmd: "httpRequest",
-    options: options,
-  });
+    cmd: 'httpRequest',
+    options: options
+  })
 }
 
 /**
@@ -67,10 +67,10 @@ async function request<T>(options: HttpOptions): Promise<T> {
  */
 async function get<T>(url: string, options: PartialOptions): Promise<T> {
   return await request({
-    method: "GET",
+    method: 'GET',
     url,
-    ...options,
-  });
+    ...options
+  })
 }
 
 /**
@@ -88,11 +88,11 @@ async function post<T>(
   options: PartialOptions
 ): Promise<T> {
   return await request({
-    method: "POST",
+    method: 'POST',
     url,
     body,
-    ...options,
-  });
+    ...options
+  })
 }
 
 /**
@@ -110,11 +110,11 @@ async function put<T>(
   options: PartialOptions
 ): Promise<T> {
   return await request({
-    method: "PUT",
+    method: 'PUT',
     url,
     body,
-    ...options,
-  });
+    ...options
+  })
 }
 
 /**
@@ -127,10 +127,10 @@ async function put<T>(
  */
 async function patch<T>(url: string, options: PartialOptions): Promise<T> {
   return await request({
-    method: "PATCH",
+    method: 'PATCH',
     url,
-    ...options,
-  });
+    ...options
+  })
 }
 
 /**
@@ -146,10 +146,10 @@ async function deleteRequest<T>(
   options: PartialOptions
 ): Promise<T> {
   return await request({
-    method: "DELETE",
+    method: 'DELETE',
     url,
-    ...options,
-  });
+    ...options
+  })
 }
 
 export default {
@@ -160,5 +160,5 @@ export default {
   patch,
   delete: deleteRequest,
   ResponseType,
-  BodyType,
-};
+  BodyType
+}

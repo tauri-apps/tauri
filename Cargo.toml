@@ -2,6 +2,7 @@
 members = [
   "tauri",
   "tauri-api",
+  "tauri-macros",
   "tauri-utils",
 ]
 exclude = [

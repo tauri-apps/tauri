@@ -6,9 +6,6 @@
 //! Tauri uses (and contributes to) the MIT licensed project that you can find at [webview](https://github.com/webview/webview).
 #![warn(missing_docs, rust_2018_idioms)]
 
-/// The asset management module.
-#[cfg(assets)]
-pub mod assets;
 /// The event system module.
 pub mod event;
 /// The embedded server helpers.
@@ -16,10 +13,6 @@ pub mod event;
 pub mod server;
 /// The Tauri-specific settings for your app e.g. notification permission status.
 pub mod settings;
-
-/// The CLI args interface.
-#[cfg(cli)]
-pub mod cli;
 
 /// The webview application entry.
 mod app;
@@ -41,6 +34,7 @@ pub type SyncTask = Box<dyn FnOnce() + Send>;
 pub use anyhow::Result;
 pub use app::*;
 pub use tauri_api as api;
+pub use tauri_macros::FromTauriContext;
 pub use webview::{
   ApplicationDispatcherExt, ApplicationExt, Callback, Event, WebviewBuilderExt, WindowBuilderExt,
 };

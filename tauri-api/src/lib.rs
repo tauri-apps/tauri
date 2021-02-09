@@ -3,8 +3,6 @@
 
 /// The Command API module allows you to manage child processes.
 pub mod command;
-/// The Config module allows you to read the configuration from `tauri.conf.json`.
-pub mod config;
 /// The Dialog API module allows you to show messages and prompt for file paths.
 pub mod dialog;
 /// The Dir module is a helper for file system directory management.
@@ -21,6 +19,9 @@ pub mod rpc;
 pub mod tcp;
 /// The semver API.
 pub mod version;
+
+/// The Tauri config definition.
+pub use tauri_utils::config;
 
 /// The CLI args interface.
 #[cfg(feature = "cli")]
@@ -60,4 +61,16 @@ pub enum Error {
   /// The network error.
   #[error("Network Error:{0}")]
   Network(attohttpc::StatusCode),
+}
+
+// Not public API
+#[doc(hidden)]
+pub mod private {
+  pub trait AsTauriContext {
+    fn config_path() -> &'static std::path::Path;
+    fn raw_config() -> &'static str;
+    fn assets() -> &'static crate::assets::Assets;
+    fn raw_index() -> &'static str;
+    fn raw_tauri_script() -> &'static str;
+  }
 }

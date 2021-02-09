@@ -178,6 +178,11 @@
       "manager": "rust",
       "dependencies": ["tauri-utils"]
     },
+    "tauri-macros": {
+      "path": "./tauri-macros",
+      "manager": "rust",
+      "dependencies": ["tauri-utils"]
+    },
     "tauri-updater": {
       "path": "./tauri-updater",
       "manager": "rust",
@@ -186,7 +191,7 @@
     "tauri": {
       "path": "./tauri",
       "manager": "rust",
-      "dependencies": ["api", "tauri-api", "tauri-updater"]
+      "dependencies": ["api", "tauri-api", "tauri-macros", "tauri-updater"]
     }
   }
 }

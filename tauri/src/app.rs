@@ -1,10 +1,37 @@
 use crate::ApplicationExt;
 use futures::future::BoxFuture;
+use std::marker::PhantomData;
+use tauri_api::config::Config;
+use tauri_api::private::AsTauriContext;
 
 mod runner;
 
 type InvokeHandler<W> = dyn Fn(W, String) -> BoxFuture<'static, Result<(), String>> + Send + Sync;
 type Setup<W> = dyn Fn(W, String) -> BoxFuture<'static, ()> + Send + Sync;
+
+/// `App` runtime information.
+pub struct Context {
+  pub(crate) config: Config,
+  pub(crate) tauri_script: &'static str,
+  #[cfg(assets)]
+  pub(crate) assets: &'static tauri_api::assets::Assets,
+  #[cfg(any(dev, no_server))]
+  #[allow(dead_code)]
+  pub(crate) index: &'static str,
+}
+
+impl Context {
+  pub(crate) fn new<Context: AsTauriContext>() -> crate::Result<Self> {
+    Ok(Self {
+      config: serde_json::from_str(Context::raw_config())?,
+      tauri_script: Context::raw_tauri_script(),
+      #[cfg(assets)]
+      assets: Context::assets(),
+      #[cfg(any(dev, no_server))]
+      index: Context::raw_index(),
+    })
+  }
+}
 
 /// The application runner.
 pub struct App<A: ApplicationExt> {
@@ -14,6 +41,8 @@ pub struct App<A: ApplicationExt> {
   setup: Option<Box<Setup<A::Dispatcher>>>,
   /// The HTML of the splashscreen to render.
   splashscreen_html: Option<String>,
+  /// The context the App was created with
+  pub(crate) context: Context,
 }
 
 impl<A: ApplicationExt + 'static> App<A> {
@@ -54,22 +83,25 @@ impl<A: ApplicationExt + 'static> App<A> {
 
 /// The App builder.
 #[derive(Default)]
-pub struct AppBuilder<A: ApplicationExt> {
+pub struct AppBuilder<A: ApplicationExt, C: AsTauriContext> {
   /// The JS message handler.
   invoke_handler: Option<Box<InvokeHandler<A::Dispatcher>>>,
   /// The setup callback, invoked when the webview is ready.
   setup: Option<Box<Setup<A::Dispatcher>>>,
   /// The HTML of the splashscreen to render.
   splashscreen_html: Option<String>,
+  /// The configuration used
+  config: PhantomData<C>,
 }
 
-impl<A: ApplicationExt + 'static> AppBuilder<A> {
+impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<A, C> {
   /// Creates a new App builder.
   pub fn new() -> Self {
     Self {
       invoke_handler: None,
       setup: None,
       splashscreen_html: None,
+      config: Default::default(),
     }
   }
 
@@ -117,11 +149,12 @@ impl<A: ApplicationExt + 'static> AppBuilder<A> {
   }
 
   /// Builds the App.
-  pub fn build(self) -> App<A> {
-    App {
+  pub fn build(self) -> crate::Result<App<A>> {
+    Ok(App {
       invoke_handler: self.invoke_handler,
       setup: self.setup,
       splashscreen_html: self.splashscreen_html,
-    }
+      context: Context::new::<C>()?,
+    })
   }
 }

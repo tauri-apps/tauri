@@ -1,26 +1,25 @@
 mod cmd;
 
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
+use tauri::ApplicationDispatcherExt;
+
+#[derive(tauri::FromTauriContext)]
+struct Context;
 
 fn main() {
-  tauri::AppBuilder::new()
-    .setup(|webview, _| async move {
-      let mut webview_ = webview.as_mut();
+  tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
+    .setup(|dispatcher, _| async move {
+      let mut dispatcher_ = dispatcher.clone();
       tauri::event::listen(String::from("hello"), move |_| {
         tauri::event::emit(
-          &mut webview_,
+          &mut dispatcher_,
           String::from("reply"),
           Some("{ msg: 'TEST' }".to_string()),
         )
         .unwrap();
       });
-      let _ = webview.dispatch(|w| {
-        w.eval("window.onTauriInit && window.onTauriInit()");
-      });
+      dispatcher.eval("window.onTauriInit && window.onTauriInit()");
     })
-    .invoke_handler(|webview, arg| async move {
+    .invoke_handler(|dispatcher, arg| async move {
       use cmd::Cmd::*;
       match serde_json::from_str(&arg) {
         Err(e) => Err(e.to_string()),
@@ -28,7 +27,7 @@ fn main() {
           match command {
             // definitions for your custom commands from Cmd here
             Exit {} => {
-              webview.terminate();
+              // TODO dispatcher.terminate();
             }
           }
           Ok(())
@@ -36,5 +35,6 @@ fn main() {
       }
     })
     .build()
+    .unwrap()
     .run();
 }

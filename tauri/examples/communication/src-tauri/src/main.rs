@@ -12,21 +12,25 @@ struct Reply {
   data: String,
 }
 
+#[derive(tauri::FromTauriContext)]
+#[config_path = "examples/communication/src-tauri/tauri.conf.json"]
+struct Context;
+
 fn main() {
-  tauri::AppBuilder::<tauri::flavors::Wry>::new()
-    .setup(|webview, _source| async move {
-      let mut webview = webview.clone();
+  tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
+    .setup(|dispatcher, _source| async move {
+      let mut dispatcher = dispatcher.clone();
       tauri::event::listen(String::from("js-event"), move |msg| {
         println!("got js-event with message '{:?}'", msg);
         let reply = Reply {
           data: "something else".to_string(),
         };
 
-        tauri::event::emit(&mut webview, String::from("rust-event"), Some(reply))
+        tauri::event::emit(&mut dispatcher, String::from("rust-event"), Some(reply))
           .expect("failed to emit");
       });
     })
-    .invoke_handler(|mut webview, arg| async move {
+    .invoke_handler(|mut dispatcher, arg| async move {
       use cmd::Cmd::*;
       match serde_json::from_str(&arg) {
         Err(e) => Err(e.to_string()),
@@ -44,7 +48,7 @@ fn main() {
               // tauri::execute_promise is a helper for APIs that uses the tauri.promisified JS function
               // so you can easily communicate between JS and Rust with promises
               tauri::execute_promise(
-                &mut webview,
+                &mut dispatcher,
                 async move {
                   println!("{} {:?}", endpoint, body);
                   // perform an async operation here
@@ -64,5 +68,6 @@ fn main() {
       }
     })
     .build()
+    .unwrap()
     .run();
 }

@@ -1,5 +1,6 @@
-use crate::ApplicationDispatcherExt;
-use std::path::PathBuf;
+use crate::{ApplicationDispatcherExt, Context};
+use std::io::Read;
+use tauri_api::assets::{AssetFetch, Assets};
 
 #[allow(clippy::option_env_unwrap)]
 pub async fn load<D: ApplicationDispatcherExt + 'static>(
@@ -8,42 +9,43 @@ pub async fn load<D: ApplicationDispatcherExt + 'static>(
   asset_type: String,
   callback: String,
   error: String,
+  ctx: &Context,
 ) {
   let mut dispatcher_ = dispatcher.clone();
+  let assets = ctx.assets;
+  let public_path = ctx.config.tauri.embedded_server.public_path.clone();
   crate::execute_promise(
     dispatcher,
     async move {
-      let mut path = PathBuf::from(if asset.starts_with('/') {
-        asset.replacen("/", "", 1)
+      // strip "about:" uri scheme if it exists
+      let asset = if asset.starts_with("about:") {
+        &asset[6..]
       } else {
-        asset.clone()
-      });
-      let mut read_asset;
-      loop {
-        read_asset = crate::assets::ASSETS.get(&format!(
-          "{}/{}",
-          option_env!("TAURI_DIST_DIR")
-            .expect("tauri apps should be built with the TAURI_DIST_DIR environment variable"),
-          path.to_string_lossy()
-        ));
-        if read_asset.is_err() {
-          match path.iter().next() {
-            Some(component) => {
-              let first_component = component.to_str().expect("failed to read path component");
-              path = PathBuf::from(path.to_string_lossy().replacen(
-                format!("{}/", first_component).as_str(),
-                "",
-                1,
-              ));
-            }
-            None => {
-              return Err(anyhow::anyhow!("Asset '{}' not found", asset));
-            }
-          }
-        } else {
-          break;
-        }
+        &asset
+      };
+
+      // handle public path setting from tauri.conf > tauri > embeddedServer > publicPath
+      let asset = if asset.starts_with(&public_path) {
+        &asset[public_path.len() - 1..]
+      } else {
+        eprintln!(
+          "found url not matching public path.\nasset url: {}\npublic path: {}",
+          asset, public_path
+        );
+        asset
       }
+      .to_string();
+
+      // how should that condition be handled now?
+      let asset_bytes = assets
+        .get(&Assets::format_key(&asset), AssetFetch::Decompress)
+        .ok_or_else(|| anyhow::anyhow!("Asset '{}' not found", asset))
+        .and_then(|(read, _)| {
+          read
+            .bytes()
+            .collect::<Result<Vec<u8>, _>>()
+            .map_err(Into::into)
+        })?;
 
       if asset_type == "image" {
         let mime_type = if asset.ends_with("gif") {
@@ -62,12 +64,11 @@ pub async fn load<D: ApplicationDispatcherExt + 'static>(
           "jpeg"
         };
         Ok(format!(
-          r#"data:image/{};base64,{}"#,
+          r#""data:image/{};base64,{}""#,
           mime_type,
-          base64::encode(&read_asset.expect("Failed to read asset type").into_owned())
+          base64::encode(&asset_bytes)
         ))
       } else {
-        let asset_bytes = read_asset.expect("Failed to read asset type");
         let asset_str =
           std::str::from_utf8(&asset_bytes).expect("failed to convert asset bytes to u8 slice");
         if asset_type == "stylesheet" {

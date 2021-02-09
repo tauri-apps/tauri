@@ -9,8 +9,7 @@ function runCliCommand(
   args: Args
 ): { pid: number; promise: Promise<void> } {
   const argsArray = []
-  for (const argName in args) {
-    const argValue = args[argName]
+  for (const [argName, argValue] of Object.entries(args)) {
     if (argValue === false) {
       continue
     }

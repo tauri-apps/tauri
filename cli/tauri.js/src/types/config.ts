@@ -229,6 +229,10 @@ export interface TauriConfig {
        * the embedded server port number or the 'random' string to generate one at runtime
        */
       port?: number | 'random' | undefined
+      /**
+       * The base path for all the assets within your application
+       */
+      publicPath?: string
     }
     /**
      * tauri bundler configuration

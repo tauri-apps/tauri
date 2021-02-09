@@ -1,17 +1,22 @@
 use super::cmd::NotificationOptions;
 use crate::ApplicationDispatcherExt;
 use serde_json::Value as JsonValue;
+use tauri_api::config::Config;
+use tauri_api::notification::Notification;
 
 pub async fn send<D: ApplicationDispatcherExt>(
   dispatcher: &mut D,
   options: NotificationOptions,
   callback: String,
   error: String,
+  config: &Config,
 ) {
+  let identifier = config.tauri.bundle.identifier.clone();
+
   crate::execute_promise(
     dispatcher,
     async move {
-      let mut notification = tauri_api::notification::Notification::new().title(options.title);
+      let mut notification = Notification::new(identifier).title(options.title);
       if let Some(body) = options.body {
         notification = notification.body(body);
       }

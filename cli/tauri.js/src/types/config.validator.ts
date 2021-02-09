@@ -458,6 +458,11 @@ export const TauriConfigSchema = {
               ],
               description:
                 "the embedded server port number or the 'random' string to generate one at runtime"
+            },
+            publicPath: {
+              description:
+                "The base path for all the assets within your application.",
+              type: 'string'
             }
           },
           type: 'object'

@@ -461,7 +461,7 @@ export const TauriConfigSchema = {
             },
             publicPath: {
               description:
-                "The base path for all the assets within your application.",
+                'The base path for all the assets within your application.',
               type: 'string'
             }
           },

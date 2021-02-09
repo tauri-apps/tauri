@@ -1,31 +1,31 @@
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Window {
-    __TAURI_INVOKE_HANDLER__: (command: string) => void;
+    __TAURI_INVOKE_HANDLER__: (command: string) => void
   }
 }
 
 function s4(): string {
   return Math.floor((1 + Math.random()) * 0x10000)
     .toString(16)
-    .substring(1);
+    .substring(1)
 }
 
 function uid(): string {
   return (
     s4() +
     s4() +
-    "-" +
+    '-' +
     s4() +
-    "-" +
+    '-' +
     s4() +
-    "-" +
+    '-' +
     s4() +
-    "-" +
+    '-' +
     s4() +
     s4() +
     s4()
-  );
+  )
 }
 
 /**
@@ -34,28 +34,28 @@ function uid(): string {
  * @param args
  */
 function invoke(args: any): void {
-  window.__TAURI_INVOKE_HANDLER__(JSON.stringify(args));
+  window.__TAURI_INVOKE_HANDLER__(JSON.stringify(args))
 }
 
 function transformCallback(
   callback?: (response: any) => void,
   once = false
 ): string {
-  const identifier = uid();
+  const identifier = uid()
 
   Object.defineProperty(window, identifier, {
     value: (result: any) => {
       if (once) {
-        Reflect.deleteProperty(window, identifier);
+        Reflect.deleteProperty(window, identifier)
       }
 
-      return callback?.(result);
+      return callback?.(result)
     },
     writable: false,
-    configurable: true,
-  });
+    configurable: true
+  })
 
-  return identifier;
+  return identifier
 }
 
 /**
@@ -68,20 +68,20 @@ function transformCallback(
 async function promisified<T>(args: any): Promise<T> {
   return await new Promise((resolve, reject) => {
     const callback = transformCallback((e) => {
-      resolve(e);
-      Reflect.deleteProperty(window, error);
-    }, true);
+      resolve(e)
+      Reflect.deleteProperty(window, error)
+    }, true)
     const error = transformCallback((e) => {
-      reject(e);
-      Reflect.deleteProperty(window, callback);
-    }, true);
+      reject(e)
+      Reflect.deleteProperty(window, callback)
+    }, true)
 
     invoke({
       callback,
       error,
-      ...args,
-    });
-  });
+      ...args
+    })
+  })
 }
 
-export { invoke, transformCallback, promisified };
+export { invoke, transformCallback, promisified }

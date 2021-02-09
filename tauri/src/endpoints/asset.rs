@@ -1,4 +1,4 @@
-use crate::{AppContext, ApplicationDispatcherExt};
+use crate::{Context, ApplicationDispatcherExt};
 use std::io::Read;
 use tauri_api::assets::{AssetFetch, Assets};
 
@@ -9,7 +9,7 @@ pub async fn load<D: ApplicationDispatcherExt + 'static>(
   asset_type: String,
   callback: String,
   error: String,
-  ctx: &AppContext,
+  ctx: &Context,
 ) {
   let mut dispatcher_ = dispatcher.clone();
   let assets = ctx.assets;

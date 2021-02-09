@@ -65,7 +65,7 @@ pub(crate) fn run<A: ApplicationExt + 'static>(application: App<A>) -> crate::Re
 }
 
 #[cfg(all(embedded_server, no_server))]
-fn setup_content(_: &AppContext) -> crate::Result<Content<String>> {
+fn setup_content(_: &Context) -> crate::Result<Content<String>> {
   panic!("only one of `embedded-server` and `no-server` is allowed")
 }
 
@@ -108,7 +108,7 @@ fn setup_content(context: &Context) -> crate::Result<Content<String>> {
 
 // setup content for embedded server
 #[cfg(all(embedded_server, not(no_server)))]
-fn setup_content(context: &AppContext) -> crate::Result<Content<String>> {
+fn setup_content(context: &Context) -> crate::Result<Content<String>> {
   let (port, valid) = setup_port(&context)?;
   let url = (if valid {
     setup_server_url(port, &context)
@@ -122,7 +122,7 @@ fn setup_content(context: &AppContext) -> crate::Result<Content<String>> {
 
 // setup content for no-server
 #[cfg(all(no_server, not(embedded_server)))]
-fn setup_content(context: &AppContext) -> crate::Result<Content<String>> {
+fn setup_content(context: &Context) -> crate::Result<Content<String>> {
   Ok(Content::Html(format!(
     "data:text/html,{}",
     urlencoding::encode(context.index)
@@ -132,7 +132,7 @@ fn setup_content(context: &AppContext) -> crate::Result<Content<String>> {
 // get the port for the embedded server
 #[cfg(embedded_server)]
 #[allow(dead_code)]
-fn setup_port(context: &AppContext) -> crate::Result<(String, bool)> {
+fn setup_port(context: &Context) -> crate::Result<(String, bool)> {
   let config = &context.config;
   match config.tauri.embedded_server.port {
     tauri_api::config::Port::Random => match get_available_port() {
@@ -149,7 +149,7 @@ fn setup_port(context: &AppContext) -> crate::Result<(String, bool)> {
 // setup the server url for embedded server
 #[cfg(embedded_server)]
 #[allow(dead_code)]
-fn setup_server_url(port: String, context: &AppContext) -> crate::Result<String> {
+fn setup_server_url(port: String, context: &Context) -> crate::Result<String> {
   let config = &context.config;
   let mut url = format!("{}:{}", config.tauri.embedded_server.host, port);
   if !url.starts_with("http") {
@@ -160,7 +160,7 @@ fn setup_server_url(port: String, context: &AppContext) -> crate::Result<String>
 
 // spawn the embedded server
 #[cfg(embedded_server)]
-fn spawn_server(server_url: String, context: &AppContext) -> crate::Result<()> {
+fn spawn_server(server_url: String, context: &Context) -> crate::Result<()> {
   let assets = context.assets;
   let public_path = context.config.tauri.embedded_server.public_path.clone();
   std::thread::spawn(move || {
@@ -394,7 +394,7 @@ fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
 #[cfg(test)]
 mod test {
   use super::Content;
-  use crate::AppContext;
+  use crate::Context;
   use crate::FromTauriContext;
   use proptest::prelude::*;
 
@@ -404,7 +404,7 @@ mod test {
 
   #[test]
   fn check_setup_content() {
-    let context = AppContext::new::<Config>().unwrap();
+    let context = Context::new::<Config>().unwrap();
     let res = super::setup_content(&context);
 
     #[cfg(embedded_server)]
@@ -443,7 +443,7 @@ mod test {
   #[cfg(embedded_server)]
   #[test]
   fn check_setup_port() {
-    let context = AppContext::new::<Config>().unwrap();
+    let context = Context::new::<Config>().unwrap();
     let res = super::setup_port(&context);
     match res {
       Ok((_s, _b)) => {}
@@ -457,7 +457,7 @@ mod test {
     #[test]
     fn check_server_url(port in (any::<u32>().prop_map(|v| v.to_string()))) {
       let p = port.clone();
-      let context = AppContext::new::<Config>().unwrap();
+      let context = Context::new::<Config>().unwrap();
 
       let res = super::setup_server_url(port, &context);
 

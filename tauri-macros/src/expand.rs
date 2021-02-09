@@ -9,8 +9,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use syn::{DeriveInput, Lit::Str, Meta::NameValue, MetaNameValue};
-use tauri_api::assets::AssetCompression;
-use tauri_api::config::Config;
+use tauri_utils::{assets::AssetCompression, config::Config};
 
 pub(crate) fn from_tauri_config(input: DeriveInput) -> Result<TokenStream, Error> {
   let name = input.ident;

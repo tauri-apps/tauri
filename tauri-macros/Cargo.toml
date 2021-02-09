@@ -19,5 +19,5 @@ quote = "1"
 serde = {version = "1", features = ["derive"]}
 serde_json = "1"
 syn = { version = "1", features = ["extra-traits"] }
-tauri-api = { version = "0.7", path = "../tauri-api" }
+tauri-utils = { version = "0.5", path = "../tauri-utils" }
 walkdir = "2"

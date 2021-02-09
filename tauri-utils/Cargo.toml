@@ -8,8 +8,11 @@ repository = "https://github.com/tauri-apps/tauri"
 description = "Utilities for Tauri"
 edition = "2018"
 
-
 [dependencies]
+serde = "1.0"
+serde_json = "1.0"
 sysinfo = "0.10"
 anyhow = "1.0.31"
 thiserror = "1.0.19"
+phf = { version = "0.8", features = ["macros"] }
+flate2 = "1"

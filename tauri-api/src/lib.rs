@@ -1,12 +1,8 @@
 //! The Tauri API interface.
 #![warn(missing_docs, rust_2018_idioms)]
 
-/// The Assets module allows you to read files that have been bundled by tauri
-pub mod assets;
 /// The Command API module allows you to manage child processes.
 pub mod command;
-/// The Config module allows you to read the configuration from `tauri.conf.json`.
-pub mod config;
 /// The Dialog API module allows you to show messages and prompt for file paths.
 pub mod dialog;
 /// The Dir module is a helper for file system directory management.
@@ -23,6 +19,9 @@ pub mod rpc;
 pub mod tcp;
 /// The semver API.
 pub mod version;
+
+/// The Tauri config definition.
+pub use tauri_utils::config;
 
 /// The CLI args interface.
 #[cfg(feature = "cli")]

@@ -8,7 +8,7 @@ use std::env::var;
 use std::fs::{canonicalize, create_dir_all, File};
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
-use tauri_api::assets::{AssetCompression, Assets};
+use tauri_utils::assets::{AssetCompression, Assets};
 use walkdir::WalkDir;
 
 enum Asset {

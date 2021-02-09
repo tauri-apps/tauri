@@ -1,10 +1,14 @@
 //! Tauri utility helpers
 #![warn(missing_docs, rust_2018_idioms)]
 
+/// The Assets module allows you to read files that have been bundled by tauri
+pub mod assets;
 /// Platform helpers
 pub mod platform;
 /// Process helpers
 pub mod process;
+/// Tauri config definition.
+pub mod config;
 
 pub use anyhow::Result;
 use thiserror::Error;

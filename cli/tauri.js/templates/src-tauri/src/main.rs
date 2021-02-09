@@ -9,7 +9,7 @@ mod cmd;
 struct Context;
 
 fn main() {
-  tauri::AppBuilder::<tauri::flavors::Wry, Config>::new()
+  tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
     .invoke_handler(|_webview, arg| async move {
       use cmd::Cmd::*;
       match serde_json::from_str(&arg) {

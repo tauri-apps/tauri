@@ -17,7 +17,7 @@ struct Reply {
 struct Context;
 
 fn main() {
-  tauri::AppBuilder::<tauri::flavors::Wry, Config>::new()
+  tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
     .setup(|dispatcher, _source| async move {
       let mut dispatcher = dispatcher.clone();
       tauri::event::listen(String::from("js-event"), move |msg| {

@@ -6,7 +6,7 @@ use tauri::ApplicationDispatcherExt;
 struct Context;
 
 fn main() {
-  tauri::AppBuilder::<tauri::flavors::Wry, Config>::new()
+  tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
     .setup(|dispatcher, _| async move {
       let mut dispatcher_ = dispatcher.clone();
       tauri::event::listen(String::from("hello"), move |_| {

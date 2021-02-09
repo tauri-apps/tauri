@@ -400,11 +400,11 @@ mod test {
 
   #[derive(FromTauriContext)]
   #[config_path = "test/fixture/src-tauri/tauri.conf.json"]
-  struct Context;
+  struct TauriContext;
 
   #[test]
   fn check_setup_content() {
-    let context = Context::new::<Config>().unwrap();
+    let context = Context::new::<TauriContext>().unwrap();
     let res = super::setup_content(&context);
 
     #[cfg(embedded_server)]
@@ -443,7 +443,7 @@ mod test {
   #[cfg(embedded_server)]
   #[test]
   fn check_setup_port() {
-    let context = Context::new::<Config>().unwrap();
+    let context = Context::new::<TauriContext>().unwrap();
     let res = super::setup_port(&context);
     match res {
       Ok((_s, _b)) => {}
@@ -457,7 +457,7 @@ mod test {
     #[test]
     fn check_server_url(port in (any::<u32>().prop_map(|v| v.to_string()))) {
       let p = port.clone();
-      let context = Context::new::<Config>().unwrap();
+      let context = Context::new::<TauriContext>().unwrap();
 
       let res = super::setup_server_url(port, &context);
 

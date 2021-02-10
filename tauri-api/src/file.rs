@@ -4,19 +4,17 @@ mod file_move;
 use std::fs;
 use std::path::Path;
 
-use crate::Error;
-
 pub use extract::*;
 pub use file_move::*;
 
 /// Reads a string file.
 pub fn read_string<P: AsRef<Path>>(file: P) -> crate::Result<String> {
-  fs::read_to_string(file).map_err(|err| Error::File(format!("Read_string failed: {}", err)).into())
+  fs::read_to_string(file).map_err(|e| e.into())
 }
 
 /// Reads a binary file.
 pub fn read_binary<P: AsRef<Path>>(file: P) -> crate::Result<Vec<u8>> {
-  fs::read(file).map_err(|err| Error::File(format!("Read_binary failed: {}", err)).into())
+  fs::read(file).map_err(|e| e.into())
 }
 
 #[cfg(test)]
@@ -45,17 +43,11 @@ mod test {
 
     assert!(res.is_err());
 
-    if let Some(Error::File(e)) = res.unwrap_err().downcast_ref::<Error>() {
+    if let Error::Io(e) = res.unwrap_err() {
       #[cfg(windows)]
-      assert_eq!(
-        *e,
-        "Read_string failed: Access is denied. (os error 5)".to_string()
-      );
+      assert_eq!(e.to_string(), "Access is denied. (os error 5)".to_string());
       #[cfg(not(windows))]
-      assert_eq!(
-        *e,
-        "Read_string failed: Is a directory (os error 21)".to_string()
-      );
+      assert_eq!(e.to_string(), "Is a directory (os error 21)".to_string());
     }
   }
 
@@ -91,17 +83,11 @@ mod test {
 
     assert!(res.is_err());
 
-    if let Some(Error::File(e)) = res.unwrap_err().downcast_ref::<Error>() {
+    if let Error::Io(e) = res.unwrap_err() {
       #[cfg(windows)]
-      assert_eq!(
-        *e,
-        "Read_binary failed: Access is denied. (os error 5)".to_string()
-      );
+      assert_eq!(e.to_string(), "Access is denied. (os error 5)".to_string());
       #[cfg(not(windows))]
-      assert_eq!(
-        *e,
-        "Read_binary failed: Is a directory (os error 21)".to_string()
-      );
+      assert_eq!(e.to_string(), "Is a directory (os error 21)".to_string());
     }
   }
 }

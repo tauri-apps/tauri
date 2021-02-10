@@ -265,7 +265,9 @@ pub fn make_request(options: HttpRequestOptions) -> crate::Result<Value> {
         if let Some(path) = body.as_str() {
           builder.file(File::open(path)?).send()
         } else {
-          return Err(crate::Error::Path("Body must be the path to the file".into()).into());
+          return Err(crate::Error::Path(
+            "Body must be the path to the file".into(),
+          ));
         }
       }
       BodyType::Auto => {
@@ -297,6 +299,6 @@ pub fn make_request(options: HttpRequestOptions) -> crate::Result<Value> {
     };
     Ok(response_data)
   } else {
-    Err(crate::Error::Network(response.status()).into())
+    Err(response.status().into())
   }
 }

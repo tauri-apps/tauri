@@ -28,7 +28,7 @@ pub async fn read_dir<D: ApplicationDispatcherExt>(
       } else {
         (false, None)
       };
-      dir::read_dir(resolve_path(path, dir)?, recursive)
+      dir::read_dir(resolve_path(path, dir)?, recursive).map_err(crate::Error::FailedToExecuteApi)
     },
     callback,
     error,
@@ -56,7 +56,8 @@ pub async fn copy_file<D: ApplicationDispatcherExt>(
         ),
         None => (source, destination),
       };
-      fs::copy(src, dest).map_err(|e| e.into())
+      fs::copy(src, dest)?;
+      crate::Result::Ok(())
     },
     callback,
     error,
@@ -82,13 +83,13 @@ pub async fn create_dir<D: ApplicationDispatcherExt>(
         (false, None)
       };
       let resolved_path = resolve_path(path, dir)?;
-      let response = if recursive {
-        fs::create_dir_all(resolved_path)
+      if recursive {
+        fs::create_dir_all(resolved_path)?;
       } else {
-        fs::create_dir(resolved_path)
-      };
+        fs::create_dir(resolved_path)?;
+      }
 
-      response.map_err(|e| e.into())
+      crate::Result::Ok(())
     },
     callback,
     error,
@@ -114,13 +115,13 @@ pub async fn remove_dir<D: ApplicationDispatcherExt>(
         (false, None)
       };
       let resolved_path = resolve_path(path, dir)?;
-      let response = if recursive {
-        fs::remove_dir_all(resolved_path)
+      if recursive {
+        fs::remove_dir_all(resolved_path)?;
       } else {
-        fs::remove_dir(resolved_path)
-      };
+        fs::remove_dir(resolved_path)?;
+      }
 
-      response.map_err(|e| e.into())
+      crate::Result::Ok(())
     },
     callback,
     error,
@@ -141,7 +142,8 @@ pub async fn remove_file<D: ApplicationDispatcherExt>(
     dispatcher,
     async move {
       let resolved_path = resolve_path(path, options.and_then(|o| o.dir))?;
-      fs::remove_file(resolved_path).map_err(|e| e.into())
+      fs::remove_file(resolved_path)?;
+      crate::Result::Ok(())
     },
     callback,
     error,
@@ -169,7 +171,7 @@ pub async fn rename_file<D: ApplicationDispatcherExt>(
         ),
         None => (old_path, new_path),
       };
-      fs::rename(old, new).map_err(|e| e.into())
+      fs::rename(old, new).map_err(crate::Error::Io)
     },
     callback,
     error,
@@ -191,8 +193,9 @@ pub async fn write_file<D: ApplicationDispatcherExt>(
     dispatcher,
     async move {
       File::create(resolve_path(path, options.and_then(|o| o.dir))?)
-        .map_err(|e| e.into())
-        .and_then(|mut f| f.write_all(contents.as_bytes()).map_err(|err| err.into()))
+        .map_err(crate::Error::Io)
+        .and_then(|mut f| f.write_all(contents.as_bytes()).map_err(|err| err.into()))?;
+      crate::Result::Ok(())
     },
     callback,
     error,
@@ -214,12 +217,13 @@ pub async fn write_binary_file<D: ApplicationDispatcherExt>(
     dispatcher,
     async move {
       base64::decode(contents)
-        .map_err(|e| e.into())
+        .map_err(crate::Error::Base64Decode)
         .and_then(|c| {
           File::create(resolve_path(path, options.and_then(|o| o.dir))?)
             .map_err(|e| e.into())
             .and_then(|mut f| f.write_all(&c).map_err(|err| err.into()))
-        })
+        })?;
+      crate::Result::Ok(())
     },
     callback,
     error,
@@ -238,7 +242,10 @@ pub async fn read_text_file<D: ApplicationDispatcherExt>(
 ) {
   crate::execute_promise(
     dispatcher,
-    async move { file::read_string(resolve_path(path, options.and_then(|o| o.dir))?) },
+    async move {
+      file::read_string(resolve_path(path, options.and_then(|o| o.dir))?)
+        .map_err(crate::Error::FailedToExecuteApi)
+    },
     callback,
     error,
   )
@@ -256,7 +263,10 @@ pub async fn read_binary_file<D: ApplicationDispatcherExt>(
 ) {
   crate::execute_promise(
     dispatcher,
-    async move { file::read_binary(resolve_path(path, options.and_then(|o| o.dir))?) },
+    async move {
+      file::read_binary(resolve_path(path, options.and_then(|o| o.dir))?)
+        .map_err(crate::Error::FailedToExecuteApi)
+    },
     callback,
     error,
   )

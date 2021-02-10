@@ -58,7 +58,7 @@ pub fn get_matches(config: &Config) -> crate::Result<Matches> {
     .tauri
     .cli
     .as_ref()
-    .ok_or_else(|| anyhow::anyhow!("CLI configuration not defined"))?;
+    .ok_or_else(|| crate::Error::CliNotConfigured)?;
 
   let about = cli
     .description()

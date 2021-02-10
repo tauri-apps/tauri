@@ -12,7 +12,7 @@ pub async fn resolve_path<D: ApplicationDispatcherExt>(
 ) {
   crate::execute_promise(
     dispatcher,
-    async move { path::resolve_path(path, directory) },
+    async move { path::resolve_path(path, directory).map_err(|e| e.into()) },
     callback,
     error,
   )

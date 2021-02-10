@@ -1,6 +1,7 @@
 use crate::{ApplicationDispatcherExt, Context};
-use std::io::Read;
 use tauri_api::assets::{AssetFetch, Assets};
+
+use std::io::Read;
 
 #[allow(clippy::option_env_unwrap)]
 pub async fn load<D: ApplicationDispatcherExt + 'static>(
@@ -37,9 +38,10 @@ pub async fn load<D: ApplicationDispatcherExt + 'static>(
       .to_string();
 
       // how should that condition be handled now?
-      let asset_bytes = assets
+      let asset_ = asset.to_string();
+      let asset_bytes: Vec<u8> = assets
         .get(&Assets::format_key(&asset), AssetFetch::Decompress)
-        .ok_or_else(|| anyhow::anyhow!("Asset '{}' not found", asset))
+        .ok_or_else(|| crate::Error::AssetNotFound(asset_))
         .and_then(|(read, _)| {
           read
             .bytes()
@@ -63,7 +65,7 @@ pub async fn load<D: ApplicationDispatcherExt + 'static>(
         } else {
           "jpeg"
         };
-        Ok(format!(
+        crate::Result::Ok(format!(
           r#""data:image/{};base64,{}""#,
           mime_type,
           base64::encode(&asset_bytes)
@@ -90,7 +92,7 @@ pub async fn load<D: ApplicationDispatcherExt + 'static>(
         } else {
           dispatcher_.eval(asset_str);
         }
-        Ok("Asset loaded successfully".to_string())
+        crate::Result::Ok("Asset loaded successfully".to_string())
       }
     },
     callback,

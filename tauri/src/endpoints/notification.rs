@@ -24,7 +24,7 @@ pub async fn send<D: ApplicationDispatcherExt>(
         notification = notification.icon(icon);
       }
       notification.show()?;
-      Ok(JsonValue::Null)
+      crate::Result::Ok(JsonValue::Null)
     },
     callback,
     error,
@@ -42,9 +42,9 @@ pub async fn is_permission_granted<D: ApplicationDispatcherExt>(
     async move {
       let settings = crate::settings::read_settings()?;
       if let Some(allow_notification) = settings.allow_notification {
-        Ok(JsonValue::String(allow_notification.to_string()))
+        crate::Result::Ok(JsonValue::String(allow_notification.to_string()))
       } else {
-        Ok(JsonValue::Null)
+        crate::Result::Ok(JsonValue::Null)
       }
     },
     callback,
@@ -65,7 +65,7 @@ pub fn request_permission<D: ApplicationDispatcherExt + 'static>(
       let granted = "granted".to_string();
       let denied = "denied".to_string();
       if let Some(allow_notification) = settings.allow_notification {
-        return Ok(if allow_notification { granted } else { denied });
+        return crate::Result::Ok(if allow_notification { granted } else { denied });
       }
       let answer = tauri_api::dialog::ask(
         "This app wants to show notifications. Do you allow?",
@@ -75,14 +75,14 @@ pub fn request_permission<D: ApplicationDispatcherExt + 'static>(
         tauri_api::dialog::DialogSelection::Yes => {
           settings.allow_notification = Some(true);
           crate::settings::write_settings(settings)?;
-          Ok(granted)
+          crate::Result::Ok(granted)
         }
         tauri_api::dialog::DialogSelection::No => {
           settings.allow_notification = Some(false);
           crate::settings::write_settings(settings)?;
-          Ok(denied)
+          crate::Result::Ok(denied)
         }
-        _ => Ok("default".to_string()),
+        _ => crate::Result::Ok("default".to_string()),
       }
     },
     callback,

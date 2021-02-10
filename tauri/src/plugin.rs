@@ -39,8 +39,12 @@ pub trait Plugin<D: ApplicationDispatcherExt + 'static>: Send + Sync {
     Ok(())
   }
 
-  /// The JS script to evaluate on init.
-  async fn init_script(&self) -> Option<String> {
+  /// The JS script to evaluate on webview initialization.
+  /// The script is wrapped into its own context with `(function () { /* your script here */ })();`,
+  /// so global variables must be assigned to `window` instead of implicity declared.
+  ///
+  /// It's guaranteed that this script is executed before the page is loaded.
+  async fn initialization_script(&self) -> Option<String> {
     None
   }
 
@@ -89,22 +93,25 @@ pub(crate) async fn initialize<D: ApplicationDispatcherExt + 'static>(
   Ok(())
 }
 
-pub(crate) async fn init_script<D: ApplicationDispatcherExt + 'static>(
+pub(crate) async fn initialization_script<D: ApplicationDispatcherExt + 'static>(
   store: &PluginStore<D>,
 ) -> String {
   let mut plugins = store.lock().await;
   let mut futures = Vec::new();
   for plugin in plugins.iter_mut() {
-    futures.push(plugin.init_script());
+    futures.push(plugin.initialization_script());
   }
 
-  let mut init = String::new();
+  let mut initialization_script = String::new();
   for res in join_all(futures).await {
-    if let Some(init_script) = res {
-      init.push_str(&format!("(function () {{ {} }})();", init_script));
+    if let Some(plugin_initialization_script) = res {
+      initialization_script.push_str(&format!(
+        "(function () {{ {} }})();",
+        plugin_initialization_script
+      ));
     }
   }
-  init
+  initialization_script
 }
 
 pub(crate) async fn created<D: ApplicationDispatcherExt + 'static>(

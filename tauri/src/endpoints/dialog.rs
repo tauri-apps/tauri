@@ -34,7 +34,8 @@ pub fn open<D: ApplicationDispatcherExt + 'static>(
       } else {
         select(options.filter, options.default_path)
       };
-      response.map(map_response)
+      let res = response.map(map_response)?;
+      Ok(res)
     },
     callback,
     error,
@@ -52,7 +53,11 @@ pub fn save<D: ApplicationDispatcherExt + 'static>(
 ) -> crate::Result<()> {
   crate::execute_promise_sync(
     dispatcher,
-    move || save_file(options.filter, options.default_path).map(map_response),
+    move || {
+      save_file(options.filter, options.default_path)
+        .map(map_response)
+        .map_err(|e| e.into())
+    },
     callback,
     error,
   );
@@ -75,8 +80,8 @@ pub fn ask<D: ApplicationDispatcherExt + 'static>(
   crate::execute_promise_sync(
     dispatcher,
     move || match ask_dialog(message, title) {
-      DialogSelection::Yes => Ok(true),
-      _ => Ok(false),
+      DialogSelection::Yes => crate::Result::Ok(true),
+      _ => crate::Result::Ok(false),
     },
     callback,
     error,

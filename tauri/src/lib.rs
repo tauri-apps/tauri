@@ -18,6 +18,7 @@ pub mod settings;
 mod app;
 /// The Tauri API endpoints.
 mod endpoints;
+mod error;
 /// The plugin manager module contains helpers to manage runtime plugins.
 pub mod plugin;
 /// The salt helpers.
@@ -25,13 +26,16 @@ mod salt;
 /// Webview interface.
 mod webview;
 
+/// The Tauri error enum.
+pub use error::Error;
+/// Tauri result type.
+pub type Result<T> = std::result::Result<T, Error>;
+
 pub(crate) mod async_runtime;
 
 /// A task to run on the main thread.
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
-/// Alias for a Result with error type anyhow::Error.
-pub use anyhow::Result;
 pub use app::*;
 pub use tauri_api as api;
 pub use tauri_macros::FromTauriContext;
@@ -66,10 +70,12 @@ pub fn execute_promise_sync<
     let callback_string =
       match format_callback_result(task().map_err(|err| err.to_string()), &callback, &error) {
         Ok(js) => js,
-        Err(e) => {
-          format_callback_result(Result::<(), String>::Err(e.to_string()), &callback, &error)
-            .unwrap()
-        }
+        Err(e) => format_callback_result(
+          std::result::Result::<(), String>::Err(e.to_string()),
+          &callback,
+          &error,
+        )
+        .unwrap(),
       };
     dispatcher_.eval(callback_string.as_str());
   })));
@@ -111,7 +117,7 @@ pub async fn call<D: ApplicationDispatcherExt>(
 ) {
   execute_promise(
     dispatcher,
-    async move { api::command::get_output(command, args, Stdio::piped()) },
+    async move { api::command::get_output(command, args, Stdio::piped()).map_err(|e| e.into()) },
     callback,
     error,
   )

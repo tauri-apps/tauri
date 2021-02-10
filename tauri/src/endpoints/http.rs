@@ -8,5 +8,11 @@ pub async fn make_request<D: ApplicationDispatcherExt>(
   callback: String,
   error: String,
 ) {
-  crate::execute_promise(dispatcher, async move { request(options) }, callback, error).await;
+  crate::execute_promise(
+    dispatcher,
+    async move { request(options).map_err(|e| e.into()) },
+    callback,
+    error,
+  )
+  .await;
 }

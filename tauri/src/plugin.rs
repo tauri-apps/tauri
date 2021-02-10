@@ -6,27 +6,6 @@ use futures::future::join_all;
 
 use std::sync::Arc;
 
-/// The plugin error type.
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-  /// Failed to serialize/deserialize.
-  #[error("JSON error: {0}")]
-  Json(serde_json::Error),
-  /// Unknown API type.
-  #[error("unknown API")]
-  UnknownApi,
-}
-
-impl From<serde_json::Error> for Error {
-  fn from(error: serde_json::Error) -> Self {
-    if error.to_string().contains("unknown variant") {
-      Self::UnknownApi
-    } else {
-      Self::Json(error)
-    }
-  }
-}
-
 /// The plugin interface.
 #[async_trait::async_trait]
 pub trait Plugin<D: ApplicationDispatcherExt + 'static>: Send + Sync {
@@ -35,7 +14,7 @@ pub trait Plugin<D: ApplicationDispatcherExt + 'static>: Send + Sync {
 
   /// Initialize the plugin.
   #[allow(unused_variables)]
-  async fn initialize(&mut self, config: String) -> Result<(), Error> {
+  async fn initialize(&mut self, config: String) -> crate::Result<()> {
     Ok(())
   }
 
@@ -58,8 +37,8 @@ pub trait Plugin<D: ApplicationDispatcherExt + 'static>: Send + Sync {
 
   /// Add invoke_handler API extension commands.
   #[allow(unused_variables)]
-  async fn extend_api(&mut self, dispatcher: D, payload: &str) -> Result<(), Error> {
-    Err(Error::UnknownApi)
+  async fn extend_api(&mut self, dispatcher: D, payload: &str) -> crate::Result<()> {
+    Err(crate::Error::UnknownApi)
   }
 }
 
@@ -142,7 +121,7 @@ pub(crate) async fn extend_api<D: ApplicationDispatcherExt + 'static>(
   store: &PluginStore<D>,
   dispatcher: &mut D,
   arg: &str,
-) -> Result<bool, Error> {
+) -> crate::Result<bool> {
   let mut plugins = store.lock().await;
   for ext in plugins.iter_mut() {
     match ext.extend_api(dispatcher.clone(), arg).await {
@@ -150,7 +129,7 @@ pub(crate) async fn extend_api<D: ApplicationDispatcherExt + 'static>(
         return Ok(true);
       }
       Err(e) => match e {
-        Error::UnknownApi => {}
+        crate::Error::UnknownApi => {}
         _ => return Err(e),
       },
     }

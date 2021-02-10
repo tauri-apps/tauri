@@ -16,9 +16,10 @@ fn open_dialog_internal(
       .map(|s| s.as_ref().to_string_lossy().to_string())
       .as_deref(),
     dialog_type,
-  )?;
+  )
+  .map_err(|e| crate::Error::Dialog(e.to_string()))?;
   match response {
-    Response::Cancel => Err(crate::Error::Dialog("user cancelled".into()).into()),
+    Response::Cancel => Err(crate::Error::DialogCancelled),
     _ => Ok(response),
   }
 }

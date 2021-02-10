@@ -21,10 +21,8 @@ pub(crate) fn load_context(input: DeriveInput) -> Result<TokenStream, Error> {
     .iter()
     .find(|attr| attr.path.is_ident("config_path"));
   if let Some(attr) = config_path_attr {
-    if let Ok(meta) = attr.parse_meta() {
-      if let NameValue(MetaNameValue { lit: Str(path), .. }) = meta {
-        config_file_path = path.value()
-      }
+    if let Ok(NameValue(MetaNameValue { lit: Str(path), .. })) = attr.parse_meta() {
+      config_file_path = path.value()
     }
   }
 

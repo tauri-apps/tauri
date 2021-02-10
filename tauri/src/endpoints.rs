@@ -283,7 +283,7 @@ pub(crate) async fn handle<D: ApplicationDispatcherExt + 'static>(
         CliMatches { callback, error } => {
           #[cfg(cli)]
           {
-            let matches = tauri_api::cli::get_matches(&context.config);
+            let matches = tauri_api::cli::get_matches(&context.config).map_err(|e| e.into());
             crate::execute_promise(dispatcher, async move { matches }, callback, error).await;
           }
           #[cfg(not(cli))]

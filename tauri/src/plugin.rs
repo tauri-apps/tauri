@@ -29,13 +29,13 @@ impl From<serde_json::Error> for Error {
 
 /// The plugin interface.
 #[async_trait::async_trait]
-pub trait Plugin<D: ApplicationDispatcherExt + 'static>: Sync {
+pub trait Plugin<D: ApplicationDispatcherExt + 'static>: Send + Sync {
   /// The plugin name. Used as key on the plugin config object.
   fn name(&self) -> &'static str;
 
   /// Initialize the plugin.
   #[allow(unused_variables)]
-  async fn initialize(&self, config: String) -> Result<(), Error> {
+  async fn initialize(&mut self, config: String) -> Result<(), Error> {
     Ok(())
   }
 
@@ -46,15 +46,15 @@ pub trait Plugin<D: ApplicationDispatcherExt + 'static>: Sync {
 
   /// Callback invoked when the webview is created.
   #[allow(unused_variables)]
-  async fn created(&self, dispatcher: D) {}
+  async fn created(&mut self, dispatcher: D) {}
 
   /// Callback invoked when the webview is ready.
   #[allow(unused_variables)]
-  async fn ready(&self, dispatcher: D) {}
+  async fn ready(&mut self, dispatcher: D) {}
 
   /// Add invoke_handler API extension commands.
   #[allow(unused_variables)]
-  async fn extend_api(&self, dispatcher: D, payload: &str) -> Result<(), Error> {
+  async fn extend_api(&mut self, dispatcher: D, payload: &str) -> Result<(), Error> {
     Err(Error::UnknownApi)
   }
 }
@@ -75,9 +75,9 @@ pub(crate) async fn initialize<D: ApplicationDispatcherExt + 'static>(
   store: &PluginStore<D>,
   plugins_config: PluginConfig,
 ) -> crate::Result<()> {
-  let plugins = store.lock().await;
+  let mut plugins = store.lock().await;
   let mut futures = Vec::new();
-  for plugin in plugins.iter() {
+  for plugin in plugins.iter_mut() {
     let plugin_config = plugins_config.get(plugin.name());
     futures.push(plugin.initialize(plugin_config));
   }
@@ -92,9 +92,9 @@ pub(crate) async fn initialize<D: ApplicationDispatcherExt + 'static>(
 pub(crate) async fn init_script<D: ApplicationDispatcherExt + 'static>(
   store: &PluginStore<D>,
 ) -> String {
-  let plugins = store.lock().await;
+  let mut plugins = store.lock().await;
   let mut futures = Vec::new();
-  for plugin in plugins.iter() {
+  for plugin in plugins.iter_mut() {
     futures.push(plugin.init_script());
   }
 
@@ -111,9 +111,9 @@ pub(crate) async fn created<D: ApplicationDispatcherExt + 'static>(
   store: &PluginStore<D>,
   dispatcher: &mut D,
 ) {
-  let plugins = store.lock().await;
+  let mut plugins = store.lock().await;
   let mut futures = Vec::new();
-  for plugin in plugins.iter() {
+  for plugin in plugins.iter_mut() {
     futures.push(plugin.created(dispatcher.clone()));
   }
   join_all(futures).await;
@@ -123,9 +123,9 @@ pub(crate) async fn ready<D: ApplicationDispatcherExt + 'static>(
   store: &PluginStore<D>,
   dispatcher: &mut D,
 ) {
-  let plugins = store.lock().await;
+  let mut plugins = store.lock().await;
   let mut futures = Vec::new();
-  for plugin in plugins.iter() {
+  for plugin in plugins.iter_mut() {
     futures.push(plugin.ready(dispatcher.clone()));
   }
   join_all(futures).await;
@@ -136,8 +136,8 @@ pub(crate) async fn extend_api<D: ApplicationDispatcherExt + 'static>(
   dispatcher: &mut D,
   arg: &str,
 ) -> Result<bool, Error> {
-  let plugins = store.lock().await;
-  for ext in plugins.iter() {
+  let mut plugins = store.lock().await;
+  for ext in plugins.iter_mut() {
     match ext.extend_api(dispatcher.clone(), arg).await {
       Ok(_) => {
         return Ok(true);

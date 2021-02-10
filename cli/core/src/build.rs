@@ -68,7 +68,7 @@ impl Build {
     if self.verbose {
       settings_builder = settings_builder.verbose();
     }
-    if let Some(names) = self.targets {
+    if let Some(names) = self.targets.or(config_.tauri.bundle.targets.clone()) {
       let mut types = vec![];
       for name in names {
         if name == "none" {

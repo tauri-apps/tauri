@@ -298,12 +298,14 @@ pub struct BundleConfig {
   pub active: bool,
   /// The bundle identifier.
   pub identifier: String,
+  pub targets: Option<Vec<String>>,
 }
 
 fn default_bundle() -> BundleConfig {
   BundleConfig {
     active: false,
     identifier: String::from(""),
+    targets: None,
   }
 }
 

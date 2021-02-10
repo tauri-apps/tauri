@@ -102,7 +102,7 @@
     "eslint-plugin-promise": "4.2.1",
     "eslint-plugin-security": "1.4.0",
     "eslint-plugin-standard": "4.1.0",
-    "husky": "4.3.8",
+    "husky": "5.0.9",
     "is-running": "2.1.0",
     "jest": "26.6.3",
     "jest-mock-process": "1.4.0",

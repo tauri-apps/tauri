@@ -24,7 +24,7 @@ base64 = "0.13.0"
 webbrowser = "0.5.5"
 lazy_static = "1.4.0"
 tiny_http = { version = "0.8", optional = true }
-tokio = { version = "1.1", features = ["rt", "rt-multi-thread", "sync"] }
+tokio = { version = "1.2", features = ["rt", "rt-multi-thread", "sync"] }
 futures = "0.3"
 async-trait = "0.1"
 uuid = { version = "0.8.2", features = [ "v4" ] }

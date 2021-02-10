@@ -18,7 +18,6 @@ pub enum PackageType {
   /// The iOS app bundle.
   IosBundle,
   /// The Windows bundle (.msi).
-  #[cfg(target_os = "windows")]
   WindowsMsi,
   /// The Linux Debian package bundle (.deb).
   Deb,
@@ -38,7 +37,6 @@ impl PackageType {
     match name {
       "deb" => Some(PackageType::Deb),
       "ios" => Some(PackageType::IosBundle),
-      #[cfg(target_os = "windows")]
       "msi" => Some(PackageType::WindowsMsi),
       "osx" => Some(PackageType::OsxBundle),
       "rpm" => Some(PackageType::Rpm),
@@ -54,12 +52,32 @@ impl PackageType {
     match *self {
       PackageType::Deb => "deb",
       PackageType::IosBundle => "ios",
-      #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => "msi",
       PackageType::OsxBundle => "osx",
       PackageType::Rpm => "rpm",
       PackageType::AppImage => "appimage",
       PackageType::Dmg => "dmg",
+    }
+  }
+
+  /// Checks if the package type is supported on the current OS.
+  pub fn is_supported(&self) -> bool {
+    let os = if cfg!(target_os = "macos") {
+      "macos"
+    } else if cfg!(target_os = "windows") {
+      "windows"
+    } else {
+      "linux"
+    };
+
+    match *self {
+      PackageType::Deb => os == "linux",
+      PackageType::IosBundle => os == "macos",
+      PackageType::WindowsMsi => os == "windows",
+      PackageType::OsxBundle => os == "macos",
+      PackageType::Rpm => os == "linux",
+      PackageType::AppImage => os == "linux",
+      PackageType::Dmg => os == "macos",
     }
   }
 
@@ -574,39 +592,27 @@ impl Settings {
   ///
   /// Fails if the host/target's native package type is not supported.
   pub fn package_types(&self) -> crate::Result<Vec<PackageType>> {
-    let target_os = if let Some((_, ref info)) = self.target {
-      info.target_os()
-    } else {
-      std::env::consts::OS
-    };
-    let platform_types = match target_os {
-      "macos" => vec![PackageType::OsxBundle, PackageType::Dmg],
-      "ios" => vec![PackageType::IosBundle],
-      "linux" => vec![PackageType::Deb, PackageType::AppImage],
-      #[cfg(target_os = "windows")]
-      "windows" => vec![PackageType::WindowsMsi],
-      os => {
-        return Err(crate::Error::GenericError(format!(
-          "Native {} bundles not yet supported.",
-          os
-        )))
-      }
-    };
     if let Some(package_types) = &self.package_types {
-      let mut types = vec![];
-      for package_type in package_types {
-        let package_type = *package_type;
-        if platform_types
-          .clone()
-          .into_iter()
-          .any(|t| t == package_type)
-        {
-          types.push(package_type);
-        }
-      }
-      Ok(types)
+      Ok(package_types.to_vec())
     } else {
-      Ok(platform_types)
+      let target_os = if let Some((_, ref info)) = self.target {
+        info.target_os()
+      } else {
+        std::env::consts::OS
+      };
+      let all_supported_platform_types = match target_os {
+        "macos" => vec![PackageType::OsxBundle, PackageType::Dmg],
+        "ios" => vec![PackageType::IosBundle],
+        "linux" => vec![PackageType::Deb, PackageType::AppImage],
+        "windows" => vec![PackageType::WindowsMsi],
+        os => {
+          return Err(crate::Error::GenericError(format!(
+            "Native {} bundles not yet supported.",
+            os
+          )))
+        }
+      };
+      Ok(all_supported_platform_types)
     }
   }
 

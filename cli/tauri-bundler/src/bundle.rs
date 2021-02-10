@@ -51,6 +51,8 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
       PackageType::IosBundle => ios_bundle::bundle_project(&settings)?,
       #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => msi_bundle::bundle_project(&settings)?,
+      #[cfg(not(target_os = "windows"))]
+      PackageType::WindowsMsi => unreachable!(),
       PackageType::Deb => deb_bundle::bundle_project(&settings)?,
       PackageType::Rpm => rpm_bundle::bundle_project(&settings)?,
       PackageType::AppImage => appimage_bundle::bundle_project(&settings)?,

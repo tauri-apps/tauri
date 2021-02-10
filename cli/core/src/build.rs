@@ -79,7 +79,9 @@ impl Build {
         }
         match PackageType::from_short_name(&name) {
           Some(package_type) => {
-            types.push(package_type);
+            if package_type.is_supported() {
+              types.push(package_type);
+            }
           }
           None => {
             return Err(anyhow::anyhow!(format!(

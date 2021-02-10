@@ -11,7 +11,6 @@ module.exports = {
     'api/tauricon': './src/api/tauricon.ts',
     'api/info': './src/api/info.ts',
     'api/dependency-manager': './src/api/dependency-manager/index.ts',
-    'helpers/tauri-config': './src/helpers/tauri-config.ts',
     'helpers/spawn': './src/helpers/spawn.ts',
     'helpers/rust-cli': './src/helpers/rust-cli.ts'
   },

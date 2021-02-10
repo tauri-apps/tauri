@@ -375,8 +375,9 @@ pub struct BuildConfig {
 }
 
 fn default_dev_path() -> String {
-  "".to_string()
+  "http://localhost:8080".to_string()
 }
+
 fn default_dist_path() -> String {
   "../dist".to_string()
 }
@@ -466,7 +467,7 @@ mod test {
 
     // create a build config
     let build = BuildConfig {
-      dev_path: String::from(""),
+      dev_path: String::from("http://localhost:8080"),
       dist_dir: String::from("../dist"),
     };
 
@@ -475,7 +476,7 @@ mod test {
     assert_eq!(b_config, build);
     assert_eq!(de_server, tauri.embedded_server);
     assert_eq!(d_bundle, tauri.bundle);
-    assert_eq!(d_path, String::from(""));
+    assert_eq!(d_path, String::from("http://localhost:8080"));
     assert_eq!(d_title, tauri.window.title);
     assert_eq!(d_window, tauri.window);
   }

@@ -21,8 +21,7 @@
     "lint-fix": "eslint --fix --ext ts \"./src/**/*.ts\"",
     "lint:lockfile": "lockfile-lint --path yarn.lock --type yarn --validate-https --allowed-hosts npm yarn",
     "format": "prettier --write --end-of-line=auto !./**/config.validator.js !./**/config.schema.json \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
-    "format:check": "prettier --check --end-of-line=auto !./**/config.validator.js !./**/config.schema.json \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
-    "build:tauri[rust]": "cd ../tauri && TAURI_DIST_DIR=../../test/fixture/dist TAURI_DIR=../test/fixture cargo publish --dry-run --allow-dirty"
+    "format:check": "prettier --check --end-of-line=auto !./**/config.validator.js !./**/config.schema.json \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore"
   },
   "repository": {
     "type": "git",

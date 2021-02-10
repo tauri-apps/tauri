@@ -16,10 +16,14 @@ mod http;
 #[cfg(notification)]
 mod notification;
 
-use crate::Webview;
+use crate::{app::Context, ApplicationDispatcherExt, Event};
 
 #[allow(unused_variables)]
-pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> crate::Result<()> {
+pub(crate) async fn handle<D: ApplicationDispatcherExt + 'static>(
+  dispatcher: &mut D,
+  arg: &str,
+  context: &Context,
+) -> crate::Result<()> {
   use cmd::Cmd::*;
   match serde_json::from_str(arg) {
     Err(e) => Err(e.into()),
@@ -32,9 +36,9 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
           error,
         } => {
           #[cfg(read_text_file)]
-          file_system::read_text_file(webview, path, options, callback, error).await;
+          file_system::read_text_file(dispatcher, path, options, callback, error).await;
           #[cfg(not(read_text_file))]
-          allowlist_error(webview, error, "readTextFile");
+          allowlist_error(dispatcher, error, "readTextFile");
         }
         ReadBinaryFile {
           path,
@@ -43,9 +47,9 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
           error,
         } => {
           #[cfg(read_binary_file)]
-          file_system::read_binary_file(webview, path, options, callback, error).await;
+          file_system::read_binary_file(dispatcher, path, options, callback, error).await;
           #[cfg(not(read_binary_file))]
-          allowlist_error(webview, error, "readBinaryFile");
+          allowlist_error(dispatcher, error, "readBinaryFile");
         }
         WriteFile {
           path,
@@ -55,9 +59,9 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
           error,
         } => {
           #[cfg(write_file)]
-          file_system::write_file(webview, path, contents, options, callback, error).await;
+          file_system::write_file(dispatcher, path, contents, options, callback, error).await;
           #[cfg(not(write_file))]
-          allowlist_error(webview, error, "writeFile");
+          allowlist_error(dispatcher, error, "writeFile");
         }
         WriteBinaryFile {
           path,
@@ -67,9 +71,10 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
           error,
         } => {
           #[cfg(write_binary_file)]
-          file_system::write_binary_file(webview, path, contents, options, callback, error).await;
+          file_system::write_binary_file(dispatcher, path, contents, options, callback, error)
+            .await;
           #[cfg(not(write_binary_file))]
-          allowlist_error(webview, error, "writeBinaryFile");
+          allowlist_error(dispatcher, error, "writeBinaryFile");
         }
         ReadDir {
           path,
@@ -78,9 +83,9 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
           error,
         } => {
           #[cfg(read_dir)]
-          file_system::read_dir(webview, path, options, callback, error).await;
+          file_system::read_dir(dispatcher, path, options, callback, error).await;
           #[cfg(not(read_dir))]
-          allowlist_error(webview, error, "readDir");
+          allowlist_error(dispatcher, error, "readDir");
         }
         CopyFile {
           source,
@@ -90,9 +95,9 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
           error,
         } => {
           #[cfg(copy_file)]
-          file_system::copy_file(webview, source, destination, options, callback, error).await;
+          file_system::copy_file(dispatcher, source, destination, options, callback, error).await;
           #[cfg(not(copy_file))]
-          allowlist_error(webview, error, "copyFile");
+          allowlist_error(dispatcher, error, "copyFile");
         }
         CreateDir {
           path,
@@ -101,9 +106,9 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
           error,
         } => {
           #[cfg(create_dir)]
-          file_system::create_dir(webview, path, options, callback, error).await;
+          file_system::create_dir(dispatcher, path, options, callback, error).await;
           #[cfg(not(create_dir))]
-          allowlist_error(webview, error, "createDir");
+          allowlist_error(dispatcher, error, "createDir");
         }
         RemoveDir {
           path,
@@ -112,9 +117,9 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
           error,
         } => {
           #[cfg(remove_dir)]
-          file_system::remove_dir(webview, path, options, callback, error).await;
+          file_system::remove_dir(dispatcher, path, options, callback, error).await;
           #[cfg(not(remove_dir))]
-          allowlist_error(webview, error, "removeDir");
+          allowlist_error(dispatcher, error, "removeDir");
         }
         RemoveFile {
           path,
@@ -123,9 +128,9 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
           error,
         } => {
           #[cfg(remove_file)]
-          file_system::remove_file(webview, path, options, callback, error).await;
+          file_system::remove_file(dispatcher, path, options, callback, error).await;
           #[cfg(not(remove_file))]
-          allowlist_error(webview, error, "removeFile");
+          allowlist_error(dispatcher, error, "removeFile");
         }
         RenameFile {
           old_path,
@@ -135,9 +140,9 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
           error,
         } => {
           #[cfg(rename_file)]
-          file_system::rename_file(webview, old_path, new_path, options, callback, error).await;
+          file_system::rename_file(dispatcher, old_path, new_path, options, callback, error).await;
           #[cfg(not(rename_file))]
-          allowlist_error(webview, error, "renameFile");
+          allowlist_error(dispatcher, error, "renameFile");
         }
         ResolvePath {
           path,
@@ -146,17 +151,18 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
           error,
         } => {
           #[cfg(path_api)]
-          path::resolve_path(webview, path, directory, callback, error).await;
+          path::resolve_path(dispatcher, path, directory, callback, error).await;
           #[cfg(not(path_api))]
-          allowlist_error(webview, error, "pathApi");
+          allowlist_error(dispatcher, error, "pathApi");
         }
         SetTitle { title } => {
-          #[cfg(set_title)]
+          // TODO
+          /*#[cfg(set_title)]
           webview.dispatch(move |w| {
             w.set_title(&title);
-          });
+          });*/
           #[cfg(not(set_title))]
-          throw_allowlist_error(webview, "title");
+          throw_allowlist_error(dispatcher, "title");
         }
         Execute {
           command,
@@ -165,22 +171,22 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
           error,
         } => {
           #[cfg(execute)]
-          crate::call(webview, command, args, callback, error).await;
+          crate::call(dispatcher, command, args, callback, error).await;
           #[cfg(not(execute))]
-          throw_allowlist_error(webview, "execute");
+          throw_allowlist_error(dispatcher, "execute");
         }
         Open { uri } => {
           #[cfg(open)]
           browser::open(uri);
           #[cfg(not(open))]
-          throw_allowlist_error(webview, "open");
+          throw_allowlist_error(dispatcher, "open");
         }
         ValidateSalt {
           salt,
           callback,
           error,
         } => {
-          salt::validate(webview, salt, callback, error)?;
+          salt::validate(dispatcher, salt, callback, error)?;
         }
         Listen {
           event,
@@ -190,18 +196,16 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
           #[cfg(event)]
           {
             let js_string = event::listen_fn(event, handler, once)?;
-            webview.dispatch(move |w| {
-              w.eval(&js_string);
-            });
+            dispatcher.eval(&js_string);
           }
           #[cfg(not(event))]
-          throw_allowlist_error(webview, "event");
+          throw_allowlist_error(dispatcher, "event");
         }
         Emit { event, payload } => {
           #[cfg(event)]
           crate::event::on_event(event, payload);
           #[cfg(not(event))]
-          throw_allowlist_error(webview, "event");
+          throw_allowlist_error(dispatcher, "event");
         }
         OpenDialog {
           options,
@@ -209,9 +213,9 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
           error,
         } => {
           #[cfg(open_dialog)]
-          dialog::open(webview, options, callback, error)?;
+          dialog::open(dispatcher, options, callback, error)?;
           #[cfg(not(open_dialog))]
-          allowlist_error(webview, error, "title");
+          allowlist_error(dispatcher, error, "title");
         }
         SaveDialog {
           options,
@@ -219,9 +223,9 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
           error,
         } => {
           #[cfg(save_dialog)]
-          dialog::save(webview, options, callback, error)?;
+          dialog::save(dispatcher, options, callback, error)?;
           #[cfg(not(save_dialog))]
-          throw_allowlist_error(webview, "saveDialog");
+          throw_allowlist_error(dispatcher, "saveDialog");
         }
         MessageDialog { message } => {
           let exe = std::env::current_exe()?;
@@ -229,8 +233,11 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
           let app_name = exe
             .file_name()
             .expect("failed to get exe filename")
-            .to_string_lossy();
-          dialog::message(app_name.to_string(), message);
+            .to_string_lossy()
+            .to_string();
+          dispatcher.send_event(Event::Run(Box::new(move || {
+            dialog::message(app_name, message);
+          })));
         }
         AskDialog {
           title,
@@ -240,7 +247,7 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
         } => {
           let exe = std::env::current_exe()?;
           dialog::ask(
-            webview,
+            dispatcher,
             title.unwrap_or_else(|| {
               let exe_dir = exe.parent().expect("failed to get exe directory");
               exe
@@ -260,9 +267,9 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
           error,
         } => {
           #[cfg(http_request)]
-          http::make_request(webview, *options, callback, error).await;
+          http::make_request(dispatcher, *options, callback, error).await;
           #[cfg(not(http_request))]
-          allowlist_error(webview, error, "httpRequest");
+          allowlist_error(dispatcher, error, "httpRequest");
         }
         #[cfg(assets)]
         LoadAsset {
@@ -271,25 +278,17 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
           callback,
           error,
         } => {
-          asset::load(webview, asset, asset_type, callback, error).await;
+          asset::load(dispatcher, asset, asset_type, callback, error, &context).await;
         }
         CliMatches { callback, error } => {
           #[cfg(cli)]
-          crate::execute_promise(
-            webview,
-            async move {
-              match crate::cli::get_matches() {
-                Some(matches) => Ok(matches),
-                None => Err(anyhow::anyhow!(r#""failed to get matches""#)),
-              }
-            },
-            callback,
-            error,
-          )
-          .await;
+          {
+            let matches = tauri_api::cli::get_matches(&context.config);
+            crate::execute_promise(dispatcher, async move { matches }, callback, error).await;
+          }
           #[cfg(not(cli))]
           api_error(
-            webview,
+            dispatcher,
             error,
             "CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)",
           );
@@ -300,21 +299,21 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
           error,
         } => {
           #[cfg(notification)]
-          notification::send(webview, options, callback, error).await;
+          notification::send(dispatcher, options, callback, error, &context.config).await;
           #[cfg(not(notification))]
-          allowlist_error(webview, error, "notification");
+          allowlist_error(dispatcher, error, "notification");
         }
         IsNotificationPermissionGranted { callback, error } => {
           #[cfg(notification)]
-          notification::is_permission_granted(webview, callback, error).await;
+          notification::is_permission_granted(dispatcher, callback, error).await;
           #[cfg(not(notification))]
-          allowlist_error(webview, error, "notification");
+          allowlist_error(dispatcher, error, "notification");
         }
         RequestNotificationPermission { callback, error } => {
           #[cfg(notification)]
-          notification::request_permission(webview, callback, error)?;
+          notification::request_permission(dispatcher, callback, error)?;
           #[cfg(not(notification))]
-          allowlist_error(webview, error, "notification");
+          allowlist_error(dispatcher, error, "notification");
         }
       }
       Ok(())
@@ -323,17 +322,19 @@ pub(crate) async fn handle<W: Webview + 'static>(webview: &mut W, arg: &str) -> 
 }
 
 #[allow(dead_code)]
-fn api_error<W: Webview>(webview: &mut W, error_fn: String, message: &str) {
+fn api_error<D: ApplicationDispatcherExt>(dispatcher: &mut D, error_fn: String, message: &str) {
   let reject_code = tauri_api::rpc::format_callback(error_fn, message);
-  let _ = webview.dispatch(move |w| {
-    w.eval(&reject_code);
-  });
+  let _ = dispatcher.eval(&reject_code);
 }
 
 #[allow(dead_code)]
-fn allowlist_error<W: Webview>(webview: &mut W, error_fn: String, allowlist_key: &str) {
+fn allowlist_error<D: ApplicationDispatcherExt>(
+  dispatcher: &mut D,
+  error_fn: String,
+  allowlist_key: &str,
+) {
   api_error(
-    webview,
+    dispatcher,
     error_fn,
     &format!(
       "{}' not on the allowlist (https://tauri.studio/docs/api/config#tauri.allowlist)",
@@ -343,14 +344,12 @@ fn allowlist_error<W: Webview>(webview: &mut W, error_fn: String, allowlist_key:
 }
 
 #[allow(dead_code)]
-fn throw_allowlist_error<W: Webview>(webview: &mut W, allowlist_key: &str) {
+fn throw_allowlist_error<D: ApplicationDispatcherExt>(dispatcher: &mut D, allowlist_key: &str) {
   let reject_code = format!(
     r#"throw new Error("'{}' not on the allowlist")"#,
     allowlist_key
   );
-  let _ = webview.dispatch(move |w| {
-    w.eval(&reject_code);
-  });
+  let _ = dispatcher.eval(&reject_code);
 }
 
 #[cfg(test)]

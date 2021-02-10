@@ -1,88 +1,151 @@
+use crate::api::config::PluginConfig;
 use crate::async_runtime::Mutex;
+use crate::ApplicationDispatcherExt;
 
-use crate::Webview;
+use futures::future::join_all;
 
 use std::sync::Arc;
 
+/// The plugin error type.
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+  /// Failed to serialize/deserialize.
+  #[error("JSON error: {0}")]
+  Json(serde_json::Error),
+  /// Unknown API type.
+  #[error("unknown API")]
+  UnknownApi,
+}
+
+impl From<serde_json::Error> for Error {
+  fn from(error: serde_json::Error) -> Self {
+    if error.to_string().contains("unknown variant") {
+      Self::UnknownApi
+    } else {
+      Self::Json(error)
+    }
+  }
+}
+
 /// The plugin interface.
 #[async_trait::async_trait]
-pub trait Plugin<W: Webview + 'static>: Sync {
+pub trait Plugin<D: ApplicationDispatcherExt + 'static>: Send + Sync {
+  /// The plugin name. Used as key on the plugin config object.
+  fn name(&self) -> &'static str;
+
+  /// Initialize the plugin.
+  #[allow(unused_variables)]
+  async fn initialize(&mut self, config: String) -> Result<(), Error> {
+    Ok(())
+  }
+
   /// The JS script to evaluate on init.
   async fn init_script(&self) -> Option<String> {
     None
   }
+
   /// Callback invoked when the webview is created.
   #[allow(unused_variables)]
-  async fn created(&self, webview: W) {}
+  async fn created(&mut self, dispatcher: D) {}
 
   /// Callback invoked when the webview is ready.
   #[allow(unused_variables)]
-  async fn ready(&self, webview: W) {}
+  async fn ready(&mut self, dispatcher: D) {}
 
   /// Add invoke_handler API extension commands.
   #[allow(unused_variables)]
-  async fn extend_api(&self, webview: W, payload: &str) -> Result<bool, String> {
-    Err("unknown variant".to_string())
+  async fn extend_api(&mut self, dispatcher: D, payload: &str) -> Result<(), Error> {
+    Err(Error::UnknownApi)
   }
 }
 
 /// Plugin collection type.
-pub type PluginStore<W> = Arc<Mutex<Vec<Box<dyn Plugin<W> + Sync + Send>>>>;
+pub type PluginStore<D> = Arc<Mutex<Vec<Box<dyn Plugin<D> + Sync + Send>>>>;
 
 /// Registers a plugin.
-pub async fn register<W: Webview + 'static>(
-  store: &PluginStore<W>,
-  plugin: impl Plugin<W> + Sync + Send + 'static,
+pub async fn register<D: ApplicationDispatcherExt + 'static>(
+  store: &PluginStore<D>,
+  plugin: impl Plugin<D> + Sync + Send + 'static,
 ) {
   let mut plugins = store.lock().await;
   plugins.push(Box::new(plugin));
 }
 
-pub(crate) async fn init_script<W: Webview + 'static>(store: &PluginStore<W>) -> String {
-  let mut init = String::new();
+pub(crate) async fn initialize<D: ApplicationDispatcherExt + 'static>(
+  store: &PluginStore<D>,
+  plugins_config: PluginConfig,
+) -> crate::Result<()> {
+  let mut plugins = store.lock().await;
+  let mut futures = Vec::new();
+  for plugin in plugins.iter_mut() {
+    let plugin_config = plugins_config.get(plugin.name());
+    futures.push(plugin.initialize(plugin_config));
+  }
 
-  let plugins = store.lock().await;
-  for plugin in plugins.iter() {
-    if let Some(init_script) = plugin.init_script().await {
+  for res in join_all(futures).await {
+    res?;
+  }
+
+  Ok(())
+}
+
+pub(crate) async fn init_script<D: ApplicationDispatcherExt + 'static>(
+  store: &PluginStore<D>,
+) -> String {
+  let mut plugins = store.lock().await;
+  let mut futures = Vec::new();
+  for plugin in plugins.iter_mut() {
+    futures.push(plugin.init_script());
+  }
+
+  let mut init = String::new();
+  for res in join_all(futures).await {
+    if let Some(init_script) = res {
       init.push_str(&format!("(function () {{ {} }})();", init_script));
     }
   }
-
   init
 }
 
-pub(crate) async fn created<W: Webview + 'static>(store: &PluginStore<W>, webview: &mut W) {
-  let plugins = store.lock().await;
-  for plugin in plugins.iter() {
-    plugin.created(webview.clone()).await;
+pub(crate) async fn created<D: ApplicationDispatcherExt + 'static>(
+  store: &PluginStore<D>,
+  dispatcher: &mut D,
+) {
+  let mut plugins = store.lock().await;
+  let mut futures = Vec::new();
+  for plugin in plugins.iter_mut() {
+    futures.push(plugin.created(dispatcher.clone()));
   }
+  join_all(futures).await;
 }
 
-pub(crate) async fn ready<W: Webview + 'static>(store: &PluginStore<W>, webview: &mut W) {
-  let plugins = store.lock().await;
-  for plugin in plugins.iter() {
-    plugin.ready(webview.clone()).await;
+pub(crate) async fn ready<D: ApplicationDispatcherExt + 'static>(
+  store: &PluginStore<D>,
+  dispatcher: &mut D,
+) {
+  let mut plugins = store.lock().await;
+  let mut futures = Vec::new();
+  for plugin in plugins.iter_mut() {
+    futures.push(plugin.ready(dispatcher.clone()));
   }
+  join_all(futures).await;
 }
 
-pub(crate) async fn extend_api<W: Webview + 'static>(
-  store: &PluginStore<W>,
-  webview: &mut W,
+pub(crate) async fn extend_api<D: ApplicationDispatcherExt + 'static>(
+  store: &PluginStore<D>,
+  dispatcher: &mut D,
   arg: &str,
-) -> Result<bool, String> {
-  let plugins = store.lock().await;
-  for ext in plugins.iter() {
-    match ext.extend_api(webview.clone(), arg).await {
-      Ok(handled) => {
-        if handled {
-          return Ok(true);
-        }
+) -> Result<bool, Error> {
+  let mut plugins = store.lock().await;
+  for ext in plugins.iter_mut() {
+    match ext.extend_api(dispatcher.clone(), arg).await {
+      Ok(_) => {
+        return Ok(true);
       }
-      Err(e) => {
-        if !e.contains("unknown variant") {
-          return Err(e);
-        }
-      }
+      Err(e) => match e {
+        Error::UnknownApi => {}
+        _ => return Err(e),
+      },
     }
   }
   Ok(false)

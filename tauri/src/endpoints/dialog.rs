@@ -3,7 +3,7 @@ use crate::api::dialog::{
   ask as ask_dialog, message as message_dialog, pick_folder, save_file, select, select_multiple,
   DialogSelection, Response,
 };
-use crate::Webview;
+use crate::ApplicationDispatcherExt;
 use serde_json::Value as JsonValue;
 
 /// maps a dialog response to a JS value to eval
@@ -18,15 +18,15 @@ fn map_response(response: Response) -> JsonValue {
 
 /// Shows an open dialog.
 #[cfg(open_dialog)]
-pub fn open<W: Webview>(
-  webview: &mut W,
+pub fn open<D: ApplicationDispatcherExt + 'static>(
+  dispatcher: &mut D,
   options: OpenDialogOptions,
   callback: String,
   error: String,
 ) -> crate::Result<()> {
   crate::execute_promise_sync(
-    webview,
-    async move {
+    dispatcher,
+    move || {
       let response = if options.multiple {
         select_multiple(options.filter, options.default_path)
       } else if options.directory {
@@ -38,24 +38,24 @@ pub fn open<W: Webview>(
     },
     callback,
     error,
-  )?;
+  );
   Ok(())
 }
 
 /// Shows a save dialog.
 #[cfg(save_dialog)]
-pub fn save<W: Webview>(
-  webview: &mut W,
+pub fn save<D: ApplicationDispatcherExt + 'static>(
+  dispatcher: &mut D,
   options: SaveDialogOptions,
   callback: String,
   error: String,
 ) -> crate::Result<()> {
   crate::execute_promise_sync(
-    webview,
-    async move { save_file(options.filter, options.default_path).map(map_response) },
+    dispatcher,
+    move || save_file(options.filter, options.default_path).map(map_response),
     callback,
     error,
-  )?;
+  );
   Ok(())
 }
 
@@ -65,23 +65,21 @@ pub fn message(title: String, message: String) {
 }
 
 /// Shows a dialog with a yes/no question.
-pub fn ask<W: Webview>(
-  webview: &mut W,
+pub fn ask<D: ApplicationDispatcherExt + 'static>(
+  dispatcher: &mut D,
   title: String,
   message: String,
   callback: String,
   error: String,
 ) -> crate::Result<()> {
   crate::execute_promise_sync(
-    webview,
-    async move {
-      match ask_dialog(message, title) {
-        DialogSelection::Yes => Ok(true),
-        _ => Ok(false),
-      }
+    dispatcher,
+    move || match ask_dialog(message, title) {
+      DialogSelection::Yes => Ok(true),
+      _ => Ok(false),
     },
     callback,
     error,
-  )?;
+  );
   Ok(())
 }

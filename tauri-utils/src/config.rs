@@ -2,10 +2,7 @@ use serde::de::{Deserializer, Error as DeError, Visitor};
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
 
-use once_cell::sync::OnceCell;
 use std::collections::HashMap;
-
-static CONFIG: OnceCell<Config> = OnceCell::new();
 
 /// The window configuration object.
 #[derive(PartialEq, Deserialize, Debug)]
@@ -44,13 +41,15 @@ fn default_title() -> String {
   "Tauri App".to_string()
 }
 
-fn default_window() -> WindowConfig {
-  WindowConfig {
-    width: default_width(),
-    height: default_height(),
-    resizable: default_resizable(),
-    title: default_title(),
-    fullscreen: false,
+impl Default for WindowConfig {
+  fn default() -> Self {
+    Self {
+      width: default_width(),
+      height: default_height(),
+      resizable: default_resizable(),
+      title: default_title(),
+      fullscreen: false,
+    }
   }
 }
 
@@ -74,10 +73,36 @@ pub struct EmbeddedServerConfig {
   /// If it's `random`, we'll generate one at runtime.
   #[serde(default = "default_port", deserialize_with = "port_deserializer")]
   pub port: Port,
+
+  /// The base path of the embedded server.
+  /// The path should always start and end in a forward slash, which the deserializer will ensure
+  #[serde(
+    default = "default_public_path",
+    deserialize_with = "public_path_deserializer"
+  )]
+  pub public_path: String,
 }
 
 fn default_host() -> String {
   "http://127.0.0.1".to_string()
+}
+
+fn default_port() -> Port {
+  Port::Random
+}
+
+fn default_public_path() -> String {
+  "/".to_string()
+}
+
+impl Default for EmbeddedServerConfig {
+  fn default() -> Self {
+    Self {
+      host: default_host(),
+      port: default_port(),
+      public_path: default_public_path(),
+    }
+  }
 }
 
 fn port_deserializer<'de, D>(deserializer: D) -> Result<Port, D::Error>
@@ -116,15 +141,45 @@ where
   deserializer.deserialize_any(PortDeserializer {})
 }
 
-fn default_port() -> Port {
-  Port::Random
-}
+fn public_path_deserializer<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+  D: Deserializer<'de>,
+{
+  struct PublicPathDeserializer;
 
-fn default_embedded_server() -> EmbeddedServerConfig {
-  EmbeddedServerConfig {
-    host: default_host(),
-    port: default_port(),
+  impl<'de> Visitor<'de> for PublicPathDeserializer {
+    type Value = String;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+      formatter.write_str("a string starting and ending in a forward slash /")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+      E: DeError,
+    {
+      match value.len() {
+        0 => return Ok("/".into()),
+        1 if value == "/" => return Ok("/".into()),
+        1 => return Ok(format!("/{}/", value)),
+        _ => {}
+      }
+
+      // we know there are at least 2 characters in the string
+      let mut chars = value.chars();
+      let first = chars.next().unwrap();
+      let last = chars.last().unwrap();
+
+      match (first == '/', last == '/') {
+        (true, true) => Ok(value.into()),
+        (true, false) => Ok(format!("{}/", value)),
+        (false, true) => Ok(format!("/{}", value)),
+        _ => Ok(format!("/{}/", value)),
+      }
+    }
   }
+
+  deserializer.deserialize_any(PublicPathDeserializer {})
 }
 
 /// A CLI argument definition
@@ -270,9 +325,11 @@ pub struct BundleConfig {
   pub identifier: String,
 }
 
-fn default_bundle() -> BundleConfig {
-  BundleConfig {
-    identifier: String::from(""),
+impl Default for BundleConfig {
+  fn default() -> Self {
+    Self {
+      identifier: String::from(""),
+    }
   }
 }
 
@@ -281,17 +338,28 @@ fn default_bundle() -> BundleConfig {
 #[serde(tag = "tauri", rename_all = "camelCase")]
 pub struct TauriConfig {
   /// The window configuration.
-  #[serde(default = "default_window")]
+  #[serde(default)]
   pub window: WindowConfig,
   /// The embeddedServer configuration.
-  #[serde(default = "default_embedded_server")]
+  #[serde(default)]
   pub embedded_server: EmbeddedServerConfig,
   /// The CLI configuration.
   #[serde(default)]
   pub cli: Option<CliConfig>,
   /// The bundler configuration.
-  #[serde(default = "default_bundle")]
+  #[serde(default)]
   pub bundle: BundleConfig,
+}
+
+impl Default for TauriConfig {
+  fn default() -> Self {
+    Self {
+      window: WindowConfig::default(),
+      embedded_server: EmbeddedServerConfig::default(),
+      cli: None,
+      bundle: BundleConfig::default(),
+    }
+  }
 }
 
 /// The Build configuration object.
@@ -301,139 +369,81 @@ pub struct BuildConfig {
   /// the devPath config.
   #[serde(default = "default_dev_path")]
   pub dev_path: String,
+  /// the dist config.
+  #[serde(default = "default_dist_path")]
+  pub dist_dir: String,
 }
 
 fn default_dev_path() -> String {
   "http://localhost:8080".to_string()
 }
 
-type JsonObject = HashMap<String, JsonValue>;
+fn default_dist_path() -> String {
+  "../dist".to_string()
+}
+
+impl Default for BuildConfig {
+  fn default() -> Self {
+    Self {
+      dev_path: default_dev_path(),
+      dist_dir: default_dist_path(),
+    }
+  }
+}
 
 /// The tauri.conf.json mapper.
-#[derive(PartialEq, Deserialize, Debug)]
+#[derive(Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
   /// The Tauri configuration.
-  #[serde(default = "default_tauri")]
+  #[serde(default)]
   pub tauri: TauriConfig,
   /// The build configuration.
-  #[serde(default = "default_build")]
+  #[serde(default)]
   pub build: BuildConfig,
   /// The plugins config.
   #[serde(default)]
-  plugins: HashMap<String, JsonObject>,
+  pub plugins: PluginConfig,
 }
 
-impl Config {
+/// The plugin configs holds a HashMap mapping a plugin name to its configuration object.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+pub struct PluginConfig(HashMap<String, JsonValue>);
+
+impl PluginConfig {
   /// Gets a plugin configuration.
-  pub fn plugin_config<S: AsRef<str>>(&self, plugin_name: S) -> Option<&JsonObject> {
-    self.plugins.get(plugin_name.as_ref())
+  pub fn get<S: AsRef<str>>(&self, plugin_name: S) -> String {
+    self
+      .0
+      .get(plugin_name.as_ref())
+      .map(|config| config.to_string())
+      .unwrap_or_else(|| "{}".to_string())
   }
-}
-
-fn default_tauri() -> TauriConfig {
-  TauriConfig {
-    window: default_window(),
-    embedded_server: default_embedded_server(),
-    cli: None,
-    bundle: default_bundle(),
-  }
-}
-
-fn default_build() -> BuildConfig {
-  BuildConfig {
-    dev_path: default_dev_path(),
-  }
-}
-
-/// Gets the static parsed config from `tauri.conf.json`.
-pub fn get() -> crate::Result<&'static Config> {
-  if let Some(config) = CONFIG.get() {
-    return Ok(config);
-  }
-  let config: Config = match option_env!("TAURI_CONFIG") {
-    Some(config) => serde_json::from_str(config).expect("failed to parse TAURI_CONFIG env"),
-    None => {
-      let config = include_str!(concat!(env!("OUT_DIR"), "/tauri.conf.json"));
-      serde_json::from_str(&config).expect("failed to read tauri.conf.json")
-    }
-  };
-
-  CONFIG
-    .set(config)
-    .map_err(|_| anyhow::anyhow!("failed to set CONFIG"))?;
-
-  let config = CONFIG.get().unwrap();
-  Ok(config)
 }
 
 #[cfg(test)]
 mod test {
   use super::*;
-  // generate a test_config based on the test fixture
-  fn create_test_config() -> Config {
-    Config {
-      tauri: TauriConfig {
-        window: WindowConfig {
-          width: 800,
-          height: 600,
-          resizable: true,
-          title: String::from("Tauri App"),
-          fullscreen: false,
-        },
-        embedded_server: EmbeddedServerConfig {
-          host: String::from("http://127.0.0.1"),
-          port: Port::Random,
-        },
-        bundle: BundleConfig {
-          identifier: String::from(""),
-        },
-        cli: None,
-      },
-      build: BuildConfig {
-        dev_path: String::from("http://localhost:8080"),
-      },
-      plugins: Default::default(),
-    }
-  }
 
-  #[test]
-  // test the get function.  Will only resolve to true if the TAURI_CONFIG variable is set properly to the fixture.
-  fn test_get() {
-    // get test_config
-    let test_config = create_test_config();
-
-    // call get();
-    let config = get();
-
-    // check to see if there is an OK or Err, on Err fail test.
-    match config {
-      // On Ok, check that the config is the same as the test config.
-      Ok(c) => {
-        println!("{:?}", c);
-        assert_eq!(c, &test_config)
-      }
-      Err(e) => panic!("get config failed: {:?}", e.to_string()),
-    }
-  }
+  // TODO: create a test that compares a config to a json config
 
   #[test]
   // test all of the default functions
   fn test_defaults() {
     // get default tauri config
-    let t_config = default_tauri();
+    let t_config = TauriConfig::default();
     // get default build config
-    let b_config = default_build();
+    let b_config = BuildConfig::default();
     // get default dev path
     let d_path = default_dev_path();
     // get default embedded server
-    let de_server = default_embedded_server();
+    let de_server = EmbeddedServerConfig::default();
     // get default window
-    let d_window = default_window();
+    let d_window = WindowConfig::default();
     // get default title
     let d_title = default_title();
     // get default bundle
-    let d_bundle = default_bundle();
+    let d_bundle = BundleConfig::default();
 
     // create a tauri config.
     let tauri = TauriConfig {
@@ -447,6 +457,7 @@ mod test {
       embedded_server: EmbeddedServerConfig {
         host: String::from("http://127.0.0.1"),
         port: Port::Random,
+        public_path: "/".into(),
       },
       bundle: BundleConfig {
         identifier: String::from(""),
@@ -457,6 +468,7 @@ mod test {
     // create a build config
     let build = BuildConfig {
       dev_path: String::from("http://localhost:8080"),
+      dist_dir: String::from("../dist"),
     };
 
     // test the configs

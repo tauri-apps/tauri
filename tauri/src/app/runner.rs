@@ -209,7 +209,7 @@ fn spawn_updater() {
   });
 }
 
-pub fn init() -> String {
+pub fn event_initialization_script() -> String {
   #[cfg(not(event))]
   return String::from("");
   #[cfg(event)]
@@ -273,10 +273,10 @@ fn build_webview<A: ApplicationExt + 'static>(
     _ => content_url.to_string(),
   };
 
-  let init = format!(
+  let initialization_script = format!(
     r#"
-      {tauri_init}
-      {event_init}
+      {tauri_initialization_script}
+      {event_initialization_script}
       if (window.__TAURI_INVOKE_HANDLER__) {{
         window.__TAURI_INVOKE_HANDLER__(JSON.stringify({{ cmd: "__initialized" }}))
       }} else {{
@@ -284,11 +284,12 @@ fn build_webview<A: ApplicationExt + 'static>(
           window.__TAURI_INVOKE_HANDLER__(JSON.stringify({{ cmd: "__initialized" }}))
         }})
       }}
-      {plugin_init}
+      {plugin_initialization_script}
     "#,
-    tauri_init = application.context.tauri_script,
-    event_init = init(),
-    plugin_init = crate::async_runtime::block_on(crate::plugin::init_script(A::plugin_store()))
+    tauri_initialization_script = application.context.tauri_script,
+    event_initialization_script = event_initialization_script(),
+    plugin_initialization_script =
+      crate::async_runtime::block_on(crate::plugin::initialization_script(A::plugin_store()))
   );
 
   let application = Arc::new(application);
@@ -370,7 +371,7 @@ fn build_webview<A: ApplicationExt + 'static>(
   webview_application.create_webview(
     A::WebviewBuilder::new()
       .url(url)
-      .initialization_script(&init),
+      .initialization_script(&initialization_script),
     main_window,
     vec![tauri_invoke_handler],
   )?;

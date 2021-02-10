@@ -590,10 +590,10 @@ supports-color@^7.0.0:
   dependencies:
     has-flag "^4.0.0"
 
-svelte@3.23.2:
-  version "3.23.2"
-  resolved "https://registry.yarnpkg.com/svelte/-/svelte-3.23.2.tgz#f3e500384261a2e77b29681ee744c3c790fbcdc3"
-  integrity sha512-hE8GeTM83YVR4GY6/6PeDEcGct4JS5aCi+IYbCAa76oaPSfuF7L85DQYULQxlTK/KPWzw3L1GRGmC3oPG/PQoA==
+svelte@3.32.2:
+  version "3.32.2"
+  resolved "https://registry.yarnpkg.com/svelte/-/svelte-3.32.2.tgz#c3a370b951ea2e0730dfd314b5fa57fd93ece399"
+  integrity sha512-Zxh1MQQl/+vnToKbU1Per+PoMN8Jb2MeKJcGxiOsCGR677hXw7jkMfbnNXq33+dxIzV/HfA4xtoSPJrqeB0VUg==
 
 terser@^5.0.0:
   version "5.5.1"

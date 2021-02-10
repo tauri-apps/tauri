@@ -10,6 +10,9 @@ pub enum Error {
   /// Embedded asset not found.
   #[error("asset not found: {0}")]
   AssetNotFound(String),
+  /// Embedded server port not available.
+  #[error("failed to setup server, port {0} not available")]
+  PortNotAvailable(String),
   /// Failed to serialize/deserialize.
   #[error("JSON error: {0}")]
   Json(serde_json::Error),

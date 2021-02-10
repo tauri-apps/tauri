@@ -19,11 +19,7 @@ pub async fn load<D: ApplicationDispatcherExt + 'static>(
     dispatcher,
     async move {
       // strip "about:" uri scheme if it exists
-      let asset = if asset.starts_with("about:") {
-        &asset[6..]
-      } else {
-        &asset
-      };
+      let asset = asset.strip_prefix("about:").unwrap_or(&asset);
 
       // handle public path setting from tauri.conf > tauri > embeddedServer > publicPath
       let asset = if asset.starts_with(&public_path) {
@@ -38,10 +34,9 @@ pub async fn load<D: ApplicationDispatcherExt + 'static>(
       .to_string();
 
       // how should that condition be handled now?
-      let asset_ = asset.to_string();
       let asset_bytes: Vec<u8> = assets
         .get(&Assets::format_key(&asset), AssetFetch::Decompress)
-        .ok_or_else(|| crate::Error::AssetNotFound(asset_))
+        .ok_or_else(|| crate::Error::AssetNotFound(asset.clone()))
         .and_then(|(read, _)| {
           read
             .bytes()

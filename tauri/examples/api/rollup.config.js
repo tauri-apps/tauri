@@ -16,13 +16,11 @@ export default {
 	},
 	plugins: [
 		svelte({
-			// enable run-time checks when not in production
-			dev: !production,
-			// we'll extract any component CSS out into
-			// a separate file - better for performance
-			css: css => {
-				css.write('public/build/bundle.css');
-			}
+			compilerOptions: {
+				// enable run-time checks when not in production
+				dev: !production
+			},
+			emitCss: false
 		}),
 
 		// If you have external dependencies installed from
@@ -54,18 +52,22 @@ export default {
 };
 
 function serve() {
-	let started = false;
+	let server;
+
+	function toExit() {
+		if (server) server.kill(0);
+	}
 
 	return {
 		writeBundle() {
-			if (!started) {
-				started = true;
+			if (server) return;
+			server = require('child_process').spawn('npm', ['run', 'start', '--', '--dev'], {
+				stdio: ['ignore', 'inherit', 'inherit'],
+				shell: true
+			});
 
-				require('child_process').spawn('npm', ['run', 'start', '--', '--dev'], {
-					stdio: ['ignore', 'inherit', 'inherit'],
-					shell: true
-				});
-			}
+			process.on('SIGTERM', toExit);
+			process.on('exit', toExit);
 		}
 	};
 }

@@ -59,8 +59,8 @@
     <div class="tabs">
       {#each views as view}
       <div class="tab">
-        <input type="radio" checked={view.label===selected} />
-        <label class="tabber" on:click={()=> select(view)}>{view.label}</label>
+        <input id={`tab-${view.label}`} type="radio" checked={view.label===selected} />
+        <label for={`tab-${view.label}`} class="tabber" on:click={()=> select(view)}>{view.label}</label>
         <div class="content">
           <svelte:component this={view.component} {onMessage} />
         </div>

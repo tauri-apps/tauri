@@ -13,7 +13,6 @@ struct Reply {
 }
 
 #[derive(tauri::FromTauriContext)]
-#[config_path = "examples/communication/src-tauri/tauri.conf.json"]
 struct Context;
 
 fn main() {

@@ -286,7 +286,6 @@ fn build_webview<A: ApplicationExt + 'static>(
   let application = Arc::new(application);
 
   let mut webview_application = A::new()?;
-  let mut main_window_label = None;
 
   let mut window_refs = Vec::new();
   let mut dispatchers = HashMap::new();
@@ -305,20 +304,17 @@ fn build_webview<A: ApplicationExt + 'static>(
   for (window_config, window) in window_refs {
     let webview_manager = WebviewManager::new(dispatchers.clone(), window_config.label.to_string());
 
-    if main_window_label.is_none() || window_config.url == WindowUrl::App {
-      main_window_label = Some(window_config.label.to_string());
-    }
-
     let application = application.clone();
     let content_url = content_url.to_string();
     let initialized_splashscreen = initialized_splashscreen.clone();
 
+    let webview_manager_ = webview_manager.clone();
     let tauri_invoke_handler = crate::Callback::<A::Dispatcher> {
       name: "__TAURI_INVOKE_HANDLER__".to_string(),
       function: Box::new(move |_, _, arg| {
         let arg = arg.into_iter().next().unwrap_or_else(String::new);
         let application = application.clone();
-        let webview_manager = webview_manager.clone();
+        let webview_manager = webview_manager_.clone();
         let content_url = content_url.to_string();
         let initialized_splashscreen = initialized_splashscreen.clone();
 
@@ -388,15 +384,11 @@ fn build_webview<A: ApplicationExt + 'static>(
       window,
       vec![tauri_invoke_handler],
     )?;
-  }
 
-  let main_webview = WebviewManager::new(
-    dispatchers,
-    main_window_label.expect("window config not found"),
-  );
-  crate::async_runtime::spawn(async move {
-    crate::plugin::created(A::plugin_store(), &main_webview).await
-  });
+    crate::async_runtime::spawn(async move {
+      crate::plugin::created(A::plugin_store(), &webview_manager).await
+    });
+  }
 
   Ok(webview_application)
 }

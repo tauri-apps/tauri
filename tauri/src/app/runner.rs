@@ -340,7 +340,7 @@ fn build_webview<A: ApplicationExt + 'static>(
         .initialization_script(&initialization_script)
         .initialization_script(&format!(
           r#"
-              window.__TAURI__.windowLabels = {window_labels_array};
+              window.__TAURI__.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
               window.__TAURI__.currentWindow = {{ label: "{current_window_label}" }}
             "#,
           window_labels_array =

@@ -337,7 +337,16 @@ fn build_webview<A: ApplicationExt + 'static>(
     webview_application.create_webview(
       A::WebviewBuilder::new()
         .url(webview_url)
-        .initialization_script(&initialization_script),
+        .initialization_script(&initialization_script)
+        .initialization_script(&format!(
+          r#"
+              window.__TAURI__.windowLabels = {window_labels_array};
+              window.__TAURI__.currentWindow = {{ label: "{current_window_label}" }}
+            "#,
+          window_labels_array =
+            serde_json::to_string(&dispatchers.keys().collect::<Vec<&String>>()).unwrap(),
+          current_window_label = window_config.label,
+        )),
       window,
       vec![tauri_invoke_handler],
     )?;

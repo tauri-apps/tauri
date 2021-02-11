@@ -20,9 +20,10 @@ use std::process::Command;
 #[cfg(windows)]
 use tauri_config::get as get_tauri_config;
 
-pub use self::common::print_error;
-pub use self::common::print_info;
-pub use self::settings::{PackageType, Settings, SettingsBuilder};
+pub use self::{
+  common::{print_error, print_info},
+  settings::{PackageType, Settings, SettingsBuilder},
+};
 use common::print_finished;
 
 use std::path::PathBuf;

@@ -10,11 +10,13 @@ use crate::helpers::{
   manifest::rewrite_manifest,
   TauriScript,
 };
-use std::env::{set_current_dir, set_var};
-use std::fs::File;
-use std::io::Write;
-use std::path::PathBuf;
-use std::process::Command;
+use std::{
+  env::{set_current_dir, set_var},
+  fs::File,
+  io::Write,
+  path::PathBuf,
+  process::Command,
+};
 
 #[derive(Default)]
 pub struct Build {

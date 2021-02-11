@@ -1,15 +1,15 @@
-use super::common;
-use super::deb_bundle;
-use super::path_utils;
+use super::{common, deb_bundle, path_utils};
 use crate::Settings;
 
 use handlebars::Handlebars;
 use lazy_static::lazy_static;
 
-use std::collections::BTreeMap;
-use std::fs::{remove_dir_all, write};
-use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::{
+  collections::BTreeMap,
+  fs::{remove_dir_all, write},
+  path::PathBuf,
+  process::{Command, Stdio},
+};
 
 // Create handlebars template for shell script
 lazy_static! {

@@ -1,13 +1,8 @@
 use crate::ApplicationDispatcherExt;
 
-use tauri_api::dir;
-use tauri_api::file;
-use tauri_api::path::resolve_path;
+use tauri_api::{dir, file, path::resolve_path};
 
-use std::fs;
-use std::fs::File;
-use std::io::Write;
-use std::path::PathBuf;
+use std::{fs, fs::File, io::Write, path::PathBuf};
 
 use super::cmd::{DirOperationOptions, FileOperationOptions};
 

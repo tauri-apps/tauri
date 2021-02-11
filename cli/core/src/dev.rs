@@ -8,15 +8,19 @@ use crate::helpers::{
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
 use shared_child::SharedChild;
 
-use std::env::{set_current_dir, set_var};
-use std::ffi::OsStr;
-use std::fs::File;
-use std::io::Write;
-use std::path::PathBuf;
-use std::process::{exit, Command};
-use std::sync::mpsc::{channel, Receiver};
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::{
+  env::{set_current_dir, set_var},
+  ffi::OsStr,
+  fs::File,
+  io::Write,
+  path::PathBuf,
+  process::{exit, Command},
+  sync::{
+    mpsc::{channel, Receiver},
+    Arc, Mutex,
+  },
+  time::Duration,
+};
 
 #[derive(Default)]
 pub struct Dev {

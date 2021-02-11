@@ -1,9 +1,11 @@
 use super::cmd::{OpenDialogOptions, SaveDialogOptions};
-use crate::api::dialog::{
-  ask as ask_dialog, message as message_dialog, pick_folder, save_file, select, select_multiple,
-  DialogSelection, Response,
+use crate::{
+  api::dialog::{
+    ask as ask_dialog, message as message_dialog, pick_folder, save_file, select, select_multiple,
+    DialogSelection, Response,
+  },
+  ApplicationDispatcherExt,
 };
-use crate::ApplicationDispatcherExt;
 use serde_json::Value as JsonValue;
 
 /// maps a dialog response to a JS value to eval

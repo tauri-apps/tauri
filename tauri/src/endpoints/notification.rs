@@ -1,8 +1,7 @@
 use super::cmd::NotificationOptions;
 use crate::ApplicationDispatcherExt;
 use serde_json::Value as JsonValue;
-use tauri_api::config::Config;
-use tauri_api::notification::Notification;
+use tauri_api::{config::Config, notification::Notification};
 
 pub async fn send<D: ApplicationDispatcherExt>(
   dispatcher: &mut D,

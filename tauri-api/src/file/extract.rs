@@ -1,8 +1,6 @@
 use either::{self, Either};
 
-use std::fs;
-use std::io;
-use std::path;
+use std::{fs, io, path};
 
 /// The supported archive formats.
 #[derive(Debug, Clone, Copy, PartialEq)]

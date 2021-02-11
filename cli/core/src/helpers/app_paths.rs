@@ -1,5 +1,4 @@
-use std::env::current_dir;
-use std::path::PathBuf;
+use std::{env::current_dir, path::PathBuf};
 
 use once_cell::sync::Lazy;
 

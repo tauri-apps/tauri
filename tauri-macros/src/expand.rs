@@ -1,13 +1,13 @@
-use crate::error::Error;
-use crate::include_dir::IncludeDir;
-use crate::DEFAULT_CONFIG_FILE;
+use crate::{error::Error, include_dir::IncludeDir, DEFAULT_CONFIG_FILE};
 use proc_macro2::TokenStream;
 use quote::quote;
-use std::collections::HashSet;
-use std::env::var;
-use std::fs::File;
-use std::io::BufReader;
-use std::path::{Path, PathBuf};
+use std::{
+  collections::HashSet,
+  env::var,
+  fs::File,
+  io::BufReader,
+  path::{Path, PathBuf},
+};
 use syn::{DeriveInput, Lit::Str, Meta::NameValue, MetaNameValue};
 use tauri_utils::{assets::AssetCompression, config::Config};
 

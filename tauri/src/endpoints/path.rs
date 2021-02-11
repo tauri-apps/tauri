@@ -1,7 +1,6 @@
 #![cfg(path_api)]
 use crate::ApplicationDispatcherExt;
-use tauri_api::path;
-use tauri_api::path::BaseDirectory;
+use tauri_api::{path, path::BaseDirectory};
 
 pub async fn resolve_path<D: ApplicationDispatcherExt>(
   dispatcher: &mut D,

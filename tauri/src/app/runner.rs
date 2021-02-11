@@ -394,8 +394,7 @@ fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
 #[cfg(test)]
 mod test {
   use super::Content;
-  use crate::Context;
-  use crate::FromTauriContext;
+  use crate::{Context, FromTauriContext};
   use proptest::prelude::*;
   #[cfg(dev)]
   use std::io::Read;

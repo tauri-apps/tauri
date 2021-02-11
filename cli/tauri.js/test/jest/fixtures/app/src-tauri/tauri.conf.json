@@ -17,8 +17,10 @@
       ],
       "identifier": "fixture.app"
     },
-    "windows": [{
-      "title": "Fixture"
-    }]
+    "windows": [
+      {
+        "title": "Fixture"
+      }
+    ]
   }
 }

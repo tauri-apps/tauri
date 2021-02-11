@@ -6,16 +6,72 @@ use serde_json::Value as JsonValue;
 
 use std::collections::HashMap;
 
+/// The window webview URL options.
+#[derive(PartialEq, Debug)]
+pub enum WindowUrl {
+  /// The app's index URL.
+  App,
+  /// A custom URL.
+  Custom(String),
+}
+
+impl Default for WindowUrl {
+  fn default() -> Self {
+    Self::App
+  }
+}
+
+impl<'de> Deserialize<'de> for WindowUrl {
+  fn deserialize<D>(deserializer: D) -> Result<WindowUrl, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    struct StringVisitor;
+    impl<'de> Visitor<'de> for StringVisitor {
+      type Value = WindowUrl;
+      fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("a string representing an url")
+      }
+
+      fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        if v.to_lowercase() == "app" {
+          Ok(WindowUrl::App)
+        } else {
+          Ok(WindowUrl::Custom(v.to_string()))
+        }
+      }
+    }
+    deserializer.deserialize_str(StringVisitor)
+  }
+}
+
 /// The window configuration object.
 #[derive(PartialEq, Deserialize, Debug)]
-#[serde(tag = "window", rename_all = "camelCase")]
 pub struct WindowConfig {
+  /// The window webview URL.
+  #[serde(default)]
+  pub url: WindowUrl,
+  /// The horizontal position of the window's top left corner
+  pub x: Option<f64>,
+  /// The vertical position of the window's top left corner
+  pub y: Option<f64>,
   /// The window width.
   #[serde(default = "default_width")]
-  pub width: i32,
+  pub width: f64,
   /// The window height.
   #[serde(default = "default_height")]
-  pub height: i32,
+  pub height: f64,
+  /// The min window width.
+  pub min_width: Option<f64>,
+  /// The min window height.
+  pub min_height: Option<f64>,
+  /// The max window width.
+  pub max_width: Option<f64>,
+  /// The max window height.
+  pub max_height: Option<f64>,
   /// Whether the window is resizable or not.
   #[serde(default = "default_resizable")]
   pub resizable: bool,
@@ -25,17 +81,40 @@ pub struct WindowConfig {
   /// Whether the window starts as fullscreen or not.
   #[serde(default)]
   pub fullscreen: bool,
+  /// Whether the window is transparent or not.
+  #[serde(default)]
+  pub transparent: bool,
+  /// Whether the window is maximized or not.
+  #[serde(default)]
+  pub maximized: bool,
+  /// Whether the window is visible or not.
+  #[serde(default = "default_visible")]
+  pub visible: bool,
+  /// Whether the window should have borders and bars.
+  #[serde(default = "default_decorations")]
+  pub decorations: bool,
+  /// Whether the window should always be on top of other windows.
+  #[serde(default)]
+  pub always_on_top: bool,
 }
 
-fn default_width() -> i32 {
-  800
+fn default_width() -> f64 {
+  800f64
 }
 
-fn default_height() -> i32 {
-  600
+fn default_height() -> f64 {
+  600f64
 }
 
 fn default_resizable() -> bool {
+  true
+}
+
+fn default_visible() -> bool {
+  true
+}
+
+fn default_decorations() -> bool {
   true
 }
 
@@ -46,11 +125,23 @@ fn default_title() -> String {
 impl Default for WindowConfig {
   fn default() -> Self {
     Self {
+      url: WindowUrl::App,
+      x: None,
+      y: None,
       width: default_width(),
       height: default_height(),
+      min_width: None,
+      min_height: None,
+      max_width: None,
+      max_height: None,
       resizable: default_resizable(),
       title: default_title(),
       fullscreen: false,
+      transparent: false,
+      maximized: false,
+      visible: default_visible(),
+      decorations: default_decorations(),
+      always_on_top: false,
     }
   }
 }
@@ -335,13 +426,17 @@ impl Default for BundleConfig {
   }
 }
 
+fn default_window_config() -> Vec<WindowConfig> {
+  vec![Default::default()]
+}
+
 /// The Tauri configuration object.
 #[derive(PartialEq, Deserialize, Debug)]
 #[serde(tag = "tauri", rename_all = "camelCase")]
 pub struct TauriConfig {
   /// The window configuration.
-  #[serde(default)]
-  pub window: WindowConfig,
+  #[serde(default = "default_window_config")]
+  pub windows: Vec<WindowConfig>,
   /// The embeddedServer configuration.
   #[serde(default)]
   pub embedded_server: EmbeddedServerConfig,
@@ -356,7 +451,7 @@ pub struct TauriConfig {
 impl Default for TauriConfig {
   fn default() -> Self {
     Self {
-      window: WindowConfig::default(),
+      windows: default_window_config(),
       embedded_server: EmbeddedServerConfig::default(),
       cli: None,
       bundle: BundleConfig::default(),
@@ -441,7 +536,7 @@ mod test {
     // get default embedded server
     let de_server = EmbeddedServerConfig::default();
     // get default window
-    let d_window = WindowConfig::default();
+    let d_window = default_window_config();
     // get default title
     let d_title = default_title();
     // get default bundle
@@ -449,13 +544,24 @@ mod test {
 
     // create a tauri config.
     let tauri = TauriConfig {
-      window: WindowConfig {
+      windows: vec![WindowConfig {
+        x: None,
+        y: None,
         width: 800,
         height: 600,
+        min_width: None,
+        min_height: None,
+        max_width: None,
+        max_height: None,
         resizable: true,
         title: String::from("Tauri App"),
         fullscreen: false,
-      },
+        transparent: false,
+        maximized: false,
+        visible: true,
+        decorations: true,
+        always_on_top: false,
+      }],
       embedded_server: EmbeddedServerConfig {
         host: String::from("http://127.0.0.1"),
         port: Port::Random,

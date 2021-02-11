@@ -56,9 +56,13 @@
     "allowlist": {
       "all": true
     },
-    "window": {
-      "title": "Tauri API Validation"
-    },
+    "windows": [{
+      "title": "Tauri API Validation",
+      "resizable": false
+    }, {
+      "url": "https://tauri.studio/en",
+      "resizable": false
+    }],
     "security": {
       "csp": "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
     }

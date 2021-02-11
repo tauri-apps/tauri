@@ -472,31 +472,64 @@ export const TauriConfigSchema = {
           },
           type: 'object'
         },
-        window: {
-          additionalProperties: false,
-          defaultProperties: [],
-          properties: {
-            fullscreen: {
-              type: 'boolean'
-            },
-            height: {
-              type: 'number'
-            },
-            resizable: {
-              type: 'boolean'
-            },
-            title: {
-              type: 'string'
-            },
-            width: {
-              type: 'number'
-            }
+        windows: {
+          additionalItems: {
+            anyOf: [
+              {
+                additionalProperties: false,
+                defaultProperties: [],
+                properties: {
+                  fullscreen: {
+                    type: 'boolean'
+                  },
+                  height: {
+                    type: 'number'
+                  },
+                  resizable: {
+                    type: 'boolean'
+                  },
+                  title: {
+                    type: 'string'
+                  },
+                  width: {
+                    type: 'number'
+                  }
+                },
+                required: ['title'],
+                type: 'object'
+              }
+            ]
           },
-          required: ['title'],
-          type: 'object'
+          items: [
+            {
+              additionalProperties: false,
+              defaultProperties: [],
+              properties: {
+                fullscreen: {
+                  type: 'boolean'
+                },
+                height: {
+                  type: 'number'
+                },
+                resizable: {
+                  type: 'boolean'
+                },
+                title: {
+                  type: 'string'
+                },
+                width: {
+                  type: 'number'
+                }
+              },
+              required: ['title'],
+              type: 'object'
+            }
+          ],
+          minItems: 1,
+          type: 'array'
         }
       },
-      required: ['allowlist', 'bundle', 'security', 'window'],
+      required: ['allowlist', 'bundle', 'security', 'windows'],
       type: 'object'
     },
     verbose: {

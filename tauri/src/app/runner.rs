@@ -8,7 +8,7 @@ use std::sync::{
 #[cfg(dev)]
 use crate::api::assets::{AssetFetch, Assets};
 
-use crate::{ApplicationDispatcherExt, ApplicationExt, WebviewBuilderExt, WindowBuilderExt};
+use crate::{api::config::WindowUrl, ApplicationDispatcherExt, ApplicationExt, WebviewBuilderExt};
 
 use super::App;
 #[cfg(embedded_server)]
@@ -252,14 +252,7 @@ fn build_webview<A: ApplicationExt + 'static>(
   content: Content<String>,
   splashscreen_content: Option<Content<String>>,
 ) -> crate::Result<(A, A::Dispatcher)> {
-  let config = &application.context.config;
   // TODO let debug = cfg!(debug_assertions);
-  // get properties from config struct
-  // TODO let width = config.tauri.window.width;
-  // TODO let height = config.tauri.window.height;
-  let resizable = config.tauri.window.resizable;
-  // let fullscreen = config.tauri.window.fullscreen;
-  let title = config.tauri.window.title.clone();
 
   let has_splashscreen = splashscreen_content.is_some();
   let initialized_splashscreen = Arc::new(AtomicBool::new(false));
@@ -295,91 +288,109 @@ fn build_webview<A: ApplicationExt + 'static>(
   let application = Arc::new(application);
 
   let mut webview_application = A::new()?;
+  let mut main_dispatcher = None;
 
-  let main_window =
-    webview_application.create_window(A::WindowBuilder::new().resizable(resizable).title(title))?;
+  for window_config in &application.context.config.tauri.windows {
+    let window = crate::webview::WindowBuilder::from(window_config);
+    let window = webview_application.create_window(window.get())?;
+    let dispatcher = webview_application.dispatcher(&window);
 
-  let dispatcher = webview_application.dispatcher(&main_window);
+    if main_dispatcher.is_none() || window_config.url == WindowUrl::App {
+      main_dispatcher = Some(dispatcher.clone());
+    }
 
-  let tauri_invoke_handler = crate::Callback::<A::Dispatcher> {
-    name: "__TAURI_INVOKE_HANDLER__".to_string(),
-    function: Box::new(move |dispatcher, _, arg| {
-      let arg = arg.into_iter().next().unwrap_or_else(String::new);
-      let application = application.clone();
-      let mut dispatcher = dispatcher.clone();
-      let content_url = content_url.to_string();
-      let initialized_splashscreen = initialized_splashscreen.clone();
+    let application = application.clone();
+    let content_url = content_url.to_string();
+    let initialized_splashscreen = initialized_splashscreen.clone();
 
-      crate::async_runtime::spawn(async move {
-        if arg == r#"{"cmd":"__initialized"}"# {
-          let source = if has_splashscreen && !initialized_splashscreen.load(Ordering::Relaxed) {
-            initialized_splashscreen.swap(true, Ordering::Relaxed);
-            "splashscreen"
+    let tauri_invoke_handler = crate::Callback::<A::Dispatcher> {
+      name: "__TAURI_INVOKE_HANDLER__".to_string(),
+      function: Box::new(move |dispatcher, _, arg| {
+        let arg = arg.into_iter().next().unwrap_or_else(String::new);
+        let application = application.clone();
+        let mut dispatcher = dispatcher.clone();
+        let content_url = content_url.to_string();
+        let initialized_splashscreen = initialized_splashscreen.clone();
+
+        crate::async_runtime::spawn(async move {
+          if arg == r#"{"cmd":"__initialized"}"# {
+            let source = if has_splashscreen && !initialized_splashscreen.load(Ordering::Relaxed) {
+              initialized_splashscreen.swap(true, Ordering::Relaxed);
+              "splashscreen"
+            } else {
+              "window-1"
+            };
+            application
+              .run_setup(&mut dispatcher, source.to_string())
+              .await;
+            if source == "window-1" {
+              crate::plugin::ready(A::plugin_store(), &mut dispatcher).await;
+            }
+          } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
+            dispatcher.eval(&format!(r#"window.location.href = "{}""#, content_url));
           } else {
-            "window-1"
-          };
-          application
-            .run_setup(&mut dispatcher, source.to_string())
-            .await;
-          if source == "window-1" {
-            crate::plugin::ready(A::plugin_store(), &mut dispatcher).await;
-          }
-        } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
-          dispatcher.eval(&format!(r#"window.location.href = "{}""#, content_url));
-        } else {
-          let mut endpoint_handle =
-            crate::endpoints::handle(&mut dispatcher, &arg, &application.context)
-              .await
-              .map_err(|e| e.to_string());
-          if let Err(ref tauri_handle_error) = endpoint_handle {
-            if tauri_handle_error.contains("unknown variant") {
-              let error = match application.run_invoke_handler(&mut dispatcher, &arg).await {
-                Ok(handled) => {
-                  if handled {
-                    String::from("")
-                  } else {
-                    tauri_handle_error.to_string()
+            let mut endpoint_handle =
+              crate::endpoints::handle(&mut dispatcher, &arg, &application.context)
+                .await
+                .map_err(|e| e.to_string());
+            if let Err(ref tauri_handle_error) = endpoint_handle {
+              if tauri_handle_error.contains("unknown variant") {
+                let error = match application.run_invoke_handler(&mut dispatcher, &arg).await {
+                  Ok(handled) => {
+                    if handled {
+                      String::from("")
+                    } else {
+                      tauri_handle_error.to_string()
+                    }
                   }
-                }
-                Err(e) => e,
-              };
-              endpoint_handle = Err(error);
-            }
-          }
-          if let Err(ref app_handle_error) = endpoint_handle {
-            if app_handle_error.contains("unknown variant") {
-              let error =
-                match crate::plugin::extend_api(A::plugin_store(), &mut dispatcher, &arg).await {
-                  Ok(_) => String::from(""),
-                  Err(e) => e.to_string(),
+                  Err(e) => e,
                 };
-              endpoint_handle = Err(error);
+                endpoint_handle = Err(error);
+              }
+            }
+            if let Err(ref app_handle_error) = endpoint_handle {
+              if app_handle_error.contains("unknown variant") {
+                let error =
+                  match crate::plugin::extend_api(A::plugin_store(), &mut dispatcher, &arg).await {
+                    Ok(_) => String::from(""),
+                    Err(e) => e.to_string(),
+                  };
+                endpoint_handle = Err(error);
+              }
+            }
+            endpoint_handle = endpoint_handle.map_err(|e| e.replace("'", "\\'"));
+            if let Err(handler_error_message) = endpoint_handle {
+              if !handler_error_message.is_empty() {
+                dispatcher.eval(&get_api_error_message(&arg, handler_error_message));
+              }
             }
           }
-          endpoint_handle = endpoint_handle.map_err(|e| e.replace("'", "\\'"));
-          if let Err(handler_error_message) = endpoint_handle {
-            if !handler_error_message.is_empty() {
-              dispatcher.eval(&get_api_error_message(&arg, handler_error_message));
-            }
-          }
-        }
-      });
-      0
-    }),
-  };
+        });
+        0
+      }),
+    };
 
-  webview_application.create_webview(
-    A::WebviewBuilder::new()
-      .url(url)
-      .initialization_script(&initialization_script),
-    main_window,
-    vec![tauri_invoke_handler],
-  )?;
+    let webview_url = match &window_config.url {
+      WindowUrl::App => url.clone(),
+      WindowUrl::Custom(url) => url.to_string(),
+    };
+
+    webview_application.create_webview(
+      A::WebviewBuilder::new()
+        .url(webview_url)
+        .initialization_script(&initialization_script),
+      window,
+      vec![tauri_invoke_handler],
+    )?;
+  }
 
   // TODO waiting for webview window API
   // webview.set_fullscreen(fullscreen);
 
-  Ok((webview_application, dispatcher))
+  Ok((
+    webview_application,
+    main_dispatcher.expect("no window configuration found"),
+  ))
 }
 
 // Formats an invoke handler error message to print to console.error

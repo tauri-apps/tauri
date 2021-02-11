@@ -1,6 +1,6 @@
 pub(crate) mod wry;
 
-pub use crate::plugin::PluginStore;
+pub use crate::{api::config::WindowConfig, plugin::PluginStore};
 
 /// An event to be posted to the webview event loop.
 pub enum Event {
@@ -16,11 +16,38 @@ pub trait WindowBuilderExt: Sized {
   /// Initializes a new window builder.
   fn new() -> Self;
 
+  /// The horizontal position of the window's top left corner.
+  fn x(self, x: f64) -> Self;
+
+  /// The vertical position of the window's top left corner.
+  fn y(self, y: f64) -> Self;
+
+  /// Window width.
+  fn width(self, width: f64) -> Self;
+
+  /// Window height.
+  fn height(self, height: f64) -> Self;
+
+  /// Window min width.
+  fn min_width(self, min_width: f64) -> Self;
+
+  /// Window min height.
+  fn min_height(self, min_height: f64) -> Self;
+
+  /// Window max width.
+  fn max_width(self, max_width: f64) -> Self;
+
+  /// Window max height.
+  fn max_height(self, max_height: f64) -> Self;
+
   /// Whether the window is resizable or not.
   fn resizable(self, resizable: bool) -> Self;
 
   /// The title of the window in the title bar.
   fn title(self, title: String) -> Self;
+
+  /// Whether to start the window in fullscreen or not.
+  fn fullscreen(self, fullscreen: bool) -> Self;
 
   /// Whether the window should be maximized upon creation.
   fn maximized(self, maximized: bool) -> Self;
@@ -40,6 +67,50 @@ pub trait WindowBuilderExt: Sized {
 
   /// build the window.
   fn finish(self) -> crate::Result<Self::Window>;
+}
+
+pub struct WindowBuilder<T>(T);
+
+impl<T> WindowBuilder<T> {
+  pub fn get(self) -> T {
+    self.0
+  }
+}
+
+impl<T: WindowBuilderExt> From<&WindowConfig> for WindowBuilder<T> {
+  fn from(config: &WindowConfig) -> Self {
+    let mut window = T::new()
+      .title(config.title.to_string())
+      .width(config.width)
+      .height(config.height)
+      .visible(config.visible)
+      .resizable(config.resizable)
+      .decorations(config.decorations)
+      .maximized(config.maximized)
+      .fullscreen(config.fullscreen)
+      .transparent(config.transparent)
+      .always_on_top(config.always_on_top);
+    if let Some(min_width) = config.min_width {
+      window = window.min_width(min_width);
+    }
+    if let Some(min_height) = config.min_height {
+      window = window.min_height(min_height);
+    }
+    if let Some(max_width) = config.max_width {
+      window = window.max_width(max_width);
+    }
+    if let Some(max_height) = config.max_height {
+      window = window.max_height(max_height);
+    }
+    if let Some(x) = config.x {
+      window = window.x(x);
+    }
+    if let Some(y) = config.y {
+      window = window.y(y);
+    }
+
+    Self(window)
+  }
 }
 
 /// The webview builder.

@@ -20,6 +20,46 @@ impl WindowBuilderExt for wry::AppWindowAttributes {
     Default::default()
   }
 
+  fn x(mut self, x: f64) -> Self {
+    self.x = Some(x);
+    self
+  }
+
+  fn y(mut self, y: f64) -> Self {
+    self.y = Some(y);
+    self
+  }
+
+  fn width(mut self, width: f64) -> Self {
+    self.width = width;
+    self
+  }
+
+  fn height(mut self, height: f64) -> Self {
+    self.height = height;
+    self
+  }
+
+  fn min_width(mut self, min_width: f64) -> Self {
+    self.min_width = Some(min_width);
+    self
+  }
+
+  fn min_height(mut self, min_height: f64) -> Self {
+    self.min_height = Some(min_height);
+    self
+  }
+
+  fn max_width(mut self, max_width: f64) -> Self {
+    self.max_width = Some(max_width);
+    self
+  }
+
+  fn max_height(mut self, max_height: f64) -> Self {
+    self.max_height = Some(max_height);
+    self
+  }
+
   fn resizable(mut self, resizable: bool) -> Self {
     self.resizable = resizable;
     self
@@ -27,6 +67,11 @@ impl WindowBuilderExt for wry::AppWindowAttributes {
 
   fn title(mut self, title: String) -> Self {
     self.title = title;
+    self
+  }
+
+  fn fullscreen(mut self, fullscreen: bool) -> Self {
+    self.fullscreen = fullscreen;
     self
   }
 
@@ -50,7 +95,6 @@ impl WindowBuilderExt for wry::AppWindowAttributes {
     self
   }
 
-  /// Whether the window should always be on top of other windows.
   fn always_on_top(mut self, always_on_top: bool) -> Self {
     self.always_on_top = always_on_top;
     self

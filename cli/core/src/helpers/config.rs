@@ -21,53 +21,6 @@ fn config_handle() -> &'static ConfigHandle {
   &CONFING_HANDLE
 }
 
-/// The window configuration object.
-#[derive(PartialEq, Clone, Deserialize, Serialize, Debug)]
-#[serde(tag = "window", rename_all = "camelCase")]
-pub struct WindowConfig {
-  /// The window width.
-  #[serde(default = "default_width")]
-  pub width: i32,
-  /// The window height.
-  #[serde(default = "default_height")]
-  pub height: i32,
-  /// Whether the window is resizable or not.
-  #[serde(default = "default_resizable")]
-  pub resizable: bool,
-  /// The window title.
-  #[serde(default = "default_title")]
-  pub title: String,
-  /// Whether the window starts as fullscreen or not.
-  #[serde(default)]
-  pub fullscreen: bool,
-}
-
-fn default_width() -> i32 {
-  800
-}
-
-fn default_height() -> i32 {
-  600
-}
-
-fn default_resizable() -> bool {
-  true
-}
-
-fn default_title() -> String {
-  "Tauri App".to_string()
-}
-
-fn default_window() -> WindowConfig {
-  WindowConfig {
-    width: default_width(),
-    height: default_height(),
-    resizable: default_resizable(),
-    title: default_title(),
-    fullscreen: false,
-  }
-}
-
 /// The embedded server port.
 #[derive(PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub enum Port {
@@ -312,9 +265,6 @@ fn default_bundle() -> BundleConfig {
 #[derive(PartialEq, Clone, Deserialize, Serialize, Debug)]
 #[serde(tag = "tauri", rename_all = "camelCase")]
 pub struct TauriConfig {
-  /// The window configuration.
-  #[serde(default = "default_window")]
-  pub window: WindowConfig,
   /// The embeddedServer configuration.
   #[serde(default = "default_embedded_server")]
   pub embedded_server: EmbeddedServerConfig,
@@ -370,7 +320,6 @@ pub struct Config {
 
 fn default_tauri() -> TauriConfig {
   TauriConfig {
-    window: default_window(),
     embedded_server: default_embedded_server(),
     cli: None,
     bundle: default_bundle(),

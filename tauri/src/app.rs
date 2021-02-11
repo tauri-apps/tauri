@@ -4,9 +4,13 @@ use std::marker::PhantomData;
 use tauri_api::{config::Config, private::AsTauriContext};
 
 mod runner;
+mod webview_manager;
 
-type InvokeHandler<W> = dyn Fn(W, String) -> BoxFuture<'static, Result<(), String>> + Send + Sync;
-type Setup<W> = dyn Fn(W, String) -> BoxFuture<'static, ()> + Send + Sync;
+pub use webview_manager::{WebviewDispatcher, WebviewManager};
+
+type InvokeHandler<D> =
+  dyn Fn(WebviewManager<D>, String) -> BoxFuture<'static, Result<(), String>> + Send + Sync;
+type Setup<D> = dyn Fn(WebviewManager<D>, String) -> BoxFuture<'static, ()> + Send + Sync;
 
 /// `App` runtime information.
 pub struct Context {
@@ -48,7 +52,7 @@ impl<A: ApplicationExt + 'static> App<A> {
   /// The message is considered consumed if the handler exists and returns an Ok Result.
   pub(crate) async fn run_invoke_handler(
     &self,
-    dispatcher: &mut A::Dispatcher,
+    dispatcher: &WebviewManager<A::Dispatcher>,
     arg: &str,
   ) -> Result<bool, String> {
     if let Some(ref invoke_handler) = self.invoke_handler {
@@ -60,7 +64,7 @@ impl<A: ApplicationExt + 'static> App<A> {
   }
 
   /// Runs the setup callback if defined.
-  pub(crate) async fn run_setup(&self, dispatcher: &mut A::Dispatcher, source: String) {
+  pub(crate) async fn run_setup(&self, dispatcher: &WebviewManager<A::Dispatcher>, source: String) {
     if let Some(ref setup) = self.setup {
       let fut = setup(dispatcher.clone(), source);
       fut.await;
@@ -100,13 +104,13 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<A, C> {
   /// Defines the JS message handler callback.
   pub fn invoke_handler<
     T: futures::Future<Output = Result<(), String>> + Send + Sync + 'static,
-    F: Fn(A::Dispatcher, String) -> T + Send + Sync + 'static,
+    F: Fn(WebviewManager<A::Dispatcher>, String) -> T + Send + Sync + 'static,
   >(
     mut self,
     invoke_handler: F,
   ) -> Self {
-    self.invoke_handler = Some(Box::new(move |dispatcher, arg| {
-      Box::pin(invoke_handler(dispatcher, arg))
+    self.invoke_handler = Some(Box::new(move |webview_manager, arg| {
+      Box::pin(invoke_handler(webview_manager, arg))
     }));
     self
   }
@@ -114,13 +118,13 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<A, C> {
   /// Defines the setup callback.
   pub fn setup<
     T: futures::Future<Output = ()> + Send + Sync + 'static,
-    F: Fn(A::Dispatcher, String) -> T + Send + Sync + 'static,
+    F: Fn(WebviewManager<A::Dispatcher>, String) -> T + Send + Sync + 'static,
   >(
     mut self,
     setup: F,
   ) -> Self {
-    self.setup = Some(Box::new(move |dispatcher, source| {
-      Box::pin(setup(dispatcher, source))
+    self.setup = Some(Box::new(move |webview_manager, source| {
+      Box::pin(setup(webview_manager, source))
     }));
     self
   }

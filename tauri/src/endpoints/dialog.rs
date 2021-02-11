@@ -21,13 +21,13 @@ fn map_response(response: Response) -> JsonValue {
 /// Shows an open dialog.
 #[cfg(open_dialog)]
 pub fn open<D: ApplicationDispatcherExt + 'static>(
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
   options: OpenDialogOptions,
   callback: String,
   error: String,
 ) -> crate::Result<()> {
   crate::execute_promise_sync(
-    dispatcher,
+    webview_manager,
     move || {
       let response = if options.multiple {
         select_multiple(options.filter, options.default_path)
@@ -48,13 +48,13 @@ pub fn open<D: ApplicationDispatcherExt + 'static>(
 /// Shows a save dialog.
 #[cfg(save_dialog)]
 pub fn save<D: ApplicationDispatcherExt + 'static>(
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
   options: SaveDialogOptions,
   callback: String,
   error: String,
 ) -> crate::Result<()> {
   crate::execute_promise_sync(
-    dispatcher,
+    webview_manager,
     move || {
       save_file(options.filter, options.default_path)
         .map(map_response)
@@ -73,14 +73,14 @@ pub fn message(title: String, message: String) {
 
 /// Shows a dialog with a yes/no question.
 pub fn ask<D: ApplicationDispatcherExt + 'static>(
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
   title: String,
   message: String,
   callback: String,
   error: String,
 ) -> crate::Result<()> {
   crate::execute_promise_sync(
-    dispatcher,
+    webview_manager,
     move || match ask_dialog(message, title) {
       DialogSelection::Yes => crate::Result::Ok(true),
       _ => crate::Result::Ok(false),

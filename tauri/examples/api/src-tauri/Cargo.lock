@@ -2374,7 +2374,6 @@ dependencies = [
 name = "tauri"
 version = "0.11.1"
 dependencies = [
- "anyhow",
  "async-trait",
  "base64",
  "cfg_aliases",
@@ -2398,7 +2397,6 @@ dependencies = [
 name = "tauri-api"
 version = "0.7.5"
 dependencies = [
- "anyhow",
  "attohttpc",
  "clap",
  "dirs-next",
@@ -2408,7 +2406,6 @@ dependencies = [
  "nfd",
  "notify-rust",
  "once_cell",
- "phf",
  "rand 0.8.3",
  "semver",
  "serde",
@@ -2451,7 +2448,7 @@ dependencies = [
  "serde",
  "serde_json",
  "syn 1.0.60",
- "tauri-api",
+ "tauri-utils",
  "walkdir",
 ]
 
@@ -2459,7 +2456,10 @@ dependencies = [
 name = "tauri-utils"
 version = "0.5.1"
 dependencies = [
- "anyhow",
+ "flate2",
+ "phf",
+ "serde",
+ "serde_json",
  "sysinfo",
  "thiserror",
 ]
@@ -3094,11 +3094,12 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.4.1"
-source = "git+https://github.com/tauri-apps/wry?rev=42f4f2133f7921ed5adc47908787094da8abeac5#42f4f2133f7921ed5adc47908787094da8abeac5"
+source = "git+https://github.com/tauri-apps/wry?rev=b3998e255b70ac560888627ddec4ea1702ae1fbb#b3998e255b70ac560888627ddec4ea1702ae1fbb"
 dependencies = [
  "cc",
  "cocoa",
  "core-graphics 0.22.2",
+ "gdk",
  "gio",
  "glib",
  "gtk",

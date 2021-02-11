@@ -1,5 +1,6 @@
 use super::{
-  ApplicationDispatcherExt, ApplicationExt, Callback, Event, WebviewBuilderExt, WindowBuilderExt,
+  ApplicationDispatcherExt, ApplicationExt, Callback, Event, Message, WebviewBuilderExt,
+  WindowBuilderExt,
 };
 
 use wry::{ApplicationDispatcher, ApplicationExt as _, WebviewMessage, WindowExt, WindowMessage};
@@ -133,37 +134,27 @@ pub struct WryDispatcher {
   current_window: wry::WindowId,
 }
 
+struct WryMessage(wry::Message<wry::WindowId, Event>);
+
+impl From<(wry::WindowId, Message)> for WryMessage {
+  fn from((id, message): (wry::WindowId, Message)) -> Self {
+    let message = match message {
+      Message::EvalScript(js) => wry::Message::Webview(id, WebviewMessage::EvalScript(js)),
+      Message::SetWindowTitle(title) => wry::Message::Window(id, WindowMessage::SetTitle(title)),
+      Message::Event(event) => wry::Message::Custom(event),
+    };
+    WryMessage(message)
+  }
+}
+
 impl ApplicationDispatcherExt for WryDispatcher {
-  fn eval(&mut self, js: &str) {
+  fn send_message(&self, message: Message) {
+    let message: WryMessage = (self.current_window, message).into();
     self
       .inner
       .lock()
       .unwrap()
-      .dispatch_message(wry::Message::Webview(
-        self.current_window,
-        WebviewMessage::EvalScript(js.to_string()),
-      ))
-      .unwrap();
-  }
-
-  fn set_title(&mut self, title: &str) {
-    self
-      .inner
-      .lock()
-      .unwrap()
-      .dispatch_message(wry::Message::Window(
-        self.current_window,
-        WindowMessage::SetTitle(title.to_string()),
-      ))
-      .unwrap();
-  }
-
-  fn send_event(&self, event: Event) {
-    self
-      .inner
-      .lock()
-      .unwrap()
-      .dispatch_message(wry::Message::Custom(event))
+      .dispatch_message(message.0)
       .unwrap();
   }
 }

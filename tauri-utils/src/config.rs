@@ -7,7 +7,7 @@ use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 
 /// The window webview URL options.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum WindowUrl {
   /// The app's index URL.
   App,
@@ -49,8 +49,11 @@ impl<'de> Deserialize<'de> for WindowUrl {
 }
 
 /// The window configuration object.
-#[derive(PartialEq, Deserialize, Debug)]
+#[derive(PartialEq, Deserialize, Debug, Clone)]
 pub struct WindowConfig {
+  #[serde(default = "default_window_label")]
+  /// The window identifier.
+  pub label: String,
   /// The window webview URL.
   #[serde(default)]
   pub url: WindowUrl,
@@ -98,6 +101,10 @@ pub struct WindowConfig {
   pub always_on_top: bool,
 }
 
+fn default_window_label() -> String {
+  "main".to_string()
+}
+
 fn default_width() -> f64 {
   800f64
 }
@@ -125,6 +132,7 @@ fn default_title() -> String {
 impl Default for WindowConfig {
   fn default() -> Self {
     Self {
+      label: default_window_label(),
       url: WindowUrl::App,
       x: None,
       y: None,
@@ -536,7 +544,7 @@ mod test {
     // get default embedded server
     let de_server = EmbeddedServerConfig::default();
     // get default window
-    let d_window = default_window_config();
+    let d_windows = default_window_config();
     // get default title
     let d_title = default_title();
     // get default bundle
@@ -545,10 +553,12 @@ mod test {
     // create a tauri config.
     let tauri = TauriConfig {
       windows: vec![WindowConfig {
+        label: "main".to_string(),
+        url: WindowUrl::App,
         x: None,
         y: None,
-        width: 800,
-        height: 600,
+        width: 800f64,
+        height: 600f64,
         min_width: None,
         min_height: None,
         max_width: None,
@@ -585,7 +595,7 @@ mod test {
     assert_eq!(de_server, tauri.embedded_server);
     assert_eq!(d_bundle, tauri.bundle);
     assert_eq!(d_path, String::from("http://localhost:8080"));
-    assert_eq!(d_title, tauri.window.title);
-    assert_eq!(d_window, tauri.window);
+    assert_eq!(d_title, tauri.windows[0].title);
+    assert_eq!(d_windows, tauri.windows);
   }
 }

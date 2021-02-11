@@ -8,6 +8,12 @@ pub enum Event {
   Run(crate::SyncTask),
 }
 
+pub enum Message {
+  EvalScript(String),
+  SetWindowTitle(String),
+  Event(Event),
+}
+
 /// The window builder.
 pub trait WindowBuilderExt: Sized {
   /// The window type.
@@ -141,12 +147,8 @@ pub struct Callback<D> {
 
 /// Webview dispatcher. A thread-safe handle to the webview API.
 pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
-  /// Eval a JS string on the webview.
-  fn eval(&mut self, js: &str);
-  /// Change the window title.
-  fn set_title(&mut self, js: &str);
-  /// Sends a event to the webview.
-  fn send_event(&self, event: Event);
+  /// Sends a message to the window.
+  fn send_message(&self, message: Message);
 }
 
 /// The application interface.

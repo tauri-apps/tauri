@@ -40,7 +40,7 @@ pub use app::*;
 pub use tauri_api as api;
 pub use tauri_macros::FromTauriContext;
 pub use webview::{
-  ApplicationDispatcherExt, ApplicationExt, Callback, Event, WebviewBuilderExt, WindowBuilderExt,
+  ApplicationDispatcherExt, ApplicationExt, Callback, WebviewBuilderExt, WindowBuilderExt,
 };
 
 /// The Tauri webview implementations.
@@ -60,25 +60,29 @@ pub fn execute_promise_sync<
   R: Serialize,
   F: FnOnce() -> Result<R> + Send + 'static,
 >(
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
   task: F,
   callback: String,
   error: String,
 ) {
-  let mut dispatcher_ = dispatcher.clone();
-  dispatcher.send_event(Event::Run(Box::new(move || {
-    let callback_string =
-      match format_callback_result(task().map_err(|err| err.to_string()), &callback, &error) {
-        Ok(js) => js,
-        Err(e) => format_callback_result(
-          std::result::Result::<(), String>::Err(e.to_string()),
-          &callback,
-          &error,
-        )
-        .unwrap(),
-      };
-    dispatcher_.eval(callback_string.as_str());
-  })));
+  let webview_manager_ = webview_manager.clone();
+  if let Ok(dispatcher) = webview_manager.current_webview() {
+    dispatcher.send_event(webview::Event::Run(Box::new(move || {
+      let callback_string =
+        match format_callback_result(task().map_err(|err| err.to_string()), &callback, &error) {
+          Ok(js) => js,
+          Err(e) => format_callback_result(
+            std::result::Result::<(), String>::Err(e.to_string()),
+            &callback,
+            &error,
+          )
+          .unwrap(),
+        };
+      if let Ok(dispatcher) = webview_manager_.current_webview() {
+        dispatcher.eval(callback_string.as_str());
+      }
+    })));
+  }
 }
 
 /// Asynchronously executes the given task
@@ -91,7 +95,7 @@ pub async fn execute_promise<
   R: Serialize,
   F: futures::Future<Output = Result<R>> + Send + 'static,
 >(
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
   task: F,
   success_callback: String,
   error_callback: String,
@@ -104,19 +108,21 @@ pub async fn execute_promise<
     Ok(callback_string) => callback_string,
     Err(e) => format_callback(error_callback, e.to_string()),
   };
-  dispatcher.eval(callback_string.as_str());
+  if let Ok(dispatcher) = webview_manager.current_webview() {
+    dispatcher.eval(callback_string.as_str());
+  }
 }
 
 /// Calls the given command and evaluates its output to the JS promise described by the `callback` and `error` function names.
 pub async fn call<D: ApplicationDispatcherExt>(
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
   command: String,
   args: Vec<String>,
   callback: String,
   error: String,
 ) {
   execute_promise(
-    dispatcher,
+    webview_manager,
     async move { api::command::get_output(command, args, Stdio::piped()).map_err(|e| e.into()) },
     callback,
     error,
@@ -125,9 +131,12 @@ pub async fn call<D: ApplicationDispatcherExt>(
 }
 
 /// Closes the splashscreen.
-pub fn close_splashscreen<D: ApplicationDispatcherExt>(dispatcher: &mut D) -> crate::Result<()> {
+pub fn close_splashscreen<D: ApplicationDispatcherExt>(
+  webview_manager: &WebviewManager<D>,
+) -> crate::Result<()> {
   // send a signal to the runner so it knows that it should redirect to the main app content
-  dispatcher
+  webview_manager
+    .current_webview()?
     .eval(r#"window.__TAURI_INVOKE_HANDLER__(JSON.stringify({ cmd: "closeSplashscreen" }))"#);
 
   Ok(())

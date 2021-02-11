@@ -60,7 +60,7 @@ pub fn listen<F: FnMut(Option<String>) + Send + 'static>(id: impl Into<String>, 
 
 /// Emits an event to JS.
 pub fn emit<D: ApplicationDispatcherExt, S: Serialize>(
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
   event: impl AsRef<str> + Send + 'static,
   payload: Option<S>,
 ) -> crate::Result<()> {
@@ -72,7 +72,7 @@ pub fn emit<D: ApplicationDispatcherExt, S: Serialize>(
     JsonValue::Null
   };
 
-  dispatcher.eval(&format!(
+  webview_manager.current_webview()?.eval(&format!(
     "window['{}']({{type: '{}', payload: {}}}, '{}')",
     emit_function_name(),
     event.as_ref(),

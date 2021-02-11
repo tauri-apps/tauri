@@ -9,14 +9,14 @@ use super::cmd::{DirOperationOptions, FileOperationOptions};
 /// Reads a directory.
 #[cfg(read_dir)]
 pub async fn read_dir<D: ApplicationDispatcherExt>(
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
   path: PathBuf,
   options: Option<DirOperationOptions>,
   callback: String,
   error: String,
 ) {
   crate::execute_promise(
-    dispatcher,
+    webview_manager,
     async move {
       let (recursive, dir) = if let Some(options_value) = options {
         (options_value.recursive, options_value.dir)
@@ -34,7 +34,7 @@ pub async fn read_dir<D: ApplicationDispatcherExt>(
 /// Copies a file.
 #[cfg(copy_file)]
 pub async fn copy_file<D: ApplicationDispatcherExt>(
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
   source: PathBuf,
   destination: PathBuf,
   options: Option<FileOperationOptions>,
@@ -42,7 +42,7 @@ pub async fn copy_file<D: ApplicationDispatcherExt>(
   error: String,
 ) {
   crate::execute_promise(
-    dispatcher,
+    webview_manager,
     async move {
       let (src, dest) = match options.and_then(|o| o.dir) {
         Some(dir) => (
@@ -63,14 +63,14 @@ pub async fn copy_file<D: ApplicationDispatcherExt>(
 /// Creates a directory.
 #[cfg(create_dir)]
 pub async fn create_dir<D: ApplicationDispatcherExt>(
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
   path: PathBuf,
   options: Option<DirOperationOptions>,
   callback: String,
   error: String,
 ) {
   crate::execute_promise(
-    dispatcher,
+    webview_manager,
     async move {
       let (recursive, dir) = if let Some(options_value) = options {
         (options_value.recursive, options_value.dir)
@@ -95,14 +95,14 @@ pub async fn create_dir<D: ApplicationDispatcherExt>(
 /// Removes a directory.
 #[cfg(remove_dir)]
 pub async fn remove_dir<D: ApplicationDispatcherExt>(
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
   path: PathBuf,
   options: Option<DirOperationOptions>,
   callback: String,
   error: String,
 ) {
   crate::execute_promise(
-    dispatcher,
+    webview_manager,
     async move {
       let (recursive, dir) = if let Some(options_value) = options {
         (options_value.recursive, options_value.dir)
@@ -127,14 +127,14 @@ pub async fn remove_dir<D: ApplicationDispatcherExt>(
 /// Removes a file
 #[cfg(remove_file)]
 pub async fn remove_file<D: ApplicationDispatcherExt>(
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
   path: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,
   error: String,
 ) {
   crate::execute_promise(
-    dispatcher,
+    webview_manager,
     async move {
       let resolved_path = resolve_path(path, options.and_then(|o| o.dir))?;
       fs::remove_file(resolved_path)?;
@@ -149,7 +149,7 @@ pub async fn remove_file<D: ApplicationDispatcherExt>(
 /// Renames a file.
 #[cfg(rename_file)]
 pub async fn rename_file<D: ApplicationDispatcherExt>(
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
   old_path: PathBuf,
   new_path: PathBuf,
   options: Option<FileOperationOptions>,
@@ -157,7 +157,7 @@ pub async fn rename_file<D: ApplicationDispatcherExt>(
   error: String,
 ) {
   crate::execute_promise(
-    dispatcher,
+    webview_manager,
     async move {
       let (old, new) = match options.and_then(|o| o.dir) {
         Some(dir) => (
@@ -177,7 +177,7 @@ pub async fn rename_file<D: ApplicationDispatcherExt>(
 /// Writes a text file.
 #[cfg(write_file)]
 pub async fn write_file<D: ApplicationDispatcherExt>(
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
   path: PathBuf,
   contents: String,
   options: Option<FileOperationOptions>,
@@ -185,7 +185,7 @@ pub async fn write_file<D: ApplicationDispatcherExt>(
   error: String,
 ) {
   crate::execute_promise(
-    dispatcher,
+    webview_manager,
     async move {
       File::create(resolve_path(path, options.and_then(|o| o.dir))?)
         .map_err(crate::Error::Io)
@@ -201,7 +201,7 @@ pub async fn write_file<D: ApplicationDispatcherExt>(
 /// Writes a binary file.
 #[cfg(write_binary_file)]
 pub async fn write_binary_file<D: ApplicationDispatcherExt>(
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
   path: PathBuf,
   contents: String,
   options: Option<FileOperationOptions>,
@@ -209,7 +209,7 @@ pub async fn write_binary_file<D: ApplicationDispatcherExt>(
   error: String,
 ) {
   crate::execute_promise(
-    dispatcher,
+    webview_manager,
     async move {
       base64::decode(contents)
         .map_err(crate::Error::Base64Decode)
@@ -229,14 +229,14 @@ pub async fn write_binary_file<D: ApplicationDispatcherExt>(
 /// Reads a text file.
 #[cfg(read_text_file)]
 pub async fn read_text_file<D: ApplicationDispatcherExt>(
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
   path: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,
   error: String,
 ) {
   crate::execute_promise(
-    dispatcher,
+    webview_manager,
     async move {
       file::read_string(resolve_path(path, options.and_then(|o| o.dir))?)
         .map_err(crate::Error::FailedToExecuteApi)
@@ -250,14 +250,14 @@ pub async fn read_text_file<D: ApplicationDispatcherExt>(
 /// Reads a binary file.
 #[cfg(read_binary_file)]
 pub async fn read_binary_file<D: ApplicationDispatcherExt>(
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
   path: PathBuf,
   options: Option<FileOperationOptions>,
   callback: String,
   error: String,
 ) {
   crate::execute_promise(
-    dispatcher,
+    webview_manager,
     async move {
       file::read_binary(resolve_path(path, options.and_then(|o| o.dir))?)
         .map_err(crate::Error::FailedToExecuteApi)
@@ -312,7 +312,7 @@ mod test {
 
     //call write file with the path and contents.
     write_file(
-      &mut dispatcher,
+      &webview_manager,
       path.clone(),
       contents.clone(),
       String::from(""),

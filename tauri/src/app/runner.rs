@@ -1,7 +1,12 @@
+#[cfg(dev)]
+use std::io::Read;
 use std::sync::{
   atomic::{AtomicBool, Ordering},
   Arc,
 };
+
+#[cfg(dev)]
+use crate::api::assets::{AssetFetch, Assets};
 
 use crate::{ApplicationDispatcherExt, ApplicationExt, WebviewBuilderExt, WindowBuilderExt};
 
@@ -69,11 +74,6 @@ pub(crate) fn run<A: ApplicationExt + 'static>(application: App<A>) -> crate::Re
   Ok(())
 }
 
-#[cfg(all(embedded_server, no_server))]
-fn setup_content(_: &Context) -> crate::Result<Content<String>> {
-  panic!("only one of `embedded-server` and `no-server` is allowed")
-}
-
 // setup content for dev-server
 #[cfg(dev)]
 fn setup_content(context: &Context) -> crate::Result<Content<String>> {
@@ -105,14 +105,26 @@ fn setup_content(context: &Context) -> crate::Result<Content<String>> {
     Ok(Content::Url(config.build.dev_path.clone()))
   } else {
     Ok(Content::Html(format!(
-      "data:text/html,{}",
-      urlencoding::encode(context.index)
+      "data:text/html;base64,{}",
+      base64::encode(
+        context
+          .assets
+          .get(&Assets::format_key("index.html"), AssetFetch::Decompress)
+          .ok_or_else(|| crate::Error::AssetNotFound("index.html".to_string()))
+          .and_then(|(read, _)| {
+            read
+              .bytes()
+              .collect::<Result<Vec<u8>, _>>()
+              .map_err(Into::into)
+          })
+          .expect("Unable to find `index.html` under your devPath folder")
+      )
     )))
   }
 }
 
 // setup content for embedded server
-#[cfg(all(embedded_server, not(no_server)))]
+#[cfg(embedded_server)]
 fn setup_content(context: &Context) -> crate::Result<Content<String>> {
   let (port, valid) = setup_port(&context);
   if valid {
@@ -121,15 +133,6 @@ fn setup_content(context: &Context) -> crate::Result<Content<String>> {
   } else {
     Err(crate::Error::PortNotAvailable(port))
   }
-}
-
-// setup content for no-server
-#[cfg(all(no_server, not(embedded_server)))]
-fn setup_content(context: &Context) -> crate::Result<Content<String>> {
-  Ok(Content::Html(format!(
-    "data:text/html,{}",
-    urlencoding::encode(context.index)
-  )))
 }
 
 // get the port for the embedded server
@@ -172,7 +175,7 @@ fn spawn_server(server_url: String, context: &Context) {
     for request in server.incoming_requests() {
       let url = request.url().replace(&server_url, "");
       let url = match url.as_str() {
-        "/" => "/index.tauri.html",
+        "/" => "/index.html",
         url => {
           if url.starts_with(&public_path) {
             &url[public_path.len() - 1..]
@@ -394,6 +397,8 @@ mod test {
   use crate::Context;
   use crate::FromTauriContext;
   use proptest::prelude::*;
+  #[cfg(dev)]
+  use std::io::Read;
 
   #[derive(FromTauriContext)]
   #[config_path = "test/fixture/src-tauri/tauri.conf.json"]
@@ -410,17 +415,6 @@ mod test {
       _ => panic!("setup content failed"),
     }
 
-    #[cfg(no_server)]
-    match res {
-      Ok(Content::Html(s)) => {
-        assert_eq!(
-          s,
-          format!("data:text/html,{}", urlencoding::encode(context.index))
-        );
-      }
-      _ => panic!("setup content failed"),
-    }
-
     #[cfg(dev)]
     {
       let config = &context.config;
@@ -429,7 +423,25 @@ mod test {
         Ok(Content::Html(s)) => {
           assert_eq!(
             s,
-            format!("data:text/html,{}", urlencoding::encode(context.index))
+            format!(
+              "data:text/html;base64,{}",
+              base64::encode(
+                context
+                  .assets
+                  .get(
+                    &crate::api::assets::Assets::format_key("index.html"),
+                    crate::api::assets::AssetFetch::Decompress
+                  )
+                  .ok_or_else(|| crate::Error::AssetNotFound("index.html".to_string()))
+                  .and_then(|(read, _)| {
+                    read
+                      .bytes()
+                      .collect::<Result<Vec<u8>, _>>()
+                      .map_err(Into::into)
+                  })
+                  .expect("Unable to find `index.html` under your dist folder")
+              )
+            )
           );
         }
         _ => panic!("setup content failed"),

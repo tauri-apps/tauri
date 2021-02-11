@@ -21,7 +21,6 @@ winres = "0.1"
 
 [features]
 embedded-server = [ "tauri/embedded-server" ]
-no-server = [ "tauri/no-server" ]
 
 [[bin]]
 name = "app"

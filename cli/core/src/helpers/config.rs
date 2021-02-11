@@ -77,8 +77,6 @@ pub enum Port {
 #[derive(PartialEq, Clone, Deserialize, Serialize, Debug)]
 #[serde(tag = "embeddedServer", rename_all = "camelCase")]
 pub struct EmbeddedServerConfig {
-  /// Whether the embeddedServer is active or not
-  pub active: bool,
   /// The embedded server host.
   #[serde(default = "default_host")]
   pub host: String,
@@ -148,7 +146,6 @@ fn default_port() -> Port {
 
 fn default_embedded_server() -> EmbeddedServerConfig {
   EmbeddedServerConfig {
-    active: false,
     host: default_host(),
     port: default_port(),
   }
@@ -324,14 +321,7 @@ pub struct TauriConfig {
   #[serde(default = "default_bundle")]
   pub bundle: BundleConfig,
   #[serde(default)]
-  pub inliner: InlinerConfig,
-  #[serde(default)]
   pub allowlist: HashMap<String, bool>,
-}
-
-#[derive(Default, PartialEq, Clone, Deserialize, Serialize, Debug)]
-pub struct InlinerConfig {
-  pub active: bool,
 }
 
 /// The Build configuration object.
@@ -380,7 +370,6 @@ fn default_tauri() -> TauriConfig {
     embedded_server: default_embedded_server(),
     cli: None,
     bundle: default_bundle(),
-    inliner: Default::default(),
     allowlist: Default::default(),
   }
 }

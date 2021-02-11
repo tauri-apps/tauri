@@ -39,13 +39,10 @@ pub(crate) fn load_context(input: DeriveInput) -> Result<TokenStream, Error> {
   // generate the assets into a perfect hash function
   let assets = generate_asset_map(&dist_dir)?;
 
-  // should be possible to do the index.tauri.hmtl manipulations during this macro too in the future
-  let tauri_index_html_path = dist_dir.join("index.tauri.html");
   let tauri_script_path = dist_dir.join("__tauri.js");
 
   // format paths into a string to use them in quote!
   let tauri_config_path = full_config_path.display().to_string();
-  let tauri_index_html_path = tauri_index_html_path.display().to_string();
   let tauri_script_path = tauri_script_path.display().to_string();
 
   Ok(quote! {
@@ -63,11 +60,6 @@ pub(crate) fn load_context(input: DeriveInput) -> Result<TokenStream, Error> {
             use ::tauri::api::assets::{Assets, AssetCompression, phf, phf::phf_map};
             static ASSETS: Assets = Assets::new(#assets);
             &ASSETS
-          }
-
-          /// Make the index.tauri.html a dependency for the compiler
-          fn raw_index() -> &'static str {
-            include_str!(#tauri_index_html_path)
           }
 
           /// Make the __tauri.js a dependency for the compiler
@@ -107,9 +99,6 @@ fn generate_asset_map(dist: &Path) -> Result<TokenStream, Error> {
         inline_assets.insert(path);
       })
   }
-
-  // the index.html is parsed so we always ignore it
-  inline_assets.insert("/index.html".into());
 
   IncludeDir::new(&dist)
     .dir(&dist, AssetCompression::Gzip)?

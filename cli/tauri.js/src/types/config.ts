@@ -220,11 +220,7 @@ export interface TauriConfig {
     /**
      * the embedded server configuration
      */
-    embeddedServer: {
-      /**
-       * whether we should use the embedded-server or the no-server mode
-       */
-      active?: boolean
+    embeddedServer?: {
       /**
        * the embedded server port number or the 'random' string to generate one at runtime
        */
@@ -290,9 +286,6 @@ export interface TauriConfig {
     }
     security: {
       csp?: string
-    }
-    inliner: {
-      active?: boolean
     }
   }
   plugins?: {

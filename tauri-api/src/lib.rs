@@ -50,7 +50,6 @@ pub mod private {
     fn config_path() -> &'static std::path::Path;
     fn raw_config() -> &'static str;
     fn assets() -> &'static crate::assets::Assets;
-    fn raw_index() -> &'static str;
     fn raw_tauri_script() -> &'static str;
   }
 }

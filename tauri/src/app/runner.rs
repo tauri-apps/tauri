@@ -330,36 +330,27 @@ fn build_webview<A: ApplicationExt + 'static>(
             dispatcher.eval(&format!(r#"window.location.href = "{}""#, content_url));
           } else {
             let mut endpoint_handle =
-              crate::endpoints::handle(&mut dispatcher, &arg, &application.context)
-                .await
-                .map_err(|e| e.to_string());
-            if let Err(ref tauri_handle_error) = endpoint_handle {
-              if tauri_handle_error.contains("unknown variant") {
-                let error = match application.run_invoke_handler(&mut dispatcher, &arg).await {
-                  Ok(handled) => {
-                    if handled {
-                      String::from("")
-                    } else {
-                      tauri_handle_error.to_string()
-                    }
+              crate::endpoints::handle(&mut dispatcher, &arg, &application.context).await;
+            if let Err(crate::Error::UnknownApi) = endpoint_handle {
+              let response = match application.run_invoke_handler(&mut dispatcher, &arg).await {
+                Ok(handled) => {
+                  if handled {
+                    Ok(())
+                  } else {
+                    endpoint_handle
                   }
-                  Err(e) => e,
-                };
-                endpoint_handle = Err(error);
-              }
+                }
+                Err(_) => Err(crate::Error::UnknownApi),
+              };
+              endpoint_handle = response;
             }
-            if let Err(ref app_handle_error) = endpoint_handle {
-              if app_handle_error.contains("unknown variant") {
-                let error =
-                  match crate::plugin::extend_api(A::plugin_store(), &mut dispatcher, &arg).await {
-                    Ok(_) => String::from(""),
-                    Err(e) => e.to_string(),
-                  };
-                endpoint_handle = Err(error);
-              }
+            if let Err(crate::Error::UnknownApi) = endpoint_handle {
+              endpoint_handle = crate::plugin::extend_api(A::plugin_store(), &mut dispatcher, &arg)
+                .await
+                .map(|_| ());
             }
-            endpoint_handle = endpoint_handle.map_err(|e| e.replace("'", "\\'"));
             if let Err(handler_error_message) = endpoint_handle {
+              let handler_error_message = handler_error_message.to_string().replace("'", "\\'");
               if !handler_error_message.is_empty() {
                 dispatcher.eval(&get_api_error_message(&arg, handler_error_message));
               }

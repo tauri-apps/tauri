@@ -1,7 +1,7 @@
 {
   "build": {
     "distDir": "../dist",
-    "devPath": "../dist",
+    "devPath": "http://localhost:4000",
     "withGlobalTauri": true
   },
   "ctx": {},

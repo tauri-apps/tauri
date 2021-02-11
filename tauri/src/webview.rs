@@ -141,10 +141,10 @@ pub struct Callback<D> {
 
 /// Webview dispatcher. A thread-safe handle to the webview API.
 pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
-  /// Eval a JS string on the current webview.
+  /// Eval a JS string on the webview.
   fn eval(&mut self, js: &str);
-  /// Eval a JS string on the webview associated with the given window.
-  fn eval_on_window(&mut self, window_id: &str, js: &str);
+  /// Change the window title.
+  fn set_title(&mut self, js: &str);
   /// Sends a event to the webview.
   fn send_event(&self, event: Event);
 }

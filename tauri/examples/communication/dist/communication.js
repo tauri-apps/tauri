@@ -1,4 +1,5 @@
 document.getElementById("log").addEventListener("click", function () {
+  console.log('log')
   window.__TAURI__.tauri.invoke({
     cmd: "logOperation",
     event: "tauri-click",

@@ -2,16 +2,13 @@ use super::{
   ApplicationDispatcherExt, ApplicationExt, Callback, Event, WebviewBuilderExt, WindowBuilderExt,
 };
 
-use wry::{ApplicationDispatcher, ApplicationExt as _, WindowExt};
+use wry::{ApplicationDispatcher, ApplicationExt as _, WebviewMessage, WindowExt, WindowMessage};
 
 use once_cell::sync::Lazy;
 
 use crate::plugin::PluginStore;
 
-use std::{
-  collections::HashMap,
-  sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 impl WindowBuilderExt for wry::AppWindowAttributes {
   type Window = Self;
@@ -134,37 +131,31 @@ impl WebviewBuilderExt for wry::WebViewAttributes {
 pub struct WryDispatcher {
   inner: Arc<Mutex<wry::AppDispatcher<Event>>>,
   current_window: wry::WindowId,
-  windows: Arc<Mutex<HashMap<String, wry::WindowId>>>,
 }
 
 impl ApplicationDispatcherExt for WryDispatcher {
   fn eval(&mut self, js: &str) {
-    #[cfg(target_os = "linux")]
-    let window_id = self.current_window;
-    #[cfg(not(target_os = "linux"))]
-    let window_id = self.current_window.clone();
-
     self
       .inner
       .lock()
       .unwrap()
-      .dispatch_message(wry::Message::Script(window_id, js.to_string()))
+      .dispatch_message(wry::Message::Webview(
+        self.current_window,
+        WebviewMessage::EvalScript(js.to_string()),
+      ))
       .unwrap();
   }
 
-  fn eval_on_window(&mut self, window_id: &str, js: &str) {
-    if let Some(window_id) = self.windows.lock().unwrap().get(window_id) {
-      #[cfg(target_os = "linux")]
-      let window_id = *window_id;
-      #[cfg(not(target_os = "linux"))]
-      let window_id = window_id.clone();
-      self
-        .inner
-        .lock()
-        .unwrap()
-        .dispatch_message(wry::Message::Script(window_id, js.to_string()))
-        .unwrap();
-    }
+  fn set_title(&mut self, title: &str) {
+    self
+      .inner
+      .lock()
+      .unwrap()
+      .dispatch_message(wry::Message::Window(
+        self.current_window,
+        WindowMessage::SetTitle(title.to_string()),
+      ))
+      .unwrap();
   }
 
   fn send_event(&self, event: Event) {
@@ -180,7 +171,6 @@ impl ApplicationDispatcherExt for WryDispatcher {
 /// A wrapper around the wry Application interface.
 pub struct WryApplication {
   inner: wry::Application<Event>,
-  windows: Arc<Mutex<HashMap<String, wry::WindowId>>>,
   dispatcher_handle: Arc<Mutex<wry::AppDispatcher<Event>>>,
 }
 
@@ -198,11 +188,9 @@ impl ApplicationExt for WryApplication {
   fn new() -> crate::Result<Self> {
     let app = wry::Application::new().map_err(|_| crate::Error::CreateWebview)?;
     let dispatcher = app.dispatcher();
-    let windows = Arc::new(Mutex::new(HashMap::new()));
 
     Ok(Self {
       inner: app,
-      windows,
       dispatcher_handle: Arc::new(Mutex::new(dispatcher)),
     })
   }
@@ -210,7 +198,6 @@ impl ApplicationExt for WryApplication {
   fn dispatcher(&self, window: &Self::Window) -> Self::Dispatcher {
     WryDispatcher {
       inner: self.dispatcher_handle.clone(),
-      windows: self.windows.clone(),
       current_window: window.id(),
     }
   }
@@ -232,7 +219,6 @@ impl ApplicationExt for WryApplication {
     let mut wry_callbacks = Vec::new();
     for mut callback in callbacks {
       let dispatcher_handle = self.dispatcher_handle.clone();
-      let windows = self.windows.clone();
       let window_id = window.id();
 
       let callback = wry::Callback {
@@ -241,7 +227,6 @@ impl ApplicationExt for WryApplication {
           (callback.function)(
             &WryDispatcher {
               inner: dispatcher_handle.clone(),
-              windows: windows.clone(),
               current_window: window_id,
             },
             seq,

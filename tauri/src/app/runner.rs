@@ -397,6 +397,7 @@ mod test {
   use crate::Context;
   use crate::FromTauriContext;
   use proptest::prelude::*;
+  #[cfg(dev)]
   use std::io::Read;
 
   #[derive(FromTauriContext)]

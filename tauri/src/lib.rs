@@ -6,8 +6,6 @@
 //! Tauri uses (and contributes to) the MIT licensed project that you can find at [webview](https://github.com/webview/webview).
 #![warn(missing_docs, rust_2018_idioms)]
 
-/// The event system module.
-pub mod event;
 /// The embedded server helpers.
 #[cfg(embedded_server)]
 pub mod server;

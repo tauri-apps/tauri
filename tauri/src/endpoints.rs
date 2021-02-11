@@ -212,8 +212,9 @@ pub(crate) async fn handle<D: ApplicationDispatcherExt + 'static>(
           throw_allowlist_error(webview_manager, "event");
         }
         Emit { event, payload } => {
+          // TODO emit to optional window
           #[cfg(event)]
-          crate::event::on_event(event, payload);
+          webview_manager.current_webview()?.on_event(event, payload);
           #[cfg(not(event))]
           throw_allowlist_error(webview_manager, "event");
         }

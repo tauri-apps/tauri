@@ -3,6 +3,7 @@ use futures::future::BoxFuture;
 use std::marker::PhantomData;
 use tauri_api::{config::Config, private::AsTauriContext};
 
+pub(crate) mod event;
 mod runner;
 mod webview_manager;
 

@@ -19,13 +19,16 @@ struct Context;
 fn main() {
   tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
     .setup(|webview_manager, _source| async move {
-      tauri::event::listen(String::from("js-event"), move |msg| {
+      let current_webview = webview_manager.current_webview().unwrap().clone();
+      let current_webview_ = current_webview.clone();
+      current_webview.listen(String::from("js-event"), move |msg| {
         println!("got js-event with message '{:?}'", msg);
         let reply = Reply {
           data: "something else".to_string(),
         };
 
-        tauri::event::emit(&webview_manager, String::from("rust-event"), Some(reply))
+        current_webview_
+          .emit(String::from("rust-event"), Some(reply))
           .expect("failed to emit");
       });
     })

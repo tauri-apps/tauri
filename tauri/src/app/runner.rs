@@ -297,7 +297,7 @@ fn build_webview<A: ApplicationExt + 'static>(
     let dispatcher = webview_application.dispatcher(&window);
     dispatchers.insert(
       window_config.label.to_string(),
-      WebviewDispatcher::new(dispatcher),
+      WebviewDispatcher::new(window_config.label.to_string(), dispatcher),
     );
     window_refs.push((window_config, window));
   }

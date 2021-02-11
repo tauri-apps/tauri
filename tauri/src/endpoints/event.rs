@@ -17,9 +17,9 @@ pub fn listen_fn(event: String, handler: String, once: bool) -> crate::Result<St
       window['{emit}'](e.payload, e.salt, true)
     }}
   ",
-    listeners = crate::event::event_listeners_object_name(),
-    queue = crate::event::event_queue_object_name(),
-    emit = crate::event::emit_function_name(),
+    listeners = crate::app::event::event_listeners_object_name(),
+    queue = crate::app::event::event_queue_object_name(),
+    emit = crate::app::event::emit_function_name(),
     evt = event,
     handler = handler,
     once_flag = if once { "true" } else { "false" }

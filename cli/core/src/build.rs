@@ -64,6 +64,9 @@ impl Build {
     if let Some(names) = self.targets {
       let mut types = vec![];
       for name in names {
+        if name == "none" {
+          break;
+        }
         match PackageType::from_short_name(&name) {
           Some(package_type) => {
             types.push(package_type);

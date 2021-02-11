@@ -128,18 +128,6 @@ pub async fn call<D: ApplicationDispatcherExt>(
   .await;
 }
 
-/// Closes the splashscreen.
-pub fn close_splashscreen<D: ApplicationDispatcherExt>(
-  webview_manager: &WebviewManager<D>,
-) -> crate::Result<()> {
-  // send a signal to the runner so it knows that it should redirect to the main app content
-  webview_manager
-    .current_webview()?
-    .eval(r#"window.__TAURI_INVOKE_HANDLER__(JSON.stringify({ cmd: "closeSplashscreen" }))"#);
-
-  Ok(())
-}
-
 #[cfg(test)]
 mod test {
   use proptest::prelude::*;

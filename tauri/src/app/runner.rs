@@ -1,12 +1,6 @@
 #[cfg(dev)]
 use std::io::Read;
-use std::{
-  collections::HashMap,
-  sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-  },
-};
+use std::{collections::HashMap, sync::Arc};
 
 #[cfg(dev)]
 use crate::api::assets::{AssetFetch, Assets};
@@ -48,19 +42,8 @@ pub(crate) fn run<A: ApplicationExt + 'static>(application: App<A>) -> crate::Re
     spawn_server(server_url, &application.context);
   }
 
-  let splashscreen_content = if application.splashscreen_html().is_some() {
-    Some(Content::Html(
-      application
-        .splashscreen_html()
-        .expect("failed to get splashscreen_html")
-        .to_string(),
-    ))
-  } else {
-    None
-  };
-
   // build the webview
-  let webview_application = build_webview(application, main_content, splashscreen_content)?;
+  let webview_application = build_webview(application, main_content)?;
 
   // spin up the updater process
   #[cfg(feature = "updater")]
@@ -248,20 +231,11 @@ pub fn event_initialization_script() -> String {
 fn build_webview<A: ApplicationExt + 'static>(
   application: App<A>,
   content: Content<String>,
-  splashscreen_content: Option<Content<String>>,
 ) -> crate::Result<A> {
   // TODO let debug = cfg!(debug_assertions);
-
-  let has_splashscreen = splashscreen_content.is_some();
-  let initialized_splashscreen = Arc::new(AtomicBool::new(false));
-
   let content_url = match content {
     Content::Html(s) => s,
     Content::Url(s) => s,
-  };
-  let url = match splashscreen_content {
-    Some(Content::Html(s)) => s,
-    _ => content_url.to_string(),
   };
 
   let initialization_script = format!(
@@ -306,7 +280,6 @@ fn build_webview<A: ApplicationExt + 'static>(
 
     let application = application.clone();
     let content_url = content_url.to_string();
-    let initialized_splashscreen = initialized_splashscreen.clone();
 
     let webview_manager_ = webview_manager.clone();
     let tauri_invoke_handler = crate::Callback::<A::Dispatcher> {
@@ -315,27 +288,11 @@ fn build_webview<A: ApplicationExt + 'static>(
         let arg = arg.into_iter().next().unwrap_or_else(String::new);
         let application = application.clone();
         let webview_manager = webview_manager_.clone();
-        let content_url = content_url.to_string();
-        let initialized_splashscreen = initialized_splashscreen.clone();
 
         crate::async_runtime::spawn(async move {
           if arg == r#"{"cmd":"__initialized"}"# {
-            let source = if has_splashscreen && !initialized_splashscreen.load(Ordering::Relaxed) {
-              initialized_splashscreen.swap(true, Ordering::Relaxed);
-              "splashscreen"
-            } else {
-              "window-1"
-            };
-            application
-              .run_setup(&webview_manager, source.to_string())
-              .await;
-            if source == "window-1" {
-              crate::plugin::ready(A::plugin_store(), &webview_manager).await;
-            }
-          } else if arg == r#"{"cmd":"closeSplashscreen"}"# {
-            if let Ok(dispatcher) = webview_manager.current_webview() {
-              dispatcher.eval(&format!(r#"window.location.href = "{}""#, content_url));
-            }
+            application.run_setup(&webview_manager).await;
+            crate::plugin::ready(A::plugin_store(), &webview_manager).await;
           } else {
             let mut endpoint_handle =
               crate::endpoints::handle(&webview_manager, &arg, &application.context).await;
@@ -373,7 +330,7 @@ fn build_webview<A: ApplicationExt + 'static>(
     };
 
     let webview_url = match &window_config.url {
-      WindowUrl::App => url.clone(),
+      WindowUrl::App => content_url.to_string(),
       WindowUrl::Custom(url) => url.to_string(),
     };
 

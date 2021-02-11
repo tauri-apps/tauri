@@ -70,16 +70,21 @@ impl<A: ApplicationDispatcherExt> WebviewManager<A> {
     }
   }
 
+  /// Returns the label of the window associated with the current context.
+  pub fn current_window_label(&self) -> &str {
+    &self.current_webview_window_label
+  }
+
   /// Gets the webview associated with the current context.
   pub fn current_webview(&self) -> crate::Result<&WebviewDispatcher<A>> {
     self.get_webview(&self.current_webview_window_label)
   }
 
   /// Gets the webview associated with the given window label.
-  pub fn get_webview(&self, label: &str) -> crate::Result<&WebviewDispatcher<A>> {
+  pub fn get_webview(&self, window_label: &str) -> crate::Result<&WebviewDispatcher<A>> {
     self
       .dispatchers
-      .get(label)
+      .get(window_label)
       .ok_or(crate::Error::WebviewNotFound)
   }
 }

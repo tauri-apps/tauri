@@ -18,7 +18,7 @@ struct Context;
 
 fn main() {
   tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
-    .setup(|webview_manager, _source| async move {
+    .setup(|webview_manager| async move {
       let current_webview = webview_manager.current_webview().unwrap().clone();
       let current_webview_ = current_webview.clone();
       current_webview.listen(String::from("js-event"), move |msg| {

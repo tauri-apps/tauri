@@ -7,7 +7,7 @@ struct Context;
 
 fn main() {
   tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
-    .setup(|webview_manager, _| async move {
+    .setup(|webview_manager| async move {
       let mut webview_manager_ = webview_manager.clone();
       tauri::event::listen(String::from("hello"), move |_| {
         tauri::event::emit(

@@ -104,7 +104,7 @@ If you are interested in making a tauri-app, please visit the [documentation web
 | Multithreading | Yes | No |
 | Bytecode Delivery | Yes | No |
 | Can Render PDF | Yes | No |
-| Multiple Windows | Soon | Yes |
+| Multiple Windows | Yes | Yes |
 | Auto Updater | Soon | Yes (2) |
 | Cross Platform | Yes | Yes |
 | Custom App Icon | Yes | Yes |
@@ -116,7 +116,6 @@ If you are interested in making a tauri-app, please visit the [documentation web
 | Localhost Server | Yes | Yes |
 | No localhost option | Yes | No |
 | Desktop Tray | Soon | Yes |
-| Splashscreen | Yes | Yes |
 | Sidecar Binaries | Yes | No |
 
 #### Notes

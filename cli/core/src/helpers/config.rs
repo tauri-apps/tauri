@@ -1,14 +1,18 @@
 use json_patch::merge;
 use once_cell::sync::Lazy;
-use serde::de::{Deserializer, Error as DeError, Visitor};
-use serde::ser::Serializer;
-use serde::{Deserialize, Serialize};
+use serde::{
+  de::{Deserializer, Error as DeError, Visitor},
+  ser::Serializer,
+  Deserialize, Serialize,
+};
 use serde_json::Value as JsonValue;
 
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::BufReader;
-use std::sync::{Arc, Mutex};
+use std::{
+  collections::HashMap,
+  fs::File,
+  io::BufReader,
+  sync::{Arc, Mutex},
+};
 
 pub type ConfigHandle = Arc<Mutex<Option<Config>>>;
 

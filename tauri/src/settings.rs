@@ -1,9 +1,13 @@
 use serde::{Deserialize, Serialize};
-use std::fs::File;
-use std::io::Write;
-use std::path::{Path, PathBuf};
-use tauri_api::file::read_string;
-use tauri_api::path::{resolve_path, BaseDirectory};
+use std::{
+  fs::File,
+  io::Write,
+  path::{Path, PathBuf},
+};
+use tauri_api::{
+  file::read_string,
+  path::{resolve_path, BaseDirectory},
+};
 
 /// Tauri Settings.
 #[derive(Default, Deserialize, Serialize)]

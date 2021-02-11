@@ -1,9 +1,11 @@
-use std::env;
-use std::env::current_dir;
-use std::error::Error;
-use std::fs::{read_to_string, File};
-use std::io::{BufWriter, Write};
-use std::path::Path;
+use std::{
+  env,
+  env::current_dir,
+  error::Error,
+  fs::{read_to_string, File},
+  io::{BufWriter, Write},
+  path::Path,
+};
 
 pub fn main() -> Result<(), Box<dyn Error>> {
   let out_dir = env::var("OUT_DIR")?;

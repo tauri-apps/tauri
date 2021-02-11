@@ -1,5 +1,7 @@
-use serde::de::{Deserializer, Error as DeError, Visitor};
-use serde::Deserialize;
+use serde::{
+  de::{Deserializer, Error as DeError, Visitor},
+  Deserialize,
+};
 use serde_json::Value as JsonValue;
 
 use std::collections::HashMap;

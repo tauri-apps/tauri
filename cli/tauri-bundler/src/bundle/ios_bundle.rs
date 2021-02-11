@@ -12,14 +12,15 @@ use super::common;
 use crate::Settings;
 
 use anyhow::Context;
-use image::png::PngDecoder;
-use image::{self, GenericImageView, ImageDecoder};
+use image::{self, png::PngDecoder, GenericImageView, ImageDecoder};
 
-use std::collections::BTreeSet;
-use std::ffi::OsStr;
-use std::fs::{self, File};
-use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::{
+  collections::BTreeSet,
+  ffi::OsStr,
+  fs::{self, File},
+  io::Write,
+  path::{Path, PathBuf},
+};
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the .app was created.

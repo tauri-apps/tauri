@@ -1,6 +1,4 @@
-use crate::api::config::PluginConfig;
-use crate::async_runtime::Mutex;
-use crate::ApplicationDispatcherExt;
+use crate::{api::config::PluginConfig, async_runtime::Mutex, ApplicationDispatcherExt};
 
 use futures::future::join_all;
 

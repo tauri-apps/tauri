@@ -1,6 +1,8 @@
-use std::boxed::Box;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::{
+  boxed::Box,
+  collections::HashMap,
+  sync::{Arc, Mutex},
+};
 
 use crate::ApplicationDispatcherExt;
 use lazy_static::lazy_static;

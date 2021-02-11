@@ -1,8 +1,7 @@
 mod extract;
 mod file_move;
 
-use std::fs;
-use std::path::Path;
+use std::{fs, path::Path};
 
 pub use extract::*;
 pub use file_move::*;

@@ -1,8 +1,7 @@
 use crate::ApplicationExt;
 use futures::future::BoxFuture;
 use std::marker::PhantomData;
-use tauri_api::config::Config;
-use tauri_api::private::AsTauriContext;
+use tauri_api::{config::Config, private::AsTauriContext};
 
 mod runner;
 

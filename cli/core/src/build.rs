@@ -8,10 +8,9 @@ use crate::helpers::{
   config::get as get_config,
   execute_with_output,
   manifest::rewrite_manifest,
-  TauriHtml, TauriScript,
+  TauriScript,
 };
 use std::env::{set_current_dir, set_var};
-use std::fs::read_to_string;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
@@ -55,13 +54,7 @@ impl Build {
     let config_guard = config.lock().unwrap();
     let config_ = config_guard.as_ref().unwrap();
 
-    let feature = if config_.tauri.embedded_server.active {
-      "embedded-server"
-    } else {
-      "no-server"
-    };
-
-    let mut settings_builder = SettingsBuilder::new().features(vec![feature.to_string()]);
+    let mut settings_builder = SettingsBuilder::new().features(vec!["embedded-server".to_string()]);
     if !self.debug {
       settings_builder = settings_builder.release();
     }
@@ -96,15 +89,6 @@ impl Build {
 
     let config_guard = config.lock().unwrap();
     let config_ = config_guard.as_ref().unwrap();
-
-    // index.tauri.html
-    let index_html_path = PathBuf::from(&config_.build.dist_dir).join("index.html");
-    let tauri_html = TauriHtml::new(&config_.build.dist_dir, read_to_string(index_html_path)?)
-      .inliner_enabled(config_.tauri.inliner.active && !config_.tauri.embedded_server.active)
-      .get()?;
-    let tauri_index_html_path = PathBuf::from(&config_.build.dist_dir).join("index.tauri.html");
-    let mut tauri_index_html_file = File::create(tauri_index_html_path)?;
-    tauri_index_html_file.write_all(tauri_html.as_bytes())?;
 
     // __tauri.js
     let tauri_script = TauriScript::new()

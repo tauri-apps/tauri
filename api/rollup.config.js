@@ -60,12 +60,7 @@ export default [
     external: [
       ...Object.keys(pkg.dependencies || {}),
       ...Object.keys(pkg.peerDependencies || {})
-    ],
-    watch: {
-      chokidar: true,
-      include: 'src/**',
-      exclude: 'node_modules/**'
-    }
+    ]
   },
   {
     input: {

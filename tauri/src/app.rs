@@ -13,11 +13,7 @@ type Setup<W> = dyn Fn(W, String) -> BoxFuture<'static, ()> + Send + Sync;
 pub struct Context {
   pub(crate) config: Config,
   pub(crate) tauri_script: &'static str,
-  #[cfg(assets)]
   pub(crate) assets: &'static tauri_api::assets::Assets,
-  #[cfg(any(dev, no_server))]
-  #[allow(dead_code)]
-  pub(crate) index: &'static str,
 }
 
 impl Context {
@@ -25,10 +21,7 @@ impl Context {
     Ok(Self {
       config: serde_json::from_str(Context::raw_config())?,
       tauri_script: Context::raw_tauri_script(),
-      #[cfg(assets)]
       assets: Context::assets(),
-      #[cfg(any(dev, no_server))]
-      index: Context::raw_index(),
     })
   }
 }

@@ -3,9 +3,7 @@ use cfg_aliases::cfg_aliases;
 fn main() {
   cfg_aliases! {
     embedded_server: { feature = "embedded-server" },
-    no_server: { feature = "no-server" },
-    assets: { any(feature = "embedded-server", feature = "no-server") },
-    dev: { not(any(feature = "embedded-server", feature = "no-server")) },
+    dev: { not(feature = "embedded-server") },
 
     all_api: { feature = "all-api" },
 

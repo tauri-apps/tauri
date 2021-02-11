@@ -4,8 +4,6 @@ mod file_system;
 mod path;
 mod salt;
 
-#[cfg(assets)]
-mod asset;
 #[cfg(open)]
 mod browser;
 mod dialog;
@@ -270,15 +268,6 @@ pub(crate) async fn handle<D: ApplicationDispatcherExt + 'static>(
           http::make_request(dispatcher, *options, callback, error).await;
           #[cfg(not(http_request))]
           allowlist_error(dispatcher, error, "httpRequest");
-        }
-        #[cfg(assets)]
-        LoadAsset {
-          asset,
-          asset_type,
-          callback,
-          error,
-        } => {
-          asset::load(dispatcher, asset, asset_type, callback, error, &context).await;
         }
         CliMatches { callback, error } => {
           #[cfg(cli)]

@@ -142,31 +142,6 @@ if (!String.prototype.startsWith) {
     })
   }
 
-  window.__TAURI__.loadAsset = function loadAsset(assetName, assetType) {
-    return this.promisified({
-      cmd: 'loadAsset',
-      asset: assetName,
-      assetType: assetType || 'unknown'
-    })
-  }
-
-  document.addEventListener(
-    'error',
-    function (e) {
-      var target = e.target
-      while (target != null) {
-        if (target.matches('img')) {
-          window.__TAURI__.loadAsset(target.src, 'image').then(function (img) {
-            target.src = img
-          })
-          break
-        }
-        target = target.parentElement
-      }
-    },
-    true
-  )
-
   // open <a href="..."> links with the Tauri API
   function __openLinks() {
     document.querySelector('body').addEventListener(

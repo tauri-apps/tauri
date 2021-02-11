@@ -62,7 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        feature: [embedded-server, no-server, all-api]
+        feature: [embedded-server, all-api]
 
     steps:
       - uses: actions/checkout@v2

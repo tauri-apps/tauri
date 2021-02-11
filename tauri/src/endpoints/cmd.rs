@@ -204,15 +204,6 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
-  /// The load asset into webview API.
-  #[serde(rename_all = "camelCase")]
-  #[cfg(assets)]
-  LoadAsset {
-    asset: String,
-    asset_type: String,
-    callback: String,
-    error: String,
-  },
   /// The get CLI matches API.
   CliMatches {
     callback: String,

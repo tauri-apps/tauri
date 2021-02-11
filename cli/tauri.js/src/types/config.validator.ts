@@ -441,11 +441,6 @@ export const TauriConfigSchema = {
           defaultProperties: [],
           description: 'the embedded server configuration',
           properties: {
-            active: {
-              description:
-                'whether we should use the embedded-server or the no-server mode',
-              type: 'boolean'
-            },
             port: {
               anyOf: [
                 {
@@ -463,16 +458,6 @@ export const TauriConfigSchema = {
               description:
                 'The base path for all the assets within your application.',
               type: 'string'
-            }
-          },
-          type: 'object'
-        },
-        inliner: {
-          additionalProperties: false,
-          defaultProperties: [],
-          properties: {
-            active: {
-              type: 'boolean'
             }
           },
           type: 'object'
@@ -514,8 +499,6 @@ export const TauriConfigSchema = {
       required: [
         'allowlist',
         'bundle',
-        'embeddedServer',
-        'inliner',
         'security',
         'window'
       ],

@@ -2374,7 +2374,6 @@ dependencies = [
 name = "tauri"
 version = "0.11.1"
 dependencies = [
- "anyhow",
  "async-trait",
  "base64",
  "cfg_aliases",
@@ -2389,7 +2388,6 @@ dependencies = [
  "thiserror",
  "tiny_http",
  "tokio",
- "urlencoding",
  "uuid",
  "webbrowser",
  "wry",
@@ -2399,7 +2397,6 @@ dependencies = [
 name = "tauri-api"
 version = "0.7.5"
 dependencies = [
- "anyhow",
  "attohttpc",
  "clap",
  "dirs-next",
@@ -2409,7 +2406,6 @@ dependencies = [
  "nfd",
  "notify-rust",
  "once_cell",
- "phf",
  "rand 0.8.3",
  "semver",
  "serde",
@@ -2452,7 +2448,7 @@ dependencies = [
  "serde",
  "serde_json",
  "syn 1.0.60",
- "tauri-api",
+ "tauri-utils",
  "walkdir",
 ]
 
@@ -2460,7 +2456,10 @@ dependencies = [
 name = "tauri-utils"
 version = "0.5.1"
 dependencies = [
- "anyhow",
+ "flate2",
+ "phf",
+ "serde",
+ "serde_json",
  "sysinfo",
  "thiserror",
 ]
@@ -2640,12 +2639,6 @@ dependencies = [
  "matches",
  "percent-encoding",
 ]
-
-[[package]]
-name = "urlencoding"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9232eb53352b4442e40d7900465dfc534e8cb2dc8f18656fcb2ac16112b5593"
 
 [[package]]
 name = "uuid"

@@ -23,7 +23,7 @@ impl<A: ApplicationDispatcherExt> WebviewDispatcher<A> {
   /// Listen to an event.
   pub fn listen<F: FnMut(Option<String>) + Send + 'static>(
     &self,
-    event: impl Into<String>,
+    event: impl AsRef<str>,
     handler: F,
   ) {
     super::event::listen(event, handler)

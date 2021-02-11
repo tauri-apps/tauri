@@ -47,7 +47,7 @@ fn main() {
               // tauri::execute_promise is a helper for APIs that uses the tauri.promisified JS function
               // so you can easily communicate between JS and Rust with promises
               tauri::execute_promise(
-                &mut webview,
+                &mut dispatcher,
                 async move {
                   println!("{} {:?}", endpoint, body);
                   // perform an async operation here

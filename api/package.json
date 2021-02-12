@@ -9,10 +9,12 @@
     "./dialog": "./dist/dialog.js",
     "./event": "./dist/event.js",
     "./fs": "./dist/fs.js",
+    "./path": "./dist/path.js",
     "./http": "./dist/http.js",
     "./notification": "./dist/notification.js",
     "./tauri": "./dist/tauri.js",
-    "./window": "./dist/window.js"
+    "./window": "./dist/window.js",
+    "./shell": "./dist/shell.js"
   },
   "funding": {
     "type": "opencollective",

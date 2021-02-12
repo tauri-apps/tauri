@@ -20,8 +20,8 @@ pub enum Error {
   #[error("JSON error: {0}")]
   Json(serde_json::Error),
   /// Unknown API type.
-  #[error("unknown API")]
-  UnknownApi,
+  #[error("unknown API: {0:?}")]
+  UnknownApi(Option<serde_json::Error>),
   /// Failed to execute tauri API.
   #[error("failed to execute API: {0}")]
   FailedToExecuteApi(#[from] tauri_api::Error),
@@ -36,7 +36,7 @@ pub enum Error {
 impl From<serde_json::Error> for Error {
   fn from(error: serde_json::Error) -> Self {
     if error.to_string().contains("unknown variant") {
-      Self::UnknownApi
+      Self::UnknownApi(Some(error))
     } else {
       Self::Json(error)
     }

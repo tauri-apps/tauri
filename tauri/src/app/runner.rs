@@ -208,8 +208,11 @@ pub fn event_initialization_script() -> String {
 
       if (listeners.length > 0) {{
         window.__TAURI__.promisified({{
-          cmd: 'validateSalt',
-          salt: salt
+          module: 'Internal',
+          message: {{
+            cmd: 'validateSalt',
+            salt: salt
+          }}
         }}).then(function () {{
           for (let i = listeners.length - 1; i >= 0; i--) {{
             const listener = listeners[i]
@@ -296,7 +299,7 @@ fn build_webview<A: ApplicationExt + 'static>(
           } else {
             let mut endpoint_handle =
               crate::endpoints::handle(&webview_manager, &arg, &application.context).await;
-            if let Err(crate::Error::UnknownApi) = endpoint_handle {
+            if let Err(crate::Error::UnknownApi(_)) = endpoint_handle {
               let response = match application.run_invoke_handler(&webview_manager, &arg).await {
                 Ok(handled) => {
                   if handled {
@@ -305,11 +308,11 @@ fn build_webview<A: ApplicationExt + 'static>(
                     endpoint_handle
                   }
                 }
-                Err(_) => Err(crate::Error::UnknownApi),
+                Err(e) => Err(e),
               };
               endpoint_handle = response;
             }
-            if let Err(crate::Error::UnknownApi) = endpoint_handle {
+            if let Err(crate::Error::UnknownApi(_)) = endpoint_handle {
               endpoint_handle =
                 crate::plugin::extend_api(A::plugin_store(), &webview_manager, &arg)
                   .await

@@ -62,9 +62,12 @@ async function readTextFile(
   options: FsOptions = {}
 ): Promise<string> {
   return await promisified<string>({
-    cmd: 'readTextFile',
-    path: filePath,
-    options
+    module: 'Fs',
+    message: {
+      cmd: 'readTextFile',
+      path: filePath,
+      options
+    }
   })
 }
 
@@ -81,9 +84,12 @@ async function readBinaryFile(
   options: FsOptions = {}
 ): Promise<number[]> {
   return await promisified<number[]>({
-    cmd: 'readBinaryFile',
-    path: filePath,
-    options
+    module: 'Fs',
+    message: {
+      cmd: 'readBinaryFile',
+      path: filePath,
+      options
+    }
   })
 }
 
@@ -109,10 +115,13 @@ async function writeFile(
   }
 
   return await promisified({
-    cmd: 'writeFile',
-    path: file.path,
-    contents: file.contents,
-    options
+    module: 'Fs',
+    message: {
+      cmd: 'writeFile',
+      path: file.path,
+      contents: file.contents,
+      options
+    }
   })
 }
 
@@ -171,10 +180,13 @@ async function writeBinaryFile(
   }
 
   return await promisified({
-    cmd: 'writeBinaryFile',
-    path: file.path,
-    contents: arrayBufferToBase64(file.contents),
-    options
+    module: 'Fs',
+    message: {
+      cmd: 'writeBinaryFile',
+      path: file.path,
+      contents: arrayBufferToBase64(file.contents),
+      options
+    }
   })
 }
 
@@ -192,9 +204,12 @@ async function readDir(
   options: FsDirOptions = {}
 ): Promise<FileEntry[]> {
   return await promisified({
-    cmd: 'readDir',
-    path: dir,
-    options
+    module: 'Fs',
+    message: {
+      cmd: 'readDir',
+      path: dir,
+      options
+    }
   })
 }
 
@@ -214,9 +229,12 @@ async function createDir(
   options: FsDirOptions = {}
 ): Promise<void> {
   return await promisified({
-    cmd: 'createDir',
-    path: dir,
-    options
+    module: 'Fs',
+    message: {
+      cmd: 'createDir',
+      path: dir,
+      options
+    }
   })
 }
 
@@ -235,9 +253,12 @@ async function removeDir(
   options: FsDirOptions = {}
 ): Promise<void> {
   return await promisified({
-    cmd: 'removeDir',
-    path: dir,
-    options
+    module: 'Fs',
+    message: {
+      cmd: 'removeDir',
+      path: dir,
+      options
+    }
   })
 }
 
@@ -256,10 +277,13 @@ async function copyFile(
   options: FsOptions = {}
 ): Promise<void> {
   return await promisified({
-    cmd: 'copyFile',
-    source,
-    destination,
-    options
+    module: 'Fs',
+    message: {
+      cmd: 'copyFile',
+      source,
+      destination,
+      options
+    }
   })
 }
 
@@ -276,9 +300,12 @@ async function removeFile(
   options: FsOptions = {}
 ): Promise<void> {
   return await promisified({
-    cmd: 'removeFile',
-    path: file,
-    options: options
+    module: 'Fs',
+    message: {
+      cmd: 'removeFile',
+      path: file,
+      options: options
+    }
   })
 }
 
@@ -297,10 +324,13 @@ async function renameFile(
   options: FsOptions = {}
 ): Promise<void> {
   return await promisified({
-    cmd: 'renameFile',
-    oldPath,
-    newPath,
-    options
+    module: 'Fs',
+    message: {
+      cmd: 'renameFile',
+      oldPath,
+      newPath,
+      options
+    }
   })
 }
 

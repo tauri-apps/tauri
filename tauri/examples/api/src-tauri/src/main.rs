@@ -34,7 +34,7 @@ fn main() {
     .invoke_handler(|webview_manager, arg| async move {
       use cmd::Cmd::*;
       match serde_json::from_str(&arg) {
-        Err(e) => Err(e.to_string()),
+        Err(e) => Err(e.into()),
         Ok(command) => {
           match command {
             LogOperation { event, payload } => {

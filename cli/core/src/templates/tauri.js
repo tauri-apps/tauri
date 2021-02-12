@@ -158,8 +158,11 @@ if (!String.prototype.startsWith) {
               target.target === '_blank'
             ) {
               window.__TAURI_INVOKE_HANDLER__(JSON.stringify({
-                cmd: 'open',
-                uri: target.href
+                module: 'Shell',
+                message: {
+                  cmd: 'open',
+                  uri: target.href
+                }
               }))
               e.preventDefault()
             }
@@ -195,7 +198,10 @@ if (!String.prototype.startsWith) {
       return Promise.resolve(window.Notification.permission === 'granted')
     }
     return window.__TAURI__.promisified({
-      cmd: 'isNotificationPermissionGranted'
+      module: 'Notification',
+      message: {
+        cmd: 'isNotificationPermissionGranted'
+      }
     })
   }
 
@@ -208,7 +214,10 @@ if (!String.prototype.startsWith) {
   function requestPermission() {
     return window.__TAURI__
       .promisified({
-        cmd: 'requestNotificationPermission'
+        module: 'Notification',
+        message: {
+          cmd: 'requestNotificationPermission'
+        }
       })
       .then(function (permission) {
         setNotificationPermission(permission)
@@ -224,13 +233,16 @@ if (!String.prototype.startsWith) {
     isPermissionGranted().then(function (permission) {
       if (permission) {
         return window.__TAURI__.promisified({
-          cmd: 'notification',
-          options:
-            typeof options === 'string'
-              ? {
-                  title: options
-                }
-              : options
+          module: 'Notification',
+          message: {
+            cmd: 'notification',
+            options:
+              typeof options === 'string'
+                ? {
+                    title: options
+                  }
+                : options
+          }
         })
       }
     })
@@ -270,15 +282,21 @@ if (!String.prototype.startsWith) {
 
   window.alert = function (message) {
     window.__TAURI_INVOKE_HANDLER__(JSON.stringify({
-      cmd: 'messageDialog',
-      message: message
+      module: 'Dialog',
+      message: {
+        cmd: 'messageDialog',
+        message: message
+      }
     }))
   }
 
   window.confirm = function (message) {
     return window.__TAURI__.promisified({
-      cmd: 'askDialog',
-      message: message
+      module: 'Dialog',
+      message: {
+        cmd: 'askDialog',
+        message: message
+      }
     })
   }
 })()

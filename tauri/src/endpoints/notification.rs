@@ -1,7 +1,69 @@
-use super::cmd::NotificationOptions;
 use crate::ApplicationDispatcherExt;
+
+use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use tauri_api::{config::Config, notification::Notification};
+
+/// The options for the notification API.
+#[derive(Deserialize)]
+pub struct NotificationOptions {
+  /// The notification title.
+  pub title: String,
+  /// The notification body.
+  pub body: Option<String>,
+  /// The notification icon.
+  pub icon: Option<String>,
+}
+
+/// The API descriptor.
+#[derive(Deserialize)]
+#[serde(tag = "cmd", rename_all = "camelCase")]
+pub enum Cmd {
+  /// The show notification API.
+  Notification {
+    options: NotificationOptions,
+    callback: String,
+    error: String,
+  },
+  /// The request notification permission API.
+  RequestNotificationPermission { callback: String, error: String },
+  /// The notification permission check API.
+  IsNotificationPermissionGranted { callback: String, error: String },
+}
+
+impl Cmd {
+  pub async fn run<D: ApplicationDispatcherExt + 'static>(
+    self,
+    webview_manager: &crate::WebviewManager<D>,
+    context: &crate::app::Context,
+  ) -> crate::Result<()> {
+    match self {
+      Self::Notification {
+        options,
+        callback,
+        error,
+      } => {
+        #[cfg(notification)]
+        send(webview_manager, options, callback, error, &context.config).await;
+        #[cfg(not(notification))]
+        allowlist_error(webview_manager, error, "notification");
+      }
+      Self::IsNotificationPermissionGranted { callback, error } => {
+        #[cfg(notification)]
+        is_permission_granted(webview_manager, callback, error).await;
+        #[cfg(not(notification))]
+        allowlist_error(webview_manager, error, "notification");
+      }
+      Self::RequestNotificationPermission { callback, error } => {
+        #[cfg(notification)]
+        request_permission(webview_manager, callback, error)?;
+        #[cfg(not(notification))]
+        allowlist_error(webview_manager, error, "notification");
+      }
+    }
+    Ok(())
+  }
+}
 
 pub async fn send<D: ApplicationDispatcherExt>(
   webview_manager: &crate::WebviewManager<D>,

@@ -52,8 +52,11 @@ export type PartialOptions = Omit<HttpOptions, 'method' | 'url'>
  */
 async function request<T>(options: HttpOptions): Promise<T> {
   return await promisified({
-    cmd: 'httpRequest',
-    options: options
+    module: 'Http',
+    message: {
+      cmd: 'httpRequest',
+      options: options
+    }
   })
 }
 

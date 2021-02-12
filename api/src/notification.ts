@@ -14,7 +14,10 @@ async function isPermissionGranted(): Promise<boolean | null> {
     return await Promise.resolve(window.Notification.permission === 'granted')
   }
   return await promisified({
-    cmd: 'isNotificationPermissionGranted'
+    module: 'Notification',
+    message: {
+      cmd: 'isNotificationPermissionGranted'
+    }
   })
 }
 

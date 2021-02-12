@@ -30,8 +30,11 @@ async function open(
   }
 
   return await promisified({
-    cmd: 'openDialog',
-    options
+    module: 'Dialog',
+    message: {
+      cmd: 'openDialog',
+      options
+    }
   })
 }
 
@@ -49,8 +52,11 @@ async function save(options: SaveDialogOptions = {}): Promise<string> {
   }
 
   return await promisified({
-    cmd: 'saveDialog',
-    options
+    module: 'Dialog',
+    message: {
+      cmd: 'saveDialog',
+      options
+    }
   })
 }
 

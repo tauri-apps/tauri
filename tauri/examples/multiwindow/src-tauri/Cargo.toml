@@ -22,7 +22,7 @@ icon = [
 ]
 
 [dependencies]
-tauri = { path = "../../..", features =["all-api", "cli"]}
+tauri = { path = "../../..", features =["all-api"]}
 
 [target."cfg(windows)".build-dependencies]
 winres = "0.1"

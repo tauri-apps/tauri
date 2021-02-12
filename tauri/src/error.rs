@@ -7,6 +7,9 @@ pub enum Error {
   /// Failed to create window.
   #[error("failed to create window")]
   CreateWindow,
+  /// Can't access webview dispatcher because the webview was closed or not found.
+  #[error("webview not found: invalid label or it was closed")]
+  WebviewNotFound,
   /// Embedded asset not found.
   #[error("asset not found: {0}")]
   AssetNotFound(String),

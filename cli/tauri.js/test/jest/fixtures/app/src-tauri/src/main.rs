@@ -7,19 +7,21 @@ struct Context;
 
 fn main() {
   tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
-    .setup(|dispatcher, _| async move {
-      let mut dispatcher_ = dispatcher.clone();
+    .setup(|webview_manager| async move {
+      let mut webview_manager_ = webview_manager.clone();
       tauri::event::listen(String::from("hello"), move |_| {
         tauri::event::emit(
-          &mut dispatcher_,
+          &webview_manager_,
           String::from("reply"),
           Some("{ msg: 'TEST' }".to_string()),
         )
         .unwrap();
       });
-      dispatcher.eval("window.onTauriInit && window.onTauriInit()");
+      webview_manager
+        .current_webview()
+        .eval("window.onTauriInit && window.onTauriInit()");
     })
-    .invoke_handler(|dispatcher, arg| async move {
+    .invoke_handler(|webview_manager, arg| async move {
       use cmd::Cmd::*;
       match serde_json::from_str(&arg) {
         Err(e) => Err(e.to_string()),

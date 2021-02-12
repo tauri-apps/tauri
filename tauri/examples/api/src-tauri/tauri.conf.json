@@ -1,7 +1,7 @@
 {
   "build": {
     "distDir": "../public",
-    "devPath": "../public",
+    "devPath": "http://localhost:5000",
     "withGlobalTauri": true,
     "beforeBuildCommand": "yarn build",
     "beforeDevCommand": "yarn dev"
@@ -57,9 +57,9 @@
     "allowlist": {
       "all": true
     },
-    "window": {
+    "windows": [{
       "title": "Tauri API Validation"
-    },
+    }],
     "security": {
       "csp": "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
     }

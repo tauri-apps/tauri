@@ -277,13 +277,15 @@ export interface TauriConfig {
       all: boolean
       [index: string]: boolean
     }
-    window: {
-      title: string
-      width?: number
-      height?: number
-      resizable?: boolean
-      fullscreen?: boolean
-    }
+    windows: [
+      {
+        title: string
+        width?: number
+        height?: number
+        resizable?: boolean
+        fullscreen?: boolean
+      }
+    ]
     security: {
       csp?: string
     }

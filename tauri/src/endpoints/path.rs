@@ -3,14 +3,14 @@ use crate::ApplicationDispatcherExt;
 use tauri_api::{path, path::BaseDirectory};
 
 pub async fn resolve_path<D: ApplicationDispatcherExt>(
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
   path: String,
   directory: Option<BaseDirectory>,
   callback: String,
   error: String,
 ) {
   crate::execute_promise(
-    dispatcher,
+    webview_manager,
     async move { path::resolve_path(path, directory).map_err(|e| e.into()) },
     callback,
     error,

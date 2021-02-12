@@ -16,7 +16,7 @@ struct EventHandler {
   on_event: Box<dyn FnMut(Option<String>) + Send>,
 }
 
-type Listeners = Arc<Mutex<HashMap<String, EventHandler>>>;
+type Listeners = Arc<Mutex<HashMap<String, Vec<EventHandler>>>>;
 
 lazy_static! {
   static ref EMIT_FUNCTION_NAME: String = uuid::Uuid::new_v4().to_string();
@@ -46,22 +46,24 @@ pub fn event_queue_object_name() -> String {
 }
 
 /// Adds an event listener for JS events.
-pub fn listen<F: FnMut(Option<String>) + Send + 'static>(id: impl Into<String>, handler: F) {
+pub fn listen<F: FnMut(Option<String>) + Send + 'static>(id: impl AsRef<str>, handler: F) {
   let mut l = listeners()
     .lock()
     .expect("Failed to lock listeners: listen()");
-  l.insert(
-    id.into(),
-    EventHandler {
-      on_event: Box::new(handler),
-    },
-  );
+  let handler = EventHandler {
+    on_event: Box::new(handler),
+  };
+  if let Some(listeners) = l.get_mut(id.as_ref()) {
+    listeners.push(handler);
+  } else {
+    l.insert(id.as_ref().to_string(), vec![handler]);
+  }
 }
 
 /// Emits an event to JS.
 pub fn emit<D: ApplicationDispatcherExt, S: Serialize>(
-  dispatcher: &mut D,
-  event: impl AsRef<str> + Send + 'static,
+  webview_dispatcher: &crate::WebviewDispatcher<D>,
+  event: impl AsRef<str>,
   payload: Option<S>,
 ) -> crate::Result<()> {
   let salt = crate::salt::generate();
@@ -72,7 +74,7 @@ pub fn emit<D: ApplicationDispatcherExt, S: Serialize>(
     JsonValue::Null
   };
 
-  dispatcher.eval(&format!(
+  webview_dispatcher.eval(&format!(
     "window['{}']({{type: '{}', payload: {}}}, '{}')",
     emit_function_name(),
     event.as_ref(),
@@ -90,14 +92,16 @@ pub fn on_event(event: String, data: Option<String>) {
     .expect("Failed to lock listeners: on_event()");
 
   if l.contains_key(&event) {
-    let handler = l.get_mut(&event).expect("Failed to get mutable handler");
-    (handler.on_event)(data);
+    let listeners = l.get_mut(&event).expect("Failed to get mutable handler");
+    for handler in listeners {
+      (handler.on_event)(data.clone());
+    }
   }
 }
 
 #[cfg(test)]
 mod test {
-  use crate::event::*;
+  use super::*;
   use proptest::prelude::*;
 
   // dummy event handler function

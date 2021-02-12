@@ -32,7 +32,7 @@ thiserror = "1.0.23"
 once_cell = "1.5.2"
 tauri-api = { version = "0.7.5", path = "../tauri-api" }
 tauri-macros = { version = "0.1", path = "../tauri-macros" }
-wry = { git = "https://github.com/tauri-apps/wry", rev = "42f4f2133f7921ed5adc47908787094da8abeac5" }
+wry = { git = "https://github.com/tauri-apps/wry", rev = "f4edf89de5dc40b77a94f6b94fcaf76fdac6bbf4" }
 
 [target."cfg(target_os = \"windows\")".dependencies]
 runas = "0.2"
@@ -74,3 +74,7 @@ notification = [ "tauri-api/notification" ]
 [[example]]
 name = "communication"
 path = "examples/communication/src-tauri/src/main.rs"
+
+[[example]]
+name = "multiwindow"
+path = "examples/multiwindow/src-tauri/src/main.rs"

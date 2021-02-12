@@ -3094,11 +3094,12 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.4.1"
-source = "git+https://github.com/tauri-apps/wry?rev=42f4f2133f7921ed5adc47908787094da8abeac5#42f4f2133f7921ed5adc47908787094da8abeac5"
+source = "git+https://github.com/tauri-apps/wry?rev=f4edf89de5dc40b77a94f6b94fcaf76fdac6bbf4#f4edf89de5dc40b77a94f6b94fcaf76fdac6bbf4"
 dependencies = [
  "cc",
  "cocoa",
  "core-graphics 0.22.2",
+ "gdk",
  "gio",
  "glib",
  "gtk",

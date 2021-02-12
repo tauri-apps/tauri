@@ -155,13 +155,11 @@ async function deleteRequest<T>(
   })
 }
 
-export default {
+export {
   request,
   get,
   post,
   put,
   patch,
-  delete: deleteRequest,
-  ResponseType,
-  BodyType
+  deleteRequest as httpDelete,
 }

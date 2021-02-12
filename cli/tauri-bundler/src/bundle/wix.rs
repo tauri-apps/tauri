@@ -449,9 +449,7 @@ pub fn build_wix_app_installer(
 
   let mut data = BTreeMap::new();
 
-  if let Ok(tauri_config) = crate::bundle::tauri_config::get() {
-    data.insert("embedded_server", to_json(true));
-  }
+  data.insert("embedded_server", to_json(true));
 
   data.insert("product_name", to_json(settings.bundle_name()));
   data.insert("version", to_json(settings.version_string()));

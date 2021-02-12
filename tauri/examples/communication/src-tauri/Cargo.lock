@@ -2374,21 +2374,25 @@ dependencies = [
 name = "tauri"
 version = "0.11.1"
 dependencies = [
+ "anyhow",
  "async-trait",
  "base64",
  "cfg_aliases",
+ "flate2",
  "futures",
  "lazy_static",
  "once_cell",
+ "proc-macro2",
+ "quote 1.0.8",
  "runas",
  "serde",
  "serde_json",
  "tauri-api",
- "tauri-macros",
  "thiserror",
  "tiny_http",
  "tokio",
  "uuid",
+ "walkdir",
  "webbrowser",
  "wry",
 ]
@@ -2439,25 +2443,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "tauri-macros"
-version = "0.1.0"
-dependencies = [
- "flate2",
- "proc-macro2",
- "quote 1.0.8",
- "serde",
- "serde_json",
- "syn 1.0.60",
- "tauri-utils",
- "walkdir",
-]
-
-[[package]]
 name = "tauri-utils"
 version = "0.5.1"
 dependencies = [
  "flate2",
  "phf",
+ "proc-macro2",
+ "quote 1.0.8",
  "serde",
  "serde_json",
  "sysinfo",

@@ -21,6 +21,9 @@ icon = [
   "icons/icon.ico"
 ]
 
+[build-dependencies]
+tauri = { path = "../../..", default_features = false, features = ["build"] }
+
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }

@@ -1,6 +1,5 @@
 use crate::ApplicationExt;
 use futures::future::BoxFuture;
-use std::marker::PhantomData;
 use tauri_api::{config::Config, private::AsTauriContext};
 
 pub(crate) mod event;
@@ -15,18 +14,18 @@ type Setup<D> = dyn Fn(WebviewManager<D>) -> BoxFuture<'static, ()> + Send + Syn
 
 /// `App` runtime information.
 pub struct Context {
-  pub(crate) config: Config,
+  pub(crate) config: &'static Config,
   pub(crate) tauri_script: &'static str,
   pub(crate) assets: &'static tauri_api::assets::Assets,
 }
 
 impl Context {
-  pub(crate) fn new<Context: AsTauriContext>() -> crate::Result<Self> {
-    Ok(Self {
-      config: serde_json::from_str(Context::raw_config())?,
+  pub(crate) fn new<Context: AsTauriContext>(_: Context) -> Self {
+    Self {
+      config: Context::config(),
       tauri_script: Context::raw_tauri_script(),
       assets: Context::assets(),
-    })
+    }
   }
 }
 
@@ -73,22 +72,19 @@ impl<A: ApplicationExt + 'static> App<A> {
 
 /// The App builder.
 #[derive(Default)]
-pub struct AppBuilder<A: ApplicationExt, C: AsTauriContext> {
+pub struct AppBuilder<A: ApplicationExt> {
   /// The JS message handler.
   invoke_handler: Option<Box<InvokeHandler<A::Dispatcher>>>,
   /// The setup callback, invoked when the webview is ready.
   setup: Option<Box<Setup<A::Dispatcher>>>,
-  /// The configuration used
-  config: PhantomData<C>,
 }
 
-impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<A, C> {
+impl<A: ApplicationExt + 'static> AppBuilder<A> {
   /// Creates a new App builder.
   pub fn new() -> Self {
     Self {
       invoke_handler: None,
       setup: None,
-      config: Default::default(),
     }
   }
 
@@ -130,11 +126,11 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<A, C> {
   }
 
   /// Builds the App.
-  pub fn build(self) -> crate::Result<App<A>> {
-    Ok(App {
+  pub fn build(self, context: impl AsTauriContext) -> App<A> {
+    App {
       invoke_handler: self.invoke_handler,
       setup: self.setup,
-      context: Context::new::<C>()?,
-    })
+      context: Context::new(context),
+    }
   }
 }

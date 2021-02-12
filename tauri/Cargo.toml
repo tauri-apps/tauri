@@ -31,8 +31,14 @@ uuid = { version = "0.8.2", features = [ "v4" ] }
 thiserror = "1.0.23"
 once_cell = "1.5.2"
 tauri-api = { version = "0.7.5", path = "../tauri-api" }
-tauri-macros = { version = "0.1", path = "../tauri-macros" }
 wry = { git = "https://github.com/tauri-apps/wry", rev = "f4edf89de5dc40b77a94f6b94fcaf76fdac6bbf4" }
+
+# build only deps
+anyhow = { version = "1", optional = true }
+flate2 = { version = "1", optional = true }
+proc-macro2 = { version = "1", optional = true }
+quote = { version = "1", optional = true }
+walkdir = { version = "2", optional = true }
 
 [target."cfg(target_os = \"windows\")".dependencies]
 runas = "0.2"
@@ -47,6 +53,7 @@ tauri = { path = ".", features = [ "all-api" ] }
 serde = { version = "1.0", features = [ "derive" ] }
 
 [features]
+build = [ "tauri-api/build", "anyhow", "flate2","proc-macro2", "quote", "walkdir" ]
 cli = [ "tauri-api/cli" ]
 embedded-server = [ "tiny_http" ]
 all-api = [ "tauri-api/notification" ]

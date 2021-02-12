@@ -1,7 +1,3 @@
-use crate::error::Error;
-use flate2::bufread::GzEncoder;
-use proc_macro2::TokenStream;
-use quote::{quote, TokenStreamExt};
 use std::{
   collections::{HashMap, HashSet},
   env::var,
@@ -9,7 +5,12 @@ use std::{
   io::{BufReader, BufWriter},
   path::{Path, PathBuf},
 };
-use tauri_utils::assets::{AssetCompression, Assets};
+
+use crate::api::assets::{AssetCompression, Assets};
+use anyhow::{Context, Error};
+use flate2::bufread::GzEncoder;
+use proc_macro2::TokenStream;
+use quote::{quote, TokenStreamExt};
 use walkdir::WalkDir;
 
 enum Asset {
@@ -34,9 +35,13 @@ impl IncludeDir {
 
   /// get a relative path based on the `IncludeDir`'s prefix
   fn relative<'p>(&self, path: &'p Path) -> Result<&'p Path, Error> {
-    path
-      .strip_prefix(&self.prefix)
-      .map_err(|_| Error::IncludeDirPrefix)
+    path.strip_prefix(&self.prefix).with_context(|| {
+      format!(
+        "Invalid prefix {} used while including {}",
+        self.prefix.display(),
+        path.display()
+      )
+    })
   }
 
   pub fn file(mut self, path: impl Into<PathBuf>, comp: AssetCompression) -> Result<Self, Error> {
@@ -48,38 +53,71 @@ impl IncludeDir {
       AssetCompression::None => Asset::Identity(path),
       AssetCompression::Gzip => {
         let cache = var("OUT_DIR")
-          .map_err(|_| Error::EnvOutDir)
-          .and_then(|out| canonicalize(&out).map_err(|e| Error::Io(PathBuf::from(out), e)))
+          .with_context(|| "Unable to find OUT_DIR environmental variable while including assets")
+          .and_then(|out| {
+            canonicalize(&out)
+              .with_context(|| format!("IO error while canonicalizing path {}", out))
+          })
           .map(|out| out.join(".tauri-assets"))?;
 
         // normalize path separators
         let relative: PathBuf = relative.components().collect();
         let cache = cache.join(relative);
 
-        // append .br extension to filename
-        let filename = cache.file_name().ok_or(Error::IncludeDirEmptyFilename)?;
-        let filename = format!("{}.br", filename.to_string_lossy());
+        // append compression extension to filename
+        let filename = cache.file_name().with_context(|| {
+          format!(
+            "Asset with empty filename found while including assets {}",
+            cache.display()
+          )
+        })?;
+        let filename = format!("{}.gzip", filename.to_string_lossy());
 
         // remove filename from cache
-        let cache = cache.parent().ok_or(Error::IncludeDirCacheDir)?;
+        let cache = cache.parent().with_context(|| {
+          format!(
+            "Unable to find cache directory parent from {}",
+            cache.display()
+          )
+        })?;
 
         // append the filename to the canonical path
         let cache_file = cache.join(filename);
 
         // make sure the cache directory is created
-        create_dir_all(&cache).map_err(|e| Error::Io(cache.to_path_buf(), e))?;
+        create_dir_all(&cache).with_context(|| {
+          format!(
+            "IO error encountered while creating cache directory {}",
+            cache.display()
+          )
+        })?;
 
         // open original asset path
-        let reader = File::open(&path).map_err(|e| Error::Io(path.to_path_buf(), e))?;
+        let reader = File::open(&path).with_context(|| {
+          format!(
+            "IO error encountered while reading included asset {}",
+            path.display()
+          )
+        })?;
         let reader = BufReader::new(reader);
         let mut reader = GzEncoder::new(reader, flate2::Compression::best());
 
         // open cache path
-        let writer =
-          File::create(&cache_file).map_err(|e| Error::Io(cache_file.to_path_buf(), e))?;
+        let writer = File::create(&cache_file).with_context(|| {
+          format!(
+            "IO error encountered while opening cache file path for writing {}",
+            cache_file.display()
+          )
+        })?;
         let mut writer = BufWriter::new(writer);
 
-        std::io::copy(&mut reader, &mut writer).map_err(|e| Error::Io(path.to_path_buf(), e))?;
+        std::io::copy(&mut reader, &mut writer).with_context(|| {
+          format!(
+            "IO error encountered while copying asset from {} to {}",
+            path.display(),
+            cache_file.display()
+          )
+        })?;
 
         Asset::Compressed(path, cache_file)
       }
@@ -93,13 +131,14 @@ impl IncludeDir {
     let path = path.as_ref();
     let walker = WalkDir::new(&path).follow_links(true);
     for entry in walker.into_iter() {
-      match entry {
-        Ok(e) => {
-          if !e.file_type().is_dir() {
-            self = self.file(e.path(), comp)?
-          }
-        }
-        Err(e) => return Err(Error::Io(path.into(), e.into())),
+      let entry = entry.with_context(|| {
+        format!(
+          "Error occurred while walking through dir {} while including assets",
+          path.display()
+        )
+      })?;
+      if !entry.file_type().is_dir() {
+        self = self.file(entry.path(), comp)?
       }
     }
     Ok(self)
@@ -117,7 +156,8 @@ impl IncludeDir {
         };
         Ok(Assets::format_key(path))
       })
-      .collect::<Result<_, _>>()?;
+      .collect::<Result<_, Error>>()
+      .with_context(|| "Error encountered while adding filter to included assets")?;
 
     Ok(self)
   }

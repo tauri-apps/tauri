@@ -24,6 +24,10 @@ mod salt;
 /// Webview interface.
 mod webview;
 
+/// The build system used by Tauri applications
+#[cfg(feature = "build")]
+pub mod build;
+
 /// The Tauri error enum.
 pub use error::Error;
 /// Tauri result type.
@@ -36,7 +40,6 @@ pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 pub use app::*;
 pub use tauri_api as api;
-pub use tauri_macros::FromTauriContext;
 pub use webview::{
   ApplicationDispatcherExt, ApplicationExt, Callback, WebviewBuilderExt, WindowBuilderExt,
 };
@@ -126,6 +129,14 @@ pub async fn call<D: ApplicationDispatcherExt>(
     error,
   )
   .await;
+}
+
+/// Easy helper function to use the Tauri Context you made during build time
+#[macro_export]
+macro_rules! tauri_build_context {
+  () => {
+    include!(concat!(env!("OUT_DIR"), "/tauri_config.rs"))
+  };
 }
 
 #[cfg(test)]

@@ -46,9 +46,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 // Not public API
 #[doc(hidden)]
 pub mod private {
+  pub use once_cell::sync::OnceCell;
+
   pub trait AsTauriContext {
-    fn config_path() -> &'static std::path::Path;
-    fn raw_config() -> &'static str;
+    fn config() -> &'static crate::config::Config;
     fn assets() -> &'static crate::assets::Assets;
     fn raw_tauri_script() -> &'static str;
   }

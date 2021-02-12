@@ -12,12 +12,10 @@ struct Reply {
   data: String,
 }
 
-#[derive(tauri::FromTauriContext)]
-#[config_path = "examples/communication/src-tauri/tauri.conf.json"]
-struct Context;
-
 fn main() {
-  tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
+  let context = tauri::tauri_build_context!();
+
+  tauri::AppBuilder::<tauri::flavors::Wry>::new()
     .setup(|webview_manager| async move {
       let current_webview = webview_manager.current_webview().unwrap().clone();
       let current_webview_ = current_webview.clone();
@@ -32,7 +30,7 @@ fn main() {
           .expect("failed to emit");
       });
     })
-    .invoke_handler(|webview_manager, arg| async move {
+    .invoke_handler(|webview_manager, arg: String| async move {
       use cmd::Cmd::*;
       match serde_json::from_str(&arg) {
         Err(e) => Err(e.into()),
@@ -69,7 +67,6 @@ fn main() {
         }
       }
     })
-    .build()
-    .unwrap()
+    .build(context)
     .run();
 }

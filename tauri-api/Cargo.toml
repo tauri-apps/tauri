@@ -41,5 +41,6 @@ quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 
 [features]
+build = [ "tauri-utils/build" ]
 cli = [ "clap" ]
 notification = [ "notify-rust" ]

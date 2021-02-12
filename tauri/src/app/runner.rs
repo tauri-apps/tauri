@@ -308,7 +308,7 @@ fn build_webview<A: ApplicationExt + 'static>(
                     endpoint_handle
                   }
                 }
-                Err(e) => Err(e.into()),
+                Err(e) => Err(e),
               };
               endpoint_handle = response;
             }

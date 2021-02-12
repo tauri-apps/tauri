@@ -131,26 +131,3 @@ fn throw_allowlist_error<D: ApplicationDispatcherExt>(
     dispatcher.eval(&reject_code);
   }
 }
-
-#[cfg(test)]
-mod test {
-  use proptest::prelude::*;
-
-  // check the listen_fn for various usecases.
-  proptest! {
-    #[cfg(event)]
-    #[test]
-    fn check_listen_fn(event in "", handler in "", once in proptest::bool::ANY) {
-      super::event::listen_fn(event, handler, once).expect("listen_fn failed");
-    }
-  }
-
-  // Test the open func to see if proper uris can be opened by the browser.
-  proptest! {
-    #[cfg(open)]
-    #[test]
-    fn check_open(uri in r"(http://)([\\w\\d\\.]+([\\w]{2,6})?)") {
-      super::browser::open(uri);
-  }
-  }
-}

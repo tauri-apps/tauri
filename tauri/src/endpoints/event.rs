@@ -75,3 +75,17 @@ pub fn listen_fn(event: String, handler: String, once: bool) -> crate::Result<St
     once_flag = if once { "true" } else { "false" }
   ))
 }
+
+#[cfg(test)]
+mod test {
+  use proptest::prelude::*;
+
+  // check the listen_fn for various usecases.
+  proptest! {
+    #[cfg(event)]
+    #[test]
+    fn check_listen_fn(event in "", handler in "", once in proptest::bool::ANY) {
+      super::listen_fn(event, handler, once).expect("listen_fn failed");
+    }
+  }
+}

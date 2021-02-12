@@ -50,3 +50,16 @@ pub fn open_browser(uri: String) {
   #[cfg(not(test))]
   webbrowser::open(&uri).expect("Failed to open webbrowser with uri");
 }
+
+#[cfg(test)]
+mod test {
+  use proptest::prelude::*;
+  // Test the open func to see if proper uris can be opened by the browser.
+  proptest! {
+    #[cfg(open)]
+    #[test]
+    fn check_open(uri in r"(http://)([\\w\\d\\.]+([\\w]{2,6})?)") {
+      super::open_browser(uri);
+    }
+  }
+}

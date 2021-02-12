@@ -50,6 +50,7 @@ impl<'de> Deserialize<'de> for WindowUrl {
 
 /// The window configuration object.
 #[derive(PartialEq, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct WindowConfig {
   #[serde(default = "default_window_label")]
   /// The window identifier.

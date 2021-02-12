@@ -1,5 +1,6 @@
 <script>
-  import { setTitle, open } from "@tauri-apps/api/window";
+  import { setTitle } from "@tauri-apps/api/window";
+  import { open } from "@tauri-apps/api/shell";
 
   let urlValue = "https://tauri.studio";
   let windowTitle = 'Awesome Tauri Example!';

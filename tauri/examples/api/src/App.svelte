@@ -68,7 +68,7 @@
       {/each}
     </div>
   </div>
-  <div id="response">{response}</div>
+  <div id="response">{@html response}</div>
   <div class="bottom">
     <a class="dark-link" target="_blank" href="https://tauri.studio">
       Tauri Documentation

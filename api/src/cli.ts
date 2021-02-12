@@ -28,7 +28,10 @@ export interface CliMatches {
  */
 async function getMatches(): Promise<CliMatches> {
   return await promisified<CliMatches>({
-    cmd: 'cliMatches'
+    module: 'Cli',
+    message: {
+      cmd: 'cliMatches'
+    }
   })
 }
 

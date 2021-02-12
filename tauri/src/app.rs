@@ -10,7 +10,7 @@ mod webview_manager;
 pub use webview_manager::{WebviewDispatcher, WebviewManager};
 
 type InvokeHandler<D> =
-  dyn Fn(WebviewManager<D>, String) -> BoxFuture<'static, Result<(), String>> + Send + Sync;
+  dyn Fn(WebviewManager<D>, String) -> BoxFuture<'static, crate::Result<()>> + Send + Sync;
 type Setup<D> = dyn Fn(WebviewManager<D>) -> BoxFuture<'static, ()> + Send + Sync;
 
 /// `App` runtime information.
@@ -53,7 +53,7 @@ impl<A: ApplicationExt + 'static> App<A> {
     &self,
     dispatcher: &WebviewManager<A::Dispatcher>,
     arg: &str,
-  ) -> Result<bool, String> {
+  ) -> crate::Result<bool> {
     if let Some(ref invoke_handler) = self.invoke_handler {
       let fut = invoke_handler(dispatcher.clone(), arg.to_string());
       fut.await.map(|_| true)
@@ -94,7 +94,7 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<A, C> {
 
   /// Defines the JS message handler callback.
   pub fn invoke_handler<
-    T: futures::Future<Output = Result<(), String>> + Send + Sync + 'static,
+    T: futures::Future<Output = crate::Result<()>> + Send + Sync + 'static,
     F: Fn(WebviewManager<A::Dispatcher>, String) -> T + Send + Sync + 'static,
   >(
     mut self,

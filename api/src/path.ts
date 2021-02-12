@@ -8,9 +8,12 @@ import { BaseDirectory } from './fs'
  */
 async function appDir(): Promise<string> {
   return await promisified<string>({
-    cmd: 'resolvePath',
-    path: '',
-    directory: BaseDirectory.App
+    module: 'Fs',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.App
+    }
   })
 }
 
@@ -21,9 +24,12 @@ async function appDir(): Promise<string> {
  */
 async function audioDir(): Promise<string> {
   return await promisified<string>({
-    cmd: 'resolvePath',
-    path: '',
-    directory: BaseDirectory.Audio
+    module: 'Fs',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.Audio
+    }
   })
 }
 
@@ -34,9 +40,12 @@ async function audioDir(): Promise<string> {
  */
 async function cacheDir(): Promise<string> {
   return await promisified<string>({
-    cmd: 'resolvePath',
-    path: '',
-    directory: BaseDirectory.Cache
+    module: 'Fs',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.Cache
+    }
   })
 }
 
@@ -47,9 +56,12 @@ async function cacheDir(): Promise<string> {
  */
 async function configDir(): Promise<string> {
   return await promisified<string>({
-    cmd: 'resolvePath',
-    path: '',
-    directory: BaseDirectory.Config
+    module: 'Fs',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.Config
+    }
   })
 }
 
@@ -60,9 +72,12 @@ async function configDir(): Promise<string> {
  */
 async function dataDir(): Promise<string> {
   return await promisified<string>({
-    cmd: 'resolvePath',
-    path: '',
-    directory: BaseDirectory.Data
+    module: 'Fs',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.Data
+    }
   })
 }
 
@@ -73,9 +88,12 @@ async function dataDir(): Promise<string> {
  */
 async function desktopDir(): Promise<string> {
   return await promisified<string>({
-    cmd: 'resolvePath',
-    path: '',
-    directory: BaseDirectory.Desktop
+    module: 'Fs',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.Desktop
+    }
   })
 }
 
@@ -86,9 +104,12 @@ async function desktopDir(): Promise<string> {
  */
 async function documentDir(): Promise<string> {
   return await promisified<string>({
-    cmd: 'resolvePath',
-    path: '',
-    directory: BaseDirectory.Document
+    module: 'Fs',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.Document
+    }
   })
 }
 
@@ -99,9 +120,12 @@ async function documentDir(): Promise<string> {
  */
 async function downloadDir(): Promise<string> {
   return await promisified<string>({
-    cmd: 'resolvePath',
-    path: '',
-    directory: BaseDirectory.Download
+    module: 'Fs',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.Download
+    }
   })
 }
 
@@ -112,9 +136,12 @@ async function downloadDir(): Promise<string> {
  */
 async function executableDir(): Promise<string> {
   return await promisified<string>({
-    cmd: 'resolvePath',
-    path: '',
-    directory: BaseDirectory.Executable
+    module: 'Fs',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.Executable
+    }
   })
 }
 
@@ -125,9 +152,12 @@ async function executableDir(): Promise<string> {
  */
 async function fontDir(): Promise<string> {
   return await promisified<string>({
-    cmd: 'resolvePath',
-    path: '',
-    directory: BaseDirectory.Font
+    module: 'Fs',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.Font
+    }
   })
 }
 
@@ -138,9 +168,12 @@ async function fontDir(): Promise<string> {
  */
 async function homeDir(): Promise<string> {
   return await promisified<string>({
-    cmd: 'resolvePath',
-    path: '',
-    directory: BaseDirectory.Home
+    module: 'Fs',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.Home
+    }
   })
 }
 
@@ -151,9 +184,12 @@ async function homeDir(): Promise<string> {
  */
 async function localDataDir(): Promise<string> {
   return await promisified<string>({
-    cmd: 'resolvePath',
-    path: '',
-    directory: BaseDirectory.LocalData
+    module: 'Fs',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.LocalData
+    }
   })
 }
 
@@ -164,9 +200,12 @@ async function localDataDir(): Promise<string> {
  */
 async function pictureDir(): Promise<string> {
   return await promisified<string>({
-    cmd: 'resolvePath',
-    path: '',
-    directory: BaseDirectory.Picture
+    module: 'Fs',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.Picture
+    }
   })
 }
 
@@ -177,9 +216,12 @@ async function pictureDir(): Promise<string> {
  */
 async function publicDir(): Promise<string> {
   return await promisified<string>({
-    cmd: 'resolvePath',
-    path: '',
-    directory: BaseDirectory.Public
+    module: 'Fs',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.Public
+    }
   })
 }
 
@@ -190,9 +232,12 @@ async function publicDir(): Promise<string> {
  */
 async function resourceDir(): Promise<string> {
   return await promisified<string>({
-    cmd: 'resolvePath',
-    path: '',
-    directory: BaseDirectory.Resource
+    module: 'Fs',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.Resource
+    }
   })
 }
 
@@ -203,9 +248,12 @@ async function resourceDir(): Promise<string> {
  */
 async function runtimeDir(): Promise<string> {
   return await promisified<string>({
-    cmd: 'resolvePath',
-    path: '',
-    directory: BaseDirectory.Runtime
+    module: 'Fs',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.Runtime
+    }
   })
 }
 
@@ -216,9 +264,12 @@ async function runtimeDir(): Promise<string> {
  */
 async function templateDir(): Promise<string> {
   return await promisified<string>({
-    cmd: 'resolvePath',
-    path: '',
-    directory: BaseDirectory.Template
+    module: 'Fs',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.Template
+    }
   })
 }
 
@@ -229,9 +280,12 @@ async function templateDir(): Promise<string> {
  */
 async function videoDir(): Promise<string> {
   return await promisified<string>({
-    cmd: 'resolvePath',
-    path: '',
-    directory: BaseDirectory.Video
+    module: 'Fs',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.Video
+    }
   })
 }
 
@@ -245,9 +299,12 @@ async function resolvePath(
   directory: BaseDirectory
 ): Promise<string> {
   return await promisified<string>({
-    cmd: 'resolvePath',
-    path,
-    directory
+    module: 'Fs',
+    message: {
+      cmd: 'resolvePath',
+      path,
+      directory
+    }
   })
 }
 

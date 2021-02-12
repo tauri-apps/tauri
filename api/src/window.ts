@@ -7,21 +7,12 @@ import { invoke } from './tauri'
  */
 function setTitle(title: string): void {
   invoke({
-    cmd: 'setTitle',
-    title
+    module: 'Window',
+    message: {
+      cmd: 'setTitle',
+      title
+    }
   })
 }
 
-/**
- * opens an URL on the user default browser
- *
- * @param url the URL to open
- */
-function open(url: string): void {
-  invoke({
-    cmd: 'open',
-    uri: url
-  })
-}
-
-export { setTitle, open }
+export { setTitle }

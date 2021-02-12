@@ -42,7 +42,7 @@ pub trait Plugin<D: ApplicationDispatcherExt + 'static>: Send + Sync {
     webview_manager: WebviewManager<D>,
     payload: &str,
   ) -> crate::Result<()> {
-    Err(crate::Error::UnknownApi)
+    Err(crate::Error::UnknownApi(None))
   }
 }
 
@@ -133,7 +133,7 @@ pub(crate) async fn extend_api<D: ApplicationDispatcherExt + 'static>(
         return Ok(true);
       }
       Err(e) => match e {
-        crate::Error::UnknownApi => {}
+        crate::Error::UnknownApi(_) => {}
         _ => return Err(e),
       },
     }

@@ -1,325 +1,90 @@
-mod cmd;
-#[allow(unused_imports)]
-mod file_system;
-mod path;
-mod salt;
-
-#[cfg(open)]
-mod browser;
+mod cli;
 mod dialog;
 #[cfg(event)]
 mod event;
+#[allow(unused_imports)]
+mod file_system;
 #[cfg(http_request)]
 mod http;
+mod internal;
 #[cfg(notification)]
 mod notification;
+mod shell;
+mod window;
 
-use crate::{app::Context, webview::Event, ApplicationDispatcherExt};
+use crate::{app::Context, ApplicationDispatcherExt};
 
-#[allow(unused_variables)]
+use serde::Deserialize;
+use serde_json::Value;
+
+#[derive(Deserialize)]
+struct ModuleDto {
+  module: String,
+  callback: Option<String>,
+  error: Option<String>,
+  message: Value,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "module")]
+enum Module {
+  Fs(file_system::Cmd),
+  Window(window::Cmd),
+  Shell(shell::Cmd),
+  Event(event::Cmd),
+  Internal(internal::Cmd),
+  Dialog(dialog::Cmd),
+  Cli(cli::Cmd),
+  Notification(notification::Cmd),
+  Http(http::Cmd),
+}
+
+impl Module {
+  async fn run<D: ApplicationDispatcherExt + 'static>(
+    self,
+    webview_manager: &crate::WebviewManager<D>,
+    context: &Context,
+  ) -> crate::Result<()> {
+    match self {
+      Self::Fs(cmd) => cmd.run(webview_manager).await,
+      Self::Window(cmd) => cmd.run(webview_manager).await?,
+      Self::Shell(cmd) => cmd.run(webview_manager).await,
+      Self::Event(cmd) => cmd.run(webview_manager).await?,
+      Self::Internal(cmd) => cmd.run(webview_manager).await?,
+      Self::Dialog(cmd) => cmd.run(webview_manager).await?,
+      Self::Cli(cmd) => cmd.run(webview_manager, context).await,
+      Self::Notification(cmd) => cmd.run(webview_manager, context).await?,
+      Self::Http(cmd) => cmd.run(webview_manager).await,
+    }
+    Ok(())
+  }
+}
+
 pub(crate) async fn handle<D: ApplicationDispatcherExt + 'static>(
   webview_manager: &crate::WebviewManager<D>,
   arg: &str,
   context: &Context,
 ) -> crate::Result<()> {
-  use cmd::Cmd::*;
-  match serde_json::from_str(arg) {
-    Err(e) => Err(e.into()),
-    Ok(command) => {
-      match command {
-        ReadTextFile {
-          path,
-          options,
-          callback,
-          error,
-        } => {
-          #[cfg(read_text_file)]
-          file_system::read_text_file(webview_manager, path, options, callback, error).await;
-          #[cfg(not(read_text_file))]
-          allowlist_error(webview_manager, error, "readTextFile");
+  match serde_json::from_str::<ModuleDto>(arg) {
+    Err(e) => {
+      if e.to_string().contains("missing field `module`") {
+        Err(crate::Error::UnknownApi(Some(e)))
+      } else {
+        Err(e.into())
+      }
+    }
+    Ok(mut module_dto) => {
+      if let Value::Object(ref mut obj) = module_dto.message {
+        obj.insert("module".to_string(), Value::String(module_dto.module));
+        if let Some(callback) = module_dto.callback {
+          obj.insert("callback".to_string(), Value::String(callback));
         }
-        ReadBinaryFile {
-          path,
-          options,
-          callback,
-          error,
-        } => {
-          #[cfg(read_binary_file)]
-          file_system::read_binary_file(webview_manager, path, options, callback, error).await;
-          #[cfg(not(read_binary_file))]
-          allowlist_error(webview_manager, error, "readBinaryFile");
-        }
-        WriteFile {
-          path,
-          contents,
-          options,
-          callback,
-          error,
-        } => {
-          #[cfg(write_file)]
-          file_system::write_file(webview_manager, path, contents, options, callback, error).await;
-          #[cfg(not(write_file))]
-          allowlist_error(webview_manager, error, "writeFile");
-        }
-        WriteBinaryFile {
-          path,
-          contents,
-          options,
-          callback,
-          error,
-        } => {
-          #[cfg(write_binary_file)]
-          file_system::write_binary_file(webview_manager, path, contents, options, callback, error)
-            .await;
-          #[cfg(not(write_binary_file))]
-          allowlist_error(webview_manager, error, "writeBinaryFile");
-        }
-        ReadDir {
-          path,
-          options,
-          callback,
-          error,
-        } => {
-          #[cfg(read_dir)]
-          file_system::read_dir(webview_manager, path, options, callback, error).await;
-          #[cfg(not(read_dir))]
-          allowlist_error(webview_manager, error, "readDir");
-        }
-        CopyFile {
-          source,
-          destination,
-          options,
-          callback,
-          error,
-        } => {
-          #[cfg(copy_file)]
-          file_system::copy_file(
-            webview_manager,
-            source,
-            destination,
-            options,
-            callback,
-            error,
-          )
-          .await;
-          #[cfg(not(copy_file))]
-          allowlist_error(webview_manager, error, "copyFile");
-        }
-        CreateDir {
-          path,
-          options,
-          callback,
-          error,
-        } => {
-          #[cfg(create_dir)]
-          file_system::create_dir(webview_manager, path, options, callback, error).await;
-          #[cfg(not(create_dir))]
-          allowlist_error(webview_manager, error, "createDir");
-        }
-        RemoveDir {
-          path,
-          options,
-          callback,
-          error,
-        } => {
-          #[cfg(remove_dir)]
-          file_system::remove_dir(webview_manager, path, options, callback, error).await;
-          #[cfg(not(remove_dir))]
-          allowlist_error(webview_manager, error, "removeDir");
-        }
-        RemoveFile {
-          path,
-          options,
-          callback,
-          error,
-        } => {
-          #[cfg(remove_file)]
-          file_system::remove_file(webview_manager, path, options, callback, error).await;
-          #[cfg(not(remove_file))]
-          allowlist_error(webview_manager, error, "removeFile");
-        }
-        RenameFile {
-          old_path,
-          new_path,
-          options,
-          callback,
-          error,
-        } => {
-          #[cfg(rename_file)]
-          file_system::rename_file(
-            webview_manager,
-            old_path,
-            new_path,
-            options,
-            callback,
-            error,
-          )
-          .await;
-          #[cfg(not(rename_file))]
-          allowlist_error(webview_manager, error, "renameFile");
-        }
-        ResolvePath {
-          path,
-          directory,
-          callback,
-          error,
-        } => {
-          #[cfg(path_api)]
-          path::resolve_path(webview_manager, path, directory, callback, error).await;
-          #[cfg(not(path_api))]
-          allowlist_error(webview_manager, error, "pathApi");
-        }
-        SetTitle { title } => {
-          webview_manager.current_webview()?.set_title(&title);
-          #[cfg(not(set_title))]
-          throw_allowlist_error(webview_manager, "title");
-        }
-        Execute {
-          command,
-          args,
-          callback,
-          error,
-        } => {
-          #[cfg(execute)]
-          crate::call(webview_manager, command, args, callback, error).await;
-          #[cfg(not(execute))]
-          throw_allowlist_error(webview_manager, "execute");
-        }
-        Open { uri } => {
-          #[cfg(open)]
-          browser::open(uri);
-          #[cfg(not(open))]
-          throw_allowlist_error(webview_manager, "open");
-        }
-        ValidateSalt {
-          salt,
-          callback,
-          error,
-        } => {
-          salt::validate(webview_manager, salt, callback, error)?;
-        }
-        Listen {
-          event,
-          handler,
-          once,
-        } => {
-          #[cfg(event)]
-          {
-            let js_string = event::listen_fn(event, handler, once)?;
-            webview_manager.current_webview()?.eval(&js_string);
-          }
-          #[cfg(not(event))]
-          throw_allowlist_error(webview_manager, "event");
-        }
-        Emit { event, payload } => {
-          // TODO emit to optional window
-          #[cfg(event)]
-          webview_manager.current_webview()?.on_event(event, payload);
-          #[cfg(not(event))]
-          throw_allowlist_error(webview_manager, "event");
-        }
-        OpenDialog {
-          options,
-          callback,
-          error,
-        } => {
-          #[cfg(open_dialog)]
-          dialog::open(webview_manager, options, callback, error)?;
-          #[cfg(not(open_dialog))]
-          allowlist_error(webview_manager, error, "title");
-        }
-        SaveDialog {
-          options,
-          callback,
-          error,
-        } => {
-          #[cfg(save_dialog)]
-          dialog::save(webview_manager, options, callback, error)?;
-          #[cfg(not(save_dialog))]
-          throw_allowlist_error(webview_manager, "saveDialog");
-        }
-        MessageDialog { message } => {
-          let exe = std::env::current_exe()?;
-          let exe_dir = exe.parent().expect("failed to get exe directory");
-          let app_name = exe
-            .file_name()
-            .expect("failed to get exe filename")
-            .to_string_lossy()
-            .to_string();
-          webview_manager
-            .current_webview()?
-            .send_event(Event::Run(Box::new(move || {
-              dialog::message(app_name, message);
-            })));
-        }
-        AskDialog {
-          title,
-          message,
-          callback,
-          error,
-        } => {
-          let exe = std::env::current_exe()?;
-          dialog::ask(
-            webview_manager,
-            title.unwrap_or_else(|| {
-              let exe_dir = exe.parent().expect("failed to get exe directory");
-              exe
-                .file_name()
-                .expect("failed to get exe filename")
-                .to_string_lossy()
-                .to_string()
-            }),
-            message,
-            callback,
-            error,
-          )?;
-        }
-        HttpRequest {
-          options,
-          callback,
-          error,
-        } => {
-          #[cfg(http_request)]
-          http::make_request(webview_manager, *options, callback, error).await;
-          #[cfg(not(http_request))]
-          allowlist_error(webview_manager, error, "httpRequest");
-        }
-        CliMatches { callback, error } => {
-          #[cfg(cli)]
-          {
-            let matches = tauri_api::cli::get_matches(&context.config).map_err(|e| e.into());
-            crate::execute_promise(webview_manager, async move { matches }, callback, error).await;
-          }
-          #[cfg(not(cli))]
-          api_error(
-            webview_manager,
-            error,
-            "CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)",
-          );
-        }
-        Notification {
-          options,
-          callback,
-          error,
-        } => {
-          #[cfg(notification)]
-          notification::send(webview_manager, options, callback, error, &context.config).await;
-          #[cfg(not(notification))]
-          allowlist_error(webview_manager, error, "notification");
-        }
-        IsNotificationPermissionGranted { callback, error } => {
-          #[cfg(notification)]
-          notification::is_permission_granted(webview_manager, callback, error).await;
-          #[cfg(not(notification))]
-          allowlist_error(webview_manager, error, "notification");
-        }
-        RequestNotificationPermission { callback, error } => {
-          #[cfg(notification)]
-          notification::request_permission(webview_manager, callback, error)?;
-          #[cfg(not(notification))]
-          allowlist_error(webview_manager, error, "notification");
+        if let Some(error) = module_dto.error {
+          obj.insert("error".to_string(), Value::String(error));
         }
       }
+      let module: Module = serde_json::from_str(&module_dto.message.to_string())?;
+      module.run(webview_manager, context).await?;
       Ok(())
     }
   }

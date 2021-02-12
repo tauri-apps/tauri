@@ -4,7 +4,7 @@ addClickEnterHandler(
   document.getElementById("open-url"),
   urlInput,
   function () {
-    window.__TAURI__.window.open(urlInput.value);
+    window.__TAURI__.shell.open(urlInput.value);
   }
 );
 

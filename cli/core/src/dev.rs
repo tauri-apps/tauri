@@ -11,7 +11,7 @@ use shared_child::SharedChild;
 use std::{
   env::{set_current_dir, set_var},
   ffi::OsStr,
-  fs::File,
+  fs::{create_dir_all, File},
   io::Write,
   path::PathBuf,
   process::{exit, Command},
@@ -117,7 +117,9 @@ impl Dev {
       let tauri_script = TauriScript::new()
         .global_tauri(config_.build.with_global_tauri)
         .get();
-      let tauri_script_path = PathBuf::from(&config_.build.dist_dir).join("__tauri.js");
+      let tauri_dir_path = PathBuf::from(&config_.build.dist_dir);
+      let tauri_script_path = tauri_dir_path.join("__tauri.js");
+      create_dir_all(tauri_dir_path)?;
       let mut tauri_script_file = File::create(tauri_script_path)?;
       tauri_script_file.write_all(tauri_script.as_bytes())?;
     }

@@ -374,18 +374,20 @@ fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
 #[cfg(test)]
 mod test {
   use super::Content;
-  use crate::{Context, FromTauriContext};
+  use crate::Context;
   use proptest::prelude::*;
   #[cfg(dev)]
   use std::io::Read;
-
-  #[derive(FromTauriContext)]
-  #[config_path = "test/fixture/src-tauri/tauri.conf.json"]
-  struct TauriContext;
+  use std::path::PathBuf;
 
   #[test]
   fn check_setup_content() {
-    let context = Context::new::<TauriContext>().unwrap();
+    let build = tauri::build::do_build(Some(PathBuf::from(
+      "test/fixture/src-tauri/tauri.conf.json",
+    )))
+    .unwrap();
+    let context = tauri::tauri_build_context!();
+    let context = Context::new(context);
     let res = super::setup_content(&context);
 
     #[cfg(embedded_server)]

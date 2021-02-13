@@ -31,6 +31,9 @@ pub enum Error {
   /// Failed to decode base64.
   #[error("Failed to decode base64 string: {0}")]
   Base64Decode(#[from] base64::DecodeError),
+  /// Error on WRY.
+  #[error("webview error: {0}")]
+  Wry(#[from] wry::Error),
 }
 
 impl From<serde_json::Error> for Error {

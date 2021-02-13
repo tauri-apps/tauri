@@ -189,6 +189,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "099e596ef14349721d9016f6b80dd3419ea1bf289ab9b44df8e4dfd3a005d5d9"
 
 [[package]]
+name = "bytemuck"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a4bad0c5981acc24bc09e532f35160f952e35422603f0563cd7a73c2c2e65a0"
+
+[[package]]
 name = "byteorder"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -330,6 +336,12 @@ dependencies = [
  "libc",
  "objc",
 ]
+
+[[package]]
+name = "color_quant"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d7b894f5411737b7867f4827955924d7c254fc9f4d91a6aad6b097804b1018b"
 
 [[package]]
 name = "const-sha1"
@@ -529,6 +541,16 @@ checksum = "3b1334c0161ddfccd239ac81b188d62015b049c986c5cd0b7f9447cf2c54f4a3"
 dependencies = [
  "libc",
  "libdbus-sys",
+]
+
+[[package]]
+name = "deflate"
+version = "0.8.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73770f8e1fe7d64df17ca66ad28994a0a623ea497fa69486e14984e715c5d174"
+dependencies = [
+ "adler32",
+ "byteorder",
 ]
 
 [[package]]
@@ -882,6 +904,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "gif"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02efba560f227847cb41463a7395c514d127d4f74fff12ef0137fff1b84b96c4"
+dependencies = [
+ "color_quant",
+ "weezl",
+]
+
+[[package]]
 name = "gimli"
 version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1070,6 +1102,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "image"
+version = "0.23.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "293f07a1875fa7e9c5897b51aa68b2d8ed8271b87e1a44cb64b9c3d98aabbc0d"
+dependencies = [
+ "bytemuck",
+ "byteorder",
+ "color_quant",
+ "gif",
+ "jpeg-decoder",
+ "num-iter",
+ "num-rational",
+ "num-traits",
+ "png",
+ "scoped_threadpool",
+ "tiff",
+]
+
+[[package]]
 name = "instant"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1126,6 +1177,15 @@ name = "jni-sys"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8eaf4bc02d17cbdd7ff4c7438cafcdf7fb9a4613313ad11b4f8fefe7d3fa0130"
+
+[[package]]
+name = "jpeg-decoder"
+version = "0.1.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "229d53d58899083193af11e15917b5640cd40b29ff475a1fe4ef725deb02d0f2"
+dependencies = [
+ "rayon",
+]
 
 [[package]]
 name = "js-sys"
@@ -1456,6 +1516,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-iter"
+version = "0.1.42"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b2021c8337a54d21aca0d59a92577a029af9431cb59b909b03252b9c164fad59"
+dependencies = [
+ "autocfg",
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
+name = "num-rational"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12ac428b1cb17fce6f731001d307d351ec70a6d202fc2e60f7d4c5e42d8f4f07"
+dependencies = [
+ "autocfg",
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
 name = "num-traits"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1707,6 +1789,18 @@ name = "pkg-config"
 version = "0.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3831453b3449ceb48b6d9c7ad7c96d5ea673e9b470a1dc578c2ce6521230884c"
+
+[[package]]
+name = "png"
+version = "0.16.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c3287920cb847dee3de33d301c463fba14dda99db24214ddf93f83d3021f4c6"
+dependencies = [
+ "bitflags 1.2.1",
+ "crc32fast",
+ "deflate",
+ "miniz_oxide 0.3.7",
+]
 
 [[package]]
 name = "ppv-lite86"
@@ -2021,6 +2115,12 @@ name = "scoped-tls"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ea6a9290e3c9cf0f18145ef7ffa62d68ee0bf5fcd651017e586dc7fd5da448c2"
+
+[[package]]
+name = "scoped_threadpool"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d51f5df5af43ab3f1360b429fa5e0152ac5ce8c0bd6485cae490332e96846a8"
 
 [[package]]
 name = "scopeguard"
@@ -2427,6 +2527,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "tiff"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a53f4706d65497df0c4349241deddf35f84cee19c87ed86ea8ca590f4464437"
+dependencies = [
+ "jpeg-decoder",
+ "miniz_oxide 0.4.3",
+ "weezl",
+]
+
+[[package]]
 name = "time"
 version = "0.1.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2787,6 +2898,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "weezl"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a32b378380f4e9869b22f0b5177c68a5519f03b3454fde0b291455ddbae266c"
+
+[[package]]
 name = "which"
 version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2992,15 +3109,17 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.4.1"
-source = "git+https://github.com/tauri-apps/wry?rev=f4edf89de5dc40b77a94f6b94fcaf76fdac6bbf4#f4edf89de5dc40b77a94f6b94fcaf76fdac6bbf4"
+source = "git+https://github.com/tauri-apps/wry?rev=b36b3e2d07edddf2ef49dcc901ae2c5888873ad2#b36b3e2d07edddf2ef49dcc901ae2c5888873ad2"
 dependencies = [
  "cc",
  "cocoa",
  "core-graphics 0.22.2",
  "gdk",
+ "gdk-pixbuf",
  "gio",
  "glib",
  "gtk",
+ "image",
  "libc",
  "objc",
  "once_cell",

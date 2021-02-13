@@ -32,7 +32,7 @@ thiserror = "1.0.23"
 once_cell = "1.5.2"
 tauri-api = { version = "0.7.5", path = "../tauri-api" }
 tauri-macros = { version = "0.1", path = "../tauri-macros" }
-wry = { git = "https://github.com/tauri-apps/wry", rev = "f4edf89de5dc40b77a94f6b94fcaf76fdac6bbf4" }
+wry = { git = "https://github.com/tauri-apps/wry", rev = "b36b3e2d07edddf2ef49dcc901ae2c5888873ad2" }
 
 [target."cfg(target_os = \"windows\")".dependencies]
 runas = "0.2"
@@ -50,6 +50,9 @@ serde = { version = "1.0", features = [ "derive" ] }
 cli = [ "tauri-api/cli" ]
 embedded-server = [ "tiny_http" ]
 all-api = [ "tauri-api/notification" ]
+updater = [ ]
+
+# FS
 read-text-file = [ ]
 read-binary-file = [ ]
 write-file = [ ]
@@ -61,14 +64,23 @@ remove-dir = [ ]
 remove-file = [ ]
 rename-file = [ ]
 path-api = [ ]
-set-title = [ ]
+event = [ ]
+
+# window
+window = [ ]
+
+#shell
 execute = [ ]
 open = [ ]
-event = [ ]
-updater = [ ]
+
+# dialog
 open-dialog = [ ]
 save-dialog = [ ]
+
+# HTTP
 http-request = [ ]
+
+# notification
 notification = [ "tauri-api/notification" ]
 
 [[example]]

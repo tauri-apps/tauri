@@ -1,5 +1,5 @@
 use super::{
-  ApplicationDispatcherExt, ApplicationExt, Callback, Event, Message, WebviewBuilderExt,
+  ApplicationDispatcherExt, ApplicationExt, Callback, Event, Icon, Message, WebviewBuilderExt,
   WindowBuilderExt,
 };
 
@@ -9,7 +9,21 @@ use once_cell::sync::Lazy;
 
 use crate::plugin::PluginStore;
 
-use std::sync::{Arc, Mutex};
+use std::{
+  convert::{TryFrom, TryInto},
+  sync::{Arc, Mutex},
+};
+
+impl TryInto<wry::Icon> for Icon {
+  type Error = crate::Error;
+  fn try_into(self) -> Result<wry::Icon, Self::Error> {
+    let icon = match self {
+      Self::File(path) => wry::Icon::from_file(path)?,
+      Self::Raw(raw) => wry::Icon::from_bytes(raw)?,
+    };
+    Ok(icon)
+  }
+}
 
 impl WindowBuilderExt for wry::AppWindowAttributes {
   type Window = Self;
@@ -136,26 +150,82 @@ pub struct WryDispatcher {
 
 struct WryMessage(wry::Message<wry::WindowId, Event>);
 
-impl From<(wry::WindowId, Message)> for WryMessage {
-  fn from((id, message): (wry::WindowId, Message)) -> Self {
+impl TryFrom<(wry::WindowId, Message)> for WryMessage {
+  type Error = crate::Error;
+  fn try_from((id, message): (wry::WindowId, Message)) -> crate::Result<Self> {
     let message = match message {
       Message::EvalScript(js) => wry::Message::Webview(id, WebviewMessage::EvalScript(js)),
-      Message::SetWindowTitle(title) => wry::Message::Window(id, WindowMessage::SetTitle(title)),
       Message::Event(event) => wry::Message::Custom(event),
+      Message::SetResizable(resizable) => {
+        wry::Message::Window(id, WindowMessage::SetResizable(resizable))
+      }
+      Message::SetTitle(title) => wry::Message::Window(id, WindowMessage::SetTitle(title)),
+      Message::Maximize => wry::Message::Window(id, WindowMessage::Maximize),
+      Message::Unmaximize => wry::Message::Window(id, WindowMessage::Unmaximize),
+      Message::Minimize => wry::Message::Window(id, WindowMessage::Minimize),
+      Message::Unminimize => wry::Message::Window(id, WindowMessage::Unminimize),
+      Message::Show => wry::Message::Window(id, WindowMessage::Show),
+      Message::Hide => wry::Message::Window(id, WindowMessage::Hide),
+      Message::SetTransparent(transparent) => {
+        wry::Message::Window(id, WindowMessage::SetTransparent(transparent))
+      }
+      Message::SetDecorations(decorations) => {
+        wry::Message::Window(id, WindowMessage::SetDecorations(decorations))
+      }
+      Message::SetAlwaysOnTop(always_on_top) => {
+        wry::Message::Window(id, WindowMessage::SetAlwaysOnTop(always_on_top))
+      }
+      Message::SetWidth(width) => wry::Message::Window(id, WindowMessage::SetWidth(width)),
+      Message::SetHeight(height) => wry::Message::Window(id, WindowMessage::SetHeight(height)),
+      Message::Resize { width, height } => {
+        wry::Message::Window(id, WindowMessage::Resize { width, height })
+      }
+      Message::SetMinSize {
+        min_width,
+        min_height,
+      } => wry::Message::Window(
+        id,
+        WindowMessage::SetMinSize {
+          min_width,
+          min_height,
+        },
+      ),
+      Message::SetMaxSize {
+        max_width,
+        max_height,
+      } => wry::Message::Window(
+        id,
+        WindowMessage::SetMaxSize {
+          max_width,
+          max_height,
+        },
+      ),
+      Message::SetX(x) => wry::Message::Window(id, WindowMessage::SetX(x)),
+      Message::SetY(y) => wry::Message::Window(id, WindowMessage::SetY(y)),
+      Message::SetPosition { x, y } => {
+        wry::Message::Window(id, WindowMessage::SetPosition { x, y })
+      }
+      Message::SetFullscreen(fullscreen) => {
+        wry::Message::Window(id, WindowMessage::SetFullscreen(fullscreen))
+      }
+      Message::SetIcon(icon) => wry::Message::Window(id, WindowMessage::SetIcon(icon.try_into()?)),
     };
-    WryMessage(message)
+    Ok(WryMessage(message))
   }
 }
 
 impl ApplicationDispatcherExt for WryDispatcher {
   fn send_message(&self, message: Message) {
-    let message: WryMessage = (self.current_window, message).into();
-    self
-      .inner
-      .lock()
-      .unwrap()
-      .dispatch_message(message.0)
-      .unwrap();
+    let message_res: crate::Result<WryMessage> = (self.current_window, message).try_into();
+    // TODO error propagation
+    if let Ok(message) = message_res {
+      self
+        .inner
+        .lock()
+        .unwrap()
+        .dispatch_message(message.0)
+        .unwrap();
+    }
   }
 }
 

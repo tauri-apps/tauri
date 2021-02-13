@@ -60,6 +60,18 @@ pub enum Error {
   #[cfg(target_os = "windows")]
   #[error("SignTool not found")]
   SignToolNotFound,
+  #[cfg(target_os = "windows")]
+  #[error("failed to open registry {0}")]
+  OpenRegistry(String),
+  #[cfg(target_os = "windows")]
+  #[error("failed to get {0} value on registry")]
+  GetRegistryValue(String),
+  #[cfg(target_os = "windows")]
+  #[error("unsupported OS bitness")]
+  UnsupportedBitness,
+  #[cfg(target_os = "windows")]
+  #[error("failed to sign app: {0}")]
+  Sign(String),
 }
 
 pub type Result<T> = anyhow::Result<T, Error>;

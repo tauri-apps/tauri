@@ -576,22 +576,12 @@ fn locate_signtool() -> crate::Result<PathBuf> {
   // Open 32-bit HKLM "Installed Roots" key
   let installed_roots_key = RegKey::predef(HKEY_LOCAL_MACHINE)
     .open_subkey_with_flags(installed_roots_key_path, KEY_READ | KEY_WOW64_32KEY)
-    .map_err(|_| {
-      format!(
-        "Error opening registry key: {}",
-        INSTALLED_ROOTS_REGKEY_PATH
-      )
-    })?;
+    .map_err(|_| crate::Error::OpenRegistry(INSTALLED_ROOTS_REGKEY_PATH.to_string()))?;
 
   // Get the Windows SDK root path
   let kits_root_10_path: String = installed_roots_key
     .get_value(KITS_ROOT_REGVALUE_NAME)
-    .map_err(|_| {
-      format!(
-        "Error getting {} value from registry!",
-        KITS_ROOT_REGVALUE_NAME
-      )
-    })?;
+    .map_err(|_| crate::Error::GetRegistryValue(KITS_ROOT_REGVALUE_NAME))?;
 
   // Construct Windows SDK bin path
   let kits_root_10_bin_path = Path::new(&kits_root_10_path).join("bin");
@@ -625,7 +615,7 @@ fn locate_signtool() -> crate::Result<PathBuf> {
   let arch_dir = match bitness::os_bitness().expect("failed to get os bitness") {
     Bitness::X86_32 => "x86",
     Bitness::X86_64 => "x64",
-    _ => Err("Unsupported OS!".to_owned())?,
+    _ => return Err(crate::Error::UnsupportedBitness),
   };
 
   /* Iterate through all bin paths, checking for existence of a SignTool executable. */
@@ -666,7 +656,7 @@ fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
 
   if !output.status.success() {
     let stderr = String::from_utf8_lossy(output.stderr.as_slice()).into_owned();
-    return Err(crate::Error::from(stderr));
+    return Err(crate::Error::Sign(stderr));
   }
 
   let stdout = String::from_utf8_lossy(output.stdout.as_slice()).into_owned();

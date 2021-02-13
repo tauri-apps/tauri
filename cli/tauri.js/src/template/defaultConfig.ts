@@ -32,11 +32,11 @@ export default {
         frameworks: [],
         minimumSystemVersion: '',
         useBootstrapper: false,
-        signingIdentity: '',
-        entitlements: ''
+        signingIdentity: null,
+        entitlements: null
       },
       windows: {
-        certificateThumbprint: '',
+        certificateThumbprint: null,
         digestAlgorithm: 'sha256',
         timestampUrl: ''
       },

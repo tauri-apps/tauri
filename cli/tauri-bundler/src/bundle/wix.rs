@@ -581,7 +581,7 @@ fn locate_signtool() -> crate::Result<PathBuf> {
   // Get the Windows SDK root path
   let kits_root_10_path: String = installed_roots_key
     .get_value(KITS_ROOT_REGVALUE_NAME)
-    .map_err(|_| crate::Error::GetRegistryValue(KITS_ROOT_REGVALUE_NAME))?;
+    .map_err(|_| crate::Error::GetRegistryValue(KITS_ROOT_REGVALUE_NAME.to_string()))?;
 
   // Construct Windows SDK bin path
   let kits_root_10_bin_path = Path::new(&kits_root_10_path).join("bin");

@@ -593,11 +593,6 @@ supports-color@^7.0.0:
   dependencies:
     has-flag "^4.0.0"
 
-svelte-slider@^0.0.6:
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/svelte-slider/-/svelte-slider-0.0.6.tgz#42724da2eaf9204cca62427b7222eb5651469c25"
-  integrity sha512-Ydn13v+go/dJ8VhDVrx4cVmT3sfXSFoFw3clJusMNERuRsaLI6cIkaX9VnD36rLKlu9knqN029HqEOKIitagtA==
-
 svelte@3.32.2:
   version "3.32.2"
   resolved "https://registry.yarnpkg.com/svelte/-/svelte-3.32.2.tgz#c3a370b951ea2e0730dfd314b5fa57fd93ece399"

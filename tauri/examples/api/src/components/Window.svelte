@@ -1,6 +1,4 @@
 <script>
-  import Slider from 'svelte-slider';
-  import debounce from '../debounce'
   import {
     setResizable,
     setTitle as setTitle,
@@ -34,14 +32,14 @@
   let decorations = false
   let alwaysOnTop = false
   let fullscreen = false
-  let width = null
-  let height = null
-  let minWidth = null
-  let minHeight = null
+  let width = 600
+  let height = 600
+  let minWidth = 600
+  let minHeight = 600
   let maxWidth = null
   let maxHeight = null
-  let x = null
-  let y = null
+  let x = 300
+  let y = 300
 
   let windowTitle = 'Awesome Tauri Example!';
 
@@ -76,21 +74,15 @@
   $: setAlwaysOnTop(alwaysOnTop)
   $: setFullscreen(fullscreen)
 
-  const updateWidth = debounce(() => setWidth(width * 1200 + 300), 100)
-  const updateHeight = debounce(() => setHeight(height * 1200 + 300), 100)
-  const updateMinSize = debounce(() => setMinSize(minWidth * 1200 + 300, minHeight * 1200 + 300), 100)
-  const updateMaxSize = debounce(() => setMaxSize(maxWidth * 1200 + 300, maxHeight * 1200 + 300), 100)
-  const updateX = debounce(() => setX(x * 1200), 100)
-  const updateY = debounce(() => setY(y * 1200), 100)
+  $: setWidth(width)
+  $: setHeight(height)
+  $: minWidth && minHeight && setMinSize(minWidth, minHeight)
+  $: maxWidth && maxHeight && setMaxSize(maxWidth, maxHeight)
+  $: setX(x)
+  $: setY(y)
 </script>
 
 <style>
-  .slider {
-    --sliderPrimary: #FF9800;
-    --sliderSecondary: rgba(0, 0, 0, 0.05);
-    margin: 16px;
-  }
-
   .flex {
     display: flex;
   }
@@ -105,6 +97,10 @@
 
   .grow {
     flex-grow: 1;
+  }
+
+  .window-controls input {
+    width: 50px;
   }
 </style>
 
@@ -145,48 +141,48 @@
     </button>
   </div>
   <div>
-    <div class="flex flex-row">
+    <div class="window-controls flex flex-row">
       <div class="flex flex-column grow">
-        <div class="slider">
+        <div>
           X
-          <Slider on:change={(event)=> (x = event.detail[1]) && updateX()} value={[0, 1]} single />
+          <input type="number" bind:value={x} min="0">
         </div>
-        <div class="slider">
+        <div>
           Y
-          <Slider on:change={(event)=> (y = event.detail[1]) && updateY()} value={[0, 1]} single />
+          <input type="number" bind:value={y} min="0">
         </div>
       </div>
 
       <div class="flex flex-column grow">
-        <div class="slider">
+        <div>
           Width
-          <Slider on:change={(event)=> (width = event.detail[1]) && updateWidth()} value={[0, 1]} single />
+          <input type="number" bind:value={width} min="400">
         </div>
-        <div class="slider">
+        <div>
           Height
-          <Slider on:change={(event)=> (height = event.detail[1]) && updateHeight()} value={[0, 1]} single />
+          <input type="number" bind:value={height} min="400">
         </div>
       </div>
 
       <div class="flex flex-column grow">
-        <div class="slider">
+        <div>
           Min width
-          <Slider on:change={(event)=> (minWidth = event.detail[1]) && updateMinSize()} value={[0, 1]} single />
+          <input type="number" bind:value={minWidth}>
         </div>
-        <div class="slider">
+        <div>
           Min height
-          <Slider on:change={(event)=> (minHeight = event.detail[1]) && updateMinSize()} value={[0, 1]} single />
+          <input type="number" bind:value={minHeight}>
         </div>
       </div>
 
       <div class="flex flex-column grow">
-        <div class="slider">
+        <div>
           Max width
-          <Slider on:change={(event)=> (maxWidth = event.detail[1]) && updateMaxSize()} value={[0, 1]} single />
+          <input type="number" bind:value={maxWidth} min="400">
         </div>
-        <div class="slider">
+        <div>
           Max height
-          <Slider on:change={(event)=> (maxHeight = event.detail[1]) && updateMaxSize()} value={[0, 1]} single />
+          <input type="number" bind:value={maxHeight} min="400">
         </div>
       </div>
     </div>

@@ -5,9 +5,9 @@ const distDir = path.join(appDir, 'dist')
 
 const spawn = require('helpers/spawn').spawn
 
-function runBuildTest(tauriConfig) {
+function runBuildTest(args) {
   fixtureSetup.initJest('app')
-  const build = require('api/build')
+  const { build } = require('dist/api/cli')
   return new Promise(async (resolve, reject) => {
     try {
       let success = false
@@ -19,10 +19,10 @@ function runBuildTest(tauriConfig) {
         // wait for the app process to be killed
         setTimeout(resolve, 2000)
       })
-      const result = build(tauriConfig)
-      await result.promise
+      process.chdir(appDir)
+      await build(args).promise
 
-      const artifactFolder = tauriConfig.ctx.debug ? 'debug' : 'release'
+      const artifactFolder = args.debug ? 'debug' : 'release'
       const artifactPath = path.resolve(
         appDir,
         `src-tauri/target/${artifactFolder}/app`
@@ -69,20 +69,15 @@ describe('Tauri Build', () => {
     mode                 | flag
     ${'embedded-server'} | ${'debug'}
     ${'embedded-server'} | ${'release'}
-    ${'no-server'}       | ${'debug'}
-    ${'no-server'}       | ${'release'}
   `('works with the $mode $flag mode', ({ mode, flag }) => {
     return runBuildTest({
-      build,
-      ctx: {
-        debug: flag === 'debug'
-      },
-      tauri: {
-        allowlist: {
-          all: true
-        },
-        embeddedServer: {
-          active: mode === 'embedded-server'
+      debug: flag === 'debug',
+      config: {
+        build,
+        tauri: {
+          allowlist: {
+            all: true
+          }
         }
       }
     })

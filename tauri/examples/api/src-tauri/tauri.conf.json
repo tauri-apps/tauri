@@ -1,0 +1,67 @@
+{
+  "build": {
+    "distDir": "../public",
+    "devPath": "http://localhost:5000",
+    "withGlobalTauri": true,
+    "beforeBuildCommand": "yarn build",
+    "beforeDevCommand": "yarn dev"
+  },
+  "tauri": {
+    "cli": {
+      "description": "Tauri communication example",
+      "args": [
+        {
+          "short": "c",
+          "name": "config",
+          "takesValue": true,
+          "description": "Config path"
+        },
+        {
+          "short": "t",
+          "name": "theme",
+          "takesValue": true,
+          "description": "App theme",
+          "possibleValues": ["light", "dark", "system"]
+        },
+        {
+          "short": "v",
+          "name": "verbose",
+          "multipleOccurrences": true,
+          "description": "Verbosity level"
+        }
+      ],
+      "subcommands": {
+        "update": {
+          "description": "Updates the app",
+          "args": [
+            {
+              "short": "b",
+              "name": "background",
+              "description": "Update in background"
+            }
+          ]
+        }
+      }
+    },
+    "bundle": {
+      "active": true,
+      "identifier": "com.tauri.communication",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ]
+    },
+    "allowlist": {
+      "all": true
+    },
+    "windows": [{
+      "title": "Tauri API Validation"
+    }],
+    "security": {
+      "csp": "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
+    }
+  }
+}

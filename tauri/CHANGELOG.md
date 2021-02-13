@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.11.1]
+
+-   Update webview-official dependency which fix compatibility on macOS.
+    -   [692312a](https://www.github.com/tauri-apps/tauri/commit/692312a0f51a05dd418d9cad553a695f3347b943) chore(deps) Update webview-official ([#1152](https://www.github.com/tauri-apps/tauri/pull/1152)) on 2021-01-24
+
+## [0.11.0]
+
+-   Match writeBinaryFile command name between js and rust
+    -   [486bd92](https://www.github.com/tauri-apps/tauri/commit/486bd920f899905bec0f690092aa1e3cac2c78f3) Fix: writeBinaryFile to call the correct command (fix [#1133](https://www.github.com/tauri-apps/tauri/pull/1133)) ([#1136](https://www.github.com/tauri-apps/tauri/pull/1136)) on 2021-01-06
+
 ## [0.10.0]
 
 -   Adds missing APIs features from `allowlist` to the tauri crate's manifest file.

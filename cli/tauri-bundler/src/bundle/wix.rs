@@ -1,6 +1,8 @@
-use super::common;
-use super::path_utils::{copy, Options};
-use super::settings::Settings;
+use super::{
+  common,
+  path_utils::{copy, Options},
+  settings::Settings,
+};
 
 use handlebars::{to_json, Handlebars};
 use lazy_static::lazy_static;
@@ -10,11 +12,13 @@ use sha2::Digest;
 use uuid::Uuid;
 use zip::ZipArchive;
 
-use std::collections::BTreeMap;
-use std::fs::{create_dir_all, remove_dir_all, write, File};
-use std::io::{Cursor, Read, Write};
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::{
+  collections::BTreeMap,
+  fs::{create_dir_all, remove_dir_all, write, File},
+  io::{Cursor, Read, Write},
+  path::{Path, PathBuf},
+  process::{Command, Stdio},
+};
 
 use bitness::{self, Bitness};
 use winreg::enums::{HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_32KEY};
@@ -448,12 +452,17 @@ pub fn build_wix_app_installer(
   // target only supports x64.
   common::print_info(format!("Target: {}", arch).as_str())?;
 
-  let app_exe_name = settings.binary_name().to_string();
-  let bin_path = settings.project_out_directory().join(app_exe_name.clone());
+  let main_binary = settings
+    .binaries()
+    .iter()
+    .find(|bin| bin.main())
+    .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
+  let app_exe_source = settings.binary_path(main_binary);
+
   if let Some(certificate_thumbprint) = settings.windows_certificate_thumbprint() {
     common::print_info("signing app")?;
     sign(
-      bin_path,
+      app_exe_source,
       &SignParams {
         digest_algorithm: settings
           .windows_digest_algorithm()
@@ -473,10 +482,7 @@ pub fn build_wix_app_installer(
   let mut data = BTreeMap::new();
 
   if let Ok(tauri_config) = crate::bundle::tauri_config::get() {
-    data.insert(
-      "embedded_server",
-      to_json(tauri_config.tauri.embedded_server.active),
-    );
+    data.insert("embedded_server", to_json(true));
   }
 
   data.insert("product_name", to_json(settings.bundle_name()));
@@ -517,13 +523,6 @@ pub fn build_wix_app_installer(
 
   data.insert("resources", to_json(resources_wix_string));
   data.insert("resource_file_ids", to_json(files_ids));
-
-  let main_binary = settings
-    .binaries()
-    .iter()
-    .find(|bin| bin.main())
-    .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
-  let app_exe_source = settings.binary_path(main_binary).display().to_string();
 
   data.insert("app_exe_source", to_json(&app_exe_source));
 
@@ -638,7 +637,7 @@ fn locate_signtool() -> crate::Result<PathBuf> {
     }
   }
 
-  Err("No SignTool found!".to_owned())?
+  Err(crate::Error::SignToolNotFound)
 }
 
 fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
@@ -673,8 +672,9 @@ fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
   Ok(())
 }
 
-fn generate_external_binary_data(settings: &Settings) -> crate::Result<Vec<ExternalBinary>> {
-  let mut external_binaries = Vec::new();
+/// Generates the data required for the external binaries and extra binaries bundling.
+fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
+  let mut binaries = Vec::new();
   let regex = Regex::new(r"[^\w\d\.]")?;
   let cwd = std::env::current_dir()?;
   for src in settings.external_binaries() {

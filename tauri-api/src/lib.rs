@@ -1,14 +1,8 @@
 //! The Tauri API interface.
 #![warn(missing_docs, rust_2018_idioms)]
-#![cfg_attr(
-  all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
-)]
 
 /// The Command API module allows you to manage child processes.
 pub mod command;
-/// The Config module allows you to read the configuration from `tauri.conf.json`.
-pub mod config;
 /// The Dialog API module allows you to show messages and prompt for file paths.
 pub mod dialog;
 /// The Dir module is a helper for file system directory management.
@@ -26,6 +20,9 @@ pub mod tcp;
 /// The semver API.
 pub mod version;
 
+/// The Tauri config definition.
+pub use tauri_utils::config;
+
 /// The CLI args interface.
 #[cfg(feature = "cli")]
 pub mod cli;
@@ -39,29 +36,20 @@ pub mod notification;
 
 pub use tauri_utils::*;
 
-/// Alias for a Result with error type anyhow::Error.
-pub use anyhow::Result;
-use thiserror::Error;
+mod error;
 
-/// The error types.
-#[derive(Error, Debug)]
-pub enum Error {
-  /// The extract archive error.
-  #[error("Extract Error:{0}")]
-  Extract(String),
-  /// The Command (spawn process) error.
-  #[error("Command Error:{0}")]
-  Command(String),
-  /// The file operation error.
-  #[error("File Error:{0}")]
-  File(String),
-  /// The path operation error.
-  #[error("Path Error:{0}")]
-  Path(String),
-  /// The dialog error.
-  #[error("Dialog Error:{0}")]
-  Dialog(String),
-  /// The network error.
-  #[error("Network Error:{0}")]
-  Network(attohttpc::StatusCode),
+/// Tauri API error.
+pub use error::Error;
+/// Tauri API result type.
+pub type Result<T> = std::result::Result<T, Error>;
+
+// Not public API
+#[doc(hidden)]
+pub mod private {
+  pub trait AsTauriContext {
+    fn config_path() -> &'static std::path::Path;
+    fn raw_config() -> &'static str;
+    fn assets() -> &'static crate::assets::Assets;
+    fn raw_tauri_script() -> &'static str;
+  }
 }

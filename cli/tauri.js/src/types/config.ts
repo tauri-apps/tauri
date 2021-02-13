@@ -220,15 +220,15 @@ export interface TauriConfig {
     /**
      * the embedded server configuration
      */
-    embeddedServer: {
-      /**
-       * whether we should use the embedded-server or the no-server mode
-       */
-      active?: boolean
+    embeddedServer?: {
       /**
        * the embedded server port number or the 'random' string to generate one at runtime
        */
       port?: number | 'random' | undefined
+      /**
+       * The base path for all the assets within your application
+       */
+      publicPath?: string
     }
     /**
      * tauri bundler configuration
@@ -277,18 +277,17 @@ export interface TauriConfig {
       all: boolean
       [index: string]: boolean
     }
-    window: {
-      title: string
-      width?: number
-      height?: number
-      resizable?: boolean
-      fullscreen?: boolean
-    }
+    windows: [
+      {
+        title: string
+        width?: number
+        height?: number
+        resizable?: boolean
+        fullscreen?: boolean
+      }
+    ]
     security: {
       csp?: string
-    }
-    inliner: {
-      active?: boolean
     }
   }
   plugins?: {

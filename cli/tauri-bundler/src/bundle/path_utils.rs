@@ -1,5 +1,7 @@
-use std::fs::{create_dir, create_dir_all, read_dir, remove_dir_all};
-use std::path::{Path, PathBuf};
+use std::{
+  fs::{create_dir, create_dir_all, read_dir, remove_dir_all},
+  path::{Path, PathBuf},
+};
 
 /// Directory options.
 #[derive(Clone)]

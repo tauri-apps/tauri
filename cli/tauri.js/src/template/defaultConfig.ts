@@ -7,9 +7,6 @@ export default {
   },
   ctx: {},
   tauri: {
-    embeddedServer: {
-      active: true
-    },
     bundle: {
       active: true,
       targets: 'all', // or an array of targets
@@ -59,9 +56,6 @@ export default {
     security: {
       csp:
         "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
-    },
-    inliner: {
-      active: true
     }
   }
 }

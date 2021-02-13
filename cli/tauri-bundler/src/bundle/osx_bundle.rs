@@ -23,13 +23,14 @@ use crate::Settings;
 use anyhow::Context;
 use image::{self, GenericImageView};
 
-use std::cmp::min;
-use std::ffi::OsStr;
-use std::fs::{self, File};
-use std::io::prelude::*;
-use std::io::{self, BufWriter};
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::{
+  cmp::min,
+  ffi::OsStr,
+  fs::{self, File},
+  io::{self, prelude::*, BufWriter},
+  path::{Path, PathBuf},
+  process::{Command, Stdio},
+};
 
 use regex::Regex;
 

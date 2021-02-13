@@ -1,9 +1,6 @@
 use thiserror::Error as DeriveError;
 
-use {
-  glob, handlebars, image, serde_json, std::io, std::num, std::path, target_build_utils, term,
-  toml, walkdir,
-};
+use std::{io, num, path};
 
 #[derive(Debug, DeriveError)]
 pub enum Error {
@@ -19,8 +16,6 @@ pub enum Error {
   ImageError(#[from] image::ImageError),
   #[error("`{0}`")]
   TargetError(#[from] target_build_utils::Error),
-  #[error("`{0}`")]
-  TermError(#[from] term::Error),
   #[error("`{0}`")]
   TomlError(#[from] toml::de::Error),
   #[error("`{0}`")]
@@ -61,6 +56,10 @@ pub enum Error {
   GenericError(String),
   #[error("string is not UTF-8")]
   Utf8(#[from] std::str::Utf8Error),
+  /// Windows SignTool not found. 
+  #[cfg(target_os = "windows")]
+  #[error("SignTool not found")]
+  SignToolNotFound,
 }
 
 pub type Result<T> = anyhow::Result<T, Error>;

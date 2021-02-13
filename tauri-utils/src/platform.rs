@@ -1,7 +1,5 @@
 use std::path::{PathBuf, MAIN_SEPARATOR};
 
-use anyhow::Result;
-
 /// Try to determine the current target triple.
 ///
 /// Returns a target triple (e.g. `x86_64-unknown-linux-gnu` or `i686-pc-windows-msvc`) or an
@@ -11,7 +9,7 @@ use anyhow::Result;
 ///
 /// * Errors:
 ///     * Unexpected system config
-pub fn target_triple() -> Result<String> {
+pub fn target_triple() -> crate::Result<String> {
   let arch = if cfg!(target_arch = "x86") {
     "i686"
   } else if cfg!(target_arch = "x86_64") {
@@ -19,7 +17,7 @@ pub fn target_triple() -> Result<String> {
   } else if cfg!(target_arch = "arm") {
     "armv7"
   } else {
-    return Err(crate::Error::Architecture.into());
+    return Err(crate::Error::Architecture);
   };
 
   let os = if cfg!(target_os = "linux") {
@@ -31,7 +29,7 @@ pub fn target_triple() -> Result<String> {
   } else if cfg!(target_os = "freebsd") {
     "unknown-freebsd"
   } else {
-    return Err(crate::Error::OS.into());
+    return Err(crate::Error::OS);
   };
 
   let os = if cfg!(target_os = "macos") || cfg!(target_os = "freebsd") {
@@ -44,7 +42,7 @@ pub fn target_triple() -> Result<String> {
     } else if cfg!(target_env = "msvc") {
       "msvc"
     } else {
-      return Err(crate::Error::Environment.into());
+      return Err(crate::Error::Environment);
     };
 
     format!("{}-{}", os, env)
@@ -61,7 +59,7 @@ pub fn target_triple() -> Result<String> {
 /// and `${exe_dir}/../lib/${exe_name}` when running the app from `src-tauri/target/(debug|release)/`.
 ///
 /// On MacOS, it's `${exe_dir}../Resources` (inside .app).
-pub fn resource_dir() -> Result<PathBuf> {
+pub fn resource_dir() -> crate::Result<PathBuf> {
   let exe = std::env::current_exe()?;
   let exe_dir = exe.parent().expect("failed to get exe directory");
   let app_name = exe
@@ -89,6 +87,6 @@ pub fn resource_dir() -> Result<PathBuf> {
   } else if cfg!(target_os = "macos") {
     Ok(exe_dir.join("../Resources"))
   } else {
-    Err(crate::Error::Unknown.into())
+    Err(crate::Error::UnsupportedPlatform)
   }
 }

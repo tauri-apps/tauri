@@ -1,62 +1,67 @@
 {
   "build": {
     "distDir": "../dist",
-    "devPath": "../dist",
+    "devPath": "http://localhost:4000",
     "withGlobalTauri": true
   },
   "ctx": {},
   "tauri": {
     "cli": {
       "description": "Tauri communication example",
-      "args": [{
-        "short": "c",
-        "name": "config",
-        "takesValue": true,
-        "description": "Config path"
-      }, {
-        "short": "t",
-        "name": "theme",
-        "takesValue": true,
-        "description": "App theme",
-        "possibleValues": ["light", "dark", "system"]
-      }, {
-        "short": "v",
-        "name": "verbose",
-        "multipleOccurrences": true,
-        "description": "Verbosity level"
-      }],
+      "args": [
+        {
+          "short": "c",
+          "name": "config",
+          "takesValue": true,
+          "description": "Config path"
+        },
+        {
+          "short": "t",
+          "name": "theme",
+          "takesValue": true,
+          "description": "App theme",
+          "possibleValues": ["light", "dark", "system"]
+        },
+        {
+          "short": "v",
+          "name": "verbose",
+          "multipleOccurrences": true,
+          "description": "Verbosity level"
+        }
+      ],
       "subcommands": {
         "update": {
           "description": "Updates the app",
-          "args": [{
-            "short": "b",
-            "name": "background",
-            "description": "Update in background"
-          }]
+          "args": [
+            {
+              "short": "b",
+              "name": "background",
+              "description": "Update in background"
+            }
+          ]
         }
       }
-    },
-    "embeddedServer": {
-      "active": false
     },
     "bundle": {
       "active": true,
       "identifier": "com.tauri.communication",
       "icon": [
-        "icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
       ]
     },
     "allowlist": {
       "all": true
     },
-    "window": {
-      "title": "Tauri API Validation"
-    },
+    "windows": [{
+      "title": "Tauri API Validation",
+      "resizable": false
+    }],
     "security": {
       "csp": "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
-    },
-    "inliner": {
-      "active": true
     }
   }
 }

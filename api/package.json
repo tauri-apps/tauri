@@ -1,0 +1,95 @@
+{
+  "name": "@tauri-apps/api",
+  "version": "0.1.0",
+  "description": "Tauri API definitions",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./cli": "./dist/cli.js",
+    "./dialog": "./dist/dialog.js",
+    "./event": "./dist/event.js",
+    "./fs": "./dist/fs.js",
+    "./path": "./dist/path.js",
+    "./http": "./dist/http.js",
+    "./notification": "./dist/notification.js",
+    "./tauri": "./dist/tauri.js",
+    "./window": "./dist/window.js",
+    "./shell": "./dist/shell.js"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/tauri"
+  },
+  "scripts": {
+    "build": "rimraf ./dist && rollup -c --silent",
+    "prepublishOnly": "yarn build",
+    "lint": "eslint --ext ts \"./src/**/*.ts\"",
+    "lint-fix": "eslint --fix --ext ts \"./src/**/*.ts\"",
+    "lint:lockfile": "lockfile-lint --path yarn.lock --type yarn --validate-https --allowed-hosts npm yarn",
+    "format": "prettier --write --end-of-line=auto \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
+    "format:check": "prettier --check --end-of-line=auto \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tauri-apps/tauri.git"
+  },
+  "contributors": [
+    "Tauri Team <team@tauri-apps.org> (https://tauri.studio)",
+    "Daniel Thompson-Yvetot <denjell@sfosc.org>",
+    "Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/tauri-apps/tauri/issues"
+  },
+  "homepage": "https://github.com/tauri-apps/tauri#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">= 10.17.0",
+    "npm": ">= 6.6.0",
+    "yarn": ">= 1.19.1"
+  },
+  "devDependencies": {
+    "@babel/core": "7.12.13",
+    "@babel/preset-env": "7.12.13",
+    "@babel/preset-typescript": "7.12.13",
+    "@rollup/plugin-babel": "5.2.3",
+    "@rollup/plugin-commonjs": "17.1.0",
+    "@rollup/plugin-node-resolve": "11.1.1",
+    "@rollup/plugin-sucrase": "3.1.0",
+    "@rollup/plugin-typescript": "8.1.1",
+    "@typescript-eslint/eslint-plugin": "4.15.0",
+    "@typescript-eslint/parser": "4.15.0",
+    "eslint": "7.19.0",
+    "eslint-config-prettier": "7.2.0",
+    "eslint-config-standard-with-typescript": "20.0.0",
+    "eslint-plugin-import": "2.22.1",
+    "eslint-plugin-lodash-template": "0.19.0",
+    "eslint-plugin-node": "11.1.0",
+    "eslint-plugin-promise": "4.3.1",
+    "eslint-plugin-security": "1.4.0",
+    "husky": "4.3.8",
+    "lint-staged": "10.5.4",
+    "lockfile-lint": "4.3.7",
+    "prettier": "2.2.1",
+    "regenerator-runtime": "^0.13.7",
+    "rimraf": "3.0.2",
+    "rollup": "2.38.5",
+    "rollup-plugin-terser": "7.0.2",
+    "typescript": "4.1.5"
+  },
+  "resolutions": {
+    "**/lodash": ">=4.17.19"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,md,html,css,json}": "prettier --write --end-of-line=auto \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
+    "*.{ts,tsx}": "eslint --fix --ext ts ./src/**/*.ts"
+  }
+}

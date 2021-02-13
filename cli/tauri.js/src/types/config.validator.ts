@@ -441,11 +441,6 @@ export const TauriConfigSchema = {
           defaultProperties: [],
           description: 'the embedded server configuration',
           properties: {
-            active: {
-              description:
-                'whether we should use the embedded-server or the no-server mode',
-              type: 'boolean'
-            },
             port: {
               anyOf: [
                 {
@@ -458,16 +453,11 @@ export const TauriConfigSchema = {
               ],
               description:
                 "the embedded server port number or the 'random' string to generate one at runtime"
-            }
-          },
-          type: 'object'
-        },
-        inliner: {
-          additionalProperties: false,
-          defaultProperties: [],
-          properties: {
-            active: {
-              type: 'boolean'
+            },
+            publicPath: {
+              description:
+                'The base path for all the assets within your application',
+              type: 'string'
             }
           },
           type: 'object'
@@ -482,38 +472,64 @@ export const TauriConfigSchema = {
           },
           type: 'object'
         },
-        window: {
-          additionalProperties: false,
-          defaultProperties: [],
-          properties: {
-            fullscreen: {
-              type: 'boolean'
-            },
-            height: {
-              type: 'number'
-            },
-            resizable: {
-              type: 'boolean'
-            },
-            title: {
-              type: 'string'
-            },
-            width: {
-              type: 'number'
-            }
+        windows: {
+          additionalItems: {
+            anyOf: [
+              {
+                additionalProperties: false,
+                defaultProperties: [],
+                properties: {
+                  fullscreen: {
+                    type: 'boolean'
+                  },
+                  height: {
+                    type: 'number'
+                  },
+                  resizable: {
+                    type: 'boolean'
+                  },
+                  title: {
+                    type: 'string'
+                  },
+                  width: {
+                    type: 'number'
+                  }
+                },
+                required: ['title'],
+                type: 'object'
+              }
+            ]
           },
-          required: ['title'],
-          type: 'object'
+          items: [
+            {
+              additionalProperties: false,
+              defaultProperties: [],
+              properties: {
+                fullscreen: {
+                  type: 'boolean'
+                },
+                height: {
+                  type: 'number'
+                },
+                resizable: {
+                  type: 'boolean'
+                },
+                title: {
+                  type: 'string'
+                },
+                width: {
+                  type: 'number'
+                }
+              },
+              required: ['title'],
+              type: 'object'
+            }
+          ],
+          minItems: 1,
+          type: 'array'
         }
       },
-      required: [
-        'allowlist',
-        'bundle',
-        'embeddedServer',
-        'inliner',
-        'security',
-        'window'
-      ],
+      required: ['allowlist', 'bundle', 'security', 'windows'],
       type: 'object'
     },
     verbose: {

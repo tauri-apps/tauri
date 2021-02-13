@@ -464,7 +464,7 @@ pub fn build_wix_app_installer(
   if let Some(certificate_thumbprint) = settings.windows_certificate_thumbprint() {
     common::print_info("signing app")?;
     sign(
-      app_exe_source,
+      &app_exe_source,
       &SignParams {
         digest_algorithm: settings
           .windows_digest_algorithm()
@@ -483,7 +483,7 @@ pub fn build_wix_app_installer(
 
   let mut data = BTreeMap::new();
 
-  if let Ok(tauri_config) = crate::bundle::tauri_config::get() {
+  if crate::bundle::tauri_config::get().is_some() {
     data.insert("embedded_server", to_json(true));
   }
 

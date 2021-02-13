@@ -65,7 +65,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
 
   #[cfg(windows)]
   {
-    if let Ok(tauri_config) = get_tauri_config() {
+    if get_tauri_config().is_ok() {
       let exempt_output = Command::new("CheckNetIsolation")
         .args(&vec!["LoopbackExempt", "-s"])
         .output()

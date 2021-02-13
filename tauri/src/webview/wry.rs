@@ -18,8 +18,12 @@ impl TryInto<wry::Icon> for Icon {
   type Error = crate::Error;
   fn try_into(self) -> Result<wry::Icon, Self::Error> {
     let icon = match self {
-      Self::File(path) => wry::Icon::from_file(path)?,
-      Self::Raw(raw) => wry::Icon::from_bytes(raw)?,
+      Self::File(path) => {
+        wry::Icon::from_file(path).map_err(|e| crate::Error::InvalidIcon(e.to_string()))?
+      }
+      Self::Raw(raw) => {
+        wry::Icon::from_bytes(raw).map_err(|e| crate::Error::InvalidIcon(e.to_string()))?
+      }
     };
     Ok(icon)
   }

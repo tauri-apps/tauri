@@ -56,7 +56,7 @@ pub enum Error {
   GenericError(String),
   #[error("string is not UTF-8")]
   Utf8(#[from] std::str::Utf8Error),
-  /// Windows SignTool not found. 
+  /// Windows SignTool not found.
   #[cfg(target_os = "windows")]
   #[error("SignTool not found")]
   SignToolNotFound,

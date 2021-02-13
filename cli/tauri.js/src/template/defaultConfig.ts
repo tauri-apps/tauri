@@ -32,7 +32,6 @@ export default {
         frameworks: [],
         minimumSystemVersion: '',
         useBootstrapper: false,
-        minimumSystemVersion: '',
         signingIdentity: '',
         entitlements: ''
       },

@@ -21,8 +21,10 @@ use std::{
 };
 
 use bitness::{self, Bitness};
-use winreg::enums::{HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_32KEY};
-use winreg::RegKey;
+use winreg::{
+  enums::{HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_32KEY},
+  RegKey,
+};
 
 // URLS for the WIX toolchain.  Can be used for crossplatform compilation.
 pub const WIX_URL: &str =

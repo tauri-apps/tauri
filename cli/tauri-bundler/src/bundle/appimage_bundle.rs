@@ -40,14 +40,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     "x86_64" => "amd64",
     other => other,
   };
-  let package_base_name = format!(
-    "{}_{}_{}",
-    settings.main_binary_name(),
-    settings.version_string(),
-    arch
-  );
-  let base_dir = settings.project_out_directory().join("bundle/appimage_deb");
-  let package_dir = base_dir.join(&package_base_name);
+  let package_dir = settings.project_out_directory().join("bundle/appimage_deb");
 
   // generate deb_folder structure
   deb_bundle::generate_data(settings, &package_dir)?;
@@ -58,7 +51,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }
   std::fs::create_dir_all(output_path.clone())?;
   let app_dir_path = output_path.join(format!("{}.AppDir", settings.main_binary_name()));
-  let appimage_path = output_path.join(format!("{}.AppImage", settings.main_binary_name()));
+  let appimage_filename = format!(
+    "{}_{}_{}.AppImage",
+    settings.main_binary_name(),
+    settings.version_string(),
+    arch
+  );
+  let appimage_path = output_path.join(&appimage_filename);
   path_utils::create(app_dir_path, true)?;
 
   let upcase_app_name = settings.main_binary_name().to_uppercase();
@@ -66,8 +65,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // setup data to insert into shell script
   let mut sh_map = BTreeMap::new();
   sh_map.insert("app_name", settings.main_binary_name());
-  sh_map.insert("bundle_name", package_base_name.as_str());
-  sh_map.insert("app_name_uppercase", upcase_app_name.as_str());
+  sh_map.insert("app_name_uppercase", &upcase_app_name);
+  sh_map.insert("appimage_filename", &appimage_filename);
 
   // initialize shell script template.
   let temp = HANDLEBARS.render("appimage", &sh_map)?;

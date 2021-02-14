@@ -31,7 +31,6 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  #[allow(unused_variables)]
   pub async fn run<D: crate::ApplicationDispatcherExt + 'static>(
     self,
     webview_manager: &crate::WebviewManager<D>,

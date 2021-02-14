@@ -1,7 +1,7 @@
 ---
-"api": patch
-"tauri-api": patch
-"tauri": patch
+"api": minor
+"tauri-api": minor
+"tauri": minor
 ---
 
 Adds a global shortcut API.

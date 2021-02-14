@@ -1,5 +1,4 @@
-use crate::app::ApplicationDispatcherExt;
-use crate::app::Icon;
+use crate::app::{ApplicationDispatcherExt, Icon};
 use serde::Deserialize;
 
 #[derive(Deserialize)]

@@ -7,7 +7,7 @@ use crate::api::assets::{AssetFetch, Assets};
 
 use crate::{api::config::WindowUrl, ApplicationExt, WebviewBuilderExt};
 
-use super::{App, WebviewDispatcher, WebviewManager};
+use super::{App, WebviewDispatcher, WebviewManager, WindowBuilderExt};
 #[cfg(embedded_server)]
 use crate::api::tcp::{get_available_port, port_is_available};
 use crate::app::Context;
@@ -268,8 +268,37 @@ fn build_webview<A: ApplicationExt + 'static>(
   let mut dispatchers = HashMap::new();
 
   for window_config in application.context.config.tauri.windows.clone() {
-    let window = crate::webview::WindowBuilder::from(&window_config);
-    let window = webview_application.create_window(window.get())?;
+    let mut window = A::WindowBuilder::new()
+      .title(window_config.title.to_string())
+      .width(window_config.width)
+      .height(window_config.height)
+      .visible(window_config.visible)
+      .resizable(window_config.resizable)
+      .decorations(window_config.decorations)
+      .maximized(window_config.maximized)
+      .fullscreen(window_config.fullscreen)
+      .transparent(window_config.transparent)
+      .always_on_top(window_config.always_on_top);
+    if let Some(min_width) = window_config.min_width {
+      window = window.min_width(min_width);
+    }
+    if let Some(min_height) = window_config.min_height {
+      window = window.min_height(min_height);
+    }
+    if let Some(max_width) = window_config.max_width {
+      window = window.max_width(max_width);
+    }
+    if let Some(max_height) = window_config.max_height {
+      window = window.max_height(max_height);
+    }
+    if let Some(x) = window_config.x {
+      window = window.x(x);
+    }
+    if let Some(y) = window_config.y {
+      window = window.y(y);
+    }
+
+    let window = webview_application.create_window(window)?;
     let dispatcher = webview_application.dispatcher(&window);
     dispatchers.insert(
       window_config.label.to_string(),

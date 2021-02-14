@@ -1,12 +1,16 @@
-use crate::ApplicationExt;
 use futures::future::BoxFuture;
 use std::marker::PhantomData;
 use tauri_api::{config::Config, private::AsTauriContext};
 
 pub(crate) mod event;
 mod runner;
+mod webview;
 mod webview_manager;
 
+pub use webview::{
+  wry::WryApplication, ApplicationDispatcherExt, ApplicationExt, Callback, Event, Icon, Message,
+  WebviewBuilderExt, WindowBuilderExt,
+};
 pub use webview_manager::{WebviewDispatcher, WebviewManager};
 
 type InvokeHandler<D> =

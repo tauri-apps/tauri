@@ -1,4 +1,4 @@
-use crate::webview::Icon;
+use crate::app::{ApplicationDispatcherExt, Icon};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -82,7 +82,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub async fn run<D: crate::ApplicationDispatcherExt + 'static>(
+  pub async fn run<D: ApplicationDispatcherExt + 'static>(
     self,
     webview_manager: &crate::WebviewManager<D>,
   ) -> crate::Result<()> {

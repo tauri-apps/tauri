@@ -3,7 +3,7 @@ use crate::{
     ask as ask_dialog, message as message_dialog, pick_folder, save_file, select, select_multiple,
     DialogSelection, Response,
   },
-  ApplicationDispatcherExt,
+  app::{ApplicationDispatcherExt, Event},
 };
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
@@ -98,7 +98,7 @@ impl Cmd {
           .to_string();
         webview_manager
           .current_webview()?
-          .send_event(crate::webview::Event::Run(Box::new(move || {
+          .send_event(Event::Run(Box::new(move || {
             message_dialog(app_name, message);
           })));
       }

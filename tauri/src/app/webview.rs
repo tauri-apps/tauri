@@ -1,6 +1,6 @@
-pub(crate) mod wry;
+pub mod wry;
 
-pub use crate::{api::config::WindowConfig, plugin::PluginStore};
+use crate::plugin::PluginStore;
 
 /// An event to be posted to the webview event loop.
 pub enum Event {
@@ -8,45 +8,89 @@ pub enum Event {
   Run(crate::SyncTask),
 }
 
+/// A icon definition.
 pub enum Icon {
+  /// Icon from file path.
   File(String),
+  /// Icon from raw bytes.
   Raw(Vec<u8>),
 }
 
+/// Messages to dispatch to the application.
 pub enum Message {
   // webview messages
+  /// Eval a script on the webview.
   EvalScript(String),
   // custom messages
+  /// Custom event.
   Event(Event),
   // window messages
+  /// Updates the window resizable flag.
   SetResizable(bool),
+  /// Updates the window title.
   SetTitle(String),
+  /// Maximizes the window.
   Maximize,
+  /// Unmaximizes the window.
   Unmaximize,
+  /// Minimizes the window.
   Minimize,
+  /// Unminimizes the window.
   Unminimize,
+  /// Shows the window.
   Show,
+  /// Hides the window.
   Hide,
+  /// Updates the transparency flag.
   SetTransparent(bool),
+  /// Updates the hasDecorations flag.
   SetDecorations(bool),
+  /// Updates the window alwaysOnTop flag.
   SetAlwaysOnTop(bool),
+  /// Updates the window width.
   SetWidth(f64),
+  /// Updates the window height.
   SetHeight(f64),
-  Resize { width: f64, height: f64 },
-  SetMinSize { min_width: f64, min_height: f64 },
-  SetMaxSize { max_width: f64, max_height: f64 },
+  /// Resizes the window.
+  Resize {
+    /// New width.
+    width: f64,
+    /// New height.
+    height: f64,
+  },
+  /// Updates the window min size.
+  SetMinSize {
+    /// New value for the window min width.
+    min_width: f64,
+    /// New value for the window min height.
+    min_height: f64,
+  },
+  /// Updates the window max size.
+  SetMaxSize {
+    /// New value for the window max width.
+    max_width: f64,
+    /// New value for the window max height.
+    max_height: f64,
+  },
+  /// Updates the X position.
   SetX(f64),
+  /// Updates the Y position.
   SetY(f64),
-  SetPosition { x: f64, y: f64 },
+  /// Updates the window position.
+  SetPosition {
+    /// New value for the window X coordinate.
+    x: f64,
+    /// New value for the window Y coordinate.
+    y: f64,
+  },
+  /// Updates the window fullscreen state.
   SetFullscreen(bool),
+  /// Updates the window icon.
   SetIcon(Icon),
 }
 
 /// The window builder.
 pub trait WindowBuilderExt: Sized {
-  /// The window type.
-  type Window;
-
   /// Initializes a new window builder.
   fn new() -> Self;
 
@@ -98,53 +142,6 @@ pub trait WindowBuilderExt: Sized {
 
   /// Whether the window should always be on top of other windows.
   fn always_on_top(self, always_on_top: bool) -> Self;
-
-  /// build the window.
-  fn finish(self) -> crate::Result<Self::Window>;
-}
-
-pub struct WindowBuilder<T>(T);
-
-impl<T> WindowBuilder<T> {
-  pub fn get(self) -> T {
-    self.0
-  }
-}
-
-impl<T: WindowBuilderExt> From<&WindowConfig> for WindowBuilder<T> {
-  fn from(config: &WindowConfig) -> Self {
-    let mut window = T::new()
-      .title(config.title.to_string())
-      .width(config.width)
-      .height(config.height)
-      .visible(config.visible)
-      .resizable(config.resizable)
-      .decorations(config.decorations)
-      .maximized(config.maximized)
-      .fullscreen(config.fullscreen)
-      .transparent(config.transparent)
-      .always_on_top(config.always_on_top);
-    if let Some(min_width) = config.min_width {
-      window = window.min_width(min_width);
-    }
-    if let Some(min_height) = config.min_height {
-      window = window.min_height(min_height);
-    }
-    if let Some(max_width) = config.max_width {
-      window = window.max_width(max_width);
-    }
-    if let Some(max_height) = config.max_height {
-      window = window.max_height(max_height);
-    }
-    if let Some(x) = config.x {
-      window = window.x(x);
-    }
-    if let Some(y) = config.y {
-      window = window.y(y);
-    }
-
-    Self(window)
-  }
 }
 
 /// The webview builder.

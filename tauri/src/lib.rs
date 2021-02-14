@@ -21,8 +21,6 @@ mod error;
 pub mod plugin;
 /// The salt helpers.
 mod salt;
-/// Webview interface.
-mod webview;
 
 /// The Tauri error enum.
 pub use error::Error;
@@ -37,13 +35,10 @@ pub type SyncTask = Box<dyn FnOnce() + Send>;
 pub use app::*;
 pub use tauri_api as api;
 pub use tauri_macros::FromTauriContext;
-pub use webview::{
-  ApplicationDispatcherExt, ApplicationExt, Callback, WebviewBuilderExt, WindowBuilderExt,
-};
 
 /// The Tauri webview implementations.
 pub mod flavors {
-  pub use super::webview::wry::WryApplication as Wry;
+  pub use super::app::WryApplication as Wry;
 }
 
 use std::process::Stdio;
@@ -54,7 +49,7 @@ use serde::Serialize;
 /// Synchronously executes the given task
 /// and evaluates its Result to the JS promise described by the `callback` and `error` function names.
 pub fn execute_promise_sync<
-  D: ApplicationDispatcherExt + 'static,
+  D: app::ApplicationDispatcherExt + 'static,
   R: Serialize,
   F: FnOnce() -> Result<R> + Send + 'static,
 >(
@@ -65,7 +60,7 @@ pub fn execute_promise_sync<
 ) {
   let webview_manager_ = webview_manager.clone();
   if let Ok(dispatcher) = webview_manager.current_webview() {
-    dispatcher.send_event(webview::Event::Run(Box::new(move || {
+    dispatcher.send_event(app::Event::Run(Box::new(move || {
       let callback_string =
         match format_callback_result(task().map_err(|err| err.to_string()), &callback, &error) {
           Ok(js) => js,
@@ -89,7 +84,7 @@ pub fn execute_promise_sync<
 /// If the Result `is_ok()`, the callback will be the `success_callback` function name and the argument will be the Ok value.
 /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
 pub async fn execute_promise<
-  D: ApplicationDispatcherExt,
+  D: app::ApplicationDispatcherExt,
   R: Serialize,
   F: futures::Future<Output = Result<R>> + Send + 'static,
 >(
@@ -112,7 +107,7 @@ pub async fn execute_promise<
 }
 
 /// Calls the given command and evaluates its output to the JS promise described by the `callback` and `error` function names.
-pub async fn call<D: ApplicationDispatcherExt>(
+pub async fn call<D: app::ApplicationDispatcherExt>(
   webview_manager: &crate::WebviewManager<D>,
   command: String,
   args: Vec<String>,

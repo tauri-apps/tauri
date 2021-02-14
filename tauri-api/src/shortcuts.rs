@@ -16,7 +16,7 @@ impl ShortcutManager {
     shortcut: String,
     handler: H,
   ) -> crate::Result<()> {
-    let hotkey = parse_hotkey(&shortcut)?;
+    let hotkey = parse_hotkey(&shortcut.to_uppercase())?;
     self.0.register(hotkey, handler)?;
     Ok(())
   }

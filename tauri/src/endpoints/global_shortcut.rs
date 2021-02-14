@@ -22,6 +22,12 @@ pub enum Cmd {
     callback: String,
     error: String,
   },
+  /// Unregister a global shortcut.
+  Unregister {
+    shortcut: String,
+    callback: String,
+    error: String,
+  },
 }
 
 impl Cmd {
@@ -30,35 +36,49 @@ impl Cmd {
     self,
     webview_manager: &crate::WebviewManager<D>,
   ) -> crate::Result<()> {
+    #[cfg(not(global_shortcut))]
+    super::allowlist_error(webview_manager, error, "globalShortcut");
+    #[cfg(global_shortcut)]
     match self {
-      #[allow(unused_variables)]
       Self::Register {
         shortcut,
         handler,
         callback,
         error,
       } => {
-        #[cfg(global_shortcut)]
-        {
-          let dispatcher = webview_manager.current_webview()?.clone();
-          crate::execute_promise(
-            webview_manager,
-            async move {
-              let mut manager = manager_handle().lock().await;
-              manager.register_shortcut(shortcut, move || {
-                let callback_string =
-                  crate::api::rpc::format_callback(handler.to_string(), serde_json::Value::Null);
-                dispatcher.eval(callback_string.as_str());
-              })?;
-              Ok(())
-            },
-            callback,
-            error,
-          )
-          .await;
-        }
-        #[cfg(not(global_shortcut))]
-        super::allowlist_error(webview_manager, error, "globalShortcut");
+        let dispatcher = webview_manager.current_webview()?.clone();
+        crate::execute_promise(
+          webview_manager,
+          async move {
+            let mut manager = manager_handle().lock().await;
+            manager.register_shortcut(shortcut, move || {
+              let callback_string =
+                crate::api::rpc::format_callback(handler.to_string(), serde_json::Value::Null);
+              dispatcher.eval(callback_string.as_str());
+            })?;
+            Ok(())
+          },
+          callback,
+          error,
+        )
+        .await;
+      }
+      Self::Unregister {
+        shortcut,
+        callback,
+        error,
+      } => {
+        crate::execute_promise(
+          webview_manager,
+          async move {
+            let mut manager = manager_handle().lock().await;
+            manager.unregister_shortcut(shortcut)?;
+            Ok(())
+          },
+          callback,
+          error,
+        )
+        .await;
       }
     }
     Ok(())

@@ -16,8 +16,15 @@ impl ShortcutManager {
     shortcut: String,
     handler: H,
   ) -> crate::Result<()> {
-    let hotkey = parse_hotkey(&shortcut.to_uppercase())?;
+    let hotkey = parse_hotkey(&shortcut.to_uppercase().replace(" ", ""))?;
     self.0.register(hotkey, handler)?;
+    Ok(())
+  }
+
+  /// Unregister a previously registered shortcut handler.
+  pub fn unregister_shortcut(&mut self, shortcut: String) -> crate::Result<()> {
+    let hotkey = parse_hotkey(&shortcut.to_uppercase().replace(" ", ""))?;
+    self.0.unregister(&hotkey)?;
     Ok(())
   }
 }

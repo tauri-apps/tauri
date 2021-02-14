@@ -19,4 +19,21 @@ async function registerShortcut(
   })
 }
 
-export { registerShortcut }
+/**
+ * unregister a global shortcut
+ * @param shortcut shortcut definition, modifiers and key separated by "+" e.g. Control+Q
+ */
+async function unregisterShortcut(shortcut: string): Promise<void> {
+  return await promisified({
+    module: 'GlobalShortcut',
+    message: {
+      cmd: 'unregister',
+      shortcut
+    }
+  })
+}
+
+export {
+  registerShortcut,
+  unregisterShortcut
+}

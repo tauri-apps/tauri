@@ -49,6 +49,10 @@ pub enum Error {
   /// failed to detect the current platform.
   #[error("failed to detect platform: {0}")]
   FailedToDetectPlatform(String),
+  /// CLI argument parsing error.
+  #[cfg(feature = "cli")]
+  #[error("failed to parse CLI arguments: {0}")]
+  ParseCliArguments(#[from] clap::Error),
 }
 
 impl From<attohttpc::StatusCode> for Error {

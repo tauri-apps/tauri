@@ -92,7 +92,7 @@ export const TauriConfigSchema = {
             'sets whether or not the argument is required by default\nrequired by default means it is required, when no other conflicting rules have been evaluated\nconflicting rules take precedence over being required.',
           type: 'boolean'
         },
-        requiredIf: {
+        requiredIfEq: {
           additionalItems: {
             anyOf: [
               {
@@ -116,12 +116,12 @@ export const TauriConfigSchema = {
           minItems: 2,
           type: 'array'
         },
-        requiredUnless: {
+        requiredUnlessPresent: {
           description:
             "sets an arg that override this arg's required setting\ni.e. this arg will be required unless this other argument is present",
           type: 'string'
         },
-        requiredUnlessAll: {
+        requiredUnlessPresentAll: {
           description:
             "sets args that override this arg's required setting\ni.e. this arg will be required unless all these other arguments are present",
           items: {
@@ -129,7 +129,7 @@ export const TauriConfigSchema = {
           },
           type: 'array'
         },
-        requiredUnlessOne: {
+        requiredUnlessPresentAny: {
           description:
             "sets args that override this arg's required setting\ni.e. this arg will be required unless at least one of these other arguments are present",
           items: {

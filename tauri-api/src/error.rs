@@ -53,6 +53,10 @@ pub enum Error {
   #[cfg(feature = "cli")]
   #[error("failed to parse CLI arguments: {0}")]
   ParseCliArguments(#[from] clap::Error),
+  /// Shortcut error.
+  #[cfg(feature = "global-shortcut")]
+  #[error("shortcut error: {0}")]
+  Shortcut(#[from] tauri_hotkey::Error),
 }
 
 impl From<attohttpc::StatusCode> for Error {

@@ -30,6 +30,10 @@ pub mod cli;
 #[macro_use]
 extern crate clap;
 
+/// Global shortcuts interface.
+#[cfg(feature = "global-shortcut")]
+pub mod shortcuts;
+
 /// The desktop notifications API module.
 #[cfg(feature = "notification")]
 pub mod notification;

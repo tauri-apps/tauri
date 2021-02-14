@@ -14,7 +14,8 @@
     "./notification": "./dist/notification.js",
     "./tauri": "./dist/tauri.js",
     "./window": "./dist/window.js",
-    "./shell": "./dist/shell.js"
+    "./shell": "./dist/shell.js",
+    "./globalShortcut": "./dist/globalShortcut.js"
   },
   "funding": {
     "type": "opencollective",

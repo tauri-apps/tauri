@@ -4,6 +4,8 @@ mod dialog;
 mod event;
 #[allow(unused_imports)]
 mod file_system;
+#[cfg(global_shortcut)]
+mod global_shortcut;
 #[cfg(http_request)]
 mod http;
 mod internal;
@@ -37,6 +39,7 @@ enum Module {
   Cli(cli::Cmd),
   Notification(notification::Cmd),
   Http(http::Cmd),
+  GlobalShortcut(global_shortcut::Cmd),
 }
 
 impl Module {
@@ -55,6 +58,7 @@ impl Module {
       Self::Cli(cmd) => cmd.run(webview_manager, context).await,
       Self::Notification(cmd) => cmd.run(webview_manager, context).await?,
       Self::Http(cmd) => cmd.run(webview_manager).await,
+      Self::GlobalShortcut(cmd) => cmd.run(webview_manager).await?,
     }
     Ok(())
   }

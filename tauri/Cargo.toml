@@ -49,7 +49,7 @@ serde = { version = "1.0", features = [ "derive" ] }
 [features]
 cli = [ "tauri-api/cli" ]
 embedded-server = [ "tiny_http" ]
-all-api = [ "tauri-api/notification" ]
+all-api = [ "tauri-api/notification", "tauri-api/global-shortcut" ]
 updater = [ ]
 
 # FS
@@ -82,6 +82,9 @@ http-request = [ ]
 
 # notification
 notification = [ "tauri-api/notification" ]
+
+# global shortcut
+global-shortcut = [ "tauri-api/global-shortcut" ]
 
 [[example]]
 name = "communication"

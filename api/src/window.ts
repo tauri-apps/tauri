@@ -187,7 +187,7 @@ function resize(width: number, height: number): void {
     message: {
       cmd: 'resize',
       width,
-      height,
+      height
     }
   })
 }

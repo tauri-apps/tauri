@@ -330,8 +330,9 @@ checksum = "fff857943da45f546682664a79488be82e69e43c1a7a2307679ab9afb3a66d2e"
 
 [[package]]
 name = "clap"
-version = "3.0.0-beta.1"
-source = "git+https://github.com/clap-rs/clap?rev=1a276f8#1a276f8f4f59282ab283346835669739170b1ce3"
+version = "3.0.0-beta.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4bd1061998a501ee7d4b6d449020df3266ca3124b941ec56cf2005c3779ca142"
 dependencies = [
  "atty",
  "bitflags 1.2.1",
@@ -348,8 +349,9 @@ dependencies = [
 
 [[package]]
 name = "clap_derive"
-version = "3.0.0-beta.1"
-source = "git+https://github.com/clap-rs/clap?rev=1a276f8#1a276f8f4f59282ab283346835669739170b1ce3"
+version = "3.0.0-beta.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "370f715b81112975b1b69db93e0b56ea4cd4e5002ac43b2da8474106a54096a1"
 dependencies = [
  "heck",
  "proc-macro-error",
@@ -2661,9 +2663,9 @@ dependencies = [
 
 [[package]]
 name = "textwrap"
-version = "0.11.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d326610f408c7a4eb6f51c37c330e496b08506c9457c9d34287ecc38809fb060"
+checksum = "203008d98caf094106cfaba70acfed15e18ed3ddb7d94e49baec153a2b462789"
 dependencies = [
  "unicode-width",
 ]

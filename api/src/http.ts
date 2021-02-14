@@ -155,11 +155,4 @@ async function deleteRequest<T>(
   })
 }
 
-export {
-  request,
-  get,
-  post,
-  put,
-  patch,
-  deleteRequest as httpDelete,
-}
+export { request, get, post, put, patch, deleteRequest as httpDelete }

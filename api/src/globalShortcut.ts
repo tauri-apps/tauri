@@ -5,7 +5,10 @@ import { promisified, transformCallback } from './tauri'
  * @param shortcut shortcut definition, modifiers and key separated by "+" e.g. Control+Q
  * @param handler shortcut handler callback
  */
-async function registerShortcut(shortcut: string, handler: () => void): Promise<void> {
+async function registerShortcut(
+  shortcut: string,
+  handler: () => void
+): Promise<void> {
   return await promisified({
     module: 'GlobalShortcut',
     message: {
@@ -16,6 +19,4 @@ async function registerShortcut(shortcut: string, handler: () => void): Promise<
   })
 }
 
-export {
-  registerShortcut
-}
+export { registerShortcut }

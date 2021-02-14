@@ -507,19 +507,18 @@ impl Settings {
   /// Otherwise returns the current directory.
   pub fn get_workspace_dir(current_dir: &PathBuf) -> PathBuf {
     let mut dir = current_dir.clone();
-    let project_name = CargoSettings::load(&dir).unwrap().package.unwrap().name;
+    let project_path = current_dir.clone();
 
     while dir.pop() {
       if let Ok(cargo_settings) = CargoSettings::load(&dir) {
         if let Some(workspace_settings) = cargo_settings.workspace {
-          if workspace_settings.members.is_some()
-            && workspace_settings
-              .members
-              .expect("Couldn't get members")
+          if let Some(members) = workspace_settings.members {
+            if members
               .iter()
-              .any(|member| member.as_str() == project_name)
-          {
-            return dir;
+              .any(|member| dir.join(member) == project_path)
+            {
+              return dir;
+            }
           }
         }
       }

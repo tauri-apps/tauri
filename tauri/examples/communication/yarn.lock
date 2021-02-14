@@ -52,29 +52,6 @@
   dependencies:
     defer-to-connect "^2.0.0"
 
-"@tauri-apps/tauri-inliner@1.14.1":
-  version "1.14.1"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/tauri-inliner/-/tauri-inliner-1.14.1.tgz#7fe4d183188cbeb3edc87d6ac266ac8dbfc25a8c"
-  integrity sha512-IXlPbWXpKNz0dz1fplPAetBBzKA8kUaOvrrpyJ0jvxMihI9vKHaKP4GDyF89XCi0edXKv2MM+MWaaPVcmy12Bg==
-  dependencies:
-    ansi-escapes "^4.3.0"
-    ansi-styles "^4.2.1"
-    chalk "^3.0.0"
-    charset "^1.0.1"
-    cheerio "^0.22.0"
-    debug "^4.1.1"
-    es6-promise "^4.2.8"
-    iconv-lite "^0.5.0"
-    jschardet "^2.1.1"
-    lodash "^4.17.15"
-    mime "^2.4.4"
-    minimist "^1.2.0"
-    request "^2.88.0"
-    svgo "^1.3.2"
-    then-fs "^2.0.0"
-    uglify-js "^3.7.4"
-    update-notifier "^4.0.0"
-
 "@tauri-apps/toml@2.2.4":
   version "2.2.4"
   resolved "https://registry.yarnpkg.com/@tauri-apps/toml/-/toml-2.2.4.tgz#2b4f637aded7fc3a7302724605682c8fa3ac7505"
@@ -3969,7 +3946,6 @@ tar-stream@^2.1.4:
 "tauri@link:../../../cli/tauri.js":
   version "0.13.0"
   dependencies:
-    "@tauri-apps/tauri-inliner" "1.14.1"
     "@tauri-apps/toml" "2.2.4"
     chalk "4.1.0"
     chokidar "3.4.3"

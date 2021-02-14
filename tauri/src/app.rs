@@ -1,23 +1,27 @@
-use crate::ApplicationExt;
 use futures::future::BoxFuture;
 use std::marker::PhantomData;
-use tauri_api::config::Config;
-use tauri_api::private::AsTauriContext;
+use tauri_api::{config::Config, private::AsTauriContext};
 
+pub(crate) mod event;
 mod runner;
+mod webview;
+mod webview_manager;
 
-type InvokeHandler<W> = dyn Fn(W, String) -> BoxFuture<'static, Result<(), String>> + Send + Sync;
-type Setup<W> = dyn Fn(W, String) -> BoxFuture<'static, ()> + Send + Sync;
+pub use webview::{
+  wry::WryApplication, ApplicationDispatcherExt, ApplicationExt, Callback, Event, Icon, Message,
+  WebviewBuilderExt, WindowBuilderExt,
+};
+pub use webview_manager::{WebviewDispatcher, WebviewManager};
+
+type InvokeHandler<D> =
+  dyn Fn(WebviewManager<D>, String) -> BoxFuture<'static, crate::Result<()>> + Send + Sync;
+type Setup<D> = dyn Fn(WebviewManager<D>) -> BoxFuture<'static, ()> + Send + Sync;
 
 /// `App` runtime information.
 pub struct Context {
   pub(crate) config: Config,
   pub(crate) tauri_script: &'static str,
-  #[cfg(assets)]
   pub(crate) assets: &'static tauri_api::assets::Assets,
-  #[cfg(any(dev, no_server))]
-  #[allow(dead_code)]
-  pub(crate) index: &'static str,
 }
 
 impl Context {
@@ -25,10 +29,7 @@ impl Context {
     Ok(Self {
       config: serde_json::from_str(Context::raw_config())?,
       tauri_script: Context::raw_tauri_script(),
-      #[cfg(assets)]
       assets: Context::assets(),
-      #[cfg(any(dev, no_server))]
-      index: Context::raw_index(),
     })
   }
 }
@@ -39,8 +40,6 @@ pub struct App<A: ApplicationExt> {
   invoke_handler: Option<Box<InvokeHandler<A::Dispatcher>>>,
   /// The setup callback, invoked when the webview is ready.
   setup: Option<Box<Setup<A::Dispatcher>>>,
-  /// The HTML of the splashscreen to render.
-  splashscreen_html: Option<String>,
   /// The context the App was created with
   pub(crate) context: Context,
 }
@@ -56,9 +55,9 @@ impl<A: ApplicationExt + 'static> App<A> {
   /// The message is considered consumed if the handler exists and returns an Ok Result.
   pub(crate) async fn run_invoke_handler(
     &self,
-    dispatcher: &mut A::Dispatcher,
+    dispatcher: &WebviewManager<A::Dispatcher>,
     arg: &str,
-  ) -> Result<bool, String> {
+  ) -> crate::Result<bool> {
     if let Some(ref invoke_handler) = self.invoke_handler {
       let fut = invoke_handler(dispatcher.clone(), arg.to_string());
       fut.await.map(|_| true)
@@ -68,16 +67,11 @@ impl<A: ApplicationExt + 'static> App<A> {
   }
 
   /// Runs the setup callback if defined.
-  pub(crate) async fn run_setup(&self, dispatcher: &mut A::Dispatcher, source: String) {
+  pub(crate) async fn run_setup(&self, dispatcher: &WebviewManager<A::Dispatcher>) {
     if let Some(ref setup) = self.setup {
-      let fut = setup(dispatcher.clone(), source);
+      let fut = setup(dispatcher.clone());
       fut.await;
     }
-  }
-
-  /// Returns the splashscreen HTML.
-  pub fn splashscreen_html(&self) -> Option<&String> {
-    self.splashscreen_html.as_ref()
   }
 }
 
@@ -88,8 +82,6 @@ pub struct AppBuilder<A: ApplicationExt, C: AsTauriContext> {
   invoke_handler: Option<Box<InvokeHandler<A::Dispatcher>>>,
   /// The setup callback, invoked when the webview is ready.
   setup: Option<Box<Setup<A::Dispatcher>>>,
-  /// The HTML of the splashscreen to render.
-  splashscreen_html: Option<String>,
   /// The configuration used
   config: PhantomData<C>,
 }
@@ -100,21 +92,20 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<A, C> {
     Self {
       invoke_handler: None,
       setup: None,
-      splashscreen_html: None,
       config: Default::default(),
     }
   }
 
   /// Defines the JS message handler callback.
   pub fn invoke_handler<
-    T: futures::Future<Output = Result<(), String>> + Send + Sync + 'static,
-    F: Fn(A::Dispatcher, String) -> T + Send + Sync + 'static,
+    T: futures::Future<Output = crate::Result<()>> + Send + Sync + 'static,
+    F: Fn(WebviewManager<A::Dispatcher>, String) -> T + Send + Sync + 'static,
   >(
     mut self,
     invoke_handler: F,
   ) -> Self {
-    self.invoke_handler = Some(Box::new(move |dispatcher, arg| {
-      Box::pin(invoke_handler(dispatcher, arg))
+    self.invoke_handler = Some(Box::new(move |webview_manager, arg| {
+      Box::pin(invoke_handler(webview_manager, arg))
     }));
     self
   }
@@ -122,20 +113,14 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<A, C> {
   /// Defines the setup callback.
   pub fn setup<
     T: futures::Future<Output = ()> + Send + Sync + 'static,
-    F: Fn(A::Dispatcher, String) -> T + Send + Sync + 'static,
+    F: Fn(WebviewManager<A::Dispatcher>) -> T + Send + Sync + 'static,
   >(
     mut self,
     setup: F,
   ) -> Self {
-    self.setup = Some(Box::new(move |dispatcher, source| {
-      Box::pin(setup(dispatcher, source))
+    self.setup = Some(Box::new(move |webview_manager| {
+      Box::pin(setup(webview_manager))
     }));
-    self
-  }
-
-  /// Defines the splashscreen HTML to render.
-  pub fn splashscreen_html(mut self, html: &str) -> Self {
-    self.splashscreen_html = Some(html.to_string());
     self
   }
 
@@ -153,7 +138,6 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<A, C> {
     Ok(App {
       invoke_handler: self.invoke_handler,
       setup: self.setup,
-      splashscreen_html: self.splashscreen_html,
       context: Context::new::<C>()?,
     })
   }

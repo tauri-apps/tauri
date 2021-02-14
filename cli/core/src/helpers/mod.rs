@@ -5,10 +5,12 @@ pub mod manifest;
 mod tauri_entry;
 
 pub use logger::Logger;
-pub use tauri_entry::{TauriHtml, TauriScript};
+pub use tauri_entry::TauriScript;
 
-use std::io::{BufRead, BufReader};
-use std::process::{Command, Stdio};
+use std::{
+  io::{BufRead, BufReader},
+  process::{Command, Stdio},
+};
 
 pub fn execute_with_output(cmd: &mut Command) -> crate::Result<()> {
   let mut child = cmd

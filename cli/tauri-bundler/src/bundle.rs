@@ -20,9 +20,10 @@ use std::process::Command;
 #[cfg(windows)]
 use tauri_config::get as get_tauri_config;
 
-pub use self::common::print_error;
-pub use self::common::print_info;
-pub use self::settings::{PackageType, Settings, SettingsBuilder};
+pub use self::{
+  common::{print_error, print_info},
+  settings::{PackageType, Settings, SettingsBuilder},
+};
 use common::print_finished;
 
 use std::path::PathBuf;
@@ -31,14 +32,7 @@ use std::path::PathBuf;
 /// Returns the list of paths where the bundles can be found.
 pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
   let mut paths = Vec::new();
-  let mut package_types = settings.package_types()?;
-  // The AppImage bundle script requires that the Deb bundle be run first
-  if package_types.contains(&PackageType::AppImage) {
-    if let Some(deb_pos) = package_types.iter().position(|&p| p == PackageType::Deb) {
-      package_types.remove(deb_pos);
-    }
-    package_types.insert(0, PackageType::Deb);
-  }
+  let package_types = settings.package_types()?;
   for package_type in &package_types {
     let mut bundle_paths = match package_type {
       PackageType::OsxBundle => {
@@ -66,28 +60,26 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
 
   #[cfg(windows)]
   {
-    if let Ok(tauri_config) = get_tauri_config() {
-      if tauri_config.tauri.embedded_server.active {
-        let exempt_output = Command::new("CheckNetIsolation")
-          .args(&vec!["LoopbackExempt", "-s"])
-          .output()
-          .expect("failed to read LoopbackExempt -s");
+    if get_tauri_config().is_ok() {
+      let exempt_output = Command::new("CheckNetIsolation")
+        .args(&vec!["LoopbackExempt", "-s"])
+        .output()
+        .expect("failed to read LoopbackExempt -s");
 
-        if !exempt_output.status.success() {
-          panic!("Failed to execute CheckNetIsolation LoopbackExempt -s");
-        }
+      if !exempt_output.status.success() {
+        panic!("Failed to execute CheckNetIsolation LoopbackExempt -s");
+      }
 
-        let output_str = String::from_utf8_lossy(&exempt_output.stdout).to_lowercase();
-        if !output_str.contains("win32webviewhost_cw5n1h2txyewy") {
-          println!("Running Loopback command");
-          runas::Command::new("powershell")
-            .args(&[
-              "CheckNetIsolation LoopbackExempt -a -n=\"Microsoft.Win32WebViewHost_cw5n1h2txyewy\"",
-            ])
-            .force_prompt(true)
-            .status()
-            .expect("failed to run Loopback command");
-        }
+      let output_str = String::from_utf8_lossy(&exempt_output.stdout).to_lowercase();
+      if !output_str.contains("win32webviewhost_cw5n1h2txyewy") {
+        println!("Running Loopback command");
+        runas::Command::new("powershell")
+          .args(&[
+            "CheckNetIsolation LoopbackExempt -a -n=\"Microsoft.Win32WebViewHost_cw5n1h2txyewy\"",
+          ])
+          .force_prompt(true)
+          .status()
+          .expect("failed to run Loopback command");
       }
     }
   }

@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
-use std::convert::TryFrom;
-use std::path::PathBuf;
+use std::{convert::TryFrom, path::PathBuf};
 
 pub enum ForceType {
   All,

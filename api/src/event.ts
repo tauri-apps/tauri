@@ -19,10 +19,13 @@ function listen<T>(
   once = false
 ): void {
   invoke({
-    cmd: 'listen',
-    event,
-    handler: transformCallback(handler, once),
-    once
+    module: 'Event',
+    message: {
+      cmd: 'listen',
+      event,
+      handler: transformCallback(handler, once),
+      once
+    }
   })
 }
 
@@ -34,9 +37,12 @@ function listen<T>(
  */
 function emit(event: string, payload?: string): void {
   invoke({
-    cmd: 'emit',
-    event,
-    payload
+    module: 'Event',
+    message: {
+      cmd: 'emit',
+      event,
+      payload
+    }
   })
 }
 

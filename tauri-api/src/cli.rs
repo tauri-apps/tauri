@@ -1,6 +1,6 @@
 use crate::config::{CliArg, CliConfig, Config};
 
-use clap::{App, Arg, ArgMatches};
+use clap::{App, Arg, ArgMatches, ErrorKind};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -58,23 +58,45 @@ pub fn get_matches(config: &Config) -> crate::Result<Matches> {
     .tauri
     .cli
     .as_ref()
-    .ok_or_else(|| anyhow::anyhow!("CLI configuration not defined"))?;
+    .ok_or_else(|| crate::Error::CliNotConfigured)?;
 
   let about = cli
     .description()
     .unwrap_or(&crate_description!().to_string())
     .to_string();
   let app = get_app(crate_name!(), Some(&about), cli);
-  let matches = app.get_matches();
-  Ok(get_matches_internal(cli, &matches))
+  match app.try_get_matches() {
+    Ok(matches) => Ok(get_matches_internal(cli, &matches)),
+    Err(e) => match e.kind {
+      ErrorKind::DisplayHelp => {
+        let mut matches = Matches::default();
+        let help_text = e.to_string();
+        matches.args.insert(
+          "help".to_string(),
+          ArgData {
+            value: Value::String(help_text),
+            occurrences: 0,
+          },
+        );
+        Ok(matches)
+      }
+      ErrorKind::DisplayVersion => {
+        let mut matches = Matches::default();
+        matches
+          .args
+          .insert("version".to_string(), Default::default());
+        Ok(matches)
+      }
+      _ => Err(e.into()),
+    },
+  }
 }
 
 fn get_matches_internal(config: &CliConfig, matches: &ArgMatches) -> Matches {
   let mut cli_matches = Matches::default();
   map_matches(config, matches, &mut cli_matches);
 
-  let (subcommand_name, subcommand_matches_option) = matches.subcommand();
-  if let Some(subcommand_matches) = subcommand_matches_option {
+  if let Some((subcommand_name, subcommand_matches)) = matches.subcommand() {
     let mut subcommand_cli_matches = Matches::default();
     map_matches(
       config.subcommands().unwrap().get(subcommand_name).unwrap(),
@@ -167,17 +189,21 @@ fn get_arg<'a>(arg_name: &'a str, arg: &'a CliArg) -> Arg<'a> {
   clap_arg = bind_string_slice_arg!(arg, clap_arg, possible_values);
   clap_arg = bind_value_arg!(arg, clap_arg, min_values);
   clap_arg = bind_value_arg!(arg, clap_arg, max_values);
-  clap_arg = bind_string_arg!(arg, clap_arg, required_unless, required_unless);
   clap_arg = bind_value_arg!(arg, clap_arg, required);
-  clap_arg = bind_string_arg!(arg, clap_arg, required_unless, required_unless);
-  clap_arg = bind_string_slice_arg!(arg, clap_arg, required_unless_all);
-  clap_arg = bind_string_slice_arg!(arg, clap_arg, required_unless_one);
+  clap_arg = bind_string_arg!(
+    arg,
+    clap_arg,
+    required_unless_present,
+    required_unless_present
+  );
+  clap_arg = bind_string_slice_arg!(arg, clap_arg, required_unless_present_all);
+  clap_arg = bind_string_slice_arg!(arg, clap_arg, required_unless_present_any);
   clap_arg = bind_string_arg!(arg, clap_arg, conflicts_with, conflicts_with);
   clap_arg = bind_string_slice_arg!(arg, clap_arg, conflicts_with_all);
   clap_arg = bind_string_arg!(arg, clap_arg, requires, requires);
   clap_arg = bind_string_slice_arg!(arg, clap_arg, requires_all);
   clap_arg = bind_if_arg!(arg, clap_arg, requires_if);
-  clap_arg = bind_if_arg!(arg, clap_arg, required_if);
+  clap_arg = bind_if_arg!(arg, clap_arg, required_if_eq);
   clap_arg = bind_value_arg!(arg, clap_arg, require_equals);
   clap_arg = bind_value_arg!(arg, clap_arg, index);
 

@@ -2,8 +2,10 @@
 
 use flate2::read::{GzDecoder, GzEncoder};
 pub use phf;
-use std::io::Read;
-use std::path::{Component, Path, PathBuf};
+use std::{
+  io::Read,
+  path::{Component, Path, PathBuf},
+};
 
 /// Type of compression applied to an asset
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

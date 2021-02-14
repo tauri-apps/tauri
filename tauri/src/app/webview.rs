@@ -1,6 +1,6 @@
-pub(crate) mod wry;
+pub mod wry;
 
-pub use crate::plugin::PluginStore;
+use crate::plugin::PluginStore;
 
 /// An event to be posted to the webview event loop.
 pub enum Event {
@@ -8,19 +8,124 @@ pub enum Event {
   Run(crate::SyncTask),
 }
 
+/// A icon definition.
+pub enum Icon {
+  /// Icon from file path.
+  File(String),
+  /// Icon from raw bytes.
+  Raw(Vec<u8>),
+}
+
+/// Messages to dispatch to the application.
+pub enum Message {
+  // webview messages
+  /// Eval a script on the webview.
+  EvalScript(String),
+  // custom messages
+  /// Custom event.
+  Event(Event),
+  // window messages
+  /// Updates the window resizable flag.
+  SetResizable(bool),
+  /// Updates the window title.
+  SetTitle(String),
+  /// Maximizes the window.
+  Maximize,
+  /// Unmaximizes the window.
+  Unmaximize,
+  /// Minimizes the window.
+  Minimize,
+  /// Unminimizes the window.
+  Unminimize,
+  /// Shows the window.
+  Show,
+  /// Hides the window.
+  Hide,
+  /// Updates the transparency flag.
+  SetTransparent(bool),
+  /// Updates the hasDecorations flag.
+  SetDecorations(bool),
+  /// Updates the window alwaysOnTop flag.
+  SetAlwaysOnTop(bool),
+  /// Updates the window width.
+  SetWidth(f64),
+  /// Updates the window height.
+  SetHeight(f64),
+  /// Resizes the window.
+  Resize {
+    /// New width.
+    width: f64,
+    /// New height.
+    height: f64,
+  },
+  /// Updates the window min size.
+  SetMinSize {
+    /// New value for the window min width.
+    min_width: f64,
+    /// New value for the window min height.
+    min_height: f64,
+  },
+  /// Updates the window max size.
+  SetMaxSize {
+    /// New value for the window max width.
+    max_width: f64,
+    /// New value for the window max height.
+    max_height: f64,
+  },
+  /// Updates the X position.
+  SetX(f64),
+  /// Updates the Y position.
+  SetY(f64),
+  /// Updates the window position.
+  SetPosition {
+    /// New value for the window X coordinate.
+    x: f64,
+    /// New value for the window Y coordinate.
+    y: f64,
+  },
+  /// Updates the window fullscreen state.
+  SetFullscreen(bool),
+  /// Updates the window icon.
+  SetIcon(Icon),
+}
+
 /// The window builder.
 pub trait WindowBuilderExt: Sized {
-  /// The window type.
-  type Window;
-
   /// Initializes a new window builder.
   fn new() -> Self;
+
+  /// The horizontal position of the window's top left corner.
+  fn x(self, x: f64) -> Self;
+
+  /// The vertical position of the window's top left corner.
+  fn y(self, y: f64) -> Self;
+
+  /// Window width.
+  fn width(self, width: f64) -> Self;
+
+  /// Window height.
+  fn height(self, height: f64) -> Self;
+
+  /// Window min width.
+  fn min_width(self, min_width: f64) -> Self;
+
+  /// Window min height.
+  fn min_height(self, min_height: f64) -> Self;
+
+  /// Window max width.
+  fn max_width(self, max_width: f64) -> Self;
+
+  /// Window max height.
+  fn max_height(self, max_height: f64) -> Self;
 
   /// Whether the window is resizable or not.
   fn resizable(self, resizable: bool) -> Self;
 
   /// The title of the window in the title bar.
   fn title(self, title: String) -> Self;
+
+  /// Whether to start the window in fullscreen or not.
+  fn fullscreen(self, fullscreen: bool) -> Self;
 
   /// Whether the window should be maximized upon creation.
   fn maximized(self, maximized: bool) -> Self;
@@ -37,9 +142,6 @@ pub trait WindowBuilderExt: Sized {
 
   /// Whether the window should always be on top of other windows.
   fn always_on_top(self, always_on_top: bool) -> Self;
-
-  /// build the window.
-  fn finish(self) -> crate::Result<Self::Window>;
 }
 
 /// The webview builder.
@@ -70,12 +172,8 @@ pub struct Callback<D> {
 
 /// Webview dispatcher. A thread-safe handle to the webview API.
 pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
-  /// Eval a JS string on the current webview.
-  fn eval(&mut self, js: &str);
-  /// Eval a JS string on the webview associated with the given window.
-  fn eval_on_window(&mut self, window_id: &str, js: &str);
-  /// Sends a event to the webview.
-  fn send_event(&self, event: Event);
+  /// Sends a message to the window.
+  fn send_message(&self, message: Message);
 }
 
 /// The application interface.

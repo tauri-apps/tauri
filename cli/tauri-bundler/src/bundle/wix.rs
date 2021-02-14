@@ -1,6 +1,8 @@
-use super::common;
-use super::path_utils::{copy, Options};
-use super::settings::Settings;
+use super::{
+  common,
+  path_utils::{copy, Options},
+  settings::Settings,
+};
 
 use handlebars::{to_json, Handlebars};
 use lazy_static::lazy_static;
@@ -10,11 +12,13 @@ use sha2::Digest;
 use uuid::Uuid;
 use zip::ZipArchive;
 
-use std::collections::BTreeMap;
-use std::fs::{create_dir_all, remove_dir_all, write, File};
-use std::io::{Cursor, Read, Write};
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::{
+  collections::BTreeMap,
+  fs::{create_dir_all, remove_dir_all, write, File},
+  io::{Cursor, Read, Write},
+  path::{Path, PathBuf},
+  process::{Command, Stdio},
+};
 
 // URLS for the WIX toolchain.  Can be used for crossplatform compilation.
 pub const WIX_URL: &str =
@@ -445,11 +449,8 @@ pub fn build_wix_app_installer(
 
   let mut data = BTreeMap::new();
 
-  if let Ok(tauri_config) = crate::bundle::tauri_config::get() {
-    data.insert(
-      "embedded_server",
-      to_json(tauri_config.tauri.embedded_server.active),
-    );
+  if crate::bundle::tauri_config::get().is_ok() {
+    data.insert("embedded_server", to_json(true));
   }
 
   data.insert("product_name", to_json(settings.bundle_name()));

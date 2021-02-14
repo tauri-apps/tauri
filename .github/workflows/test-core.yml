@@ -36,15 +36,9 @@ jobs:
         run: |
           cd ./tauri
           cargo build
-        env:
-          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
-          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
       - name: test
         run: |
           cargo test
-        env:
-          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
-          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
 
   test-tauri-cli:
     runs-on: ${{ matrix.platform }}

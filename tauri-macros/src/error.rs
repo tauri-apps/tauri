@@ -1,7 +1,6 @@
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
-use std::io::Error as IoError;
-use std::path::PathBuf;
+use std::{io::Error as IoError, path::PathBuf};
 use Error::*;
 
 pub(crate) enum Error {
@@ -57,11 +56,6 @@ impl Error {
         }
 
         fn assets() -> &'static ::tauri::api::assets::Assets {
-          unimplemented!()
-        }
-
-        /// Make the index.tauri.html a dependency for the compiler
-        fn raw_index() -> &'static str {
           unimplemented!()
         }
 

@@ -19,11 +19,6 @@ $ npm install
 $ yarn tauri:build
 # with npm
 $ npm run tauri:build
-# alternatively, if you setup the environment variables, you can build it without Node.js:
-$ cd ../../..
-$ . .scripts/init_env.sh
-$ cd ./tauri/examples/communication
-$ cargo build --features no-server
 ```
 
 - Run the app

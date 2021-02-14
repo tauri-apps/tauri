@@ -69,8 +69,6 @@ describe('Tauri Build', () => {
     mode                 | flag
     ${'embedded-server'} | ${'debug'}
     ${'embedded-server'} | ${'release'}
-    ${'no-server'}       | ${'debug'}
-    ${'no-server'}       | ${'release'}
   `('works with the $mode $flag mode', ({ mode, flag }) => {
     return runBuildTest({
       debug: flag === 'debug',
@@ -79,9 +77,6 @@ describe('Tauri Build', () => {
         tauri: {
           allowlist: {
             all: true
-          },
-          embeddedServer: {
-            active: mode === 'embedded-server'
           }
         }
       }

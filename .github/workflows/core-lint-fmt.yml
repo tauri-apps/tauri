@@ -25,9 +25,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-targets --all-features -- -D warnings
           name: workspace
-        env:
-          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
-          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
       - uses: actions-rs/toolchain@v1
         with:
             profile: minimal
@@ -65,7 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        feature: [embedded-server, no-server, all-api]
+        feature: [embedded-server, all-api]
 
     steps:
       - uses: actions/checkout@v2
@@ -79,6 +76,3 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --manifest-path ./tauri/Cargo.toml --all-targets --features ${{ matrix.feature }} -- -D warnings
           name: core
-        env:
-          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
-          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri

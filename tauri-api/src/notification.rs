@@ -77,9 +77,7 @@ impl Notification {
         notification.app_id(&self.identifier);
       }
     }
-    notification
-      .show()
-      .map(|_| ())
-      .map_err(|e| anyhow::anyhow!(e.to_string()))
+    notification.show()?;
+    Ok(())
   }
 }

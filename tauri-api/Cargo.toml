@@ -24,7 +24,6 @@ semver = "0.11"
 tempfile = "3"
 either = "1.6.1"
 tar = "0.4"
-anyhow = "1.0.38"
 flate2 = "1.0"
 thiserror = "1.0.23"
 rand = "0.8"
@@ -33,7 +32,7 @@ tauri-dialog = "0.1.0"
 attohttpc = { version = "0.16.1", features = [ "json", "form" ] }
 http = "0.2"
 tauri-utils = { version = "0.5", path = "../tauri-utils" }
-clap = { git = "https://github.com/clap-rs/clap", rev = "1a276f8", version = "=3.0.0-beta.1", optional = true }
+clap = { version = "=3.0.0-beta.2", optional = true }
 notify-rust = { version = "4.2.2", optional = true }
 once_cell = "1.5.2"
 

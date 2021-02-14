@@ -197,17 +197,8 @@ async function printAppInfo(tauriDir: string): Promise<void> {
   })
 
   try {
-    const tauriMode = (config: TauriConfig): string => {
-      if (config.tauri.embeddedServer) {
-        return chalk.green(
-          config.tauri.embeddedServer.active ? 'embedded-server' : 'no-server'
-        )
-      }
-      return chalk.red('unset')
-    }
     const configPath = path.join(tauriDir, 'tauri.conf.json')
     const config = nonWebpackRequire(configPath) as TauriConfig
-    printInfo({ key: '  mode', value: tauriMode(config) })
     printInfo({
       key: '  build-type',
       value: config.tauri.bundle?.active ? 'bundle' : 'build'

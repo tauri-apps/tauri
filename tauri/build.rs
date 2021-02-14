@@ -3,9 +3,7 @@ use cfg_aliases::cfg_aliases;
 fn main() {
   cfg_aliases! {
     embedded_server: { feature = "embedded-server" },
-    no_server: { feature = "no-server" },
-    assets: { any(feature = "embedded-server", feature = "no-server") },
-    dev: { not(any(feature = "embedded-server", feature = "no-server")) },
+    dev: { not(feature = "embedded-server") },
 
     all_api: { feature = "all-api" },
 
@@ -25,10 +23,10 @@ fn main() {
     path_api: { any(all_api, feature = "path-api") },
 
     // window
-    set_title: { any(all_api, feature = "set-title") },
-    open: { any(all_api, feature = "open") },
+    window: { any(all_api, feature = "window") },
 
-    // process
+    // shell
+    open: { any(all_api, feature = "open") },
     execute: { any(all_api, feature = "execute") },
 
     // event

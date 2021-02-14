@@ -1,14 +1,15 @@
 use super::category::AppCategory;
-use crate::bundle::common;
-use crate::bundle::platform::target_triple;
+use crate::bundle::{common, platform::target_triple};
 
 use serde::Deserialize;
 use target_build_utils::TargetInfo;
 
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::{
+  collections::HashMap,
+  fs::File,
+  io::Read,
+  path::{Path, PathBuf},
+};
 
 /// The type of the package we're bundling.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

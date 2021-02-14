@@ -1,19 +1,81 @@
-use serde::de::{Deserializer, Error as DeError, Visitor};
-use serde::Deserialize;
+use serde::{
+  de::{Deserializer, Error as DeError, Visitor},
+  Deserialize,
+};
 use serde_json::Value as JsonValue;
 
 use std::collections::HashMap;
 
+/// The window webview URL options.
+#[derive(PartialEq, Debug, Clone)]
+pub enum WindowUrl {
+  /// The app's index URL.
+  App,
+  /// A custom URL.
+  Custom(String),
+}
+
+impl Default for WindowUrl {
+  fn default() -> Self {
+    Self::App
+  }
+}
+
+impl<'de> Deserialize<'de> for WindowUrl {
+  fn deserialize<D>(deserializer: D) -> Result<WindowUrl, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    struct StringVisitor;
+    impl<'de> Visitor<'de> for StringVisitor {
+      type Value = WindowUrl;
+      fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("a string representing an url")
+      }
+
+      fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+      where
+        E: serde::de::Error,
+      {
+        if v.to_lowercase() == "app" {
+          Ok(WindowUrl::App)
+        } else {
+          Ok(WindowUrl::Custom(v.to_string()))
+        }
+      }
+    }
+    deserializer.deserialize_str(StringVisitor)
+  }
+}
+
 /// The window configuration object.
-#[derive(PartialEq, Deserialize, Debug)]
-#[serde(tag = "window", rename_all = "camelCase")]
+#[derive(PartialEq, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct WindowConfig {
+  #[serde(default = "default_window_label")]
+  /// The window identifier.
+  pub label: String,
+  /// The window webview URL.
+  #[serde(default)]
+  pub url: WindowUrl,
+  /// The horizontal position of the window's top left corner
+  pub x: Option<f64>,
+  /// The vertical position of the window's top left corner
+  pub y: Option<f64>,
   /// The window width.
   #[serde(default = "default_width")]
-  pub width: i32,
+  pub width: f64,
   /// The window height.
   #[serde(default = "default_height")]
-  pub height: i32,
+  pub height: f64,
+  /// The min window width.
+  pub min_width: Option<f64>,
+  /// The min window height.
+  pub min_height: Option<f64>,
+  /// The max window width.
+  pub max_width: Option<f64>,
+  /// The max window height.
+  pub max_height: Option<f64>,
   /// Whether the window is resizable or not.
   #[serde(default = "default_resizable")]
   pub resizable: bool,
@@ -23,17 +85,44 @@ pub struct WindowConfig {
   /// Whether the window starts as fullscreen or not.
   #[serde(default)]
   pub fullscreen: bool,
+  /// Whether the window is transparent or not.
+  #[serde(default)]
+  pub transparent: bool,
+  /// Whether the window is maximized or not.
+  #[serde(default)]
+  pub maximized: bool,
+  /// Whether the window is visible or not.
+  #[serde(default = "default_visible")]
+  pub visible: bool,
+  /// Whether the window should have borders and bars.
+  #[serde(default = "default_decorations")]
+  pub decorations: bool,
+  /// Whether the window should always be on top of other windows.
+  #[serde(default)]
+  pub always_on_top: bool,
 }
 
-fn default_width() -> i32 {
-  800
+fn default_window_label() -> String {
+  "main".to_string()
 }
 
-fn default_height() -> i32 {
-  600
+fn default_width() -> f64 {
+  800f64
+}
+
+fn default_height() -> f64 {
+  600f64
 }
 
 fn default_resizable() -> bool {
+  true
+}
+
+fn default_visible() -> bool {
+  true
+}
+
+fn default_decorations() -> bool {
   true
 }
 
@@ -44,11 +133,24 @@ fn default_title() -> String {
 impl Default for WindowConfig {
   fn default() -> Self {
     Self {
+      label: default_window_label(),
+      url: WindowUrl::App,
+      x: None,
+      y: None,
       width: default_width(),
       height: default_height(),
+      min_width: None,
+      min_height: None,
+      max_width: None,
+      max_height: None,
       resizable: default_resizable(),
       title: default_title(),
       fullscreen: false,
+      transparent: false,
+      maximized: false,
+      visible: default_visible(),
+      decorations: default_decorations(),
+      always_on_top: false,
     }
   }
 }
@@ -234,13 +336,13 @@ pub struct CliArg {
   pub required: Option<bool>,
   /// Sets an arg that override this arg's required setting
   /// i.e. this arg will be required unless this other argument is present.
-  pub required_unless: Option<String>,
+  pub required_unless_present: Option<String>,
   /// Sets args that override this arg's required setting
   /// i.e. this arg will be required unless all these other arguments are present.
-  pub required_unless_all: Option<Vec<String>>,
+  pub required_unless_present_all: Option<Vec<String>>,
   /// Sets args that override this arg's required setting
   /// i.e. this arg will be required unless at least one of these other arguments are present.
-  pub required_unless_one: Option<Vec<String>>,
+  pub required_unless_present_any: Option<Vec<String>>,
   /// Sets a conflicting argument by name
   /// i.e. when using this argument, the following argument can't be present and vice versa.
   pub conflicts_with: Option<String>,
@@ -257,7 +359,7 @@ pub struct CliArg {
   pub requires_if: Option<Vec<String>>,
   /// Allows specifying that an argument is required conditionally with the signature [arg, value]
   /// the requirement will only become valid if the `arg`'s value equals `${value}`.
-  pub required_if: Option<Vec<String>>,
+  pub required_if_eq: Option<Vec<String>>,
   /// Requires that options use the --option=val syntax
   /// i.e. an equals between the option and associated value.
   pub require_equals: Option<bool>,
@@ -333,13 +435,17 @@ impl Default for BundleConfig {
   }
 }
 
+fn default_window_config() -> Vec<WindowConfig> {
+  vec![Default::default()]
+}
+
 /// The Tauri configuration object.
 #[derive(PartialEq, Deserialize, Debug)]
 #[serde(tag = "tauri", rename_all = "camelCase")]
 pub struct TauriConfig {
   /// The window configuration.
-  #[serde(default)]
-  pub window: WindowConfig,
+  #[serde(default = "default_window_config")]
+  pub windows: Vec<WindowConfig>,
   /// The embeddedServer configuration.
   #[serde(default)]
   pub embedded_server: EmbeddedServerConfig,
@@ -354,7 +460,7 @@ pub struct TauriConfig {
 impl Default for TauriConfig {
   fn default() -> Self {
     Self {
-      window: WindowConfig::default(),
+      windows: default_window_config(),
       embedded_server: EmbeddedServerConfig::default(),
       cli: None,
       bundle: BundleConfig::default(),
@@ -375,8 +481,9 @@ pub struct BuildConfig {
 }
 
 fn default_dev_path() -> String {
-  "".to_string()
+  "http://localhost:8080".to_string()
 }
+
 fn default_dist_path() -> String {
   "../dist".to_string()
 }
@@ -438,7 +545,7 @@ mod test {
     // get default embedded server
     let de_server = EmbeddedServerConfig::default();
     // get default window
-    let d_window = WindowConfig::default();
+    let d_windows = default_window_config();
     // get default title
     let d_title = default_title();
     // get default bundle
@@ -446,13 +553,26 @@ mod test {
 
     // create a tauri config.
     let tauri = TauriConfig {
-      window: WindowConfig {
-        width: 800,
-        height: 600,
+      windows: vec![WindowConfig {
+        label: "main".to_string(),
+        url: WindowUrl::App,
+        x: None,
+        y: None,
+        width: 800f64,
+        height: 600f64,
+        min_width: None,
+        min_height: None,
+        max_width: None,
+        max_height: None,
         resizable: true,
         title: String::from("Tauri App"),
         fullscreen: false,
-      },
+        transparent: false,
+        maximized: false,
+        visible: true,
+        decorations: true,
+        always_on_top: false,
+      }],
       embedded_server: EmbeddedServerConfig {
         host: String::from("http://127.0.0.1"),
         port: Port::Random,
@@ -466,7 +586,7 @@ mod test {
 
     // create a build config
     let build = BuildConfig {
-      dev_path: String::from(""),
+      dev_path: String::from("http://localhost:8080"),
       dist_dir: String::from("../dist"),
     };
 
@@ -475,8 +595,8 @@ mod test {
     assert_eq!(b_config, build);
     assert_eq!(de_server, tauri.embedded_server);
     assert_eq!(d_bundle, tauri.bundle);
-    assert_eq!(d_path, String::from(""));
-    assert_eq!(d_title, tauri.window.title);
-    assert_eq!(d_window, tauri.window);
+    assert_eq!(d_path, String::from("http://localhost:8080"));
+    assert_eq!(d_title, tauri.windows[0].title);
+    assert_eq!(d_windows, tauri.windows);
   }
 }

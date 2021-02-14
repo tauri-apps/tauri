@@ -1,13 +1,14 @@
 use crate::error::Error;
 use flate2::bufread::GzEncoder;
 use proc_macro2::TokenStream;
-use quote::quote;
-use quote::TokenStreamExt;
-use std::collections::{HashMap, HashSet};
-use std::env::var;
-use std::fs::{canonicalize, create_dir_all, File};
-use std::io::{BufReader, BufWriter};
-use std::path::{Path, PathBuf};
+use quote::{quote, TokenStreamExt};
+use std::{
+  collections::{HashMap, HashSet},
+  env::var,
+  fs::{canonicalize, create_dir_all, File},
+  io::{BufReader, BufWriter},
+  path::{Path, PathBuf},
+};
 use tauri_utils::assets::{AssetCompression, Assets};
 use walkdir::WalkDir;
 

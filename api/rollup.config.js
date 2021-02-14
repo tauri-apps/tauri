@@ -16,7 +16,7 @@ export default [
       event: './src/event.ts',
       http: './src/http.ts',
       index: './src/index.ts',
-      process: './src/process.ts',
+      shell: './src/shell.ts',
       tauri: './src/tauri.ts',
       window: './src/window.ts',
       cli: './src/cli.ts',
@@ -60,12 +60,7 @@ export default [
     external: [
       ...Object.keys(pkg.dependencies || {}),
       ...Object.keys(pkg.peerDependencies || {})
-    ],
-    watch: {
-      chokidar: true,
-      include: 'src/**',
-      exclude: 'node_modules/**'
-    }
+    ]
   },
   {
     input: {

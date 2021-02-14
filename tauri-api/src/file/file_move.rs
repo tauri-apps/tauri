@@ -1,5 +1,4 @@
-use std::fs;
-use std::path;
+use std::{fs, path};
 
 /// Moves a file from the given path to the specified destination.
 ///

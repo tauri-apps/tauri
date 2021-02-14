@@ -5,9 +5,6 @@
   },
   "ctx": {},
   "tauri": {
-    "embeddedServer": {
-      "active": true
-    },
     "bundle": {
       "identifier": "studio.tauri.example",
       "active": true
@@ -15,14 +12,11 @@
     "allowlist": {
       "all": true
     },
-    "window": {
+    "windows": [{
       "title": "Tauri App"
-    },
+    }],
     "security": {
       "csp": "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
-    },
-    "inliner": {
-      "active": true
     }
   }
 }

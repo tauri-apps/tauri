@@ -1,13 +1,13 @@
-use crate::error::Error;
-use crate::include_dir::IncludeDir;
-use crate::DEFAULT_CONFIG_FILE;
+use crate::{error::Error, include_dir::IncludeDir, DEFAULT_CONFIG_FILE};
 use proc_macro2::TokenStream;
 use quote::quote;
-use std::collections::HashSet;
-use std::env::var;
-use std::fs::File;
-use std::io::BufReader;
-use std::path::{Path, PathBuf};
+use std::{
+  collections::HashSet,
+  env::var,
+  fs::File,
+  io::BufReader,
+  path::{Path, PathBuf},
+};
 use syn::{DeriveInput, Lit::Str, Meta::NameValue, MetaNameValue};
 use tauri_utils::{assets::AssetCompression, config::Config};
 
@@ -21,10 +21,8 @@ pub(crate) fn load_context(input: DeriveInput) -> Result<TokenStream, Error> {
     .iter()
     .find(|attr| attr.path.is_ident("config_path"));
   if let Some(attr) = config_path_attr {
-    if let Ok(meta) = attr.parse_meta() {
-      if let NameValue(MetaNameValue { lit: Str(path), .. }) = meta {
-        config_file_path = path.value()
-      }
+    if let Ok(NameValue(MetaNameValue { lit: Str(path), .. })) = attr.parse_meta() {
+      config_file_path = path.value()
     }
   }
 
@@ -41,13 +39,10 @@ pub(crate) fn load_context(input: DeriveInput) -> Result<TokenStream, Error> {
   // generate the assets into a perfect hash function
   let assets = generate_asset_map(&dist_dir)?;
 
-  // should be possible to do the index.tauri.hmtl manipulations during this macro too in the future
-  let tauri_index_html_path = dist_dir.join("index.tauri.html");
   let tauri_script_path = dist_dir.join("__tauri.js");
 
   // format paths into a string to use them in quote!
   let tauri_config_path = full_config_path.display().to_string();
-  let tauri_index_html_path = tauri_index_html_path.display().to_string();
   let tauri_script_path = tauri_script_path.display().to_string();
 
   Ok(quote! {
@@ -65,11 +60,6 @@ pub(crate) fn load_context(input: DeriveInput) -> Result<TokenStream, Error> {
             use ::tauri::api::assets::{Assets, AssetCompression, phf, phf::phf_map};
             static ASSETS: Assets = Assets::new(#assets);
             &ASSETS
-          }
-
-          /// Make the index.tauri.html a dependency for the compiler
-          fn raw_index() -> &'static str {
-            include_str!(#tauri_index_html_path)
           }
 
           /// Make the __tauri.js a dependency for the compiler
@@ -109,9 +99,6 @@ fn generate_asset_map(dist: &Path) -> Result<TokenStream, Error> {
         inline_assets.insert(path);
       })
   }
-
-  // the index.html is parsed so we always ignore it
-  inline_assets.insert("/index.html".into());
 
   IncludeDir::new(&dist)
     .dir(&dist, AssetCompression::Gzip)?

@@ -63,17 +63,17 @@ export interface CliArg {
    * sets an arg that override this arg's required setting
    * i.e. this arg will be required unless this other argument is present
    */
-  requiredUnless?: string
+  requiredUnlessPresent?: string
   /**
    * sets args that override this arg's required setting
    * i.e. this arg will be required unless all these other arguments are present
    */
-  requiredUnlessAll?: string[]
+  requiredUnlessPresentAll?: string[]
   /**
    * sets args that override this arg's required setting
    * i.e. this arg will be required unless at least one of these other arguments are present
    */
-  requiredUnlessOne?: string[]
+  requiredUnlessPresentAny?: string[]
   /**
    * sets a conflicting argument by name
    * i.e. when using this argument, the following argument can't be present and vice versa
@@ -102,7 +102,7 @@ export interface CliArg {
    * allows specifying that an argument is required conditionally with the signature [arg: string, value: string]
    * the requirement will only become valid if the `arg`'s value equals `${value}`.
    */
-  requiredIf?: [string, string]
+  requiredIfEq?: [string, string]
   /**
    * requires that options use the --option=val syntax
    * i.e. an equals between the option and associated value
@@ -220,11 +220,7 @@ export interface TauriConfig {
     /**
      * the embedded server configuration
      */
-    embeddedServer: {
-      /**
-       * whether we should use the embedded-server or the no-server mode
-       */
-      active?: boolean
+    embeddedServer?: {
       /**
        * the embedded server port number or the 'random' string to generate one at runtime
        */
@@ -281,18 +277,17 @@ export interface TauriConfig {
       all: boolean
       [index: string]: boolean
     }
-    window: {
-      title: string
-      width?: number
-      height?: number
-      resizable?: boolean
-      fullscreen?: boolean
-    }
+    windows: [
+      {
+        title: string
+        width?: number
+        height?: number
+        resizable?: boolean
+        fullscreen?: boolean
+      }
+    ]
     security: {
       csp?: string
-    }
-    inliner: {
-      active?: boolean
     }
   }
   plugins?: {

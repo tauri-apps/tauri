@@ -1,31 +1,10 @@
-use crate::api::config::PluginConfig;
-use crate::async_runtime::Mutex;
-use crate::ApplicationDispatcherExt;
+use crate::{
+  api::config::PluginConfig, async_runtime::Mutex, ApplicationDispatcherExt, WebviewManager,
+};
 
 use futures::future::join_all;
 
 use std::sync::Arc;
-
-/// The plugin error type.
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-  /// Failed to serialize/deserialize.
-  #[error("JSON error: {0}")]
-  Json(serde_json::Error),
-  /// Unknown API type.
-  #[error("unknown API")]
-  UnknownApi,
-}
-
-impl From<serde_json::Error> for Error {
-  fn from(error: serde_json::Error) -> Self {
-    if error.to_string().contains("unknown variant") {
-      Self::UnknownApi
-    } else {
-      Self::Json(error)
-    }
-  }
-}
 
 /// The plugin interface.
 #[async_trait::async_trait]
@@ -35,27 +14,35 @@ pub trait Plugin<D: ApplicationDispatcherExt + 'static>: Send + Sync {
 
   /// Initialize the plugin.
   #[allow(unused_variables)]
-  async fn initialize(&mut self, config: String) -> Result<(), Error> {
+  async fn initialize(&mut self, config: String) -> crate::Result<()> {
     Ok(())
   }
 
-  /// The JS script to evaluate on init.
-  async fn init_script(&self) -> Option<String> {
+  /// The JS script to evaluate on webview initialization.
+  /// The script is wrapped into its own context with `(function () { /* your script here */ })();`,
+  /// so global variables must be assigned to `window` instead of implicity declared.
+  ///
+  /// It's guaranteed that this script is executed before the page is loaded.
+  async fn initialization_script(&self) -> Option<String> {
     None
   }
 
   /// Callback invoked when the webview is created.
   #[allow(unused_variables)]
-  async fn created(&mut self, dispatcher: D) {}
+  async fn created(&mut self, webview_manager: WebviewManager<D>) {}
 
   /// Callback invoked when the webview is ready.
   #[allow(unused_variables)]
-  async fn ready(&mut self, dispatcher: D) {}
+  async fn ready(&mut self, webview_manager: WebviewManager<D>) {}
 
   /// Add invoke_handler API extension commands.
   #[allow(unused_variables)]
-  async fn extend_api(&mut self, dispatcher: D, payload: &str) -> Result<(), Error> {
-    Err(Error::UnknownApi)
+  async fn extend_api(
+    &mut self,
+    webview_manager: WebviewManager<D>,
+    payload: &str,
+  ) -> crate::Result<()> {
+    Err(crate::Error::UnknownApi(None))
   }
 }
 
@@ -89,61 +76,64 @@ pub(crate) async fn initialize<D: ApplicationDispatcherExt + 'static>(
   Ok(())
 }
 
-pub(crate) async fn init_script<D: ApplicationDispatcherExt + 'static>(
+pub(crate) async fn initialization_script<D: ApplicationDispatcherExt + 'static>(
   store: &PluginStore<D>,
 ) -> String {
   let mut plugins = store.lock().await;
   let mut futures = Vec::new();
   for plugin in plugins.iter_mut() {
-    futures.push(plugin.init_script());
+    futures.push(plugin.initialization_script());
   }
 
-  let mut init = String::new();
+  let mut initialization_script = String::new();
   for res in join_all(futures).await {
-    if let Some(init_script) = res {
-      init.push_str(&format!("(function () {{ {} }})();", init_script));
+    if let Some(plugin_initialization_script) = res {
+      initialization_script.push_str(&format!(
+        "(function () {{ {} }})();",
+        plugin_initialization_script
+      ));
     }
   }
-  init
+  initialization_script
 }
 
 pub(crate) async fn created<D: ApplicationDispatcherExt + 'static>(
   store: &PluginStore<D>,
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
 ) {
   let mut plugins = store.lock().await;
   let mut futures = Vec::new();
   for plugin in plugins.iter_mut() {
-    futures.push(plugin.created(dispatcher.clone()));
+    futures.push(plugin.created(webview_manager.clone()));
   }
   join_all(futures).await;
 }
 
 pub(crate) async fn ready<D: ApplicationDispatcherExt + 'static>(
   store: &PluginStore<D>,
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
 ) {
   let mut plugins = store.lock().await;
   let mut futures = Vec::new();
   for plugin in plugins.iter_mut() {
-    futures.push(plugin.ready(dispatcher.clone()));
+    futures.push(plugin.ready(webview_manager.clone()));
   }
   join_all(futures).await;
 }
 
 pub(crate) async fn extend_api<D: ApplicationDispatcherExt + 'static>(
   store: &PluginStore<D>,
-  dispatcher: &mut D,
+  webview_manager: &crate::WebviewManager<D>,
   arg: &str,
-) -> Result<bool, Error> {
+) -> crate::Result<bool> {
   let mut plugins = store.lock().await;
   for ext in plugins.iter_mut() {
-    match ext.extend_api(dispatcher.clone(), arg).await {
+    match ext.extend_api(webview_manager.clone(), arg).await {
       Ok(_) => {
         return Ok(true);
       }
       Err(e) => match e {
-        Error::UnknownApi => {}
+        crate::Error::UnknownApi(_) => {}
         _ => return Err(e),
       },
     }

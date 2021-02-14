@@ -36,32 +36,12 @@ pub mod notification;
 
 pub use tauri_utils::*;
 
-/// Alias for a Result with error type anyhow::Error.
-pub use anyhow::Result;
-use thiserror::Error;
+mod error;
 
-/// The error types.
-#[derive(Error, Debug)]
-pub enum Error {
-  /// The extract archive error.
-  #[error("Extract Error:{0}")]
-  Extract(String),
-  /// The Command (spawn process) error.
-  #[error("Command Error:{0}")]
-  Command(String),
-  /// The file operation error.
-  #[error("File Error:{0}")]
-  File(String),
-  /// The path operation error.
-  #[error("Path Error:{0}")]
-  Path(String),
-  /// The dialog error.
-  #[error("Dialog Error:{0}")]
-  Dialog(String),
-  /// The network error.
-  #[error("Network Error:{0}")]
-  Network(attohttpc::StatusCode),
-}
+/// Tauri API error.
+pub use error::Error;
+/// Tauri API result type.
+pub type Result<T> = std::result::Result<T, Error>;
 
 // Not public API
 #[doc(hidden)]
@@ -70,7 +50,6 @@ pub mod private {
     fn config_path() -> &'static std::path::Path;
     fn raw_config() -> &'static str;
     fn assets() -> &'static crate::assets::Assets;
-    fn raw_index() -> &'static str;
     fn raw_tauri_script() -> &'static str;
   }
 }

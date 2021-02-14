@@ -46,10 +46,8 @@ impl Cmd {
             async move {
               let mut manager = manager_handle().lock().await;
               manager.register_shortcut(shortcut, move || {
-                let callback_string = crate::api::rpc::format_callback(
-                  handler.to_string(),
-                  serde_json::Value::Null,
-                );
+                let callback_string =
+                  crate::api::rpc::format_callback(handler.to_string(), serde_json::Value::Null);
                 dispatcher.eval(callback_string.as_str());
               })?;
               Ok(())

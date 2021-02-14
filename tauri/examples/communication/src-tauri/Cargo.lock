@@ -2587,6 +2587,7 @@ dependencies = [
 [[package]]
 name = "tauri-hotkey"
 version = "0.0.0"
+source = "git+https://github.com/tauri-apps/tauri-hotkey-rs?branch=dev#48cda6dc66fbfc6f54c1aca3c14df9490f898729"
 dependencies = [
  "log",
  "once_cell",
@@ -2601,6 +2602,7 @@ dependencies = [
 [[package]]
 name = "tauri-hotkey-sys"
 version = "0.0.0"
+source = "git+https://github.com/tauri-apps/tauri-hotkey-rs?branch=dev#48cda6dc66fbfc6f54c1aca3c14df9490f898729"
 dependencies = [
  "cc",
  "thiserror",

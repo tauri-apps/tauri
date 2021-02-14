@@ -9,6 +9,7 @@
   import Http from './components/Http.svelte'
   import Notifications from './components/Notifications.svelte'
   import Window from './components/Window.svelte'
+  import Shortcuts from './components/Shortcuts.svelte'
 
   const views = [{
     label: 'Messages',
@@ -31,6 +32,9 @@
   }, {
     label: 'Window',
     component: Window
+  }, {
+    label: 'Shortcuts',
+    component: Shortcuts
   }]
 
   let selected = views[0].label;

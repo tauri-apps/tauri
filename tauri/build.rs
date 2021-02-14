@@ -44,5 +44,8 @@ fn main() {
 
     // notification
     notification: { any(all_api, feature = "notification") },
+
+    // global shortcut
+    global_shortcut: { any(all_api, feature = "global_shortcut" )},
   }
 }

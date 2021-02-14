@@ -49,6 +49,10 @@ pub enum Error {
   /// failed to detect the current platform.
   #[error("failed to detect platform: {0}")]
   FailedToDetectPlatform(String),
+  /// Shortcut error.
+  #[cfg(feature = "global-shortcut")]
+  #[error("shortcut error: {0}")]
+  Shortcut(#[from] tauri_hotkey::Error),
 }
 
 impl From<attohttpc::StatusCode> for Error {

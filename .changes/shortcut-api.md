@@ -1,6 +1,6 @@
 ---
 "api": patch
-"tauri-api" patch
+"tauri-api": patch
 "tauri": patch
 ---
 

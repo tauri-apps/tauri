@@ -30,8 +30,6 @@ impl TryInto<wry::Icon> for Icon {
 }
 
 impl WindowBuilderExt for wry::AppWindowAttributes {
-  type Window = Self;
-
   fn new() -> Self {
     Default::default()
   }
@@ -114,11 +112,6 @@ impl WindowBuilderExt for wry::AppWindowAttributes {
   fn always_on_top(mut self, always_on_top: bool) -> Self {
     self.always_on_top = always_on_top;
     self
-  }
-
-  /// build the window.
-  fn finish(self) -> crate::Result<Self::Window> {
-    Ok(self)
   }
 }
 
@@ -270,7 +263,7 @@ impl ApplicationExt for WryApplication {
   fn create_window(&self, window_builder: Self::WindowBuilder) -> crate::Result<Self::Window> {
     let window = self
       .inner
-      .create_window(window_builder.finish()?)
+      .create_window(window_builder)
       .map_err(|_| crate::Error::CreateWindow)?;
     Ok(window)
   }

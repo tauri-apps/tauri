@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{
-  webview::{Event, Icon, Message},
-  ApplicationDispatcherExt,
-};
+use super::{ApplicationDispatcherExt, Event, Icon, Message};
 
 use serde::Serialize;
 

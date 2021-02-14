@@ -31,6 +31,9 @@ pub enum Error {
   /// Failed to decode base64.
   #[error("Failed to decode base64 string: {0}")]
   Base64Decode(#[from] base64::DecodeError),
+  /// Failed to load window icon.
+  #[error("invalid icon: {0}")]
+  InvalidIcon(String),
 }
 
 impl From<serde_json::Error> for Error {

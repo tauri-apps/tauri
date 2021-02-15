@@ -34,6 +34,9 @@ pub enum Error {
   /// Failed to load window icon.
   #[error("invalid icon: {0}")]
   InvalidIcon(String),
+  /// Client with specified ID not found.
+  #[error("http client dropped or not initialized")]
+  HttpClientNotInitialized,
 }
 
 impl From<serde_json::Error> for Error {

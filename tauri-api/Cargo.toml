@@ -29,7 +29,8 @@ thiserror = "1.0.23"
 rand = "0.8"
 nfd = "0.0.4"
 tauri-dialog = "0.1.0"
-attohttpc = { version = "0.16.1", features = [ "json", "form" ] }
+reqwest = { version = "0.11", features = [ "json", "multipart" ] }
+bytes = { version = "1", features = ["serde"] }
 http = "0.2"
 tauri-utils = { version = "0.5", path = "../tauri-utils" }
 clap = { version = "=3.0.0-beta.2", optional = true }

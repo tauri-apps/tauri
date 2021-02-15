@@ -4,8 +4,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-pub use reqwest::Client;
-
 use std::{collections::HashMap, path::PathBuf, time::Duration};
 
 /// Client builder.
@@ -38,7 +36,7 @@ impl ClientBuilder {
 
   /// Builds the ClientOptions.
   pub fn build(self) -> crate::Result<Client> {
-    let mut client_builder = Client::builder();
+    let mut client_builder = reqwest::Client::builder();
 
     if let Some(max_redirections) = self.max_redirections {
       client_builder = client_builder.redirect(Policy::limited(max_redirections))
@@ -49,7 +47,64 @@ impl ClientBuilder {
     }
 
     let client = client_builder.build()?;
-    Ok(client)
+    Ok(Client(client))
+  }
+}
+
+/// The HTTP client.
+#[derive(Clone)]
+pub struct Client(reqwest::Client);
+
+impl Client {
+  /// Executes an HTTP request
+  ///
+  /// The response will be transformed to String,
+  /// If reading the response as binary, the byte array will be serialized using serde_json
+  pub async fn send(&self, request: HttpRequestBuilder) -> crate::Result<Response> {
+    let method = Method::from_bytes(request.method.to_uppercase().as_bytes())?;
+    let mut request_builder = self.0.request(method, &request.url);
+
+    if let Some(query) = request.query {
+      request_builder = request_builder.query(&query);
+    }
+
+    if let Some(headers) = request.headers {
+      for (header, header_value) in headers.iter() {
+        request_builder =
+          request_builder.header(HeaderName::from_bytes(header.as_bytes())?, header_value);
+      }
+    }
+
+    if let Some(timeout) = request.timeout {
+      request_builder = request_builder.timeout(Duration::from_secs(timeout));
+    }
+
+    let response = if let Some(body) = request.body {
+      match body {
+        Body::Bytes(data) => request_builder.body(Bytes::from(data)).send().await?,
+        Body::Text(text) => request_builder.body(Bytes::from(text)).send().await?,
+        Body::Json(json) => request_builder.json(&json).send().await?,
+        Body::Form(form_body) => {
+          let mut form = Vec::new();
+          for (name, part) in form_body.0 {
+            match part {
+              FormPart::Bytes(bytes) => form.push((name, serde_json::to_string(&bytes)?)),
+              FormPart::File(file_path) => form.push((name, serde_json::to_string(&file_path)?)),
+              FormPart::Text(text) => form.push((name, text)),
+            }
+          }
+          request_builder.form(&form).send().await?
+        }
+      }
+    } else {
+      request_builder.send().await?
+    };
+
+    let response = response.error_for_status()?;
+    Ok(Response(
+      request.response_type.unwrap_or(ResponseType::Json),
+      response,
+    ))
   }
 }
 
@@ -106,15 +161,20 @@ pub enum Body {
 ///
 /// # Examples
 /// ```no_run
-/// # use tauri_api::http::{ HttpRequestBuilder, ResponseType };
-/// let mut request_builder = HttpRequestBuilder::new("GET", "http://example.com");
-/// let request = request_builder.response_type(ResponseType::Text)
-///   .follow_redirects(false);
+/// use tauri_api::http::{ HttpRequestBuilder, ResponseType, ClientBuilder };
+/// async fn run() {
+///   let client = ClientBuilder::new()
+///     .max_redirections(3)
+///     .build()
+///     .unwrap();
+///   let mut request_builder = HttpRequestBuilder::new("GET", "http://example.com");
+///   let request = request_builder.response_type(ResponseType::Text);
 ///
-/// if let Ok(response) = request.send().await {
-///   println!("Response: {}", response);
-/// } else {
-///   println!("Something Happened!");
+///   if let Ok(response) = client.send(request).await {
+///     println!("got response");
+///   } else {
+///     println!("Something Happened!");
+///   }
 /// }
 /// ```
 #[derive(Deserialize)]
@@ -178,57 +238,6 @@ impl HttpRequestBuilder {
   pub fn response_type(mut self, response_type: ResponseType) -> Self {
     self.response_type = Some(response_type);
     self
-  }
-
-  /// Executes an HTTP request
-  ///
-  /// The response will be transformed to String,
-  /// If reading the response as binary, the byte array will be serialized using serde_json
-  pub async fn send(self, client: &Client) -> crate::Result<Response> {
-    let method = Method::from_bytes(self.method.to_uppercase().as_bytes())?;
-    let mut request_builder = client.request(method, &self.url);
-
-    if let Some(query) = self.query {
-      request_builder = request_builder.query(&query);
-    }
-
-    if let Some(headers) = self.headers {
-      for (header, header_value) in headers.iter() {
-        request_builder =
-          request_builder.header(HeaderName::from_bytes(header.as_bytes())?, header_value);
-      }
-    }
-
-    if let Some(timeout) = self.timeout {
-      request_builder = request_builder.timeout(Duration::from_secs(timeout));
-    }
-
-    let response = if let Some(body) = self.body {
-      match body {
-        Body::Bytes(data) => request_builder.body(Bytes::from(data)).send().await?,
-        Body::Text(text) => request_builder.body(Bytes::from(text)).send().await?,
-        Body::Json(json) => request_builder.json(&json).send().await?,
-        Body::Form(form_body) => {
-          let mut form = Vec::new();
-          for (name, part) in form_body.0 {
-            match part {
-              FormPart::Bytes(bytes) => form.push((name, serde_json::to_string(&bytes)?)),
-              FormPart::File(file_path) => form.push((name, serde_json::to_string(&file_path)?)),
-              FormPart::Text(text) => form.push((name, text)),
-            }
-          }
-          request_builder.form(&form).send().await?
-        }
-      }
-    } else {
-      request_builder.send().await?
-    };
-
-    let response = response.error_for_status()?;
-    Ok(Response(
-      self.response_type.unwrap_or(ResponseType::Json),
-      response,
-    ))
   }
 }
 

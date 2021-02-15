@@ -96,7 +96,7 @@ pub async fn make_request<D: ApplicationDispatcherExt>(
         .get(&client_id)
         .ok_or(crate::Error::HttpClientNotInitialized)?
         .clone();
-      let response = options.send(&client).await?;
+      let response = client.send(options).await?;
       Ok(response.read().await?)
     },
     callback,

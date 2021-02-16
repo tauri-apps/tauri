@@ -1,40 +1,53 @@
 <!DOCTYPE html>
 <html>
-  <body>
-    <div id="window-label"></div>
-    <div id="container"></div>
-    <div id="response"></div>
 
-    <script>
-      var windowLabel = window.__TAURI__.currentWindow.label;
-      var windowLabelContainer = document.getElementById("window-label");
-      windowLabelContainer.innerHTML =
-        "This is the " + windowLabel + " window.";
+<body>
+  <div id="window-label"></div>
+  <div id="container"></div>
+  <div id="response"></div>
 
-      var responseContainer = document.getElementById("response");
-      window.__TAURI__.event.listen(
-        "window://" + windowLabel,
-        function (event) {
-          responseContainer.innerHTML = "Got " + JSON.stringify(event);
-        }
-      );
+  <script>
+    var windowLabel = window.__TAURI__.window.getCurrentWindow().label;
+    var windowLabelContainer = document.getElementById("window-label");
+    windowLabelContainer.innerHTML =
+      "This is the " + windowLabel + " window.";
 
-      var container = document.getElementById("container");
-      for (var index in window.__TAURI__.windows) {
-        const label = window.__TAURI__.windows[index].label;
-        if (label === windowLabel) {
-          continue;
-        }
-        const button = document.createElement("button");
-        button.innerHTML = "Send message to " + label;
-        button.addEventListener("click", function () {
-          window.__TAURI__.event.emit(
-            "window://" + label,
-            "message from " + windowLabel
-          );
-        });
-        container.appendChild(button);
+    // global listener
+    window.__TAURI__.event.listen("clicked", function (event) {
+      responseContainer.innerHTML += "Got " + JSON.stringify(event) + " on global listener<br><br>";
+    })
+
+    var responseContainer = document.getElementById("response");
+    var thisTauriWindow = window.__TAURI__.window.getTauriWindow()
+    // listener tied to this window
+    thisTauriWindow.listen("clicked", function (event) {
+      responseContainer.innerHTML += "Got " + JSON.stringify(event) + " on window listener<br><br>";
+    });
+
+    var container = document.getElementById("container");
+
+    var button = document.createElement("button");
+    button.innerHTML = "Send global message";
+    button.addEventListener("click", function () {
+      // emit to all windows
+      window.__TAURI__.event.emit("clicked", "message from " + windowLabel);
+    });
+    container.appendChild(button);
+
+    for (var index in window.__TAURI__.window.getWindows()) {
+      var label = window.__TAURI__.window.getWindows()[index].label;
+      if (label === windowLabel) {
+        continue;
       }
-    </script>
-  </body>
+      var tauriWindow = window.__TAURI__.window.getTauriWindow(label)
+      var button = document.createElement("button");
+      button.innerHTML = "Send message to " + label;
+      button.addEventListener("click", function () {
+        tauriWindow.emit("clicked", "message from " + windowLabel);
+      });
+      container.appendChild(button);
+    }
+  </script>
+</body>
+
 </html>

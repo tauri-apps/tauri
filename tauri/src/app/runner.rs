@@ -325,7 +325,7 @@ fn build_webview<A: ApplicationExt + 'static>(
     let dispatcher = webview_application.dispatcher(&window);
     dispatchers.insert(
       window_config.label.to_string(),
-      WebviewDispatcher::new(dispatcher),
+      WebviewDispatcher::new(dispatcher, window_config.label.to_string()),
     );
     window_refs.push((window_config, window));
   }
@@ -395,8 +395,8 @@ fn build_webview<A: ApplicationExt + 'static>(
         .initialization_script(&initialization_script)
         .initialization_script(&format!(
           r#"
-              window.__TAURI__.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
-              window.__TAURI__.currentWindow = {{ label: "{current_window_label}" }}
+              window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
+              window.__TAURI__.__currentWindow = {{ label: "{current_window_label}" }}
             "#,
           window_labels_array =
             serde_json::to_string(&dispatchers.keys().collect::<Vec<&String>>()).unwrap(),

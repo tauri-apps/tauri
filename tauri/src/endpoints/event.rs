@@ -5,15 +5,18 @@ use serde_json::Value as JsonValue;
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
-  /// The event listen API.
+  /// Listen to an event.
   Listen {
     event: String,
     handler: String,
     once: bool,
   },
-  /// The event emit API.
+  /// Emit an event to the webview associated with the given window.
+  /// If the window_label is omitted, the event will be triggered on all listeners.
+  #[serde(rename_all = "camelCase")]
   Emit {
     event: String,
+    window_label: Option<String>,
     payload: Option<String>,
   },
 }
@@ -23,30 +26,37 @@ impl Cmd {
     self,
     webview_manager: &crate::WebviewManager<D>,
   ) -> crate::Result<JsonValue> {
+    #[cfg(not(event))]
+    return Err(crate::Error::ApiNotAllowlisted("event".to_string()));
+    #[cfg(event)]
     match self {
       Self::Listen {
         event,
         handler,
         once,
       } => {
-        #[cfg(event)]
-        {
-          let js_string = listen_fn(event, handler, once)?;
-          webview_manager.current_webview()?.eval(&js_string);
-          Ok(JsonValue::Null)
-        }
-        #[cfg(not(event))]
-        Err(crate::Error::ApiNotAllowlisted("event".to_string()))
+        let js_string = listen_fn(event, handler, once)?;
+        webview_manager.current_webview()?.eval(&js_string);
+        Ok(JsonValue::Null)
       }
-      Self::Emit { event, payload } => {
-        // TODO emit to optional window
-        #[cfg(event)]
-        {
-          webview_manager.current_webview()?.on_event(event, payload);
-          Ok(JsonValue::Null)
+      Self::Emit {
+        event,
+        window_label,
+        payload,
+      } => {
+        if let Some(label) = window_label {
+          let dispatcher = webview_manager.get_webview(&label)?;
+          // dispatch the event to Rust listeners
+          dispatcher.on_event(event.to_string(), payload.clone());
+          // dispatch the event to JS listeners
+          dispatcher.emit(event, payload)?;
+        } else {
+          // dispatch the event to Rust listeners
+          webview_manager.on_event(event.to_string(), payload.clone());
+          // dispatch the event to JS listeners
+          webview_manager.emit(event, payload)?;
         }
-        #[cfg(not(event))]
-        Err(crate::Error::ApiNotAllowlisted("event".to_string()))
+        Ok(JsonValue::Null)
       }
     }
   }

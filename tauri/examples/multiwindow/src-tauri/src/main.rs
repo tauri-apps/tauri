@@ -10,13 +10,15 @@ struct Context;
 fn main() {
   tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
     .setup(|webview_manager| async move {
+      if webview_manager.current_window_label() == "Main" {
+        webview_manager.listen("clicked", move |_| {
+          println!("got 'clicked' event on global channel");
+        });
+      }
       let current_webview = webview_manager.current_webview().unwrap().clone();
-      let current_webview_ = current_webview.clone();
-      let event_name = format!("window://{}", webview_manager.current_window_label());
-      current_webview.listen(event_name.clone(), move |msg| {
-        current_webview_
-          .emit(&event_name, msg)
-          .expect("failed to emit");
+      let label = webview_manager.current_window_label().to_string();
+      current_webview.listen("clicked", move |_| {
+        println!("got 'clicked' event on window '{}'", label)
       });
     })
     .build()

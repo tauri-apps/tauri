@@ -19,7 +19,7 @@ struct Context;
 fn main() {
   tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
     .setup(|webview_manager| async move {
-      let dispatcher = webview_manager.current_webview().unwrap();
+      let dispatcher = webview_manager.current_webview().await.unwrap();
       let dispatcher_ = dispatcher.clone();
       dispatcher.listen("js-event", move |msg| {
         println!("got js-event with message '{:?}'", msg);

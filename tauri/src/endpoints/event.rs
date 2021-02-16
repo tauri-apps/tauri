@@ -36,7 +36,7 @@ impl Cmd {
         once,
       } => {
         let js_string = listen_fn(event, handler, once)?;
-        webview_manager.current_webview()?.eval(&js_string);
+        webview_manager.current_webview().await?.eval(&js_string)?;
         Ok(JsonValue::Null)
       }
       Self::Emit {
@@ -45,7 +45,7 @@ impl Cmd {
         payload,
       } => {
         if let Some(label) = window_label {
-          let dispatcher = webview_manager.get_webview(&label)?;
+          let dispatcher = webview_manager.get_webview(&label).await?;
           // dispatch the event to Rust listeners
           dispatcher.on_event(event.to_string(), payload.clone());
           // dispatch the event to JS listeners
@@ -54,7 +54,7 @@ impl Cmd {
           // dispatch the event to Rust listeners
           webview_manager.on_event(event.to_string(), payload.clone());
           // dispatch the event to JS listeners
-          webview_manager.emit(event, payload)?;
+          webview_manager.emit(event, payload).await?;
         }
         Ok(JsonValue::Null)
       }

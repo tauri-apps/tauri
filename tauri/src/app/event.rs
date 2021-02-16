@@ -87,7 +87,7 @@ pub fn emit<D: ApplicationDispatcherExt, S: Serialize>(
     event.as_ref(),
     js_payload,
     salt
-  ));
+  ))?;
 
   Ok(())
 }

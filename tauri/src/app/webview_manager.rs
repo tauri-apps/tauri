@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
-use super::{ApplicationDispatcherExt, Icon, Message};
+use super::{ApplicationDispatcherExt, Icon};
+use crate::async_runtime::Mutex;
 
 use serde::Serialize;
 
@@ -48,164 +49,144 @@ impl<A: ApplicationDispatcherExt> WebviewDispatcher<A> {
   }
 
   /// Evaluates a JS script.
-  pub fn eval(&self, js: &str) {
-    self
-      .dispatcher
-      .send_message(Message::EvalScript(js.to_string()))
+  pub fn eval(&self, js: &str) -> crate::Result<()> {
+    self.dispatcher.eval_script(js)
   }
 
   /// Updates the window resizable flag.
-  pub fn set_resizable(&self, resizable: bool) {
-    self
-      .dispatcher
-      .send_message(Message::SetResizable(resizable))
+  pub fn set_resizable(&self, resizable: bool) -> crate::Result<()> {
+    self.dispatcher.set_resizable(resizable)
   }
 
   /// Updates the window title.
-  pub fn set_title(&self, title: &str) {
-    self
-      .dispatcher
-      .send_message(Message::SetTitle(title.to_string()))
+  pub fn set_title(&self, title: &str) -> crate::Result<()> {
+    self.dispatcher.set_title(title.to_string())
   }
 
   /// Maximizes the window.
-  pub fn maximize(&self) {
-    self.dispatcher.send_message(Message::Maximize)
+  pub fn maximize(&self) -> crate::Result<()> {
+    self.dispatcher.maximize()
   }
 
   /// Unmaximizes the window.
-  pub fn unmaximize(&self) {
-    self.dispatcher.send_message(Message::Unmaximize)
+  pub fn unmaximize(&self) -> crate::Result<()> {
+    self.dispatcher.unmaximize()
   }
 
   /// Minimizes the window.
-  pub fn minimize(&self) {
-    self.dispatcher.send_message(Message::Minimize)
+  pub fn minimize(&self) -> crate::Result<()> {
+    self.dispatcher.minimize()
   }
 
   /// Unminimizes the window.
-  pub fn unminimize(&self) {
-    self.dispatcher.send_message(Message::Unminimize)
+  pub fn unminimize(&self) -> crate::Result<()> {
+    self.dispatcher.unminimize()
   }
 
   /// Sets the window visibility to true.
-  pub fn show(&self) {
-    self.dispatcher.send_message(Message::Show)
+  pub fn show(&self) -> crate::Result<()> {
+    self.dispatcher.show()
   }
 
   /// Sets the window visibility to false.
-  pub fn hide(&self) {
-    self.dispatcher.send_message(Message::Hide)
+  pub fn hide(&self) -> crate::Result<()> {
+    self.dispatcher.hide()
   }
 
   /// Sets the window transparent flag.
-  pub fn set_transparent(&self, transparent: bool) {
-    self
-      .dispatcher
-      .send_message(Message::SetTransparent(transparent))
+  pub fn set_transparent(&self, transparent: bool) -> crate::Result<()> {
+    self.dispatcher.set_transparent(transparent)
   }
 
   /// Whether the window should have borders and bars.
-  pub fn set_decorations(&self, decorations: bool) {
-    self
-      .dispatcher
-      .send_message(Message::SetDecorations(decorations))
+  pub fn set_decorations(&self, decorations: bool) -> crate::Result<()> {
+    self.dispatcher.set_decorations(decorations)
   }
 
   /// Whether the window should always be on top of other windows.
-  pub fn set_always_on_top(&self, always_on_top: bool) {
-    self
-      .dispatcher
-      .send_message(Message::SetAlwaysOnTop(always_on_top))
+  pub fn set_always_on_top(&self, always_on_top: bool) -> crate::Result<()> {
+    self.dispatcher.set_always_on_top(always_on_top)
   }
 
   /// Sets the window width.
-  pub fn set_width(&self, width: impl Into<f64>) {
-    self
-      .dispatcher
-      .send_message(Message::SetWidth(width.into()))
+  pub fn set_width(&self, width: impl Into<f64>) -> crate::Result<()> {
+    self.dispatcher.set_width(width.into())
   }
 
   /// Sets the window height.
-  pub fn set_height(&self, height: impl Into<f64>) {
-    self
-      .dispatcher
-      .send_message(Message::SetHeight(height.into()))
+  pub fn set_height(&self, height: impl Into<f64>) -> crate::Result<()> {
+    self.dispatcher.set_height(height.into())
   }
 
   /// Resizes the window.
-  pub fn resize(&self, width: impl Into<f64>, height: impl Into<f64>) {
-    self.dispatcher.send_message(Message::Resize {
-      width: width.into(),
-      height: height.into(),
-    })
+  pub fn resize(&self, width: impl Into<f64>, height: impl Into<f64>) -> crate::Result<()> {
+    self.dispatcher.resize(width.into(), height.into())
   }
 
   /// Sets the window min size.
-  pub fn set_min_size(&self, min_width: impl Into<f64>, min_height: impl Into<f64>) {
-    self.dispatcher.send_message(Message::SetMinSize {
-      min_width: min_width.into(),
-      min_height: min_height.into(),
-    })
+  pub fn set_min_size(
+    &self,
+    min_width: impl Into<f64>,
+    min_height: impl Into<f64>,
+  ) -> crate::Result<()> {
+    self
+      .dispatcher
+      .set_min_size(min_width.into(), min_height.into())
   }
 
   /// Sets the window max size.
-  pub fn set_max_size(&self, max_width: impl Into<f64>, max_height: impl Into<f64>) {
-    self.dispatcher.send_message(Message::SetMaxSize {
-      max_width: max_width.into(),
-      max_height: max_height.into(),
-    })
+  pub fn set_max_size(
+    &self,
+    max_width: impl Into<f64>,
+    max_height: impl Into<f64>,
+  ) -> crate::Result<()> {
+    self
+      .dispatcher
+      .set_max_size(max_width.into(), max_height.into())
   }
 
   /// Sets the window x position.
-  pub fn set_x(&self, x: impl Into<f64>) {
-    self.dispatcher.send_message(Message::SetX(x.into()))
+  pub fn set_x(&self, x: impl Into<f64>) -> crate::Result<()> {
+    self.dispatcher.set_x(x.into())
   }
 
   /// Sets the window y position.
-  pub fn set_y(&self, y: impl Into<f64>) {
-    self.dispatcher.send_message(Message::SetY(y.into()))
+  pub fn set_y(&self, y: impl Into<f64>) -> crate::Result<()> {
+    self.dispatcher.set_y(y.into())
   }
 
   /// Sets the window position.
-  pub fn set_position(&self, x: impl Into<f64>, y: impl Into<f64>) {
-    self.dispatcher.send_message(Message::SetPosition {
-      x: x.into(),
-      y: y.into(),
-    })
+  pub fn set_position(&self, x: impl Into<f64>, y: impl Into<f64>) -> crate::Result<()> {
+    self.dispatcher.set_position(x.into(), y.into())
   }
 
   /// Sets the window fullscreen state.
-  pub fn set_fullscreen(&self, fullscreen: bool) {
-    self
-      .dispatcher
-      .send_message(Message::SetFullscreen(fullscreen))
+  pub fn set_fullscreen(&self, fullscreen: bool) -> crate::Result<()> {
+    self.dispatcher.set_fullscreen(fullscreen)
   }
 
   /// Sets the window icon.
-  pub fn set_icon(&self, icon: Icon) {
-    self.dispatcher.send_message(Message::SetIcon(icon))
+  pub fn set_icon(&self, icon: Icon) -> crate::Result<()> {
+    self.dispatcher.set_icon(icon)
   }
 }
 
 /// The webview manager.
 #[derive(Clone)]
 pub struct WebviewManager<A: Clone> {
-  dispatchers: HashMap<String, WebviewDispatcher<A>>,
+  dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A>>>>,
   current_webview_window_label: String,
 }
 
 impl<A: ApplicationDispatcherExt> WebviewManager<A> {
-  pub(crate) fn new(dispatchers: HashMap<String, WebviewDispatcher<A>>, label: String) -> Self {
+  pub(crate) fn new(
+    dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A>>>>,
+    label: String,
+  ) -> Self {
     Self {
       dispatchers,
       current_webview_window_label: label,
     }
-  }
-
-  /// Gets the map of the current webviews.
-  pub fn webviews(&self) -> &HashMap<String, WebviewDispatcher<A>> {
-    &self.dispatchers
   }
 
   /// Returns the label of the window associated with the current context.
@@ -214,16 +195,19 @@ impl<A: ApplicationDispatcherExt> WebviewManager<A> {
   }
 
   /// Gets the webview associated with the current context.
-  pub fn current_webview(&self) -> crate::Result<&WebviewDispatcher<A>> {
-    self.get_webview(&self.current_webview_window_label)
+  pub async fn current_webview(&self) -> crate::Result<WebviewDispatcher<A>> {
+    self.get_webview(&self.current_webview_window_label).await
   }
 
   /// Gets the webview associated with the given window label.
-  pub fn get_webview(&self, window_label: &str) -> crate::Result<&WebviewDispatcher<A>> {
+  pub async fn get_webview(&self, window_label: &str) -> crate::Result<WebviewDispatcher<A>> {
     self
       .dispatchers
+      .lock()
+      .await
       .get(window_label)
       .ok_or(crate::Error::WebviewNotFound)
+      .map(|d| d.clone())
   }
 
   /// Listen to a global event.
@@ -237,12 +221,12 @@ impl<A: ApplicationDispatcherExt> WebviewManager<A> {
   }
 
   /// Emits an event to all webviews.
-  pub fn emit<S: Serialize + Clone>(
+  pub async fn emit<S: Serialize + Clone>(
     &self,
     event: impl AsRef<str>,
     payload: Option<S>,
   ) -> crate::Result<()> {
-    for dispatcher in self.dispatchers.values() {
+    for dispatcher in self.dispatchers.lock().await.values() {
       super::event::emit(&dispatcher, event.as_ref(), payload.clone())?;
     }
     Ok(())

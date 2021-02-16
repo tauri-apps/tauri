@@ -10,7 +10,7 @@ mod webview_manager;
 
 pub use webview::{
   wry::WryApplication, ApplicationDispatcherExt, ApplicationExt, Callback, Icon, Message,
-  WebviewBuilderExt, WindowBuilderExt,
+  WebviewBuilderExt,
 };
 pub use webview_manager::{WebviewDispatcher, WebviewManager};
 

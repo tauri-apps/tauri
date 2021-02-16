@@ -13,10 +13,10 @@ use crate::{
   ApplicationExt, WebviewBuilderExt,
 };
 
-use super::{App, ApplicationDispatcherExt, WebviewDispatcher, WebviewManager, WindowBuilderExt};
+use super::{App, ApplicationDispatcherExt, WebviewDispatcher, WebviewManager};
 #[cfg(embedded_server)]
 use crate::api::tcp::{get_available_port, port_is_available};
-use crate::app::Context;
+use crate::{app::Context, async_runtime::Mutex};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -287,11 +287,15 @@ fn build_webview<A: ApplicationExt + 'static>(
 
   let mut webview_application = A::new()?;
 
-  let mut window_refs = Vec::new();
-  let mut dispatchers = HashMap::new();
+  let dispatchers = Arc::new(Mutex::new(HashMap::new()));
+  let mut window_labels = Vec::new();
+
+  for window_config in &application.context.config.tauri.windows {
+    window_labels.push(window_config.label.to_string());
+  }
 
   for window_config in application.context.config.tauri.windows.clone() {
-    let mut window = A::WindowBuilder::new()
+    let mut webview = A::WebviewBuilder::new()
       .title(window_config.title.to_string())
       .width(window_config.width)
       .height(window_config.height)
@@ -303,34 +307,24 @@ fn build_webview<A: ApplicationExt + 'static>(
       .transparent(window_config.transparent)
       .always_on_top(window_config.always_on_top);
     if let Some(min_width) = window_config.min_width {
-      window = window.min_width(min_width);
+      webview = webview.min_width(min_width);
     }
     if let Some(min_height) = window_config.min_height {
-      window = window.min_height(min_height);
+      webview = webview.min_height(min_height);
     }
     if let Some(max_width) = window_config.max_width {
-      window = window.max_width(max_width);
+      webview = webview.max_width(max_width);
     }
     if let Some(max_height) = window_config.max_height {
-      window = window.max_height(max_height);
+      webview = webview.max_height(max_height);
     }
     if let Some(x) = window_config.x {
-      window = window.x(x);
+      webview = webview.x(x);
     }
     if let Some(y) = window_config.y {
-      window = window.y(y);
+      webview = webview.y(y);
     }
 
-    let window = webview_application.create_window(window)?;
-    let dispatcher = webview_application.dispatcher(&window);
-    dispatchers.insert(
-      window_config.label.to_string(),
-      WebviewDispatcher::new(dispatcher, window_config.label.to_string()),
-    );
-    window_refs.push((window_config, window));
-  }
-
-  for (window_config, window) in window_refs {
     let webview_manager = WebviewManager::new(dispatchers.clone(), window_config.label.to_string());
 
     let application = application.clone();
@@ -371,9 +365,11 @@ fn build_webview<A: ApplicationExt + 'static>(
             }
           }
           Err(e) => {
-            if let Ok(dispatcher) = webview_manager.current_webview() {
+            if let Ok(dispatcher) =
+              crate::async_runtime::block_on(webview_manager.current_webview())
+            {
               let error: crate::Error = e.into();
-              dispatcher.eval(&format!(
+              let _ = dispatcher.eval(&format!(
                 r#"console.error({})"#,
                 JsonValue::String(error.to_string())
               ));
@@ -389,9 +385,7 @@ fn build_webview<A: ApplicationExt + 'static>(
       WindowUrl::Custom(url) => url.to_string(),
     };
 
-    webview_application.create_webview(
-      A::WebviewBuilder::new()
-        .url(webview_url)
+    webview = webview.url(webview_url)
         .initialization_script(&initialization_script)
         .initialization_script(&format!(
           r#"
@@ -399,12 +393,15 @@ fn build_webview<A: ApplicationExt + 'static>(
               window.__TAURI__.__currentWindow = {{ label: "{current_window_label}" }}
             "#,
           window_labels_array =
-            serde_json::to_string(&dispatchers.keys().collect::<Vec<&String>>()).unwrap(),
+            serde_json::to_string(&window_labels).unwrap(),
           current_window_label = window_config.label,
-        )),
-      window,
-      vec![tauri_invoke_handler],
-    )?;
+        ));
+
+    let dispatcher = webview_application.create_webview(webview, vec![tauri_invoke_handler])?;
+    crate::async_runtime::block_on(dispatchers.lock()).insert(
+      window_config.label.to_string(),
+      WebviewDispatcher::new(dispatcher, window_config.label.to_string()),
+    );
 
     crate::async_runtime::spawn(async move {
       crate::plugin::created(A::plugin_store(), &webview_manager).await
@@ -437,8 +434,8 @@ async fn execute_promise<
     Ok(callback_string) => callback_string,
     Err(e) => format_callback(error_callback, e.to_string()),
   };
-  if let Ok(dispatcher) = webview_manager.current_webview() {
-    dispatcher.eval(callback_string.as_str());
+  if let Ok(dispatcher) = webview_manager.current_webview().await {
+    let _ = dispatcher.eval(callback_string.as_str());
   }
 }
 

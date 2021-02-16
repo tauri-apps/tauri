@@ -80,10 +80,19 @@ pub enum Message {
   SetIcon(Icon),
 }
 
-/// The window builder.
-pub trait WindowBuilderExt: Sized {
-  /// Initializes a new window builder.
+/// The webview builder.
+pub trait WebviewBuilderExt: Sized {
+  /// The webview object that this builder creates.
+  type Webview;
+
+  /// Initializes a new webview builder.
   fn new() -> Self;
+
+  /// Sets the webview url.
+  fn url(self, url: String) -> Self;
+
+  /// Sets the init script.
+  fn initialization_script(self, init: &str) -> Self;
 
   /// The horizontal position of the window's top left corner.
   fn x(self, x: f64) -> Self;
@@ -133,21 +142,6 @@ pub trait WindowBuilderExt: Sized {
 
   /// Whether the window should always be on top of other windows.
   fn always_on_top(self, always_on_top: bool) -> Self;
-}
-
-/// The webview builder.
-pub trait WebviewBuilderExt: Sized {
-  /// The webview object that this builder creates.
-  type Webview;
-
-  /// Initializes a new webview builder.
-  fn new() -> Self;
-
-  /// Sets the webview url.
-  fn url(self, url: String) -> Self;
-
-  /// Sets the init script.
-  fn initialization_script(self, init: &str) -> Self;
 
   /// Builds the webview instance.
   fn finish(self) -> crate::Result<Self::Webview>;
@@ -158,13 +152,76 @@ pub struct Callback<D> {
   /// Function name to bind.
   pub name: String,
   /// Function callback handler.
-  pub function: Box<dyn FnMut(&D, i32, Vec<String>) -> i32 + Send>,
+  pub function: Box<dyn FnMut(D, i32, Vec<String>) -> i32 + Send>,
 }
 
 /// Webview dispatcher. A thread-safe handle to the webview API.
 pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
-  /// Sends a message to the window.
-  fn send_message(&self, message: Message);
+  /// Updates the window resizable flag.
+  fn set_resizable(&self, resizable: bool) -> crate::Result<()>;
+
+  /// Updates the window title.
+  fn set_title<S: Into<String>>(&self, title: S) -> crate::Result<()>;
+
+  /// Maximizes the window.
+  fn maximize(&self) -> crate::Result<()>;
+
+  /// Unmaximizes the window.
+  fn unmaximize(&self) -> crate::Result<()>;
+
+  /// Minimizes the window.
+  fn minimize(&self) -> crate::Result<()>;
+
+  /// Unminimizes the window.
+  fn unminimize(&self) -> crate::Result<()>;
+
+  /// Shows the window.
+  fn show(&self) -> crate::Result<()>;
+
+  /// Hides the window.
+  fn hide(&self) -> crate::Result<()>;
+
+  /// Updates the transparency flag.
+  fn set_transparent(&self, resizable: bool) -> crate::Result<()>;
+
+  /// Updates the hasDecorations flag.
+  fn set_decorations(&self, decorations: bool) -> crate::Result<()>;
+
+  /// Updates the window alwaysOnTop flag.
+  fn set_always_on_top(&self, always_on_top: bool) -> crate::Result<()>;
+
+  /// Updates the window width.
+  fn set_width(&self, width: f64) -> crate::Result<()>;
+
+  /// Updates the window height.
+  fn set_height(&self, height: f64) -> crate::Result<()>;
+
+  /// Resizes the window.
+  fn resize(&self, width: f64, height: f64) -> crate::Result<()>;
+
+  /// Updates the window min size.
+  fn set_min_size(&self, min_width: f64, min_height: f64) -> crate::Result<()>;
+
+  /// Updates the window max size.
+  fn set_max_size(&self, max_width: f64, max_height: f64) -> crate::Result<()>;
+
+  /// Updates the X position.
+  fn set_x(&self, x: f64) -> crate::Result<()>;
+
+  /// Updates the Y position.
+  fn set_y(&self, y: f64) -> crate::Result<()>;
+
+  /// Updates the window position.
+  fn set_position(&self, x: f64, y: f64) -> crate::Result<()>;
+
+  /// Updates the window fullscreen state.
+  fn set_fullscreen(&self, fullscreen: bool) -> crate::Result<()>;
+
+  /// Updates the window icon.
+  fn set_icon(&self, icon: Icon) -> crate::Result<()>;
+
+  /// Evals a script on the webview.
+  fn eval_script<S: Into<String>>(&self, script: S) -> crate::Result<()>;
 }
 
 /// The application interface.
@@ -172,10 +229,6 @@ pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
 pub trait ApplicationExt: Sized {
   /// The webview builder.
   type WebviewBuilder: WebviewBuilderExt;
-  /// The window builder.
-  type WindowBuilder: WindowBuilderExt;
-  /// The window type.
-  type Window;
   /// The message dispatcher.
   type Dispatcher: ApplicationDispatcherExt;
 
@@ -185,19 +238,12 @@ pub trait ApplicationExt: Sized {
   /// Creates a new application.
   fn new() -> crate::Result<Self>;
 
-  /// Gets the message dispatcher for the given window.
-  fn dispatcher(&self, window: &Self::Window) -> Self::Dispatcher;
-
-  /// Creates a new window.
-  fn create_window(&self, window_builder: Self::WindowBuilder) -> crate::Result<Self::Window>;
-
   /// Creates a new webview.
   fn create_webview(
     &mut self,
     webview_builder: Self::WebviewBuilder,
-    window: Self::Window,
     callbacks: Vec<Callback<Self::Dispatcher>>,
-  ) -> crate::Result<()>;
+  ) -> crate::Result<Self::Dispatcher>;
 
   /// Run the application.
   fn run(self);

@@ -19,18 +19,21 @@ pub enum Error {
   /// CLI config not set.
   #[error("CLI configuration not set on tauri.conf.json")]
   CliNotConfigured,
-  /// The HTTP response error.
-  #[error("HTTP Response Error: {0}")]
-  Response(attohttpc::StatusCode),
   /// The network error.
   #[error("Network Error: {0}")]
-  Network(#[from] attohttpc::Error),
+  Network(#[from] reqwest::Error),
   /// HTTP method error.
   #[error("{0}")]
   HttpMethod(#[from] http::method::InvalidMethod),
   /// Invalid HTTO header.
   #[error("{0}")]
-  HttpHeader(#[from] attohttpc::header::InvalidHeaderName),
+  HttpHeader(#[from] reqwest::header::InvalidHeaderName),
+  /// Failed to serialize header value as string.
+  #[error("failed to convert response header value to string")]
+  HttpHeaderToString(#[from] reqwest::header::ToStrError),
+  /// HTTP form to must be an object.
+  #[error("http form must be an object")]
+  InvalidHttpForm,
   /// Semver error.
   #[error("{0}")]
   Semver(#[from] semver::SemVerError),
@@ -44,6 +47,7 @@ pub enum Error {
   #[error("{0}")]
   Zip(#[from] zip::result::ZipError),
   /// Notification error.
+  #[cfg(feature = "notification")]
   #[error("{0}")]
   Notification(#[from] notify_rust::error::Error),
   /// failed to detect the current platform.
@@ -57,10 +61,4 @@ pub enum Error {
   #[cfg(feature = "global-shortcut")]
   #[error("shortcut error: {0}")]
   Shortcut(#[from] tauri_hotkey::Error),
-}
-
-impl From<attohttpc::StatusCode> for Error {
-  fn from(error: attohttpc::StatusCode) -> Self {
-    Self::Response(error)
-  }
 }

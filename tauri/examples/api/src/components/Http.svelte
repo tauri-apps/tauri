@@ -1,15 +1,15 @@
 <script>
-  import { request } from "@tauri-apps/api/http";
+  import { getClient, Body } from "@tauri-apps/api/http";
   let httpMethod = "GET";
   let httpUrl = "";
   let httpBody = "";
 
   export let onMessage;
 
-  function makeHttpRequest() {
+  async function makeHttpRequest() {
+    const client = await getClient()
     let method = httpMethod || "GET";
     let url = httpUrl || "";
-    let body = httpBody || "";
 
     const options = {
       url: url || "",
@@ -17,16 +17,15 @@
     };
 
     if (
-      (body.startsWith("{") && body.endsWith("}")) ||
-      (body.startsWith("[") && body.endsWith("]"))
+      (httpBody.startsWith("{") && httpBody.endsWith("}")) ||
+      (httpBody.startsWith("[") && httpBody.endsWith("]"))
     ) {
-      body = JSON.parse(body);
-    } else if (body.startsWith("/") || body.match(/\S:\//g)) {
-      options.bodyAsFile = true;
+      options.body = Body.json(JSON.parse(httpBody));
+    } else if (httpBody !== '') {
+      options.body = Body.text(httpBody)
     }
-    options.body = body;
 
-    request(options)
+    client.request(options)
       .then(onMessage)
       .catch(onMessage);
   }

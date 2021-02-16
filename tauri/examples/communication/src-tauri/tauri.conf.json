@@ -56,12 +56,10 @@
     "allowlist": {
       "all": true
     },
-    "windows": [
-      {
-        "title": "Tauri API Validation",
-        "resizable": false
-      }
-    ],
+    "windows": [{
+      "title": "Tauri API Validation",
+      "resizable": true
+    }],
     "security": {
       "csp": "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
     }

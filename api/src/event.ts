@@ -13,13 +13,13 @@ export type EventCallback<T> = (event: Event<T>) => void
  * @param event the event name
  * @param handler the event handler callback
  */
-function listen<T>(
+async function listen<T>(
   event: string,
   handler: EventCallback<T>,
   once = false
-): void {
-  invoke({
-    module: 'Event',
+): Promise<void> {
+  await await invoke({
+    __tauriModule: 'Event',
     message: {
       cmd: 'listen',
       event,
@@ -35,9 +35,9 @@ function listen<T>(
  * @param event the event name
  * @param [payload] the event payload
  */
-function emit(event: string, payload?: string): void {
-  invoke({
-    module: 'Event',
+async function emit(event: string, payload?: string): Promise<void> {
+  await invoke({
+    __tauriModule: 'Event',
     message: {
       cmd: 'emit',
       event,

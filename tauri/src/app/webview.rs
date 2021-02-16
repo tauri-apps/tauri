@@ -2,12 +2,6 @@ pub mod wry;
 
 use crate::plugin::PluginStore;
 
-/// An event to be posted to the webview event loop.
-pub enum Event {
-  /// Run the given closure.
-  Run(crate::SyncTask),
-}
-
 /// A icon definition.
 pub enum Icon {
   /// Icon from file path.
@@ -21,9 +15,6 @@ pub enum Message {
   // webview messages
   /// Eval a script on the webview.
   EvalScript(String),
-  // custom messages
-  /// Custom event.
-  Event(Event),
   // window messages
   /// Updates the window resizable flag.
   SetResizable(bool),

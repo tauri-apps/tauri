@@ -1,42 +1,39 @@
 use serde::Deserialize;
+use serde_json::Value as JsonValue;
 
 /// The API descriptor.
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// The execute script API.
-  Execute {
-    command: String,
-    args: Vec<String>,
-    callback: String,
-    error: String,
-  },
+  Execute { command: String, args: Vec<String> },
   /// The open URL in browser API
   Open { uri: String },
 }
 
 impl Cmd {
-  pub async fn run<D: crate::ApplicationDispatcherExt + 'static>(
-    self,
-    webview_manager: &crate::WebviewManager<D>,
-  ) {
+  pub async fn run(self) -> crate::Result<JsonValue> {
     match self {
       Self::Execute {
-        command,
-        args,
-        callback,
-        error,
+        command: _,
+        args: _,
       } => {
         #[cfg(execute)]
-        crate::call(webview_manager, command, args, callback, error).await;
+        {
+          //TODO
+          Ok(JsonValue::Null)
+        }
         #[cfg(not(execute))]
-        super::throw_allowlist_error(webview_manager, "execute");
+        Err(crate::Error::ApiNotAllowlisted("execute".to_string()))
       }
       Self::Open { uri } => {
         #[cfg(open)]
-        open_browser(uri);
+        {
+          open_browser(uri);
+          Ok(JsonValue::Null)
+        }
         #[cfg(not(open))]
-        super::throw_allowlist_error(webview_manager, "open");
+        Err(crate::Error::ApiNotAllowlisted("open".to_string()))
       }
     }
   }

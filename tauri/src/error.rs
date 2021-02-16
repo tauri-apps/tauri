@@ -37,6 +37,12 @@ pub enum Error {
   /// Client with specified ID not found.
   #[error("http client dropped or not initialized")]
   HttpClientNotInitialized,
+  /// API not enabled by Tauri.
+  #[error("{0}")]
+  ApiNotEnabled(String),
+  /// API not whitelisted on tauri.conf.json
+  #[error("'{0}' not on the allowlist (https://tauri.studio/docs/api/config#tauri.allowlist)")]
+  ApiNotAllowlisted(String),
 }
 
 impl From<serde_json::Error> for Error {

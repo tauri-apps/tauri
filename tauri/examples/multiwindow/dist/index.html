@@ -1,36 +1,40 @@
 <!DOCTYPE html>
 <html>
+  <body>
+    <div id="window-label"></div>
+    <div id="container"></div>
+    <div id="response"></div>
 
-<body>
-  <div id="window-label"></div>
-  <div id="container"></div>
-  <div id="response"></div>
+    <script>
+      var windowLabel = window.__TAURI__.currentWindow.label;
+      var windowLabelContainer = document.getElementById("window-label");
+      windowLabelContainer.innerHTML =
+        "This is the " + windowLabel + " window.";
 
-  <script>
-    var windowLabel = window.__TAURI__.currentWindow.label
-    var windowLabelContainer = document.getElementById('window-label')
-    windowLabelContainer.innerHTML = 'This is the ' + windowLabel + ' window.'
+      var responseContainer = document.getElementById("response");
+      window.__TAURI__.event.listen(
+        "window://" + windowLabel,
+        function (event) {
+          responseContainer.innerHTML = "Got " + JSON.stringify(event);
+        }
+      );
 
-    var responseContainer = document.getElementById('response')
-    window.__TAURI__.event.listen('window://' + windowLabel, function (event) {
-      responseContainer.innerHTML = 'Got ' + JSON.stringify(event)
-    })
-
-    var container = document.getElementById('container')
-    for (var index in window.__TAURI__.windows) {
-      const label = window.__TAURI__.windows[index].label
-      if (label === windowLabel) {
-        continue;
+      var container = document.getElementById("container");
+      for (var index in window.__TAURI__.windows) {
+        const label = window.__TAURI__.windows[index].label;
+        if (label === windowLabel) {
+          continue;
+        }
+        const button = document.createElement("button");
+        button.innerHTML = "Send message to " + label;
+        button.addEventListener("click", function () {
+          window.__TAURI__.event.emit(
+            "window://" + label,
+            "message from " + windowLabel
+          );
+        });
+        container.appendChild(button);
       }
-      const button = document.createElement('button')
-      button.innerHTML = 'Send message to ' + label
-      button.addEventListener('click', function () {
-        window.__TAURI__.event.emit('window://' + label, 'message from ' + windowLabel)
-      })
-      container.appendChild(button)
-    }
-
-  </script>
-</body>
-
+    </script>
+  </body>
 </html>

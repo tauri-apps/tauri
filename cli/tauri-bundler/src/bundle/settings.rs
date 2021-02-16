@@ -290,7 +290,7 @@ impl CargoSettings {
     let mut toml_str = String::new();
     let mut toml_file = File::open(toml_path)?;
     toml_file.read_to_string(&mut toml_str)?;
-    toml::from_str(&toml_str).map_err(|e| e.into())
+    toml::from_str(&toml_str).map_err(Into::into)
   }
 }
 

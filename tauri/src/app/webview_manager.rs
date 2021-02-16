@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::{ApplicationDispatcherExt, Event, Icon, Message};
+use super::{ApplicationDispatcherExt, Icon, Message};
 
 use serde::Serialize;
 
@@ -11,10 +11,6 @@ pub struct WebviewDispatcher<A: Clone>(A);
 impl<A: ApplicationDispatcherExt> WebviewDispatcher<A> {
   pub(crate) fn new(dispatcher: A) -> Self {
     Self(dispatcher)
-  }
-
-  pub(crate) fn send_event(&self, event: Event) {
-    self.0.send_message(Message::Event(event))
   }
 
   /// Listen to an event.

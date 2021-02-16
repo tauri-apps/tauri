@@ -28,15 +28,6 @@ function uid(): string {
   )
 }
 
-/**
- * sends a synchronous command to the backend
- *
- * @param args
- */
-function invoke(args: any): void {
-  window.__TAURI_INVOKE_HANDLER__(JSON.stringify(args))
-}
-
 function transformCallback(
   callback?: (response: any) => void,
   once = false
@@ -59,13 +50,13 @@ function transformCallback(
 }
 
 /**
- * sends an asynchronous command to the backend
+ * sends a message to the backend
  *
  * @param args
  *
  * @return {Promise<T>} Promise resolving or rejecting to the backend response
  */
-async function promisified<T>(args: any): Promise<T> {
+async function invoke<T>(args: any): Promise<T> {
   return await new Promise((resolve, reject) => {
     const callback = transformCallback((e) => {
       resolve(e)
@@ -76,12 +67,12 @@ async function promisified<T>(args: any): Promise<T> {
       Reflect.deleteProperty(window, callback)
     }, true)
 
-    invoke({
+    window.__TAURI_INVOKE_HANDLER__(JSON.stringify({
       callback,
       error,
       ...args
-    })
+    }))
   })
 }
 
-export { invoke, transformCallback, promisified }
+export { transformCallback, invoke }

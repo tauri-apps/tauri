@@ -1,4 +1,4 @@
-import { invoke, promisified } from './tauri'
+import { invoke } from './tauri'
 
 export interface ClientOptions {
   maxRedirections: boolean
@@ -79,8 +79,8 @@ export class Client {
   /**
    * drops the client instance
    */
-  drop(): void {
-    invoke({
+  async drop(): Promise<void> {
+    await invoke({
       module: 'Http',
       message: {
         cmd: 'dropClient',
@@ -97,7 +97,7 @@ export class Client {
    * @return promise resolving to the response
    */
   async request<T>(options: HttpOptions): Promise<Response<T>> {
-    return await promisified({
+    return await invoke({
       module: 'Http',
       message: {
         cmd: 'httpRequest',
@@ -204,7 +204,7 @@ export class Client {
 }
 
 async function getClient(options?: ClientOptions): Promise<Client> {
-  return await promisified<number>({
+  return await invoke<number>({
     module: 'Http',
     message: {
       cmd: 'createClient',

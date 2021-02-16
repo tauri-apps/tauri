@@ -1,7 +1,7 @@
-use super::allowlist_error;
 use crate::{api::path::BaseDirectory, ApplicationDispatcherExt};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
 use tauri_api::{dir, file, path::resolve_path};
 
 use std::{fs, fs::File, io::Write, path::PathBuf};
@@ -33,67 +33,49 @@ pub enum Cmd {
   ReadTextFile {
     path: PathBuf,
     options: Option<FileOperationOptions>,
-    callback: String,
-    error: String,
   },
   /// The read binary file API.
   ReadBinaryFile {
     path: PathBuf,
     options: Option<FileOperationOptions>,
-    callback: String,
-    error: String,
   },
   /// The write file API.
   WriteFile {
     path: PathBuf,
     contents: String,
     options: Option<FileOperationOptions>,
-    callback: String,
-    error: String,
   },
   /// The write binary file API.
   WriteBinaryFile {
     path: PathBuf,
     contents: String,
     options: Option<FileOperationOptions>,
-    callback: String,
-    error: String,
   },
   /// The read dir API.
   ReadDir {
     path: PathBuf,
     options: Option<DirOperationOptions>,
-    callback: String,
-    error: String,
   },
   /// The copy file API.
   CopyFile {
     source: PathBuf,
     destination: PathBuf,
     options: Option<FileOperationOptions>,
-    callback: String,
-    error: String,
   },
   /// The create dir API.
   CreateDir {
     path: PathBuf,
     options: Option<DirOperationOptions>,
-    callback: String,
-    error: String,
   },
   /// The remove dir API.
   RemoveDir {
     path: PathBuf,
     options: Option<DirOperationOptions>,
-    callback: String,
-    error: String,
   },
   /// The remove file API.
   RemoveFile {
     path: PathBuf,
     options: Option<FileOperationOptions>,
-    callback: String,
-    error: String,
   },
   /// The rename file API.
   #[serde(rename_all = "camelCase")]
@@ -101,164 +83,116 @@ pub enum Cmd {
     old_path: PathBuf,
     new_path: PathBuf,
     options: Option<FileOperationOptions>,
-    callback: String,
-    error: String,
   },
   /// The resolve path API
   ResolvePath {
     path: String,
     directory: Option<BaseDirectory>,
-    callback: String,
-    error: String,
   },
 }
 
 impl Cmd {
-  pub async fn run<D: ApplicationDispatcherExt + 'static>(
-    self,
-    webview_manager: &crate::WebviewManager<D>,
-  ) {
+  pub async fn run(self) -> crate::Result<JsonValue> {
     match self {
-      Self::ReadTextFile {
-        path,
-        options,
-        callback,
-        error,
-      } => {
+      Self::ReadTextFile { path, options } => {
         #[cfg(read_text_file)]
-        read_text_file(webview_manager, path, options, callback, error).await;
+        return read_text_file(path, options)
+          .await
+          .and_then(super::to_value);
         #[cfg(not(read_text_file))]
-        allowlist_error(webview_manager, error, "readTextFile");
+        Err(crate::Error::ApiNotAllowlisted("readTextFile".to_string()))
       }
-      Self::ReadBinaryFile {
-        path,
-        options,
-        callback,
-        error,
-      } => {
+      Self::ReadBinaryFile { path, options } => {
         #[cfg(read_binary_file)]
-        read_binary_file(webview_manager, path, options, callback, error).await;
+        return read_binary_file(path, options)
+          .await
+          .and_then(super::to_value);
         #[cfg(not(read_binary_file))]
-        allowlist_error(webview_manager, error, "readBinaryFile");
+        Err(crate::Error::ApiNotAllowlisted(
+          "readBinaryFile".to_string(),
+        ))
       }
       Self::WriteFile {
         path,
         contents,
         options,
-        callback,
-        error,
       } => {
         #[cfg(write_file)]
-        write_file(webview_manager, path, contents, options, callback, error).await;
+        return write_file(path, contents, options)
+          .await
+          .and_then(super::to_value);
         #[cfg(not(write_file))]
-        allowlist_error(webview_manager, error, "writeFile");
+        Err(crate::Error::ApiNotAllowlisted("writeFile".to_string()))
       }
       Self::WriteBinaryFile {
         path,
         contents,
         options,
-        callback,
-        error,
       } => {
         #[cfg(write_binary_file)]
-        write_binary_file(webview_manager, path, contents, options, callback, error).await;
+        return write_binary_file(path, contents, options)
+          .await
+          .and_then(super::to_value);
         #[cfg(not(write_binary_file))]
-        allowlist_error(webview_manager, error, "writeBinaryFile");
+        Err(crate::Error::ApiNotAllowlisted(
+          "writeBinaryFile".to_string(),
+        ))
       }
-      Self::ReadDir {
-        path,
-        options,
-        callback,
-        error,
-      } => {
+      Self::ReadDir { path, options } => {
         #[cfg(read_dir)]
-        read_dir(webview_manager, path, options, callback, error).await;
+        return read_dir(path, options).await.and_then(super::to_value);
         #[cfg(not(read_dir))]
-        allowlist_error(webview_manager, error, "readDir");
+        Err(crate::Error::ApiNotAllowlisted("readDir".to_string()))
       }
       Self::CopyFile {
         source,
         destination,
         options,
-        callback,
-        error,
       } => {
         #[cfg(copy_file)]
-        copy_file(
-          webview_manager,
-          source,
-          destination,
-          options,
-          callback,
-          error,
-        )
-        .await;
+        return copy_file(source, destination, options)
+          .await
+          .and_then(super::to_value);
         #[cfg(not(copy_file))]
-        allowlist_error(webview_manager, error, "copyFile");
+        Err(crate::Error::ApiNotAllowlisted("copyFile".to_string()))
       }
-      Self::CreateDir {
-        path,
-        options,
-        callback,
-        error,
-      } => {
+      Self::CreateDir { path, options } => {
         #[cfg(create_dir)]
-        create_dir(webview_manager, path, options, callback, error).await;
+        return create_dir(path, options).await.and_then(super::to_value);
         #[cfg(not(create_dir))]
-        allowlist_error(webview_manager, error, "createDir");
+        Err(crate::Error::ApiNotAllowlisted("createDir".to_string()))
       }
-      Self::RemoveDir {
-        path,
-        options,
-        callback,
-        error,
-      } => {
+      Self::RemoveDir { path, options } => {
         #[cfg(remove_dir)]
-        remove_dir(webview_manager, path, options, callback, error).await;
+        return remove_dir(path, options).await.and_then(super::to_value);
         #[cfg(not(remove_dir))]
-        allowlist_error(webview_manager, error, "removeDir");
+        Err(crate::Error::ApiNotAllowlisted("removeDir".to_string()))
       }
-      Self::RemoveFile {
-        path,
-        options,
-        callback,
-        error,
-      } => {
+      Self::RemoveFile { path, options } => {
         #[cfg(remove_file)]
-        remove_file(webview_manager, path, options, callback, error).await;
+        return remove_file(path, options).await.and_then(super::to_value);
         #[cfg(not(remove_file))]
-        allowlist_error(webview_manager, error, "removeFile");
+        Err(crate::Error::ApiNotAllowlisted("removeFile".to_string()))
       }
       Self::RenameFile {
         old_path,
         new_path,
         options,
-        callback,
-        error,
       } => {
         #[cfg(rename_file)]
-        rename_file(
-          webview_manager,
-          old_path,
-          new_path,
-          options,
-          callback,
-          error,
-        )
-        .await;
+        return rename_file(old_path, new_path, options)
+          .await
+          .and_then(super::to_value);
         #[cfg(not(rename_file))]
-        allowlist_error(webview_manager, error, "renameFile");
+        Err(crate::Error::ApiNotAllowlisted("renameFile".to_string()))
       }
-      Self::ResolvePath {
-        path,
-        directory,
-        callback,
-        error,
-      } => {
+      Self::ResolvePath { path, directory } => {
         #[cfg(path_api)]
-        resolve_path_handler(webview_manager, path, directory, callback, error).await;
+        return resolve_path_handler(path, directory)
+          .await
+          .and_then(super::to_value);
         #[cfg(not(path_api))]
-        allowlist_error(webview_manager, error, "pathApi");
+        Err(crate::Error::ApiNotAllowlisted("pathApi".to_string()))
       }
     }
   }
@@ -266,280 +200,155 @@ impl Cmd {
 
 /// Reads a directory.
 #[cfg(read_dir)]
-pub async fn read_dir<D: ApplicationDispatcherExt>(
-  webview_manager: &crate::WebviewManager<D>,
+pub async fn read_dir(
   path: PathBuf,
   options: Option<DirOperationOptions>,
-  callback: String,
-  error: String,
-) {
-  crate::execute_promise(
-    webview_manager,
-    async move {
-      let (recursive, dir) = if let Some(options_value) = options {
-        (options_value.recursive, options_value.dir)
-      } else {
-        (false, None)
-      };
-      dir::read_dir(resolve_path(path, dir)?, recursive).map_err(crate::Error::FailedToExecuteApi)
-    },
-    callback,
-    error,
-  )
-  .await;
+) -> crate::Result<Vec<dir::DiskEntry>> {
+  let (recursive, dir) = if let Some(options_value) = options {
+    (options_value.recursive, options_value.dir)
+  } else {
+    (false, None)
+  };
+  dir::read_dir(resolve_path(path, dir)?, recursive).map_err(crate::Error::FailedToExecuteApi)
 }
 
 /// Copies a file.
 #[cfg(copy_file)]
-pub async fn copy_file<D: ApplicationDispatcherExt>(
-  webview_manager: &crate::WebviewManager<D>,
+pub async fn copy_file(
   source: PathBuf,
   destination: PathBuf,
   options: Option<FileOperationOptions>,
-  callback: String,
-  error: String,
-) {
-  crate::execute_promise(
-    webview_manager,
-    async move {
-      let (src, dest) = match options.and_then(|o| o.dir) {
-        Some(dir) => (
-          resolve_path(source, Some(dir.clone()))?,
-          resolve_path(destination, Some(dir))?,
-        ),
-        None => (source, destination),
-      };
-      fs::copy(src, dest)?;
-      crate::Result::Ok(())
-    },
-    callback,
-    error,
-  )
-  .await;
+) -> crate::Result<()> {
+  let (src, dest) = match options.and_then(|o| o.dir) {
+    Some(dir) => (
+      resolve_path(source, Some(dir.clone()))?,
+      resolve_path(destination, Some(dir))?,
+    ),
+    None => (source, destination),
+  };
+  fs::copy(src, dest)?;
+  Ok(())
 }
 
 /// Creates a directory.
 #[cfg(create_dir)]
-pub async fn create_dir<D: ApplicationDispatcherExt>(
-  webview_manager: &crate::WebviewManager<D>,
-  path: PathBuf,
-  options: Option<DirOperationOptions>,
-  callback: String,
-  error: String,
-) {
-  crate::execute_promise(
-    webview_manager,
-    async move {
-      let (recursive, dir) = if let Some(options_value) = options {
-        (options_value.recursive, options_value.dir)
-      } else {
-        (false, None)
-      };
-      let resolved_path = resolve_path(path, dir)?;
-      if recursive {
-        fs::create_dir_all(resolved_path)?;
-      } else {
-        fs::create_dir(resolved_path)?;
-      }
+pub async fn create_dir(path: PathBuf, options: Option<DirOperationOptions>) -> crate::Result<()> {
+  let (recursive, dir) = if let Some(options_value) = options {
+    (options_value.recursive, options_value.dir)
+  } else {
+    (false, None)
+  };
+  let resolved_path = resolve_path(path, dir)?;
+  if recursive {
+    fs::create_dir_all(resolved_path)?;
+  } else {
+    fs::create_dir(resolved_path)?;
+  }
 
-      crate::Result::Ok(())
-    },
-    callback,
-    error,
-  )
-  .await;
+  Ok(())
 }
 
 /// Removes a directory.
 #[cfg(remove_dir)]
-pub async fn remove_dir<D: ApplicationDispatcherExt>(
-  webview_manager: &crate::WebviewManager<D>,
-  path: PathBuf,
-  options: Option<DirOperationOptions>,
-  callback: String,
-  error: String,
-) {
-  crate::execute_promise(
-    webview_manager,
-    async move {
-      let (recursive, dir) = if let Some(options_value) = options {
-        (options_value.recursive, options_value.dir)
-      } else {
-        (false, None)
-      };
-      let resolved_path = resolve_path(path, dir)?;
-      if recursive {
-        fs::remove_dir_all(resolved_path)?;
-      } else {
-        fs::remove_dir(resolved_path)?;
-      }
+pub async fn remove_dir(path: PathBuf, options: Option<DirOperationOptions>) -> crate::Result<()> {
+  let (recursive, dir) = if let Some(options_value) = options {
+    (options_value.recursive, options_value.dir)
+  } else {
+    (false, None)
+  };
+  let resolved_path = resolve_path(path, dir)?;
+  if recursive {
+    fs::remove_dir_all(resolved_path)?;
+  } else {
+    fs::remove_dir(resolved_path)?;
+  }
 
-      crate::Result::Ok(())
-    },
-    callback,
-    error,
-  )
-  .await;
+  Ok(())
 }
 
 /// Removes a file
 #[cfg(remove_file)]
-pub async fn remove_file<D: ApplicationDispatcherExt>(
-  webview_manager: &crate::WebviewManager<D>,
+pub async fn remove_file(
   path: PathBuf,
   options: Option<FileOperationOptions>,
-  callback: String,
-  error: String,
-) {
-  crate::execute_promise(
-    webview_manager,
-    async move {
-      let resolved_path = resolve_path(path, options.and_then(|o| o.dir))?;
-      fs::remove_file(resolved_path)?;
-      crate::Result::Ok(())
-    },
-    callback,
-    error,
-  )
-  .await;
+) -> crate::Result<()> {
+  let resolved_path = resolve_path(path, options.and_then(|o| o.dir))?;
+  fs::remove_file(resolved_path)?;
+  Ok(())
 }
 
 /// Renames a file.
 #[cfg(rename_file)]
-pub async fn rename_file<D: ApplicationDispatcherExt>(
-  webview_manager: &crate::WebviewManager<D>,
+pub async fn rename_file(
   old_path: PathBuf,
   new_path: PathBuf,
   options: Option<FileOperationOptions>,
-  callback: String,
-  error: String,
-) {
-  crate::execute_promise(
-    webview_manager,
-    async move {
-      let (old, new) = match options.and_then(|o| o.dir) {
-        Some(dir) => (
-          resolve_path(old_path, Some(dir.clone()))?,
-          resolve_path(new_path, Some(dir))?,
-        ),
-        None => (old_path, new_path),
-      };
-      fs::rename(old, new).map_err(crate::Error::Io)
-    },
-    callback,
-    error,
-  )
-  .await;
+) -> crate::Result<()> {
+  let (old, new) = match options.and_then(|o| o.dir) {
+    Some(dir) => (
+      resolve_path(old_path, Some(dir.clone()))?,
+      resolve_path(new_path, Some(dir))?,
+    ),
+    None => (old_path, new_path),
+  };
+  fs::rename(old, new).map_err(crate::Error::Io)
 }
 
 /// Writes a text file.
 #[cfg(write_file)]
-pub async fn write_file<D: ApplicationDispatcherExt>(
-  webview_manager: &crate::WebviewManager<D>,
+pub async fn write_file(
   path: PathBuf,
   contents: String,
   options: Option<FileOperationOptions>,
-  callback: String,
-  error: String,
-) {
-  crate::execute_promise(
-    webview_manager,
-    async move {
-      File::create(resolve_path(path, options.and_then(|o| o.dir))?)
-        .map_err(crate::Error::Io)
-        .and_then(|mut f| f.write_all(contents.as_bytes()).map_err(|err| err.into()))?;
-      crate::Result::Ok(())
-    },
-    callback,
-    error,
-  )
-  .await;
+) -> crate::Result<()> {
+  File::create(resolve_path(path, options.and_then(|o| o.dir))?)
+    .map_err(crate::Error::Io)
+    .and_then(|mut f| f.write_all(contents.as_bytes()).map_err(|err| err.into()))?;
+  Ok(())
 }
 
 /// Writes a binary file.
 #[cfg(write_binary_file)]
-pub async fn write_binary_file<D: ApplicationDispatcherExt>(
-  webview_manager: &crate::WebviewManager<D>,
+pub async fn write_binary_file(
   path: PathBuf,
   contents: String,
   options: Option<FileOperationOptions>,
-  callback: String,
-  error: String,
-) {
-  crate::execute_promise(
-    webview_manager,
-    async move {
-      base64::decode(contents)
-        .map_err(crate::Error::Base64Decode)
-        .and_then(|c| {
-          File::create(resolve_path(path, options.and_then(|o| o.dir))?)
-            .map_err(|e| e.into())
-            .and_then(|mut f| f.write_all(&c).map_err(|err| err.into()))
-        })?;
-      crate::Result::Ok(())
-    },
-    callback,
-    error,
-  )
-  .await;
+) -> crate::Result<()> {
+  base64::decode(contents)
+    .map_err(crate::Error::Base64Decode)
+    .and_then(|c| {
+      File::create(resolve_path(path, options.and_then(|o| o.dir))?)
+        .map_err(Into::into)
+        .and_then(|mut f| f.write_all(&c).map_err(|err| err.into()))
+    })?;
+  Ok(())
 }
 
 /// Reads a text file.
 #[cfg(read_text_file)]
-pub async fn read_text_file<D: ApplicationDispatcherExt>(
-  webview_manager: &crate::WebviewManager<D>,
+pub async fn read_text_file(
   path: PathBuf,
   options: Option<FileOperationOptions>,
-  callback: String,
-  error: String,
-) {
-  crate::execute_promise(
-    webview_manager,
-    async move {
-      file::read_string(resolve_path(path, options.and_then(|o| o.dir))?)
-        .map_err(crate::Error::FailedToExecuteApi)
-    },
-    callback,
-    error,
-  )
-  .await;
+) -> crate::Result<String> {
+  file::read_string(resolve_path(path, options.and_then(|o| o.dir))?)
+    .map_err(crate::Error::FailedToExecuteApi)
 }
 
 /// Reads a binary file.
 #[cfg(read_binary_file)]
-pub async fn read_binary_file<D: ApplicationDispatcherExt>(
-  webview_manager: &crate::WebviewManager<D>,
+pub async fn read_binary_file(
   path: PathBuf,
   options: Option<FileOperationOptions>,
-  callback: String,
-  error: String,
-) {
-  crate::execute_promise(
-    webview_manager,
-    async move {
-      file::read_binary(resolve_path(path, options.and_then(|o| o.dir))?)
-        .map_err(crate::Error::FailedToExecuteApi)
-    },
-    callback,
-    error,
-  )
-  .await;
+) -> crate::Result<Vec<u8>> {
+  file::read_binary(resolve_path(path, options.and_then(|o| o.dir))?)
+    .map_err(crate::Error::FailedToExecuteApi)
 }
 
-pub async fn resolve_path_handler<D: ApplicationDispatcherExt>(
-  webview_manager: &crate::WebviewManager<D>,
+pub async fn resolve_path_handler(
   path: String,
   directory: Option<BaseDirectory>,
-  callback: String,
-  error: String,
-) {
-  crate::execute_promise(
-    webview_manager,
-    async move { resolve_path(path, directory).map_err(|e| e.into()) },
-    callback,
-    error,
-  )
-  .await
+) -> crate::Result<PathBuf> {
+  resolve_path(path, directory).map_err(Into::into)
 }
 
 // test webview functionality.
@@ -579,7 +388,7 @@ mod test {
 
     // setup the contents and the path.
     let contents = String::from(r#"Write to the Test file"#);
-    let path = String::from("test/fixture/test.txt");
+    let path = String::from("test/fixture/test.txt".to_string()));
 
     // clear the file by writing nothing to it.
     write(&path, "")?;

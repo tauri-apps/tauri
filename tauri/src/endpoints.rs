@@ -16,19 +16,11 @@ mod window;
 
 use crate::{app::Context, ApplicationDispatcherExt};
 
-use serde::Deserialize;
-use serde_json::Value;
+use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
 
 #[derive(Deserialize)]
-struct ModuleDto {
-  module: String,
-  callback: Option<String>,
-  error: Option<String>,
-  message: Value,
-}
-
-#[derive(Deserialize)]
-#[serde(tag = "module")]
+#[serde(tag = "module", content = "message")]
 enum Module {
   Fs(file_system::Cmd),
   Window(window::Cmd),
@@ -47,91 +39,36 @@ impl Module {
     self,
     webview_manager: &crate::WebviewManager<D>,
     context: &Context,
-  ) -> crate::Result<()> {
+  ) -> crate::Result<JsonValue> {
     match self {
-      Self::Fs(cmd) => cmd.run(webview_manager).await,
-      Self::Window(cmd) => cmd.run(webview_manager).await?,
-      Self::Shell(cmd) => cmd.run(webview_manager).await,
-      Self::Event(cmd) => cmd.run(webview_manager).await?,
-      Self::Internal(cmd) => cmd.run(webview_manager).await?,
-      Self::Dialog(cmd) => cmd.run(webview_manager).await?,
-      Self::Cli(cmd) => cmd.run(webview_manager, context).await,
-      Self::Notification(cmd) => cmd.run(webview_manager, context).await?,
-      Self::Http(cmd) => cmd.run(webview_manager).await,
-      Self::GlobalShortcut(cmd) => cmd.run(webview_manager).await?,
+      Self::Fs(cmd) => cmd.run().await,
+      Self::Window(cmd) => cmd.run(webview_manager).await,
+      Self::Shell(cmd) => cmd.run().await,
+      Self::Event(cmd) => cmd.run(webview_manager).await,
+      Self::Internal(cmd) => cmd.run().await,
+      Self::Dialog(cmd) => cmd.run().await,
+      Self::Cli(cmd) => cmd.run(context).await,
+      Self::Notification(cmd) => cmd.run(context).await,
+      Self::Http(cmd) => cmd.run().await,
+      Self::GlobalShortcut(cmd) => cmd.run(webview_manager).await,
     }
-    Ok(())
   }
 }
 
 pub(crate) async fn handle<D: ApplicationDispatcherExt + 'static>(
   webview_manager: &crate::WebviewManager<D>,
-  arg: &str,
+  module: String,
+  mut arg: JsonValue,
   context: &Context,
-) -> crate::Result<()> {
-  match serde_json::from_str::<ModuleDto>(arg) {
-    Err(e) => {
-      if e.to_string().contains("missing field `module`") {
-        Err(crate::Error::UnknownApi(Some(e)))
-      } else {
-        Err(e.into())
-      }
-    }
-    Ok(mut module_dto) => {
-      if let Value::Object(ref mut obj) = module_dto.message {
-        obj.insert("module".to_string(), Value::String(module_dto.module));
-        if let Some(callback) = module_dto.callback {
-          obj.insert("callback".to_string(), Value::String(callback));
-        }
-        if let Some(error) = module_dto.error {
-          obj.insert("error".to_string(), Value::String(error));
-        }
-      }
-      let module: Module = serde_json::from_str(&module_dto.message.to_string())?;
-      module.run(webview_manager, context).await?;
-      Ok(())
-    }
+) -> crate::Result<JsonValue> {
+  if let JsonValue::Object(ref mut obj) = arg {
+    obj.insert("module".to_string(), JsonValue::String(module));
   }
+  let module: Module = serde_json::from_value(arg)?;
+  let response = module.run(webview_manager, context).await?;
+  Ok(serde_json::to_value(response)?)
 }
 
-#[allow(dead_code)]
-fn api_error<D: ApplicationDispatcherExt>(
-  webview_manager: &crate::WebviewManager<D>,
-  error_fn: String,
-  message: &str,
-) {
-  let reject_code = tauri_api::rpc::format_callback(error_fn, message);
-  if let Ok(dispatcher) = webview_manager.current_webview() {
-    dispatcher.eval(&reject_code);
-  }
-}
-
-#[allow(dead_code)]
-fn allowlist_error<D: ApplicationDispatcherExt>(
-  webview_manager: &crate::WebviewManager<D>,
-  error_fn: String,
-  allowlist_key: &str,
-) {
-  api_error(
-    webview_manager,
-    error_fn,
-    &format!(
-      "{}' not on the allowlist (https://tauri.studio/docs/api/config#tauri.allowlist)",
-      allowlist_key
-    ),
-  )
-}
-
-#[allow(dead_code)]
-fn throw_allowlist_error<D: ApplicationDispatcherExt>(
-  webview_manager: &crate::WebviewManager<D>,
-  allowlist_key: &str,
-) {
-  let reject_code = format!(
-    r#"throw new Error("'{}' not on the allowlist")"#,
-    allowlist_key
-  );
-  if let Ok(dispatcher) = webview_manager.current_webview() {
-    dispatcher.eval(&reject_code);
-  }
+pub(crate) fn to_value(t: impl Serialize) -> crate::Result<JsonValue> {
+  serde_json::to_value(t).map_err(Into::into)
 }

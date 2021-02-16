@@ -13,6 +13,18 @@
   let multiple = false
   let directory = false
 
+  function arrayBufferToBase64(buffer, callback) {
+    var blob = new Blob([buffer], {
+      type: "application/octet-binary",
+    });
+    var reader = new FileReader();
+    reader.onload = function (evt) {
+      var dataurl = evt.target.result;
+      callback(dataurl.substr(dataurl.indexOf(",") + 1));
+    };
+    reader.readAsDataURL(blob);
+  }
+
   function openDialog() {
     open({
       defaultPath: defaultPath,

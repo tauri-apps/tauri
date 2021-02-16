@@ -3,9 +3,9 @@ import { invoke } from './tauri'
 /**
  * Updates the window resizable flag.
  */
-function setResizable(resizable: boolean): void {
-  invoke({
-    module: 'Window',
+async function setResizable(resizable: boolean): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'setResizable',
       resizable
@@ -18,9 +18,9 @@ function setResizable(resizable: boolean): void {
  *
  * @param title the new title
  */
-function setTitle(title: string): void {
-  invoke({
-    module: 'Window',
+async function setTitle(title: string): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'setTitle',
       title
@@ -31,9 +31,9 @@ function setTitle(title: string): void {
 /**
  * Maximizes the window.
  */
-function maximize(): void {
-  invoke({
-    module: 'Window',
+async function maximize(): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'maximize'
     }
@@ -43,9 +43,9 @@ function maximize(): void {
 /**
  * Unmaximizes the window.
  */
-function unmaximize(): void {
-  invoke({
-    module: 'Window',
+async function unmaximize(): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'unmaximize'
     }
@@ -55,9 +55,9 @@ function unmaximize(): void {
 /**
  * Minimizes the window.
  */
-function minimize(): void {
-  invoke({
-    module: 'Window',
+async function minimize(): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'minimize'
     }
@@ -67,9 +67,9 @@ function minimize(): void {
 /**
  * Unminimizes the window.
  */
-function unminimize(): void {
-  invoke({
-    module: 'Window',
+async function unminimize(): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'unminimize'
     }
@@ -79,9 +79,9 @@ function unminimize(): void {
 /**
  * Sets the window visibility to true.
  */
-function show(): void {
-  invoke({
-    module: 'Window',
+async function show(): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'show'
     }
@@ -91,9 +91,9 @@ function show(): void {
 /**
  * Sets the window visibility to false.
  */
-function hide(): void {
-  invoke({
-    module: 'Window',
+async function hide(): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'hide'
     }
@@ -105,9 +105,9 @@ function hide(): void {
  *
  * @param {boolean} transparent whether the the window should be transparent or not
  */
-function setTransparent(transparent: boolean): void {
-  invoke({
-    module: 'Window',
+async function setTransparent(transparent: boolean): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'setTransparent',
       transparent
@@ -120,9 +120,9 @@ function setTransparent(transparent: boolean): void {
  *
  * @param {boolean} decorations whether the window should have borders and bars
  */
-function setDecorations(decorations: boolean): void {
-  invoke({
-    module: 'Window',
+async function setDecorations(decorations: boolean): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'setDecorations',
       decorations
@@ -135,9 +135,9 @@ function setDecorations(decorations: boolean): void {
  *
  * @param {boolean} alwaysOnTop whether the window should always be on top of other windows or not
  */
-function setAlwaysOnTop(alwaysOnTop: boolean): void {
-  invoke({
-    module: 'Window',
+async function setAlwaysOnTop(alwaysOnTop: boolean): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'setAlwaysOnTop',
       alwaysOnTop
@@ -150,9 +150,9 @@ function setAlwaysOnTop(alwaysOnTop: boolean): void {
  *
  * @param {number} width the new window width
  */
-function setWidth(width: number): void {
-  invoke({
-    module: 'Window',
+async function setWidth(width: number): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'setWidth',
       width
@@ -165,9 +165,9 @@ function setWidth(width: number): void {
  *
  * @param {number} height the new window height
  */
-function setHeight(height: number): void {
-  invoke({
-    module: 'Window',
+async function setHeight(height: number): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'setHeight',
       height
@@ -181,9 +181,9 @@ function setHeight(height: number): void {
  * @param {number} width the new window width
  * @param {number} height the new window height
  */
-function resize(width: number, height: number): void {
-  invoke({
-    module: 'Window',
+async function resize(width: number, height: number): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'resize',
       width,
@@ -198,9 +198,9 @@ function resize(width: number, height: number): void {
  * @param {number} minWidth the new window min width
  * @param {number} minHeight the new window min height
  */
-function setMinSize(minWidth: number, minHeight: number): void {
-  invoke({
-    module: 'Window',
+async function setMinSize(minWidth: number, minHeight: number): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'setMinSize',
       minWidth,
@@ -215,9 +215,9 @@ function setMinSize(minWidth: number, minHeight: number): void {
  * @param {number} maxWidth the new window max width
  * @param {number} maxHeight the new window max height
  */
-function setMaxSize(maxWidth: number, maxHeight: number): void {
-  invoke({
-    module: 'Window',
+async function setMaxSize(maxWidth: number, maxHeight: number): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'setMaxSize',
       maxWidth,
@@ -231,9 +231,9 @@ function setMaxSize(maxWidth: number, maxHeight: number): void {
  *
  * @param {number} x the new window x position
  */
-function setX(x: number): void {
-  invoke({
-    module: 'Window',
+async function setX(x: number): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'setX',
       x
@@ -246,9 +246,9 @@ function setX(x: number): void {
  *
  * @param {number} y the new window y position
  */
-function setY(y: number): void {
-  invoke({
-    module: 'Window',
+async function setY(y: number): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'setY',
       y
@@ -262,9 +262,9 @@ function setY(y: number): void {
  * @param {number} x the new window x position
  * @param {number} y the new window y position
  */
-function setPosition(x: number, y: number): void {
-  invoke({
-    module: 'Window',
+async function setPosition(x: number, y: number): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'setPosition',
       x,
@@ -278,9 +278,9 @@ function setPosition(x: number, y: number): void {
  *
  * @param {boolean} fullscreen whether the window should go to fullscreen or not
  */
-function setFullscreen(fullscreen: boolean): void {
-  invoke({
-    module: 'Window',
+async function setFullscreen(fullscreen: boolean): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'setFullscreen',
       fullscreen
@@ -293,9 +293,9 @@ function setFullscreen(fullscreen: boolean): void {
  *
  * @param {string | number[]} icon icon bytes or path to the icon file
  */
-function setIcon(icon: 'string' | number[]): void {
-  invoke({
-    module: 'Window',
+async function setIcon(icon: 'string' | number[]): Promise<void> {
+  await invoke({
+    __tauriModule: 'Window',
     message: {
       cmd: 'setIcon',
       icon

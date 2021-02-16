@@ -3513,7 +3513,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.4.1"
-source = "git+https://github.com/tauri-apps/wry?rev=b36b3e2d07edddf2ef49dcc901ae2c5888873ad2#b36b3e2d07edddf2ef49dcc901ae2c5888873ad2"
+source = "git+https://github.com/tauri-apps/wry?rev=af07c28503e41a0a164cb7256fa0ec938d5daee4#af07c28503e41a0a164cb7256fa0ec938d5daee4"
 dependencies = [
  "cc",
  "cocoa",

@@ -1,4 +1,54 @@
 import { invoke } from './tauri'
+import { EventCallback, emit, listen } from './helpers/event'
+
+interface WindowDef {
+  label: string
+}
+
+declare global {
+  interface Window {
+    __TAURI__: {
+      windows: WindowDef[],
+      currentWindow: WindowDef
+    };
+  }
+}
+
+class TauriWindow {
+  label: string
+  constructor(label: string) {
+    this.label = label
+  }
+
+  /**
+   * Listen to an event emitted by the webview
+   *
+   * @param event the event name
+   * @param handler the event handler callback
+   * @param once unlisten after the first trigger if true
+   */
+  async listen<T>(event: string, handler: EventCallback<T>, once = false): Promise<void> {
+    await listen(event, handler, once)
+  }
+
+  /**
+  * emits an event to the webview
+  *
+  * @param event the event name
+  * @param [payload] the event payload
+  */
+  async emit(event: string, payload?: string): Promise<void> {
+    await emit(event, this.label, payload)
+  }
+}
+
+function getTauriWindow(label: string = window.__TAURI__.currentWindow.label): TauriWindow | null {
+  if (window.__TAURI__.windows.some(w => w.label === label)) {
+    return new TauriWindow(label)
+  } else {
+    return null
+  }
+}
 
 /**
  * Updates the window resizable flag.
@@ -304,6 +354,8 @@ async function setIcon(icon: 'string' | number[]): Promise<void> {
 }
 
 export {
+  TauriWindow,
+  getTauriWindow,
   setResizable,
   setTitle,
   maximize,

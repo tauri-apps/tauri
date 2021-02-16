@@ -35,7 +35,11 @@ async function listen<T>(
  * @param event the event name
  * @param [payload] the event payload
  */
-async function emit(event: string, windowLabel?: string, payload?: string): Promise<void> {
+async function emit(
+  event: string,
+  windowLabel?: string,
+  payload?: string
+): Promise<void> {
   await invoke({
     __tauriModule: 'Event',
     message: {

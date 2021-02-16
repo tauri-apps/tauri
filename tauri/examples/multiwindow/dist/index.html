@@ -7,7 +7,7 @@
   <div id="response"></div>
 
   <script>
-    var windowLabel = window.__TAURI__.currentWindow.label;
+    var windowLabel = window.__TAURI__.window.getCurrentWindow().label;
     var windowLabelContainer = document.getElementById("window-label");
     windowLabelContainer.innerHTML =
       "This is the " + windowLabel + " window.";
@@ -34,8 +34,8 @@
     });
     container.appendChild(button);
 
-    for (var index in window.__TAURI__.windows) {
-      var label = window.__TAURI__.windows[index].label;
+    for (var index in window.__TAURI__.window.getWindows()) {
+      var label = window.__TAURI__.window.getWindows()[index].label;
       if (label === windowLabel) {
         continue;
       }

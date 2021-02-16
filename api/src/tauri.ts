@@ -67,11 +67,13 @@ async function invoke<T>(args: any): Promise<T> {
       Reflect.deleteProperty(window, callback)
     }, true)
 
-    window.__TAURI_INVOKE_HANDLER__(JSON.stringify({
-      callback,
-      error,
-      ...args
-    }))
+    window.__TAURI_INVOKE_HANDLER__(
+      JSON.stringify({
+        callback,
+        error,
+        ...args
+      })
+    )
   })
 }
 

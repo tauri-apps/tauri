@@ -191,10 +191,7 @@ export class Client {
    *
    * @return promise resolving to the response
    */
-  async delete<T>(
-    url: string,
-    options: RequestOptions
-  ): Promise<Response<T>> {
+  async delete<T>(url: string, options: RequestOptions): Promise<Response<T>> {
     return await this.request({
       method: 'DELETE',
       url,
@@ -210,12 +207,15 @@ async function getClient(options?: ClientOptions): Promise<Client> {
       cmd: 'createClient',
       options
     }
-  }).then(id => new Client(id))
+  }).then((id) => new Client(id))
 }
 
 let defaultClient: Client | null = null
 
-async function fetch<T>(url: string, options?: FetchOptions): Promise<Response<T>> {
+async function fetch<T>(
+  url: string,
+  options?: FetchOptions
+): Promise<Response<T>> {
   if (defaultClient === null) {
     defaultClient = await getClient()
   }

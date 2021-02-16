@@ -6,6 +6,7 @@ use crate::helpers::{
 };
 
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
+use once_cell::sync::OnceCell;
 use shared_child::SharedChild;
 
 use std::{
@@ -14,13 +15,21 @@ use std::{
   fs::{create_dir_all, File},
   io::Write,
   path::PathBuf,
-  process::{exit, Command},
+  process::{exit, Child, Command},
   sync::{
     mpsc::{channel, Receiver},
     Arc, Mutex,
   },
   time::Duration,
 };
+
+static BEFORE_DEV: OnceCell<Mutex<Child>> = OnceCell::new();
+
+fn kill_before_dev_process() {
+  if let Some(child) = BEFORE_DEV.get() {
+    let _ = child.lock().unwrap().kill();
+  }
+}
 
 #[derive(Default)]
 pub struct Dev {
@@ -49,7 +58,6 @@ impl Dev {
     set_current_dir(&tauri_path)?;
     let merge_config = self.config.clone();
     let config = get_config(merge_config.as_deref())?;
-    let mut _guard = None;
     let mut process: Arc<SharedChild>;
 
     if let Some(before_dev) = &config
@@ -73,8 +81,8 @@ impl Dev {
       if let Some(cmd) = cmd {
         logger.log(format!("Running `{}`", before_dev));
         let mut command = Command::new(cmd);
-        command.args(args).current_dir(app_dir()).spawn()?;
-        _guard = Some(command);
+        let child = command.args(args).current_dir(app_dir()).spawn()?;
+        BEFORE_DEV.set(Mutex::new(child)).unwrap();
       }
     }
 
@@ -199,10 +207,12 @@ impl Dev {
           .try_recv()
           .is_err()
         {
+          kill_before_dev_process();
           exit(0);
         }
       } else if status.success() {
         // if we're no exiting on panic, we only exit if the status is a success code (app closed)
+        kill_before_dev_process();
         exit(0);
       }
     });

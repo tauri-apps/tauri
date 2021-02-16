@@ -56,11 +56,12 @@ export interface HttpOptions {
   headers?: Record<string, any>
   query?: Record<string, any>
   body?: Body
-  timeout: number
+  timeout?: number
   responseType?: ResponseType
 }
 
-export type PartialOptions = Omit<HttpOptions, 'method' | 'url'>
+export type RequestOptions = Omit<HttpOptions, 'method' | 'url'>
+export type FetchOptions = Omit<HttpOptions, 'url'>
 
 export interface Response<T> {
   url: string
@@ -114,7 +115,7 @@ export class Client {
    *
    * @return promise resolving to the response
    */
-  async get<T>(url: string, options: PartialOptions): Promise<Response<T>> {
+  async get<T>(url: string, options: RequestOptions): Promise<Response<T>> {
     return await this.request({
       method: 'GET',
       url,
@@ -134,7 +135,7 @@ export class Client {
   async post<T>(
     url: string,
     body: Body,
-    options: PartialOptions
+    options: RequestOptions
   ): Promise<Response<T>> {
     return await this.request({
       method: 'POST',
@@ -156,7 +157,7 @@ export class Client {
   async put<T>(
     url: string,
     body: Body,
-    options: PartialOptions
+    options: RequestOptions
   ): Promise<Response<T>> {
     return await this.request({
       method: 'PUT',
@@ -174,7 +175,7 @@ export class Client {
    *
    * @return promise resolving to the response
    */
-  async patch<T>(url: string, options: PartialOptions): Promise<Response<T>> {
+  async patch<T>(url: string, options: RequestOptions): Promise<Response<T>> {
     return await this.request({
       method: 'PATCH',
       url,
@@ -192,7 +193,7 @@ export class Client {
    */
   async delete<T>(
     url: string,
-    options: PartialOptions
+    options: RequestOptions
   ): Promise<Response<T>> {
     return await this.request({
       method: 'DELETE',
@@ -212,4 +213,17 @@ async function getClient(options?: ClientOptions): Promise<Client> {
   }).then(id => new Client(id))
 }
 
-export { getClient }
+let defaultClient: Client | null = null
+
+async function fetch<T>(url: string, options?: FetchOptions): Promise<Response<T>> {
+  if (defaultClient === null) {
+    defaultClient = await getClient()
+  }
+  return await defaultClient.request({
+    url,
+    method: options?.method ?? 'GET',
+    ...options
+  })
+}
+
+export { getClient, fetch }

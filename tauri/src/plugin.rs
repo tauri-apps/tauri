@@ -3,6 +3,7 @@ use crate::{
 };
 
 use futures::future::join_all;
+use serde_json::Value as JsonValue;
 
 use std::sync::Arc;
 
@@ -40,8 +41,8 @@ pub trait Plugin<D: ApplicationDispatcherExt + 'static>: Send + Sync {
   async fn extend_api(
     &mut self,
     webview_manager: WebviewManager<D>,
-    payload: &str,
-  ) -> crate::Result<()> {
+    payload: &JsonValue,
+  ) -> crate::Result<JsonValue> {
     Err(crate::Error::UnknownApi(None))
   }
 }
@@ -124,13 +125,13 @@ pub(crate) async fn ready<D: ApplicationDispatcherExt + 'static>(
 pub(crate) async fn extend_api<D: ApplicationDispatcherExt + 'static>(
   store: &PluginStore<D>,
   webview_manager: &crate::WebviewManager<D>,
-  arg: &str,
-) -> crate::Result<bool> {
+  arg: &JsonValue,
+) -> crate::Result<Option<JsonValue>> {
   let mut plugins = store.lock().await;
   for ext in plugins.iter_mut() {
     match ext.extend_api(webview_manager.clone(), arg).await {
-      Ok(_) => {
-        return Ok(true);
+      Ok(value) => {
+        return Ok(Some(value));
       }
       Err(e) => match e {
         crate::Error::UnknownApi(_) => {}
@@ -138,5 +139,5 @@ pub(crate) async fn extend_api<D: ApplicationDispatcherExt + 'static>(
       },
     }
   }
-  Ok(false)
+  Ok(None)
 }

@@ -1,6 +1,5 @@
-use crate::ApplicationDispatcherExt;
-
 use serde::Deserialize;
+use serde_json::Value as JsonValue;
 use tauri_api::http::{make_request as request, HttpRequestOptions};
 
 /// The API descriptor.
@@ -8,45 +7,20 @@ use tauri_api::http::{make_request as request, HttpRequestOptions};
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// The HTTP request API.
-  HttpRequest {
-    options: Box<HttpRequestOptions>,
-    callback: String,
-    error: String,
-  },
+  HttpRequest { options: Box<HttpRequestOptions> },
 }
 
 impl Cmd {
-  pub async fn run<D: ApplicationDispatcherExt + 'static>(
-    self,
-    webview_manager: &crate::WebviewManager<D>,
-  ) {
+  pub async fn run(self) -> crate::Result<JsonValue> {
     match self {
-      Self::HttpRequest {
-        options,
-        callback,
-        error,
-      } => {
+      Self::HttpRequest { options } => {
         #[cfg(http_request)]
-        make_request(webview_manager, *options, callback, error).await;
+        return request(*options)
+          .map_err(Into::into)
+          .and_then(super::to_value);
         #[cfg(not(http_request))]
-        allowlist_error(webview_manager, error, "httpRequest");
+        Err(crate::Error::ApiNotAllowlisted("httpRequest".to_string()))
       }
     }
   }
-}
-
-/// Makes an HTTP request and resolves the response to the webview
-pub async fn make_request<D: ApplicationDispatcherExt>(
-  webview_manager: &crate::WebviewManager<D>,
-  options: HttpRequestOptions,
-  callback: String,
-  error: String,
-) {
-  crate::execute_promise(
-    webview_manager,
-    async move { request(options).map_err(|e| e.into()) },
-    callback,
-    error,
-  )
-  .await;
 }

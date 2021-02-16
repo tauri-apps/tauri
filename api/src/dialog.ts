@@ -1,4 +1,4 @@
-import { promisified } from './tauri'
+import { invoke } from './tauri'
 
 export interface OpenDialogOptions {
   filter?: string
@@ -29,8 +29,8 @@ async function open(
     Object.freeze(options)
   }
 
-  return await promisified({
-    module: 'Dialog',
+  return await invoke<string | string[]>({
+    __tauriModule: 'Dialog',
     message: {
       cmd: 'openDialog',
       options
@@ -51,8 +51,8 @@ async function save(options: SaveDialogOptions = {}): Promise<string> {
     Object.freeze(options)
   }
 
-  return await promisified({
-    module: 'Dialog',
+  return await invoke<string>({
+    __tauriModule: 'Dialog',
     message: {
       cmd: 'saveDialog',
       options

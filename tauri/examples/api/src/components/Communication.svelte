@@ -1,6 +1,6 @@
 <script>
   import { listen, emit } from "@tauri-apps/api/event";
-  import { invoke, promisified } from "@tauri-apps/api/tauri";
+  import { invoke } from "@tauri-apps/api/tauri";
 
   export let onMessage
 
@@ -15,7 +15,7 @@
   }
 
   function performRequest() {
-    promisified({
+    invoke({
       cmd: "performRequest",
       endpoint: "dummy endpoint arg",
       body: {

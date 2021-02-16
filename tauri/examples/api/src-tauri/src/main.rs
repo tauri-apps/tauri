@@ -31,7 +31,7 @@ fn main() {
           .expect("failed to emit");
       });
     })
-    .invoke_handler(|webview_manager, arg| async move {
+    .invoke_handler(|_webview_manager, arg| async move {
       use cmd::Cmd::*;
       match serde_json::from_str(&arg) {
         Err(e) => Err(e.into()),
@@ -39,32 +39,16 @@ fn main() {
           match command {
             LogOperation { event, payload } => {
               println!("{} {:?}", event, payload);
+              Ok(serde_json::Value::Null)
             }
             PerformRequest {
               endpoint,
               body,
-              callback,
-              error,
             } => {
-              // tauri::execute_promise is a helper for APIs that uses the tauri.promisified JS function
-              // so you can easily communicate between JS and Rust with promises
-              tauri::execute_promise(
-                &webview_manager,
-                async move {
-                  println!("{} {:?}", endpoint, body);
-                  // perform an async operation here
-                  // if the returned value is Ok, the promise will be resolved with its value
-                  // if the returned value is Err, the promise will be rejected with its value
-                  // the value is a string that will be eval'd
-                  Ok("{ key: 'response', value: [{ id: 3 }] }".to_string())
-                },
-                callback,
-                error,
-              )
-              .await
+              println!("{} {:?}", endpoint, body);
+              Ok(serde_json::Value::String("message response".to_string()))
             }
           }
-          Ok(())
         }
       }
     })

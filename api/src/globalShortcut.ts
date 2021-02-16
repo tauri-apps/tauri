@@ -1,4 +1,4 @@
-import { promisified, transformCallback } from './tauri'
+import { invoke, transformCallback } from './tauri'
 
 /**
  * register a global shortcut
@@ -9,8 +9,8 @@ async function registerShortcut(
   shortcut: string,
   handler: () => void
 ): Promise<void> {
-  return await promisified({
-    module: 'GlobalShortcut',
+  return await invoke<void>({
+    __tauriModule: 'GlobalShortcut',
     message: {
       cmd: 'register',
       shortcut,
@@ -24,8 +24,8 @@ async function registerShortcut(
  * @param shortcut shortcut definition, modifiers and key separated by "+" e.g. Alt+Q
  */
 async function unregisterShortcut(shortcut: string): Promise<void> {
-  return await promisified({
-    module: 'GlobalShortcut',
+  return await invoke<void>({
+    __tauriModule: 'GlobalShortcut',
     message: {
       cmd: 'unregister',
       shortcut
@@ -33,7 +33,4 @@ async function unregisterShortcut(shortcut: string): Promise<void> {
   })
 }
 
-export {
-  registerShortcut,
-  unregisterShortcut
-}
+export { registerShortcut, unregisterShortcut }

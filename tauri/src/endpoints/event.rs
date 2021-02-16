@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use serde_json::Value as JsonValue;
 
 /// The API descriptor.
 #[derive(Deserialize)]
@@ -21,7 +22,7 @@ impl Cmd {
   pub async fn run<D: crate::ApplicationDispatcherExt + 'static>(
     self,
     webview_manager: &crate::WebviewManager<D>,
-  ) -> crate::Result<()> {
+  ) -> crate::Result<JsonValue> {
     match self {
       Self::Listen {
         event,
@@ -32,19 +33,22 @@ impl Cmd {
         {
           let js_string = listen_fn(event, handler, once)?;
           webview_manager.current_webview()?.eval(&js_string);
+          Ok(JsonValue::Null)
         }
         #[cfg(not(event))]
-        throw_allowlist_error(webview_manager, "event");
+        Err(crate::Error::ApiNotAllowlisted("event".to_string()))
       }
       Self::Emit { event, payload } => {
         // TODO emit to optional window
         #[cfg(event)]
-        webview_manager.current_webview()?.on_event(event, payload);
+        {
+          webview_manager.current_webview()?.on_event(event, payload);
+          Ok(JsonValue::Null)
+        }
         #[cfg(not(event))]
-        throw_allowlist_error(webview_manager, "event");
+        Err(crate::Error::ApiNotAllowlisted("event".to_string()))
       }
     }
-    Ok(())
   }
 }
 

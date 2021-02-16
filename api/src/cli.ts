@@ -1,4 +1,4 @@
-import { promisified } from './tauri'
+import { invoke } from './tauri'
 
 export interface ArgMatch {
   /**
@@ -27,8 +27,8 @@ export interface CliMatches {
  * gets the CLI matches
  */
 async function getMatches(): Promise<CliMatches> {
-  return await promisified<CliMatches>({
-    module: 'Cli',
+  return await invoke<CliMatches>({
+    __tauriModule: 'Cli',
     message: {
       cmd: 'cliMatches'
     }

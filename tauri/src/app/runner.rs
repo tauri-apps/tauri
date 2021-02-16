@@ -5,17 +5,36 @@ use std::{collections::HashMap, sync::Arc};
 #[cfg(dev)]
 use crate::api::assets::{AssetFetch, Assets};
 
-use crate::{api::config::WindowUrl, ApplicationExt, WebviewBuilderExt};
+use crate::{
+  api::{
+    config::WindowUrl,
+    rpc::{format_callback, format_callback_result},
+  },
+  ApplicationExt, WebviewBuilderExt,
+};
 
-use super::{App, WebviewDispatcher, WebviewManager, WindowBuilderExt};
+use super::{App, ApplicationDispatcherExt, WebviewDispatcher, WebviewManager, WindowBuilderExt};
 #[cfg(embedded_server)]
 use crate::api::tcp::{get_available_port, port_is_available};
 use crate::app::Context;
+
+use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
 
 #[allow(dead_code)]
 enum Content<T> {
   Html(T),
   Url(T),
+}
+
+#[derive(Deserialize)]
+struct Message {
+  #[serde(rename = "__tauriModule")]
+  tauri_module: Option<String>,
+  callback: String,
+  error: String,
+  #[serde(flatten)]
+  inner: JsonValue,
 }
 
 /// Main entry point for running the Webview
@@ -207,18 +226,21 @@ pub fn event_initialization_script() -> String {
       }}
 
       if (listeners.length > 0) {{
-        window.__TAURI__.promisified({{
-          module: 'Internal',
+        console.log('invoke salt')
+        window.__TAURI__.invoke({{
+          __tauriModule: 'Internal',
           message: {{
             cmd: 'validateSalt',
             salt: salt
           }}
-        }}).then(function () {{
-          for (let i = listeners.length - 1; i >= 0; i--) {{
-            const listener = listeners[i]
-            if (listener.once)
-              listeners.splice(i, 1)
-            listener.handler(payload)
+        }}).then(function (flag) {{
+          if (flag) {{
+            for (let i = listeners.length - 1; i >= 0; i--) {{
+              const listener = listeners[i]
+              if (listener.once)
+                listeners.splice(i, 1)
+              listener.handler(payload)
+            }}
           }}
         }})
       }}
@@ -246,10 +268,10 @@ fn build_webview<A: ApplicationExt + 'static>(
       {tauri_initialization_script}
       {event_initialization_script}
       if (window.__TAURI_INVOKE_HANDLER__) {{
-        window.__TAURI_INVOKE_HANDLER__(JSON.stringify({{ cmd: "__initialized" }}))
+        window.__TAURI__.invoke({{ cmd: "__initialized" }})
       }} else {{
         window.addEventListener('DOMContentLoaded', function () {{
-          window.__TAURI_INVOKE_HANDLER__(JSON.stringify({{ cmd: "__initialized" }}))
+          window.__TAURI__.invoke({{ cmd: "__initialized" }})
         }})
       }}
       {plugin_initialization_script}
@@ -318,45 +340,23 @@ fn build_webview<A: ApplicationExt + 'static>(
       name: "__TAURI_INVOKE_HANDLER__".to_string(),
       function: Box::new(move |_, _, arg| {
         let arg = arg.into_iter().next().unwrap_or_else(String::new);
-        let application = application.clone();
-        let webview_manager = webview_manager_.clone();
+        if let Ok(message) = serde_json::from_str::<Message>(&arg) {
+          let application = application.clone();
+          let webview_manager = webview_manager_.clone();
+          let callback = message.callback.to_string();
+          let error = message.error.to_string();
 
-        crate::async_runtime::spawn(async move {
-          if arg == r#"{"cmd":"__initialized"}"# {
-            application.run_setup(&webview_manager).await;
-            crate::plugin::ready(A::plugin_store(), &webview_manager).await;
-          } else {
-            let mut endpoint_handle =
-              crate::endpoints::handle(&webview_manager, &arg, &application.context).await;
-            if let Err(crate::Error::UnknownApi(_)) = endpoint_handle {
-              let response = match application.run_invoke_handler(&webview_manager, &arg).await {
-                Ok(handled) => {
-                  if handled {
-                    Ok(())
-                  } else {
-                    endpoint_handle
-                  }
-                }
-                Err(e) => Err(e),
-              };
-              endpoint_handle = response;
-            }
-            if let Err(crate::Error::UnknownApi(_)) = endpoint_handle {
-              endpoint_handle =
-                crate::plugin::extend_api(A::plugin_store(), &webview_manager, &arg)
-                  .await
-                  .map(|_| ());
-            }
-            if let Err(handler_error_message) = endpoint_handle {
-              let handler_error_message = handler_error_message.to_string().replace("'", "\\'");
-              if !handler_error_message.is_empty() {
-                if let Ok(dispatcher) = webview_manager.current_webview() {
-                  dispatcher.eval(&get_api_error_message(&arg, handler_error_message));
-                }
-              }
-            }
-          }
-        });
+          // TODO: option to block_on
+          crate::async_runtime::spawn(async move {
+            execute_promise(
+              &webview_manager,
+              on_message(application, webview_manager.clone(), message),
+              callback,
+              error,
+            )
+            .await;
+          });
+        }
         0
       }),
     };
@@ -391,13 +391,75 @@ fn build_webview<A: ApplicationExt + 'static>(
   Ok(webview_application)
 }
 
-// Formats an invoke handler error message to print to console.error
-fn get_api_error_message(arg: &str, handler_error_message: String) -> String {
-  format!(
-    r#"console.error('failed to match a command for {}, {}')"#,
-    arg.replace("'", "\\'"),
-    handler_error_message
-  )
+/// Asynchronously executes the given task
+/// and evaluates its Result to the JS promise described by the `success_callback` and `error_callback` function names.
+///
+/// If the Result `is_ok()`, the callback will be the `success_callback` function name and the argument will be the Ok value.
+/// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
+async fn execute_promise<
+  D: ApplicationDispatcherExt,
+  R: Serialize,
+  F: futures::Future<Output = crate::Result<R>> + Send + 'static,
+>(
+  webview_manager: &crate::WebviewManager<D>,
+  task: F,
+  success_callback: String,
+  error_callback: String,
+) {
+  let callback_string = match format_callback_result(
+    task.await.map_err(|err| err.to_string()),
+    success_callback,
+    error_callback.clone(),
+  ) {
+    Ok(callback_string) => callback_string,
+    Err(e) => format_callback(error_callback, e.to_string()),
+  };
+  if let Ok(dispatcher) = webview_manager.current_webview() {
+    dispatcher.eval(callback_string.as_str());
+  }
+}
+
+async fn on_message<A: ApplicationExt + 'static>(
+  application: Arc<App<A>>,
+  webview_manager: WebviewManager<<A as ApplicationExt>::Dispatcher>,
+  message: Message,
+) -> crate::Result<JsonValue> {
+  if message.inner == serde_json::json!({ "cmd":"__initialized" }) {
+    application.run_setup(&webview_manager).await;
+    crate::plugin::ready(A::plugin_store(), &webview_manager).await;
+    Ok(JsonValue::Null)
+  } else {
+    let response = if let Some(module) = &message.tauri_module {
+      crate::endpoints::handle(
+        &webview_manager,
+        module.to_string(),
+        message.inner,
+        &application.context,
+      )
+      .await
+    } else {
+      let mut response = match application
+        .run_invoke_handler(&webview_manager, &message.inner)
+        .await
+      {
+        Ok(value) => {
+          if let Some(value) = value {
+            Ok(value)
+          } else {
+            Err(crate::Error::UnknownApi(None))
+          }
+        }
+        Err(e) => Err(e),
+      };
+      if let Err(crate::Error::UnknownApi(_)) = response {
+        response = crate::plugin::extend_api(A::plugin_store(), &webview_manager, &message.inner)
+          .await
+          .map(|value| value.unwrap_or_default());
+      }
+      response
+    };
+    response
+  }
 }
 
 #[cfg(test)]

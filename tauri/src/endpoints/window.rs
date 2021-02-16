@@ -1,5 +1,6 @@
 use crate::app::{ApplicationDispatcherExt, Icon};
 use serde::Deserialize;
+use serde_json::Value as JsonValue;
 
 #[derive(Deserialize)]
 #[serde(untagged)]
@@ -85,9 +86,9 @@ impl Cmd {
   pub async fn run<D: ApplicationDispatcherExt + 'static>(
     self,
     webview_manager: &crate::WebviewManager<D>,
-  ) -> crate::Result<()> {
+  ) -> crate::Result<JsonValue> {
     if cfg!(not(window)) {
-      super::throw_allowlist_error(webview_manager, "setTitle");
+      Err(crate::Error::ApiNotAllowlisted("setTitle".to_string()))
     } else {
       let current_webview = webview_manager.current_webview()?;
       match self {
@@ -119,7 +120,7 @@ impl Cmd {
         Self::SetFullscreen { fullscreen } => current_webview.set_fullscreen(fullscreen),
         Self::SetIcon { icon } => current_webview.set_icon(icon.into()),
       }
+      Ok(JsonValue::Null)
     }
-    Ok(())
   }
 }

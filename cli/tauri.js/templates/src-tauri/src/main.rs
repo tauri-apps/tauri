@@ -22,7 +22,7 @@ fn main() {
               println!("{}", argument);
             }
           }
-          Ok(())
+          Ok(serde_json::Value::Null)
         }
       }
     })

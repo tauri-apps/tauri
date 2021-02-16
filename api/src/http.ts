@@ -1,4 +1,4 @@
-import { promisified } from './tauri'
+import { invoke } from './tauri'
 
 export enum ResponseType {
   JSON = 1,
@@ -51,8 +51,8 @@ export type PartialOptions = Omit<HttpOptions, 'method' | 'url'>
  * @return promise resolving to the response
  */
 async function request<T>(options: HttpOptions): Promise<T> {
-  return await promisified({
-    module: 'Http',
+  return await invoke<void>({
+    __tauriModule: 'Http',
     message: {
       cmd: 'httpRequest',
       options: options

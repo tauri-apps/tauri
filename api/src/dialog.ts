@@ -31,6 +31,7 @@ async function open(
 
   return await invoke<string | string[]>({
     __tauriModule: 'Dialog',
+    mainThread: true,
     message: {
       cmd: 'openDialog',
       options
@@ -53,6 +54,7 @@ async function save(options: SaveDialogOptions = {}): Promise<string> {
 
   return await invoke<string>({
     __tauriModule: 'Dialog',
+    mainThread: true,
     message: {
       cmd: 'saveDialog',
       options

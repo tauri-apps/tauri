@@ -161,15 +161,13 @@ if (!String.prototype.startsWith) {
               target.href.startsWith("http") &&
               target.target === "_blank"
             ) {
-              window.__TAURI_INVOKE_HANDLER__(
-                JSON.stringify({
-                  __tauriModule: "Shell",
-                  message: {
-                    cmd: "open",
-                    uri: target.href,
-                  },
-                })
-              );
+              window.__TAURI__.invoke({
+                __tauriModule: "Shell",
+                message: {
+                  cmd: "open",
+                  uri: target.href,
+                },
+              });
               e.preventDefault();
             }
             break;
@@ -221,6 +219,7 @@ if (!String.prototype.startsWith) {
     return window.__TAURI__
       .invoke({
         __tauriModule: "Notification",
+        mainThread: true,
         message: {
           cmd: "requestNotificationPermission",
         },
@@ -287,20 +286,20 @@ if (!String.prototype.startsWith) {
   });
 
   window.alert = function (message) {
-    window.__TAURI_INVOKE_HANDLER__(
-      JSON.stringify({
-        __tauriModule: "Dialog",
-        message: {
-          cmd: "messageDialog",
-          message: message,
-        },
-      })
-    );
+    window.__TAURI__.invoke({
+      __tauriModule: "Dialog",
+      mainThread: true,
+      message: {
+        cmd: "messageDialog",
+        message: message,
+      },
+    });
   };
 
   window.confirm = function (message) {
     return window.__TAURI__.invoke({
       __tauriModule: "Dialog",
+      mainThread: true,
       message: {
         cmd: "askDialog",
         message: message,

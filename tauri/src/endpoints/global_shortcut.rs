@@ -28,7 +28,9 @@ impl Cmd {
     webview_manager: &crate::WebviewManager<D>,
   ) -> crate::Result<JsonValue> {
     #[cfg(not(global_shortcut))]
-    return Err(crate::Error::ApiNotAllowlisted("globalShortcut".to_string()));
+    return Err(crate::Error::ApiNotAllowlisted(
+      "globalShortcut".to_string(),
+    ));
     #[cfg(global_shortcut)]
     match self {
       Self::Register { shortcut, handler } => {

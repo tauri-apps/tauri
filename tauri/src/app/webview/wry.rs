@@ -1,5 +1,5 @@
 use super::{
-  ApplicationDispatcherExt, ApplicationExt, Callback, Event, Icon, Message, WebviewBuilderExt,
+  ApplicationDispatcherExt, ApplicationExt, Callback, Icon, Message, WebviewBuilderExt,
   WindowBuilderExt,
 };
 
@@ -141,18 +141,17 @@ impl WebviewBuilderExt for wry::WebViewAttributes {
 
 #[derive(Clone)]
 pub struct WryDispatcher {
-  inner: Arc<Mutex<wry::AppDispatcher<Event>>>,
+  inner: Arc<Mutex<wry::AppDispatcher<()>>>,
   current_window: wry::WindowId,
 }
 
-struct WryMessage(wry::Message<wry::WindowId, Event>);
+struct WryMessage(wry::Message<wry::WindowId, ()>);
 
 impl TryFrom<(wry::WindowId, Message)> for WryMessage {
   type Error = crate::Error;
   fn try_from((id, message): (wry::WindowId, Message)) -> crate::Result<Self> {
     let message = match message {
       Message::EvalScript(js) => wry::Message::Webview(id, WebviewMessage::EvalScript(js)),
-      Message::Event(event) => wry::Message::Custom(event),
       Message::SetResizable(resizable) => {
         wry::Message::Window(id, WindowMessage::SetResizable(resizable))
       }
@@ -228,8 +227,8 @@ impl ApplicationDispatcherExt for WryDispatcher {
 
 /// A wrapper around the wry Application interface.
 pub struct WryApplication {
-  inner: wry::Application<Event>,
-  dispatcher_handle: Arc<Mutex<wry::AppDispatcher<Event>>>,
+  inner: wry::Application<()>,
+  dispatcher_handle: Arc<Mutex<wry::AppDispatcher<()>>>,
 }
 
 impl ApplicationExt for WryApplication {
@@ -302,10 +301,7 @@ impl ApplicationExt for WryApplication {
     Ok(())
   }
 
-  fn run(mut self) {
-    self.inner.set_message_handler(|message| match message {
-      Event::Run(task) => task(),
-    });
+  fn run(self) {
     wry::Application::run(self.inner)
   }
 }

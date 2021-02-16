@@ -27,12 +27,14 @@ enum Content<T> {
   Url(T),
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 struct Message {
   #[serde(rename = "__tauriModule")]
   tauri_module: Option<String>,
   callback: String,
   error: String,
+  #[serde(rename = "mainThread", default)]
+  main_thread: bool,
   #[serde(flatten)]
   inner: JsonValue,
 }
@@ -226,7 +228,6 @@ pub fn event_initialization_script() -> String {
       }}
 
       if (listeners.length > 0) {{
-        console.log('invoke salt')
         window.__TAURI__.invoke({{
           __tauriModule: 'Internal',
           message: {{
@@ -340,22 +341,44 @@ fn build_webview<A: ApplicationExt + 'static>(
       name: "__TAURI_INVOKE_HANDLER__".to_string(),
       function: Box::new(move |_, _, arg| {
         let arg = arg.into_iter().next().unwrap_or_else(String::new);
-        if let Ok(message) = serde_json::from_str::<Message>(&arg) {
-          let application = application.clone();
-          let webview_manager = webview_manager_.clone();
-          let callback = message.callback.to_string();
-          let error = message.error.to_string();
+        let webview_manager = webview_manager_.clone();
+        match serde_json::from_str::<Message>(&arg) {
+          Ok(message) => {
+            let application = application.clone();
+            let callback = message.callback.to_string();
+            let error = message.error.to_string();
 
-          // TODO: option to block_on
-          crate::async_runtime::spawn(async move {
-            execute_promise(
-              &webview_manager,
-              on_message(application, webview_manager.clone(), message),
-              callback,
-              error,
-            )
-            .await;
-          });
+            if message.main_thread {
+              crate::async_runtime::block_on(async move {
+                execute_promise(
+                  &webview_manager,
+                  on_message(application, webview_manager.clone(), message),
+                  callback,
+                  error,
+                )
+                .await;
+              });
+            } else {
+              crate::async_runtime::spawn(async move {
+                execute_promise(
+                  &webview_manager,
+                  on_message(application, webview_manager.clone(), message),
+                  callback,
+                  error,
+                )
+                .await;
+              });
+            }
+          }
+          Err(e) => {
+            if let Ok(dispatcher) = webview_manager.current_webview() {
+              let error: crate::Error = e.into();
+              dispatcher.eval(&format!(
+                r#"console.error({})"#,
+                JsonValue::String(error.to_string())
+              ));
+            }
+          }
         }
         0
       }),

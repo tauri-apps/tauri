@@ -1,6 +1,6 @@
 use crate::api::dialog::{
   ask as ask_dialog, message as message_dialog, pick_folder, save_file, select, select_multiple,
-  DialogSelection, Response,
+  AskResponse, Response,
 };
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
@@ -72,8 +72,8 @@ impl Cmd {
       Self::MessageDialog { message } => {
         let exe = std::env::current_exe()?;
         let app_name = exe
-          .file_name()
-          .expect("failed to get exe filename")
+          .file_stem()
+          .expect("failed to get binary filename")
           .to_string_lossy()
           .to_string();
         message_dialog(app_name, message);
@@ -84,8 +84,8 @@ impl Cmd {
         let answer = ask(
           title.unwrap_or_else(|| {
             exe
-              .file_name()
-              .expect("failed to get exe filename")
+              .file_stem()
+              .expect("failed to get binary filename")
               .to_string_lossy()
               .to_string()
           }),
@@ -131,8 +131,8 @@ pub fn save(options: SaveDialogOptions) -> crate::Result<JsonValue> {
 
 /// Shows a dialog with a yes/no question.
 pub fn ask(title: String, message: String) -> crate::Result<bool> {
-  match ask_dialog(message, title) {
-    DialogSelection::Yes => Ok(true),
+  match ask_dialog(title, message) {
+    AskResponse::Yes => Ok(true),
     _ => Ok(false),
   }
 }

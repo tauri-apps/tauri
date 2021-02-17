@@ -2,8 +2,36 @@ use std::path::Path;
 
 pub use nfd::Response;
 use nfd::{open_dialog, DialogType};
-pub use tauri_dialog::DialogSelection;
-use tauri_dialog::{DialogBuilder, DialogButtons, DialogStyle};
+
+use tinyfiledialogs::{
+  message_box_ok, message_box_yes_no, MessageBoxIcon, YesNo,
+};
+
+/// Response for the ask dialog
+pub enum AskResponse {
+  /// User confirmed.
+  Yes,
+  /// User denied.
+  No,
+}
+
+/// Displays a dialog with a message and an optional title with a "yes" and a "no" button
+pub fn ask(title: impl AsRef<str>, message: impl AsRef<str>) -> AskResponse {
+  match message_box_yes_no(
+    title.as_ref(),
+    message.as_ref(),
+    MessageBoxIcon::Question,
+    YesNo::No,
+  ) {
+    YesNo::Yes => AskResponse::Yes,
+    YesNo::No => AskResponse::No,
+  }
+}
+
+/// Displays a message dialog
+pub fn message(title: impl AsRef<str>, message: impl AsRef<str>) {
+  message_box_ok(title.as_ref(), message.as_ref(), MessageBoxIcon::Info);
+}
 
 fn open_dialog_internal(
   dialog_type: DialogType,
@@ -22,27 +50,6 @@ fn open_dialog_internal(
     Response::Cancel => Err(crate::Error::DialogCancelled),
     _ => Ok(response),
   }
-}
-
-/// Displays a dialog with a message and an optional title with a "yes" and a "no" button
-pub fn ask(message: impl AsRef<str>, title: impl AsRef<str>) -> DialogSelection {
-  DialogBuilder::new()
-    .message(message.as_ref())
-    .title(title.as_ref())
-    .style(DialogStyle::Question)
-    .buttons(DialogButtons::YesNo)
-    .build()
-    .show()
-}
-
-/// Displays a message dialog
-pub fn message(message: impl AsRef<str>, title: impl AsRef<str>) {
-  DialogBuilder::new()
-    .message(message.as_ref())
-    .title(title.as_ref())
-    .style(DialogStyle::Info)
-    .build()
-    .show();
 }
 
 /// Open single select file dialog

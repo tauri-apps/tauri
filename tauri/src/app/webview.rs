@@ -80,6 +80,13 @@ pub enum Message {
   SetIcon(Icon),
 }
 
+pub struct WindowConfig(pub crate::api::config::WindowConfig);
+
+pub trait WebviewBuilderExtPrivate: Sized {
+  /// Sets the webview url.
+  fn url(self, url: String) -> Self;
+}
+
 /// The webview builder.
 pub trait WebviewBuilderExt: Sized {
   /// The webview object that this builder creates.
@@ -87,9 +94,6 @@ pub trait WebviewBuilderExt: Sized {
 
   /// Initializes a new webview builder.
   fn new() -> Self;
-
-  /// Sets the webview url.
-  fn url(self, url: String) -> Self;
 
   /// Sets the init script.
   fn initialization_script(self, init: &str) -> Self;
@@ -122,7 +126,7 @@ pub trait WebviewBuilderExt: Sized {
   fn resizable(self, resizable: bool) -> Self;
 
   /// The title of the window in the title bar.
-  fn title(self, title: String) -> Self;
+  fn title<S: Into<String>>(self, title: S) -> Self;
 
   /// Whether to start the window in fullscreen or not.
   fn fullscreen(self, fullscreen: bool) -> Self;
@@ -157,6 +161,19 @@ pub struct Callback<D> {
 
 /// Webview dispatcher. A thread-safe handle to the webview API.
 pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
+  /// The webview builder type.
+  type WebviewBuilder: WebviewBuilderExt
+    + WebviewBuilderExtPrivate
+    + From<WindowConfig>
+    + Send
+    + Sync;
+  /// Creates a webview.
+  fn create_webview(
+    &self,
+    webview_builder: Self::WebviewBuilder,
+    callbacks: Vec<Callback<Self>>,
+  ) -> crate::Result<Self>;
+
   /// Updates the window resizable flag.
   fn set_resizable(&self, resizable: bool) -> crate::Result<()>;
 
@@ -228,12 +245,16 @@ pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
 /// Manages windows and webviews.
 pub trait ApplicationExt: Sized {
   /// The webview builder.
-  type WebviewBuilder: WebviewBuilderExt;
+  type WebviewBuilder: WebviewBuilderExt
+    + WebviewBuilderExtPrivate
+    + From<WindowConfig>
+    + Send
+    + Sync;
   /// The message dispatcher.
-  type Dispatcher: ApplicationDispatcherExt;
+  type Dispatcher: ApplicationDispatcherExt<WebviewBuilder = Self::WebviewBuilder>;
 
   /// Returns the static plugin collection.
-  fn plugin_store() -> &'static PluginStore<Self::Dispatcher>;
+  fn plugin_store() -> &'static PluginStore<Self>;
 
   /// Creates a new application.
   fn new() -> crate::Result<Self>;

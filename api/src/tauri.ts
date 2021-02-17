@@ -57,7 +57,7 @@ function transformCallback(
  * @return {Promise<T>} Promise resolving or rejecting to the backend response
  */
 async function invoke<T>(args: any): Promise<T> {
-  return await new Promise((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     const callback = transformCallback((e) => {
       resolve(e)
       Reflect.deleteProperty(window, error)

@@ -7,6 +7,8 @@
 #[config_path = "examples/multiwindow/src-tauri/tauri.conf.json"]
 struct Context;
 
+use tauri::WebviewBuilderExt;
+
 fn main() {
   tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
     .setup(|webview_manager| async move {
@@ -21,6 +23,11 @@ fn main() {
         println!("got 'clicked' event on window '{}'", label)
       });
     })
+    .create_webview("Rust".to_string(), tauri::WindowUrl::App, |mut builder| {
+      builder = builder.title("Tauri - Rust");
+      Ok(builder)
+    })
+    .unwrap()
     .build()
     .unwrap()
     .run();

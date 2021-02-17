@@ -1,6 +1,4 @@
-use crate::{
-  api::config::PluginConfig, async_runtime::Mutex, ApplicationDispatcherExt, WebviewManager,
-};
+use crate::{api::config::PluginConfig, async_runtime::Mutex, ApplicationExt, WebviewManager};
 
 use futures::future::join_all;
 use serde_json::Value as JsonValue;
@@ -9,7 +7,7 @@ use std::sync::Arc;
 
 /// The plugin interface.
 #[async_trait::async_trait]
-pub trait Plugin<D: ApplicationDispatcherExt + 'static>: Send + Sync {
+pub trait Plugin<A: ApplicationExt + 'static>: Send + Sync {
   /// The plugin name. Used as key on the plugin config object.
   fn name(&self) -> &'static str;
 
@@ -30,17 +28,17 @@ pub trait Plugin<D: ApplicationDispatcherExt + 'static>: Send + Sync {
 
   /// Callback invoked when the webview is created.
   #[allow(unused_variables)]
-  async fn created(&mut self, webview_manager: WebviewManager<D>) {}
+  async fn created(&mut self, webview_manager: WebviewManager<A>) {}
 
   /// Callback invoked when the webview is ready.
   #[allow(unused_variables)]
-  async fn ready(&mut self, webview_manager: WebviewManager<D>) {}
+  async fn ready(&mut self, webview_manager: WebviewManager<A>) {}
 
   /// Add invoke_handler API extension commands.
   #[allow(unused_variables)]
   async fn extend_api(
     &mut self,
-    webview_manager: WebviewManager<D>,
+    webview_manager: WebviewManager<A>,
     payload: &JsonValue,
   ) -> crate::Result<JsonValue> {
     Err(crate::Error::UnknownApi(None))
@@ -48,19 +46,19 @@ pub trait Plugin<D: ApplicationDispatcherExt + 'static>: Send + Sync {
 }
 
 /// Plugin collection type.
-pub type PluginStore<D> = Arc<Mutex<Vec<Box<dyn Plugin<D> + Sync + Send>>>>;
+pub type PluginStore<A> = Arc<Mutex<Vec<Box<dyn Plugin<A> + Sync + Send>>>>;
 
 /// Registers a plugin.
-pub async fn register<D: ApplicationDispatcherExt + 'static>(
-  store: &PluginStore<D>,
-  plugin: impl Plugin<D> + Sync + Send + 'static,
+pub async fn register<A: ApplicationExt + 'static>(
+  store: &PluginStore<A>,
+  plugin: impl Plugin<A> + Sync + Send + 'static,
 ) {
   let mut plugins = store.lock().await;
   plugins.push(Box::new(plugin));
 }
 
-pub(crate) async fn initialize<D: ApplicationDispatcherExt + 'static>(
-  store: &PluginStore<D>,
+pub(crate) async fn initialize<A: ApplicationExt + 'static>(
+  store: &PluginStore<A>,
   plugins_config: PluginConfig,
 ) -> crate::Result<()> {
   let mut plugins = store.lock().await;
@@ -77,8 +75,8 @@ pub(crate) async fn initialize<D: ApplicationDispatcherExt + 'static>(
   Ok(())
 }
 
-pub(crate) async fn initialization_script<D: ApplicationDispatcherExt + 'static>(
-  store: &PluginStore<D>,
+pub(crate) async fn initialization_script<A: ApplicationExt + 'static>(
+  store: &PluginStore<A>,
 ) -> String {
   let mut plugins = store.lock().await;
   let mut futures = Vec::new();
@@ -98,9 +96,9 @@ pub(crate) async fn initialization_script<D: ApplicationDispatcherExt + 'static>
   initialization_script
 }
 
-pub(crate) async fn created<D: ApplicationDispatcherExt + 'static>(
-  store: &PluginStore<D>,
-  webview_manager: &crate::WebviewManager<D>,
+pub(crate) async fn created<A: ApplicationExt + 'static>(
+  store: &PluginStore<A>,
+  webview_manager: &crate::WebviewManager<A>,
 ) {
   let mut plugins = store.lock().await;
   let mut futures = Vec::new();
@@ -110,9 +108,9 @@ pub(crate) async fn created<D: ApplicationDispatcherExt + 'static>(
   join_all(futures).await;
 }
 
-pub(crate) async fn ready<D: ApplicationDispatcherExt + 'static>(
-  store: &PluginStore<D>,
-  webview_manager: &crate::WebviewManager<D>,
+pub(crate) async fn ready<A: ApplicationExt + 'static>(
+  store: &PluginStore<A>,
+  webview_manager: &crate::WebviewManager<A>,
 ) {
   let mut plugins = store.lock().await;
   let mut futures = Vec::new();
@@ -122,9 +120,9 @@ pub(crate) async fn ready<D: ApplicationDispatcherExt + 'static>(
   join_all(futures).await;
 }
 
-pub(crate) async fn extend_api<D: ApplicationDispatcherExt + 'static>(
-  store: &PluginStore<D>,
-  webview_manager: &crate::WebviewManager<D>,
+pub(crate) async fn extend_api<A: ApplicationExt + 'static>(
+  store: &PluginStore<A>,
+  webview_manager: &crate::WebviewManager<A>,
   arg: &JsonValue,
 ) -> crate::Result<Option<JsonValue>> {
   let mut plugins = store.lock().await;

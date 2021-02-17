@@ -1,4 +1,7 @@
-use super::{ApplicationDispatcherExt, ApplicationExt, Callback, Icon, WebviewBuilderExt};
+use super::{
+  ApplicationDispatcherExt, ApplicationExt, Callback, Icon, WebviewBuilderExt,
+  WebviewBuilderExtPrivate, WindowConfig,
+};
 
 use once_cell::sync::Lazy;
 
@@ -24,18 +27,55 @@ impl TryInto<wry::Icon> for Icon {
   }
 }
 
+impl WebviewBuilderExtPrivate for wry::Attributes {
+  fn url(mut self, url: String) -> Self {
+    self.url.replace(url);
+    self
+  }
+}
+
+impl From<WindowConfig> for wry::Attributes {
+  fn from(window_config: WindowConfig) -> Self {
+    let mut webview = wry::Attributes::default()
+      .title(window_config.0.title.to_string())
+      .width(window_config.0.width)
+      .height(window_config.0.height)
+      .visible(window_config.0.visible)
+      .resizable(window_config.0.resizable)
+      .decorations(window_config.0.decorations)
+      .maximized(window_config.0.maximized)
+      .fullscreen(window_config.0.fullscreen)
+      .transparent(window_config.0.transparent)
+      .always_on_top(window_config.0.always_on_top);
+    if let Some(min_width) = window_config.0.min_width {
+      webview = webview.min_width(min_width);
+    }
+    if let Some(min_height) = window_config.0.min_height {
+      webview = webview.min_height(min_height);
+    }
+    if let Some(max_width) = window_config.0.max_width {
+      webview = webview.max_width(max_width);
+    }
+    if let Some(max_height) = window_config.0.max_height {
+      webview = webview.max_height(max_height);
+    }
+    if let Some(x) = window_config.0.x {
+      webview = webview.x(x);
+    }
+    if let Some(y) = window_config.0.y {
+      webview = webview.y(y);
+    }
+    webview
+  }
+}
+
 /// The webview builder.
-impl WebviewBuilderExt for wry::WebViewAttributes {
+impl WebviewBuilderExt for wry::Attributes {
   /// The webview object that this builder creates.
   type Webview = Self;
 
   fn new() -> Self {
     Default::default()
-  }
-
-  fn url(mut self, url: String) -> Self {
-    self.url.replace(url);
-    self
   }
 
   fn initialization_script(mut self, init: &str) -> Self {
@@ -88,8 +128,8 @@ impl WebviewBuilderExt for wry::WebViewAttributes {
     self
   }
 
-  fn title(mut self, title: String) -> Self {
-    self.title = title;
+  fn title<S: Into<String>>(mut self, title: S) -> Self {
+    self.title = title.into();
     self
   }
 
@@ -129,9 +169,48 @@ impl WebviewBuilderExt for wry::WebViewAttributes {
 }
 
 #[derive(Clone)]
-pub struct WryDispatcher(Arc<Mutex<wry::WindowDispatcher>>);
+pub struct WryDispatcher(
+  Arc<Mutex<wry::WindowProxy>>,
+  Arc<Mutex<wry::ApplicationProxy>>,
+);
 
 impl ApplicationDispatcherExt for WryDispatcher {
+  type WebviewBuilder = wry::Attributes;
+
+  fn create_webview(
+    &self,
+    attributes: Self::WebviewBuilder,
+    callbacks: Vec<Callback<Self>>,
+  ) -> crate::Result<Self> {
+    let mut wry_callbacks = Vec::new();
+    let app_dispatcher = self.1.clone();
+    for mut callback in callbacks {
+      let app_dispatcher = app_dispatcher.clone();
+      let callback = wry::Callback {
+        name: callback.name.to_string(),
+        function: Box::new(move |dispatcher, seq, req| {
+          (callback.function)(
+            Self(Arc::new(Mutex::new(dispatcher)), app_dispatcher.clone()),
+            seq,
+            req,
+          )
+        }),
+      };
+      wry_callbacks.push(callback);
+    }
+
+    let window_dispatcher = self
+      .1
+      .lock()
+      .unwrap()
+      .add_window(attributes, Some(wry_callbacks))
+      .map_err(|_| crate::Error::FailedToSendMessage)?;
+    Ok(Self(
+      Arc::new(Mutex::new(window_dispatcher)),
+      self.1.clone(),
+    ))
+  }
+
   fn set_resizable(&self, resizable: bool) -> crate::Result<()> {
     self
       .0
@@ -326,7 +405,7 @@ impl ApplicationDispatcherExt for WryDispatcher {
       .0
       .lock()
       .unwrap()
-      .eval_script(script)
+      .evaluate_script(script)
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 }
@@ -337,11 +416,11 @@ pub struct WryApplication {
 }
 
 impl ApplicationExt for WryApplication {
-  type WebviewBuilder = wry::WebViewAttributes;
+  type WebviewBuilder = wry::Attributes;
   type Dispatcher = WryDispatcher;
 
-  fn plugin_store() -> &'static PluginStore<Self::Dispatcher> {
-    static PLUGINS: Lazy<PluginStore<WryDispatcher>> = Lazy::new(Default::default);
+  fn plugin_store() -> &'static PluginStore<Self> {
+    static PLUGINS: Lazy<PluginStore<WryApplication>> = Lazy::new(Default::default);
     &PLUGINS
   }
 
@@ -356,11 +435,17 @@ impl ApplicationExt for WryApplication {
     callbacks: Vec<Callback<Self::Dispatcher>>,
   ) -> crate::Result<Self::Dispatcher> {
     let mut wry_callbacks = Vec::new();
+    let app_dispatcher = Arc::new(Mutex::new(self.inner.application_proxy()));
     for mut callback in callbacks {
+      let app_dispatcher = app_dispatcher.clone();
       let callback = wry::Callback {
         name: callback.name.to_string(),
         function: Box::new(move |dispatcher, seq, req| {
-          (callback.function)(WryDispatcher(Arc::new(Mutex::new(dispatcher))), seq, req)
+          (callback.function)(
+            WryDispatcher(Arc::new(Mutex::new(dispatcher)), app_dispatcher.clone()),
+            seq,
+            req,
+          )
         }),
       };
       wry_callbacks.push(callback);
@@ -368,9 +453,12 @@ impl ApplicationExt for WryApplication {
 
     let dispatcher = self
       .inner
-      .create_webview(webview_builder.finish()?, Some(wry_callbacks))
+      .add_window(webview_builder.finish()?, Some(wry_callbacks))
       .map_err(|_| crate::Error::CreateWebview)?;
-    Ok(WryDispatcher(Arc::new(Mutex::new(dispatcher))))
+    Ok(WryDispatcher(
+      Arc::new(Mutex::new(dispatcher)),
+      app_dispatcher,
+    ))
   }
 
   fn run(self) {

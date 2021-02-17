@@ -24,13 +24,11 @@ fn main() {
 
     // window
     window: { any(all_api, feature = "window") },
+    create_window: { any(all_api, feature = "create-window") },
 
     // shell
     open: { any(all_api, feature = "open") },
     execute: { any(all_api, feature = "execute") },
-
-    // event
-    event: { any(all_api, feature = "event") },
 
     // dialog
     open_dialog: { any(all_api, feature = "open-dialog") },

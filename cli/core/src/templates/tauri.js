@@ -194,6 +194,20 @@ if (!String.prototype.startsWith) {
     );
   }
 
+  window.__TAURI__.invoke({
+    __tauriModule: 'Event',
+    message: {
+      cmd: 'listen',
+      event: 'tauri://window-created',
+      handler: window.__TAURI__.transformCallback(function (event) {
+        if (event.payload) {
+          var windowLabel = event.payload.label
+          window.__TAURI__.__windows.push({ label: windowLabel })
+        }
+      })
+    }
+  })
+
   let permissionSettable = false;
   let permissionValue = "default";
 

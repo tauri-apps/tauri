@@ -85,6 +85,12 @@ pub enum Cmd {
   },
 }
 
+#[cfg(create_window)]
+#[derive(Clone, serde::Serialize)]
+struct WindowCreatedEvent {
+  label: String,
+}
+
 impl Cmd {
   pub async fn run<A: ApplicationExt + 'static>(
     self,
@@ -96,11 +102,24 @@ impl Cmd {
       let current_webview = webview_manager.current_webview().await?;
       match self {
         Self::CreateWebview { options } => {
-          webview_manager
-            .create_webview(options.label.to_string(), options.url.clone(), |_| {
-              Ok(crate::app::webview::WindowConfig(options).into())
-            })
-            .await?;
+          #[cfg(not(create_window))]
+          return Err(crate::Error::ApiNotAllowlisted("createWindow".to_string()));
+          #[cfg(create_window)]
+          {
+            let label = options.label.to_string();
+            webview_manager
+              .create_webview(label.to_string(), options.url.clone(), |_| {
+                Ok(crate::app::webview::WindowConfig(options).into())
+              })
+              .await?;
+            webview_manager
+              .emit_except(
+                label.to_string(),
+                "tauri://window-created",
+                Some(WindowCreatedEvent { label }),
+              )
+              .await?;
+          }
         }
         Self::SetResizable { resizable } => current_webview.set_resizable(resizable)?,
         Self::SetTitle { title } => current_webview.set_title(&title)?,

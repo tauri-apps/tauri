@@ -3,8 +3,6 @@ use super::{
   WebviewBuilderExtPrivate, WindowConfig,
 };
 
-use wry::ApplicationDispatcher as _;
-
 use once_cell::sync::Lazy;
 
 use crate::plugin::PluginStore;
@@ -29,16 +27,16 @@ impl TryInto<wry::Icon> for Icon {
   }
 }
 
-impl WebviewBuilderExtPrivate for wry::WebViewAttributes {
+impl WebviewBuilderExtPrivate for wry::Attributes {
   fn url(mut self, url: String) -> Self {
     self.url.replace(url);
     self
   }
 }
 
-impl From<WindowConfig> for wry::WebViewAttributes {
+impl From<WindowConfig> for wry::Attributes {
   fn from(window_config: WindowConfig) -> Self {
-    let mut webview = wry::WebViewAttributes::default()
+    let mut webview = wry::Attributes::default()
       .title(window_config.0.title.to_string())
       .width(window_config.0.width)
       .height(window_config.0.height)
@@ -72,7 +70,7 @@ impl From<WindowConfig> for wry::WebViewAttributes {
 }
 
 /// The webview builder.
-impl WebviewBuilderExt for wry::WebViewAttributes {
+impl WebviewBuilderExt for wry::Attributes {
   /// The webview object that this builder creates.
   type Webview = Self;
 
@@ -172,12 +170,12 @@ impl WebviewBuilderExt for wry::WebViewAttributes {
 
 #[derive(Clone)]
 pub struct WryDispatcher(
-  Arc<Mutex<wry::WindowDispatcher>>,
-  Arc<Mutex<wry::AppDispatcher>>,
+  Arc<Mutex<wry::WindowProxy>>,
+  Arc<Mutex<wry::ApplicationProxy>>,
 );
 
 impl ApplicationDispatcherExt for WryDispatcher {
-  type WebviewBuilder = wry::WebViewAttributes;
+  type WebviewBuilder = wry::Attributes;
 
   fn create_webview(
     &self,
@@ -201,14 +199,16 @@ impl ApplicationDispatcherExt for WryDispatcher {
       wry_callbacks.push(callback);
     }
 
-    self
+    let window_dispatcher = self
       .1
       .lock()
       .unwrap()
       .add_window(attributes, Some(wry_callbacks))
       .map_err(|_| crate::Error::FailedToSendMessage)?;
-    // TODO use proper window dispatcher
-    Ok(Self(self.0.clone(), self.1.clone()))
+    Ok(Self(
+      Arc::new(Mutex::new(window_dispatcher)),
+      self.1.clone(),
+    ))
   }
 
   fn set_resizable(&self, resizable: bool) -> crate::Result<()> {
@@ -405,7 +405,7 @@ impl ApplicationDispatcherExt for WryDispatcher {
       .0
       .lock()
       .unwrap()
-      .eval_script(script)
+      .evaluate_script(script)
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 }
@@ -416,7 +416,7 @@ pub struct WryApplication {
 }
 
 impl ApplicationExt for WryApplication {
-  type WebviewBuilder = wry::WebViewAttributes;
+  type WebviewBuilder = wry::Attributes;
   type Dispatcher = WryDispatcher;
 
   fn plugin_store() -> &'static PluginStore<Self> {
@@ -435,7 +435,7 @@ impl ApplicationExt for WryApplication {
     callbacks: Vec<Callback<Self::Dispatcher>>,
   ) -> crate::Result<Self::Dispatcher> {
     let mut wry_callbacks = Vec::new();
-    let app_dispatcher = Arc::new(Mutex::new(self.inner.dispatcher()));
+    let app_dispatcher = Arc::new(Mutex::new(self.inner.application_proxy()));
     for mut callback in callbacks {
       let app_dispatcher = app_dispatcher.clone();
       let callback = wry::Callback {
@@ -453,7 +453,7 @@ impl ApplicationExt for WryApplication {
 
     let dispatcher = self
       .inner
-      .create_webview(webview_builder.finish()?, Some(wry_callbacks))
+      .add_window(webview_builder.finish()?, Some(wry_callbacks))
       .map_err(|_| crate::Error::CreateWebview)?;
     Ok(WryDispatcher(
       Arc::new(Mutex::new(dispatcher)),

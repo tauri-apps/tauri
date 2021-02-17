@@ -241,14 +241,33 @@ impl<A: ApplicationExt + 'static> WebviewManager<A> {
       label: label.to_string(),
       builder,
     };
-    let (webview_builder, callbacks) = self.application.clone().init_webview(webview)?;
+    self
+      .application
+      .window_labels
+      .lock()
+      .await
+      .push(label.to_string());
+    let (webview_builder, callbacks) = self.application.init_webview(webview).await?;
 
-    let dispatcher = self
+    let window_dispatcher = self
       .current_webview()
       .await?
       .dispatcher
       .create_webview(webview_builder, callbacks)?;
-    Ok(WebviewDispatcher::new(dispatcher, label))
+    let webview_manager = Self::new(
+      self.application.clone(),
+      self.dispatchers.clone(),
+      label.to_string(),
+    );
+    self
+      .application
+      .on_webview_created(
+        label.to_string(),
+        window_dispatcher.clone(),
+        webview_manager,
+      )
+      .await;
+    Ok(WebviewDispatcher::new(window_dispatcher, label))
   }
 
   /// Listen to a global event.
@@ -269,6 +288,20 @@ impl<A: ApplicationExt + 'static> WebviewManager<A> {
   ) -> crate::Result<()> {
     for dispatcher in self.dispatchers.lock().await.values() {
       super::event::emit(&dispatcher, event.as_ref(), payload.clone())?;
+    }
+    Ok(())
+  }
+
+  pub(crate) async fn emit_except<S: Serialize + Clone>(
+    &self,
+    except_label: String,
+    event: impl AsRef<str>,
+    payload: Option<S>,
+  ) -> crate::Result<()> {
+    for dispatcher in self.dispatchers.lock().await.values() {
+      if dispatcher.window_label != except_label {
+        super::event::emit(&dispatcher, event.as_ref(), payload.clone())?;
+      }
     }
     Ok(())
   }

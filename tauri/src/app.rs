@@ -56,25 +56,28 @@ pub struct App<A: ApplicationExt> {
   pub(crate) dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A::Dispatcher>>>>,
   pub(crate) webviews: Option<Vec<Webview<A>>>,
   url: String,
-  window_labels: Vec<String>,
+  window_labels: Arc<Mutex<Vec<String>>>,
   plugin_initialization_script: String,
 }
 
 impl<A: ApplicationExt + 'static> App<A> {
   /// Runs the app until it finishes.
   pub fn run(mut self) {
-    for window_config in self.context.config.tauri.windows.clone() {
-      let window_url = window_config.url.clone();
-      let window_label = window_config.label.to_string();
-      self.window_labels.push(window_label.to_string());
-      let webview = A::WebviewBuilder::from(webview::WindowConfig(window_config));
-      let mut webviews = self.webviews.take().unwrap();
-      webviews.push(Webview {
-        label: window_label,
-        builder: webview,
-        url: window_url,
-      });
-      self.webviews = Some(webviews);
+    {
+      let mut window_labels = crate::async_runtime::block_on(self.window_labels.lock());
+      for window_config in self.context.config.tauri.windows.clone() {
+        let window_url = window_config.url.clone();
+        let window_label = window_config.label.to_string();
+        window_labels.push(window_label.to_string());
+        let webview = A::WebviewBuilder::from(webview::WindowConfig(window_config));
+        let mut webviews = self.webviews.take().unwrap();
+        webviews.push(Webview {
+          label: window_label,
+          builder: webview,
+          url: window_url,
+        });
+        self.webviews = Some(webviews);
+      }
     }
 
     run(self).expect("failed to run application");
@@ -105,19 +108,28 @@ impl<A: ApplicationExt + 'static> App<A> {
   }
 }
 
+#[async_trait::async_trait]
 trait WebviewInitializer<A: ApplicationExt> {
-  fn init_webview(
-    self,
+  async fn init_webview(
+    &self,
     webview: Webview<A>,
   ) -> crate::Result<(
     <A as ApplicationExt>::WebviewBuilder,
     Vec<Callback<A::Dispatcher>>,
   )>;
+
+  async fn on_webview_created(
+    &self,
+    webview_label: String,
+    dispatcher: A::Dispatcher,
+    manager: WebviewManager<A>,
+  );
 }
 
+#[async_trait::async_trait]
 impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
-  fn init_webview(
-    self,
+  async fn init_webview(
+    &self,
     webview: Webview<A>,
   ) -> crate::Result<(
     <A as ApplicationExt>::WebviewBuilder,
@@ -133,10 +145,26 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
       webview,
       &webview_manager,
       &self.url,
-      &self.window_labels,
+      &self.window_labels.lock().await,
       &self.plugin_initialization_script,
       &self.context.tauri_script,
     )
+  }
+
+  async fn on_webview_created(
+    &self,
+    webview_label: String,
+    dispatcher: A::Dispatcher,
+    manager: WebviewManager<A>,
+  ) {
+    self.dispatchers.lock().await.insert(
+      webview_label.to_string(),
+      WebviewDispatcher::new(dispatcher.clone(), webview_label),
+    );
+
+    crate::async_runtime::spawn_task(async move {
+      crate::plugin::created(A::plugin_store(), &manager).await
+    });
   }
 }
 
@@ -235,7 +263,7 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<A, C> {
       dispatchers: self.dispatchers,
       webviews: Some(self.webviews),
       url,
-      window_labels,
+      window_labels: Arc::new(Mutex::new(window_labels)),
       plugin_initialization_script,
     })
   }
@@ -262,17 +290,15 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
       application.dispatchers.clone(),
       webview_label.to_string(),
     );
-    let (webview_builder, callbacks) = application.clone().init_webview(webview)?;
+    let (webview_builder, callbacks) =
+      crate::async_runtime::block_on(application.init_webview(webview))?;
 
     let dispatcher = webview_app.create_webview(webview_builder, callbacks)?;
-    crate::async_runtime::block_on(application.dispatchers.lock()).insert(
-      webview_label.to_string(),
-      WebviewDispatcher::new(dispatcher.clone(), webview_label),
-    );
-
-    crate::async_runtime::spawn(async move {
-      crate::plugin::created(A::plugin_store(), &webview_manager).await
-    });
+    crate::async_runtime::block_on(application.on_webview_created(
+      webview_label,
+      dispatcher,
+      webview_manager,
+    ));
   }
 
   webview_app.run();

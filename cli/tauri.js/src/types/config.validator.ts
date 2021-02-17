@@ -479,10 +479,34 @@ export const TauriConfigSchema = {
                 additionalProperties: false,
                 defaultProperties: [],
                 properties: {
+                  alwaysOnTop: {
+                    type: 'boolean'
+                  },
+                  decorations: {
+                    type: 'boolean'
+                  },
                   fullscreen: {
                     type: 'boolean'
                   },
                   height: {
+                    type: 'number'
+                  },
+                  label: {
+                    type: 'string'
+                  },
+                  maxHeight: {
+                    type: 'number'
+                  },
+                  maxWidth: {
+                    type: 'number'
+                  },
+                  maximized: {
+                    type: 'boolean'
+                  },
+                  minHeight: {
+                    type: 'number'
+                  },
+                  minWidth: {
                     type: 'number'
                   },
                   resizable: {
@@ -491,11 +515,25 @@ export const TauriConfigSchema = {
                   title: {
                     type: 'string'
                   },
+                  transparent: {
+                    type: 'boolean'
+                  },
+                  url: {
+                    type: 'string'
+                  },
+                  visible: {
+                    type: 'boolean'
+                  },
                   width: {
+                    type: 'number'
+                  },
+                  x: {
+                    type: 'number'
+                  },
+                  y: {
                     type: 'number'
                   }
                 },
-                required: ['title'],
                 type: 'object'
               }
             ]
@@ -505,10 +543,34 @@ export const TauriConfigSchema = {
               additionalProperties: false,
               defaultProperties: [],
               properties: {
+                alwaysOnTop: {
+                  type: 'boolean'
+                },
+                decorations: {
+                  type: 'boolean'
+                },
                 fullscreen: {
                   type: 'boolean'
                 },
                 height: {
+                  type: 'number'
+                },
+                label: {
+                  type: 'string'
+                },
+                maxHeight: {
+                  type: 'number'
+                },
+                maxWidth: {
+                  type: 'number'
+                },
+                maximized: {
+                  type: 'boolean'
+                },
+                minHeight: {
+                  type: 'number'
+                },
+                minWidth: {
                   type: 'number'
                 },
                 resizable: {
@@ -517,11 +579,25 @@ export const TauriConfigSchema = {
                 title: {
                   type: 'string'
                 },
+                transparent: {
+                  type: 'boolean'
+                },
+                url: {
+                  type: 'string'
+                },
+                visible: {
+                  type: 'boolean'
+                },
                 width: {
+                  type: 'number'
+                },
+                x: {
+                  type: 'number'
+                },
+                y: {
                   type: 'number'
                 }
               },
-              required: ['title'],
               type: 'object'
             }
           ],

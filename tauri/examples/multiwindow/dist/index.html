@@ -12,9 +12,24 @@
     windowLabelContainer.innerHTML =
       "This is the " + windowLabel + " window.";
 
+    var container = document.getElementById("container");
+
+    function createWindowMessageBtn(label) {
+      var tauriWindow = window.__TAURI__.window.getTauriWindow(label)
+      var button = document.createElement("button");
+      button.innerHTML = "Send message to " + label;
+      button.addEventListener("click", function () {
+        tauriWindow.emit("clicked", "message from " + windowLabel);
+      });
+      container.appendChild(button);
+    }
+
     // global listener
     window.__TAURI__.event.listen("clicked", function (event) {
       responseContainer.innerHTML += "Got " + JSON.stringify(event) + " on global listener<br><br>";
+    })
+    window.__TAURI__.event.listen('tauri://window-created', function (event) {
+      createWindowMessageBtn(event.payload.label)
     })
 
     var responseContainer = document.getElementById("response");
@@ -24,31 +39,27 @@
       responseContainer.innerHTML += "Got " + JSON.stringify(event) + " on window listener<br><br>";
     });
 
-    var container = document.getElementById("container");
+    var createWindowButton = document.createElement("button");
+    createWindowButton.innerHTML = "Create window";
+    createWindowButton.addEventListener("click", function () {
+      window.__TAURI__.window.createWindow(Math.random().toString());
+    });
+    container.appendChild(createWindowButton);
 
-    var button = document.createElement("button");
-    button.innerHTML = "Send global message";
-    button.addEventListener("click", function () {
+    var globalMessageButton = document.createElement("button");
+    globalMessageButton.innerHTML = "Send global message";
+    globalMessageButton.addEventListener("click", function () {
       // emit to all windows
       window.__TAURI__.event.emit("clicked", "message from " + windowLabel);
     });
-    container.appendChild(button);
+    container.appendChild(globalMessageButton);
 
     for (var index in window.__TAURI__.window.getWindows()) {
-      (function () {
-        var label = window.__TAURI__.window.getWindows()[index].label;
-        if (label === windowLabel) {
-          return;
-        }
-        var tauriWindow = window.__TAURI__.window.getTauriWindow(label)
-        var button = document.createElement("button");
-        button.innerHTML = "Send message to " + label;
-        button.addEventListener("click", function () {
-          console.log('clicked')
-          tauriWindow.emit("clicked", "message from " + windowLabel);
-        });
-        container.appendChild(button);
-      })()
+      var label = window.__TAURI__.window.getWindows()[index].label;
+      if (label === windowLabel) {
+        continue;
+      }
+      createWindowMessageBtn(label)
     }
   </script>
 </body>

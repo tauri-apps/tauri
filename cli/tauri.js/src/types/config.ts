@@ -279,11 +279,24 @@ export interface TauriConfig {
     }
     windows: [
       {
-        title: string
+        label?: string
+        url?: 'app' | string
+        x?: number
+        y?: number
         width?: number
         height?: number
+        minWidth?: number
+        minHeight?: number
+        maxWidth?: number
+        maxHeight?: number
         resizable?: boolean
+        title?: string
         fullscreen?: boolean
+        transparent?: boolean
+        maximized?: boolean
+        visible?: boolean
+        decorations?: boolean
+        alwaysOnTop?: boolean
       }
     ]
     security: {

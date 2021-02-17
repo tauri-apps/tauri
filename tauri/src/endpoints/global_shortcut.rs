@@ -23,9 +23,9 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub async fn run<D: crate::ApplicationDispatcherExt + 'static>(
+  pub async fn run<A: crate::ApplicationExt + 'static>(
     self,
-    webview_manager: &crate::WebviewManager<D>,
+    webview_manager: &crate::WebviewManager<A>,
   ) -> crate::Result<JsonValue> {
     #[cfg(not(global_shortcut))]
     return Err(crate::Error::ApiNotAllowlisted(

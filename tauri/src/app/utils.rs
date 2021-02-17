@@ -1,6 +1,6 @@
 #[cfg(dev)]
 use std::io::Read;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 #[cfg(dev)]
 use crate::api::assets::{AssetFetch, Assets};
@@ -13,19 +13,15 @@ use crate::{
   ApplicationExt, WebviewBuilderExt,
 };
 
-use super::{App, ApplicationDispatcherExt, WebviewDispatcher, WebviewManager};
+use super::{
+  webview::{Callback, WebviewBuilderExtPrivate},
+  App, Context, Webview, WebviewManager,
+};
 #[cfg(embedded_server)]
 use crate::api::tcp::{get_available_port, port_is_available};
-use crate::{app::Context, async_runtime::Mutex};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-
-#[allow(dead_code)]
-enum Content<T> {
-  Html(T),
-  Url(T),
-}
 
 #[derive(Debug, Deserialize)]
 struct Message {
@@ -39,46 +35,9 @@ struct Message {
   inner: JsonValue,
 }
 
-/// Main entry point for running the Webview
-pub(crate) fn run<A: ApplicationExt + 'static>(application: App<A>) -> crate::Result<()> {
-  let plugin_config = application.context.config.plugins.clone();
-  crate::async_runtime::block_on(async move {
-    crate::plugin::initialize(A::plugin_store(), plugin_config).await
-  })?;
-
-  // setup the content using the config struct depending on the compile target
-  let main_content = setup_content(&application.context)?;
-
-  #[cfg(embedded_server)]
-  {
-    // setup the server url for the embedded-server
-    let server_url = if let Content::Url(url) = &main_content {
-      String::from(url)
-    } else {
-      String::from("")
-    };
-
-    // spawn the embedded server on our server url
-    #[cfg(embedded_server)]
-    spawn_server(server_url, &application.context);
-  }
-
-  // build the webview
-  let webview_application = build_webview(application, main_content)?;
-
-  // spin up the updater process
-  #[cfg(feature = "updater")]
-  spawn_updater();
-
-  // run the webview
-  webview_application.run();
-
-  Ok(())
-}
-
 // setup content for dev-server
 #[cfg(dev)]
-fn setup_content(context: &Context) -> crate::Result<Content<String>> {
+pub(super) fn get_url(context: &Context) -> crate::Result<String> {
   let config = &context.config;
   if config.build.dev_path.starts_with("http") {
     #[cfg(windows)]
@@ -104,9 +63,9 @@ fn setup_content(context: &Context) -> crate::Result<Content<String>> {
           .expect("failed to run Loopback command");
       }
     }
-    Ok(Content::Url(config.build.dev_path.clone()))
+    Ok(config.build.dev_path.clone())
   } else {
-    Ok(Content::Html(format!(
+    Ok(format!(
       "data:text/html;base64,{}",
       base64::encode(
         context
@@ -121,17 +80,16 @@ fn setup_content(context: &Context) -> crate::Result<Content<String>> {
           })
           .expect("Unable to find `index.html` under your devPath folder")
       )
-    )))
+    ))
   }
 }
 
 // setup content for embedded server
 #[cfg(embedded_server)]
-fn setup_content(context: &Context) -> crate::Result<Content<String>> {
+pub(super) fn get_url(context: &Context) -> crate::Result<String> {
   let (port, valid) = setup_port(&context);
   if valid {
-    let url = setup_server_url(port, &context);
-    Ok(Content::Url(url))
+    Ok(setup_server_url(port, &context))
   } else {
     Err(crate::Error::PortNotAvailable(port))
   }
@@ -168,7 +126,7 @@ fn setup_server_url(port: String, context: &Context) -> String {
 
 // spawn the embedded server
 #[cfg(embedded_server)]
-fn spawn_server(server_url: String, context: &Context) {
+pub(super) fn spawn_server(server_url: String, context: &Context) {
   let assets = context.assets;
   let public_path = context.config.tauri.embedded_server.public_path.clone();
   std::thread::spawn(move || {
@@ -200,7 +158,8 @@ fn spawn_server(server_url: String, context: &Context) {
 
 // spawn an updater process.
 #[cfg(feature = "updater")]
-fn spawn_updater() {
+#[allow(dead_code)]
+pub(super) fn spawn_updater() {
   std::thread::spawn(|| {
     tauri_api::command::spawn_relative_command(
       "updater".to_string(),
@@ -211,10 +170,30 @@ fn spawn_updater() {
   });
 }
 
-pub fn event_initialization_script() -> String {
-  #[cfg(not(event))]
-  return String::from("");
-  #[cfg(event)]
+pub(super) fn initialization_script(
+  plugin_initialization_script: &str,
+  tauri_script: &str,
+) -> String {
+  format!(
+    r#"
+      {tauri_initialization_script}
+      {event_initialization_script}
+      if (window.__TAURI_INVOKE_HANDLER__) {{
+        window.__TAURI__.invoke({{ cmd: "__initialized" }})
+      }} else {{
+        window.addEventListener('DOMContentLoaded', function () {{
+          window.__TAURI__.invoke({{ cmd: "__initialized" }})
+        }})
+      }}
+      {plugin_initialization_script}
+    "#,
+    tauri_initialization_script = tauri_script,
+    event_initialization_script = event_initialization_script(),
+    plugin_initialization_script = plugin_initialization_script
+  )
+}
+
+fn event_initialization_script() -> String {
   return format!(
     "
       window['{queue}'] = [];
@@ -253,82 +232,39 @@ pub fn event_initialization_script() -> String {
   );
 }
 
-// build the webview struct
-fn build_webview<A: ApplicationExt + 'static>(
-  application: App<A>,
-  content: Content<String>,
-) -> crate::Result<A> {
+pub(super) type BuiltWebview<A> = (
+  <A as ApplicationExt>::WebviewBuilder,
+  Vec<Callback<<A as ApplicationExt>::Dispatcher>>,
+);
+
+// build the webview.
+pub(super) fn build_webview<A: ApplicationExt + 'static>(
+  application: Arc<App<A>>,
+  webview: Webview<A>,
+  webview_manager: &WebviewManager<A>,
+  content_url: &str,
+  window_labels: &[String],
+  plugin_initialization_script: &str,
+  tauri_script: &str,
+) -> crate::Result<BuiltWebview<A>> {
   // TODO let debug = cfg!(debug_assertions);
-  let content_url = match content {
-    Content::Html(s) => s,
-    Content::Url(s) => s,
+  let webview_url = match &webview.url {
+    WindowUrl::App => content_url.to_string(),
+    WindowUrl::Custom(url) => url.to_string(),
   };
 
-  let initialization_script = format!(
-    r#"
-      {tauri_initialization_script}
-      {event_initialization_script}
-      if (window.__TAURI_INVOKE_HANDLER__) {{
-        window.__TAURI__.invoke({{ cmd: "__initialized" }})
-      }} else {{
-        window.addEventListener('DOMContentLoaded', function () {{
-          window.__TAURI__.invoke({{ cmd: "__initialized" }})
-        }})
-      }}
-      {plugin_initialization_script}
-    "#,
-    tauri_initialization_script = application.context.tauri_script,
-    event_initialization_script = event_initialization_script(),
-    plugin_initialization_script =
-      crate::async_runtime::block_on(crate::plugin::initialization_script(A::plugin_store()))
-  );
-
-  let application = Arc::new(application);
-
-  let mut webview_application = A::new()?;
-
-  let dispatchers = Arc::new(Mutex::new(HashMap::new()));
-  let mut window_labels = Vec::new();
-
-  for window_config in &application.context.config.tauri.windows {
-    window_labels.push(window_config.label.to_string());
-  }
-
-  for window_config in application.context.config.tauri.windows.clone() {
-    let mut webview = A::WebviewBuilder::new()
-      .title(window_config.title.to_string())
-      .width(window_config.width)
-      .height(window_config.height)
-      .visible(window_config.visible)
-      .resizable(window_config.resizable)
-      .decorations(window_config.decorations)
-      .maximized(window_config.maximized)
-      .fullscreen(window_config.fullscreen)
-      .transparent(window_config.transparent)
-      .always_on_top(window_config.always_on_top);
-    if let Some(min_width) = window_config.min_width {
-      webview = webview.min_width(min_width);
-    }
-    if let Some(min_height) = window_config.min_height {
-      webview = webview.min_height(min_height);
-    }
-    if let Some(max_width) = window_config.max_width {
-      webview = webview.max_width(max_width);
-    }
-    if let Some(max_height) = window_config.max_height {
-      webview = webview.max_height(max_height);
-    }
-    if let Some(x) = window_config.x {
-      webview = webview.x(x);
-    }
-    if let Some(y) = window_config.y {
-      webview = webview.y(y);
-    }
-
-    let webview_manager = WebviewManager::new(dispatchers.clone(), window_config.label.to_string());
-
-    let application = application.clone();
-    let content_url = content_url.to_string();
+  let (webview_builder, callbacks) = if webview.url == WindowUrl::App {
+    let webview_builder = webview.builder.url(webview_url)
+        .initialization_script(&initialization_script(plugin_initialization_script, tauri_script))
+        .initialization_script(&format!(
+          r#"
+              window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
+              window.__TAURI__.__currentWindow = {{ label: "{current_window_label}" }}
+            "#,
+          window_labels_array =
+            serde_json::to_string(&window_labels).unwrap(),
+          current_window_label = webview.label,
+        ));
 
     let webview_manager_ = webview_manager.clone();
     let tauri_invoke_handler = crate::Callback::<A::Dispatcher> {
@@ -379,36 +315,12 @@ fn build_webview<A: ApplicationExt + 'static>(
         0
       }),
     };
+    (webview_builder, vec![tauri_invoke_handler])
+  } else {
+    (webview.builder.url(webview_url), Vec::new())
+  };
 
-    let webview_url = match &window_config.url {
-      WindowUrl::App => content_url.to_string(),
-      WindowUrl::Custom(url) => url.to_string(),
-    };
-
-    webview = webview.url(webview_url)
-        .initialization_script(&initialization_script)
-        .initialization_script(&format!(
-          r#"
-              window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
-              window.__TAURI__.__currentWindow = {{ label: "{current_window_label}" }}
-            "#,
-          window_labels_array =
-            serde_json::to_string(&window_labels).unwrap(),
-          current_window_label = window_config.label,
-        ));
-
-    let dispatcher = webview_application.create_webview(webview, vec![tauri_invoke_handler])?;
-    crate::async_runtime::block_on(dispatchers.lock()).insert(
-      window_config.label.to_string(),
-      WebviewDispatcher::new(dispatcher, window_config.label.to_string()),
-    );
-
-    crate::async_runtime::spawn(async move {
-      crate::plugin::created(A::plugin_store(), &webview_manager).await
-    });
-  }
-
-  Ok(webview_application)
+  Ok((webview_builder, callbacks))
 }
 
 /// Asynchronously executes the given task
@@ -417,11 +329,11 @@ fn build_webview<A: ApplicationExt + 'static>(
 /// If the Result `is_ok()`, the callback will be the `success_callback` function name and the argument will be the Ok value.
 /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
 async fn execute_promise<
-  D: ApplicationDispatcherExt,
+  A: ApplicationExt + 'static,
   R: Serialize,
   F: futures::Future<Output = crate::Result<R>> + Send + 'static,
 >(
-  webview_manager: &crate::WebviewManager<D>,
+  webview_manager: &crate::WebviewManager<A>,
   task: F,
   success_callback: String,
   error_callback: String,
@@ -441,7 +353,7 @@ async fn execute_promise<
 
 async fn on_message<A: ApplicationExt + 'static>(
   application: Arc<App<A>>,
-  webview_manager: WebviewManager<<A as ApplicationExt>::Dispatcher>,
+  webview_manager: WebviewManager<A>,
   message: Message,
 ) -> crate::Result<JsonValue> {
   if message.inner == serde_json::json!({ "cmd":"__initialized" }) {
@@ -484,24 +396,21 @@ async fn on_message<A: ApplicationExt + 'static>(
 
 #[cfg(test)]
 mod test {
-  use super::Content;
   use crate::{Context, FromTauriContext};
   use proptest::prelude::*;
-  #[cfg(dev)]
-  use std::io::Read;
 
   #[derive(FromTauriContext)]
   #[config_path = "test/fixture/src-tauri/tauri.conf.json"]
   struct TauriContext;
 
   #[test]
-  fn check_setup_content() {
+  fn check_get_url() {
     let context = Context::new::<TauriContext>().unwrap();
-    let res = super::setup_content(&context);
+    let res = super::get_url(&context);
 
     #[cfg(embedded_server)]
     match res {
-      Ok(Content::Url(ref u)) => assert!(u.contains("http://")),
+      Ok(u) => assert!(u.contains("http://")),
       _ => panic!("setup content failed"),
     }
 
@@ -509,31 +418,7 @@ mod test {
     {
       let config = &context.config;
       match res {
-        Ok(Content::Url(dp)) => assert_eq!(dp, config.build.dev_path),
-        Ok(Content::Html(s)) => {
-          assert_eq!(
-            s,
-            format!(
-              "data:text/html;base64,{}",
-              base64::encode(
-                context
-                  .assets
-                  .get(
-                    &crate::api::assets::Assets::format_key("index.html"),
-                    crate::api::assets::AssetFetch::Decompress
-                  )
-                  .ok_or_else(|| crate::Error::AssetNotFound("index.html".to_string()))
-                  .and_then(|(read, _)| {
-                    read
-                      .bytes()
-                      .collect::<Result<Vec<u8>, _>>()
-                      .map_err(Into::into)
-                  })
-                  .expect("Unable to find `index.html` under your dist folder")
-              )
-            )
-          );
-        }
+        Ok(u) => assert_eq!(u, config.build.dev_path),
         _ => panic!("setup content failed"),
       }
     }

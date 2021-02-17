@@ -1,4 +1,4 @@
-use crate::app::{ApplicationDispatcherExt, Icon};
+use crate::app::{ApplicationExt, Icon};
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
 
@@ -22,6 +22,9 @@ impl Into<Icon> for IconDto {
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
+  CreateWebview {
+    options: crate::api::config::WindowConfig,
+  },
   SetResizable {
     resizable: bool,
   },
@@ -82,16 +85,42 @@ pub enum Cmd {
   },
 }
 
+#[cfg(create_window)]
+#[derive(Clone, serde::Serialize)]
+struct WindowCreatedEvent {
+  label: String,
+}
+
 impl Cmd {
-  pub async fn run<D: ApplicationDispatcherExt + 'static>(
+  pub async fn run<A: ApplicationExt + 'static>(
     self,
-    webview_manager: &crate::WebviewManager<D>,
+    webview_manager: &crate::WebviewManager<A>,
   ) -> crate::Result<JsonValue> {
     if cfg!(not(window)) {
       Err(crate::Error::ApiNotAllowlisted("setTitle".to_string()))
     } else {
       let current_webview = webview_manager.current_webview().await?;
       match self {
+        Self::CreateWebview { options } => {
+          #[cfg(not(create_window))]
+          return Err(crate::Error::ApiNotAllowlisted("createWindow".to_string()));
+          #[cfg(create_window)]
+          {
+            let label = options.label.to_string();
+            webview_manager
+              .create_webview(label.to_string(), options.url.clone(), |_| {
+                Ok(crate::app::webview::WindowConfig(options).into())
+              })
+              .await?;
+            webview_manager
+              .emit_except(
+                label.to_string(),
+                "tauri://window-created",
+                Some(WindowCreatedEvent { label }),
+              )
+              .await?;
+          }
+        }
         Self::SetResizable { resizable } => current_webview.set_resizable(resizable)?,
         Self::SetTitle { title } => current_webview.set_title(&title)?,
         Self::Maximize => current_webview.maximize()?,

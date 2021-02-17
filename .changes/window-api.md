@@ -3,4 +3,4 @@
 "tauri": minor
 ---
 
-Added window management APIs.
+Added window management and window creation APIs.

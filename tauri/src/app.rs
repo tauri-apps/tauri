@@ -1,13 +1,17 @@
 use futures::future::BoxFuture;
 use serde_json::Value as JsonValue;
-use std::marker::PhantomData;
 use tauri_api::{config::Config, private::AsTauriContext};
+
+use crate::async_runtime::Mutex;
+
+use std::{collections::HashMap, marker::PhantomData, sync::Arc};
 
 pub(crate) mod event;
 mod runner;
-mod webview;
+pub(crate) mod webview;
 mod webview_manager;
 
+pub use crate::api::config::WindowUrl;
 pub use webview::{
   wry::WryApplication, ApplicationDispatcherExt, ApplicationExt, Callback, Icon, Message,
   WebviewBuilderExt,
@@ -35,6 +39,12 @@ impl Context {
   }
 }
 
+pub(crate) struct Webview<A: ApplicationExt> {
+  pub(crate) builder: A::WebviewBuilder,
+  pub(crate) label: String,
+  pub(crate) url: WindowUrl,
+}
+
 /// The application runner.
 pub struct App<A: ApplicationExt> {
   /// The JS message handler.
@@ -43,11 +53,51 @@ pub struct App<A: ApplicationExt> {
   setup: Option<Box<Setup<A::Dispatcher>>>,
   /// The context the App was created with
   pub(crate) context: Context,
+  pub(crate) dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A::Dispatcher>>>>,
+  pub(crate) webviews: Option<Vec<Webview<A>>>,
 }
 
 impl<A: ApplicationExt + 'static> App<A> {
   /// Runs the app until it finishes.
-  pub fn run(self) {
+  pub fn run(mut self) {
+    for window_config in self.context.config.tauri.windows.clone() {
+      let mut webview = A::WebviewBuilder::new()
+        .title(window_config.title.to_string())
+        .width(window_config.width)
+        .height(window_config.height)
+        .visible(window_config.visible)
+        .resizable(window_config.resizable)
+        .decorations(window_config.decorations)
+        .maximized(window_config.maximized)
+        .fullscreen(window_config.fullscreen)
+        .transparent(window_config.transparent)
+        .always_on_top(window_config.always_on_top);
+      if let Some(min_width) = window_config.min_width {
+        webview = webview.min_width(min_width);
+      }
+      if let Some(min_height) = window_config.min_height {
+        webview = webview.min_height(min_height);
+      }
+      if let Some(max_width) = window_config.max_width {
+        webview = webview.max_width(max_width);
+      }
+      if let Some(max_height) = window_config.max_height {
+        webview = webview.max_height(max_height);
+      }
+      if let Some(x) = window_config.x {
+        webview = webview.x(x);
+      }
+      if let Some(y) = window_config.y {
+        webview = webview.y(y);
+      }
+      let mut webviews = self.webviews.take().unwrap();
+      webviews.push(Webview {
+        label: window_config.label.to_string(),
+        builder: webview,
+        url: window_config.url,
+      });
+      self.webviews = Some(webviews);
+    }
     runner::run(self).expect("Failed to build webview");
   }
 
@@ -85,6 +135,10 @@ pub struct AppBuilder<A: ApplicationExt, C: AsTauriContext> {
   setup: Option<Box<Setup<A::Dispatcher>>>,
   /// The configuration used
   config: PhantomData<C>,
+  /// The webview dispatchers.
+  dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A::Dispatcher>>>>,
+  /// The created webviews.
+  webviews: Vec<Webview<A>>,
 }
 
 impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<A, C> {
@@ -94,6 +148,8 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<A, C> {
       invoke_handler: None,
       setup: None,
       config: Default::default(),
+      dispatchers: Default::default(),
+      webviews: Default::default(),
     }
   }
 
@@ -134,12 +190,31 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<A, C> {
     self
   }
 
+  /// Creates a new webview.
+  pub fn create_webview<F: FnOnce(A::WebviewBuilder) -> crate::Result<A::WebviewBuilder>>(
+    &mut self,
+    label: String,
+    url: WindowUrl,
+    f: F,
+  ) -> crate::Result<WebviewManager<A::Dispatcher>> {
+    let builder = f(A::WebviewBuilder::new())?;
+    self.webviews.push(Webview {
+      label: label.to_string(),
+      builder,
+      url,
+    });
+    let manager = WebviewManager::new(self.dispatchers.clone(), label);
+    Ok(manager)
+  }
+
   /// Builds the App.
   pub fn build(self) -> crate::Result<App<A>> {
     Ok(App {
       invoke_handler: self.invoke_handler,
       setup: self.setup,
       context: Context::new::<C>()?,
+      dispatchers: self.dispatchers,
+      webviews: Some(self.webviews),
     })
   }
 }

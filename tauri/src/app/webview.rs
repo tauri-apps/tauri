@@ -80,6 +80,11 @@ pub enum Message {
   SetIcon(Icon),
 }
 
+pub trait WebviewBuilderExtPrivate: Sized {
+  /// Sets the webview url.
+  fn url(self, url: String) -> Self;
+}
+
 /// The webview builder.
 pub trait WebviewBuilderExt: Sized {
   /// The webview object that this builder creates.
@@ -87,9 +92,6 @@ pub trait WebviewBuilderExt: Sized {
 
   /// Initializes a new webview builder.
   fn new() -> Self;
-
-  /// Sets the webview url.
-  fn url(self, url: String) -> Self;
 
   /// Sets the init script.
   fn initialization_script(self, init: &str) -> Self;
@@ -122,7 +124,7 @@ pub trait WebviewBuilderExt: Sized {
   fn resizable(self, resizable: bool) -> Self;
 
   /// The title of the window in the title bar.
-  fn title(self, title: String) -> Self;
+  fn title<S: Into<String>>(self, title: S) -> Self;
 
   /// Whether to start the window in fullscreen or not.
   fn fullscreen(self, fullscreen: bool) -> Self;
@@ -228,7 +230,7 @@ pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
 /// Manages windows and webviews.
 pub trait ApplicationExt: Sized {
   /// The webview builder.
-  type WebviewBuilder: WebviewBuilderExt;
+  type WebviewBuilder: WebviewBuilderExt + WebviewBuilderExtPrivate + Send + Sync;
   /// The message dispatcher.
   type Dispatcher: ApplicationDispatcherExt;
 

@@ -1,4 +1,7 @@
-use super::{ApplicationDispatcherExt, ApplicationExt, Callback, Icon, WebviewBuilderExt};
+use super::{
+  ApplicationDispatcherExt, ApplicationExt, Callback, Icon, WebviewBuilderExt,
+  WebviewBuilderExtPrivate,
+};
 
 use once_cell::sync::Lazy;
 
@@ -24,6 +27,13 @@ impl TryInto<wry::Icon> for Icon {
   }
 }
 
+impl WebviewBuilderExtPrivate for wry::WebViewAttributes {
+  fn url(mut self, url: String) -> Self {
+    self.url.replace(url);
+    self
+  }
+}
+
 /// The webview builder.
 impl WebviewBuilderExt for wry::WebViewAttributes {
   /// The webview object that this builder creates.
@@ -31,11 +41,6 @@ impl WebviewBuilderExt for wry::WebViewAttributes {
 
   fn new() -> Self {
     Default::default()
-  }
-
-  fn url(mut self, url: String) -> Self {
-    self.url.replace(url);
-    self
   }
 
   fn initialization_script(mut self, init: &str) -> Self {
@@ -88,8 +93,8 @@ impl WebviewBuilderExt for wry::WebViewAttributes {
     self
   }
 
-  fn title(mut self, title: String) -> Self {
-    self.title = title;
+  fn title<S: Into<String>>(mut self, title: S) -> Self {
+    self.title = title.into();
     self
   }
 

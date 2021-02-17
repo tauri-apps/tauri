@@ -35,17 +35,20 @@
     container.appendChild(button);
 
     for (var index in window.__TAURI__.window.getWindows()) {
-      var label = window.__TAURI__.window.getWindows()[index].label;
-      if (label === windowLabel) {
-        continue;
-      }
-      var tauriWindow = window.__TAURI__.window.getTauriWindow(label)
-      var button = document.createElement("button");
-      button.innerHTML = "Send message to " + label;
-      button.addEventListener("click", function () {
-        tauriWindow.emit("clicked", "message from " + windowLabel);
-      });
-      container.appendChild(button);
+      (function () {
+        var label = window.__TAURI__.window.getWindows()[index].label;
+        if (label === windowLabel) {
+          return;
+        }
+        var tauriWindow = window.__TAURI__.window.getTauriWindow(label)
+        var button = document.createElement("button");
+        button.innerHTML = "Send message to " + label;
+        button.addEventListener("click", function () {
+          console.log('clicked')
+          tauriWindow.emit("clicked", "message from " + windowLabel);
+        });
+        container.appendChild(button);
+      })()
     }
   </script>
 </body>

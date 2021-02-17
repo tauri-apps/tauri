@@ -230,6 +230,11 @@ fn event_initialization_script() -> String {
   );
 }
 
+pub(super) type BuiltWebview<A> = (
+  <A as ApplicationExt>::WebviewBuilder,
+  Vec<Callback<<A as ApplicationExt>::Dispatcher>>,
+);
+
 // build the webview.
 pub(super) fn build_webview<A: ApplicationExt + 'static>(
   application: Arc<App<A>>,
@@ -239,10 +244,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
   window_labels: &[String],
   plugin_initialization_script: &str,
   tauri_script: &str,
-) -> crate::Result<(
-  <A as ApplicationExt>::WebviewBuilder,
-  Vec<Callback<A::Dispatcher>>,
-)> {
+) -> crate::Result<BuiltWebview<A>> {
   // TODO let debug = cfg!(debug_assertions);
   let webview_url = match &webview.url {
     WindowUrl::App => content_url.to_string(),
@@ -394,8 +396,6 @@ async fn on_message<A: ApplicationExt + 'static>(
 mod test {
   use crate::{Context, FromTauriContext};
   use proptest::prelude::*;
-  #[cfg(dev)]
-  use std::io::Read;
 
   #[derive(FromTauriContext)]
   #[config_path = "test/fixture/src-tauri/tauri.conf.json"]
@@ -416,31 +416,7 @@ mod test {
     {
       let config = &context.config;
       match res {
-        Ok(Content::Url(dp)) => assert_eq!(dp, config.build.dev_path),
-        Ok(Content::Html(s)) => {
-          assert_eq!(
-            s,
-            format!(
-              "data:text/html;base64,{}",
-              base64::encode(
-                context
-                  .assets
-                  .get(
-                    &crate::api::assets::Assets::format_key("index.html"),
-                    crate::api::assets::AssetFetch::Decompress
-                  )
-                  .ok_or_else(|| crate::Error::AssetNotFound("index.html".to_string()))
-                  .and_then(|(read, _)| {
-                    read
-                      .bytes()
-                      .collect::<Result<Vec<u8>, _>>()
-                      .map_err(Into::into)
-                  })
-                  .expect("Unable to find `index.html` under your dist folder")
-              )
-            )
-          );
-        }
+        Ok(u) => assert_eq!(u, config.build.dev_path),
         _ => panic!("setup content failed"),
       }
     }

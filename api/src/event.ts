@@ -1,7 +1,7 @@
 import { emit as emitEvent } from './helpers/event'
 
 async function emit(event: string, payload?: string): Promise<void> {
-  return await emitEvent(event, undefined, payload)
+  return emitEvent(event, undefined, payload)
 }
 
 export { listen } from './helpers/event'

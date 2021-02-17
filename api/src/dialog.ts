@@ -29,7 +29,7 @@ async function open(
     Object.freeze(options)
   }
 
-  return await invoke<string | string[]>({
+  return invoke<string | string[]>({
     __tauriModule: 'Dialog',
     mainThread: true,
     message: {
@@ -52,7 +52,7 @@ async function save(options: SaveDialogOptions = {}): Promise<string> {
     Object.freeze(options)
   }
 
-  return await invoke<string>({
+  return invoke<string>({
     __tauriModule: 'Dialog',
     mainThread: true,
     message: {

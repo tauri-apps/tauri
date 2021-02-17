@@ -11,9 +11,9 @@ export type Permission = 'granted' | 'denied' | 'default'
 
 async function isPermissionGranted(): Promise<boolean | null> {
   if (window.Notification.permission !== 'default') {
-    return await Promise.resolve(window.Notification.permission === 'granted')
+    return Promise.resolve(window.Notification.permission === 'granted')
   }
-  return await invoke<void>({
+  return invoke({
     __tauriModule: 'Notification',
     message: {
       cmd: 'isNotificationPermissionGranted'
@@ -22,7 +22,7 @@ async function isPermissionGranted(): Promise<boolean | null> {
 }
 
 async function requestPermission(): Promise<Permission> {
-  return await window.Notification.requestPermission()
+  return window.Notification.requestPermission()
 }
 
 function sendNotification(options: Options | string): void {

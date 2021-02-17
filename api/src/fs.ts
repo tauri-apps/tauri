@@ -61,7 +61,7 @@ async function readTextFile(
   filePath: string,
   options: FsOptions = {}
 ): Promise<string> {
-  return await invoke<string>({
+  return invoke<string>({
     __tauriModule: 'Fs',
     message: {
       cmd: 'readTextFile',
@@ -83,7 +83,7 @@ async function readBinaryFile(
   filePath: string,
   options: FsOptions = {}
 ): Promise<number[]> {
-  return await invoke<number[]>({
+  return invoke<number[]>({
     __tauriModule: 'Fs',
     message: {
       cmd: 'readBinaryFile',
@@ -114,7 +114,7 @@ async function writeFile(
     Object.freeze(file)
   }
 
-  return await invoke<void>({
+  return invoke({
     __tauriModule: 'Fs',
     message: {
       cmd: 'writeFile',
@@ -179,7 +179,7 @@ async function writeBinaryFile(
     Object.freeze(file)
   }
 
-  return await invoke<void>({
+  return invoke({
     __tauriModule: 'Fs',
     message: {
       cmd: 'writeBinaryFile',
@@ -203,7 +203,7 @@ async function readDir(
   dir: string,
   options: FsDirOptions = {}
 ): Promise<FileEntry[]> {
-  return await invoke<void>({
+  return invoke({
     __tauriModule: 'Fs',
     message: {
       cmd: 'readDir',
@@ -228,7 +228,7 @@ async function createDir(
   dir: string,
   options: FsDirOptions = {}
 ): Promise<void> {
-  return await invoke<void>({
+  return invoke({
     __tauriModule: 'Fs',
     message: {
       cmd: 'createDir',
@@ -252,7 +252,7 @@ async function removeDir(
   dir: string,
   options: FsDirOptions = {}
 ): Promise<void> {
-  return await invoke<void>({
+  return invoke({
     __tauriModule: 'Fs',
     message: {
       cmd: 'removeDir',
@@ -276,7 +276,7 @@ async function copyFile(
   destination: string,
   options: FsOptions = {}
 ): Promise<void> {
-  return await invoke<void>({
+  return invoke({
     __tauriModule: 'Fs',
     message: {
       cmd: 'copyFile',
@@ -299,7 +299,7 @@ async function removeFile(
   file: string,
   options: FsOptions = {}
 ): Promise<void> {
-  return await invoke<void>({
+  return invoke({
     __tauriModule: 'Fs',
     message: {
       cmd: 'removeFile',
@@ -323,7 +323,7 @@ async function renameFile(
   newPath: string,
   options: FsOptions = {}
 ): Promise<void> {
-  return await invoke<void>({
+  return invoke({
     __tauriModule: 'Fs',
     message: {
       cmd: 'renameFile',

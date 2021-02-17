@@ -27,7 +27,7 @@ export interface CliMatches {
  * gets the CLI matches
  */
 async function getMatches(): Promise<CliMatches> {
-  return await invoke<CliMatches>({
+  return invoke<CliMatches>({
     __tauriModule: 'Cli',
     message: {
       cmd: 'cliMatches'

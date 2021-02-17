@@ -80,7 +80,7 @@ export class Client {
    * drops the client instance
    */
   async drop(): Promise<void> {
-    await invoke({
+    return invoke({
       module: 'Http',
       message: {
         cmd: 'dropClient',
@@ -97,7 +97,7 @@ export class Client {
    * @return promise resolving to the response
    */
   async request<T>(options: HttpOptions): Promise<Response<T>> {
-    return await invoke({
+    return invoke({
       module: 'Http',
       message: {
         cmd: 'httpRequest',
@@ -116,7 +116,7 @@ export class Client {
    * @return promise resolving to the response
    */
   async get<T>(url: string, options: RequestOptions): Promise<Response<T>> {
-    return await this.request({
+    return this.request({
       method: 'GET',
       url,
       ...options
@@ -137,7 +137,7 @@ export class Client {
     body: Body,
     options: RequestOptions
   ): Promise<Response<T>> {
-    return await this.request({
+    return this.request({
       method: 'POST',
       url,
       body,
@@ -159,7 +159,7 @@ export class Client {
     body: Body,
     options: RequestOptions
   ): Promise<Response<T>> {
-    return await this.request({
+    return this.request({
       method: 'PUT',
       url,
       body,
@@ -176,7 +176,7 @@ export class Client {
    * @return promise resolving to the response
    */
   async patch<T>(url: string, options: RequestOptions): Promise<Response<T>> {
-    return await this.request({
+    return this.request({
       method: 'PATCH',
       url,
       ...options
@@ -192,7 +192,7 @@ export class Client {
    * @return promise resolving to the response
    */
   async delete<T>(url: string, options: RequestOptions): Promise<Response<T>> {
-    return await this.request({
+    return this.request({
       method: 'DELETE',
       url,
       ...options
@@ -201,7 +201,7 @@ export class Client {
 }
 
 async function getClient(options?: ClientOptions): Promise<Client> {
-  return await invoke<number>({
+  return invoke<number>({
     module: 'Http',
     message: {
       cmd: 'createClient',
@@ -219,7 +219,7 @@ async function fetch<T>(
   if (defaultClient === null) {
     defaultClient = await getClient()
   }
-  return await defaultClient.request({
+  return defaultClient.request({
     url,
     method: options?.method ?? 'GET',
     ...options

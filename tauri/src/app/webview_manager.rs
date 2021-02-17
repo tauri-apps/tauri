@@ -1,7 +1,10 @@
 use std::{collections::HashMap, sync::Arc};
 
-use super::{ApplicationDispatcherExt, Icon};
-use crate::async_runtime::Mutex;
+use super::{
+  App, ApplicationDispatcherExt, ApplicationExt, Icon, Webview, WebviewBuilderExt,
+  WebviewInitializer,
+};
+use crate::{api::config::WindowUrl, async_runtime::Mutex};
 
 use serde::Serialize;
 
@@ -172,18 +175,30 @@ impl<A: ApplicationDispatcherExt> WebviewDispatcher<A> {
 }
 
 /// The webview manager.
-#[derive(Clone)]
-pub struct WebviewManager<A: Clone> {
-  dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A>>>>,
+pub struct WebviewManager<A: ApplicationExt> {
+  application: Arc<App<A>>,
+  dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A::Dispatcher>>>>,
   current_webview_window_label: String,
 }
 
-impl<A: ApplicationDispatcherExt> WebviewManager<A> {
+impl<A: ApplicationExt> Clone for WebviewManager<A> {
+  fn clone(&self) -> Self {
+    Self {
+      application: self.application.clone(),
+      dispatchers: self.dispatchers.clone(),
+      current_webview_window_label: self.current_webview_window_label.to_string(),
+    }
+  }
+}
+
+impl<A: ApplicationExt + 'static> WebviewManager<A> {
   pub(crate) fn new(
-    dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A>>>>,
+    application: Arc<App<A>>,
+    dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A::Dispatcher>>>>,
     label: String,
   ) -> Self {
     Self {
+      application,
       dispatchers,
       current_webview_window_label: label,
     }
@@ -195,12 +210,15 @@ impl<A: ApplicationDispatcherExt> WebviewManager<A> {
   }
 
   /// Gets the webview associated with the current context.
-  pub async fn current_webview(&self) -> crate::Result<WebviewDispatcher<A>> {
+  pub async fn current_webview(&self) -> crate::Result<WebviewDispatcher<A::Dispatcher>> {
     self.get_webview(&self.current_webview_window_label).await
   }
 
   /// Gets the webview associated with the given window label.
-  pub async fn get_webview(&self, window_label: &str) -> crate::Result<WebviewDispatcher<A>> {
+  pub async fn get_webview(
+    &self,
+    window_label: &str,
+  ) -> crate::Result<WebviewDispatcher<A::Dispatcher>> {
     self
       .dispatchers
       .lock()
@@ -208,6 +226,29 @@ impl<A: ApplicationDispatcherExt> WebviewManager<A> {
       .get(window_label)
       .ok_or(crate::Error::WebviewNotFound)
       .map(|d| d.clone())
+  }
+
+  /// Creates a new webview.
+  pub async fn create_webview<F: FnOnce(A::WebviewBuilder) -> crate::Result<A::WebviewBuilder>>(
+    &self,
+    label: String,
+    url: WindowUrl,
+    f: F,
+  ) -> crate::Result<WebviewDispatcher<A::Dispatcher>> {
+    let builder = f(A::WebviewBuilder::new())?;
+    let webview = Webview {
+      url,
+      label: label.to_string(),
+      builder,
+    };
+    let (webview_builder, callbacks) = self.application.clone().init_webview(webview)?;
+
+    let dispatcher = self
+      .current_webview()
+      .await?
+      .dispatcher
+      .create_webview(webview_builder, callbacks)?;
+    Ok(WebviewDispatcher::new(dispatcher, label))
   }
 
   /// Listen to a global event.

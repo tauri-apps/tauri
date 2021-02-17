@@ -1,6 +1,5 @@
 mod cli;
 mod dialog;
-#[cfg(event)]
 mod event;
 #[allow(unused_imports)]
 mod file_system;
@@ -14,7 +13,7 @@ mod notification;
 mod shell;
 mod window;
 
-use crate::{app::Context, ApplicationDispatcherExt};
+use crate::{app::Context, ApplicationExt};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -35,9 +34,9 @@ enum Module {
 }
 
 impl Module {
-  async fn run<D: ApplicationDispatcherExt + 'static>(
+  async fn run<A: ApplicationExt + 'static>(
     self,
-    webview_manager: &crate::WebviewManager<D>,
+    webview_manager: &crate::WebviewManager<A>,
     context: &Context,
   ) -> crate::Result<JsonValue> {
     match self {
@@ -55,8 +54,8 @@ impl Module {
   }
 }
 
-pub(crate) async fn handle<D: ApplicationDispatcherExt + 'static>(
-  webview_manager: &crate::WebviewManager<D>,
+pub(crate) async fn handle<A: ApplicationExt + 'static>(
+  webview_manager: &crate::WebviewManager<A>,
   module: String,
   mut arg: JsonValue,
   context: &Context,

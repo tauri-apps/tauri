@@ -10,8 +10,8 @@ struct Context;
 use tauri::WebviewBuilderExt;
 
 fn main() {
-  let mut app =
-    tauri::AppBuilder::<tauri::flavors::Wry, Context>::new().setup(|webview_manager| async move {
+  tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
+    .setup(|webview_manager| async move {
       if webview_manager.current_window_label() == "Main" {
         webview_manager.listen("clicked", move |_| {
           println!("got 'clicked' event on global channel");
@@ -22,14 +22,13 @@ fn main() {
       current_webview.listen("clicked", move |_| {
         println!("got 'clicked' event on window '{}'", label)
       });
-    });
-
-  app
+    })
     .create_webview("Rust".to_string(), tauri::WindowUrl::App, |mut builder| {
       builder = builder.title("Tauri - Rust");
       Ok(builder)
     })
-    .unwrap();
-
-  app.build().unwrap().run();
+    .unwrap()
+    .build()
+    .unwrap()
+    .run();
 }

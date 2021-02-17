@@ -9,6 +9,7 @@ pub enum Cmd {
   Listen {
     event: String,
     handler: String,
+    #[serde(default)]
     once: bool,
   },
   /// Emit an event to the webview associated with the given window.
@@ -22,13 +23,10 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub async fn run<D: crate::ApplicationDispatcherExt + 'static>(
+  pub async fn run<A: crate::ApplicationExt + 'static>(
     self,
-    webview_manager: &crate::WebviewManager<D>,
+    webview_manager: &crate::WebviewManager<A>,
   ) -> crate::Result<JsonValue> {
-    #[cfg(not(event))]
-    return Err(crate::Error::ApiNotAllowlisted("event".to_string()));
-    #[cfg(event)]
     match self {
       Self::Listen {
         event,
@@ -62,7 +60,6 @@ impl Cmd {
   }
 }
 
-#[cfg(event)]
 pub fn listen_fn(event: String, handler: String, once: bool) -> crate::Result<String> {
   Ok(format!(
     "if (window['{listeners}'] === void 0) {{
@@ -96,7 +93,6 @@ mod test {
 
   // check the listen_fn for various usecases.
   proptest! {
-    #[cfg(event)]
     #[test]
     fn check_listen_fn(event in "", handler in "", once in proptest::bool::ANY) {
       super::listen_fn(event, handler, once).expect("listen_fn failed");

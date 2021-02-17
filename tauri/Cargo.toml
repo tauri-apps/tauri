@@ -69,6 +69,7 @@ event = [ ]
 
 # window
 window = [ ]
+create-window = [ ]
 
 #shell
 execute = [ ]

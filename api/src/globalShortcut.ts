@@ -9,7 +9,7 @@ async function registerShortcut(
   shortcut: string,
   handler: () => void
 ): Promise<void> {
-  return await invoke<void>({
+  return invoke({
     __tauriModule: 'GlobalShortcut',
     message: {
       cmd: 'register',
@@ -24,7 +24,7 @@ async function registerShortcut(
  * @param shortcut shortcut definition, modifiers and key separated by "+" e.g. Alt+Q
  */
 async function unregisterShortcut(shortcut: string): Promise<void> {
-  return await invoke<void>({
+  return invoke({
     __tauriModule: 'GlobalShortcut',
     message: {
       cmd: 'unregister',

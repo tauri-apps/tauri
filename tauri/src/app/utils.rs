@@ -13,8 +13,10 @@ use crate::{
   ApplicationExt, WebviewBuilderExt,
 };
 
-use super::{webview::Callback, webview::WebviewBuilderExtPrivate, Context, Webview};
-use super::{App, WebviewManager};
+use super::{
+  webview::{Callback, WebviewBuilderExtPrivate},
+  App, Context, Webview, WebviewManager,
+};
 #[cfg(embedded_server)]
 use crate::api::tcp::{get_available_port, port_is_available};
 

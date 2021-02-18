@@ -67,13 +67,13 @@ impl Cmd {
     match self {
       Self::OpenDialog { options } => {
         #[cfg(open_dialog)]
-        return open(options).and_then(super::to_value);
+        return open(options);
         #[cfg(not(open_dialog))]
         Err(crate::Error::ApiNotAllowlisted("title".to_string()));
       }
       Self::SaveDialog { options } => {
         #[cfg(save_dialog)]
-        return save(options).and_then(super::to_value);
+        return save(options);
         #[cfg(not(save_dialog))]
         Err(crate::Error::ApiNotAllowlisted("saveDialog".to_string()));
       }

@@ -10,6 +10,7 @@ use crate::{
     config::WindowUrl,
     rpc::{format_callback, format_callback_result},
   },
+  app::InvokeResponse,
   ApplicationExt, WebviewBuilderExt,
 };
 
@@ -20,7 +21,7 @@ use super::{
 #[cfg(embedded_server)]
 use crate::api::tcp::{get_available_port, port_is_available};
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value as JsonValue;
 
 #[derive(Debug, Deserialize)]
@@ -330,8 +331,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
 /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
 async fn execute_promise<
   A: ApplicationExt + 'static,
-  R: Serialize,
-  F: futures::Future<Output = crate::Result<R>> + Send + 'static,
+  F: futures::Future<Output = crate::Result<InvokeResponse>> + Send + 'static,
 >(
   webview_manager: &crate::WebviewManager<A>,
   task: F,
@@ -339,7 +339,10 @@ async fn execute_promise<
   error_callback: String,
 ) {
   let callback_string = match format_callback_result(
-    task.await.map_err(|err| err.to_string()),
+    task
+      .await
+      .and_then(|response| response.json)
+      .map_err(|err| err.to_string()),
     success_callback,
     error_callback.clone(),
   ) {
@@ -355,11 +358,11 @@ async fn on_message<A: ApplicationExt + 'static>(
   application: Arc<App<A>>,
   webview_manager: WebviewManager<A>,
   message: Message,
-) -> crate::Result<JsonValue> {
+) -> crate::Result<InvokeResponse> {
   if message.inner == serde_json::json!({ "cmd":"__initialized" }) {
     application.run_setup(&webview_manager).await;
     crate::plugin::ready(A::plugin_store(), &webview_manager).await;
-    Ok(JsonValue::Null)
+    Ok(().into())
   } else {
     let response = if let Some(module) = &message.tauri_module {
       crate::endpoints::handle(
@@ -386,7 +389,7 @@ async fn on_message<A: ApplicationExt + 'static>(
       if let Err(crate::Error::UnknownApi(_)) = response {
         response = crate::plugin::extend_api(A::plugin_store(), &webview_manager, &message.inner)
           .await
-          .map(|value| value.unwrap_or_default());
+          .map(|value| value.into());
       }
       response
     };

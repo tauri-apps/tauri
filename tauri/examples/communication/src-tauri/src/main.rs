@@ -39,11 +39,11 @@ fn main() {
         Ok(command) => match command {
           LogOperation { event, payload } => {
             println!("{} {:?}", event, payload);
-            Ok(serde_json::Value::Null)
+            Ok(().into())
           }
           PerformRequest { endpoint, body } => {
             println!("{} {:?}", endpoint, body);
-            Ok(serde_json::Value::String("message response".to_string()))
+            Ok("message response".into())
           }
         },
       }

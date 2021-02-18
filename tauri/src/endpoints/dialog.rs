@@ -1,8 +1,8 @@
-use crate::api::dialog::{
-  ask as ask_dialog, message as message_dialog, AskResponse, FileDialogBuilder,
+use crate::{
+  api::dialog::{ask as ask_dialog, message as message_dialog, AskResponse, FileDialogBuilder},
+  app::InvokeResponse,
 };
 use serde::Deserialize;
-use serde_json::Value as JsonValue;
 
 use std::path::PathBuf;
 
@@ -63,7 +63,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub async fn run(self) -> crate::Result<JsonValue> {
+  pub async fn run(self) -> crate::Result<InvokeResponse> {
     match self {
       Self::OpenDialog { options } => {
         #[cfg(open_dialog)]
@@ -85,7 +85,7 @@ impl Cmd {
           .to_string_lossy()
           .to_string();
         message_dialog(app_name, message);
-        Ok(JsonValue::Null)
+        Ok(().into())
       }
       Self::AskDialog { title, message } => {
         let exe = std::env::current_exe()?;
@@ -99,7 +99,7 @@ impl Cmd {
           }),
           message,
         )?;
-        Ok(JsonValue::Bool(answer))
+        Ok(answer)
       }
     }
   }
@@ -107,7 +107,7 @@ impl Cmd {
 
 /// Shows an open dialog.
 #[cfg(open_dialog)]
-pub fn open(options: OpenDialogOptions) -> crate::Result<JsonValue> {
+pub fn open(options: OpenDialogOptions) -> crate::Result<InvokeResponse> {
   let mut dialog_builder = FileDialogBuilder::new();
   if let Some(default_path) = options.default_path {
     dialog_builder = dialog_builder.set_directory(default_path);
@@ -117,18 +117,18 @@ pub fn open(options: OpenDialogOptions) -> crate::Result<JsonValue> {
     dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
   }
   let response = if options.directory {
-    serde_json::to_value(dialog_builder.pick_folder())?
+    dialog_builder.pick_folder().into()
   } else if options.multiple {
-    serde_json::to_value(dialog_builder.pick_files())?
+    dialog_builder.pick_files().into()
   } else {
-    serde_json::to_value(dialog_builder.pick_file())?
+    dialog_builder.pick_file().into()
   };
   Ok(response)
 }
 
 /// Shows a save dialog.
 #[cfg(save_dialog)]
-pub fn save(options: SaveDialogOptions) -> crate::Result<JsonValue> {
+pub fn save(options: SaveDialogOptions) -> crate::Result<InvokeResponse> {
   let mut dialog_builder = FileDialogBuilder::new();
   if let Some(default_path) = options.default_path {
     dialog_builder = dialog_builder.set_directory(default_path);
@@ -137,14 +137,13 @@ pub fn save(options: SaveDialogOptions) -> crate::Result<JsonValue> {
     let extensions: Vec<&str> = filter.extensions.iter().map(|s| &**s).collect();
     dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
   }
-  let response = dialog_builder.save_file();
-  Ok(serde_json::to_value(response)?)
+  Ok(dialog_builder.save_file().into())
 }
 
 /// Shows a dialog with a yes/no question.
-pub fn ask(title: String, message: String) -> crate::Result<bool> {
+pub fn ask(title: String, message: String) -> crate::Result<InvokeResponse> {
   match ask_dialog(title, message) {
-    AskResponse::Yes => Ok(true),
-    _ => Ok(false),
+    AskResponse::Yes => Ok(true.into()),
+    _ => Ok(false.into()),
   }
 }

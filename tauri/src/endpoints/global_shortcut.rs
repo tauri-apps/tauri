@@ -1,7 +1,6 @@
-use crate::{api::shortcuts::ShortcutManager, async_runtime::Mutex};
+use crate::{api::shortcuts::ShortcutManager, app::InvokeResponse, async_runtime::Mutex};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
-use serde_json::Value as JsonValue;
 
 use std::sync::Arc;
 
@@ -26,7 +25,7 @@ impl Cmd {
   pub async fn run<A: crate::ApplicationExt + 'static>(
     self,
     webview_manager: &crate::WebviewManager<A>,
-  ) -> crate::Result<JsonValue> {
+  ) -> crate::Result<InvokeResponse> {
     #[cfg(not(global_shortcut))]
     return Err(crate::Error::ApiNotAllowlisted(
       "globalShortcut".to_string(),
@@ -41,13 +40,12 @@ impl Cmd {
             crate::api::rpc::format_callback(handler.to_string(), serde_json::Value::Null);
           let _ = dispatcher.eval(callback_string.as_str());
         })?;
-        Ok(JsonValue::Null)
       }
       Self::Unregister { shortcut } => {
         let mut manager = manager_handle().lock().await;
         manager.unregister_shortcut(shortcut)?;
-        Ok(JsonValue::Null)
       }
     }
+    Ok(().into())
   }
 }

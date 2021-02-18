@@ -1,5 +1,5 @@
+use crate::app::InvokeResponse;
 use serde::Deserialize;
-use serde_json::Value as JsonValue;
 use tauri_api::{config::Config, notification::Notification};
 
 /// The options for the notification API.
@@ -26,25 +26,23 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub async fn run(self, context: &crate::app::Context) -> crate::Result<JsonValue> {
+  pub async fn run(self, context: &crate::app::Context) -> crate::Result<InvokeResponse> {
     match self {
       Self::Notification { options } => {
         #[cfg(notification)]
-        return send(options, &context.config)
-          .await
-          .and_then(super::to_value);
+        return send(options, &context.config).await.map(Into::into);
         #[cfg(not(notification))]
         Err(crate::Error::ApiNotAllowlisted("notification".to_string()))
       }
       Self::IsNotificationPermissionGranted => {
         #[cfg(notification)]
-        return is_permission_granted().await.and_then(super::to_value);
+        return is_permission_granted().await.map(Into::into);
         #[cfg(not(notification))]
         Err(crate::Error::ApiNotAllowlisted("notification".to_string()))
       }
       Self::RequestNotificationPermission => {
         #[cfg(notification)]
-        return request_permission().map(JsonValue::String);
+        return request_permission().map(Into::into);
         #[cfg(not(notification))]
         Err(crate::Error::ApiNotAllowlisted("notification".to_string()))
       }
@@ -52,7 +50,7 @@ impl Cmd {
   }
 }
 
-pub async fn send(options: NotificationOptions, config: &Config) -> crate::Result<JsonValue> {
+pub async fn send(options: NotificationOptions, config: &Config) -> crate::Result<InvokeResponse> {
   let identifier = config.tauri.bundle.identifier.clone();
   let mut notification = Notification::new(identifier).title(options.title);
   if let Some(body) = options.body {
@@ -62,15 +60,15 @@ pub async fn send(options: NotificationOptions, config: &Config) -> crate::Resul
     notification = notification.icon(icon);
   }
   notification.show()?;
-  Ok(JsonValue::Null)
+  Ok(().into())
 }
 
-pub async fn is_permission_granted() -> crate::Result<JsonValue> {
+pub async fn is_permission_granted() -> crate::Result<InvokeResponse> {
   let settings = crate::settings::read_settings()?;
   if let Some(allow_notification) = settings.allow_notification {
-    Ok(JsonValue::String(allow_notification.to_string()))
+    Ok(allow_notification.into())
   } else {
-    Ok(JsonValue::Null)
+    Ok(().into())
   }
 }
 

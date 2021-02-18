@@ -1,5 +1,5 @@
+use crate::app::InvokeResponse;
 use serde::Deserialize;
-use serde_json::Value as JsonValue;
 
 /// The API descriptor.
 #[derive(Deserialize)]
@@ -26,7 +26,7 @@ impl Cmd {
   pub async fn run<A: crate::ApplicationExt + 'static>(
     self,
     webview_manager: &crate::WebviewManager<A>,
-  ) -> crate::Result<JsonValue> {
+  ) -> crate::Result<InvokeResponse> {
     match self {
       Self::Listen {
         event,
@@ -35,7 +35,6 @@ impl Cmd {
       } => {
         let js_string = listen_fn(event, handler, once)?;
         webview_manager.current_webview().await?.eval(&js_string)?;
-        Ok(JsonValue::Null)
       }
       Self::Emit {
         event,
@@ -54,9 +53,9 @@ impl Cmd {
           // dispatch the event to JS listeners
           webview_manager.emit(event, payload).await?;
         }
-        Ok(JsonValue::Null)
       }
     }
+    Ok(().into())
   }
 }
 

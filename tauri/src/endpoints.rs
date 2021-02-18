@@ -13,9 +13,12 @@ mod notification;
 mod shell;
 mod window;
 
-use crate::{app::Context, ApplicationExt};
+use crate::{
+  app::{Context, InvokeResponse},
+  ApplicationExt,
+};
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value as JsonValue;
 
 #[derive(Deserialize)]
@@ -38,7 +41,7 @@ impl Module {
     self,
     webview_manager: &crate::WebviewManager<A>,
     context: &Context,
-  ) -> crate::Result<JsonValue> {
+  ) -> crate::Result<InvokeResponse> {
     match self {
       Self::Fs(cmd) => cmd.run().await,
       Self::Window(cmd) => cmd.run(webview_manager).await,
@@ -59,15 +62,10 @@ pub(crate) async fn handle<A: ApplicationExt + 'static>(
   module: String,
   mut arg: JsonValue,
   context: &Context,
-) -> crate::Result<JsonValue> {
+) -> crate::Result<InvokeResponse> {
   if let JsonValue::Object(ref mut obj) = arg {
     obj.insert("module".to_string(), JsonValue::String(module));
   }
   let module: Module = serde_json::from_value(arg)?;
-  let response = module.run(webview_manager, context).await?;
-  Ok(serde_json::to_value(response)?)
-}
-
-pub(crate) fn to_value(t: impl Serialize) -> crate::Result<JsonValue> {
-  serde_json::to_value(t).map_err(Into::into)
+  module.run(webview_manager, context).await
 }

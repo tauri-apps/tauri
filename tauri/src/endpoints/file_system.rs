@@ -1,7 +1,6 @@
-use crate::{api::path::BaseDirectory, ApplicationDispatcherExt};
+use crate::{api::path::BaseDirectory, app::InvokeResponse, ApplicationDispatcherExt};
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value as JsonValue;
 use tauri_api::{dir, file, path::resolve_path};
 
 use std::{fs, fs::File, io::Write, path::PathBuf};
@@ -92,21 +91,17 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub async fn run(self) -> crate::Result<JsonValue> {
+  pub async fn run(self) -> crate::Result<InvokeResponse> {
     match self {
       Self::ReadTextFile { path, options } => {
         #[cfg(read_text_file)]
-        return read_text_file(path, options)
-          .await
-          .and_then(super::to_value);
+        return read_text_file(path, options).await.map(Into::into);
         #[cfg(not(read_text_file))]
         Err(crate::Error::ApiNotAllowlisted("readTextFile".to_string()))
       }
       Self::ReadBinaryFile { path, options } => {
         #[cfg(read_binary_file)]
-        return read_binary_file(path, options)
-          .await
-          .and_then(super::to_value);
+        return read_binary_file(path, options).await.map(Into::into);
         #[cfg(not(read_binary_file))]
         Err(crate::Error::ApiNotAllowlisted(
           "readBinaryFile".to_string(),
@@ -118,9 +113,7 @@ impl Cmd {
         options,
       } => {
         #[cfg(write_file)]
-        return write_file(path, contents, options)
-          .await
-          .and_then(super::to_value);
+        return write_file(path, contents, options).await.map(Into::into);
         #[cfg(not(write_file))]
         Err(crate::Error::ApiNotAllowlisted("writeFile".to_string()))
       }
@@ -132,7 +125,7 @@ impl Cmd {
         #[cfg(write_binary_file)]
         return write_binary_file(path, contents, options)
           .await
-          .and_then(super::to_value);
+          .map(Into::into);
         #[cfg(not(write_binary_file))]
         Err(crate::Error::ApiNotAllowlisted(
           "writeBinaryFile".to_string(),
@@ -140,7 +133,7 @@ impl Cmd {
       }
       Self::ReadDir { path, options } => {
         #[cfg(read_dir)]
-        return read_dir(path, options).await.and_then(super::to_value);
+        return read_dir(path, options).await.map(Into::into);
         #[cfg(not(read_dir))]
         Err(crate::Error::ApiNotAllowlisted("readDir".to_string()))
       }
@@ -152,25 +145,25 @@ impl Cmd {
         #[cfg(copy_file)]
         return copy_file(source, destination, options)
           .await
-          .and_then(super::to_value);
+          .map(Into::into);
         #[cfg(not(copy_file))]
         Err(crate::Error::ApiNotAllowlisted("copyFile".to_string()))
       }
       Self::CreateDir { path, options } => {
         #[cfg(create_dir)]
-        return create_dir(path, options).await.and_then(super::to_value);
+        return create_dir(path, options).await.map(Into::into);
         #[cfg(not(create_dir))]
         Err(crate::Error::ApiNotAllowlisted("createDir".to_string()))
       }
       Self::RemoveDir { path, options } => {
         #[cfg(remove_dir)]
-        return remove_dir(path, options).await.and_then(super::to_value);
+        return remove_dir(path, options).await.map(Into::into);
         #[cfg(not(remove_dir))]
         Err(crate::Error::ApiNotAllowlisted("removeDir".to_string()))
       }
       Self::RemoveFile { path, options } => {
         #[cfg(remove_file)]
-        return remove_file(path, options).await.and_then(super::to_value);
+        return remove_file(path, options).await.map(Into::into);
         #[cfg(not(remove_file))]
         Err(crate::Error::ApiNotAllowlisted("removeFile".to_string()))
       }
@@ -182,15 +175,13 @@ impl Cmd {
         #[cfg(rename_file)]
         return rename_file(old_path, new_path, options)
           .await
-          .and_then(super::to_value);
+          .map(Into::into);
         #[cfg(not(rename_file))]
         Err(crate::Error::ApiNotAllowlisted("renameFile".to_string()))
       }
       Self::ResolvePath { path, directory } => {
         #[cfg(path_api)]
-        return resolve_path_handler(path, directory)
-          .await
-          .and_then(super::to_value);
+        return resolve_path_handler(path, directory).await.map(Into::into);
         #[cfg(not(path_api))]
         Err(crate::Error::ApiNotAllowlisted("pathApi".to_string()))
       }

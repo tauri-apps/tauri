@@ -1,5 +1,5 @@
+use crate::app::InvokeResponse;
 use serde::Deserialize;
-use serde_json::Value as JsonValue;
 
 /// The API descriptor.
 #[derive(Deserialize)]
@@ -9,7 +9,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub async fn run(self) -> crate::Result<JsonValue> {
+  pub async fn run(self) -> crate::Result<InvokeResponse> {
     match self {
       Self::ValidateSalt { salt } => validate_salt(salt),
     }
@@ -17,6 +17,6 @@ impl Cmd {
 }
 
 /// Validates a salt.
-pub fn validate_salt(salt: String) -> crate::Result<JsonValue> {
-  Ok(JsonValue::Bool(crate::salt::is_valid(salt)))
+pub fn validate_salt(salt: String) -> crate::Result<InvokeResponse> {
+  Ok(crate::salt::is_valid(salt).into())
 }

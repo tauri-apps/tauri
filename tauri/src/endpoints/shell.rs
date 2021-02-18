@@ -1,5 +1,5 @@
+use crate::app::InvokeResponse;
 use serde::Deserialize;
-use serde_json::Value as JsonValue;
 
 /// The API descriptor.
 #[derive(Deserialize)]
@@ -12,7 +12,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub async fn run(self) -> crate::Result<JsonValue> {
+  pub async fn run(self) -> crate::Result<InvokeResponse> {
     match self {
       Self::Execute {
         command: _,
@@ -21,7 +21,7 @@ impl Cmd {
         #[cfg(execute)]
         {
           //TODO
-          Ok(JsonValue::Null)
+          Ok(().into())
         }
         #[cfg(not(execute))]
         Err(crate::Error::ApiNotAllowlisted("execute".to_string()))
@@ -30,7 +30,7 @@ impl Cmd {
         #[cfg(open)]
         {
           open_browser(uri);
-          Ok(JsonValue::Null)
+          Ok(().into())
         }
         #[cfg(not(open))]
         Err(crate::Error::ApiNotAllowlisted("open".to_string()))

@@ -1,8 +1,7 @@
-use crate::async_runtime::Mutex;
+use crate::{app::InvokeResponse, async_runtime::Mutex};
 
 use once_cell::sync::Lazy;
 use serde::Deserialize;
-use serde_json::Value as JsonValue;
 use tauri_api::http::{Client, ClientBuilder, HttpRequestBuilder, ResponseData};
 
 use std::{collections::HashMap, sync::Arc};
@@ -31,25 +30,23 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub async fn run(self) -> crate::Result<JsonValue> {
+  pub async fn run(self) -> crate::Result<InvokeResponse> {
     match self {
       Self::CreateClient { options } => {
         let client = options.unwrap_or_default().build()?;
         let mut store = clients().lock().await;
         let id = rand::random::<ClientId>();
         store.insert(id, client);
-        Ok(JsonValue::Number(id.into()))
+        Ok(id.into())
       }
       Self::DropClient { client } => {
         let mut store = clients().lock().await;
         store.remove(&client);
-        Ok(JsonValue::Null)
+        Ok(().into())
       }
       Self::HttpRequest { client, options } => {
         #[cfg(http_request)]
-        return make_request(client, *options)
-          .await
-          .and_then(super::to_value);
+        return make_request(client, *options).await.map(Into::into);
         #[cfg(not(http_request))]
         Err(crate::Error::ApiNotAllowlisted("httpRequest".to_string()))
       }

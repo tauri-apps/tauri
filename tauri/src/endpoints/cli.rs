@@ -1,5 +1,5 @@
+use crate::app::InvokeResponse;
 use serde::Deserialize;
-use serde_json::Value as JsonValue;
 
 /// The API descriptor.
 #[derive(Deserialize)]
@@ -11,14 +11,14 @@ pub enum Cmd {
 
 impl Cmd {
   #[allow(unused_variables)]
-  pub async fn run(self, context: &crate::app::Context) -> crate::Result<JsonValue> {
+  pub async fn run(self, context: &crate::app::Context) -> crate::Result<InvokeResponse> {
     match self {
       #[allow(unused_variables)]
       Self::CliMatches => {
         #[cfg(cli)]
         return tauri_api::cli::get_matches(&context.config)
           .map_err(Into::into)
-          .and_then(super::to_value);
+          .map(Into::into);
         #[cfg(not(cli))]
           Err(crate::Error::ApiNotEnabled(
             "CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)".to_string(),

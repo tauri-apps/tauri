@@ -1,4 +1,5 @@
 use futures::future::BoxFuture;
+use serde::Serialize;
 use serde_json::Value as JsonValue;
 use tauri_api::{config::Config, private::AsTauriContext};
 
@@ -18,8 +19,9 @@ pub use webview::{
 };
 pub use webview_manager::{WebviewDispatcher, WebviewManager};
 
-type InvokeHandler<A> =
-  dyn Fn(WebviewManager<A>, String) -> BoxFuture<'static, crate::Result<JsonValue>> + Send + Sync;
+type InvokeHandler<A> = dyn Fn(WebviewManager<A>, String) -> BoxFuture<'static, crate::Result<InvokeResponse>>
+  + Send
+  + Sync;
 type Setup<A> = dyn Fn(WebviewManager<A>) -> BoxFuture<'static, ()> + Send + Sync;
 
 /// `App` runtime information.
@@ -43,6 +45,19 @@ pub(crate) struct Webview<A: ApplicationExt> {
   pub(crate) builder: A::WebviewBuilder,
   pub(crate) label: String,
   pub(crate) url: WindowUrl,
+}
+
+/// The response for a JS `invoke` call.
+pub struct InvokeResponse {
+  json: crate::Result<JsonValue>,
+}
+
+impl<T: Serialize> From<T> for InvokeResponse {
+  fn from(value: T) -> Self {
+    Self {
+      json: serde_json::to_value(value).map_err(Into::into),
+    }
+  }
 }
 
 /// The application runner.
@@ -90,7 +105,7 @@ impl<A: ApplicationExt + 'static> App<A> {
     &self,
     dispatcher: &WebviewManager<A>,
     arg: &JsonValue,
-  ) -> crate::Result<Option<JsonValue>> {
+  ) -> crate::Result<Option<InvokeResponse>> {
     if let Some(ref invoke_handler) = self.invoke_handler {
       let fut = invoke_handler(dispatcher.clone(), arg.to_string());
       fut.await.map(Some)
@@ -196,7 +211,7 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<A, C> {
 
   /// Defines the JS message handler callback.
   pub fn invoke_handler<
-    T: futures::Future<Output = crate::Result<JsonValue>> + Send + Sync + 'static,
+    T: futures::Future<Output = crate::Result<InvokeResponse>> + Send + Sync + 'static,
     F: Fn(WebviewManager<A>, String) -> T + Send + Sync + 'static,
   >(
     mut self,

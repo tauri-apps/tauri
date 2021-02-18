@@ -80,6 +80,11 @@ impl Dev {
 
       if let Some(cmd) = cmd {
         logger.log(format!("Running `{}`", before_dev));
+        #[cfg(target_os = "windows")]
+        let mut command = Command::new(
+          which::which(&cmd).expect(&format!("failed to find `{}` in your $PATH", cmd)),
+        );
+        #[cfg(not(target_os = "windows"))]
         let mut command = Command::new(cmd);
         let child = command.args(args).current_dir(app_dir()).spawn()?;
         BEFORE_DEV.set(Mutex::new(child)).unwrap();

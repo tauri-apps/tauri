@@ -23,3 +23,6 @@ shared_child = "0.3"
 toml_edit = "0.2"
 convert_case = "0.4"
 json-patch = "0.2"
+
+[target."cfg(target_os = \"windows\")".dependencies]
+which = "4.0"

@@ -147,19 +147,21 @@ fn copy_icon(settings: &Settings) -> crate::Result<PathBuf> {
   let base_dir = settings.project_out_directory();
 
   let resource_dir = base_dir.join("resources");
+  std::fs::create_dir_all(&resource_dir)?;
+  let icon_target_path = resource_dir.join("icon.ico");
 
   let icon_path = std::env::current_dir()?.join("icons").join("icon.ico");
 
   copy_file(
     icon_path,
-    &resource_dir,
+    &icon_target_path,
     &FileOpts {
       overwrite: true,
       ..Default::default()
     },
   )?;
 
-  Ok(resource_dir.join("icon.ico"))
+  Ok(icon_target_path)
 }
 
 /// Function used to download Wix and VC_REDIST. Checks SHA256 to verify the download.

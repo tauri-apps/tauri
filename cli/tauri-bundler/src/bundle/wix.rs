@@ -1,6 +1,6 @@
 use super::{
   common,
-  path_utils::{copy, Options},
+  path_utils::{copy_file, FileOpts},
   settings::Settings,
 };
 
@@ -141,34 +141,25 @@ impl ResourceDirectory {
   }
 }
 
-/// Copies the icons to the binary path, under the `resources` folder,
-/// and returns the path to that directory.
-fn copy_icons(settings: &Settings) -> crate::Result<PathBuf> {
+/// Copies the icon to the binary path, under the `resources` folder,
+/// and returns the path to the file.
+fn copy_icon(settings: &Settings) -> crate::Result<PathBuf> {
   let base_dir = settings.project_out_directory();
 
   let resource_dir = base_dir.join("resources");
 
-  let mut image_path = PathBuf::from(settings.project_out_directory());
+  let icon_path = std::env::current_dir()?.join("icons").join("icon.ico");
 
-  // pop off till in tauri_src dir
-  image_path.pop();
-  image_path.pop();
-
-  // get icon dir and icon file.
-  let image_path = image_path.join("icons");
-  let opts = super::path_utils::Options::default();
-
-  copy(
-    image_path,
+  copy_file(
+    icon_path,
     &resource_dir,
-    &Options {
-      copy_files: true,
+    &FileOpts {
       overwrite: true,
-      ..opts
+      ..Default::default()
     },
   )?;
 
-  Ok(resource_dir)
+  Ok(resource_dir.join("icon.ico"))
 }
 
 /// Function used to download Wix and VC_REDIST. Checks SHA256 to verify the download.
@@ -502,12 +493,10 @@ pub fn build_wix_app_installer(
 
   data.insert("app_exe_source", to_json(&app_exe_source));
 
-  // copy icons from icons folder to resource folder near msi
-  let image_path = copy_icons(&settings)?;
+  // copy icon from $CWD/icons/icon.ico folder to resource folder near msi
+  let icon_path = copy_icon(&settings)?;
 
-  let path = image_path.join("icon.ico").display().to_string();
-
-  data.insert("icon_path", to_json(path.as_str()));
+  data.insert("icon_path", to_json(icon_path));
 
   let temp = HANDLEBARS.render("main.wxs", &data)?;
 

@@ -82,20 +82,19 @@ pub fn request_permission() -> crate::Result<String> {
     return Ok(if allow_notification { granted } else { denied });
   }
   let answer = tauri_api::dialog::ask(
-    "This app wants to show notifications. Do you allow?",
     "Permissions",
+    "This app wants to show notifications. Do you allow?",
   );
   match answer {
-    tauri_api::dialog::DialogSelection::Yes => {
+    tauri_api::dialog::AskResponse::Yes => {
       settings.allow_notification = Some(true);
       crate::settings::write_settings(settings)?;
       Ok(granted)
     }
-    tauri_api::dialog::DialogSelection::No => {
+    tauri_api::dialog::AskResponse::No => {
       settings.allow_notification = Some(false);
       crate::settings::write_settings(settings)?;
       Ok(denied)
     }
-    _ => Ok("default".to_string()),
   }
 }

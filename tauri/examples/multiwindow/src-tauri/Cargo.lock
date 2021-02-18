@@ -2702,31 +2702,12 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "tar",
- "tauri-dialog",
  "tauri-hotkey",
  "tauri-utils",
  "tempfile",
  "thiserror",
+ "tinyfiledialogs",
  "zip",
-]
-
-[[package]]
-name = "tauri-dialog"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d5797e1fadcc36b32e29b9dc521abba8ebbc1847378ec96917cdcf548ba6fdc"
-dependencies = [
- "tauri-dialog-sys",
-]
-
-[[package]]
-name = "tauri-dialog-sys"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3eba3890c956c0234a27bc5648af00738c81e193351ce5f47faec7efc9156c02"
-dependencies = [
- "cc",
- "pkg-config",
 ]
 
 [[package]]
@@ -2856,6 +2837,16 @@ dependencies = [
  "chunked_transfer",
  "log",
  "url",
+]
+
+[[package]]
+name = "tinyfiledialogs"
+version = "3.3.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c45fb26c3f37d9a8b556e51f6d7f13f685af766017030af56e9247e638aa6194"
+dependencies = [
+ "cc",
+ "libc",
 ]
 
 [[package]]

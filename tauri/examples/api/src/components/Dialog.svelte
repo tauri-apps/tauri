@@ -27,42 +27,58 @@
 
   function openDialog() {
     open({
-      defaultPath: defaultPath,
-      filter: filter,
-      multiple: multiple,
-      directory: directory
+      defaultPath,
+      filters: filter ? [{
+        name: 'Tauri Example',
+        extensions: filter.split(',').map(f => f.trim())
+      }] : [],
+      multiple,
+      directory
     }).then(function (res) {
-      var pathToRead = res
-      var isFile = pathToRead.match(/\S+\.\S+$/g)
-      readBinaryFile(pathToRead).then(function (response) {
-        if (isFile) {
-          if (pathToRead.includes('.png') || pathToRead.includes('.jpg')) {
-            arrayBufferToBase64(new Uint8Array(response), function (base64) {
-              var src = 'data:image/png;base64,' + base64
-              onMessage('<img src="' + src + '"></img>')
-            })
+      if (Array.isArray(res)) {
+        onMessage(res)
+      } else {
+        var pathToRead = res
+        var isFile = pathToRead.match(/\S+\.\S+$/g)
+        readBinaryFile(pathToRead).then(function (response) {
+          if (isFile) {
+            if (pathToRead.includes('.png') || pathToRead.includes('.jpg')) {
+              arrayBufferToBase64(new Uint8Array(response), function (base64) {
+                var src = 'data:image/png;base64,' + base64
+                onMessage('<img src="' + src + '"></img>')
+              })
+            } else {
+              onMessage(res)
+            }
           } else {
             onMessage(res)
           }
-        } else {
-          onMessage(res)
-        }
-      }).catch(onMessage(res))
+        }).catch(onMessage(res))
+      }
     }).catch(onMessage)
   }
 
   function saveDialog() {
     save({
-      defaultPath: defaultPath,
-      filter: filter,
+      defaultPath,
+      filters: filter ? [{
+        name: 'Tauri Example',
+        extensions: filter.split(',').map(f => f.trim())
+      }] : [],
     }).then(onMessage).catch(onMessage)
   }
 
 </script>
 
+<style>
+  #dialog-filter {
+    width: 260px;
+  }
+</style>
+
 <div style="margin-top: 24px">
   <input id="dialog-default-path" placeholder="Default path" bind:value={defaultPath} />
-  <input id="dialog-filter" placeholder="Extensions filter" bind:value={filter} />
+  <input id="dialog-filter" placeholder="Extensions filter, comma-separated" bind:value={filter} />
   <div>
     <input type="checkbox" id="dialog-multiple" bind:checked={multiple} />
     <label for="dialog-multiple">Multiple</label>

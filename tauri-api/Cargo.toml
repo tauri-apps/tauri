@@ -27,7 +27,7 @@ tar = "0.4"
 flate2 = "1.0"
 thiserror = "1.0.23"
 rand = "0.8"
-nfd = "0.0.4"
+rfd = "0.2.1"
 tinyfiledialogs = "3.3"
 reqwest = { version = "0.11", features = [ "json", "multipart" ] }
 bytes = { version = "1", features = ["serde"] }

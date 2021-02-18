@@ -1,16 +1,21 @@
 import { invoke } from './tauri'
 
+export interface DialogFilter {
+  name: string
+  extensions: string[]
+}
+
 export interface OpenDialogOptions {
-  filter?: string
+  filters?: DialogFilter[]
   defaultPath?: string
   multiple?: boolean
   directory?: boolean
 }
 
-export type SaveDialogOptions = Pick<
-  OpenDialogOptions,
-  'filter' | 'defaultPath'
->
+export interface SaveDialogOptions {
+  filters?: DialogFilter[]
+  defaultPath?: string
+}
 
 /**
  * @name openDialog

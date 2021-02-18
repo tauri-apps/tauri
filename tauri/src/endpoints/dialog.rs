@@ -1,18 +1,25 @@
 use crate::api::dialog::{
-  ask as ask_dialog, message as message_dialog, pick_folder, save_file, select, select_multiple,
-  AskResponse, Response,
+  ask as ask_dialog, message as message_dialog, AskResponse, FileDialogBuilder,
 };
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
 
 use std::path::PathBuf;
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DialogFilter {
+  name: String,
+  extensions: Vec<String>,
+}
+
 /// The options for the open dialog API.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenDialogOptions {
-  /// The initial path of the dialog.
-  pub filter: Option<String>,
+  /// The filters of the dialog.
+  #[serde(default)]
+  pub filters: Vec<DialogFilter>,
   /// Whether the dialog allows multiple selection or not.
   #[serde(default)]
   pub multiple: bool,
@@ -27,8 +34,9 @@ pub struct OpenDialogOptions {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaveDialogOptions {
-  /// The initial path of the dialog.
-  pub filter: Option<String>,
+  /// The filters of the dialog.
+  #[serde(default)]
+  pub filters: Vec<DialogFilter>,
   /// The initial path of the dialog.
   pub default_path: Option<PathBuf>,
 }
@@ -59,13 +67,13 @@ impl Cmd {
     match self {
       Self::OpenDialog { options } => {
         #[cfg(open_dialog)]
-        return open(options).and_then(super::to_value);
+        return open(options);
         #[cfg(not(open_dialog))]
         Err(crate::Error::ApiNotAllowlisted("title".to_string()));
       }
       Self::SaveDialog { options } => {
         #[cfg(save_dialog)]
-        return save(options).and_then(super::to_value);
+        return save(options);
         #[cfg(not(save_dialog))]
         Err(crate::Error::ApiNotAllowlisted("saveDialog".to_string()));
       }
@@ -97,36 +105,40 @@ impl Cmd {
   }
 }
 
-/// maps a dialog response to a JS value to eval
-#[cfg(any(open_dialog, save_dialog))]
-fn map_response(response: Response) -> JsonValue {
-  match response {
-    Response::Okay(path) => path.into(),
-    Response::OkayMultiple(paths) => paths.into(),
-    Response::Cancel => JsonValue::Null,
-  }
-}
-
 /// Shows an open dialog.
 #[cfg(open_dialog)]
 pub fn open(options: OpenDialogOptions) -> crate::Result<JsonValue> {
-  let response = if options.multiple {
-    select_multiple(options.filter, options.default_path)
-  } else if options.directory {
-    pick_folder(options.default_path)
+  let mut dialog_builder = FileDialogBuilder::new();
+  if let Some(default_path) = options.default_path {
+    dialog_builder = dialog_builder.set_directory(default_path);
+  }
+  for filter in options.filters {
+    let extensions: Vec<&str> = filter.extensions.iter().map(|s| &**s).collect();
+    dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
+  }
+  let response = if options.directory {
+    serde_json::to_value(dialog_builder.pick_folder())?
+  } else if options.multiple {
+    serde_json::to_value(dialog_builder.pick_files())?
   } else {
-    select(options.filter, options.default_path)
+    serde_json::to_value(dialog_builder.pick_file())?
   };
-  let res = response.map(map_response)?;
-  Ok(res)
+  Ok(response)
 }
 
 /// Shows a save dialog.
 #[cfg(save_dialog)]
 pub fn save(options: SaveDialogOptions) -> crate::Result<JsonValue> {
-  save_file(options.filter, options.default_path)
-    .map(map_response)
-    .map_err(Into::into)
+  let mut dialog_builder = FileDialogBuilder::new();
+  if let Some(default_path) = options.default_path {
+    dialog_builder = dialog_builder.set_directory(default_path);
+  }
+  for filter in options.filters {
+    let extensions: Vec<&str> = filter.extensions.iter().map(|s| &**s).collect();
+    dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
+  }
+  let response = dialog_builder.save_file();
+  Ok(serde_json::to_value(response)?)
 }
 
 /// Shows a dialog with a yes/no question.

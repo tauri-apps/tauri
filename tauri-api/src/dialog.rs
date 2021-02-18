@@ -3,9 +3,7 @@ use std::path::Path;
 pub use nfd::Response;
 use nfd::{open_dialog, DialogType};
 
-use tinyfiledialogs::{
-  message_box_ok, message_box_yes_no, MessageBoxIcon, YesNo,
-};
+use tinyfiledialogs::{message_box_ok, message_box_yes_no, MessageBoxIcon, YesNo};
 
 /// Response for the ask dialog
 pub enum AskResponse {

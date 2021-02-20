@@ -10,9 +10,8 @@
     "url": "https://opencollective.com/tauri"
   },
   "scripts": {
-    "build:typevalidators": "node ./build/type-validators",
-    "build": "rimraf ./dist && yarn build:typevalidators && webpack --progress",
-    "build-release": "rimraf ./dist && yarn build:typevalidators && webpack",
+    "build": "rimraf ./dist && webpack --progress",
+    "build-release": "rimraf ./dist && webpack",
     "test": "jest --runInBand --no-cache --testPathIgnorePatterns=\"(build|dev)\"",
     "pretest": "yarn build",
     "prepublishOnly": "yarn build-release",
@@ -20,8 +19,8 @@
     "lint": "eslint --ext ts \"./src/**/*.ts\"",
     "lint-fix": "eslint --fix --ext ts \"./src/**/*.ts\"",
     "lint:lockfile": "lockfile-lint --path yarn.lock --type yarn --validate-https --allowed-hosts npm yarn",
-    "format": "prettier --write --end-of-line=auto !./**/config.validator.js !./**/config.schema.json \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
-    "format:check": "prettier --check --end-of-line=auto !./**/config.validator.js !./**/config.schema.json \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore"
+    "format": "prettier --write --end-of-line=auto \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
+    "format:check": "prettier --check --end-of-line=auto \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore"
   },
   "repository": {
     "type": "git",
@@ -83,7 +82,6 @@
     "@typescript-eslint/eslint-plugin": "4.15.1",
     "@typescript-eslint/parser": "4.15.1",
     "babel-jest": "26.6.3",
-    "copy-webpack-plugin": "7.0.0",
     "dotenv": "8.2.0",
     "eslint": "7.20.0",
     "eslint-config-prettier": "7.2.0",
@@ -105,7 +103,6 @@
     "toml-loader": "1.0.0",
     "ts-loader": "8.0.17",
     "typescript": "4.1.5",
-    "typescript-json-validator": "2.4.2",
     "webpack": "5.22.0",
     "webpack-cli": "4.5.0",
     "webpack-node-externals": "2.5.2"
@@ -119,7 +116,7 @@
     }
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,md,html,css,json}": "prettier --write --end-of-line=auto !./**/config.validator.js !./**/config.schema.json \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
+    "*.{js,jsx,ts,tsx,md,html,css,json}": "prettier --write --end-of-line=auto \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
     "*.{ts,tsx}": "eslint --fix --ext ts ./src/**/*.ts"
   }
 }

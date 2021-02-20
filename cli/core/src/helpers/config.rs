@@ -1,12 +1,15 @@
 use json_patch::merge;
 use once_cell::sync::Lazy;
-use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 
+#[path = "../../config_definition.rs"]
+mod config_definition;
+pub use config_definition::*;
+
 use std::{
-  collections::HashMap,
   fs::File,
   io::BufReader,
+  process::exit,
   sync::{Arc, Mutex},
 };
 
@@ -15,95 +18,6 @@ pub type ConfigHandle = Arc<Mutex<Option<Config>>>;
 fn config_handle() -> &'static ConfigHandle {
   static CONFING_HANDLE: Lazy<ConfigHandle> = Lazy::new(Default::default);
   &CONFING_HANDLE
-}
-
-/// The bundler configuration object.
-#[derive(PartialEq, Clone, Deserialize, Serialize, Debug)]
-#[serde(tag = "bundle", rename_all = "camelCase")]
-pub struct BundleConfig {
-  #[serde(default)]
-  pub active: bool,
-  /// The bundle identifier.
-  pub identifier: String,
-}
-
-fn default_bundle() -> BundleConfig {
-  BundleConfig {
-    active: false,
-    identifier: String::from(""),
-  }
-}
-
-/// The Tauri configuration object.
-#[derive(PartialEq, Clone, Deserialize, Serialize, Debug)]
-#[serde(tag = "tauri", rename_all = "camelCase")]
-pub struct TauriConfig {
-  /// The CLI configuration.
-  #[serde(default)]
-  pub cli: Option<JsonValue>,
-  /// The bundler configuration.
-  #[serde(default = "default_bundle")]
-  pub bundle: BundleConfig,
-  #[serde(default)]
-  pub allowlist: HashMap<String, bool>,
-}
-
-/// The Build configuration object.
-#[derive(PartialEq, Clone, Deserialize, Serialize, Debug)]
-#[serde(tag = "build", rename_all = "camelCase")]
-pub struct BuildConfig {
-  /// the devPath config.
-  #[serde(default = "default_dev_path")]
-  pub dev_path: String,
-  #[serde(default = "default_dist_dir")]
-  pub dist_dir: String,
-  pub before_dev_command: Option<String>,
-  pub before_build_command: Option<String>,
-  #[serde(default)]
-  pub with_global_tauri: bool,
-}
-
-fn default_dev_path() -> String {
-  "".to_string()
-}
-
-fn default_dist_dir() -> String {
-  "../dist".to_string()
-}
-
-type JsonObject = HashMap<String, JsonValue>;
-
-/// The tauri.conf.json mapper.
-#[derive(PartialEq, Clone, Deserialize, Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct Config {
-  /// The Tauri configuration.
-  #[serde(default = "default_tauri")]
-  pub tauri: TauriConfig,
-  /// The build configuration.
-  #[serde(default = "default_build")]
-  pub build: BuildConfig,
-  /// The plugins config.
-  #[serde(default)]
-  pub plugins: HashMap<String, JsonObject>,
-}
-
-fn default_tauri() -> TauriConfig {
-  TauriConfig {
-    cli: None,
-    bundle: default_bundle(),
-    allowlist: Default::default(),
-  }
-}
-
-fn default_build() -> BuildConfig {
-  BuildConfig {
-    dev_path: default_dev_path(),
-    dist_dir: default_dist_dir(),
-    before_dev_command: None,
-    before_build_command: None,
-    with_global_tauri: false,
-  }
 }
 
 /// Gets the static parsed config from `tauri.conf.json`.
@@ -116,6 +30,26 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
   let file = File::open(path)?;
   let buf = BufReader::new(file);
   let mut config: JsonValue = serde_json::from_reader(buf)?;
+
+  let schema: JsonValue = serde_json::from_str(include_str!("../../schema.json"))?;
+  let mut scope = valico::json_schema::Scope::new();
+  let schema = scope.compile_and_return(schema, false).unwrap();
+  let state = schema.validate(&config);
+  if !state.errors.is_empty() {
+    for error in state.errors {
+      eprintln!(
+        "`tauri.conf.json` error on `{}`: {}",
+        error
+          .get_path()
+          .chars()
+          .skip(1)
+          .collect::<String>()
+          .replace("/", " > "),
+        error.get_detail().unwrap_or_else(|| error.get_title()),
+      );
+    }
+    exit(1);
+  }
 
   if let Some(merge_config) = merge_config {
     let merge_config: JsonValue = serde_json::from_str(&merge_config)?;

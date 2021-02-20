@@ -28,6 +28,16 @@ pub struct OsxConfig {
   pub license: Option<String>,
   #[serde(default)]
   pub use_bootstrapper: bool,
+  pub signing_identity: Option<String>,
+  pub entitlements: Option<String>,
+}
+
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WindowsConfig {
+  pub digest_algorithm: Option<String>,
+  pub certificate_thumbprint: Option<String>,
+  pub timestamp_url: Option<String>,
 }
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
@@ -57,6 +67,8 @@ pub struct BundleConfig {
   #[serde(default)]
   pub osx: OsxConfig,
   pub external_bin: Option<Vec<String>>,
+  #[serde(default)]
+  pub windows: WindowsConfig,
 }
 
 /// A CLI argument definition

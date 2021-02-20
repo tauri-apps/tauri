@@ -255,11 +255,11 @@ trait Allowlist {
 }
 
 macro_rules! check_feature {
-    ($self:ident, $features:ident, $flag:ident, $feature_name: expr) => {
-        if $self.$flag {
-          $features.push($feature_name)
-        }
-    };
+  ($self:ident, $features:ident, $flag:ident, $feature_name: expr) => {
+    if $self.$flag {
+      $features.push($feature_name)
+    }
+  };
 }
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]

@@ -20,6 +20,6 @@ switch ($result) {
     cd cli\tauri.js
     yarn; yarn build; yarn link
     cd ..\..
-    echo "Tauri Node.js CLI installed. Run it with '$ stauri [COMMAND]'"
+    echo "Tauri Node.js CLI installed. Run it with '$ tauri [COMMAND]'"
   }
 }

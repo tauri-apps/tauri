@@ -1,4 +1,8 @@
-use crate::{api::shortcuts::ShortcutManager, app::InvokeResponse, async_runtime::Mutex};
+use crate::{
+  api::shortcuts::ShortcutManager,
+  app::{InvokeResponse, WebviewDispatcher},
+  async_runtime::Mutex,
+};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 
@@ -17,8 +21,33 @@ pub fn manager_handle() -> &'static ShortcutManagerHandle {
 pub enum Cmd {
   /// Register a global shortcut.
   Register { shortcut: String, handler: String },
+  /// Register a list of global shortcuts.
+  RegisterAll {
+    shortcuts: Vec<String>,
+    handler: String,
+  },
   /// Unregister a global shortcut.
   Unregister { shortcut: String },
+  /// Unregisters all registered shortcuts.
+  UnregisterAll,
+  /// Determines whether the given hotkey is registered or not.
+  IsRegistered { shortcut: String },
+}
+
+fn register_shortcut<A: crate::ApplicationDispatcherExt + 'static>(
+  dispatcher: WebviewDispatcher<A>,
+  manager: &mut ShortcutManager,
+  shortcut: String,
+  handler: String,
+) -> crate::Result<()> {
+  manager.register(shortcut.clone(), move || {
+    let callback_string = crate::api::rpc::format_callback(
+      handler.to_string(),
+      serde_json::Value::String(shortcut.clone()),
+    );
+    let _ = dispatcher.eval(callback_string.as_str());
+  })?;
+  Ok(())
 }
 
 impl Cmd {
@@ -35,17 +64,31 @@ impl Cmd {
       Self::Register { shortcut, handler } => {
         let dispatcher = webview_manager.current_webview().await?.clone();
         let mut manager = manager_handle().lock().await;
-        manager.register_shortcut(shortcut, move || {
-          let callback_string =
-            crate::api::rpc::format_callback(handler.to_string(), serde_json::Value::Null);
-          let _ = dispatcher.eval(callback_string.as_str());
-        })?;
+        register_shortcut(dispatcher, &mut manager, shortcut, handler)?;
+        Ok(().into())
+      }
+      Self::RegisterAll { shortcuts, handler } => {
+        let dispatcher = webview_manager.current_webview().await?.clone();
+        let mut manager = manager_handle().lock().await;
+        for shortcut in shortcuts {
+          register_shortcut(dispatcher.clone(), &mut manager, shortcut, handler.clone())?;
+        }
+        Ok(().into())
       }
       Self::Unregister { shortcut } => {
         let mut manager = manager_handle().lock().await;
-        manager.unregister_shortcut(shortcut)?;
+        manager.unregister(shortcut)?;
+        Ok(().into())
+      }
+      Self::UnregisterAll => {
+        let mut manager = manager_handle().lock().await;
+        manager.unregister_all()?;
+        Ok(().into())
+      }
+      Self::IsRegistered { shortcut } => {
+        let manager = manager_handle().lock().await;
+        Ok(manager.is_registered(shortcut)?.into())
       }
     }
-    Ok(().into())
   }
 }

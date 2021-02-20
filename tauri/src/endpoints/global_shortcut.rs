@@ -1,5 +1,6 @@
 use crate::{
-  api::shortcuts::ShortcutManager, app::InvokeResponse, app::WebviewDispatcher,
+  api::shortcuts::ShortcutManager,
+  app::{InvokeResponse, WebviewDispatcher},
   async_runtime::Mutex,
 };
 use once_cell::sync::Lazy;

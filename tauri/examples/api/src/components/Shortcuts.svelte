@@ -1,10 +1,10 @@
 <script>
   import { writable } from 'svelte/store'
-  import { registerShortcut, unregisterShortcut } from '@tauri-apps/api/globalShortcut'
+  import { register as registerShortcut, unregister as unregisterShortcut } from '@tauri-apps/api/globalShortcut'
 
   export let onMessage
   const shortcuts = writable([])
-  let shortcut = 'CTRL+X'
+  let shortcut = 'CmdOrControl+X'
 
   function register() {
     const shortcut_ = shortcut

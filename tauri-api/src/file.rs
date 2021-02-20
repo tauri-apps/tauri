@@ -8,12 +8,12 @@ pub use file_move::*;
 
 /// Reads a string file.
 pub fn read_string<P: AsRef<Path>>(file: P) -> crate::Result<String> {
-  fs::read_to_string(file).map_err(|e| e.into())
+  fs::read_to_string(file).map_err(Into::into)
 }
 
 /// Reads a binary file.
 pub fn read_binary<P: AsRef<Path>>(file: P) -> crate::Result<Vec<u8>> {
-  fs::read(file).map_err(|e| e.into())
+  fs::read(file).map_err(Into::into)
 }
 
 #[cfg(test)]

@@ -1,21 +1,27 @@
+#[cfg(any(dialog_open, dialog_save))]
+use crate::api::dialog::FileDialogBuilder;
 use crate::{
-  api::dialog::{
-    ask as ask_dialog, message as message_dialog, pick_folder, save_file, select, select_multiple,
-    DialogSelection, Response,
-  },
-  ApplicationDispatcherExt,
+  api::dialog::{ask as ask_dialog, message as message_dialog, AskResponse},
+  app::InvokeResponse,
 };
 use serde::Deserialize;
-use serde_json::Value as JsonValue;
 
 use std::path::PathBuf;
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DialogFilter {
+  name: String,
+  extensions: Vec<String>,
+}
 
 /// The options for the open dialog API.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenDialogOptions {
-  /// The initial path of the dialog.
-  pub filter: Option<String>,
+  /// The filters of the dialog.
+  #[serde(default)]
+  pub filters: Vec<DialogFilter>,
   /// Whether the dialog allows multiple selection or not.
   #[serde(default)]
   pub multiple: bool,
@@ -30,8 +36,9 @@ pub struct OpenDialogOptions {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaveDialogOptions {
-  /// The initial path of the dialog.
-  pub filter: Option<String>,
+  /// The filters of the dialog.
+  #[serde(default)]
+  pub filters: Vec<DialogFilter>,
   /// The initial path of the dialog.
   pub default_path: Option<PathBuf>,
 }
@@ -43,14 +50,10 @@ pub enum Cmd {
   /// The open dialog API.
   OpenDialog {
     options: OpenDialogOptions,
-    callback: String,
-    error: String,
   },
   /// The save dialog API.
   SaveDialog {
     options: SaveDialogOptions,
-    callback: String,
-    error: String,
   },
   MessageDialog {
     message: String,
@@ -58,150 +61,91 @@ pub enum Cmd {
   AskDialog {
     title: Option<String>,
     message: String,
-    callback: String,
-    error: String,
   },
 }
 
 impl Cmd {
-  pub async fn run<D: ApplicationDispatcherExt + 'static>(
-    self,
-    webview_manager: &crate::WebviewManager<D>,
-  ) -> crate::Result<()> {
+  pub async fn run(self) -> crate::Result<InvokeResponse> {
     match self {
-      Self::OpenDialog {
-        options,
-        callback,
-        error,
-      } => {
-        #[cfg(open_dialog)]
-        open(webview_manager, options, callback, error)?;
-        #[cfg(not(open_dialog))]
-        allowlist_error(webview_manager, error, "title");
+      Self::OpenDialog { options } => {
+        #[cfg(dialog_open)]
+        return open(options);
+        #[cfg(not(dialog_open))]
+        return Err(crate::Error::ApiNotAllowlisted("dialog > open".to_string()));
       }
-      Self::SaveDialog {
-        options,
-        callback,
-        error,
-      } => {
-        #[cfg(save_dialog)]
-        save(webview_manager, options, callback, error)?;
-        #[cfg(not(save_dialog))]
-        throw_allowlist_error(webview_manager, "saveDialog");
+      Self::SaveDialog { options } => {
+        #[cfg(dialog_save)]
+        return save(options);
+        #[cfg(not(dialog_save))]
+        return Err(crate::Error::ApiNotAllowlisted("dialog > save".to_string()));
       }
       Self::MessageDialog { message } => {
         let exe = std::env::current_exe()?;
         let app_name = exe
-          .file_name()
-          .expect("failed to get exe filename")
+          .file_stem()
+          .expect("failed to get binary filename")
           .to_string_lossy()
           .to_string();
-        webview_manager
-          .current_webview()?
-          .send_event(crate::webview::Event::Run(Box::new(move || {
-            message_dialog(app_name, message);
-          })));
+        message_dialog(app_name, message);
+        Ok(().into())
       }
-      Self::AskDialog {
-        title,
-        message,
-        callback,
-        error,
-      } => {
+      Self::AskDialog { title, message } => {
         let exe = std::env::current_exe()?;
-        ask(
-          webview_manager,
+        let answer = ask(
           title.unwrap_or_else(|| {
             exe
-              .file_name()
-              .expect("failed to get exe filename")
+              .file_stem()
+              .expect("failed to get binary filename")
               .to_string_lossy()
               .to_string()
           }),
           message,
-          callback,
-          error,
         )?;
+        Ok(answer)
       }
     }
-    Ok(())
-  }
-}
-
-/// maps a dialog response to a JS value to eval
-#[cfg(any(open_dialog, save_dialog))]
-fn map_response(response: Response) -> JsonValue {
-  match response {
-    Response::Okay(path) => path.into(),
-    Response::OkayMultiple(paths) => paths.into(),
-    Response::Cancel => JsonValue::Null,
   }
 }
 
 /// Shows an open dialog.
-#[cfg(open_dialog)]
-pub fn open<D: ApplicationDispatcherExt + 'static>(
-  webview_manager: &crate::WebviewManager<D>,
-  options: OpenDialogOptions,
-  callback: String,
-  error: String,
-) -> crate::Result<()> {
-  crate::execute_promise_sync(
-    webview_manager,
-    move || {
-      let response = if options.multiple {
-        select_multiple(options.filter, options.default_path)
-      } else if options.directory {
-        pick_folder(options.default_path)
-      } else {
-        select(options.filter, options.default_path)
-      };
-      let res = response.map(map_response)?;
-      Ok(res)
-    },
-    callback,
-    error,
-  );
-  Ok(())
+#[cfg(dialog_open)]
+pub fn open(options: OpenDialogOptions) -> crate::Result<InvokeResponse> {
+  let mut dialog_builder = FileDialogBuilder::new();
+  if let Some(default_path) = options.default_path {
+    dialog_builder = dialog_builder.set_directory(default_path);
+  }
+  for filter in options.filters {
+    let extensions: Vec<&str> = filter.extensions.iter().map(|s| &**s).collect();
+    dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
+  }
+  let response = if options.directory {
+    dialog_builder.pick_folder().into()
+  } else if options.multiple {
+    dialog_builder.pick_files().into()
+  } else {
+    dialog_builder.pick_file().into()
+  };
+  Ok(response)
 }
 
 /// Shows a save dialog.
-#[cfg(save_dialog)]
-pub fn save<D: ApplicationDispatcherExt + 'static>(
-  webview_manager: &crate::WebviewManager<D>,
-  options: SaveDialogOptions,
-  callback: String,
-  error: String,
-) -> crate::Result<()> {
-  crate::execute_promise_sync(
-    webview_manager,
-    move || {
-      save_file(options.filter, options.default_path)
-        .map(map_response)
-        .map_err(|e| e.into())
-    },
-    callback,
-    error,
-  );
-  Ok(())
+#[cfg(dialog_save)]
+pub fn save(options: SaveDialogOptions) -> crate::Result<InvokeResponse> {
+  let mut dialog_builder = FileDialogBuilder::new();
+  if let Some(default_path) = options.default_path {
+    dialog_builder = dialog_builder.set_directory(default_path);
+  }
+  for filter in options.filters {
+    let extensions: Vec<&str> = filter.extensions.iter().map(|s| &**s).collect();
+    dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
+  }
+  Ok(dialog_builder.save_file().into())
 }
 
 /// Shows a dialog with a yes/no question.
-pub fn ask<D: ApplicationDispatcherExt + 'static>(
-  webview_manager: &crate::WebviewManager<D>,
-  title: String,
-  message: String,
-  callback: String,
-  error: String,
-) -> crate::Result<()> {
-  crate::execute_promise_sync(
-    webview_manager,
-    move || match ask_dialog(message, title) {
-      DialogSelection::Yes => crate::Result::Ok(true),
-      _ => crate::Result::Ok(false),
-    },
-    callback,
-    error,
-  );
-  Ok(())
+pub fn ask(title: String, message: String) -> crate::Result<InvokeResponse> {
+  match ask_dialog(title, message) {
+    AskResponse::Yes => Ok(true.into()),
+    _ => Ok(false.into()),
+  }
 }

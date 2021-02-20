@@ -20,7 +20,8 @@ export default [
       tauri: './src/tauri.ts',
       window: './src/window.ts',
       cli: './src/cli.ts',
-      notification: './src/notification.ts'
+      notification: './src/notification.ts',
+      globalShortcut: './src/globalShortcut.ts'
     },
     treeshake: true,
     perf: true,

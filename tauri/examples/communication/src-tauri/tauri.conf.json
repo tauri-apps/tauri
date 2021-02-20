@@ -58,7 +58,7 @@
     },
     "windows": [{
       "title": "Tauri API Validation",
-      "resizable": false
+      "resizable": true
     }],
     "security": {
       "csp": "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"

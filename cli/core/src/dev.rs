@@ -6,21 +6,30 @@ use crate::helpers::{
 };
 
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
+use once_cell::sync::OnceCell;
 use shared_child::SharedChild;
 
 use std::{
   env::{set_current_dir, set_var},
   ffi::OsStr,
-  fs::File,
+  fs::{create_dir_all, File},
   io::Write,
   path::PathBuf,
-  process::{exit, Command},
+  process::{exit, Child, Command},
   sync::{
     mpsc::{channel, Receiver},
     Arc, Mutex,
   },
   time::Duration,
 };
+
+static BEFORE_DEV: OnceCell<Mutex<Child>> = OnceCell::new();
+
+fn kill_before_dev_process() {
+  if let Some(child) = BEFORE_DEV.get() {
+    let _ = child.lock().unwrap().kill();
+  }
+}
 
 #[derive(Default)]
 pub struct Dev {
@@ -49,7 +58,6 @@ impl Dev {
     set_current_dir(&tauri_path)?;
     let merge_config = self.config.clone();
     let config = get_config(merge_config.as_deref())?;
-    let mut _guard = None;
     let mut process: Arc<SharedChild>;
 
     if let Some(before_dev) = &config
@@ -72,9 +80,14 @@ impl Dev {
 
       if let Some(cmd) = cmd {
         logger.log(format!("Running `{}`", before_dev));
+        #[cfg(target_os = "windows")]
+        let mut command = Command::new(
+          which::which(&cmd).expect(&format!("failed to find `{}` in your $PATH", cmd)),
+        );
+        #[cfg(not(target_os = "windows"))]
         let mut command = Command::new(cmd);
-        command.args(args).current_dir(app_dir()).spawn()?;
-        _guard = Some(command);
+        let child = command.args(args).current_dir(app_dir()).spawn()?;
+        BEFORE_DEV.set(Mutex::new(child)).unwrap();
       }
     }
 
@@ -117,7 +130,9 @@ impl Dev {
       let tauri_script = TauriScript::new()
         .global_tauri(config_.build.with_global_tauri)
         .get();
-      let tauri_script_path = PathBuf::from(&config_.build.dist_dir).join("__tauri.js");
+      let tauri_dir_path = PathBuf::from(&config_.build.dist_dir);
+      let tauri_script_path = tauri_dir_path.join("__tauri.js");
+      create_dir_all(tauri_dir_path)?;
       let mut tauri_script_file = File::create(tauri_script_path)?;
       tauri_script_file.write_all(tauri_script.as_bytes())?;
     }
@@ -197,10 +212,12 @@ impl Dev {
           .try_recv()
           .is_err()
         {
+          kill_before_dev_process();
           exit(0);
         }
       } else if status.success() {
         // if we're no exiting on panic, we only exit if the status is a success code (app closed)
+        kill_before_dev_process();
         exit(0);
       }
     });

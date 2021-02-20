@@ -12,6 +12,8 @@ use serde_json::Value as JsonValue;
 
 /// An event handler.
 struct EventHandler {
+  /// A event handler might be global or tied to a window.
+  window_label: Option<String>,
   /// The on event callback.
   on_event: Box<dyn FnMut(Option<String>) + Send>,
 }
@@ -26,7 +28,7 @@ lazy_static! {
 
 /// Gets the listeners map.
 fn listeners() -> &'static Listeners {
-  static LISTENERS: Lazy<Listeners> = Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
+  static LISTENERS: Lazy<Listeners> = Lazy::new(Default::default);
   &LISTENERS
 }
 
@@ -46,11 +48,16 @@ pub fn event_queue_object_name() -> String {
 }
 
 /// Adds an event listener for JS events.
-pub fn listen<F: FnMut(Option<String>) + Send + 'static>(id: impl AsRef<str>, handler: F) {
+pub fn listen<F: FnMut(Option<String>) + Send + 'static>(
+  id: impl AsRef<str>,
+  window_label: Option<String>,
+  handler: F,
+) {
   let mut l = listeners()
     .lock()
     .expect("Failed to lock listeners: listen()");
   let handler = EventHandler {
+    window_label,
     on_event: Box::new(handler),
   };
   if let Some(listeners) = l.get_mut(id.as_ref()) {
@@ -80,13 +87,13 @@ pub fn emit<D: ApplicationDispatcherExt, S: Serialize>(
     event.as_ref(),
     js_payload,
     salt
-  ));
+  ))?;
 
   Ok(())
 }
 
 /// Triggers the given event with its payload.
-pub fn on_event(event: String, data: Option<String>) {
+pub fn on_event(event: String, window_label: Option<&str>, data: Option<String>) {
   let mut l = listeners()
     .lock()
     .expect("Failed to lock listeners: on_event()");
@@ -94,7 +101,15 @@ pub fn on_event(event: String, data: Option<String>) {
   if l.contains_key(&event) {
     let listeners = l.get_mut(&event).expect("Failed to get mutable handler");
     for handler in listeners {
-      (handler.on_event)(data.clone());
+      if let Some(target_window_label) = window_label {
+        // if the emitted event targets a specifid window, only triggers the listeners associated to that window
+        if handler.window_label.as_deref() == Some(target_window_label) {
+          (handler.on_event)(data.clone())
+        }
+      } else {
+        // otherwise triggers all listeners
+        (handler.on_event)(data.clone())
+      }
     }
   }
 }
@@ -117,7 +132,7 @@ mod test {
       // clone e as the key
       let key = e.clone();
       // pass e and an dummy func into listen
-      listen(e, event_fn);
+      listen(e, None, event_fn);
 
       // lock mutex
       let l = listeners().lock().unwrap();
@@ -132,7 +147,7 @@ mod test {
        // clone e as the key
        let key = e.clone();
        // pass e and an dummy func into listen
-       listen(e, event_fn);
+       listen(e, None, event_fn);
 
        // lock mutex
        let mut l = listeners().lock().unwrap();
@@ -157,9 +172,9 @@ mod test {
       // clone e as the key
       let key = e.clone();
       // call listen with e and the event_fn dummy func
-      listen(e.clone(), event_fn);
+      listen(e.clone(), None, event_fn);
       // call on event with e and d.
-      on_event(e, Some(d));
+      on_event(e, None, Some(d));
 
       // lock the mutex
       let l = listeners().lock().unwrap();

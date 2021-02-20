@@ -2,6 +2,11 @@ const methodSelect = document.getElementById("request-method");
 const requestUrlInput = document.getElementById("request-url");
 const requestBodyInput = document.getElementById("request-body");
 
+let client
+window.__TAURI__.http.getClient().then(function (c) {
+  client = c
+})
+
 document.getElementById("make-request").addEventListener("click", function () {
   const method = methodSelect.value || "GET";
   const url = requestUrlInput.value || "";
@@ -11,18 +16,17 @@ document.getElementById("make-request").addEventListener("click", function () {
     method: method,
   };
 
-  let body = requestBodyInput.value || "";
+  let httpBody = requestBodyInput.value || "";
   if (
-    (body.startsWith("{") && body.endsWith("}")) ||
-    (body.startsWith("[") && body.endsWith("]"))
+    (httpBody.startsWith("{") && httpBody.endsWith("}")) ||
+    (httpBody.startsWith("[") && httpBody.endsWith("]"))
   ) {
-    body = JSON.parse(body);
-  } else if (body.startsWith("/") || body.match(/\S:\//g)) {
-    options.bodyAsFile = true;
+    options.body = window.__TAURI__.http.Body.json(JSON.parse(httpBody));
+  } else if (httpBody !== '') {
+    options.body = window.__TAURI__.http.Body.text(httpBody)
   }
-  options.body = body;
 
-  window.__TAURI__.http
+  client
     .request(options)
     .then(registerResponse)
     .catch(registerResponse);

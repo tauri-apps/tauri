@@ -336,13 +336,13 @@ pub struct CliArg {
   pub required: Option<bool>,
   /// Sets an arg that override this arg's required setting
   /// i.e. this arg will be required unless this other argument is present.
-  pub required_unless: Option<String>,
+  pub required_unless_present: Option<String>,
   /// Sets args that override this arg's required setting
   /// i.e. this arg will be required unless all these other arguments are present.
-  pub required_unless_all: Option<Vec<String>>,
+  pub required_unless_present_all: Option<Vec<String>>,
   /// Sets args that override this arg's required setting
   /// i.e. this arg will be required unless at least one of these other arguments are present.
-  pub required_unless_one: Option<Vec<String>>,
+  pub required_unless_present_any: Option<Vec<String>>,
   /// Sets a conflicting argument by name
   /// i.e. when using this argument, the following argument can't be present and vice versa.
   pub conflicts_with: Option<String>,
@@ -359,7 +359,7 @@ pub struct CliArg {
   pub requires_if: Option<Vec<String>>,
   /// Allows specifying that an argument is required conditionally with the signature [arg, value]
   /// the requirement will only become valid if the `arg`'s value equals `${value}`.
-  pub required_if: Option<Vec<String>>,
+  pub required_if_eq: Option<Vec<String>>,
   /// Requires that options use the --option=val syntax
   /// i.e. an equals between the option and associated value.
   pub require_equals: Option<bool>,

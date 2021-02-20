@@ -8,7 +8,7 @@ use crate::helpers::{
   config::get as get_config,
   execute_with_output,
   manifest::rewrite_manifest,
-  TauriScript,
+  Logger, TauriScript,
 };
 use std::{
   env::{set_current_dir, set_var},
@@ -52,6 +52,7 @@ impl Build {
   }
 
   pub fn run(self) -> crate::Result<()> {
+    let logger = Logger::new("tauri:build");
     let config = get_config(self.config.as_deref())?;
     let config_guard = config.lock().unwrap();
     let config_ = config_guard.as_ref().unwrap();
@@ -117,6 +118,12 @@ impl Build {
       }
 
       if let Some(cmd) = cmd {
+        logger.log(format!("Running `{}`", before_build));
+        #[cfg(target_os = "windows")]
+        let mut command = Command::new(
+          which::which(&cmd).expect(&format!("failed to find `{}` in your $PATH", cmd)),
+        );
+        #[cfg(not(target_os = "windows"))]
         let mut command = Command::new(cmd);
         command.args(args).current_dir(app_dir());
         execute_with_output(&mut command)?;

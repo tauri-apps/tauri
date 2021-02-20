@@ -51,6 +51,8 @@ module.exports = {
     'security/detect-pseudoRandomBytes': 'error',
     'space-before-function-paren': 'off',
     '@typescript-eslint/default-param-last': 'off',
-    '@typescript-eslint/strict-boolean-expressions': 0
+    '@typescript-eslint/strict-boolean-expressions': 0,
+    'no-return-await': 'warn',
+    '@typescript-eslint/return-await': 'off'
   }
 }

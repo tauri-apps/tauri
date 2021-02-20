@@ -1,4 +1,4 @@
-import { promisified, invoke } from './tauri'
+import { invoke } from './tauri'
 
 /**
  * spawns a process
@@ -15,8 +15,8 @@ async function execute(
     Object.freeze(args)
   }
 
-  return await promisified({
-    module: 'Shell',
+  return invoke<string>({
+    __tauriModule: 'Shell',
     message: {
       cmd: 'execute',
       command,
@@ -30,9 +30,9 @@ async function execute(
  *
  * @param url the URL to open
  */
-function open(url: string): void {
-  invoke({
-    module: 'Shell',
+async function open(url: string): Promise<void> {
+  return invoke({
+    __tauriModule: 'Shell',
     message: {
       cmd: 'open',
       uri: url

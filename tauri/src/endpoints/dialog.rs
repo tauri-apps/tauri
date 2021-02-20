@@ -1,5 +1,5 @@
 #[cfg(any(dialog_open, dialog_save))]
-use crate::FileDialogBuilder;
+use crate::api::dialog::FileDialogBuilder;
 use crate::{
   api::dialog::{ask as ask_dialog, message as message_dialog, AskResponse},
   app::InvokeResponse,

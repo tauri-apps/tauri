@@ -1,0 +1,839 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Config",
+  "description": "The tauri.conf.json mapper.",
+  "type": "object",
+  "properties": {
+    "build": {
+      "description": "The build configuration.",
+      "default": {
+        "beforeBuildCommand": null,
+        "beforeDevCommand": null,
+        "devPath": "",
+        "distDir": "../dist",
+        "withGlobalTauri": false
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/BuildConfig"
+        }
+      ]
+    },
+    "plugins": {
+      "description": "The plugins config.",
+      "default": {},
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "tauri": {
+      "description": "The Tauri configuration.",
+      "default": {
+        "allowlist": {},
+        "bundle": {
+          "active": false,
+          "category": null,
+          "copyright": null,
+          "deb": {
+            "depends": null,
+            "useBootstrapper": false
+          },
+          "externalBin": null,
+          "icon": null,
+          "identifier": null,
+          "longDescription": null,
+          "name": null,
+          "osx": {
+            "exceptionDomain": null,
+            "frameworks": null,
+            "license": null,
+            "minimumSystemVersion": null,
+            "useBootstrapper": false
+          },
+          "resources": null,
+          "script": null,
+          "shortDescription": null,
+          "targets": null,
+          "version": null
+        },
+        "cli": null,
+        "embeddedServer": {
+          "host": null,
+          "port": null,
+          "publicPath": null
+        },
+        "security": null,
+        "windows": []
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/TauriConfig"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "BuildConfig": {
+      "description": "The Build configuration object.",
+      "type": "object",
+      "properties": {
+        "beforeBuildCommand": {
+          "description": "a shell command to run before `tauri build` kicks in",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "beforeDevCommand": {
+          "description": "a shell command to run before `tauri dev` kicks in",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "devPath": {
+          "description": "the app's dev server URL, or the path to the directory containing an index.html file",
+          "default": "",
+          "type": "string"
+        },
+        "distDir": {
+          "description": "the path to the app's dist dir. This path must contain your index.html file.",
+          "default": "../dist",
+          "type": "string"
+        },
+        "withGlobalTauri": {
+          "description": "Whether we should inject the Tauri API on `window.__TAURI__` or not.",
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "BundleConfig": {
+      "type": "object",
+      "required": [
+        "active"
+      ],
+      "properties": {
+        "active": {
+          "description": "Whether we should build your app with tauri-bundler or plain `cargo build`",
+          "type": "boolean"
+        },
+        "category": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "copyright": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "deb": {
+          "default": {
+            "depends": null,
+            "useBootstrapper": false
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/DebConfig"
+            }
+          ]
+        },
+        "externalBin": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "icon": {
+          "description": "The app's icons",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "identifier": {
+          "description": "The app's identifier",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "longDescription": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "osx": {
+          "default": {
+            "exceptionDomain": null,
+            "frameworks": null,
+            "license": null,
+            "minimumSystemVersion": null,
+            "useBootstrapper": false
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/OsxConfig"
+            }
+          ]
+        },
+        "resources": {
+          "description": "App resources to bundle. Each resource is a path to a file or directory. Glob patterns are supported.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "script": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "shortDescription": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "targets": {
+          "description": "The bundle targets, currently supports [\"deb\", \"osx\", \"msi\", \"appimage\", \"dmg\"] or \"all\"",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/BundleTarget"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "BundleTarget": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "CliArg": {
+      "description": "A CLI argument definition",
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "conflictsWith": {
+          "description": "Sets a conflicting argument by name i.e. when using this argument, the following argument can't be present and vice versa.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "conflictsWithAll": {
+          "description": "The same as conflictsWith but allows specifying multiple two-way conflicts per argument.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "description": {
+          "description": "The argument description which will be shown on the help information. Typically, this is a short (one line) description of the arg.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "index": {
+          "description": "The positional argument index, starting at 1.\n\nThe index refers to position according to other positional argument. It does not define position in the argument list as a whole. When utilized with multiple=true, only the last positional argument may be defined as multiple (i.e. the one with the highest index).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "longDescription": {
+          "description": "The argument long description which will be shown on the help information. Typically this a more detailed (multi-line) message that describes the argument.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "maxValues": {
+          "description": "Specifies the maximum number of values are for this argument. For example, if you had a -f <file> argument where you wanted up to 3 'files', you would set .max_values(3), and this argument would be satisfied if the user provided, 1, 2, or 3 values.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "minValues": {
+          "description": "Specifies the minimum number of values for this argument. For example, if you had a -f <file> argument where you wanted at least 2 'files', you would set `minValues: 2`, and this argument would be satisfied if the user provided, 2 or more values.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "multiple": {
+          "description": "Specifies that the argument may appear more than once.\n\n- For flags, this results in the number of occurrences of the flag being recorded. For example -ddd or -d -d -d would count as three occurrences. - For options there is a distinct difference in multiple occurrences vs multiple values. For example, --opt val1 val2 is one occurrence, but two values. Whereas --opt val1 --opt val2 is two occurrences.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "multipleOccurrences": {
+          "description": "specifies that the argument may appear more than once.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "The unique argument name",
+          "type": "string"
+        },
+        "numberOfValues": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "possibleValues": {
+          "description": "Specifies a list of possible values for this argument. At runtime, the CLI verifies that only one of the specified values was used, or fails with an error message.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "requireEquals": {
+          "description": "Requires that options use the --option=val syntax i.e. an equals between the option and associated value.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "required": {
+          "description": "Sets whether or not the argument is required by default.\n\n- Required by default means it is required, when no other conflicting rules have been evaluated - Conflicting rules take precedence over being required.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "requiredIfEq": {
+          "description": "Allows specifying that an argument is required conditionally with the signature [arg, value] the requirement will only become valid if the `arg`'s value equals `${value}`.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "requiredUnlessPresent": {
+          "description": "Sets an arg that override this arg's required setting i.e. this arg will be required unless this other argument is present.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "requiredUnlessPresentAll": {
+          "description": "Sets args that override this arg's required setting i.e. this arg will be required unless all these other arguments are present.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "requiredUnlessPresentAny": {
+          "description": "Sets args that override this arg's required setting i.e. this arg will be required unless at least one of these other arguments are present.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "requires": {
+          "description": "Tets an argument by name that is required when this one is present i.e. when using this argument, the following argument must be present.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "requiresAll": {
+          "description": "Sts multiple arguments by names that are required when this one is present i.e. when using this argument, the following arguments must be present.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "requiresIf": {
+          "description": "Allows a conditional requirement with the signature [arg, value] the requirement will only become valid if `arg`'s value equals `${value}`.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "short": {
+          "description": "The short version of the argument, without the preceding -.\n\nNOTE: Any leading - characters will be stripped, and only the first non - character will be used as the short version.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 1,
+          "minLength": 1
+        },
+        "takesValue": {
+          "description": "Specifies that the argument takes a value at run time.\n\nNOTE: values for arguments may be specified in any of the following methods - Using a space such as -o value or --option value - Using an equals and no space such as -o=value or --option=value - Use a short and no space such as -ovalue",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "CliConfig": {
+      "description": "describes a CLI configuration",
+      "type": "object",
+      "properties": {
+        "afterHelp": {
+          "description": "adds additional help information to be displayed in addition to auto-generated help this information is displayed after the auto-generated help information this is often used to describe how to use the arguments, or caveats to be noted.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "args": {
+          "description": "list of args for the command",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/CliArg"
+          }
+        },
+        "beforeHelp": {
+          "description": "adds additional help information to be displayed in addition to auto-generated help this information is displayed before the auto-generated help information. this is often used for header information",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "description": "command description which will be shown on the help information",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "longDescription": {
+          "description": "command long description which will be shown on the help information",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "subcommands": {
+          "description": "list of subcommands of this command.\n\nsubcommands are effectively sub-apps, because they can contain their own arguments, subcommands, usage, etc. they also function just like the app command, in that they get their own auto generated help and usage",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/definitions/CliConfig"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "DebConfig": {
+      "type": "object",
+      "properties": {
+        "depends": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "useBootstrapper": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "EmbeddedServerConfig": {
+      "description": "The embeddedServer configuration object.",
+      "type": "object",
+      "properties": {
+        "host": {
+          "description": "The embedded server host.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "port": {
+          "description": "The embedded server port. If it's `random`, we'll generate one at runtime.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Port"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "publicPath": {
+          "description": "The base path of the embedded server. The path should always start and end in a forward slash, which the deserializer will ensure",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "OsxConfig": {
+      "type": "object",
+      "properties": {
+        "exceptionDomain": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "frameworks": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "license": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "minimumSystemVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "useBootstrapper": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Port": {
+      "anyOf": [
+        {
+          "description": "Port with a numeric value.",
+          "type": "integer",
+          "format": "uint16",
+          "minimum": 0.0
+        },
+        {
+          "description": "Random port.",
+          "type": "null"
+        }
+      ]
+    },
+    "SecurityConfig": {
+      "type": "object",
+      "properties": {
+        "csp": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "TauriConfig": {
+      "description": "The Tauri configuration object.",
+      "type": "object",
+      "properties": {
+        "allowlist": {
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "type": "boolean"
+          }
+        },
+        "bundle": {
+          "description": "The bundler configuration.",
+          "default": {
+            "active": false,
+            "category": null,
+            "copyright": null,
+            "deb": {
+              "depends": null,
+              "useBootstrapper": false
+            },
+            "externalBin": null,
+            "icon": null,
+            "identifier": null,
+            "longDescription": null,
+            "name": null,
+            "osx": {
+              "exceptionDomain": null,
+              "frameworks": null,
+              "license": null,
+              "minimumSystemVersion": null,
+              "useBootstrapper": false
+            },
+            "resources": null,
+            "script": null,
+            "shortDescription": null,
+            "targets": null,
+            "version": null
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/BundleConfig"
+            }
+          ]
+        },
+        "cli": {
+          "description": "The CLI configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CliConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "embeddedServer": {
+          "default": {
+            "host": null,
+            "port": null,
+            "publicPath": null
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/EmbeddedServerConfig"
+            }
+          ]
+        },
+        "security": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SecurityConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "windows": {
+          "description": "The windows configuration.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/WindowConfig"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "WindowConfig": {
+      "description": "The window configuration object.",
+      "type": "object",
+      "properties": {
+        "alwaysOnTop": {
+          "description": "Whether the window should always be on top of other windows.",
+          "default": false,
+          "type": "boolean"
+        },
+        "decorations": {
+          "description": "Whether the window should have borders and bars.",
+          "default": false,
+          "type": "boolean"
+        },
+        "fullscreen": {
+          "description": "Whether the window starts as fullscreen or not.",
+          "default": false,
+          "type": "boolean"
+        },
+        "height": {
+          "description": "The window height.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "label": {
+          "description": "The window identifier.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "maxHeight": {
+          "description": "The max window height.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "maxWidth": {
+          "description": "The max window width.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "maximized": {
+          "description": "Whether the window is maximized or not.",
+          "default": false,
+          "type": "boolean"
+        },
+        "minHeight": {
+          "description": "The min window height.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "minWidth": {
+          "description": "The min window width.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "resizable": {
+          "description": "Whether the window is resizable or not.",
+          "default": false,
+          "type": "boolean"
+        },
+        "title": {
+          "description": "The window title.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "transparent": {
+          "description": "Whether the window is transparent or not.",
+          "default": false,
+          "type": "boolean"
+        },
+        "url": {
+          "description": "The window webview URL.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "visible": {
+          "description": "Whether the window is visible or not.",
+          "default": false,
+          "type": "boolean"
+        },
+        "width": {
+          "description": "The window width.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "x": {
+          "description": "The horizontal position of the window's top left corner",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "y": {
+          "description": "The vertical position of the window's top left corner",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

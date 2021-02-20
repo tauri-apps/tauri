@@ -5,8 +5,8 @@ import os from 'os'
 import path from 'path'
 import { appDir, tauriDir } from '../helpers/app-paths'
 import { sync as spawn } from 'cross-spawn'
-import { TauriConfig } from './../types/config'
 import { CargoLock, CargoManifest } from '../types/cargo'
+import { TauriBuildConfig } from './../types/config'
 import nonWebpackRequire from '../helpers/non-webpack-require'
 import packageJson from '../../package.json'
 import getScriptVersion from '../helpers/get-script-version'
@@ -15,6 +15,18 @@ import {
   getNpmLatestVersion,
   getCrateLatestVersion
 } from './dependency-manager/util'
+
+interface Config {
+  tauri: {
+    bundle?: {
+      active: boolean
+    }
+    security?: {
+      csp: string
+    }
+  }
+  build?: TauriBuildConfig
+}
 
 async function crateLatestVersion(name: string): Promise<string | undefined> {
   try {
@@ -198,7 +210,7 @@ async function printAppInfo(tauriDir: string): Promise<void> {
 
   try {
     const configPath = path.join(tauriDir, 'tauri.conf.json')
-    const config = nonWebpackRequire(configPath) as TauriConfig
+    const config = nonWebpackRequire(configPath) as Config
     printInfo({
       key: '  build-type',
       value: config.tauri.bundle?.active ? 'bundle' : 'build'

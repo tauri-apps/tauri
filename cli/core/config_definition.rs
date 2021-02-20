@@ -250,6 +250,232 @@ pub struct SecurityConfig {
   csp: Option<String>,
 }
 
+trait Allowlist {
+  fn to_features(&self) -> Vec<&str>;
+}
+
+macro_rules! check_feature {
+    ($self:ident, $features:ident, $flag:ident, $feature_name: expr) => {
+        if $self.$flag {
+          $features.push($feature_name)
+        }
+    };
+}
+
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct FsAllowlistConfig {
+  #[serde(default)]
+  all: bool,
+  #[serde(default)]
+  read_text_file: bool,
+  #[serde(default)]
+  read_binary_file: bool,
+  #[serde(default)]
+  write_file: bool,
+  #[serde(default)]
+  write_binary_file: bool,
+  #[serde(default)]
+  read_dir: bool,
+  #[serde(default)]
+  copy_file: bool,
+  #[serde(default)]
+  create_dir: bool,
+  #[serde(default)]
+  remove_dir: bool,
+  #[serde(default)]
+  remove_file: bool,
+  #[serde(default)]
+  rename_file: bool,
+  #[serde(default)]
+  path: bool,
+}
+
+impl Allowlist for FsAllowlistConfig {
+  fn to_features(&self) -> Vec<&str> {
+    if self.all {
+      vec!["fs-all"]
+    } else {
+      let mut features = Vec::new();
+      check_feature!(self, features, read_text_file, "fs-read-text-file");
+      check_feature!(self, features, read_binary_file, "fs-read-binary-file");
+      check_feature!(self, features, write_file, "fs-write-file");
+      check_feature!(self, features, write_binary_file, "fs-write-binary-file");
+      check_feature!(self, features, read_dir, "fs-read-dir");
+      check_feature!(self, features, copy_file, "fs-copy-file");
+      check_feature!(self, features, create_dir, "fs-create-dir");
+      check_feature!(self, features, remove_dir, "fs-remove-dir");
+      check_feature!(self, features, remove_file, "fs-remove-file");
+      check_feature!(self, features, rename_file, "fs-rename-file");
+      check_feature!(self, features, path, "fs-path");
+      features
+    }
+  }
+}
+
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct WindowAllowlistConfig {
+  #[serde(default)]
+  all: bool,
+  #[serde(default)]
+  create: bool,
+}
+
+impl Allowlist for WindowAllowlistConfig {
+  fn to_features(&self) -> Vec<&str> {
+    if self.all {
+      vec!["window-all"]
+    } else {
+      let mut features = Vec::new();
+      check_feature!(self, features, create, "window-create");
+      features
+    }
+  }
+}
+
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ShellAllowlistConfig {
+  #[serde(default)]
+  all: bool,
+  #[serde(default)]
+  execute: bool,
+  #[serde(default)]
+  open: bool,
+}
+
+impl Allowlist for ShellAllowlistConfig {
+  fn to_features(&self) -> Vec<&str> {
+    if self.all {
+      vec!["shell-all"]
+    } else {
+      let mut features = Vec::new();
+      check_feature!(self, features, execute, "shell-execute");
+      check_feature!(self, features, open, "shell-open");
+      features
+    }
+  }
+}
+
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct DialogAllowlistConfig {
+  #[serde(default)]
+  all: bool,
+  #[serde(default)]
+  open: bool,
+  #[serde(default)]
+  save: bool,
+}
+
+impl Allowlist for DialogAllowlistConfig {
+  fn to_features(&self) -> Vec<&str> {
+    if self.all {
+      vec!["dialog-all"]
+    } else {
+      let mut features = Vec::new();
+      check_feature!(self, features, open, "dialog-open");
+      check_feature!(self, features, save, "dialog-save");
+      features
+    }
+  }
+}
+
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct HttpAllowlistConfig {
+  #[serde(default)]
+  all: bool,
+  #[serde(default)]
+  request: bool,
+}
+
+impl Allowlist for HttpAllowlistConfig {
+  fn to_features(&self) -> Vec<&str> {
+    if self.all {
+      vec!["http-all"]
+    } else {
+      let mut features = Vec::new();
+      check_feature!(self, features, request, "http-request");
+      features
+    }
+  }
+}
+
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct NotificationAllowlistConfig {
+  #[serde(default)]
+  all: bool,
+}
+
+impl Allowlist for NotificationAllowlistConfig {
+  fn to_features(&self) -> Vec<&str> {
+    if self.all {
+      vec!["notification-all"]
+    } else {
+      vec![]
+    }
+  }
+}
+
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct GlobalShortcutAllowlistConfig {
+  #[serde(default)]
+  all: bool,
+}
+
+impl Allowlist for GlobalShortcutAllowlistConfig {
+  fn to_features(&self) -> Vec<&str> {
+    if self.all {
+      vec!["global-shortcut-all"]
+    } else {
+      vec![]
+    }
+  }
+}
+
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AllowlistConfig {
+  #[serde(default)]
+  all: bool,
+  #[serde(default)]
+  fs: FsAllowlistConfig,
+  #[serde(default)]
+  window: WindowAllowlistConfig,
+  #[serde(default)]
+  shell: ShellAllowlistConfig,
+  #[serde(default)]
+  dialog: DialogAllowlistConfig,
+  #[serde(default)]
+  http: HttpAllowlistConfig,
+  #[serde(default)]
+  notification: NotificationAllowlistConfig,
+  #[serde(default)]
+  global_shortcut: GlobalShortcutAllowlistConfig,
+}
+
+impl Allowlist for AllowlistConfig {
+  fn to_features(&self) -> Vec<&str> {
+    if self.all {
+      vec!["api-all"]
+    } else {
+      let mut features = Vec::new();
+      features.extend(self.fs.to_features());
+      features.extend(self.window.to_features());
+      features.extend(self.shell.to_features());
+      features.extend(self.dialog.to_features());
+      features.extend(self.http.to_features());
+      features.extend(self.notification.to_features());
+      features.extend(self.global_shortcut.to_features());
+      features
+    }
+  }
+}
+
 /// The Tauri configuration object.
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -265,8 +491,15 @@ pub struct TauriConfig {
   #[serde(default)]
   pub bundle: BundleConfig,
   #[serde(default)]
-  pub allowlist: HashMap<String, bool>,
+  allowlist: AllowlistConfig,
   pub security: Option<SecurityConfig>,
+}
+
+impl TauriConfig {
+  #[allow(dead_code)]
+  pub fn features(&self) -> Vec<&str> {
+    self.allowlist.to_features()
+  }
 }
 
 /// The Build configuration object.

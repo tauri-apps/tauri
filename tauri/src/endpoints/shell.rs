@@ -18,28 +18,30 @@ impl Cmd {
         command: _,
         args: _,
       } => {
-        #[cfg(execute)]
+        #[cfg(shell_execute)]
         {
           //TODO
           Ok(().into())
         }
-        #[cfg(not(execute))]
-        Err(crate::Error::ApiNotAllowlisted("execute".to_string()))
+        #[cfg(not(shell_execute))]
+        Err(crate::Error::ApiNotAllowlisted(
+          "shell > execute".to_string(),
+        ))
       }
       Self::Open { uri } => {
-        #[cfg(open)]
+        #[cfg(shell_open)]
         {
           open_browser(uri);
           Ok(().into())
         }
-        #[cfg(not(open))]
-        Err(crate::Error::ApiNotAllowlisted("open".to_string()))
+        #[cfg(not(shell_open))]
+        Err(crate::Error::ApiNotAllowlisted("shell > open".to_string()))
       }
     }
   }
 }
 
-#[cfg(open)]
+#[cfg(shell_open)]
 pub fn open_browser(uri: String) {
   #[cfg(test)]
   assert!(uri.contains("http://"));
@@ -53,7 +55,7 @@ mod test {
   use proptest::prelude::*;
   // Test the open func to see if proper uris can be opened by the browser.
   proptest! {
-    #[cfg(open)]
+    #[cfg(shell_open)]
     #[test]
     fn check_open(uri in r"(http://)([\\w\\d\\.]+([\\w]{2,6})?)") {
       super::open_browser(uri);

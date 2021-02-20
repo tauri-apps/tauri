@@ -1,5 +1,7 @@
+#[cfg(any(dialog_open, dialog_save))]
+use crate::FileDialogBuilder;
 use crate::{
-  api::dialog::{ask as ask_dialog, message as message_dialog, AskResponse, FileDialogBuilder},
+  api::dialog::{ask as ask_dialog, message as message_dialog, AskResponse},
   app::InvokeResponse,
 };
 use serde::Deserialize;
@@ -66,16 +68,16 @@ impl Cmd {
   pub async fn run(self) -> crate::Result<InvokeResponse> {
     match self {
       Self::OpenDialog { options } => {
-        #[cfg(open_dialog)]
+        #[cfg(dialog_open)]
         return open(options);
-        #[cfg(not(open_dialog))]
-        Err(crate::Error::ApiNotAllowlisted("title".to_string()));
+        #[cfg(not(dialog_open))]
+        return Err(crate::Error::ApiNotAllowlisted("dialog > open".to_string()));
       }
       Self::SaveDialog { options } => {
-        #[cfg(save_dialog)]
+        #[cfg(dialog_save)]
         return save(options);
-        #[cfg(not(save_dialog))]
-        Err(crate::Error::ApiNotAllowlisted("saveDialog".to_string()));
+        #[cfg(not(dialog_save))]
+        return Err(crate::Error::ApiNotAllowlisted("dialog > save".to_string()));
       }
       Self::MessageDialog { message } => {
         let exe = std::env::current_exe()?;
@@ -106,7 +108,7 @@ impl Cmd {
 }
 
 /// Shows an open dialog.
-#[cfg(open_dialog)]
+#[cfg(dialog_open)]
 pub fn open(options: OpenDialogOptions) -> crate::Result<InvokeResponse> {
   let mut dialog_builder = FileDialogBuilder::new();
   if let Some(default_path) = options.default_path {
@@ -127,7 +129,7 @@ pub fn open(options: OpenDialogOptions) -> crate::Result<InvokeResponse> {
 }
 
 /// Shows a save dialog.
-#[cfg(save_dialog)]
+#[cfg(dialog_save)]
 pub fn save(options: SaveDialogOptions) -> crate::Result<InvokeResponse> {
   let mut dialog_builder = FileDialogBuilder::new();
   if let Some(default_path) = options.default_path {

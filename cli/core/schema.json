@@ -31,7 +31,47 @@
     "tauri": {
       "description": "The Tauri configuration.",
       "default": {
-        "allowlist": {},
+        "allowlist": {
+          "all": false,
+          "dialog": {
+            "all": false,
+            "open": false,
+            "save": false
+          },
+          "fs": {
+            "all": false,
+            "copyFile": false,
+            "createDir": false,
+            "path": false,
+            "readBinaryFile": false,
+            "readDir": false,
+            "readTextFile": false,
+            "removeDir": false,
+            "removeFile": false,
+            "renameFile": false,
+            "writeBinaryFile": false,
+            "writeFile": false
+          },
+          "globalShortcut": {
+            "all": false
+          },
+          "http": {
+            "all": false,
+            "request": false
+          },
+          "notification": {
+            "all": false
+          },
+          "shell": {
+            "all": false,
+            "execute": false,
+            "open": false
+          },
+          "window": {
+            "all": false,
+            "create": false
+          }
+        },
         "bundle": {
           "active": false,
           "category": null,
@@ -76,6 +116,103 @@
   },
   "additionalProperties": false,
   "definitions": {
+    "AllowlistConfig": {
+      "type": "object",
+      "properties": {
+        "all": {
+          "default": false,
+          "type": "boolean"
+        },
+        "dialog": {
+          "default": {
+            "all": false,
+            "open": false,
+            "save": false
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/DialogAllowlistConfig"
+            }
+          ]
+        },
+        "fs": {
+          "default": {
+            "all": false,
+            "copyFile": false,
+            "createDir": false,
+            "path": false,
+            "readBinaryFile": false,
+            "readDir": false,
+            "readTextFile": false,
+            "removeDir": false,
+            "removeFile": false,
+            "renameFile": false,
+            "writeBinaryFile": false,
+            "writeFile": false
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/FsAllowlistConfig"
+            }
+          ]
+        },
+        "globalShortcut": {
+          "default": {
+            "all": false
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/GlobalShortcutAllowlistConfig"
+            }
+          ]
+        },
+        "http": {
+          "default": {
+            "all": false,
+            "request": false
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/HttpAllowlistConfig"
+            }
+          ]
+        },
+        "notification": {
+          "default": {
+            "all": false
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/NotificationAllowlistConfig"
+            }
+          ]
+        },
+        "shell": {
+          "default": {
+            "all": false,
+            "execute": false,
+            "open": false
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/ShellAllowlistConfig"
+            }
+          ]
+        },
+        "window": {
+          "default": {
+            "all": false,
+            "create": false
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/WindowAllowlistConfig"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
     "BuildConfig": {
       "description": "The Build configuration object.",
       "type": "object",
@@ -524,6 +661,24 @@
       },
       "additionalProperties": false
     },
+    "DialogAllowlistConfig": {
+      "type": "object",
+      "properties": {
+        "all": {
+          "default": false,
+          "type": "boolean"
+        },
+        "open": {
+          "default": false,
+          "type": "boolean"
+        },
+        "save": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
     "EmbeddedServerConfig": {
       "description": "The embeddedServer configuration object.",
       "type": "object",
@@ -552,6 +707,94 @@
             "string",
             "null"
           ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "FsAllowlistConfig": {
+      "type": "object",
+      "properties": {
+        "all": {
+          "default": false,
+          "type": "boolean"
+        },
+        "copyFile": {
+          "default": false,
+          "type": "boolean"
+        },
+        "createDir": {
+          "default": false,
+          "type": "boolean"
+        },
+        "path": {
+          "default": false,
+          "type": "boolean"
+        },
+        "readBinaryFile": {
+          "default": false,
+          "type": "boolean"
+        },
+        "readDir": {
+          "default": false,
+          "type": "boolean"
+        },
+        "readTextFile": {
+          "default": false,
+          "type": "boolean"
+        },
+        "removeDir": {
+          "default": false,
+          "type": "boolean"
+        },
+        "removeFile": {
+          "default": false,
+          "type": "boolean"
+        },
+        "renameFile": {
+          "default": false,
+          "type": "boolean"
+        },
+        "writeBinaryFile": {
+          "default": false,
+          "type": "boolean"
+        },
+        "writeFile": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "GlobalShortcutAllowlistConfig": {
+      "type": "object",
+      "properties": {
+        "all": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "HttpAllowlistConfig": {
+      "type": "object",
+      "properties": {
+        "all": {
+          "default": false,
+          "type": "boolean"
+        },
+        "request": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "NotificationAllowlistConfig": {
+      "type": "object",
+      "properties": {
+        "all": {
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -619,16 +862,75 @@
       },
       "additionalProperties": false
     },
+    "ShellAllowlistConfig": {
+      "type": "object",
+      "properties": {
+        "all": {
+          "default": false,
+          "type": "boolean"
+        },
+        "execute": {
+          "default": false,
+          "type": "boolean"
+        },
+        "open": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
     "TauriConfig": {
       "description": "The Tauri configuration object.",
       "type": "object",
       "properties": {
         "allowlist": {
-          "default": {},
-          "type": "object",
-          "additionalProperties": {
-            "type": "boolean"
-          }
+          "default": {
+            "all": false,
+            "dialog": {
+              "all": false,
+              "open": false,
+              "save": false
+            },
+            "fs": {
+              "all": false,
+              "copyFile": false,
+              "createDir": false,
+              "path": false,
+              "readBinaryFile": false,
+              "readDir": false,
+              "readTextFile": false,
+              "removeDir": false,
+              "removeFile": false,
+              "renameFile": false,
+              "writeBinaryFile": false,
+              "writeFile": false
+            },
+            "globalShortcut": {
+              "all": false
+            },
+            "http": {
+              "all": false,
+              "request": false
+            },
+            "notification": {
+              "all": false
+            },
+            "shell": {
+              "all": false,
+              "execute": false,
+              "open": false
+            },
+            "window": {
+              "all": false,
+              "create": false
+            }
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/AllowlistConfig"
+            }
+          ]
         },
         "bundle": {
           "description": "The bundler configuration.",
@@ -704,6 +1006,20 @@
           "items": {
             "$ref": "#/definitions/WindowConfig"
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    "WindowAllowlistConfig": {
+      "type": "object",
+      "properties": {
+        "all": {
+          "default": false,
+          "type": "boolean"
+        },
+        "create": {
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false

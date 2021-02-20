@@ -78,7 +78,7 @@ The code for the bundler is located in `[Tauri repo root]/cli/tauri-bundler`. Bu
 
 ### Developing Tauri Core
 
-The code for Tauri core is located in `[Tauri repo root]/tauri`. The easiest way to test your changes is to use the `[Tauri repo root]/tauri/examples/communication` app. It automatically rebuilds and uses your local codebase. Just run `yarn tauri build` or `yarn tauri dev` in the communication app directory after making changes to test them out. To use your local changes in another project, edit its `src-tauri/Cargo.toml` file so that the `tauri` key looks like `tauri = { path = "PATH", features = [ "all-api", "cli" ] }`, where `PATH` is the relative path to `[Tauri repo root]/tauri`.
+The code for Tauri core is located in `[Tauri repo root]/tauri`. The easiest way to test your changes is to use the `[Tauri repo root]/tauri/examples/communication` app. It automatically rebuilds and uses your local codebase. Just run `yarn tauri build` or `yarn tauri dev` in the communication app directory after making changes to test them out. To use your local changes in another project, edit its `src-tauri/Cargo.toml` file so that the `tauri` key looks like `tauri = { path = "PATH", features = [ "api-all", "cli" ] }`, where `PATH` is the relative path to `[Tauri repo root]/tauri`.
 
 ## Financial Contribution
 

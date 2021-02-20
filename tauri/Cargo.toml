@@ -15,7 +15,7 @@ edition = "2018"
 exclude = [ "test/fixture/**" ]
 
 [package.metadata.docs.rs]
-features = [ "all-api" ]
+features = [ "api-all" ]
 
 [dependencies]
 serde_json = "1.0"
@@ -44,49 +44,52 @@ cfg_aliases = "0.1.1"
 [dev-dependencies]
 proptest = "0.10.1"
 serde_json = "1.0"
-tauri = { path = ".", features = [ "all-api" ] }
+tauri = { path = ".", features = [ "api-all" ] }
 serde = { version = "1.0", features = [ "derive" ] }
 
 [features]
 cli = [ "tauri-api/cli" ]
 embedded-server = [ "tiny_http" ]
-all-api = [ "tauri-api/notification", "tauri-api/global-shortcut" ]
+api-all = [ "tauri-api/notification", "tauri-api/global-shortcut" ]
 updater = [ ]
 
 # FS
-read-text-file = [ ]
-read-binary-file = [ ]
-write-file = [ ]
-write-binary-file = [ ]
-read-dir = [ ]
-copy-file = [ ]
-create-dir = [ ]
-remove-dir = [ ]
-remove-file = [ ]
-rename-file = [ ]
-path-api = [ ]
-event = [ ]
+fs-all = [ ]
+fs-read-text-file = [ ]
+fs-read-binary-file = [ ]
+fs-write-file = [ ]
+fs-write-binary-file = [ ]
+fs-read-dir = [ ]
+fs-copy-file = [ ]
+fs-create-dir = [ ]
+fs-remove-dir = [ ]
+fs-remove-file = [ ]
+fs-rename-file = [ ]
+fs-path-api = [ ]
 
 # window
-window = [ ]
-create-window = [ ]
+window-all = [ ]
+window-create = [ ]
 
 #shell
-execute = [ ]
-open = [ ]
+shell-all = [ ]
+shell-execute = [ ]
+shell-open = [ ]
 
 # dialog
-open-dialog = [ ]
-save-dialog = [ ]
+dialog-all = [ ]
+dialog-open = [ ]
+dialog-save = [ ]
 
 # HTTP
+http-all = [ ]
 http-request = [ ]
 
 # notification
-notification = [ "tauri-api/notification" ]
+notification-all = [ "tauri-api/notification" ]
 
 # global shortcut
-global-shortcut = [ "tauri-api/global-shortcut" ]
+global-shortcut-all = [ "tauri-api/global-shortcut" ]
 
 [[example]]
 name = "communication"

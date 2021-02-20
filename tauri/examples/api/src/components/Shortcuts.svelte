@@ -1,6 +1,10 @@
 <script>
   import { writable } from 'svelte/store'
-  import { register as registerShortcut, unregister as unregisterShortcut } from '@tauri-apps/api/globalShortcut'
+  import {
+    register as registerShortcut,
+    unregister as unregisterShortcut,
+    unregisterAll as unregisterAllShortcuts
+  } from '@tauri-apps/api/globalShortcut'
 
   export let onMessage
   const shortcuts = writable([])
@@ -23,6 +27,13 @@
       onMessage(`Shortcut ${shortcut_} unregistered`)
     }).catch(onMessage)
   }
+
+  function unregisterAll() {
+    unregisterAllShortcuts().then(() => {
+      shortcuts.update(() => [])
+      onMessage(`Unregistered all shortcuts`)
+    }).catch(onMessage)
+  }
 </script>
 
 <div style="margin-top: 24px">
@@ -37,5 +48,8 @@
       <button type="button" on:click={()=> unregister(savedShortcut)}>Unregister</button>
     </div>
     {/each}
+    {#if $shortcuts.length}
+    <button type="button" on:click={unregisterAll}>Unregister all</button>
+    {/if}
   </div>
 </div>

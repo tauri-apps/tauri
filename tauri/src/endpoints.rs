@@ -3,12 +3,9 @@ mod dialog;
 mod event;
 #[allow(unused_imports)]
 mod file_system;
-#[cfg(global_shortcut)]
 mod global_shortcut;
-#[cfg(http_request)]
 mod http;
 mod internal;
-#[cfg(notification)]
 mod notification;
 mod shell;
 mod window;

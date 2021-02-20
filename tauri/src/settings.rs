@@ -13,7 +13,7 @@ use tauri_api::{
 #[derive(Default, Deserialize, Serialize)]
 pub struct Settings {
   /// Whether the user allows notifications or not.
-  #[cfg(notification)]
+  #[cfg(notification_all)]
   pub allow_notification: Option<bool>,
 }
 

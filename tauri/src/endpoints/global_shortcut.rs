@@ -1,5 +1,6 @@
+#[cfg(global_shortcut_all)]
+use crate::api::shortcuts::ShortcutManager;
 use crate::{
-  api::shortcuts::ShortcutManager,
   app::{InvokeResponse, WebviewDispatcher},
   async_runtime::Mutex,
 };
@@ -8,8 +9,10 @@ use serde::Deserialize;
 
 use std::sync::Arc;
 
+#[cfg(global_shortcut_all)]
 type ShortcutManagerHandle = Arc<Mutex<ShortcutManager>>;
 
+#[cfg(global_shortcut_all)]
 pub fn manager_handle() -> &'static ShortcutManagerHandle {
   static MANAGER: Lazy<ShortcutManagerHandle> = Lazy::new(Default::default);
   &MANAGER
@@ -34,6 +37,7 @@ pub enum Cmd {
   IsRegistered { shortcut: String },
 }
 
+#[cfg(global_shortcut_all)]
 fn register_shortcut<A: crate::ApplicationDispatcherExt + 'static>(
   dispatcher: WebviewDispatcher<A>,
   manager: &mut ShortcutManager,
@@ -55,11 +59,11 @@ impl Cmd {
     self,
     webview_manager: &crate::WebviewManager<A>,
   ) -> crate::Result<InvokeResponse> {
-    #[cfg(not(global_shortcut))]
+    #[cfg(not(global_shortcut_all))]
     return Err(crate::Error::ApiNotAllowlisted(
-      "globalShortcut".to_string(),
+      "globalShortcut > all".to_string(),
     ));
-    #[cfg(global_shortcut)]
+    #[cfg(global_shortcut_all)]
     match self {
       Self::Register { shortcut, handler } => {
         let dispatcher = webview_manager.current_webview().await?.clone();

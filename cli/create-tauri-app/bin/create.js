@@ -1,5 +1,5 @@
 const recipes = require("../src/recipes");
 
-module.exports = (args) => {
-  recipes(args);
+module.exports = async (args) => {
+  await recipes(args);
 }

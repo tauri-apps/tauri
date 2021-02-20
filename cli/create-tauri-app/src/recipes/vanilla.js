@@ -1,13 +1,18 @@
 const path = require("path");
 const scaffe = require("scaffe");
 const init = require("tauri/dist/api/init");
+const { version } = require("tauri/package.json");
 
 module.exports = (args) => {
   return new Promise((resolve, reject) => {
     const appName = args["_"][0];
     const templateDir = path.join(__dirname, "../templates/vanilla");
-  
-    scaffe.generate(templateDir, appName, {name: appName}, async (err) => {
+    const variables = {
+      name: appName,
+      tauri_version: version
+    }
+
+    scaffe.generate(templateDir, appName, variables, async (err) => {
       if(err){
         reject(err);
       }
@@ -26,12 +31,22 @@ module.exports = (args) => {
           },
           build: {
             devPath: "../dist",
+            distDir: "../dist",
           },
         },
       });
 
       resolve({
-        appDir: appName,
+        output: `
+  change directory:
+    $ cd ${appName}
+
+  install dependencies:
+    $ yarn # npm install
+
+  run the app:
+    $ yarn tauri dev # npm run tauri dev
+        `,
       });
     })
   })

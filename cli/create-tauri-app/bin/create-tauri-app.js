@@ -220,6 +220,7 @@ const argv = parseArgs(process.argv.slice(2));
  * @param {Object} argv
 *
 const tauri = (args) => {
+const tauri = async (args) => {
   if (args["h"] || args["help"]) {
     require("./help.js")();
     return false // do this for node consumers and tests
@@ -231,7 +232,7 @@ const tauri = (args) => {
   }
 
   if(args["_"].length === 1){
-    require("./create.js")(args)
+    await require("./create.js")(args)
   }
   else if(args["_"].length > 1){
     console.log("ERR: Too many arguments.")
@@ -241,5 +242,7 @@ const tauri = (args) => {
   }
 }
 
-tauri(argv)
+tauri(argv).catch(err => {
+  console.log(err)
+})
 */

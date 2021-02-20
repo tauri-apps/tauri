@@ -5,7 +5,6 @@ export default {
     beforeDevCommand: '',
     beforeBuildCommand: ''
   },
-  ctx: {},
   tauri: {
     bundle: {
       active: true,

@@ -16,28 +16,28 @@ pub struct ArgData {
   /// - Value::Array if it's multiple,
   /// - Value::String if it has value,
   /// - Value::Null otherwise.
-  value: Value,
+  pub value: Value,
   /// The number of occurrences of the arg.
   /// e.g. `./app --arg 1 --arg 2 --arg 2 3 4` results in three occurrences.
-  occurrences: u64,
+  pub occurrences: u64,
 }
 
 /// The matched subcommand.
 #[derive(Default, Debug, Serialize)]
 pub struct SubcommandMatches {
   /// The subcommand name.
-  name: String,
+  pub name: String,
   /// The subcommand arg matches.
-  matches: Matches,
+  pub matches: Matches,
 }
 
 /// The arg matches of a command.
 #[derive(Default, Debug, Serialize)]
 pub struct Matches {
   /// Data structure mapping each found arg with its resolution.
-  args: HashMap<String, ArgData>,
+  pub args: HashMap<String, ArgData>,
   /// The matched subcommand if found.
-  subcommand: Option<Box<SubcommandMatches>>,
+  pub subcommand: Option<Box<SubcommandMatches>>,
 }
 
 impl Matches {

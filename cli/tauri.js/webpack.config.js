@@ -1,6 +1,5 @@
 const path = require('path')
 const nodeExternals = require('webpack-node-externals')
-const CopyWebpackPlugin = require('copy-webpack-plugin')
 
 module.exports = {
   entry: {
@@ -44,20 +43,7 @@ module.exports = {
     path: path.resolve(__dirname, 'dist')
   },
   externals: [nodeExternals()],
-  target: 'node',
-  plugins: [
-    new CopyWebpackPlugin({
-      patterns: [
-        {
-          from: './src/types/config.validator.ts',
-          to: '../src/types/config.schema.json',
-          transform(content) {
-            return schemaParser('TauriConfigSchema', content.toString())
-          }
-        }
-      ]
-    })
-  ]
+  target: 'node'
 }
 
 function schemaParser(schemaName, content) {

@@ -5,7 +5,6 @@ export default {
     beforeDevCommand: '',
     beforeBuildCommand: ''
   },
-  ctx: {},
   tauri: {
     bundle: {
       active: true,
@@ -31,20 +30,22 @@ export default {
       osx: {
         frameworks: [],
         minimumSystemVersion: '',
-        useBootstrapper: false
-      },
-      exceptionDomain: ''
+        useBootstrapper: false,
+        exceptionDomain: ''
+      }
     },
     allowlist: {
       all: true
     },
-    window: {
-      title: 'Tauri App',
-      width: 800,
-      height: 600,
-      resizable: true,
-      fullscreen: false
-    },
+    windows: [
+      {
+        title: 'Tauri App',
+        width: 800,
+        height: 600,
+        resizable: true,
+        fullscreen: false
+      }
+    ],
     security: {
       csp:
         "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"

@@ -48,13 +48,16 @@ impl Cmd {
         #[cfg(http_request)]
         return make_request(client, *options).await.map(Into::into);
         #[cfg(not(http_request))]
-        Err(crate::Error::ApiNotAllowlisted("httpRequest".to_string()))
+        Err(crate::Error::ApiNotAllowlisted(
+          "http > request".to_string(),
+        ))
       }
     }
   }
 }
 
 /// Makes an HTTP request and resolves the response to the webview
+#[cfg(http_request)]
 pub async fn make_request(
   client_id: ClientId,
   options: HttpRequestBuilder,

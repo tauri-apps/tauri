@@ -1,6 +1,5 @@
 use super::{app_paths::tauri_dir, config::ConfigHandle};
 
-use convert_case::{Case, Casing};
 use toml_edit::{Array, Document, Value};
 
 use std::{
@@ -27,21 +26,13 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<()> {
   let config = config_guard.as_ref().unwrap();
 
   if let Some(tauri) = tauri {
-    let mut features: Array = Default::default();
-
-    let allowlist = &config.tauri.allowlist;
-    if *allowlist.get("all").unwrap_or(&false) {
-      features.push("all-api".to_string()).unwrap();
-    } else {
-      for (feature, enabled) in allowlist.iter() {
-        if *enabled {
-          features.push(feature.to_case(Case::Kebab)).unwrap();
-        }
-      }
+    let allowlist_features = config.tauri.features();
+    let mut features = Array::default();
+    for feature in allowlist_features {
+      features.push(feature).unwrap();
     }
-
     if config.tauri.cli.is_some() {
-      features.push("cli".to_string()).unwrap();
+      features.push("cli").unwrap();
     }
 
     match tauri {

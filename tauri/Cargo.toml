@@ -77,3 +77,11 @@ open-dialog = [ ]
 save-dialog = [ ]
 http-request = [ ]
 notification = [ "tauri-api/notification" ]
+
+[[example]]
+name = "communication"
+path = "examples/communication/src-tauri/src/main.rs"
+
+[[example]]
+name = "multiwindow"
+path = "examples/multiwindow/src-tauri/src/main.rs"

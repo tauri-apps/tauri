@@ -1,15 +1,6 @@
 use cfg_aliases::cfg_aliases;
 
 fn main() {
-  // create a build time Context for tests from fixture config
-  #[cfg(test)]
-  tauri::build::do_build(Some(PathBuf::from(
-    "test/fixture/src-tauri/tauri.conf.json",
-  )));
-
-  #[cfg(test)]
-  panic!("build");
-
   cfg_aliases! {
     embedded_server: { feature = "embedded-server" },
     dev: { not(feature = "embedded-server") },

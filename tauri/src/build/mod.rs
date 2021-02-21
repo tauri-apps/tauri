@@ -77,7 +77,7 @@ pub fn do_build(config_path: Option<PathBuf>) -> Result<(), Error> {
   let out = std::env::var("OUT_DIR")
     .with_context(|| "unable to find OUT_DIR from tauri-build")
     .map(PathBuf::from)?;
-  let out = out.join("tauri-context.rs");
+  let out = out.join("tauri_config.rs");
 
   let file = File::create(&out).with_context(|| {
     format!(

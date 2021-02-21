@@ -1,0 +1,27 @@
+workspace = { }
+
+[package]
+name = "app"
+version = "0.1.0"
+description = "A Tauri App"
+authors = [ "you" ]
+license = ""
+repository = ""
+default-run = "app"
+edition = "2018"
+build = "src/build.rs"
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = [ "derive" ] }
+tauri = { path = "../../..", features =["all-api", "cli"]}
+
+[target."cfg(windows)".build-dependencies]
+winres = "0.1"
+
+[features]
+embedded-server = [ "tauri/embedded-server" ]
+
+[[bin]]
+name = "app"
+path = "src/main.rs"

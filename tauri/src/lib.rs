@@ -6,19 +6,6 @@
 //! Tauri uses (and contributes to) the MIT licensed project that you can find at [webview](https://github.com/webview/webview).
 #![warn(missing_docs, rust_2018_idioms)]
 
-use std::process::Stdio;
-
-use serde::Serialize;
-
-use api::rpc::{format_callback, format_callback_result};
-pub use app::*;
-/// The Tauri error enum.
-pub use error::Error;
-pub use tauri_api as api;
-pub use webview::{
-  ApplicationDispatcherExt, ApplicationExt, Callback, WebviewBuilderExt, WindowBuilderExt,
-};
-
 /// The embedded server helpers.
 #[cfg(embedded_server)]
 pub mod server;
@@ -41,6 +28,8 @@ mod webview;
 #[cfg(feature = "build")]
 pub mod build;
 
+/// The Tauri error enum.
+pub use error::Error;
 /// Tauri result type.
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -49,10 +38,21 @@ pub(crate) mod async_runtime;
 /// A task to run on the main thread.
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
+pub use app::*;
+pub use tauri_api as api;
+pub use webview::{
+  ApplicationDispatcherExt, ApplicationExt, Callback, WebviewBuilderExt, WindowBuilderExt,
+};
+
 /// The Tauri webview implementations.
 pub mod flavors {
   pub use super::webview::wry::WryApplication as Wry;
 }
+
+use std::process::Stdio;
+
+use api::rpc::{format_callback, format_callback_result};
+use serde::Serialize;
 
 /// Synchronously executes the given task
 /// and evaluates its Result to the JS promise described by the `callback` and `error` function names.
@@ -135,10 +135,7 @@ pub async fn call<D: ApplicationDispatcherExt>(
 #[macro_export]
 macro_rules! tauri_build_context {
   () => {
-    include!(concat!(env!("OUT_DIR"), "/tauri-context.rs"))
-  };
-  ($path:literal) => {
-    include!($path)
+    include!(concat!(env!("OUT_DIR"), "/tauri_config.rs"))
   };
 }
 

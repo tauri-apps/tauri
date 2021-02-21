@@ -10,13 +10,7 @@ use crate::helpers::{
   manifest::rewrite_manifest,
   Logger, TauriScript,
 };
-use std::{
-  env::{set_current_dir, set_var},
-  fs::File,
-  io::Write,
-  path::PathBuf,
-  process::Command,
-};
+use std::{env::set_current_dir, fs::File, io::Write, path::PathBuf, process::Command};
 
 #[derive(Default)]
 pub struct Build {
@@ -54,8 +48,6 @@ impl Build {
   pub fn run(self) -> crate::Result<()> {
     let logger = Logger::new("tauri:build");
     let config = get_config(self.config.as_deref())?;
-    let config_guard = config.lock().unwrap();
-    let config_ = config_guard.as_ref().unwrap();
 
     let mut settings_builder = SettingsBuilder::new().features(vec!["embedded-server".to_string()]);
     if !self.debug {
@@ -87,10 +79,7 @@ impl Build {
 
     let tauri_path = tauri_dir();
     set_current_dir(&tauri_path)?;
-    set_var("TAURI_DIR", &tauri_path);
-    set_var("TAURI_DIST_DIR", tauri_path.join(&config_.build.dist_dir));
 
-    drop(config_guard);
     rewrite_manifest(config.clone())?;
 
     let config_guard = config.lock().unwrap();

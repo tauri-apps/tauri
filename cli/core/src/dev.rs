@@ -10,7 +10,7 @@ use once_cell::sync::OnceCell;
 use shared_child::SharedChild;
 
 use std::{
-  env::{set_current_dir, set_var},
+  env::set_current_dir,
   ffi::OsStr,
   fs::{create_dir_all, File},
   io::Write,
@@ -100,27 +100,6 @@ impl Dev {
       .dev_path
       .to_string();
 
-    let dev_path = if dev_path.starts_with("http") {
-      dev_path
-    } else {
-      let absolute_dev_path = tauri_dir()
-        .join(&config.lock().unwrap().as_ref().unwrap().build.dev_path)
-        .to_string_lossy()
-        .to_string();
-      (*config.lock().unwrap()).as_mut().unwrap().build.dev_path = absolute_dev_path.to_string();
-      absolute_dev_path
-    };
-
-    set_var("TAURI_DIR", &tauri_path);
-    set_var(
-      "TAURI_DIST_DIR",
-      tauri_path.join(&config.lock().unwrap().as_ref().unwrap().build.dist_dir),
-    );
-    set_var(
-      "TAURI_CONFIG",
-      serde_json::to_string(&*config.lock().unwrap())?,
-    );
-
     rewrite_manifest(config.clone())?;
 
     // __tauri.js
@@ -175,9 +154,7 @@ impl Dev {
         if let Some(event_path) = event_path {
           if event_path.file_name() == Some(OsStr::new("tauri.conf.json")) {
             reload_config(merge_config.as_deref())?;
-            (*config.lock().unwrap()).as_mut().unwrap().build.dev_path = dev_path.to_string();
             rewrite_manifest(config.clone())?;
-            set_var("TAURI_CONFIG", serde_json::to_string(&*config)?);
           } else {
             // When tauri.conf.json is changed, rewrite_manifest will be called
             // which will trigger the watcher again

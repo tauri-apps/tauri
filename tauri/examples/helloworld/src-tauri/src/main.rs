@@ -6,6 +6,7 @@
 mod cmd;
 
 #[derive(tauri::FromTauriContext)]
+#[config_path = "examples/helloworld/src-tauri/tauri.conf.json"]
 struct Context;
 
 fn main() {

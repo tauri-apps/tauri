@@ -1,6 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
+use serde_with::skip_serializing_none;
 
 use std::{collections::HashMap, path::PathBuf};
 
@@ -11,6 +12,7 @@ pub enum BundleTarget {
   One(String),
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DebConfig {
@@ -19,6 +21,7 @@ pub struct DebConfig {
   pub use_bootstrapper: bool,
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct OsxConfig {
@@ -30,6 +33,7 @@ pub struct OsxConfig {
   pub use_bootstrapper: bool,
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BundleConfig {
@@ -60,6 +64,7 @@ pub struct BundleConfig {
 }
 
 /// A CLI argument definition
+#[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CliArg {
@@ -147,6 +152,7 @@ pub struct CliArg {
 }
 
 /// describes a CLI configuration
+#[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CliConfig {
@@ -181,6 +187,7 @@ pub enum Port {
 }
 
 /// The embeddedServer configuration object.
+#[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct EmbeddedServerConfig {
@@ -196,6 +203,7 @@ pub struct EmbeddedServerConfig {
 }
 
 /// The window configuration object.
+#[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WindowConfig {
@@ -244,6 +252,7 @@ pub struct WindowConfig {
   pub always_on_top: bool,
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SecurityConfig {
@@ -477,8 +486,10 @@ impl Allowlist for AllowlistConfig {
 }
 
 /// The Tauri configuration object.
+#[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+
 pub struct TauriConfig {
   /// The windows configuration.
   #[serde(default)]
@@ -503,6 +514,7 @@ impl TauriConfig {
 }
 
 /// The Build configuration object.
+#[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BuildConfig {
@@ -532,6 +544,7 @@ fn default_dist_dir() -> String {
 type JsonObject = HashMap<String, JsonValue>;
 
 /// The tauri.conf.json mapper.
+#[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Config {

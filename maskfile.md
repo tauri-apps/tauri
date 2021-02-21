@@ -94,7 +94,7 @@ if ($example_path -eq $null) {
   $example_path = Get-ChildItem examples\*\*\*\$env:example\$env:example
 }
 
-# if the example path is still null get the communication example path.
+# if the example path is still null get the helloworld example path.
 if ($example_path -eq $null) {
   $example_path = Get-ChildItem examples\tauri\*\$env:example
 }
@@ -109,9 +109,9 @@ switch ($example_path.parent) {
   "yew" {
     cd $example_path.FullName; cargo web deploy
   }
-  # if tauri run the communication example from the tauri folder.
+  # if tauri run the helloworld example from the tauri folder.
   "tauri" {
-    cd $CWD/tauri/examples/communication/src-tauri; cargo run
+    cd $CWD/tauri/examples/helloworld/src-tauri; cargo run
   }
   # transpiled are not supported yet.
   "transpiled" {
@@ -140,8 +140,8 @@ Push-Location $MyInvocation.MyCommand.Path
 # initialize the examples list.
 $examples = @()
 
-# get the communication example
-$examples += Get-ChildItem examples/*/* -Filter communication
+# get the helloworld example
+$examples += Get-ChildItem examples/*/* -Filter helloworld
 # get the rest of the examples.
 $examples += Get-ChildItem examples/*/* -Directory -Exclude ('src*', 'public', 'test*', 'source', 'lib', 'web', 'dist', 'node_*')
 

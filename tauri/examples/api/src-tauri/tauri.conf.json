@@ -7,7 +7,7 @@
   },
   "tauri": {
     "cli": {
-      "description": "Tauri communication example",
+      "description": "Tauri API example",
       "args": [
         {
           "short": "c",
@@ -44,7 +44,7 @@
     },
     "bundle": {
       "active": true,
-      "identifier": "com.tauri.communication",
+      "identifier": "com.tauri.api",
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",

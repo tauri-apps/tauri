@@ -7,6 +7,8 @@ use std::{
   path::Path,
 };
 
+mod config_definition;
+
 pub fn main() -> Result<(), Box<dyn Error>> {
   let out_dir = env::var("OUT_DIR")?;
 
@@ -23,6 +25,15 @@ pub fn main() -> Result<(), Box<dyn Error>> {
       r#"throw new Error("you are trying to use the global Tauri script but the @tauri-apps/api package wasn't compiled; run `yarn build` first")"#
     )?;
   }
+
+  let schema = schemars::schema_for!(config_definition::Config);
+  let schema_file_path = current_dir()?.join("schema.json");
+  let mut schema_file = BufWriter::new(File::create(&schema_file_path)?);
+  write!(
+    schema_file,
+    "{}",
+    serde_json::to_string_pretty(&schema).unwrap()
+  )?;
 
   Ok(())
 }

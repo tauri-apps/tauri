@@ -1,54 +1,64 @@
+use crate::app::InvokeResponse;
 use serde::Deserialize;
 
 /// The API descriptor.
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
-  /// The event listen API.
+  /// Listen to an event.
   Listen {
     event: String,
     handler: String,
+    #[serde(default)]
     once: bool,
   },
-  /// The event emit API.
+  /// Emit an event to the webview associated with the given window.
+  /// If the window_label is omitted, the event will be triggered on all listeners.
+  #[serde(rename_all = "camelCase")]
   Emit {
     event: String,
+    window_label: Option<String>,
     payload: Option<String>,
   },
 }
 
 impl Cmd {
-  pub async fn run<D: crate::ApplicationDispatcherExt + 'static>(
+  pub async fn run<A: crate::ApplicationExt + 'static>(
     self,
-    webview_manager: &crate::WebviewManager<D>,
-  ) -> crate::Result<()> {
+    webview_manager: &crate::WebviewManager<A>,
+  ) -> crate::Result<InvokeResponse> {
     match self {
       Self::Listen {
         event,
         handler,
         once,
       } => {
-        #[cfg(event)]
-        {
-          let js_string = listen_fn(event, handler, once)?;
-          webview_manager.current_webview()?.eval(&js_string);
-        }
-        #[cfg(not(event))]
-        throw_allowlist_error(webview_manager, "event");
+        let js_string = listen_fn(event, handler, once)?;
+        webview_manager.current_webview().await?.eval(&js_string)?;
       }
-      Self::Emit { event, payload } => {
-        // TODO emit to optional window
-        #[cfg(event)]
-        webview_manager.current_webview()?.on_event(event, payload);
-        #[cfg(not(event))]
-        throw_allowlist_error(webview_manager, "event");
+      Self::Emit {
+        event,
+        window_label,
+        payload,
+      } => {
+        if let Some(label) = window_label {
+          let dispatcher = webview_manager.get_webview(&label).await?;
+          // dispatch the event to Rust listeners
+          dispatcher.on_event(event.to_string(), payload.clone());
+          // dispatch the event to JS listeners
+          dispatcher.emit(event, payload)?;
+        } else {
+          // dispatch the event to Rust listeners
+          webview_manager.on_event(event.to_string(), payload.clone());
+          // dispatch the event to JS listeners
+          webview_manager.emit(event, payload).await?;
+        }
       }
     }
-    Ok(())
+    Ok(().into())
   }
 }
 
-#[cfg(event)]
 pub fn listen_fn(event: String, handler: String, once: bool) -> crate::Result<String> {
   Ok(format!(
     "if (window['{listeners}'] === void 0) {{
@@ -82,7 +92,6 @@ mod test {
 
   // check the listen_fn for various usecases.
   proptest! {
-    #[cfg(event)]
     #[test]
     fn check_listen_fn(event in "", handler in "", once in proptest::bool::ANY) {
       super::listen_fn(event, handler, once).expect("listen_fn failed");

@@ -1,4 +1,4 @@
-import { promisified } from './tauri'
+import { invoke } from './tauri'
 
 export enum BaseDirectory {
   Audio = 1,
@@ -61,8 +61,8 @@ async function readTextFile(
   filePath: string,
   options: FsOptions = {}
 ): Promise<string> {
-  return await promisified<string>({
-    module: 'Fs',
+  return invoke<string>({
+    __tauriModule: 'Fs',
     message: {
       cmd: 'readTextFile',
       path: filePath,
@@ -83,8 +83,8 @@ async function readBinaryFile(
   filePath: string,
   options: FsOptions = {}
 ): Promise<number[]> {
-  return await promisified<number[]>({
-    module: 'Fs',
+  return invoke<number[]>({
+    __tauriModule: 'Fs',
     message: {
       cmd: 'readBinaryFile',
       path: filePath,
@@ -114,8 +114,8 @@ async function writeFile(
     Object.freeze(file)
   }
 
-  return await promisified({
-    module: 'Fs',
+  return invoke({
+    __tauriModule: 'Fs',
     message: {
       cmd: 'writeFile',
       path: file.path,
@@ -179,8 +179,8 @@ async function writeBinaryFile(
     Object.freeze(file)
   }
 
-  return await promisified({
-    module: 'Fs',
+  return invoke({
+    __tauriModule: 'Fs',
     message: {
       cmd: 'writeBinaryFile',
       path: file.path,
@@ -203,8 +203,8 @@ async function readDir(
   dir: string,
   options: FsDirOptions = {}
 ): Promise<FileEntry[]> {
-  return await promisified({
-    module: 'Fs',
+  return invoke({
+    __tauriModule: 'Fs',
     message: {
       cmd: 'readDir',
       path: dir,
@@ -228,8 +228,8 @@ async function createDir(
   dir: string,
   options: FsDirOptions = {}
 ): Promise<void> {
-  return await promisified({
-    module: 'Fs',
+  return invoke({
+    __tauriModule: 'Fs',
     message: {
       cmd: 'createDir',
       path: dir,
@@ -252,8 +252,8 @@ async function removeDir(
   dir: string,
   options: FsDirOptions = {}
 ): Promise<void> {
-  return await promisified({
-    module: 'Fs',
+  return invoke({
+    __tauriModule: 'Fs',
     message: {
       cmd: 'removeDir',
       path: dir,
@@ -276,8 +276,8 @@ async function copyFile(
   destination: string,
   options: FsOptions = {}
 ): Promise<void> {
-  return await promisified({
-    module: 'Fs',
+  return invoke({
+    __tauriModule: 'Fs',
     message: {
       cmd: 'copyFile',
       source,
@@ -299,8 +299,8 @@ async function removeFile(
   file: string,
   options: FsOptions = {}
 ): Promise<void> {
-  return await promisified({
-    module: 'Fs',
+  return invoke({
+    __tauriModule: 'Fs',
     message: {
       cmd: 'removeFile',
       path: file,
@@ -323,8 +323,8 @@ async function renameFile(
   newPath: string,
   options: FsOptions = {}
 ): Promise<void> {
-  return await promisified({
-    module: 'Fs',
+  return invoke({
+    __tauriModule: 'Fs',
     message: {
       cmd: 'renameFile',
       oldPath,

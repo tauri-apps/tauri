@@ -22,7 +22,7 @@ pub struct DiskEntry {
 
 /// Checks if the given path is a directory.
 pub fn is_dir<P: AsRef<Path>>(path: P) -> crate::Result<bool> {
-  metadata(path).map(|md| md.is_dir()).map_err(|e| e.into())
+  metadata(path).map(|md| md.is_dir()).map_err(Into::into)
 }
 
 /// Reads a directory. Can perform recursive operations.

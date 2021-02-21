@@ -32,14 +32,7 @@ use std::path::PathBuf;
 /// Returns the list of paths where the bundles can be found.
 pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
   let mut paths = Vec::new();
-  let mut package_types = settings.package_types()?;
-  // The AppImage bundle script requires that the Deb bundle be run first
-  if package_types.contains(&PackageType::AppImage) {
-    if let Some(deb_pos) = package_types.iter().position(|&p| p == PackageType::Deb) {
-      package_types.remove(deb_pos);
-    }
-    package_types.insert(0, PackageType::Deb);
-  }
+  let package_types = settings.package_types()?;
   for package_type in &package_types {
     let mut bundle_paths = match package_type {
       PackageType::OsxBundle => {
@@ -65,7 +58,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
 
   #[cfg(windows)]
   {
-    if let Ok(tauri_config) = get_tauri_config() {
+    if get_tauri_config().is_ok() {
       let exempt_output = Command::new("CheckNetIsolation")
         .args(&vec!["LoopbackExempt", "-s"])
         .output()

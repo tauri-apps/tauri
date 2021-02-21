@@ -14,6 +14,6 @@ addClickEnterHandler(
   document.getElementById("set-title"),
   titleInput,
   function () {
-    window.__TAURI__.window.setTitle(titleInput.value);
+    window.__TAURI__.window.manager.setTitle(titleInput.value);
   }
 );

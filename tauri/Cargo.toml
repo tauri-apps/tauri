@@ -15,7 +15,7 @@ edition = "2018"
 exclude = [ "test/fixture/**" ]
 
 [package.metadata.docs.rs]
-features = [ "all-api" ]
+features = [ "api-all" ]
 
 [dependencies]
 serde_json = "1.0"
@@ -31,7 +31,8 @@ uuid = { version = "0.8.2", features = [ "v4" ] }
 thiserror = "1.0.23"
 once_cell = "1.5.2"
 tauri-api = { version = "0.7.5", path = "../tauri-api" }
-wry = { git = "https://github.com/tauri-apps/wry", rev = "f4edf89de5dc40b77a94f6b94fcaf76fdac6bbf4" }
+wry = { git = "https://github.com/tauri-apps/wry", rev = "e6cc7f0825220a0117827b6f0a366f60ce7420ea" }
+rand = "0.8"
 
 # build only deps
 anyhow = { version = "1", optional = true }
@@ -49,34 +50,53 @@ cfg_aliases = "0.1.1"
 [dev-dependencies]
 proptest = "0.10.1"
 serde_json = "1.0"
-tauri = { path = ".", features = [ "all-api" ] }
+tauri = { path = ".", features = [ "api-all" ] }
 serde = { version = "1.0", features = [ "derive" ] }
 
 [features]
 build = [ "tauri-api/build", "anyhow", "flate2","proc-macro2", "quote", "walkdir" ]
 cli = [ "tauri-api/cli" ]
 embedded-server = [ "tiny_http" ]
-all-api = [ "tauri-api/notification" ]
-read-text-file = [ ]
-read-binary-file = [ ]
-write-file = [ ]
-write-binary-file = [ ]
-read-dir = [ ]
-copy-file = [ ]
-create-dir = [ ]
-remove-dir = [ ]
-remove-file = [ ]
-rename-file = [ ]
-path-api = [ ]
-set-title = [ ]
-execute = [ ]
-open = [ ]
-event = [ ]
+api-all = [ "tauri-api/notification", "tauri-api/global-shortcut" ]
 updater = [ ]
-open-dialog = [ ]
-save-dialog = [ ]
+
+# FS
+fs-all = [ ]
+fs-read-text-file = [ ]
+fs-read-binary-file = [ ]
+fs-write-file = [ ]
+fs-write-binary-file = [ ]
+fs-read-dir = [ ]
+fs-copy-file = [ ]
+fs-create-dir = [ ]
+fs-remove-dir = [ ]
+fs-remove-file = [ ]
+fs-rename-file = [ ]
+fs-path-api = [ ]
+
+# window
+window-all = [ ]
+window-create = [ ]
+
+#shell
+shell-all = [ ]
+shell-execute = [ ]
+shell-open = [ ]
+
+# dialog
+dialog-all = [ ]
+dialog-open = [ ]
+dialog-save = [ ]
+
+# HTTP
+http-all = [ ]
 http-request = [ ]
-notification = [ "tauri-api/notification" ]
+
+# notification
+notification-all = [ "tauri-api/notification" ]
+
+# global shortcut
+global-shortcut-all = [ "tauri-api/global-shortcut" ]
 
 [[example]]
 name = "communication"

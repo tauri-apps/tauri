@@ -1,7 +1,6 @@
-use crate::ApplicationDispatcherExt;
-
+use crate::app::InvokeResponse;
 use serde::Deserialize;
-use serde_json::Value as JsonValue;
+#[cfg(notification_all)]
 use tauri_api::{config::Config, notification::Notification};
 
 /// The options for the notification API.
@@ -20,134 +19,84 @@ pub struct NotificationOptions {
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// The show notification API.
-  Notification {
-    options: NotificationOptions,
-    callback: String,
-    error: String,
-  },
+  Notification { options: NotificationOptions },
   /// The request notification permission API.
-  RequestNotificationPermission { callback: String, error: String },
+  RequestNotificationPermission,
   /// The notification permission check API.
-  IsNotificationPermissionGranted { callback: String, error: String },
+  IsNotificationPermissionGranted,
 }
 
 impl Cmd {
-  pub async fn run<D: ApplicationDispatcherExt + 'static>(
-    self,
-    webview_manager: &crate::WebviewManager<D>,
-    context: &crate::app::Context,
-  ) -> crate::Result<()> {
+  pub async fn run(self, context: &crate::app::Context) -> crate::Result<InvokeResponse> {
     match self {
-      Self::Notification {
-        options,
-        callback,
-        error,
-      } => {
-        #[cfg(notification)]
-        send(webview_manager, options, callback, error, &context.config).await;
-        #[cfg(not(notification))]
-        allowlist_error(webview_manager, error, "notification");
+      Self::Notification { options } => {
+        #[cfg(notification_all)]
+        return send(options, &context.config).await.map(Into::into);
+        #[cfg(not(notification_all))]
+        Err(crate::Error::ApiNotAllowlisted("notification".to_string()))
       }
-      Self::IsNotificationPermissionGranted { callback, error } => {
-        #[cfg(notification)]
-        is_permission_granted(webview_manager, callback, error).await;
-        #[cfg(not(notification))]
-        allowlist_error(webview_manager, error, "notification");
+      Self::IsNotificationPermissionGranted => {
+        #[cfg(notification_all)]
+        return is_permission_granted().await.map(Into::into);
+        #[cfg(not(notification_all))]
+        Err(crate::Error::ApiNotAllowlisted("notification".to_string()))
       }
-      Self::RequestNotificationPermission { callback, error } => {
-        #[cfg(notification)]
-        request_permission(webview_manager, callback, error)?;
-        #[cfg(not(notification))]
-        allowlist_error(webview_manager, error, "notification");
+      Self::RequestNotificationPermission => {
+        #[cfg(notification_all)]
+        return request_permission().map(Into::into);
+        #[cfg(not(notification_all))]
+        Err(crate::Error::ApiNotAllowlisted("notification".to_string()))
       }
     }
-    Ok(())
   }
 }
 
-pub async fn send<D: ApplicationDispatcherExt>(
-  webview_manager: &crate::WebviewManager<D>,
-  options: NotificationOptions,
-  callback: String,
-  error: String,
-  config: &Config,
-) {
+#[cfg(notification_all)]
+pub async fn send(options: NotificationOptions, config: &Config) -> crate::Result<InvokeResponse> {
   let identifier = config.tauri.bundle.identifier.clone();
-
-  crate::execute_promise(
-    webview_manager,
-    async move {
-      let mut notification = Notification::new(identifier).title(options.title);
-      if let Some(body) = options.body {
-        notification = notification.body(body);
-      }
-      if let Some(icon) = options.icon {
-        notification = notification.icon(icon);
-      }
-      notification.show()?;
-      crate::Result::Ok(JsonValue::Null)
-    },
-    callback,
-    error,
-  )
-  .await;
+  let mut notification = Notification::new(identifier).title(options.title);
+  if let Some(body) = options.body {
+    notification = notification.body(body);
+  }
+  if let Some(icon) = options.icon {
+    notification = notification.icon(icon);
+  }
+  notification.show()?;
+  Ok(().into())
 }
 
-pub async fn is_permission_granted<D: ApplicationDispatcherExt>(
-  webview_manager: &crate::WebviewManager<D>,
-  callback: String,
-  error: String,
-) {
-  crate::execute_promise(
-    webview_manager,
-    async move {
-      let settings = crate::settings::read_settings()?;
-      if let Some(allow_notification) = settings.allow_notification {
-        crate::Result::Ok(JsonValue::String(allow_notification.to_string()))
-      } else {
-        crate::Result::Ok(JsonValue::Null)
-      }
-    },
-    callback,
-    error,
-  )
-  .await;
+#[cfg(notification_all)]
+pub async fn is_permission_granted() -> crate::Result<InvokeResponse> {
+  let settings = crate::settings::read_settings()?;
+  if let Some(allow_notification) = settings.allow_notification {
+    Ok(allow_notification.into())
+  } else {
+    Ok(().into())
+  }
 }
 
-pub fn request_permission<D: ApplicationDispatcherExt + 'static>(
-  webview_manager: &crate::WebviewManager<D>,
-  callback: String,
-  error: String,
-) -> crate::Result<()> {
-  crate::execute_promise_sync(
-    webview_manager,
-    move || {
-      let mut settings = crate::settings::read_settings()?;
-      let granted = "granted".to_string();
-      let denied = "denied".to_string();
-      if let Some(allow_notification) = settings.allow_notification {
-        return crate::Result::Ok(if allow_notification { granted } else { denied });
-      }
-      let answer = tauri_api::dialog::ask(
-        "This app wants to show notifications. Do you allow?",
-        "Permissions",
-      );
-      match answer {
-        tauri_api::dialog::DialogSelection::Yes => {
-          settings.allow_notification = Some(true);
-          crate::settings::write_settings(settings)?;
-          crate::Result::Ok(granted)
-        }
-        tauri_api::dialog::DialogSelection::No => {
-          settings.allow_notification = Some(false);
-          crate::settings::write_settings(settings)?;
-          crate::Result::Ok(denied)
-        }
-        _ => crate::Result::Ok("default".to_string()),
-      }
-    },
-    callback,
-    error,
+#[cfg(notification_all)]
+pub fn request_permission() -> crate::Result<String> {
+  let mut settings = crate::settings::read_settings()?;
+  let granted = "granted".to_string();
+  let denied = "denied".to_string();
+  if let Some(allow_notification) = settings.allow_notification {
+    return Ok(if allow_notification { granted } else { denied });
+  }
+  let answer = tauri_api::dialog::ask(
+    "Permissions",
+    "This app wants to show notifications. Do you allow?",
   );
-  Ok(())
+  match answer {
+    tauri_api::dialog::AskResponse::Yes => {
+      settings.allow_notification = Some(true);
+      crate::settings::write_settings(settings)?;
+      Ok(granted)
+    }
+    tauri_api::dialog::AskResponse::No => {
+      settings.allow_notification = Some(false);
+      crate::settings::write_settings(settings)?;
+      Ok(denied)
+    }
+  }
 }

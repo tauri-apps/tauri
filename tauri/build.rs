@@ -5,44 +5,47 @@ fn main() {
     embedded_server: { feature = "embedded-server" },
     dev: { not(feature = "embedded-server") },
 
-    all_api: { feature = "all-api" },
+    api_all: { feature = "api-all" },
 
     // fs
-    read_text_file: { any(all_api, feature = "read-text-file") },
-    read_binary_file: { any(all_api, feature = "read-binary-file") },
-    write_file: { any(all_api, feature = "write-file") },
-    write_binary_file: { any(all_api, feature = "write-binary-file") },
-    read_dir: { any(all_api, feature = "read-dir") },
-    copy_file: { any(all_api, feature = "copy-file") },
-    create_dir: { any(all_api, feature = "create_dir") },
-    remove_dir: { any(all_api, feature = "remove-dir") },
-    remove_file: { any(all_api, feature = "remove-file") },
-    rename_file: { any(all_api, feature = "rename-file") },
-
-    // js path api
-    path_api: { any(all_api, feature = "path-api") },
+    fs_all: { any(api_all, feature = "fs-all") },
+    fs_read_text_file: { any(fs_all, feature = "fs-read-text-file") },
+    fs_read_binary_file: { any(fs_all, feature = "fs-read-binary-file") },
+    fs_write_file: { any(fs_all, feature = "fs-write-file") },
+    fs_write_binary_file: { any(fs_all, feature = "fs-write-binary-file") },
+    fs_read_dir: { any(fs_all, feature = "fs-read-dir") },
+    fs_copy_file: { any(fs_all, feature = "fs-copy-file") },
+    fs_create_dir: { any(fs_all, feature = "fs-create_dir") },
+    fs_remove_dir: { any(fs_all, feature = "fs-remove-dir") },
+    fs_remove_file: { any(fs_all, feature = "fs-remove-file") },
+    fs_rename_file: { any(fs_all, feature = "fs-rename-file") },
+    fs_path: { any(fs_all, feature = "fs-path") },
 
     // window
-    set_title: { any(all_api, feature = "set-title") },
-    open: { any(all_api, feature = "open") },
+    window_all: { any(api_all, feature = "window-all") },
+    window_create: { any(window_all, feature = "window-create") },
 
-    // process
-    execute: { any(all_api, feature = "execute") },
-
-    // event
-    event: { any(all_api, feature = "event") },
+    // shell
+    shell_all: { any(api_all, feature = "shell-all") },
+    shell_open: { any(shell_all, feature = "shell-open") },
+    shell_execute: { any(shell_all, feature = "shell-execute") },
 
     // dialog
-    open_dialog: { any(all_api, feature = "open-dialog") },
-    save_dialog: { any(all_api, feature = "save-dialog") },
+    dialog_all: { any(api_all, feature = "dialog-all") },
+    dialog_open: { any(dialog_all, feature = "dialog-open") },
+    dialog_save: { any(dialog_all, feature = "dialog-save") },
 
     // http
-    http_request: { any(all_api, feature = "http-request") },
+    http_all: { any(api_all, feature = "http-all") },
+    http_request: { any(http_all, feature = "http-request") },
 
     // cli
     cli: { feature = "cli" },
 
     // notification
-    notification: { any(all_api, feature = "notification") },
+    notification_all: { any(api_all, feature = "notification-all") },
+
+    // global shortcut
+    global_shortcut_all: { any(api_all, feature = "global_shortcut-all") },
   }
 }

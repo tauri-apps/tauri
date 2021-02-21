@@ -120,7 +120,7 @@ button:active {
   float: left;
 }
 
-.tab>label {
+.tab > label {
   background: #eee;
   padding: 10px;
   border: 1px solid transparent;
@@ -129,11 +129,11 @@ button:active {
   left: 1px;
 }
 
-.tabs>.tabber {
+.tabs > .tabber {
   border-top-left-radius: 5px;
 }
 
-.tabs>.tabber~.tabber {
+.tabs > .tabber ~ .tabber {
   border-top-left-radius: none;
 }
 
@@ -155,12 +155,12 @@ button:active {
   border-bottom-right-radius: 5px;
 }
 
-[type="radio"]:checked~label {
+[type="radio"]:checked ~ label {
   background: #bbc;
   border-bottom: 1px solid transparent;
   z-index: 2;
 }
 
-[type="radio"]:checked~label~.content {
+[type="radio"]:checked ~ label ~ .content {
   z-index: 1;
 }

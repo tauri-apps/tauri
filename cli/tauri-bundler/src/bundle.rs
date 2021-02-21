@@ -11,7 +11,6 @@ mod path_utils;
 mod platform;
 mod rpm_bundle;
 mod settings;
-pub mod tauri_config;
 #[cfg(target_os = "windows")]
 mod wix;
 
@@ -21,8 +20,11 @@ use std::process::Command;
 use tauri_config::get as get_tauri_config;
 
 pub use self::{
+  category::AppCategory,
   common::{print_error, print_info},
-  settings::{PackageType, Settings, SettingsBuilder},
+  settings::{
+    BundleBinary, BundleSettings, PackageSettings, PackageType, Settings, SettingsBuilder,
+  },
 };
 use common::print_finished;
 

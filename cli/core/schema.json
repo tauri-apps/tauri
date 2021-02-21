@@ -7,8 +7,6 @@
     "build": {
       "description": "The build configuration.",
       "default": {
-        "beforeBuildCommand": null,
-        "beforeDevCommand": null,
         "devPath": "",
         "distDir": "../dist",
         "withGlobalTauri": false
@@ -74,37 +72,14 @@
         },
         "bundle": {
           "active": false,
-          "category": null,
-          "copyright": null,
           "deb": {
-            "depends": null,
             "useBootstrapper": false
           },
-          "externalBin": null,
-          "icon": null,
-          "identifier": null,
-          "longDescription": null,
-          "name": null,
           "osx": {
-            "exceptionDomain": null,
-            "frameworks": null,
-            "license": null,
-            "minimumSystemVersion": null,
             "useBootstrapper": false
-          },
-          "resources": null,
-          "script": null,
-          "shortDescription": null,
-          "targets": null,
-          "version": null
+          }
         },
-        "cli": null,
-        "embeddedServer": {
-          "host": null,
-          "port": null,
-          "publicPath": null
-        },
-        "security": null,
+        "embeddedServer": {},
         "windows": []
       },
       "allOf": [
@@ -273,7 +248,6 @@
         },
         "deb": {
           "default": {
-            "depends": null,
             "useBootstrapper": false
           },
           "allOf": [
@@ -322,10 +296,6 @@
         },
         "osx": {
           "default": {
-            "exceptionDomain": null,
-            "frameworks": null,
-            "license": null,
-            "minimumSystemVersion": null,
             "useBootstrapper": false
           },
           "allOf": [
@@ -936,29 +906,12 @@
           "description": "The bundler configuration.",
           "default": {
             "active": false,
-            "category": null,
-            "copyright": null,
             "deb": {
-              "depends": null,
               "useBootstrapper": false
             },
-            "externalBin": null,
-            "icon": null,
-            "identifier": null,
-            "longDescription": null,
-            "name": null,
             "osx": {
-              "exceptionDomain": null,
-              "frameworks": null,
-              "license": null,
-              "minimumSystemVersion": null,
               "useBootstrapper": false
-            },
-            "resources": null,
-            "script": null,
-            "shortDescription": null,
-            "targets": null,
-            "version": null
+            }
           },
           "allOf": [
             {
@@ -978,11 +931,7 @@
           ]
         },
         "embeddedServer": {
-          "default": {
-            "host": null,
-            "port": null,
-            "publicPath": null
-          },
+          "default": {},
           "allOf": [
             {
               "$ref": "#/definitions/EmbeddedServerConfig"

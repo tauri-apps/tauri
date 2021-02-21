@@ -7,6 +7,7 @@ mod config_definition;
 pub use config_definition::*;
 
 use std::{
+  env::set_var,
   fs::File,
   io::BufReader,
   process::exit,
@@ -57,6 +58,7 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
   }
 
   let config = serde_json::from_value(config)?;
+  set_var("TAURI_CONFIG", serde_json::to_string(&config)?);
   *config_handle().lock().unwrap() = Some(config);
 
   Ok(config_handle().clone())

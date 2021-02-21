@@ -5,7 +5,7 @@
     "build": "rollup -c",
     "dev": "rollup -c -w",
     "start": "sirv public",
-    "tauri:build": "node ../../../cli/tauri.js/bin/tauri build"
+    "tauri": "node ../../../cli/tauri.js/bin/tauri"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "17.1.0",

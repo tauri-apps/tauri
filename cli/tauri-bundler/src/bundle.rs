@@ -11,18 +11,18 @@ mod path_utils;
 mod platform;
 mod rpm_bundle;
 mod settings;
-pub mod tauri_config;
 #[cfg(target_os = "windows")]
 mod wix;
 
 #[cfg(windows)]
 use std::process::Command;
-#[cfg(windows)]
-use tauri_config::get as get_tauri_config;
 
 pub use self::{
+  category::AppCategory,
   common::{print_error, print_info},
-  settings::{PackageType, Settings, SettingsBuilder},
+  settings::{
+    BundleBinary, BundleSettings, PackageSettings, PackageType, Settings, SettingsBuilder,
+  },
 };
 use common::print_finished;
 
@@ -58,27 +58,25 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
 
   #[cfg(windows)]
   {
-    if get_tauri_config().is_ok() {
-      let exempt_output = Command::new("CheckNetIsolation")
-        .args(&vec!["LoopbackExempt", "-s"])
-        .output()
-        .expect("failed to read LoopbackExempt -s");
+    let exempt_output = Command::new("CheckNetIsolation")
+      .args(&vec!["LoopbackExempt", "-s"])
+      .output()
+      .expect("failed to read LoopbackExempt -s");
 
-      if !exempt_output.status.success() {
-        panic!("Failed to execute CheckNetIsolation LoopbackExempt -s");
-      }
+    if !exempt_output.status.success() {
+      panic!("Failed to execute CheckNetIsolation LoopbackExempt -s");
+    }
 
-      let output_str = String::from_utf8_lossy(&exempt_output.stdout).to_lowercase();
-      if !output_str.contains("win32webviewhost_cw5n1h2txyewy") {
-        println!("Running Loopback command");
-        runas::Command::new("powershell")
-          .args(&[
-            "CheckNetIsolation LoopbackExempt -a -n=\"Microsoft.Win32WebViewHost_cw5n1h2txyewy\"",
-          ])
-          .force_prompt(true)
-          .status()
-          .expect("failed to run Loopback command");
-      }
+    let output_str = String::from_utf8_lossy(&exempt_output.stdout).to_lowercase();
+    if !output_str.contains("win32webviewhost_cw5n1h2txyewy") {
+      println!("Running Loopback command");
+      runas::Command::new("powershell")
+        .args(&[
+          "CheckNetIsolation LoopbackExempt -a -n=\"Microsoft.Win32WebViewHost_cw5n1h2txyewy\"",
+        ])
+        .force_prompt(true)
+        .status()
+        .expect("failed to run Loopback command");
     }
   }
 

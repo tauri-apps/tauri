@@ -10,7 +10,7 @@ use crate::{
     config::WindowUrl,
     rpc::{format_callback, format_callback_result},
   },
-  app::InvokeResponse,
+  app::{Icon, InvokeResponse},
   ApplicationExt, WebviewBuilderExt,
 };
 
@@ -247,6 +247,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
   window_labels: &[String],
   plugin_initialization_script: &str,
   tauri_script: &str,
+  default_window_icon: &Option<&'static [u8]>,
 ) -> crate::Result<BuiltWebview<A>> {
   // TODO let debug = cfg!(debug_assertions);
   let webview_url = match &webview.url {
@@ -255,7 +256,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
   };
 
   let (webview_builder, callbacks) = if webview.url == WindowUrl::App {
-    let webview_builder = webview.builder.url(webview_url)
+    let mut webview_builder = webview.builder.url(webview_url)
         .initialization_script(&initialization_script(plugin_initialization_script, tauri_script))
         .initialization_script(&format!(
           r#"
@@ -266,6 +267,12 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
             serde_json::to_string(&window_labels).unwrap(),
           current_window_label = webview.label,
         ));
+
+    if !webview_builder.has_icon() {
+      if let Some(default_window_icon) = default_window_icon {
+        webview_builder = webview_builder.icon(Icon::Raw(default_window_icon.to_vec()))?;
+      }
+    }
 
     let webview_manager_ = webview_manager.clone();
     let tauri_invoke_handler = crate::Callback::<A::Dispatcher> {

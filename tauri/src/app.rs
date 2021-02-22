@@ -19,15 +19,17 @@ pub use webview::{
 };
 pub use webview_manager::{WebviewDispatcher, WebviewManager};
 
-type InvokeHandler<A> = dyn Fn(WebviewManager<A>, String) -> BoxFuture<'static, crate::Result<InvokeResponse>>
-  + Send
-  + Sync;
+type InvokeHandler<A> =
+  dyn Fn(WebviewManager<A>, String) -> BoxFuture<'static, crate::Result<InvokeResponse>>
+    + Send
+    + Sync;
 type Setup<A> = dyn Fn(WebviewManager<A>) -> BoxFuture<'static, ()> + Send + Sync;
 
 /// `App` runtime information.
 pub struct Context {
   pub(crate) config: Config,
   pub(crate) tauri_script: &'static str,
+  pub(crate) default_window_icon: Option<&'static [u8]>,
   pub(crate) assets: &'static tauri_api::assets::Assets,
 }
 
@@ -36,6 +38,7 @@ impl Context {
     Ok(Self {
       config: serde_json::from_str(Context::raw_config())?,
       tauri_script: Context::raw_tauri_script(),
+      default_window_icon: Context::default_window_icon(),
       assets: Context::assets(),
     })
   }
@@ -163,6 +166,7 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
       &self.window_labels.lock().await,
       &self.plugin_initialization_script,
       &self.context.tauri_script,
+      &self.context.default_window_icon,
     )
   }
 

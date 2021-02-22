@@ -164,8 +164,7 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
       &self.url,
       &self.window_labels.lock().await,
       &self.plugin_initialization_script,
-      &self.context.tauri_script,
-      &self.context.default_window_icon,
+      &self.context,
     )
   }
 

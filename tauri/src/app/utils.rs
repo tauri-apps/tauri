@@ -246,8 +246,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
   content_url: &str,
   window_labels: &[String],
   plugin_initialization_script: &str,
-  tauri_script: &str,
-  default_window_icon: &Option<&'static [u8]>,
+  context: &Context,
 ) -> crate::Result<BuiltWebview<A>> {
   // TODO let debug = cfg!(debug_assertions);
   let webview_url = match &webview.url {
@@ -257,7 +256,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
 
   let (webview_builder, callbacks) = if webview.url == WindowUrl::App {
     let mut webview_builder = webview.builder.url(webview_url)
-        .initialization_script(&initialization_script(plugin_initialization_script, tauri_script))
+        .initialization_script(&initialization_script(plugin_initialization_script, &context.tauri_script))
         .initialization_script(&format!(
           r#"
               window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
@@ -269,7 +268,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
         ));
 
     if !webview_builder.has_icon() {
-      if let Some(default_window_icon) = default_window_icon {
+      if let Some(default_window_icon) = &context.default_window_icon {
         webview_builder = webview_builder.icon(Icon::Raw(default_window_icon.to_vec()))?;
       }
     }

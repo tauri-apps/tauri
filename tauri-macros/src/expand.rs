@@ -42,22 +42,18 @@ pub(crate) fn load_context(input: DeriveInput) -> Result<TokenStream, Error> {
   let tauri_script_path = dist_dir.join("__tauri.js");
 
   #[cfg(windows)]
-  let default_window_icon_fn = {
+  let default_window_icon = {
     let icon_path = Path::new(&manifest)
       .join("./icons/icon.ico")
       .display()
       .to_string();
     quote! {
-      fn default_window_icon() -> Option<&'static [u8]> {
-        Some(include_bytes!(#icon_path))
-      }
+      Some(include_bytes!(#icon_path))
     }
   };
   #[cfg(not(windows))]
-  let default_window_icon_fn = quote! {
-    fn default_window_icon() -> Option<&'static [u8]> {
-      None
-    }
+  let default_window_icon = quote! {
+    None
   };
 
   // format paths into a string to use them in quote!
@@ -87,7 +83,9 @@ pub(crate) fn load_context(input: DeriveInput) -> Result<TokenStream, Error> {
           }
 
           /// Default window icon function.
-          #default_window_icon_fn
+          fn default_window_icon() -> Option<&'static [u8]> {
+            #default_window_icon
+          }
       }
   })
 }

@@ -19,10 +19,9 @@ pub use webview::{
 };
 pub use webview_manager::{WebviewDispatcher, WebviewManager};
 
-type InvokeHandler<A> =
-  dyn Fn(WebviewManager<A>, String) -> BoxFuture<'static, crate::Result<InvokeResponse>>
-    + Send
-    + Sync;
+type InvokeHandler<A> = dyn Fn(WebviewManager<A>, String) -> BoxFuture<'static, crate::Result<InvokeResponse>>
+  + Send
+  + Sync;
 type Setup<A> = dyn Fn(WebviewManager<A>) -> BoxFuture<'static, ()> + Send + Sync;
 
 /// `App` runtime information.

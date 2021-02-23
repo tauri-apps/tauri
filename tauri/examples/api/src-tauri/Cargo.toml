@@ -20,7 +20,7 @@ tauri = { path = "../../..", features =["api-all", "cli"]}
 winres = "0.1"
 
 [features]
-embedded-server = [ "tauri/embedded-server" ]
+custom-protocol = [ "tauri/custom-protocol" ]
 
 [[bin]]
 name = "app"

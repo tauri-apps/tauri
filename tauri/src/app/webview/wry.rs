@@ -1,5 +1,5 @@
 use super::{
-  ApplicationDispatcherExt, ApplicationExt, Callback, Icon, WebviewBuilderExt,
+  ApplicationDispatcherExt, ApplicationExt, Callback, CustomProtocol, Icon, WebviewBuilderExt,
   WebviewBuilderExtPrivate, WindowConfig,
 };
 
@@ -181,6 +181,7 @@ impl ApplicationDispatcherExt for WryDispatcher {
     &self,
     attributes: Self::WebviewBuilder,
     callbacks: Vec<Callback<Self>>,
+    custom_protocol: Option<CustomProtocol>,
   ) -> crate::Result<Self> {
     let mut wry_callbacks = Vec::new();
     let app_dispatcher = self.1.clone();
@@ -192,8 +193,9 @@ impl ApplicationDispatcherExt for WryDispatcher {
           (callback.function)(
             Self(Arc::new(Mutex::new(dispatcher)), app_dispatcher.clone()),
             seq,
-            req,
-          )
+            req.iter().map(|v| v.to_string()).collect(),
+          );
+          Ok(())
         }),
       };
       wry_callbacks.push(callback);
@@ -203,7 +205,15 @@ impl ApplicationDispatcherExt for WryDispatcher {
       .1
       .lock()
       .unwrap()
-      .add_window(attributes, Some(wry_callbacks))
+      .add_window(
+        attributes,
+        Some(wry_callbacks),
+        custom_protocol.map(|p| wry::CustomProtocol {
+          name: p.name.clone(),
+          // TODO: Map error type instead of unwraping
+          handler: Box::new(move |a| Ok((*p.handler)(a).unwrap())),
+        }),
+      )
       .map_err(|_| crate::Error::FailedToSendMessage)?;
     Ok(Self(
       Arc::new(Mutex::new(window_dispatcher)),
@@ -433,6 +443,7 @@ impl ApplicationExt for WryApplication {
     &mut self,
     webview_builder: Self::WebviewBuilder,
     callbacks: Vec<Callback<Self::Dispatcher>>,
+    custom_protocol: Option<CustomProtocol>,
   ) -> crate::Result<Self::Dispatcher> {
     let mut wry_callbacks = Vec::new();
     let app_dispatcher = Arc::new(Mutex::new(self.inner.application_proxy()));
@@ -444,8 +455,9 @@ impl ApplicationExt for WryApplication {
           (callback.function)(
             WryDispatcher(Arc::new(Mutex::new(dispatcher)), app_dispatcher.clone()),
             seq,
-            req,
-          )
+            req.iter().map(|v| v.to_string()).collect(),
+          );
+          Ok(())
         }),
       };
       wry_callbacks.push(callback);
@@ -453,7 +465,15 @@ impl ApplicationExt for WryApplication {
 
     let dispatcher = self
       .inner
-      .add_window(webview_builder.finish()?, Some(wry_callbacks))
+      .add_window(
+        webview_builder.finish()?,
+        Some(wry_callbacks),
+        custom_protocol.map(|p| wry::CustomProtocol {
+          name: p.name.clone(),
+          // TODO: Map error type instead of unwraping
+          handler: Box::new(move |a| Ok((*p.handler)(a).unwrap())),
+        }),
+      )
       .map_err(|_| crate::Error::CreateWebview)?;
     Ok(WryDispatcher(
       Arc::new(Mutex::new(dispatcher)),

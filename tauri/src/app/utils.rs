@@ -1,12 +1,9 @@
-#[cfg(dev)]
 use std::io::Read;
 use std::sync::Arc;
 
-#[cfg(dev)]
-use crate::api::assets::{AssetFetch, Assets};
-
 use crate::{
   api::{
+    assets::{AssetFetch, Assets},
     config::WindowUrl,
     rpc::{format_callback, format_callback_result},
   },
@@ -15,11 +12,9 @@ use crate::{
 };
 
 use super::{
-  webview::{Callback, WebviewBuilderExtPrivate},
+  webview::{Callback, CustomProtocol, WebviewBuilderExtPrivate},
   App, Context, Webview, WebviewManager,
 };
-#[cfg(embedded_server)]
-use crate::api::tcp::{get_available_port, port_is_available};
 
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
@@ -85,76 +80,10 @@ pub(super) fn get_url(context: &Context) -> crate::Result<String> {
   }
 }
 
-// setup content for embedded server
-#[cfg(embedded_server)]
-pub(super) fn get_url(context: &Context) -> crate::Result<String> {
-  let (port, valid) = setup_port(&context);
-  if valid {
-    Ok(setup_server_url(port, &context))
-  } else {
-    Err(crate::Error::PortNotAvailable(port))
-  }
-}
-
-// get the port for the embedded server
-#[cfg(embedded_server)]
-#[allow(dead_code)]
-fn setup_port(context: &Context) -> (String, bool) {
-  let config = &context.config;
-  match config.tauri.embedded_server.port {
-    tauri_api::config::Port::Random => match get_available_port() {
-      Some(available_port) => (available_port.to_string(), true),
-      None => ("0".to_string(), false),
-    },
-    tauri_api::config::Port::Value(port) => {
-      let port_valid = port_is_available(port);
-      (port.to_string(), port_valid)
-    }
-  }
-}
-
-// setup the server url for embedded server
-#[cfg(embedded_server)]
-#[allow(dead_code)]
-fn setup_server_url(port: String, context: &Context) -> String {
-  let config = &context.config;
-  let mut url = format!("{}:{}", config.tauri.embedded_server.host, port);
-  if !url.starts_with("http") {
-    url = format!("http://{}", url);
-  }
-  url
-}
-
-// spawn the embedded server
-#[cfg(embedded_server)]
-pub(super) fn spawn_server(server_url: String, context: &Context) {
-  let assets = context.assets;
-  let public_path = context.config.tauri.embedded_server.public_path.clone();
-  std::thread::spawn(move || {
-    let server = tiny_http::Server::http(server_url.replace("http://", "").replace("https://", ""))
-      .expect("Unable to spawn server");
-    for request in server.incoming_requests() {
-      let url = request.url().replace(&server_url, "");
-      let url = match url.as_str() {
-        "/" => "/index.html",
-        url => {
-          if url.starts_with(&public_path) {
-            &url[public_path.len() - 1..]
-          } else {
-            eprintln!(
-              "found url not matching public path.\nurl: {}\npublic path: {}",
-              url, public_path
-            );
-            url
-          }
-        }
-      }
-      .to_string();
-      request
-        .respond(crate::server::asset_response(&url, assets))
-        .expect("unable to setup response");
-    }
-  });
+#[cfg(custom_protocol)]
+pub(super) fn get_url(_: &Context) -> crate::Result<String> {
+  // Custom protocol doesn't require any setup, so just return URL
+  Ok("tauri://./index.html".into())
 }
 
 // spawn an updater process.
@@ -236,6 +165,7 @@ fn event_initialization_script() -> String {
 pub(super) type BuiltWebview<A> = (
   <A as ApplicationExt>::WebviewBuilder,
   Vec<Callback<<A as ApplicationExt>::Dispatcher>>,
+  Option<CustomProtocol>,
 );
 
 // build the webview.
@@ -247,6 +177,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
   window_labels: &[String],
   plugin_initialization_script: &str,
   tauri_script: &str,
+  assets: &'static Assets,
 ) -> crate::Result<BuiltWebview<A>> {
   // TODO let debug = cfg!(debug_assertions);
   let webview_url = match &webview.url {
@@ -254,7 +185,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
     WindowUrl::Custom(url) => url.to_string(),
   };
 
-  let (webview_builder, callbacks) = if webview.url == WindowUrl::App {
+  let (webview_builder, callbacks, custom_protocol) = if webview.url == WindowUrl::App {
     let webview_builder = webview.builder.url(webview_url)
         .initialization_script(&initialization_script(plugin_initialization_script, tauri_script))
         .initialization_script(&format!(
@@ -316,12 +247,30 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
         0
       }),
     };
-    (webview_builder, vec![tauri_invoke_handler])
+    let custom_protocol = CustomProtocol {
+      name: "tauri".into(),
+      handler: Box::new(move |path| {
+        assets
+          .get(&Assets::format_key(path), AssetFetch::Decompress)
+          .ok_or_else(|| crate::Error::AssetNotFound(path.to_string()))
+          .and_then(|(read, _)| {
+            read
+              .bytes()
+              .collect::<Result<Vec<u8>, _>>()
+              .map_err(Into::into)
+          })
+      }),
+    };
+    (
+      webview_builder,
+      vec![tauri_invoke_handler],
+      Some(custom_protocol),
+    )
   } else {
-    (webview.builder.url(webview_url), Vec::new())
+    (webview.builder.url(webview_url), Vec::new(), None)
   };
 
-  Ok((webview_builder, callbacks))
+  Ok((webview_builder, callbacks, custom_protocol))
 }
 
 /// Asynchronously executes the given task
@@ -400,7 +349,6 @@ async fn on_message<A: ApplicationExt + 'static>(
 #[cfg(test)]
 mod test {
   use crate::{Context, FromTauriContext};
-  use proptest::prelude::*;
 
   #[derive(FromTauriContext)]
   #[config_path = "test/fixture/src-tauri/tauri.conf.json"]
@@ -411,9 +359,9 @@ mod test {
     let context = Context::new::<TauriContext>().unwrap();
     let res = super::get_url(&context);
 
-    #[cfg(embedded_server)]
+    #[cfg(custom_protocol)]
     match res {
-      Ok(u) => assert!(u.contains("http://")),
+      Ok(u) => assert!(u == "tauri://./index.html"),
       _ => panic!("setup content failed"),
     }
 
@@ -424,19 +372,6 @@ mod test {
         Ok(u) => assert_eq!(u, config.build.dev_path),
         _ => panic!("setup content failed"),
       }
-    }
-  }
-
-  proptest! {
-    #![proptest_config(ProptestConfig::with_cases(10000))]
-    #[cfg(embedded_server)]
-    #[test]
-    fn check_server_url(port in (any::<u32>().prop_map(|v| v.to_string()))) {
-      let p = port.clone();
-      let context = Context::new::<TauriContext>().unwrap();
-
-      let url = super::setup_server_url(port, &context);
-      assert!(url.contains(&p));
     }
   }
 }

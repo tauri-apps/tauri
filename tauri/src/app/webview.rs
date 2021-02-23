@@ -159,6 +159,14 @@ pub struct Callback<D> {
   pub function: Box<dyn FnMut(D, i32, Vec<String>) -> i32 + Send>,
 }
 
+/// Uses a custom handler to resolve file requests
+pub struct CustomProtocol {
+  /// Name of the protocol
+  pub name: String,
+  /// Handler for protocol
+  pub handler: Box<dyn Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync>,
+}
+
 /// Webview dispatcher. A thread-safe handle to the webview API.
 pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
   /// The webview builder type.
@@ -172,6 +180,7 @@ pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
     &self,
     webview_builder: Self::WebviewBuilder,
     callbacks: Vec<Callback<Self>>,
+    custom_protocol: Option<CustomProtocol>,
   ) -> crate::Result<Self>;
 
   /// Updates the window resizable flag.
@@ -264,6 +273,7 @@ pub trait ApplicationExt: Sized {
     &mut self,
     webview_builder: Self::WebviewBuilder,
     callbacks: Vec<Callback<Self::Dispatcher>>,
+    custom_protocol: Option<CustomProtocol>,
   ) -> crate::Result<Self::Dispatcher>;
 
   /// Run the application.

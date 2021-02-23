@@ -247,13 +247,14 @@ impl<A: ApplicationExt + 'static> WebviewManager<A> {
       .lock()
       .await
       .push(label.to_string());
-    let (webview_builder, callbacks) = self.application.init_webview(webview).await?;
+    let (webview_builder, callbacks, custom_protocol) =
+      self.application.init_webview(webview).await?;
 
-    let window_dispatcher = self
-      .current_webview()
-      .await?
-      .dispatcher
-      .create_webview(webview_builder, callbacks)?;
+    let window_dispatcher = self.current_webview().await?.dispatcher.create_webview(
+      webview_builder,
+      callbacks,
+      custom_protocol,
+    )?;
     let webview_manager = Self::new(
       self.application.clone(),
       self.dispatchers.clone(),

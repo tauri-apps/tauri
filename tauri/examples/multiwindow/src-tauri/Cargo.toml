@@ -28,8 +28,8 @@ tauri = { path = "../../..", features =["api-all"]}
 winres = "0.1"
 
 [features]
-default = [ "embedded-server" ]
-embedded-server = [ "tauri/embedded-server" ]
+default = [ "custom-protocol" ]
+custom-protocol = [ "tauri/custom-protocol" ]
 
 [[bin]]
 name = "app"

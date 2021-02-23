@@ -83,7 +83,7 @@ pub(super) fn get_url(context: &Context) -> crate::Result<String> {
 #[cfg(custom_protocol)]
 pub(super) fn get_url(_: &Context) -> crate::Result<String> {
   // Custom protocol doesn't require any setup, so just return URL
-  Ok("tauri://./index.html".into())
+  Ok("tauri://index.html".into())
 }
 
 // spawn an updater process.
@@ -361,7 +361,7 @@ mod test {
 
     #[cfg(custom_protocol)]
     match res {
-      Ok(u) => assert!(u == "tauri://./index.html"),
+      Ok(u) => assert!(u == "tauri://index.html"),
       _ => panic!("setup content failed"),
     }
 

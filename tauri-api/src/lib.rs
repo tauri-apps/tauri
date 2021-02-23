@@ -55,5 +55,6 @@ pub mod private {
     fn raw_config() -> &'static str;
     fn assets() -> &'static crate::assets::Assets;
     fn raw_tauri_script() -> &'static str;
+    fn default_window_icon() -> Option<&'static [u8]>;
   }
 }

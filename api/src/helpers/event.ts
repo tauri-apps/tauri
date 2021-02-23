@@ -7,16 +7,10 @@ export interface Event<T> {
 
 export type EventCallback<T> = (event: Event<T>) => void
 
-/**
- * listen to an event from the backend
- *
- * @param event the event name
- * @param handler the event handler callback
- */
-async function listen<T>(
+async function _listen<T>(
   event: string,
   handler: EventCallback<T>,
-  once = false
+  once: boolean
 ): Promise<void> {
   await invoke({
     __tauriModule: 'Event',
@@ -27,6 +21,32 @@ async function listen<T>(
       once
     }
   })
+}
+
+/**
+ * listen to an event from the backend
+ *
+ * @param event the event name
+ * @param handler the event handler callback
+ */
+async function listen<T>(
+  event: string,
+  handler: EventCallback<T>
+): Promise<void> {
+  return _listen(event, handler, false)
+}
+
+/**
+ * listen to an one-off event from the backend
+ *
+ * @param event the event name
+ * @param handler the event handler callback
+ */
+async function once<T>(
+  event: string,
+  handler: EventCallback<T>
+): Promise<void> {
+  return _listen(event, handler, true)
 }
 
 /**
@@ -51,4 +71,4 @@ async function emit(
   })
 }
 
-export { listen, emit }
+export { listen, once, emit }

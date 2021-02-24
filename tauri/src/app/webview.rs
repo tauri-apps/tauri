@@ -2,6 +2,8 @@ pub mod wry;
 
 use crate::plugin::PluginStore;
 
+use serde_json::Value as JsonValue;
+
 /// A icon definition.
 pub enum Icon {
   /// Icon from file path.
@@ -162,7 +164,7 @@ pub struct Callback<D> {
   /// Function name to bind.
   pub name: String,
   /// Function callback handler.
-  pub function: Box<dyn FnMut(D, i32, Vec<String>) -> i32 + Send>,
+  pub function: Box<dyn FnMut(D, Vec<JsonValue>) + Send>,
 }
 
 /// Webview dispatcher. A thread-safe handle to the webview API.

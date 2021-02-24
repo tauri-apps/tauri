@@ -277,10 +277,10 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
     let webview_manager_ = webview_manager.clone();
     let tauri_invoke_handler = crate::Callback::<A::Dispatcher> {
       name: "__TAURI_INVOKE_HANDLER__".to_string(),
-      function: Box::new(move |_, _, arg| {
-        let arg = arg.into_iter().next().unwrap_or_else(String::new);
+      function: Box::new(move |_, arg| {
+        let arg = arg.into_iter().next().unwrap_or(JsonValue::Null);
         let webview_manager = webview_manager_.clone();
-        match serde_json::from_str::<Message>(&arg) {
+        match serde_json::from_value::<Message>(arg) {
           Ok(message) => {
             let application = application.clone();
             let callback = message.callback.to_string();
@@ -320,7 +320,6 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
             }
           }
         }
-        0
       }),
     };
     (webview_builder, vec![tauri_invoke_handler])

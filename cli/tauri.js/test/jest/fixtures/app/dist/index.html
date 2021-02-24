@@ -136,11 +136,9 @@
       })
 
       setTimeout(function () {
-        window.__TAURI_INVOKE_HANDLER__(
-          JSON.stringify({
-            cmd: 'exit'
-          })
-        )
+        window.__TAURI_INVOKE_HANDLER__({
+          cmd: 'exit'
+        })
       }, 15000)
     </script>
   </body>

@@ -197,12 +197,12 @@ impl ApplicationDispatcherExt for WryDispatcher {
       let app_dispatcher = app_dispatcher.clone();
       let callback = wry::Callback {
         name: callback.name.to_string(),
-        function: Box::new(move |dispatcher, seq, req| {
+        function: Box::new(move |dispatcher, _, req| {
           (callback.function)(
             Self(Arc::new(Mutex::new(dispatcher)), app_dispatcher.clone()),
-            seq,
             req,
-          )
+          );
+          Ok(())
         }),
       };
       wry_callbacks.push(callback);
@@ -212,7 +212,7 @@ impl ApplicationDispatcherExt for WryDispatcher {
       .1
       .lock()
       .unwrap()
-      .add_window(attributes, Some(wry_callbacks))
+      .add_window(attributes, Some(wry_callbacks), None)
       .map_err(|_| crate::Error::FailedToSendMessage)?;
     Ok(Self(
       Arc::new(Mutex::new(window_dispatcher)),
@@ -449,12 +449,12 @@ impl ApplicationExt for WryApplication {
       let app_dispatcher = app_dispatcher.clone();
       let callback = wry::Callback {
         name: callback.name.to_string(),
-        function: Box::new(move |dispatcher, seq, req| {
+        function: Box::new(move |dispatcher, _, req| {
           (callback.function)(
             WryDispatcher(Arc::new(Mutex::new(dispatcher)), app_dispatcher.clone()),
-            seq,
             req,
-          )
+          );
+          Ok(())
         }),
       };
       wry_callbacks.push(callback);
@@ -462,7 +462,7 @@ impl ApplicationExt for WryApplication {
 
     let dispatcher = self
       .inner
-      .add_window(webview_builder.finish()?, Some(wry_callbacks))
+      .add_window(webview_builder.finish()?, Some(wry_callbacks), None)
       .map_err(|_| crate::Error::CreateWebview)?;
     Ok(WryDispatcher(
       Arc::new(Mutex::new(dispatcher)),

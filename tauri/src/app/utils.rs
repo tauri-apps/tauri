@@ -38,6 +38,7 @@ struct Message {
 
 // setup content for dev-server
 #[cfg(dev)]
+#[allow(clippy::unnecessary_wraps)]
 pub(super) fn get_url(context: &Context) -> crate::Result<String> {
   let config = &context.config;
   if config.build.dev_path.starts_with("http") {

@@ -35,7 +35,7 @@ http = "0.2"
 tauri-utils = { version = "0.5", path = "../tauri-utils" }
 clap = { version = "=3.0.0-beta.2", optional = true }
 notify-rust = { version = "4.2.2", optional = true }
-once_cell = "1.6.0"
+once_cell = "1.7.0"
 tauri-hotkey = { git = "https://github.com/tauri-apps/tauri-hotkey-rs", branch = "dev", optional = true }
 
 [dev-dependencies]

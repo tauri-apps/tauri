@@ -44,6 +44,18 @@ const injectConfFile = (
       }
       /* eslint-enable security/detect-object-injection */
     })
+    // Window config should be merged
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if ((customConfig as UnknownObject).tauri?.windows[0]) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
+      ;(customConfig as UnknownObject).tauri.windows[0] = {
+        ...defaultConfig.tauri.windows[0],
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        ...(customConfig as UnknownObject).tauri.windows[0]
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      delete (defaultConfig as UnknownObject).tauri.windows
+    }
     const finalConf = merge(
       defaultConfig as any,
       customConfig as any

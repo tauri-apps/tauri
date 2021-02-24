@@ -5,8 +5,6 @@ module.exports = {
   entry: {
     'api/cli': './src/api/cli.ts',
     'api/init': './src/api/init.ts',
-    'api/recipes': './src/api/recipes/index.ts',
-    'api/recipes/install': './src/api/recipes/install.ts',
     'api/tauricon': './src/api/tauricon.ts',
     'api/info': './src/api/info.ts',
     'api/dependency-manager': './src/api/dependency-manager/index.ts',

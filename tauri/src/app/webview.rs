@@ -147,6 +147,12 @@ pub trait WebviewBuilderExt: Sized {
   /// Whether the window should always be on top of other windows.
   fn always_on_top(self, always_on_top: bool) -> Self;
 
+  /// Sets the window icon.
+  fn icon(self, icon: Icon) -> crate::Result<Self>;
+
+  /// Whether the icon was set or not.
+  fn has_icon(&self) -> bool;
+
   /// Builds the webview instance.
   fn finish(self) -> crate::Result<Self::Webview>;
 }

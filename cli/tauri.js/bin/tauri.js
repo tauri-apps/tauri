@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const cmds = ['create', 'init', 'help', 'icon', 'info', 'deps']
+const cmds = ['init', 'help', 'icon', 'info', 'deps']
 const rustCliCmds = ['dev', 'build']
 
 const cmd = process.argv[2]
@@ -57,7 +57,7 @@ const tauri = function (command) {
     }
     console.log(`[tauri]: running ${command}`)
     // eslint-disable-next-line security/detect-non-literal-require
-    if (['create', 'init'].includes(command)) {
+    if (['init'].includes(command)) {
       require(`./tauri-${command}`)(process.argv.slice(2))
     } else {
       require(`./tauri-${command}`)

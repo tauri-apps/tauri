@@ -1,5 +1,5 @@
 import { invoke } from './tauri'
-import { EventCallback, emit, listen } from './helpers/event'
+import { EventCallback, emit, listen, once } from './helpers/event'
 
 interface WindowDef {
   label: string
@@ -33,14 +33,25 @@ class TauriWindow {
    *
    * @param event the event name
    * @param handler the event handler callback
-   * @param once unlisten after the first trigger if true
    */
   async listen<T>(
     event: string,
-    handler: EventCallback<T>,
-    once = false
+    handler: EventCallback<T>
   ): Promise<void> {
-    return listen(event, handler, once)
+    return listen(event, handler)
+  }
+
+  /**
+   * Listen to an one-off event emitted by the webview
+   *
+   * @param event the event name
+   * @param handler the event handler callback
+   */
+  async once<T>(
+    event: string,
+    handler: EventCallback<T>
+  ): Promise<void> {
+    return once(event, handler)
   }
 
   /**

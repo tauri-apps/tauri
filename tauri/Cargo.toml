@@ -28,8 +28,8 @@ tokio = { version = "1.2", features = ["rt", "rt-multi-thread", "sync"] }
 futures = "0.3"
 async-trait = "0.1"
 uuid = { version = "0.8.2", features = [ "v4" ] }
-thiserror = "1.0.23"
-once_cell = "1.5.2"
+thiserror = "1.0.24"
+once_cell = "1.7.0"
 tauri-api = { version = "0.7.5", path = "../tauri-api" }
 tauri-macros = { version = "0.1", path = "../tauri-macros" }
 wry = { git = "https://github.com/tauri-apps/wry", rev = "e0b63d2d9179e4f79ff57affc59338372cefae8b" }

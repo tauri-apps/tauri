@@ -118,27 +118,23 @@ if (!String.prototype.startsWith) {
 
       if (window.__TAURI_INVOKE_HANDLER__) {
         window.__TAURI_INVOKE_HANDLER__(
-          JSON.stringify(
+          _objectSpread(
+            {
+              callback: callback,
+              error: error,
+            },
+            args
+          )
+        );
+      } else {
+        window.addEventListener("DOMContentLoaded", function () {
+          window.__TAURI_INVOKE_HANDLER__(
             _objectSpread(
               {
                 callback: callback,
                 error: error,
               },
               args
-            )
-          )
-        );
-      } else {
-        window.addEventListener("DOMContentLoaded", function () {
-          window.__TAURI_INVOKE_HANDLER__(
-            JSON.stringify(
-              _objectSpread(
-                {
-                  callback: callback,
-                  error: error,
-                },
-                args
-              )
             )
           );
         });

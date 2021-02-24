@@ -7,7 +7,7 @@ use crate::{
     config::WindowUrl,
     rpc::{format_callback, format_callback_result},
   },
-  app::InvokeResponse,
+  app::{Icon, InvokeResponse},
   ApplicationExt, WebviewBuilderExt,
 };
 
@@ -33,6 +33,7 @@ struct Message {
 
 // setup content for dev-server
 #[cfg(dev)]
+#[allow(clippy::unnecessary_wraps)]
 pub(super) fn get_url(context: &Context) -> crate::Result<String> {
   let config = &context.config;
   if config.build.dev_path.starts_with("http") {
@@ -81,6 +82,7 @@ pub(super) fn get_url(context: &Context) -> crate::Result<String> {
 }
 
 #[cfg(custom_protocol)]
+#[allow(clippy::unnecessary_wraps)]
 pub(super) fn get_url(_: &Context) -> crate::Result<String> {
   // Custom protocol doesn't require any setup, so just return URL
   Ok("tauri://index.html".into())
@@ -176,8 +178,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
   content_url: &str,
   window_labels: &[String],
   plugin_initialization_script: &str,
-  tauri_script: &str,
-  assets: &'static Assets,
+  context: &Context,
 ) -> crate::Result<BuiltWebview<A>> {
   // TODO let debug = cfg!(debug_assertions);
   let webview_url = match &webview.url {
@@ -186,8 +187,8 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
   };
 
   let (webview_builder, callbacks, custom_protocol) = if webview.url == WindowUrl::App {
-    let webview_builder = webview.builder.url(webview_url)
-        .initialization_script(&initialization_script(plugin_initialization_script, tauri_script))
+    let mut webview_builder = webview.builder.url(webview_url)
+        .initialization_script(&initialization_script(plugin_initialization_script, &context.tauri_script))
         .initialization_script(&format!(
           r#"
               window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
@@ -198,13 +199,19 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
           current_window_label = webview.label,
         ));
 
+    if !webview_builder.has_icon() {
+      if let Some(default_window_icon) = &context.default_window_icon {
+        webview_builder = webview_builder.icon(Icon::Raw(default_window_icon.to_vec()))?;
+      }
+    }
+
     let webview_manager_ = webview_manager.clone();
     let tauri_invoke_handler = crate::Callback::<A::Dispatcher> {
       name: "__TAURI_INVOKE_HANDLER__".to_string(),
-      function: Box::new(move |_, _, arg| {
-        let arg = arg.into_iter().next().unwrap_or_else(String::new);
+      function: Box::new(move |_, arg| {
+        let arg = arg.into_iter().next().unwrap_or(JsonValue::Null);
         let webview_manager = webview_manager_.clone();
-        match serde_json::from_str::<Message>(&arg) {
+        match serde_json::from_value::<Message>(arg) {
           Ok(message) => {
             let application = application.clone();
             let callback = message.callback.to_string();
@@ -244,9 +251,9 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
             }
           }
         }
-        0
       }),
     };
+    let assets = context.assets;
     let custom_protocol = CustomProtocol {
       name: "tauri".into(),
       handler: Box::new(move |path| {

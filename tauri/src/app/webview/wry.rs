@@ -8,18 +8,18 @@ use once_cell::sync::Lazy;
 use crate::plugin::PluginStore;
 
 use std::{
-  convert::TryInto,
+  convert::{TryFrom, TryInto},
   sync::{Arc, Mutex},
 };
 
-impl TryInto<wry::Icon> for Icon {
+impl TryFrom<Icon> for wry::Icon {
   type Error = crate::Error;
-  fn try_into(self) -> Result<wry::Icon, Self::Error> {
-    let icon = match self {
-      Self::File(path) => {
+  fn try_from(icon: Icon) -> Result<Self, Self::Error> {
+    let icon = match icon {
+      Icon::File(path) => {
         wry::Icon::from_file(path).map_err(|e| crate::Error::InvalidIcon(e.to_string()))?
       }
-      Self::Raw(raw) => {
+      Icon::Raw(raw) => {
         wry::Icon::from_bytes(raw).map_err(|e| crate::Error::InvalidIcon(e.to_string()))?
       }
     };
@@ -163,6 +163,15 @@ impl WebviewBuilderExt for wry::Attributes {
     self
   }
 
+  fn icon(mut self, icon: Icon) -> crate::Result<Self> {
+    self.icon = Some(icon.try_into()?);
+    Ok(self)
+  }
+
+  fn has_icon(&self) -> bool {
+    self.icon.is_some()
+  }
+
   fn finish(self) -> crate::Result<Self::Webview> {
     Ok(self)
   }
@@ -189,11 +198,10 @@ impl ApplicationDispatcherExt for WryDispatcher {
       let app_dispatcher = app_dispatcher.clone();
       let callback = wry::Callback {
         name: callback.name.to_string(),
-        function: Box::new(move |dispatcher, seq, req| {
+        function: Box::new(move |dispatcher, _, req| {
           (callback.function)(
             Self(Arc::new(Mutex::new(dispatcher)), app_dispatcher.clone()),
-            seq,
-            req.iter().map(|v| v.to_string()).collect(),
+            req,
           );
           Ok(())
         }),
@@ -451,11 +459,10 @@ impl ApplicationExt for WryApplication {
       let app_dispatcher = app_dispatcher.clone();
       let callback = wry::Callback {
         name: callback.name.to_string(),
-        function: Box::new(move |dispatcher, seq, req| {
+        function: Box::new(move |dispatcher, _, req| {
           (callback.function)(
             WryDispatcher(Arc::new(Mutex::new(dispatcher)), app_dispatcher.clone()),
-            seq,
-            req.iter().map(|v| v.to_string()).collect(),
+            req,
           );
           Ok(())
         }),

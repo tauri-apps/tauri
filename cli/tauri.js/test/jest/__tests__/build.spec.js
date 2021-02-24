@@ -15,7 +15,7 @@ function runBuildTest(args) {
         success = true
         try {
           process.kill(appPid)
-        } catch { }
+        } catch {}
         // wait for the app process to be killed
         setTimeout(resolve, 2000)
       })
@@ -32,9 +32,9 @@ function runBuildTest(args) {
         process.platform === 'win32'
           ? `${artifactPath}.exe`
           : artifactPath.replace(
-            `${artifactFolder}/app`,
-            `${artifactFolder}/./app`
-          ),
+              `${artifactFolder}/app`,
+              `${artifactFolder}/./app`
+            ),
         [],
         null
       )
@@ -44,7 +44,7 @@ function runBuildTest(args) {
           server.close(() => {
             try {
               process.kill(appPid)
-            } catch { }
+            } catch {}
             const failedCommands = Object.keys(responses)
               .filter((k) => responses[k] === null)
               .join(', ')

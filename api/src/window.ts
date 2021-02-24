@@ -14,18 +14,24 @@ declare global {
   }
 }
 
-function getCurrentWindow(): WindowDef {
-  return window.__TAURI__.__currentWindow
+function getCurrent(): WebviewWindowHandle {
+  return new WebviewWindowHandle(window.__TAURI__.__currentWindow.label)
 }
 
-function getWindows(): WindowDef[] {
+function getAll(): WindowDef[] {
   return window.__TAURI__.__windows
 }
 
-class TauriWindow {
+// events that are emitted right here instead of by the created webview
+const localTauriEvents = ['tauri://created', 'tauri://error']
+
+class WebviewWindowHandle {
   label: string
+  listeners: { [key: string]: Array<EventCallback<any>> }
+
   constructor(label: string) {
     this.label = label
+    this.listeners = {}
   }
 
   /**
@@ -35,6 +41,9 @@ class TauriWindow {
    * @param handler the event handler callback
    */
   async listen<T>(event: string, handler: EventCallback<T>): Promise<void> {
+    if (this._handleTauriEvent(event, handler)) {
+      return Promise.resolve()
+    }
     return listen(event, handler)
   }
 
@@ -45,6 +54,9 @@ class TauriWindow {
    * @param handler the event handler callback
    */
   async once<T>(event: string, handler: EventCallback<T>): Promise<void> {
+    if (this._handleTauriEvent(event, handler)) {
+      return Promise.resolve()
+    }
     return once(event, handler)
   }
 
@@ -55,16 +67,61 @@ class TauriWindow {
    * @param [payload] the event payload
    */
   async emit(event: string, payload?: string): Promise<void> {
+    if (localTauriEvents.includes(event)) {
+      // eslint-disable-next-line
+      for (const handler of this.listeners[event] || []) {
+        handler({ type: event, payload })
+      }
+      return Promise.resolve()
+    }
     return emit(event, this.label, payload)
   }
+
+  _handleTauriEvent<T>(event: string, handler: EventCallback<T>): boolean {
+    if (localTauriEvents.includes(event)) {
+      if (!(event in this.listeners)) {
+        // eslint-disable-next-line
+        this.listeners[event] = [handler]
+      } else {
+        // eslint-disable-next-line
+        this.listeners[event].push(handler)
+      }
+      return true
+    }
+    return false
+  }
+
+  _emitTauriEvent(event: string): void { }
 }
 
-function getTauriWindow(
-  label: string = getCurrentWindow().label
-): TauriWindow | null {
-  if (getWindows().some((w) => w.label === label)) {
-    return new TauriWindow(label)
-  } else {
+class WebviewWindow extends WebviewWindowHandle {
+  constructor(label: string, options: WindowOptions = {}) {
+    super(label)
+    invoke({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'createWebview',
+        options: {
+          label,
+          ...options
+        }
+      }
+    })
+      .then(async () => this.emit('tauri://created'))
+      .catch(async (e) => this.emit('tauri://error', e))
+  }
+
+  /**
+   * Gets the WebviewWindow handle for the webview associated with the given label.
+   *
+   * @param {string} label the webview window label.
+   *
+   * @return {WebviewWindowHandle} the handle to communicate with the webview or null if the webview doesn't exist
+   */
+  static getByLabel(label: string): WebviewWindowHandle | null {
+    if (getAll().some((w) => w.label === label)) {
+      return new WebviewWindowHandle(label)
+    }
     return null
   }
 }
@@ -396,28 +453,4 @@ export interface WindowOptions {
   alwaysOnTop?: boolean
 }
 
-async function createWindow(
-  label: string,
-  options: WindowOptions = {}
-): Promise<TauriWindow> {
-  await invoke({
-    __tauriModule: 'Window',
-    message: {
-      cmd: 'createWebview',
-      options: {
-        label,
-        ...options
-      }
-    }
-  })
-  return new TauriWindow(label)
-}
-
-export {
-  TauriWindow,
-  getTauriWindow,
-  getCurrentWindow,
-  getWindows,
-  manager,
-  createWindow
-}
+export { WebviewWindow, getCurrent, getAll, manager }

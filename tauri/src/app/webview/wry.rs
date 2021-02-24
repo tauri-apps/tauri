@@ -197,7 +197,7 @@ impl ApplicationDispatcherExt for WryDispatcher {
       let app_dispatcher = app_dispatcher.clone();
       let callback = wry::Callback {
         name: callback.name.to_string(),
-        function: Box::new(move |dispatcher, seq, req| {
+        function: Box::new(move |dispatcher, _, req| {
           (callback.function)(
             Self(Arc::new(Mutex::new(dispatcher)), app_dispatcher.clone()),
             req,
@@ -449,7 +449,7 @@ impl ApplicationExt for WryApplication {
       let app_dispatcher = app_dispatcher.clone();
       let callback = wry::Callback {
         name: callback.name.to_string(),
-        function: Box::new(move |dispatcher, seq, req| {
+        function: Box::new(move |dispatcher, _, req| {
           (callback.function)(
             WryDispatcher(Arc::new(Mutex::new(dispatcher)), app_dispatcher.clone()),
             req,

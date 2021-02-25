@@ -232,11 +232,11 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
       name: "tauri".into(),
       handler: Box::new(move |path| {
         let mut path = path.to_string().replace("tauri://", "");
-        if path.ends_with("/") {
+        if path.ends_with('/') {
           path.pop();
         }
         let path =
-          if let Some((first, components)) = path.split("/").collect::<Vec<&str>>().split_first() {
+          if let Some((first, components)) = path.split('/').collect::<Vec<&str>>().split_first() {
             match components.len() {
               0 => first.to_string(),
               _ => components.join("/"),

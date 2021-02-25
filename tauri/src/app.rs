@@ -273,7 +273,7 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<A, C> {
       crate::async_runtime::block_on(crate::plugin::initialization_script(A::plugin_store()));
 
     let context = Context::new::<C>()?;
-    let url = utils::get_url(&context)?;
+    let url = utils::get_url(&context);
 
     Ok(App {
       invoke_handler: self.invoke_handler,

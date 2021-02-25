@@ -471,7 +471,7 @@ impl ApplicationExt for WryApplication {
 
     let dispatcher = self
       .inner
-      .add_window(
+      .add_window_with_configs(
         webview_builder.finish()?,
         Some(wry_callbacks),
         custom_protocol.map(|p| wry::CustomProtocol {

@@ -234,6 +234,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
         let path = path.to_string();
         #[cfg(target_os = "macos")]
         let path = path.replace("tauri://", "");
+        #[cfg(target_os = "macos")]
         let path = match path.as_str() {
           "index.html" => path,
           _ => path.chars().skip("index.html/".len()).collect::<String>(),
@@ -241,7 +242,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
 
         let asset_response = assets
           .get(&Assets::format_key(&path), AssetFetch::Decompress)
-          .ok_or_else(|| crate::Error::AssetNotFound(path.to_string()))
+          .ok_or_else(|| crate::Error::AssetNotFound(path))
           .and_then(|(read, _)| {
             read
               .bytes()

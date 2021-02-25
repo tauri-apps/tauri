@@ -242,7 +242,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
 
         let asset_response = assets
           .get(&Assets::format_key(&path), AssetFetch::Decompress)
-          .ok_or_else(|| crate::Error::AssetNotFound(path))
+          .ok_or(crate::Error::AssetNotFound(path))
           .and_then(|(read, _)| {
             read
               .bytes()

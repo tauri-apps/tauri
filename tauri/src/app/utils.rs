@@ -231,23 +231,31 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
     let custom_protocol = CustomProtocol {
       name: "tauri".into(),
       handler: Box::new(move |path| {
-        assets
-          .get(
-            &Assets::format_key(
-              #[cfg(target_os = "macos")]
-              path.replace("tauri://", ""),
-              #[cfg(not(target_os = "macos"))]
-              path,
-            ),
-            AssetFetch::Decompress,
-          )
+        let path = path.to_string();
+        #[cfg(target_os = "macos")]
+        let path = path.replace("tauri://", "");
+        let path = match path.as_str() {
+          "index.html" => path,
+          _ => path.chars().skip("index.html/".len()).collect::<String>(),
+        };
+
+        let asset_response = assets
+          .get(&Assets::format_key(&path), AssetFetch::Decompress)
           .ok_or_else(|| crate::Error::AssetNotFound(path.to_string()))
           .and_then(|(read, _)| {
             read
               .bytes()
               .collect::<Result<Vec<u8>, _>>()
               .map_err(Into::into)
-          })
+          });
+        match asset_response {
+          Ok(asset) => Ok(asset),
+          Err(e) => {
+            #[cfg(debug_assertions)]
+            eprintln!("{:?}", e); // TODO log::error!
+            Err(e)
+          }
+        }
       }),
     };
     (

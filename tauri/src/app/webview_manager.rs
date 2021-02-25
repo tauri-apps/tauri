@@ -96,11 +96,6 @@ impl<A: ApplicationDispatcherExt> WebviewDispatcher<A> {
     self.dispatcher.hide()
   }
 
-  /// Sets the window transparent flag.
-  pub fn set_transparent(&self, transparent: bool) -> crate::Result<()> {
-    self.dispatcher.set_transparent(transparent)
-  }
-
   /// Whether the window should have borders and bars.
   pub fn set_decorations(&self, decorations: bool) -> crate::Result<()> {
     self.dispatcher.set_decorations(decorations)

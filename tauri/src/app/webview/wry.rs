@@ -300,15 +300,6 @@ impl ApplicationDispatcherExt for WryDispatcher {
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
-  fn set_transparent(&self, transparent: bool) -> crate::Result<()> {
-    self
-      .0
-      .lock()
-      .unwrap()
-      .set_transparent(transparent)
-      .map_err(|_| crate::Error::FailedToSendMessage)
-  }
-
   fn set_decorations(&self, decorations: bool) -> crate::Result<()> {
     self
       .0

@@ -34,8 +34,6 @@ pub enum Message {
   Show,
   /// Hides the window.
   Hide,
-  /// Updates the transparency flag.
-  SetTransparent(bool),
   /// Updates the hasDecorations flag.
   SetDecorations(bool),
   /// Updates the window alwaysOnTop flag.
@@ -214,9 +212,6 @@ pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
 
   /// Hides the window.
   fn hide(&self) -> crate::Result<()>;
-
-  /// Updates the transparency flag.
-  fn set_transparent(&self, resizable: bool) -> crate::Result<()>;
 
   /// Updates the hasDecorations flag.
   fn set_decorations(&self, decorations: bool) -> crate::Result<()>;

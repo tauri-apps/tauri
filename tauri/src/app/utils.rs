@@ -32,13 +32,12 @@ struct Message {
 
 // setup content for dev-server
 #[cfg(dev)]
-#[allow(clippy::unnecessary_wraps)]
-pub(super) fn get_url(context: &Context) -> crate::Result<String> {
+pub(super) fn get_url(context: &Context) -> String {
   let config = &context.config;
   if config.build.dev_path.starts_with("http") {
-    Ok(config.build.dev_path.clone())
+    config.build.dev_path.clone()
   } else {
-    Ok(format!(
+    format!(
       "data:text/html;base64,{}",
       base64::encode(
         context
@@ -53,15 +52,14 @@ pub(super) fn get_url(context: &Context) -> crate::Result<String> {
           })
           .expect("Unable to find `index.html` under your devPath folder")
       )
-    ))
+    )
   }
 }
 
 #[cfg(custom_protocol)]
-#[allow(clippy::unnecessary_wraps)]
-pub(super) fn get_url(_: &Context) -> crate::Result<String> {
+pub(super) fn get_url(_: &Context) -> String {
   // Custom protocol doesn't require any setup, so just return URL
-  Ok("tauri://index.html".into())
+  "tauri://index.html".into()
 }
 
 // spawn an updater process.
@@ -341,20 +339,13 @@ mod test {
   fn check_get_url() {
     let context = Context::new::<TauriContext>().unwrap();
     let res = super::get_url(&context);
-
     #[cfg(custom_protocol)]
-    match res {
-      Ok(u) => assert!(u == "tauri://index.html"),
-      _ => panic!("setup content failed"),
-    }
+    assert!(res == "tauri://index.html");
 
     #[cfg(dev)]
     {
       let config = &context.config;
-      match res {
-        Ok(u) => assert_eq!(u, config.build.dev_path),
-        _ => panic!("setup content failed"),
-      }
+      assert_eq!(res, config.build.dev_path);
     }
   }
 }

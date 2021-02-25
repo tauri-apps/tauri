@@ -14,9 +14,6 @@ mod settings;
 #[cfg(target_os = "windows")]
 mod wix;
 
-#[cfg(windows)]
-use std::process::Command;
-
 pub use self::{
   category::AppCategory,
   common::{print_error, print_info},

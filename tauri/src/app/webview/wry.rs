@@ -213,7 +213,7 @@ impl ApplicationDispatcherExt for WryDispatcher {
       .1
       .lock()
       .unwrap()
-      .add_window(
+      .add_window_with_configs(
         attributes,
         Some(wry_callbacks),
         custom_protocol.map(|p| wry::CustomProtocol {

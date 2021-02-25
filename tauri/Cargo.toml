@@ -31,7 +31,7 @@ thiserror = "1.0.24"
 once_cell = "1.7.0"
 tauri-api = { version = "0.7.5", path = "../tauri-api" }
 tauri-macros = { version = "0.1", path = "../tauri-macros" }
-wry = { git = "https://github.com/tauri-apps/wry", rev = "32ee93e045370131a79d328fd4c1eb811869775e" }
+wry = { git = "https://github.com/tauri-apps/wry", rev = "0611ccbf74a88f43a1eb6e56275591d7b4461aa7" }
 rand = "0.8"
 
 [target."cfg(target_os = \"windows\")".dependencies]

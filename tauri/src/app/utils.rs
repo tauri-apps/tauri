@@ -232,7 +232,15 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
       name: "tauri".into(),
       handler: Box::new(move |path| {
         assets
-          .get(&Assets::format_key(path), AssetFetch::Decompress)
+          .get(
+            &Assets::format_key(
+              #[cfg(target_os = "macos")]
+              path.replace("tauri://", ""),
+              #[cfg(not(target_os = "macos"))]
+              path,
+            ),
+            AssetFetch::Decompress,
+          )
           .ok_or_else(|| crate::Error::AssetNotFound(path.to_string()))
           .and_then(|(read, _)| {
             read

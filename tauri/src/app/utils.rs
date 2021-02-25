@@ -36,29 +36,6 @@ struct Message {
 pub(super) fn get_url(context: &Context) -> crate::Result<String> {
   let config = &context.config;
   if config.build.dev_path.starts_with("http") {
-    #[cfg(windows)]
-    {
-      let exempt_output = std::process::Command::new("CheckNetIsolation")
-        .args(&vec!["LoopbackExempt", "-s"])
-        .output()
-        .expect("failed to read LoopbackExempt -s");
-
-      if !exempt_output.status.success() {
-        panic!("Failed to execute CheckNetIsolation LoopbackExempt -s");
-      }
-
-      let output_str = String::from_utf8_lossy(&exempt_output.stdout).to_lowercase();
-      if !output_str.contains("win32webviewhost_cw5n1h2txyewy") {
-        println!("Running Loopback command");
-        runas::Command::new("powershell")
-          .args(&[
-            "CheckNetIsolation LoopbackExempt -a -n=\"Microsoft.Win32WebViewHost_cw5n1h2txyewy\"",
-          ])
-          .force_prompt(true)
-          .status()
-          .expect("failed to run Loopback command");
-      }
-    }
     Ok(config.build.dev_path.clone())
   } else {
     Ok(format!(

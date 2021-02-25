@@ -234,9 +234,9 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
         let path = path.to_string();
         #[cfg(target_os = "macos")]
         let path = path.replace("tauri://", "");
-        #[cfg(target_os = "macos")]
+        #[cfg(any(target_os = "macos", target_os = "windows"))]
         let path = match path.as_str() {
-          "index.html" => path,
+          "index.html" | "index.html/" => "index.html".to_string(),
           _ => path.chars().skip("index.html/".len()).collect::<String>(),
         };
 

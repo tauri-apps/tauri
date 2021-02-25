@@ -476,8 +476,7 @@ impl ApplicationExt for WryApplication {
         Some(wry_callbacks),
         custom_protocol.map(|p| wry::CustomProtocol {
           name: p.name.clone(),
-          // TODO: Map error type instead of unwraping
-          handler: Box::new(move |a| Ok((*p.handler)(a).unwrap())),
+          handler: Box::new(move |a| (*p.handler)(a).map_err(|_| wry::Error::InitScriptError)),
         }),
       )
       .map_err(|_| crate::Error::CreateWebview)?;

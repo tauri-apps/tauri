@@ -231,14 +231,19 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
     let custom_protocol = CustomProtocol {
       name: "tauri".into(),
       handler: Box::new(move |path| {
-        let path = path.to_string();
-        #[cfg(target_os = "macos")]
-        let path = path.replace("tauri://", "");
-        #[cfg(any(target_os = "macos", target_os = "windows"))]
-        let path = match path.as_str() {
-          "index.html" | "index.html/" => "index.html".to_string(),
-          _ => path.chars().skip("index.html/".len()).collect::<String>(),
-        };
+        let mut path = path.to_string().replace("tauri://", "");
+        if path.ends_with("/") {
+          path.pop();
+        }
+        let path =
+          if let Some((first, components)) = path.split("/").collect::<Vec<&str>>().split_first() {
+            match components.len() {
+              0 => first.to_string(),
+              _ => components.join("/"),
+            }
+          } else {
+            path
+          };
 
         let asset_response = assets
           .get(&Assets::format_key(&path), AssetFetch::Decompress)

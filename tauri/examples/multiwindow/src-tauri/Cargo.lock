@@ -3421,7 +3421,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.5.1"
-source = "git+https://github.com/tauri-apps/wry?rev=42af38aed6b002f09176d564a8220144cc49aad7#42af38aed6b002f09176d564a8220144cc49aad7"
+source = "git+https://github.com/tauri-apps/wry?rev=0d7bec7beb4a58e82895f26032230fd93ef9f4dd#0d7bec7beb4a58e82895f26032230fd93ef9f4dd"
 dependencies = [
  "cairo-rs",
  "cocoa",

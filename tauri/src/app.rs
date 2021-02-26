@@ -67,7 +67,8 @@ impl<T: Serialize> From<T> for InvokeResponse {
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub struct DispatchInstructions {
   pub cmd: String,
-  pub args: String,
+  #[serde(flatten)]
+  pub args: JsonValue,
 }
 
 /// The application runner.

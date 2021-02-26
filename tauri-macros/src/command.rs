@@ -33,13 +33,13 @@ pub fn generate_command(_attrs: Vec<Attribute>, function: ItemFn) -> TokenStream
   let ident_wrapper = format_ident!("{}_wrapper", ident);
   let gen = quote! {
     #function
-    fn #ident_wrapper (arg: String) -> Option<tauri::InvokeResponse> {
+    fn #ident_wrapper (arg: serde_json::Value) -> Option<tauri::InvokeResponse> {
       #[derive(Deserialize)]
       #[serde(rename_all = "camelCase")]
       struct ParsedArgs {
         #(#names: #types),*
       }
-      let parsed_args: ParsedArgs = serde_json::from_str(&arg).unwrap();
+      let parsed_args: ParsedArgs = serde_json::from_value(arg).unwrap();
       Some(#ident(#(parsed_args.#names),*).into())
     }
   };

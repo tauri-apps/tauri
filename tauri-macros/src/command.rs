@@ -30,16 +30,9 @@ pub fn generate_command(_attrs: Vec<Attribute>, function: ItemFn) -> TokenStream
       (arg_name.unwrap(), arg_type.unwrap())
     })
     .unzip();
-  let ident_arg_types = format_ident!("{}_arg_types", ident);
   let ident_wrapper = format_ident!("{}_wrapper", ident);
   let gen = quote! {
     #function
-    #[allow(non_camel_case_types)]
-    #[derive(Deserialize)]
-    #[serde(rename_all = "camelCase")]
-    struct #ident_arg_types {
-      #(#names: #types),*
-    }
     fn #ident_wrapper (arg: String) -> Option<tauri::InvokeResponse> {
       #[derive(Deserialize)]
       #[serde(rename_all = "camelCase")]

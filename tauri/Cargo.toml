@@ -97,11 +97,3 @@ notification-all = [ "tauri-api/notification" ]
 
 # global shortcut
 global-shortcut-all = [ "tauri-api/global-shortcut" ]
-
-[[example]]
-name = "helloworld"
-path = "examples/helloworld/src-tauri/src/main.rs"
-
-[[example]]
-name = "multiwindow"
-path = "examples/multiwindow/src-tauri/src/main.rs"

@@ -770,15 +770,15 @@ mod build {
       let min_values = opt_lit(self.min_values.as_ref());
       let max_values = opt_lit(self.max_values.as_ref());
       let required = opt_lit(self.required.as_ref());
-      let required_unless = opt_str_lit(self.required_unless.as_ref());
-      let required_unless_all = opt_vec_str_lit(self.required_unless_all.as_ref());
-      let required_unless_one = opt_vec_str_lit(self.required_unless_one.as_ref());
+      let required_unless_present = opt_str_lit(self.required_unless_present.as_ref());
+      let required_unless_present_all = opt_vec_str_lit(self.required_unless_present_all.as_ref());
+      let required_unless_present_any = opt_vec_str_lit(self.required_unless_present_any.as_ref());
       let conflicts_with = opt_str_lit(self.conflicts_with.as_ref());
       let conflicts_with_all = opt_vec_str_lit(self.conflicts_with_all.as_ref());
       let requires = opt_str_lit(self.requires.as_ref());
       let requires_all = opt_vec_str_lit(self.requires_all.as_ref());
       let requires_if = opt_vec_str_lit(self.requires_if.as_ref());
-      let required_if = opt_vec_str_lit(self.required_if.as_ref());
+      let required_if_eq = opt_vec_str_lit(self.required_if_eq.as_ref());
       let require_equals = opt_lit(self.require_equals.as_ref());
       let index = opt_lit(self.index.as_ref());
 
@@ -797,15 +797,15 @@ mod build {
         min_values,
         max_values,
         required,
-        required_unless,
-        required_unless_all,
-        required_unless_one,
+        required_unless_present,
+        required_unless_present_all,
+        required_unless_present_any,
         conflicts_with,
         conflicts_with_all,
         requires,
         requires_all,
         requires_if,
-        required_if,
+        required_if_eq,
         require_equals,
         index
       );

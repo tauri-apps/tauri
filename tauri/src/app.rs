@@ -1,9 +1,11 @@
 use futures::future::BoxFuture;
+use serde::Serialize;
+use serde_json::Value as JsonValue;
 use tauri_api::{config::Config, private::AsTauriContext};
 
 use crate::async_runtime::Mutex;
 
-use std::{collections::HashMap, marker::PhantomData, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 pub(crate) mod event;
 mod utils;
@@ -190,7 +192,6 @@ pub struct AppBuilder<A: ApplicationExt> {
   invoke_handler: Option<Box<InvokeHandler<A>>>,
   /// The setup callback, invoked when the webview is ready.
   setup: Option<Box<Setup<A>>>,
-  config: PhantomData<C>,
   /// The webview dispatchers.
   dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A::Dispatcher>>>>,
   /// The created webviews.
@@ -203,7 +204,6 @@ impl<A: ApplicationExt + 'static> AppBuilder<A> {
     Self {
       invoke_handler: None,
       setup: None,
-      config: Default::default(),
       dispatchers: Default::default(),
       webviews: Default::default(),
     }
@@ -263,12 +263,12 @@ impl<A: ApplicationExt + 'static> AppBuilder<A> {
   }
 
   /// Builds the App.
-  pub fn build(self) -> crate::Result<App<A>> {
+  pub fn build(self, context: impl AsTauriContext) -> crate::Result<App<A>> {
     let window_labels: Vec<String> = self.webviews.iter().map(|w| w.label.to_string()).collect();
     let plugin_initialization_script =
       crate::async_runtime::block_on(crate::plugin::initialization_script(A::plugin_store()));
 
-    let context = Context::new::<C>()?;
+    let context = Context::new(context);
     let url = utils::get_url(&context)?;
 
     Ok(App {

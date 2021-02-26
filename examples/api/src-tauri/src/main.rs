@@ -12,11 +12,10 @@ struct Reply {
   data: String,
 }
 
-#[derive(tauri::FromTauriContext)]
-struct Context;
-
 fn main() {
-  tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
+  let context = tauri::tauri_build_context!();
+
+  tauri::AppBuilder::<tauri::flavors::Wry>::new()
     .setup(|webview_manager| async move {
       let dispatcher = webview_manager.current_webview().await.unwrap();
       let dispatcher_ = dispatcher.clone();
@@ -47,7 +46,7 @@ fn main() {
         },
       }
     })
-    .build()
+    .build(context)
     .unwrap()
     .run();
 }

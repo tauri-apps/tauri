@@ -3,14 +3,12 @@
   windows_subsystem = "windows"
 )]
 
-#[derive(tauri::FromTauriContext)]
-#[config_path = "examples/multiwindow/src-tauri/tauri.conf.json"]
-struct Context;
-
 use tauri::WebviewBuilderExt;
 
 fn main() {
-  tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
+  let context = tauri::tauri_build_context!();
+
+  tauri::AppBuilder::<tauri::flavors::Wry>::new()
     .setup(|webview_manager| async move {
       if webview_manager.current_window_label() == "Main" {
         webview_manager.listen("clicked", move |_| {
@@ -28,7 +26,7 @@ fn main() {
       Ok(builder)
     })
     .unwrap()
-    .build()
+    .build(context)
     .unwrap()
     .run();
 }

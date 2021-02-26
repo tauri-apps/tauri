@@ -5,12 +5,10 @@
 
 mod cmd;
 
-#[derive(tauri::FromTauriContext)]
-#[config_path = "examples/helloworld/src-tauri/tauri.conf.json"]
-struct Context;
-
 fn main() {
-  tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
+  let context = tauri::tauri_build_context!();
+
+  tauri::AppBuilder::<tauri::flavors::Wry>::new()
     .invoke_handler(|_webview, arg| async move {
       use cmd::Cmd::*;
       match serde_json::from_str(&arg) {
@@ -27,7 +25,7 @@ fn main() {
         }
       }
     })
-    .build()
+    .build(context)
     .unwrap()
     .run();
 }

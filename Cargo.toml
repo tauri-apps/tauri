@@ -3,7 +3,16 @@ members = [
   "tauri",
   "tauri-api",
   "tauri-utils",
+
+  # examples
+  "examples/api/src-tauri",
+  "examples/helloworld/src-tauri",
+  "examples/multiwindow/src-tauri",
 ]
-exclude = [
-  "examples",
-]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+incremental = false
+opt-level = "z"

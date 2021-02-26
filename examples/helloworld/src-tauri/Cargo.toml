@@ -1,0 +1,19 @@
+[package]
+name = "helloworld"
+version = "0.1.0"
+description = "A very simple Tauri Appplication"
+edition = "2018"
+
+[build-dependencies]
+tauri = { path = "../../../tauri", features =[ "build" ]}
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = [ "derive" ] }
+tauri = { path = "../../../tauri", features =["api-all"]}
+
+[target."cfg(windows)".build-dependencies]
+winres = "0.1"
+
+[features]
+default = [ "tauri/embedded-server" ]

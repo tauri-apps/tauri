@@ -35,6 +35,15 @@ pub fn do_build(config_path: Option<PathBuf>) -> Result<(), Error> {
   // generate the assets into a perfect hash function
   let assets = generate_asset_map(&dist_dir)?;
 
+  let default_window_icon = if cfg!(windows) {
+    let icon_path = config_dir.join("./icons/icon.ico").display().to_string();
+    quote! {
+      Some(include_bytes!(#icon_path))
+    }
+  } else {
+    quote! { None }
+  };
+
   let tauri_script_path = dist_dir.join("__tauri.js");
 
   // format paths into a string to use them in quote!
@@ -68,6 +77,11 @@ pub fn do_build(config_path: Option<PathBuf>) -> Result<(), Error> {
         /// Make the __tauri.js a dependency for the compiler
         fn raw_tauri_script() -> &'static str {
           include_str!(#tauri_script_path)
+        }
+
+        /// Default window icon to set automatically if exists
+        fn default_window_icon() -> Option<&'static [u8]> {
+          #default_window_icon
         }
       }
 

@@ -188,22 +188,6 @@ pub enum Port {
   Random,
 }
 
-/// The embeddedServer configuration object.
-#[skip_serializing_none]
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct EmbeddedServerConfig {
-  /// The embedded server host.
-  pub host: Option<String>,
-  /// The embedded server port.
-  /// If it's `random`, we'll generate one at runtime.
-  pub port: Option<Port>,
-
-  /// The base path of the embedded server.
-  /// The path should always start and end in a forward slash, which the deserializer will ensure
-  pub public_path: Option<String>,
-}
-
 /// The window configuration object.
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
@@ -498,8 +482,6 @@ pub struct TauriConfig {
   pub windows: Vec<WindowConfig>,
   /// The CLI configuration.
   pub cli: Option<CliConfig>,
-  #[serde(default)]
-  pub embedded_server: EmbeddedServerConfig,
   /// The bundler configuration.
   #[serde(default)]
   pub bundle: BundleConfig,

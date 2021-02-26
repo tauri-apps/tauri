@@ -14,8 +14,8 @@ mod webview_manager;
 
 pub use crate::api::config::WindowUrl;
 pub use webview::{
-  wry::WryApplication, ApplicationDispatcherExt, ApplicationExt, Callback, Icon, Message,
-  WebviewBuilderExt,
+  wry::WryApplication, ApplicationDispatcherExt, ApplicationExt, Callback, CustomProtocol, Icon,
+  Message, WebviewBuilderExt,
 };
 pub use webview_manager::{WebviewDispatcher, WebviewManager};
 
@@ -133,6 +133,7 @@ trait WebviewInitializer<A: ApplicationExt> {
   ) -> crate::Result<(
     <A as ApplicationExt>::WebviewBuilder,
     Vec<Callback<A::Dispatcher>>,
+    Option<CustomProtocol>,
   )>;
 
   async fn on_webview_created(
@@ -151,6 +152,7 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
   ) -> crate::Result<(
     <A as ApplicationExt>::WebviewBuilder,
     Vec<Callback<A::Dispatcher>>,
+    Option<CustomProtocol>,
   )> {
     let webview_manager = WebviewManager::new(
       self.clone(),
@@ -271,7 +273,7 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<A, C> {
       crate::async_runtime::block_on(crate::plugin::initialization_script(A::plugin_store()));
 
     let context = Context::new::<C>()?;
-    let url = utils::get_url(&context)?;
+    let url = utils::get_url(&context);
 
     Ok(App {
       invoke_handler: self.invoke_handler,
@@ -292,9 +294,6 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
     crate::plugin::initialize(A::plugin_store(), plugin_config).await
   })?;
 
-  #[cfg(embedded_server)]
-  utils::spawn_server(application.url.to_string(), &application.context);
-
   let webviews = application.webviews.take().unwrap();
 
   let application = Arc::new(application);
@@ -307,10 +306,10 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
       application.dispatchers.clone(),
       webview_label.to_string(),
     );
-    let (webview_builder, callbacks) =
+    let (webview_builder, callbacks, custom_protocol) =
       crate::async_runtime::block_on(application.init_webview(webview))?;
 
-    let dispatcher = webview_app.create_webview(webview_builder, callbacks)?;
+    let dispatcher = webview_app.create_webview(webview_builder, callbacks, custom_protocol)?;
     crate::async_runtime::block_on(application.on_webview_created(
       webview_label,
       dispatcher,

@@ -96,11 +96,6 @@ impl<A: ApplicationDispatcherExt> WebviewDispatcher<A> {
     self.dispatcher.hide()
   }
 
-  /// Sets the window transparent flag.
-  pub fn set_transparent(&self, transparent: bool) -> crate::Result<()> {
-    self.dispatcher.set_transparent(transparent)
-  }
-
   /// Whether the window should have borders and bars.
   pub fn set_decorations(&self, decorations: bool) -> crate::Result<()> {
     self.dispatcher.set_decorations(decorations)
@@ -247,13 +242,14 @@ impl<A: ApplicationExt + 'static> WebviewManager<A> {
       .lock()
       .await
       .push(label.to_string());
-    let (webview_builder, callbacks) = self.application.init_webview(webview).await?;
+    let (webview_builder, callbacks, custom_protocol) =
+      self.application.init_webview(webview).await?;
 
-    let window_dispatcher = self
-      .current_webview()
-      .await?
-      .dispatcher
-      .create_webview(webview_builder, callbacks)?;
+    let window_dispatcher = self.current_webview().await?.dispatcher.create_webview(
+      webview_builder,
+      callbacks,
+      custom_protocol,
+    )?;
     let webview_manager = Self::new(
       self.application.clone(),
       self.dispatchers.clone(),

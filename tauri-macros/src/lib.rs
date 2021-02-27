@@ -1,6 +1,6 @@
 extern crate proc_macro;
 use proc_macro::TokenStream;
-use syn::{parse::Parser, parse_macro_input, Attribute, DeriveInput};
+use syn::{parse_macro_input, AttributeArgs, DeriveInput, ItemFn};
 
 mod command;
 mod error;
@@ -20,9 +20,9 @@ pub fn load_context(ast: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn command(attr: TokenStream, item: TokenStream) -> TokenStream {
-  let function: syn::ItemFn = syn::parse2(item.clone().into()).unwrap();
-  let attrs = Attribute::parse_outer.parse2(attr.into()).unwrap();
+pub fn command(attrs: TokenStream, item: TokenStream) -> TokenStream {
+  let function = parse_macro_input!(item as ItemFn);
+  let attrs = parse_macro_input!(attrs as AttributeArgs);
   let gen = command::generate_command(attrs, function);
   gen.into()
 }

@@ -1,8 +1,8 @@
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
-use syn::{parse::Parser, parse2, punctuated::Punctuated, Attribute, ItemFn, Path, Token};
+use syn::{parse::Parser, punctuated::Punctuated, ItemFn, NestedMeta, Path, Token};
 
-pub fn generate_command(_attrs: Vec<Attribute>, function: ItemFn) -> TokenStream {
+pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream {
   let ident = function.sig.ident.clone();
   let params = function.sig.inputs.clone();
   let (mut names, mut types): (Vec<syn::Ident>, Vec<syn::Path>) = params
@@ -36,9 +36,22 @@ pub fn generate_command(_attrs: Vec<Attribute>, function: ItemFn) -> TokenStream
   let mut webview_arg_type = quote!(tauri::WebviewManager<A>);
   let webview_arg = match types.first() {
     Some(first_type) => {
-      let webview_type = parse2::<Ident>(quote!(WebviewManager).into()).unwrap();
-      if first_type.segments.last().unwrap().ident == webview_type {
-        // Use specific WebviewManager defined by the function
+      // Check if "webview" attr was passed to macro
+      if attrs.iter().any(|a| {
+        if let syn::NestedMeta::Meta(meta) = a {
+          if let syn::Meta::Path(path) = meta {
+            path
+              .get_ident()
+              .map(|i| i.to_string() == "webview")
+              .unwrap_or(false)
+          } else {
+            false
+          }
+        } else {
+          false
+        }
+      }) {
+        // If the function takes the webview, give it a specific type
         webview_arg_type = quote!(#first_type);
         application_ext_generic = quote!();
         types.drain(0..1);

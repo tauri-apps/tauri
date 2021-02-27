@@ -1,11 +1,11 @@
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
-use syn::{parse::Parser, punctuated::Punctuated, Attribute, ItemFn, Path, Token};
+use syn::{parse::Parser, parse2, punctuated::Punctuated, Attribute, ItemFn, Path, Token};
 
 pub fn generate_command(_attrs: Vec<Attribute>, function: ItemFn) -> TokenStream {
   let ident = function.sig.ident.clone();
   let params = function.sig.inputs.clone();
-  let (names, types): (Vec<syn::Ident>, Vec<syn::Ident>) = params
+  let (mut names, mut types): (Vec<syn::Ident>, Vec<syn::Path>) = params
     .iter()
     .map(|param| {
       let mut arg_name = None;
@@ -20,7 +20,7 @@ pub fn generate_command(_attrs: Vec<Attribute>, function: ItemFn) -> TokenStream
           }
           match rec.ty.as_ref() {
             syn::Type::Path(path) => {
-              arg_type = Some(path.path.get_ident().unwrap().clone());
+              arg_type = Some(path.path.clone());
             }
             _ => (),
           }
@@ -30,17 +30,38 @@ pub fn generate_command(_attrs: Vec<Attribute>, function: ItemFn) -> TokenStream
       (arg_name.unwrap(), arg_type.unwrap())
     })
     .unzip();
+
+  // Default generic for functions that don't take the webview
+  let mut application_ext_generic = quote!(<A: tauri::ApplicationExt>);
+  let mut webview_arg_type = quote!(tauri::WebviewManager<A>);
+  let webview_arg = match types.first() {
+    Some(first_type) => {
+      let webview_type = parse2::<Ident>(quote!(WebviewManager).into()).unwrap();
+      if first_type.segments.last().unwrap().ident == webview_type {
+        // Use specific WebviewManager defined by the function
+        webview_arg_type = quote!(#first_type);
+        application_ext_generic = quote!();
+        types.drain(0..1);
+        names.drain(0..1);
+        quote!(_webview,)
+      } else {
+        quote!()
+      }
+    }
+    None => quote!(),
+  };
+
   let ident_wrapper = format_ident!("{}_wrapper", ident);
   let gen = quote! {
     #function
-    fn #ident_wrapper (arg: serde_json::Value) -> Option<tauri::InvokeResponse> {
+    fn #ident_wrapper #application_ext_generic(_webview: #webview_arg_type, arg: serde_json::Value) -> Option<tauri::InvokeResponse> {
       #[derive(Deserialize)]
       #[serde(rename_all = "camelCase")]
       struct ParsedArgs {
         #(#names: #types),*
       }
       let parsed_args: ParsedArgs = serde_json::from_value(arg).unwrap();
-      Some(#ident(#(parsed_args.#names),*).into())
+      Some(#ident(#webview_arg #(parsed_args.#names),*).into())
     }
   };
   gen
@@ -56,14 +77,14 @@ pub fn generate_handler(item: proc_macro::TokenStream) -> TokenStream {
     .collect();
   let funcs_wrapper = funcs.iter().map(|func| format_ident!("{}_wrapper", func));
   let gen = quote! {
-    |_webview, arg| async move {
+    |webview, arg| async move {
       let dispatch: Result<tauri::DispatchInstructions, serde_json::Error> =
       serde_json::from_str(&arg);
       match dispatch {
         Err(e) => Err(e.into()),
         Ok(dispatch) => {
           let res = match dispatch.cmd.as_str() {
-            #(stringify!(#funcs) => #funcs_wrapper(dispatch.args),)*
+            #(stringify!(#funcs) => #funcs_wrapper(webview, dispatch.args),)*
             _ => None,
           };
           Ok(res.unwrap_or(().into()))

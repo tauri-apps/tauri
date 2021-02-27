@@ -3,29 +3,17 @@
   windows_subsystem = "windows"
 )]
 
-mod cmd;
-
 #[derive(tauri::FromTauriContext)]
 struct Context;
 
+#[tauri::command]
+fn my_custom_command(argument: String) {
+  println!("{}", argument);
+}
+
 fn main() {
   tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
-    .invoke_handler(|_webview, arg| async move {
-      use cmd::Cmd::*;
-      match serde_json::from_str(&arg) {
-        Err(e) => Err(e.into()),
-        Ok(command) => {
-          match command {
-            // definitions for your custom commands from Cmd here
-            MyCustomCommand { argument } => {
-              //  your command code
-              println!("{}", argument);
-            }
-          }
-          Ok(().into())
-        }
-      }
-    })
+    .invoke_handler(tauri::generate_handler![my_custom_command])
     .build()
     .unwrap()
     .run();

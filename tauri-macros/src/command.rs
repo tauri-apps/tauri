@@ -1,4 +1,4 @@
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{parse::Parser, punctuated::Punctuated, ItemFn, NestedMeta, Path, Token};
 
@@ -67,7 +67,7 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
   let ident_wrapper = format_ident!("{}_wrapper", ident);
   let gen = quote! {
     #function
-    fn #ident_wrapper #application_ext_generic(_webview: #webview_arg_type, arg: serde_json::Value) -> Option<tauri::InvokeResponse> {
+    pub fn #ident_wrapper #application_ext_generic(_webview: #webview_arg_type, arg: serde_json::Value) -> Option<tauri::InvokeResponse> {
       #[derive(serde::Deserialize)]
       #[serde(rename_all = "camelCase")]
       struct ParsedArgs {
@@ -84,11 +84,15 @@ pub fn generate_handler(item: proc_macro::TokenStream) -> TokenStream {
   let paths = <Punctuated<Path, Token![,]>>::parse_terminated
     .parse(item)
     .unwrap();
-  let funcs: Vec<Ident> = paths
+  let funcs = paths
     .iter()
-    .map(|func| func.get_ident().unwrap().clone())
-    .collect();
-  let funcs_wrapper = funcs.iter().map(|func| format_ident!("{}_wrapper", func));
+    .map(|p| p.segments.last().unwrap().ident.clone());
+  let funcs_wrapper = paths.iter().map(|func| {
+    let mut func = func.clone();
+    let ident = format_ident!("{}_wrapper", func.segments.last().unwrap().ident);
+    func.segments.last_mut().unwrap().ident = ident;
+    func
+  });
   let gen = quote! {
     |webview, arg| async move {
       let dispatch: Result<tauri::DispatchInstructions, serde_json::Error> =

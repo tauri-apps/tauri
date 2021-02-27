@@ -1,8 +1,33 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{parse::Parser, punctuated::Punctuated, ItemFn, NestedMeta, Path, Token};
+use std::borrow::BorrowMut;
+use syn::{
+  parse::Parser, parse_quote, punctuated::Punctuated, FnArg, ItemFn, NestedMeta, Path, Token, Type,
+};
 
-pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream {
+pub fn generate_command(attrs: Vec<NestedMeta>, mut function: ItemFn) -> TokenStream {
+  // Check if "webview" attr was passed to macro
+  let uses_webview = attrs.iter().any(|a| {
+    if let syn::NestedMeta::Meta(syn::Meta::Path(path)) = a {
+      path
+        .get_ident()
+        .map(|i| *i == "with_webview")
+        .unwrap_or(false)
+    } else {
+      false
+    }
+  });
+
+  if uses_webview {
+    // Check if webview type should be automatically injected
+    if let FnArg::Typed(arg) = function.sig.inputs[0].borrow_mut() {
+      if let Type::Infer(_) = arg.ty.as_ref() {
+        let default_type: Box<syn::Type> = parse_quote!(tauri::WebviewManager<tauri::flavors::Wry>);
+        arg.ty = default_type;
+      }
+    }
+  }
+
   let ident = function.sig.ident.clone();
   let params = function.sig.inputs.clone();
   let (mut names, mut types): (Vec<syn::Ident>, Vec<syn::Path>) = params
@@ -10,11 +35,11 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
     .map(|param| {
       let mut arg_name = None;
       let mut arg_type = None;
-      if let syn::FnArg::Typed(rec) = param {
-        if let syn::Pat::Ident(ident) = rec.pat.as_ref() {
+      if let syn::FnArg::Typed(arg) = param {
+        if let syn::Pat::Ident(ident) = arg.pat.as_ref() {
           arg_name = Some(ident.ident.clone());
         }
-        if let syn::Type::Path(path) = rec.ty.as_ref() {
+        if let syn::Type::Path(path) = arg.ty.as_ref() {
           arg_type = Some(path.path.clone());
         }
       }
@@ -27,17 +52,6 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
   let mut webview_arg_type = quote!(tauri::WebviewManager<A>);
   let webview_arg = match types.first() {
     Some(first_type) => {
-      // Check if "webview" attr was passed to macro
-      let uses_webview = attrs.iter().any(|a| {
-        if let syn::NestedMeta::Meta(syn::Meta::Path(path)) = a {
-          path
-            .get_ident()
-            .map(|i| *i == "with_webview")
-            .unwrap_or(false)
-        } else {
-          false
-        }
-      });
       if uses_webview {
         // If the function takes the webview, give it a specific type
         webview_arg_type = quote!(#first_type);

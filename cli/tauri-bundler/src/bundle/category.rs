@@ -1,7 +1,4 @@
-use std::fmt;
-
-use serde;
-use strsim;
+use std::{fmt, str::FromStr};
 
 const CONFIDENCE_THRESHOLD: f64 = 0.8;
 
@@ -56,10 +53,12 @@ pub enum AppCategory {
   Weather,
 }
 
-impl AppCategory {
+impl FromStr for AppCategory {
+  type Err = Option<&'static str>;
+
   /// Given a string, returns the `AppCategory` it refers to, or the closest
   /// string that the user might have intended (if any).
-  pub fn from_str(input: &str) -> Result<AppCategory, Option<&'static str>> {
+  fn from_str(input: &str) -> Result<AppCategory, Self::Err> {
     // Canonicalize input:
     let mut input = input.to_ascii_lowercase();
     if input.starts_with(OSX_APP_CATEGORY_PREFIX) {
@@ -83,7 +82,9 @@ impl AppCategory {
     }
     Err(best_category.map(AppCategory::canonical))
   }
+}
 
+impl AppCategory {
   /// Map an AppCategory to the string we recommend to use in Cargo.toml if
   /// the users misspells the category name.
   fn canonical(self) -> &'static str {
@@ -341,6 +342,7 @@ const CATEGORY_STRINGS: &[(&str, AppCategory)] = &[
 #[cfg(test)]
 mod tests {
   use super::AppCategory;
+  use std::str::FromStr;
 
   #[test]
   fn category_from_string_ok() {

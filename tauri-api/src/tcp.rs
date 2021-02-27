@@ -1,6 +1,5 @@
 use std::net::TcpListener;
 
-use rand;
 use rand::distributions::{Distribution, Uniform};
 
 /// Gets the first available port between 8000 and 9000.

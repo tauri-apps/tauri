@@ -114,7 +114,6 @@ If you are interested in making a tauri-app, please visit the [documentation web
 | iOS Binary | Soon | No |
 | Android Binary | Soon | No |
 | Desktop Tray | Soon | Yes |
-| Splashscreen | Yes | Yes |
 | Sidecar Binaries | Yes | No |
 
 #### Notes

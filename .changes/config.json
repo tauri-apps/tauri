@@ -1,5 +1,6 @@
 {
   "gitSiteUrl": "https://www.github.com/tauri-apps/tauri/",
+  "timeout": 3600000,
   "pkgManagers": {
     "rust": {
       "version": true,
@@ -25,7 +26,7 @@
           "pipe": true
         },
         {
-          "command": "cargo audit fix --dry-run true",
+          "command": "cargo audit ${ process.env.CARGO_AUDIT_OPTIONS || '' }",
           "dryRunCommand": true,
           "runFromRoot": true,
           "pipe": true
@@ -110,7 +111,7 @@
       ],
       "publish": [
         {
-          "command": "echo \"# NPM Package Publish\"",
+          "command": "echo \"# Yarn Package Publish\"",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -120,7 +121,7 @@
           "pipe": true
         },
         {
-          "command": "npm publish --access public",
+          "command": "yarn publish --access public --loglevel silly",
           "dryRunCommand": "npm publish --dry-run --access public",
           "pipe": true
         },
@@ -138,14 +139,13 @@
     }
   },
   "packages": {
-    "tauri.js": {
-      "path": "./cli/tauri.js",
+    "api": {
+      "path": "./api",
       "manager": "javascript",
-      "dependencies": ["tauri"],
       "assets": [
         {
-          "path": "./cli/tauri.js/tauri-${ pkgFile.version }.tgz",
-          "name": "tauri.js-${ pkgFile.version }.tgz"
+          "path": "./api/tauri-${ pkgFile.version }.tgz",
+          "name": "api-${ pkgFile.version }.tgz"
         }
       ]
     },
@@ -153,12 +153,33 @@
       "path": "./cli/tauri-bundler",
       "manager": "rust"
     },
+    "tauri-cli": {
+      "path": "./cli/core",
+      "manager": "rust",
+      "dependencies": ["api", "tauri-bundler", "tauri"]
+    },
+    "tauri.js": {
+      "path": "./cli/tauri.js",
+      "manager": "javascript",
+      "dependencies": ["tauri-cli"],
+      "assets": [
+        {
+          "path": "./cli/tauri.js/tauri-${ pkgFile.version }.tgz",
+          "name": "tauri.js-${ pkgFile.version }.tgz"
+        }
+      ]
+    },
     "tauri-utils": {
       "path": "./tauri-utils",
       "manager": "rust"
     },
     "tauri-api": {
       "path": "./tauri-api",
+      "manager": "rust",
+      "dependencies": ["tauri-utils"]
+    },
+    "tauri-macros": {
+      "path": "./tauri-macros",
       "manager": "rust",
       "dependencies": ["tauri-utils"]
     },
@@ -170,7 +191,7 @@
     "tauri": {
       "path": "./tauri",
       "manager": "rust",
-      "dependencies": ["tauri-api", "tauri-updater"]
+      "dependencies": ["api", "tauri-api", "tauri-macros", "tauri-updater"]
     }
   }
 }

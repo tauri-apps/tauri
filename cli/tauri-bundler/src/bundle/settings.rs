@@ -1,19 +1,12 @@
 use super::category::AppCategory;
-use crate::bundle::common;
-use crate::bundle::platform::target_triple;
+use crate::bundle::{common, platform::target_triple};
 
-use clap::ArgMatches;
-use glob;
 use serde::Deserialize;
-use target_build_utils::TargetInfo;
-use toml;
-use walkdir;
 
-use std;
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::{
+  collections::HashMap,
+  path::{Path, PathBuf},
+};
 
 /// The type of the package we're bundling.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -85,43 +78,60 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::AppImage,
 ];
 
+/// The package settings.
+#[derive(Debug, Clone, Deserialize)]
+pub struct PackageSettings {
+  /// the package's name.
+  pub name: String,
+  /// the package's version.
+  pub version: String,
+  /// the package's description.
+  pub description: String,
+  /// the package's homepage.
+  pub homepage: Option<String>,
+  /// the package's authors.
+  pub authors: Option<Vec<String>>,
+  /// the default binary to run.
+  pub default_run: Option<String>,
+}
+
 /// The bundle settings of the BuildArtifact we're bundling.
 #[derive(Clone, Debug, Deserialize, Default)]
-struct BundleSettings {
+pub struct BundleSettings {
   // General settings:
   /// the name of the bundle.
-  name: Option<String>,
+  pub name: Option<String>,
   /// the app's identifier.
-  identifier: Option<String>,
+  pub identifier: Option<String>,
   /// the app's icon list.
-  icon: Option<Vec<String>>,
+  pub icon: Option<Vec<String>>,
   /// the app's version.
-  version: Option<String>,
+  pub version: Option<String>,
   /// the app's resources to bundle.
   ///
   /// each item can be a path to a file or a path to a folder.
   ///
   /// supports glob patterns.
-  resources: Option<Vec<String>>,
+  pub resources: Option<Vec<String>>,
   /// the app's copyright.
-  copyright: Option<String>,
+  pub copyright: Option<String>,
   /// the app's category.
-  category: Option<AppCategory>,
+  pub category: Option<AppCategory>,
   /// the app's short description.
-  short_description: Option<String>,
+  pub short_description: Option<String>,
   /// the app's long description.
-  long_description: Option<String>,
+  pub long_description: Option<String>,
   /// the app's script to run when unpackaging the bundle.
-  script: Option<PathBuf>,
+  pub script: Option<PathBuf>,
   // OS-specific settings:
   /// the list of debian dependencies.
-  deb_depends: Option<Vec<String>>,
+  pub deb_depends: Option<Vec<String>>,
   /// whether we should use the bootstrap script on debian or not.
   ///
   /// this script goal is to allow your app to access environment variables e.g $PATH.
   ///
   /// without it, you can't run some applications installed by the user.
-  deb_use_bootstrapper: Option<bool>,
+  pub deb_use_bootstrapper: Option<bool>,
   /// Mac OS X frameworks that need to be bundled with the app.
   ///
   /// Each string can either be the name of a framework (without the `.framework` extension, e.g. `"SDL2"`),
@@ -132,24 +142,24 @@ struct BundleSettings {
   /// - arranging for the compiled binary to link against those frameworks (e.g. by emitting lines like `cargo:rustc-link-lib=framework=SDL2` from your `build.rs` script)
   ///
   /// - embedding the correct rpath in your binary (e.g. by running `install_name_tool -add_rpath "@executable_path/../Frameworks" path/to/binary` after compiling)
-  osx_frameworks: Option<Vec<String>>,
+  pub osx_frameworks: Option<Vec<String>>,
   /// A version string indicating the minimum Mac OS X version that the bundled app supports (e.g. `"10.11"`).
   /// If you are using this config field, you may also want have your `build.rs` script emit `cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET=10.11`.
-  osx_minimum_system_version: Option<String>,
+  pub osx_minimum_system_version: Option<String>,
   /// The path to the LICENSE file for macOS apps.
   /// Currently only used by the dmg bundle.
-  osx_license: Option<String>,
+  pub osx_license: Option<String>,
   /// whether we should use the bootstrap script on macOS .app or not.
   ///
   /// this script goal is to allow your app to access environment variables e.g $PATH.
   ///
   /// without it, you can't run some applications installed by the user.
-  osx_use_bootstrapper: Option<bool>,
+  pub osx_use_bootstrapper: Option<bool>,
   // Bundles for other binaries/examples:
   /// Configuration map for the possible [bin] apps to bundle.
-  bin: Option<HashMap<String, BundleSettings>>,
+  pub bin: Option<HashMap<String, BundleSettings>>,
   /// Configuration map for the possible example apps to bundle.
-  example: Option<HashMap<String, BundleSettings>>,
+  pub example: Option<HashMap<String, BundleSettings>>,
   /// External binaries to add to the bundle.
   ///
   /// Note that each binary name will have the target platform's target triple appended,
@@ -158,75 +168,11 @@ struct BundleSettings {
   /// and `sqlite3-x86_64-pc-windows-gnu.exe` on windows.
   ///
   /// The possible target triples can be seen by running `$ rustup target list`.
-  external_bin: Option<Vec<String>>,
+  pub external_bin: Option<Vec<String>>,
   /// The exception domain to use on the macOS .app bundle.
   ///
   /// This allows communication to the outside world e.g. a web server you're shipping.
-  exception_domain: Option<String>,
-}
-
-/// The `metadata` section of the package configuration.
-///
-/// # Example Cargo.toml
-/// ```
-/// [package]
-/// name = "..."
-///
-/// [package.metadata.bundle]
-/// identifier = "..."
-/// ...other properties from BundleSettings
-/// ```
-#[derive(Clone, Debug, Deserialize)]
-struct MetadataSettings {
-  /// the bundle settings of the package.
-  bundle: Option<BundleSettings>,
-}
-
-/// The `package` section of the app configuration (read from Cargo.toml).
-#[derive(Clone, Debug, Deserialize)]
-struct PackageSettings {
-  /// the package's name.
-  name: String,
-  /// the package's version.
-  version: String,
-  /// the package's description.
-  description: String,
-  /// the package's homepage.
-  homepage: Option<String>,
-  /// the package's authors.
-  authors: Option<Vec<String>>,
-  /// the package's metadata.
-  metadata: Option<MetadataSettings>,
-  /// the default binary to run.
-  default_run: Option<String>,
-}
-
-/// The `workspace` section of the app configuration (read from Cargo.toml).
-#[derive(Clone, Debug, Deserialize)]
-struct WorkspaceSettings {
-  /// the workspace members.
-  members: Option<Vec<String>>,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-struct BinarySettings {
-  name: String,
-  path: Option<String>,
-}
-
-/// The Cargo settings (Cargo.toml root descriptor).
-#[derive(Clone, Debug, Deserialize)]
-struct CargoSettings {
-  /// the package settings.
-  ///
-  /// it's optional because ancestor workspace Cargo.toml files may not have package info.
-  package: Option<PackageSettings>,
-  /// the workspace settings.
-  ///
-  /// it's present if the read Cargo.toml belongs to a workspace root.
-  workspace: Option<WorkspaceSettings>,
-  /// the binary targets configuration.
-  bin: Option<Vec<BinarySettings>>,
+  pub exception_domain: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -254,13 +200,21 @@ impl BundleBinary {
     self
   }
 
-  pub fn name(&self) -> &String {
+  pub fn set_main(&mut self, main: bool) {
+    self.main = main;
+  }
+
+  pub fn name(&self) -> &str {
     &self.name
   }
 
   #[cfg(windows)]
   pub fn main(&self) -> bool {
     self.main
+  }
+
+  pub fn src_path(&self) -> &Option<String> {
+    &self.src_path
   }
 }
 
@@ -273,14 +227,8 @@ pub struct Settings {
   ///
   /// if not present, we'll use the PackageType list for the target OS.
   package_types: Option<Vec<PackageType>>,
-  /// the target platform of the build
-  target: Option<(String, TargetInfo)>,
-  /// the features to use to build the app with `cargo build --features foo bar`.
-  features: Option<Vec<String>>,
   /// the directory where the bundles will be placed.
   project_out_directory: PathBuf,
-  /// whether we should build the app with release mode or not.
-  is_release: bool,
   /// whether or not to enable verbose logging
   is_verbose: bool,
   /// the bundle settings.
@@ -289,244 +237,75 @@ pub struct Settings {
   binaries: Vec<BundleBinary>,
 }
 
-impl CargoSettings {
-  /// Try to load a set of CargoSettings from a "Cargo.toml" file in the specified directory.
-  fn load(dir: &PathBuf) -> crate::Result<Self> {
-    let toml_path = dir.join("Cargo.toml");
-    let mut toml_str = String::new();
-    let mut toml_file = File::open(toml_path)?;
-    toml_file.read_to_string(&mut toml_str)?;
-    toml::from_str(&toml_str).map_err(|e| e.into())
+#[derive(Default)]
+pub struct SettingsBuilder {
+  project_out_directory: Option<PathBuf>,
+  verbose: bool,
+  package_types: Option<Vec<PackageType>>,
+  package_settings: Option<PackageSettings>,
+  bundle_settings: BundleSettings,
+  binaries: Vec<BundleBinary>,
+}
+
+impl SettingsBuilder {
+  pub fn new() -> Self {
+    Default::default()
   }
-}
 
-#[derive(Deserialize)]
-struct CargoBuildConfig {
-  #[serde(rename = "target-dir")]
-  target_dir: Option<String>,
-}
+  pub fn project_out_directory<P: AsRef<Path>>(mut self, path: P) -> Self {
+    self
+      .project_out_directory
+      .replace(path.as_ref().to_path_buf());
+    self
+  }
 
-#[derive(Deserialize)]
-struct CargoConfig {
-  build: Option<CargoBuildConfig>,
-}
+  pub fn verbose(mut self) -> Self {
+    self.verbose = true;
+    self
+  }
 
-impl Settings {
+  pub fn package_types(mut self, package_types: Vec<PackageType>) -> Self {
+    self.package_types = Some(package_types);
+    self
+  }
+
+  pub fn package_settings(mut self, settings: PackageSettings) -> Self {
+    self.package_settings.replace(settings);
+    self
+  }
+
+  pub fn bundle_settings(mut self, settings: BundleSettings) -> Self {
+    self.bundle_settings = settings;
+    self
+  }
+
+  pub fn binaries(mut self, binaries: Vec<BundleBinary>) -> Self {
+    self.binaries = binaries;
+    self
+  }
+
   /// Builds a Settings from the CLI args.
   ///
   /// Package settings will be read from Cargo.toml.
   ///
   /// Bundle settings will be read from from $TAURI_DIR/tauri.conf.json if it exists and fallback to Cargo.toml's [package.metadata.bundle].
-  pub fn new(current_dir: PathBuf, matches: &ArgMatches<'_>) -> crate::Result<Self> {
-    let package_types = match matches.values_of("format") {
-      Some(names) => {
-        let mut types = vec![];
-        for name in names {
-          match PackageType::from_short_name(name) {
-            Some(package_type) => {
-              types.push(package_type);
-            }
-            None => {
-              return Err(crate::Error::GenericError(format!(
-                "Unsupported bundle format: {}",
-                name
-              )));
-            }
-          }
-        }
-        Some(types)
-      }
-      None => None,
-    };
-    let is_release = matches.is_present("release");
-    let is_verbose = matches.is_present("verbose");
-    let target = match matches.value_of("target") {
-      Some(triple) => Some((triple.to_string(), TargetInfo::from_str(triple)?)),
-      None => None,
-    };
-    let features = if matches.is_present("features") {
-      Some(
-        matches
-          .values_of("features")
-          .expect("Couldn't get the features")
-          .map(|s| s.to_string())
-          .collect(),
-      )
-    } else {
-      None
-    };
-    let cargo_settings = CargoSettings::load(&current_dir)?;
-    let tauri_config = super::tauri_config::get();
-
-    let package = match cargo_settings.package {
-      Some(package_info) => package_info,
-      None => {
-        return Err(crate::Error::GenericError(
-          "No package info in the config file".to_owned(),
-        ))
-      }
-    };
-    let workspace_dir = Settings::get_workspace_dir(&current_dir);
-    let target_dir = Settings::get_target_dir(&workspace_dir, &target, is_release)?;
-    let bundle_settings = match tauri_config {
-      Ok(config) => merge_settings(BundleSettings::default(), config.tauri.bundle),
-      Err(e) => {
-        let error_message = e.to_string();
-        if !error_message.contains("No such file or directory") {
-          return Err(crate::Error::GenericError(format!(
-            "Failed to read tauri config: {}",
-            error_message
-          )));
-        }
-        if let Some(bundle_settings) = package
-          .metadata
-          .as_ref()
-          .and_then(|metadata| metadata.bundle.as_ref())
-        {
-          bundle_settings.clone()
-        } else {
-          return Err(crate::Error::GenericError(
-            "No 'bundle' key in the tauri.conf.json".to_owned(),
-          ));
-        }
-      }
-    };
-
-    let mut binaries: Vec<BundleBinary> = vec![];
-    if let Some(bin) = cargo_settings.bin {
-      let default_run = package
-        .default_run
-        .clone()
-        .unwrap_or_else(|| "".to_string());
-      for binary in bin {
-        binaries.push(
-          BundleBinary::new(
-            binary.name.clone(),
-            binary.name.as_str() == package.name || binary.name.as_str() == default_run,
-          )
-          .set_src_path(binary.path),
-        )
-      }
-    }
-
-    let mut bins_path = current_dir;
-    bins_path.push("src/bin");
-    if let Ok(fs_bins) = std::fs::read_dir(bins_path) {
-      for entry in fs_bins {
-        let path = entry?.path();
-        if let Some(name) = path.file_stem() {
-          let bin_exists = binaries.iter().any(|bin| {
-            bin.name.as_str() == name
-              || path.ends_with(bin.src_path.as_ref().unwrap_or(&"".to_string()))
-          });
-          if !bin_exists {
-            binaries.push(BundleBinary::new(name.to_string_lossy().to_string(), false))
-          }
-        }
-      }
-    }
-
-    if let Some(default_run) = package.default_run.as_ref() {
-      if !binaries.iter().any(|bin| bin.name.as_str() == default_run) {
-        binaries.push(BundleBinary::new(default_run.to_string(), true));
-      }
-    }
-
-    if binaries.len() == 1 {
-      binaries.get_mut(0).and_then(|bin| {
-        bin.main = true;
-        Some(bin)
-      });
-    }
-
-    let bundle_settings = parse_external_bin(bundle_settings)?;
+  pub fn build(self) -> crate::Result<Settings> {
+    let bundle_settings = parse_external_bin(self.bundle_settings)?;
 
     Ok(Settings {
-      package,
-      package_types,
-      target,
-      features,
-      is_release,
-      is_verbose,
-      project_out_directory: target_dir,
-      binaries,
+      package: self.package_settings.expect("package settings is required"),
+      package_types: self.package_types,
+      is_verbose: self.verbose,
+      project_out_directory: self
+        .project_out_directory
+        .expect("out directory is required"),
+      binaries: self.binaries,
       bundle_settings,
     })
   }
+}
 
-  /// This function determines where 'target' dir is and suffixes it with 'release' or 'debug'
-  /// to determine where the compiled binary will be located.
-  fn get_target_dir(
-    project_root_dir: &PathBuf,
-    target: &Option<(String, TargetInfo)>,
-    is_release: bool,
-  ) -> crate::Result<PathBuf> {
-    let mut path: PathBuf = match std::env::var_os("CARGO_TARGET_DIR") {
-      Some(target_dir) => target_dir.into(),
-      None => {
-        let mut root_dir = project_root_dir.clone();
-        let target_path: Option<PathBuf> = loop {
-          // cargo reads configs under .cargo/config.toml or .cargo/config
-          let mut cargo_config_path = root_dir.join(".cargo/config");
-          if !cargo_config_path.exists() {
-            cargo_config_path = root_dir.join(".cargo/config.toml");
-          }
-          // if the path exists, parse it
-          if cargo_config_path.exists() {
-            let mut config_str = String::new();
-            let mut config_file = File::open(cargo_config_path)?;
-            config_file.read_to_string(&mut config_str)?;
-            let config: CargoConfig = toml::from_str(&config_str)?;
-            if let Some(build) = config.build {
-              if let Some(target_dir) = build.target_dir {
-                break Some(target_dir.into());
-              }
-            }
-          }
-          if !root_dir.pop() {
-            break None;
-          }
-        };
-        target_path.unwrap_or_else(|| project_root_dir.join("target"))
-      }
-    };
-
-    if let Some((ref triple, _)) = *target {
-      path.push(triple);
-    }
-    path.push(if is_release { "release" } else { "debug" });
-    Ok(path)
-  }
-
-  /// Walks up the file system, looking for a Cargo.toml file
-  /// If one is found before reaching the root, then the current_dir's package belongs to that parent workspace if it's listed on [workspace.members].
-  ///
-  /// If this package is part of a workspace, returns the path to the workspace directory
-  /// Otherwise returns the current directory.
-  pub fn get_workspace_dir(current_dir: &PathBuf) -> PathBuf {
-    let mut dir = current_dir.clone();
-    let project_name = CargoSettings::load(&dir).unwrap().package.unwrap().name;
-
-    while dir.pop() {
-      if let Ok(cargo_settings) = CargoSettings::load(&dir) {
-        if let Some(workspace_settings) = cargo_settings.workspace {
-          if workspace_settings.members.is_some()
-            && workspace_settings
-              .members
-              .expect("Couldn't get members")
-              .iter()
-              .any(|member| member.as_str() == project_name)
-          {
-            return dir;
-          }
-        }
-      }
-    }
-
-    // Nothing found walking up the file system, return the starting directory
-    current_dir.clone()
-  }
-
+impl Settings {
   /// Returns the directory where the bundle should be placed.
   pub fn project_out_directory(&self) -> &Path {
     &self.project_out_directory
@@ -534,11 +313,7 @@ impl Settings {
 
   /// Returns the architecture for the binary being bundled (e.g. "arm", "x86" or "x86_64").
   pub fn binary_arch(&self) -> &str {
-    if let Some((_, ref info)) = self.target {
-      info.target_arch()
-    } else {
-      std::env::consts::ARCH
-    }
+    std::env::consts::ARCH
   }
 
   /// Returns the file name of the binary being bundled.
@@ -573,11 +348,7 @@ impl Settings {
   ///
   /// Fails if the host/target's native package type is not supported.
   pub fn package_types(&self) -> crate::Result<Vec<PackageType>> {
-    let target_os = if let Some((_, ref info)) = self.target {
-      info.target_os()
-    } else {
-      std::env::consts::OS
-    };
+    let target_os = std::env::consts::OS;
     let platform_types = match target_os {
       "macos" => vec![PackageType::OsxBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
@@ -607,27 +378,6 @@ impl Settings {
     } else {
       Ok(platform_types)
     }
-  }
-
-  /// If the bundle is being cross-compiled, returns the target triple string
-  /// (e.g. `"x86_64-apple-darwin"`). If the bundle is targeting the host
-  /// environment, returns `None`.
-  pub fn target_triple(&self) -> Option<&str> {
-    match self.target {
-      Some((ref triple, _)) => Some(triple.as_str()),
-      None => None,
-    }
-  }
-
-  /// Returns the features that is being built.
-  pub fn build_features(&self) -> Option<Vec<String>> {
-    self.features.to_owned()
-  }
-
-  /// Returns true if the bundle is being compiled in release mode, false if
-  /// it's being compiled in debug mode.
-  pub fn is_release_build(&self) -> bool {
-    self.is_release
   }
 
   /// Returns true if verbose logging is enabled
@@ -822,49 +572,6 @@ fn parse_external_bin(bundle_settings: BundleSettings) -> crate::Result<BundleSe
   })
 }
 
-/// Returns the first Option with a value, or None if both are None.
-fn options_value<T>(first: Option<T>, second: Option<T>) -> Option<T> {
-  if first.is_some() {
-    first
-  } else {
-    second
-  }
-}
-
-/// Merges the bundle settings from Cargo.toml and tauri.conf.json
-fn merge_settings(
-  bundle_settings: BundleSettings,
-  config: crate::bundle::tauri_config::BundleConfig,
-) -> BundleSettings {
-  BundleSettings {
-    name: options_value(config.name, bundle_settings.name),
-    identifier: options_value(config.identifier, bundle_settings.identifier),
-    icon: options_value(config.icon, bundle_settings.icon),
-    version: options_value(config.version, bundle_settings.version),
-    resources: options_value(config.resources, bundle_settings.resources),
-    copyright: options_value(config.copyright, bundle_settings.copyright),
-    category: options_value(config.category, bundle_settings.category),
-    short_description: options_value(config.short_description, bundle_settings.short_description),
-    long_description: options_value(config.long_description, bundle_settings.long_description),
-    script: options_value(config.script, bundle_settings.script),
-    deb_depends: options_value(config.deb.depends, bundle_settings.deb_depends),
-    deb_use_bootstrapper: Some(config.deb.use_bootstrapper),
-    osx_frameworks: options_value(config.osx.frameworks, bundle_settings.osx_frameworks),
-    osx_minimum_system_version: options_value(
-      config.osx.minimum_system_version,
-      bundle_settings.osx_minimum_system_version,
-    ),
-    osx_license: options_value(config.osx.license, bundle_settings.osx_license),
-    osx_use_bootstrapper: Some(config.osx.use_bootstrapper),
-    external_bin: options_value(config.external_bin, bundle_settings.external_bin),
-    exception_domain: options_value(
-      config.osx.exception_domain,
-      bundle_settings.exception_domain,
-    ),
-    ..bundle_settings
-  }
-}
-
 /// A helper to iterate through resources.
 pub struct ResourcePaths<'a> {
   /// the patterns to iterate.
@@ -955,123 +662,5 @@ impl<'a> Iterator for ResourcePaths<'a> {
       }
       return None;
     }
-  }
-}
-
-#[cfg(test)]
-mod tests {
-  use super::{AppCategory, BundleSettings, CargoSettings};
-  use toml;
-
-  #[test]
-  fn parse_cargo_toml() {
-    let toml_str = "\
-                    [package]\n\
-                    name = \"example\"\n\
-                    version = \"0.1.0\"\n\
-                    authors = [\"Jane Doe\"]\n\
-                    license = \"MIT\"\n\
-                    description = \"An example application.\"\n\
-                    build = \"build.rs\"\n\
-                    \n\
-                    [package.metadata.bundle]\n\
-                    name = \"Example Application\"\n\
-                    identifier = \"com.example.app\"\n\
-                    resources = [\"data\", \"foo/bar\"]\n\
-                    category = \"Puzzle Game\"\n\
-                    long_description = \"\"\"\n\
-                    This is an example of a\n\
-                    simple application.\n\
-                    \"\"\"\n\
-                    \n\
-                    [dependencies]\n\
-                    rand = \"0.4\"\n";
-    let cargo_settings: CargoSettings = toml::from_str(toml_str).unwrap();
-    let package = cargo_settings.package.expect("Couldn't get package");
-    assert_eq!(package.name, "example");
-    assert_eq!(package.version, "0.1.0");
-    assert_eq!(package.description, "An example application.");
-    assert_eq!(package.homepage, None);
-    assert_eq!(package.authors, Some(vec!["Jane Doe".to_string()]));
-    assert!(package.metadata.is_some());
-    let metadata = package
-      .metadata
-      .as_ref()
-      .expect("Failed to get metadata ref");
-    assert!(metadata.bundle.is_some());
-    let bundle = metadata.bundle.as_ref().expect("Failed to get bundle ref");
-    assert_eq!(bundle.name, Some("Example Application".to_string()));
-    assert_eq!(bundle.identifier, Some("com.example.app".to_string()));
-    assert_eq!(bundle.icon, None);
-    assert_eq!(bundle.version, None);
-    assert_eq!(
-      bundle.resources,
-      Some(vec!["data".to_string(), "foo/bar".to_string()])
-    );
-    assert_eq!(bundle.category, Some(AppCategory::PuzzleGame));
-    assert_eq!(
-      bundle.long_description,
-      Some(
-        "This is an example of a\n\
-         simple application.\n"
-          .to_string()
-      )
-    );
-  }
-
-  #[test]
-  fn parse_bin_and_example_bundles() {
-    let toml_str = "\
-            [package]\n\
-            name = \"example\"\n\
-            version = \"0.1.0\"\n\
-            description = \"An example application.\"\n\
-            \n\
-            [package.metadata.bundle.bin.foo]\n\
-            name = \"Foo App\"\n\
-            \n\
-            [package.metadata.bundle.bin.bar]\n\
-            name = \"Bar App\"\n\
-            \n\
-            [package.metadata.bundle.example.baz]\n\
-            name = \"Baz Example\"\n\
-            \n\
-            [[bin]]\n\
-            name = \"foo\"\n
-            \n\
-            [[bin]]\n\
-            name = \"bar\"\n
-            \n\
-            [[example]]\n\
-            name = \"baz\"\n";
-    let cargo_settings: CargoSettings = toml::from_str(toml_str).expect("Failed to read from toml");
-    assert!(cargo_settings.package.is_some());
-    let package = cargo_settings
-      .package
-      .as_ref()
-      .expect("Failed to get package ref");
-    assert!(package.metadata.is_some());
-    let metadata = package
-      .metadata
-      .as_ref()
-      .expect("Failed to get metadata ref");
-    assert!(metadata.bundle.is_some());
-    let bundle = metadata.bundle.as_ref().expect("Failed to get bundle ref");
-    assert!(bundle.example.is_some());
-
-    let bins = bundle.bin.as_ref().expect("Failed to get bin ref");
-    assert!(bins.contains_key("foo"));
-    let foo_settings: &BundleSettings = bins.get("foo").expect("Failed to get foo bundle settings");
-    assert_eq!(foo_settings.name, Some("Foo App".to_string()));
-    assert!(bins.contains_key("bar"));
-    let bar_settings: &BundleSettings = bins.get("bar").expect("Failed to get bar bundle settings");
-    assert_eq!(bar_settings.name, Some("Bar App".to_string()));
-
-    let examples = bundle.example.as_ref().expect("Failed to get example ref");
-    assert!(examples.contains_key("baz"));
-    let baz_settings: &BundleSettings = examples
-      .get("baz")
-      .expect("Failed to get baz bundle settings");
-    assert_eq!(baz_settings.name, Some("Baz Example".to_string()));
   }
 }

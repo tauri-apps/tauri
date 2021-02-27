@@ -25,16 +25,16 @@ describe('[CLI] tauri.js template', () => {
     const manifestFile = readFileSync(manifestPath).toString()
     writeFileSync(manifestPath, `workspace = { }\n\n${manifestFile}`)
 
-    const build = require('api/build')
+    const { build } = require('dist/api/cli')
     await build({
-      tauri: {
-        bundle: {
-          targets: ['deb', 'osx', 'msi', 'appimage'] // we can't bundle dmg on CI so we remove it here
+      config: {
+        tauri: {
+          bundle: {
+            targets: ['deb', 'osx', 'msi', 'appimage'] // we can't bundle dmg on CI so we remove it here
+          }
         }
       }
-    }).promise.then(() => {
-      writeFileSync('a.b', 'finished')
-      process.chdir(cwd)
-    })
+    }).promise
+    process.chdir(cwd)
   })
 })

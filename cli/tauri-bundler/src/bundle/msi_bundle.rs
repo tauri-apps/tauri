@@ -1,8 +1,6 @@
-use super::settings::Settings;
-use super::wix;
+use super::{settings::Settings, wix};
 
-use std;
-use std::path::PathBuf;
+use std::{self, path::PathBuf};
 
 /// Runs all of the commands to build the MSI installer.
 /// Returns a vector of PathBuf that shows where the MSI was created.

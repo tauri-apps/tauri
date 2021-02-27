@@ -1,13 +1,12 @@
 use crate::Settings;
-use std;
-use std::ffi::OsStr;
-use std::fs::{self, File};
-use std::io::{self, BufRead, BufReader, BufWriter, Write};
-use std::path::{Component, Path, PathBuf};
-use std::process::{Command, Stdio};
-
-use term;
-use walkdir;
+use std::{
+  ffi::OsStr,
+  fs::{self, File},
+  io::{self, BufRead, BufReader, BufWriter, Write},
+  path::{Component, Path, PathBuf},
+  process::{Command, Stdio},
+};
+use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 /// Returns true if the path has a filename indicating that it is a high-desity
 /// "retina" icon.  Specifically, returns true the the file stem ends with
@@ -165,108 +164,57 @@ pub fn print_finished(output_paths: &[PathBuf]) -> crate::Result<()> {
   Ok(())
 }
 
-/// Safely adds the terminal attribute to the terminal output.
-/// If the terminal doesn't support the attribute, does nothing.
-fn safe_term_attr<T: term::Terminal + ?Sized>(
-  output: &mut T,
-  attr: term::Attr,
-) -> term::Result<()> {
-  if output.supports_attr(attr) {
-    output.attr(attr)
-  } else {
-    Ok(())
-  }
-}
-
 /// Prints a formatted bundle progress to stderr.
 fn print_progress(step: &str, msg: &str) -> crate::Result<()> {
-  if let Some(mut output) = term::stderr() {
-    safe_term_attr(&mut *output, term::Attr::Bold)?;
-    output.fg(term::color::GREEN)?;
-    write!(output, "    {}", step)?;
-    output.reset()?;
-    writeln!(output, " {}", msg)?;
-    output.flush()?;
-    Ok(())
-  } else {
-    let mut output = io::stderr();
-    write!(output, "    {}", step)?;
-    writeln!(output, " {}", msg)?;
-    output.flush()?;
-    Ok(())
-  }
+  let mut output = StandardStream::stderr(ColorChoice::Always);
+  let _ = output.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true));
+  write!(output, "    {}", step)?;
+  output.reset()?;
+  writeln!(output, " {}", msg)?;
+  output.flush()?;
+  Ok(())
 }
 
 /// Prints a warning message to stderr, in the same format that `cargo` uses.
 pub fn print_warning(message: &str) -> crate::Result<()> {
-  if let Some(mut output) = term::stderr() {
-    safe_term_attr(&mut *output, term::Attr::Bold)?;
-    output.fg(term::color::YELLOW)?;
-    write!(output, "warning:")?;
-    output.reset()?;
-    writeln!(output, " {}", message)?;
-    output.flush()?;
-    Ok(())
-  } else {
-    let mut output = io::stderr();
-    write!(output, "warning:")?;
-    writeln!(output, " {}", message)?;
-    output.flush()?;
-    Ok(())
-  }
+  let mut output = StandardStream::stderr(ColorChoice::Always);
+  let _ = output.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)).set_bold(true));
+  write!(output, "warning:")?;
+  output.reset()?;
+  writeln!(output, " {}", message)?;
+  output.flush()?;
+  Ok(())
 }
 
 /// Prints a Info message to stderr.
 pub fn print_info(message: &str) -> crate::Result<()> {
-  if let Some(mut output) = term::stderr() {
-    safe_term_attr(&mut *output, term::Attr::Bold)?;
-    output.fg(term::color::GREEN)?;
-    write!(output, "info:")?;
-    output.reset()?;
-    writeln!(output, " {}", message)?;
-    output.flush()?;
-    Ok(())
-  } else {
-    let mut output = io::stderr();
-    write!(output, "info:")?;
-    writeln!(output, " {}", message)?;
-    output.flush()?;
-    Ok(())
-  }
+  let mut output = StandardStream::stderr(ColorChoice::Always);
+  let _ = output.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true));
+  write!(output, "info:")?;
+  output.reset()?;
+  writeln!(output, " {}", message)?;
+  output.flush()?;
+  Ok(())
 }
 
 /// Prints an error to stderr, in the same format that `cargo` uses.
 pub fn print_error(error: &anyhow::Error) -> crate::Result<()> {
-  if let Some(mut output) = term::stderr() {
-    safe_term_attr(&mut *output, term::Attr::Bold)?;
-    output.fg(term::color::RED)?;
-    write!(output, "error:")?;
-    output.reset()?;
-    safe_term_attr(&mut *output, term::Attr::Bold)?;
-    writeln!(output, " {}", error)?;
-    output.reset()?;
-    for cause in error.chain().skip(1) {
-      writeln!(output, "  Caused by: {}", cause)?;
-    }
-    // Add Backtrace once its stable.
-    // if let Some(backtrace) = error.backtrace() {
-    //   writeln!(output, "{:?}", backtrace)?;
-    // }
-    output.flush()?;
-    std::process::exit(1)
-  } else {
-    let mut output = io::stderr();
-    write!(output, "error:")?;
-    writeln!(output, " {}", error)?;
-    for cause in error.chain().skip(1) {
-      writeln!(output, "  Caused by: {}", cause)?;
-    }
-    // if let Some(backtrace) = error.backtrace() {
-    //   writeln!(output, "{:?}", backtrace)?;
-    // }
-    output.flush()?;
-    std::process::exit(1)
+  let mut output = StandardStream::stderr(ColorChoice::Always);
+  let _ = output.set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_bold(true));
+  write!(output, "error:")?;
+  output.reset()?;
+  let _ = output.set_color(ColorSpec::new().set_bold(true));
+  writeln!(output, " {}", error)?;
+  output.reset()?;
+  for cause in error.chain().skip(1) {
+    writeln!(output, "  Caused by: {}", cause)?;
   }
+  // Add Backtrace once its stable.
+  // if let Some(backtrace) = error.backtrace() {
+  //   writeln!(output, "{:?}", backtrace)?;
+  // }
+  output.flush()?;
+  std::process::exit(1)
 }
 
 pub fn execute_with_verbosity(cmd: &mut Command, settings: &Settings) -> crate::Result<()> {
@@ -300,10 +248,7 @@ pub fn execute_with_verbosity(cmd: &mut Command, settings: &Settings) -> crate::
 #[cfg(test)]
 mod tests {
   use super::{copy_dir, create_file, is_retina, resource_relpath, symlink_file};
-  use std;
-  use std::io::Write;
-  use std::path::PathBuf;
-  use tempfile;
+  use std::{io::Write, path::PathBuf};
 
   #[test]
   fn create_file_with_parent_dirs() {

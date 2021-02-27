@@ -5,8 +5,8 @@ import os from 'os'
 import path from 'path'
 import { appDir, tauriDir } from '../helpers/app-paths'
 import { sync as spawn } from 'cross-spawn'
-import { TauriConfig } from './../types/config'
 import { CargoLock, CargoManifest } from '../types/cargo'
+import { TauriBuildConfig } from './../types/config'
 import nonWebpackRequire from '../helpers/non-webpack-require'
 import packageJson from '../../package.json'
 import getScriptVersion from '../helpers/get-script-version'
@@ -15,6 +15,18 @@ import {
   getNpmLatestVersion,
   getCrateLatestVersion
 } from './dependency-manager/util'
+
+interface Config {
+  tauri: {
+    bundle?: {
+      active: boolean
+    }
+    security?: {
+      csp: string
+    }
+  }
+  build?: TauriBuildConfig
+}
 
 async function crateLatestVersion(name: string): Promise<string | undefined> {
   try {
@@ -197,17 +209,8 @@ async function printAppInfo(tauriDir: string): Promise<void> {
   })
 
   try {
-    const tauriMode = (config: TauriConfig): string => {
-      if (config.tauri.embeddedServer) {
-        return chalk.green(
-          config.tauri.embeddedServer.active ? 'embedded-server' : 'no-server'
-        )
-      }
-      return chalk.red('unset')
-    }
     const configPath = path.join(tauriDir, 'tauri.conf.json')
-    const config = nonWebpackRequire(configPath) as TauriConfig
-    printInfo({ key: '  mode', value: tauriMode(config) })
+    const config = nonWebpackRequire(configPath) as Config
     printInfo({
       key: '  build-type',
       value: config.tauri.bundle?.active ? 'bundle' : 'build'
@@ -265,7 +268,7 @@ module.exports = async () => {
   printVersion({
     key: '  tauri.js',
     version: packageJson.version,
-    targetVersion: getNpmLatestVersion('tauri')
+    targetVersion: await getNpmLatestVersion('tauri')
   })
 
   printInfo({ key: 'Rust environment', section: true })

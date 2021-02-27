@@ -1,20 +1,44 @@
 # Changelog
 
+## [0.14.1]
+
+-   Fixed a TypeScript issue where it didn't allow you to put the "recursive" option in the directory functions.
+    -   [2fd1067](https://www.github.com/tauri-apps/tauri/commit/2fd1067a4c7ef86dda074867b6a6702527962829) Fix: add recursive option to directory APIs ([#1141](https://www.github.com/tauri-apps/tauri/pull/1141)) on 2021-01-12
+
+## [0.14.0]
+
+-   Update the tauri template to properly set the app icon id on Windows so the webview can load the executable icon.
+    To use it on old projects, update your `src-tauri/src/build.rs` file, replacing `res.set_icon("icons/icon.ico");` with `res.set_icon_with_id("icons/icon.ico", "32512");`.
+        - [f887320](https://www.github.com/tauri-apps/tauri/commit/f887320df35e44b56e437355ee0ff05507a83173) fix(template) default windows icon id should be 32512, fixes [#1099](https://www.github.com/tauri-apps/tauri/pull/1099) ([#1107](https://www.github.com/tauri-apps/tauri/pull/1107)) on 2020-12-05
+-   Fixes `tauri deps` command usage when `npm` is not installed.
+    -   [8da495f](https://www.github.com/tauri-apps/tauri/commit/8da495f78c34780b76d0b1201f622edcbba00229) fix(tauri.js) `deps` cmd usage when `npm` is not installed, closes [#1037](https://www.github.com/tauri-apps/tauri/pull/1037) ([#1053](https://www.github.com/tauri-apps/tauri/pull/1053)) on 2020-12-05
+-   Match writeBinaryFile command name between js and rust
+    -   [486bd92](https://www.github.com/tauri-apps/tauri/commit/486bd920f899905bec0f690092aa1e3cac2c78f3) Fix: writeBinaryFile to call the correct command (fix [#1133](https://www.github.com/tauri-apps/tauri/pull/1133)) ([#1136](https://www.github.com/tauri-apps/tauri/pull/1136)) on 2021-01-06
+
+## [0.13.0]
+
+-   Fixes `Reflect.deleteProperty` on promisified API calls failing with `Unable to delete property` by making it configurable.
+    -   [c8b167a](https://www.github.com/tauri-apps/tauri/commit/c8b167adb3561db182bc8f6e4d8753ce1ae3f450) fix(tauri.js) promisified API fails on Reflect.deleteProperty, fix [#1038](https://www.github.com/tauri-apps/tauri/pull/1038) ([#1056](https://www.github.com/tauri-apps/tauri/pull/1056)) on 2020-10-17
+    -   [72996be](https://www.github.com/tauri-apps/tauri/commit/72996be1bd3eb878c4cf30bfec79058071c26d7a) apply version updates ([#1024](https://www.github.com/tauri-apps/tauri/pull/1024)) on 2020-10-21
+-   Adds a path resolution API (e.g. getting the download directory or resolving a path to the home directory).
+    -   [771e401](https://www.github.com/tauri-apps/tauri/commit/771e4019b8cfd1973015ffa632c9d6c6b82c5657) feat: Port path api to js ([#1006](https://www.github.com/tauri-apps/tauri/pull/1006)) on 2020-09-24
+    -   [72996be](https://www.github.com/tauri-apps/tauri/commit/72996be1bd3eb878c4cf30bfec79058071c26d7a) apply version updates ([#1024](https://www.github.com/tauri-apps/tauri/pull/1024)) on 2020-10-21
+
 ## [0.12.0]
 
 -   Break out TauriBuildConfig interface from TauriConfig build property
-    -   [43a8c4d](https://www.github.com/tauri-apps/tauri/commit/43a8c4d2bcc2461232e2ddfdf2506d3b4d68471d) fix [#920](https://www.github.com/tauri-apps/tauri/pull/920): Create recipes  ([#930](https://www.github.com/tauri-apps/tauri/pull/930)) on 2020-08-17
+    -   [43a8c4d](https://www.github.com/tauri-apps/tauri/commit/43a8c4d2bcc2461232e2ddfdf2506d3b4d68471d) fix [#920](https://www.github.com/tauri-apps/tauri/pull/920): Create recipes ([#930](https://www.github.com/tauri-apps/tauri/pull/930)) on 2020-08-17
 -   Create recipes. A recipe:
     -   Updates the TauriBuildConfig during the init process
     -   Specifies npm dev and production dependencies to be installed
     -   Runs extra installation scripts
-    -   [43a8c4d](https://www.github.com/tauri-apps/tauri/commit/43a8c4d2bcc2461232e2ddfdf2506d3b4d68471d) fix [#920](https://www.github.com/tauri-apps/tauri/pull/920): Create recipes  ([#930](https://www.github.com/tauri-apps/tauri/pull/930)) on 2020-08-17
+    -   [43a8c4d](https://www.github.com/tauri-apps/tauri/commit/43a8c4d2bcc2461232e2ddfdf2506d3b4d68471d) fix [#920](https://www.github.com/tauri-apps/tauri/pull/920): Create recipes ([#930](https://www.github.com/tauri-apps/tauri/pull/930)) on 2020-08-17
 -   Create React JS and React TS recipes
-    -   [43a8c4d](https://www.github.com/tauri-apps/tauri/commit/43a8c4d2bcc2461232e2ddfdf2506d3b4d68471d) fix [#920](https://www.github.com/tauri-apps/tauri/pull/920): Create recipes  ([#930](https://www.github.com/tauri-apps/tauri/pull/930)) on 2020-08-17
+    -   [43a8c4d](https://www.github.com/tauri-apps/tauri/commit/43a8c4d2bcc2461232e2ddfdf2506d3b4d68471d) fix [#920](https://www.github.com/tauri-apps/tauri/pull/920): Create recipes ([#930](https://www.github.com/tauri-apps/tauri/pull/930)) on 2020-08-17
 -   Add new top level command `create`, which accepts a recipe as a CLI, or runs interactively, prompting for a recipe out of a menu of choices defined by `api/recipes/index`
-    -   [43a8c4d](https://www.github.com/tauri-apps/tauri/commit/43a8c4d2bcc2461232e2ddfdf2506d3b4d68471d) fix [#920](https://www.github.com/tauri-apps/tauri/pull/920): Create recipes  ([#930](https://www.github.com/tauri-apps/tauri/pull/930)) on 2020-08-17
+    -   [43a8c4d](https://www.github.com/tauri-apps/tauri/commit/43a8c4d2bcc2461232e2ddfdf2506d3b4d68471d) fix [#920](https://www.github.com/tauri-apps/tauri/pull/920): Create recipes ([#930](https://www.github.com/tauri-apps/tauri/pull/930)) on 2020-08-17
 -   Refactor `init` command so that it is just an alias for `create` with no recipe
-    -   [43a8c4d](https://www.github.com/tauri-apps/tauri/commit/43a8c4d2bcc2461232e2ddfdf2506d3b4d68471d) fix [#920](https://www.github.com/tauri-apps/tauri/pull/920): Create recipes  ([#930](https://www.github.com/tauri-apps/tauri/pull/930)) on 2020-08-17
+    -   [43a8c4d](https://www.github.com/tauri-apps/tauri/commit/43a8c4d2bcc2461232e2ddfdf2506d3b4d68471d) fix [#920](https://www.github.com/tauri-apps/tauri/pull/920): Create recipes ([#930](https://www.github.com/tauri-apps/tauri/pull/930)) on 2020-08-17
 -   Bump all deps as noted in #975, #976, #977, #978, and #979.
     -   [06dd75b](https://www.github.com/tauri-apps/tauri/commit/06dd75b68a15d388808c51ae2bf50554ae761d9d) chore: bump all js/rust deps ([#983](https://www.github.com/tauri-apps/tauri/pull/983)) on 2020-08-20
 -   Make interactive prompt not ask for app name supplied as cli arg
@@ -55,14 +79,12 @@
 -   Do not require a `package.json` file on the app root.
     -   [45d3de6](https://www.github.com/tauri-apps/tauri/commit/45d3de6d97f060659e72e0cc0dc56d4f33f4a2f9) fix(tauri.js) do not require a package.json ([#855](https://www.github.com/tauri-apps/tauri/pull/855)) on 2020-07-19
 -   Adds a dependency manager command to the Node.js CLI (`tauri deps`). The manager is able to install and update Rust and the Tauri ecosystem dependencies (npm package, crates, cargo subcommands).
-    Usage: `tauri deps install` and `tauri deps update`.
-        - [77282c1](https://www.github.com/tauri-apps/tauri/commit/77282c1e513227fe379f916cd21249b44faa8756) feat(tauri.js) add dependency manager command ([#829](https://www.github.com/tauri-apps/tauri/pull/829)) on 2020-07-15
+    Usage: `tauri deps install` and `tauri deps update`. - [77282c1](https://www.github.com/tauri-apps/tauri/commit/77282c1e513227fe379f916cd21249b44faa8756) feat(tauri.js) add dependency manager command ([#829](https://www.github.com/tauri-apps/tauri/pull/829)) on 2020-07-15
 -   Run the dependency manager's install script after `tauri init` succeeds.
     -   [0591f1f](https://www.github.com/tauri-apps/tauri/commit/0591f1f945420ec4bc53919d05a8f8de014b3823) feat(tauri.js) run `deps install` after `tauri init` ([#842](https://www.github.com/tauri-apps/tauri/pull/842)) on 2020-07-15
 -   Move types exported in the `tauri` js api into the modules that use them. For
     example, `Event` is now available from `tauri/api/event` instead of
-    `tauri/api/types/event`.
-        - [660a2d8](https://www.github.com/tauri-apps/tauri/commit/660a2d87d6acf0abf6be70c01e6402cb5aba96c7) feat(tauri.js) move exported api types into api modules (fix [#807](https://www.github.com/tauri-apps/tauri/pull/807)) ([#809](https://www.github.com/tauri-apps/tauri/pull/809)) on 2020-07-12
+    `tauri/api/types/event`. - [660a2d8](https://www.github.com/tauri-apps/tauri/commit/660a2d87d6acf0abf6be70c01e6402cb5aba96c7) feat(tauri.js) move exported api types into api modules (fix [#807](https://www.github.com/tauri-apps/tauri/pull/807)) ([#809](https://www.github.com/tauri-apps/tauri/pull/809)) on 2020-07-12
 
 ## [0.9.1]
 

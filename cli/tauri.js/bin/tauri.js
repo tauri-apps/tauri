@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
-const cmds = ['create', 'init', 'dev', 'build', 'help', 'icon', 'info', 'deps']
+const cmds = ['init', 'help', 'icon', 'info', 'deps']
+const rustCliCmds = ['dev', 'build']
 
 const cmd = process.argv[2]
+
 /**
  * @description This is the bootstrapper that in turn calls subsequent
  * Tauri Commands
@@ -13,6 +15,15 @@ const tauri = function (command) {
   if (typeof command === 'object') {
     // technically we just care about an array
     command = command[0]
+  }
+
+  if (rustCliCmds.includes(command)) {
+    const { runOnRustCli } = require('../dist/helpers/rust-cli')
+    if (process.argv && !process.env.test) {
+      process.argv.splice(0, 3)
+    }
+    runOnRustCli(command, process.argv || [])
+    return
   }
 
   if (
@@ -46,7 +57,7 @@ const tauri = function (command) {
     }
     console.log(`[tauri]: running ${command}`)
     // eslint-disable-next-line security/detect-non-literal-require
-    if (['create', 'init'].includes(command)) {
+    if (['init'].includes(command)) {
       require(`./tauri-${command}`)(process.argv.slice(2))
     } else {
       require(`./tauri-${command}`)

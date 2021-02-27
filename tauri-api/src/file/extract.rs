@@ -1,11 +1,6 @@
 use either::{self, Either};
-use flate2;
-use tar;
-use zip;
 
-use std::fs;
-use std::io;
-use std::path;
+use std::{fs, io, path};
 
 /// The supported archive formats.
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -1,6 +1,8 @@
-use super::common;
-use super::path_utils::{copy, Options};
-use super::settings::Settings;
+use super::{
+  common,
+  path_utils::{copy_file, FileOpts},
+  settings::Settings,
+};
 
 use handlebars::{to_json, Handlebars};
 use lazy_static::lazy_static;
@@ -10,11 +12,13 @@ use sha2::Digest;
 use uuid::Uuid;
 use zip::ZipArchive;
 
-use std::collections::BTreeMap;
-use std::fs::{create_dir_all, remove_dir_all, write, File};
-use std::io::{Cursor, Read, Write};
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::{
+  collections::BTreeMap,
+  fs::{create_dir_all, remove_dir_all, write, File},
+  io::{Cursor, Read, Write},
+  path::{Path, PathBuf},
+  process::{Command, Stdio},
+};
 
 // URLS for the WIX toolchain.  Can be used for crossplatform compilation.
 pub const WIX_URL: &str =
@@ -137,34 +141,27 @@ impl ResourceDirectory {
   }
 }
 
-/// Copies the icons to the binary path, under the `resources` folder,
-/// and returns the path to that directory.
-fn copy_icons(settings: &Settings) -> crate::Result<PathBuf> {
+/// Copies the icon to the binary path, under the `resources` folder,
+/// and returns the path to the file.
+fn copy_icon(settings: &Settings) -> crate::Result<PathBuf> {
   let base_dir = settings.project_out_directory();
 
   let resource_dir = base_dir.join("resources");
+  std::fs::create_dir_all(&resource_dir)?;
+  let icon_target_path = resource_dir.join("icon.ico");
 
-  let mut image_path = PathBuf::from(settings.project_out_directory());
+  let icon_path = std::env::current_dir()?.join("icons").join("icon.ico");
 
-  // pop off till in tauri_src dir
-  image_path.pop();
-  image_path.pop();
-
-  // get icon dir and icon file.
-  let image_path = image_path.join("icons");
-  let opts = super::path_utils::Options::default();
-
-  copy(
-    image_path,
-    &resource_dir,
-    &Options {
-      copy_files: true,
+  copy_file(
+    icon_path,
+    &icon_target_path,
+    &FileOpts {
       overwrite: true,
-      ..opts
+      ..Default::default()
     },
   )?;
 
-  Ok(resource_dir)
+  Ok(icon_target_path)
 }
 
 /// Function used to download Wix and VC_REDIST. Checks SHA256 to verify the download.
@@ -445,13 +442,6 @@ pub fn build_wix_app_installer(
 
   let mut data = BTreeMap::new();
 
-  if let Ok(tauri_config) = crate::bundle::tauri_config::get() {
-    data.insert(
-      "embedded_server",
-      to_json(tauri_config.tauri.embedded_server.active),
-    );
-  }
-
   data.insert("product_name", to_json(settings.bundle_name()));
   data.insert("version", to_json(settings.version_string()));
   let manufacturer = settings.bundle_identifier().to_string();
@@ -501,12 +491,10 @@ pub fn build_wix_app_installer(
 
   data.insert("app_exe_source", to_json(&app_exe_source));
 
-  // copy icons from icons folder to resource folder near msi
-  let image_path = copy_icons(&settings)?;
+  // copy icon from $CWD/icons/icon.ico folder to resource folder near msi
+  let icon_path = copy_icon(&settings)?;
 
-  let path = image_path.join("icon.ico").display().to_string();
-
-  data.insert("icon_path", to_json(path.as_str()));
+  data.insert("icon_path", to_json(icon_path));
 
   let temp = HANDLEBARS.render("main.wxs", &data)?;
 

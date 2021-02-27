@@ -21,18 +21,16 @@ use super::common;
 use crate::Settings;
 
 use anyhow::Context;
-use chrono;
-use dirs_next;
-use icns;
 use image::{self, GenericImageView};
 
-use std::cmp::min;
-use std::ffi::OsStr;
-use std::fs::{self, File};
-use std::io::prelude::*;
-use std::io::{self, BufWriter};
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::{
+  cmp::min,
+  ffi::OsStr,
+  fs::{self, File},
+  io::{self, prelude::*, BufWriter},
+  path::{Path, PathBuf},
+  process::{Command, Stdio},
+};
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the .app was created.

@@ -11,13 +11,17 @@ mod path_utils;
 mod platform;
 mod rpm_bundle;
 mod settings;
-pub mod tauri_config;
 #[cfg(target_os = "windows")]
 mod wix;
 
-pub use self::common::print_info;
-pub use self::common::{print_error, print_finished};
-pub use self::settings::{PackageType, Settings};
+pub use self::{
+  category::AppCategory,
+  common::{print_error, print_info},
+  settings::{
+    BundleBinary, BundleSettings, PackageSettings, PackageType, Settings, SettingsBuilder,
+  },
+};
+use common::print_finished;
 
 use std::path::PathBuf;
 
@@ -48,6 +52,8 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
 
   settings.copy_resources(settings.project_out_directory())?;
   settings.copy_binaries(settings.project_out_directory())?;
+
+  print_finished(&paths)?;
 
   Ok(paths)
 }

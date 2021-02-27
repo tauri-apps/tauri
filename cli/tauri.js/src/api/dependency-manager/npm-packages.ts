@@ -11,6 +11,7 @@ import logger from '../../helpers/logger'
 import { resolve } from '../../helpers/app-paths'
 import inquirer from 'inquirer'
 import { existsSync } from 'fs'
+import { sync as crossSpawnSync } from 'cross-spawn'
 
 const log = logger('dependency:npm-packages')
 
@@ -21,19 +22,30 @@ async function manageDependencies(
   const installedDeps = []
   const updatedDeps = []
 
+  const npmChild = crossSpawnSync('npm', ['--version'])
+  const yarnChild = crossSpawnSync('yarn', ['--version'])
+  if (
+    (npmChild.status ?? npmChild.error) &&
+    (yarnChild.status ?? yarnChild.error)
+  ) {
+    throw new Error(
+      'must have `npm` or `yarn` installed to manage dependenices'
+    )
+  }
+
   if (existsSync(resolve.app('package.json'))) {
     for (const dependency of dependencies) {
       const currentVersion = await getNpmPackageVersion(dependency)
       if (currentVersion === null) {
         log(`Installing ${dependency}...`)
         if (managementType === ManagementType.Install) {
-          installNpmPackage(dependency)
+          await installNpmPackage(dependency)
         } else if (managementType === ManagementType.InstallDev) {
-          installNpmDevPackage(dependency)
+          await installNpmDevPackage(dependency)
         }
         installedDeps.push(dependency)
       } else if (managementType === ManagementType.Update) {
-        const latestVersion = getNpmLatestVersion(dependency)
+        const latestVersion = await getNpmLatestVersion(dependency)
         if (semverLt(currentVersion, latestVersion)) {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
           const inquired = await inquirer.prompt([

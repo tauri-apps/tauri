@@ -42,7 +42,7 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
           if let syn::Meta::Path(path) = meta {
             path
               .get_ident()
-              .map(|i| i.to_string() == "webview")
+              .map(|i| i.to_string() == "with_webview")
               .unwrap_or(false)
           } else {
             false

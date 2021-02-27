@@ -10,22 +10,13 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
     .map(|param| {
       let mut arg_name = None;
       let mut arg_type = None;
-      match param {
-        syn::FnArg::Typed(rec) => {
-          match rec.pat.as_ref() {
-            syn::Pat::Ident(ident) => {
-              arg_name = Some(ident.ident.clone());
-            }
-            _ => (),
-          }
-          match rec.ty.as_ref() {
-            syn::Type::Path(path) => {
-              arg_type = Some(path.path.clone());
-            }
-            _ => (),
-          }
+      if let syn::FnArg::Typed(rec) = param {
+        if let syn::Pat::Ident(ident) = rec.pat.as_ref() {
+          arg_name = Some(ident.ident.clone());
         }
-        _ => (),
+        if let syn::Type::Path(path) = rec.ty.as_ref() {
+          arg_type = Some(path.path.clone());
+        }
       }
       (arg_name.unwrap(), arg_type.unwrap())
     })
@@ -37,20 +28,17 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
   let webview_arg = match types.first() {
     Some(first_type) => {
       // Check if "webview" attr was passed to macro
-      if attrs.iter().any(|a| {
-        if let syn::NestedMeta::Meta(meta) = a {
-          if let syn::Meta::Path(path) = meta {
-            path
-              .get_ident()
-              .map(|i| i.to_string() == "with_webview")
-              .unwrap_or(false)
-          } else {
-            false
-          }
+      let uses_webview = attrs.iter().any(|a| {
+        if let syn::NestedMeta::Meta(syn::Meta::Path(path)) = a {
+          path
+            .get_ident()
+            .map(|i| *i == "with_webview")
+            .unwrap_or(false)
         } else {
           false
         }
-      }) {
+      });
+      if uses_webview {
         // If the function takes the webview, give it a specific type
         webview_arg_type = quote!(#first_type);
         application_ext_generic = quote!();

@@ -1,23 +1,111 @@
-use attohttpc::{Method, RequestBuilder};
-use http::header::HeaderName;
-use serde::Deserialize;
+use bytes::Bytes;
+use reqwest::{header::HeaderName, redirect::Policy, Method};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use std::{collections::HashMap, fs::File, time::Duration};
 
-#[derive(Serialize_repr, Deserialize_repr, Clone, Debug)]
-#[repr(u16)]
-/// The request's body type
-pub enum BodyType {
-  /// Send request body as application/x-www-form-urlencoded
-  Form = 1,
-  /// Send request body (which is a path to a file) as application/octet-stream
-  File,
-  /// Detects the body type automatically
-  /// - if the body is a byte array, send is as bytes (application/octet-stream)
-  /// - if the body is an object or array, send it as JSON (application/json with UTF-8 charset)
-  /// - if the body is a string, send it as text (text/plain with UTF-8 charset)
-  Auto,
+use std::{collections::HashMap, path::PathBuf, time::Duration};
+
+/// Client builder.
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientBuilder {
+  /// Max number of redirections to follow
+  pub max_redirections: Option<usize>,
+  /// Connect timeout in seconds for the request
+  pub connect_timeout: Option<u64>,
+}
+
+impl ClientBuilder {
+  /// Creates a new client builder with the default options.
+  pub fn new() -> Self {
+    Default::default()
+  }
+
+  /// Sets the maximum number of redirections.
+  pub fn max_redirections(mut self, max_redirections: usize) -> Self {
+    self.max_redirections = Some(max_redirections);
+    self
+  }
+
+  /// Sets the connection timeout.
+  pub fn connect_timeout(mut self, connect_timeout: u64) -> Self {
+    self.connect_timeout = Some(connect_timeout);
+    self
+  }
+
+  /// Builds the ClientOptions.
+  pub fn build(self) -> crate::Result<Client> {
+    let mut client_builder = reqwest::Client::builder();
+
+    if let Some(max_redirections) = self.max_redirections {
+      client_builder = client_builder.redirect(Policy::limited(max_redirections))
+    }
+
+    if let Some(connect_timeout) = self.connect_timeout {
+      client_builder = client_builder.connect_timeout(Duration::from_secs(connect_timeout));
+    }
+
+    let client = client_builder.build()?;
+    Ok(Client(client))
+  }
+}
+
+/// The HTTP client.
+#[derive(Clone)]
+pub struct Client(reqwest::Client);
+
+impl Client {
+  /// Executes an HTTP request
+  ///
+  /// The response will be transformed to String,
+  /// If reading the response as binary, the byte array will be serialized using serde_json
+  pub async fn send(&self, request: HttpRequestBuilder) -> crate::Result<Response> {
+    let method = Method::from_bytes(request.method.to_uppercase().as_bytes())?;
+    let mut request_builder = self.0.request(method, &request.url);
+
+    if let Some(query) = request.query {
+      request_builder = request_builder.query(&query);
+    }
+
+    if let Some(headers) = request.headers {
+      for (header, header_value) in headers.iter() {
+        request_builder =
+          request_builder.header(HeaderName::from_bytes(header.as_bytes())?, header_value);
+      }
+    }
+
+    if let Some(timeout) = request.timeout {
+      request_builder = request_builder.timeout(Duration::from_secs(timeout));
+    }
+
+    let response = if let Some(body) = request.body {
+      match body {
+        Body::Bytes(data) => request_builder.body(Bytes::from(data)).send().await?,
+        Body::Text(text) => request_builder.body(Bytes::from(text)).send().await?,
+        Body::Json(json) => request_builder.json(&json).send().await?,
+        Body::Form(form_body) => {
+          let mut form = Vec::new();
+          for (name, part) in form_body.0 {
+            match part {
+              FormPart::Bytes(bytes) => form.push((name, serde_json::to_string(&bytes)?)),
+              FormPart::File(file_path) => form.push((name, serde_json::to_string(&file_path)?)),
+              FormPart::Text(text) => form.push((name, text)),
+            }
+          }
+          request_builder.form(&form).send().await?
+        }
+      }
+    } else {
+      request_builder.send().await?
+    };
+
+    let response = response.error_for_status()?;
+    Ok(Response(
+      request.response_type.unwrap_or(ResponseType::Json),
+      response,
+    ))
+  }
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Clone, Debug)]
@@ -32,106 +120,99 @@ pub enum ResponseType {
   Binary,
 }
 
+/// FormBody data types.
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-/// The configuration object of an HTTP request
-pub struct HttpRequestOptions {
-  /// The request method (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS, CONNECT or TRACE)
-  pub method: String,
-  /// The request URL
-  pub url: String,
-  /// The request query params
-  pub params: Option<HashMap<String, String>>,
-  /// The request headers
-  pub headers: Option<HashMap<String, String>>,
-  /// The request body
-  pub body: Option<Value>,
-  /// Whether to follow redirects or not
-  pub follow_redirects: Option<bool>,
-  /// Max number of redirections to follow
-  pub max_redirections: Option<u32>,
-  /// Connect timeout for the request
-  pub connect_timeout: Option<u64>,
-  /// Read timeout for the request
-  pub read_timeout: Option<u64>,
-  /// Timeout for the whole request
-  pub timeout: Option<u64>,
-  /// Whether the request will announce that it accepts compression
-  pub allow_compression: Option<bool>,
-  /// The body type (defaults to Auto)
-  pub body_type: Option<BodyType>,
-  /// The response type (defaults to Json)
-  pub response_type: Option<ResponseType>,
+#[serde(untagged)]
+pub enum FormPart {
+  /// A file path value.
+  File(PathBuf),
+  /// A string value.
+  Text(String),
+  /// A byte array value.
+  Bytes(Vec<u8>),
 }
 
-/// The builder for HttpRequestOptions.
+/// Form body definition.
+#[derive(Deserialize)]
+pub struct FormBody(HashMap<String, FormPart>);
+
+impl FormBody {
+  /// Creates a new form body.
+  pub fn new(data: HashMap<String, FormPart>) -> Self {
+    Self(data)
+  }
+}
+
+/// A body for the request.
+#[derive(Deserialize)]
+#[serde(tag = "type", content = "payload")]
+pub enum Body {
+  /// A multipart formdata body.
+  Form(FormBody),
+  /// A JSON body.
+  Json(Value),
+  /// A text string body.
+  Text(String),
+  /// A byte array body.
+  Bytes(Vec<u8>),
+}
+
+/// The builder for a HTTP request.
 ///
 /// # Examples
-/// ```
-/// # use tauri_api::http::{ HttpRequestBuilder, HttpRequestOptions, make_request, ResponseType };
-/// let mut builder = HttpRequestBuilder::new("GET", "http://example.com");
-/// let option = builder.response_type(ResponseType::Text)
-///                     .follow_redirects(false)
-///                     .build();
+/// ```no_run
+/// use tauri_api::http::{ HttpRequestBuilder, ResponseType, ClientBuilder };
+/// async fn run() {
+///   let client = ClientBuilder::new()
+///     .max_redirections(3)
+///     .build()
+///     .unwrap();
+///   let mut request_builder = HttpRequestBuilder::new("GET", "http://example.com");
+///   let request = request_builder.response_type(ResponseType::Text);
 ///
-/// if let Ok(response) = make_request(option) {
-///   println!("Response: {}", response);
-/// } else {
-///   println!("Something Happened!");
+///   if let Ok(response) = client.send(request).await {
+///     println!("got response");
+///   } else {
+///     println!("Something Happened!");
+///   }
 /// }
 /// ```
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct HttpRequestBuilder {
   /// The request method (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS, CONNECT or TRACE)
   pub method: String,
   /// The request URL
   pub url: String,
   /// The request query params
-  pub params: Option<HashMap<String, String>>,
+  pub query: Option<HashMap<String, String>>,
   /// The request headers
   pub headers: Option<HashMap<String, String>>,
   /// The request body
-  pub body: Option<Value>,
-  /// Whether to follow redirects or not
-  pub follow_redirects: Option<bool>,
-  /// Max number of redirections to follow
-  pub max_redirections: Option<u32>,
-  /// Connect timeout for the request
-  pub connect_timeout: Option<u64>,
-  /// Read timeout for the request
-  pub read_timeout: Option<u64>,
+  pub body: Option<Body>,
   /// Timeout for the whole request
   pub timeout: Option<u64>,
-  /// Whether the request will announce that it accepts compression
-  pub allow_compression: Option<bool>,
-  /// The body type (defaults to Auto)
-  pub body_type: Option<BodyType>,
   /// The response type (defaults to Json)
   pub response_type: Option<ResponseType>,
 }
 
 impl HttpRequestBuilder {
-  /// Initializes a new instance of the HttpRequestBuilder.
+  /// Initializes a new instance of the HttpRequestrequest_builder.
   pub fn new(method: impl Into<String>, url: impl Into<String>) -> Self {
     Self {
       method: method.into(),
       url: url.into(),
-      params: None,
+      query: None,
       headers: None,
       body: None,
-      follow_redirects: None,
-      max_redirections: None,
-      connect_timeout: None,
-      read_timeout: None,
       timeout: None,
-      allow_compression: None,
-      body_type: None,
       response_type: None,
     }
   }
 
   /// Sets the request params.
-  pub fn params(mut self, params: HashMap<String, String>) -> Self {
-    self.params = Some(params);
+  pub fn query(mut self, query: HashMap<String, String>) -> Self {
+    self.query = Some(query);
     self
   }
 
@@ -142,32 +223,8 @@ impl HttpRequestBuilder {
   }
 
   /// Sets the request body.
-  pub fn body(mut self, body: Value) -> Self {
+  pub fn body(mut self, body: Body) -> Self {
     self.body = Some(body);
-    self
-  }
-
-  /// Sets whether the request should follow redirects or not.
-  pub fn follow_redirects(mut self, follow_redirects: bool) -> Self {
-    self.follow_redirects = Some(follow_redirects);
-    self
-  }
-
-  /// Sets the maximum number of redirections.
-  pub fn max_redirections(mut self, max_redirections: u32) -> Self {
-    self.max_redirections = Some(max_redirections);
-    self
-  }
-
-  /// Sets the connection timeout.
-  pub fn connect_timeout(mut self, connect_timeout: u64) -> Self {
-    self.connect_timeout = Some(connect_timeout);
-    self
-  }
-
-  /// Sets the read timeout.
-  pub fn read_timeout(mut self, read_timeout: u64) -> Self {
-    self.read_timeout = Some(read_timeout);
     self
   }
 
@@ -177,126 +234,47 @@ impl HttpRequestBuilder {
     self
   }
 
-  /// Sets whether the request allows compressed responses or not.
-  pub fn allow_compression(mut self, allow_compression: bool) -> Self {
-    self.allow_compression = Some(allow_compression);
-    self
-  }
-
-  /// Sets the type of the request body.
-  pub fn body_type(mut self, body_type: BodyType) -> Self {
-    self.body_type = Some(body_type);
-    self
-  }
-
   /// Sets the type of the response. Interferes with the way we read the response.
   pub fn response_type(mut self, response_type: ResponseType) -> Self {
     self.response_type = Some(response_type);
     self
   }
+}
 
-  /// Builds the HttpRequestOptions.
-  pub fn build(self) -> HttpRequestOptions {
-    HttpRequestOptions {
-      method: self.method,
-      url: self.url,
-      params: self.params,
-      headers: self.headers,
-      body: self.body,
-      follow_redirects: self.follow_redirects,
-      max_redirections: self.max_redirections,
-      connect_timeout: self.connect_timeout,
-      read_timeout: self.read_timeout,
-      timeout: self.timeout,
-      allow_compression: self.allow_compression,
-      body_type: self.body_type,
-      response_type: self.response_type,
+/// The HTTP response.
+pub struct Response(ResponseType, reqwest::Response);
+
+impl Response {
+  /// Reads the response and returns its info.
+  pub async fn read(self) -> crate::Result<ResponseData> {
+    let url = self.1.url().to_string();
+    let mut headers = HashMap::new();
+    for (name, value) in self.1.headers() {
+      headers.insert(name.as_str().to_string(), value.to_str()?.to_string());
     }
+    let status = self.1.status().as_u16();
+
+    let data = match self.0 {
+      ResponseType::Json => self.1.json().await?,
+      ResponseType::Text => Value::String(self.1.text().await?),
+      ResponseType::Binary => Value::String(serde_json::to_string(&self.1.bytes().await?)?),
+    };
+
+    Ok(ResponseData {
+      url,
+      status,
+      headers,
+      data,
+    })
   }
 }
 
-/// Executes an HTTP request
-///
-/// The response will be transformed to String,
-/// If reading the response as binary, the byte array will be serialized using serde_json
-pub fn make_request(options: HttpRequestOptions) -> crate::Result<Value> {
-  let method = Method::from_bytes(options.method.to_uppercase().as_bytes())?;
-  let mut builder = RequestBuilder::new(method, options.url);
-  if let Some(params) = options.params {
-    for (param, param_value) in params.iter() {
-      builder = builder.param(param, param_value);
-    }
-  }
-
-  if let Some(headers) = options.headers {
-    for (header, header_value) in headers.iter() {
-      builder = builder.header(HeaderName::from_bytes(header.as_bytes())?, header_value);
-    }
-  }
-
-  if let Some(follow_redirects) = options.follow_redirects {
-    builder = builder.follow_redirects(follow_redirects);
-  }
-  if let Some(max_redirections) = options.max_redirections {
-    builder = builder.max_redirections(max_redirections);
-  }
-  if let Some(connect_timeout) = options.connect_timeout {
-    builder = builder.connect_timeout(Duration::from_secs(connect_timeout));
-  }
-  if let Some(read_timeout) = options.read_timeout {
-    builder = builder.read_timeout(Duration::from_secs(read_timeout));
-  }
-  if let Some(timeout) = options.timeout {
-    builder = builder.timeout(Duration::from_secs(timeout));
-  }
-  if let Some(allow_compression) = options.allow_compression {
-    builder = builder.allow_compression(allow_compression);
-  }
-  builder = builder
-    .danger_accept_invalid_certs(true)
-    .danger_accept_invalid_hostnames(true);
-
-  let response = if let Some(body) = options.body {
-    match options.body_type.unwrap_or(BodyType::Auto) {
-      BodyType::Form => builder.form(&body)?.send(),
-      BodyType::File => {
-        if let Some(path) = body.as_str() {
-          builder.file(File::open(path)?).send()
-        } else {
-          return Err(crate::Error::Path(
-            "Body must be the path to the file".into(),
-          ));
-        }
-      }
-      BodyType::Auto => {
-        if body.is_object() {
-          builder.json(&body)?.send()
-        } else if let Some(text) = body.as_str() {
-          builder.text(&text).send()
-        } else if body.is_array() {
-          let u: Result<Vec<u8>, _> = serde_json::from_value(body.clone());
-          match u {
-            Ok(vec) => builder.bytes(&vec).send(),
-            Err(_) => builder.json(&body)?.send(),
-          }
-        } else {
-          builder.send()
-        }
-      }
-    }
-  } else {
-    builder.send()
-  };
-
-  let response = response?;
-  if response.is_success() {
-    let response_data = match options.response_type.unwrap_or(ResponseType::Json) {
-      ResponseType::Json => response.json::<Value>()?,
-      ResponseType::Text => Value::String(response.text()?),
-      ResponseType::Binary => Value::String(serde_json::to_string(&response.bytes()?)?),
-    };
-    Ok(response_data)
-  } else {
-    Err(response.status().into())
-  }
+/// The response type.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResponseData {
+  url: String,
+  status: u16,
+  headers: HashMap<String, String>,
+  data: Value,
 }

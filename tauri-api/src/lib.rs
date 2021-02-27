@@ -30,6 +30,10 @@ pub mod cli;
 #[macro_use]
 extern crate clap;
 
+/// Global shortcuts interface.
+#[cfg(feature = "global-shortcut")]
+pub mod shortcuts;
+
 /// The desktop notifications API module.
 #[cfg(feature = "notification")]
 pub mod notification;
@@ -51,5 +55,6 @@ pub mod private {
     fn raw_config() -> &'static str;
     fn assets() -> &'static crate::assets::Assets;
     fn raw_tauri_script() -> &'static str;
+    fn default_window_icon() -> Option<&'static [u8]>;
   }
 }

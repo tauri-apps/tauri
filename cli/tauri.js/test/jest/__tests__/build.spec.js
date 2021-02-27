@@ -67,8 +67,8 @@ describe('Tauri Build', () => {
 
   it.each`
     mode                 | flag
-    ${'embedded-server'} | ${'debug'}
-    ${'embedded-server'} | ${'release'}
+    ${'custom-protocol'} | ${'debug'}
+    ${'custom-protocol'} | ${'release'}
   `('works with the $mode $flag mode', ({ mode, flag }) => {
     return runBuildTest({
       debug: flag === 'debug',

@@ -13,7 +13,7 @@ use tauri_api::{
 #[derive(Default, Deserialize, Serialize)]
 pub struct Settings {
   /// Whether the user allows notifications or not.
-  #[cfg(notification)]
+  #[cfg(notification_all)]
   pub allow_notification: Option<bool>,
 }
 
@@ -30,10 +30,10 @@ pub(crate) fn write_settings(settings: Settings) -> crate::Result<()> {
     std::fs::create_dir(settings_folder)?;
   }
   File::create(settings_path)
-    .map_err(|e| e.into())
+    .map_err(Into::into)
     .and_then(|mut f| {
       f.write_all(serde_json::to_string(&settings)?.as_bytes())
-        .map_err(|e| e.into())
+        .map_err(Into::into)
     })
 }
 
@@ -42,8 +42,8 @@ pub fn read_settings() -> crate::Result<Settings> {
   let settings_path = get_settings_path()?;
   if settings_path.exists() {
     read_string(settings_path)
-      .and_then(|settings| serde_json::from_str(settings.as_str()).map_err(|e| e.into()))
-      .map_err(|e| e.into())
+      .and_then(|settings| serde_json::from_str(settings.as_str()).map_err(Into::into))
+      .map_err(Into::into)
   } else {
     Ok(Default::default())
   }

@@ -6,21 +6,30 @@ use crate::helpers::{
 };
 
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
+use once_cell::sync::OnceCell;
 use shared_child::SharedChild;
 
 use std::{
-  env::{set_current_dir, set_var},
+  env::set_current_dir,
   ffi::OsStr,
   fs::{create_dir_all, File},
   io::Write,
   path::PathBuf,
-  process::{exit, Command},
+  process::{exit, Child, Command},
   sync::{
     mpsc::{channel, Receiver},
     Arc, Mutex,
   },
   time::Duration,
 };
+
+static BEFORE_DEV: OnceCell<Mutex<Child>> = OnceCell::new();
+
+fn kill_before_dev_process() {
+  if let Some(child) = BEFORE_DEV.get() {
+    let _ = child.lock().unwrap().kill();
+  }
+}
 
 #[derive(Default)]
 pub struct Dev {
@@ -49,7 +58,6 @@ impl Dev {
     set_current_dir(&tauri_path)?;
     let merge_config = self.config.clone();
     let config = get_config(merge_config.as_deref())?;
-    let mut _guard = None;
     let mut process: Arc<SharedChild>;
 
     if let Some(before_dev) = &config
@@ -72,9 +80,14 @@ impl Dev {
 
       if let Some(cmd) = cmd {
         logger.log(format!("Running `{}`", before_dev));
+        #[cfg(target_os = "windows")]
+        let mut command = Command::new(
+          which::which(&cmd).expect(&format!("failed to find `{}` in your $PATH", cmd)),
+        );
+        #[cfg(not(target_os = "windows"))]
         let mut command = Command::new(cmd);
-        command.args(args).current_dir(app_dir()).spawn()?;
-        _guard = Some(command);
+        let child = command.args(args).current_dir(app_dir()).spawn()?;
+        BEFORE_DEV.set(Mutex::new(child)).unwrap();
       }
     }
 
@@ -86,27 +99,6 @@ impl Dev {
       .build
       .dev_path
       .to_string();
-
-    let dev_path = if dev_path.starts_with("http") {
-      dev_path
-    } else {
-      let absolute_dev_path = tauri_dir()
-        .join(&config.lock().unwrap().as_ref().unwrap().build.dev_path)
-        .to_string_lossy()
-        .to_string();
-      (*config.lock().unwrap()).as_mut().unwrap().build.dev_path = absolute_dev_path.to_string();
-      absolute_dev_path
-    };
-
-    set_var("TAURI_DIR", &tauri_path);
-    set_var(
-      "TAURI_DIST_DIR",
-      tauri_path.join(&config.lock().unwrap().as_ref().unwrap().build.dist_dir),
-    );
-    set_var(
-      "TAURI_CONFIG",
-      serde_json::to_string(&*config.lock().unwrap())?,
-    );
 
     rewrite_manifest(config.clone())?;
 
@@ -162,9 +154,7 @@ impl Dev {
         if let Some(event_path) = event_path {
           if event_path.file_name() == Some(OsStr::new("tauri.conf.json")) {
             reload_config(merge_config.as_deref())?;
-            (*config.lock().unwrap()).as_mut().unwrap().build.dev_path = dev_path.to_string();
             rewrite_manifest(config.clone())?;
-            set_var("TAURI_CONFIG", serde_json::to_string(&*config)?);
           } else {
             // When tauri.conf.json is changed, rewrite_manifest will be called
             // which will trigger the watcher again
@@ -199,10 +189,12 @@ impl Dev {
           .try_recv()
           .is_err()
         {
+          kill_before_dev_process();
           exit(0);
         }
       } else if status.success() {
         // if we're no exiting on panic, we only exit if the status is a success code (app closed)
+        kill_before_dev_process();
         exit(0);
       }
     });

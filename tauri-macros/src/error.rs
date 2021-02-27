@@ -63,6 +63,11 @@ impl Error {
         fn raw_tauri_script() -> &'static str {
           unimplemented!()
         }
+
+        /// The default window icon.
+        fn default_window_icon() -> Option<&'static [u8]> {
+          unimplemented()
+        }
       }
     }
   }

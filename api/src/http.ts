@@ -1,4 +1,9 @@
-import { promisified } from './tauri'
+import { invoke } from './tauri'
+
+export interface ClientOptions {
+  maxRedirections: boolean
+  connectTimeout: number
+}
 
 export enum ResponseType {
   JSON = 1,
@@ -6,13 +11,33 @@ export enum ResponseType {
   Binary = 3
 }
 
-export enum BodyType {
-  Form = 1,
-  File = 2,
-  Auto = 3
-}
+export type Part = 'string' | number[]
 
-export type Body = object | string | BinaryType
+export class Body {
+  type: string
+  payload: unknown
+
+  constructor(type: string, payload: unknown) {
+    this.type = type
+    this.payload = payload
+  }
+
+  static form(data: Record<string, Part>): Body {
+    return new Body('Form', data)
+  }
+
+  static json(data: Record<any, any>): Body {
+    return new Body('Json', data)
+  }
+
+  static text(value: string): Body {
+    return new Body('Text', value)
+  }
+
+  static bytes(bytes: number[]): Body {
+    return new Body('Bytes', bytes)
+  }
+}
 
 export type HttpVerb =
   | 'GET'
@@ -29,137 +54,176 @@ export interface HttpOptions {
   method: HttpVerb
   url: string
   headers?: Record<string, any>
-  params?: Record<string, any>
+  query?: Record<string, any>
   body?: Body
-  followRedirects: boolean
-  maxRedirections: boolean
-  connectTimeout: number
-  readTimeout: number
-  timeout: number
-  allowCompression: boolean
+  timeout?: number
   responseType?: ResponseType
-  bodyType: BodyType
 }
 
-export type PartialOptions = Omit<HttpOptions, 'method' | 'url'>
+export type RequestOptions = Omit<HttpOptions, 'method' | 'url'>
+export type FetchOptions = Omit<HttpOptions, 'url'>
 
-/**
- * makes a HTTP request
- *
- * @param options request options
- *
- * @return promise resolving to the response
- */
-async function request<T>(options: HttpOptions): Promise<T> {
-  return await promisified({
-    module: 'Http',
+export interface Response<T> {
+  url: string
+  status: number
+  headers: Record<string, string>
+  data: T
+}
+
+export class Client {
+  id: number
+  constructor(id: number) {
+    this.id = id
+  }
+
+  /**
+   * drops the client instance
+   */
+  async drop(): Promise<void> {
+    return invoke({
+      __tauriModule: 'Http',
+      message: {
+        cmd: 'dropClient',
+        client: this.id
+      }
+    })
+  }
+
+  /**
+   * makes a HTTP request
+   *
+   * @param options request options
+   *
+   * @return promise resolving to the response
+   */
+  async request<T>(options: HttpOptions): Promise<Response<T>> {
+    return invoke({
+      __tauriModule: 'Http',
+      message: {
+        cmd: 'httpRequest',
+        client: this.id,
+        options
+      }
+    })
+  }
+
+  /**
+   * makes a GET request
+   *
+   * @param url request URL
+   * @param options request options
+   *
+   * @return promise resolving to the response
+   */
+  async get<T>(url: string, options: RequestOptions): Promise<Response<T>> {
+    return this.request({
+      method: 'GET',
+      url,
+      ...options
+    })
+  }
+
+  /**
+   * makes a POST request
+   *
+   * @param url request URL
+   * @param body request body
+   * @param options request options
+   *
+   * @return promise resolving to the response
+   */
+  async post<T>(
+    url: string,
+    body: Body,
+    options: RequestOptions
+  ): Promise<Response<T>> {
+    return this.request({
+      method: 'POST',
+      url,
+      body,
+      ...options
+    })
+  }
+
+  /**
+   * makes a PUT request
+   *
+   * @param url request URL
+   * @param body request body
+   * @param options request options
+   *
+   * @return promise resolving to the response
+   */
+  async put<T>(
+    url: string,
+    body: Body,
+    options: RequestOptions
+  ): Promise<Response<T>> {
+    return this.request({
+      method: 'PUT',
+      url,
+      body,
+      ...options
+    })
+  }
+
+  /**
+   * makes a PATCH request
+   *
+   * @param url request URL
+   * @param options request options
+   *
+   * @return promise resolving to the response
+   */
+  async patch<T>(url: string, options: RequestOptions): Promise<Response<T>> {
+    return this.request({
+      method: 'PATCH',
+      url,
+      ...options
+    })
+  }
+
+  /**
+   * makes a DELETE request
+   *
+   * @param url request URL
+   * @param options request options
+   *
+   * @return promise resolving to the response
+   */
+  async delete<T>(url: string, options: RequestOptions): Promise<Response<T>> {
+    return this.request({
+      method: 'DELETE',
+      url,
+      ...options
+    })
+  }
+}
+
+async function getClient(options?: ClientOptions): Promise<Client> {
+  return invoke<number>({
+    __tauriModule: 'Http',
     message: {
-      cmd: 'httpRequest',
-      options: options
+      cmd: 'createClient',
+      options
     }
-  })
+  }).then((id) => new Client(id))
 }
 
-/**
- * makes a GET request
- *
- * @param url request URL
- * @param options request options
- *
- * @return promise resolving to the response
- */
-async function get<T>(url: string, options: PartialOptions): Promise<T> {
-  return await request({
-    method: 'GET',
-    url,
-    ...options
-  })
-}
+let defaultClient: Client | null = null
 
-/**
- * makes a POST request
- *
- * @param url request URL
- * @param body request body
- * @param options request options
- *
- * @return promise resolving to the response
- */
-async function post<T>(
+async function fetch<T>(
   url: string,
-  body: Body,
-  options: PartialOptions
-): Promise<T> {
-  return await request({
-    method: 'POST',
+  options?: FetchOptions
+): Promise<Response<T>> {
+  if (defaultClient === null) {
+    defaultClient = await getClient()
+  }
+  return defaultClient.request({
     url,
-    body,
+    method: options?.method ?? 'GET',
     ...options
   })
 }
 
-/**
- * makes a PUT request
- *
- * @param url request URL
- * @param body request body
- * @param options request options
- *
- * @return promise resolving to the response
- */
-async function put<T>(
-  url: string,
-  body: Body,
-  options: PartialOptions
-): Promise<T> {
-  return await request({
-    method: 'PUT',
-    url,
-    body,
-    ...options
-  })
-}
-
-/**
- * makes a PATCH request
- *
- * @param url request URL
- * @param options request options
- *
- * @return promise resolving to the response
- */
-async function patch<T>(url: string, options: PartialOptions): Promise<T> {
-  return await request({
-    method: 'PATCH',
-    url,
-    ...options
-  })
-}
-
-/**
- * makes a DELETE request
- *
- * @param url request URL
- * @param options request options
- *
- * @return promise resolving to the response
- */
-async function deleteRequest<T>(
-  url: string,
-  options: PartialOptions
-): Promise<T> {
-  return await request({
-    method: 'DELETE',
-    url,
-    ...options
-  })
-}
-
-export {
-  request,
-  get,
-  post,
-  put,
-  patch,
-  deleteRequest as httpDelete,
-}
+export { getClient, fetch }

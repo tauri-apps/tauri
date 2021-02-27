@@ -1,5 +1,5 @@
 use serde::{
-  de::{Deserializer, Error as DeError, Visitor},
+  de::{Deserializer, Visitor},
   Deserialize,
 };
 use serde_json::Value as JsonValue;
@@ -153,135 +153,6 @@ impl Default for WindowConfig {
       always_on_top: false,
     }
   }
-}
-
-/// The embedded server port.
-#[derive(PartialEq, Debug, Deserialize)]
-pub enum Port {
-  /// Port with a numeric value.
-  Value(u16),
-  /// Random port.
-  Random,
-}
-
-/// The embeddedServer configuration object.
-#[derive(PartialEq, Deserialize, Debug)]
-#[serde(tag = "embeddedServer", rename_all = "camelCase")]
-pub struct EmbeddedServerConfig {
-  /// The embedded server host.
-  #[serde(default = "default_host")]
-  pub host: String,
-  /// The embedded server port.
-  /// If it's `random`, we'll generate one at runtime.
-  #[serde(default = "default_port", deserialize_with = "port_deserializer")]
-  pub port: Port,
-
-  /// The base path of the embedded server.
-  /// The path should always start and end in a forward slash, which the deserializer will ensure
-  #[serde(
-    default = "default_public_path",
-    deserialize_with = "public_path_deserializer"
-  )]
-  pub public_path: String,
-}
-
-fn default_host() -> String {
-  "http://127.0.0.1".to_string()
-}
-
-fn default_port() -> Port {
-  Port::Random
-}
-
-fn default_public_path() -> String {
-  "/".to_string()
-}
-
-impl Default for EmbeddedServerConfig {
-  fn default() -> Self {
-    Self {
-      host: default_host(),
-      port: default_port(),
-      public_path: default_public_path(),
-    }
-  }
-}
-
-fn port_deserializer<'de, D>(deserializer: D) -> Result<Port, D::Error>
-where
-  D: Deserializer<'de>,
-{
-  struct PortDeserializer;
-
-  impl<'de> Visitor<'de> for PortDeserializer {
-    type Value = Port;
-    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-      formatter.write_str("a port number or the 'random' string")
-    }
-
-    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-    where
-      E: DeError,
-    {
-      if value != "random" {
-        Err(DeError::custom(
-          "expected a 'random' string or a port number",
-        ))
-      } else {
-        Ok(Port::Random)
-      }
-    }
-
-    fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
-    where
-      E: DeError,
-    {
-      Ok(Port::Value(value as u16))
-    }
-  }
-
-  deserializer.deserialize_any(PortDeserializer {})
-}
-
-fn public_path_deserializer<'de, D>(deserializer: D) -> Result<String, D::Error>
-where
-  D: Deserializer<'de>,
-{
-  struct PublicPathDeserializer;
-
-  impl<'de> Visitor<'de> for PublicPathDeserializer {
-    type Value = String;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-      formatter.write_str("a string starting and ending in a forward slash /")
-    }
-
-    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-    where
-      E: DeError,
-    {
-      match value.len() {
-        0 => return Ok("/".into()),
-        1 if value == "/" => return Ok("/".into()),
-        1 => return Ok(format!("/{}/", value)),
-        _ => {}
-      }
-
-      // we know there are at least 2 characters in the string
-      let mut chars = value.chars();
-      let first = chars.next().unwrap();
-      let last = chars.last().unwrap();
-
-      match (first == '/', last == '/') {
-        (true, true) => Ok(value.into()),
-        (true, false) => Ok(format!("{}/", value)),
-        (false, true) => Ok(format!("/{}", value)),
-        _ => Ok(format!("/{}/", value)),
-      }
-    }
-  }
-
-  deserializer.deserialize_any(PublicPathDeserializer {})
 }
 
 /// A CLI argument definition
@@ -446,9 +317,6 @@ pub struct TauriConfig {
   /// The window configuration.
   #[serde(default = "default_window_config")]
   pub windows: Vec<WindowConfig>,
-  /// The embeddedServer configuration.
-  #[serde(default)]
-  pub embedded_server: EmbeddedServerConfig,
   /// The CLI configuration.
   #[serde(default)]
   pub cli: Option<CliConfig>,
@@ -461,7 +329,6 @@ impl Default for TauriConfig {
   fn default() -> Self {
     Self {
       windows: default_window_config(),
-      embedded_server: EmbeddedServerConfig::default(),
       cli: None,
       bundle: BundleConfig::default(),
     }
@@ -542,8 +409,6 @@ mod test {
     let b_config = BuildConfig::default();
     // get default dev path
     let d_path = default_dev_path();
-    // get default embedded server
-    let de_server = EmbeddedServerConfig::default();
     // get default window
     let d_windows = default_window_config();
     // get default title
@@ -573,11 +438,6 @@ mod test {
         decorations: true,
         always_on_top: false,
       }],
-      embedded_server: EmbeddedServerConfig {
-        host: String::from("http://127.0.0.1"),
-        port: Port::Random,
-        public_path: "/".into(),
-      },
       bundle: BundleConfig {
         identifier: String::from(""),
       },
@@ -593,7 +453,6 @@ mod test {
     // test the configs
     assert_eq!(t_config, tauri);
     assert_eq!(b_config, build);
-    assert_eq!(de_server, tauri.embedded_server);
     assert_eq!(d_bundle, tauri.bundle);
     assert_eq!(d_path, String::from("http://localhost:8080"));
     assert_eq!(d_title, tauri.windows[0].title);

@@ -1,9 +1,7 @@
 use super::{
-  ApplicationDispatcherExt, ApplicationExt, Callback, Event, Icon, Message, WebviewBuilderExt,
-  WindowBuilderExt,
+  ApplicationDispatcherExt, ApplicationExt, Callback, CustomProtocol, Icon, WebviewBuilderExt,
+  WebviewBuilderExtPrivate, WindowConfig,
 };
-
-use wry::{ApplicationDispatcher, ApplicationExt as _, WebviewMessage, WindowExt, WindowMessage};
 
 use once_cell::sync::Lazy;
 
@@ -14,14 +12,14 @@ use std::{
   sync::{Arc, Mutex},
 };
 
-impl TryInto<wry::Icon> for Icon {
+impl TryFrom<Icon> for wry::Icon {
   type Error = crate::Error;
-  fn try_into(self) -> Result<wry::Icon, Self::Error> {
-    let icon = match self {
-      Self::File(path) => {
+  fn try_from(icon: Icon) -> Result<Self, Self::Error> {
+    let icon = match icon {
+      Icon::File(path) => {
         wry::Icon::from_file(path).map_err(|e| crate::Error::InvalidIcon(e.to_string()))?
       }
-      Self::Raw(raw) => {
+      Icon::Raw(raw) => {
         wry::Icon::from_bytes(raw).map_err(|e| crate::Error::InvalidIcon(e.to_string()))?
       }
     };
@@ -29,9 +27,60 @@ impl TryInto<wry::Icon> for Icon {
   }
 }
 
-impl WindowBuilderExt for wry::AppWindowAttributes {
+impl WebviewBuilderExtPrivate for wry::Attributes {
+  fn url(mut self, url: String) -> Self {
+    self.url.replace(url);
+    self
+  }
+}
+
+impl From<WindowConfig> for wry::Attributes {
+  fn from(window_config: WindowConfig) -> Self {
+    let mut webview = wry::Attributes::default()
+      .title(window_config.0.title.to_string())
+      .width(window_config.0.width)
+      .height(window_config.0.height)
+      .visible(window_config.0.visible)
+      .resizable(window_config.0.resizable)
+      .decorations(window_config.0.decorations)
+      .maximized(window_config.0.maximized)
+      .fullscreen(window_config.0.fullscreen)
+      .transparent(window_config.0.transparent)
+      .always_on_top(window_config.0.always_on_top);
+    if let Some(min_width) = window_config.0.min_width {
+      webview = webview.min_width(min_width);
+    }
+    if let Some(min_height) = window_config.0.min_height {
+      webview = webview.min_height(min_height);
+    }
+    if let Some(max_width) = window_config.0.max_width {
+      webview = webview.max_width(max_width);
+    }
+    if let Some(max_height) = window_config.0.max_height {
+      webview = webview.max_height(max_height);
+    }
+    if let Some(x) = window_config.0.x {
+      webview = webview.x(x);
+    }
+    if let Some(y) = window_config.0.y {
+      webview = webview.y(y);
+    }
+    webview
+  }
+}
+
+/// The webview builder.
+impl WebviewBuilderExt for wry::Attributes {
+  /// The webview object that this builder creates.
+  type Webview = Self;
+
   fn new() -> Self {
     Default::default()
+  }
+
+  fn initialization_script(mut self, init: &str) -> Self {
+    self.initialization_scripts.push(init.to_string());
+    self
   }
 
   fn x(mut self, x: f64) -> Self {
@@ -79,8 +128,8 @@ impl WindowBuilderExt for wry::AppWindowAttributes {
     self
   }
 
-  fn title(mut self, title: String) -> Self {
-    self.title = title;
+  fn title<S: Into<String>>(mut self, title: S) -> Self {
+    self.title = title.into();
     self
   }
 
@@ -113,25 +162,14 @@ impl WindowBuilderExt for wry::AppWindowAttributes {
     self.always_on_top = always_on_top;
     self
   }
-}
 
-/// The webview builder.
-impl WebviewBuilderExt for wry::WebViewAttributes {
-  /// The webview object that this builder creates.
-  type Webview = Self;
-
-  fn new() -> Self {
-    Default::default()
+  fn icon(mut self, icon: Icon) -> crate::Result<Self> {
+    self.icon = Some(icon.try_into()?);
+    Ok(self)
   }
 
-  fn url(mut self, url: String) -> Self {
-    self.url.replace(url);
-    self
-  }
-
-  fn initialization_script(mut self, init: &str) -> Self {
-    self.initialization_script.push(init.to_string());
-    self
+  fn has_icon(&self) -> bool {
+    self.icon.is_some()
   }
 
   fn finish(self) -> crate::Result<Self::Webview> {
@@ -140,172 +178,306 @@ impl WebviewBuilderExt for wry::WebViewAttributes {
 }
 
 #[derive(Clone)]
-pub struct WryDispatcher {
-  inner: Arc<Mutex<wry::AppDispatcher<Event>>>,
-  current_window: wry::WindowId,
-}
-
-struct WryMessage(wry::Message<wry::WindowId, Event>);
-
-impl TryFrom<(wry::WindowId, Message)> for WryMessage {
-  type Error = crate::Error;
-  fn try_from((id, message): (wry::WindowId, Message)) -> crate::Result<Self> {
-    let message = match message {
-      Message::EvalScript(js) => wry::Message::Webview(id, WebviewMessage::EvalScript(js)),
-      Message::Event(event) => wry::Message::Custom(event),
-      Message::SetResizable(resizable) => {
-        wry::Message::Window(id, WindowMessage::SetResizable(resizable))
-      }
-      Message::SetTitle(title) => wry::Message::Window(id, WindowMessage::SetTitle(title)),
-      Message::Maximize => wry::Message::Window(id, WindowMessage::Maximize),
-      Message::Unmaximize => wry::Message::Window(id, WindowMessage::Unmaximize),
-      Message::Minimize => wry::Message::Window(id, WindowMessage::Minimize),
-      Message::Unminimize => wry::Message::Window(id, WindowMessage::Unminimize),
-      Message::Show => wry::Message::Window(id, WindowMessage::Show),
-      Message::Hide => wry::Message::Window(id, WindowMessage::Hide),
-      Message::SetTransparent(transparent) => {
-        wry::Message::Window(id, WindowMessage::SetTransparent(transparent))
-      }
-      Message::SetDecorations(decorations) => {
-        wry::Message::Window(id, WindowMessage::SetDecorations(decorations))
-      }
-      Message::SetAlwaysOnTop(always_on_top) => {
-        wry::Message::Window(id, WindowMessage::SetAlwaysOnTop(always_on_top))
-      }
-      Message::SetWidth(width) => wry::Message::Window(id, WindowMessage::SetWidth(width)),
-      Message::SetHeight(height) => wry::Message::Window(id, WindowMessage::SetHeight(height)),
-      Message::Resize { width, height } => {
-        wry::Message::Window(id, WindowMessage::Resize { width, height })
-      }
-      Message::SetMinSize {
-        min_width,
-        min_height,
-      } => wry::Message::Window(
-        id,
-        WindowMessage::SetMinSize {
-          min_width,
-          min_height,
-        },
-      ),
-      Message::SetMaxSize {
-        max_width,
-        max_height,
-      } => wry::Message::Window(
-        id,
-        WindowMessage::SetMaxSize {
-          max_width,
-          max_height,
-        },
-      ),
-      Message::SetX(x) => wry::Message::Window(id, WindowMessage::SetX(x)),
-      Message::SetY(y) => wry::Message::Window(id, WindowMessage::SetY(y)),
-      Message::SetPosition { x, y } => {
-        wry::Message::Window(id, WindowMessage::SetPosition { x, y })
-      }
-      Message::SetFullscreen(fullscreen) => {
-        wry::Message::Window(id, WindowMessage::SetFullscreen(fullscreen))
-      }
-      Message::SetIcon(icon) => wry::Message::Window(id, WindowMessage::SetIcon(icon.try_into()?)),
-    };
-    Ok(WryMessage(message))
-  }
-}
+pub struct WryDispatcher(
+  Arc<Mutex<wry::WindowProxy>>,
+  Arc<Mutex<wry::ApplicationProxy>>,
+);
 
 impl ApplicationDispatcherExt for WryDispatcher {
-  fn send_message(&self, message: Message) {
-    let message_res: crate::Result<WryMessage> = (self.current_window, message).try_into();
-    // TODO error propagation
-    if let Ok(message) = message_res {
-      self
-        .inner
-        .lock()
-        .unwrap()
-        .dispatch_message(message.0)
-        .unwrap();
-    }
-  }
-}
-
-/// A wrapper around the wry Application interface.
-pub struct WryApplication {
-  inner: wry::Application<Event>,
-  dispatcher_handle: Arc<Mutex<wry::AppDispatcher<Event>>>,
-}
-
-impl ApplicationExt for WryApplication {
-  type WebviewBuilder = wry::WebViewAttributes;
-  type WindowBuilder = wry::AppWindowAttributes;
-  type Window = wry::Window;
-  type Dispatcher = WryDispatcher;
-
-  fn plugin_store() -> &'static PluginStore<Self::Dispatcher> {
-    static PLUGINS: Lazy<PluginStore<WryDispatcher>> = Lazy::new(Default::default);
-    &PLUGINS
-  }
-
-  fn new() -> crate::Result<Self> {
-    let app = wry::Application::new().map_err(|_| crate::Error::CreateWebview)?;
-    let dispatcher = app.dispatcher();
-
-    Ok(Self {
-      inner: app,
-      dispatcher_handle: Arc::new(Mutex::new(dispatcher)),
-    })
-  }
-
-  fn dispatcher(&self, window: &Self::Window) -> Self::Dispatcher {
-    WryDispatcher {
-      inner: self.dispatcher_handle.clone(),
-      current_window: window.id(),
-    }
-  }
-
-  fn create_window(&self, window_builder: Self::WindowBuilder) -> crate::Result<Self::Window> {
-    let window = self
-      .inner
-      .create_window(window_builder)
-      .map_err(|_| crate::Error::CreateWindow)?;
-    Ok(window)
-  }
+  type WebviewBuilder = wry::Attributes;
 
   fn create_webview(
-    &mut self,
-    webview_builder: Self::WebviewBuilder,
-    window: Self::Window,
-    callbacks: Vec<Callback<Self::Dispatcher>>,
-  ) -> crate::Result<()> {
+    &self,
+    attributes: Self::WebviewBuilder,
+    callbacks: Vec<Callback<Self>>,
+    custom_protocol: Option<CustomProtocol>,
+  ) -> crate::Result<Self> {
     let mut wry_callbacks = Vec::new();
+    let app_dispatcher = self.1.clone();
     for mut callback in callbacks {
-      let dispatcher_handle = self.dispatcher_handle.clone();
-      let window_id = window.id();
-
+      let app_dispatcher = app_dispatcher.clone();
       let callback = wry::Callback {
         name: callback.name.to_string(),
-        function: Box::new(move |_, seq, req| {
+        function: Box::new(move |dispatcher, _, req| {
           (callback.function)(
-            &WryDispatcher {
-              inner: dispatcher_handle.clone(),
-              current_window: window_id,
-            },
-            seq,
+            Self(Arc::new(Mutex::new(dispatcher)), app_dispatcher.clone()),
             req,
-          )
+          );
+          Ok(())
         }),
       };
       wry_callbacks.push(callback);
     }
 
-    self
-      .inner
-      .create_webview(window, webview_builder.finish()?, Some(wry_callbacks))
-      .map_err(|_| crate::Error::CreateWebview)?;
-    Ok(())
+    let window_dispatcher = self
+      .1
+      .lock()
+      .unwrap()
+      .add_window_with_configs(
+        attributes,
+        Some(wry_callbacks),
+        custom_protocol.map(|p| wry::CustomProtocol {
+          name: p.name.clone(),
+          handler: Box::new(move |a| (*p.handler)(a).map_err(|_| wry::Error::InitScriptError)),
+        }),
+      )
+      .map_err(|_| crate::Error::FailedToSendMessage)?;
+    Ok(Self(
+      Arc::new(Mutex::new(window_dispatcher)),
+      self.1.clone(),
+    ))
   }
 
-  fn run(mut self) {
-    self.inner.set_message_handler(|message| match message {
-      Event::Run(task) => task(),
-    });
+  fn set_resizable(&self, resizable: bool) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .set_resizable(resizable)
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn set_title<S: Into<String>>(&self, title: S) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .set_title(title)
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn maximize(&self) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .maximize()
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn unmaximize(&self) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .unmaximize()
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn minimize(&self) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .minimize()
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn unminimize(&self) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .unminimize()
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn show(&self) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .show()
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn hide(&self) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .hide()
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn set_decorations(&self, decorations: bool) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .set_decorations(decorations)
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn set_always_on_top(&self, always_on_top: bool) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .set_always_on_top(always_on_top)
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn set_width(&self, width: f64) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .set_width(width)
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn set_height(&self, height: f64) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .set_height(height)
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn resize(&self, width: f64, height: f64) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .resize(width, height)
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn set_min_size(&self, min_width: f64, min_height: f64) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .set_min_size(min_width, min_height)
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn set_max_size(&self, max_width: f64, max_height: f64) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .set_max_size(max_width, max_height)
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn set_x(&self, x: f64) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .set_x(x)
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn set_y(&self, y: f64) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .set_y(y)
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn set_position(&self, x: f64, y: f64) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .set_position(x, y)
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn set_fullscreen(&self, fullscreen: bool) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .set_fullscreen(fullscreen)
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn set_icon(&self, icon: Icon) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .set_icon(icon.try_into()?)
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn eval_script<S: Into<String>>(&self, script: S) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .evaluate_script(script)
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+}
+
+/// A wrapper around the wry Application interface.
+pub struct WryApplication {
+  inner: wry::Application,
+}
+
+impl ApplicationExt for WryApplication {
+  type WebviewBuilder = wry::Attributes;
+  type Dispatcher = WryDispatcher;
+
+  fn plugin_store() -> &'static PluginStore<Self> {
+    static PLUGINS: Lazy<PluginStore<WryApplication>> = Lazy::new(Default::default);
+    &PLUGINS
+  }
+
+  fn new() -> crate::Result<Self> {
+    let app = wry::Application::new().map_err(|_| crate::Error::CreateWebview)?;
+    Ok(Self { inner: app })
+  }
+
+  fn create_webview(
+    &mut self,
+    webview_builder: Self::WebviewBuilder,
+    callbacks: Vec<Callback<Self::Dispatcher>>,
+    custom_protocol: Option<CustomProtocol>,
+  ) -> crate::Result<Self::Dispatcher> {
+    let mut wry_callbacks = Vec::new();
+    let app_dispatcher = Arc::new(Mutex::new(self.inner.application_proxy()));
+    for mut callback in callbacks {
+      let app_dispatcher = app_dispatcher.clone();
+      let callback = wry::Callback {
+        name: callback.name.to_string(),
+        function: Box::new(move |dispatcher, _, req| {
+          (callback.function)(
+            WryDispatcher(Arc::new(Mutex::new(dispatcher)), app_dispatcher.clone()),
+            req,
+          );
+          Ok(())
+        }),
+      };
+      wry_callbacks.push(callback);
+    }
+
+    let dispatcher = self
+      .inner
+      .add_window_with_configs(
+        webview_builder.finish()?,
+        Some(wry_callbacks),
+        custom_protocol.map(|p| wry::CustomProtocol {
+          name: p.name.clone(),
+          handler: Box::new(move |a| (*p.handler)(a).map_err(|_| wry::Error::InitScriptError)),
+        }),
+      )
+      .map_err(|_| crate::Error::CreateWebview)?;
+    Ok(WryDispatcher(
+      Arc::new(Mutex::new(dispatcher)),
+      app_dispatcher,
+    ))
+  }
+
+  fn run(self) {
     wry::Application::run(self.inner)
   }
 }

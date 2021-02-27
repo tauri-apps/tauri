@@ -1,7 +1,6 @@
 import { CargoManifest } from './../types/cargo'
 import { existsSync, removeSync, writeFileSync } from 'fs-extra'
 import { join, normalize, resolve, isAbsolute } from 'path'
-import { TauriConfig } from 'types'
 import { merge } from 'webpack-merge'
 import copyTemplates from '../helpers/copy-templates'
 import logger from '../helpers/logger'
@@ -25,7 +24,7 @@ interface UnknownObject {
 const injectConfFile = (
   injectPath: string,
   { force, logging }: InjectOptions,
-  customConfig: Partial<TauriConfig> = {}
+  customConfig: Object = {}
 ): boolean | undefined => {
   const path = join(injectPath, 'tauri.conf.json')
   if (existsSync(path) && force !== 'conf' && force !== 'all') {
@@ -45,6 +44,18 @@ const injectConfFile = (
       }
       /* eslint-enable security/detect-object-injection */
     })
+    // Window config should be merged
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if ((customConfig as UnknownObject).tauri?.windows[0]) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
+      ;(customConfig as UnknownObject).tauri.windows[0] = {
+        ...defaultConfig.tauri.windows[0],
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        ...(customConfig as UnknownObject).tauri.windows[0]
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      delete (defaultConfig as UnknownObject).tauri.windows
+    }
     const finalConf = merge(
       defaultConfig as any,
       customConfig as any
@@ -99,7 +110,7 @@ const inject = (
   injectPath: string,
   type: InjectionType,
   { force = false, logging = false, tauriPath }: InjectOptions,
-  customConfig?: Partial<TauriConfig>
+  customConfig?: Object
 ): boolean => {
   if (typeof type !== 'string' || typeof injectPath !== 'string') {
     warn('- internal error. Required params missing.')

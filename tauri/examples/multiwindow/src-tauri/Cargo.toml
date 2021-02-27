@@ -22,13 +22,14 @@ icon = [
 ]
 
 [dependencies]
-tauri = { path = "../../..", features =["all-api"]}
+tauri = { path = "../../..", features =["api-all"]}
 
 [target."cfg(windows)".build-dependencies]
 winres = "0.1"
 
 [features]
-embedded-server = [ "tauri/embedded-server" ]
+default = [ "custom-protocol" ]
+custom-protocol = [ "tauri/custom-protocol" ]
 
 [[bin]]
 name = "app"

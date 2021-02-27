@@ -16,7 +16,5 @@ pub enum Cmd {
   PerformRequest {
     endpoint: String,
     body: RequestBody,
-    callback: String,
-    error: String,
   },
 }

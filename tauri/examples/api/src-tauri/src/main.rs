@@ -16,7 +16,7 @@ struct Reply {
 struct Context;
 
 fn main() {
-  tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
+  tauri::AppBuilder::<Context>::new()
     .setup(|webview_manager| async move {
       let dispatcher = webview_manager.current_webview().await.unwrap();
       let dispatcher_ = dispatcher.clone();

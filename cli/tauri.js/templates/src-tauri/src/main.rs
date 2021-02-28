@@ -7,7 +7,7 @@
 struct Context;
 
 fn main() {
-  tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
+  tauri::AppBuilder::<Context>::new()
     .build()
     .unwrap()
     .run();

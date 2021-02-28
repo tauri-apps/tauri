@@ -10,7 +10,7 @@ struct Context;
 use tauri::WebviewBuilderExt;
 
 fn main() {
-  tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
+  tauri::AppBuilder::<Context>::new()
     .setup(|webview_manager| async move {
       if webview_manager.current_window_label() == "Main" {
         webview_manager.listen("clicked", move |_| {

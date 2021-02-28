@@ -13,7 +13,7 @@ fn my_custom_command(argument: String) {
 }
 
 fn main() {
-  tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
+  tauri::AppBuilder::<Context>::new()
     .invoke_handler(tauri::generate_handler![my_custom_command])
     .build()
     .unwrap()

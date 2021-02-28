@@ -339,9 +339,20 @@ async fn on_message<A: ApplicationExt + 'static>(
         Err(e) => Err(e),
       };
       if let Err(crate::Error::UnknownApi(_)) = response {
-        response = crate::plugin::extend_api(A::plugin_store(), &webview_manager, &message.inner)
-          .await
-          .map(|value| value.into());
+        match crate::plugin::extend_api(A::plugin_store(), &webview_manager, &message.inner).await {
+          Ok(value) => {
+            // If value is None, that means that no plugin matched the command
+            // and the UnknownApi error should be sent to the webview
+            // Otherwise, send the result of plugin handler
+            if value.is_some() {
+              response = Ok(value.into());
+            }
+          }
+          Err(e) => {
+            // A plugin handler was found but it failed
+            response = Err(e);
+          }
+        }
       }
       response
     };

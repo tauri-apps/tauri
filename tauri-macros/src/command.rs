@@ -96,7 +96,7 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
       }
     }
   } else {
-    quote! { Ok(#fn_name(#webview_arg_maybe #(parsed_args.#names),*)#await_maybe.into()) }
+    quote! { ::core::result::Result::Ok(#fn_name(#webview_arg_maybe #(parsed_args.#names),*)#await_maybe.into()) }
   };
 
   quote! {

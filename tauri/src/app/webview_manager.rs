@@ -4,7 +4,7 @@ use super::{
   App, ApplicationDispatcherExt, ApplicationExt, Icon, Webview, WebviewBuilderExt,
   WebviewInitializer,
 };
-use crate::{api::config::WindowUrl, async_runtime::Mutex};
+use crate::{api::config::WindowUrl, async_runtime::Mutex, flavors::Wry};
 
 use serde::Serialize;
 
@@ -170,7 +170,10 @@ impl<A: ApplicationDispatcherExt> WebviewDispatcher<A> {
 }
 
 /// The webview manager.
-pub struct WebviewManager<A: ApplicationExt> {
+pub struct WebviewManager<A = Wry>
+where
+  A: ApplicationExt,
+{
   application: Arc<App<A>>,
   dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A::Dispatcher>>>>,
   current_webview_window_label: String,

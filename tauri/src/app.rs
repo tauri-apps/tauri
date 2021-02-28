@@ -13,6 +13,7 @@ pub(crate) mod webview;
 mod webview_manager;
 
 pub use crate::api::config::WindowUrl;
+use crate::flavors::Wry;
 pub use webview::{
   wry::WryApplication, ApplicationDispatcherExt, ApplicationExt, Callback, CustomProtocol, Icon,
   Message, WebviewBuilderExt,
@@ -189,7 +190,10 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
 
 /// The App builder.
 #[derive(Default)]
-pub struct AppBuilder<A: ApplicationExt, C: AsTauriContext> {
+pub struct AppBuilder<C: AsTauriContext, A = Wry>
+where
+  A: ApplicationExt,
+{
   /// The JS message handler.
   invoke_handler: Option<Box<InvokeHandler<A>>>,
   /// The setup callback, invoked when the webview is ready.
@@ -201,7 +205,7 @@ pub struct AppBuilder<A: ApplicationExt, C: AsTauriContext> {
   webviews: Vec<Webview<A>>,
 }
 
-impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<A, C> {
+impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<C, A> {
   /// Creates a new App builder.
   pub fn new() -> Self {
     Self {

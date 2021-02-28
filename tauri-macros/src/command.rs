@@ -1,8 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
-  parse::Parser, punctuated::Punctuated, FnArg, Ident, ItemFn, Meta, NestedMeta, Pat, Path, Token,
-  Type,
+  parse::Parser, punctuated::Punctuated, FnArg, Ident, ItemFn, Meta, NestedMeta, Pat, Path,
+  ReturnType, Token, Type,
 };
 
 pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream {
@@ -20,6 +20,20 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
 
   let fn_name = function.sig.ident.clone();
   let fn_wrapper = format_ident!("{}_wrapper", fn_name);
+  let returns_result = match function.sig.output {
+    ReturnType::Type(_, ref ty) => match &**ty {
+      Type::Path(type_path) => {
+        type_path
+          .path
+          .segments
+          .first()
+          .map(|seg| seg.ident.to_string())
+          == Some("Result".to_string())
+      }
+      _ => false,
+    },
+    ReturnType::Default => false,
+  };
 
   // Split function args into names and types
   let (mut names, mut types): (Vec<Ident>, Vec<Path>) = function
@@ -64,16 +78,31 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
     _ => quote!(),
   };
 
+  // if the command handler returns a Result,
+  // we just map the values to the ones expected by Tauri
+  // otherwise we wrap it with an `Ok()`, converting the return value to tauri::InvokeResponse
+  // note that all types must implement `serde::Serialize`.
+  let return_value = if returns_result {
+    quote! {
+      match #fn_name(#webview_arg_maybe #(parsed_args.#names),*) {
+        Ok(value) => Ok(value.into()),
+        Err(e) => Err(tauri::Error::Command(serde_json::to_value(e)?)),
+      }
+    }
+  } else {
+    quote! { Ok(#fn_name(#webview_arg_maybe #(parsed_args.#names),*).into()) }
+  };
+
   quote! {
     #function
-    pub fn #fn_wrapper #application_ext_generic(_webview: #webview_arg_type, arg: serde_json::Value) -> Option<tauri::InvokeResponse> {
+    pub fn #fn_wrapper #application_ext_generic(_webview: #webview_arg_type, arg: serde_json::Value) -> tauri::Result<tauri::InvokeResponse> {
       #[derive(serde::Deserialize)]
       #[serde(rename_all = "camelCase")]
       struct ParsedArgs {
         #(#names: #types),*
       }
-      let parsed_args: ParsedArgs = serde_json::from_value(arg).unwrap();
-      Some(#fn_name(#webview_arg_maybe #(parsed_args.#names),*).into())
+      let parsed_args: ParsedArgs = serde_json::from_value(arg)?;
+      #return_value
     }
   }
 }
@@ -104,11 +133,10 @@ pub fn generate_handler(item: proc_macro::TokenStream) -> TokenStream {
       match dispatch {
         Err(e) => Err(e.into()),
         Ok(dispatch) => {
-          let res = match dispatch.cmd.as_str() {
+          match dispatch.cmd.as_str() {
             #(stringify!(#fn_names) => #fn_wrappers(webview, dispatch.args),)*
-            _ => None,
-          };
-          Ok(res.unwrap_or(().into()))
+            _ => Err(tauri::Error::UnknownApi(None)),
+          }
         }
       }
     }

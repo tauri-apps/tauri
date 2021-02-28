@@ -19,6 +19,7 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
   });
 
   let fn_name = function.sig.ident.clone();
+  let fn_name_str = fn_name.to_string();
   let fn_wrapper = format_ident!("{}_wrapper", fn_name);
   let returns_result = match function.sig.output {
     ReturnType::Type(_, ref ty) => match &**ty {
@@ -91,7 +92,7 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
     quote! {
       match #fn_name(#webview_arg_maybe #(parsed_args.#names),*)#await_maybe {
         Ok(value) => ::core::result::Result::Ok(value.into()),
-        Err(e) => ::core::result::Result::Err(tauri::Error::Command(::serde_json::to_value(e)?)),
+        Err(e) => ::core::result::Result::Err(tauri::Error::Command(#fn_name, ::serde_json::to_value(e)?)),
       }
     }
   } else {
@@ -106,7 +107,7 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
       struct ParsedArgs {
         #(#names: #types),*
       }
-      let parsed_args: ParsedArgs = ::serde_json::from_value(arg)?;
+      let parsed_args: ParsedArgs = ::serde_json::from_value(arg).map_err(|e| ::tauri::Error::InvalidArgs(#fn_name_str, e))?;
       #return_value
     }
   }

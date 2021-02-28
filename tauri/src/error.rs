@@ -46,6 +46,9 @@ pub enum Error {
   /// Command error (userland).
   #[error("{0}")]
   Command(serde_json::Value),
+  /// Invalid args when running a command.
+  #[error("invalid args for command `{0}`: {1}")]
+  InvalidArgs(&'static str, serde_json::Error),
 }
 
 impl From<serde_json::Error> for Error {

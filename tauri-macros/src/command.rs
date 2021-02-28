@@ -6,12 +6,12 @@ use syn::{
 };
 
 pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream {
-  // Check if "webview" attr was passed to macro
-  let uses_webview = attrs.iter().any(|a| {
+  // Check if "with_manager" attr was passed to macro
+  let uses_manager = attrs.iter().any(|a| {
     if let NestedMeta::Meta(Meta::Path(path)) = a {
       path
         .get_ident()
-        .map(|i| *i == "with_webview")
+        .map(|i| *i == "with_manager")
         .unwrap_or(false)
     } else {
       false
@@ -59,23 +59,23 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
     })
     .unzip();
 
-  // If function doesn't take the webview, wrapper just takes webview generically and ignores it
+  // If function doesn't take the webview manager, wrapper just takes webview manager generically and ignores it
   // Otherwise the wrapper uses the specific type from the original function declaration
-  let mut webview_arg_type = quote!(::tauri::WebviewManager<A>);
+  let mut manager_arg_type = quote!(::tauri::WebviewManager<A>);
   let mut application_ext_generic = quote!(<A: ::tauri::ApplicationExt>);
-  let webview_arg_maybe = match types.first() {
-    Some(first_type) if uses_webview => {
+  let manager_arg_maybe = match types.first() {
+    Some(first_type) if uses_manager => {
       // Give wrapper specific type
-      webview_arg_type = quote!(#first_type);
+      manager_arg_type = quote!(#first_type);
       // Generic is no longer needed
       application_ext_generic = quote!();
-      // Remove webview arg from list so it isn't expected as arg from JS
+      // Remove webview manager arg from list so it isn't expected as arg from JS
       types.drain(0..1);
       names.drain(0..1);
-      // Tell wrapper to pass webview to original function
-      quote!(_webview,)
+      // Tell wrapper to pass webview manager to original function
+      quote!(_manager,)
     }
-    // Tell wrapper not to pass webview to original function
+    // Tell wrapper not to pass webview manager to original function
     _ => quote!(),
   };
   let await_maybe = if function.sig.asyncness.is_some() {
@@ -90,18 +90,18 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
   // note that all types must implement `serde::Serialize`.
   let return_value = if returns_result {
     quote! {
-      match #fn_name(#webview_arg_maybe #(parsed_args.#names),*)#await_maybe {
+      match #fn_name(#manager_arg_maybe #(parsed_args.#names),*)#await_maybe {
         Ok(value) => ::core::result::Result::Ok(value.into()),
         Err(e) => ::core::result::Result::Err(tauri::Error::Command(::serde_json::to_value(e)?)),
       }
     }
   } else {
-    quote! { ::core::result::Result::Ok(#fn_name(#webview_arg_maybe #(parsed_args.#names),*)#await_maybe.into()) }
+    quote! { ::core::result::Result::Ok(#fn_name(#manager_arg_maybe #(parsed_args.#names),*)#await_maybe.into()) }
   };
 
   quote! {
     #function
-    pub async fn #fn_wrapper #application_ext_generic(_webview: #webview_arg_type, arg: ::serde_json::Value) -> ::tauri::Result<::tauri::InvokeResponse> {
+    pub async fn #fn_wrapper #application_ext_generic(_manager: #manager_arg_type, arg: ::serde_json::Value) -> ::tauri::Result<::tauri::InvokeResponse> {
       #[derive(::serde::Deserialize)]
       #[serde(rename_all = "camelCase")]
       struct ParsedArgs {
@@ -133,14 +133,14 @@ pub fn generate_handler(item: proc_macro::TokenStream) -> TokenStream {
   });
 
   quote! {
-    |webview, arg| async move {
+    |webview_manager, arg| async move {
       let dispatch: ::std::result::Result<::tauri::DispatchInstructions, ::serde_json::Error> =
       ::serde_json::from_str(&arg);
       match dispatch {
         Err(e) => Err(e.into()),
         Ok(dispatch) => {
           match dispatch.cmd.as_str() {
-            #(stringify!(#fn_names) => #fn_wrappers(webview, dispatch.args).await,)*
+            #(stringify!(#fn_names) => #fn_wrappers(webview_manager, dispatch.args).await,)*
             _ => Err(tauri::Error::UnknownApi(None)),
           }
         }

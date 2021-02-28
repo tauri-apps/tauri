@@ -25,7 +25,6 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
   let (mut names, mut types): (Vec<Ident>, Vec<Path>) = function
     .sig
     .inputs
-    .clone()
     .iter()
     .map(|param| {
       let mut arg_name = None;
@@ -40,10 +39,7 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
       }
       (
         arg_name.clone().unwrap(),
-        arg_type.expect(&format!(
-          "#[command]: Invalid type for arg \"{}\"",
-          arg_name.unwrap()
-        )),
+        arg_type.unwrap_or_else(|| panic!("Invalid type for arg \"{}\"", arg_name.unwrap())),
       )
     })
     .unzip();

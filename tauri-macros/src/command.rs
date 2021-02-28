@@ -128,8 +128,8 @@ pub fn generate_handler(item: proc_macro::TokenStream) -> TokenStream {
 
   quote! {
     |webview, arg| async move {
-      let dispatch: Result<tauri::DispatchInstructions, serde_json::Error> =
-      serde_json::from_str(&arg);
+      let dispatch: ::std::result::Result<::tauri::DispatchInstructions, ::serde_json::Error> =
+      ::serde_json::from_str(&arg);
       match dispatch {
         Err(e) => Err(e.into()),
         Ok(dispatch) => {

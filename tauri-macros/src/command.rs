@@ -96,7 +96,7 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
   quote! {
     #function
     pub fn #fn_wrapper #application_ext_generic(_webview: #webview_arg_type, arg: serde_json::Value) -> tauri::Result<tauri::InvokeResponse> {
-      #[derive(serde::Deserialize)]
+      #[derive(::serde::Deserialize)]
       #[serde(rename_all = "camelCase")]
       struct ParsedArgs {
         #(#names: #types),*

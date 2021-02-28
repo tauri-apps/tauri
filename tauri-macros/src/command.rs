@@ -77,6 +77,11 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
     // Tell wrapper not to pass webview to original function
     _ => quote!(),
   };
+  let await_maybe = if function.sig.asyncness.is_some() {
+    quote!(.await)
+  } else {
+    quote!()
+  };
 
   // if the command handler returns a Result,
   // we just map the values to the ones expected by Tauri
@@ -84,18 +89,18 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
   // note that all types must implement `serde::Serialize`.
   let return_value = if returns_result {
     quote! {
-      match #fn_name(#webview_arg_maybe #(parsed_args.#names),*) {
+      match #fn_name(#webview_arg_maybe #(parsed_args.#names),*)#await_maybe {
         Ok(value) => ::core::result::Result::Ok(value.into()),
         Err(e) => ::core::result::Result::Err(tauri::Error::Command(::serde_json::to_value(e)?)),
       }
     }
   } else {
-    quote! { Ok(#fn_name(#webview_arg_maybe #(parsed_args.#names),*).into()) }
+    quote! { Ok(#fn_name(#webview_arg_maybe #(parsed_args.#names),*)#await_maybe.into()) }
   };
 
   quote! {
     #function
-    pub fn #fn_wrapper #application_ext_generic(_webview: #webview_arg_type, arg: ::serde_json::Value) -> ::tauri::Result<::tauri::InvokeResponse> {
+    pub async fn #fn_wrapper #application_ext_generic(_webview: #webview_arg_type, arg: ::serde_json::Value) -> ::tauri::Result<::tauri::InvokeResponse> {
       #[derive(::serde::Deserialize)]
       #[serde(rename_all = "camelCase")]
       struct ParsedArgs {
@@ -134,7 +139,7 @@ pub fn generate_handler(item: proc_macro::TokenStream) -> TokenStream {
         Err(e) => Err(e.into()),
         Ok(dispatch) => {
           match dispatch.cmd.as_str() {
-            #(stringify!(#fn_names) => #fn_wrappers(webview, dispatch.args),)*
+            #(stringify!(#fn_names) => #fn_wrappers(webview, dispatch.args).await,)*
             _ => Err(tauri::Error::UnknownApi(None)),
           }
         }

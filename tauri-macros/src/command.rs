@@ -60,8 +60,8 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
 
   // If function doesn't take the webview, wrapper just takes webview generically and ignores it
   // Otherwise the wrapper uses the specific type from the original function declaration
-  let mut webview_arg_type = quote!(tauri::WebviewManager<A>);
-  let mut application_ext_generic = quote!(<A: tauri::ApplicationExt>);
+  let mut webview_arg_type = quote!(::tauri::WebviewManager<A>);
+  let mut application_ext_generic = quote!(<A: ::tauri::ApplicationExt>);
   let webview_arg_maybe = match types.first() {
     Some(first_type) if uses_webview => {
       // Give wrapper specific type
@@ -85,8 +85,8 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
   let return_value = if returns_result {
     quote! {
       match #fn_name(#webview_arg_maybe #(parsed_args.#names),*) {
-        Ok(value) => Ok(value.into()),
-        Err(e) => Err(tauri::Error::Command(serde_json::to_value(e)?)),
+        Ok(value) => ::std::result::Ok(value.into()),
+        Err(e) => ::std::result::Err(tauri::Error::Command(::serde_json::to_value(e)?)),
       }
     }
   } else {
@@ -95,13 +95,13 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
 
   quote! {
     #function
-    pub fn #fn_wrapper #application_ext_generic(_webview: #webview_arg_type, arg: serde_json::Value) -> tauri::Result<tauri::InvokeResponse> {
+    pub fn #fn_wrapper #application_ext_generic(_webview: #webview_arg_type, arg: ::serde_json::Value) -> ::tauri::Result<::tauri::InvokeResponse> {
       #[derive(::serde::Deserialize)]
       #[serde(rename_all = "camelCase")]
       struct ParsedArgs {
         #(#names: #types),*
       }
-      let parsed_args: ParsedArgs = serde_json::from_value(arg)?;
+      let parsed_args: ParsedArgs = ::serde_json::from_value(arg)?;
       #return_value
     }
   }

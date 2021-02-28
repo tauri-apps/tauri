@@ -85,8 +85,8 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
   let return_value = if returns_result {
     quote! {
       match #fn_name(#webview_arg_maybe #(parsed_args.#names),*) {
-        Ok(value) => ::std::result::Ok(value.into()),
-        Err(e) => ::std::result::Err(tauri::Error::Command(::serde_json::to_value(e)?)),
+        Ok(value) => ::core::result::Result::Ok(value.into()),
+        Err(e) => ::core::result::Result::Err(tauri::Error::Command(::serde_json::to_value(e)?)),
       }
     }
   } else {

@@ -4,8 +4,7 @@ use super::{
   App, ApplicationDispatcherExt, ApplicationExt, Icon, Webview, WebviewBuilderExt,
   WebviewInitializer,
 };
-use crate::flavors::Wry;
-use crate::{api::config::WindowUrl, async_runtime::Mutex};
+use crate::{api::config::WindowUrl, async_runtime::Mutex, flavors::Wry};
 
 use serde::Serialize;
 

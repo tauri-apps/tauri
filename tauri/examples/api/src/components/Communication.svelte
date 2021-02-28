@@ -8,7 +8,7 @@
 
   function log() {
     invoke({
-      cmd: "logOperation",
+      cmd: "log_operation",
       event: "tauri-click",
       payload: "this payload is optional because we used Option in Rust"
     });
@@ -16,7 +16,7 @@
 
   function performRequest() {
     invoke({
-      cmd: "performRequest",
+      cmd: "perform_request",
       endpoint: "dummy endpoint arg",
       body: {
         id: 5,

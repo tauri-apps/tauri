@@ -1,5 +1,5 @@
 use futures::future::BoxFuture;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use tauri_api::{config::Config, private::AsTauriContext};
 
@@ -61,6 +61,15 @@ impl<T: Serialize> From<T> for InvokeResponse {
       json: serde_json::to_value(value).map_err(Into::into),
     }
   }
+}
+
+#[derive(Deserialize)]
+#[allow(missing_docs)]
+#[serde(tag = "cmd", rename_all = "camelCase")]
+pub struct DispatchInstructions {
+  pub cmd: String,
+  #[serde(flatten)]
+  pub args: JsonValue,
 }
 
 /// The application runner.

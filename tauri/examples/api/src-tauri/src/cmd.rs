@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use tauri::command;
 
 #[derive(Debug, Deserialize)]
 pub struct RequestBody {
@@ -6,15 +7,13 @@ pub struct RequestBody {
   name: String,
 }
 
-#[derive(Deserialize)]
-#[serde(tag = "cmd", rename_all = "camelCase")]
-pub enum Cmd {
-  LogOperation {
-    event: String,
-    payload: Option<String>,
-  },
-  PerformRequest {
-    endpoint: String,
-    body: RequestBody,
-  },
+#[command]
+pub fn log_operation(event: String, payload: Option<String>) {
+  println!("{} {:?}", event, payload);
+}
+
+#[command]
+pub fn perform_request(endpoint: String, body: RequestBody) -> String {
+  println!("{} {:?}", endpoint, body);
+  "message response".into()
 }

@@ -31,22 +31,10 @@ fn main() {
           .expect("failed to emit");
       });
     })
-    .invoke_handler(|_webview_manager, arg| async move {
-      use cmd::Cmd::*;
-      match serde_json::from_str(&arg) {
-        Err(e) => Err(e.into()),
-        Ok(command) => match command {
-          LogOperation { event, payload } => {
-            println!("{} {:?}", event, payload);
-            Ok(().into())
-          }
-          PerformRequest { endpoint, body } => {
-            println!("{} {:?}", endpoint, body);
-            Ok("message response".into())
-          }
-        },
-      }
-    })
+    .invoke_handler(tauri::generate_handler![
+      cmd::log_operation,
+      cmd::perform_request
+    ])
     .build()
     .unwrap()
     .run();

@@ -34,9 +34,6 @@ tauri-macros = { version = "0.1", path = "../tauri-macros" }
 wry = { git = "https://github.com/tauri-apps/wry", rev = "a607d6aba95e6ee0d9620394b7ee0092527095dc" }
 rand = "0.8"
 
-[target."cfg(target_os = \"windows\")".dependencies]
-runas = "0.2"
-
 [build-dependencies]
 cfg_aliases = "0.1.1"
 

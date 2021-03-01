@@ -31,17 +31,17 @@
   let resizable = true
   let maximized = false
   let transparent = false
-  let decorations = false
+  let decorations = true
   let alwaysOnTop = false
   let fullscreen = false
-  let width = 600
-  let height = 600
+  let width = 900
+  let height = 700
   let minWidth = 600
   let minHeight = 600
   let maxWidth = null
   let maxHeight = null
-  let x = 300
-  let y = 300
+  let x = 100
+  let y = 100
 
   let windowTitle = 'Awesome Tauri Example!';
 
@@ -71,7 +71,7 @@
 
   $: setResizable(resizable)
   $: maximized ? maximize() : unmaximize()
-  $: setTransparent(transparent)
+  //$: setTransparent(transparent)
   $: setDecorations(decorations)
   $: setAlwaysOnTop(alwaysOnTop)
   $: setFullscreen(fullscreen)
@@ -85,16 +85,8 @@
 </script>
 
 <style>
-  .flex {
-    display: flex;
-  }
-
   .flex-row {
     flex-direction: row;
-  }
-
-  .flex-column {
-    flex-direction: column;
   }
 
   .grow {
@@ -106,7 +98,7 @@
   }
 </style>
 
-<div class="flex flex-column">
+<div class="flex col">
   <div>
     <label>
       <input type="checkbox" bind:checked={resizable}>
@@ -144,7 +136,7 @@
   </div>
   <div>
     <div class="window-controls flex flex-row">
-      <div class="flex flex-column grow">
+      <div class="flex col grow">
         <div>
           X
           <input type="number" bind:value={x} min="0">
@@ -155,7 +147,7 @@
         </div>
       </div>
 
-      <div class="flex flex-column grow">
+      <div class="flex col grow">
         <div>
           Width
           <input type="number" bind:value={width} min="400">
@@ -166,7 +158,7 @@
         </div>
       </div>
 
-      <div class="flex flex-column grow">
+      <div class="flex col grow">
         <div>
           Min width
           <input type="number" bind:value={minWidth}>
@@ -177,7 +169,7 @@
         </div>
       </div>
 
-      <div class="flex flex-column grow">
+      <div class="flex col grow">
         <div>
           Max width
           <input type="number" bind:value={maxWidth} min="400">

@@ -1261,12 +1261,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "infer"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8906512588cd815b8f759fd0ac11de2a84c985c0f792f70df611e9325c270c1f"
-
-[[package]]
 name = "instant"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3515,7 +3509,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.5.1"
-source = "git+https://github.com/tauri-apps/wry?rev=0611ccbf74a88f43a1eb6e56275591d7b4461aa7#0611ccbf74a88f43a1eb6e56275591d7b4461aa7"
+source = "git+https://github.com/tauri-apps/wry?rev=a607d6aba95e6ee0d9620394b7ee0092527095dc#a607d6aba95e6ee0d9620394b7ee0092527095dc"
 dependencies = [
  "cairo-rs",
  "cocoa",
@@ -3526,9 +3520,10 @@ dependencies = [
  "glib",
  "gtk",
  "image",
- "infer",
  "libc",
+ "mime_guess",
  "objc",
+ "objc_id",
  "once_cell",
  "serde",
  "serde_json",

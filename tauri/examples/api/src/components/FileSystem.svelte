@@ -66,7 +66,7 @@
   }
 </script>
 
-<form style="margin-top: 24px" on:submit|preventDefault={read}>
+<form on:submit|preventDefault={read}>
   <select class="button" id="dir">
     <option value="">None</option>
     {#each DirOptions as dir}

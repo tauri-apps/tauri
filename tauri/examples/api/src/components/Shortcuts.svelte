@@ -36,7 +36,7 @@
   }
 </script>
 
-<div style="margin-top: 24px">
+<div>
   <div>
     <input placeholder="Type a shortcut with '+' as separator..." bind:value={shortcut}>
     <button type="button" on:click={register}>Register</button>

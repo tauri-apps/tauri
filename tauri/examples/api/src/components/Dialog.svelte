@@ -76,7 +76,7 @@
   }
 </style>
 
-<div style="margin-top: 24px">
+<div>
   <input id="dialog-default-path" placeholder="Default path" bind:value={defaultPath} />
   <input id="dialog-filter" placeholder="Extensions filter, comma-separated" bind:value={filter} />
   <div>

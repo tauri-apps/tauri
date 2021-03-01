@@ -79,7 +79,6 @@
             "useBootstrapper": false
           }
         },
-        "embeddedServer": {},
         "windows": []
       },
       "allOf": [
@@ -649,38 +648,6 @@
       },
       "additionalProperties": false
     },
-    "EmbeddedServerConfig": {
-      "description": "The embeddedServer configuration object.",
-      "type": "object",
-      "properties": {
-        "host": {
-          "description": "The embedded server host.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "port": {
-          "description": "The embedded server port. If it's `random`, we'll generate one at runtime.",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Port"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "publicPath": {
-          "description": "The base path of the embedded server. The path should always start and end in a forward slash, which the deserializer will ensure",
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      },
-      "additionalProperties": false
-    },
     "FsAllowlistConfig": {
       "type": "object",
       "properties": {
@@ -806,20 +773,6 @@
       },
       "additionalProperties": false
     },
-    "Port": {
-      "anyOf": [
-        {
-          "description": "Port with a numeric value.",
-          "type": "integer",
-          "format": "uint16",
-          "minimum": 0.0
-        },
-        {
-          "description": "Random port.",
-          "type": "null"
-        }
-      ]
-    },
     "SecurityConfig": {
       "type": "object",
       "properties": {
@@ -927,14 +880,6 @@
             },
             {
               "type": "null"
-            }
-          ]
-        },
-        "embeddedServer": {
-          "default": {},
-          "allOf": [
-            {
-              "$ref": "#/definitions/EmbeddedServerConfig"
             }
           ]
         },

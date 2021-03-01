@@ -1,5 +1,5 @@
 use futures::future::BoxFuture;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use tauri_api::{config::Config, private::AsTauriContext};
 
@@ -13,9 +13,10 @@ pub(crate) mod webview;
 mod webview_manager;
 
 pub use crate::api::config::WindowUrl;
+use crate::flavors::Wry;
 pub use webview::{
-  wry::WryApplication, ApplicationDispatcherExt, ApplicationExt, Callback, Icon, Message,
-  WebviewBuilderExt,
+  wry::WryApplication, ApplicationDispatcherExt, ApplicationExt, Callback, CustomProtocol, Icon,
+  Message, WebviewBuilderExt,
 };
 pub use webview_manager::{WebviewDispatcher, WebviewManager};
 
@@ -60,6 +61,15 @@ impl<T: Serialize> From<T> for InvokeResponse {
       json: serde_json::to_value(value).map_err(Into::into),
     }
   }
+}
+
+#[derive(Deserialize)]
+#[allow(missing_docs)]
+#[serde(tag = "cmd", rename_all = "camelCase")]
+pub struct DispatchInstructions {
+  pub cmd: String,
+  #[serde(flatten)]
+  pub args: JsonValue,
 }
 
 /// The application runner.
@@ -133,6 +143,7 @@ trait WebviewInitializer<A: ApplicationExt> {
   ) -> crate::Result<(
     <A as ApplicationExt>::WebviewBuilder,
     Vec<Callback<A::Dispatcher>>,
+    Option<CustomProtocol>,
   )>;
 
   async fn on_webview_created(
@@ -151,6 +162,7 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
   ) -> crate::Result<(
     <A as ApplicationExt>::WebviewBuilder,
     Vec<Callback<A::Dispatcher>>,
+    Option<CustomProtocol>,
   )> {
     let webview_manager = WebviewManager::new(
       self.clone(),
@@ -186,8 +198,10 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
 }
 
 /// The App builder.
-#[derive(Default)]
-pub struct AppBuilder<A: ApplicationExt> {
+pub struct AppBuilder<A = Wry>
+where
+  A: ApplicationExt,
+{
   /// The JS message handler.
   invoke_handler: Option<Box<InvokeHandler<A>>>,
   /// The setup callback, invoked when the webview is ready.
@@ -269,7 +283,7 @@ impl<A: ApplicationExt + 'static> AppBuilder<A> {
       crate::async_runtime::block_on(crate::plugin::initialization_script(A::plugin_store()));
 
     let context = Context::new(context);
-    let url = utils::get_url(&context)?;
+    let url = utils::get_url(&context);
 
     Ok(App {
       invoke_handler: self.invoke_handler,
@@ -284,14 +298,18 @@ impl<A: ApplicationExt + 'static> AppBuilder<A> {
   }
 }
 
+/// Make `Wry` the default `ApplicationExt` for `AppBuilder`
+impl Default for AppBuilder<Wry> {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
 fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()> {
   let plugin_config = application.context.config.plugins.clone();
   crate::async_runtime::block_on(async move {
     crate::plugin::initialize(A::plugin_store(), plugin_config).await
   })?;
-
-  #[cfg(embedded_server)]
-  utils::spawn_server(application.url.to_string(), &application.context);
 
   let webviews = application.webviews.take().unwrap();
 
@@ -305,10 +323,10 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
       application.dispatchers.clone(),
       webview_label.to_string(),
     );
-    let (webview_builder, callbacks) =
+    let (webview_builder, callbacks, custom_protocol) =
       crate::async_runtime::block_on(application.init_webview(webview))?;
 
-    let dispatcher = webview_app.create_webview(webview_builder, callbacks)?;
+    let dispatcher = webview_app.create_webview(webview_builder, callbacks, custom_protocol)?;
     crate::async_runtime::block_on(application.on_webview_created(
       webview_label,
       dispatcher,

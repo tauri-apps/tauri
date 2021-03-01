@@ -8,7 +8,7 @@ use tauri::WebviewBuilderExt;
 fn main() {
   let context = tauri::tauri_build_context!();
 
-  tauri::AppBuilder::<tauri::flavors::Wry>::new()
+  tauri::AppBuilder::default()
     .setup(|webview_manager| async move {
       if webview_manager.current_window_label() == "Main" {
         webview_manager.listen("clicked", move |_| {

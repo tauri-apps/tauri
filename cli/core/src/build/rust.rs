@@ -56,7 +56,7 @@ struct CargoConfig {
 }
 
 pub fn build_project(debug: bool) -> crate::Result<()> {
-  let mut args = vec!["build", "--features=embedded-server"];
+  let mut args = vec!["build", "--features=custom-protocol"];
 
   if !debug {
     args.push("--release");

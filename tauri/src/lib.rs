@@ -6,9 +6,6 @@
 //! Tauri uses (and contributes to) the MIT licensed project that you can find at [webview](https://github.com/webview/webview).
 #![warn(missing_docs, rust_2018_idioms)]
 
-/// The embedded server helpers.
-#[cfg(embedded_server)]
-pub mod server;
 /// The Tauri-specific settings for your app e.g. notification permission status.
 pub mod settings;
 
@@ -38,6 +35,7 @@ pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 pub use app::*;
 pub use tauri_api as api;
+pub use tauri_macros::{command, generate_handler};
 
 /// The Tauri webview implementations.
 pub mod flavors {

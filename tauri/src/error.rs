@@ -16,9 +16,6 @@ pub enum Error {
   /// Embedded asset not found.
   #[error("asset not found: {0}")]
   AssetNotFound(String),
-  /// Embedded server port not available.
-  #[error("failed to setup server, port {0} not available")]
-  PortNotAvailable(String),
   /// Failed to serialize/deserialize.
   #[error("JSON error: {0}")]
   Json(serde_json::Error),
@@ -46,6 +43,12 @@ pub enum Error {
   /// API not whitelisted on tauri.conf.json
   #[error("'{0}' not on the allowlist (https://tauri.studio/docs/api/config#tauri.allowlist)")]
   ApiNotAllowlisted(String),
+  /// Command error (userland).
+  #[error("{0}")]
+  Command(serde_json::Value),
+  /// Invalid args when running a command.
+  #[error("invalid args for command `{0}`: {1}")]
+  InvalidArgs(&'static str, serde_json::Error),
 }
 
 impl From<serde_json::Error> for Error {

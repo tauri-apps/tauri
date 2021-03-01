@@ -6,7 +6,7 @@ members = [
   "tauri-utils",
 
   # examples
-  "examples/api/src-tauri",
+  #"examples/api/src-tauri",
   "examples/helloworld/src-tauri",
   "examples/multiwindow/src-tauri",
 ]

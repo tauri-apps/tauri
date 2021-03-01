@@ -95,17 +95,17 @@ If you are interested in making a tauri-app, please visit the [documentation web
 
 | Detail | Tauri | Electron |
 |--|--------|----------|
-| Binary Size MacOS | 0.6 MB (1) | 47.7 MB |
-| Memory Consumption MacOS | 13 MB | 34.1 MB |
+| Installer Size Linux | 3.1 MB | 52.1 MB |
+| Memory Consumption Linux | 180 MB | 462 MB |
+| Launch Time Linux | 0.39s | .80s |
 | Interface Service Provider | Varies | Chromium |
 | Backend Binding | Rust | Node.js (ECMAScript) |
 | Underlying Engine | C/C++ | V8 (C/C++) |
 | FLOSS | Yes | No |
-| Multithreading | Yes | No |
+| Multithreading | Yes | Yes |
 | Bytecode Delivery | Yes | No |
-| Can Render PDF | Yes | No |
-| Multiple Windows | Yes | Yes |
-| Auto Updater | Soon | Yes (2) |
+| Multiple Windows | Soon | Yes |
+| Auto Updater | Soon | Yes (1) |
 | Cross Platform | Yes | Yes |
 | Custom App Icon | Yes | Yes |
 | Windows Binary | Yes | Yes |
@@ -113,14 +113,11 @@ If you are interested in making a tauri-app, please visit the [documentation web
 | Linux Binary | Yes | Yes |
 | iOS Binary | Soon | No |
 | Android Binary | Soon | No |
-| Localhost Server | Yes | Yes |
-| No localhost option | Yes | No |
 | Desktop Tray | Soon | Yes |
 | Sidecar Binaries | Yes | No |
 
 #### Notes
-1. This is the smallest known binary, depending on your framework the size may be different.
-2. Electron has no native auto updater on Linux, but is offered by electron-packager
+1. Electron has no native auto updater on Linux, but is offered by electron-packager
 
 ## Development
 

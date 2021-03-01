@@ -1,15 +1,18 @@
-use std::collections::HashSet;
-use std::fs::File;
-use std::io::{BufReader, BufWriter, Write};
-use std::path::{Path, PathBuf};
+use std::{
+  collections::HashSet,
+  fs::File,
+  io::{BufReader, BufWriter, Write},
+  path::{Path, PathBuf},
+};
 
 use anyhow::{Context, Error};
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::api::assets::AssetCompression;
-use crate::api::config::Config;
-use crate::build::include_dir::IncludeDir;
+use crate::{
+  api::{assets::AssetCompression, config::Config},
+  build::include_dir::IncludeDir,
+};
 
 mod include_dir;
 

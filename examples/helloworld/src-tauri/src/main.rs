@@ -14,6 +14,5 @@ fn main() {
   tauri::AppBuilder::default()
     .invoke_handler(tauri::generate_handler![my_custom_command])
     .build(context)
-    .unwrap()
     .run();
 }

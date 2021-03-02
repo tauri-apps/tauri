@@ -5,12 +5,16 @@ members = [
   "tauri-macros",
   "tauri-utils",
 
+  # core
+  "core/tauri-build",
+  "core/tauri-codegen",
+
   # examples
-  #"examples/api/src-tauri",
   "examples/helloworld/src-tauri",
   "examples/multiwindow/src-tauri",
 ]
 
+# default to small, optimized workspace release binaries
 [profile.release]
 panic = "abort"
 codegen-units = 1

@@ -30,7 +30,7 @@ pub struct Context {
   pub(crate) config: &'static Config,
   pub(crate) tauri_script: &'static str,
   pub(crate) default_window_icon: Option<&'static [u8]>,
-  pub(crate) assets: &'static tauri_api::assets::Assets,
+  pub(crate) assets: &'static tauri_api::assets::EmbeddedAssets,
 }
 
 impl Context {
@@ -277,7 +277,7 @@ impl<A: ApplicationExt + 'static> AppBuilder<A> {
   }
 
   /// Builds the App.
-  pub fn build(self, context: impl AsTauriContext) -> crate::Result<App<A>> {
+  pub fn build(self, context: impl AsTauriContext) -> App<A> {
     let window_labels: Vec<String> = self.webviews.iter().map(|w| w.label.to_string()).collect();
     let plugin_initialization_script =
       crate::async_runtime::block_on(crate::plugin::initialization_script(A::plugin_store()));
@@ -285,7 +285,7 @@ impl<A: ApplicationExt + 'static> AppBuilder<A> {
     let context = Context::new(context);
     let url = utils::get_url(&context);
 
-    Ok(App {
+    App {
       invoke_handler: self.invoke_handler,
       setup: self.setup,
       context,
@@ -294,7 +294,7 @@ impl<A: ApplicationExt + 'static> AppBuilder<A> {
       url,
       window_labels: Arc::new(Mutex::new(window_labels)),
       plugin_initialization_script,
-    })
+    }
   }
 }
 

@@ -2,7 +2,7 @@ use std::{io::Read, sync::Arc};
 
 use crate::{
   api::{
-    assets::{AssetFetch, Assets},
+    assets::{format_key, AssetFetch, Assets},
     config::WindowUrl,
     rpc::{format_callback, format_callback_result},
   },
@@ -42,7 +42,10 @@ pub(super) fn get_url(context: &Context) -> String {
       base64::encode(
         context
           .assets
-          .get(&Assets::format_key("index.html"), AssetFetch::Decompress)
+          .get(
+            &EmbeddedAssets::format_key("index.html"),
+            AssetFetch::Decompressed
+          )
           .ok_or_else(|| crate::Error::AssetNotFound("index.html".to_string()))
           .and_then(|(read, _)| {
             read
@@ -246,9 +249,9 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
           };
 
         let asset_response = assets
-          .get(&Assets::format_key(&path), AssetFetch::Decompress)
+          .get(&format_key(&path), AssetFetch::Decompressed)
           .ok_or(crate::Error::AssetNotFound(path))
-          .and_then(|(read, _)| {
+          .and_then(|read| {
             read
               .bytes()
               .collect::<Result<Vec<u8>, _>>()

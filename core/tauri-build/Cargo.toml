@@ -1,0 +1,25 @@
+[package]
+name = "tauri-build"
+version = "0.1.0"
+authors = ["chip reed <chip@chip.sh>"]
+edition = "2018"
+
+[dependencies]
+anyhow = "1"
+
+# context dependencies
+proc-macro2 = "1"
+quote = "1"
+tauri-codegen = { path = "../tauri-codegen", optional = true }
+
+[target."cfg(windows)".dependencies]
+winres = "0.1"
+
+[features]
+# keep context non-default to prevent some relatively large deps being pulled
+codegen = ["tauri-codegen"]
+
+# enable feature flags on https://docs.rs/tauri-build
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "doc_cfg"]

@@ -27,6 +27,5 @@ fn main() {
     })
     .unwrap()
     .build(context)
-    .unwrap()
     .run();
 }

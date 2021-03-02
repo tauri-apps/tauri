@@ -15,6 +15,8 @@ sysinfo = "0.10"
 thiserror = "1.0.19"
 phf = { version = "0.8", features = ["macros"] }
 flate2 = "1"
+
+# build feature only
 proc-macro2 = { version = "1.0", optional = true }
 quote = { version = "1.0", optional = true }
 

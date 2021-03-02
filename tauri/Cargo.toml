@@ -34,13 +34,6 @@ tauri-macros = { version = "0.1", path = "../tauri-macros" }
 wry = { git = "https://github.com/tauri-apps/wry", rev = "a607d6aba95e6ee0d9620394b7ee0092527095dc" }
 rand = "0.8"
 
-# build only deps
-anyhow = { version = "1", optional = true }
-flate2 = { version = "1", optional = true }
-proc-macro2 = { version = "1", optional = true }
-quote = { version = "1", optional = true }
-walkdir = { version = "2", optional = true }
-
 [target."cfg(target_os = \"windows\")".dependencies]
 runas = "0.2"
 
@@ -54,7 +47,6 @@ tauri = { path = ".", features = [ "api-all" ] }
 serde = { version = "1.0", features = [ "derive" ] }
 
 [features]
-build = [ "tauri-api/build", "anyhow", "flate2","proc-macro2", "quote", "walkdir" ]
 cli = [ "tauri-api/cli" ]
 custom-protocol = [ ]
 api-all = [ "tauri-api/notification", "tauri-api/global-shortcut" ]

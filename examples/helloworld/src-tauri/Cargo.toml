@@ -5,12 +5,12 @@ description = "A very simple Tauri Appplication"
 edition = "2018"
 
 [build-dependencies]
-tauri = { path = "../../../tauri", features =[ "build" ]}
+tauri-build = { path = "../../../core/tauri-build", features = [ "codegen" ]}
 
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
-tauri = { path = "../../../tauri", features =["api-all"]}
+tauri = { path = "../../../tauri", features =[ "api-all" ]}
 
 [target."cfg(windows)".build-dependencies]
 winres = "0.1"

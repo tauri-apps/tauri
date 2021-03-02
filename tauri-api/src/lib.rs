@@ -54,7 +54,7 @@ pub mod private {
 
   pub trait AsTauriContext {
     fn config() -> &'static crate::config::Config;
-    fn assets() -> &'static crate::assets::Assets;
+    fn assets() -> &'static crate::assets::EmbeddedAssets;
     fn raw_tauri_script() -> &'static str;
     fn default_window_icon() -> Option<&'static [u8]>;
   }

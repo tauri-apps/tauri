@@ -19,12 +19,9 @@ pub mod plugin;
 /// The salt helpers.
 mod salt;
 
-/// The build system used by Tauri applications
-#[cfg(feature = "build")]
-pub mod build;
-
 /// The Tauri error enum.
 pub use error::Error;
+
 /// Tauri result type.
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -42,11 +39,11 @@ pub mod flavors {
   pub use super::app::WryApplication as Wry;
 }
 
-/// Easy helper function to use the Tauri Context you made during build time
+/// Easy helper function to use the Tauri Context you made during build time.
 #[macro_export]
 macro_rules! tauri_build_context {
   () => {
-    include!(concat!(env!("OUT_DIR"), "/tauri_config.rs"))
+    include!(concat!(env!("OUT_DIR"), "/tauri-build-context.rs"))
   };
 }
 

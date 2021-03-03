@@ -28,7 +28,7 @@ futures = "0.3"
 async-trait = "0.1"
 uuid = { version = "0.8.2", features = [ "v4" ] }
 thiserror = "1.0.24"
-once_cell = "1.7.0"
+once_cell = "1.7.2"
 tauri-api = { version = "0.7.5", path = "../tauri-api" }
 tauri-macros = { version = "0.1", path = "../tauri-macros" }
 wry = { git = "https://github.com/tauri-apps/wry", rev = "a607d6aba95e6ee0d9620394b7ee0092527095dc" }

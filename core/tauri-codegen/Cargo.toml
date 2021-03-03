@@ -5,7 +5,6 @@ authors = ["chip reed <chip@chip.sh>"]
 edition = "2018"
 
 [dependencies]
-flate2 = "1"
 proc-macro2 = "1"
 quote = "1"
 serde = { version = "1", features = ["derive"] }
@@ -13,3 +12,4 @@ serde_json = "1"
 tauri-api = { path = "../../tauri-api", features = ["build"] }
 thiserror = "1"
 walkdir = "2"
+zstd = "0.6"

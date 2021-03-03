@@ -1,22 +1,19 @@
-use std::{io::Read, sync::Arc};
-
+use super::{
+  webview::{Callback, CustomProtocol, WebviewBuilderExtPrivate},
+  App, Context, Webview, WebviewManager,
+};
 use crate::{
   api::{
-    assets::{format_key, AssetFetch, Assets},
+    assets::Assets,
     config::WindowUrl,
     rpc::{format_callback, format_callback_result},
   },
   app::{Icon, InvokeResponse},
   ApplicationExt, WebviewBuilderExt,
 };
-
-use super::{
-  webview::{Callback, CustomProtocol, WebviewBuilderExtPrivate},
-  App, Context, Webview, WebviewManager,
-};
-
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
+use std::{borrow::Cow, sync::Arc};
 
 #[derive(Debug, Deserialize)]
 struct Message {
@@ -249,14 +246,9 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
           };
 
         let asset_response = assets
-          .get(&format_key(&path), AssetFetch::Decompressed)
+          .get(&path)
           .ok_or(crate::Error::AssetNotFound(path))
-          .and_then(|read| {
-            read
-              .bytes()
-              .collect::<Result<Vec<u8>, _>>()
-              .map_err(Into::into)
-          });
+          .map(Cow::into_owned);
         match asset_response {
           Ok(asset) => Ok(asset),
           Err(e) => {

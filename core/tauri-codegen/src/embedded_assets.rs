@@ -1,17 +1,18 @@
-use flate2::bufread::GzEncoder;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use std::{
   collections::HashMap,
+  env::var,
   fs::File,
   io::BufReader,
   path::{Path, PathBuf},
 };
+use tauri_api::assets::AssetKey;
 use thiserror::Error;
 use walkdir::WalkDir;
 
-/// (key, (path, compressed bytes))
-type Asset = (String, (String, Vec<u8>));
+/// (key, (original filepath, compressed bytes))
+type Asset = (AssetKey, (String, Vec<u8>));
 
 /// All possible errors while reading and compressing an [`EmbeddedAssets`] directory
 #[derive(Debug, Error)]
@@ -47,7 +48,7 @@ pub enum EmbeddedAssetsError {
 /// The assets are compressed during this runtime, and can only be represented as a [`TokenStream`]
 /// through [`ToTokens`]. The generated code is meant to be injected into an application to include
 /// the compressed assets in that application's binary.
-pub struct EmbeddedAssets(HashMap<String, (String, Vec<u8>)>);
+pub struct EmbeddedAssets(HashMap<AssetKey, (String, Vec<u8>)>);
 
 impl EmbeddedAssets {
   /// Compress a directory of assets, ready to be generated into a [`tauri_api::assets::Assets`].
@@ -72,32 +73,36 @@ impl EmbeddedAssets {
       .map(Self)
   }
 
-  /// Open a file to read as a compressed [`Read`] stream.
-  fn read_file_compressed(path: &Path) -> Result<GzEncoder<BufReader<File>>, EmbeddedAssetsError> {
-    File::open(&path)
-      .map_err(|error| EmbeddedAssetsError::AssetRead {
-        path: path.to_owned(),
-        error,
-      })
-      .map(BufReader::new)
-      .map(|reader| GzEncoder::new(reader, flate2::Compression::best()))
+  /// Use highest compression level for release, the fastest one for everything else
+  fn compression_level() -> i32 {
+    match var("PROFILE").as_ref().map(String::as_str) {
+      Ok("release") => 22,
+      _ => -5,
+    }
   }
 
   /// Compress a file and spit out the information in a [`HashMap`] friendly form.
   fn compress_file(prefix: &Path, path: &Path) -> Result<Asset, EmbeddedAssetsError> {
-    let mut bytes = Vec::new();
-    let mut reader = Self::read_file_compressed(path)?;
+    let reader =
+      File::open(&path)
+        .map(BufReader::new)
+        .map_err(|error| EmbeddedAssetsError::AssetRead {
+          path: path.to_owned(),
+          error,
+        })?;
 
     // entirely read compressed asset into bytes
-    std::io::copy(&mut reader, &mut bytes).map_err(|error| EmbeddedAssetsError::AssetWrite {
-      path: path.to_owned(),
-      error,
+    let bytes = zstd::encode_all(reader, Self::compression_level()).map_err(|error| {
+      EmbeddedAssetsError::AssetWrite {
+        path: path.to_owned(),
+        error,
+      }
     })?;
 
     // get a key to the asset path without the asset directory prefix
     let key = path
       .strip_prefix(prefix)
-      .map(tauri_api::assets::format_key)
+      .map(AssetKey::from) // format the path for use in assets
       .map_err(|_| EmbeddedAssetsError::PrefixInvalid {
         prefix: prefix.to_owned(),
         path: path.to_owned(),
@@ -111,6 +116,8 @@ impl ToTokens for EmbeddedAssets {
   fn to_tokens(&self, tokens: &mut TokenStream) {
     let mut map = TokenStream::new();
     for (key, (original, bytes)) in &self.0 {
+      let key: &str = key.as_ref();
+
       // add original asset as a compiler dependency, rely on dead code elimination to clean it up
       map.append_all(quote!(#key => {
         const _: &[u8] = include_bytes!(#original);
@@ -119,9 +126,10 @@ impl ToTokens for EmbeddedAssets {
     }
 
     // we expect phf related items to be in path when generating the path code
-    tokens.append_all(quote!({
-      use ::tauri::api::assets::{phf, phf::phf_map};
-      phf_map! { #map }
-    }));
+    tokens.append_all(quote! {
+        use ::tauri::api::assets::{EmbeddedAssets, phf, phf::phf_map};
+        static ASSETS: EmbeddedAssets = EmbeddedAssets::from_zstd(phf_map! { #map });
+        &ASSETS
+    });
   }
 }

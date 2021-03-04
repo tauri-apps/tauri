@@ -1,0 +1,22 @@
+{
+  "name": "create-tauri-app",
+  "version": "0.1.0",
+  "description": "Create Tauri App in seconds",
+  "bin": {
+    "create-tauri-app": "./bin/create-tauri-app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tauri-apps/tauri.git"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/tauri-apps/tauri/issues"
+  },
+  "homepage": "https://github.com/tauri-apps/tauri#readme",
+  "dependencies": {
+    "minimist": "^1.2.5",
+    "scaffe": "^0.1.5",
+    "tauri": "^0.14.0"
+  }
+}

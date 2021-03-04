@@ -73,9 +73,6 @@ async function invoke<T>(
     if (typeof cmd === 'string') {
       args.cmd = cmd
     } else if (typeof cmd === 'object') {
-      if (args !== {}) {
-        console.log(cmd, args)
-      }
       args = cmd
     } else {
       return reject(new Error('Invalid argument type.'))

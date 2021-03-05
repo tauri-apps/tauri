@@ -103,7 +103,7 @@ if (!String.prototype.startsWith) {
     return identifier;
   };
 
-  window.__TAURI__.invoke = function invoke(args) {
+  window.__TAURI__.invoke = function invoke(cmd, args = {}) {
     var _this = this;
 
     return new Promise(function (resolve, reject) {
@@ -115,6 +115,14 @@ if (!String.prototype.startsWith) {
         reject(e);
         delete window[callback];
       }, true);
+
+      if (typeof cmd === "string") {
+        args.cmd = cmd;
+      } else if (typeof cmd === "object") {
+        args = cmd;
+      } else {
+        return reject(new Error("Invalid argument type."));
+      }
 
       if (window.__TAURI_INVOKE_HANDLER__) {
         window.__TAURI_INVOKE_HANDLER__(
@@ -191,18 +199,18 @@ if (!String.prototype.startsWith) {
   }
 
   window.__TAURI__.invoke({
-    __tauriModule: 'Event',
+    __tauriModule: "Event",
     message: {
-      cmd: 'listen',
-      event: 'tauri://window-created',
+      cmd: "listen",
+      event: "tauri://window-created",
       handler: window.__TAURI__.transformCallback(function (event) {
         if (event.payload) {
-          var windowLabel = event.payload.label
-          window.__TAURI__.__windows.push({ label: windowLabel })
+          var windowLabel = event.payload.label;
+          window.__TAURI__.__windows.push({ label: windowLabel });
         }
-      })
-    }
-  })
+      }),
+    },
+  });
 
   let permissionSettable = false;
   let permissionValue = "default";

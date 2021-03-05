@@ -228,21 +228,6 @@ class WindowManager {
   }
 
   /**
-   * Sets the window transparent flag.
-   *
-   * @param {boolean} transparent whether the the window should be transparent or not
-   */
-  async setTransparent(transparent: boolean): Promise<void> {
-    return invoke({
-      __tauriModule: 'Window',
-      message: {
-        cmd: 'setTransparent',
-        transparent
-      }
-    })
-  }
-
-  /**
    * Whether the window should have borders and bars.
    *
    * @param {boolean} decorations whether the window should have borders and bars
@@ -446,7 +431,6 @@ export interface WindowOptions {
   resizable?: boolean
   title?: string
   fullscreen?: boolean
-  transparent?: boolean
   maximized?: boolean
   visible?: boolean
   decorations?: boolean

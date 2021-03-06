@@ -40,6 +40,10 @@ jobs:
           sidebarPath: ./tauri-docs/sidebars.json
           linksRoot: /docs/api/rust/
           cratesToProcess: "tauri,tauri_api,tauri_utils"
+      - name: run typedoc
+        working-directory: tauri/api
+        run: |
+          yarn docs && mv docs/* ../tauri-docs/docs/en/api/js
       - name: git config
         run: |
           git config --global user.name "${{ github.event.inputs.gitName }}"
@@ -48,7 +52,7 @@ jobs:
         uses: tauri-apps/create-pull-request@v3.4.1
         with:
           token: ${{ secrets.TAURI_BOT_PAT }}
-          commit-message: "chore(docs): Update Rust docs"
+          commit-message: "chore(docs): Update Rust & TS docs"
           branch: docs/release
           path: tauri-docs
           title: Update Docs

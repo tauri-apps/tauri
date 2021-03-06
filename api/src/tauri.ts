@@ -51,6 +51,11 @@ function transformCallback(
   return identifier
 }
 
+export interface InvokeArgs {
+  mainThread?: boolean
+  [key: string]: unknown
+}
+
 /**
  * sends a message to the backend
  *
@@ -60,7 +65,7 @@ function transformCallback(
  */
 async function invoke<T>(
   cmd: string,
-  args: { [key: string]: unknown } = {}
+  args: InvokeArgs = {}
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     const callback = transformCallback((e) => {

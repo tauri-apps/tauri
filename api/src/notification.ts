@@ -1,4 +1,4 @@
-import { invoke } from './tauri'
+import { invokeTauriCommand } from './helpers/tauri'
 
 export interface Options {
   title: string
@@ -13,7 +13,7 @@ async function isPermissionGranted(): Promise<boolean | null> {
   if (window.Notification.permission !== 'default') {
     return Promise.resolve(window.Notification.permission === 'granted')
   }
-  return invoke('tauri', {
+  return invokeTauriCommand({
     __tauriModule: 'Notification',
     message: {
       cmd: 'isNotificationPermissionGranted'

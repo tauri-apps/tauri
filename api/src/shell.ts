@@ -1,4 +1,4 @@
-import { invoke } from './tauri'
+import { invokeTauriCommand } from './helpers/tauri'
 
 /**
  * spawns a process
@@ -15,7 +15,7 @@ async function execute(
     Object.freeze(args)
   }
 
-  return invoke<string>('tauri', {
+  return invokeTauriCommand<string>({
     __tauriModule: 'Shell',
     message: {
       cmd: 'execute',
@@ -31,7 +31,7 @@ async function execute(
  * @param url the URL to open
  */
 async function open(url: string): Promise<void> {
-  return invoke('tauri', {
+  return invokeTauriCommand({
     __tauriModule: 'Shell',
     message: {
       cmd: 'open',

@@ -1,4 +1,4 @@
-import { invoke } from './tauri'
+import { invokeTauriCommand } from './helpers/tauri'
 
 export interface ArgMatch {
   /**
@@ -27,7 +27,7 @@ export interface CliMatches {
  * gets the CLI matches
  */
 async function getMatches(): Promise<CliMatches> {
-  return invoke<CliMatches>('tauri', {
+  return invokeTauriCommand<CliMatches>({
     __tauriModule: 'Cli',
     message: {
       cmd: 'cliMatches'

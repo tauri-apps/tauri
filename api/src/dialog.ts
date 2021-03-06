@@ -1,4 +1,4 @@
-import { invoke } from './tauri'
+import { invokeTauriCommand } from './helpers/tauri'
 
 export interface DialogFilter {
   name: string
@@ -34,7 +34,7 @@ async function open(
     Object.freeze(options)
   }
 
-  return invoke<string | string[]>('tauri', {
+  return invokeTauriCommand<string | string[]>({
     __tauriModule: 'Dialog',
     mainThread: true,
     message: {
@@ -57,7 +57,7 @@ async function save(options: SaveDialogOptions = {}): Promise<string> {
     Object.freeze(options)
   }
 
-  return invoke<string>('tauri', {
+  return invokeTauriCommand<string>({
     __tauriModule: 'Dialog',
     mainThread: true,
     message: {

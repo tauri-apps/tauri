@@ -103,7 +103,7 @@ if (!String.prototype.startsWith) {
     return identifier;
   };
 
-  window.__TAURI__.invoke = function invoke(args) {
+  window.__TAURI__.invoke = function invoke(cmd, args) {
     var _this = this;
 
     return new Promise(function (resolve, reject) {
@@ -116,8 +116,9 @@ if (!String.prototype.startsWith) {
         delete window[callback];
       }, true);
 
-      if (window.__TAURI_INVOKE_HANDLER__) {
-        window.__TAURI_INVOKE_HANDLER__(
+      if (window.rpc) {
+        window.rpc.notify(
+          cmd,
           _objectSpread(
             {
               callback: callback,
@@ -128,7 +129,8 @@ if (!String.prototype.startsWith) {
         );
       } else {
         window.addEventListener("DOMContentLoaded", function () {
-          window.__TAURI_INVOKE_HANDLER__(
+          window.rpc.notify(
+            cmd,
             _objectSpread(
               {
                 callback: callback,
@@ -157,7 +159,7 @@ if (!String.prototype.startsWith) {
               target.href.startsWith("http") &&
               target.target === "_blank"
             ) {
-              window.__TAURI__.invoke({
+              window.__TAURI__.invoke('tauri', {
                 __tauriModule: "Shell",
                 message: {
                   cmd: "open",
@@ -190,7 +192,7 @@ if (!String.prototype.startsWith) {
     );
   }
 
-  window.__TAURI__.invoke({
+  window.__TAURI__.invoke('tauri', {
     __tauriModule: 'Event',
     message: {
       cmd: 'listen',
@@ -211,7 +213,7 @@ if (!String.prototype.startsWith) {
     if (window.Notification.permission !== "default") {
       return Promise.resolve(window.Notification.permission === "granted");
     }
-    return window.__TAURI__.invoke({
+    return window.__TAURI__.invoke('tauri', {
       __tauriModule: "Notification",
       message: {
         cmd: "isNotificationPermissionGranted",
@@ -227,7 +229,7 @@ if (!String.prototype.startsWith) {
 
   function requestPermission() {
     return window.__TAURI__
-      .invoke({
+      .invoke('tauri', {
         __tauriModule: "Notification",
         mainThread: true,
         message: {
@@ -247,7 +249,7 @@ if (!String.prototype.startsWith) {
 
     isPermissionGranted().then(function (permission) {
       if (permission) {
-        return window.__TAURI__.invoke({
+        return window.__TAURI__.invoke('tauri', {
           __tauriModule: "Notification",
           message: {
             cmd: "notification",
@@ -296,7 +298,7 @@ if (!String.prototype.startsWith) {
   });
 
   window.alert = function (message) {
-    window.__TAURI__.invoke({
+    window.__TAURI__.invoke('tauri', {
       __tauriModule: "Dialog",
       mainThread: true,
       message: {
@@ -307,7 +309,7 @@ if (!String.prototype.startsWith) {
   };
 
   window.confirm = function (message) {
-    return window.__TAURI__.invoke({
+    return window.__TAURI__.invoke('tauri', {
       __tauriModule: "Dialog",
       mainThread: true,
       message: {

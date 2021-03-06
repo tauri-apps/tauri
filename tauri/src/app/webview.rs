@@ -157,13 +157,16 @@ pub trait WebviewBuilderExt: Sized {
   fn finish(self) -> crate::Result<Self::Webview>;
 }
 
-/// Binds the given callback to a global variable on the window object.
-pub struct Callback<D> {
-  /// Function name to bind.
-  pub name: String,
-  /// Function callback handler.
-  pub function: Box<dyn FnMut(D, Vec<JsonValue>) + Send>,
+/// Rpc request.
+pub struct RpcRequest {
+  /// RPC command.
+  pub command: String,
+  /// Params.
+  pub params: Option<JsonValue>,
 }
+
+/// Rpc handler.
+pub type WebviewRpcHandler<D> = Box<dyn Fn(D, RpcRequest) + Send>;
 
 /// Uses a custom handler to resolve file requests
 pub struct CustomProtocol {
@@ -185,7 +188,7 @@ pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
   fn create_webview(
     &self,
     webview_builder: Self::WebviewBuilder,
-    callbacks: Vec<Callback<Self>>,
+    rpc_handler: Option<WebviewRpcHandler<Self>>,
     custom_protocol: Option<CustomProtocol>,
   ) -> crate::Result<Self>;
 
@@ -275,7 +278,7 @@ pub trait ApplicationExt: Sized {
   fn create_webview(
     &mut self,
     webview_builder: Self::WebviewBuilder,
-    callbacks: Vec<Callback<Self::Dispatcher>>,
+    rpc_handler: Option<WebviewRpcHandler<Self::Dispatcher>>,
     custom_protocol: Option<CustomProtocol>,
   ) -> crate::Result<Self::Dispatcher>;
 

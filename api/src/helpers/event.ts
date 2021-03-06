@@ -12,7 +12,7 @@ async function _listen<T>(
   handler: EventCallback<T>,
   once: boolean
 ): Promise<void> {
-  await invoke({
+  await invoke('tauri', {
     __tauriModule: 'Event',
     message: {
       cmd: 'listen',
@@ -60,7 +60,7 @@ async function emit(
   windowLabel?: string,
   payload?: string
 ): Promise<void> {
-  await invoke({
+  await invoke('tauri', {
     __tauriModule: 'Event',
     message: {
       cmd: 'emit',

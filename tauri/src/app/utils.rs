@@ -11,8 +11,8 @@ use crate::{
 };
 
 use super::{
-  webview::{Callback, CustomProtocol, WebviewBuilderExtPrivate},
-  App, Context, Webview, WebviewManager,
+  webview::{CustomProtocol, WebviewBuilderExtPrivate, WebviewRpcHandler},
+  App, Context, RpcRequest, Webview, WebviewManager,
 };
 
 use serde::Deserialize;
@@ -84,11 +84,11 @@ pub(super) fn initialization_script(
     r#"
       {tauri_initialization_script}
       {event_initialization_script}
-      if (window.__TAURI_INVOKE_HANDLER__) {{
-        window.__TAURI__.invoke({{ cmd: "__initialized" }})
+      if (window.__rpc_handler__) {{
+        window.__TAURI__.invoke("__initialized")
       }} else {{
         window.addEventListener('DOMContentLoaded', function () {{
-          window.__TAURI__.invoke({{ cmd: "__initialized" }})
+          window.__TAURI__.invoke("__initialized")
         }})
       }}
       {plugin_initialization_script}
@@ -113,7 +113,7 @@ fn event_initialization_script() -> String {
       }}
 
       if (listeners.length > 0) {{
-        window.__TAURI__.invoke({{
+        window.__TAURI__.invoke('tauri', {{
           __tauriModule: 'Internal',
           message: {{
             cmd: 'validateSalt',
@@ -140,7 +140,7 @@ fn event_initialization_script() -> String {
 
 pub(super) type BuiltWebview<A> = (
   <A as ApplicationExt>::WebviewBuilder,
-  Vec<Callback<<A as ApplicationExt>::Dispatcher>>,
+  Option<WebviewRpcHandler<<A as ApplicationExt>::Dispatcher>>,
   Option<CustomProtocol>,
 );
 
@@ -160,7 +160,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
     WindowUrl::Custom(url) => url.to_string(),
   };
 
-  let (webview_builder, callbacks, custom_protocol) = if webview.url == WindowUrl::App {
+  let (webview_builder, rpc_handler, custom_protocol) = if webview.url == WindowUrl::App {
     let mut webview_builder = webview.builder.url(webview_url)
         .initialization_script(&initialization_script(plugin_initialization_script, &context.tauri_script))
         .initialization_script(&format!(
@@ -180,10 +180,17 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
     }
 
     let webview_manager_ = webview_manager.clone();
-    let tauri_invoke_handler = crate::Callback::<A::Dispatcher> {
-      name: "__TAURI_INVOKE_HANDLER__".to_string(),
-      function: Box::new(move |_, arg| {
-        let arg = arg.into_iter().next().unwrap_or(JsonValue::Null);
+    let rpc_handler: Box<dyn Fn(<A as ApplicationExt>::Dispatcher, RpcRequest) + Send> =
+      Box::new(move |_, request: RpcRequest| {
+        let command = request.command.clone();
+        let arg = request
+          .params
+          .unwrap()
+          .as_array_mut()
+          .unwrap()
+          .first_mut()
+          .unwrap_or(&mut JsonValue::Null)
+          .take();
         let webview_manager = webview_manager_.clone();
         match serde_json::from_value::<Message>(arg) {
           Ok(message) => {
@@ -195,7 +202,12 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
               crate::async_runtime::block_on(async move {
                 execute_promise(
                   &webview_manager,
-                  on_message(application, webview_manager.clone(), message),
+                  on_message(
+                    application,
+                    webview_manager.clone(),
+                    command.clone(),
+                    message,
+                  ),
                   callback,
                   error,
                 )
@@ -205,7 +217,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
               crate::async_runtime::spawn(async move {
                 execute_promise(
                   &webview_manager,
-                  on_message(application, webview_manager.clone(), message),
+                  on_message(application, webview_manager.clone(), command, message),
                   callback,
                   error,
                 )
@@ -225,8 +237,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
             }
           }
         }
-      }),
-    };
+      });
     let assets = context.assets;
     let custom_protocol = CustomProtocol {
       name: "tauri".into(),
@@ -264,16 +275,12 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
         }
       }),
     };
-    (
-      webview_builder,
-      vec![tauri_invoke_handler],
-      Some(custom_protocol),
-    )
+    (webview_builder, Some(rpc_handler), Some(custom_protocol))
   } else {
-    (webview.builder.url(webview_url), Vec::new(), None)
+    (webview.builder.url(webview_url), None, None)
   };
 
-  Ok((webview_builder, callbacks, custom_protocol))
+  Ok((webview_builder, rpc_handler, custom_protocol))
 }
 
 /// Asynchronously executes the given task
@@ -309,9 +316,10 @@ async fn execute_promise<
 async fn on_message<A: ApplicationExt + 'static>(
   application: Arc<App<A>>,
   webview_manager: WebviewManager<A>,
+  command: String,
   message: Message,
 ) -> crate::Result<InvokeResponse> {
-  if message.inner == serde_json::json!({ "cmd":"__initialized" }) {
+  if &command == "__initialized" {
     application.run_setup(&webview_manager).await;
     crate::plugin::ready(A::plugin_store(), &webview_manager).await;
     Ok(().into())
@@ -326,7 +334,7 @@ async fn on_message<A: ApplicationExt + 'static>(
       .await
     } else {
       let mut response = match application
-        .run_invoke_handler(&webview_manager, &message.inner)
+        .run_invoke_handler(&webview_manager, command.clone(), &message.inner)
         .await
       {
         Ok(value) => {
@@ -339,7 +347,14 @@ async fn on_message<A: ApplicationExt + 'static>(
         Err(e) => Err(e),
       };
       if let Err(crate::Error::UnknownApi(_)) = response {
-        match crate::plugin::extend_api(A::plugin_store(), &webview_manager, &message.inner).await {
+        match crate::plugin::extend_api(
+          A::plugin_store(),
+          &webview_manager,
+          command,
+          &message.inner,
+        )
+        .await
+        {
           Ok(value) => {
             // If value is None, that means that no plugin matched the command
             // and the UnknownApi error should be sent to the webview

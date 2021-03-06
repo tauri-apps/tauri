@@ -15,7 +15,7 @@ async function execute(
     Object.freeze(args)
   }
 
-  return invoke<string>({
+  return invoke<string>('tauri', {
     __tauriModule: 'Shell',
     message: {
       cmd: 'execute',
@@ -31,7 +31,7 @@ async function execute(
  * @param url the URL to open
  */
 async function open(url: string): Promise<void> {
-  return invoke({
+  return invoke('tauri', {
     __tauriModule: 'Shell',
     message: {
       cmd: 'open',

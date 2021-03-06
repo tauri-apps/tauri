@@ -80,7 +80,7 @@ export class Client {
    * drops the client instance
    */
   async drop(): Promise<void> {
-    return invoke({
+    return invoke('tauri', {
       __tauriModule: 'Http',
       message: {
         cmd: 'dropClient',
@@ -97,7 +97,7 @@ export class Client {
    * @return promise resolving to the response
    */
   async request<T>(options: HttpOptions): Promise<Response<T>> {
-    return invoke({
+    return invoke('tauri', {
       __tauriModule: 'Http',
       message: {
         cmd: 'httpRequest',
@@ -201,7 +201,7 @@ export class Client {
 }
 
 async function getClient(options?: ClientOptions): Promise<Client> {
-  return invoke<number>({
+  return invoke<number>('tauri', {
     __tauriModule: 'Http',
     message: {
       cmd: 'createClient',

@@ -1,7 +1,9 @@
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Window {
-    __TAURI_INVOKE_HANDLER__: (command: { [key: string]: unknown }) => void
+    rpc: {
+      notify: (command: string, args?: { [key: string]: unknown }) => void
+    }
   }
 }
 
@@ -57,7 +59,7 @@ function transformCallback(
  * @return {Promise<T>} Promise resolving or rejecting to the backend response
  */
 async function invoke<T>(
-  cmd: string | { [key: string]: unknown },
+  cmd: string,
   args: { [key: string]: unknown } = {}
 ): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -70,15 +72,7 @@ async function invoke<T>(
       Reflect.deleteProperty(window, callback)
     }, true)
 
-    if (typeof cmd === 'string') {
-      args.cmd = cmd
-    } else if (typeof cmd === 'object') {
-      args = cmd
-    } else {
-      return reject(new Error('Invalid argument type.'))
-    }
-
-    window.__TAURI_INVOKE_HANDLER__({
+    window.rpc.notify(cmd, {
       callback,
       error,
       ...args

@@ -1,5 +1,3 @@
-mod cmd;
-
 use tauri::ApplicationDispatcherExt;
 
 #[derive(tauri::FromTauriContext)]
@@ -21,19 +19,9 @@ fn main() {
         .current_webview()
         .eval("window.onTauriInit && window.onTauriInit()");
     })
-    .invoke_handler(|webview_manager, arg| async move {
-      use cmd::Cmd::*;
-      match serde_json::from_str(&arg) {
-        Err(e) => Err(e.into()),
-        Ok(command) => {
-          match command {
-            // definitions for your custom commands from Cmd here
-            Exit {} => {
-              // TODO dispatcher.terminate();
-            }
-          }
-          Ok(())
-        }
+    .invoke_handler(|_webview_manager, command, _arg| async move {
+      if &command == "exit" {
+        // TODO exit window
       }
     })
     .build()

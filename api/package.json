@@ -80,7 +80,7 @@
     "rimraf": "3.0.2",
     "rollup": "2.39.1",
     "rollup-plugin-terser": "7.0.2",
-    "tslib": "^2.1.0",
+    "tslib": "2.1.0",
     "typescript": "4.2.2"
   },
   "resolutions": {

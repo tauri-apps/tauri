@@ -74,11 +74,13 @@
     "husky": "4.3.8",
     "lint-staged": "10.5.4",
     "lockfile-lint": "4.6.1",
+    "lodash": "4.17.21",
     "prettier": "2.2.1",
     "regenerator-runtime": "0.13.7",
     "rimraf": "3.0.2",
     "rollup": "2.39.1",
     "rollup-plugin-terser": "7.0.2",
+    "tslib": "2.1.0",
     "typescript": "4.2.2"
   },
   "resolutions": {

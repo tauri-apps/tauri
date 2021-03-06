@@ -228,6 +228,18 @@ class WindowManager {
   }
 
   /**
+   * Closes the window.
+   */
+  async close(): Promise<void> {
+    return invoke({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'close'
+      }
+    })
+  }
+
+  /**
    * Whether the window should have borders and bars.
    *
    * @param {boolean} decorations whether the window should have borders and bars

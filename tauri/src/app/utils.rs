@@ -160,7 +160,11 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
     WindowUrl::Custom(url) => url.to_string(),
   };
 
-  let (webview_builder, rpc_handler, custom_protocol) = if webview.url == WindowUrl::App {
+  let is_local = match webview.url {
+    WindowUrl::App => true,
+    WindowUrl::Custom(url) => &url[0..8] == "tauri://",
+  };
+  let (webview_builder, rpc_handler, custom_protocol) = if is_local {
     let mut webview_builder = webview.builder.url(webview_url)
         .initialization_script(&initialization_script(plugin_initialization_script, &context.tauri_script))
         .initialization_script(&format!(

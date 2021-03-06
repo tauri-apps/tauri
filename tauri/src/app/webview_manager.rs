@@ -96,6 +96,11 @@ impl<A: ApplicationDispatcherExt> WebviewDispatcher<A> {
     self.dispatcher.hide()
   }
 
+  /// Closes the window.
+  pub fn close(&self) -> crate::Result<()> {
+    self.dispatcher.close()
+  }
+
   /// Whether the window should have borders and bars.
   pub fn set_decorations(&self, decorations: bool) -> crate::Result<()> {
     self.dispatcher.set_decorations(decorations)

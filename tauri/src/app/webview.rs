@@ -213,6 +213,9 @@ pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
   /// Hides the window.
   fn hide(&self) -> crate::Result<()>;
 
+  /// Closes the window.
+  fn close(&self) -> crate::Result<()>;
+
   /// Updates the hasDecorations flag.
   fn set_decorations(&self, decorations: bool) -> crate::Result<()>;
 

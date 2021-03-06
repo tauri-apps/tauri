@@ -36,6 +36,7 @@ pub enum Cmd {
   Unminimize,
   Show,
   Hide,
+  Close,
   SetDecorations {
     decorations: bool,
   },
@@ -127,6 +128,7 @@ impl Cmd {
         Self::Unminimize => current_webview.unminimize()?,
         Self::Show => current_webview.show()?,
         Self::Hide => current_webview.hide()?,
+        Self::Close => current_webview.close()?,
         Self::SetDecorations { decorations } => current_webview.set_decorations(decorations)?,
         Self::SetAlwaysOnTop { always_on_top } => {
           current_webview.set_always_on_top(always_on_top)?

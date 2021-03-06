@@ -19,9 +19,9 @@ fn main() {
         .current_webview()
         .eval("window.onTauriInit && window.onTauriInit()");
     })
-    .invoke_handler(|_webview_manager, command, _arg| async move {
+    .invoke_handler(|webview_manager, command, _arg| async move {
       if &command == "exit" {
-        // TODO exit window
+        webview_manager.close().unwrap();
       }
     })
     .build()

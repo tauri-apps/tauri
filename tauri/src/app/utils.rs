@@ -84,7 +84,7 @@ pub(super) fn initialization_script(
     r#"
       {tauri_initialization_script}
       {event_initialization_script}
-      if (window.__rpc_handler__) {{
+      if (window.rpc) {{
         window.__TAURI__.invoke("__initialized")
       }} else {{
         window.addEventListener('DOMContentLoaded', function () {{

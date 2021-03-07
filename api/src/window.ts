@@ -90,8 +90,6 @@ class WebviewWindowHandle {
     }
     return false
   }
-
-  _emitTauriEvent(event: string): void { }
 }
 
 class WebviewWindow extends WebviewWindowHandle {

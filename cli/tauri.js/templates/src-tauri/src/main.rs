@@ -3,12 +3,8 @@
   windows_subsystem = "windows"
 )]
 
-#[derive(tauri::FromTauriContext)]
-struct Context;
-
 fn main() {
-  tauri::AppBuilder::<Context>::new()
-    .build()
-    .unwrap()
-    .run();
+  let context = tauri::generate_tauri_context!();
+
+  tauri::AppBuilder::new().build(context).run();
 }

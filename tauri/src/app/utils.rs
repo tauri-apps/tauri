@@ -378,15 +378,12 @@ async fn on_message<A: ApplicationExt + 'static>(
 
 #[cfg(test)]
 mod test {
-  use crate::{Context, FromTauriContext};
-
-  #[derive(FromTauriContext)]
-  #[config_path = "test/fixture/src-tauri/tauri.conf.json"]
-  struct TauriContext;
+  use crate::{generate_tauri_context, Context};
 
   #[test]
   fn check_get_url() {
-    let context = Context::new::<TauriContext>().unwrap();
+    let context = generate_tauri_context!("test/fixture/src-tauri/tauri.conf.json");
+    let context = Context::new(context);
     let res = super::get_url(&context);
     #[cfg(custom_protocol)]
     assert!(res == "tauri://index.html");

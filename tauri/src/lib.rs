@@ -32,7 +32,7 @@ pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 pub use app::*;
 pub use tauri_api as api;
-pub use tauri_macros::{command, generate_handler};
+pub use tauri_macros::*;
 
 /// The Tauri webview implementations.
 pub mod flavors {

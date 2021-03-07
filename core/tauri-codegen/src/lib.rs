@@ -1,3 +1,5 @@
+pub use context::{context_codegen, ContextData};
+use std::borrow::Cow;
 use std::{
   fs::File,
   io::BufReader,
@@ -6,7 +8,7 @@ use std::{
 pub use tauri_api::config::Config;
 use thiserror::Error;
 
-pub mod context;
+mod context;
 pub mod embedded_assets;
 
 /// Represents all the errors that can happen while reading the config.
@@ -16,19 +18,19 @@ pub enum ConfigError {
   CurrentDir(std::io::Error),
 
   // this error should be "impossible" because we use std::env::current_dir() - cover it anyways
-  #[error("config file has no parent, this shouldn't be possible. file an issue on https://github.com/tauri-apps/tauri - target {0}")]
+  #[error("Tauri config file has no parent, this shouldn't be possible. file an issue on https://github.com/tauri-apps/tauri - target {0}")]
   Parent(PathBuf),
 
   #[error("unable to parse inline TAURI_CONFIG env var: {0}")]
   FormatInline(serde_json::Error),
 
-  #[error("unable to parse config file at {path} because {error}")]
+  #[error("unable to parse Tauri config file at {path} because {error}")]
   Format {
     path: PathBuf,
     error: serde_json::Error,
   },
 
-  #[error("unable to read config file at {path} because {error}")]
+  #[error("unable to read Tauri config file at {path} because {error}")]
   Io {
     path: PathBuf,
     error: std::io::Error,
@@ -37,11 +39,15 @@ pub enum ConfigError {
 
 /// Get the [`Config`] from the `TAURI_CONFIG` environmental variable, or read from the passed path.
 ///
-/// The passed path should be relative to the building crate, as it is appended onto the current
-/// working directory.
+/// If the passed path is relative, it should be relative to the current working directory of the
+/// compiling crate.
 pub fn get_config(path: &Path) -> Result<(Config, PathBuf), ConfigError> {
-  let cwd = std::env::current_dir().map_err(ConfigError::CurrentDir)?;
-  let path = cwd.join(path);
+  let path = if path.is_relative() {
+    let cwd = std::env::current_dir().map_err(ConfigError::CurrentDir)?;
+    Cow::Owned(cwd.join(path))
+  } else {
+    Cow::Borrowed(path)
+  };
 
   // in the future we may want to find a way to not need the TAURI_CONFIG env var so that
   // it is impossible for the content of two separate configs to get mixed up. The chances are
@@ -52,13 +58,13 @@ pub fn get_config(path: &Path) -> Result<(Config, PathBuf), ConfigError> {
   } else {
     File::open(&path)
       .map_err(|error| ConfigError::Io {
-        path: path.to_owned(),
+        path: path.clone().into_owned(),
         error,
       })
       .map(BufReader::new)
       .and_then(|file| {
         serde_json::from_reader(file).map_err(|error| ConfigError::Format {
-          path: path.to_owned(),
+          path: path.clone().into_owned(),
           error,
         })
       })?
@@ -68,7 +74,7 @@ pub fn get_config(path: &Path) -> Result<(Config, PathBuf), ConfigError> {
   let parent = path
     .parent()
     .map(ToOwned::to_owned)
-    .ok_or_else(|| ConfigError::Parent(path.to_owned()))?;
+    .ok_or_else(|| ConfigError::Parent(path.into_owned()))?;
 
   Ok((config, parent))
 }

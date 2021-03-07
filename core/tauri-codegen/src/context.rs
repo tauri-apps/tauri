@@ -5,15 +5,15 @@ use std::path::PathBuf;
 use tauri_api::config::Config;
 
 /// Necessary data needed by [`codegen_context`] to generate code for a Tauri application context.
-pub struct Data {
+pub struct ContextData {
   pub config: Config,
   pub config_parent: PathBuf,
   pub struct_ident: Ident,
 }
 
 /// Build an `AsTauriContext` implementation for including in application code.
-pub fn codegen_context(data: Data) -> Result<TokenStream, EmbeddedAssetsError> {
-  let Data {
+pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsError> {
+  let ContextData {
     config,
     config_parent,
     struct_ident,

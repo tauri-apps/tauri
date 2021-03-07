@@ -7,7 +7,7 @@ use std::{
   io::{BufWriter, Write},
   path::PathBuf,
 };
-use tauri_codegen::context::{codegen_context, Data};
+use tauri_codegen::{context_codegen, ContextData};
 
 /// A builder for generating a Tauri application context during compile time.
 ///
@@ -97,7 +97,7 @@ impl CodegenContext {
   /// Non-panicking [`Self::build`]
   pub fn try_build(self) -> Result<PathBuf> {
     let (config, config_parent) = tauri_codegen::get_config(&self.config_path)?;
-    let code = codegen_context(Data {
+    let code = context_codegen(ContextData {
       config,
       config_parent,
       struct_ident: self.struct_ident.clone(),

@@ -30,9 +30,9 @@ pub trait Plugin<A: ApplicationExt + 'static>: Send + Sync {
   #[allow(unused_variables)]
   async fn created(&mut self, webview_manager: WebviewManager<A>) {}
 
-  /// Callback invoked when the webview is ready.
+  /// Callback invoked when the webview performs a navigation.
   #[allow(unused_variables)]
-  async fn ready(&mut self, webview_manager: WebviewManager<A>) {}
+  async fn on_page_load(&mut self, webview_manager: WebviewManager<A>) {}
 
   /// Add invoke_handler API extension commands.
   #[allow(unused_variables)]
@@ -109,14 +109,14 @@ pub(crate) async fn created<A: ApplicationExt + 'static>(
   join_all(futures).await;
 }
 
-pub(crate) async fn ready<A: ApplicationExt + 'static>(
+pub(crate) async fn on_page_load<A: ApplicationExt + 'static>(
   store: &PluginStore<A>,
   webview_manager: &crate::WebviewManager<A>,
 ) {
   let mut plugins = store.lock().await;
   let mut futures = Vec::new();
   for plugin in plugins.iter_mut() {
-    futures.push(plugin.ready(webview_manager.clone()));
+    futures.push(plugin.on_page_load(webview_manager.clone()));
   }
   join_all(futures).await;
 }

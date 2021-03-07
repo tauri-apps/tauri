@@ -23,7 +23,7 @@ pub use webview_manager::{WebviewDispatcher, WebviewManager};
 type InvokeHandler<A> = dyn Fn(WebviewManager<A>, String, JsonValue) -> BoxFuture<'static, crate::Result<InvokeResponse>>
   + Send
   + Sync;
-type Setup<A> = dyn Fn(WebviewManager<A>) -> BoxFuture<'static, ()> + Send + Sync;
+type ManagerHook<A> = dyn Fn(WebviewManager<A>) -> BoxFuture<'static, ()> + Send + Sync;
 
 /// `App` runtime information.
 pub struct Context {
@@ -67,8 +67,10 @@ impl<T: Serialize> From<T> for InvokeResponse {
 pub struct App<A: ApplicationExt> {
   /// The JS message handler.
   invoke_handler: Option<Box<InvokeHandler<A>>>,
-  /// The setup callback, invoked when the webview is ready.
-  setup: Option<Box<Setup<A>>>,
+  /// The page load hook, invoked when the webview performs a navigation.
+  on_page_load: Option<Box<ManagerHook<A>>>,
+  /// The setup hook, invoked when the webviews have been created.
+  setup: Option<Box<ManagerHook<A>>>,
   /// The context the App was created with
   pub(crate) context: Context,
   pub(crate) dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A::Dispatcher>>>>,
@@ -118,10 +120,18 @@ impl<A: ApplicationExt + 'static> App<A> {
     }
   }
 
-  /// Runs the setup callback if defined.
-  pub(crate) async fn run_setup(&self, dispatcher: &WebviewManager<A>) {
+  /// Runs the setup hook if defined.
+  pub(crate) async fn run_setup(&self, dispatcher: WebviewManager<A>) {
     if let Some(ref setup) = self.setup {
-      let fut = setup(dispatcher.clone());
+      let fut = setup(dispatcher);
+      fut.await;
+    }
+  }
+
+  /// Runs the on page load hook if defined.
+  pub(crate) async fn run_on_page_load(&self, dispatcher: &WebviewManager<A>) {
+    if let Some(ref on_page_load) = self.on_page_load {
+      let fut = on_page_load(dispatcher.clone());
       fut.await;
     }
   }
@@ -197,8 +207,10 @@ where
 {
   /// The JS message handler.
   invoke_handler: Option<Box<InvokeHandler<A>>>,
-  /// The setup callback, invoked when the webview is ready.
-  setup: Option<Box<Setup<A>>>,
+  /// The setup hook.
+  setup: Option<Box<ManagerHook<A>>>,
+  /// Page load hook.
+  on_page_load: Option<Box<ManagerHook<A>>>,
   config: PhantomData<C>,
   /// The webview dispatchers.
   dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A::Dispatcher>>>>,
@@ -212,6 +224,7 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<C, A> {
     Self {
       invoke_handler: None,
       setup: None,
+      on_page_load: None,
       config: Default::default(),
       dispatchers: Default::default(),
       webviews: Default::default(),
@@ -232,7 +245,7 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<C, A> {
     self
   }
 
-  /// Defines the setup callback.
+  /// Defines the setup hook.
   pub fn setup<
     T: futures::Future<Output = ()> + Send + Sync + 'static,
     F: Fn(WebviewManager<A>) -> T + Send + Sync + 'static,
@@ -242,6 +255,20 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<C, A> {
   ) -> Self {
     self.setup = Some(Box::new(move |webview_manager| {
       Box::pin(setup(webview_manager))
+    }));
+    self
+  }
+
+  /// Defines the page load hook.
+  pub fn on_page_load<
+    T: futures::Future<Output = ()> + Send + Sync + 'static,
+    F: Fn(WebviewManager<A>) -> T + Send + Sync + 'static,
+  >(
+    mut self,
+    on_page_load: F,
+  ) -> Self {
+    self.on_page_load = Some(Box::new(move |webview_manager| {
+      Box::pin(on_page_load(webview_manager))
     }));
     self
   }
@@ -283,6 +310,7 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<C, A> {
     Ok(App {
       invoke_handler: self.invoke_handler,
       setup: self.setup,
+      on_page_load: self.on_page_load,
       context,
       dispatchers: self.dispatchers,
       webviews: Some(self.webviews),
@@ -303,6 +331,7 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
 
   let application = Arc::new(application);
   let mut webview_app = A::new()?;
+  let mut main_webview_manager = None;
 
   for webview in webviews {
     let webview_label = webview.label.to_string();
@@ -311,6 +340,9 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
       application.dispatchers.clone(),
       webview_label.to_string(),
     );
+    if main_webview_manager.is_none() {
+      main_webview_manager = Some(webview_manager.clone());
+    }
     let (webview_builder, rpc_handler, custom_protocol) =
       crate::async_runtime::block_on(application.init_webview(webview))?;
 
@@ -320,6 +352,10 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
       dispatcher,
       webview_manager,
     ));
+  }
+
+  if let Some(main_webview_manager) = main_webview_manager {
+    crate::async_runtime::block_on(application.run_setup(main_webview_manager));
   }
 
   webview_app.run();

@@ -324,8 +324,8 @@ async fn on_message<A: ApplicationExt + 'static>(
   message: Message,
 ) -> crate::Result<InvokeResponse> {
   if &command == "__initialized" {
-    application.run_setup(&webview_manager).await;
-    crate::plugin::ready(A::plugin_store(), &webview_manager).await;
+    application.run_on_page_load(&webview_manager).await;
+    crate::plugin::on_page_load(A::plugin_store(), &webview_manager).await;
     Ok(().into())
   } else {
     let response = if let Some(module) = &message.tauri_module {

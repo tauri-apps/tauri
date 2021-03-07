@@ -133,17 +133,10 @@ pub fn generate_handler(item: proc_macro::TokenStream) -> TokenStream {
   });
 
   quote! {
-    |webview_manager, arg| async move {
-      let dispatch: ::std::result::Result<::tauri::DispatchInstructions, ::serde_json::Error> =
-      ::serde_json::from_str(&arg);
-      match dispatch {
-        Err(e) => Err(e.into()),
-        Ok(dispatch) => {
-          match dispatch.cmd.as_str() {
-            #(stringify!(#fn_names) => #fn_wrappers(webview_manager, dispatch.args).await,)*
-            _ => Err(tauri::Error::UnknownApi(None)),
-          }
-        }
+    |webview_manager, command, arg| async move {
+      match command.as_str() {
+        #(stringify!(#fn_names) => #fn_wrappers(webview_manager, arg).await,)*
+        _ => Err(tauri::Error::UnknownApi(None)),
       }
     }
   }

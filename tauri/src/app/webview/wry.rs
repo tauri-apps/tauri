@@ -1,6 +1,6 @@
 use super::{
-  ApplicationDispatcherExt, ApplicationExt, Callback, CustomProtocol, Icon, WebviewBuilderExt,
-  WebviewBuilderExtPrivate, WindowConfig,
+  ApplicationDispatcherExt, ApplicationExt, CustomProtocol, Icon, RpcRequest, WebviewBuilderExt,
+  WebviewBuilderExtPrivate, WebviewRpcHandler, WindowConfig,
 };
 
 use once_cell::sync::Lazy;
@@ -177,6 +177,15 @@ impl WebviewBuilderExt for wry::Attributes {
   }
 }
 
+impl From<wry::RpcRequest> for RpcRequest {
+  fn from(request: wry::RpcRequest) -> Self {
+    Self {
+      command: request.method,
+      params: request.params,
+    }
+  }
+}
+
 #[derive(Clone)]
 pub struct WryDispatcher(
   Arc<Mutex<wry::WindowProxy>>,
@@ -189,25 +198,22 @@ impl ApplicationDispatcherExt for WryDispatcher {
   fn create_webview(
     &self,
     attributes: Self::WebviewBuilder,
-    callbacks: Vec<Callback<Self>>,
+    rpc_handler: Option<WebviewRpcHandler<Self>>,
     custom_protocol: Option<CustomProtocol>,
   ) -> crate::Result<Self> {
-    let mut wry_callbacks = Vec::new();
     let app_dispatcher = self.1.clone();
-    for mut callback in callbacks {
-      let app_dispatcher = app_dispatcher.clone();
-      let callback = wry::Callback {
-        name: callback.name.to_string(),
-        function: Box::new(move |dispatcher, _, req| {
-          (callback.function)(
-            Self(Arc::new(Mutex::new(dispatcher)), app_dispatcher.clone()),
-            req,
+
+    let wry_rpc_handler = Box::new(
+      move |dispatcher: wry::WindowProxy, request: wry::RpcRequest| {
+        if let Some(handler) = &rpc_handler {
+          handler(
+            WryDispatcher(Arc::new(Mutex::new(dispatcher)), app_dispatcher.clone()),
+            request.into(),
           );
-          Ok(())
-        }),
-      };
-      wry_callbacks.push(callback);
-    }
+        }
+        None
+      },
+    );
 
     let window_dispatcher = self
       .1
@@ -215,7 +221,7 @@ impl ApplicationDispatcherExt for WryDispatcher {
       .unwrap()
       .add_window_with_configs(
         attributes,
-        Some(wry_callbacks),
+        Some(wry_rpc_handler),
         custom_protocol.map(|p| wry::CustomProtocol {
           name: p.name.clone(),
           handler: Box::new(move |a| (*p.handler)(a).map_err(|_| wry::Error::InitScriptError)),
@@ -449,31 +455,29 @@ impl ApplicationExt for WryApplication {
   fn create_webview(
     &mut self,
     webview_builder: Self::WebviewBuilder,
-    callbacks: Vec<Callback<Self::Dispatcher>>,
+    rpc_handler: Option<WebviewRpcHandler<Self::Dispatcher>>,
     custom_protocol: Option<CustomProtocol>,
   ) -> crate::Result<Self::Dispatcher> {
-    let mut wry_callbacks = Vec::new();
     let app_dispatcher = Arc::new(Mutex::new(self.inner.application_proxy()));
-    for mut callback in callbacks {
-      let app_dispatcher = app_dispatcher.clone();
-      let callback = wry::Callback {
-        name: callback.name.to_string(),
-        function: Box::new(move |dispatcher, _, req| {
-          (callback.function)(
-            WryDispatcher(Arc::new(Mutex::new(dispatcher)), app_dispatcher.clone()),
-            req,
+
+    let app_dispatcher_ = app_dispatcher.clone();
+    let wry_rpc_handler = Box::new(
+      move |dispatcher: wry::WindowProxy, request: wry::RpcRequest| {
+        if let Some(handler) = &rpc_handler {
+          handler(
+            WryDispatcher(Arc::new(Mutex::new(dispatcher)), app_dispatcher_.clone()),
+            request.into(),
           );
-          Ok(())
-        }),
-      };
-      wry_callbacks.push(callback);
-    }
+        }
+        None
+      },
+    );
 
     let dispatcher = self
       .inner
       .add_window_with_configs(
         webview_builder.finish()?,
-        Some(wry_callbacks),
+        Some(wry_rpc_handler),
         custom_protocol.map(|p| wry::CustomProtocol {
           name: p.name.clone(),
           handler: Box::new(move |a| (*p.handler)(a).map_err(|_| wry::Error::InitScriptError)),

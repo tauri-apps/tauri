@@ -12,7 +12,7 @@ use crate::{
 
 use super::{
   webview::{CustomProtocol, WebviewBuilderExtPrivate, WebviewRpcHandler},
-  App, Context, RpcRequest, Webview, WebviewManager,
+  App, Context, RpcRequest, Webview, WebviewManager, PageLoadPayload,
 };
 
 use serde::Deserialize;
@@ -85,10 +85,10 @@ pub(super) fn initialization_script(
       {tauri_initialization_script}
       {event_initialization_script}
       if (window.rpc) {{
-        window.__TAURI__.invoke("__initialized")
+        window.__TAURI__.invoke("__initialized", {{ url: window.location.href }})
       }} else {{
         window.addEventListener('DOMContentLoaded', function () {{
-          window.__TAURI__.invoke("__initialized")
+          window.__TAURI__.invoke("__initialized", {{ url: window.location.href }})
         }})
       }}
       {plugin_initialization_script}
@@ -323,8 +323,9 @@ async fn on_message<A: ApplicationExt + 'static>(
   message: Message,
 ) -> crate::Result<InvokeResponse> {
   if &command == "__initialized" {
-    application.run_on_page_load(&webview_manager).await;
-    crate::plugin::on_page_load(A::plugin_store(), &webview_manager).await;
+    let payload: PageLoadPayload = serde_json::from_value(message.inner)?;
+    application.run_on_page_load(&webview_manager, payload.clone()).await;
+    crate::plugin::on_page_load(A::plugin_store(), &webview_manager, payload).await;
     Ok(().into())
   } else {
     let response = if let Some(module) = &message.tauri_module {

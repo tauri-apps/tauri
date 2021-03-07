@@ -1,5 +1,5 @@
 use futures::future::BoxFuture;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use serde_json::Value as JsonValue;
 use tauri_api::{config::Config, private::AsTauriContext};
 
@@ -24,6 +24,7 @@ type InvokeHandler<A> = dyn Fn(WebviewManager<A>, String, JsonValue) -> BoxFutur
   + Send
   + Sync;
 type ManagerHook<A> = dyn Fn(WebviewManager<A>) -> BoxFuture<'static, ()> + Send + Sync;
+type PageLoadHook<A> = dyn Fn(WebviewManager<A>, PageLoadPayload) -> BoxFuture<'static, ()> + Send + Sync;
 
 /// `App` runtime information.
 pub struct Context {
@@ -63,12 +64,25 @@ impl<T: Serialize> From<T> for InvokeResponse {
   }
 }
 
+/// The payload for the "page_load" hook.
+#[derive(Debug, Clone, Deserialize)]
+pub struct PageLoadPayload {
+  url: String,
+}
+
+impl PageLoadPayload {
+  /// The page URL.
+  pub fn url(&self) -> &str {
+    &self.url
+  }
+}
+
 /// The application runner.
 pub struct App<A: ApplicationExt> {
   /// The JS message handler.
   invoke_handler: Option<Box<InvokeHandler<A>>>,
   /// The page load hook, invoked when the webview performs a navigation.
-  on_page_load: Option<Box<ManagerHook<A>>>,
+  on_page_load: Option<Box<PageLoadHook<A>>>,
   /// The setup hook, invoked when the webviews have been created.
   setup: Option<Box<ManagerHook<A>>>,
   /// The context the App was created with
@@ -129,9 +143,9 @@ impl<A: ApplicationExt + 'static> App<A> {
   }
 
   /// Runs the on page load hook if defined.
-  pub(crate) async fn run_on_page_load(&self, dispatcher: &WebviewManager<A>) {
+  pub(crate) async fn run_on_page_load(&self, dispatcher: &WebviewManager<A>, payload: PageLoadPayload) {
     if let Some(ref on_page_load) = self.on_page_load {
-      let fut = on_page_load(dispatcher.clone());
+      let fut = on_page_load(dispatcher.clone(), payload);
       fut.await;
     }
   }
@@ -210,7 +224,7 @@ where
   /// The setup hook.
   setup: Option<Box<ManagerHook<A>>>,
   /// Page load hook.
-  on_page_load: Option<Box<ManagerHook<A>>>,
+  on_page_load: Option<Box<PageLoadHook<A>>>,
   config: PhantomData<C>,
   /// The webview dispatchers.
   dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A::Dispatcher>>>>,
@@ -262,13 +276,13 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<C, A> {
   /// Defines the page load hook.
   pub fn on_page_load<
     T: futures::Future<Output = ()> + Send + Sync + 'static,
-    F: Fn(WebviewManager<A>) -> T + Send + Sync + 'static,
+    F: Fn(WebviewManager<A>, PageLoadPayload) -> T + Send + Sync + 'static,
   >(
     mut self,
     on_page_load: F,
   ) -> Self {
-    self.on_page_load = Some(Box::new(move |webview_manager| {
-      Box::pin(on_page_load(webview_manager))
+    self.on_page_load = Some(Box::new(move |webview_manager, payload| {
+      Box::pin(on_page_load(webview_manager, payload))
     }));
     self
   }

@@ -1,4 +1,4 @@
-use crate::{api::config::PluginConfig, async_runtime::Mutex, ApplicationExt, WebviewManager};
+use crate::{api::config::PluginConfig, async_runtime::Mutex, ApplicationExt, WebviewManager, PageLoadPayload};
 
 use futures::future::join_all;
 use serde_json::Value as JsonValue;
@@ -32,7 +32,7 @@ pub trait Plugin<A: ApplicationExt + 'static>: Send + Sync {
 
   /// Callback invoked when the webview performs a navigation.
   #[allow(unused_variables)]
-  async fn on_page_load(&mut self, webview_manager: WebviewManager<A>) {}
+  async fn on_page_load(&mut self, webview_manager: WebviewManager<A>, payload: PageLoadPayload) {}
 
   /// Add invoke_handler API extension commands.
   #[allow(unused_variables)]
@@ -112,11 +112,12 @@ pub(crate) async fn created<A: ApplicationExt + 'static>(
 pub(crate) async fn on_page_load<A: ApplicationExt + 'static>(
   store: &PluginStore<A>,
   webview_manager: &crate::WebviewManager<A>,
+  payload: PageLoadPayload,
 ) {
   let mut plugins = store.lock().await;
   let mut futures = Vec::new();
   for plugin in plugins.iter_mut() {
-    futures.push(plugin.on_page_load(webview_manager.clone()));
+    futures.push(plugin.on_page_load(webview_manager.clone(), payload.clone()));
   }
   join_all(futures).await;
 }

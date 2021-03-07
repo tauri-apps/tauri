@@ -43,7 +43,7 @@ jobs:
       - name: run typedoc
         working-directory: tauri/api
         run: |
-          yarn docs && mv docs/* ../tauri-docs/docs/en/api/js
+          yarn docs && mv docs/* ../../tauri-docs/docs/en/api/js
       - name: git config
         run: |
           git config --global user.name "${{ github.event.inputs.gitName }}"

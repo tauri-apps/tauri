@@ -10,6 +10,7 @@ members = [
   "core/tauri-codegen",
 
   # examples
+  "examples/api/src-tauri",
   "examples/helloworld/src-tauri",
   "examples/multiwindow/src-tauri",
 ]
@@ -20,4 +21,4 @@ panic = "abort"
 codegen-units = 1
 lto = true
 incremental = false
-opt-level = "z"
+opt-level = "s"

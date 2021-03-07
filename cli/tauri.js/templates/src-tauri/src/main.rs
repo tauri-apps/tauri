@@ -6,5 +6,5 @@
 fn main() {
   let context = tauri::generate_tauri_context!();
 
-  tauri::AppBuilder::new().build(context).run();
+  tauri::AppBuilder::default().build(context).run();
 }

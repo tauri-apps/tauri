@@ -15,6 +15,7 @@
   },
   "homepage": "https://github.com/tauri-apps/tauri#readme",
   "dependencies": {
+    "execa": "^5.0.0",
     "minimist": "^1.2.5",
     "scaffe": "^0.1.5",
     "tauri": "^0.14.0"

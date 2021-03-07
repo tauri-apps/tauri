@@ -207,3 +207,42 @@ async function runInit(argv, config = {}) {
 }
 
 module.exports = main;
+
+/* will merge these later
+
+const parseArgs = require('minimist')
+const argv = parseArgs(process.argv.slice(2));
+
+/**
+ * @description This is the bootstrapper that in turn calls subsequent
+ * Tauri Commands
+ *
+ * @param {Object} argv
+*
+const tauri = (args) => {
+const tauri = async (args) => {
+  if (args["h"] || args["help"]) {
+    require("./help.js")();
+    return false // do this for node consumers and tests
+  }
+
+  if(args["v"] || args["version"]){
+    console.log(require("../package.json").version)
+    return false // do this for node consumers and tests
+  }
+
+  if(args["_"].length === 1){
+    await require("./create.js")(args)
+  }
+  else if(args["_"].length > 1){
+    console.log("ERR: Too many arguments.")
+  } else {
+    require("./help.js")();
+    return false // do this for node consumers and tests
+  }
+}
+
+tauri(argv).catch(err => {
+  console.log(err)
+})
+*/

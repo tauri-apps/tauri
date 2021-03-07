@@ -154,7 +154,6 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
   plugin_initialization_script: &str,
   context: &Context,
 ) -> crate::Result<BuiltWebview<A>> {
-  // TODO let debug = cfg!(debug_assertions);
   let webview_url = match &webview.url {
     WindowUrl::App => content_url.to_string(),
     WindowUrl::Custom(url) => url.to_string(),

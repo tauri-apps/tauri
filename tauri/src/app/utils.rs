@@ -36,22 +36,15 @@ pub(super) fn get_url(context: &Context) -> String {
   if config.build.dev_path.starts_with("http") {
     config.build.dev_path.clone()
   } else {
+    let path = "index.html";
     format!(
       "data:text/html;base64,{}",
       base64::encode(
         context
           .assets
-          .get(
-            &EmbeddedAssets::format_key("index.html"),
-            AssetFetch::Decompressed
-          )
-          .ok_or_else(|| crate::Error::AssetNotFound("index.html".to_string()))
-          .and_then(|(read, _)| {
-            read
-              .bytes()
-              .collect::<Result<Vec<u8>, _>>()
-              .map_err(Into::into)
-          })
+          .get(&path)
+          .ok_or(crate::Error::AssetNotFound(path.to_string()))
+          .map(Cow::into_owned)
           .expect("Unable to find `index.html` under your devPath folder")
       )
     )

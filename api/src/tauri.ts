@@ -63,10 +63,7 @@ export interface InvokeArgs {
  *
  * @return {Promise<T>} Promise resolving or rejecting to the backend response
  */
-async function invoke<T>(
-  cmd: string,
-  args: InvokeArgs = {}
-): Promise<T> {
+async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
   return new Promise((resolve, reject) => {
     const callback = transformCallback((e) => {
       resolve(e)

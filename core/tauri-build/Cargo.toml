@@ -1,7 +1,16 @@
 [package]
 name = "tauri-build"
 version = "0.1.0"
-authors = ["chip reed <chip@chip.sh>"]
+authors = [
+  "Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>",
+  "Daniel Thompson-Yvetot <denjell@sfosc.org>",
+  "Tensor Programming <tensordeveloper@gmail.com>"
+]
+categories = [ "gui", "web-programming" ]
+license = "MIT"
+homepage = "https://tauri.studio"
+repository = "https://github.com/tauri-apps/tauri/tree/dev/core/tauri-build"
+description = "build time code to pair with https://crates.io/crates/tauri"
 edition = "2018"
 
 [dependencies]

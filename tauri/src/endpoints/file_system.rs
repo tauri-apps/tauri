@@ -374,7 +374,7 @@ mod test {
   //       .resizable(true)
   //       .debug(true)
   //       .user_data(())
-  //       .invoke_handler(|_wv, _arg| Ok(()))
+  //       .invoke_handler(|_wv, _command, _arg| Ok(()))
   //       .content(Content::Html(content))
   //       .build()?,
   //   )

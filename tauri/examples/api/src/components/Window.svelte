@@ -12,7 +12,6 @@
     unminimize,
     show,
     hide,
-    setTransparent,
     setDecorations,
     setAlwaysOnTop,
     setWidth,
@@ -30,7 +29,6 @@
   let urlValue = "https://tauri.studio";
   let resizable = true
   let maximized = false
-  let transparent = false
   let decorations = false
   let alwaysOnTop = false
   let fullscreen = false
@@ -71,7 +69,6 @@
 
   $: setResizable(resizable)
   $: maximized ? maximize() : unmaximize()
-  $: setTransparent(transparent)
   $: setDecorations(decorations)
   $: setAlwaysOnTop(alwaysOnTop)
   $: setFullscreen(fullscreen)
@@ -122,10 +119,6 @@
     <button title="Visible again after 2 seconds" on:click={hide_}>
       Hide
     </button>
-    <label>
-      <input type="checkbox" bind:checked={transparent}>
-      Transparent
-    </label>
     <label>
       <input type="checkbox" bind:checked={decorations}>
       Has decorations

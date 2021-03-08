@@ -1,6 +1,6 @@
 use std::{
-    env,
-    path::{PathBuf, MAIN_SEPARATOR},
+  env,
+  path::{PathBuf, MAIN_SEPARATOR},
 };
 
 /// Try to determine the current target triple.
@@ -88,7 +88,7 @@ pub fn resource_dir() -> crate::Result<PathBuf> {
       // running from the deb bundle dir
       Ok(exe_dir.join(format!("../lib/{}", app_name)))
     } else if let Ok(appdir) = env::var("APPDIR") {
-	Ok(PathBuf::from(format!("{}/usr/lib/{}", appdir, app_name)))
+      Ok(PathBuf::from(format!("{}/usr/lib/{}", appdir, app_name)))
     } else {
       // running bundle
       Ok(PathBuf::from(format!("/usr/lib/{}", app_name)))

@@ -16,4 +16,5 @@ tauri = { path = "../../../tauri", features =[ "api-all" ]}
 winres = "0.1"
 
 [features]
-default = [ "tauri/custom-protocol" ]
+default = [ "custom-protocol" ]
+custom-protocol = [ "tauri/custom-protocol" ]

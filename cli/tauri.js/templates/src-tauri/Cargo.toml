@@ -23,8 +23,5 @@ tauri = <%= tauriDep %>
 winres = "0.1"
 
 [features]
+default = [ "custom-protocol" ]
 custom-protocol = [ "tauri/custom-protocol" ]
-
-[[bin]]
-name = "app"
-path = "src/main.rs"

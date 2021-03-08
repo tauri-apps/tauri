@@ -13,4 +13,5 @@ serde = { version = "1.0", features = [ "derive" ] }
 tauri = { path = "../../../tauri", features =["api-all", "cli"]}
 
 [features]
-default = [ "tauri/custom-protocol" ]
+default = [ "custom-protocol" ]
+custom-protocol = [ "tauri/custom-protocol" ]

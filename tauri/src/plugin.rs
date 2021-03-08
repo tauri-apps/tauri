@@ -39,6 +39,7 @@ pub trait Plugin<A: ApplicationExt + 'static>: Send + Sync {
   async fn extend_api(
     &mut self,
     webview_manager: WebviewManager<A>,
+    command: String,
     payload: &JsonValue,
   ) -> crate::Result<JsonValue> {
     Err(crate::Error::UnknownApi(None))
@@ -123,11 +124,15 @@ pub(crate) async fn ready<A: ApplicationExt + 'static>(
 pub(crate) async fn extend_api<A: ApplicationExt + 'static>(
   store: &PluginStore<A>,
   webview_manager: &crate::WebviewManager<A>,
+  command: String,
   arg: &JsonValue,
 ) -> crate::Result<Option<JsonValue>> {
   let mut plugins = store.lock().await;
   for ext in plugins.iter_mut() {
-    match ext.extend_api(webview_manager.clone(), arg).await {
+    match ext
+      .extend_api(webview_manager.clone(), command.clone(), arg)
+      .await
+    {
       Ok(value) => {
         return Ok(Some(value));
       }

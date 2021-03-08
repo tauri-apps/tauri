@@ -10,11 +10,11 @@
   "devDependencies": {
     "@rollup/plugin-commonjs": "17.1.0",
     "@rollup/plugin-node-resolve": "11.2.0",
-    "rollup": "2.39.1",
+    "rollup": "2.40.0",
     "rollup-plugin-livereload": "2.0.0",
     "rollup-plugin-svelte": "7.1.0",
     "rollup-plugin-terser": "7.0.2",
-    "svelte": "3.32.3"
+    "svelte": "3.35.0"
   },
   "dependencies": {
     "@tauri-apps/api": "link:../../../api",

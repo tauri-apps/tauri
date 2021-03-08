@@ -83,7 +83,7 @@
     </a>
     &nbsp;&nbsp;&nbsp;
     <a class="dark-link" target="_blank"
-      href="https://github.com/tauri-apps/tauri/tree/dev/tauri/examples/communication">
+      href="https://github.com/tauri-apps/tauri/tree/dev/tauri/examples/api">
       Source for this App
     </a>
   </div>

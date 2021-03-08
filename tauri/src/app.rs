@@ -1,5 +1,5 @@
 use futures::future::BoxFuture;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value as JsonValue;
 use tauri_api::{config::Config, private::AsTauriContext};
 
@@ -15,12 +15,12 @@ mod webview_manager;
 pub use crate::api::config::WindowUrl;
 use crate::flavors::Wry;
 pub use webview::{
-  wry::WryApplication, ApplicationDispatcherExt, ApplicationExt, Callback, CustomProtocol, Icon,
-  Message, WebviewBuilderExt,
+  wry::WryApplication, ApplicationDispatcherExt, ApplicationExt, CustomProtocol, Icon, Message,
+  RpcRequest, WebviewBuilderExt, WebviewRpcHandler,
 };
 pub use webview_manager::{WebviewDispatcher, WebviewManager};
 
-type InvokeHandler<A> = dyn Fn(WebviewManager<A>, String) -> BoxFuture<'static, crate::Result<InvokeResponse>>
+type InvokeHandler<A> = dyn Fn(WebviewManager<A>, String, JsonValue) -> BoxFuture<'static, crate::Result<InvokeResponse>>
   + Send
   + Sync;
 type Setup<A> = dyn Fn(WebviewManager<A>) -> BoxFuture<'static, ()> + Send + Sync;
@@ -61,15 +61,6 @@ impl<T: Serialize> From<T> for InvokeResponse {
       json: serde_json::to_value(value).map_err(Into::into),
     }
   }
-}
-
-#[derive(Deserialize)]
-#[allow(missing_docs)]
-#[serde(tag = "cmd", rename_all = "camelCase")]
-pub struct DispatchInstructions {
-  pub cmd: String,
-  #[serde(flatten)]
-  pub args: JsonValue,
 }
 
 /// The application runner.
@@ -116,10 +107,11 @@ impl<A: ApplicationExt + 'static> App<A> {
   pub(crate) async fn run_invoke_handler(
     &self,
     dispatcher: &WebviewManager<A>,
+    command: String,
     arg: &JsonValue,
   ) -> crate::Result<Option<InvokeResponse>> {
     if let Some(ref invoke_handler) = self.invoke_handler {
-      let fut = invoke_handler(dispatcher.clone(), arg.to_string());
+      let fut = invoke_handler(dispatcher.clone(), command, arg.clone());
       fut.await.map(Some)
     } else {
       Ok(None)
@@ -142,7 +134,7 @@ trait WebviewInitializer<A: ApplicationExt> {
     webview: Webview<A>,
   ) -> crate::Result<(
     <A as ApplicationExt>::WebviewBuilder,
-    Vec<Callback<A::Dispatcher>>,
+    Option<WebviewRpcHandler<A::Dispatcher>>,
     Option<CustomProtocol>,
   )>;
 
@@ -161,7 +153,7 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
     webview: Webview<A>,
   ) -> crate::Result<(
     <A as ApplicationExt>::WebviewBuilder,
-    Vec<Callback<A::Dispatcher>>,
+    Option<WebviewRpcHandler<A::Dispatcher>>,
     Option<CustomProtocol>,
   )> {
     let webview_manager = WebviewManager::new(
@@ -229,13 +221,13 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<C, A> {
   /// Defines the JS message handler callback.
   pub fn invoke_handler<
     T: futures::Future<Output = crate::Result<InvokeResponse>> + Send + Sync + 'static,
-    F: Fn(WebviewManager<A>, String) -> T + Send + Sync + 'static,
+    F: Fn(WebviewManager<A>, String, JsonValue) -> T + Send + Sync + 'static,
   >(
     mut self,
     invoke_handler: F,
   ) -> Self {
-    self.invoke_handler = Some(Box::new(move |webview_manager, arg| {
-      Box::pin(invoke_handler(webview_manager, arg))
+    self.invoke_handler = Some(Box::new(move |webview_manager, command, args| {
+      Box::pin(invoke_handler(webview_manager, command, args))
     }));
     self
   }
@@ -319,10 +311,10 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
       application.dispatchers.clone(),
       webview_label.to_string(),
     );
-    let (webview_builder, callbacks, custom_protocol) =
+    let (webview_builder, rpc_handler, custom_protocol) =
       crate::async_runtime::block_on(application.init_webview(webview))?;
 
-    let dispatcher = webview_app.create_webview(webview_builder, callbacks, custom_protocol)?;
+    let dispatcher = webview_app.create_webview(webview_builder, rpc_handler, custom_protocol)?;
     crate::async_runtime::block_on(application.on_webview_created(
       webview_label,
       dispatcher,

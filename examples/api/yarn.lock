@@ -62,8 +62,9 @@
     estree-walker "^1.0.1"
     picomatch "^2.2.2"
 
-"@tauri-apps/api@link:../../../api":
-  version "0.1.0"
+"@tauri-apps/api@link:../../api":
+  version "0.0.0"
+  uid ""
 
 "@types/estree@*":
   version "0.0.46"

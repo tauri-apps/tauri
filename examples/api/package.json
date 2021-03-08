@@ -17,7 +17,7 @@
     "svelte": "3.35.0"
   },
   "dependencies": {
-    "@tauri-apps/api": "link:../../../api",
+    "@tauri-apps/api": "link:../../api",
     "sirv-cli": "1.0.11"
   }
 }

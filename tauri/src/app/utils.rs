@@ -12,7 +12,7 @@ use crate::{
 
 use super::{
   webview::{CustomProtocol, WebviewBuilderExtPrivate, WebviewRpcHandler},
-  App, Context, RpcRequest, Webview, WebviewManager, PageLoadPayload,
+  App, Context, PageLoadPayload, RpcRequest, Webview, WebviewManager,
 };
 
 use serde::Deserialize;
@@ -324,7 +324,9 @@ async fn on_message<A: ApplicationExt + 'static>(
 ) -> crate::Result<InvokeResponse> {
   if &command == "__initialized" {
     let payload: PageLoadPayload = serde_json::from_value(message.inner)?;
-    application.run_on_page_load(&webview_manager, payload.clone()).await;
+    application
+      .run_on_page_load(&webview_manager, payload.clone())
+      .await;
     crate::plugin::on_page_load(A::plugin_store(), &webview_manager, payload).await;
     Ok(().into())
   } else {

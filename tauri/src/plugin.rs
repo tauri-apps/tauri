@@ -1,4 +1,6 @@
-use crate::{api::config::PluginConfig, async_runtime::Mutex, ApplicationExt, WebviewManager, PageLoadPayload};
+use crate::{
+  api::config::PluginConfig, async_runtime::Mutex, ApplicationExt, PageLoadPayload, WebviewManager,
+};
 
 use futures::future::join_all;
 use serde_json::Value as JsonValue;

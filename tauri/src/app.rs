@@ -1,5 +1,5 @@
 use futures::future::BoxFuture;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use tauri_api::{config::Config, private::AsTauriContext};
 
@@ -24,7 +24,8 @@ type InvokeHandler<A> = dyn Fn(WebviewManager<A>, String, JsonValue) -> BoxFutur
   + Send
   + Sync;
 type ManagerHook<A> = dyn Fn(WebviewManager<A>) -> BoxFuture<'static, ()> + Send + Sync;
-type PageLoadHook<A> = dyn Fn(WebviewManager<A>, PageLoadPayload) -> BoxFuture<'static, ()> + Send + Sync;
+type PageLoadHook<A> =
+  dyn Fn(WebviewManager<A>, PageLoadPayload) -> BoxFuture<'static, ()> + Send + Sync;
 
 /// `App` runtime information.
 pub struct Context {
@@ -143,7 +144,11 @@ impl<A: ApplicationExt + 'static> App<A> {
   }
 
   /// Runs the on page load hook if defined.
-  pub(crate) async fn run_on_page_load(&self, dispatcher: &WebviewManager<A>, payload: PageLoadPayload) {
+  pub(crate) async fn run_on_page_load(
+    &self,
+    dispatcher: &WebviewManager<A>,
+    payload: PageLoadPayload,
+  ) {
     if let Some(ref on_page_load) = self.on_page_load {
       let fut = on_page_load(dispatcher.clone(), payload);
       fut.await;

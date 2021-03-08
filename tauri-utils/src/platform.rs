@@ -1,4 +1,7 @@
-use std::path::{PathBuf, MAIN_SEPARATOR};
+use std::{
+    env,
+    path::{PathBuf, MAIN_SEPARATOR},
+};
 
 /// Try to determine the current target triple.
 ///
@@ -55,8 +58,12 @@ pub fn target_triple() -> crate::Result<String> {
 ///
 /// On Windows, it's the path to the executable.
 ///
-/// On Linux, it's `/usr/lib/${exe_name}` when running the bundled app,
-/// and `${exe_dir}/../lib/${exe_name}` when running the app from `src-tauri/target/(debug|release)/`.
+/// On Linux, when running in an AppImage the `APPDIR` variable will be set to
+/// the mounted location of the app, and the resource dir will be
+/// `${APPDIR}/usr/lib/${exe_name}`. If not running in an AppImage, the path is
+/// `/usr/lib/${exe_name}`.  When running the app from
+/// `src-tauri/target/(debug|release)/`, the path is
+/// `${exe_dir}/../lib/${exe_name}`.
 ///
 /// On MacOS, it's `${exe_dir}../Resources` (inside .app).
 pub fn resource_dir() -> crate::Result<PathBuf> {
@@ -80,6 +87,8 @@ pub fn resource_dir() -> crate::Result<PathBuf> {
     if curr_dir.ends_with("/data/usr/bin") {
       // running from the deb bundle dir
       Ok(exe_dir.join(format!("../lib/{}", app_name)))
+    } else if let Ok(appdir) = env::var("APPDIR") {
+	Ok(PathBuf::from(format!("{}/usr/lib/{}", appdir, app_name)))
     } else {
       // running bundle
       Ok(PathBuf::from(format!("/usr/lib/{}", app_name)))

@@ -1,6 +1,6 @@
 pub use context::{context_codegen, ContextData};
-use std::borrow::Cow;
 use std::{
+  borrow::Cow,
   fs::File,
   io::BufReader,
   path::{Path, PathBuf},

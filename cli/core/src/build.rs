@@ -64,8 +64,8 @@ impl Build {
     let web_asset_path = PathBuf::from(&config_.build.dist_dir);
     if !web_asset_path.exists() {
       return Err(anyhow::anyhow!(
-        "Unable to find your web assets, did you forget to build your web app? Your distDir is set to \"{}\".",
-        web_asset_path.to_string_lossy()
+        "Unable to find your web assets, did you forget to build your web app? Your distDir is set to \"{:?}\".",
+        web_asset_path
       ));
     }
     let tauri_script_path = web_asset_path.join("__tauri.js");

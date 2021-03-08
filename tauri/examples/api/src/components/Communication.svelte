@@ -2,26 +2,24 @@
   import { listen, emit } from "@tauri-apps/api/event";
   import { invoke } from "@tauri-apps/api/tauri";
 
-  export let onMessage
+  export let onMessage;
 
   listen("rust-event", onMessage);
 
   function log() {
-    invoke({
-      cmd: "log_operation",
+    invoke("log_operation", {
       event: "tauri-click",
-      payload: "this payload is optional because we used Option in Rust"
+      payload: "this payload is optional because we used Option in Rust",
     });
   }
 
   function performRequest() {
-    invoke({
-      cmd: "perform_request",
+    invoke("perform_request", {
       endpoint: "dummy endpoint arg",
       body: {
         id: 5,
-        name: "test"
-      }
+        name: "test",
+      },
     })
       .then(onMessage)
       .catch(onMessage);

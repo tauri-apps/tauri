@@ -1,4 +1,4 @@
-import { invoke } from './tauri'
+import { invokeTauriCommand } from './helpers/tauri'
 
 export interface ClientOptions {
   maxRedirections: boolean
@@ -80,7 +80,7 @@ export class Client {
    * drops the client instance
    */
   async drop(): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Http',
       message: {
         cmd: 'dropClient',
@@ -97,7 +97,7 @@ export class Client {
    * @return promise resolving to the response
    */
   async request<T>(options: HttpOptions): Promise<Response<T>> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Http',
       message: {
         cmd: 'httpRequest',
@@ -201,7 +201,7 @@ export class Client {
 }
 
 async function getClient(options?: ClientOptions): Promise<Client> {
-  return invoke<number>({
+  return invokeTauriCommand<number>({
     __tauriModule: 'Http',
     message: {
       cmd: 'createClient',

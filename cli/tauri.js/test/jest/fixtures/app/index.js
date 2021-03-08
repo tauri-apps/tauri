@@ -34,11 +34,6 @@ build({
   },
   ctx: {
     debug: true
-  },
-  tauri: {
-    embeddedServer: {
-      active: true
-    }
   }
 }).then(() => {
   const spawn = require('../cli/tauri.js/dist/helpers/spawn').spawn

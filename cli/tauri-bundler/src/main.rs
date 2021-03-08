@@ -18,8 +18,6 @@ use std::env;
 use std::path::Path;
 use std::process;
 
-const AUTHORS: &str = "George Burton <burtonageo@gmail.com>, Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>, Daniel Thompson-Yvetot <denjell@sfosc.org>, Tensor Programming <tensordeveloper@gmail.com>, David Lemarier <david@lemarier.ca>";
-
 /// Runs `cargo build` to make sure the binary file is up-to-date.
 fn build_project_if_unbuilt(settings: &Settings) -> crate::Result<()> {
   let mut args = vec!["build".to_string()];
@@ -59,7 +57,7 @@ fn run() -> crate::Result<()> {
     .setting(AppSettings::SubcommandRequired)
     .subcommand(
       SubCommand::with_name("tauri-bundler")
-        .author(AUTHORS)
+        .author("George Burton <burtonageo@gmail.com>, Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>, Daniel Thompson-Yvetot <denjell@sfosc.org>, Tensor Programming <tensordeveloper@gmail.com>, David Lemarier <david@lemarier.ca>")
         .about("Bundle Rust executables into OS bundles")
         .setting(AppSettings::DisableVersion)
         .setting(AppSettings::UnifiedHelpMessage)

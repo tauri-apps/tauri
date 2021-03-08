@@ -9,11 +9,9 @@ git clone --recursive git@github.com:tauri-apps/examples.git \
 || (cd examples && git pull origin dev; cd ..) 		# always prepare up-to-date examples in case it's already available
 
 cargo build
-cargo install --path cli/tauri-bundler --force
 cargo install cargo-web 			# used by example rust/yew
 
-cd cli/tauri.js
-yarn && yarn build
+. .scripts/setup.sh
 ```
 
 ```powershell
@@ -40,18 +38,11 @@ if (-Not (Test-Path $CWD\examples -PathType Any)) {
 # Enter the examples folder and pull the latest data from origin/dev
 cd examples; git pull origin dev; cd ..
 
-# set the env vars.
-$env:TAURI_DIST_DIR = Resolve-Path $dist_path
-$env:TAURI_DIR = Resolve-Path $src_path
-
 # build and install everything Rust related.
 cargo build
-cargo install --path cli\tauri-bundler --force
 cargo install cargo-web
 
-# install the tauri Node CLI and transpile the TS version of the API.
-cd cli\tauri.js
-yarn; yarn build;
+. .scripts/setup.ps1
 ```
 
 ## run
@@ -95,9 +86,6 @@ $CWD = [Environment]::CurrentDirectory
 Push-Location $MyInvocation.MyCommand.Path
 [Environment]::CurrentDirectory = $PWD
 
-# Invoke the command script.
-Invoke-Expression -Command .scripts\init_env.ps1
-
 # get the example paths.
 $example_path = Get-ChildItem examples\*\*\$env:example
 
@@ -106,7 +94,7 @@ if ($example_path -eq $null) {
   $example_path = Get-ChildItem examples\*\*\*\$env:example\$env:example
 }
 
-# if the example path is still null get the communication example path.
+# if the example path is still null get the helloworld example path.
 if ($example_path -eq $null) {
   $example_path = Get-ChildItem examples\tauri\*\$env:example
 }
@@ -121,9 +109,9 @@ switch ($example_path.parent) {
   "yew" {
     cd $example_path.FullName; cargo web deploy
   }
-  # if tauri run the communication example from the tauri folder.
+  # if tauri run the helloworld example from the tauri folder.
   "tauri" {
-    cd $CWD/tauri/examples/communication/src-tauri; cargo run
+    cd $CWD/tauri/examples/helloworld/src-tauri; cargo run
   }
   # transpiled are not supported yet.
   "transpiled" {
@@ -152,8 +140,8 @@ Push-Location $MyInvocation.MyCommand.Path
 # initialize the examples list.
 $examples = @()
 
-# get the communication example
-$examples += Get-ChildItem examples/*/* -Filter communication
+# get the helloworld example
+$examples += Get-ChildItem examples/*/* -Filter helloworld
 # get the rest of the examples.
 $examples += Get-ChildItem examples/*/* -Directory -Exclude ('src*', 'public', 'test*', 'source', 'lib', 'web', 'dist', 'node_*')
 

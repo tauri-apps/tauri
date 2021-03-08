@@ -21,6 +21,9 @@ pub enum Error {
   Base64(#[from] base64::DecodeError),
   #[error("{0}")]
   Utf8(#[from] std::str::Utf8Error),
+  #[error("{0}")]
+  TauriApi(#[from]  tauri_api::Error),
+ 
 
   // Custom
   #[error("{0}")]

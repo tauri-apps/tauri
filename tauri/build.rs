@@ -1,145 +1,51 @@
 use cfg_aliases::cfg_aliases;
 
-#[cfg(any(feature = "embedded-server", feature = "no-server"))]
-use std::{
-  env,
-  error::Error,
-  fs::{read_to_string, File},
-  io::{BufWriter, Write},
-  path::Path,
-};
-
-#[cfg(any(feature = "embedded-server", feature = "no-server"))]
-pub fn main() -> Result<(), Box<dyn Error>> {
-  shared();
-
-  let out_dir = env::var("OUT_DIR")?;
-
-  let dest_index_html_path = Path::new(&out_dir).join("index.tauri.html");
-  let mut index_html_file = BufWriter::new(File::create(&dest_index_html_path)?);
-
-  match env::var_os("TAURI_DIST_DIR") {
-    Some(dist_path) => {
-      let dist_path_string = dist_path.into_string().unwrap();
-      let dist_path = Path::new(&dist_path_string);
-
-      println!("cargo:rerun-if-changed={}", dist_path_string);
-
-      let mut inlined_assets = match std::env::var_os("TAURI_INLINED_ASSETS") {
-        Some(assets) => assets
-          .into_string()
-          .unwrap()
-          .split('|')
-          .map(|s| s.to_string())
-          .filter(|s| s != "")
-          .collect(),
-        None => Vec::new(),
-      };
-
-      // the index.html is parsed so we always ignore it
-      inlined_assets.push(
-        dist_path
-          .join("index.html")
-          .into_os_string()
-          .into_string()
-          .expect("failed to convert dist path to string"),
-      );
-      if cfg!(feature = "no-server") {
-        // on no-server we include_str() the index.tauri.html on the runner
-        inlined_assets.push(
-          dist_path
-            .join("index.tauri.html")
-            .into_os_string()
-            .into_string()
-            .expect("failed to convert dist path to string"),
-        );
-      }
-
-      // include assets
-      tauri_includedir_codegen::start("ASSETS")
-        .dir(
-          dist_path_string.clone(),
-          tauri_includedir_codegen::Compression::None,
-        )
-        .build("data.rs", inlined_assets)
-        .expect("failed to build data.rs");
-
-      let original_index_html_path = Path::new(&dist_path_string).join("index.tauri.html");
-      let original_index_html = read_to_string(original_index_html_path)?;
-
-      write!(index_html_file, "{}", original_index_html)?;
-    }
-    None => {
-      // dummy assets
-      tauri_includedir_codegen::start("ASSETS")
-        .dir("".to_string(), tauri_includedir_codegen::Compression::None)
-        .build("data.rs", vec![])
-        .expect("failed to build data.rs");
-      write!(
-        index_html_file,
-        "<html><body>Build error: Couldn't find ENV: TAURI_DIST_DIR</body></html>"
-      )?;
-      println!("Build error: Couldn't find ENV: TAURI_DIST_DIR");
-    }
-  }
-  Ok(())
-}
-
-#[cfg(not(any(feature = "embedded-server", feature = "no-server")))]
-pub fn main() {
-  shared();
-}
-
-fn shared() {
-  setup_env_aliases();
-}
-
-#[allow(clippy::cognitive_complexity)]
-fn setup_env_aliases() {
+fn main() {
   cfg_aliases! {
-    embedded_server: { feature = "embedded-server" },
-    no_server: { feature = "no-server" },
-    assets: { any(feature = "embedded-server", feature = "no-server") },
-    dev: { not(any(feature = "embedded-server", feature = "no-server")) },
+    custom_protocol: { feature = "custom-protocol" },
+    dev: { not(feature = "custom-protocol") },
 
-    all_api: { feature = "all-api" },
+    api_all: { feature = "api-all" },
 
     // fs
-    read_text_file: { any(all_api, feature = "read-text-file") },
-    read_binary_file: { any(all_api, feature = "read-binary-file") },
-    write_file: { any(all_api, feature = "write-file") },
-    write_binary_file: { any(all_api, feature = "write-binary-file") },
-    read_dir: { any(all_api, feature = "read-dir") },
-    copy_file: { any(all_api, feature = "copy-file") },
-    create_dir: { any(all_api, feature = "create_dir") },
-    remove_dir: { any(all_api, feature = "remove-dir") },
-    remove_file: { any(all_api, feature = "remove-file") },
-    rename_file: { any(all_api, feature = "rename-file") },
-
-    // js path api
-    path_api: { any(all_api, feature = "path-api") },
+    fs_all: { any(api_all, feature = "fs-all") },
+    fs_read_text_file: { any(fs_all, feature = "fs-read-text-file") },
+    fs_read_binary_file: { any(fs_all, feature = "fs-read-binary-file") },
+    fs_write_file: { any(fs_all, feature = "fs-write-file") },
+    fs_write_binary_file: { any(fs_all, feature = "fs-write-binary-file") },
+    fs_read_dir: { any(fs_all, feature = "fs-read-dir") },
+    fs_copy_file: { any(fs_all, feature = "fs-copy-file") },
+    fs_create_dir: { any(fs_all, feature = "fs-create_dir") },
+    fs_remove_dir: { any(fs_all, feature = "fs-remove-dir") },
+    fs_remove_file: { any(fs_all, feature = "fs-remove-file") },
+    fs_rename_file: { any(fs_all, feature = "fs-rename-file") },
+    fs_path: { any(fs_all, feature = "fs-path") },
 
     // window
-    set_title: { any(all_api, feature = "set-title") },
-    open: { any(all_api, feature = "open") },
+    window_all: { any(api_all, feature = "window-all") },
+    window_create: { any(window_all, feature = "window-create") },
 
-    // process
-    execute: { any(all_api, feature = "execute") },
-
-    // event
-    event: { any(all_api, feature = "event") },
+    // shell
+    shell_all: { any(api_all, feature = "shell-all") },
+    shell_open: { any(shell_all, feature = "shell-open") },
+    shell_execute: { any(shell_all, feature = "shell-execute") },
 
     // dialog
-    open_dialog: { any(all_api, feature = "open-dialog") },
-    save_dialog: { any(all_api, feature = "save-dialog") },
+    dialog_all: { any(api_all, feature = "dialog-all") },
+    dialog_open: { any(dialog_all, feature = "dialog-open") },
+    dialog_save: { any(dialog_all, feature = "dialog-save") },
 
     // http
-    http_request: { any(all_api, feature = "http-request") },
+    http_all: { any(api_all, feature = "http-all") },
+    http_request: { any(http_all, feature = "http-request") },
 
     // cli
     cli: { feature = "cli" },
 
     // notification
-    notification: { any(all_api, feature = "notification") },
+    notification_all: { any(api_all, feature = "notification-all") },
+
+    // global shortcut
+    global_shortcut_all: { any(api_all, feature = "global_shortcut-all") },
   }
 }

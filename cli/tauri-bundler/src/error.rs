@@ -1,15 +1,7 @@
 use thiserror::Error as DeriveError;
 
-use {
-  base64, glob, handlebars, image, minisign, serde_json, std::io, std::num, std::path,
-  target_build_utils, term, toml, walkdir,
-};
-
-#[cfg(windows)]
-use {attohttpc, regex};
-
-#[cfg(not(target_os = "linux"))]
-use {hex, zip};
+use std::{io, num, path};
+use {base64, minisign};
 
 #[derive(Debug, DeriveError)]
 pub enum Error {
@@ -23,10 +15,6 @@ pub enum Error {
   IoError(#[from] io::Error),
   #[error("`{0}`")]
   ImageError(#[from] image::ImageError),
-  #[error("`{0}`")]
-  TargetError(#[from] target_build_utils::Error),
-  #[error("`{0}`")]
-  TermError(#[from] term::Error),
   #[error("`{0}`")]
   TomlError(#[from] toml::de::Error),
   #[error("`{0}`")]
@@ -60,8 +48,6 @@ pub enum Error {
   )]
   EnvironmentError,
   #[error("Could not find Icon paths.  Please make sure they exist in the tauri config JSON file")]
-  UpdateBundler,
-  #[error("Something went wrong with the update bundler process")]
   IconPathError,
   #[error("Path Error:`{0}`")]
   PathUtilError(String),

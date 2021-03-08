@@ -4,25 +4,25 @@ on:
   workflow_dispatch:
     inputs:
       repository:
-        description: 'Repository from which to pull and create a Tauri app.'
+        description: "Repository from which to pull and create a Tauri app."
         required: false
-        default: 'tauri-apps/tauri'
+        default: "tauri-apps/tauri"
       ref:
-        description: 'Branch or ref to pull down.'
+        description: "Branch or ref to pull down."
         required: false
-        default: 'dev'
+        default: "dev"
       dir:
-        description: 'Directory we expect to run in.'
+        description: "Directory we expect to run in."
         required: false
-        default: 'tauri/examples/communication'
+        default: "tauri/examples/helloworld"
       buildAssets:
-        description: 'Command to build the assets.'
+        description: "Command to build the assets."
         required: false
-        default: 'echo no build needed'
+        default: "echo no build needed"
       buildTauri:
-        description: 'Command to build the Tauri app.'
+        description: "Command to build the Tauri app."
         required: false
-        default: 'tauri'
+        default: "tauri"
 env:
   RUST_BACKTRACE: 1
 
@@ -76,18 +76,15 @@ jobs:
           yarn global add $PWD
           echo "::add-path::$(yarn global bin)"
       - name: install and build assets
-        working-directory: 'example/${{ github.event.inputs.dir }}'
+        working-directory: "example/${{ github.event.inputs.dir }}"
         run: ${{ github.event.inputs.buildAssets }}
-      - name: cargo install tauri-bundler --force
-        working-directory: tauri/cli/tauri-bundler
-        run: cargo install tauri-bundler --path . --force
       - name: build tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           includeDebug: true
-          projectPath: 'example/${{ github.event.inputs.dir }}'
+          projectPath: "example/${{ github.event.inputs.dir }}"
           preferGlobal: true
       - uses: actions/upload-artifact@v2
         if: success()

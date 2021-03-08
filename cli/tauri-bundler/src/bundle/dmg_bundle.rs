@@ -1,13 +1,14 @@
-use super::common;
-use super::osx_bundle;
+use super::{common, osx_bundle};
 use crate::Settings;
 
 use anyhow::Context;
 
-use std::env;
-use std::fs::{self, write};
-use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::{
+  env,
+  fs::{self, write},
+  path::PathBuf,
+  process::{Command, Stdio},
+};
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the DMG was created.

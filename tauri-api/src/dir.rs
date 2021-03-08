@@ -1,6 +1,8 @@
 use serde::Serialize;
-use std::fs::{self, metadata};
-use std::path::{Path, PathBuf};
+use std::{
+  fs::{self, metadata},
+  path::{Path, PathBuf},
+};
 use tempfile::{self, tempdir};
 
 /// The result of the `read_dir` function.
@@ -20,7 +22,7 @@ pub struct DiskEntry {
 
 /// Checks if the given path is a directory.
 pub fn is_dir<P: AsRef<Path>>(path: P) -> crate::Result<bool> {
-  metadata(path).map(|md| md.is_dir()).map_err(|e| e.into())
+  metadata(path).map(|md| md.is_dir()).map_err(Into::into)
 }
 
 /// Reads a directory. Can perform recursive operations.
@@ -64,8 +66,7 @@ pub fn with_temp_dir<F: FnOnce(&tempfile::TempDir)>(callback: F) -> crate::Resul
 mod test {
   use super::*;
   use quickcheck_macros::quickcheck;
-  use std::ffi::OsStr;
-  use std::path::PathBuf;
+  use std::{ffi::OsStr, path::PathBuf};
 
   // check is dir function by passing in arbitrary strings
   #[quickcheck]

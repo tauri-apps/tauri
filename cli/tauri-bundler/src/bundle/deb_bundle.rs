@@ -23,18 +23,18 @@ use super::common;
 use crate::Settings;
 
 use anyhow::Context;
-use image::png::PngDecoder;
-use image::{self, GenericImageView, ImageDecoder};
-use md5;
+use image::{self, png::PngDecoder, GenericImageView, ImageDecoder};
 use libflate::gzip;
 use std::process::{Command, Stdio};
 use walkdir::WalkDir;
 
-use std::collections::BTreeSet;
-use std::ffi::OsStr;
-use std::fs::{self, File};
-use std::io::{self, Write};
-use std::path::{Path, PathBuf};
+use std::{
+  collections::BTreeSet,
+  ffi::OsStr,
+  fs::{self, File},
+  io::{self, Write},
+  path::{Path, PathBuf},
+};
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the DEB was created.

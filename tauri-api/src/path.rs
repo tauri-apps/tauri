@@ -84,7 +84,9 @@ pub fn resolve_path<P: AsRef<Path>>(path: P, dir: Option<BaseDirectory>) -> crat
       base_dir_path_value.push(path);
       Ok(base_dir_path_value)
     } else {
-      Err(crate::Error::Path("unable to determine base dir path".to_string()).into())
+      Err(crate::Error::Path(
+        "unable to determine base dir path".to_string(),
+      ))
     }
   } else {
     let mut dir_path = PathBuf::new();

@@ -1,38 +1,30 @@
-mod cmd;
+use tauri::ApplicationDispatcherExt;
 
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
+#[derive(tauri::FromTauriContext)]
+struct Context;
 
 fn main() {
-  tauri::AppBuilder::new()
-    .setup(|webview, _| {
-      let mut webview_ = webview.as_mut();
+  tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
+    .setup(|webview_manager| async move {
+      let mut webview_manager_ = webview_manager.clone();
       tauri::event::listen(String::from("hello"), move |_| {
         tauri::event::emit(
-          &mut webview_,
+          &webview_manager_,
           String::from("reply"),
           Some("{ msg: 'TEST' }".to_string()),
         )
         .unwrap();
       });
-      webview.eval("window.onTauriInit && window.onTauriInit()");
+      webview_manager
+        .current_webview()
+        .eval("window.onTauriInit && window.onTauriInit()");
     })
-    .invoke_handler(|webview, arg| {
-      use cmd::Cmd::*;
-      match serde_json::from_str(arg) {
-        Err(e) => Err(e.to_string()),
-        Ok(command) => {
-          match command {
-            // definitions for your custom commands from Cmd here
-            Exit {} => {
-              webview.terminate();
-            }
-          }
-          Ok(())
-        }
+    .invoke_handler(|webview_manager, command, _arg| async move {
+      if &command == "exit" {
+        webview_manager.close().unwrap();
       }
     })
     .build()
+    .unwrap()
     .run();
 }

@@ -1,4 +1,3 @@
-import { TauriConfig } from 'types'
 import { inject } from '../template'
 import { resolve } from 'path'
 import toml, { JsonMap } from '@tauri-apps/toml'
@@ -11,7 +10,7 @@ module.exports = (args: {
   force: false | 'conf' | 'template' | 'all'
   logging: boolean
   tauriPath?: string
-  customConfig?: Partial<TauriConfig>
+  customConfig?: Object
   appName?: string
 }): boolean => {
   const injectResult = inject(

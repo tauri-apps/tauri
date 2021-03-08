@@ -5,7 +5,7 @@ set -euxo pipefail
 export ARCH=x86_64
 
 mkdir -p {{app_name}}.AppDir
-cp -r ../appimage_deb/{{bundle_name}}/data/usr {{app_name}}.AppDir
+cp -r ../appimage_deb/data/usr {{app_name}}.AppDir
 
 cd {{app_name}}.AppDir
 
@@ -34,9 +34,9 @@ mksquashfs {{app_name}}.AppDir {{app_name}}.squashfs -root-owned -noappend
 wget -q -4 -O appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage || wget -q -4 -O appimagetool https://github.com/AppImage/AppImageKit/releases/download/12/appimagetool-x86_64.AppImage
 chmod +x appimagetool
 if lsmod | grep -q fuse; then
-  ./appimagetool {{app_name}}.AppDir {{app_name}}.AppImage
+  ./appimagetool {{app_name}}.AppDir {{appimage_filename}}
 else
   ./appimagetool --appimage-extract
-  ./squashfs-root/AppRun {{app_name}}.AppDir {{app_name}}.AppImage
+  ./squashfs-root/AppRun {{app_name}}.AppDir {{appimage_filename}}
   rm -rf ./squashfs-root
 fi

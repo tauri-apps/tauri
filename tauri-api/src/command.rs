@@ -16,7 +16,9 @@ pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> crate::Resul
   if output.status.success() {
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
   } else {
-    Err(crate::Error::Command(String::from_utf8_lossy(&output.stderr).to_string()).into())
+    Err(crate::Error::Command(
+      String::from_utf8_lossy(&output.stderr).to_string(),
+    ))
   }
 }
 
@@ -32,7 +34,9 @@ pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> crate::Resul
   if output.status.success() {
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
   } else {
-    Err(crate::Error::Command(String::from_utf8_lossy(&output.stderr).to_string()).into())
+    Err(crate::Error::Command(
+      String::from_utf8_lossy(&output.stderr).to_string(),
+    ))
   }
 }
 
@@ -41,7 +45,9 @@ pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> crate::Resul
 pub fn command_path(command: String) -> crate::Result<String> {
   match std::env::current_exe()?.parent() {
     Some(exe_dir) => Ok(format!("{}/{}", exe_dir.display().to_string(), command)),
-    None => Err(crate::Error::Command("Could not evaluate executable dir".to_string()).into()),
+    None => Err(crate::Error::Command(
+      "Could not evaluate executable dir".to_string(),
+    )),
   }
 }
 
@@ -50,7 +56,9 @@ pub fn command_path(command: String) -> crate::Result<String> {
 pub fn command_path(command: String) -> crate::Result<String> {
   match std::env::current_exe()?.parent() {
     Some(exe_dir) => Ok(format!("{}/{}.exe", exe_dir.display().to_string(), command)),
-    None => Err(crate::Error::Command("Could not evaluate executable dir".to_string()).into()),
+    None => Err(crate::Error::Command(
+      "Could not evaluate executable dir".to_string(),
+    )),
   }
 }
 
@@ -86,14 +94,17 @@ pub fn spawn_relative_command(
 
 /// Gets the binary command with the current target triple.
 pub fn binary_command(binary_name: String) -> crate::Result<String> {
-  Ok(format!("{}-{}", binary_name, platform::target_triple()?))
+  Ok(format!(
+    "{}-{}",
+    binary_name,
+    platform::target_triple().map_err(|e| crate::Error::FailedToDetectPlatform(e.to_string()))?
+  ))
 }
 
 // tests for the commands functions.
 #[cfg(test)]
 mod test {
   use super::*;
-  use std::io;
 
   #[cfg(not(windows))]
   #[test]
@@ -131,7 +142,7 @@ mod test {
     assert!(res.is_err());
 
     // destruct the Error to check the ErrorKind and test that it is a Command type.
-    if let Some(Error::Command(e)) = res.unwrap_err().downcast_ref::<Error>() {
+    if let Error::Command(e) = res.unwrap_err() {
       // assert that the message in the error matches this string.
       assert_eq!(*e, "cat: test/: Is a directory\n".to_string());
     }
@@ -163,7 +174,7 @@ mod test {
     assert!(res.is_err());
 
     // after asserting that the result is an error, check that the error kind is ErrorKind::Io
-    if let Some(s) = res.unwrap_err().downcast_ref::<io::Error>() {
+    if let crate::Error::Io(s) = res.unwrap_err() {
       // assert that the ErrorKind inside of the ErrorKind Io is ErrorKind::NotFound
       assert_eq!(s.kind(), std::io::ErrorKind::NotFound);
     }

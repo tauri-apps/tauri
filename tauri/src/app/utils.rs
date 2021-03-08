@@ -43,7 +43,7 @@ pub(super) fn get_url(context: &Context) -> String {
         context
           .assets
           .get(&path)
-          .ok_or(crate::Error::AssetNotFound(path.to_string()))
+          .ok_or_else(|| crate::Error::AssetNotFound(path.to_string()))
           .map(Cow::into_owned)
           .expect("Unable to find `index.html` under your devPath folder")
       )

@@ -156,16 +156,20 @@ impl Default for WindowConfig {
 }
 
 /// The Updater configuration object.
-#[derive(PartialEq, Deserialize, Debug)]
+#[derive(PartialEq, Deserialize, Debug, Clone)]
 #[serde(tag = "updaterConfig", rename_all = "camelCase")]
 pub struct UpdaterConfig {
   #[serde(default)]
+  /// Whether the updater is active or not.
   pub active: bool,
   #[serde(default)]
+  /// The updater endpoints.
   pub endpoints: Option<Vec<String>>,
   #[serde(default)]
+  /// Optional pubkey.
   pub pubkey: Option<String>,
   #[serde(default)]
+  /// Display built-in dialog or use event system if disabled.
   pub dialog: bool,
 }
 
@@ -179,7 +183,6 @@ impl Default for UpdaterConfig {
     }
   }
 }
-
 
 /// A CLI argument definition
 #[derive(PartialEq, Deserialize, Debug, Default)]
@@ -469,7 +472,7 @@ mod test {
       },
       cli: None,
       updater: UpdaterConfig {
-        active: true,
+        active: false,
         dialog: true,
         pubkey: None,
         endpoints: None,

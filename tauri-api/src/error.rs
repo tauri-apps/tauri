@@ -49,7 +49,7 @@ pub enum Error {
   /// Ignore error.
   #[error("{0}")]
   Ignore(#[from] ignore::Error),
-  
+
   /// ZIP error.
   #[error("{0}")]
   Zip(#[from] zip::result::ZipError),

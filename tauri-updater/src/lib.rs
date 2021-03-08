@@ -107,7 +107,6 @@ impl RemoteRelease {
   }
 }
 
-#[derive(Debug)]
 pub struct UpdateBuilder<'a> {
   pub current_version: &'a str,
   pub urls: Vec<String>,
@@ -301,8 +300,6 @@ pub fn builder<'a>() -> UpdateBuilder<'a> {
   UpdateBuilder::new()
 }
 
-// Once an update is available we return an Update instance
-#[derive(Debug)]
 pub struct Update {
   pub body: Option<String>,
   pub should_update: bool,
@@ -707,7 +704,7 @@ mod test {
   use super::*;
   use std::env::current_exe;
   use std::path::Path;
-  use totems::{assert_err, assert_ok};
+  use totems::assert_ok;
 
   #[test]
   fn simple_http_updater() {
@@ -716,7 +713,7 @@ mod test {
       .url("https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}".into())
       .build();
 
-    assert_ok!(check_update);
+    assert_eq!(check_update.is_ok(), true);
     let updater = check_update.expect("Can't check update");
 
     assert_eq!(updater.should_update, true);
@@ -729,7 +726,7 @@ mod test {
       .url("https://gist.github.com/lemarier/6bc28d06b94958d83eaa2790eef03f32/raw".into())
       .build();
 
-    assert_ok!(check_update);
+    assert_eq!(check_update.is_ok(), true);
     let updater = check_update.expect("Can't check update");
 
     assert_eq!(updater.should_update, true);
@@ -743,7 +740,7 @@ mod test {
       .url("https://gist.github.com/lemarier/6bc28d06b94958d83eaa2790eef03f32/raw".into())
       .build();
 
-    assert_ok!(check_update);
+    assert_eq!(check_update.is_ok(), true);
     let updater = check_update.expect("Can't check update");
 
     assert_eq!(updater.should_update, true);
@@ -762,7 +759,7 @@ mod test {
       .url("https://gist.github.com/lemarier/6bc28d06b94958d83eaa2790eef03f32/raw".into())
       .build();
 
-    assert_ok!(check_update);
+    assert_eq!(check_update.is_ok(), true);
     let updater = check_update.expect("Can't check update");
 
     assert_eq!(updater.should_update, false);
@@ -774,7 +771,7 @@ mod test {
       .url("https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}".into())
       .build();
 
-    assert_ok!(check_update);
+    assert_eq!(check_update.is_ok(), true);
     let updater = check_update.expect("Can't check update");
 
     assert_eq!(updater.should_update, true);
@@ -787,7 +784,7 @@ mod test {
       .url("https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}".into())
       .build();
 
-    assert_ok!(check_update);
+    assert_eq!(check_update.is_ok(), true);
     let updater = check_update.expect("Can't check update");
 
     assert_eq!(updater.should_update, false);
@@ -801,7 +798,7 @@ mod test {
       .current_version("0.0.1")
       .build();
 
-    assert_ok!(check_update);
+    assert_eq!(check_update.is_ok(), true);
     let updater = check_update.expect("Can't check remote update");
 
     assert_eq!(updater.should_update, true);
@@ -817,7 +814,7 @@ mod test {
       .current_version("0.0.1")
       .build();
 
-    assert_ok!(check_update);
+    assert_eq!(check_update.is_ok(), true);
     let updater = check_update.expect("Can't check remote update");
 
     assert_eq!(updater.should_update, true);
@@ -830,62 +827,6 @@ mod test {
     .current_version("0.0.1")
     .build();
 
-    assert_err!(check_update);
-  }
-
-  // run complete process on mac only for now as we don't have
-  // server (api) that we can use to test
-  #[cfg(target_os = "macos")]
-  #[test]
-  fn http_updater_complete_process() {
-    // Test pubkey generated with tauri-bundler
-    let pubkey_test = Some("dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY1OTgxQzc0MjVGNjM0Q0IKUldUTE5QWWxkQnlZOWFBK21kekU4OGgzdStleEtkeStHaFR5NjEyRHovRnlUdzAwWGJxWEU2aGYK".into());
-
-    // Build a tmpdir so we can test our extraction inside
-    // We dont want to overwrite our current executable or the directory
-    // Otherwise tests are failing...
-    let executable_path = current_exe().expect("Can't extract executable path");
-    let parent_path = executable_path
-      .parent()
-      .expect("Can't find the parent path");
-
-    let tmp_dir = tempfile::Builder::new()
-      .prefix("tauri_updater_test")
-      .tempdir_in(parent_path);
-
-    assert_ok!(&tmp_dir);
-    let tmp_dir_unwrap = tmp_dir.expect("Can't find tmp_dir");
-    let tmp_dir_path = tmp_dir_unwrap.path();
-
-    // configure the updater
-    let check_update = builder()
-      .url("https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}".into())
-      // It should represent the executable path, that's why we add my_app.exe in our
-      // test path -- in production you shouldn't have to provide it
-      .executable_path(&tmp_dir_path.join("my_app.exe"))
-      // make sure we force an update
-      .current_version("0.0.1")
-      .build();
-
-    // make sure the process worked
-    assert_ok!(check_update);
-
-    // unwrap our results
-    let updater = check_update.expect("Can't check remote update");
-
-    // make sure we need to update
-    assert_eq!(updater.should_update, true);
-    // make sure we can read announced version
-    assert_eq!(updater.version, "2.0.0");
-
-    // download, install and validate signature
-    let install_process = updater.download_and_install(pubkey_test);
-    assert_ok!(&install_process);
-
-    // make sure the extraction went well (it should have skipped the main app.app folder)
-    // as we can't extract in /Applications directly
-    let bin_file = tmp_dir_path.join("Contents").join("MacOS").join("app");
-    let bin_file_exist = Path::new(&bin_file).exists();
-    assert_eq!(bin_file_exist, true);
+    assert_eq!(check_update.is_err(), true);
   }
 }

@@ -22,8 +22,7 @@ pub enum Error {
   #[error("{0}")]
   Utf8(#[from] std::str::Utf8Error),
   #[error("{0}")]
-  TauriApi(#[from]  tauri_api::Error),
- 
+  TauriApi(#[from] tauri_api::Error),
 
   // Custom
   #[error("{0}")]

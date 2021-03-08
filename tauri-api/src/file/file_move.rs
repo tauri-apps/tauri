@@ -1,5 +1,5 @@
-use std::{fs, path};
 use ignore::WalkBuilder;
+use std::{fs, path};
 
 /// Moves a file from the given path to the specified destination.
 ///

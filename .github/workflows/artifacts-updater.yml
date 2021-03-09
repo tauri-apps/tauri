@@ -51,16 +51,16 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         with:
           name: linux-updater-artifacts
-          path: ./tauri/examples/communication/src-tauri/target/release/bundle/appimage/app.AppImage.*
+          path: ./tauri/examples/api/src-tauri/target/release/bundle/appimage/app.AppImage.*
 
       - uses: actions/upload-artifact@v2
         if: matrix.platform == 'windows-latest'
         with:
           name: windows-updater-artifacts
-          path: ./tauri/examples/communication/src-tauri/target/release/app.x64.msi.*
+          path: ./tauri/examples/api/src-tauri/target/release/app.x64.msi.*
 
       - uses: actions/upload-artifact@v2
         if: matrix.platform == 'macos-latest'
         with:
           name: osx-updater-artifacts
-          path: ./tauri/examples/communication/src-tauri/target/release/bundle/osx/app.app.tar.*
+          path: ./tauri/examples/api/src-tauri/target/release/bundle/osx/app.app.tar.*

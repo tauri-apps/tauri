@@ -1,10 +1,10 @@
 mod appimage_bundle;
-mod archive_utils;
 mod category;
 pub mod common;
 mod deb_bundle;
 mod dmg_bundle;
 mod ios_bundle;
+mod updater_bundle;
 #[cfg(target_os = "windows")]
 mod msi_bundle;
 mod osx_bundle;
@@ -12,8 +12,6 @@ mod path_utils;
 mod platform;
 mod rpm_bundle;
 mod settings;
-mod updater_bundle;
-
 #[cfg(target_os = "windows")]
 mod wix;
 
@@ -21,7 +19,7 @@ pub use self::{
   category::AppCategory,
   common::{print_error, print_info},
   settings::{
-    BundleBinary, BundleSettings, PackageSettings, PackageType, Settings, SettingsBuilder,
+    BundleBinary, BundleSettings, PackageSettings, PackageType, Settings, SettingsBuilder, UpdaterSettings
   },
 };
 use common::print_finished;

@@ -61,7 +61,14 @@ impl Build {
     let tauri_script = TauriScript::new()
       .global_tauri(config_.build.with_global_tauri)
       .get();
-    let tauri_script_path = PathBuf::from(&config_.build.dist_dir).join("__tauri.js");
+    let web_asset_path = PathBuf::from(&config_.build.dist_dir);
+    if !web_asset_path.exists() {
+      return Err(anyhow::anyhow!(
+        "Unable to find your web assets, did you forget to build your web app? Your distDir is set to \"{:?}\".",
+        web_asset_path
+      ));
+    }
+    let tauri_script_path = web_asset_path.join("__tauri.js");
     let mut tauri_script_file = File::create(tauri_script_path)?;
     tauri_script_file.write_all(tauri_script.as_bytes())?;
 
@@ -102,6 +109,7 @@ impl Build {
       if self.verbose {
         settings_builder = settings_builder.verbose();
       }
+
       if let Some(names) = self.targets {
         let mut types = vec![];
         for name in names {
@@ -120,9 +128,13 @@ impl Build {
             }
           }
         }
+        
         settings_builder = settings_builder.package_types(types);
       }
+
+      // Bundle the project
       let settings = settings_builder.build()?;
+      
       bundle_project(settings)?;
     }
 

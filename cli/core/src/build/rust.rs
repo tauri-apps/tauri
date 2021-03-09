@@ -3,7 +3,7 @@ use std::{fs::File, io::Read, path::PathBuf, process::Command, str::FromStr};
 use serde::Deserialize;
 
 use crate::helpers::{app_paths::tauri_dir, config::Config};
-use tauri_bundler::{AppCategory, BundleBinary, BundleSettings, PackageSettings};
+use tauri_bundler::{AppCategory, BundleBinary, BundleSettings, PackageSettings, UpdaterSettings};
 
 /// The `workspace` section of the app configuration (read from Cargo.toml).
 #[derive(Clone, Debug, Deserialize)]
@@ -94,8 +94,7 @@ pub fn get_bundler_settings(config: &Config, debug: bool) -> crate::Result<Bundl
   };
   let workspace_dir = get_workspace_dir(&tauri_dir);
   let target_dir = get_target_dir(&workspace_dir, None, !debug)?;
-  let bundle_settings = tauri_config_to_bundle_settings(config.tauri.bundle.clone())?;
-
+  let bundle_settings = tauri_config_to_bundle_settings(config.tauri.bundle.clone(), config.tauri.updater.clone())?;
   let mut binaries: Vec<BundleBinary> = vec![];
   if let Some(bin) = cargo_settings.bin {
     let default_run = package
@@ -221,6 +220,7 @@ pub fn get_workspace_dir(current_dir: &PathBuf) -> PathBuf {
 
 fn tauri_config_to_bundle_settings(
   config: crate::helpers::config::BundleConfig,
+  updater_config: crate::helpers::config::UpdaterConfig,
 ) -> crate::Result<BundleSettings> {
   Ok(BundleSettings {
     name: config.name,
@@ -247,7 +247,12 @@ fn tauri_config_to_bundle_settings(
     osx_use_bootstrapper: Some(config.osx.use_bootstrapper),
     external_bin: config.external_bin,
     exception_domain: config.osx.exception_domain,
-    updater: config.updater,
+    updater: Some(UpdaterSettings {
+      active: updater_config.active,
+      dialog: updater_config.dialog,
+      pubkey: updater_config.pubkey,
+      endpoints: updater_config.endpoints,
+    }),
     ..Default::default()
   })
 }

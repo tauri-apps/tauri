@@ -1,5 +1,5 @@
 use super::category::AppCategory;
-use crate::bundle::{common, platform::target_triple, tauri_config::UpdaterConfig};
+use crate::bundle::{common, platform::target_triple};
 
 use serde::Deserialize;
 
@@ -32,7 +32,7 @@ pub enum PackageType {
 
 impl PackageType {
   /// Maps a short name to a PackageType.
-  /// Possible values are "deb", "ios", "msi", "osx", "rpm", "appimage", "dmg".
+  /// Possible values are "deb", "ios", "msi", "osx", "rpm", "appimage", "dmg", "updater".
   pub fn from_short_name(name: &str) -> Option<PackageType> {
     // Other types we may eventually want to support: apk.
     match name {
@@ -98,6 +98,19 @@ pub struct PackageSettings {
   pub authors: Option<Vec<String>>,
   /// the default binary to run.
   pub default_run: Option<String>,
+}
+
+/// The updater settings.
+#[derive(Debug, Clone, Deserialize)]
+pub struct UpdaterSettings {
+  /// Whether the updater is active or not.
+  pub active: bool,
+  /// The updater endpoints.
+  pub endpoints: Option<Vec<String>>,
+  /// Optional pubkey.
+  pub pubkey: Option<String>,
+  /// Display built-in dialog or use event system if disabled.
+  pub dialog: bool,
 }
 
 /// The bundle settings of the BuildArtifact we're bundling.
@@ -179,8 +192,9 @@ pub struct BundleSettings {
   /// This allows communication to the outside world e.g. a web server you're shipping.
   pub exception_domain: Option<String>,
   // Updater configuration
-  pub updater: Option<UpdaterConfig>,
+  pub updater: Option<UpdaterSettings>,
 }
+
 
 #[derive(Clone, Debug)]
 pub struct BundleBinary {
@@ -250,6 +264,7 @@ pub struct SettingsBuilder {
   verbose: bool,
   package_types: Option<Vec<PackageType>>,
   package_settings: Option<PackageSettings>,
+  updater_settings: Option<UpdaterSettings>,
   bundle_settings: BundleSettings,
   binaries: Vec<BundleBinary>,
 }
@@ -283,6 +298,11 @@ impl SettingsBuilder {
 
   pub fn bundle_settings(mut self, settings: BundleSettings) -> Self {
     self.bundle_settings = settings;
+    self
+  }
+
+  pub fn updater_settings(mut self, settings: UpdaterSettings) -> Self {
+    self.updater_settings = Some(settings);
     self
   }
 
@@ -356,7 +376,7 @@ impl Settings {
   /// Fails if the host/target's native package type is not supported.
   pub fn package_types(&self) -> crate::Result<Vec<PackageType>> {
     let target_os = std::env::consts::OS;
-    let platform_types = match target_os {
+    let mut platform_types = match target_os {
       "macos" => vec![PackageType::OsxBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
       "linux" => vec![PackageType::Deb, PackageType::AppImage],
@@ -370,9 +390,9 @@ impl Settings {
       }
     };
 
-    // If updater bundler is enabled
-    if let true = &self.is_update_enabled() {
-      platform_types.push(PackageType::Updater);
+    // add updater if needed
+    if self.is_update_enabled() {
+      platform_types.push(PackageType::Updater)
     }
 
     if let Some(package_types) = &self.package_types {
@@ -562,7 +582,7 @@ impl Settings {
   /// Is update enabled
   pub fn is_update_enabled(&self) -> bool {
     match &self.bundle_settings.updater {
-      Some(val) => val.active.unwrap_or(false),
+      Some(val) => val.active,
       None => false,
     }
   }
@@ -570,7 +590,7 @@ impl Settings {
   /// Is pubkey provided?
   pub fn is_updater_pubkey(&self) -> bool {
     match &self.bundle_settings.updater {
-      Some(val) => !val.pubkey.is_none(),
+      Some(val) => val.pubkey.is_some(),
       None => false,
     }
   }
@@ -584,8 +604,7 @@ impl Settings {
       .as_ref()
       .expect("Updater is not defined")
       .pubkey
-      .as_ref()
-      .map(String::as_str)
+      .as_deref()
   }
 }
 

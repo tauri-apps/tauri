@@ -1,5 +1,6 @@
 # Build output
 /dist
+target/
 
 # Logs
 logs

@@ -7,6 +7,7 @@ mod dev;
 mod helpers;
 mod info;
 mod init;
+mod sign;
 
 pub use helpers::Logger;
 
@@ -85,6 +86,47 @@ fn info_command() -> Result<()> {
   info::Info::new().run()
 }
 
+fn sign_command(matches: &ArgMatches) -> Result<()> {
+  let private_key = matches.value_of("private_key");
+  let private_key_path = matches.value_of("private_key_path");
+
+  let generate_keys = matches.is_present("generate");
+  let password = matches.value_of("password");
+  let no_password = matches.is_present("no_password");
+  let write_keys = matches.value_of("write_keys");
+  let force = matches.is_present("force");
+
+  println!("TEST {}", generate_keys);
+
+  if generate_keys {
+    let mut keygen = sign::KeyGenerator::new();
+    
+    if no_password {
+      keygen = keygen.empty_password();
+    }
+    
+    if force {
+      keygen = keygen.force();
+    }
+
+    if let Some(write_keys) = write_keys {
+      keygen = keygen.output_path(write_keys);
+    }
+
+    if let Some(password) = password {
+      keygen = keygen.password(password);
+    }
+
+    return keygen.generate_keys()
+    
+  }
+
+  Ok(())
+
+  //sign_runner.run()
+}
+
+
 fn main() -> Result<()> {
   let yaml = load_yaml!("cli.yml");
   let app = App::from(yaml)
@@ -103,6 +145,8 @@ fn main() -> Result<()> {
     build_command(&matches)?;
   } else if matches.subcommand_matches("info").is_some() {
     info_command()?;
+  } else if let Some(matches) = matches.subcommand_matches("sign") {
+    sign_command(&matches)?;
   }
 
   Ok(())

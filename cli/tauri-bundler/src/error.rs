@@ -55,6 +55,8 @@ pub enum Error {
   ShellScriptError(String),
   #[error("`{0}`")]
   GenericError(String),
+  #[error("Unable to create updater package")]
+  UpdateBundler,
   #[error("Decode Error: `{0}`")]
   DecodeError(#[from] base64::DecodeError),
   #[error("Utf8Error: `{0}`")]

@@ -79,6 +79,10 @@
             "useBootstrapper": false
           }
         },
+        "updater": {
+          "active": false,
+          "dialog": false
+        },
         "windows": []
       },
       "allOf": [
@@ -893,6 +897,18 @@
             }
           ]
         },
+        "updater": {
+          "description": "The updater configuration.",
+          "default": {
+            "active": false,
+            "dialog": true
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/UpdaterConfig"
+            }
+          ]
+        },
         "windows": {
           "description": "The windows configuration.",
           "default": [],
@@ -900,6 +916,41 @@
           "items": {
             "$ref": "#/definitions/WindowConfig"
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    "UpdaterConfig": {
+      "type": "object",
+      "required": [
+        "active",
+        "dialog"
+      ],
+      "properties": {
+        "active": {
+          "description": "Whether the updater is active or not.",
+          "type": "boolean"
+        },
+        "dialog": {
+          "description": "Display built-in dialog or use event system if disabled.",
+          "type": "boolean"
+        },
+        "endpoints": {
+          "description": "The updater endpoints.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "pubkey": {
+          "description": "Optional pubkey.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

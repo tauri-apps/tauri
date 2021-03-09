@@ -69,11 +69,11 @@ where
     std::fs::remove_file(&pk_path)?;
   }
 
-  let mut sk_writer = super::bundle::common::create_file(&sk_path)?;
+  let mut sk_writer = crate::bundle::common::create_file(&sk_path)?;
   write!(sk_writer, "{:}", key)?;
   sk_writer.flush()?;
 
-  let mut pk_writer = super::bundle::common::create_file(&pk_path)?;
+  let mut pk_writer = crate::bundle::common::create_file(&pk_path)?;
   write!(pk_writer, "{:}", pubkey)?;
   pk_writer.flush()?;
 

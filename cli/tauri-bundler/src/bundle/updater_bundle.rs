@@ -1,5 +1,7 @@
-use super::archive_utils;
 use super::common;
+use libflate::gzip;
+use walkdir::WalkDir;
+
 #[cfg(target_os = "macos")]
 use super::osx_bundle;
 
@@ -8,7 +10,15 @@ use super::appimage_bundle;
 
 #[cfg(target_os = "windows")]
 use super::msi_bundle;
+#[cfg(target_os = "windows")]
+use zip::write::FileOptions;
+#[cfg(target_os = "windows")]
+use std::fs::File;
+#[cfg(target_os = "windows")]
+use std::io::prelude::*;
 
+use std::fs::{self};
+use std::io::Write;
 use crate::Settings;
 
 use crate::sign::{read_key_from_file, sign_file};
@@ -92,7 +102,7 @@ fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // build our app
   let osx_bundled = osx_bundle::bundle_project(settings)?;
   // we expect our .app to be on osx_bundled[0]
-  if osx_bundled.len() < 1 {
+  if osx_bundled.is_empty() {
     return Err(crate::Error::UpdateBundler);
   }
 
@@ -110,7 +120,7 @@ fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   create_tar(&source_path, &osx_archived_path)
     .with_context(|| "Failed to tar.gz update directory")?;
 
-  common::print_bundling(format!("{:?}", &osx_archived_path.clone()).as_str())?;
+  common::print_bundling(format!("{:?}", &osx_archived_path).as_str())?;
   Ok(vec![osx_archived_path])
 }
 
@@ -168,105 +178,75 @@ fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 }
 
 #[cfg(target_os = "windows")]
-fn create_zip(source: &PathBuf, archive_path: &PathBuf) -> crate::Result<()> {
-  archive_utils::zip_file(source, archive_path)
-    .with_context(|| "Failed to zip update directory")?;
+pub fn create_zip(src_file: &PathBuf, dst_file: &PathBuf) -> crate::Result<PathBuf> {
+  let parent_dir = dst_file.parent().expect("No data in parent");
+  fs::create_dir_all(parent_dir)?;
+  let writer = common::create_file(dst_file)?;
 
-  Ok(())
+  let file_name = src_file
+    .file_name()
+    .expect("Can't extract file name from path");
+
+  let mut zip = zip::ZipWriter::new(writer);
+  let options = FileOptions::default()
+    .compression_method(zip::CompressionMethod::Stored)
+    .unix_permissions(0o755);
+
+  zip.start_file(file_name.to_string_lossy(), options)?;
+  let mut f = File::open(src_file)?;
+  let mut buffer = Vec::new();
+  f.read_to_end(&mut buffer)?;
+  zip.write_all(&*buffer)?;
+  buffer.clear();
+
+  Ok(dst_file.to_owned())
 }
 
-fn create_tar(source: &PathBuf, archive_path: &PathBuf) -> crate::Result<()> {
-  archive_utils::tar_and_gzip_to(source, archive_path)
-    .with_context(|| "Failed to tar.gz update directory")?;
+fn create_tar(src_dir: &PathBuf, dest_path: &PathBuf) -> crate::Result<PathBuf> {
+  let dest_file = common::create_file(&dest_path)?;
+  let gzip_encoder = gzip::Encoder::new(dest_file)?;
 
-  Ok(())
+  let gzip_encoder = create_tar_from_src(src_dir, gzip_encoder)?;
+  let mut dest_file = gzip_encoder.finish().into_result()?;
+  dest_file.flush()?;
+  Ok(dest_path.to_owned())
 }
 
-#[cfg(test)]
-mod tests {
-  use super::*;
-  use std;
-  use tauri_updater::verify_signature;
-  use totems::assert_ok;
+fn create_tar_from_src<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> crate::Result<W> {
+  let src_dir = src_dir.as_ref();
+  let mut tar_builder = tar::Builder::new(dest_file);
 
-  #[cfg(target_os = "macos")]
-  #[test]
-  fn updater_with_signature_bundling() {
-    // create our example path
-    let mut example_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    example_path.push("..");
-    example_path.push("..");
-    example_path.push("tauri");
-    example_path.push("examples");
-    example_path.push("communication");
-    example_path.push("src-tauri");
+  // validate source type
+  let file_type = fs::metadata(src_dir).expect("Can't read source directory");
+  // if it's a file don't need to walkdir
+  if file_type.is_file() {
+    let mut src_file = fs::File::open(src_dir)?;
+    let file_name = src_dir
+      .file_name()
+      .expect("Can't extract file name from path");
 
-    // create our dist path
-    let mut dist_path = example_path.clone();
-    dist_path.push("..");
-    dist_path.push("dist");
+    tar_builder.append_file(file_name, &mut src_file)?;
+  } else {
+    for entry in WalkDir::new(&src_dir) {
+      let entry = entry?;
+      let src_path = entry.path();
+      if src_path == src_dir {
+        continue;
+      }
 
-    // make sure we can change our current working directory
-    // this allow the icons to works fine for our tests as the icons need
-    // to found in the current working directory
-    assert!(env::set_current_dir(&example_path).is_ok());
-
-    // set our tauri dir to the example path
-    std::env::set_var("TAURI_DIR", &example_path);
-    std::env::set_var("TAURI_DIST_DIR", &dist_path);
-    // set our private key -- this can also be a file path
-    std::env::set_var("TAURI_PRIVATE_KEY", "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5dGlHbTEvRFhRRis2STdlTzF3eWhOVk9LNjdGRENJMnFSREE3R2V3b3Rwb0FBQkFBQUFBQUFBQUFBQUlBQUFBQWFNZEJTNXFuVjk0bmdJMENRRXVYNG5QVzBDd1NMOWN4Q2RKRXZxRDZNakw3Y241Vkt3aTg2WGtoajJGS1owV0ZuSmo4ZXJ0ZCtyaWF0RWJObFpnd1EveDB4NzBTU2RweG9ZaUpuc3hnQ3BYVG9HNnBXUW5SZ2Q3b3dvZ3Y2UnhQZ1BQZDU3bXl6d3M9Cg==");
-
-    // Run cargo build in our test project
-    let output = std::process::Command::new("cargo")
-      .arg("build")
-      .current_dir(&example_path)
-      .output()
-      .expect("Failed to execute cargo build");
-
-    if !output.status.success() {
-      println!("status: {}", output.status);
-      println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
-      println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+      // todo(lemarier): better error catching
+      // We add the .parent() because example if we send a path
+      // /dev/src-tauri/target/debug/bundle/osx/app.app
+      // We need a tar with app.app/<...> (source root folder should be included)
+      let dest_path = src_path.strip_prefix(&src_dir.parent().expect(""))?;
+      if entry.file_type().is_dir() {
+        tar_builder.append_dir(dest_path, src_path)?;
+      } else {
+        let mut src_file = fs::File::open(src_path)?;
+        tar_builder.append_file(dest_path, &mut src_file)?;
+      }
     }
-
-    assert_eq!(output.status.success(), true);
-
-    // create fake args
-    let temp_args = clap::ArgMatches::new();
-
-    // build our settings
-    let settings =
-      Settings::new(example_path, &temp_args).expect("Something went wrong when building settings");
-
-    let project_bundle = bundle_project(&settings);
-
-    assert_ok!(&project_bundle);
-
-    let files = project_bundle.expect("Something went wrong when building and signing update");
-
-    // we expect 2 files (archive + archive.sig)
-    assert_eq!(files.len(), 2);
-
-    // lets validate our files really exists
-    for file in &files {
-      assert_eq!(file.exists(), true);
-    }
-
-    // now we expect the the archive first and the sign second (archive is always created first..)
-    // lets make sure our decryption works as well
-    let signature = std::fs::read_to_string(&files[1]).expect("Something wrong with signature");
-
-    // we load the function from our updater directly to make sure
-    // it's compatible as we use a light version on the client side
-    let signature_valid = verify_signature(
-      &files[0],
-      signature,
-      &settings
-        .updater_pubkey()
-        .expect("Something wrong with pubkey"),
-    );
-
-    assert_ok!(signature_valid);
   }
+  let dest_file = tar_builder.into_inner()?;
+  Ok(dest_file)
 }

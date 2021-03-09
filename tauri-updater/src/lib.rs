@@ -279,7 +279,8 @@ impl<'a> UpdateBuilder<'a> {
       remote_release.ok_or_else(|| crate::Error::Network("No remote release available".into()))?;
 
     // did the announced version is greated than our current one?
-    let should_update = version::is_greater(&current_version, &final_release.version).unwrap_or(false);
+    let should_update =
+      version::is_greater(&current_version, &final_release.version).unwrap_or(false);
 
     // create our new updater
     Ok(Update {
@@ -702,8 +703,11 @@ pub fn verify_signature(
 #[cfg(test)]
 mod test {
   use super::*;
+  #[cfg(target_os = "macos")]
   use std::env::current_exe;
+  #[cfg(target_os = "macos")]
   use std::path::Path;
+  #[cfg(target_os = "macos")]
   use totems::assert_ok;
 
   #[test]

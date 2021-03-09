@@ -94,7 +94,8 @@ pub fn get_bundler_settings(config: &Config, debug: bool) -> crate::Result<Bundl
   };
   let workspace_dir = get_workspace_dir(&tauri_dir);
   let target_dir = get_target_dir(&workspace_dir, None, !debug)?;
-  let bundle_settings = tauri_config_to_bundle_settings(config.tauri.bundle.clone(), config.tauri.updater.clone())?;
+  let bundle_settings =
+    tauri_config_to_bundle_settings(config.tauri.bundle.clone(), config.tauri.updater.clone())?;
   let mut binaries: Vec<BundleBinary> = vec![];
   if let Some(bin) = cargo_settings.bin {
     let default_run = package

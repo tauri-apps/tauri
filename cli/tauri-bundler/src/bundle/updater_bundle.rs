@@ -11,15 +11,15 @@ use super::appimage_bundle;
 #[cfg(target_os = "windows")]
 use super::msi_bundle;
 #[cfg(target_os = "windows")]
-use zip::write::FileOptions;
-#[cfg(target_os = "windows")]
 use std::fs::File;
 #[cfg(target_os = "windows")]
 use std::io::prelude::*;
+#[cfg(target_os = "windows")]
+use zip::write::FileOptions;
 
+use crate::Settings;
 use std::fs::{self};
 use std::io::Write;
-use crate::Settings;
 
 use crate::sign::{read_key_from_file, sign_file};
 use anyhow::Context;

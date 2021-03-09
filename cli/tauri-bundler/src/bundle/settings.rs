@@ -27,7 +27,7 @@ pub enum PackageType {
   /// The macOS DMG bundle (.dmg).
   Dmg,
   /// The Updater bundle.
-  Updater
+  Updater,
 }
 
 impl PackageType {
@@ -194,7 +194,6 @@ pub struct BundleSettings {
   // Updater configuration
   pub updater: Option<UpdaterSettings>,
 }
-
 
 #[derive(Clone, Debug)]
 pub struct BundleBinary {

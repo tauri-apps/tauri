@@ -1,19 +1,17 @@
-use crate::{ApplicationExt, WebviewManager, api::config::UpdaterConfig, api::dialog::ask, api::dialog::AskResponse};
-use std::{
-  process::exit,
-  thread::{sleep},
-  time::Duration,
+use crate::{
+  api::config::UpdaterConfig, api::dialog::ask, api::dialog::AskResponse, ApplicationExt,
+  WebviewManager,
 };
+use std::{process::exit, thread::sleep, time::Duration};
 
 const APP_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
 const APP_NAME: Option<&'static str> = option_env!("CARGO_PKG_NAME");
 
 // updater entrypoint
 pub(crate) async fn spawn_update_process<A: ApplicationExt + 'static>(
-    updater_config: UpdaterConfig,
-    webview_manager: &WebviewManager<A>,
-  ) -> crate::Result<()> {
-
+  updater_config: UpdaterConfig,
+  webview_manager: &WebviewManager<A>,
+) -> crate::Result<()> {
   // do nothing if our updater is not active or we can't find endpoints
   if !updater_config.active || updater_config.endpoints.is_none() {
     return Ok(());
@@ -35,9 +33,9 @@ pub(crate) async fn spawn_update_process<A: ApplicationExt + 'static>(
   // simple updater
   if updater_config.dialog {
     let updater = tauri_updater::builder()
-    .urls(&endpoints[..])
-    .current_version(APP_VERSION.unwrap_or("0.0.0"))
-    .build()?;
+      .urls(&endpoints[..])
+      .current_version(APP_VERSION.unwrap_or("0.0.0"))
+      .build()?;
 
     // we have a new update
     if updater.should_update {
@@ -74,12 +72,12 @@ pub(crate) async fn spawn_update_process<A: ApplicationExt + 'static>(
           match should_exit {
             AskResponse::Yes => {
               exit(1);
-            },
+            }
             AskResponse::No => {
               // Do nothing -- maybe we can emit some event here
             }
           }
-        },
+        }
         AskResponse::No => {
           // Do nothing -- maybe we can emit some event here
         }
@@ -104,12 +102,15 @@ pub(crate) async fn spawn_update_process<A: ApplicationExt + 'static>(
     let body = updater.body.clone().unwrap_or_else(|| "".into());
 
     // tell the world about our new update
-    webview_manager.emit(
-      "update-available",
-      Some(format!(
-      r#"{{"version":"{:}", "date":"{:}", "body":"{:}"}}"#,
-      updater.version, updater.date, body,
-    ))).await?;
+    webview_manager
+      .emit(
+        "update-available",
+        Some(format!(
+          r#"{{"version":"{:}", "date":"{:}", "body":"{:}"}}"#,
+          updater.version, updater.date, body,
+        )),
+      )
+      .await?;
 
     let current_webview = webview_manager.current_webview().await?;
     let current_webview_clone = current_webview.clone();
@@ -118,23 +119,23 @@ pub(crate) async fn spawn_update_process<A: ApplicationExt + 'static>(
     current_webview.listen(String::from("updater-install"), move |_msg| {
       // set status to downloading
       // TODO handle error
-      #[allow(unused_must_use)] {
+      #[allow(unused_must_use)]
+      {
         current_webview_clone.emit("update-install-status", Some(r#"{{"status":"PENDING"}}"#));
       }
-  
+
       // init download
       // @todo:(lemarier) maybe emit download progress
       // but its a bit more complexe
       updater.download_and_install(pubkey.clone()).unwrap_or(());
 
       // TODO handle error
-      #[allow(unused_must_use)] {
+      #[allow(unused_must_use)]
+      {
         current_webview_clone.emit("update-install-status", Some(r#"{{"status":"DONE"}}"#));
       }
-      
     })
   }
-
 
   Ok(())
 }

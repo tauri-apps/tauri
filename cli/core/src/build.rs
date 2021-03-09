@@ -128,13 +128,13 @@ impl Build {
             }
           }
         }
-        
+
         settings_builder = settings_builder.package_types(types);
       }
 
       // Bundle the project
       let settings = settings_builder.build()?;
-      
+
       bundle_project(settings)?;
     }
 

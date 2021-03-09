@@ -98,11 +98,11 @@ fn sign_command(matches: &ArgMatches) -> Result<()> {
   // generate keypair
   if matches.is_present("generate") {
     let mut keygen_runner = sign::KeyGenerator::new();
-    
+
     if no_password {
       keygen_runner = keygen_runner.empty_password();
     }
-    
+
     if force {
       keygen_runner = keygen_runner.force();
     }
@@ -115,7 +115,7 @@ fn sign_command(matches: &ArgMatches) -> Result<()> {
       keygen_runner = keygen_runner.password(password);
     }
 
-    return keygen_runner.generate_keys()
+    return keygen_runner.generate_keys();
   }
 
   // sign our binary / archive

@@ -38,7 +38,7 @@ jobs:
         working-directory: ./cli/tauri.js
         run: yarn build
       - name: build sample artifacts (updater)
-        working-directory: ./tauri/examples/api/src-tauri
+        working-directory: ./tauri/examples/api
         run: |
           yarn install
           node ../../../cli/tauri.js/bin/tauri build

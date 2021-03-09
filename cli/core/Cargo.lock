@@ -73,12 +73,6 @@ checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
 name = "base64"
-version = "0.12.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3441f0f7b02788e948e47f457ca01f1d7e6d92c693bc132c22b087d3141c03ff"
-
-[[package]]
-name = "base64"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
@@ -893,9 +887,9 @@ dependencies = [
 
 [[package]]
 name = "minisign"
-version = "0.5.23"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80db40007b46085d83469f71912d95526791038200e1c00afc6a5494d7dc8a4f"
+checksum = "59eb3626cabfaad94cca37c4b4f424705fd2567c16b4e000d61039405b384dda"
 dependencies = [
  "getrandom 0.2.2",
  "rpassword",
@@ -1121,9 +1115,9 @@ checksum = "afb2e1c3ee07430c2cf76151675e583e0f19985fa6efae47d6848a3e2c824f85"
 
 [[package]]
 name = "pbkdf2"
-version = "0.6.0"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3b8c0d71734018084da0c0354193a5edfb81b20d2d57a92c5b154aefc554a4a"
+checksum = "309c95c5f738c85920eb7062a2de29f3840d4f96974453fc9ac1ba078da9c627"
 dependencies = [
  "crypto-mac",
 ]
@@ -1547,9 +1541,9 @@ checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
 name = "scrypt"
-version = "0.5.0"
+version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8da492dab03f925d977776a0b7233d7b934d6dc2b94faead48928e2e9bacedb9"
+checksum = "b14b541af4bb9dfd8bb3ca9b487e430103303421953402bc5b44d9c06e620829"
 dependencies = [
  "hmac",
  "pbkdf2",
@@ -1738,7 +1732,7 @@ dependencies = [
  "anyhow",
  "ar",
  "attohttpc",
- "base64 0.12.3",
+ "base64",
  "chrono",
  "dirs-next",
  "glob",
@@ -2006,7 +2000,7 @@ version = "3.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d81a70f930f9e6cd04669d38abcf232f96b193acceb0f4c006427ddec6e08b10"
 dependencies = [
- "base64 0.13.0",
+ "base64",
  "chrono",
  "json-pointer",
  "jsonway",

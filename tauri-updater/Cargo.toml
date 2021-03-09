@@ -11,23 +11,23 @@ exclude = ["test/fixture/**"]
 
 [dependencies]
 serde_json = "1.0"
-tempfile = "3.1"
-reqwest = { version = "0.10", features = ["blocking", "json"] }
+tempfile = "3"
+reqwest = { version = "0.11", features = ["blocking", "json"] }
 serde = "1.0"
 tauri-api = { version = "0.7.2", path = "../tauri-api" }
 tauri-utils = { version = "0.5", path = "../tauri-utils" }
-semver = "0.9"
+semver = "0.11"
 minisign-verify = "0.1.8"
-base64 = "0.12.1"
+base64 = "0.13.0"
 boxfnonce = "0.1"
 
 # error handling
 anyhow = "1.0"
-thiserror = "1.0"
+thiserror = "1.0.24"
 
 [dev-dependencies]
-quickcheck = "0.9.2"
-quickcheck_macros = "0.9.1"
+quickcheck = "1.0.3"
+quickcheck_macros = "1.0.0"
 totems = "0.2.7"
 
 [features]

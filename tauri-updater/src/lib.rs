@@ -16,10 +16,13 @@ use std::{
   str::from_utf8,
   time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use tauri_api::{file::Extract, file::Move, version};
+use tauri_api::{file::Extract, version};
 
 #[cfg(not(target_os = "macos"))]
 use std::process::Command;
+
+#[cfg(target_os = "macos")]
+use tauri_api::file::Move;
 
 #[derive(Debug)]
 pub struct RemoteRelease {

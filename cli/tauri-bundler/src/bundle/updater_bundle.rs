@@ -133,7 +133,7 @@ fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // build our app actually we support only appimage on linux
   let appimage_bundle = appimage_bundle::bundle_project(settings)?;
   // we expect our .app to be on osx_bundled[0]
-  if appimage_bundle.len() < 1 {
+  if appimage_bundle.is_empty() {
     return Err(crate::Error::UpdateBundler);
   }
 
@@ -147,7 +147,7 @@ fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   create_tar(&source_path, &appimage_archived_path)
     .with_context(|| "Failed to tar.gz update directory")?;
 
-  common::print_bundling(format!("{:?}", &appimage_archived_path.clone()).as_str())?;
+  common::print_bundling(format!("{:?}", &appimage_archived_path).as_str())?;
   Ok(vec![appimage_archived_path])
 }
 
@@ -173,7 +173,7 @@ fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // Create our gzip file
   create_zip(&source_path, &msi_archived_path).with_context(|| "Failed to zip update MSI")?;
 
-  common::print_bundling(format!("{:?}", &msi_archived_path.clone()).as_str())?;
+  common::print_bundling(format!("{:?}", &msi_archived_path).as_str())?;
   Ok(vec![msi_archived_path])
 }
 

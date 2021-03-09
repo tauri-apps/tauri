@@ -707,7 +707,7 @@ mod test {
   fn simple_http_updater() {
     let check_update = builder()
       .current_version("0.0.0")
-      .url("https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}".into())
+      .url("https://tauri-update-server.vercel.app/update/darwin/{{current_version}}".into())
       .build();
 
     assert_eq!(check_update.is_ok(), true);
@@ -765,7 +765,7 @@ mod test {
   #[test]
   fn simple_http_updater_without_version() {
     let check_update = builder()
-      .url("https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}".into())
+      .url("https://tauri-update-server.vercel.app/update/darwin/{{current_version}}".into())
       .build();
 
     assert_eq!(check_update.is_ok(), true);
@@ -778,7 +778,7 @@ mod test {
   fn http_updater_uptodate() {
     let check_update = builder()
       .current_version("10.0.0")
-      .url("https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}".into())
+      .url("https://tauri-update-server.vercel.app/update/darwin/{{current_version}}".into())
       .build();
 
     assert_eq!(check_update.is_ok(), true);
@@ -791,7 +791,7 @@ mod test {
   fn http_updater_fallback_urls() {
     let check_update = builder()
       .url("http://badurl.www.tld/1".into())
-      .url("https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}".into())
+      .url("https://tauri-update-server.vercel.app/update/darwin/{{current_version}}".into())
       .current_version("0.0.1")
       .build();
 
@@ -806,7 +806,7 @@ mod test {
     let check_update = builder()
       .urls(&[
         "http://badurl.www.tld/1".into(),
-        "https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}".into(),
+        "https://tauri-update-server.vercel.app/update/darwin/{{current_version}}".into(),
       ])
       .current_version("0.0.1")
       .build();
@@ -853,7 +853,7 @@ mod test {
 
     // configure the updater
     let check_update = builder()
-      .url("https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}".into())
+      .url("https://tauri-update-server.vercel.app/update/darwin/{{current_version}}".into())
       // It should represent the executable path, that's why we add my_app.exe in our
       // test path -- in production you shouldn't have to provide it
       .executable_path(&tmp_dir_path.join("my_app.exe"))

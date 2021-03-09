@@ -332,7 +332,7 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
     #[cfg(feature = "updater")]
     {
       let updater_config = application.context.config.tauri.updater.clone();
-      crate::async_runtime::spawn_task(async move {
+      crate::async_runtime::spawn(async move {
         updater::spawn_update_process(updater_config, &update_webview_manager).await
       });
     }

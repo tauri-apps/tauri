@@ -67,7 +67,7 @@ subcommands:
                     requires: binary
                 - write-keys:
                     short: w
-                    long: write-private-key
+                    long: write-keys
                     about: Write private key to a file
                     takes_value: true
                     requires: generate

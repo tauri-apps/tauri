@@ -1,19 +1,91 @@
-use tauri_bundler::sign::{generate_key, save_keypair};
+use tauri_bundler::sign::{generate_key, save_keypair, read_key_from_file, sign_file};
 use std::path::{Path, PathBuf};
 
-pub struct KeyGenerator {
+pub struct Signer {
    private_key: Option<String>,
    password: Option<String>,
+   binary: Option<PathBuf>,
+}
+
+impl Default for Signer {
+   fn default() -> Self {
+     Self {
+      private_key: None,
+      password: None,
+      binary: None,
+     }
+   }
+}
+
+impl Signer {
+   pub fn new() -> Self {
+      Default::default()
+    }
+
+    pub fn private_key(mut self, private_key: &str) -> Self {
+      self.private_key = Some(private_key.to_owned());
+      self
+    }
+
+    pub fn password(mut self, password: &str) -> Self {
+      self.password = Some(password.to_owned());
+      self
+    }
+
+    pub fn empty_password(mut self) -> Self {
+      self.password = Some("".to_owned());
+      self
+    }
+
+    pub fn binary(mut self, binary: &str) -> Self {
+      self.binary = Some(Path::new(binary).to_path_buf());
+      self
+    }
+
+    pub fn private_key_path(mut self, private_key: &str) -> Self {
+      self.private_key = Some(read_key_from_file(Path::new(private_key)).expect("Unable to extract private key"));
+      self
+    }
+
+    pub fn run(self) -> crate::Result<()> {
+      if self.private_key.is_none() {
+         return Err(anyhow::anyhow!(
+           "Key generation aborted: Unable to find the private key".to_string(),
+         ));
+       }
+
+       if self.password.is_none() {
+         return Err(anyhow::anyhow!(
+            "Please use --no-password to set empty password or add --password <password> if your private key have a password.".to_string(),
+          ));
+       }
+
+       let (manifest_dir, signature) = sign_file(
+         self.private_key.unwrap(),
+         self.password.unwrap(),
+         self.binary.unwrap(),
+         false,
+       )?;
+ 
+       println!(
+         "\nYour file was signed successfully, You can find the signature here:\n{}\n\nPublic signature:\n{}\n\nMake sure to include this into the signature field of your update server.",
+         manifest_dir.display(),
+         signature
+       );
+
+       Ok(())
+    }
+}
+
+pub struct KeyGenerator {
+   password: Option<String>,
    output_path: Option<PathBuf>,
-   empty_password: bool,
    force: bool
 }
 
 impl Default for KeyGenerator {
    fn default() -> Self {
      Self {
-      private_key: None,
-      empty_password: false,
       password: None,
       output_path: None,
       force: false
@@ -25,14 +97,9 @@ impl KeyGenerator {
    pub fn new() -> Self {
       Default::default()
     }
- 
-    pub fn private_key(mut self, private_key: &str) -> Self {
-      self.private_key = Some(private_key.to_owned());
-      self
-    }
 
     pub fn empty_password(mut self) -> Self {
-      self.empty_password = true;
+      self.password = Some("".to_owned());
       self
     }
 
@@ -52,15 +119,7 @@ impl KeyGenerator {
     }
     
     pub fn generate_keys(self) -> crate::Result<()> {
-      let mut secret_key_password: Option<String> = None;
-
-      // If no password flag provided, we use empty string
-      // If we send None to minisign they'll prompt for the password
-      if self.empty_password {
-        secret_key_password = Some("".to_string());
-      }
-
-      let keypair = generate_key(secret_key_password).expect("Failed to generate key");
+      let keypair = generate_key(self.password).expect("Failed to generate key");
 
       if let Some(output_path) = self.output_path {
 
@@ -91,6 +150,4 @@ impl KeyGenerator {
    
       Ok(())
    }
-
-
 }

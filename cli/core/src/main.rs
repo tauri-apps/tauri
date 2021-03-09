@@ -87,45 +87,61 @@ fn info_command() -> Result<()> {
 }
 
 fn sign_command(matches: &ArgMatches) -> Result<()> {
-  let private_key = matches.value_of("private_key");
-  let private_key_path = matches.value_of("private_key_path");
-
-  let generate_keys = matches.is_present("generate");
+  let private_key = matches.value_of("private-key");
+  let private_key_path = matches.value_of("private-key-path");
+  let binary = matches.value_of("binary");
   let password = matches.value_of("password");
-  let no_password = matches.is_present("no_password");
-  let write_keys = matches.value_of("write_keys");
+  let no_password = matches.is_present("no-password");
+  let write_keys = matches.value_of("write-keys");
   let force = matches.is_present("force");
 
-  println!("TEST {}", generate_keys);
-
-  if generate_keys {
-    let mut keygen = sign::KeyGenerator::new();
+  // generate keypair
+  if matches.is_present("generate") {
+    let mut keygen_runner = sign::KeyGenerator::new();
     
     if no_password {
-      keygen = keygen.empty_password();
+      keygen_runner = keygen_runner.empty_password();
     }
     
     if force {
-      keygen = keygen.force();
+      keygen_runner = keygen_runner.force();
     }
 
     if let Some(write_keys) = write_keys {
-      keygen = keygen.output_path(write_keys);
+      keygen_runner = keygen_runner.output_path(write_keys);
     }
 
     if let Some(password) = password {
-      keygen = keygen.password(password);
+      keygen_runner = keygen_runner.password(password);
     }
 
-    return keygen.generate_keys()
-    
+    return keygen_runner.generate_keys()
   }
 
-  Ok(())
+  // sign our binary / archive
+  let mut sign_runner = sign::Signer::new();
+  if let Some(private_key) = private_key {
+    sign_runner = sign_runner.private_key(private_key);
+  }
 
-  //sign_runner.run()
+  if let Some(private_key_path) = private_key_path {
+    sign_runner = sign_runner.private_key_path(private_key_path);
+  }
+
+  if let Some(binary) = binary {
+    sign_runner = sign_runner.binary(binary);
+  }
+
+  if let Some(password) = password {
+    sign_runner = sign_runner.password(password);
+  }
+
+  if no_password {
+    sign_runner = sign_runner.empty_password();
+  }
+
+  sign_runner.run()
 }
-
 
 fn main() -> Result<()> {
   let yaml = load_yaml!("cli.yml");

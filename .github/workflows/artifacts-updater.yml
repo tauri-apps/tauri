@@ -30,7 +30,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0
-      - run: cargo install --path ./cli/tauri-bundler --force
+      - run: cargo install --path ./cli/core --force
       - name: install cli deps via yarn
         working-directory: ./cli/tauri.js
         run: yarn

@@ -14,6 +14,7 @@ mod webview_manager;
 
 pub use crate::api::config::WindowUrl;
 use crate::flavors::Wry;
+use crate::updater;
 pub use webview::{
   wry::WryApplication, ApplicationDispatcherExt, ApplicationExt, CustomProtocol, Icon, Message,
   RpcRequest, WebviewBuilderExt, WebviewRpcHandler,
@@ -332,7 +333,7 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
     {
       let updater_config = application.context.config.tauri.updater.clone();
       crate::async_runtime::spawn_task(async move {
-        crate::updater::spawn_update_process(updater_config, &update_webview_manager).await
+        updater::spawn_update_process(updater_config, &update_webview_manager).await
       });
     }
   }

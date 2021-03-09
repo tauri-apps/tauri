@@ -41,7 +41,7 @@ pub(crate) async fn spawn_update_process<A: ApplicationExt + 'static>(
 
     // we have a new update
     if updater.should_update {
-      let body = updater.body.clone().unwrap_or("".into());
+      let body = updater.body.clone().unwrap_or_else(|| "".into());
 
       let app_name = APP_NAME.unwrap_or("Unknown");
 
@@ -64,7 +64,7 @@ pub(crate) async fn spawn_update_process<A: ApplicationExt + 'static>(
       );
       match should_install {
         AskResponse::Yes => {
-          &updater.download_and_install(pubkey.clone())?;
+          updater.download_and_install(pubkey.clone())?;
 
           // Ask user if we need to close the app
           let should_exit = ask(
@@ -101,7 +101,7 @@ pub(crate) async fn spawn_update_process<A: ApplicationExt + 'static>(
 
   if updater.should_update {
     // unwrap our body or return an empty string
-    let body = updater.body.clone().unwrap_or("".into());
+    let body = updater.body.clone().unwrap_or_else(|| "".into());
 
     // tell the world about our new update
     webview_manager.emit(
@@ -119,17 +119,17 @@ pub(crate) async fn spawn_update_process<A: ApplicationExt + 'static>(
       // set status to downloading
       // TODO handle error
       #[allow(unused_must_use)] {
-        current_webview_clone.emit("update-install-status", Some(format!(r#"{{"status":"PENDING"}}"#)));
+        current_webview_clone.emit("update-install-status", Some(r#"{{"status":"PENDING"}}"#));
       }
   
       // init download
       // @todo:(lemarier) maybe emit download progress
       // but its a bit more complexe
-      &updater.download_and_install(pubkey.clone()).unwrap_or(());
+      updater.download_and_install(pubkey.clone()).unwrap_or(());
 
       // TODO handle error
       #[allow(unused_must_use)] {
-        current_webview_clone.emit("update-install-status", Some(format!(r#"{{"status":"DONE"}}"#)));
+        current_webview_clone.emit("update-install-status", Some(r#"{{"status":"DONE"}}"#));
       }
       
     })

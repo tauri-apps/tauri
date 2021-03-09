@@ -33,7 +33,7 @@ pub struct RemoteRelease {
 
 impl RemoteRelease {
   // Read JSON and confirm this is a valid Schema
-  fn from_release(release: &serde_json::Value, target: &String) -> Result<RemoteRelease> {
+  fn from_release(release: &serde_json::Value, target: &str) -> Result<RemoteRelease> {
     // did we have a platforms field ?
     // if we did, that mean it's a static JSON
     let is_dynamic_update = release["platforms"].is_null();
@@ -276,10 +276,7 @@ impl<'a> UpdateBuilder<'a> {
       remote_release.ok_or_else(|| crate::Error::Network("No remote release available".into()))?;
 
     // did the announced version is greated than our current one?
-    let should_update = match version::is_greater(&current_version, &final_release.version) {
-      Ok(v) => v,
-      Err(_) => false,
-    };
+    let should_update = version::is_greater(&current_version, &final_release.version).unwrap_or(false);
 
     // create our new updater
     Ok(Update {
@@ -351,7 +348,7 @@ impl Update {
       .ok()
       .and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
       .and_then(|s| s.into_string().ok())
-      .unwrap_or(current_time.clone());
+      .unwrap_or_else(|| current_time.clone());
 
     // tmp dir for extraction
     let tmp_dir = tempfile::Builder::new()

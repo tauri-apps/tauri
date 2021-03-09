@@ -1,3 +1,4 @@
+  
 //! Tauri is a framework for building tiny, blazing fast binaries for all major desktop platforms.
 //! Developers can integrate any front-end framework that compiles to HTML, JS and CSS for building their user interface.
 //! The backend of the application is a rust-sourced binary with an API that the front-end can interact with.
@@ -8,10 +9,6 @@
 
 /// The Tauri-specific settings for your app e.g. notification permission status.
 pub mod settings;
-
-/// The CLI args interface.
-#[cfg(cli)]
-pub mod cli;
 
 /// Updater
 #[cfg(feature = "updater")]

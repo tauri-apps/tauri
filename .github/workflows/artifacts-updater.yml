@@ -38,14 +38,14 @@ jobs:
         working-directory: ./cli/tauri.js
         run: yarn build
       - name: build sample artifacts (updater)
-        working-directory: ./tauri/examples/communication/src-tauri
+        working-directory: ./tauri/examples/api/src-tauri
         run: |
           yarn install
-          node ../node_modules/tauri/bin/tauri.js build
+          node ../../../cli/tauri.js/bin/tauri build
         env:
           TAURI_PRIVATE_KEY: dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5dGlHbTEvRFhRRis2STdlTzF3eWhOVk9LNjdGRENJMnFSREE3R2V3b3Rwb0FBQkFBQUFBQUFBQUFBQUlBQUFBQWFNZEJTNXFuVjk0bmdJMENRRXVYNG5QVzBDd1NMOWN4Q2RKRXZxRDZNakw3Y241Vkt3aTg2WGtoajJGS1owV0ZuSmo4ZXJ0ZCtyaWF0RWJObFpnd1EveDB4NzBTU2RweG9ZaUpuc3hnQ3BYVG9HNnBXUW5SZ2Q3b3dvZ3Y2UnhQZ1BQZDU3bXl6d3M9Cg==
-          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/src-tauri
-          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/communication/dist
+          TAURI_DIR: ${{ runner.workspace }}/tauri/tauri/examples/api/src-tauri
+          TAURI_DIST_DIR: ${{ runner.workspace }}/tauri/tauri/examples/api/dist
 
       - uses: actions/upload-artifact@v2
         if: matrix.platform == 'ubuntu-latest'

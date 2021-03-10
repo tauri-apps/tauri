@@ -144,6 +144,15 @@ impl<A: ApplicationExt + 'static> App<A> {
     }
   }
 
+  #[cfg(feature = "updater")]
+  /// Runs the updater hook.
+  pub(crate) async fn run_update(&self, dispatcher: WebviewManager<A>) {    
+    let updater_config = self.context.config.tauri.updater.clone();
+    crate::async_runtime::spawn_task(async move {
+      updater::spawn_update_process(updater_config, &dispatcher).await
+    });
+  }  
+
   /// Runs the on page load hook if defined.
   pub(crate) async fn run_on_page_load(
     &self,
@@ -208,9 +217,6 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
     dispatcher: A::Dispatcher,
     manager: WebviewManager<A>,
   ) {
-    #[cfg(feature = "updater")]
-    let webview_manager_updater = manager.clone();
-
     self.dispatchers.lock().await.insert(
       webview_label.to_string(),
       WebviewDispatcher::new(dispatcher.clone(), webview_label),
@@ -219,19 +225,6 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
     crate::async_runtime::spawn_task(async move {
       crate::plugin::created(A::plugin_store(), &manager).await
     });
-
-    // Init the updater if required
-    // We should probably limit this to 1 instance maximum and use the first
-    // the user will receive the notification on all webview but may run into different
-    // process -- The best would be to create a WebviewController who owns all the manager
-    // so we can pass a ref to the owner then simply call an emit and it'll take care to call all childs.
-    #[cfg(feature = "updater")]
-    {
-      let updater_config = self.context.config.tauri.updater.clone();
-      crate::async_runtime::spawn_task(async move {
-        updater::spawn_update_process(updater_config, &webview_manager_updater).await
-      });
-    }
   }
 }
 
@@ -391,7 +384,12 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
   }
 
   if let Some(main_webview_manager) = main_webview_manager {
+    #[cfg(feature = "updater")]
+    let update_webview_manager = main_webview_manager.clone();
+    // Run setup
     crate::async_runtime::block_on(application.run_setup(main_webview_manager));
+    #[cfg(feature = "updater")]
+    crate::async_runtime::block_on(application.run_update(update_webview_manager));
   }
 
   webview_app.run();

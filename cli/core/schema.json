@@ -80,8 +80,7 @@
           }
         },
         "updater": {
-          "active": false,
-          "dialog": false
+          "active": false
         },
         "windows": []
       },
@@ -923,8 +922,7 @@
     "UpdaterConfig": {
       "type": "object",
       "required": [
-        "active",
-        "dialog"
+        "active"
       ],
       "properties": {
         "active": {
@@ -933,7 +931,10 @@
         },
         "dialog": {
           "description": "Display built-in dialog or use event system if disabled.",
-          "type": "boolean"
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "endpoints": {
           "description": "The updater endpoints.",

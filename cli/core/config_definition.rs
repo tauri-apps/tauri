@@ -510,7 +510,7 @@ pub struct UpdaterConfig {
   /// Optional pubkey.
   pub pubkey: Option<String>,
   /// Display built-in dialog or use event system if disabled.
-  pub dialog: bool,
+  pub dialog: Option<bool>,
 }
 
 /// The Build configuration object.
@@ -572,7 +572,7 @@ fn default_build() -> BuildConfig {
 fn default_updater() -> UpdaterConfig {
   UpdaterConfig {
     active: false,
-    dialog: true,
+    dialog: Some(true),
     endpoints: None,
     pubkey: None,
   }

@@ -1,5 +1,5 @@
 <script>
-  import { manager as windowManager } from "@tauri-apps/api/window";
+  import { appWindow } from "@tauri-apps/api/window";
   import { open as openDialog } from '@tauri-apps/api/dialog'
   import { open } from "@tauri-apps/api/shell";
 
@@ -24,7 +24,7 @@
     // setPosition,
     setFullscreen,
     setIcon
-  } = windowManager
+  } = appWindow
 
   let urlValue = "https://tauri.studio";
   let resizable = true

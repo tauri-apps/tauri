@@ -80,7 +80,6 @@ subcommands:
                 - no-password:
                     long: no-password
                     about: Set empty password for your private key
-                    requires: generate
                     conflicts_with: password
                 - force:
                     long: force

@@ -6,12 +6,12 @@ pub use error::{Error, Result};
 use base64::decode;
 use minisign_verify::{PublicKey, Signature};
 use reqwest::{self, header, StatusCode};
+use std::io::prelude::*;
 use std::{
-  cmp::min,
   env,
   ffi::OsStr,
   fs::{read_dir, remove_file, File, OpenOptions},
-  io::{self, BufReader, Read},
+  io::{BufReader, Read},
   path::{Path, PathBuf},
   str::from_utf8,
   time::{Duration, SystemTime, UNIX_EPOCH},
@@ -170,7 +170,7 @@ impl<'a> UpdateBuilder<'a> {
     self
   }
 
-  pub fn build(self) -> Result<Update> {
+  pub async fn build(self) -> Result<Update> {
     let mut remote_release: Option<RemoteRelease> = None;
 
     // make sure we have at least one url
@@ -222,12 +222,12 @@ impl<'a> UpdateBuilder<'a> {
       let mut headers = header::HeaderMap::new();
       headers.insert(header::ACCEPT, "application/json".parse().unwrap());
 
-      let resp = reqwest::blocking::Client::new()
+      let resp = reqwest::Client::new()
         .get(&fixed_link)
         .headers(headers)
         // wait 20sec for the firewall
         .timeout(Duration::from_secs(20))
-        .send();
+        .send().await;
 
       // If we got a success, we stop the loop
       // and we set our remote_release variable
@@ -246,7 +246,7 @@ impl<'a> UpdateBuilder<'a> {
             )
           };
 
-          let json = resp?.json::<serde_json::Value>()?;
+          let json = resp?.json::<serde_json::Value>().await?;
           // Convert the remote result to our local struct
           let built_release = RemoteRelease::from_release(&json, &target);
           // make sure all went well and the remote data is compatible
@@ -301,6 +301,7 @@ pub fn builder<'a>() -> UpdateBuilder<'a> {
   UpdateBuilder::new()
 }
 
+#[derive(Clone)]
 pub struct Update {
   pub body: Option<String>,
   pub should_update: bool,
@@ -316,7 +317,7 @@ pub struct Update {
 impl Update {
   // Download and install our update
   // @todo(lemarier): Split into download and install (two step) but need to be thread safe
-  pub fn download_and_install(&self, pub_key: Option<String>) -> Result {
+  pub async fn download_and_install(&self, pub_key: Option<String>) -> Result {
     // get OS
     let target = self.target.clone();
     // download url for selected release
@@ -362,11 +363,7 @@ impl Update {
     // tmp directories are used to create backup of current application
     // if something goes wrong, we can restore to previous state
     let tmp_archive_path = tmp_dir.path().join(detect_archive_in_url(&url, &target));
-    let tmp_archive = File::create(&tmp_archive_path)?;
-
-    // prepare our download
-    use io::BufRead;
-    use std::io::Write;
+    let mut tmp_archive = File::create(&tmp_archive_path)?;
 
     // set our headers
     let mut headers = header::HeaderMap::new();
@@ -384,24 +381,13 @@ impl Update {
     set_ssl_vars!();
 
     // Create our request
-    let resp = reqwest::blocking::Client::new()
+    let resp = reqwest::Client::new()
       .get(&url)
       // wait 20sec for the firewall
       .timeout(Duration::from_secs(20))
       .headers(headers)
-      .send()?;
-
-    // Calculate size (percentage done)
-    let size = resp
-      .headers()
-      .get(reqwest::header::CONTENT_LENGTH)
-      .map(|val| {
-        val
-          .to_str()
-          .map(|s| s.parse::<u64>().unwrap_or(0))
-          .unwrap_or(0)
-      })
-      .unwrap_or(0);
+      .send()
+      .await?;
 
     // make sure it's success
     if !resp.status().is_success() {
@@ -412,31 +398,7 @@ impl Update {
       )
     }
 
-    // Init the buffer
-    let mut src = io::BufReader::new(resp);
-    let mut downloaded = 0;
-    let mut dest = &tmp_archive;
-
-    // Download file
-    loop {
-      let n = {
-        let buf = src.fill_buf()?;
-        dest
-          .write_all(&buf)
-          .expect("Can't write buffer to destination path");
-        buf.len()
-      };
-      if n == 0 {
-        break;
-      }
-      src.consume(n);
-      // calc the progress
-      downloaded = min(downloaded + n as u64, size);
-
-      // TODO: FIX LOOP TO SEND PERCENTAGE
-      //let percent = (downloaded * 100) / size;
-      //println!("{}", percent);
-    }
+    tmp_archive.write_all(&resp.bytes().await?)?;
 
     // Validate signature ONLY if pubkey is available in tauri.conf.json
     if let Some(pub_key) = pub_key {
@@ -448,6 +410,7 @@ impl Update {
           "Signature not available but pubkey provided, skipping update"
         )
       }
+
 
       // we make sure the archive is valid and signed with the private key linked with the publickey
       verify_signature(
@@ -709,13 +672,72 @@ mod test {
   use std::path::Path;
   #[cfg(target_os = "macos")]
   use totems::assert_ok;
+  #[cfg(target_os = "macos")]
+  use std::fs::File;
+
+  macro_rules! aw {
+    ($e:expr) => {
+        tokio_test::block_on($e)
+    };
+  }
+
+  fn generate_sample_raw_json() -> String {
+    r#"{
+      "version": "v2.0.0",
+      "notes": "Test version !",
+      "pub_date": "2020-06-22T19:25:57Z",
+      "platforms": {
+        "darwin": {
+          "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUldUTE5QWWxkQnlZOVJZVGdpKzJmRWZ0SkRvWS9TdFpqTU9xcm1mUmJSSG5OWVlwSklrWkN1SFpWbmh4SDlBcTU3SXpjbm0xMmRjRkphbkpVeGhGcTdrdzlrWGpGVWZQSWdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNTkyOTE1MDU3CWZpbGU6L1VzZXJzL3J1bm5lci9ydW5uZXJzLzIuMjYzLjAvd29yay90YXVyaS90YXVyaS90YXVyaS9leGFtcGxlcy9jb21tdW5pY2F0aW9uL3NyYy10YXVyaS90YXJnZXQvZGVidWcvYnVuZGxlL29zeC9hcHAuYXBwLnRhci5negp4ZHFlUkJTVnpGUXdDdEhydTE5TGgvRlVPeVhjTnM5RHdmaGx3c0ZPWjZXWnFwVDRNWEFSbUJTZ1ZkU1IwckJGdmlwSzJPd00zZEZFN2hJOFUvL1FDZz09Cg==",
+          "url": "https://github.com/lemarier/tauri-test/releases/download/v1.0.0/app.app.tar.gz"
+        },
+        "linux": {
+          "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUldUTE5QWWxkQnlZOWZSM29hTFNmUEdXMHRoOC81WDFFVVFRaXdWOUdXUUdwT0NlMldqdXkyaWVieXpoUmdZeXBJaXRqSm1YVmczNXdRL1Brc0tHb1NOTzhrL1hadFcxdmdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNTkyOTE3MzQzCWZpbGU6L2hvbWUvcnVubmVyL3dvcmsvdGF1cmkvdGF1cmkvdGF1cmkvZXhhbXBsZXMvY29tbXVuaWNhdGlvbi9zcmMtdGF1cmkvdGFyZ2V0L2RlYnVnL2J1bmRsZS9hcHBpbWFnZS9hcHAuQXBwSW1hZ2UudGFyLmd6CmRUTUM2bWxnbEtTbUhOZGtERUtaZnpUMG5qbVo5TGhtZWE1SFNWMk5OOENaVEZHcnAvVW0zc1A2ajJEbWZUbU0yalRHT0FYYjJNVTVHOHdTQlYwQkF3PT0K",
+          "url": "https://github.com/lemarier/tauri-test/releases/download/v1.0.0/app.AppImage.tar.gz"
+        },
+        "win64": {
+          "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUldUTE5QWWxkQnlZOVJHMWlvTzRUSlQzTHJOMm5waWpic0p0VVI2R0hUNGxhQVMxdzBPRndlbGpXQXJJakpTN0toRURtVzBkcm15R0VaNTJuS1lZRWdzMzZsWlNKUVAzZGdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNTkyOTE1NTIzCWZpbGU6RDpcYVx0YXVyaVx0YXVyaVx0YXVyaVxleGFtcGxlc1xjb21tdW5pY2F0aW9uXHNyYy10YXVyaVx0YXJnZXRcZGVidWdcYXBwLng2NC5tc2kuemlwCitXa1lQc3A2MCs1KzEwZnVhOGxyZ2dGMlZqbjBaVUplWEltYUdyZ255eUF6eVF1dldWZzFObStaVEQ3QU1RS1lzcjhDVU4wWFovQ1p1QjJXbW1YZUJ3PT0K",
+          "url": "https://github.com/lemarier/tauri-test/releases/download/v1.0.0/app.x64.msi.zip"
+        }
+      }
+    }"#.into()
+  }
+
+  fn generate_sample_platform_json(version: &str, public_signature: &str, download_url: &str) -> String {
+    format!(
+      r#"
+        {{
+          "name": "v{}",
+          "notes": "This is the latest version! Once updated you shouldn't see this prompt.",
+          "pub_date": "2020-06-25T14:14:19Z",
+          "signature": "{}",
+          "url": "{}"
+        }}
+      "#, version, public_signature, download_url)
+  }
+
+  fn generate_sample_bad_json() -> String {
+    r#"{
+      "version": "v0.0.3",
+      "notes": "Blablaa",
+      "date": "2020-02-20T15:41:00Z",
+      "download_link": "https://github.com/lemarier/tauri-test/releases/download/v0.0.1/update3.tar.gz"
+    }"#.into()
+  }
 
   #[test]
   fn simple_http_updater() {
-    let check_update = builder()
+
+    let _m = mockito::mock("GET", "/")
+      .with_status(200)
+      .with_header("content-type", "application/json")
+      .with_body(generate_sample_raw_json())
+      .create();
+
+    let check_update = aw!(builder()
       .current_version("0.0.0")
-      .url("https://tauri-update-server.vercel.app/update/darwin/{{current_version}}".into())
-      .build();
+      .url(mockito::server_url())
+      .build());
 
     assert_eq!(check_update.is_ok(), true);
     let updater = check_update.expect("Can't check update");
@@ -725,10 +747,17 @@ mod test {
 
   #[test]
   fn simple_http_updater_raw_json() {
-    let check_update = builder()
+
+    let _m = mockito::mock("GET", "/")
+      .with_status(200)
+      .with_header("content-type", "application/json")
+      .with_body(generate_sample_raw_json())
+      .create();
+
+    let check_update = aw!(builder()
       .current_version("0.0.0")
-      .url("https://gist.github.com/lemarier/6bc28d06b94958d83eaa2790eef03f32/raw".into())
-      .build();
+      .url(mockito::server_url())
+      .build());
 
     assert_eq!(check_update.is_ok(), true);
     let updater = check_update.expect("Can't check update");
@@ -738,11 +767,18 @@ mod test {
 
   #[test]
   fn simple_http_updater_raw_json_win64() {
-    let check_update = builder()
+    
+    let _m = mockito::mock("GET", "/")
+      .with_status(200)
+      .with_header("content-type", "application/json")
+      .with_body(generate_sample_raw_json())
+      .create();
+
+    let check_update = aw!(builder()
       .current_version("0.0.0")
       .target("win64")
-      .url("https://gist.github.com/lemarier/6bc28d06b94958d83eaa2790eef03f32/raw".into())
-      .build();
+      .url(mockito::server_url())
+      .build());
 
     assert_eq!(check_update.is_ok(), true);
     let updater = check_update.expect("Can't check update");
@@ -758,10 +794,17 @@ mod test {
 
   #[test]
   fn simple_http_updater_raw_json_uptodate() {
-    let check_update = builder()
+    
+    let _m = mockito::mock("GET", "/")
+      .with_status(200)
+      .with_header("content-type", "application/json")
+      .with_body(generate_sample_raw_json())
+      .create();
+
+    let check_update = aw!(builder()
       .current_version("10.0.0")
-      .url("https://gist.github.com/lemarier/6bc28d06b94958d83eaa2790eef03f32/raw".into())
-      .build();
+      .url(mockito::server_url())
+      .build());
 
     assert_eq!(check_update.is_ok(), true);
     let updater = check_update.expect("Can't check update");
@@ -771,9 +814,17 @@ mod test {
 
   #[test]
   fn simple_http_updater_without_version() {
-    let check_update = builder()
-      .url("https://tauri-update-server.vercel.app/update/darwin/{{current_version}}".into())
-      .build();
+
+    let _m = mockito::mock("GET", "/darwin/1.0.0")
+      .with_status(200)
+      .with_header("content-type", "application/json")
+      .with_body(generate_sample_platform_json("2.0.0", "SampleTauriKey", "https://tauri.studio"))
+      .create();
+
+    let check_update = aw!(builder()
+      .current_version("1.0.0")
+      .url(format!("{}/darwin/{{{{current_version}}}}", mockito::server_url()))
+      .build());
 
     assert_eq!(check_update.is_ok(), true);
     let updater = check_update.expect("Can't check update");
@@ -783,10 +834,17 @@ mod test {
 
   #[test]
   fn http_updater_uptodate() {
-    let check_update = builder()
+
+    let _m = mockito::mock("GET", "/darwin/10.0.0")
+      .with_status(200)
+      .with_header("content-type", "application/json")
+      .with_body(generate_sample_platform_json("2.0.0", "SampleTauriKey", "https://tauri.studio"))
+      .create();
+
+    let check_update = aw!(builder()
       .current_version("10.0.0")
-      .url("https://tauri-update-server.vercel.app/update/darwin/{{current_version}}".into())
-      .build();
+      .url(format!("{}/darwin/{{{{current_version}}}}", mockito::server_url()))
+      .build());
 
     assert_eq!(check_update.is_ok(), true);
     let updater = check_update.expect("Can't check update");
@@ -796,11 +854,18 @@ mod test {
 
   #[test]
   fn http_updater_fallback_urls() {
-    let check_update = builder()
+
+    let _m = mockito::mock("GET", "/")
+      .with_status(200)
+      .with_header("content-type", "application/json")
+      .with_body(generate_sample_raw_json())
+      .create();
+
+    let check_update = aw!(builder()
       .url("http://badurl.www.tld/1".into())
-      .url("https://tauri-update-server.vercel.app/update/darwin/{{current_version}}".into())
+      .url(mockito::server_url())
       .current_version("0.0.1")
-      .build();
+      .build());
 
     assert_eq!(check_update.is_ok(), true);
     let updater = check_update.expect("Can't check remote update");
@@ -810,13 +875,19 @@ mod test {
 
   #[test]
   fn http_updater_fallback_urls_withs_array() {
-    let check_update = builder()
+    let _m = mockito::mock("GET", "/")
+      .with_status(200)
+      .with_header("content-type", "application/json")
+      .with_body(generate_sample_raw_json())
+      .create();
+
+    let check_update = aw!(builder()
       .urls(&[
         "http://badurl.www.tld/1".into(),
-        "https://tauri-update-server.vercel.app/update/darwin/{{current_version}}".into(),
+        mockito::server_url(),
       ])
       .current_version("0.0.1")
-      .build();
+      .build());
 
     assert_eq!(check_update.is_ok(), true);
     let updater = check_update.expect("Can't check remote update");
@@ -826,10 +897,17 @@ mod test {
 
   #[test]
   fn http_updater_missing_remote_data() {
-    let check_update = builder()
-    .url("https://gist.githubusercontent.com/lemarier/106011e4a5610ef5671af15ce2f78862/raw/d4dd4fa30b9112836e0a201fd3a867446e7bac98/test.json".into())
+
+    let _m = mockito::mock("GET", "/")
+    .with_status(200)
+    .with_header("content-type", "application/json")
+    .with_body(generate_sample_bad_json())
+    .create();
+
+    let check_update = aw!(builder()
+    .url(mockito::server_url())
     .current_version("0.0.1")
-    .build();
+    .build());
 
     assert_eq!(check_update.is_err(), true);
   }
@@ -839,8 +917,30 @@ mod test {
   #[cfg(target_os = "macos")]
   #[test]
   fn http_updater_complete_process() {
-    // Test pubkey generated with tauri-bundler
-    let pubkey_test = Some("dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY1OTgxQzc0MjVGNjM0Q0IKUldUTE5QWWxkQnlZOWFBK21kekU4OGgzdStleEtkeStHaFR5NjEyRHovRnlUdzAwWGJxWEU2aGYK".into());
+
+    let good_archive_url = format!("{}/archive.tar.gz", mockito::server_url());
+
+    let mut signature_file = File::open("./test/fixture/archives/archive.tar.gz.sig").expect("Unable to open signature");
+    let mut signature = String::new();
+    signature_file.read_to_string(&mut signature).expect("Unable to read signature as string");
+
+    let mut pubkey_file = File::open("./test/fixture/good_signature/update.key.pub").expect("Unable to open pubkey");
+    let mut pubkey = String::new();
+    pubkey_file.read_to_string(&mut pubkey).expect("Unable to read signature as string");
+
+    // add sample file
+    let _m = mockito::mock("GET", "/archive.tar.gz")
+      .with_status(200)
+      .with_header("content-type", "application/octet-stream")
+      .with_body_from_file("./test/fixture/archives/archive.tar.gz")
+      .create();
+
+    // sample mock for update file
+    let _m = mockito::mock("GET", "/")
+      .with_status(200)
+      .with_header("content-type", "application/json")
+      .with_body(generate_sample_platform_json("2.0.1", signature.as_ref(), good_archive_url.as_ref()))
+      .create();
 
     // Build a tmpdir so we can test our extraction inside
     // We dont want to overwrite our current executable or the directory
@@ -859,14 +959,14 @@ mod test {
     let tmp_dir_path = tmp_dir_unwrap.path();
 
     // configure the updater
-    let check_update = builder()
-      .url("https://tauri-update-server.vercel.app/update/darwin/{{current_version}}".into())
+    let check_update = aw!(builder()
+      .url(mockito::server_url())
       // It should represent the executable path, that's why we add my_app.exe in our
       // test path -- in production you shouldn't have to provide it
       .executable_path(&tmp_dir_path.join("my_app.exe"))
       // make sure we force an update
-      .current_version("0.0.1")
-      .build();
+      .current_version("1.0.0")
+      .build());
 
     // make sure the process worked
     assert_eq!(check_update.is_ok(), true);
@@ -877,10 +977,10 @@ mod test {
     // make sure we need to update
     assert_eq!(updater.should_update, true);
     // make sure we can read announced version
-    assert_eq!(updater.version, "2.0.0");
+    assert_eq!(updater.version, "2.0.1");
 
     // download, install and validate signature
-    let install_process = updater.download_and_install(pubkey_test);
+    let install_process = aw!(updater.download_and_install(Some(pubkey)));
     assert_ok!(&install_process);
 
     // make sure the extraction went well (it should have skipped the main app.app folder)

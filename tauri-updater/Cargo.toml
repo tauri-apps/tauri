@@ -29,6 +29,8 @@ thiserror = "1.0.24"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 totems = "0.2.7"
+tokio-test = "*"
+mockito = "0.29"
 
 [features]
 default = ["reqwest/default-tls"]

@@ -179,6 +179,9 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
     dispatcher: A::Dispatcher,
     manager: WebviewManager<A>,
   ) {
+    #[cfg(feature = "updater")]
+    let webview_manager_updater = manager.clone();
+
     self.dispatchers.lock().await.insert(
       webview_label.to_string(),
       WebviewDispatcher::new(dispatcher.clone(), webview_label),
@@ -187,6 +190,19 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
     crate::async_runtime::spawn_task(async move {
       crate::plugin::created(A::plugin_store(), &manager).await
     });
+
+    // Init the updater if required
+    // We should probably limit this to 1 instance maximum and use the first
+    // the user will receive the notification on all webview but may run into different
+    // process -- The best would be to create a WebviewController who owns all the manager
+    // so we can pass a ref to the owner then simply call an emit and it'll take care to call all childs.
+    #[cfg(feature = "updater")]
+    {
+      let updater_config = self.context.config.tauri.updater.clone();
+      crate::async_runtime::spawn_task(async move {
+        updater::spawn_update_process(updater_config, &webview_manager_updater).await
+      });
+    }
   }
 }
 
@@ -312,7 +328,6 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
       application.dispatchers.clone(),
       webview_label.to_string(),
     );
-    let update_webview_manager = webview_manager.clone();
 
     let (webview_builder, rpc_handler, custom_protocol) =
       crate::async_runtime::block_on(application.init_webview(webview))?;
@@ -323,19 +338,6 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
       dispatcher,
       webview_manager,
     ));
-
-    // Init the updater if required
-    // We should probably limit this to 1 instance maximum and use the first
-    // the user will receive the notification on all webview but may run into different
-    // process -- The best would be to create a WebviewController who owns all the manager
-    // so we can pass a ref to the owner then simply call an emit and it'll take care to call all childs.
-    #[cfg(feature = "updater")]
-    {
-      let updater_config = application.context.config.tauri.updater.clone();
-      crate::async_runtime::spawn(async move {
-        updater::spawn_update_process(updater_config, &update_webview_manager).await
-      });
-    }
   }
 
   webview_app.run();

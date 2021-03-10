@@ -74,7 +74,7 @@ pub(crate) async fn spawn_update_process<A: ApplicationExt + 'static>(
         sleep(fivesec);
 
         // tell the world about our new update
-        webview_manager
+        let _res = webview_manager
           .emit(
             "update-available",
             Some(format!(
@@ -101,12 +101,12 @@ pub(crate) async fn spawn_update_process<A: ApplicationExt + 'static>(
 }
 
 async fn listen_events<A: ApplicationExt + 'static>(
-  updater: tauri_updater::Update,
+  _updater: tauri_updater::Update,
   updater_config: &UpdaterConfig,
   webview_manager: &WebviewManager<A>,
 ) -> crate::Result<()> {
   let current_webview_isolation = webview_manager.current_webview().await?;
-  let pubkey = updater_config.pubkey.clone();
+  let _pubkey = updater_config.pubkey.clone();
 
   // we listen to our event to trigger the download
   webview_manager.listen(String::from("updater-install"), move |_msg| {
@@ -114,10 +114,12 @@ async fn listen_events<A: ApplicationExt + 'static>(
     // TODO handle error
     emit_status_change(&current_webview_isolation, "PENDING");
 
+    // todo: we need to be able to run async function inside the listener callback
+
     // init download
     // @todo:(lemarier) maybe emit download progress
     // but its a bit more complexe
-    updater.download_and_install(pubkey.clone());
+    //updater.download_and_install(pubkey.clone());
 
     emit_status_change(&current_webview_isolation, "DONE");
   });
@@ -185,16 +187,9 @@ fn emit_status_change<A: ApplicationDispatcherExt + 'static>(
   webview_dispatcher: &WebviewDispatcher<A>,
   status: &str,
 ) {
-  super::event::emit(
+  let _res = super::event::emit(
     webview_dispatcher,
     "update-install-status",
     Some(format!(r#"{{"status":"{:}"}}"#, status)),
   );
-}
-
-async fn download_and_install<A: ApplicationDispatcherExt + 'static>(
-  updater: tauri_updater::Update,
-  pubkey: Option<String>,
-) {
-  updater.download_and_install(pubkey.clone()).await;
 }

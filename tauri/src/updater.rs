@@ -1,6 +1,6 @@
 use crate::{
-  api::config::UpdaterConfig, api::dialog::ask, api::dialog::AskResponse, ApplicationExt,
-  WebviewManager, WebviewDispatcher, ApplicationDispatcherExt,
+  api::config::UpdaterConfig, api::dialog::ask, api::dialog::AskResponse, ApplicationDispatcherExt,
+  ApplicationExt, WebviewDispatcher, WebviewManager,
 };
 use std::{process::exit, thread::sleep, time::Duration};
 
@@ -33,68 +33,71 @@ pub(crate) async fn spawn_update_process<A: ApplicationExt + 'static>(
 
   // check updates
   match tauri_updater::builder()
-      .urls(&endpoints[..])
-      .current_version(APP_VERSION.unwrap_or("0.0.0"))
-      .build()
-      .await
-    {
-      Ok(updater) => {
-        // listen to our events
-        println!("[LISTEN EVENTS]");
-        let events = listen_events(updater.clone(), &updater_config, &webview_manager_isolation).await;
-        if events.is_err() {
-          println!("[EVENTS ERROR] {:?}", events.err());
+    .urls(&endpoints[..])
+    .current_version(APP_VERSION.unwrap_or("0.0.0"))
+    .build()
+    .await
+  {
+    Ok(updater) => {
+      // listen to our events
+      println!("[LISTEN EVENTS]");
+      let events =
+        listen_events(updater.clone(), &updater_config, &webview_manager_isolation).await;
+      if events.is_err() {
+        println!("[EVENTS ERROR] {:?}", events.err());
+        return;
+      }
+      let mut body = "".into();
+      let app_name = APP_NAME.unwrap_or("Unknown");
+      let pubkey = updater_config.pubkey.clone();
+
+      println!("[SHOULD UPDATE] {:?}", updater.should_update);
+
+      // prepare our data if needed
+      if updater.should_update {
+        body = updater.body.clone().unwrap_or_else(|| "".into());
+      }
+
+      // if dialog enabled
+      if updater.should_update && updater_config.dialog {
+        println!("[DIALOG]");
+        let dialog = dialog_update(updater.clone(), app_name, body.clone(), pubkey).await;
+        if dialog.is_err() {
+          println!("[EVENTS ERROR] {:?}", dialog.err());
           return;
         }
-        let mut body = "".into();
-        let app_name = APP_NAME.unwrap_or("Unknown");
-        let pubkey = updater_config.pubkey.clone();
+      }
 
-        println!("[SHOULD UPDATE] {:?}", updater.should_update);
+      if updater.should_update {
+        // todo(lemarier): wait the `update-available` event to be registred before checking our update
+        let fivesec = Duration::from_millis(5000);
+        sleep(fivesec);
 
-        // prepare our data if needed
-        if updater.should_update {
-          body = updater.body.clone().unwrap_or_else(|| "".into());
-        }
-
-        // if dialog enabled
-        if updater.should_update && updater_config.dialog {
-          println!("[DIALOG]");
-          let dialog  = dialog_update(updater.clone(), app_name, body.clone(), pubkey).await;
-          if dialog.is_err() {
-            println!("[EVENTS ERROR] {:?}", dialog.err());
-            return;
-          }
-        }
-
-        if updater.should_update {
-          // todo(lemarier): wait the `update-available` event to be registred before checking our update
-          let fivesec = Duration::from_millis(5000);
-          sleep(fivesec);
-          
-          // tell the world about our new update
-          webview_manager
+        // tell the world about our new update
+        webview_manager
           .emit(
             "update-available",
             Some(format!(
               r#"{{"version":"{:}", "date":"{:}", "body":"{:}"}}"#,
-              updater.version.clone(), updater.date.clone(), body.clone(),
+              updater.version.clone(),
+              updater.date.clone(),
+              body.clone(),
             )),
           )
           .await;
-        }
       }
-      Err(e) => match e {
-        tauri_updater::Error::Updater(err) => {
-          // todo emit
-          println!("[UPDATER ERROR] {:?}", err);
-        }
-        _ => {
-          // todo emit
-          println!("[UPDATER ERROR] {:?}", e);
-        },
-      },
     }
+    Err(e) => match e {
+      tauri_updater::Error::Updater(err) => {
+        // todo emit
+        println!("[UPDATER ERROR] {:?}", err);
+      }
+      _ => {
+        // todo emit
+        println!("[UPDATER ERROR] {:?}", e);
+      }
+    },
+  }
 }
 
 async fn listen_events<A: ApplicationExt + 'static>(
@@ -102,7 +105,6 @@ async fn listen_events<A: ApplicationExt + 'static>(
   updater_config: &UpdaterConfig,
   webview_manager: &WebviewManager<A>,
 ) -> crate::Result<()> {
-
   let current_webview_isolation = webview_manager.current_webview().await?;
   let pubkey = updater_config.pubkey.clone();
 
@@ -129,19 +131,16 @@ async fn dialog_update(
   body: String,
   pubkey: Option<String>,
 ) -> crate::Result<()> {
-
   println!("[ASK QUESTION]");
 
   let should_install = ask(
-    &format!(r#"{:} {:} is now available -- you have {:}.
+    &format!(
+      r#"{:} {:} is now available -- you have {:}.
 Would you like to install it now?
 
 Release Notes:
 {:}"#,
-      app_name,
-      updater.version,
-      updater.current_version,
-      body
+      app_name, updater.version, updater.current_version, body
     ),
     // todo(lemarier): Replace with app name from cargo maybe?
     &format!(r#"A new version of {:} is available! "#, app_name),
@@ -187,9 +186,9 @@ fn emit_status_change<A: ApplicationDispatcherExt + 'static>(
   status: &str,
 ) {
   super::event::emit(
-    webview_dispatcher, 
-    "update-install-status", 
-    Some(format!(r#"{{"status":"{:}"}}"#, status))
+    webview_dispatcher,
+    "update-install-status",
+    Some(format!(r#"{{"status":"{:}"}}"#, status)),
   );
 }
 
@@ -199,4 +198,3 @@ async fn download_and_install<A: ApplicationDispatcherExt + 'static>(
 ) {
   updater.download_and_install(pubkey.clone()).await;
 }
-

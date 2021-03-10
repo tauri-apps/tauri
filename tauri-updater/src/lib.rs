@@ -227,7 +227,8 @@ impl<'a> UpdateBuilder<'a> {
         .headers(headers)
         // wait 20sec for the firewall
         .timeout(Duration::from_secs(20))
-        .send().await;
+        .send()
+        .await;
 
       // If we got a success, we stop the loop
       // and we set our remote_release variable
@@ -410,7 +411,6 @@ impl Update {
           "Signature not available but pubkey provided, skipping update"
         )
       }
-
 
       // we make sure the archive is valid and signed with the private key linked with the publickey
       verify_signature(
@@ -669,15 +669,15 @@ mod test {
   #[cfg(target_os = "macos")]
   use std::env::current_exe;
   #[cfg(target_os = "macos")]
+  use std::fs::File;
+  #[cfg(target_os = "macos")]
   use std::path::Path;
   #[cfg(target_os = "macos")]
   use totems::assert_ok;
-  #[cfg(target_os = "macos")]
-  use std::fs::File;
 
   macro_rules! aw {
     ($e:expr) => {
-        tokio_test::block_on($e)
+      tokio_test::block_on($e)
     };
   }
 
@@ -703,7 +703,11 @@ mod test {
     }"#.into()
   }
 
-  fn generate_sample_platform_json(version: &str, public_signature: &str, download_url: &str) -> String {
+  fn generate_sample_platform_json(
+    version: &str,
+    public_signature: &str,
+    download_url: &str,
+  ) -> String {
     format!(
       r#"
         {{
@@ -713,7 +717,9 @@ mod test {
           "signature": "{}",
           "url": "{}"
         }}
-      "#, version, public_signature, download_url)
+      "#,
+      version, public_signature, download_url
+    )
   }
 
   fn generate_sample_bad_json() -> String {
@@ -727,7 +733,6 @@ mod test {
 
   #[test]
   fn simple_http_updater() {
-
     let _m = mockito::mock("GET", "/")
       .with_status(200)
       .with_header("content-type", "application/json")
@@ -747,7 +752,6 @@ mod test {
 
   #[test]
   fn simple_http_updater_raw_json() {
-
     let _m = mockito::mock("GET", "/")
       .with_status(200)
       .with_header("content-type", "application/json")
@@ -767,7 +771,6 @@ mod test {
 
   #[test]
   fn simple_http_updater_raw_json_win64() {
-    
     let _m = mockito::mock("GET", "/")
       .with_status(200)
       .with_header("content-type", "application/json")
@@ -794,7 +797,6 @@ mod test {
 
   #[test]
   fn simple_http_updater_raw_json_uptodate() {
-    
     let _m = mockito::mock("GET", "/")
       .with_status(200)
       .with_header("content-type", "application/json")
@@ -814,16 +816,22 @@ mod test {
 
   #[test]
   fn simple_http_updater_without_version() {
-
     let _m = mockito::mock("GET", "/darwin/1.0.0")
       .with_status(200)
       .with_header("content-type", "application/json")
-      .with_body(generate_sample_platform_json("2.0.0", "SampleTauriKey", "https://tauri.studio"))
+      .with_body(generate_sample_platform_json(
+        "2.0.0",
+        "SampleTauriKey",
+        "https://tauri.studio",
+      ))
       .create();
 
     let check_update = aw!(builder()
       .current_version("1.0.0")
-      .url(format!("{}/darwin/{{{{current_version}}}}", mockito::server_url()))
+      .url(format!(
+        "{}/darwin/{{{{current_version}}}}",
+        mockito::server_url()
+      ))
       .build());
 
     assert_eq!(check_update.is_ok(), true);
@@ -834,16 +842,22 @@ mod test {
 
   #[test]
   fn http_updater_uptodate() {
-
     let _m = mockito::mock("GET", "/darwin/10.0.0")
       .with_status(200)
       .with_header("content-type", "application/json")
-      .with_body(generate_sample_platform_json("2.0.0", "SampleTauriKey", "https://tauri.studio"))
+      .with_body(generate_sample_platform_json(
+        "2.0.0",
+        "SampleTauriKey",
+        "https://tauri.studio",
+      ))
       .create();
 
     let check_update = aw!(builder()
       .current_version("10.0.0")
-      .url(format!("{}/darwin/{{{{current_version}}}}", mockito::server_url()))
+      .url(format!(
+        "{}/darwin/{{{{current_version}}}}",
+        mockito::server_url()
+      ))
       .build());
 
     assert_eq!(check_update.is_ok(), true);
@@ -854,7 +868,6 @@ mod test {
 
   #[test]
   fn http_updater_fallback_urls() {
-
     let _m = mockito::mock("GET", "/")
       .with_status(200)
       .with_header("content-type", "application/json")
@@ -882,10 +895,7 @@ mod test {
       .create();
 
     let check_update = aw!(builder()
-      .urls(&[
-        "http://badurl.www.tld/1".into(),
-        mockito::server_url(),
-      ])
+      .urls(&["http://badurl.www.tld/1".into(), mockito::server_url(),])
       .current_version("0.0.1")
       .build());
 
@@ -897,17 +907,16 @@ mod test {
 
   #[test]
   fn http_updater_missing_remote_data() {
-
     let _m = mockito::mock("GET", "/")
-    .with_status(200)
-    .with_header("content-type", "application/json")
-    .with_body(generate_sample_bad_json())
-    .create();
+      .with_status(200)
+      .with_header("content-type", "application/json")
+      .with_body(generate_sample_bad_json())
+      .create();
 
     let check_update = aw!(builder()
-    .url(mockito::server_url())
-    .current_version("0.0.1")
-    .build());
+      .url(mockito::server_url())
+      .current_version("0.0.1")
+      .build());
 
     assert_eq!(check_update.is_err(), true);
   }
@@ -917,16 +926,21 @@ mod test {
   #[cfg(target_os = "macos")]
   #[test]
   fn http_updater_complete_process() {
-
     let good_archive_url = format!("{}/archive.tar.gz", mockito::server_url());
 
-    let mut signature_file = File::open("./test/fixture/archives/archive.tar.gz.sig").expect("Unable to open signature");
+    let mut signature_file =
+      File::open("./test/fixture/archives/archive.tar.gz.sig").expect("Unable to open signature");
     let mut signature = String::new();
-    signature_file.read_to_string(&mut signature).expect("Unable to read signature as string");
+    signature_file
+      .read_to_string(&mut signature)
+      .expect("Unable to read signature as string");
 
-    let mut pubkey_file = File::open("./test/fixture/good_signature/update.key.pub").expect("Unable to open pubkey");
+    let mut pubkey_file =
+      File::open("./test/fixture/good_signature/update.key.pub").expect("Unable to open pubkey");
     let mut pubkey = String::new();
-    pubkey_file.read_to_string(&mut pubkey).expect("Unable to read signature as string");
+    pubkey_file
+      .read_to_string(&mut pubkey)
+      .expect("Unable to read signature as string");
 
     // add sample file
     let _m = mockito::mock("GET", "/archive.tar.gz")
@@ -939,7 +953,11 @@ mod test {
     let _m = mockito::mock("GET", "/")
       .with_status(200)
       .with_header("content-type", "application/json")
-      .with_body(generate_sample_platform_json("2.0.1", signature.as_ref(), good_archive_url.as_ref()))
+      .with_body(generate_sample_platform_json(
+        "2.0.1",
+        signature.as_ref(),
+        good_archive_url.as_ref(),
+      ))
       .create();
 
     // Build a tmpdir so we can test our extraction inside

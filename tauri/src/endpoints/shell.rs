@@ -6,9 +6,14 @@ use serde::Deserialize;
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// The execute script API.
-  Execute { command: String, args: Vec<String> },
-  /// Open path with specified or default system app
-  Open { path: String, with: Option<String> },
+  Execute {
+    command: String,
+    args: Vec<String>,
+  },
+  Open {
+    path: String,
+    with: Option<String>,
+  },
 }
 
 impl Cmd {
@@ -30,54 +35,14 @@ impl Cmd {
       }
       Self::Open { path, with } => {
         #[cfg(shell_open)]
-        {
-          open(path, with)
+        match crate::api::shell::open(path, with) {
+          Ok(_) => Ok(().into()),
+          Err(err) => Err(crate::Error::FailedToExecuteApi(err)),
         }
+
         #[cfg(not(shell_open))]
         Err(crate::Error::ApiNotAllowlisted("shell > open".to_string()))
       }
-    }
-  }
-}
-
-#[cfg(shell_open)]
-pub fn open(path: String, with: Option<String>) -> crate::Result<InvokeResponse> {
-  #[cfg(test)]
-  {
-    assert!(path.contains("http://"));
-    Ok(().into())
-  }
-
-  #[cfg(not(test))]
-  {
-    let exit_status = if let Some(with) = with {
-      open::with(&path, &with)
-    } else {
-      open::that(&path)
-    };
-    match exit_status {
-      Ok(status) => {
-        if !status.success() {
-          // TODO: handle this
-        }
-        Ok(().into())
-      }
-      Err(_) => Err(crate::Error::ApiNotAllowlisted(
-        "TODO: MAKE THIS BETTER".into(),
-      )),
-    }
-  }
-}
-
-#[cfg(test)]
-mod test {
-  use proptest::prelude::*;
-  // Test the open func to see if proper uris can be opened by the browser.
-  proptest! {
-    #[cfg(shell_open)]
-    #[test]
-    fn check_open(uri in r"(http://)([\\w\\d\\.]+([\\w]{2,6})?)") {
-      super::open(uri, None).unwrap();
     }
   }
 }

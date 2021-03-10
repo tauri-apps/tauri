@@ -26,6 +26,7 @@
     setIcon
   } = windowManager
 
+  export let onMessage;
   let pathValue = "https://tauri.studio";
   let openWith = "";
   let resizable = true
@@ -45,7 +46,7 @@
   let windowTitle = 'Awesome Tauri Example!';
 
   function openUrl() {
-    open(pathValue, !!openWith ? openWith : undefined);
+    open(pathValue, !!openWith ? openWith : undefined).catch(onMessage);
   }
 
   function setTitle_() {

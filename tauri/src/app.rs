@@ -148,12 +148,12 @@ impl<A: ApplicationExt + 'static> App<A> {
 
   #[cfg(feature = "updater")]
   /// Runs the updater hook.
-  pub(crate) async fn run_update(&self, dispatcher: WebviewManager<A>) {    
+  pub(crate) async fn run_updater(&self, dispatcher: WebviewManager<A>) {    
     let updater_config = self.context.config.tauri.updater.clone();
     crate::async_runtime::spawn_task(async move {
       updater::spawn_update_process(updater_config, &dispatcher).await
     });
-  }  
+  }
 
   /// Runs the on page load hook if defined.
   pub(crate) async fn run_on_page_load(
@@ -388,12 +388,14 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
   if let Some(main_webview_manager) = main_webview_manager {
     #[cfg(feature = "updater")]
     let update_webview_manager = main_webview_manager.clone();
-    // Run setup
+    // Run setup if defined
     crate::async_runtime::block_on(application.run_setup(main_webview_manager));
+    // Run updater if required
     #[cfg(feature = "updater")]
-    crate::async_runtime::block_on(application.run_update(update_webview_manager));
+    crate::async_runtime::block_on(application.run_updater(update_webview_manager));
   }
 
+  // Lock the thread
   webview_app.run();
 
   Ok(())

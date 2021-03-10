@@ -144,7 +144,9 @@ Would you like to install it now?
 
 Release Notes:
 {}"#,
-      app_name, updater.version, updater.current_version, "this is a test with ''"
+      // todo(lemarier): we should validate the body and make sure it 
+      // doesnt contain character like single or double quote (",')
+      app_name, updater.version, updater.current_version, body
     )
   );
 
@@ -183,7 +185,7 @@ Release Notes:
 
 // non-async event emitter to be used inside the closures
 // https://github.com/rust-lang/rust/issues/62290
-fn emit_status_change<A: ApplicationDispatcherExt + 'static>(
+pub(crate) fn emit_status_change<A: ApplicationDispatcherExt + 'static>(
   webview_dispatcher: &WebviewDispatcher<A>,
   status: &str,
 ) {

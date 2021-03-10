@@ -9,7 +9,7 @@ pub fn open(path: String, with: Option<String>) -> crate::Result<()> {
     match exit_status {
       Ok(status) => {
         if status.success() {
-          Ok(().into())
+          Ok(())
         } else {
           Err(crate::Error::Shell("open command failed".into()))
         }

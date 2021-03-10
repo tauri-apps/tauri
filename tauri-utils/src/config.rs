@@ -168,9 +168,13 @@ pub struct UpdaterConfig {
   #[serde(default)]
   /// Optional pubkey.
   pub pubkey: Option<String>,
-  #[serde(default)]
+  #[serde(default = "default_updater_dialog")]
   /// Display built-in dialog or use event system if disabled.
   pub dialog: bool,
+}
+
+fn default_updater_dialog() -> bool {
+  true
 }
 
 impl Default for UpdaterConfig {

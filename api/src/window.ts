@@ -426,7 +426,7 @@ class WindowManager {
   }
 }
 
-const manager = new WindowManager()
+const appWindow = new WindowManager()
 
 export interface WindowOptions {
   url?: 'app' | string
@@ -447,4 +447,4 @@ export interface WindowOptions {
   alwaysOnTop?: boolean
 }
 
-export { WebviewWindow, getCurrent, getAll, manager }
+export { WebviewWindow, getCurrent, getAll, appWindow }

@@ -250,7 +250,7 @@ fn tauri_config_to_bundle_settings(
     exception_domain: config.osx.exception_domain,
     updater: Some(UpdaterSettings {
       active: updater_config.active,
-      dialog: updater_config.dialog,
+      dialog: updater_config.dialog.unwrap(),
       pubkey: updater_config.pubkey,
       endpoints: updater_config.endpoints,
     }),

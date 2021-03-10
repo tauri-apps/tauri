@@ -61,7 +61,7 @@ pub(crate) async fn spawn_update_process<A: ApplicationExt + 'static>(
       // if dialog enabled
       if updater.should_update && updater_config.dialog {
         println!("[DIALOG]");
-        let dialog = dialog_update(updater.clone(), app_name, body.clone(), pubkey).await;
+        let dialog = dialog_update(updater.clone(), app_name, &body.clone(), pubkey).await;
         if dialog.is_err() {
           println!("[EVENTS ERROR] {:?}", dialog.err());
           return;
@@ -130,22 +130,22 @@ async fn listen_events<A: ApplicationExt + 'static>(
 async fn dialog_update(
   updater: tauri_updater::Update,
   app_name: &str,
-  body: String,
+  body: &str,
   pubkey: Option<String>,
 ) -> crate::Result<()> {
-  println!("[ASK QUESTION]");
+  println!("[ASK QUESTION] {}", body);
 
   let should_install = ask(
-    &format!(
-      r#"{:} {:} is now available -- you have {:}.
+    format!(r#"A new version of {:} is available! "#, app_name),
+    format!(
+      r#"{} {} is now available -- you have {}.
+
 Would you like to install it now?
 
 Release Notes:
-{:}"#,
-      app_name, updater.version, updater.current_version, body
-    ),
-    // todo(lemarier): Replace with app name from cargo maybe?
-    &format!(r#"A new version of {:} is available! "#, app_name),
+{}"#,
+      app_name, updater.version, updater.current_version, "this is a test with ''"
+    )
   );
 
   println!("[QUESTION ASKED]");
@@ -156,8 +156,8 @@ Release Notes:
 
       // Ask user if we need to close the app
       let should_exit = ask(
-        "The installation was successful, do you want to restart the application now?",
         "Ready to Restart",
+        "The installation was successful, do you want to restart the application now?",
       );
       match should_exit {
         AskResponse::Yes => {

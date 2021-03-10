@@ -14,7 +14,9 @@ mod webview_manager;
 
 pub use crate::api::config::WindowUrl;
 use crate::flavors::Wry;
+#[cfg(feature = "updater")]
 use crate::updater;
+
 pub use webview::{
   wry::WryApplication, ApplicationDispatcherExt, ApplicationExt, CustomProtocol, Icon, Message,
   RpcRequest, WebviewBuilderExt, WebviewRpcHandler,

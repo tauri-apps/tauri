@@ -263,7 +263,6 @@ pub struct SettingsBuilder {
   verbose: bool,
   package_types: Option<Vec<PackageType>>,
   package_settings: Option<PackageSettings>,
-  updater_settings: Option<UpdaterSettings>,
   bundle_settings: BundleSettings,
   binaries: Vec<BundleBinary>,
 }
@@ -297,11 +296,6 @@ impl SettingsBuilder {
 
   pub fn bundle_settings(mut self, settings: BundleSettings) -> Self {
     self.bundle_settings = settings;
-    self
-  }
-
-  pub fn updater_settings(mut self, settings: UpdaterSettings) -> Self {
-    self.updater_settings = Some(settings);
     self
   }
 

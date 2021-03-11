@@ -27,17 +27,17 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub async fn run(self, context: &crate::app::Context) -> crate::Result<InvokeResponse> {
+  pub fn run(self, context: &crate::app::Context) -> crate::Result<InvokeResponse> {
     match self {
       Self::Notification { options } => {
         #[cfg(notification_all)]
-        return send(options, &context.config).await.map(Into::into);
+        return send(options, &context.config).map(Into::into);
         #[cfg(not(notification_all))]
         Err(crate::Error::ApiNotAllowlisted("notification".to_string()))
       }
       Self::IsNotificationPermissionGranted => {
         #[cfg(notification_all)]
-        return is_permission_granted().await.map(Into::into);
+        return is_permission_granted().map(Into::into);
         #[cfg(not(notification_all))]
         Err(crate::Error::ApiNotAllowlisted("notification".to_string()))
       }
@@ -52,7 +52,7 @@ impl Cmd {
 }
 
 #[cfg(notification_all)]
-pub async fn send(options: NotificationOptions, config: &Config) -> crate::Result<InvokeResponse> {
+pub fn send(options: NotificationOptions, config: &Config) -> crate::Result<InvokeResponse> {
   let identifier = config.tauri.bundle.identifier.clone();
   let mut notification = Notification::new(identifier).title(options.title);
   if let Some(body) = options.body {
@@ -66,7 +66,7 @@ pub async fn send(options: NotificationOptions, config: &Config) -> crate::Resul
 }
 
 #[cfg(notification_all)]
-pub async fn is_permission_granted() -> crate::Result<InvokeResponse> {
+pub fn is_permission_granted() -> crate::Result<InvokeResponse> {
   let settings = crate::settings::read_settings()?;
   if let Some(allow_notification) = settings.allow_notification {
     Ok(allow_notification.into())

@@ -34,27 +34,27 @@ enum Module {
 }
 
 impl Module {
-  async fn run<A: ApplicationExt + 'static>(
+  fn run<A: ApplicationExt + 'static>(
     self,
     webview_manager: &crate::WebviewManager<A>,
     context: &Context,
   ) -> crate::Result<InvokeResponse> {
     match self {
-      Self::Fs(cmd) => cmd.run().await,
-      Self::Window(cmd) => cmd.run(webview_manager).await,
-      Self::Shell(cmd) => cmd.run().await,
-      Self::Event(cmd) => cmd.run(webview_manager).await,
-      Self::Internal(cmd) => cmd.run().await,
-      Self::Dialog(cmd) => cmd.run().await,
-      Self::Cli(cmd) => cmd.run(context).await,
-      Self::Notification(cmd) => cmd.run(context).await,
-      Self::Http(cmd) => cmd.run().await,
-      Self::GlobalShortcut(cmd) => cmd.run(webview_manager).await,
+      Self::Fs(cmd) => cmd.run(),
+      Self::Window(cmd) => cmd.run(webview_manager),
+      Self::Shell(cmd) => cmd.run(),
+      Self::Event(cmd) => cmd.run(webview_manager),
+      Self::Internal(cmd) => cmd.run(),
+      Self::Dialog(cmd) => cmd.run(),
+      Self::Cli(cmd) => cmd.run(context),
+      Self::Notification(cmd) => cmd.run(context),
+      Self::Http(cmd) => crate::async_runtime::block_on(cmd.run()),
+      Self::GlobalShortcut(cmd) => cmd.run(webview_manager),
     }
   }
 }
 
-pub(crate) async fn handle<A: ApplicationExt + 'static>(
+pub(crate) fn handle<A: ApplicationExt + 'static>(
   webview_manager: &crate::WebviewManager<A>,
   module: String,
   mut arg: JsonValue,
@@ -64,5 +64,5 @@ pub(crate) async fn handle<A: ApplicationExt + 'static>(
     obj.insert("module".to_string(), JsonValue::String(module));
   }
   let module: Module = serde_json::from_value(arg)?;
-  module.run(webview_manager, context).await
+  module.run(webview_manager, context)
 }

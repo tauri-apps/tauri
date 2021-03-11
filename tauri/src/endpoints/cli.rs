@@ -11,7 +11,7 @@ pub enum Cmd {
 
 impl Cmd {
   #[allow(unused_variables)]
-  pub async fn run(self, context: &crate::app::Context) -> crate::Result<InvokeResponse> {
+  pub fn run(self, context: &crate::app::Context) -> crate::Result<InvokeResponse> {
     match self {
       #[allow(unused_variables)]
       Self::CliMatches => {

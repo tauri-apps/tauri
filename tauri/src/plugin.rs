@@ -1,11 +1,8 @@
-use crate::{
-  api::config::PluginConfig, async_runtime::Mutex, ApplicationExt, PageLoadPayload, WebviewManager,
-};
+use crate::{api::config::PluginConfig, ApplicationExt, PageLoadPayload, WebviewManager};
 
-use futures::future::join_all;
 use serde_json::Value as JsonValue;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 /// The plugin interface.
 #[async_trait::async_trait]
@@ -52,44 +49,37 @@ pub trait Plugin<A: ApplicationExt + 'static>: Send + Sync {
 pub type PluginStore<A> = Arc<Mutex<Vec<Box<dyn Plugin<A> + Sync + Send>>>>;
 
 /// Registers a plugin.
-pub async fn register<A: ApplicationExt + 'static>(
+pub fn register<A: ApplicationExt + 'static>(
   store: &PluginStore<A>,
   plugin: impl Plugin<A> + Sync + Send + 'static,
 ) {
-  let mut plugins = store.lock().await;
+  let mut plugins = store.lock().unwrap();
   plugins.push(Box::new(plugin));
 }
 
-pub(crate) async fn initialize<A: ApplicationExt + 'static>(
+pub(crate) fn initialize<A: ApplicationExt + 'static>(
   store: &PluginStore<A>,
   plugins_config: PluginConfig,
 ) -> crate::Result<()> {
-  let mut plugins = store.lock().await;
-  let mut futures = Vec::new();
+  let mut plugins = store.lock().unwrap();
   for plugin in plugins.iter_mut() {
     let plugin_config = plugins_config.get(plugin.name());
-    futures.push(plugin.initialize(plugin_config));
-  }
-
-  for res in join_all(futures).await {
-    res?;
+    crate::async_runtime::block_on(plugin.initialize(plugin_config))?;
   }
 
   Ok(())
 }
 
-pub(crate) async fn initialization_script<A: ApplicationExt + 'static>(
-  store: &PluginStore<A>,
-) -> String {
-  let mut plugins = store.lock().await;
+pub(crate) fn initialization_script<A: ApplicationExt + 'static>(store: &PluginStore<A>) -> String {
+  let mut plugins = store.lock().unwrap();
   let mut futures = Vec::new();
   for plugin in plugins.iter_mut() {
     futures.push(plugin.initialization_script());
   }
 
   let mut initialization_script = String::new();
-  for res in join_all(futures).await {
-    if let Some(plugin_initialization_script) = res {
+  for res in futures {
+    if let Some(plugin_initialization_script) = crate::async_runtime::block_on(res) {
       initialization_script.push_str(&format!(
         "(function () {{ {} }})();",
         plugin_initialization_script
@@ -99,43 +89,40 @@ pub(crate) async fn initialization_script<A: ApplicationExt + 'static>(
   initialization_script
 }
 
-pub(crate) async fn created<A: ApplicationExt + 'static>(
+pub(crate) fn created<A: ApplicationExt + 'static>(
   store: &PluginStore<A>,
   webview_manager: &crate::WebviewManager<A>,
 ) {
-  let mut plugins = store.lock().await;
-  let mut futures = Vec::new();
+  let mut plugins = store.lock().unwrap();
   for plugin in plugins.iter_mut() {
-    futures.push(plugin.created(webview_manager.clone()));
+    crate::async_runtime::block_on(plugin.created(webview_manager.clone()));
   }
-  join_all(futures).await;
 }
 
-pub(crate) async fn on_page_load<A: ApplicationExt + 'static>(
+pub(crate) fn on_page_load<A: ApplicationExt + 'static>(
   store: &PluginStore<A>,
   webview_manager: &crate::WebviewManager<A>,
   payload: PageLoadPayload,
 ) {
-  let mut plugins = store.lock().await;
-  let mut futures = Vec::new();
+  let mut plugins = store.lock().unwrap();
   for plugin in plugins.iter_mut() {
-    futures.push(plugin.on_page_load(webview_manager.clone(), payload.clone()));
+    crate::async_runtime::block_on(plugin.on_page_load(webview_manager.clone(), payload.clone()));
   }
-  join_all(futures).await;
 }
 
-pub(crate) async fn extend_api<A: ApplicationExt + 'static>(
+pub(crate) fn extend_api<A: ApplicationExt + 'static>(
   store: &PluginStore<A>,
   webview_manager: &crate::WebviewManager<A>,
   command: String,
   arg: &JsonValue,
 ) -> crate::Result<Option<JsonValue>> {
-  let mut plugins = store.lock().await;
+  let mut plugins = store.lock().unwrap();
   for ext in plugins.iter_mut() {
-    match ext
-      .extend_api(webview_manager.clone(), command.clone(), arg)
-      .await
-    {
+    match crate::async_runtime::block_on(ext.extend_api(
+      webview_manager.clone(),
+      command.clone(),
+      arg,
+    )) {
       Ok(value) => {
         return Ok(Some(value));
       }

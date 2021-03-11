@@ -229,9 +229,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
             }
           }
           Err(e) => {
-            if let Ok(dispatcher) =
-              crate::async_runtime::block_on(webview_manager.current_webview())
-            {
+            if let Ok(dispatcher) = webview_manager.current_webview() {
               let error: crate::Error = e.into();
               let _ = dispatcher.eval(&format!(
                 r#"console.error({})"#,
@@ -293,7 +291,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
 /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
 async fn execute_promise<
   A: ApplicationExt + 'static,
-  F: futures::Future<Output = crate::Result<InvokeResponse>> + Send + 'static,
+  F: std::future::Future<Output = crate::Result<InvokeResponse>> + Send + 'static,
 >(
   webview_manager: &crate::WebviewManager<A>,
   task: F,
@@ -311,7 +309,7 @@ async fn execute_promise<
     Ok(callback_string) => callback_string,
     Err(e) => format_callback(error_callback, e.to_string()),
   };
-  if let Ok(dispatcher) = webview_manager.current_webview().await {
+  if let Ok(dispatcher) = webview_manager.current_webview() {
     let _ = dispatcher.eval(callback_string.as_str());
   }
 }
@@ -324,25 +322,19 @@ async fn on_message<A: ApplicationExt + 'static>(
 ) -> crate::Result<InvokeResponse> {
   if &command == "__initialized" {
     let payload: PageLoadPayload = serde_json::from_value(message.inner)?;
-    application
-      .run_on_page_load(&webview_manager, payload.clone())
-      .await;
-    crate::plugin::on_page_load(A::plugin_store(), &webview_manager, payload).await;
+    application.run_on_page_load(&webview_manager, payload.clone());
+    crate::plugin::on_page_load(A::plugin_store(), &webview_manager, payload);
     Ok(().into())
+  } else if let Some(module) = &message.tauri_module {
+    crate::endpoints::handle(
+      &webview_manager,
+      module.to_string(),
+      message.inner,
+      &application.context,
+    )
   } else {
-    let response = if let Some(module) = &message.tauri_module {
-      crate::endpoints::handle(
-        &webview_manager,
-        module.to_string(),
-        message.inner,
-        &application.context,
-      )
-      .await
-    } else {
-      let mut response = match application
-        .run_invoke_handler(&webview_manager, command.clone(), &message.inner)
-        .await
-      {
+    let mut response =
+      match application.run_invoke_handler(&webview_manager, command.clone(), &message.inner) {
         Ok(value) => {
           if let Some(value) = value {
             Ok(value)
@@ -352,31 +344,23 @@ async fn on_message<A: ApplicationExt + 'static>(
         }
         Err(e) => Err(e),
       };
-      if let Err(crate::Error::UnknownApi(_)) = response {
-        match crate::plugin::extend_api(
-          A::plugin_store(),
-          &webview_manager,
-          command,
-          &message.inner,
-        )
-        .await
-        {
-          Ok(value) => {
-            // If value is None, that means that no plugin matched the command
-            // and the UnknownApi error should be sent to the webview
-            // Otherwise, send the result of plugin handler
-            if value.is_some() {
-              response = Ok(value.into());
-            }
-          }
-          Err(e) => {
-            // A plugin handler was found but it failed
-            response = Err(e);
+    if let Err(crate::Error::UnknownApi(_)) = response {
+      match crate::plugin::extend_api(A::plugin_store(), &webview_manager, command, &message.inner)
+      {
+        Ok(value) => {
+          // If value is None, that means that no plugin matched the command
+          // and the UnknownApi error should be sent to the webview
+          // Otherwise, send the result of plugin handler
+          if value.is_some() {
+            response = Ok(value.into());
           }
         }
+        Err(e) => {
+          // A plugin handler was found but it failed
+          response = Err(e);
+        }
       }
-      response
-    };
+    }
     response
   }
 }

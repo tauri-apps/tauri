@@ -1,6 +1,7 @@
 pub mod wry;
 
 use crate::plugin::PluginStore;
+use std::path::PathBuf;
 
 use serde_json::Value as JsonValue;
 
@@ -176,6 +177,21 @@ pub struct CustomProtocol {
   pub handler: Box<dyn Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync>,
 }
 
+/// The file drop event payload.
+#[derive(Debug, Clone)]
+pub enum FileDropEvent {
+  /// The file(s) have been dragged onto the window, but have not been dropped yet.
+  Hovered(Vec<PathBuf>),
+  /// The file(s) have been dropped onto the window.
+  Dropped(Vec<PathBuf>),
+  /// The file drop was aborted.
+  Cancelled,
+}
+
+/// File drop handler callback
+/// Return `true` in the callback to block the OS' default behavior of handling a file drop..
+pub type FileDropHandler = Box<dyn Fn(FileDropEvent) -> bool + Send>;
+
 /// Webview dispatcher. A thread-safe handle to the webview API.
 pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
   /// The webview builder type.
@@ -190,6 +206,7 @@ pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
     webview_builder: Self::WebviewBuilder,
     rpc_handler: Option<WebviewRpcHandler<Self>>,
     custom_protocol: Option<CustomProtocol>,
+    file_drop_handler: Option<FileDropHandler>,
   ) -> crate::Result<Self>;
 
   /// Updates the window resizable flag.
@@ -283,6 +300,7 @@ pub trait ApplicationExt: Sized {
     webview_builder: Self::WebviewBuilder,
     rpc_handler: Option<WebviewRpcHandler<Self::Dispatcher>>,
     custom_protocol: Option<CustomProtocol>,
+    file_drop_handler: Option<FileDropHandler>,
   ) -> crate::Result<Self::Dispatcher>;
 
   /// Run the application.

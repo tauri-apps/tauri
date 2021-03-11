@@ -15,8 +15,8 @@ mod webview_manager;
 pub use crate::api::config::WindowUrl;
 use crate::flavors::Wry;
 pub use webview::{
-  wry::WryApplication, ApplicationDispatcherExt, ApplicationExt, CustomProtocol, Icon, Message,
-  RpcRequest, WebviewBuilderExt, WebviewRpcHandler,
+  wry::WryApplication, ApplicationDispatcherExt, ApplicationExt, CustomProtocol, FileDropEvent,
+  FileDropHandler, Icon, Message, RpcRequest, WebviewBuilderExt, WebviewRpcHandler,
 };
 pub use webview_manager::{WebviewDispatcher, WebviewManager};
 
@@ -165,6 +165,7 @@ trait WebviewInitializer<A: ApplicationExt> {
     <A as ApplicationExt>::WebviewBuilder,
     Option<WebviewRpcHandler<A::Dispatcher>>,
     Option<CustomProtocol>,
+    Option<FileDropHandler>,
   )>;
 
   async fn on_webview_created(
@@ -184,13 +185,14 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
     <A as ApplicationExt>::WebviewBuilder,
     Option<WebviewRpcHandler<A::Dispatcher>>,
     Option<CustomProtocol>,
+    Option<FileDropHandler>,
   )> {
     let webview_manager = WebviewManager::new(
       self.clone(),
       self.dispatchers.clone(),
       webview.label.to_string(),
     );
-    utils::build_webview(
+    let (webview_builder, rpc_handler, custom_protocol) = utils::build_webview(
       self.clone(),
       webview,
       &webview_manager,
@@ -198,7 +200,25 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
       &self.window_labels.lock().await,
       &self.plugin_initialization_script,
       &self.context,
-    )
+    )?;
+    let file_drop_handler: Box<dyn Fn(FileDropEvent) -> bool + Send> = Box::new(move |event| {
+      let webview_manager = webview_manager.clone();
+      crate::async_runtime::block_on(async move {
+        let webview = webview_manager.current_webview().await.unwrap();
+        let _ = match event {
+          FileDropEvent::Hovered(paths) => webview.emit("tauri://file-drop-hover", Some(paths)),
+          FileDropEvent::Dropped(paths) => webview.emit("tauri://file-drop", Some(paths)),
+          FileDropEvent::Cancelled => webview.emit("tauri://file-drop-cancelled", Some(())),
+        };
+      });
+      true
+    });
+    Ok((
+      webview_builder,
+      rpc_handler,
+      custom_protocol,
+      Some(file_drop_handler),
+    ))
   }
 
   async fn on_webview_created(
@@ -362,10 +382,15 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
     if main_webview_manager.is_none() {
       main_webview_manager = Some(webview_manager.clone());
     }
-    let (webview_builder, rpc_handler, custom_protocol) =
+    let (webview_builder, rpc_handler, custom_protocol, file_drop_handler) =
       crate::async_runtime::block_on(application.init_webview(webview))?;
 
-    let dispatcher = webview_app.create_webview(webview_builder, rpc_handler, custom_protocol)?;
+    let dispatcher = webview_app.create_webview(
+      webview_builder,
+      rpc_handler,
+      custom_protocol,
+      file_drop_handler,
+    )?;
     crate::async_runtime::block_on(application.on_webview_created(
       webview_label,
       dispatcher,

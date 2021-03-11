@@ -509,9 +509,7 @@ pub struct UpdaterConfig {
   pub endpoints: Option<Vec<String>>,
   /// Optional pubkey.
   pub pubkey: Option<String>,
-  
   /// Display built-in dialog or use event system if disabled.
-  #[serde(default = "default_updater_dialog")]
   pub dialog: Option<bool>,
 }
 
@@ -578,8 +576,4 @@ fn default_updater() -> UpdaterConfig {
     endpoints: None,
     pubkey: None,
   }
-}
-
-fn default_updater_dialog() -> Option<bool> {
-  Some(true)
 }

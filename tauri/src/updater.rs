@@ -1,6 +1,9 @@
 use crate::{
-  api::config::UpdaterConfig, api::dialog::ask, api::dialog::AskResponse, ApplicationExt,
-  WebviewManager,
+  api::{
+    config::UpdaterConfig,
+    dialog::{ask, AskResponse},
+  },
+  ApplicationExt, WebviewManager,
 };
 use std::process::exit;
 

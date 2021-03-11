@@ -1,7 +1,5 @@
-use thiserror::Error as DeriveError;
-
 use std::{io, num, path};
-use {base64, minisign};
+use thiserror::Error as DeriveError;
 
 #[derive(Debug, DeriveError)]
 pub enum Error {

@@ -2,13 +2,13 @@ extern crate minisign;
 
 use base64::{decode, encode};
 use minisign::{sign, KeyPair as KP, SecretKeyBox};
-use std::fs::{self};
-use std::fs::{File, OpenOptions};
-use std::io::BufReader;
-use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::str;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+  fs::{self, File, OpenOptions},
+  io::{BufReader, Write},
+  path::{Path, PathBuf},
+  str,
+  time::{SystemTime, UNIX_EPOCH},
+};
 
 /// A key pair (`PublicKey` and `SecretKey`).
 #[derive(Clone, Debug)]

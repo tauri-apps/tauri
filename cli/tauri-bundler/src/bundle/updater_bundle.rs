@@ -18,13 +18,17 @@ use std::io::prelude::*;
 use zip::write::FileOptions;
 
 use crate::Settings;
-use std::fs::{self};
-use std::io::Write;
+use std::{
+  fs::{self},
+  io::Write,
+};
 
 use crate::sign::{read_key_from_file, sign_file};
 use anyhow::Context;
-use std::env;
-use std::path::{Path, PathBuf};
+use std::{
+  env,
+  path::{Path, PathBuf},
+};
 
 // Build update
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {

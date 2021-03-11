@@ -36,6 +36,8 @@ pub struct Context {
   pub(crate) tauri_script: &'static str,
   pub(crate) default_window_icon: Option<&'static [u8]>,
   pub(crate) assets: &'static tauri_api::assets::Assets,
+  pub(crate) application_name: &'static str,
+  pub(crate) application_version: &'static str,
 }
 
 impl Context {
@@ -45,6 +47,8 @@ impl Context {
       tauri_script: Context::raw_tauri_script(),
       default_window_icon: Context::default_window_icon(),
       assets: Context::assets(),
+      application_name: Context::application_name(),
+      application_version: Context::application_version(),
     })
   }
 }

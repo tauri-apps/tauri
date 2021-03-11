@@ -670,8 +670,6 @@ mod test {
   use std::fs::File;
   #[cfg(target_os = "macos")]
   use std::path::Path;
-  #[cfg(target_os = "macos")]
-  use totems::assert_ok;
 
   macro_rules! aw {
     ($e:expr) => {
@@ -970,7 +968,7 @@ mod test {
       .prefix("tauri_updater_test")
       .tempdir_in(parent_path);
 
-    assert_ok!(&tmp_dir);
+    assert_eq!(tmp_dir.is_ok(), true);
     let tmp_dir_unwrap = tmp_dir.expect("Can't find tmp_dir");
     let tmp_dir_path = tmp_dir_unwrap.path();
 
@@ -997,7 +995,7 @@ mod test {
 
     // download, install and validate signature
     let install_process = aw!(updater.download_and_install(Some(pubkey)));
-    assert_ok!(&install_process);
+    assert_eq!(install_process.is_ok(), true);
 
     // make sure the extraction went well (it should have skipped the main app.app folder)
     // as we can't extract in /Applications directly

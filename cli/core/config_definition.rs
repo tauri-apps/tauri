@@ -500,7 +500,7 @@ impl TauriConfig {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct UpdaterConfig {
   /// Whether the updater is active or not.

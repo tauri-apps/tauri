@@ -148,11 +148,18 @@ impl<A: ApplicationExt + 'static> App<A> {
 
   #[cfg(feature = "updater")]
   /// Runs the updater hook.
-  pub(crate) async fn run_updater(&self, dispatcher: WebviewManager<A>) {    
+  pub(crate) async fn run_updater_dialog(&self, dispatcher: WebviewManager<A>) {
     let updater_config = self.context.config.tauri.updater.clone();
     crate::async_runtime::spawn_task(async move {
-      updater::spawn_update_process(updater_config, &dispatcher).await
+      updater::spawn_update_process_dialog(updater_config, &dispatcher).await
     });
+  }
+
+  #[cfg(feature = "updater")]
+  /// Runs the updater hook.
+  pub(crate) async fn listen_updater_events(&self, dispatcher: WebviewManager<A>) {
+    let updater_config = self.context.config.tauri.updater.clone();
+    updater::listen_events(updater_config, &dispatcher);
   }
 
   /// Runs the on page load hook if defined.
@@ -385,14 +392,36 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
     ));
   }
 
-  if let Some(main_webview_manager) = main_webview_manager {
-    #[cfg(feature = "updater")]
-    let update_webview_manager = main_webview_manager.clone();
-    // Run setup if defined
+  if let Some(main_webview_manager) = main_webview_manager.clone() {
     crate::async_runtime::block_on(application.run_setup(main_webview_manager));
-    // Run updater if required
-    #[cfg(feature = "updater")]
-    crate::async_runtime::block_on(application.run_updater(update_webview_manager));
+  }
+
+  #[cfg(feature = "updater")]
+  if let Some(main_webview_manager) = main_webview_manager {
+    let updater_config = application.context.config.tauri.updater.clone();
+    let event_webview_manager = main_webview_manager.clone();
+
+    if updater_config.dialog {
+      // if updater dialog is enabled spawn a new task
+      crate::async_runtime::block_on(application.run_updater_dialog(main_webview_manager.clone()));
+
+      // listen an event if user want to recheck update manually
+      main_webview_manager.listen(
+        String::from(crate::updater::EVENT_CHECK_UPDATE),
+        move |_msg| {
+          let webview_manager = event_webview_manager.clone();
+          let config = application.context.config.tauri.updater.clone();
+
+          // spawn task
+          crate::async_runtime::spawn_task(async move {
+            updater::spawn_update_process_dialog(config, &webview_manager).await
+          });
+        },
+      );
+    } else {
+      // listen our events only if dialog disabled
+      crate::async_runtime::block_on(application.listen_updater_events(main_webview_manager));
+    }
   }
 
   // Lock the thread

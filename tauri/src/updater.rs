@@ -1,19 +1,49 @@
 use crate::{
-  api::config::UpdaterConfig, api::dialog::ask, api::dialog::AskResponse, ApplicationDispatcherExt,
-  ApplicationExt, WebviewDispatcher, WebviewManager,
+  api::config::UpdaterConfig, api::dialog::ask, api::dialog::AskResponse, ApplicationExt,
+  WebviewManager,
 };
-use std::{process::exit, thread::sleep, time::Duration};
+use std::process::exit;
 
+// Read app version from Cargo to compare with announced version
 const APP_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
+// Read app name from Cargo to show in dialog
 const APP_NAME: Option<&'static str> = option_env!("CARGO_PKG_NAME");
+// Check for new updates
+pub const EVENT_CHECK_UPDATE: &str = "tauri://update";
+// New update available
+const EVENT_UPDATE_AVAILABLE: &str = "tauri://update-available";
+// Used to intialize an update *should run check-update first (once you received the update available event)*
+const EVENT_INSTALL_UPDATE: &str = "tauri://update-install";
+// Send updater status or error even if dialog is enabled, you should
+// always listen for this event. It'll send you the install progress
+// and any error triggered during update check and install
+const EVENT_STATUS_UPDATE: &str = "tauri://update-status";
+// this is the status emitted when the download start
+const EVENT_STATUS_PENDING: &str = "PENDING";
+// When you got this status, something went wrong
+// you can find the error message inside the `error` field.
+const EVENT_STATUS_ERROR: &str = "ERROR";
+// When you receive this status, you should ask the user to restart
+const EVENT_STATUS_SUCCESS: &str = "DONE";
 
-/// Spawn the update process
-pub(crate) async fn spawn_update_process<A: ApplicationExt + 'static>(
+#[derive(Clone, serde::Serialize)]
+struct StatusEvent {
+  status: String,
+  error: Option<String>,
+}
+
+#[derive(Clone, serde::Serialize)]
+struct UpdateAvailableEvent {
+  version: String,
+  date: String,
+  body: String,
+}
+
+/// Spawn the update process for dialog
+pub(crate) async fn spawn_update_process_dialog<A: ApplicationExt + 'static>(
   updater_config: UpdaterConfig,
   webview_manager: &WebviewManager<A>,
 ) {
-  println!("[CHECK UPDATE]");
-  // do nothing if our updater is not active or we can't find endpoints
   if !updater_config.active || updater_config.endpoints.is_none() {
     return;
   }
@@ -27,10 +57,6 @@ pub(crate) async fn spawn_update_process<A: ApplicationExt + 'static>(
     .expect("Something wrong with endpoints")
     .clone();
 
-  println!("[CHECK UPDATE ENDPOINTS] {:?}", endpoints);
-
-  let webview_manager_isolation = webview_manager.clone();
-
   // check updates
   match tauri_updater::builder()
     .urls(&endpoints[..])
@@ -39,92 +65,183 @@ pub(crate) async fn spawn_update_process<A: ApplicationExt + 'static>(
     .await
   {
     Ok(updater) => {
-      // listen to our events
-      println!("[LISTEN EVENTS]");
-      let events =
-        listen_events(updater.clone(), &updater_config, &webview_manager_isolation).await;
-      if events.is_err() {
-        println!("[EVENTS ERROR] {:?}", events.err());
-        return;
-      }
-      let mut body = "".into();
       let app_name = APP_NAME.unwrap_or("Unknown");
       let pubkey = updater_config.pubkey.clone();
 
-      println!("[SHOULD UPDATE] {:?}", updater.should_update);
-
-      // prepare our data if needed
-      if updater.should_update {
-        body = updater.body.clone().unwrap_or_else(|| "".into());
-      }
-
-      // if dialog enabled
+      // if dialog enabled only
       if updater.should_update && updater_config.dialog {
-        println!("[DIALOG]");
+        let body = updater.body.clone().unwrap_or_else(|| "".into());
         let dialog = dialog_update(updater.clone(), app_name, &body.clone(), pubkey).await;
         if dialog.is_err() {
-          println!("[EVENTS ERROR] {:?}", dialog.err());
+          let _res = webview_manager
+            .clone()
+            .emit(
+              EVENT_STATUS_UPDATE,
+              Some(StatusEvent {
+                error: Some(dialog.err().unwrap().to_string()),
+                status: "ERROR".into(),
+              }),
+            )
+            .await;
           return;
         }
-      }
-
-      if updater.should_update {
-        // todo(lemarier): wait the `update-available` event to be registred before checking our update
-        let fivesec = Duration::from_millis(5000);
-        sleep(fivesec);
-
-        // tell the world about our new update
-        let _res = webview_manager
-          .emit(
-            "update-available",
-            Some(format!(
-              r#"{{"version":"{:}", "date":"{:}", "body":"{:}"}}"#,
-              updater.version.clone(),
-              updater.date.clone(),
-              body.clone(),
-            )),
-          )
-          .await;
       }
     }
     Err(e) => match e {
       tauri_updater::Error::Updater(err) => {
-        // todo emit
-        println!("[UPDATER ERROR] {:?}", err);
+        let _res = webview_manager
+          .clone()
+          .emit(
+            EVENT_STATUS_UPDATE,
+            Some(StatusEvent {
+              error: Some(err),
+              status: "ERROR".into(),
+            }),
+          )
+          .await;
       }
       _ => {
-        // todo emit
-        println!("[UPDATER ERROR] {:?}", e);
+        let _res = webview_manager
+          .clone()
+          .emit(
+            EVENT_STATUS_UPDATE,
+            Some(StatusEvent {
+              error: Some(String::from("Something went wrong")),
+              status: "ERROR".into(),
+            }),
+          )
+          .await;
       }
     },
   }
 }
 
-async fn listen_events<A: ApplicationExt + 'static>(
-  _updater: tauri_updater::Update,
-  updater_config: &UpdaterConfig,
+pub(crate) fn listen_events<A: ApplicationExt + 'static>(
+  updater_config: UpdaterConfig,
   webview_manager: &WebviewManager<A>,
-) -> crate::Result<()> {
-  let current_webview_isolation = webview_manager.current_webview().await?;
-  let _pubkey = updater_config.pubkey.clone();
+) {
+  let isolated_webview_manager = webview_manager.clone();
 
-  // we listen to our event to trigger the download
-  webview_manager.listen(String::from("updater-install"), move |_msg| {
-    // set status to downloading
-    // TODO handle error
-    emit_status_change(&current_webview_isolation, "PENDING");
+  webview_manager.listen(String::from(EVENT_CHECK_UPDATE), move |_msg| {
+    let webview_manager = isolated_webview_manager.clone();
 
-    // todo: we need to be able to run async function inside the listener callback
+    // prepare our endpoints
+    let endpoints = updater_config
+      .endpoints
+      .as_ref()
+      .expect("Something wrong with endpoints")
+      .clone();
 
-    // init download
-    // @todo:(lemarier) maybe emit download progress
-    // but its a bit more complexe
-    //updater.download_and_install(pubkey.clone());
+    let pubkey = updater_config.pubkey.clone();
 
-    emit_status_change(&current_webview_isolation, "DONE");
+    // check updates
+    crate::async_runtime::spawn_task(async move {
+      let webview_manager = webview_manager.clone();
+      let webview_manager_isolation = webview_manager.clone();
+      let pubkey = pubkey.clone();
+
+      match tauri_updater::builder()
+        .urls(&endpoints[..])
+        .current_version(APP_VERSION.unwrap_or("0.0.0"))
+        .build()
+        .await
+      {
+        Ok(updater) => {
+          // send notification if we need to update
+          if updater.should_update {
+            let body = updater.body.clone().unwrap_or_else(|| "".into());
+
+            let _res = webview_manager
+              .emit(
+                EVENT_UPDATE_AVAILABLE,
+                Some(UpdateAvailableEvent {
+                  body,
+                  date: updater.date.clone(),
+                  version: updater.version.clone(),
+                }),
+              )
+              .await;
+
+            // listen for update install
+            webview_manager.listen(EVENT_INSTALL_UPDATE, move |_msg| {
+              let webview_manager = webview_manager_isolation.clone();
+              let updater = updater.clone();
+              let pubkey = pubkey.clone();
+
+              // send status
+              crate::async_runtime::spawn_task(async move {
+                // emit {"status": "PENDING"}
+                let _res = webview_manager
+                  .clone()
+                  .emit(
+                    EVENT_STATUS_UPDATE,
+                    Some(StatusEvent {
+                      error: None,
+                      status: String::from(EVENT_STATUS_PENDING),
+                    }),
+                  )
+                  .await;
+
+                let update_result = updater.clone().download_and_install(pubkey.clone()).await;
+
+                if update_result.is_err() {
+                  // emit {"status": "ERROR", "error": "The error message"}
+                  let _res = webview_manager
+                    .clone()
+                    .emit(
+                      EVENT_STATUS_UPDATE,
+                      Some(StatusEvent {
+                        error: Some(update_result.err().unwrap().to_string()),
+                        status: String::from(EVENT_STATUS_ERROR),
+                      }),
+                    )
+                    .await;
+                } else {
+                  // emit {"status": "DONE"}
+                  let _res = webview_manager
+                    .clone()
+                    .emit(
+                      EVENT_STATUS_UPDATE,
+                      Some(StatusEvent {
+                        error: None,
+                        status: String::from(EVENT_STATUS_SUCCESS),
+                      }),
+                    )
+                    .await;
+                }
+              })
+            });
+          }
+        }
+        Err(e) => match e {
+          tauri_updater::Error::Updater(err) => {
+            let _res = webview_manager
+              .clone()
+              .emit(
+                EVENT_STATUS_UPDATE,
+                Some(StatusEvent {
+                  error: Some(err),
+                  status: String::from(EVENT_STATUS_ERROR),
+                }),
+              )
+              .await;
+          }
+          _ => {
+            let _res = webview_manager
+              .clone()
+              .emit(
+                EVENT_STATUS_UPDATE,
+                Some(StatusEvent {
+                  error: Some(String::from("Something went wrong")),
+                  status: String::from(EVENT_STATUS_ERROR),
+                }),
+              )
+              .await;
+          }
+        },
+      }
+    })
   });
-
-  Ok(())
 }
 
 async fn dialog_update(
@@ -133,8 +250,6 @@ async fn dialog_update(
   body: &str,
   pubkey: Option<String>,
 ) -> crate::Result<()> {
-  println!("[ASK QUESTION] {}", body);
-
   let should_install = ask(
     format!(r#"A new version of {:} is available! "#, app_name),
     format!(
@@ -144,13 +259,14 @@ Would you like to install it now?
 
 Release Notes:
 {}"#,
-      // todo(lemarier): we should validate the body and make sure it 
+      // todo(lemarier): we should validate the body and make sure it
       // doesnt contain character like single or double quote (",')
-      app_name, updater.version, updater.current_version, body
-    )
+      app_name,
+      updater.version,
+      updater.current_version,
+      body
+    ),
   );
-
-  println!("[QUESTION ASKED]");
 
   match should_install {
     AskResponse::Yes => {
@@ -175,23 +291,7 @@ Release Notes:
     }
   }
 
-  println!("[DOWNLOAD]");
-
   updater.download_and_install(pubkey.clone()).await?;
-  println!("[DOWNLOAD DONE]");
 
   Ok(())
-}
-
-// non-async event emitter to be used inside the closures
-// https://github.com/rust-lang/rust/issues/62290
-pub(crate) fn emit_status_change<A: ApplicationDispatcherExt + 'static>(
-  webview_dispatcher: &WebviewDispatcher<A>,
-  status: &str,
-) {
-  let _res = super::event::emit(
-    webview_dispatcher,
-    "update-install-status",
-    Some(format!(r#"{{"status":"{:}"}}"#, status)),
-  );
 }

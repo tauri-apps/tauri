@@ -113,7 +113,7 @@ fn event_initialization_script() -> String {
       }}
 
       if (listeners.length > 0) {{
-        window.__TAURI__.invoke({{
+        window.__TAURI__.invoke('tauri', {{
           __tauriModule: 'Internal',
           message: {{
             cmd: 'validateSalt',

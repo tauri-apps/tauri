@@ -156,7 +156,7 @@ impl Default for WindowConfig {
 }
 
 /// The Updater configuration object.
-#[derive(PartialEq, Deserialize, Debug, Clone)]
+#[derive(PartialEq, Deserialize, Debug, Default, Clone)]
 #[serde(tag = "updaterConfig", rename_all = "camelCase")]
 pub struct UpdaterConfig {
   #[serde(default)]

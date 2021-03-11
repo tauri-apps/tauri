@@ -1,17 +1,15 @@
 #[macro_use]
 pub mod macros;
 pub mod error;
-pub use error::{Error, Result};
-
 use base64::decode;
+pub use error::{Error, Result};
 use minisign_verify::{PublicKey, Signature};
 use reqwest::{self, header, StatusCode};
-use std::io::prelude::*;
 use std::{
   env,
   ffi::OsStr,
   fs::{read_dir, remove_file, File, OpenOptions},
-  io::{BufReader, Read},
+  io::{prelude::*, BufReader, Read},
   path::{Path, PathBuf},
   str::from_utf8,
   time::{Duration, SystemTime, UNIX_EPOCH},

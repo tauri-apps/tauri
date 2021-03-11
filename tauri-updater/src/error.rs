@@ -1,7 +1,5 @@
 use thiserror::Error as DeriveError;
 
-use {anyhow, base64, minisign_verify, reqwest, semver, serde_json};
-
 #[derive(Debug, DeriveError)]
 pub enum Error {
   // Error catcher

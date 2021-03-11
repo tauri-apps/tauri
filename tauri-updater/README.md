@@ -57,21 +57,38 @@ How you include the version identifier or other criteria is specific to the serv
 
 By default, updater uses a built-in dialog API from Tauri.
 
-![New Update](https://i.imgur.com/6qGiIlJ.png)
+![New Update](https://i.imgur.com/UMilB5A.png)
 
-The dialog first line of text is represented by the update `note` provided by the [server](#server-support).
+The dialog release notes is represented by the update `note` provided by the [server](#server-support).
 
 If the user accepts, the download and install are initialized. The user will be then prompted to restart the application.
 
 ## Events
 
-**Attention, you need to disable built-in dialog in your [tauri configuration](#configuration), otherwise, events aren't emitted.**
+**Attention, you need to _disable built-in dialog_ in your [tauri configuration](#configuration), otherwise, events aren't emitted.**
 
 To know when an update is ready to be installed, you can subscribe to these events:
 
+### Initialize updater and check if a new version is available
+
+#### If a new version is available, the event `tauri://update-available` is emitted.
+
+Event : `tauri://update`
+
+### Rust
+```rust
+dispatcher.emit("tauri://update", None);
+```
+
+### Javascript
+```js
+import { emit } from "@tauri-apps/api/event";
+emit("tauri://update");
+```
+
 ### Listen New Update Available
 
-Event : `update-available`
+Event : `tauri://update-available`
 
 Emitted data:
 ```
@@ -82,58 +99,63 @@ body       Note announced by the server
 
 ### Rust
 ```rust
-event::listen(String::from("update-available"), move |update| {
-    println("New version available: {:?}", update);
+dispatcher.listen("tauri://update-available", move |msg| {
+    println("New version available: {:?}", msg);
 })
 ```
 
 ### Javascript
 ```js
-window.tauri.listen("update-available", function (res) {
+import { listen } from "@tauri-apps/api/event";
+listen("tauri://update-available", function (res) {
     console.log("New version available: ", res);
-}
+});
 ```
 
 ### Emit Install and Download
 
 You need to emit this event to initialize the download and listen to the [install progress](#listen-install-progress).
 
-Event : `updater-install`
+Event : `tauri://update-install`
 
 ### Rust
 ```rust
-event::emit(String::from("updater-install"), None)
+dispatcher.emit("tauri://update-install", None);
 ```
 
 ### Javascript
 ```js
-window.tauri.emit("updater-install");
+import { emit } from "@tauri-apps/api/event";
+emit("tauri://update-install");
 ```
 
 ### Listen Install Progress
 
-Event : `update-install-status`
+Event : `tauri://update-status`
 
 Emitted data:
 ```
-status    [PENDING/DONE]
+status    [ERROR/PENDING/DONE]
+error     String/null
 ```
 
 PENDING is emitted when the download is started and DONE when the install is complete. You can then ask to restart the application.
 
+ERROR is emitted when there is an error with the updater. We suggest to listen to this event even if the dialog is enabled.
 
 ### Rust
 ```rust
-event::listen(String::from("update-install-status"), move |update| {
-    println("Status change: {:?}", update);
+dispatcher.listen("tauri://update-status", move |msg| {
+    println("New status: {:?}", msg);
 })
 ```
 
 ### Javascript
 ```js
-window.tauri.listen("update-install-status", function (res) {
+import { listen } from "@tauri-apps/api/event";
+listen("tauri://update-status", function (res) {
     console.log("New status: ", res);
-}
+});
 ```
 
 # Server Support
@@ -249,21 +271,24 @@ The *Private key* (privkey) is used to sign your update and should NEVER be shar
 To generate your keys you need to use the Tauri cli. (will be built in Tauri main CLI soon)
 
 ```bash
-cargo tauri-sign-updates -g
+tauri sign -g -w ~/.tauri/myapp.key
 ```
 
 You have multiple options available
 ```bash
+FLAGS:
+        --force          Overwrite private key even if it exists on the specified path
+    -g, --generate       Generate keypair to sign files
+    -h, --help           Prints help information
+        --no-password    Set empty password for your private key
+    -V, --version        Prints version information
+
 OPTIONS:
-    -f, --force                              Overwrite private key even if exist on the specified path
-    -g, --generate-key                       Generate keypair to sign files
-    -h, --help                               Prints help information
-        --no-password                        Set empty password for your private key
-    -P, --password <PASSWORD>                Set private key password when signing
-        --private-key <STRING>               Load the private key from a string
-    -p, --private-key-path <PATH>            Load the private key from a file
-    -s, --sign <PATH>                        Sign the specified binary
-    -w, --write-private-key <DESTINATION>    Write private key to a file
+    -b, --binary <binary>                        Sign the specified binary
+    -p, --password <password>                    Set private key password when signing
+    -k, --private-key <private-key>              Load the private key from a string
+    -f, --private-key-path <private-key-path>    Load the private key from a file
+    -w, --write-keys <write-keys>                Write private key to a file
 ```
 
 ***

@@ -7,6 +7,10 @@ use crate::{
 };
 use std::process::exit;
 
+// todo(lemarier): Attention CARGO_PKG_VERSION & CARGO_PKG_NAME values 
+// are from tauri and not from the compiled application -- 
+// we need to find a way to pass data from the compiled app
+
 // Read app version from Cargo to compare with announced version
 const APP_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
 // Read app name from Cargo to show in dialog
@@ -14,20 +18,20 @@ const APP_NAME: Option<&'static str> = option_env!("CARGO_PKG_NAME");
 // Check for new updates
 pub const EVENT_CHECK_UPDATE: &str = "tauri://update";
 // New update available
-const EVENT_UPDATE_AVAILABLE: &str = "tauri://update-available";
+pub const EVENT_UPDATE_AVAILABLE: &str = "tauri://update-available";
 // Used to intialize an update *should run check-update first (once you received the update available event)*
-const EVENT_INSTALL_UPDATE: &str = "tauri://update-install";
+pub const EVENT_INSTALL_UPDATE: &str = "tauri://update-install";
 // Send updater status or error even if dialog is enabled, you should
 // always listen for this event. It'll send you the install progress
 // and any error triggered during update check and install
-const EVENT_STATUS_UPDATE: &str = "tauri://update-status";
+pub const EVENT_STATUS_UPDATE: &str = "tauri://update-status";
 // this is the status emitted when the download start
-const EVENT_STATUS_PENDING: &str = "PENDING";
+pub const EVENT_STATUS_PENDING: &str = "PENDING";
 // When you got this status, something went wrong
 // you can find the error message inside the `error` field.
-const EVENT_STATUS_ERROR: &str = "ERROR";
+pub const EVENT_STATUS_ERROR: &str = "ERROR";
 // When you receive this status, you should ask the user to restart
-const EVENT_STATUS_SUCCESS: &str = "DONE";
+pub const EVENT_STATUS_SUCCESS: &str = "DONE";
 
 #[derive(Clone, serde::Serialize)]
 struct StatusEvent {
@@ -74,7 +78,7 @@ pub(crate) async fn spawn_update_process_dialog<A: ApplicationExt + 'static>(
       // if dialog enabled only
       if updater.should_update && updater_config.dialog {
         let body = updater.body.clone().unwrap_or_else(|| "".into());
-        let dialog = dialog_update(updater.clone(), app_name, &body.clone(), pubkey).await;
+        let dialog = dialog_update(&updater.clone(), app_name, &body.clone(), pubkey).await;
         if dialog.is_err() {
           let _res = webview_manager
             .clone()
@@ -90,31 +94,22 @@ pub(crate) async fn spawn_update_process_dialog<A: ApplicationExt + 'static>(
         }
       }
     }
-    Err(e) => match e {
-      tauri_updater::Error::Updater(err) => {
-        let _res = webview_manager
-          .clone()
-          .emit(
-            EVENT_STATUS_UPDATE,
-            Some(StatusEvent {
-              error: Some(err),
-              status: "ERROR".into(),
-            }),
-          )
-          .await;
-      }
-      _ => {
-        let _res = webview_manager
-          .clone()
-          .emit(
-            EVENT_STATUS_UPDATE,
-            Some(StatusEvent {
-              error: Some(String::from("Something went wrong")),
-              status: "ERROR".into(),
-            }),
-          )
-          .await;
-      }
+    Err(e) => {
+      let error_message = match e {
+        tauri_updater::Error::Updater(err) => Some(err),
+        _ => Some(String::from("Something went wrong"))
+      };
+
+      let _res = webview_manager
+        .clone()
+        .emit(
+          EVENT_STATUS_UPDATE,
+          Some(StatusEvent {
+            error: error_message,
+            status: String::from("ERROR"),
+          }),
+        )
+        .await;      
     },
   }
 }
@@ -125,7 +120,7 @@ pub(crate) fn listen_events<A: ApplicationExt + 'static>(
 ) {
   let isolated_webview_manager = webview_manager.clone();
 
-  webview_manager.listen(String::from(EVENT_CHECK_UPDATE), move |_msg| {
+  webview_manager.listen(EVENT_CHECK_UPDATE, move |_msg| {
     let webview_manager = isolated_webview_manager.clone();
 
     // prepare our endpoints
@@ -216,31 +211,22 @@ pub(crate) fn listen_events<A: ApplicationExt + 'static>(
             });
           }
         }
-        Err(e) => match e {
-          tauri_updater::Error::Updater(err) => {
-            let _res = webview_manager
-              .clone()
-              .emit(
-                EVENT_STATUS_UPDATE,
-                Some(StatusEvent {
-                  error: Some(err),
-                  status: String::from(EVENT_STATUS_ERROR),
-                }),
-              )
-              .await;
-          }
-          _ => {
-            let _res = webview_manager
-              .clone()
-              .emit(
-                EVENT_STATUS_UPDATE,
-                Some(StatusEvent {
-                  error: Some(String::from("Something went wrong")),
-                  status: String::from(EVENT_STATUS_ERROR),
-                }),
-              )
-              .await;
-          }
+        Err(e) => {
+          let error_message = match e {
+            tauri_updater::Error::Updater(err) => Some(err),
+            _ => Some(String::from("Something went wrong"))
+          };
+    
+          let _res = webview_manager
+            .clone()
+            .emit(
+              EVENT_STATUS_UPDATE,
+              Some(StatusEvent {
+                error: error_message,
+                status: String::from("ERROR"),
+              }),
+            )
+            .await;      
         },
       }
     })
@@ -248,13 +234,13 @@ pub(crate) fn listen_events<A: ApplicationExt + 'static>(
 }
 
 async fn dialog_update(
-  updater: tauri_updater::Update,
+  updater: &tauri_updater::Update,
   app_name: &str,
   body: &str,
   pubkey: Option<String>,
 ) -> crate::Result<()> {
   let should_install = ask(
-    format!(r#"A new version of {:} is available! "#, app_name),
+    format!(r#"A new version of {} is available! "#, app_name),
     format!(
       r#"{} {} is now available -- you have {}.
 

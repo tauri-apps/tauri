@@ -7,8 +7,8 @@ use crate::{
 };
 use std::process::exit;
 
-// todo(lemarier): Attention CARGO_PKG_VERSION & CARGO_PKG_NAME values 
-// are from tauri and not from the compiled application -- 
+// todo(lemarier): Attention CARGO_PKG_VERSION & CARGO_PKG_NAME values
+// are from tauri and not from the compiled application --
 // we need to find a way to pass data from the compiled app
 
 // Read app version from Cargo to compare with announced version
@@ -97,7 +97,7 @@ pub(crate) async fn spawn_update_process_dialog<A: ApplicationExt + 'static>(
     Err(e) => {
       let error_message = match e {
         tauri_updater::Error::Updater(err) => Some(err),
-        _ => Some(String::from("Something went wrong"))
+        _ => Some(String::from("Something went wrong")),
       };
 
       let _res = webview_manager
@@ -109,8 +109,8 @@ pub(crate) async fn spawn_update_process_dialog<A: ApplicationExt + 'static>(
             status: String::from("ERROR"),
           }),
         )
-        .await;      
-    },
+        .await;
+    }
   }
 }
 
@@ -214,9 +214,9 @@ pub(crate) fn listen_events<A: ApplicationExt + 'static>(
         Err(e) => {
           let error_message = match e {
             tauri_updater::Error::Updater(err) => Some(err),
-            _ => Some(String::from("Something went wrong"))
+            _ => Some(String::from("Something went wrong")),
           };
-    
+
           let _res = webview_manager
             .clone()
             .emit(
@@ -226,8 +226,8 @@ pub(crate) fn listen_events<A: ApplicationExt + 'static>(
                 status: String::from("ERROR"),
               }),
             )
-            .await;      
-        },
+            .await;
+        }
       }
     })
   });

@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "updater-example"
-version = "0.1.0"
+version = "2.0.0"
 description = "A Tauri App"
 authors = [ "you" ]
 license = ""

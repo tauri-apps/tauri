@@ -10,7 +10,7 @@ use crate::{
 
 use super::{
   webview::{CustomProtocol, WebviewBuilderExtPrivate, WebviewRpcHandler},
-  App, Context, RpcRequest, Webview, WebviewManager,
+  App, Context, PageLoadPayload, RpcRequest, Webview, WebviewManager,
 };
 
 use serde::Deserialize;
@@ -80,10 +80,10 @@ pub(super) fn initialization_script(
       {tauri_initialization_script}
       {event_initialization_script}
       if (window.rpc) {{
-        window.__TAURI__.invoke("__initialized")
+        window.__TAURI__.invoke("__initialized", {{ url: window.location.href }})
       }} else {{
         window.addEventListener('DOMContentLoaded', function () {{
-          window.__TAURI__.invoke("__initialized")
+          window.__TAURI__.invoke("__initialized", {{ url: window.location.href }})
         }})
       }}
       {plugin_initialization_script}
@@ -108,7 +108,7 @@ fn event_initialization_script() -> String {
       }}
 
       if (listeners.length > 0) {{
-        window.__TAURI__.invoke({{
+        window.__TAURI__.invoke('tauri', {{
           __tauriModule: 'Internal',
           message: {{
             cmd: 'validateSalt',
@@ -149,7 +149,6 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
   plugin_initialization_script: &str,
   context: &Context,
 ) -> crate::Result<BuiltWebview<A>> {
-  // TODO let debug = cfg!(debug_assertions);
   let webview_url = match &webview.url {
     WindowUrl::App => content_url.to_string(),
     WindowUrl::Custom(url) => url.to_string(),
@@ -314,8 +313,11 @@ async fn on_message<A: ApplicationExt + 'static>(
   message: Message,
 ) -> crate::Result<InvokeResponse> {
   if &command == "__initialized" {
-    application.run_setup(&webview_manager).await;
-    crate::plugin::ready(A::plugin_store(), &webview_manager).await;
+    let payload: PageLoadPayload = serde_json::from_value(message.inner)?;
+    application
+      .run_on_page_load(&webview_manager, payload.clone())
+      .await;
+    crate::plugin::on_page_load(A::plugin_store(), &webview_manager, payload).await;
     Ok(().into())
   } else {
     let response = if let Some(module) = &message.tauri_module {

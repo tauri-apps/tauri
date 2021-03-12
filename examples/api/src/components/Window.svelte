@@ -1,5 +1,5 @@
 <script>
-  import { manager as windowManager } from "@tauri-apps/api/window";
+  import { appWindow } from "@tauri-apps/api/window";
   import { open as openDialog } from '@tauri-apps/api/dialog'
   import { open } from "@tauri-apps/api/shell";
 
@@ -24,9 +24,11 @@
     // setPosition,
     setFullscreen,
     setIcon
-  } = windowManager
+  } = appWindow
 
-  let urlValue = "https://tauri.studio";
+  export let onMessage;
+  let pathValue = "https://tauri.studio";
+  let openWith = "";
   let resizable = true
   let maximized = false
   let decorations = false
@@ -44,7 +46,7 @@
   let windowTitle = 'Awesome Tauri Example!';
 
   function openUrl() {
-    open(urlValue);
+    open(pathValue, !!openWith ? openWith : undefined).catch(onMessage);
   }
 
   function setTitle_() {
@@ -188,8 +190,15 @@
   <button class="button" type="submit">Set title</button>
 </form>
 <form style="margin-top: 24px" on:submit|preventDefault={openUrl}>
-  <input id="url" bind:value={urlValue} />
-  <button class="button" id="open-url">
-    Open URL
+  <div>
+    <label for="path">Path or URL:</label>
+    <input id="path" bind:value={pathValue} />
+  </div>
+  <div>
+    <label for="openWith">Open With (Optional):</label>
+    <input id="openWith" bind:value={openWith} />
+  </div>
+  <button class="button" id="open-path">
+    Open Path or Url
   </button>
 </form>

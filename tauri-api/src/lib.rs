@@ -15,6 +15,8 @@ pub mod http;
 pub mod path;
 /// The RPC module includes utilities to send messages to the JS layer of the webview.
 pub mod rpc;
+/// The shell api.
+pub mod shell;
 /// TCP ports access API.
 pub mod tcp;
 /// The semver API.

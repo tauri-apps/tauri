@@ -9,11 +9,10 @@ fn my_custom_command(argument: String) {
 }
 
 fn main() {
-  let _build = tauri::tauri_build_context!();
-  let _macro = tauri::generate_tauri_context!();
+  let context = tauri::generate_tauri_context!();
 
   tauri::AppBuilder::default()
     .invoke_handler(tauri::generate_handler![my_custom_command])
-    .build(_macro)
+    .build(context)
     .run();
 }

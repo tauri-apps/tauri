@@ -55,7 +55,7 @@ jobs:
         if: matrix.platform == 'windows-latest'
         with:
           name: windows-updater-artifacts
-          path: ./tauri/examples/updater/src-tauri/target/release/updater-example_*.x64.msi.*
+          path: ./tauri/examples/updater/src-tauri/target/release/bundle/msi/updater-example_*.x64.msi.*
 
       - uses: actions/upload-artifact@v2
         if: matrix.platform == 'macos-latest'

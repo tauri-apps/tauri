@@ -5,7 +5,7 @@ use crate::{
   },
   ApplicationExt, WebviewManager,
 };
-use std::process::exit;
+use std::process::{exit, Command};
 
 // Check for new updates
 pub const EVENT_CHECK_UPDATE: &str = "tauri://update";
@@ -198,6 +198,8 @@ pub(crate) fn listener<A: ApplicationExt + 'static>(
                     .await;
                 } else {
                   // emit {"status": "DONE"}
+                  // todo(lemarier): maybe we should emit the
+                  // path of the current EXE so they can restart it
                   let _res = webview_manager
                     .clone()
                     .emit(
@@ -268,7 +270,10 @@ Release Notes:
       );
       match should_exit {
         AskResponse::Yes => {
-          exit(1);
+          restart_application();
+          // safely exit even if the process
+          // should be killed
+          return Ok(());
         }
         AskResponse::No => {
           // Do nothing -- maybe we can emit some event here
@@ -283,4 +288,17 @@ Release Notes:
   updater.download_and_install(pubkey.clone()).await?;
 
   Ok(())
+}
+
+// Tested on macos only and seems to works fine -- at least it restart!
+// I guess on windows it'll require some tweaking
+fn restart_application() {
+  // spawn new process
+  if let Ok(current_process) = std::env::current_exe() {
+    Command::new(current_process)
+      .spawn()
+      .expect("application failed to start");
+  }
+
+  exit(1);
 }

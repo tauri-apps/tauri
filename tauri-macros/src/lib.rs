@@ -23,7 +23,7 @@ pub fn generate_handler(item: TokenStream) -> TokenStream {
 
 /// Reads a Tauri config file and generates an [`AsTauriContext`] based on the content.
 ///
-/// The default config file path is a `tauri.conf.js` file inside the Cargo manifest directory of
+/// The default config file path is a `tauri.conf.json` file inside the Cargo manifest directory of
 /// the crate being built.
 ///
 /// # Custom Config Path

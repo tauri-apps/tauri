@@ -167,31 +167,21 @@ impl<A: ApplicationExt + 'static> App<A> {
   #[cfg(feature = "updater")]
   /// Runs the updater hook.
   pub(crate) async fn run_updater_dialog(&self, dispatcher: WebviewManager<A>) {
-    let mut meta = self.context.meta.clone();
     let updater_config = self.context.config.tauri.updater.clone();
-    if meta.is_none() {
-      meta = Some(Meta {
-        name: "Tauri",
-        version: "0.0.0",
-      })
+    if let Some(meta) = self.context.meta.clone() {
+      crate::async_runtime::spawn_task(async move {
+        updater::check_update_with_dialog(updater_config, meta, &dispatcher).await
+      });
     }
-    crate::async_runtime::spawn_task(async move {
-      updater::check_update_with_dialog(updater_config, meta.unwrap(), &dispatcher).await
-    });
   }
 
   #[cfg(feature = "updater")]
   /// Runs the updater hook.
   pub(crate) async fn listen_updater_events(&self, dispatcher: WebviewManager<A>) {
     let updater_config = self.context.config.tauri.updater.clone();
-    let mut meta = self.context.meta.clone();
-    if meta.is_none() {
-      meta = Some(Meta {
-        name: "Tauri",
-        version: "0.0.0",
-      })
+    if let Some(meta) = self.context.meta.clone() {
+      updater::listener(updater_config, meta, &dispatcher);
     }
-    updater::listener(updater_config, meta.unwrap(), &dispatcher);
   }
 
   /// Runs the on page load hook if defined.
@@ -442,20 +432,15 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
       main_webview_manager.listen(crate::updater::EVENT_CHECK_UPDATE, move |_msg| {
         let webview_manager = event_webview_manager.clone();
         let config = application.context.config.tauri.updater.clone();
-        let mut meta = application.context.meta.clone();
         // re-spawn task inside tokyo to launch the download
         // we don't need to emit anything as everything is handled
         // by the process (user is asked to restart at the end)
         // and it's handled by the updater
-        if meta.is_none() {
-          meta = Some(Meta {
-            name: "Tauri",
-            version: "0.0.0",
+        if let Some(meta) = application.context.meta.clone() {
+          crate::async_runtime::spawn_task(async move {
+            updater::check_update_with_dialog(config, meta, &webview_manager).await
           });
         }
-        crate::async_runtime::spawn_task(async move {
-          updater::check_update_with_dialog(config, meta.unwrap(), &webview_manager).await
-        });
       });
     } else if updater_config.active {
       // we only listen for `tauri://update`

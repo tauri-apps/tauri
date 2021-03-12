@@ -1,0 +1,7 @@
+{
+  "name": "updater",
+  "version": "1.0.0",
+  "scripts": {
+    "tauri": "node ../../../cli/tauri.js/bin/tauri"
+  }
+}

@@ -68,16 +68,6 @@ impl Error {
         fn default_window_icon() -> Option<&'static [u8]> {
           unimplemented()
         }
-
-        /// The default application name.
-        fn application_name() -> &'static str {
-          "tauri"
-        }
-
-        /// The default application version.
-        fn application_version() -> &'static str {
-          "0.0.0"
-        }
       }
     }
   }

@@ -58,7 +58,5 @@ pub mod private {
     fn assets() -> &'static crate::assets::Assets;
     fn raw_tauri_script() -> &'static str;
     fn default_window_icon() -> Option<&'static [u8]>;
-    fn application_name() -> &'static str;
-    fn application_version() -> &'static str;
   }
 }

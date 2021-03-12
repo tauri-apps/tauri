@@ -31,16 +31,6 @@ pub(crate) fn load_context(input: DeriveInput) -> Result<TokenStream, Error> {
     .map(PathBuf::from)
     .map_err(|_| Error::EnvCargoManifestDir)?;
 
-  // grab application name
-  let application_name = var("CARGO_PKG_NAME")
-    .map(String::from)
-    .map_err(|_| Error::EnvCargoManifestDir)?;
-
-  // grab application version
-  let application_version = var("CARGO_PKG_VERSION")
-    .map(String::from)
-    .map_err(|_| Error::EnvCargoManifestDir)?;
-
   let full_config_path = Path::new(&manifest).join(config_file_path);
   let config = get_config(&full_config_path)?;
   let config_dir = full_config_path.parent().ok_or(Error::ConfigDir)?;
@@ -92,14 +82,6 @@ pub(crate) fn load_context(input: DeriveInput) -> Result<TokenStream, Error> {
           /// Default window icon function.
           fn default_window_icon() -> Option<&'static [u8]> {
             #default_window_icon
-          }
-
-          fn application_name() -> &'static str {
-            #application_name
-          }
-
-          fn application_version() -> &'static str {
-            #application_version
           }
       }
   })

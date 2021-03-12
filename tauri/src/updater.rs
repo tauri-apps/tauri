@@ -7,14 +7,6 @@ use crate::{
 };
 use std::process::exit;
 
-// todo(lemarier): Attention CARGO_PKG_VERSION & CARGO_PKG_NAME values
-// are from tauri and not from the compiled application --
-// we need to find a way to pass data from the compiled app
-
-// Read app version from Cargo to compare with announced version
-const APP_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
-// Read app name from Cargo to show in dialog
-const APP_NAME: Option<&'static str> = option_env!("CARGO_PKG_NAME");
 // Check for new updates
 pub const EVENT_CHECK_UPDATE: &str = "tauri://update";
 // New update available
@@ -46,9 +38,10 @@ struct UpdateAvailableEvent {
   body: String,
 }
 
-/// Spawn the update process for dialog
-pub(crate) async fn spawn_update_process_dialog<A: ApplicationExt + 'static>(
+/// Check if there is any new update with builtin dialog.
+pub(crate) async fn check_update_with_dialog<A: ApplicationExt + 'static>(
   updater_config: UpdaterConfig,
+  meta: crate::app::Meta,
   webview_manager: &WebviewManager<A>,
 ) {
   if !updater_config.active || updater_config.endpoints.is_none() {
@@ -67,18 +60,18 @@ pub(crate) async fn spawn_update_process_dialog<A: ApplicationExt + 'static>(
   // check updates
   match tauri_updater::builder()
     .urls(&endpoints[..])
-    .current_version(APP_VERSION.unwrap_or("0.0.0"))
+    .current_version(meta.version)
     .build()
     .await
   {
     Ok(updater) => {
-      let app_name = APP_NAME.unwrap_or("Unknown");
       let pubkey = updater_config.pubkey.clone();
 
       // if dialog enabled only
       if updater.should_update && updater_config.dialog {
         let body = updater.body.clone().unwrap_or_else(|| "".into());
-        let dialog = dialog_update(&updater.clone(), app_name, &body.clone(), pubkey).await;
+        let dialog =
+          ask_if_should_install(&updater.clone(), meta.name, &body.clone(), pubkey).await;
         if dialog.is_err() {
           let _res = webview_manager
             .clone()
@@ -114,14 +107,23 @@ pub(crate) async fn spawn_update_process_dialog<A: ApplicationExt + 'static>(
   }
 }
 
-pub(crate) fn listen_events<A: ApplicationExt + 'static>(
+/// Experimental listener
+/// The main issue right now is we can't unlisten to events
+/// If the `EVENT_CHECK_UPDATE` is called multiple time, it set
+/// multiple listener, the request is then processed multiple time
+/// who can lead to a bad installation.
+pub(crate) fn listener<A: ApplicationExt + 'static>(
   updater_config: UpdaterConfig,
+  meta: crate::app::Meta,
   webview_manager: &WebviewManager<A>,
 ) {
   let isolated_webview_manager = webview_manager.clone();
 
+  // @todo(lemarier): We SHOULD unlisten all EVENT_CHECK_UPDATE before
+  // we can listen again -- would be great if we can have a listen_once
   webview_manager.listen(EVENT_CHECK_UPDATE, move |_msg| {
     let webview_manager = isolated_webview_manager.clone();
+    let meta = meta.clone();
 
     // prepare our endpoints
     let endpoints = updater_config
@@ -140,7 +142,7 @@ pub(crate) fn listen_events<A: ApplicationExt + 'static>(
 
       match tauri_updater::builder()
         .urls(&endpoints[..])
-        .current_version(APP_VERSION.unwrap_or("0.0.0"))
+        .current_version(meta.version)
         .build()
         .await
       {
@@ -233,12 +235,15 @@ pub(crate) fn listen_events<A: ApplicationExt + 'static>(
   });
 }
 
-async fn dialog_update(
+async fn ask_if_should_install(
   updater: &tauri_updater::Update,
   app_name: &str,
   body: &str,
   pubkey: Option<String>,
 ) -> crate::Result<()> {
+  // remove single & double quote
+  let escaped_body = body.replace(&['\"', '\''][..], "");
+
   let should_install = ask(
     format!(r#"A new version of {} is available! "#, app_name),
     format!(
@@ -248,12 +253,7 @@ Would you like to install it now?
 
 Release Notes:
 {}"#,
-      // todo(lemarier): we should validate the body and make sure it
-      // doesnt contain character like single or double quote (",')
-      app_name,
-      updater.version,
-      updater.current_version,
-      body
+      app_name, updater.version, updater.current_version, escaped_body,
     ),
   );
 

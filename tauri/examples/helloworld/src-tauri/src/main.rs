@@ -17,5 +17,10 @@ fn main() {
     .invoke_handler(tauri::generate_handler![my_custom_command])
     .build()
     .unwrap()
+    // Ugly fix to pass PKG_NAME & PKG_VERSION to the updater
+    // The best would be to test correctly with bundled app
+    // if CARGO_PKG_VERSION return correct version in libraries
+    // when we use examples run it return tauri version
+    .meta(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
     .run();
 }

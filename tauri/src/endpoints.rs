@@ -40,16 +40,16 @@ impl Module {
     context: &Context,
   ) -> crate::Result<InvokeResponse> {
     match self {
-      Self::Fs(cmd) => cmd.run().await,
+      Self::Fs(cmd) => cmd.run(),
       Self::Window(cmd) => cmd.run(webview_manager).await,
-      Self::Shell(cmd) => cmd.run().await,
-      Self::Event(cmd) => cmd.run(webview_manager).await,
-      Self::Internal(cmd) => cmd.run().await,
-      Self::Dialog(cmd) => cmd.run().await,
-      Self::Cli(cmd) => cmd.run(context).await,
-      Self::Notification(cmd) => cmd.run(context).await,
-      Self::Http(cmd) => cmd.run().await,
-      Self::GlobalShortcut(cmd) => cmd.run(webview_manager).await,
+      Self::Shell(cmd) => cmd.run(),
+      Self::Event(cmd) => cmd.run(webview_manager),
+      Self::Internal(cmd) => cmd.run(),
+      Self::Dialog(cmd) => cmd.run(),
+      Self::Cli(cmd) => cmd.run(context),
+      Self::Notification(cmd) => cmd.run(context),
+      Self::Http(cmd) => crate::async_runtime::block_on(cmd.run()),
+      Self::GlobalShortcut(cmd) => cmd.run(webview_manager),
     }
   }
 }

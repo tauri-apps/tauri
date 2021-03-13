@@ -15,7 +15,7 @@ fn main() {
           println!("got 'clicked' event on global channel");
         });
       }
-      let current_webview = webview_manager.current_webview().await.unwrap();
+      let current_webview = webview_manager.current_webview().unwrap();
       let label = webview_manager.current_window_label().to_string();
       current_webview.listen("clicked", move |_| {
         println!("got 'clicked' event on window '{}'", label)

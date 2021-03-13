@@ -6,7 +6,7 @@
 use tauri::WebviewBuilderExt;
 
 fn main() {
-  let context = tauri::tauri_build_context!();
+  let context = tauri::generate_tauri_context!();
 
   tauri::AppBuilder::default()
     .setup(|webview_manager| async move {

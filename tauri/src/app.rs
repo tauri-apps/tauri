@@ -5,7 +5,6 @@ use tauri_api::{config::Config, private::AsTauriContext};
 
 use std::{
   collections::HashMap,
-  marker::PhantomData,
   sync::{Arc, Mutex},
 };
 
@@ -17,8 +16,8 @@ mod webview_manager;
 pub use crate::api::config::WindowUrl;
 use crate::flavors::Wry;
 pub use webview::{
-  wry::WryApplication, ApplicationDispatcherExt, ApplicationExt, CustomProtocol, Icon, Message,
-  RpcRequest, WebviewBuilderExt, WebviewRpcHandler,
+  wry::WryApplication, ApplicationDispatcherExt, ApplicationExt, CustomProtocol, FileDropEvent,
+  FileDropHandler, Icon, Message, RpcRequest, WebviewBuilderExt, WebviewRpcHandler,
 };
 pub use webview_manager::{WebviewDispatcher, WebviewManager};
 
@@ -31,20 +30,20 @@ type PageLoadHook<A> =
 
 /// `App` runtime information.
 pub struct Context {
-  pub(crate) config: Config,
+  pub(crate) config: &'static Config,
   pub(crate) tauri_script: &'static str,
   pub(crate) default_window_icon: Option<&'static [u8]>,
-  pub(crate) assets: &'static tauri_api::assets::Assets,
+  pub(crate) assets: &'static tauri_api::assets::EmbeddedAssets,
 }
 
 impl Context {
-  pub(crate) fn new<Context: AsTauriContext>() -> crate::Result<Self> {
-    Ok(Self {
-      config: serde_json::from_str(Context::raw_config())?,
+  pub(crate) fn new<Context: AsTauriContext>(_: Context) -> Self {
+    Self {
+      config: Context::config(),
       tauri_script: Context::raw_tauri_script(),
       default_window_icon: Context::default_window_icon(),
       assets: Context::assets(),
-    })
+    }
   }
 }
 
@@ -161,6 +160,7 @@ type WebviewContext<A> = (
   <A as ApplicationExt>::WebviewBuilder,
   Option<WebviewRpcHandler<<A as ApplicationExt>::Dispatcher>>,
   Option<CustomProtocol>,
+  Option<FileDropHandler>,
 );
 
 #[async_trait::async_trait]
@@ -183,7 +183,7 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
       self.dispatchers.clone(),
       webview.label.to_string(),
     );
-    utils::build_webview(
+    let (webview_builder, rpc_handler, custom_protocol) = utils::build_webview(
       self.clone(),
       webview,
       &webview_manager,
@@ -191,7 +191,25 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
       &self.window_labels.lock().unwrap(),
       &self.plugin_initialization_script,
       &self.context,
-    )
+    )?;
+    let file_drop_handler: Box<dyn Fn(FileDropEvent) -> bool + Send> = Box::new(move |event| {
+      let webview_manager = webview_manager.clone();
+      crate::async_runtime::block_on(async move {
+        let webview = webview_manager.current_webview().unwrap();
+        let _ = match event {
+          FileDropEvent::Hovered(paths) => webview.emit("tauri://file-drop-hover", Some(paths)),
+          FileDropEvent::Dropped(paths) => webview.emit("tauri://file-drop", Some(paths)),
+          FileDropEvent::Cancelled => webview.emit("tauri://file-drop-cancelled", Some(())),
+        };
+      });
+      true
+    });
+    Ok((
+      webview_builder,
+      rpc_handler,
+      custom_protocol,
+      Some(file_drop_handler),
+    ))
   }
 
   async fn on_webview_created(
@@ -210,8 +228,7 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
 }
 
 /// The App builder.
-#[derive(Default)]
-pub struct AppBuilder<C: AsTauriContext, A = Wry>
+pub struct AppBuilder<A = Wry>
 where
   A: ApplicationExt,
 {
@@ -221,21 +238,19 @@ where
   setup: Option<Box<ManagerHook<A>>>,
   /// Page load hook.
   on_page_load: Option<Box<PageLoadHook<A>>>,
-  config: PhantomData<C>,
   /// The webview dispatchers.
   dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A::Dispatcher>>>>,
   /// The created webviews.
   webviews: Vec<Webview<A>>,
 }
 
-impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<C, A> {
+impl<A: ApplicationExt + 'static> AppBuilder<A> {
   /// Creates a new App builder.
   pub fn new() -> Self {
     Self {
       invoke_handler: None,
       setup: None,
       on_page_load: None,
-      config: Default::default(),
       dispatchers: Default::default(),
       webviews: Default::default(),
     }
@@ -309,15 +324,15 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<C, A> {
   }
 
   /// Builds the App.
-  pub fn build(self) -> crate::Result<App<A>> {
+  pub fn build(self, context: impl AsTauriContext) -> App<A> {
     let window_labels: Vec<String> = self.webviews.iter().map(|w| w.label.to_string()).collect();
     let plugin_initialization_script =
       crate::async_runtime::block_on(crate::plugin::initialization_script(A::plugin_store()));
 
-    let context = Context::new::<C>()?;
+    let context = Context::new(context);
     let url = utils::get_url(&context);
 
-    Ok(App {
+    App {
       invoke_handler: self.invoke_handler,
       setup: self.setup,
       on_page_load: self.on_page_load,
@@ -327,7 +342,14 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<C, A> {
       url,
       window_labels: Arc::new(Mutex::new(window_labels)),
       plugin_initialization_script,
-    })
+    }
+  }
+}
+
+/// Make `Wry` the default `ApplicationExt` for `AppBuilder`
+impl Default for AppBuilder<Wry> {
+  fn default() -> Self {
+    Self::new()
   }
 }
 
@@ -351,9 +373,15 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
     if main_webview_manager.is_none() {
       main_webview_manager = Some(webview_manager.clone());
     }
-    let (webview_builder, rpc_handler, custom_protocol) = application.init_webview(webview)?;
+    let (webview_builder, rpc_handler, custom_protocol, file_drop_handler) =
+      application.init_webview(webview)?;
 
-    let dispatcher = webview_app.create_webview(webview_builder, rpc_handler, custom_protocol)?;
+    let dispatcher = webview_app.create_webview(
+      webview_builder,
+      rpc_handler,
+      custom_protocol,
+      file_drop_handler,
+    )?;
     crate::async_runtime::block_on(application.on_webview_created(
       webview_label,
       dispatcher,

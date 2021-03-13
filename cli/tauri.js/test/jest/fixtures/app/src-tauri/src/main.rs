@@ -1,10 +1,9 @@
 use tauri::ApplicationDispatcherExt;
 
-#[derive(tauri::FromTauriContext)]
-struct Context;
-
 fn main() {
-  tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
+  let context = tauri::generate_tauri_context!();
+
+  tauri::AppBuilder::default()
     .setup(|webview_manager| async move {
       let mut webview_manager_ = webview_manager.clone();
       tauri::event::listen(String::from("hello"), move |_| {
@@ -24,7 +23,6 @@ fn main() {
         webview_manager.close().unwrap();
       }
     })
-    .build()
-    .unwrap()
+    .build(context)
     .run();
 }

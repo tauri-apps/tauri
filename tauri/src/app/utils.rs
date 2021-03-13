@@ -1,8 +1,6 @@
-use std::{io::Read, sync::Arc};
-
 use crate::{
   api::{
-    assets::{AssetFetch, Assets},
+    assets::Assets,
     config::WindowUrl,
     rpc::{format_callback, format_callback_result},
   },
@@ -17,6 +15,7 @@ use super::{
 
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
+use std::{borrow::Cow, sync::Arc};
 
 #[derive(Debug, Deserialize)]
 struct Message {
@@ -37,19 +36,15 @@ pub(super) fn get_url(context: &Context) -> String {
   if config.build.dev_path.starts_with("http") {
     config.build.dev_path.clone()
   } else {
+    let path = "index.html";
     format!(
       "data:text/html;base64,{}",
       base64::encode(
         context
           .assets
-          .get(&Assets::format_key("index.html"), AssetFetch::Decompress)
-          .ok_or_else(|| crate::Error::AssetNotFound("index.html".to_string()))
-          .and_then(|(read, _)| {
-            read
-              .bytes()
-              .collect::<Result<Vec<u8>, _>>()
-              .map_err(Into::into)
-          })
+          .get(&path)
+          .ok_or_else(|| crate::Error::AssetNotFound(path.to_string()))
+          .map(Cow::into_owned)
           .expect("Unable to find `index.html` under your devPath folder")
       )
     )
@@ -258,14 +253,9 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
           };
 
         let asset_response = assets
-          .get(&Assets::format_key(&path), AssetFetch::Decompress)
+          .get(&path)
           .ok_or(crate::Error::AssetNotFound(path))
-          .and_then(|(read, _)| {
-            read
-              .bytes()
-              .collect::<Result<Vec<u8>, _>>()
-              .map_err(Into::into)
-          });
+          .map(Cow::into_owned);
         match asset_response {
           Ok(asset) => Ok(asset),
           Err(e) => {
@@ -373,15 +363,12 @@ async fn on_message<A: ApplicationExt + 'static>(
 
 #[cfg(test)]
 mod test {
-  use crate::{Context, FromTauriContext};
-
-  #[derive(FromTauriContext)]
-  #[config_path = "test/fixture/src-tauri/tauri.conf.json"]
-  struct TauriContext;
+  use crate::{generate_tauri_context, Context};
 
   #[test]
   fn check_get_url() {
-    let context = Context::new::<TauriContext>().unwrap();
+    let context = generate_tauri_context!("test/fixture/src-tauri/tauri.conf.json");
+    let context = Context::new(context);
     let res = super::get_url(&context);
     #[cfg(custom_protocol)]
     assert!(res == "tauri://index.html");

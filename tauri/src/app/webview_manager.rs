@@ -250,12 +250,14 @@ impl<A: ApplicationExt + 'static> WebviewManager<A> {
       .lock()
       .unwrap()
       .push(label.to_string());
-    let (webview_builder, rpc_handler, custom_protocol) = self.application.init_webview(webview)?;
+    let (webview_builder, rpc_handler, custom_protocol, file_drop_handler) =
+      self.application.init_webview(webview)?;
 
     let window_dispatcher = self.current_webview()?.dispatcher.create_webview(
       webview_builder,
       rpc_handler,
       custom_protocol,
+      file_drop_handler,
     )?;
     let webview_manager = Self::new(
       self.application.clone(),

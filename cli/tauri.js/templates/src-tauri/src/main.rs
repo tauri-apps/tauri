@@ -4,7 +4,7 @@
 )]
 
 fn main() {
-  let context = tauri::generate_tauri_context!();
+  let context = tauri::generate_context!();
 
   tauri::AppBuilder::default().build(context).run();
 }

@@ -13,11 +13,7 @@ edition = "2018"
 proc-macro = true
 
 [dependencies]
-flate2 = "1"
 proc-macro2 = "1"
 quote = "1"
-serde = {version = "1", features = ["derive"]}
-serde_json = "1"
-syn = { version = "1", features = ["extra-traits"] }
-tauri-utils = { version = "0.5", path = "../tauri-utils" }
-walkdir = "2"
+syn = { version = "1", features = [ "full" ] }
+tauri-codegen = { path = "../core/tauri-codegen" }

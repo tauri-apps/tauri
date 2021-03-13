@@ -149,7 +149,7 @@ impl<A: ApplicationExt + 'static> App<A> {
     }
   }
 
-  /// Runs the updater hook.
+  /// Runs the updater hook with built-in dialog.
   #[cfg(feature = "updater")]
   pub(crate) fn run_updater_dialog(&self, dispatcher: WebviewManager<A>) {
     let updater_config = self.context.config.tauri.updater.clone();
@@ -159,7 +159,7 @@ impl<A: ApplicationExt + 'static> App<A> {
     });
   }
 
-  /// Runs the updater hook.
+  /// Listen updater events when dialog are disabled.
   #[cfg(feature = "updater")]
   pub(crate) fn listen_updater_events(&self, dispatcher: WebviewManager<A>) {
     let updater_config = self.context.config.tauri.updater.clone();

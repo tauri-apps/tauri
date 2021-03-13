@@ -3,17 +3,14 @@
   windows_subsystem = "windows"
 )]
 
-#[derive(tauri::FromTauriContext)]
-struct Context;
-
 #[tauri::command]
 fn my_custom_command(argument: String) {
   println!("{}", argument);
 }
 
 fn main() {
-  tauri::AppBuilder::<Context>::new()
+  tauri::AppBuilder::default()
     .invoke_handler(tauri::generate_handler![my_custom_command])
-    .build()
+    .build(tauri::generate_context!())
     .run();
 }

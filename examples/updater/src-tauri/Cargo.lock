@@ -260,6 +260,9 @@ name = "cc"
 version = "1.0.67"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3c69b077ad434294d3ce9f1f6143a2a4b89a8a2d54ef813d85003a4fd1137fd"
+dependencies = [
+ "jobserver",
+]
 
 [[package]]
 name = "cfg-if"
@@ -1350,6 +1353,15 @@ name = "jni-sys"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8eaf4bc02d17cbdd7ff4c7438cafcdf7fb9a4613313ad11b4f8fefe7d3fa0130"
+
+[[package]]
+name = "jobserver"
+version = "0.1.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c71313ebb9439f74b00d9d2dcec36440beaf57a6aa0623068441dd7cd81a7f2"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "jpeg-decoder"
@@ -2818,6 +2830,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-codegen"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote 1.0.9",
+ "serde",
+ "serde_json",
+ "tauri-api",
+ "thiserror",
+ "walkdir",
+ "zstd",
+]
+
+[[package]]
 name = "tauri-hotkey"
 version = "0.0.0"
 source = "git+https://github.com/tauri-apps/tauri-hotkey-rs?branch=dev#ccd96947c350d6dd40dc927b49d13599a311fca3"
@@ -2846,14 +2872,10 @@ dependencies = [
 name = "tauri-macros"
 version = "0.1.0"
 dependencies = [
- "flate2",
  "proc-macro2",
  "quote 1.0.9",
- "serde",
- "serde_json",
  "syn 1.0.60",
- "tauri-utils",
- "walkdir",
+ "tauri-codegen",
 ]
 
 [[package]]
@@ -2877,12 +2899,14 @@ dependencies = [
 name = "tauri-utils"
 version = "0.5.1"
 dependencies = [
- "flate2",
  "phf",
+ "proc-macro2",
+ "quote 1.0.9",
  "serde",
  "serde_json",
  "sysinfo",
  "thiserror",
+ "zstd",
 ]
 
 [[package]]
@@ -3576,8 +3600,8 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.5.1"
-source = "git+https://github.com/tauri-apps/wry?rev=729fdc182eaf4af44d822dfc9396deb3f5f5810a#729fdc182eaf4af44d822dfc9396deb3f5f5810a"
+version = "0.6.0"
+source = "git+https://github.com/tauri-apps/wry?rev=39575983dbd128fbbcde933d742b33b691fd1def#39575983dbd128fbbcde933d742b33b691fd1def"
 dependencies = [
  "cairo-rs",
  "cocoa",
@@ -3711,6 +3735,35 @@ dependencies = [
  "flate2",
  "thiserror",
  "time",
+]
+
+[[package]]
+name = "zstd"
+version = "0.6.1+zstd.1.4.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5de55e77f798f205d8561b8fe2ef57abfb6e0ff2abe7fd3c089e119cdb5631a3"
+dependencies = [
+ "zstd-safe",
+]
+
+[[package]]
+name = "zstd-safe"
+version = "3.0.1+zstd.1.4.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1387cabcd938127b30ce78c4bf00b30387dddf704e3f0881dbc4ff62b5566f8c"
+dependencies = [
+ "libc",
+ "zstd-sys",
+]
+
+[[package]]
+name = "zstd-sys"
+version = "1.4.20+zstd.1.4.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ebd5b733d7cf2d9447e2c3e76a5589b4f5e5ae065c22a2bc0b023cbc331b6c8e"
+dependencies = [
+ "cc",
+ "libc",
 ]
 
 [[package]]

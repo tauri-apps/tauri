@@ -1,10 +1,13 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+  collections::HashMap,
+  sync::{Arc, Mutex},
+};
 
 use super::{
   App, ApplicationDispatcherExt, ApplicationExt, Icon, Webview, WebviewBuilderExt,
   WebviewInitializer,
 };
-use crate::{api::config::WindowUrl, async_runtime::Mutex, flavors::Wry};
+use crate::{api::config::WindowUrl, flavors::Wry};
 
 use serde::Serialize;
 
@@ -213,19 +216,16 @@ impl<A: ApplicationExt + 'static> WebviewManager<A> {
   }
 
   /// Gets the webview associated with the current context.
-  pub async fn current_webview(&self) -> crate::Result<WebviewDispatcher<A::Dispatcher>> {
-    self.get_webview(&self.current_webview_window_label).await
+  pub fn current_webview(&self) -> crate::Result<WebviewDispatcher<A::Dispatcher>> {
+    self.get_webview(&self.current_webview_window_label)
   }
 
   /// Gets the webview associated with the given window label.
-  pub async fn get_webview(
-    &self,
-    window_label: &str,
-  ) -> crate::Result<WebviewDispatcher<A::Dispatcher>> {
+  pub fn get_webview(&self, window_label: &str) -> crate::Result<WebviewDispatcher<A::Dispatcher>> {
     self
       .dispatchers
       .lock()
-      .await
+      .unwrap()
       .get(window_label)
       .ok_or(crate::Error::WebviewNotFound)
       .map(|d| d.clone())
@@ -248,15 +248,16 @@ impl<A: ApplicationExt + 'static> WebviewManager<A> {
       .application
       .window_labels
       .lock()
-      .await
+      .unwrap()
       .push(label.to_string());
-    let (webview_builder, rpc_handler, custom_protocol) =
-      self.application.init_webview(webview).await?;
+    let (webview_builder, rpc_handler, custom_protocol, file_drop_handler) =
+      self.application.init_webview(webview)?;
 
-    let window_dispatcher = self.current_webview().await?.dispatcher.create_webview(
+    let window_dispatcher = self.current_webview()?.dispatcher.create_webview(
       webview_builder,
       rpc_handler,
       custom_protocol,
+      file_drop_handler,
     )?;
     let webview_manager = Self::new(
       self.application.clone(),
@@ -285,24 +286,24 @@ impl<A: ApplicationExt + 'static> WebviewManager<A> {
   }
 
   /// Emits an event to all webviews.
-  pub async fn emit<S: Serialize + Clone>(
+  pub fn emit<S: Serialize + Clone>(
     &self,
     event: impl AsRef<str>,
     payload: Option<S>,
   ) -> crate::Result<()> {
-    for dispatcher in self.dispatchers.lock().await.values() {
+    for dispatcher in self.dispatchers.lock().unwrap().values() {
       super::event::emit(&dispatcher, event.as_ref(), payload.clone())?;
     }
     Ok(())
   }
 
-  pub(crate) async fn emit_except<S: Serialize + Clone>(
+  pub(crate) fn emit_except<S: Serialize + Clone>(
     &self,
     except_label: String,
     event: impl AsRef<str>,
     payload: Option<S>,
   ) -> crate::Result<()> {
-    for dispatcher in self.dispatchers.lock().await.values() {
+    for dispatcher in self.dispatchers.lock().unwrap().values() {
       if dispatcher.window_label != except_label {
         super::event::emit(&dispatcher, event.as_ref(), payload.clone())?;
       }

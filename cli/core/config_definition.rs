@@ -228,14 +228,22 @@ pub struct WindowConfig {
   #[serde(default)]
   pub maximized: bool,
   /// Whether the window is visible or not.
-  #[serde(default)]
+  #[serde(default = "default_visible")]
   pub visible: bool,
   /// Whether the window should have borders and bars.
-  #[serde(default)]
+  #[serde(default = "default_decorations")]
   pub decorations: bool,
   /// Whether the window should always be on top of other windows.
   #[serde(default)]
   pub always_on_top: bool,
+}
+
+fn default_visible() -> bool {
+  true
+}
+
+fn default_decorations() -> bool {
+  true
 }
 
 #[skip_serializing_none]

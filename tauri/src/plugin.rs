@@ -65,14 +65,9 @@ pub(crate) async fn initialize<A: ApplicationExt + 'static>(
   plugins_config: PluginConfig,
 ) -> crate::Result<()> {
   let mut plugins = store.lock().await;
-  let mut futures = Vec::new();
   for plugin in plugins.iter_mut() {
     let plugin_config = plugins_config.get(plugin.name());
-    futures.push(plugin.initialize(plugin_config));
-  }
-
-  for res in join_all(futures).await {
-    res?;
+    plugin.initialize(plugin_config).await?;
   }
 
   Ok(())

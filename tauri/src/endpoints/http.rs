@@ -1,10 +1,13 @@
-use crate::{app::InvokeResponse, async_runtime::Mutex};
+use crate::app::InvokeResponse;
 
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use tauri_api::http::{Client, ClientBuilder, HttpRequestBuilder, ResponseData};
 
-use std::{collections::HashMap, sync::Arc};
+use std::{
+  collections::HashMap,
+  sync::{Arc, Mutex},
+};
 
 type ClientId = u32;
 type ClientStore = Arc<Mutex<HashMap<ClientId, Client>>>;
@@ -34,13 +37,13 @@ impl Cmd {
     match self {
       Self::CreateClient { options } => {
         let client = options.unwrap_or_default().build()?;
-        let mut store = clients().lock().await;
+        let mut store = clients().lock().unwrap();
         let id = rand::random::<ClientId>();
         store.insert(id, client);
         Ok(id.into())
       }
       Self::DropClient { client } => {
-        let mut store = clients().lock().await;
+        let mut store = clients().lock().unwrap();
         store.remove(&client);
         Ok(().into())
       }
@@ -64,7 +67,7 @@ pub async fn make_request(
 ) -> crate::Result<ResponseData> {
   let client = clients()
     .lock()
-    .await
+    .unwrap()
     .get(&client_id)
     .ok_or(crate::Error::HttpClientNotInitialized)?
     .clone();

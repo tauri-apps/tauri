@@ -1,8 +1,6 @@
-use std::{io::Read, sync::Arc};
-
 use crate::{
   api::{
-    assets::{AssetFetch, Assets},
+    assets::Assets,
     config::WindowUrl,
     rpc::{format_callback, format_callback_result},
   },
@@ -17,6 +15,7 @@ use super::{
 
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
+use std::{borrow::Cow, sync::Arc};
 
 #[derive(Debug, Deserialize)]
 struct Message {
@@ -37,19 +36,15 @@ pub(super) fn get_url(context: &Context) -> String {
   if config.build.dev_path.starts_with("http") {
     config.build.dev_path.clone()
   } else {
+    let path = "index.html";
     format!(
       "data:text/html;base64,{}",
       base64::encode(
         context
           .assets
-          .get(&Assets::format_key("index.html"), AssetFetch::Decompress)
-          .ok_or_else(|| crate::Error::AssetNotFound("index.html".to_string()))
-          .and_then(|(read, _)| {
-            read
-              .bytes()
-              .collect::<Result<Vec<u8>, _>>()
-              .map_err(Into::into)
-          })
+          .get(&path)
+          .ok_or_else(|| crate::Error::AssetNotFound(path.to_string()))
+          .map(Cow::into_owned)
           .expect("Unable to find `index.html` under your devPath folder")
       )
     )
@@ -215,9 +210,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
             }
           }
           Err(e) => {
-            if let Ok(dispatcher) =
-              crate::async_runtime::block_on(webview_manager.current_webview())
-            {
+            if let Ok(dispatcher) = webview_manager.current_webview() {
               let error: crate::Error = e.into();
               let _ = dispatcher.eval(&format!(
                 r#"console.error({})"#,
@@ -246,14 +239,9 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
           };
 
         let asset_response = assets
-          .get(&Assets::format_key(&path), AssetFetch::Decompress)
+          .get(&path)
           .ok_or(crate::Error::AssetNotFound(path))
-          .and_then(|(read, _)| {
-            read
-              .bytes()
-              .collect::<Result<Vec<u8>, _>>()
-              .map_err(Into::into)
-          });
+          .map(Cow::into_owned);
         match asset_response {
           Ok(asset) => Ok(asset),
           Err(e) => {
@@ -279,7 +267,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
 /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
 async fn execute_promise<
   A: ApplicationExt + 'static,
-  F: futures::Future<Output = crate::Result<InvokeResponse>> + Send + 'static,
+  F: std::future::Future<Output = crate::Result<InvokeResponse>> + Send + 'static,
 >(
   webview_manager: &crate::WebviewManager<A>,
   task: F,
@@ -297,7 +285,7 @@ async fn execute_promise<
     Ok(callback_string) => callback_string,
     Err(e) => format_callback(error_callback, e.to_string()),
   };
-  if let Ok(dispatcher) = webview_manager.current_webview().await {
+  if let Ok(dispatcher) = webview_manager.current_webview() {
     let _ = dispatcher.eval(callback_string.as_str());
   }
 }
@@ -315,69 +303,58 @@ async fn on_message<A: ApplicationExt + 'static>(
       .await;
     crate::plugin::on_page_load(A::plugin_store(), &webview_manager, payload).await;
     Ok(().into())
+  } else if let Some(module) = &message.tauri_module {
+    crate::endpoints::handle(
+      &webview_manager,
+      module.to_string(),
+      message.inner,
+      &application.context,
+    )
+    .await
   } else {
-    let response = if let Some(module) = &message.tauri_module {
-      crate::endpoints::handle(
-        &webview_manager,
-        module.to_string(),
-        message.inner,
-        &application.context,
-      )
+    let mut response = match application
+      .run_invoke_handler(&webview_manager, command.clone(), &message.inner)
       .await
-    } else {
-      let mut response = match application
-        .run_invoke_handler(&webview_manager, command.clone(), &message.inner)
+    {
+      Ok(value) => {
+        if let Some(value) = value {
+          Ok(value)
+        } else {
+          Err(crate::Error::UnknownApi(None))
+        }
+      }
+      Err(e) => Err(e),
+    };
+    if let Err(crate::Error::UnknownApi(_)) = response {
+      match crate::plugin::extend_api(A::plugin_store(), &webview_manager, command, &message.inner)
         .await
       {
         Ok(value) => {
-          if let Some(value) = value {
-            Ok(value)
-          } else {
-            Err(crate::Error::UnknownApi(None))
+          // If value is None, that means that no plugin matched the command
+          // and the UnknownApi error should be sent to the webview
+          // Otherwise, send the result of plugin handler
+          if value.is_some() {
+            response = Ok(value.into());
           }
         }
-        Err(e) => Err(e),
-      };
-      if let Err(crate::Error::UnknownApi(_)) = response {
-        match crate::plugin::extend_api(
-          A::plugin_store(),
-          &webview_manager,
-          command,
-          &message.inner,
-        )
-        .await
-        {
-          Ok(value) => {
-            // If value is None, that means that no plugin matched the command
-            // and the UnknownApi error should be sent to the webview
-            // Otherwise, send the result of plugin handler
-            if value.is_some() {
-              response = Ok(value.into());
-            }
-          }
-          Err(e) => {
-            // A plugin handler was found but it failed
-            response = Err(e);
-          }
+        Err(e) => {
+          // A plugin handler was found but it failed
+          response = Err(e);
         }
       }
-      response
-    };
+    }
     response
   }
 }
 
 #[cfg(test)]
 mod test {
-  use crate::{Context, FromTauriContext};
-
-  #[derive(FromTauriContext)]
-  #[config_path = "test/fixture/src-tauri/tauri.conf.json"]
-  struct TauriContext;
+  use crate::{generate_context, Context};
 
   #[test]
   fn check_get_url() {
-    let context = Context::new::<TauriContext>().unwrap();
+    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json");
+    let context = Context::new(context);
     let res = super::get_url(&context);
     #[cfg(custom_protocol)]
     assert!(res == "tauri://index.html");

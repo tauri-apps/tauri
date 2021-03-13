@@ -981,7 +981,7 @@
         },
         "decorations": {
           "description": "Whether the window should have borders and bars.",
-          "default": false,
+          "default": true,
           "type": "boolean"
         },
         "fullscreen": {
@@ -1067,7 +1067,7 @@
         },
         "visible": {
           "description": "Whether the window is visible or not.",
-          "default": false,
+          "default": true,
           "type": "boolean"
         },
         "width": {

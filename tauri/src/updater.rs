@@ -41,7 +41,7 @@ struct UpdateAvailableEvent {
 /// Check if there is any new update with builtin dialog.
 pub(crate) async fn check_update_with_dialog<A: ApplicationExt + 'static>(
   updater_config: UpdaterConfig,
-  meta: crate::app::Meta,
+  package_info: crate::api::PackageInfo,
   webview_manager: &WebviewManager<A>,
 ) {
   if !updater_config.active || updater_config.endpoints.is_none() {
@@ -60,7 +60,7 @@ pub(crate) async fn check_update_with_dialog<A: ApplicationExt + 'static>(
   // check updates
   match tauri_updater::builder()
     .urls(&endpoints[..])
-    .current_version(meta.version)
+    .current_version(package_info.version)
     .build()
     .await
   {
@@ -71,18 +71,15 @@ pub(crate) async fn check_update_with_dialog<A: ApplicationExt + 'static>(
       if updater.should_update && updater_config.dialog {
         let body = updater.body.clone().unwrap_or_else(|| "".into());
         let dialog =
-          ask_if_should_install(&updater.clone(), meta.name, &body.clone(), pubkey).await;
+          ask_if_should_install(&updater.clone(), package_info.name, &body.clone(), pubkey).await;
         if dialog.is_err() {
-          let _res = webview_manager
-            .clone()
-            .emit(
-              EVENT_STATUS_UPDATE,
-              Some(StatusEvent {
-                error: Some(dialog.err().unwrap().to_string()),
-                status: "ERROR".into(),
-              }),
-            )
-            .await;
+          let _ = webview_manager.clone().emit(
+            EVENT_STATUS_UPDATE,
+            Some(StatusEvent {
+              error: Some(dialog.err().unwrap().to_string()),
+              status: "ERROR".into(),
+            }),
+          );
           return;
         }
       }
@@ -93,16 +90,13 @@ pub(crate) async fn check_update_with_dialog<A: ApplicationExt + 'static>(
         _ => Some(String::from("Something went wrong")),
       };
 
-      let _res = webview_manager
-        .clone()
-        .emit(
-          EVENT_STATUS_UPDATE,
-          Some(StatusEvent {
-            error: error_message,
-            status: String::from("ERROR"),
-          }),
-        )
-        .await;
+      let _ = webview_manager.clone().emit(
+        EVENT_STATUS_UPDATE,
+        Some(StatusEvent {
+          error: error_message,
+          status: String::from("ERROR"),
+        }),
+      );
     }
   }
 }
@@ -114,7 +108,7 @@ pub(crate) async fn check_update_with_dialog<A: ApplicationExt + 'static>(
 /// who can lead to a bad installation.
 pub(crate) fn listener<A: ApplicationExt + 'static>(
   updater_config: UpdaterConfig,
-  meta: crate::app::Meta,
+  package_info: crate::api::PackageInfo,
   webview_manager: &WebviewManager<A>,
 ) {
   let isolated_webview_manager = webview_manager.clone();
@@ -123,7 +117,7 @@ pub(crate) fn listener<A: ApplicationExt + 'static>(
   // we can listen again -- would be great if we can have a listen_once
   webview_manager.listen(EVENT_CHECK_UPDATE, move |_msg| {
     let webview_manager = isolated_webview_manager.clone();
-    let meta = meta.clone();
+    let package_info = package_info.clone();
 
     // prepare our endpoints
     let endpoints = updater_config
@@ -135,14 +129,14 @@ pub(crate) fn listener<A: ApplicationExt + 'static>(
     let pubkey = updater_config.pubkey.clone();
 
     // check updates
-    crate::async_runtime::spawn_task(async move {
+    crate::async_runtime::spawn(async move {
       let webview_manager = webview_manager.clone();
       let webview_manager_isolation = webview_manager.clone();
       let pubkey = pubkey.clone();
 
       match tauri_updater::builder()
         .urls(&endpoints[..])
-        .current_version(meta.version)
+        .current_version(package_info.version)
         .build()
         .await
       {
@@ -151,16 +145,14 @@ pub(crate) fn listener<A: ApplicationExt + 'static>(
           if updater.should_update {
             let body = updater.body.clone().unwrap_or_else(|| "".into());
 
-            let _res = webview_manager
-              .emit(
-                EVENT_UPDATE_AVAILABLE,
-                Some(UpdateAvailableEvent {
-                  body,
-                  date: updater.date.clone(),
-                  version: updater.version.clone(),
-                }),
-              )
-              .await;
+            let _ = webview_manager.emit(
+              EVENT_UPDATE_AVAILABLE,
+              Some(UpdateAvailableEvent {
+                body,
+                date: updater.date.clone(),
+                version: updater.version.clone(),
+              }),
+            );
 
             // listen for update install
             webview_manager.listen(EVENT_INSTALL_UPDATE, move |_msg| {
@@ -169,47 +161,38 @@ pub(crate) fn listener<A: ApplicationExt + 'static>(
               let pubkey = pubkey.clone();
 
               // send status
-              crate::async_runtime::spawn_task(async move {
+              crate::async_runtime::spawn(async move {
                 // emit {"status": "PENDING"}
-                let _res = webview_manager
-                  .clone()
-                  .emit(
-                    EVENT_STATUS_UPDATE,
-                    Some(StatusEvent {
-                      error: None,
-                      status: String::from(EVENT_STATUS_PENDING),
-                    }),
-                  )
-                  .await;
+                let _ = webview_manager.clone().emit(
+                  EVENT_STATUS_UPDATE,
+                  Some(StatusEvent {
+                    error: None,
+                    status: String::from(EVENT_STATUS_PENDING),
+                  }),
+                );
 
                 let update_result = updater.clone().download_and_install(pubkey.clone()).await;
 
                 if update_result.is_err() {
                   // emit {"status": "ERROR", "error": "The error message"}
-                  let _res = webview_manager
-                    .clone()
-                    .emit(
-                      EVENT_STATUS_UPDATE,
-                      Some(StatusEvent {
-                        error: Some(update_result.err().unwrap().to_string()),
-                        status: String::from(EVENT_STATUS_ERROR),
-                      }),
-                    )
-                    .await;
+                  let _ = webview_manager.clone().emit(
+                    EVENT_STATUS_UPDATE,
+                    Some(StatusEvent {
+                      error: Some(update_result.err().unwrap().to_string()),
+                      status: String::from(EVENT_STATUS_ERROR),
+                    }),
+                  );
                 } else {
                   // emit {"status": "DONE"}
                   // todo(lemarier): maybe we should emit the
                   // path of the current EXE so they can restart it
-                  let _res = webview_manager
-                    .clone()
-                    .emit(
-                      EVENT_STATUS_UPDATE,
-                      Some(StatusEvent {
-                        error: None,
-                        status: String::from(EVENT_STATUS_SUCCESS),
-                      }),
-                    )
-                    .await;
+                  let _ = webview_manager.clone().emit(
+                    EVENT_STATUS_UPDATE,
+                    Some(StatusEvent {
+                      error: None,
+                      status: String::from(EVENT_STATUS_SUCCESS),
+                    }),
+                  );
                 }
               })
             });
@@ -221,16 +204,13 @@ pub(crate) fn listener<A: ApplicationExt + 'static>(
             _ => Some(String::from("Something went wrong")),
           };
 
-          let _res = webview_manager
-            .clone()
-            .emit(
-              EVENT_STATUS_UPDATE,
-              Some(StatusEvent {
-                error: error_message,
-                status: String::from("ERROR"),
-              }),
-            )
-            .await;
+          let _ = webview_manager.clone().emit(
+            EVENT_STATUS_UPDATE,
+            Some(StatusEvent {
+              error: error_message,
+              status: String::from("ERROR"),
+            }),
+          );
         }
       }
     })

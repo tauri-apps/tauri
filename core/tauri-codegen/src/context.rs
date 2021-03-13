@@ -62,6 +62,13 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         fn default_window_icon() -> Option<&'static [u8]> {
           #default_window_icon
         }
+
+        fn package_info() -> ::tauri::api::PackageInfo {
+          ::tauri::api::PackageInfo {
+            name: env!("CARGO_PKG_NAME"),
+            version: env!("CARGO_PKG_VERSION"),
+          }
+        }
       }
 
       #struct_ident {}

@@ -37,14 +37,7 @@ pub struct Context {
   pub(crate) tauri_script: &'static str,
   pub(crate) default_window_icon: Option<&'static [u8]>,
   pub(crate) assets: &'static tauri_api::assets::EmbeddedAssets,
-  pub(crate) meta: Option<Meta>,
-}
-
-/// `App` runtime meta. Expose version and application name
-#[derive(Debug, Clone, Deserialize)]
-pub struct Meta {
-  pub(crate) name: &'static str,
-  pub(crate) version: &'static str,
+  pub(crate) package_info: tauri_api::PackageInfo,
 }
 
 impl Context {
@@ -54,7 +47,8 @@ impl Context {
       tauri_script: Context::raw_tauri_script(),
       default_window_icon: Context::default_window_icon(),
       assets: Context::assets(),
-      meta: None,
+      package_info: Context::package_info(),
+    }
   }
 }
 
@@ -130,15 +124,6 @@ impl<A: ApplicationExt + 'static> App<A> {
     run(self).expect("failed to run application");
   }
 
-  /// Set application meta.
-  pub fn meta(mut self, application_name: &'static str, application_version: &'static str) -> Self {
-    self.context.meta = Some(Meta {
-      name: application_name,
-      version: application_version,
-    });
-    self
-  }
-
   /// Runs the invoke handler if defined.
   /// Returns whether the message was consumed or not.
   /// The message is considered consumed if the handler exists and returns an Ok Result.
@@ -164,24 +149,25 @@ impl<A: ApplicationExt + 'static> App<A> {
     }
   }
 
-  #[cfg(feature = "updater")]
   /// Runs the updater hook.
-  pub(crate) async fn run_updater_dialog(&self, dispatcher: WebviewManager<A>) {
+  #[cfg(feature = "updater")]
+  pub(crate) fn run_updater_dialog(&self, dispatcher: WebviewManager<A>) {
     let updater_config = self.context.config.tauri.updater.clone();
-    if let Some(meta) = self.context.meta.clone() {
-      crate::async_runtime::spawn_task(async move {
-        updater::check_update_with_dialog(updater_config, meta, &dispatcher).await
-      });
-    }
+    let package_info = self.context.package_info.clone();
+    crate::async_runtime::spawn(async move {
+      updater::check_update_with_dialog(updater_config, package_info, &dispatcher).await
+    });
   }
 
-  #[cfg(feature = "updater")]
   /// Runs the updater hook.
-  pub(crate) async fn listen_updater_events(&self, dispatcher: WebviewManager<A>) {
+  #[cfg(feature = "updater")]
+  pub(crate) fn listen_updater_events(&self, dispatcher: WebviewManager<A>) {
     let updater_config = self.context.config.tauri.updater.clone();
-    if let Some(meta) = self.context.meta.clone() {
-      updater::listener(updater_config, meta, &dispatcher);
-    }
+    updater::listener(
+      updater_config,
+      self.context.package_info.clone(),
+      &dispatcher,
+    );
   }
 
   /// Runs the on page load hook if defined.
@@ -440,7 +426,7 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
 
     if updater_config.dialog && updater_config.active {
       // if updater dialog is enabled spawn a new task
-      crate::async_runtime::block_on(application.run_updater_dialog(main_webview_manager.clone()));
+      application.run_updater_dialog(main_webview_manager.clone());
       // When dialog is enabled, if user want to recheck
       // if an update is available after first start
       // invoke the Event `tauri://update` from JS or rust side.
@@ -451,11 +437,10 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
         // we don't need to emit anything as everything is handled
         // by the process (user is asked to restart at the end)
         // and it's handled by the updater
-        if let Some(meta) = application.context.meta.clone() {
-          crate::async_runtime::spawn_task(async move {
-            updater::check_update_with_dialog(config, meta, &webview_manager).await
-          });
-        }
+        let package_info = application.context.package_info.clone();
+        crate::async_runtime::spawn(async move {
+          updater::check_update_with_dialog(config, package_info, &webview_manager).await
+        });
       });
     } else if updater_config.active {
       // we only listen for `tauri://update`
@@ -463,7 +448,7 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
       // if there is a new update we emit `tauri://update-available` with details
       // this is the user responsabilities to display dialog and ask if user want to install
       // to install the update you need to invoke the Event `tauri://update-install`
-      crate::async_runtime::block_on(application.listen_updater_events(main_webview_manager));
+      application.listen_updater_events(main_webview_manager);
     }
   }
 

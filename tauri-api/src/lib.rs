@@ -49,6 +49,15 @@ pub use error::Error;
 /// Tauri API result type.
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// `App` package information.
+#[derive(Debug, Clone)]
+pub struct PackageInfo {
+  /// App name.
+  pub name: &'static str,
+  /// App version.
+  pub version: &'static str,
+}
+
 // Not public API
 #[doc(hidden)]
 pub mod private {
@@ -59,5 +68,6 @@ pub mod private {
     fn assets() -> &'static crate::assets::EmbeddedAssets;
     fn raw_tauri_script() -> &'static str;
     fn default_window_icon() -> Option<&'static [u8]>;
+    fn package_info() -> crate::PackageInfo;
   }
 }

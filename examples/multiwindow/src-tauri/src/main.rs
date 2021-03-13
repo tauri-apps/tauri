@@ -6,8 +6,6 @@
 use tauri::WebviewBuilderExt;
 
 fn main() {
-  let context = tauri::tauri_build_context!();
-
   tauri::AppBuilder::default()
     .setup(|webview_manager| async move {
       if webview_manager.current_window_label() == "Main" {
@@ -26,6 +24,6 @@ fn main() {
       Ok(builder)
     })
     .unwrap()
-    .build(context)
+    .build(tauri::generate_context!())
     .run();
 }

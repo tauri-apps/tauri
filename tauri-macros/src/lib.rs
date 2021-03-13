@@ -34,8 +34,8 @@ pub fn generate_handler(item: TokenStream) -> TokenStream {
 ///
 /// todo: link the [`AsTauriContext`] docs
 #[proc_macro]
-pub fn generate_tauri_context(item: TokenStream) -> TokenStream {
+pub fn generate_context(item: TokenStream) -> TokenStream {
   // this macro is exported from the context module
   let path = parse_config_path!(item);
-  context::generate_tauri_context(path).into()
+  context::generate_context(path).into()
 }

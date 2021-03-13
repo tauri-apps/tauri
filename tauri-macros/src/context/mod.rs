@@ -55,7 +55,7 @@ macro_rules! parse_config_path {
   }
 }
 
-pub(crate) fn generate_tauri_context(path: PathBuf) -> TokenStream {
+pub(crate) fn generate_context(path: PathBuf) -> TokenStream {
   let context = get_config(&path)
     .map_err(|e| e.to_string())
     .map(|(config, config_parent)| ContextData {

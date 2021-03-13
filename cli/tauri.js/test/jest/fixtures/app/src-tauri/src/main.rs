@@ -1,8 +1,6 @@
 use tauri::ApplicationDispatcherExt;
 
 fn main() {
-  let context = tauri::generate_tauri_context!();
-
   tauri::AppBuilder::default()
     .setup(|webview_manager| async move {
       let mut webview_manager_ = webview_manager.clone();
@@ -23,6 +21,6 @@ fn main() {
         webview_manager.close().unwrap();
       }
     })
-    .build(context)
+    .build(tauri::generate_context!())
     .run();
 }

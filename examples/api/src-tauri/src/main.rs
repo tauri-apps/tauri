@@ -13,8 +13,6 @@ struct Reply {
 }
 
 fn main() {
-  let context = tauri::generate_tauri_context!();
-
   tauri::AppBuilder::default()
     .setup(|webview_manager| async move {
       let dispatcher = webview_manager.current_webview().unwrap();
@@ -34,6 +32,6 @@ fn main() {
       cmd::log_operation,
       cmd::perform_request
     ])
-    .build(context)
+    .build(tauri::generate_context!())
     .run();
 }

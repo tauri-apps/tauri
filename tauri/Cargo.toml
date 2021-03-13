@@ -30,7 +30,7 @@ thiserror = "1.0.24"
 once_cell = "1.7.2"
 tauri-api = { version = "0.7.5", path = "../tauri-api" }
 tauri-macros = { version = "0.1", path = "../tauri-macros" }
-wry = { git = "https://github.com/tauri-apps/wry", rev = "729fdc182eaf4af44d822dfc9396deb3f5f5810a" }
+wry = { git = "https://github.com/tauri-apps/wry", rev = "39575983dbd128fbbcde933d742b33b691fd1def" }
 rand = "0.8"
 
 [build-dependencies]

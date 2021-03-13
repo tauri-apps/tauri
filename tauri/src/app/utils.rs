@@ -322,8 +322,10 @@ async fn on_message<A: ApplicationExt + 'static>(
 ) -> crate::Result<InvokeResponse> {
   if &command == "__initialized" {
     let payload: PageLoadPayload = serde_json::from_value(message.inner)?;
-    application.run_on_page_load(&webview_manager, payload.clone());
-    crate::plugin::on_page_load(A::plugin_store(), &webview_manager, payload);
+    application
+      .run_on_page_load(&webview_manager, payload.clone())
+      .await;
+    crate::plugin::on_page_load(A::plugin_store(), &webview_manager, payload).await;
     Ok(().into())
   } else if let Some(module) = &message.tauri_module {
     crate::endpoints::handle(
@@ -332,20 +334,24 @@ async fn on_message<A: ApplicationExt + 'static>(
       message.inner,
       &application.context,
     )
+    .await
   } else {
-    let mut response =
-      match application.run_invoke_handler(&webview_manager, command.clone(), &message.inner) {
-        Ok(value) => {
-          if let Some(value) = value {
-            Ok(value)
-          } else {
-            Err(crate::Error::UnknownApi(None))
-          }
+    let mut response = match application
+      .run_invoke_handler(&webview_manager, command.clone(), &message.inner)
+      .await
+    {
+      Ok(value) => {
+        if let Some(value) = value {
+          Ok(value)
+        } else {
+          Err(crate::Error::UnknownApi(None))
         }
-        Err(e) => Err(e),
-      };
+      }
+      Err(e) => Err(e),
+    };
     if let Err(crate::Error::UnknownApi(_)) = response {
       match crate::plugin::extend_api(A::plugin_store(), &webview_manager, command, &message.inner)
+        .await
       {
         Ok(value) => {
           // If value is None, that means that no plugin matched the command

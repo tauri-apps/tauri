@@ -123,31 +123,36 @@ impl<A: ApplicationExt + 'static> App<A> {
   /// Runs the invoke handler if defined.
   /// Returns whether the message was consumed or not.
   /// The message is considered consumed if the handler exists and returns an Ok Result.
-  pub(crate) fn run_invoke_handler(
+  pub(crate) async fn run_invoke_handler(
     &self,
     dispatcher: &WebviewManager<A>,
     command: String,
     arg: &JsonValue,
   ) -> crate::Result<Option<InvokeResponse>> {
     if let Some(ref invoke_handler) = self.invoke_handler {
-      let fut = invoke_handler(dispatcher.clone(), command, arg.clone());
-      crate::async_runtime::block_on(fut).map(Some)
+      invoke_handler(dispatcher.clone(), command, arg.clone())
+        .await
+        .map(Some)
     } else {
       Ok(None)
     }
   }
 
   /// Runs the setup hook if defined.
-  pub(crate) fn run_setup(&self, dispatcher: WebviewManager<A>) {
+  pub(crate) async fn run_setup(&self, dispatcher: WebviewManager<A>) {
     if let Some(ref setup) = self.setup {
-      setup(dispatcher);
+      setup(dispatcher).await;
     }
   }
 
   /// Runs the on page load hook if defined.
-  pub(crate) fn run_on_page_load(&self, dispatcher: &WebviewManager<A>, payload: PageLoadPayload) {
+  pub(crate) async fn run_on_page_load(
+    &self,
+    dispatcher: &WebviewManager<A>,
+    payload: PageLoadPayload,
+  ) {
     if let Some(ref on_page_load) = self.on_page_load {
-      on_page_load(dispatcher.clone(), payload);
+      on_page_load(dispatcher.clone(), payload).await;
     }
   }
 }
@@ -158,10 +163,11 @@ type WebviewContext<A> = (
   Option<CustomProtocol>,
 );
 
+#[async_trait::async_trait]
 trait WebviewInitializer<A: ApplicationExt> {
   fn init_webview(&self, webview: Webview<A>) -> crate::Result<WebviewContext<A>>;
 
-  fn on_webview_created(
+  async fn on_webview_created(
     &self,
     webview_label: String,
     dispatcher: A::Dispatcher,
@@ -169,6 +175,7 @@ trait WebviewInitializer<A: ApplicationExt> {
   );
 }
 
+#[async_trait::async_trait]
 impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
   fn init_webview(&self, webview: Webview<A>) -> crate::Result<WebviewContext<A>> {
     let webview_manager = WebviewManager::new(
@@ -187,7 +194,7 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
     )
   }
 
-  fn on_webview_created(
+  async fn on_webview_created(
     &self,
     webview_label: String,
     dispatcher: A::Dispatcher,
@@ -198,7 +205,7 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
       WebviewDispatcher::new(dispatcher, webview_label),
     );
 
-    crate::plugin::created(A::plugin_store(), &manager)
+    crate::plugin::created(A::plugin_store(), &manager).await
   }
 }
 
@@ -281,7 +288,7 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<C, A> {
     self,
     plugin: impl crate::plugin::Plugin<A> + Send + Sync + Sync + 'static,
   ) -> Self {
-    crate::plugin::register(A::plugin_store(), plugin);
+    crate::async_runtime::block_on(crate::plugin::register(A::plugin_store(), plugin));
     self
   }
 
@@ -304,7 +311,8 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<C, A> {
   /// Builds the App.
   pub fn build(self) -> crate::Result<App<A>> {
     let window_labels: Vec<String> = self.webviews.iter().map(|w| w.label.to_string()).collect();
-    let plugin_initialization_script = crate::plugin::initialization_script(A::plugin_store());
+    let plugin_initialization_script =
+      crate::async_runtime::block_on(crate::plugin::initialization_script(A::plugin_store()));
 
     let context = Context::new::<C>()?;
     let url = utils::get_url(&context);
@@ -325,7 +333,7 @@ impl<A: ApplicationExt + 'static, C: AsTauriContext> AppBuilder<C, A> {
 
 fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()> {
   let plugin_config = application.context.config.plugins.clone();
-  crate::plugin::initialize(A::plugin_store(), plugin_config)?;
+  crate::async_runtime::block_on(crate::plugin::initialize(A::plugin_store(), plugin_config))?;
 
   let webviews = application.webviews.take().unwrap();
 
@@ -346,11 +354,15 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
     let (webview_builder, rpc_handler, custom_protocol) = application.init_webview(webview)?;
 
     let dispatcher = webview_app.create_webview(webview_builder, rpc_handler, custom_protocol)?;
-    application.on_webview_created(webview_label, dispatcher, webview_manager);
+    crate::async_runtime::block_on(application.on_webview_created(
+      webview_label,
+      dispatcher,
+      webview_manager,
+    ));
   }
 
   if let Some(main_webview_manager) = main_webview_manager {
-    application.run_setup(main_webview_manager);
+    crate::async_runtime::block_on(application.run_setup(main_webview_manager));
   }
 
   webview_app.run();

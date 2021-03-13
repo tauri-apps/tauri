@@ -159,8 +159,8 @@ impl Default for WindowConfig {
 #[derive(PartialEq, Deserialize, Debug, Clone)]
 #[serde(tag = "updaterConfig", rename_all = "camelCase")]
 pub struct UpdaterConfig {
-  #[serde(default)]
   /// Whether the updater is active or not.
+  #[serde(default)]
   pub active: bool,
   #[serde(default)]
   /// The updater endpoints.
@@ -168,8 +168,8 @@ pub struct UpdaterConfig {
   #[serde(default)]
   /// Optional pubkey.
   pub pubkey: Option<String>,
-  #[serde(default = "default_updater_dialog")]
   /// Display built-in dialog or use event system if disabled.
+  #[serde(default = "default_updater_dialog")]
   pub dialog: bool,
 }
 
@@ -742,13 +742,25 @@ mod build {
     }
   }
 
+  impl ToTokens for UpdaterConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let active = self.active;
+      let dialog = self.dialog;
+      let pubkey = opt_str_lit(self.pubkey.as_ref());
+      let endpoints = opt_vec_str_lit(self.endpoints.as_ref());
+
+      literal_struct!(tokens, UpdaterConfig, active, dialog, pubkey, endpoints);
+    }
+  }
+
   impl ToTokens for TauriConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let windows = vec_lit(&self.windows, identity);
       let cli = opt_lit(self.cli.as_ref());
       let bundle = &self.bundle;
+      let updater = &self.updater;
 
-      literal_struct!(tokens, TauriConfig, windows, cli, bundle);
+      literal_struct!(tokens, TauriConfig, windows, cli, bundle, updater);
     }
   }
 

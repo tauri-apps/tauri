@@ -85,8 +85,5 @@ target
 # todo: needs a proper fic
 /cli/tauri.js/tauri.conf.js
 
-# doing this because the task-runner (`mask prepare`) will clone gh:tauri-apps/examples
-/examples
-
 # ignore frida handlers
 __handlers__/

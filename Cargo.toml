@@ -4,7 +4,21 @@ members = [
   "tauri-api",
   "tauri-macros",
   "tauri-utils",
+
+  # core
+  "core/tauri-build",
+  "core/tauri-codegen",
+
+  # examples
+  "examples/api/src-tauri",
+  "examples/helloworld/src-tauri",
+  "examples/multiwindow/src-tauri",
 ]
-exclude = [
-  "examples",
-]
+
+# default to small, optimized workspace release binaries
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+incremental = false
+opt-level = "s"

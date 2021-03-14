@@ -36,6 +36,7 @@ pub enum Cmd {
   Unminimize,
   Show,
   Hide,
+  Close,
   SetDecorations {
     decorations: bool,
   },
@@ -95,7 +96,7 @@ impl Cmd {
     if cfg!(not(window_all)) {
       Err(crate::Error::ApiNotAllowlisted("window > all".to_string()))
     } else {
-      let current_webview = webview_manager.current_webview().await?;
+      let current_webview = webview_manager.current_webview()?;
       match self {
         Self::CreateWebview { options } => {
           #[cfg(not(window_create))]
@@ -110,13 +111,11 @@ impl Cmd {
                 Ok(crate::app::webview::WindowConfig(options).into())
               })
               .await?;
-            webview_manager
-              .emit_except(
-                label.to_string(),
-                "tauri://window-created",
-                Some(WindowCreatedEvent { label }),
-              )
-              .await?;
+            webview_manager.emit_except(
+              label.to_string(),
+              "tauri://window-created",
+              Some(WindowCreatedEvent { label }),
+            )?;
           }
         }
         Self::SetResizable { resizable } => current_webview.set_resizable(resizable)?,
@@ -127,6 +126,7 @@ impl Cmd {
         Self::Unminimize => current_webview.unminimize()?,
         Self::Show => current_webview.show()?,
         Self::Hide => current_webview.hide()?,
+        Self::Close => current_webview.close()?,
         Self::SetDecorations { decorations } => current_webview.set_decorations(decorations)?,
         Self::SetAlwaysOnTop { always_on_top } => {
           current_webview.set_always_on_top(always_on_top)?

@@ -61,4 +61,7 @@ pub enum Error {
   #[cfg(feature = "global-shortcut")]
   #[error("shortcut error: {0}")]
   Shortcut(#[from] tauri_hotkey::Error),
+  /// Shell error.
+  #[error("shell error: {0}")]
+  Shell(String),
 }

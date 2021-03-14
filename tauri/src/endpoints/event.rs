@@ -23,7 +23,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub async fn run<A: crate::ApplicationExt + 'static>(
+  pub fn run<A: crate::ApplicationExt + 'static>(
     self,
     webview_manager: &crate::WebviewManager<A>,
   ) -> crate::Result<InvokeResponse> {
@@ -34,7 +34,7 @@ impl Cmd {
         once,
       } => {
         let js_string = listen_fn(event, handler, once)?;
-        webview_manager.current_webview().await?.eval(&js_string)?;
+        webview_manager.current_webview()?.eval(&js_string)?;
       }
       Self::Emit {
         event,
@@ -42,7 +42,7 @@ impl Cmd {
         payload,
       } => {
         if let Some(label) = window_label {
-          let dispatcher = webview_manager.get_webview(&label).await?;
+          let dispatcher = webview_manager.get_webview(&label)?;
           // dispatch the event to Rust listeners
           dispatcher.on_event(event.to_string(), payload.clone());
           // dispatch the event to JS listeners
@@ -51,7 +51,7 @@ impl Cmd {
           // dispatch the event to Rust listeners
           webview_manager.on_event(event.to_string(), payload.clone());
           // dispatch the event to JS listeners
-          webview_manager.emit(event, payload).await?;
+          webview_manager.emit(event, payload)?;
         }
       }
     }

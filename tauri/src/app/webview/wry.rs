@@ -1,6 +1,6 @@
 use super::{
-  ApplicationDispatcherExt, ApplicationExt, Callback, CustomProtocol, Icon, WebviewBuilderExt,
-  WebviewBuilderExtPrivate, WindowConfig,
+  ApplicationDispatcherExt, ApplicationExt, CustomProtocol, FileDropEvent, FileDropHandler, Icon,
+  RpcRequest, WebviewBuilderExt, WebviewBuilderExtPrivate, WebviewRpcHandler, WindowConfig,
 };
 
 use once_cell::sync::Lazy;
@@ -177,6 +177,25 @@ impl WebviewBuilderExt for wry::Attributes {
   }
 }
 
+impl From<wry::RpcRequest> for RpcRequest {
+  fn from(request: wry::RpcRequest) -> Self {
+    Self {
+      command: request.method,
+      params: request.params,
+    }
+  }
+}
+
+impl From<wry::FileDropEvent> for FileDropEvent {
+  fn from(event: wry::FileDropEvent) -> Self {
+    match event {
+      wry::FileDropEvent::Hovered(paths) => FileDropEvent::Hovered(paths),
+      wry::FileDropEvent::Dropped(paths) => FileDropEvent::Dropped(paths),
+      wry::FileDropEvent::Cancelled => FileDropEvent::Cancelled,
+    }
+  }
+}
+
 #[derive(Clone)]
 pub struct WryDispatcher(
   Arc<Mutex<wry::WindowProxy>>,
@@ -189,25 +208,31 @@ impl ApplicationDispatcherExt for WryDispatcher {
   fn create_webview(
     &self,
     attributes: Self::WebviewBuilder,
-    callbacks: Vec<Callback<Self>>,
+    rpc_handler: Option<WebviewRpcHandler<Self>>,
     custom_protocol: Option<CustomProtocol>,
+    file_drop_handler: Option<FileDropHandler>,
   ) -> crate::Result<Self> {
-    let mut wry_callbacks = Vec::new();
     let app_dispatcher = self.1.clone();
-    for mut callback in callbacks {
-      let app_dispatcher = app_dispatcher.clone();
-      let callback = wry::Callback {
-        name: callback.name.to_string(),
-        function: Box::new(move |dispatcher, _, req| {
-          (callback.function)(
-            Self(Arc::new(Mutex::new(dispatcher)), app_dispatcher.clone()),
-            req,
+
+    let wry_rpc_handler = Box::new(
+      move |dispatcher: wry::WindowProxy, request: wry::RpcRequest| {
+        if let Some(handler) = &rpc_handler {
+          handler(
+            WryDispatcher(Arc::new(Mutex::new(dispatcher)), app_dispatcher.clone()),
+            request.into(),
           );
-          Ok(())
-        }),
-      };
-      wry_callbacks.push(callback);
-    }
+        }
+        None
+      },
+    );
+
+    let file_drop_handler = Box::new(move |event: wry::FileDropEvent| {
+      if let Some(handler) = &file_drop_handler {
+        handler(event.into())
+      } else {
+        false
+      }
+    });
 
     let window_dispatcher = self
       .1
@@ -215,11 +240,12 @@ impl ApplicationDispatcherExt for WryDispatcher {
       .unwrap()
       .add_window_with_configs(
         attributes,
-        Some(wry_callbacks),
+        Some(wry_rpc_handler),
         custom_protocol.map(|p| wry::CustomProtocol {
           name: p.name.clone(),
           handler: Box::new(move |a| (*p.handler)(a).map_err(|_| wry::Error::InitScriptError)),
         }),
+        Some(file_drop_handler),
       )
       .map_err(|_| crate::Error::FailedToSendMessage)?;
     Ok(Self(
@@ -297,6 +323,15 @@ impl ApplicationDispatcherExt for WryDispatcher {
       .lock()
       .unwrap()
       .hide()
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn close(&self) -> crate::Result<()> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .close()
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
@@ -440,35 +475,43 @@ impl ApplicationExt for WryApplication {
   fn create_webview(
     &mut self,
     webview_builder: Self::WebviewBuilder,
-    callbacks: Vec<Callback<Self::Dispatcher>>,
+    rpc_handler: Option<WebviewRpcHandler<Self::Dispatcher>>,
     custom_protocol: Option<CustomProtocol>,
+    file_drop_handler: Option<FileDropHandler>,
   ) -> crate::Result<Self::Dispatcher> {
-    let mut wry_callbacks = Vec::new();
     let app_dispatcher = Arc::new(Mutex::new(self.inner.application_proxy()));
-    for mut callback in callbacks {
-      let app_dispatcher = app_dispatcher.clone();
-      let callback = wry::Callback {
-        name: callback.name.to_string(),
-        function: Box::new(move |dispatcher, _, req| {
-          (callback.function)(
-            WryDispatcher(Arc::new(Mutex::new(dispatcher)), app_dispatcher.clone()),
-            req,
+
+    let app_dispatcher_ = app_dispatcher.clone();
+    let wry_rpc_handler = Box::new(
+      move |dispatcher: wry::WindowProxy, request: wry::RpcRequest| {
+        if let Some(handler) = &rpc_handler {
+          handler(
+            WryDispatcher(Arc::new(Mutex::new(dispatcher)), app_dispatcher_.clone()),
+            request.into(),
           );
-          Ok(())
-        }),
-      };
-      wry_callbacks.push(callback);
-    }
+        }
+        None
+      },
+    );
+
+    let file_drop_handler = Box::new(move |event: wry::FileDropEvent| {
+      if let Some(handler) = &file_drop_handler {
+        handler(event.into())
+      } else {
+        false
+      }
+    });
 
     let dispatcher = self
       .inner
       .add_window_with_configs(
         webview_builder.finish()?,
-        Some(wry_callbacks),
+        Some(wry_rpc_handler),
         custom_protocol.map(|p| wry::CustomProtocol {
           name: p.name.clone(),
           handler: Box::new(move |a| (*p.handler)(a).map_err(|_| wry::Error::InitScriptError)),
         }),
+        Some(file_drop_handler),
       )
       .map_err(|_| crate::Error::CreateWebview)?;
     Ok(WryDispatcher(

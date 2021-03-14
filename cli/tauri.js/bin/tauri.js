@@ -63,7 +63,7 @@ const tauri = function (command) {
       require(`./tauri-${command}`)
     }
   } else {
-    console.log(`Invalid command ${command}. Use one of ${cmds.join(',')}.`)
+    console.log(`Invalid command ${command}. Use one of ${cmds.join(', ')}.`)
   }
 }
 module.exports = {

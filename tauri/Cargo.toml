@@ -21,21 +21,17 @@ features = [ "api-all" ]
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
 base64 = "0.13.0"
-webbrowser = "0.5.5"
 lazy_static = "1.4.0"
-tokio = { version = "1.2", features = ["rt", "rt-multi-thread", "sync"] }
+tokio = { version = "1.3", features = ["rt", "rt-multi-thread", "sync"] }
 futures = "0.3"
 async-trait = "0.1"
 uuid = { version = "0.8.2", features = [ "v4" ] }
 thiserror = "1.0.24"
-once_cell = "1.7.0"
+once_cell = "1.7.2"
 tauri-api = { version = "0.7.5", path = "../tauri-api" }
 tauri-macros = { version = "0.1", path = "../tauri-macros" }
-wry = { git = "https://github.com/tauri-apps/wry", rev = "a607d6aba95e6ee0d9620394b7ee0092527095dc" }
+wry = { git = "https://github.com/tauri-apps/wry", rev = "39575983dbd128fbbcde933d742b33b691fd1def" }
 rand = "0.8"
-
-[target."cfg(target_os = \"windows\")".dependencies]
-runas = "0.2"
 
 [build-dependencies]
 cfg_aliases = "0.1.1"
@@ -89,11 +85,3 @@ notification-all = [ "tauri-api/notification" ]
 
 # global shortcut
 global-shortcut-all = [ "tauri-api/global-shortcut" ]
-
-[[example]]
-name = "helloworld"
-path = "examples/helloworld/src-tauri/src/main.rs"
-
-[[example]]
-name = "multiwindow"
-path = "examples/multiwindow/src-tauri/src/main.rs"

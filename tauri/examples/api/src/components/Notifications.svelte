@@ -3,7 +3,7 @@
 
   function _sendNotification() {
     new Notification("Notification title", {
-      body: "This is the notification body"
+      body: "This is the notification body",
     });
   }
 

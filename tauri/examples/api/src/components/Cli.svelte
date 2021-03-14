@@ -4,9 +4,7 @@
   export let onMessage;
 
   function cliMatches() {
-    getMatches()
-      .then(onMessage)
-      .catch(onMessage);
+    getMatches().then(onMessage).catch(onMessage);
   }
 </script>
 

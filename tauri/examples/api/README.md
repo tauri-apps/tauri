@@ -15,16 +15,23 @@ $ npm install
 
 - Compile tauri
 go to root of the tauri repo and run
+
+Linux / Mac:
 ```
 sh .scripts/setup.sh
+```
+
+Windows:
+```
+./.scripts/setup.ps1
 ```
 
 - Compile the app (Run inside of this folder tauri/examples/api/)
 ```bash
 # with yarn
-$ yarn tauri:build
+$ yarn tauri dev
 # with npm
-$ npm run tauri:build
+$ npm run tauri dev
 ```
 
 - Run the app

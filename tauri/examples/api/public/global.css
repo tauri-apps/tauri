@@ -98,8 +98,6 @@ button:active {
   transition: 0.2s ease;
 }
 
-
-
 .bottom {
   position: fixed;
   bottom: 0;
@@ -123,48 +121,6 @@ button:active {
 
 .dark-link:hover{
   background: #3d392a;
-}
-
-.tabs-container {
-  position: fixed;
-  height: 400px;
-  top: 20px;
-  left: 10px;
-  right: 10px;
-  z-index: 9;
-}
-
-.tabs {
-  position: relative;
-  min-height: 400px;
-  clear: both;
-}
-
-.tab {
-  float: left;
-}
-
-.tab > label {
-  background: rgba(117, 117, 117, 0);
-  color:  rgb(218, 221, 225);
-  padding: 10px;
-  border: 1px solid transparent;
-  margin-left: -1px;
-  position: relative;
-  left: 1px;
-  cursor: pointer;
-}
-
-.tabs > .tabber {
-  border-top-left-radius: 5px;
-}
-
-.tabs > .tabber ~ .tabber {
-  border-top-left-radius: none;
-}
-
-.tab [type="radio"] {
-  display: none;
 }
 
 .nv{

@@ -123,15 +123,3 @@
     {responses}
   </div>
 </main>
-
-<!--
-
-  <div class="tab">
-        <input id={`tab-${view.label}`} type="radio" checked={view.label===selected} />
-        <label for={`tab-${view.label}`} class="tabber" on:click={()=> select(view)}>{view.label}</label>
-        <div class="content">
-          <svelte:component this={view.component} {onMessage} />
-      </div>
-  </div>
-
--->

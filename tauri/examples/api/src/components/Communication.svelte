@@ -2,7 +2,7 @@
   import { listen, emit } from "@tauri-apps/api/event";
   import { invoke } from "@tauri-apps/api/tauri";
 
-  export let onMessage
+  export let onMessage;
 
   listen("rust-event", onMessage);
 
@@ -10,7 +10,7 @@
     invoke({
       cmd: "logOperation",
       event: "tauri-click",
-      payload: "this payload is optional because we used Option in Rust"
+      payload: "this payload is optional because we used Option in Rust",
     });
   }
 
@@ -20,8 +20,8 @@
       endpoint: "dummy endpoint arg",
       body: {
         id: 5,
-        name: "test"
-      }
+        name: "test",
+      },
     })
       .then(onMessage)
       .catch(onMessage);

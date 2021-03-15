@@ -493,7 +493,7 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
         .arg("/i")
         // This consumes the TempDir without deleting directory on the filesystem,
         // meaning that the directory will no longer be automatically deleted.
-        .arg(tmp_dir.into_path().to_string_lossy())
+        .arg(tmp_dir.into_path())
         .spawn()
         .expect("installer failed to start");
 

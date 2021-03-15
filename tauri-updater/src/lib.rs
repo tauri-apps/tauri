@@ -483,7 +483,6 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
       // early finish we have everything we need here
       return Ok(());
     } else if found_path.extension() == Some(OsStr::new("msi")) {
-
       // copy msi to a named temp file
       // this allow use to spawn the install process
       // and kill our application without loosing the MSI
@@ -495,7 +494,7 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
       std::fs::rename(found_path, temp_path)?;
       drop(tmp_dir);
       tmp_dir.close();
-        
+
       Command::new("msiexec.exe")
         .arg("/i")
         .arg(temp_path.to_path_buf())
@@ -503,7 +502,7 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
 
       // todo(lemarier): Check if the MSI kill the app correctly
       // otherwise maybe force an exit() manually...
-        
+
       // early finish we have everything we need here
       return Ok(());
     }

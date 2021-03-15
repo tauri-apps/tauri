@@ -80,13 +80,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let mut args = vec![
     "--volname",
     &package_base_name,
-    
     // todo: volume icon
     // make sure this is a valid path?
 
     //"--volicon",
     //"../../../../icons/icon.icns",
-    
     "--icon",
     &bundle_name,
     "180",

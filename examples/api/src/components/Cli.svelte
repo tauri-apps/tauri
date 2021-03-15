@@ -4,13 +4,11 @@
   export let onMessage;
 
   function cliMatches() {
-    getMatches()
-      .then(onMessage)
-      .catch(onMessage);
+    getMatches().then(onMessage).catch(onMessage);
   }
 </script>
 
-<div style="margin-top: 24px">
+<div>
   <button class="button" id="cli-matches" on:click={cliMatches}>
     Get matches
   </button>

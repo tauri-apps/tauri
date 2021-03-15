@@ -5,7 +5,7 @@ In the future, this app will be used on Tauri's integration tests.
 ![App screenshot](./screenshot.png?raw=true)
 
 ## Running the example
-- Install dependencies
+- Install dependencies (Run inside of this folder tauri/examples/api/)
 ```bash
 # with yarn
 $ yarn
@@ -13,12 +13,25 @@ $ yarn
 $ npm install
 ```
 
-- Compile the app
+- Compile tauri
+go to root of the tauri repo and run
+
+Linux / Mac:
+```
+sh .scripts/setup.sh
+```
+
+Windows:
+```
+./.scripts/setup.ps1
+```
+
+- Compile the app (Run inside of this folder tauri/examples/api/)
 ```bash
 # with yarn
-$ yarn tauri:build
+$ yarn tauri dev
 # with npm
-$ npm run tauri:build
+$ npm run tauri dev
 ```
 
 - Run the app

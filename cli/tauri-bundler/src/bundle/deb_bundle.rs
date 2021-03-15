@@ -188,9 +188,10 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   // For more information about the format of this file, see
   // https://developer.gnome.org/integration-guide/stable/desktop-files.html.en
   writeln!(file, "[Desktop Entry]")?;
-  writeln!(file, "Encoding=UTF-8")?;
   if let Some(category) = settings.app_category() {
     writeln!(file, "Categories={}", category.gnome_desktop_categories())?;
+  } else {
+    writeln!(file, "Categories=")?;
   }
   if !settings.short_description().is_empty() {
     writeln!(file, "Comment={}", settings.short_description())?;
@@ -206,10 +207,9 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
     }
   )?;
   writeln!(file, "Icon={}", bin_name)?;
-  writeln!(file, "Name={}", settings.bundle_name())?;
+  writeln!(file, "Name={}", settings.product_name())?;
   writeln!(file, "Terminal=false")?;
   writeln!(file, "Type=Application")?;
-  writeln!(file, "Version={}", settings.version_string())?;
   Ok(())
 }
 
@@ -227,7 +227,7 @@ fn generate_control_file(
   writeln!(
     &mut file,
     "Package: {}",
-    str::replace(settings.bundle_name(), " ", "-").to_ascii_lowercase()
+    str::replace(settings.product_name(), " ", "-").to_ascii_lowercase()
   )?;
   writeln!(&mut file, "Version: {}", settings.version_string())?;
   writeln!(&mut file, "Architecture: {}", arch)?;

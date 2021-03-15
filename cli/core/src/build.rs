@@ -8,7 +8,13 @@ use crate::helpers::{
   Logger, TauriScript,
 };
 
-use std::{env::set_current_dir, fs::File, io::Write, path::PathBuf, process::Command};
+use std::{
+  env::set_current_dir,
+  fs::{rename, File},
+  io::Write,
+  path::PathBuf,
+  process::Command,
+};
 
 mod rust;
 
@@ -98,13 +104,22 @@ impl Build {
 
     rust::build_project(self.debug)?;
 
+    let app_settings = rust::AppSettings::new(&config_)?;
+
+    let out_dir = app_settings.get_out_dir(self.debug)?;
+    if let Some(product_name) = config_.package.product_name.clone() {
+      rename(
+        out_dir.join(app_settings.cargo_package_settings().name.clone()),
+        out_dir.join(product_name),
+      )?;
+    }
+
     if config_.tauri.bundle.active {
-      let bundler_settings = rust::get_bundler_settings(&config_, self.debug)?;
       let mut settings_builder = SettingsBuilder::new()
-        .package_settings(bundler_settings.package_settings)
-        .bundle_settings(bundler_settings.bundle_settings)
-        .binaries(bundler_settings.binaries)
-        .project_out_directory(bundler_settings.out_dir);
+        .package_settings(app_settings.get_package_settings())
+        .bundle_settings(app_settings.get_bundle_settings(&config_)?)
+        .binaries(app_settings.get_binaries(&config_)?)
+        .project_out_directory(out_dir);
 
       if self.verbose {
         settings_builder = settings_builder.verbose();

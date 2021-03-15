@@ -11,9 +11,6 @@ jobs:
   build-artifacs:
     runs-on: ${{ matrix.platform }}
 
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_11.3.1.app/Contents/Developer
-
     strategy:
       fail-fast: false
       matrix:
@@ -49,16 +46,16 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         with:
           name: linux-updater-artifacts
-          path: ./examples/updater/src-tauri/target/release/bundle/appimage/updater-example_*.AppImage.*
+          path: ./target/release/bundle/appimage/updater-example_*.AppImage.*
 
       - uses: actions/upload-artifact@v2
         if: matrix.platform == 'windows-latest'
         with:
           name: windows-updater-artifacts
-          path: ./examples/updater/src-tauri/target/release/bundle/msi/*
+          path: ./target/release/bundle/msi/*
 
       - uses: actions/upload-artifact@v2
         if: matrix.platform == 'macos-latest'
         with:
           name: osx-updater-artifacts
-          path: ./examples/updater/src-tauri/target/release/bundle/osx/updater-example_*.app.tar.*
+          path: ./target/release/bundle/osx/updater-example_*.app.tar.*

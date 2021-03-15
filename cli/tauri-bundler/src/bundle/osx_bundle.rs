@@ -104,7 +104,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   Ok(vec![app_bundle_path])
 }
 
-fn sign(path_to_sign: PathBuf, identity: &str, settings: &Settings, is_an_executable: bool) -> crate::Result<()> {
+pub fn sign(path_to_sign: PathBuf, identity: &str, settings: &Settings, is_an_executable: bool) -> crate::Result<()> {
   common::print_info(format!(r#"signing with identity "{}""#, identity).as_str())?;
   let mut args = vec!["--force", "-s", identity];
   if let Some(entitlements_path) = settings.osx_entitlements() {

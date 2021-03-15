@@ -479,29 +479,23 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
     if found_path.extension() == Some(OsStr::new("exe")) {
       // Run the EXE
       // maybe we can detach and kill the app?
-      Command::new(found_path).output()?;
+      Command::new(found_path)
+        // This consumes the TempDir without deleting directory on the filesystem,
+        // meaning that the directory will no longer be automatically deleted.
+        .arg(tmp_dir.into_path())
+        .spawn()
+        .expect("installer failed to start");
+
       // early finish we have everything we need here
       return Ok(());
     } else if found_path.extension() == Some(OsStr::new("msi")) {
-      // copy msi to a named temp file
-      // this allow use to spawn the install process
-      // and kill our application without loosing the MSI
-      let fixed_msi = tempfile::NamedTempFile::new()?;
-      // we tell tempfile to do not destroy our MSI
-      // when main process is exiting.
-      fixed_msi.keep()?;
-      let temp_path = fixed_msi.into_temp_path();
-      std::fs::rename(found_path, temp_path)?;
-      drop(tmp_dir);
-      tmp_dir.close();
-
       Command::new("msiexec.exe")
         .arg("/i")
-        .arg(temp_path.to_path_buf())
-        .output()?;
-
-      // todo(lemarier): Check if the MSI kill the app correctly
-      // otherwise maybe force an exit() manually...
+        // This consumes the TempDir without deleting directory on the filesystem,
+        // meaning that the directory will no longer be automatically deleted.
+        .arg(tmp_dir.into_path().to_string_lossy())
+        .spawn()
+        .expect("installer failed to start");
 
       // early finish we have everything we need here
       return Ok(());

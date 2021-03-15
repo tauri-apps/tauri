@@ -7,13 +7,13 @@
   export let onMessage;
 
   async function makeHttpRequest() {
-    const client = await getClient()
+    const client = await getClient();
     let method = httpMethod || "GET";
     let url = httpUrl || "";
 
     const options = {
       url: url || "",
-      method: method || "GET"
+      method: method || "GET",
     };
 
     if (
@@ -21,13 +21,11 @@
       (httpBody.startsWith("[") && httpBody.endsWith("]"))
     ) {
       options.body = Body.json(JSON.parse(httpBody));
-    } else if (httpBody !== '') {
-      options.body = Body.text(httpBody)
+    } else if (httpBody !== "") {
+      options.body = Body.text(httpBody);
     }
 
-    client.request(options)
-      .then(onMessage)
-      .catch(onMessage);
+    client.request(options).then(onMessage).catch(onMessage);
   }
 </script>
 
@@ -39,11 +37,18 @@
     <option value="PATCH">PATCH</option>
     <option value="DELETE">DELETE</option>
   </select>
-  <input id="request-url" placeholder="Type the request URL..." bind:value={httpUrl} />
+  <input
+    id="request-url"
+    placeholder="Type the request URL..."
+    bind:value={httpUrl}
+  />
   <br />
-  <textarea id="request-body" placeholder="Request body" rows="5" style="width:100%;margin-right:10px;font-size:12px"
-    bind:value={httpBody} />
-  <button class="button" id="make-request">
-    Make request
-  </button>
+  <textarea
+    id="request-body"
+    placeholder="Request body"
+    rows="5"
+    style="width:100%;margin-right:10px;font-size:12px"
+    bind:value={httpBody}
+  />
+  <button class="button" id="make-request"> Make request </button>
 </form>

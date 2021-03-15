@@ -1,52 +1,66 @@
 <script>
   import { onMount } from "svelte";
-  import { open } from "@tauri-apps/api/window"
+  import { open } from "@tauri-apps/api/window";
 
-  import Cli from './components/Cli.svelte'
-  import Communication from './components/Communication.svelte'
-  import Dialog from './components/Dialog.svelte'
-  import FileSystem from './components/FileSystem.svelte'
-  import Http from './components/Http.svelte'
-  import Notifications from './components/Notifications.svelte'
-  import Window from './components/Window.svelte'
-  import Shortcuts from './components/Shortcuts.svelte'
+  import Cli from "./components/Cli.svelte";
+  import Communication from "./components/Communication.svelte";
+  import Dialog from "./components/Dialog.svelte";
+  import FileSystem from "./components/FileSystem.svelte";
+  import Http from "./components/Http.svelte";
+  import Notifications from "./components/Notifications.svelte";
+  import Window from "./components/Window.svelte";
+  import Shortcuts from "./components/Shortcuts.svelte";
+  import Welcome from "./components/Welcome.svelte";
 
-  const views = [{
-    label: 'Messages',
-    component: Communication
-  }, {
-    label: 'CLI',
-    component: Cli
-  }, {
-    label: 'Dialog',
-    component: Dialog
-  }, {
-    label: 'File system',
-    component: FileSystem
-  }, {
-    label: 'HTTP',
-    component: Http
-  }, {
-    label: 'Notifications',
-    component: Notifications
-  }, {
-    label: 'Window',
-    component: Window
-  }, {
-    label: 'Shortcuts',
-    component: Shortcuts
-  }]
+  const views = [
+    {
+      label: "Welcome",
+      component: Welcome,
+    },
+    {
+      label: "Messages",
+      component: Communication,
+    },
+    {
+      label: "CLI",
+      component: Cli,
+    },
+    {
+      label: "Dialog",
+      component: Dialog,
+    },
+    {
+      label: "File system",
+      component: FileSystem,
+    },
+    {
+      label: "HTTP",
+      component: Http,
+    },
+    {
+      label: "Notifications",
+      component: Notifications,
+    },
+    {
+      label: "Window",
+      component: Window,
+    },
+    {
+      label: "Shortcuts",
+      component: Shortcuts,
+    },
+  ];
 
-  let selected = views[0].label;
+  let selected = views[0];
 
-  let response = '';
+  let responses = [""];
 
   function select(view) {
-    selected = view.label
+    selected = view;
   }
 
   function onMessage(value) {
-    response = typeof value === "string" ? value : JSON.stringify(value);
+    responses += typeof value === "string" ? value : JSON.stringify(value);
   }
 
   function onLogoClick() {
@@ -55,36 +69,57 @@
 </script>
 
 <main>
-  <div class="logo-container">
-    <img src="icon.png" class="logo" on:click={onLogoClick} alt="logo" />
-  </div>
-
-  <div class="tabs-container">
-    <div class="tabs">
-      {#each views as view}
-      <div class="tab">
-        <input id={`tab-${view.label}`} type="radio" checked={view.label===selected} />
-        <label for={`tab-${view.label}`} class="tabber" on:click={()=> select(view)}>{view.label}</label>
-        <div class="content">
-          <svelte:component this={view.component} {onMessage} />
-        </div>
-      </div>
-      {/each}
+  <div class="flex row noselect just-around" style="margin=1em;">
+    <img src="tauri.png" height="60" on:click={onLogoClick} alt="logo" />
+    <div>
+      <a
+        class="dark-link"
+        target="_blank"
+        href="https://tauri.studio/en/docs/getting-started/intro"
+      >
+        Documentation
+      </a>
+      <a
+        class="dark-link"
+        target="_blank"
+        href="https://github.com/tauri-apps/tauri"
+      >
+        Github
+      </a>
+      <a
+        class="dark-link"
+        target="_blank"
+        href="https://github.com/tauri-apps/tauri/tree/dev/tauri/examples/api"
+      >
+        Source
+      </a>
     </div>
   </div>
-  <div id="response">{@html response}</div>
-  <div class="bottom">
-    <a class="dark-link" target="_blank" href="https://tauri.studio">
-      Tauri Documentation
-    </a>
-    &nbsp;&nbsp;&nbsp;
-    <a class="dark-link" target="_blank" href="https://github.com/tauri-apps/tauri">
-      Github Repo
-    </a>
-    &nbsp;&nbsp;&nbsp;
-    <a class="dark-link" target="_blank"
-      href="https://github.com/tauri-apps/tauri/tree/dev/tauri/examples/api">
-      Source for this App
-    </a>
+  <div class="flex row">
+    <div style="width:15em; margin-left:0.5em">
+      {#each views as view}
+        <p
+          class="nv noselect {selected === view ? 'nv_selected' : ''}"
+          on:click={() => select(view)}
+        >
+          {view.label}
+        </p>
+      {/each}
+    </div>
+    <div class="content">
+      <svelte:component this={selected.component} {onMessage} />
+    </div>
+  </div>
+  <div id="response">
+    <p class="flex row just-around">
+      <strong>Tauri Console</strong>
+      <a
+        class="nv"
+        on:click={() => {
+          responses = [""];
+        }}>clear</a
+      >
+    </p>
+    {responses}
   </div>
 </main>

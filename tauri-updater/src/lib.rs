@@ -483,15 +483,27 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
       // early finish we have everything we need here
       return Ok(());
     } else if found_path.extension() == Some(OsStr::new("msi")) {
-      // We have a MSI (wix)
-      // maybe we can detach and kill the app?
-      // if we do this, we need to copy our MSI
-      // outside of the tempdir as it'll be deleted when the
-      // update process is complete
+
+      // copy msi to a named temp file
+      // this allow use to spawn the install process
+      // and kill our application without loosing the MSI
+      let fixed_msi = tempfile::NamedTempFile::new()?;
+      // we tell tempfile to do not destroy our MSI
+      // when main process is exiting.
+      fixed_msi.keep()?;
+      let temp_path = fixed_msi.into_temp_path();
+      std::fs::rename(found_path, temp_path)?;
+      drop(tmp_dir);
+      tmp_dir.close();
+        
       Command::new("msiexec.exe")
         .arg("/i")
-        .arg(found_path)
+        .arg(temp_path.to_path_buf())
         .output()?;
+
+      // todo(lemarier): Check if the MSI kill the app correctly
+      // otherwise maybe force an exit() manually...
+        
       // early finish we have everything we need here
       return Ok(());
     }

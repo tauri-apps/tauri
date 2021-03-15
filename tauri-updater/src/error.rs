@@ -21,7 +21,8 @@ pub enum Error {
   Utf8(#[from] std::str::Utf8Error),
   #[error("{0}")]
   TauriApi(#[from] tauri_api::Error),
-
+  #[error("{0}")]
+  PersistError(#[from] tempfile::PersistError),
   // Custom
   #[error("{0}")]
   Release(String),

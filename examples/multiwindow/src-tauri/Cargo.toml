@@ -10,9 +10,6 @@ tauri-build = { path = "../../../core/tauri-build" }
 [dependencies]
 tauri = { path = "../../../tauri", features =["api-all"]}
 
-[target."cfg(windows)".build-dependencies]
-winres = "0.1"
-
 [features]
 default = [ "custom-protocol" ]
 custom-protocol = [ "tauri/custom-protocol" ]

@@ -37,7 +37,6 @@ use regex::Regex;
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the .app was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  
   // we should use the bundle name (App name) as a MacOS standard.
   // version or platform shouldn't be included in the App name.
   let app_bundle_name = format!("{}.app", settings.bundle_name());
@@ -104,7 +103,12 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   Ok(vec![app_bundle_path])
 }
 
-pub fn sign(path_to_sign: PathBuf, identity: &str, settings: &Settings, is_an_executable: bool) -> crate::Result<()> {
+pub fn sign(
+  path_to_sign: PathBuf,
+  identity: &str,
+  settings: &Settings,
+  is_an_executable: bool,
+) -> crate::Result<()> {
   common::print_info(format!(r#"signing with identity "{}""#, identity).as_str())?;
   let mut args = vec!["--force", "-s", identity];
   if let Some(entitlements_path) = settings.osx_entitlements() {
@@ -117,7 +121,7 @@ pub fn sign(path_to_sign: PathBuf, identity: &str, settings: &Settings, is_an_ex
     args.push("--options");
     args.push("runtime");
   }
-  
+
   if path_to_sign.is_dir() {
     args.push("--deep");
   }
@@ -130,7 +134,7 @@ pub fn sign(path_to_sign: PathBuf, identity: &str, settings: &Settings, is_an_ex
   if !status.success() {
     return Err(anyhow::anyhow!("failed to sign app").into());
   }
-  
+
   Ok(())
 }
 
@@ -146,7 +150,9 @@ fn notarize(
     .expect("failed to get bundle filename");
 
   let tmp_dir = tempfile::tempdir()?;
-  let zip_path = tmp_dir.path().join(format!("{}.zip", bundle_stem.to_string_lossy()));
+  let zip_path = tmp_dir
+    .path()
+    .join(format!("{}.zip", bundle_stem.to_string_lossy()));
   let zip_args = vec![
     "-c",
     "-k",
@@ -342,7 +348,6 @@ fn setup_keychain_if_needed() -> crate::Result<()> {
     std::env::var_os("APPLE_CERTIFICATE_PASSWORD"),
   ) {
     (Some(certificate_encoded), Some(certificate_password)) => {
-      
       // we delete any previous version of our keychain if present
       delete_keychain_if_needed();
       common::print_info("setup keychain from environment variables...")?;
@@ -350,8 +355,16 @@ fn setup_keychain_if_needed() -> crate::Result<()> {
       let key_chain_id = "tauri-build.keychain";
       let key_chain_name = "tauri-build";
       let tmp_dir = tempfile::tempdir()?;
-      let cert_path = tmp_dir.path().join("cert.p12").to_string_lossy().to_string();
-      let cert_path_tmp = tmp_dir.path().join("cert.p12.tmp").to_string_lossy().to_string();
+      let cert_path = tmp_dir
+        .path()
+        .join("cert.p12")
+        .to_string_lossy()
+        .to_string();
+      let cert_path_tmp = tmp_dir
+        .path()
+        .join("cert.p12.tmp")
+        .to_string_lossy()
+        .to_string();
       let certificate_encoded = certificate_encoded
         .to_str()
         .expect("failed to convert APPLE_CERTIFICATE to string")
@@ -369,40 +382,40 @@ fn setup_keychain_if_needed() -> crate::Result<()> {
       tmp_cert.write_all(certificate_encoded)?;
 
       let decode_certificate = Command::new("base64")
-        .args(vec!("--decode", "-i", &cert_path_tmp, "-o", &cert_path))
+        .args(vec!["--decode", "-i", &cert_path_tmp, "-o", &cert_path])
         .stderr(Stdio::piped())
         .status()?;
 
       if !decode_certificate.success() {
         return Err(anyhow::anyhow!("failed to decode certificate",).into());
-      }        
+      }
 
       let create_key_chain = Command::new("security")
-        .args(vec!("create-keychain", "-p", key_chain_name, key_chain_id))
+        .args(vec!["create-keychain", "-p", key_chain_name, key_chain_id])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .status()?;
-    
+
       if !create_key_chain.success() {
         return Err(anyhow::anyhow!("failed to create keychain",).into());
       }
-      
+
       let set_default_keychain = Command::new("security")
-        .args(vec!("default-keychain", "-s", key_chain_id))
+        .args(vec!["default-keychain", "-s", key_chain_id])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .status()?;
-    
+
       if !set_default_keychain.success() {
         return Err(anyhow::anyhow!("failed to set default keychain",).into());
-      }  
-      
+      }
+
       let unlock_keychain = Command::new("security")
-        .args(vec!("unlock-keychain", "-p", key_chain_name, key_chain_id))
+        .args(vec!["unlock-keychain", "-p", key_chain_name, key_chain_id])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .status()?;
-    
+
       if !unlock_keychain.success() {
         return Err(anyhow::anyhow!("failed to set unlock keychain",).into());
       }
@@ -424,33 +437,53 @@ fn setup_keychain_if_needed() -> crate::Result<()> {
         .output()?;
 
       if !import_certificate.status.success() {
-        return Err(anyhow::anyhow!(format!("failed to import keychain certificate {:?}", std::str::from_utf8(&import_certificate.stdout))).into());
+        return Err(
+          anyhow::anyhow!(format!(
+            "failed to import keychain certificate {:?}",
+            std::str::from_utf8(&import_certificate.stdout)
+          ))
+          .into(),
+        );
       }
 
       let settings_keychain = Command::new("security")
-        .args(vec!("set-keychain-settings", "-t", "3600", "-u", key_chain_id))
+        .args(vec![
+          "set-keychain-settings",
+          "-t",
+          "3600",
+          "-u",
+          key_chain_id,
+        ])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .status()?;
-    
+
       if !settings_keychain.success() {
         return Err(anyhow::anyhow!("failed to set keychain settings",).into());
-      }  
+      }
 
       let partition_list = Command::new("security")
-        .args(vec!("set-key-partition-list", "-S", "apple-tool:,apple:,codesign:", "-s", "-k", key_chain_name, key_chain_id))
+        .args(vec![
+          "set-key-partition-list",
+          "-S",
+          "apple-tool:,apple:,codesign:",
+          "-s",
+          "-k",
+          key_chain_name,
+          key_chain_id,
+        ])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .status()?;
-    
+
       if !partition_list.success() {
         return Err(anyhow::anyhow!("failed to set keychain settings",).into());
-      }  
+      }
 
       Ok(())
     }
     // skip it
-    _ => Ok(())
+    _ => Ok(()),
   }
 }
 

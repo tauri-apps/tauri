@@ -11,6 +11,7 @@
   import Window from "./components/Window.svelte";
   import Shortcuts from "./components/Shortcuts.svelte";
   import Welcome from "./components/Welcome.svelte";
+  import Updater from "./components/Updater.svelte";
 
   const views = [
     {
@@ -49,6 +50,10 @@
       label: "Shortcuts",
       component: Shortcuts,
     },
+    {
+      label: "Updater",
+      component: Updater,
+    },    
   ];
 
   let selected = views[0];

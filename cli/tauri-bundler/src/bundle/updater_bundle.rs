@@ -19,6 +19,7 @@ use zip::write::FileOptions;
 
 use crate::Settings;
 use std::{
+  ffi::OsStr,
   fs::{self},
   io::Write,
 };
@@ -31,10 +32,13 @@ use std::{
 };
 
 // Build update
-pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
+pub fn bundle_project(
+  settings: &Settings,
+  existing_paths: Vec<PathBuf>,
+) -> crate::Result<Vec<PathBuf>> {
   if cfg!(unix) || cfg!(windows) || cfg!(macos) {
     // Create our archive bundle
-    let bundle_result = bundle_update(settings)?;
+    let bundle_result = bundle_update(settings, existing_paths)?;
     // Clone it we need it later to push into
     let mut bundle_result_return = bundle_result.clone();
 
@@ -97,14 +101,19 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 }
 
 // Create simple update-macos.tar.gz
-// This is the Mac OS App packaged without the .app
-// The root folder should be Contents as we can't extract
-// in /Applications directly, we NEED to extract in /Applications/<AppName>/
-// this way the whole app manifest is replaced
+// This is the Mac OS App packaged
 #[cfg(target_os = "macos")]
-fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  // build our app
-  let osx_bundled = osx_bundle::bundle_project(settings)?;
+fn bundle_update(settings: &Settings, existing_paths: Vec<PathBuf>) -> crate::Result<Vec<PathBuf>> {
+  // find our .app or rebuild our bundle
+  let mut osx_bundled = Vec::new();
+  for path in existing_paths {
+    if path.extension() == Some(OsStr::new("app")) {
+      osx_bundled.push(path);
+    } else {
+      osx_bundled = osx_bundle::bundle_project(settings)?;
+    }
+  }
+
   // we expect our .app to be on osx_bundled[0]
   if osx_bundled.is_empty() {
     return Err(crate::Error::UpdateBundler);
@@ -133,9 +142,17 @@ fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 // Right now in linux we hot replace the bin and request a restart
 // No assets are replaced
 #[cfg(target_os = "linux")]
-fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
+fn bundle_update(settings: &Settings, existing_paths: Vec<PathBuf>) -> crate::Result<Vec<PathBuf>> {
   // build our app actually we support only appimage on linux
-  let appimage_bundle = appimage_bundle::bundle_project(settings)?;
+  let mut appimage_bundle = Vec::new();
+  for path in existing_paths {
+    if path.extension() == Some(OsStr::new("AppImage")) {
+      appimage_bundle.push(path);
+    } else {
+      appimage_bundle = appimage_bundle::bundle_project(settings)?;
+    }
+  }
+
   // we expect our .app to be on osx_bundled[0]
   if appimage_bundle.is_empty() {
     return Err(crate::Error::UpdateBundler);
@@ -160,11 +177,19 @@ fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 // Right now in windows we hot replace the bin and request a restart
 // No assets are replaced
 #[cfg(target_os = "windows")]
-fn bundle_update(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  // build our app actually we support only appimage on linux
-  let msi_path = msi_bundle::bundle_project(settings)?;
+fn bundle_update(settings: &Settings, existing_paths: Vec<PathBuf>) -> crate::Result<Vec<PathBuf>> {
+  // find our .msi or rebuild
+  let mut msi_path = Vec::new();
+  for path in existing_paths {
+    if path.extension() == Some(OsStr::new("msi")) {
+      msi_path.push(path);
+    } else {
+      msi_path = msi_bundle::bundle_project(settings)?;
+    }
+  }
+
   // we expect our .msi to be on msi_path[0]
-  if msi_path.len() < 1 {
+  if msi_path.is_empty() {
     return Err(crate::Error::UpdateBundler);
   }
 
@@ -206,6 +231,7 @@ pub fn create_zip(src_file: &PathBuf, dst_file: &PathBuf) -> crate::Result<PathB
   Ok(dst_file.to_owned())
 }
 
+#[cfg(not(target_os = "windows"))]
 fn create_tar(src_dir: &PathBuf, dest_path: &PathBuf) -> crate::Result<PathBuf> {
   let dest_file = common::create_file(&dest_path)?;
   let gzip_encoder = gzip::Encoder::new(dest_file)?;
@@ -216,6 +242,7 @@ fn create_tar(src_dir: &PathBuf, dest_path: &PathBuf) -> crate::Result<PathBuf> 
   Ok(dest_path.to_owned())
 }
 
+#[cfg(not(target_os = "windows"))]
 fn create_tar_from_src<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> crate::Result<W> {
   let src_dir = src_dir.as_ref();
   let mut tar_builder = tar::Builder::new(dest_file);

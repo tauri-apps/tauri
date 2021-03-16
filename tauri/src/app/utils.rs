@@ -323,6 +323,7 @@ async fn on_message<A: ApplicationExt + 'static>(
       message.inner,
       &application.context,
     )
+    .await
   } else {
     let mut response = match application
       .run_invoke_handler(&webview_manager, command.clone(), &message.inner)

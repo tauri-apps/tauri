@@ -166,12 +166,7 @@ type WebviewContext<A> = (
 trait WebviewInitializer<A: ApplicationExt> {
   fn init_webview(&self, webview: Webview<A>) -> crate::Result<WebviewContext<A>>;
 
-  fn on_webview_created(
-    &self,
-    webview_label: String,
-    dispatcher: A::Dispatcher,
-    manager: WebviewManager<A>,
-  );
+  fn on_webview_created(&self, webview_label: String, dispatcher: A::Dispatcher);
 }
 
 impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
@@ -210,18 +205,11 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
     ))
   }
 
-  fn on_webview_created(
-    &self,
-    webview_label: String,
-    dispatcher: A::Dispatcher,
-    manager: WebviewManager<A>,
-  ) {
+  fn on_webview_created(&self, webview_label: String, dispatcher: A::Dispatcher) {
     self.dispatchers.lock().unwrap().insert(
       webview_label.to_string(),
       WebviewDispatcher::new(dispatcher, webview_label),
     );
-
-    crate::async_runtime::block_on(crate::plugin::created(A::plugin_store(), &manager));
   }
 }
 
@@ -380,7 +368,8 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
       custom_protocol,
       file_drop_handler,
     )?;
-    application.on_webview_created(webview_label, dispatcher, webview_manager);
+    application.on_webview_created(webview_label, dispatcher);
+    crate::async_runtime::block_on(crate::plugin::created(A::plugin_store(), &webview_manager));
   }
 
   if let Some(main_webview_manager) = main_webview_manager {

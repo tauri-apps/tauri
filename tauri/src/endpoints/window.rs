@@ -89,7 +89,7 @@ struct WindowCreatedEvent {
 }
 
 impl Cmd {
-  pub fn run<A: ApplicationExt + 'static>(
+  pub async fn run<A: ApplicationExt + 'static>(
     self,
     webview_manager: &crate::WebviewManager<A>,
   ) -> crate::Result<InvokeResponse> {
@@ -106,9 +106,11 @@ impl Cmd {
           #[cfg(window_create)]
           {
             let label = options.label.to_string();
-            webview_manager.create_webview(label.to_string(), options.url.clone(), |_| {
-              Ok(crate::app::webview::WindowConfig(options).into())
-            })?;
+            webview_manager
+              .create_webview(label.to_string(), options.url.clone(), |_| {
+                Ok(crate::app::webview::WindowConfig(options).into())
+              })
+              .await?;
             webview_manager.emit_except(
               label.to_string(),
               "tauri://window-created",

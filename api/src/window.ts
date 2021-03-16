@@ -1,5 +1,5 @@
 import { invokeTauriCommand } from './helpers/tauri'
-import { EventCallback, emit, listen, once } from './helpers/event'
+import { EventCallback, UnlistenFn, emit, listen, once } from './helpers/event'
 
 interface WindowDef {
   label: string
@@ -39,10 +39,14 @@ class WebviewWindowHandle {
    *
    * @param event the event name
    * @param handler the event handler callback
+   * @return {Promise<UnlistenFn>} a promise resolving to a function to unlisten to the event.
    */
-  async listen<T>(event: string, handler: EventCallback<T>): Promise<void> {
+  async listen<T>(
+    event: string,
+    handler: EventCallback<T>
+  ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return Promise.resolve()
+      return Promise.resolve(() => {})
     }
     return listen(event, handler)
   }
@@ -70,7 +74,7 @@ class WebviewWindowHandle {
     if (localTauriEvents.includes(event)) {
       // eslint-disable-next-line
       for (const handler of this.listeners[event] || []) {
-        handler({ type: event, payload })
+        handler({ event, id: -1, payload })
       }
       return Promise.resolve()
     }

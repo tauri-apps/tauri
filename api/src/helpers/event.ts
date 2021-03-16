@@ -2,24 +2,45 @@ import { invokeTauriCommand } from './tauri'
 import { transformCallback } from '../tauri'
 
 export interface Event<T> {
-  type: string
+  /// event name.
+  event: string
+  /// event identifier used to unlisten.
+  id: number
+  /// event payload.
   payload: T
 }
 
 export type EventCallback<T> = (event: Event<T>) => void
 
+export type UnlistenFn = () => void
+
 async function _listen<T>(
   event: string,
-  handler: EventCallback<T>,
-  once: boolean
-): Promise<void> {
-  await invokeTauriCommand({
+  handler: EventCallback<T>
+): Promise<UnlistenFn> {
+  return invokeTauriCommand<number>({
     __tauriModule: 'Event',
     message: {
       cmd: 'listen',
       event,
-      handler: transformCallback(handler, once),
-      once
+      handler: transformCallback(handler)
+    }
+  }).then((eventId) => {
+    return async () => _unlisten(eventId)
+  })
+}
+
+/**
+ * Unregister the event listener associated with the given id.
+ *
+ * @param {number} eventId the event identifier
+ */
+async function _unlisten(eventId: number): Promise<void> {
+  return invokeTauriCommand({
+    __tauriModule: 'Event',
+    message: {
+      cmd: 'unlisten',
+      eventId
     }
   })
 }
@@ -29,12 +50,13 @@ async function _listen<T>(
  *
  * @param event the event name
  * @param handler the event handler callback
+ * @return {Promise<UnlistenFn>} a promise resolving to a function to unlisten to the event.
  */
 async function listen<T>(
   event: string,
   handler: EventCallback<T>
-): Promise<void> {
-  return _listen(event, handler, false)
+): Promise<UnlistenFn> {
+  return _listen(event, handler)
 }
 
 /**
@@ -46,8 +68,11 @@ async function listen<T>(
 async function once<T>(
   event: string,
   handler: EventCallback<T>
-): Promise<void> {
-  return _listen(event, handler, true)
+): Promise<UnlistenFn> {
+  return _listen<T>(event, (eventData) => {
+    handler(eventData)
+    _unlisten(eventData.id).catch(() => {})
+  })
 }
 
 /**

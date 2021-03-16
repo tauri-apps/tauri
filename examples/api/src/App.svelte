@@ -66,6 +66,7 @@
 
   function onMessage(value) {
     responses += typeof value === "string" ? value : JSON.stringify(value);
+    responses += "\n";
   }
 
   function onLogoClick() {
@@ -77,25 +78,13 @@
   <div class="flex row noselect just-around" style="margin=1em;">
     <img src="tauri.png" height="60" on:click={onLogoClick} alt="logo" />
     <div>
-      <a
-        class="dark-link"
-        target="_blank"
-        href="https://tauri.studio/en/docs/getting-started/intro"
-      >
+      <a class="dark-link" target="_blank" href="https://tauri.studio/en/docs/getting-started/intro">
         Documentation
       </a>
-      <a
-        class="dark-link"
-        target="_blank"
-        href="https://github.com/tauri-apps/tauri"
-      >
+      <a class="dark-link" target="_blank" href="https://github.com/tauri-apps/tauri">
         Github
       </a>
-      <a
-        class="dark-link"
-        target="_blank"
-        href="https://github.com/tauri-apps/tauri/tree/dev/tauri/examples/api"
-      >
+      <a class="dark-link" target="_blank" href="https://github.com/tauri-apps/tauri/tree/dev/tauri/examples/api">
         Source
       </a>
     </div>
@@ -103,12 +92,10 @@
   <div class="flex row">
     <div style="width:15em; margin-left:0.5em">
       {#each views as view}
-        <p
-          class="nv noselect {selected === view ? 'nv_selected' : ''}"
-          on:click={() => select(view)}
+      <p class="nv noselect {selected === view ? 'nv_selected' : ''}" on:click={()=> select(view)}
         >
-          {view.label}
-        </p>
+        {view.label}
+      </p>
       {/each}
     </div>
     <div class="content">
@@ -118,12 +105,9 @@
   <div id="response">
     <p class="flex row just-around">
       <strong>Tauri Console</strong>
-      <a
-        class="nv"
-        on:click={() => {
-          responses = [""];
-        }}>clear</a
-      >
+      <a class="nv" on:click={()=> {
+        responses = [""];
+        }}>clear</a>
     </p>
     {responses}
   </div>

@@ -84,11 +84,11 @@ fn event_initialization_script() -> String {
   return format!(
     "
       window['{queue}'] = [];
-      window['{fn}'] = function (payload, salt, ignoreQueue) {{
-      const listeners = (window['{listeners}'] && window['{listeners}'][payload.type]) || []
+      window['{fn}'] = function (eventData, salt, ignoreQueue) {{
+      const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
       if (!ignoreQueue && listeners.length === 0) {{
         window['{queue}'].push({{
-          payload: payload,
+          eventData: eventData,
           salt: salt
         }})
       }}
@@ -104,9 +104,8 @@ fn event_initialization_script() -> String {
           if (flag) {{
             for (let i = listeners.length - 1; i >= 0; i--) {{
               const listener = listeners[i]
-              if (listener.once)
-                listeners.splice(i, 1)
-              listener.handler(payload)
+              eventData.id = listener.id
+              listener.handler(eventData)
             }}
           }}
         }})

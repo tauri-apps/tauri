@@ -4,7 +4,7 @@
 
   export let onMessage;
 
-  listen("rust-event", onMessage);
+  listen("rust-event", onMessage)
 
   function log() {
     invoke("log_operation", {

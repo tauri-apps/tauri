@@ -63,6 +63,26 @@ The dialog release notes is represented by the update `note` provided by the [se
 
 If the user accepts, the download and install are initialized. The user will be then prompted to restart the application.
 
+## Javascript API
+
+**Attention, you need to _disable built-in dialog_ in your [tauri configuration](#configuration), otherwise, events aren't emitted and the javascript API will NOT.**
+
+
+```
+import { checkUpdate, installUpdate } from "@tauri-apps/api/updater";
+
+try {
+    const {shouldUpdate, manifest} = await checkUpdate();
+
+    if (shouldUpdate) {
+        // display dialog
+        await installUpdate();
+    }
+} catch(error) {
+    console.log(error);
+}
+```
+
 ## Events
 
 **Attention, you need to _disable built-in dialog_ in your [tauri configuration](#configuration), otherwise, events aren't emitted.**

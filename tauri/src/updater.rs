@@ -264,7 +264,7 @@ Release Notes:
       // Do nothing -- maybe we can emit some event here
     }
   }
-  
+
   Ok(())
 }
 

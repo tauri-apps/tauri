@@ -24,6 +24,8 @@ pub const EVENT_STATUS_PENDING: &str = "PENDING";
 pub const EVENT_STATUS_ERROR: &str = "ERROR";
 // When you receive this status, you should ask the user to restart
 pub const EVENT_STATUS_SUCCESS: &str = "DONE";
+// When you receive this status, this is because the application is runniing last version
+pub const EVENT_STATUS_UPTODATE: &str = "UPTODATE";
 
 #[derive(Clone, serde::Serialize)]
 struct StatusEvent {
@@ -32,7 +34,7 @@ struct StatusEvent {
 }
 
 #[derive(Clone, serde::Serialize)]
-struct UpdateAvailableEvent {
+struct UpdateManifest {
   version: String,
   date: String,
   body: String,
@@ -142,7 +144,7 @@ pub(crate) fn listener<A: ApplicationExt + 'static>(
 
             let _ = webview_manager.emit(
               EVENT_UPDATE_AVAILABLE,
-              Some(UpdateAvailableEvent {
+              Some(UpdateManifest {
                 body,
                 date: updater.date.clone(),
                 version: updater.version.clone(),
@@ -192,6 +194,14 @@ pub(crate) fn listener<A: ApplicationExt + 'static>(
                 }
               })
             });
+          } else {
+            let _ = webview_manager.clone().emit(
+              EVENT_STATUS_UPDATE,
+              Some(StatusEvent {
+                error: None,
+                status: String::from(EVENT_STATUS_UPTODATE),
+              }),
+            );
           }
         }
         Err(e) => {

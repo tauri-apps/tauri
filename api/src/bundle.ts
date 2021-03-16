@@ -2,6 +2,7 @@ import 'regenerator-runtime/runtime'
 import * as cli from './cli'
 import * as dialog from './dialog'
 import * as event from './event'
+import * as updater from './updater'
 import * as fs from './fs'
 import * as path from './path'
 import * as http from './http'
@@ -15,6 +16,7 @@ export {
   cli,
   dialog,
   event,
+  updater,
   fs,
   path,
   http,

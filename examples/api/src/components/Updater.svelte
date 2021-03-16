@@ -4,34 +4,43 @@
   // This allow you to use custom dialog for the updater.
   // This is your responsability to restart the application after you receive the STATUS: DONE.
 
-  import { listen, emit } from "@tauri-apps/api/event";
+  import { checkUpdate, installUpdate } from "@tauri-apps/api/updater";
 
   export let onMessage;
 
-  listen("tauri://update-available", onUpdateAvailable);
-  listen("tauri://update-status", onMessage);
 
-  function checkUpdate() {
-    document.getElementById("check_update").disabled = true;
-    emit("tauri://update");
+  async function check() {
+    try {
+      document.getElementById("check_update").classList.add("hidden");
+
+      const {shouldUpdate, manifest} = await checkUpdate();
+      onMessage(`Should update: ${shouldUpdate}`);
+      onMessage(manifest);
+
+      if (shouldUpdate) {
+        document.getElementById("start_update").classList.remove("hidden");
+      }
+    } catch(e) {
+      onMessage(e);
+    }
   }
 
-  function installUpdate() {
-    emit("tauri://update-install");
+  async function install() {
+    try {
+      document.getElementById("start_update").classList.add("hidden");
+
+      await installUpdate();
+      onMessage("Installation complete, restart required.");
+
+    } catch(e) {
+      onMessage(e);
+    }
   }
 
-  function onUpdateAvailable(data) {
-    onMessage(data);
-    const checkUpdateButton = document.getElementById("check_update");
-    const startUpdateButton = document.getElementById("start_update");
-
-    checkUpdateButton.classList.add("hidden");
-    startUpdateButton.classList.remove("hidden");
-  }
 
 </script>
 
 <div>
-  <button class="button" id="check_update" on:click={checkUpdate}>Check update</button>
-  <button class="button hidden" id="start_update" on:click={installUpdate}>Install update</button>
+  <button class="button" id="check_update" on:click={check}>Check update</button>
+  <button class="button hidden" id="start_update" on:click={install}>Install update</button>
 </div>

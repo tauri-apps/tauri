@@ -264,9 +264,7 @@ Release Notes:
       // Do nothing -- maybe we can emit some event here
     }
   }
-
-  updater.download_and_install(pubkey.clone()).await?;
-
+  
   Ok(())
 }
 

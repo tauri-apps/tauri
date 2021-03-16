@@ -4,6 +4,7 @@ use std::{
 };
 
 use super::{
+  event::{EventId, EventPayload},
   App, ApplicationDispatcherExt, ApplicationExt, Icon, Webview, WebviewBuilderExt,
   WebviewInitializer,
 };
@@ -32,12 +33,22 @@ impl<A: ApplicationDispatcherExt> WebviewDispatcher<A> {
   }
 
   /// Listen to a webview event.
-  pub fn listen<F: FnMut(Option<String>) + Send + 'static>(
+  pub fn listen<F: Fn(EventPayload) + Send + 'static>(
     &self,
     event: impl AsRef<str>,
     handler: F,
-  ) {
+  ) -> EventId {
     super::event::listen(event, Some(self.window_label.to_string()), handler)
+  }
+
+  /// Listen to a webview event and unlisten after the first event.
+  pub fn once<F: Fn(EventPayload) + Send + 'static>(&self, event: impl AsRef<str>, handler: F) {
+    super::event::once(event, Some(self.window_label.to_string()), handler)
+  }
+
+  /// Unregister the event listener with the given id.
+  pub fn unlisten(&self, event_id: EventId) {
+    super::event::unlisten(event_id)
   }
 
   /// Emits an event to the webview.
@@ -277,12 +288,22 @@ impl<A: ApplicationExt + 'static> WebviewManager<A> {
 
   /// Listen to a global event.
   /// An event from any webview will trigger the handler.
-  pub fn listen<F: FnMut(Option<String>) + Send + 'static>(
+  pub fn listen<F: Fn(EventPayload) + Send + 'static>(
     &self,
     event: impl AsRef<str>,
     handler: F,
-  ) {
+  ) -> EventId {
     super::event::listen(event, None, handler)
+  }
+
+  /// Listen to a global event and unlisten after the first event.
+  pub fn once<F: Fn(EventPayload) + Send + 'static>(&self, event: impl AsRef<str>, handler: F) {
+    super::event::once(event, None, handler)
+  }
+
+  /// Unregister the global event listener with the given id.
+  pub fn unlisten(&self, event_id: EventId) {
+    super::event::unlisten(event_id)
   }
 
   /// Emits an event to all webviews.

@@ -17,8 +17,8 @@ fn main() {
     .setup(|webview_manager| async move {
       let dispatcher = webview_manager.current_webview().unwrap();
       let dispatcher_ = dispatcher.clone();
-      dispatcher.listen("js-event", move |msg| {
-        println!("got js-event with message '{:?}'", msg);
+      dispatcher.listen("js-event", move |event| {
+        println!("got js-event with message '{:?}'", event.payload());
         let reply = Reply {
           data: "something else".to_string(),
         };

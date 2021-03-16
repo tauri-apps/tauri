@@ -102,10 +102,6 @@ pub(crate) async fn check_update_with_dialog<A: ApplicationExt + 'static>(
 }
 
 /// Experimental listener
-/// The main issue right now is we can't unlisten to events
-/// If the `EVENT_CHECK_UPDATE` is called multiple time, it set
-/// multiple listener, the request is then processed multiple time
-/// who can lead to a bad installation.
 pub(crate) fn listener<A: ApplicationExt + 'static>(
   updater_config: UpdaterConfig,
   package_info: crate::api::PackageInfo,
@@ -113,8 +109,7 @@ pub(crate) fn listener<A: ApplicationExt + 'static>(
 ) {
   let isolated_webview_manager = webview_manager.clone();
 
-  // @todo(lemarier): We SHOULD unlisten all EVENT_CHECK_UPDATE before
-  // we can listen again -- would be great if we can have a listen_once
+  webview_manager.unlisten_by_name(EVENT_CHECK_UPDATE);
   webview_manager.listen(EVENT_CHECK_UPDATE, move |_msg| {
     let webview_manager = isolated_webview_manager.clone();
     let package_info = package_info.clone();
@@ -155,7 +150,8 @@ pub(crate) fn listener<A: ApplicationExt + 'static>(
             );
 
             // listen for update install
-            webview_manager.listen(EVENT_INSTALL_UPDATE, move |_msg| {
+            webview_manager.unlisten_by_name(EVENT_INSTALL_UPDATE);
+            webview_manager.once(EVENT_INSTALL_UPDATE, move |_msg| {
               let webview_manager = webview_manager_isolation.clone();
               let updater = updater.clone();
               let pubkey = pubkey.clone();

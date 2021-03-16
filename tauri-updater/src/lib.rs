@@ -22,6 +22,9 @@ use std::process::Command;
 #[cfg(target_os = "macos")]
 use tauri_api::file::Move;
 
+#[cfg(target_os = "windows")]
+use std::process::exit;
+
 #[derive(Debug)]
 pub struct RemoteRelease {
   pub version: String,
@@ -500,25 +503,27 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
     // If it's an `exe` we expect an installer not a runtime.
     if found_path.extension() == Some(OsStr::new("exe")) {
       // Run the EXE
-      // maybe we can detach and kill the app?
+      tmp_dir.into_path();
       Command::new(found_path)
-        // This consumes the TempDir without deleting directory on the filesystem,
-        // meaning that the directory will no longer be automatically deleted.
-        .arg(tmp_dir.into_path())
         .spawn()
         .expect("installer failed to start");
 
+      exit(0);
       // early finish we have everything we need here
       return Ok(());
     } else if found_path.extension() == Some(OsStr::new("msi")) {
+
+      // This consumes the TempDir without deleting directory on the filesystem,
+      // meaning that the directory will no longer be automatically deleted.
+      tmp_dir.into_path();
+
       Command::new("msiexec.exe")
         .arg("/i")
-        // This consumes the TempDir without deleting directory on the filesystem,
-        // meaning that the directory will no longer be automatically deleted.
-        .arg(tmp_dir.into_path())
+        .arg(found_path)
         .spawn()
         .expect("installer failed to start");
 
+      exit(0);
       // early finish we have everything we need here
       return Ok(());
     }

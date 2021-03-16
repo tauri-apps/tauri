@@ -284,5 +284,5 @@ fn restart_application() {
       .expect("application failed to start");
   }
 
-  exit(1);
+  exit(0);
 }

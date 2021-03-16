@@ -48,7 +48,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
       PackageType::Deb => deb_bundle::bundle_project(&settings)?,
       PackageType::Rpm => rpm_bundle::bundle_project(&settings)?,
       PackageType::AppImage => appimage_bundle::bundle_project(&settings)?,
-      PackageType::Dmg => dmg_bundle::bundle_project(&settings)?,
+      PackageType::Dmg => dmg_bundle::bundle_project(&settings, paths.clone())?,
       // we pass already existing builded app to updater
       // this way if they are already built we skip rebuilding
       PackageType::Updater => updater_bundle::bundle_project(&settings, paths.clone())?,

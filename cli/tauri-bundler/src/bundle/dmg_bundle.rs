@@ -5,6 +5,7 @@ use anyhow::Context;
 
 use std::{
   env,
+  ffi::OsStr,
   fs::{self, write},
   path::PathBuf,
   process::{Command, Stdio},
@@ -12,9 +13,18 @@ use std::{
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the DMG was created.
-pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  // generate the .app bundle
-  osx_bundle::bundle_project(settings)?;
+pub fn bundle_project(
+  settings: &Settings,
+  existing_paths: Vec<PathBuf>,
+) -> crate::Result<Vec<PathBuf>> {
+  // generate the .app bundle if needed
+  if existing_paths
+    .iter()
+    .position(|path| path.extension() == Some(OsStr::new("app")))
+    .is_none()
+  {
+    osx_bundle::bundle_project(settings)?;
+  }
 
   // get the target path
   let output_path = settings.project_out_directory().join("bundle/dmg");

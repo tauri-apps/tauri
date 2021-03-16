@@ -106,12 +106,12 @@ pub fn bundle_project(
 fn bundle_update(settings: &Settings, existing_paths: Vec<PathBuf>) -> crate::Result<Vec<PathBuf>> {
   // find our .app or rebuild our bundle
   let mut osx_bundled = Vec::new();
-  for path in existing_paths {
-    if path.extension() == Some(OsStr::new("app")) {
-      osx_bundled.push(path);
-    } else {
-      osx_bundled = osx_bundle::bundle_project(settings)?;
-    }
+  match existing_paths
+    .iter()
+    .position(|path| path.extension() == Some(OsStr::new("app")))
+  {
+    Some(key) => osx_bundled.push(existing_paths[key].clone()),
+    None => osx_bundled = osx_bundle::bundle_project(settings)?,
   }
 
   // we expect our .app to be on osx_bundled[0]
@@ -145,12 +145,12 @@ fn bundle_update(settings: &Settings, existing_paths: Vec<PathBuf>) -> crate::Re
 fn bundle_update(settings: &Settings, existing_paths: Vec<PathBuf>) -> crate::Result<Vec<PathBuf>> {
   // build our app actually we support only appimage on linux
   let mut appimage_bundle = Vec::new();
-  for path in existing_paths {
-    if path.extension() == Some(OsStr::new("AppImage")) {
-      appimage_bundle.push(path);
-    } else {
-      appimage_bundle = appimage_bundle::bundle_project(settings)?;
-    }
+  match existing_paths
+    .iter()
+    .position(|path| path.extension() == Some(OsStr::new("AppImage")))
+  {
+    Some(key) => appimage_bundle.push(existing_paths[key].clone()),
+    None => appimage_bundle = appimage_bundle::bundle_project(settings)?,
   }
 
   // we expect our .app to be on osx_bundled[0]
@@ -180,12 +180,12 @@ fn bundle_update(settings: &Settings, existing_paths: Vec<PathBuf>) -> crate::Re
 fn bundle_update(settings: &Settings, existing_paths: Vec<PathBuf>) -> crate::Result<Vec<PathBuf>> {
   // find our .msi or rebuild
   let mut msi_path = Vec::new();
-  for path in existing_paths {
-    if path.extension() == Some(OsStr::new("msi")) {
-      msi_path.push(path);
-    } else {
-      msi_path = msi_bundle::bundle_project(settings)?;
-    }
+  match existing_paths
+    .iter()
+    .position(|path| path.extension() == Some(OsStr::new("msi")))
+  {
+    Some(key) => msi_path.push(existing_paths[key].clone()),
+    None => msi_path = msi_bundle::bundle_project(settings)?,
   }
 
   // we expect our .msi to be on msi_path[0]

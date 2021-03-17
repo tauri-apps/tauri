@@ -71,17 +71,17 @@ pub(crate) async fn check_update_with_dialog<A: ApplicationExt + 'static>(
 
       // if dialog enabled only
       if updater.should_update && updater_config.dialog {
-        let body = updater.body.clone().unwrap_or_else(|| "".into());
+        let body = updater.body.clone().unwrap_or_else(|| String::from(""));
         let dialog =
           ask_if_should_install(&updater.clone(), package_info.name, &body.clone(), pubkey).await;
+
         if dialog.is_err() {
-          let _ = webview_manager.clone().emit(
-            EVENT_STATUS_UPDATE,
-            Some(StatusEvent {
-              error: Some(dialog.err().unwrap().to_string()),
-              status: "ERROR".into(),
-            }),
+          send_status_update(
+            webview_manager.clone(),
+            EVENT_STATUS_ERROR,
+            Some(dialog.err().unwrap().to_string()),
           );
+
           return;
         }
       }
@@ -92,13 +92,7 @@ pub(crate) async fn check_update_with_dialog<A: ApplicationExt + 'static>(
         _ => Some(String::from("Something went wrong")),
       };
 
-      let _ = webview_manager.clone().emit(
-        EVENT_STATUS_UPDATE,
-        Some(StatusEvent {
-          error: error_message,
-          status: String::from("ERROR"),
-        }),
-      );
+      send_status_update(webview_manager.clone(), EVENT_STATUS_ERROR, error_message);
     }
   }
 }
@@ -140,7 +134,7 @@ pub(crate) fn listener<A: ApplicationExt + 'static>(
         Ok(updater) => {
           // send notification if we need to update
           if updater.should_update {
-            let body = updater.body.clone().unwrap_or_else(|| "".into());
+            let body = updater.body.clone().unwrap_or_else(|| String::from(""));
 
             let _ = webview_manager.emit(
               EVENT_UPDATE_AVAILABLE,
@@ -161,47 +155,31 @@ pub(crate) fn listener<A: ApplicationExt + 'static>(
               // send status
               crate::async_runtime::spawn(async move {
                 // emit {"status": "PENDING"}
-                let _ = webview_manager.clone().emit(
-                  EVENT_STATUS_UPDATE,
-                  Some(StatusEvent {
-                    error: None,
-                    status: String::from(EVENT_STATUS_PENDING),
-                  }),
-                );
+                send_status_update(webview_manager.clone(), EVENT_STATUS_PENDING, None);
 
+                // Launch updater download process
+                // macOS we display the `Ready to restart dialog` asking to restart
+                // Windows is closing the current App and launch the downloaded MSI when ready (the process stop here)
+                // Linux we replace the AppImage by launching a new install, it start a new AppImage instance, so we're closing the previous. (the process stop here)
                 let update_result = updater.clone().download_and_install(pubkey.clone()).await;
 
                 if update_result.is_err() {
                   // emit {"status": "ERROR", "error": "The error message"}
-                  let _ = webview_manager.clone().emit(
-                    EVENT_STATUS_UPDATE,
-                    Some(StatusEvent {
-                      error: Some(update_result.err().unwrap().to_string()),
-                      status: String::from(EVENT_STATUS_ERROR),
-                    }),
+                  send_status_update(
+                    webview_manager.clone(),
+                    EVENT_STATUS_ERROR,
+                    Some(update_result.err().unwrap().to_string()),
                   );
                 } else {
                   // emit {"status": "DONE"}
                   // todo(lemarier): maybe we should emit the
                   // path of the current EXE so they can restart it
-                  let _ = webview_manager.clone().emit(
-                    EVENT_STATUS_UPDATE,
-                    Some(StatusEvent {
-                      error: None,
-                      status: String::from(EVENT_STATUS_SUCCESS),
-                    }),
-                  );
+                  send_status_update(webview_manager.clone(), EVENT_STATUS_SUCCESS, None);
                 }
               })
             });
           } else {
-            let _ = webview_manager.clone().emit(
-              EVENT_STATUS_UPDATE,
-              Some(StatusEvent {
-                error: None,
-                status: String::from(EVENT_STATUS_UPTODATE),
-              }),
-            );
+            send_status_update(webview_manager.clone(), EVENT_STATUS_UPTODATE, None);
           }
         }
         Err(e) => {
@@ -210,19 +188,30 @@ pub(crate) fn listener<A: ApplicationExt + 'static>(
             _ => Some(String::from("Something went wrong")),
           };
 
-          let _ = webview_manager.clone().emit(
-            EVENT_STATUS_UPDATE,
-            Some(StatusEvent {
-              error: error_message,
-              status: String::from("ERROR"),
-            }),
-          );
+          send_status_update(webview_manager.clone(), EVENT_STATUS_ERROR, error_message);
         }
       }
     })
   });
 }
 
+// Send a status update via `tauri://update-status` event.
+fn send_status_update<A: ApplicationExt + 'static>(
+  webview_manager: WebviewManager<A>,
+  status: &str,
+  error: Option<String>,
+) {
+  let _ = webview_manager.emit(
+    EVENT_STATUS_UPDATE,
+    Some(StatusEvent {
+      error,
+      status: String::from(status),
+    }),
+  );
+}
+
+// Prompt a dialog asking if the user want to install the new version
+// Maybe we should add an option to customize it in future versions.
 async fn ask_if_should_install(
   updater: &tauri_updater::Update,
   app_name: &str,
@@ -232,6 +221,8 @@ async fn ask_if_should_install(
   // remove single & double quote
   let escaped_body = body.replace(&['\"', '\''][..], "");
 
+  // todo(lemarier): We should review this and make sure we have
+  // something more conventional.
   let should_install = ask(
     format!(r#"A new version of {} is available! "#, app_name),
     format!(
@@ -247,6 +238,10 @@ Release Notes:
 
   match should_install {
     AskResponse::Yes => {
+      // Launch updater download process
+      // macOS we display the `Ready to restart dialog` asking to restart
+      // Windows is closing the current App and launch the downloaded MSI when ready (the process stop here)
+      // Linux we replace the AppImage by launching a new install, it start a new AppImage instance, so we're closing the previous. (the process stop here)
       updater.download_and_install(pubkey.clone()).await?;
 
       // Ask user if we need to close the app
@@ -274,8 +269,10 @@ Release Notes:
   Ok(())
 }
 
-// Tested on macos only and seems to works fine -- at least it restart!
-// I guess on windows it'll require some tweaking
+// Tested on macOS, on Windows and Linux we don't need it
+// it's handled by the `download_and_install` fn from the updater.
+// todo(lemarier): Maybe we can expose a public function or something so the user can call
+// restartApplication() from the JS side, but will require to works on all OS.
 fn restart_application() {
   // spawn new process
   if let Ok(current_process) = std::env::current_exe() {

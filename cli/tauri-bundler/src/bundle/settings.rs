@@ -451,7 +451,7 @@ impl Settings {
 
   /// Returns the version string of the bundle.
   pub fn version_string(&self) -> &str {
-      &self.package.version
+    &self.package.version
   }
 
   /// Returns the copyright text.

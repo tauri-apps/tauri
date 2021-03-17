@@ -201,13 +201,13 @@ impl WebviewBuilderExt for wry::Attributes {
     self.icon.is_some()
   }
 
-  fn finish(self) -> crate::Result<Self::Webview> {
-    Ok(self)
-  }
-
   fn user_data_path(mut self, user_data_path: Option<PathBuf>) -> Self {
     self.user_data_path = user_data_path;
     self
+  }
+
+  fn finish(self) -> crate::Result<Self::Webview> {
+    Ok(self)
   }
 }
 

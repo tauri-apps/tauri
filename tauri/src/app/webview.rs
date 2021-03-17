@@ -154,11 +154,11 @@ pub trait WebviewBuilderExt: Sized {
   /// Whether the icon was set or not.
   fn has_icon(&self) -> bool;
 
-  /// Builds the webview instance.
-  fn finish(self) -> crate::Result<Self::Webview>;
-
   /// User data path for the webview. Actually only supported on Windows.
   fn user_data_path(self, user_data_path: Option<PathBuf>) -> Self;
+
+  /// Builds the webview instance.
+  fn finish(self) -> crate::Result<Self::Webview>;
 }
 
 /// Rpc request.

@@ -156,6 +156,9 @@ pub trait WebviewBuilderExt: Sized {
 
   /// Builds the webview instance.
   fn finish(self) -> crate::Result<Self::Webview>;
+
+  /// User data path for the webview. Actually only supported on Windows.
+  fn user_data_path(self, user_data_path: Option<PathBuf>) -> Self;
 }
 
 /// Rpc request.

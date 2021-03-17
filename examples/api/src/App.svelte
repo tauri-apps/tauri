@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { open } from "@tauri-apps/api/window";
+  import { open } from "@tauri-apps/api/shell";
 
   import Cli from "./components/Cli.svelte";
   import Communication from "./components/Communication.svelte";

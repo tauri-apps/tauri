@@ -171,7 +171,7 @@ if (!String.prototype.startsWith) {
                 __tauriModule: "Shell",
                 message: {
                   cmd: "open",
-                  uri: target.href,
+                  path: target.href,
                 },
               });
               e.preventDefault();

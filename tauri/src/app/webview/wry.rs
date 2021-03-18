@@ -3,12 +3,17 @@ use super::{
   RpcRequest, WebviewBuilderExt, WebviewBuilderExtPrivate, WebviewRpcHandler, WindowConfig,
 };
 
+use crate::plugin::PluginStore;
 use once_cell::sync::Lazy;
 
-use crate::plugin::PluginStore;
+#[cfg(target_os = "windows")]
+use std::fs::create_dir_all;
+#[cfg(target_os = "windows")]
+use tauri_api::path::{resolve_path, BaseDirectory};
 
 use std::{
   convert::{TryFrom, TryInto},
+  path::PathBuf,
   sync::{Arc, Mutex},
 };
 
@@ -65,6 +70,30 @@ impl From<WindowConfig> for wry::Attributes {
     if let Some(y) = window_config.0.y {
       webview = webview.y(y);
     }
+
+    // If we are on windows use App Data Local as user_data
+    // to prevent any bundled application to failed.
+
+    // Should fix:
+    // https://github.com/tauri-apps/tauri/issues/1365
+
+    #[cfg(target_os = "windows")]
+    {
+      //todo(lemarier): we should replace with AppName from the context
+      // will be available when updater will merge
+
+      // https://docs.rs/dirs-next/2.0.0/dirs_next/fn.data_local_dir.html
+
+      let local_app_data = resolve_path("Tauri", Some(BaseDirectory::LocalData));
+
+      if let Ok(user_data_dir) = local_app_data {
+        // Make sure the directory exist without panic
+        if let Ok(()) = create_dir_all(&user_data_dir) {
+          webview = webview.user_data_path(Some(user_data_dir));
+        }
+      }
+    }
+
     webview
   }
 }
@@ -170,6 +199,11 @@ impl WebviewBuilderExt for wry::Attributes {
 
   fn has_icon(&self) -> bool {
     self.icon.is_some()
+  }
+
+  fn user_data_path(mut self, user_data_path: Option<PathBuf>) -> Self {
+    self.user_data_path = user_data_path;
+    self
   }
 
   fn finish(self) -> crate::Result<Self::Webview> {

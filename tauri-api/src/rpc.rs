@@ -28,7 +28,7 @@ pub fn format_callback<T: Into<JsonValue>, S: AsRef<str>>(function_name: S, arg:
   format!(
     r#"
       if (window["{fn}"]) {{
-        window["{fn}"]({arg})
+        window["{fn}"](JSON.parse(String.raw`{arg}`))
       }} else {{
         console.warn("[TAURI] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
       }}

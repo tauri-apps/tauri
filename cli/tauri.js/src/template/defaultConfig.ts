@@ -34,6 +34,9 @@ export default {
         exceptionDomain: ''
       }
     },
+    updater: {
+      active: false
+    },
     allowlist: {
       all: true
     },

@@ -5,6 +5,7 @@ use tauri_api::{config::Config, private::AsTauriContext};
 
 use std::{
   collections::HashMap,
+  path::PathBuf,
   sync::{Arc, Mutex},
 };
 
@@ -110,7 +111,30 @@ impl<A: ApplicationExt + 'static> App<A> {
         let window_url = window_config.url.clone();
         let window_label = window_config.label.to_string();
         window_labels.push(window_label.to_string());
-        let webview = A::WebviewBuilder::from(webview::WindowConfig(window_config));
+        // Default user_data_path is `None`.
+        let mut user_data_path: Option<PathBuf> = None;
+        // If we are on windows use App Data Local as webview temp dir
+        // to prevent any bundled application to failed.
+        // Fix: https://github.com/tauri-apps/tauri/issues/1365
+        // Using cfg! prevent warning for the user_data_path mutability on others platforms.
+        if cfg!(windows) {
+          // Should return a path similar to C:\Users\<User>\AppData\Local\<AppName>
+          let local_app_data = tauri_api::path::resolve_path(
+            self.context.package_info.name,
+            Some(tauri_api::path::BaseDirectory::LocalData),
+          );
+          // Make sure the directory exist without panic
+          if let Ok(user_data_dir) = local_app_data {
+            if let Ok(()) = std::fs::create_dir_all(&user_data_dir) {
+              user_data_path = Some(user_data_dir);
+            }
+          }
+        }
+
+        // Build our webview from the WindowConfig and inject user_data_path, default is `None`.
+        let webview = A::WebviewBuilder::from(webview::WindowConfig(window_config))
+          .with_user_data_path(user_data_path);
+
         let mut webviews = self.webviews.take().unwrap();
         webviews.push(Webview {
           label: window_label,

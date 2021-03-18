@@ -115,10 +115,7 @@ impl Build {
         out_dir.join(format!("{}.exe", product_name)),
       )?;
       #[cfg(not(windows))]
-      rename(
-        out_dir.join(bin_name),
-        out_dir.join(product_name),
-      )?;
+      rename(out_dir.join(bin_name), out_dir.join(product_name))?;
     }
 
     if config_.tauri.bundle.active {

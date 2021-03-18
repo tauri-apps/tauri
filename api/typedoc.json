@@ -1,8 +1,0 @@
-{
-  "entryPoints": "./src",
-  "out": "docs",
-  "entryDocument": "index.md",
-  "hideInPageTOC": true,
-  "hideBreadcrumbs": true,
-  "watch": false
-}

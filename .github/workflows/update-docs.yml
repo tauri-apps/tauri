@@ -40,10 +40,13 @@ jobs:
           sidebarPath: ./tauri-docs/sidebars.json
           linksRoot: /docs/api/rust/
           cratesToProcess: "tauri,tauri_api,tauri_utils"
-      - name: run typedoc
-        working-directory: tauri/api
-        run: |
-          yarn docs && mv docs/* ../../tauri-docs/docs/en/api/js
+      - name: run typedocusaurus
+        uses: tauri-apps/typedocusaurus/github-action@v1
+        with:
+          originPath: ./tauri/api/
+          sidebarFile: sidebars.json
+          targetPath: ./tauri-docs/docs/en/api/js
+          docusaurusPath: ./tauri-docs/
       - name: git config
         run: |
           git config --global user.name "${{ github.event.inputs.gitName }}"

@@ -1,8 +1,8 @@
+#[cfg(target_os = "linux")]
+use heck::KebabCase;
 use json_patch::merge;
 use once_cell::sync::Lazy;
 use serde_json::Value as JsonValue;
-#[cfg(target_os = "linux")]
-use heck::KebabCase;
 
 #[path = "../../config_definition.rs"]
 mod config_definition;

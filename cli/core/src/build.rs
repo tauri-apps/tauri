@@ -100,6 +100,18 @@ impl Build {
 
     if config_.tauri.bundle.active {
       let bundler_settings = rust::get_bundler_settings(&config_, self.debug)?;
+      // move merge modules to the out dir so the bundler can load it
+      #[cfg(windows)]
+      {
+        let (filename, vcruntime_msm) = if cfg!(target_arch = "x86") {
+          let _ = std::fs::remove_file(bundler_settings.out_dir.join("Microsoft_VC142_CRT_x64.msm"));
+          ("Microsoft_VC142_CRT_x86.msm", include_bytes!("./MergeModules/Microsoft_VC142_CRT_x86.msm").to_vec())
+        } else {
+          let _ = std::fs::remove_file(bundler_settings.out_dir.join("Microsoft_VC142_CRT_x86.msm"));
+          ("Microsoft_VC142_CRT_x64.msm", include_bytes!("./MergeModules/Microsoft_VC142_CRT_x64.msm").to_vec())
+        };
+        std::fs::write(bundler_settings.out_dir.join(filename), vcruntime_msm)?;
+      }
       let mut settings_builder = SettingsBuilder::new()
         .package_settings(bundler_settings.package_settings)
         .bundle_settings(bundler_settings.bundle_settings)

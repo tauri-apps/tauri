@@ -676,7 +676,14 @@ mod build {
         self
           .subcommands
           .as_ref()
-          .map(|map| map_lit(quote! { ::std::collections::HashMap }, map, str_lit, identity))
+          .map(|map| {
+            map_lit(
+              quote! { ::std::collections::HashMap },
+              map,
+              str_lit,
+              identity,
+            )
+          })
           .as_ref(),
       );
 
@@ -722,7 +729,12 @@ mod build {
 
   impl ToTokens for PluginConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let config = map_lit(quote! { ::std::collections::HashMap }, &self.0, str_lit, json_value_lit);
+      let config = map_lit(
+        quote! { ::std::collections::HashMap },
+        &self.0,
+        str_lit,
+        json_value_lit,
+      );
       tokens.append_all(quote! { ::tauri::api::config::PluginConfig(#config) })
     }
   }

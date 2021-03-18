@@ -209,10 +209,11 @@ fn notarize(
     );
   }
 
-  let regex = Regex::new(r"\nRequestUUID = (.+?)\n")?;
-
   let stdout = std::str::from_utf8(&output.stdout)?;
-  if let Some(uuid) = regex.captures_iter(stdout).next() {
+  if let Some(uuid) = Regex::new(r"\nRequestUUID = (.+?)\n")?
+    .captures_iter(stdout)
+    .next()
+  {
     common::print_info("notarization started; waiting for Apple response...")?;
     let uuid = uuid[1].to_string();
     get_notarization_status(uuid, auth_args)?;
@@ -270,9 +271,11 @@ fn get_notarization_status(uuid: String, auth_args: Vec<String>) -> crate::Resul
   if !output.status.success() {
     get_notarization_status(uuid, auth_args)
   } else {
-    let regex = Regex::new(r"\n *Status: (.+?)\n")?;
     let stdout = std::str::from_utf8(&output.stdout)?;
-    if let Some(status) = regex.captures_iter(stdout).next() {
+    if let Some(status) = Regex::new(r"\n *Status: (.+?)\n")?
+      .captures_iter(stdout)
+      .next()
+    {
       let status = status[1].to_string();
       if status == "in progress" {
         get_notarization_status(uuid, auth_args)

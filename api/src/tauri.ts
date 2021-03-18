@@ -1,7 +1,9 @@
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Window {
-    __TAURI_INVOKE_HANDLER__: (command: string) => void
+    rpc: {
+      notify: (command: string, args?: { [key: string]: unknown }) => void
+    }
   }
 }
 
@@ -49,6 +51,11 @@ function transformCallback(
   return identifier
 }
 
+export interface InvokeArgs {
+  mainThread?: boolean
+  [key: string]: unknown
+}
+
 /**
  * sends a message to the backend
  *
@@ -56,7 +63,7 @@ function transformCallback(
  *
  * @return {Promise<T>} Promise resolving or rejecting to the backend response
  */
-async function invoke<T>(args: any): Promise<T> {
+async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
   return new Promise((resolve, reject) => {
     const callback = transformCallback((e) => {
       resolve(e)
@@ -67,13 +74,11 @@ async function invoke<T>(args: any): Promise<T> {
       Reflect.deleteProperty(window, callback)
     }, true)
 
-    window.__TAURI_INVOKE_HANDLER__(
-      JSON.stringify({
-        callback,
-        error,
-        ...args
-      })
-    )
+    window.rpc.notify(cmd, {
+      callback,
+      error,
+      ...args
+    })
   })
 }
 

@@ -1,6 +1,9 @@
+#![allow(clippy::field_reassign_with_default)]
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
+use serde_with::skip_serializing_none;
 
 use std::{collections::HashMap, path::PathBuf};
 
@@ -11,6 +14,7 @@ pub enum BundleTarget {
   One(String),
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DebConfig {
@@ -19,6 +23,7 @@ pub struct DebConfig {
   pub use_bootstrapper: bool,
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct OsxConfig {
@@ -40,6 +45,7 @@ pub struct WindowsConfig {
   pub timestamp_url: Option<String>,
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BundleConfig {
@@ -72,6 +78,7 @@ pub struct BundleConfig {
 }
 
 /// A CLI argument definition
+#[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CliArg {
@@ -159,6 +166,7 @@ pub struct CliArg {
 }
 
 /// describes a CLI configuration
+#[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CliConfig {
@@ -192,22 +200,8 @@ pub enum Port {
   Random,
 }
 
-/// The embeddedServer configuration object.
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct EmbeddedServerConfig {
-  /// The embedded server host.
-  pub host: Option<String>,
-  /// The embedded server port.
-  /// If it's `random`, we'll generate one at runtime.
-  pub port: Option<Port>,
-
-  /// The base path of the embedded server.
-  /// The path should always start and end in a forward slash, which the deserializer will ensure
-  pub public_path: Option<String>,
-}
-
 /// The window configuration object.
+#[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WindowConfig {
@@ -246,16 +240,25 @@ pub struct WindowConfig {
   #[serde(default)]
   pub maximized: bool,
   /// Whether the window is visible or not.
-  #[serde(default)]
+  #[serde(default = "default_visible")]
   pub visible: bool,
   /// Whether the window should have borders and bars.
-  #[serde(default)]
+  #[serde(default = "default_decorations")]
   pub decorations: bool,
   /// Whether the window should always be on top of other windows.
   #[serde(default)]
   pub always_on_top: bool,
 }
 
+fn default_visible() -> bool {
+  true
+}
+
+fn default_decorations() -> bool {
+  true
+}
+
+#[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SecurityConfig {
@@ -489,16 +492,16 @@ impl Allowlist for AllowlistConfig {
 }
 
 /// The Tauri configuration object.
+#[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+
 pub struct TauriConfig {
   /// The windows configuration.
   #[serde(default)]
   pub windows: Vec<WindowConfig>,
   /// The CLI configuration.
   pub cli: Option<CliConfig>,
-  #[serde(default)]
-  pub embedded_server: EmbeddedServerConfig,
   /// The bundler configuration.
   #[serde(default)]
   pub bundle: BundleConfig,
@@ -515,6 +518,7 @@ impl TauriConfig {
 }
 
 /// The Build configuration object.
+#[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BuildConfig {
@@ -544,6 +548,7 @@ fn default_dist_dir() -> String {
 type JsonObject = HashMap<String, JsonValue>;
 
 /// The tauri.conf.json mapper.
+#[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Config {

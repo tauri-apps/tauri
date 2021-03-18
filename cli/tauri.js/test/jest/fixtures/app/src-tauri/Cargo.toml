@@ -21,13 +21,13 @@ icon = [
 ]
 
 [dependencies]
-serde_json = "1.0.62"
+serde_json = "1.0.64"
 serde = "1.0"
 serde_derive = "1.0"
 tauri = { path = "../../../../../../../tauri", features =["api-all"]}
 
 [features]
-embedded-server = [ "tauri/embedded-server" ]
+custom-protocol = [ "tauri/custom-protocol" ]
 
 [[bin]]
 name = "app"

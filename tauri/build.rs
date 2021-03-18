@@ -2,8 +2,8 @@ use cfg_aliases::cfg_aliases;
 
 fn main() {
   cfg_aliases! {
-    embedded_server: { feature = "embedded-server" },
-    dev: { not(feature = "embedded-server") },
+    custom_protocol: { feature = "custom-protocol" },
+    dev: { not(feature = "custom-protocol") },
 
     api_all: { feature = "api-all" },
 

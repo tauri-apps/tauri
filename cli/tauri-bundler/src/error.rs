@@ -15,8 +15,6 @@ pub enum Error {
   #[error("`{0}`")]
   ImageError(#[from] image::ImageError),
   #[error("`{0}`")]
-  TargetError(#[from] target_build_utils::Error),
-  #[error("`{0}`")]
   TomlError(#[from] toml::de::Error),
   #[error("`{0}`")]
   WalkdirError(#[from] walkdir::Error),

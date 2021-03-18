@@ -4,9 +4,13 @@ on:
   pull_request:
     paths:
       - '.github/workflows/core-lint-fmt.yml'
+      - 'core/**'
+      - 'examples/**'
       - 'tauri/**'
       - 'tauri-utils/**'
       - 'tauri-api/**'
+      - 'tauri-macros/**'
+      - 'tauri-updater/**'
       - 'cli/core/**'
 
 jobs:
@@ -62,7 +66,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        feature: [embedded-server, api-all]
+        feature: [custom-protocol, api-all]
 
     steps:
       - uses: actions/checkout@v2

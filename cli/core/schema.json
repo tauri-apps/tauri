@@ -7,8 +7,6 @@
     "build": {
       "description": "The build configuration.",
       "default": {
-        "beforeBuildCommand": null,
-        "beforeDevCommand": null,
         "devPath": "",
         "distDir": "../dist",
         "withGlobalTauri": false
@@ -74,44 +72,18 @@
         },
         "bundle": {
           "active": false,
-          "category": null,
-          "copyright": null,
           "deb": {
-            "depends": null,
             "useBootstrapper": false
           },
-          "externalBin": null,
-          "icon": null,
-          "identifier": null,
-          "longDescription": null,
-          "name": null,
           "osx": {
-            "entitlements": null,
-            "exceptionDomain": null,
-            "frameworks": null,
-            "license": null,
-            "minimumSystemVersion": null,
-            "signingIdentity": null,
             "useBootstrapper": false
           },
-          "resources": null,
-          "script": null,
-          "shortDescription": null,
-          "targets": null,
-          "version": null,
           "windows": {
             "certificateThumbprint": null,
             "digestAlgorithm": null,
             "timestampUrl": null
           }
         },
-        "cli": null,
-        "embeddedServer": {
-          "host": null,
-          "port": null,
-          "publicPath": null
-        },
-        "security": null,
         "windows": []
       },
       "allOf": [
@@ -280,7 +252,6 @@
         },
         "deb": {
           "default": {
-            "depends": null,
             "useBootstrapper": false
           },
           "allOf": [
@@ -329,12 +300,6 @@
         },
         "osx": {
           "default": {
-            "entitlements": null,
-            "exceptionDomain": null,
-            "frameworks": null,
-            "license": null,
-            "minimumSystemVersion": null,
-            "signingIdentity": null,
             "useBootstrapper": false
           },
           "allOf": [
@@ -700,38 +665,6 @@
       },
       "additionalProperties": false
     },
-    "EmbeddedServerConfig": {
-      "description": "The embeddedServer configuration object.",
-      "type": "object",
-      "properties": {
-        "host": {
-          "description": "The embedded server host.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "port": {
-          "description": "The embedded server port. If it's `random`, we'll generate one at runtime.",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Port"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "publicPath": {
-          "description": "The base path of the embedded server. The path should always start and end in a forward slash, which the deserializer will ensure",
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      },
-      "additionalProperties": false
-    },
     "FsAllowlistConfig": {
       "type": "object",
       "properties": {
@@ -869,20 +802,6 @@
       },
       "additionalProperties": false
     },
-    "Port": {
-      "anyOf": [
-        {
-          "description": "Port with a numeric value.",
-          "type": "integer",
-          "format": "uint16",
-          "minimum": 0.0
-        },
-        {
-          "description": "Random port.",
-          "type": "null"
-        }
-      ]
-    },
     "SecurityConfig": {
       "type": "object",
       "properties": {
@@ -969,31 +888,12 @@
           "description": "The bundler configuration.",
           "default": {
             "active": false,
-            "category": null,
-            "copyright": null,
             "deb": {
-              "depends": null,
               "useBootstrapper": false
             },
-            "externalBin": null,
-            "icon": null,
-            "identifier": null,
-            "longDescription": null,
-            "name": null,
             "osx": {
-              "entitlements": null,
-              "exceptionDomain": null,
-              "frameworks": null,
-              "license": null,
-              "minimumSystemVersion": null,
-              "signingIdentity": null,
               "useBootstrapper": false
             },
-            "resources": null,
-            "script": null,
-            "shortDescription": null,
-            "targets": null,
-            "version": null,
             "windows": {
               "certificateThumbprint": null,
               "digestAlgorithm": null,
@@ -1014,18 +914,6 @@
             },
             {
               "type": "null"
-            }
-          ]
-        },
-        "embeddedServer": {
-          "default": {
-            "host": null,
-            "port": null,
-            "publicPath": null
-          },
-          "allOf": [
-            {
-              "$ref": "#/definitions/EmbeddedServerConfig"
             }
           ]
         },
@@ -1075,7 +963,7 @@
         },
         "decorations": {
           "description": "Whether the window should have borders and bars.",
-          "default": false,
+          "default": true,
           "type": "boolean"
         },
         "fullscreen": {
@@ -1161,7 +1049,7 @@
         },
         "visible": {
           "description": "Whether the window is visible or not.",
-          "default": false,
+          "default": true,
           "type": "boolean"
         },
         "width": {

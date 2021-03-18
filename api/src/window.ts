@@ -1,5 +1,5 @@
-import { invoke } from './tauri'
-import { EventCallback, emit, listen } from './helpers/event'
+import { invokeTauriCommand } from './helpers/tauri'
+import { EventCallback, UnlistenFn, emit, listen, once } from './helpers/event'
 
 interface WindowDef {
   label: string
@@ -14,18 +14,24 @@ declare global {
   }
 }
 
-function getCurrentWindow(): WindowDef {
-  return window.__TAURI__.__currentWindow
+function getCurrent(): WebviewWindowHandle {
+  return new WebviewWindowHandle(window.__TAURI__.__currentWindow.label)
 }
 
-function getWindows(): WindowDef[] {
+function getAll(): WindowDef[] {
   return window.__TAURI__.__windows
 }
 
-class TauriWindow {
+// events that are emitted right here instead of by the created webview
+const localTauriEvents = ['tauri://created', 'tauri://error']
+
+class WebviewWindowHandle {
   label: string
+  listeners: { [key: string]: Array<EventCallback<any>> }
+
   constructor(label: string) {
     this.label = label
+    this.listeners = {}
   }
 
   /**
@@ -33,14 +39,29 @@ class TauriWindow {
    *
    * @param event the event name
    * @param handler the event handler callback
-   * @param once unlisten after the first trigger if true
+   * @return {Promise<UnlistenFn>} a promise resolving to a function to unlisten to the event.
    */
   async listen<T>(
     event: string,
-    handler: EventCallback<T>,
-    once = false
-  ): Promise<void> {
-    return listen(event, handler, once)
+    handler: EventCallback<T>
+  ): Promise<UnlistenFn> {
+    if (this._handleTauriEvent(event, handler)) {
+      return Promise.resolve(() => {})
+    }
+    return listen(event, handler)
+  }
+
+  /**
+   * Listen to an one-off event emitted by the webview
+   *
+   * @param event the event name
+   * @param handler the event handler callback
+   */
+  async once<T>(event: string, handler: EventCallback<T>): Promise<void> {
+    if (this._handleTauriEvent(event, handler)) {
+      return Promise.resolve()
+    }
+    return once(event, handler)
   }
 
   /**
@@ -50,16 +71,59 @@ class TauriWindow {
    * @param [payload] the event payload
    */
   async emit(event: string, payload?: string): Promise<void> {
+    if (localTauriEvents.includes(event)) {
+      // eslint-disable-next-line
+      for (const handler of this.listeners[event] || []) {
+        handler({ event, id: -1, payload })
+      }
+      return Promise.resolve()
+    }
     return emit(event, this.label, payload)
+  }
+
+  _handleTauriEvent<T>(event: string, handler: EventCallback<T>): boolean {
+    if (localTauriEvents.includes(event)) {
+      if (!(event in this.listeners)) {
+        // eslint-disable-next-line
+        this.listeners[event] = [handler]
+      } else {
+        // eslint-disable-next-line
+        this.listeners[event].push(handler)
+      }
+      return true
+    }
+    return false
   }
 }
 
-function getTauriWindow(
-  label: string = getCurrentWindow().label
-): TauriWindow | null {
-  if (getWindows().some((w) => w.label === label)) {
-    return new TauriWindow(label)
-  } else {
+class WebviewWindow extends WebviewWindowHandle {
+  constructor(label: string, options: WindowOptions = {}) {
+    super(label)
+    invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'createWebview',
+        options: {
+          label,
+          ...options
+        }
+      }
+    })
+      .then(async () => this.emit('tauri://created'))
+      .catch(async (e) => this.emit('tauri://error', e))
+  }
+
+  /**
+   * Gets the WebviewWindow handle for the webview associated with the given label.
+   *
+   * @param {string} label the webview window label.
+   *
+   * @return {WebviewWindowHandle} the handle to communicate with the webview or null if the webview doesn't exist
+   */
+  static getByLabel(label: string): WebviewWindowHandle | null {
+    if (getAll().some((w) => w.label === label)) {
+      return new WebviewWindowHandle(label)
+    }
     return null
   }
 }
@@ -69,7 +133,7 @@ class WindowManager {
    * Updates the window resizable flag.
    */
   async setResizable(resizable: boolean): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'setResizable',
@@ -84,7 +148,7 @@ class WindowManager {
    * @param title the new title
    */
   async setTitle(title: string): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'setTitle',
@@ -97,7 +161,7 @@ class WindowManager {
    * Maximizes the window.
    */
   async maximize(): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'maximize'
@@ -109,7 +173,7 @@ class WindowManager {
    * Unmaximizes the window.
    */
   async unmaximize(): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'unmaximize'
@@ -121,7 +185,7 @@ class WindowManager {
    * Minimizes the window.
    */
   async minimize(): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'minimize'
@@ -133,7 +197,7 @@ class WindowManager {
    * Unminimizes the window.
    */
   async unminimize(): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'unminimize'
@@ -145,7 +209,7 @@ class WindowManager {
    * Sets the window visibility to true.
    */
   async show(): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'show'
@@ -157,7 +221,7 @@ class WindowManager {
    * Sets the window visibility to false.
    */
   async hide(): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'hide'
@@ -166,16 +230,13 @@ class WindowManager {
   }
 
   /**
-   * Sets the window transparent flag.
-   *
-   * @param {boolean} transparent whether the the window should be transparent or not
+   * Closes the window.
    */
-  async setTransparent(transparent: boolean): Promise<void> {
-    return invoke({
+  async close(): Promise<void> {
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'setTransparent',
-        transparent
+        cmd: 'close'
       }
     })
   }
@@ -186,7 +247,7 @@ class WindowManager {
    * @param {boolean} decorations whether the window should have borders and bars
    */
   async setDecorations(decorations: boolean): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'setDecorations',
@@ -201,7 +262,7 @@ class WindowManager {
    * @param {boolean} alwaysOnTop whether the window should always be on top of other windows or not
    */
   async setAlwaysOnTop(alwaysOnTop: boolean): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'setAlwaysOnTop',
@@ -216,7 +277,7 @@ class WindowManager {
    * @param {number} width the new window width
    */
   async setWidth(width: number): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'setWidth',
@@ -231,7 +292,7 @@ class WindowManager {
    * @param {number} height the new window height
    */
   async setHeight(height: number): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'setHeight',
@@ -247,7 +308,7 @@ class WindowManager {
    * @param {number} height the new window height
    */
   async resize(width: number, height: number): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'resize',
@@ -264,7 +325,7 @@ class WindowManager {
    * @param {number} minHeight the new window min height
    */
   async setMinSize(minWidth: number, minHeight: number): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'setMinSize',
@@ -281,7 +342,7 @@ class WindowManager {
    * @param {number} maxHeight the new window max height
    */
   async setMaxSize(maxWidth: number, maxHeight: number): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'setMaxSize',
@@ -297,7 +358,7 @@ class WindowManager {
    * @param {number} x the new window x position
    */
   async setX(x: number): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'setX',
@@ -312,7 +373,7 @@ class WindowManager {
    * @param {number} y the new window y position
    */
   async setY(y: number): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'setY',
@@ -328,7 +389,7 @@ class WindowManager {
    * @param {number} y the new window y position
    */
   async setPosition(x: number, y: number): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'setPosition',
@@ -344,7 +405,7 @@ class WindowManager {
    * @param {boolean} fullscreen whether the window should go to fullscreen or not
    */
   async setFullscreen(fullscreen: boolean): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'setFullscreen',
@@ -359,7 +420,7 @@ class WindowManager {
    * @param {string | number[]} icon icon bytes or path to the icon file
    */
   async setIcon(icon: 'string' | number[]): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'setIcon',
@@ -369,7 +430,7 @@ class WindowManager {
   }
 }
 
-const manager = new WindowManager()
+const appWindow = new WindowManager()
 
 export interface WindowOptions {
   url?: 'app' | string
@@ -384,35 +445,10 @@ export interface WindowOptions {
   resizable?: boolean
   title?: string
   fullscreen?: boolean
-  transparent?: boolean
   maximized?: boolean
   visible?: boolean
   decorations?: boolean
   alwaysOnTop?: boolean
 }
 
-async function createWindow(
-  label: string,
-  options: WindowOptions = {}
-): Promise<TauriWindow> {
-  await invoke({
-    __tauriModule: 'Window',
-    message: {
-      cmd: 'createWebview',
-      options: {
-        label,
-        ...options
-      }
-    }
-  })
-  return new TauriWindow(label)
-}
-
-export {
-  TauriWindow,
-  getTauriWindow,
-  getCurrentWindow,
-  getWindows,
-  manager,
-  createWindow
-}
+export { WebviewWindow, getCurrent, getAll, appWindow }

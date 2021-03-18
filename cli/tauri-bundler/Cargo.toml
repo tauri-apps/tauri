@@ -19,11 +19,10 @@ edition = "2018"
 [dependencies]
 ar = "0.8.0"
 chrono = "0.4"
-clap = "^2"
 dirs-next = "2.0.0"
 glob = "0.3.0"
 icns = "0.3"
-image = "0.23.13"
+image = "0.23.14"
 libflate = "1.0"
 md5 = "0.7.0"
 anyhow = "1.0"
@@ -32,7 +31,6 @@ serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
 strsim = "0.10.0"
 tar = "0.4"
-target_build_utils = "0.3"
 termcolor = "1.1.2"
 toml = "0.5.8"
 walkdir = "2"
@@ -43,8 +41,8 @@ tempfile = "3.1.0"
 regex = { version = "1" }
 
 [target."cfg(target_os = \"windows\")".dependencies]
-attohttpc = { version = "0.16.1" }
-runas = "0.2"
+attohttpc = { version = "0.16.3" }
+regex = { version = "1" }
 uuid = { version = "0.8", features = [ "v5" ] }
 bitness = "0.4"
 winreg = "0.7"
@@ -53,10 +51,6 @@ winreg = "0.7"
 sha2 = { version = "0.9" }
 hex = { version = "0.4" }
 
-
-[[bin]]
-name = "cargo-tauri-bundler"
-path = "src/bin.rs"
 
 [lib]
 name = "tauri_bundler"

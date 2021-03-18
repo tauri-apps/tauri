@@ -21,35 +21,30 @@ features = [ "api-all" ]
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
 base64 = "0.13.0"
-webbrowser = "0.5.5"
 lazy_static = "1.4.0"
-tiny_http = { version = "0.8", optional = true }
-tokio = { version = "1.2", features = ["rt", "rt-multi-thread", "sync"] }
+tokio = { version = "1.3", features = ["rt", "rt-multi-thread", "sync"] }
 futures = "0.3"
 async-trait = "0.1"
 uuid = { version = "0.8.2", features = [ "v4" ] }
-thiserror = "1.0.23"
-once_cell = "1.5.2"
+thiserror = "1.0.24"
+once_cell = "1.7.2"
 tauri-api = { version = "0.7.5", path = "../tauri-api" }
 tauri-macros = { version = "0.1", path = "../tauri-macros" }
-wry = { git = "https://github.com/tauri-apps/wry", rev = "e6cc7f0825220a0117827b6f0a366f60ce7420ea" }
+wry = { git = "https://github.com/tauri-apps/wry", rev = "8dd58eec77d4c89491b1af427d06c4ee6cfa8e58" }
 rand = "0.8"
-
-[target."cfg(target_os = \"windows\")".dependencies]
-runas = "0.2"
 
 [build-dependencies]
 cfg_aliases = "0.1.1"
 
 [dev-dependencies]
-proptest = "0.10.1"
+proptest = "1.0.0"
 serde_json = "1.0"
 tauri = { path = ".", features = [ "api-all" ] }
 serde = { version = "1.0", features = [ "derive" ] }
 
 [features]
 cli = [ "tauri-api/cli" ]
-embedded-server = [ "tiny_http" ]
+custom-protocol = [ ]
 api-all = [ "tauri-api/notification", "tauri-api/global-shortcut" ]
 updater = [ ]
 
@@ -90,11 +85,3 @@ notification-all = [ "tauri-api/notification" ]
 
 # global shortcut
 global-shortcut-all = [ "tauri-api/global-shortcut" ]
-
-[[example]]
-name = "communication"
-path = "examples/communication/src-tauri/src/main.rs"
-
-[[example]]
-name = "multiwindow"
-path = "examples/multiwindow/src-tauri/src/main.rs"

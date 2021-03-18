@@ -4,5 +4,5 @@ async function emit(event: string, payload?: string): Promise<void> {
   return emitEvent(event, undefined, payload)
 }
 
-export { listen } from './helpers/event'
+export { listen, once } from './helpers/event'
 export { emit }

@@ -44,6 +44,18 @@ const injectConfFile = (
       }
       /* eslint-enable security/detect-object-injection */
     })
+    // Window config should be merged
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if ((customConfig as UnknownObject).tauri?.windows[0]) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
+      ;(customConfig as UnknownObject).tauri.windows[0] = {
+        ...defaultConfig.tauri.windows[0],
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        ...(customConfig as UnknownObject).tauri.windows[0]
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      delete (defaultConfig as UnknownObject).tauri.windows
+    }
     const finalConf = merge(
       defaultConfig as any,
       customConfig as any
@@ -65,29 +77,34 @@ Run \`tauri init --force template\` to overwrite.`)
     if (!force) return false
   }
 
-  const resolveTauriPath = (tauriPath: string): string => {
+  const resolveTauriPath = (tauriPath: string, crate: string): string => {
     const resolvedPath = isAbsolute(tauriPath)
-      ? join(tauriPath, 'tauri') // we received a full path as argument
-      : join('..', tauriPath, 'tauri') // we received a relative path
+      ? join(tauriPath, crate) // we received a full path as argument
+      : join('..', tauriPath, crate) // we received a relative path
     return resolvedPath.replace(/\\/g, '/')
   }
 
-  const resolveCurrentTauriVersion = (): string => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
-    const tauriManifest = require('../../../../tauri/Cargo.toml') as CargoManifest
+  const resolveCurrentTauriVersion = (crate: string): string => {
+    const manifestPath = `../../../../${crate}/Cargo.toml`
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access, security/detect-non-literal-require
+    const tauriManifest = require(manifestPath) as CargoManifest
     const version = tauriManifest.package.version
     return version.substring(0, version.lastIndexOf('.'))
   }
 
   const tauriDep = tauriPath
-    ? `{ path = "${resolveTauriPath(tauriPath)}" }`
-    : `{ version = "${resolveCurrentTauriVersion()}" }`
+    ? `{ path = "${resolveTauriPath(tauriPath, 'tauri')}" }`
+    : `{ version = "${resolveCurrentTauriVersion('tauri')}" }`
+  const tauriBuildDep = tauriPath
+    ? `{ path = "${resolveTauriPath(tauriPath, 'core/tauri-build')}" }`
+    : `{ version = "${resolveCurrentTauriVersion('core/tauri-build')}" }`
 
   removeSync(dir)
   copyTemplates({
     source: resolve(__dirname, '../../templates/src-tauri'),
     scope: {
-      tauriDep
+      tauriDep,
+      tauriBuildDep
     },
     target: dir
   })

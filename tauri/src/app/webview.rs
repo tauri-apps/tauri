@@ -1,6 +1,9 @@
 pub mod wry;
 
 use crate::plugin::PluginStore;
+use std::path::PathBuf;
+
+use serde_json::Value as JsonValue;
 
 /// A icon definition.
 pub enum Icon {
@@ -32,8 +35,6 @@ pub enum Message {
   Show,
   /// Hides the window.
   Hide,
-  /// Updates the transparency flag.
-  SetTransparent(bool),
   /// Updates the hasDecorations flag.
   SetDecorations(bool),
   /// Updates the window alwaysOnTop flag.
@@ -147,17 +148,52 @@ pub trait WebviewBuilderExt: Sized {
   /// Whether the window should always be on top of other windows.
   fn always_on_top(self, always_on_top: bool) -> Self;
 
+  /// Sets the window icon.
+  fn icon(self, icon: Icon) -> crate::Result<Self>;
+
+  /// Whether the icon was set or not.
+  fn has_icon(&self) -> bool;
+
+  /// User data path for the webview. Actually only supported on Windows.
+  fn user_data_path(self, user_data_path: Option<PathBuf>) -> Self;
+
   /// Builds the webview instance.
   fn finish(self) -> crate::Result<Self::Webview>;
 }
 
-/// Binds the given callback to a global variable on the window object.
-pub struct Callback<D> {
-  /// Function name to bind.
-  pub name: String,
-  /// Function callback handler.
-  pub function: Box<dyn FnMut(D, i32, Vec<String>) -> i32 + Send>,
+/// Rpc request.
+pub struct RpcRequest {
+  /// RPC command.
+  pub command: String,
+  /// Params.
+  pub params: Option<JsonValue>,
 }
+
+/// Rpc handler.
+pub type WebviewRpcHandler<D> = Box<dyn Fn(D, RpcRequest) + Send>;
+
+/// Uses a custom handler to resolve file requests
+pub struct CustomProtocol {
+  /// Name of the protocol
+  pub name: String,
+  /// Handler for protocol
+  pub handler: Box<dyn Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync>,
+}
+
+/// The file drop event payload.
+#[derive(Debug, Clone)]
+pub enum FileDropEvent {
+  /// The file(s) have been dragged onto the window, but have not been dropped yet.
+  Hovered(Vec<PathBuf>),
+  /// The file(s) have been dropped onto the window.
+  Dropped(Vec<PathBuf>),
+  /// The file drop was aborted.
+  Cancelled,
+}
+
+/// File drop handler callback
+/// Return `true` in the callback to block the OS' default behavior of handling a file drop..
+pub type FileDropHandler = Box<dyn Fn(FileDropEvent) -> bool + Send>;
 
 /// Webview dispatcher. A thread-safe handle to the webview API.
 pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
@@ -171,7 +207,9 @@ pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
   fn create_webview(
     &self,
     webview_builder: Self::WebviewBuilder,
-    callbacks: Vec<Callback<Self>>,
+    rpc_handler: Option<WebviewRpcHandler<Self>>,
+    custom_protocol: Option<CustomProtocol>,
+    file_drop_handler: Option<FileDropHandler>,
   ) -> crate::Result<Self>;
 
   /// Updates the window resizable flag.
@@ -198,8 +236,8 @@ pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
   /// Hides the window.
   fn hide(&self) -> crate::Result<()>;
 
-  /// Updates the transparency flag.
-  fn set_transparent(&self, resizable: bool) -> crate::Result<()>;
+  /// Closes the window.
+  fn close(&self) -> crate::Result<()>;
 
   /// Updates the hasDecorations flag.
   fn set_decorations(&self, decorations: bool) -> crate::Result<()>;
@@ -263,7 +301,9 @@ pub trait ApplicationExt: Sized {
   fn create_webview(
     &mut self,
     webview_builder: Self::WebviewBuilder,
-    callbacks: Vec<Callback<Self::Dispatcher>>,
+    rpc_handler: Option<WebviewRpcHandler<Self::Dispatcher>>,
+    custom_protocol: Option<CustomProtocol>,
+    file_drop_handler: Option<FileDropHandler>,
   ) -> crate::Result<Self::Dispatcher>;
 
   /// Run the application.

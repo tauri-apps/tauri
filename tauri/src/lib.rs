@@ -6,9 +6,6 @@
 //! Tauri uses (and contributes to) the MIT licensed project that you can find at [webview](https://github.com/webview/webview).
 #![warn(missing_docs, rust_2018_idioms)]
 
-/// The embedded server helpers.
-#[cfg(embedded_server)]
-pub mod server;
 /// The Tauri-specific settings for your app e.g. notification permission status.
 pub mod settings;
 
@@ -24,6 +21,7 @@ mod salt;
 
 /// The Tauri error enum.
 pub use error::Error;
+
 /// Tauri result type.
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -34,11 +32,19 @@ pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 pub use app::*;
 pub use tauri_api as api;
-pub use tauri_macros::FromTauriContext;
+pub use tauri_macros::*;
 
 /// The Tauri webview implementations.
 pub mod flavors {
   pub use super::app::WryApplication as Wry;
+}
+
+/// Easy helper function to use the Tauri Context you made during build time.
+#[macro_export]
+macro_rules! tauri_build_context {
+  () => {
+    include!(concat!(env!("OUT_DIR"), "/tauri-build-context.rs"))
+  };
 }
 
 #[cfg(test)]

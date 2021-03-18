@@ -136,11 +136,7 @@
       })
 
       setTimeout(function () {
-        window.__TAURI_INVOKE_HANDLER__(
-          JSON.stringify({
-            cmd: 'exit'
-          })
-        )
+        window.rpc.notify('exit')
       }, 15000)
     </script>
   </body>

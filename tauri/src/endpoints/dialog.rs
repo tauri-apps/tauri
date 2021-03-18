@@ -65,7 +65,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub async fn run(self) -> crate::Result<InvokeResponse> {
+  pub fn run(self) -> crate::Result<InvokeResponse> {
     match self {
       Self::OpenDialog { options } => {
         #[cfg(dialog_open)]

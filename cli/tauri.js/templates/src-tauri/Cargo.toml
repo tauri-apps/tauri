@@ -11,17 +11,14 @@ build = "src/build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[build-dependencies]
+tauri-build = <%= tauriBuildDep %>
+
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-tauri = <%= tauriDep || `{ version = "0.5" }` %>
-
-[target."cfg(windows)".build-dependencies]
-winres = "0.1"
+tauri = <%= tauriDep %>
 
 [features]
-embedded-server = [ "tauri/embedded-server" ]
-
-[[bin]]
-name = "app"
-path = "src/main.rs"
+default = [ "custom-protocol" ]
+custom-protocol = [ "tauri/custom-protocol" ]

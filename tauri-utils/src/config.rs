@@ -481,10 +481,11 @@ mod build {
     quote! { vec![#(#items),*] }
   }
 
-  /// Create a `HashMap` constructor, mapping keys and values with other `TokenStream`s.
+  /// Create a map constructor, mapping keys and values with other `TokenStream`s.
   ///
   /// This function is pretty generic because the types of keys AND values get transformed.
-  fn hashmap_lit<Map, Key, Value, TokenStreamKey, TokenStreamValue, FuncKey, FuncValue>(
+  fn map_lit<Map, Key, Value, TokenStreamKey, TokenStreamValue, FuncKey, FuncValue>(
+    map_type: TokenStream,
     map: Map,
     map_key: FuncKey,
     map_value: FuncValue,
@@ -508,12 +509,12 @@ mod build {
       });
 
       quote! {{
-        let mut #ident = ::std::collections::HashMap::new();
+        let mut #ident = #map_type::new();
         #(#items)*
         #ident
       }}
     } else {
-      quote! { ::std::collections::HashMap::new() }
+      quote! { #map_type::new() }
     }
   }
 
@@ -556,7 +557,7 @@ mod build {
         quote! { #prefix::Array(vec![#(#items),*]) }
       }
       JsonValue::Object(map) => {
-        let map = hashmap_lit(map, str_lit, json_value_lit);
+        let map = map_lit(quote! { ::serde_json::Map }, map, str_lit, json_value_lit);
         quote! { #prefix::Object(#map) }
       }
     }
@@ -708,7 +709,14 @@ mod build {
         self
           .subcommands
           .as_ref()
-          .map(|map| hashmap_lit(map, str_lit, identity))
+          .map(|map| {
+            map_lit(
+              quote! { ::std::collections::HashMap },
+              map,
+              str_lit,
+              identity,
+            )
+          })
           .as_ref(),
       );
 
@@ -766,7 +774,12 @@ mod build {
 
   impl ToTokens for PluginConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let config = hashmap_lit(&self.0, str_lit, json_value_lit);
+      let config = map_lit(
+        quote! { ::std::collections::HashMap },
+        &self.0,
+        str_lit,
+        json_value_lit,
+      );
       tokens.append_all(quote! { ::tauri::api::config::PluginConfig(#config) })
     }
   }

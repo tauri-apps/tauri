@@ -108,8 +108,15 @@ impl Build {
 
     let out_dir = app_settings.get_out_dir(self.debug)?;
     if let Some(product_name) = config_.package.product_name.clone() {
+      let bin_name = app_settings.cargo_package_settings().name.clone();
+      #[cfg(windows)]
       rename(
-        out_dir.join(app_settings.cargo_package_settings().name.clone()),
+        out_dir.join(format!("{}.exe", bin_name)),
+        out_dir.join(format!("{}.exe", product_name)),
+      )?;
+      #[cfg(not(windows))]
+      rename(
+        out_dir.join(bin_name),
         out_dir.join(product_name),
       )?;
     }

@@ -1,5 +1,4 @@
 #[macro_use]
-pub mod macros;
 pub mod error;
 use base64::decode;
 pub use error::{Error, Result};
@@ -27,94 +26,123 @@ use std::process::exit;
 
 #[derive(Debug)]
 pub struct RemoteRelease {
+  /// Version to install
   pub version: String,
+  /// Release date
   pub date: String,
+  /// Download URL for current platform
   pub download_url: String,
+  /// Update short description
   pub body: Option<String>,
+  /// Optional signature for the current platform
   pub signature: Option<String>,
-  pub should_update: bool,
 }
 
 impl RemoteRelease {
   // Read JSON and confirm this is a valid Schema
   fn from_release(release: &serde_json::Value, target: &str) -> Result<RemoteRelease> {
-    // did we have a platforms field ?
-    // if we did, that mean it's a static JSON
-    let is_dynamic_update = release["platforms"].is_null();
-
     // Version or name is required for static and dynamic JSON
-    let name = match &release["version"].is_null() {
-      false => release["version"]
+    // if `version` is not announced, we fallback to `name` (can be the tag name example v1.0.0)
+    let version = match release.get("version") {
+      Some(version) => version
         .as_str()
-        .expect("Can't extract remote version")
+        .expect("Updater Unexpected Error: Unable to extract version from the remote server.")
+        .trim_start_matches('v')
         .to_string(),
-      true => release["name"]
+      None => release
+        .get("name")
+        .ok_or_else(|| Error::RemoteMetadata("Release missing `name` and `version`".into()))?
         .as_str()
-        .ok_or_else(|| crate::Error::Release("Release missing `name` or `version`".into()))?
+        .expect("Updater Unexpected Error: Unable to extract version from name field on the remote server.")
+        .trim_start_matches('v')
         .to_string(),
     };
 
-    // pub_date is required
-    let date = match &release["pub_date"].is_null() {
-      false => release["pub_date"]
-        .as_str()
-        .expect("Can't extract pub_date version")
-        .to_string(),
-      true => "N/A".to_string(),
+    // pub_date is required default is: `N/A` if not provided by the remote JSON
+    let date = match release.get("pub_date") {
+      Some(pub_date) => pub_date.as_str().unwrap_or("N/A").to_string(),
+      None => "N/A".to_string(),
     };
 
-    // body is optional
-    let body = match &release["notes"].is_null() {
-      false => release["notes"].as_str().map(String::from),
-      true => None,
+    // body is optional to build our update
+    let body = match release.get("notes") {
+      Some(notes) => Some(notes.as_str().unwrap_or("").to_string()),
+      None => None,
     };
 
-    // signature is optional
-    let mut signature = match &release["signature"].is_null() {
-      false => release["signature"].as_str().map(String::from),
-      true => None,
+    // signature is optional to build our update
+    let mut signature = match release.get("signature") {
+      Some(signature) => Some(signature.as_str().unwrap_or("").to_string()),
+      None => None,
     };
 
-    // url is required but we'll check it later
-    let url;
-    if !is_dynamic_update {
-      // make sure we have an available platform from the static
-      if release["platforms"][target].is_null() {
-        bail!(crate::Error::UpToDate, "Platform not available")
+    let download_url;
+
+    match release.get("platforms") {
+      //
+      // Did we have a platforms field?
+      // If we did, that mean it's a static JSON.
+      // The main difference with STATIC and DYNAMIC is static announce ALL platforms
+      // and dynamic announce only the current platform.
+      //
+      // This could be used if you do NOT want an update server and use
+      // a GIST, S3 or any static JSON file to announce your updates.
+      //
+      // Notes:
+      // Dynamic help to reduce bandwidth usage or to intelligently update your clients
+      // based on the request you give. The server can remotely drive behaviors like
+      // rolling back or phased rollouts.
+      //
+      Some(platforms) => {
+        // make sure we have our target available
+        if let Some(current_target_data) = platforms.get(target) {
+          // use provided signature if available
+          signature = match current_target_data.get("signature") {
+            Some(found_signature) => Some(found_signature.as_str().unwrap_or("").to_string()),
+            None => None,
+          };
+          // Download URL is required
+          download_url = current_target_data
+            .get("url")
+            .ok_or_else(|| Error::RemoteMetadata("Release missing `url`".into()))?
+            .as_str()
+            .expect("Updater Unexpected Error: Unable to extract URL from the remote server.")
+            .to_string();
+        } else {
+          // make sure we have an available platform from the static
+          return Err(Error::RemoteMetadata("Platform not available".into()));
+        }
       }
-      // use provided signature if available
-      signature = match &release["platforms"][target]["signature"].is_null() {
-        false => release["platforms"][target]["signature"]
+      // We don't have the `platforms` field announced, let's assume our
+      // download URL is at the root of the JSON.
+      None => {
+        download_url = release
+          .get("url")
+          .ok_or_else(|| Error::RemoteMetadata("Release missing `name` and `version`".into()))?
           .as_str()
-          .map(String::from),
-        true => None,
-      };
-
-      url = release["platforms"][target]["url"]
-        .as_str()
-        .ok_or_else(|| crate::Error::Release("Release missing `url`".into()))?;
-    } else {
-      url = release["url"]
-        .as_str()
-        .ok_or_else(|| crate::Error::Release("Release missing `url`".into()))?;
+          .expect("Updater Unexpected Error: Unable to extract URL from the remote server.")
+          .to_string();
+      }
     }
-
     // Return our formatted release
     Ok(RemoteRelease {
-      signature,
-      version: name.trim_start_matches('v').to_owned(),
+      version,
+      download_url,
       date,
-      download_url: url.to_owned(),
+      signature,
       body,
-      should_update: false,
     })
   }
 }
 
 pub struct UpdateBuilder<'a> {
+  /// Current version we are running to compare with announced version
   pub current_version: &'a str,
+  /// The URLs to checks updates. We suggest at least one fallback on a different domain.
   pub urls: Vec<String>,
+  /// The platform the updater will check and install the update. Default is from `get_updater_target`
   pub target: Option<String>,
+  /// The current executable path. Default is automatically extracted.
   pub executable_path: Option<PathBuf>,
 }
 
@@ -124,7 +152,6 @@ impl<'a> Default for UpdateBuilder<'a> {
       urls: Vec::new(),
       target: None,
       executable_path: None,
-      // set version to current Cargo version
       current_version: env!("CARGO_PKG_VERSION"),
     }
   }
@@ -176,7 +203,9 @@ impl<'a> UpdateBuilder<'a> {
 
     // make sure we have at least one url
     if self.urls.is_empty() {
-      bail!(crate::Error::Config, "`url` required")
+      return Err(Error::Builder(
+        "Unable to check update, `url` is required.".into(),
+      ));
     };
 
     // set current version if not set
@@ -186,24 +215,36 @@ impl<'a> UpdateBuilder<'a> {
     let executable_path = if let Some(v) = &self.executable_path {
       v.clone()
     } else {
-      env::current_exe().expect("Can't access current executable")
+      // we expect it to fail if we can't find the executable path
+      // without this path we can't continue the update process.
+      env::current_exe().expect("Can't access current executable path.")
     };
 
     // Did the target is provided by the config?
     let target = if let Some(t) = &self.target {
       t.clone()
     } else {
-      get_target().ok_or_else(|| crate::Error::Config("Unsuported operating system.".into()))?
+      get_updater_target().ok_or(Error::UnsupportedPlatform)?
     };
 
     // Get the extract_path from the provided executable_path
     let extract_path = extract_path_from_executable(&executable_path, &target);
 
-    // make sure SSL is correctly set for linux
-    set_ssl_vars!();
+    // Set SSL certs for linux if they aren't available.
+    // We do not require to recheck in the download_and_install as we use
+    // ENV variables, we can expect them to be set for the second call.
+    #[cfg(target_os = "linux")]
+    {
+      if env::var_os("SSL_CERT_FILE").is_none() {
+        env::set_var("SSL_CERT_FILE", "/etc/ssl/certs/ca-certificates.crt");
+      }
+      if env::var_os("SSL_CERT_DIR").is_none() {
+        env::set_var("SSL_CERT_DIR", "/etc/ssl/certs");
+      }
+    }
 
     // Allow fallback if more than 1 urls is provided
-    let mut last_error: Option<crate::Error> = None;
+    let mut last_error: Option<Error> = None;
     for url in &self.urls {
       // replace {{current_version}} and {{target}} in the provided URL
       // this is usefull if we need to query example
@@ -212,7 +253,6 @@ impl<'a> UpdateBuilder<'a> {
       // https://releases.myapp.com/update/darwin/1.0.0
       // The main objective is if the update URL is defined via the Cargo.toml
       // the URL will be generated dynamicly
-
       let fixed_link = str::replace(
         &str::replace(url, "{{current_version}}", &current_version),
         "{{target}}",
@@ -238,16 +278,10 @@ impl<'a> UpdateBuilder<'a> {
         if res.status().is_success() {
           // if we got 204
           if StatusCode::NO_CONTENT == res.status() {
-            // bail out...
-            // already up to date
-            // todo(lemarier): we should have error handler
-            // on the client side who ignore these errors
-            bail!(
-              crate::Error::UpToDate,
-              "Remote server announced StatusCode 204"
-            )
+            // return with `UpToDate` error
+            // we should catch on the client
+            return Err(Error::UpToDate);
           };
-
           let json = resp?.json::<serde_json::Value>().await?;
           // Convert the remote result to our local struct
           let built_release = RemoteRelease::from_release(&json, &target);
@@ -267,18 +301,14 @@ impl<'a> UpdateBuilder<'a> {
 
     // Last error is cleaned on success -- shouldn't be triggered if
     // we have a successful call
-    if last_error.is_some() {
-      bail!(crate::Error::Network, "Api Error: {:?}", last_error)
-    }
-
-    // Make sure we have remote release data (metadata)
-    if remote_release.is_none() {
-      bail!(crate::Error::Network, "Unable to extract remote metadata")
+    if let Some(error) = last_error {
+      return Err(Error::Network(error.to_string()));
     }
 
     // Extracted remote metadata
-    let final_release =
-      remote_release.ok_or_else(|| crate::Error::Network("No remote release available".into()))?;
+    let final_release = remote_release.ok_or_else(|| {
+      Error::RemoteMetadata("Unable to extract update metadata from the remote server.".into())
+    })?;
 
     // did the announced version is greated than our current one?
     let should_update =
@@ -305,14 +335,23 @@ pub fn builder<'a>() -> UpdateBuilder<'a> {
 
 #[derive(Clone)]
 pub struct Update {
+  /// Update description
   pub body: Option<String>,
+  /// Should we update or not
   pub should_update: bool,
+  /// Version announced
   pub version: String,
+  /// Running version
   pub current_version: String,
+  /// Update publish date
   pub date: String,
+  /// Target
   target: String,
+  /// Extract path
   extract_path: PathBuf,
+  /// Download URL announced
   download_url: String,
+  /// Signature announced
   signature: Option<String>,
 }
 
@@ -335,10 +374,7 @@ impl Update {
     // be set with our APPIMAGE env variable, we don't need to do
     // anythin with it yet
     if target == "linux" && env::var_os("APPIMAGE").is_none() {
-      bail!(
-        Error::Config,
-        "APPIMAGE env is not defined -- updates are not supported."
-      )
+      return Err(Error::UnsupportedPlatform);
     }
 
     // used  for temp file name
@@ -378,9 +414,6 @@ impl Update {
       );
     }
 
-    // Set SSL for linux
-    set_ssl_vars!();
-
     // Create our request
     let resp = reqwest::Client::new()
       .get(&url)
@@ -392,34 +425,27 @@ impl Update {
 
     // make sure it's success
     if !resp.status().is_success() {
-      bail!(
-        crate::Error::Updater,
-        "Download request failed with status: {:?}",
+      return Err(Error::Network(format!(
+        "Download request failed with status: {}",
         resp.status()
-      )
+      )));
     }
 
     tmp_archive.write_all(&resp.bytes().await?)?;
 
     // Validate signature ONLY if pubkey is available in tauri.conf.json
     if let Some(pub_key) = pub_key {
-      // we need an announced signature by the server
+      // We need an announced signature by the server
       // if there is no signature, bail out.
-      if self.signature.is_none() {
-        bail!(
-          crate::Error::Updater,
-          "Signature not available but pubkey provided, skipping update"
-        )
+      if let Some(signature) = self.signature.clone() {
+        // we make sure the archive is valid and signed with the private key linked with the publickey
+        verify_signature(&tmp_archive_path, signature, &pub_key)?;
+      } else {
+        // We have a public key inside our source file, but not announced by the server,
+        // we assume this update is NOT valid.
+        return Err(Error::PubkeyButNoSignature);
       }
-
-      // we make sure the archive is valid and signed with the private key linked with the publickey
-      verify_signature(
-        &tmp_archive_path,
-        self.signature.clone().expect("Can't validate signature"),
-        &pub_key,
-      )?;
     }
-
     // extract using tauri api inside a tmp path
     Extract::from_source(&tmp_archive_path).extract_into(&tmp_dir.path())?;
     // Remove archive (not needed anymore)
@@ -428,7 +454,7 @@ impl Update {
     // we run the setup, appimage re-install or overwrite the
     // macos .app
     copy_files_and_run(tmp_dir, extract_path)?;
-
+    // We are done!
     Ok(())
   }
 }
@@ -470,6 +496,10 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Resu
         .env("APPIMAGE_EXIT_AFTER_INSTALL", "true")
         .spawn()
         .expect("APPIMAGE failed to start");
+
+      // @todo(lemarier):  Maybe we need to do an exit() here
+      // more test may be needed, but seems to keep the old
+      // APPImage running.
 
       // early finish we have everything we need here
       return Ok(());
@@ -552,7 +582,6 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Resu
       // Walk the temp dir and copy all files by replacing existing files only
       // and creating directories if needed
       Move::from_source(&found_path).walk_to_dest(&extract_path)?;
-
       // early finish we have everything we need here
       return Ok(());
     }
@@ -561,10 +590,13 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Resu
   Ok(())
 }
 
-/// Returns a target os -- If none,
-/// that mean the updater didnt support
-/// the platform
-pub fn get_target() -> Option<String> {
+/// Returns a target os
+/// We do not use a helper function like the target_triple
+/// from tauri-utils because this function return `None` if
+/// the updater do not support the platform.
+///
+/// Available target: `linux, darwin, win32, win64`
+pub fn get_updater_target() -> Option<String> {
   if cfg!(target_os = "linux") {
     Some("linux".into())
   } else if cfg!(target_os = "macos") {
@@ -575,8 +607,6 @@ pub fn get_target() -> Option<String> {
     } else {
       Some("win64".into())
     }
-  } else if cfg!(target_os = "freebsd") {
-    Some("freebsd".into())
   } else {
     None
   }
@@ -587,7 +617,6 @@ pub fn extract_path_from_executable(executable_path: &PathBuf, target: &str) -> 
   // Linux & Windows should need to be extracted in the same directory as the executable
   // C:\Program Files\MyApp\MyApp.exe
   // We need C:\Program Files\MyApp
-
   let mut extract_path = executable_path
     .parent()
     .map(PathBuf::from)
@@ -639,7 +668,7 @@ fn archive_name_by_os(target: &str) -> String {
 }
 
 // Convert base64 to string and prevent failing
-fn base64_to_string(base64_string: &str) -> crate::Result<String> {
+fn base64_to_string(base64_string: &str) -> Result<String> {
   let decoded_string = &decode(base64_string.to_owned())?;
   let result = from_utf8(&decoded_string)?.to_string();
   Ok(result)
@@ -652,23 +681,14 @@ pub fn verify_signature(
   archive_path: &PathBuf,
   release_signature: String,
   pub_key: &str,
-) -> crate::Result<bool> {
+) -> Result<bool> {
   // we need to convert the pub key
   let pub_key_decoded = &base64_to_string(pub_key)?;
-  let public_key = PublicKey::decode(pub_key_decoded);
-  if public_key.is_err() {
-    bail!(
-      crate::Error::Updater,
-      "Something went wrong with pubkey decode"
-    )
-  }
-
-  let public_key_ready = public_key.expect("Something wrong with the public key");
-
-  let signature_decoded = base64_to_string(&release_signature)?;
+  let public_key = PublicKey::decode(pub_key_decoded)?;
+  let signature_base64_decoded = base64_to_string(&release_signature)?;
 
   let signature =
-    Signature::decode(&signature_decoded).expect("Something wrong with the signature");
+    Signature::decode(&signature_base64_decoded).expect("Something wrong with the signature");
 
   // We need to open the file and extract the datas to make sure its not corrupted
   let file_open = OpenOptions::new()
@@ -685,7 +705,7 @@ pub fn verify_signature(
     .expect("Can't read buffer to validate signature");
 
   // Validate signature or bail out
-  public_key_ready.verify(&data, &signature)?;
+  public_key.verify(&data, &signature)?;
   Ok(true)
 }
 
@@ -699,7 +719,7 @@ mod test {
   #[cfg(target_os = "macos")]
   use std::path::Path;
 
-  macro_rules! aw {
+  macro_rules! block {
     ($e:expr) => {
       tokio_test::block_on($e)
     };
@@ -763,7 +783,7 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = aw!(builder()
+    let check_update = block!(builder()
       .current_version("0.0.0")
       .url(mockito::server_url())
       .build());
@@ -782,7 +802,7 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = aw!(builder()
+    let check_update = block!(builder()
       .current_version("0.0.0")
       .url(mockito::server_url())
       .build());
@@ -801,7 +821,7 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = aw!(builder()
+    let check_update = block!(builder()
       .current_version("0.0.0")
       .target("win64")
       .url(mockito::server_url())
@@ -827,7 +847,7 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = aw!(builder()
+    let check_update = block!(builder()
       .current_version("10.0.0")
       .url(mockito::server_url())
       .build());
@@ -850,7 +870,7 @@ mod test {
       ))
       .create();
 
-    let check_update = aw!(builder()
+    let check_update = block!(builder()
       .current_version("1.0.0")
       .url(format!(
         "{}/darwin/{{{{current_version}}}}",
@@ -876,7 +896,7 @@ mod test {
       ))
       .create();
 
-    let check_update = aw!(builder()
+    let check_update = block!(builder()
       .current_version("10.0.0")
       .url(format!(
         "{}/darwin/{{{{current_version}}}}",
@@ -898,7 +918,7 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = aw!(builder()
+    let check_update = block!(builder()
       .url("http://badurl.www.tld/1".into())
       .url(mockito::server_url())
       .current_version("0.0.1")
@@ -918,7 +938,7 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = aw!(builder()
+    let check_update = block!(builder()
       .urls(&["http://badurl.www.tld/1".into(), mockito::server_url(),])
       .current_version("0.0.1")
       .build());
@@ -937,7 +957,7 @@ mod test {
       .with_body(generate_sample_bad_json())
       .create();
 
-    let check_update = aw!(builder()
+    let check_update = block!(builder()
       .url(mockito::server_url())
       .current_version("0.0.1")
       .build());
@@ -1001,7 +1021,7 @@ mod test {
     let tmp_dir_path = tmp_dir_unwrap.path();
 
     // configure the updater
-    let check_update = aw!(builder()
+    let check_update = block!(builder()
       .url(mockito::server_url())
       // It should represent the executable path, that's why we add my_app.exe in our
       // test path -- in production you shouldn't have to provide it
@@ -1022,7 +1042,7 @@ mod test {
     assert_eq!(updater.version, "2.0.1");
 
     // download, install and validate signature
-    let install_process = aw!(updater.download_and_install(Some(pubkey)));
+    let install_process = block!(updater.download_and_install(Some(pubkey)));
     assert_eq!(install_process.is_ok(), true);
 
     // make sure the extraction went well (it should have skipped the main app.app folder)

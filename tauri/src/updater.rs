@@ -87,12 +87,11 @@ pub(crate) async fn check_update_with_dialog<A: ApplicationExt + 'static>(
       }
     }
     Err(e) => {
-      let error_message = match e {
-        tauri_updater::Error::Updater(err) => Some(err),
-        _ => Some(String::from("Something went wrong")),
-      };
-
-      send_status_update(webview_manager.clone(), EVENT_STATUS_ERROR, error_message);
+      send_status_update(
+        webview_manager.clone(),
+        EVENT_STATUS_ERROR,
+        Some(e.to_string()),
+      );
     }
   }
 }
@@ -183,12 +182,11 @@ pub(crate) fn listener<A: ApplicationExt + 'static>(
           }
         }
         Err(e) => {
-          let error_message = match e {
-            tauri_updater::Error::Updater(err) => Some(err),
-            _ => Some(String::from("Something went wrong")),
-          };
-
-          send_status_update(webview_manager.clone(), EVENT_STATUS_ERROR, error_message);
+          send_status_update(
+            webview_manager.clone(),
+            EVENT_STATUS_ERROR,
+            Some(e.to_string()),
+          );
         }
       }
     })

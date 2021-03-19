@@ -46,14 +46,18 @@ impl RemoteRelease {
     let version = match release.get("version") {
       Some(version) => version
         .as_str()
-        .expect("Updater Unexpected Error: Unable to extract version from the remote server.")
+        .ok_or_else(|| {
+          Error::RemoteMetadata("Unable to extract `version` from remote server".into())
+        })?
         .trim_start_matches('v')
         .to_string(),
       None => release
         .get("name")
         .ok_or_else(|| Error::RemoteMetadata("Release missing `name` and `version`".into()))?
         .as_str()
-        .expect("Updater Unexpected Error: Unable to extract version from name field on the remote server.")
+        .ok_or_else(|| {
+          Error::RemoteMetadata("Unable to extract `name` from remote server`".into())
+        })?
         .trim_start_matches('v')
         .to_string(),
     };
@@ -106,7 +110,9 @@ impl RemoteRelease {
             .get("url")
             .ok_or_else(|| Error::RemoteMetadata("Release missing `url`".into()))?
             .as_str()
-            .expect("Updater Unexpected Error: Unable to extract URL from the remote server.")
+            .ok_or_else(|| {
+              Error::RemoteMetadata("Unable to extract `url` from remote server`".into())
+            })?
             .to_string();
         } else {
           // make sure we have an available platform from the static
@@ -118,9 +124,11 @@ impl RemoteRelease {
       None => {
         download_url = release
           .get("url")
-          .ok_or_else(|| Error::RemoteMetadata("Release missing `name` and `version`".into()))?
+          .ok_or_else(|| Error::RemoteMetadata("Release missing `url`".into()))?
           .as_str()
-          .expect("Updater Unexpected Error: Unable to extract URL from the remote server.")
+          .ok_or_else(|| {
+            Error::RemoteMetadata("Unable to extract `url` from remote server`".into())
+          })?
           .to_string();
       }
     }

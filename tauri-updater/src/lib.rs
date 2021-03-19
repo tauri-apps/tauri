@@ -561,8 +561,6 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
         .expect("installer failed to start");
 
       exit(0);
-      // early finish we have everything we need here
-      return Ok(());
     }
   }
 

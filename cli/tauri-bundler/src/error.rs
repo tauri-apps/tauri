@@ -53,13 +53,17 @@ pub enum Error {
   ShellScriptError(String),
   #[error("`{0}`")]
   GenericError(String),
-  #[error("Unable to create updater package")]
-  UpdateBundler,
-  #[error("Decode Error: `{0}`")]
+  /// No bundled project found for the updater.
+  #[error("Unable to find a bundled project for the updater")]
+  UnableToFindProject,
+  /// Error with Minisign base64 encoding.
+  #[error("Updater signature decoding Error: {0}")]
   DecodeError(#[from] base64::DecodeError),
-  #[error("Utf8Error: `{0}`")]
-  Utf8Error(#[from] std::str::Utf8Error),
-  #[error("Signing error: `{0}`")]
+  /// UTF8 Errors in signature.
+  #[error("Updater signature encoding Error: {0}")]
+  Utf8(#[from] std::str::Utf8Error),
+  /// Minisign is used for updater signatures
+  #[error("Updater signing Error: `{0}`")]
   MiniSign(#[from] minisign::PError),
 }
 

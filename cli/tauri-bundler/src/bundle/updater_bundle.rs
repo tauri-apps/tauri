@@ -116,7 +116,7 @@ fn bundle_update(settings: &Settings, existing_paths: Vec<PathBuf>) -> crate::Re
 
   // we expect our .app to be on osx_bundled[0]
   if osx_bundled.is_empty() {
-    return Err(crate::Error::UpdateBundler);
+    return Err(crate::Error::UnableToFindProject);
   }
 
   let source_path = &osx_bundled[0];
@@ -155,7 +155,7 @@ fn bundle_update(settings: &Settings, existing_paths: Vec<PathBuf>) -> crate::Re
 
   // we expect our .app to be on osx_bundled[0]
   if appimage_bundle.is_empty() {
-    return Err(crate::Error::UpdateBundler);
+    return Err(crate::Error::UnableToFindProject);
   }
 
   let source_path = &appimage_bundle[0];
@@ -190,7 +190,7 @@ fn bundle_update(settings: &Settings, existing_paths: Vec<PathBuf>) -> crate::Re
 
   // we expect our .msi to be on msi_path[0]
   if msi_path.is_empty() {
-    return Err(crate::Error::UpdateBundler);
+    return Err(crate::Error::UnableToFindProject);
   }
 
   let source_path = &msi_path[0];

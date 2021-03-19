@@ -50,7 +50,7 @@ pub enum Error {
   #[error("invalid args for command `{0}`: {1}")]
   InvalidArgs(&'static str, serde_json::Error),
   /// Tauri updater error.
-  #[error("{0}")]
+  #[error("Updater: {0}")]
   TauriUpdater(#[from] tauri_updater::Error),
 }
 

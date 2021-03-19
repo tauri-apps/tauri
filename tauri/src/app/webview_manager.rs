@@ -306,11 +306,6 @@ impl<A: ApplicationExt + 'static> WebviewManager<A> {
     super::event::unlisten(event_id)
   }
 
-  /// Unregister the global event listener with the given name.
-  pub fn unlisten_by_name(&self, event_name: impl AsRef<str>) {
-    super::event::unlisten_by_name(event_name)
-  }
-
   /// Emits an event to all webviews.
   pub fn emit<S: Serialize + Clone>(
     &self,

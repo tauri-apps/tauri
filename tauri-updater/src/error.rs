@@ -38,8 +38,8 @@ pub enum Error {
   /// Updater is not supported for current operating system or platform.
   #[error("Unsuported operating system or platform")]
   UnsupportedPlatform,
-  /// Generic updater error.
-  #[error("Signature not available but pubkey provided, skipping update")]
+  /// Public key found in `tauri.conf.json` but no signature announced remotely.
+  #[error("Signature not available but public key provided, skipping update")]
   PubkeyButNoSignature,
   /// Triggered when there is NO error and the two versions are equals.
   /// On client side, it's important to catch this error.

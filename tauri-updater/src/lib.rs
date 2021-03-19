@@ -547,8 +547,6 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
         .expect("installer failed to start");
 
       exit(0);
-      // early finish we have everything we need here
-      return Ok(());
     } else if found_path.extension() == Some(OsStr::new("msi")) {
       // This consumes the TempDir without deleting directory on the filesystem,
       // meaning that the directory will no longer be automatically deleted.

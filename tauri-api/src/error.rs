@@ -47,9 +47,8 @@ pub enum Error {
   #[error("{0}")]
   Io(#[from] std::io::Error),
   /// Ignore error.
-  #[error("{0}")]
+  #[error("failed to walkdir: {0}")]
   Ignore(#[from] ignore::Error),
-
   /// ZIP error.
   #[error("{0}")]
   Zip(#[from] zip::result::ZipError),

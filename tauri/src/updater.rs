@@ -73,7 +73,7 @@ pub(crate) async fn check_update_with_dialog<A: ApplicationExt + 'static>(
       if updater.should_update && updater_config.dialog {
         let body = updater.body.clone().unwrap_or_else(|| String::from(""));
         let dialog =
-          ask_if_should_install(&updater.clone(), package_info.name, &body.clone(), pubkey).await;
+          prompt_for_install(&updater.clone(), package_info.name, &body.clone(), pubkey).await;
 
         if dialog.is_err() {
           send_status_update(
@@ -97,6 +97,7 @@ pub(crate) async fn check_update_with_dialog<A: ApplicationExt + 'static>(
 }
 
 /// Experimental listener
+/// This function should be run on the main thread once.
 pub(crate) fn listener<A: ApplicationExt + 'static>(
   updater_config: UpdaterConfig,
   package_info: crate::api::PackageInfo,
@@ -104,7 +105,7 @@ pub(crate) fn listener<A: ApplicationExt + 'static>(
 ) {
   let isolated_webview_manager = webview_manager.clone();
 
-  webview_manager.unlisten_by_name(EVENT_CHECK_UPDATE);
+  // Wait to receive the event `"tauri://update"`
   webview_manager.listen(EVENT_CHECK_UPDATE, move |_msg| {
     let webview_manager = isolated_webview_manager.clone();
     let package_info = package_info.clone();
@@ -135,6 +136,7 @@ pub(crate) fn listener<A: ApplicationExt + 'static>(
           if updater.should_update {
             let body = updater.body.clone().unwrap_or_else(|| String::from(""));
 
+            // Emit `tauri://update-available`
             let _ = webview_manager.emit(
               EVENT_UPDATE_AVAILABLE,
               Some(UpdateManifest {
@@ -144,14 +146,13 @@ pub(crate) fn listener<A: ApplicationExt + 'static>(
               }),
             );
 
-            // listen for update install
-            webview_manager.unlisten_by_name(EVENT_INSTALL_UPDATE);
+            // Listen for `tauri://update-install`
             webview_manager.once(EVENT_INSTALL_UPDATE, move |_msg| {
               let webview_manager = webview_manager_isolation.clone();
               let updater = updater.clone();
               let pubkey = pubkey.clone();
 
-              // send status
+              // Start installation
               crate::async_runtime::spawn(async move {
                 // emit {"status": "PENDING"}
                 send_status_update(webview_manager.clone(), EVENT_STATUS_PENDING, None);
@@ -210,7 +211,7 @@ fn send_status_update<A: ApplicationExt + 'static>(
 
 // Prompt a dialog asking if the user want to install the new version
 // Maybe we should add an option to customize it in future versions.
-async fn ask_if_should_install(
+async fn prompt_for_install(
   updater: &tauri_updater::Update,
   app_name: &str,
   body: &str,

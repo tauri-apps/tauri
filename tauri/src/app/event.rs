@@ -119,15 +119,6 @@ pub fn unlisten(event_id: EventId) {
   })
 }
 
-/// Removes an event listener by event name.
-pub fn unlisten_by_name(event_name: impl AsRef<str>) {
-  let mut l = listeners()
-    .lock()
-    .expect("Failed to lock listeners: listen()");
-
-  l.retain(|key, _| key != event_name.as_ref());
-}
-
 /// Emits an event to JS.
 pub fn emit<D: ApplicationDispatcherExt, S: Serialize>(
   webview_dispatcher: &crate::WebviewDispatcher<D>,

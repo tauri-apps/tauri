@@ -23,10 +23,6 @@ module.exports = {
       {
         test: /(templates|api)[\\/].+\.js/,
         use: 'raw-loader'
-      },
-      {
-        test: /\.toml?$/,
-        use: 'toml-loader'
       }
     ]
   },

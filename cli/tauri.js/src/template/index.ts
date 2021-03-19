@@ -5,6 +5,7 @@ import { merge } from 'webpack-merge'
 import copyTemplates from '../helpers/copy-templates'
 import logger from '../helpers/logger'
 import defaultConfig from './defaultConfig'
+import { readTomlFile } from '../helpers/toml'
 import chalk from 'chalk'
 
 const log = logger('app:tauri')
@@ -85,11 +86,13 @@ Run \`tauri init --force template\` to overwrite.`)
   }
 
   const resolveCurrentTauriVersion = (crate: string): string => {
-    const manifestPath = `../../../../${crate}/Cargo.toml`
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access, security/detect-non-literal-require
-    const tauriManifest = require(manifestPath) as CargoManifest
-    const version = tauriManifest.package.version
-    return version.substring(0, version.lastIndexOf('.'))
+    const manifestPath = join(__dirname, `../../../../${crate}/Cargo.toml`)
+    const tauriManifest = readTomlFile<CargoManifest>(manifestPath)
+    const version = tauriManifest?.package.version
+    if (version !== undefined) {
+      return version.substring(0, version.lastIndexOf('.'))
+    }
+    throw Error('Unable to parse latest tauri version')
   }
 
   const tauriDep = tauriPath

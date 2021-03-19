@@ -1,4 +1,3 @@
-import toml from '@tauri-apps/toml'
 import chalk from 'chalk'
 import fs from 'fs'
 import os from 'os'
@@ -10,6 +9,7 @@ import { TauriBuildConfig } from './../types/config'
 import nonWebpackRequire from '../helpers/non-webpack-require'
 import packageJson from '../../package.json'
 import getScriptVersion from '../helpers/get-script-version'
+import { readTomlFile } from '../helpers/toml'
 import {
   semverLt,
   getNpmLatestVersion,
@@ -116,17 +116,6 @@ function printVersion(info: Version): void {
         ? ` (${chalk.red('outdated, latest: ' + info.targetVersion)})`
         : '')
   )
-}
-
-function readTomlFile<T extends CargoLock | CargoManifest>(
-  filepath: string
-): T | null {
-  try {
-    const file = fs.readFileSync(filepath).toString()
-    return (toml.parse(file) as unknown) as T
-  } catch (_) {
-    return null
-  }
 }
 
 async function printAppInfo(tauriDir: string): Promise<void> {

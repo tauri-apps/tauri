@@ -99,7 +99,6 @@
     "promise": "8.1.0",
     "raw-loader": "4.0.2",
     "rimraf": "3.0.2",
-    "toml-loader": "1.0.0",
     "ts-loader": "8.0.18",
     "typescript": "4.2.3",
     "webpack": "5.26.3",

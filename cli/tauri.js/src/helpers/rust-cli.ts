@@ -2,11 +2,16 @@ import { existsSync } from 'fs'
 import { resolve, join } from 'path'
 import { spawnSync, spawn } from './spawn'
 import { CargoManifest } from '../types/cargo'
+import { readTomlFile } from '../helpers/toml'
 
 const currentTauriCliVersion = (): string => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
-  const tauriCliManifest = require('../../../core/Cargo.toml') as CargoManifest
-  return tauriCliManifest.package.version
+  const manifestPath = join(__dirname, '../../../core/Cargo.toml')
+  const tauriCliManifest = readTomlFile<CargoManifest>(manifestPath)
+  const version = tauriCliManifest?.package.version
+  if (version !== undefined) {
+    return version
+  }
+  throw Error('Unable to parse latest CLI version')
 }
 
 export function runOnRustCli(

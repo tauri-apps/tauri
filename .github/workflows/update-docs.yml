@@ -45,7 +45,7 @@ jobs:
         with:
           originPath: ./tauri/api/
           sidebarFile: sidebars.json
-          targetPath: ./tauri-docs/docs/en/api/js
+          targetPath: en/api/js
           docusaurusPath: ./tauri-docs/
       - name: git config
         run: |

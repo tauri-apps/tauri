@@ -82,7 +82,7 @@
     "rollup": "2.39.1",
     "rollup-plugin-terser": "7.0.2",
     "tslib": "2.1.0",
-    "typedoc": "^0.20.30",
+    "typedoc": "^0.20.32",
     "typedoc-plugin-markdown": "^3.6.0",
     "typescript": "4.2.2"
   },

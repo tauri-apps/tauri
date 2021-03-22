@@ -1,7 +1,7 @@
-import { invoke } from './tauri'
+import { invokeTauriCommand } from './helpers/tauri'
 
 export interface ClientOptions {
-  maxRedirections: boolean
+  maxRedirections: number
   connectTimeout: number
 }
 
@@ -80,7 +80,7 @@ export class Client {
    * drops the client instance
    */
   async drop(): Promise<void> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Http',
       message: {
         cmd: 'dropClient',
@@ -97,7 +97,7 @@ export class Client {
    * @return promise resolving to the response
    */
   async request<T>(options: HttpOptions): Promise<Response<T>> {
-    return invoke({
+    return invokeTauriCommand({
       __tauriModule: 'Http',
       message: {
         cmd: 'httpRequest',
@@ -115,7 +115,7 @@ export class Client {
    *
    * @return promise resolving to the response
    */
-  async get<T>(url: string, options: RequestOptions): Promise<Response<T>> {
+  async get<T>(url: string, options?: RequestOptions): Promise<Response<T>> {
     return this.request({
       method: 'GET',
       url,
@@ -134,8 +134,8 @@ export class Client {
    */
   async post<T>(
     url: string,
-    body: Body,
-    options: RequestOptions
+    body?: Body,
+    options?: RequestOptions
   ): Promise<Response<T>> {
     return this.request({
       method: 'POST',
@@ -156,8 +156,8 @@ export class Client {
    */
   async put<T>(
     url: string,
-    body: Body,
-    options: RequestOptions
+    body?: Body,
+    options?: RequestOptions
   ): Promise<Response<T>> {
     return this.request({
       method: 'PUT',
@@ -175,7 +175,7 @@ export class Client {
    *
    * @return promise resolving to the response
    */
-  async patch<T>(url: string, options: RequestOptions): Promise<Response<T>> {
+  async patch<T>(url: string, options?: RequestOptions): Promise<Response<T>> {
     return this.request({
       method: 'PATCH',
       url,
@@ -191,7 +191,7 @@ export class Client {
    *
    * @return promise resolving to the response
    */
-  async delete<T>(url: string, options: RequestOptions): Promise<Response<T>> {
+  async delete<T>(url: string, options?: RequestOptions): Promise<Response<T>> {
     return this.request({
       method: 'DELETE',
       url,
@@ -201,7 +201,7 @@ export class Client {
 }
 
 async function getClient(options?: ClientOptions): Promise<Client> {
-  return invoke<number>({
+  return invokeTauriCommand<number>({
     __tauriModule: 'Http',
     message: {
       cmd: 'createClient',

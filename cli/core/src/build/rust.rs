@@ -135,8 +135,10 @@ pub fn get_bundler_settings(config: &Config, debug: bool) -> crate::Result<Bundl
     }
   }
 
-  if binaries.len() == 1 {
-    binaries.get_mut(0).unwrap().set_main(true);
+  match binaries.len() {
+    0 => binaries.push(BundleBinary::new(package.name.clone(), true)),
+    1 => binaries.get_mut(0).unwrap().set_main(true),
+    _ => {}
   }
 
   Ok(BundlerSettings {

@@ -69,7 +69,7 @@ Tauri.js is a CLI tool that houses the `init`, `info`, `icon`, and `deps` comman
 - `lint` runs ESLint to catch linting errors
 - `format` formats code with Prettier to match the style guide
 
-To test your changes, we recommend using the API example app, located in `[Tauri repo root]/tauri/examples/api`. Run `yarn install` to install deps, and then `yarn tauri [COMMAND]` to run a command using your local Tauri.js copy. You will need to rebuild Tauri.js after every change by running `yarn build` in the Tauri.js directory.
+To test your changes, we recommend using the helloworld example app, located in `[Tauri repo root]/examples/helloworld`. Run `yarn tauri [COMMAND]` to run a command using your local Tauri.js copy. You will need to rebuild Tauri.js after every change by running `yarn build` in the Tauri.js directory.
 
 If you want to use your local copy of Tauri.js in another app, we recommend using [Yarn link](https://classic.yarnpkg.com/en/docs/cli/link/). First, make sure you have don't have Tauri.js installed globally by running `npm uninstall -g tauri && yarn global remove tauri`. Then, run `yarn link` in the Tauri.js directory (note that the setup script will do this for you, so you can skip this step if you ran that). Now, you can just run `tauri [COMMAND]` anywhere, and your local copy will be used.
 
@@ -79,11 +79,11 @@ The code for the bundler is located in `[Tauri repo root]/cli/tauri-bundler`, an
 
 ### Developing Tauri Core and Related Components (Rust API, Macros, and Utils)
 
-The code for Tauri Core is located in `[Tauri repo root]/tauri`, and the Rust API, Macros, and Utils are in `[Tauri repo root]/tauri-(api/macros/utils)`. The easiest way to test your changes is to use the `[Tauri repo root]/tauri/examples/helloworld` app. It automatically rebuilds and uses your local copy of the Tauri core packages. Just run `yarn tauri build` or `yarn tauri dev` in the helloworld app directory after making changes to test them out. To use your local changes in another project, edit its `src-tauri/Cargo.toml` file so that the `tauri` key looks like `tauri = { path = "PATH", features = [ "api-all", "cli" ] }`, where `PATH` is the relative path to `[Tauri repo root]/tauri`. Then, your local copy of the Tauri core packages will be rebuilt and used whenever you build that project.
+The code for Tauri Core is located in `[Tauri repo root]/tauri`, and the Rust API, Macros, and Utils are in `[Tauri repo root]/tauri-(api/macros/utils)`. The easiest way to test your changes is to use the `[Tauri repo root]/examples/helloworld` app. It automatically rebuilds and uses your local copy of the Tauri core packages. Just run `yarn tauri build` or `yarn tauri dev` in the helloworld app directory after making changes to test them out. To use your local changes in another project, edit its `src-tauri/Cargo.toml` file so that the `tauri` key looks like `tauri = { path = "PATH", features = [ "api-all", "cli" ] }`, where `PATH` is the relative path to `[Tauri repo root]/tauri`. Then, your local copy of the Tauri core packages will be rebuilt and used whenever you build that project.
 
 ### Developing the JS API
 
-The JS API provides bindings between the developer's JS in the Webview and the builtin Tauri APIs, written in Rust. Its code is located in `[Tauri repo root]/api`. After making changes to the code, run `yarn build` to build it. To test your changes, we recommend using the API example app, located in `[Tauri repo root]/tauri/examples/api`. It will automatically use your local copy of the JS API and provides a helpful UI to test the various commands.
+The JS API provides bindings between the developer's JS in the Webview and the builtin Tauri APIs, written in Rust. Its code is located in `[Tauri repo root]/api`. After making changes to the code, run `yarn build` to build it. To test your changes, we recommend using the API example app, located in `[Tauri repo root]/examples/api`. It will automatically use your local copy of the JS API and provides a helpful UI to test the various commands.
 
 ## Financial Contribution
 

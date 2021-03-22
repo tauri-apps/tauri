@@ -1,4 +1,4 @@
-import { invoke } from './tauri'
+import { invokeTauriCommand } from './helpers/tauri'
 
 /**
  * spawns a process
@@ -15,7 +15,7 @@ async function execute(
     Object.freeze(args)
   }
 
-  return invoke<string>({
+  return invokeTauriCommand<string>({
     __tauriModule: 'Shell',
     message: {
       cmd: 'execute',
@@ -26,16 +26,19 @@ async function execute(
 }
 
 /**
- * opens an URL on the user default browser
+ * opens a path or URL with the system's default app,
+ * or the one specified with `openWith`
  *
- * @param url the URL to open
+ * @param path the path or URL to open
+ * @param openWith the app to open the file or URL with
  */
-async function open(url: string): Promise<void> {
-  return invoke({
+async function open(path: string, openWith?: string): Promise<void> {
+  return invokeTauriCommand({
     __tauriModule: 'Shell',
     message: {
       cmd: 'open',
-      uri: url
+      path,
+      with: openWith
     }
   })
 }

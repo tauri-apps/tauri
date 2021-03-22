@@ -1,12 +1,7 @@
-mod cmd;
-
 use tauri::ApplicationDispatcherExt;
 
-#[derive(tauri::FromTauriContext)]
-struct Context;
-
 fn main() {
-  tauri::AppBuilder::<tauri::flavors::Wry, Context>::new()
+  tauri::AppBuilder::default()
     .setup(|webview_manager| async move {
       let mut webview_manager_ = webview_manager.clone();
       tauri::event::listen(String::from("hello"), move |_| {
@@ -21,22 +16,11 @@ fn main() {
         .current_webview()
         .eval("window.onTauriInit && window.onTauriInit()");
     })
-    .invoke_handler(|webview_manager, arg| async move {
-      use cmd::Cmd::*;
-      match serde_json::from_str(&arg) {
-        Err(e) => Err(e.into()),
-        Ok(command) => {
-          match command {
-            // definitions for your custom commands from Cmd here
-            Exit {} => {
-              // TODO dispatcher.terminate();
-            }
-          }
-          Ok(())
-        }
+    .invoke_handler(|webview_manager, command, _arg| async move {
+      if &command == "exit" {
+        webview_manager.close().unwrap();
       }
     })
-    .build()
-    .unwrap()
+    .build(tauri::generate_context!())
     .run();
 }

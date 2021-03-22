@@ -1,8 +1,6 @@
-use std::{io::Read, sync::Arc};
-
 use crate::{
   api::{
-    assets::{AssetFetch, Assets},
+    assets::Assets,
     config::WindowUrl,
     rpc::{format_callback, format_callback_result},
   },
@@ -11,12 +9,13 @@ use crate::{
 };
 
 use super::{
-  webview::{Callback, CustomProtocol, WebviewBuilderExtPrivate},
-  App, Context, Webview, WebviewManager,
+  webview::{CustomProtocol, WebviewBuilderExtPrivate, WebviewRpcHandler},
+  App, Context, PageLoadPayload, RpcRequest, Webview, WebviewManager,
 };
 
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
+use std::{borrow::Cow, sync::Arc};
 
 #[derive(Debug, Deserialize)]
 struct Message {
@@ -37,19 +36,15 @@ pub(super) fn get_url(context: &Context) -> String {
   if config.build.dev_path.starts_with("http") {
     config.build.dev_path.clone()
   } else {
+    let path = "index.html";
     format!(
       "data:text/html;base64,{}",
       base64::encode(
         context
           .assets
-          .get(&Assets::format_key("index.html"), AssetFetch::Decompress)
-          .ok_or_else(|| crate::Error::AssetNotFound("index.html".to_string()))
-          .and_then(|(read, _)| {
-            read
-              .bytes()
-              .collect::<Result<Vec<u8>, _>>()
-              .map_err(Into::into)
-          })
+          .get(&path)
+          .ok_or_else(|| crate::Error::AssetNotFound(path.to_string()))
+          .map(Cow::into_owned)
           .expect("Unable to find `index.html` under your devPath folder")
       )
     )
@@ -84,11 +79,11 @@ pub(super) fn initialization_script(
     r#"
       {tauri_initialization_script}
       {event_initialization_script}
-      if (window.__TAURI_INVOKE_HANDLER__) {{
-        window.__TAURI__.invoke({{ cmd: "__initialized" }})
+      if (window.rpc) {{
+        window.__TAURI__.invoke("__initialized", {{ url: window.location.href }})
       }} else {{
         window.addEventListener('DOMContentLoaded', function () {{
-          window.__TAURI__.invoke({{ cmd: "__initialized" }})
+          window.__TAURI__.invoke("__initialized", {{ url: window.location.href }})
         }})
       }}
       {plugin_initialization_script}
@@ -103,17 +98,17 @@ fn event_initialization_script() -> String {
   return format!(
     "
       window['{queue}'] = [];
-      window['{fn}'] = function (payload, salt, ignoreQueue) {{
-      const listeners = (window['{listeners}'] && window['{listeners}'][payload.type]) || []
+      window['{fn}'] = function (eventData, salt, ignoreQueue) {{
+      const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
       if (!ignoreQueue && listeners.length === 0) {{
         window['{queue}'].push({{
-          payload: payload,
+          eventData: eventData,
           salt: salt
         }})
       }}
 
       if (listeners.length > 0) {{
-        window.__TAURI__.invoke({{
+        window.__TAURI__.invoke('tauri', {{
           __tauriModule: 'Internal',
           message: {{
             cmd: 'validateSalt',
@@ -123,9 +118,8 @@ fn event_initialization_script() -> String {
           if (flag) {{
             for (let i = listeners.length - 1; i >= 0; i--) {{
               const listener = listeners[i]
-              if (listener.once)
-                listeners.splice(i, 1)
-              listener.handler(payload)
+              eventData.id = listener.id
+              listener.handler(eventData)
             }}
           }}
         }})
@@ -140,7 +134,7 @@ fn event_initialization_script() -> String {
 
 pub(super) type BuiltWebview<A> = (
   <A as ApplicationExt>::WebviewBuilder,
-  Vec<Callback<<A as ApplicationExt>::Dispatcher>>,
+  Option<WebviewRpcHandler<<A as ApplicationExt>::Dispatcher>>,
   Option<CustomProtocol>,
 );
 
@@ -154,7 +148,6 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
   plugin_initialization_script: &str,
   context: &Context,
 ) -> crate::Result<BuiltWebview<A>> {
-  // TODO let debug = cfg!(debug_assertions);
   let webview_url = match &webview.url {
     WindowUrl::App => content_url.to_string(),
     WindowUrl::Custom(url) => url.to_string(),
@@ -164,7 +157,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
     WindowUrl::App => true,
     WindowUrl::Custom(url) => &url[0..8] == "tauri://",
   };
-  let (webview_builder, callbacks, custom_protocol) = if is_local {
+  let (webview_builder, rpc_handler, custom_protocol) = if is_local {
     let mut webview_builder = webview.builder.url(webview_url)
         .initialization_script(&initialization_script(plugin_initialization_script, &context.tauri_script))
         .initialization_script(&format!(
@@ -184,10 +177,17 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
     }
 
     let webview_manager_ = webview_manager.clone();
-    let tauri_invoke_handler = crate::Callback::<A::Dispatcher> {
-      name: "__TAURI_INVOKE_HANDLER__".to_string(),
-      function: Box::new(move |_, arg| {
-        let arg = arg.into_iter().next().unwrap_or(JsonValue::Null);
+    let rpc_handler: Box<dyn Fn(<A as ApplicationExt>::Dispatcher, RpcRequest) + Send> =
+      Box::new(move |_, request: RpcRequest| {
+        let command = request.command.clone();
+        let arg = request
+          .params
+          .unwrap()
+          .as_array_mut()
+          .unwrap()
+          .first_mut()
+          .unwrap_or(&mut JsonValue::Null)
+          .take();
         let webview_manager = webview_manager_.clone();
         match serde_json::from_value::<Message>(arg) {
           Ok(message) => {
@@ -199,7 +199,12 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
               crate::async_runtime::block_on(async move {
                 execute_promise(
                   &webview_manager,
-                  on_message(application, webview_manager.clone(), message),
+                  on_message(
+                    application,
+                    webview_manager.clone(),
+                    command.clone(),
+                    message,
+                  ),
                   callback,
                   error,
                 )
@@ -209,7 +214,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
               crate::async_runtime::spawn(async move {
                 execute_promise(
                   &webview_manager,
-                  on_message(application, webview_manager.clone(), message),
+                  on_message(application, webview_manager.clone(), command, message),
                   callback,
                   error,
                 )
@@ -218,9 +223,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
             }
           }
           Err(e) => {
-            if let Ok(dispatcher) =
-              crate::async_runtime::block_on(webview_manager.current_webview())
-            {
+            if let Ok(dispatcher) = webview_manager.current_webview() {
               let error: crate::Error = e.into();
               let _ = dispatcher.eval(&format!(
                 r#"console.error({})"#,
@@ -229,8 +232,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
             }
           }
         }
-      }),
-    };
+      });
     let assets = context.assets;
     let custom_protocol = CustomProtocol {
       name: "tauri".into(),
@@ -250,14 +252,9 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
           };
 
         let asset_response = assets
-          .get(&Assets::format_key(&path), AssetFetch::Decompress)
+          .get(&path)
           .ok_or(crate::Error::AssetNotFound(path))
-          .and_then(|(read, _)| {
-            read
-              .bytes()
-              .collect::<Result<Vec<u8>, _>>()
-              .map_err(Into::into)
-          });
+          .map(Cow::into_owned);
         match asset_response {
           Ok(asset) => Ok(asset),
           Err(e) => {
@@ -268,16 +265,12 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
         }
       }),
     };
-    (
-      webview_builder,
-      vec![tauri_invoke_handler],
-      Some(custom_protocol),
-    )
+    (webview_builder, Some(rpc_handler), Some(custom_protocol))
   } else {
-    (webview.builder.url(webview_url), Vec::new(), None)
+    (webview.builder.url(webview_url), None, None)
   };
 
-  Ok((webview_builder, callbacks, custom_protocol))
+  Ok((webview_builder, rpc_handler, custom_protocol))
 }
 
 /// Asynchronously executes the given task
@@ -287,7 +280,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
 /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
 async fn execute_promise<
   A: ApplicationExt + 'static,
-  F: futures::Future<Output = crate::Result<InvokeResponse>> + Send + 'static,
+  F: std::future::Future<Output = crate::Result<InvokeResponse>> + Send + 'static,
 >(
   webview_manager: &crate::WebviewManager<A>,
   task: F,
@@ -305,7 +298,7 @@ async fn execute_promise<
     Ok(callback_string) => callback_string,
     Err(e) => format_callback(error_callback, e.to_string()),
   };
-  if let Ok(dispatcher) = webview_manager.current_webview().await {
+  if let Ok(dispatcher) = webview_manager.current_webview() {
     let _ = dispatcher.eval(callback_string.as_str());
   }
 }
@@ -313,68 +306,68 @@ async fn execute_promise<
 async fn on_message<A: ApplicationExt + 'static>(
   application: Arc<App<A>>,
   webview_manager: WebviewManager<A>,
+  command: String,
   message: Message,
 ) -> crate::Result<InvokeResponse> {
-  if message.inner == serde_json::json!({ "cmd":"__initialized" }) {
-    application.run_setup(&webview_manager).await;
-    crate::plugin::ready(A::plugin_store(), &webview_manager).await;
+  if &command == "__initialized" {
+    let payload: PageLoadPayload = serde_json::from_value(message.inner)?;
+    application
+      .run_on_page_load(&webview_manager, payload.clone())
+      .await;
+    crate::plugin::on_page_load(A::plugin_store(), &webview_manager, payload).await;
     Ok(().into())
+  } else if let Some(module) = &message.tauri_module {
+    crate::endpoints::handle(
+      &webview_manager,
+      module.to_string(),
+      message.inner,
+      &application.context,
+    )
+    .await
   } else {
-    let response = if let Some(module) = &message.tauri_module {
-      crate::endpoints::handle(
-        &webview_manager,
-        module.to_string(),
-        message.inner,
-        &application.context,
-      )
+    let mut response = match application
+      .run_invoke_handler(&webview_manager, command.clone(), &message.inner)
       .await
-    } else {
-      let mut response = match application
-        .run_invoke_handler(&webview_manager, &message.inner)
+    {
+      Ok(value) => {
+        if let Some(value) = value {
+          Ok(value)
+        } else {
+          Err(crate::Error::UnknownApi(None))
+        }
+      }
+      Err(e) => Err(e),
+    };
+    if let Err(crate::Error::UnknownApi(_)) = response {
+      match crate::plugin::extend_api(A::plugin_store(), &webview_manager, command, &message.inner)
         .await
       {
         Ok(value) => {
-          if let Some(value) = value {
-            Ok(value)
-          } else {
-            Err(crate::Error::UnknownApi(None))
+          // If value is None, that means that no plugin matched the command
+          // and the UnknownApi error should be sent to the webview
+          // Otherwise, send the result of plugin handler
+          if value.is_some() {
+            response = Ok(value.into());
           }
         }
-        Err(e) => Err(e),
-      };
-      if let Err(crate::Error::UnknownApi(_)) = response {
-        match crate::plugin::extend_api(A::plugin_store(), &webview_manager, &message.inner).await {
-          Ok(value) => {
-            // If value is None, that means that no plugin matched the command
-            // and the UnknownApi error should be sent to the webview
-            // Otherwise, send the result of plugin handler
-            if value.is_some() {
-              response = Ok(value.into());
-            }
-          }
-          Err(e) => {
-            // A plugin handler was found but it failed
-            response = Err(e);
-          }
+        Err(e) => {
+          // A plugin handler was found but it failed
+          response = Err(e);
         }
       }
-      response
-    };
+    }
     response
   }
 }
 
 #[cfg(test)]
 mod test {
-  use crate::{Context, FromTauriContext};
-
-  #[derive(FromTauriContext)]
-  #[config_path = "test/fixture/src-tauri/tauri.conf.json"]
-  struct TauriContext;
+  use crate::{generate_context, Context};
 
   #[test]
   fn check_get_url() {
-    let context = Context::new::<TauriContext>().unwrap();
+    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json");
+    let context = Context::new(context);
     let res = super::get_url(&context);
     #[cfg(custom_protocol)]
     assert!(res == "tauri://index.html");

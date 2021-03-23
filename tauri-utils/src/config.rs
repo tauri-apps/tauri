@@ -162,15 +162,15 @@ pub struct UpdaterConfig {
   /// Whether the updater is active or not.
   #[serde(default)]
   pub active: bool,
-  #[serde(default)]
-  /// The updater endpoints.
-  pub endpoints: Option<Vec<String>>,
-  #[serde(default)]
-  /// Optional pubkey.
-  pub pubkey: Option<String>,
   /// Display built-in dialog or use event system if disabled.
   #[serde(default = "default_updater_dialog")]
   pub dialog: bool,
+  /// The updater endpoints.
+  #[serde(default)]
+  pub endpoints: Option<Vec<String>>,
+  /// Optional pubkey.
+  #[serde(default)]
+  pub pubkey: Option<String>,
 }
 
 fn default_updater_dialog() -> bool {
@@ -181,9 +181,9 @@ impl Default for UpdaterConfig {
   fn default() -> Self {
     Self {
       active: false,
+      dialog: true,
       endpoints: None,
       pubkey: None,
-      dialog: true,
     }
   }
 }

@@ -19,25 +19,25 @@ export interface UpdateResult {
 }
 
 export async function installUpdate(): Promise<void> {
-  const allUnlisteners: UnlistenFn[] = []
+  let unlistenerFn: UnlistenFn | undefined
 
-  function cleanAllListener(): void {
-    allUnlisteners.forEach((unlistenFn) => {
-      unlistenFn()
-    })
+  function cleanListener(): void {
+    if (unlistenerFn) {
+      unlistenerFn()
+    }
+    unlistenerFn = undefined
   }
 
   return new Promise((resolve, reject) => {
     function onStatusChange(statusResult: UpdateStatusResult): void {
-      console.log({ statusResult })
       if (statusResult.error) {
-        cleanAllListener()
+        cleanListener()
         return reject(statusResult.error)
       }
 
       // install complete
       if (statusResult.status === 'DONE') {
-        cleanAllListener()
+        cleanListener()
         return resolve()
       }
     }
@@ -46,11 +46,11 @@ export async function installUpdate(): Promise<void> {
     listen('tauri://update-status', (data: { payload: any }) => {
       onStatusChange(data?.payload as UpdateStatusResult)
     })
-      .then((unlistenFn) => {
-        allUnlisteners.push(unlistenFn)
+      .then((fn) => {
+        unlistenerFn = fn
       })
       .catch((e) => {
-        cleanAllListener()
+        cleanListener()
         // dispatch the error to our checkUpdate
         throw e
       })
@@ -58,7 +58,7 @@ export async function installUpdate(): Promise<void> {
     // start the process we dont require much security as it's
     // handled by rust
     emit('tauri://update-install').catch((e) => {
-      cleanAllListener()
+      cleanListener()
       // dispatch the error to our checkUpdate
       throw e
     })
@@ -66,17 +66,18 @@ export async function installUpdate(): Promise<void> {
 }
 
 export async function checkUpdate(): Promise<UpdateResult> {
-  const allUnlisteners: UnlistenFn[] = []
+  let unlistenerFn: UnlistenFn | undefined
 
-  function cleanAllListener(): void {
-    allUnlisteners.forEach((unlistenFn) => {
-      unlistenFn()
-    })
+  function cleanListener(): void {
+    if (unlistenerFn) {
+      unlistenerFn()
+    }
+    unlistenerFn = undefined
   }
 
   return new Promise((resolve, reject) => {
     function onUpdateAvailable(manifest: UpdateManifest): void {
-      cleanAllListener()
+      cleanListener()
       return resolve({
         manifest,
         shouldUpdate: true
@@ -85,12 +86,12 @@ export async function checkUpdate(): Promise<UpdateResult> {
 
     function onStatusChange(statusResult: UpdateStatusResult): void {
       if (statusResult.error) {
-        cleanAllListener()
+        cleanListener()
         return reject(statusResult.error)
       }
 
       if (statusResult.status === 'UPTODATE') {
-        cleanAllListener()
+        cleanListener()
         return resolve({
           shouldUpdate: false
         })
@@ -101,7 +102,7 @@ export async function checkUpdate(): Promise<UpdateResult> {
     once('tauri://update-available', (data: { payload: any }) => {
       onUpdateAvailable(data?.payload as UpdateManifest)
     }).catch((e) => {
-      cleanAllListener()
+      cleanListener()
       // dispatch the error to our checkUpdate
       throw e
     })
@@ -110,18 +111,18 @@ export async function checkUpdate(): Promise<UpdateResult> {
     listen('tauri://update-status', (data: { payload: any }) => {
       onStatusChange(data?.payload as UpdateStatusResult)
     })
-      .then((unlistenFn) => {
-        allUnlisteners.push(unlistenFn)
+      .then((fn) => {
+        unlistenerFn = fn
       })
       .catch((e) => {
-        cleanAllListener()
+        cleanListener()
         // dispatch the error to our checkUpdate
         throw e
       })
 
     // start the process
     emit('tauri://update').catch((e) => {
-      cleanAllListener()
+      cleanListener()
       // dispatch the error to our checkUpdate
       throw e
     })

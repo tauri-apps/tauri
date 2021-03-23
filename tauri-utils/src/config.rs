@@ -809,6 +809,7 @@ mod test {
     let build = BuildConfig {
       dev_path: String::from("http://localhost:8080"),
       dist_dir: String::from("../dist"),
+      with_global_tauri: false,
     };
 
     // test the configs

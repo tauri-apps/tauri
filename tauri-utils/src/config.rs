@@ -157,7 +157,7 @@ impl Default for WindowConfig {
 
 /// The Updater configuration object.
 #[derive(PartialEq, Deserialize, Debug, Clone)]
-#[serde(tag = "updaterConfig", rename_all = "camelCase")]
+#[serde(tag = "updater", rename_all = "camelCase")]
 pub struct UpdaterConfig {
   /// Whether the updater is active or not.
   #[serde(default)]
@@ -821,6 +821,8 @@ mod test {
     let d_title = default_title();
     // get default bundle
     let d_bundle = BundleConfig::default();
+    // get default updater
+    let d_updater = UpdaterConfig::default();
 
     // create a tauri config.
     let tauri = TauriConfig {
@@ -867,6 +869,7 @@ mod test {
     assert_eq!(t_config, tauri);
     assert_eq!(b_config, build);
     assert_eq!(d_bundle, tauri.bundle);
+    assert_eq!(d_updater, tauri.updater);
     assert_eq!(d_path, String::from("http://localhost:8080"));
     assert_eq!(d_title, tauri.windows[0].title);
     assert_eq!(d_windows, tauri.windows);

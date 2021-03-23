@@ -11,8 +11,8 @@ use std::{
 /// The type of the package we're bundling.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PackageType {
-  /// The macOS bundle (.app).
-  OsxBundle,
+  /// The macOS application bundle (.app).
+  MacOSBundle,
   /// The iOS app bundle.
   IosBundle,
   /// The Windows bundle (.msi).
@@ -30,7 +30,7 @@ pub enum PackageType {
 
 impl PackageType {
   /// Maps a short name to a PackageType.
-  /// Possible values are "deb", "ios", "msi", "osx", "rpm", "appimage", "dmg".
+  /// Possible values are "deb", "ios", "msi", "app", "rpm", "appimage", "dmg".
   pub fn from_short_name(name: &str) -> Option<PackageType> {
     // Other types we may eventually want to support: apk.
     match name {
@@ -38,7 +38,7 @@ impl PackageType {
       "ios" => Some(PackageType::IosBundle),
       #[cfg(target_os = "windows")]
       "msi" => Some(PackageType::WindowsMsi),
-      "osx" => Some(PackageType::OsxBundle),
+      "app" => Some(PackageType::MacOSBundle),
       "rpm" => Some(PackageType::Rpm),
       "appimage" => Some(PackageType::AppImage),
       "dmg" => Some(PackageType::Dmg),
@@ -54,7 +54,7 @@ impl PackageType {
       PackageType::IosBundle => "ios",
       #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => "msi",
-      PackageType::OsxBundle => "osx",
+      PackageType::MacOSBundle => "app",
       PackageType::Rpm => "rpm",
       PackageType::AppImage => "appimage",
       PackageType::Dmg => "dmg",
@@ -72,7 +72,7 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::IosBundle,
   #[cfg(target_os = "windows")]
   PackageType::WindowsMsi,
-  PackageType::OsxBundle,
+  PackageType::MacOSBundle,
   PackageType::Rpm,
   PackageType::Dmg,
   PackageType::AppImage,
@@ -109,10 +109,10 @@ pub struct DebianSettings {
   pub use_bootstrapper: Option<bool>,
 }
 
-/// The macOS OSX bundle settings.
+/// The macOS bundle settings.
 #[derive(Clone, Debug, Deserialize, Default)]
-pub struct OsxSettings {
-  /// Mac OS X frameworks that need to be bundled with the app.
+pub struct MacOSSettings {
+  /// MacOS frameworks that need to be bundled with the app.
   ///
   /// Each string can either be the name of a framework (without the `.framework` extension, e.g. `"SDL2"`),
   /// in which case we will search for that framework in the standard install locations (`~/Library/Frameworks/`, `/Library/Frameworks/`, and `/Network/Library/Frameworks/`),
@@ -123,7 +123,7 @@ pub struct OsxSettings {
   ///
   /// - embedding the correct rpath in your binary (e.g. by running `install_name_tool -add_rpath "@executable_path/../Frameworks" path/to/binary` after compiling)
   pub frameworks: Option<Vec<String>>,
-  /// A version string indicating the minimum Mac OS X version that the bundled app supports (e.g. `"10.11"`).
+  /// A version string indicating the minimum MacOS version that the bundled app supports (e.g. `"10.11"`).
   /// If you are using this config field, you may also want have your `build.rs` script emit `cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET=10.11`.
   pub minimum_system_version: Option<String>,
   /// The path to the LICENSE file for macOS apps.
@@ -176,8 +176,8 @@ pub struct BundleSettings {
   pub external_bin: Option<Vec<String>>,
   /// Debian-specific settings.
   pub deb: DebianSettings,
-  /// OSX-specific settings.
-  pub osx: OsxSettings,
+  /// MacOS-specific settings.
+  pub macos: MacOSSettings,
 }
 
 #[derive(Clone, Debug)]
@@ -359,7 +359,7 @@ impl Settings {
   pub fn package_types(&self) -> crate::Result<Vec<PackageType>> {
     let target_os = std::env::consts::OS;
     let platform_types = match target_os {
-      "macos" => vec![PackageType::OsxBundle, PackageType::Dmg],
+      "macos" => vec![PackageType::MacOSBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
       "linux" => vec![PackageType::Deb, PackageType::AppImage],
       #[cfg(target_os = "windows")]
@@ -511,9 +511,9 @@ impl Settings {
     &self.bundle_settings.deb
   }
 
-  /// Returns the OSX settings.
-  pub fn osx(&self) -> &OsxSettings {
-    &self.bundle_settings.osx
+  /// Returns the MacOS settings.
+  pub fn macos(&self) -> &MacOSSettings {
+    &self.bundle_settings.macos
   }
 }
 

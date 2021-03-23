@@ -31,7 +31,7 @@ export default {
         depends: [],
         useBootstrapper: false
       },
-      osx: {
+      macOS: {
         frameworks: [],
         minimumSystemVersion: '',
         useBootstrapper: false,

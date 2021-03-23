@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use crate::helpers::{app_paths::tauri_dir, config::Config};
 use tauri_bundler::{
-  AppCategory, BundleBinary, BundleSettings, DebianSettings, OsxSettings, PackageSettings,
+  AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOSSettings, PackageSettings,
 };
 
 /// The `workspace` section of the app configuration (read from Cargo.toml).
@@ -324,12 +324,12 @@ fn tauri_config_to_bundle_settings(
       depends: config.deb.depends,
       use_bootstrapper: Some(config.deb.use_bootstrapper),
     },
-    osx: OsxSettings {
-      frameworks: config.osx.frameworks,
-      minimum_system_version: config.osx.minimum_system_version,
-      license: config.osx.license,
-      use_bootstrapper: Some(config.osx.use_bootstrapper),
-      exception_domain: config.osx.exception_domain,
+    macos: MacOSSettings {
+      frameworks: config.macos.frameworks,
+      minimum_system_version: config.macos.minimum_system_version,
+      license: config.macos.license,
+      use_bootstrapper: Some(config.macos.use_bootstrapper),
+      exception_domain: config.macos.exception_domain,
     },
     ..Default::default()
   })

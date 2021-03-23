@@ -52,7 +52,7 @@ These settings are used only when bundling `deb` packages.
 
 ### Mac OS X-specific settings
 
-These settings are used only when bundling `osx` packages.
+These settings are used only when bundling `app` and `dmg` packages.
 
 * `frameworks`: A list of strings indicating any Mac OS X frameworks that
   need to be bundled with the app.  Each string can either be the name of a
@@ -104,7 +104,7 @@ These settings are used only when bundling `osx` packages.
         "depends": ["debian-dependency1", "debian-dependency2"],
         "useBootstrapper": true
       },
-      "osx": {
+      "macOS": {
         "frameworks": [],
         "minimumSystemVersion": "10.11",
         "license": "./LICENSE",

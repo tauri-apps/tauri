@@ -193,7 +193,11 @@ fn app_name() -> crate::Result<String> {
     .expect("failed to get exe filename")
     .to_string_lossy();
 
-  Ok(app_name.to_string())
+  if cfg!(target_os = "windows") {
+    Ok(app_name.replace(".exe", ""))
+  } else {
+    Ok(app_name.to_string())
+  }
 }
 
 /// Returns the path to the suggested directory for your app config files.

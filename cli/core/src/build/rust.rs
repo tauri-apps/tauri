@@ -137,7 +137,7 @@ impl AppSettings {
   }
 
   pub fn get_bundle_settings(&self, config: &Config) -> crate::Result<BundleSettings> {
-    tauri_config_to_bundle_settings(config.tauri.bundle.clone())
+    tauri_config_to_bundle_settings(config.tauri.bundle.clone(), config.tauri.updater.clone())
   }
 
   pub fn get_out_dir(&self, debug: bool) -> crate::Result<PathBuf> {

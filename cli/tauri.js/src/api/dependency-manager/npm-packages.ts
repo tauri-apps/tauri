@@ -57,15 +57,14 @@ async function manageDependencies(
           ])
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
           if (inquired.answer) {
-            if (
-              managementType === ManagementType.Install){
-            await installNpmPackage(dependency)
+            if (managementType === ManagementType.Install) {
+              await installNpmPackage(dependency)
             } else if (managementType === ManagementType.InstallDev) {
-            await installNpmDevPackage(dependency)
+              await installNpmDevPackage(dependency)
+            }
+            installedDeps.push(dependency)
           }
-          installedDeps.push(dependency)
         }
-      }
       } else if (managementType === ManagementType.Update) {
         const latestVersion = await getNpmLatestVersion(dependency)
         if (semverLt(currentVersion, latestVersion)) {

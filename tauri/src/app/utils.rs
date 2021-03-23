@@ -73,11 +73,12 @@ pub(super) fn spawn_updater() {
 
 pub(super) fn initialization_script(
   plugin_initialization_script: &str,
-  tauri_script: &str,
+  with_global_tauri: bool,
 ) -> String {
   format!(
     r#"
-      {tauri_initialization_script}
+      {bundle_script}
+      {core_script}
       {event_initialization_script}
       if (window.rpc) {{
         window.__TAURI__.invoke("__initialized", {{ url: window.location.href }})
@@ -88,7 +89,12 @@ pub(super) fn initialization_script(
       }}
       {plugin_initialization_script}
     "#,
-    tauri_initialization_script = tauri_script,
+    core_script = include_str!("../../scripts/core.js"),
+    bundle_script = if with_global_tauri {
+      include_str!("../../scripts/bundle.js")
+    } else {
+      ""
+    },
     event_initialization_script = event_initialization_script(),
     plugin_initialization_script = plugin_initialization_script
   )
@@ -159,7 +165,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
   };
   let (webview_builder, rpc_handler, custom_protocol) = if is_local {
     let mut webview_builder = webview.builder.url(webview_url)
-        .initialization_script(&initialization_script(plugin_initialization_script, &context.tauri_script))
+        .initialization_script(&initialization_script(plugin_initialization_script, context.config.build.with_global_tauri))
         .initialization_script(&format!(
           r#"
               window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});

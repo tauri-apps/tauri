@@ -31,7 +31,6 @@ type PageLoadHook<A> =
 /// `App` runtime information.
 pub struct Context {
   pub(crate) config: &'static Config,
-  pub(crate) tauri_script: &'static str,
   pub(crate) default_window_icon: Option<&'static [u8]>,
   pub(crate) assets: &'static tauri_api::assets::EmbeddedAssets,
 }
@@ -40,7 +39,6 @@ impl Context {
   pub(crate) fn new<Context: AsTauriContext>(_: Context) -> Self {
     Self {
       config: Context::config(),
-      tauri_script: Context::raw_tauri_script(),
       default_window_icon: Context::default_window_icon(),
       assets: Context::assets(),
     }

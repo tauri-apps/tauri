@@ -4891,6 +4891,13 @@ jest-snapshot@^26.6.2:
     pretty-format "^26.6.2"
     semver "^7.3.2"
 
+jest-transform-toml@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/jest-transform-toml/-/jest-transform-toml-1.0.0.tgz#0a255066d4e59620ec3c3cc5a555321bb05f153d"
+  integrity sha1-CiVQZtTlliDsPDzFpVUyG7BfFT0=
+  dependencies:
+    toml-loader "^1.0.0"
+
 jest-util@^26.6.2:
   version "26.6.2"
   resolved "https://registry.yarnpkg.com/jest-util/-/jest-util-26.6.2.tgz#907535dbe4d5a6cb4c47ac9b926f6af29576cbc1"
@@ -7392,7 +7399,7 @@ to-regex@^3.0.1, to-regex@^3.0.2:
     regex-not "^1.0.2"
     safe-regex "^1.1.0"
 
-toml-loader@1.0.0:
+toml-loader@1.0.0, toml-loader@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/toml-loader/-/toml-loader-1.0.0.tgz#05249b9294b623601148260caa480b22a653a19a"
   integrity sha1-BSSbkpS2I2ARSCYMqkgLIqZToZo=

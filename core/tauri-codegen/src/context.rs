@@ -31,8 +31,6 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     quote!(None)
   };
 
-  let tauri_script_path = dist_dir.join("__tauri.js").display().to_string();
-
   // double braces are purposeful to force the code into a block expression
   Ok(quote! {{
     use ::tauri::api::private::{OnceCell, AsTauriContext};
@@ -51,11 +49,6 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         /// Inject assets we generated during build time
         fn assets() -> &'static ::tauri::api::assets::EmbeddedAssets {
           #assets
-        }
-
-        /// Make the __tauri.js a dependency for the compiler
-        fn raw_tauri_script() -> &'static str {
-          include_str!(#tauri_script_path)
         }
 
         /// Default window icon to set automatically if exists

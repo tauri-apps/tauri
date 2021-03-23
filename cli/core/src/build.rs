@@ -5,7 +5,7 @@ use crate::helpers::{
   config::get as get_config,
   execute_with_output,
   manifest::rewrite_manifest,
-  Logger, TauriScript,
+  Logger,
 };
 
 use std::{
@@ -63,10 +63,6 @@ impl Build {
     let config_guard = config.lock().unwrap();
     let config_ = config_guard.as_ref().unwrap();
 
-    // __tauri.js
-    let tauri_script = TauriScript::new()
-      .global_tauri(config_.build.with_global_tauri)
-      .get();
     let web_asset_path = PathBuf::from(&config_.build.dist_dir);
     if !web_asset_path.exists() {
       return Err(anyhow::anyhow!(
@@ -74,9 +70,6 @@ impl Build {
         web_asset_path
       ));
     }
-    let tauri_script_path = web_asset_path.join("__tauri.js");
-    let mut tauri_script_file = File::create(tauri_script_path)?;
-    tauri_script_file.write_all(tauri_script.as_bytes())?;
 
     if let Some(before_build) = &config_.build.before_build_command {
       let mut cmd: Option<&str> = None;

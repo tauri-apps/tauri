@@ -1,20 +1,11 @@
 use std::path::{Path, PathBuf};
 use tauri_bundler::sign::{generate_key, read_key_from_file, save_keypair, sign_file};
 
+#[derive(Default)]
 pub struct Signer {
   private_key: Option<String>,
   password: Option<String>,
   binary: Option<PathBuf>,
-}
-
-impl Default for Signer {
-  fn default() -> Self {
-    Self {
-      private_key: None,
-      password: None,
-      binary: None,
-    }
-  }
 }
 
 impl Signer {
@@ -78,20 +69,11 @@ impl Signer {
   }
 }
 
+#[derive(Default)]
 pub struct KeyGenerator {
   password: Option<String>,
   output_path: Option<PathBuf>,
   force: bool,
-}
-
-impl Default for KeyGenerator {
-  fn default() -> Self {
-    Self {
-      password: None,
-      output_path: None,
-      force: false,
-    }
-  }
 }
 
 impl KeyGenerator {

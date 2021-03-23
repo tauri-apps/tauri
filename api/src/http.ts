@@ -1,7 +1,7 @@
 import { invokeTauriCommand } from './helpers/tauri'
 
 export interface ClientOptions {
-  maxRedirections: boolean
+  maxRedirections: number
   connectTimeout: number
 }
 
@@ -115,7 +115,7 @@ export class Client {
    *
    * @return promise resolving to the response
    */
-  async get<T>(url: string, options: RequestOptions): Promise<Response<T>> {
+  async get<T>(url: string, options?: RequestOptions): Promise<Response<T>> {
     return this.request({
       method: 'GET',
       url,
@@ -134,8 +134,8 @@ export class Client {
    */
   async post<T>(
     url: string,
-    body: Body,
-    options: RequestOptions
+    body?: Body,
+    options?: RequestOptions
   ): Promise<Response<T>> {
     return this.request({
       method: 'POST',
@@ -156,8 +156,8 @@ export class Client {
    */
   async put<T>(
     url: string,
-    body: Body,
-    options: RequestOptions
+    body?: Body,
+    options?: RequestOptions
   ): Promise<Response<T>> {
     return this.request({
       method: 'PUT',
@@ -175,7 +175,7 @@ export class Client {
    *
    * @return promise resolving to the response
    */
-  async patch<T>(url: string, options: RequestOptions): Promise<Response<T>> {
+  async patch<T>(url: string, options?: RequestOptions): Promise<Response<T>> {
     return this.request({
       method: 'PATCH',
       url,
@@ -191,7 +191,7 @@ export class Client {
    *
    * @return promise resolving to the response
    */
-  async delete<T>(url: string, options: RequestOptions): Promise<Response<T>> {
+  async delete<T>(url: string, options?: RequestOptions): Promise<Response<T>> {
     return this.request({
       method: 'DELETE',
       url,

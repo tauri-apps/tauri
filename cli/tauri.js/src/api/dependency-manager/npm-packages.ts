@@ -38,12 +38,34 @@ async function manageDependencies(
       const currentVersion = await getNpmPackageVersion(dependency)
       if (currentVersion === null) {
         log(`Installing ${dependency}...`)
-        if (managementType === ManagementType.Install) {
-          await installNpmPackage(dependency)
-        } else if (managementType === ManagementType.InstallDev) {
-          await installNpmDevPackage(dependency)
+        if (
+          managementType === ManagementType.Install ||
+          managementType === ManagementType.InstallDev
+        ) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
+          const inquired = await inquirer.prompt([
+            {
+              type: 'confirm',
+              name: 'answer',
+              message: `[NPM]: "Do you want to install ${dependency} ${
+                managementType === ManagementType.InstallDev
+                  ? 'as dev-dependency'
+                  : ''
+              }?"`,
+              default: false
+            }
+          ])
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
+          if (inquired.answer) {
+            if (
+              managementType === ManagementType.Install){
+            await installNpmPackage(dependency)
+            } else if (managementType === ManagementType.InstallDev) {
+            await installNpmDevPackage(dependency)
+          }
+          installedDeps.push(dependency)
         }
-        installedDeps.push(dependency)
+      }
       } else if (managementType === ManagementType.Update) {
         const latestVersion = await getNpmLatestVersion(dependency)
         if (semverLt(currentVersion, latestVersion)) {

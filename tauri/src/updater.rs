@@ -5,6 +5,7 @@ use crate::{
   },
   ApplicationExt, WebviewManager,
 };
+use std::path::PathBuf;
 use std::process::{exit, Command};
 
 // Check for new updates
@@ -243,14 +244,14 @@ Release Notes:
       // Linux we replace the AppImage by launching a new install, it start a new AppImage instance, so we're closing the previous. (the process stop here)
       updater.download_and_install(pubkey.clone()).await?;
 
-      // Ask user if we need to close the app
+      // Ask user if we need to restart the application
       let should_exit = ask(
         "Ready to Restart",
         "The installation was successful, do you want to restart the application now?",
       );
       match should_exit {
         AskResponse::Yes => {
-          restart_application();
+          restart_application(updater.current_binary.as_ref());
           // safely exit even if the process
           // should be killed
           return Ok(());
@@ -268,14 +269,12 @@ Release Notes:
   Ok(())
 }
 
-// Tested on macOS, on Windows and Linux we don't need it
-// it's handled by the `download_and_install` fn from the updater.
-// todo(lemarier): Maybe we can expose a public function or something so the user can call
-// restartApplication() from the JS side, but will require to works on all OS.
-fn restart_application() {
+// Tested on macOS and Linux. Windows will not trigger the dialog
+// as it'll exit before, to launch the MSI installation.
+fn restart_application(binary_to_start: Option<&PathBuf>) {
   // spawn new process
-  if let Ok(current_process) = std::env::current_exe() {
-    Command::new(current_process)
+  if let Some(path) = binary_to_start {
+    Command::new(path)
       .spawn()
       .expect("application failed to start");
   }

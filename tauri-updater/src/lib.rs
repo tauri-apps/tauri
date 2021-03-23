@@ -520,13 +520,8 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Resu
         .arg(&extract_path)
         .status()?;
 
-      // We now run the AppImage install process
-      Command::new(&extract_path)
-        .env("APPIMAGE_SILENT_INSTALL", "true")
-        .spawn()
-        .expect("APPIMAGE failed to start");
-
-      exit(0);
+     // early finish we have everything we need here
+     return Ok(());
     }
   }
 

@@ -189,15 +189,11 @@ pub fn resource_dir() -> Option<PathBuf> {
 fn app_name() -> crate::Result<String> {
   let exe = std::env::current_exe()?;
   let app_name = exe
-    .file_name()
+    .file_stem()
     .expect("failed to get exe filename")
     .to_string_lossy();
 
-  if cfg!(target_os = "windows") {
-    Ok(app_name.replace(".exe", ""))
-  } else {
-    Ok(app_name.to_string())
-  }
+  Ok(app_name.to_string())
 }
 
 /// Returns the path to the suggested directory for your app config files.

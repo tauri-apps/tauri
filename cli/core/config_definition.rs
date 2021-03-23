@@ -65,7 +65,6 @@ pub struct BundleConfig {
   pub category: Option<String>,
   pub short_description: Option<String>,
   pub long_description: Option<String>,
-  pub script: Option<PathBuf>,
   #[serde(default)]
   pub deb: DebConfig,
   #[serde(default)]

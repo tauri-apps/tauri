@@ -316,12 +316,6 @@
             "type": "string"
           }
         },
-        "script": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "shortDescription": {
           "type": [
             "string",

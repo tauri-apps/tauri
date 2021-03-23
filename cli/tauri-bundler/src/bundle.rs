@@ -18,7 +18,8 @@ pub use self::{
   category::AppCategory,
   common::{print_error, print_info},
   settings::{
-    BundleBinary, BundleSettings, PackageSettings, PackageType, Settings, SettingsBuilder,
+    BundleBinary, BundleSettings, DebianSettings, OsxSettings, PackageSettings, PackageType,
+    Settings, SettingsBuilder,
   },
 };
 use common::print_finished;

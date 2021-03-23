@@ -95,6 +95,52 @@ pub struct PackageSettings {
   pub default_run: Option<String>,
 }
 
+/// The Linux debian bundle settings.
+#[derive(Clone, Debug, Deserialize, Default)]
+pub struct DebianSettings {
+  // OS-specific settings:
+  /// the list of debian dependencies.
+  pub depends: Option<Vec<String>>,
+  /// whether we should use the bootstrap script on debian or not.
+  ///
+  /// this script goal is to allow your app to access environment variables e.g $PATH.
+  ///
+  /// without it, you can't run some applications installed by the user.
+  pub use_bootstrapper: Option<bool>,
+}
+
+/// The macOS OSX bundle settings.
+#[derive(Clone, Debug, Deserialize, Default)]
+pub struct OsxSettings {
+  /// Mac OS X frameworks that need to be bundled with the app.
+  ///
+  /// Each string can either be the name of a framework (without the `.framework` extension, e.g. `"SDL2"`),
+  /// in which case we will search for that framework in the standard install locations (`~/Library/Frameworks/`, `/Library/Frameworks/`, and `/Network/Library/Frameworks/`),
+  /// or a path to a specific framework bundle (e.g. `./data/frameworks/SDL2.framework`).  Note that this setting just makes tauri-bundler copy the specified frameworks into the OS X app bundle
+  /// (under `Foobar.app/Contents/Frameworks/`); you are still responsible for:
+  ///
+  /// - arranging for the compiled binary to link against those frameworks (e.g. by emitting lines like `cargo:rustc-link-lib=framework=SDL2` from your `build.rs` script)
+  ///
+  /// - embedding the correct rpath in your binary (e.g. by running `install_name_tool -add_rpath "@executable_path/../Frameworks" path/to/binary` after compiling)
+  pub frameworks: Option<Vec<String>>,
+  /// A version string indicating the minimum Mac OS X version that the bundled app supports (e.g. `"10.11"`).
+  /// If you are using this config field, you may also want have your `build.rs` script emit `cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET=10.11`.
+  pub minimum_system_version: Option<String>,
+  /// The path to the LICENSE file for macOS apps.
+  /// Currently only used by the dmg bundle.
+  pub license: Option<String>,
+  /// whether we should use the bootstrap script on macOS .app or not.
+  ///
+  /// this script goal is to allow your app to access environment variables e.g $PATH.
+  ///
+  /// without it, you can't run some applications installed by the user.
+  pub use_bootstrapper: Option<bool>,
+  /// The exception domain to use on the macOS .app bundle.
+  ///
+  /// This allows communication to the outside world e.g. a web server you're shipping.
+  pub exception_domain: Option<String>,
+}
+
 /// The bundle settings of the BuildArtifact we're bundling.
 #[derive(Clone, Debug, Deserialize, Default)]
 pub struct BundleSettings {
@@ -116,45 +162,9 @@ pub struct BundleSettings {
   pub short_description: Option<String>,
   /// the app's long description.
   pub long_description: Option<String>,
-  /// the app's script to run when unpackaging the bundle.
-  pub script: Option<PathBuf>,
-  // OS-specific settings:
-  /// the list of debian dependencies.
-  pub deb_depends: Option<Vec<String>>,
-  /// whether we should use the bootstrap script on debian or not.
-  ///
-  /// this script goal is to allow your app to access environment variables e.g $PATH.
-  ///
-  /// without it, you can't run some applications installed by the user.
-  pub deb_use_bootstrapper: Option<bool>,
-  /// Mac OS X frameworks that need to be bundled with the app.
-  ///
-  /// Each string can either be the name of a framework (without the `.framework` extension, e.g. `"SDL2"`),
-  /// in which case we will search for that framework in the standard install locations (`~/Library/Frameworks/`, `/Library/Frameworks/`, and `/Network/Library/Frameworks/`),
-  /// or a path to a specific framework bundle (e.g. `./data/frameworks/SDL2.framework`).  Note that this setting just makes tauri-bundler copy the specified frameworks into the OS X app bundle
-  /// (under `Foobar.app/Contents/Frameworks/`); you are still responsible for:
-  ///
-  /// - arranging for the compiled binary to link against those frameworks (e.g. by emitting lines like `cargo:rustc-link-lib=framework=SDL2` from your `build.rs` script)
-  ///
-  /// - embedding the correct rpath in your binary (e.g. by running `install_name_tool -add_rpath "@executable_path/../Frameworks" path/to/binary` after compiling)
-  pub osx_frameworks: Option<Vec<String>>,
-  /// A version string indicating the minimum Mac OS X version that the bundled app supports (e.g. `"10.11"`).
-  /// If you are using this config field, you may also want have your `build.rs` script emit `cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET=10.11`.
-  pub osx_minimum_system_version: Option<String>,
-  /// The path to the LICENSE file for macOS apps.
-  /// Currently only used by the dmg bundle.
-  pub osx_license: Option<String>,
-  /// whether we should use the bootstrap script on macOS .app or not.
-  ///
-  /// this script goal is to allow your app to access environment variables e.g $PATH.
-  ///
-  /// without it, you can't run some applications installed by the user.
-  pub osx_use_bootstrapper: Option<bool>,
-  // Bundles for other binaries/examples:
+  // Bundles for other binaries:
   /// Configuration map for the possible [bin] apps to bundle.
   pub bin: Option<HashMap<String, BundleSettings>>,
-  /// Configuration map for the possible example apps to bundle.
-  pub example: Option<HashMap<String, BundleSettings>>,
   /// External binaries to add to the bundle.
   ///
   /// Note that each binary name will have the target platform's target triple appended,
@@ -164,10 +174,10 @@ pub struct BundleSettings {
   ///
   /// The possible target triples can be seen by running `$ rustup target list`.
   pub external_bin: Option<Vec<String>>,
-  /// The exception domain to use on the macOS .app bundle.
-  ///
-  /// This allows communication to the outside world e.g. a web server you're shipping.
-  pub exception_domain: Option<String>,
+  /// Debian-specific settings.
+  pub deb: DebianSettings,
+  /// OSX-specific settings.
+  pub osx: OsxSettings,
 }
 
 #[derive(Clone, Debug)]
@@ -420,11 +430,6 @@ impl Settings {
     }
   }
 
-  /// Returns the OSX exception domain.
-  pub fn exception_domain(&self) -> Option<&String> {
-    self.bundle_settings.exception_domain.as_ref()
-  }
-
   /// Copies external binaries to a path.
   pub fn copy_binaries(&self, path: &Path) -> crate::Result<()> {
     for src in self.external_binaries() {
@@ -501,40 +506,14 @@ impl Settings {
     self.bundle_settings.long_description.as_deref()
   }
 
-  /// Returns the dependencies of the debian bundle.
-  pub fn debian_dependencies(&self) -> &[String] {
-    match self.bundle_settings.deb_depends {
-      Some(ref dependencies) => dependencies.as_slice(),
-      None => &[],
-    }
+  /// Returns the debian settings.
+  pub fn deb(&self) -> &DebianSettings {
+    &self.bundle_settings.deb
   }
 
-  /// Returns whether the debian bundle should use the bootstrap script or not.
-  pub fn debian_use_bootstrapper(&self) -> bool {
-    self.bundle_settings.deb_use_bootstrapper.unwrap_or(false)
-  }
-
-  /// Returns the frameworks to bundle with the macOS .app
-  pub fn osx_frameworks(&self) -> &[String] {
-    match self.bundle_settings.osx_frameworks {
-      Some(ref frameworks) => frameworks.as_slice(),
-      None => &[],
-    }
-  }
-
-  /// Returns the minimum system version of the macOS bundle.
-  pub fn osx_minimum_system_version(&self) -> Option<&str> {
-    self.bundle_settings.osx_minimum_system_version.as_deref()
-  }
-
-  /// Returns the path to the DMG bundle license.
-  pub fn osx_license(&self) -> Option<&str> {
-    self.bundle_settings.osx_license.as_deref()
-  }
-
-  /// Returns whether the macOS .app bundle should use the bootstrap script or not.
-  pub fn osx_use_bootstrapper(&self) -> bool {
-    self.bundle_settings.osx_use_bootstrapper.unwrap_or(false)
+  /// Returns the OSX settings.
+  pub fn osx(&self) -> &OsxSettings {
+    &self.bundle_settings.osx
   }
 }
 

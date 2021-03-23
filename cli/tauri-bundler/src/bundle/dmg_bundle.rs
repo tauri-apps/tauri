@@ -96,7 +96,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     &product_name,
   ];
 
-  if let Some(license_path) = settings.osx_license() {
+  if let Some(license_path) = &settings.osx().license {
     args.push("--eula");
     args.push(license_path);
   }

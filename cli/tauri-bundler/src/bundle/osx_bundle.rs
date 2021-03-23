@@ -82,7 +82,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   copy_binaries_to_bundle(&bundle_directory, settings)?;
 
-  let use_bootstrapper = settings.osx_use_bootstrapper();
+  let use_bootstrapper = settings.osx().use_bootstrapper.unwrap_or_default();
   if use_bootstrapper {
     create_bootstrapper(&bundle_directory, settings)
       .with_context(|| "Failed to create OSX bootstrapper")?;
@@ -162,7 +162,7 @@ fn create_info_plist(
 ) -> crate::Result<()> {
   let build_number = chrono::Utc::now().format("%Y%m%d.%H%M%S");
   let file = &mut common::create_file(&bundle_dir.join("Info.plist"))?;
-  let use_bootstrapper = settings.osx_use_bootstrapper();
+  let use_bootstrapper = settings.osx().use_bootstrapper.unwrap_or_default();
   write!(
     file,
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
@@ -235,7 +235,7 @@ fn create_info_plist(
       category.osx_application_category_type()
     )?;
   }
-  if let Some(version) = settings.osx_minimum_system_version() {
+  if let Some(version) = &settings.osx().minimum_system_version {
     write!(
       file,
       "  <key>LSMinimumSystemVersion</key>\n  \
@@ -254,7 +254,7 @@ fn create_info_plist(
     )?;
   }
 
-  if let Some(exception_domain) = settings.exception_domain() {
+  if let Some(exception_domain) = &settings.osx().exception_domain {
     write!(
       file,
       "  <key>NSAppTransportSecurity</key>\n  \
@@ -293,7 +293,12 @@ fn copy_framework_from(dest_dir: &Path, framework: &str, src_dir: &Path) -> crat
 
 // Copies the OSX bundle frameworks to the .app
 fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
-  let frameworks = settings.osx_frameworks();
+  let frameworks = settings
+    .osx()
+    .frameworks
+    .as_ref()
+    .cloned()
+    .unwrap_or_default();
   if frameworks.is_empty() {
     return Ok(());
   }

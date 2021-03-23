@@ -3,7 +3,9 @@ use std::{fs::File, io::Read, path::PathBuf, process::Command, str::FromStr};
 use serde::Deserialize;
 
 use crate::helpers::{app_paths::tauri_dir, config::Config};
-use tauri_bundler::{AppCategory, BundleBinary, BundleSettings, PackageSettings};
+use tauri_bundler::{
+  AppCategory, BundleBinary, BundleSettings, DebianSettings, OsxSettings, PackageSettings,
+};
 
 /// The `workspace` section of the app configuration (read from Cargo.toml).
 #[derive(Clone, Debug, Deserialize)]
@@ -317,15 +319,18 @@ fn tauri_config_to_bundle_settings(
     },
     short_description: config.short_description,
     long_description: config.long_description,
-    script: config.script,
-    deb_depends: config.deb.depends,
-    deb_use_bootstrapper: Some(config.deb.use_bootstrapper),
-    osx_frameworks: config.osx.frameworks,
-    osx_minimum_system_version: config.osx.minimum_system_version,
-    osx_license: config.osx.license,
-    osx_use_bootstrapper: Some(config.osx.use_bootstrapper),
     external_bin: config.external_bin,
-    exception_domain: config.osx.exception_domain,
+    deb: DebianSettings {
+      depends: config.deb.depends,
+      use_bootstrapper: Some(config.deb.use_bootstrapper),
+    },
+    osx: OsxSettings {
+      frameworks: config.osx.frameworks,
+      minimum_system_version: config.osx.minimum_system_version,
+      license: config.osx.license,
+      use_bootstrapper: Some(config.osx.use_bootstrapper),
+      exception_domain: config.osx.exception_domain,
+    },
     ..Default::default()
   })
 }

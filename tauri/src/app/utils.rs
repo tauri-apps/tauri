@@ -244,7 +244,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
         if path.ends_with('/') {
           path.pop();
         }
-        let path = if path == "" {
+        let path = if path.is_empty() {
           // if the url is `tauri://${appId}`, we should load `index.html`
           "index.html".to_string()
         } else {

@@ -52,9 +52,9 @@ pub(super) fn get_url(context: &Context) -> String {
 }
 
 #[cfg(custom_protocol)]
-pub(super) fn get_url(_: &Context) -> String {
+pub(super) fn get_url(context: &Context) -> String {
   // Custom protocol doesn't require any setup, so just return URL
-  "tauri://index.html".into()
+  format!("tauri://{}", context.config.tauri.bundle.identifier)
 }
 
 // spawn an updater process.
@@ -240,22 +240,23 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
         }
       });
     let assets = context.assets;
+    let bundle_identifier = context.config.tauri.bundle.identifier.clone();
     let custom_protocol = CustomProtocol {
       name: "tauri".into(),
       handler: Box::new(move |path| {
-        let mut path = path.to_string().replace("tauri://", "");
+        let mut path = path
+          .to_string()
+          .replace(&format!("tauri://{}", bundle_identifier), "");
         if path.ends_with('/') {
           path.pop();
         }
-        let path =
-          if let Some((first, components)) = path.split('/').collect::<Vec<&str>>().split_first() {
-            match components.len() {
-              0 => first.to_string(),
-              _ => components.join("/"),
-            }
-          } else {
-            path
-          };
+        let path = if path.is_empty() {
+          // if the url is `tauri://${appId}`, we should load `index.html`
+          "index.html".to_string()
+        } else {
+          // skip leading `/`
+          path.chars().skip(1).collect::<String>()
+        };
 
         let asset_response = assets
           .get(&path)
@@ -376,7 +377,7 @@ mod test {
     let context = Context::new(context);
     let res = super::get_url(&context);
     #[cfg(custom_protocol)]
-    assert!(res == "tauri://index.html");
+    assert!(res == "tauri://studio.tauri.example");
 
     #[cfg(dev)]
     {

@@ -229,6 +229,7 @@ impl<'a> UpdateBuilder<'a> {
     };
 
     // Did the target is provided by the config?
+    // Should be: linux, darwin, win32 or win64
     let target = if let Some(t) = &self.target {
       t.clone()
     } else {
@@ -236,7 +237,7 @@ impl<'a> UpdateBuilder<'a> {
     };
 
     // Get the extract_path from the provided executable_path
-    let extract_path = extract_path_from_executable(&executable_path, &target);
+    let extract_path = extract_path_from_executable(&executable_path);
 
     // current binary used to restart the application
     #[cfg(target_os = "windows")]
@@ -389,21 +390,18 @@ impl Update {
   // Download and install our update
   // @todo(lemarier): Split into download and install (two step) but need to be thread safe
   pub async fn download_and_install(&self, pub_key: Option<String>) -> Result {
-    // get OS
-    let target = self.target.clone();
     // download url for selected release
     let url = self.download_url.clone();
     // extract path
     let extract_path = self.extract_path.clone();
-
-    // make sure we NEED to install it ...
 
     // make sure we can install the update on linux
     // We fail here because later we can add more linux support
     // actually if we use APPIMAGE, our extract path should already
     // be set with our APPIMAGE env variable, we don't need to do
     // anythin with it yet
-    if target == "linux" && env::var_os("APPIMAGE").is_none() {
+    #[cfg(target_os = "linux")]
+    if env::var_os("APPIMAGE").is_none() {
       return Err(Error::UnsupportedPlatform);
     }
 
@@ -429,7 +427,7 @@ impl Update {
 
     // tmp directories are used to create backup of current application
     // if something goes wrong, we can restore to previous state
-    let tmp_archive_path = tmp_dir.path().join(detect_archive_in_url(&url, &target));
+    let tmp_archive_path = tmp_dir.path().join(detect_archive_in_url(&url));
     let mut tmp_archive = File::create(&tmp_archive_path)?;
 
     // set our headers
@@ -520,8 +518,8 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Resu
         .arg(&extract_path)
         .status()?;
 
-     // early finish we have everything we need here
-     return Ok(());
+      // early finish we have everything we need here
+      return Ok(());
     }
   }
 
@@ -628,58 +626,65 @@ pub fn get_updater_target() -> Option<String> {
 }
 
 /// Get the extract_path from the provided executable_path
-pub fn extract_path_from_executable(executable_path: &PathBuf, target: &str) -> PathBuf {
-  // Linux & Windows should need to be extracted in the same directory as the executable
-  // C:\Program Files\MyApp\MyApp.exe
-  // We need C:\Program Files\MyApp
-  let mut extract_path = executable_path
+pub fn extract_path_from_executable(executable_path: &PathBuf) -> PathBuf {
+  // Return the path of the current executable by default
+  // Example C:\Program Files\My App\
+  let extract_path = executable_path
     .parent()
     .map(PathBuf::from)
     .expect("Can't determine extract path");
-
-  let extract_path_as_string = extract_path.display().to_string();
 
   // MacOS example binary is in /Applications/TestApp.app/Contents/MacOS/myApp
   // We need to get /Applications/TestApp.app
   // todo(lemarier): Need a better way here
   // Maybe we could search for <*.app> to get the right path
-  if target == "darwin" && extract_path_as_string.contains("Contents/MacOS") {
-    extract_path = extract_path
+  #[cfg(target_os = "macos")]
+  if extract_path
+    .display()
+    .to_string()
+    .contains("Contents/MacOS")
+  {
+    return extract_path
       .parent()
       .map(PathBuf::from)
       .expect("Unable to find the extract path")
       .parent()
       .map(PathBuf::from)
-      .expect("Unable to find the extract path")
-  };
+      .expect("Unable to find the extract path");
+  }
 
   // We should use APPIMAGE exposed env variable
   // This is where our APPIMAGE should sit and should be replaced
-  if target == "linux" && env::var_os("APPIMAGE").is_some() {
-    extract_path = PathBuf::from(env::var_os("APPIMAGE").expect("Unable to extract APPIMAGE path"))
+  #[cfg(target_os = "linux")]
+  if let Some(app_image_path) = env::var_os("APPIMAGE") {
+    return PathBuf::from(app_image_path);
   }
 
   extract_path
 }
 
 // Return the archive type to save on disk
-fn detect_archive_in_url(path: &str, target: &str) -> String {
+fn detect_archive_in_url(path: &str) -> String {
   path
     .split('/')
     .next_back()
-    .unwrap_or(&archive_name_by_os(target))
+    .unwrap_or(&default_archive_name_by_os())
     .to_string()
 }
 
 // Fallback archive name by os
 // The main objective is to provide the right extension based on the target
 // if we cant extract the archive type in the url we'll fallback to this value
-fn archive_name_by_os(target: &str) -> String {
-  let archive_name = match target {
-    "darwin" | "linux" => "update.tar.gz",
-    _ => "update.zip",
-  };
-  archive_name.to_string()
+fn default_archive_name_by_os() -> String {
+  #[cfg(target_os = "windows")]
+  {
+    "update.zip".into()
+  }
+
+  #[cfg(not(target_os = "windows"))]
+  {
+    "update.tar.gz".into()
+  }
 }
 
 // Convert base64 to string and prevent failing

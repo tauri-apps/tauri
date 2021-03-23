@@ -5,8 +5,10 @@ use crate::{
   },
   ApplicationExt, WebviewManager,
 };
-use std::path::PathBuf;
-use std::process::{exit, Command};
+use std::{
+  path::PathBuf,
+  process::{exit, Command},
+};
 
 // Check for new updates
 pub const EVENT_CHECK_UPDATE: &str = "tauri://update";

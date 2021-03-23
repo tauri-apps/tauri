@@ -442,7 +442,7 @@ pub fn build_wix_app_installer(
 
   let mut data = BTreeMap::new();
 
-  data.insert("product_name", to_json(settings.bundle_name()));
+  data.insert("product_name", to_json(settings.product_name()));
   data.insert("version", to_json(settings.version_string()));
   let manufacturer = settings.bundle_identifier().to_string();
   data.insert("manufacturer", to_json(manufacturer.as_str()));

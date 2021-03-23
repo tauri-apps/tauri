@@ -44,15 +44,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       other => other,
     }
   );
-  let app_bundle_name = format!("{}.app", package_base_name);
-  common::print_bundling(&app_bundle_name)?;
+  let app_product_name = format!("{}.app", package_base_name);
+  common::print_bundling(&app_product_name)?;
   let app_bundle_path = settings
     .project_out_directory()
     .join("bundle/osx")
-    .join(&app_bundle_name);
+    .join(&app_product_name);
   if app_bundle_path.exists() {
     fs::remove_dir_all(&app_bundle_path)
-      .with_context(|| format!("Failed to remove old {}", app_bundle_name))?;
+      .with_context(|| format!("Failed to remove old {}", app_product_name))?;
   }
   let bundle_directory = app_bundle_path.join("Contents");
   fs::create_dir_all(&bundle_directory).with_context(|| {
@@ -138,7 +138,7 @@ else
     exec \"`dirname \\\"$0\\\"`/{}\" $@ & disown
 fi
 exit 0",
-    settings.bundle_name()
+    settings.product_name()
   )?;
   file.flush()?;
 
@@ -179,7 +179,7 @@ fn create_info_plist(
   write!(
     file,
     "  <key>CFBundleDisplayName</key>\n  <string>{}</string>\n",
-    settings.bundle_name()
+    settings.product_name()
   )?;
   write!(
     file,
@@ -210,7 +210,7 @@ fn create_info_plist(
   write!(
     file,
     "  <key>CFBundleName</key>\n  <string>{}</string>\n",
-    settings.bundle_name()
+    settings.product_name()
   )?;
   write!(
     file,
@@ -411,7 +411,7 @@ fn create_icns_file(
   if !family.is_empty() {
     fs::create_dir_all(resources_dir)?;
     let mut dest_path = resources_dir.clone();
-    dest_path.push(settings.bundle_name());
+    dest_path.push(settings.product_name());
     dest_path.set_extension("icns");
     let icns_file = BufWriter::new(File::create(&dest_path)?);
     family.write(icns_file)?;

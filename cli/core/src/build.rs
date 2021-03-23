@@ -8,7 +8,13 @@ use crate::helpers::{
   Logger, TauriScript,
 };
 
-use std::{env::set_current_dir, fs::File, io::Write, path::PathBuf, process::Command};
+use std::{
+  env::set_current_dir,
+  fs::{rename, File},
+  io::Write,
+  path::PathBuf,
+  process::Command,
+};
 
 mod rust;
 
@@ -98,33 +104,44 @@ impl Build {
 
     rust::build_project(self.debug)?;
 
+    let app_settings = rust::AppSettings::new(&config_)?;
+
+    let out_dir = app_settings.get_out_dir(self.debug)?;
+    if let Some(product_name) = config_.package.product_name.clone() {
+      let bin_name = app_settings.cargo_package_settings().name.clone();
+      #[cfg(windows)]
+      rename(
+        out_dir.join(format!("{}.exe", bin_name)),
+        out_dir.join(format!("{}.exe", product_name)),
+      )?;
+      #[cfg(not(windows))]
+      rename(out_dir.join(bin_name), out_dir.join(product_name))?;
+    }
+
     if config_.tauri.bundle.active {
-      let bundler_settings = rust::get_bundler_settings(&config_, self.debug)?;
       // move merge modules to the out dir so the bundler can load it
       #[cfg(windows)]
       {
         let (filename, vcruntime_msm) = if cfg!(target_arch = "x86") {
-          let _ =
-            std::fs::remove_file(bundler_settings.out_dir.join("Microsoft_VC142_CRT_x64.msm"));
+          let _ = std::fs::remove_file(out_dir.join("Microsoft_VC142_CRT_x64.msm"));
           (
             "Microsoft_VC142_CRT_x86.msm",
             include_bytes!("./MergeModules/Microsoft_VC142_CRT_x86.msm").to_vec(),
           )
         } else {
-          let _ =
-            std::fs::remove_file(bundler_settings.out_dir.join("Microsoft_VC142_CRT_x86.msm"));
+          let _ = std::fs::remove_file(out_dir.join("Microsoft_VC142_CRT_x86.msm"));
           (
             "Microsoft_VC142_CRT_x64.msm",
             include_bytes!("./MergeModules/Microsoft_VC142_CRT_x64.msm").to_vec(),
           )
         };
-        std::fs::write(bundler_settings.out_dir.join(filename), vcruntime_msm)?;
+        std::fs::write(out_dir.join(filename), vcruntime_msm)?;
       }
       let mut settings_builder = SettingsBuilder::new()
-        .package_settings(bundler_settings.package_settings)
-        .bundle_settings(bundler_settings.bundle_settings)
-        .binaries(bundler_settings.binaries)
-        .project_out_directory(bundler_settings.out_dir);
+        .package_settings(app_settings.get_package_settings())
+        .bundle_settings(app_settings.get_bundle_settings(&config_)?)
+        .binaries(app_settings.get_binaries(&config_)?)
+        .project_out_directory(out_dir);
 
       if self.verbose {
         settings_builder = settings_builder.verbose();

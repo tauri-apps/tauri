@@ -1677,6 +1677,7 @@ dependencies = [
  "anyhow",
  "clap",
  "colored",
+ "heck",
  "json-patch",
  "notify",
  "once_cell",

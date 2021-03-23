@@ -17,6 +17,15 @@
         }
       ]
     },
+    "package": {
+      "description": "Package settings.",
+      "default": {},
+      "allOf": [
+        {
+          "$ref": "#/definitions/PackageConfig"
+        }
+      ]
+    },
     "plugins": {
       "description": "The plugins config.",
       "default": {},
@@ -290,12 +299,6 @@
             "null"
           ]
         },
-        "name": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "osx": {
           "default": {
             "useBootstrapper": false
@@ -337,12 +340,6 @@
             {
               "type": "null"
             }
-          ]
-        },
-        "version": {
-          "type": [
-            "string",
-            "null"
           ]
         }
       },
@@ -772,6 +769,26 @@
         "useBootstrapper": {
           "default": false,
           "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "PackageConfig": {
+      "type": "object",
+      "properties": {
+        "productName": {
+          "description": "App name. Automatically converted to kebab-case on Linux.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "description": "App version.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

@@ -196,7 +196,7 @@ pub enum FileDropEvent {
 pub type FileDropHandler = Box<dyn Fn(FileDropEvent) -> bool + Send>;
 
 /// Webview dispatcher. A thread-safe handle to the webview API.
-pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
+pub trait ApplicationDispatcherExt: Clone + Send + Sized {
   /// The webview builder type.
   type WebviewBuilder: WebviewBuilderExt
     + WebviewBuilderExtPrivate

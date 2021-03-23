@@ -40,9 +40,9 @@ pub fn bundle_project(
   let dmg_name = format!("{}.dmg", &package_base_name);
   let dmg_path = output_path.join(&dmg_name);
 
-  let bundle_name = &format!("{}.app", &package_base_name);
+  let product_name = &format!("{}.app", &package_base_name);
   let bundle_dir = settings.project_out_directory().join("bundle/osx");
-  let bundle_path = bundle_dir.join(&bundle_name.clone());
+  let bundle_path = bundle_dir.join(&product_name.clone());
 
   let support_directory_path = output_path.join("support");
   if output_path.exists() {
@@ -96,7 +96,7 @@ pub fn bundle_project(
     //"--volicon",
     //"../../../../icons/icon.icns",
     "--icon",
-    &bundle_name,
+    &product_name,
     "180",
     "170",
     "--app-drop-link",
@@ -106,7 +106,7 @@ pub fn bundle_project(
     "660",
     "400",
     "--hide-extension",
-    &bundle_name,
+    &product_name,
   ];
 
   if let Some(license_path) = settings.osx_license() {
@@ -127,7 +127,7 @@ pub fn bundle_project(
   cmd
     .current_dir(bundle_dir.clone())
     .args(args)
-    .args(vec![dmg_name.as_str(), bundle_name.as_str()]);
+    .args(vec![dmg_name.as_str(), product_name.as_str()]);
 
   common::print_info("running bundle_dmg.sh")?;
   common::execute_with_verbosity(&mut cmd, &settings).map_err(|_| {

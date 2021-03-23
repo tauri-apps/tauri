@@ -86,8 +86,8 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
 /// The package settings.
 #[derive(Debug, Clone, Deserialize)]
 pub struct PackageSettings {
-  /// the package's name.
-  pub name: String,
+  /// the package's product name.
+  pub product_name: String,
   /// the package's version.
   pub version: String,
   /// the package's description.
@@ -116,15 +116,10 @@ pub struct UpdaterSettings {
 /// The bundle settings of the BuildArtifact we're bundling.
 #[derive(Clone, Debug, Deserialize, Default)]
 pub struct BundleSettings {
-  // General settings:
-  /// the name of the bundle.
-  pub name: Option<String>,
   /// the app's identifier.
   pub identifier: Option<String>,
   /// the app's icon list.
   pub icon: Option<Vec<String>>,
-  /// the app's version.
-  pub version: Option<String>,
   /// the app's resources to bundle.
   ///
   /// each item can be a path to a file or a path to a folder.
@@ -222,6 +217,10 @@ impl BundleBinary {
 
   pub fn set_main(&mut self, main: bool) {
     self.main = main;
+  }
+
+  pub fn set_name(&mut self, name: String) {
+    self.name = name;
   }
 
   pub fn name(&self) -> &str {
@@ -411,13 +410,9 @@ impl Settings {
     self.is_verbose
   }
 
-  /// Returns the bundle name, which is either package.metadata.bundle.name or package.name
-  pub fn bundle_name(&self) -> &str {
-    self
-      .bundle_settings
-      .name
-      .as_ref()
-      .unwrap_or(&self.package.name)
+  /// Returns the product name.
+  pub fn product_name(&self) -> &str {
+    &self.package.product_name
   }
 
   /// Returns the bundle's identifier
@@ -480,13 +475,9 @@ impl Settings {
     Ok(())
   }
 
-  /// Returns the version string of the bundle, which is either package.metadata.version or package.version.
+  /// Returns the version string of the bundle.
   pub fn version_string(&self) -> &str {
-    self
-      .bundle_settings
-      .version
-      .as_ref()
-      .unwrap_or(&self.package.version)
+    &self.package.version
   }
 
   /// Returns the copyright text.

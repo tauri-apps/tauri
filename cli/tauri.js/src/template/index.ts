@@ -84,20 +84,21 @@ Run \`tauri init --force template\` to overwrite.`)
     return resolvedPath.replace(/\\/g, '/')
   }
 
-  const resolveCurrentTauriVersion = (crate: string): string => {
-    const manifestPath = `../../../../${crate}/Cargo.toml`
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access, security/detect-non-literal-require
-    const tauriManifest = require(manifestPath) as CargoManifest
-    const version = tauriManifest.package.version
+  const resolveCurrentTauriVersion = (manifest: CargoManifest): string => {
+    const version = manifest.package.version
     return version.substring(0, version.lastIndexOf('.'))
   }
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const tauriManifest = require('../../../../tauri/Cargo.toml') as CargoManifest
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const tauriBuildManifest = require('../../../../core/tauri-build/Cargo.toml') as CargoManifest
 
   const tauriDep = tauriPath
     ? `{ path = "${resolveTauriPath(tauriPath, 'tauri')}" }`
-    : `{ version = "${resolveCurrentTauriVersion('tauri')}" }`
+    : `{ version = "${resolveCurrentTauriVersion(tauriManifest)}" }`
   const tauriBuildDep = tauriPath
     ? `{ path = "${resolveTauriPath(tauriPath, 'core/tauri-build')}" }`
-    : `{ version = "${resolveCurrentTauriVersion('core/tauri-build')}" }`
+    : `{ version = "${resolveCurrentTauriVersion(tauriBuildManifest)}" }`
 
   removeSync(dir)
   copyTemplates({

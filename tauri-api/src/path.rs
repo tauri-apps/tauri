@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+  env,
+  path::{Path, PathBuf},
+};
 
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -47,6 +50,8 @@ pub enum BaseDirectory {
   /// The default App config directory.
   /// Resolves to ${CONFIG_DIR}/${APP_NAME}
   App,
+  /// The current working directory.
+  Current,
 }
 
 /// Resolves the path with the optional base directory.
@@ -79,6 +84,7 @@ pub fn resolve_path<P: AsRef<Path>>(path: P, dir: Option<BaseDirectory>) -> crat
       BaseDirectory::Video => video_dir(),
       BaseDirectory::Resource => resource_dir(),
       BaseDirectory::App => app_dir(),
+      BaseDirectory::Current => Some(env::current_dir()?),
     };
     if let Some(mut base_dir_path_value) = base_dir_path {
       base_dir_path_value.push(path);

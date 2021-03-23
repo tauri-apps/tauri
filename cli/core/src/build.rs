@@ -5,10 +5,10 @@ use crate::helpers::{
   config::get as get_config,
   execute_with_output,
   manifest::rewrite_manifest,
-  Logger, TauriScript,
+  Logger,
 };
 
-use std::{env::set_current_dir, fs::File, io::Write, path::PathBuf, process::Command};
+use std::{env::set_current_dir, fs::rename, path::PathBuf, process::Command};
 
 mod rust;
 
@@ -57,10 +57,6 @@ impl Build {
     let config_guard = config.lock().unwrap();
     let config_ = config_guard.as_ref().unwrap();
 
-    // __tauri.js
-    let tauri_script = TauriScript::new()
-      .global_tauri(config_.build.with_global_tauri)
-      .get();
     let web_asset_path = PathBuf::from(&config_.build.dist_dir);
     if !web_asset_path.exists() {
       return Err(anyhow::anyhow!(
@@ -68,9 +64,6 @@ impl Build {
         web_asset_path
       ));
     }
-    let tauri_script_path = web_asset_path.join("__tauri.js");
-    let mut tauri_script_file = File::create(tauri_script_path)?;
-    tauri_script_file.write_all(tauri_script.as_bytes())?;
 
     if let Some(before_build) = &config_.build.before_build_command {
       let mut cmd: Option<&str> = None;
@@ -98,13 +91,44 @@ impl Build {
 
     rust::build_project(self.debug)?;
 
+    let app_settings = rust::AppSettings::new(&config_)?;
+
+    let out_dir = app_settings.get_out_dir(self.debug)?;
+    if let Some(product_name) = config_.package.product_name.clone() {
+      let bin_name = app_settings.cargo_package_settings().name.clone();
+      #[cfg(windows)]
+      rename(
+        out_dir.join(format!("{}.exe", bin_name)),
+        out_dir.join(format!("{}.exe", product_name)),
+      )?;
+      #[cfg(not(windows))]
+      rename(out_dir.join(bin_name), out_dir.join(product_name))?;
+    }
+
     if config_.tauri.bundle.active {
-      let bundler_settings = rust::get_bundler_settings(&config_, self.debug)?;
+      // move merge modules to the out dir so the bundler can load it
+      #[cfg(windows)]
+      {
+        let (filename, vcruntime_msm) = if cfg!(target_arch = "x86") {
+          let _ = std::fs::remove_file(out_dir.join("Microsoft_VC142_CRT_x64.msm"));
+          (
+            "Microsoft_VC142_CRT_x86.msm",
+            include_bytes!("./MergeModules/Microsoft_VC142_CRT_x86.msm").to_vec(),
+          )
+        } else {
+          let _ = std::fs::remove_file(out_dir.join("Microsoft_VC142_CRT_x86.msm"));
+          (
+            "Microsoft_VC142_CRT_x64.msm",
+            include_bytes!("./MergeModules/Microsoft_VC142_CRT_x64.msm").to_vec(),
+          )
+        };
+        std::fs::write(out_dir.join(filename), vcruntime_msm)?;
+      }
       let mut settings_builder = SettingsBuilder::new()
-        .package_settings(bundler_settings.package_settings)
-        .bundle_settings(bundler_settings.bundle_settings)
-        .binaries(bundler_settings.binaries)
-        .project_out_directory(bundler_settings.out_dir);
+        .package_settings(app_settings.get_package_settings())
+        .bundle_settings(app_settings.get_bundle_settings(&config_)?)
+        .binaries(app_settings.get_binaries(&config_)?)
+        .project_out_directory(out_dir);
 
       if self.verbose {
         settings_builder = settings_builder.verbose();

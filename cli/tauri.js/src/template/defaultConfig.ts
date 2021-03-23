@@ -1,4 +1,8 @@
 export default {
+  package: {
+    productName: 'app',
+    version: '0.1.0'
+  },
   build: {
     distDir: '../dist',
     devPath: 'http://localhost:4000',

@@ -9,7 +9,6 @@ use once_cell::sync::Lazy;
 use std::{
   convert::{TryFrom, TryInto},
   path::PathBuf,
-  sync::{Arc, Mutex},
 };
 
 impl TryFrom<Icon> for wry::Icon {
@@ -203,10 +202,7 @@ impl From<wry::FileDropEvent> for FileDropEvent {
 }
 
 #[derive(Clone)]
-pub struct WryDispatcher(
-  Arc<Mutex<wry::WindowProxy>>,
-  Arc<Mutex<wry::ApplicationProxy>>,
-);
+pub struct WryDispatcher(wry::WindowProxy, wry::ApplicationProxy);
 
 impl ApplicationDispatcherExt for WryDispatcher {
   type WebviewBuilder = wry::Attributes;
@@ -224,7 +220,7 @@ impl ApplicationDispatcherExt for WryDispatcher {
       move |dispatcher: wry::WindowProxy, request: wry::RpcRequest| {
         if let Some(handler) = &rpc_handler {
           handler(
-            WryDispatcher(Arc::new(Mutex::new(dispatcher)), app_dispatcher.clone()),
+            WryDispatcher(dispatcher, app_dispatcher.clone()),
             request.into(),
           );
         }
@@ -242,8 +238,6 @@ impl ApplicationDispatcherExt for WryDispatcher {
 
     let window_dispatcher = self
       .1
-      .lock()
-      .unwrap()
       .add_window_with_configs(
         attributes,
         Some(wry_rpc_handler),
@@ -254,17 +248,12 @@ impl ApplicationDispatcherExt for WryDispatcher {
         Some(file_drop_handler),
       )
       .map_err(|_| crate::Error::FailedToSendMessage)?;
-    Ok(Self(
-      Arc::new(Mutex::new(window_dispatcher)),
-      self.1.clone(),
-    ))
+    Ok(Self(window_dispatcher, self.1.clone()))
   }
 
   fn set_resizable(&self, resizable: bool) -> crate::Result<()> {
     self
       .0
-      .lock()
-      .unwrap()
       .set_resizable(resizable)
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
@@ -272,8 +261,6 @@ impl ApplicationDispatcherExt for WryDispatcher {
   fn set_title<S: Into<String>>(&self, title: S) -> crate::Result<()> {
     self
       .0
-      .lock()
-      .unwrap()
       .set_title(title)
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
@@ -281,8 +268,6 @@ impl ApplicationDispatcherExt for WryDispatcher {
   fn maximize(&self) -> crate::Result<()> {
     self
       .0
-      .lock()
-      .unwrap()
       .maximize()
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
@@ -290,8 +275,6 @@ impl ApplicationDispatcherExt for WryDispatcher {
   fn unmaximize(&self) -> crate::Result<()> {
     self
       .0
-      .lock()
-      .unwrap()
       .unmaximize()
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
@@ -299,8 +282,6 @@ impl ApplicationDispatcherExt for WryDispatcher {
   fn minimize(&self) -> crate::Result<()> {
     self
       .0
-      .lock()
-      .unwrap()
       .minimize()
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
@@ -308,35 +289,21 @@ impl ApplicationDispatcherExt for WryDispatcher {
   fn unminimize(&self) -> crate::Result<()> {
     self
       .0
-      .lock()
-      .unwrap()
       .unminimize()
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn show(&self) -> crate::Result<()> {
-    self
-      .0
-      .lock()
-      .unwrap()
-      .show()
-      .map_err(|_| crate::Error::FailedToSendMessage)
+    self.0.show().map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn hide(&self) -> crate::Result<()> {
-    self
-      .0
-      .lock()
-      .unwrap()
-      .hide()
-      .map_err(|_| crate::Error::FailedToSendMessage)
+    self.0.hide().map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn close(&self) -> crate::Result<()> {
     self
       .0
-      .lock()
-      .unwrap()
       .close()
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
@@ -344,8 +311,6 @@ impl ApplicationDispatcherExt for WryDispatcher {
   fn set_decorations(&self, decorations: bool) -> crate::Result<()> {
     self
       .0
-      .lock()
-      .unwrap()
       .set_decorations(decorations)
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
@@ -353,8 +318,6 @@ impl ApplicationDispatcherExt for WryDispatcher {
   fn set_always_on_top(&self, always_on_top: bool) -> crate::Result<()> {
     self
       .0
-      .lock()
-      .unwrap()
       .set_always_on_top(always_on_top)
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
@@ -362,8 +325,6 @@ impl ApplicationDispatcherExt for WryDispatcher {
   fn set_width(&self, width: f64) -> crate::Result<()> {
     self
       .0
-      .lock()
-      .unwrap()
       .set_width(width)
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
@@ -371,8 +332,6 @@ impl ApplicationDispatcherExt for WryDispatcher {
   fn set_height(&self, height: f64) -> crate::Result<()> {
     self
       .0
-      .lock()
-      .unwrap()
       .set_height(height)
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
@@ -380,8 +339,6 @@ impl ApplicationDispatcherExt for WryDispatcher {
   fn resize(&self, width: f64, height: f64) -> crate::Result<()> {
     self
       .0
-      .lock()
-      .unwrap()
       .resize(width, height)
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
@@ -389,8 +346,6 @@ impl ApplicationDispatcherExt for WryDispatcher {
   fn set_min_size(&self, min_width: f64, min_height: f64) -> crate::Result<()> {
     self
       .0
-      .lock()
-      .unwrap()
       .set_min_size(min_width, min_height)
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
@@ -398,8 +353,6 @@ impl ApplicationDispatcherExt for WryDispatcher {
   fn set_max_size(&self, max_width: f64, max_height: f64) -> crate::Result<()> {
     self
       .0
-      .lock()
-      .unwrap()
       .set_max_size(max_width, max_height)
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
@@ -407,8 +360,6 @@ impl ApplicationDispatcherExt for WryDispatcher {
   fn set_x(&self, x: f64) -> crate::Result<()> {
     self
       .0
-      .lock()
-      .unwrap()
       .set_x(x)
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
@@ -416,8 +367,6 @@ impl ApplicationDispatcherExt for WryDispatcher {
   fn set_y(&self, y: f64) -> crate::Result<()> {
     self
       .0
-      .lock()
-      .unwrap()
       .set_y(y)
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
@@ -425,8 +374,6 @@ impl ApplicationDispatcherExt for WryDispatcher {
   fn set_position(&self, x: f64, y: f64) -> crate::Result<()> {
     self
       .0
-      .lock()
-      .unwrap()
       .set_position(x, y)
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
@@ -434,8 +381,6 @@ impl ApplicationDispatcherExt for WryDispatcher {
   fn set_fullscreen(&self, fullscreen: bool) -> crate::Result<()> {
     self
       .0
-      .lock()
-      .unwrap()
       .set_fullscreen(fullscreen)
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
@@ -443,8 +388,6 @@ impl ApplicationDispatcherExt for WryDispatcher {
   fn set_icon(&self, icon: Icon) -> crate::Result<()> {
     self
       .0
-      .lock()
-      .unwrap()
       .set_icon(icon.try_into()?)
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
@@ -452,8 +395,6 @@ impl ApplicationDispatcherExt for WryDispatcher {
   fn eval_script<S: Into<String>>(&self, script: S) -> crate::Result<()> {
     self
       .0
-      .lock()
-      .unwrap()
       .evaluate_script(script)
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
@@ -485,14 +426,14 @@ impl ApplicationExt for WryApplication {
     custom_protocol: Option<CustomProtocol>,
     file_drop_handler: Option<FileDropHandler>,
   ) -> crate::Result<Self::Dispatcher> {
-    let app_dispatcher = Arc::new(Mutex::new(self.inner.application_proxy()));
+    let app_dispatcher = self.inner.application_proxy();
 
     let app_dispatcher_ = app_dispatcher.clone();
     let wry_rpc_handler = Box::new(
       move |dispatcher: wry::WindowProxy, request: wry::RpcRequest| {
         if let Some(handler) = &rpc_handler {
           handler(
-            WryDispatcher(Arc::new(Mutex::new(dispatcher)), app_dispatcher_.clone()),
+            WryDispatcher(dispatcher, app_dispatcher_.clone()),
             request.into(),
           );
         }
@@ -520,10 +461,7 @@ impl ApplicationExt for WryApplication {
         Some(file_drop_handler),
       )
       .map_err(|_| crate::Error::CreateWebview)?;
-    Ok(WryDispatcher(
-      Arc::new(Mutex::new(dispatcher)),
-      app_dispatcher,
-    ))
+    Ok(WryDispatcher(dispatcher, app_dispatcher))
   }
 
   fn run(self) {

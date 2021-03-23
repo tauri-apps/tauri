@@ -1,10 +1,8 @@
 use std::{
-  env,
   env::current_dir,
   error::Error,
-  fs::{read_to_string, File},
+  fs::File,
   io::{BufWriter, Write},
-  path::Path,
 };
 
 mod config_definition;

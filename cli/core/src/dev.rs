@@ -12,9 +12,6 @@ use shared_child::SharedChild;
 use std::{
   env::set_current_dir,
   ffi::OsStr,
-  fs::{create_dir_all, File},
-  io::Write,
-  path::PathBuf,
   process::{exit, Child, Command},
   sync::{
     mpsc::{channel, Receiver},

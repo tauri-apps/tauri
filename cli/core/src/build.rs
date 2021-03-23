@@ -8,13 +8,7 @@ use crate::helpers::{
   Logger,
 };
 
-use std::{
-  env::set_current_dir,
-  fs::{rename, File},
-  io::Write,
-  path::PathBuf,
-  process::Command,
-};
+use std::{env::set_current_dir, fs::rename, path::PathBuf, process::Command};
 
 mod rust;
 

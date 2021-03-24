@@ -12,10 +12,10 @@ describe('[CLI] tauri.js template', () => {
 
     process.chdir(fixturePath)
 
-    const init = require('api/init')
+    const { init, build } = require('dist/api/cli')
     init({
       directory: process.cwd(),
-      force: 'all',
+      force: true,
       tauriPath: resolve(__dirname, '../../../../..')
     })
 
@@ -25,7 +25,6 @@ describe('[CLI] tauri.js template', () => {
     const manifestFile = readFileSync(manifestPath).toString()
     writeFileSync(manifestPath, `workspace = { }\n\n${manifestFile}`)
 
-    const { build } = require('dist/api/cli')
     await build({
       config: {
         tauri: {

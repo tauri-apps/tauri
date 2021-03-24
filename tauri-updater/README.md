@@ -17,7 +17,7 @@ Tauri's installer is also designed to be fault-tolerant, and ensure that any upd
 
 Once you have your Tauri project ready, you need to configure the updater.
 
-Add this in tauri.config.json
+Add this in tauri.conf.json
 ```json
 "updater": {
     "active": true,
@@ -65,7 +65,7 @@ If the user accepts, the download and install are initialized. The user will be 
 
 ## Javascript API
 
-**Attention, you need to _disable built-in dialog_ in your [tauri configuration](#configuration), otherwise, events aren't emitted and the javascript API will NOT.**
+**Attention, you need to _disable built-in dialog_ in your [tauri configuration](#configuration), otherwise, events aren't emitted and the javascript API will NOT work.**
 
 
 ```
@@ -77,6 +77,7 @@ try {
     if (shouldUpdate) {
         // display dialog
         await installUpdate();
+        // install complete, ask to restart
     }
 } catch(error) {
     console.log(error);
@@ -235,13 +236,13 @@ The alternate update technique uses a plain JSON file meaning you can store your
 
 # Bundler (Artifacts)
 
-The Tauri bundler will automatically generate update artifacts if the updater is enabled in your tauri.config.js
+The Tauri bundler will automatically generate update artifacts if the updater is enabled in `tauri.conf.json`
 
 If the bundler can locate your private and pubkey, your update artifacts will be automatically signed.
 
 The signature can be found in the `sig` file. The signature can be uploaded to GitHub safely or made public as long as your private key is secure.
 
-You can see how it's [bundled with the CI](https://github.com/tauri-apps/tauri/blob/feature/new_updater/.github/workflows/artifacts-updater.yml#L44)
+You can see how it's [bundled with the CI](https://github.com/tauri-apps/tauri/blob/feature/new_updater/.github/workflows/artifacts-updater.yml#L44) and a [sample tauri.conf.json](https://github.com/tauri-apps/tauri/blob/feature/new_updater/examples/updater/src-tauri/tauri.conf.json#L52)
 
 ## macOS
 
@@ -284,11 +285,11 @@ We offer a built-in signature to ensure your update is safe to be installed.
 
 To sign your updates, you need two things.
 
-The *Public-key* (pubkey) should be added inside your tauri.config.json to validate the update archive before installing.
+The *Public-key* (pubkey) should be added inside your `tauri.conf.json` to validate the update archive before installing.
 
-The *Private key* (privkey) is used to sign your update and should NEVER be shared with anyone. Also, if you lost this key, you'll NOT be able to publish a new update to the current user base (if pubkey is set in tauri.config.json). It's important to save it at a safe place and you can always access it.
+The *Private key* (privkey) is used to sign your update and should NEVER be shared with anyone. Also, if you lost this key, you'll NOT be able to publish a new update to the current user base (if pubkey is set in tauri.conf.json). It's important to save it at a safe place and you can always access it.
 
-To generate your keys you need to use the Tauri cli. (will be built in Tauri main CLI soon)
+To generate your keys you need to use the Tauri cli.
 
 ```bash
 tauri sign -g -w ~/.tauri/myapp.key
@@ -296,6 +297,11 @@ tauri sign -g -w ~/.tauri/myapp.key
 
 You have multiple options available
 ```bash
+Tauri updates signer.
+
+USAGE:
+    tauri sign [FLAGS] [OPTIONS]
+
 FLAGS:
         --force          Overwrite private key even if it exists on the specified path
     -g, --generate       Generate keypair to sign files
@@ -304,17 +310,19 @@ FLAGS:
     -V, --version        Prints version information
 
 OPTIONS:
-    -b, --binary <binary>                        Sign the specified binary
     -p, --password <password>                    Set private key password when signing
     -k, --private-key <private-key>              Load the private key from a string
     -f, --private-key-path <private-key-path>    Load the private key from a file
+        --sign-file <sign-file>                  Sign the specified file
     -w, --write-keys <write-keys>                Write private key to a file
 ```
 
 ***
 
-Environment variables used to sign:
+Environment variables used to sign with `tauri-bundler`:
+If they are set, and `tauri.conf.json` expose the public key, the bundler will automatically generate and sign the updater artifacts.
 
 `TAURI_PRIVATE_KEY`  Path or String of your private key
 
 `TAURI_KEY_PASSWORD`  Your private key password (optional)
+

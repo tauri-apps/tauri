@@ -89,7 +89,7 @@ fn info_command() -> Result<()> {
 fn sign_command(matches: &ArgMatches) -> Result<()> {
   let private_key = matches.value_of("private-key");
   let private_key_path = matches.value_of("private-key-path");
-  let binary = matches.value_of("binary");
+  let file = matches.value_of("sign-file");
   let password = matches.value_of("password");
   let no_password = matches.is_present("no-password");
   let write_keys = matches.value_of("write-keys");
@@ -128,8 +128,8 @@ fn sign_command(matches: &ArgMatches) -> Result<()> {
     sign_runner = sign_runner.private_key_path(private_key_path);
   }
 
-  if let Some(binary) = binary {
-    sign_runner = sign_runner.binary(binary);
+  if let Some(file) = file {
+    sign_runner = sign_runner.file_to_sign(file);
   }
 
   if let Some(password) = password {

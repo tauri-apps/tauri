@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 pub struct Signer {
   private_key: Option<String>,
   password: Option<String>,
-  binary: Option<PathBuf>,
+  file: Option<PathBuf>,
 }
 
 impl Signer {
@@ -30,8 +30,8 @@ impl Signer {
     self
   }
 
-  pub fn binary(mut self, binary: &str) -> Self {
-    self.binary = Some(Path::new(binary).to_path_buf());
+  pub fn file_to_sign(mut self, file_path: &str) -> Self {
+    self.file = Some(Path::new(file_path).to_path_buf());
     self
   }
 
@@ -57,7 +57,7 @@ impl Signer {
     let (manifest_dir, signature) = sign_file(
       self.private_key.unwrap(),
       self.password.unwrap(),
-      self.binary.unwrap(),
+      self.file.unwrap(),
       false,
     )?;
 

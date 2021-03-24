@@ -47,10 +47,9 @@ subcommands:
                     short: g
                     long: generate
                     about: Generate keypair to sign files
-                - binary:
-                    short: b
-                    long: binary
-                    about: Sign the specified binary
+                - sign-file:
+                    long: sign-file
+                    about: Sign the specified file
                     takes_value: true
                 - private-key-path:
                     short: f
@@ -64,7 +63,7 @@ subcommands:
                     about: Load the private key from a string
                     takes_value: true
                     conflicts_with: private-key-path
-                    requires: binary
+                    requires: sign-file
                 - write-keys:
                     short: w
                     long: write-keys

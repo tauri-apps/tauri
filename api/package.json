@@ -60,7 +60,6 @@
     "@rollup/plugin-commonjs": "17.1.0",
     "@rollup/plugin-node-resolve": "11.2.0",
     "@rollup/plugin-sucrase": "3.1.0",
-    "@rollup/plugin-typescript": "8.2.0",
     "@typescript-eslint/eslint-plugin": "4.19.0",
     "@typescript-eslint/parser": "4.19.0",
     "eslint": "7.22.0",
@@ -79,8 +78,9 @@
     "rimraf": "3.0.2",
     "rollup": "2.42.3",
     "rollup-plugin-terser": "7.0.2",
-    "tslib": "2.1.0",
-    "typescript": "4.2.3"
+    "rollup-plugin-typescript2": "^0.30.0",
+    "tslib": "^2.1.0",
+    "typescript": "^4.2.3"
   },
   "resolutions": {
     "**/lodash": ">=4.17.19"

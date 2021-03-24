@@ -4,7 +4,7 @@ import resolve from '@rollup/plugin-node-resolve'
 import commonjs from '@rollup/plugin-commonjs'
 import sucrase from '@rollup/plugin-sucrase'
 import babel, { getBabelOutputPlugin } from '@rollup/plugin-babel'
-import typescript from '@rollup/plugin-typescript'
+import typescript from 'rollup-plugin-typescript2'
 import pkg from './package.json'
 
 export default [
@@ -46,12 +46,10 @@ export default [
       resolve({
         // pass custom options to the resolve plugin
         customResolveOptions: {
-          moduleDirectory: 'node_modules'
+          moduleDirectories: ['node_modules']
         }
       }),
-      typescript({
-        tsconfig: './tsconfig.json'
-      }),
+      typescript(),
       babel({
         configFile: false,
         presets: [['@babel/preset-env'], ['@babel/preset-typescript']]
@@ -91,7 +89,7 @@ export default [
       resolve({
         // pass custom options to the resolve plugin
         customResolveOptions: {
-          moduleDirectory: 'node_modules'
+          moduleDirectories: ['node_modules']
         }
       })
     ],

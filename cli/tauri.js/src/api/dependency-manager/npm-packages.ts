@@ -5,7 +5,8 @@ import {
   installNpmPackage,
   installNpmDevPackage,
   updateNpmPackage,
-  semverLt
+  semverLt,
+  useYarn
 } from './util'
 import logger from '../../helpers/logger'
 import { resolve } from '../../helpers/app-paths'
@@ -42,11 +43,12 @@ async function manageDependencies(
           managementType === ManagementType.Install ||
           managementType === ManagementType.InstallDev
         ) {
+          const packageManager = (await useYarn()) ? 'YARN' : 'NPM'
           const inquired = (await inquirer.prompt([
             {
               type: 'confirm',
               name: 'answer',
-              message: `[NPM]: "Do you want to install ${dependency} ${
+              message: `[${packageManager}]: "Do you want to install ${dependency} ${
                 managementType === ManagementType.InstallDev
                   ? 'as dev-dependency'
                   : ''

@@ -117,6 +117,7 @@ function semverLt(first: string, second: string): boolean {
 }
 
 export {
+  useYarn,
   getCrateLatestVersion,
   getNpmLatestVersion,
   getNpmPackageVersion,

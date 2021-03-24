@@ -46,7 +46,7 @@ export default [
       resolve({
         // pass custom options to the resolve plugin
         customResolveOptions: {
-          moduleDirectory: 'node_modules'
+          moduleDirectories: ['node_modules']
         }
       }),
       typescript({
@@ -91,7 +91,7 @@ export default [
       resolve({
         // pass custom options to the resolve plugin
         customResolveOptions: {
-          moduleDirectory: 'node_modules'
+          moduleDirectories: ['node_modules']
         }
       })
     ],

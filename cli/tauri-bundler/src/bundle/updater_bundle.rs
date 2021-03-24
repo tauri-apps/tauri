@@ -17,83 +17,22 @@ use std::io::prelude::*;
 #[cfg(target_os = "windows")]
 use zip::write::FileOptions;
 
-use crate::Settings;
+use crate::{bundle::Bundle, Settings};
 use std::{
   ffi::OsStr,
   fs::{self},
   io::Write,
 };
 
-use crate::sign::{read_key_from_file, sign_file};
 use anyhow::Context;
-use std::{
-  env,
-  path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 // Build update
-pub fn bundle_project(
-  settings: &Settings,
-  existing_paths: Vec<PathBuf>,
-) -> crate::Result<Vec<PathBuf>> {
+pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
   if cfg!(unix) || cfg!(windows) || cfg!(macos) {
     // Create our archive bundle
-    let bundle_result = bundle_update(settings, existing_paths)?;
-    // Clone it we need it later to push into
-    let mut bundle_result_return = bundle_result.clone();
-
-    // Sign updater archive
-    if settings.is_updater_pubkey() {
-      let secret_key_password: Option<String>;
-      let private_key: Option<String>;
-
-      // Private key password
-      match env::var_os("TAURI_KEY_PASSWORD") {
-        Some(value) => {
-          secret_key_password = Some(String::from(value.to_str().unwrap()));
-        }
-        None => secret_key_password = Some("".to_string()),
-      }
-
-      // make sure we have a private key available
-      // Private key can be a path or a String
-      match env::var_os("TAURI_PRIVATE_KEY") {
-        Some(value) => {
-          // check if this file exist..
-          let pk_string = String::from(value.to_str().unwrap());
-          let pk_dir = Path::new(&pk_string);
-
-          if pk_dir.exists() {
-            // read file content
-            let pk_dir_content = read_key_from_file(pk_dir)?;
-            private_key = Some(pk_dir_content);
-          } else {
-            private_key = Some(pk_string);
-          }
-        }
-        None => private_key = None,
-      }
-
-      // Loop only if we have a private key
-      if private_key.is_some() {
-        for path_to_sign in &bundle_result {
-          let (signature, _) = sign_file(
-            private_key.clone().unwrap(),
-            secret_key_password.clone().unwrap(),
-            path_to_sign,
-            false,
-          )?;
-
-          let mut added_buffer = PathBuf::new();
-          added_buffer.push(signature);
-          bundle_result_return.push(added_buffer);
-        }
-      } else {
-        // Print output so they are aware of...
-        common::print_warning("A public key has been found, but no private key. Make sure to set `TAURI_PRIVATE_KEY` environment variable.")?;
-      }
-    }
-    Ok(bundle_result_return)
+    let bundle_result = bundle_update(settings, bundles)?;
+    Ok(bundle_result)
   } else {
     common::print_info("Current platform do not support updates")?;
     Ok(vec![])
@@ -103,23 +42,27 @@ pub fn bundle_project(
 // Create simple update-macos.tar.gz
 // This is the Mac OS App packaged
 #[cfg(target_os = "macos")]
-fn bundle_update(settings: &Settings, existing_paths: Vec<PathBuf>) -> crate::Result<Vec<PathBuf>> {
+fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
   // find our .app or rebuild our bundle
-  let mut osx_bundled = Vec::new();
-  match existing_paths
+  let bundle_path = match bundles
     .iter()
-    .position(|path| path.extension() == Some(OsStr::new("app")))
-  {
-    Some(key) => osx_bundled.push(existing_paths[key].clone()),
-    None => osx_bundled = osx_bundle::bundle_project(settings)?,
-  }
+    .filter(|bundle| bundle.package_type == crate::PackageType::OsxBundle)
+    .find_map(|bundle| {
+      bundle
+        .bundle_paths
+        .iter()
+        .find(|path| path.extension() == Some(OsStr::new("app")))
+    }) {
+    Some(path) => vec![path.clone()],
+    None => osx_bundle::bundle_project(settings)?,
+  };
 
-  // we expect our .app to be on osx_bundled[0]
-  if osx_bundled.is_empty() {
+  // we expect our .app to be on bundle_path[0]
+  if bundle_path.is_empty() {
     return Err(crate::Error::UnableToFindProject);
   }
 
-  let source_path = &osx_bundled[0];
+  let source_path = &bundle_path[0];
 
   // add .tar.gz to our path
   let osx_archived = format!("{}.tar.gz", source_path.display());
@@ -142,23 +85,27 @@ fn bundle_update(settings: &Settings, existing_paths: Vec<PathBuf>) -> crate::Re
 // Right now in linux we hot replace the bin and request a restart
 // No assets are replaced
 #[cfg(target_os = "linux")]
-fn bundle_update(settings: &Settings, existing_paths: Vec<PathBuf>) -> crate::Result<Vec<PathBuf>> {
+fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
   // build our app actually we support only appimage on linux
-  let mut appimage_bundle = Vec::new();
-  match existing_paths
+  let bundle_path = match bundles
     .iter()
-    .position(|path| path.extension() == Some(OsStr::new("AppImage")))
-  {
-    Some(key) => appimage_bundle.push(existing_paths[key].clone()),
-    None => appimage_bundle = appimage_bundle::bundle_project(settings)?,
-  }
+    .filter(|bundle| bundle.package_type == crate::PackageType::AppImage)
+    .find_map(|bundle| {
+      bundle
+        .bundle_paths
+        .iter()
+        .find(|path| path.extension() == Some(OsStr::new("AppImage")))
+    }) {
+    Some(path) => vec![path.clone()],
+    None => appimage_bundle::bundle_project(settings)?,
+  };
 
-  // we expect our .app to be on osx_bundled[0]
-  if appimage_bundle.is_empty() {
+  // we expect our .app to be on bundle[0]
+  if bundle_path.is_empty() {
     return Err(crate::Error::UnableToFindProject);
   }
 
-  let source_path = &appimage_bundle[0];
+  let source_path = &bundle_path[0];
 
   // add .tar.gz to our path
   let appimage_archived = format!("{}.tar.gz", source_path.display());
@@ -177,23 +124,27 @@ fn bundle_update(settings: &Settings, existing_paths: Vec<PathBuf>) -> crate::Re
 // Right now in windows we hot replace the bin and request a restart
 // No assets are replaced
 #[cfg(target_os = "windows")]
-fn bundle_update(settings: &Settings, existing_paths: Vec<PathBuf>) -> crate::Result<Vec<PathBuf>> {
+fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
   // find our .msi or rebuild
-  let mut msi_path = Vec::new();
-  match existing_paths
+  let bundle_path = match bundles
     .iter()
-    .position(|path| path.extension() == Some(OsStr::new("msi")))
-  {
-    Some(key) => msi_path.push(existing_paths[key].clone()),
-    None => msi_path = msi_bundle::bundle_project(settings)?,
-  }
+    .filter(|bundle| bundle.package_type == crate::PackageType::WindowsMsi)
+    .find_map(|bundle| {
+      bundle
+        .bundle_paths
+        .iter()
+        .find(|path| path.extension() == Some(OsStr::new("msi")))
+    }) {
+    Some(path) => vec![path.clone()],
+    None => msi_bundle::bundle_project(settings)?,
+  };
 
-  // we expect our .msi to be on msi_path[0]
-  if msi_path.is_empty() {
+  // we expect our .msi to be on bundle_path[0]
+  if bundle_path.is_empty() {
     return Err(crate::Error::UnableToFindProject);
   }
 
-  let source_path = &msi_path[0];
+  let source_path = &bundle_path[0];
 
   // add .tar.gz to our path
   let msi_archived = format!("{}.zip", source_path.display());

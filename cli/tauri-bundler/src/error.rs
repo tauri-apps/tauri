@@ -56,15 +56,6 @@ pub enum Error {
   /// No bundled project found for the updater.
   #[error("Unable to find a bundled project for the updater")]
   UnableToFindProject,
-  /// Error with Minisign base64 encoding.
-  #[error("Updater signature decoding Error: {0}")]
-  DecodeError(#[from] base64::DecodeError),
-  /// UTF8 Errors in signature.
-  #[error("Updater signature encoding Error: {0}")]
-  Utf8(#[from] std::str::Utf8Error),
-  /// Minisign is used for updater signatures
-  #[error("Updater signing Error: `{0}`")]
-  MiniSign(#[from] minisign::PError),
 }
 
 pub type Result<T> = anyhow::Result<T, Error>;

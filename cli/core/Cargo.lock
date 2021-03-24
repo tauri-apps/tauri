@@ -1732,7 +1732,6 @@ dependencies = [
  "anyhow",
  "ar",
  "attohttpc",
- "base64",
  "chrono",
  "dirs-next",
  "glob",
@@ -1743,7 +1742,6 @@ dependencies = [
  "lazy_static",
  "libflate",
  "md5",
- "minisign",
  "regex",
  "serde",
  "serde_json",
@@ -1763,10 +1761,12 @@ name = "tauri-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64",
  "clap",
  "colored",
  "heck",
  "json-patch",
+ "minisign",
  "notify",
  "once_cell",
  "schemars",

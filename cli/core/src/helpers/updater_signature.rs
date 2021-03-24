@@ -3,8 +3,9 @@ extern crate minisign;
 use base64::{decode, encode};
 use minisign::{sign, KeyPair as KP, SecretKeyBox};
 use std::{
+  env::var_os,
   fs::{self, File, OpenOptions},
-  io::{BufReader, Write},
+  io::{BufReader, BufWriter, Write},
   path::{Path, PathBuf},
   str,
   time::{SystemTime, UNIX_EPOCH},
@@ -56,10 +57,10 @@ where
 
   if sk_path.exists() {
     if !force {
-      return Err(crate::Error::GenericError(format!(
+      return Err(anyhow::anyhow!(
         "Key generation aborted:\n{} already exists\nIf you really want to overwrite the existing key pair, add the --force switch to force this operation.",
         sk_path.display()
-      )));
+      ));
     } else {
       std::fs::remove_file(&sk_path)?;
     }
@@ -69,11 +70,11 @@ where
     std::fs::remove_file(&pk_path)?;
   }
 
-  let mut sk_writer = crate::bundle::common::create_file(&sk_path)?;
+  let mut sk_writer = create_file(&sk_path)?;
   write!(sk_writer, "{:}", key)?;
   sk_writer.flush()?;
 
-  let mut pk_writer = crate::bundle::common::create_file(&pk_path)?;
+  let mut pk_writer = create_file(&pk_path)?;
   write!(pk_writer, "{:}", pubkey)?;
   pk_writer.flush()?;
 
@@ -106,7 +107,7 @@ where
   let signature_path_string = format!("{}.sig", bin_path.as_ref().display());
   let signature_path = Path::new(&signature_path_string);
 
-  let mut signature_box_writer = super::bundle::common::create_file(&signature_path)?;
+  let mut signature_box_writer = create_file(&signature_path)?;
 
   let trusted_comment = format!(
     "timestamp:{}\tfile:{}",
@@ -131,6 +132,34 @@ where
   Ok((fs::canonicalize(&signature_path)?, encoded_signature))
 }
 
+/// Sign files using the TAURI_KEY_PASSWORD and TAURI_PRIVATE_KEY environment variables
+pub fn sign_file_from_env_variables<P>(path_to_sign: P) -> crate::Result<(PathBuf, String)>
+where
+  P: AsRef<Path>,
+{
+  // if no password provided we set empty string
+  let password_string = match var_os("TAURI_KEY_PASSWORD") {
+    Some(value) => String::from(value.to_str().unwrap()),
+    None => "".into(),
+  };
+  // get the private key
+  if let Some(private_key) = var_os("TAURI_PRIVATE_KEY") {
+    // check if this file exist..
+    let mut private_key_string = String::from(private_key.to_str().unwrap());
+    let pk_dir = Path::new(&private_key_string);
+    // Check if user provided a path or a key
+    // We validate if the path exist or no.
+    if pk_dir.exists() {
+      // read file content as use it as private key
+      private_key_string = read_key_from_file(pk_dir)?;
+    }
+    // sign our file
+    return sign_file(private_key_string, password_string, path_to_sign, false);
+  }
+  // reject if we don't have the private key
+  Err(anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_PRIVATE_KEY` environment variable."))
+}
+
 fn unix_timestamp() -> u64 {
   let start = SystemTime::now();
   let since_the_epoch = start
@@ -153,4 +182,12 @@ where
     Err(_) => true,
   };
   Ok((BufReader::new(file), should_be_hashed))
+}
+
+fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
+  if let Some(parent) = path.parent() {
+    fs::create_dir_all(&parent)?;
+  }
+  let file = File::create(path)?;
+  Ok(BufWriter::new(file))
 }

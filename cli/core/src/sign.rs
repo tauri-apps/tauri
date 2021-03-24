@@ -1,5 +1,7 @@
+use crate::helpers::updater_signature::{
+  generate_key, read_key_from_file, save_keypair, sign_file,
+};
 use std::path::{Path, PathBuf};
-use tauri_bundler::sign::{generate_key, read_key_from_file, save_keypair, sign_file};
 
 #[derive(Default)]
 pub struct Signer {

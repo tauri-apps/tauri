@@ -26,6 +26,8 @@ json-patch = "0.2"
 schemars = "0.8"
 toml = "0.5.8"
 valico = "3.6"
+minisign = "0.6"
+base64 = "0.13.0"
 
 [build-dependencies]
 schemars = "0.8"

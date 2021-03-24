@@ -39,7 +39,6 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 
   let product_name = &format!("{}.app", &package_base_name);
   let bundle_dir = settings.project_out_directory().join("bundle/osx");
-  let bundle_path = bundle_dir.join(&product_name.clone());
 
   let support_directory_path = output_path.join("support");
   if output_path.exists() {
@@ -139,5 +138,5 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   })?;
 
   fs::rename(bundle_dir.join(dmg_name), dmg_path.clone())?;
-  Ok(vec![bundle_path, dmg_path])
+  Ok(vec![dmg_path])
 }

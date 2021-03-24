@@ -13,12 +13,12 @@ describe('[CLI] tauri.js template', () => {
     process.chdir(fixturePath)
 
     const { init, build } = require('dist/api/cli')
-    init({
+    await init({
       directory: process.cwd(),
       force: true,
       tauriPath: resolve(__dirname, '../../../../..'),
       ci: true
-    })
+    }).promise
 
     process.chdir(tauriFixturePath)
 

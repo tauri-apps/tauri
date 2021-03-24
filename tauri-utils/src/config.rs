@@ -349,12 +349,16 @@ fn default_window_config() -> Vec<WindowConfig> {
 #[serde(tag = "tauri", rename_all = "camelCase")]
 pub struct TauriConfig {
   /// The window configuration.
+  #[serde(default = "default_window_config")]
   pub windows: Vec<WindowConfig>,
   /// The CLI configuration.
+  #[serde(default)]
   pub cli: Option<CliConfig>,
   /// The bundler configuration.
+  #[serde(default)]
   pub bundle: BundleConfig,
   /// The updater configuration.
+  #[serde(default)]
   pub updater: UpdaterConfig,
 }
 

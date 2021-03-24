@@ -2,9 +2,11 @@
 
 const cmds = ['init', 'help', 'icon', 'info', 'deps']
 const rustCliCmds = ['dev', 'build']
-
+const fs = require('fs');
 const cmd = process.argv[2]
-
+const chalk = require('chalk');
+const package = require('../package.json');
+const figlet = require('figlet'); // ascii art 
 /**
  * @description This is the bootstrapper that in turn calls subsequent
  * Tauri Commands
@@ -32,24 +34,27 @@ const tauri = function (command) {
     command === '--help' ||
     command === 'help'
   ) {
-    console.log(`
-    Description
-      This is the Tauri CLI.
-    Usage
-      $ tauri ${cmds.join('|')}
-    Options
-      --help, -h     Displays this message
-      --version, -v  Displays the Tauri CLI version
-    `)
+    
+    console.log(chalk.cyan(figlet.textSync('Tauri')));
+    console.log(chalk.green('Description'))
+    console.log('This is the Tauri CLI');
+    console.log(chalk.magenta('Usage'));
+    console.log('$ tauri ${cmds.join('|')}')
+    console.log(chalk.blue('Options'))
+    console.log('--help, -h     Displays this message \n  --version, -v  Displays the Tauri CLI version');
     process.exit(0)
     // eslint-disable-next-line no-unreachable
     return false // do this for node consumers and tests
   }
 
   if (command === '-v' || command === '--version') {
-    console.log(require('../package.json').version)
+    console.log(chalk.green(`${package.version}`));
+    // also added colors to beautify the cli
     return false // do this for node consumers and tests
   }
+  if (command ==='-no-update-notifier || command === '--no-update-notifier'){
+      const noUpdates = true;
+      }
 
   if (cmds.includes(command)) {
     if (process.argv && !process.env.test) {
@@ -66,6 +71,12 @@ const tauri = function (command) {
     console.log(`Invalid command ${command}. Use one of ${cmds.join(', ')}.`)
   }
 }
+// notifying updates.
+const pkg = JSON.parse(fs.readFileSync(__dirname + '/../package.json')); 
+if (pkg.version.indexOf('0.0.0') !== 0 && noUpdates !== true) {
+  require('update-notifier')({ pkg }).notify();
+}
+
 module.exports = {
   tauri
 }

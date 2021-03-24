@@ -5,11 +5,12 @@ use minisign::{sign, KeyPair as KP, SecretKeyBox};
 use std::{
   env::var_os,
   fs::{self, File, OpenOptions},
-  io::{BufReader, BufWriter, Write},
+  io::{BufReader, Write},
   path::{Path, PathBuf},
   str,
   time::{SystemTime, UNIX_EPOCH},
 };
+use tauri_bundler::bundle::common::create_file;
 
 /// A key pair (`PublicKey` and `SecretKey`).
 #[derive(Clone, Debug)]
@@ -182,12 +183,4 @@ where
     Err(_) => true,
   };
   Ok((BufReader::new(file), should_be_hashed))
-}
-
-fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
-  if let Some(parent) = path.parent() {
-    fs::create_dir_all(&parent)?;
-  }
-  let file = File::create(path)?;
-  Ok(BufWriter::new(file))
 }

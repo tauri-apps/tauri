@@ -16,7 +16,8 @@ describe('[CLI] tauri.js template', () => {
     init({
       directory: process.cwd(),
       force: true,
-      tauriPath: resolve(__dirname, '../../../../..')
+      tauriPath: resolve(__dirname, '../../../../..'),
+      ci: true
     })
 
     process.chdir(tauriFixturePath)

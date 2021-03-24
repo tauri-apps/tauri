@@ -15,7 +15,7 @@ macro_rules! value_or_prompt {
     let mut init_runner = $init_runner;
     if let Some(value) = $value {
       init_runner = init_runner.$setter_fn(value);
-    } else if $ci {
+    } else if !$ci {
       let input = Input::<String>::new()
         .with_prompt($prompt_message)
         .interact_text()?;

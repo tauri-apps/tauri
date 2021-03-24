@@ -24,15 +24,14 @@ async function manageDependencies(
     } else if (managementType === ManagementType.Update) {
       const latestVersion = await getCrateLatestVersion(dependency)
       if (semverLt(currentVersion, latestVersion)) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        const inquired = await inquirer.prompt([
+        const inquired = (await inquirer.prompt([
           {
             type: 'confirm',
             name: 'answer',
             message: `[CARGO COMMANDS] "${dependency}" latest version is ${latestVersion}. Do you want to update?`,
             default: false
           }
-        ])
+        ])) as { answer: boolean }
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         if (inquired.answer) {
           spawnSync('cargo', ['install', dependency, '--force'])

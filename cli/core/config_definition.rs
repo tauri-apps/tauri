@@ -258,7 +258,7 @@ fn default_decorations() -> bool {
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SecurityConfig {
-  csp: Option<String>,
+  pub csp: Option<String>,
 }
 
 trait Allowlist {

@@ -529,6 +529,10 @@ pub struct UpdaterConfig {
   pub pubkey: Option<String>,
 }
 
+// We enable the unnecessary_wraps because we need
+// to use an Option for dialog otherwise the CLI schema will mark
+// the dialog as a required field which is not as we default it to true.
+#[allow(clippy::unnecessary_wraps)]
 fn default_dialog() -> Option<bool> {
   Some(true)
 }

@@ -26,6 +26,9 @@ json-patch = "0.2"
 schemars = "0.8"
 toml = "0.5.8"
 valico = "3.6"
+handlebars = "3.5"
+include_dir = "0.6"
+dialoguer = "0.8"
 
 [build-dependencies]
 schemars = "0.8"

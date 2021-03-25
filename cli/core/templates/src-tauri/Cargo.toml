@@ -12,12 +12,12 @@ build = "src/build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = <%= tauriBuildDep %>
+tauri-build = {{{  tauri_build_dep  }}}
 
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-tauri = <%= tauriDep %>
+tauri = {{{  tauri_dep  }}}
 
 [features]
 default = [ "custom-protocol" ]

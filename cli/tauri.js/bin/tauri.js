@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const cmds = ['init', 'help', 'icon', 'info', 'deps']
-const rustCliCmds = ['dev', 'build']
+const cmds = ['help', 'icon', 'info', 'deps']
+const rustCliCmds = ['dev', 'build', 'init']
 
 const cmd = process.argv[2]
 
@@ -22,7 +22,14 @@ const tauri = function (command) {
     if (process.argv && !process.env.test) {
       process.argv.splice(0, 3)
     }
-    runOnRustCli(command, process.argv || [])
+    runOnRustCli(command, process.argv || []).promise.then(() => {
+      if (command === 'init') {
+        const {
+          installDependencies
+        } = require('../dist/api/dependency-manager')
+        return installDependencies()
+      }
+    })
     return
   }
 
@@ -57,11 +64,7 @@ const tauri = function (command) {
     }
     console.log(`[tauri]: running ${command}`)
     // eslint-disable-next-line security/detect-non-literal-require
-    if (['init'].includes(command)) {
-      require(`./tauri-${command}`)(process.argv.slice(2))
-    } else {
-      require(`./tauri-${command}`)
-    }
+    require(`./tauri-${command}`)
   } else {
     console.log(`Invalid command ${command}. Use one of ${cmds.join(', ')}.`)
   }

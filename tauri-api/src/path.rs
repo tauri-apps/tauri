@@ -189,7 +189,7 @@ pub fn resource_dir() -> Option<PathBuf> {
 fn app_name() -> crate::Result<String> {
   let exe = std::env::current_exe()?;
   let app_name = exe
-    .file_name()
+    .file_stem()
     .expect("failed to get exe filename")
     .to_string_lossy();
 

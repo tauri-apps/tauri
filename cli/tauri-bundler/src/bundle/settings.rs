@@ -378,7 +378,7 @@ impl Settings {
   /// Fails if the host/target's native package type is not supported.
   pub fn package_types(&self) -> crate::Result<Vec<PackageType>> {
     let target_os = std::env::consts::OS;
-    let platform_types = match target_os {
+    let mut platform_types = match target_os {
       "macos" => vec![PackageType::MacOSBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
       "linux" => vec![PackageType::Deb, PackageType::AppImage],

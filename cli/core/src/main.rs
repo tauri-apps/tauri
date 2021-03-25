@@ -1,6 +1,6 @@
 pub use anyhow::Result;
 use clap::{crate_version, load_yaml, App, AppSettings, ArgMatches};
-use std::convert::TryInto;
+use dialoguer::Input;
 
 mod build;
 mod dev;
@@ -11,18 +11,34 @@ mod sign;
 
 pub use helpers::Logger;
 
+macro_rules! value_or_prompt {
+  ($init_runner: ident, $setter_fn: ident, $value: ident, $ci: ident, $prompt_message: expr) => {{
+    let mut init_runner = $init_runner;
+    if let Some(value) = $value {
+      init_runner = init_runner.$setter_fn(value);
+    } else if !$ci {
+      let input = Input::<String>::new()
+        .with_prompt($prompt_message)
+        .interact_text()?;
+      init_runner = init_runner.$setter_fn(input);
+    }
+    init_runner
+  }};
+}
+
 fn init_command(matches: &ArgMatches) -> Result<()> {
-  let force = matches.value_of("force");
+  let force = matches.is_present("force");
   let directory = matches.value_of("directory");
-  let tauri_path = matches.value_of("tauri_path");
-  let app_name = matches.value_of("app_name");
-  let window_title = matches.value_of("window_title");
-  let dist_dir = matches.value_of("dist_dir");
-  let dev_path = matches.value_of("dev_path");
+  let tauri_path = matches.value_of("tauri-path");
+  let app_name = matches.value_of("app-name");
+  let window_title = matches.value_of("window-title");
+  let dist_dir = matches.value_of("dist-dir");
+  let dev_path = matches.value_of("dev-path");
+  let ci = matches.is_present("ci") || std::env::var("CI").is_ok();
 
   let mut init_runner = init::Init::new();
-  if let Some(force) = force {
-    init_runner = init_runner.force(force.try_into()?);
+  if force {
+    init_runner = init_runner.force();
   }
   if let Some(directory) = directory {
     init_runner = init_runner.directory(directory);
@@ -30,18 +46,34 @@ fn init_command(matches: &ArgMatches) -> Result<()> {
   if let Some(tauri_path) = tauri_path {
     init_runner = init_runner.tauri_path(tauri_path);
   }
-  if let Some(app_name) = app_name {
-    init_runner = init_runner.app_name(app_name);
-  }
-  if let Some(window_title) = window_title {
-    init_runner = init_runner.window_title(window_title);
-  }
-  if let Some(dist_dir) = dist_dir {
-    init_runner = init_runner.dist_dir(dist_dir);
-  }
-  if let Some(dev_path) = dev_path {
-    init_runner = init_runner.directory(dev_path);
-  }
+  init_runner = value_or_prompt!(
+    init_runner,
+    app_name,
+    app_name,
+    ci,
+    "What is your app name?"
+  );
+  init_runner = value_or_prompt!(
+    init_runner,
+    window_title,
+    window_title,
+    ci,
+    "What should the window title be?"
+  );
+  init_runner = value_or_prompt!(
+    init_runner,
+    dist_dir,
+    dist_dir,
+    ci,
+    r#"Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri" folder that will be created?"#
+  );
+  init_runner = value_or_prompt!(
+    init_runner,
+    dev_path,
+    dev_path,
+    ci,
+    "What is the url of your dev server?"
+  );
 
   init_runner.run()
 }

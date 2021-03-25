@@ -90,11 +90,13 @@ subcommands:
         - init:
             about: Initializes a Tauri project
             args:
+                - ci:
+                    long: ci
+                    about: Skip prompting for values
                 - force:
                     short: f
                     long: force
-                    about: Force init to overwrite [conf|template|all]
-                    takes_value: true
+                    about: Force init to overwrite the src-tauri folder
                 - log:
                     short: l
                     long: log

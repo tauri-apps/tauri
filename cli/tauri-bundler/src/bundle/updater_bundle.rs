@@ -3,7 +3,7 @@ use libflate::gzip;
 use walkdir::WalkDir;
 
 #[cfg(target_os = "macos")]
-use super::osx_bundle;
+use super::macos_bundle;
 
 #[cfg(target_os = "linux")]
 use super::appimage_bundle;
@@ -46,7 +46,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
   // find our .app or rebuild our bundle
   let bundle_path = match bundles
     .iter()
-    .filter(|bundle| bundle.package_type == crate::PackageType::OsxBundle)
+    .filter(|bundle| bundle.package_type == crate::PackageType::MacOSBundle)
     .find_map(|bundle| {
       bundle
         .bundle_paths
@@ -54,7 +54,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
         .find(|path| path.extension() == Some(OsStr::new("app")))
     }) {
     Some(path) => vec![path.clone()],
-    None => osx_bundle::bundle_project(settings)?,
+    None => macos_bundle::bundle_project(settings)?,
   };
 
   // we expect our .app to be on bundle_path[0]

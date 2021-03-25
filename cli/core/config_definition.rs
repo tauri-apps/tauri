@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use serde_with::skip_serializing_none;
 
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(untagged)]
@@ -26,7 +26,7 @@ pub struct DebConfig {
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct OsxConfig {
+pub struct MacConfig {
   pub frameworks: Option<Vec<String>>,
   pub minimum_system_version: Option<String>,
   pub exception_domain: Option<String>,
@@ -51,7 +51,7 @@ pub struct PackageConfig {
 pub struct BundleConfig {
   /// Whether we should build your app with tauri-bundler or plain `cargo build`
   pub active: bool,
-  /// The bundle targets, currently supports ["deb", "osx", "msi", "appimage", "dmg"] or "all"
+  /// The bundle targets, currently supports ["deb", "app", "msi", "appimage", "dmg"] or "all"
   pub targets: Option<BundleTarget>,
   /// The app's identifier
   pub identifier: Option<String>,
@@ -65,11 +65,10 @@ pub struct BundleConfig {
   pub category: Option<String>,
   pub short_description: Option<String>,
   pub long_description: Option<String>,
-  pub script: Option<PathBuf>,
   #[serde(default)]
   pub deb: DebConfig,
-  #[serde(default)]
-  pub osx: OsxConfig,
+  #[serde(rename = "macOS", default)]
+  pub macos: MacConfig,
   pub external_bin: Option<Vec<String>>,
 }
 

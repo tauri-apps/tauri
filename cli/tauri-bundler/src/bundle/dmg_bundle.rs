@@ -1,5 +1,5 @@
-use super::{common, osx_bundle};
-use crate::{bundle::Bundle, PackageType::OsxBundle, Settings};
+use super::{common, macos_bundle};
+use crate::{bundle::Bundle, PackageType::MacOSBundle, Settings};
 
 use anyhow::Context;
 
@@ -16,11 +16,11 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   // generate the .app bundle if needed
   if bundles
     .iter()
-    .filter(|bundle| bundle.package_type == OsxBundle)
+    .filter(|bundle| bundle.package_type == MacOSBundle)
     .count()
     == 0
   {
-    osx_bundle::bundle_project(settings)?;
+    macos_bundle::bundle_project(settings)?;
   }
 
   // get the target path
@@ -38,7 +38,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   let dmg_path = output_path.join(&dmg_name);
 
   let product_name = &format!("{}.app", &package_base_name);
-  let bundle_dir = settings.project_out_directory().join("bundle/osx");
+  let bundle_dir = settings.project_out_directory().join("bundle/macos");
 
   let support_directory_path = output_path.join("support");
   if output_path.exists() {
@@ -105,7 +105,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     &product_name,
   ];
 
-  if let Some(license_path) = settings.osx_license() {
+  if let Some(license_path) = &settings.macos().license {
     args.push("--eula");
     args.push(license_path);
   }

@@ -329,7 +329,7 @@ impl Info {
       for entry in read_dir(app_dir)? {
         let entry = entry?;
         if entry.path().is_dir() {
-          println!("/{:?}", entry.path().file_name().unwrap());
+          println!("/{}", entry.path().file_name().unwrap().to_string_lossy());
         }
       }
 

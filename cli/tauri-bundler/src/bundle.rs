@@ -4,9 +4,9 @@ pub mod common;
 mod deb_bundle;
 mod dmg_bundle;
 mod ios_bundle;
+mod macos_bundle;
 #[cfg(target_os = "windows")]
 mod msi_bundle;
-mod macos_bundle;
 mod path_utils;
 mod platform;
 mod rpm_bundle;

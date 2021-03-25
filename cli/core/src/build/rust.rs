@@ -4,7 +4,8 @@ use serde::Deserialize;
 
 use crate::helpers::{app_paths::tauri_dir, config::Config};
 use tauri_bundler::{
-  AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOSSettings, PackageSettings, UpdaterSettings,
+  AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOSSettings, PackageSettings,
+  UpdaterSettings,
 };
 
 /// The `workspace` section of the app configuration (read from Cargo.toml).

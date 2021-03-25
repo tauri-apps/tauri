@@ -544,26 +544,27 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Resu
 #[cfg(target_os = "windows")]
 fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Result {
   let paths = read_dir(&tmp_dir).unwrap();
+  // This consumes the TempDir without deleting directory on the filesystem,
+  // meaning that the directory will no longer be automatically deleted.
+  tmp_dir.into_path();
   for path in paths {
     let found_path = path.expect("Unable to extract").path();
     // we support 2 type of files exe & msi for now
     // If it's an `exe` we expect an installer not a runtime.
     if found_path.extension() == Some(OsStr::new("exe")) {
       // Run the EXE
-      tmp_dir.into_path();
       Command::new(found_path)
         .spawn()
         .expect("installer failed to start");
 
       exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
-      // This consumes the TempDir without deleting directory on the filesystem,
-      // meaning that the directory will no longer be automatically deleted.
-      tmp_dir.into_path();
-
+      // restart should be handled by WIX as we exit the process
       Command::new("msiexec.exe")
         .arg("/i")
         .arg(found_path)
+        // quiet basic UI with prompt at the end
+        .arg("/qb+")
         .spawn()
         .expect("installer failed to start");
 

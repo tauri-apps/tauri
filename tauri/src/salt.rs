@@ -9,7 +9,7 @@ struct Salt {
   one_time: bool,
 }
 
-static SALTS: Lazy<Mutex<Vec<Salt>>> = Lazy::new(|| Default::default());
+static SALTS: Lazy<Mutex<Vec<Salt>>> = Lazy::new(Mutex::default);
 
 /// Generates a one time Salt and returns its string representation.
 pub fn generate() -> String {

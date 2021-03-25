@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use uuid::Uuid;
 
 /// A salt definition.
@@ -9,9 +9,7 @@ struct Salt {
   one_time: bool,
 }
 
-lazy_static! {
-  static ref SALTS: Mutex<Vec<Salt>> = Mutex::new(vec![]);
-}
+static SALTS: Lazy<Mutex<Vec<Salt>>> = Lazy::new(|| Default::default());
 
 /// Generates a one time Salt and returns its string representation.
 pub fn generate() -> String {

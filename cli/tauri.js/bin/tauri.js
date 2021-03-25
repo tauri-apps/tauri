@@ -6,7 +6,7 @@ const fs = require('fs');
 const cmd = process.argv[2]
 const chalk = require('chalk');
 const package = require('../package.json');
-const figlet = require('figlet'); // ascii art 
+const figlet = require('figlet');
 /**
  * @description This is the bootstrapper that in turn calls subsequent
  * Tauri Commands
@@ -52,7 +52,7 @@ const tauri = function (command) {
     // also added colors to beautify the cli
     return false // do this for node consumers and tests
   }
-  if (command ==='-no-update-notifier || command === '--no-update-notifier'){
+  if (command ==='-no-update-notifier' || command === '--no-update-notifier'){
       const noUpdates = true;
       }
 

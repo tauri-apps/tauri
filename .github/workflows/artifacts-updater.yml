@@ -58,5 +58,5 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: matrix.platform == 'macos-latest'
         with:
-          name: osx-updater-artifacts
-          path: ./target/release/bundle/osx/updater-example_*.app.tar.*
+          name: macos-updater-artifacts
+          path: ./target/release/bundle/macos/updater-example_*.app.tar.*

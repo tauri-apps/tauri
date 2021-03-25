@@ -30,7 +30,7 @@ describe('[CLI] tauri.js template', () => {
       config: {
         tauri: {
           bundle: {
-            targets: ['deb', 'osx', 'msi', 'appimage'] // we can't bundle dmg on CI so we remove it here
+            targets: ['deb', 'app', 'msi', 'appimage'] // we can't bundle dmg on CI so we remove it here
           }
         }
       }

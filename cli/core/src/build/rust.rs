@@ -335,7 +335,9 @@ fn tauri_config_to_bundle_settings(
     },
     updater: Some(UpdaterSettings {
       active: updater_config.active,
-      dialog: updater_config.dialog.unwrap(),
+      // we set it to true by default we shouldn't have to use
+      // unwrap_or as we have a default value but used to prevent any failing
+      dialog: updater_config.dialog.unwrap_or(true),
       pubkey: updater_config.pubkey,
       endpoints: updater_config.endpoints,
     }),

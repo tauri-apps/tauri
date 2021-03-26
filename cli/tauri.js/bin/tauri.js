@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const cmds = ['help', 'icon', 'info', 'deps']
-const rustCliCmds = ['dev', 'build', 'init', 'sign']
+const cmds = ['help', 'icon', 'deps']
+const rustCliCmds = ['dev', 'build', 'init', 'info', 'sign']
 
 const cmd = process.argv[2]
 
@@ -43,7 +43,7 @@ const tauri = function (command) {
     Description
       This is the Tauri CLI.
     Usage
-      $ tauri ${cmds.join('|')}
+      $ tauri ${[...cmds, ...rustCliCmds].join('|')}
     Options
       --help, -h     Displays this message
       --version, -v  Displays the Tauri CLI version

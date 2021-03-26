@@ -1,7 +1,7 @@
-use crate::app::InvokeResponse;
+use super::InvokeResponse;
 use serde::Deserialize;
 #[cfg(notification_all)]
-use tauri_api::{config::Config, notification::Notification};
+use tauri_api::notification::Notification;
 
 /// The options for the notification API.
 #[derive(Deserialize)]
@@ -27,11 +27,11 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub fn run(self, context: &crate::app::Context) -> crate::Result<InvokeResponse> {
+  pub fn run(self, identifier: String) -> crate::Result<InvokeResponse> {
     match self {
       Self::Notification { options } => {
         #[cfg(notification_all)]
-        return send(options, &context.config).map(Into::into);
+        return send(options, identifier).map(Into::into);
         #[cfg(not(notification_all))]
         Err(crate::Error::ApiNotAllowlisted("notification".to_string()))
       }
@@ -52,8 +52,7 @@ impl Cmd {
 }
 
 #[cfg(notification_all)]
-pub fn send(options: NotificationOptions, config: &Config) -> crate::Result<InvokeResponse> {
-  let identifier = config.tauri.bundle.identifier.clone();
+pub fn send(options: NotificationOptions, identifier: String) -> crate::Result<InvokeResponse> {
   let mut notification = Notification::new(identifier).title(options.title);
   if let Some(body) = options.body {
     notification = notification.body(body);

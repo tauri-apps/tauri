@@ -43,9 +43,6 @@ pub enum Error {
   /// API not whitelisted on tauri.conf.json
   #[error("'{0}' not on the allowlist (https://tauri.studio/docs/api/config#tauri.allowlist)")]
   ApiNotAllowlisted(String),
-  /// Command error (userland).
-  #[error("{0}")]
-  Command(serde_json::Value),
   /// Invalid args when running a command.
   #[error("invalid args for command `{0}`: {1}")]
   InvalidArgs(&'static str, serde_json::Error),

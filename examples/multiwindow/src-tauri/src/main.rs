@@ -7,7 +7,7 @@ use tauri::WebviewBuilderExt;
 
 fn main() {
   tauri::AppBuilder::default()
-    .setup(|webview_manager| async move {
+    .setup(move |webview_manager| {
       if webview_manager.current_window_label() == "Main" {
         webview_manager.listen("clicked", move |_| {
           println!("got 'clicked' event on global channel");

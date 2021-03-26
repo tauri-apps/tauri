@@ -1,7 +1,10 @@
-use futures::future::BoxFuture;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use tauri_api::{config::Config, private::AsTauriContext};
+use tauri_api::{
+  config::Config,
+  private::AsTauriContext,
+  rpc::{format_callback, format_callback_result},
+};
 
 use std::{
   collections::HashMap,
@@ -25,12 +28,165 @@ pub use webview::{
 };
 pub use webview_manager::{WebviewDispatcher, WebviewManager};
 
-type InvokeHandler<A> = dyn Fn(WebviewManager<A>, String, JsonValue) -> BoxFuture<'static, crate::Result<InvokeResponse>>
-  + Send
-  + Sync;
-type ManagerHook<A> = dyn Fn(WebviewManager<A>) -> BoxFuture<'static, ()> + Send + Sync;
-type PageLoadHook<A> =
-  dyn Fn(WebviewManager<A>, PageLoadPayload) -> BoxFuture<'static, ()> + Send + Sync;
+type InvokeHandler<A> = dyn Fn(WebviewManager<A>, InvokeMessage<A>) + Send;
+type ManagerHook<A> = dyn Fn(WebviewManager<A>) + Send;
+type PageLoadHook<A> = dyn Fn(WebviewManager<A>, PageLoadPayload) + Send;
+
+/// Payload from an invoke call.
+#[derive(Debug, Deserialize)]
+pub(crate) struct InvokePayload {
+  #[serde(rename = "__tauriModule")]
+  tauri_module: Option<String>,
+  callback: String,
+  error: String,
+  #[serde(rename = "mainThread", default)]
+  pub(crate) main_thread: bool,
+  #[serde(flatten)]
+  inner: JsonValue,
+}
+
+/// An invoke message.
+pub struct InvokeMessage<A: ApplicationExt> {
+  webview_manager: WebviewManager<A>,
+  command: String,
+  payload: InvokePayload,
+}
+
+impl<A: ApplicationExt + 'static> InvokeMessage<A> {
+  pub(crate) fn new(
+    webview_manager: WebviewManager<A>,
+    command: String,
+    payload: InvokePayload,
+  ) -> Self {
+    Self {
+      webview_manager,
+      command,
+      payload,
+    }
+  }
+
+  /// The invoke command.
+  pub fn command(&self) -> &str {
+    &self.command
+  }
+
+  /// The invoke payload.
+  pub fn payload(&self) -> JsonValue {
+    self.payload.inner.clone()
+  }
+
+  /// Reply to the invoke promise with a async task.
+  pub fn respond_async<
+    T: Serialize,
+    E: Serialize,
+    F: std::future::Future<Output = Result<T, E>> + Send + 'static,
+  >(
+    self,
+    task: F,
+  ) {
+    if self.payload.main_thread {
+      crate::async_runtime::block_on(async move {
+        return_task(
+          &self.webview_manager,
+          task,
+          self.payload.callback,
+          self.payload.error,
+        )
+        .await;
+      });
+    } else {
+      crate::async_runtime::spawn(async move {
+        return_task(
+          &self.webview_manager,
+          task,
+          self.payload.callback,
+          self.payload.error,
+        )
+        .await;
+      });
+    }
+  }
+
+  /// Reply to the invoke promise running the given closure.
+  pub fn respond_closure<T: Serialize, E: Serialize, F: FnOnce() -> Result<T, E>>(self, f: F) {
+    return_closure(
+      &self.webview_manager,
+      f,
+      self.payload.callback,
+      self.payload.error,
+    )
+  }
+
+  /// Resolve the invoke promise with a value.
+  pub fn resolve<S: Serialize>(self, value: S) {
+    return_result(
+      &self.webview_manager,
+      Result::<S, ()>::Ok(value),
+      self.payload.callback,
+      self.payload.error,
+    )
+  }
+
+  /// Reject the invoke promise with a value.
+  pub fn reject<S: Serialize>(self, value: S) {
+    return_result(
+      &self.webview_manager,
+      Result::<(), S>::Err(value),
+      self.payload.callback,
+      self.payload.error,
+    )
+  }
+}
+
+/// Asynchronously executes the given task
+/// and evaluates its Result to the JS promise described by the `success_callback` and `error_callback` function names.
+///
+/// If the Result `is_ok()`, the callback will be the `success_callback` function name and the argument will be the Ok value.
+/// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
+async fn return_task<
+  A: ApplicationExt + 'static,
+  T: Serialize,
+  E: Serialize,
+  F: std::future::Future<Output = Result<T, E>> + Send + 'static,
+>(
+  webview_manager: &crate::WebviewManager<A>,
+  task: F,
+  success_callback: String,
+  error_callback: String,
+) {
+  let result = task.await;
+  return_closure(webview_manager, || result, success_callback, error_callback)
+}
+
+fn return_closure<
+  A: ApplicationExt + 'static,
+  T: Serialize,
+  E: Serialize,
+  F: FnOnce() -> Result<T, E>,
+>(
+  webview_manager: &crate::WebviewManager<A>,
+  f: F,
+  success_callback: String,
+  error_callback: String,
+) {
+  return_result(webview_manager, f(), success_callback, error_callback)
+}
+
+fn return_result<A: ApplicationExt + 'static, T: Serialize, E: Serialize>(
+  webview_manager: &crate::WebviewManager<A>,
+  result: Result<T, E>,
+  success_callback: String,
+  error_callback: String,
+) {
+  let callback_string =
+    match format_callback_result(result, success_callback, error_callback.clone()) {
+      Ok(callback_string) => callback_string,
+      Err(e) => format_callback(error_callback, e.to_string()),
+    };
+  if let Ok(dispatcher) = webview_manager.current_webview() {
+    let _ = dispatcher.eval(callback_string.as_str());
+  }
+}
 
 /// `App` runtime information.
 pub struct Context {
@@ -55,19 +211,6 @@ pub(crate) struct Webview<A: ApplicationExt> {
   pub(crate) builder: A::WebviewBuilder,
   pub(crate) label: String,
   pub(crate) url: WindowUrl,
-}
-
-/// The response for a JS `invoke` call.
-pub struct InvokeResponse {
-  json: crate::Result<JsonValue>,
-}
-
-impl<T: Serialize> From<T> for InvokeResponse {
-  fn from(value: T) -> Self {
-    Self {
-      json: serde_json::to_value(value).map_err(Into::into),
-    }
-  }
 }
 
 /// The payload for the "page_load" hook.
@@ -149,25 +292,20 @@ impl<A: ApplicationExt + 'static> App<A> {
   /// Runs the invoke handler if defined.
   /// Returns whether the message was consumed or not.
   /// The message is considered consumed if the handler exists and returns an Ok Result.
-  pub(crate) async fn run_invoke_handler(
+  pub(crate) fn run_invoke_handler(
     &self,
     dispatcher: &WebviewManager<A>,
-    command: String,
-    arg: &JsonValue,
-  ) -> crate::Result<Option<InvokeResponse>> {
+    message: InvokeMessage<A>,
+  ) {
     if let Some(ref invoke_handler) = self.invoke_handler {
-      invoke_handler(dispatcher.clone(), command, arg.clone())
-        .await
-        .map(Some)
-    } else {
-      Ok(None)
+      invoke_handler(dispatcher.clone(), message);
     }
   }
 
   /// Runs the setup hook if defined.
-  pub(crate) async fn run_setup(&self, dispatcher: WebviewManager<A>) {
+  pub(crate) fn run_setup(&self, dispatcher: WebviewManager<A>) {
     if let Some(ref setup) = self.setup {
-      setup(dispatcher).await;
+      setup(dispatcher);
     }
   }
 
@@ -193,13 +331,9 @@ impl<A: ApplicationExt + 'static> App<A> {
   }
 
   /// Runs the on page load hook if defined.
-  pub(crate) async fn run_on_page_load(
-    &self,
-    dispatcher: &WebviewManager<A>,
-    payload: PageLoadPayload,
-  ) {
+  pub(crate) fn run_on_page_load(&self, dispatcher: &WebviewManager<A>, payload: PageLoadPayload) {
     if let Some(ref on_page_load) = self.on_page_load {
-      on_page_load(dispatcher.clone(), payload).await;
+      on_page_load(dispatcher.clone(), payload);
     }
   }
 }
@@ -217,21 +351,22 @@ trait WebviewInitializer<A: ApplicationExt> {
   fn on_webview_created(&self, webview_label: String, dispatcher: A::Dispatcher);
 }
 
-impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
+impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<Mutex<App<A>>> {
   fn init_webview(&self, webview: Webview<A>) -> crate::Result<WebviewContext<A>> {
+    let application = self.lock().unwrap();
     let webview_manager = WebviewManager::new(
       self.clone(),
-      self.dispatchers.clone(),
+      application.dispatchers.clone(),
       webview.label.to_string(),
     );
     let (webview_builder, rpc_handler, custom_protocol) = utils::build_webview(
       self.clone(),
       webview,
       &webview_manager,
-      &self.url,
-      &self.window_labels.lock().unwrap(),
-      &self.plugin_initialization_script,
-      &self.context,
+      &application.url,
+      &application.window_labels.lock().unwrap(),
+      &application.plugin_initialization_script,
+      &application.context,
     )?;
     let file_drop_handler: Box<dyn Fn(FileDropEvent) -> bool + Send> = Box::new(move |event| {
       let webview_manager = webview_manager.clone();
@@ -254,7 +389,7 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
   }
 
   fn on_webview_created(&self, webview_label: String, dispatcher: A::Dispatcher) {
-    self.dispatchers.lock().unwrap().insert(
+    self.lock().unwrap().dispatchers.lock().unwrap().insert(
       webview_label.to_string(),
       WebviewDispatcher::new(dispatcher, webview_label),
     );
@@ -291,53 +426,32 @@ impl<A: ApplicationExt + 'static> AppBuilder<A> {
   }
 
   /// Defines the JS message handler callback.
-  pub fn invoke_handler<
-    T: futures::Future<Output = crate::Result<InvokeResponse>> + Send + Sync + 'static,
-    F: Fn(WebviewManager<A>, String, JsonValue) -> T + Send + Sync + 'static,
-  >(
+  pub fn invoke_handler<F: Fn(WebviewManager<A>, InvokeMessage<A>) + Send + 'static>(
     mut self,
     invoke_handler: F,
   ) -> Self {
-    self.invoke_handler = Some(Box::new(move |webview_manager, command, args| {
-      Box::pin(invoke_handler(webview_manager, command, args))
-    }));
+    self.invoke_handler = Some(Box::new(invoke_handler));
     self
   }
 
   /// Defines the setup hook.
-  pub fn setup<
-    T: futures::Future<Output = ()> + Send + Sync + 'static,
-    F: Fn(WebviewManager<A>) -> T + Send + Sync + 'static,
-  >(
-    mut self,
-    setup: F,
-  ) -> Self {
-    self.setup = Some(Box::new(move |webview_manager| {
-      Box::pin(setup(webview_manager))
-    }));
+  pub fn setup<F: Fn(WebviewManager<A>) + Send + 'static>(mut self, setup: F) -> Self {
+    self.setup = Some(Box::new(setup));
     self
   }
 
   /// Defines the page load hook.
-  pub fn on_page_load<
-    T: futures::Future<Output = ()> + Send + Sync + 'static,
-    F: Fn(WebviewManager<A>, PageLoadPayload) -> T + Send + Sync + 'static,
-  >(
+  pub fn on_page_load<F: Fn(WebviewManager<A>, PageLoadPayload) + Send + 'static>(
     mut self,
     on_page_load: F,
   ) -> Self {
-    self.on_page_load = Some(Box::new(move |webview_manager, payload| {
-      Box::pin(on_page_load(webview_manager, payload))
-    }));
+    self.on_page_load = Some(Box::new(on_page_load));
     self
   }
 
   /// Adds a plugin to the runtime.
-  pub fn plugin(
-    self,
-    plugin: impl crate::plugin::Plugin<A> + Send + Sync + Sync + 'static,
-  ) -> Self {
-    crate::async_runtime::block_on(crate::plugin::register(A::plugin_store(), plugin));
+  pub fn plugin(self, plugin: impl crate::plugin::Plugin<A> + Send + 'static) -> Self {
+    crate::plugin::register(A::plugin_store(), plugin);
     self
   }
 
@@ -360,8 +474,7 @@ impl<A: ApplicationExt + 'static> AppBuilder<A> {
   /// Builds the App.
   pub fn build(self, context: impl AsTauriContext) -> App<A> {
     let window_labels: Vec<String> = self.webviews.iter().map(|w| w.label.to_string()).collect();
-    let plugin_initialization_script =
-      crate::async_runtime::block_on(crate::plugin::initialization_script(A::plugin_store()));
+    let plugin_initialization_script = crate::plugin::initialization_script(A::plugin_store());
 
     let context = Context::new(context);
     let url = utils::get_url(&context);
@@ -389,11 +502,12 @@ impl Default for AppBuilder<Wry> {
 
 fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()> {
   let plugin_config = application.context.config.plugins.clone();
-  crate::async_runtime::block_on(crate::plugin::initialize(A::plugin_store(), plugin_config))?;
+  crate::plugin::initialize(A::plugin_store(), plugin_config)?;
 
   let webviews = application.webviews.take().unwrap();
 
-  let application = Arc::new(application);
+  let dispatchers = application.dispatchers.clone();
+  let application = Arc::new(Mutex::new(application));
   let mut webview_app = A::new()?;
   let mut main_webview_manager = None;
 
@@ -401,7 +515,7 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
     let webview_label = webview.label.to_string();
     let webview_manager = WebviewManager::new(
       application.clone(),
-      application.dispatchers.clone(),
+      dispatchers.clone(),
       webview_label.to_string(),
     );
     if main_webview_manager.is_none() {
@@ -417,11 +531,11 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
       file_drop_handler,
     )?;
     application.on_webview_created(webview_label, dispatcher);
-    crate::async_runtime::block_on(crate::plugin::created(A::plugin_store(), &webview_manager));
+    crate::plugin::created(A::plugin_store(), &webview_manager);
   }
 
-  if let Some(main_webview_manager) = main_webview_manager.clone() {
-    crate::async_runtime::block_on(application.run_setup(main_webview_manager));
+  if let Some(main_webview_manager) = main_webview_manager {
+    application.lock().unwrap().run_setup(main_webview_manager);
   }
 
   #[cfg(feature = "updater")]

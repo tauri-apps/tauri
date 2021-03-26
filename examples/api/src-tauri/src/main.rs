@@ -14,7 +14,7 @@ struct Reply {
 
 fn main() {
   tauri::AppBuilder::default()
-    .setup(|webview_manager| async move {
+    .setup(move |webview_manager| {
       let dispatcher = webview_manager.current_webview().unwrap();
       let dispatcher_ = dispatcher.clone();
       dispatcher.listen("js-event", move |event| {

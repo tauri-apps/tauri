@@ -21,7 +21,6 @@ features = [ "api-all" ]
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
 base64 = "0.13.0"
-lazy_static = "1.4.0"
 tokio = { version = "1.4", features = ["rt", "rt-multi-thread", "sync"] }
 futures = "0.3"
 async-trait = "0.1"

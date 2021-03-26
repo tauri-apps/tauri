@@ -1,4 +1,4 @@
-use super::{common, osx_bundle};
+use super::{common, macos_bundle};
 use crate::Settings;
 
 use anyhow::Context;
@@ -14,7 +14,7 @@ use std::{
 /// Returns a vector of PathBuf that shows where the DMG was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // generate the .app bundle
-  osx_bundle::bundle_project(settings)?;
+  macos_bundle::bundle_project(settings)?;
 
   // get the target path
   let output_path = settings.project_out_directory().join("bundle/dmg");
@@ -31,7 +31,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let dmg_path = output_path.join(&dmg_name);
 
   let product_name = &format!("{}.app", &package_base_name);
-  let bundle_dir = settings.project_out_directory().join("bundle/osx");
+  let bundle_dir = settings.project_out_directory().join("bundle/macos");
   let bundle_path = bundle_dir.join(&product_name.clone());
 
   let support_directory_path = output_path.join("support");
@@ -96,7 +96,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     &product_name,
   ];
 
-  if let Some(license_path) = settings.osx_license() {
+  if let Some(license_path) = &settings.macos().license {
     args.push("--eula");
     args.push(license_path);
   }

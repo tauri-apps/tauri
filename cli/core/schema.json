@@ -84,7 +84,7 @@
           "deb": {
             "useBootstrapper": false
           },
-          "osx": {
+          "macOS": {
             "useBootstrapper": false
           }
         },
@@ -296,13 +296,13 @@
             "null"
           ]
         },
-        "osx": {
+        "macOS": {
           "default": {
             "useBootstrapper": false
           },
           "allOf": [
             {
-              "$ref": "#/definitions/OsxConfig"
+              "$ref": "#/definitions/MacConfig"
             }
           ]
         },
@@ -316,12 +316,6 @@
             "type": "string"
           }
         },
-        "script": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "shortDescription": {
           "type": [
             "string",
@@ -329,7 +323,7 @@
           ]
         },
         "targets": {
-          "description": "The bundle targets, currently supports [\"deb\", \"osx\", \"msi\", \"appimage\", \"dmg\"] or \"all\"",
+          "description": "The bundle targets, currently supports [\"deb\", \"app\", \"msi\", \"appimage\", \"dmg\"] or \"all\"",
           "anyOf": [
             {
               "$ref": "#/definitions/BundleTarget"
@@ -723,17 +717,7 @@
       },
       "additionalProperties": false
     },
-    "NotificationAllowlistConfig": {
-      "type": "object",
-      "properties": {
-        "all": {
-          "default": false,
-          "type": "boolean"
-        }
-      },
-      "additionalProperties": false
-    },
-    "OsxConfig": {
+    "MacConfig": {
       "type": "object",
       "properties": {
         "exceptionDomain": {
@@ -764,6 +748,16 @@
           ]
         },
         "useBootstrapper": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "NotificationAllowlistConfig": {
+      "type": "object",
+      "properties": {
+        "all": {
           "default": false,
           "type": "boolean"
         }
@@ -879,7 +873,7 @@
             "deb": {
               "useBootstrapper": false
             },
-            "osx": {
+            "macOS": {
               "useBootstrapper": false
             }
           },

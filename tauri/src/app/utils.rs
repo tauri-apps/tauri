@@ -183,12 +183,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
         let webview_manager = webview_manager_.clone();
         match serde_json::from_value::<InvokePayload>(arg) {
           Ok(message) => {
-            let _ = on_message(
-              application.clone(),
-              webview_manager.clone(),
-              command.clone(),
-              message,
-            );
+            let _ = on_message(application.clone(), webview_manager, command, message);
           }
           Err(e) => {
             if let Ok(dispatcher) = webview_manager.current_webview() {

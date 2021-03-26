@@ -106,7 +106,7 @@ pub(crate) fn extend_api<A: ApplicationExt + 'static>(
   let mut plugins = store.lock().unwrap();
   let target_plugin_name = command
     .replace("plugin:", "")
-    .split("|")
+    .split('|')
     .next()
     .unwrap()
     .to_string();

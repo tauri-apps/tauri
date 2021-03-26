@@ -198,11 +198,7 @@ pub type FileDropHandler = Box<dyn Fn(FileDropEvent) -> bool + Send>;
 /// Webview dispatcher. A thread-safe handle to the webview API.
 pub trait ApplicationDispatcherExt: Clone + Send + Sized {
   /// The webview builder type.
-  type WebviewBuilder: WebviewBuilderExt
-    + WebviewBuilderExtPrivate
-    + From<WindowConfig>
-    + Send
-    ;
+  type WebviewBuilder: WebviewBuilderExt + WebviewBuilderExtPrivate + From<WindowConfig> + Send;
   /// Creates a webview.
   fn create_webview(
     &self,
@@ -283,10 +279,7 @@ pub trait ApplicationDispatcherExt: Clone + Send + Sized {
 /// Manages windows and webviews.
 pub trait ApplicationExt: Sized {
   /// The webview builder.
-  type WebviewBuilder: WebviewBuilderExt
-    + WebviewBuilderExtPrivate
-    + From<WindowConfig>
-    + Send;
+  type WebviewBuilder: WebviewBuilderExt + WebviewBuilderExtPrivate + From<WindowConfig> + Send;
   /// The message dispatcher.
   type Dispatcher: ApplicationDispatcherExt<WebviewBuilder = Self::WebviewBuilder>;
 

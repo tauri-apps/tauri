@@ -419,10 +419,7 @@ impl<A: ApplicationExt + 'static> AppBuilder<A> {
   }
 
   /// Adds a plugin to the runtime.
-  pub fn plugin(
-    self,
-    plugin: impl crate::plugin::Plugin<A> + Send + 'static,
-  ) -> Self {
+  pub fn plugin(self, plugin: impl crate::plugin::Plugin<A> + Send + 'static) -> Self {
     crate::plugin::register(A::plugin_store(), plugin);
     self
   }

@@ -193,7 +193,7 @@ pub struct WebviewManager<A = Wry>
 where
   A: ApplicationExt,
 {
-  application: Arc<App<A>>,
+  application: Arc<Mutex<App<A>>>,
   dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A::Dispatcher>>>>,
   current_webview_window_label: String,
 }
@@ -210,7 +210,7 @@ impl<A: ApplicationExt> Clone for WebviewManager<A> {
 
 impl<A: ApplicationExt + 'static> WebviewManager<A> {
   pub(crate) fn new(
-    application: Arc<App<A>>,
+    application: Arc<Mutex<App<A>>>,
     dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A::Dispatcher>>>>,
     label: String,
   ) -> Self {
@@ -257,6 +257,8 @@ impl<A: ApplicationExt + 'static> WebviewManager<A> {
     };
     self
       .application
+      .lock()
+      .unwrap()
       .window_labels
       .lock()
       .unwrap()
@@ -278,7 +280,7 @@ impl<A: ApplicationExt + 'static> WebviewManager<A> {
     self
       .application
       .on_webview_created(label.to_string(), window_dispatcher.clone());
-    crate::plugin::created(A::plugin_store(), &webview_manager).await;
+    crate::plugin::created(A::plugin_store(), &webview_manager);
     Ok(WebviewDispatcher::new(window_dispatcher, label))
   }
 

@@ -10,10 +10,7 @@ mod notification;
 mod shell;
 mod window;
 
-use crate::{
-  app::{Context, InvokeResponse},
-  ApplicationExt,
-};
+use crate::{app::Context, ApplicationExt, InvokeMessage};
 
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
@@ -34,35 +31,46 @@ enum Module {
 }
 
 impl Module {
-  async fn run<A: ApplicationExt + 'static>(
+  fn run<A: ApplicationExt + 'static>(
     self,
-    webview_manager: &crate::WebviewManager<A>,
+    webview_manager: crate::WebviewManager<A>,
+    message: InvokeMessage<A>,
     context: &Context,
-  ) -> crate::Result<InvokeResponse> {
+  ) {
     match self {
-      Self::Fs(cmd) => cmd.run(),
-      Self::Window(cmd) => cmd.run(webview_manager).await,
-      Self::Shell(cmd) => cmd.run(),
-      Self::Event(cmd) => cmd.run(webview_manager),
-      Self::Internal(cmd) => cmd.run(),
-      Self::Dialog(cmd) => cmd.run(),
-      Self::Cli(cmd) => cmd.run(context),
-      Self::Notification(cmd) => cmd.run(context),
-      Self::Http(cmd) => crate::async_runtime::block_on(cmd.run()),
-      Self::GlobalShortcut(cmd) => cmd.run(webview_manager),
+      Self::Fs(cmd) => message.respond_async(async move { cmd.run() }),
+      Self::Window(cmd) => message.respond_async(async move { cmd.run(&webview_manager).await }),
+      Self::Shell(cmd) => message.respond_async(async move { cmd.run() }),
+      Self::Event(cmd) => message.respond_async(async move { cmd.run(&webview_manager) }),
+      Self::Internal(cmd) => message.respond_async(async move { cmd.run() }),
+      Self::Dialog(cmd) => message.respond_async(async move { cmd.run() }),
+      Self::Cli(cmd) => {
+        if let Some(cli_config) = context.config.tauri.cli.clone() {
+          message.respond_async(async move { cmd.run(&cli_config) })
+        }
+      }
+      Self::Notification(cmd) => {
+        let identifier = context.config.tauri.bundle.identifier.clone();
+        message.respond_async(async move { cmd.run(identifier) })
+      }
+      Self::Http(cmd) => message.respond_async(async move { cmd.run().await }),
+      Self::GlobalShortcut(cmd) => message.respond_async(async move { cmd.run(&webview_manager) }),
     }
   }
 }
 
-pub(crate) async fn handle<A: ApplicationExt + 'static>(
+pub(crate) fn handle<A: ApplicationExt + 'static>(
   webview_manager: &crate::WebviewManager<A>,
   module: String,
-  mut arg: JsonValue,
+  message: InvokeMessage<A>,
   context: &Context,
-) -> crate::Result<InvokeResponse> {
-  if let JsonValue::Object(ref mut obj) = arg {
+) {
+  let mut payload = message.payload();
+  if let JsonValue::Object(ref mut obj) = payload {
     obj.insert("module".to_string(), JsonValue::String(module));
   }
-  let module: Module = serde_json::from_value(arg)?;
-  module.run(webview_manager, context).await
+  match serde_json::from_value::<Module>(payload) {
+    Ok(module) => module.run(webview_manager.clone(), message, context),
+    Err(e) => message.respond_async(async move { Err(e.into()) }),
+  }
 }

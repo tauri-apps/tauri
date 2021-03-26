@@ -88,12 +88,12 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
   let return_value = if returns_result {
     quote! {
       match #fn_name(#manager_arg_maybe #(parsed_args.#names),*)#await_maybe {
-        Ok(value) => ::core::result::Result::Ok(value.into()),
-        Err(e) => ::core::result::Result::Err(tauri::Error::Command(::serde_json::to_value(e)?)),
+        Ok(value) => ::core::result::Result::Ok(value),
+        Err(e) => ::core::result::Result::Err(e),
       }
     }
   } else {
-    quote! { ::core::result::Result::Ok(#fn_name(#manager_arg_maybe #(parsed_args.#names),*)#await_maybe.into()) }
+    quote! { ::core::result::Result::<_, ()>::Ok(#fn_name(#manager_arg_maybe #(parsed_args.#names),*)#await_maybe) }
   };
 
   quote! {
@@ -108,9 +108,7 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
         Ok(parsed_args) => message.respond_async(async move {
           #return_value
         }),
-        Err(e) => message.respond_async(async move {
-          Err(::tauri::Error::InvalidArgs(#fn_name_str, e))
-        })
+        Err(e) => message.reject(::core::result::Result::<(), String>::Err(::tauri::Error::InvalidArgs(#fn_name_str, e).to_string())),
       }
     }
   }

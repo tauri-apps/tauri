@@ -1,4 +1,5 @@
-use crate::{api::config::CliConfig, app::InvokeResponse};
+use super::InvokeResponse;
+use crate::api::config::CliConfig;
 use serde::Deserialize;
 
 /// The API descriptor.

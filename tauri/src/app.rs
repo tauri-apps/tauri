@@ -73,7 +73,9 @@ impl<A: ApplicationExt + 'static> InvokeMessage<A> {
 
   /// Reply to the invoke promise with a async task.
   pub fn respond_async<
-    F: std::future::Future<Output = crate::Result<InvokeResponse>> + Send + 'static,
+    T: Serialize,
+    E: Serialize,
+    F: std::future::Future<Output = Result<T, E>> + Send + 'static,
   >(
     self,
     task: F,
@@ -102,14 +104,7 @@ impl<A: ApplicationExt + 'static> InvokeMessage<A> {
   }
 
   /// Reply to the invoke promise running the given closure.
-  pub fn respond_closure<
-    O: Serialize,
-    E: Serialize,
-    F: FnOnce() -> Result<O, E> + Send + 'static,
-  >(
-    self,
-    f: F,
-  ) {
+  pub fn respond_closure<T: Serialize, E: Serialize, F: FnOnce() -> Result<T, E>>(self, f: F) {
     return_closure(
       &self.webview_manager,
       f,
@@ -146,25 +141,24 @@ impl<A: ApplicationExt + 'static> InvokeMessage<A> {
 /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
 async fn return_task<
   A: ApplicationExt + 'static,
-  F: std::future::Future<Output = crate::Result<InvokeResponse>> + Send + 'static,
+  T: Serialize,
+  E: Serialize,
+  F: std::future::Future<Output = Result<T, E>> + Send + 'static,
 >(
   webview_manager: &crate::WebviewManager<A>,
   task: F,
   success_callback: String,
   error_callback: String,
 ) {
-  let result = task
-    .await
-    .and_then(|response| response.json)
-    .map_err(|err| err.to_string());
+  let result = task.await;
   return_closure(webview_manager, || result, success_callback, error_callback)
 }
 
 fn return_closure<
   A: ApplicationExt + 'static,
-  O: Serialize,
+  T: Serialize,
   E: Serialize,
-  F: FnOnce() -> Result<O, E> + Send + 'static,
+  F: FnOnce() -> Result<T, E>,
 >(
   webview_manager: &crate::WebviewManager<A>,
   f: F,
@@ -174,9 +168,9 @@ fn return_closure<
   return_result(webview_manager, f(), success_callback, error_callback)
 }
 
-fn return_result<A: ApplicationExt + 'static, O: Serialize, E: Serialize>(
+fn return_result<A: ApplicationExt + 'static, T: Serialize, E: Serialize>(
   webview_manager: &crate::WebviewManager<A>,
-  result: Result<O, E>,
+  result: Result<T, E>,
   success_callback: String,
   error_callback: String,
 ) {
@@ -211,19 +205,6 @@ pub(crate) struct Webview<A: ApplicationExt> {
   pub(crate) builder: A::WebviewBuilder,
   pub(crate) label: String,
   pub(crate) url: WindowUrl,
-}
-
-/// The response for a JS `invoke` call.
-pub struct InvokeResponse {
-  json: crate::Result<JsonValue>,
-}
-
-impl<T: Serialize> From<T> for InvokeResponse {
-  fn from(value: T) -> Self {
-    Self {
-      json: serde_json::to_value(value).map_err(Into::into),
-    }
-  }
 }
 
 /// The payload for the "page_load" hook.

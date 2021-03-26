@@ -1,4 +1,4 @@
-use crate::app::InvokeResponse;
+use super::InvokeResponse;
 use serde::Deserialize;
 #[cfg(notification_all)]
 use tauri_api::notification::Notification;

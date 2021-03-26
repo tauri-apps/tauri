@@ -1,4 +1,4 @@
-// An OSX package is laid out like:
+// A macOS application bundle package is laid out like:
 //
 // foobar.app    # Actually a directory
 //     Contents      # A further subdirectory
@@ -39,15 +39,15 @@ use regex::Regex;
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // we should use the bundle name (App name) as a MacOS standard.
   // version or platform shouldn't be included in the App name.
-  let app_bundle_name = format!("{}.app", settings.product_name());
-  common::print_bundling(&app_bundle_name)?;
+  let app_product_name = format!("{}.app", settings.product_name());
+  common::print_bundling(&app_product_name)?;
   let app_bundle_path = settings
     .project_out_directory()
-    .join("bundle/osx")
-    .join(&app_bundle_name);
+    .join("bundle/macos")
+    .join(&app_product_name);
   if app_bundle_path.exists() {
     fs::remove_dir_all(&app_bundle_path)
-      .with_context(|| format!("Failed to remove old {}", app_bundle_name))?;
+      .with_context(|| format!("Failed to remove old {}", app_product_name))?;
   }
   let bundle_directory = app_bundle_path.join("Contents");
   fs::create_dir_all(&bundle_directory).with_context(|| {
@@ -80,7 +80,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let use_bootstrapper = settings.macos().use_bootstrapper.unwrap_or_default();
   if use_bootstrapper {
     create_bootstrapper(&bundle_directory, settings)
-      .with_context(|| "Failed to create OSX bootstrapper")?;
+      .with_context(|| "Failed to create macOS bootstrapper")?;
   }
 
   if let Some(identity) = &settings.macos().signing_identity {
@@ -711,7 +711,7 @@ fn copy_framework_from(dest_dir: &Path, framework: &str, src_dir: &Path) -> crat
   }
 }
 
-// Copies the OSX bundle frameworks to the .app
+// Copies the macOS application bundle frameworks to the .app
 fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
   let frameworks = settings
     .macos()

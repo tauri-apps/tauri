@@ -1,5 +1,6 @@
 use std::{
   collections::HashMap,
+  future::Future,
   sync::{Arc, Mutex},
 };
 
@@ -219,6 +220,15 @@ impl<A: ApplicationExt + 'static> WebviewManager<A> {
       dispatchers,
       current_webview_window_label: label,
     }
+  }
+
+  /// Spawns an asynchronous task
+  pub fn spawn<F>(task: F)
+  where
+    F: Future + Send + 'static,
+    F::Output: Send + 'static,
+  {
+    crate::async_runtime::spawn(task)
   }
 
   /// Returns the label of the window associated with the current context.

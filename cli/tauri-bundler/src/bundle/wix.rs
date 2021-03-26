@@ -462,6 +462,7 @@ pub fn build_wix_app_installer(
         digest_algorithm: settings
           .windows()
           .digest_algorithm
+          .as_ref()
           .map(|algorithm| algorithm.to_string())
           .unwrap_or_else(|| "sha256".to_string()),
         certificate_thumbprint: certificate_thumbprint.to_string(),
@@ -519,12 +520,6 @@ pub fn build_wix_app_installer(
 
   let merge_modules = get_merge_modules(&settings)?;
   data.insert("merge_modules", to_json(merge_modules));
-
-  let main_binary = settings
-    .binaries()
-    .iter()
-    .find(|bin| bin.main())
-    .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
 
   data.insert("app_exe_source", to_json(&app_exe_source));
 

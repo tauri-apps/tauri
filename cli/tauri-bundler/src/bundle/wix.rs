@@ -463,7 +463,7 @@ pub fn build_wix_app_installer(
           .windows()
           .digest_algorithm
           .map(|algorithm| algorithm.to_string())
-          .unwrap_or(&"sha256".to_string()),
+          .unwrap_or_else(|| "sha256".to_string()),
         certificate_thumbprint: certificate_thumbprint.to_string(),
         timestamp_url: match &settings.windows().timestamp_url {
           Some(url) => Some(url.to_string()),

@@ -534,29 +534,46 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
     crate::plugin::created(A::plugin_store(), &webview_manager);
   }
 
-  if let Some(main_webview_manager) = main_webview_manager {
+  if let Some(main_webview_manager) = main_webview_manager.clone() {
     application.lock().unwrap().run_setup(main_webview_manager);
   }
 
   #[cfg(feature = "updater")]
   if let Some(main_webview_manager) = main_webview_manager {
-    let updater_config = application.context.config.tauri.updater.clone();
     let event_webview_manager = main_webview_manager.clone();
-
+    let updater_config = application
+      .lock()
+      .unwrap()
+      .context
+      .config
+      .tauri
+      .updater
+      .clone();
+    // check if updater is active or not
     if updater_config.dialog && updater_config.active {
       // if updater dialog is enabled spawn a new task
-      application.run_updater_dialog(main_webview_manager.clone());
+      application
+        .lock()
+        .unwrap()
+        .run_updater_dialog(main_webview_manager.clone());
       // When dialog is enabled, if user want to recheck
       // if an update is available after first start
       // invoke the Event `tauri://update` from JS or rust side.
       main_webview_manager.listen(crate::updater::EVENT_CHECK_UPDATE, move |_msg| {
         let webview_manager = event_webview_manager.clone();
-        let config = application.context.config.tauri.updater.clone();
+        let config = application
+          .lock()
+          .unwrap()
+          .context
+          .config
+          .tauri
+          .updater
+          .clone();
         // re-spawn task inside tokyo to launch the download
         // we don't need to emit anything as everything is handled
         // by the process (user is asked to restart at the end)
         // and it's handled by the updater
-        let package_info = application.context.package_info.clone();
+        let package_info = application.lock().unwrap().context.package_info.clone();
         crate::async_runtime::spawn(async move {
           updater::check_update_with_dialog(config, package_info, &webview_manager).await
         });
@@ -567,7 +584,10 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
       // if there is a new update we emit `tauri://update-available` with details
       // this is the user responsabilities to display dialog and ask if user want to install
       // to install the update you need to invoke the Event `tauri://update-install`
-      application.listen_updater_events(main_webview_manager);
+      application
+        .lock()
+        .unwrap()
+        .listen_updater_events(main_webview_manager);
     }
   }
 

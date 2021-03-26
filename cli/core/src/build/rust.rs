@@ -3,7 +3,9 @@ use std::{fs::File, io::Read, path::PathBuf, process::Command, str::FromStr};
 use serde::Deserialize;
 
 use crate::helpers::{app_paths::tauri_dir, config::Config};
-use tauri_bundler::{AppCategory, BundleBinary, BundleSettings, PackageSettings};
+use tauri_bundler::{
+  AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOSSettings, PackageSettings,
+};
 
 /// The `workspace` section of the app configuration (read from Cargo.toml).
 #[derive(Clone, Debug, Deserialize)]
@@ -18,13 +20,30 @@ struct BinarySettings {
   path: Option<String>,
 }
 
+/// The package settings.
+#[derive(Debug, Clone, Deserialize)]
+pub struct CargoPackageSettings {
+  /// the package's name.
+  pub name: String,
+  /// the package's version.
+  pub version: String,
+  /// the package's description.
+  pub description: String,
+  /// the package's homepage.
+  pub homepage: Option<String>,
+  /// the package's authors.
+  pub authors: Option<Vec<String>>,
+  /// the default binary to run.
+  pub default_run: Option<String>,
+}
+
 /// The Cargo settings (Cargo.toml root descriptor).
 #[derive(Clone, Debug, Deserialize)]
 struct CargoSettings {
   /// the package settings.
   ///
   /// it's optional because ancestor workspace Cargo.toml files may not have package info.
-  package: Option<PackageSettings>,
+  package: Option<CargoPackageSettings>,
   /// the workspace settings.
   ///
   /// it's present if the read Cargo.toml belongs to a workspace root.
@@ -73,80 +92,142 @@ pub fn build_project(debug: bool) -> crate::Result<()> {
   Ok(())
 }
 
-pub struct BundlerSettings {
-  pub package_settings: PackageSettings,
-  pub bundle_settings: BundleSettings,
-  pub binaries: Vec<BundleBinary>,
-  pub out_dir: PathBuf,
+pub struct AppSettings {
+  cargo_settings: CargoSettings,
+  cargo_package_settings: CargoPackageSettings,
+  package_settings: PackageSettings,
 }
 
-pub fn get_bundler_settings(config: &Config, debug: bool) -> crate::Result<BundlerSettings> {
-  let tauri_dir = tauri_dir();
-  let cargo_settings = CargoSettings::load(&tauri_dir)?;
+impl AppSettings {
+  pub fn new(config: &Config) -> crate::Result<Self> {
+    let cargo_settings = CargoSettings::load(&tauri_dir())?;
+    let cargo_package_settings = match &cargo_settings.package {
+      Some(package_info) => package_info.clone(),
+      None => {
+        return Err(anyhow::anyhow!(
+          "No package info in the config file".to_owned(),
+        ))
+      }
+    };
 
-  let package = match cargo_settings.package {
-    Some(package_info) => package_info,
-    None => {
-      return Err(anyhow::anyhow!(
-        "No package info in the config file".to_owned(),
-      ))
-    }
-  };
-  let workspace_dir = get_workspace_dir(&tauri_dir);
-  let target_dir = get_target_dir(&workspace_dir, None, !debug)?;
-  let bundle_settings = tauri_config_to_bundle_settings(config.tauri.bundle.clone())?;
+    let package_settings = PackageSettings {
+      product_name: config
+        .package
+        .product_name
+        .clone()
+        .unwrap_or_else(|| cargo_package_settings.name.clone()),
+      version: config
+        .package
+        .version
+        .clone()
+        .unwrap_or_else(|| cargo_package_settings.version.clone()),
+      description: cargo_package_settings.description.clone(),
+      homepage: cargo_package_settings.homepage.clone(),
+      authors: cargo_package_settings.authors.clone(),
+      default_run: cargo_package_settings.default_run.clone(),
+    };
 
-  let mut binaries: Vec<BundleBinary> = vec![];
-  if let Some(bin) = cargo_settings.bin {
-    let default_run = package
-      .default_run
-      .clone()
-      .unwrap_or_else(|| "".to_string());
-    for binary in bin {
-      binaries.push(
-        BundleBinary::new(
-          binary.name.clone(),
-          binary.name.as_str() == package.name || binary.name.as_str() == default_run,
-        )
-        .set_src_path(binary.path),
-      )
-    }
+    Ok(Self {
+      cargo_settings,
+      cargo_package_settings,
+      package_settings,
+    })
   }
 
-  let mut bins_path = tauri_dir;
-  bins_path.push("src/bin");
-  if let Ok(fs_bins) = std::fs::read_dir(bins_path) {
-    for entry in fs_bins {
-      let path = entry?.path();
-      if let Some(name) = path.file_stem() {
-        let bin_exists = binaries.iter().any(|bin| {
-          bin.name() == name || path.ends_with(bin.src_path().as_ref().unwrap_or(&"".to_string()))
-        });
-        if !bin_exists {
-          binaries.push(BundleBinary::new(name.to_string_lossy().to_string(), false))
+  pub fn cargo_package_settings(&self) -> &CargoPackageSettings {
+    &self.cargo_package_settings
+  }
+
+  pub fn get_bundle_settings(&self, config: &Config) -> crate::Result<BundleSettings> {
+    tauri_config_to_bundle_settings(config.tauri.bundle.clone())
+  }
+
+  pub fn get_out_dir(&self, debug: bool) -> crate::Result<PathBuf> {
+    let tauri_dir = tauri_dir();
+    let workspace_dir = get_workspace_dir(&tauri_dir);
+    get_target_dir(&workspace_dir, None, !debug)
+  }
+
+  pub fn get_package_settings(&self) -> PackageSettings {
+    self.package_settings.clone()
+  }
+
+  pub fn get_binaries(&self, config: &Config) -> crate::Result<Vec<BundleBinary>> {
+    let mut binaries: Vec<BundleBinary> = vec![];
+    if let Some(bin) = &self.cargo_settings.bin {
+      let default_run = self
+        .package_settings
+        .default_run
+        .clone()
+        .unwrap_or_else(|| "".to_string());
+      for binary in bin {
+        binaries.push(
+          if binary.name.as_str() == self.cargo_package_settings.name
+            || binary.name.as_str() == default_run
+          {
+            BundleBinary::new(
+              config
+                .package
+                .product_name
+                .clone()
+                .unwrap_or_else(|| binary.name.clone()),
+              true,
+            )
+          } else {
+            BundleBinary::new(binary.name.clone(), false)
+          }
+          .set_src_path(binary.path.clone()),
+        )
+      }
+    }
+
+    let mut bins_path = tauri_dir();
+    bins_path.push("src/bin");
+    if let Ok(fs_bins) = std::fs::read_dir(bins_path) {
+      for entry in fs_bins {
+        let path = entry?.path();
+        if let Some(name) = path.file_stem() {
+          let bin_exists = binaries.iter().any(|bin| {
+            bin.name() == name || path.ends_with(bin.src_path().as_ref().unwrap_or(&"".to_string()))
+          });
+          if !bin_exists {
+            binaries.push(BundleBinary::new(name.to_string_lossy().to_string(), false))
+          }
         }
       }
     }
-  }
 
-  if let Some(default_run) = package.default_run.as_ref() {
-    if !binaries.iter().any(|bin| bin.name() == default_run) {
-      binaries.push(BundleBinary::new(default_run.to_string(), true));
+    if let Some(default_run) = self.package_settings.default_run.as_ref() {
+      match binaries.iter_mut().find(|bin| bin.name() == default_run) {
+        Some(bin) => {
+          if let Some(product_name) = config.package.product_name.clone() {
+            bin.set_name(product_name);
+          }
+        }
+        None => {
+          binaries.push(BundleBinary::new(
+            config
+              .package
+              .product_name
+              .clone()
+              .unwrap_or_else(|| default_run.to_string()),
+            true,
+          ));
+        }
+      }
     }
-  }
 
-  match binaries.len() {
-    0 => binaries.push(BundleBinary::new(package.name.clone(), true)),
-    1 => binaries.get_mut(0).unwrap().set_main(true),
-    _ => {}
-  }
+    match binaries.len() {
+      0 => binaries.push(BundleBinary::new(
+        self.package_settings.product_name.clone(),
+        true,
+      )),
+      1 => binaries.get_mut(0).unwrap().set_main(true),
+      _ => {}
+    }
 
-  Ok(BundlerSettings {
-    package_settings: package,
-    bundle_settings,
-    binaries,
-    out_dir: target_dir,
-  })
+    Ok(binaries)
+  }
 }
 
 /// This function determines where 'target' dir is and suffixes it with 'release' or 'debug'
@@ -225,10 +306,8 @@ fn tauri_config_to_bundle_settings(
   config: crate::helpers::config::BundleConfig,
 ) -> crate::Result<BundleSettings> {
   Ok(BundleSettings {
-    name: config.name,
     identifier: config.identifier,
     icon: config.icon,
-    version: config.version,
     resources: config.resources,
     copyright: config.copyright,
     category: match config.category {
@@ -240,20 +319,26 @@ fn tauri_config_to_bundle_settings(
     },
     short_description: config.short_description,
     long_description: config.long_description,
-    script: config.script,
-    deb_depends: config.deb.depends,
-    deb_use_bootstrapper: Some(config.deb.use_bootstrapper),
-    osx_frameworks: config.osx.frameworks,
-    osx_minimum_system_version: config.osx.minimum_system_version,
-    osx_license: config.osx.license,
-    osx_use_bootstrapper: Some(config.osx.use_bootstrapper),
     external_bin: config.external_bin,
-    exception_domain: config.osx.exception_domain,
-    osx_signing_identity: config.osx.signing_identity,
-    osx_entitlements: config.osx.entitlements,
-    windows_digest_algorithm: config.windows.digest_algorithm,
-    windows_certificate_thumbprint: config.windows.certificate_thumbprint,
-    windows_timestamp_url: config.windows.timestamp_url,
+    deb: DebianSettings {
+      depends: config.deb.depends,
+      use_bootstrapper: Some(config.deb.use_bootstrapper),
+    },
+    macos: MacOSSettings {
+      frameworks: config.macos.frameworks,
+      minimum_system_version: config.macos.minimum_system_version,
+      license: config.macos.license,
+      use_bootstrapper: Some(config.macos.use_bootstrapper),
+      exception_domain: config.macos.exception_domain,
+      signing_identity: config.macos.signing_identity,
+      entitlements: config.macos.entitlements,
+    },
+    #[cfg(windows)]
+    windows: WindowsSettings {
+      timestamp_url: config.windows.timestamp_url,
+      digest_algorithm: config.windows.digest_algorithm,
+      certificate_thumbprint: config.windows.certificate_thumbprint,
+    },
     ..Default::default()
   })
 }

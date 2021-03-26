@@ -1,7 +1,11 @@
 {
+  "package": {
+    "productName": "{{ app_name }}",
+    "version": "0.1.0"
+  },
   "build": {
-    "distDir": "../public",
-    "devPath": "../public",
+    "distDir": "{{ dist_dir }}",
+    "devPath": "{{ dev_path }}",
     "beforeDevCommand": "",
     "beforeBuildCommand": ""
   },
@@ -31,7 +35,14 @@
         "frameworks": [],
         "minimumSystemVersion": "",
         "useBootstrapper": false,
-        "exceptionDomain": ""
+        "exceptionDomain": "",
+        "signingIdentity": null,
+        "entitlements": null
+      },
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
       }
     },
     "allowlist": {
@@ -39,7 +50,7 @@
     },
     "windows": [
       {
-        "title": "Welcome to Tauri!",
+        "title": "{{ window_title }}",
         "width": 800,
         "height": 600,
         "resizable": true,

@@ -17,6 +17,15 @@
         }
       ]
     },
+    "package": {
+      "description": "Package settings.",
+      "default": {},
+      "allOf": [
+        {
+          "$ref": "#/definitions/PackageConfig"
+        }
+      ]
+    },
     "plugins": {
       "description": "The plugins config.",
       "default": {},
@@ -75,7 +84,7 @@
           "deb": {
             "useBootstrapper": false
           },
-          "osx": {
+          "macOS": {
             "useBootstrapper": false
           },
           "windows": {
@@ -292,19 +301,13 @@
             "null"
           ]
         },
-        "name": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "osx": {
+        "macOS": {
           "default": {
             "useBootstrapper": false
           },
           "allOf": [
             {
-              "$ref": "#/definitions/OsxConfig"
+              "$ref": "#/definitions/MacConfig"
             }
           ]
         },
@@ -318,12 +321,6 @@
             "type": "string"
           }
         },
-        "script": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "shortDescription": {
           "type": [
             "string",
@@ -331,7 +328,7 @@
           ]
         },
         "targets": {
-          "description": "The bundle targets, currently supports [\"deb\", \"osx\", \"msi\", \"appimage\", \"dmg\"] or \"all\"",
+          "description": "The bundle targets, currently supports [\"deb\", \"app\", \"msi\", \"appimage\", \"dmg\"] or \"all\"",
           "anyOf": [
             {
               "$ref": "#/definitions/BundleTarget"
@@ -339,12 +336,6 @@
             {
               "type": "null"
             }
-          ]
-        },
-        "version": {
-          "type": [
-            "string",
-            "null"
           ]
         },
         "windows": {
@@ -743,17 +734,7 @@
       },
       "additionalProperties": false
     },
-    "NotificationAllowlistConfig": {
-      "type": "object",
-      "properties": {
-        "all": {
-          "default": false,
-          "type": "boolean"
-        }
-      },
-      "additionalProperties": false
-    },
-    "OsxConfig": {
+    "MacConfig": {
       "type": "object",
       "properties": {
         "entitlements": {
@@ -798,6 +779,36 @@
         "useBootstrapper": {
           "default": false,
           "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "NotificationAllowlistConfig": {
+      "type": "object",
+      "properties": {
+        "all": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "PackageConfig": {
+      "type": "object",
+      "properties": {
+        "productName": {
+          "description": "App name. Automatically converted to kebab-case on Linux.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "description": "App version.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false
@@ -891,7 +902,7 @@
             "deb": {
               "useBootstrapper": false
             },
-            "osx": {
+            "macOS": {
               "useBootstrapper": false
             },
             "windows": {

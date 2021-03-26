@@ -31,7 +31,6 @@ type PageLoadHook<A> =
 /// `App` runtime information.
 pub struct Context {
   pub(crate) config: &'static Config,
-  pub(crate) tauri_script: &'static str,
   pub(crate) default_window_icon: Option<&'static [u8]>,
   pub(crate) assets: &'static tauri_api::assets::EmbeddedAssets,
 }
@@ -40,7 +39,6 @@ impl Context {
   pub(crate) fn new<Context: AsTauriContext>(_: Context) -> Self {
     Self {
       config: Context::config(),
-      tauri_script: Context::raw_tauri_script(),
       default_window_icon: Context::default_window_icon(),
       assets: Context::assets(),
     }
@@ -163,19 +161,12 @@ type WebviewContext<A> = (
   Option<FileDropHandler>,
 );
 
-#[async_trait::async_trait]
 trait WebviewInitializer<A: ApplicationExt> {
   fn init_webview(&self, webview: Webview<A>) -> crate::Result<WebviewContext<A>>;
 
-  async fn on_webview_created(
-    &self,
-    webview_label: String,
-    dispatcher: A::Dispatcher,
-    manager: WebviewManager<A>,
-  );
+  fn on_webview_created(&self, webview_label: String, dispatcher: A::Dispatcher);
 }
 
-#[async_trait::async_trait]
 impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
   fn init_webview(&self, webview: Webview<A>) -> crate::Result<WebviewContext<A>> {
     let webview_manager = WebviewManager::new(
@@ -212,18 +203,11 @@ impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<App<A>> {
     ))
   }
 
-  async fn on_webview_created(
-    &self,
-    webview_label: String,
-    dispatcher: A::Dispatcher,
-    manager: WebviewManager<A>,
-  ) {
+  fn on_webview_created(&self, webview_label: String, dispatcher: A::Dispatcher) {
     self.dispatchers.lock().unwrap().insert(
       webview_label.to_string(),
       WebviewDispatcher::new(dispatcher, webview_label),
     );
-
-    crate::plugin::created(A::plugin_store(), &manager).await
   }
 }
 
@@ -382,11 +366,8 @@ fn run<A: ApplicationExt + 'static>(mut application: App<A>) -> crate::Result<()
       custom_protocol,
       file_drop_handler,
     )?;
-    crate::async_runtime::block_on(application.on_webview_created(
-      webview_label,
-      dispatcher,
-      webview_manager,
-    ));
+    application.on_webview_created(webview_label, dispatcher);
+    crate::async_runtime::block_on(crate::plugin::created(A::plugin_store(), &webview_manager));
   }
 
   if let Some(main_webview_manager) = main_webview_manager {

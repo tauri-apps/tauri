@@ -346,6 +346,9 @@ pub struct BuildConfig {
   /// the dist config.
   #[serde(default = "default_dist_path")]
   pub dist_dir: String,
+  /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
+  #[serde(default)]
+  pub with_global_tauri: bool,
 }
 
 fn default_dev_path() -> String {
@@ -361,6 +364,7 @@ impl Default for BuildConfig {
     Self {
       dev_path: default_dev_path(),
       dist_dir: default_dist_path(),
+      with_global_tauri: false,
     }
   }
 }
@@ -448,10 +452,11 @@ mod build {
     quote! { vec![#(#items),*] }
   }
 
-  /// Create a `HashMap` constructor, mapping keys and values with other `TokenStream`s.
+  /// Create a map constructor, mapping keys and values with other `TokenStream`s.
   ///
   /// This function is pretty generic because the types of keys AND values get transformed.
-  fn hashmap_lit<Map, Key, Value, TokenStreamKey, TokenStreamValue, FuncKey, FuncValue>(
+  fn map_lit<Map, Key, Value, TokenStreamKey, TokenStreamValue, FuncKey, FuncValue>(
+    map_type: TokenStream,
     map: Map,
     map_key: FuncKey,
     map_value: FuncValue,
@@ -475,12 +480,12 @@ mod build {
       });
 
       quote! {{
-        let mut #ident = ::std::collections::HashMap::new();
+        let mut #ident = #map_type::new();
         #(#items)*
         #ident
       }}
     } else {
-      quote! { ::std::collections::HashMap::new() }
+      quote! { #map_type::new() }
     }
   }
 
@@ -523,7 +528,7 @@ mod build {
         quote! { #prefix::Array(vec![#(#items),*]) }
       }
       JsonValue::Object(map) => {
-        let map = hashmap_lit(map, str_lit, json_value_lit);
+        let map = map_lit(quote! { ::serde_json::Map }, map, str_lit, json_value_lit);
         quote! { #prefix::Object(#map) }
       }
     }
@@ -675,7 +680,14 @@ mod build {
         self
           .subcommands
           .as_ref()
-          .map(|map| hashmap_lit(map, str_lit, identity))
+          .map(|map| {
+            map_lit(
+              quote! { ::std::collections::HashMap },
+              map,
+              str_lit,
+              identity,
+            )
+          })
           .as_ref(),
       );
 
@@ -704,8 +716,9 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let dev_path = str_lit(&self.dev_path);
       let dist_dir = str_lit(&self.dist_dir);
+      let with_global_tauri = self.with_global_tauri;
 
-      literal_struct!(tokens, BuildConfig, dev_path, dist_dir);
+      literal_struct!(tokens, BuildConfig, dev_path, dist_dir, with_global_tauri);
     }
   }
 
@@ -721,7 +734,12 @@ mod build {
 
   impl ToTokens for PluginConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let config = hashmap_lit(&self.0, str_lit, json_value_lit);
+      let config = map_lit(
+        quote! { ::std::collections::HashMap },
+        &self.0,
+        str_lit,
+        json_value_lit,
+      );
       tokens.append_all(quote! { ::tauri::api::config::PluginConfig(#config) })
     }
   }
@@ -791,6 +809,7 @@ mod test {
     let build = BuildConfig {
       dev_path: String::from("http://localhost:8080"),
       dist_dir: String::from("../dist"),
+      with_global_tauri: false,
     };
 
     // test the configs

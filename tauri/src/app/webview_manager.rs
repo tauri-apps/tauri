@@ -277,12 +277,8 @@ impl<A: ApplicationExt + 'static> WebviewManager<A> {
     );
     self
       .application
-      .on_webview_created(
-        label.to_string(),
-        window_dispatcher.clone(),
-        webview_manager,
-      )
-      .await;
+      .on_webview_created(label.to_string(), window_dispatcher.clone());
+    crate::plugin::created(A::plugin_store(), &webview_manager).await;
     Ok(WebviewDispatcher::new(window_dispatcher, label))
   }
 

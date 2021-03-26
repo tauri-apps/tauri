@@ -52,9 +52,9 @@ pub(super) fn get_url(context: &Context) -> String {
 }
 
 #[cfg(custom_protocol)]
-pub(super) fn get_url(_: &Context) -> String {
+pub(super) fn get_url(context: &Context) -> String {
   // Custom protocol doesn't require any setup, so just return URL
-  "tauri://index.html".into()
+  format!("tauri://{}", context.config.tauri.bundle.identifier)
 }
 
 // spawn an updater process.
@@ -73,11 +73,12 @@ pub(super) fn spawn_updater() {
 
 pub(super) fn initialization_script(
   plugin_initialization_script: &str,
-  tauri_script: &str,
+  with_global_tauri: bool,
 ) -> String {
   format!(
     r#"
-      {tauri_initialization_script}
+      {bundle_script}
+      {core_script}
       {event_initialization_script}
       if (window.rpc) {{
         window.__TAURI__.invoke("__initialized", {{ url: window.location.href }})
@@ -88,7 +89,12 @@ pub(super) fn initialization_script(
       }}
       {plugin_initialization_script}
     "#,
-    tauri_initialization_script = tauri_script,
+    core_script = include_str!("../../scripts/core.js"),
+    bundle_script = if with_global_tauri {
+      include_str!("../../scripts/bundle.js")
+    } else {
+      ""
+    },
     event_initialization_script = event_initialization_script(),
     plugin_initialization_script = plugin_initialization_script
   )
@@ -159,7 +165,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
   };
   let (webview_builder, rpc_handler, custom_protocol) = if is_local {
     let mut webview_builder = webview.builder.url(webview_url)
-        .initialization_script(&initialization_script(plugin_initialization_script, &context.tauri_script))
+        .initialization_script(&initialization_script(plugin_initialization_script, context.config.build.with_global_tauri))
         .initialization_script(&format!(
           r#"
               window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
@@ -234,22 +240,23 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
         }
       });
     let assets = context.assets;
+    let bundle_identifier = context.config.tauri.bundle.identifier.clone();
     let custom_protocol = CustomProtocol {
       name: "tauri".into(),
       handler: Box::new(move |path| {
-        let mut path = path.to_string().replace("tauri://", "");
+        let mut path = path
+          .to_string()
+          .replace(&format!("tauri://{}", bundle_identifier), "");
         if path.ends_with('/') {
           path.pop();
         }
-        let path =
-          if let Some((first, components)) = path.split('/').collect::<Vec<&str>>().split_first() {
-            match components.len() {
-              0 => first.to_string(),
-              _ => components.join("/"),
-            }
-          } else {
-            path
-          };
+        let path = if path.is_empty() {
+          // if the url is `tauri://${appId}`, we should load `index.html`
+          "index.html".to_string()
+        } else {
+          // skip leading `/`
+          path.chars().skip(1).collect::<String>()
+        };
 
         let asset_response = assets
           .get(&path)
@@ -370,7 +377,7 @@ mod test {
     let context = Context::new(context);
     let res = super::get_url(&context);
     #[cfg(custom_protocol)]
-    assert!(res == "tauri://index.html");
+    assert!(res == "tauri://studio.tauri.example");
 
     #[cfg(dev)]
     {

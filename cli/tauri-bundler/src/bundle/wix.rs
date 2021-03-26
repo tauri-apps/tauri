@@ -454,17 +454,18 @@ pub fn build_wix_app_installer(
     .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
   let app_exe_source = settings.binary_path(main_binary);
 
-  if let Some(certificate_thumbprint) = settings.windows_certificate_thumbprint() {
+  if let Some(certificate_thumbprint) = &settings.windows().certificate_thumbprint {
     common::print_info("signing app")?;
     sign(
       &app_exe_source,
       &SignParams {
         digest_algorithm: settings
-          .windows_digest_algorithm()
-          .unwrap_or(&"sha256".to_string())
-          .to_string(),
+          .windows()
+          .digest_algorithm
+          .map(|algorithm| algorithm.to_string())
+          .unwrap_or(&"sha256".to_string()),
         certificate_thumbprint: certificate_thumbprint.to_string(),
-        timestamp_url: match settings.windows_timestamp_url() {
+        timestamp_url: match &settings.windows().timestamp_url {
           Some(url) => Some(url.to_string()),
           None => None,
         },
@@ -476,7 +477,7 @@ pub fn build_wix_app_installer(
 
   let mut data = BTreeMap::new();
 
-  data.insert("product_name", to_json(settings.bundle_name()));
+  data.insert("product_name", to_json(settings.product_name()));
   data.insert("version", to_json(settings.version_string()));
   let manufacturer = settings.bundle_identifier().to_string();
   data.insert("manufacturer", to_json(manufacturer.as_str()));
@@ -515,6 +516,15 @@ pub fn build_wix_app_installer(
 
   data.insert("resources", to_json(resources_wix_string));
   data.insert("resource_file_ids", to_json(files_ids));
+
+  let merge_modules = get_merge_modules(&settings)?;
+  data.insert("merge_modules", to_json(merge_modules));
+
+  let main_binary = settings
+    .binaries()
+    .iter()
+    .find(|bin| bin.main())
+    .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
 
   data.insert("app_exe_source", to_json(&app_exe_source));
 
@@ -696,6 +706,38 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
   }
 
   Ok(binaries)
+}
+
+#[derive(Serialize)]
+struct MergeModule {
+  name: String,
+  path: String,
+}
+
+fn get_merge_modules(settings: &Settings) -> crate::Result<Vec<MergeModule>> {
+  let mut merge_modules = Vec::new();
+  let regex = Regex::new(r"[^\w\d\.]")?;
+  for msm in glob::glob(
+    settings
+      .project_out_directory()
+      .join("*.msm")
+      .to_string_lossy()
+      .to_string()
+      .as_str(),
+  )? {
+    let path = msm?;
+    let filename = path
+      .file_name()
+      .expect("failed to extract merge module filename")
+      .to_os_string()
+      .into_string()
+      .expect("failed to convert merge module filename to string");
+    merge_modules.push(MergeModule {
+      name: regex.replace_all(&filename, "").to_string(),
+      path: path.to_string_lossy().to_string(),
+    });
+  }
+  Ok(merge_modules)
 }
 
 /// Generates the data required for the resource bundling on wix

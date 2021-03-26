@@ -60,7 +60,7 @@ async function getNpmPackageVersion(
   const child = (await useYarn())
     ? crossSpawnSync(
         'yarn',
-        ['list', '--patern', packageName, '--depth', '0'],
+        ['list', '--pattern', packageName, '--depth', '0'],
         {
           cwd: appDir
         }
@@ -117,6 +117,7 @@ function semverLt(first: string, second: string): boolean {
 }
 
 export {
+  useYarn,
   getCrateLatestVersion,
   getNpmLatestVersion,
   getNpmPackageVersion,

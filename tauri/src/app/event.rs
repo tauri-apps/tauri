@@ -5,10 +5,10 @@ use std::{
 };
 
 use crate::ApplicationDispatcherExt;
-use lazy_static::lazy_static;
 use once_cell::sync::Lazy;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
+use uuid::Uuid;
 
 /// Event identifier.
 pub type EventId = u64;
@@ -25,11 +25,9 @@ struct EventHandler {
 
 type Listeners = Arc<Mutex<HashMap<String, Vec<EventHandler>>>>;
 
-lazy_static! {
-  static ref EMIT_FUNCTION_NAME: String = uuid::Uuid::new_v4().to_string();
-  static ref EVENT_LISTENERS_OBJECT_NAME: String = uuid::Uuid::new_v4().to_string();
-  static ref EVENT_QUEUE_OBJECT_NAME: String = uuid::Uuid::new_v4().to_string();
-}
+static EMIT_FUNCTION_NAME: Lazy<String> = Lazy::new(|| Uuid::new_v4().to_string());
+static EVENT_LISTENERS_OBJECT_NAME: Lazy<String> = Lazy::new(|| Uuid::new_v4().to_string());
+static EVENT_QUEUE_OBJECT_NAME: Lazy<String> = Lazy::new(|| Uuid::new_v4().to_string());
 
 /// Gets the listeners map.
 fn listeners() -> &'static Listeners {

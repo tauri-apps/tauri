@@ -5,7 +5,7 @@ use crate::{
 use std::sync::{Arc, Mutex};
 
 /// The plugin interface.
-pub trait Plugin<A: ApplicationExt + 'static>: Send + Sync {
+pub trait Plugin<A: ApplicationExt + 'static>: Send {
   /// The plugin name. Used as key on the plugin config object.
   fn name(&self) -> &'static str;
 
@@ -38,12 +38,12 @@ pub trait Plugin<A: ApplicationExt + 'static>: Send + Sync {
 }
 
 /// Plugin collection type.
-pub type PluginStore<A> = Arc<Mutex<Vec<Box<dyn Plugin<A> + Sync + Send>>>>;
+pub type PluginStore<A> = Arc<Mutex<Vec<Box<dyn Plugin<A> + Send>>>>;
 
 /// Registers a plugin.
 pub fn register<A: ApplicationExt + 'static>(
   store: &PluginStore<A>,
-  plugin: impl Plugin<A> + Sync + Send + 'static,
+  plugin: impl Plugin<A> + Send + 'static,
 ) {
   let mut plugins = store.lock().unwrap();
   plugins.push(Box::new(plugin));

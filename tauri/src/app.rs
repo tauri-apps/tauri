@@ -395,7 +395,7 @@ impl<A: ApplicationExt + 'static> AppBuilder<A> {
   }
 
   /// Defines the JS message handler callback.
-  pub fn invoke_handler<F: Fn(WebviewManager<A>, InvokeMessage<A>) + Send + Sync + 'static>(
+  pub fn invoke_handler<F: Fn(WebviewManager<A>, InvokeMessage<A>) + Send + 'static>(
     mut self,
     invoke_handler: F,
   ) -> Self {
@@ -404,13 +404,13 @@ impl<A: ApplicationExt + 'static> AppBuilder<A> {
   }
 
   /// Defines the setup hook.
-  pub fn setup<F: Fn(WebviewManager<A>) + Send + Sync + 'static>(mut self, setup: F) -> Self {
+  pub fn setup<F: Fn(WebviewManager<A>) + Send + 'static>(mut self, setup: F) -> Self {
     self.setup = Some(Box::new(setup));
     self
   }
 
   /// Defines the page load hook.
-  pub fn on_page_load<F: Fn(WebviewManager<A>, PageLoadPayload) + Send + Sync + 'static>(
+  pub fn on_page_load<F: Fn(WebviewManager<A>, PageLoadPayload) + Send + 'static>(
     mut self,
     on_page_load: F,
   ) -> Self {
@@ -421,7 +421,7 @@ impl<A: ApplicationExt + 'static> AppBuilder<A> {
   /// Adds a plugin to the runtime.
   pub fn plugin(
     self,
-    plugin: impl crate::plugin::Plugin<A> + Send + Sync + Sync + 'static,
+    plugin: impl crate::plugin::Plugin<A> + Send + 'static,
   ) -> Self {
     crate::plugin::register(A::plugin_store(), plugin);
     self

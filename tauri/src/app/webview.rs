@@ -177,7 +177,7 @@ pub struct CustomProtocol {
   /// Name of the protocol
   pub name: String,
   /// Handler for protocol
-  pub handler: Box<dyn Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync>,
+  pub handler: Box<dyn Fn(&str) -> crate::Result<Vec<u8>> + Send>,
 }
 
 /// The file drop event payload.
@@ -202,7 +202,7 @@ pub trait ApplicationDispatcherExt: Clone + Send + Sized {
     + WebviewBuilderExtPrivate
     + From<WindowConfig>
     + Send
-    + Sync;
+    ;
   /// Creates a webview.
   fn create_webview(
     &self,
@@ -286,8 +286,7 @@ pub trait ApplicationExt: Sized {
   type WebviewBuilder: WebviewBuilderExt
     + WebviewBuilderExtPrivate
     + From<WindowConfig>
-    + Send
-    + Sync;
+    + Send;
   /// The message dispatcher.
   type Dispatcher: ApplicationDispatcherExt<WebviewBuilder = Self::WebviewBuilder>;
 

@@ -1,6 +1,7 @@
+use super::InvokeResponse;
 #[cfg(global_shortcut_all)]
 use crate::api::shortcuts::ShortcutManager;
-use crate::app::{InvokeResponse, WebviewDispatcher};
+use crate::app::WebviewDispatcher;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 

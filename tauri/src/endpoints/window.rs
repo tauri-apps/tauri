@@ -1,4 +1,5 @@
-use crate::app::{ApplicationExt, Icon, InvokeResponse};
+use super::InvokeResponse;
+use crate::app::{ApplicationExt, Icon};
 use serde::Deserialize;
 
 #[derive(Deserialize)]

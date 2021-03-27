@@ -1,4 +1,6 @@
 use super::InvokeResponse;
+use crate::event::EventScope;
+use crate::{runtime::Runtime, Label, Window};
 use serde::Deserialize;
 
 /// The API descriptor.
@@ -21,22 +23,20 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub fn run<A: crate::ApplicationExt + 'static>(
-    self,
-    webview_manager: &crate::WebviewManager<A>,
-  ) -> crate::Result<InvokeResponse> {
+  pub fn run<E, L, R>(self, window: Window<E, L, R>) -> crate::Result<InvokeResponse>
+  where
+    E: Label,
+    L: Label,
+    R: Runtime,
+  {
     match self {
       Self::Listen { event, handler } => {
         let event_id = rand::random();
-        webview_manager
-          .current_webview()?
-          .eval(&listen_js(event, event_id, handler))?;
+        window.eval(&listen_js(event, event_id, handler))?;
         Ok(event_id.into())
       }
       Self::Unlisten { event_id } => {
-        webview_manager
-          .current_webview()?
-          .eval(&unlisten_js(event_id))?;
+        window.eval(&unlisten_js(event_id))?;
         Ok(().into())
       }
       Self::Emit {
@@ -44,17 +44,19 @@ impl Cmd {
         window_label,
         payload,
       } => {
-        if let Some(label) = window_label {
-          let dispatcher = webview_manager.get_webview(&label)?;
+        let e: E = event
+          .parse()
+          .unwrap_or_else(|_| panic!("todo: invalid event str"));
+        if let Some(_) = window_label {
           // dispatch the event to Rust listeners
-          dispatcher.on_event(event.to_string(), payload.clone());
+          window.trigger(EventScope::Global, e.clone(), payload.clone());
           // dispatch the event to JS listeners
-          dispatcher.emit(event, payload)?;
+          window.emit(e, payload)?;
         } else {
           // dispatch the event to Rust listeners
-          webview_manager.on_event(event.to_string(), payload.clone());
+          window.trigger(EventScope::Global, e.clone(), payload.clone());
           // dispatch the event to JS listeners
-          webview_manager.emit(event, payload)?;
+          window.emit(e, payload)?;
         }
         Ok(().into())
       }

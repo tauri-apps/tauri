@@ -1,5 +1,6 @@
 use super::InvokeResponse;
-use crate::app::{ApplicationExt, Icon};
+use crate::webview::WindowConfig;
+use crate::{app::Icon, runtime::Runtime, Label, PendingWindow, Window};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -90,14 +91,15 @@ struct WindowCreatedEvent {
 }
 
 impl Cmd {
-  pub async fn run<A: ApplicationExt + 'static>(
-    self,
-    webview_manager: &crate::WebviewManager<A>,
-  ) -> crate::Result<InvokeResponse> {
+  pub async fn run<E, L, R>(self, window: Window<E, L, R>) -> crate::Result<InvokeResponse>
+  where
+    E: Label,
+    L: Label,
+    R: Runtime,
+  {
     if cfg!(not(window_all)) {
       Err(crate::Error::ApiNotAllowlisted("window > all".to_string()))
     } else {
-      let current_webview = webview_manager.current_webview()?;
       match self {
         Self::CreateWebview { options } => {
           #[cfg(not(window_create))]
@@ -106,48 +108,54 @@ impl Cmd {
           ));
           #[cfg(window_create)]
           {
-            let label = options.label.to_string();
-            webview_manager
-              .create_webview(label.to_string(), options.url.clone(), |_| {
-                Ok(crate::app::webview::WindowConfig(options).into())
-              })
-              .await?;
-            webview_manager.emit_except(
-              label.to_string(),
-              "tauri://window-created",
-              Some(WindowCreatedEvent { label }),
+            let label: L = options
+              .label
+              .parse()
+              .unwrap_or_else(|_| panic!("todo: label parsing"));
+
+            let event: E = "tauri://window-created"
+              .parse()
+              .unwrap_or_else(|_| panic!("todo: event parsing"));
+
+            let _url = options.url.clone();
+            //let _ = PendingWindow::new(WindowConfig(options), label.clone(), url);
+            //todo: window.create_window(pending).await?;
+
+            window.emit(
+              event,
+              Some(WindowCreatedEvent {
+                label: label.to_string(),
+              }),
             )?;
           }
         }
-        Self::SetResizable { resizable } => current_webview.set_resizable(resizable)?,
-        Self::SetTitle { title } => current_webview.set_title(&title)?,
-        Self::Maximize => current_webview.maximize()?,
-        Self::Unmaximize => current_webview.unmaximize()?,
-        Self::Minimize => current_webview.minimize()?,
-        Self::Unminimize => current_webview.unminimize()?,
-        Self::Show => current_webview.show()?,
-        Self::Hide => current_webview.hide()?,
-        Self::Close => current_webview.close()?,
-        Self::SetDecorations { decorations } => current_webview.set_decorations(decorations)?,
-        Self::SetAlwaysOnTop { always_on_top } => {
-          current_webview.set_always_on_top(always_on_top)?
-        }
-        Self::SetWidth { width } => current_webview.set_width(width)?,
-        Self::SetHeight { height } => current_webview.set_height(height)?,
-        Self::Resize { width, height } => current_webview.resize(width, height)?,
+        Self::SetResizable { resizable } => window.set_resizable(resizable)?,
+        Self::SetTitle { title } => window.set_title(&title)?,
+        Self::Maximize => window.maximize()?,
+        Self::Unmaximize => window.unmaximize()?,
+        Self::Minimize => window.minimize()?,
+        Self::Unminimize => window.unminimize()?,
+        Self::Show => window.show()?,
+        Self::Hide => window.hide()?,
+        Self::Close => window.close()?,
+        Self::SetDecorations { decorations } => window.set_decorations(decorations)?,
+        Self::SetAlwaysOnTop { always_on_top } => window.set_always_on_top(always_on_top)?,
+        Self::SetWidth { width } => window.set_width(width)?,
+        Self::SetHeight { height } => window.set_height(height)?,
+        Self::Resize { width, height } => window.resize(width, height)?,
         Self::SetMinSize {
           min_width,
           min_height,
-        } => current_webview.set_min_size(min_width, min_height)?,
+        } => window.set_min_size(min_width, min_height)?,
         Self::SetMaxSize {
           max_width,
           max_height,
-        } => current_webview.set_max_size(max_width, max_height)?,
-        Self::SetX { x } => current_webview.set_x(x)?,
-        Self::SetY { y } => current_webview.set_y(y)?,
-        Self::SetPosition { x, y } => current_webview.set_position(x, y)?,
-        Self::SetFullscreen { fullscreen } => current_webview.set_fullscreen(fullscreen)?,
-        Self::SetIcon { icon } => current_webview.set_icon(icon.into())?,
+        } => window.set_max_size(max_width, max_height)?,
+        Self::SetX { x } => window.set_x(x)?,
+        Self::SetY { y } => window.set_y(y)?,
+        Self::SetPosition { x, y } => window.set_position(x, y)?,
+        Self::SetFullscreen { fullscreen } => window.set_fullscreen(fullscreen)?,
+        Self::SetIcon { icon } => window.set_icon(icon.into())?,
       }
       Ok(().into())
     }

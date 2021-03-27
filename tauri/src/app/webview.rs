@@ -1,9 +1,7 @@
-pub mod wry;
-
-use crate::plugin::PluginStore;
-use std::path::PathBuf;
-
 use serde_json::Value as JsonValue;
+use std::{convert::TryFrom, path::PathBuf};
+
+pub mod wry;
 
 /// A icon definition.
 pub enum Icon {
@@ -83,15 +81,15 @@ pub enum Message {
 
 pub struct WindowConfig(pub crate::api::config::WindowConfig);
 
-pub trait WebviewBuilderExtPrivate: Sized {
+pub trait AttributesPrivate: Sized {
   /// Sets the webview url.
   fn url(self, url: String) -> Self;
 }
 
 /// The webview builder.
-pub trait WebviewBuilderExt: Sized {
-  /// The webview object that this builder creates.
-  type Webview;
+pub trait Attributes: Sized {
+  /// Expected icon format.
+  type Icon: TryFrom<Icon, Error = crate::Error>;
 
   /// Initializes a new webview builder.
   fn new() -> Self;
@@ -149,7 +147,7 @@ pub trait WebviewBuilderExt: Sized {
   fn always_on_top(self, always_on_top: bool) -> Self;
 
   /// Sets the window icon.
-  fn icon(self, icon: Icon) -> crate::Result<Self>;
+  fn icon(self, icon: Self::Icon) -> Self;
 
   /// Whether the icon was set or not.
   fn has_icon(&self) -> bool;
@@ -157,8 +155,8 @@ pub trait WebviewBuilderExt: Sized {
   /// User data path for the webview. Actually only supported on Windows.
   fn user_data_path(self, user_data_path: Option<PathBuf>) -> Self;
 
-  /// Builds the webview instance.
-  fn finish(self) -> crate::Result<Self::Webview>;
+  /// The full attributes.
+  fn build(self) -> Self;
 }
 
 /// Rpc request.
@@ -170,7 +168,7 @@ pub struct RpcRequest {
 }
 
 /// Rpc handler.
-pub type WebviewRpcHandler<D> = Box<dyn Fn(D, RpcRequest) + Send>;
+pub type WebviewRpcHandler<D, L> = Box<dyn Fn(D, L, RpcRequest) + Send>;
 
 /// Uses a custom handler to resolve file requests
 pub struct CustomProtocol {
@@ -194,110 +192,3 @@ pub enum FileDropEvent {
 /// File drop handler callback
 /// Return `true` in the callback to block the OS' default behavior of handling a file drop..
 pub type FileDropHandler = Box<dyn Fn(FileDropEvent) -> bool + Send>;
-
-/// Webview dispatcher. A thread-safe handle to the webview API.
-pub trait ApplicationDispatcherExt: Clone + Send + Sized {
-  /// The webview builder type.
-  type WebviewBuilder: WebviewBuilderExt + WebviewBuilderExtPrivate + From<WindowConfig> + Send;
-  /// Creates a webview.
-  fn create_webview(
-    &self,
-    webview_builder: Self::WebviewBuilder,
-    rpc_handler: Option<WebviewRpcHandler<Self>>,
-    custom_protocol: Option<CustomProtocol>,
-    file_drop_handler: Option<FileDropHandler>,
-  ) -> crate::Result<Self>;
-
-  /// Updates the window resizable flag.
-  fn set_resizable(&self, resizable: bool) -> crate::Result<()>;
-
-  /// Updates the window title.
-  fn set_title<S: Into<String>>(&self, title: S) -> crate::Result<()>;
-
-  /// Maximizes the window.
-  fn maximize(&self) -> crate::Result<()>;
-
-  /// Unmaximizes the window.
-  fn unmaximize(&self) -> crate::Result<()>;
-
-  /// Minimizes the window.
-  fn minimize(&self) -> crate::Result<()>;
-
-  /// Unminimizes the window.
-  fn unminimize(&self) -> crate::Result<()>;
-
-  /// Shows the window.
-  fn show(&self) -> crate::Result<()>;
-
-  /// Hides the window.
-  fn hide(&self) -> crate::Result<()>;
-
-  /// Closes the window.
-  fn close(&self) -> crate::Result<()>;
-
-  /// Updates the hasDecorations flag.
-  fn set_decorations(&self, decorations: bool) -> crate::Result<()>;
-
-  /// Updates the window alwaysOnTop flag.
-  fn set_always_on_top(&self, always_on_top: bool) -> crate::Result<()>;
-
-  /// Updates the window width.
-  fn set_width(&self, width: f64) -> crate::Result<()>;
-
-  /// Updates the window height.
-  fn set_height(&self, height: f64) -> crate::Result<()>;
-
-  /// Resizes the window.
-  fn resize(&self, width: f64, height: f64) -> crate::Result<()>;
-
-  /// Updates the window min size.
-  fn set_min_size(&self, min_width: f64, min_height: f64) -> crate::Result<()>;
-
-  /// Updates the window max size.
-  fn set_max_size(&self, max_width: f64, max_height: f64) -> crate::Result<()>;
-
-  /// Updates the X position.
-  fn set_x(&self, x: f64) -> crate::Result<()>;
-
-  /// Updates the Y position.
-  fn set_y(&self, y: f64) -> crate::Result<()>;
-
-  /// Updates the window position.
-  fn set_position(&self, x: f64, y: f64) -> crate::Result<()>;
-
-  /// Updates the window fullscreen state.
-  fn set_fullscreen(&self, fullscreen: bool) -> crate::Result<()>;
-
-  /// Updates the window icon.
-  fn set_icon(&self, icon: Icon) -> crate::Result<()>;
-
-  /// Evals a script on the webview.
-  fn eval_script<S: Into<String>>(&self, script: S) -> crate::Result<()>;
-}
-
-/// The application interface.
-/// Manages windows and webviews.
-pub trait ApplicationExt: Sized {
-  /// The webview builder.
-  type WebviewBuilder: WebviewBuilderExt + WebviewBuilderExtPrivate + From<WindowConfig> + Send;
-  /// The message dispatcher.
-  type Dispatcher: ApplicationDispatcherExt<WebviewBuilder = Self::WebviewBuilder>;
-
-  /// Returns the static plugin collection.
-  fn plugin_store() -> &'static PluginStore<Self>;
-
-  /// Creates a new application.
-  fn new() -> crate::Result<Self>;
-
-  /// Creates a new webview.
-  fn create_webview(
-    &mut self,
-    webview_builder: Self::WebviewBuilder,
-    rpc_handler: Option<WebviewRpcHandler<Self::Dispatcher>>,
-    custom_protocol: Option<CustomProtocol>,
-    file_drop_handler: Option<FileDropHandler>,
-  ) -> crate::Result<Self::Dispatcher>;
-
-  /// Run the application.
-  fn run(self);
-}

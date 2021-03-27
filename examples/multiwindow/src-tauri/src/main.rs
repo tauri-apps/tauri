@@ -3,7 +3,7 @@
   windows_subsystem = "windows"
 )]
 
-use tauri::WebviewBuilderExt;
+use tauri::Attributes;
 
 fn main() {
   tauri::AppBuilder::default()
@@ -19,7 +19,7 @@ fn main() {
         println!("got 'clicked' event on window '{}'", label)
       });
     })
-    .create_webview("Rust".to_string(), tauri::WindowUrl::App, |mut builder| {
+    .create_window("Rust".to_string(), tauri::WindowUrl::App, |mut builder| {
       builder = builder.title("Tauri - Rust");
       Ok(builder)
     })

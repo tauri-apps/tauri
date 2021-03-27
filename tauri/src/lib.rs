@@ -19,6 +19,9 @@ pub mod plugin;
 /// The salt helpers.
 mod salt;
 
+/// The internal runtime between an [`App`] and the webview.
+mod runtime;
+
 /// The Tauri error enum.
 pub use error::Error;
 
@@ -33,6 +36,10 @@ pub type SyncTask = Box<dyn FnOnce() + Send>;
 pub use app::*;
 pub use tauri_api as api;
 pub use tauri_macros::*;
+
+pub use crate::app::Context;
+pub use crate::app::Label;
+pub use crate::runtime::Runtime;
 
 /// The Tauri webview implementations.
 pub mod flavors {

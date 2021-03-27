@@ -1,39 +1,166 @@
+use crate::app::webview_manager::Label;
+use once_cell::sync::Lazy;
 use std::{
   boxed::Box,
   collections::HashMap,
+  fmt,
+  hash::{Hash, Hasher},
   sync::{Arc, Mutex},
 };
-
-use crate::ApplicationDispatcherExt;
-use once_cell::sync::Lazy;
-use serde::Serialize;
-use serde_json::Value as JsonValue;
 use uuid::Uuid;
 
-/// Event identifier.
-pub type EventId = u64;
-
-/// An event handler.
-struct EventHandler {
-  /// Event identifier.
-  id: EventId,
-  /// A event handler might be global or tied to a window.
-  window_label: Option<String>,
-  /// The on event callback.
-  on_event: Box<dyn Fn(EventPayload) + Send>,
+pub enum EventScope {
+  Global,
+  Window,
 }
 
-type Listeners = Arc<Mutex<HashMap<String, Vec<EventHandler>>>>;
+/// A randomly generated id that represents an event handler.
+#[derive(Debug, Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct HandlerId(Uuid);
 
-static EMIT_FUNCTION_NAME: Lazy<String> = Lazy::new(|| Uuid::new_v4().to_string());
-static EVENT_LISTENERS_OBJECT_NAME: Lazy<String> = Lazy::new(|| Uuid::new_v4().to_string());
-static EVENT_QUEUE_OBJECT_NAME: Lazy<String> = Lazy::new(|| Uuid::new_v4().to_string());
-
-/// Gets the listeners map.
-fn listeners() -> &'static Listeners {
-  static LISTENERS: Lazy<Listeners> = Lazy::new(Default::default);
-  &LISTENERS
+impl Default for HandlerId {
+  fn default() -> Self {
+    Self(Uuid::new_v4())
+  }
 }
+
+impl fmt::Display for HandlerId {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    self.0.fmt(f)
+  }
+}
+
+type Handler = Box<dyn Fn(EventPayload) + Send + 'static>;
+
+#[derive(Clone)]
+pub struct Listeners<E: Label, L: Label> {
+  global: Arc<Mutex<HashMap<E, HashMap<HandlerId, Handler>>>>,
+  window: Arc<Mutex<HashMap<L, HashMap<E, HashMap<HandlerId, Handler>>>>>,
+}
+
+impl<E: Label, L: Label> Listeners<E, L> {
+  /// Create an empty set of listeners
+  pub fn new() -> Self {
+    Self {
+      global: Arc::new(Mutex::new(HashMap::new())),
+      window: Arc::new(Mutex::new(HashMap::new())),
+    }
+  }
+
+  /// Adds a global event listener for JS events.
+  pub fn listen<F: Fn(EventPayload) + Send + 'static>(&self, event: E, handler: F) -> HandlerId {
+    let id = HandlerId::default();
+    self
+      .global
+      .lock()
+      .expect(&format!("poisoned event mutex"))
+      .entry(event)
+      .or_default()
+      .insert(id, Box::new(handler));
+    id
+  }
+
+  /// Adds a window event listener for JS events.
+  pub fn listen_window<F: Fn(EventPayload) + Send + 'static>(
+    &self,
+    window: L,
+    event: E,
+    handler: F,
+  ) -> HandlerId {
+    let id = HandlerId::default();
+    self
+      .window
+      .lock()
+      .expect(&format!("poisoned event mutex"))
+      .entry(window)
+      .or_default()
+      .entry(event)
+      .or_default()
+      .insert(id, Box::new(handler));
+    id
+  }
+
+  /// Listen to a global JS event and immediately unlisten.
+  pub fn once<F: Fn(EventPayload) + Send + 'static>(&self, event: E, handler: F) {
+    let self_ = self.clone();
+    self.listen(event, move |e| {
+      self_.unlisten(e.id);
+      handler(e);
+    });
+  }
+
+  /// Listen to an JS event on a window and immediately unlisten.
+  pub fn once_window<F: Fn(EventPayload) + Send + 'static>(&self, window: L, event: E, handler: F) {
+    let self_ = self.clone();
+    self.listen_window(window, event, move |e| {
+      self_.unlisten(e.id);
+      handler(e);
+    });
+  }
+
+  /// Removes a global event listener.
+  pub fn unlisten(&self, handler_id: HandlerId) {
+    self
+      .global
+      .lock()
+      .expect("poisoned event mutex")
+      .values_mut()
+      .for_each(|handler| {
+        handler.remove(&handler_id);
+      })
+  }
+
+  /// Removes a window event listener.
+  pub fn unlisten_window(&self, window: &L, handler_id: HandlerId) {
+    if let Some(handlers) = self
+      .window
+      .lock()
+      .expect("poisoned event mutex")
+      .get_mut(window)
+    {
+      for h in handlers.values_mut() {
+        h.remove(&handler_id);
+      }
+    }
+  }
+
+  /// Triggers the given global event with its payload.
+  pub(crate) fn trigger(&self, event: E, data: Option<String>) {
+    if let Some(handlers) = self
+      .global
+      .lock()
+      .expect("poisoned event mutex")
+      .get(&event)
+    {
+      for (&id, handler) in handlers {
+        let data = data.clone();
+        let payload = EventPayload { id, data };
+        handler(payload)
+      }
+    }
+  }
+
+  /// Triggers the given global event with its payload.
+  pub(crate) fn trigger_window(&self, window: &L, event: E, data: Option<String>) {
+    if let Some(handlers) = self
+      .window
+      .lock()
+      .expect("poisoned event mutex")
+      .get(window)
+      .and_then(|window| window.get(&event))
+    {
+      for (&id, handler) in handlers {
+        let data = data.clone();
+        let payload = EventPayload { id, data };
+        handler(payload)
+      }
+    }
+  }
+}
+
+static EMIT_FUNCTION_NAME: Lazy<Uuid> = Lazy::new(|| Uuid::new_v4());
+static EVENT_LISTENERS_OBJECT_NAME: Lazy<Uuid> = Lazy::new(|| Uuid::new_v4());
+static EVENT_QUEUE_OBJECT_NAME: Lazy<Uuid> = Lazy::new(|| Uuid::new_v4());
 
 /// the emit JS function name
 pub fn emit_function_name() -> String {
@@ -52,123 +179,19 @@ pub fn event_queue_object_name() -> String {
 
 #[derive(Debug, Clone)]
 pub struct EventPayload {
-  id: EventId,
-  payload: Option<String>,
+  id: HandlerId,
+  data: Option<String>,
 }
 
 impl EventPayload {
   /// The event identifier.
-  pub fn id(&self) -> EventId {
+  pub fn id(&self) -> HandlerId {
     self.id
   }
 
   /// The event payload.
   pub fn payload(&self) -> Option<&String> {
-    self.payload.as_ref()
-  }
-}
-
-/// Adds an event listener for JS events.
-pub fn listen<F: Fn(EventPayload) + Send + 'static>(
-  event_name: impl AsRef<str>,
-  window_label: Option<String>,
-  handler: F,
-) -> EventId {
-  let mut l = listeners()
-    .lock()
-    .expect("Failed to lock listeners: listen()");
-  let id = rand::random();
-  let handler = EventHandler {
-    id,
-    window_label,
-    on_event: Box::new(handler),
-  };
-  if let Some(listeners) = l.get_mut(event_name.as_ref()) {
-    listeners.push(handler);
-  } else {
-    l.insert(event_name.as_ref().to_string(), vec![handler]);
-  }
-  id
-}
-
-/// Listen to an JS event and immediately unlisten.
-pub fn once<F: Fn(EventPayload) + Send + 'static>(
-  event_name: impl AsRef<str>,
-  window_label: Option<String>,
-  handler: F,
-) {
-  listen(event_name, window_label, move |event| {
-    unlisten(event.id);
-    handler(event);
-  });
-}
-
-/// Removes an event listener.
-pub fn unlisten(event_id: EventId) {
-  crate::async_runtime::spawn(async move {
-    let mut event_listeners = listeners()
-      .lock()
-      .expect("Failed to lock listeners: listen()");
-    for listeners in event_listeners.values_mut() {
-      if let Some(index) = listeners.iter().position(|l| l.id == event_id) {
-        listeners.remove(index);
-      }
-    }
-  })
-}
-
-/// Emits an event to JS.
-pub fn emit<D: ApplicationDispatcherExt, S: Serialize>(
-  webview_dispatcher: &crate::WebviewDispatcher<D>,
-  event: impl AsRef<str>,
-  payload: Option<S>,
-) -> crate::Result<()> {
-  let salt = crate::salt::generate();
-
-  let js_payload = if let Some(payload_value) = payload {
-    serde_json::to_value(payload_value)?
-  } else {
-    JsonValue::Null
-  };
-
-  webview_dispatcher.eval(&format!(
-    "window['{}']({{event: '{}', payload: {}}}, '{}')",
-    emit_function_name(),
-    event.as_ref(),
-    js_payload,
-    salt
-  ))?;
-
-  Ok(())
-}
-
-/// Triggers the given event with its payload.
-pub(crate) fn on_event(event: String, window_label: Option<&str>, data: Option<String>) {
-  let mut l = listeners()
-    .lock()
-    .expect("Failed to lock listeners: on_event()");
-
-  if l.contains_key(&event) {
-    let listeners = l.get_mut(&event).expect("Failed to get mutable handler");
-    for handler in listeners {
-      if let Some(target_window_label) = window_label {
-        // if the emitted event targets a specifid window, only triggers the listeners associated to that window
-        if handler.window_label.as_deref() == Some(target_window_label) {
-          let payload = data.clone();
-          (handler.on_event)(EventPayload {
-            id: handler.id,
-            payload,
-          });
-        }
-      } else {
-        // otherwise triggers all listeners
-        let payload = data.clone();
-        (handler.on_event)(EventPayload {
-          id: handler.id,
-          payload,
-        });
-      }
-    }
+    self.data.as_ref()
   }
 }
 
@@ -184,31 +207,34 @@ mod test {
 
   proptest! {
     #![proptest_config(ProptestConfig::with_cases(10000))]
-    #[test]
+
     // check to see if listen() is properly passing keys into the LISTENERS map
+    #[test]
     fn listeners_check_key(e in "[a-z]+") {
+      let listeners: Listeners<String> = Default::default();
       // clone e as the key
       let key = e.clone();
       // pass e and an dummy func into listen
-      listen(e, None, event_fn);
+      listeners.listen(e, None, event_fn);
 
       // lock mutex
-      let l = listeners().lock().unwrap();
+      let l = listeners.window.lock().unwrap();
 
       // check if the generated key is in the map
       assert_eq!(l.contains_key(&key), true);
     }
 
-    #[test]
     // check to see if listen inputs a handler function properly into the LISTENERS map.
+    #[test]
     fn listeners_check_fn(e in "[a-z]+") {
+       let listeners: Listeners<String> = Default::default();
        // clone e as the key
        let key = e.clone();
        // pass e and an dummy func into listen
-       listen(e, None, event_fn);
+       listenerslisten(e, None, event_fn);
 
        // lock mutex
-       let mut l = listeners().lock().unwrap();
+       let mut l = listeners.window.lock().unwrap();
 
        // check if l contains key
        if l.contains_key(&key) {
@@ -224,18 +250,19 @@ mod test {
       }
     }
 
-    #[test]
     // check to see if on_event properly grabs the stored function from listen.
+    #[test]
     fn check_on_event(e in "[a-z]+", d in "[a-z]+") {
+      let listeners: Listeners<String> = Default::default();
       // clone e as the key
       let key = e.clone();
       // call listen with e and the event_fn dummy func
-      listen(e.clone(), None, event_fn);
+      listeners.listen(e.clone(), None, event_fn);
       // call on event with e and d.
-      on_event(e, None, Some(d));
+      listeners.on_event(e, None, Some(d));
 
       // lock the mutex
-      let l = listeners().lock().unwrap();
+      let l = listeners.window.lock().unwrap();
 
       // assert that the key is contained in the listeners map
       assert!(l.contains_key(&key));

@@ -196,8 +196,11 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
           }
         }
       });
-    let assets = context.assets;
     let bundle_identifier = context.config.tauri.bundle.identifier.clone();
+    #[cfg(debug_assertions)]
+    let dist_dir = std::path::PathBuf::from(context.config.build.dist_dir.clone());
+    #[cfg(not(debug_assertions))]
+    let assets = context.assets;
     let custom_protocol = CustomProtocol {
       name: "tauri".into(),
       handler: Box::new(move |path| {
@@ -215,17 +218,42 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
           path.chars().skip(1).collect::<String>()
         };
 
-        let asset_response = assets
-          .get(&path)
-          .ok_or(crate::Error::AssetNotFound(path))
-          .map(Cow::into_owned);
-        match asset_response {
-          Ok(asset) => Ok(asset),
-          Err(e) => {
-            #[cfg(debug_assertions)]
-            eprintln!("{:?}", e); // TODO log::error!
-            Err(e)
-          }
+        // In development builds, resolve, read and directly serve assets in the configured dist folder.
+        #[cfg(debug_assertions)]
+        {
+          dist_dir
+            .canonicalize()
+            .or_else(|_| Err(crate::Error::AssetNotFound(path.clone())))
+            .and_then(|pathbuf| {
+              pathbuf
+                .join(path.clone())
+                .canonicalize()
+                .or_else(|_| Err(crate::Error::AssetNotFound(path.clone())))
+                .and_then(|pathbuf| {
+
+                  if pathbuf.is_file() && pathbuf.starts_with(&dist_dir) {
+                    match std::fs::read(pathbuf) {
+                      Ok(asset) => return Ok(asset),
+                      Err(e) => {
+                        #[cfg(debug_assertions)]
+                        eprintln!("Error reading asset from dist: {:?}", e); // TODO log::error!
+                      }
+                    }
+                  }
+
+                  Err(crate::Error::AssetNotFound(path))
+
+                })
+            })
+        }
+
+        // In release builds, fetch + serve decompressed embedded assets.
+        #[cfg(not(debug_assertions))]
+        {
+          assets
+            .get(&path)
+            .ok_or(crate::Error::AssetNotFound(path))
+            .map(Cow::into_owned)
         }
       }),
     };

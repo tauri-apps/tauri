@@ -64,7 +64,9 @@
     "read-chunk": "3.2.0",
     "semver": "7.3.4",
     "sharp": "0.27.2",
-    "webpack-merge": "5.7.3"
+    "webpack-merge": "5.7.3",
+    "figlet": "^1.5.0",
+    "update-notifier": "^5.1.0"
   },
   "devDependencies": {
     "@babel/core": "7.13.10",

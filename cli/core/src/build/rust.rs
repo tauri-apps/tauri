@@ -3,11 +3,11 @@ use std::{fs::File, io::Read, path::PathBuf, process::Command, str::FromStr};
 use serde::Deserialize;
 
 use crate::helpers::{app_paths::tauri_dir, config::Config};
+#[cfg(windows)]
+use tauri_bundler::WindowsSettings;
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOSSettings, PackageSettings,
 };
-#[cfg(windows)]
-use tauri_bundler::WindowsSettings;
 
 /// The `workspace` section of the app configuration (read from Cargo.toml).
 #[derive(Clone, Debug, Deserialize)]

@@ -5,7 +5,7 @@ const rustCliCmds = ['dev', 'build']
 const fs = require('fs');
 const cmd = process.argv[2]
 const chalk = require('chalk');
-const pkg = require('../package.json');
+const pkg = require('./package.json');
 const figlet = require('figlet');
 const updateNotifier = require('update-notifier')
 /**
@@ -39,7 +39,7 @@ const tauri = function (command) {
 
         console.log(chalk.cyan(figlet.textSync('Tauri')));
         console.log(`${chalk.cyan("Description")} \n This is the Tauri CLI \n ${chalk.magenta('Usage')} \n $ tauri ${cmds.join('|')} \n ${chalk.cyan('Options')} \n --help, -h     Displays this message \n  --version, -v  Displays the Tauri CLI version`)
-     
+
         process.exit(0)
         // eslint-disable-next-line no-unreachable
         return false // do this for node consumers and tests
@@ -49,8 +49,10 @@ const tauri = function (command) {
         console.log(`${pkg.version}`);
         return false // do this for node consumers and tests
     }
-    if (command ==='-no-update-notifier' || command === '--no-update-notifier'){
-       noUpdates = true;
+    if (command === '--no-update-notifier'){
+        noUpdates = true;
+        console.log('Now you wont get notifications on the latest updates.')
+        process.exit(0)
     }
 
     if (cmds.includes(command)) {

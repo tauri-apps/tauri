@@ -65,25 +65,20 @@ impl Dev {
       .build
       .before_dev_command
     {
-      let mut cmd: Option<&str> = None;
-      let mut args: Vec<&str> = vec![];
-      for token in before_dev.split(' ') {
-        if cmd.is_none() && !token.is_empty() {
-          cmd = Some(token);
-        } else {
-          args.push(token)
-        }
-      }
-
-      if let Some(cmd) = cmd {
+      if !before_dev.is_empty() {
         logger.log(format!("Running `{}`", before_dev));
         #[cfg(target_os = "windows")]
-        let mut command = Command::new(
-          which::which(&cmd).expect(&format!("failed to find `{}` in your $PATH", cmd)),
-        );
+        let child = Command::new("cmd")
+          .arg("/C")
+          .arg(before_dev)
+          .current_dir(app_dir())
+          .spawn()?;
         #[cfg(not(target_os = "windows"))]
-        let mut command = Command::new(cmd);
-        let child = command.args(args).current_dir(app_dir()).spawn()?;
+        let child = Command::new("sh")
+          .arg("-c")
+          .arg(before_dev)
+          .current_dir(app_dir())
+          .spawn()?;
         BEFORE_DEV.set(Mutex::new(child)).unwrap();
       }
     }

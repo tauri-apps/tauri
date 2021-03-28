@@ -65,7 +65,8 @@ const tauri = function (command) {
       console.log(`${pkg.version}`)
       return false // do this for node consumers and tests
     }
-    if (command === '--no-update-notifier') {
+
+    if ((process.argv || []).some((arg) => arg === '--no-update-notifier')) {
       skipUpdateNotifier = true
     }
 

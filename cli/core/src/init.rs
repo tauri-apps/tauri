@@ -1,27 +1,29 @@
-#![allow(dead_code)]
+use std::{
+  collections::BTreeMap,
+  fs::{create_dir_all, remove_dir_all, File},
+  io::Write,
+  path::{Path, PathBuf},
+};
 
-use std::{convert::TryFrom, path::PathBuf};
+use crate::helpers::Logger;
+use handlebars::{to_json, Handlebars};
+use include_dir::{include_dir, Dir};
+use serde::Deserialize;
 
-pub enum ForceType {
-  All,
-  Config,
-  Template,
+const TEMPLATE_DIR: Dir = include_dir!("./templates");
+
+#[derive(Deserialize)]
+struct ManifestPackage {
+  version: String,
 }
 
-impl TryFrom<&str> for ForceType {
-  type Error = anyhow::Error;
-  fn try_from(value: &str) -> Result<Self, Self::Error> {
-    match value.to_lowercase().as_str() {
-      "all" => Ok(Self::All),
-      "conf" => Ok(Self::Config),
-      "template" => Ok(Self::Template),
-      _ => Err(anyhow::anyhow!("Invalid `force` value.")),
-    }
-  }
+#[derive(Deserialize)]
+struct Manifest {
+  package: ManifestPackage,
 }
 
 pub struct Init {
-  force: Option<ForceType>,
+  force: bool,
   directory: PathBuf,
   tauri_path: Option<PathBuf>,
   app_name: Option<String>,
@@ -33,7 +35,7 @@ pub struct Init {
 impl Default for Init {
   fn default() -> Self {
     Self {
-      force: None,
+      force: false,
       directory: std::env::current_dir().expect("failed to read cwd"),
       tauri_path: None,
       app_name: None,
@@ -49,8 +51,8 @@ impl Init {
     Default::default()
   }
 
-  pub fn force(mut self, force: ForceType) -> Self {
-    self.force = Some(force);
+  pub fn force(mut self) -> Self {
+    self.force = true;
     self
   }
 
@@ -85,6 +87,101 @@ impl Init {
   }
 
   pub fn run(self) -> crate::Result<()> {
-    unimplemented!()
+    let logger = Logger::new("tauri:init");
+    let template_target_path = self.directory.join("src-tauri");
+    if template_target_path.exists() && !self.force {
+      logger.warn(format!(
+        "Tauri dir ({:?}) not empty. Run `init --force template` to overwrite.",
+        template_target_path
+      ));
+    } else {
+      let (tauri_dep, tauri_build_dep) = if let Some(tauri_path) = self.tauri_path {
+        (
+          format!(
+            "{{  path = {:?} }}",
+            resolve_tauri_path(&tauri_path, "tauri")
+          ),
+          format!(
+            "{{  path = {:?} }}",
+            resolve_tauri_path(&tauri_path, "core/tauri-build")
+          ),
+        )
+      } else {
+        let tauri_manifest: Manifest =
+          toml::from_str(include_str!("../../../tauri/Cargo.toml")).unwrap();
+        let tauri_build_manifest: Manifest =
+          toml::from_str(include_str!("../../../core/tauri-build/Cargo.toml")).unwrap();
+        (
+          format!(r#"{{ version = "{}" }}"#, tauri_manifest.package.version),
+          format!(
+            r#"{{ version = "{}" }}"#,
+            tauri_build_manifest.package.version
+          ),
+        )
+      };
+
+      let _ = remove_dir_all(&template_target_path);
+      let handlebars = Handlebars::new();
+
+      let mut data = BTreeMap::new();
+      data.insert("tauri_dep", to_json(tauri_dep));
+      data.insert("tauri_build_dep", to_json(tauri_build_dep));
+      data.insert(
+        "dist_dir",
+        to_json(self.dist_dir.unwrap_or_else(|| "../dist".to_string())),
+      );
+      data.insert(
+        "dev_path",
+        to_json(
+          self
+            .dev_path
+            .unwrap_or_else(|| "http://localhost:4000".to_string()),
+        ),
+      );
+      data.insert(
+        "app_name",
+        to_json(self.app_name.unwrap_or_else(|| "Tauri App".to_string())),
+      );
+      data.insert(
+        "window_title",
+        to_json(self.window_title.unwrap_or_else(|| "Tauri".to_string())),
+      );
+
+      render_template(&handlebars, &data, &TEMPLATE_DIR, &self.directory)?;
+    }
+
+    Ok(())
+  }
+}
+
+fn render_template<P: AsRef<Path>>(
+  handlebars: &Handlebars,
+  data: &BTreeMap<&str, serde_json::Value>,
+  dir: &Dir,
+  out_dir: P,
+) -> crate::Result<()> {
+  create_dir_all(out_dir.as_ref().join(dir.path()))?;
+  for file in dir.files() {
+    let mut output_file = File::create(out_dir.as_ref().join(file.path()))?;
+    if let Some(utf8) = file.contents_utf8() {
+      handlebars
+        .render_template_to_write(utf8, &data, &mut output_file)
+        .expect("Failed to render template");
+    } else {
+      output_file.write_all(file.contents())?;
+    }
+  }
+  for dir in dir.dirs() {
+    render_template(handlebars, data, dir, out_dir.as_ref())?;
+  }
+  Ok(())
+}
+
+fn resolve_tauri_path<P: AsRef<Path>>(path: P, crate_name: &str) -> PathBuf {
+  let path = path.as_ref();
+  if path.is_absolute() {
+    path.join(crate_name)
+  } else {
+    PathBuf::from("..").join(path).join(crate_name)
   }
 }

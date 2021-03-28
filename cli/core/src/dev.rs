@@ -153,7 +153,7 @@ impl Dev {
 
   fn start_app(&self, child_wait_rx: Arc<Mutex<Receiver<()>>>) -> Arc<SharedChild> {
     let mut command = Command::new("cargo");
-    command.arg("run");
+    command.args(&["run", "--no-default-features"]);
     let child = SharedChild::spawn(&mut command).expect("failed to run cargo");
     let child_arc = Arc::new(child);
 

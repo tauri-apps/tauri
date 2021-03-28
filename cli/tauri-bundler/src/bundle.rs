@@ -4,9 +4,9 @@ mod common;
 mod deb_bundle;
 mod dmg_bundle;
 mod ios_bundle;
+mod macos_bundle;
 #[cfg(target_os = "windows")]
 mod msi_bundle;
-mod osx_bundle;
 mod path_utils;
 mod platform;
 mod rpm_bundle;
@@ -18,9 +18,13 @@ pub use self::{
   category::AppCategory,
   common::{print_error, print_info},
   settings::{
-    BundleBinary, BundleSettings, PackageSettings, PackageType, Settings, SettingsBuilder,
+    BundleBinary, BundleSettings, DebianSettings, MacOSSettings, PackageSettings, PackageType,
+    Settings, SettingsBuilder,
   },
 };
+#[cfg(windows)]
+pub use settings::WindowsSettings;
+
 use common::print_finished;
 
 use std::path::PathBuf;
@@ -32,11 +36,11 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
   let package_types = settings.package_types()?;
   for package_type in &package_types {
     let mut bundle_paths = match package_type {
-      PackageType::OsxBundle => {
+      PackageType::MacOSBundle => {
         if package_types.clone().iter().any(|&t| t == PackageType::Dmg) {
           vec![]
         } else {
-          osx_bundle::bundle_project(&settings)?
+          macos_bundle::bundle_project(&settings)?
         }
       }
       PackageType::IosBundle => ios_bundle::bundle_project(&settings)?,

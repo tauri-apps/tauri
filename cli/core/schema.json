@@ -84,8 +84,13 @@
           "deb": {
             "useBootstrapper": false
           },
-          "osx": {
+          "macOS": {
             "useBootstrapper": false
+          },
+          "windows": {
+            "certificateThumbprint": null,
+            "digestAlgorithm": null,
+            "timestampUrl": null
           }
         },
         "windows": []
@@ -296,13 +301,13 @@
             "null"
           ]
         },
-        "osx": {
+        "macOS": {
           "default": {
             "useBootstrapper": false
           },
           "allOf": [
             {
-              "$ref": "#/definitions/OsxConfig"
+              "$ref": "#/definitions/MacConfig"
             }
           ]
         },
@@ -316,12 +321,6 @@
             "type": "string"
           }
         },
-        "script": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "shortDescription": {
           "type": [
             "string",
@@ -329,13 +328,25 @@
           ]
         },
         "targets": {
-          "description": "The bundle targets, currently supports [\"deb\", \"osx\", \"msi\", \"appimage\", \"dmg\"] or \"all\"",
+          "description": "The bundle targets, currently supports [\"deb\", \"app\", \"msi\", \"appimage\", \"dmg\"] or \"all\"",
           "anyOf": [
             {
               "$ref": "#/definitions/BundleTarget"
             },
             {
               "type": "null"
+            }
+          ]
+        },
+        "windows": {
+          "default": {
+            "certificateThumbprint": null,
+            "digestAlgorithm": null,
+            "timestampUrl": null
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/WindowsConfig"
             }
           ]
         }
@@ -723,19 +734,15 @@
       },
       "additionalProperties": false
     },
-    "NotificationAllowlistConfig": {
+    "MacConfig": {
       "type": "object",
       "properties": {
-        "all": {
-          "default": false,
-          "type": "boolean"
-        }
-      },
-      "additionalProperties": false
-    },
-    "OsxConfig": {
-      "type": "object",
-      "properties": {
+        "entitlements": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "exceptionDomain": {
           "type": [
             "string",
@@ -763,7 +770,23 @@
             "null"
           ]
         },
+        "signingIdentity": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "useBootstrapper": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "NotificationAllowlistConfig": {
+      "type": "object",
+      "properties": {
+        "all": {
           "default": false,
           "type": "boolean"
         }
@@ -879,8 +902,13 @@
             "deb": {
               "useBootstrapper": false
             },
-            "osx": {
+            "macOS": {
               "useBootstrapper": false
+            },
+            "windows": {
+              "certificateThumbprint": null,
+              "digestAlgorithm": null,
+              "timestampUrl": null
             }
           },
           "allOf": [
@@ -1058,6 +1086,30 @@
             "null"
           ],
           "format": "double"
+        }
+      },
+      "additionalProperties": false
+    },
+    "WindowsConfig": {
+      "type": "object",
+      "properties": {
+        "certificateThumbprint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "digestAlgorithm": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timestampUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

@@ -1,4 +1,4 @@
-use crate::app::InvokeResponse;
+use super::InvokeResponse;
 
 use once_cell::sync::Lazy;
 use serde::Deserialize;
@@ -40,7 +40,7 @@ impl Cmd {
         let mut store = clients().lock().unwrap();
         let id = rand::random::<ClientId>();
         store.insert(id, client);
-        Ok(id.into())
+        Ok(InvokeResponse::from(id))
       }
       Self::DropClient { client } => {
         let mut store = clients().lock().unwrap();

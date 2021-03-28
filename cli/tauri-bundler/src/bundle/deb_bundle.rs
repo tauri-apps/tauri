@@ -107,7 +107,7 @@ pub fn generate_data(settings: &Settings, package_dir: &Path) -> crate::Result<P
   generate_icon_files(settings, &data_dir).with_context(|| "Failed to create icon files")?;
   generate_desktop_file(settings, &data_dir).with_context(|| "Failed to create desktop file")?;
 
-  let use_bootstrapper = settings.debian_use_bootstrapper();
+  let use_bootstrapper = settings.deb().use_bootstrapper.unwrap_or_default();
   if use_bootstrapper {
     generate_bootstrap_file(settings, &data_dir)
       .with_context(|| "Failed to generate bootstrap file")?;
@@ -166,13 +166,17 @@ exit 0",
   )?;
   bootstrapper_file.flush()?;
 
-  Command::new("chmod")
+  let status = Command::new("chmod")
     .arg("+x")
     .arg(bootstrap_file_name)
     .current_dir(&bin_dir)
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
-    .spawn()?;
+    .status()?;
+
+  if !status.success() {
+    return Err(anyhow::anyhow!("failed to make the bootstrapper an executable",).into());
+  }
 
   Ok(())
 }
@@ -196,7 +200,7 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   if !settings.short_description().is_empty() {
     writeln!(file, "Comment={}", settings.short_description())?;
   }
-  let use_bootstrapper = settings.debian_use_bootstrapper();
+  let use_bootstrapper = settings.deb().use_bootstrapper.unwrap_or_default();
   writeln!(
     file,
     "Exec={}",
@@ -239,7 +243,7 @@ fn generate_control_file(
   if !settings.homepage_url().is_empty() {
     writeln!(&mut file, "Homepage: {}", settings.homepage_url())?;
   }
-  let dependencies = settings.debian_dependencies();
+  let dependencies = settings.deb().depends.as_ref().cloned().unwrap_or_default();
   if !dependencies.is_empty() {
     writeln!(&mut file, "Depends: {}", dependencies.join(", "))?;
   }

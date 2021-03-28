@@ -156,7 +156,7 @@ impl Default for WindowConfig {
 }
 
 /// A CLI argument definition
-#[derive(PartialEq, Deserialize, Debug, Default)]
+#[derive(PartialEq, Deserialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CliArg {
   /// The short version of the argument, without the preceding -.
@@ -243,7 +243,7 @@ pub struct CliArg {
 }
 
 /// The CLI root command definition.
-#[derive(PartialEq, Deserialize, Debug)]
+#[derive(PartialEq, Deserialize, Debug, Clone)]
 #[serde(tag = "cli", rename_all = "camelCase")]
 #[allow(missing_docs)] // TODO
 pub struct CliConfig {

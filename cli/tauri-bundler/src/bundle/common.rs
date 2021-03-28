@@ -247,7 +247,7 @@ pub fn execute_with_verbosity(cmd: &mut Command, settings: &Settings) -> crate::
 
 #[cfg(test)]
 mod tests {
-  use super::{copy_dir, create_file, is_retina, resource_relpath, symlink_file};
+  use super::{create_file, is_retina, resource_relpath};
   use std::{io::Write, path::PathBuf};
 
   #[test]
@@ -277,7 +277,7 @@ mod tests {
         create_file(&tmp.path().join("orig/sub/file.txt")).expect("Unable to create file");
       writeln!(file, "Hello, world!").expect("Unable to write to file");
     }
-    symlink_file(
+    super::symlink_file(
       &PathBuf::from("sub/file.txt"),
       &tmp.path().join("orig/link"),
     )
@@ -290,7 +290,7 @@ mod tests {
     );
     // Copy ${TMP}/orig to ${TMP}/parent/copy, and make sure that the
     // directory structure, file, and symlink got copied correctly.
-    copy_dir(&tmp.path().join("orig"), &tmp.path().join("parent/copy"))
+    super::copy_dir(&tmp.path().join("orig"), &tmp.path().join("parent/copy"))
       .expect("Failed to copy dir");
     assert!(tmp.path().join("parent/copy").is_dir());
     assert!(tmp.path().join("parent/copy/sub").is_dir());

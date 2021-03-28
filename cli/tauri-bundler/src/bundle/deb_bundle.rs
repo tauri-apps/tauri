@@ -166,13 +166,17 @@ exit 0",
   )?;
   bootstrapper_file.flush()?;
 
-  Command::new("chmod")
+  let status = Command::new("chmod")
     .arg("+x")
     .arg(bootstrap_file_name)
     .current_dir(&bin_dir)
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
-    .spawn()?;
+    .status()?;
+
+  if !status.success() {
+    return Err(anyhow::anyhow!("failed to make the bootstrapper an executable",).into());
+  }
 
   Ok(())
 }

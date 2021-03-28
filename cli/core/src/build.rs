@@ -73,8 +73,7 @@ impl Build {
           &mut Command::new("cmd")
             .arg("/C")
             .arg(before_build)
-            .current_dir(app_dir())
-            .spawn()?,
+            .current_dir(app_dir()),
         )?;
         #[cfg(not(target_os = "windows"))]
         execute_with_output(

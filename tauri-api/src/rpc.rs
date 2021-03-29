@@ -9,7 +9,7 @@ const MAX_JSON_STR_LEN: usize = usize::pow(2, 30) - 2;
 /// Formats a function name and argument to be evaluated as callback.
 ///
 /// This will serialize primitive JSON types (e.g. booleans, strings, numbers, etc.) as JavaScript literals,
-/// but will serialize arrays and objects whose serialized JSON string is smaller than 1 GB as ``JSON.parse(String.raw`...`)``
+/// but will serialize arrays and objects whose serialized JSON string is smaller than 1 GB as `JSON.parse('...')`
 /// https://github.com/GoogleChromeLabs/json-parse-benchmark
 ///
 /// # Examples
@@ -31,7 +31,7 @@ const MAX_JSON_STR_LEN: usize = usize::pow(2, 30) - 2;
 /// let cb = format_callback("callback-function-name", serde_json::to_value(&MyResponse {
 ///   value: "some value".to_string()
 /// }).expect("failed to serialize"));
-/// assert!(cb.contains(r#"window["callback-function-name"](JSON.parse(String.raw`{"value":"some value"}`))"#));
+/// assert!(cb.contains(r#"window["callback-function-name"](JSON.parse('{"value":"some value"}'))"#));
 /// ```
 pub fn format_callback<T: Into<JsonValue>, S: AsRef<str>>(function_name: S, arg: T) -> String {
   let as_str = {
@@ -42,13 +42,13 @@ pub fn format_callback<T: Into<JsonValue>, S: AsRef<str>>(function_name: S, arg:
         return format!(
           r#"
             if (window["{fn}"]) {{
-              window["{fn}"](JSON.parse(String.raw`{arg}`))
+              window["{fn}"](JSON.parse('{arg}'))
             }} else {{
               console.warn("[TAURI] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
             }}
           "#,
           fn = function_name.as_ref(),
-          arg = as_str
+          arg = as_str.replace("\\", "\\\\").replace("'", "\\'")
         )
       }
     }
@@ -116,7 +116,7 @@ mod test {
       let fc = format_callback(f.clone(), a.clone());
       fc.contains(
         &format!(
-          r#"window["{}"](JSON.parse(String.raw`{}`))"#,
+          r#"window["{}"](JSON.parse('{}'))"#,
           f,
           serde_json::Value::String(a.clone()),
         )

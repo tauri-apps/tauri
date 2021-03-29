@@ -8,6 +8,10 @@ const MAX_JSON_STR_LEN: usize = usize::pow(2, 30) - 2;
 
 /// Formats a function name and argument to be evaluated as callback.
 ///
+/// This will serialize primitive JSON types (e.g. booleans, strings, numbers, etc.) as JavaScript literals,
+/// but will serialize arrays and objects whose serialized JSON string is smaller than 1 GB as ``JSON.parse(String.raw`...`)``
+/// https://github.com/GoogleChromeLabs/json-parse-benchmark
+///
 /// # Examples
 /// ```
 /// use tauri_api::rpc::format_callback;
@@ -27,7 +31,7 @@ const MAX_JSON_STR_LEN: usize = usize::pow(2, 30) - 2;
 /// let cb = format_callback("callback-function-name", serde_json::to_value(&MyResponse {
 ///   value: "some value".to_string()
 /// }).expect("failed to serialize"));
-/// assert!(cb.contains(r#"window["callback-function-name"]({"value":"some value"})"#));
+/// assert!(cb.contains(r#"window["callback-function-name"](JSON.parse(String.raw`{"value":"some value"}`))"#));
 /// ```
 pub fn format_callback<T: Into<JsonValue>, S: AsRef<str>>(function_name: S, arg: T) -> String {
   let as_str = {
@@ -110,11 +114,21 @@ mod test {
     if !f.is_empty() && !a.is_empty() {
       // call format callback
       let fc = format_callback(f.clone(), a.clone());
-      fc.contains(&format!(
-        r#"window["{}"]({})"#,
-        f,
-        serde_json::Value::String(a),
-      ))
+      fc.contains(
+        &format!(
+          r#"window["{}"](JSON.parse(String.raw`{}`))"#,
+          f,
+          serde_json::Value::String(a.clone()),
+        )
+      )
+      ||
+      fc.contains(
+        &format!(
+          r#"window["{}"]({})"#,
+          f,
+          serde_json::Value::String(a),
+        )
+      )
     } else {
       true
     }

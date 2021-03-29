@@ -1,6 +1,11 @@
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 
+/// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length#description
+//  ECMAScript 2016 (ed. 7) established a maximum length of 2^53 - 1 elements. Previously, no maximum length was specified.
+//  In Firefox, strings have a maximum length of 2**30 - 2 (~1GB). In versions prior to Firefox 65, the maximum length was 2**28 - 1 (~256MB).
+const MAX_JSON_STR_LEN: usize = usize::pow(2, 30) - 2;
+
 /// Formats a function name and argument to be evaluated as callback.
 ///
 /// # Examples
@@ -25,16 +30,34 @@ use serde_json::Value as JsonValue;
 /// assert!(cb.contains(r#"window["callback-function-name"]({"value":"some value"})"#));
 /// ```
 pub fn format_callback<T: Into<JsonValue>, S: AsRef<str>>(function_name: S, arg: T) -> String {
+  let json_value = arg.into();
+  if let &JsonValue::Array(_) | &JsonValue::Object(_) = &json_value {
+    let as_str = json_value.to_string();
+    if as_str.len() < MAX_JSON_STR_LEN {
+      return format!(
+        r#"
+          if (window["{fn}"]) {{
+            window["{fn}"](JSON.parse(String.raw`{arg}`))
+          }} else {{
+            console.warn("[TAURI] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
+          }}
+        "#,
+        fn = function_name.as_ref(),
+        arg = json_value
+      )
+    }
+  }
+
   format!(
     r#"
       if (window["{fn}"]) {{
-        window["{fn}"](JSON.parse(String.raw`{arg}`))
+        window["{fn}"]({arg}))
       }} else {{
         console.warn("[TAURI] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
       }}
     "#,
     fn = function_name.as_ref(),
-    arg = arg.into().to_string()
+    arg = json_value
   )
 }
 

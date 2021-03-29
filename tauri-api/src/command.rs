@@ -1,4 +1,9 @@
-use std::process::{Child, Command, Stdio};
+use shared_child::SharedChild;
+use os_pipe::pipe;
+use std::{
+  process::{Child, Command as StdCommand, Stdio},
+  sync::Arc,
+};
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -7,11 +12,92 @@ use std::os::windows::process::CommandExt;
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 use tauri_utils::platform;
+use crate::private::async_runtime::{Sender, Receiver, channel, spawn};
+
+/// A event sent to the command callback.
+pub enum CommandEvent {
+  /// Stderr line.
+  Stderr(String),
+  /// Stdout line.
+  Stdout,
+  /// Finish status code.
+  Finish(u16),
+}
+
+macro_rules! get_std_command {
+  ($self: ident) => {{
+    let mut command = StdCommand::new($self.program);
+    command.args(&$self.args);
+    command.stdout(Stdio::piped());
+    command.stdin(Stdio::piped());
+    command.stderr(Stdio::piped());
+    #[cfg(windows)]
+    command.creation_flags(CREATE_NO_WINDOW);
+    command
+  }};
+}
+
+/// API to spawn commands.
+pub struct Command {
+  program: String,
+  args: Vec<String>,
+}
+
+/// Child spawned.
+pub struct CommandChild {
+  /// Event receiver.
+  pub event_rx: Receiver<CommandEvent>,
+  inner: Arc<SharedChild>,
+}
+
+impl CommandChild {
+  /// Send a kill signal to the child.
+  pub fn kill(self) -> crate::Result<()> {
+    self.inner.kill()?;
+    Ok(())
+  }
+}
+
+impl Command {
+  /// Creates a new Command for launching the given program.
+  pub fn new(program: String) -> Self {
+    Self {
+      program,
+      args: Default::default(),
+    }
+  }
+
+  /// Append args to the command.
+  pub fn args(mut self, args: Vec<String>) -> Self {
+    self.args.extend(args);
+    self
+  }
+
+  /// Spawns the command.
+  pub fn spawn(self) -> crate::Result<CommandChild> {
+    let mut command = get_std_command!(self);
+    let shared_child = SharedChild::spawn(&mut command)?;
+    let child = Arc::new(shared_child);
+    let child_ = child.clone();
+    let (tx, rx) = channel(1);
+    let tx_ = tx.clone();
+    spawn(async move {
+      match child_.wait() {
+        Ok(status) => {}
+        Err(e) => {}
+      }
+    });
+    Ok(CommandChild {
+      event_rx: rx,
+      inner: child,
+    })
+  }
+}
 
 /// Gets the output of the given command.
 #[cfg(not(windows))]
 pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> crate::Result<String> {
-  let output = Command::new(cmd).args(args).stdout(stdout).output()?;
+  let output = StdCommand::new(cmd).args(args).stdout(stdout).output()?;
 
   if output.status.success() {
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
@@ -25,7 +111,7 @@ pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> crate::Resul
 /// Gets the output of the given command.
 #[cfg(windows)]
 pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> crate::Result<String> {
-  let output = Command::new(cmd)
+  let output = StdCommand::new(cmd)
     .args(args)
     .stdout(stdout)
     .creation_flags(CREATE_NO_WINDOW)
@@ -72,7 +158,7 @@ pub fn spawn_relative_command(
 ) -> crate::Result<Child> {
   let cmd = command_path(command)?;
   Ok(
-    Command::new(cmd)
+    StdCommand::new(cmd)
       .args(args)
       .creation_flags(CREATE_NO_WINDOW)
       .stdout(stdout)
@@ -89,7 +175,7 @@ pub fn spawn_relative_command(
   stdout: Stdio,
 ) -> crate::Result<Child> {
   let cmd = command_path(command)?;
-  Ok(Command::new(cmd).args(args).stdout(stdout).spawn()?)
+  Ok(StdCommand::new(cmd).args(args).stdout(stdout).spawn()?)
 }
 
 /// Gets the binary command with the current target triple.

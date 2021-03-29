@@ -1,6 +1,6 @@
 use crate::{
   api::{
-    command::{Command, CommandChild},
+    command::{Command, CommandChild, CommandEvent},
     rpc::format_callback,
   },
   app::{ApplicationExt, InvokeResponse},
@@ -35,6 +35,9 @@ pub enum Cmd {
     #[serde(default)]
     sidecar: bool,
   },
+  KillChild {
+    id: ChildId,
+  },
   Open {
     path: String,
     with: Option<String>,
@@ -63,13 +66,15 @@ impl Cmd {
           command = command.args(args);
           let (mut rx, child) = command.spawn()?;
 
-          let mut store = command_childs().lock().unwrap();
           let id = rand::random::<ChildId>();
-          store.insert(id, child);
+          command_childs().lock().unwrap().insert(id, child);
 
           let webview_manager = webview_manager.clone();
           crate::async_runtime::spawn(async move {
             while let Some(event) = rx.recv().await {
+              if matches!(event, CommandEvent::Finish(_)) {
+                command_childs().lock().unwrap().remove(&id);
+              }
               let js = format_callback(on_event_fn.clone(), serde_json::to_value(event).unwrap());
               if let Ok(dispatcher) = webview_manager.current_webview() {
                 let _ = dispatcher.eval(js.as_str());
@@ -78,6 +83,19 @@ impl Cmd {
           });
 
           Ok(id.into())
+        }
+        #[cfg(not(shell_execute))]
+        Err(crate::Error::ApiNotAllowlisted(
+          "shell > execute".to_string(),
+        ))
+      }
+      Self::KillChild { id } => {
+        #[cfg(shell_execute)]
+        {
+          if let Some(child) = command_childs().lock().unwrap().remove(&id) {
+            child.kill()?;
+          }
+          Ok(().into())
         }
         #[cfg(not(shell_execute))]
         Err(crate::Error::ApiNotAllowlisted(

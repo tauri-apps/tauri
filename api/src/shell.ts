@@ -66,6 +66,24 @@ class EventEmitter<E> {
   }
 }
 
+class Child {
+  id: number
+
+  constructor(id: number) {
+    this.id = id
+  }
+
+  async kill(): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Shell',
+      message: {
+        cmd: 'killChild',
+        id: this.id
+      }
+    })
+  }
+}
+
 class Command extends EventEmitter<'close' | 'error'> {
   program: string
   args: string[]
@@ -92,8 +110,8 @@ class Command extends EventEmitter<'close' | 'error'> {
     return instance
   }
 
-  async spawn(): Promise<void> {
-    await execute(
+  async spawn(): Promise<Child> {
+    return execute(
       this.program,
       this.sidecar,
       (event) => {
@@ -113,7 +131,7 @@ class Command extends EventEmitter<'close' | 'error'> {
         }
       },
       this.args
-    )
+    ).then((id) => new Child(id))
   }
 
   async execute(): Promise<ChildProcess> {
@@ -167,4 +185,4 @@ async function open(path: string, openWith?: string): Promise<void> {
   })
 }
 
-export { Command, open }
+export { Command, Child, open }

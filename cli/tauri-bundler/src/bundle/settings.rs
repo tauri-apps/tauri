@@ -139,6 +139,17 @@ pub struct MacOSSettings {
   ///
   /// This allows communication to the outside world e.g. a web server you're shipping.
   pub exception_domain: Option<String>,
+  pub signing_identity: Option<String>,
+  pub entitlements: Option<String>,
+}
+
+/// The Windows bundle settings.
+#[cfg(windows)]
+#[derive(Clone, Debug, Deserialize, Default)]
+pub struct WindowsSettings {
+  pub digest_algorithm: Option<String>,
+  pub certificate_thumbprint: Option<String>,
+  pub timestamp_url: Option<String>,
 }
 
 /// The bundle settings of the BuildArtifact we're bundling.
@@ -178,6 +189,9 @@ pub struct BundleSettings {
   pub deb: DebianSettings,
   /// MacOS-specific settings.
   pub macos: MacOSSettings,
+  /// Windows-specific settings.
+  #[cfg(windows)]
+  pub windows: WindowsSettings,
 }
 
 #[derive(Clone, Debug)]
@@ -514,6 +528,12 @@ impl Settings {
   /// Returns the MacOS settings.
   pub fn macos(&self) -> &MacOSSettings {
     &self.bundle_settings.macos
+  }
+
+  /// Returns the Windows settings.
+  #[cfg(windows)]
+  pub fn windows(&self) -> &WindowsSettings {
+    &self.bundle_settings.windows
   }
 }
 

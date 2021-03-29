@@ -561,7 +561,7 @@ impl Settings {
   pub fn windows(&self) -> &WindowsSettings {
     &self.bundle_settings.windows
   }
-  
+
   /// Is update enabled
   pub fn is_update_enabled(&self) -> bool {
     match &self.bundle_settings.updater {

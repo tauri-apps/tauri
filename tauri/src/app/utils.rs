@@ -216,7 +216,6 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
                 .canonicalize()
                 .or_else(|_| Err(crate::Error::AssetNotFound(path.clone())))
                 .and_then(|pathbuf| {
-
                   if pathbuf.is_file() && pathbuf.starts_with(&dist_dir) {
                     match std::fs::read(pathbuf) {
                       Ok(asset) => return Ok(asset),
@@ -228,7 +227,6 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
                   }
 
                   Err(crate::Error::AssetNotFound(path))
-
                 })
             })
         }

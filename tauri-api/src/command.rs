@@ -1,7 +1,8 @@
-use shared_child::SharedChild;
 use os_pipe::pipe;
+use shared_child::SharedChild;
 use std::{
-  process::{Child, Command as StdCommand, Stdio},
+  io::{BufRead, BufReader},
+  process::{Command as StdCommand, Stdio},
   sync::Arc,
 };
 
@@ -11,17 +12,19 @@ use std::os::windows::process::CommandExt;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
+use crate::private::async_runtime::{channel, spawn, Receiver};
 use tauri_utils::platform;
-use crate::private::async_runtime::{Sender, Receiver, channel, spawn};
 
 /// A event sent to the command callback.
 pub enum CommandEvent {
   /// Stderr line.
   Stderr(String),
   /// Stdout line.
-  Stdout,
+  Stdout(String),
+  /// An error happened.
+  Error(String),
   /// Finish status code.
-  Finish(u16),
+  Finish(Option<i32>),
 }
 
 macro_rules! get_std_command {
@@ -60,131 +63,82 @@ impl CommandChild {
 
 impl Command {
   /// Creates a new Command for launching the given program.
-  pub fn new(program: String) -> Self {
+  pub fn new<S: Into<String>>(program: S) -> Self {
     Self {
-      program,
+      program: program.into(),
       args: Default::default(),
     }
   }
 
+  /// Creates a new Command for launching the given sidecar program.
+  pub fn new_sidecar<S: Into<String>>(program: S) -> Self {
+    Self::new(format!(
+      "{}-{}",
+      program.into(),
+      platform::target_triple().expect("unsupported platform")
+    ))
+  }
+
   /// Append args to the command.
-  pub fn args(mut self, args: Vec<String>) -> Self {
-    self.args.extend(args);
+  pub fn args<I, S>(mut self, args: I) -> Self
+  where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+  {
+    for arg in args {
+      self.args.push(arg.as_ref().to_string());
+    }
     self
   }
 
   /// Spawns the command.
   pub fn spawn(self) -> crate::Result<CommandChild> {
     let mut command = get_std_command!(self);
+    let (stdout_reader, stdout_writer) = pipe()?;
+    let (stderr_reader, stderr_writer) = pipe()?;
+    command.stdout(stdout_writer);
+    command.stderr(stderr_writer);
+
     let shared_child = SharedChild::spawn(&mut command)?;
     let child = Arc::new(shared_child);
     let child_ = child.clone();
+
     let (tx, rx) = channel(1);
     let tx_ = tx.clone();
     spawn(async move {
-      match child_.wait() {
-        Ok(status) => {}
-        Err(e) => {}
+      let _ = match child_.wait() {
+        Ok(status) => tx_.send(CommandEvent::Finish(status.code())).await,
+        Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
+      };
+    });
+
+    let tx_ = tx.clone();
+    spawn(async move {
+      let reader = BufReader::new(stdout_reader);
+      for line in reader.lines() {
+        let _ = match line {
+          Ok(line) => tx_.send(CommandEvent::Stdout(line)).await,
+          Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
+        };
       }
     });
+
+    let tx_ = tx.clone();
+    spawn(async move {
+      let reader = BufReader::new(stderr_reader);
+      for line in reader.lines() {
+        let _ = match line {
+          Ok(line) => tx_.send(CommandEvent::Stderr(line)).await,
+          Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
+        };
+      }
+    });
+
     Ok(CommandChild {
       event_rx: rx,
       inner: child,
     })
   }
-}
-
-/// Gets the output of the given command.
-#[cfg(not(windows))]
-pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> crate::Result<String> {
-  let output = StdCommand::new(cmd).args(args).stdout(stdout).output()?;
-
-  if output.status.success() {
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
-  } else {
-    Err(crate::Error::Command(
-      String::from_utf8_lossy(&output.stderr).to_string(),
-    ))
-  }
-}
-
-/// Gets the output of the given command.
-#[cfg(windows)]
-pub fn get_output(cmd: String, args: Vec<String>, stdout: Stdio) -> crate::Result<String> {
-  let output = StdCommand::new(cmd)
-    .args(args)
-    .stdout(stdout)
-    .creation_flags(CREATE_NO_WINDOW)
-    .output()?;
-
-  if output.status.success() {
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
-  } else {
-    Err(crate::Error::Command(
-      String::from_utf8_lossy(&output.stderr).to_string(),
-    ))
-  }
-}
-
-/// Gets the path to command relative to the current executable path.
-#[cfg(not(windows))]
-pub fn command_path(command: String) -> crate::Result<String> {
-  match std::env::current_exe()?.parent() {
-    Some(exe_dir) => Ok(format!("{}/{}", exe_dir.display().to_string(), command)),
-    None => Err(crate::Error::Command(
-      "Could not evaluate executable dir".to_string(),
-    )),
-  }
-}
-
-/// Gets the path to command relative to the current executable path.
-#[cfg(windows)]
-pub fn command_path(command: String) -> crate::Result<String> {
-  match std::env::current_exe()?.parent() {
-    Some(exe_dir) => Ok(format!("{}/{}.exe", exe_dir.display().to_string(), command)),
-    None => Err(crate::Error::Command(
-      "Could not evaluate executable dir".to_string(),
-    )),
-  }
-}
-
-/// Spawns a process with a command string relative to the current executable path.
-/// For example, if your app bundles two executables, you don't need to worry about its path and just run `second-app`.
-#[cfg(windows)]
-pub fn spawn_relative_command(
-  command: String,
-  args: Vec<String>,
-  stdout: Stdio,
-) -> crate::Result<Child> {
-  let cmd = command_path(command)?;
-  Ok(
-    StdCommand::new(cmd)
-      .args(args)
-      .creation_flags(CREATE_NO_WINDOW)
-      .stdout(stdout)
-      .spawn()?,
-  )
-}
-
-/// Spawns a process with a command string relative to the current executable path.
-/// For example, if your app bundles two executables, you don't need to worry about its path and just run `second-app`.
-#[cfg(not(windows))]
-pub fn spawn_relative_command(
-  command: String,
-  args: Vec<String>,
-  stdout: Stdio,
-) -> crate::Result<Child> {
-  let cmd = command_path(command)?;
-  Ok(StdCommand::new(cmd).args(args).stdout(stdout).spawn()?)
-}
-
-/// Gets the binary command with the current target triple.
-pub fn binary_command(binary_name: String) -> crate::Result<String> {
-  Ok(format!(
-    "{}-{}",
-    binary_name,
-    platform::target_triple().map_err(|e| crate::Error::FailedToDetectPlatform(e.to_string()))?
-  ))
 }
 
 // tests for the commands functions.
@@ -194,75 +148,45 @@ mod test {
 
   #[cfg(not(windows))]
   #[test]
-  // test the get_output function with a unix cat command.
   fn test_cmd_output() {
-    // create a string with cat in it.
-    let cmd = String::from("cat");
+    // create a command to run cat.
+    let cmd = Command::new("cat").args(&["test/test.txt"]);
+    let mut child = cmd.spawn().unwrap();
 
-    // call get_output with cat and the argument test/test.txt on the stdio.
-    let res = get_output(cmd, vec!["test/test.txt".to_string()], Stdio::piped());
-
-    // assert that the result is an Ok() type
-    assert!(res.is_ok());
-
-    // if the assertion passes, assert the incoming data.
-    if let Ok(s) = &res {
-      // assert that cat returns the string in the test.txt document.
-      assert_eq!(*s, "This is a test doc!".to_string());
-    }
+    crate::private::async_runtime::block_on(async move {
+      while let Some(event) = child.event_rx.recv().await {
+        match event {
+          CommandEvent::Finish(code) => {
+            assert_eq!(code, Some(0));
+          }
+          CommandEvent::Stdout(line) => {
+            assert_eq!(line, "This is a test doc!".to_string());
+          }
+          _ => {}
+        }
+      }
+    });
   }
 
   #[cfg(not(windows))]
   #[test]
-  // test the failure case for get_output
+  // test the failure case
   fn test_cmd_fail() {
-    use crate::Error;
+    let cmd = Command::new("cat").args(&["test/"]);
+    let mut child = cmd.spawn().unwrap();
 
-    // queue up a string with cat in it.
-    let cmd = String::from("cat");
-
-    // call get output with test/ as an argument on the stdio.
-    let res = get_output(cmd, vec!["test/".to_string()], Stdio::piped());
-
-    // assert that the result is an Error type.
-    assert!(res.is_err());
-
-    // destruct the Error to check the ErrorKind and test that it is a Command type.
-    if let Error::Command(e) = res.unwrap_err() {
-      // assert that the message in the error matches this string.
-      assert_eq!(*e, "cat: test/: Is a directory\n".to_string());
-    }
-  }
-
-  #[test]
-  // test the command_path function
-  fn check_command_path() {
-    // generate a string for cat
-    let cmd = String::from("cat");
-
-    // call command_path on cat
-    let res = command_path(cmd);
-
-    // assert that the result is an OK() type.
-    assert!(res.is_ok());
-  }
-
-  #[test]
-  // check the spawn_relative_command function
-  fn check_spawn_cmd() {
-    // generate a cat string
-    let cmd = String::from("cat");
-
-    // call spawn_relative_command with cat and the argument test/test.txt on the Stdio.
-    let res = spawn_relative_command(cmd, vec!["test/test.txt".to_string()], Stdio::piped());
-
-    // this fails because there is no cat binary in the relative parent folder of this current executing command.
-    assert!(res.is_err());
-
-    // after asserting that the result is an error, check that the error kind is ErrorKind::Io
-    if let crate::Error::Io(s) = res.unwrap_err() {
-      // assert that the ErrorKind inside of the ErrorKind Io is ErrorKind::NotFound
-      assert_eq!(s.kind(), std::io::ErrorKind::NotFound);
-    }
+    crate::private::async_runtime::block_on(async move {
+      while let Some(event) = child.event_rx.recv().await {
+        match event {
+          CommandEvent::Finish(code) => {
+            assert_eq!(code, Some(1));
+          }
+          CommandEvent::Stderr(line) => {
+            assert_eq!(line, "cat: test/: Is a directory".to_string());
+          }
+          _ => {}
+        }
+      }
+    });
   }
 }

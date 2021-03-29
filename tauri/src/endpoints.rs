@@ -42,7 +42,7 @@ impl Module {
     match self {
       Self::Fs(cmd) => cmd.run(),
       Self::Window(cmd) => cmd.run(webview_manager).await,
-      Self::Shell(cmd) => cmd.run(),
+      Self::Shell(cmd) => cmd.run(webview_manager),
       Self::Event(cmd) => cmd.run(webview_manager),
       Self::Internal(cmd) => cmd.run(),
       Self::Dialog(cmd) => cmd.run(),

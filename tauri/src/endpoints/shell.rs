@@ -1,14 +1,39 @@
-use crate::app::InvokeResponse;
+use crate::{
+  api::{
+    command::{Command, CommandChild},
+    rpc::format_callback,
+  },
+  app::{ApplicationExt, InvokeResponse},
+};
+
+use once_cell::sync::Lazy;
 use serde::Deserialize;
+
+use std::{
+  collections::HashMap,
+  sync::{Arc, Mutex},
+};
+
+type ChildId = u32;
+type ChildStore = Arc<Mutex<HashMap<ChildId, CommandChild>>>;
+
+fn command_childs() -> &'static ChildStore {
+  static STORE: Lazy<ChildStore> = Lazy::new(Default::default);
+  &STORE
+}
 
 /// The API descriptor.
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// The execute script API.
+  #[serde(rename_all = "camelCase")]
   Execute {
-    command: String,
+    program: String,
     args: Vec<String>,
+    on_event_fn: String,
+    #[serde(default)]
+    sidecar: bool,
   },
   Open {
     path: String,
@@ -17,16 +42,42 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub fn run(self) -> crate::Result<InvokeResponse> {
+  pub fn run<A: ApplicationExt + 'static>(
+    self,
+    webview_manager: &crate::WebviewManager<A>,
+  ) -> crate::Result<InvokeResponse> {
     match self {
       Self::Execute {
-        command: _,
-        args: _,
+        program,
+        args,
+        on_event_fn,
+        sidecar,
       } => {
         #[cfg(shell_execute)]
         {
-          //TODO
-          Ok(().into())
+          let mut command = if sidecar {
+            Command::new_sidecar(program)
+          } else {
+            Command::new(program)
+          };
+          command = command.args(args);
+          let (mut rx, child) = command.spawn()?;
+
+          let mut store = command_childs().lock().unwrap();
+          let id = rand::random::<ChildId>();
+          store.insert(id, child);
+
+          let webview_manager = webview_manager.clone();
+          crate::async_runtime::spawn(async move {
+            while let Some(event) = rx.recv().await {
+              let js = format_callback(on_event_fn.clone(), serde_json::to_value(event).unwrap());
+              if let Ok(dispatcher) = webview_manager.current_webview() {
+                let _ = dispatcher.eval(js.as_str());
+              }
+            }
+          });
+
+          Ok(id.into())
         }
         #[cfg(not(shell_execute))]
         Err(crate::Error::ApiNotAllowlisted(

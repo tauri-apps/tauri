@@ -1,5 +1,3 @@
-use os_pipe::pipe;
-use shared_child::SharedChild;
 use std::{
   io::{BufRead, BufReader},
   process::{Command as StdCommand, Stdio},
@@ -13,9 +11,14 @@ use std::os::windows::process::CommandExt;
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 use crate::private::async_runtime::{channel, spawn, Receiver};
+use os_pipe::pipe;
+use serde::Serialize;
+use shared_child::SharedChild;
 use tauri_utils::platform;
 
 /// A event sent to the command callback.
+#[derive(Serialize)]
+#[serde(tag = "event", content = "payload")]
 pub enum CommandEvent {
   /// Stderr line.
   Stderr(String),
@@ -47,16 +50,12 @@ pub struct Command {
 }
 
 /// Child spawned.
-pub struct CommandChild {
-  /// Event receiver.
-  pub event_rx: Receiver<CommandEvent>,
-  inner: Arc<SharedChild>,
-}
+pub struct CommandChild(Arc<SharedChild>);
 
 impl CommandChild {
   /// Send a kill signal to the child.
   pub fn kill(self) -> crate::Result<()> {
-    self.inner.kill()?;
+    self.0.kill()?;
     Ok(())
   }
 }
@@ -92,7 +91,7 @@ impl Command {
   }
 
   /// Spawns the command.
-  pub fn spawn(self) -> crate::Result<CommandChild> {
+  pub fn spawn(self) -> crate::Result<(Receiver<CommandEvent>, CommandChild)> {
     let mut command = get_std_command!(self);
     let (stdout_reader, stdout_writer) = pipe()?;
     let (stderr_reader, stderr_writer) = pipe()?;
@@ -134,10 +133,7 @@ impl Command {
       }
     });
 
-    Ok(CommandChild {
-      event_rx: rx,
-      inner: child,
-    })
+    Ok((rx, CommandChild(child)))
   }
 }
 
@@ -151,10 +147,10 @@ mod test {
   fn test_cmd_output() {
     // create a command to run cat.
     let cmd = Command::new("cat").args(&["test/test.txt"]);
-    let mut child = cmd.spawn().unwrap();
+    let (mut rx, _) = cmd.spawn().unwrap();
 
     crate::private::async_runtime::block_on(async move {
-      while let Some(event) = child.event_rx.recv().await {
+      while let Some(event) = rx.recv().await {
         match event {
           CommandEvent::Finish(code) => {
             assert_eq!(code, Some(0));
@@ -173,10 +169,10 @@ mod test {
   // test the failure case
   fn test_cmd_fail() {
     let cmd = Command::new("cat").args(&["test/"]);
-    let mut child = cmd.spawn().unwrap();
+    let (mut rx, _) = cmd.spawn().unwrap();
 
     crate::private::async_runtime::block_on(async move {
-      while let Some(event) = child.event_rx.recv().await {
+      while let Some(event) = rx.recv().await {
         match event {
           CommandEvent::Finish(code) => {
             assert_eq!(code, Some(1));

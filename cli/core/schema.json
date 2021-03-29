@@ -86,6 +86,11 @@
           },
           "macOS": {
             "useBootstrapper": false
+          },
+          "windows": {
+            "certificateThumbprint": null,
+            "digestAlgorithm": null,
+            "timestampUrl": null
           }
         },
         "updater": {
@@ -333,6 +338,18 @@
             },
             {
               "type": "null"
+            }
+          ]
+        },
+        "windows": {
+          "default": {
+            "certificateThumbprint": null,
+            "digestAlgorithm": null,
+            "timestampUrl": null
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/WindowsConfig"
             }
           ]
         }
@@ -723,6 +740,12 @@
     "MacConfig": {
       "type": "object",
       "properties": {
+        "entitlements": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "exceptionDomain": {
           "type": [
             "string",
@@ -745,6 +768,12 @@
           ]
         },
         "minimumSystemVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "signingIdentity": {
           "type": [
             "string",
             "null"
@@ -878,6 +907,11 @@
             },
             "macOS": {
               "useBootstrapper": false
+            },
+            "windows": {
+              "certificateThumbprint": null,
+              "digestAlgorithm": null,
+              "timestampUrl": null
             }
           },
           "allOf": [
@@ -1105,6 +1139,30 @@
             "null"
           ],
           "format": "double"
+        }
+      },
+      "additionalProperties": false
+    },
+    "WindowsConfig": {
+      "type": "object",
+      "properties": {
+        "certificateThumbprint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "digestAlgorithm": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timestampUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

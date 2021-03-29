@@ -69,26 +69,22 @@ impl Build {
     }
 
     if let Some(before_build) = &config_.build.before_build_command {
-      let mut cmd: Option<&str> = None;
-      let mut args: Vec<&str> = vec![];
-      for token in before_build.split(' ') {
-        if cmd.is_none() && !token.is_empty() {
-          cmd = Some(token);
-        } else {
-          args.push(token)
-        }
-      }
-
-      if let Some(cmd) = cmd {
+      if !before_build.is_empty() {
         logger.log(format!("Running `{}`", before_build));
         #[cfg(target_os = "windows")]
-        let mut command = Command::new(
-          which::which(&cmd).expect(&format!("failed to find `{}` in your $PATH", cmd)),
-        );
+        execute_with_output(
+          &mut Command::new("cmd")
+            .arg("/C")
+            .arg(before_build)
+            .current_dir(app_dir()),
+        )?;
         #[cfg(not(target_os = "windows"))]
-        let mut command = Command::new(cmd);
-        command.args(args).current_dir(app_dir());
-        execute_with_output(&mut command)?;
+        execute_with_output(
+          &mut Command::new("sh")
+            .arg("-c")
+            .arg(before_build)
+            .current_dir(app_dir()),
+        )?;
       }
     }
 

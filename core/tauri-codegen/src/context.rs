@@ -24,12 +24,17 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   let assets = EmbeddedAssets::new(&dist_dir)?;
 
   // handle default window icons for Windows targets
+  #[cfg(not(debug_assertions))]
   let default_window_icon = if cfg!(windows) {
     let icon_path = config_parent.join("icons/icon.ico").display().to_string();
     quote!(Some(include_bytes!(#icon_path)))
   } else {
     quote!(None)
   };
+
+  // in development builds, don't use an icon as it slows down cargo check
+  #[cfg(debug_assertions)]
+  let default_window_icon = quote!(None);
 
   // double braces are purposeful to force the code into a block expression
   Ok(quote! {{

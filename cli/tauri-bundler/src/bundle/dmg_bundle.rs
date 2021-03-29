@@ -138,5 +138,10 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   })?;
 
   fs::rename(bundle_dir.join(dmg_name), dmg_path.clone())?;
+
+  // Sign DMG if needed
+  if let Some(identity) = &settings.macos().signing_identity {
+    crate::bundle::macos_bundle::sign(dmg_path.clone(), identity, &settings, false)?;
+  }
   Ok(vec![dmg_path])
 }

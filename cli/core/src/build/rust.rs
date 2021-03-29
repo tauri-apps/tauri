@@ -3,6 +3,8 @@ use std::{fs::File, io::Read, path::PathBuf, process::Command, str::FromStr};
 use serde::Deserialize;
 
 use crate::helpers::{app_paths::tauri_dir, config::Config};
+#[cfg(windows)]
+use tauri_bundler::WindowsSettings;
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOSSettings, PackageSettings,
   UpdaterSettings,
@@ -332,6 +334,14 @@ fn tauri_config_to_bundle_settings(
       license: config.macos.license,
       use_bootstrapper: Some(config.macos.use_bootstrapper),
       exception_domain: config.macos.exception_domain,
+      signing_identity: config.macos.signing_identity,
+      entitlements: config.macos.entitlements,
+    },
+    #[cfg(windows)]
+    windows: WindowsSettings {
+      timestamp_url: config.windows.timestamp_url,
+      digest_algorithm: config.windows.digest_algorithm,
+      certificate_thumbprint: config.windows.certificate_thumbprint,
     },
     updater: Some(UpdaterSettings {
       active: updater_config.active,

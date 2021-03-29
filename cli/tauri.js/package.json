@@ -63,7 +63,7 @@
     "png2icons": "2.0.1",
     "read-chunk": "3.2.0",
     "semver": "7.3.5",
-    "sharp": "0.27.2"
+    "sharp": "0.28.0"
   },
   "devDependencies": {
     "@babel/core": "7.13.10",
@@ -77,7 +77,7 @@
     "@types/lodash": "4.14.168",
     "@types/ms": "0.7.31",
     "@types/semver": "7.3.4",
-    "@types/sharp": "0.27.2",
+    "@types/sharp": "0.28.0",
     "@typescript-eslint/eslint-plugin": "4.19.0",
     "@typescript-eslint/parser": "4.19.0",
     "babel-jest": "26.6.3",

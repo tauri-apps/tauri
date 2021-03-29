@@ -30,23 +30,26 @@ const MAX_JSON_STR_LEN: usize = usize::pow(2, 30) - 2;
 /// assert!(cb.contains(r#"window["callback-function-name"]({"value":"some value"})"#));
 /// ```
 pub fn format_callback<T: Into<JsonValue>, S: AsRef<str>>(function_name: S, arg: T) -> String {
-  let json_value = arg.into();
-  if let &JsonValue::Array(_) | &JsonValue::Object(_) = &json_value {
+  let as_str = {
+    let json_value = arg.into();
     let as_str = json_value.to_string();
-    if as_str.len() < MAX_JSON_STR_LEN {
-      return format!(
-        r#"
-          if (window["{fn}"]) {{
-            window["{fn}"](JSON.parse(String.raw`{arg}`))
-          }} else {{
-            console.warn("[TAURI] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
-          }}
-        "#,
-        fn = function_name.as_ref(),
-        arg = json_value
-      )
+    if let &JsonValue::Array(_) | &JsonValue::Object(_) = &json_value {
+      if as_str.len() < MAX_JSON_STR_LEN {
+        return format!(
+          r#"
+            if (window["{fn}"]) {{
+              window["{fn}"](JSON.parse(String.raw`{arg}`))
+            }} else {{
+              console.warn("[TAURI] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
+            }}
+          "#,
+          fn = function_name.as_ref(),
+          arg = as_str
+        )
+      }
     }
-  }
+    as_str
+  };
 
   format!(
     r#"
@@ -57,7 +60,7 @@ pub fn format_callback<T: Into<JsonValue>, S: AsRef<str>>(function_name: S, arg:
       }}
     "#,
     fn = function_name.as_ref(),
-    arg = json_value
+    arg = as_str
   )
 }
 

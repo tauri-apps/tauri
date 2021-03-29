@@ -1,8 +1,7 @@
-use crate::api::config::Config;
-use crate::event::EventScope;
-use crate::plugin::PluginStore;
 use crate::{
-  event::{emit_function_name, EventPayload, HandlerId, Listeners},
+  api::config::Config,
+  event::{emit_function_name, EventPayload, EventScope, HandlerId, Listeners},
+  plugin::PluginStore,
   runtime::{Dispatch, Runtime},
   Icon, InvokeHandler, InvokeMessage, InvokePayload, PageLoadHook, PageLoadPayload, PendingWindow,
 };

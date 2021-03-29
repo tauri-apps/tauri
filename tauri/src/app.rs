@@ -6,7 +6,6 @@ pub use self::{
   webview_manager::{Label, Window, WindowManager},
 };
 pub use crate::api::config::WindowUrl;
-use crate::runtime::Dispatch;
 use crate::{
   api::{
     assets::AssetFetch,
@@ -16,7 +15,7 @@ use crate::{
   event::Listeners,
   flavors::Wry,
   plugin::{Plugin, PluginStore},
-  runtime::Runtime,
+  runtime::{Dispatch, Runtime},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -481,10 +480,7 @@ where
     format!("tauri://{}", self.config.tauri.bundle.identifier)
   }
 
-  fn prepare_window(
-    &mut self,
-    mut pending: PendingWindow<L, R>,
-  ) -> crate::Result<PendingWindow<L, R>> {
+  fn prepare_window(&mut self, mut pending: PendingWindow<L, R>) -> PendingWindow<L, R> {
     let (is_local, url) = match &pending.url {
       WindowUrl::App => (true, self.get_url()),
       WindowUrl::Custom(url) => (&url[0..8] == "tauri://", url.clone()),
@@ -599,7 +595,7 @@ where
     pending.set_custom_protocol(custom_protocol);
     // TODO: pending.set_file_drop(file_drop_handler);
 
-    Ok(pending)
+    pending
   }
 }
 

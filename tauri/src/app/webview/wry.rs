@@ -11,8 +11,7 @@ use crate::{
   runtime::{Dispatch, Runtime},
   Label, PendingWindow, Window, WindowManager,
 };
-use std::sync::Arc;
-use std::{convert::TryFrom, path::PathBuf};
+use std::{convert::TryFrom, path::PathBuf, sync::Arc};
 
 pub struct WryIcon(wry::Icon);
 

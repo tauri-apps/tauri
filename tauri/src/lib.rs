@@ -37,9 +37,10 @@ pub use app::*;
 pub use tauri_api as api;
 pub use tauri_macros::*;
 
-pub use crate::app::Context;
-pub use crate::app::Label;
-pub use crate::runtime::Runtime;
+pub use crate::{
+  app::{Context, Label},
+  runtime::Runtime,
+};
 
 /// The Tauri webview implementations.
 pub mod flavors {

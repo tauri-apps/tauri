@@ -1,6 +1,5 @@
 use super::InvokeResponse;
-use crate::webview::WindowConfig;
-use crate::{app::Icon, runtime::Runtime, Label, PendingWindow, Window};
+use crate::{app::Icon, runtime::Runtime, webview::WindowConfig, Label, PendingWindow, Window};
 use serde::Deserialize;
 
 #[derive(Deserialize)]

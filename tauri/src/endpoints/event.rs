@@ -1,6 +1,5 @@
 use super::InvokeResponse;
-use crate::event::EventScope;
-use crate::{runtime::Runtime, Label, Window};
+use crate::{event::EventScope, runtime::Runtime, Label, Window};
 use serde::Deserialize;
 
 /// The API descriptor.

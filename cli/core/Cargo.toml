@@ -26,6 +26,13 @@ json-patch = "0.2"
 schemars = "0.8"
 toml = "0.5.8"
 valico = "3.6"
+handlebars = "3.5"
+include_dir = "0.6"
+dialoguer = "0.8"
+ureq = "2.0"
+os_info = "3.0"
+semver = "0.11"
+regex = "1.4"
 
 [build-dependencies]
 schemars = "0.8"
@@ -35,3 +42,6 @@ serde_with = "1.6"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 which = "4.0"
+
+[target."cfg(target_os = \"linux\")".dependencies]
+heck = "0.3"

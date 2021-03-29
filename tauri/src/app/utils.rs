@@ -1,33 +1,19 @@
 use crate::{
-  api::{
-    assets::Assets,
-    config::WindowUrl,
-    rpc::{format_callback, format_callback_result},
-  },
-  app::{Icon, InvokeResponse},
+  api::{assets::Assets, config::WindowUrl},
+  app::Icon,
   ApplicationExt, WebviewBuilderExt,
 };
 
 use super::{
   webview::{CustomProtocol, WebviewBuilderExtPrivate, WebviewRpcHandler},
-  App, Context, PageLoadPayload, RpcRequest, Webview, WebviewManager,
+  App, Context, InvokeMessage, InvokePayload, PageLoadPayload, RpcRequest, Webview, WebviewManager,
 };
 
-use serde::Deserialize;
 use serde_json::Value as JsonValue;
-use std::{borrow::Cow, sync::Arc};
-
-#[derive(Debug, Deserialize)]
-struct Message {
-  #[serde(rename = "__tauriModule")]
-  tauri_module: Option<String>,
-  callback: String,
-  error: String,
-  #[serde(rename = "mainThread", default)]
-  main_thread: bool,
-  #[serde(flatten)]
-  inner: JsonValue,
-}
+use std::{
+  borrow::Cow,
+  sync::{Arc, Mutex},
+};
 
 // setup content for dev-server
 #[cfg(dev)]
@@ -52,9 +38,9 @@ pub(super) fn get_url(context: &Context) -> String {
 }
 
 #[cfg(custom_protocol)]
-pub(super) fn get_url(_: &Context) -> String {
+pub(super) fn get_url(context: &Context) -> String {
   // Custom protocol doesn't require any setup, so just return URL
-  "tauri://index.html".into()
+  format!("tauri://{}", context.config.tauri.bundle.identifier)
 }
 
 // spawn an updater process.
@@ -73,11 +59,12 @@ pub(super) fn spawn_updater() {
 
 pub(super) fn initialization_script(
   plugin_initialization_script: &str,
-  tauri_script: &str,
+  with_global_tauri: bool,
 ) -> String {
   format!(
     r#"
-      {tauri_initialization_script}
+      {bundle_script}
+      {core_script}
       {event_initialization_script}
       if (window.rpc) {{
         window.__TAURI__.invoke("__initialized", {{ url: window.location.href }})
@@ -88,7 +75,12 @@ pub(super) fn initialization_script(
       }}
       {plugin_initialization_script}
     "#,
-    tauri_initialization_script = tauri_script,
+    core_script = include_str!("../../scripts/core.js"),
+    bundle_script = if with_global_tauri {
+      include_str!("../../scripts/bundle.js")
+    } else {
+      ""
+    },
     event_initialization_script = event_initialization_script(),
     plugin_initialization_script = plugin_initialization_script
   )
@@ -140,7 +132,7 @@ pub(super) type BuiltWebview<A> = (
 
 // build the webview.
 pub(super) fn build_webview<A: ApplicationExt + 'static>(
-  application: Arc<App<A>>,
+  application: Arc<Mutex<App<A>>>,
   webview: Webview<A>,
   webview_manager: &WebviewManager<A>,
   content_url: &str,
@@ -159,7 +151,7 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
   };
   let (webview_builder, rpc_handler, custom_protocol) = if is_local {
     let mut webview_builder = webview.builder.url(webview_url)
-        .initialization_script(&initialization_script(plugin_initialization_script, &context.tauri_script))
+        .initialization_script(&initialization_script(plugin_initialization_script, context.config.build.with_global_tauri))
         .initialization_script(&format!(
           r#"
               window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
@@ -189,38 +181,9 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
           .unwrap_or(&mut JsonValue::Null)
           .take();
         let webview_manager = webview_manager_.clone();
-        match serde_json::from_value::<Message>(arg) {
+        match serde_json::from_value::<InvokePayload>(arg) {
           Ok(message) => {
-            let application = application.clone();
-            let callback = message.callback.to_string();
-            let error = message.error.to_string();
-
-            if message.main_thread {
-              crate::async_runtime::block_on(async move {
-                execute_promise(
-                  &webview_manager,
-                  on_message(
-                    application,
-                    webview_manager.clone(),
-                    command.clone(),
-                    message,
-                  ),
-                  callback,
-                  error,
-                )
-                .await;
-              });
-            } else {
-              crate::async_runtime::spawn(async move {
-                execute_promise(
-                  &webview_manager,
-                  on_message(application, webview_manager.clone(), command, message),
-                  callback,
-                  error,
-                )
-                .await;
-              });
-            }
+            let _ = on_message(application.clone(), webview_manager, command, message);
           }
           Err(e) => {
             if let Ok(dispatcher) = webview_manager.current_webview() {
@@ -234,22 +197,23 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
         }
       });
     let assets = context.assets;
+    let bundle_identifier = context.config.tauri.bundle.identifier.clone();
     let custom_protocol = CustomProtocol {
       name: "tauri".into(),
       handler: Box::new(move |path| {
-        let mut path = path.to_string().replace("tauri://", "");
+        let mut path = path
+          .to_string()
+          .replace(&format!("tauri://{}", bundle_identifier), "");
         if path.ends_with('/') {
           path.pop();
         }
-        let path =
-          if let Some((first, components)) = path.split('/').collect::<Vec<&str>>().split_first() {
-            match components.len() {
-              0 => first.to_string(),
-              _ => components.join("/"),
-            }
-          } else {
-            path
-          };
+        let path = if path.is_empty() {
+          // if the url is `tauri://${appId}`, we should load `index.html`
+          "index.html".to_string()
+        } else {
+          // skip leading `/`
+          path.chars().skip(1).collect::<String>()
+        };
 
         let asset_response = assets
           .get(&path)
@@ -273,91 +237,37 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
   Ok((webview_builder, rpc_handler, custom_protocol))
 }
 
-/// Asynchronously executes the given task
-/// and evaluates its Result to the JS promise described by the `success_callback` and `error_callback` function names.
-///
-/// If the Result `is_ok()`, the callback will be the `success_callback` function name and the argument will be the Ok value.
-/// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
-async fn execute_promise<
-  A: ApplicationExt + 'static,
-  F: std::future::Future<Output = crate::Result<InvokeResponse>> + Send + 'static,
->(
-  webview_manager: &crate::WebviewManager<A>,
-  task: F,
-  success_callback: String,
-  error_callback: String,
-) {
-  let callback_string = match format_callback_result(
-    task
-      .await
-      .and_then(|response| response.json)
-      .map_err(|err| err.to_string()),
-    success_callback,
-    error_callback.clone(),
-  ) {
-    Ok(callback_string) => callback_string,
-    Err(e) => format_callback(error_callback, e.to_string()),
-  };
-  if let Ok(dispatcher) = webview_manager.current_webview() {
-    let _ = dispatcher.eval(callback_string.as_str());
-  }
-}
-
-async fn on_message<A: ApplicationExt + 'static>(
-  application: Arc<App<A>>,
+fn on_message<A: ApplicationExt + 'static>(
+  application: Arc<Mutex<App<A>>>,
   webview_manager: WebviewManager<A>,
   command: String,
-  message: Message,
-) -> crate::Result<InvokeResponse> {
+  payload: InvokePayload,
+) -> crate::Result<()> {
+  let message = InvokeMessage::new(webview_manager.clone(), command.to_string(), payload);
   if &command == "__initialized" {
-    let payload: PageLoadPayload = serde_json::from_value(message.inner)?;
+    let payload: PageLoadPayload = serde_json::from_value(message.payload())?;
     application
-      .run_on_page_load(&webview_manager, payload.clone())
-      .await;
-    crate::plugin::on_page_load(A::plugin_store(), &webview_manager, payload).await;
-    Ok(().into())
-  } else if let Some(module) = &message.tauri_module {
+      .lock()
+      .unwrap()
+      .run_on_page_load(&webview_manager, payload.clone());
+    crate::plugin::on_page_load(A::plugin_store(), &webview_manager, payload);
+  } else if let Some(module) = &message.payload.tauri_module {
+    let module = module.to_string();
     crate::endpoints::handle(
       &webview_manager,
-      module.to_string(),
-      message.inner,
-      &application.context,
-    )
-    .await
+      module,
+      message,
+      &application.lock().unwrap().context,
+    );
+  } else if command.starts_with("plugin:") {
+    crate::plugin::extend_api(A::plugin_store(), &webview_manager, command, message);
   } else {
-    let mut response = match application
-      .run_invoke_handler(&webview_manager, command.clone(), &message.inner)
-      .await
-    {
-      Ok(value) => {
-        if let Some(value) = value {
-          Ok(value)
-        } else {
-          Err(crate::Error::UnknownApi(None))
-        }
-      }
-      Err(e) => Err(e),
-    };
-    if let Err(crate::Error::UnknownApi(_)) = response {
-      match crate::plugin::extend_api(A::plugin_store(), &webview_manager, command, &message.inner)
-        .await
-      {
-        Ok(value) => {
-          // If value is None, that means that no plugin matched the command
-          // and the UnknownApi error should be sent to the webview
-          // Otherwise, send the result of plugin handler
-          if value.is_some() {
-            response = Ok(value.into());
-          }
-        }
-        Err(e) => {
-          // A plugin handler was found but it failed
-          response = Err(e);
-        }
-      }
-    }
-    response
+    application
+      .lock()
+      .unwrap()
+      .run_invoke_handler(&webview_manager, message);
   }
+  Ok(())
 }
 
 #[cfg(test)]
@@ -370,7 +280,7 @@ mod test {
     let context = Context::new(context);
     let res = super::get_url(&context);
     #[cfg(custom_protocol)]
-    assert!(res == "tauri://index.html");
+    assert!(res == "tauri://studio.tauri.example");
 
     #[cfg(dev)]
     {

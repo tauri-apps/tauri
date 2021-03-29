@@ -1,4 +1,4 @@
-// An OSX package is laid out like:
+// A macOS application bundle package is laid out like:
 //
 // foobar.app    # Actually a directory
 //     Contents      # A further subdirectory
@@ -44,15 +44,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       other => other,
     }
   );
-  let app_bundle_name = format!("{}.app", package_base_name);
-  common::print_bundling(&app_bundle_name)?;
+  let app_product_name = format!("{}.app", package_base_name);
+  common::print_bundling(&app_product_name)?;
   let app_bundle_path = settings
     .project_out_directory()
-    .join("bundle/osx")
-    .join(&app_bundle_name);
+    .join("bundle/macos")
+    .join(&app_product_name);
   if app_bundle_path.exists() {
     fs::remove_dir_all(&app_bundle_path)
-      .with_context(|| format!("Failed to remove old {}", app_bundle_name))?;
+      .with_context(|| format!("Failed to remove old {}", app_product_name))?;
   }
   let bundle_directory = app_bundle_path.join("Contents");
   fs::create_dir_all(&bundle_directory).with_context(|| {
@@ -82,10 +82,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   copy_binaries_to_bundle(&bundle_directory, settings)?;
 
-  let use_bootstrapper = settings.osx_use_bootstrapper();
+  let use_bootstrapper = settings.macos().use_bootstrapper.unwrap_or_default();
   if use_bootstrapper {
     create_bootstrapper(&bundle_directory, settings)
-      .with_context(|| "Failed to create OSX bootstrapper")?;
+      .with_context(|| "Failed to create macOS bootstrapper")?;
   }
   Ok(vec![app_bundle_path])
 }
@@ -138,7 +138,7 @@ else
     exec \"`dirname \\\"$0\\\"`/{}\" $@ & disown
 fi
 exit 0",
-    settings.bundle_name()
+    settings.product_name()
   )?;
   file.flush()?;
 
@@ -162,7 +162,7 @@ fn create_info_plist(
 ) -> crate::Result<()> {
   let build_number = chrono::Utc::now().format("%Y%m%d.%H%M%S");
   let file = &mut common::create_file(&bundle_dir.join("Info.plist"))?;
-  let use_bootstrapper = settings.osx_use_bootstrapper();
+  let use_bootstrapper = settings.macos().use_bootstrapper.unwrap_or_default();
   write!(
     file,
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
@@ -179,7 +179,7 @@ fn create_info_plist(
   write!(
     file,
     "  <key>CFBundleDisplayName</key>\n  <string>{}</string>\n",
-    settings.bundle_name()
+    settings.product_name()
   )?;
   write!(
     file,
@@ -210,7 +210,7 @@ fn create_info_plist(
   write!(
     file,
     "  <key>CFBundleName</key>\n  <string>{}</string>\n",
-    settings.bundle_name()
+    settings.product_name()
   )?;
   write!(
     file,
@@ -232,10 +232,10 @@ fn create_info_plist(
       file,
       "  <key>LSApplicationCategoryType</key>\n  \
        <string>{}</string>\n",
-      category.osx_application_category_type()
+      category.macos_application_category_type()
     )?;
   }
-  if let Some(version) = settings.osx_minimum_system_version() {
+  if let Some(version) = &settings.macos().minimum_system_version {
     write!(
       file,
       "  <key>LSMinimumSystemVersion</key>\n  \
@@ -254,7 +254,7 @@ fn create_info_plist(
     )?;
   }
 
-  if let Some(exception_domain) = settings.exception_domain() {
+  if let Some(exception_domain) = &settings.macos().exception_domain {
     write!(
       file,
       "  <key>NSAppTransportSecurity</key>\n  \
@@ -291,9 +291,14 @@ fn copy_framework_from(dest_dir: &Path, framework: &str, src_dir: &Path) -> crat
   }
 }
 
-// Copies the OSX bundle frameworks to the .app
+// Copies the macOS application bundle frameworks to the .app
 fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
-  let frameworks = settings.osx_frameworks();
+  let frameworks = settings
+    .macos()
+    .frameworks
+    .as_ref()
+    .cloned()
+    .unwrap_or_default();
   if frameworks.is_empty() {
     return Ok(());
   }
@@ -411,7 +416,7 @@ fn create_icns_file(
   if !family.is_empty() {
     fs::create_dir_all(resources_dir)?;
     let mut dest_path = resources_dir.clone();
-    dest_path.push(settings.bundle_name());
+    dest_path.push(settings.product_name());
     dest_path.set_extension("icns");
     let icns_file = BufWriter::new(File::create(&dest_path)?);
     family.write(icns_file)?;

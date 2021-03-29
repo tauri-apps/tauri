@@ -2,7 +2,7 @@ use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
   config::{get as get_config, reload as reload_config},
   manifest::rewrite_manifest,
-  Logger, TauriScript,
+  Logger,
 };
 
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
@@ -12,9 +12,6 @@ use shared_child::SharedChild;
 use std::{
   env::set_current_dir,
   ffi::OsStr,
-  fs::{create_dir_all, File},
-  io::Write,
-  path::PathBuf,
   process::{exit, Child, Command},
   sync::{
     mpsc::{channel, Receiver},
@@ -102,20 +99,6 @@ impl Dev {
 
     rewrite_manifest(config.clone())?;
 
-    // __tauri.js
-    {
-      let config_guard = config.lock().unwrap();
-      let config_ = config_guard.as_ref().unwrap();
-      let tauri_script = TauriScript::new()
-        .global_tauri(config_.build.with_global_tauri)
-        .get();
-      let tauri_dir_path = PathBuf::from(&config_.build.dist_dir);
-      let tauri_script_path = tauri_dir_path.join("__tauri.js");
-      create_dir_all(tauri_dir_path)?;
-      let mut tauri_script_file = File::create(tauri_script_path)?;
-      tauri_script_file.write_all(tauri_script.as_bytes())?;
-    }
-
     let (child_wait_tx, child_wait_rx) = channel();
     let child_wait_rx = Arc::new(Mutex::new(child_wait_rx));
 
@@ -170,7 +153,7 @@ impl Dev {
 
   fn start_app(&self, child_wait_rx: Arc<Mutex<Receiver<()>>>) -> Arc<SharedChild> {
     let mut command = Command::new("cargo");
-    command.arg("run");
+    command.args(&["run", "--no-default-features"]);
     let child = SharedChild::spawn(&mut command).expect("failed to run cargo");
     let child_arc = Arc::new(child);
 

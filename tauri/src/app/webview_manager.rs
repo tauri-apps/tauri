@@ -1,5 +1,6 @@
 use std::{
   collections::HashMap,
+  future::Future,
   sync::{Arc, Mutex},
 };
 
@@ -193,7 +194,7 @@ pub struct WebviewManager<A = Wry>
 where
   A: ApplicationExt,
 {
-  application: Arc<App<A>>,
+  application: Arc<Mutex<App<A>>>,
   dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A::Dispatcher>>>>,
   current_webview_window_label: String,
 }
@@ -210,7 +211,7 @@ impl<A: ApplicationExt> Clone for WebviewManager<A> {
 
 impl<A: ApplicationExt + 'static> WebviewManager<A> {
   pub(crate) fn new(
-    application: Arc<App<A>>,
+    application: Arc<Mutex<App<A>>>,
     dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A::Dispatcher>>>>,
     label: String,
   ) -> Self {
@@ -219,6 +220,15 @@ impl<A: ApplicationExt + 'static> WebviewManager<A> {
       dispatchers,
       current_webview_window_label: label,
     }
+  }
+
+  /// Spawns an asynchronous task
+  pub fn spawn<F>(task: F)
+  where
+    F: Future + Send + 'static,
+    F::Output: Send + 'static,
+  {
+    crate::async_runtime::spawn(task)
   }
 
   /// Returns the label of the window associated with the current context.
@@ -257,6 +267,8 @@ impl<A: ApplicationExt + 'static> WebviewManager<A> {
     };
     self
       .application
+      .lock()
+      .unwrap()
       .window_labels
       .lock()
       .unwrap()
@@ -277,12 +289,8 @@ impl<A: ApplicationExt + 'static> WebviewManager<A> {
     );
     self
       .application
-      .on_webview_created(
-        label.to_string(),
-        window_dispatcher.clone(),
-        webview_manager,
-      )
-      .await;
+      .on_webview_created(label.to_string(), window_dispatcher.clone());
+    crate::plugin::created(A::plugin_store(), &webview_manager);
     Ok(WebviewDispatcher::new(window_dispatcher, label))
   }
 

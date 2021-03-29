@@ -1,29 +1,45 @@
 use crate::{
-  api::config::Config,
+  api::{assets::Assets, config::Config},
+  app::webview::AttributesPrivate,
   event::{emit_function_name, EventPayload, EventScope, HandlerId, Listeners},
   plugin::PluginStore,
   runtime::{Dispatch, Runtime},
-  Icon, InvokeHandler, InvokeMessage, InvokePayload, PageLoadHook, PageLoadPayload, PendingWindow,
+  Attributes, CustomProtocol, FileDropEvent, Icon, InvokeHandler, InvokeMessage, InvokePayload,
+  PageLoadHook, PageLoadPayload, PendingWindow, RpcRequest, WindowUrl,
 };
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::{
+  borrow::Cow,
   collections::HashSet,
-  convert::TryInto,
-  fmt::Display,
+  convert::{TryFrom, TryInto},
+  fmt,
+  fmt::Formatter,
   hash::{Hash, Hasher},
+  ops::Deref,
   str::FromStr,
   sync::{Arc, Mutex},
 };
 
-pub trait Label: Hash + Eq + Display + FromStr + Serialize + Clone + Send + Sync + 'static {}
-impl<T> Label for T where
-  T: Hash + Eq + Display + FromStr + Serialize + Clone + Send + Sync + 'static
-{
+pub trait Tag: Hash + Eq + FromStr + fmt::Display + Clone + Send + Sync + 'static {}
+impl<T> Tag for T where T: Hash + Eq + FromStr + fmt::Display + Clone + Send + Sync + 'static {}
+
+pub struct WindowManager<E: Tag, L: Tag, R: Runtime> {
+  runtime: R,
+  inner: InnerWindowManager<E, L, R>,
 }
 
-#[derive(Clone)]
-pub struct WindowManager<E: Label, L: Label, R: Runtime> {
+impl<E: Tag, L: Tag, R: Runtime> TryFrom<InnerWindowManager<E, L, R>> for WindowManager<E, L, R> {
+  type Error = crate::Error;
+
+  fn try_from(inner: InnerWindowManager<E, L, R>) -> Result<Self, Self::Error> {
+    R::new().map(|runtime| Self { runtime, inner })
+  }
+}
+
+impl<E: Tag, L: Tag, R: Runtime> WindowManager<E, L, R> {}
+
+pub struct InnerWindowManager<E: Tag, L: Tag, R: Runtime> {
   windows: Arc<Mutex<HashSet<Window<E, L, R>>>>,
   plugins: PluginStore<E, L, R>,
   listeners: Listeners<E, L>,
@@ -39,8 +55,21 @@ pub struct WindowManager<E: Label, L: Label, R: Runtime> {
   config: Arc<Config>,
 }
 
-impl<E: Label, L: Label, R: Runtime> WindowManager<E, L, R> {
-  pub fn new(
+impl<E: Tag, L: Tag, R: Runtime> Clone for InnerWindowManager<E, L, R> {
+  fn clone(&self) -> Self {
+    Self {
+      windows: self.windows.clone(),
+      plugins: self.plugins.clone(),
+      listeners: self.listeners.clone(),
+      invoke_handler: self.invoke_handler.clone(),
+      on_page_load: self.on_page_load.clone(),
+      config: self.config.clone(),
+    }
+  }
+}
+
+impl<E: Tag, L: Tag, R: Runtime> InnerWindowManager<E, L, R> {
+  pub(crate) fn new(
     config: Arc<Config>,
     invoke: Option<Box<InvokeHandler<E, L, R>>>,
     page_load: Option<Box<PageLoadHook<E, L, R>>>,
@@ -52,8 +81,6 @@ impl<E: Label, L: Label, R: Runtime> WindowManager<E, L, R> {
       config,
       invoke_handler: Arc::new(Mutex::new(invoke)),
       on_page_load: Arc::new(Mutex::new(page_load)),
-      // todo: init these
-      //setup: None,
     }
   }
 
@@ -70,16 +97,271 @@ impl<E: Label, L: Label, R: Runtime> WindowManager<E, L, R> {
       hook(window, payload)
     }
   }
+
+  pub(crate) fn attach_window(&self, dispatch: R::Dispatcher, label: L) -> Window<E, L, R> {
+    let window = Window::new(self.clone(), dispatch, label);
+
+    // drop asap
+    {
+      self
+        .windows
+        .lock()
+        .expect("poisoned window manager")
+        .insert(window.clone());
+    }
+
+    self.plugins.created(window.clone());
+    window
+  }
+
+  pub(crate) fn prepare_window<A: Assets + 'static>(
+    &self,
+    mut pending: PendingWindow<L, R::Dispatcher>,
+    dwi: Option<Vec<u8>>,
+    assets: Arc<A>,
+    pending_labels: &[String],
+  ) -> crate::Result<PendingWindow<L, R::Dispatcher>> {
+    let (is_local, url) = match &pending.url {
+      WindowUrl::App => (true, self.get_url(assets.deref())),
+      WindowUrl::Custom(url) => (&url[0..8] == "tauri://", url.clone()),
+    };
+
+    let (builder, rpc_handler, custom_protocol) = if is_local {
+      let plugin_init = self.plugins.initialization_script();
+      let is_init_global = self.config.build.with_global_tauri;
+      let mut attributes = pending
+        .attributes.clone()
+        .url(url)
+        .initialization_script(&initialization_script(&plugin_init, is_init_global))
+        .initialization_script(&format!(
+          r#"
+              window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
+              window.__TAURI__.__currentWindow = {{ label: "{current_window_label}" }}
+            "#,
+          window_labels_array =
+          serde_json::to_string(pending_labels)?,
+          current_window_label = pending.label.clone(),
+        ));
+
+      if !attributes.has_icon() {
+        if let Some(default_window_icon) = dwi {
+          let icon = Icon::Raw(default_window_icon);
+          let icon = icon.try_into().expect("infallible icon convert failed");
+          attributes = attributes.icon(icon);
+        }
+      }
+
+      let manager = self.clone();
+      let rpc_handler: Box<dyn Fn(R::Dispatcher, L, RpcRequest) + Send> =
+        Box::new(move |dispatcher, label, request: RpcRequest| {
+          let window = Window::new(manager.clone(), dispatcher, label);
+          let command = request.command.clone();
+          let arg = request
+            .params
+            .unwrap()
+            .as_array_mut()
+            .unwrap()
+            .first_mut()
+            .unwrap_or(&mut JsonValue::Null)
+            .take();
+          match serde_json::from_value::<InvokePayload>(arg) {
+            Ok(message) => {
+              let _ = window.on_message(command, message);
+            }
+            Err(e) => {
+              let error: crate::Error = e.into();
+              let _ = window.eval(&format!(
+                r#"console.error({})"#,
+                JsonValue::String(error.to_string())
+              ));
+            }
+          };
+        });
+
+      let assets = assets.clone();
+      let bundle_identifier = self.config.tauri.bundle.identifier.clone();
+      let custom_protocol = CustomProtocol {
+        name: "tauri".into(),
+        handler: Box::new(move |path| {
+          let mut path = path
+            .to_string()
+            .replace(&format!("tauri://{}", bundle_identifier), "");
+          if path.ends_with('/') {
+            path.pop();
+          }
+          let path = if path.is_empty() {
+            // if the url is `tauri://${appId}`, we should load `index.html`
+            "index.html".to_string()
+          } else {
+            // skip leading `/`
+            path.chars().skip(1).collect::<String>()
+          };
+
+          let asset_response = assets
+            .get(&path)
+            .ok_or(crate::Error::AssetNotFound(path))
+            .map(Cow::into_owned);
+          match asset_response {
+            Ok(asset) => Ok(asset),
+            Err(e) => {
+              #[cfg(debug_assertions)]
+              eprintln!("{:?}", e); // TODO log::error!
+              Err(e)
+            }
+          }
+        }),
+      };
+      (attributes, Some(rpc_handler), Some(custom_protocol))
+    } else {
+      (pending.attributes.clone().url(url), None, None)
+    };
+
+    // TODO: one of the signatures needs to change to allow sending events from this closure,
+    // or the file_drop handler must be able to be set after getting the window dispatch proxy
+    let manager = self.clone();
+    let file_drop_handler: Box<dyn Fn(FileDropEvent, R::Dispatcher, L) -> bool + Send> =
+      Box::new(move |event, d, l| {
+        let manager = manager.clone();
+        crate::async_runtime::block_on(async move {
+          let window = Window::new(manager.clone(), d.clone(), l);
+          let _ = match event {
+            FileDropEvent::Hovered(paths) => {
+              let hover: E = "tauri://file-drop"
+                .parse()
+                .unwrap_or_else(|_| panic!("todo: invalid event str"));
+              window.emit(hover, Some(paths))
+            }
+            FileDropEvent::Dropped(paths) => {
+              let drop: E = "tauri://file-drop-hover"
+                .parse()
+                .unwrap_or_else(|_| panic!("todo: invalid event str"));
+              window.emit(drop, Some(paths))
+            }
+            FileDropEvent::Cancelled => {
+              let cancel: E = "tauri://file-drop-cancelled"
+                .parse()
+                .unwrap_or_else(|_| panic!("todo: invalid event str"));
+              window.emit(cancel, Some(()))
+            }
+          };
+        });
+        true
+      });
+
+    dbg!(rpc_handler.is_some());
+    dbg!(custom_protocol.is_some());
+
+    pending.set_attributes(builder);
+    pending.set_rpc_handler(rpc_handler);
+    pending.set_custom_protocol(custom_protocol);
+    pending.set_file_drop(file_drop_handler);
+
+    Ok(pending)
+  }
+
+  // setup content for dev-server
+  #[cfg(dev)]
+  fn get_url(&self, assets: &impl Assets) -> String {
+    if self.config.build.dev_path.starts_with("http") {
+      self.config.build.dev_path.clone()
+    } else {
+      let path = "index.html";
+      format!(
+        "data:text/html;base64,{}",
+        base64::encode(
+          assets
+            .get(&path)
+            .ok_or_else(|| crate::Error::AssetNotFound(path.to_string()))
+            .map(std::borrow::Cow::into_owned)
+            .expect("Unable to find `index.html` under your devPath folder")
+        )
+      )
+    }
+  }
+
+  #[cfg(custom_protocol)]
+  fn get_url(&self, _: &impl Assets) -> String {
+    format!("tauri://{}", self.config.tauri.bundle.identifier)
+  }
 }
 
-/// A single webview window.
-pub struct Window<E: Label, L: Label, R: Runtime> {
+fn initialization_script(plugin_initialization_script: &str, with_global_tauri: bool) -> String {
+  format!(
+    r#"
+      {bundle_script}
+      {core_script}
+      {event_initialization_script}
+      if (window.rpc) {{
+        window.__TAURI__.invoke("__initialized", {{ url: window.location.href }})
+      }} else {{
+        window.addEventListener('DOMContentLoaded', function () {{
+          window.__TAURI__.invoke("__initialized", {{ url: window.location.href }})
+        }})
+      }}
+      {plugin_initialization_script}
+    "#,
+    core_script = include_str!("../../scripts/core.js"),
+    bundle_script = if with_global_tauri {
+      include_str!("../../scripts/bundle.js")
+    } else {
+      ""
+    },
+    event_initialization_script = event_initialization_script(),
+    plugin_initialization_script = plugin_initialization_script
+  )
+}
+
+fn event_initialization_script() -> String {
+  return format!(
+    "
+      window['{queue}'] = [];
+      window['{fn}'] = function (eventData, salt, ignoreQueue) {{
+      const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
+      if (!ignoreQueue && listeners.length === 0) {{
+        window['{queue}'].push({{
+          eventData: eventData,
+          salt: salt
+        }})
+      }}
+
+      if (listeners.length > 0) {{
+        window.__TAURI__.invoke('tauri', {{
+          __tauriModule: 'Internal',
+          message: {{
+            cmd: 'validateSalt',
+            salt: salt
+          }}
+        }}).then(function (flag) {{
+          if (flag) {{
+            for (let i = listeners.length - 1; i >= 0; i--) {{
+              const listener = listeners[i]
+              eventData.id = listener.id
+              listener.handler(eventData)
+            }}
+          }}
+        }})
+      }}
+    }}
+    ",
+    fn = crate::event::emit_function_name(),
+    queue = crate::event::event_queue_object_name(),
+    listeners = crate::event::event_listeners_object_name()
+  );
+}
+
+/*struct Window<E: Tag, L: Tag, R: Runtime> {
+  window: DetachedWindow<L, R>,
+  manager: InnerWindowManager<E,L,R>
+}*/
+
+/// A single webview window that is not attached to a window manager.
+pub struct Window<E: Tag, L: Tag, R: Runtime> {
   label: L,
   dispatcher: R::Dispatcher,
-  manager: Arc<WindowManager<E, L, R>>,
+  manager: InnerWindowManager<E, L, R>,
 }
 
-impl<E: Label, L: Label, R: Runtime> Clone for Window<E, L, R> {
+impl<E: Tag, L: Tag, R: Runtime> Clone for Window<E, L, R> {
   fn clone(&self) -> Self {
     Self {
       label: self.label.clone(),
@@ -89,22 +371,22 @@ impl<E: Label, L: Label, R: Runtime> Clone for Window<E, L, R> {
   }
 }
 
-impl<E: Label, L: Label, R: Runtime> Hash for Window<E, L, R> {
+impl<E: Tag, L: Tag, R: Runtime> Hash for Window<E, L, R> {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.label.hash(state)
   }
 }
 
-impl<E: Label, L: Label, R: Runtime> Eq for Window<E, L, R> {}
-impl<E: Label, L: Label, R: Runtime> PartialEq for Window<E, L, R> {
+impl<E: Tag, L: Tag, R: Runtime> Eq for Window<E, L, R> {}
+impl<E: Tag, L: Tag, R: Runtime> PartialEq for Window<E, L, R> {
   fn eq(&self, other: &Self) -> bool {
     self.label.eq(&other.label)
   }
 }
 
-impl<E: Label, L: Label, R: Runtime> Window<E, L, R> {
+impl<E: Tag, L: Tag, R: Runtime> Window<E, L, R> {
   pub(crate) fn new(
-    manager: Arc<WindowManager<E, L, R>>,
+    manager: InnerWindowManager<E, L, R>,
     dispatcher: R::Dispatcher,
     label: L,
   ) -> Self {
@@ -306,7 +588,10 @@ impl<E: Label, L: Label, R: Runtime> Window<E, L, R> {
     self.dispatcher.set_icon(icon.try_into()?)
   }
 
-  pub async fn create_window(&self, pending: PendingWindow<L, R>) -> crate::Result<Self> {
+  pub async fn create_window(
+    &self,
+    pending: PendingWindow<L, R::Dispatcher>,
+  ) -> crate::Result<Self> {
     let mut dispatcher = self.dispatcher.clone();
     let manager = self.manager.clone();
     let label = pending.label.clone();

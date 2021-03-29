@@ -12,8 +12,12 @@ fn main() {
   let ctx = tauri::generate_context!();
 
   tauri::AppBuilder::default()
+    .setup(|_app| {
+      println!("hello from the setup function!");
+      Ok(())
+    })
     .invoke_handler(tauri::generate_handler![my_custom_command])
     .build(ctx)
-    .unwrap()
-    .run();
+    .run()
+    .expect("error while running application");
 }

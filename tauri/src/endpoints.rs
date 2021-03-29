@@ -1,4 +1,4 @@
-use crate::{api::config::Config, runtime::Runtime, InvokeMessage, Label};
+use crate::{api::config::Config, runtime::Runtime, InvokeMessage, Tag};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 
@@ -45,8 +45,8 @@ enum Module {
 impl Module {
   fn run<E, L, R>(self, message: InvokeMessage<E, L, R>, config: &Config)
   where
-    E: Label,
-    L: Label,
+    E: Tag,
+    L: Tag,
     R: Runtime + 'static,
   {
     let window = message.window();
@@ -110,8 +110,8 @@ impl Module {
 
 pub(crate) fn handle<E, L, R>(module: String, message: InvokeMessage<E, L, R>, config: &Config)
 where
-  E: Label,
-  L: Label,
+  E: Tag,
+  L: Tag,
   R: Runtime,
 {
   let mut payload = message.payload();

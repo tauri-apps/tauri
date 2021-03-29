@@ -1,6 +1,6 @@
 use crate::{
   app::webview::{Attributes, AttributesPrivate, Icon, WindowConfig},
-  Label, PendingWindow,
+  PendingWindow, Tag,
 };
 use std::convert::TryFrom;
 
@@ -16,11 +16,8 @@ pub trait Dispatch: Clone + Send + Sized {
     + Clone
     + Send;
 
-  /// Creates a new webview.
-  fn create_window<L: Label>(
-    &mut self,
-    pending: PendingWindow<L, Self::Runtime>,
-  ) -> crate::Result<Self>;
+  /// Creates a new webview window.
+  fn create_window<L: Tag>(&mut self, pending: PendingWindow<L, Self>) -> crate::Result<Self>;
 
   /// Updates the window resizable flag.
   fn set_resizable(&self, resizable: bool) -> crate::Result<()>;
@@ -92,13 +89,17 @@ pub trait Dispatch: Clone + Send + Sized {
 /// The application interface.
 /// Manages windows and webviews.
 pub trait Runtime: Sized + 'static {
-  /// The webview builder.
-  type Attributes: Attributes + AttributesPrivate + From<WindowConfig> + Clone + Send;
   /// The message dispatcher.
-  type Dispatcher: Dispatch<Runtime = Self, Attributes = Self::Attributes>;
+  type Dispatcher: Dispatch<Runtime = Self>;
 
   /// Creates a new application.
   fn new() -> crate::Result<Self>;
+
+  /// Creates a new webview window.
+  fn create_window<L: Tag>(
+    &mut self,
+    pending: PendingWindow<L, Self::Dispatcher>,
+  ) -> crate::Result<Self::Dispatcher>;
 
   /// Run the application.
   fn run(self);

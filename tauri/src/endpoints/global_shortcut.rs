@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 use crate::{
   runtime::{Dispatch, Runtime},
-  Label, Window,
+  Tag, Window,
 };
 use std::sync::{Arc, Mutex};
 
@@ -62,8 +62,8 @@ where
 impl Cmd {
   pub fn run<E, L, R: 'static>(self, _window: Window<E, L, R>) -> crate::Result<InvokeResponse>
   where
-    E: Label,
-    L: Label,
+    E: Tag,
+    L: Tag,
     R: Runtime,
   {
     Err(crate::Error::ApiNotAllowlisted(
@@ -76,8 +76,8 @@ impl Cmd {
 impl Cmd {
   pub fn run<E, L, R>(self, window: Window<E, L, R>) -> crate::Result<InvokeResponse>
   where
-    E: Label,
-    L: Label,
+    E: Tag,
+    L: Tag,
     R: Runtime + 'static,
   {
     match self {

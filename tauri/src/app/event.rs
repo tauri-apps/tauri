@@ -1,4 +1,4 @@
-use crate::app::webview_manager::Label;
+use crate::app::webview_manager::Tag;
 use once_cell::sync::Lazy;
 use std::{
   boxed::Box,
@@ -32,13 +32,21 @@ impl fmt::Display for HandlerId {
 
 type Handler = Box<dyn Fn(EventPayload) + Send + 'static>;
 
-#[derive(Clone)]
-pub struct Listeners<E: Label, L: Label> {
+pub struct Listeners<E: Tag, L: Tag> {
   global: Arc<Mutex<HashMap<E, HashMap<HandlerId, Handler>>>>,
   window: Arc<Mutex<HashMap<L, HashMap<E, HashMap<HandlerId, Handler>>>>>,
 }
 
-impl<E: Label, L: Label> Listeners<E, L> {
+impl<E: Tag, L: Tag> Clone for Listeners<E, L> {
+  fn clone(&self) -> Self {
+    Self {
+      global: self.global.clone(),
+      window: self.window.clone(),
+    }
+  }
+}
+
+impl<E: Tag, L: Tag> Listeners<E, L> {
   /// Create an empty set of listeners
   pub fn new() -> Self {
     Self {

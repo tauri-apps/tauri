@@ -1,5 +1,5 @@
 use super::InvokeResponse;
-use crate::{event::EventScope, runtime::Runtime, Label, Window};
+use crate::{event::EventScope, runtime::Runtime, Tag, Window};
 use serde::Deserialize;
 
 /// The API descriptor.
@@ -24,8 +24,8 @@ pub enum Cmd {
 impl Cmd {
   pub fn run<E, L, R>(self, window: Window<E, L, R>) -> crate::Result<InvokeResponse>
   where
-    E: Label,
-    L: Label,
+    E: Tag,
+    L: Tag,
     R: Runtime,
   {
     match self {

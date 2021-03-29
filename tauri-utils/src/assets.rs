@@ -69,7 +69,7 @@ impl<P: AsRef<Path>> From<P> for AssetKey {
 }
 
 /// Represents a container of file assets that are retrievable during runtime.
-pub trait AssetFetch {
+pub trait Assets: Send + Sync {
   /// Get the content of the passed [`AssetKey`].
   fn get<Key: Into<AssetKey>>(&self, key: Key) -> Option<Cow<'_, [u8]>>;
 }
@@ -86,7 +86,7 @@ impl EmbeddedAssets {
   }
 }
 
-impl AssetFetch for EmbeddedAssets {
+impl Assets for EmbeddedAssets {
   fn get<Key: Into<AssetKey>>(&self, key: Key) -> Option<Cow<'_, [u8]>> {
     self
       .0

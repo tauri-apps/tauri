@@ -70,7 +70,7 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
 
   quote! {
     #function
-    pub fn #fn_wrapper<E: ::tauri::Label, L: ::tauri::Label, R: ::tauri::Runtime + 'static>(message: ::tauri::InvokeMessage<E,L,R>) {
+    pub fn #fn_wrapper<E: ::tauri::Tag, L: ::tauri::Tag, R: ::tauri::Runtime + 'static>(message: ::tauri::InvokeMessage<E,L,R>) {
       #[derive(::serde::Deserialize)]
       #[serde(rename_all = "camelCase")]
       struct ParsedArgs {

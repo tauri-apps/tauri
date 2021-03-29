@@ -38,13 +38,13 @@ pub use tauri_api as api;
 pub use tauri_macros::*;
 
 pub use crate::{
-  app::{Context, Label},
+  app::{Context, Tag},
   runtime::Runtime,
 };
 
 /// The Tauri webview implementations.
 pub mod flavors {
-  pub use super::app::WryApplication as Wry;
+  pub use super::app::{webview::wry::WryDispatcher, WryApplication as Wry};
 }
 
 /// Easy helper function to use the Tauri Context you made during build time.

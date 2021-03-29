@@ -1,5 +1,5 @@
 use crate::{
-  api::config::PluginConfig, runtime::Runtime, InvokeMessage, Label, PageLoadPayload, Window,
+  api::config::PluginConfig, runtime::Runtime, InvokeMessage, PageLoadPayload, Tag, Window,
 };
 use serde_json::Value as JsonValue;
 use std::{
@@ -8,7 +8,7 @@ use std::{
 };
 
 /// The plugin interface.
-pub trait Plugin<E: Label, L: Label, R: Runtime>: Send {
+pub trait Plugin<E: Tag, L: Tag, R: Runtime>: Send {
   /// The plugin name. Used as key on the plugin config object.
   fn name(&self) -> &'static str;
 
@@ -41,12 +41,19 @@ pub trait Plugin<E: Label, L: Label, R: Runtime>: Send {
 }
 
 /// Plugin collection type.
-#[derive(Clone)]
-pub struct PluginStore<E: Label, L: Label, R: Runtime> {
+pub struct PluginStore<E: Tag, L: Tag, R: Runtime> {
   store: Arc<Mutex<HashMap<&'static str, Box<dyn Plugin<E, L, R>>>>>,
 }
 
-impl<E: Label, L: Label, R: Runtime> PluginStore<E, L, R> {
+impl<E: Tag, L: Tag, R: Runtime> Clone for PluginStore<E, L, R> {
+  fn clone(&self) -> Self {
+    PluginStore {
+      store: self.store.clone(),
+    }
+  }
+}
+
+impl<E: Tag, L: Tag, R: Runtime> PluginStore<E, L, R> {
   pub fn new() -> Self {
     Self {
       store: Arc::new(Mutex::new(HashMap::new())),

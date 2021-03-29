@@ -33,8 +33,8 @@ pub fn format_callback<T: Into<JsonValue>, S: AsRef<str>>(function_name: S, arg:
   let as_str = {
     let json_value = arg.into();
     let as_str = json_value.to_string();
-    if let &JsonValue::Array(_) | &JsonValue::Object(_) = &json_value {
-      if as_str.len() < MAX_JSON_STR_LEN {
+    if as_str.len() < MAX_JSON_STR_LEN {
+      if let &JsonValue::Array(_) | &JsonValue::Object(_) = &json_value {
         return format!(
           r#"
             if (window["{fn}"]) {{

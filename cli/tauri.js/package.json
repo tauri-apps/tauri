@@ -64,7 +64,6 @@
     "read-chunk": "3.2.0",
     "semver": "7.3.5",
     "sharp": "0.27.2",
-    "figlet": "1.5.0",
     "update-notifier": "5.1.0"
   },
   "devDependencies": {

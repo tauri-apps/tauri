@@ -80,8 +80,12 @@ fn init_command(matches: &ArgMatches) -> Result<()> {
 fn dev_command(matches: &ArgMatches) -> Result<()> {
   let exit_on_panic = matches.is_present("exit-on-panic");
   let config = matches.value_of("config");
+  let args: Vec<String> = matches
+    .values_of("args")
+    .map(|a| a.into_iter().map(|v| v.to_string()).collect())
+    .unwrap_or_default();
 
-  let mut dev_runner = dev::Dev::new().exit_on_panic(exit_on_panic);
+  let mut dev_runner = dev::Dev::new().exit_on_panic(exit_on_panic).args(args);
 
   if let Some(config) = config {
     dev_runner = dev_runner.config(config.to_string());

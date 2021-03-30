@@ -4,15 +4,10 @@ use std::{
   boxed::Box,
   collections::HashMap,
   fmt,
-  hash::{Hash, Hasher},
+  hash::Hash,
   sync::{Arc, Mutex},
 };
 use uuid::Uuid;
-
-pub enum EventScope {
-  Global,
-  Window,
-}
 
 /// A randomly generated id that represents an event handler.
 #[derive(Debug, Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -30,18 +25,21 @@ impl fmt::Display for HandlerId {
   }
 }
 
-type Handler = Box<dyn Fn(EventPayload) + Send + 'static>;
+struct Handler<L: Tag> {
+  window: Option<L>,
+  callback: Box<dyn Fn(EventPayload) + Send>,
+}
+
+//type Handler = Box<dyn Fn(EventPayload) + Send + 'static>;
 
 pub struct Listeners<E: Tag, L: Tag> {
-  global: Arc<Mutex<HashMap<E, HashMap<HandlerId, Handler>>>>,
-  window: Arc<Mutex<HashMap<L, HashMap<E, HashMap<HandlerId, Handler>>>>>,
+  inner: Arc<Mutex<HashMap<E, HashMap<HandlerId, Handler<L>>>>>,
 }
 
 impl<E: Tag, L: Tag> Clone for Listeners<E, L> {
   fn clone(&self) -> Self {
     Self {
-      global: self.global.clone(),
-      window: self.window.clone(),
+      inner: self.inner.clone(),
     }
   }
 }
@@ -50,66 +48,50 @@ impl<E: Tag, L: Tag> Listeners<E, L> {
   /// Create an empty set of listeners
   pub fn new() -> Self {
     Self {
-      global: Arc::new(Mutex::new(HashMap::new())),
-      window: Arc::new(Mutex::new(HashMap::new())),
+      inner: Arc::new(Mutex::default()),
     }
   }
 
-  /// Adds a global event listener for JS events.
-  pub fn listen<F: Fn(EventPayload) + Send + 'static>(&self, event: E, handler: F) -> HandlerId {
-    let id = HandlerId::default();
-    self
-      .global
-      .lock()
-      .expect(&format!("poisoned event mutex"))
-      .entry(event)
-      .or_default()
-      .insert(id, Box::new(handler));
-    id
-  }
-
-  /// Adds a window event listener for JS events.
-  pub fn listen_window<F: Fn(EventPayload) + Send + 'static>(
+  /// Adds an event listener for JS events.
+  pub fn listen<F: Fn(EventPayload) + Send + 'static>(
     &self,
-    window: L,
     event: E,
+    window: Option<L>,
     handler: F,
   ) -> HandlerId {
     let id = HandlerId::default();
+    let handler = Handler {
+      window,
+      callback: Box::new(handler),
+    };
     self
-      .window
+      .inner
       .lock()
-      .expect(&format!("poisoned event mutex"))
-      .entry(window)
-      .or_default()
+      .expect("poisoned event mutex")
       .entry(event)
       .or_default()
-      .insert(id, Box::new(handler));
+      .insert(id, handler);
     id
   }
 
-  /// Listen to a global JS event and immediately unlisten.
-  pub fn once<F: Fn(EventPayload) + Send + 'static>(&self, event: E, handler: F) {
+  /// Listen to a JS event and immediately unlisten.
+  pub fn once<F: Fn(EventPayload) + Send + 'static>(
+    &self,
+    event: E,
+    window: Option<L>,
+    handler: F,
+  ) {
     let self_ = self.clone();
-    self.listen(event, move |e| {
+    self.listen(event, window, move |e| {
       self_.unlisten(e.id);
       handler(e);
     });
   }
 
-  /// Listen to an JS event on a window and immediately unlisten.
-  pub fn once_window<F: Fn(EventPayload) + Send + 'static>(&self, window: L, event: E, handler: F) {
-    let self_ = self.clone();
-    self.listen_window(window, event, move |e| {
-      self_.unlisten(e.id);
-      handler(e);
-    });
-  }
-
-  /// Removes a global event listener.
+  /// Removes an event listener.
   pub fn unlisten(&self, handler_id: HandlerId) {
     self
-      .global
+      .inner
       .lock()
       .expect("poisoned event mutex")
       .values_mut()
@@ -118,57 +100,23 @@ impl<E: Tag, L: Tag> Listeners<E, L> {
       })
   }
 
-  /// Removes a window event listener.
-  pub fn unlisten_window(&self, window: &L, handler_id: HandlerId) {
-    if let Some(handlers) = self
-      .window
-      .lock()
-      .expect("poisoned event mutex")
-      .get_mut(window)
-    {
-      for h in handlers.values_mut() {
-        h.remove(&handler_id);
-      }
-    }
-  }
-
   /// Triggers the given global event with its payload.
-  pub(crate) fn trigger(&self, event: E, data: Option<String>) {
-    if let Some(handlers) = self
-      .global
-      .lock()
-      .expect("poisoned event mutex")
-      .get(&event)
-    {
+  pub(crate) fn trigger(&self, event: E, window: Option<L>, data: Option<String>) {
+    if let Some(handlers) = self.inner.lock().expect("poisoned event mutex").get(&event) {
       for (&id, handler) in handlers {
-        let data = data.clone();
-        let payload = EventPayload { id, data };
-        handler(payload)
-      }
-    }
-  }
-
-  /// Triggers the given global event with its payload.
-  pub(crate) fn trigger_window(&self, window: &L, event: E, data: Option<String>) {
-    if let Some(handlers) = self
-      .window
-      .lock()
-      .expect("poisoned event mutex")
-      .get(window)
-      .and_then(|window| window.get(&event))
-    {
-      for (&id, handler) in handlers {
-        let data = data.clone();
-        let payload = EventPayload { id, data };
-        handler(payload)
+        if window.is_none() || window == handler.window {
+          let data = data.clone();
+          let payload = EventPayload { id, data };
+          (handler.callback)(payload)
+        }
       }
     }
   }
 }
 
-static EMIT_FUNCTION_NAME: Lazy<Uuid> = Lazy::new(|| Uuid::new_v4());
-static EVENT_LISTENERS_OBJECT_NAME: Lazy<Uuid> = Lazy::new(|| Uuid::new_v4());
-static EVENT_QUEUE_OBJECT_NAME: Lazy<Uuid> = Lazy::new(|| Uuid::new_v4());
+static EMIT_FUNCTION_NAME: Lazy<Uuid> = Lazy::new(Uuid::new_v4);
+static EVENT_LISTENERS_OBJECT_NAME: Lazy<Uuid> = Lazy::new(Uuid::new_v4);
+static EVENT_QUEUE_OBJECT_NAME: Lazy<Uuid> = Lazy::new(Uuid::new_v4);
 
 /// the emit JS function name
 pub fn emit_function_name() -> String {

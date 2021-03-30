@@ -1,29 +1,30 @@
 use crate::{
   api::{assets::Assets, config::Config},
   app::webview::AttributesPrivate,
-  event::{emit_function_name, EventPayload, EventScope, HandlerId, Listeners},
+  event::{emit_function_name, EventPayload, HandlerId, Listeners},
   plugin::PluginStore,
-  runtime::{Dispatch, Runtime},
+  runtime::Dispatch,
   Attributes, CustomProtocol, FileDropEvent, Icon, InvokeHandler, InvokeMessage, InvokePayload,
   PageLoadHook, PageLoadPayload, PendingWindow, RpcRequest, WindowUrl,
 };
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value as JsonValue;
 use std::{
   borrow::Cow,
   collections::HashSet,
-  convert::{TryFrom, TryInto},
+  convert::TryInto,
   fmt,
-  fmt::Formatter,
   hash::{Hash, Hasher},
   ops::Deref,
   str::FromStr,
   sync::{Arc, Mutex},
 };
 
+#[allow(missing_docs)]
 pub trait Tag: Hash + Eq + FromStr + fmt::Display + Clone + Send + Sync + 'static {}
 impl<T> Tag for T where T: Hash + Eq + FromStr + fmt::Display + Clone + Send + Sync + 'static {}
 
+#[allow(missing_docs)]
 pub struct InnerWindowManager<E: Tag, L: Tag, D: Dispatch> {
   windows: Arc<Mutex<HashSet<Window<E, L, D>>>>,
   plugins: PluginStore<E, L, D>,
@@ -61,12 +62,16 @@ impl<E: Tag, L: Tag, D: Dispatch> InnerWindowManager<E, L, D> {
   ) -> Self {
     Self {
       windows: Arc::new(Mutex::new(HashSet::new())),
-      plugins: PluginStore::new(),
+      plugins: PluginStore::default(),
       listeners: Listeners::new(),
       config,
       invoke_handler: Arc::new(Mutex::new(invoke)),
       on_page_load: Arc::new(Mutex::new(page_load)),
     }
+  }
+
+  pub(crate) fn initialize_plugins(&self) -> crate::Result<()> {
+    self.plugins.initialize(&self.config.plugins)
   }
 
   /// Runs the [invoke handler](AppBuilder::invoke_handler) if defined.
@@ -370,7 +375,7 @@ impl<E: Tag, L: Tag, D: Dispatch> Window<E, L, D> {
     }
   }
 
-  pub fn dispatcher(&self) -> D {
+  pub(crate) fn dispatcher(&self) -> D {
     self.dispatcher.clone()
   }
 
@@ -380,40 +385,28 @@ impl<E: Tag, L: Tag, D: Dispatch> Window<E, L, D> {
   }
 
   /// Listen to a webview event.
-  pub fn listen<F>(&self, scope: EventScope, event: E, handler: F) -> HandlerId
+  pub fn listen<F>(&self, event: E, handler: F) -> HandlerId
   where
     F: Fn(EventPayload) + Send + 'static,
   {
-    let l = &self.manager.listeners;
-    match scope {
-      EventScope::Global => l.listen(event, handler),
-      EventScope::Window => l.listen_window(self.label.clone(), event, handler),
-    }
+    self.manager.listeners.listen(event, None, handler)
   }
 
   /// Listen to a webview event and unlisten after the first event.
-  pub fn once<F>(&self, scope: EventScope, event: E, handler: F)
+  pub fn once<F>(&self, event: E, handler: F)
   where
     F: Fn(EventPayload) + Send + 'static,
   {
-    let l = &self.manager.listeners;
-    match scope {
-      EventScope::Global => l.once(event, handler),
-      EventScope::Window => l.once_window(self.label.clone(), event, handler),
-    }
+    self.manager.listeners.once(event, None, handler)
   }
 
   /// Unregister the event listener with the given id.
-  pub fn unlisten(&self, scope: EventScope, handler_id: HandlerId) {
-    let l = &self.manager.listeners;
-    match scope {
-      EventScope::Global => l.unlisten(handler_id),
-      EventScope::Window => l.unlisten_window(&self.label, handler_id),
-    }
+  pub fn unlisten(&self, handler_id: HandlerId) {
+    self.manager.listeners.unlisten(handler_id)
   }
 
   /// Emits an event to the webview.
-  pub fn emit<S: Serialize>(&self, event: E, payload: Option<S>) -> crate::Result<()> {
+  pub(crate) fn emit<S: Serialize>(&self, event: E, payload: Option<S>) -> crate::Result<()> {
     let js_payload = match payload {
       Some(payload_value) => serde_json::to_value(payload_value)?,
       None => JsonValue::Null,
@@ -431,12 +424,8 @@ impl<E: Tag, L: Tag, D: Dispatch> Window<E, L, D> {
   }
 
   /// Emits an event from the webview.
-  pub(crate) fn trigger(&self, scope: EventScope, event: E, data: Option<String>) {
-    let l = &self.manager.listeners;
-    match scope {
-      EventScope::Global => l.trigger(event, data),
-      EventScope::Window => l.trigger_window(&self.label, event, data),
-    }
+  pub(crate) fn trigger(&self, event: E, data: Option<String>) {
+    self.manager.listeners.trigger(event, None, data)
   }
 
   /// Evaluates a JS script.
@@ -561,23 +550,48 @@ impl<E: Tag, L: Tag, D: Dispatch> Window<E, L, D> {
     self.dispatcher.set_icon(icon.try_into()?)
   }
 
-  pub async fn create_window(&self, pending: PendingWindow<L, D>) -> crate::Result<Self> {
+  pub(crate) fn emit_all<S: Serialize + Clone>(
+    &self,
+    event: E,
+    payload: Option<S>,
+  ) -> crate::Result<()> {
+    self
+      .manager
+      .windows
+      .lock()
+      .expect("poisoned manager window mutex")
+      .iter()
+      .try_for_each(|window| window.emit(event.clone(), payload.clone()))
+  }
+
+  /// emits an event on all windows except the current one
+  pub(crate) fn emit_others<S>(&self, event: E, payload: Option<S>) -> crate::Result<()>
+  where
+    S: Serialize + Clone,
+  {
+    self
+      .manager
+      .windows
+      .lock()
+      .expect("poisoned manager window mutex")
+      .iter()
+      .try_for_each(|window| {
+        if window != self {
+          window.emit(event.clone(), payload.clone())
+        } else {
+          Ok(())
+        }
+      })
+  }
+
+  #[allow(missing_docs)]
+  pub async fn create_window(self, pending: PendingWindow<L, D>) -> crate::Result<Self> {
     let mut dispatcher = self.dispatcher.clone();
     let manager = self.manager.clone();
     let label = pending.label.clone();
     let dispatcher = dispatcher.create_window(pending)?;
-    let window = Window::new(manager.clone(), dispatcher, label);
+    let window = manager.attach_window(dispatcher, label);
 
-    // drop lock asap
-    {
-      manager
-        .windows
-        .lock()
-        .expect("poisoned window manager windows")
-        .insert(window.clone());
-    }
-
-    manager.plugins.created(window.clone());
     Ok(window)
   }
 

@@ -1,11 +1,10 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
-  parse::Parser, punctuated::Punctuated, FnArg, Ident, ItemFn, Meta, NestedMeta, Pat, Path,
-  ReturnType, Token, Type,
+  parse::Parser, punctuated::Punctuated, FnArg, Ident, ItemFn, Pat, Path, ReturnType, Token, Type,
 };
 
-pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream {
+pub fn generate_command(function: ItemFn) -> TokenStream {
   let fn_name = function.sig.ident.clone();
   let fn_name_str = fn_name.to_string();
   let fn_wrapper = format_ident!("{}_wrapper", fn_name);
@@ -25,7 +24,7 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
   };
 
   // Split function args into names and types
-  let (mut names, mut types): (Vec<Ident>, Vec<Path>) = function
+  let (names, types): (Vec<Ident>, Vec<Path>) = function
     .sig
     .inputs
     .iter()

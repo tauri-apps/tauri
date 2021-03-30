@@ -5,6 +5,7 @@ use crate::{
 use std::convert::TryFrom;
 
 /// Webview dispatcher. A thread-safe handle to the webview API.
+#[allow(missing_docs)]
 pub trait Dispatch: Clone + Send + Sized + 'static {
   type Runtime: Runtime;
   type Icon: TryFrom<Icon, Error = crate::Error>;
@@ -88,6 +89,7 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
 
 /// The application interface.
 /// Manages windows and webviews.
+#[allow(missing_docs)]
 pub trait Runtime: Sized + 'static {
   /// The message dispatcher.
   type Dispatcher: Dispatch<Runtime = Self>;

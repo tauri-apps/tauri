@@ -1,4 +1,5 @@
 use super::InvokeResponse;
+use crate::app::webview::WindowConfig;
 use crate::{app::Icon, runtime::Dispatch, PendingWindow, Tag, Window};
 use serde::Deserialize;
 
@@ -116,11 +117,11 @@ impl Cmd {
               .parse()
               .unwrap_or_else(|_| panic!("todo: event parsing"));
 
-            let _url = options.url.clone();
-            //let _ = PendingWindow::new(WindowConfig(options), label.clone(), url);
-            //todo: window.create_window(pending).await?;
+            let url = options.url.clone();
+            let pending = PendingWindow::new(WindowConfig(options), label.clone(), url);
 
-            window.emit(
+            let window = window.create_window(pending).await?;
+            window.emit_others(
               event,
               Some(WindowCreatedEvent {
                 label: label.to_string(),

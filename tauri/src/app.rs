@@ -321,7 +321,7 @@ where
         .insert(PendingWindow::new(WindowConfig(config), label, url));
     }
 
-    //self.hooks.plugins.initialize(&self.config.plugins);
+    self.inner_window_manager.initialize_plugins()?;
 
     let pending_windows = std::mem::take(&mut self.pending_windows);
     let mut windows = Vec::new();
@@ -397,7 +397,7 @@ where
       invoke_handler: None,
       on_page_load: None,
       pending_windows: Default::default(),
-      plugins: PluginStore::new(),
+      plugins: PluginStore::default(),
     }
   }
 
@@ -429,7 +429,7 @@ where
   }
 
   /// Adds a plugin to the runtime.
-  pub fn plugin<P: Plugin<E, L, R::Dispatcher> + 'static>(mut self, plugin: P) -> Self {
+  pub fn plugin<P: Plugin<E, L, R::Dispatcher> + 'static>(self, plugin: P) -> Self {
     self.plugins.register(plugin);
     self
   }

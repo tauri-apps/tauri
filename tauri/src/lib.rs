@@ -42,9 +42,6 @@ pub use crate::{
   runtime::{Dispatch, Runtime},
 };
 
-/// TODO: theres probably a better way to expose the event system
-pub use event::EventScope;
-
 /// The Tauri webview implementations.
 pub mod flavors {
   pub use super::app::{webview::wry::WryDispatcher, WryApplication as Wry};

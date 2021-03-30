@@ -1,5 +1,5 @@
 use super::InvokeResponse;
-use crate::{event::EventScope, runtime::Dispatch, Tag, Window};
+use crate::{runtime::Dispatch, Tag, Window};
 use serde::Deserialize;
 
 /// The API descriptor.
@@ -31,6 +31,10 @@ impl Cmd {
     match self {
       Self::Listen { event, handler } => {
         let event_id = rand::random();
+        /* println!(
+          "going to listen to e: {}, h: {}, id: {}",
+          event, handler, event_id
+        );*/
         window.eval(&listen_js(event, event_id, handler))?;
         Ok(event_id.into())
       }
@@ -48,14 +52,14 @@ impl Cmd {
           .unwrap_or_else(|_| panic!("todo: invalid event str"));
         if let Some(_) = window_label {
           // dispatch the event to Rust listeners
-          window.trigger(EventScope::Global, e.clone(), payload.clone());
+          window.trigger(e.clone(), payload.clone());
           // dispatch the event to JS listeners
-          window.emit(e, payload)?;
+          window.emit_all(e, payload)?;
         } else {
           // dispatch the event to Rust listeners
-          window.trigger(EventScope::Global, e.clone(), payload.clone());
+          window.trigger(e.clone(), payload.clone());
           // dispatch the event to JS listeners
-          window.emit(e, payload)?;
+          window.emit_all(e, payload)?;
         }
         Ok(().into())
       }

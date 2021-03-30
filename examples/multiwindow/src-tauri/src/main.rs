@@ -3,13 +3,13 @@
   windows_subsystem = "windows"
 )]
 
-use tauri::{Attributes, EventScope};
+use tauri::Attributes;
 
 fn main() {
   tauri::AppBuilder::default()
     .on_page_load(|window, _payload| {
       let label = window.label().to_string();
-      window.listen(EventScope::Window, "clicked".to_string(), move |_payload| {
+      window.listen("clicked".to_string(), move |_payload| {
         println!("got 'clicked' event on window '{}'", label);
       });
     })

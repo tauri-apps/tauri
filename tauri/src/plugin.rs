@@ -1,7 +1,5 @@
 use crate::{
-  api::config::PluginConfig,
-  runtime::{Dispatch, Runtime},
-  InvokeMessage, PageLoadPayload, Tag, Window,
+  api::config::PluginConfig, runtime::Dispatch, InvokeMessage, PageLoadPayload, Tag, Window,
 };
 use serde_json::Value as JsonValue;
 use std::{
@@ -55,13 +53,15 @@ impl<E: Tag, L: Tag, D: Dispatch> Clone for PluginStore<E, L, D> {
   }
 }
 
-impl<E: Tag, L: Tag, D: Dispatch> PluginStore<E, L, D> {
-  pub fn new() -> Self {
+impl<E: Tag, L: Tag, D: Dispatch> Default for PluginStore<E, L, D> {
+  fn default() -> Self {
     Self {
-      store: Arc::new(Mutex::new(HashMap::new())),
+      store: Arc::new(Mutex::default()),
     }
   }
+}
 
+impl<E: Tag, L: Tag, D: Dispatch> PluginStore<E, L, D> {
   /// Adds a plugin to the store.
   ///
   /// Returns `true` if a plugin with the same name is already in the store.
@@ -82,13 +82,7 @@ impl<E: Tag, L: Tag, D: Dispatch> PluginStore<E, L, D> {
       .expect("poisoned plugin store mutex")
       .values_mut()
       .try_for_each(|plugin| {
-        plugin.initialize(
-          config
-            .0
-            .get(plugin.name())
-            .map(|v| v.clone())
-            .unwrap_or_default(),
-        )
+        plugin.initialize(config.0.get(plugin.name()).cloned().unwrap_or_default())
       })
   }
 

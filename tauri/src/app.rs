@@ -11,11 +11,7 @@ use crate::{
     assets::Assets,
     rpc::{format_callback, format_callback_result},
   },
-  app::{
-    webview::{AttributesPrivate, WindowConfig},
-    webview_manager::WindowManager,
-  },
-  event::Listeners,
+  app::webview::WindowConfig,
   flavors::Wry,
   plugin::{Plugin, PluginStore},
   runtime::{Dispatch, Runtime},
@@ -23,13 +19,10 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::{
-  borrow::Cow,
-  collections::{HashMap, HashSet},
-  convert::{TryFrom, TryInto},
+  collections::HashSet,
   future::Future,
   hash::{Hash, Hasher},
-  ops::Deref,
-  sync::{Arc, Mutex},
+  sync::Arc,
 };
 use tauri_api::config::Config;
 
@@ -38,10 +31,12 @@ mod utils;
 pub(crate) mod webview;
 mod webview_manager;
 
+#[allow(missing_docs)]
 pub type InvokeHandler<E, L, R> = dyn Fn(InvokeMessage<E, L, R>) + Send;
 /// TODO: pass some listener handle
 pub type SetupHook<E, L, R> =
   dyn Fn(&mut App<E, L, R>) -> Result<(), Box<dyn std::error::Error>> + Send;
+#[allow(missing_docs)]
 pub type PageLoadHook<E, L, R> = dyn Fn(Window<E, L, R>, PageLoadPayload) + Send;
 
 /// Payload from an invoke call.
@@ -58,14 +53,15 @@ pub(crate) struct InvokePayload {
 }
 
 /// An invoke message.
-pub struct InvokeMessage<E: Tag, L: Tag, R: Runtime> {
-  window: Window<E, L, R>,
+pub struct InvokeMessage<E: Tag, L: Tag, D: Dispatch> {
+  window: Window<E, L, D>,
   command: String,
   payload: InvokePayload,
 }
 
-impl<E: Tag, L: Tag, R: Runtime> InvokeMessage<E, L, R> {
-  pub(crate) fn new(window: Window<E, L, R>, command: String, payload: InvokePayload) -> Self {
+#[allow(missing_docs)]
+impl<E: Tag, L: Tag, D: Dispatch> InvokeMessage<E, L, D> {
+  pub(crate) fn new(window: Window<E, L, D>, command: String, payload: InvokePayload) -> Self {
     Self {
       window,
       command,
@@ -83,7 +79,7 @@ impl<E: Tag, L: Tag, R: Runtime> InvokeMessage<E, L, R> {
     self.payload.inner.clone()
   }
 
-  pub fn window(&self) -> Window<E, L, R> {
+  pub fn window(&self) -> Window<E, L, D> {
     self.window.clone()
   }
 
@@ -142,7 +138,7 @@ impl<E: Tag, L: Tag, R: Runtime> InvokeMessage<E, L, R> {
     Err: Serialize,
     F: std::future::Future<Output = Result<T, Err>> + Send + 'static,
   >(
-    window: Window<E, L, R>,
+    window: Window<E, L, D>,
     task: F,
     success_callback: String,
     error_callback: String,
@@ -152,7 +148,7 @@ impl<E: Tag, L: Tag, R: Runtime> InvokeMessage<E, L, R> {
   }
 
   pub fn return_closure<T: Serialize, Err: Serialize, F: FnOnce() -> Result<T, Err>>(
-    window: Window<E, L, R>,
+    window: Window<E, L, D>,
     f: F,
     success_callback: String,
     error_callback: String,
@@ -161,7 +157,7 @@ impl<E: Tag, L: Tag, R: Runtime> InvokeMessage<E, L, R> {
   }
 
   pub fn return_result<T: Serialize, Err: Serialize>(
-    window: Window<E, L, R>,
+    window: Window<E, L, D>,
     result: Result<T, Err>,
     success_callback: String,
     error_callback: String,
@@ -172,92 +168,9 @@ impl<E: Tag, L: Tag, R: Runtime> InvokeMessage<E, L, R> {
         Err(e) => format_callback(error_callback, e.to_string()),
       };
 
-    window.eval(&callback_string);
+    let _ = window.eval(&callback_string);
   }
 }
-
-/*
-type WebviewContext<A> = (
-  <A as ApplicationExt>::WebviewBuilder,
-  Option<WebviewRpcHandler<<A as ApplicationExt>::Dispatcher>>,
-  Option<CustomProtocol>,
-  Option<FileDropHandler>,
-);
-
-trait WebviewInitializer<A: ApplicationExt> {
-  fn init_webview(&self, webview: Webview<A>) -> crate::Result<WebviewContext<A>>;
-
-  fn on_webview_created(&self, webview_label: String, dispatcher: A::Dispatcher);
-}
-
-impl<A: ApplicationExt + 'static> WebviewInitializer<A> for Arc<Mutex<App<A>>> {
-  fn init_webview(&self, webview: Webview<A>) -> crate::Result<WebviewContext<A>> {
-    let application = self.lock().unwrap();
-    let webview_manager = WebviewManager::new(
-      self.clone(),
-      application.dispatchers.clone(),
-      webview.label.to_string(),
-    );
-    let (webview_builder, rpc_handler, custom_protocol) = utils::build_webview(
-      self.clone(),
-      webview,
-      &webview_manager,
-      &application.url,
-      &application.window_labels.lock().unwrap(),
-      &application.plugin_initialization_script,
-      &application.context,
-    )?;
-    let file_drop_handler: Box<dyn Fn(FileDropEvent) -> bool + Send> = Box::new(move |event| {
-      let webview_manager = webview_manager.clone();
-      crate::async_runtime::block_on(async move {
-        let webview = webview_manager.current_webview().unwrap();
-        let _ = match event {
-          FileDropEvent::Hovered(paths) => webview.emit("tauri://file-drop-hover", Some(paths)),
-          FileDropEvent::Dropped(paths) => webview.emit("tauri://file-drop", Some(paths)),
-          FileDropEvent::Cancelled => webview.emit("tauri://file-drop-cancelled", Some(())),
-        };
-      });
-      true
-    });
-    Ok((
-      webview_builder,
-      rpc_handler,
-      custom_protocol,
-      Some(file_drop_handler),
-    ))
-  }
-
-  fn on_webview_created(&self, webview_label: String, dispatcher: A::Dispatcher) {
-    self.lock().unwrap().dispatchers.lock().unwrap().insert(
-      webview_label.to_string(),
-      WebviewDispatcher::new(dispatcher, webview_label),
-    );
-  }
-}
- */
-
-/*/// `App` runtime information.
-pub struct Context {
-  pub(crate) config: &'static Config,
-  pub(crate) default_window_icon: Option<&'static [u8]>,
-  pub(crate) assets: &'static tauri_api::assets::EmbeddedAssets,
-}
-
-impl Context {
-  pub(crate) fn new<Context: AsTauriContext>(_: Context) -> Self {
-    Self {
-      config: Context::config(),
-      default_window_icon: Context::default_window_icon(),
-      assets: Context::assets(),
-    }
-  }
-}*/
-/*
-pub(crate) struct Window<R: Runtime> {
-  pub(crate) builder: R::WindowBuilder,
-  pub(crate) label: String,
-  pub(crate) url: WindowUrl,
-}*/
 
 /// The payload for the "page_load" hook.
 #[derive(Debug, Clone, Deserialize)]
@@ -272,6 +185,7 @@ impl PageLoadPayload {
   }
 }
 
+#[allow(missing_docs)]
 pub trait AsContext {
   type Assets: Assets + Send + Sync;
 
@@ -280,13 +194,14 @@ pub trait AsContext {
   fn default_window_icon(&self) -> Option<&[u8]>;
 }
 
+#[allow(missing_docs)]
 pub struct Context<A: Assets + Send + Sync> {
   pub config: Config,
   pub assets: A,
   pub default_window_icon: Option<Vec<u8>>,
 }
 
-/// Represents all the items needed to spawn a window
+#[allow(missing_docs)]
 pub struct PendingWindow<L, D>
 where
   L: Tag,
@@ -313,6 +228,7 @@ impl<L: Tag, D: Dispatch> PartialEq for PendingWindow<L, D> {
   }
 }
 
+#[allow(missing_docs)]
 impl<L, D> PendingWindow<L, D>
 where
   L: Tag,
@@ -346,18 +262,18 @@ where
   }
 }
 
-pub struct App<E: Tag, L: Tag, R: Runtime> {
+#[allow(missing_docs)]
+pub struct App<E: Tag, L: Tag, R: Runtime + 'static> {
   runtime: R,
-  windows: InnerWindowManager<E, L, R>,
+  windows: InnerWindowManager<E, L, R::Dispatcher>,
 }
 
-impl<E: Tag, L: Tag, R: Runtime> App<E, L, R> {
+#[allow(missing_docs)]
+impl<E: Tag, L: Tag, R: Runtime + 'static> App<E, L, R> {
   pub fn create_window(&mut self, pending: PendingWindow<L, R::Dispatcher>) -> crate::Result<()> {
     let manager = self.windows.clone();
     let label = pending.label.clone();
-    println!("runtime create window");
     let dispatcher = self.runtime.create_window(pending)?;
-    println!("runtime attach window");
     manager.attach_window(dispatcher, label);
     Ok(())
   }
@@ -367,9 +283,10 @@ impl<E: Tag, L: Tag, R: Runtime> App<E, L, R> {
   }
 }
 
+#[allow(missing_docs)]
 pub struct Application<E, A, L = String, R = Wry>
 where
-  R: Runtime,
+  R: Runtime + 'static,
   A: Assets + Send + Sync,
   L: Tag,
   E: Tag,
@@ -377,7 +294,7 @@ where
   config: Arc<Config>,
   assets: Arc<A>,
   default_window_icon: Option<Vec<u8>>,
-  inner_window_manager: InnerWindowManager<E, L, R>,
+  inner_window_manager: InnerWindowManager<E, L, R::Dispatcher>,
   pending_windows: HashSet<PendingWindow<L, R::Dispatcher>>,
   setup: Box<SetupHook<E, L, R>>,
 }
@@ -425,58 +342,14 @@ where
       windows: self.inner_window_manager,
     };
 
-    dbg!(windows.len());
-
     //let live = Vec::new();
     for window in windows {
       app.create_window(window)?;
     }
 
-    println!("not yolo");
-
     (self.setup)(&mut app)?;
-
-    /*
-
-    let webviews = application.webviews.take().unwrap();
-
-    let dispatchers = application.dispatchers.clone();
-    let application = Arc::new(Mutex::new(application));
-    let mut webview_app = A::new()?;
-    let mut main_webview_manager = None;
-
-    for webview in webviews {
-      let webview_label = webview.label.to_string();
-      let webview_manager = WebviewManager::new(
-        application.clone(),
-        dispatchers.clone(),
-        webview_label.to_string(),
-      );
-      if main_webview_manager.is_none() {
-        main_webview_manager = Some(webview_manager.clone());
-      }
-      let (webview_builder, rpc_handler, custom_protocol, file_drop_handler) =
-        application.init_webview(webview)?;
-
-      let dispatcher = webview_app.create_webview(
-        webview_builder,
-        rpc_handler,
-        custom_protocol,
-        file_drop_handler,
-      )?;
-      application.on_webview_created(webview_label, dispatcher);
-      crate::plugin::created(A::plugin_store(), &webview_manager);
-    }
-
-    if let Some(main_webview_manager) = main_webview_manager {
-      application.lock().unwrap().run_setup(main_webview_manager);
-    }
-
-    webview_app.run();
-
-    Ok(())*/
-    println!("yolo?");
-    Ok(app.run())
+    app.run();
+    Ok(())
   }
 
   fn pending_labels(&self) -> Vec<String> {
@@ -491,29 +364,29 @@ where
 /// The App builder.
 pub struct AppBuilder<E, L = String, R = Wry>
 where
-  R: Runtime,
+  R: Runtime + 'static,
   L: Tag,
   E: Tag,
 {
   /// The JS message handler.
-  invoke_handler: Option<Box<InvokeHandler<E, L, R>>>,
+  invoke_handler: Option<Box<InvokeHandler<E, L, R::Dispatcher>>>,
 
   /// The setup hook.
   setup: Box<SetupHook<E, L, R>>,
 
   /// Page load hook.
-  on_page_load: Option<Box<PageLoadHook<E, L, R>>>,
+  on_page_load: Option<Box<PageLoadHook<E, L, R::Dispatcher>>>,
 
   /// windows to create when starting up.
   pending_windows: HashSet<PendingWindow<L, R::Dispatcher>>,
 
   /// All passed plugins
-  plugins: PluginStore<E, L, R>,
+  plugins: PluginStore<E, L, R::Dispatcher>,
 }
 
 impl<E, L, R> AppBuilder<E, L, R>
 where
-  R: Runtime,
+  R: Runtime + 'static,
   L: Tag,
   E: Tag,
 {
@@ -531,7 +404,7 @@ where
   /// Defines the JS message handler callback.
   pub fn invoke_handler<F>(mut self, invoke_handler: F) -> Self
   where
-    F: Fn(InvokeMessage<E, L, R>) + Send + 'static,
+    F: Fn(InvokeMessage<E, L, R::Dispatcher>) + Send + 'static,
   {
     self.invoke_handler = Some(Box::new(invoke_handler));
     self
@@ -549,14 +422,14 @@ where
   /// Defines the page load hook.
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
-    F: Fn(Window<E, L, R>, PageLoadPayload) + Send + 'static,
+    F: Fn(Window<E, L, R::Dispatcher>, PageLoadPayload) + Send + 'static,
   {
     self.on_page_load = Some(Box::new(on_page_load));
     self
   }
 
   /// Adds a plugin to the runtime.
-  pub fn plugin<P: Plugin<E, L, R> + 'static>(mut self, plugin: P) -> Self {
+  pub fn plugin<P: Plugin<E, L, R::Dispatcher> + 'static>(mut self, plugin: P) -> Self {
     self.plugins.register(plugin);
     self
   }

@@ -1,5 +1,7 @@
 use crate::{
-  api::config::PluginConfig, runtime::Runtime, InvokeMessage, PageLoadPayload, Tag, Window,
+  api::config::PluginConfig,
+  runtime::{Dispatch, Runtime},
+  InvokeMessage, PageLoadPayload, Tag, Window,
 };
 use serde_json::Value as JsonValue;
 use std::{
@@ -8,7 +10,7 @@ use std::{
 };
 
 /// The plugin interface.
-pub trait Plugin<E: Tag, L: Tag, R: Runtime>: Send {
+pub trait Plugin<E: Tag, L: Tag, D: Dispatch>: Send {
   /// The plugin name. Used as key on the plugin config object.
   fn name(&self) -> &'static str;
 
@@ -29,23 +31,23 @@ pub trait Plugin<E: Tag, L: Tag, R: Runtime>: Send {
 
   /// Callback invoked when the webview is created.
   #[allow(unused_variables)]
-  fn created(&mut self, window: Window<E, L, R>) {}
+  fn created(&mut self, window: Window<E, L, D>) {}
 
   /// Callback invoked when the webview performs a navigation.
   #[allow(unused_variables)]
-  fn on_page_load(&mut self, window: Window<E, L, R>, payload: PageLoadPayload) {}
+  fn on_page_load(&mut self, window: Window<E, L, D>, payload: PageLoadPayload) {}
 
   /// Add invoke_handler API extension commands.
   #[allow(unused_variables)]
-  fn extend_api(&mut self, message: InvokeMessage<E, L, R>) {}
+  fn extend_api(&mut self, message: InvokeMessage<E, L, D>) {}
 }
 
 /// Plugin collection type.
-pub struct PluginStore<E: Tag, L: Tag, R: Runtime> {
-  store: Arc<Mutex<HashMap<&'static str, Box<dyn Plugin<E, L, R>>>>>,
+pub struct PluginStore<E: Tag, L: Tag, D: Dispatch> {
+  store: Arc<Mutex<HashMap<&'static str, Box<dyn Plugin<E, L, D>>>>>,
 }
 
-impl<E: Tag, L: Tag, R: Runtime> Clone for PluginStore<E, L, R> {
+impl<E: Tag, L: Tag, D: Dispatch> Clone for PluginStore<E, L, D> {
   fn clone(&self) -> Self {
     PluginStore {
       store: self.store.clone(),
@@ -53,7 +55,7 @@ impl<E: Tag, L: Tag, R: Runtime> Clone for PluginStore<E, L, R> {
   }
 }
 
-impl<E: Tag, L: Tag, R: Runtime> PluginStore<E, L, R> {
+impl<E: Tag, L: Tag, D: Dispatch> PluginStore<E, L, D> {
   pub fn new() -> Self {
     Self {
       store: Arc::new(Mutex::new(HashMap::new())),
@@ -63,7 +65,7 @@ impl<E: Tag, L: Tag, R: Runtime> PluginStore<E, L, R> {
   /// Adds a plugin to the store.
   ///
   /// Returns `true` if a plugin with the same name is already in the store.
-  pub fn register<P: Plugin<E, L, R> + 'static>(&self, plugin: P) -> bool {
+  pub fn register<P: Plugin<E, L, D> + 'static>(&self, plugin: P) -> bool {
     self
       .store
       .lock()
@@ -104,7 +106,7 @@ impl<E: Tag, L: Tag, R: Runtime> PluginStore<E, L, R> {
   }
 
   /// Runs the created hook for all plugins in the store.
-  pub(crate) fn created(&self, window: Window<E, L, R>) {
+  pub(crate) fn created(&self, window: Window<E, L, D>) {
     self
       .store
       .lock()
@@ -114,7 +116,7 @@ impl<E: Tag, L: Tag, R: Runtime> PluginStore<E, L, R> {
   }
 
   /// Runs the on_page_load hook for all plugins in the store.
-  pub(crate) fn on_page_load(&self, window: Window<E, L, R>, payload: PageLoadPayload) {
+  pub(crate) fn on_page_load(&self, window: Window<E, L, D>, payload: PageLoadPayload) {
     self
       .store
       .lock()
@@ -123,7 +125,7 @@ impl<E: Tag, L: Tag, R: Runtime> PluginStore<E, L, R> {
       .for_each(|plugin| plugin.on_page_load(window.clone(), payload.clone()))
   }
 
-  pub(crate) fn extend_api(&self, command: String, message: InvokeMessage<E, L, R>) {
+  pub(crate) fn extend_api(&self, command: String, message: InvokeMessage<E, L, D>) {
     let target = command
       .replace("plugin:", "")
       .split('|')

@@ -1,5 +1,5 @@
 use super::InvokeResponse;
-use crate::{event::EventScope, runtime::Runtime, Tag, Window};
+use crate::{event::EventScope, runtime::Dispatch, Tag, Window};
 use serde::Deserialize;
 
 /// The API descriptor.
@@ -22,11 +22,11 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub fn run<E, L, R>(self, window: Window<E, L, R>) -> crate::Result<InvokeResponse>
+  pub fn run<E, L, D>(self, window: Window<E, L, D>) -> crate::Result<InvokeResponse>
   where
     E: Tag,
     L: Tag,
-    R: Runtime,
+    D: Dispatch,
   {
     match self {
       Self::Listen { event, handler } => {

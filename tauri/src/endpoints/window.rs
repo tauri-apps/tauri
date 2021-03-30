@@ -1,5 +1,5 @@
 use super::InvokeResponse;
-use crate::{app::Icon, runtime::Runtime, webview::WindowConfig, PendingWindow, Tag, Window};
+use crate::{app::Icon, runtime::Dispatch, PendingWindow, Tag, Window};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -90,11 +90,11 @@ struct WindowCreatedEvent {
 }
 
 impl Cmd {
-  pub async fn run<E, L, R>(self, window: Window<E, L, R>) -> crate::Result<InvokeResponse>
+  pub async fn run<E, L, D>(self, window: Window<E, L, D>) -> crate::Result<InvokeResponse>
   where
     E: Tag,
     L: Tag,
-    R: Runtime,
+    D: Dispatch,
   {
     if cfg!(not(window_all)) {
       Err(crate::Error::ApiNotAllowlisted("window > all".to_string()))

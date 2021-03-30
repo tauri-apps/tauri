@@ -39,8 +39,11 @@ pub use tauri_macros::*;
 
 pub use crate::{
   app::{Context, Tag},
-  runtime::Runtime,
+  runtime::{Dispatch, Runtime},
 };
+
+/// TODO: theres probably a better way to expose the event system
+pub use event::EventScope;
 
 /// The Tauri webview implementations.
 pub mod flavors {

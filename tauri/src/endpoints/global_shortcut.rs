@@ -60,11 +60,11 @@ where
 
 #[cfg(not(global_shortcut_all))]
 impl Cmd {
-  pub fn run<E, L, R: 'static>(self, _window: Window<E, L, R>) -> crate::Result<InvokeResponse>
+  pub fn run<E, L, D>(self, _window: Window<E, L, D>) -> crate::Result<InvokeResponse>
   where
     E: Tag,
     L: Tag,
-    R: Runtime,
+    D: Dispatch,
   {
     Err(crate::Error::ApiNotAllowlisted(
       "globalShortcut > all".to_string(),
@@ -74,11 +74,11 @@ impl Cmd {
 
 #[cfg(global_shortcut_all)]
 impl Cmd {
-  pub fn run<E, L, R>(self, window: Window<E, L, R>) -> crate::Result<InvokeResponse>
+  pub fn run<E, L, D>(self, window: Window<E, L, D>) -> crate::Result<InvokeResponse>
   where
     E: Tag,
     L: Tag,
-    R: Runtime + 'static,
+    D: Dispatch,
   {
     match self {
       Self::Register { shortcut, handler } => {

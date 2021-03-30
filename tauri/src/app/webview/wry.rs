@@ -1,7 +1,7 @@
 use super::{Attributes, AttributesPrivate, FileDropEvent, Icon, RpcRequest, WindowConfig};
 use crate::{
   runtime::{Dispatch, Runtime},
-  PendingWindow, Tag,
+  CustomProtocol, PendingWindow, Tag, WebviewRpcHandler,
 };
 use std::{convert::TryFrom, path::PathBuf};
 
@@ -237,7 +237,37 @@ impl Dispatch for WryDispatcher {
   type Attributes = wry::Attributes;
 
   fn create_window<L: Tag>(&mut self, pending: PendingWindow<L, Self>) -> crate::Result<Self> {
-    create_window(self.application.clone(), pending)
+    let PendingWindow {
+      attributes,
+      rpc_handler,
+      custom_protocol,
+      file_drop_handler,
+      label,
+      ..
+    } = pending;
+
+    let proxy = self.application.clone();
+
+    let rpc_handler =
+      rpc_handler.map(|handler| create_rpc_handler(proxy.clone(), label.clone(), handler));
+
+    let file_drop_handler = file_drop_handler
+      .map(|handler| create_file_drop_handler(proxy.clone(), label.clone(), handler));
+
+    let window = self
+      .application
+      .add_window_with_configs(
+        attributes,
+        rpc_handler,
+        custom_protocol.map(create_custom_protocol),
+        file_drop_handler,
+      )
+      .map_err(|_| crate::Error::CreateWebview)?;
+
+    Ok(WryDispatcher {
+      window,
+      application: proxy,
+    })
   }
 
   fn set_resizable(&self, resizable: bool) -> crate::Result<()> {
@@ -395,74 +425,45 @@ impl Dispatch for WryDispatcher {
   }
 }
 
-fn create_window<L: Tag>(
-  application: wry::ApplicationProxy,
-  pending: PendingWindow<L, WryDispatcher>,
-) -> crate::Result<WryDispatcher> {
-  let PendingWindow {
-    attributes,
-    rpc_handler,
-    custom_protocol,
-    file_drop_handler,
-    label,
-    ..
-  } = pending;
-  println!("1");
-
-  let app_dispatcher_ = application.clone();
-  let label_ = label.clone();
-  let wry_rpc_handler = Box::new(
-    move |dispatcher: wry::WindowProxy, request: wry::RpcRequest| {
-      if let Some(handler) = &rpc_handler {
-        handler(
-          WryDispatcher {
-            window: dispatcher,
-            application: app_dispatcher_.clone(),
-          },
-          label_.clone(),
-          request.into(),
-        );
-      }
-      None
-    },
-  );
-
-  println!("2");
-
-  let app_dispatcher_ = application.clone();
-  let label_ = label.clone();
-  let file_drop_handler = Box::new(move |window: wry::WindowProxy, event: wry::FileDropEvent| {
-    if let Some(handler) = &file_drop_handler {
-      let dispatcher = WryDispatcher {
+fn create_rpc_handler<L: Tag>(
+  app_proxy: wry::ApplicationProxy,
+  label: L,
+  handler: WebviewRpcHandler<WryDispatcher, L>,
+) -> wry::WindowRpcHandler {
+  Box::new(move |window, request| {
+    handler(
+      WryDispatcher {
         window,
-        application: app_dispatcher_.clone(),
-      };
-      handler(event.into(), dispatcher, label_.clone())
-    } else {
-      false
-    }
-  });
-
-  println!("3");
-
-  let dispatcher = application
-    .add_window_with_configs(
-      attributes.build(),
-      Some(wry_rpc_handler),
-      custom_protocol.map(|p| wry::CustomProtocol {
-        name: p.name.clone(),
-        handler: Box::new(move |a| (*p.handler)(a).map_err(|_| wry::Error::InitScriptError)),
-      }),
-      Some(file_drop_handler),
-    )
-    .map_err(|_| crate::Error::CreateWebview)?;
-
-  println!("4");
-
-  Ok(WryDispatcher {
-    window: dispatcher,
-    application,
+        application: app_proxy.clone(),
+      },
+      label.clone(),
+      request.into(),
+    );
+    None
   })
+}
+
+fn create_file_drop_handler<L: Tag>(
+  app_proxy: wry::ApplicationProxy,
+  label: L,
+  handler: Box<dyn Fn(FileDropEvent, WryDispatcher, L) -> bool + Send>,
+) -> wry::WindowFileDropHandler {
+  Box::new(move |window, event| {
+    let dispatcher = WryDispatcher {
+      window,
+      application: app_proxy.clone(),
+    };
+    handler(event.into(), dispatcher, label.clone())
+  })
+}
+
+fn create_custom_protocol(custom_protocol: CustomProtocol) -> wry::CustomProtocol {
+  wry::CustomProtocol {
+    name: custom_protocol.name.clone(),
+    handler: Box::new(move |data| {
+      (custom_protocol.handler)(data).map_err(|_| wry::Error::InitScriptError)
+    }),
+  }
 }
 
 /// A wrapper around the wry Application interface.
@@ -482,7 +483,37 @@ impl Runtime for WryApplication {
     &mut self,
     pending: PendingWindow<L, Self::Dispatcher>,
   ) -> crate::Result<Self::Dispatcher> {
-    create_window(self.inner.application_proxy(), pending)
+    let PendingWindow {
+      attributes,
+      rpc_handler,
+      custom_protocol,
+      file_drop_handler,
+      label,
+      ..
+    } = pending;
+
+    let proxy = self.inner.application_proxy();
+
+    let rpc_handler =
+      rpc_handler.map(|handler| create_rpc_handler(proxy.clone(), label.clone(), handler));
+
+    let file_drop_handler = file_drop_handler
+      .map(|handler| create_file_drop_handler(proxy.clone(), label.clone(), handler));
+
+    let window = self
+      .inner
+      .add_window_with_configs(
+        attributes,
+        rpc_handler,
+        custom_protocol.map(create_custom_protocol),
+        file_drop_handler,
+      )
+      .map_err(|_| crate::Error::CreateWebview)?;
+
+    Ok(WryDispatcher {
+      window,
+      application: proxy,
+    })
   }
 
   fn run(self) {

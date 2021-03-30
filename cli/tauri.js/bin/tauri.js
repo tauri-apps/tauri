@@ -52,7 +52,7 @@ const tauri = function (command) {
       command === 'help'
     ) {
       console.log(
-        chalk.green(`
+        chalk.cyan(`
       :oooodddoooo;     ;oddl,      ,ol,       ,oc,  ,ldoooooooc,    ,oc,
       ';;;cxOx:;;;'    ;xOxxko'     :kx:       lkd,  :xkl;;;;:okx:   lkd,
           'dOo'       'oOd;:xkc     :kx:       lkd,  :xx:     ;xkc   lkd,
@@ -64,16 +64,17 @@ const tauri = function (command) {
           'okl'    'kd'        'xx'  'dxxxddddxxo'   :dd;      ;dxc  'xo'`)
       )
       console.log(
-        ` ${chalk.blue('Description')} \n This is the Tauri CLI \n ${chalk.blue(
-          'Usage'
-        )} \n $ tauri ${[...rustCliCmds, ...cmds].join('|')} \n ${chalk.blue(
+        ` ${chalk.yellow(
+          'Description'
+        )} \n This is the Tauri CLI \n ${chalk.yellow('Usage')} \n $ tauri ${[
+          ...rustCliCmds,
+          ...cmds
+        ].join('|')} \n ${chalk.yellow(
           'Options'
         )} \n --help, -h     Displays this message \n --version, -v  Displays the Tauri CLI version`
       )
 
       process.exit(0)
-      // eslint-disable-next-line no-unreachable
-      return false // do this for node consumers and tests
     }
 
     if (command === '-v' || command === '--version') {

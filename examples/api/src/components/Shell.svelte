@@ -7,6 +7,7 @@
   export let onMessage;
 
   let script = 'echo "hello world"'
+  let stdin = ''
   let child
 
   function spawn() {
@@ -32,6 +33,10 @@
   function kill() {
     child.kill().then(() => onMessage('killed child process')).error(onMessage)
   }
+
+  function writeToStdin() {
+    child.write(stdin).catch(onMessage)
+  }
 </script>
 
 <div>
@@ -39,5 +44,9 @@
     <input bind:value={script}>
     <button class="button" on:click={spawn}>Run</button>
     <button class="button" on:click={kill}>Kill</button>
+    {#if child}
+      <input placeholder="write to stdin" bind:value={stdin}>
+      <button class="button" on:click={writeToStdin}>Write</button>
+    {/if}
   </div>
 </div>

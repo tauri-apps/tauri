@@ -22,6 +22,13 @@ fn command_childs() -> &'static ChildStore {
   &STORE
 }
 
+#[derive(Deserialize)]
+#[serde(untagged)]
+pub enum Buffer {
+  Text(String),
+  Raw(Vec<u8>),
+}
+
 /// The API descriptor.
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
@@ -34,6 +41,10 @@ pub enum Cmd {
     on_event_fn: String,
     #[serde(default)]
     sidecar: bool,
+  },
+  StdinWrite {
+    pid: ChildId,
+    buffer: Buffer,
   },
   KillChild {
     pid: ChildId,
@@ -94,6 +105,22 @@ impl Cmd {
         {
           if let Some(child) = command_childs().lock().unwrap().remove(&pid) {
             child.kill()?;
+          }
+          Ok(().into())
+        }
+        #[cfg(not(shell_execute))]
+        Err(crate::Error::ApiNotAllowlisted(
+          "shell > execute".to_string(),
+        ))
+      }
+      Self::StdinWrite { pid, buffer } => {
+        #[cfg(shell_execute)]
+        {
+          if let Some(child) = command_childs().lock().unwrap().get_mut(&pid) {
+            match buffer {
+              Buffer::Text(t) => child.write(t.as_bytes())?,
+              Buffer::Raw(r) => child.write(&r)?,
+            }
           }
           Ok(().into())
         }

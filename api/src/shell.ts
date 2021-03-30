@@ -74,6 +74,17 @@ class Child {
     this.pid = pid
   }
 
+  async write(data: string | number[]): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Shell',
+      message: {
+        cmd: 'stdinWrite',
+        pid: this.pid,
+        buffer: data
+      }
+    })
+  }
+
   async kill(): Promise<void> {
     return invokeTauriCommand({
       __tauriModule: 'Shell',
@@ -91,6 +102,7 @@ class Command extends EventEmitter<'close' | 'error'> {
   sidecar = false
   stdout = new EventEmitter<'data'>()
   stderr = new EventEmitter<'data'>()
+  pid: number | null = null
 
   constructor(program: string, args: string | string[] = []) {
     super()

@@ -21,10 +21,9 @@ pub use webview::{
 };
 pub use webview_manager::{WebviewDispatcher, WebviewManager};
 
-type InvokeHandler<A> =
-  dyn Fn(WebviewManager<A>, String, JsonValue) -> BoxFuture<'static, crate::Result<InvokeResponse>>
-    + Send
-    + Sync;
+type InvokeHandler<A> = dyn Fn(WebviewManager<A>, String, JsonValue) -> BoxFuture<'static, crate::Result<InvokeResponse>>
+  + Send
+  + Sync;
 type ManagerHook<A> = dyn Fn(WebviewManager<A>) -> BoxFuture<'static, ()> + Send + Sync;
 type PageLoadHook<A> =
   dyn Fn(WebviewManager<A>, PageLoadPayload) -> BoxFuture<'static, ()> + Send + Sync;

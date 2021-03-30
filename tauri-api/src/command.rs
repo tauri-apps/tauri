@@ -1,5 +1,5 @@
 use std::{
-  io::{BufRead, BufReader},
+  io::{BufRead, BufReader, Write},
   process::{Command as StdCommand, Stdio},
   sync::Arc,
 };
@@ -13,7 +13,7 @@ use std::os::windows::process::CommandExt;
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 use crate::private::async_runtime::{channel, spawn, Receiver};
-use os_pipe::pipe;
+use os_pipe::{pipe, PipeWriter};
 use serde::Serialize;
 use shared_child::SharedChild;
 use tauri_utils::platform;
@@ -61,18 +61,26 @@ pub struct Command {
 }
 
 /// Child spawned.
-pub struct CommandChild(Arc<SharedChild>);
+pub struct CommandChild {
+  inner: Arc<SharedChild>,
+  stdin_writer: PipeWriter,
+}
 
 impl CommandChild {
+  /// Write to process stdin.
+  pub fn write(&mut self, buf: &[u8]) -> crate::Result<()> {
+    self.stdin_writer.write_all(buf)?;
+    Ok(())
+  }
   /// Send a kill signal to the child.
   pub fn kill(self) -> crate::Result<()> {
-    self.0.kill()?;
+    self.inner.kill()?;
     Ok(())
   }
 
   /// Returns the process pid.
   pub fn pid(&self) -> u32 {
-    self.0.id()
+    self.inner.id()
   }
 }
 
@@ -111,8 +119,10 @@ impl Command {
     let mut command = get_std_command!(self);
     let (stdout_reader, stdout_writer) = pipe()?;
     let (stderr_reader, stderr_writer) = pipe()?;
+    let (stdin_reader, stdin_writer) = pipe()?;
     command.stdout(stdout_writer);
     command.stderr(stderr_writer);
+    command.stdin(stdin_reader);
 
     let shared_child = SharedChild::spawn(&mut command)?;
     let child = Arc::new(shared_child);
@@ -148,18 +158,23 @@ impl Command {
       }
     });
 
-    let tx_ = tx.clone();
     spawn(async move {
       let reader = BufReader::new(stderr_reader);
       for line in reader.lines() {
         let _ = match line {
-          Ok(line) => tx_.send(CommandEvent::Stderr(line)).await,
-          Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
+          Ok(line) => tx.send(CommandEvent::Stderr(line)).await,
+          Err(e) => tx.send(CommandEvent::Error(e.to_string())).await,
         };
       }
     });
 
-    Ok((rx, CommandChild(child)))
+    Ok((
+      rx,
+      CommandChild {
+        inner: child,
+        stdin_writer,
+      },
+    ))
   }
 }
 
@@ -178,8 +193,8 @@ mod test {
     crate::private::async_runtime::block_on(async move {
       while let Some(event) = rx.recv().await {
         match event {
-          CommandEvent::Finish(code) => {
-            assert_eq!(code, Some(0));
+          CommandEvent::Terminated(payload) => {
+            assert_eq!(payload.code, Some(0));
           }
           CommandEvent::Stdout(line) => {
             assert_eq!(line, "This is a test doc!".to_string());
@@ -200,8 +215,8 @@ mod test {
     crate::private::async_runtime::block_on(async move {
       while let Some(event) = rx.recv().await {
         match event {
-          CommandEvent::Finish(code) => {
-            assert_eq!(code, Some(1));
+          CommandEvent::Terminated(payload) => {
+            assert_eq!(payload.code, Some(1));
           }
           CommandEvent::Stderr(line) => {
             assert_eq!(line, "cat: test/: Is a directory".to_string());

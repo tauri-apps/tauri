@@ -63,7 +63,7 @@
     "png2icons": "2.0.1",
     "read-chunk": "3.2.0",
     "semver": "7.3.5",
-    "sharp": "0.27.2"
+    "sharp": "0.28.0"
   },
   "devDependencies": {
     "@babel/core": "7.13.10",

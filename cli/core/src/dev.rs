@@ -32,6 +32,7 @@ fn kill_before_dev_process() {
 pub struct Dev {
   exit_on_panic: bool,
   config: Option<String>,
+  args: Vec<String>,
 }
 
 impl Dev {
@@ -46,6 +47,11 @@ impl Dev {
 
   pub fn exit_on_panic(mut self, exit_on_panic: bool) -> Self {
     self.exit_on_panic = exit_on_panic;
+    self
+  }
+
+  pub fn args(mut self, args: Vec<String>) -> Self {
+    self.args = args;
     self
   }
 
@@ -149,6 +155,9 @@ impl Dev {
   fn start_app(&self, child_wait_rx: Arc<Mutex<Receiver<()>>>) -> Arc<SharedChild> {
     let mut command = Command::new("cargo");
     command.args(&["run", "--no-default-features"]);
+    if !self.args.is_empty() {
+      command.arg("--").args(&self.args);
+    }
     let child = SharedChild::spawn(&mut command).expect("failed to run cargo");
     let child_arc = Arc::new(child);
 

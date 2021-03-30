@@ -8,6 +8,7 @@ subcommands:
       subcommands:
         - dev:
             about: Tauri dev.
+            setting: TrailingVarArg
             args:
                 - config:
                     short: c
@@ -18,6 +19,10 @@ subcommands:
                     short: e
                     long: exit-on-panic
                     about: Exit on panic
+                - args:
+                    about: Args passed to the binary
+                    index: 1
+                    multiple: true
         - build:
             about: Tauri build.
             args:

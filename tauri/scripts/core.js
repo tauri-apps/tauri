@@ -7,28 +7,13 @@ if (!String.prototype.startsWith) {
 }
 
 (function () {
-  function s4() {
-    return Math.floor((1 + Math.random()) * 0x10000)
-      .toString(16)
-      .substring(1);
+  function uid() {
+    const length = new Int8Array(1)
+    window.crypto.getRandomValues(length)
+    const array = new Uint8Array(Math.max(16, Math.abs(length[0])))
+    window.crypto.getRandomValues(array)
+    return array.join('')
   }
-
-  var uid = function () {
-    return (
-      s4() +
-      s4() +
-      "-" +
-      s4() +
-      "-" +
-      s4() +
-      "-" +
-      s4() +
-      "-" +
-      s4() +
-      s4() +
-      s4()
-    );
-  };
 
   function ownKeys(object, enumerableOnly) {
     var keys = Object.keys(object);

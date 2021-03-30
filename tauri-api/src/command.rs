@@ -58,6 +58,11 @@ impl CommandChild {
     self.0.kill()?;
     Ok(())
   }
+
+  /// Returns the process pid.
+  pub fn pid(&self) -> u32 {
+    self.0.id()
+  }
 }
 
 impl Command {

@@ -67,10 +67,10 @@ class EventEmitter<E> {
 }
 
 class Child {
-  id: number
+  pid: number
 
-  constructor(id: number) {
-    this.id = id
+  constructor(pid: number) {
+    this.pid = pid
   }
 
   async kill(): Promise<void> {
@@ -78,7 +78,7 @@ class Child {
       __tauriModule: 'Shell',
       message: {
         cmd: 'killChild',
-        id: this.id
+        pid: this.pid
       }
     })
   }
@@ -131,7 +131,7 @@ class Command extends EventEmitter<'close' | 'error'> {
         }
       },
       this.args
-    ).then((id) => new Child(id))
+    ).then((pid) => new Child(pid))
   }
 
   async execute(): Promise<ChildProcess> {

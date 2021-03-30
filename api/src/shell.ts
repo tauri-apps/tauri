@@ -118,16 +118,16 @@ class Command extends EventEmitter<'close' | 'error'> {
       (event) => {
         switch (event.event) {
           case 'Error':
-            this._emit('error', event.value)
+            this._emit('error', event.payload)
             break
           case 'Terminated':
-            this._emit('close', event.value)
+            this._emit('close', event.payload)
             break
           case 'Stdout':
-            this.stdout._emit('data', event.value)
+            this.stdout._emit('data', event.payload)
             break
           case 'Stderr':
-            this.stderr._emit('data', event.value)
+            this.stderr._emit('data', event.payload)
             break
         }
       },
@@ -161,7 +161,7 @@ class Command extends EventEmitter<'close' | 'error'> {
 
 interface Event<T, V> {
   event: T
-  value: V
+  payload: V
 }
 
 interface TerminatedPayload {

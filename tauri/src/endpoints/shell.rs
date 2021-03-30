@@ -72,7 +72,7 @@ impl Cmd {
           let webview_manager = webview_manager.clone();
           crate::async_runtime::spawn(async move {
             while let Some(event) = rx.recv().await {
-              if matches!(event, CommandEvent::Finish(_)) {
+              if matches!(event, CommandEvent::Terminated(_)) {
                 command_childs().lock().unwrap().remove(&pid);
               }
               let js = format_callback(on_event_fn.clone(), serde_json::to_value(event).unwrap());

@@ -39,7 +39,7 @@ jobs:
           - platform: ubuntu-latest
             releaseFolder: target/release/bundle/deb
           - platform: macos-latest
-            releaseFolder: target/release/bundle/osx
+            releaseFolder: target/release/bundle/macos
           - platform: windows-latest
             releaseFolder: target/release/bundle/msi
 

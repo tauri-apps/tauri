@@ -1,9 +1,10 @@
+use super::InvokeResponse;
 use crate::{
   api::{
     command::{Command, CommandChild, CommandEvent},
     rpc::format_callback,
   },
-  app::{ApplicationExt, InvokeResponse},
+  app::ApplicationExt,
 };
 
 use once_cell::sync::Lazy;
@@ -58,7 +59,7 @@ pub enum Cmd {
 impl Cmd {
   pub fn run<A: ApplicationExt + 'static>(
     self,
-    webview_manager: &crate::WebviewManager<A>,
+    webview_manager: crate::WebviewManager<A>,
   ) -> crate::Result<InvokeResponse> {
     match self {
       Self::Execute {
@@ -80,7 +81,6 @@ impl Cmd {
           let pid = child.pid();
           command_childs().lock().unwrap().insert(pid, child);
 
-          let webview_manager = webview_manager.clone();
           crate::async_runtime::spawn(async move {
             while let Some(event) = rx.recv().await {
               if matches!(event, CommandEvent::Terminated(_)) {

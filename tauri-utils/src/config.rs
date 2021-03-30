@@ -156,7 +156,7 @@ impl Default for WindowConfig {
 }
 
 /// A CLI argument definition
-#[derive(PartialEq, Deserialize, Debug, Default)]
+#[derive(PartialEq, Deserialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CliArg {
   /// The short version of the argument, without the preceding -.
@@ -243,7 +243,7 @@ pub struct CliArg {
 }
 
 /// The CLI root command definition.
-#[derive(PartialEq, Deserialize, Debug)]
+#[derive(PartialEq, Deserialize, Debug, Clone)]
 #[serde(tag = "cli", rename_all = "camelCase")]
 #[allow(missing_docs)] // TODO
 pub struct CliConfig {
@@ -346,6 +346,9 @@ pub struct BuildConfig {
   /// the dist config.
   #[serde(default = "default_dist_path")]
   pub dist_dir: String,
+  /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
+  #[serde(default)]
+  pub with_global_tauri: bool,
 }
 
 fn default_dev_path() -> String {
@@ -361,6 +364,7 @@ impl Default for BuildConfig {
     Self {
       dev_path: default_dev_path(),
       dist_dir: default_dist_path(),
+      with_global_tauri: false,
     }
   }
 }
@@ -712,8 +716,9 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let dev_path = str_lit(&self.dev_path);
       let dist_dir = str_lit(&self.dist_dir);
+      let with_global_tauri = self.with_global_tauri;
 
-      literal_struct!(tokens, BuildConfig, dev_path, dist_dir);
+      literal_struct!(tokens, BuildConfig, dev_path, dist_dir, with_global_tauri);
     }
   }
 
@@ -804,6 +809,7 @@ mod test {
     let build = BuildConfig {
       dev_path: String::from("http://localhost:8080"),
       dist_dir: String::from("../dist"),
+      with_global_tauri: false,
     };
 
     // test the configs

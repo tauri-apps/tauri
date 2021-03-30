@@ -24,6 +24,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   let assets = EmbeddedAssets::new(&dist_dir)?;
 
   // handle default window icons for Windows targets
+  #[cfg(not(debug_assertions))]
   let default_window_icon = if cfg!(windows) {
     let icon_path = config_parent.join("icons/icon.ico").display().to_string();
     quote!(Some(include_bytes!(#icon_path)))
@@ -31,7 +32,9 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     quote!(None)
   };
 
-  let tauri_script_path = dist_dir.join("__tauri.js").display().to_string();
+  // in development builds, don't use an icon as it slows down cargo check
+  #[cfg(debug_assertions)]
+  let default_window_icon = quote!(None);
 
   // double braces are purposeful to force the code into a block expression
   Ok(quote! {{
@@ -51,11 +54,6 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         /// Inject assets we generated during build time
         fn assets() -> &'static ::tauri::api::assets::EmbeddedAssets {
           #assets
-        }
-
-        /// Make the __tauri.js a dependency for the compiler
-        fn raw_tauri_script() -> &'static str {
-          include_str!(#tauri_script_path)
         }
 
         /// Default window icon to set automatically if exists

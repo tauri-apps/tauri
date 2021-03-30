@@ -5,6 +5,10 @@
     "beforeDevCommand": "yarn dev",
     "beforeBuildCommand": "yarn build"
   },
+  "package": {
+    "productName": "Tauri API",
+    "version": "0.1.0"
+  },
   "tauri": {
     "cli": {
       "description": "Tauri API example",

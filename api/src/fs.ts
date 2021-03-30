@@ -18,7 +18,8 @@ export enum BaseDirectory {
   Template,
   Video,
   Resource,
-  App
+  App,
+  Current
 }
 
 export interface FsOptions {

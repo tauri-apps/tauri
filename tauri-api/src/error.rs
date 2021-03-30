@@ -13,9 +13,6 @@ pub enum Error {
   /// The dialog operation was cancelled by the user.
   #[error("user cancelled the dialog")]
   DialogCancelled,
-  /// CLI config not set.
-  #[error("CLI configuration not set on tauri.conf.json")]
-  CliNotConfigured,
   /// The network error.
   #[error("Network Error: {0}")]
   Network(#[from] reqwest::Error),

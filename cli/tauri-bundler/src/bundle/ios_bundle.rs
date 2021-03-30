@@ -27,15 +27,15 @@ use std::{
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   common::print_warning("iOS bundle support is still experimental.")?;
 
-  let app_bundle_name = format!("{}.app", settings.bundle_name());
-  common::print_bundling(&app_bundle_name)?;
+  let app_product_name = format!("{}.app", settings.product_name());
+  common::print_bundling(&app_product_name)?;
   let bundle_dir = settings
     .project_out_directory()
     .join("bundle/ios")
-    .join(&app_bundle_name);
+    .join(&app_product_name);
   if bundle_dir.exists() {
     fs::remove_dir_all(&bundle_dir)
-      .with_context(|| format!("Failed to remove old {}", app_bundle_name))?;
+      .with_context(|| format!("Failed to remove old {}", app_product_name))?;
   }
   fs::create_dir_all(&bundle_dir)
     .with_context(|| format!("Failed to create bundle directory at {:?}", bundle_dir))?;
@@ -153,12 +153,12 @@ fn generate_info_plist(
   writeln!(
     file,
     "  <key>CFBundleDisplayName</key>\n  <string>{}</string>",
-    settings.bundle_name()
+    settings.product_name()
   )?;
   writeln!(
     file,
     "  <key>CFBundleName</key>\n  <string>{}</string>",
-    settings.bundle_name()
+    settings.product_name()
   )?;
   writeln!(
     file,

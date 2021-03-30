@@ -32,6 +32,7 @@ fn kill_before_dev_process() {
 pub struct Dev {
   exit_on_panic: bool,
   config: Option<String>,
+  args: Vec<String>,
 }
 
 impl Dev {
@@ -46,6 +47,11 @@ impl Dev {
 
   pub fn exit_on_panic(mut self, exit_on_panic: bool) -> Self {
     self.exit_on_panic = exit_on_panic;
+    self
+  }
+
+  pub fn args(mut self, args: Vec<String>) -> Self {
+    self.args = args;
     self
   }
 
@@ -65,25 +71,20 @@ impl Dev {
       .build
       .before_dev_command
     {
-      let mut cmd: Option<&str> = None;
-      let mut args: Vec<&str> = vec![];
-      for token in before_dev.split(' ') {
-        if cmd.is_none() && !token.is_empty() {
-          cmd = Some(token);
-        } else {
-          args.push(token)
-        }
-      }
-
-      if let Some(cmd) = cmd {
+      if !before_dev.is_empty() {
         logger.log(format!("Running `{}`", before_dev));
         #[cfg(target_os = "windows")]
-        let mut command = Command::new(
-          which::which(&cmd).expect(&format!("failed to find `{}` in your $PATH", cmd)),
-        );
+        let child = Command::new("cmd")
+          .arg("/C")
+          .arg(before_dev)
+          .current_dir(app_dir())
+          .spawn()?;
         #[cfg(not(target_os = "windows"))]
-        let mut command = Command::new(cmd);
-        let child = command.args(args).current_dir(app_dir()).spawn()?;
+        let child = Command::new("sh")
+          .arg("-c")
+          .arg(before_dev)
+          .current_dir(app_dir())
+          .spawn()?;
         BEFORE_DEV.set(Mutex::new(child)).unwrap();
       }
     }
@@ -154,6 +155,9 @@ impl Dev {
   fn start_app(&self, child_wait_rx: Arc<Mutex<Receiver<()>>>) -> Arc<SharedChild> {
     let mut command = Command::new("cargo");
     command.args(&["run", "--no-default-features"]);
+    if !self.args.is_empty() {
+      command.arg("--").args(&self.args);
+    }
     let child = SharedChild::spawn(&mut command).expect("failed to run cargo");
     let child_arc = Arc::new(child);
 

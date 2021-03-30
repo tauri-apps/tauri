@@ -33,6 +33,7 @@ async function execute(
 
 interface ChildProcess {
   code: number | null
+  signal: number | null
   stdout: string
   stderr: string
 }
@@ -119,7 +120,7 @@ class Command extends EventEmitter<'close' | 'error'> {
           case 'Error':
             this._emit('error', event.value)
             break
-          case 'Finish':
+          case 'Terminated':
             this._emit('close', event.value)
             break
           case 'Stdout':
@@ -145,9 +146,10 @@ class Command extends EventEmitter<'close' | 'error'> {
       this.stderr.on('data', (line) => {
         stderr.push(line)
       })
-      this.on('close', (code) => {
+      this.on('close', (payload: TerminatedPayload) => {
         resolve({
-          code: code as number,
+          code: payload.code,
+          signal: payload.signal,
           stdout: stdout.join('\n'),
           stderr: stderr.join('\n')
         })
@@ -161,10 +163,16 @@ interface Event<T, V> {
   event: T
   value: V
 }
+
+interface TerminatedPayload {
+  code: number | null
+  signal: number | null
+}
+
 type CommandEvent =
   | Event<'Stdout', string>
   | Event<'Stderr', string>
-  | Event<'Finish', number | null>
+  | Event<'Terminated', TerminatedPayload>
   | Event<'Error', string>
 
 /**

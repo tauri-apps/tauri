@@ -4,6 +4,8 @@ use std::{
   sync::Arc,
 };
 
+#[cfg(unix)]
+use std::os::unix::process::ExitStatusExt;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 
@@ -16,6 +18,15 @@ use serde::Serialize;
 use shared_child::SharedChild;
 use tauri_utils::platform;
 
+/// Payload for the `Terminated` command event.
+#[derive(Serialize)]
+pub struct TerminatedPayload {
+  /// Exit code of the process.
+  pub code: Option<i32>,
+  /// If the process was terminated by a signal, represents that signal.
+  pub signal: Option<i32>,
+}
+
 /// A event sent to the command callback.
 #[derive(Serialize)]
 #[serde(tag = "event", content = "payload")]
@@ -26,8 +37,8 @@ pub enum CommandEvent {
   Stdout(String),
   /// An error happened.
   Error(String),
-  /// Finish status code.
-  Finish(Option<i32>),
+  /// Command process terminated.
+  Terminated(TerminatedPayload),
 }
 
 macro_rules! get_std_command {
@@ -111,7 +122,17 @@ impl Command {
     let tx_ = tx.clone();
     spawn(async move {
       let _ = match child_.wait() {
-        Ok(status) => tx_.send(CommandEvent::Finish(status.code())).await,
+        Ok(status) => {
+          tx_
+            .send(CommandEvent::Terminated(TerminatedPayload {
+              code: status.code(),
+              #[cfg(windows)]
+              signal: None,
+              #[cfg(unix)]
+              signal: status.signal(),
+            }))
+            .await
+        }
         Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
       };
     });

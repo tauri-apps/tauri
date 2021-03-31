@@ -1,3 +1,4 @@
+use crate::app::webview_manager::DetachedWindow;
 use serde_json::Value as JsonValue;
 use std::{convert::TryFrom, path::PathBuf};
 
@@ -168,7 +169,7 @@ pub struct RpcRequest {
 }
 
 /// Rpc handler.
-pub type WebviewRpcHandler<D, L> = Box<dyn Fn(D, L, RpcRequest) + Send>;
+pub type WebviewRpcHandler<M> = Box<dyn Fn(DetachedWindow<M>, RpcRequest) + Send>;
 
 /// Uses a custom handler to resolve file requests
 pub struct CustomProtocol {
@@ -191,4 +192,4 @@ pub enum FileDropEvent {
 
 /// File drop handler callback
 /// Return `true` in the callback to block the OS' default behavior of handling a file drop..
-pub type FileDropHandler = Box<dyn Fn(FileDropEvent) -> bool + Send>;
+pub type FileDropHandler<M> = Box<dyn Fn(FileDropEvent, DetachedWindow<M>) -> bool + Send>;

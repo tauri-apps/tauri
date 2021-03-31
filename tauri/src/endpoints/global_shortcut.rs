@@ -4,7 +4,7 @@ use crate::api::shortcuts::ShortcutManager;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 
-use crate::{runtime::Dispatch, Tag, Window};
+use crate::{runtime::Dispatch, Manager, Runtime, Window};
 use std::sync::{Arc, Mutex};
 
 #[cfg(global_shortcut_all)]
@@ -36,15 +36,12 @@ pub enum Cmd {
 }
 
 #[cfg(global_shortcut_all)]
-fn register_shortcut<D>(
+fn register_shortcut<D: Dispatch>(
   dispatcher: D,
   manager: &mut ShortcutManager,
   shortcut: String,
   handler: String,
-) -> crate::Result<()>
-where
-  D: Dispatch + 'static,
-{
+) -> crate::Result<()> {
   manager.register(shortcut.clone(), move || {
     let callback_string = crate::api::rpc::format_callback(
       handler.to_string(),
@@ -57,12 +54,7 @@ where
 
 #[cfg(not(global_shortcut_all))]
 impl Cmd {
-  pub fn run<E, L, D>(self, _window: Window<E, L, D>) -> crate::Result<InvokeResponse>
-  where
-    E: Tag,
-    L: Tag,
-    D: Dispatch,
-  {
+  pub fn run<M: Manager>(self, _window: Window<M>) -> crate::Result<InvokeResponse> {
     Err(crate::Error::ApiNotAllowlisted(
       "globalShortcut > all".to_string(),
     ))
@@ -71,12 +63,7 @@ impl Cmd {
 
 #[cfg(global_shortcut_all)]
 impl Cmd {
-  pub fn run<E, L, D>(self, window: Window<E, L, D>) -> crate::Result<InvokeResponse>
-  where
-    E: Tag,
-    L: Tag,
-    D: Dispatch,
-  {
+  pub fn run<M: Manager>(self, window: Window<M>) -> crate::Result<InvokeResponse> {
     match self {
       Self::Register { shortcut, handler } => {
         let dispatcher = window.dispatcher();

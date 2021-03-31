@@ -6,7 +6,6 @@
 mod cmd;
 
 use serde::Serialize;
-use tauri::EventScope;
 
 #[derive(Serialize)]
 struct Reply {
@@ -17,14 +16,14 @@ fn main() {
   tauri::AppBuilder::default()
     .on_page_load(|window, _| {
       let window_ = window.clone();
-      window.listen(EventScope::Window, "js-event".into(), move |event| {
+      window.listen("js-event".into(), move |event| {
         println!("got js-event with message '{:?}'", event.payload());
         let reply = Reply {
           data: "something else".to_string(),
         };
 
         window_
-          .emit("rust-event".into(), Some(reply))
+          .emit(&"rust-event".into(), Some(reply))
           .expect("failed to emit");
       });
     })
@@ -33,5 +32,6 @@ fn main() {
       cmd::perform_request
     ])
     .build(tauri::generate_context!())
-    .run();
+    .run()
+    .expect("error while running tauri application");
 }

@@ -1,5 +1,6 @@
 use super::InvokeResponse;
-use crate::{runtime::Dispatch, Tag, Window};
+use crate::app::Managed;
+use crate::{runtime::Dispatch, Manager, Tag, Window};
 use serde::Deserialize;
 
 /// The API descriptor.
@@ -22,12 +23,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub fn run<E, L, D>(self, window: Window<E, L, D>) -> crate::Result<InvokeResponse>
-  where
-    E: Tag,
-    L: Tag,
-    D: Dispatch,
-  {
+  pub fn run<M: Manager>(self, window: Window<M>) -> crate::Result<InvokeResponse> {
     match self {
       Self::Listen { event, handler } => {
         let event_id = rand::random();
@@ -47,7 +43,7 @@ impl Cmd {
         window_label,
         payload,
       } => {
-        let e: E = event
+        let e: M::Event = event
           .parse()
           .unwrap_or_else(|_| panic!("todo: invalid event str"));
         if let Some(_) = window_label {

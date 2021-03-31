@@ -1,4 +1,4 @@
-use crate::{api::config::Config, runtime::Dispatch, InvokeMessage, Tag};
+use crate::{api::config::Config, runtime::Dispatch, InvokeMessage, Manager, Tag};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 
@@ -43,12 +43,7 @@ enum Module {
 }
 
 impl Module {
-  fn run<E, L, D>(self, message: InvokeMessage<E, L, D>, config: &Config)
-  where
-    E: Tag,
-    L: Tag,
-    D: Dispatch,
-  {
+  fn run<M: Manager>(self, message: InvokeMessage<M>, config: &Config) {
     let window = message.window();
     match self {
       Self::Fs(cmd) => message
@@ -108,12 +103,7 @@ impl Module {
   }
 }
 
-pub(crate) fn handle<E, L, D>(module: String, message: InvokeMessage<E, L, D>, config: &Config)
-where
-  E: Tag,
-  L: Tag,
-  D: Dispatch,
-{
+pub(crate) fn handle<M: Manager>(module: String, message: InvokeMessage<M>, config: &Config) {
   let mut payload = message.payload();
   if let JsonValue::Object(ref mut obj) = payload {
     obj.insert("module".to_string(), JsonValue::String(module));

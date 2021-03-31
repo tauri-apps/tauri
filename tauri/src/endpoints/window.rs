@@ -1,6 +1,7 @@
 use super::InvokeResponse;
 use crate::app::webview::WindowConfig;
-use crate::{app::Icon, runtime::Dispatch, PendingWindow, Tag, Window};
+use crate::app::Managed;
+use crate::{app::Icon, runtime::Dispatch, Manager, PendingWindow, Tag, Window};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -91,12 +92,7 @@ struct WindowCreatedEvent {
 }
 
 impl Cmd {
-  pub async fn run<E, L, D>(self, window: Window<E, L, D>) -> crate::Result<InvokeResponse>
-  where
-    E: Tag,
-    L: Tag,
-    D: Dispatch,
-  {
+  pub async fn run<M: Manager>(self, mut window: Window<M>) -> crate::Result<InvokeResponse> {
     if cfg!(not(window_all)) {
       Err(crate::Error::ApiNotAllowlisted("window > all".to_string()))
     } else {
@@ -108,20 +104,20 @@ impl Cmd {
           ));
           #[cfg(window_create)]
           {
-            let label: L = options
+            // todo: how to handle this?
+            let label: M::Label = options
               .label
               .parse()
               .unwrap_or_else(|_| panic!("todo: label parsing"));
 
-            let event: E = "tauri://window-created"
+            // todo: how to handle this?
+            let event: M::Event = "tauri://window-created"
               .parse()
               .unwrap_or_else(|_| panic!("todo: event parsing"));
 
             let url = options.url.clone();
             let pending = PendingWindow::new(WindowConfig(options), label.clone(), url);
-
-            let window = window.create_window(pending).await?;
-            window.emit_others(
+            window.create_window(pending)?.emit_others(
               event,
               Some(WindowCreatedEvent {
                 label: label.to_string(),

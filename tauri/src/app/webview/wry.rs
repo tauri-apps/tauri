@@ -1,7 +1,7 @@
 use super::{Attributes, AttributesPrivate, FileDropEvent, Icon, RpcRequest, WindowConfig};
 use crate::{
   runtime::{Dispatch, Runtime},
-  CustomProtocol, PendingWindow, Tag, WebviewRpcHandler,
+  CustomProtocol, DetachedWindow, FileDropHandler, Manager, PendingWindow, WebviewRpcHandler,
 };
 use std::{convert::TryFrom, path::PathBuf};
 
@@ -236,7 +236,10 @@ impl Dispatch for WryDispatcher {
   type Icon = WryIcon;
   type Attributes = wry::Attributes;
 
-  fn create_window<L: Tag>(&mut self, pending: PendingWindow<L, Self>) -> crate::Result<Self> {
+  fn create_window<M: Manager<Runtime = Self::Runtime>>(
+    &mut self,
+    pending: PendingWindow<M>,
+  ) -> crate::Result<DetachedWindow<M>> {
     let PendingWindow {
       attributes,
       rpc_handler,
@@ -264,10 +267,12 @@ impl Dispatch for WryDispatcher {
       )
       .map_err(|_| crate::Error::CreateWebview)?;
 
-    Ok(WryDispatcher {
+    let dispatcher = WryDispatcher {
       window,
       application: proxy,
-    })
+    };
+
+    Ok(DetachedWindow { label, dispatcher })
   }
 
   fn set_resizable(&self, resizable: bool) -> crate::Result<()> {
@@ -425,35 +430,42 @@ impl Dispatch for WryDispatcher {
   }
 }
 
-fn create_rpc_handler<L: Tag>(
+fn create_rpc_handler<M: Manager<Runtime = WryApplication>>(
   app_proxy: wry::ApplicationProxy,
-  label: L,
-  handler: WebviewRpcHandler<WryDispatcher, L>,
+  label: M::Label,
+  handler: WebviewRpcHandler<M>,
 ) -> wry::WindowRpcHandler {
   Box::new(move |window, request| {
     handler(
-      WryDispatcher {
-        window,
-        application: app_proxy.clone(),
+      DetachedWindow {
+        dispatcher: WryDispatcher {
+          window,
+          application: app_proxy.clone(),
+        },
+        label: label.clone(),
       },
-      label.clone(),
       request.into(),
     );
     None
   })
 }
 
-fn create_file_drop_handler<L: Tag>(
+fn create_file_drop_handler<M: Manager<Runtime = WryApplication>>(
   app_proxy: wry::ApplicationProxy,
-  label: L,
-  handler: Box<dyn Fn(FileDropEvent, WryDispatcher, L) -> bool + Send>,
+  label: M::Label,
+  handler: FileDropHandler<M>,
 ) -> wry::WindowFileDropHandler {
   Box::new(move |window, event| {
-    let dispatcher = WryDispatcher {
-      window,
-      application: app_proxy.clone(),
-    };
-    handler(event.into(), dispatcher, label.clone())
+    handler(
+      event.into(),
+      DetachedWindow {
+        dispatcher: WryDispatcher {
+          window,
+          application: app_proxy.clone(),
+        },
+        label: label.clone(),
+      },
+    )
   })
 }
 
@@ -479,10 +491,10 @@ impl Runtime for WryApplication {
     Ok(Self { inner: app })
   }
 
-  fn create_window<L: Tag>(
+  fn create_window<M: Manager<Runtime = Self>>(
     &mut self,
-    pending: PendingWindow<L, Self::Dispatcher>,
-  ) -> crate::Result<Self::Dispatcher> {
+    pending: PendingWindow<M>,
+  ) -> crate::Result<DetachedWindow<M>> {
     let PendingWindow {
       attributes,
       rpc_handler,
@@ -510,10 +522,12 @@ impl Runtime for WryApplication {
       )
       .map_err(|_| crate::Error::CreateWebview)?;
 
-    Ok(WryDispatcher {
+    let dispatcher = WryDispatcher {
       window,
       application: proxy,
-    })
+    };
+
+    Ok(DetachedWindow { label, dispatcher })
   }
 
   fn run(self) {

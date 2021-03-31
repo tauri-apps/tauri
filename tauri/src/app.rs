@@ -3,9 +3,12 @@ pub use self::{
     wry::WryApplication, Attributes, CustomProtocol, FileDropEvent, FileDropHandler, Icon, Message,
     RpcRequest, WebviewRpcHandler,
   },
-  webview_manager::{InnerWindowManager, Tag, Window},
+  webview_manager::{DetachedWindow, Tag, Window},
 };
 pub use crate::api::config::WindowUrl;
+use crate::app::sealed::ManagerExt;
+use crate::app::webview_manager::{tag_to_js_string, InnerWindowManager, WindowManager};
+use crate::event::{EventPayload, HandlerId, Listeners};
 use crate::{
   api::{
     assets::Assets,
@@ -18,11 +21,12 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
+use std::error::Error as StdError;
+use std::sync::{Arc, Mutex};
 use std::{
   collections::HashSet,
   future::Future,
   hash::{Hash, Hasher},
-  sync::Arc,
 };
 use tauri_api::config::Config;
 
@@ -31,13 +35,13 @@ mod utils;
 pub(crate) mod webview;
 mod webview_manager;
 
-#[allow(missing_docs)]
+/*#[allow(missing_docs)]
 pub type InvokeHandler<E, L, R> = dyn Fn(InvokeMessage<E, L, R>) + Send;
 /// TODO: pass some listener handle
 pub type SetupHook<E, L, R> =
   dyn Fn(&mut App<E, L, R>) -> Result<(), Box<dyn std::error::Error>> + Send;
 #[allow(missing_docs)]
-pub type PageLoadHook<E, L, R> = dyn Fn(Window<E, L, R>, PageLoadPayload) + Send;
+pub type PageLoadHook<E, L, R> = dyn Fn(Window<E, L, R>, PageLoadPayload) + Send;*/
 
 /// Payload from an invoke call.
 #[derive(Debug, Deserialize)]
@@ -53,15 +57,15 @@ pub(crate) struct InvokePayload {
 }
 
 /// An invoke message.
-pub struct InvokeMessage<E: Tag, L: Tag, D: Dispatch> {
-  window: Window<E, L, D>,
+pub struct InvokeMessage<M: Manager> {
+  window: Window<M>,
   command: String,
   payload: InvokePayload,
 }
 
 #[allow(missing_docs)]
-impl<E: Tag, L: Tag, D: Dispatch> InvokeMessage<E, L, D> {
-  pub(crate) fn new(window: Window<E, L, D>, command: String, payload: InvokePayload) -> Self {
+impl<M: Manager> InvokeMessage<M> {
+  pub(crate) fn new(window: Window<M>, command: String, payload: InvokePayload) -> Self {
     Self {
       window,
       command,
@@ -79,7 +83,7 @@ impl<E: Tag, L: Tag, D: Dispatch> InvokeMessage<E, L, D> {
     self.payload.inner.clone()
   }
 
-  pub fn window(&self) -> Window<E, L, D> {
+  pub fn window(&self) -> Window<M> {
     self.window.clone()
   }
 
@@ -138,7 +142,7 @@ impl<E: Tag, L: Tag, D: Dispatch> InvokeMessage<E, L, D> {
     Err: Serialize,
     F: std::future::Future<Output = Result<T, Err>> + Send + 'static,
   >(
-    window: Window<E, L, D>,
+    window: Window<M>,
     task: F,
     success_callback: String,
     error_callback: String,
@@ -148,7 +152,7 @@ impl<E: Tag, L: Tag, D: Dispatch> InvokeMessage<E, L, D> {
   }
 
   pub fn return_closure<T: Serialize, Err: Serialize, F: FnOnce() -> Result<T, Err>>(
-    window: Window<E, L, D>,
+    window: Window<M>,
     f: F,
     success_callback: String,
     error_callback: String,
@@ -157,7 +161,7 @@ impl<E: Tag, L: Tag, D: Dispatch> InvokeMessage<E, L, D> {
   }
 
   pub fn return_result<T: Serialize, Err: Serialize>(
-    window: Window<E, L, D>,
+    window: Window<M>,
     result: Result<T, Err>,
     success_callback: String,
     error_callback: String,
@@ -184,57 +188,43 @@ impl PageLoadPayload {
     &self.url
   }
 }
-
 #[allow(missing_docs)]
-pub trait AsContext {
-  type Assets: Assets + Send + Sync;
-
-  fn config(&self) -> &Config;
-  fn assets(&self) -> Self::Assets;
-  fn default_window_icon(&self) -> Option<&[u8]>;
-}
-
-#[allow(missing_docs)]
-pub struct Context<A: Assets + Send + Sync> {
+pub struct Context<A: Assets> {
   pub config: Config,
   pub assets: A,
   pub default_window_icon: Option<Vec<u8>>,
 }
 
 #[allow(missing_docs)]
-pub struct PendingWindow<L, D>
-where
-  L: Tag,
-  D: Dispatch,
-{
-  pub attributes: D::Attributes,
-  pub label: L,
+pub struct PendingWindow<M: Manager> {
+  pub attributes: <<M::Runtime as Runtime>::Dispatcher as Dispatch>::Attributes,
+  pub label: M::Label,
   pub url: WindowUrl,
-  pub rpc_handler: Option<WebviewRpcHandler<D, L>>,
+  pub rpc_handler: Option<WebviewRpcHandler<M>>,
   pub custom_protocol: Option<CustomProtocol>,
-  pub file_drop_handler: Option<Box<dyn Fn(FileDropEvent, D, L) -> bool + Send>>,
+  pub file_drop_handler: Option<Box<dyn Fn(FileDropEvent, DetachedWindow<M>) -> bool + Send>>,
 }
 
-impl<L: Tag, D: Dispatch> Hash for PendingWindow<L, D> {
+impl<M: Manager> Hash for PendingWindow<M> {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.label.hash(state)
   }
 }
 
-impl<L: Tag, D: Dispatch> Eq for PendingWindow<L, D> {}
-impl<L: Tag, D: Dispatch> PartialEq for PendingWindow<L, D> {
+impl<M: Manager> Eq for PendingWindow<M> {}
+impl<M: Manager> PartialEq for PendingWindow<M> {
   fn eq(&self, other: &Self) -> bool {
     self.label.eq(&other.label)
   }
 }
 
 #[allow(missing_docs)]
-impl<L, D> PendingWindow<L, D>
-where
-  L: Tag,
-  D: Dispatch,
-{
-  pub fn new(attributes: impl Into<D::Attributes>, label: L, url: WindowUrl) -> Self {
+impl<M: Manager> PendingWindow<M> {
+  pub fn new(
+    attributes: impl Into<<<M::Runtime as Runtime>::Dispatcher as Dispatch>::Attributes>,
+    label: M::Label,
+    url: WindowUrl,
+  ) -> Self {
     Self {
       attributes: attributes.into(),
       label,
@@ -245,71 +235,60 @@ where
     }
   }
 
-  pub fn set_attributes(&mut self, attributes: D::Attributes) {
+  pub fn set_attributes(
+    &mut self,
+    attributes: <<M::Runtime as Runtime>::Dispatcher as Dispatch>::Attributes,
+  ) {
     self.attributes = attributes
   }
 
-  pub fn set_rpc_handler(&mut self, rpc: Option<WebviewRpcHandler<D, L>>) {
-    self.rpc_handler = rpc
+  pub fn set_rpc_handler(&mut self, rpc: WebviewRpcHandler<M>) {
+    self.rpc_handler = Some(rpc)
   }
 
-  pub fn set_custom_protocol(&mut self, protocol: Option<CustomProtocol>) {
-    self.custom_protocol = protocol
+  pub fn set_custom_protocol(&mut self, protocol: CustomProtocol) {
+    self.custom_protocol = Some(protocol)
   }
 
-  pub fn set_file_drop(&mut self, handler: Box<dyn Fn(FileDropEvent, D, L) -> bool + Send>) {
-    self.file_drop_handler = Some(handler)
+  pub fn set_file_drop(
+    &mut self,
+    file_drop: Box<dyn Fn(FileDropEvent, DetachedWindow<M>) -> bool + Send>,
+  ) {
+    self.file_drop_handler = Some(file_drop)
   }
 }
+
+/// A handle to the currently running application.
+pub struct App<M: Manager> {
+  runtime: M::Runtime,
+  manager: M,
+}
+
+impl<M: Manager> Managed<M> for App<M> {}
+impl<M: Manager> sealed::ManagedExt<M> for App<M> {
+  fn manager(&self) -> &M {
+    &self.manager
+  }
+
+  fn runtime(&mut self) -> RuntimeOrDispatch<'_, M> {
+    RuntimeOrDispatch::Runtime(&mut self.runtime)
+  }
+}
+
+type SetupHook<M> = Box<dyn Fn(&mut App<M>) -> Result<(), Box<dyn StdError>> + Send>;
 
 #[allow(missing_docs)]
-pub struct App<E: Tag, L: Tag, R: Runtime + 'static> {
-  runtime: R,
-  windows: InnerWindowManager<E, L, R::Dispatcher>,
+pub struct Runner<M: Manager> {
+  pending_windows: HashSet<PendingWindow<M>>,
+  manager: M,
+  setup: SetupHook<M>,
 }
 
-#[allow(missing_docs)]
-impl<E: Tag, L: Tag, R: Runtime + 'static> App<E, L, R> {
-  pub fn create_window(&mut self, pending: PendingWindow<L, R::Dispatcher>) -> crate::Result<()> {
-    let manager = self.windows.clone();
-    let label = pending.label.clone();
-    let dispatcher = self.runtime.create_window(pending)?;
-    manager.attach_window(dispatcher, label);
-    Ok(())
-  }
-
-  fn run(self) {
-    self.runtime.run()
-  }
-}
-
-#[allow(missing_docs)]
-pub struct Application<E, A, L = String, R = Wry>
-where
-  R: Runtime + 'static,
-  A: Assets + Send + Sync,
-  L: Tag,
-  E: Tag,
-{
-  config: Arc<Config>,
-  assets: Arc<A>,
-  default_window_icon: Option<Vec<u8>>,
-  inner_window_manager: InnerWindowManager<E, L, R::Dispatcher>,
-  pending_windows: HashSet<PendingWindow<L, R::Dispatcher>>,
-  setup: Box<SetupHook<E, L, R>>,
-}
-
-impl<E, A, L, R> Application<E, A, L, R>
-where
-  R: Runtime + 'static,
-  A: Assets + Send + Sync + 'static,
-  L: Tag,
-  E: Tag,
-{
-  /// Consume and run the [`App`] until it is finished.
+impl<M: Manager> Runner<M> {
+  /// Consume and run the [`Application`] until it is finished.
   pub fn run(mut self) -> crate::Result<()> {
     // set up all the windows defined in the config
-    for config in self.config.tauri.windows.clone() {
+    for config in self.manager.config().tauri.windows.clone() {
       let url = config.url.clone();
       let label = config
         .label
@@ -321,81 +300,230 @@ where
         .insert(PendingWindow::new(WindowConfig(config), label, url));
     }
 
-    self.inner_window_manager.initialize_plugins()?;
+    self.manager.initialize_plugins()?;
 
     let pending_windows = std::mem::take(&mut self.pending_windows);
     let mut windows = Vec::new();
     let labels = self.pending_labels();
     for pending in pending_windows {
-      let manager = self.inner_window_manager.clone();
-      let res = manager.prepare_window(
-        pending,
-        self.default_window_icon.clone(),
-        self.assets.clone(),
-        &labels,
-      )?;
+      let manager = self.manager.clone();
+      let res = manager.prepare_window(pending, &labels)?;
       windows.push(res);
     }
 
     let mut app = App {
-      runtime: R::new()?,
-      windows: self.inner_window_manager,
+      runtime: M::Runtime::new()?,
+      manager: self.manager,
     };
 
-    //let live = Vec::new();
     for window in windows {
       app.create_window(window)?;
     }
 
     (self.setup)(&mut app)?;
-    app.run();
+    app.runtime.run();
     Ok(())
   }
 
-  fn pending_labels(&self) -> Vec<String> {
+  fn pending_labels(&self) -> Vec<M::Label> {
     self
       .pending_windows
       .iter()
-      .map(|p| p.label.to_string())
+      .map(|p| p.label.clone())
       .collect()
   }
 }
 
-/// The App builder.
-pub struct AppBuilder<E, L = String, R = Wry>
-where
-  R: Runtime + 'static,
-  L: Tag,
-  E: Tag,
-{
-  /// The JS message handler.
-  invoke_handler: Option<Box<InvokeHandler<E, L, R::Dispatcher>>>,
+pub type InvokeHandler<M> = dyn Fn(InvokeMessage<M>) + Send + Sync + 'static;
+pub type OnPageLoad<M> = dyn Fn(Window<M>, PageLoadPayload) + Send + Sync + 'static;
 
-  /// The setup hook.
-  setup: Box<SetupHook<E, L, R>>,
+/// Traits to be implemented by this crate, but not allowing external implementations.
+pub(crate) mod sealed {
+  use super::*;
 
-  /// Page load hook.
-  on_page_load: Option<Box<PageLoadHook<E, L, R::Dispatcher>>>,
+  /// private manager api
+  pub trait ManagerExt<M: Manager>: Clone + Send + Sized + 'static {
+    /// Pass messages not handled by modules or plugins to the running application
+    fn run_invoke_handler(&self, message: InvokeMessage<M>);
 
-  /// windows to create when starting up.
-  pending_windows: HashSet<PendingWindow<L, R::Dispatcher>>,
+    /// Ran once for every window when the page is loaded.
+    fn run_on_page_load(&self, window: Window<M>, payload: PageLoadPayload);
 
-  /// All passed plugins
-  plugins: PluginStore<E, L, R::Dispatcher>,
+    /// Pass a message to be handled by a plugin that expects the command.
+    fn extend_api(&self, command: String, message: InvokeMessage<M>);
+
+    /// Initialize all the plugins attached to the [`Manager`].
+    fn initialize_plugins(&self) -> crate::Result<()>;
+
+    /// Prepare a [`PendingWindow`] to be created by the [`Runtime`].
+    ///
+    /// The passed labels should represent either all the windows in the manager. If the application
+    /// has not yet been started, the passed labels should represent all windows that will be
+    /// created before starting.
+    fn prepare_window(
+      &self,
+      pending: PendingWindow<M>,
+      labels: &[M::Label],
+    ) -> crate::Result<PendingWindow<M>>;
+
+    /// Attach a detached window to the manager.
+    fn attach_window(&self, window: DetachedWindow<M>) -> Window<M>;
+
+    /// Emit an event to javascript windows that pass the predicate.
+    fn emit_filter<S: Serialize + Clone, F: Fn(&Window<M>) -> bool>(
+      &self,
+      event: M::Event,
+      payload: Option<S>,
+      predicate: F,
+    ) -> crate::Result<()>;
+
+    /// All current window labels existing.
+    fn labels(&self) -> Vec<M::Label>;
+
+    /// The configuration the [`Manager`] was built with.
+    fn config(&self) -> &Config;
+
+    /// Remove the specified event handler.
+    fn unlisten(&self, handler_id: HandlerId);
+
+    /// Trigger an event.
+    fn trigger(&self, event: M::Event, window: Option<M::Label>, data: Option<String>);
+
+    /// Set up a listener to an event.
+    fn listen<F: Fn(EventPayload) + Send + 'static>(
+      &self,
+      event: M::Event,
+      window: Option<M::Label>,
+      handler: F,
+    ) -> HandlerId;
+
+    /// Set up a listener to and event that is automatically removed after called once.
+    fn once<F: Fn(EventPayload) + Send + 'static>(
+      &self,
+      event: M::Event,
+      window: Option<M::Label>,
+      handler: F,
+    );
+  }
+
+  /// Represents a managed handle to the application runner.
+  pub trait ManagedExt<M: Manager> {
+    /// The manager behind the [`Managed`] item.
+    fn manager(&self) -> &M;
+
+    /// The runtime or runtime dispatcher of the [`Managed`] item.
+    fn runtime(&mut self) -> RuntimeOrDispatch<'_, M>;
+  }
 }
 
-impl<E, L, R> AppBuilder<E, L, R>
+/// Represents either a [`Runtime`] or its dispatcher.
+pub enum RuntimeOrDispatch<'m, M: Manager> {
+  /// Mutable reference to the [`Runtime`].
+  Runtime(&'m mut M::Runtime),
+
+  /// Copy of the [`Runtime`]'s dispatcher.
+  Dispatch(<M::Runtime as Runtime>::Dispatcher),
+}
+
+/// Represents a managed handle to the application runner
+pub trait Managed<M: Manager>: sealed::ManagedExt<M> {
+  /// The [`Config`] the manager was created with.
+  fn config(&self) -> &Config {
+    self.manager().config()
+  }
+
+  /// Emits a event to all windows.
+  fn emit_all<S: Serialize + Clone>(
+    &self,
+    event: M::Event,
+    payload: Option<S>,
+  ) -> crate::Result<()> {
+    self.manager().emit_filter(event, payload, |_| true)
+  }
+
+  /// Creates a new [`Window`] on the [`Runtime`] and attaches it to the [`Manager`].
+  fn create_window(&mut self, pending: PendingWindow<M>) -> crate::Result<Window<M>> {
+    let labels = self.manager().labels();
+    let pending = self.manager().prepare_window(pending, &labels)?;
+    match self.runtime() {
+      RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
+      RuntimeOrDispatch::Dispatch(mut dispatcher) => dispatcher.create_window(pending),
+    }
+    .map(|window| self.manager().attach_window(window))
+  }
+
+  /// Listen to a global event.
+  fn listen_global<F>(&self, event: M::Event, handler: F) -> HandlerId
+  where
+    F: Fn(EventPayload) + Send + 'static,
+  {
+    self.manager().listen(event, None, handler)
+  }
+
+  /// Listen to a global event only once.
+  fn once_global<F>(&self, event: M::Event, handler: F)
+  where
+    F: Fn(EventPayload) + Send + 'static,
+  {
+    self.manager().once(event, None, handler)
+  }
+
+  /// Trigger a global event.
+  fn trigger_global(&self, event: M::Event, data: Option<String>) {
+    self.manager().trigger(event, None, data)
+  }
+
+  /// Remove an event listener.
+  fn unlisten(&self, handler_id: HandlerId) {
+    self.manager().unlisten(handler_id)
+  }
+}
+
+/// public manager api
+pub trait Manager: ManagerExt<Self> {
+  type Event: Tag;
+  type Label: Tag;
+  type Assets: Assets;
+  type Runtime: Runtime;
+}
+
+/// The App builder.
+pub struct AppBuilder<E, L, A, R>
 where
-  R: Runtime + 'static,
-  L: Tag,
   E: Tag,
+  L: Tag,
+  A: Assets,
+  R: Runtime,
+{
+  /// The JS message handler.
+  invoke_handler: Box<InvokeHandler<WindowManager<E, L, A, R>>>,
+
+  /// The setup hook.
+  setup: SetupHook<WindowManager<E, L, A, R>>,
+
+  /// Page load hook.
+  on_page_load: Box<OnPageLoad<WindowManager<E, L, A, R>>>,
+
+  /// windows to create when starting up.
+  pending_windows: HashSet<PendingWindow<WindowManager<E, L, A, R>>>,
+
+  /// All passed plugins
+  plugins: PluginStore<WindowManager<E, L, A, R>>,
+}
+
+impl<E, L, A, R> AppBuilder<E, L, A, R>
+where
+  E: Tag,
+  L: Tag,
+  A: Assets,
+  R: Runtime,
 {
   /// Creates a new App builder.
   pub fn new() -> Self {
     Self {
       setup: Box::new(|_| Ok(())),
-      invoke_handler: None,
-      on_page_load: None,
+      invoke_handler: Box::new(|_| ()),
+      on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
     }
@@ -404,16 +532,16 @@ where
   /// Defines the JS message handler callback.
   pub fn invoke_handler<F>(mut self, invoke_handler: F) -> Self
   where
-    F: Fn(InvokeMessage<E, L, R::Dispatcher>) + Send + 'static,
+    F: Fn(InvokeMessage<WindowManager<E, L, A, R>>) + Send + Sync + 'static,
   {
-    self.invoke_handler = Some(Box::new(invoke_handler));
+    self.invoke_handler = Box::new(invoke_handler);
     self
   }
 
   /// Defines the setup hook.
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: Fn(&mut App<E, L, R>) -> Result<(), Box<dyn std::error::Error>> + Send + 'static,
+    F: Fn(&mut App<WindowManager<E, L, A, R>>) -> Result<(), Box<dyn StdError>> + Send + 'static,
   {
     self.setup = Box::new(setup);
     self
@@ -422,14 +550,14 @@ where
   /// Defines the page load hook.
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
-    F: Fn(Window<E, L, R::Dispatcher>, PageLoadPayload) + Send + 'static,
+    F: Fn(Window<WindowManager<E, L, A, R>>, PageLoadPayload) + Send + Sync + 'static,
   {
-    self.on_page_load = Some(Box::new(on_page_load));
+    self.on_page_load = Box::new(on_page_load);
     self
   }
 
   /// Adds a plugin to the runtime.
-  pub fn plugin<P: Plugin<E, L, R::Dispatcher> + 'static>(self, plugin: P) -> Self {
+  pub fn plugin<P: Plugin<WindowManager<E, L, A, R>> + 'static>(mut self, plugin: P) -> Self {
     self.plugins.register(plugin);
     self
   }
@@ -437,11 +565,9 @@ where
   /// Creates a new webview.
   pub fn create_window<F>(mut self, label: L, url: WindowUrl, setup: F) -> Self
   where
-    F: FnOnce(
-      <<R as Runtime>::Dispatcher as Dispatch>::Attributes,
-    ) -> <<R as Runtime>::Dispatcher as Dispatch>::Attributes,
+    F: FnOnce(<R::Dispatcher as Dispatch>::Attributes) -> <R::Dispatcher as Dispatch>::Attributes,
   {
-    let attributes = setup(<<R as Runtime>::Dispatcher as Dispatch>::Attributes::new());
+    let attributes = setup(<R::Dispatcher as Dispatch>::Attributes::new());
     self
       .pending_windows
       .insert(PendingWindow::new(attributes, label, url));
@@ -449,34 +575,34 @@ where
   }
 
   /// Builds the [`App`] and the underlying [`Runtime`].
-  pub fn build<A, C>(self, context: C) -> Application<E, A, L, R>
-  where
-    A: Assets + Send + Sync,
-    C: Into<Context<A>>,
-  {
+  pub fn build<C: Into<Context<A>>>(self, context: C) -> Runner<WindowManager<E, L, A, R>> {
     let Context {
       config,
       assets,
       default_window_icon,
     } = context.into();
-    let config = Arc::new(config);
-    let window_manager =
-      InnerWindowManager::new(config.clone(), self.invoke_handler, self.on_page_load);
-    let pending_windows = self.pending_windows;
 
-    Application {
+    Runner {
+      pending_windows: self.pending_windows,
       setup: self.setup,
-      config: config.clone(),
-      assets: Arc::new(assets),
-      default_window_icon,
-      inner_window_manager: window_manager,
-      pending_windows,
+      manager: WindowManager {
+        inner: Arc::new(InnerWindowManager {
+          windows: Mutex::default(),
+          plugins: Mutex::default(),
+          listeners: Listeners::default(),
+          invoke_handler: self.invoke_handler,
+          on_page_load: self.on_page_load,
+          config,
+          assets: Arc::new(assets),
+          default_window_icon,
+        }),
+      },
     }
   }
 }
 
 /// Make `Wry` the default `ApplicationExt` for `AppBuilder`
-impl Default for AppBuilder<String, String, Wry> {
+impl<A: Assets> Default for AppBuilder<String, String, A, Wry> {
   fn default() -> Self {
     Self::new()
   }

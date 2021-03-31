@@ -1,4 +1,4 @@
-use crate::app::webview_manager::Tag;
+use crate::Manager;
 use once_cell::sync::Lazy;
 use std::{
   boxed::Box,
@@ -25,38 +25,31 @@ impl fmt::Display for HandlerId {
   }
 }
 
-struct Handler<L: Tag> {
-  window: Option<L>,
+struct Handler<M: Manager> {
+  window: Option<M::Label>,
   callback: Box<dyn Fn(EventPayload) + Send>,
 }
 
 //type Handler = Box<dyn Fn(EventPayload) + Send + 'static>;
-
-pub struct Listeners<E: Tag, L: Tag> {
-  inner: Arc<Mutex<HashMap<E, HashMap<HandlerId, Handler<L>>>>>,
+#[derive(Clone)]
+pub struct Listeners<M: Manager> {
+  inner: Arc<Mutex<HashMap<M::Event, HashMap<HandlerId, Handler<M>>>>>,
 }
 
-impl<E: Tag, L: Tag> Clone for Listeners<E, L> {
-  fn clone(&self) -> Self {
-    Self {
-      inner: self.inner.clone(),
-    }
-  }
-}
-
-impl<E: Tag, L: Tag> Listeners<E, L> {
-  /// Create an empty set of listeners
-  pub fn new() -> Self {
+impl<M: Manager> Default for Listeners<M> {
+  fn default() -> Self {
     Self {
       inner: Arc::new(Mutex::default()),
     }
   }
+}
 
+impl<M: Manager> Listeners<M> {
   /// Adds an event listener for JS events.
   pub fn listen<F: Fn(EventPayload) + Send + 'static>(
     &self,
-    event: E,
-    window: Option<L>,
+    event: M::Event,
+    window: Option<M::Label>,
     handler: F,
   ) -> HandlerId {
     let id = HandlerId::default();
@@ -77,8 +70,8 @@ impl<E: Tag, L: Tag> Listeners<E, L> {
   /// Listen to a JS event and immediately unlisten.
   pub fn once<F: Fn(EventPayload) + Send + 'static>(
     &self,
-    event: E,
-    window: Option<L>,
+    event: M::Event,
+    window: Option<M::Label>,
     handler: F,
   ) {
     let self_ = self.clone();
@@ -101,7 +94,7 @@ impl<E: Tag, L: Tag> Listeners<E, L> {
   }
 
   /// Triggers the given global event with its payload.
-  pub(crate) fn trigger(&self, event: E, window: Option<L>, data: Option<String>) {
+  pub(crate) fn trigger(&self, event: M::Event, window: Option<M::Label>, data: Option<String>) {
     if let Some(handlers) = self.inner.lock().expect("poisoned event mutex").get(&event) {
       for (&id, handler) in handlers {
         if window.is_none() || window == handler.window {

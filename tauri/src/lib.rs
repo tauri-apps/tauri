@@ -38,7 +38,7 @@ pub use tauri_api as api;
 pub use tauri_macros::*;
 
 pub use crate::{
-  app::{Context, Tag},
+  app::{Context, Manager, Tag},
   runtime::{Dispatch, Runtime},
 };
 

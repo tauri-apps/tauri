@@ -216,17 +216,13 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
                 .canonicalize()
                 .or_else(|_| Err(crate::Error::AssetNotFound(path.clone())))
                 .and_then(|pathbuf| {
-                  if pathbuf.is_file() && pathbuf.starts_with(&dist_dir) {
-                    match std::fs::read(pathbuf) {
-                      Ok(asset) => return Ok(asset),
-                      Err(e) => {
-                        #[cfg(debug_assertions)]
-                        eprintln!("Error reading asset from dist: {:?}", e); // TODO log::error!
-                      }
+                  match std::fs::read(pathbuf) {
+                    Ok(asset) => Ok(asset),
+                    Err(e) => {
+                      eprintln!("Error reading asset from dist: {:?}", e); // TODO log::error!
+                      Err(crate::Error::AssetNotFound(path.clone()))
                     }
                   }
-
-                  Err(crate::Error::AssetNotFound(path))
                 })
             })
         }

@@ -97,6 +97,7 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
   };
 
   quote! {
+    #[allow(dead_code)]
     #function
     pub fn #fn_wrapper<A: ::tauri::ApplicationExt + 'static>(_manager: #manager_arg_type, message: ::tauri::InvokeMessage<A>) {
       #[derive(::serde::Deserialize)]

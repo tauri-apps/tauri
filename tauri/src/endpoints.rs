@@ -60,8 +60,12 @@ impl Module {
           .and_then(|r| r.json)
           .map_err(|e| e.to_string())
       }),
-      Self::Shell(cmd) => message
-        .respond_async(async move { cmd.run().and_then(|r| r.json).map_err(|e| e.to_string()) }),
+      Self::Shell(cmd) => message.respond_async(async move {
+        cmd
+          .run(webview_manager)
+          .and_then(|r| r.json)
+          .map_err(|e| e.to_string())
+      }),
       Self::Event(cmd) => message.respond_async(async move {
         cmd
           .run(&webview_manager)

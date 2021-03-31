@@ -43,20 +43,6 @@ pub(super) fn get_url(context: &Context) -> String {
   format!("tauri://{}", context.config.tauri.bundle.identifier)
 }
 
-// spawn an updater process.
-#[cfg(feature = "updater")]
-#[allow(dead_code)]
-pub(super) fn spawn_updater() {
-  std::thread::spawn(|| {
-    tauri_api::command::spawn_relative_command(
-      "updater".to_string(),
-      Vec::new(),
-      std::process::Stdio::inherit(),
-    )
-    .expect("Unable to spawn relative command");
-  });
-}
-
 pub(super) fn initialization_script(
   plugin_initialization_script: &str,
   with_global_tauri: bool,
@@ -230,7 +216,6 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
                 .canonicalize()
                 .or_else(|_| Err(crate::Error::AssetNotFound(path.clone())))
                 .and_then(|pathbuf| {
-
                   if pathbuf.is_file() && pathbuf.starts_with(&dist_dir) {
                     match std::fs::read(pathbuf) {
                       Ok(asset) => return Ok(asset),
@@ -242,7 +227,6 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
                   }
 
                   Err(crate::Error::AssetNotFound(path))
-
                 })
             })
         }

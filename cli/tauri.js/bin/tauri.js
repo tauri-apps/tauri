@@ -75,6 +75,8 @@ const tauri = function (command) {
       )
 
       process.exit(0)
+      // eslint-disable-next-line no-unreachable
+      return false // do this for node consumers and tests
     }
 
     if (command === '-v' || command === '--version') {

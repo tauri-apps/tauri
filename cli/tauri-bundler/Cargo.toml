@@ -37,7 +37,7 @@ walkdir = "2"
 lazy_static = { version = "1.4" }
 handlebars = { version = "3.5" }
 zip = { version = "0.5" }
-tempfile = "3.1.0"
+tempfile = "3.2.0"
 regex = { version = "1" }
 
 [target."cfg(target_os = \"windows\")".dependencies]
@@ -45,7 +45,7 @@ attohttpc = { version = "0.16.3" }
 regex = { version = "1" }
 uuid = { version = "0.8", features = [ "v5" ] }
 bitness = "0.4"
-winreg = "0.7"
+winreg = "0.8"
 
 [target."cfg(not(target_os = \"linux\"))".dependencies]
 sha2 = { version = "0.9" }

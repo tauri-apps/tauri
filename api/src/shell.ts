@@ -39,7 +39,10 @@ interface ChildProcess {
 }
 
 class EventEmitter<E> {
-  eventListeners: { [key: string]: Array<(arg: any) => void> } = {}
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  eventListeners: { [key: string]: Array<(arg: any) => void> } = Object.create(
+    null
+  )
 
   private addEventListener(event: string, handler: (arg: any) => void): void {
     if (event in this.eventListeners) {

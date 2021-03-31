@@ -80,7 +80,7 @@ pub fn unlisten_js(event_id: u64) -> String {
 pub fn listen_js(event: String, event_id: u64, handler: String) -> String {
   format!(
     "if (window['{listeners}'] === void 0) {{
-      window['{listeners}'] = {{}}
+      window['{listeners}'] = Object.create(null)
     }}
     if (window['{listeners}']['{event}'] === void 0) {{
       window['{listeners}']['{event}'] = []

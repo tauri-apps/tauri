@@ -1,6 +1,6 @@
 use crate::{
   app::webview::{Attributes, AttributesPrivate, Icon, WindowConfig},
-  DetachedWindow, Manager, PendingWindow, Tag,
+  DetachedWindow, Manager, PendingWindow,
 };
 use std::convert::TryFrom;
 

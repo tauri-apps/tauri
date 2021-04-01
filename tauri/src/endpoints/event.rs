@@ -1,5 +1,5 @@
 use super::InvokeResponse;
-use crate::{app::Managed, runtime::Dispatch, Manager, Tag, Window};
+use crate::{app::Managed, Manager, Window};
 use serde::Deserialize;
 
 /// The API descriptor.
@@ -26,10 +26,6 @@ impl Cmd {
     match self {
       Self::Listen { event, handler } => {
         let event_id = rand::random();
-        /* println!(
-          "going to listen to e: {}, h: {}, id: {}",
-          event, handler, event_id
-        );*/
         window.eval(&listen_js(event, event_id, handler))?;
         Ok(event_id.into())
       }
@@ -42,18 +38,22 @@ impl Cmd {
         window_label,
         payload,
       } => {
+        // todo: how to handle this
         let e: M::Event = event
           .parse()
           .unwrap_or_else(|_| panic!("todo: invalid event str"));
-        if let Some(_) = window_label {
-          // dispatch the event to Rust listeners
-          window.trigger(e.clone(), payload.clone());
-          // dispatch the event to JS listeners
-          window.emit_all(e, payload)?;
+
+        let window_label: Option<M::Label> = window_label.map(|l| {
+          l.parse()
+            .unwrap_or_else(|_| panic!("todo: invalid window label"))
+        });
+
+        // dispatch the event to Rust listeners
+        window.trigger(e.clone(), payload.clone());
+
+        if let Some(target) = window_label {
+          window.emit_to(&target, e, payload)?;
         } else {
-          // dispatch the event to Rust listeners
-          window.trigger(e.clone(), payload.clone());
-          // dispatch the event to JS listeners
           window.emit_all(e, payload)?;
         }
         Ok(().into())

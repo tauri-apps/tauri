@@ -1,4 +1,4 @@
-use crate::Manager;
+use crate::{Manager, Tag};
 use once_cell::sync::Lazy;
 use std::{
   boxed::Box,
@@ -25,15 +25,16 @@ impl fmt::Display for HandlerId {
   }
 }
 
-struct Handler<M: Manager> {
-  window: Option<M::Label>,
+struct Handler<L: Tag> {
+  window: Option<L>,
   callback: Box<dyn Fn(EventPayload) + Send>,
 }
 
-//type Handler = Box<dyn Fn(EventPayload) + Send + 'static>;
+type Handlers<E, L> = HashMap<E, HashMap<HandlerId, Handler<L>>>;
+
 #[derive(Clone)]
 pub struct Listeners<M: Manager> {
-  inner: Arc<Mutex<HashMap<M::Event, HashMap<HandlerId, Handler<M>>>>>,
+  inner: Arc<Mutex<Handlers<M::Event, M::Label>>>,
 }
 
 impl<M: Manager> Default for Listeners<M> {

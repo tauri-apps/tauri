@@ -14,7 +14,7 @@ use crate::{
   app::{
     sealed::ManagerExt,
     webview::WindowConfig,
-    webview_manager::{tag_to_js_string, InnerWindowManager, WindowManager},
+    webview_manager::{InnerWindowManager, WindowManager},
   },
   event::{EventPayload, HandlerId, Listeners},
   flavors::Wry,
@@ -204,7 +204,7 @@ pub struct PendingWindow<M: Manager> {
   pub url: WindowUrl,
   pub rpc_handler: Option<WebviewRpcHandler<M>>,
   pub custom_protocol: Option<CustomProtocol>,
-  pub file_drop_handler: Option<Box<dyn Fn(FileDropEvent, DetachedWindow<M>) -> bool + Send>>,
+  pub file_drop_handler: Option<FileDropHandler<M>>,
 }
 
 impl<M: Manager> Hash for PendingWindow<M> {
@@ -331,7 +331,10 @@ impl<M: Manager> Runner<M> {
   }
 }
 
+#[allow(missing_docs)]
 pub type InvokeHandler<M> = dyn Fn(InvokeMessage<M>) + Send + Sync + 'static;
+
+#[allow(missing_docs)]
 pub type OnPageLoad<M> = dyn Fn(Window<M>, PageLoadPayload) + Send + Sync + 'static;
 
 /// Traits to be implemented by this crate, but not allowing external implementations.
@@ -438,6 +441,18 @@ pub trait Managed<M: Manager>: sealed::ManagedExt<M> {
     self.manager().emit_filter(event, payload, |_| true)
   }
 
+  /// Emits an event to a window with the specified label.
+  fn emit_to<S: Serialize + Clone>(
+    &self,
+    label: &M::Label,
+    event: M::Event,
+    payload: Option<S>,
+  ) -> crate::Result<()> {
+    self
+      .manager()
+      .emit_filter(event, payload, |w| w.label() == label)
+  }
+
   /// Creates a new [`Window`] on the [`Runtime`] and attaches it to the [`Manager`].
   fn create_window(&mut self, pending: PendingWindow<M>) -> crate::Result<Window<M>> {
     let labels = self.manager().labels();
@@ -477,6 +492,7 @@ pub trait Managed<M: Manager>: sealed::ManagedExt<M> {
 }
 
 /// public manager api
+#[allow(missing_docs)]
 pub trait Manager: ManagerExt<Self> {
   type Event: Tag;
   type Label: Tag;

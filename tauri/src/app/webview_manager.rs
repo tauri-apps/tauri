@@ -8,7 +8,7 @@ use crate::{
   plugin::PluginStore,
   runtime::Dispatch,
   Attributes, CustomProtocol, FileDropEvent, FileDropHandler, Icon, InvokeHandler, InvokeMessage,
-  InvokePayload, Managed, Manager, OnPageLoad, PageLoadPayload, PendingWindow, RpcRequest, Runtime,
+  InvokePayload, Managed, Manager, OnPageLoad, PageLoadPayload, PendingWindow, Runtime,
   RuntimeOrDispatch, WebviewRpcHandler, WindowUrl,
 };
 use serde::Serialize;
@@ -258,7 +258,7 @@ pub(crate) fn tag_to_js_string(tag: &impl Tag) -> crate::Result<String> {
 
 pub(crate) fn tags_to_js_string_array(tags: &HashSet<impl Tag>) -> crate::Result<String> {
   let tags = tags
-    .into_iter()
+    .iter()
     .map(ToString::to_string)
     .collect::<Vec<String>>();
 
@@ -335,12 +335,25 @@ where
       manager: self.clone(),
     };
 
-    self
-      .inner
-      .windows
-      .lock()
-      .expect("poisoned window manager")
-      .insert(window.clone());
+    // insert the window into our manager
+    {
+      self
+        .inner
+        .windows
+        .lock()
+        .expect("poisoned window manager")
+        .insert(window.clone());
+    }
+
+    // let plugins know that a new window has been added to the manager
+    {
+      self
+        .inner
+        .plugins
+        .lock()
+        .expect("poisoned plugin store")
+        .created(window.clone());
+    }
 
     window
   }
@@ -355,7 +368,7 @@ where
       .inner
       .windows
       .lock()
-      .expect("poisoned manager window mutex")
+      .expect("poisoned window manager")
       .iter()
       .filter(|&w| filter(w))
       .try_for_each(|window| window.emit(&event, payload.clone()))

@@ -4,7 +4,7 @@ use crate::api::shortcuts::ShortcutManager;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 
-use crate::{runtime::Dispatch, Manager, Runtime, Window};
+use crate::{runtime::Dispatch, Manager, Window};
 use std::sync::{Arc, Mutex};
 
 #[cfg(global_shortcut_all)]

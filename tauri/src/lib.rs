@@ -36,8 +36,15 @@ pub use tauri_api as api;
 pub(crate) use tauri_api::private::async_runtime;
 pub use tauri_macros::*;
 
+#[allow(missing_docs)]
+pub struct Context<A: crate::api::assets::Assets> {
+  pub config: crate::api::config::Config,
+  pub assets: A,
+  pub default_window_icon: Option<Vec<u8>>,
+}
+
 pub use crate::{
-  app::{Context, Manager, Tag},
+  app::{Manager, Tag},
   runtime::{Dispatch, Runtime},
 };
 

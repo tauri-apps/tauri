@@ -7,9 +7,9 @@ use crate::{
   event::{EventPayload, HandlerId, Listeners},
   plugin::PluginStore,
   runtime::Dispatch,
-  Attributes, CustomProtocol, FileDropEvent, FileDropHandler, Icon, InvokeHandler, InvokeMessage,
-  InvokePayload, Managed, Manager, OnPageLoad, PageLoadPayload, PendingWindow, Runtime,
-  RuntimeOrDispatch, WebviewRpcHandler, WindowUrl,
+  Attributes, Context, CustomProtocol, FileDropEvent, FileDropHandler, Icon, InvokeHandler,
+  InvokeMessage, InvokePayload, Managed, Manager, OnPageLoad, PageLoadPayload, PendingWindow,
+  Runtime, RuntimeOrDispatch, WebviewRpcHandler, WindowUrl,
 };
 use serde::Serialize;
 use serde_json::Value as JsonValue;
@@ -34,19 +34,19 @@ impl<T> Tag for T where
 }
 
 pub struct InnerWindowManager<M: Manager> {
-  pub(crate) windows: Mutex<HashSet<Window<M>>>,
-  pub(crate) plugins: Mutex<PluginStore<M>>,
-  pub(crate) listeners: Listeners<M>,
+  windows: Mutex<HashSet<Window<M>>>,
+  plugins: Mutex<PluginStore<M>>,
+  listeners: Listeners<M::Event, M::Label>,
 
   /// The JS message handler.
-  pub(crate) invoke_handler: Box<InvokeHandler<M>>,
+  invoke_handler: Box<InvokeHandler<M>>,
 
   /// The page load hook, invoked when the webview performs a navigation.
-  pub(crate) on_page_load: Box<OnPageLoad<M>>,
+  on_page_load: Box<OnPageLoad<M>>,
 
-  pub(crate) config: Config,
-  pub(crate) assets: Arc<M::Assets>,
-  pub(crate) default_window_icon: Option<Vec<u8>>,
+  config: Config,
+  assets: Arc<M::Assets>,
+  default_window_icon: Option<Vec<u8>>,
 }
 
 pub struct WindowManager<E, L, A, R>
@@ -77,9 +77,28 @@ impl<E, L, A, R> WindowManager<E, L, A, R>
 where
   E: Tag,
   L: Tag,
-  A: Assets + 'static,
+  A: Assets,
   R: Runtime,
 {
+  pub(crate) fn with_handlers(
+    context: Context<A>,
+    invoke_handler: Box<InvokeHandler<Self>>,
+    on_page_load: Box<OnPageLoad<Self>>,
+  ) -> Self {
+    Self {
+      inner: Arc::new(InnerWindowManager {
+        windows: Mutex::default(),
+        plugins: Mutex::default(),
+        listeners: Listeners::default(),
+        invoke_handler,
+        on_page_load,
+        config: context.config,
+        assets: Arc::new(context.assets),
+        default_window_icon: context.default_window_icon,
+      }),
+    }
+  }
+
   // setup content for dev-server
   #[cfg(dev)]
   fn get_url(&self) -> String {
@@ -249,6 +268,29 @@ where
       });
       true
     })
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use super::WindowManager;
+  use crate::flavors::Wry;
+  use crate::generate_context;
+
+  #[test]
+  fn check_get_url() {
+    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate::Context);
+    let manager: WindowManager<String, String, _, Wry> =
+      WindowManager::with_handlers(context, Box::new(|_| ()), Box::new(|_, _| ()));
+
+    #[cfg(custom_protocol)]
+    assert_eq!(manager.get_url(), "tauri://studio.tauri.example");
+
+    #[cfg(dev)]
+    {
+      use crate::app::sealed::ManagerExt;
+      assert_eq!(manager.get_url(), manager.config().build.dev_path);
+    }
   }
 }
 

@@ -1,4 +1,4 @@
-use crate::{Manager, Tag};
+use crate::Tag;
 use once_cell::sync::Lazy;
 use std::{
   boxed::Box,
@@ -33,11 +33,11 @@ struct Handler<L: Tag> {
 type Handlers<E, L> = HashMap<E, HashMap<HandlerId, Handler<L>>>;
 
 #[derive(Clone)]
-pub struct Listeners<M: Manager> {
-  inner: Arc<Mutex<Handlers<M::Event, M::Label>>>,
+pub struct Listeners<E: Tag, L: Tag> {
+  inner: Arc<Mutex<Handlers<E, L>>>,
 }
 
-impl<M: Manager> Default for Listeners<M> {
+impl<E: Tag, L: Tag> Default for Listeners<E, L> {
   fn default() -> Self {
     Self {
       inner: Arc::new(Mutex::default()),
@@ -45,12 +45,12 @@ impl<M: Manager> Default for Listeners<M> {
   }
 }
 
-impl<M: Manager> Listeners<M> {
+impl<E: Tag, L: Tag> Listeners<E, L> {
   /// Adds an event listener for JS events.
   pub fn listen<F: Fn(EventPayload) + Send + 'static>(
     &self,
-    event: M::Event,
-    window: Option<M::Label>,
+    event: E,
+    window: Option<L>,
     handler: F,
   ) -> HandlerId {
     let id = HandlerId::default();
@@ -71,8 +71,8 @@ impl<M: Manager> Listeners<M> {
   /// Listen to a JS event and immediately unlisten.
   pub fn once<F: Fn(EventPayload) + Send + 'static>(
     &self,
-    event: M::Event,
-    window: Option<M::Label>,
+    event: E,
+    window: Option<L>,
     handler: F,
   ) {
     let self_ = self.clone();
@@ -95,7 +95,7 @@ impl<M: Manager> Listeners<M> {
   }
 
   /// Triggers the given global event with its payload.
-  pub(crate) fn trigger(&self, event: M::Event, window: Option<M::Label>, data: Option<String>) {
+  pub(crate) fn trigger(&self, event: E, window: Option<L>, data: Option<String>) {
     if let Some(handlers) = self.inner.lock().expect("poisoned event mutex").get(&event) {
       for (&id, handler) in handlers {
         if window.is_none() || window == handler.window {
@@ -161,14 +161,14 @@ mod test {
     // check to see if listen() is properly passing keys into the LISTENERS map
     #[test]
     fn listeners_check_key(e in "[a-z]+") {
-      let listeners: Listeners<String> = Default::default();
+      let listeners: Listeners<String, String> = Default::default();
       // clone e as the key
       let key = e.clone();
       // pass e and an dummy func into listen
       listeners.listen(e, None, event_fn);
 
       // lock mutex
-      let l = listeners.window.lock().unwrap();
+      let l = listeners.inner.lock().unwrap();
 
       // check if the generated key is in the map
       assert_eq!(l.contains_key(&key), true);
@@ -177,14 +177,14 @@ mod test {
     // check to see if listen inputs a handler function properly into the LISTENERS map.
     #[test]
     fn listeners_check_fn(e in "[a-z]+") {
-       let listeners: Listeners<String> = Default::default();
+       let listeners: Listeners<String, String> = Default::default();
        // clone e as the key
        let key = e.clone();
        // pass e and an dummy func into listen
-       listenerslisten(e, None, event_fn);
+       listeners.listen(e, None, event_fn);
 
        // lock mutex
-       let mut l = listeners.window.lock().unwrap();
+       let mut l = listeners.inner.lock().unwrap();
 
        // check if l contains key
        if l.contains_key(&key) {
@@ -203,16 +203,16 @@ mod test {
     // check to see if on_event properly grabs the stored function from listen.
     #[test]
     fn check_on_event(e in "[a-z]+", d in "[a-z]+") {
-      let listeners: Listeners<String> = Default::default();
+      let listeners: Listeners<String, String> = Default::default();
       // clone e as the key
       let key = e.clone();
       // call listen with e and the event_fn dummy func
       listeners.listen(e.clone(), None, event_fn);
       // call on event with e and d.
-      listeners.on_event(e, None, Some(d));
+      listeners.trigger(e, None, Some(d));
 
       // lock the mutex
-      let l = listeners.window.lock().unwrap();
+      let l = listeners.inner.lock().unwrap();
 
       // assert that the key is contained in the listeners map
       assert!(l.contains_key(&key));

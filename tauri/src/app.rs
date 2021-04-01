@@ -11,15 +11,12 @@ use crate::{
     assets::Assets,
     rpc::{format_callback, format_callback_result},
   },
-  app::{
-    sealed::ManagerExt,
-    webview::WindowConfig,
-    webview_manager::{InnerWindowManager, WindowManager},
-  },
-  event::{EventPayload, HandlerId, Listeners},
+  app::{sealed::ManagerExt, webview::WindowConfig, webview_manager::WindowManager},
+  event::{EventPayload, HandlerId},
   flavors::Wry,
   plugin::{Plugin, PluginStore},
   runtime::{Dispatch, Runtime},
+  Context,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -28,12 +25,10 @@ use std::{
   error::Error as StdError,
   future::Future,
   hash::{Hash, Hasher},
-  sync::{Arc, Mutex},
 };
 use tauri_api::config::Config;
 
 pub(crate) mod event;
-mod utils;
 pub(crate) mod webview;
 mod webview_manager;
 
@@ -189,12 +184,6 @@ impl PageLoadPayload {
   pub fn url(&self) -> &str {
     &self.url
   }
-}
-#[allow(missing_docs)]
-pub struct Context<A: Assets> {
-  pub config: Config,
-  pub assets: A,
-  pub default_window_icon: Option<Vec<u8>>,
 }
 
 #[allow(missing_docs)]
@@ -588,28 +577,11 @@ where
   }
 
   /// Builds the [`App`] and the underlying [`Runtime`].
-  pub fn build<C: Into<Context<A>>>(self, context: C) -> Runner<WindowManager<E, L, A, R>> {
-    let Context {
-      config,
-      assets,
-      default_window_icon,
-    } = context.into();
-
+  pub fn build(self, context: Context<A>) -> Runner<WindowManager<E, L, A, R>> {
     Runner {
       pending_windows: self.pending_windows,
       setup: self.setup,
-      manager: WindowManager {
-        inner: Arc::new(InnerWindowManager {
-          windows: Mutex::default(),
-          plugins: Mutex::default(),
-          listeners: Listeners::default(),
-          invoke_handler: self.invoke_handler,
-          on_page_load: self.on_page_load,
-          config,
-          assets: Arc::new(assets),
-          default_window_icon,
-        }),
-      },
+      manager: WindowManager::with_handlers(context, self.invoke_handler, self.on_page_load),
     }
   }
 }

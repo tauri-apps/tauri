@@ -114,7 +114,6 @@ where
     label: L,
     pending_labels: &HashSet<L>,
   ) -> crate::Result<<R::Dispatcher as Dispatch>::Attributes> {
-    dbg!(&pending_labels);
     let is_init_global = self.inner.config.build.with_global_tauri;
     let plugin_init = self
       .inner
@@ -123,19 +122,17 @@ where
       .expect("poisoned plugin store")
       .initialization_script();
 
-    let init = format!(
-      r#"
-              window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
-              window.__TAURI__.__currentWindow = {{ label: {current_window_label} }}
-            "#,
-      window_labels_array = tags_to_js_string_array(pending_labels)?,
-      current_window_label = tag_to_js_string(&label)?,
-    );
-
     let mut attributes = attrs
       .url(url)
       .initialization_script(&initialization_script(&plugin_init, is_init_global))
-      .initialization_script(dbg!(&init));
+      .initialization_script(&format!(
+        r#"
+              window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
+              window.__TAURI__.__currentWindow = {{ label: {current_window_label} }}
+            "#,
+        window_labels_array = tags_to_js_string_array(pending_labels)?,
+        current_window_label = tag_to_js_string(&label)?,
+      ));
 
     if !attributes.has_icon() {
       if let Some(default_window_icon) = &self.inner.default_window_icon {
@@ -521,7 +518,7 @@ impl<M: Manager> Window<M> {
     };
 
     self.eval(&format!(
-      "window['{}']({{event: '{}', payload: {}}}, '{}')",
+      "window['{}']({{event: {}, payload: {}}}, '{}')",
       crate::event::emit_function_name(),
       tag_to_js_string(event)?,
       js_payload,

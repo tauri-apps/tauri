@@ -7,27 +7,12 @@ declare global {
   }
 }
 
-function s4(): string {
-  return Math.floor((1 + Math.random()) * 0x10000)
-    .toString(16)
-    .substring(1)
-}
-
 function uid(): string {
-  return (
-    s4() +
-    s4() +
-    '-' +
-    s4() +
-    '-' +
-    s4() +
-    '-' +
-    s4() +
-    '-' +
-    s4() +
-    s4() +
-    s4()
-  )
+  const length = new Int8Array(1)
+  window.crypto.getRandomValues(length)
+  const array = new Uint8Array(Math.max(16, Math.abs(length[0])))
+  window.crypto.getRandomValues(array)
+  return array.join('')
 }
 
 function transformCallback(

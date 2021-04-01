@@ -14,11 +14,12 @@ pub struct ContextData {
 /// Build an `AsTauriContext` implementation for including in application code.
 pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsError> {
   let ContextData {
-    config,
+    mut config,
     config_parent,
     struct_ident,
   } = data;
   let dist_dir = config_parent.join(&config.build.dist_dir);
+  config.build.dist_dir = dist_dir.to_string_lossy().to_string();
 
   // generate the assets inside the dist dir into a perfect hash function
   let assets = EmbeddedAssets::new(&dist_dir)?;

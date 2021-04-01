@@ -28,13 +28,12 @@ pub use error::Error;
 /// Tauri result type.
 pub type Result<T> = std::result::Result<T, Error>;
 
-pub(crate) mod async_runtime;
-
 /// A task to run on the main thread.
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 pub use app::*;
 pub use tauri_api as api;
+pub(crate) use tauri_api::private::async_runtime;
 pub use tauri_macros::*;
 
 pub use crate::{

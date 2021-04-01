@@ -63,10 +63,10 @@
     "png2icons": "2.0.1",
     "read-chunk": "3.2.0",
     "semver": "7.3.5",
-    "sharp": "0.27.2"
+    "sharp": "0.28.0"
   },
   "devDependencies": {
-    "@babel/core": "7.13.10",
+    "@babel/core": "7.13.14",
     "@babel/preset-env": "7.13.12",
     "@babel/preset-typescript": "7.13.0",
     "@types/cross-spawn": "6.0.2",
@@ -78,11 +78,11 @@
     "@types/ms": "0.7.31",
     "@types/semver": "7.3.4",
     "@types/sharp": "0.27.2",
-    "@typescript-eslint/eslint-plugin": "4.19.0",
-    "@typescript-eslint/parser": "4.19.0",
+    "@typescript-eslint/eslint-plugin": "4.20.0",
+    "@typescript-eslint/parser": "4.20.0",
     "babel-jest": "26.6.3",
     "dotenv": "8.2.0",
-    "eslint": "7.22.0",
+    "eslint": "7.23.0",
     "eslint-config-prettier": "8.1.0",
     "eslint-config-standard-with-typescript": "20.0.0",
     "eslint-plugin-import": "2.22.1",
@@ -99,10 +99,10 @@
     "raw-loader": "4.0.2",
     "rimraf": "3.0.2",
     "toml-loader": "1.0.0",
-    "ts-loader": "8.0.18",
+    "ts-loader": "8.1.0",
     "typescript": "4.2.3",
     "webpack": "5.28.0",
-    "webpack-cli": "4.5.0",
+    "webpack-cli": "4.6.0",
     "webpack-node-externals": "2.5.2"
   },
   "resolutions": {

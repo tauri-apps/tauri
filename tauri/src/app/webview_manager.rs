@@ -1,8 +1,9 @@
-use crate::api::assets::Assets;
-use crate::app::sealed::{ManagedExt, ManagerExt};
 use crate::{
-  api::config::Config,
-  app::webview::AttributesPrivate,
+  api::{assets::Assets, config::Config},
+  app::{
+    sealed::{ManagedExt, ManagerExt},
+    webview::AttributesPrivate,
+  },
   event::{EventPayload, HandlerId, Listeners},
   plugin::PluginStore,
   runtime::Dispatch,
@@ -12,8 +13,8 @@ use crate::{
 };
 use serde::Serialize;
 use serde_json::Value as JsonValue;
-use std::borrow::Cow;
 use std::{
+  borrow::Cow,
   collections::HashSet,
   convert::TryInto,
   fmt,
@@ -174,6 +175,10 @@ where
       name: "tauri".into(),
       handler: Box::new(move |path| {
         let mut path = path
+          .split('?')
+          // ignore query string
+          .next()
+          .unwrap()
           .to_string()
           .replace(&format!("tauri://{}", bundle_identifier), "");
         if path.ends_with('/') {

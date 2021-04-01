@@ -6,27 +6,29 @@ pub use self::{
   webview_manager::{DetachedWindow, Tag, Window},
 };
 pub use crate::api::config::WindowUrl;
-use crate::app::sealed::ManagerExt;
-use crate::app::webview_manager::{tag_to_js_string, InnerWindowManager, WindowManager};
-use crate::event::{EventPayload, HandlerId, Listeners};
 use crate::{
   api::{
     assets::Assets,
     rpc::{format_callback, format_callback_result},
   },
-  app::webview::WindowConfig,
+  app::{
+    sealed::ManagerExt,
+    webview::WindowConfig,
+    webview_manager::{tag_to_js_string, InnerWindowManager, WindowManager},
+  },
+  event::{EventPayload, HandlerId, Listeners},
   flavors::Wry,
   plugin::{Plugin, PluginStore},
   runtime::{Dispatch, Runtime},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use std::error::Error as StdError;
-use std::sync::{Arc, Mutex};
 use std::{
   collections::HashSet,
+  error::Error as StdError,
   future::Future,
   hash::{Hash, Hasher},
+  sync::{Arc, Mutex},
 };
 use tauri_api::config::Config;
 

@@ -1,6 +1,5 @@
 use super::InvokeResponse;
-use crate::app::Managed;
-use crate::{runtime::Dispatch, Manager, Tag, Window};
+use crate::{app::Managed, runtime::Dispatch, Manager, Tag, Window};
 use serde::Deserialize;
 
 /// The API descriptor.

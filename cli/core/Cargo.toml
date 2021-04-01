@@ -18,7 +18,7 @@ colored = "2.0"
 once_cell = "1.7"
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
-serde_with = "1.6"
+serde_with = "1.8"
 notify = "4.0"
 shared_child = "0.3"
 toml_edit = "0.2"
@@ -29,7 +29,7 @@ valico = "3.6"
 handlebars = "3.5"
 include_dir = "0.6"
 dialoguer = "0.8"
-ureq = "2.0"
+ureq = "2.1"
 os_info = "3.0"
 semver = "0.11"
 regex = "1.4"
@@ -38,10 +38,7 @@ regex = "1.4"
 schemars = "0.8"
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
-serde_with = "1.6"
-
-[target."cfg(target_os = \"windows\")".dependencies]
-which = "4.0"
+serde_with = "1.8"
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.3"

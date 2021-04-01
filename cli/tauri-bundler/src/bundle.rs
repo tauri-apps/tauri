@@ -22,6 +22,9 @@ pub use self::{
     Settings, SettingsBuilder,
   },
 };
+#[cfg(windows)]
+pub use settings::WindowsSettings;
+
 use common::print_finished;
 
 use std::path::PathBuf;

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const cmds = ['help', 'icon', 'deps']
+const cmds = ['icon', 'deps']
 const rustCliCmds = ['dev', 'build', 'init', 'info']
 
 const cmd = process.argv[2]

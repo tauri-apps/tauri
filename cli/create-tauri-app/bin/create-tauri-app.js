@@ -86,7 +86,7 @@ function printUsage() {
 }
 
 const getOptionsInteractive = (argv) => {
-  let defaultAppName = argv.A | "tauri app";
+  let defaultAppName = argv.A || "tauri app";
 
   return inquirer
     .prompt([
@@ -185,7 +185,6 @@ async function runInit(argv, config = {}) {
     windowTitle: title || argv.w,
   };
   const appDirectory = join(directory, cfg.appName);
-  console.log(recipe);
 
   const preInit = await recipe.preInit({ cwd: directory, cfg });
 

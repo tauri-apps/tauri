@@ -1,5 +1,8 @@
 import { Recipe } from "..";
 import { TauriBuildConfig } from "./../types/config";
+import { join } from "path";
+//@ts-ignore
+import scaffe from "scaffe";
 import { shell } from "../shell";
 
 const uiAppDir = "app-ui";
@@ -9,13 +12,16 @@ const completeLogMsg = `
   To start, run yarn tauri dev
 `;
 
-const afterCra = (): void => {
-  // copyTemplates({
-  //   source: resolve(__dirname, "../../templates/recipes/react/"),
-  //   scope: {},
-  //   target: join(uiAppDir, "./src/"),
-  // });
+const afterCra = async (args: TauriBuildConfig, version: string) => {
+  const { appName } = args;
+  const templateDir = join(__dirname, "../templates/react");
+  const variables = {
+    name: appName,
+    tauri_version: version,
+  };
+
   console.log(completeLogMsg);
+  return scaffe.generate(templateDir, appName, variables);
 };
 
 const reactjs: Recipe = {
@@ -34,8 +40,10 @@ const reactjs: Recipe = {
     // CRA creates the folder for you
     await shell("yarn", ["create", "react-app", cfg.appName], { cwd });
   },
-  postInit: async () => {
-    afterCra();
+  postInit: async ({ cfg }) => {
+    const version = await shell("npm", ["view", "tauri.js", "version"]);
+    const versionNumber = version.stdout.trim();
+    await afterCra(cfg, versionNumber);
   },
 };
 
@@ -58,8 +66,8 @@ const reactts: Recipe = {
       { cwd }
     );
   },
-  postInit: async () => {
-    afterCra();
+  postInit: async ({ cfg }) => {
+    console.log(completeLogMsg);
   },
 };
 

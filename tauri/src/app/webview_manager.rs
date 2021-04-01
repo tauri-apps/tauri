@@ -274,8 +274,7 @@ where
 #[cfg(test)]
 mod test {
   use super::WindowManager;
-  use crate::flavors::Wry;
-  use crate::generate_context;
+  use crate::{flavors::Wry, generate_context};
 
   #[test]
   fn check_get_url() {

@@ -39,7 +39,7 @@ foreach ($command in $args) {
     }
     "fmt" {
       Write-Output "[$command] checking formatting"
-      cargo fmt "--" --check
+      cargo +nightly fmt "--" --check
       check_error
     }
     default {

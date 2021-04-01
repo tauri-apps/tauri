@@ -1,9 +1,11 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
-use std::env::VarError;
-use std::path::PathBuf;
-use syn::parse::{Parse, ParseBuffer};
-use syn::{punctuated::Punctuated, LitStr, PathArguments, PathSegment, Token};
+use std::{env::VarError, path::PathBuf};
+use syn::{
+  parse::{Parse, ParseBuffer},
+  punctuated::Punctuated,
+  LitStr, PathArguments, PathSegment, Token,
+};
 use tauri_codegen::{context_codegen, get_config, ContextData};
 
 pub(crate) struct ContextItems {

@@ -30,7 +30,7 @@ for command in "$@"; do
     ;;
   fmt)
     echo "[$command] checking formatting"
-    cargo fmt -- --check
+    cargo +nightly fmt -- --check
     ;;
   *)
     echo "[cargo-check.sh] Unknown cargo sub-command: $command"

@@ -1,51 +1,36 @@
 //! Assets handled by Tauri during compile time and runtime.
 
-use flate2::read::{GzDecoder, GzEncoder};
 pub use phf;
 use std::{
-  io::Read,
-  path::{Component, Path, PathBuf},
+  borrow::Cow,
+  path::{Component, Path},
 };
 
-/// Type of compression applied to an asset
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum AssetCompression {
-  /// No compression applied
-  None,
+/// Represent an asset file path in a normalized way.
+///
+/// The following rules are enforced and added if needed:
+/// * Unix path component separators
+/// * Has a root directory
+/// * No trailing slash - directories are not included in assets
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct AssetKey(String);
 
-  /// Compressed with (gzip)[https://crates.io/crates/flate2]
-  Gzip,
-}
-
-/// How the embedded asset should be fetched from `Assets`
-pub enum AssetFetch {
-  /// Do not modify the compression
-  Identity,
-
-  /// Ensure asset is decompressed
-  Decompress,
-
-  /// Ensure asset is compressed
-  Compress,
-}
-
-/// Runtime access to the included files
-pub struct Assets {
-  inner: phf::Map<&'static str, (AssetCompression, &'static [u8])>,
-}
-
-impl Assets {
-  /// Create `Assets` container from `phf::Map`
-  pub const fn new(map: phf::Map<&'static str, (AssetCompression, &'static [u8])>) -> Self {
-    Self { inner: map }
+impl From<AssetKey> for String {
+  fn from(key: AssetKey) -> Self {
+    key.0
   }
+}
 
-  /// Format a key used to identify a file embedded in `Assets`.
-  ///
-  /// Output should use unix path separators and have a root directory to mimic
-  /// server urls.
-  pub fn format_key(path: impl Into<PathBuf>) -> String {
-    let path = path.into();
+impl AsRef<str> for AssetKey {
+  fn as_ref(&self) -> &str {
+    &self.0
+  }
+}
+
+impl<P: AsRef<Path>> From<P> for AssetKey {
+  fn from(path: P) -> Self {
+    // TODO: change this to utilize `Cow` to prevent allocating an intermediate `PathBuf` when not necessary
+    let path = path.as_ref().to_owned();
 
     // add in root to mimic how it is used from a server url
     let path = if path.has_root() {
@@ -54,7 +39,7 @@ impl Assets {
       Path::new(&Component::RootDir).join(path)
     };
 
-    if cfg!(windows) {
+    let buf = if cfg!(windows) {
       let mut buf = String::new();
       for component in path.components() {
         match component {
@@ -77,34 +62,38 @@ impl Assets {
       buf
     } else {
       path.to_string_lossy().to_string()
-    }
+    };
+
+    AssetKey(buf)
   }
+}
 
-  /// Get embedded asset, automatically handling compression.
-  pub fn get(
-    &self,
-    path: impl Into<PathBuf>,
-    fetch: AssetFetch,
-  ) -> Option<(Box<dyn Read>, AssetCompression)> {
-    use self::{AssetCompression::*, AssetFetch::*};
+/// Represents a container of file assets that are retrievable during runtime.
+pub trait Assets {
+  /// Get the content of the passed [`AssetKey`].
+  fn get<Key: Into<AssetKey>>(&self, key: Key) -> Option<Cow<'_, [u8]>>;
+}
 
-    let key = Self::format_key(path);
-    let &(compression, content) = self.inner.get(&*key)?;
-    Some(match (compression, fetch) {
-      // content is already in compression format expected
-      (_, Identity) | (None, Decompress) | (Gzip, Compress) => (Box::new(content), compression),
+/// [`Assets`] implementation that only contains compile-time compressed and embedded assets.
+pub struct EmbeddedAssets(phf::Map<&'static str, &'static [u8]>);
 
-      // content is uncompressed, but fetched with compression
-      (None, Compress) => {
-        let compressor = GzEncoder::new(content, flate2::Compression::new(6));
-        (Box::new(compressor), Gzip)
-      }
+impl EmbeddedAssets {
+  /// Wrap a [zstd] compressed [`phf::Map`].
+  ///
+  /// [zstd]: https://facebook.github.io/zstd/
+  pub const fn from_zstd(map: phf::Map<&'static str, &'static [u8]>) -> Self {
+    Self(map)
+  }
+}
 
-      // content is compressed, but fetched with decompression
-      (Gzip, Decompress) => {
-        let decompressor = GzDecoder::new(content);
-        (Box::new(decompressor), None)
-      }
-    })
+impl Assets for EmbeddedAssets {
+  fn get<Key: Into<AssetKey>>(&self, key: Key) -> Option<Cow<'_, [u8]>> {
+    self
+      .0
+      .get(key.into().as_ref())
+      .copied()
+      .map(zstd::decode_all)
+      .and_then(Result::ok)
+      .map(Cow::Owned)
   }
 }

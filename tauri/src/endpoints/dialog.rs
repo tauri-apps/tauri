@@ -1,9 +1,7 @@
+use super::InvokeResponse;
 #[cfg(any(dialog_open, dialog_save))]
 use crate::api::dialog::FileDialogBuilder;
-use crate::{
-  api::dialog::{ask as ask_dialog, message as message_dialog, AskResponse},
-  app::InvokeResponse,
-};
+use crate::api::dialog::{ask as ask_dialog, message as message_dialog, AskResponse};
 use serde::Deserialize;
 
 use std::path::PathBuf;
@@ -65,7 +63,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub async fn run(self) -> crate::Result<InvokeResponse> {
+  pub fn run(self) -> crate::Result<InvokeResponse> {
     match self {
       Self::OpenDialog { options } => {
         #[cfg(dialog_open)]

@@ -38,25 +38,43 @@ async function manageDependencies(
       const currentVersion = await getNpmPackageVersion(dependency);
       if (currentVersion === null) {
         log(`Installing ${dependency}...`);
-        if (managementType === ManagementType.Install) {
-          await installNpmPackage(dependency);
-        } else if (managementType === ManagementType.InstallDev) {
-          await installNpmDevPackage(dependency);
+        if (
+          managementType === ManagementType.Install ||
+          managementType === ManagementType.InstallDev
+        ) {
+          const packageManager = (await useYarn()) ? "YARN" : "NPM";
+          const inquired = (await inquirer.prompt([
+            {
+              type: "confirm",
+              name: "answer",
+              message: `[${packageManager}]: "Do you want to install ${dependency} ${
+                managementType === ManagementType.InstallDev
+                  ? "as dev-dependency"
+                  : ""
+              }?"`,
+              default: false,
+            },
+          ])) as { answer: boolean };
+          if (inquired.answer) {
+            if (managementType === ManagementType.Install) {
+              await installNpmPackage(dependency);
+            } else if (managementType === ManagementType.InstallDev) {
+              await installNpmDevPackage(dependency);
+            }
+            installedDeps.push(dependency);
+          }
         }
-        installedDeps.push(dependency);
       } else if (managementType === ManagementType.Update) {
         const latestVersion = await getNpmLatestVersion(dependency);
         if (semverLt(currentVersion, latestVersion)) {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
-          const inquired = await inquirer.prompt([
+          const inquired = (await inquirer.prompt([
             {
               type: "confirm",
               name: "answer",
               message: `[NPM]: "${dependency}" latest version is ${latestVersion}. Do you want to update?`,
               default: false,
             },
-          ]);
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
+          ])) as { answer: boolean };
           if (inquired.answer) {
             log(`Updating ${dependency}...`);
             updateNpmPackage(dependency);
@@ -78,7 +96,7 @@ async function manageDependencies(
   return result;
 }
 
-const dependencies = ["tauri"];
+const dependencies = ["@tauri-apps/api", "@tauri-apps/cli"];
 
 async function install(): Promise<Result> {
   return await manageDependencies(ManagementType.Install, dependencies);

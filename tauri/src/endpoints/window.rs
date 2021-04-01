@@ -1,4 +1,5 @@
-use crate::app::{ApplicationExt, Icon, InvokeResponse};
+use super::InvokeResponse;
+use crate::app::{ApplicationExt, Icon};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -96,7 +97,7 @@ impl Cmd {
     if cfg!(not(window_all)) {
       Err(crate::Error::ApiNotAllowlisted("window > all".to_string()))
     } else {
-      let current_webview = webview_manager.current_webview().await?;
+      let current_webview = webview_manager.current_webview()?;
       match self {
         Self::CreateWebview { options } => {
           #[cfg(not(window_create))]
@@ -111,13 +112,11 @@ impl Cmd {
                 Ok(crate::app::webview::WindowConfig(options).into())
               })
               .await?;
-            webview_manager
-              .emit_except(
-                label.to_string(),
-                "tauri://window-created",
-                Some(WindowCreatedEvent { label }),
-              )
-              .await?;
+            webview_manager.emit_except(
+              label.to_string(),
+              "tauri://window-created",
+              Some(WindowCreatedEvent { label }),
+            )?;
           }
         }
         Self::SetResizable { resizable } => current_webview.set_resizable(resizable)?,

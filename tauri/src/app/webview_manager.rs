@@ -1,10 +1,15 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+  collections::HashMap,
+  future::Future,
+  sync::{Arc, Mutex},
+};
 
 use super::{
+  event::{EventId, EventPayload},
   App, ApplicationDispatcherExt, ApplicationExt, Icon, Webview, WebviewBuilderExt,
   WebviewInitializer,
 };
-use crate::{api::config::WindowUrl, async_runtime::Mutex, flavors::Wry};
+use crate::{api::config::WindowUrl, flavors::Wry};
 
 use serde::Serialize;
 
@@ -29,12 +34,22 @@ impl<A: ApplicationDispatcherExt> WebviewDispatcher<A> {
   }
 
   /// Listen to a webview event.
-  pub fn listen<F: FnMut(Option<String>) + Send + 'static>(
+  pub fn listen<F: Fn(EventPayload) + Send + 'static>(
     &self,
     event: impl AsRef<str>,
     handler: F,
-  ) {
+  ) -> EventId {
     super::event::listen(event, Some(self.window_label.to_string()), handler)
+  }
+
+  /// Listen to a webview event and unlisten after the first event.
+  pub fn once<F: Fn(EventPayload) + Send + 'static>(&self, event: impl AsRef<str>, handler: F) {
+    super::event::once(event, Some(self.window_label.to_string()), handler)
+  }
+
+  /// Unregister the event listener with the given id.
+  pub fn unlisten(&self, event_id: EventId) {
+    super::event::unlisten(event_id)
   }
 
   /// Emits an event to the webview.
@@ -179,7 +194,7 @@ pub struct WebviewManager<A = Wry>
 where
   A: ApplicationExt,
 {
-  application: Arc<App<A>>,
+  application: Arc<Mutex<App<A>>>,
   dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A::Dispatcher>>>>,
   current_webview_window_label: String,
 }
@@ -196,7 +211,7 @@ impl<A: ApplicationExt> Clone for WebviewManager<A> {
 
 impl<A: ApplicationExt + 'static> WebviewManager<A> {
   pub(crate) fn new(
-    application: Arc<App<A>>,
+    application: Arc<Mutex<App<A>>>,
     dispatchers: Arc<Mutex<HashMap<String, WebviewDispatcher<A::Dispatcher>>>>,
     label: String,
   ) -> Self {
@@ -207,25 +222,31 @@ impl<A: ApplicationExt + 'static> WebviewManager<A> {
     }
   }
 
+  /// Spawns an asynchronous task
+  pub fn spawn<F>(task: F)
+  where
+    F: Future + Send + 'static,
+    F::Output: Send + 'static,
+  {
+    crate::async_runtime::spawn(task)
+  }
+
   /// Returns the label of the window associated with the current context.
   pub fn current_window_label(&self) -> &str {
     &self.current_webview_window_label
   }
 
   /// Gets the webview associated with the current context.
-  pub async fn current_webview(&self) -> crate::Result<WebviewDispatcher<A::Dispatcher>> {
-    self.get_webview(&self.current_webview_window_label).await
+  pub fn current_webview(&self) -> crate::Result<WebviewDispatcher<A::Dispatcher>> {
+    self.get_webview(&self.current_webview_window_label)
   }
 
   /// Gets the webview associated with the given window label.
-  pub async fn get_webview(
-    &self,
-    window_label: &str,
-  ) -> crate::Result<WebviewDispatcher<A::Dispatcher>> {
+  pub fn get_webview(&self, window_label: &str) -> crate::Result<WebviewDispatcher<A::Dispatcher>> {
     self
       .dispatchers
       .lock()
-      .await
+      .unwrap()
       .get(window_label)
       .ok_or(crate::Error::WebviewNotFound)
       .map(|d| d.clone())
@@ -246,17 +267,20 @@ impl<A: ApplicationExt + 'static> WebviewManager<A> {
     };
     self
       .application
+      .lock()
+      .unwrap()
       .window_labels
       .lock()
-      .await
+      .unwrap()
       .push(label.to_string());
-    let (webview_builder, rpc_handler, custom_protocol) =
-      self.application.init_webview(webview).await?;
+    let (webview_builder, rpc_handler, custom_protocol, file_drop_handler) =
+      self.application.init_webview(webview)?;
 
-    let window_dispatcher = self.current_webview().await?.dispatcher.create_webview(
+    let window_dispatcher = self.current_webview()?.dispatcher.create_webview(
       webview_builder,
       rpc_handler,
       custom_protocol,
+      file_drop_handler,
     )?;
     let webview_manager = Self::new(
       self.application.clone(),
@@ -265,44 +289,50 @@ impl<A: ApplicationExt + 'static> WebviewManager<A> {
     );
     self
       .application
-      .on_webview_created(
-        label.to_string(),
-        window_dispatcher.clone(),
-        webview_manager,
-      )
-      .await;
+      .on_webview_created(label.to_string(), window_dispatcher.clone());
+    crate::plugin::created(A::plugin_store(), &webview_manager);
     Ok(WebviewDispatcher::new(window_dispatcher, label))
   }
 
   /// Listen to a global event.
   /// An event from any webview will trigger the handler.
-  pub fn listen<F: FnMut(Option<String>) + Send + 'static>(
+  pub fn listen<F: Fn(EventPayload) + Send + 'static>(
     &self,
     event: impl AsRef<str>,
     handler: F,
-  ) {
+  ) -> EventId {
     super::event::listen(event, None, handler)
   }
 
+  /// Listen to a global event and unlisten after the first event.
+  pub fn once<F: Fn(EventPayload) + Send + 'static>(&self, event: impl AsRef<str>, handler: F) {
+    super::event::once(event, None, handler)
+  }
+
+  /// Unregister the global event listener with the given id.
+  pub fn unlisten(&self, event_id: EventId) {
+    super::event::unlisten(event_id)
+  }
+
   /// Emits an event to all webviews.
-  pub async fn emit<S: Serialize + Clone>(
+  pub fn emit<S: Serialize + Clone>(
     &self,
     event: impl AsRef<str>,
     payload: Option<S>,
   ) -> crate::Result<()> {
-    for dispatcher in self.dispatchers.lock().await.values() {
+    for dispatcher in self.dispatchers.lock().unwrap().values() {
       super::event::emit(&dispatcher, event.as_ref(), payload.clone())?;
     }
     Ok(())
   }
 
-  pub(crate) async fn emit_except<S: Serialize + Clone>(
+  pub(crate) fn emit_except<S: Serialize + Clone>(
     &self,
     except_label: String,
     event: impl AsRef<str>,
     payload: Option<S>,
   ) -> crate::Result<()> {
-    for dispatcher in self.dispatchers.lock().await.values() {
+    for dispatcher in self.dispatchers.lock().unwrap().values() {
       if dispatcher.window_label != except_label {
         super::event::emit(&dispatcher, event.as_ref(), payload.clone())?;
       }

@@ -1,5 +1,5 @@
 import { invokeTauriCommand } from './helpers/tauri'
-import { EventCallback, emit, listen, once } from './helpers/event'
+import { EventCallback, UnlistenFn, emit, listen, once } from './helpers/event'
 
 interface WindowDef {
   label: string
@@ -39,10 +39,18 @@ class WebviewWindowHandle {
    *
    * @param event the event name
    * @param handler the event handler callback
+   * @return {Promise<UnlistenFn>} a promise resolving to a function to unlisten to the event.
    */
-  async listen<T>(event: string, handler: EventCallback<T>): Promise<void> {
+  async listen<T>(
+    event: string,
+    handler: EventCallback<T>
+  ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return Promise.resolve()
+      return Promise.resolve(() => {
+        // eslint-disable-next-line security/detect-object-injection
+        const listeners = this.listeners[event]
+        listeners.splice(listeners.indexOf(handler), 1)
+      })
     }
     return listen(event, handler)
   }
@@ -53,9 +61,13 @@ class WebviewWindowHandle {
    * @param event the event name
    * @param handler the event handler callback
    */
-  async once<T>(event: string, handler: EventCallback<T>): Promise<void> {
+  async once<T>(event: string, handler: EventCallback<T>): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return Promise.resolve()
+      return Promise.resolve(() => {
+        // eslint-disable-next-line security/detect-object-injection
+        const listeners = this.listeners[event]
+        listeners.splice(listeners.indexOf(handler), 1)
+      })
     }
     return once(event, handler)
   }
@@ -70,7 +82,7 @@ class WebviewWindowHandle {
     if (localTauriEvents.includes(event)) {
       // eslint-disable-next-line
       for (const handler of this.listeners[event] || []) {
-        handler({ type: event, payload })
+        handler({ event, id: -1, payload })
       }
       return Promise.resolve()
     }
@@ -426,7 +438,7 @@ class WindowManager {
   }
 }
 
-const manager = new WindowManager()
+const appWindow = new WindowManager()
 
 export interface WindowOptions {
   url?: 'app' | string
@@ -447,4 +459,4 @@ export interface WindowOptions {
   alwaysOnTop?: boolean
 }
 
-export { WebviewWindow, getCurrent, getAll, manager }
+export { WebviewWindow, getCurrent, getAll, appWindow }

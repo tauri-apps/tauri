@@ -62,13 +62,10 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
   // If function doesn't take the webview manager, wrapper just takes webview manager generically and ignores it
   // Otherwise the wrapper uses the specific type from the original function declaration
   let mut manager_arg_type = quote!(::tauri::WebviewManager<A>);
-  let mut application_ext_generic = quote!(<A: ::tauri::ApplicationExt>);
   let manager_arg_maybe = match types.first() {
     Some(first_type) if uses_manager => {
       // Give wrapper specific type
       manager_arg_type = quote!(#first_type);
-      // Generic is no longer needed
-      application_ext_generic = quote!();
       // Remove webview manager arg from list so it isn't expected as arg from JS
       types.drain(0..1);
       names.drain(0..1);
@@ -91,24 +88,28 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
   let return_value = if returns_result {
     quote! {
       match #fn_name(#manager_arg_maybe #(parsed_args.#names),*)#await_maybe {
-        Ok(value) => ::core::result::Result::Ok(value.into()),
-        Err(e) => ::core::result::Result::Err(tauri::Error::Command(::serde_json::to_value(e)?)),
+        Ok(value) => ::core::result::Result::Ok(value),
+        Err(e) => ::core::result::Result::Err(e),
       }
     }
   } else {
-    quote! { ::core::result::Result::Ok(#fn_name(#manager_arg_maybe #(parsed_args.#names),*)#await_maybe.into()) }
+    quote! { ::core::result::Result::<_, ()>::Ok(#fn_name(#manager_arg_maybe #(parsed_args.#names),*)#await_maybe) }
   };
 
   quote! {
     #function
-    pub async fn #fn_wrapper #application_ext_generic(_manager: #manager_arg_type, arg: ::serde_json::Value) -> ::tauri::Result<::tauri::InvokeResponse> {
+    pub fn #fn_wrapper<A: ::tauri::ApplicationExt + 'static>(_manager: #manager_arg_type, message: ::tauri::InvokeMessage<A>) {
       #[derive(::serde::Deserialize)]
       #[serde(rename_all = "camelCase")]
       struct ParsedArgs {
         #(#names: #types),*
       }
-      let parsed_args: ParsedArgs = ::serde_json::from_value(arg).map_err(|e| ::tauri::Error::InvalidArgs(#fn_name_str, e))?;
-      #return_value
+      match ::serde_json::from_value::<ParsedArgs>(message.payload()) {
+        Ok(parsed_args) => message.respond_async(async move {
+          #return_value
+        }),
+        Err(e) => message.reject(::core::result::Result::<(), String>::Err(::tauri::Error::InvalidArgs(#fn_name_str, e).to_string())),
+      }
     }
   }
 }
@@ -133,10 +134,10 @@ pub fn generate_handler(item: proc_macro::TokenStream) -> TokenStream {
   });
 
   quote! {
-    |webview_manager, command, arg| async move {
-      match command.as_str() {
-        #(stringify!(#fn_names) => #fn_wrappers(webview_manager, arg).await,)*
-        _ => Err(tauri::Error::UnknownApi(None)),
+    move |webview_manager, message| {
+      match message.command() {
+        #(stringify!(#fn_names) => #fn_wrappers(webview_manager, message),)*
+        _ => {},
       }
     }
   }

@@ -21,21 +21,29 @@ mod salt;
 
 /// The Tauri error enum.
 pub use error::Error;
+
 /// Tauri result type.
 pub type Result<T> = std::result::Result<T, Error>;
-
-pub(crate) mod async_runtime;
 
 /// A task to run on the main thread.
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 pub use app::*;
 pub use tauri_api as api;
-pub use tauri_macros::{command, generate_handler, FromTauriContext};
+pub(crate) use tauri_api::private::async_runtime;
+pub use tauri_macros::*;
 
 /// The Tauri webview implementations.
 pub mod flavors {
   pub use super::app::WryApplication as Wry;
+}
+
+/// Easy helper function to use the Tauri Context you made during build time.
+#[macro_export]
+macro_rules! tauri_build_context {
+  () => {
+    include!(concat!(env!("OUT_DIR"), "/tauri-build-context.rs"))
+  };
 }
 
 #[cfg(test)]

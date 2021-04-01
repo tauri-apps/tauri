@@ -1,4 +1,4 @@
-use crate::config::{CliArg, CliConfig, Config};
+use crate::config::{CliArg, CliConfig};
 
 use clap::{App, Arg, ArgMatches, ErrorKind};
 use serde::Serialize;
@@ -53,13 +53,7 @@ impl Matches {
 }
 
 /// Gets the arg matches of the CLI definition.
-pub fn get_matches(config: &Config) -> crate::Result<Matches> {
-  let cli = config
-    .tauri
-    .cli
-    .as_ref()
-    .ok_or(crate::Error::CliNotConfigured)?;
-
+pub fn get_matches(cli: &CliConfig) -> crate::Result<Matches> {
   let about = cli
     .description()
     .unwrap_or(&crate_description!().to_string())

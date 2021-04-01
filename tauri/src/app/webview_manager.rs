@@ -24,8 +24,14 @@ use std::{
 };
 
 #[allow(missing_docs)]
-pub trait Tag: Hash + Eq + FromStr + fmt::Display + Clone + Send + Sync + 'static {}
-impl<T> Tag for T where T: Hash + Eq + FromStr + fmt::Display + Clone + Send + Sync + 'static {}
+pub trait Tag:
+  Hash + Eq + FromStr + fmt::Display + fmt::Debug + Clone + Send + Sync + 'static
+{
+}
+impl<T> Tag for T where
+  T: Hash + Eq + FromStr + fmt::Display + fmt::Debug + Clone + Send + Sync + 'static
+{
+}
 
 pub struct InnerWindowManager<M: Manager> {
   pub(crate) windows: Mutex<HashSet<Window<M>>>,
@@ -106,8 +112,9 @@ where
     attrs: <R::Dispatcher as Dispatch>::Attributes,
     url: String,
     label: L,
-    pending_labels: &[L],
+    pending_labels: &HashSet<L>,
   ) -> crate::Result<<R::Dispatcher as Dispatch>::Attributes> {
+    dbg!(&pending_labels);
     let is_init_global = self.inner.config.build.with_global_tauri;
     let plugin_init = self
       .inner
@@ -116,17 +123,19 @@ where
       .expect("poisoned plugin store")
       .initialization_script();
 
-    let mut attributes = attrs
-      .url(url)
-      .initialization_script(&initialization_script(&plugin_init, is_init_global))
-      .initialization_script(&format!(
-        r#"
+    let init = format!(
+      r#"
               window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
               window.__TAURI__.__currentWindow = {{ label: {current_window_label} }}
             "#,
-        window_labels_array = tags_to_js_string_array(pending_labels)?,
-        current_window_label = tag_to_js_string(&label)? ,
-      ));
+      window_labels_array = tags_to_js_string_array(pending_labels)?,
+      current_window_label = tag_to_js_string(&label)?,
+    );
+
+    let mut attributes = attrs
+      .url(url)
+      .initialization_script(&initialization_script(&plugin_init, is_init_global))
+      .initialization_script(dbg!(&init));
 
     if !attributes.has_icon() {
       if let Some(default_window_icon) = &self.inner.default_window_icon {
@@ -250,7 +259,7 @@ pub(crate) fn tag_to_js_string(tag: &impl Tag) -> crate::Result<String> {
   Ok(serde_json::to_string(&tag.to_string())?)
 }
 
-pub(crate) fn tags_to_js_string_array(tags: &[impl Tag]) -> crate::Result<String> {
+pub(crate) fn tags_to_js_string_array(tags: &HashSet<impl Tag>) -> crate::Result<String> {
   let tags = tags
     .into_iter()
     .map(ToString::to_string)
@@ -301,7 +310,7 @@ where
   fn prepare_window(
     &self,
     mut pending: PendingWindow<Self>,
-    pending_labels: &[L],
+    pending_labels: &HashSet<L>,
   ) -> crate::Result<PendingWindow<Self>> {
     let (is_local, url) = match &pending.url {
       WindowUrl::App => (true, self.get_url()),
@@ -324,10 +333,19 @@ where
   }
 
   fn attach_window(&self, window: DetachedWindow<Self>) -> Window<Self> {
-    Window {
+    let window = Window {
       window,
       manager: self.clone(),
-    }
+    };
+
+    self
+      .inner
+      .windows
+      .lock()
+      .expect("poisoned window manager")
+      .insert(window.clone());
+
+    window
   }
 
   fn emit_filter<S: Serialize + Clone, F: Fn(&Window<Self>) -> bool>(
@@ -346,7 +364,7 @@ where
       .try_for_each(|window| window.emit(&event, payload.clone()))
   }
 
-  fn labels(&self) -> Vec<L> {
+  fn labels(&self) -> HashSet<L> {
     self
       .inner
       .windows

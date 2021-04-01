@@ -303,23 +303,18 @@ impl<M: Manager> Runner<M> {
     }
 
     self.manager.initialize_plugins()?;
-
-    let pending_windows = std::mem::take(&mut self.pending_windows);
-    let mut windows = Vec::new();
     let labels = self.pending_labels();
-    for pending in pending_windows {
-      let manager = self.manager.clone();
-      let res = manager.prepare_window(pending, &labels)?;
-      windows.push(res);
-    }
 
     let mut app = App {
       runtime: M::Runtime::new()?,
       manager: self.manager,
     };
 
-    for window in windows {
-      app.create_window(window)?;
+    let pending_windows = self.pending_windows;
+    for pending in pending_windows {
+      let pending = app.manager.prepare_window(pending, &labels)?;
+      let detached = app.runtime.create_window(pending)?;
+      app.manager.attach_window(detached);
     }
 
     (self.setup)(&mut app)?;
@@ -327,7 +322,7 @@ impl<M: Manager> Runner<M> {
     Ok(())
   }
 
-  fn pending_labels(&self) -> Vec<M::Label> {
+  fn pending_labels(&self) -> HashSet<M::Label> {
     self
       .pending_windows
       .iter()
@@ -365,7 +360,7 @@ pub(crate) mod sealed {
     fn prepare_window(
       &self,
       pending: PendingWindow<M>,
-      labels: &[M::Label],
+      labels: &HashSet<M::Label>,
     ) -> crate::Result<PendingWindow<M>>;
 
     /// Attach a detached window to the manager.
@@ -380,7 +375,7 @@ pub(crate) mod sealed {
     ) -> crate::Result<()>;
 
     /// All current window labels existing.
-    fn labels(&self) -> Vec<M::Label>;
+    fn labels(&self) -> HashSet<M::Label>;
 
     /// The configuration the [`Manager`] was built with.
     fn config(&self) -> &Config;

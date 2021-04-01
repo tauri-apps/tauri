@@ -5,10 +5,6 @@ import { vanillajs } from "./recipes/vanilla";
 
 import { shell } from "./shell";
 export { shell };
-// export {
-//   install as installDependencies,
-//   installThese,
-// } from "./dependency-manager/npm-packages";
 
 export interface Recipe {
   descriptiveName: string;

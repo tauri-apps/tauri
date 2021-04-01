@@ -248,8 +248,8 @@ pub(crate) fn tag_to_js_string(tag: &impl Tag) -> crate::Result<String> {
 pub(crate) fn tags_to_js_string_array(tags: &[impl Tag]) -> crate::Result<String> {
   let tags = tags
     .into_iter()
-    .map(tag_to_js_string)
-    .collect::<crate::Result<Vec<String>>>()?;
+    .map(ToString::to_string)
+    .collect::<Vec<String>>();
 
   Ok(serde_json::to_string(&tags)?)
 }

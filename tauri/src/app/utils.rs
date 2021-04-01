@@ -1,17 +1,3 @@
-// spawn an updater process.
-#[cfg(feature = "updater")]
-#[allow(dead_code)]
-pub(super) fn spawn_updater() {
-  std::thread::spawn(|| {
-    tauri_api::command::spawn_relative_command(
-      "updater".to_string(),
-      Vec::new(),
-      std::process::Stdio::inherit(),
-    )
-    .expect("Unable to spawn relative command");
-  });
-}
-
 #[cfg(test)]
 mod test {
   use crate::{generate_context, AsContext};

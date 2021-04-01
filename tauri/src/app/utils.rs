@@ -191,6 +191,10 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
       name: "tauri".into(),
       handler: Box::new(move |path| {
         let mut path = path
+          .split('?')
+          // ignore query string
+          .next()
+          .unwrap()
           .to_string()
           .replace(&format!("tauri://{}", bundle_identifier), "");
         if path.ends_with('/') {

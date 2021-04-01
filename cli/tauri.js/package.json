@@ -5,6 +5,11 @@
   "bin": {
     "tauri": "./bin/tauri.js"
   },
+  "files": [
+    "bin/**",
+    "dist/**",
+    "scripts/**"
+  ],
   "funding": {
     "type": "opencollective",
     "url": "https://opencollective.com/tauri"

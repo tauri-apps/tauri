@@ -5,19 +5,34 @@
   "bin": {
     "create-tauri-app": "./bin/create-tauri-app.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/tauri-apps/tauri.git"
-  },
+  "repository": "git+https://github.com/tauri-apps/tauri.git",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/tauri-apps/tauri/issues"
   },
   "homepage": "https://github.com/tauri-apps/tauri#readme",
+  "scripts": {
+    "build": "rollup --config",
+    "prepublishOnly": "yarn build"
+  },
   "dependencies": {
     "execa": "^5.0.0",
+    "lodash": "4.17.21",
     "minimist": "^1.2.5",
     "scaffe": "^0.1.5",
-    "tauri": "^0.14.0"
-  }
+    "tauri": "^0.14.1"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^13.0.0",
+    "@rollup/plugin-node-resolve": "^8.1.0",
+    "@rollup/plugin-typescript": "^5.0.1",
+    "@types/cross-spawn": "6.0.2",
+    "@types/inquirer": "7.3.1",
+    "@types/lodash": "4.14.168",
+    "@types/semver": "7.3.4",
+    "rollup": "^2.18.2",
+    "typescript": "4.2.2",
+    "webpack": "5.24.2"
+  },
+  "main": "index.js"
 }

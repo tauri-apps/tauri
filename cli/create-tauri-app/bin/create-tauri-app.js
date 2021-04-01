@@ -1,18 +1,21 @@
 const parseArgs = require("minimist");
 const inquirer = require("inquirer");
-const { resolve } = require("path");
-const { merge } = require("lodash");
+const { join } = require("path");
 const {
   recipeShortNames,
   recipeDescriptiveNames,
   recipeByDescriptiveName,
   recipeByShortName,
-} = require("../../tauri.js/dist/api/recipes");
+  shell,
+} = require("../dist/");
+const { dir } = require("console");
 
 /**
  * @type {object}
  * @property {boolean} h
  * @property {boolean} help
+ * @property {boolean} v
+ * @property {boolean} version
  * @property {string|boolean} f
  * @property {string|boolean} force
  * @property {boolean} l
@@ -22,10 +25,11 @@ const {
  * @property {string} r
  * @property {string} recipe
  */
-function main(cliArgs) {
+const createTauriApp = async (cliArgs) => {
   const argv = parseArgs(cliArgs, {
     alias: {
       h: "help",
+      v: "version",
       f: "force",
       l: "log",
       d: "directory",
@@ -44,22 +48,29 @@ function main(cliArgs) {
     return 0;
   }
 
-  if (argv.ci) {
-    runInit(argv);
-  } else {
-    getOptionsInteractive(argv).then((responses) => runInit(argv, responses));
+  if (argv.v) {
+    console.log(require("../package.json").version);
+    return false; // do this for node consumers and tests
   }
-}
+
+  if (argv.ci) {
+    return runInit(argv);
+  } else {
+    return getOptionsInteractive(argv).then((responses) =>
+      runInit(argv, responses)
+    );
+  }
+};
 
 function printUsage() {
   console.log(`
   Description
-    Inits the Tauri template. If Tauri cannot find the tauri.conf.json
-    it will create one.
+    Starts a new tauri app from a "recipe" or pre-built template.
   Usage
-    $ tauri create
+    $ yarn create tauri-app <app-name> # npm create-tauri-app <app-name>
   Options
     --help, -h           Displays this message
+    -v, --version        Displays the Tauri CLI version
     --ci                 Skip prompts
     --force, -f          Force init to overwrite [conf|template|all]
     --log, -l            Logging [boolean]
@@ -75,15 +86,7 @@ function printUsage() {
 }
 
 const getOptionsInteractive = (argv) => {
-  let defaultAppName = argv.A;
-  if (!defaultAppName) {
-    try {
-      const packageJson = JSON.parse(
-        readFileSync(resolve(process.cwd(), "package.json")).toString()
-      );
-      defaultAppName = packageJson.displayName || packageJson.name;
-    } catch {}
-  }
+  let defaultAppName = argv.A | "tauri app";
 
   return inquirer
     .prompt([
@@ -150,11 +153,15 @@ const getOptionsInteractive = (argv) => {
 };
 
 async function runInit(argv, config = {}) {
-  const { appName, recipeName, ...configOptions } = config;
-  const init = require("../../tauri.js/dist/api/init");
+  const {
+    appName,
+    recipeName,
+    tauri: {
+      window: { title },
+    },
+  } = config;
 
   let recipe;
-  let recipeSelection = "none";
 
   if (recipeName !== undefined) {
     recipe = recipeByDescriptiveName(recipeName);
@@ -168,81 +175,47 @@ async function runInit(argv, config = {}) {
   };
 
   if (recipe !== undefined) {
-    recipeSelection = recipe.shortName;
     buildConfig = recipe.configUpdate(buildConfig);
   }
 
   const directory = argv.d || process.cwd();
+  const cfg = {
+    ...buildConfig,
+    appName: appName || argv.A,
+    windowTitle: title || argv.w,
+  };
+  const appDirectory = join(directory, cfg.appName);
+  console.log(recipe);
 
-  init({
-    directory,
-    force: argv.f || null,
-    logging: argv.l || null,
-    tauriPath: argv.t || null,
-    appName: appName || argv.A || null,
-    customConfig: merge(configOptions, {
-      build: buildConfig,
-      tauri: {
-        window: {
-          title: argv.W,
-        },
-      },
-    }),
+  const preInit = await recipe.preInit({ cwd: directory, cfg });
+
+  const initArgs = [
+    ["--app-name", cfg.appName],
+    ["--window-title", cfg.windowTitle],
+    ["--dist-dir", cfg.distDir],
+    ["--dev-path", cfg.devPath],
+  ].reduce((final, argSet) => {
+    if (argSet[1]) {
+      return final.concat([argSet[0], `\"${argSet[1]}\"`]);
+    } else {
+      return final;
+    }
+  }, []);
+
+  await shell("yarn", ["add", "tauri", "--dev"], {
+    cwd: appDirectory,
+    stdio: "inherit",
+  });
+  await shell("yarn", ["tauri", "init", ...initArgs], {
+    cwd: appDirectory,
   });
 
-  const {
-    installDependencies,
-  } = require("../../tauri.js/dist/api/dependency-manager");
-  await installDependencies();
-
-  if (recipe !== undefined) {
-    const {
-      installRecipeDependencies,
-      runRecipePostConfig,
-    } = require("../../tauri.js/dist/api/recipes/install");
-
-    await installRecipeDependencies(recipe, directory);
-    await runRecipePostConfig(recipe, directory);
-  }
+  const postInit = await recipe.postInit({
+    cwd: appDirectory,
+    cfg,
+  });
 }
 
-module.exports = main;
-
-/* will merge these later
-
-const parseArgs = require('minimist')
-const argv = parseArgs(process.argv.slice(2));
-
-/**
- * @description This is the bootstrapper that in turn calls subsequent
- * Tauri Commands
- *
- * @param {Object} argv
-*
-const tauri = (args) => {
-const tauri = async (args) => {
-  if (args["h"] || args["help"]) {
-    require("./help.js")();
-    return false // do this for node consumers and tests
-  }
-
-  if(args["v"] || args["version"]){
-    console.log(require("../package.json").version)
-    return false // do this for node consumers and tests
-  }
-
-  if(args["_"].length === 1){
-    await require("./create.js")(args)
-  }
-  else if(args["_"].length > 1){
-    console.log("ERR: Too many arguments.")
-  } else {
-    require("./help.js")();
-    return false // do this for node consumers and tests
-  }
-}
-
-tauri(argv).catch(err => {
-  console.log(err)
-})
-*/
+createTauriApp(process.argv.slice(2)).catch((err) => {
+  console.error(err);
+});

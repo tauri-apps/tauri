@@ -1,13 +1,8 @@
-import { Recipe } from ".";
+import { Recipe } from "..";
 import { TauriBuildConfig } from "./../types/config";
-import { spawnSync } from "../../../tauri.js/src/helpers/spawn";
-import logger from "../../../tauri.js/src/helpers/logger";
-import copyTemplates from "../../../tauri.js/src/helpers/copy-templates";
-import { resolve, join } from "path";
+import { shell } from "../shell";
 
 const uiAppDir = "app-ui";
-
-const log = logger("react-recipe");
 
 const completeLogMsg = `
   Your installation completed.
@@ -15,18 +10,18 @@ const completeLogMsg = `
 `;
 
 const afterCra = (): void => {
-  copyTemplates({
-    source: resolve(__dirname, "../../templates/recipes/react/"),
-    scope: {},
-    target: join(uiAppDir, "./src/"),
-  });
-  log(completeLogMsg);
+  // copyTemplates({
+  //   source: resolve(__dirname, "../../templates/recipes/react/"),
+  //   scope: {},
+  //   target: join(uiAppDir, "./src/"),
+  // });
+  console.log(completeLogMsg);
 };
 
 const reactjs: Recipe = {
   descriptiveName: "React.js",
   shortName: "reactjs",
-  configUpdate: (cfg: TauriBuildConfig): TauriBuildConfig => ({
+  configUpdate: (cfg) => ({
     ...cfg,
     distDir: `../${uiAppDir}/build`,
     devPath: "http://localhost:3000",
@@ -35,8 +30,11 @@ const reactjs: Recipe = {
   }),
   extraNpmDevDependencies: ["create-react-app"],
   extraNpmDependencies: ["react"],
-  postConfiguration: (cwd: string) => {
-    spawnSync("yarn", ["create-react-app", uiAppDir], cwd);
+  preInit: async ({ cwd, cfg }) => {
+    // CRA creates the folder for you
+    await shell("yarn", ["create", "react-app", cfg.appName], { cwd });
+  },
+  postInit: async () => {
     afterCra();
   },
 };
@@ -52,12 +50,15 @@ const reactts: Recipe = {
     "@types/react-dom",
     "@types/jest",
   ],
-  postConfiguration: (cwd: string) => {
-    spawnSync(
+  preInit: async ({ cwd, cfg }) => {
+    // CRA creates the folder for you
+    await shell(
       "yarn",
-      ["create-react-app", "--template", "typescript", uiAppDir],
-      cwd
+      ["create", "react-app", "--template", "typescript", cfg.appName],
+      { cwd }
     );
+  },
+  postInit: async () => {
     afterCra();
   },
 };

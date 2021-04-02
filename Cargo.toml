@@ -15,9 +15,6 @@ members = [
   "examples/multiwindow/src-tauri",
 ]
 
-[patch.crates-io]
-wry = { git = "https://github.com/tauri-apps/wry", branch = "feat/file-drop-window-proxy" }
-
 # default to small, optimized workspace release binaries
 [profile.release]
 panic = "abort"

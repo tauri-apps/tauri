@@ -29,7 +29,8 @@ thiserror = "1.0.24"
 once_cell = "1.7.2"
 tauri-api = { version = "0.7.5", path = "../tauri-api" }
 tauri-macros = { version = "0.1", path = "../tauri-macros" }
-wry = "0.6"
+# TODO: TEMPORARY so that i can run the pr actions
+wry = { git = "https://github.com/tauri-apps/wry", branch = "feat/file-drop-window-proxy" }
 rand = "0.8"
 
 [build-dependencies]

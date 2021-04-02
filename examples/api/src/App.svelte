@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { open } from "@tauri-apps/api/shell";
 
+  import Welcome from "./components/Welcome.svelte";
   import Cli from "./components/Cli.svelte";
   import Communication from "./components/Communication.svelte";
   import Dialog from "./components/Dialog.svelte";
@@ -10,7 +11,7 @@
   import Notifications from "./components/Notifications.svelte";
   import Window from "./components/Window.svelte";
   import Shortcuts from "./components/Shortcuts.svelte";
-  import Welcome from "./components/Welcome.svelte";
+  import Shell from "./components/Shell.svelte";
 
   const views = [
     {
@@ -49,6 +50,10 @@
       label: "Shortcuts",
       component: Shortcuts,
     },
+    {
+      label: "Shell",
+      component: Shell,
+    }
   ];
 
   let selected = views[0];
@@ -97,7 +102,7 @@
       <svelte:component this={selected.component} {onMessage} />
     </div>
   </div>
-  <div id="response">
+  <div id="response" style="white-space: pre-line">
     <p class="flex row just-around">
       <strong>Tauri Console</strong>
       <a class="nv" on:click={()=> {

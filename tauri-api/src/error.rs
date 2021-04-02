@@ -4,9 +4,6 @@ pub enum Error {
   /// The extract archive error.
   #[error("Extract Error: {0}")]
   Extract(String),
-  /// The Command (spawn process) error.
-  #[error("Command Error: {0}")]
-  Command(String),
   /// The path operation error.
   #[error("Path Error: {0}")]
   Path(String),

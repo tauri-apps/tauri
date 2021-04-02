@@ -4,7 +4,7 @@ const chalk = require('chalk')
 const pkg = require('../package.json')
 const updateNotifier = require('update-notifier')
 
-const cmds = ['help', 'icon', 'deps']
+const cmds = ['icon', 'deps']
 const rustCliCmds = ['dev', 'build', 'init', 'info']
 
 const cmd = process.argv[2]

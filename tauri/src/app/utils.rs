@@ -43,20 +43,6 @@ pub(super) fn get_url(context: &Context) -> String {
   format!("tauri://{}", context.config.tauri.bundle.identifier)
 }
 
-// spawn an updater process.
-#[cfg(feature = "updater")]
-#[allow(dead_code)]
-pub(super) fn spawn_updater() {
-  std::thread::spawn(|| {
-    tauri_api::command::spawn_relative_command(
-      "updater".to_string(),
-      Vec::new(),
-      std::process::Stdio::inherit(),
-    )
-    .expect("Unable to spawn relative command");
-  });
-}
-
 pub(super) fn initialization_script(
   plugin_initialization_script: &str,
   with_global_tauri: bool,
@@ -205,6 +191,10 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
       name: "tauri".into(),
       handler: Box::new(move |path| {
         let mut path = path
+          .split('?')
+          // ignore query string
+          .next()
+          .unwrap()
           .to_string()
           .replace(&format!("tauri://{}", bundle_identifier), "");
         if path.ends_with('/') {
@@ -230,19 +220,13 @@ pub(super) fn build_webview<A: ApplicationExt + 'static>(
                 .canonicalize()
                 .or_else(|_| Err(crate::Error::AssetNotFound(path.clone())))
                 .and_then(|pathbuf| {
-
-                  if pathbuf.is_file() && pathbuf.starts_with(&dist_dir) {
-                    match std::fs::read(pathbuf) {
-                      Ok(asset) => return Ok(asset),
-                      Err(e) => {
-                        #[cfg(debug_assertions)]
-                        eprintln!("Error reading asset from dist: {:?}", e); // TODO log::error!
-                      }
+                  match std::fs::read(pathbuf) {
+                    Ok(asset) => Ok(asset),
+                    Err(e) => {
+                      eprintln!("Error reading asset from dist: {:?}", e); // TODO log::error!
+                      Err(crate::Error::AssetNotFound(path.clone()))
                     }
                   }
-
-                  Err(crate::Error::AssetNotFound(path))
-
                 })
             })
         }

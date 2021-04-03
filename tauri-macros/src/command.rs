@@ -69,7 +69,7 @@ pub fn generate_command(function: ItemFn) -> TokenStream {
 
   quote! {
     #function
-    pub fn #fn_wrapper<M: ::tauri::Manager>(message: ::tauri::InvokeMessage<M>) {
+    pub fn #fn_wrapper<P: ::tauri::Params>(message: ::tauri::InvokeMessage<P>) {
       #[derive(::serde::Deserialize)]
       #[serde(rename_all = "camelCase")]
       struct ParsedArgs {

@@ -1,5 +1,7 @@
-use super::InvokeResponse;
-use crate::{app::Managed, Manager, Window};
+use crate::endpoints::InvokeResponse;
+use crate::runtime::sealed::ManagedBase;
+use crate::runtime::window::Window;
+use crate::runtime::{Managed, Manager};
 use serde::Deserialize;
 
 /// The API descriptor.
@@ -26,11 +28,11 @@ impl Cmd {
     match self {
       Self::Listen { event, handler } => {
         let event_id = rand::random();
-        window.eval(&listen_js(event, event_id, handler))?;
+        window.eval(&listen_js(&window, event, event_id, handler))?;
         Ok(event_id.into())
       }
       Self::Unlisten { event_id } => {
-        window.eval(&unlisten_js(event_id))?;
+        window.eval(&unlisten_js(&window, event_id))?;
         Ok(().into())
       }
       Self::Emit {
@@ -62,7 +64,7 @@ impl Cmd {
   }
 }
 
-pub fn unlisten_js(event_id: u64) -> String {
+pub fn unlisten_js<M: Manager>(window: &Window<M>, event_id: u64) -> String {
   format!(
     "
       for (var event in (window['{listeners}'] || {{}})) {{
@@ -72,12 +74,17 @@ pub fn unlisten_js(event_id: u64) -> String {
         }}
       }}
     ",
-    listeners = crate::app::event::event_listeners_object_name(),
+    listeners = window.manager().event_listeners_object_name(),
     event_id = event_id,
   )
 }
 
-pub fn listen_js(event: String, event_id: u64, handler: String) -> String {
+pub fn listen_js<M: Manager>(
+  window: &Window<M>,
+  event: String,
+  event_id: u64,
+  handler: String,
+) -> String {
   format!(
     "if (window['{listeners}'] === void 0) {{
       window['{listeners}'] = {{}}
@@ -95,9 +102,9 @@ pub fn listen_js(event: String, event_id: u64, handler: String) -> String {
       window['{emit}'](e.eventData, e.salt, true)
     }}
   ",
-    listeners = crate::app::event::event_listeners_object_name(),
-    queue = crate::app::event::event_queue_object_name(),
-    emit = crate::app::event::emit_function_name(),
+    listeners = window.manager().event_listeners_object_name(),
+    queue = window.manager().event_queue_object_name(),
+    emit = window.manager().event_emit_function_name(),
     event = event,
     event_id = event_id,
     handler = handler

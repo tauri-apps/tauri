@@ -9,7 +9,7 @@ use serde_json::Value as JsonValue;
 /// The window webview URL options.
 #[derive(PartialEq, Debug, Clone)]
 pub enum WindowUrl {
-  /// The app's index URL.
+  /// The runtime's index URL.
   App,
   /// A custom URL.
   Custom(String),
@@ -37,7 +37,7 @@ impl<'de> Deserialize<'de> for WindowUrl {
       where
         E: serde::de::Error,
       {
-        if v.to_lowercase() == "app" {
+        if v.to_lowercase() == "runtime" {
           Ok(WindowUrl::App)
         } else {
           Ok(WindowUrl::Custom(v.to_string()))

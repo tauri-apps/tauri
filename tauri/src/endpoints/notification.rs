@@ -84,7 +84,7 @@ pub fn request_permission() -> crate::Result<String> {
   }
   let answer = tauri_api::dialog::ask(
     "Permissions",
-    "This app wants to show notifications. Do you allow?",
+    "This runtime wants to show notifications. Do you allow?",
   );
   match answer {
     tauri_api::dialog::AskResponse::Yes => {

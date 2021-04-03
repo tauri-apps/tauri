@@ -18,5 +18,5 @@ fn main() {
     })
     .build(tauri::generate_context!())
     .run()
-    .unwrap();
+    .expect("failed to run tauri application");
 }

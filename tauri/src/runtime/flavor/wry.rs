@@ -1,8 +1,11 @@
-use super::{Attributes, AttributesPrivate, FileDropEvent, Icon, RpcRequest, WindowConfig};
-use crate::{
-  runtime::{Dispatch, Runtime},
-  CustomProtocol, DetachedWindow, FileDropHandler, Manager, PendingWindow, WebviewRpcHandler,
+//! The [`wry`] webview runtime.
+
+use crate::runtime::webview::{
+  Attributes, AttributesPrivate, CustomProtocol, FileDropEvent, FileDropHandler, Icon, RpcRequest,
+  WebviewRpcHandler, WindowConfig,
 };
+use crate::runtime::window::{DetachedWindow, PendingWindow};
+use crate::runtime::{Dispatch, Manager, Runtime};
 use std::{convert::TryFrom, path::PathBuf};
 
 #[cfg(target_os = "windows")]
@@ -10,6 +13,7 @@ use std::fs::create_dir_all;
 #[cfg(target_os = "windows")]
 use tauri_api::path::{resolve_path, BaseDirectory};
 
+/// Wraps a Tauri icon into a format [`wry`] expects the icon to be in.
 pub struct WryIcon(wry::Icon);
 
 impl TryFrom<Icon> for WryIcon {
@@ -224,7 +228,7 @@ impl From<wry::FileDropEvent> for FileDropEvent {
   }
 }
 
-#[allow(missing_docs)] // todo
+/// A dispatcher for a [`wry`] runtime.
 #[derive(Clone)]
 pub struct WryDispatcher {
   window: wry::WindowProxy,
@@ -430,54 +434,6 @@ impl Dispatch for WryDispatcher {
   }
 }
 
-fn create_rpc_handler<M: Manager<Runtime = WryApplication>>(
-  app_proxy: wry::ApplicationProxy,
-  label: M::Label,
-  handler: WebviewRpcHandler<M>,
-) -> wry::WindowRpcHandler {
-  Box::new(move |window, request| {
-    handler(
-      DetachedWindow {
-        dispatcher: WryDispatcher {
-          window,
-          application: app_proxy.clone(),
-        },
-        label: label.clone(),
-      },
-      request.into(),
-    );
-    None
-  })
-}
-
-fn create_file_drop_handler<M: Manager<Runtime = WryApplication>>(
-  app_proxy: wry::ApplicationProxy,
-  label: M::Label,
-  handler: FileDropHandler<M>,
-) -> wry::WindowFileDropHandler {
-  Box::new(move |window, event| {
-    handler(
-      event.into(),
-      DetachedWindow {
-        dispatcher: WryDispatcher {
-          window,
-          application: app_proxy.clone(),
-        },
-        label: label.clone(),
-      },
-    )
-  })
-}
-
-fn create_custom_protocol(custom_protocol: CustomProtocol) -> wry::CustomProtocol {
-  wry::CustomProtocol {
-    name: custom_protocol.name.clone(),
-    handler: Box::new(move |data| {
-      (custom_protocol.handler)(data).map_err(|_| wry::Error::InitScriptError)
-    }),
-  }
-}
-
 /// A wrapper around the wry Application interface.
 pub struct WryApplication {
   inner: wry::Application,
@@ -532,5 +488,56 @@ impl Runtime for WryApplication {
 
   fn run(self) {
     wry::Application::run(self.inner)
+  }
+}
+
+/// Create a wry rpc handler from a tauri rpc handler.
+fn create_rpc_handler<M: Manager<Runtime = WryApplication>>(
+  app_proxy: wry::ApplicationProxy,
+  label: M::Label,
+  handler: WebviewRpcHandler<M>,
+) -> wry::WindowRpcHandler {
+  Box::new(move |window, request| {
+    handler(
+      DetachedWindow {
+        dispatcher: WryDispatcher {
+          window,
+          application: app_proxy.clone(),
+        },
+        label: label.clone(),
+      },
+      request.into(),
+    );
+    None
+  })
+}
+
+/// Create a wry file drop handler from a tauri file drop handler.
+fn create_file_drop_handler<M: Manager<Runtime = WryApplication>>(
+  app_proxy: wry::ApplicationProxy,
+  label: M::Label,
+  handler: FileDropHandler<M>,
+) -> wry::WindowFileDropHandler {
+  Box::new(move |window, event| {
+    handler(
+      event.into(),
+      DetachedWindow {
+        dispatcher: WryDispatcher {
+          window,
+          application: app_proxy.clone(),
+        },
+        label: label.clone(),
+      },
+    )
+  })
+}
+
+/// Create a wry custom protocol from a tauri custom protocol.
+fn create_custom_protocol(custom_protocol: CustomProtocol) -> wry::CustomProtocol {
+  wry::CustomProtocol {
+    name: custom_protocol.name.clone(),
+    handler: Box::new(move |data| {
+      (custom_protocol.handler)(data).map_err(|_| wry::Error::InitScriptError)
+    }),
   }
 }

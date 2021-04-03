@@ -6,24 +6,26 @@
 //! Tauri uses (and contributes to) the MIT licensed project that you can find at [webview](https://github.com/webview/webview).
 #![warn(missing_docs, rust_2018_idioms)]
 
-/// The Tauri-specific settings for your app e.g. notification permission status.
+/// The Tauri error enum.
+pub use error::Error;
+pub use tauri_api as api;
+pub(crate) use tauri_api::private::async_runtime;
+pub use tauri_macros::*;
+
+/// The Tauri-specific settings for your runtime e.g. notification permission status.
 pub mod settings;
 
-/// The webview application entry.
-mod app;
 /// The Tauri API endpoints.
 mod endpoints;
 mod error;
+mod event;
+mod hooks;
 /// The plugin manager module contains helpers to manage runtime plugins.
 pub mod plugin;
+/// The internal runtime between an [`App`] and the webview.
+pub mod runtime;
 /// The salt helpers.
 mod salt;
-
-/// The internal runtime between an [`App`] and the webview.
-mod runtime;
-
-/// The Tauri error enum.
-pub use error::Error;
 
 /// Tauri result type.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -31,27 +33,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// A task to run on the main thread.
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
-pub use app::*;
-pub use tauri_api as api;
-pub(crate) use tauri_api::private::async_runtime;
-pub use tauri_macros::*;
-
-#[allow(missing_docs)]
-pub struct Context<A: crate::api::assets::Assets> {
-  pub config: crate::api::config::Config,
-  pub assets: A,
-  pub default_window_icon: Option<Vec<u8>>,
-}
-
-pub use crate::{
-  app::{Manager, Tag},
-  runtime::{Dispatch, Runtime},
+/// types likely to be used by applications
+pub use {
+  api::config::WindowUrl,
+  hooks::InvokeMessage,
+  runtime::app::AppBuilder,
+  runtime::webview::Attributes,
+  runtime::{Context, Managed, Manager},
 };
-
-/// The Tauri webview implementations.
-pub mod flavors {
-  pub use super::app::{webview::wry::WryDispatcher, WryApplication as Wry};
-}
 
 /// Easy helper function to use the Tauri Context you made during build time.
 #[macro_export]

@@ -36,5 +36,5 @@ $ npm run tauri dev
 
 - Run the app
 ```bash
-$ ./src-tauri/target/release/app
+$ ./src-tauri/target/release/runtime
 ```

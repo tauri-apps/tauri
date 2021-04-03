@@ -30,7 +30,7 @@ pub fn format_callback<T: Into<JsonValue>, S: AsRef<str>>(function_name: S, arg:
       if (window["{fn}"]) {{
         window["{fn}"]({arg})
       }} else {{
-        console.warn("[TAURI] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
+        console.warn("[TAURI] Couldn't find callback id {fn} in window. This happens when the runtime is reloaded while Rust is running an asynchronous operation.")
       }}
     "#,
     fn = function_name.as_ref(),

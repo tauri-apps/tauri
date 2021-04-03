@@ -10,7 +10,6 @@
     var WebviewWindow = window.__TAURI__.window.WebviewWindow
     var thisTauriWindow = window.__TAURI__.window.getCurrent();
     var windowLabel = thisTauriWindow.label;
-    console.log(`this window is ${windowLabel}`)
     var windowLabelContainer = document.getElementById("window-label");
     windowLabelContainer.innerHTML =
       "This is the " + windowLabel + " window.";
@@ -63,7 +62,6 @@
     container.appendChild(globalMessageButton);
 
     var allWindows = window.__TAURI__.window.getAll()
-    console.log(allWindows.toString())
     for (var index in allWindows) {
       var label = allWindows[index].label;
       if (label === windowLabel) {

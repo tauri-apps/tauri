@@ -1,17 +1,16 @@
-use crate::app::webview_manager::DetachedWindow;
+use crate::runtime::window::DetachedWindow;
 use serde_json::Value as JsonValue;
 use std::{convert::TryFrom, path::PathBuf};
-
-pub mod wry;
 
 /// A icon definition.
 pub enum Icon {
   /// Icon from file path.
-  File(String),
+  File(String), // todo: why is this a String instead of PathBuf? (explain in comment)
   /// Icon from raw bytes.
   Raw(Vec<u8>),
 }
 
+// TODO: is this even used?
 /// Messages to dispatch to the application.
 pub enum Message {
   // webview messages
@@ -160,6 +159,8 @@ pub trait Attributes: Sized {
   fn build(self) -> Self;
 }
 
+// TODO: should probably expand the following documentation
+
 /// Rpc request.
 pub struct RpcRequest {
   /// RPC command.
@@ -191,5 +192,5 @@ pub enum FileDropEvent {
 }
 
 /// File drop handler callback
-/// Return `true` in the callback to block the OS' default behavior of handling a file drop..
+/// Return `true` in the callback to block the OS' default behavior of handling a file drop.
 pub type FileDropHandler<M> = Box<dyn Fn(FileDropEvent, DetachedWindow<M>) -> bool + Send>;

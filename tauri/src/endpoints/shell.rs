@@ -1,15 +1,10 @@
-use super::InvokeResponse;
-use crate::{
-  api::{
-    command::{Command, CommandChild, CommandEvent},
-    rpc::format_callback,
-  },
-  Manager, Window,
-};
-
+use crate::api::command::{Command, CommandChild, CommandEvent};
+use crate::api::rpc::format_callback;
+use crate::endpoints::InvokeResponse;
+use crate::runtime::window::Window;
+use crate::runtime::Manager;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
-
 use std::{
   collections::HashMap,
   sync::{Arc, Mutex},

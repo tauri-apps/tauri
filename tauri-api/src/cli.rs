@@ -18,7 +18,7 @@ pub struct ArgData {
   /// - Value::Null otherwise.
   pub value: Value,
   /// The number of occurrences of the arg.
-  /// e.g. `./app --arg 1 --arg 2 --arg 2 3 4` results in three occurrences.
+  /// e.g. `./runtime --arg 1 --arg 2 --arg 2 3 4` results in three occurrences.
   pub occurrences: u64,
 }
 

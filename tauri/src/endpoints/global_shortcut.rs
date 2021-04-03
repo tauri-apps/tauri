@@ -1,11 +1,12 @@
 use super::InvokeResponse;
-#[cfg(global_shortcut_all)]
-use crate::api::shortcuts::ShortcutManager;
+use crate::runtime::window::Window;
+use crate::runtime::{Dispatch, Manager};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
-
-use crate::{runtime::Dispatch, Manager, Window};
 use std::sync::{Arc, Mutex};
+
+#[cfg(global_shortcut_all)]
+use crate::api::shortcuts::ShortcutManager;
 
 #[cfg(global_shortcut_all)]
 type ShortcutManagerHandle = Arc<Mutex<ShortcutManager>>;

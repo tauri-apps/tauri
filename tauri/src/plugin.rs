@@ -1,4 +1,7 @@
-use crate::{api::config::PluginConfig, InvokeMessage, Manager, PageLoadPayload, Window};
+use crate::api::config::PluginConfig;
+use crate::hooks::{InvokeMessage, PageLoadPayload};
+use crate::runtime::window::Window;
+use crate::runtime::Manager;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 

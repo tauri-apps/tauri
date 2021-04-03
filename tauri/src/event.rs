@@ -1,5 +1,4 @@
-use crate::Tag;
-use once_cell::sync::Lazy;
+use crate::runtime::tag::Tag;
 use std::{
   boxed::Box,
   collections::HashMap,
@@ -9,51 +8,87 @@ use std::{
 };
 use uuid::Uuid;
 
-/// A randomly generated id that represents an event handler.
+/// Represents an event handler.
 #[derive(Debug, Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct HandlerId(Uuid);
+pub struct EventHandler(Uuid);
 
-impl Default for HandlerId {
-  fn default() -> Self {
-    Self(Uuid::new_v4())
-  }
-}
-
-impl fmt::Display for HandlerId {
+impl fmt::Display for EventHandler {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     self.0.fmt(f)
   }
 }
 
-struct Handler<L: Tag> {
-  window: Option<L>,
-  callback: Box<dyn Fn(EventPayload) + Send>,
+/// An event that was triggered.
+#[derive(Debug, Clone)]
+pub struct Event {
+  id: EventHandler,
+  data: Option<String>,
 }
 
-type Handlers<E, L> = HashMap<E, HashMap<HandlerId, Handler<L>>>;
+impl Event {
+  /// The [`EventHandler`] that was triggered.
+  pub fn id(&self) -> EventHandler {
+    self.id
+  }
+
+  /// The event payload.
+  pub fn payload(&self) -> Option<&str> {
+    self.data.as_deref()
+  }
+}
+
+/// Stored in [`Listeners`] to be called upon when the event that stored it is triggered.
+struct Handler<Window: Tag> {
+  window: Option<Window>,
+  callback: Box<dyn Fn(Event) + Send>,
+}
+
+/// A collection of handlers. Multiple handlers can represent the same event.
+type Handlers<Event, Window> = HashMap<Event, HashMap<EventHandler, Handler<Window>>>;
 
 #[derive(Clone)]
-pub struct Listeners<E: Tag, L: Tag> {
-  inner: Arc<Mutex<Handlers<E, L>>>,
+pub(crate) struct Listeners<Event: Tag, Window: Tag> {
+  inner: Arc<Mutex<Handlers<Event, Window>>>,
+  function_name: Uuid,
+  listeners_object_name: Uuid,
+  queue_object_name: Uuid,
 }
 
 impl<E: Tag, L: Tag> Default for Listeners<E, L> {
   fn default() -> Self {
     Self {
       inner: Arc::new(Mutex::default()),
+      function_name: Uuid::new_v4(),
+      listeners_object_name: Uuid::new_v4(),
+      queue_object_name: Uuid::new_v4(),
     }
   }
 }
 
 impl<E: Tag, L: Tag> Listeners<E, L> {
+  /// Randomly generated function name to represent the JavaScript event function.
+  pub(crate) fn function_name(&self) -> String {
+    self.function_name.to_string()
+  }
+
+  /// Randomly generated listener object name to represent the JavaScript event listener object.
+  pub(crate) fn listeners_object_name(&self) -> String {
+    self.function_name.to_string()
+  }
+
+  /// Randomly generated queue object name to represent the JavaScript event queue object.
+  pub(crate) fn queue_object_name(&self) -> String {
+    self.queue_object_name.to_string()
+  }
+
   /// Adds an event listener for JS events.
-  pub fn listen<F: Fn(EventPayload) + Send + 'static>(
+  pub(crate) fn listen<F: Fn(Event) + Send + 'static>(
     &self,
     event: E,
     window: Option<L>,
     handler: F,
-  ) -> HandlerId {
-    let id = HandlerId::default();
+  ) -> EventHandler {
+    let id = EventHandler(Uuid::new_v4());
     let handler = Handler {
       window,
       callback: Box::new(handler),
@@ -69,7 +104,7 @@ impl<E: Tag, L: Tag> Listeners<E, L> {
   }
 
   /// Listen to a JS event and immediately unlisten.
-  pub fn once<F: Fn(EventPayload) + Send + 'static>(
+  pub(crate) fn once<F: Fn(Event) + Send + 'static>(
     &self,
     event: E,
     window: Option<L>,
@@ -83,7 +118,7 @@ impl<E: Tag, L: Tag> Listeners<E, L> {
   }
 
   /// Removes an event listener.
-  pub fn unlisten(&self, handler_id: HandlerId) {
+  pub(crate) fn unlisten(&self, handler_id: EventHandler) {
     self
       .inner
       .lock()
@@ -100,48 +135,11 @@ impl<E: Tag, L: Tag> Listeners<E, L> {
       for (&id, handler) in handlers {
         if window.is_none() || window == handler.window {
           let data = data.clone();
-          let payload = EventPayload { id, data };
+          let payload = Event { id, data };
           (handler.callback)(payload)
         }
       }
     }
-  }
-}
-
-static EMIT_FUNCTION_NAME: Lazy<Uuid> = Lazy::new(Uuid::new_v4);
-static EVENT_LISTENERS_OBJECT_NAME: Lazy<Uuid> = Lazy::new(Uuid::new_v4);
-static EVENT_QUEUE_OBJECT_NAME: Lazy<Uuid> = Lazy::new(Uuid::new_v4);
-
-/// the emit JS function name
-pub fn emit_function_name() -> String {
-  EMIT_FUNCTION_NAME.to_string()
-}
-
-/// the event listeners JS object name
-pub fn event_listeners_object_name() -> String {
-  EVENT_LISTENERS_OBJECT_NAME.to_string()
-}
-
-/// the event queue JS object name
-pub fn event_queue_object_name() -> String {
-  EVENT_QUEUE_OBJECT_NAME.to_string()
-}
-
-#[derive(Debug, Clone)]
-pub struct EventPayload {
-  id: HandlerId,
-  data: Option<String>,
-}
-
-impl EventPayload {
-  /// The event identifier.
-  pub fn id(&self) -> HandlerId {
-    self.id
-  }
-
-  /// The event payload.
-  pub fn payload(&self) -> Option<&String> {
-    self.data.as_ref()
   }
 }
 
@@ -151,7 +149,7 @@ mod test {
   use proptest::prelude::*;
 
   // dummy event handler function
-  fn event_fn(s: EventPayload) {
+  fn event_fn(s: Event) {
     println!("{:?}", s);
   }
 

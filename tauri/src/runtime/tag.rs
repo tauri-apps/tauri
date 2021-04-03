@@ -43,6 +43,6 @@ impl<T: Tag> ToJavascript for T {
 
 /// Turn any collection of [`Tag`]s into a JavaScript array of strings.
 pub(crate) fn tags_to_javascript_array(tags: &[impl Tag]) -> crate::Result<String> {
-  let tags: Vec<String> = tags.into_iter().map(ToString::to_string).collect();
+  let tags: Vec<String> = tags.iter().map(ToString::to_string).collect();
   Ok(serde_json::to_string(&tags)?)
 }

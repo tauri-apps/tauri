@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       repository:
-        description: "Repository from which to pull and create a Tauri runtime."
+        description: "Repository from which to pull and create a Tauri app."
         required: false
         default: "tauri-apps/tauri"
       ref:
@@ -20,7 +20,7 @@ on:
         required: false
         default: "echo no build needed"
       buildTauri:
-        description: "Command to build the Tauri runtime."
+        description: "Command to build the Tauri app."
         required: false
         default: "tauri"
 env:
@@ -78,7 +78,7 @@ jobs:
       - name: install and build assets
         working-directory: "example/${{ github.event.inputs.dir }}"
         run: ${{ github.event.inputs.buildAssets }}
-      - name: build tauri runtime
+      - name: build tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -89,5 +89,5 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: success()
         with:
-          name: tauri-runtime.${{ matrix.platform }}
+          name: tauri-app.${{ matrix.platform }}
           path: ${{ format('./{0}{1}/src-tauri/{2}/**', 'example/', github.event.inputs.dir, matrix.releaseFolder ) }}

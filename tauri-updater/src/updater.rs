@@ -83,7 +83,7 @@ impl UpdateBuilder {
     self
   }
 
-  /// Set the current runtime version, used to compare against the latest available version.
+  /// Set the current app version, used to compare against the latest available version.
   /// The `cargo_crate_version!` macro can be used to pull the version from your `Cargo.toml`
   pub fn current_version(&mut self, ver: &str) -> &mut Self {
     self.current_version = Some(ver.to_owned());

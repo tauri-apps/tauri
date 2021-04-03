@@ -181,7 +181,7 @@ pub fn video_dir() -> Option<PathBuf> {
   dirs_next::video_dir()
 }
 
-/// Returns the path to the resource directory of this runtime.
+/// Returns the path to the resource directory of this app.
 pub fn resource_dir() -> Option<PathBuf> {
   crate::platform::resource_dir().ok()
 }
@@ -196,7 +196,7 @@ fn app_name() -> crate::Result<String> {
   Ok(app_name.to_string())
 }
 
-/// Returns the path to the suggested directory for your runtime config files.
+/// Returns the path to the suggested directory for your app config files.
 pub fn app_dir() -> Option<PathBuf> {
   dirs_next::config_dir().and_then(|mut dir| {
     if let Ok(app_name) = app_name() {

@@ -59,13 +59,13 @@ pub fn target_triple() -> crate::Result<String> {
 /// On Windows, it's the path to the executable.
 ///
 /// On Linux, when running in an AppImage the `APPDIR` variable will be set to
-/// the mounted location of the runtime, and the resource dir will be
+/// the mounted location of the app, and the resource dir will be
 /// `${APPDIR}/usr/lib/${exe_name}`. If not running in an AppImage, the path is
-/// `/usr/lib/${exe_name}`.  When running the runtime from
+/// `/usr/lib/${exe_name}`.  When running the app from
 /// `src-tauri/target/(debug|release)/`, the path is
 /// `${exe_dir}/../lib/${exe_name}`.
 ///
-/// On MacOS, it's `${exe_dir}../Resources` (inside .runtime).
+/// On MacOS, it's `${exe_dir}../Resources` (inside .app).
 pub fn resource_dir() -> crate::Result<PathBuf> {
   let exe = std::env::current_exe()?;
   let exe_dir = exe.parent().expect("failed to get exe directory");

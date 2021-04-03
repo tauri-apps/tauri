@@ -5,7 +5,7 @@ use std::{convert::TryFrom, path::PathBuf};
 /// A icon definition.
 pub enum Icon {
   /// Icon from file path.
-  File(String), // todo: why is this a String instead of PathBuf? (explain in comment)
+  File(PathBuf),
   /// Icon from raw bytes.
   Raw(Vec<u8>),
 }

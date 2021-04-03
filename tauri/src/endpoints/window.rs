@@ -8,10 +8,12 @@ use crate::{
 };
 use serde::Deserialize;
 
+use std::path::PathBuf;
+
 #[derive(Deserialize)]
 #[serde(untagged)]
 pub enum IconDto {
-  File(String),
+  File(PathBuf),
   Raw(Vec<u8>),
 }
 

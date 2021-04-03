@@ -5,7 +5,7 @@ use crate::runtime::webview::{
   WebviewRpcHandler, WindowConfig,
 };
 use crate::runtime::window::{DetachedWindow, PendingWindow};
-use crate::runtime::{Dispatch, Manager, Runtime};
+use crate::runtime::{Dispatch, Params, Runtime};
 use std::{convert::TryFrom, path::PathBuf};
 
 #[cfg(target_os = "windows")]
@@ -240,7 +240,7 @@ impl Dispatch for WryDispatcher {
   type Icon = WryIcon;
   type Attributes = wry::Attributes;
 
-  fn create_window<M: Manager<Runtime = Self::Runtime>>(
+  fn create_window<M: Params<Runtime = Self::Runtime>>(
     &mut self,
     pending: PendingWindow<M>,
   ) -> crate::Result<DetachedWindow<M>> {
@@ -447,7 +447,7 @@ impl Runtime for WryApplication {
     Ok(Self { inner: app })
   }
 
-  fn create_window<M: Manager<Runtime = Self>>(
+  fn create_window<M: Params<Runtime = Self>>(
     &mut self,
     pending: PendingWindow<M>,
   ) -> crate::Result<DetachedWindow<M>> {
@@ -492,7 +492,7 @@ impl Runtime for WryApplication {
 }
 
 /// Create a wry rpc handler from a tauri rpc handler.
-fn create_rpc_handler<M: Manager<Runtime = WryApplication>>(
+fn create_rpc_handler<M: Params<Runtime = WryApplication>>(
   app_proxy: wry::ApplicationProxy,
   label: M::Label,
   handler: WebviewRpcHandler<M>,
@@ -513,7 +513,7 @@ fn create_rpc_handler<M: Manager<Runtime = WryApplication>>(
 }
 
 /// Create a wry file drop handler from a tauri file drop handler.
-fn create_file_drop_handler<M: Manager<Runtime = WryApplication>>(
+fn create_file_drop_handler<M: Params<Runtime = WryApplication>>(
   app_proxy: wry::ApplicationProxy,
   label: M::Label,
   handler: FileDropHandler<M>,

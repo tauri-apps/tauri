@@ -1,7 +1,7 @@
 use crate::api::rpc::{format_callback, format_callback_result};
 use crate::runtime::app::App;
 use crate::runtime::window::Window;
-use crate::runtime::Manager;
+use crate::runtime::Params;
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 
@@ -41,7 +41,7 @@ pub(crate) struct InvokePayload {
 }
 
 /// An invoke message.
-pub struct InvokeMessage<M: Manager> {
+pub struct InvokeMessage<M: Params> {
   window: Window<M>,
   command: String,
 
@@ -49,7 +49,7 @@ pub struct InvokeMessage<M: Manager> {
   pub(crate) payload: InvokePayload,
 }
 
-impl<M: Manager> InvokeMessage<M> {
+impl<M: Params> InvokeMessage<M> {
   /// Create an new [`InvokeMessage`] from a payload send to a window.
   pub(crate) fn new(window: Window<M>, command: String, payload: InvokePayload) -> Self {
     Self {

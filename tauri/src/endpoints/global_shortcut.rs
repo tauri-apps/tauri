@@ -1,6 +1,6 @@
 use super::InvokeResponse;
 use crate::runtime::window::Window;
-use crate::runtime::{Dispatch, Manager};
+use crate::runtime::{Dispatch, Params};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::sync::{Arc, Mutex};
@@ -55,7 +55,7 @@ fn register_shortcut<D: Dispatch>(
 
 #[cfg(not(global_shortcut_all))]
 impl Cmd {
-  pub fn run<M: Manager>(self, _window: Window<M>) -> crate::Result<InvokeResponse> {
+  pub fn run<M: Params>(self, _window: Window<M>) -> crate::Result<InvokeResponse> {
     Err(crate::Error::ApiNotAllowlisted(
       "globalShortcut > all".to_string(),
     ))
@@ -64,7 +64,7 @@ impl Cmd {
 
 #[cfg(global_shortcut_all)]
 impl Cmd {
-  pub fn run<M: Manager>(self, window: Window<M>) -> crate::Result<InvokeResponse> {
+  pub fn run<M: Params>(self, window: Window<M>) -> crate::Result<InvokeResponse> {
     match self {
       Self::Register { shortcut, handler } => {
         let dispatcher = window.dispatcher();

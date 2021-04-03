@@ -2,7 +2,7 @@ use crate::endpoints::InvokeResponse;
 use crate::runtime::webview::{Icon, WindowConfig};
 use crate::runtime::window::PendingWindow;
 use crate::runtime::window::Window;
-use crate::runtime::{Managed, Manager};
+use crate::runtime::{Manager, Params};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -93,7 +93,7 @@ struct WindowCreatedEvent {
 }
 
 impl Cmd {
-  pub async fn run<M: Manager>(self, mut window: Window<M>) -> crate::Result<InvokeResponse> {
+  pub async fn run<M: Params>(self, mut window: Window<M>) -> crate::Result<InvokeResponse> {
     if cfg!(not(window_all)) {
       Err(crate::Error::ApiNotAllowlisted("window > all".to_string()))
     } else {

@@ -35,7 +35,7 @@ pub trait Runtime: Sized + 'static {
   fn new() -> crate::Result<Self>;
 
   /// Creates a new webview window.
-  fn create_window<M: Manager<Runtime = Self>>(
+  fn create_window<M: Params<Runtime = Self>>(
     &mut self,
     pending: PendingWindow<M>,
   ) -> crate::Result<DetachedWindow<M>>;
@@ -60,7 +60,7 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
     + Send;
 
   /// Creates a new webview window.
-  fn create_window<M: Manager<Runtime = Self::Runtime>>(
+  fn create_window<M: Params<Runtime = Self::Runtime>>(
     &mut self,
     pending: PendingWindow<M>,
   ) -> crate::Result<DetachedWindow<M>>;
@@ -134,7 +134,7 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
 
 /// Prevent implementation details from leaking out of the [`Manager`] and [`Managed`] traits.
 pub(crate) mod sealed {
-  use super::Manager;
+  use super::Params;
   use crate::api::config::Config;
   use crate::event::{Event, EventHandler};
   use crate::hooks::{InvokeMessage, PageLoadPayload};
@@ -144,7 +144,7 @@ pub(crate) mod sealed {
   use std::collections::HashSet;
 
   /// private manager api
-  pub trait ManagerBase<M: Manager>: Clone + Send + Sized + 'static {
+  pub trait ParamsPrivate<M: Params>: Clone + Send + Sized + 'static {
     /// Pass messages not handled by modules or plugins to the running application
     fn run_invoke_handler(&self, message: InvokeMessage<M>);
 
@@ -213,7 +213,7 @@ pub(crate) mod sealed {
   }
 
   /// Represents a managed handle to the application runner.
-  pub trait ManagedBase<M: Manager> {
+  pub trait ManagerPrivate<M: Params> {
     /// The manager behind the [`Managed`] item.
     fn manager(&self) -> &M;
 
@@ -223,7 +223,7 @@ pub(crate) mod sealed {
 }
 
 /// Represents either a [`Runtime`] or its dispatcher.
-pub enum RuntimeOrDispatch<'m, M: Manager> {
+pub enum RuntimeOrDispatch<'m, M: Params> {
   /// Mutable reference to the [`Runtime`].
   Runtime(&'m mut M::Runtime),
 
@@ -232,7 +232,7 @@ pub enum RuntimeOrDispatch<'m, M: Manager> {
 }
 
 /// Represents a managed handle to the application runner
-pub trait Managed<M: Manager>: sealed::ManagedBase<M> {
+pub trait Manager<M: Params>: sealed::ManagerPrivate<M> {
   /// The [`Config`] the manager was created with.
   fn config(&self) -> &Config {
     self.manager().config()
@@ -297,11 +297,17 @@ pub trait Managed<M: Manager>: sealed::ManagedBase<M> {
   }
 }
 
-/// public manager api
-#[allow(missing_docs)]
-pub trait Manager: sealed::ManagerBase<Self> {
+/// Types that the manager needs to have passed in by the application.
+pub trait Params: sealed::ParamsPrivate<Self> {
+  /// The event type used to create and listen to events.
   type Event: Tag;
+
+  /// The type used to determine the name of windows.
   type Label: Tag;
+
+  /// Assets that Tauri should serve from itself.
   type Assets: Assets;
+
+  /// The underlying webview runtime used by the Tauri application.
   type Runtime: Runtime;
 }

@@ -4,20 +4,20 @@ use crate::hooks::{InvokeHandler, InvokeMessage, OnPageLoad, PageLoadPayload, Se
 use crate::plugin::{Plugin, PluginStore};
 use crate::runtime::flavor::wry::WryApplication as Wry;
 use crate::runtime::manager::WindowManager;
-use crate::runtime::sealed::ManagedBase;
+use crate::runtime::sealed::ManagerPrivate;
 use crate::runtime::tag::Tag;
 use crate::runtime::webview::{Attributes, WindowConfig};
 use crate::runtime::window::{PendingWindow, Window};
-use crate::runtime::{Context, Dispatch, Managed, Manager, Runtime, RuntimeOrDispatch};
+use crate::runtime::{Context, Dispatch, Manager, Params, Runtime, RuntimeOrDispatch};
 
 /// A handle to the currently running application.
-pub struct App<M: Manager> {
+pub struct App<M: Params> {
   runtime: M::Runtime,
   manager: M,
 }
 
-impl<M: Manager> Managed<M> for App<M> {}
-impl<M: Manager> ManagedBase<M> for App<M> {
+impl<M: Params> Manager<M> for App<M> {}
+impl<M: Params> ManagerPrivate<M> for App<M> {
   fn manager(&self) -> &M {
     &self.manager
   }
@@ -28,13 +28,13 @@ impl<M: Manager> ManagedBase<M> for App<M> {
 }
 
 #[allow(missing_docs)]
-pub struct Runner<M: Manager> {
+pub struct Runner<M: Params> {
   pending_windows: Vec<PendingWindow<M>>,
   manager: M,
   setup: SetupHook<M>,
 }
 
-impl<M: Manager> Runner<M> {
+impl<M: Params> Runner<M> {
   /// Consume and run the [`Application`] until it is finished.
   pub fn run(mut self) -> crate::Result<()> {
     // set up all the windows defined in the config

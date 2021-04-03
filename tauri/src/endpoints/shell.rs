@@ -2,7 +2,7 @@ use crate::api::command::{Command, CommandChild, CommandEvent};
 use crate::api::rpc::format_callback;
 use crate::endpoints::InvokeResponse;
 use crate::runtime::window::Window;
-use crate::runtime::Manager;
+use crate::runtime::Params;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::{
@@ -52,7 +52,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub fn run<M: Manager>(self, window: Window<M>) -> crate::Result<InvokeResponse> {
+  pub fn run<M: Params>(self, window: Window<M>) -> crate::Result<InvokeResponse> {
     match self {
       Self::Execute {
         program,

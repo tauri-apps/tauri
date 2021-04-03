@@ -3,13 +3,13 @@ use crate::api::config::{Config, WindowUrl};
 use crate::event::{Event, EventHandler, Listeners};
 use crate::hooks::{InvokeHandler, InvokeMessage, InvokePayload, OnPageLoad, PageLoadPayload};
 use crate::plugin::PluginStore;
-use crate::runtime::sealed::ManagerBase;
+use crate::runtime::sealed::ParamsPrivate;
 use crate::runtime::tag::{tags_to_javascript_array, Tag, ToJavascript};
 use crate::runtime::webview::{
   Attributes, AttributesPrivate, CustomProtocol, FileDropEvent, FileDropHandler, WebviewRpcHandler,
 };
 use crate::runtime::window::{DetachedWindow, PendingWindow, Window};
-use crate::runtime::{Context, Dispatch, Icon, Manager, Runtime};
+use crate::runtime::{Context, Dispatch, Icon, Params, Runtime};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use std::borrow::Cow;
@@ -17,7 +17,7 @@ use std::collections::HashSet;
 use std::convert::TryInto;
 use std::sync::{Arc, Mutex};
 
-pub struct InnerWindowManager<M: Manager> {
+pub struct InnerWindowManager<M: Params> {
   windows: Mutex<HashSet<Window<M>>>,
   plugins: Mutex<PluginStore<M>>,
   listeners: Listeners<M::Event, M::Label>,
@@ -340,13 +340,13 @@ mod test {
 
     #[cfg(dev)]
     {
-      use crate::runtime::sealed::ManagerBase;
+      use crate::runtime::sealed::ParamsPrivate;
       assert_eq!(manager.get_url(), manager.config().build.dev_path);
     }
   }
 }
 
-impl<E, L, A, R> ManagerBase<Self> for WindowManager<E, L, A, R>
+impl<E, L, A, R> ParamsPrivate<Self> for WindowManager<E, L, A, R>
 where
   E: Tag,
   L: Tag,
@@ -503,7 +503,7 @@ where
   }
 }
 
-impl<E, L, A, R> Manager for WindowManager<E, L, A, R>
+impl<E, L, A, R> Params for WindowManager<E, L, A, R>
 where
   E: Tag,
   L: Tag,

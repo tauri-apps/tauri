@@ -1,17 +1,17 @@
 use crate::api::config::WindowUrl;
 use crate::event::{Event, EventHandler};
 use crate::hooks::{InvokeMessage, InvokePayload, PageLoadPayload};
-use crate::runtime::sealed::ManagedBase;
+use crate::runtime::sealed::ManagerPrivate;
 use crate::runtime::tag::ToJavascript;
 use crate::runtime::webview::{CustomProtocol, FileDropHandler, Icon, WebviewRpcHandler};
-use crate::runtime::{Dispatch, Managed, Manager, Runtime, RuntimeOrDispatch};
+use crate::runtime::{Dispatch, Manager, Params, Runtime, RuntimeOrDispatch};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use std::convert::TryInto;
 use std::hash::{Hash, Hasher};
 
 /// A webview window that has yet to be built.
-pub struct PendingWindow<M: Manager> {
+pub struct PendingWindow<M: Params> {
   /// The label that the window will be named.
   pub label: M::Label,
 
@@ -31,7 +31,7 @@ pub struct PendingWindow<M: Manager> {
   pub file_drop_handler: Option<FileDropHandler<M>>,
 }
 
-impl<M: Manager> PendingWindow<M> {
+impl<M: Params> PendingWindow<M> {
   pub fn new(
     attributes: impl Into<<<M::Runtime as Runtime>::Dispatcher as Dispatch>::Attributes>,
     label: M::Label,
@@ -49,12 +49,12 @@ impl<M: Manager> PendingWindow<M> {
 }
 
 /// A webview window that is not yet managed by Tauri.
-pub struct DetachedWindow<M: Manager> {
+pub struct DetachedWindow<M: Params> {
   pub label: M::Label,
   pub dispatcher: <M::Runtime as Runtime>::Dispatcher,
 }
 
-impl<M: Manager> Clone for DetachedWindow<M> {
+impl<M: Params> Clone for DetachedWindow<M> {
   fn clone(&self) -> Self {
     Self {
       label: self.label.clone(),
@@ -63,15 +63,15 @@ impl<M: Manager> Clone for DetachedWindow<M> {
   }
 }
 
-impl<M: Manager> Hash for DetachedWindow<M> {
+impl<M: Params> Hash for DetachedWindow<M> {
   /// Only use the [`DetachedWindow`]'s label to represent its hash.
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.label.hash(state)
   }
 }
 
-impl<M: Manager> Eq for DetachedWindow<M> {}
-impl<M: Manager> PartialEq for DetachedWindow<M> {
+impl<M: Params> Eq for DetachedWindow<M> {}
+impl<M: Params> PartialEq for DetachedWindow<M> {
   /// Only use the [`DetachedWindow`]'s label to compare equality.
   fn eq(&self, other: &Self) -> bool {
     self.label.eq(&other.label)
@@ -81,7 +81,7 @@ impl<M: Manager> PartialEq for DetachedWindow<M> {
 /// A webview window managed by Tarui.
 ///
 /// TODO: expand these docs since this is a pretty important type
-pub struct Window<M: Manager> {
+pub struct Window<M: Params> {
   /// The webview window created by the runtime.
   window: DetachedWindow<M>,
 
@@ -89,7 +89,7 @@ pub struct Window<M: Manager> {
   manager: M,
 }
 
-impl<M: Manager> Clone for Window<M> {
+impl<M: Params> Clone for Window<M> {
   fn clone(&self) -> Self {
     Self {
       window: self.window.clone(),
@@ -98,23 +98,23 @@ impl<M: Manager> Clone for Window<M> {
   }
 }
 
-impl<M: Manager> Hash for Window<M> {
+impl<M: Params> Hash for Window<M> {
   /// Only use the [`Window`]'s label to represent its hash.
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.window.label.hash(state)
   }
 }
 
-impl<M: Manager> Eq for Window<M> {}
-impl<M: Manager> PartialEq for Window<M> {
+impl<M: Params> Eq for Window<M> {}
+impl<M: Params> PartialEq for Window<M> {
   /// Only use the [`Window`]'s label to compare equality.
   fn eq(&self, other: &Self) -> bool {
     self.window.label.eq(&other.window.label)
   }
 }
 
-impl<M: Manager> Managed<M> for Window<M> {}
-impl<M: Manager> ManagedBase<M> for Window<M> {
+impl<M: Params> Manager<M> for Window<M> {}
+impl<M: Params> ManagerPrivate<M> for Window<M> {
   fn manager(&self) -> &M {
     &self.manager
   }
@@ -124,7 +124,7 @@ impl<M: Manager> ManagedBase<M> for Window<M> {
   }
 }
 
-impl<M: Manager> Window<M> {
+impl<M: Params> Window<M> {
   /// Create a new window that is attached to the manager.
   pub(crate) fn new(manager: M, window: DetachedWindow<M>) -> Self {
     Self { manager, window }

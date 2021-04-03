@@ -1,12 +1,12 @@
 use crate::api::config::PluginConfig;
 use crate::hooks::{InvokeMessage, PageLoadPayload};
 use crate::runtime::window::Window;
-use crate::runtime::Manager;
+use crate::runtime::Params;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 
 /// The plugin interface.
-pub trait Plugin<M: Manager>: Send {
+pub trait Plugin<M: Params>: Send {
   /// The plugin name. Used as key on the plugin config object.
   fn name(&self) -> &'static str;
 
@@ -39,11 +39,11 @@ pub trait Plugin<M: Manager>: Send {
 }
 
 /// Plugin collection type.
-pub struct PluginStore<M: Manager> {
+pub struct PluginStore<M: Params> {
   store: HashMap<&'static str, Box<dyn Plugin<M>>>,
 }
 
-impl<M: Manager> Default for PluginStore<M> {
+impl<M: Params> Default for PluginStore<M> {
   fn default() -> Self {
     Self {
       store: HashMap::new(),
@@ -51,7 +51,7 @@ impl<M: Manager> Default for PluginStore<M> {
   }
 }
 
-impl<M: Manager> PluginStore<M> {
+impl<M: Params> PluginStore<M> {
   /// Adds a plugin to the store.
   ///
   /// Returns `true` if a plugin with the same name is already in the store.

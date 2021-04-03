@@ -39,7 +39,7 @@ pub use {
   hooks::InvokeMessage,
   runtime::app::AppBuilder,
   runtime::webview::Attributes,
-  runtime::{Context, Managed, Manager},
+  runtime::{Context, Manager, Params},
 };
 
 /// Easy helper function to use the Tauri Context you made during build time.

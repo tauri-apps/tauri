@@ -179,6 +179,14 @@ pub(crate) mod sealed {
     fn attach_window(&self, window: DetachedWindow<M>) -> Window<M>;
 
     /// Emit an event to javascript windows that pass the predicate.
+    fn emit_filter_internal<S: Serialize + Clone, F: Fn(&Window<Self>) -> bool>(
+      &self,
+      event: String,
+      payload: Option<S>,
+      filter: F,
+    ) -> crate::Result<()>;
+
+    /// Emit an event to javascript windows that pass the predicate.
     fn emit_filter<S: Serialize + Clone, F: Fn(&Window<M>) -> bool>(
       &self,
       event: M::Event,

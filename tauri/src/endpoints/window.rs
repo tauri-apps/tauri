@@ -114,15 +114,10 @@ impl Cmd {
               .parse()
               .unwrap_or_else(|_| panic!("todo: label parsing"));
 
-            // todo: how to handle this?
-            let event: M::Event = "tauri://window-created"
-              .parse()
-              .unwrap_or_else(|_| panic!("todo: event parsing"));
-
             let url = options.url.clone();
             let pending = PendingWindow::new(WindowConfig(options), label.clone(), url);
-            window.create_window(pending)?.emit_others(
-              event,
+            window.create_window(pending)?.emit_others_internal(
+              "tauri://window-created".to_string(),
               Some(WindowCreatedEvent {
                 label: label.to_string(),
               }),

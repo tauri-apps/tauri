@@ -167,8 +167,11 @@ impl<M: Params> Window<M> {
     &self.window.label
   }
 
-  /// Emits an event to the current window.
-  pub fn emit<S: Serialize>(&self, event: &M::Event, payload: Option<S>) -> crate::Result<()> {
+  pub(crate) fn emit_internal<E: ToJavascript, S: Serialize>(
+    &self,
+    event: E,
+    payload: Option<S>,
+  ) -> crate::Result<()> {
     let js_payload = match payload {
       Some(payload_value) => serde_json::to_value(payload_value)?,
       None => JsonValue::Null,
@@ -183,6 +186,21 @@ impl<M: Params> Window<M> {
     ))?;
 
     Ok(())
+  }
+
+  /// Emits an event to the current window.
+  pub fn emit<S: Serialize>(&self, event: &M::Event, payload: Option<S>) -> crate::Result<()> {
+    self.emit_internal(event.clone(), payload)
+  }
+
+  pub(crate) fn emit_others_internal<S: Serialize + Clone>(
+    &self,
+    event: String,
+    payload: Option<S>,
+  ) -> crate::Result<()> {
+    self
+      .manager
+      .emit_filter_internal(event, payload, |w| w != self)
   }
 
   /// Emits an event on all windows except this one.

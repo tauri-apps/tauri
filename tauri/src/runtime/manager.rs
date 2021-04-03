@@ -234,28 +234,13 @@ where
         let window = manager.attach_window(window);
         let _ = match event {
           FileDropEvent::Hovered(paths) => {
-            // todo: how should we handle this?
-            let hover: E = "tauri://file-drop"
-              .parse()
-              .unwrap_or_else(|_| panic!("todo: invalid event str"));
-
-            window.emit(&hover, Some(paths))
+            window.emit_internal("tauri://file-drop".to_string(), Some(paths))
           }
           FileDropEvent::Dropped(paths) => {
-            // todo: how should we handle this?
-            let drop: E = "tauri://file-drop-hover"
-              .parse()
-              .unwrap_or_else(|_| panic!("todo: invalid event str"));
-
-            window.emit(&drop, Some(paths))
+            window.emit_internal("tauri://file-drop-hover".to_string(), Some(paths))
           }
           FileDropEvent::Cancelled => {
-            // todo: how should we handle this?
-            let cancel: E = "tauri://file-drop-cancelled"
-              .parse()
-              .unwrap_or_else(|_| panic!("todo: invalid event str"));
-
-            window.emit(&cancel, Some(()))
+            window.emit_internal("tauri://file-drop-cancelled".to_string(), Some(()))
           }
         };
       });
@@ -445,6 +430,22 @@ where
     }
 
     window
+  }
+
+  fn emit_filter_internal<S: Serialize + Clone, F: Fn(&Window<Self>) -> bool>(
+    &self,
+    event: String,
+    payload: Option<S>,
+    filter: F,
+  ) -> crate::Result<()> {
+    self
+      .inner
+      .windows
+      .lock()
+      .expect("poisoned window manager")
+      .iter()
+      .filter(|&w| filter(w))
+      .try_for_each(|window| window.emit_internal(event.clone(), payload.clone()))
   }
 
   fn emit_filter<S: Serialize + Clone, F: Fn(&Window<Self>) -> bool>(

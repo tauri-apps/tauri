@@ -238,7 +238,7 @@ pub struct WryDispatcher {
 }
 
 impl Dispatch for WryDispatcher {
-  type Runtime = WryApplication;
+  type Runtime = Wry;
   type Icon = WryIcon;
   type Attributes = wry::Attributes;
 
@@ -437,11 +437,11 @@ impl Dispatch for WryDispatcher {
 }
 
 /// A wrapper around the wry Application interface.
-pub struct WryApplication {
+pub struct Wry {
   inner: wry::Application,
 }
 
-impl Runtime for WryApplication {
+impl Runtime for Wry {
   type Dispatcher = WryDispatcher;
 
   fn new() -> crate::Result<Self> {
@@ -494,7 +494,7 @@ impl Runtime for WryApplication {
 }
 
 /// Create a wry rpc handler from a tauri rpc handler.
-fn create_rpc_handler<M: Params<Runtime = WryApplication>>(
+fn create_rpc_handler<M: Params<Runtime = Wry>>(
   app_proxy: wry::ApplicationProxy,
   label: M::Label,
   handler: WebviewRpcHandler<M>,
@@ -515,7 +515,7 @@ fn create_rpc_handler<M: Params<Runtime = WryApplication>>(
 }
 
 /// Create a wry file drop handler from a tauri file drop handler.
-fn create_file_drop_handler<M: Params<Runtime = WryApplication>>(
+fn create_file_drop_handler<M: Params<Runtime = Wry>>(
   app_proxy: wry::ApplicationProxy,
   label: M::Label,
   handler: FileDropHandler<M>,

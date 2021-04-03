@@ -3,7 +3,7 @@ use crate::{
   hooks::{InvokeHandler, InvokeMessage, OnPageLoad, PageLoadPayload, SetupHook},
   plugin::{Plugin, PluginStore},
   runtime::{
-    flavor::wry::WryApplication as Wry,
+    flavor::wry::Wry,
     manager::WindowManager,
     sealed::ManagerPrivate,
     tag::Tag,

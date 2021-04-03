@@ -110,16 +110,3 @@ pub fn listen_js<M: Params>(
     handler = handler
   )
 }
-
-#[cfg(test)]
-mod test {
-  use proptest::prelude::*;
-
-  // check the listen_js for various usecases.
-  proptest! {
-    #[test]
-    fn check_listen_js(event in "", id in proptest::bits::u64::ANY, handler in "") {
-      super::listen_js(event, id, handler);
-    }
-  }
-}

@@ -1,14 +1,17 @@
-use crate::api::assets::Assets;
-use crate::api::config::WindowUrl;
-use crate::hooks::{InvokeHandler, InvokeMessage, OnPageLoad, PageLoadPayload, SetupHook};
-use crate::plugin::{Plugin, PluginStore};
-use crate::runtime::flavor::wry::WryApplication as Wry;
-use crate::runtime::manager::WindowManager;
-use crate::runtime::sealed::ManagerPrivate;
-use crate::runtime::tag::Tag;
-use crate::runtime::webview::{Attributes, WindowConfig};
-use crate::runtime::window::{PendingWindow, Window};
-use crate::runtime::{Context, Dispatch, Manager, Params, Runtime, RuntimeOrDispatch};
+use crate::{
+  api::{assets::Assets, config::WindowUrl},
+  hooks::{InvokeHandler, InvokeMessage, OnPageLoad, PageLoadPayload, SetupHook},
+  plugin::{Plugin, PluginStore},
+  runtime::{
+    flavor::wry::WryApplication as Wry,
+    manager::WindowManager,
+    sealed::ManagerPrivate,
+    tag::Tag,
+    webview::{Attributes, WindowConfig},
+    window::{PendingWindow, Window},
+    Context, Dispatch, Manager, Params, Runtime, RuntimeOrDispatch,
+  },
+};
 
 /// A handle to the currently running application.
 pub struct App<M: Params> {

@@ -1,9 +1,12 @@
-use crate::api::assets::Assets;
-use crate::api::config::Config;
-use crate::event::{Event, EventHandler};
-use crate::runtime::tag::Tag;
-use crate::runtime::webview::{Attributes, AttributesPrivate, Icon, WindowConfig};
-use crate::runtime::window::{DetachedWindow, PendingWindow, Window};
+use crate::{
+  api::{assets::Assets, config::Config},
+  event::{Event, EventHandler},
+  runtime::{
+    tag::Tag,
+    webview::{Attributes, AttributesPrivate, Icon, WindowConfig},
+    window::{DetachedWindow, PendingWindow, Window},
+  },
+};
 use serde::Serialize;
 use std::convert::TryFrom;
 
@@ -135,11 +138,15 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
 /// Prevent implementation details from leaking out of the [`Manager`] and [`Managed`] traits.
 pub(crate) mod sealed {
   use super::Params;
-  use crate::api::config::Config;
-  use crate::event::{Event, EventHandler};
-  use crate::hooks::{InvokeMessage, PageLoadPayload};
-  use crate::runtime::window::{DetachedWindow, PendingWindow, Window};
-  use crate::runtime::RuntimeOrDispatch;
+  use crate::{
+    api::config::Config,
+    event::{Event, EventHandler},
+    hooks::{InvokeMessage, PageLoadPayload},
+    runtime::{
+      window::{DetachedWindow, PendingWindow, Window},
+      RuntimeOrDispatch,
+    },
+  };
   use serde::Serialize;
   use std::collections::HashSet;
 

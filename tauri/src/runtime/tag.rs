@@ -1,8 +1,10 @@
 //! Working with "string-able" types.
 
-use std::fmt::{Debug, Display};
-use std::hash::Hash;
-use std::str::FromStr;
+use std::{
+  fmt::{Debug, Display},
+  hash::Hash,
+  str::FromStr,
+};
 
 /// Represents a "string-able" type.
 ///

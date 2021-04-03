@@ -1,7 +1,7 @@
-use crate::endpoints::InvokeResponse;
-use crate::runtime::sealed::ManagerPrivate;
-use crate::runtime::window::Window;
-use crate::runtime::{Manager, Params};
+use crate::{
+  endpoints::InvokeResponse,
+  runtime::{sealed::ManagerPrivate, window::Window, Manager, Params},
+};
 use serde::Deserialize;
 
 /// The API descriptor.

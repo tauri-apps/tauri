@@ -1,6 +1,5 @@
 use super::InvokeResponse;
-use crate::runtime::window::Window;
-use crate::runtime::{Dispatch, Params};
+use crate::runtime::{window::Window, Dispatch, Params};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::sync::{Arc, Mutex};

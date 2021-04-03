@@ -1,7 +1,7 @@
-use crate::api::rpc::{format_callback, format_callback_result};
-use crate::runtime::app::App;
-use crate::runtime::window::Window;
-use crate::runtime::Params;
+use crate::{
+  api::rpc::{format_callback, format_callback_result},
+  runtime::{app::App, window::Window, Params},
+};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 

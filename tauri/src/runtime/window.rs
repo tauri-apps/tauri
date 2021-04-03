@@ -1,14 +1,20 @@
-use crate::api::config::WindowUrl;
-use crate::event::{Event, EventHandler};
-use crate::hooks::{InvokeMessage, InvokePayload, PageLoadPayload};
-use crate::runtime::sealed::ManagerPrivate;
-use crate::runtime::tag::ToJavascript;
-use crate::runtime::webview::{CustomProtocol, FileDropHandler, Icon, WebviewRpcHandler};
-use crate::runtime::{Dispatch, Manager, Params, Runtime, RuntimeOrDispatch};
+use crate::{
+  api::config::WindowUrl,
+  event::{Event, EventHandler},
+  hooks::{InvokeMessage, InvokePayload, PageLoadPayload},
+  runtime::{
+    sealed::ManagerPrivate,
+    tag::ToJavascript,
+    webview::{CustomProtocol, FileDropHandler, Icon, WebviewRpcHandler},
+    Dispatch, Manager, Params, Runtime, RuntimeOrDispatch,
+  },
+};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
-use std::convert::TryInto;
-use std::hash::{Hash, Hasher};
+use std::{
+  convert::TryInto,
+  hash::{Hash, Hasher},
+};
 
 /// A webview window that has yet to be built.
 pub struct PendingWindow<M: Params> {

@@ -1,11 +1,13 @@
 //! The [`wry`] webview runtime.
 
-use crate::runtime::webview::{
-  Attributes, AttributesPrivate, CustomProtocol, FileDropEvent, FileDropHandler, Icon, RpcRequest,
-  WebviewRpcHandler, WindowConfig,
+use crate::runtime::{
+  webview::{
+    Attributes, AttributesPrivate, CustomProtocol, FileDropEvent, FileDropHandler, Icon,
+    RpcRequest, WebviewRpcHandler, WindowConfig,
+  },
+  window::{DetachedWindow, PendingWindow},
+  Dispatch, Params, Runtime,
 };
-use crate::runtime::window::{DetachedWindow, PendingWindow};
-use crate::runtime::{Dispatch, Params, Runtime};
 use std::{convert::TryFrom, path::PathBuf};
 
 #[cfg(target_os = "windows")]

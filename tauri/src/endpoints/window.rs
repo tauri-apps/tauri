@@ -1,8 +1,11 @@
-use crate::endpoints::InvokeResponse;
-use crate::runtime::webview::{Icon, WindowConfig};
-use crate::runtime::window::PendingWindow;
-use crate::runtime::window::Window;
-use crate::runtime::{Manager, Params};
+use crate::{
+  endpoints::InvokeResponse,
+  runtime::{
+    webview::{Icon, WindowConfig},
+    window::{PendingWindow, Window},
+    Manager, Params,
+  },
+};
 use serde::Deserialize;
 
 #[derive(Deserialize)]

@@ -1,8 +1,11 @@
-use crate::api::command::{Command, CommandChild, CommandEvent};
-use crate::api::rpc::format_callback;
-use crate::endpoints::InvokeResponse;
-use crate::runtime::window::Window;
-use crate::runtime::Params;
+use crate::{
+  api::{
+    command::{Command, CommandChild, CommandEvent},
+    rpc::format_callback,
+  },
+  endpoints::InvokeResponse,
+  runtime::{window::Window, Params},
+};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::{

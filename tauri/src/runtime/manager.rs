@@ -1,21 +1,30 @@
-use crate::api::assets::Assets;
-use crate::api::config::{Config, WindowUrl};
-use crate::event::{Event, EventHandler, Listeners};
-use crate::hooks::{InvokeHandler, InvokeMessage, InvokePayload, OnPageLoad, PageLoadPayload};
-use crate::plugin::PluginStore;
-use crate::runtime::sealed::ParamsPrivate;
-use crate::runtime::tag::{tags_to_javascript_array, Tag, ToJavascript};
-use crate::runtime::webview::{
-  Attributes, AttributesPrivate, CustomProtocol, FileDropEvent, FileDropHandler, WebviewRpcHandler,
+use crate::{
+  api::{
+    assets::Assets,
+    config::{Config, WindowUrl},
+  },
+  event::{Event, EventHandler, Listeners},
+  hooks::{InvokeHandler, InvokeMessage, InvokePayload, OnPageLoad, PageLoadPayload},
+  plugin::PluginStore,
+  runtime::{
+    sealed::ParamsPrivate,
+    tag::{tags_to_javascript_array, Tag, ToJavascript},
+    webview::{
+      Attributes, AttributesPrivate, CustomProtocol, FileDropEvent, FileDropHandler,
+      WebviewRpcHandler,
+    },
+    window::{DetachedWindow, PendingWindow, Window},
+    Context, Dispatch, Icon, Params, Runtime,
+  },
 };
-use crate::runtime::window::{DetachedWindow, PendingWindow, Window};
-use crate::runtime::{Context, Dispatch, Icon, Params, Runtime};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
-use std::borrow::Cow;
-use std::collections::HashSet;
-use std::convert::TryInto;
-use std::sync::{Arc, Mutex};
+use std::{
+  borrow::Cow,
+  collections::HashSet,
+  convert::TryInto,
+  sync::{Arc, Mutex},
+};
 
 pub struct InnerWindowManager<M: Params> {
   windows: Mutex<HashSet<Window<M>>>,

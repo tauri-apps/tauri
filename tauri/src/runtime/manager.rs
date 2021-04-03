@@ -334,7 +334,7 @@ where
 
 #[cfg(test)]
 mod test {
-  use crate::{runtime::flavor::wry::Wry, generate_context};
+  use crate::{generate_context, runtime::flavor::wry::Wry};
 
   use super::WindowManager;
 

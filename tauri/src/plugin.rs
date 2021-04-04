@@ -1,17 +1,19 @@
 use crate::{
-  api::config::PluginConfig, ApplicationExt, InvokeMessage, PageLoadPayload, WebviewManager,
+  api::config::PluginConfig,
+  hooks::{InvokeMessage, PageLoadPayload},
+  runtime::{window::Window, Params},
 };
-
-use std::sync::{Arc, Mutex};
+use serde_json::Value as JsonValue;
+use std::collections::HashMap;
 
 /// The plugin interface.
-pub trait Plugin<A: ApplicationExt + 'static>: Send {
+pub trait Plugin<M: Params>: Send {
   /// The plugin name. Used as key on the plugin config object.
   fn name(&self) -> &'static str;
 
   /// Initialize the plugin.
   #[allow(unused_variables)]
-  fn initialize(&mut self, config: String) -> crate::Result<()> {
+  fn initialize(&mut self, config: JsonValue) -> crate::Result<()> {
     Ok(())
   }
 
@@ -26,94 +28,82 @@ pub trait Plugin<A: ApplicationExt + 'static>: Send {
 
   /// Callback invoked when the webview is created.
   #[allow(unused_variables)]
-  fn created(&mut self, webview_manager: WebviewManager<A>) {}
+  fn created(&mut self, window: Window<M>) {}
 
   /// Callback invoked when the webview performs a navigation.
   #[allow(unused_variables)]
-  fn on_page_load(&mut self, webview_manager: WebviewManager<A>, payload: PageLoadPayload) {}
+  fn on_page_load(&mut self, window: Window<M>, payload: PageLoadPayload) {}
 
   /// Add invoke_handler API extension commands.
   #[allow(unused_variables)]
-  fn extend_api(&mut self, webview_manager: WebviewManager<A>, message: InvokeMessage<A>) {}
+  fn extend_api(&mut self, message: InvokeMessage<M>) {}
 }
 
 /// Plugin collection type.
-pub type PluginStore<A> = Arc<Mutex<Vec<Box<dyn Plugin<A> + Send>>>>;
-
-/// Registers a plugin.
-pub fn register<A: ApplicationExt + 'static>(
-  store: &PluginStore<A>,
-  plugin: impl Plugin<A> + Send + 'static,
-) {
-  let mut plugins = store.lock().unwrap();
-  plugins.push(Box::new(plugin));
+pub struct PluginStore<M: Params> {
+  store: HashMap<&'static str, Box<dyn Plugin<M>>>,
 }
 
-pub(crate) fn initialize<A: ApplicationExt + 'static>(
-  store: &PluginStore<A>,
-  plugins_config: PluginConfig,
-) -> crate::Result<()> {
-  let mut plugins = store.lock().unwrap();
-  for plugin in plugins.iter_mut() {
-    let plugin_config = plugins_config.get(plugin.name());
-    plugin.initialize(plugin_config)?;
-  }
-
-  Ok(())
-}
-
-pub(crate) fn initialization_script<A: ApplicationExt + 'static>(store: &PluginStore<A>) -> String {
-  let mut plugins = store.lock().unwrap();
-  let mut initialization_script = String::new();
-  for plugin in plugins.iter_mut() {
-    if let Some(plugin_initialization_script) = plugin.initialization_script() {
-      initialization_script.push_str(&format!(
-        "(function () {{ {} }})();",
-        plugin_initialization_script
-      ));
+impl<M: Params> Default for PluginStore<M> {
+  fn default() -> Self {
+    Self {
+      store: HashMap::new(),
     }
   }
-  initialization_script
 }
 
-pub(crate) fn created<A: ApplicationExt + 'static>(
-  store: &PluginStore<A>,
-  webview_manager: &crate::WebviewManager<A>,
-) {
-  let mut plugins = store.lock().unwrap();
-  for plugin in plugins.iter_mut() {
-    plugin.created(webview_manager.clone());
+impl<M: Params> PluginStore<M> {
+  /// Adds a plugin to the store.
+  ///
+  /// Returns `true` if a plugin with the same name is already in the store.
+  pub fn register<P: Plugin<M> + 'static>(&mut self, plugin: P) -> bool {
+    self.store.insert(plugin.name(), Box::new(plugin)).is_some()
   }
-}
 
-pub(crate) fn on_page_load<A: ApplicationExt + 'static>(
-  store: &PluginStore<A>,
-  webview_manager: &crate::WebviewManager<A>,
-  payload: PageLoadPayload,
-) {
-  let mut plugins = store.lock().unwrap();
-  for plugin in plugins.iter_mut() {
-    plugin.on_page_load(webview_manager.clone(), payload.clone());
+  /// Initializes all plugins in the store.
+  pub(crate) fn initialize(&mut self, config: &PluginConfig) -> crate::Result<()> {
+    self.store.values_mut().try_for_each(|plugin| {
+      plugin.initialize(config.0.get(plugin.name()).cloned().unwrap_or_default())
+    })
   }
-}
 
-pub(crate) fn extend_api<A: ApplicationExt + 'static>(
-  store: &PluginStore<A>,
-  webview_manager: &crate::WebviewManager<A>,
-  command: String,
-  message: InvokeMessage<A>,
-) {
-  let mut plugins = store.lock().unwrap();
-  let target_plugin_name = command
-    .replace("plugin:", "")
-    .split('|')
-    .next()
-    .unwrap()
-    .to_string();
-  for plugin in plugins.iter_mut() {
-    if plugin.name() == target_plugin_name {
-      plugin.extend_api(webview_manager.clone(), message);
-      break;
+  /// Generates an initialization script from all plugins in the store.
+  pub(crate) fn initialization_script(&self) -> String {
+    self
+      .store
+      .values()
+      .filter_map(|p| p.initialization_script())
+      .fold(String::new(), |acc, script| {
+        format!("{}\n(function () {{ {} }})();", acc, script)
+      })
+  }
+
+  /// Runs the created hook for all plugins in the store.
+  pub(crate) fn created(&mut self, window: Window<M>) {
+    self
+      .store
+      .values_mut()
+      .for_each(|plugin| plugin.created(window.clone()))
+  }
+
+  /// Runs the on_page_load hook for all plugins in the store.
+  pub(crate) fn on_page_load(&mut self, window: Window<M>, payload: PageLoadPayload) {
+    self
+      .store
+      .values_mut()
+      .for_each(|plugin| plugin.on_page_load(window.clone(), payload.clone()))
+  }
+
+  pub(crate) fn extend_api(&mut self, command: String, message: InvokeMessage<M>) {
+    let target = command
+      .replace("plugin:", "")
+      .split('|')
+      .next()
+      .expect("target plugin name empty")
+      .to_string();
+
+    if let Some(plugin) = self.store.get_mut(target.as_str()) {
+      plugin.extend_api(message);
     }
   }
 }

@@ -51,7 +51,6 @@ pub enum EmbeddedAssetsError {
 pub struct EmbeddedAssets(HashMap<AssetKey, (String, Vec<u8>)>);
 
 impl EmbeddedAssets {
-  #[cfg(not(debug_assertions))]
   /// Compress a directory of assets, ready to be generated into a [`tauri_api::assets::Assets`].
   pub fn new(path: &Path) -> Result<Self, EmbeddedAssetsError> {
     WalkDir::new(&path)
@@ -72,14 +71,6 @@ impl EmbeddedAssets {
       })
       .collect::<Result<_, _>>()
       .map(Self)
-  }
-
-  #[cfg(debug_assertions)]
-  /// A dummy EmbeddedAssets for use during development builds.
-  /// Compressing + including the bytes of assets during development takes a long time.
-  /// On development builds, assets will simply be resolved & fetched from the configured dist folder.
-  pub fn new(_: &Path) -> Result<Self, EmbeddedAssetsError> {
-    Ok(EmbeddedAssets(HashMap::new()))
   }
 
   /// Use highest compression level for release, the fastest one for everything else
@@ -135,10 +126,9 @@ impl ToTokens for EmbeddedAssets {
     }
 
     // we expect phf related items to be in path when generating the path code
-    tokens.append_all(quote! {
+    tokens.append_all(quote! {{
         use ::tauri::api::assets::{EmbeddedAssets, phf, phf::phf_map};
-        static ASSETS: EmbeddedAssets = EmbeddedAssets::from_zstd(phf_map! { #map });
-        &ASSETS
-    });
+        EmbeddedAssets::from_zstd(phf_map! { #map })
+    }});
   }
 }

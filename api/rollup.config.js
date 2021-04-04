@@ -30,13 +30,6 @@ export default [
       {
         dir: 'dist/',
         entryFileNames: '[name].js',
-        format: 'cjs',
-        exports: 'named',
-        globals: {}
-      },
-      {
-        dir: 'dist/',
-        entryFileNames: '[name].mjs',
         format: 'esm',
         exports: 'named',
         globals: {}

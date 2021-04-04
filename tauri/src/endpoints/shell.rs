@@ -1,14 +1,52 @@
-use super::InvokeResponse;
+use crate::{
+  api::{
+    command::{Command, CommandChild, CommandEvent},
+    rpc::format_callback,
+  },
+  endpoints::InvokeResponse,
+  runtime::{window::Window, Params},
+};
+use once_cell::sync::Lazy;
 use serde::Deserialize;
+use std::{
+  collections::HashMap,
+  sync::{Arc, Mutex},
+};
+
+type ChildId = u32;
+type ChildStore = Arc<Mutex<HashMap<ChildId, CommandChild>>>;
+
+fn command_childs() -> &'static ChildStore {
+  static STORE: Lazy<ChildStore> = Lazy::new(Default::default);
+  &STORE
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+pub enum Buffer {
+  Text(String),
+  Raw(Vec<u8>),
+}
 
 /// The API descriptor.
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// The execute script API.
+  #[serde(rename_all = "camelCase")]
   Execute {
-    command: String,
+    program: String,
     args: Vec<String>,
+    on_event_fn: String,
+    #[serde(default)]
+    sidecar: bool,
+  },
+  StdinWrite {
+    pid: ChildId,
+    buffer: Buffer,
+  },
+  KillChild {
+    pid: ChildId,
   },
   Open {
     path: String,
@@ -17,15 +55,66 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub fn run(self) -> crate::Result<InvokeResponse> {
+  pub fn run<M: Params>(self, window: Window<M>) -> crate::Result<InvokeResponse> {
     match self {
       Self::Execute {
-        command: _,
-        args: _,
+        program,
+        args,
+        on_event_fn,
+        sidecar,
       } => {
         #[cfg(shell_execute)]
         {
-          //TODO
+          let mut command = if sidecar {
+            Command::new_sidecar(program)
+          } else {
+            Command::new(program)
+          };
+          command = command.args(args);
+          let (mut rx, child) = command.spawn()?;
+
+          let pid = child.pid();
+          command_childs().lock().unwrap().insert(pid, child);
+
+          crate::async_runtime::spawn(async move {
+            while let Some(event) = rx.recv().await {
+              if matches!(event, CommandEvent::Terminated(_)) {
+                command_childs().lock().unwrap().remove(&pid);
+              }
+              let js = format_callback(on_event_fn.clone(), serde_json::to_value(event).unwrap());
+              let _ = window.eval(js.as_str());
+            }
+          });
+
+          Ok(pid.into())
+        }
+        #[cfg(not(shell_execute))]
+        Err(crate::Error::ApiNotAllowlisted(
+          "shell > execute".to_string(),
+        ))
+      }
+      Self::KillChild { pid } => {
+        #[cfg(shell_execute)]
+        {
+          if let Some(child) = command_childs().lock().unwrap().remove(&pid) {
+            child.kill()?;
+          }
+          Ok(().into())
+        }
+        #[cfg(not(shell_execute))]
+        Err(crate::Error::ApiNotAllowlisted(
+          "shell > execute".to_string(),
+        ))
+      }
+      Self::StdinWrite { pid, buffer } => {
+        #[cfg(shell_execute)]
+        {
+          if let Some(child) = command_childs().lock().unwrap().get_mut(&pid) {
+            match buffer {
+              Buffer::Text(t) => child.write(t.as_bytes())?,
+              Buffer::Raw(r) => child.write(&r)?,
+            }
+          }
           Ok(().into())
         }
         #[cfg(not(shell_execute))]

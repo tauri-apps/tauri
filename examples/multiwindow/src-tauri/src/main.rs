@@ -3,27 +3,20 @@
   windows_subsystem = "windows"
 )]
 
-use tauri::WebviewBuilderExt;
+use tauri::Attributes;
 
 fn main() {
   tauri::AppBuilder::default()
-    .setup(move |webview_manager| {
-      if webview_manager.current_window_label() == "Main" {
-        webview_manager.listen("clicked", move |_| {
-          println!("got 'clicked' event on global channel");
-        });
-      }
-      let current_webview = webview_manager.current_webview().unwrap();
-      let label = webview_manager.current_window_label().to_string();
-      current_webview.listen("clicked", move |_| {
-        println!("got 'clicked' event on window '{}'", label)
+    .on_page_load(|window, _payload| {
+      let label = window.label().to_string();
+      window.listen("clicked".to_string(), move |_payload| {
+        println!("got 'clicked' event on window '{}'", label);
       });
     })
-    .create_webview("Rust".to_string(), tauri::WindowUrl::App, |mut builder| {
-      builder = builder.title("Tauri - Rust");
-      Ok(builder)
+    .create_window("Rust".to_string(), tauri::WindowUrl::App, |attributes| {
+      attributes.title("Tauri - Rust")
     })
-    .unwrap()
     .build(tauri::generate_context!())
-    .run();
+    .run()
+    .expect("failed to run tauri application");
 }

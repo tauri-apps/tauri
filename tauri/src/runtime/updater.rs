@@ -3,7 +3,7 @@ use crate::{
     config::UpdaterConfig,
     dialog::{ask, AskResponse},
   },
-  ApplicationExt, WebviewManager,
+  runtime::{window::Window, Params},
 };
 use std::{
   path::PathBuf,
@@ -44,10 +44,10 @@ struct UpdateManifest {
 }
 
 /// Check if there is any new update with builtin dialog.
-pub(crate) async fn check_update_with_dialog<A: ApplicationExt + 'static>(
+pub(crate) async fn check_update_with_dialog<M: Params>(
   updater_config: UpdaterConfig,
   package_info: crate::api::PackageInfo,
-  webview_manager: &WebviewManager<A>,
+  window: Window<M>,
 ) {
   if !updater_config.active || updater_config.endpoints.is_none() {
     return;
@@ -80,7 +80,7 @@ pub(crate) async fn check_update_with_dialog<A: ApplicationExt + 'static>(
 
         if dialog.is_err() {
           send_status_update(
-            webview_manager.clone(),
+            window.clone(),
             EVENT_STATUS_ERROR,
             Some(dialog.err().unwrap().to_string()),
           );
@@ -90,121 +90,121 @@ pub(crate) async fn check_update_with_dialog<A: ApplicationExt + 'static>(
       }
     }
     Err(e) => {
-      send_status_update(
-        webview_manager.clone(),
-        EVENT_STATUS_ERROR,
-        Some(e.to_string()),
-      );
+      send_status_update(window.clone(), EVENT_STATUS_ERROR, Some(e.to_string()));
     }
   }
 }
 
 /// Experimental listener
 /// This function should be run on the main thread once.
-pub(crate) fn listener<A: ApplicationExt + 'static>(
+pub(crate) fn listener<M: Params>(
   updater_config: UpdaterConfig,
   package_info: crate::api::PackageInfo,
-  webview_manager: &WebviewManager<A>,
+  window: &Window<M>,
 ) {
-  let isolated_webview_manager = webview_manager.clone();
+  let isolated_window = window.clone();
 
   // Wait to receive the event `"tauri://update"`
-  webview_manager.listen(EVENT_CHECK_UPDATE, move |_msg| {
-    let webview_manager = isolated_webview_manager.clone();
-    let package_info = package_info.clone();
+  window.listen(
+    EVENT_CHECK_UPDATE
+      .parse()
+      .unwrap_or_else(|_| panic!("bad label")),
+    move |_msg| {
+      let window = isolated_window.clone();
+      let package_info = package_info.clone();
 
-    // prepare our endpoints
-    let endpoints = updater_config
-      .endpoints
-      .as_ref()
-      .expect("Something wrong with endpoints")
-      .clone();
+      // prepare our endpoints
+      let endpoints = updater_config
+        .endpoints
+        .as_ref()
+        .expect("Something wrong with endpoints")
+        .clone();
 
-    let pubkey = updater_config.pubkey.clone();
+      let pubkey = updater_config.pubkey.clone();
 
-    // check updates
-    crate::async_runtime::spawn(async move {
-      let webview_manager = webview_manager.clone();
-      let webview_manager_isolation = webview_manager.clone();
-      let pubkey = pubkey.clone();
+      // check updates
+      crate::async_runtime::spawn(async move {
+        let window = window.clone();
+        let window_isolation = window.clone();
+        let pubkey = pubkey.clone();
 
-      match tauri_updater::builder()
-        .urls(&endpoints[..])
-        .current_version(package_info.version)
-        .build()
-        .await
-      {
-        Ok(updater) => {
-          // send notification if we need to update
-          if updater.should_update {
-            let body = updater.body.clone().unwrap_or_else(|| String::from(""));
+        match tauri_updater::builder()
+          .urls(&endpoints[..])
+          .current_version(package_info.version)
+          .build()
+          .await
+        {
+          Ok(updater) => {
+            // send notification if we need to update
+            if updater.should_update {
+              let body = updater.body.clone().unwrap_or_else(|| String::from(""));
 
-            // Emit `tauri://update-available`
-            let _ = webview_manager.emit(
-              EVENT_UPDATE_AVAILABLE,
-              Some(UpdateManifest {
-                body,
-                date: updater.date.clone(),
-                version: updater.version.clone(),
-              }),
-            );
+              // Emit `tauri://update-available`
+              let _ = window.emit(
+                &EVENT_UPDATE_AVAILABLE
+                  .parse()
+                  .unwrap_or_else(|_| panic!("bad label")),
+                Some(UpdateManifest {
+                  body,
+                  date: updater.date.clone(),
+                  version: updater.version.clone(),
+                }),
+              );
 
-            // Listen for `tauri://update-install`
-            webview_manager.once(EVENT_INSTALL_UPDATE, move |_msg| {
-              let webview_manager = webview_manager_isolation.clone();
-              let updater = updater.clone();
-              let pubkey = pubkey.clone();
+              // Listen for `tauri://update-install`
+              window.once(
+                EVENT_INSTALL_UPDATE
+                  .parse()
+                  .unwrap_or_else(|_| panic!("bad label")),
+                move |_msg| {
+                  let window = window_isolation.clone();
+                  let updater = updater.clone();
+                  let pubkey = pubkey.clone();
 
-              // Start installation
-              crate::async_runtime::spawn(async move {
-                // emit {"status": "PENDING"}
-                send_status_update(webview_manager.clone(), EVENT_STATUS_PENDING, None);
+                  // Start installation
+                  crate::async_runtime::spawn(async move {
+                    // emit {"status": "PENDING"}
+                    send_status_update(window.clone(), EVENT_STATUS_PENDING, None);
 
-                // Launch updater download process
-                // macOS we display the `Ready to restart dialog` asking to restart
-                // Windows is closing the current App and launch the downloaded MSI when ready (the process stop here)
-                // Linux we replace the AppImage by launching a new install, it start a new AppImage instance, so we're closing the previous. (the process stop here)
-                let update_result = updater.clone().download_and_install(pubkey.clone()).await;
+                    // Launch updater download process
+                    // macOS we display the `Ready to restart dialog` asking to restart
+                    // Windows is closing the current App and launch the downloaded MSI when ready (the process stop here)
+                    // Linux we replace the AppImage by launching a new install, it start a new AppImage instance, so we're closing the previous. (the process stop here)
+                    let update_result = updater.clone().download_and_install(pubkey.clone()).await;
 
-                if update_result.is_err() {
-                  // emit {"status": "ERROR", "error": "The error message"}
-                  send_status_update(
-                    webview_manager.clone(),
-                    EVENT_STATUS_ERROR,
-                    Some(update_result.err().unwrap().to_string()),
-                  );
-                } else {
-                  // emit {"status": "DONE"}
-                  // todo(lemarier): maybe we should emit the
-                  // path of the current EXE so they can restart it
-                  send_status_update(webview_manager.clone(), EVENT_STATUS_SUCCESS, None);
-                }
-              })
-            });
-          } else {
-            send_status_update(webview_manager.clone(), EVENT_STATUS_UPTODATE, None);
+                    if update_result.is_err() {
+                      // emit {"status": "ERROR", "error": "The error message"}
+                      send_status_update(
+                        window.clone(),
+                        EVENT_STATUS_ERROR,
+                        Some(update_result.err().unwrap().to_string()),
+                      );
+                    } else {
+                      // emit {"status": "DONE"}
+                      // todo(lemarier): maybe we should emit the
+                      // path of the current EXE so they can restart it
+                      send_status_update(window.clone(), EVENT_STATUS_SUCCESS, None);
+                    }
+                  })
+                },
+              );
+            } else {
+              send_status_update(window.clone(), EVENT_STATUS_UPTODATE, None);
+            }
+          }
+          Err(e) => {
+            send_status_update(window.clone(), EVENT_STATUS_ERROR, Some(e.to_string()));
           }
         }
-        Err(e) => {
-          send_status_update(
-            webview_manager.clone(),
-            EVENT_STATUS_ERROR,
-            Some(e.to_string()),
-          );
-        }
-      }
-    })
-  });
+      })
+    },
+  );
 }
 
 // Send a status update via `tauri://update-status` event.
-fn send_status_update<A: ApplicationExt + 'static>(
-  webview_manager: WebviewManager<A>,
-  status: &str,
-  error: Option<String>,
-) {
-  let _ = webview_manager.emit(
-    EVENT_STATUS_UPDATE,
+fn send_status_update<M: Params>(window: Window<M>, status: &str, error: Option<String>) {
+  let _ = window.emit_internal(
+    EVENT_STATUS_UPDATE.to_string(),
     Some(StatusEvent {
       error,
       status: String::from(status),

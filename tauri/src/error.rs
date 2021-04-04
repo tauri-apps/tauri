@@ -46,6 +46,9 @@ pub enum Error {
   /// Invalid args when running a command.
   #[error("invalid args for command `{0}`: {1}")]
   InvalidArgs(&'static str, serde_json::Error),
+  /// Encountered an error in the setup hook,
+  #[error("error encountered during setup hood: {0}")]
+  Setup(#[from] Box<dyn std::error::Error>),
   /// Tauri updater error.
   #[error("Updater: {0}")]
   TauriUpdater(#[from] tauri_updater::Error),

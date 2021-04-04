@@ -1,5 +1,5 @@
 use super::InvokeResponse;
-use crate::{api::path::BaseDirectory, ApplicationDispatcherExt};
+use crate::api::path::BaseDirectory;
 
 use serde::{Deserialize, Serialize};
 use tauri_api::{dir, file, path::resolve_path};

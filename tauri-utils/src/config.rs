@@ -425,17 +425,6 @@ pub struct Config {
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 pub struct PluginConfig(pub HashMap<String, JsonValue>);
 
-impl PluginConfig {
-  /// Gets a plugin configuration.
-  pub fn get<S: AsRef<str>>(&self, plugin_name: S) -> String {
-    self
-      .0
-      .get(plugin_name.as_ref())
-      .map(|config| config.to_string())
-      .unwrap_or_else(|| "{}".to_string())
-  }
-}
-
 /// Implement `ToTokens` for all config structs, allowing a literal `Config` to be built.
 ///
 /// This allows for a build script to output the values in a `Config` to a `TokenStream`, which can

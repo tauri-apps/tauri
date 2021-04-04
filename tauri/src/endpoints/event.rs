@@ -40,7 +40,6 @@ impl Cmd {
         window_label,
         payload,
       } => {
-        // todo: how to handle this
         let e: M::Event = event
           .parse()
           .unwrap_or_else(|_| panic!("todo: invalid event str"));

@@ -110,7 +110,6 @@ impl Cmd {
           ));
           #[cfg(window_create)]
           {
-            // todo: how to handle this?
             let label: M::Label = options
               .label
               .parse()

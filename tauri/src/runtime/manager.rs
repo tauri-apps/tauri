@@ -25,6 +25,7 @@ use std::{
   convert::TryInto,
   sync::{Arc, Mutex},
 };
+use uuid::Uuid;
 
 pub struct InnerWindowManager<M: Params> {
   windows: Mutex<HashSet<Window<M>>>,
@@ -40,6 +41,9 @@ pub struct InnerWindowManager<M: Params> {
   config: Config,
   assets: Arc<M::Assets>,
   default_window_icon: Option<Vec<u8>>,
+
+  /// A list of salts that are valid for the current application.
+  salts: Mutex<HashSet<Uuid>>,
 }
 
 pub struct WindowManager<E, L, A, R>
@@ -88,6 +92,7 @@ where
         config: context.config,
         assets: Arc::new(context.assets),
         default_window_icon: context.default_window_icon,
+        salts: Mutex::default(),
       }),
     }
   }
@@ -510,6 +515,33 @@ where
 
   fn event_emit_function_name(&self) -> String {
     self.inner.listeners.function_name()
+  }
+
+  fn generate_salt(&self) -> Uuid {
+    let salt = Uuid::new_v4();
+    self
+      .inner
+      .salts
+      .lock()
+      .expect("poisoned salt mutex")
+      .insert(salt);
+    salt
+  }
+
+  fn verify_salt(&self, salt: String) -> bool {
+    // flat out ignore any invalid uuids
+    let uuid: Uuid = match salt.parse() {
+      Ok(uuid) => uuid,
+      Err(_) => return false,
+    };
+
+    // HashSet::remove lets us know if the entry was found
+    self
+      .inner
+      .salts
+      .lock()
+      .expect("poisoned salt mutex")
+      .remove(&uuid)
   }
 }
 

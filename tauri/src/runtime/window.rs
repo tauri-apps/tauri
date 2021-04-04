@@ -182,7 +182,7 @@ impl<M: Params> Window<M> {
       self.manager.event_emit_function_name(),
       event.to_javascript()?,
       js_payload,
-      crate::salt::generate()
+      self.manager.generate_salt(),
     ))?;
 
     Ok(())
@@ -360,5 +360,9 @@ impl<M: Params> Window<M> {
   /// Sets this window' icon.
   pub fn set_icon(&self, icon: Icon) -> crate::Result<()> {
     self.window.dispatcher.set_icon(icon.try_into()?)
+  }
+
+  pub(crate) fn verify_salt(&self, salt: String) -> bool {
+    self.manager.verify_salt(salt)
   }
 }

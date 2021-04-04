@@ -65,7 +65,6 @@ use std::{
 /// // safe to unwrap because we know it's infallible due to our FromStr implementation.
 /// let event: Event = "tauri://file-drop".parse().unwrap();
 ///
-///
 /// // show that this event type can be represented as a Tag, a requirement for using it in Tauri.
 /// fn is_file_drop(tag: impl tauri::runtime::Tag) {
 ///   assert_eq!("tauri://file-drop", tag.to_string());

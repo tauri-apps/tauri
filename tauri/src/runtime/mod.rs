@@ -2,7 +2,6 @@ use crate::{
   api::{assets::Assets, config::Config},
   event::{Event, EventHandler},
   runtime::{
-    tag::Tag,
     webview::{Attributes, AttributesPrivate, Icon, WindowConfig},
     window::{DetachedWindow, PendingWindow, Window},
   },
@@ -16,6 +15,8 @@ pub(crate) mod manager;
 pub(crate) mod tag;
 pub(crate) mod webview;
 pub(crate) mod window;
+
+pub use self::tag::Tag;
 
 /// Important configurable items required by Tauri.
 pub struct Context<A: Assets> {

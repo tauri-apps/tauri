@@ -46,9 +46,6 @@ pub enum Error {
   /// Invalid args when running a command.
   #[error("invalid args for command `{0}`: {1}")]
   InvalidArgs(&'static str, serde_json::Error),
-  /// Encountered an event string that didn't parse into a correct event
-  #[error("raw event string doesn't parse to an event type: {0}")]
-  InvalidEvent(String),
   /// Encountered an error in the setup hook,
   #[error("error encountered during setup hood: {0}")]
   Setup(#[from] Box<dyn std::error::Error>),

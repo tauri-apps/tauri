@@ -40,13 +40,14 @@ impl Cmd {
         window_label,
         payload,
       } => {
+        // Panic if the user's `Tag` type decided to return an error while parsing.
         let e: M::Event = event
           .parse()
-          .unwrap_or_else(|_| panic!("todo: invalid event str"));
+          .unwrap_or_else(|_| panic!("Event module received unhandled event: {}", event));
 
         let window_label: Option<M::Label> = window_label.map(|l| {
           l.parse()
-            .unwrap_or_else(|_| panic!("todo: invalid window label"))
+            .unwrap_or_else(|_| panic!("Event module recieved unhandled window: {}", l))
         });
 
         // dispatch the event to Rust listeners

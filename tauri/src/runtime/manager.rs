@@ -164,7 +164,7 @@ where
     {
       // Should return a path similar to C:\Users\<User>\AppData\Local\<AppName>
       let local_app_data = tauri_api::path::resolve_path(
-        self.context.package_info.name,
+        self.inner.package_info.name,
         Some(tauri_api::path::BaseDirectory::LocalData),
       );
       // Make sure the directory exist without panic

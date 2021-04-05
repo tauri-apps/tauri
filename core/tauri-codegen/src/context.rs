@@ -37,5 +37,9 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     config: #config,
     assets: #assets,
     default_window_icon: #default_window_icon,
+    package_info: ::tauri::api::PackageInfo {
+        name: env!("CARGO_PKG_NAME"),
+        version: env!("CARGO_PKG_VERSION")
+    }
   }))
 }

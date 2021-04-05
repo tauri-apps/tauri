@@ -1,0 +1,62 @@
+name: updater test artifacts
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/artifacts-updater.yml'
+      - 'tauri/**'
+      - 'tauri-updater/**'
+      - 'cli/core/**'
+      - 'cli/tauri-bundler/**'
+      - 'examples/updater/**'
+
+jobs:
+  build-artifacs:
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: install stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: install webkit2gtk (ubuntu only)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0
+      - run: cargo install --path ./cli/core --force
+      - name: install cli deps via yarn
+        working-directory: ./cli/tauri.js
+        run: yarn
+      - name: build cli
+        working-directory: ./cli/tauri.js
+        run: yarn build
+      - name: build sample artifacts (updater)
+        working-directory: ./examples/updater
+        run: |
+          yarn install
+          node ../../cli/tauri.js/bin/tauri build
+        env:
+          TAURI_PRIVATE_KEY: dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5YTBGV3JiTy9lRDZVd3NkL0RoQ1htZmExNDd3RmJaNmRMT1ZGVjczWTBKZ0FBQkFBQUFBQUFBQUFBQUlBQUFBQWdMekUzVkE4K0tWQ1hjeGt1Vkx2QnRUR3pzQjVuV0ZpM2czWXNkRm9hVUxrVnB6TUN3K1NheHJMREhQbUVWVFZRK3NIL1VsMDBHNW5ET1EzQno0UStSb21nRW4vZlpTaXIwZFh5ZmRlL1lSN0dKcHdyOUVPclVvdzFhVkxDVnZrbHM2T1o4Tk1NWEU9Cg==
+      - uses: actions/upload-artifact@v2
+        if: matrix.platform == 'ubuntu-latest'
+        with:
+          name: linux-updater-artifacts
+          path: ./target/release/bundle/appimage/updater-example_*.AppImage.*
+
+      - uses: actions/upload-artifact@v2
+        if: matrix.platform == 'windows-latest'
+        with:
+          name: windows-updater-artifacts
+          path: ./target/release/bundle/msi/*
+
+      - uses: actions/upload-artifact@v2
+        if: matrix.platform == 'macos-latest'
+        with:
+          name: macos-updater-artifacts
+          path: ./target/release/bundle/macos/updater-example_*.app.tar.*

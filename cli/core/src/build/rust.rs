@@ -7,6 +7,7 @@ use crate::helpers::{app_paths::tauri_dir, config::Config};
 use tauri_bundler::WindowsSettings;
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOSSettings, PackageSettings,
+  UpdaterSettings,
 };
 
 /// The `workspace` section of the app configuration (read from Cargo.toml).
@@ -141,7 +142,7 @@ impl AppSettings {
   }
 
   pub fn get_bundle_settings(&self, config: &Config) -> crate::Result<BundleSettings> {
-    tauri_config_to_bundle_settings(config.tauri.bundle.clone())
+    tauri_config_to_bundle_settings(config.tauri.bundle.clone(), config.tauri.updater.clone())
   }
 
   pub fn get_out_dir(&self, debug: bool) -> crate::Result<PathBuf> {
@@ -306,6 +307,7 @@ pub fn get_workspace_dir(current_dir: &PathBuf) -> PathBuf {
 
 fn tauri_config_to_bundle_settings(
   config: crate::helpers::config::BundleConfig,
+  updater_config: crate::helpers::config::UpdaterConfig,
 ) -> crate::Result<BundleSettings> {
   Ok(BundleSettings {
     identifier: config.identifier,
@@ -341,6 +343,14 @@ fn tauri_config_to_bundle_settings(
       digest_algorithm: config.windows.digest_algorithm,
       certificate_thumbprint: config.windows.certificate_thumbprint,
     },
+    updater: Some(UpdaterSettings {
+      active: updater_config.active,
+      // we set it to true by default we shouldn't have to use
+      // unwrap_or as we have a default value but used to prevent any failing
+      dialog: updater_config.dialog.unwrap_or(true),
+      pubkey: updater_config.pubkey,
+      endpoints: updater_config.endpoints,
+    }),
     ..Default::default()
   })
 }

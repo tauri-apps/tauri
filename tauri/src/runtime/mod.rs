@@ -13,6 +13,8 @@ pub(crate) mod app;
 pub mod flavor;
 pub(crate) mod manager;
 pub(crate) mod tag;
+#[cfg(feature = "updater")]
+pub(crate) mod updater;
 pub(crate) mod webview;
 pub(crate) mod window;
 
@@ -28,6 +30,9 @@ pub struct Context<A: Assets> {
 
   /// The default window icon Tauri should use when creating windows.
   pub default_window_icon: Option<Vec<u8>>,
+
+  /// Package information.
+  pub package_info: tauri_api::PackageInfo,
 }
 
 /// The webview runtime interface.
@@ -140,7 +145,7 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
 pub(crate) mod sealed {
   use super::Params;
   use crate::{
-    api::config::Config,
+    api::{config::Config, PackageInfo},
     event::{Event, EventHandler},
     hooks::{InvokeMessage, PageLoadPayload},
     runtime::{
@@ -201,6 +206,9 @@ pub(crate) mod sealed {
 
     /// The configuration the [`Manager`] was built with.
     fn config(&self) -> &Config;
+
+    /// App package information.
+    fn package_info(&self) -> &PackageInfo;
 
     /// Remove the specified event handler.
     fn unlisten(&self, handler_id: EventHandler);

@@ -26,11 +26,13 @@ pub enum PackageType {
   AppImage,
   /// The macOS DMG bundle (.dmg).
   Dmg,
+  /// The Updater bundle.
+  Updater,
 }
 
 impl PackageType {
   /// Maps a short name to a PackageType.
-  /// Possible values are "deb", "ios", "msi", "app", "rpm", "appimage", "dmg".
+  /// Possible values are "deb", "ios", "msi", "app", "rpm", "appimage", "dmg", "updater".
   pub fn from_short_name(name: &str) -> Option<PackageType> {
     // Other types we may eventually want to support: apk.
     match name {
@@ -42,6 +44,7 @@ impl PackageType {
       "rpm" => Some(PackageType::Rpm),
       "appimage" => Some(PackageType::AppImage),
       "dmg" => Some(PackageType::Dmg),
+      "updater" => Some(PackageType::Updater),
       _ => None,
     }
   }
@@ -58,6 +61,7 @@ impl PackageType {
       PackageType::Rpm => "rpm",
       PackageType::AppImage => "appimage",
       PackageType::Dmg => "dmg",
+      PackageType::Updater => "updater",
     }
   }
 
@@ -76,6 +80,7 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::Rpm,
   PackageType::Dmg,
   PackageType::AppImage,
+  PackageType::Updater,
 ];
 
 /// The package settings.
@@ -93,6 +98,19 @@ pub struct PackageSettings {
   pub authors: Option<Vec<String>>,
   /// the default binary to run.
   pub default_run: Option<String>,
+}
+
+/// The updater settings.
+#[derive(Debug, Clone, Deserialize)]
+pub struct UpdaterSettings {
+  /// Whether the updater is active or not.
+  pub active: bool,
+  /// The updater endpoints.
+  pub endpoints: Option<Vec<String>>,
+  /// Optional pubkey.
+  pub pubkey: Option<String>,
+  /// Display built-in dialog or use event system if disabled.
+  pub dialog: bool,
 }
 
 /// The Linux debian bundle settings.
@@ -189,6 +207,8 @@ pub struct BundleSettings {
   pub deb: DebianSettings,
   /// MacOS-specific settings.
   pub macos: MacOSSettings,
+  // Updater configuration
+  pub updater: Option<UpdaterSettings>,
   /// Windows-specific settings.
   #[cfg(windows)]
   pub windows: WindowsSettings,
@@ -372,7 +392,7 @@ impl Settings {
   /// Fails if the host/target's native package type is not supported.
   pub fn package_types(&self) -> crate::Result<Vec<PackageType>> {
     let target_os = std::env::consts::OS;
-    let platform_types = match target_os {
+    let mut platform_types = match target_os {
       "macos" => vec![PackageType::MacOSBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
       "linux" => vec![PackageType::Deb, PackageType::AppImage],
@@ -385,6 +405,12 @@ impl Settings {
         )))
       }
     };
+
+    // add updater if needed
+    if self.is_update_enabled() {
+      platform_types.push(PackageType::Updater)
+    }
+
     if let Some(package_types) = &self.package_types {
       let mut types = vec![];
       for package_type in package_types {
@@ -534,6 +560,34 @@ impl Settings {
   #[cfg(windows)]
   pub fn windows(&self) -> &WindowsSettings {
     &self.bundle_settings.windows
+  }
+
+  /// Is update enabled
+  pub fn is_update_enabled(&self) -> bool {
+    match &self.bundle_settings.updater {
+      Some(val) => val.active,
+      None => false,
+    }
+  }
+
+  /// Is pubkey provided?
+  pub fn is_updater_pubkey(&self) -> bool {
+    match &self.bundle_settings.updater {
+      Some(val) => val.pubkey.is_some(),
+      None => false,
+    }
+  }
+
+  /// Get pubkey (mainly for testing)
+  #[cfg(test)]
+  pub fn updater_pubkey(&self) -> Option<&str> {
+    self
+      .bundle_settings
+      .updater
+      .as_ref()
+      .expect("Updater is not defined")
+      .pubkey
+      .as_deref()
   }
 }
 

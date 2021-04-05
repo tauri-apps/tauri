@@ -185,8 +185,7 @@
     },
     "tauri-updater": {
       "path": "./tauri-updater",
-      "manager": "rust",
-      "publish": false
+      "manager": "rust"
     },
     "tauri": {
       "path": "./tauri",

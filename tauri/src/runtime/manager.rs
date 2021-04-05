@@ -2,6 +2,7 @@ use crate::{
   api::{
     assets::Assets,
     config::{Config, WindowUrl},
+    PackageInfo,
   },
   event::{Event, EventHandler, Listeners},
   hooks::{InvokeHandler, InvokeMessage, InvokePayload, OnPageLoad, PageLoadPayload},
@@ -44,6 +45,7 @@ pub struct InnerWindowManager<M: Params> {
 
   /// A list of salts that are valid for the current application.
   salts: Mutex<HashSet<Uuid>>,
+  package_info: PackageInfo,
 }
 
 pub struct WindowManager<E, L, A, R>
@@ -93,6 +95,7 @@ where
         assets: Arc::new(context.assets),
         default_window_icon: context.default_window_icon,
         salts: Mutex::default(),
+        package_info: context.package_info,
       }),
     }
   }
@@ -156,6 +159,24 @@ where
         let icon = Icon::Raw(default_window_icon.clone());
         let icon = icon.try_into().expect("infallible icon convert failed");
         attributes = attributes.icon(icon);
+      }
+    }
+
+    // If we are on windows use App Data Local as webview temp dir
+    // to prevent any bundled application to failed.
+    // Fix: https://github.com/tauri-apps/tauri/issues/1365
+    #[cfg(windows)]
+    {
+      // Should return a path similar to C:\Users\<User>\AppData\Local\<AppName>
+      let local_app_data = tauri_api::path::resolve_path(
+        self.inner.package_info.name,
+        Some(tauri_api::path::BaseDirectory::LocalData),
+      );
+      // Make sure the directory exist without panic
+      if let Ok(user_data_dir) = local_app_data {
+        if let Ok(()) = std::fs::create_dir_all(&user_data_dir) {
+          attributes = attributes.user_data_path(Some(user_data_dir));
+        }
       }
     }
 
@@ -482,6 +503,10 @@ where
 
   fn config(&self) -> &Config {
     &self.inner.config
+  }
+
+  fn package_info(&self) -> &PackageInfo {
+    &self.inner.package_info
   }
 
   fn unlisten(&self, handler_id: EventHandler) {

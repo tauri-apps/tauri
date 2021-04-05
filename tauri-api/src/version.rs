@@ -47,3 +47,8 @@ pub fn is_patch(current: &str, other: &str) -> crate::Result<bool> {
   let other = Version::parse(other)?;
   Ok(current.major == other.major && current.minor == other.minor && other.patch > current.patch)
 }
+
+/// Check if a version is greater than the current
+pub fn is_greater(current: &str, other: &str) -> crate::Result<bool> {
+  Ok(Version::parse(other)? > Version::parse(current)?)
+}

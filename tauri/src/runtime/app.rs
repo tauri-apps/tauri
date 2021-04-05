@@ -7,6 +7,7 @@ use crate::{
     manager::WindowManager,
     sealed::ManagerPrivate,
     tag::Tag,
+    updater,
     webview::{Attributes, WindowConfig},
     window::{PendingWindow, Window},
     Context, Dispatch, Manager, Params, Runtime, RuntimeOrDispatch,
@@ -17,6 +18,65 @@ use crate::{
 pub struct App<M: Params> {
   runtime: M::Runtime,
   manager: M,
+}
+
+#[cfg(feature = "updater")]
+impl<M: Params> App<M> {
+  /// Runs the updater hook with built-in dialog.
+  fn run_updater_dialog(&self, window: Window<M>) {
+    let updater_config = self.manager.config().tauri.updater.clone();
+    let package_info = self.manager.package_info().clone();
+    crate::async_runtime::spawn(async move {
+      updater::check_update_with_dialog(updater_config, package_info, window).await
+    });
+  }
+
+  /// Listen updater events when dialog are disabled.
+  fn listen_updater_events(&self, window: Window<M>) {
+    let updater_config = self.manager.config().tauri.updater.clone();
+    updater::listener(updater_config, self.manager.package_info().clone(), &window);
+  }
+
+  fn run_updater(&self, main_window: Option<Window<M>>) {
+    if let Some(main_window) = main_window {
+      let event_window = main_window.clone();
+      let updater_config = self.manager.config().tauri.updater.clone();
+      // check if updater is active or not
+      if updater_config.dialog && updater_config.active {
+        // if updater dialog is enabled spawn a new task
+        self.run_updater_dialog(main_window.clone());
+        let config = self.manager.config().tauri.updater.clone();
+        let package_info = self.manager.package_info().clone();
+        // When dialog is enabled, if user want to recheck
+        // if an update is available after first start
+        // invoke the Event `tauri://update` from JS or rust side.
+        main_window.listen(
+          updater::EVENT_CHECK_UPDATE
+            .parse()
+            .unwrap_or_else(|_| panic!("bad label")),
+          move |_msg| {
+            let window = event_window.clone();
+            let package_info = package_info.clone();
+            let config = config.clone();
+            // re-spawn task inside tokyo to launch the download
+            // we don't need to emit anything as everything is handled
+            // by the process (user is asked to restart at the end)
+            // and it's handled by the updater
+            crate::async_runtime::spawn(async move {
+              updater::check_update_with_dialog(config, package_info, window).await
+            });
+          },
+        );
+      } else if updater_config.active {
+        // we only listen for `tauri://update`
+        // once we receive the call, we check if an update is available or not
+        // if there is a new update we emit `tauri://update-available` with details
+        // this is the user responsabilities to display dialog and ask if user want to install
+        // to install the update you need to invoke the Event `tauri://update-install`
+        self.listen_updater_events(main_window);
+      }
+    }
+  }
 }
 
 impl<M: Params> Manager<M> for App<M> {}
@@ -66,11 +126,21 @@ impl<M: Params> Runner<M> {
     };
 
     let pending_windows = self.pending_windows;
+    #[cfg(feature = "updater")]
+    let mut main_window = None;
+
     for pending in pending_windows {
       let pending = app.manager.prepare_window(pending, &labels)?;
       let detached = app.runtime.create_window(pending)?;
-      app.manager.attach_window(detached);
+      let window = app.manager.attach_window(detached);
+      #[cfg(feature = "updater")]
+      if main_window.is_none() {
+        main_window = Some(window);
+      }
     }
+
+    #[cfg(feature = "updater")]
+    app.run_updater(main_window);
 
     (self.setup)(&mut app)?;
     app.runtime.run();

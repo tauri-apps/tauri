@@ -8,7 +8,11 @@ pub struct RequestBody {
 }
 
 #[command(with_window)]
-pub fn log_operation<M: tauri::Params>(_window: tauri::Window<M>, event: String, payload: Option<String>) {
+pub fn log_operation<M: tauri::Params>(
+  _window: tauri::Window<M>,
+  event: String,
+  payload: Option<String>,
+) {
   println!("{} {:?}", event, payload);
 }
 

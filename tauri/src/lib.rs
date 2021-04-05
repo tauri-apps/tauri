@@ -37,6 +37,7 @@ pub use {
   hooks::InvokeMessage,
   runtime::app::AppBuilder,
   runtime::webview::Attributes,
+  runtime::window::Window,
   runtime::{Context, Manager, Params},
 };
 

@@ -50,9 +50,9 @@ checksum = "eab1c04a571841102f5345a8fc0f6bb3d31c315dec879b5c6e42e40ce7ffa34e"
 
 [[package]]
 name = "attohttpc"
-version = "0.16.3"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fdb8867f378f33f78a811a8eb9bf108ad99430d7aad43315dd9319c827ef6247"
+checksum = "9a8bda305457262b339322106c776e3fd21df860018e566eb6a5b1aa4b6ae02d"
 dependencies = [
  "flate2",
  "http",

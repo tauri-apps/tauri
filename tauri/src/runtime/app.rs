@@ -5,7 +5,7 @@ use crate::{
   runtime::{
     flavor::wry::Wry,
     manager::WindowManager,
-    sealed::ManagerPrivate,
+    sealed::{ManagerPrivate, ParamsPrivate},
     tag::Tag,
     updater,
     webview::{Attributes, WindowConfig},
@@ -15,9 +15,20 @@ use crate::{
 };
 
 /// A handle to the currently running application.
-pub struct App<M: Params> {
-  runtime: M::Runtime,
-  manager: M,
+pub struct App<P: Params> {
+  runtime: P::Runtime,
+  manager: P,
+}
+
+impl<P: Params> Manager<P> for App<P> {}
+impl<P: Params> ManagerPrivate<P> for App<P> {
+  fn manager(&self) -> &P {
+    &self.manager
+  }
+
+  fn runtime(&mut self) -> RuntimeOrDispatch<'_, P> {
+    RuntimeOrDispatch::Runtime(&mut self.runtime)
+  }
 }
 
 #[cfg(feature = "updater")]
@@ -37,7 +48,7 @@ impl<M: Params> App<M> {
     updater::listener(updater_config, self.manager.package_info().clone(), &window);
   }
 
-  fn run_updater(&self, main_window: Option<Window<M>>) {
+  pub fn run_updater(&self, main_window: Option<Window<M>>) {
     if let Some(main_window) = main_window {
       let event_window = main_window.clone();
       let updater_config = self.manager.config().tauri.updater.clone();
@@ -79,77 +90,8 @@ impl<M: Params> App<M> {
   }
 }
 
-impl<M: Params> Manager<M> for App<M> {}
-impl<M: Params> ManagerPrivate<M> for App<M> {
-  fn manager(&self) -> &M {
-    &self.manager
-  }
-
-  fn runtime(&mut self) -> RuntimeOrDispatch<'_, M> {
-    RuntimeOrDispatch::Runtime(&mut self.runtime)
-  }
-}
-
-#[allow(missing_docs)]
-pub struct Runner<M: Params> {
-  pending_windows: Vec<PendingWindow<M>>,
-  manager: M,
-  setup: SetupHook<M>,
-}
-
-impl<M: Params> Runner<M> {
-  /// Consume and run the [`Application`] until it is finished.
-  pub fn run(mut self) -> crate::Result<()> {
-    // set up all the windows defined in the config
-    for config in self.manager.config().tauri.windows.clone() {
-      let url = config.url.clone();
-      let label = config
-        .label
-        .parse()
-        .unwrap_or_else(|_| panic!("bad label: {}", config.label));
-
-      self
-        .pending_windows
-        .push(PendingWindow::new(WindowConfig(config), label, url));
-    }
-
-    self.manager.initialize_plugins()?;
-    let labels = self
-      .pending_windows
-      .iter()
-      .map(|p| p.label.clone())
-      .collect::<Vec<_>>();
-
-    let mut app = App {
-      runtime: M::Runtime::new()?,
-      manager: self.manager,
-    };
-
-    let pending_windows = self.pending_windows;
-    #[cfg(feature = "updater")]
-    let mut main_window = None;
-
-    for pending in pending_windows {
-      let pending = app.manager.prepare_window(pending, &labels)?;
-      let detached = app.runtime.create_window(pending)?;
-      let window = app.manager.attach_window(detached);
-      #[cfg(feature = "updater")]
-      if main_window.is_none() {
-        main_window = Some(window);
-      }
-    }
-
-    #[cfg(feature = "updater")]
-    app.run_updater(main_window);
-
-    (self.setup)(&mut app)?;
-    app.runtime.run();
-    Ok(())
-  }
-}
-
 /// The App builder.
-pub struct AppBuilder<E, L, A, R>
+pub struct Builder<E, L, A, R>
 where
   E: Tag,
   L: Tag,
@@ -172,7 +114,7 @@ where
   plugins: PluginStore<WindowManager<E, L, A, R>>,
 }
 
-impl<E, L, A, R> AppBuilder<E, L, A, R>
+impl<E, L, A, R> Builder<E, L, A, R>
 where
   E: Tag,
   L: Tag,
@@ -237,18 +179,50 @@ where
     self
   }
 
-  /// Builds the [`App`] and the underlying [`Runtime`].
-  pub fn build(self, context: Context<A>) -> Runner<WindowManager<E, L, A, R>> {
-    Runner {
-      pending_windows: self.pending_windows,
-      setup: self.setup,
-      manager: WindowManager::with_handlers(context, self.invoke_handler, self.on_page_load),
+  /// Runs the configured Tauri application.
+  pub fn run(mut self, context: Context<A>) -> crate::Result<()> {
+    let manager = WindowManager::with_handlers(context, self.invoke_handler, self.on_page_load);
+
+    // set up all the windows defined in the config
+    for config in manager.config().tauri.windows.clone() {
+      let url = config.url.clone();
+      let label = config
+        .label
+        .parse()
+        .unwrap_or_else(|_| panic!("bad label found in config: {}", config.label));
+
+      self
+        .pending_windows
+        .push(PendingWindow::new(WindowConfig(config), label, url));
     }
+
+    manager.initialize_plugins()?;
+
+    let mut app = App {
+      runtime: R::new()?,
+      manager,
+    };
+
+    let pending_labels = self
+      .pending_windows
+      .iter()
+      .map(|p| p.label.clone())
+      .collect::<Vec<_>>();
+
+    for pending in self.pending_windows {
+      let pending = app.manager.prepare_window(pending, &pending_labels)?;
+      let detached = app.runtime.create_window(pending)?;
+      app.manager.attach_window(detached);
+    }
+
+    (self.setup)(&mut app)?;
+    app.runtime.run();
+    Ok(())
   }
 }
 
-/// Make `Wry` the default `ApplicationExt` for `AppBuilder`
-impl<A: Assets> Default for AppBuilder<String, String, A, Wry> {
+/// Make `Wry` the default `Runtime` for `Builder`
+impl<A: Assets> Default for Builder<String, String, A, Wry> {
   fn default() -> Self {
     Self::new()
   }

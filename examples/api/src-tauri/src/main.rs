@@ -13,7 +13,7 @@ struct Reply {
 }
 
 fn main() {
-  tauri::AppBuilder::default()
+  tauri::Builder::default()
     .on_page_load(|window, _| {
       let window_ = window.clone();
       window.listen("js-event".into(), move |event| {
@@ -31,7 +31,6 @@ fn main() {
       cmd::log_operation,
       cmd::perform_request
     ])
-    .build(tauri::generate_context!())
-    .run()
+    .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

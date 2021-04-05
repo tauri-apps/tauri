@@ -35,7 +35,7 @@ pub type SyncTask = Box<dyn FnOnce() + Send>;
 pub use {
   api::config::WindowUrl,
   hooks::InvokeMessage,
-  runtime::app::AppBuilder,
+  runtime::app::Builder,
   runtime::webview::Attributes,
   runtime::{Context, Manager, Params},
 };

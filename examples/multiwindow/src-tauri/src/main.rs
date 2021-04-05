@@ -6,7 +6,7 @@
 use tauri::Attributes;
 
 fn main() {
-  tauri::AppBuilder::default()
+  tauri::Builder::default()
     .on_page_load(|window, _payload| {
       let label = window.label().to_string();
       window.listen("clicked".to_string(), move |_payload| {
@@ -16,7 +16,6 @@ fn main() {
     .create_window("Rust".to_string(), tauri::WindowUrl::App, |attributes| {
       attributes.title("Tauri - Rust")
     })
-    .build(tauri::generate_context!())
-    .run()
+    .run(tauri::generate_context!())
     .expect("failed to run tauri application");
 }

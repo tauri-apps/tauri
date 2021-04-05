@@ -1,23 +1,10 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
-  parse::Parser, punctuated::Punctuated, FnArg, Ident, ItemFn, Meta, NestedMeta, Pat, Path,
-  ReturnType, Token, Type,
+  parse::Parser, punctuated::Punctuated, FnArg, Ident, ItemFn, Pat, Path, ReturnType, Token, Type,
 };
 
-pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream {
-  // Check if "with_manager" attr was passed to macro
-  let uses_manager = attrs.iter().any(|a| {
-    if let NestedMeta::Meta(Meta::Path(path)) = a {
-      path
-        .get_ident()
-        .map(|i| *i == "with_manager")
-        .unwrap_or(false)
-    } else {
-      false
-    }
-  });
-
+pub fn generate_command(function: ItemFn) -> TokenStream {
   let fn_name = function.sig.ident.clone();
   let fn_name_str = fn_name.to_string();
   let fn_wrapper = format_ident!("{}_wrapper", fn_name);
@@ -37,7 +24,7 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
   };
 
   // Split function args into names and types
-  let (mut names, mut types): (Vec<Ident>, Vec<Path>) = function
+  let (names, types): (Vec<Ident>, Vec<Path>) = function
     .sig
     .inputs
     .iter()
@@ -59,22 +46,6 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
     })
     .unzip();
 
-  // If function doesn't take the webview manager, wrapper just takes webview manager generically and ignores it
-  // Otherwise the wrapper uses the specific type from the original function declaration
-  let mut manager_arg_type = quote!(::tauri::WebviewManager<A>);
-  let manager_arg_maybe = match types.first() {
-    Some(first_type) if uses_manager => {
-      // Give wrapper specific type
-      manager_arg_type = quote!(#first_type);
-      // Remove webview manager arg from list so it isn't expected as arg from JS
-      types.drain(0..1);
-      names.drain(0..1);
-      // Tell wrapper to pass webview manager to original function
-      quote!(_manager,)
-    }
-    // Tell wrapper not to pass webview manager to original function
-    _ => quote!(),
-  };
   let await_maybe = if function.sig.asyncness.is_some() {
     quote!(.await)
   } else {
@@ -87,18 +58,18 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
   // note that all types must implement `serde::Serialize`.
   let return_value = if returns_result {
     quote! {
-      match #fn_name(#manager_arg_maybe #(parsed_args.#names),*)#await_maybe {
+      match #fn_name(#(parsed_args.#names),*)#await_maybe {
         Ok(value) => ::core::result::Result::Ok(value),
         Err(e) => ::core::result::Result::Err(e),
       }
     }
   } else {
-    quote! { ::core::result::Result::<_, ()>::Ok(#fn_name(#manager_arg_maybe #(parsed_args.#names),*)#await_maybe) }
+    quote! { ::core::result::Result::<_, ()>::Ok(#fn_name(#(parsed_args.#names),*)#await_maybe) }
   };
 
   quote! {
     #function
-    pub fn #fn_wrapper<A: ::tauri::ApplicationExt + 'static>(_manager: #manager_arg_type, message: ::tauri::InvokeMessage<A>) {
+    pub fn #fn_wrapper<P: ::tauri::Params>(message: ::tauri::InvokeMessage<P>) {
       #[derive(::serde::Deserialize)]
       #[serde(rename_all = "camelCase")]
       struct ParsedArgs {
@@ -134,9 +105,9 @@ pub fn generate_handler(item: proc_macro::TokenStream) -> TokenStream {
   });
 
   quote! {
-    move |webview_manager, message| {
+    move |message| {
       match message.command() {
-        #(stringify!(#fn_names) => #fn_wrappers(webview_manager, message),)*
+        #(stringify!(#fn_names) => #fn_wrappers(message),)*
         _ => {},
       }
     }

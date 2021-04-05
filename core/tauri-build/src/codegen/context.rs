@@ -1,6 +1,4 @@
 use anyhow::{Context, Result};
-use proc_macro2::Ident;
-use quote::format_ident;
 use std::{
   env::var,
   fs::{create_dir_all, File},
@@ -18,7 +16,6 @@ use tauri_codegen::{context_codegen, ContextData};
 #[derive(Debug)]
 pub struct CodegenContext {
   config_path: PathBuf,
-  struct_ident: Ident,
   out_file: PathBuf,
 }
 
@@ -26,7 +23,6 @@ impl Default for CodegenContext {
   fn default() -> Self {
     Self {
       config_path: PathBuf::from("tauri.conf.json"),
-      struct_ident: format_ident!("TauriBuildCodegenContext"),
       out_file: PathBuf::from("tauri-build-context.rs"),
     }
   }
@@ -45,20 +41,6 @@ impl CodegenContext {
   /// directory as your `Cargo.toml`.
   pub fn config_path(mut self, config_path: impl Into<PathBuf>) -> Self {
     self.config_path = config_path.into();
-    self
-  }
-
-  /// Set the name of the generated struct.
-  ///
-  /// Don't set this if you are using [`tauri::include_codegen_context!`] as that helper macro
-  /// expects the default value. This option can be useful if you are not using the helper and
-  /// instead using [`std::include!`] on the generated code yourself.
-  ///
-  /// Defaults to `TauriBuildCodegenContext`.
-  ///
-  /// [`tauri::include_codegen_context!`]: https://docs.rs/tauri/0.12/tauri/macro.include_codegen_context.html
-  pub fn struct_ident(mut self, ident: impl AsRef<str>) -> Self {
-    self.struct_ident = format_ident!("{}", ident.as_ref());
     self
   }
 
@@ -100,7 +82,9 @@ impl CodegenContext {
     let code = context_codegen(ContextData {
       config,
       config_parent,
-      struct_ident: self.struct_ident.clone(),
+      // it's very hard to have a build script for unit tests, so assume this is always called from
+      // outside the tauri crate, making the ::tauri root valid.
+      context_path: quote::quote!(::tauri::Context),
     })?;
 
     // get the full output file path

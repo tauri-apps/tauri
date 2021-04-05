@@ -23,6 +23,11 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+      - name: install webkit2gtk (ubuntu only)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0
       - name: test
         run: |
           cd ./cli/tauri-bundler
@@ -34,6 +39,11 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: rustup component add clippy
+      - name: install webkit2gtk (ubuntu only)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0
       - name: clippy check
         uses: actions-rs/clippy-check@v1
         with:

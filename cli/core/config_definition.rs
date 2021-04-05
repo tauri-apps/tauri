@@ -502,7 +502,6 @@ impl Allowlist for AllowlistConfig {
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-
 pub struct TauriConfig {
   /// The windows configuration.
   #[serde(default)]
@@ -515,6 +514,9 @@ pub struct TauriConfig {
   #[serde(default)]
   allowlist: AllowlistConfig,
   pub security: Option<SecurityConfig>,
+  /// The updater configuration.
+  #[serde(default = "default_updater")]
+  pub updater: UpdaterConfig,
 }
 
 impl TauriConfig {
@@ -522,6 +524,29 @@ impl TauriConfig {
   pub fn features(&self) -> Vec<&str> {
     self.allowlist.to_features()
   }
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct UpdaterConfig {
+  /// Whether the updater is active or not.
+  pub active: bool,
+  /// Display built-in dialog or use event system if disabled.
+  #[serde(default = "default_dialog")]
+  pub dialog: Option<bool>,
+  /// The updater endpoints.
+  pub endpoints: Option<Vec<String>>,
+  /// Optional pubkey.
+  pub pubkey: Option<String>,
+}
+
+// We enable the unnecessary_wraps because we need
+// to use an Option for dialog otherwise the CLI schema will mark
+// the dialog as a required field which is not as we default it to true.
+#[allow(clippy::unnecessary_wraps)]
+fn default_dialog() -> Option<bool> {
+  Some(true)
 }
 
 /// The Build configuration object.
@@ -580,5 +605,14 @@ fn default_build() -> BuildConfig {
     before_dev_command: None,
     before_build_command: None,
     with_global_tauri: false,
+  }
+}
+
+fn default_updater() -> UpdaterConfig {
+  UpdaterConfig {
+    active: false,
+    dialog: Some(true),
+    endpoints: None,
+    pubkey: None,
   }
 }

@@ -1,4 +1,7 @@
-use super::InvokeResponse;
+use crate::{
+  endpoints::InvokeResponse,
+  runtime::{sealed::ManagerPrivate, window::Window, Manager, Params},
+};
 use serde::Deserialize;
 
 /// The API descriptor.
@@ -21,22 +24,15 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub fn run<A: crate::ApplicationExt + 'static>(
-    self,
-    webview_manager: &crate::WebviewManager<A>,
-  ) -> crate::Result<InvokeResponse> {
+  pub fn run<M: Params>(self, window: Window<M>) -> crate::Result<InvokeResponse> {
     match self {
       Self::Listen { event, handler } => {
         let event_id = rand::random();
-        webview_manager
-          .current_webview()?
-          .eval(&listen_js(event, event_id, handler))?;
+        window.eval(&listen_js(&window, event, event_id, handler))?;
         Ok(event_id.into())
       }
       Self::Unlisten { event_id } => {
-        webview_manager
-          .current_webview()?
-          .eval(&unlisten_js(event_id))?;
+        window.eval(&unlisten_js(&window, event_id))?;
         Ok(().into())
       }
       Self::Emit {
@@ -44,17 +40,23 @@ impl Cmd {
         window_label,
         payload,
       } => {
-        if let Some(label) = window_label {
-          let dispatcher = webview_manager.get_webview(&label)?;
-          // dispatch the event to Rust listeners
-          dispatcher.on_event(event.to_string(), payload.clone());
-          // dispatch the event to JS listeners
-          dispatcher.emit(event, payload)?;
+        // Panic if the user's `Tag` type decided to return an error while parsing.
+        let e: M::Event = event
+          .parse()
+          .unwrap_or_else(|_| panic!("Event module received unhandled event: {}", event));
+
+        let window_label: Option<M::Label> = window_label.map(|l| {
+          l.parse()
+            .unwrap_or_else(|_| panic!("Event module recieved unhandled window: {}", l))
+        });
+
+        // dispatch the event to Rust listeners
+        window.trigger(e.clone(), payload.clone());
+
+        if let Some(target) = window_label {
+          window.emit_to(&target, e, payload)?;
         } else {
-          // dispatch the event to Rust listeners
-          webview_manager.on_event(event.to_string(), payload.clone());
-          // dispatch the event to JS listeners
-          webview_manager.emit(event, payload)?;
+          window.emit_all(e, payload)?;
         }
         Ok(().into())
       }
@@ -62,7 +64,7 @@ impl Cmd {
   }
 }
 
-pub fn unlisten_js(event_id: u64) -> String {
+pub fn unlisten_js<M: Params>(window: &Window<M>, event_id: u64) -> String {
   format!(
     "
       for (var event in (window['{listeners}'] || {{}})) {{
@@ -72,12 +74,17 @@ pub fn unlisten_js(event_id: u64) -> String {
         }}
       }}
     ",
-    listeners = crate::app::event::event_listeners_object_name(),
+    listeners = window.manager().event_listeners_object_name(),
     event_id = event_id,
   )
 }
 
-pub fn listen_js(event: String, event_id: u64, handler: String) -> String {
+pub fn listen_js<M: Params>(
+  window: &Window<M>,
+  event: String,
+  event_id: u64,
+  handler: String,
+) -> String {
   format!(
     "if (window['{listeners}'] === void 0) {{
       window['{listeners}'] = Object.create(null)
@@ -95,24 +102,11 @@ pub fn listen_js(event: String, event_id: u64, handler: String) -> String {
       window['{emit}'](e.eventData, e.salt, true)
     }}
   ",
-    listeners = crate::app::event::event_listeners_object_name(),
-    queue = crate::app::event::event_queue_object_name(),
-    emit = crate::app::event::emit_function_name(),
+    listeners = window.manager().event_listeners_object_name(),
+    queue = window.manager().event_queue_object_name(),
+    emit = window.manager().event_emit_function_name(),
     event = event,
     event_id = event_id,
     handler = handler
   )
-}
-
-#[cfg(test)]
-mod test {
-  use proptest::prelude::*;
-
-  // check the listen_js for various usecases.
-  proptest! {
-    #[test]
-    fn check_listen_js(event in "", id in proptest::bits::u64::ANY, handler in "") {
-      super::listen_js(event, id, handler);
-    }
-  }
 }

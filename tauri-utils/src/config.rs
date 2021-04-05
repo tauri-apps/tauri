@@ -155,6 +155,39 @@ impl Default for WindowConfig {
   }
 }
 
+/// The Updater configuration object.
+#[derive(PartialEq, Deserialize, Debug, Clone)]
+#[serde(tag = "updater", rename_all = "camelCase")]
+pub struct UpdaterConfig {
+  /// Whether the updater is active or not.
+  #[serde(default)]
+  pub active: bool,
+  /// Display built-in dialog or use event system if disabled.
+  #[serde(default = "default_updater_dialog")]
+  pub dialog: bool,
+  /// The updater endpoints.
+  #[serde(default)]
+  pub endpoints: Option<Vec<String>>,
+  /// Optional pubkey.
+  #[serde(default)]
+  pub pubkey: Option<String>,
+}
+
+fn default_updater_dialog() -> bool {
+  true
+}
+
+impl Default for UpdaterConfig {
+  fn default() -> Self {
+    Self {
+      active: false,
+      dialog: true,
+      endpoints: None,
+      pubkey: None,
+    }
+  }
+}
+
 /// A CLI argument definition
 #[derive(PartialEq, Deserialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -324,6 +357,9 @@ pub struct TauriConfig {
   /// The bundler configuration.
   #[serde(default)]
   pub bundle: BundleConfig,
+  /// The updater configuration.
+  #[serde(default)]
+  pub updater: UpdaterConfig,
 }
 
 impl Default for TauriConfig {
@@ -332,6 +368,7 @@ impl Default for TauriConfig {
       windows: default_window_config(),
       cli: None,
       bundle: BundleConfig::default(),
+      updater: UpdaterConfig::default(),
     }
   }
 }
@@ -387,17 +424,6 @@ pub struct Config {
 /// The plugin configs holds a HashMap mapping a plugin name to its configuration object.
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 pub struct PluginConfig(pub HashMap<String, JsonValue>);
-
-impl PluginConfig {
-  /// Gets a plugin configuration.
-  pub fn get<S: AsRef<str>>(&self, plugin_name: S) -> String {
-    self
-      .0
-      .get(plugin_name.as_ref())
-      .map(|config| config.to_string())
-      .unwrap_or_else(|| "{}".to_string())
-  }
-}
 
 /// Implement `ToTokens` for all config structs, allowing a literal `Config` to be built.
 ///
@@ -722,13 +748,25 @@ mod build {
     }
   }
 
+  impl ToTokens for UpdaterConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let active = self.active;
+      let dialog = self.dialog;
+      let pubkey = opt_str_lit(self.pubkey.as_ref());
+      let endpoints = opt_vec_str_lit(self.endpoints.as_ref());
+
+      literal_struct!(tokens, UpdaterConfig, active, dialog, pubkey, endpoints);
+    }
+  }
+
   impl ToTokens for TauriConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let windows = vec_lit(&self.windows, identity);
       let cli = opt_lit(self.cli.as_ref());
       let bundle = &self.bundle;
+      let updater = &self.updater;
 
-      literal_struct!(tokens, TauriConfig, windows, cli, bundle);
+      literal_struct!(tokens, TauriConfig, windows, cli, bundle, updater);
     }
   }
 
@@ -776,6 +814,8 @@ mod test {
     let d_title = default_title();
     // get default bundle
     let d_bundle = BundleConfig::default();
+    // get default updater
+    let d_updater = UpdaterConfig::default();
 
     // create a tauri config.
     let tauri = TauriConfig {
@@ -803,6 +843,12 @@ mod test {
         identifier: String::from(""),
       },
       cli: None,
+      updater: UpdaterConfig {
+        active: false,
+        dialog: true,
+        pubkey: None,
+        endpoints: None,
+      },
     };
 
     // create a build config
@@ -816,6 +862,7 @@ mod test {
     assert_eq!(t_config, tauri);
     assert_eq!(b_config, build);
     assert_eq!(d_bundle, tauri.bundle);
+    assert_eq!(d_updater, tauri.updater);
     assert_eq!(d_path, String::from("http://localhost:8080"));
     assert_eq!(d_title, tauri.windows[0].title);
     assert_eq!(d_windows, tauri.windows);

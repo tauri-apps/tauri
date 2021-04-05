@@ -13,6 +13,8 @@ members = [
   "examples/api/src-tauri",
   "examples/helloworld/src-tauri",
   "examples/multiwindow/src-tauri",
+  # used to build updater artifacts
+  "examples/updater/src-tauri",
 ]
 
 # default to small, optimized workspace release binaries

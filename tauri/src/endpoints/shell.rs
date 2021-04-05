@@ -1,15 +1,13 @@
-use super::InvokeResponse;
 use crate::{
   api::{
     command::{Command, CommandChild, CommandEvent},
     rpc::format_callback,
   },
-  app::ApplicationExt,
+  endpoints::InvokeResponse,
+  runtime::{window::Window, Params},
 };
-
 use once_cell::sync::Lazy;
 use serde::Deserialize;
-
 use std::{
   collections::HashMap,
   sync::{Arc, Mutex},
@@ -57,10 +55,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub fn run<A: ApplicationExt + 'static>(
-    self,
-    webview_manager: crate::WebviewManager<A>,
-  ) -> crate::Result<InvokeResponse> {
+  pub fn run<M: Params>(self, window: Window<M>) -> crate::Result<InvokeResponse> {
     match self {
       Self::Execute {
         program,
@@ -87,9 +82,7 @@ impl Cmd {
                 command_childs().lock().unwrap().remove(&pid);
               }
               let js = format_callback(on_event_fn.clone(), serde_json::to_value(event).unwrap());
-              if let Ok(dispatcher) = webview_manager.current_webview() {
-                let _ = dispatcher.eval(js.as_str());
-              }
+              let _ = window.eval(js.as_str());
             }
           });
 

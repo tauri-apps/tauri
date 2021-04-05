@@ -8,6 +8,7 @@
     "./cli": "./dist/cli.js",
     "./dialog": "./dist/dialog.js",
     "./event": "./dist/event.js",
+    "./updater": "./dist/updater.js",
     "./fs": "./dist/fs.js",
     "./path": "./dist/path.js",
     "./http": "./dist/http.js",

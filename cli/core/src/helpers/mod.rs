@@ -2,6 +2,7 @@ pub mod app_paths;
 pub mod config;
 mod logger;
 pub mod manifest;
+pub mod updater_signature;
 
 pub use logger::Logger;
 

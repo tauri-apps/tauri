@@ -1,6 +1,6 @@
 mod appimage_bundle;
 mod category;
-mod common;
+pub mod common;
 mod deb_bundle;
 mod dmg_bundle;
 mod ios_bundle;
@@ -11,6 +11,7 @@ mod path_utils;
 mod platform;
 mod rpm_bundle;
 mod settings;
+mod updater_bundle;
 #[cfg(target_os = "windows")]
 mod wix;
 
@@ -19,7 +20,7 @@ pub use self::{
   common::{print_error, print_info},
   settings::{
     BundleBinary, BundleSettings, DebianSettings, MacOSSettings, PackageSettings, PackageType,
-    Settings, SettingsBuilder,
+    Settings, SettingsBuilder, UpdaterSettings,
   },
 };
 #[cfg(windows)]
@@ -29,37 +30,46 @@ use common::print_finished;
 
 use std::path::PathBuf;
 
+pub struct Bundle {
+  // the package type
+  pub package_type: PackageType,
+  /// all paths for this package
+  pub bundle_paths: Vec<PathBuf>,
+}
+
 /// Bundles the project.
 /// Returns the list of paths where the bundles can be found.
-pub fn bundle_project(settings: Settings) -> crate::Result<Vec<PathBuf>> {
-  let mut paths = Vec::new();
+pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
+  let mut bundles = Vec::new();
   let package_types = settings.package_types()?;
+
   for package_type in &package_types {
-    let mut bundle_paths = match package_type {
-      PackageType::MacOSBundle => {
-        if package_types.clone().iter().any(|&t| t == PackageType::Dmg) {
-          vec![]
-        } else {
-          macos_bundle::bundle_project(&settings)?
-        }
-      }
+    let bundle_paths = match package_type {
+      PackageType::MacOSBundle => macos_bundle::bundle_project(&settings)?,
       PackageType::IosBundle => ios_bundle::bundle_project(&settings)?,
       #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => msi_bundle::bundle_project(&settings)?,
       PackageType::Deb => deb_bundle::bundle_project(&settings)?,
       PackageType::Rpm => rpm_bundle::bundle_project(&settings)?,
       PackageType::AppImage => appimage_bundle::bundle_project(&settings)?,
-      PackageType::Dmg => dmg_bundle::bundle_project(&settings)?,
+      // dmg is dependant of MacOSBundle, we send our bundles to prevent rebuilding
+      PackageType::Dmg => dmg_bundle::bundle_project(&settings, &bundles)?,
+      // updater is dependant of multiple bundle, we send our bundles to prevent rebuilding
+      PackageType::Updater => updater_bundle::bundle_project(&settings, &bundles)?,
     };
-    paths.append(&mut bundle_paths);
+
+    bundles.push(Bundle {
+      package_type: package_type.to_owned(),
+      bundle_paths,
+    });
   }
 
   settings.copy_resources(settings.project_out_directory())?;
   settings.copy_binaries(settings.project_out_directory())?;
 
-  print_finished(&paths)?;
+  print_finished(&bundles)?;
 
-  Ok(paths)
+  Ok(bundles)
 }
 
 /// Check to see if there are icons in the settings struct

@@ -175,7 +175,7 @@ where
       // Make sure the directory exist without panic
       if let Ok(user_data_dir) = local_app_data {
         if let Ok(()) = std::fs::create_dir_all(&user_data_dir) {
-          attributes.user_data_path(Some(user_data_dir));
+          attributes = attributes.user_data_path(Some(user_data_dir));
         }
       }
     }

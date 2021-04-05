@@ -87,7 +87,7 @@ pub fn listen_js<M: Params>(
 ) -> String {
   format!(
     "if (window['{listeners}'] === void 0) {{
-      window['{listeners}'] = {{}}
+      window['{listeners}'] = Object.create(null)
     }}
     if (window['{listeners}']['{event}'] === void 0) {{
       window['{listeners}']['{event}'] = []

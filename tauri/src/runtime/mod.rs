@@ -2,7 +2,6 @@ use crate::{
   api::{assets::Assets, config::Config},
   event::{Event, EventHandler},
   runtime::{
-    tag::Tag,
     webview::{Attributes, AttributesPrivate, Icon, WindowConfig},
     window::{DetachedWindow, PendingWindow, Window},
   },
@@ -18,6 +17,8 @@ pub(crate) mod tag;
 pub(crate) mod updater;
 pub(crate) mod webview;
 pub(crate) mod window;
+
+pub use self::tag::Tag;
 
 /// Important configurable items required by Tauri.
 pub struct Context<A: Assets> {
@@ -154,6 +155,7 @@ pub(crate) mod sealed {
   };
   use serde::Serialize;
   use std::collections::HashSet;
+  use uuid::Uuid;
 
   /// private manager api
   pub trait ParamsPrivate<M: Params>: Clone + Send + Sized + 'static {
@@ -233,6 +235,12 @@ pub(crate) mod sealed {
     fn event_listeners_object_name(&self) -> String;
     fn event_queue_object_name(&self) -> String;
     fn event_emit_function_name(&self) -> String;
+
+    /// Generate a random salt and store it in the manager
+    fn generate_salt(&self) -> Uuid;
+
+    /// Verify that the passed salt is a valid salt in the manager.
+    fn verify_salt(&self, salt: String) -> bool;
   }
 
   /// Represents a managed handle to the application runner.

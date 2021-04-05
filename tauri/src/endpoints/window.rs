@@ -110,10 +110,13 @@ impl Cmd {
           ));
           #[cfg(window_create)]
           {
-            let label: M::Label = options
-              .label
-              .parse()
-              .unwrap_or_else(|_| panic!("bad label"));
+            // Panic if the user's `Tag` type decided to return an error while parsing.
+            let label: M::Label = options.label.parse().unwrap_or_else(|_| {
+              panic!(
+                "Window module received unknown window label: {}",
+                options.label
+              )
+            });
 
             let url = options.url.clone();
             let pending = PendingWindow::new(WindowConfig(options), label.clone(), url);

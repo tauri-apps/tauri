@@ -24,8 +24,6 @@ mod hooks;
 pub mod plugin;
 /// The internal runtime between an [`App`] and the webview.
 pub mod runtime;
-/// The salt helpers.
-mod salt;
 
 /// Tauri result type.
 pub type Result<T> = std::result::Result<T, Error>;

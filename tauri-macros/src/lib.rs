@@ -1,7 +1,7 @@
 extern crate proc_macro;
 use crate::context::ContextItems;
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, ItemFn};
+use syn::{parse_macro_input, AttributeArgs, ItemFn};
 
 mod command;
 
@@ -9,9 +9,10 @@ mod command;
 mod context;
 
 #[proc_macro_attribute]
-pub fn command(_: TokenStream, item: TokenStream) -> TokenStream {
+pub fn command(attrs: TokenStream, item: TokenStream) -> TokenStream {
   let function = parse_macro_input!(item as ItemFn);
-  let gen = command::generate_command(function);
+  let attrs = parse_macro_input!(attrs as AttributeArgs);
+  let gen = command::generate_command(attrs, function);
   gen.into()
 }
 

@@ -9,7 +9,8 @@ use std::{
 /// Represents a "string-able" type.
 ///
 /// The type is required to be able to be represented as a string [`Display`], along with knowing
-/// how to be parsed from the string representation [`FromStr`].
+/// how to be parsed from the string representation [`FromStr`]. To make sure things stay easy to
+/// debug, both the [`Tag`] and the [`FromStr::Err`] must implement [`Debug`].
 ///
 /// [`Clone`], [`Hash`], and [`Eq`] are needed so that it can represent un-hashable types.
 ///
@@ -75,7 +76,10 @@ use std::{
 pub trait Tag: Hash + Eq + FromStr + Display + Debug + Clone + Send + Sync + 'static {}
 
 /// Automatically implement [`Tag`] for all types that fit the requirements.
-impl<T> Tag for T where T: Hash + Eq + FromStr + Display + Debug + Clone + Send + Sync + 'static {}
+impl<T, E: Debug> Tag for T where
+  T: Hash + Eq + FromStr<Err = E> + Display + Debug + Clone + Send + Sync + 'static
+{
+}
 
 /// Private helper to turn [`Tag`] related things into JavaScript, safely.
 ///

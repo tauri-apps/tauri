@@ -339,11 +339,7 @@ mod test {
 
   #[test]
   fn check_get_url() {
-    let context = generate_context!(
-      false,
-      "test/fixture/src-tauri/tauri.conf.json",
-      crate::Context
-    );
+    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate::Context);
     let manager: WindowManager<String, String, _, Wry> =
       WindowManager::with_handlers(context, Box::new(|_| ()), Box::new(|_, _| ()));
 

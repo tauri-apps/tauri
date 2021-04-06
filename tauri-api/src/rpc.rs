@@ -1,9 +1,13 @@
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 
-/// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length#description
-//  ECMAScript 2016 (ed. 7) established a maximum length of 2^53 - 1 elements. Previously, no maximum length was specified.
-//  In Firefox, strings have a maximum length of 2**30 - 2 (~1GB). In versions prior to Firefox 65, the maximum length was 2**28 - 1 (~256MB).
+/// The information about this is quite limited. On Chrome/Edge and Firefox, [the maximum string size is approximately 1 GB](https://stackoverflow.com/a/34958490).
+///
+/// [From MDN:](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length#description)
+///
+/// ECMAScript 2016 (ed. 7) established a maximum length of 2^53 - 1 elements. Previously, no maximum length was specified.
+///
+/// In Firefox, strings have a maximum length of 2\*\*30 - 2 (~1GB). In versions prior to Firefox 65, the maximum length was 2\*\*28 - 1 (~256MB).
 pub const MAX_JSON_STR_LEN: usize = usize::pow(2, 30) - 2;
 
 /// Safely transforms & escapes a JSON String -> JSON.parse('{json}')
@@ -46,7 +50,13 @@ fn test_escape_json_parse() {
     r#"{"test":"don\\🚀🐱‍👤\\'t forget to escape me!🚀🐱‍👤","te🚀🐱‍👤st2":"don't forget to escape me!","test3":"\\🚀🐱‍👤\\\\'''\\\\🚀🐱‍👤\\\\🚀🐱‍👤\\'''''"}"#,
   );
 
-  let definitely_escaped_dangerous_json = format!("JSON.parse('{}')", dangerous_json.clone().replace('\\', "\\\\").replace('\'', "\\'"));
+  let definitely_escaped_dangerous_json = format!(
+    "JSON.parse('{}')",
+    dangerous_json
+      .clone()
+      .replace('\\', "\\\\")
+      .replace('\'', "\\'")
+  );
   let escape_single_quoted_json_test = escape_json_parse(dangerous_json);
 
   let result = r#"JSON.parse('{"test":"don\\\\🚀🐱‍👤\\\\\'t forget to escape me!🚀🐱‍👤","te🚀🐱‍👤st2":"don\'t forget to escape me!","test3":"\\\\🚀🐱‍👤\\\\\\\\\'\'\'\\\\\\\\🚀🐱‍👤\\\\\\\\🚀🐱‍👤\\\\\'\'\'\'\'"}')"#;
@@ -82,26 +92,13 @@ fn test_escape_json_parse() {
 /// assert!(cb.contains(r#"window["callback-function-name"](JSON.parse('{"value":"some value"}'))"#));
 /// ```
 pub fn format_callback<T: Into<JsonValue>, S: AsRef<str>>(function_name: S, arg: T) -> String {
-  let as_str = {
-    let json_value = arg.into();
-    let as_str = json_value.to_string();
-    if as_str.len() < MAX_JSON_STR_LEN {
-      if matches!(json_value, JsonValue::Array(_) | JsonValue::Object(_)) {
-        return format!(
-          r#"
-            if (window["{fn}"]) {{
-              window["{fn}"]({arg})
-            }} else {{
-              console.warn("[TAURI] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
-            }}
-          "#,
-          fn = function_name.as_ref(),
-          arg = escape_json_parse(as_str)
-        )
-      }
-    }
-    as_str
-  };
+  let json_value = arg.into();
+
+  // We should only use JSON.parse('{arg}') if it's an array or object.
+  // We likely won't get any performance benefit from other data types.
+  let use_json_parse = matches!(json_value, JsonValue::Array(_) | JsonValue::Object(_));
+  let as_str = json_value.to_string();
+  drop(json_value); // Explicitly drop json_value to avoid storing both the Rust "JSON" and serialized String JSON in memory twice.
 
   format!(
     r#"
@@ -112,7 +109,11 @@ pub fn format_callback<T: Into<JsonValue>, S: AsRef<str>>(function_name: S, arg:
       }}
     "#,
     fn = function_name.as_ref(),
-    arg = as_str
+    arg = if use_json_parse && as_str.len() < MAX_JSON_STR_LEN {
+      escape_json_parse(as_str)
+    } else {
+      as_str
+    }
   )
 }
 
@@ -162,21 +163,15 @@ mod test {
     if !f.is_empty() && !a.is_empty() {
       // call format callback
       let fc = format_callback(f.clone(), a.clone());
-      fc.contains(
-        &format!(
-          r#"window["{}"](JSON.parse('{}'))"#,
-          f,
-          serde_json::Value::String(a.clone()),
-        )
-      )
-      ||
-      fc.contains(
-        &format!(
-          r#"window["{}"]({})"#,
-          f,
-          serde_json::Value::String(a),
-        )
-      )
+      fc.contains(&format!(
+        r#"window["{}"](JSON.parse('{}'))"#,
+        f,
+        serde_json::Value::String(a.clone()),
+      )) || fc.contains(&format!(
+        r#"window["{}"]({})"#,
+        f,
+        serde_json::Value::String(a),
+      ))
     } else {
       true
     }

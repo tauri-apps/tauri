@@ -48,7 +48,7 @@ impl<M: Params> App<M> {
     updater::listener(updater_config, self.manager.package_info().clone(), &window);
   }
 
-  pub fn run_updater(&self, main_window: Option<Window<M>>) {
+  fn run_updater(&self, main_window: Option<Window<M>>) {
     if let Some(main_window) = main_window {
       let event_window = main_window.clone();
       let updater_config = self.manager.config().tauri.updater.clone();
@@ -214,11 +214,21 @@ where
       .map(|p| p.label.clone())
       .collect::<Vec<_>>();
 
+    #[cfg(feature = "updater")]
+    let mut main_window = None;
+
     for pending in self.pending_windows {
       let pending = app.manager.prepare_window(pending, &pending_labels)?;
       let detached = app.runtime.create_window(pending)?;
-      app.manager.attach_window(detached);
+      let _window = app.manager.attach_window(detached);
+      #[cfg(feature = "updater")]
+      if main_window.is_none() {
+        main_window = Some(_window);
+      }
     }
+
+    #[cfg(feature = "updater")]
+    app.run_updater(main_window);
 
     (self.setup)(&mut app)?;
     app.runtime.run();

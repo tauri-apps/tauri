@@ -15,6 +15,7 @@ use tauri_codegen::{context_codegen, ContextData};
 #[cfg_attr(doc_cfg, doc(cfg(feature = "codegen")))]
 #[derive(Debug)]
 pub struct CodegenContext {
+  dev: bool,
   config_path: PathBuf,
   out_file: PathBuf,
 }
@@ -22,6 +23,7 @@ pub struct CodegenContext {
 impl Default for CodegenContext {
   fn default() -> Self {
     Self {
+      dev: false,
       config_path: PathBuf::from("tauri.conf.json"),
       out_file: PathBuf::from("tauri-build-context.rs"),
     }
@@ -60,6 +62,13 @@ impl CodegenContext {
     self
   }
 
+  /// Run the codegen in a `dev` context, meaning that Tauri is using a dev server or local file for development purposes,
+  /// usually with the `tauri dev` CLI command.
+  pub fn dev(mut self) -> Self {
+    self.dev = true;
+    self
+  }
+
   /// Generate the code and write it to the output file - returning the path it was saved to.
   ///
   /// Unless you are doing something special with this builder, you don't need to do anything with
@@ -80,6 +89,7 @@ impl CodegenContext {
   pub fn try_build(self) -> Result<PathBuf> {
     let (config, config_parent) = tauri_codegen::get_config(&self.config_path)?;
     let code = context_codegen(ContextData {
+      dev: self.dev,
       config,
       config_parent,
       // it's very hard to have a build script for unit tests, so assume this is always called from

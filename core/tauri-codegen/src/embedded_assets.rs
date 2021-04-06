@@ -56,6 +56,7 @@ pub enum EmbeddedAssetsError {
 /// The assets are compressed during this runtime, and can only be represented as a [`TokenStream`]
 /// through [`ToTokens`]. The generated code is meant to be injected into an application to include
 /// the compressed assets in that application's binary.
+#[derive(Default)]
 pub struct EmbeddedAssets(HashMap<AssetKey, (PathBuf, PathBuf)>);
 
 impl EmbeddedAssets {

@@ -43,7 +43,7 @@ serde = { version = "1.0", features = [ "derive" ] }
 
 [features]
 cli = [ "tauri-api/cli" ]
-custom-protocol = [ ]
+custom-protocol = [ "tauri-macros/custom-protocol" ]
 api-all = [ "tauri-api/notification", "tauri-api/global-shortcut", "updater" ]
 updater = [ "tauri-updater" ]
 

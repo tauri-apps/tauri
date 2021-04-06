@@ -13,6 +13,17 @@ pub fn escape_json_parse(mut json: String) -> String {
   const BACKSLASH_BYTE: u8 = '\\' as u8;
   const SINGLE_QUOTE_BYTE: u8 = '\'' as u8;
 
+  // Safety:
+  //
+  // Directly mutating the bytes of a String is considered unsafe because you could end
+  // up inserting invalid UTF-8 into the String.
+  //
+  // In this case, we are working with single-byte \ (backslash) and ' (single quotes),
+  // and only INSERTING a backslash in the position proceeding it, which is safe to do.
+  //
+  // Note the debug assertion that checks whether the String is valid UTF-8.
+  // In the test below this assertion will fail if the emojis in the test strings cause problems.
+
 	let bytes: &mut Vec<u8> = unsafe { json.as_mut_vec() };
 	let mut i = 0;
 	while i < bytes.len() {
@@ -23,6 +34,7 @@ pub fn escape_json_parse(mut json: String) -> String {
     }
 		i += 1;
 	}
+
 	debug_assert!(String::from_utf8(bytes.to_vec()).is_ok());
 
   format!("JSON.parse('{}')", json)

@@ -559,8 +559,8 @@ where
     self.windows_lock().get(label).cloned()
   }
 
-  fn windows(&self) -> HashSet<Window<Self>> {
-    self.windows_lock().values().cloned().collect()
+  fn windows(&self) -> HashMap<L, Window<Self>> {
+    self.windows_lock().clone()
   }
 }
 

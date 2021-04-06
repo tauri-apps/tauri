@@ -7,7 +7,7 @@ use crate::{
   },
 };
 use serde::Serialize;
-use std::{collections::HashSet, convert::TryFrom};
+use std::convert::TryFrom;
 
 pub(crate) mod app;
 pub mod flavor;
@@ -19,6 +19,7 @@ pub(crate) mod webview;
 pub(crate) mod window;
 
 pub use self::tag::Tag;
+use std::collections::HashMap;
 
 /// Important configurable items required by Tauri.
 pub struct Context<A: Assets> {
@@ -154,7 +155,7 @@ pub(crate) mod sealed {
     },
   };
   use serde::Serialize;
-  use std::collections::HashSet;
+  use std::collections::{HashMap, HashSet};
   use uuid::Uuid;
 
   /// private manager api
@@ -246,7 +247,7 @@ pub(crate) mod sealed {
     fn get_window(&self, label: &M::Label) -> Option<Window<M>>;
 
     /// Get all managed windows.
-    fn windows(&self) -> HashSet<Window<M>>;
+    fn windows(&self) -> HashMap<M::Label, Window<M>>;
   }
 
   /// Represents a managed handle to the application runner.
@@ -339,7 +340,7 @@ pub trait Manager<M: Params>: sealed::ManagerPrivate<M> {
   }
 
   /// Fetch all managed windows.
-  fn windows(&self) -> HashSet<Window<M>> {
+  fn windows(&self) -> HashMap<M::Label, Window<M>> {
     self.manager().windows()
   }
 }

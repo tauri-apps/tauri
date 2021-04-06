@@ -19,6 +19,7 @@ pub(crate) mod webview;
 pub(crate) mod window;
 
 pub use self::tag::Tag;
+use std::collections::HashMap;
 
 /// Important configurable items required by Tauri.
 pub struct Context<A: Assets> {
@@ -154,7 +155,7 @@ pub(crate) mod sealed {
     },
   };
   use serde::Serialize;
-  use std::collections::HashSet;
+  use std::collections::{HashMap, HashSet};
   use uuid::Uuid;
 
   /// private manager api
@@ -241,6 +242,12 @@ pub(crate) mod sealed {
 
     /// Verify that the passed salt is a valid salt in the manager.
     fn verify_salt(&self, salt: String) -> bool;
+
+    /// Get a single managed window.
+    fn get_window(&self, label: &M::Label) -> Option<Window<M>>;
+
+    /// Get all managed windows.
+    fn windows(&self) -> HashMap<M::Label, Window<M>>;
   }
 
   /// Represents a managed handle to the application runner.
@@ -325,6 +332,16 @@ pub trait Manager<M: Params>: sealed::ManagerPrivate<M> {
   /// Remove an event listener.
   fn unlisten(&self, handler_id: EventHandler) {
     self.manager().unlisten(handler_id)
+  }
+
+  /// Fetch a single window from the manager.
+  fn get_window(&self, label: &M::Label) -> Option<Window<M>> {
+    self.manager().get_window(label)
+  }
+
+  /// Fetch all managed windows.
+  fn windows(&self) -> HashMap<M::Label, Window<M>> {
+    self.manager().windows()
   }
 }
 

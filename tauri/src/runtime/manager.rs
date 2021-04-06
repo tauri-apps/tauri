@@ -22,14 +22,14 @@ use serde::Serialize;
 use serde_json::Value as JsonValue;
 use std::{
   borrow::Cow,
-  collections::HashSet,
+  collections::{HashMap, HashSet},
   convert::TryInto,
-  sync::{Arc, Mutex},
+  sync::{Arc, Mutex, MutexGuard},
 };
 use uuid::Uuid;
 
 pub struct InnerWindowManager<M: Params> {
-  windows: Mutex<HashSet<Window<M>>>,
+  windows: Mutex<HashMap<M::Label, Window<M>>>,
   plugins: Mutex<PluginStore<M>>,
   listeners: Listeners<M::Event, M::Label>,
 
@@ -99,6 +99,11 @@ where
         package_info: context.package_info,
       }),
     }
+  }
+
+  /// Get a locked handle to the windows.
+  pub(crate) fn windows_lock(&self) -> MutexGuard<'_, HashMap<L, Window<Self>>> {
+    self.inner.windows.lock().expect("poisoned window manager")
   }
 
   // setup content for dev-server
@@ -439,11 +444,8 @@ where
     // insert the window into our manager
     {
       self
-        .inner
-        .windows
-        .lock()
-        .expect("poisoned window manager")
-        .insert(window.clone());
+        .windows_lock()
+        .insert(window.label().clone(), window.clone());
     }
 
     // let plugins know that a new window has been added to the manager
@@ -466,11 +468,8 @@ where
     filter: F,
   ) -> crate::Result<()> {
     self
-      .inner
-      .windows
-      .lock()
-      .expect("poisoned window manager")
-      .iter()
+      .windows_lock()
+      .values()
       .filter(|&w| filter(w))
       .try_for_each(|window| window.emit_internal(event.clone(), payload.clone()))
   }
@@ -482,24 +481,14 @@ where
     filter: F,
   ) -> crate::Result<()> {
     self
-      .inner
-      .windows
-      .lock()
-      .expect("poisoned window manager")
-      .iter()
+      .windows_lock()
+      .values()
       .filter(|&w| filter(w))
       .try_for_each(|window| window.emit(&event, payload.clone()))
   }
 
   fn labels(&self) -> HashSet<L> {
-    self
-      .inner
-      .windows
-      .lock()
-      .expect("poisoned window manager")
-      .iter()
-      .map(|w| w.label().clone())
-      .collect()
+    self.windows_lock().keys().cloned().collect()
   }
 
   fn config(&self) -> &Config {
@@ -568,6 +557,14 @@ where
       .lock()
       .expect("poisoned salt mutex")
       .remove(&uuid)
+  }
+
+  fn get_window(&self, label: &L) -> Option<Window<Self>> {
+    self.windows_lock().get(label).cloned()
+  }
+
+  fn windows(&self) -> HashMap<L, Window<Self>> {
+    self.windows_lock().clone()
   }
 }
 

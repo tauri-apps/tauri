@@ -4,6 +4,7 @@ use std::{
   collections::HashMap,
   env::var,
   fs::File,
+  io::BufReader,
   path::{Path, PathBuf},
 };
 use tauri_api::assets::AssetKey;
@@ -12,9 +13,6 @@ use walkdir::WalkDir;
 
 /// The subdirectory inside the target directory we want to place assets.
 const TARGET_PATH: &str = "tauri-codegen-assets";
-
-/// The minimum size needed for the hasher to use multiple threads.
-const MULTI_HASH_SIZE_LIMIT: usize = 131_072; // 128KiB
 
 /// (key, (original filepath, compressed bytes))
 type Asset = (AssetKey, (PathBuf, PathBuf));
@@ -91,10 +89,13 @@ impl EmbeddedAssets {
 
   /// Compress a file and spit out the information in a [`HashMap`] friendly form.
   fn compress_file(prefix: &Path, path: &Path) -> Result<Asset, EmbeddedAssetsError> {
-    let input = std::fs::read(path).map_err(|error| EmbeddedAssetsError::AssetRead {
-      path: path.to_owned(),
-      error,
-    })?;
+    let reader =
+      File::open(&path)
+        .map(BufReader::new)
+        .map_err(|error| EmbeddedAssetsError::AssetRead {
+          path: path.to_owned(),
+          error,
+        })?;
 
     // we must canonicalize the base of our paths to allow long paths on windows
     let out_dir = std::env::var("OUT_DIR")
@@ -106,39 +107,25 @@ impl EmbeddedAssets {
     // make sure that our output directory is created
     std::fs::create_dir_all(&out_dir).map_err(|_| EmbeddedAssetsError::OutDir)?;
 
-    // get a hash of the input - allows for caching existing files
-    let hash = {
-      let mut hasher = blake3::Hasher::new();
-      if input.len() < MULTI_HASH_SIZE_LIMIT {
-        hasher.update(&input);
-      } else {
-        hasher.update_with_join::<blake3::join::RayonJoin>(&input);
-      }
-      hasher.finalize().to_hex()
-    };
-
     // use the content hash to determine filename, keep extensions that exist
-    let out_path = if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-      out_dir.join(format!("{}.{}", hash, ext))
-    } else {
-      out_dir.join(hash.to_string())
-    };
+    let out_path = out_dir.join(
+      path
+        .file_name()
+        .expect("attempted to use a file path without a file name"),
+    );
 
-    // only compress and write to the file if it doesn't already exist.
-    if !out_path.exists() {
-      let out_file = File::create(&out_path).map_err(|error| EmbeddedAssetsError::AssetWrite {
-        path: out_path.clone(),
+    let out_file = File::create(&out_path).map_err(|error| EmbeddedAssetsError::AssetWrite {
+      path: out_path.clone(),
+      error,
+    })?;
+
+    // entirely write input to the output file path with compression
+    zstd::stream::copy_encode(reader, out_file, Self::compression_level()).map_err(|error| {
+      EmbeddedAssetsError::AssetWrite {
+        path: path.to_owned(),
         error,
-      })?;
-
-      // entirely write input to the output file path with compression
-      zstd::stream::copy_encode(&*input, out_file, Self::compression_level()).map_err(|error| {
-        EmbeddedAssetsError::AssetWrite {
-          path: path.to_owned(),
-          error,
-        }
-      })?;
-    }
+      }
+    })?;
 
     // get a key to the asset path without the asset directory prefix
     let key = path

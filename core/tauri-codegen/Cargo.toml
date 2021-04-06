@@ -10,7 +10,6 @@ description = "code generation meant to be consumed inside of `tauri` through `t
 edition = "2018"
 
 [dependencies]
-blake3 = { version = "0.3", features = ["rayon"] }
 proc-macro2 = "1"
 quote = "1"
 serde = { version = "1", features = ["derive"] }

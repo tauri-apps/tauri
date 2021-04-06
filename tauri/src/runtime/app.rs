@@ -181,7 +181,12 @@ where
 
   /// Runs the configured Tauri application.
   pub fn run(mut self, context: Context<A>) -> crate::Result<()> {
-    let manager = WindowManager::with_handlers(context, self.invoke_handler, self.on_page_load);
+    let manager = WindowManager::with_handlers(
+      context,
+      self.plugins,
+      self.invoke_handler,
+      self.on_page_load,
+    );
 
     // set up all the windows defined in the config
     for config in manager.config().tauri.windows.clone() {

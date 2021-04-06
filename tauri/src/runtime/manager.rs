@@ -81,13 +81,14 @@ where
 {
   pub(crate) fn with_handlers(
     context: Context<A>,
+    plugins: PluginStore<Self>,
     invoke_handler: Box<InvokeHandler<Self>>,
     on_page_load: Box<OnPageLoad<Self>>,
   ) -> Self {
     Self {
       inner: Arc::new(InnerWindowManager {
         windows: Mutex::default(),
-        plugins: Mutex::default(),
+        plugins: Mutex::new(plugins),
         listeners: Listeners::default(),
         invoke_handler,
         on_page_load,
@@ -345,15 +346,18 @@ where
 
 #[cfg(test)]
 mod test {
-  use crate::{generate_context, runtime::flavor::wry::Wry};
-
   use super::WindowManager;
+  use crate::{generate_context, plugin::PluginStore, runtime::flavor::wry::Wry};
 
   #[test]
   fn check_get_url() {
     let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate::Context);
-    let manager: WindowManager<String, String, _, Wry> =
-      WindowManager::with_handlers(context, Box::new(|_| ()), Box::new(|_, _| ()));
+    let manager: WindowManager<String, String, _, Wry> = WindowManager::with_handlers(
+      context,
+      PluginStore::default(),
+      Box::new(|_| ()),
+      Box::new(|_, _| ()),
+    );
 
     #[cfg(custom_protocol)]
     assert_eq!(manager.get_url(), "tauri://studio.tauri.example");

@@ -106,19 +106,7 @@ where
     if self.inner.config.build.dev_path.starts_with("http") {
       self.inner.config.build.dev_path.clone()
     } else {
-      let path = "index.html";
-      format!(
-        "data:text/html;base64,{}",
-        base64::encode(
-          self
-            .inner
-            .assets
-            .get(&path)
-            .ok_or_else(|| crate::Error::AssetNotFound(path.to_string()))
-            .map(Cow::into_owned)
-            .expect("Unable to find `index.html` under your devPath folder")
-        )
-      )
+      format!("tauri://{}", self.inner.config.tauri.bundle.identifier)
     }
   }
 

@@ -72,6 +72,7 @@ pub(crate) fn generate_context(context: ContextItems) -> TokenStream {
   let context = get_config(&context.config_file)
     .map_err(|e| e.to_string())
     .map(|(config, config_parent)| ContextData {
+      dev: cfg!(not(feature = "custom-protocol")),
       config,
       config_parent,
       context_path: context.context_path.to_token_stream(),

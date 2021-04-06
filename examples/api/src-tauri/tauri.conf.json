@@ -1,7 +1,7 @@
 {
   "build": {
     "distDir": "../public",
-    "devPath": "http://localhost:5000",
+    "devPath": "../public",
     "beforeDevCommand": "yarn dev",
     "beforeBuildCommand": "yarn build"
   },
@@ -24,7 +24,11 @@
           "name": "theme",
           "takesValue": true,
           "description": "App theme",
-          "possibleValues": ["light", "dark", "system"]
+          "possibleValues": [
+            "light",
+            "dark",
+            "system"
+          ]
         },
         {
           "short": "v",

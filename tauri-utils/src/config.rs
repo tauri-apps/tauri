@@ -796,7 +796,7 @@ mod test {
     let tauri = TauriConfig {
       windows: vec![WindowConfig {
         label: "main".to_string(),
-        url: WindowUrl::App,
+        url: WindowUrl::default(),
         x: None,
         y: None,
         width: 800f64,

@@ -31,7 +31,7 @@ impl<T: Serialize> From<T> for InvokeResponse {
 #[serde(tag = "module", content = "message")]
 enum Module {
   Fs(file_system::Cmd),
-  Window(window::Cmd),
+  Window(Box<window::Cmd>),
   Shell(shell::Cmd),
   Event(event::Cmd),
   Internal(internal::Cmd),

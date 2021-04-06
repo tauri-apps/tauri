@@ -1,12 +1,13 @@
-use serde::{
-  de::{Deserializer, Visitor},
-  {Deserialize, Serialize},
-};
-use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 
+use serde::{
+  de::{Deserializer, Visitor},
+  Deserialize,
+};
+use serde_json::Value as JsonValue;
+
 /// The window webview URL options.
-#[derive(PartialEq, Serialize, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum WindowUrl {
   /// The app's index URL.
   App,
@@ -48,7 +49,7 @@ impl<'de> Deserialize<'de> for WindowUrl {
 }
 
 /// The window configuration object.
-#[derive(PartialEq, Serialize, Deserialize, Debug, Clone)]
+#[derive(PartialEq, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct WindowConfig {
   #[serde(default = "default_window_label")]
@@ -155,7 +156,7 @@ impl Default for WindowConfig {
 }
 
 /// The Updater configuration object.
-#[derive(PartialEq, Serialize, Deserialize, Debug, Clone)]
+#[derive(PartialEq, Deserialize, Debug, Clone)]
 #[serde(tag = "updater", rename_all = "camelCase")]
 pub struct UpdaterConfig {
   /// Whether the updater is active or not.
@@ -188,7 +189,7 @@ impl Default for UpdaterConfig {
 }
 
 /// A CLI argument definition
-#[derive(PartialEq, Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(PartialEq, Deserialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CliArg {
   /// The short version of the argument, without the preceding -.
@@ -275,7 +276,7 @@ pub struct CliArg {
 }
 
 /// The CLI root command definition.
-#[derive(PartialEq, Serialize, Deserialize, Debug, Clone)]
+#[derive(PartialEq, Deserialize, Debug, Clone)]
 #[serde(tag = "cli", rename_all = "camelCase")]
 #[allow(missing_docs)] // TODO
 pub struct CliConfig {
@@ -324,7 +325,7 @@ impl CliConfig {
 }
 
 /// The bundler configuration object.
-#[derive(PartialEq, Serialize, Deserialize, Debug)]
+#[derive(PartialEq, Deserialize, Debug)]
 #[serde(tag = "bundle", rename_all = "camelCase")]
 pub struct BundleConfig {
   /// The bundle identifier.
@@ -344,7 +345,7 @@ fn default_window_config() -> Vec<WindowConfig> {
 }
 
 /// The Tauri configuration object.
-#[derive(PartialEq, Serialize, Deserialize, Debug)]
+#[derive(PartialEq, Deserialize, Debug)]
 #[serde(tag = "tauri", rename_all = "camelCase")]
 pub struct TauriConfig {
   /// The window configuration.
@@ -373,7 +374,7 @@ impl Default for TauriConfig {
 }
 
 /// The Build configuration object.
-#[derive(PartialEq, Serialize, Deserialize, Debug)]
+#[derive(PartialEq, Deserialize, Debug)]
 #[serde(tag = "build", rename_all = "camelCase")]
 pub struct BuildConfig {
   /// the devPath config.
@@ -406,7 +407,7 @@ impl Default for BuildConfig {
 }
 
 /// The tauri.conf.json mapper.
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
   /// The Tauri configuration.
@@ -421,7 +422,7 @@ pub struct Config {
 }
 
 /// The plugin configs holds a HashMap mapping a plugin name to its configuration object.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 pub struct PluginConfig(pub HashMap<String, JsonValue>);
 
 /// Implement `ToTokens` for all config structs, allowing a literal `Config` to be built.

@@ -89,7 +89,6 @@ pub mod private {
     }
   }
   pub use once_cell::sync::OnceCell;
-  pub use serde_json;
 
   pub trait AsTauriContext {
     fn config() -> &'static crate::config::Config;

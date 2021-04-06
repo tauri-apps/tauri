@@ -83,9 +83,11 @@ impl EmbeddedAssets {
 
   /// Use highest compression level for release, the fastest one for everything else
   fn compression_level() -> i32 {
-    match var("PROFILE").as_ref().map(String::as_str) {
-      Ok("release") => 22,
-      _ => -5,
+    let levels = zstd::compression_level_range();
+    if cfg!(debug_assertions) {
+      *levels.start()
+    } else {
+      *levels.end()
     }
   }
 

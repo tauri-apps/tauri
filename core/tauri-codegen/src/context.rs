@@ -6,6 +6,7 @@ use tauri_api::config::Config;
 
 /// Necessary data needed by [`codegen_context`] to generate code for a Tauri application context.
 pub struct ContextData {
+  pub dev: bool,
   pub config: Config,
   pub config_parent: PathBuf,
   pub context_path: TokenStream,
@@ -14,15 +15,28 @@ pub struct ContextData {
 /// Build an `AsTauriContext` implementation for including in application code.
 pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsError> {
   let ContextData {
-    mut config,
+    dev,
+    config,
     config_parent,
     context_path,
   } = data;
-  let dist_dir = config_parent.join(&config.build.dist_dir);
-  config.build.dist_dir = dist_dir.to_string_lossy().to_string();
+  let assets_path = if dev {
+    // if dev_path is a dev server, we don't have any assets to embed
+    if config.build.dev_path.starts_with("http") {
+      None
+    } else {
+      Some(config_parent.join(&config.build.dev_path))
+    }
+  } else {
+    Some(config_parent.join(&config.build.dist_dir))
+  };
 
   // generate the assets inside the dist dir into a perfect hash function
-  let assets = EmbeddedAssets::new(&dist_dir)?;
+  let assets = if let Some(assets_path) = assets_path {
+    EmbeddedAssets::new(&assets_path)?
+  } else {
+    Default::default()
+  };
 
   // handle default window icons for Windows targets
   let default_window_icon = if cfg!(windows) {

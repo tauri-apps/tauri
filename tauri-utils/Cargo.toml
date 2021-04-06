@@ -14,7 +14,8 @@ serde_json = "1.0"
 sysinfo = "0.10"
 thiserror = "1.0.19"
 phf = { version = "0.8", features = ["macros"] }
-zstd = "0.6"
+zstd = "0.7"
+url = { version = "2.2", features = ["serde"] }
 
 # build feature only
 proc-macro2 = { version = "1.0", optional = true }

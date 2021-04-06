@@ -1,10 +1,23 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
-  parse::Parser, punctuated::Punctuated, FnArg, Ident, ItemFn, Pat, Path, ReturnType, Token, Type,
+  parse::Parser, punctuated::Punctuated, FnArg, Ident, ItemFn, Meta, NestedMeta, Pat, Path,
+  ReturnType, Token, Type,
 };
 
-pub fn generate_command(function: ItemFn) -> TokenStream {
+pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream {
+  // Check if "with_window" attr was passed to macro
+  let with_window = attrs.iter().any(|a| {
+    if let NestedMeta::Meta(Meta::Path(path)) = a {
+      path
+        .get_ident()
+        .map(|i| *i == "with_window")
+        .unwrap_or(false)
+    } else {
+      false
+    }
+  });
+
   let fn_name = function.sig.ident.clone();
   let fn_name_str = fn_name.to_string();
   let fn_wrapper = format_ident!("{}_wrapper", fn_name);
@@ -24,7 +37,7 @@ pub fn generate_command(function: ItemFn) -> TokenStream {
   };
 
   // Split function args into names and types
-  let (names, types): (Vec<Ident>, Vec<Path>) = function
+  let (mut names, mut types): (Vec<Ident>, Vec<Path>) = function
     .sig
     .inputs
     .iter()
@@ -46,6 +59,17 @@ pub fn generate_command(function: ItemFn) -> TokenStream {
     })
     .unzip();
 
+  let window_arg_maybe = match types.first() {
+    Some(_) if with_window => {
+      // Remove window arg from list so it isn't expected as arg from JS
+      types.drain(0..1);
+      names.drain(0..1);
+      // Tell wrapper to pass `window` to original function
+      quote!(_window,)
+    }
+    // Tell wrapper not to pass `window` to original function
+    _ => quote!(),
+  };
   let await_maybe = if function.sig.asyncness.is_some() {
     quote!(.await)
   } else {
@@ -58,13 +82,13 @@ pub fn generate_command(function: ItemFn) -> TokenStream {
   // note that all types must implement `serde::Serialize`.
   let return_value = if returns_result {
     quote! {
-      match #fn_name(#(parsed_args.#names),*)#await_maybe {
+      match #fn_name(#window_arg_maybe #(parsed_args.#names),*)#await_maybe {
         Ok(value) => ::core::result::Result::Ok(value),
         Err(e) => ::core::result::Result::Err(e),
       }
     }
   } else {
-    quote! { ::core::result::Result::<_, ()>::Ok(#fn_name(#(parsed_args.#names),*)#await_maybe) }
+    quote! { ::core::result::Result::<_, ()>::Ok(#fn_name(#window_arg_maybe #(parsed_args.#names),*)#await_maybe) }
   };
 
   quote! {
@@ -75,6 +99,7 @@ pub fn generate_command(function: ItemFn) -> TokenStream {
       struct ParsedArgs {
         #(#names: #types),*
       }
+      let _window = message.window();
       match ::serde_json::from_value::<ParsedArgs>(message.payload()) {
         Ok(parsed_args) => message.respond_async(async move {
           #return_value

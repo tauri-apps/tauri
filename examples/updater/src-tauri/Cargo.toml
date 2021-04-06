@@ -12,9 +12,6 @@ serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
 tauri = { path = "../../../tauri", features =["api-all"]}
 
-[target."cfg(windows)".build-dependencies]
-winres = "0.1"
-
 [features]
 default = [ "custom-protocol" ]
 custom-protocol = [ "tauri/custom-protocol" ]

@@ -1,50 +1,22 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
-use serde::{
-  de::{Deserializer, Visitor},
-  Deserialize,
-};
+use serde::Deserialize;
 use serde_json::Value as JsonValue;
+use url::Url;
 
 /// The window webview URL options.
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Deserialize)]
+#[serde(untagged)]
 pub enum WindowUrl {
-  /// The app's index URL.
-  App,
-  /// A custom URL.
-  Custom(String),
+  /// An external URL.
+  External(Url),
+  /// An app URL.
+  App(PathBuf),
 }
 
 impl Default for WindowUrl {
   fn default() -> Self {
-    Self::App
-  }
-}
-
-impl<'de> Deserialize<'de> for WindowUrl {
-  fn deserialize<D>(deserializer: D) -> Result<WindowUrl, D::Error>
-  where
-    D: Deserializer<'de>,
-  {
-    struct StringVisitor;
-    impl<'de> Visitor<'de> for StringVisitor {
-      type Value = WindowUrl;
-      fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("a string representing an url")
-      }
-
-      fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-      where
-        E: serde::de::Error,
-      {
-        if v.to_lowercase() == "app" {
-          Ok(WindowUrl::App)
-        } else {
-          Ok(WindowUrl::Custom(v.to_string()))
-        }
-      }
-    }
-    deserializer.deserialize_str(StringVisitor)
+    Self::App("index.html".into())
   }
 }
 
@@ -134,7 +106,7 @@ impl Default for WindowConfig {
   fn default() -> Self {
     Self {
       label: default_window_label(),
-      url: WindowUrl::App,
+      url: WindowUrl::default(),
       x: None,
       y: None,
       width: default_width(),
@@ -578,10 +550,13 @@ mod build {
       let prefix = quote! { ::tauri::api::config::WindowUrl };
 
       tokens.append_all(match self {
-        Self::App => quote! { #prefix::App },
-        Self::Custom(str) => {
-          let str = str_lit(str);
-          quote! { #prefix::Custom(#str) }
+        Self::App(path) => {
+          let path = path.to_string_lossy().to_string();
+          quote! { #prefix::App(::std::path::PathBuf::from(#path)) }
+        }
+        Self::External(url) => {
+          let url = url.as_str();
+          quote! { #prefix::External(#url.parse().unwrap()) }
         }
       })
     }
@@ -821,7 +796,7 @@ mod test {
     let tauri = TauriConfig {
       windows: vec![WindowConfig {
         label: "main".to_string(),
-        url: WindowUrl::App,
+        url: WindowUrl::default(),
         x: None,
         y: None,
         width: 800f64,

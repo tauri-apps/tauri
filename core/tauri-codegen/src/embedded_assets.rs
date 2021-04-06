@@ -2,7 +2,6 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use std::{
   collections::HashMap,
-  env::var,
   fs::File,
   path::{Path, PathBuf},
 };

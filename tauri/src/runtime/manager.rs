@@ -399,10 +399,19 @@ where
     pending_labels: &[L],
   ) -> crate::Result<PendingWindow<Self>> {
     let (is_local, url) = match &pending.url {
-      WindowUrl::App => (true, self.get_url()),
-      // todo: we should probably warn about how custom urls usually need to be valid urls
-      // e.g. cannot be relative without a base
-      WindowUrl::Custom(url) => (url.len() > 7 && &url[0..8] == "tauri://", url.clone()),
+      WindowUrl::App(path) => {
+        let url = self.get_url();
+        (
+          true,
+          // ignore "index.html" just to simplify the url
+          if path.to_str() != Some("index.html") {
+            format!("{}/{}", url, path.to_string_lossy())
+          } else {
+            url
+          },
+        )
+      }
+      WindowUrl::External(url) => (false, url.to_string()),
     };
 
     let attributes = pending.attributes.clone();

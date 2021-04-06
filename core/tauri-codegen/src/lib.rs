@@ -1,3 +1,4 @@
+use crate::embedded_assets::EmbeddedAssetsError;
 pub use context::{context_codegen, ContextData};
 use std::{
   borrow::Cow,
@@ -77,4 +78,12 @@ pub fn get_config(path: &Path) -> Result<(Config, PathBuf), ConfigError> {
     .ok_or_else(|| ConfigError::Parent(path.into_owned()))?;
 
   Ok((config, parent))
+}
+
+/// Get the current OUT_DIR of the crate running this macro in canonical form.
+pub fn out_dir() -> Result<PathBuf, EmbeddedAssetsError> {
+  std::env::var("OUT_DIR")
+    .map(PathBuf::from)
+    .map_err(|_| EmbeddedAssetsError::OutDir)
+    .and_then(|p| p.canonicalize().map_err(|_| EmbeddedAssetsError::OutDir))
 }

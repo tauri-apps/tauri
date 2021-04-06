@@ -2,7 +2,6 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use std::{
   collections::HashMap,
-  env::var,
   fs::File,
   path::{Path, PathBuf},
 };
@@ -100,11 +99,7 @@ impl EmbeddedAssets {
     })?;
 
     // we must canonicalize the base of our paths to allow long paths on windows
-    let out_dir = std::env::var("OUT_DIR")
-      .map_err(|_| EmbeddedAssetsError::OutDir)
-      .map(PathBuf::from)
-      .and_then(|p| p.canonicalize().map_err(|_| EmbeddedAssetsError::OutDir))
-      .map(|p| p.join(TARGET_PATH))?;
+    let out_dir = crate::out_dir().map(|p| p.join(TARGET_PATH))?;
 
     // make sure that our output directory is created
     std::fs::create_dir_all(&out_dir).map_err(|_| EmbeddedAssetsError::OutDir)?;

@@ -31,7 +31,8 @@ class WebviewWindowHandle {
 
   constructor(label: string) {
     this.label = label
-    this.listeners = {}
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    this.listeners = Object.create(null)
   }
 
   /**

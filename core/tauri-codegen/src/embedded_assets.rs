@@ -2,17 +2,21 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use std::{
   collections::HashMap,
-  env::var,
   fs::File,
-  io::BufReader,
   path::{Path, PathBuf},
 };
 use tauri_api::assets::AssetKey;
 use thiserror::Error;
 use walkdir::WalkDir;
 
+/// The subdirectory inside the target directory we want to place assets.
+const TARGET_PATH: &str = "tauri-codegen-assets";
+
+/// The minimum size needed for the hasher to use multiple threads.
+const MULTI_HASH_SIZE_LIMIT: usize = 131_072; // 128KiB
+
 /// (key, (original filepath, compressed bytes))
-type Asset = (AssetKey, (String, Vec<u8>));
+type Asset = (AssetKey, (PathBuf, PathBuf));
 
 /// All possible errors while reading and compressing an [`EmbeddedAssets`] directory
 #[derive(Debug, Error)]
@@ -37,6 +41,9 @@ pub enum EmbeddedAssetsError {
     path: PathBuf,
     error: walkdir::Error,
   },
+
+  #[error("OUT_DIR env var is not set, do you have a build script?")]
+  OutDir,
 }
 
 /// Represent a directory of assets that are compressed and embedded.
@@ -48,10 +55,10 @@ pub enum EmbeddedAssetsError {
 /// The assets are compressed during this runtime, and can only be represented as a [`TokenStream`]
 /// through [`ToTokens`]. The generated code is meant to be injected into an application to include
 /// the compressed assets in that application's binary.
-pub struct EmbeddedAssets(HashMap<AssetKey, (String, Vec<u8>)>);
+#[derive(Default)]
+pub struct EmbeddedAssets(HashMap<AssetKey, (PathBuf, PathBuf)>);
 
 impl EmbeddedAssets {
-  #[cfg(not(debug_assertions))]
   /// Compress a directory of assets, ready to be generated into a [`tauri_api::assets::Assets`].
   pub fn new(path: &Path) -> Result<Self, EmbeddedAssetsError> {
     WalkDir::new(&path)
@@ -74,39 +81,66 @@ impl EmbeddedAssets {
       .map(Self)
   }
 
-  #[cfg(debug_assertions)]
-  /// A dummy EmbeddedAssets for use during development builds.
-  /// Compressing + including the bytes of assets during development takes a long time.
-  /// On development builds, assets will simply be resolved & fetched from the configured dist folder.
-  pub fn new(_: &Path) -> Result<Self, EmbeddedAssetsError> {
-    Ok(EmbeddedAssets(HashMap::new()))
-  }
-
   /// Use highest compression level for release, the fastest one for everything else
   fn compression_level() -> i32 {
-    match var("PROFILE").as_ref().map(String::as_str) {
-      Ok("release") => 22,
-      _ => -5,
+    let levels = zstd::compression_level_range();
+    if cfg!(debug_assertions) {
+      *levels.start()
+    } else {
+      *levels.end()
     }
   }
 
   /// Compress a file and spit out the information in a [`HashMap`] friendly form.
   fn compress_file(prefix: &Path, path: &Path) -> Result<Asset, EmbeddedAssetsError> {
-    let reader =
-      File::open(&path)
-        .map(BufReader::new)
-        .map_err(|error| EmbeddedAssetsError::AssetRead {
+    let input = std::fs::read(path).map_err(|error| EmbeddedAssetsError::AssetRead {
+      path: path.to_owned(),
+      error,
+    })?;
+
+    // we must canonicalize the base of our paths to allow long paths on windows
+    let out_dir = std::env::var("OUT_DIR")
+      .map_err(|_| EmbeddedAssetsError::OutDir)
+      .map(PathBuf::from)
+      .and_then(|p| p.canonicalize().map_err(|_| EmbeddedAssetsError::OutDir))
+      .map(|p| p.join(TARGET_PATH))?;
+
+    // make sure that our output directory is created
+    std::fs::create_dir_all(&out_dir).map_err(|_| EmbeddedAssetsError::OutDir)?;
+
+    // get a hash of the input - allows for caching existing files
+    let hash = {
+      let mut hasher = blake3::Hasher::new();
+      if input.len() < MULTI_HASH_SIZE_LIMIT {
+        hasher.update(&input);
+      } else {
+        hasher.update_with_join::<blake3::join::RayonJoin>(&input);
+      }
+      hasher.finalize().to_hex()
+    };
+
+    // use the content hash to determine filename, keep extensions that exist
+    let out_path = if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+      out_dir.join(format!("{}.{}", hash, ext))
+    } else {
+      out_dir.join(hash.to_string())
+    };
+
+    // only compress and write to the file if it doesn't already exist.
+    if !out_path.exists() {
+      let out_file = File::create(&out_path).map_err(|error| EmbeddedAssetsError::AssetWrite {
+        path: out_path.clone(),
+        error,
+      })?;
+
+      // entirely write input to the output file path with compression
+      zstd::stream::copy_encode(&*input, out_file, Self::compression_level()).map_err(|error| {
+        EmbeddedAssetsError::AssetWrite {
           path: path.to_owned(),
           error,
-        })?;
-
-    // entirely read compressed asset into bytes
-    let bytes = zstd::encode_all(reader, Self::compression_level()).map_err(|error| {
-      EmbeddedAssetsError::AssetWrite {
-        path: path.to_owned(),
-        error,
-      }
-    })?;
+        }
+      })?;
+    }
 
     // get a key to the asset path without the asset directory prefix
     let key = path
@@ -117,28 +151,29 @@ impl EmbeddedAssets {
         path: path.to_owned(),
       })?;
 
-    Ok((key, (path.display().to_string(), bytes)))
+    Ok((key, (path.into(), out_path)))
   }
 }
 
 impl ToTokens for EmbeddedAssets {
   fn to_tokens(&self, tokens: &mut TokenStream) {
     let mut map = TokenStream::new();
-    for (key, (original, bytes)) in &self.0 {
+    for (key, (input, output)) in &self.0 {
       let key: &str = key.as_ref();
+      let input = input.display().to_string();
+      let output = output.display().to_string();
 
       // add original asset as a compiler dependency, rely on dead code elimination to clean it up
       map.append_all(quote!(#key => {
-        const _: &[u8] = include_bytes!(#original);
-        &[#(#bytes),*]
+        const _: &[u8] = include_bytes!(#input);
+        include_bytes!(#output)
       },));
     }
 
     // we expect phf related items to be in path when generating the path code
-    tokens.append_all(quote! {
+    tokens.append_all(quote! {{
         use ::tauri::api::assets::{EmbeddedAssets, phf, phf::phf_map};
-        static ASSETS: EmbeddedAssets = EmbeddedAssets::from_zstd(phf_map! { #map });
-        &ASSETS
-    });
+        EmbeddedAssets::from_zstd(phf_map! { #map })
+    }});
   }
 }

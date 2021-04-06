@@ -49,14 +49,51 @@ pub use error::Error;
 /// Tauri API result type.
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// `App` package information.
+#[derive(Debug, Clone)]
+pub struct PackageInfo {
+  /// App name.
+  pub name: &'static str,
+  /// App version.
+  pub version: &'static str,
+}
+
 // Not public API
 #[doc(hidden)]
 pub mod private {
+  // Core API only.
+  pub mod async_runtime {
+    use once_cell::sync::OnceCell;
+    use tokio::runtime::Runtime;
+    pub use tokio::sync::{
+      mpsc::{channel, Receiver, Sender},
+      Mutex,
+    };
+
+    use std::future::Future;
+
+    static RUNTIME: OnceCell<Runtime> = OnceCell::new();
+
+    pub fn block_on<F: Future>(task: F) -> F::Output {
+      let runtime = RUNTIME.get_or_init(|| Runtime::new().unwrap());
+      runtime.block_on(task)
+    }
+
+    pub fn spawn<F>(task: F)
+    where
+      F: Future + Send + 'static,
+      F::Output: Send + 'static,
+    {
+      let runtime = RUNTIME.get_or_init(|| Runtime::new().unwrap());
+      runtime.spawn(task);
+    }
+  }
   pub use once_cell::sync::OnceCell;
 
   pub trait AsTauriContext {
     fn config() -> &'static crate::config::Config;
     fn assets() -> &'static crate::assets::EmbeddedAssets;
     fn default_window_icon() -> Option<&'static [u8]>;
+    fn package_info() -> crate::PackageInfo;
   }
 }

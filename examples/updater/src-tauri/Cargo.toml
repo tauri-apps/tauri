@@ -1,0 +1,21 @@
+[package]
+name = "updater-example"
+version = "0.1.0"
+description = "A very simple Tauri Appplication"
+edition = "2018"
+
+[build-dependencies]
+tauri-build = { path = "../../../core/tauri-build", features = [ "codegen" ]}
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = [ "derive" ] }
+tauri = { path = "../../../tauri", features =["api-all"]}
+
+[features]
+default = [ "custom-protocol" ]
+custom-protocol = [ "tauri/custom-protocol" ]
+
+[[bin]]
+name = "updater-example"
+path = "src/main.rs"

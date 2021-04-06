@@ -1,50 +1,22 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
-use serde::{
-  de::{Deserializer, Visitor},
-  Deserialize,
-};
+use serde::Deserialize;
 use serde_json::Value as JsonValue;
+use url::Url;
 
 /// The window webview URL options.
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Deserialize)]
+#[serde(untagged)]
 pub enum WindowUrl {
-  /// The app's index URL.
-  App,
-  /// A custom URL.
-  Custom(String),
+  /// An external URL.
+  External(Url),
+  /// An app URL.
+  App(PathBuf),
 }
 
 impl Default for WindowUrl {
   fn default() -> Self {
-    Self::App
-  }
-}
-
-impl<'de> Deserialize<'de> for WindowUrl {
-  fn deserialize<D>(deserializer: D) -> Result<WindowUrl, D::Error>
-  where
-    D: Deserializer<'de>,
-  {
-    struct StringVisitor;
-    impl<'de> Visitor<'de> for StringVisitor {
-      type Value = WindowUrl;
-      fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("a string representing an url")
-      }
-
-      fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-      where
-        E: serde::de::Error,
-      {
-        if v.to_lowercase() == "app" {
-          Ok(WindowUrl::App)
-        } else {
-          Ok(WindowUrl::Custom(v.to_string()))
-        }
-      }
-    }
-    deserializer.deserialize_str(StringVisitor)
+    Self::App("index.html".into())
   }
 }
 
@@ -134,7 +106,7 @@ impl Default for WindowConfig {
   fn default() -> Self {
     Self {
       label: default_window_label(),
-      url: WindowUrl::App,
+      url: WindowUrl::default(),
       x: None,
       y: None,
       width: default_width(),
@@ -151,6 +123,39 @@ impl Default for WindowConfig {
       visible: default_visible(),
       decorations: default_decorations(),
       always_on_top: false,
+    }
+  }
+}
+
+/// The Updater configuration object.
+#[derive(PartialEq, Deserialize, Debug, Clone)]
+#[serde(tag = "updater", rename_all = "camelCase")]
+pub struct UpdaterConfig {
+  /// Whether the updater is active or not.
+  #[serde(default)]
+  pub active: bool,
+  /// Display built-in dialog or use event system if disabled.
+  #[serde(default = "default_updater_dialog")]
+  pub dialog: bool,
+  /// The updater endpoints.
+  #[serde(default)]
+  pub endpoints: Option<Vec<String>>,
+  /// Optional pubkey.
+  #[serde(default)]
+  pub pubkey: Option<String>,
+}
+
+fn default_updater_dialog() -> bool {
+  true
+}
+
+impl Default for UpdaterConfig {
+  fn default() -> Self {
+    Self {
+      active: false,
+      dialog: true,
+      endpoints: None,
+      pubkey: None,
     }
   }
 }
@@ -324,6 +329,9 @@ pub struct TauriConfig {
   /// The bundler configuration.
   #[serde(default)]
   pub bundle: BundleConfig,
+  /// The updater configuration.
+  #[serde(default)]
+  pub updater: UpdaterConfig,
 }
 
 impl Default for TauriConfig {
@@ -332,6 +340,7 @@ impl Default for TauriConfig {
       windows: default_window_config(),
       cli: None,
       bundle: BundleConfig::default(),
+      updater: UpdaterConfig::default(),
     }
   }
 }
@@ -387,17 +396,6 @@ pub struct Config {
 /// The plugin configs holds a HashMap mapping a plugin name to its configuration object.
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 pub struct PluginConfig(pub HashMap<String, JsonValue>);
-
-impl PluginConfig {
-  /// Gets a plugin configuration.
-  pub fn get<S: AsRef<str>>(&self, plugin_name: S) -> String {
-    self
-      .0
-      .get(plugin_name.as_ref())
-      .map(|config| config.to_string())
-      .unwrap_or_else(|| "{}".to_string())
-  }
-}
 
 /// Implement `ToTokens` for all config structs, allowing a literal `Config` to be built.
 ///
@@ -552,10 +550,13 @@ mod build {
       let prefix = quote! { ::tauri::api::config::WindowUrl };
 
       tokens.append_all(match self {
-        Self::App => quote! { #prefix::App },
-        Self::Custom(str) => {
-          let str = str_lit(str);
-          quote! { #prefix::Custom(#str) }
+        Self::App(path) => {
+          let path = path.to_string_lossy().to_string();
+          quote! { #prefix::App(::std::path::PathBuf::from(#path)) }
+        }
+        Self::External(url) => {
+          let url = url.as_str();
+          quote! { #prefix::External(#url.parse().unwrap()) }
         }
       })
     }
@@ -722,13 +723,25 @@ mod build {
     }
   }
 
+  impl ToTokens for UpdaterConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let active = self.active;
+      let dialog = self.dialog;
+      let pubkey = opt_str_lit(self.pubkey.as_ref());
+      let endpoints = opt_vec_str_lit(self.endpoints.as_ref());
+
+      literal_struct!(tokens, UpdaterConfig, active, dialog, pubkey, endpoints);
+    }
+  }
+
   impl ToTokens for TauriConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let windows = vec_lit(&self.windows, identity);
       let cli = opt_lit(self.cli.as_ref());
       let bundle = &self.bundle;
+      let updater = &self.updater;
 
-      literal_struct!(tokens, TauriConfig, windows, cli, bundle);
+      literal_struct!(tokens, TauriConfig, windows, cli, bundle, updater);
     }
   }
 
@@ -776,12 +789,14 @@ mod test {
     let d_title = default_title();
     // get default bundle
     let d_bundle = BundleConfig::default();
+    // get default updater
+    let d_updater = UpdaterConfig::default();
 
     // create a tauri config.
     let tauri = TauriConfig {
       windows: vec![WindowConfig {
         label: "main".to_string(),
-        url: WindowUrl::App,
+        url: WindowUrl::default(),
         x: None,
         y: None,
         width: 800f64,
@@ -803,6 +818,12 @@ mod test {
         identifier: String::from(""),
       },
       cli: None,
+      updater: UpdaterConfig {
+        active: false,
+        dialog: true,
+        pubkey: None,
+        endpoints: None,
+      },
     };
 
     // create a build config
@@ -816,6 +837,7 @@ mod test {
     assert_eq!(t_config, tauri);
     assert_eq!(b_config, build);
     assert_eq!(d_bundle, tauri.bundle);
+    assert_eq!(d_updater, tauri.updater);
     assert_eq!(d_path, String::from("http://localhost:8080"));
     assert_eq!(d_title, tauri.windows[0].title);
     assert_eq!(d_windows, tauri.windows);

@@ -1,11 +1,11 @@
 use super::InvokeResponse;
-#[cfg(global_shortcut_all)]
-use crate::api::shortcuts::ShortcutManager;
-use crate::app::WebviewDispatcher;
+use crate::runtime::{window::Window, Dispatch, Params};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
-
 use std::sync::{Arc, Mutex};
+
+#[cfg(global_shortcut_all)]
+use crate::api::shortcuts::ShortcutManager;
 
 #[cfg(global_shortcut_all)]
 type ShortcutManagerHandle = Arc<Mutex<ShortcutManager>>;
@@ -36,8 +36,8 @@ pub enum Cmd {
 }
 
 #[cfg(global_shortcut_all)]
-fn register_shortcut<A: crate::ApplicationDispatcherExt + 'static>(
-  dispatcher: WebviewDispatcher<A>,
+fn register_shortcut<D: Dispatch>(
+  dispatcher: D,
   manager: &mut ShortcutManager,
   shortcut: String,
   handler: String,
@@ -47,33 +47,36 @@ fn register_shortcut<A: crate::ApplicationDispatcherExt + 'static>(
       handler.to_string(),
       serde_json::Value::String(shortcut.clone()),
     );
-    let _ = dispatcher.eval(callback_string.as_str());
+    let _ = dispatcher.eval_script(callback_string.as_str());
   })?;
   Ok(())
 }
 
+#[cfg(not(global_shortcut_all))]
 impl Cmd {
-  pub fn run<A: crate::ApplicationExt + 'static>(
-    self,
-    webview_manager: &crate::WebviewManager<A>,
-  ) -> crate::Result<InvokeResponse> {
-    #[cfg(not(global_shortcut_all))]
-    return Err(crate::Error::ApiNotAllowlisted(
+  pub fn run<M: Params>(self, _window: Window<M>) -> crate::Result<InvokeResponse> {
+    Err(crate::Error::ApiNotAllowlisted(
       "globalShortcut > all".to_string(),
-    ));
-    #[cfg(global_shortcut_all)]
+    ))
+  }
+}
+
+#[cfg(global_shortcut_all)]
+impl Cmd {
+  pub fn run<M: Params>(self, window: Window<M>) -> crate::Result<InvokeResponse> {
     match self {
       Self::Register { shortcut, handler } => {
-        let dispatcher = webview_manager.current_webview()?;
+        let dispatcher = window.dispatcher();
         let mut manager = manager_handle().lock().unwrap();
         register_shortcut(dispatcher, &mut manager, shortcut, handler)?;
         Ok(().into())
       }
       Self::RegisterAll { shortcuts, handler } => {
-        let dispatcher = webview_manager.current_webview()?;
+        let dispatcher = window.dispatcher();
         let mut manager = manager_handle().lock().unwrap();
         for shortcut in shortcuts {
-          register_shortcut(dispatcher.clone(), &mut manager, shortcut, handler.clone())?;
+          let dispatch = dispatcher.clone();
+          register_shortcut(dispatch, &mut manager, shortcut, handler.clone())?;
         }
         Ok(().into())
       }

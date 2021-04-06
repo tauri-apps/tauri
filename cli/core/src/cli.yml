@@ -8,6 +8,7 @@ subcommands:
       subcommands:
         - dev:
             about: Tauri dev.
+            setting: TrailingVarArg
             args:
                 - config:
                     short: c
@@ -18,6 +19,10 @@ subcommands:
                     short: e
                     long: exit-on-panic
                     about: Exit on panic
+                - args:
+                    about: Args passed to the binary
+                    index: 1
+                    multiple: true
         - build:
             about: Tauri build.
             args:
@@ -40,6 +45,51 @@ subcommands:
                     long: config
                     about: config JSON to merge with tauri.conf.json
                     takes_value: true
+        - sign:
+            about: Tauri updates signer.
+            args:
+                - generate:
+                    short: g
+                    long: generate
+                    about: Generate keypair to sign files
+                - sign-file:
+                    long: sign-file
+                    about: Sign the specified file
+                    takes_value: true
+                - private-key-path:
+                    short: f
+                    long: private-key-path
+                    about: Load the private key from a file
+                    takes_value: true
+                    conflicts_with: private-key
+                - private-key:
+                    short: k
+                    long: private-key
+                    about: Load the private key from a string
+                    takes_value: true
+                    conflicts_with: private-key-path
+                    requires: sign-file
+                - write-keys:
+                    short: w
+                    long: write-keys
+                    about: Write private key to a file
+                    takes_value: true
+                    requires: generate
+                - password:
+                    short: p
+                    long: password
+                    about: Set private key password when signing
+                    takes_value: true
+                    conflicts_with: no-password
+                - no-password:
+                    long: no-password
+                    about: Set empty password for your private key
+                    conflicts_with: password
+                - force:
+                    long: force
+                    about: Overwrite private key even if it exists on the specified path
+                    requires: generate
+                    
         - info:
             about: Shows information about Tauri dependencies
         - init:

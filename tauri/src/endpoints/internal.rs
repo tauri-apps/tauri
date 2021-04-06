@@ -1,4 +1,5 @@
 use super::InvokeResponse;
+use crate::{runtime::window::Window, Params};
 use serde::Deserialize;
 
 /// The API descriptor.
@@ -9,14 +10,9 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub fn run(self) -> crate::Result<InvokeResponse> {
+  pub fn run<P: Params>(self, window: Window<P>) -> crate::Result<InvokeResponse> {
     match self {
-      Self::ValidateSalt { salt } => validate_salt(salt),
+      Self::ValidateSalt { salt } => Ok(window.verify_salt(salt).into()),
     }
   }
-}
-
-/// Validates a salt.
-pub fn validate_salt(salt: String) -> crate::Result<InvokeResponse> {
-  Ok(crate::salt::is_valid(salt).into())
 }

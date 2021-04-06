@@ -1,4 +1,5 @@
 extern crate proc_macro;
+use crate::context::ContextItems;
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, AttributeArgs, ItemFn};
 
@@ -34,8 +35,8 @@ pub fn generate_handler(item: TokenStream) -> TokenStream {
 ///
 /// todo: link the [`AsTauriContext`] docs
 #[proc_macro]
-pub fn generate_context(item: TokenStream) -> TokenStream {
+pub fn generate_context(items: TokenStream) -> TokenStream {
   // this macro is exported from the context module
-  let path = parse_config_path!(item);
+  let path = parse_macro_input!(items as ContextItems);
   context::generate_context(path).into()
 }

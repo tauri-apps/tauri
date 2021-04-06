@@ -1,5 +1,5 @@
 use super::{common, macos_bundle};
-use crate::Settings;
+use crate::{bundle::Bundle, PackageType::MacOSBundle, Settings};
 
 use anyhow::Context;
 
@@ -12,9 +12,16 @@ use std::{
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the DMG was created.
-pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  // generate the .app bundle
-  macos_bundle::bundle_project(settings)?;
+pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
+  // generate the .app bundle if needed
+  if bundles
+    .iter()
+    .filter(|bundle| bundle.package_type == MacOSBundle)
+    .count()
+    == 0
+  {
+    macos_bundle::bundle_project(settings)?;
+  }
 
   // get the target path
   let output_path = settings.project_out_directory().join("bundle/dmg");
@@ -32,7 +39,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let product_name = &format!("{}.app", &package_base_name);
   let bundle_dir = settings.project_out_directory().join("bundle/macos");
-  let bundle_path = bundle_dir.join(&product_name.clone());
 
   let support_directory_path = output_path.join("support");
   if output_path.exists() {
@@ -80,8 +86,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let mut args = vec![
     "--volname",
     &package_base_name,
-    "--volicon",
-    "../../../../icons/icon.icns",
+    // todo: volume icon
+    // make sure this is a valid path?
+
+    //"--volicon",
+    //"../../../../icons/icon.icns",
     "--icon",
     &product_name,
     "180",
@@ -134,5 +143,5 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   if let Some(identity) = &settings.macos().signing_identity {
     crate::bundle::macos_bundle::sign(dmg_path.clone(), identity, &settings, false)?;
   }
-  Ok(vec![bundle_path, dmg_path])
+  Ok(vec![dmg_path])
 }

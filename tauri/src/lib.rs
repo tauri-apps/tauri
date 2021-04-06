@@ -6,38 +6,40 @@
 //! Tauri uses (and contributes to) the MIT licensed project that you can find at [webview](https://github.com/webview/webview).
 #![warn(missing_docs, rust_2018_idioms)]
 
-/// The Tauri-specific settings for your app e.g. notification permission status.
+/// The Tauri error enum.
+pub use error::Error;
+pub use tauri_api as api;
+pub(crate) use tauri_api::private::async_runtime;
+pub use tauri_macros::*;
+
+/// The Tauri-specific settings for your runtime e.g. notification permission status.
 pub mod settings;
 
-/// The webview application entry.
-mod app;
 /// The Tauri API endpoints.
 mod endpoints;
 mod error;
+mod event;
+mod hooks;
 /// The plugin manager module contains helpers to manage runtime plugins.
 pub mod plugin;
-/// The salt helpers.
-mod salt;
-
-/// The Tauri error enum.
-pub use error::Error;
+/// The internal runtime between an [`App`] and the webview.
+pub mod runtime;
 
 /// Tauri result type.
 pub type Result<T> = std::result::Result<T, Error>;
 
-pub(crate) mod async_runtime;
-
 /// A task to run on the main thread.
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
-pub use app::*;
-pub use tauri_api as api;
-pub use tauri_macros::*;
-
-/// The Tauri webview implementations.
-pub mod flavors {
-  pub use super::app::WryApplication as Wry;
-}
+/// types likely to be used by applications
+pub use {
+  api::config::WindowUrl,
+  hooks::InvokeMessage,
+  runtime::app::AppBuilder,
+  runtime::webview::Attributes,
+  runtime::window::Window,
+  runtime::{Context, Manager, Params},
+};
 
 /// Easy helper function to use the Tauri Context you made during build time.
 #[macro_export]

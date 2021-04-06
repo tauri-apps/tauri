@@ -14,6 +14,7 @@ export default [
       path: './src/path.ts',
       dialog: './src/dialog.ts',
       event: './src/event.ts',
+      updater: './src/updater.ts',
       http: './src/http.ts',
       index: './src/index.ts',
       shell: './src/shell.ts',
@@ -29,13 +30,6 @@ export default [
       {
         dir: 'dist/',
         entryFileNames: '[name].js',
-        format: 'cjs',
-        exports: 'named',
-        globals: {}
-      },
-      {
-        dir: 'dist/',
-        entryFileNames: '[name].mjs',
         format: 'esm',
         exports: 'named',
         globals: {}

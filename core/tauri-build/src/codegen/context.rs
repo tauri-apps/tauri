@@ -1,6 +1,4 @@
 use anyhow::{Context, Result};
-use proc_macro2::Ident;
-use quote::format_ident;
 use std::{
   env::var,
   fs::{create_dir_all, File},
@@ -17,16 +15,16 @@ use tauri_codegen::{context_codegen, ContextData};
 #[cfg_attr(doc_cfg, doc(cfg(feature = "codegen")))]
 #[derive(Debug)]
 pub struct CodegenContext {
+  dev: bool,
   config_path: PathBuf,
-  struct_ident: Ident,
   out_file: PathBuf,
 }
 
 impl Default for CodegenContext {
   fn default() -> Self {
     Self {
+      dev: false,
       config_path: PathBuf::from("tauri.conf.json"),
-      struct_ident: format_ident!("TauriBuildCodegenContext"),
       out_file: PathBuf::from("tauri-build-context.rs"),
     }
   }
@@ -48,20 +46,6 @@ impl CodegenContext {
     self
   }
 
-  /// Set the name of the generated struct.
-  ///
-  /// Don't set this if you are using [`tauri::include_codegen_context!`] as that helper macro
-  /// expects the default value. This option can be useful if you are not using the helper and
-  /// instead using [`std::include!`] on the generated code yourself.
-  ///
-  /// Defaults to `TauriBuildCodegenContext`.
-  ///
-  /// [`tauri::include_codegen_context!`]: https://docs.rs/tauri/0.12/tauri/macro.include_codegen_context.html
-  pub fn struct_ident(mut self, ident: impl AsRef<str>) -> Self {
-    self.struct_ident = format_ident!("{}", ident.as_ref());
-    self
-  }
-
   /// Sets the output file's path.
   ///
   /// **Note:** This path should be relative to the `OUT_DIR`.
@@ -75,6 +59,13 @@ impl CodegenContext {
   /// [`tauri::include_codegen_context!`]: https://docs.rs/tauri/0.12/tauri/macro.include_codegen_context.html
   pub fn out_file(mut self, filename: PathBuf) -> Self {
     self.out_file = filename;
+    self
+  }
+
+  /// Run the codegen in a `dev` context, meaning that Tauri is using a dev server or local file for development purposes,
+  /// usually with the `tauri dev` CLI command.
+  pub fn dev(mut self) -> Self {
+    self.dev = true;
     self
   }
 
@@ -98,9 +89,12 @@ impl CodegenContext {
   pub fn try_build(self) -> Result<PathBuf> {
     let (config, config_parent) = tauri_codegen::get_config(&self.config_path)?;
     let code = context_codegen(ContextData {
+      dev: self.dev,
       config,
       config_parent,
-      struct_ident: self.struct_ident.clone(),
+      // it's very hard to have a build script for unit tests, so assume this is always called from
+      // outside the tauri crate, making the ::tauri root valid.
+      context_path: quote::quote!(::tauri::Context),
     })?;
 
     // get the full output file path

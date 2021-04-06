@@ -8,8 +8,8 @@ use std::{
 pub use tauri_api::config::Config;
 use thiserror::Error;
 
+pub mod assets;
 mod context;
-pub mod embedded_assets;
 
 /// Represents all the errors that can happen while reading the config.
 #[derive(Debug, Error)]

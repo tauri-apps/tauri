@@ -1,13 +1,12 @@
+use crate::assets::Error;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use std::{
   collections::HashMap,
-  env::var,
   fs::File,
   path::{Path, PathBuf},
 };
 use tauri_api::assets::AssetKey;
-use thiserror::Error;
 use walkdir::WalkDir;
 
 /// The subdirectory inside the target directory we want to place assets.
@@ -18,34 +17,6 @@ const MULTI_HASH_SIZE_LIMIT: usize = 131_072; // 128KiB
 
 /// (key, (original filepath, compressed bytes))
 type Asset = (AssetKey, (PathBuf, PathBuf));
-
-/// All possible errors while reading and compressing an [`EmbeddedAssets`] directory
-#[derive(Debug, Error)]
-pub enum EmbeddedAssetsError {
-  #[error("failed to read asset at {path} because {error}")]
-  AssetRead {
-    path: PathBuf,
-    error: std::io::Error,
-  },
-
-  #[error("failed to write asset from {path} to Vec<u8> because {error}")]
-  AssetWrite {
-    path: PathBuf,
-    error: std::io::Error,
-  },
-
-  #[error("invalid prefix {prefix} used while including path {path}")]
-  PrefixInvalid { prefix: PathBuf, path: PathBuf },
-
-  #[error("failed to walk directory {path} because {error}")]
-  Walkdir {
-    path: PathBuf,
-    error: walkdir::Error,
-  },
-
-  #[error("OUT_DIR env var is not set, do you have a build script?")]
-  OutDir,
-}
 
 /// Represent a directory of assets that are compressed and embedded.
 ///
@@ -60,7 +31,7 @@ pub struct EmbeddedAssets(HashMap<AssetKey, (PathBuf, PathBuf)>);
 
 impl EmbeddedAssets {
   /// Compress a directory of assets, ready to be generated into a [`tauri_api::assets::Assets`].
-  pub fn new(path: &Path) -> Result<Self, EmbeddedAssetsError> {
+  pub fn new(path: &Path) -> Result<Self, Error> {
     WalkDir::new(&path)
       .follow_links(true)
       .into_iter()
@@ -72,7 +43,7 @@ impl EmbeddedAssets {
         Ok(entry) => Some(Self::compress_file(path, entry.path())),
 
         // pass down error through filter to fail when encountering any error
-        Err(error) => Some(Err(EmbeddedAssetsError::Walkdir {
+        Err(error) => Some(Err(Error::Walkdir {
           path: path.to_owned(),
           error,
         })),
@@ -92,21 +63,21 @@ impl EmbeddedAssets {
   }
 
   /// Compress a file and spit out the information in a [`HashMap`] friendly form.
-  fn compress_file(prefix: &Path, path: &Path) -> Result<Asset, EmbeddedAssetsError> {
-    let input = std::fs::read(path).map_err(|error| EmbeddedAssetsError::AssetRead {
+  fn compress_file(prefix: &Path, path: &Path) -> Result<Asset, Error> {
+    let input = std::fs::read(path).map_err(|error| Error::AssetRead {
       path: path.to_owned(),
       error,
     })?;
 
     // we must canonicalize the base of our paths to allow long paths on windows
     let out_dir = std::env::var("OUT_DIR")
-      .map_err(|_| EmbeddedAssetsError::OutDir)
+      .map_err(|_| Error::OutDir)
       .map(PathBuf::from)
-      .and_then(|p| p.canonicalize().map_err(|_| EmbeddedAssetsError::OutDir))
+      .and_then(|p| p.canonicalize().map_err(|_| Error::OutDir))
       .map(|p| p.join(TARGET_PATH))?;
 
     // make sure that our output directory is created
-    std::fs::create_dir_all(&out_dir).map_err(|_| EmbeddedAssetsError::OutDir)?;
+    std::fs::create_dir_all(&out_dir).map_err(|_| Error::OutDir)?;
 
     // get a hash of the input - allows for caching existing files
     let hash = {
@@ -128,14 +99,14 @@ impl EmbeddedAssets {
 
     // only compress and write to the file if it doesn't already exist.
     if !out_path.exists() {
-      let out_file = File::create(&out_path).map_err(|error| EmbeddedAssetsError::AssetWrite {
+      let out_file = File::create(&out_path).map_err(|error| Error::AssetWrite {
         path: out_path.clone(),
         error,
       })?;
 
       // entirely write input to the output file path with compression
       zstd::stream::copy_encode(&*input, out_file, Self::compression_level()).map_err(|error| {
-        EmbeddedAssetsError::AssetWrite {
+        Error::AssetWrite {
           path: path.to_owned(),
           error,
         }
@@ -146,7 +117,7 @@ impl EmbeddedAssets {
     let key = path
       .strip_prefix(prefix)
       .map(AssetKey::from) // format the path for use in assets
-      .map_err(|_| EmbeddedAssetsError::PrefixInvalid {
+      .map_err(|_| Error::PrefixInvalid {
         prefix: prefix.to_owned(),
         path: path.to_owned(),
       })?;

@@ -1,6 +1,6 @@
-use crate::embedded_assets::{EmbeddedAssets, EmbeddedAssetsError};
+use crate::assets::{DiskAssets, EmbeddedAssets, Error};
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{quote, ToTokens};
 use std::path::PathBuf;
 use tauri_api::config::Config;
 
@@ -12,7 +12,7 @@ pub struct ContextData {
 }
 
 /// Build an `AsTauriContext` implementation for including in application code.
-pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsError> {
+pub fn context_codegen(data: ContextData) -> Result<TokenStream, Error> {
   let ContextData {
     mut config,
     config_parent,
@@ -21,8 +21,12 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   let dist_dir = config_parent.join(&config.build.dist_dir);
   config.build.dist_dir = dist_dir.to_string_lossy().to_string();
 
-  // generate the assets inside the dist dir into a perfect hash function
-  let assets = EmbeddedAssets::new(&dist_dir)?;
+  // generate an appropriate asset container based on if this build is a debug build
+  let assets = if cfg!(debug_assertions) {
+    DiskAssets::new(&dist_dir)?.to_token_stream()
+  } else {
+    EmbeddedAssets::new(&dist_dir)?.to_token_stream()
+  };
 
   // handle default window icons for Windows targets
   let default_window_icon = if cfg!(windows) {

@@ -14,8 +14,8 @@ pub const MAX_JSON_STR_LEN: usize = usize::pow(2, 30) - 2;
 //  Single quotes are the fastest string for the JavaScript engine to build.
 //  Directly transforming the string byte-by-byte is faster than a double String::replace()
 pub fn escape_json_parse(mut json: String) -> String {
-  const BACKSLASH_BYTE: u8 = '\\' as u8;
-  const SINGLE_QUOTE_BYTE: u8 = '\'' as u8;
+  const BACKSLASH_BYTE: u8 = b'\\';
+  const SINGLE_QUOTE_BYTE: u8 = b'\'';
 
   // Safety:
   //
@@ -92,29 +92,40 @@ fn test_escape_json_parse() {
 /// assert!(cb.contains(r#"window["callback-function-name"](JSON.parse('{"value":"some value"}'))"#));
 /// ```
 pub fn format_callback<T: Into<JsonValue>, S: AsRef<str>>(function_name: S, arg: T) -> String {
+  macro_rules! format_callback {
+    ( $arg:expr ) => {
+      format!(
+        r#"
+          if (window["{fn}"]) {{
+            window["{fn}"]({arg})
+          }} else {{
+            console.warn("[TAURI] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
+          }}
+        "#,
+        fn = function_name.as_ref(),
+        arg = $arg
+      )
+    }
+  }
+
   let json_value = arg.into();
 
   // We should only use JSON.parse('{arg}') if it's an array or object.
   // We likely won't get any performance benefit from other data types.
-  let use_json_parse = matches!(json_value, JsonValue::Array(_) | JsonValue::Object(_));
-  let as_str = json_value.to_string();
-  drop(json_value); // Explicitly drop json_value to avoid storing both the Rust "JSON" and serialized String JSON in memory twice.
+  if matches!(json_value, JsonValue::Array(_) | JsonValue::Object(_)) {
+    let as_str = json_value.to_string();
 
-  format!(
-    r#"
-      if (window["{fn}"]) {{
-        window["{fn}"]({arg})
-      }} else {{
-        console.warn("[TAURI] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
-      }}
-    "#,
-    fn = function_name.as_ref(),
-    arg = if use_json_parse && as_str.len() < MAX_JSON_STR_LEN {
+    // Explicitly drop json_value to avoid storing both the Rust "JSON" and serialized String JSON in memory twice, as <T: Display>.tostring() takes a reference.
+    drop(json_value);
+
+    format_callback!(if as_str.len() < MAX_JSON_STR_LEN {
       escape_json_parse(as_str)
     } else {
       as_str
-    }
-  )
+    })
+  } else {
+    format_callback!(json_value)
+  }
 }
 
 /// Formats a Result type to its Promise response.

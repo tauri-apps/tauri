@@ -18,4 +18,4 @@ serde_json = "1"
 tauri-api = { path = "../../tauri-api", features = ["build"] }
 thiserror = "1"
 walkdir = "2"
-zstd = "0.6"
+zstd = "0.7"

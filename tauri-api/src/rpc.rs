@@ -24,34 +24,34 @@ pub fn escape_json_parse(mut json: String) -> String {
   // Note the debug assertion that checks whether the String is valid UTF-8.
   // In the test below this assertion will fail if the emojis in the test strings cause problems.
 
-	let bytes: &mut Vec<u8> = unsafe { json.as_mut_vec() };
-	let mut i = 0;
-	while i < bytes.len() {
-		let byte = bytes[i];
+  let bytes: &mut Vec<u8> = unsafe { json.as_mut_vec() };
+  let mut i = 0;
+  while i < bytes.len() {
+    let byte = bytes[i];
     if matches!(byte, BACKSLASH_BYTE | SINGLE_QUOTE_BYTE) {
       bytes.insert(i, BACKSLASH_BYTE);
       i += 1;
     }
-		i += 1;
-	}
+    i += 1;
+  }
 
-	debug_assert!(String::from_utf8(bytes.to_vec()).is_ok());
+  debug_assert!(String::from_utf8(bytes.to_vec()).is_ok());
 
   format!("JSON.parse('{}')", json)
 }
 
 #[test]
 fn test_escape_json_parse() {
-	let dangerous_json = String::from(
-		r#"{"test":"don\\🚀🐱‍👤\\'t forget to escape me!🚀🐱‍👤","te🚀🐱‍👤st2":"don't forget to escape me!","test3":"\\🚀🐱‍👤\\\\'''\\\\🚀🐱‍👤\\\\🚀🐱‍👤\\'''''"}"#,
-	);
+  let dangerous_json = String::from(
+    r#"{"test":"don\\🚀🐱‍👤\\'t forget to escape me!🚀🐱‍👤","te🚀🐱‍👤st2":"don't forget to escape me!","test3":"\\🚀🐱‍👤\\\\'''\\\\🚀🐱‍👤\\\\🚀🐱‍👤\\'''''"}"#,
+  );
 
-	let definitely_escaped_dangerous_json = format!("JSON.parse('{}')", dangerous_json.clone().replace('\\', "\\\\").replace('\'', "\\'"));
-	let escape_single_quoted_json_test = escape_json_parse(dangerous_json);
+  let definitely_escaped_dangerous_json = format!("JSON.parse('{}')", dangerous_json.clone().replace('\\', "\\\\").replace('\'', "\\'"));
+  let escape_single_quoted_json_test = escape_json_parse(dangerous_json);
 
-	let result = r#"JSON.parse('{"test":"don\\\\🚀🐱‍👤\\\\\'t forget to escape me!🚀🐱‍👤","te🚀🐱‍👤st2":"don\'t forget to escape me!","test3":"\\\\🚀🐱‍👤\\\\\\\\\'\'\'\\\\\\\\🚀🐱‍👤\\\\\\\\🚀🐱‍👤\\\\\'\'\'\'\'"}')"#;
-	assert_eq!(definitely_escaped_dangerous_json, result);
-	assert_eq!(escape_single_quoted_json_test, result);
+  let result = r#"JSON.parse('{"test":"don\\\\🚀🐱‍👤\\\\\'t forget to escape me!🚀🐱‍👤","te🚀🐱‍👤st2":"don\'t forget to escape me!","test3":"\\\\🚀🐱‍👤\\\\\\\\\'\'\'\\\\\\\\🚀🐱‍👤\\\\\\\\🚀🐱‍👤\\\\\'\'\'\'\'"}')"#;
+  assert_eq!(definitely_escaped_dangerous_json, result);
+  assert_eq!(escape_single_quoted_json_test, result);
 }
 
 /// Formats a function name and argument to be evaluated as callback.

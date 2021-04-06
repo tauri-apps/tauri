@@ -53,7 +53,6 @@ fn test_escape_json_parse() {
   let definitely_escaped_dangerous_json = format!(
     "JSON.parse('{}')",
     dangerous_json
-      .clone()
       .replace('\\', "\\\\")
       .replace('\'', "\\'")
   );

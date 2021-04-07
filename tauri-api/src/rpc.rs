@@ -8,9 +8,6 @@ use serde_json::value::RawValue;
 /// ECMAScript 2016 (ed. 7) established a maximum length of 2^53 - 1 elements. Previously, no maximum length was specified.
 ///
 /// In Firefox, strings have a maximum length of 2\*\*30 - 2 (~1GB). In versions prior to Firefox 65, the maximum length was 2\*\*28 - 1 (~256MB).
-// todo: to prevent unnecessary work, we should probably half this to represent an unescaped string
-// because the worse case string for escaping will grow to 2x the size. If we check after escaping
-// the string, then we potentially waste the computation of escaping the string
 const MAX_JSON_STR_LEN: usize = usize::pow(2, 30) - 2;
 
 /// Minimum size JSON needs to be in order to convert it to JSON.parse with [`escape_json_parse`].
@@ -121,7 +118,11 @@ pub fn format_callback<T: Serialize, S: AsRef<str>>(
   // We likely won't get any performance benefit from other data types.
   Ok(
     if json.len() > MIN_JSON_PARSE_LEN || first == b'{' || first == b'[' {
-      format_callback!(escape_json_parse(json))
+      let escaped = escape_json_parse(json);
+      match check_json_len(escaped.len()) {
+        Ok(()) => format_callback!(escaped),
+        Err(_) => format_callback!(json),
+      }
     } else {
       format_callback!(json)
     },

@@ -50,26 +50,6 @@ fn escape_json_parse(json: &RawValue) -> String {
   s
 }
 
-#[test]
-fn test_escape_json_parse() {
-  let dangerous_json = RawValue::from_string(
-    r#"{"test":"don\\🚀🐱‍👤\\'t forget to escape me!🚀🐱‍👤","te🚀🐱‍👤st2":"don't forget to escape me!","test3":"\\🚀🐱‍👤\\\\'''\\\\🚀🐱‍👤\\\\🚀🐱‍👤\\'''''"}"#.into()
-  ).unwrap();
-
-  let definitely_escaped_dangerous_json = format!(
-    "JSON.parse('{}')",
-    dangerous_json
-      .get()
-      .replace('\\', "\\\\")
-      .replace('\'', "\\'")
-  );
-  let escape_single_quoted_json_test = escape_json_parse(&dangerous_json);
-
-  let result = r#"JSON.parse('{"test":"don\\\\🚀🐱‍👤\\\\\'t forget to escape me!🚀🐱‍👤","te🚀🐱‍👤st2":"don\'t forget to escape me!","test3":"\\\\🚀🐱‍👤\\\\\\\\\'\'\'\\\\\\\\🚀🐱‍👤\\\\\\\\🚀🐱‍👤\\\\\'\'\'\'\'"}')"#;
-  assert_eq!(definitely_escaped_dangerous_json, result);
-  assert_eq!(escape_single_quoted_json_test, result);
-}
-
 /// Formats a function name and argument to be evaluated as callback.
 ///
 /// This will serialize primitive JSON types (e.g. booleans, strings, numbers, etc.) as JavaScript literals,
@@ -190,6 +170,26 @@ pub fn format_callback_result<T: Serialize, E: Serialize>(
 mod test {
   use crate::rpc::*;
   use quickcheck_macros::quickcheck;
+
+  #[test]
+  fn test_escape_json_parse() {
+    let dangerous_json = RawValue::from_string(
+      r#"{"test":"don\\🚀🐱‍👤\\'t forget to escape me!🚀🐱‍👤","te🚀🐱‍👤st2":"don't forget to escape me!","test3":"\\🚀🐱‍👤\\\\'''\\\\🚀🐱‍👤\\\\🚀🐱‍👤\\'''''"}"#.into()
+    ).unwrap();
+
+    let definitely_escaped_dangerous_json = format!(
+      "JSON.parse('{}')",
+      dangerous_json
+        .get()
+        .replace('\\', "\\\\")
+        .replace('\'', "\\'")
+    );
+    let escape_single_quoted_json_test = escape_json_parse(&dangerous_json);
+
+    let result = r#"JSON.parse('{"test":"don\\\\🚀🐱‍👤\\\\\'t forget to escape me!🚀🐱‍👤","te🚀🐱‍👤st2":"don\'t forget to escape me!","test3":"\\\\🚀🐱‍👤\\\\\\\\\'\'\'\\\\\\\\🚀🐱‍👤\\\\\\\\🚀🐱‍👤\\\\\'\'\'\'\'"}')"#;
+    assert_eq!(definitely_escaped_dangerous_json, result);
+    assert_eq!(escape_single_quoted_json_test, result);
+  }
 
   // check abritrary strings in the format callback function
   #[quickcheck]

@@ -68,14 +68,17 @@ fn escape_json_parse(json: &RawValue) -> String {
 /// ```
 /// use tauri_api::rpc::format_callback;
 /// use serde::Serialize;
-/// // callback with JSON argument
+///
+/// // callback with large JSON argument
 /// #[derive(Serialize)]
 /// struct MyResponse {
 ///   value: String
 /// }
-/// let cb = format_callback("callback-function-name", &MyResponse { value: "some value".into()})
+///
+/// let cb = format_callback("callback-function-name", &MyResponse { value: String::from_utf8(vec![b'X'; 10_240]).unwrap()})
 ///   .expect("failed to serialize");
-/// assert!(cb.contains(r#"window["callback-function-name"](JSON.parse('{"value":"some value"}'))"#));
+///
+/// assert!(cb.contains(r#"window["callback-function-name"](JSON.parse('{"value":"XXXXXXXXX"#));
 /// ```
 pub fn format_callback<T: Serialize, S: AsRef<str>>(
   function_name: S,

@@ -11,7 +11,7 @@ use serde_json::value::RawValue;
 const MAX_JSON_STR_LEN: usize = usize::pow(2, 30) - 2;
 
 /// Minimum size JSON needs to be in order to convert it to JSON.parse with [`escape_json_parse`].
-// todo: this number should be benchmarked and checked for optimal range, I set 10KiB conservatively
+// todo: this number should be benchmarked and checked for optimal range, I set 10 KiB arbitrarily
 // we don't want to lose the gained object parsing time to extra allocations preparing it
 const MIN_JSON_PARSE_LEN: usize = 10_240;
 
@@ -53,7 +53,8 @@ fn escape_json_parse(json: &RawValue) -> String {
 /// Formats a function name and argument to be evaluated as callback.
 ///
 /// This will serialize primitive JSON types (e.g. booleans, strings, numbers, etc.) as JavaScript literals,
-/// but will serialize arrays and objects whose serialized JSON string is smaller than 1 GB as `JSON.parse('...')`
+/// but will serialize arrays and objects whose serialized JSON string is smaller than 1 GB and larger
+/// than 10 KiB with `JSON.parse('...')`.
 /// https://github.com/GoogleChromeLabs/json-parse-benchmark
 ///
 /// # Examples
@@ -104,33 +105,28 @@ pub fn format_callback<T: Serialize, S: AsRef<str>>(
   let json = raw.get();
   let first = json.as_bytes()[0];
 
-  // ensure that we won't be creating a literal string too big for a browser
-  check_json_len(json.len())?;
+  #[cfg(debug_assertions)]
+  if first == b'"' {
+    debug_assert!(
+      json.len() < MAX_JSON_STR_LEN,
+      "passing a callback string larger than the max JavaScript literal string size"
+    )
+  }
 
   // only use JSON.parse('{arg}') for arrays and objects less than the limit
   // smaller literals do not benefit from being parsed from json
   Ok(
     if json.len() > MIN_JSON_PARSE_LEN || first == b'{' || first == b'[' {
       let escaped = escape_json_parse(&raw);
-      match check_json_len(escaped.len()) {
-        Ok(()) => format_callback!(escaped),
-        Err(_) => format_callback!(json),
+      if escaped.len() < MAX_JSON_STR_LEN {
+        format_callback!(escaped)
+      } else {
+        format_callback!(json)
       }
     } else {
       format_callback!(json)
     },
   )
-}
-
-/// Return a [`WriteZero`](std::io::ErrorKind::WriteZero) in cases that the json length is larger
-/// than the largest representable JavaScript string.
-#[inline]
-fn check_json_len(len: usize) -> crate::Result<()> {
-  if len < MAX_JSON_STR_LEN {
-    Ok(())
-  } else {
-    Err(crate::Error::Io(std::io::ErrorKind::WriteZero.into()))
-  }
 }
 
 /// Formats a Result type to its Promise response.

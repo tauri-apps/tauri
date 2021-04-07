@@ -52,9 +52,7 @@ fn test_escape_json_parse() {
 
   let definitely_escaped_dangerous_json = format!(
     "JSON.parse('{}')",
-    dangerous_json
-      .replace('\\', "\\\\")
-      .replace('\'', "\\'")
+    dangerous_json.replace('\\', "\\\\").replace('\'', "\\'")
   );
   let escape_single_quoted_json_test = escape_json_parse(dangerous_json);
 

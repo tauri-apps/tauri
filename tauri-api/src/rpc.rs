@@ -15,12 +15,22 @@ const MAX_JSON_STR_LEN: usize = usize::pow(2, 30) - 2;
 // we don't want to lose the gained object parsing time to extra allocations preparing it
 const MIN_JSON_PARSE_LEN: usize = 10_240;
 
-/// Safely transforms & escapes a JSON String -> JSON.parse('{json}')
+/// Transforms & escapes a JSON String -> JSON.parse('{json}')
 ///
 /// Single quotes chosen because double quotes are already used in JSON. With single quotes, we only
 /// need to escape strings that include backslashes or single quotes. If we used double quotes, then
 /// there would be no cases that a string doesn't need escaping.
-fn escape_json_parse(json: &str) -> String {
+///
+/// # Safety
+///
+/// The ability to safely escape JSON into a JSON.parse('{json}') relies entirely on 2 things.
+///
+/// 1. `serde_json`'s ability to correctly escape and format json into a string.
+/// 2. JavaScript engines not accepting anything except another unescaped, literal single quote
+///     character to end a string that was opened with it.
+fn escape_json_parse(json: &RawValue) -> String {
+  let json = json.get();
+
   // 14 chars in JSON.parse('')
   // todo: should we increase the 14 by x to allow x amount of escapes before another allocation?
   let mut s = String::with_capacity(json.len() + 14);
@@ -42,13 +52,16 @@ fn escape_json_parse(json: &str) -> String {
 
 #[test]
 fn test_escape_json_parse() {
-  let dangerous_json = String::from(
-    r#"{"test":"don\\🚀🐱‍👤\\'t forget to escape me!🚀🐱‍👤","te🚀🐱‍👤st2":"don't forget to escape me!","test3":"\\🚀🐱‍👤\\\\'''\\\\🚀🐱‍👤\\\\🚀🐱‍👤\\'''''"}"#,
-  );
+  let dangerous_json = RawValue::from_string(
+    r#"{"test":"don\\🚀🐱‍👤\\'t forget to escape me!🚀🐱‍👤","te🚀🐱‍👤st2":"don't forget to escape me!","test3":"\\🚀🐱‍👤\\\\'''\\\\🚀🐱‍👤\\\\🚀🐱‍👤\\'''''"}"#.into()
+  ).unwrap();
 
   let definitely_escaped_dangerous_json = format!(
     "JSON.parse('{}')",
-    dangerous_json.replace('\\', "\\\\").replace('\'', "\\'")
+    dangerous_json
+      .get()
+      .replace('\\', "\\\\")
+      .replace('\'', "\\'")
   );
   let escape_single_quoted_json_test = escape_json_parse(&dangerous_json);
 
@@ -105,10 +118,10 @@ pub fn format_callback<T: Serialize, S: AsRef<str>>(
 
   // get a raw &str representation of a serialized json value.
   let string = serde_json::to_string(arg)?;
-  let value = RawValue::from_string(string)?;
+  let raw = RawValue::from_string(string)?;
 
   // from here we know json.len() > 1 because an empty string is not a valid json value.
-  let json = value.get();
+  let json = raw.get();
   let first = json.as_bytes()[0];
 
   // ensure that we won't be creating a literal string too big for a browser
@@ -118,7 +131,7 @@ pub fn format_callback<T: Serialize, S: AsRef<str>>(
   // smaller literals do not benefit from being parsed from json
   Ok(
     if json.len() > MIN_JSON_PARSE_LEN || first == b'{' || first == b'[' {
-      let escaped = escape_json_parse(json);
+      let escaped = escape_json_parse(&raw);
       match check_json_len(escaped.len()) {
         Ok(()) => format_callback!(escaped),
         Err(_) => format_callback!(json),

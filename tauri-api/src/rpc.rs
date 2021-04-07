@@ -116,7 +116,7 @@ pub fn format_callback<T: Serialize, S: AsRef<str>>(
   // only use JSON.parse('{arg}') for arrays and objects less than the limit
   // smaller literals do not benefit from being parsed from json
   Ok(
-    if json.len() > MIN_JSON_PARSE_LEN || first == b'{' || first == b'[' {
+    if json.len() > MIN_JSON_PARSE_LEN && (first == b'{' || first == b'[') {
       let escaped = escape_json_parse(&raw);
       if escaped.len() < MAX_JSON_STR_LEN {
         format_callback!(escaped)

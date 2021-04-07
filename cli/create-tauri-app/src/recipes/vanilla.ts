@@ -18,8 +18,6 @@ export const vanillajs: Recipe = {
   extraNpmDevDependencies: [],
   extraNpmDependencies: [],
   preInit: async ({ cwd, cfg }) => {
-    // we have an issue with mkdir?
-    await shell("mkdir", [`\"${join(cwd, cfg.appName)}\"`]);
     const version = await shell("npm", ["view", "tauri", "version"], {
       stdio: "pipe",
     });

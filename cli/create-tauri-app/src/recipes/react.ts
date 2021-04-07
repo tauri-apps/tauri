@@ -20,8 +20,19 @@ const afterCra = async (args: TauriBuildConfig, version: string) => {
     tauri_version: version,
   };
 
-  console.log(completeLogMsg);
-  return scaffe.generate(templateDir, appName, variables);
+  return scaffe.generate(
+    templateDir,
+    appName,
+    variables,
+    async (err: Error) => {
+      if (err) {
+        console.error(err);
+      } else {
+        console.log(completeLogMsg);
+      }
+      return;
+    }
+  );
 };
 
 const reactjs: Recipe = {
@@ -38,10 +49,12 @@ const reactjs: Recipe = {
   extraNpmDependencies: ["react"],
   preInit: async ({ cwd, cfg }) => {
     // CRA creates the folder for you
-    await shell("yarn", ["create", "react-app", cfg.appName], { cwd });
+    await shell("yarn", ["create", "react-app", `"${cfg.appName}"`], { cwd });
   },
   postInit: async ({ cfg }) => {
-    const version = await shell("npm", ["view", "tauri.js", "version"]);
+    const version = await shell("npm", ["view", "tauri", "version"], {
+      stdio: "pipe",
+    });
     const versionNumber = version.stdout.trim();
     await afterCra(cfg, versionNumber);
   },
@@ -62,7 +75,7 @@ const reactts: Recipe = {
     // CRA creates the folder for you
     await shell(
       "yarn",
-      ["create", "react-app", "--template", "typescript", cfg.appName],
+      ["create", "react-app", "--template", "typescript", `"${cfg.appName}"`],
       { cwd }
     );
   },

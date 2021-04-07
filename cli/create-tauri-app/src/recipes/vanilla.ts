@@ -29,7 +29,7 @@ export const vanillajs: Recipe = {
 export const run = (args: TauriBuildConfig, cwd: string, version: string) =>
   new Promise((resolve, reject) => {
     const { appName } = args;
-    const templateDir = join(__dirname, "../templates/vanilla");
+    const templateDir = join(__dirname, "../src/templates/vanilla");
     const variables = {
       name: appName,
       tauri_version: version,

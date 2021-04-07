@@ -1,6 +1,6 @@
 const parseArgs = require("minimist");
 const inquirer = require("inquirer");
-const { join } = require("path");
+const { resolve, join } = require("path");
 const {
   recipeShortNames,
   recipeDescriptiveNames,
@@ -33,6 +33,7 @@ const createTauriApp = async (cliArgs) => {
       f: "force",
       l: "log",
       d: "directory",
+      b: "binary",
       t: "tauri-path",
       A: "app-name",
       W: "window-title",
@@ -75,7 +76,7 @@ function printUsage() {
     --force, -f          Force init to overwrite [conf|template|all]
     --log, -l            Logging [boolean]
     --directory, -d      Set target directory for init
-    --tauri-path, -t     Path of the Tauri project to use (relative to the cwd)
+    --binary, -b         Optional path to a tauri binary from which to run init
     --app-name, -A       Name of your Tauri application
     --window-title, -W   Window title of your Tauri application
     --dist-dir, -D       Web assets location, relative to <project-dir>/src-tauri
@@ -86,7 +87,7 @@ function printUsage() {
 }
 
 const getOptionsInteractive = (argv) => {
-  let defaultAppName = argv.A || "tauri app";
+  let defaultAppName = argv.A || "tauri-app";
 
   return inquirer
     .prompt([
@@ -184,9 +185,14 @@ async function runInit(argv, config = {}) {
     appName: appName || argv.A,
     windowTitle: title || argv.w,
   };
+  // note that our app directory is reliant on the appName and
+  // generally there are issues if the path has spaces (see Windows)
   const appDirectory = join(directory, cfg.appName);
 
-  const preInit = await recipe.preInit({ cwd: directory, cfg });
+  if (recipe.preInit) {
+    console.log("===== running initial command(s) =====");
+    await recipe.preInit({ cwd: directory, cfg });
+  }
 
   const initArgs = [
     ["--app-name", cfg.appName],
@@ -201,18 +207,27 @@ async function runInit(argv, config = {}) {
     }
   }, []);
 
-  await shell("yarn", ["add", "tauri", "--dev"], {
-    cwd: appDirectory,
-    stdio: "inherit",
-  });
-  await shell("yarn", ["tauri", "init", ...initArgs], {
+  if (!argv.b) {
+    console.log("===== adding tauri =====");
+    await shell("yarn add tauri --dev", {
+      cwd: appDirectory,
+    });
+  }
+
+  console.log("===== running tauri init =====");
+  const binary = !argv.b ? "yarn" : resolve(appDirectory, argv.b);
+  await shell(binary, ["tauri", "init", ...initArgs], {
+    ...(!argv.b ? {} : { shell: true }),
     cwd: appDirectory,
   });
 
-  const postInit = await recipe.postInit({
-    cwd: appDirectory,
-    cfg,
-  });
+  if (recipe.postInit) {
+    console.log("===== running final command(s) =====");
+    await recipe.postInit({
+      cwd: appDirectory,
+      cfg,
+    });
+  }
 }
 
 createTauriApp(process.argv.slice(2)).catch((err) => {

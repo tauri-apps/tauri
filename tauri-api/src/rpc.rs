@@ -114,8 +114,8 @@ pub fn format_callback<T: Serialize, S: AsRef<str>>(
   // ensure that we won't be creating a literal string too big for a browser
   check_json_len(json.len())?;
 
-  // We should only use JSON.parse('{arg}') if it's an array or object.
-  // We likely won't get any performance benefit from other data types.
+  // only use JSON.parse('{arg}') for arrays and objects less than the limit
+  // smaller literals do not benefit from being parsed from json
   Ok(
     if json.len() > MIN_JSON_PARSE_LEN || first == b'{' || first == b'[' {
       let escaped = escape_json_parse(json);

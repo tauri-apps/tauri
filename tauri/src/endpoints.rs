@@ -1,7 +1,8 @@
-use crate::{api::config::Config, hooks::InvokeMessage, runtime::Params};
+use crate::api::{config::Config, PackageInfo};
+use crate::{hooks::InvokeMessage, runtime::Params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-
+mod app;
 mod cli;
 mod dialog;
 mod event;
@@ -30,6 +31,7 @@ impl<T: Serialize> From<T> for InvokeResponse {
 #[derive(Deserialize)]
 #[serde(tag = "module", content = "message")]
 enum Module {
+  App(app::Cmd),
   Fs(file_system::Cmd),
   Window(Box<window::Cmd>),
   Shell(shell::Cmd),
@@ -43,9 +45,15 @@ enum Module {
 }
 
 impl Module {
-  fn run<M: Params>(self, message: InvokeMessage<M>, config: &Config) {
+  fn run<M: Params>(self, message: InvokeMessage<M>, config: &Config, package_info: PackageInfo) {
     let window = message.window();
     match self {
+      Self::App(cmd) => message.respond_async(async move {
+        cmd
+          .run(package_info)
+          .and_then(|r| r.json)
+          .map_err(|e| e.to_string())
+      }),
       Self::Fs(cmd) => message
         .respond_async(async move { cmd.run().and_then(|r| r.json).map_err(|e| e.to_string()) }),
       Self::Window(cmd) => message.respond_async(async move {
@@ -111,13 +119,18 @@ impl Module {
   }
 }
 
-pub(crate) fn handle<M: Params>(module: String, message: InvokeMessage<M>, config: &Config) {
+pub(crate) fn handle<M: Params>(
+  module: String,
+  message: InvokeMessage<M>,
+  config: &Config,
+  package_info: &PackageInfo,
+) {
   let mut payload = message.payload();
   if let JsonValue::Object(ref mut obj) = payload {
     obj.insert("module".to_string(), JsonValue::String(module));
   }
   match serde_json::from_value::<Module>(payload) {
-    Ok(module) => module.run(message, config),
+    Ok(module) => module.run(message, config, package_info.clone()),
     Err(e) => message.reject(e.to_string()),
   }
 }

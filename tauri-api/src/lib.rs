@@ -1,6 +1,8 @@
 //! The Tauri API interface.
 #![warn(missing_docs, rust_2018_idioms)]
 
+/// The App API module allows you to manage application processes.
+pub mod app;
 /// The Command API module allows you to manage child processes.
 pub mod command;
 /// The Dialog API module allows you to show messages and prompt for file paths.

@@ -5,6 +5,7 @@
   "main": "./dist/index.js",
   "exports": {
     ".": "./dist/index.js",
+    "./app": "./dist/app.js",
     "./cli": "./dist/cli.js",
     "./dialog": "./dist/dialog.js",
     "./event": "./dist/event.js",

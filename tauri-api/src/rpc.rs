@@ -111,7 +111,7 @@ pub fn format_callback<T: Serialize, S: AsRef<str>>(
   #[cfg(debug_assertions)]
   if first == b'"' {
     debug_assert!(
-      json.len() >= MAX_JSON_STR_LEN,
+      json.len() < MAX_JSON_STR_LEN,
       "passing a callback string larger than the max JavaScript literal string size"
     )
   }

@@ -239,23 +239,6 @@ impl<'a> UpdateBuilder<'a> {
     // Get the extract_path from the provided executable_path
     let extract_path = extract_path_from_executable(&executable_path);
 
-    // current binary used to restart the application
-    #[cfg(target_os = "windows")]
-    let current_binary = None;
-
-    #[cfg(not(target_os = "windows"))]
-    let mut current_binary = None;
-
-    #[cfg(target_os = "linux")]
-    if let Some(app_image_path) = env::var_os("APPIMAGE") {
-      current_binary = Some(PathBuf::from(app_image_path));
-    }
-
-    #[cfg(target_os = "macos")]
-    if let Ok(current_process) = std::env::current_exe() {
-      current_binary = Some(current_process);
-    }
-
     // Set SSL certs for linux if they aren't available.
     // We do not require to recheck in the download_and_install as we use
     // ENV variables, we can expect them to be set for the second call.
@@ -351,7 +334,6 @@ impl<'a> UpdateBuilder<'a> {
       download_url: final_release.download_url,
       body: final_release.body,
       signature: final_release.signature,
-      current_binary,
     })
   }
 }
@@ -372,10 +354,6 @@ pub struct Update {
   pub current_version: String,
   /// Update publish date
   pub date: String,
-  /// If announced, this is the process to start once the
-  /// update is completed. On linux it return the APPImage Path and macos
-  /// the current executable path. On windows we exit before this step.
-  pub current_binary: Option<PathBuf>,
   /// Target
   target: String,
   /// Extract path

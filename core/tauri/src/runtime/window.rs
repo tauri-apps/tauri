@@ -151,7 +151,7 @@ impl<M: Params> Window<M> {
       let message = InvokeMessage::new(self, command.to_string(), payload);
       if let Some(module) = &message.payload.tauri_module {
         let module = module.to_string();
-        crate::endpoints::handle(module, message, manager.config());
+        crate::endpoints::handle(module, message, manager.config(), manager.package_info());
       } else if command.starts_with("plugin:") {
         manager.extend_api(command, message);
       } else {

@@ -1,13 +1,25 @@
 <script>
-
+  import { onMount, onDestroy } from "svelte";
+  
   // This example show how updater events work when dialog is disabled.
   // This allow you to use custom dialog for the updater.
   // This is your responsability to restart the application after you receive the STATUS: DONE.
 
   import { checkUpdate, installUpdate } from "@tauri-apps/api/updater";
+  import { listen } from "@tauri-apps/api/event";
+  import { relaunch } from "@tauri-apps/api/app";
 
   export let onMessage;
+  let unlisten;
 
+  onMount(async () => {
+    unlisten = await listen("tauri://update-status", onMessage)
+  })
+  onDestroy(() => {
+    if (unlisten) {
+      unlisten()
+    }
+  })
 
   async function check() {
     try {
@@ -31,6 +43,7 @@
 
       await installUpdate();
       onMessage("Installation complete, restart required.");
+      await relaunch();
 
     } catch(e) {
       onMessage(e);

@@ -1,5 +1,5 @@
 use serde::Serialize;
-use serde_json::Value as JsonValue;
+use serde_json::value::RawValue;
 
 /// The information about this is quite limited. On Chrome/Edge and Firefox, [the maximum string size is approximately 1 GB](https://stackoverflow.com/a/34958490).
 ///
@@ -8,87 +8,82 @@ use serde_json::Value as JsonValue;
 /// ECMAScript 2016 (ed. 7) established a maximum length of 2^53 - 1 elements. Previously, no maximum length was specified.
 ///
 /// In Firefox, strings have a maximum length of 2\*\*30 - 2 (~1GB). In versions prior to Firefox 65, the maximum length was 2\*\*28 - 1 (~256MB).
-pub const MAX_JSON_STR_LEN: usize = usize::pow(2, 30) - 2;
+const MAX_JSON_STR_LEN: usize = usize::pow(2, 30) - 2;
 
-/// Safely transforms & escapes a JSON String -> JSON.parse('{json}')
-//  Single quotes are the fastest string for the JavaScript engine to build.
-//  Directly transforming the string byte-by-byte is faster than a double String::replace()
-pub fn escape_json_parse(mut json: String) -> String {
-  const BACKSLASH_BYTE: u8 = b'\\';
-  const SINGLE_QUOTE_BYTE: u8 = b'\'';
+/// Minimum size JSON needs to be in order to convert it to JSON.parse with [`escape_json_parse`].
+// todo: this number should be benchmarked and checked for optimal range, I set 10 KiB arbitrarily
+// we don't want to lose the gained object parsing time to extra allocations preparing it
+const MIN_JSON_PARSE_LEN: usize = 10_240;
 
-  // Safety:
-  //
-  // Directly mutating the bytes of a String is considered unsafe because you could end
-  // up inserting invalid UTF-8 into the String.
-  //
-  // In this case, we are working with single-byte \ (backslash) and ' (single quotes),
-  // and only INSERTING a backslash in the position proceeding it, which is safe to do.
-  //
-  // Note the debug assertion that checks whether the String is valid UTF-8.
-  // In the test below this assertion will fail if the emojis in the test strings cause problems.
+/// Transforms & escapes a JSON String -> JSON.parse('{json}')
+///
+/// Single quotes chosen because double quotes are already used in JSON. With single quotes, we only
+/// need to escape strings that include backslashes or single quotes. If we used double quotes, then
+/// there would be no cases that a string doesn't need escaping.
+///
+/// # Safety
+///
+/// The ability to safely escape JSON into a JSON.parse('{json}') relies entirely on 2 things.
+///
+/// 1. `serde_json`'s ability to correctly escape and format json into a string.
+/// 2. JavaScript engines not accepting anything except another unescaped, literal single quote
+///     character to end a string that was opened with it.
+fn escape_json_parse(json: &RawValue) -> String {
+  let json = json.get();
 
-  let bytes: &mut Vec<u8> = unsafe { json.as_mut_vec() };
-  let mut i = 0;
-  while i < bytes.len() {
-    let byte = bytes[i];
-    if matches!(byte, BACKSLASH_BYTE | SINGLE_QUOTE_BYTE) {
-      bytes.insert(i, BACKSLASH_BYTE);
-      i += 1;
-    }
-    i += 1;
+  // 14 chars in JSON.parse('')
+  // todo: should we increase the 14 by x to allow x amount of escapes before another allocation?
+  let mut s = String::with_capacity(json.len() + 14);
+  s.push_str("JSON.parse('");
+
+  // insert a backslash before any backslash or single quote characters.
+  let mut last = 0;
+  for (idx, _) in json.match_indices(|c| c == '\\' || c == '\'') {
+    s.push_str(&json[last..idx]);
+    s.push('\\');
+    last = idx;
   }
 
-  debug_assert!(String::from_utf8(bytes.to_vec()).is_ok());
-
-  format!("JSON.parse('{}')", json)
-}
-
-#[test]
-fn test_escape_json_parse() {
-  let dangerous_json = String::from(
-    r#"{"test":"don\\🚀🐱‍👤\\'t forget to escape me!🚀🐱‍👤","te🚀🐱‍👤st2":"don't forget to escape me!","test3":"\\🚀🐱‍👤\\\\'''\\\\🚀🐱‍👤\\\\🚀🐱‍👤\\'''''"}"#,
-  );
-
-  let definitely_escaped_dangerous_json = format!(
-    "JSON.parse('{}')",
-    dangerous_json.replace('\\', "\\\\").replace('\'', "\\'")
-  );
-  let escape_single_quoted_json_test = escape_json_parse(dangerous_json);
-
-  let result = r#"JSON.parse('{"test":"don\\\\🚀🐱‍👤\\\\\'t forget to escape me!🚀🐱‍👤","te🚀🐱‍👤st2":"don\'t forget to escape me!","test3":"\\\\🚀🐱‍👤\\\\\\\\\'\'\'\\\\\\\\🚀🐱‍👤\\\\\\\\🚀🐱‍👤\\\\\'\'\'\'\'"}')"#;
-  assert_eq!(definitely_escaped_dangerous_json, result);
-  assert_eq!(escape_single_quoted_json_test, result);
+  // finish appending the trailing characters that don't need escaping
+  s.push_str(&json[last..]);
+  s.push_str("')");
+  s
 }
 
 /// Formats a function name and argument to be evaluated as callback.
 ///
 /// This will serialize primitive JSON types (e.g. booleans, strings, numbers, etc.) as JavaScript literals,
-/// but will serialize arrays and objects whose serialized JSON string is smaller than 1 GB as `JSON.parse('...')`
+/// but will serialize arrays and objects whose serialized JSON string is smaller than 1 GB and larger
+/// than 10 KiB with `JSON.parse('...')`.
 /// https://github.com/GoogleChromeLabs/json-parse-benchmark
 ///
 /// # Examples
 /// ```
 /// use tauri_api::rpc::format_callback;
 /// // callback with a string argument
-/// let cb = format_callback("callback-function-name", "the string response");
+/// let cb = format_callback("callback-function-name", &"the string response").expect("failed to serialize");
 /// assert!(cb.contains(r#"window["callback-function-name"]("the string response")"#));
 /// ```
 ///
 /// ```
 /// use tauri_api::rpc::format_callback;
 /// use serde::Serialize;
-/// // callback with JSON argument
+///
+/// // callback with large JSON argument
 /// #[derive(Serialize)]
 /// struct MyResponse {
 ///   value: String
 /// }
-/// let cb = format_callback("callback-function-name", serde_json::to_value(&MyResponse {
-///   value: "some value".to_string()
-/// }).expect("failed to serialize"));
-/// assert!(cb.contains(r#"window["callback-function-name"](JSON.parse('{"value":"some value"}'))"#));
+///
+/// let cb = format_callback("callback-function-name", &MyResponse { value: String::from_utf8(vec![b'X'; 10_240]).unwrap()})
+///   .expect("failed to serialize");
+///
+/// assert!(cb.contains(r#"window["callback-function-name"](JSON.parse('{"value":"XXXXXXXXX"#));
 /// ```
-pub fn format_callback<T: Into<JsonValue>, S: AsRef<str>>(function_name: S, arg: T) -> String {
+pub fn format_callback<T: Serialize, S: AsRef<str>>(
+  function_name: S,
+  arg: &T,
+) -> crate::Result<String> {
   macro_rules! format_callback {
     ( $arg:expr ) => {
       format!(
@@ -105,24 +100,36 @@ pub fn format_callback<T: Into<JsonValue>, S: AsRef<str>>(function_name: S, arg:
     }
   }
 
-  let json_value = arg.into();
+  // get a raw &str representation of a serialized json value.
+  let string = serde_json::to_string(arg)?;
+  let raw = RawValue::from_string(string)?;
 
-  // We should only use JSON.parse('{arg}') if it's an array or object.
-  // We likely won't get any performance benefit from other data types.
-  if matches!(json_value, JsonValue::Array(_) | JsonValue::Object(_)) {
-    let as_str = json_value.to_string();
+  // from here we know json.len() > 1 because an empty string is not a valid json value.
+  let json = raw.get();
+  let first = json.as_bytes()[0];
 
-    // Explicitly drop json_value to avoid storing both the Rust "JSON" and serialized String JSON in memory twice, as <T: Display>.tostring() takes a reference.
-    drop(json_value);
-
-    format_callback!(if as_str.len() < MAX_JSON_STR_LEN {
-      escape_json_parse(as_str)
-    } else {
-      as_str
-    })
-  } else {
-    format_callback!(json_value)
+  #[cfg(debug_assertions)]
+  if first == b'"' {
+    debug_assert!(
+      json.len() < MAX_JSON_STR_LEN,
+      "passing a callback string larger than the max JavaScript literal string size"
+    )
   }
+
+  // only use JSON.parse('{arg}') for arrays and objects less than the limit
+  // smaller literals do not benefit from being parsed from json
+  Ok(
+    if json.len() > MIN_JSON_PARSE_LEN && (first == b'{' || first == b'[') {
+      let escaped = escape_json_parse(&raw);
+      if escaped.len() < MAX_JSON_STR_LEN {
+        format_callback!(escaped)
+      } else {
+        format_callback!(json)
+      }
+    } else {
+      format_callback!(json)
+    },
+  )
 }
 
 /// Formats a Result type to its Promise response.
@@ -152,11 +159,10 @@ pub fn format_callback_result<T: Serialize, E: Serialize>(
   success_callback: impl AsRef<str>,
   error_callback: impl AsRef<str>,
 ) -> crate::Result<String> {
-  let rpc = match result {
-    Ok(res) => format_callback(success_callback, serde_json::to_value(res)?),
-    Err(err) => format_callback(error_callback, serde_json::to_value(err)?),
-  };
-  Ok(rpc)
+  match result {
+    Ok(res) => format_callback(success_callback, &res),
+    Err(err) => format_callback(error_callback, &err),
+  }
 }
 
 #[cfg(test)]
@@ -164,13 +170,33 @@ mod test {
   use crate::rpc::*;
   use quickcheck_macros::quickcheck;
 
+  #[test]
+  fn test_escape_json_parse() {
+    let dangerous_json = RawValue::from_string(
+      r#"{"test":"don\\🚀🐱‍👤\\'t forget to escape me!🚀🐱‍👤","te🚀🐱‍👤st2":"don't forget to escape me!","test3":"\\🚀🐱‍👤\\\\'''\\\\🚀🐱‍👤\\\\🚀🐱‍👤\\'''''"}"#.into()
+    ).unwrap();
+
+    let definitely_escaped_dangerous_json = format!(
+      "JSON.parse('{}')",
+      dangerous_json
+        .get()
+        .replace('\\', "\\\\")
+        .replace('\'', "\\'")
+    );
+    let escape_single_quoted_json_test = escape_json_parse(&dangerous_json);
+
+    let result = r#"JSON.parse('{"test":"don\\\\🚀🐱‍👤\\\\\'t forget to escape me!🚀🐱‍👤","te🚀🐱‍👤st2":"don\'t forget to escape me!","test3":"\\\\🚀🐱‍👤\\\\\\\\\'\'\'\\\\\\\\🚀🐱‍👤\\\\\\\\🚀🐱‍👤\\\\\'\'\'\'\'"}')"#;
+    assert_eq!(definitely_escaped_dangerous_json, result);
+    assert_eq!(escape_single_quoted_json_test, result);
+  }
+
   // check abritrary strings in the format callback function
   #[quickcheck]
   fn qc_formating(f: String, a: String) -> bool {
     // can not accept empty strings
     if !f.is_empty() && !a.is_empty() {
       // call format callback
-      let fc = format_callback(f.clone(), a.clone());
+      let fc = format_callback(f.clone(), &a).unwrap();
       fc.contains(&format!(
         r#"window["{}"](JSON.parse('{}'))"#,
         f,

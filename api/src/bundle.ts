@@ -1,4 +1,5 @@
 import 'regenerator-runtime/runtime'
+import * as app from './app'
 import * as cli from './cli'
 import * as dialog from './dialog'
 import * as event from './event'
@@ -13,6 +14,7 @@ import * as notification from './notification'
 import * as globalShortcut from './globalShortcut'
 
 export {
+  app,
   cli,
   dialog,
   event,

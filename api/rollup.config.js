@@ -10,6 +10,7 @@ import pkg from './package.json'
 export default [
   {
     input: {
+      app: './src/app.ts',
       fs: './src/fs.ts',
       path: './src/path.ts',
       dialog: './src/dialog.ts',

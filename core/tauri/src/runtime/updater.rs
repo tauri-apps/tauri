@@ -1,13 +1,10 @@
 use crate::{
   api::{
+    app::restart_application,
     config::UpdaterConfig,
     dialog::{ask, AskResponse},
   },
   runtime::{window::Window, Params},
-};
-use std::{
-  path::PathBuf,
-  process::{exit, Command},
 };
 
 // Check for new updates
@@ -181,8 +178,6 @@ pub(crate) fn listener<M: Params>(
                       );
                     } else {
                       // emit {"status": "DONE"}
-                      // todo(lemarier): maybe we should emit the
-                      // path of the current EXE so they can restart it
                       send_status_update(window.clone(), EVENT_STATUS_SUCCESS, None);
                     }
                   })
@@ -253,7 +248,7 @@ Release Notes:
       );
       match should_exit {
         AskResponse::Yes => {
-          restart_application(updater.current_binary.as_ref());
+          restart_application(None);
           // safely exit even if the process
           // should be killed
           return Ok(());
@@ -269,17 +264,4 @@ Release Notes:
   }
 
   Ok(())
-}
-
-// Tested on macOS and Linux. Windows will not trigger the dialog
-// as it'll exit before, to launch the MSI installation.
-fn restart_application(binary_to_start: Option<&PathBuf>) {
-  // spawn new process
-  if let Some(path) = binary_to_start {
-    Command::new(path)
-      .spawn()
-      .expect("application failed to start");
-  }
-
-  exit(0);
 }

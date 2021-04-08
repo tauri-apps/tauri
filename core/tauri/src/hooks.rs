@@ -156,7 +156,8 @@ impl<M: Params> InvokeMessage<M> {
     let callback_string =
       match format_callback_result(result, success_callback, error_callback.clone()) {
         Ok(callback_string) => callback_string,
-        Err(e) => format_callback(error_callback, e.to_string()),
+        Err(e) => format_callback(error_callback, &e.to_string())
+          .expect("unable to serialize shortcut string to json"),
       };
 
     let _ = window.eval(&callback_string);

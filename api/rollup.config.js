@@ -65,7 +65,7 @@ export default [
     output: [
       {
         name: '__TAURI__',
-        dir: '../tauri/scripts',
+        dir: '../core/tauri/scripts',
         entryFileNames: 'bundle.js',
         format: 'umd',
         plugins: [

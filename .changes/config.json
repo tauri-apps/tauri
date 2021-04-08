@@ -187,6 +187,14 @@
       "path": "./core/tauri-updater",
       "manager": "rust"
     },
+    "tauri-build": {
+      "path": "./core/tauri-build",
+      "manager": "rust"
+    },
+    "tauri-codegen": {
+      "path": "./core/tauri-codegen",
+      "manager": "rust"
+    },
     "tauri": {
       "path": "./core/tauri",
       "manager": "rust",

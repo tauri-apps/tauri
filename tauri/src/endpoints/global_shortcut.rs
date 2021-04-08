@@ -43,10 +43,8 @@ fn register_shortcut<D: Dispatch>(
   handler: String,
 ) -> crate::Result<()> {
   manager.register(shortcut.clone(), move || {
-    let callback_string = crate::api::rpc::format_callback(
-      handler.to_string(),
-      serde_json::Value::String(shortcut.clone()),
-    );
+    let callback_string = crate::api::rpc::format_callback(handler.to_string(), &shortcut)
+      .expect("unable to serialize shortcut string to json");
     let _ = dispatcher.eval_script(callback_string.as_str());
   })?;
   Ok(())

@@ -81,7 +81,9 @@ impl Cmd {
               if matches!(event, CommandEvent::Terminated(_)) {
                 command_childs().lock().unwrap().remove(&pid);
               }
-              let js = format_callback(on_event_fn.clone(), serde_json::to_value(event).unwrap());
+              let js = format_callback(on_event_fn.clone(), &event)
+                .expect("unable to serialize CommandEvent");
+
               let _ = window.eval(js.as_str());
             }
           });

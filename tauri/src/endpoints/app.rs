@@ -24,18 +24,13 @@ pub enum Cmd {
 impl Cmd {
   pub fn run(self, package_info: PackageInfo) -> crate::Result<InvokeResponse> {
     match self {
-      Self::GetAppVersion => {
-        return Ok(package_info.version.into());
-      }
-      Self::GetAppName => {
-        return Ok(package_info.name.into());
-      }
-      Self::GetTauriVersion => {
-        return Ok(env!("CARGO_PKG_VERSION").into());
-      }
-      Self::Relaunch => {
-        return Ok(restart_application(None).into());
-      }
+      Self::GetAppVersion => Ok(package_info.version.into()),
+      Self::GetAppName => Ok(package_info.name.into()),
+      Self::GetTauriVersion => Ok(env!("CARGO_PKG_VERSION").into()),
+      Self::Relaunch => Ok({
+        restart_application(None);
+        ().into()
+      }),
       Self::Exit { exit_code } => {
         // would be great if we can have a handler inside tauri
         // who close all window and emit an event that user can catch

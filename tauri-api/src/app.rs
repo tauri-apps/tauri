@@ -27,7 +27,7 @@ pub fn current_binary() -> Option<PathBuf> {
 
 /// Restart application
 pub fn restart_application(binary_to_start: Option<PathBuf>) {
-  let mut binary_path = binary_to_start.clone();
+  let mut binary_path = binary_to_start;
   // spawn new process
   if binary_path.is_none() {
     binary_path = current_binary();

@@ -30,7 +30,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0
       - name: generate rust docs
-        working-directory: tauri
+        working-directory: core/tauri
         run: cargo doc --no-deps
       - name: run rustdocusaurus
         uses: tauri-apps/rustdocusaurus/github-action@v1

@@ -31,10 +31,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0
-      - name: build
-        run: |
-          cd ./tauri
-          cargo build
       - name: test
         run: |
           cargo test
@@ -88,4 +84,3 @@ jobs:
         timeout-minutes: 15
         working-directory: cli/tauri.js
         run: yarn build-release
-        

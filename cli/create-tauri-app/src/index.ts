@@ -28,18 +28,7 @@ export interface Recipe {
   }) => Promise<void>;
 }
 
-const none: Recipe = {
-  descriptiveName: "No recipe",
-  shortName: "none",
-  configUpdate: identity,
-  extraNpmDependencies: [],
-  extraNpmDevDependencies: [],
-  preInit: async ({ cwd, cfg }) => {
-    await shell("mkdir", [cfg.appName], { cwd });
-  },
-};
-
-export const allRecipes: Recipe[] = [none, reactjs, reactts, vanillajs];
+export const allRecipes: Recipe[] = [vanillajs, reactjs, reactts];
 
 export const recipeNames: Array<[string, string]> = map(
   allRecipes,

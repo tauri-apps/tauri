@@ -114,31 +114,6 @@ const getOptionsInteractive = (argv) => {
         when: () => !argv.r,
       },
     ])
-    .then((answers) =>
-      inquirer
-        .prompt([
-          {
-            type: "input",
-            name: "build.devPath",
-            message: "What is the url of your dev server?",
-            default: "http://localhost:4000",
-            when: () =>
-              (!argv.P && !argv.p && answers.recipeName === "No recipe") ||
-              argv.r === "none",
-          },
-          {
-            type: "input",
-            name: "build.distDir",
-            message:
-              'Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri" folder that will be created?',
-            default: "../dist",
-            when: () =>
-              (!argv.D && answers.recipeName === "No recipe") ||
-              argv.r === "none",
-          },
-        ])
-        .then((answers2) => ({ ...answers, ...answers2 }))
-    )
     .catch((error) => {
       if (error.isTtyError) {
         // Prompt couldn't be rendered in the current environment
@@ -187,6 +162,7 @@ async function runInit(argv, config = {}) {
   };
   // note that our app directory is reliant on the appName and
   // generally there are issues if the path has spaces (see Windows)
+  // future TODO prevent app names with spaces or escape here?
   const appDirectory = join(directory, cfg.appName);
 
   if (recipe.preInit) {

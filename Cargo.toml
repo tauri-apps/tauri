@@ -1,11 +1,10 @@
 [workspace]
 members = [
-  "tauri",
-  "tauri-api",
-  "tauri-macros",
-  "tauri-utils",
-
   # core
+  "core/tauri",
+  "core/tauri-api",
+  "core/tauri-macros",
+  "core/tauri-utils",
   "core/tauri-build",
   "core/tauri-codegen",
 

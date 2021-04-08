@@ -15,7 +15,7 @@ proc-macro2 = "1"
 quote = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tauri-api = { path = "../../tauri-api", features = ["build"] }
+tauri-api = { path = "../tauri-api", features = ["build"] }
 thiserror = "1"
 walkdir = "2"
 zstd = "0.7"

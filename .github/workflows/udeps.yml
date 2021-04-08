@@ -5,11 +5,6 @@ on:
     paths:
       - '.github/workflows/udeps.yml'
       - 'core/**'
-      - 'tauri/**'
-      - 'tauri-utils/**'
-      - 'tauri-api/**'
-      - 'tauri-macros/**'
-      - 'tauri-updater/**'
       - 'cli/tauri-bundler/**'
       - 'cli/core/**'
 

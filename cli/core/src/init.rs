@@ -108,7 +108,7 @@ impl Init {
         )
       } else {
         let tauri_manifest: Manifest =
-          toml::from_str(include_str!("../../../tauri/Cargo.toml")).unwrap();
+          toml::from_str(include_str!("../../../core/tauri/Cargo.toml")).unwrap();
         let tauri_build_manifest: Manifest =
           toml::from_str(include_str!("../../../core/tauri-build/Cargo.toml")).unwrap();
         (

@@ -8,7 +8,7 @@ edition = "2018"
 tauri-build = { path = "../../../core/tauri-build" }
 
 [dependencies]
-tauri = { path = "../../../tauri", features =["api-all"]}
+tauri = { path = "../../../core/tauri", features =["api-all"]}
 
 [features]
 default = [ "custom-protocol" ]

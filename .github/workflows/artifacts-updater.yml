@@ -3,8 +3,8 @@ on:
   pull_request:
     paths:
       - '.github/workflows/artifacts-updater.yml'
-      - 'tauri/**'
-      - 'tauri-updater/**'
+      - 'core/tauri/**'
+      - 'core/tauri-updater/**'
       - 'cli/core/**'
       - 'cli/tauri-bundler/**'
       - 'examples/updater/**'

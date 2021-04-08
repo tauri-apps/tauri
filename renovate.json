@@ -14,7 +14,7 @@
     },
     {
       "enabled": true,
-      "paths": ["tauri/**"],
+      "paths": ["core/tauri/**"],
       "groupName": "Tauri Core",
       "groupSlug": "allTauriCore",
       "commitMessagePrefix": "chore(deps)",
@@ -25,9 +25,64 @@
     },
     {
       "enabled": true,
-      "paths": ["tauri-api/**"],
+      "paths": ["core/tauri-api/**"],
       "groupName": "Tauri API",
       "groupSlug": "allTauriAPI",
+      "commitMessagePrefix": "chore(deps)",
+      "lockFileMaintenance": {
+        "enabled": true
+      },
+      "rebaseConflictedPrs": false
+    },
+    {
+      "enabled": true,
+      "paths": ["core/tauri-build/**"],
+      "groupName": "Tauri Build",
+      "groupSlug": "allTauriBuild",
+      "commitMessagePrefix": "chore(deps)",
+      "lockFileMaintenance": {
+        "enabled": true
+      },
+      "rebaseConflictedPrs": false
+    },
+    {
+      "enabled": true,
+      "paths": ["core/tauri-codegen/**"],
+      "groupName": "Tauri Codegen",
+      "groupSlug": "allTauriCodegen",
+      "commitMessagePrefix": "chore(deps)",
+      "lockFileMaintenance": {
+        "enabled": true
+      },
+      "rebaseConflictedPrs": false
+    },
+    {
+      "enabled": true,
+      "paths": ["core/tauri-macros/**"],
+      "groupName": "Tauri Macros",
+      "groupSlug": "allTauriMacros",
+      "commitMessagePrefix": "chore(deps)",
+      "lockFileMaintenance": {
+        "enabled": true
+      },
+      "rebaseConflictedPrs": false
+    },
+    {
+      "enabled": true,
+      "paths": ["core/tauri-updater/**"],
+      "groupName": "Tauri Updater",
+      "groupSlug": "allTauriUpdater",
+      "commitMessagePrefix": "chore(deps)",
+      "lockFileMaintenance": {
+        "enabled": true
+      },
+      "rebaseConflictedPrs": false
+    },
+    {
+      "enabled": true,
+      "paths": ["core/tauri-utils/**"],
+      "groupName": "Tauri Utils",
+      "groupSlug": "allTauriUtils",
       "commitMessagePrefix": "chore(deps)",
       "lockFileMaintenance": {
         "enabled": true

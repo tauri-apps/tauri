@@ -1,11 +1,11 @@
 use std::{
+  env,
   path::PathBuf,
   process::{exit, Command},
 };
 
 /// Get the current binary
 pub fn current_binary() -> Option<PathBuf> {
-  #[cfg(not(target_os = "windows"))]
   let mut current_binary = None;
 
   // if we are running with an APP Image, we should return the app image path
@@ -17,7 +17,7 @@ pub fn current_binary() -> Option<PathBuf> {
   // if we didn't extracted binary in previous step,
   // let use the current_exe from current environment
   if current_binary.is_none() {
-    if let Ok(current_process) = std::env::current_exe() {
+    if let Ok(current_process) = env::current_exe() {
       current_binary = Some(current_process);
     }
   }

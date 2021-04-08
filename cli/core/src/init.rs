@@ -99,7 +99,7 @@ impl Init {
         (
           format!(
             "{{  path = {:?} }}",
-            resolve_tauri_path(&tauri_path, "tauri")
+            resolve_tauri_path(&tauri_path, "core/tauri")
           ),
           format!(
             "{{  path = {:?} }}",

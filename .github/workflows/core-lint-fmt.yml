@@ -73,5 +73,5 @@ jobs:
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --manifest-path ./tauri/Cargo.toml --all-targets --features ${{ matrix.feature }} -- -D warnings
+          args: --manifest-path ./core/tauri/Cargo.toml --all-targets --features ${{ matrix.feature }} -- -D warnings
           name: core

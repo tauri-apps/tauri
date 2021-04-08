@@ -112,7 +112,11 @@ impl<E: Tag, L: Tag> Listeners<E, L> {
   ) {
     let self_ = self.clone();
     self.listen(event, window, move |e| {
-      self_.unlisten(e.id);
+      let self_ = self_.clone();
+      let id = e.id;
+      crate::async_runtime::spawn(async move {
+        self_.unlisten(id);
+      });
       handler(e);
     });
   }

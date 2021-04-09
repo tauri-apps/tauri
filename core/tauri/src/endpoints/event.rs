@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use crate::{
   endpoints::InvokeResponse,
   runtime::{sealed::ManagerPrivate, window::Window, Manager, Params},

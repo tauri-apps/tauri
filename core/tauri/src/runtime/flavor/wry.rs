@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! The [`wry`] webview runtime.
 
 use crate::runtime::{

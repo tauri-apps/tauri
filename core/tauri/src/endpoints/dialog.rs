@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use super::InvokeResponse;
 #[cfg(any(dialog_open, dialog_save))]
 use crate::api::dialog::FileDialogBuilder;

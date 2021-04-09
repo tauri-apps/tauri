@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 /// The plugin error type.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

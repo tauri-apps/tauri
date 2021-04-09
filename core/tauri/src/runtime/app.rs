@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use crate::{
   api::{assets::Assets, config::WindowUrl},
   hooks::{InvokeHandler, InvokeMessage, OnPageLoad, PageLoadPayload, SetupHook},

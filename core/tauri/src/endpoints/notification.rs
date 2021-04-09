@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use super::InvokeResponse;
 use serde::Deserialize;
 #[cfg(notification_all)]

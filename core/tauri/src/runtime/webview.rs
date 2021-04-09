@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use crate::runtime::window::DetachedWindow;
 use serde_json::Value as JsonValue;
 use std::{convert::TryFrom, path::PathBuf};

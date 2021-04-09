@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 // polyfills
 if (!String.prototype.startsWith) {
   String.prototype.startsWith = function (searchString, position) {

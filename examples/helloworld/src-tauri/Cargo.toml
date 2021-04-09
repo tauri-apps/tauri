@@ -3,7 +3,7 @@ name = "helloworld"
 version = "0.1.0"
 description = "A very simple Tauri Appplication"
 edition = "2018"
-license = "Apache-2.0/MIT"
+license = "Apache-2.0 OR MIT"
 
 [build-dependencies]
 tauri-build = { path = "../../../core/tauri-build", features = [ "codegen" ]}

@@ -14,7 +14,7 @@
     "tauri:prod:build": "yarn tauri:prod build"
   },
   "author": "",
-  "license": "Apache-2.0/MIT",
+  "license": "Apache-2.0 OR MIT",
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.17.1"

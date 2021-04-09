@@ -3,7 +3,7 @@ name = "multiwindow"
 version = "0.1.0"
 description = "An example Tauri Multi-Window Application"
 edition = "2018"
-license = "Apache-2.0/MIT"
+license = "Apache-2.0 OR MIT"
 
 [build-dependencies]
 tauri-build = { path = "../../../core/tauri-build" }

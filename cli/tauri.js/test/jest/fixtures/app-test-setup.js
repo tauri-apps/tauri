@@ -10,7 +10,7 @@ function mockResolvePath(basePath, dir) {
 }
 
 module.exports.initJest = (mockFixture) => {
-  jest.setTimeout(720000)
+  jest.setTimeout(1200000)
   jest.mock('helpers/non-webpack-require', () => {
     return (path) => {
       const value = require('fs').readFileSync(path).toString()

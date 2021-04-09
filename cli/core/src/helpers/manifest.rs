@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use super::{app_paths::tauri_dir, config::ConfigHandle};
 
 use toml_edit::{Array, Document, Value};

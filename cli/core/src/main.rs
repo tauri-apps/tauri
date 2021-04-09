@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 pub use anyhow::Result;
 use clap::{crate_version, load_yaml, App, AppSettings, ArgMatches};
 use dialoguer::Input;

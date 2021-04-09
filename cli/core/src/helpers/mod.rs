@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 pub mod app_paths;
 pub mod config;
 mod logger;

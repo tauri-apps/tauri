@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
   config::get as get_config,

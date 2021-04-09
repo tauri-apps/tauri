@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use std::{fs::File, io::Read, path::PathBuf, process::Command, str::FromStr};
 
 use serde::Deserialize;

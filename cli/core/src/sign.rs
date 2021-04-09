@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use crate::helpers::updater_signature::{
   generate_key, read_key_from_file, save_keypair, sign_file,
 };

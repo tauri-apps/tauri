@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 extern crate minisign;
 
 use base64::{decode, encode};

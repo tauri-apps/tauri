@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use std::{
   collections::BTreeMap,
   fs::{create_dir_all, remove_dir_all, File},

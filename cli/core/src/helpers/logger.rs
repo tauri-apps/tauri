@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use colored::Colorize;
 
 pub struct Logger<'a> {

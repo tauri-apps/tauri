@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use tauri_bundler::bundle::{
   bundle_project, common::print_signed_updater_archive, PackageType, SettingsBuilder,
 };

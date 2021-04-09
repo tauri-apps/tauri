@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 #[macro_use]
 pub mod error;
 use base64::decode;

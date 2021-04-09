@@ -2,7 +2,7 @@
 name = "tauri-updater"
 version = "0.4.2"
 authors = ["Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>", "Daniel Thompson-Yvetot <denjell@sfosc.org>", "Tensor Programming <tensordeveloper@gmail.com>", "David Lemarier <david@lemarier.ca>"]
-license = "MIT"
+license = "Apache-2.0/MIT"
 homepage = "https://tauri.studio"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Updater for Tauri"

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Window {

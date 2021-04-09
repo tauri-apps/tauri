@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 import { emit as emitEvent } from './helpers/event'
 
 async function emit(event: string, payload?: string): Promise<void> {

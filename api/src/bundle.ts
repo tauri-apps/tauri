@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 import 'regenerator-runtime/runtime'
 import * as app from './app'
 import * as cli from './cli'

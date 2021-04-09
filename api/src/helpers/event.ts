@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 import { invokeTauriCommand } from './tauri'
 import { transformCallback } from '../tauri'
 

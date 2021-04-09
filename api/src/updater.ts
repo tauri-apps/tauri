@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 import { once, listen, emit, UnlistenFn } from './helpers/event'
 
 export type UpdateStatus = 'PENDING' | 'ERROR' | 'DONE' | 'UPTODATE'

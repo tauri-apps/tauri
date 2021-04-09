@@ -41,7 +41,7 @@
     "Daniel Thompson-Yvetot <denjell@sfosc.org>",
     "Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>"
   ],
-  "license": "MIT",
+  "license": "MIT or Apache 2.0",
   "bugs": {
     "url": "https://github.com/tauri-apps/tauri/issues"
   },

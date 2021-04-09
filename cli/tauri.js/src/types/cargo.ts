@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 export interface CargoManifest {
   dependencies: { [k: string]: string | CargoManifestDependency }
   package: { version: string; name: string; 'default-run': string }

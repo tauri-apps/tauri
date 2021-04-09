@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 import { ManagementType, Result } from './types'
 import { getCrateLatestVersion, semverLt } from './util'
 import getScriptVersion from '../../helpers/get-script-version'

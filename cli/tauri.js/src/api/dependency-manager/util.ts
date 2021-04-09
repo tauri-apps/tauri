@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 import https from 'https'
 import { IncomingMessage } from 'http'
 import { spawnSync } from '../../helpers/spawn'

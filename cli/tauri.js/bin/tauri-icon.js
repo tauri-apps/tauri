@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 const parseArgs = require('minimist')
 const { tauricon } = require('../dist/api/tauricon')
 

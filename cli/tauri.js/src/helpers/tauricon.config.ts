@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 export const options = {
   // folder determines in which path to drop the generated file
   // prefix is the first part of the generated file's name

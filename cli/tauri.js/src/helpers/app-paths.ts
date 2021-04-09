@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 import { existsSync } from 'fs'
 import { join, normalize, resolve, sep, isAbsolute } from 'path'
 import logger from './logger'

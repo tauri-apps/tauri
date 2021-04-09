@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 import { sync as spawn } from 'cross-spawn'
 
 export default function getVersion(

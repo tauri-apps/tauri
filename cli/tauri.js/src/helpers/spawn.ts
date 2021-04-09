@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 import crossSpawn from 'cross-spawn'
 import logger from './logger'
 import chalk from 'chalk'

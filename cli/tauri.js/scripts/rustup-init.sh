@@ -1,4 +1,6 @@
 #!/bin/sh
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
 # shellcheck shell=dash
 
 # This is just a little script that can be downloaded from the internet to

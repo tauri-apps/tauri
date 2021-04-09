@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 export interface TauriBuildConfig {
   /**
    * the path to the app's dist dir

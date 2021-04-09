@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0 OR MIT
 
 const cmds = ['icon', 'deps']
 const rustCliCmds = ['dev', 'build', 'init', 'info', 'sign']

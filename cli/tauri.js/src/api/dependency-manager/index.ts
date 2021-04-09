@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 import logger from '../../helpers/logger'
 import * as rust from './rust'
 import * as cargoCommands from './cargo-commands'

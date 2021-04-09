@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 import { ManagementType } from './types'
 import { spawnSync } from '../../helpers/spawn'
 import getScriptVersion from '../../helpers/get-script-version'

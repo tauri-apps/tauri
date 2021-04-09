@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 // forked from https://github.com/quasarframework/quasar/blob/dev/app/lib/helpers/net.js
 
 import net from 'net'

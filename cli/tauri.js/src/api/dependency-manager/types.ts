@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 export enum ManagementType {
   Install,
   InstallDev,

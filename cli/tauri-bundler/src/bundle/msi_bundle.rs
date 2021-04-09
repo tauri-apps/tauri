@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use super::{settings::Settings, wix};
 
 use std::{self, path::PathBuf};

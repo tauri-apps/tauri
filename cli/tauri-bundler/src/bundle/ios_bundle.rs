@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 // An iOS package is laid out like:
 //
 // Foobar.app         # Actually a directory

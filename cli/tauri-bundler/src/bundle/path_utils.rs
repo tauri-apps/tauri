@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use std::{
   fs::{create_dir, create_dir_all, read_dir, remove_dir_all},
   path::{Path, PathBuf},

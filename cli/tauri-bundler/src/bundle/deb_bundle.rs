@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 // The structure of a Debian package looks something like this:
 //
 // foobar_1.2.3_i386.deb   # Actually an ar archive

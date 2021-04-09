@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use std::{fmt, str::FromStr};
 
 const CONFIDENCE_THRESHOLD: f64 = 0.8;

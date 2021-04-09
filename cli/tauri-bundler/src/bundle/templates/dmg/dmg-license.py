@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 """
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 This script adds a license file to a DMG. Requires Xcode and a plain ascii text
 license file.
 Obviously only runs on a Mac.

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 // A macOS application bundle package is laid out like:
 //
 // foobar.app    # Actually a directory

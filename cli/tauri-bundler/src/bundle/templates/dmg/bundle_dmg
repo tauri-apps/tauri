@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 
 # Create a read-only disk image of the contents of a folder
 # forked from https://github.com/andreyvit/create-dmg

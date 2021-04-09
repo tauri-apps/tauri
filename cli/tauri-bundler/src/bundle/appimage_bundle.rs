@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use super::{common, deb_bundle, path_utils};
 use crate::Settings;
 

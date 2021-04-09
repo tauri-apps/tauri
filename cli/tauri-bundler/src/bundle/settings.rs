@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
 

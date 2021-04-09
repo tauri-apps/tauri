@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use super::{common, macos_bundle};
 use crate::{bundle::Bundle, PackageType::MacOSBundle, Settings};
 

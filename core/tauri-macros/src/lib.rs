@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 extern crate proc_macro;
 use crate::context::ContextItems;
 use proc_macro::TokenStream;

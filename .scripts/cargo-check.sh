@@ -1,4 +1,6 @@
 #!/usr/bin/env sh
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
 # note: you can pass in the cargo sub-commands used to check manually.
 # allowed commands: check, clippy, fmt, test
 # default: clippy, fmt, test

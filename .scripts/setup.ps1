@@ -1,4 +1,6 @@
 #!/usr/bin/env pwsh
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
 echo "Building API definitions..."
 cd api
 yarn; yarn build

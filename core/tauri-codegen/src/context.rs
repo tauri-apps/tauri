@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use crate::embedded_assets::{EmbeddedAssets, EmbeddedAssetsError};
 use proc_macro2::TokenStream;
 use quote::quote;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use std::{
   io::{BufRead, BufReader, Write},
   process::{Command as StdCommand, Stdio},

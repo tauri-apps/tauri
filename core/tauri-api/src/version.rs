@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use semver::Version;
 use std::cmp::Ordering;
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use either::{self, Either};
 
 use std::{fs, io, path};

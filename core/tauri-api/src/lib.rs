@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! The Tauri API interface.
 #![warn(missing_docs, rust_2018_idioms)]
 

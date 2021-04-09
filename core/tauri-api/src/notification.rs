@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 #[cfg(windows)]
 use std::path::MAIN_SEPARATOR;
 

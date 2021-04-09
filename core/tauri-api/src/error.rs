@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 /// The error types.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {

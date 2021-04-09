@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use bytes::Bytes;
 use reqwest::{header::HeaderName, redirect::Policy, Method};
 use serde::{Deserialize, Serialize};

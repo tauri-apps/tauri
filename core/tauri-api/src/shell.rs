@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 /// Open path or URL with `with`, or system default
 pub fn open(path: String, with: Option<String>) -> crate::Result<()> {
   {

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 macro_rules! bind_string_arg {
   ($arg:expr, $clap_arg:expr, $arg_name:ident, $clap_field:ident) => {{
     let arg = $arg;

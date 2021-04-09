@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use crate::config::{CliArg, CliConfig};
 
 use clap::{App, Arg, ArgMatches, ErrorKind};

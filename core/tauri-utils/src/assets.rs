@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! Assets handled by Tauri during compile time and runtime.
 
 pub use phf;

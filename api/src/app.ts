@@ -51,8 +51,8 @@ async function getTauriVersion(): Promise<string> {
  * @param [exitCode] defaults to 0.
  * @returns {Promise<void>} Application is closing, nothing is returned
  */
-async function exit(exitCode: Number = 0): Promise<string> {
-  return invokeTauriCommand<string>({
+async function exit(exitCode: Number = 0): Promise<void> {
+  return invokeTauriCommand({
     __tauriModule: 'App',
     mainThread: true,
     message: {
@@ -67,8 +67,8 @@ async function exit(exitCode: Number = 0): Promise<string> {
  * @description Relaunches the app when current instance exits.
  * @returns {Promise<void>} Application is restarting, nothing is returned
  */
-async function relaunch(): Promise<string> {
-  return invokeTauriCommand<string>({
+async function relaunch(): Promise<void> {
+  return invokeTauriCommand({
     __tauriModule: 'App',
     mainThread: true,
     message: {

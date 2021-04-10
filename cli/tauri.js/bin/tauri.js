@@ -54,8 +54,8 @@ const tauri = function (command) {
       command === '--help' ||
       command === 'help'
     ) {
-      console.log(
-        chalk.cyan(`
+      console.log(`
+        ${chalk.cyan(`
       :oooodddoooo;     ;oddl,      ,ol,       ,oc,  ,ldoooooooc,    ,oc,
       ';;;cxOx:;;;'    ;xOxxko'     :kx:       lkd,  :xkl;;;;:okx:   lkd,
           'dOo'       'oOd;:xkc     :kx:       lkd,  :xx:     ;xkc   lkd,
@@ -64,18 +64,16 @@ const tauri = function (command) {
           'dOo'     'oOd,    :xkc   :kx:       lkd,  :xx:,;cokko'    lkd,
           'dOo'     ckk:      lkx;  :kx:       lkd,  :xx:    ckkc    lkd,
           'dOo'    ;xOl        lko; :xkl;,....;oOd,  :xx:     :xkl'  lkd,
-          'okl'    'kd'        'xx'  'dxxxddddxxo'   :dd;      ;dxc  'xo'`)
-      )
-      console.log(
-        ` ${chalk.yellow(
-          'Description'
-        )} \n This is the Tauri CLI \n ${chalk.yellow('Usage')} \n $ tauri ${[
-          ...rustCliCmds,
-          ...cmds
-        ].join('|')} \n ${chalk.yellow(
-          'Options'
-        )} \n --help, -h     Displays this message \n --version, -v  Displays the Tauri CLI version`
-      )
+          'okl'    'kd'        'xx'  'dxxxddddxxo'   :dd;      ;dxc  'xo'`)}
+
+${chalk.yellow('Description')}
+This is the Tauri CLI
+${chalk.yellow('Usage')}
+$ tauri ${[...rustCliCmds, ...cmds].join('|')}
+${chalk.yellow('Options')}
+--help, -h     Displays this message
+--version, -v  Displays the Tauri CLI version
+      `)
 
       process.exit(0)
       // eslint-disable-next-line no-unreachable

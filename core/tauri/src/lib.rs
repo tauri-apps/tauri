@@ -1,4 +1,6 @@
-// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy and Contributors
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
 
 //! Tauri is a framework for building tiny, blazing fast binaries for all major desktop platforms.
 //! Developers can integrate any front-end framework that compiles to HTML, JS and CSS for building their user interface.

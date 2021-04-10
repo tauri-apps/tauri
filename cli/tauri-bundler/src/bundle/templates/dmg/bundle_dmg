@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: Apache-2.0 OR MIT
+# Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 
 # Create a read-only disk image of the contents of a folder
 # forked from https://github.com/andreyvit/create-dmg

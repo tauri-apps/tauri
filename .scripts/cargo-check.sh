@@ -1,5 +1,7 @@
 #!/usr/bin/env sh
-# SPDX-License-Identifier: Apache-2.0 OR MIT
+# Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 
 # note: you can pass in the cargo sub-commands used to check manually.
 # allowed commands: check, clippy, fmt, test

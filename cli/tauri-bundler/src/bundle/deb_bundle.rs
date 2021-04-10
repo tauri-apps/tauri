@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 // The structure of a Debian package looks something like this:
 //
 // foobar_1.2.3_i386.deb   # Actually an ar archive

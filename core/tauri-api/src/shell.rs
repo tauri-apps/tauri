@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 /// Open path or URL with `with`, or system default
 pub fn open(path: String, with: Option<String>) -> crate::Result<()> {
   {

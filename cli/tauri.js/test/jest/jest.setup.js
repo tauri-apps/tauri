@@ -1,4 +1,4 @@
-jest.setTimeout(50000)
+jest.setTimeout(1200000)
 
 global.Promise = require('promise')
 

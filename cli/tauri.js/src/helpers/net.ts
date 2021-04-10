@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 // forked from https://github.com/quasarframework/quasar/blob/dev/app/lib/helpers/net.js
 
 import net from 'net'

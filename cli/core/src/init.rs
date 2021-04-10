@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use std::{
   collections::BTreeMap,
   fs::{create_dir_all, remove_dir_all, File},
@@ -99,7 +103,7 @@ impl Init {
         (
           format!(
             "{{  path = {:?} }}",
-            resolve_tauri_path(&tauri_path, "tauri")
+            resolve_tauri_path(&tauri_path, "core/tauri")
           ),
           format!(
             "{{  path = {:?} }}",
@@ -108,7 +112,7 @@ impl Init {
         )
       } else {
         let tauri_manifest: Manifest =
-          toml::from_str(include_str!("../../../tauri/Cargo.toml")).unwrap();
+          toml::from_str(include_str!("../../../core/tauri/Cargo.toml")).unwrap();
         let tauri_build_manifest: Manifest =
           toml::from_str(include_str!("../../../core/tauri-build/Cargo.toml")).unwrap();
         (

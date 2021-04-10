@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 import { invokeTauriCommand } from './helpers/tauri'
 import { EventCallback, UnlistenFn, emit, listen, once } from './helpers/event'
 
@@ -31,7 +35,8 @@ class WebviewWindowHandle {
 
   constructor(label: string) {
     this.label = label
-    this.listeners = {}
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    this.listeners = Object.create(null)
   }
 
   /**

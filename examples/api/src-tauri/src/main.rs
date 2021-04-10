@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 #![cfg_attr(
   all(not(debug_assertions), target_os = "windows"),
   windows_subsystem = "windows"
@@ -13,18 +17,17 @@ struct Reply {
 }
 
 fn main() {
-  tauri::AppBuilder::default()
-    .setup(move |webview_manager| {
-      let dispatcher = webview_manager.current_webview().unwrap();
-      let dispatcher_ = dispatcher.clone();
-      dispatcher.listen("js-event", move |event| {
+  tauri::Builder::default()
+    .on_page_load(|window, _| {
+      let window_ = window.clone();
+      window.listen("js-event".into(), move |event| {
         println!("got js-event with message '{:?}'", event.payload());
         let reply = Reply {
           data: "something else".to_string(),
         };
 
-        dispatcher_
-          .emit("rust-event", Some(reply))
+        window_
+          .emit(&"rust-event".into(), Some(reply))
           .expect("failed to emit");
       });
     })
@@ -32,6 +35,6 @@ fn main() {
       cmd::log_operation,
       cmd::perform_request
     ])
-    .build(tauri::generate_context!())
-    .run();
+    .run(tauri::generate_context!())
+    .expect("error while running tauri application");
 }

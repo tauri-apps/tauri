@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use crate::Settings;
 use std::{
   ffi::OsStr,
@@ -150,14 +154,36 @@ pub fn print_bundling(filename: &str) -> crate::Result<()> {
 
 /// Prints a message to stderr, in the same format that `cargo` uses,
 /// indicating that we have finished the the given bundles.
-pub fn print_finished(output_paths: &[PathBuf]) -> crate::Result<()> {
-  let pluralised = if output_paths.len() == 1 {
+pub fn print_finished(bundles: &[crate::bundle::Bundle]) -> crate::Result<()> {
+  let pluralised = if bundles.len() == 1 {
     "bundle"
   } else {
     "bundles"
   };
-  let msg = format!("{} {} at:", output_paths.len(), pluralised);
+  let msg = format!("{} {} at:", bundles.len(), pluralised);
   print_progress("Finished", &msg)?;
+  for bundle in bundles {
+    for path in &bundle.bundle_paths {
+      let mut note = "";
+      if bundle.package_type == crate::PackageType::Updater {
+        note = " (updater)";
+      }
+      println!("        {}{}", path.display(), note,);
+    }
+  }
+  Ok(())
+}
+
+/// Prints a message to stderr, in the same format that `cargo` uses,
+/// indicating that we have finished the the given signatures.
+pub fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
+  let pluralised = if output_paths.len() == 1 {
+    "updater archive"
+  } else {
+    "updater archives"
+  };
+  let msg = format!("{} {} at:", output_paths.len(), pluralised);
+  print_progress("Signed", &msg)?;
   for path in output_paths {
     println!("        {}", path.display());
   }

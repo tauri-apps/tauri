@@ -1,11 +1,14 @@
 #!/usr/bin/env node
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
 
 const chalk = require('chalk')
 const pkg = require('../package.json')
 const updateNotifier = require('update-notifier')
 
 const cmds = ['icon', 'deps']
-const rustCliCmds = ['dev', 'build', 'init', 'info']
+const rustCliCmds = ['dev', 'build', 'init', 'info', 'sign']
 
 const cmd = process.argv[2]
 /**

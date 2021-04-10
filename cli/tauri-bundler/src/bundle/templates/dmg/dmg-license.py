@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 """
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 This script adds a license file to a DMG. Requires Xcode and a plain ascii text
 license file.
 Obviously only runs on a Mac.

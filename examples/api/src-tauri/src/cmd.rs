@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use serde::Deserialize;
 use tauri::command;
 
@@ -7,8 +11,12 @@ pub struct RequestBody {
   name: String,
 }
 
-#[command]
-pub fn log_operation(event: String, payload: Option<String>) {
+#[command(with_window)]
+pub fn log_operation<M: tauri::Params>(
+  _window: tauri::Window<M>,
+  event: String,
+  payload: Option<String>,
+) {
   println!("{} {:?}", event, payload);
 }
 

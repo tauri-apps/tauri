@@ -1,6 +1,9 @@
-use thiserror::Error as DeriveError;
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
 
 use std::{io, num, path};
+use thiserror::Error as DeriveError;
 
 #[derive(Debug, DeriveError)]
 pub enum Error {
@@ -52,6 +55,9 @@ pub enum Error {
   ShellScriptError(String),
   #[error("`{0}`")]
   GenericError(String),
+  /// No bundled project found for the updater.
+  #[error("Unable to find a bundled project for the updater")]
+  UnableToFindProject,
   #[error("string is not UTF-8")]
   Utf8(#[from] std::str::Utf8Error),
   /// Windows SignTool not found.

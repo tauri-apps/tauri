@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 // rollup.config.js
 import { terser } from 'rollup-plugin-terser'
 import resolve from '@rollup/plugin-node-resolve'
@@ -10,10 +14,12 @@ import pkg from './package.json'
 export default [
   {
     input: {
+      app: './src/app.ts',
       fs: './src/fs.ts',
       path: './src/path.ts',
       dialog: './src/dialog.ts',
       event: './src/event.ts',
+      updater: './src/updater.ts',
       http: './src/http.ts',
       index: './src/index.ts',
       shell: './src/shell.ts',
@@ -63,7 +69,7 @@ export default [
     output: [
       {
         name: '__TAURI__',
-        dir: '../tauri/scripts',
+        dir: '../core/tauri/scripts',
         entryFileNames: 'bundle.js',
         format: 'umd',
         plugins: [

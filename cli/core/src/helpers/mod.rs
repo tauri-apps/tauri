@@ -1,11 +1,14 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 pub mod app_paths;
 pub mod config;
 mod logger;
 pub mod manifest;
-mod tauri_entry;
+pub mod updater_signature;
 
 pub use logger::Logger;
-pub use tauri_entry::TauriScript;
 
 use std::{
   io::{BufRead, BufReader},

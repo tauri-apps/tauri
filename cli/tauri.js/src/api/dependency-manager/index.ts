@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 import logger from '../../helpers/logger'
 import * as rust from './rust'
 import * as cargoCommands from './cargo-commands'

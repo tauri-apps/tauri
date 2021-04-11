@@ -1,8 +1,12 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
   config::{get as get_config, reload as reload_config},
   manifest::rewrite_manifest,
-  Logger, TauriScript,
+  Logger,
 };
 
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
@@ -12,9 +16,6 @@ use shared_child::SharedChild;
 use std::{
   env::set_current_dir,
   ffi::OsStr,
-  fs::{create_dir_all, File},
-  io::Write,
-  path::PathBuf,
   process::{exit, Child, Command},
   sync::{
     mpsc::{channel, Receiver},
@@ -35,6 +36,7 @@ fn kill_before_dev_process() {
 pub struct Dev {
   exit_on_panic: bool,
   config: Option<String>,
+  args: Vec<String>,
 }
 
 impl Dev {
@@ -49,6 +51,11 @@ impl Dev {
 
   pub fn exit_on_panic(mut self, exit_on_panic: bool) -> Self {
     self.exit_on_panic = exit_on_panic;
+    self
+  }
+
+  pub fn args(mut self, args: Vec<String>) -> Self {
+    self.args = args;
     self
   }
 
@@ -68,25 +75,20 @@ impl Dev {
       .build
       .before_dev_command
     {
-      let mut cmd: Option<&str> = None;
-      let mut args: Vec<&str> = vec![];
-      for token in before_dev.split(' ') {
-        if cmd.is_none() && !token.is_empty() {
-          cmd = Some(token);
-        } else {
-          args.push(token)
-        }
-      }
-
-      if let Some(cmd) = cmd {
+      if !before_dev.is_empty() {
         logger.log(format!("Running `{}`", before_dev));
         #[cfg(target_os = "windows")]
-        let mut command = Command::new(
-          which::which(&cmd).expect(&format!("failed to find `{}` in your $PATH", cmd)),
-        );
+        let child = Command::new("cmd")
+          .arg("/C")
+          .arg(before_dev)
+          .current_dir(app_dir())
+          .spawn()?;
         #[cfg(not(target_os = "windows"))]
-        let mut command = Command::new(cmd);
-        let child = command.args(args).current_dir(app_dir()).spawn()?;
+        let child = Command::new("sh")
+          .arg("-c")
+          .arg(before_dev)
+          .current_dir(app_dir())
+          .spawn()?;
         BEFORE_DEV.set(Mutex::new(child)).unwrap();
       }
     }
@@ -101,20 +103,6 @@ impl Dev {
       .to_string();
 
     rewrite_manifest(config.clone())?;
-
-    // __tauri.js
-    {
-      let config_guard = config.lock().unwrap();
-      let config_ = config_guard.as_ref().unwrap();
-      let tauri_script = TauriScript::new()
-        .global_tauri(config_.build.with_global_tauri)
-        .get();
-      let tauri_dir_path = PathBuf::from(&config_.build.dist_dir);
-      let tauri_script_path = tauri_dir_path.join("__tauri.js");
-      create_dir_all(tauri_dir_path)?;
-      let mut tauri_script_file = File::create(tauri_script_path)?;
-      tauri_script_file.write_all(tauri_script.as_bytes())?;
-    }
 
     let (child_wait_tx, child_wait_rx) = channel();
     let child_wait_rx = Arc::new(Mutex::new(child_wait_rx));
@@ -170,7 +158,10 @@ impl Dev {
 
   fn start_app(&self, child_wait_rx: Arc<Mutex<Receiver<()>>>) -> Arc<SharedChild> {
     let mut command = Command::new("cargo");
-    command.arg("run");
+    command.args(&["run", "--no-default-features"]);
+    if !self.args.is_empty() {
+      command.arg("--").args(&self.args);
+    }
     let child = SharedChild::spawn(&mut command).expect("failed to run cargo");
     let child_arc = Arc::new(child);
 

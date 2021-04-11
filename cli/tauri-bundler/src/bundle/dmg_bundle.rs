@@ -1,5 +1,9 @@
-use super::{common, osx_bundle};
-use crate::Settings;
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
+use super::{common, macos_bundle};
+use crate::{bundle::Bundle, PackageType::MacOSBundle, Settings};
 
 use anyhow::Context;
 
@@ -12,9 +16,16 @@ use std::{
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the DMG was created.
-pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  // generate the .app bundle
-  osx_bundle::bundle_project(settings)?;
+pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
+  // generate the .app bundle if needed
+  if bundles
+    .iter()
+    .filter(|bundle| bundle.package_type == MacOSBundle)
+    .count()
+    == 0
+  {
+    macos_bundle::bundle_project(settings)?;
+  }
 
   // get the target path
   let output_path = settings.project_out_directory().join("bundle/dmg");
@@ -30,9 +41,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let dmg_name = format!("{}.dmg", &package_base_name);
   let dmg_path = output_path.join(&dmg_name);
 
-  let bundle_name = &format!("{}.app", &package_base_name);
-  let bundle_dir = settings.project_out_directory().join("bundle/osx");
-  let bundle_path = bundle_dir.join(&bundle_name.clone());
+  let product_name = &format!("{}.app", &package_base_name);
+  let bundle_dir = settings.project_out_directory().join("bundle/macos");
 
   let support_directory_path = output_path.join("support");
   if output_path.exists() {
@@ -80,10 +90,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let mut args = vec![
     "--volname",
     &package_base_name,
-    "--volicon",
-    "../../../../icons/icon.icns",
+    // todo: volume icon
+    // make sure this is a valid path?
+
+    //"--volicon",
+    //"../../../../icons/icon.icns",
     "--icon",
-    &bundle_name,
+    &product_name,
     "180",
     "170",
     "--app-drop-link",
@@ -93,10 +106,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     "660",
     "400",
     "--hide-extension",
-    &bundle_name,
+    &product_name,
   ];
 
-  if let Some(license_path) = settings.osx_license() {
+  if let Some(license_path) = &settings.macos().license {
     args.push("--eula");
     args.push(license_path);
   }
@@ -114,7 +127,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   cmd
     .current_dir(bundle_dir.clone())
     .args(args)
-    .args(vec![dmg_name.as_str(), bundle_name.as_str()]);
+    .args(vec![dmg_name.as_str(), product_name.as_str()]);
 
   common::print_info("running bundle_dmg.sh")?;
   common::execute_with_verbosity(&mut cmd, &settings).map_err(|_| {
@@ -129,5 +142,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   })?;
 
   fs::rename(bundle_dir.join(dmg_name), dmg_path.clone())?;
-  Ok(vec![bundle_path, dmg_path])
+
+  // Sign DMG if needed
+  if let Some(identity) = &settings.macos().signing_identity {
+    crate::bundle::macos_bundle::sign(dmg_path.clone(), identity, &settings, false)?;
+  }
+  Ok(vec![dmg_path])
 }

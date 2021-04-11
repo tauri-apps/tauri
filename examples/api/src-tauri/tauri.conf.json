@@ -1,9 +1,13 @@
 {
   "build": {
     "distDir": "../public",
-    "devPath": "http://localhost:5000",
+    "devPath": "../public",
     "beforeDevCommand": "yarn dev",
     "beforeBuildCommand": "yarn build"
+  },
+  "package": {
+    "productName": "Tauri API",
+    "version": "0.1.0"
   },
   "tauri": {
     "cli": {
@@ -20,7 +24,11 @@
           "name": "theme",
           "takesValue": true,
           "description": "App theme",
-          "possibleValues": ["light", "dark", "system"]
+          "possibleValues": [
+            "light",
+            "dark",
+            "system"
+          ]
         },
         {
           "short": "v",
@@ -51,6 +59,14 @@
         "icons/128x128@2x.png",
         "icons/icon.icns",
         "icons/icon.ico"
+      ]
+    },
+    "updater": {
+      "active": true,
+      "dialog": false,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE5QzMxNjYwNTM5OEUwNTgKUldSWTRKaFRZQmJER1h4d1ZMYVA3dnluSjdpN2RmMldJR09hUFFlZDY0SlFqckkvRUJhZDJVZXAK",
+      "endpoints": [
+        "https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}"
       ]
     },
     "allowlist": {

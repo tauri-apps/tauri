@@ -1,6 +1,9 @@
-use thiserror::Error as DeriveError;
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
 
 use std::{io, num, path};
+use thiserror::Error as DeriveError;
 
 #[derive(Debug, DeriveError)]
 pub enum Error {
@@ -22,7 +25,6 @@ pub enum Error {
   StripError(#[from] path::StripPrefixError),
   #[error("`{0}`")]
   ConvertError(#[from] num::TryFromIntError),
-  #[cfg(not(target_os = "linux"))]
   #[error("`{0}`")]
   ZipError(#[from] zip::result::ZipError),
   #[cfg(not(target_os = "linux"))]
@@ -32,7 +34,6 @@ pub enum Error {
   HandleBarsError(#[from] handlebars::RenderError),
   #[error("`{0}`")]
   JsonError(#[from] serde_json::error::Error),
-  #[cfg(windows)]
   #[error("`{0}`")]
   RegexError(#[from] regex::Error),
   #[cfg(windows)]
@@ -54,6 +55,27 @@ pub enum Error {
   ShellScriptError(String),
   #[error("`{0}`")]
   GenericError(String),
+  /// No bundled project found for the updater.
+  #[error("Unable to find a bundled project for the updater")]
+  UnableToFindProject,
+  #[error("string is not UTF-8")]
+  Utf8(#[from] std::str::Utf8Error),
+  /// Windows SignTool not found.
+  #[cfg(target_os = "windows")]
+  #[error("SignTool not found")]
+  SignToolNotFound,
+  #[cfg(target_os = "windows")]
+  #[error("failed to open registry {0}")]
+  OpenRegistry(String),
+  #[cfg(target_os = "windows")]
+  #[error("failed to get {0} value on registry")]
+  GetRegistryValue(String),
+  #[cfg(target_os = "windows")]
+  #[error("unsupported OS bitness")]
+  UnsupportedBitness,
+  #[cfg(target_os = "windows")]
+  #[error("failed to sign app: {0}")]
+  Sign(String),
 }
 
 pub type Result<T> = anyhow::Result<T, Error>;

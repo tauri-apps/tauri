@@ -1,14 +1,21 @@
-use tauri_bundler::bundle::{bundle_project, PackageType, SettingsBuilder};
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
+use tauri_bundler::bundle::{
+  bundle_project, common::print_signed_updater_archive, PackageType, SettingsBuilder,
+};
 
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
   config::get as get_config,
   execute_with_output,
   manifest::rewrite_manifest,
-  Logger, TauriScript,
+  updater_signature::sign_file_from_env_variables,
+  Logger,
 };
 
-use std::{env::set_current_dir, fs::File, io::Write, path::PathBuf, process::Command};
+use std::{env::set_current_dir, fs::rename, path::PathBuf, process::Command};
 
 mod rust;
 
@@ -57,10 +64,6 @@ impl Build {
     let config_guard = config.lock().unwrap();
     let config_ = config_guard.as_ref().unwrap();
 
-    // __tauri.js
-    let tauri_script = TauriScript::new()
-      .global_tauri(config_.build.with_global_tauri)
-      .get();
     let web_asset_path = PathBuf::from(&config_.build.dist_dir);
     if !web_asset_path.exists() {
       return Err(anyhow::anyhow!(
@@ -68,47 +71,72 @@ impl Build {
         web_asset_path
       ));
     }
-    let tauri_script_path = web_asset_path.join("__tauri.js");
-    let mut tauri_script_file = File::create(tauri_script_path)?;
-    tauri_script_file.write_all(tauri_script.as_bytes())?;
 
     if let Some(before_build) = &config_.build.before_build_command {
-      let mut cmd: Option<&str> = None;
-      let mut args: Vec<&str> = vec![];
-      for token in before_build.split(' ') {
-        if cmd.is_none() && !token.is_empty() {
-          cmd = Some(token);
-        } else {
-          args.push(token)
-        }
-      }
-
-      if let Some(cmd) = cmd {
+      if !before_build.is_empty() {
         logger.log(format!("Running `{}`", before_build));
         #[cfg(target_os = "windows")]
-        let mut command = Command::new(
-          which::which(&cmd).expect(&format!("failed to find `{}` in your $PATH", cmd)),
-        );
+        execute_with_output(
+          &mut Command::new("cmd")
+            .arg("/C")
+            .arg(before_build)
+            .current_dir(app_dir()),
+        )?;
         #[cfg(not(target_os = "windows"))]
-        let mut command = Command::new(cmd);
-        command.args(args).current_dir(app_dir());
-        execute_with_output(&mut command)?;
+        execute_with_output(
+          &mut Command::new("sh")
+            .arg("-c")
+            .arg(before_build)
+            .current_dir(app_dir()),
+        )?;
       }
     }
 
     rust::build_project(self.debug)?;
 
+    let app_settings = rust::AppSettings::new(&config_)?;
+
+    let out_dir = app_settings.get_out_dir(self.debug)?;
+    if let Some(product_name) = config_.package.product_name.clone() {
+      let bin_name = app_settings.cargo_package_settings().name.clone();
+      #[cfg(windows)]
+      rename(
+        out_dir.join(format!("{}.exe", bin_name)),
+        out_dir.join(format!("{}.exe", product_name)),
+      )?;
+      #[cfg(not(windows))]
+      rename(out_dir.join(bin_name), out_dir.join(product_name))?;
+    }
+
     if config_.tauri.bundle.active {
-      let bundler_settings = rust::get_bundler_settings(&config_, self.debug)?;
+      // move merge modules to the out dir so the bundler can load it
+      #[cfg(windows)]
+      {
+        let (filename, vcruntime_msm) = if cfg!(target_arch = "x86") {
+          let _ = std::fs::remove_file(out_dir.join("Microsoft_VC142_CRT_x64.msm"));
+          (
+            "Microsoft_VC142_CRT_x86.msm",
+            include_bytes!("./MergeModules/Microsoft_VC142_CRT_x86.msm").to_vec(),
+          )
+        } else {
+          let _ = std::fs::remove_file(out_dir.join("Microsoft_VC142_CRT_x86.msm"));
+          (
+            "Microsoft_VC142_CRT_x64.msm",
+            include_bytes!("./MergeModules/Microsoft_VC142_CRT_x64.msm").to_vec(),
+          )
+        };
+        std::fs::write(out_dir.join(filename), vcruntime_msm)?;
+      }
       let mut settings_builder = SettingsBuilder::new()
-        .package_settings(bundler_settings.package_settings)
-        .bundle_settings(bundler_settings.bundle_settings)
-        .binaries(bundler_settings.binaries)
-        .project_out_directory(bundler_settings.out_dir);
+        .package_settings(app_settings.get_package_settings())
+        .bundle_settings(app_settings.get_bundle_settings(&config_)?)
+        .binaries(app_settings.get_binaries(&config_)?)
+        .project_out_directory(out_dir);
 
       if self.verbose {
         settings_builder = settings_builder.verbose();
       }
+
       if let Some(names) = self.targets {
         let mut types = vec![];
         for name in names {
@@ -127,10 +155,35 @@ impl Build {
             }
           }
         }
+
         settings_builder = settings_builder.package_types(types);
       }
+
+      // Bundle the project
       let settings = settings_builder.build()?;
-      bundle_project(settings)?;
+
+      let bundles = bundle_project(settings)?;
+
+      // If updater is active and pubkey is available
+      if config_.tauri.updater.active && config_.tauri.updater.pubkey.is_some() {
+        // make sure we have our package builts
+        let mut signed_paths = Vec::new();
+        for elem in bundles
+          .iter()
+          .filter(|bundle| bundle.package_type == PackageType::Updater)
+        {
+          // we expect to have only one path in the vec but we iter if we add
+          // another type of updater package who require multiple file signature
+          for path in elem.bundle_paths.iter() {
+            // sign our path from environment variables
+            let (signature_path, _signature) = sign_file_from_env_variables(path)?;
+            signed_paths.append(&mut vec![signature_path]);
+          }
+        }
+        if !signed_paths.is_empty() {
+          print_signed_updater_archive(&signed_paths)?;
+        }
+      }
     }
 
     Ok(())

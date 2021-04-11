@@ -1,8 +1,12 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use std::{fmt, str::FromStr};
 
 const CONFIDENCE_THRESHOLD: f64 = 0.8;
 
-const OSX_APP_CATEGORY_PREFIX: &str = "public.app-category.";
+const MACOS_APP_CATEGORY_PREFIX: &str = "public.app-category.";
 
 // TODO: RIght now, these categories correspond to LSApplicationCategoryType
 // values for OS X.  There are also some additional GNOME registered categories
@@ -61,8 +65,11 @@ impl FromStr for AppCategory {
   fn from_str(input: &str) -> Result<AppCategory, Self::Err> {
     // Canonicalize input:
     let mut input = input.to_ascii_lowercase();
-    if input.starts_with(OSX_APP_CATEGORY_PREFIX) {
-      input = input.split_at(OSX_APP_CATEGORY_PREFIX.len()).1.to_string();
+    if input.starts_with(MACOS_APP_CATEGORY_PREFIX) {
+      input = input
+        .split_at(MACOS_APP_CATEGORY_PREFIX.len())
+        .1
+        .to_string();
     }
     input = input.replace(" ", "");
     input = input.replace("-", "");
@@ -181,7 +188,7 @@ impl AppCategory {
 
   /// Map an AppCategory to the closest LSApplicationCategoryType value that
   /// matches that category.
-  pub fn osx_application_category_type(self) -> &'static str {
+  pub fn macos_application_category_type(self) -> &'static str {
     match &self {
       AppCategory::Business => "public.app-category.business",
       AppCategory::DeveloperTool => "public.app-category.developer-tools",
@@ -454,7 +461,7 @@ mod tests {
     // macOS app bundle LSApplicationCategoryType.
     for &value in values.iter() {
       let category = AppCategory::from_str(value).expect(value);
-      assert_eq!(category.osx_application_category_type(), value);
+      assert_eq!(category.macos_application_category_type(), value);
     }
   }
 }

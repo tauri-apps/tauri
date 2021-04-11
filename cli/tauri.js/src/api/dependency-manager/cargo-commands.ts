@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 import { ManagementType, Result } from './types'
 import { getCrateLatestVersion, semverLt } from './util'
 import getScriptVersion from '../../helpers/get-script-version'
@@ -24,15 +28,14 @@ async function manageDependencies(
     } else if (managementType === ManagementType.Update) {
       const latestVersion = await getCrateLatestVersion(dependency)
       if (semverLt(currentVersion, latestVersion)) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        const inquired = await inquirer.prompt([
+        const inquired = (await inquirer.prompt([
           {
             type: 'confirm',
             name: 'answer',
             message: `[CARGO COMMANDS] "${dependency}" latest version is ${latestVersion}. Do you want to update?`,
             default: false
           }
-        ])
+        ])) as { answer: boolean }
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         if (inquired.answer) {
           spawnSync('cargo', ['install', dependency, '--force'])

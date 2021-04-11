@@ -1,3 +1,7 @@
+# Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
 name: build smoke test with source
 
 on:
@@ -39,7 +43,7 @@ jobs:
           - platform: ubuntu-latest
             releaseFolder: target/release/bundle/deb
           - platform: macos-latest
-            releaseFolder: target/release/bundle/osx
+            releaseFolder: target/release/bundle/macos
           - platform: windows-latest
             releaseFolder: target/release/bundle/msi
 

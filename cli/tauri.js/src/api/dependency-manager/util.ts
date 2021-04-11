@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 import https from 'https'
 import { IncomingMessage } from 'http'
 import { spawnSync } from '../../helpers/spawn'
@@ -60,7 +64,7 @@ async function getNpmPackageVersion(
   const child = (await useYarn())
     ? crossSpawnSync(
         'yarn',
-        ['list', '--patern', packageName, '--depth', '0'],
+        ['list', '--pattern', packageName, '--depth', '0'],
         {
           cwd: appDir
         }
@@ -117,6 +121,7 @@ function semverLt(first: string, second: string): boolean {
 }
 
 export {
+  useYarn,
   getCrateLatestVersion,
   getNpmLatestVersion,
   getNpmPackageVersion,

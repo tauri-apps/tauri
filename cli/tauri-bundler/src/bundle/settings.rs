@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
 
@@ -11,8 +15,8 @@ use std::{
 /// The type of the package we're bundling.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PackageType {
-  /// The macOS bundle (.app).
-  OsxBundle,
+  /// The macOS application bundle (.app).
+  MacOSBundle,
   /// The iOS app bundle.
   IosBundle,
   /// The Windows bundle (.msi).
@@ -26,11 +30,13 @@ pub enum PackageType {
   AppImage,
   /// The macOS DMG bundle (.dmg).
   Dmg,
+  /// The Updater bundle.
+  Updater,
 }
 
 impl PackageType {
   /// Maps a short name to a PackageType.
-  /// Possible values are "deb", "ios", "msi", "osx", "rpm", "appimage", "dmg".
+  /// Possible values are "deb", "ios", "msi", "app", "rpm", "appimage", "dmg", "updater".
   pub fn from_short_name(name: &str) -> Option<PackageType> {
     // Other types we may eventually want to support: apk.
     match name {
@@ -38,10 +44,11 @@ impl PackageType {
       "ios" => Some(PackageType::IosBundle),
       #[cfg(target_os = "windows")]
       "msi" => Some(PackageType::WindowsMsi),
-      "osx" => Some(PackageType::OsxBundle),
+      "app" => Some(PackageType::MacOSBundle),
       "rpm" => Some(PackageType::Rpm),
       "appimage" => Some(PackageType::AppImage),
       "dmg" => Some(PackageType::Dmg),
+      "updater" => Some(PackageType::Updater),
       _ => None,
     }
   }
@@ -54,10 +61,11 @@ impl PackageType {
       PackageType::IosBundle => "ios",
       #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => "msi",
-      PackageType::OsxBundle => "osx",
+      PackageType::MacOSBundle => "app",
       PackageType::Rpm => "rpm",
       PackageType::AppImage => "appimage",
       PackageType::Dmg => "dmg",
+      PackageType::Updater => "updater",
     }
   }
 
@@ -72,17 +80,18 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::IosBundle,
   #[cfg(target_os = "windows")]
   PackageType::WindowsMsi,
-  PackageType::OsxBundle,
+  PackageType::MacOSBundle,
   PackageType::Rpm,
   PackageType::Dmg,
   PackageType::AppImage,
+  PackageType::Updater,
 ];
 
 /// The package settings.
 #[derive(Debug, Clone, Deserialize)]
 pub struct PackageSettings {
-  /// the package's name.
-  pub name: String,
+  /// the package's product name.
+  pub product_name: String,
   /// the package's version.
   pub version: String,
   /// the package's description.
@@ -95,18 +104,83 @@ pub struct PackageSettings {
   pub default_run: Option<String>,
 }
 
+/// The updater settings.
+#[derive(Debug, Clone, Deserialize)]
+pub struct UpdaterSettings {
+  /// Whether the updater is active or not.
+  pub active: bool,
+  /// The updater endpoints.
+  pub endpoints: Option<Vec<String>>,
+  /// Optional pubkey.
+  pub pubkey: Option<String>,
+  /// Display built-in dialog or use event system if disabled.
+  pub dialog: bool,
+}
+
+/// The Linux debian bundle settings.
+#[derive(Clone, Debug, Deserialize, Default)]
+pub struct DebianSettings {
+  // OS-specific settings:
+  /// the list of debian dependencies.
+  pub depends: Option<Vec<String>>,
+  /// whether we should use the bootstrap script on debian or not.
+  ///
+  /// this script goal is to allow your app to access environment variables e.g $PATH.
+  ///
+  /// without it, you can't run some applications installed by the user.
+  pub use_bootstrapper: Option<bool>,
+}
+
+/// The macOS bundle settings.
+#[derive(Clone, Debug, Deserialize, Default)]
+pub struct MacOSSettings {
+  /// MacOS frameworks that need to be bundled with the app.
+  ///
+  /// Each string can either be the name of a framework (without the `.framework` extension, e.g. `"SDL2"`),
+  /// in which case we will search for that framework in the standard install locations (`~/Library/Frameworks/`, `/Library/Frameworks/`, and `/Network/Library/Frameworks/`),
+  /// or a path to a specific framework bundle (e.g. `./data/frameworks/SDL2.framework`).  Note that this setting just makes tauri-bundler copy the specified frameworks into the OS X app bundle
+  /// (under `Foobar.app/Contents/Frameworks/`); you are still responsible for:
+  ///
+  /// - arranging for the compiled binary to link against those frameworks (e.g. by emitting lines like `cargo:rustc-link-lib=framework=SDL2` from your `build.rs` script)
+  ///
+  /// - embedding the correct rpath in your binary (e.g. by running `install_name_tool -add_rpath "@executable_path/../Frameworks" path/to/binary` after compiling)
+  pub frameworks: Option<Vec<String>>,
+  /// A version string indicating the minimum MacOS version that the bundled app supports (e.g. `"10.11"`).
+  /// If you are using this config field, you may also want have your `build.rs` script emit `cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET=10.11`.
+  pub minimum_system_version: Option<String>,
+  /// The path to the LICENSE file for macOS apps.
+  /// Currently only used by the dmg bundle.
+  pub license: Option<String>,
+  /// whether we should use the bootstrap script on macOS .app or not.
+  ///
+  /// this script goal is to allow your app to access environment variables e.g $PATH.
+  ///
+  /// without it, you can't run some applications installed by the user.
+  pub use_bootstrapper: Option<bool>,
+  /// The exception domain to use on the macOS .app bundle.
+  ///
+  /// This allows communication to the outside world e.g. a web server you're shipping.
+  pub exception_domain: Option<String>,
+  pub signing_identity: Option<String>,
+  pub entitlements: Option<String>,
+}
+
+/// The Windows bundle settings.
+#[cfg(windows)]
+#[derive(Clone, Debug, Deserialize, Default)]
+pub struct WindowsSettings {
+  pub digest_algorithm: Option<String>,
+  pub certificate_thumbprint: Option<String>,
+  pub timestamp_url: Option<String>,
+}
+
 /// The bundle settings of the BuildArtifact we're bundling.
 #[derive(Clone, Debug, Deserialize, Default)]
 pub struct BundleSettings {
-  // General settings:
-  /// the name of the bundle.
-  pub name: Option<String>,
   /// the app's identifier.
   pub identifier: Option<String>,
   /// the app's icon list.
   pub icon: Option<Vec<String>>,
-  /// the app's version.
-  pub version: Option<String>,
   /// the app's resources to bundle.
   ///
   /// each item can be a path to a file or a path to a folder.
@@ -121,45 +195,9 @@ pub struct BundleSettings {
   pub short_description: Option<String>,
   /// the app's long description.
   pub long_description: Option<String>,
-  /// the app's script to run when unpackaging the bundle.
-  pub script: Option<PathBuf>,
-  // OS-specific settings:
-  /// the list of debian dependencies.
-  pub deb_depends: Option<Vec<String>>,
-  /// whether we should use the bootstrap script on debian or not.
-  ///
-  /// this script goal is to allow your app to access environment variables e.g $PATH.
-  ///
-  /// without it, you can't run some applications installed by the user.
-  pub deb_use_bootstrapper: Option<bool>,
-  /// Mac OS X frameworks that need to be bundled with the app.
-  ///
-  /// Each string can either be the name of a framework (without the `.framework` extension, e.g. `"SDL2"`),
-  /// in which case we will search for that framework in the standard install locations (`~/Library/Frameworks/`, `/Library/Frameworks/`, and `/Network/Library/Frameworks/`),
-  /// or a path to a specific framework bundle (e.g. `./data/frameworks/SDL2.framework`).  Note that this setting just makes tauri-bundler copy the specified frameworks into the OS X app bundle
-  /// (under `Foobar.app/Contents/Frameworks/`); you are still responsible for:
-  ///
-  /// - arranging for the compiled binary to link against those frameworks (e.g. by emitting lines like `cargo:rustc-link-lib=framework=SDL2` from your `build.rs` script)
-  ///
-  /// - embedding the correct rpath in your binary (e.g. by running `install_name_tool -add_rpath "@executable_path/../Frameworks" path/to/binary` after compiling)
-  pub osx_frameworks: Option<Vec<String>>,
-  /// A version string indicating the minimum Mac OS X version that the bundled app supports (e.g. `"10.11"`).
-  /// If you are using this config field, you may also want have your `build.rs` script emit `cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET=10.11`.
-  pub osx_minimum_system_version: Option<String>,
-  /// The path to the LICENSE file for macOS apps.
-  /// Currently only used by the dmg bundle.
-  pub osx_license: Option<String>,
-  /// whether we should use the bootstrap script on macOS .app or not.
-  ///
-  /// this script goal is to allow your app to access environment variables e.g $PATH.
-  ///
-  /// without it, you can't run some applications installed by the user.
-  pub osx_use_bootstrapper: Option<bool>,
-  // Bundles for other binaries/examples:
+  // Bundles for other binaries:
   /// Configuration map for the possible [bin] apps to bundle.
   pub bin: Option<HashMap<String, BundleSettings>>,
-  /// Configuration map for the possible example apps to bundle.
-  pub example: Option<HashMap<String, BundleSettings>>,
   /// External binaries to add to the bundle.
   ///
   /// Note that each binary name will have the target platform's target triple appended,
@@ -169,10 +207,15 @@ pub struct BundleSettings {
   ///
   /// The possible target triples can be seen by running `$ rustup target list`.
   pub external_bin: Option<Vec<String>>,
-  /// The exception domain to use on the macOS .app bundle.
-  ///
-  /// This allows communication to the outside world e.g. a web server you're shipping.
-  pub exception_domain: Option<String>,
+  /// Debian-specific settings.
+  pub deb: DebianSettings,
+  /// MacOS-specific settings.
+  pub macos: MacOSSettings,
+  // Updater configuration
+  pub updater: Option<UpdaterSettings>,
+  /// Windows-specific settings.
+  #[cfg(windows)]
+  pub windows: WindowsSettings,
 }
 
 #[derive(Clone, Debug)]
@@ -202,6 +245,10 @@ impl BundleBinary {
 
   pub fn set_main(&mut self, main: bool) {
     self.main = main;
+  }
+
+  pub fn set_name(&mut self, name: String) {
+    self.name = name;
   }
 
   pub fn name(&self) -> &str {
@@ -349,8 +396,8 @@ impl Settings {
   /// Fails if the host/target's native package type is not supported.
   pub fn package_types(&self) -> crate::Result<Vec<PackageType>> {
     let target_os = std::env::consts::OS;
-    let platform_types = match target_os {
-      "macos" => vec![PackageType::OsxBundle, PackageType::Dmg],
+    let mut platform_types = match target_os {
+      "macos" => vec![PackageType::MacOSBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
       "linux" => vec![PackageType::Deb, PackageType::AppImage],
       #[cfg(target_os = "windows")]
@@ -362,6 +409,12 @@ impl Settings {
         )))
       }
     };
+
+    // add updater if needed
+    if self.is_update_enabled() {
+      platform_types.push(PackageType::Updater)
+    }
+
     if let Some(package_types) = &self.package_types {
       let mut types = vec![];
       for package_type in package_types {
@@ -385,13 +438,9 @@ impl Settings {
     self.is_verbose
   }
 
-  /// Returns the bundle name, which is either package.metadata.bundle.name or package.name
-  pub fn bundle_name(&self) -> &str {
-    self
-      .bundle_settings
-      .name
-      .as_ref()
-      .unwrap_or(&self.package.name)
+  /// Returns the product name.
+  pub fn product_name(&self) -> &str {
+    &self.package.product_name
   }
 
   /// Returns the bundle's identifier
@@ -425,11 +474,6 @@ impl Settings {
     }
   }
 
-  /// Returns the OSX exception domain.
-  pub fn exception_domain(&self) -> Option<&String> {
-    self.bundle_settings.exception_domain.as_ref()
-  }
-
   /// Copies external binaries to a path.
   pub fn copy_binaries(&self, path: &Path) -> crate::Result<()> {
     for src in self.external_binaries() {
@@ -454,13 +498,9 @@ impl Settings {
     Ok(())
   }
 
-  /// Returns the version string of the bundle, which is either package.metadata.version or package.version.
+  /// Returns the version string of the bundle.
   pub fn version_string(&self) -> &str {
-    self
-      .bundle_settings
-      .version
-      .as_ref()
-      .unwrap_or(&self.package.version)
+    &self.package.version
   }
 
   /// Returns the copyright text.
@@ -510,40 +550,48 @@ impl Settings {
     self.bundle_settings.long_description.as_deref()
   }
 
-  /// Returns the dependencies of the debian bundle.
-  pub fn debian_dependencies(&self) -> &[String] {
-    match self.bundle_settings.deb_depends {
-      Some(ref dependencies) => dependencies.as_slice(),
-      None => &[],
+  /// Returns the debian settings.
+  pub fn deb(&self) -> &DebianSettings {
+    &self.bundle_settings.deb
+  }
+
+  /// Returns the MacOS settings.
+  pub fn macos(&self) -> &MacOSSettings {
+    &self.bundle_settings.macos
+  }
+
+  /// Returns the Windows settings.
+  #[cfg(windows)]
+  pub fn windows(&self) -> &WindowsSettings {
+    &self.bundle_settings.windows
+  }
+
+  /// Is update enabled
+  pub fn is_update_enabled(&self) -> bool {
+    match &self.bundle_settings.updater {
+      Some(val) => val.active,
+      None => false,
     }
   }
 
-  /// Returns whether the debian bundle should use the bootstrap script or not.
-  pub fn debian_use_bootstrapper(&self) -> bool {
-    self.bundle_settings.deb_use_bootstrapper.unwrap_or(false)
-  }
-
-  /// Returns the frameworks to bundle with the macOS .app
-  pub fn osx_frameworks(&self) -> &[String] {
-    match self.bundle_settings.osx_frameworks {
-      Some(ref frameworks) => frameworks.as_slice(),
-      None => &[],
+  /// Is pubkey provided?
+  pub fn is_updater_pubkey(&self) -> bool {
+    match &self.bundle_settings.updater {
+      Some(val) => val.pubkey.is_some(),
+      None => false,
     }
   }
 
-  /// Returns the minimum system version of the macOS bundle.
-  pub fn osx_minimum_system_version(&self) -> Option<&str> {
-    self.bundle_settings.osx_minimum_system_version.as_deref()
-  }
-
-  /// Returns the path to the DMG bundle license.
-  pub fn osx_license(&self) -> Option<&str> {
-    self.bundle_settings.osx_license.as_deref()
-  }
-
-  /// Returns whether the macOS .app bundle should use the bootstrap script or not.
-  pub fn osx_use_bootstrapper(&self) -> bool {
-    self.bundle_settings.osx_use_bootstrapper.unwrap_or(false)
+  /// Get pubkey (mainly for testing)
+  #[cfg(test)]
+  pub fn updater_pubkey(&self) -> Option<&str> {
+    self
+      .bundle_settings
+      .updater
+      .as_ref()
+      .expect("Updater is not defined")
+      .pubkey
+      .as_deref()
   }
 }
 

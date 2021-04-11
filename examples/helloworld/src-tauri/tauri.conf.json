@@ -27,7 +27,7 @@
         "depends": [],
         "useBootstrapper": false
       },
-      "osx": {
+      "macOS": {
         "frameworks": [],
         "minimumSystemVersion": "",
         "useBootstrapper": false,
@@ -48,6 +48,9 @@
     ],
     "security": {
       "csp": "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
+    },
+    "updater": {
+      "active": false
     }
   }
 }

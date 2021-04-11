@@ -17,6 +17,15 @@
         }
       ]
     },
+    "package": {
+      "description": "Package settings.",
+      "default": {},
+      "allOf": [
+        {
+          "$ref": "#/definitions/PackageConfig"
+        }
+      ]
+    },
     "plugins": {
       "description": "The plugins config.",
       "default": {},
@@ -75,9 +84,17 @@
           "deb": {
             "useBootstrapper": false
           },
-          "osx": {
+          "macOS": {
             "useBootstrapper": false
+          },
+          "windows": {
+            "certificateThumbprint": null,
+            "digestAlgorithm": null,
+            "timestampUrl": null
           }
+        },
+        "updater": {
+          "active": false
         },
         "windows": []
       },
@@ -287,19 +304,13 @@
             "null"
           ]
         },
-        "name": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "osx": {
+        "macOS": {
           "default": {
             "useBootstrapper": false
           },
           "allOf": [
             {
-              "$ref": "#/definitions/OsxConfig"
+              "$ref": "#/definitions/MacConfig"
             }
           ]
         },
@@ -313,12 +324,6 @@
             "type": "string"
           }
         },
-        "script": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "shortDescription": {
           "type": [
             "string",
@@ -326,7 +331,7 @@
           ]
         },
         "targets": {
-          "description": "The bundle targets, currently supports [\"deb\", \"osx\", \"msi\", \"appimage\", \"dmg\"] or \"all\"",
+          "description": "The bundle targets, currently supports [\"deb\", \"app\", \"msi\", \"appimage\", \"dmg\"] or \"all\"",
           "anyOf": [
             {
               "$ref": "#/definitions/BundleTarget"
@@ -336,10 +341,16 @@
             }
           ]
         },
-        "version": {
-          "type": [
-            "string",
-            "null"
+        "windows": {
+          "default": {
+            "certificateThumbprint": null,
+            "digestAlgorithm": null,
+            "timestampUrl": null
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/WindowsConfig"
+            }
           ]
         }
       },
@@ -726,19 +737,15 @@
       },
       "additionalProperties": false
     },
-    "NotificationAllowlistConfig": {
+    "MacConfig": {
       "type": "object",
       "properties": {
-        "all": {
-          "default": false,
-          "type": "boolean"
-        }
-      },
-      "additionalProperties": false
-    },
-    "OsxConfig": {
-      "type": "object",
-      "properties": {
+        "entitlements": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "exceptionDomain": {
           "type": [
             "string",
@@ -766,9 +773,45 @@
             "null"
           ]
         },
+        "signingIdentity": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "useBootstrapper": {
           "default": false,
           "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "NotificationAllowlistConfig": {
+      "type": "object",
+      "properties": {
+        "all": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "PackageConfig": {
+      "type": "object",
+      "properties": {
+        "productName": {
+          "description": "App name. Automatically converted to kebab-case on Linux.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "description": "App version.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false
@@ -862,8 +905,13 @@
             "deb": {
               "useBootstrapper": false
             },
-            "osx": {
+            "macOS": {
               "useBootstrapper": false
+            },
+            "windows": {
+              "certificateThumbprint": null,
+              "digestAlgorithm": null,
+              "timestampUrl": null
             }
           },
           "allOf": [
@@ -893,6 +941,18 @@
             }
           ]
         },
+        "updater": {
+          "description": "The updater configuration.",
+          "default": {
+            "active": false,
+            "dialog": true
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/UpdaterConfig"
+            }
+          ]
+        },
         "windows": {
           "description": "The windows configuration.",
           "default": [],
@@ -900,6 +960,44 @@
           "items": {
             "$ref": "#/definitions/WindowConfig"
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    "UpdaterConfig": {
+      "type": "object",
+      "required": [
+        "active"
+      ],
+      "properties": {
+        "active": {
+          "description": "Whether the updater is active or not.",
+          "type": "boolean"
+        },
+        "dialog": {
+          "description": "Display built-in dialog or use event system if disabled.",
+          "default": true,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "endpoints": {
+          "description": "The updater endpoints.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "pubkey": {
+          "description": "Optional pubkey.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false
@@ -1041,6 +1139,30 @@
             "null"
           ],
           "format": "double"
+        }
+      },
+      "additionalProperties": false
+    },
+    "WindowsConfig": {
+      "type": "object",
+      "properties": {
+        "certificateThumbprint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "digestAlgorithm": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timestampUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

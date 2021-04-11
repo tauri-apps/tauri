@@ -4,9 +4,7 @@ const nodeExternals = require('webpack-node-externals')
 module.exports = {
   entry: {
     'api/cli': './src/api/cli.ts',
-    'api/init': './src/api/init.ts',
     'api/tauricon': './src/api/tauricon.ts',
-    'api/info': './src/api/info.ts',
     'api/dependency-manager': './src/api/dependency-manager/index.ts',
     'helpers/spawn': './src/helpers/spawn.ts',
     'helpers/rust-cli': './src/helpers/rust-cli.ts'

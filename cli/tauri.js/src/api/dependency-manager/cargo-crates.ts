@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 import { spawnSync } from './../../helpers/spawn'
 import {
   CargoManifest,
@@ -69,16 +73,14 @@ async function manageDependencies(
     } else if (managementType === ManagementType.Update) {
       const latestVersion = await getCrateLatestVersion(dependency)
       if (semverLt(currentVersion, latestVersion)) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
-        const inquired = await inquirer.prompt([
+        const inquired = (await inquirer.prompt([
           {
             type: 'confirm',
             name: 'answer',
             message: `[CRATES] "${dependency}" latest version is ${latestVersion}. Do you want to update?`,
             default: false
           }
-        ])
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
+        ])) as { answer: boolean }
         if (inquired.answer) {
           log(`Updating ${dependency}...`)
           // eslint-disable-next-line security/detect-object-injection

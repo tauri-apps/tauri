@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 import { invokeTauriCommand } from './helpers/tauri'
 import { BaseDirectory } from './fs'
 
@@ -290,6 +294,22 @@ async function videoDir(): Promise<string> {
 }
 
 /**
+ * @name currentDir
+ * @descriptionReturns Returns the path to the current working dir.
+ * @return {Promise<string>}
+ */
+async function currentDir(): Promise<string> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.Current
+    }
+  })
+}
+
+/**
  * @name resolvePath
  * @descriptionReturns Resolves the path with the optional base directory.
  * @return {Promise<string>}
@@ -327,5 +347,6 @@ export {
   runtimeDir,
   templateDir,
   videoDir,
+  currentDir,
   resolvePath
 }

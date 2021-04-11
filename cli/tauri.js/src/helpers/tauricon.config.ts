@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 export const options = {
   // folder determines in which path to drop the generated file
   // prefix is the first part of the generated file's name

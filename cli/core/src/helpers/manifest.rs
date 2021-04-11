@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use super::{app_paths::tauri_dir, config::ConfigHandle};
 
 use toml_edit::{Array, Document, Value};

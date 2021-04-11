@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 #![allow(clippy::field_reassign_with_default)]
 
 use schemars::JsonSchema;
@@ -5,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use serde_with::skip_serializing_none;
 
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(untagged)]
@@ -26,13 +30,33 @@ pub struct DebConfig {
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct OsxConfig {
+pub struct MacConfig {
   pub frameworks: Option<Vec<String>>,
   pub minimum_system_version: Option<String>,
   pub exception_domain: Option<String>,
   pub license: Option<String>,
   #[serde(default)]
   pub use_bootstrapper: bool,
+  pub signing_identity: Option<String>,
+  pub entitlements: Option<String>,
+}
+
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WindowsConfig {
+  pub digest_algorithm: Option<String>,
+  pub certificate_thumbprint: Option<String>,
+  pub timestamp_url: Option<String>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PackageConfig {
+  /// App name. Automatically converted to kebab-case on Linux.
+  pub product_name: Option<String>,
+  /// App version.
+  pub version: Option<String>,
 }
 
 #[skip_serializing_none]
@@ -41,14 +65,12 @@ pub struct OsxConfig {
 pub struct BundleConfig {
   /// Whether we should build your app with tauri-bundler or plain `cargo build`
   pub active: bool,
-  /// The bundle targets, currently supports ["deb", "osx", "msi", "appimage", "dmg"] or "all"
+  /// The bundle targets, currently supports ["deb", "app", "msi", "appimage", "dmg"] or "all"
   pub targets: Option<BundleTarget>,
-  pub name: Option<String>,
   /// The app's identifier
   pub identifier: Option<String>,
   /// The app's icons
   pub icon: Option<Vec<String>>,
-  pub version: Option<String>,
   /// App resources to bundle.
   /// Each resource is a path to a file or directory.
   /// Glob patterns are supported.
@@ -57,12 +79,13 @@ pub struct BundleConfig {
   pub category: Option<String>,
   pub short_description: Option<String>,
   pub long_description: Option<String>,
-  pub script: Option<PathBuf>,
   #[serde(default)]
   pub deb: DebConfig,
-  #[serde(default)]
-  pub osx: OsxConfig,
+  #[serde(rename = "macOS", default)]
+  pub macos: MacConfig,
   pub external_bin: Option<Vec<String>>,
+  #[serde(default)]
+  pub windows: WindowsConfig,
 }
 
 /// A CLI argument definition
@@ -250,7 +273,7 @@ fn default_decorations() -> bool {
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SecurityConfig {
-  csp: Option<String>,
+  pub csp: Option<String>,
 }
 
 trait Allowlist {
@@ -483,7 +506,6 @@ impl Allowlist for AllowlistConfig {
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-
 pub struct TauriConfig {
   /// The windows configuration.
   #[serde(default)]
@@ -496,6 +518,9 @@ pub struct TauriConfig {
   #[serde(default)]
   allowlist: AllowlistConfig,
   pub security: Option<SecurityConfig>,
+  /// The updater configuration.
+  #[serde(default = "default_updater")]
+  pub updater: UpdaterConfig,
 }
 
 impl TauriConfig {
@@ -503,6 +528,29 @@ impl TauriConfig {
   pub fn features(&self) -> Vec<&str> {
     self.allowlist.to_features()
   }
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct UpdaterConfig {
+  /// Whether the updater is active or not.
+  pub active: bool,
+  /// Display built-in dialog or use event system if disabled.
+  #[serde(default = "default_dialog")]
+  pub dialog: Option<bool>,
+  /// The updater endpoints.
+  pub endpoints: Option<Vec<String>>,
+  /// Optional pubkey.
+  pub pubkey: Option<String>,
+}
+
+// We enable the unnecessary_wraps because we need
+// to use an Option for dialog otherwise the CLI schema will mark
+// the dialog as a required field which is not as we default it to true.
+#[allow(clippy::unnecessary_wraps)]
+fn default_dialog() -> Option<bool> {
+  Some(true)
 }
 
 /// The Build configuration object.
@@ -540,6 +588,9 @@ type JsonObject = HashMap<String, JsonValue>;
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Config {
+  /// Package settings.
+  #[serde(default)]
+  pub package: PackageConfig,
   /// The Tauri configuration.
   #[serde(default)]
   pub tauri: TauriConfig,
@@ -558,5 +609,14 @@ fn default_build() -> BuildConfig {
     before_dev_command: None,
     before_build_command: None,
     with_global_tauri: false,
+  }
+}
+
+fn default_updater() -> UpdaterConfig {
+  UpdaterConfig {
+    active: false,
+    dialog: Some(true),
+    endpoints: None,
+    pubkey: None,
   }
 }

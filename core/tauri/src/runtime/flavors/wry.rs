@@ -2,15 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! The [`wry`] webview runtime.
+//! The [`wry`] Tauri [`Runtime`].
 
-use crate::runtime::{
-  webview::{
-    Attributes, AttributesPrivate, CustomProtocol, FileDropEvent, FileDropHandler, Icon,
-    RpcRequest, WebviewRpcHandler, WindowConfig,
+use crate::{
+  api::config::WindowConfig,
+  runtime::{
+    webview::{
+      Attributes, AttributesBase, CustomProtocol, FileDropEvent, FileDropHandler, RpcRequest,
+      WebviewRpcHandler,
+    },
+    window::{DetachedWindow, PendingWindow},
+    Dispatch, Params, Runtime,
   },
-  window::{DetachedWindow, PendingWindow},
-  Dispatch, Params, Runtime,
+  Icon,
 };
 use std::{convert::TryFrom, path::PathBuf};
 
@@ -19,7 +23,7 @@ use std::fs::create_dir_all;
 #[cfg(target_os = "windows")]
 use tauri_api::path::{resolve_path, BaseDirectory};
 
-/// Wraps a Tauri icon into a format [`wry`] expects the icon to be in.
+/// Wrapper around a [`wry::Icon`] that can be created from an [`Icon`].
 pub struct WryIcon(wry::Icon);
 
 impl TryFrom<Icon> for WryIcon {
@@ -37,42 +41,43 @@ impl TryFrom<Icon> for WryIcon {
   }
 }
 
-impl AttributesPrivate for wry::Attributes {
-  fn url(mut self, url: String) -> Self {
-    self.url.replace(url);
-    self
-  }
-}
+impl AttributesBase for wry::Attributes {}
+impl Attributes for wry::Attributes {
+  type Icon = WryIcon;
 
-impl From<WindowConfig> for wry::Attributes {
-  fn from(window_config: WindowConfig) -> Self {
+  fn new() -> Self {
+    Default::default()
+  }
+
+  fn with_config(config: WindowConfig) -> Self {
     let mut webview = wry::Attributes::default()
-      .title(window_config.0.title.to_string())
-      .width(window_config.0.width)
-      .height(window_config.0.height)
-      .visible(window_config.0.visible)
-      .resizable(window_config.0.resizable)
-      .decorations(window_config.0.decorations)
-      .maximized(window_config.0.maximized)
-      .fullscreen(window_config.0.fullscreen)
-      .transparent(window_config.0.transparent)
-      .always_on_top(window_config.0.always_on_top);
-    if let Some(min_width) = window_config.0.min_width {
+      .title(config.title.to_string())
+      .width(config.width)
+      .height(config.height)
+      .visible(config.visible)
+      .resizable(config.resizable)
+      .decorations(config.decorations)
+      .maximized(config.maximized)
+      .fullscreen(config.fullscreen)
+      .transparent(config.transparent)
+      .always_on_top(config.always_on_top);
+
+    if let Some(min_width) = config.min_width {
       webview = webview.min_width(min_width);
     }
-    if let Some(min_height) = window_config.0.min_height {
+    if let Some(min_height) = config.min_height {
       webview = webview.min_height(min_height);
     }
-    if let Some(max_width) = window_config.0.max_width {
+    if let Some(max_width) = config.max_width {
       webview = webview.max_width(max_width);
     }
-    if let Some(max_height) = window_config.0.max_height {
+    if let Some(max_height) = config.max_height {
       webview = webview.max_height(max_height);
     }
-    if let Some(x) = window_config.0.x {
+    if let Some(x) = config.x {
       webview = webview.x(x);
     }
-    if let Some(y) = window_config.0.y {
+    if let Some(y) = config.y {
       webview = webview.y(y);
     }
 
@@ -100,15 +105,6 @@ impl From<WindowConfig> for wry::Attributes {
     }
 
     webview
-  }
-}
-
-/// The webview builder.
-impl Attributes for wry::Attributes {
-  type Icon = WryIcon;
-
-  fn new() -> Self {
-    Default::default()
   }
 
   fn initialization_script(mut self, init: &str) -> Self {
@@ -210,6 +206,11 @@ impl Attributes for wry::Attributes {
     self
   }
 
+  fn url(mut self, url: String) -> Self {
+    self.url.replace(url);
+    self
+  }
+
   fn build(self) -> Self {
     self
   }
@@ -234,7 +235,7 @@ impl From<wry::FileDropEvent> for FileDropEvent {
   }
 }
 
-/// A dispatcher for a [`wry`] runtime.
+/// The Tauri [`Dispatch`] for [`Wry`].
 #[derive(Clone)]
 pub struct WryDispatcher {
   window: wry::WindowProxy,
@@ -440,7 +441,7 @@ impl Dispatch for WryDispatcher {
   }
 }
 
-/// A wrapper around the wry Application interface.
+/// A Tauri [`Runtime`] wrapper around [`wry::Application`].
 pub struct Wry {
   inner: wry::Application,
 }

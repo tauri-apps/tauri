@@ -8,7 +8,7 @@ use quote::quote;
 use std::path::PathBuf;
 use tauri_api::config::Config;
 
-/// Necessary data needed by [`codegen_context`] to generate code for a Tauri application context.
+/// Necessary data needed by [`context_codegen`] to generate code for a Tauri application context.
 pub struct ContextData {
   pub dev: bool,
   pub config: Config,
@@ -16,7 +16,7 @@ pub struct ContextData {
   pub context_path: TokenStream,
 }
 
-/// Build an `AsTauriContext` implementation for including in application code.
+/// Build a `tauri::Context` for including in application code.
 pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsError> {
   let ContextData {
     dev,

@@ -8,14 +8,14 @@ use crate::{
     config::UpdaterConfig,
     dialog::{ask, AskResponse},
   },
-  runtime::{window::Window, Params},
+  Params, Window,
 };
 
 // Check for new updates
 pub const EVENT_CHECK_UPDATE: &str = "tauri://update";
 // New update available
 pub const EVENT_UPDATE_AVAILABLE: &str = "tauri://update-available";
-// Used to intialize an update *should run check-update first (once you received the update available event)*
+// Used to initialize an update *should run check-update first (once you received the update available event)*
 pub const EVENT_INSTALL_UPDATE: &str = "tauri://update-install";
 // Send updater status or error even if dialog is enabled, you should
 // always listen for this event. It'll send you the install progress

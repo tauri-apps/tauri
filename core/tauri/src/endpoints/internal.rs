@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::InvokeResponse;
-use crate::{runtime::window::Window, Params};
+use crate::{Params, Window};
 use serde::Deserialize;
 
 /// The API descriptor.

@@ -359,7 +359,7 @@ mod test {
 
     #[cfg(dev)]
     {
-      use crate::runtime::sealed::ParamsPrivate;
+      use crate::sealed::ParamsPrivate;
       assert_eq!(manager.get_url(), manager.config().build.dev_path);
     }
   }

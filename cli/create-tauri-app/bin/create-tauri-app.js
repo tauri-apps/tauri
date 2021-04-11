@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const parseArgs = require("minimist");
 const inquirer = require("inquirer");
 const { resolve, join } = require("path");
@@ -6,6 +8,7 @@ const {
   recipeDescriptiveNames,
   recipeByDescriptiveName,
   recipeByShortName,
+  install,
   shell,
 } = require("../dist/");
 const { dir } = require("console");
@@ -183,17 +186,21 @@ async function runInit(argv, config = {}) {
     }
   }, []);
 
-  if (!argv.b) {
-    console.log("===== adding tauri =====");
-    await shell("yarn add tauri --dev", {
-      cwd: appDirectory,
-    });
-  }
+  const installed = await install({
+    appDir: appDirectory,
+    dependencies: recipe.extraNpmDependencies,
+    devDependencies: ["tauri", ...recipe.extraNpmDevDependencies],
+  });
 
   console.log("===== running tauri init =====");
-  const binary = !argv.b ? "yarn" : resolve(appDirectory, argv.b);
-  await shell(binary, ["tauri", "init", ...initArgs], {
-    ...(!argv.b ? {} : { shell: true }),
+  const binary = !argv.b
+    ? installed.packageManager
+    : resolve(appDirectory, argv.b);
+  const runTauriArgs =
+    installed.packageManager === "npm" && !argv.b
+      ? ["run", "tauri", "--", "init"]
+      : ["tauri", "init"];
+  await shell(binary, [...runTauriArgs, ...initArgs], {
     cwd: appDirectory,
   });
 

@@ -24,38 +24,38 @@ export const vanillajs: Recipe = {
     const versionNumber = version.stdout.trim();
     await run(cfg, cwd, versionNumber);
   },
+  postInit: async ({ cfg }) => {
+    console.log(`
+      change directory:
+        $ cd ${cfg.appName}
+    
+      install dependencies:
+        $ yarn # npm install
+    
+      run the app:
+        $ yarn tauri dev # npm run tauri dev
+            `);
+  },
 };
 
-export const run = (args: TauriBuildConfig, cwd: string, version: string) =>
-  new Promise((resolve, reject) => {
-    const { appName } = args;
-    const templateDir = join(__dirname, "../src/templates/vanilla");
-    const variables = {
-      name: appName,
-      tauri_version: version,
-    };
+export const run = async (
+  args: TauriBuildConfig,
+  cwd: string,
+  version: string
+) => {
+  const { appName } = args;
+  const templateDir = join(__dirname, "../src/templates/vanilla");
+  const variables = {
+    name: appName,
+    tauri_version: version,
+  };
 
-    scaffe.generate(
-      templateDir,
-      join(cwd, appName),
+  try {
+    await scaffe.generate(templateDir, join(cwd, appName), {
+      overwrite: true,
       variables,
-      async (err: Error) => {
-        if (err) {
-          reject(err);
-        }
-
-        resolve({
-          output: `
-  change directory:
-    $ cd ${appName}
-
-  install dependencies:
-    $ yarn # npm install
-
-  run the app:
-    $ yarn tauri dev # npm run tauri dev
-        `,
-        });
-      }
-    );
-  });
+    });
+  } catch (err) {
+    console.log(err);
+  }
+};

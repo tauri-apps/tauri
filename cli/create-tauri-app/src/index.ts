@@ -1,17 +1,17 @@
-import { map, identity, find } from "lodash";
+import { map, find } from "lodash";
 import { TauriBuildConfig } from "./types/config";
 import { reactjs, reactts } from "./recipes/react";
 import { vanillajs } from "./recipes/vanilla";
 
-import { shell } from "./shell";
-export { shell };
+export { shell } from "./shell";
+export { install } from "./dependency-manager";
 
 export interface Recipe {
   descriptiveName: string;
   shortName: string;
   configUpdate?: (cfg: TauriBuildConfig) => TauriBuildConfig;
-  extraNpmDevDependencies: string[];
   extraNpmDependencies: string[];
+  extraNpmDevDependencies: string[];
   preInit?: ({
     cwd,
     cfg,

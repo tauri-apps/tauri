@@ -5,14 +5,13 @@ import got from 'got'
 import { CargoManifest } from '../types/cargo'
 import path from 'path'
 const pipeline = promisify(stream.pipeline)
-const currentTauriCliVersion = (): string => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
-  const tauriCliManifest = require('../../../core/Cargo.toml') as CargoManifest
-  return tauriCliManifest.package.version
-}
+
+// Webpack reads the file at build-time, so this becomes a static var
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
+const tauriCliManifest = require('../../../core/Cargo.toml') as CargoManifest
 
 const downloadCli = async (): Promise<void> => {
-  const version = currentTauriCliVersion()
+  const version = tauriCliManifest.package.version
   let platform: string = process.platform
   if (platform === 'win32') {
     platform = 'windows'

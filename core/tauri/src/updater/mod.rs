@@ -72,7 +72,7 @@
 //! **Attention, you need to _disable built-in dialog_ in your [tauri configuration](#configuration), otherwise, events aren't emitted and the javascript API will NOT work.**
 //!
 //!
-//! ```
+//! ```javascript
 //! import { checkUpdate, installUpdate } from "@tauri-apps/api/updater";
 //!
 //! try {
@@ -116,7 +116,7 @@
 //! Event : `tauri://update-available`
 //!
 //! Emitted data:
-//! ```
+//! ```text
 //! version    Version announced by the server
 //! date       Date announced by the server
 //! body       Note announced by the server
@@ -159,7 +159,7 @@
 //! Event : `tauri://update-status`
 //!
 //! Emitted data:
-//! ```
+//! ```text
 //! status    [ERROR/PENDING/DONE]
 //! error     String/null
 //! ```
@@ -252,7 +252,7 @@
 //!
 //! On MACOS we create a .tar.gz from the whole application. (.app)
 //!
-//! ```
+//! ```text
 //! target/release/bundle
 //! └── osx
 //!     └── app.app
@@ -264,7 +264,7 @@
 //!
 //! On Windows we create a .zip from the MSI, when downloaded and validated, we run the MSI install.
 //!
-//! ```
+//! ```text
 //! target/release
 //! └── app.x64.msi
 //! └── app.x64.msi.zip (update bundle)
@@ -275,7 +275,7 @@
 //!
 //! On Linux, we create a .tar.gz from the AppImage.
 //!
-//! ```
+//! ```text
 //! target/release/bundle
 //! └── appimage
 //!     └── app.AppImage
@@ -344,24 +344,24 @@ use crate::{
   Params, Window,
 };
 
-// Check for new updates
+/// Check for new updates
 pub const EVENT_CHECK_UPDATE: &str = "tauri://update";
-// New update available
+/// New update available
 pub const EVENT_UPDATE_AVAILABLE: &str = "tauri://update-available";
-// Used to initialize an update *should run check-update first (once you received the update available event)*
+/// Used to initialize an update *should run check-update first (once you received the update available event)*
 pub const EVENT_INSTALL_UPDATE: &str = "tauri://update-install";
-// Send updater status or error even if dialog is enabled, you should
-// always listen for this event. It'll send you the install progress
-// and any error triggered during update check and install
+/// Send updater status or error even if dialog is enabled, you should
+/// always listen for this event. It'll send you the install progress
+/// and any error triggered during update check and install
 pub const EVENT_STATUS_UPDATE: &str = "tauri://update-status";
-// this is the status emitted when the download start
+/// this is the status emitted when the download start
 pub const EVENT_STATUS_PENDING: &str = "PENDING";
-// When you got this status, something went wrong
-// you can find the error message inside the `error` field.
+/// When you got this status, something went wrong
+/// you can find the error message inside the `error` field.
 pub const EVENT_STATUS_ERROR: &str = "ERROR";
-// When you receive this status, you should ask the user to restart
+/// When you receive this status, you should ask the user to restart
 pub const EVENT_STATUS_SUCCESS: &str = "DONE";
-// When you receive this status, this is because the application is runniing last version
+/// When you receive this status, this is because the application is running last version
 pub const EVENT_STATUS_UPTODATE: &str = "UPTODATE";
 
 #[derive(Clone, serde::Serialize)]

@@ -52,7 +52,7 @@ pub enum EmbeddedAssetsError {
 
 /// Represent a directory of assets that are compressed and embedded.
 ///
-/// This is the compile time generation of [`tauri_api::assets::Assets`] from a directory. Assets
+/// This is the compile time generation of [`tauri_utils::assets::Assets`] from a directory. Assets
 /// from the directory are added as compiler dependencies by dummy including the original,
 /// uncompressed assets.
 ///
@@ -63,7 +63,7 @@ pub enum EmbeddedAssetsError {
 pub struct EmbeddedAssets(HashMap<AssetKey, (PathBuf, PathBuf)>);
 
 impl EmbeddedAssets {
-  /// Compress a directory of assets, ready to be generated into a [`tauri_api::assets::Assets`].
+  /// Compress a directory of assets, ready to be generated into a [`tauri_utils::assets::Assets`].
   pub fn new(path: &Path) -> Result<Self, EmbeddedAssetsError> {
     WalkDir::new(&path)
       .follow_links(true)

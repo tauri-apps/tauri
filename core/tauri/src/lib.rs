@@ -26,7 +26,7 @@ pub mod runtime;
 /// The Tauri-specific settings for your runtime e.g. notification permission status.
 pub mod settings;
 #[cfg(feature = "updater")]
-mod updater;
+pub mod updater;
 
 /// `Result<T, ::tauri::Error>`
 pub type Result<T> = std::result::Result<T, Error>;

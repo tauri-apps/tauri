@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use thiserror::Error as DeriveError;
+use thiserror::Error;
 
-#[derive(Debug, DeriveError)]
+#[derive(Debug, Error)]
 pub enum Error {
   /// IO Errors.
   #[error("`{0}`")]
@@ -29,7 +29,7 @@ pub enum Error {
   Utf8(#[from] std::str::Utf8Error),
   /// Tauri utils, mainly extract and file move.
   #[error("Tauri API error: {0}")]
-  TauriApi(#[from] tauri_api::Error),
+  TauriApi(#[from] crate::api::Error),
   /// Network error.
   #[error("Network error: {0}")]
   Network(String),

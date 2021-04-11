@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 //! The Tauri API interface.
-#![warn(missing_docs, rust_2018_idioms)]
+#![warn(missing_docs)]
 
 /// The App API module allows you to manage application processes.
 pub mod app;
@@ -34,16 +34,16 @@ pub use tauri_utils::config;
 /// The CLI args interface.
 #[cfg(feature = "cli")]
 pub mod cli;
+
 #[cfg(feature = "cli")]
-#[macro_use]
-extern crate clap;
+pub use clap;
 
 /// Global shortcuts interface.
-#[cfg(feature = "global-shortcut")]
+#[cfg(global_shortcut_all)]
 pub mod shortcuts;
 
 /// The desktop notifications API module.
-#[cfg(feature = "notification")]
+#[cfg(notification_all)]
 pub mod notification;
 
 pub use tauri_utils::*;
@@ -97,9 +97,9 @@ pub mod private {
   pub use once_cell::sync::OnceCell;
 
   pub trait AsTauriContext {
-    fn config() -> &'static crate::config::Config;
-    fn assets() -> &'static crate::assets::EmbeddedAssets;
+    fn config() -> &'static crate::api::config::Config;
+    fn assets() -> &'static crate::api::assets::EmbeddedAssets;
     fn default_window_icon() -> Option<&'static [u8]>;
-    fn package_info() -> crate::PackageInfo;
+    fn package_info() -> crate::api::PackageInfo;
   }
 }

@@ -39,7 +39,7 @@ impl<'a> Move<'a> {
   }
 
   /// Move source file to specified destination (replace whole directory)
-  pub fn to_dest(&self, dest: &path::Path) -> crate::Result<()> {
+  pub fn to_dest(&self, dest: &path::Path) -> crate::api::Result<()> {
     match self.temp {
       None => {
         fs::rename(self.source, dest)?;
@@ -61,7 +61,7 @@ impl<'a> Move<'a> {
 
   /// Walk in the source and copy all files and create directories if needed by
   /// replacing existing elements. (equivalent to a cp -R)
-  pub fn walk_to_dest(&self, dest: &path::Path) -> crate::Result<()> {
+  pub fn walk_to_dest(&self, dest: &path::Path) -> crate::api::Result<()> {
     match self.temp {
       None => {
         // got no temp -- no need to backup
@@ -90,7 +90,7 @@ impl<'a> Move<'a> {
 // Walk into the source and create directories, and copy files
 // Overwriting existing items but keeping untouched the files in the dest
 // not provided in the source.
-fn walkdir_and_copy(source: &path::Path, dest: &path::Path) -> crate::Result<()> {
+fn walkdir_and_copy(source: &path::Path, dest: &path::Path) -> crate::api::Result<()> {
   let walkdir = WalkBuilder::new(source).hidden(false).build();
 
   for entry in walkdir {

@@ -39,7 +39,7 @@ impl ClientBuilder {
   }
 
   /// Builds the ClientOptions.
-  pub fn build(self) -> crate::Result<Client> {
+  pub fn build(self) -> crate::api::Result<Client> {
     let mut client_builder = reqwest::Client::builder();
 
     if let Some(max_redirections) = self.max_redirections {
@@ -64,7 +64,7 @@ impl Client {
   ///
   /// The response will be transformed to String,
   /// If reading the response as binary, the byte array will be serialized using serde_json
-  pub async fn send(&self, request: HttpRequestBuilder) -> crate::Result<Response> {
+  pub async fn send(&self, request: HttpRequestBuilder) -> crate::api::Result<Response> {
     let method = Method::from_bytes(request.method.to_uppercase().as_bytes())?;
     let mut request_builder = self.0.request(method, &request.url);
 
@@ -165,7 +165,7 @@ pub enum Body {
 ///
 /// # Examples
 /// ```no_run
-/// use tauri_api::http::{ HttpRequestBuilder, ResponseType, ClientBuilder };
+/// use tauri::api::http::{ HttpRequestBuilder, ResponseType, ClientBuilder };
 /// async fn run() {
 ///   let client = ClientBuilder::new()
 ///     .max_redirections(3)
@@ -250,7 +250,7 @@ pub struct Response(ResponseType, reqwest::Response);
 
 impl Response {
   /// Reads the response and returns its info.
-  pub async fn read(self) -> crate::Result<ResponseData> {
+  pub async fn read(self) -> crate::api::Result<ResponseData> {
     let url = self.1.url().to_string();
     let mut headers = HashMap::new();
     for (name, value) in self.1.headers() {

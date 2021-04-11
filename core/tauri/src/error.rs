@@ -28,7 +28,7 @@ pub enum Error {
   UnknownApi(Option<serde_json::Error>),
   /// Failed to execute tauri API.
   #[error("failed to execute API: {0}")]
-  FailedToExecuteApi(#[from] tauri_api::Error),
+  FailedToExecuteApi(#[from] crate::api::Error),
   /// IO error.
   #[error("{0}")]
   Io(#[from] std::io::Error),
@@ -55,7 +55,7 @@ pub enum Error {
   Setup(#[from] Box<dyn std::error::Error>),
   /// Tauri updater error.
   #[error("Updater: {0}")]
-  TauriUpdater(#[from] tauri_updater::Error),
+  TauriUpdater(#[from] crate::updater::Error),
 }
 
 impl From<serde_json::Error> for Error {

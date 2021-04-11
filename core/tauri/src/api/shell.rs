@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 /// Open path or URL with `with`, or system default
-pub fn open(path: String, with: Option<String>) -> crate::Result<()> {
+pub fn open(path: String, with: Option<String>) -> crate::api::Result<()> {
   {
     let exit_status = if let Some(with) = with {
       open::with(&path, &with)
@@ -15,10 +15,10 @@ pub fn open(path: String, with: Option<String>) -> crate::Result<()> {
         if status.success() {
           Ok(())
         } else {
-          Err(crate::Error::Shell("open command failed".into()))
+          Err(crate::api::Error::Shell("open command failed".into()))
         }
       }
-      Err(err) => Err(crate::Error::Shell(format!(
+      Err(err) => Err(crate::api::Error::Shell(format!(
         "failed to open: {}",
         err.to_string()
       ))),

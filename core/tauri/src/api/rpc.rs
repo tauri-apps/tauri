@@ -63,14 +63,14 @@ fn escape_json_parse(json: &RawValue) -> String {
 ///
 /// # Examples
 /// ```
-/// use tauri_api::rpc::format_callback;
+/// use tauri::api::rpc::format_callback;
 /// // callback with a string argument
 /// let cb = format_callback("callback-function-name", &"the string response").expect("failed to serialize");
 /// assert!(cb.contains(r#"window["callback-function-name"]("the string response")"#));
 /// ```
 ///
 /// ```
-/// use tauri_api::rpc::format_callback;
+/// use tauri::api::rpc::format_callback;
 /// use serde::Serialize;
 ///
 /// // callback with large JSON argument
@@ -87,7 +87,7 @@ fn escape_json_parse(json: &RawValue) -> String {
 pub fn format_callback<T: Serialize, S: AsRef<str>>(
   function_name: S,
   arg: &T,
-) -> crate::Result<String> {
+) -> crate::api::Result<String> {
   macro_rules! format_callback {
     ( $arg:expr ) => {
       format!(
@@ -149,7 +149,7 @@ pub fn format_callback<T: Serialize, S: AsRef<str>>(
 ///
 /// # Examples
 /// ```
-/// use tauri_api::rpc::format_callback_result;
+/// use tauri::api::rpc::format_callback_result;
 /// let res: Result<u8, &str> = Ok(5);
 /// let cb = format_callback_result(res, "success_cb", "error_cb").expect("failed to format");
 /// assert!(cb.contains(r#"window["success_cb"](5)"#));
@@ -162,7 +162,7 @@ pub fn format_callback_result<T: Serialize, E: Serialize>(
   result: Result<T, E>,
   success_callback: impl AsRef<str>,
   error_callback: impl AsRef<str>,
-) -> crate::Result<String> {
+) -> crate::api::Result<String> {
   match result {
     Ok(res) => format_callback(success_callback, &res),
     Err(err) => format_callback(error_callback, &err),
@@ -171,7 +171,7 @@ pub fn format_callback_result<T: Serialize, E: Serialize>(
 
 #[cfg(test)]
 mod test {
-  use crate::rpc::*;
+  use crate::api::rpc::*;
   use quickcheck_macros::quickcheck;
 
   #[test]

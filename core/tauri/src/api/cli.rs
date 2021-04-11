@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::config::{CliArg, CliConfig};
+use crate::api::config::{CliArg, CliConfig};
 
-use clap::{App, Arg, ArgMatches, ErrorKind};
+use clap::{
+  crate_authors, crate_description, crate_name, crate_version, App, Arg, ArgMatches, ErrorKind,
+};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -57,7 +59,7 @@ impl Matches {
 }
 
 /// Gets the arg matches of the CLI definition.
-pub fn get_matches(cli: &CliConfig) -> crate::Result<Matches> {
+pub fn get_matches(cli: &CliConfig) -> crate::api::Result<Matches> {
   let about = cli
     .description()
     .unwrap_or(&crate_description!().to_string())

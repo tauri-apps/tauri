@@ -164,9 +164,9 @@ where
     #[cfg(windows)]
     {
       // Should return a path similar to C:\Users\<User>\AppData\Local\<AppName>
-      let local_app_data = tauri_api::path::resolve_path(
+      let local_app_data = crate::api::path::resolve_path(
         self.inner.package_info.name,
-        Some(tauri_api::path::BaseDirectory::LocalData),
+        Some(crate::api::path::BaseDirectory::LocalData),
       );
       // Make sure the directory exist without panic
       if let Ok(user_data_dir) = local_app_data {
@@ -346,7 +346,7 @@ mod test {
 
   #[test]
   fn check_get_url() {
-    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate::Context);
+    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
     let manager: WindowManager<String, String, _, Wry> = WindowManager::with_handlers(
       context,
       PluginStore::default(),

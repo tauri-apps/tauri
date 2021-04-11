@@ -9,7 +9,7 @@ use std::{
   fs::File,
   path::{Path, PathBuf},
 };
-use tauri_api::assets::AssetKey;
+use tauri_utils::assets::AssetKey;
 use thiserror::Error;
 use walkdir::WalkDir;
 

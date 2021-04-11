@@ -10,7 +10,7 @@ use std::path::MAIN_SEPARATOR;
 ///
 /// # Example
 /// ```
-/// use tauri_api::notification::Notification;
+/// use tauri::api::notification::Notification;
 /// // shows a notification with the given title and body
 /// Notification::new("studio.tauri.example")
 ///   .title("New message")
@@ -58,7 +58,7 @@ impl Notification {
   }
 
   /// Shows the notification.
-  pub fn show(self) -> crate::Result<()> {
+  pub fn show(self) -> crate::api::Result<()> {
     let mut notification = notify_rust::Notification::new();
     if let Some(body) = self.body {
       notification.body(&body);

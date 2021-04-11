@@ -62,12 +62,15 @@ pub enum BaseDirectory {
 ///
 /// # Example
 /// ```
-/// use tauri_api::path::{resolve_path, BaseDirectory};
+/// use tauri::api::path::{resolve_path, BaseDirectory};
 /// let path = resolve_path("path/to/something", Some(BaseDirectory::Config))
 ///   .expect("failed to resolve path");
 /// // path is equal to "/home/${whoami}/.config/path/to/something" on Linux
 /// ```
-pub fn resolve_path<P: AsRef<Path>>(path: P, dir: Option<BaseDirectory>) -> crate::Result<PathBuf> {
+pub fn resolve_path<P: AsRef<Path>>(
+  path: P,
+  dir: Option<BaseDirectory>,
+) -> crate::api::Result<PathBuf> {
   if let Some(base_dir) = dir {
     let base_dir_path = match base_dir {
       BaseDirectory::Audio => audio_dir(),
@@ -94,7 +97,7 @@ pub fn resolve_path<P: AsRef<Path>>(path: P, dir: Option<BaseDirectory>) -> crat
       base_dir_path_value.push(path);
       Ok(base_dir_path_value)
     } else {
-      Err(crate::Error::Path(
+      Err(crate::api::Error::Path(
         "unable to determine base dir path".to_string(),
       ))
     }
@@ -187,10 +190,10 @@ pub fn video_dir() -> Option<PathBuf> {
 
 /// Returns the path to the resource directory of this app.
 pub fn resource_dir() -> Option<PathBuf> {
-  crate::platform::resource_dir().ok()
+  crate::api::platform::resource_dir().ok()
 }
 
-fn app_name() -> crate::Result<String> {
+fn app_name() -> crate::api::Result<String> {
   let exe = std::env::current_exe()?;
   let app_name = exe
     .file_stem()

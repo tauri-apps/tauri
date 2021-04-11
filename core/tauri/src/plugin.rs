@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! Extend Tauri functionality.
+
 use crate::{
   api::config::PluginConfig,
   hooks::{InvokeMessage, PageLoadPayload},
-  runtime::{window::Window, Params},
+  Params, Window,
 };
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
@@ -44,7 +46,7 @@ pub trait Plugin<M: Params>: Send {
 }
 
 /// Plugin collection type.
-pub struct PluginStore<M: Params> {
+pub(crate) struct PluginStore<M: Params> {
   store: HashMap<&'static str, Box<dyn Plugin<M>>>,
 }
 

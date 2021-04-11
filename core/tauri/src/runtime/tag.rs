@@ -26,7 +26,7 @@ use std::{
 /// # Handling Errors
 ///
 /// Because we leave it up to the type to implement [`FromStr`], if an error is returned during
-/// parsing then Tauri will [`panic!`](std::panic) with the string it failed to parse.
+/// parsing then Tauri will [`std::panic!`] with the string it failed to parse.
 ///
 /// To avoid Tauri panicking during the application runtime, have your type be able to handle
 /// unknown events and never return an error in [`FromStr`]. Then it will be up to your own code

@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{
-  endpoints::InvokeResponse,
-  runtime::{sealed::ManagerPrivate, window::Window, Manager, Params},
-};
+use crate::{endpoints::InvokeResponse, sealed::ManagerPrivate, Manager, Params, Window};
 use serde::Deserialize;
 
 /// The API descriptor.

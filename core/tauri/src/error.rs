@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-/// The plugin error type.
+/// Runtime errors that can happen inside a Tauri application.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
   /// Failed to create webview.

@@ -12,15 +12,13 @@ use crate::{
   hooks::{InvokeHandler, InvokeMessage, InvokePayload, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
   runtime::{
-    sealed::ParamsPrivate,
     tag::{tags_to_javascript_array, Tag, ToJavascript},
-    webview::{
-      Attributes, AttributesPrivate, CustomProtocol, FileDropEvent, FileDropHandler,
-      WebviewRpcHandler,
-    },
-    window::{DetachedWindow, PendingWindow, Window},
-    Context, Dispatch, Icon, Params, Runtime,
+    webview::{Attributes, CustomProtocol, FileDropEvent, FileDropHandler, WebviewRpcHandler},
+    window::{DetachedWindow, PendingWindow},
+    Dispatch, Icon, Runtime,
   },
+  sealed::ParamsPrivate,
+  Context, Params, Window,
 };
 use serde::Serialize;
 use serde_json::Value as JsonValue;
@@ -344,7 +342,7 @@ where
 #[cfg(test)]
 mod test {
   use super::WindowManager;
-  use crate::{generate_context, plugin::PluginStore, runtime::flavor::wry::Wry};
+  use crate::{generate_context, plugin::PluginStore, runtime::flavors::wry::Wry};
 
   #[test]
   fn check_get_url() {

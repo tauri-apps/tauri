@@ -5,7 +5,7 @@
 use crate::{
   api::{config::Config, PackageInfo},
   hooks::InvokeMessage,
-  runtime::Params,
+  Params,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;

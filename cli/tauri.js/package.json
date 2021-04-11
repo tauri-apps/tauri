@@ -54,7 +54,7 @@
     "chalk": "4.1.0",
     "cross-spawn": "7.0.3",
     "fs-extra": "9.1.0",
-    "got": "^11.8.2",
+    "got": "11.8.2",
     "imagemin": "7.0.1",
     "imagemin-optipng": "8.0.0",
     "imagemin-pngquant": "9.0.2",

@@ -14,7 +14,7 @@ const cmd = process.argv[2]
  *
  * @param {string|array} command
  */
-const tauri = function (command) {
+const tauri = async function (command) {
   if (typeof command === 'object') {
     // technically we just care about an array
     command = command[0]
@@ -25,7 +25,7 @@ const tauri = function (command) {
     if (process.argv && !process.env.test) {
       process.argv.splice(0, 3)
     }
-    runOnRustCli(command, process.argv || []).promise.then(() => {
+    ;(await runOnRustCli(command, process.argv || [])).promise.then(() => {
       if (command === 'init') {
         const {
           installDependencies
@@ -76,4 +76,6 @@ module.exports = {
   tauri
 }
 
-tauri(cmd)
+tauri(cmd).catch((e) => {
+  throw e
+})

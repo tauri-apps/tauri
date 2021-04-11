@@ -6,6 +6,7 @@ import { existsSync } from 'fs'
 import { resolve, join } from 'path'
 import { spawnSync, spawn } from './spawn'
 import { CargoManifest } from '../types/cargo'
+import { downloadCli } from './download-cli'
 
 const currentTauriCliVersion = (): string => {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
@@ -13,12 +14,15 @@ const currentTauriCliVersion = (): string => {
   return tauriCliManifest.package.version
 }
 
-export function runOnRustCli(
+export async function runOnRustCli(
   command: string,
   args: string[]
-): { pid: number; promise: Promise<void> } {
+): Promise<{ pid: number; promise: Promise<void> }> {
   const targetPath = resolve(__dirname, '../..')
-  const targetCliPath = join(targetPath, 'bin/cargo-tauri')
+  const targetCliPath = join(
+    targetPath,
+    'bin/tauri-cli' + (process.platform === 'win32' ? '.exe' : '')
+  )
 
   let resolveCb: () => void
   let rejectCb: () => void
@@ -36,6 +40,14 @@ export function runOnRustCli(
   }
 
   if (existsSync(targetCliPath)) {
+    pid = spawn(
+      targetCliPath,
+      ['tauri', command, ...args],
+      process.cwd(),
+      onClose
+    )
+  } else if (process.env.NODE_ENV === 'production') {
+    await downloadCli()
     pid = spawn(
       targetCliPath,
       ['tauri', command, ...args],

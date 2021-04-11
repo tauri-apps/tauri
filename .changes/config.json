@@ -175,26 +175,33 @@
       "dependencies": ["tauri.js"]
     },
     "tauri-utils": {
-      "path": "./tauri-utils",
+      "path": "./core/tauri-utils",
       "manager": "rust"
     },
     "tauri-api": {
-      "path": "./tauri-api",
+      "path": "./core/tauri-api",
       "manager": "rust",
       "dependencies": ["tauri-utils"]
     },
     "tauri-macros": {
-      "path": "./tauri-macros",
+      "path": "./core/tauri-macros",
       "manager": "rust",
       "dependencies": ["tauri-utils"]
     },
     "tauri-updater": {
-      "path": "./tauri-updater",
-      "manager": "rust",
-      "publish": false
+      "path": "./core/tauri-updater",
+      "manager": "rust"
+    },
+    "tauri-build": {
+      "path": "./core/tauri-build",
+      "manager": "rust"
+    },
+    "tauri-codegen": {
+      "path": "./core/tauri-codegen",
+      "manager": "rust"
     },
     "tauri": {
-      "path": "./tauri",
+      "path": "./core/tauri",
       "manager": "rust",
       "dependencies": ["api", "tauri-api", "tauri-macros", "tauri-updater"]
     }

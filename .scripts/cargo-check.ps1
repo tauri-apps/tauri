@@ -1,4 +1,8 @@
 #!/usr/bin/env pwsh
+# Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
 # note: you can pass in the cargo sub-commands used to check manually.
 # allowed commands: check, clippy, fmt, test
 # default: clippy, fmt, test
@@ -39,7 +43,7 @@ foreach ($command in $args) {
     }
     "fmt" {
       Write-Output "[$command] checking formatting"
-      cargo fmt "--" --check
+      cargo +nightly fmt "--" --check
       check_error
     }
     default {

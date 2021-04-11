@@ -1,10 +1,17 @@
-use tauri_bundler::bundle::{bundle_project, PackageType, SettingsBuilder};
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
+use tauri_bundler::bundle::{
+  bundle_project, common::print_signed_updater_archive, PackageType, SettingsBuilder,
+};
 
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
   config::get as get_config,
   execute_with_output,
   manifest::rewrite_manifest,
+  updater_signature::sign_file_from_env_variables,
   Logger,
 };
 
@@ -129,6 +136,7 @@ impl Build {
       if self.verbose {
         settings_builder = settings_builder.verbose();
       }
+
       if let Some(names) = self.targets {
         let mut types = vec![];
         for name in names {
@@ -147,10 +155,35 @@ impl Build {
             }
           }
         }
+
         settings_builder = settings_builder.package_types(types);
       }
+
+      // Bundle the project
       let settings = settings_builder.build()?;
-      bundle_project(settings)?;
+
+      let bundles = bundle_project(settings)?;
+
+      // If updater is active and pubkey is available
+      if config_.tauri.updater.active && config_.tauri.updater.pubkey.is_some() {
+        // make sure we have our package builts
+        let mut signed_paths = Vec::new();
+        for elem in bundles
+          .iter()
+          .filter(|bundle| bundle.package_type == PackageType::Updater)
+        {
+          // we expect to have only one path in the vec but we iter if we add
+          // another type of updater package who require multiple file signature
+          for path in elem.bundle_paths.iter() {
+            // sign our path from environment variables
+            let (signature_path, _signature) = sign_file_from_env_variables(path)?;
+            signed_paths.append(&mut vec![signature_path]);
+          }
+        }
+        if !signed_paths.is_empty() {
+          print_signed_updater_archive(&signed_paths)?;
+        }
+      }
     }
 
     Ok(())

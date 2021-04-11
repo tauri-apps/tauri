@@ -27,14 +27,12 @@
     "windows": [
       {
         "label": "Main",
-        "url": "app",
         "title": "Tauri - Main",
         "width": 800,
         "height": 600
       },
       {
         "label": "Secondary",
-        "url": "app",
         "title": "Tauri - Secondary",
         "width": 600,
         "height": 400
@@ -42,6 +40,9 @@
     ],
     "security": {
       "csp": "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
+    },
+    "updater": {
+      "active": false
     }
   }
 }

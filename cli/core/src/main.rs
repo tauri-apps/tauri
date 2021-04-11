@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 pub use anyhow::Result;
 use clap::{crate_version, load_yaml, App, AppSettings, ArgMatches};
 use dialoguer::Input;
@@ -7,6 +11,7 @@ mod dev;
 mod helpers;
 mod info;
 mod init;
+mod sign;
 
 pub use helpers::Logger;
 
@@ -121,6 +126,63 @@ fn info_command() -> Result<()> {
   info::Info::new().run()
 }
 
+fn sign_command(matches: &ArgMatches) -> Result<()> {
+  let private_key = matches.value_of("private-key");
+  let private_key_path = matches.value_of("private-key-path");
+  let file = matches.value_of("sign-file");
+  let password = matches.value_of("password");
+  let no_password = matches.is_present("no-password");
+  let write_keys = matches.value_of("write-keys");
+  let force = matches.is_present("force");
+
+  // generate keypair
+  if matches.is_present("generate") {
+    let mut keygen_runner = sign::KeyGenerator::new();
+
+    if no_password {
+      keygen_runner = keygen_runner.empty_password();
+    }
+
+    if force {
+      keygen_runner = keygen_runner.force();
+    }
+
+    if let Some(write_keys) = write_keys {
+      keygen_runner = keygen_runner.output_path(write_keys);
+    }
+
+    if let Some(password) = password {
+      keygen_runner = keygen_runner.password(password);
+    }
+
+    return keygen_runner.generate_keys();
+  }
+
+  // sign our binary / archive
+  let mut sign_runner = sign::Signer::new();
+  if let Some(private_key) = private_key {
+    sign_runner = sign_runner.private_key(private_key);
+  }
+
+  if let Some(private_key_path) = private_key_path {
+    sign_runner = sign_runner.private_key_path(private_key_path);
+  }
+
+  if let Some(file) = file {
+    sign_runner = sign_runner.file_to_sign(file);
+  }
+
+  if let Some(password) = password {
+    sign_runner = sign_runner.password(password);
+  }
+
+  if no_password {
+    sign_runner = sign_runner.empty_password();
+  }
+
+  sign_runner.run()
+}
+
 fn main() -> Result<()> {
   let yaml = load_yaml!("cli.yml");
   let app = App::from(yaml)
@@ -139,6 +201,8 @@ fn main() -> Result<()> {
     build_command(&matches)?;
   } else if matches.subcommand_matches("info").is_some() {
     info_command()?;
+  } else if let Some(matches) = matches.subcommand_matches("sign") {
+    sign_command(&matches)?;
   }
 
   Ok(())

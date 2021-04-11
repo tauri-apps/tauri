@@ -1,3 +1,7 @@
+# Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
 name: clippy and fmt check
 
 on:
@@ -6,11 +10,6 @@ on:
       - '.github/workflows/core-lint-fmt.yml'
       - 'core/**'
       - 'examples/**'
-      - 'tauri/**'
-      - 'tauri-utils/**'
-      - 'tauri-api/**'
-      - 'tauri-macros/**'
-      - 'tauri-updater/**'
       - 'cli/core/**'
 
 jobs:
@@ -78,5 +77,5 @@ jobs:
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --manifest-path ./tauri/Cargo.toml --all-targets --features ${{ matrix.feature }} -- -D warnings
+          args: --manifest-path ./core/tauri/Cargo.toml --all-targets --features ${{ matrix.feature }} -- -D warnings
           name: core

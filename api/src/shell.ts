@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 import { invokeTauriCommand } from './helpers/tauri'
 import { transformCallback } from './tauri'
 
@@ -39,7 +43,10 @@ interface ChildProcess {
 }
 
 class EventEmitter<E> {
-  eventListeners: { [key: string]: Array<(arg: any) => void> } = {}
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  eventListeners: { [key: string]: Array<(arg: any) => void> } = Object.create(
+    null
+  )
 
   private addEventListener(event: string, handler: (arg: any) => void): void {
     if (event in this.eventListeners) {

@@ -1,7 +1,7 @@
 use tauri::ApplicationDispatcherExt;
 
 fn main() {
-  tauri::AppBuilder::default()
+  tauri::Builder::default()
     .setup(|webview_manager| async move {
       let mut webview_manager_ = webview_manager.clone();
       tauri::event::listen(String::from("hello"), move |_| {
@@ -21,6 +21,6 @@ fn main() {
         webview_manager.close().unwrap();
       }
     })
-    .build(tauri::generate_context!())
-    .run();
+    .run(tauri::generate_context!())
+    .expect("error encountered while running tauri application");
 }

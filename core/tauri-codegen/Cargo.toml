@@ -3,18 +3,19 @@ name = "tauri-codegen"
 version = "0.1.0"
 authors = [ "Tauri Community" ]
 categories = [ "gui", "web-programming" ]
-license = "MIT"
+license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.studio"
 repository = "https://github.com/tauri-apps/tauri/tree/dev/core/tauri-codegen"
 description = "code generation meant to be consumed inside of `tauri` through `tauri-build` or `tauri-macros`"
 edition = "2018"
 
 [dependencies]
+blake3 = { version = "0.3", features = ["rayon"] }
 proc-macro2 = "1"
 quote = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tauri-api = { path = "../../tauri-api", features = ["build"] }
+tauri-api = { path = "../tauri-api", features = ["build"] }
 thiserror = "1"
 walkdir = "2"
-zstd = "0.6"
+zstd = "0.7"

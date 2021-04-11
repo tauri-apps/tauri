@@ -1,3 +1,7 @@
+# Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
 name: test core
 
 on:
@@ -6,11 +10,6 @@ on:
       - '.github/workflows/test-core.yml'
       - 'core/**'
       - 'examples/**'
-      - 'tauri/**'
-      - 'tauri-utils/**'
-      - 'tauri-api/**'
-      - 'tauri-macros/**'
-      - 'tauri-updater/**'
       - 'cli/**'
 
 env:
@@ -36,10 +35,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0
-      - name: build
-        run: |
-          cd ./tauri
-          cargo build
       - name: test
         run: |
           cargo test
@@ -93,4 +88,3 @@ jobs:
         timeout-minutes: 15
         working-directory: cli/tauri.js
         run: yarn build-release
-        

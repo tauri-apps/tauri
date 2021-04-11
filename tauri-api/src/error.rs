@@ -4,9 +4,6 @@ pub enum Error {
   /// The extract archive error.
   #[error("Extract Error: {0}")]
   Extract(String),
-  /// The Command (spawn process) error.
-  #[error("Command Error: {0}")]
-  Command(String),
   /// The path operation error.
   #[error("Path Error: {0}")]
   Path(String),
@@ -16,9 +13,6 @@ pub enum Error {
   /// The dialog operation was cancelled by the user.
   #[error("user cancelled the dialog")]
   DialogCancelled,
-  /// CLI config not set.
-  #[error("CLI configuration not set on tauri.conf.json")]
-  CliNotConfigured,
   /// The network error.
   #[error("Network Error: {0}")]
   Network(#[from] reqwest::Error),
@@ -61,4 +55,7 @@ pub enum Error {
   #[cfg(feature = "global-shortcut")]
   #[error("shortcut error: {0}")]
   Shortcut(#[from] tauri_hotkey::Error),
+  /// Shell error.
+  #[error("shell error: {0}")]
+  Shell(String),
 }

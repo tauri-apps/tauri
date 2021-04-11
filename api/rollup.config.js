@@ -29,13 +29,6 @@ export default [
       {
         dir: 'dist/',
         entryFileNames: '[name].js',
-        format: 'cjs',
-        exports: 'named',
-        globals: {}
-      },
-      {
-        dir: 'dist/',
-        entryFileNames: '[name].mjs',
         format: 'esm',
         exports: 'named',
         globals: {}
@@ -46,7 +39,7 @@ export default [
       resolve({
         // pass custom options to the resolve plugin
         customResolveOptions: {
-          moduleDirectory: 'node_modules'
+          moduleDirectories: ['node_modules']
         }
       }),
       typescript({
@@ -70,8 +63,8 @@ export default [
     output: [
       {
         name: '__TAURI__',
-        dir: 'dist/', // if it needs to run in the browser
-        entryFileNames: 'tauri.bundle.umd.js',
+        dir: '../tauri/scripts',
+        entryFileNames: 'bundle.js',
         format: 'umd',
         plugins: [
           getBabelOutputPlugin({
@@ -91,7 +84,7 @@ export default [
       resolve({
         // pass custom options to the resolve plugin
         customResolveOptions: {
-          moduleDirectory: 'node_modules'
+          moduleDirectories: ['node_modules']
         }
       })
     ],

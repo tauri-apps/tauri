@@ -15,6 +15,8 @@ pub mod http;
 pub mod path;
 /// The RPC module includes utilities to send messages to the JS layer of the webview.
 pub mod rpc;
+/// The shell api.
+pub mod shell;
 /// TCP ports access API.
 pub mod tcp;
 /// The semver API.
@@ -50,11 +52,38 @@ pub type Result<T> = std::result::Result<T, Error>;
 // Not public API
 #[doc(hidden)]
 pub mod private {
+  // Core API only.
+  pub mod async_runtime {
+    use once_cell::sync::OnceCell;
+    use tokio::runtime::Runtime;
+    pub use tokio::sync::{
+      mpsc::{channel, Receiver, Sender},
+      Mutex,
+    };
+
+    use std::future::Future;
+
+    static RUNTIME: OnceCell<Runtime> = OnceCell::new();
+
+    pub fn block_on<F: Future>(task: F) -> F::Output {
+      let runtime = RUNTIME.get_or_init(|| Runtime::new().unwrap());
+      runtime.block_on(task)
+    }
+
+    pub fn spawn<F>(task: F)
+    where
+      F: Future + Send + 'static,
+      F::Output: Send + 'static,
+    {
+      let runtime = RUNTIME.get_or_init(|| Runtime::new().unwrap());
+      runtime.spawn(task);
+    }
+  }
+  pub use once_cell::sync::OnceCell;
+
   pub trait AsTauriContext {
-    fn config_path() -> &'static std::path::Path;
-    fn raw_config() -> &'static str;
-    fn assets() -> &'static crate::assets::Assets;
-    fn raw_tauri_script() -> &'static str;
+    fn config() -> &'static crate::config::Config;
+    fn assets() -> &'static crate::assets::EmbeddedAssets;
     fn default_window_icon() -> Option<&'static [u8]>;
   }
 }

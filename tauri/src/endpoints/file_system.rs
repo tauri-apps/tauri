@@ -1,4 +1,5 @@
-use crate::{api::path::BaseDirectory, app::InvokeResponse, ApplicationDispatcherExt};
+use super::InvokeResponse;
+use crate::{api::path::BaseDirectory, ApplicationDispatcherExt};
 
 use serde::{Deserialize, Serialize};
 use tauri_api::{dir, file, path::resolve_path};
@@ -91,11 +92,11 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub async fn run(self) -> crate::Result<InvokeResponse> {
+  pub fn run(self) -> crate::Result<InvokeResponse> {
     match self {
       Self::ReadTextFile { path, options } => {
         #[cfg(fs_read_text_file)]
-        return read_text_file(path, options).await.map(Into::into);
+        return read_text_file(path, options).map(Into::into);
         #[cfg(not(fs_read_text_file))]
         Err(crate::Error::ApiNotAllowlisted(
           "fs > readTextFile".to_string(),
@@ -103,7 +104,7 @@ impl Cmd {
       }
       Self::ReadBinaryFile { path, options } => {
         #[cfg(fs_read_binary_file)]
-        return read_binary_file(path, options).await.map(Into::into);
+        return read_binary_file(path, options).map(Into::into);
         #[cfg(not(fs_read_binary_file))]
         Err(crate::Error::ApiNotAllowlisted(
           "readBinaryFile".to_string(),
@@ -115,7 +116,7 @@ impl Cmd {
         options,
       } => {
         #[cfg(fs_write_file)]
-        return write_file(path, contents, options).await.map(Into::into);
+        return write_file(path, contents, options).map(Into::into);
         #[cfg(not(fs_write_file))]
         Err(crate::Error::ApiNotAllowlisted(
           "fs > writeFile".to_string(),
@@ -127,9 +128,7 @@ impl Cmd {
         options,
       } => {
         #[cfg(fs_write_binary_file)]
-        return write_binary_file(path, contents, options)
-          .await
-          .map(Into::into);
+        return write_binary_file(path, contents, options).map(Into::into);
         #[cfg(not(fs_write_binary_file))]
         Err(crate::Error::ApiNotAllowlisted(
           "writeBinaryFile".to_string(),
@@ -137,7 +136,7 @@ impl Cmd {
       }
       Self::ReadDir { path, options } => {
         #[cfg(fs_read_dir)]
-        return read_dir(path, options).await.map(Into::into);
+        return read_dir(path, options).map(Into::into);
         #[cfg(not(fs_read_dir))]
         Err(crate::Error::ApiNotAllowlisted("fs > readDir".to_string()))
       }
@@ -147,15 +146,13 @@ impl Cmd {
         options,
       } => {
         #[cfg(fs_copy_file)]
-        return copy_file(source, destination, options)
-          .await
-          .map(Into::into);
+        return copy_file(source, destination, options).map(Into::into);
         #[cfg(not(fs_copy_file))]
         Err(crate::Error::ApiNotAllowlisted("fs > copyFile".to_string()))
       }
       Self::CreateDir { path, options } => {
         #[cfg(fs_create_dir)]
-        return create_dir(path, options).await.map(Into::into);
+        return create_dir(path, options).map(Into::into);
         #[cfg(not(fs_create_dir))]
         Err(crate::Error::ApiNotAllowlisted(
           "fs > createDir".to_string(),
@@ -163,7 +160,7 @@ impl Cmd {
       }
       Self::RemoveDir { path, options } => {
         #[cfg(fs_remove_dir)]
-        return remove_dir(path, options).await.map(Into::into);
+        return remove_dir(path, options).map(Into::into);
         #[cfg(not(fs_remove_dir))]
         Err(crate::Error::ApiNotAllowlisted(
           "fs > removeDir".to_string(),
@@ -171,7 +168,7 @@ impl Cmd {
       }
       Self::RemoveFile { path, options } => {
         #[cfg(fs_remove_file)]
-        return remove_file(path, options).await.map(Into::into);
+        return remove_file(path, options).map(Into::into);
         #[cfg(not(fs_remove_file))]
         Err(crate::Error::ApiNotAllowlisted(
           "fs > removeFile".to_string(),
@@ -183,9 +180,7 @@ impl Cmd {
         options,
       } => {
         #[cfg(fs_rename_file)]
-        return rename_file(old_path, new_path, options)
-          .await
-          .map(Into::into);
+        return rename_file(old_path, new_path, options).map(Into::into);
         #[cfg(not(fs_rename_file))]
         Err(crate::Error::ApiNotAllowlisted(
           "fs > renameFile".to_string(),
@@ -193,7 +188,7 @@ impl Cmd {
       }
       Self::ResolvePath { path, directory } => {
         #[cfg(fs_path)]
-        return resolve_path_handler(path, directory).await.map(Into::into);
+        return resolve_path_handler(path, directory).map(Into::into);
         #[cfg(not(fs_path))]
         Err(crate::Error::ApiNotAllowlisted("fs > pathApi".to_string()))
       }
@@ -203,7 +198,7 @@ impl Cmd {
 
 /// Reads a directory.
 #[cfg(fs_read_dir)]
-pub async fn read_dir(
+pub fn read_dir(
   path: PathBuf,
   options: Option<DirOperationOptions>,
 ) -> crate::Result<Vec<dir::DiskEntry>> {
@@ -217,7 +212,7 @@ pub async fn read_dir(
 
 /// Copies a file.
 #[cfg(fs_copy_file)]
-pub async fn copy_file(
+pub fn copy_file(
   source: PathBuf,
   destination: PathBuf,
   options: Option<FileOperationOptions>,
@@ -235,7 +230,7 @@ pub async fn copy_file(
 
 /// Creates a directory.
 #[cfg(fs_create_dir)]
-pub async fn create_dir(path: PathBuf, options: Option<DirOperationOptions>) -> crate::Result<()> {
+pub fn create_dir(path: PathBuf, options: Option<DirOperationOptions>) -> crate::Result<()> {
   let (recursive, dir) = if let Some(options_value) = options {
     (options_value.recursive, options_value.dir)
   } else {
@@ -253,7 +248,7 @@ pub async fn create_dir(path: PathBuf, options: Option<DirOperationOptions>) -> 
 
 /// Removes a directory.
 #[cfg(fs_remove_dir)]
-pub async fn remove_dir(path: PathBuf, options: Option<DirOperationOptions>) -> crate::Result<()> {
+pub fn remove_dir(path: PathBuf, options: Option<DirOperationOptions>) -> crate::Result<()> {
   let (recursive, dir) = if let Some(options_value) = options {
     (options_value.recursive, options_value.dir)
   } else {
@@ -271,10 +266,7 @@ pub async fn remove_dir(path: PathBuf, options: Option<DirOperationOptions>) -> 
 
 /// Removes a file
 #[cfg(fs_remove_file)]
-pub async fn remove_file(
-  path: PathBuf,
-  options: Option<FileOperationOptions>,
-) -> crate::Result<()> {
+pub fn remove_file(path: PathBuf, options: Option<FileOperationOptions>) -> crate::Result<()> {
   let resolved_path = resolve_path(path, options.and_then(|o| o.dir))?;
   fs::remove_file(resolved_path)?;
   Ok(())
@@ -282,7 +274,7 @@ pub async fn remove_file(
 
 /// Renames a file.
 #[cfg(fs_rename_file)]
-pub async fn rename_file(
+pub fn rename_file(
   old_path: PathBuf,
   new_path: PathBuf,
   options: Option<FileOperationOptions>,
@@ -299,7 +291,7 @@ pub async fn rename_file(
 
 /// Writes a text file.
 #[cfg(fs_write_file)]
-pub async fn write_file(
+pub fn write_file(
   path: PathBuf,
   contents: String,
   options: Option<FileOperationOptions>,
@@ -312,7 +304,7 @@ pub async fn write_file(
 
 /// Writes a binary file.
 #[cfg(fs_write_binary_file)]
-pub async fn write_binary_file(
+pub fn write_binary_file(
   path: PathBuf,
   contents: String,
   options: Option<FileOperationOptions>,
@@ -329,7 +321,7 @@ pub async fn write_binary_file(
 
 /// Reads a text file.
 #[cfg(fs_read_text_file)]
-pub async fn read_text_file(
+pub fn read_text_file(
   path: PathBuf,
   options: Option<FileOperationOptions>,
 ) -> crate::Result<String> {
@@ -339,7 +331,7 @@ pub async fn read_text_file(
 
 /// Reads a binary file.
 #[cfg(fs_read_binary_file)]
-pub async fn read_binary_file(
+pub fn read_binary_file(
   path: PathBuf,
   options: Option<FileOperationOptions>,
 ) -> crate::Result<Vec<u8>> {
@@ -348,7 +340,7 @@ pub async fn read_binary_file(
 }
 
 #[cfg(fs_path)]
-pub async fn resolve_path_handler(
+pub fn resolve_path_handler(
   path: String,
   directory: Option<BaseDirectory>,
 ) -> crate::Result<PathBuf> {

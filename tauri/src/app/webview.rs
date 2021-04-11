@@ -1,6 +1,7 @@
 pub mod wry;
 
 use crate::plugin::PluginStore;
+use std::path::PathBuf;
 
 use serde_json::Value as JsonValue;
 
@@ -153,6 +154,9 @@ pub trait WebviewBuilderExt: Sized {
   /// Whether the icon was set or not.
   fn has_icon(&self) -> bool;
 
+  /// User data path for the webview. Actually only supported on Windows.
+  fn user_data_path(self, user_data_path: Option<PathBuf>) -> Self;
+
   /// Builds the webview instance.
   fn finish(self) -> crate::Result<Self::Webview>;
 }
@@ -173,23 +177,35 @@ pub struct CustomProtocol {
   /// Name of the protocol
   pub name: String,
   /// Handler for protocol
-  pub handler: Box<dyn Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync>,
+  pub handler: Box<dyn Fn(&str) -> crate::Result<Vec<u8>> + Send>,
 }
 
+/// The file drop event payload.
+#[derive(Debug, Clone)]
+pub enum FileDropEvent {
+  /// The file(s) have been dragged onto the window, but have not been dropped yet.
+  Hovered(Vec<PathBuf>),
+  /// The file(s) have been dropped onto the window.
+  Dropped(Vec<PathBuf>),
+  /// The file drop was aborted.
+  Cancelled,
+}
+
+/// File drop handler callback
+/// Return `true` in the callback to block the OS' default behavior of handling a file drop..
+pub type FileDropHandler = Box<dyn Fn(FileDropEvent) -> bool + Send>;
+
 /// Webview dispatcher. A thread-safe handle to the webview API.
-pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
+pub trait ApplicationDispatcherExt: Clone + Send + Sized {
   /// The webview builder type.
-  type WebviewBuilder: WebviewBuilderExt
-    + WebviewBuilderExtPrivate
-    + From<WindowConfig>
-    + Send
-    + Sync;
+  type WebviewBuilder: WebviewBuilderExt + WebviewBuilderExtPrivate + From<WindowConfig> + Send;
   /// Creates a webview.
   fn create_webview(
     &self,
     webview_builder: Self::WebviewBuilder,
     rpc_handler: Option<WebviewRpcHandler<Self>>,
     custom_protocol: Option<CustomProtocol>,
+    file_drop_handler: Option<FileDropHandler>,
   ) -> crate::Result<Self>;
 
   /// Updates the window resizable flag.
@@ -263,11 +279,7 @@ pub trait ApplicationDispatcherExt: Clone + Send + Sync + Sized {
 /// Manages windows and webviews.
 pub trait ApplicationExt: Sized {
   /// The webview builder.
-  type WebviewBuilder: WebviewBuilderExt
-    + WebviewBuilderExtPrivate
-    + From<WindowConfig>
-    + Send
-    + Sync;
+  type WebviewBuilder: WebviewBuilderExt + WebviewBuilderExtPrivate + From<WindowConfig> + Send;
   /// The message dispatcher.
   type Dispatcher: ApplicationDispatcherExt<WebviewBuilder = Self::WebviewBuilder>;
 
@@ -283,6 +295,7 @@ pub trait ApplicationExt: Sized {
     webview_builder: Self::WebviewBuilder,
     rpc_handler: Option<WebviewRpcHandler<Self::Dispatcher>>,
     custom_protocol: Option<CustomProtocol>,
+    file_drop_handler: Option<FileDropHandler>,
   ) -> crate::Result<Self::Dispatcher>;
 
   /// Run the application.

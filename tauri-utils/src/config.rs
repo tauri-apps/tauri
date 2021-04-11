@@ -1,10 +1,10 @@
+use std::collections::HashMap;
+
 use serde::{
   de::{Deserializer, Visitor},
   Deserialize,
 };
 use serde_json::Value as JsonValue;
-
-use std::collections::HashMap;
 
 /// The window webview URL options.
 #[derive(PartialEq, Debug, Clone)]
@@ -156,7 +156,7 @@ impl Default for WindowConfig {
 }
 
 /// A CLI argument definition
-#[derive(PartialEq, Deserialize, Debug, Default)]
+#[derive(PartialEq, Deserialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CliArg {
   /// The short version of the argument, without the preceding -.
@@ -243,15 +243,16 @@ pub struct CliArg {
 }
 
 /// The CLI root command definition.
-#[derive(PartialEq, Deserialize, Debug)]
+#[derive(PartialEq, Deserialize, Debug, Clone)]
 #[serde(tag = "cli", rename_all = "camelCase")]
+#[allow(missing_docs)] // TODO
 pub struct CliConfig {
-  description: Option<String>,
-  long_description: Option<String>,
-  before_help: Option<String>,
-  after_help: Option<String>,
-  args: Option<Vec<CliArg>>,
-  subcommands: Option<HashMap<String, CliConfig>>,
+  pub description: Option<String>,
+  pub long_description: Option<String>,
+  pub before_help: Option<String>,
+  pub after_help: Option<String>,
+  pub args: Option<Vec<CliArg>>,
+  pub subcommands: Option<HashMap<String, CliConfig>>,
 }
 
 impl CliConfig {
@@ -345,6 +346,9 @@ pub struct BuildConfig {
   /// the dist config.
   #[serde(default = "default_dist_path")]
   pub dist_dir: String,
+  /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
+  #[serde(default)]
+  pub with_global_tauri: bool,
 }
 
 fn default_dev_path() -> String {
@@ -360,6 +364,7 @@ impl Default for BuildConfig {
     Self {
       dev_path: default_dev_path(),
       dist_dir: default_dist_path(),
+      with_global_tauri: false,
     }
   }
 }
@@ -381,7 +386,7 @@ pub struct Config {
 
 /// The plugin configs holds a HashMap mapping a plugin name to its configuration object.
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
-pub struct PluginConfig(HashMap<String, JsonValue>);
+pub struct PluginConfig(pub HashMap<String, JsonValue>);
 
 impl PluginConfig {
   /// Gets a plugin configuration.
@@ -391,6 +396,362 @@ impl PluginConfig {
       .get(plugin_name.as_ref())
       .map(|config| config.to_string())
       .unwrap_or_else(|| "{}".to_string())
+  }
+}
+
+/// Implement `ToTokens` for all config structs, allowing a literal `Config` to be built.
+///
+/// This allows for a build script to output the values in a `Config` to a `TokenStream`, which can
+/// then be consumed by another crate. Useful for passing a config to both the build script and the
+/// application using tauri while only parsing it once (in the build script).
+#[cfg(feature = "build")]
+mod build {
+  use std::convert::identity;
+
+  use proc_macro2::TokenStream;
+  use quote::{quote, ToTokens, TokenStreamExt};
+
+  use super::*;
+
+  /// Create a `String` constructor `TokenStream`.
+  ///
+  /// e.g. `"Hello World" -> String::from("Hello World").
+  /// This takes a `&String` to reduce casting all the `&String` -> `&str` manually.
+  fn str_lit(s: impl AsRef<str>) -> TokenStream {
+    let s = s.as_ref();
+    quote! { #s.into() }
+  }
+
+  /// Create an `Option` constructor `TokenStream`.
+  fn opt_lit(item: Option<&impl ToTokens>) -> TokenStream {
+    match item {
+      None => quote! { ::core::option::Option::None },
+      Some(item) => quote! { ::core::option::Option::Some(#item) },
+    }
+  }
+
+  /// Helper function to combine an `opt_lit` with `str_lit`.
+  fn opt_str_lit(item: Option<impl AsRef<str>>) -> TokenStream {
+    opt_lit(item.map(str_lit).as_ref())
+  }
+
+  /// Helper function to combine an `opt_lit` with a list of `str_lit`
+  fn opt_vec_str_lit(item: Option<impl IntoIterator<Item = impl AsRef<str>>>) -> TokenStream {
+    opt_lit(item.map(|list| vec_lit(list, str_lit)).as_ref())
+  }
+
+  /// Create a `Vec` constructor, mapping items with a function that spits out `TokenStream`s.
+  fn vec_lit<Raw, Tokens>(
+    list: impl IntoIterator<Item = Raw>,
+    map: impl Fn(Raw) -> Tokens,
+  ) -> TokenStream
+  where
+    Tokens: ToTokens,
+  {
+    let items = list.into_iter().map(map);
+    quote! { vec![#(#items),*] }
+  }
+
+  /// Create a map constructor, mapping keys and values with other `TokenStream`s.
+  ///
+  /// This function is pretty generic because the types of keys AND values get transformed.
+  fn map_lit<Map, Key, Value, TokenStreamKey, TokenStreamValue, FuncKey, FuncValue>(
+    map_type: TokenStream,
+    map: Map,
+    map_key: FuncKey,
+    map_value: FuncValue,
+  ) -> TokenStream
+  where
+    <Map as IntoIterator>::IntoIter: ExactSizeIterator,
+    Map: IntoIterator<Item = (Key, Value)>,
+    TokenStreamKey: ToTokens,
+    TokenStreamValue: ToTokens,
+    FuncKey: Fn(Key) -> TokenStreamKey,
+    FuncValue: Fn(Value) -> TokenStreamValue,
+  {
+    let ident = quote::format_ident!("map");
+    let map = map.into_iter();
+
+    if map.len() > 0 {
+      let items = map.map(|(key, value)| {
+        let key = map_key(key);
+        let value = map_value(value);
+        quote! { #ident.insert(#key, #value); }
+      });
+
+      quote! {{
+        let mut #ident = #map_type::new();
+        #(#items)*
+        #ident
+      }}
+    } else {
+      quote! { #map_type::new() }
+    }
+  }
+
+  /// Create a `serde_json::Value` variant `TokenStream` for a number
+  fn json_value_number_lit(num: &serde_json::Number) -> TokenStream {
+    // See https://docs.rs/serde_json/1/serde_json/struct.Number.html for guarantees
+    let prefix = quote! { ::serde_json::Value };
+    if num.is_u64() {
+      // guaranteed u64
+      let num = num.as_u64().unwrap();
+      quote! { #prefix::Number(#num.into()) }
+    } else if num.is_i64() {
+      // guaranteed i64
+      let num = num.as_i64().unwrap();
+      quote! { #prefix::Number(#num.into()) }
+    } else if num.is_f64() {
+      // guaranteed f64
+      let num = num.as_f64().unwrap();
+      quote! { #prefix::Number(#num.into()) }
+    } else {
+      // invalid number
+      quote! { #prefix::Null }
+    }
+  }
+
+  /// Create a `serde_json::Value` constructor `TokenStream`
+  fn json_value_lit(jv: &JsonValue) -> TokenStream {
+    let prefix = quote! { ::serde_json::Value };
+
+    match jv {
+      JsonValue::Null => quote! { #prefix::Null },
+      JsonValue::Bool(bool) => quote! { #prefix::Bool(#bool) },
+      JsonValue::Number(number) => json_value_number_lit(number),
+      JsonValue::String(str) => {
+        let s = str_lit(str);
+        quote! { #prefix::String(#s) }
+      }
+      JsonValue::Array(vec) => {
+        let items = vec.iter().map(json_value_lit);
+        quote! { #prefix::Array(vec![#(#items),*]) }
+      }
+      JsonValue::Object(map) => {
+        let map = map_lit(quote! { ::serde_json::Map }, map, str_lit, json_value_lit);
+        quote! { #prefix::Object(#map) }
+      }
+    }
+  }
+
+  /// Write a `TokenStream` of the `$struct`'s fields to the `$tokens`.
+  ///
+  /// All fields must represent a binding of the same name that implements `ToTokens`.
+  macro_rules! literal_struct {
+    ($tokens:ident, $struct:ident, $($field:ident),+) => {
+      $tokens.append_all(quote! {
+        ::tauri::api::config::$struct {
+          $($field: #$field),+
+        }
+      });
+    };
+  }
+
+  impl ToTokens for WindowUrl {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::api::config::WindowUrl };
+
+      tokens.append_all(match self {
+        Self::App => quote! { #prefix::App },
+        Self::Custom(str) => {
+          let str = str_lit(str);
+          quote! { #prefix::Custom(#str) }
+        }
+      })
+    }
+  }
+
+  impl ToTokens for WindowConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let label = str_lit(&self.label);
+      let url = &self.url;
+      let x = opt_lit(self.x.as_ref());
+      let y = opt_lit(self.y.as_ref());
+      let width = self.width;
+      let height = self.height;
+      let min_width = opt_lit(self.min_width.as_ref());
+      let min_height = opt_lit(self.min_height.as_ref());
+      let max_width = opt_lit(self.max_width.as_ref());
+      let max_height = opt_lit(self.min_height.as_ref());
+      let resizable = self.resizable;
+      let title = str_lit(&self.title);
+      let fullscreen = self.fullscreen;
+      let transparent = self.transparent;
+      let maximized = self.maximized;
+      let visible = self.visible;
+      let decorations = self.decorations;
+      let always_on_top = self.always_on_top;
+
+      literal_struct!(
+        tokens,
+        WindowConfig,
+        label,
+        url,
+        x,
+        y,
+        width,
+        height,
+        min_width,
+        min_height,
+        max_width,
+        max_height,
+        resizable,
+        title,
+        fullscreen,
+        transparent,
+        maximized,
+        visible,
+        decorations,
+        always_on_top
+      );
+    }
+  }
+
+  impl ToTokens for CliArg {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let short = opt_lit(self.short.as_ref());
+      let name = str_lit(&self.name);
+      let description = opt_str_lit(self.description.as_ref());
+      let long_description = opt_str_lit(self.long_description.as_ref());
+      let takes_value = opt_lit(self.takes_value.as_ref());
+      let multiple = opt_lit(self.multiple.as_ref());
+      let multiple_occurrences = opt_lit(self.multiple_occurrences.as_ref());
+      let number_of_values = opt_lit(self.number_of_values.as_ref());
+      let possible_values = opt_vec_str_lit(self.possible_values.as_ref());
+      let min_values = opt_lit(self.min_values.as_ref());
+      let max_values = opt_lit(self.max_values.as_ref());
+      let required = opt_lit(self.required.as_ref());
+      let required_unless_present = opt_str_lit(self.required_unless_present.as_ref());
+      let required_unless_present_all = opt_vec_str_lit(self.required_unless_present_all.as_ref());
+      let required_unless_present_any = opt_vec_str_lit(self.required_unless_present_any.as_ref());
+      let conflicts_with = opt_str_lit(self.conflicts_with.as_ref());
+      let conflicts_with_all = opt_vec_str_lit(self.conflicts_with_all.as_ref());
+      let requires = opt_str_lit(self.requires.as_ref());
+      let requires_all = opt_vec_str_lit(self.requires_all.as_ref());
+      let requires_if = opt_vec_str_lit(self.requires_if.as_ref());
+      let required_if_eq = opt_vec_str_lit(self.required_if_eq.as_ref());
+      let require_equals = opt_lit(self.require_equals.as_ref());
+      let index = opt_lit(self.index.as_ref());
+
+      literal_struct!(
+        tokens,
+        CliArg,
+        short,
+        name,
+        description,
+        long_description,
+        takes_value,
+        multiple,
+        multiple_occurrences,
+        number_of_values,
+        possible_values,
+        min_values,
+        max_values,
+        required,
+        required_unless_present,
+        required_unless_present_all,
+        required_unless_present_any,
+        conflicts_with,
+        conflicts_with_all,
+        requires,
+        requires_all,
+        requires_if,
+        required_if_eq,
+        require_equals,
+        index
+      );
+    }
+  }
+
+  impl ToTokens for CliConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let description = opt_str_lit(self.description.as_ref());
+      let long_description = opt_str_lit(self.long_description.as_ref());
+      let before_help = opt_str_lit(self.before_help.as_ref());
+      let after_help = opt_str_lit(self.after_help.as_ref());
+      let args = {
+        let args = self.args.as_ref().map(|args| {
+          let arg = args.iter().map(|a| quote! { #a });
+          quote! { vec![#(#arg),*] }
+        });
+        opt_lit(args.as_ref())
+      };
+      let subcommands = opt_lit(
+        self
+          .subcommands
+          .as_ref()
+          .map(|map| {
+            map_lit(
+              quote! { ::std::collections::HashMap },
+              map,
+              str_lit,
+              identity,
+            )
+          })
+          .as_ref(),
+      );
+
+      literal_struct!(
+        tokens,
+        CliConfig,
+        description,
+        long_description,
+        before_help,
+        after_help,
+        args,
+        subcommands
+      );
+    }
+  }
+
+  impl ToTokens for BundleConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let identifier = str_lit(&self.identifier);
+
+      literal_struct!(tokens, BundleConfig, identifier);
+    }
+  }
+
+  impl ToTokens for BuildConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let dev_path = str_lit(&self.dev_path);
+      let dist_dir = str_lit(&self.dist_dir);
+      let with_global_tauri = self.with_global_tauri;
+
+      literal_struct!(tokens, BuildConfig, dev_path, dist_dir, with_global_tauri);
+    }
+  }
+
+  impl ToTokens for TauriConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let windows = vec_lit(&self.windows, identity);
+      let cli = opt_lit(self.cli.as_ref());
+      let bundle = &self.bundle;
+
+      literal_struct!(tokens, TauriConfig, windows, cli, bundle);
+    }
+  }
+
+  impl ToTokens for PluginConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let config = map_lit(
+        quote! { ::std::collections::HashMap },
+        &self.0,
+        str_lit,
+        json_value_lit,
+      );
+      tokens.append_all(quote! { ::tauri::api::config::PluginConfig(#config) })
+    }
+  }
+
+  impl ToTokens for Config {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let tauri = &self.tauri;
+      let build = &self.build;
+      let plugins = &self.plugins;
+
+      literal_struct!(tokens, Config, tauri, build, plugins);
+    }
   }
 }
 
@@ -448,6 +809,7 @@ mod test {
     let build = BuildConfig {
       dev_path: String::from("http://localhost:8080"),
       dist_dir: String::from("../dist"),
+      with_global_tauri: false,
     };
 
     // test the configs

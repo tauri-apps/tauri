@@ -1,3 +1,5 @@
+#[cfg(target_os = "linux")]
+use heck::KebabCase;
 use json_patch::merge;
 use once_cell::sync::Lazy;
 use serde_json::Value as JsonValue;
@@ -57,7 +59,12 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
     merge(&mut config, &merge_config);
   }
 
-  let config = serde_json::from_value(config)?;
+  #[allow(unused_mut)]
+  let mut config: Config = serde_json::from_value(config)?;
+  #[cfg(target_os = "linux")]
+  if let Some(product_name) = config.package.product_name.as_mut() {
+    *product_name = product_name.to_kebab_case();
+  }
   set_var("TAURI_CONFIG", serde_json::to_string(&config)?);
   *config_handle().lock().unwrap() = Some(config);
 

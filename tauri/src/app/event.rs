@@ -5,26 +5,29 @@ use std::{
 };
 
 use crate::ApplicationDispatcherExt;
-use lazy_static::lazy_static;
 use once_cell::sync::Lazy;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
+use uuid::Uuid;
+
+/// Event identifier.
+pub type EventId = u64;
 
 /// An event handler.
 struct EventHandler {
+  /// Event identifier.
+  id: EventId,
   /// A event handler might be global or tied to a window.
   window_label: Option<String>,
   /// The on event callback.
-  on_event: Box<dyn FnMut(Option<String>) + Send>,
+  on_event: Box<dyn Fn(EventPayload) + Send>,
 }
 
 type Listeners = Arc<Mutex<HashMap<String, Vec<EventHandler>>>>;
 
-lazy_static! {
-  static ref EMIT_FUNCTION_NAME: String = uuid::Uuid::new_v4().to_string();
-  static ref EVENT_LISTENERS_OBJECT_NAME: String = uuid::Uuid::new_v4().to_string();
-  static ref EVENT_QUEUE_OBJECT_NAME: String = uuid::Uuid::new_v4().to_string();
-}
+static EMIT_FUNCTION_NAME: Lazy<String> = Lazy::new(|| Uuid::new_v4().to_string());
+static EVENT_LISTENERS_OBJECT_NAME: Lazy<String> = Lazy::new(|| Uuid::new_v4().to_string());
+static EVENT_QUEUE_OBJECT_NAME: Lazy<String> = Lazy::new(|| Uuid::new_v4().to_string());
 
 /// Gets the listeners map.
 fn listeners() -> &'static Listeners {
@@ -47,24 +50,71 @@ pub fn event_queue_object_name() -> String {
   EVENT_QUEUE_OBJECT_NAME.to_string()
 }
 
+#[derive(Debug, Clone)]
+pub struct EventPayload {
+  id: EventId,
+  payload: Option<String>,
+}
+
+impl EventPayload {
+  /// The event identifier.
+  pub fn id(&self) -> EventId {
+    self.id
+  }
+
+  /// The event payload.
+  pub fn payload(&self) -> Option<&String> {
+    self.payload.as_ref()
+  }
+}
+
 /// Adds an event listener for JS events.
-pub fn listen<F: FnMut(Option<String>) + Send + 'static>(
-  id: impl AsRef<str>,
+pub fn listen<F: Fn(EventPayload) + Send + 'static>(
+  event_name: impl AsRef<str>,
   window_label: Option<String>,
   handler: F,
-) {
+) -> EventId {
   let mut l = listeners()
     .lock()
     .expect("Failed to lock listeners: listen()");
+  let id = rand::random();
   let handler = EventHandler {
+    id,
     window_label,
     on_event: Box::new(handler),
   };
-  if let Some(listeners) = l.get_mut(id.as_ref()) {
+  if let Some(listeners) = l.get_mut(event_name.as_ref()) {
     listeners.push(handler);
   } else {
-    l.insert(id.as_ref().to_string(), vec![handler]);
+    l.insert(event_name.as_ref().to_string(), vec![handler]);
   }
+  id
+}
+
+/// Listen to an JS event and immediately unlisten.
+pub fn once<F: Fn(EventPayload) + Send + 'static>(
+  event_name: impl AsRef<str>,
+  window_label: Option<String>,
+  handler: F,
+) {
+  listen(event_name, window_label, move |event| {
+    unlisten(event.id);
+    handler(event);
+  });
+}
+
+/// Removes an event listener.
+pub fn unlisten(event_id: EventId) {
+  crate::async_runtime::spawn(async move {
+    let mut event_listeners = listeners()
+      .lock()
+      .expect("Failed to lock listeners: listen()");
+    for listeners in event_listeners.values_mut() {
+      if let Some(index) = listeners.iter().position(|l| l.id == event_id) {
+        listeners.remove(index);
+      }
+    }
+  })
 }
 
 /// Emits an event to JS.
@@ -82,7 +132,7 @@ pub fn emit<D: ApplicationDispatcherExt, S: Serialize>(
   };
 
   webview_dispatcher.eval(&format!(
-    "window['{}']({{type: '{}', payload: {}}}, '{}')",
+    "window['{}']({{event: '{}', payload: {}}}, '{}')",
     emit_function_name(),
     event.as_ref(),
     js_payload,
@@ -93,7 +143,7 @@ pub fn emit<D: ApplicationDispatcherExt, S: Serialize>(
 }
 
 /// Triggers the given event with its payload.
-pub fn on_event(event: String, window_label: Option<&str>, data: Option<String>) {
+pub(crate) fn on_event(event: String, window_label: Option<&str>, data: Option<String>) {
   let mut l = listeners()
     .lock()
     .expect("Failed to lock listeners: on_event()");
@@ -104,11 +154,19 @@ pub fn on_event(event: String, window_label: Option<&str>, data: Option<String>)
       if let Some(target_window_label) = window_label {
         // if the emitted event targets a specifid window, only triggers the listeners associated to that window
         if handler.window_label.as_deref() == Some(target_window_label) {
-          (handler.on_event)(data.clone())
+          let payload = data.clone();
+          (handler.on_event)(EventPayload {
+            id: handler.id,
+            payload,
+          });
         }
       } else {
         // otherwise triggers all listeners
-        (handler.on_event)(data.clone())
+        let payload = data.clone();
+        (handler.on_event)(EventPayload {
+          id: handler.id,
+          payload,
+        });
       }
     }
   }
@@ -120,7 +178,7 @@ mod test {
   use proptest::prelude::*;
 
   // dummy event handler function
-  fn event_fn(s: Option<String>) {
+  fn event_fn(s: EventPayload) {
     println!("{:?}", s);
   }
 

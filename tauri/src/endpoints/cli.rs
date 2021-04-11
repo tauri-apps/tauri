@@ -1,4 +1,5 @@
-use crate::app::InvokeResponse;
+use super::InvokeResponse;
+use crate::api::config::CliConfig;
 use serde::Deserialize;
 
 /// The API descriptor.
@@ -11,12 +12,12 @@ pub enum Cmd {
 
 impl Cmd {
   #[allow(unused_variables)]
-  pub async fn run(self, context: &crate::app::Context) -> crate::Result<InvokeResponse> {
+  pub fn run(self, cli_config: &CliConfig) -> crate::Result<InvokeResponse> {
     match self {
       #[allow(unused_variables)]
       Self::CliMatches => {
         #[cfg(cli)]
-        return tauri_api::cli::get_matches(&context.config)
+        return tauri_api::cli::get_matches(&cli_config)
           .map_err(Into::into)
           .map(Into::into);
         #[cfg(not(cli))]

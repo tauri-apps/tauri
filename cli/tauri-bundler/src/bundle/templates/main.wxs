@@ -112,6 +112,16 @@
            </Component>
         </DirectoryRef>
 
+        {{#each merge_modules as |msm| ~}}
+        <DirectoryRef Id="TARGETDIR">
+            <Merge Id="{{ msm.name }}" SourceFile="{{ msm.path }}" DiskId="1" Language="0"/>
+        </DirectoryRef>
+
+        <Feature Id="{{ msm.name }}" Title="{{ msm.name }}" AllowAdvertise="no" Display="hidden" Level="1">
+            <MergeRef Id="{{ msm.name }}"/>
+        </Feature>
+        {{/each~}}
+
         <Feature
                 Id="MainProgram"
                 Title="Application"
@@ -146,6 +156,17 @@
             {{/each~}}
             </Feature>
         </Feature>
+
+        <!-- WebView2 -->
+        <Property Id="WVRTINSTALLED">
+            <RegistrySearch Id="WVRTInstalled" Root="HKLM" Key="SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" Name="pv" Type="raw" Win64="no"/>
+        </Property>
+        <CustomAction Id='DownloadAndInvokeBootstrapper' Directory="INSTALLDIR" Execute="deferred" ExeCommand='powershell.exe -windowstyle hidden Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "$env:TEMP\MicrosoftEdgeWebview2Setup.exe" ; &amp; $env:TEMP\MicrosoftEdgeWebview2Setup.exe /install' Return='check'/>
+        <InstallExecuteSequence>
+            <Custom Action='DownloadAndInvokeBootstrapper' Before='InstallFinalize'>
+                <![CDATA[NOT(REMOVE OR WVRTINSTALLED)]]>
+            </Custom>
+        </InstallExecuteSequence>
 
         <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" After="CostFinalize"/>        
     </Product>

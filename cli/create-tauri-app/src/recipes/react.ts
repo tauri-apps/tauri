@@ -1,43 +1,54 @@
-import { Recipe } from ".";
-import { TauriBuildConfig } from "./../types/config";
-import { spawnSync } from "../../../tauri.js/src/helpers/spawn";
-import logger from "../../../tauri.js/src/helpers/logger";
-import copyTemplates from "../../../tauri.js/src/helpers/copy-templates";
-import { resolve, join } from "path";
-
-const uiAppDir = "app-ui";
-
-const log = logger("react-recipe");
+import { Recipe } from "..";
+import { join } from "path";
+//@ts-ignore
+import scaffe from "scaffe";
+import { shell } from "../shell";
 
 const completeLogMsg = `
   Your installation completed.
   To start, run yarn tauri dev
 `;
 
-const afterCra = (): void => {
-  copyTemplates({
-    source: resolve(__dirname, "../../templates/recipes/react/"),
-    scope: {},
-    target: join(uiAppDir, "./src/"),
-  });
-  log(completeLogMsg);
+const afterCra = async (cwd: string, appName: string, version: string) => {
+  const templateDir = join(__dirname, "../src/templates/react");
+  const variables = {
+    name: appName,
+    tauri_version: version,
+  };
+
+  try {
+    await scaffe.generate(templateDir, join(cwd, appName), {
+      overwrite: true,
+      variables,
+    });
+  } catch (err) {
+    console.log(err);
+  }
 };
 
 const reactjs: Recipe = {
   descriptiveName: "React.js",
   shortName: "reactjs",
-  configUpdate: (cfg: TauriBuildConfig): TauriBuildConfig => ({
+  configUpdate: (cfg) => ({
     ...cfg,
-    distDir: `../${uiAppDir}/build`,
+    distDir: `../build`,
     devPath: "http://localhost:3000",
-    beforeDevCommand: `yarn --cwd ${uiAppDir} start`,
-    beforeBuildCommand: `yarn --cwd ${uiAppDir} build`,
+    beforeDevCommand: `npm start`,
+    beforeBuildCommand: `npm build`,
   }),
-  extraNpmDevDependencies: ["create-react-app"],
-  extraNpmDependencies: ["react"],
-  postConfiguration: (cwd: string) => {
-    spawnSync("yarn", ["create-react-app", uiAppDir], cwd);
-    afterCra();
+  extraNpmDevDependencies: [],
+  extraNpmDependencies: [],
+  preInit: async ({ cwd, cfg }) => {
+    // CRA creates the folder for you
+    await shell("npx", ["create-react-app", `${cfg.appName}`], { cwd });
+    const version = await shell("npm", ["view", "tauri", "version"], {
+      stdio: "pipe",
+    });
+    const versionNumber = version.stdout.trim();
+    await afterCra(cwd, cfg.appName, versionNumber);
+  },
+  postInit: async ({ cfg }) => {
+    console.log(completeLogMsg);
   },
 };
 
@@ -45,20 +56,17 @@ const reactts: Recipe = {
   ...reactjs,
   descriptiveName: "React with Typescript",
   shortName: "reactts",
-  extraNpmDependencies: [
-    "typescript",
-    "@types/node",
-    "@types/react",
-    "@types/react-dom",
-    "@types/jest",
-  ],
-  postConfiguration: (cwd: string) => {
-    spawnSync(
-      "yarn",
-      ["create-react-app", "--template", "typescript", uiAppDir],
-      cwd
+  extraNpmDependencies: [],
+  preInit: async ({ cwd, cfg }) => {
+    // CRA creates the folder for you
+    await shell(
+      "npx",
+      ["create-react-app", "--template", "typescript", `${cfg.appName}`],
+      { cwd }
     );
-    afterCra();
+  },
+  postInit: async ({ cfg }) => {
+    console.log(completeLogMsg);
   },
 };
 

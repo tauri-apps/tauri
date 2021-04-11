@@ -1,26 +1,34 @@
-import { map, identity, find } from "lodash";
+import { map, find } from "lodash";
 import { TauriBuildConfig } from "./types/config";
 import { reactjs, reactts } from "./recipes/react";
+import { vanillajs } from "./recipes/vanilla";
+
+export { shell } from "./shell";
+export { install } from "./dependency-manager";
 
 export interface Recipe {
   descriptiveName: string;
   shortName: string;
-  configUpdate: (cfg: TauriBuildConfig) => TauriBuildConfig;
+  configUpdate?: (cfg: TauriBuildConfig) => TauriBuildConfig;
   extraNpmDependencies: string[];
   extraNpmDevDependencies: string[];
-  postConfiguration: (cwd: string) => void;
+  preInit?: ({
+    cwd,
+    cfg,
+  }: {
+    cwd: string;
+    cfg: TauriBuildConfig;
+  }) => Promise<void>;
+  postInit?: ({
+    cwd,
+    cfg,
+  }: {
+    cwd: string;
+    cfg: TauriBuildConfig;
+  }) => Promise<void>;
 }
 
-const none = {
-  descriptiveName: "No recipe",
-  shortName: "none",
-  configUpdate: identity,
-  extraNpmDependencies: [],
-  extraNpmDevDependencies: [],
-  postConfiguration: (cwd: string) => {},
-};
-
-export const allRecipes: Recipe[] = [none, reactjs, reactts];
+export const allRecipes: Recipe[] = [vanillajs, reactjs, reactts];
 
 export const recipeNames: Array<[string, string]> = map(
   allRecipes,

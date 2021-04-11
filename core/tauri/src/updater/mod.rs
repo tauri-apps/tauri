@@ -101,7 +101,8 @@
 //! Event : `tauri://update`
 //!
 //! ### Rust
-//! ```rust
+//! todo: update this example to compile and run
+//! ```ignore
 //! dispatcher.emit("tauri://update", None);
 //! ```
 //!
@@ -123,7 +124,8 @@
 //! ```
 //!
 //! ### Rust
-//! ```rust
+//! todo: update this example to compile and run
+//! ```ignore
 //! dispatcher.listen("tauri://update-available", move |msg| {
 //!     println("New version available: {:?}", msg);
 //! })
@@ -144,7 +146,8 @@
 //! Event : `tauri://update-install`
 //!
 //! ### Rust
-//! ```rust
+//! todo: update this example to compile and run
+//! ```ignore
 //! dispatcher.emit("tauri://update-install", None);
 //! ```
 //!
@@ -169,7 +172,8 @@
 //! ERROR is emitted when there is an error with the updater. We suggest to listen to this event even if the dialog is enabled.
 //!
 //! ### Rust
-//! ```rust
+//! todo: update this example to compile and run
+//! ```ignore
 //! dispatcher.listen("tauri://update-status", move |msg| {
 //!     println("New status: {:?}", msg);
 //! })

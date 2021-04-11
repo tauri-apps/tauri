@@ -976,15 +976,15 @@ mod test {
   fn http_updater_complete_process() {
     let good_archive_url = format!("{}/archive.tar.gz", mockito::server_url());
 
-    let mut signature_file =
-      File::open("./test/fixture/archives/archive.tar.gz.sig").expect("Unable to open signature");
+    let mut signature_file = File::open("./test/updater/fixture/archives/archive.tar.gz.sig")
+      .expect("Unable to open signature");
     let mut signature = String::new();
     signature_file
       .read_to_string(&mut signature)
       .expect("Unable to read signature as string");
 
-    let mut pubkey_file =
-      File::open("./test/fixture/good_signature/update.key.pub").expect("Unable to open pubkey");
+    let mut pubkey_file = File::open("./test/updater/fixture/good_signature/update.key.pub")
+      .expect("Unable to open pubkey");
     let mut pubkey = String::new();
     pubkey_file
       .read_to_string(&mut pubkey)
@@ -994,7 +994,7 @@ mod test {
     let _m = mockito::mock("GET", "/archive.tar.gz")
       .with_status(200)
       .with_header("content-type", "application/octet-stream")
-      .with_body_from_file("./test/fixture/archives/archive.tar.gz")
+      .with_body_from_file("./test/updater/fixture/archives/archive.tar.gz")
       .create();
 
     // sample mock for update file

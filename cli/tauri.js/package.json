@@ -16,7 +16,7 @@
   },
   "scripts": {
     "build": "rimraf ./dist && webpack --progress",
-    "build-release": "rimraf ./dist && webpack",
+    "build-release": "rimraf ./dist && cross-env NODE_ENV=production webpack",
     "test": "jest --runInBand --no-cache --testPathIgnorePatterns=\"(build|dev)\"",
     "pretest": "yarn build",
     "prepublishOnly": "yarn build-release",
@@ -52,6 +52,7 @@
   "dependencies": {
     "@tauri-apps/toml": "2.2.4",
     "chalk": "4.1.0",
+    "cross-env": "7.0.3",
     "cross-spawn": "7.0.3",
     "fs-extra": "9.1.0",
     "got": "11.8.2",

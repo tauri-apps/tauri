@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { once, listen, emit, UnlistenFn } from './helpers/event'
+import { once, listen, emit, UnlistenFn } from './event'
 
 export type UpdateStatus = 'PENDING' | 'ERROR' | 'DONE' | 'UPTODATE'
 

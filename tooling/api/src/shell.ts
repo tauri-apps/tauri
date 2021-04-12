@@ -5,18 +5,21 @@
 import { invokeTauriCommand } from './helpers/tauri'
 import { transformCallback } from './tauri'
 
+export type OnEventFn = (event: CommandEvent) => void
+
 /**
- * spawns a process
+ * Spawns a process
  *
- * @param program the name of the program to execute e.g. 'mkdir' or 'node'
- * @param sidecar whether the program is a sidecar or a system program
- * @param [args] command args
- * @return promise resolving to the stdout text
+ * @param {string} program The name of the program to execute e.g. 'mkdir' or 'node'
+ * @param {boolean} sidecar Whether the program is a sidecar or a system program
+ * @param {OnEventFn} onEvent
+ * @param {string | string[]} [args] Command args
+ * @returns {Promise<number>} A promise resolving to the process id
  */
 async function execute(
   program: string,
   sidecar: boolean,
-  onEvent: (event: CommandEvent) => void,
+  onEvent: OnEventFn,
   args?: string | string[]
 ): Promise<number> {
   if (typeof args === 'object') {
@@ -121,8 +124,7 @@ class Command extends EventEmitter<'close' | 'error'> {
    * Creates a command to execute the given sidecar binary
    *
    * @param {string} program  Binary name
-   *
-   * @return {Command}
+   * @returns {Command}
    */
   static sidecar(program: string, args: string | string[] = []): Command {
     const instance = new Command(program, args)
@@ -195,11 +197,12 @@ type CommandEvent =
   | Event<'Error', string>
 
 /**
- * opens a path or URL with the system's default app,
+ * Opens a path or URL with the system's default app,
  * or the one specified with `openWith`
  *
- * @param path the path or URL to open
- * @param openWith the app to open the file or URL with
+ * @param {string} path the path or URL to open
+ * @param {string} [openWith] the app to open the file or URL with
+ * @returns {Promise<void>}
  */
 async function open(path: string, openWith?: string): Promise<void> {
   return invokeTauriCommand({

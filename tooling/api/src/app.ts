@@ -5,9 +5,9 @@
 import { invokeTauriCommand } from './helpers/tauri'
 
 /**
- * @name getVersion
- * @description Get application version
- * @returns {Promise<string>} Promise resolving to application version
+ * Gets the application version
+ *
+ * @returns {Promise<string>} A promise resolving to application version
  */
 async function getVersion(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -20,9 +20,9 @@ async function getVersion(): Promise<string> {
 }
 
 /**
- * @name getName
- * @description Get application name
- * @returns {Promise<string>} Promise resolving to application name
+ * Gets the application name
+ *
+ * @returns {Promise<string>} A promise resolving to application name
  */
 async function getName(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -35,9 +35,9 @@ async function getName(): Promise<string> {
 }
 
 /**
- * @name getTauriVersion
- * @description Get tauri version
- * @returns {Promise<string>} Promise resolving to tauri version
+ * Gets the tauri version
+ *
+ * @returns {Promise<string>} A promise resolving to tauri version
  */
 async function getTauriVersion(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -50,10 +50,10 @@ async function getTauriVersion(): Promise<string> {
 }
 
 /**
- * @name exit
- * @description Exits immediately with exitCode.
- * @param [exitCode] defaults to 0.
- * @returns {Promise<void>} Application is closing, nothing is returned
+ * Exits immediately with the given `exitCode`
+ *
+ * @param {number} [exitCode=0] The exit code to use
+ * @returns {Promise<void>}
  */
 async function exit(exitCode: number = 0): Promise<void> {
   return invokeTauriCommand({
@@ -67,9 +67,9 @@ async function exit(exitCode: number = 0): Promise<void> {
 }
 
 /**
- * @name relaunch
- * @description Relaunches the app when current instance exits.
- * @returns {Promise<void>} Application is restarting, nothing is returned
+ * Exits the current instance of the app then relaunches it
+ *
+ * @returns {Promise<void>}
  */
 async function relaunch(): Promise<void> {
   return invokeTauriCommand({

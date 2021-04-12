@@ -46,11 +46,11 @@ export interface InvokeArgs {
 }
 
 /**
- * sends a message to the backend
+ * Sends a message to the backend
  *
- * @param args
- *
- * @return {Promise<T>} Promise resolving or rejecting to the backend response
+ * @param {string} cmd
+ * @param {InvokeArgs} [args]
+ * @return {Promise<T>} A promise resolving or rejecting to the backend response
  */
 async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
   return new Promise((resolve, reject) => {

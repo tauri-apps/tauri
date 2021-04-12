@@ -27,7 +27,7 @@ const exit = (code) => {
 const path = require('path')
 const dist = path.resolve(__dirname, 'dist')
 
-const build = require('../cli/tauri.js/dist/api/build')
+const build = require('../tooling/cli.js/dist/api/build')
 build({
   build: {
     devPath: dist
@@ -36,7 +36,7 @@ build({
     debug: true
   }
 }).then(() => {
-  const spawn = require('../cli/tauri.js/dist/helpers/spawn').spawn
+  const spawn = require('../tooling/cli.js/dist/helpers/spawn').spawn
   const artifactPath = path.resolve(__dirname, 'src-tauri/target/debug/app')
   appPid = spawn(
     process.platform === 'win32'

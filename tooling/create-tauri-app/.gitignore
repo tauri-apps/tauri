@@ -1,6 +1,5 @@
 # Build output
 /dist
-/api
 
 # lock for libs
 /Cargo.lock

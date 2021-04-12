@@ -13,10 +13,12 @@
 
 /examples/ @tauri-apps/testing
 
-/cli/tauri-bundler/ @tauri-apps/bundler
+/tooling/api/ @tauri-apps/core
 
-/cli/core/ @tauri-apps/core
+/tooling/bundler/ @tauri-apps/bundler
 
-/cli/tauri.js/ @tauri-apps/js-cli
+/tooling/cli.rs/ @tauri-apps/core
+
+/tooling/cli.js/ @tauri-apps/js-cli
 
 /core/** @tauri-apps/core

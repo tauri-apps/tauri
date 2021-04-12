@@ -8,8 +8,8 @@ on:
     paths:
       - '.github/workflows/artifacts-updater.yml'
       - 'core/tauri/**'
-      - 'cli/core/**'
-      - 'cli/tauri-bundler/**'
+      - 'tooling/cli.rs/**'
+      - 'tooling/bundler/**'
       - 'examples/updater/**'
 
 jobs:
@@ -32,18 +32,18 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0
-      - run: cargo install --path ./cli/core --force
+      - run: cargo install --path ./tooling/cli.rs --force
       - name: install cli deps via yarn
-        working-directory: ./cli/tauri.js
+        working-directory: ./tooling/cli.js
         run: yarn
       - name: build cli
-        working-directory: ./cli/tauri.js
+        working-directory: ./tooling/cli.js
         run: yarn build
       - name: build sample artifacts (updater)
         working-directory: ./examples/updater
         run: |
           yarn install
-          node ../../cli/tauri.js/bin/tauri build
+          node ../../tooling/cli.js/bin/tauri build
         env:
           TAURI_PRIVATE_KEY: dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5YTBGV3JiTy9lRDZVd3NkL0RoQ1htZmExNDd3RmJaNmRMT1ZGVjczWTBKZ0FBQkFBQUFBQUFBQUFBQUlBQUFBQWdMekUzVkE4K0tWQ1hjeGt1Vkx2QnRUR3pzQjVuV0ZpM2czWXNkRm9hVUxrVnB6TUN3K1NheHJMREhQbUVWVFZRK3NIL1VsMDBHNW5ET1EzQno0UStSb21nRW4vZlpTaXIwZFh5ZmRlL1lSN0dKcHdyOUVPclVvdzFhVkxDVnZrbHM2T1o4Tk1NWEU9Cg==
       - uses: actions/upload-artifact@v2

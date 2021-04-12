@@ -8,7 +8,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/test-bundler.yml'
-      - 'cli/tauri-bundler/**'
+      - 'tooling/bundler/**'
 env:
   RUST_BACKTRACE: 1
 
@@ -34,7 +34,7 @@ jobs:
           sudo apt-get install -y webkit2gtk-4.0
       - name: test
         run: |
-          cd ./cli/tauri-bundler
+          cd ./tooling/bundler
           cargo test
 
   clippy-fmt-check:
@@ -52,7 +52,7 @@ jobs:
         uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --manifest-path ./cli/tauri-bundler/Cargo.toml --all-targets -- -D warnings
+          args: --manifest-path ./tooling/bundler/Cargo.toml --all-targets -- -D warnings
           name: bundler
       - name: install rustfmt
         uses: actions-rs/toolchain@v1
@@ -65,4 +65,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --manifest-path ./cli/tauri-bundler/Cargo.toml --all -- --check
+          args: --manifest-path ./tooling/bundler/Cargo.toml --all -- --check

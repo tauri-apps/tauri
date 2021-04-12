@@ -62,7 +62,7 @@
     estree-walker "^1.0.1"
     picomatch "^2.2.2"
 
-"@tauri-apps/api@link:../../api":
+"@tauri-apps/api@link:../../tooling/api":
   version "0.0.0"
   uid ""
 

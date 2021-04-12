@@ -76,6 +76,7 @@ const vite: Recipe = {
             "init",
             "@vitejs/app",
             `${cfg.appName}`,
+            "--",
             "--template",
             `${template}`,
           ],

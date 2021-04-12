@@ -81,9 +81,9 @@ export class Client {
   }
 
   /**
-   * Drops the client instance
+   * Drops the client instance.
    *
-   * @returns {Promise<void>}
+   * @returns
    */
   async drop(): Promise<void> {
     return invokeTauriCommand({
@@ -96,10 +96,10 @@ export class Client {
   }
 
   /**
-   * Makes a HTTP request
+   * Makes a HTTP request.
    *
-   * @param {HttpOptions} options Request options
-   * @returns {Promise<Response<T>>} A promise resolving to the response
+   * @param options Request options
+   * @returns A promise resolving to the response.
    */
   async request<T>(options: HttpOptions): Promise<Response<T>> {
     return invokeTauriCommand({
@@ -113,11 +113,11 @@ export class Client {
   }
 
   /**
-   * Makes a GET request
+   * Makes a GET request.
    *
-   * @param {string} url Request URL
-   * @param {RequestOptions} [options] Request options
-   * @returns {Promise<Response<T>>} A promise resolving to the response
+   * @param url Request URL
+   * @param [options] Request options
+   * @returns A promise resolving to the response.
    */
   async get<T>(url: string, options?: RequestOptions): Promise<Response<T>> {
     return this.request({
@@ -128,12 +128,12 @@ export class Client {
   }
 
   /**
-   * Makes a POST request
+   * Makes a POST request.
    *
-   * @param {string} url Request URL
-   * @param {Body} [body] Request body
-   * @param {RequestOptions} [options] Request options
-   * @returns {Promise<Response<T>>} A promise resolving to the response
+   * @param url Request URL
+   * @param [body] Request body
+   * @param [options] Request options
+   * @returns A promise resolving to the response.
    */
   async post<T>(
     url: string,
@@ -149,12 +149,12 @@ export class Client {
   }
 
   /**
-   * Makes a PUT request
+   * Makes a PUT request.
    *
-   * @param {string} url Request URL
-   * @param {Body} [body] Request body
-   * @param {RequestOptions} [options] Request options
-   * @returns {Promise<Response<T>>} A promise resolving to the response
+   * @param url Request URL
+   * @param [body] Request body
+   * @param [options] Request options
+   * @returns A promise resolving to the response.
    */
   async put<T>(
     url: string,
@@ -170,11 +170,11 @@ export class Client {
   }
 
   /**
-   * Makes a PATCH request
+   * Makes a PATCH request.
    *
-   * @param {string} rl Request URL
-   * @param {RequestOptions} options Request options
-   * @returns {Promise<Response<T>>} A promise resolving to the response
+   * @param url Request URL
+   * @param options Request options
+   * @returns A promise resolving to the response.
    */
   async patch<T>(url: string, options?: RequestOptions): Promise<Response<T>> {
     return this.request({
@@ -185,11 +185,11 @@ export class Client {
   }
 
   /**
-   * Makes a DELETE request
+   * Makes a DELETE request.
    *
-   * @param {string} url Request URL
-   * @param {RequestOptions} options Request options
-   * @return {Promise<Response<T>>} A promise resolving to the response
+   * @param  url Request URL
+   * @param  options Request options
+   * @returns A promise resolving to the response.
    */
   async delete<T>(url: string, options?: RequestOptions): Promise<Response<T>> {
     return this.request({

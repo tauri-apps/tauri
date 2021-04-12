@@ -41,11 +41,11 @@ class WebviewWindowHandle {
   }
 
   /**
-   * Listen to an event emitted by the webview
+   * Listen to an event emitted by the webview.
    *
-   * @param {string} event Event name
-   * @param {EventCallback<T>} handler Event handler callback
-   * @returns {Promise<UnlistenFn>} A promise resolving to a function to unlisten to the event.
+   * @param event Event name
+   * @param handler Event handler callback
+   * @returns A promise resolving to a function to unlisten to the event.
    */
   async listen<T>(
     event: string,
@@ -62,11 +62,11 @@ class WebviewWindowHandle {
   }
 
   /**
-   * Listen to an one-off event emitted by the webview
+   * Listen to an one-off event emitted by the webview.
    *
-   * @param {string} event Event name
-   * @param {EventCallback<T>} handler Event handler callback
-   * @returns {Promise<UnlistenFn>} A promise resolving to a function to unlisten to the event.
+   * @param event Event name
+   * @param handler Event handler callback
+   * @returns A promise resolving to a function to unlisten to the event.
    */
   async once<T>(event: string, handler: EventCallback<T>): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
@@ -80,10 +80,10 @@ class WebviewWindowHandle {
   }
 
   /**
-   * Emits an event to the webview
+   * Emits an event to the webview.
    *
-   * @param {string} event Event name
-   * @param {string} [payload] Event payload
+   * @param event Event name
+   * @param [payload] Event payload
    */
   async emit(event: string, payload?: string): Promise<void> {
     if (localTauriEvents.includes(event)) {
@@ -129,10 +129,10 @@ class WebviewWindow extends WebviewWindowHandle {
   }
 
   /**
-   * Gets the WebviewWindow handle for the webview associated with the given label
+   * Gets the WebviewWindow handle for the webview associated with the given label.
    *
-   * @param {string} label The webview window label.
-   * @returns {WebviewWindowHandle} The handle to communicate with the webview or null if the webview doesn't exist
+   * @param label The webview window label.
+   * @returns The handle to communicate with the webview or null if the webview doesn't exist.
    */
   static getByLabel(label: string): WebviewWindowHandle | null {
     if (getAll().some((w) => w.label === label)) {
@@ -142,12 +142,12 @@ class WebviewWindow extends WebviewWindowHandle {
   }
 }
 
-class WindowManager {
+export class WindowManager {
   /**
-   * Updates the window resizable flag
+   * Updates the window resizable flag.
    *
-   * @param {boolean} resizable
-   * @returns {Promise<void>}
+   * @param resizable
+   * @returns
    */
   async setResizable(resizable: boolean): Promise<void> {
     return invokeTauriCommand({
@@ -160,10 +160,10 @@ class WindowManager {
   }
 
   /**
-   * Sets the window title
+   * Sets the window title.
    *
    * @param title The new title
-   * @returns {Promise<void>}
+   * @returns
    */
   async setTitle(title: string): Promise<void> {
     return invokeTauriCommand({
@@ -176,9 +176,9 @@ class WindowManager {
   }
 
   /**
-   * Maximizes the window
+   * Maximizes the window.
    *
-   * @returns {Promise<void>}
+   * @returns
    */
   async maximize(): Promise<void> {
     return invokeTauriCommand({
@@ -190,9 +190,9 @@ class WindowManager {
   }
 
   /**
-   * Unmaximizes the window
+   * Unmaximizes the window.
    *
-   * @returns {Promise<void>}
+   * @returns
    */
   async unmaximize(): Promise<void> {
     return invokeTauriCommand({
@@ -204,9 +204,9 @@ class WindowManager {
   }
 
   /**
-   * Minimizes the window
+   * Minimizes the window.
    *
-   * @returns {Promise<void>}
+   * @returns
    */
   async minimize(): Promise<void> {
     return invokeTauriCommand({
@@ -218,9 +218,9 @@ class WindowManager {
   }
 
   /**
-   * Unminimizes the window
+   * Unminimizes the window.
    *
-   * @returns {Promise<void>}
+   * @returns
    */
   async unminimize(): Promise<void> {
     return invokeTauriCommand({
@@ -232,9 +232,9 @@ class WindowManager {
   }
 
   /**
-   * Sets the window visibility to true
+   * Sets the window visibility to true.
    *
-   * @returns {Promise<void>}
+   * @returns
    */
   async show(): Promise<void> {
     return invokeTauriCommand({
@@ -246,9 +246,9 @@ class WindowManager {
   }
 
   /**
-   * Sets the window visibility to false
+   * Sets the window visibility to false.
    *
-   * @returns {Promise<void>}
+   * @returns
    */
   async hide(): Promise<void> {
     return invokeTauriCommand({
@@ -260,9 +260,9 @@ class WindowManager {
   }
 
   /**
-   * Closes the window
+   * Closes the window.
    *
-   * @returns {Promise<void>}
+   * @returns
    */
   async close(): Promise<void> {
     return invokeTauriCommand({
@@ -274,10 +274,10 @@ class WindowManager {
   }
 
   /**
-   * Whether the window should have borders and bars
+   * Whether the window should have borders and bars.
    *
-   * @param {boolean} decorations Whether the window should have borders and bars
-   * @returns {Promise<void>}
+   * @param decorations Whether the window should have borders and bars
+   * @returns
    */
   async setDecorations(decorations: boolean): Promise<void> {
     return invokeTauriCommand({
@@ -290,10 +290,10 @@ class WindowManager {
   }
 
   /**
-   * Whether the window should always be on top of other windows
+   * Whether the window should always be on top of other windows.
    *
-   * @param {boolean} alwaysOnTop Whether the window should always be on top of other windows or not
-   * @returns {Promise<void>}
+   * @param alwaysOnTop Whether the window should always be on top of other windows or not
+   * @returns
    */
   async setAlwaysOnTop(alwaysOnTop: boolean): Promise<void> {
     return invokeTauriCommand({
@@ -306,10 +306,10 @@ class WindowManager {
   }
 
   /**
-   * Sets the window width
+   * Sets the window width.
    *
-   * @param {number} width The new window width
-   * @returns {Promise<void>}
+   * @param width The new window width
+   * @returns
    */
   async setWidth(width: number): Promise<void> {
     return invokeTauriCommand({
@@ -322,10 +322,10 @@ class WindowManager {
   }
 
   /**
-   * Sets the window height
+   * Sets the window height.
    *
-   * @param {number} height The new window height
-   * @returns {Promise<void>}
+   * @param height The new window height
+   * @returns
    */
   async setHeight(height: number): Promise<void> {
     return invokeTauriCommand({
@@ -338,11 +338,11 @@ class WindowManager {
   }
 
   /**
-   * Resizes the window
+   * Resizes the window.
    *
-   * @param {number} width The new window width
-   * @param {number} height The new window height
-   * @returns {Promise<void>}
+   * @param width The new window width
+   * @param height The new window height
+   * @returns
    */
   async resize(width: number, height: number): Promise<void> {
     return invokeTauriCommand({
@@ -356,11 +356,11 @@ class WindowManager {
   }
 
   /**
-   * Sets the window min size
+   * Sets the window min size.
    *
-   * @param {number} minWidth The new window min width
-   * @param {number} minHeight The new window min height
-   * @returns {Promise<void>}
+   * @param minWidth The new window min width
+   * @param minHeight The new window min height
+   * @returns
    */
   async setMinSize(minWidth: number, minHeight: number): Promise<void> {
     return invokeTauriCommand({
@@ -374,11 +374,11 @@ class WindowManager {
   }
 
   /**
-   * Sets the window max size
+   * Sets the window max size.
    *
-   * @param {number} maxWidth The new window max width
-   * @param {number} maxHeight The new window max height
-   * @returns {Promise<void>}
+   * @param maxWidth The new window max width
+   * @param maxHeight The new window max height
+   * @returns
    */
   async setMaxSize(maxWidth: number, maxHeight: number): Promise<void> {
     return invokeTauriCommand({
@@ -392,10 +392,10 @@ class WindowManager {
   }
 
   /**
-   * Sets the window x position
+   * Sets the window x position.
    *
-   * @param {number} x The new window x position
-   * @returns {Promise<void>}
+   * @param x The new window x position
+   * @returns
    */
   async setX(x: number): Promise<void> {
     return invokeTauriCommand({
@@ -408,10 +408,10 @@ class WindowManager {
   }
 
   /**
-   * Sets the window y position
+   * Sets the window y position.
    *
-   * @param {number} y The new window y position
-   * @returns {Promise<void>}
+   * @param y The new window y position
+   * @returns
    */
   async setY(y: number): Promise<void> {
     return invokeTauriCommand({
@@ -424,11 +424,11 @@ class WindowManager {
   }
 
   /**
-   * Sets the window position
+   * Sets the window position.
    *
-   * @param {number} x The new window x position
-   * @param {number} y The new window y position
-   * @returns {Promise<void>}
+   * @param x The new window x position
+   * @param y The new window y position
+   * @returns
    */
   async setPosition(x: number, y: number): Promise<void> {
     return invokeTauriCommand({
@@ -442,10 +442,10 @@ class WindowManager {
   }
 
   /**
-   * Sets the window fullscreen state
+   * Sets the window fullscreen state.
    *
-   * @param {boolean} fullscreen Whether the window should go to fullscreen or not
-   * @returns {Promise<void>}
+   * @param fullscreen Whether the window should go to fullscreen or not
+   * @returns
    */
   async setFullscreen(fullscreen: boolean): Promise<void> {
     return invokeTauriCommand({
@@ -458,10 +458,10 @@ class WindowManager {
   }
 
   /**
-   * Sets the window icon
+   * Sets the window icon.
    *
-   * @param {string | number[]} icon Icon bytes or path to the icon file
-   * @returns {Promise<void>}
+   * @param icon Icon bytes or path to the icon file
+   * @returns
    */
   async setIcon(icon: 'string' | number[]): Promise<void> {
     return invokeTauriCommand({

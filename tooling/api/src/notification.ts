@@ -14,9 +14,9 @@ export type PartialOptions = Omit<Options, 'title'>
 export type Permission = 'granted' | 'denied' | 'default'
 
 /**
- * Checks if the permission to send notifications is granted
+ * Checks if the permission to send notifications is granted.
  *
- * @returns {Promise<boolean | null>}
+ * @returns
  */
 async function isPermissionGranted(): Promise<boolean | null> {
   if (window.Notification.permission !== 'default') {
@@ -31,19 +31,19 @@ async function isPermissionGranted(): Promise<boolean | null> {
 }
 
 /**
- * Requests the permission to send notifications
+ * Requests the permission to send notifications.
  *
- * @returns {Promise<Permission>} A promise resolving to whether the user granted the permission or not
+ * @returns A promise resolving to whether the user granted the permission or not.
  */
 async function requestPermission(): Promise<Permission> {
   return window.Notification.requestPermission()
 }
 
 /**
- * Sends a notification to the user
+ * Sends a notification to the user.
  *
- * @param {Options | string} options Notification options
- * @returns {void}
+ * @param options Notification options
+ * @returns
  */
 function sendNotification(options: Options | string): void {
   if (typeof options === 'string') {

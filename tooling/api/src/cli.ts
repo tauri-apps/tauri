@@ -28,9 +28,9 @@ export interface CliMatches {
 }
 
 /**
- * Gets the CLI matches
+ * Gets the CLI matches.
  *
- * @returns {Promise<CliMatches>} A promise resolving to cli matches
+ * @returns A promise resolving to cli matches.
  */
 async function getMatches(): Promise<CliMatches> {
   return invokeTauriCommand<CliMatches>({

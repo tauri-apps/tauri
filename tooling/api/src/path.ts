@@ -6,9 +6,9 @@ import { invokeTauriCommand } from './helpers/tauri'
 import { BaseDirectory } from './fs'
 
 /**
- * Returns the path to the suggested directory for your app config files
+ * Returns the path to the suggested directory for your app config files.
  *
- * @returns {Promise<string>}
+ * @returns
  */
 async function appDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -22,9 +22,9 @@ async function appDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the user's audio directory
+ * Returns the path to the user's audio directory.
  *
- * @returns {Promise<string>}
+ * @returns
  */
 async function audioDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -38,9 +38,9 @@ async function audioDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the user's cache directory
+ * Returns the path to the user's cache directory.
  *
- * @returns {Promise<string>}
+ * @returns
  */
 async function cacheDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -54,9 +54,9 @@ async function cacheDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the user's config directory
+ * Returns the path to the user's config directory.
  *
- * @returns {Promise<string>}
+ * @returns
  */
 async function configDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -70,9 +70,9 @@ async function configDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the user's data directory
+ * Returns the path to the user's data directory.
  *
- * @returns {Promise<string>}
+ * @returns
  */
 async function dataDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -86,9 +86,9 @@ async function dataDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the user's desktop directory
+ * Returns the path to the user's desktop directory.
 
- * @returns {Promise<string>}
+ * @returns
  */
 async function desktopDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -102,9 +102,9 @@ async function desktopDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the user's document directory
+ * Returns the path to the user's document directory.
  *
- * @returns {Promise<string>}
+ * @returns
  */
 async function documentDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -118,9 +118,9 @@ async function documentDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the user's download directory
+ * Returns the path to the user's download directory.
  *
- * @returns {Promise<string>}
+ * @returns
  */
 async function downloadDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -134,9 +134,9 @@ async function downloadDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the user's executable directory
+ * Returns the path to the user's executable directory.
  *
- * @returns {Promise<string>}
+ * @returns
  */
 async function executableDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -150,9 +150,9 @@ async function executableDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the user's font directory
+ * Returns the path to the user's font directory.
  *
- * @returns {Promise<string>}
+ * @returns
  */
 async function fontDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -166,9 +166,9 @@ async function fontDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the user's home directory
+ * Returns the path to the user's home directory.
  *
- * @returns {Promise<string>}
+ * @returns
  */
 async function homeDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -182,9 +182,9 @@ async function homeDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the user's local data directory
+ * Returns the path to the user's local data directory.
  *
- * @returns {Promise<string>}
+ * @returns
  */
 async function localDataDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -198,9 +198,9 @@ async function localDataDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the user's picture directory
+ * Returns the path to the user's picture directory.
  *
- * @returns {Promise<string>}
+ * @returns
  */
 async function pictureDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -214,9 +214,9 @@ async function pictureDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the user's public directory
+ * Returns the path to the user's public directory.
  *
- * @returns {Promise<string>}
+ * @returns
  */
 async function publicDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -230,9 +230,9 @@ async function publicDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the user's resource directory
+ * Returns the path to the user's resource directory.
  *
- * @returns {Promise<string>}
+ * @returns
  */
 async function resourceDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -246,9 +246,9 @@ async function resourceDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the user's runtime directory
+ * Returns the path to the user's runtime directory.
  *
- * @returns {Promise<string>}
+ * @returns
  */
 async function runtimeDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -262,9 +262,9 @@ async function runtimeDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the user's template directory
+ * Returns the path to the user's template directory.
  *
- * @returns {Promise<string>}
+ * @returns
  */
 async function templateDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -278,9 +278,9 @@ async function templateDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the user's video directory
+ * Returns the path to the user's video directory.
  *
- * @returns {Promise<string>}
+ * @returns
  */
 async function videoDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -294,9 +294,9 @@ async function videoDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the current working directory
+ * Returns the path to the current working directory.
  *
- * @returns {Promise<string>}
+ * @returns
  */
 async function currentDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -310,11 +310,11 @@ async function currentDir(): Promise<string> {
 }
 
 /**
- * Resolves the path with the optional base directory
+ * Resolves the path with the optional base directory.
  *
- * @param {string} path
- * @param {BaseDirectory} directory
- * @returns {Promise<string>}
+ * @param path A path to resolve
+ * @param directory A base directory to use when resolving the given path
+ * @returns A path resolved to the given base directory.
  */
 async function resolve(
   path: string,

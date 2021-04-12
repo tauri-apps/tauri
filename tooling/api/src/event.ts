@@ -20,11 +20,11 @@ export type EventCallback<T> = (event: Event<T>) => void
 export type UnlistenFn = () => void
 
 /**
- * Unregister the event listener associated with the given id
+ * Unregister the event listener associated with the given id.
  *
  * @ignore
- * @param {number} eventId Event identifier
- * @returns {Promise<void>}
+ * @param eventId Event identifier
+ * @returns
  */
 async function _unlisten(eventId: number): Promise<void> {
   return invokeTauriCommand({
@@ -37,11 +37,11 @@ async function _unlisten(eventId: number): Promise<void> {
 }
 
 /**
- * Listen to an event from the backend
+ * Listen to an event from the backend.
  *
- * @param {string} event Event name
- * @param {EventCallback} handler Event handler callback
- * @return {Promise<UnlistenFn>} A promise resolving to a function to unlisten to the event
+ * @param event Event name
+ * @param handler Event handler callback
+ * @return A promise resolving to a function to unlisten to the event.
  */
 async function listen<T>(
   event: string,
@@ -60,11 +60,11 @@ async function listen<T>(
 }
 
 /**
- * Listen to an one-off event from the backend
+ * Listen to an one-off event from the backend.
  *
- * @param {string} event Event name
- * @param {EventCallback<T>} handler Event handler callback
- * @returns {Promise<UnlistenFn>} A promise resolving to a function to unlisten to the event
+ * @param event Event name
+ * @param handler Event handler callback
+ * @returns A promise resolving to a function to unlisten to the event.
  */
 async function once<T>(
   event: string,
@@ -77,11 +77,11 @@ async function once<T>(
 }
 
 /**
- * Emits an event to the backend
+ * Emits an event to the backend.
  *
- * @param {string} event Event name
- * @param {string} [payload] Event payload
- * @returns {Promise<void>}
+ * @param event Event name
+ * @param [payload] Event payload
+ * @returns
  */
 async function emit(event: string, payload?: string): Promise<void> {
   return emitEvent(event, undefined, payload)

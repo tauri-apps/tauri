@@ -57,11 +57,11 @@ export interface FileEntry {
 }
 
 /**
- * Reads a file as text
+ * Reads a file as text.
  *
- * @param {string} filePath Path to the file
- * @param {FsOptions} [options]
- * @returns  {Promise<string>} A promise resolving to a string of the file content
+ * @param filePath Path to the file
+ * @param [options]
+ * @returns A promise resolving to a string of the file content.
  */
 async function readTextFile(
   filePath: string,
@@ -78,12 +78,11 @@ async function readTextFile(
 }
 
 /**
- * @name readBinaryFile
- * @description Reads a file as binary
- * @param {string} filePath Path to the file
- * @param {FsOptions} [options] Configuration object
- * @param {BaseDirectory} [options.dir] Base directory
- * @returns {Promise<number[]>} A promise resolving to an array of the file bytes
+ * Reads a file as binary.
+ *
+ * @param filePath Path to the file
+ * @param [options]
+ * @returns A promise resolving to an array of the file bytes.
  */
 async function readBinaryFile(
   filePath: string,
@@ -100,14 +99,11 @@ async function readBinaryFile(
 }
 
 /**
- * Writes a text file
+ * Writes a text file.
  *
- * @param {FsTextFileOption} file
- * @param {string} file.path Path of the file
- * @param {string} file.contents Contents of the file
- * @param {FsOptions} [options] Configuration object
- * @param {BaseDirectory} [options.dir] Base directory
- * @returns {Promise<void>}
+ * @param file File configuration object
+ * @param [options]
+ * @returns
  */
 async function writeFile(
   file: FsTextFileOption,
@@ -134,10 +130,10 @@ async function writeFile(
 const CHUNK_SIZE = 65536
 
 /**
- * Convert an Uint8Array to ascii string
+ * Convert an Uint8Array to ascii string.
  *
- * @param {Uint8Array} arr
- * @returns {string} An ASCII string
+ * @param arr
+ * @returns An ASCII string.
  */
 function uint8ArrayToString(arr: Uint8Array): string {
   if (arr.length < CHUNK_SIZE) {
@@ -154,10 +150,10 @@ function uint8ArrayToString(arr: Uint8Array): string {
 }
 
 /**
- * Convert an ArrayBuffer to base64 encoded string
+ * Convert an ArrayBuffer to base64 encoded string.
  *
- * @param {ArrayBuffer} buffer
- * @returns {string} A base64 encoded string
+ * @param buffer
+ * @returns A base64 encoded string.
  */
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const str = uint8ArrayToString(new Uint8Array(buffer))
@@ -167,12 +163,9 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 /**
  * Writes a binary file
  *
- * @param {FsBinaryFileOption} file
- * @param {string} file.path Path of the file
- * @param {ArrayBuffer} file.contents Contents of the file
- * @param {FsOptions} [options] Configuration object
- * @param {BaseDirectory} [options.dir] Base directory
- * @returns {Promise<void>}
+ * @param file File configuration object
+ * @param [options]
+ * @returns
  */
 async function writeBinaryFile(
   file: FsBinaryFileOption,
@@ -197,13 +190,11 @@ async function writeBinaryFile(
 }
 
 /**
- * List directory files
+ * List directory files.
  *
- * @param {string} dir Path to the directory to read
- * @param {FsDirOptions} [options] Configuration object
- * @param {boolean} [options.recursive] Whether to list dirs recursively or not
- * @param {BaseDirectory} [options.dir] Base directory
- * @return {Promise<FileEntry[]>}
+ * @param dir Path to the directory to read
+ * @param [options] Configuration object
+ * @returns
  */
 async function readDir(
   dir: string,
@@ -220,15 +211,13 @@ async function readDir(
 }
 
 /**
- * Creates a directory
+ * Creates a directory.
  * If one of the path's parent components doesn't exist
- * and the `recursive` option isn't set to true, it will be rejected
+ * and the `recursive` option isn't set to true, it will be rejected.
  *
- * @param {string} dir Path to the directory to create
- * @param {FsDirOptions} [options] Configuration object
- * @param {boolean} [options.recursive] Whether to create the directory's parent components or not
- * @param {BaseDirectory} [options.dir] Base directory
- * @returns {Promise<void>}
+ * @param dir Path to the directory to create
+ * @param [options] Configuration object
+ * @returns
  */
 async function createDir(
   dir: string,
@@ -245,14 +234,12 @@ async function createDir(
 }
 
 /**
- * Removes a directory
- * If the directory is not empty and the `recursive` option isn't set to true, it will be rejected
+ * Removes a directory.
+ * If the directory is not empty and the `recursive` option isn't set to true, it will be rejected.
  *
- * @param {string} dir Path to the directory to remove
- * @param {FsDirOptions} [options] Configuration object
- * @param {boolean} [options.recursive] Whether to remove all of the directory's content or not
- * @param {BaseDirectory} [options.dir] Base directory
- * @returns {Promise<void>}
+ * @param dir Path to the directory to remove
+ * @param [options] Configuration object
+ * @returns
  */
 async function removeDir(
   dir: string,
@@ -269,13 +256,12 @@ async function removeDir(
 }
 
 /**
- * Copy file
+ * Copys a file to a destination.
  *
- * @param {string} source
- * @param {string} destination
- * @param {FsOptions} [options] Configuration object
- * @param {BaseDirectory} [options.dir] Base directory
- * @returns {Promise<void>}
+ * @param source A path of the file to copy
+ * @param destination A path for the destination file
+ * @param [options] Configuration object
+ * @returns
  */
 async function copyFile(
   source: string,
@@ -294,12 +280,11 @@ async function copyFile(
 }
 
 /**
- * Removes a file
+ * Removes a file.
  *
- * @param {string} file Path to the file to remove
- * @param {FsOptions} [options] Configuration object
- * @param {BaseDirectory} [options.dir] Base directory
- * @return
+ * @param file Path to the file to remove
+ * @param [options] Configuration object
+ * @returns
  */
 async function removeFile(
   file: string,
@@ -318,11 +303,10 @@ async function removeFile(
 /**
  * Renames a file
  *
- * @param {string} oldPath
- * @param {string} newPath
- * @param {FsOptions} [options] Configuration object
- * @param {BaseDirectory} [options.dir] Base directory
- * @return
+ * @param oldPath A path of the file to rename
+ * @param newPath A path of the new file name
+ * @param [options] Configuration object
+ * @returns
  */
 async function renameFile(
   oldPath: string,

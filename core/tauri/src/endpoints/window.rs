@@ -18,11 +18,11 @@ pub enum IconDto {
   Raw(Vec<u8>),
 }
 
-impl Into<Icon> for IconDto {
-  fn into(self) -> Icon {
-    match self {
-      Self::File(path) => Icon::File(path),
-      Self::Raw(raw) => Icon::Raw(raw),
+impl From<IconDto> for Icon {
+  fn from(icon: IconDto) -> Self {
+    match icon {
+      IconDto::File(path) => Self::File(path),
+      IconDto::Raw(raw) => Self::Raw(raw),
     }
   }
 }

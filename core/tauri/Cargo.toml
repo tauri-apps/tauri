@@ -14,10 +14,8 @@ description = "Make tiny, secure apps for all desktop platforms with Tauri"
 edition = "2018"
 exclude = [ "test/fixture/**" ]
 
-
 [package.metadata.docs.rs]
 features = [ "api-all" ]
-
 
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
@@ -60,10 +58,8 @@ os_pipe = "0.9"
 # updater
 minisign-verify = "0.1.8"
 
-
 [build-dependencies]
 cfg_aliases = "0.1.1"
-
 
 [dev-dependencies]
 proptest = "1.0.0"
@@ -78,7 +74,6 @@ quickcheck_macros = "1.0.0"
 # updater
 tokio-test ="*"
 mockito = "0.29"
-
 
 [features]
 cli = [ "clap" ]

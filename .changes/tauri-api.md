@@ -1,5 +1,5 @@
 ---
-"tauri.js": minor
+"cli.js": minor
 ---
 
 The Tauri API interface is now shipped with the `@tauri-apps/api` package instead of the deprecated `tauri` package.

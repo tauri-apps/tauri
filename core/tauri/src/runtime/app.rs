@@ -7,18 +7,19 @@ use crate::{
   hooks::{InvokeHandler, InvokeMessage, OnPageLoad, PageLoadPayload, SetupHook},
   plugin::{Plugin, PluginStore},
   runtime::{
-    flavor::wry::Wry,
-    manager::WindowManager,
-    sealed::{ManagerPrivate, ParamsPrivate},
-    tag::Tag,
-    updater,
-    webview::{Attributes, WindowConfig},
-    window::{PendingWindow, Window},
-    Context, Dispatch, Manager, Params, Runtime, RuntimeOrDispatch,
+    flavors::wry::Wry, manager::WindowManager, tag::Tag, webview::Attributes,
+    window::PendingWindow, Dispatch, Runtime,
   },
+  sealed::{ManagerPrivate, ParamsPrivate, RuntimeOrDispatch},
+  Context, Manager, Params, Window,
 };
 
+#[cfg(feature = "updater")]
+use crate::updater;
+
 /// A handle to the currently running application.
+///
+/// This type implements [`Manager`] which allows for manipulation of global application items.
 pub struct App<P: Params> {
   runtime: P::Runtime,
   manager: P,
@@ -94,7 +95,7 @@ impl<M: Params> App<M> {
   }
 }
 
-/// The App builder.
+/// Builds a Tauri application.
 pub struct Builder<E, L, A, R>
 where
   E: Tag,
@@ -202,7 +203,7 @@ where
 
       self
         .pending_windows
-        .push(PendingWindow::new(WindowConfig(config), label, url));
+        .push(PendingWindow::with_config(config, label, url));
     }
 
     manager.initialize_plugins()?;

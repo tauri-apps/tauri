@@ -1,9 +1,9 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-cd api
+cd tooling/api
 yarn format
 yarn lint-fix
-cd ../cli/tauri.js
+cd ../cli.js
 yarn format
 yarn lint-fix

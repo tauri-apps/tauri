@@ -12,15 +12,13 @@ use crate::{
   hooks::{InvokeHandler, InvokeMessage, InvokePayload, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
   runtime::{
-    sealed::ParamsPrivate,
     tag::{tags_to_javascript_array, Tag, ToJavascript},
-    webview::{
-      Attributes, AttributesPrivate, CustomProtocol, FileDropEvent, FileDropHandler,
-      WebviewRpcHandler,
-    },
-    window::{DetachedWindow, PendingWindow, Window},
-    Context, Dispatch, Icon, Params, Runtime,
+    webview::{Attributes, CustomProtocol, FileDropEvent, FileDropHandler, WebviewRpcHandler},
+    window::{DetachedWindow, PendingWindow},
+    Dispatch, Icon, Runtime,
   },
+  sealed::ParamsPrivate,
+  Context, Params, Window,
 };
 use serde::Serialize;
 use serde_json::Value as JsonValue;
@@ -166,9 +164,9 @@ where
     #[cfg(windows)]
     {
       // Should return a path similar to C:\Users\<User>\AppData\Local\<AppName>
-      let local_app_data = tauri_api::path::resolve_path(
+      let local_app_data = crate::api::path::resolve_path(
         self.inner.package_info.name,
-        Some(tauri_api::path::BaseDirectory::LocalData),
+        Some(crate::api::path::BaseDirectory::LocalData),
       );
       // Make sure the directory exist without panic
       if let Ok(user_data_dir) = local_app_data {
@@ -344,11 +342,11 @@ where
 #[cfg(test)]
 mod test {
   use super::WindowManager;
-  use crate::{generate_context, plugin::PluginStore, runtime::flavor::wry::Wry};
+  use crate::{generate_context, plugin::PluginStore, runtime::flavors::wry::Wry};
 
   #[test]
   fn check_get_url() {
-    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate::Context);
+    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
     let manager: WindowManager<String, String, _, Wry> = WindowManager::with_handlers(
       context,
       PluginStore::default(),
@@ -361,7 +359,7 @@ mod test {
 
     #[cfg(dev)]
     {
-      use crate::runtime::sealed::ParamsPrivate;
+      use crate::sealed::ParamsPrivate;
       assert_eq!(manager.get_url(), manager.config().build.dev_path);
     }
   }

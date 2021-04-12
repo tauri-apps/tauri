@@ -2,32 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::runtime::window::DetachedWindow;
+//! Items specific to the [`Runtime`](crate::runtime::Runtime)'s webview.
+
+use crate::runtime::Icon;
+use crate::{api::config::WindowConfig, runtime::window::DetachedWindow};
 use serde_json::Value as JsonValue;
 use std::{convert::TryFrom, path::PathBuf};
 
-/// A icon definition.
-pub enum Icon {
-  /// Icon from file path.
-  File(PathBuf),
-  /// Icon from raw bytes.
-  Raw(Vec<u8>),
-}
+/// Do **NOT** implement this trait except for use in a custom [`Runtime`](crate::runtime::Runtime).
+///
+/// This trait is separate from [`Attributes`] to prevent "accidental" implementation.
+pub trait AttributesBase: Sized {}
 
-pub struct WindowConfig(pub crate::api::config::WindowConfig);
-
-pub trait AttributesPrivate: Sized {
-  /// Sets the webview url.
-  fn url(self, url: String) -> Self;
-}
-
-/// The webview builder.
-pub trait Attributes: Sized {
+/// A builder for all attributes related to a single webview.
+///
+/// This trait is only meant to be implemented by a custom [`Runtime`](crate::runtime::Runtime)
+/// and not by applications.
+pub trait Attributes: AttributesBase {
   /// Expected icon format.
   type Icon: TryFrom<Icon, Error = crate::Error>;
 
   /// Initializes a new webview builder.
   fn new() -> Self;
+
+  /// Initializes a new webview builder from a [`WindowConfig`]
+  fn with_config(config: WindowConfig) -> Self;
 
   /// Sets the init script.
   fn initialization_script(self, init: &str) -> Self;
@@ -90,11 +89,12 @@ pub trait Attributes: Sized {
   /// User data path for the webview. Actually only supported on Windows.
   fn user_data_path(self, user_data_path: Option<PathBuf>) -> Self;
 
+  /// Sets the webview url.
+  fn url(self, url: String) -> Self;
+
   /// The full attributes.
   fn build(self) -> Self;
 }
-
-// TODO: should probably expand the following documentation
 
 /// Rpc request.
 pub struct RpcRequest {
@@ -103,9 +103,6 @@ pub struct RpcRequest {
   /// Params.
   pub params: Option<JsonValue>,
 }
-
-/// Rpc handler.
-pub type WebviewRpcHandler<M> = Box<dyn Fn(DetachedWindow<M>, RpcRequest) + Send>;
 
 /// Uses a custom handler to resolve file requests
 pub struct CustomProtocol {
@@ -126,6 +123,9 @@ pub enum FileDropEvent {
   Cancelled,
 }
 
+/// Rpc handler.
+pub(crate) type WebviewRpcHandler<M> = Box<dyn Fn(DetachedWindow<M>, RpcRequest) + Send>;
+
 /// File drop handler callback
 /// Return `true` in the callback to block the OS' default behavior of handling a file drop.
-pub type FileDropHandler<M> = Box<dyn Fn(FileDropEvent, DetachedWindow<M>) -> bool + Send>;
+pub(crate) type FileDropHandler<M> = Box<dyn Fn(FileDropEvent, DetachedWindow<M>) -> bool + Send>;

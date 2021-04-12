@@ -10,7 +10,7 @@ on:
       - '.github/workflows/core-lint-fmt.yml'
       - 'core/**'
       - 'examples/**'
-      - 'cli/core/**'
+      - 'tooling/cli.rs/**'
 
 jobs:
   workspace_clippy_fmt_check:
@@ -48,7 +48,7 @@ jobs:
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --manifest-path ./cli/core/Cargo.toml --all-targets --all-features -- -D warnings
+          args: --manifest-path ./tooling/cli.rs/Cargo.toml --all-targets --all-features -- -D warnings
           name: cli
       - uses: actions-rs/toolchain@v1
         with:
@@ -59,7 +59,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --manifest-path ./cli/core/Cargo.toml --all -- --check
+          args: --manifest-path ./tooling/cli.rs/Cargo.toml --all -- --check
 
   core_clippy_check:
     runs-on: ubuntu-latest

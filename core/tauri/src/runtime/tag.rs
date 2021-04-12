@@ -26,7 +26,7 @@ use std::{
 /// # Handling Errors
 ///
 /// Because we leave it up to the type to implement [`FromStr`], if an error is returned during
-/// parsing then Tauri will [`panic!`](std::panic) with the string it failed to parse.
+/// parsing then Tauri will [`std::panic!`] with the string it failed to parse.
 ///
 /// To avoid Tauri panicking during the application runtime, have your type be able to handle
 /// unknown events and never return an error in [`FromStr`]. Then it will be up to your own code
@@ -71,7 +71,7 @@ use std::{
 /// let event: Event = "tauri://file-drop".parse().unwrap();
 ///
 /// // show that this event type can be represented as a Tag, a requirement for using it in Tauri.
-/// fn is_file_drop(tag: impl tauri::runtime::Tag) {
+/// fn is_file_drop(tag: impl tauri::runtime::tag::Tag) {
 ///   assert_eq!("tauri://file-drop", tag.to_string());
 /// }
 ///

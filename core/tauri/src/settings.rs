@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::api::{
+  file::read_string,
+  path::{resolve_path, BaseDirectory},
+};
 use serde::{Deserialize, Serialize};
 use std::{
   fs::File,
   io::Write,
   path::{Path, PathBuf},
-};
-use tauri_api::{
-  file::read_string,
-  path::{resolve_path, BaseDirectory},
 };
 
 /// Tauri Settings.
@@ -22,7 +22,7 @@ pub struct Settings {
 }
 
 /// Gets the path to the settings file
-fn get_settings_path() -> tauri_api::Result<PathBuf> {
+fn get_settings_path() -> crate::api::Result<PathBuf> {
   resolve_path(".tauri-settings.json", Some(BaseDirectory::App))
 }
 

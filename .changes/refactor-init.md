@@ -1,6 +1,6 @@
 ---
-"tauri-cli": minor
-"tauri.js": minor
+"cli.rs": minor
+"cli.js": minor
 ---
 
 The `init` command was rewritten in Rust.

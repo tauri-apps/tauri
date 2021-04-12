@@ -4,12 +4,12 @@
 # SPDX-License-Identifier: MIT
 
 echo "Building API definitions..."
-cd api
+cd tooling\api
 yarn; yarn build
-cd ..
+cd ..\..
 
 echo "Installing the Tauri Rust CLI..."
-cd cli\core
+cd tooling\cli.rs
 cargo install --path .
 cd ..\..
 echo "Tauri Rust CLI installed. Run it with '$ cargo tauri [COMMAND]'."
@@ -21,7 +21,7 @@ $options = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
 $result = $host.ui.PromptForChoice("Node.js CLI", "Do you want to install the Node.js CLI?", $options, 1)
 switch ($result) {
   0{
-    cd cli\tauri.js
+    cd tooling\cli.js
     yarn; yarn build; yarn link
     cd ..\..
     echo "Tauri Node.js CLI installed. Run it with '$ tauri [COMMAND]'"

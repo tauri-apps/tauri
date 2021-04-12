@@ -24,12 +24,14 @@ const afterCra = async (cwd: string, appName: string, version: string) => {
 const reactjs: Recipe = {
   descriptiveName: "React.js",
   shortName: "reactjs",
-  configUpdate: ({ cfg }) => ({
+  configUpdate: ({ cfg, packageManager }) => ({
     ...cfg,
     distDir: `../build`,
     devPath: "http://localhost:3000",
-    beforeDevCommand: `npm start`,
-    beforeBuildCommand: `npm build`,
+    beforeDevCommand: `${packageManager === "yarn" ? "yarn" : "npm run"} start`,
+    beforeBuildCommand: `${
+      packageManager === "yarn" ? "yarn" : "npm run"
+    } build`,
   }),
   extraNpmDevDependencies: [],
   extraNpmDependencies: [],

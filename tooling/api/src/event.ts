@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { invokeTauriCommand } from './helpers/tauri'
+import { emit as emitEvent } from './helpers/event'
 import { transformCallback } from './tauri'
 
 export interface Event<T> {
@@ -21,6 +22,7 @@ export type UnlistenFn = () => void
 /**
  * Unregister the event listener associated with the given id
  *
+ * @ignore
  * @param {number} eventId Event identifier
  * @returns {Promise<void>}
  */
@@ -78,24 +80,11 @@ async function once<T>(
  * Emits an event to the backend
  *
  * @param {string} event Event name
- * @param {string} [windowLabel] Label of the window to which the event is sent, if null/undefined the event will be sent to all windows
  * @param {string} [payload] Event payload
  * @returns {Promise<void>}
  */
-async function emit(
-  event: string,
-  windowLabel?: string,
-  payload?: string
-): Promise<void> {
-  await invokeTauriCommand({
-    __tauriModule: 'Event',
-    message: {
-      cmd: 'emit',
-      event,
-      windowLabel,
-      payload
-    }
-  })
+async function emit(event: string, payload?: string): Promise<void> {
+  return emitEvent(event, undefined, payload)
 }
 
 export { listen, once, emit }

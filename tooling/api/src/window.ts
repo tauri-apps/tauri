@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 import { invokeTauriCommand } from './helpers/tauri'
-import { EventCallback, UnlistenFn, emit, listen, once } from './event'
+import { EventCallback, UnlistenFn, listen, once } from './event'
+import { emit } from './helpers/event'
 
 interface WindowDef {
   label: string

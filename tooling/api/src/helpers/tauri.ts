@@ -4,7 +4,6 @@
 
 import { invoke } from '../tauri'
 
-/** @ignore */
 export type TauriModule =
   | 'App'
   | 'Fs'
@@ -18,14 +17,12 @@ export type TauriModule =
   | 'Http'
   | 'GlobalShortcut'
 
-/** @ignore */
 export interface TauriCommand {
   __tauriModule: TauriModule
   mainThread?: boolean
   [key: string]: unknown
 }
 
-/** @ignore */
 export async function invokeTauriCommand<T>(command: TauriCommand): Promise<T> {
   return invoke('tauri', command)
 }

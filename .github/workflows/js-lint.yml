@@ -8,7 +8,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/js-lint.yml'
-      - 'cli/tauri.js/**'
+      - 'tooling/cli.js/**'
 
 jobs:
   eslint-check:
@@ -19,11 +19,11 @@ jobs:
         with:
           node-version: '12'
       - name: install deps via yarn
-        working-directory: ./cli/tauri.js/
+        working-directory: ./tooling/cli.js/
         run: yarn
       - name: run eslint
-        working-directory: ./cli/tauri.js/
+        working-directory: ./tooling/cli.js/
         run: yarn lint
       - name: run prettier
-        working-directory: ./cli/tauri.js/
+        working-directory: ./tooling/cli.js/
         run: yarn format:check

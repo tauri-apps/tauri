@@ -1,8 +1,8 @@
 ---
 "api": patch
 "tauri-bundler": patch
-"tauri-cli": patch
-"tauri.js": patch
+"cli.rs": patch
+"cli.js": patch
 "tauri-utils": patch
 "tauri-macros": patch
 "tauri-build": patch

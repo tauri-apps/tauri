@@ -1,6 +1,6 @@
 const { tauri } = require('bin/tauri')
 
-describe('[CLI] tauri.js', () => {
+describe('[CLI] cli.js', () => {
   it('displays a help message', async () => {
     jest.spyOn(console, 'log')
     jest.spyOn(process, 'exit').mockImplementation(() => true)

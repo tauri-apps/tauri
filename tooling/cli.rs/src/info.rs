@@ -280,7 +280,7 @@ impl Info {
     if let Some(node_version) = get_version("node", &[]).unwrap_or_default() {
       InfoBlock::new("Node.js environment").section().display();
       let cli_package_json: PackageJson =
-        serde_json::from_str(include_str!("../../tauri.js/package.json"))?;
+        serde_json::from_str(include_str!("../../cli.js/package.json"))?;
       VersionBlock::new(
         "  Node.js",
         node_version.chars().skip(1).collect::<String>(),

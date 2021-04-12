@@ -20,12 +20,13 @@ Tauri Apps
 
 ## Current Releases
 
-| Component | Description  | Version | Lin | Win | Mac |
-|-----------|---------|------|-----|-----|-----|
-| [**tauri.js CLI**](https://github.com/tauri-apps/tauri/tree/dev/cli/tauri.js) | create, develop and build apps | [![](https://img.shields.io/npm/v/tauri.svg)](https://www.npmjs.com/package/tauri) |✅|✅|✅|
-| [**tauri core**](https://github.com/tauri-apps/tauri/tree/dev/tauri)  | binding to the low level WEBVIEW   | [![](https://img.shields.io/crates/v/tauri.svg)](https://crates.io/crates/tauri)|✅|✅|✅|
-| [**tauri bundler**](https://github.com/tauri-apps/tauri/tree/dev/cli/tauri-bundler) | manufacture the final binaries | [![](https://img.shields.io/crates/v/tauri-bundler.svg)](https://crates.io/crates/tauri-bundler)  |✅|✅|✅ |
-| [**tauri utils**](https://github.com/tauri-apps/tauri/tree/dev/tauri-utils) | common tools for tauri| [![](https://img.shields.io/crates/v/tauri-utils.svg)](https://crates.io/crates/tauri-utils)  |✅|✅|✅ |
+| Component                                                                   | Description                    | Version                                                                                          | Lin | Win | Mac |
+| --------------------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------ | --- | --- | --- |
+| [**cli.rs**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli.rs)   | create, develop and build apps | [![](https://img.shields.io/crates/v/tauri-cli.svg)](https://crates.io/crates/tauri-cli)         | ✅   | ✅   | ✅   |
+| [**cli.js**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli.js)   | Node.js CLI wrapper for cli.rs | [![](https://img.shields.io/npm/v/tauri.svg)](https://www.npmjs.com/package/tauri)               | ✅   | ✅   | ✅   |
+| [**core**](https://github.com/tauri-apps/tauri/tree/dev/core/tauri)         | runtime core                   | [![](https://img.shields.io/crates/v/tauri.svg)](https://crates.io/crates/tauri)                 | ✅   | ✅   | ✅   |
+| [**bundler**](https://github.com/tauri-apps/tauri/tree/dev/tooling/bundler) | manufacture the final binaries | [![](https://img.shields.io/crates/v/tauri-bundler.svg)](https://crates.io/crates/tauri-bundler) | ✅   | ✅   | ✅   |
+| [**utils**](https://github.com/tauri-apps/tauri/tree/dev/core/tauri-utils)  | common tools for tauri         | [![](https://img.shields.io/crates/v/tauri-utils.svg)](https://crates.io/crates/tauri-utils)     | ✅   | ✅   | ✅   |
 
 
 ## Introduction
@@ -91,28 +92,28 @@ If you are interested in making a tauri-app, please visit the [documentation web
 
 ### Comparison between Tauri and Electron
 
-| Detail | Tauri | Electron |
-|--|--------|----------|
-| Installer Size Linux | 3.1 MB | 52.1 MB |
-| Memory Consumption Linux | 180 MB | 462 MB |
-| Launch Time Linux | 0.39s | .80s |
-| Interface Service Provider | Varies | Chromium |
-| Backend Binding | Rust | Node.js (ECMAScript) |
-| Underlying Engine | C/C++ | V8 (C/C++) |
-| FLOSS | Yes | No |
-| Multithreading | Yes | Yes |
-| Bytecode Delivery | Yes | No |
-| Multiple Windows | Soon | Yes |
-| Auto Updater | Soon | Yes (1) |
-| Cross Platform | Yes | Yes |
-| Custom App Icon | Yes | Yes |
-| Windows Binary | Yes | Yes |
-| MacOS Binary | Yes | Yes |
-| Linux Binary | Yes | Yes |
-| iOS Binary | Soon | No |
-| Android Binary | Soon | No |
-| Desktop Tray | Soon | Yes |
-| Sidecar Binaries | Yes | No |
+| Detail                     | Tauri  | Electron             |
+| -------------------------- | ------ | -------------------- |
+| Installer Size Linux       | 3.1 MB | 52.1 MB              |
+| Memory Consumption Linux   | 180 MB | 462 MB               |
+| Launch Time Linux          | 0.39s  | .80s                 |
+| Interface Service Provider | Varies | Chromium             |
+| Backend Binding            | Rust   | Node.js (ECMAScript) |
+| Underlying Engine          | C/C++  | V8 (C/C++)           |
+| FLOSS                      | Yes    | No                   |
+| Multithreading             | Yes    | Yes                  |
+| Bytecode Delivery          | Yes    | No                   |
+| Multiple Windows           | Soon   | Yes                  |
+| Auto Updater               | Soon   | Yes (1)              |
+| Cross Platform             | Yes    | Yes                  |
+| Custom App Icon            | Yes    | Yes                  |
+| Windows Binary             | Yes    | Yes                  |
+| MacOS Binary               | Yes    | Yes                  |
+| Linux Binary               | Yes    | Yes                  |
+| iOS Binary                 | Soon   | No                   |
+| Android Binary             | Soon   | No                   |
+| Desktop Tray               | Soon   | Yes                  |
+| Sidecar Binaries           | Yes    | No                   |
 
 #### Notes
 1. Electron has no native auto updater on Linux, but is offered by electron-packager

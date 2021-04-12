@@ -47,7 +47,7 @@ jobs:
       - name: run typedocusaurus
         uses: tauri-apps/typedocusaurus/github-action@v1
         with:
-          originPath: ./tauri/api/
+          originPath: ./tauri/tooling/api/
           sidebarFile: sidebars.json
           targetPath: en/api/js
           docusaurusPath: ./tauri-docs/

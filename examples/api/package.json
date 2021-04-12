@@ -5,7 +5,7 @@
     "build": "rollup -c",
     "dev": "rollup -c -w",
     "start": "sirv public",
-    "tauri": "node ../../cli/tauri.js/bin/tauri"
+    "tauri": "node ../../tooling/cli.js/bin/tauri"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "17.1.0",
@@ -17,7 +17,7 @@
     "svelte": "3.35.0"
   },
   "dependencies": {
-    "@tauri-apps/api": "link:../../api",
+    "@tauri-apps/api": "link:../../tooling/api",
     "sirv-cli": "1.0.11"
   }
 }

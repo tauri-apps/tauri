@@ -2,7 +2,7 @@ const fixtureSetup = require('../fixtures/app-test-setup')
 const { resolve } = require('path')
 const { writeFileSync, readFileSync } = require('fs')
 
-describe('[CLI] tauri.js template', () => {
+describe('[CLI] cli.js template', () => {
   it('init a project and builds it', async () => {
     const cwd = process.cwd()
     const fixturePath = resolve(__dirname, '../fixtures/empty')

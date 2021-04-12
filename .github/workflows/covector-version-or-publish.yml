@@ -106,8 +106,8 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - name: tauri.js
-            registryName: tauri
+          - name: cli.js
+            registryName: \@tauri-apps/cli
           - name: tauri-bundler
             registryName: tauri-bundler
           - name: tauri-utils

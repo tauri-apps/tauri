@@ -140,21 +140,21 @@
   },
   "packages": {
     "api": {
-      "path": "./api",
+      "path": "./tooling/api",
       "manager": "javascript",
       "assets": [
         {
-          "path": "./api/tauri-${ pkgFile.version }.tgz",
+          "path": "./tooling/api/tauri-${ pkgFile.version }.tgz",
           "name": "api-${ pkgFile.version }.tgz"
         }
       ]
     },
     "tauri-bundler": {
-      "path": "./cli/tauri-bundler",
+      "path": "./tooling/bundler",
       "manager": "rust"
     },
-    "tauri-cli": {
-      "path": "./cli/core",
+    "cli.rs": {
+      "path": "./tooling/cli.rs",
       "manager": "rust",
       "dependencies": [
         "api",
@@ -162,16 +162,16 @@
         "tauri"
       ]
     },
-    "tauri.js": {
-      "path": "./cli/tauri.js",
+    "cli.js": {
+      "path": "./tooling/cli.js",
       "manager": "javascript",
       "dependencies": [
-        "tauri-cli"
+        "cli.rs"
       ],
       "assets": [
         {
-          "path": "./cli/tauri.js/tauri-${ pkgFile.version }.tgz",
-          "name": "tauri.js-${ pkgFile.version }.tgz"
+          "path": "./tooling/cli.js/tauri-${ pkgFile.version }.tgz",
+          "name": "cli.js-${ pkgFile.version }.tgz"
         }
       ]
     },
@@ -179,7 +179,7 @@
       "path": "./cli/create-tauri-app",
       "manager": "javascript",
       "dependencies": [
-        "tauri.js"
+        "cli.js"
       ]
     },
     "tauri-utils": {

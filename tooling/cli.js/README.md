@@ -18,7 +18,7 @@ Tauri is a tool for building tiny, blazing fast binaries for all major desktop p
 
 | Component | Version                                     |
 | --------- | ------------------------------------------- |
-| tauri.js  | ![](https://img.shields.io/npm/v/tauri.svg) |
+| cli.js    | ![](https://img.shields.io/npm/v/tauri.svg) |
 
 
 Please visit the main readme for further information about contributing.

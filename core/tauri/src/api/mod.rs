@@ -4,6 +4,7 @@
 
 //! The Tauri API interface.
 #![warn(missing_docs)]
+// #![feature(const_int_pow)]
 
 /// The App API module allows you to manage application processes.
 pub mod app;

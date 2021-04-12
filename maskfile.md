@@ -1,8 +1,14 @@
 # Shorthand Commands
 
+<!-- 
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+-->
+
 ## prepare
 
-> Setup all stuffs needed for running the examples
+> Setup all stuff needed for running the examples
 
 ```sh
 git clone --recursive git@github.com:tauri-apps/examples.git \

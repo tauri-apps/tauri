@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 import { map, find } from "lodash";
 import { TauriBuildConfig } from "./types/config";
 import { reactjs, reactts } from "./recipes/react";

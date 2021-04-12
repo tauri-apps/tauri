@@ -176,7 +176,7 @@
       ]
     },
     "create-tauri-app": {
-      "path": "./cli/create-tauri-app",
+      "path": "./tooling/create-tauri-app",
       "manager": "javascript",
       "dependencies": [
         "cli.js"

@@ -6,7 +6,7 @@
     "create-tauri-app": "./bin/create-tauri-app.js"
   },
   "repository": "git+https://github.com/tauri-apps/tauri.git",
-  "license": "MIT",
+  "license": "MIT OR Apache-2.0",
   "bugs": {
     "url": "https://github.com/tauri-apps/tauri/issues"
   },

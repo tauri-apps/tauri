@@ -81,6 +81,8 @@
     "rollup": "2.44.0",
     "rollup-plugin-terser": "7.0.2",
     "tslib": "2.2.0",
+    "typedoc": "^0.20.35",
+    "typedoc-plugin-markdown": "^3.6.1",
     "typescript": "4.2.4"
   },
   "resolutions": {

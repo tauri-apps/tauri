@@ -3,15 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  endpoints::InvokeResponse,
-  runtime::{
-    webview::{Icon, WindowConfig},
-    window::{PendingWindow, Window},
-    Manager, Params,
-  },
+  api::config::WindowConfig, endpoints::InvokeResponse, runtime::window::PendingWindow, Manager,
+  Params, Window,
 };
 use serde::Deserialize;
 
+use crate::Icon;
 use std::path::PathBuf;
 
 #[derive(Deserialize)]
@@ -35,7 +32,7 @@ impl Into<Icon> for IconDto {
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   CreateWebview {
-    options: crate::api::config::WindowConfig,
+    options: WindowConfig,
   },
   SetResizable {
     resizable: bool,
@@ -123,7 +120,7 @@ impl Cmd {
             });
 
             let url = options.url.clone();
-            let pending = PendingWindow::new(WindowConfig(options), label.clone(), url);
+            let pending = PendingWindow::with_config(options, label.clone(), url);
             window.create_window(pending)?.emit_others_internal(
               "tauri://window-created".to_string(),
               Some(WindowCreatedEvent {

@@ -71,10 +71,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0
       - name: yarn install for cli
-        working-directory: tauri/cli/tauri.js
+        working-directory: tauri/tooling/cli.js
         run: yarn
-      - name: build tauri.js
-        working-directory: tauri/cli/tauri.js
+      - name: build cli.js
+        working-directory: tauri/tooling/cli.js
         run: |
           yarn build-release
           yarn global add $PWD

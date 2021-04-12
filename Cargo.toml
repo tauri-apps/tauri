@@ -2,7 +2,6 @@
 members = [
   # core
   "core/tauri",
-  "core/tauri-api",
   "core/tauri-macros",
   "core/tauri-utils",
   "core/tauri-build",

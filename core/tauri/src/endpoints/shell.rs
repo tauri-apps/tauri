@@ -8,7 +8,7 @@ use crate::{
     rpc::format_callback,
   },
   endpoints::InvokeResponse,
-  runtime::{window::Window, Params},
+  Params, Window,
 };
 use once_cell::sync::Lazy;
 use serde::Deserialize;

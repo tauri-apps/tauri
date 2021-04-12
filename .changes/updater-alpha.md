@@ -1,6 +1,5 @@
 ---
-"tauri-updater": minor
-"tauri-cli": minor
+"cli.rs": minor
 "tauri-bundler": minor
 "tauri": minor
 ---

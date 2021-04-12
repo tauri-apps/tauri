@@ -1,6 +1,6 @@
 ---
 "tauri": minor
-"tauri-cli": minor
+"cli.rs": minor
 ---
 
 Adds `productName` and `version` configs on `tauri.conf.json > package`.

@@ -1,6 +1,5 @@
 ---
 "tauri-utils": minor
-"tauri-api": minor
 "tauri": minor
 ---
 

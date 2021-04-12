@@ -9,8 +9,8 @@ on:
     paths:
       - '.github/workflows/udeps.yml'
       - 'core/**'
-      - 'cli/tauri-bundler/**'
-      - 'cli/core/**'
+      - 'tooling/bundler/**'
+      - 'tooling/cli.rs/**'
 
 jobs:
   udeps:
@@ -45,13 +45,13 @@ jobs:
     - name: Cache bundler cargo target
       uses: actions/cache@v2
       with:
-        path: cli/tauri-bundler/target
+        path: tooling/bundler/target
         key: ubuntu-latest-nightly-cargo-build-bundler-target-${{ hashFiles('**/Cargo.toml') }}
 
     - name: Cache CLI cargo target
       uses: actions/cache@v2
       with:
-        path: cli/core/target
+        path: tooling/cli.rs/target
         key: ubuntu-latest-nightly-cargo-build-cli-target-${{ hashFiles('**/Cargo.toml') }}
 
     - uses: actions-rs/cargo@v1
@@ -72,9 +72,9 @@ jobs:
     - uses: actions-rs/cargo@v1
       with:
         command: udeps
-        args: --manifest-path ./cli/tauri-bundler/Cargo.toml --all-targets --all-features
+        args: --manifest-path ./tooling/bundler/Cargo.toml --all-targets --all-features
 
     - uses: actions-rs/cargo@v1
       with:
         command: udeps
-        args: --manifest-path ./cli/core/Cargo.toml --all-targets --all-features
+        args: --manifest-path ./tooling/cli.rs/Cargo.toml --all-targets --all-features

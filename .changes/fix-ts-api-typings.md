@@ -1,5 +1,5 @@
 ---
-"tauri.js": patch
+"cli.js": patch
 "tauri": minor
 ---
 

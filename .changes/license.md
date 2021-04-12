@@ -5,7 +5,6 @@
 "tauri.js": patch
 "tauri-utils": patch
 "tauri-macros": patch
-"tauri-updater": patch
 "tauri-build": patch
 "tauri-codegen": patch
 "tauri": patch

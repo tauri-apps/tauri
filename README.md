@@ -26,7 +26,6 @@ Tauri Apps
 | [**tauri core**](https://github.com/tauri-apps/tauri/tree/dev/tauri)  | binding to the low level WEBVIEW   | [![](https://img.shields.io/crates/v/tauri.svg)](https://crates.io/crates/tauri)|✅|✅|✅|
 | [**tauri bundler**](https://github.com/tauri-apps/tauri/tree/dev/cli/tauri-bundler) | manufacture the final binaries | [![](https://img.shields.io/crates/v/tauri-bundler.svg)](https://crates.io/crates/tauri-bundler)  |✅|✅|✅ |
 | [**tauri utils**](https://github.com/tauri-apps/tauri/tree/dev/tauri-utils) | common tools for tauri| [![](https://img.shields.io/crates/v/tauri-utils.svg)](https://crates.io/crates/tauri-utils)  |✅|✅|✅ |
-| [**tauri updater**](https://github.com/tauri-apps/tauri/tree/dev/tauri-updater) [WIP] | update the userland app | [![](https://img.shields.io/crates/v/tauri-updater.svg)](https://crates.io/crates/tauri-updater)  | | | |
 
 
 ## Introduction

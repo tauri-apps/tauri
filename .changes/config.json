@@ -156,12 +156,18 @@
     "tauri-cli": {
       "path": "./cli/core",
       "manager": "rust",
-      "dependencies": ["api", "tauri-bundler", "tauri"]
+      "dependencies": [
+        "api",
+        "tauri-bundler",
+        "tauri"
+      ]
     },
     "tauri.js": {
       "path": "./cli/tauri.js",
       "manager": "javascript",
-      "dependencies": ["tauri-cli"],
+      "dependencies": [
+        "tauri-cli"
+      ],
       "assets": [
         {
           "path": "./cli/tauri.js/tauri-${ pkgFile.version }.tgz",
@@ -172,7 +178,9 @@
     "create-tauri-app": {
       "path": "./cli/create-tauri-app",
       "manager": "javascript",
-      "dependencies": ["tauri.js"]
+      "dependencies": [
+        "tauri.js"
+      ]
     },
     "tauri-utils": {
       "path": "./core/tauri-utils",
@@ -181,11 +189,9 @@
     "tauri-macros": {
       "path": "./core/tauri-macros",
       "manager": "rust",
-      "dependencies": ["tauri-utils"]
-    },
-    "tauri-updater": {
-      "path": "./core/tauri-updater",
-      "manager": "rust"
+      "dependencies": [
+        "tauri-utils"
+      ]
     },
     "tauri-build": {
       "path": "./core/tauri-build",
@@ -198,7 +204,10 @@
     "tauri": {
       "path": "./core/tauri",
       "manager": "rust",
-      "dependencies": ["api", "tauri-macros", "tauri-updater"]
+      "dependencies": [
+        "api",
+        "tauri-macros"
+      ]
     }
   }
 }

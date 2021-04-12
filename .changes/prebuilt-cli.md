@@ -1,5 +1,5 @@
 ---
-"tauri.js": "minor"
+"cli.js": "minor"
 ---
 
 JS CLI now downloads prebuilt Rust CLI.

@@ -8,7 +8,7 @@ import { shell } from "../shell";
 export const vanillajs: Recipe = {
   descriptiveName: "Vanilla.js",
   shortName: "vanillajs",
-  configUpdate: (cfg) => ({
+  configUpdate: ({ cfg }) => ({
     ...cfg,
     distDir: `../dist`,
     devPath: `../dist`,
@@ -24,16 +24,24 @@ export const vanillajs: Recipe = {
     const versionNumber = version.stdout.trim();
     await run(cfg, cwd, versionNumber);
   },
-  postInit: async ({ cfg }) => {
+  postInit: async ({ cfg, packageManager }) => {
+    const setApp =
+      packageManager === "npm"
+        ? `
+set tauri script once
+  $ npm set-script tauri tauri
+    `
+        : "";
+
     console.log(`
-      change directory:
-        $ cd ${cfg.appName}
-    
-      install dependencies:
-        $ yarn # npm install
-    
-      run the app:
-        $ yarn tauri dev # npm run tauri dev
+change directory:
+  $ cd ${cfg.appName}
+${setApp}
+install dependencies:
+  $ ${packageManager} install
+
+run the app:
+  $ ${packageManager} tauri ${packageManager === "npm" ? "-- " : ""}dev
             `);
   },
 };

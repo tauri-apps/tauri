@@ -8,27 +8,38 @@ import { reactjs, reactts } from "./recipes/react";
 import { vanillajs } from "./recipes/vanilla";
 
 export { shell } from "./shell";
-export { install } from "./dependency-manager";
+export { install, checkPackageManager } from "./dependency-manager";
+import { PackageManager } from "./dependency-manager";
 
 export interface Recipe {
   descriptiveName: string;
   shortName: string;
-  configUpdate?: (cfg: TauriBuildConfig) => TauriBuildConfig;
+  configUpdate?: ({
+    cfg,
+    packageManager,
+  }: {
+    cfg: TauriBuildConfig;
+    packageManager: PackageManager;
+  }) => TauriBuildConfig;
   extraNpmDependencies: string[];
   extraNpmDevDependencies: string[];
   preInit?: ({
     cwd,
     cfg,
+    packageManager,
   }: {
     cwd: string;
     cfg: TauriBuildConfig;
+    packageManager: PackageManager;
   }) => Promise<void>;
   postInit?: ({
     cwd,
     cfg,
+    packageManager,
   }: {
     cwd: string;
     cfg: TauriBuildConfig;
+    packageManager: PackageManager;
   }) => Promise<void>;
 }
 

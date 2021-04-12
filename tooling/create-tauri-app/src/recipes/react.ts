@@ -4,11 +4,6 @@ import { join } from "path";
 import scaffe from "scaffe";
 import { shell } from "../shell";
 
-const completeLogMsg = `
-  Your installation completed.
-  To start, run yarn tauri dev
-`;
-
 const afterCra = async (cwd: string, appName: string, version: string) => {
   const templateDir = join(__dirname, "../src/templates/react");
   const variables = {
@@ -29,7 +24,7 @@ const afterCra = async (cwd: string, appName: string, version: string) => {
 const reactjs: Recipe = {
   descriptiveName: "React.js",
   shortName: "reactjs",
-  configUpdate: (cfg) => ({
+  configUpdate: ({ cfg }) => ({
     ...cfg,
     distDir: `../build`,
     devPath: "http://localhost:3000",
@@ -38,17 +33,32 @@ const reactjs: Recipe = {
   }),
   extraNpmDevDependencies: [],
   extraNpmDependencies: [],
-  preInit: async ({ cwd, cfg }) => {
+  preInit: async ({ cwd, cfg, packageManager }) => {
     // CRA creates the folder for you
-    await shell("npx", ["create-react-app", `${cfg.appName}`], { cwd });
+    if (packageManager === "yarn") {
+      await shell("yarn", ["create", "react-app", `${cfg.appName}`], {
+        cwd,
+      });
+    } else {
+      await shell(
+        "npm",
+        ["init", "react-app", `${cfg.appName}`, "--", "--use-npm"],
+        {
+          cwd,
+        }
+      );
+    }
     const version = await shell("npm", ["view", "tauri", "version"], {
       stdio: "pipe",
     });
     const versionNumber = version.stdout.trim();
     await afterCra(cwd, cfg.appName, versionNumber);
   },
-  postInit: async ({ cfg }) => {
-    console.log(completeLogMsg);
+  postInit: async ({ packageManager }) => {
+    console.log(`
+    Your installation completed.
+    To start, run ${packageManager} tauri dev
+  `);
   },
 };
 
@@ -57,16 +67,39 @@ const reactts: Recipe = {
   descriptiveName: "React with Typescript",
   shortName: "reactts",
   extraNpmDependencies: [],
-  preInit: async ({ cwd, cfg }) => {
+  preInit: async ({ cwd, cfg, packageManager }) => {
     // CRA creates the folder for you
-    await shell(
-      "npx",
-      ["create-react-app", "--template", "typescript", `${cfg.appName}`],
-      { cwd }
-    );
+    if (packageManager === "yarn") {
+      await shell(
+        "yarn",
+        ["create", "react-app", "--template", "typescript", `${cfg.appName}`],
+        {
+          cwd,
+        }
+      );
+    } else {
+      await shell(
+        "npm",
+        [
+          "init",
+          "react-app",
+          `${cfg.appName}`,
+          "--",
+          "--use-npm",
+          "--template",
+          "typescript",
+        ],
+        {
+          cwd,
+        }
+      );
+    }
   },
-  postInit: async ({ cfg }) => {
-    console.log(completeLogMsg);
+  postInit: async ({ packageManager }) => {
+    console.log(`
+    Your installation completed.
+    To start, run ${packageManager} tauri dev
+  `);
   },
 };
 

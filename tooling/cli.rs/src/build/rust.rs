@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{fs::File, io::Read, path::PathBuf, process::Command, str::FromStr};
+use std::{
+  fs::File,
+  io::Read,
+  path::{Path, PathBuf},
+  process::Command,
+  str::FromStr,
+};
 
 use serde::Deserialize;
 
@@ -10,7 +16,7 @@ use crate::helpers::{app_paths::tauri_dir, config::Config};
 #[cfg(windows)]
 use tauri_bundler::WindowsSettings;
 use tauri_bundler::{
-  AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOSSettings, PackageSettings,
+  AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
   UpdaterSettings,
 };
 
@@ -61,7 +67,7 @@ struct CargoSettings {
 
 impl CargoSettings {
   /// Try to load a set of CargoSettings from a "Cargo.toml" file in the specified directory.
-  fn load(dir: &PathBuf) -> crate::Result<Self> {
+  fn load(dir: &Path) -> crate::Result<Self> {
     let toml_path = dir.join("Cargo.toml");
     let mut toml_str = String::new();
     let mut toml_file = File::open(toml_path)?;
@@ -240,14 +246,14 @@ impl AppSettings {
 /// This function determines where 'target' dir is and suffixes it with 'release' or 'debug'
 /// to determine where the compiled binary will be located.
 fn get_target_dir(
-  project_root_dir: &PathBuf,
+  project_root_dir: &Path,
   target: Option<String>,
   is_release: bool,
 ) -> crate::Result<PathBuf> {
   let mut path: PathBuf = match std::env::var_os("CARGO_TARGET_DIR") {
     Some(target_dir) => target_dir.into(),
     None => {
-      let mut root_dir = project_root_dir.clone();
+      let mut root_dir = project_root_dir.to_path_buf();
       let target_path: Option<PathBuf> = loop {
         // cargo reads configs under .cargo/config.toml or .cargo/config
         let mut cargo_config_path = root_dir.join(".cargo/config");
@@ -286,9 +292,9 @@ fn get_target_dir(
 ///
 /// If this package is part of a workspace, returns the path to the workspace directory
 /// Otherwise returns the current directory.
-pub fn get_workspace_dir(current_dir: &PathBuf) -> PathBuf {
-  let mut dir = current_dir.clone();
-  let project_path = current_dir.clone();
+pub fn get_workspace_dir(current_dir: &Path) -> PathBuf {
+  let mut dir = current_dir.to_path_buf();
+  let project_path = dir.clone();
 
   while dir.pop() {
     if let Ok(cargo_settings) = CargoSettings::load(&dir) {
@@ -306,7 +312,7 @@ pub fn get_workspace_dir(current_dir: &PathBuf) -> PathBuf {
   }
 
   // Nothing found walking up the file system, return the starting directory
-  current_dir.clone()
+  current_dir.to_path_buf()
 }
 
 fn tauri_config_to_bundle_settings(
@@ -332,7 +338,7 @@ fn tauri_config_to_bundle_settings(
       depends: config.deb.depends,
       use_bootstrapper: Some(config.deb.use_bootstrapper),
     },
-    macos: MacOSSettings {
+    macos: MacOsSettings {
       frameworks: config.macos.frameworks,
       minimum_system_version: config.macos.minimum_system_version,
       license: config.macos.license,

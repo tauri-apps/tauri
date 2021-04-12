@@ -16,7 +16,7 @@ use std::{
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PackageType {
   /// The macOS application bundle (.app).
-  MacOSBundle,
+  MacOsBundle,
   /// The iOS app bundle.
   IosBundle,
   /// The Windows bundle (.msi).
@@ -44,7 +44,7 @@ impl PackageType {
       "ios" => Some(PackageType::IosBundle),
       #[cfg(target_os = "windows")]
       "msi" => Some(PackageType::WindowsMsi),
-      "app" => Some(PackageType::MacOSBundle),
+      "app" => Some(PackageType::MacOsBundle),
       "rpm" => Some(PackageType::Rpm),
       "appimage" => Some(PackageType::AppImage),
       "dmg" => Some(PackageType::Dmg),
@@ -61,7 +61,7 @@ impl PackageType {
       PackageType::IosBundle => "ios",
       #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => "msi",
-      PackageType::MacOSBundle => "app",
+      PackageType::MacOsBundle => "app",
       PackageType::Rpm => "rpm",
       PackageType::AppImage => "appimage",
       PackageType::Dmg => "dmg",
@@ -80,7 +80,7 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::IosBundle,
   #[cfg(target_os = "windows")]
   PackageType::WindowsMsi,
-  PackageType::MacOSBundle,
+  PackageType::MacOsBundle,
   PackageType::Rpm,
   PackageType::Dmg,
   PackageType::AppImage,
@@ -133,7 +133,7 @@ pub struct DebianSettings {
 
 /// The macOS bundle settings.
 #[derive(Clone, Debug, Deserialize, Default)]
-pub struct MacOSSettings {
+pub struct MacOsSettings {
   /// MacOS frameworks that need to be bundled with the app.
   ///
   /// Each string can either be the name of a framework (without the `.framework` extension, e.g. `"SDL2"`),
@@ -210,7 +210,7 @@ pub struct BundleSettings {
   /// Debian-specific settings.
   pub deb: DebianSettings,
   /// MacOS-specific settings.
-  pub macos: MacOSSettings,
+  pub macos: MacOsSettings,
   // Updater configuration
   pub updater: Option<UpdaterSettings>,
   /// Windows-specific settings.
@@ -397,7 +397,7 @@ impl Settings {
   pub fn package_types(&self) -> crate::Result<Vec<PackageType>> {
     let target_os = std::env::consts::OS;
     let mut platform_types = match target_os {
-      "macos" => vec![PackageType::MacOSBundle, PackageType::Dmg],
+      "macos" => vec![PackageType::MacOsBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
       "linux" => vec![PackageType::Deb, PackageType::AppImage],
       #[cfg(target_os = "windows")]
@@ -556,7 +556,7 @@ impl Settings {
   }
 
   /// Returns the MacOS settings.
-  pub fn macos(&self) -> &MacOSSettings {
+  pub fn macos(&self) -> &MacOsSettings {
     &self.bundle_settings.macos
   }
 

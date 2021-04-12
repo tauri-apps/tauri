@@ -50,7 +50,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
   // find our .app or rebuild our bundle
   let bundle_path = match bundles
     .iter()
-    .filter(|bundle| bundle.package_type == crate::PackageType::MacOSBundle)
+    .filter(|bundle| bundle.package_type == crate::PackageType::MacOsBundle)
     .find_map(|bundle| {
       bundle
         .bundle_paths
@@ -187,7 +187,7 @@ pub fn create_zip(src_file: &PathBuf, dst_file: &PathBuf) -> crate::Result<PathB
 }
 
 #[cfg(not(target_os = "windows"))]
-fn create_tar(src_dir: &PathBuf, dest_path: &PathBuf) -> crate::Result<PathBuf> {
+fn create_tar(src_dir: &Path, dest_path: &Path) -> crate::Result<PathBuf> {
   let dest_file = common::create_file(&dest_path)?;
   let gzip_encoder = gzip::Encoder::new(dest_file)?;
 

@@ -23,7 +23,7 @@ pub use self::{
   category::AppCategory,
   common::{print_error, print_info},
   settings::{
-    BundleBinary, BundleSettings, DebianSettings, MacOSSettings, PackageSettings, PackageType,
+    BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings, PackageType,
     Settings, SettingsBuilder, UpdaterSettings,
   },
 };
@@ -49,14 +49,14 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
 
   for package_type in &package_types {
     let bundle_paths = match package_type {
-      PackageType::MacOSBundle => macos_bundle::bundle_project(&settings)?,
+      PackageType::MacOsBundle => macos_bundle::bundle_project(&settings)?,
       PackageType::IosBundle => ios_bundle::bundle_project(&settings)?,
       #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => msi_bundle::bundle_project(&settings)?,
       PackageType::Deb => deb_bundle::bundle_project(&settings)?,
       PackageType::Rpm => rpm_bundle::bundle_project(&settings)?,
       PackageType::AppImage => appimage_bundle::bundle_project(&settings)?,
-      // dmg is dependant of MacOSBundle, we send our bundles to prevent rebuilding
+      // dmg is dependant of MacOsBundle, we send our bundles to prevent rebuilding
       PackageType::Dmg => dmg_bundle::bundle_project(&settings, &bundles)?,
       // updater is dependant of multiple bundle, we send our bundles to prevent rebuilding
       PackageType::Updater => updater_bundle::bundle_project(&settings, &bundles)?,

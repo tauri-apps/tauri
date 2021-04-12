@@ -610,7 +610,7 @@ pub fn get_updater_target() -> Option<String> {
 }
 
 /// Get the extract_path from the provided executable_path
-pub fn extract_path_from_executable(executable_path: &PathBuf) -> PathBuf {
+pub fn extract_path_from_executable(executable_path: &Path) -> PathBuf {
   // Return the path of the current executable by default
   // Example C:\Program Files\My App\
   let extract_path = executable_path
@@ -682,7 +682,7 @@ fn base64_to_string(base64_string: &str) -> Result<String> {
 // need to be public because its been used
 // by our tests in the bundler
 pub fn verify_signature(
-  archive_path: &PathBuf,
+  archive_path: &Path,
   release_signature: String,
   pub_key: &str,
 ) -> Result<bool> {

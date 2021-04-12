@@ -25,7 +25,7 @@ pub enum Error {
   Architecture,
   /// Target triple OS error
   #[error("Unable to determine target-os")]
-  OS,
+  Os,
   /// Target triple environment error
   #[error("Unable to determine target-environment")]
   Environment,
@@ -37,7 +37,7 @@ pub enum Error {
   ParentProcess,
   /// Get parent process PID error
   #[error("Could not get parent PID")]
-  ParentPID,
+  ParentPid,
   /// Get child process error
   #[error("Could not get child process")]
   ChildProcess,

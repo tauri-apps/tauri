@@ -57,7 +57,7 @@ const reactjs: Recipe = {
   postInit: async ({ packageManager }) => {
     console.log(`
     Your installation completed.
-    To start, run ${packageManager} tauri dev
+    To start, run ${packageManager === "yarn" ? "yarn" : "npm run"} tauri dev
   `);
   },
 };
@@ -98,7 +98,7 @@ const reactts: Recipe = {
   postInit: async ({ packageManager }) => {
     console.log(`
     Your installation completed.
-    To start, run ${packageManager} tauri dev
+    To start, run ${packageManager === "yarn" ? "yarn" : "npm run"} tauri dev
   `);
   },
 };

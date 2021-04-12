@@ -78,7 +78,7 @@ impl<'a> Extract<'a> {
   /// Extract an entire source archive into a specified path. If the source is a single compressed
   /// file and not an archive, it will be extracted into a file with the same name inside of
   /// `into_dir`.
-  pub fn extract_into(&self, into_dir: &path::Path) -> crate::Result<()> {
+  pub fn extract_into(&self, into_dir: &path::Path) -> crate::api::Result<()> {
     let source = fs::File::open(self.source)?;
     let archive = self
       .archive_format
@@ -98,10 +98,9 @@ impl<'a> Extract<'a> {
                 }
               }
             }
-            let file_name = self
-              .source
-              .file_name()
-              .ok_or_else(|| crate::Error::Extract("Extractor source has no file-name".into()))?;
+            let file_name = self.source.file_name().ok_or_else(|| {
+              crate::api::Error::Extract("Extractor source has no file-name".into())
+            })?;
             let mut out_path = into_dir.join(file_name);
             out_path.set_extension("");
             let mut out_file = fs::File::create(&out_path)?;
@@ -134,7 +133,7 @@ impl<'a> Extract<'a> {
     &self,
     into_dir: &path::Path,
     file_to_extract: T,
-  ) -> crate::Result<()> {
+  ) -> crate::api::Result<()> {
     let file_to_extract = file_to_extract.as_ref();
     let source = fs::File::open(self.source)?;
     let archive = self
@@ -155,9 +154,9 @@ impl<'a> Extract<'a> {
                 }
               }
             }
-            let file_name = file_to_extract
-              .file_name()
-              .ok_or_else(|| crate::Error::Extract("Extractor source has no file-name".into()))?;
+            let file_name = file_to_extract.file_name().ok_or_else(|| {
+              crate::api::Error::Extract("Extractor source has no file-name".into())
+            })?;
             let out_path = into_dir.join(file_name);
             let mut out_file = fs::File::create(&out_path)?;
             io::copy(&mut reader, &mut out_file)?;
@@ -169,7 +168,7 @@ impl<'a> Extract<'a> {
               .filter_map(|e| e.ok())
               .find(|e| e.path().ok().filter(|p| p == file_to_extract).is_some())
               .ok_or_else(|| {
-                crate::Error::Extract(format!(
+                crate::api::Error::Extract(format!(
                   "Could not find the required path in the archive: {:?}",
                   file_to_extract
                 ))

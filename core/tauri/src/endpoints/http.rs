@@ -4,9 +4,9 @@
 
 use super::InvokeResponse;
 
+use crate::api::http::{Client, ClientBuilder, HttpRequestBuilder, ResponseData};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
-use tauri_api::http::{Client, ClientBuilder, HttpRequestBuilder, ResponseData};
 
 use std::{
   collections::HashMap,

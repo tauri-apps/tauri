@@ -15,7 +15,7 @@ impl ShortcutManager {
   }
 
   /// Determines whether the given hotkey is registered or not.
-  pub fn is_registered(&self, shortcut: String) -> crate::Result<bool> {
+  pub fn is_registered(&self, shortcut: String) -> crate::api::Result<bool> {
     let hotkey = parse_hotkey(&shortcut)?;
     Ok(self.0.is_registered(&hotkey))
   }
@@ -25,21 +25,21 @@ impl ShortcutManager {
     &mut self,
     shortcut: String,
     handler: H,
-  ) -> crate::Result<()> {
+  ) -> crate::api::Result<()> {
     let hotkey = parse_hotkey(&shortcut)?;
     self.0.register(hotkey, handler)?;
     Ok(())
   }
 
   /// Unregister a previously registered shortcut handler.
-  pub fn unregister(&mut self, shortcut: String) -> crate::Result<()> {
+  pub fn unregister(&mut self, shortcut: String) -> crate::api::Result<()> {
     let hotkey = parse_hotkey(&shortcut)?;
     self.0.unregister(&hotkey)?;
     Ok(())
   }
 
   /// Unregisters all shortcuts registered by this application.
-  pub fn unregister_all(&mut self) -> crate::Result<()> {
+  pub fn unregister_all(&mut self) -> crate::api::Result<()> {
     self.0.unregister_all()?;
     Ok(())
   }

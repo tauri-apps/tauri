@@ -51,7 +51,7 @@ pub enum Error {
   #[error("{0}")]
   Zip(#[from] zip::result::ZipError),
   /// Notification error.
-  #[cfg(feature = "notification")]
+  #[cfg(notification_all)]
   #[error("{0}")]
   Notification(#[from] notify_rust::error::Error),
   /// failed to detect the current platform.
@@ -62,7 +62,7 @@ pub enum Error {
   #[error("failed to parse CLI arguments: {0}")]
   ParseCliArguments(#[from] clap::Error),
   /// Shortcut error.
-  #[cfg(feature = "global-shortcut")]
+  #[cfg(global_shortcut_all)]
   #[error("shortcut error: {0}")]
   Shortcut(#[from] tauri_hotkey::Error),
   /// Shell error.

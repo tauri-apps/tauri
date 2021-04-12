@@ -9,7 +9,7 @@ use std::{
   io::BufReader,
   path::{Path, PathBuf},
 };
-pub use tauri_api::config::Config;
+pub use tauri_utils::config::Config;
 use thiserror::Error;
 
 mod context;

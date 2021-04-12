@@ -112,10 +112,6 @@ jobs:
             registryName: tauri-bundler
           - name: tauri-utils
             registryName: tauri-utils
-          - name: tauri-api
-            registryName: tauri-api
-          - name: tauri-updater
-            registryName: tauri-updater
           - name: tauri-core
             registryName: tauri
 

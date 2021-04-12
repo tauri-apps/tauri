@@ -19,9 +19,9 @@ use crate::{
 use std::{convert::TryFrom, path::PathBuf};
 
 #[cfg(target_os = "windows")]
-use std::fs::create_dir_all;
+use crate::api::path::{resolve_path, BaseDirectory};
 #[cfg(target_os = "windows")]
-use tauri_api::path::{resolve_path, BaseDirectory};
+use std::fs::create_dir_all;
 
 /// Wrapper around a [`wry::Icon`] that can be created from an [`Icon`].
 pub struct WryIcon(wry::Icon);

@@ -98,7 +98,7 @@ impl CodegenContext {
       config_parent,
       // it's very hard to have a build script for unit tests, so assume this is always called from
       // outside the tauri crate, making the ::tauri root valid.
-      context_path: quote::quote!(::tauri::Context),
+      root: quote::quote!(::tauri::Context),
     })?;
 
     // get the full output file path

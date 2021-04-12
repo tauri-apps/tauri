@@ -11,23 +11,23 @@ pub use extract::*;
 pub use file_move::*;
 
 /// Reads a string file.
-pub fn read_string<P: AsRef<Path>>(file: P) -> crate::Result<String> {
+pub fn read_string<P: AsRef<Path>>(file: P) -> crate::api::Result<String> {
   fs::read_to_string(file).map_err(Into::into)
 }
 
 /// Reads a binary file.
-pub fn read_binary<P: AsRef<Path>>(file: P) -> crate::Result<Vec<u8>> {
+pub fn read_binary<P: AsRef<Path>>(file: P) -> crate::api::Result<Vec<u8>> {
   fs::read(file).map_err(Into::into)
 }
 
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::Error;
+  use crate::api::Error;
 
   #[test]
   fn check_read_string() {
-    let file = String::from("test/test.txt");
+    let file = String::from("test/api/test.txt");
 
     let res = read_string(file);
 
@@ -40,7 +40,7 @@ mod test {
 
   #[test]
   fn check_read_string_fail() {
-    let file = String::from("test/");
+    let file = String::from("test/api/");
 
     let res = read_string(file);
 
@@ -56,7 +56,7 @@ mod test {
 
   #[test]
   fn check_read_binary() {
-    let file = String::from("test/test_binary");
+    let file = String::from("test/api/test_binary");
 
     #[cfg(windows)]
     let expected_vec = vec![
@@ -80,7 +80,7 @@ mod test {
 
   #[test]
   fn check_read_binary_fail() {
-    let file = String::from("test/");
+    let file = String::from("test/api/");
 
     let res = read_binary(file);
 

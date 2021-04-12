@@ -10,15 +10,12 @@
 //! Tauri uses (and contributes to) the MIT licensed project that you can find at [webview](https://github.com/webview/webview).
 #![warn(missing_docs, rust_2018_idioms)]
 
+pub(crate) use crate::api::private::async_runtime;
 /// The Tauri error enum.
 pub use error::Error;
-pub use tauri_api as api;
-pub(crate) use tauri_api::private::async_runtime;
 pub use tauri_macros::{command, generate_handler};
 
-/// The Tauri-specific settings for your runtime e.g. notification permission status.
-pub mod settings;
-
+pub mod api;
 /// The Tauri API endpoints.
 mod endpoints;
 mod error;
@@ -26,8 +23,10 @@ mod event;
 mod hooks;
 pub mod plugin;
 pub mod runtime;
+/// The Tauri-specific settings for your runtime e.g. notification permission status.
+pub mod settings;
 #[cfg(feature = "updater")]
-mod updater;
+pub mod updater;
 
 /// `Result<T, ::tauri::Error>`
 pub type Result<T> = std::result::Result<T, Error>;
@@ -108,7 +107,7 @@ pub struct Context<A: Assets> {
   pub default_window_icon: Option<Vec<u8>>,
 
   /// Package information.
-  pub package_info: tauri_api::PackageInfo,
+  pub package_info: crate::api::PackageInfo,
 }
 
 /// Types associated with the running Tauri application.

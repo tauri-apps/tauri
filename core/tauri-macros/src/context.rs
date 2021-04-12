@@ -14,7 +14,7 @@ use tauri_codegen::{context_codegen, get_config, ContextData};
 
 pub(crate) struct ContextItems {
   config_file: PathBuf,
-  context_path: syn::Path,
+  root: syn::Path,
 }
 
 impl Parse for ContextItems {
@@ -52,10 +52,6 @@ impl Parse for ContextItems {
         ident: Ident::new("tauri", Span::call_site()),
         arguments: PathArguments::None,
       });
-      segments.push(PathSegment {
-        ident: Ident::new("Context", Span::call_site()),
-        arguments: PathArguments::None,
-      });
       syn::Path {
         leading_colon: Some(Token![::](Span::call_site())),
         segments,
@@ -67,7 +63,7 @@ impl Parse for ContextItems {
 
     Ok(Self {
       config_file,
-      context_path,
+      root: context_path,
     })
   }
 }
@@ -79,7 +75,7 @@ pub(crate) fn generate_context(context: ContextItems) -> TokenStream {
       dev: cfg!(not(feature = "custom-protocol")),
       config,
       config_parent,
-      context_path: context.context_path.to_token_stream(),
+      root: context.root.to_token_stream(),
     })
     .and_then(|data| context_codegen(data).map_err(|e| e.to_string()));
 

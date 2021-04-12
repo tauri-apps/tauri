@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#[macro_use]
-pub mod error;
+use super::error::{Error, Result};
+use crate::api::{file::Extract, version};
 use base64::decode;
-pub use error::{Error, Result};
 use minisign_verify::{PublicKey, Signature};
 use reqwest::{self, header, StatusCode};
 use std::{
@@ -17,13 +16,12 @@ use std::{
   str::from_utf8,
   time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use tauri_api::{file::Extract, version};
 
 #[cfg(not(target_os = "macos"))]
 use std::process::Command;
 
 #[cfg(target_os = "macos")]
-use tauri_api::file::Move;
+use crate::api::file::Move;
 
 #[cfg(target_os = "windows")]
 use std::process::exit;
@@ -175,6 +173,7 @@ impl<'a> UpdateBuilder<'a> {
     UpdateBuilder::default()
   }
 
+  #[allow(dead_code)]
   pub fn url(mut self, url: String) -> Self {
     self.urls.push(url);
     self
@@ -199,12 +198,14 @@ impl<'a> UpdateBuilder<'a> {
 
   /// Set the target (os)
   /// win32, win64, darwin and linux are currently supported
+  #[allow(dead_code)]
   pub fn target(mut self, target: &str) -> Self {
     self.target = Some(target.to_owned());
     self
   }
 
   /// Set the executable path
+  #[allow(dead_code)]
   pub fn executable_path<A: AsRef<Path>>(mut self, executable_path: A) -> Self {
     self.executable_path = Some(PathBuf::from(executable_path.as_ref()));
     self
@@ -975,15 +976,15 @@ mod test {
   fn http_updater_complete_process() {
     let good_archive_url = format!("{}/archive.tar.gz", mockito::server_url());
 
-    let mut signature_file =
-      File::open("./test/fixture/archives/archive.tar.gz.sig").expect("Unable to open signature");
+    let mut signature_file = File::open("./test/updater/fixture/archives/archive.tar.gz.sig")
+      .expect("Unable to open signature");
     let mut signature = String::new();
     signature_file
       .read_to_string(&mut signature)
       .expect("Unable to read signature as string");
 
-    let mut pubkey_file =
-      File::open("./test/fixture/good_signature/update.key.pub").expect("Unable to open pubkey");
+    let mut pubkey_file = File::open("./test/updater/fixture/good_signature/update.key.pub")
+      .expect("Unable to open pubkey");
     let mut pubkey = String::new();
     pubkey_file
       .read_to_string(&mut pubkey)
@@ -993,7 +994,7 @@ mod test {
     let _m = mockito::mock("GET", "/archive.tar.gz")
       .with_status(200)
       .with_header("content-type", "application/octet-stream")
-      .with_body_from_file("./test/fixture/archives/archive.tar.gz")
+      .with_body_from_file("./test/updater/fixture/archives/archive.tar.gz")
       .create();
 
     // sample mock for update file

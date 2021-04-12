@@ -8,7 +8,6 @@ on:
     paths:
       - '.github/workflows/artifacts-updater.yml'
       - 'core/tauri/**'
-      - 'core/tauri-updater/**'
       - 'cli/core/**'
       - 'cli/tauri-bundler/**'
       - 'examples/updater/**'

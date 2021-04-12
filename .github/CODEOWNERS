@@ -19,8 +19,4 @@
 
 /cli/tauri.js/ @tauri-apps/js-cli
 
-/tauri-update/ @tauri-apps/core
-
-/tauri-api/ @tauri-apps/core
-
-/tauri/ @tauri-apps/core
+/core/** @tauri-apps/core

@@ -16,7 +16,7 @@ use std::os::windows::process::CommandExt;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-use crate::private::async_runtime::{channel, spawn, Receiver};
+use crate::api::private::async_runtime::{channel, spawn, Receiver};
 use os_pipe::{pipe, PipeWriter};
 use serde::Serialize;
 use shared_child::SharedChild;
@@ -72,12 +72,12 @@ pub struct CommandChild {
 
 impl CommandChild {
   /// Write to process stdin.
-  pub fn write(&mut self, buf: &[u8]) -> crate::Result<()> {
+  pub fn write(&mut self, buf: &[u8]) -> crate::api::Result<()> {
     self.stdin_writer.write_all(buf)?;
     Ok(())
   }
   /// Send a kill signal to the child.
-  pub fn kill(self) -> crate::Result<()> {
+  pub fn kill(self) -> crate::api::Result<()> {
     self.inner.kill()?;
     Ok(())
   }
@@ -119,7 +119,7 @@ impl Command {
   }
 
   /// Spawns the command.
-  pub fn spawn(self) -> crate::Result<(Receiver<CommandEvent>, CommandChild)> {
+  pub fn spawn(self) -> crate::api::Result<(Receiver<CommandEvent>, CommandChild)> {
     let mut command = get_std_command!(self);
     let (stdout_reader, stdout_writer) = pipe()?;
     let (stderr_reader, stderr_writer) = pipe()?;
@@ -191,10 +191,10 @@ mod test {
   #[test]
   fn test_cmd_output() {
     // create a command to run cat.
-    let cmd = Command::new("cat").args(&["test/test.txt"]);
+    let cmd = Command::new("cat").args(&["test/api/test.txt"]);
     let (mut rx, _) = cmd.spawn().unwrap();
 
-    crate::private::async_runtime::block_on(async move {
+    crate::api::private::async_runtime::block_on(async move {
       while let Some(event) = rx.recv().await {
         match event {
           CommandEvent::Terminated(payload) => {
@@ -213,17 +213,17 @@ mod test {
   #[test]
   // test the failure case
   fn test_cmd_fail() {
-    let cmd = Command::new("cat").args(&["test/"]);
+    let cmd = Command::new("cat").args(&["test/api/"]);
     let (mut rx, _) = cmd.spawn().unwrap();
 
-    crate::private::async_runtime::block_on(async move {
+    crate::api::private::async_runtime::block_on(async move {
       while let Some(event) = rx.recv().await {
         match event {
           CommandEvent::Terminated(payload) => {
             assert_eq!(payload.code, Some(1));
           }
           CommandEvent::Stderr(line) => {
-            assert_eq!(line, "cat: test/: Is a directory".to_string());
+            assert_eq!(line, "cat: test/api/: Is a directory".to_string());
           }
           _ => {}
         }

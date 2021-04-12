@@ -4,8 +4,9 @@
 
 use super::InvokeResponse;
 use serde::Deserialize;
+
 #[cfg(notification_all)]
-use tauri_api::notification::Notification;
+use crate::api::notification::Notification;
 
 /// The options for the notification API.
 #[derive(Deserialize)]
@@ -86,17 +87,17 @@ pub fn request_permission() -> crate::Result<String> {
   if let Some(allow_notification) = settings.allow_notification {
     return Ok(if allow_notification { granted } else { denied });
   }
-  let answer = tauri_api::dialog::ask(
+  let answer = crate::api::dialog::ask(
     "Permissions",
     "This app wants to show notifications. Do you allow?",
   );
   match answer {
-    tauri_api::dialog::AskResponse::Yes => {
+    crate::api::dialog::AskResponse::Yes => {
       settings.allow_notification = Some(true);
       crate::settings::write_settings(settings)?;
       Ok(granted)
     }
-    tauri_api::dialog::AskResponse::No => {
+    crate::api::dialog::AskResponse::No => {
       settings.allow_notification = Some(false);
       crate::settings::write_settings(settings)?;
       Ok(denied)

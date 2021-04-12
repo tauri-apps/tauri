@@ -4,9 +4,9 @@
 # SPDX-License-Identifier: MIT
 
 echo "Building API definitions..."
-cd api
+cd tooling/api
 yarn && yarn build
-cd ..
+cd ../..
 
 echo "Building the Tauri Rust CLI..."
 cd tooling/cli.rs

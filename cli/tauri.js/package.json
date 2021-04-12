@@ -65,6 +65,7 @@
     "png2icons": "2.0.1",
     "read-chunk": "3.2.0",
     "semver": "7.3.5",
+    "update-notifier": "5.1.0",
     "sharp": "0.28.1"
   },
   "devDependencies": {

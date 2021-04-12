@@ -307,7 +307,7 @@ fn transfer_resource_files(settings: &Settings, data_dir: &Path) -> crate::Resul
 }
 
 /// Generate the icon files and store them under the `data_dir`.
-fn generate_icon_files(settings: &Settings, data_dir: &PathBuf) -> crate::Result<()> {
+fn generate_icon_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
   let base_dir = data_dir.join("usr/share/icons/hicolor");
   let get_dest_path = |width: u32, height: u32, is_high_density: bool| {
     base_dir.join(format!(

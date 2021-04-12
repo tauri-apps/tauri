@@ -768,10 +768,7 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
 // Given a list of icon files, try to produce an ICNS file in the resources
 // directory and return the path to it.  Returns `Ok(None)` if no usable icons
 // were provided.
-fn create_icns_file(
-  resources_dir: &PathBuf,
-  settings: &Settings,
-) -> crate::Result<Option<PathBuf>> {
+fn create_icns_file(resources_dir: &Path, settings: &Settings) -> crate::Result<Option<PathBuf>> {
   if settings.icon_files().count() == 0 {
     return Ok(None);
   }
@@ -839,7 +836,7 @@ fn create_icns_file(
 
   if !family.is_empty() {
     fs::create_dir_all(resources_dir)?;
-    let mut dest_path = resources_dir.clone();
+    let mut dest_path = resources_dir.to_path_buf();
     dest_path.push(settings.product_name());
     dest_path.set_extension("icns");
     let icns_file = BufWriter::new(File::create(&dest_path)?);

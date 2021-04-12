@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{fs::File, io::Read, path::PathBuf, process::Command, str::FromStr};
+use std::{
+  fs::File,
+  io::Read,
+  path::{Path, PathBuf},
+  process::Command,
+  str::FromStr,
+};
 
 use serde::Deserialize;
 
@@ -10,7 +16,7 @@ use crate::helpers::{app_paths::tauri_dir, config::Config};
 #[cfg(windows)]
 use tauri_bundler::WindowsSettings;
 use tauri_bundler::{
-  AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOSSettings, PackageSettings,
+  AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
   UpdaterSettings,
 };
 
@@ -286,8 +292,8 @@ fn get_target_dir(
 ///
 /// If this package is part of a workspace, returns the path to the workspace directory
 /// Otherwise returns the current directory.
-pub fn get_workspace_dir(current_dir: &PathBuf) -> PathBuf {
-  let mut dir = current_dir.clone();
+pub fn get_workspace_dir(current_dir: &Path) -> PathBuf {
+  let mut dir = current_dir.to_path_buf();
   let project_path = current_dir.clone();
 
   while dir.pop() {
@@ -306,7 +312,7 @@ pub fn get_workspace_dir(current_dir: &PathBuf) -> PathBuf {
   }
 
   // Nothing found walking up the file system, return the starting directory
-  current_dir.clone()
+  current_dir.to_path_buf()
 }
 
 fn tauri_config_to_bundle_settings(
@@ -332,7 +338,7 @@ fn tauri_config_to_bundle_settings(
       depends: config.deb.depends,
       use_bootstrapper: Some(config.deb.use_bootstrapper),
     },
-    macos: MacOSSettings {
+    macos: MacOsSettings {
       frameworks: config.macos.frameworks,
       minimum_system_version: config.macos.minimum_system_version,
       license: config.macos.license,

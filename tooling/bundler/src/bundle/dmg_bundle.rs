@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::{common, macos_bundle};
-use crate::{bundle::Bundle, PackageType::MacOSBundle, Settings};
+use crate::{bundle::Bundle, PackageType::MacOsBundle, Settings};
 
 use anyhow::Context;
 
@@ -20,7 +20,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   // generate the .app bundle if needed
   if bundles
     .iter()
-    .filter(|bundle| bundle.package_type == MacOSBundle)
+    .filter(|bundle| bundle.package_type == MacOsBundle)
     .count()
     == 0
   {

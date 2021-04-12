@@ -50,7 +50,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
   // find our .app or rebuild our bundle
   let bundle_path = match bundles
     .iter()
-    .filter(|bundle| bundle.package_type == crate::PackageType::MacOSBundle)
+    .filter(|bundle| bundle.package_type == crate::PackageType::MacOsBundle)
     .find_map(|bundle| {
       bundle
         .bundle_paths

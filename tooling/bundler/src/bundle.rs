@@ -56,7 +56,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       PackageType::Deb => deb_bundle::bundle_project(&settings)?,
       PackageType::Rpm => rpm_bundle::bundle_project(&settings)?,
       PackageType::AppImage => appimage_bundle::bundle_project(&settings)?,
-      // dmg is dependant of MacOSBundle, we send our bundles to prevent rebuilding
+      // dmg is dependant of MacOsBundle, we send our bundles to prevent rebuilding
       PackageType::Dmg => dmg_bundle::bundle_project(&settings, &bundles)?,
       // updater is dependant of multiple bundle, we send our bundles to prevent rebuilding
       PackageType::Updater => updater_bundle::bundle_project(&settings, &bundles)?,

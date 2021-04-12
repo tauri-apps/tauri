@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT
 
 
-# Loop all quickcheck tests for tauri-api. 
+# Loop all quickcheck tests for tauri. 
 while true
 do
     cargo test qc_

@@ -25,17 +25,6 @@
     },
     {
       "enabled": true,
-      "paths": ["core/tauri-api/**"],
-      "groupName": "Tauri API",
-      "groupSlug": "allTauriAPI",
-      "commitMessagePrefix": "chore(deps)",
-      "lockFileMaintenance": {
-        "enabled": true
-      },
-      "rebaseConflictedPrs": false
-    },
-    {
-      "enabled": true,
       "paths": ["core/tauri-build/**"],
       "groupName": "Tauri Build",
       "groupSlug": "allTauriBuild",

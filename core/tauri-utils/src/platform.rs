@@ -36,7 +36,7 @@ pub fn target_triple() -> crate::Result<String> {
   } else if cfg!(target_os = "freebsd") {
     "unknown-freebsd"
   } else {
-    return Err(crate::Error::OS);
+    return Err(crate::Error::Os);
   };
 
   let os = if cfg!(target_os = "macos") || cfg!(target_os = "freebsd") {

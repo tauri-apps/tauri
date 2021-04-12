@@ -106,7 +106,9 @@ const vite: Recipe = {
   postInit: async ({ packageManager }) => {
     console.log(`
     Your installation completed.
-    To start, run ${packageManager === "yarn" ? "yarn" : "npm run"} tauri dev
+    To start, run ${packageManager === "yarn" ? "yarn" : "npm run"} tauri ${
+      packageManager === "npm" ? "--" : ""
+    } dev
   `);
   },
 };

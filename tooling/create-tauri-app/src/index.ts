@@ -5,6 +5,7 @@
 import { map, find } from "lodash";
 import { TauriBuildConfig } from "./types/config";
 import { reactjs, reactts } from "./recipes/react";
+import { vuecli } from "./recipes/vue-cli";
 import { vanillajs } from "./recipes/vanilla";
 import { vite } from "./recipes/vite";
 
@@ -44,7 +45,7 @@ export interface Recipe {
   }) => Promise<void>;
 }
 
-export const allRecipes: Recipe[] = [vanillajs, reactjs, reactts, vite];
+export const allRecipes: Recipe[] = [vanillajs, reactjs, reactts, vite, vuecli];
 
 export const recipeNames: Array<[string, string]> = map(
   allRecipes,

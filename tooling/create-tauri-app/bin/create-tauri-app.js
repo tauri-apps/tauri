@@ -197,23 +197,26 @@ async function runInit(argv, config = {}) {
     }
   }, []);
 
-  console.log("===== installing any additional needed deps =====");
-  await install({
-    appDir: appDirectory,
-    dependencies: recipe.extraNpmDependencies,
-    devDependencies: ["@tauri-apps/cli", ...recipe.extraNpmDevDependencies],
-    packageManager,
-  });
+  // Vue CLI plugin automatically runs these
+  if (recipe.shortName !== "vuecli") {
+    console.log("===== installing any additional needed deps =====");
+    await install({
+      appDir: appDirectory,
+      dependencies: recipe.extraNpmDependencies,
+      devDependencies: ["@tauri-apps/cli", ...recipe.extraNpmDevDependencies],
+      packageManager,
+    });
 
-  console.log("===== running tauri init =====");
-  const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b);
-  const runTauriArgs =
-    packageManager === "npm" && !argv.b
-      ? ["run", "tauri", "--", "init"]
-      : ["tauri", "init"];
-  await shell(binary, [...runTauriArgs, ...initArgs], {
-    cwd: appDirectory,
-  });
+    console.log("===== running tauri init =====");
+    const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b);
+    const runTauriArgs =
+      packageManager === "npm" && !argv.b
+        ? ["run", "tauri", "--", "init"]
+        : ["tauri", "init"];
+    await shell(binary, [...runTauriArgs, ...initArgs], {
+      cwd: appDirectory,
+    });
+  }
 
   if (recipe.postInit) {
     console.log("===== running final command(s) =====");

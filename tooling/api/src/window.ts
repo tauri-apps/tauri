@@ -477,7 +477,7 @@ export class WindowManager {
 const appWindow = new WindowManager()
 
 export interface WindowOptions {
-  url?: 'app' | string
+  url?: string
   x?: number
   y?: number
   width?: number

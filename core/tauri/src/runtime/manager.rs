@@ -422,7 +422,7 @@ where
           },
         )
       }
-      WindowUrl::External(url) => (false, url.to_string()),
+      WindowUrl::External(url) => (url.as_str().starts_with("tauri://"), url.to_string()),
     };
 
     let attributes = pending.attributes.clone();

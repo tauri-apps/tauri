@@ -74,7 +74,7 @@ pub mod private {
     use tokio::runtime::Runtime;
     pub use tokio::sync::{
       mpsc::{channel, Receiver, Sender},
-      Mutex,
+      Mutex, RwLock,
     };
 
     use std::future::Future;

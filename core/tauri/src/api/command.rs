@@ -16,7 +16,7 @@ use std::os::windows::process::CommandExt;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-use crate::api::private::async_runtime::{channel, spawn, Receiver};
+use crate::api::private::async_runtime::{channel, spawn, Receiver, RwLock};
 use os_pipe::{pipe, PipeWriter};
 use serde::Serialize;
 use shared_child::SharedChild;
@@ -131,28 +131,14 @@ impl Command {
     let shared_child = SharedChild::spawn(&mut command)?;
     let child = Arc::new(shared_child);
     let child_ = child.clone();
+    let guard = Arc::new(RwLock::new(()));
 
     let (tx, rx) = channel(1);
-    let tx_ = tx.clone();
-    spawn(async move {
-      let _ = match child_.wait() {
-        Ok(status) => {
-          tx_
-            .send(CommandEvent::Terminated(TerminatedPayload {
-              code: status.code(),
-              #[cfg(windows)]
-              signal: None,
-              #[cfg(unix)]
-              signal: status.signal(),
-            }))
-            .await
-        }
-        Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
-      };
-    });
 
     let tx_ = tx.clone();
+    let guard_ = guard.clone();
     spawn(async move {
+      let _lock = guard_.read().await;
       let reader = BufReader::new(stdout_reader);
       for line in reader.lines() {
         let _ = match line {
@@ -162,14 +148,37 @@ impl Command {
       }
     });
 
+    let tx_ = tx.clone();
+    let guard_ = guard.clone();
     spawn(async move {
+      let _lock = guard_.read().await;
       let reader = BufReader::new(stderr_reader);
       for line in reader.lines() {
         let _ = match line {
-          Ok(line) => tx.send(CommandEvent::Stderr(line)).await,
-          Err(e) => tx.send(CommandEvent::Error(e.to_string())).await,
+          Ok(line) => tx_.send(CommandEvent::Stderr(line)).await,
+          Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
         };
       }
+    });
+
+    spawn(async move {
+      let _ = match child_.wait() {
+        Ok(status) => {
+          guard.write().await;
+          tx.send(CommandEvent::Terminated(TerminatedPayload {
+            code: status.code(),
+            #[cfg(windows)]
+            signal: None,
+            #[cfg(unix)]
+            signal: status.signal(),
+          }))
+          .await
+        }
+        Err(e) => {
+          guard.write().await;
+          tx.send(CommandEvent::Error(e.to_string())).await
+        }
+      };
     });
 
     Ok((

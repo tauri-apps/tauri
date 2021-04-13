@@ -4,8 +4,15 @@ import { join } from "path";
 import scaffe from "scaffe";
 import { shell } from "../shell";
 
-const afterCra = async (cwd: string, appName: string) => {
-  const templateDir = join(__dirname, "../src/templates/react");
+const afterCra = async (
+  cwd: string,
+  appName: string,
+  typescript: boolean = false
+) => {
+  const templateDir = join(
+    __dirname,
+    `../src/templates/react/${typescript ? "react-ts" : "react"}`
+  );
 
   try {
     await scaffe.generate(templateDir, join(cwd, appName), {
@@ -81,6 +88,7 @@ const reactts: Recipe = {
         }
       );
     }
+    await afterCra(cwd, cfg.appName, true);
   },
   postInit: async ({ packageManager }) => {
     console.log(`

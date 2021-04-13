@@ -4,10 +4,9 @@ workspace = { }
 name = "app"
 version = "0.1.0"
 description = "A Tauri App"
-author = [ "Daniel Thompson-Yvetot" ]
+authors = [ "Daniel Thompson-Yvetot" ]
 license = ""
 repository = ""
-default-run = "app"
 edition = "2018"
 
 [package.metadata.bundle]
@@ -20,6 +19,9 @@ icon = [
   "icons/icon.ico"
 ]
 
+[build-dependencies]
+tauri-build = { path = "../../../../../../../core/tauri-build" }
+
 [dependencies]
 serde_json = "1.0.64"
 serde = "1.0"
@@ -27,8 +29,5 @@ serde_derive = "1.0"
 tauri = { path = "../../../../../../../core/tauri", features =["api-all"]}
 
 [features]
+default = [ "custom-protocol" ]
 custom-protocol = [ "tauri/custom-protocol" ]
-
-[[bin]]
-name = "app"
-path = "src/main.rs"

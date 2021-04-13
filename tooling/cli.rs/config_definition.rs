@@ -64,6 +64,7 @@ pub struct PackageConfig {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BundleConfig {
   /// Whether we should build your app with tauri-bundler or plain `cargo build`
+  #[serde(default)]
   pub active: bool,
   /// The bundle targets, currently supports ["deb", "app", "msi", "appimage", "dmg"] or "all"
   pub targets: Option<BundleTarget>,
@@ -535,6 +536,7 @@ impl TauriConfig {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct UpdaterConfig {
   /// Whether the updater is active or not.
+  #[serde(default)]
   pub active: bool,
   /// Display built-in dialog or use event system if disabled.
   #[serde(default = "default_dialog")]

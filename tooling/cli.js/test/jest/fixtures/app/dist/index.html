@@ -5,16 +5,13 @@
       function callBackEnd(route, args) {
         console.log(route)
         console.log(args)
-        var xhr = new XMLHttpRequest()
-        xhr.onload = function () {
-          console.log(route, args, 'done', xhr.status)
-        }
-        xhr.onerror = function () {
-          console.log(route, args, 'error with ' + xhr.status)
-        }
-        xhr.open('POST', 'http://localhost:7000/' + route)
-        xhr.setRequestHeader('Content-type', 'application/json')
-        xhr.send(JSON.stringify(args))
+        window.__TAURI__.http
+          .fetch('http://localhost:7000/' + route, {
+            method: 'POST',
+            body: window.__TAURI__.http.Body.json(args),
+            responseType: window.__TAURI__.http.ResponseType.Binary
+          })
+          .catch(console.error)
       }
 
       function reply(args) {
@@ -136,7 +133,7 @@
       })
 
       setTimeout(function () {
-        window.rpc.notify('exit')
+        window.__TAURI__.invoke('exit')
       }, 15000)
     </script>
   </body>

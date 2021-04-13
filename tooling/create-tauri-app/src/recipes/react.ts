@@ -24,12 +24,14 @@ const afterCra = async (cwd: string, appName: string, version: string) => {
 const reactjs: Recipe = {
   descriptiveName: "React.js",
   shortName: "reactjs",
-  configUpdate: ({ cfg }) => ({
+  configUpdate: ({ cfg, packageManager }) => ({
     ...cfg,
     distDir: `../build`,
     devPath: "http://localhost:3000",
-    beforeDevCommand: `npm start`,
-    beforeBuildCommand: `npm build`,
+    beforeDevCommand: `${packageManager === "yarn" ? "yarn" : "npm run"} start`,
+    beforeBuildCommand: `${
+      packageManager === "yarn" ? "yarn" : "npm run"
+    } build`,
   }),
   extraNpmDevDependencies: [],
   extraNpmDependencies: [],
@@ -57,7 +59,7 @@ const reactjs: Recipe = {
   postInit: async ({ packageManager }) => {
     console.log(`
     Your installation completed.
-    To start, run ${packageManager} tauri dev
+    To start, run ${packageManager === "yarn" ? "yarn" : "npm run"} tauri dev
   `);
   },
 };
@@ -98,7 +100,7 @@ const reactts: Recipe = {
   postInit: async ({ packageManager }) => {
     console.log(`
     Your installation completed.
-    To start, run ${packageManager} tauri dev
+    To start, run ${packageManager === "yarn" ? "yarn" : "npm run"} tauri dev
   `);
   },
 };

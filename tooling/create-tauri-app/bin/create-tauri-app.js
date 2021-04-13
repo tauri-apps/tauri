@@ -89,7 +89,7 @@ function printUsage() {
     --window-title, -W   Window title of your Tauri application
     --dist-dir, -D       Web assets location, relative to <project-dir>/src-tauri
     --dev-path, -P       Url of your dev server
-    --recipe, -r         Add UI framework recipe. None by default. 
+    --recipe, -r         Add UI framework recipe. None by default.
                          Supported recipes: [${recipeShortNames.join("|")}]
     `);
 }
@@ -130,7 +130,7 @@ const getOptionsInteractive = (argv) => {
         );
         runInit();
       } else {
-        // Something else when wrong
+        // Something else went wrong
         console.error("An unknown error occurred:", error);
       }
     });

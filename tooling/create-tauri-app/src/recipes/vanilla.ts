@@ -41,7 +41,9 @@ install dependencies:
   $ ${packageManager} install
 
 run the app:
-  $ ${packageManager} tauri ${packageManager === "npm" ? "-- " : ""}dev
+  $ ${packageManager === "yarn" ? "yarn" : "npm run"} tauri ${
+      packageManager === "npm" ? "-- " : ""
+    }dev
             `);
   },
 };

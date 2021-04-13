@@ -13,6 +13,11 @@ export interface Options {
 export type PartialOptions = Omit<Options, 'title'>
 export type Permission = 'granted' | 'denied' | 'default'
 
+/**
+ * Checks if the permission to send notifications is granted.
+ *
+ * @returns
+ */
 async function isPermissionGranted(): Promise<boolean | null> {
   if (window.Notification.permission !== 'default') {
     return Promise.resolve(window.Notification.permission === 'granted')
@@ -25,10 +30,21 @@ async function isPermissionGranted(): Promise<boolean | null> {
   })
 }
 
+/**
+ * Requests the permission to send notifications.
+ *
+ * @returns A promise resolving to whether the user granted the permission or not.
+ */
 async function requestPermission(): Promise<Permission> {
   return window.Notification.requestPermission()
 }
 
+/**
+ * Sends a notification to the user.
+ *
+ * @param options Notification options
+ * @returns
+ */
 function sendNotification(options: Options | string): void {
   if (typeof options === 'string') {
     // eslint-disable-next-line no-new

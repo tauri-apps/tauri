@@ -5,14 +5,18 @@
 import { invokeTauriCommand } from './helpers/tauri'
 import { transformCallback } from './tauri'
 
+export type ShortcutHandler = (shortcut: string) => void
+
 /**
- * Register a global shortcut
- * @param shortcut shortcut definition, modifiers and key separated by "+" e.g. CmdOrControl+Q
- * @param handler shortcut handler callback - takes the triggered shortcut as argument
+ * Register a global shortcut.
+ *
+ * @param shortcut Shortcut definition, modifiers and key separated by "+" e.g. CmdOrControl+Q
+ * @param handler Shortcut handler callback - takes the triggered shortcut as argument
+ * @returns
  */
 async function register(
   shortcut: string,
-  handler: (shortcut: string) => void
+  handler: ShortcutHandler
 ): Promise<void> {
   return invokeTauriCommand({
     __tauriModule: 'GlobalShortcut',
@@ -25,13 +29,15 @@ async function register(
 }
 
 /**
- * Register a collection of global shortcuts
- * @param shortcuts array of shortcut definitions, modifiers and key separated by "+" e.g. CmdOrControl+Q
- * @param handler shortcut handler callback - takes the triggered shortcut as argument
+ * Register a collection of global shortcuts.
+ *
+ * @param shortcuts Array of shortcut definitions, modifiers and key separated by "+" e.g. CmdOrControl+Q
+ * @param handler Shortcut handler callback - takes the triggered shortcut as argument
+ * @returns
  */
 async function registerAll(
   shortcuts: string[],
-  handler: (shortcut: string) => void
+  handler: ShortcutHandler
 ): Promise<void> {
   return invokeTauriCommand({
     __tauriModule: 'GlobalShortcut',
@@ -46,8 +52,8 @@ async function registerAll(
 /**
  * Determines whether the given shortcut is registered by this application or not.
  *
- * @param shortcuts array of shortcut definitions, modifiers and key separated by "+" e.g. CmdOrControl+Q
- * @return {Promise<boolean>} promise resolving to the state
+ * @param shortcut Array of shortcut definitions, modifiers and key separated by "+" e.g. CmdOrControl+Q
+ * @returns A promise resolving to the state.
  */
 async function isRegistered(shortcut: string): Promise<boolean> {
   return invokeTauriCommand({
@@ -60,8 +66,10 @@ async function isRegistered(shortcut: string): Promise<boolean> {
 }
 
 /**
- * Unregister a global shortcut
+ * Unregister a global shortcut.
+ *
  * @param shortcut shortcut definition, modifiers and key separated by "+" e.g. CmdOrControl+Q
+ * @returns
  */
 async function unregister(shortcut: string): Promise<void> {
   return invokeTauriCommand({
@@ -75,6 +83,8 @@ async function unregister(shortcut: string): Promise<void> {
 
 /**
  * Unregisters all shortcuts registered by the application.
+ *
+ * @returns
  */
 async function unregisterAll(): Promise<void> {
   return invokeTauriCommand({

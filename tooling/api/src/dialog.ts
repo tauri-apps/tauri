@@ -22,14 +22,9 @@ export interface SaveDialogOptions {
 }
 
 /**
- * @name openDialog
- * @description Open a file/directory selection dialog
- * @param {Object} [options]
- * @param {string} [options.filter]
- * @param {string} [options.defaultPath]
- * @param {boolean} [options.multiple=false]
- * @param {boolean} [options.directory=false]
- * @returns {Promise<string | string[]>} Promise resolving to the select path(s)
+ * Open a file/directory selection dialog
+ *
+ * @returns A promise resolving to the selected path(s)
  */
 async function open(
   options: OpenDialogOptions = {}
@@ -49,12 +44,9 @@ async function open(
 }
 
 /**
- * @name save
- * @description Open a file/directory save dialog
- * @param {Object} [options]
- * @param {string} [options.filter]
- * @param {string} [options.defaultPath]
- * @returns {Promise<string>} Promise resolving to the select path
+ * Open a file/directory save dialog.
+ *
+ * @returns A promise resolving to the selected path.
  */
 async function save(options: SaveDialogOptions = {}): Promise<string> {
   if (typeof options === 'object') {

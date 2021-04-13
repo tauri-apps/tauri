@@ -12,7 +12,7 @@ export interface ArgMatch {
    */
   value: string | boolean | string[] | null
   /**
-   * number of occurrences
+   * Number of occurrences
    */
   occurrences: number
 }
@@ -28,7 +28,9 @@ export interface CliMatches {
 }
 
 /**
- * gets the CLI matches
+ * Gets the CLI matches.
+ *
+ * @returns A promise resolving to cli matches.
  */
 async function getMatches(): Promise<CliMatches> {
   return invokeTauriCommand<CliMatches>({

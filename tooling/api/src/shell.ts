@@ -6,12 +6,13 @@ import { invokeTauriCommand } from './helpers/tauri'
 import { transformCallback } from './tauri'
 
 /**
- * spawns a process
+ * Spawns a process.
  *
- * @param program the name of the program to execute e.g. 'mkdir' or 'node'
- * @param sidecar whether the program is a sidecar or a system program
- * @param [args] command args
- * @return promise resolving to the stdout text
+ * @param program The name of the program to execute e.g. 'mkdir' or 'node'
+ * @param sidecar Whether the program is a sidecar or a system program
+ * @param onEvent
+ * @param [args] Command args
+ * @returns A promise resolving to the process id.
  */
 async function execute(
   program: string,
@@ -118,11 +119,10 @@ class Command extends EventEmitter<'close' | 'error'> {
   }
 
   /**
-   * Creates a command to execute the given sidecar binary
+   * Creates a command to execute the given sidecar binary.
    *
-   * @param {string} program  Binary name
-   *
-   * @return {Command}
+   * @param program Binary name
+   * @returns
    */
   static sidecar(program: string, args: string | string[] = []): Command {
     const instance = new Command(program, args)
@@ -195,11 +195,12 @@ type CommandEvent =
   | Event<'Error', string>
 
 /**
- * opens a path or URL with the system's default app,
- * or the one specified with `openWith`
+ * Opens a path or URL with the system's default app,
+ * or the one specified with `openWith`.
  *
  * @param path the path or URL to open
- * @param openWith the app to open the file or URL with
+ * @param [openWith] the app to open the file or URL with
+ * @returns
  */
 async function open(path: string, openWith?: string): Promise<void> {
   return invokeTauriCommand({

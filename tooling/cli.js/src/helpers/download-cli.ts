@@ -23,7 +23,7 @@ const downloadCli = async (): Promise<void> => {
     throw Error('Unsupported platform')
   }
   const exe = platform === 'windows' ? '.exe' : ''
-  const url = `https://github.com/nklayman/tauri-binary-releases/releases/download/tauri-cli-v${version}/tauri-cli_${platform}${exe}`
+  const url = `https://github.com/tauri-apps/binary-releases/releases/download/tauri-cli-v${version}/tauri-cli_${platform}${exe}`
   const outPath = path.join(__dirname, `../../bin/tauri-cli${exe}`)
 
   console.log('Downloading Tauri CLI')

@@ -66,7 +66,7 @@ const vite: Recipe = {
       } else {
         await shell(
           "npx",
-          ["@vitejs/app", `${cfg.appName}`, "--template", `${template}`],
+          ["@vitejs/create-app", `${cfg.appName}`, "--template", `${template}`],
           {
             cwd,
           }

@@ -242,12 +242,10 @@
     },
     "BundleConfig": {
       "type": "object",
-      "required": [
-        "active"
-      ],
       "properties": {
         "active": {
           "description": "Whether we should build your app with tauri-bundler or plain `cargo build`",
+          "default": false,
           "type": "boolean"
         },
         "category": {
@@ -966,12 +964,10 @@
     },
     "UpdaterConfig": {
       "type": "object",
-      "required": [
-        "active"
-      ],
       "properties": {
         "active": {
           "description": "Whether the updater is active or not.",
+          "default": false,
           "type": "boolean"
         },
         "dialog": {

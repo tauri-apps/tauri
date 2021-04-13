@@ -1,26 +1,20 @@
-use tauri::ApplicationDispatcherExt;
+#[tauri::command(with_window)]
+fn exit<M: tauri::Params>(window: tauri::Window<M>) {
+  window.close().unwrap();
+}
 
 fn main() {
   tauri::Builder::default()
-    .setup(|webview_manager| async move {
-      let mut webview_manager_ = webview_manager.clone();
-      tauri::event::listen(String::from("hello"), move |_| {
-        tauri::event::emit(
-          &webview_manager_,
-          String::from("reply"),
-          Some("{ msg: 'TEST' }".to_string()),
-        )
-        .unwrap();
+    .on_page_load(|window, _| {
+      let window_ = window.clone();
+      window.listen("hello".into(), move |_| {
+        window_
+          .emit(&"reply".to_string(), Some("{ msg: 'TEST' }".to_string()))
+          .unwrap();
       });
-      webview_manager
-        .current_webview()
-        .eval("window.onTauriInit && window.onTauriInit()");
+      window.eval("window.onTauriInit()").unwrap();
     })
-    .invoke_handler(|webview_manager, command, _arg| async move {
-      if &command == "exit" {
-        webview_manager.close().unwrap();
-      }
-    })
+    .invoke_handler(tauri::generate_handler![exit])
     .run(tauri::generate_context!())
     .expect("error encountered while running tauri application");
 }

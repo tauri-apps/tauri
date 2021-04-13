@@ -1,7 +1,8 @@
 {
   "build": {
-    "devPath": "http://localhost:4000",
-    "distDir": "../dist"
+    "devPath": "../dist",
+    "distDir": "../dist",
+    "withGlobalTauri": true
   },
   "tauri": {
     "allowlist": {
@@ -19,7 +20,8 @@
     },
     "windows": [
       {
-        "title": "Fixture"
+        "title": "Fixture",
+        "visible": false
       }
     ]
   }

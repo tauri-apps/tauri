@@ -6,22 +6,12 @@ import scaffe from "scaffe";
 import { shell } from "../shell";
 import inquirer from "inquirer";
 
-const afterViteCA = async (
-  cwd: string,
-  appName: string,
-  version: string,
-  template: string
-) => {
+const afterViteCA = async (cwd: string, appName: string, template: string) => {
   const templateDir = join(__dirname, `../src/templates/vite/${template}`);
-  const variables = {
-    name: appName,
-    tauri_version: version,
-  };
 
   try {
     await scaffe.generate(templateDir, join(cwd, appName), {
       overwrite: true,
-      variables,
     });
   } catch (err) {
     console.log(err);
@@ -86,11 +76,7 @@ const vite: Recipe = {
         );
       }
 
-      const version = await shell("npm", ["view", "tauri", "version"], {
-        stdio: "pipe",
-      });
-      const versionNumber = version.stdout.trim();
-      await afterViteCA(cwd, cfg.appName, versionNumber, template);
+      await afterViteCA(cwd, cfg.appName, template);
     } catch (error) {
       if (error.isTtyError) {
         // Prompt couldn't be rendered in the current environment

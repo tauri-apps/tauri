@@ -61,15 +61,8 @@ const vite: Recipe = {
         );
       } else {
         await shell(
-          "npm",
-          [
-            "init",
-            "@vitejs/app",
-            `${cfg.appName}`,
-            "--",
-            "--template",
-            `${template}`,
-          ],
+          "npx",
+          ["@vitejs/app", `${cfg.appName}`, "--template", `${template}`],
           {
             cwd,
           }

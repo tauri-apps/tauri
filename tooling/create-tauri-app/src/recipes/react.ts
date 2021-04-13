@@ -37,13 +37,9 @@ const reactjs: Recipe = {
         cwd,
       });
     } else {
-      await shell(
-        "npm",
-        ["init", "react-app", `${cfg.appName}`, "--", "--use-npm"],
-        {
-          cwd,
-        }
-      );
+      await shell("npx", ["create-react-app", `${cfg.appName}`, "--use-npm"], {
+        cwd,
+      });
     }
     await afterCra(cwd, cfg.appName);
   },
@@ -72,12 +68,10 @@ const reactts: Recipe = {
       );
     } else {
       await shell(
-        "npm",
+        "npx",
         [
-          "init",
-          "react-app",
+          "create-react-app",
           `${cfg.appName}`,
-          "--",
           "--use-npm",
           "--template",
           "typescript",

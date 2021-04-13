@@ -1,5 +1,5 @@
 <script>
-  import { appWindow } from "@tauri-apps/api/window";
+  import { appWindow, WebviewWindow } from "@tauri-apps/api/window";
   import { open as openDialog } from "@tauri-apps/api/dialog";
   import { open } from "@tauri-apps/api/shell";
 
@@ -12,7 +12,6 @@
     unminimize,
     show,
     hide,
-    setTransparent,
     setDecorations,
     setAlwaysOnTop,
     setWidth,
@@ -26,6 +25,8 @@
     setFullscreen,
     setIcon,
   } = appWindow;
+
+  export let onMessage;
 
   let urlValue = "https://tauri.studio";
   let resizable = true;
@@ -67,6 +68,13 @@
     openDialog({
       multiple: false,
     }).then(setIcon);
+  }
+
+  function createWindow() {
+    const webview = new WebviewWindow(Math.random().toString());
+    webview.once('tauri://error', function () {
+      onMessage("Error creating new webview")
+    })
   }
 
   $: setResizable(resizable);
@@ -174,6 +182,7 @@
   <input id="url" bind:value={urlValue} />
   <button class="button" id="open-url"> Open URL </button>
 </form>
+<button class="button" on:click={createWindow}>New window</button>
 
 <style>
   .flex-row {

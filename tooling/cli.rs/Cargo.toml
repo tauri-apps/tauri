@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-cli"
-version = "0.1.0"
+version = "1.0.0-beta-rc.0"
 authors = [ "Lucas Nogueira <lucas@tauri.studio>" ]
 edition = "2018"
 license = "Apache-2.0 OR MIT"
@@ -14,7 +14,7 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "3.0.0-beta.2", features = [ "yaml" ] }
 anyhow = "1.0"
-tauri-bundler = { version = "0.9.4", path = "../bundler" }
+tauri-bundler = { version = "1.0.0-beta-rc.0", path = "../bundler" }
 colored = "2.0"
 once_cell = "1.7"
 serde = { version = "1.0", features = [ "derive" ] }

@@ -1,6 +1,6 @@
 [package]
 name = "tauri-codegen"
-version = "0.1.0"
+version = "1.0.0-beta-rc.0"
 authors = [ "Tauri Community" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -10,12 +10,12 @@ description = "code generation meant to be consumed inside of `tauri` through `t
 edition = "2018"
 
 [dependencies]
-blake3 = { version = "0.3", features = ["rayon"] }
+blake3 = { version = "0.3", features = [ "rayon" ] }
 proc-macro2 = "1"
 quote = "1"
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1", features = [ "derive" ] }
 serde_json = "1"
-tauri-utils = { path = "../tauri-utils", features = ["build"] }
+tauri-utils = { version = "1.0.0-beta-rc.0", path = "../tauri-utils", features = [ "build" ] }
 thiserror = "1"
 walkdir = "2"
 zstd = "0.7"

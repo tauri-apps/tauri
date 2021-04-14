@@ -16,7 +16,7 @@ proc-macro = true
 proc-macro2 = "1"
 quote = "1"
 syn = { version = "1", features = [ "full" ] }
-tauri-codegen = { path = "../tauri-codegen" }
+tauri-codegen = { version = "1.0.0-beta-rc.0", path = "../tauri-codegen" }
 
 [features]
 custom-protocol = [ ]

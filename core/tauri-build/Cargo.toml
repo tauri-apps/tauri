@@ -17,7 +17,7 @@ rustdoc-args = [ "--cfg", "doc_cfg" ]
 anyhow = "1"
 proc-macro2 = "1"
 quote = "1"
-tauri-codegen = { path = "../tauri-codegen", optional = true }
+tauri-codegen = { version = "1.0.0-beta-rc.0", path = "../tauri-codegen", optional = true }
 
 [target."cfg(windows)".dependencies]
 winres = "0.1"

@@ -1,20 +1,26 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 import { Recipe } from "..";
 import { join } from "path";
 //@ts-ignore
 import scaffe from "scaffe";
 import { shell } from "../shell";
 
-const afterCra = async (cwd: string, appName: string, version: string) => {
-  const templateDir = join(__dirname, "../src/templates/react");
-  const variables = {
-    name: appName,
-    tauri_version: version,
-  };
+const afterCra = async (
+  cwd: string,
+  appName: string,
+  typescript: boolean = false
+) => {
+  const templateDir = join(
+    __dirname,
+    `../src/templates/react/${typescript ? "react-ts" : "react"}`
+  );
 
   try {
     await scaffe.generate(templateDir, join(cwd, appName), {
       overwrite: true,
-      variables,
     });
   } catch (err) {
     console.log(err);
@@ -42,19 +48,11 @@ const reactjs: Recipe = {
         cwd,
       });
     } else {
-      await shell(
-        "npm",
-        ["init", "react-app", `${cfg.appName}`, "--", "--use-npm"],
-        {
-          cwd,
-        }
-      );
+      await shell("npx", ["create-react-app", `${cfg.appName}`, "--use-npm"], {
+        cwd,
+      });
     }
-    const version = await shell("npm", ["view", "tauri", "version"], {
-      stdio: "pipe",
-    });
-    const versionNumber = version.stdout.trim();
-    await afterCra(cwd, cfg.appName, versionNumber);
+    await afterCra(cwd, cfg.appName);
   },
   postInit: async ({ packageManager }) => {
     console.log(`
@@ -81,12 +79,10 @@ const reactts: Recipe = {
       );
     } else {
       await shell(
-        "npm",
+        "npx",
         [
-          "init",
-          "react-app",
+          "create-react-app",
           `${cfg.appName}`,
-          "--",
           "--use-npm",
           "--template",
           "typescript",
@@ -96,6 +92,7 @@ const reactts: Recipe = {
         }
       );
     }
+    await afterCra(cwd, cfg.appName, true);
   },
   postInit: async ({ packageManager }) => {
     console.log(`

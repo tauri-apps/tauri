@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 import { Recipe } from "..";
 import { TauriBuildConfig } from "../types/config";
 import { join } from "path";
@@ -8,12 +12,14 @@ import { shell } from "../shell";
 export const vanillajs: Recipe = {
   descriptiveName: "Vanilla.js",
   shortName: "vanillajs",
-  configUpdate: ({ cfg }) => ({
+  configUpdate: ({ cfg, packageManager }) => ({
     ...cfg,
     distDir: `../dist`,
     devPath: `../dist`,
-    beforeDevCommand: `yarn start`,
-    beforeBuildCommand: `yarn build`,
+    beforeDevCommand: `${packageManager === "yarn" ? "yarn" : "npm run"} start`,
+    beforeBuildCommand: `${
+      packageManager === "yarn" ? "yarn" : "npm run"
+    } build`,
   }),
   extraNpmDevDependencies: [],
   extraNpmDependencies: [],

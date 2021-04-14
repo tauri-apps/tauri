@@ -34,7 +34,7 @@ function runDevTest(tauriConfig) {
   return new Promise(async (resolve, reject) => {
     try {
       process.chdir(path.join(fixtureSetup.fixtureDir, 'app'))
-      const { promise, pid } = dev({ config: tauriConfig })
+      const { promise, pid } = await dev({ config: tauriConfig })
 
       const isRunning = require('is-running')
       let success = false

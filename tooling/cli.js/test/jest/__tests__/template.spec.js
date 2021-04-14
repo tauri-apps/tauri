@@ -13,12 +13,13 @@ describe('[CLI] cli.js template', () => {
     process.chdir(fixturePath)
 
     const { init, build } = require('dist/api/cli')
-    await init({
+    const { promise } = await init({
       directory: process.cwd(),
       force: true,
       tauriPath: resolve(__dirname, '../../../../..'),
       ci: true
-    }).promise
+    })
+    await promise
 
     process.chdir(tauriFixturePath)
 

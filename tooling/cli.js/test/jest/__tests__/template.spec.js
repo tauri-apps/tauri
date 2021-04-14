@@ -27,7 +27,7 @@ describe('[CLI] cli.js template', () => {
     const manifestFile = readFileSync(manifestPath).toString()
     writeFileSync(manifestPath, `workspace = { }\n\n${manifestFile}`)
 
-    await build({
+    const { promise: buildPromise } = await build({
       config: {
         tauri: {
           bundle: {
@@ -35,7 +35,8 @@ describe('[CLI] cli.js template', () => {
           }
         }
       }
-    }).promise
+    })
+    await buildPromise
     process.chdir(cwd)
   })
 })

@@ -1,6 +1,6 @@
 # Changelog
 
-## \[1.0.0]
+## \[1.0.0-beta-rc.1]
 
 - Missing the `files` property in the package.json which mean that the `dist` directory was not published and used.
   - Bumped due to a bump in api.

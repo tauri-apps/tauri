@@ -1,6 +1,6 @@
 # Changelog
 
-## \[1.0.0]
+## \[1.0.0-beta-rc.1]
 
 - Fix adding `tauri` script to package.json
   - [6c00e88](https://www.github.com/tauri-apps/tauri/commit/6c00e88e0ffa10eb7eecc312d66c5dde7dc03d0b) fix(cta): fix adding `tauri` script to package.json ([#1501](https://www.github.com/tauri-apps/tauri/pull/1501)) on 2021-04-15

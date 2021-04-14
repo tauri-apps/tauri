@@ -1,6 +1,6 @@
 # Changelog
 
-## \[1.0.0]
+## \[1.0.0-beta-rc.1]
 
 - Missing the `files` property in the package.json which mean that the `dist` directory was not published and used.
   - [b2569a7](https://www.github.com/tauri-apps/tauri/commit/b2569a729a3caa88bdba62abc31f0665e1323aaa) fix(js-api): dist ([#1498](https://www.github.com/tauri-apps/tauri/pull/1498)) on 2021-04-15

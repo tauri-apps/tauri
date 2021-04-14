@@ -15,6 +15,11 @@
     "Tauri Team <team@tauri-apps.org> (https://tauri.studio)",
     "Jacob Bolda <me@jacobbolda.com> (https://www.jacobbolda.com)"
   ],
+  "main": "bin/create-tauri-app.js",
+  "files": [
+    "bin",
+    "dist"
+  ],
   "scripts": {
     "create-tauri-app": "create-tauri-app",
     "build": "rollup --config",

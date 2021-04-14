@@ -54,6 +54,7 @@ pub enum Error {
   #[error("error encountered during setup hood: {0}")]
   Setup(#[from] Box<dyn std::error::Error>),
   /// Tauri updater error.
+  #[cfg(feature = "updater")]
   #[error("Updater: {0}")]
   TauriUpdater(#[from] crate::updater::Error),
 }

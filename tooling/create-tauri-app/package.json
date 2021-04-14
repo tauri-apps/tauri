@@ -1,6 +1,6 @@
 {
   "name": "create-tauri-app",
-  "version": "0.1.0",
+  "version": "1.0.0-beta-rc.0",
   "description": "Jump right into a Tauri App!",
   "bin": {
     "create-tauri-app": "./bin/create-tauri-app.js"

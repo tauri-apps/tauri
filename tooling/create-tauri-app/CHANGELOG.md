@@ -1,6 +1,6 @@
 # Changelog
 
-## \[0.1.0]
+## \[1.0.0-beta-rc.0]
 
 - Add vanilla javascript option to `create-tauri-app` through templating.
   - [c580338](https://www.github.com/tauri-apps/tauri/commit/c580338f07b71551f7fd2712e13ad0acef100095) feat(cli): add create-tauri-app ([#1106](https://www.github.com/tauri-apps/tauri/pull/1106)) on 2021-03-07

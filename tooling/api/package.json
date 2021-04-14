@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/api",
-  "version": "1.0.0-beta-rc.0",
+  "version": "1.0.0",
   "description": "Tauri API definitions",
   "main": "./dist/index.js",
   "files": [

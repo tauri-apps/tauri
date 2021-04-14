@@ -1,6 +1,6 @@
 # Changelog
 
-## \[0.2.0]
+## \[1.0.0-beta-rc.0]
 
 - Update all code files to have our license header.
   - [bf82136](https://www.github.com/tauri-apps/tauri/commit/bf8213646689175f8a158b956911f3a43e360690) feat(license): SPDX Headers ([#1449](https://www.github.com/tauri-apps/tauri/pull/1449)) on 2021-04-11

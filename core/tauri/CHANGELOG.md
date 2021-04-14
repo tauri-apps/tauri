@@ -1,6 +1,6 @@
 # Changelog
 
-## \[0.12.0]
+## \[1.0.0-beta-rc.0]
 
 - Now Tauri commands always returns Promise<T>.
   - [ea73325](https://www.github.com/tauri-apps/tauri/commit/ea7332539d100bd63f93396101ffa01ff73c924b) refactor(core): all API are now promise based ([#1239](https://www.github.com/tauri-apps/tauri/pull/1239)) on 2021-02-16

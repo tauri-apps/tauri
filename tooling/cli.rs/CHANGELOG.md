@@ -1,6 +1,6 @@
 # Changelog
 
-## \[0.2.0]
+## \[1.0.0-beta-rc.0]
 
 - You can now run `cargo tauri build -t none` to speed up the build if you don't need executables.
   - [4d507f9](https://www.github.com/tauri-apps/tauri/commit/4d507f9adfb26819f9d6406b191fdaa6188145f4) feat(cli/core): add support for building without targets ([#1203](https://www.github.com/tauri-apps/tauri/pull/1203)) on 2021-02-10

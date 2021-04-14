@@ -1,6 +1,6 @@
 # Changelog
 
-## \[0.10.0]
+## \[1.0.0-beta-rc.0]
 
 - Append app version and OS architecture on AppImage output filename.
   - [ae76c60](https://www.github.com/tauri-apps/tauri/commit/ae76c60a615602fcb8c1dd824a6ad9fa8f48fe69) fix(bundler): appimage paths and filename ([#1227](https://www.github.com/tauri-apps/tauri/pull/1227)) on 2021-02-13

@@ -1,6 +1,6 @@
 # Changelog
 
-## \[0.6.0]
+## \[1.0.0-beta-rc.0]
 
 - The Tauri files are now read on the app space instead of the `tauri` create.
   Also, the `AppBuilder` `build` function now returns a Result.

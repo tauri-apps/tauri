@@ -17,11 +17,12 @@ use crate::{
     window::{DetachedWindow, PendingWindow},
     Dispatch, Icon, Runtime,
   },
-  sealed::ParamsPrivate,
+  sealed::ParamsBase,
   Context, Params, Window,
 };
 use serde::Serialize;
 use serde_json::Value as JsonValue;
+use std::marker::PhantomData;
 use std::{
   borrow::Cow,
   collections::{HashMap, HashSet},
@@ -50,42 +51,55 @@ pub struct InnerWindowManager<M: Params> {
   package_info: PackageInfo,
 }
 
-pub struct WindowManager<E, L, A, R>
-where
-  E: Tag,
-  L: Tag,
-  A: Assets + 'static,
-  R: Runtime,
-{
-  pub(crate) inner: Arc<InnerWindowManager<Self>>,
+/// A [Zero Sized Type] marker representing a full [`Params`].
+///
+/// [Zero Sized Type]: https://doc.rust-lang.org/nomicon/exotic-sizes.html#zero-sized-types-zsts
+pub struct Args<E: Tag, L: Tag, A: Assets, R: Runtime> {
+  _event: PhantomData<fn() -> E>,
+  _label: PhantomData<fn() -> L>,
+  _assets: PhantomData<fn() -> A>,
+  _runtime: PhantomData<fn() -> R>,
 }
 
-impl<E, L, A, R> Clone for WindowManager<E, L, A, R>
-where
-  E: Tag,
-  L: Tag,
-  A: Assets + 'static,
-  R: Runtime,
-{
-  fn clone(&self) -> Self {
+impl<E: Tag, L: Tag, A: Assets, R: Runtime> Default for Args<E, L, A, R> {
+  fn default() -> Self {
     Self {
-      inner: self.inner.clone(),
+      _event: PhantomData,
+      _label: PhantomData,
+      _assets: PhantomData,
+      _runtime: PhantomData,
     }
   }
 }
 
-impl<E, L, A, R> WindowManager<E, L, A, R>
-where
-  E: Tag,
-  L: Tag,
-  A: Assets,
-  R: Runtime,
-{
+impl<E: Tag, L: Tag, A: Assets, R: Runtime> ParamsBase for Args<E, L, A, R> {}
+impl<E: Tag, L: Tag, A: Assets, R: Runtime> Params for Args<E, L, A, R> {
+  type Event = E;
+  type Label = L;
+  type Assets = A;
+  type Runtime = R;
+}
+
+pub struct WindowManager<P: Params> {
+  pub inner: Arc<InnerWindowManager<P>>,
+  _marker: Args<P::Event, P::Label, P::Assets, P::Runtime>,
+}
+
+impl<P: Params> Clone for WindowManager<P> {
+  fn clone(&self) -> Self {
+    Self {
+      inner: self.inner.clone(),
+      _marker: Args::default(),
+    }
+  }
+}
+
+impl<P: Params> WindowManager<P> {
   pub(crate) fn with_handlers(
-    context: Context<A>,
-    plugins: PluginStore<Self>,
-    invoke_handler: Box<InvokeHandler<Self>>,
-    on_page_load: Box<OnPageLoad<Self>>,
+    context: Context<P::Assets>,
+    plugins: PluginStore<P>,
+    invoke_handler: Box<InvokeHandler<P>>,
+    on_page_load: Box<OnPageLoad<P>>,
   ) -> Self {
     Self {
       inner: Arc::new(InnerWindowManager {
@@ -100,11 +114,12 @@ where
         salts: Mutex::default(),
         package_info: context.package_info,
       }),
+      _marker: Args::default(),
     }
   }
 
   /// Get a locked handle to the windows.
-  pub(crate) fn windows_lock(&self) -> MutexGuard<'_, HashMap<L, Window<Self>>> {
+  pub(crate) fn windows_lock(&self) -> MutexGuard<'_, HashMap<P::Label, Window<P>>> {
     self.inner.windows.lock().expect("poisoned window manager")
   }
 
@@ -125,11 +140,11 @@ where
 
   fn prepare_attributes(
     &self,
-    attrs: <R::Dispatcher as Dispatch>::Attributes,
+    attrs: <<P::Runtime as Runtime>::Dispatcher as Dispatch>::Attributes,
     url: String,
-    label: L,
-    pending_labels: &[L],
-  ) -> crate::Result<<R::Dispatcher as Dispatch>::Attributes> {
+    label: P::Label,
+    pending_labels: &[P::Label],
+  ) -> crate::Result<<<P::Runtime as Runtime>::Dispatcher as Dispatch>::Attributes> {
     let is_init_global = self.inner.config.build.with_global_tauri;
     let plugin_init = self
       .inner
@@ -179,7 +194,7 @@ where
     Ok(attributes)
   }
 
-  fn prepare_rpc_handler(&self) -> WebviewRpcHandler<Self> {
+  fn prepare_rpc_handler(&self) -> WebviewRpcHandler<P> {
     let manager = self.clone();
     Box::new(move |window, request| {
       let window = manager.attach_window(window);
@@ -248,7 +263,7 @@ where
     }
   }
 
-  fn prepare_file_drop(&self) -> FileDropHandler<Self> {
+  fn prepare_file_drop(&self) -> FileDropHandler<P> {
     let manager = self.clone();
     Box::new(move |event, window| {
       let manager = manager.clone();
@@ -341,13 +356,13 @@ where
 
 #[cfg(test)]
 mod test {
-  use super::WindowManager;
+  use super::{Args, WindowManager};
   use crate::{generate_context, plugin::PluginStore, runtime::flavors::wry::Wry};
 
   #[test]
   fn check_get_url() {
     let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
-    let manager: WindowManager<String, String, _, Wry> = WindowManager::with_handlers(
+    let manager: WindowManager<Args<String, String, _, Wry>> = WindowManager::with_handlers(
       context,
       PluginStore::default(),
       Box::new(|_| ()),
@@ -359,24 +374,17 @@ mod test {
 
     #[cfg(dev)]
     {
-      use crate::sealed::ParamsPrivate;
+      use crate::sealed::ParamsBase;
       assert_eq!(manager.get_url(), manager.config().build.dev_path);
     }
   }
 }
 
-impl<E, L, A, R> ParamsPrivate<Self> for WindowManager<E, L, A, R>
-where
-  E: Tag,
-  L: Tag,
-  A: Assets + 'static,
-  R: Runtime,
-{
-  fn run_invoke_handler(&self, message: InvokeMessage<Self>) {
+impl<P: Params> WindowManager<P> {
+  pub fn run_invoke_handler(&self, message: InvokeMessage<P>) {
     (self.inner.invoke_handler)(message);
   }
-
-  fn run_on_page_load(&self, window: Window<Self>, payload: PageLoadPayload) {
+  pub fn run_on_page_load(&self, window: Window<P>, payload: PageLoadPayload) {
     (self.inner.on_page_load)(window.clone(), payload.clone());
     self
       .inner
@@ -385,8 +393,7 @@ where
       .expect("poisoned plugin store")
       .on_page_load(window, payload);
   }
-
-  fn extend_api(&self, command: String, message: InvokeMessage<Self>) {
+  pub fn extend_api(&self, command: String, message: InvokeMessage<P>) {
     self
       .inner
       .plugins
@@ -394,8 +401,7 @@ where
       .expect("poisoned plugin store")
       .extend_api(command, message);
   }
-
-  fn initialize_plugins(&self) -> crate::Result<()> {
+  pub fn initialize_plugins(&self) -> crate::Result<()> {
     self
       .inner
       .plugins
@@ -404,11 +410,11 @@ where
       .initialize(&self.inner.config.plugins)
   }
 
-  fn prepare_window(
+  pub fn prepare_window(
     &self,
-    mut pending: PendingWindow<Self>,
-    pending_labels: &[L],
-  ) -> crate::Result<PendingWindow<Self>> {
+    mut pending: PendingWindow<P>,
+    pending_labels: &[P::Label],
+  ) -> crate::Result<PendingWindow<P>> {
     let (is_local, url) = match &pending.url {
       WindowUrl::App(path) => {
         let url = self.get_url();
@@ -439,8 +445,7 @@ where
 
     Ok(pending)
   }
-
-  fn attach_window(&self, window: DetachedWindow<Self>) -> Window<Self> {
+  pub fn attach_window(&self, window: DetachedWindow<P>) -> Window<P> {
     let window = Window::new(self.clone(), window);
 
     // insert the window into our manager
@@ -462,8 +467,7 @@ where
 
     window
   }
-
-  fn emit_filter_internal<S: Serialize + Clone, F: Fn(&Window<Self>) -> bool>(
+  pub fn emit_filter_internal<S: Serialize + Clone, F: Fn(&Window<P>) -> bool>(
     &self,
     event: String,
     payload: Option<S>,
@@ -475,10 +479,9 @@ where
       .filter(|&w| filter(w))
       .try_for_each(|window| window.emit_internal(event.clone(), payload.clone()))
   }
-
-  fn emit_filter<S: Serialize + Clone, F: Fn(&Window<Self>) -> bool>(
+  pub fn emit_filter<S: Serialize + Clone, F: Fn(&Window<P>) -> bool>(
     &self,
-    event: E,
+    event: P::Event,
     payload: Option<S>,
     filter: F,
   ) -> crate::Result<()> {
@@ -488,53 +491,47 @@ where
       .filter(|&w| filter(w))
       .try_for_each(|window| window.emit(&event, payload.clone()))
   }
-
-  fn labels(&self) -> HashSet<L> {
+  pub fn labels(&self) -> HashSet<P::Label> {
     self.windows_lock().keys().cloned().collect()
   }
-
-  fn config(&self) -> &Config {
+  pub fn config(&self) -> &Config {
     &self.inner.config
   }
-
-  fn package_info(&self) -> &PackageInfo {
+  pub fn package_info(&self) -> &PackageInfo {
     &self.inner.package_info
   }
-
-  fn unlisten(&self, handler_id: EventHandler) {
+  pub fn unlisten(&self, handler_id: EventHandler) {
     self.inner.listeners.unlisten(handler_id)
   }
-
-  fn trigger(&self, event: E, window: Option<L>, data: Option<String>) {
+  pub fn trigger(&self, event: P::Event, window: Option<P::Label>, data: Option<String>) {
     self.inner.listeners.trigger(event, window, data)
   }
-
-  fn listen<F: Fn(Event) + Send + 'static>(
+  pub fn listen<F: Fn(Event) + Send + 'static>(
     &self,
-    event: E,
-    window: Option<L>,
+    event: P::Event,
+    window: Option<P::Label>,
     handler: F,
   ) -> EventHandler {
     self.inner.listeners.listen(event, window, handler)
   }
-
-  fn once<F: Fn(Event) + Send + 'static>(&self, event: E, window: Option<L>, handler: F) {
+  pub fn once<F: Fn(Event) + Send + 'static>(
+    &self,
+    event: P::Event,
+    window: Option<P::Label>,
+    handler: F,
+  ) {
     self.inner.listeners.once(event, window, handler)
   }
-
-  fn event_listeners_object_name(&self) -> String {
+  pub fn event_listeners_object_name(&self) -> String {
     self.inner.listeners.listeners_object_name()
   }
-
-  fn event_queue_object_name(&self) -> String {
+  pub fn event_queue_object_name(&self) -> String {
     self.inner.listeners.queue_object_name()
   }
-
-  fn event_emit_function_name(&self) -> String {
+  pub fn event_emit_function_name(&self) -> String {
     self.inner.listeners.function_name()
   }
-
-  fn generate_salt(&self) -> Uuid {
+  pub fn generate_salt(&self) -> Uuid {
     let salt = Uuid::new_v4();
     self
       .inner
@@ -544,8 +541,7 @@ where
       .insert(salt);
     salt
   }
-
-  fn verify_salt(&self, salt: String) -> bool {
+  pub fn verify_salt(&self, salt: String) -> bool {
     // flat out ignore any invalid uuids
     let uuid: Uuid = match salt.parse() {
       Ok(uuid) => uuid,
@@ -560,25 +556,10 @@ where
       .expect("poisoned salt mutex")
       .remove(&uuid)
   }
-
-  fn get_window(&self, label: &L) -> Option<Window<Self>> {
+  pub fn get_window(&self, label: &P::Label) -> Option<Window<P>> {
     self.windows_lock().get(label).cloned()
   }
-
-  fn windows(&self) -> HashMap<L, Window<Self>> {
+  pub fn windows(&self) -> HashMap<P::Label, Window<P>> {
     self.windows_lock().clone()
   }
-}
-
-impl<E, L, A, R> Params for WindowManager<E, L, A, R>
-where
-  E: Tag,
-  L: Tag,
-  A: Assets,
-  R: Runtime,
-{
-  type Event = E;
-  type Label = L;
-  type Assets = A;
-  type Runtime = R;
 }

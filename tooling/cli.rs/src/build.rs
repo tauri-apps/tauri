@@ -116,13 +116,13 @@ impl Build {
           let _ = std::fs::remove_file(out_dir.join("Microsoft_VC142_CRT_x64.msm"));
           (
             "Microsoft_VC142_CRT_x86.msm",
-            include_bytes!("./MergeModules/Microsoft_VC142_CRT_x86.msm").to_vec(),
+            include_bytes!("../MergeModules/Microsoft_VC142_CRT_x86.msm").to_vec(),
           )
         } else {
           let _ = std::fs::remove_file(out_dir.join("Microsoft_VC142_CRT_x86.msm"));
           (
             "Microsoft_VC142_CRT_x64.msm",
-            include_bytes!("./MergeModules/Microsoft_VC142_CRT_x64.msm").to_vec(),
+            include_bytes!("../MergeModules/Microsoft_VC142_CRT_x64.msm").to_vec(),
           )
         };
         std::fs::write(out_dir.join(filename), vcruntime_msm)?;

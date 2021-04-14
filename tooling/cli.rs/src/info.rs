@@ -17,17 +17,6 @@ use std::{
 };
 
 #[derive(Deserialize)]
-struct PackageJsonEngines {
-  node: String,
-}
-
-#[derive(Deserialize)]
-struct PackageJson {
-  version: String,
-  engines: PackageJsonEngines,
-}
-
-#[derive(Deserialize)]
 struct YarnVersionInfo {
   data: Vec<String>,
 }
@@ -41,6 +30,17 @@ struct CargoLockPackage {
 #[derive(Deserialize)]
 struct CargoLock {
   package: Vec<CargoLockPackage>,
+}
+
+#[derive(Deserialize)]
+struct JsCliVersionMetadata {
+  version: String,
+  node: String,
+}
+
+#[derive(Deserialize)]
+struct VersionMetadata {
+  js_cli: JsCliVersionMetadata,
 }
 
 #[derive(Clone, Deserialize)]
@@ -279,16 +279,15 @@ impl Info {
 
     if let Some(node_version) = get_version("node", &[]).unwrap_or_default() {
       InfoBlock::new("Node.js environment").section().display();
-      let cli_package_json: PackageJson =
-        serde_json::from_str(include_str!("../../cli.js/package.json"))?;
+      let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata.json"))?;
       VersionBlock::new(
         "  Node.js",
         node_version.chars().skip(1).collect::<String>(),
       )
-      .target_version(cli_package_json.engines.node.replace(">= ", ""))
+      .target_version(metadata.js_cli.node.replace(">= ", ""))
       .display();
 
-      VersionBlock::new("  @tauri-apps/cli", cli_package_json.version)
+      VersionBlock::new("  @tauri-apps/cli", metadata.js_cli.version)
         .target_version(npm_latest_version(use_yarn, "@tauri-apps/cli").unwrap_or_default())
         .display();
       if let Some(app_dir) = &app_dir {

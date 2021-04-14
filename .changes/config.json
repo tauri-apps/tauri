@@ -144,7 +144,7 @@
       "manager": "javascript",
       "assets": [
         {
-          "path": "./tooling/api/tauri-${ pkgFile.version }.tgz",
+          "path": "./tooling/api/tauri-apps-api-${ pkgFile.version }.tgz",
           "name": "api-${ pkgFile.version }.tgz"
         }
       ]
@@ -170,7 +170,7 @@
       ],
       "assets": [
         {
-          "path": "./tooling/cli.js/tauri-${ pkgFile.version }.tgz",
+          "path": "./tooling/cli.js/tauri-apps-cli-${ pkgFile.version }.tgz",
           "name": "cli.js-${ pkgFile.version }.tgz"
         }
       ]

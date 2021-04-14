@@ -10,10 +10,11 @@ use crate::{
     flavors::wry::Wry, manager::WindowManager, tag::Tag, webview::Attributes,
     window::PendingWindow, Dispatch, Runtime,
   },
-  sealed::{ManagerPrivate, ParamsPrivate, RuntimeOrDispatch},
+  sealed::{ManagerBase, RuntimeOrDispatch},
   Context, Manager, Params, Window,
 };
 
+use crate::runtime::manager::Args;
 #[cfg(feature = "updater")]
 use crate::updater;
 
@@ -22,12 +23,12 @@ use crate::updater;
 /// This type implements [`Manager`] which allows for manipulation of global application items.
 pub struct App<P: Params> {
   runtime: P::Runtime,
-  manager: P,
+  manager: WindowManager<P>,
 }
 
 impl<P: Params> Manager<P> for App<P> {}
-impl<P: Params> ManagerPrivate<P> for App<P> {
-  fn manager(&self) -> &P {
+impl<P: Params> ManagerBase<P> for App<P> {
+  fn manager(&self) -> &WindowManager<P> {
     &self.manager
   }
 
@@ -104,19 +105,19 @@ where
   R: Runtime,
 {
   /// The JS message handler.
-  invoke_handler: Box<InvokeHandler<WindowManager<E, L, A, R>>>,
+  invoke_handler: Box<InvokeHandler<Args<E, L, A, R>>>,
 
   /// The setup hook.
-  setup: SetupHook<WindowManager<E, L, A, R>>,
+  setup: SetupHook<Args<E, L, A, R>>,
 
   /// Page load hook.
-  on_page_load: Box<OnPageLoad<WindowManager<E, L, A, R>>>,
+  on_page_load: Box<OnPageLoad<Args<E, L, A, R>>>,
 
   /// windows to create when starting up.
-  pending_windows: Vec<PendingWindow<WindowManager<E, L, A, R>>>,
+  pending_windows: Vec<PendingWindow<Args<E, L, A, R>>>,
 
   /// All passed plugins
-  plugins: PluginStore<WindowManager<E, L, A, R>>,
+  plugins: PluginStore<Args<E, L, A, R>>,
 }
 
 impl<E, L, A, R> Builder<E, L, A, R>
@@ -140,7 +141,7 @@ where
   /// Defines the JS message handler callback.
   pub fn invoke_handler<F>(mut self, invoke_handler: F) -> Self
   where
-    F: Fn(InvokeMessage<WindowManager<E, L, A, R>>) + Send + Sync + 'static,
+    F: Fn(InvokeMessage<Args<E, L, A, R>>) + Send + Sync + 'static,
   {
     self.invoke_handler = Box::new(invoke_handler);
     self
@@ -149,9 +150,7 @@ where
   /// Defines the setup hook.
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: Fn(&mut App<WindowManager<E, L, A, R>>) -> Result<(), Box<dyn std::error::Error>>
-      + Send
-      + 'static,
+    F: Fn(&mut App<Args<E, L, A, R>>) -> Result<(), Box<dyn std::error::Error>> + Send + 'static,
   {
     self.setup = Box::new(setup);
     self
@@ -160,14 +159,14 @@ where
   /// Defines the page load hook.
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
-    F: Fn(Window<WindowManager<E, L, A, R>>, PageLoadPayload) + Send + Sync + 'static,
+    F: Fn(Window<Args<E, L, A, R>>, PageLoadPayload) + Send + Sync + 'static,
   {
     self.on_page_load = Box::new(on_page_load);
     self
   }
 
   /// Adds a plugin to the runtime.
-  pub fn plugin<P: Plugin<WindowManager<E, L, A, R>> + 'static>(mut self, plugin: P) -> Self {
+  pub fn plugin<P: Plugin<Args<E, L, A, R>> + 'static>(mut self, plugin: P) -> Self {
     self.plugins.register(plugin);
     self
   }

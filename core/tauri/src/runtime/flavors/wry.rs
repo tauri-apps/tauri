@@ -273,7 +273,9 @@ impl Dispatch for WryDispatcher {
       .add_window_with_configs(
         attributes,
         rpc_handler,
-        custom_protocol.map(create_custom_protocol),
+        custom_protocol
+          .map(create_custom_protocol)
+          .unwrap_or_default(),
         file_drop_handler,
       )
       .map_err(|_| crate::Error::CreateWebview)?;
@@ -480,7 +482,9 @@ impl Runtime for Wry {
       .add_window_with_configs(
         attributes,
         rpc_handler,
-        custom_protocol.map(create_custom_protocol),
+        custom_protocol
+          .map(create_custom_protocol)
+          .unwrap_or_default(),
         file_drop_handler,
       )
       .map_err(|_| crate::Error::CreateWebview)?;
@@ -540,11 +544,11 @@ fn create_file_drop_handler<M: Params<Runtime = Wry>>(
 }
 
 /// Create a wry custom protocol from a tauri custom protocol.
-fn create_custom_protocol(custom_protocol: CustomProtocol) -> wry::CustomProtocol {
-  wry::CustomProtocol {
+fn create_custom_protocol(custom_protocol: CustomProtocol) -> Vec<wry::CustomProtocol> {
+  vec![wry::CustomProtocol {
     name: custom_protocol.name.clone(),
     handler: Box::new(move |data| {
       (custom_protocol.handler)(data).map_err(|_| wry::Error::InitScriptError)
     }),
-  }
+  }]
 }

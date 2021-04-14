@@ -111,7 +111,7 @@ pub struct Context<A: Assets> {
 }
 
 /// Types associated with the running Tauri application.
-pub trait Params: sealed::ParamsPrivate<Self> {
+pub trait Params: sealed::ParamsBase {
   /// The event type used to create and listen to events.
   type Event: Tag;
 
@@ -126,7 +126,9 @@ pub trait Params: sealed::ParamsPrivate<Self> {
 }
 
 /// Manages a running application.
-pub trait Manager<M: Params>: sealed::ManagerPrivate<M> {
+///
+/// TODO: expand these docs
+pub trait Manager<M: Params>: sealed::ManagerBase<M> {
   /// The [`Config`] the manager was created with.
   fn config(&self) -> &Config {
     self.manager().config()
@@ -202,126 +204,27 @@ pub trait Manager<M: Params>: sealed::ManagerPrivate<M> {
 /// Prevent implementation details from leaking out of the [`Manager`] and [`Params`] traits.
 pub(crate) mod sealed {
   use super::Params;
-  use crate::runtime::Runtime;
-  use crate::{
-    api::{config::Config, PackageInfo},
-    event::{Event, EventHandler},
-    hooks::{InvokeMessage, PageLoadPayload},
-    runtime::window::{DetachedWindow, PendingWindow},
-    Window,
-  };
-  use serde::Serialize;
-  use std::collections::{HashMap, HashSet};
-  use uuid::Uuid;
+  use crate::runtime::{manager::WindowManager, Runtime};
 
-  /// private manager api
-  pub trait ParamsPrivate<M: Params>: Clone + Send + Sized + 'static {
-    /// Pass messages not handled by modules or plugins to the running application
-    fn run_invoke_handler(&self, message: InvokeMessage<M>);
+  /// No downstream implementations of [`Params`].
+  pub trait ParamsBase: 'static {}
 
-    /// Ran once for every window when the page is loaded.
-    fn run_on_page_load(&self, window: Window<M>, payload: PageLoadPayload);
-
-    /// Pass a message to be handled by a plugin that expects the command.
-    fn extend_api(&self, command: String, message: InvokeMessage<M>);
-
-    /// Initialize all the plugins attached to the [`Manager`].
-    fn initialize_plugins(&self) -> crate::Result<()>;
-
-    /// Prepare a [`PendingWindow`] to be created by the [`Runtime`].
-    ///
-    /// The passed labels should represent either all the windows in the manager. If the application
-    /// has not yet been started, the passed labels should represent all windows that will be
-    /// created before starting.
-    fn prepare_window(
-      &self,
-      pending: PendingWindow<M>,
-      labels: &[M::Label],
-    ) -> crate::Result<PendingWindow<M>>;
-
-    /// Attach a detached window to the manager.
-    fn attach_window(&self, window: DetachedWindow<M>) -> Window<M>;
-
-    /// Emit an event to javascript windows that pass the predicate.
-    fn emit_filter_internal<S: Serialize + Clone, F: Fn(&Window<Self>) -> bool>(
-      &self,
-      event: String,
-      payload: Option<S>,
-      filter: F,
-    ) -> crate::Result<()>;
-
-    /// Emit an event to javascript windows that pass the predicate.
-    fn emit_filter<S: Serialize + Clone, F: Fn(&Window<M>) -> bool>(
-      &self,
-      event: M::Event,
-      payload: Option<S>,
-      predicate: F,
-    ) -> crate::Result<()>;
-
-    /// All current window labels existing.
-    fn labels(&self) -> HashSet<M::Label>;
-
-    /// The configuration the [`Manager`] was built with.
-    fn config(&self) -> &Config;
-
-    /// App package information.
-    fn package_info(&self) -> &PackageInfo;
-
-    /// Remove the specified event handler.
-    fn unlisten(&self, handler_id: EventHandler);
-
-    /// Trigger an event.
-    fn trigger(&self, event: M::Event, window: Option<M::Label>, data: Option<String>);
-
-    /// Set up a listener to an event.
-    fn listen<F: Fn(Event) + Send + 'static>(
-      &self,
-      event: M::Event,
-      window: Option<M::Label>,
-      handler: F,
-    ) -> EventHandler;
-
-    /// Set up a listener to and event that is automatically removed after called once.
-    fn once<F: Fn(Event) + Send + 'static>(
-      &self,
-      event: M::Event,
-      window: Option<M::Label>,
-      handler: F,
-    );
-
-    fn event_listeners_object_name(&self) -> String;
-    fn event_queue_object_name(&self) -> String;
-    fn event_emit_function_name(&self) -> String;
-
-    /// Generate a random salt and store it in the manager
-    fn generate_salt(&self) -> Uuid;
-
-    /// Verify that the passed salt is a valid salt in the manager.
-    fn verify_salt(&self, salt: String) -> bool;
-
-    /// Get a single managed window.
-    fn get_window(&self, label: &M::Label) -> Option<Window<M>>;
-
-    /// Get all managed windows.
-    fn windows(&self) -> HashMap<M::Label, Window<M>>;
-  }
-
-  /// Represents either a running [`Runtime`] or a dispatcher to it.
-  pub enum RuntimeOrDispatch<'m, M: Params> {
+  /// A running [`Runtime`] or a dispatcher to it.
+  pub enum RuntimeOrDispatch<'r, P: Params> {
     /// Mutable reference to the running [`Runtime`].
-    Runtime(&'m mut M::Runtime),
+    Runtime(&'r mut P::Runtime),
 
     /// A dispatcher to the running [`Runtime`].
-    Dispatch(<M::Runtime as Runtime>::Dispatcher),
+    Dispatch(<P::Runtime as Runtime>::Dispatcher),
   }
 
-  /// Represents a managed handle to the application runner.
-  pub trait ManagerPrivate<M: Params> {
+  /// Managed handle to the application runtime.
+  pub trait ManagerBase<P: Params> {
     /// The manager behind the [`Managed`] item.
-    fn manager(&self) -> &M;
+    fn manager(&self) -> &WindowManager<P>;
 
     /// The runtime or runtime dispatcher of the [`Managed`] item.
-    fn runtime(&mut self) -> RuntimeOrDispatch<'_, M>;
+    fn runtime(&mut self) -> RuntimeOrDispatch<'_, P>;
   }
 }
 

@@ -14,7 +14,7 @@ use crate::{
     webview::{CustomProtocol, FileDropHandler, WebviewRpcHandler},
     Dispatch, Runtime,
   },
-  sealed::{ManagerPrivate, RuntimeOrDispatch},
+  sealed::{ManagerBase, RuntimeOrDispatch},
   Attributes, Icon, Manager, Params,
 };
 use serde::Serialize;
@@ -113,6 +113,7 @@ impl<M: Params> PartialEq for DetachedWindow<M> {
 /// We want to export the runtime related window at the crate root, but not look like a re-export.
 pub(crate) mod export {
   use super::*;
+  use crate::runtime::manager::WindowManager;
 
   /// A webview window managed by Tauri.
   ///
@@ -120,12 +121,12 @@ pub(crate) mod export {
   /// the same application.
   ///
   /// TODO: expand these docs since this is a pretty important type
-  pub struct Window<M: Params> {
+  pub struct Window<P: Params> {
     /// The webview window created by the runtime.
-    window: DetachedWindow<M>,
+    window: DetachedWindow<P>,
 
     /// The manager to associate this webview window with.
-    manager: M,
+    manager: WindowManager<P>,
   }
 
   impl<M: Params> Clone for Window<M> {
@@ -137,40 +138,40 @@ pub(crate) mod export {
     }
   }
 
-  impl<M: Params> Hash for Window<M> {
+  impl<P: Params> Hash for Window<P> {
     /// Only use the [`Window`]'s label to represent its hash.
     fn hash<H: Hasher>(&self, state: &mut H) {
       self.window.label.hash(state)
     }
   }
 
-  impl<M: Params> Eq for Window<M> {}
-  impl<M: Params> PartialEq for Window<M> {
+  impl<P: Params> Eq for Window<P> {}
+  impl<P: Params> PartialEq for Window<P> {
     /// Only use the [`Window`]'s label to compare equality.
     fn eq(&self, other: &Self) -> bool {
       self.window.label.eq(&other.window.label)
     }
   }
 
-  impl<M: Params> Manager<M> for Window<M> {}
-  impl<M: Params> ManagerPrivate<M> for Window<M> {
-    fn manager(&self) -> &M {
+  impl<P: Params> Manager<P> for Window<P> {}
+  impl<P: Params> ManagerBase<P> for Window<P> {
+    fn manager(&self) -> &WindowManager<P> {
       &self.manager
     }
 
-    fn runtime(&mut self) -> RuntimeOrDispatch<'_, M> {
+    fn runtime(&mut self) -> RuntimeOrDispatch<'_, P> {
       RuntimeOrDispatch::Dispatch(self.dispatcher())
     }
   }
 
-  impl<M: Params> Window<M> {
+  impl<P: Params> Window<P> {
     /// Create a new window that is attached to the manager.
-    pub(crate) fn new(manager: M, window: DetachedWindow<M>) -> Self {
+    pub(crate) fn new(manager: WindowManager<P>, window: DetachedWindow<P>) -> Self {
       Self { manager, window }
     }
 
     /// The current window's dispatcher.
-    pub(crate) fn dispatcher(&self) -> <M::Runtime as Runtime>::Dispatcher {
+    pub(crate) fn dispatcher(&self) -> <P::Runtime as Runtime>::Dispatcher {
       self.window.dispatcher.clone()
     }
 
@@ -196,7 +197,7 @@ pub(crate) mod export {
     }
 
     /// The label of this window.
-    pub fn label(&self) -> &M::Label {
+    pub fn label(&self) -> &P::Label {
       &self.window.label
     }
 
@@ -222,7 +223,7 @@ pub(crate) mod export {
     }
 
     /// Emits an event to the current window.
-    pub fn emit<S: Serialize>(&self, event: &M::Event, payload: Option<S>) -> crate::Result<()> {
+    pub fn emit<S: Serialize>(&self, event: &P::Event, payload: Option<S>) -> crate::Result<()> {
       self.emit_internal(event.clone(), payload)
     }
 
@@ -239,14 +240,14 @@ pub(crate) mod export {
     /// Emits an event on all windows except this one.
     pub fn emit_others<S: Serialize + Clone>(
       &self,
-      event: M::Event,
+      event: P::Event,
       payload: Option<S>,
     ) -> crate::Result<()> {
       self.manager.emit_filter(event, payload, |w| w != self)
     }
 
     /// Listen to an event on this window.
-    pub fn listen<F>(&self, event: M::Event, handler: F) -> EventHandler
+    pub fn listen<F>(&self, event: P::Event, handler: F) -> EventHandler
     where
       F: Fn(Event) + Send + 'static,
     {
@@ -255,7 +256,7 @@ pub(crate) mod export {
     }
 
     /// Listen to a an event on this window a single time.
-    pub fn once<F>(&self, event: M::Event, handler: F)
+    pub fn once<F>(&self, event: P::Event, handler: F)
     where
       F: Fn(Event) + Send + 'static,
     {
@@ -264,7 +265,7 @@ pub(crate) mod export {
     }
 
     /// Triggers an event on this window.
-    pub(crate) fn trigger(&self, event: M::Event, data: Option<String>) {
+    pub(crate) fn trigger(&self, event: P::Event, data: Option<String>) {
       let label = self.window.label.clone();
       self.manager.trigger(event, Some(label), data)
     }

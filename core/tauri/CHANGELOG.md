@@ -1,5 +1,18 @@
 # Changelog
 
+## \[1.0.0]
+
+- internal refactoring of `Params` to allow for easier usage without a private trait with only 1 implementor.
+
+`ParamsPrivate` -> `ParamsBase`
+`ManagerPrivate` -> `ManagerBase`
+(new) `Args`, crate only. Now implements `Params`/`ParamsBase`.
+`App` and `Window` use `WindowManager` directly
+
+- [ec27ca8](https://www.github.com/tauri-apps/tauri/commit/ec27ca81fe721e0b08ed574073547250b7a8153a) refactor(tauri): remove private params trait methods ([#1484](https://www.github.com/tauri-apps/tauri/pull/1484)) on 2021-04-14
+- Updated `wry`, fixing an issue with the draggable region.
+  - [f2d24ef](https://www.github.com/tauri-apps/tauri/commit/f2d24ef2fbd95ec7d3433ba651964f4aa3b7f48c) chore(deps): update wry ([#1482](https://www.github.com/tauri-apps/tauri/pull/1482)) on 2021-04-14
+
 ## \[1.0.0-beta-rc.0]
 
 - Now Tauri commands always returns Promise<T>.

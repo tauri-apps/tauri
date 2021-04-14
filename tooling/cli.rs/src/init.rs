@@ -14,16 +14,13 @@ use handlebars::{to_json, Handlebars};
 use include_dir::{include_dir, Dir};
 use serde::Deserialize;
 
-const TEMPLATE_DIR: Dir = include_dir!("./templates");
+const TEMPLATE_DIR: Dir = include_dir!("templates");
 
 #[derive(Deserialize)]
-struct ManifestPackage {
-  version: String,
-}
-
-#[derive(Deserialize)]
-struct Manifest {
-  package: ManifestPackage,
+struct VersionMetadata {
+  tauri: String,
+  #[serde(rename = "tauri-build")]
+  tauri_build: String,
 }
 
 pub struct Init {
@@ -93,6 +90,7 @@ impl Init {
   pub fn run(self) -> crate::Result<()> {
     let logger = Logger::new("tauri:init");
     let template_target_path = self.directory.join("src-tauri");
+    let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata.json"))?;
     if template_target_path.exists() && !self.force {
       logger.warn(format!(
         "Tauri dir ({:?}) not empty. Run `init --force template` to overwrite.",
@@ -111,16 +109,9 @@ impl Init {
           ),
         )
       } else {
-        let tauri_manifest: Manifest =
-          toml::from_str(include_str!("../../../core/tauri/Cargo.toml")).unwrap();
-        let tauri_build_manifest: Manifest =
-          toml::from_str(include_str!("../../../core/tauri-build/Cargo.toml")).unwrap();
         (
-          format!(r#"{{ version = "{}" }}"#, tauri_manifest.package.version),
-          format!(
-            r#"{{ version = "{}" }}"#,
-            tauri_build_manifest.package.version
-          ),
+          format!(r#"{{ version = "{}" }}"#, metadata.tauri),
+          format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
         )
       };
 

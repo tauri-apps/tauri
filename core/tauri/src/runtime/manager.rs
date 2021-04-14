@@ -373,10 +373,7 @@ mod test {
     assert_eq!(manager.get_url(), "tauri://studio.tauri.example");
 
     #[cfg(dev)]
-    {
-      use crate::sealed::ParamsBase;
-      assert_eq!(manager.get_url(), manager.config().build.dev_path);
-    }
+    assert_eq!(manager.get_url(), manager.config().build.dev_path);
   }
 }
 

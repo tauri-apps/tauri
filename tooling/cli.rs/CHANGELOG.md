@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.0.0-beta-rc.1]
+
+- Missing the `files` property in the package.json which mean that the `dist` directory was not published and used.
+  - Bumped due to a bump in api.
+  - [b2569a7](https://www.github.com/tauri-apps/tauri/commit/b2569a729a3caa88bdba62abc31f0665e1323aaa) fix(js-api): dist ([#1498](https://www.github.com/tauri-apps/tauri/pull/1498)) on 2021-04-15
+
 ## \[1.0.0-beta-rc.0]
 
 - You can now run `cargo tauri build -t none` to speed up the build if you don't need executables.

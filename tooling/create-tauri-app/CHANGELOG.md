@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0]
+
+- CTA was missing the `files` property in the package.json which mean that the `dist` directory was not published and used.
+  - [414f9a7](https://www.github.com/tauri-apps/tauri/commit/414f9a78c9b636933fd741d1b6fe7f097f496fc9) fix: cta dist publish ([#1493](https://www.github.com/tauri-apps/tauri/pull/1493)) on 2021-04-14
+
 ## \[1.0.0-beta-rc.0]
 
 - Add vanilla javascript option to `create-tauri-app` through templating.

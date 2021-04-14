@@ -157,7 +157,13 @@ fn render_template<P: AsRef<Path>>(
 ) -> crate::Result<()> {
   create_dir_all(out_dir.as_ref().join(dir.path()))?;
   for file in dir.files() {
-    let mut output_file = File::create(out_dir.as_ref().join(file.path()))?;
+    let mut file_path = file.path().to_path_buf();
+    // cargo for some reason ignores the /templates folder packaging when it has a Cargo.toml file inside
+    // so we rename the extension to `.crate-manifest`
+    if file_path.extension().unwrap() == "crate-manifest" {
+      file_path.set_extension("toml");
+    }
+    let mut output_file = File::create(out_dir.as_ref().join(file_path))?;
     if let Some(utf8) = file.contents_utf8() {
       handlebars
         .render_template_to_write(utf8, &data, &mut output_file)

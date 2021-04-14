@@ -17,7 +17,7 @@ const cmd = process.argv[2]
  *
  * @param {string|array} command
  */
-const tauri = function (command) {
+const tauri = async function (command) {
   // notifying updates.
   if (!(process.argv || []).some((arg) => arg === '--no-update-notifier')) {
     updateNotifier({
@@ -36,9 +36,11 @@ const tauri = function (command) {
     if (process.argv && !process.env.test) {
       process.argv.splice(0, 3)
     }
-    runOnRustCli(
-      command,
-      (process.argv || []).filter((v) => v !== '--no-update-notifier')
+    ;(
+      await runOnRustCli(
+        command,
+        (process.argv || []).filter((v) => v !== '--no-update-notifier')
+      )
     ).promise.then(() => {
       if (command === 'init') {
         const {
@@ -101,4 +103,6 @@ module.exports = {
   tauri
 }
 
-tauri(cmd)
+tauri(cmd).catch((e) => {
+  throw e
+})

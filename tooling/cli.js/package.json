@@ -16,7 +16,7 @@
   },
   "scripts": {
     "build": "rimraf ./dist && webpack --progress",
-    "build-release": "rimraf ./dist && webpack",
+    "build-release": "rimraf ./dist && cross-env NODE_ENV=production webpack",
     "test": "jest --runInBand --no-cache --testPathIgnorePatterns=\"(build|dev)\"",
     "pretest": "yarn build",
     "prepublishOnly": "yarn build-release",
@@ -52,8 +52,10 @@
   "dependencies": {
     "@tauri-apps/toml": "2.2.4",
     "chalk": "4.1.0",
+    "cross-env": "7.0.3",
     "cross-spawn": "7.0.3",
     "fs-extra": "9.1.0",
+    "got": "11.8.2",
     "imagemin": "7.0.1",
     "imagemin-optipng": "8.0.0",
     "imagemin-pngquant": "9.0.2",
@@ -65,8 +67,8 @@
     "png2icons": "2.0.1",
     "read-chunk": "3.2.0",
     "semver": "7.3.5",
-    "update-notifier": "5.1.0",
-    "sharp": "0.28.1"
+    "sharp": "0.28.1",
+    "update-notifier": "5.1.0"
   },
   "devDependencies": {
     "@babel/core": "7.13.14",

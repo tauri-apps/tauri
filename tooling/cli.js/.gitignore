@@ -2,6 +2,10 @@
 /dist
 target/
 
+# Prebuilt rust CLI
+bin/tauri-cli
+bin/tauri-cli.exe
+
 # Logs
 logs
 *.log

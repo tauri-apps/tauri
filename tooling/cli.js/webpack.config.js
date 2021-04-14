@@ -7,7 +7,8 @@ module.exports = {
     'api/tauricon': './src/api/tauricon.ts',
     'api/dependency-manager': './src/api/dependency-manager/index.ts',
     'helpers/spawn': './src/helpers/spawn.ts',
-    'helpers/rust-cli': './src/helpers/rust-cli.ts'
+    'helpers/rust-cli': './src/helpers/rust-cli.ts',
+    'helpers/download-cli': './src/helpers/download-cli.ts'
   },
   mode: process.env.NODE_ENV || 'development',
   devtool: 'source-map',

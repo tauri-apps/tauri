@@ -1,6 +1,6 @@
 # Changelog
 
-## \[0.15.0]
+## \[1.0.0-beta-rc.0]
 
 - Fixed missing 'App' variant & string promise instead of void promise.
   - [44fc65c](https://www.github.com/tauri-apps/tauri/commit/44fc65c723f638f2a1b2ecafb79b32d509ed2f35) Fixing TS API typings ([#1451](https://www.github.com/tauri-apps/tauri/pull/1451)) on 2021-04-11

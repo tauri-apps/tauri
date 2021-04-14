@@ -1,6 +1,6 @@
 # Changelog
 
-## \[0.2.0]
+## \[1.0.0-beta-rc.0]
 
 - Add current working directory to the path api module.
   - [52c2baf](https://www.github.com/tauri-apps/tauri/commit/52c2baf940773cf7c51647fb6f20d0f7df126115) feat: add current working directory to path api module ([#1375](https://www.github.com/tauri-apps/tauri/pull/1375)) on 2021-03-23

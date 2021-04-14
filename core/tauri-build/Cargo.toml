@@ -1,6 +1,6 @@
 [package]
 name = "tauri-build"
-version = "0.1.0"
+version = "0.1.1"
 authors = [ "Tauri Community" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -9,10 +9,12 @@ repository = "https://github.com/tauri-apps/tauri/tree/dev/core/tauri-build"
 description = "build time code to pair with https://crates.io/crates/tauri"
 edition = "2018"
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = [ "--cfg", "doc_cfg" ]
+
 [dependencies]
 anyhow = "1"
-
-# context dependencies
 proc-macro2 = "1"
 quote = "1"
 tauri-codegen = { path = "../tauri-codegen", optional = true }
@@ -21,10 +23,4 @@ tauri-codegen = { path = "../tauri-codegen", optional = true }
 winres = "0.1"
 
 [features]
-# keep context non-default to prevent some relatively large deps being pulled
-codegen = ["tauri-codegen"]
-
-# enable feature flags on https://docs.rs/tauri-build
-[package.metadata.docs.rs]
-all-features = true
-rustdoc-args = ["--cfg", "doc_cfg"]
+codegen = [ "tauri-codegen" ]

@@ -1,8 +1,8 @@
-workspace = {}
+workspace = { }
 
 [package]
 name = "tauri-bundler"
-version = "0.9.4"
+version = "0.10.0"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>",
@@ -50,7 +50,6 @@ winreg = "0.8"
 [target."cfg(not(target_os = \"linux\"))".dependencies]
 sha2 = { version = "0.9" }
 hex = { version = "0.4" }
-
 
 [lib]
 name = "tauri_bundler"

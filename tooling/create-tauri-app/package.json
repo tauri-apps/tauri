@@ -18,7 +18,8 @@
   "main": "bin/create-tauri-app.js",
   "files": [
     "bin",
-    "dist"
+    "dist",
+    "src/templates"
   ],
   "scripts": {
     "create-tauri-app": "create-tauri-app",

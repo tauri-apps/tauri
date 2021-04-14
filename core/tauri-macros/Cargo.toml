@@ -1,7 +1,7 @@
 [package]
 name = "tauri-macros"
 version = "0.1.0"
-authors = [ "Tauri Community" ]
+authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "os", "filesystem", "web-programming" ]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.studio"

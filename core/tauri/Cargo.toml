@@ -58,7 +58,7 @@ tauri = { path = ".", features = [ "api-all" ] }
 serde = { version = "1.0", features = [ "derive" ] }
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
-tokio-test = "*"
+tokio-test = "0.4.1"
 mockito = "0.29"
 
 [features]

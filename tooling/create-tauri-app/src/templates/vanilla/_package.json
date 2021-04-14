@@ -2,8 +2,5 @@
   "name": "<%= name %>",
   "scripts": {
     "tauri": "tauri"
-  },
-  "dependencies": {
-    "tauri": "<%= tauri_version %>"
   }
 }

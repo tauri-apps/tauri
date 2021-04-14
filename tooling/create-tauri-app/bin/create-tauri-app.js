@@ -209,7 +209,7 @@ async function runInit(argv, config = {}) {
 
     console.log("===== running tauri init =====");
     await shell("npm", ["set-script", "tauri", "tauri"], {
-      cwd: join(cwd, cfg.appName),
+      cwd: appDirectory,
     });
     const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b);
     const runTauriArgs =

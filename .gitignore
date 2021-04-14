@@ -70,7 +70,6 @@ TODO.md
 # Tauri output
 /bundle.json
 /config.json
-/src-tauri
 
 # rust compiled folders
 target

@@ -6,6 +6,7 @@ version = "1.0.0-beta-rc.0"
 authors = [ "Lucas Nogueira <lucas@tauri.studio>" ]
 edition = "2018"
 license = "Apache-2.0 OR MIT"
+include = ["src/", "/templates", "MergeModules/", "*.json", "*.rs"]
 
 [[bin]]
 name = "cargo-tauri"

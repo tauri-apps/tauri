@@ -175,13 +175,6 @@
         }
       ]
     },
-    "create-tauri-app": {
-      "path": "./tooling/create-tauri-app",
-      "manager": "javascript",
-      "dependencies": [
-        "cli.js"
-      ]
-    },
     "tauri-utils": {
       "path": "./core/tauri-utils",
       "manager": "rust"
@@ -208,6 +201,10 @@
         "api",
         "tauri-macros"
       ]
+    },
+    "create-tauri-app": {
+      "path": "./tooling/create-tauri-app",
+      "manager": "javascript"
     }
   }
 }

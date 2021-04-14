@@ -1,6 +1,6 @@
 # Changelog
 
-## \[1.0.0]
+## \[1.0.0-beta-rc.2]
 
 - CTA also needs the template directory published as it doesn't get bundled into the `dist` directory.
   - [7b6108e](https://www.github.com/tauri-apps/tauri/commit/7b6108e37be652a1efa4018fc1908aa0a2cdacd6) fix: cta templates dir missing ([#1496](https://www.github.com/tauri-apps/tauri/pull/1496)) on 2021-04-14

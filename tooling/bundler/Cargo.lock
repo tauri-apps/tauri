@@ -1181,7 +1181,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "0.9.4"
+version = "1.0.0-beta-rc.0"
 dependencies = [
  "anyhow",
  "ar",

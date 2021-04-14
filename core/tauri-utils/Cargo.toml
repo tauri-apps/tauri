@@ -1,11 +1,7 @@
 [package]
 name = "tauri-utils"
 version = "1.0.0-beta-rc.0"
-authors = [
-  "Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>",
-  "Daniel Thompson-Yvetot <denjell@sfosc.org>",
-  "Tensor Programming <tensordeveloper@gmail.com>"
-]
+authors = [ "Tauri Programme within The Commons Conservancy" ]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.studio"
 repository = "https://github.com/tauri-apps/tauri"

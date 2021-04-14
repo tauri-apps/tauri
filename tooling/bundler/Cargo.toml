@@ -5,9 +5,7 @@ name = "tauri-bundler"
 version = "1.0.0-beta-rc.0"
 authors = [
   "George Burton <burtonageo@gmail.com>",
-  "Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>",
-  "Daniel Thompson-Yvetot <denjell@sfosc.org>",
-  "Tensor Programming <tensordeveloper@gmail.com>"
+  "Tauri Programme within The Commons Conservancy"
 ]
 categories = [ "command-line-utilities", "development-tools::cargo-plugins" ]
 license = "Apache-2.0 OR MIT"

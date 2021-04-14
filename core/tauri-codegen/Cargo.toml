@@ -1,7 +1,7 @@
 [package]
 name = "tauri-codegen"
 version = "1.0.0-beta-rc.0"
-authors = [ "Tauri Community" ]
+authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.studio"

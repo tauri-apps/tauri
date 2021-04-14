@@ -3,7 +3,7 @@ workspace = { }
 [package]
 name = "tauri-cli"
 version = "1.0.0-beta-rc.0"
-authors = [ "Lucas Nogueira <lucas@tauri.studio>" ]
+authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2018"
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"

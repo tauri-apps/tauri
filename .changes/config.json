@@ -4,7 +4,7 @@
   "pkgManagers": {
     "rust": {
       "version": true,
-      "getPublishedVersion": "cargo search ${ pkg.pkg } --limit 1 | sed -nE 's/^[^\"]*\"//; s/\".*//1p' -",
+      "getPublishedVersion": "cargo search ${ pkgFile.pkg.package.name } --limit 1 | sed -nE 's/^[^\"]*\"//; s/\".*//1p' -",
       "prepublish": [
         "sudo apt-get update",
         "sudo apt-get install -y webkit2gtk-4.0",

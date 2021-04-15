@@ -173,7 +173,7 @@ pub trait Manager<M: Params>: sealed::ManagerBase<M> {
   }
 
   /// Listen to a global event only once.
-  fn once_global<F>(&self, event: M::Event, handler: F)
+  fn once_global<F>(&self, event: M::Event, handler: F) -> EventHandler
   where
     F: Fn(Event) + Send + 'static,
   {

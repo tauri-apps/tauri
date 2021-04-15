@@ -516,7 +516,7 @@ impl<P: Params> WindowManager<P> {
     event: P::Event,
     window: Option<P::Label>,
     handler: F,
-  ) {
+  ) -> EventHandler {
     self.inner.listeners.once(event, window, handler)
   }
   pub fn event_listeners_object_name(&self) -> String {

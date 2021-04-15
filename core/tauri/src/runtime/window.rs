@@ -256,7 +256,7 @@ pub(crate) mod export {
     }
 
     /// Listen to a an event on this window a single time.
-    pub fn once<F>(&self, event: P::Event, handler: F)
+    pub fn once<F>(&self, event: P::Event, handler: F) -> EventHandler
     where
       F: Fn(Event) + Send + 'static,
     {
@@ -265,7 +265,7 @@ pub(crate) mod export {
     }
 
     /// Triggers an event on this window.
-    pub(crate) fn trigger(&self, event: P::Event, data: Option<String>) {
+    pub fn trigger(&self, event: P::Event, data: Option<String>) {
       let label = self.window.label.clone();
       self.manager.trigger(event, Some(label), data)
     }

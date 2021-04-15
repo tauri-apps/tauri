@@ -41,10 +41,20 @@ impl Event {
   }
 }
 
+/// What happens after the handler is called?
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+enum AfterHandle {
+  /// The handler is removed (once).
+  Remove,
+
+  /// Nothing is done (regular).
+  DoNothing,
+}
+
 /// Stored in [`Listeners`] to be called upon when the event that stored it is triggered.
 struct Handler<Window: Tag> {
   window: Option<Window>,
-  callback: Box<dyn Fn(Event) + Send>,
+  callback: Box<dyn Fn(Event) -> AfterHandle + Send>,
 }
 
 /// A collection of handlers. Multiple handlers can represent the same event.
@@ -85,26 +95,38 @@ impl<E: Tag, L: Tag> Listeners<E, L> {
     self.queue_object_name.to_string()
   }
 
-  /// Adds an event listener for JS events.
-  pub(crate) fn listen<F: Fn(Event) + Send + 'static>(
-    &self,
-    event: E,
-    window: Option<L>,
-    handler: F,
-  ) -> EventHandler {
+  fn listen_internal<F>(&self, event: E, window: Option<L>, handler: F) -> EventHandler
+  where
+    F: Fn(Event) -> AfterHandle + Send + 'static,
+  {
     let id = EventHandler(Uuid::new_v4());
-    let handler = Handler {
-      window,
-      callback: Box::new(handler),
-    };
+
     self
       .inner
       .lock()
       .expect("poisoned event mutex")
       .entry(event)
       .or_default()
-      .insert(id, handler);
+      .insert(
+        id,
+        Handler {
+          window,
+          callback: Box::new(handler),
+        },
+      );
+
     id
+  }
+
+  /// Adds an event listener for JS events.
+  pub(crate) fn listen<F>(&self, event: E, window: Option<L>, handler: F) -> EventHandler
+  where
+    F: Fn(Event) + Send + 'static,
+  {
+    self.listen_internal(event, window, move |event| {
+      handler(event);
+      AfterHandle::DoNothing
+    })
   }
 
   /// Listen to a JS event and immediately unlisten.
@@ -113,16 +135,11 @@ impl<E: Tag, L: Tag> Listeners<E, L> {
     event: E,
     window: Option<L>,
     handler: F,
-  ) {
-    let self_ = self.clone();
-    self.listen(event, window, move |e| {
-      let self_ = self_.clone();
-      let id = e.id;
-      crate::async_runtime::spawn(async move {
-        self_.unlisten(id);
-      });
-      handler(e);
-    });
+  ) -> EventHandler {
+    self.listen_internal(event, window, move |event| {
+      handler(event);
+      AfterHandle::Remove
+    })
   }
 
   /// Removes an event listener.
@@ -139,14 +156,22 @@ impl<E: Tag, L: Tag> Listeners<E, L> {
 
   /// Triggers the given global event with its payload.
   pub(crate) fn trigger(&self, event: E, window: Option<L>, data: Option<String>) {
-    if let Some(handlers) = self.inner.lock().expect("poisoned event mutex").get(&event) {
-      for (&id, handler) in handlers {
+    if let Some(handlers) = self
+      .inner
+      .lock()
+      .expect("poisoned event mutex")
+      .get_mut(&event)
+    {
+      handlers.retain(|&id, handler| {
         if window.is_none() || window == handler.window {
           let data = data.clone();
           let payload = Event { id, data };
-          (handler.callback)(payload)
+          (handler.callback)(payload) != AfterHandle::Remove
+        } else {
+          // skip and retain all handlers specifying a different window
+          true
         }
-      }
+      })
     }
   }
 }

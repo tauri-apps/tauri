@@ -130,8 +130,8 @@ impl<P: Params> Listeners<P> {
       std::mem::take(&mut *lock)
     };
 
-    for pending in pending.into_iter() {
-      match pending {
+    for action in pending {
+      match action {
         Pending::Unlisten(id) => self.unlisten(id),
         Pending::Listen(id, event, handler) => self.listen_(id, event, handler),
         Pending::Trigger(event, window, payload) => self.trigger(event, window, payload),

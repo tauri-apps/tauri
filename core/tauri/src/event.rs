@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::runtime::tag::Tag;
+use crate::Params;
 use std::{
   boxed::Box,
   collections::HashMap,
@@ -41,137 +41,177 @@ impl Event {
   }
 }
 
-/// What happens after the handler is called?
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-enum AfterHandle {
-  /// The handler is removed (once).
-  Remove,
-
-  /// Nothing is done (regular).
-  DoNothing,
+/// What to do with the pending handler when resolving it?
+enum Pending<P: Params> {
+  Unlisten(EventHandler),
+  Listen(EventHandler, P::Event, Handler<P>),
+  Trigger(P::Event, Option<P::Label>, Option<String>),
 }
 
 /// Stored in [`Listeners`] to be called upon when the event that stored it is triggered.
-struct Handler<Window: Tag> {
-  window: Option<Window>,
-  callback: Box<dyn Fn(Event) -> AfterHandle + Send>,
+struct Handler<P: Params> {
+  window: Option<P::Label>,
+  callback: Box<dyn Fn(Event) + Send>,
 }
 
 /// A collection of handlers. Multiple handlers can represent the same event.
-type Handlers<Event, Window> = HashMap<Event, HashMap<EventHandler, Handler<Window>>>;
+type Handlers<P> = HashMap<<P as Params>::Event, HashMap<EventHandler, Handler<P>>>;
 
-#[derive(Clone)]
-pub(crate) struct Listeners<Event: Tag, Window: Tag> {
-  inner: Arc<Mutex<Handlers<Event, Window>>>,
+/// Holds event handlers and pending event handlers, along with the salts associating them.
+struct InnerListeners<P: Params> {
+  handlers: Mutex<Handlers<P>>,
+  pending: Mutex<Vec<Pending<P>>>,
   function_name: Uuid,
   listeners_object_name: Uuid,
   queue_object_name: Uuid,
 }
 
-impl<E: Tag, L: Tag> Default for Listeners<E, L> {
+/// A self-contained event manager.
+pub(crate) struct Listeners<P: Params> {
+  inner: Arc<InnerListeners<P>>,
+}
+
+impl<P: Params> Default for Listeners<P> {
   fn default() -> Self {
     Self {
-      inner: Arc::new(Mutex::default()),
-      function_name: Uuid::new_v4(),
-      listeners_object_name: Uuid::new_v4(),
-      queue_object_name: Uuid::new_v4(),
+      inner: Arc::new(InnerListeners {
+        handlers: Mutex::default(),
+        pending: Mutex::default(),
+        function_name: Uuid::new_v4(),
+        listeners_object_name: Uuid::new_v4(),
+        queue_object_name: Uuid::new_v4(),
+      }),
     }
   }
 }
 
-impl<E: Tag, L: Tag> Listeners<E, L> {
+impl<P: Params> Clone for Listeners<P> {
+  fn clone(&self) -> Self {
+    Self {
+      inner: self.inner.clone(),
+    }
+  }
+}
+
+impl<P: Params> Listeners<P> {
   /// Randomly generated function name to represent the JavaScript event function.
   pub(crate) fn function_name(&self) -> String {
-    self.function_name.to_string()
+    self.inner.function_name.to_string()
   }
 
   /// Randomly generated listener object name to represent the JavaScript event listener object.
   pub(crate) fn listeners_object_name(&self) -> String {
-    self.function_name.to_string()
+    self.inner.listeners_object_name.to_string()
   }
 
   /// Randomly generated queue object name to represent the JavaScript event queue object.
   pub(crate) fn queue_object_name(&self) -> String {
-    self.queue_object_name.to_string()
+    self.inner.queue_object_name.to_string()
   }
 
-  fn listen_internal<F>(&self, event: E, window: Option<L>, handler: F) -> EventHandler
-  where
-    F: Fn(Event) -> AfterHandle + Send + 'static,
-  {
-    let id = EventHandler(Uuid::new_v4());
-
+  /// Insert an event handler to be inster
+  fn insert_pending(&self, action: Pending<P>) {
     self
       .inner
+      .pending
       .lock()
-      .expect("poisoned event mutex")
-      .entry(event)
-      .or_default()
-      .insert(
-        id,
-        Handler {
-          window,
-          callback: Box::new(handler),
-        },
-      );
+      .expect("poisoned pending event queue")
+      .push(action)
+  }
 
-    id
+  /// Finish all pending event actions
+  fn flush_pending(&self) {
+    let pending = {
+      let mut lock = self
+        .inner
+        .pending
+        .lock()
+        .expect("poisoned pending event queue");
+      std::mem::take(&mut *lock)
+    };
+
+    for pending in pending.into_iter() {
+      match pending {
+        Pending::Unlisten(id) => self.unlisten(id),
+        Pending::Listen(id, event, handler) => self.listen_(id, event, handler),
+        Pending::Trigger(event, window, payload) => self.trigger(event, window, payload),
+      }
+    }
+  }
+
+  fn listen_(&self, id: EventHandler, event: P::Event, handler: Handler<P>) {
+    match self.inner.handlers.try_lock() {
+      Err(_) => self.insert_pending(Pending::Listen(id, event, handler)),
+      Ok(mut lock) => {
+        lock.entry(event).or_default().insert(id, handler);
+      }
+    }
   }
 
   /// Adds an event listener for JS events.
-  pub(crate) fn listen<F>(&self, event: E, window: Option<L>, handler: F) -> EventHandler
-  where
-    F: Fn(Event) + Send + 'static,
-  {
-    self.listen_internal(event, window, move |event| {
-      handler(event);
-      AfterHandle::DoNothing
-    })
+  pub(crate) fn listen<F: Fn(Event) + Send + 'static>(
+    &self,
+    event: P::Event,
+    window: Option<P::Label>,
+    handler: F,
+  ) -> EventHandler {
+    let id = EventHandler(Uuid::new_v4());
+    let handler = Handler {
+      window,
+      callback: Box::new(handler),
+    };
+
+    self.listen_(id, event, handler);
+
+    id
   }
 
   /// Listen to a JS event and immediately unlisten.
   pub(crate) fn once<F: Fn(Event) + Send + 'static>(
     &self,
-    event: E,
-    window: Option<L>,
+    event: P::Event,
+    window: Option<P::Label>,
     handler: F,
   ) -> EventHandler {
-    self.listen_internal(event, window, move |event| {
+    let self_ = self.clone();
+    self.listen(event, window, move |event| {
+      self_.unlisten(event.id);
       handler(event);
-      AfterHandle::Remove
     })
   }
 
   /// Removes an event listener.
   pub(crate) fn unlisten(&self, handler_id: EventHandler) {
-    self
-      .inner
-      .lock()
-      .expect("poisoned event mutex")
-      .values_mut()
-      .for_each(|handler| {
+    match self.inner.handlers.try_lock() {
+      Err(_) => self.insert_pending(Pending::Unlisten(handler_id)),
+      Ok(mut lock) => lock.values_mut().for_each(|handler| {
         handler.remove(&handler_id);
-      })
+      }),
+    }
   }
 
   /// Triggers the given global event with its payload.
-  pub(crate) fn trigger(&self, event: E, window: Option<L>, data: Option<String>) {
-    if let Some(handlers) = self
-      .inner
-      .lock()
-      .expect("poisoned event mutex")
-      .get_mut(&event)
-    {
-      handlers.retain(|&id, handler| {
-        if window.is_none() || window == handler.window {
-          let data = data.clone();
-          let payload = Event { id, data };
-          (handler.callback)(payload) != AfterHandle::Remove
-        } else {
-          // skip and retain all handlers specifying a different window
-          true
+  pub(crate) fn trigger(&self, event: P::Event, window: Option<P::Label>, payload: Option<String>) {
+    let mut maybe_pending = false;
+    match self.inner.handlers.try_lock() {
+      Err(_) => self.insert_pending(Pending::Trigger(event, window, payload)),
+      Ok(lock) => {
+        if let Some(handlers) = lock.get(&event) {
+          for (&id, handler) in handlers {
+            if window.is_none() || window == handler.window {
+              maybe_pending = true;
+              (handler.callback)(Event {
+                id,
+                data: payload.clone(),
+              })
+            }
+          }
         }
-      })
+      }
+    }
+
+    if maybe_pending {
+      self.flush_pending();
     }
   }
 }

@@ -31,19 +31,19 @@ use std::{
 };
 use uuid::Uuid;
 
-pub struct InnerWindowManager<M: Params> {
-  windows: Mutex<HashMap<M::Label, Window<M>>>,
-  plugins: Mutex<PluginStore<M>>,
-  listeners: Listeners<M::Event, M::Label>,
+pub struct InnerWindowManager<P: Params> {
+  windows: Mutex<HashMap<P::Label, Window<P>>>,
+  plugins: Mutex<PluginStore<P>>,
+  listeners: Listeners<P>,
 
   /// The JS message handler.
-  invoke_handler: Box<InvokeHandler<M>>,
+  invoke_handler: Box<InvokeHandler<P>>,
 
   /// The page load hook, invoked when the webview performs a navigation.
-  on_page_load: Box<OnPageLoad<M>>,
+  on_page_load: Box<OnPageLoad<P>>,
 
   config: Config,
-  assets: Arc<M::Assets>,
+  assets: Arc<P::Assets>,
   default_window_icon: Option<Vec<u8>>,
 
   /// A list of salts that are valid for the current application.

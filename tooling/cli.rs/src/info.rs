@@ -39,6 +39,7 @@ struct JsCliVersionMetadata {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct VersionMetadata {
   js_cli: JsCliVersionMetadata,
 }

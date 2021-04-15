@@ -1,5 +1,5 @@
 {
-  "cli.js": {
+  "jsCli": {
     "version": "1.0.0-beta-rc.0",
     "node": ">= 10.17.0"
   },

@@ -109,7 +109,7 @@ impl<P: Params> Listeners<P> {
     self.inner.queue_object_name.to_string()
   }
 
-  /// Insert an event handler to be inster
+  /// Insert a pending event action to the queue.
   fn insert_pending(&self, action: Pending<P>) {
     self
       .inner
@@ -119,7 +119,7 @@ impl<P: Params> Listeners<P> {
       .push(action)
   }
 
-  /// Finish all pending event actions
+  /// Finish all pending event actions.
   fn flush_pending(&self) {
     let pending = {
       let mut lock = self

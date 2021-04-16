@@ -41,6 +41,7 @@ struct JsCliVersionMetadata {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct VersionMetadata {
+  #[serde(rename = "cli.js")]
   js_cli: JsCliVersionMetadata,
 }
 
@@ -86,7 +87,19 @@ fn crate_latest_version(name: &str) -> Option<String> {
 
 fn npm_latest_version(use_yarn: bool, name: &str) -> crate::Result<Option<String>> {
   if use_yarn {
-    let output = Command::new("yarn")
+    let mut cmd;
+    #[cfg(target_os = "windows")]
+    {
+      cmd = Command::new("cmd");
+      cmd.arg("/c").arg("yarn");
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+      cmd = Command::new("yarn")
+    }
+
+    let output = cmd
       .arg("info")
       .arg(name)
       .args(&["version", "--json"])
@@ -99,11 +112,19 @@ fn npm_latest_version(use_yarn: bool, name: &str) -> crate::Result<Option<String
       Ok(None)
     }
   } else {
-    let output = Command::new("npm")
-      .arg("show")
-      .arg(name)
-      .arg("version")
-      .output()?;
+    let mut cmd;
+    #[cfg(target_os = "windows")]
+    {
+      cmd = Command::new("cmd");
+      cmd.arg("/c").arg("npm");
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+      cmd = Command::new("npm")
+    }
+
+    let output = cmd.arg("show").arg(name).arg("version").output()?;
     if output.status.success() {
       let stdout = String::from_utf8_lossy(&output.stdout);
       Ok(Some(stdout.replace("\n", "")))
@@ -119,14 +140,38 @@ fn npm_package_version<P: AsRef<Path>>(
   app_dir: P,
 ) -> crate::Result<Option<String>> {
   let output = if use_yarn {
-    Command::new("yarn")
+    let mut cmd;
+    #[cfg(target_os = "windows")]
+    {
+      cmd = Command::new("cmd");
+      cmd.arg("/c").arg("yarn");
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+      cmd = Command::new("yarn")
+    }
+
+    cmd
       .args(&["list", "--pattern"])
       .arg(name)
       .args(&["--depth", "0"])
       .current_dir(app_dir)
       .output()?
   } else {
-    Command::new("npm")
+    let mut cmd;
+    #[cfg(target_os = "windows")]
+    {
+      cmd = Command::new("cmd");
+      cmd.arg("/c").arg("npm");
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+      cmd = Command::new("npm")
+    }
+
+    cmd
       .arg("list")
       .arg(name)
       .args(&["version", "--depth", "0"])
@@ -148,7 +193,19 @@ fn npm_package_version<P: AsRef<Path>>(
 }
 
 fn get_version(command: &str, args: &[&str]) -> crate::Result<Option<String>> {
-  let output = Command::new(command).args(args).arg("--version").output()?;
+  let mut cmd;
+  #[cfg(target_os = "windows")]
+  {
+    cmd = Command::new("cmd");
+    cmd.arg("/c").arg(command);
+  }
+
+  #[cfg(not(target_os = "windows"))]
+  {
+    cmd = Command::new(command)
+  }
+
+  let output = cmd.args(args).arg("--version").output()?;
   let version = if output.status.success() {
     Some(String::from_utf8_lossy(&output.stdout).replace("\n", ""))
   } else {

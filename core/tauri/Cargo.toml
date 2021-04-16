@@ -17,7 +17,7 @@ features = [ "api-all" ]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
 serde = { version = "1.0", features = [ "derive" ] }
 base64 = "0.13.0"
-tokio = { version = "1.4", features = [ "rt", "rt-multi-thread", "sync" ] }
+tokio = { version = "1.5", features = [ "rt", "rt-multi-thread", "sync" ] }
 futures = "0.3"
 uuid = { version = "0.8.2", features = [ "v4" ] }
 thiserror = "1.0.24"
@@ -31,7 +31,7 @@ tempfile = "3"
 semver = "0.11"
 serde_repr = "0.1"
 dirs-next = "2.0.0"
-zip = "0.5.11"
+zip = "0.5.12"
 ignore = "^0.4.17"
 either = "1.6.1"
 tar = "0.4"
@@ -59,7 +59,7 @@ serde = { version = "1.0", features = [ "derive" ] }
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 tokio-test = "0.4.1"
-mockito = "0.29"
+mockito = "0.30"
 
 [features]
 cli = [ "clap" ]

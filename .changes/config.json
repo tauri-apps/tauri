@@ -3,6 +3,7 @@
   "timeout": 3600000,
   "pkgManagers": {
     "rust": {
+      "errorOnVersionRange": "1.0.0-beta-rc.100 - 99.x || ^1.1.0-0 || ^2.0.0-0",
       "version": true,
       "getPublishedVersion": "cargo search ${ pkgFile.pkg.package.name } --limit 1 | sed -nE 's/^[^\"]*\"//; s/\".*//1p' -",
       "prepublish": [
@@ -76,6 +77,7 @@
       ]
     },
     "javascript": {
+      "errorOnVersionRange": "1.0.0-beta-rc.100 - 99.x || ^1.1.0-0 || ^2.0.0-0",
       "version": true,
       "getPublishedVersion": "npm view ${ pkgFile.pkg.name } version",
       "prepublish": [

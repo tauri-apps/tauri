@@ -14,7 +14,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: covector status
-        uses: jbolda/covector/packages/action@covector-v0
+        uses: jbolda/covector/packages/action@feat/enable-prereleases
         id: covector
         with:
-          command: 'status'
+          command: "status"

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::Params;
+use crate::runtime::tag::Tag;
 use std::{
   boxed::Box,
   collections::HashMap,
@@ -42,36 +42,36 @@ impl Event {
 }
 
 /// What to do with the pending handler when resolving it?
-enum Pending<P: Params> {
+enum Pending<Event: Tag, Window: Tag> {
   Unlisten(EventHandler),
-  Listen(EventHandler, P::Event, Handler<P>),
-  Trigger(P::Event, Option<P::Label>, Option<String>),
+  Listen(EventHandler, Event, Handler<Window>),
+  Trigger(Event, Option<Window>, Option<String>),
 }
 
 /// Stored in [`Listeners`] to be called upon when the event that stored it is triggered.
-struct Handler<P: Params> {
-  window: Option<P::Label>,
+struct Handler<Window: Tag> {
+  window: Option<Window>,
   callback: Box<dyn Fn(Event) + Send>,
 }
 
 /// A collection of handlers. Multiple handlers can represent the same event.
-type Handlers<P> = HashMap<<P as Params>::Event, HashMap<EventHandler, Handler<P>>>;
+type Handlers<Event, Window> = HashMap<Event, HashMap<EventHandler, Handler<Window>>>;
 
 /// Holds event handlers and pending event handlers, along with the salts associating them.
-struct InnerListeners<P: Params> {
-  handlers: Mutex<Handlers<P>>,
-  pending: Mutex<Vec<Pending<P>>>,
+struct InnerListeners<Event: Tag, Window: Tag> {
+  handlers: Mutex<Handlers<Event, Window>>,
+  pending: Mutex<Vec<Pending<Event, Window>>>,
   function_name: Uuid,
   listeners_object_name: Uuid,
   queue_object_name: Uuid,
 }
 
 /// A self-contained event manager.
-pub(crate) struct Listeners<P: Params> {
-  inner: Arc<InnerListeners<P>>,
+pub(crate) struct Listeners<Event: Tag, Window: Tag> {
+  inner: Arc<InnerListeners<Event, Window>>,
 }
 
-impl<P: Params> Default for Listeners<P> {
+impl<Event: Tag, Window: Tag> Default for Listeners<Event, Window> {
   fn default() -> Self {
     Self {
       inner: Arc::new(InnerListeners {
@@ -85,7 +85,7 @@ impl<P: Params> Default for Listeners<P> {
   }
 }
 
-impl<P: Params> Clone for Listeners<P> {
+impl<Event: Tag, Window: Tag> Clone for Listeners<Event, Window> {
   fn clone(&self) -> Self {
     Self {
       inner: self.inner.clone(),
@@ -93,7 +93,7 @@ impl<P: Params> Clone for Listeners<P> {
   }
 }
 
-impl<P: Params> Listeners<P> {
+impl<Event: Tag, Window: Tag> Listeners<Event, Window> {
   /// Randomly generated function name to represent the JavaScript event function.
   pub(crate) fn function_name(&self) -> String {
     self.inner.function_name.to_string()
@@ -110,7 +110,7 @@ impl<P: Params> Listeners<P> {
   }
 
   /// Insert a pending event action to the queue.
-  fn insert_pending(&self, action: Pending<P>) {
+  fn insert_pending(&self, action: Pending<Event, Window>) {
     self
       .inner
       .pending
@@ -139,7 +139,7 @@ impl<P: Params> Listeners<P> {
     }
   }
 
-  fn listen_(&self, id: EventHandler, event: P::Event, handler: Handler<P>) {
+  fn listen_(&self, id: EventHandler, event: Event, handler: Handler<Window>) {
     match self.inner.handlers.try_lock() {
       Err(_) => self.insert_pending(Pending::Listen(id, event, handler)),
       Ok(mut lock) => {
@@ -149,10 +149,10 @@ impl<P: Params> Listeners<P> {
   }
 
   /// Adds an event listener for JS events.
-  pub(crate) fn listen<F: Fn(Event) + Send + 'static>(
+  pub(crate) fn listen<F: Fn(self::Event) + Send + 'static>(
     &self,
-    event: P::Event,
-    window: Option<P::Label>,
+    event: Event,
+    window: Option<Window>,
     handler: F,
   ) -> EventHandler {
     let id = EventHandler(Uuid::new_v4());
@@ -167,10 +167,10 @@ impl<P: Params> Listeners<P> {
   }
 
   /// Listen to a JS event and immediately unlisten.
-  pub(crate) fn once<F: Fn(Event) + Send + 'static>(
+  pub(crate) fn once<F: Fn(self::Event) + Send + 'static>(
     &self,
-    event: P::Event,
-    window: Option<P::Label>,
+    event: Event,
+    window: Option<Window>,
     handler: F,
   ) -> EventHandler {
     let self_ = self.clone();
@@ -191,7 +191,7 @@ impl<P: Params> Listeners<P> {
   }
 
   /// Triggers the given global event with its payload.
-  pub(crate) fn trigger(&self, event: P::Event, window: Option<P::Label>, payload: Option<String>) {
+  pub(crate) fn trigger(&self, event: Event, window: Option<Window>, payload: Option<String>) {
     let mut maybe_pending = false;
     match self.inner.handlers.try_lock() {
       Err(_) => self.insert_pending(Pending::Trigger(event, window, payload)),
@@ -200,7 +200,7 @@ impl<P: Params> Listeners<P> {
           for (&id, handler) in handlers {
             if window.is_none() || window == handler.window {
               maybe_pending = true;
-              (handler.callback)(Event {
+              (handler.callback)(self::Event {
                 id,
                 data: payload.clone(),
               })
@@ -239,7 +239,7 @@ mod test {
       listeners.listen(e, None, event_fn);
 
       // lock mutex
-      let l = listeners.inner.lock().unwrap();
+      let l = listeners.inner.handlers.lock().unwrap();
 
       // check if the generated key is in the map
       assert_eq!(l.contains_key(&key), true);
@@ -255,7 +255,7 @@ mod test {
        listeners.listen(e, None, event_fn);
 
        // lock mutex
-       let mut l = listeners.inner.lock().unwrap();
+       let mut l = listeners.inner.handlers.lock().unwrap();
 
        // check if l contains key
        if l.contains_key(&key) {
@@ -283,7 +283,7 @@ mod test {
       listeners.trigger(e, None, Some(d));
 
       // lock the mutex
-      let l = listeners.inner.lock().unwrap();
+      let l = listeners.inner.handlers.lock().unwrap();
 
       // assert that the key is contained in the listeners map
       assert!(l.contains_key(&key));

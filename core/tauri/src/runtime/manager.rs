@@ -34,7 +34,7 @@ use uuid::Uuid;
 pub struct InnerWindowManager<P: Params> {
   windows: Mutex<HashMap<P::Label, Window<P>>>,
   plugins: Mutex<PluginStore<P>>,
-  listeners: Listeners<P>,
+  listeners: Listeners<P::Event, P::Label>,
 
   /// The JS message handler.
   invoke_handler: Box<InvokeHandler<P>>,

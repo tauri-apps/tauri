@@ -25,8 +25,7 @@
     "url": "https://opencollective.com/tauri"
   },
   "scripts": {
-    "build": "rimraf ./dist && rollup -c --silent",
-    "preparePublish": "yarn build && copyfiles package.json LICENSE* CHANGELOG.md dist",
+    "build": "rimraf ./dist && rollup -c --silent && copyfiles package.json LICENSE* CHANGELOG.md dist",
     "lint": "eslint --ext ts \"./src/**/*.ts\"",
     "lint-fix": "eslint --fix --ext ts \"./src/**/*.ts\"",
     "lint:lockfile": "lockfile-lint --path yarn.lock --type yarn --validate-https --allowed-hosts npm yarn",

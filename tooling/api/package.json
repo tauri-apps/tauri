@@ -3,6 +3,7 @@
   "version": "1.0.0-beta-rc.1",
   "description": "Tauri API definitions",
   "main": "./index.js",
+  "typings": "./index.d.ts",
   "exports": {
     ".": "./index.js",
     "./app": "./app.js",
@@ -25,7 +26,7 @@
   },
   "scripts": {
     "build": "rimraf ./dist && rollup -c --silent",
-    "preparePublish": "yarn build && cp package.json dist/ && cd dist && npm publish",
+    "preparePublish": "yarn build && copyfiles package.json LICENSE* CHNAGELOG.md dist",
     "lint": "eslint --ext ts \"./src/**/*.ts\"",
     "lint-fix": "eslint --fix --ext ts \"./src/**/*.ts\"",
     "lint:lockfile": "lockfile-lint --path yarn.lock --type yarn --validate-https --allowed-hosts npm yarn",
@@ -65,6 +66,7 @@
     "@rollup/plugin-typescript": "8.2.1",
     "@typescript-eslint/eslint-plugin": "4.21.0",
     "@typescript-eslint/parser": "4.21.0",
+    "copyfiles": "^2.4.1",
     "eslint": "7.23.0",
     "eslint-config-prettier": "8.1.0",
     "eslint-config-standard-with-typescript": "20.0.0",
@@ -87,48 +89,5 @@
   },
   "resolutions": {
     "**/lodash": ">=4.17.19"
-  },
-  "typesVersions": {
-    "*": {
-      "app": [
-        "./app.d.ts"
-      ],
-      "cli": [
-        "./cli.d.ts"
-      ],
-      "dialog": [
-        "./dialog.d.ts"
-      ],
-      "event": [
-        "./event.d.ts"
-      ],
-      "updater": [
-        "./updater.d.ts"
-      ],
-      "fs": [
-        "./fs.d.ts"
-      ],
-      "path": [
-        "./path.d.ts"
-      ],
-      "http": [
-        "./http.d.ts"
-      ],
-      "notification": [
-        "./notification.d.ts"
-      ],
-      "tauri": [
-        "./tauri.d.ts"
-      ],
-      "window": [
-        "./window.d.ts"
-      ],
-      "shell": [
-        "./shell.d.ts"
-      ],
-      "globalShortcut": [
-        "./globalShortcut.d.ts"
-      ]
-    }
   }
 }

@@ -144,8 +144,65 @@
       "manager": "javascript",
       "assets": [
         {
-          "path": "./tooling/api/tauri-apps-api-${ pkgFile.version }.tgz",
+          "path": "./tooling/api/dist/tauri-apps-api-${ pkgFile.version }.tgz",
           "name": "api-${ pkgFile.version }.tgz"
+        }
+      ],
+      "prepublish": [
+        {
+          "command": "yarn",
+          "dryRunCommand": true
+        },
+        {
+          "command": "echo \"# Yarn Audit\n\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "echo \"<details>\n<summary>click to view</summary>\n\n\\`\\`\\`\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "yarn audit",
+          "dryRunCommand": true,
+          "runFromRoot": true,
+          "pipe": true
+        },
+        {
+          "command": "echo \"\\`\\`\\`\n\n</details>\n\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "yarn build",
+          "dryRunCommand": true
+        },
+        {
+          "command": "cd ./dist && npm pack",
+          "dryRunCommand": true
+        }
+      ],
+      "publish": [
+        {
+          "command": "echo \"# Yarn Package Publish\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "echo \"\\`\\`\\`\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "cd ./dist && yarn publish --access public --loglevel silly",
+          "dryRunCommand": "npm publish --dry-run --access public",
+          "pipe": true
+        },
+        {
+          "command": "echo \"\\`\\`\\`\"",
+          "dryRunCommand": true,
+          "pipe": true
         }
       ]
     },

@@ -26,7 +26,6 @@
   },
   "scripts": {
     "build": "rimraf ./dist && rollup -c --silent && copyfiles package.json LICENSE* CHANGELOG.md dist",
-    "prepublishOnly": "yarn build",
     "lint": "eslint --ext ts \"./src/**/*.ts\"",
     "lint-fix": "eslint --fix --ext ts \"./src/**/*.ts\"",
     "lint:lockfile": "lockfile-lint --path yarn.lock --type yarn --validate-https --allowed-hosts npm yarn",

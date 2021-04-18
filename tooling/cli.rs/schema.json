@@ -90,6 +90,7 @@
           "windows": {
             "certificateThumbprint": null,
             "digestAlgorithm": null,
+            "template": null,
             "timestampUrl": null
           }
         },
@@ -343,6 +344,7 @@
           "default": {
             "certificateThumbprint": null,
             "digestAlgorithm": null,
+            "template": null,
             "timestampUrl": null
           },
           "allOf": [
@@ -909,6 +911,7 @@
             "windows": {
               "certificateThumbprint": null,
               "digestAlgorithm": null,
+              "template": null,
               "timestampUrl": null
             }
           },
@@ -1149,6 +1152,12 @@
           ]
         },
         "digestAlgorithm": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "template": {
           "type": [
             "string",
             "null"

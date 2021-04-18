@@ -175,11 +175,7 @@
           "pipe": true
         },
         {
-          "command": "yarn build",
-          "dryRunCommand": true
-        },
-        {
-          "command": "cd ./dist && npm pack",
+          "command": "yarn npm-pack",
           "dryRunCommand": true
         }
       ],
@@ -195,8 +191,8 @@
           "pipe": true
         },
         {
-          "command": "cd ./dist && yarn publish --access public --loglevel silly",
-          "dryRunCommand": "npm publish --dry-run --access public",
+          "command": "yarn npm-publish",
+          "dryRunCommand": true,
           "pipe": true
         },
         {

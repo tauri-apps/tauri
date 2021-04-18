@@ -532,10 +532,11 @@ pub fn build_wix_app_installer(
 
   data.insert("icon_path", to_json(icon_path));
 
-  let temp = if let Some(temp) = &settings.windows().template {
+  let temp = if let Some(temp_path) = &settings.windows().template {
     let mut handlebars = Handlebars::new();
+    let temp_context = std::fs::read_to_string(temp_path)?;
     handlebars
-      .register_template_string("main.wxs", temp)
+      .register_template_string("main.wxs", &temp_context)
       .or_else(|e| Err(e.to_string()))
       .expect("Failed to setup custom handlebar template");
 

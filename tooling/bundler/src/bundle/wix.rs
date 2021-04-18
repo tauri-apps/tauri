@@ -534,7 +534,9 @@ pub fn build_wix_app_installer(
 
   let temp = if let Some(temp_path) = &settings.windows().template {
     let mut handlebars = Handlebars::new();
-    let temp_context = std::fs::read_to_string(temp_path)?;
+    let temp_context = std::fs::read_to_string(temp_path)
+    .expect("failed to read custom handlebar tempalate path, maybe the path is wrong, here need a relative path.");
+
     handlebars
       .register_template_string("main.wxs", &temp_context)
       .or_else(|e| Err(e.to_string()))

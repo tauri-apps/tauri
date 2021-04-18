@@ -542,8 +542,8 @@ pub fn build_wix_app_installer(
       .or_else(|e| Err(e.to_string()))
       .expect("Failed to setup custom handlebar template");
 
-    handlebars.render("main.wxs",&data)?
-  }else {
+    handlebars.render("main.wxs", &data)?
+  } else {
     HANDLEBARS.render("main.wxs", &data)?
   };
 

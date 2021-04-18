@@ -47,6 +47,7 @@ pub struct WindowsConfig {
   pub digest_algorithm: Option<String>,
   pub certificate_thumbprint: Option<String>,
   pub timestamp_url: Option<String>,
+  pub template: Option<String>,
 }
 
 #[skip_serializing_none]

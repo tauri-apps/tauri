@@ -172,6 +172,8 @@ pub struct WindowsSettings {
   pub digest_algorithm: Option<String>,
   pub certificate_thumbprint: Option<String>,
   pub timestamp_url: Option<String>,
+  /// By default, the current bundle uses internal templates, which you can change if you want more flexibility.
+  pub template: Option<String>,
 }
 
 /// The bundle settings of the BuildArtifact we're bundling.

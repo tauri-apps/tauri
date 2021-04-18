@@ -532,7 +532,17 @@ pub fn build_wix_app_installer(
 
   data.insert("icon_path", to_json(icon_path));
 
-  let temp = HANDLEBARS.render("main.wxs", &data)?;
+  let temp = if let Some(temp) = &settings.windows().template {
+    let mut handlebars = Handlebars::new();
+    handlebars
+      .register_template_string("main.wxs", temp)
+      .or_else(|e| Err(e.to_string()))
+      .expect("Failed to setup custom handlebar template");
+
+    handlebars.render("main.wxs",&data)?
+  }else {
+    HANDLEBARS.render("main.wxs", &data)?
+  };
 
   if output_path.exists() {
     remove_dir_all(&output_path)?;

@@ -1,5 +1,30 @@
 # Changelog
 
+## \[1.0.0-beta-rc.2]
+
+- Prevent "once" events from being able to be called multiple times.
+
+- `Window::trigger(/*...*/)` is now properly `pub` instead of `pub(crate)`.
+
+- `Manager::once_global(/*...*/)` now returns an `EventHandler`.
+
+- `Window::once(/*...*/)` now returns an `EventHandler`.
+
+- (internal) `event::Listeners::trigger(/*...*/)` now handles removing "once" events.
+
+- [ece243d](https://www.github.com/tauri-apps/tauri/commit/ece243d17c9c3ef8d2ba8e3b25b872aa6ea0b6ab) don't remove once listener on new thread ([#1506](https://www.github.com/tauri-apps/tauri/pull/1506)) on 2021-04-14
+
+- TS was wrongly re-exporting the module.
+  - [fcb3b48](https://www.github.com/tauri-apps/tauri/commit/fcb3b4857efa17d2a3717f32457e88b24520cc9b) fix: [#1512](https://www.github.com/tauri-apps/tauri/pull/1512) ([#1517](https://www.github.com/tauri-apps/tauri/pull/1517)) on 2021-04-19
+
+- Window and global events can now be nested inside event handlers. They will run as soon
+  as the event handler closure is finished in the order they were called. Previously, calling
+  events inside an event handler would produce a deadlock.
+
+Note: The order that event handlers are called when triggered is still non-deterministic.
+
+- [e447b8e](https://www.github.com/tauri-apps/tauri/commit/e447b8e0e6198c8972bae25625bb409850cb686b) allow event listeners to be nested ([#1513](https://www.github.com/tauri-apps/tauri/pull/1513)) on 2021-04-15
+
 ## \[1.0.0-beta-rc.1]
 
 - Missing the `files` property in the package.json which mean that the `dist` directory was not published and used.

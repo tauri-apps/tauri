@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "1.0.0-beta-rc.1"
+version = "1.0.0-beta-rc.2"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"

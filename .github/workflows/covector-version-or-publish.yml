@@ -83,7 +83,7 @@ jobs:
           linksRoot: /docs/api/rust/
           cratesToProcess: "tauri,tauri_utils"
       - name: run typedocusaurus
-        uses: tauri-apps/typedocusaurus/github-action@v1
+        uses: tauri-apps/typedocusaurus@v1
         with:
           originPath: ./tauri/tooling/api/
           sidebarFile: sidebars.json

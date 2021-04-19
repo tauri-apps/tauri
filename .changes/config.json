@@ -22,7 +22,7 @@
           "pipe": true
         },
         {
-          "command": "echo \"\\`\\`\\`\"",
+          "command": "echo '```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -33,12 +33,13 @@
           "pipe": true
         },
         {
-          "command": "echo \"\\`\\`\\`\"",
+          "command": "echo '```'",
           "dryRunCommand": true,
           "pipe": true
         }
       ],
       "publish": [
+        "sleep 15s",
         {
           "command": "cargo package --allow-dirty",
           "dryRunCommand": true
@@ -49,7 +50,7 @@
           "pipe": true
         },
         {
-          "command": "echo \"\\`\\`\\`\"",
+          "command": "echo '```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -59,7 +60,7 @@
           "pipe": true
         },
         {
-          "command": "echo \"\\`\\`\\`\"",
+          "command": "echo '```'",
           "dryRunCommand": true,
           "pipe": true
         }
@@ -91,7 +92,7 @@
           "pipe": true
         },
         {
-          "command": "echo \"<details>\n<summary>click to view</summary>\n\n\\`\\`\\`\"",
+          "command": "echo '<details>\n<summary>click to view</summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -102,7 +103,7 @@
           "pipe": true
         },
         {
-          "command": "echo \"\\`\\`\\`\n\n</details>\n\"",
+          "command": "echo '```\n\n</details>\n'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -112,13 +113,14 @@
         }
       ],
       "publish": [
+        "sleep 15s",
         {
           "command": "echo \"# Yarn Package Publish\"",
           "dryRunCommand": true,
           "pipe": true
         },
         {
-          "command": "echo \"\\`\\`\\`\"",
+          "command": "echo '```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -128,7 +130,7 @@
           "pipe": true
         },
         {
-          "command": "echo \"\\`\\`\\`\"",
+          "command": "echo '```'",
           "dryRunCommand": true,
           "pipe": true
         }
@@ -161,7 +163,7 @@
           "pipe": true
         },
         {
-          "command": "echo \"<details>\n<summary>click to view</summary>\n\n\\`\\`\\`\"",
+          "command": "echo '<details>\n<summary>click to view</summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -172,7 +174,7 @@
           "pipe": true
         },
         {
-          "command": "echo \"\\`\\`\\`\n\n</details>\n\"",
+          "command": "echo '```\n\n</details>\n'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -188,7 +190,7 @@
           "pipe": true
         },
         {
-          "command": "echo \"\\`\\`\\`\"",
+          "command": "echo '```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -198,7 +200,7 @@
           "pipe": true
         },
         {
-          "command": "echo \"\\`\\`\\`\"",
+          "command": "echo '```'",
           "dryRunCommand": true,
           "pipe": true
         }
@@ -231,7 +233,7 @@
     "tauri": {
       "path": "./core/tauri",
       "manager": "rust",
-      "dependencies": ["api", "tauri-macros", "tauri-utils"],
+      "dependencies": ["tauri-macros", "tauri-utils"],
       "postversion": "node ../../.scripts/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
     "cli.js": {

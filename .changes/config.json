@@ -226,19 +226,19 @@
       "path": "./core/tauri-build",
       "manager": "rust",
       "dependencies": ["tauri-codegen"],
-      "postversion": "../../.scripts/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
+      "postversion": "node ../../.scripts/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
     "tauri": {
       "path": "./core/tauri",
       "manager": "rust",
       "dependencies": ["api", "tauri-macros", "tauri-utils"],
-      "postversion": "../../.scripts/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
+      "postversion": "node ../../.scripts/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
     "cli.js": {
       "path": "./tooling/cli.js",
       "manager": "javascript",
       "dependencies": ["cli.rs"],
-      "postversion": "../../.scripts/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+      "postversion": "node ../../.scripts/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
       "assets": [
         {
           "path": "./tooling/cli.js/tauri-apps-cli-${ pkgFile.version }.tgz",

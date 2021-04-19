@@ -14,9 +14,6 @@
 
 - [ece243d](https://www.github.com/tauri-apps/tauri/commit/ece243d17c9c3ef8d2ba8e3b25b872aa6ea0b6ab) don't remove once listener on new thread ([#1506](https://www.github.com/tauri-apps/tauri/pull/1506)) on 2021-04-14
 
-- TS was wrongly re-exporting the module.
-  - [fcb3b48](https://www.github.com/tauri-apps/tauri/commit/fcb3b4857efa17d2a3717f32457e88b24520cc9b) fix: [#1512](https://www.github.com/tauri-apps/tauri/pull/1512) ([#1517](https://www.github.com/tauri-apps/tauri/pull/1517)) on 2021-04-19
-
 - Window and global events can now be nested inside event handlers. They will run as soon
   as the event handler closure is finished in the order they were called. Previously, calling
   events inside an event handler would produce a deadlock.

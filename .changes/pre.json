@@ -8,7 +8,6 @@
     ".changes/cta-remove-tauri-from-vanilla.md",
     ".changes/cta-tauri-script.md",
     ".changes/event-once.md",
-    ".changes/fix-js-api-import.md",
     ".changes/nested-events.md",
     ".changes/sync-metadata.md"
   ]

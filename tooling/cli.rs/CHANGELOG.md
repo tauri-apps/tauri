@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.0.0-beta-rc.3]
+
+- TS was wrongly re-exporting the module.
+  - Bumped due to a bump in api.
+  - [fcb3b48](https://www.github.com/tauri-apps/tauri/commit/fcb3b4857efa17d2a3717f32457e88b24520cc9b) fix: [#1512](https://www.github.com/tauri-apps/tauri/pull/1512) ([#1517](https://www.github.com/tauri-apps/tauri/pull/1517)) on 2021-04-19
+  - [ae14a3f](https://www.github.com/tauri-apps/tauri/commit/ae14a3ff51a742b6ab6f76bbfc21f385310f1dc6) fix: [#1517](https://www.github.com/tauri-apps/tauri/pull/1517) had the wrong package reference in the changefile ([#1538](https://www.github.com/tauri-apps/tauri/pull/1538)) on 2021-04-19
+
 ## \[1.0.0-beta-rc.2]
 
 - Add missing camelcase rename for config

@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-cli"
-version = "1.0.0-beta-rc.2"
+version = "1.0.0-beta-rc.3"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2018"
 categories = [ "gui", "web-programming" ]

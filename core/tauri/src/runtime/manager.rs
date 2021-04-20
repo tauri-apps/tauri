@@ -369,7 +369,7 @@ mod test {
     );
 
     #[cfg(custom_protocol)]
-    assert_eq!(manager.get_url(), "tauri://studio.tauri.example");
+    assert_eq!(manager.get_url(), "tauri://localhost");
 
     #[cfg(dev)]
     assert_eq!(manager.get_url(), manager.config().build.dev_path);

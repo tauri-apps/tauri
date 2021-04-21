@@ -3,8 +3,8 @@ import { join } from "path";
 
 export async function addTauriScript(appDirectory: string) {
   const pkgPath = join(appDirectory, "package.json");
-  const rawData = readFileSync(pkgPath, "utf8");
-  const pkg = JSON.parse(rawData) as {
+  const pkgString = readFileSync(pkgPath, "utf8");
+  const pkg = JSON.parse(pkgString) as {
     scripts: {
       tauri: string;
     };

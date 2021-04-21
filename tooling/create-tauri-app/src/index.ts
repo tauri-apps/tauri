@@ -10,6 +10,7 @@ import { vite } from "./recipes/vite";
 
 export { shell } from "./shell";
 export { install, checkPackageManager } from "./dependency-manager";
+export { addTauriScript } from "./helpers/add-tauri-script";
 import { PackageManager } from "./dependency-manager";
 
 export interface Recipe {
@@ -46,12 +47,17 @@ export interface Recipe {
 
 export const allRecipes: Recipe[] = [vanillajs, reactjs, reactts, vite, vuecli];
 
-export const recipeNames: Array<[string, string]> = allRecipes.map(r => [r.shortName, r.descriptiveName]);
+export const recipeNames: Array<[string, string]> = allRecipes.map((r) => [
+  r.shortName,
+  r.descriptiveName,
+]);
 
-export const recipeByShortName = (name: string) => allRecipes.find(r => r.shortName === name);
+export const recipeByShortName = (name: string) =>
+  allRecipes.find((r) => r.shortName === name);
 
-export const recipeByDescriptiveName = (name: string) => allRecipes.find(r => r.descriptiveName === name);
+export const recipeByDescriptiveName = (name: string) =>
+  allRecipes.find((r) => r.descriptiveName === name);
 
-export const recipeShortNames = allRecipes.map(r => r.shortName);
+export const recipeShortNames = allRecipes.map((r) => r.shortName);
 
-export const recipeDescriptiveNames = allRecipes.map(r => r.descriptiveName);
+export const recipeDescriptiveNames = allRecipes.map((r) => r.descriptiveName);

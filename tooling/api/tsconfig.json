@@ -2,14 +2,12 @@
   "compilerOptions": {
     "strict": true,
     "allowJs": true,
-    "esModuleInterop": true,
-    "baseUrl": ".",
-    "paths": {
-      "types": ["@types"]
-    },
-    "declaration": true,
-    "declarationDir": "dist",
-    "rootDir": "src"
+    "plugins": [
+      {
+        "name": "typescript-deno-plugin"
+      }
+    ],
+    "lib": ["deno.ns", "dom", "dom.iterable"]
   },
   "include": ["./src"]
 }

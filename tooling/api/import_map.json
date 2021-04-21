@@ -1,0 +1,21 @@
+{
+  "imports": {
+    "./src/app": "./src/app.ts",
+    "./src/bundle": "./src/bundle.ts",
+    "./src/cli": "./src/cli.ts",
+    "./src/dialog": "./src/dialog.ts",
+    "./src/event": "./src/event.ts",
+    "./src/updater": "./src/updater.ts",
+    "./src/fs": "./src/fs.ts",
+    "./src/path": "./src/path.ts",
+    "./src/http": "./src/http.ts",
+    "./src/shell": "./src/shell.ts",
+    "./src/tauri": "./src/tauri.ts",
+    "./src/window": "./src/window.ts",
+    "./src/notification": "./src/notification.ts",
+    "./src/globalShortcut": "./src/globalShortcut.ts",
+    "./src/helpers/tauri": "./src/helpers/tauri.ts",
+    "./src/helpers/event": "./src/helpers/event.ts",
+    "regenerator-runtime/runtime": "https://unpkg.com/regenerator-runtime@0.13.7/runtime.js"
+  }
+}

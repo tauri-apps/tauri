@@ -381,6 +381,7 @@ mod test {
       PluginStore::default(),
       Box::new(|_| ()),
       Box::new(|_, _| ()),
+      Default::default(),
     );
 
     #[cfg(custom_protocol)]

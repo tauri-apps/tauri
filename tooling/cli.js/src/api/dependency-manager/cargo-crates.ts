@@ -66,13 +66,16 @@ async function manageDependencies(
         : manifestDep?.version
     if (currentVersion === undefined) {
       log(`Installing ${dependency}...`)
-      const latestVersion = await getCrateLatestVersion(dependency)
-      // eslint-disable-next-line security/detect-object-injection
-      manifest.dependencies[dependency] = dependencyDefinition(latestVersion)
+      const latestVersion = getCrateLatestVersion(dependency)
+      if (latestVersion !== null) {
+        // eslint-disable-next-line security/detect-object-injection
+        manifest.dependencies[dependency] = dependencyDefinition(latestVersion)
+      }
       installedDeps.push(dependency)
     } else if (managementType === ManagementType.Update) {
-      const latestVersion = await getCrateLatestVersion(dependency)
-      if (semverLt(currentVersion, latestVersion)) {
+      const latestVersion = getCrateLatestVersion(dependency)
+      console.log(dependency, currentVersion, latestVersion)
+      if (latestVersion !== null && semverLt(currentVersion, latestVersion)) {
         const inquired = (await inquirer.prompt([
           {
             type: 'confirm',

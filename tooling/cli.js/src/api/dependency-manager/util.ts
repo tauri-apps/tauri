@@ -24,18 +24,16 @@ async function useYarn(): Promise<boolean> {
   }
 }
 
-async function getCrateLatestVersion(crateName: string): Promise<string> {
-  return await new Promise((resolve, reject) => {
-    const url = `${BASE_URL}${crateName}`
-    https.get(url, (res: IncomingMessage) => {
-      if (res.statusCode !== 302 || !res.headers.location) {
-        reject(res)
-      } else {
-        const version = res.headers.location.replace(url + '/', '')
-        resolve(version)
-      }
-    })
-  })
+function getCrateLatestVersion(crateName: string): string | null {
+  const child = crossSpawnSync('cargo', ['search', crateName, '--limit', '1'])
+  const output = String(child.output[1])
+  // eslint-disable-next-line security/detect-non-literal-regexp
+  const matches = new RegExp(crateName + ' = "(\\S+)"', 'g').exec(output)
+  if (matches?.[1]) {
+    return matches[1]
+  } else {
+    return null
+  }
 }
 
 async function getNpmLatestVersion(packageName: string): Promise<string> {

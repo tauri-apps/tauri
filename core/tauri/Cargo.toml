@@ -36,14 +36,14 @@ ignore = "^0.4.17"
 either = "1.6.1"
 tar = "0.4"
 flate2 = "1.0"
-rfd = "0.2.2"
+rfd = "0.3.0"
 tinyfiledialogs = "3.3"
 bytes = { version = "1", features = [ "serde" ] }
 http = "0.2"
 clap = { version = "=3.0.0-beta.2", optional = true }
 notify-rust = { version = "4.3.0", optional = true }
 tauri-hotkey = { version = "0.1.0", optional = true }
-open = "1.6.0"
+open = "1.7.0"
 shared_child = "0.3"
 os_pipe = "0.9"
 minisign-verify = "0.1.8"

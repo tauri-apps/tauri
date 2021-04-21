@@ -57,15 +57,15 @@ async function getNpmPackageVersion(
 ): Promise<string | null> {
   const child = (await useYarn())
     ? crossSpawnSync(
-      'yarn',
-      ['list', '--pattern', packageName, '--depth', '0'],
-      {
-        cwd: appDir
-      }
-    )
+        'yarn',
+        ['list', '--pattern', packageName, '--depth', '0'],
+        {
+          cwd: appDir
+        }
+      )
     : crossSpawnSync('npm', ['list', packageName, 'version', '--depth', '0'], {
-      cwd: appDir
-    })
+        cwd: appDir
+      })
   const output = String(child.output[1])
   // eslint-disable-next-line security/detect-non-literal-regexp
   const matches = new RegExp(packageName + '@(\\S+)', 'g').exec(output)

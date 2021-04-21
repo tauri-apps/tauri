@@ -10,7 +10,7 @@ on:
       - '.github/workflows/test-core.yml'
       - 'core/**'
       - 'examples/**'
-      - 'cli/**'
+      - 'tooling/**'
 
 env:
   RUST_BACKTRACE: 1

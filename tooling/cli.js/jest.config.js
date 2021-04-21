@@ -42,5 +42,6 @@ module.exports = {
   transform: {
     '\\.toml$': 'jest-transform-toml',
     '\\.(js|ts)$': 'babel-jest'
-  }
+  },
+  transformIgnorePatterns: ['node_modules/(?!(is-png|imagemin|p-pipe)/)']
 }

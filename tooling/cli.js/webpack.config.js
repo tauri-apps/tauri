@@ -37,29 +37,13 @@ module.exports = {
     library: 'tauri',
     libraryTarget: 'umd',
     filename: '[name].js',
-    path: path.resolve(__dirname, 'dist')
+    path: path.resolve(__dirname, 'dist'),
+    globalObject: 'this'
   },
-  externals: [nodeExternals()],
-  target: 'node'
-}
-
-function schemaParser(schemaName, content) {
-  const lines = content.split('\n')
-  const output = []
-
-  for (const line of lines) {
-    if (line === `export const ${schemaName} = {`) {
-      output.push('{')
-    } else if (output.length) {
-      if (line === '}') {
-        output.push('}')
-        break
-      }
-      output.push(line)
-    }
-  }
-
-  const json = output.join('\n')
-  const object = eval(`(${json})`)
-  return JSON.stringify(object, null, 2)
+  externals: [
+    nodeExternals({
+      allowlist: ['imagemin', 'is-png', 'p-pipe']
+    })
+  ],
+  externalsPresets: { node: true }
 }

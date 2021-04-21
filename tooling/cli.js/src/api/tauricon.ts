@@ -418,7 +418,7 @@ const tauricon = (exports.tauricon = {
       await imagemin([pvar[0]], {
         destination: pvar[1],
         plugins: [cmd]
-      }).catch((err) => {
+      }).catch((err: string) => {
         warn(err)
       })
     }

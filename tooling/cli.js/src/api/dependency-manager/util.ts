@@ -2,15 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import https from 'https'
-import { IncomingMessage } from 'http'
 import { spawnSync } from '../../helpers/spawn'
 import { sync as crossSpawnSync } from 'cross-spawn'
 import { appDir, resolve as appResolve } from '../../helpers/app-paths'
 import { existsSync } from 'fs'
 import semver from 'semver'
-
-const BASE_URL = 'https://docs.rs/crate/'
 
 async function useYarn(): Promise<boolean> {
   const hasYarnLockfile = existsSync(appResolve.app('yarn.lock'))
@@ -61,15 +57,15 @@ async function getNpmPackageVersion(
 ): Promise<string | null> {
   const child = (await useYarn())
     ? crossSpawnSync(
-        'yarn',
-        ['list', '--pattern', packageName, '--depth', '0'],
-        {
-          cwd: appDir
-        }
-      )
-    : crossSpawnSync('npm', ['list', packageName, 'version', '--depth', '0'], {
+      'yarn',
+      ['list', '--pattern', packageName, '--depth', '0'],
+      {
         cwd: appDir
-      })
+      }
+    )
+    : crossSpawnSync('npm', ['list', packageName, 'version', '--depth', '0'], {
+      cwd: appDir
+    })
   const output = String(child.output[1])
   // eslint-disable-next-line security/detect-non-literal-regexp
   const matches = new RegExp(packageName + '@(\\S+)', 'g').exec(output)

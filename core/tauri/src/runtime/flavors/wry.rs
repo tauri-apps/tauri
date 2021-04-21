@@ -8,15 +8,19 @@ use crate::{
   api::config::WindowConfig,
   runtime::{
     webview::{
-      Attributes, AttributesBase, CustomProtocol, FileDropEvent, FileDropHandler, RpcRequest,
-      WebviewRpcHandler,
+      Attributes, AttributesBase, FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler,
     },
     window::{DetachedWindow, PendingWindow},
     Dispatch, Params, Runtime,
   },
   Icon,
 };
-use std::{convert::TryFrom, path::PathBuf};
+use std::{
+  collections::HashMap,
+  convert::TryFrom,
+  path::PathBuf,
+  sync::{Arc, Mutex},
+};
 
 #[cfg(target_os = "windows")]
 use crate::api::path::{resolve_path, BaseDirectory};
@@ -41,8 +45,15 @@ impl TryFrom<Icon> for WryIcon {
   }
 }
 
-impl AttributesBase for wry::Attributes {}
-impl Attributes for wry::Attributes {
+/// Wry attributes.
+#[derive(Default, Clone)]
+pub struct WryAttributes {
+  attributes: wry::Attributes,
+  custom_protocols: Arc<Mutex<HashMap<String, wry::CustomProtocol>>>,
+}
+
+impl AttributesBase for WryAttributes {}
+impl Attributes for WryAttributes {
   type Icon = WryIcon;
 
   fn new() -> Self {
@@ -50,7 +61,7 @@ impl Attributes for wry::Attributes {
   }
 
   fn with_config(config: WindowConfig) -> Self {
-    let mut webview = wry::Attributes::default()
+    let mut webview = WryAttributes::default()
       .title(config.title.to_string())
       .width(config.width)
       .height(config.height)
@@ -108,106 +119,132 @@ impl Attributes for wry::Attributes {
   }
 
   fn initialization_script(mut self, init: &str) -> Self {
-    self.initialization_scripts.push(init.to_string());
+    self
+      .attributes
+      .initialization_scripts
+      .push(init.to_string());
     self
   }
 
   fn x(mut self, x: f64) -> Self {
-    self.x = Some(x);
+    self.attributes.x = Some(x);
     self
   }
 
   fn y(mut self, y: f64) -> Self {
-    self.y = Some(y);
+    self.attributes.y = Some(y);
     self
   }
 
   fn width(mut self, width: f64) -> Self {
-    self.width = width;
+    self.attributes.width = width;
     self
   }
 
   fn height(mut self, height: f64) -> Self {
-    self.height = height;
+    self.attributes.height = height;
     self
   }
 
   fn min_width(mut self, min_width: f64) -> Self {
-    self.min_width = Some(min_width);
+    self.attributes.min_width = Some(min_width);
     self
   }
 
   fn min_height(mut self, min_height: f64) -> Self {
-    self.min_height = Some(min_height);
+    self.attributes.min_height = Some(min_height);
     self
   }
 
   fn max_width(mut self, max_width: f64) -> Self {
-    self.max_width = Some(max_width);
+    self.attributes.max_width = Some(max_width);
     self
   }
 
   fn max_height(mut self, max_height: f64) -> Self {
-    self.max_height = Some(max_height);
+    self.attributes.max_height = Some(max_height);
     self
   }
 
   fn resizable(mut self, resizable: bool) -> Self {
-    self.resizable = resizable;
+    self.attributes.resizable = resizable;
     self
   }
 
   fn title<S: Into<String>>(mut self, title: S) -> Self {
-    self.title = title.into();
+    self.attributes.title = title.into();
     self
   }
 
   fn fullscreen(mut self, fullscreen: bool) -> Self {
-    self.fullscreen = fullscreen;
+    self.attributes.fullscreen = fullscreen;
     self
   }
 
   fn maximized(mut self, maximized: bool) -> Self {
-    self.maximized = maximized;
+    self.attributes.maximized = maximized;
     self
   }
 
   fn visible(mut self, visible: bool) -> Self {
-    self.visible = visible;
+    self.attributes.visible = visible;
     self
   }
 
   fn transparent(mut self, transparent: bool) -> Self {
-    self.transparent = transparent;
+    self.attributes.transparent = transparent;
     self
   }
 
   fn decorations(mut self, decorations: bool) -> Self {
-    self.decorations = decorations;
+    self.attributes.decorations = decorations;
     self
   }
 
   fn always_on_top(mut self, always_on_top: bool) -> Self {
-    self.always_on_top = always_on_top;
+    self.attributes.always_on_top = always_on_top;
     self
   }
 
   fn icon(mut self, icon: Self::Icon) -> Self {
-    self.icon = Some(icon.0);
+    self.attributes.icon = Some(icon.0);
     self
   }
 
   fn has_icon(&self) -> bool {
-    self.icon.is_some()
+    self.attributes.icon.is_some()
   }
 
   fn user_data_path(mut self, user_data_path: Option<PathBuf>) -> Self {
-    self.user_data_path = user_data_path;
+    self.attributes.user_data_path = user_data_path;
     self
   }
 
   fn url(mut self, url: String) -> Self {
-    self.url.replace(url);
+    self.attributes.url.replace(url);
+    self
+  }
+
+  fn has_custom_protocol(&self, name: &str) -> bool {
+    self.custom_protocols.lock().unwrap().contains_key(name)
+  }
+
+  fn custom_protocol<
+    N: Into<String>,
+    H: Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync + 'static,
+  >(
+    self,
+    name: N,
+    handler: H,
+  ) -> Self {
+    let name = name.into();
+    self.custom_protocols.lock().unwrap().insert(
+      name.clone(),
+      wry::CustomProtocol {
+        name,
+        handler: Box::new(move |data| (handler)(data).map_err(|_| wry::Error::InitScriptError)),
+      },
+    );
     self
   }
 
@@ -245,7 +282,7 @@ pub struct WryDispatcher {
 impl Dispatch for WryDispatcher {
   type Runtime = Wry;
   type Icon = WryIcon;
-  type Attributes = wry::Attributes;
+  type Attributes = WryAttributes;
 
   fn create_window<M: Params<Runtime = Self::Runtime>>(
     &mut self,
@@ -254,7 +291,6 @@ impl Dispatch for WryDispatcher {
     let PendingWindow {
       attributes,
       rpc_handler,
-      custom_protocol,
       file_drop_handler,
       label,
       ..
@@ -268,14 +304,20 @@ impl Dispatch for WryDispatcher {
     let file_drop_handler = file_drop_handler
       .map(|handler| create_file_drop_handler(proxy.clone(), label.clone(), handler));
 
+    let custom_protocols = {
+      let mut lock = attributes
+        .custom_protocols
+        .lock()
+        .expect("poisoned custom protocols");
+      std::mem::take(&mut *lock)
+    };
+
     let window = self
       .application
       .add_window_with_configs(
-        attributes,
+        attributes.attributes,
         rpc_handler,
-        custom_protocol
-          .map(create_custom_protocol)
-          .unwrap_or_default(),
+        custom_protocols.into_iter().map(|(_, p)| p).collect(),
         file_drop_handler,
       )
       .map_err(|_| crate::Error::CreateWebview)?;
@@ -463,7 +505,6 @@ impl Runtime for Wry {
     let PendingWindow {
       attributes,
       rpc_handler,
-      custom_protocol,
       file_drop_handler,
       label,
       ..
@@ -477,14 +518,20 @@ impl Runtime for Wry {
     let file_drop_handler = file_drop_handler
       .map(|handler| create_file_drop_handler(proxy.clone(), label.clone(), handler));
 
+    let custom_protocols = {
+      let mut lock = attributes
+        .custom_protocols
+        .lock()
+        .expect("poisoned custom protocols");
+      std::mem::take(&mut *lock)
+    };
+
     let window = self
       .inner
       .add_window_with_configs(
-        attributes,
+        attributes.attributes,
         rpc_handler,
-        custom_protocol
-          .map(create_custom_protocol)
-          .unwrap_or_default(),
+        custom_protocols.into_iter().map(|(_, p)| p).collect(),
         file_drop_handler,
       )
       .map_err(|_| crate::Error::CreateWebview)?;
@@ -541,14 +588,4 @@ fn create_file_drop_handler<M: Params<Runtime = Wry>>(
       },
     )
   })
-}
-
-/// Create a wry custom protocol from a tauri custom protocol.
-fn create_custom_protocol(custom_protocol: CustomProtocol) -> Vec<wry::CustomProtocol> {
-  vec![wry::CustomProtocol {
-    name: custom_protocol.name.clone(),
-    handler: Box::new(move |data| {
-      (custom_protocol.handler)(data).map_err(|_| wry::Error::InitScriptError)
-    }),
-  }]
 }

@@ -49,6 +49,8 @@ pub struct InnerWindowManager<P: Params> {
   /// A list of salts that are valid for the current application.
   salts: Mutex<HashSet<Uuid>>,
   package_info: PackageInfo,
+  /// The custom protocols available to all windows.
+  custom_protocols: HashMap<String, std::sync::Arc<CustomProtocol>>,
 }
 
 /// A [Zero Sized Type] marker representing a full [`Params`].
@@ -100,6 +102,7 @@ impl<P: Params> WindowManager<P> {
     plugins: PluginStore<P>,
     invoke_handler: Box<InvokeHandler<P>>,
     on_page_load: Box<OnPageLoad<P>>,
+    custom_protocols: HashMap<String, std::sync::Arc<CustomProtocol>>,
   ) -> Self {
     Self {
       inner: Arc::new(InnerWindowManager {
@@ -113,6 +116,7 @@ impl<P: Params> WindowManager<P> {
         default_window_icon: context.default_window_icon,
         salts: Mutex::default(),
         package_info: context.package_info,
+        custom_protocols,
       }),
       _marker: Args::default(),
     }
@@ -173,6 +177,17 @@ impl<P: Params> WindowManager<P> {
       }
     }
 
+    for (name, protocol) in &self.inner.custom_protocols {
+      if !attributes.has_custom_protocol(name) {
+        let protocol = protocol.clone();
+        attributes = attributes.custom_protocol(name.clone(), move |p| (protocol.handler)(p));
+      }
+    }
+
+    if !attributes.has_custom_protocol("tauri") {
+      attributes = attributes.custom_protocol("tauri", self.prepare_custom_protocol().handler);
+    }
+
     // If we are on windows use App Data Local as webview temp dir
     // to prevent any bundled application to failed.
     // Fix: https://github.com/tauri-apps/tauri/issues/1365
@@ -227,7 +242,6 @@ impl<P: Params> WindowManager<P> {
     let assets = self.inner.assets.clone();
     let bundle_identifier = self.inner.config.tauri.bundle.identifier.clone();
     CustomProtocol {
-      name: "tauri".into(),
       handler: Box::new(move |path| {
         let mut path = path
           .split('?')
@@ -367,6 +381,7 @@ mod test {
       PluginStore::default(),
       Box::new(|_| ()),
       Box::new(|_, _| ()),
+      Default::default(),
     );
 
     #[cfg(custom_protocol)]
@@ -433,7 +448,6 @@ impl<P: Params> WindowManager<P> {
       let label = pending.label.clone();
       pending.attributes = self.prepare_attributes(attributes, url, label, pending_labels)?;
       pending.rpc_handler = Some(self.prepare_rpc_handler());
-      pending.custom_protocol = Some(self.prepare_custom_protocol());
     } else {
       pending.attributes = attributes.url(url);
     }

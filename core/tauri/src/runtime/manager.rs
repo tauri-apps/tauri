@@ -133,13 +133,13 @@ impl<P: Params> WindowManager<P> {
     if self.inner.config.build.dev_path.starts_with("http") {
       self.inner.config.build.dev_path.clone()
     } else {
-      format!("tauri://{}", self.inner.config.tauri.bundle.identifier)
+      "tauri://localhost".into()
     }
   }
 
   #[cfg(custom_protocol)]
   fn get_url(&self) -> String {
-    format!("tauri://{}", self.inner.config.tauri.bundle.identifier)
+    "tauri://localhost".into()
   }
 
   fn prepare_attributes(
@@ -240,7 +240,6 @@ impl<P: Params> WindowManager<P> {
 
   fn prepare_custom_protocol(&self) -> CustomProtocol {
     let assets = self.inner.assets.clone();
-    let bundle_identifier = self.inner.config.tauri.bundle.identifier.clone();
     CustomProtocol {
       handler: Box::new(move |path| {
         let mut path = path
@@ -249,12 +248,12 @@ impl<P: Params> WindowManager<P> {
           .next()
           .unwrap()
           .to_string()
-          .replace(&format!("tauri://{}", bundle_identifier), "");
+          .replace("tauri://localhost", "");
         if path.ends_with('/') {
           path.pop();
         }
         let path = if path.is_empty() {
-          // if the url is `tauri://${appId}`, we should load `index.html`
+          // if the url is `tauri://localhost`, we should load `index.html`
           "index.html".to_string()
         } else {
           // skip leading `/`
@@ -385,7 +384,7 @@ mod test {
     );
 
     #[cfg(custom_protocol)]
-    assert_eq!(manager.get_url(), "tauri://studio.tauri.example");
+    assert_eq!(manager.get_url(), "tauri://localhost");
 
     #[cfg(dev)]
     assert_eq!(manager.get_url(), manager.config().build.dev_path);

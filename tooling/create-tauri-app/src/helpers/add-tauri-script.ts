@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 
@@ -10,7 +14,13 @@ export async function addTauriScript(appDirectory: string) {
     };
   };
 
-  pkg.scripts.tauri = "tauri";
+  let outputPkg = {
+    ...pkg,
+    scripts: {
+      ...pkg.scripts,
+      tauri: "tauri",
+    },
+  };
 
-  writeFileSync(pkgPath, JSON.stringify(pkg, undefined, 2));
+  writeFileSync(pkgPath, JSON.stringify(outputPkg, undefined, 2));
 }

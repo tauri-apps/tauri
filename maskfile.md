@@ -15,7 +15,7 @@ git clone --recursive git@github.com:tauri-apps/smoke-tests.git \
 || (cd smoke-tests && git pull origin dev; cd ..) 		# always prepare up-to-date smoke tests in case it's already available
 
 cargo build --lib
-cargo install cargo-web 			# used by rust/yew
+cargo install --locked trunk --force 			# used by rust/yew
 
 . .scripts/setup.sh
 ```
@@ -46,7 +46,7 @@ cd smoke-tests; git pull origin dev; cd ..
 
 # build and install everything Rust related.
 cargo build --lib
-cargo install cargo-web
+cargo install --locked trunk --force
 
 . .scripts/setup.ps1
 ```

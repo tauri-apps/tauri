@@ -70,7 +70,7 @@ impl Cmd {
         #[cfg(shell_execute)]
         {
           let mut command = if sidecar {
-            Command::new_sidecar(program)
+            Command::new_sidecar(program)?
           } else {
             Command::new(program)
           };

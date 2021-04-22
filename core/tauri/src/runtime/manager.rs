@@ -405,13 +405,13 @@ impl<P: Params> WindowManager<P> {
       .expect("poisoned plugin store")
       .on_page_load(window, payload);
   }
-  pub fn extend_api(&self, command: String, message: InvokeMessage<P>) {
+  pub fn extend_api(&self, message: InvokeMessage<P>) {
     self
       .inner
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .extend_api(command, message);
+      .extend_api(message);
   }
   pub fn initialize_plugins(&self) -> crate::Result<()> {
     self

@@ -48,7 +48,7 @@ pub(crate) struct InvokePayload {
 /// An invoke message.
 pub struct InvokeMessage<M: Params> {
   window: Window<M>,
-  command: String,
+  pub(crate) command: String,
 
   /// Allow our crate to access the payload without cloning it.
   pub(crate) payload: InvokePayload,

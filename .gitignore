@@ -5,6 +5,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# smoke-tests repo
+/smoke-tests
+
 # Runtime data
 pids
 *.pid

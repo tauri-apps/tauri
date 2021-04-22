@@ -88,7 +88,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - run: rustup component add clippy
+      - name: install minimal nightly with clippy and rustfmt
+        uses: actions-rs/toolchain@v1
+        with:
+            profile: minimal
+            toolchain: nightly
+            override: true
+            components: rustfmt, clippy
+
       - name: install webkit2gtk (ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
         run: |
@@ -100,13 +107,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --manifest-path ./tooling/bundler/Cargo.toml --all-targets -- -D warnings
           name: bundler
-      - name: install rustfmt
-        uses: actions-rs/toolchain@v1
-        with:
-            profile: minimal
-            toolchain: nightly
-            override: true
-            components: rustfmt
+
       - name: fmt check
         uses: actions-rs/cargo@v1
         with:

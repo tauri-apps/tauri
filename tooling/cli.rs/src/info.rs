@@ -178,7 +178,7 @@ fn npm_package_version<P: AsRef<Path>>(
   };
   if output.status.success() {
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let regex = regex::Regex::new("@([\\da-zA-Z\\.]+)").unwrap();
+    let regex = regex::Regex::new("@([\\da-zA-Z\\-\\.]+)").unwrap();
     Ok(
       regex
         .captures_iter(&stdout)

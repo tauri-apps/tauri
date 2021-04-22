@@ -14,6 +14,7 @@ const {
   install,
   checkPackageManager,
   shell,
+  addTauriScript,
 } = require("../dist/");
 
 /**
@@ -208,9 +209,8 @@ async function runInit(argv, config = {}) {
     });
 
     console.log("===== running tauri init =====");
-    await shell("npm", ["set-script", "tauri", "tauri"], {
-      cwd: appDirectory,
-    });
+    addTauriScript(appDirectory);
+
     const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b);
     const runTauriArgs =
       packageManager === "npm" && !argv.b

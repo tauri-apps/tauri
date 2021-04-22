@@ -8,7 +8,7 @@
     "url": "https://opencollective.com/tauri"
   },
   "scripts": {
-    "build": "rimraf ./dist && rollup -c --silent && copyfiles package.json LICENSE* CHANGELOG.md dist",
+    "build": "rimraf ./dist && rollup -c --silent && copyfiles package.json LICENSE* CHANGELOG.md src/*.ts src/**/*.ts dist",
     "npm-pack": "yarn build && cd ./dist && npm pack",
     "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly",
     "lint": "eslint --ext ts \"./src/**/*.ts\"",

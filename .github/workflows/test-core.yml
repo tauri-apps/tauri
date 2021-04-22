@@ -5,6 +5,9 @@
 name: test core
 
 on:
+  push:
+    branches:
+      - develop
   pull_request:
     paths:
       - '.github/workflows/test-core.yml'

@@ -26,11 +26,6 @@ jobs:
 
     - name: Get current date
       run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
-      if: matrix.platform == 'macos-latest' || matrix.platform == 'ubuntu-latest'
-
-    - name: Get current date
-      if: matrix.platform == 'windows-latest'
-      run: echo "CURRENT_DATE=$(Get-Date -Format "yyyy-MM-dd")" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
     - name: Cache cargo registry
       uses: actions/cache@v2.1.4

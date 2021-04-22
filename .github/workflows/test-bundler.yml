@@ -5,6 +5,9 @@
 name: test bundler
 
 on:
+  push:
+    branches:
+      - develop
   pull_request:
     paths:
       - '.github/workflows/test-bundler.yml'

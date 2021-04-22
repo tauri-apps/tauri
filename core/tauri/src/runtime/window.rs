@@ -4,9 +4,8 @@
 
 //! A layer between raw [`Runtime`] webview windows and Tauri.
 
-use crate::api::config::WindowConfig;
 use crate::{
-  api::config::WindowUrl,
+  api::config::{WindowConfig, WindowUrl},
   event::{Event, EventHandler},
   hooks::{InvokeMessage, InvokePayload, PageLoadPayload},
   runtime::{

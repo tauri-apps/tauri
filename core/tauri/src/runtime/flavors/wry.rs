@@ -22,9 +22,6 @@ use std::{
   sync::{Arc, Mutex},
 };
 
-use crate::api::path::{resolve_path, BaseDirectory};
-use std::fs::create_dir_all;
-
 /// Wrapper around a [`wry::Icon`] that can be created from an [`Icon`].
 pub struct WryIcon(wry::Icon);
 
@@ -88,19 +85,6 @@ impl Attributes for WryAttributes {
     }
     if let Some(y) = config.y {
       webview = webview.y(y);
-    }
-
-    //todo(lemarier): we should replace with AppName from the context
-    // will be available when updater will merge
-    // https://docs.rs/dirs-next/2.0.0/dirs_next/fn.data_local_dir.html
-
-    let local_app_data = resolve_path("Tauri", Some(BaseDirectory::LocalData));
-
-    if let Ok(user_data_dir) = local_app_data {
-      // Make sure the directory exist without panic
-      if create_dir_all(&user_data_dir).is_ok() {
-        webview = webview.user_data_path(Some(user_data_dir));
-      }
     }
 
     webview

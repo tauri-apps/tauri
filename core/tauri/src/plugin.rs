@@ -12,6 +12,9 @@ use crate::{
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 
+/// The plugin result type.
+pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
 /// The plugin interface.
 pub trait Plugin<M: Params>: Send {
   /// The plugin name. Used as key on the plugin config object.
@@ -19,7 +22,7 @@ pub trait Plugin<M: Params>: Send {
 
   /// Initialize the plugin.
   #[allow(unused_variables)]
-  fn initialize(&mut self, config: JsonValue) -> crate::Result<()> {
+  fn initialize(&mut self, config: JsonValue) -> Result<()> {
     Ok(())
   }
 
@@ -69,7 +72,9 @@ impl<M: Params> PluginStore<M> {
   /// Initializes all plugins in the store.
   pub(crate) fn initialize(&mut self, config: &PluginConfig) -> crate::Result<()> {
     self.store.values_mut().try_for_each(|plugin| {
-      plugin.initialize(config.0.get(plugin.name()).cloned().unwrap_or_default())
+      plugin
+        .initialize(config.0.get(plugin.name()).cloned().unwrap_or_default())
+        .map_err(|e| crate::Error::PluginInitialization(plugin.name().to_string(), e.to_string()))
     })
   }
 

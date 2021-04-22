@@ -51,12 +51,12 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   };
 
   let package_name = if let Some(product_name) = &config.package.product_name {
-    quote!(#product_name.clone())
+    quote!(#product_name.to_string())
   } else {
     quote!(env!("CARGO_PKG_NAME").to_string())
   };
   let package_version = if let Some(version) = &config.package.version {
-    quote!(#version.clone())
+    quote!(#version.to_string())
   } else {
     quote!(env!("CARGO_PKG_VERSION").to_string())
   };

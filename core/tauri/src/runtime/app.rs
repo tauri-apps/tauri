@@ -262,7 +262,7 @@ where
     #[cfg(feature = "updater")]
     app.run_updater(main_window);
 
-    (self.setup)(&mut app)?;
+    (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e.to_string()))?;
     app.runtime.run();
     Ok(())
   }

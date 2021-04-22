@@ -57,6 +57,9 @@ pub enum Error {
   #[cfg(feature = "updater")]
   #[error("Updater: {0}")]
   TauriUpdater(#[from] crate::updater::Error),
+  /// Error initializing plugin.
+  #[error("failed to initialize plugin `{0}`: {1}")]
+  PluginInitialization(String, String),
 }
 
 impl From<serde_json::Error> for Error {

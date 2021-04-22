@@ -10,12 +10,14 @@
 //! Tauri uses (and contributes to) the MIT licensed project that you can find at [webview](https://github.com/webview/webview).
 #![warn(missing_docs, rust_2018_idioms)]
 
-pub(crate) use crate::api::private::async_runtime;
 /// The Tauri error enum.
 pub use error::Error;
 pub use tauri_macros::{command, generate_handler};
 
+/// Core API.
 pub mod api;
+/// Async runtime.
+pub mod async_runtime;
 /// The Tauri API endpoints.
 mod endpoints;
 mod error;

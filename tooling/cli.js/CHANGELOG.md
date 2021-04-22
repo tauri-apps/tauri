@@ -1,5 +1,19 @@
 # Changelog
 
+## \[1.0.0-beta-rc.2]
+
+- Add missing camelcase rename for config
+  - Bumped due to a bump in cli.rs.
+  - [bdf7072](https://www.github.com/tauri-apps/tauri/commit/bdf707285e3d307ab083009c274ccb56d5053ff2) fix(cli.rs/info): add missing camelCase rename ([#1505](https://www.github.com/tauri-apps/tauri/pull/1505)) on 2021-04-14
+- Fix `tauri info`
+- Properly detect `yarn` and `npm` versions on windows.
+- Fix a panic caused by a wrong field name in `metadata.json`
+- Bumped due to a bump in cli.rs.
+- [71666e9](https://www.github.com/tauri-apps/tauri/commit/71666e9f9cfb5499a727b3f95182e89073f67d7b) fix(cli.rs): fix panic & use `cmd` to run `yarn`&`npm` on windows ([#1511](https://www.github.com/tauri-apps/tauri/pull/1511)) on 2021-04-17
+- Sync `metadata.json` via script to update version reference to cli.js, tauri (core) and tauri-build.
+  - Bumped due to a bump in cli.rs.
+  - [1f64927](https://www.github.com/tauri-apps/tauri/commit/1f64927362ef20761d7cd3591281519eb292aa33) chore: sync cli.rs metadata.json file versions ([#1534](https://www.github.com/tauri-apps/tauri/pull/1534)) on 2021-04-19
+
 ## \[1.0.0-beta-rc.1]
 
 - Missing the `files` property in the package.json which mean that the `dist` directory was not published and used.
@@ -174,6 +188,6 @@
 ## \[0.8.0]
 
 - Create UMD, ESM and CJS artifacts for the JavaScript API entry point from TS source using rollup.
-- Renaming window.tauri to window.\__TAURI\_\_, closing #435.
-  The **Tauri** object now follows the TypeScript API structure (e.g. window.tauri.readTextFile is now window.\__TAURI\_\_.fs.readTextFile).
+- Renaming `window.tauri` to `window.__TAURI__`, closing #435.
+  The **Tauri** object now follows the TypeScript API structure (e.g. `window.tauri.readTextFile` is now `window.__TAURI__.fs.readTextFile`).
   If you want to keep the `window.tauri` object for a while, you can add a [mapping object](https://gist.github.com/lucasfernog/8f7b29cadd91d92ee2cf816a20c2ef01) to your code.

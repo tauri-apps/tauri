@@ -108,7 +108,7 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
         Ok(parsed_args) => message.respond_async(async move {
           #return_value
         }),
-        Err(e) => message.reject(::core::result::Result::<(), String>::Err(::tauri::Error::InvalidArgs(#fn_name_str, e).to_string())),
+        Err(e) => message.reject(::tauri::Error::InvalidArgs(#fn_name_str, e).to_string()),
       }
     }
   }
@@ -135,9 +135,12 @@ pub fn generate_handler(item: proc_macro::TokenStream) -> TokenStream {
 
   quote! {
     move |message| {
-      match message.command() {
+      let cmd = message.command().to_string();
+      match cmd.as_str() {
         #(stringify!(#fn_names) => #fn_wrappers(message),)*
-        _ => {},
+        _ => {
+          message.reject(format!("command {} not found", cmd))
+        },
       }
     }
   }

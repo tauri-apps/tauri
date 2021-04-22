@@ -1,6 +1,6 @@
 {
   "name": "create-tauri-app",
-  "version": "1.0.0-beta-rc.1",
+  "version": "1.0.0-beta-rc.3",
   "description": "Jump right into a Tauri App!",
   "bin": {
     "create-tauri-app": "./bin/create-tauri-app.js"
@@ -29,7 +29,6 @@
   "dependencies": {
     "execa": "^5.0.0",
     "inquirer": "^8.0.0",
-    "lodash": "4.17.21",
     "minimist": "^1.2.5",
     "scaffe": "1.0.0"
   },
@@ -39,7 +38,6 @@
     "@rollup/plugin-typescript": "^8.2.1",
     "@types/cross-spawn": "6.0.2",
     "@types/inquirer": "7.3.1",
-    "@types/lodash": "4.14.168",
     "@types/semver": "7.3.4",
     "prettier": "^2.2.1",
     "rollup": "^2.45.1",

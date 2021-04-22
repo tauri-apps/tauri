@@ -92,6 +92,19 @@ pub trait Attributes: AttributesBase {
   /// Sets the webview url.
   fn url(self, url: String) -> Self;
 
+  /// Whether the custom protocol handler is defined or not.
+  fn has_custom_protocol(&self, name: &str) -> bool;
+
+  /// Adds a custom protocol handler.
+  fn custom_protocol<
+    N: Into<String>,
+    H: Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync + 'static,
+  >(
+    self,
+    name: N,
+    handler: H,
+  ) -> Self;
+
   /// The full attributes.
   fn build(self) -> Self;
 }
@@ -106,10 +119,8 @@ pub struct RpcRequest {
 
 /// Uses a custom handler to resolve file requests
 pub struct CustomProtocol {
-  /// Name of the protocol
-  pub name: String,
   /// Handler for protocol
-  pub handler: Box<dyn Fn(&str) -> crate::Result<Vec<u8>> + Send>,
+  pub handler: Box<dyn Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync>,
 }
 
 /// The file drop event payload.

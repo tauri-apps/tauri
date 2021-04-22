@@ -12,6 +12,9 @@ use crate::{
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 
+/// The plugin result type.
+pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
 /// The plugin interface.
 pub trait Plugin<M: Params>: Send {
   /// The plugin name. Used as key on the plugin config object.
@@ -19,7 +22,7 @@ pub trait Plugin<M: Params>: Send {
 
   /// Initialize the plugin.
   #[allow(unused_variables)]
-  fn initialize(&mut self, config: JsonValue) -> crate::Result<()> {
+  fn initialize(&mut self, config: JsonValue) -> Result<()> {
     Ok(())
   }
 
@@ -69,7 +72,9 @@ impl<M: Params> PluginStore<M> {
   /// Initializes all plugins in the store.
   pub(crate) fn initialize(&mut self, config: &PluginConfig) -> crate::Result<()> {
     self.store.values_mut().try_for_each(|plugin| {
-      plugin.initialize(config.0.get(plugin.name()).cloned().unwrap_or_default())
+      plugin
+        .initialize(config.0.get(plugin.name()).cloned().unwrap_or_default())
+        .map_err(|e| crate::Error::PluginInitialization(plugin.name().to_string(), e.to_string()))
     })
   }
 
@@ -100,16 +105,20 @@ impl<M: Params> PluginStore<M> {
       .for_each(|plugin| plugin.on_page_load(window.clone(), payload.clone()))
   }
 
-  pub(crate) fn extend_api(&mut self, command: String, message: InvokeMessage<M>) {
-    let target = command
-      .replace("plugin:", "")
-      .split('|')
-      .next()
-      .expect("target plugin name empty")
-      .to_string();
+  pub(crate) fn extend_api(&mut self, mut message: InvokeMessage<M>) {
+    let command = message.command.replace("plugin:", "");
+    let mut tokens = command.split('|');
+    // safe to unwrap: split always has a least one item
+    let target = tokens.next().unwrap();
 
-    if let Some(plugin) = self.store.get_mut(target.as_str()) {
+    if let Some(plugin) = self.store.get_mut(target) {
+      message.command = tokens
+        .next()
+        .map(|c| c.to_string())
+        .unwrap_or_else(String::new);
       plugin.extend_api(message);
+    } else {
+      message.reject(format!("plugin {} not found", target));
     }
   }
 }

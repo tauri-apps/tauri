@@ -93,14 +93,12 @@ if (!String.prototype.startsWith) {
   };
 
   window.__TAURI__.invoke = function invoke(cmd, args = {}) {
-    var _this = this;
-
     return new Promise(function (resolve, reject) {
-      var callback = _this.transformCallback(function (r) {
+      var callback = window.__TAURI__.transformCallback(function (r) {
         resolve(r);
         delete window[error];
       }, true);
-      var error = _this.transformCallback(function (e) {
+      var error = window.__TAURI__.transformCallback(function (e) {
         reject(e);
         delete window[callback];
       }, true);

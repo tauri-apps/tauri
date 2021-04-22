@@ -7,14 +7,19 @@ use crate::{
   hooks::{InvokeHandler, InvokeMessage, OnPageLoad, PageLoadPayload, SetupHook},
   plugin::{Plugin, PluginStore},
   runtime::{
-    flavors::wry::Wry, manager::WindowManager, tag::Tag, webview::Attributes,
-    window::PendingWindow, Dispatch, Runtime,
+    flavors::wry::Wry,
+    manager::{Args, WindowManager},
+    tag::Tag,
+    webview::{Attributes, CustomProtocol},
+    window::PendingWindow,
+    Dispatch, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
   Context, Manager, Params, Window,
 };
 
-use crate::runtime::manager::Args;
+use std::{collections::HashMap, sync::Arc};
+
 #[cfg(feature = "updater")]
 use crate::updater;
 
@@ -118,6 +123,9 @@ where
 
   /// All passed plugins
   plugins: PluginStore<Args<E, L, A, R>>,
+
+  /// The custom protocols available to all windows.
+  custom_protocols: HashMap<String, Arc<CustomProtocol>>,
 }
 
 impl<E, L, A, R> Builder<E, L, A, R>
@@ -135,6 +143,7 @@ where
       on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
+      custom_protocols: Default::default(),
     }
   }
 
@@ -183,6 +192,24 @@ where
     self
   }
 
+  /// Adds a custom protocol available to all windows.
+  pub fn custom_protocol<
+    N: Into<String>,
+    H: Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync + 'static,
+  >(
+    mut self,
+    name: N,
+    handler: H,
+  ) -> Self {
+    self.custom_protocols.insert(
+      name.into(),
+      Arc::new(CustomProtocol {
+        handler: Box::new(handler),
+      }),
+    );
+    self
+  }
+
   /// Runs the configured Tauri application.
   pub fn run(mut self, context: Context<A>) -> crate::Result<()> {
     let manager = WindowManager::with_handlers(
@@ -190,6 +217,7 @@ where
       self.plugins,
       self.invoke_handler,
       self.on_page_load,
+      self.custom_protocols,
     );
 
     // set up all the windows defined in the config

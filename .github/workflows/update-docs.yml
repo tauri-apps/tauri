@@ -8,13 +8,13 @@ on:
   workflow_dispatch:
     inputs:
       gitName:
-        description: 'git name for PR'
+        description: "git name for PR"
         required: false
-        default: 'tauri-bot'
+        default: "tauri-bot"
       gitEmail:
-        description: 'git email for PR'
+        description: "git email for PR"
         required: false
-        default: 'tauri-bot@tauri.studio'
+        default: "tauri-bot@tauri.studio"
 
 jobs:
   update-docs:
@@ -37,13 +37,13 @@ jobs:
         working-directory: ./tauri/core/tauri
         run: cargo doc --no-deps
       - name: run rustdocusaurus
-        uses: tauri-apps/rustdocusaurus/github-action@v1
+        uses: tauri-apps/typedocusaurus@v1
         with:
           originPath: ./tauri/target/doc/
           targetPath: ./tauri-docs/docs/en/api/rust/
           sidebarPath: ./tauri-docs/sidebars.json
           linksRoot: /docs/api/rust/
-          cratesToProcess: "tauri,tauri_utils"
+          cratesToProcess: "tauri"
       - name: run typedocusaurus
         uses: tauri-apps/typedocusaurus/github-action@v1
         with:

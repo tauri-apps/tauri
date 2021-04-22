@@ -16,7 +16,7 @@ use std::os::windows::process::CommandExt;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-use crate::api::private::async_runtime::{channel, spawn, Receiver, RwLock};
+use crate::async_runtime::{channel, spawn, Receiver, RwLock};
 use os_pipe::{pipe, PipeWriter};
 use serde::Serialize;
 use shared_child::SharedChild;
@@ -203,7 +203,7 @@ mod test {
     let cmd = Command::new("cat").args(&["test/api/test.txt"]);
     let (mut rx, _) = cmd.spawn().unwrap();
 
-    crate::api::private::async_runtime::block_on(async move {
+    crate::async_runtime::block_on(async move {
       while let Some(event) = rx.recv().await {
         match event {
           CommandEvent::Terminated(payload) => {
@@ -225,7 +225,7 @@ mod test {
     let cmd = Command::new("cat").args(&["test/api/"]);
     let (mut rx, _) = cmd.spawn().unwrap();
 
-    crate::api::private::async_runtime::block_on(async move {
+    crate::async_runtime::block_on(async move {
       while let Some(event) = rx.recv().await {
         match event {
           CommandEvent::Terminated(payload) => {

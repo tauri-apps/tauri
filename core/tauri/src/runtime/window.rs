@@ -11,7 +11,7 @@ use crate::{
   hooks::{InvokeMessage, InvokePayload, PageLoadPayload},
   runtime::{
     tag::ToJavascript,
-    webview::{CustomProtocol, FileDropHandler, WebviewRpcHandler},
+    webview::{FileDropHandler, WebviewRpcHandler},
     Dispatch, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
@@ -38,9 +38,6 @@ pub struct PendingWindow<M: Params> {
   /// How to handle RPC calls on the webview window.
   pub rpc_handler: Option<WebviewRpcHandler<M>>,
 
-  /// How to handle custom protocols for the webview window.
-  pub custom_protocol: Option<CustomProtocol>,
-
   /// How to handle a file dropping onto the webview window.
   pub file_drop_handler: Option<FileDropHandler<M>>,
 }
@@ -57,7 +54,6 @@ impl<M: Params> PendingWindow<M> {
       label,
       url,
       rpc_handler: None,
-      custom_protocol: None,
       file_drop_handler: None,
     }
   }
@@ -71,7 +67,6 @@ impl<M: Params> PendingWindow<M> {
       label,
       url,
       rpc_handler: None,
-      custom_protocol: None,
       file_drop_handler: None,
     }
   }
@@ -187,7 +182,7 @@ pub(crate) mod export {
           let module = module.to_string();
           crate::endpoints::handle(module, message, manager.config(), manager.package_info());
         } else if command.starts_with("plugin:") {
-          manager.extend_api(command, message);
+          manager.extend_api(message);
         } else {
           manager.run_invoke_handler(message);
         }

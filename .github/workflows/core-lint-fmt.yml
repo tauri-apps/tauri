@@ -5,6 +5,9 @@
 name: clippy and fmt check
 
 on:
+  push:
+    branches:
+      - develop
   pull_request:
     paths:
       - '.github/workflows/core-lint-fmt.yml'
@@ -22,18 +25,56 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0
-      - run: rustup component add clippy
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+          components: rustfmt, clippy
+
+      - name: Get current date
+        run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+
+      - name: Cache cargo registry
+        uses: actions/cache@v2.1.4
+        with:
+          path: ~/.cargo/registry
+          # Add date to the cache to keep it up to date
+          key: ubuntu-latest-nightly-cargo-registry-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ubuntu-latest-nightly-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
+            ubuntu-latest-nightly-cargo-registry-
+
+      - name: Cache cargo index
+        uses: actions/cache@v2.1.4
+        with:
+          path: ~/.cargo/git
+          # Add date to the cache to keep it up to date
+          key: ubuntu-latest-nightly-cargo-index-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ubuntu-latest-nightly-cargo-index-${{ hashFiles('**/Cargo.toml') }}
+            ubuntu-latest-nightly-cargo-index-
+
+      - name: Cache core cargo target
+        uses: actions/cache@v2
+        with:
+          path: target
+          # Add date to the cache to keep it up to date
+          key: ubuntu-latest-nightly-cargo-core-${{ hashFiles('core/**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ubuntu-latest-nightly-cargo-core-${{ hashFiles('core/**/Cargo.toml') }}
+            ubuntu-latest-nightly-cargo-core-
+
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-targets --all-features -- -D warnings
           name: workspace
-      - uses: actions-rs/toolchain@v1
-        with:
-            profile: minimal
-            toolchain: nightly
-            override: true
-            components: rustfmt
+
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
@@ -44,18 +85,56 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - run: rustup component add clippy
-      - uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --manifest-path ./tooling/cli.rs/Cargo.toml --all-targets --all-features -- -D warnings
-          name: cli
+
       - uses: actions-rs/toolchain@v1
         with:
             profile: minimal
             toolchain: nightly
             override: true
-            components: rustfmt
+            components: rustfmt, clippy
+
+      - uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --manifest-path ./tooling/cli.rs/Cargo.toml --all-targets --all-features -- -D warnings
+          name: cli
+
+      - name: Get current date
+        run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+        
+      - name: Cache cargo registry
+        uses: actions/cache@v2.1.4
+        with:
+          path: ~/.cargo/registry
+          # Add date to the cache to keep it up to date
+          key: ubuntu-latest-nightly-cargo-registry-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ubuntu-latest-nightly-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
+            ubuntu-latest-nightly-cargo-registry-
+
+      - name: Cache cargo index
+        uses: actions/cache@v2.1.4
+        with:
+          path: ~/.cargo/git
+          # Add date to the cache to keep it up to date
+          key: ubuntu-latest-nightly-cargo-index-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ubuntu-latest-nightly-cargo-index-${{ hashFiles('**/Cargo.toml') }}
+            ubuntu-latest-nightly-cargo-index-
+
+      - name: Cache CLI cargo target
+        uses: actions/cache@v2
+        with:
+          path: tooling/cli.rs/target
+          # Add date to the cache to keep it up to date
+          key: ubuntu-latest-nightly-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ubuntu-latest-nightly-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}
+            ubuntu-latest-nightly-cargo-cli-
+
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
@@ -73,7 +152,55 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0
-      - run: rustup component add clippy
+
+      - uses: actions-rs/toolchain@v1
+        with:
+            profile: minimal
+            toolchain: nightly
+            override: true
+            components: rustfmt, clippy
+
+      - name: Get current date
+        run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+        if: matrix.platform == 'macos-latest' || matrix.platform == 'ubuntu-latest'
+
+      - name: Get current date
+        if: matrix.platform == 'windows-latest'
+        run: echo "CURRENT_DATE=$(Get-Date -Format "yyyy-MM-dd")" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Cache cargo registry
+        uses: actions/cache@v2.1.4
+        with:
+          path: ~/.cargo/registry
+          # Add date to the cache to keep it up to date
+          key: ubuntu-latest-nightly-cargo-registry-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ubuntu-latest-nightly-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
+            ubuntu-latest-nightly-cargo-registry-
+
+      - name: Cache cargo index
+        uses: actions/cache@v2.1.4
+        with:
+          path: ~/.cargo/git
+          # Add date to the cache to keep it up to date
+          key: ubuntu-latest-nightly-cargo-index-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ubuntu-latest-nightly-cargo-index-${{ hashFiles('**/Cargo.toml') }}
+            ubuntu-latest-nightly-cargo-index-
+
+      - name: Cache core cargo target
+        uses: actions/cache@v2
+        with:
+          path: target
+          # Add date to the cache to keep it up to date
+          key: ubuntu-latest-nightly-cargo-core-${{ hashFiles('core/**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ubuntu-latest-nightly-cargo-core-${{ hashFiles('core/**/Cargo.toml') }}
+            ubuntu-latest-nightly-cargo-core-
+
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

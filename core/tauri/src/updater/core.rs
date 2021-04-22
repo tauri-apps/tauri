@@ -71,16 +71,14 @@ impl RemoteRelease {
     };
 
     // body is optional to build our update
-    let body = match release.get("notes") {
-      Some(notes) => Some(notes.as_str().unwrap_or("").to_string()),
-      None => None,
-    };
+    let body = release
+      .get("notes")
+      .map(|notes| notes.as_str().unwrap_or("").to_string());
 
     // signature is optional to build our update
-    let mut signature = match release.get("signature") {
-      Some(signature) => Some(signature.as_str().unwrap_or("").to_string()),
-      None => None,
-    };
+    let mut signature = release
+      .get("signature")
+      .map(|signature| signature.as_str().unwrap_or("").to_string());
 
     let download_url;
 
@@ -103,10 +101,9 @@ impl RemoteRelease {
         // make sure we have our target available
         if let Some(current_target_data) = platforms.get(target) {
           // use provided signature if available
-          signature = match current_target_data.get("signature") {
-            Some(found_signature) => Some(found_signature.as_str().unwrap_or("").to_string()),
-            None => None,
-          };
+          signature = current_target_data
+            .get("signature")
+            .map(|found_signature| found_signature.as_str().unwrap_or("").to_string());
           // Download URL is required
           download_url = current_target_data
             .get("url")
@@ -137,10 +134,10 @@ impl RemoteRelease {
     // Return our formatted release
     Ok(RemoteRelease {
       version,
-      download_url,
       date,
-      signature,
+      download_url,
       body,
+      signature,
     })
   }
 }

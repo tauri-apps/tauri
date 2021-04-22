@@ -182,7 +182,7 @@ pub(crate) mod export {
           let module = module.to_string();
           crate::endpoints::handle(module, message, manager.config(), manager.package_info());
         } else if command.starts_with("plugin:") {
-          manager.extend_api(command, message);
+          manager.extend_api(message);
         } else {
           manager.run_invoke_handler(message);
         }

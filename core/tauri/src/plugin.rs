@@ -105,16 +105,20 @@ impl<M: Params> PluginStore<M> {
       .for_each(|plugin| plugin.on_page_load(window.clone(), payload.clone()))
   }
 
-  pub(crate) fn extend_api(&mut self, command: String, message: InvokeMessage<M>) {
-    let target = command
-      .replace("plugin:", "")
-      .split('|')
-      .next()
-      .expect("target plugin name empty")
-      .to_string();
+  pub(crate) fn extend_api(&mut self, mut message: InvokeMessage<M>) {
+    let command = message.command.replace("plugin:", "");
+    let mut tokens = command.split('|');
+    // safe to unwrap: split always has a least one item
+    let target = tokens.next().unwrap();
 
-    if let Some(plugin) = self.store.get_mut(target.as_str()) {
+    if let Some(plugin) = self.store.get_mut(target) {
+      message.command = tokens
+        .next()
+        .map(|c| c.to_string())
+        .unwrap_or_else(String::new);
       plugin.extend_api(message);
+    } else {
+      message.reject(format!("plugin {} not found", target));
     }
   }
 }

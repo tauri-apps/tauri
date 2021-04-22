@@ -161,7 +161,7 @@ pub(crate) mod export {
   impl<P: Params> Window<P> {
     /// Create a new window that is attached to the manager.
     pub(crate) fn new(manager: WindowManager<P>, window: DetachedWindow<P>) -> Self {
-      Self { manager, window }
+      Self { window, manager }
     }
 
     /// The current window's dispatcher.

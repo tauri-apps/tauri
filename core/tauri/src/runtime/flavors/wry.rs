@@ -22,9 +22,7 @@ use std::{
   sync::{Arc, Mutex},
 };
 
-#[cfg(target_os = "windows")]
 use crate::api::path::{resolve_path, BaseDirectory};
-#[cfg(target_os = "windows")]
 use std::fs::create_dir_all;
 
 /// Wrapper around a [`wry::Icon`] that can be created from an [`Icon`].
@@ -92,26 +90,16 @@ impl Attributes for WryAttributes {
       webview = webview.y(y);
     }
 
-    // If we are on windows use App Data Local as user_data
-    // to prevent any bundled application to failed.
+    //todo(lemarier): we should replace with AppName from the context
+    // will be available when updater will merge
+    // https://docs.rs/dirs-next/2.0.0/dirs_next/fn.data_local_dir.html
 
-    // Should fix:
-    // https://github.com/tauri-apps/tauri/issues/1365
+    let local_app_data = resolve_path("Tauri", Some(BaseDirectory::LocalData));
 
-    #[cfg(target_os = "windows")]
-    {
-      //todo(lemarier): we should replace with AppName from the context
-      // will be available when updater will merge
-
-      // https://docs.rs/dirs-next/2.0.0/dirs_next/fn.data_local_dir.html
-
-      let local_app_data = resolve_path("Tauri", Some(BaseDirectory::LocalData));
-
-      if let Ok(user_data_dir) = local_app_data {
-        // Make sure the directory exist without panic
-        if let Ok(()) = create_dir_all(&user_data_dir) {
-          webview = webview.user_data_path(Some(user_data_dir));
-        }
+    if let Ok(user_data_dir) = local_app_data {
+      // Make sure the directory exist without panic
+      if create_dir_all(&user_data_dir).is_ok() {
+        webview = webview.user_data_path(Some(user_data_dir));
       }
     }
 

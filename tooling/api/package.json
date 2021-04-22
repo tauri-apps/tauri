@@ -3,6 +3,64 @@
   "version": "1.0.0-beta-rc.2",
   "description": "Tauri API definitions",
   "type": "module",
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "require": "./index.cjs"
+    },
+    "./app": {
+      "import": "./app.js",
+      "require": "./app.cjs"
+    },
+    "./cli": {
+      "import": "./cli.js",
+      "require": "./cli.cjs"
+    },
+    "./dialog": {
+      "import": "./dialog.js",
+      "require": "./dialog.cjs"
+    },
+    "./event": {
+      "import": "./event.js",
+      "require": "./event.cjs"
+    },
+    "./updater": {
+      "import": "./updater.js",
+      "require": "./updater.cjs"
+    },
+    "./fs": {
+      "import": "./fs.js",
+      "require": "./fs.cjs"
+    },
+    "./path": {
+      "import": "./path.js",
+      "require": "./path.cjs"
+    },
+    "./http": {
+      "import": "./http.js",
+      "require": "./http.cjs"
+    },
+    "./notification": {
+      "import": "./notification.js",
+      "require": "./notification.cjs"
+    },
+    "./window": {
+      "import": "./window.js",
+      "require": "./window.cjs"
+    },
+    "./shell": {
+      "import": "./shell.js",
+      "require": "./shell.cjs"
+    },
+    "./globalShortcut": {
+      "import": "./globalShortcut.js",
+      "require": "./globalShortcut.cjs"
+    },
+    "./tauri": {
+      "import": "./tauri.js",
+      "require": "./tauri.cjs"
+    }
+  },
   "funding": {
     "type": "opencollective",
     "url": "https://opencollective.com/tauri"

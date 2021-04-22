@@ -60,9 +60,9 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, Clone)]
 pub struct PackageInfo {
   /// App name.
-  pub name: &'static str,
+  pub name: String,
   /// App version.
-  pub version: &'static str,
+  pub version: String,
 }
 
 // Not public API

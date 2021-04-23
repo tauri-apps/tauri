@@ -38,6 +38,9 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<()> {
     if config.tauri.cli.is_some() {
       features.push("cli").unwrap();
     }
+    if config.tauri.updater.active {
+      features.push("updater").unwrap();
+    }
 
     match tauri {
       Value::InlineTable(tauri_def) => {

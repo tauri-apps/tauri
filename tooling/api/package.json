@@ -3,70 +3,12 @@
   "version": "1.0.0-beta-rc.2",
   "description": "Tauri API definitions",
   "type": "module",
-  "exports": {
-    ".": {
-      "import": "./index.js",
-      "require": "./index.cjs"
-    },
-    "./app": {
-      "import": "./app.js",
-      "require": "./app.cjs"
-    },
-    "./cli": {
-      "import": "./cli.js",
-      "require": "./cli.cjs"
-    },
-    "./dialog": {
-      "import": "./dialog.js",
-      "require": "./dialog.cjs"
-    },
-    "./event": {
-      "import": "./event.js",
-      "require": "./event.cjs"
-    },
-    "./updater": {
-      "import": "./updater.js",
-      "require": "./updater.cjs"
-    },
-    "./fs": {
-      "import": "./fs.js",
-      "require": "./fs.cjs"
-    },
-    "./path": {
-      "import": "./path.js",
-      "require": "./path.cjs"
-    },
-    "./http": {
-      "import": "./http.js",
-      "require": "./http.cjs"
-    },
-    "./notification": {
-      "import": "./notification.js",
-      "require": "./notification.cjs"
-    },
-    "./window": {
-      "import": "./window.js",
-      "require": "./window.cjs"
-    },
-    "./shell": {
-      "import": "./shell.js",
-      "require": "./shell.cjs"
-    },
-    "./globalShortcut": {
-      "import": "./globalShortcut.js",
-      "require": "./globalShortcut.cjs"
-    },
-    "./tauri": {
-      "import": "./tauri.js",
-      "require": "./tauri.cjs"
-    }
-  },
   "funding": {
     "type": "opencollective",
     "url": "https://opencollective.com/tauri"
   },
   "scripts": {
-    "build": "rimraf ./dist && rollup -c --silent && copyfiles -f package.json LICENSE* CHANGELOG.md src/*.ts dist && copyfiles -f src/helpers/*.ts dist/helpers",
+    "build": "rimraf ./dist && rollup -c --silent && node ./scripts/after-build.cjs",
     "npm-pack": "yarn build && cd ./dist && npm pack",
     "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly",
     "lint": "eslint --ext ts \"./src/**/*.ts\"",
@@ -108,7 +50,6 @@
     "@rollup/plugin-typescript": "8.2.1",
     "@typescript-eslint/eslint-plugin": "4.21.0",
     "@typescript-eslint/parser": "4.21.0",
-    "copyfiles": "^2.4.1",
     "eslint": "7.23.0",
     "eslint-config-prettier": "8.1.0",
     "eslint-config-standard-with-typescript": "20.0.0",
@@ -117,6 +58,7 @@
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-promise": "4.3.1",
     "eslint-plugin-security": "1.4.0",
+    "fs-extra": "9.1.0",
     "lockfile-lint": "4.6.2",
     "lodash": "4.17.21",
     "prettier": "2.2.1",

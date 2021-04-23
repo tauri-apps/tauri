@@ -98,104 +98,94 @@ pub enum Cmd {
 impl Cmd {
   pub fn run(self) -> crate::Result<InvokeResponse> {
     match self {
-      Self::ReadTextFile { path, options } => {
-        #[cfg(fs_read_text_file)]
-        return read_text_file(path, options).map(Into::into);
-        #[cfg(not(fs_read_text_file))]
-        Err(crate::Error::ApiNotAllowlisted(
-          "fs > readTextFile".to_string(),
-        ))
-      }
-      Self::ReadBinaryFile { path, options } => {
-        #[cfg(fs_read_binary_file)]
-        return read_binary_file(path, options).map(Into::into);
-        #[cfg(not(fs_read_binary_file))]
-        Err(crate::Error::ApiNotAllowlisted(
-          "readBinaryFile".to_string(),
-        ))
-      }
+      #[cfg(fs_read_text_file)]
+      Self::ReadTextFile { path, options } => read_text_file(path, options).map(Into::into),
+      #[cfg(not(fs_read_text_file))]
+      Self::ReadTextFile { .. } => Err(crate::Error::ApiNotAllowlisted(
+        "fs > readTextFile".to_string(),
+      )),
+
+      #[cfg(fs_read_binary_file)]
+      Self::ReadBinaryFile { path, options } => read_binary_file(path, options).map(Into::into),
+      #[cfg(not(fs_read_binary_file))]
+      Self::ReadBinaryFile { .. } => Err(crate::Error::ApiNotAllowlisted(
+        "readBinaryFile".to_string(),
+      )),
+
+      #[cfg(fs_write_file)]
       Self::WriteFile {
         path,
         contents,
         options,
-      } => {
-        #[cfg(fs_write_file)]
-        return write_file(path, contents, options).map(Into::into);
-        #[cfg(not(fs_write_file))]
-        Err(crate::Error::ApiNotAllowlisted(
-          "fs > writeFile".to_string(),
-        ))
-      }
+      } => write_file(path, contents, options).map(Into::into),
+      #[cfg(not(fs_write_file))]
+      Self::WriteFile { .. } => Err(crate::Error::ApiNotAllowlisted(
+        "fs > writeFile".to_string(),
+      )),
+
+      #[cfg(fs_write_binary_file)]
       Self::WriteBinaryFile {
         path,
         contents,
         options,
-      } => {
-        #[cfg(fs_write_binary_file)]
-        return write_binary_file(path, contents, options).map(Into::into);
-        #[cfg(not(fs_write_binary_file))]
-        Err(crate::Error::ApiNotAllowlisted(
-          "writeBinaryFile".to_string(),
-        ))
-      }
-      Self::ReadDir { path, options } => {
-        #[cfg(fs_read_dir)]
-        return read_dir(path, options).map(Into::into);
-        #[cfg(not(fs_read_dir))]
-        Err(crate::Error::ApiNotAllowlisted("fs > readDir".to_string()))
-      }
+      } => write_binary_file(path, contents, options).map(Into::into),
+      #[cfg(not(fs_write_binary_file))]
+      Self::WriteBinaryFile { .. } => Err(crate::Error::ApiNotAllowlisted(
+        "writeBinaryFile".to_string(),
+      )),
+
+      #[cfg(fs_read_dir)]
+      Self::ReadDir { path, options } => read_dir(path, options).map(Into::into),
+      #[cfg(not(fs_read_dir))]
+      Self::ReadDir { .. } => Err(crate::Error::ApiNotAllowlisted("fs > readDir".to_string())),
+
+      #[cfg(fs_copy_file)]
       Self::CopyFile {
         source,
         destination,
         options,
-      } => {
-        #[cfg(fs_copy_file)]
-        return copy_file(source, destination, options).map(Into::into);
-        #[cfg(not(fs_copy_file))]
-        Err(crate::Error::ApiNotAllowlisted("fs > copyFile".to_string()))
-      }
-      Self::CreateDir { path, options } => {
-        #[cfg(fs_create_dir)]
-        return create_dir(path, options).map(Into::into);
-        #[cfg(not(fs_create_dir))]
-        Err(crate::Error::ApiNotAllowlisted(
-          "fs > createDir".to_string(),
-        ))
-      }
-      Self::RemoveDir { path, options } => {
-        #[cfg(fs_remove_dir)]
-        return remove_dir(path, options).map(Into::into);
-        #[cfg(not(fs_remove_dir))]
-        Err(crate::Error::ApiNotAllowlisted(
-          "fs > removeDir".to_string(),
-        ))
-      }
-      Self::RemoveFile { path, options } => {
-        #[cfg(fs_remove_file)]
-        return remove_file(path, options).map(Into::into);
-        #[cfg(not(fs_remove_file))]
-        Err(crate::Error::ApiNotAllowlisted(
-          "fs > removeFile".to_string(),
-        ))
-      }
+      } => copy_file(source, destination, options).map(Into::into),
+      #[cfg(not(fs_copy_file))]
+      Self::CopyFile { .. } => Err(crate::Error::ApiNotAllowlisted("fs > copyFile".to_string())),
+
+      #[cfg(fs_create_dir)]
+      Self::CreateDir { path, options } => create_dir(path, options).map(Into::into),
+      #[cfg(not(fs_create_dir))]
+      Self::CreateDir { .. } => Err(crate::Error::ApiNotAllowlisted(
+        "fs > createDir".to_string(),
+      )),
+
+      #[cfg(fs_remove_dir)]
+      Self::RemoveDir { path, options } => remove_dir(path, options).map(Into::into),
+      #[cfg(not(fs_remove_dir))]
+      Self::RemoveDir { .. } => Err(crate::Error::ApiNotAllowlisted(
+        "fs > removeDir".to_string(),
+      )),
+
+      #[cfg(fs_remove_file)]
+      Self::RemoveFile { path, options } => remove_file(path, options).map(Into::into),
+      #[cfg(not(fs_remove_file))]
+      Self::RemoveFile { .. } => Err(crate::Error::ApiNotAllowlisted(
+        "fs > removeFile".to_string(),
+      )),
+
+      #[cfg(fs_rename_file)]
       Self::RenameFile {
         old_path,
         new_path,
         options,
-      } => {
-        #[cfg(fs_rename_file)]
-        return rename_file(old_path, new_path, options).map(Into::into);
-        #[cfg(not(fs_rename_file))]
-        Err(crate::Error::ApiNotAllowlisted(
-          "fs > renameFile".to_string(),
-        ))
-      }
+      } => rename_file(old_path, new_path, options).map(Into::into),
+      #[cfg(not(fs_rename_file))]
+      Self::RenameFile { .. } => Err(crate::Error::ApiNotAllowlisted(
+        "fs > renameFile".to_string(),
+      )),
+
+      #[cfg(fs_path)]
       Self::ResolvePath { path, directory } => {
-        #[cfg(fs_path)]
-        return resolve_path_handler(path, directory).map(Into::into);
-        #[cfg(not(fs_path))]
-        Err(crate::Error::ApiNotAllowlisted("fs > pathApi".to_string()))
+        resolve_path_handler(path, directory).map(Into::into)
       }
+      #[cfg(not(fs_path))]
+      Self::ResolvePath { .. } => Err(crate::Error::ApiNotAllowlisted("fs > pathApi".to_string())),
     }
   }
 }

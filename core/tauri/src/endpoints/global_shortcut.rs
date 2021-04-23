@@ -3,19 +3,18 @@
 // SPDX-License-Identifier: MIT
 
 use super::InvokeResponse;
-use crate::{runtime::Dispatch, Params, Window};
-use once_cell::sync::Lazy;
+use crate::{Params, Window};
 use serde::Deserialize;
-use std::sync::{Arc, Mutex};
 
 #[cfg(global_shortcut_all)]
-use crate::api::shortcuts::ShortcutManager;
+use crate::{api::shortcuts::ShortcutManager, runtime::Dispatch};
 
 #[cfg(global_shortcut_all)]
-type ShortcutManagerHandle = Arc<Mutex<ShortcutManager>>;
+type ShortcutManagerHandle = std::sync::Arc<std::sync::Mutex<ShortcutManager>>;
 
 #[cfg(global_shortcut_all)]
 pub fn manager_handle() -> &'static ShortcutManagerHandle {
+  use once_cell::sync::Lazy;
   static MANAGER: Lazy<ShortcutManagerHandle> = Lazy::new(Default::default);
   &MANAGER
 }

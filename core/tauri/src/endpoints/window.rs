@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{
-  api::config::WindowConfig, endpoints::InvokeResponse, runtime::window::PendingWindow, Manager,
-  Params, Window,
-};
+#[cfg(window_create)]
+use crate::Manager;
+use crate::{api::config::WindowConfig, endpoints::InvokeResponse, Params, Window};
 use serde::Deserialize;
 
 use crate::Icon;
@@ -99,35 +98,38 @@ struct WindowCreatedEvent {
 }
 
 impl Cmd {
-  pub async fn run<M: Params>(self, mut window: Window<M>) -> crate::Result<InvokeResponse> {
+  #[allow(dead_code)]
+  pub async fn run<M: Params>(self, window: Window<M>) -> crate::Result<InvokeResponse> {
     if cfg!(not(window_all)) {
       Err(crate::Error::ApiNotAllowlisted("window > all".to_string()))
     } else {
       match self {
-        Self::CreateWebview { options } => {
-          #[cfg(not(window_create))]
+        #[cfg(not(window_create))]
+        Self::CreateWebview { .. } => {
           return Err(crate::Error::ApiNotAllowlisted(
             "window > create".to_string(),
           ));
-          #[cfg(window_create)]
-          {
-            // Panic if the user's `Tag` type decided to return an error while parsing.
-            let label: M::Label = options.label.parse().unwrap_or_else(|_| {
-              panic!(
-                "Window module received unknown window label: {}",
-                options.label
-              )
-            });
+        }
+        #[cfg(window_create)]
+        Self::CreateWebview { options } => {
+          let mut window = window;
+          // Panic if the user's `Tag` type decided to return an error while parsing.
+          let label: M::Label = options.label.parse().unwrap_or_else(|_| {
+            panic!(
+              "Window module received unknown window label: {}",
+              options.label
+            )
+          });
 
-            let url = options.url.clone();
-            let pending = PendingWindow::with_config(options, label.clone(), url);
-            window.create_window(pending)?.emit_others_internal(
-              "tauri://window-created".to_string(),
-              Some(WindowCreatedEvent {
-                label: label.to_string(),
-              }),
-            )?;
-          }
+          let url = options.url.clone();
+          let pending =
+            crate::runtime::window::PendingWindow::with_config(options, label.clone(), url);
+          window.create_window(pending)?.emit_others_internal(
+            "tauri://window-created".to_string(),
+            Some(WindowCreatedEvent {
+              label: label.to_string(),
+            }),
+          )?;
         }
         Self::SetResizable { resizable } => window.set_resizable(resizable)?,
         Self::SetTitle { title } => window.set_title(&title)?,

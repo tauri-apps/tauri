@@ -54,7 +54,7 @@ cfg_aliases = "0.1.1"
 [dev-dependencies]
 proptest = "1.0.0"
 serde_json = "1.0"
-tauri = { path = ".", features = [ "api-all" ] }
+tauri = { path = "." }
 serde = { version = "1.0", features = [ "derive" ] }
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"

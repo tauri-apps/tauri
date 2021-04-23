@@ -27,9 +27,7 @@ use std::{
 };
 
 use anyhow::Context;
-use std::path::PathBuf;
-#[cfg(not(target_os = "windows"))]
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 // Build update
 pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
@@ -159,7 +157,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
 }
 
 #[cfg(target_os = "windows")]
-pub fn create_zip(src_file: &PathBuf, dst_file: &PathBuf) -> crate::Result<PathBuf> {
+pub fn create_zip(src_file: &Path, dst_file: &Path) -> crate::Result<PathBuf> {
   let parent_dir = dst_file.parent().expect("No data in parent");
   fs::create_dir_all(parent_dir)?;
   let writer = common::create_file(dst_file)?;

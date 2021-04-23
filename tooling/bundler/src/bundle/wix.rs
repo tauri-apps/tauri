@@ -62,7 +62,7 @@ lazy_static! {
 
     handlebars
       .register_template_string("main.wxs", include_str!("templates/main.wxs"))
-      .or_else(|e| Err(e.to_string()))
+      .map_err(|e| e.to_string())
       .expect("Failed to setup handlebar template");
     handlebars
   };
@@ -143,7 +143,7 @@ impl ResourceDirectory {
       }
       directories.push_str(wix_string.as_str());
     }
-    let wix_string = if self.name == "" {
+    let wix_string = if self.name.is_empty() {
       format!("{}{}", files, directories)
     } else {
       format!(
@@ -316,10 +316,7 @@ fn run_candle(
   common::print_info(format!("running candle for {:?}", wxs_file_path).as_str())?;
 
   let mut cmd = Command::new(&candle_exe);
-  cmd
-    .args(&args)
-    .stdout(Stdio::piped())
-    .current_dir(cwd);
+  cmd.args(&args).stdout(Stdio::piped()).current_dir(cwd);
 
   common::print_info("running candle.exe")?;
   common::execute_with_verbosity(&mut cmd, &settings).map_err(|_| {
@@ -563,12 +560,12 @@ fn locate_signtool() -> crate::Result<PathBuf> {
   let mut kit_bin_paths: Vec<PathBuf> = installed_kits
     .iter()
     .rev()
-    .map(|kit| kits_root_10_bin_path.join(kit).to_path_buf())
+    .map(|kit| kits_root_10_bin_path.join(kit))
     .collect();
 
   /* Add kits root bin path.
   For Windows SDK 10 versions earlier than v10.0.15063.468, signtool will be located there. */
-  kit_bin_paths.push(kits_root_10_bin_path.to_path_buf());
+  kit_bin_paths.push(kits_root_10_bin_path);
 
   // Choose which version of SignTool to use based on OS bitness
   let arch_dir = match bitness::os_bitness().expect("failed to get os bitness") {
@@ -585,7 +582,7 @@ fn locate_signtool() -> crate::Result<PathBuf> {
     /* Check if SignTool exists at this location. */
     if signtool_path.exists() {
       // SignTool found. Return it.
-      return Ok(signtool_path.to_path_buf());
+      return Ok(signtool_path);
     }
   }
 

@@ -27,6 +27,7 @@ fn get_settings_path() -> crate::api::Result<PathBuf> {
 }
 
 /// Write the settings to the file system.
+#[allow(dead_code)]
 pub(crate) fn write_settings(settings: Settings) -> crate::Result<()> {
   let settings_path = get_settings_path()?;
   let settings_folder = Path::new(&settings_path).parent().unwrap();

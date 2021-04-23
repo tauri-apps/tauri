@@ -830,11 +830,11 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
             .directories
             .iter()
             .position(|f| f.name == directory_name);
-          if index.is_some() {
+          if let Some(index) = index {
             // the directory entry is already a part of the chain
             let dir = directory_entry
               .directories
-              .get_mut(index.expect("Unable to get index"))
+              .get_mut(index)
               .expect("Unable to get directory");
             dir.add_file(resource_entry.clone());
           } else {

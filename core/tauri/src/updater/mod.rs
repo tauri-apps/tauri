@@ -510,13 +510,9 @@ pub(crate) fn listener<M: Params>(
                     // Linux we replace the AppImage by launching a new install, it start a new AppImage instance, so we're closing the previous. (the process stop here)
                     let update_result = updater.clone().download_and_install(pubkey.clone()).await;
 
-                    if update_result.is_err() {
+                    if let Err(err) = update_result {
                       // emit {"status": "ERROR", "error": "The error message"}
-                      send_status_update(
-                        window.clone(),
-                        EVENT_STATUS_ERROR,
-                        Some(update_result.err().unwrap().to_string()),
-                      );
+                      send_status_update(window.clone(), EVENT_STATUS_ERROR, Some(err.to_string()));
                     } else {
                       // emit {"status": "DONE"}
                       send_status_update(window.clone(), EVENT_STATUS_SUCCESS, None);

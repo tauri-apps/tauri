@@ -221,6 +221,7 @@ pub(crate) mod export {
       self.emit_internal(event.clone(), payload)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn emit_others_internal<S: Serialize + Clone>(
       &self,
       event: String,

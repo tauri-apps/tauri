@@ -4,7 +4,7 @@
 
 use super::InvokeResponse;
 
-use crate::api::http::{Client, ClientBuilder, HttpRequestBuilder, ResponseData};
+use crate::api::http::{Client, ClientBuilder, HttpRequestBuilder};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 
@@ -51,14 +51,14 @@ impl Cmd {
         store.remove(&client);
         Ok(().into())
       }
+      #[cfg(http_request)]
       Self::HttpRequest { client, options } => {
-        #[cfg(http_request)]
         return make_request(client, *options).await.map(Into::into);
-        #[cfg(not(http_request))]
-        Err(crate::Error::ApiNotAllowlisted(
-          "http > request".to_string(),
-        ))
       }
+      #[cfg(not(http_request))]
+      Self::HttpRequest { .. } => Err(crate::Error::ApiNotAllowlisted(
+        "http > request".to_string(),
+      )),
     }
   }
 }
@@ -68,7 +68,7 @@ impl Cmd {
 pub async fn make_request(
   client_id: ClientId,
   options: HttpRequestBuilder,
-) -> crate::Result<ResponseData> {
+) -> crate::Result<crate::api::http::ResponseData> {
   let client = clients()
     .lock()
     .unwrap()

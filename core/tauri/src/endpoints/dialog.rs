@@ -10,6 +10,7 @@ use serde::Deserialize;
 
 use std::path::PathBuf;
 
+#[allow(dead_code)]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DialogFilter {
@@ -69,18 +70,16 @@ pub enum Cmd {
 impl Cmd {
   pub fn run(self) -> crate::Result<InvokeResponse> {
     match self {
-      Self::OpenDialog { options } => {
-        #[cfg(dialog_open)]
-        return open(options);
-        #[cfg(not(dialog_open))]
-        return Err(crate::Error::ApiNotAllowlisted("dialog > open".to_string()));
-      }
-      Self::SaveDialog { options } => {
-        #[cfg(dialog_save)]
-        return save(options);
-        #[cfg(not(dialog_save))]
-        return Err(crate::Error::ApiNotAllowlisted("dialog > save".to_string()));
-      }
+      #[cfg(dialog_open)]
+      Self::OpenDialog { options } => open(options),
+      #[cfg(not(dialog_open))]
+      Self::OpenDialog { .. } => Err(crate::Error::ApiNotAllowlisted("dialog > open".to_string())),
+
+      #[cfg(dialog_save)]
+      Self::SaveDialog { options } => save(options),
+      #[cfg(not(dialog_save))]
+      Self::SaveDialog { .. } => Err(crate::Error::ApiNotAllowlisted("dialog > save".to_string())),
+
       Self::MessageDialog { message } => {
         let exe = std::env::current_exe()?;
         let app_name = exe

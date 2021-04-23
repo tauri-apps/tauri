@@ -463,7 +463,7 @@ export class WindowManager {
    * @param icon Icon bytes or path to the icon file
    * @returns
    */
-  async setIcon(icon: 'string' | number[]): Promise<void> {
+  async setIcon(icon: string | number[]): Promise<void> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {

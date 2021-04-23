@@ -42,7 +42,7 @@ module.exports = {
   },
   externals: [
     nodeExternals({
-      allowlist: ['imagemin', 'is-png', 'p-pipe']
+      allowlist: ['imagemin', 'is-png', 'p-pipe', 'file-type']
     })
   ],
   externalsPresets: { node: true }

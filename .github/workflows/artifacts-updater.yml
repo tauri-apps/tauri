@@ -6,7 +6,7 @@ name: updater test artifacts
 on:
   push:
     branches:
-      - develop
+      - dev
   pull_request:
     paths:
       - '.github/workflows/artifacts-updater.yml'

@@ -7,7 +7,7 @@ name: clippy and fmt check
 on:
   push:
     branches:
-      - develop
+      - dev
   pull_request:
     paths:
       - '.github/workflows/core-lint-fmt.yml'

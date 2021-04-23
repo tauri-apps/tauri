@@ -14,7 +14,7 @@ export async function addTauriScript(appDirectory: string) {
     };
   };
 
-  let outputPkg = {
+  const outputPkg = {
     ...pkg,
     scripts: {
       ...pkg.scripts,

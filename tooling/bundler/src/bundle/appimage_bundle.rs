@@ -47,7 +47,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let package_dir = settings.project_out_directory().join("bundle/appimage_deb");
 
   // generate deb_folder structure
-  deb_bundle::generate_data(settings, &package_dir)?;
+  let (_, icons) = deb_bundle::generate_data(settings, &package_dir)?;
+  let icons: Vec<deb_bundle::DebIcon> = icons.into_iter().collect();
 
   let output_path = settings.project_out_directory().join("bundle/appimage");
   if output_path.exists() {
@@ -71,6 +72,18 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   sh_map.insert("app_name", settings.main_binary_name());
   sh_map.insert("app_name_uppercase", &upcase_app_name);
   sh_map.insert("appimage_filename", &appimage_filename);
+  let larger_icon = icons
+    .iter()
+    .filter(|i| i.width == i.height)
+    .max_by_key(|i| i.width)
+    .expect("couldn't find a square icon to use as AppImage icon");
+  let larger_icon_path = larger_icon
+    .path
+    .strip_prefix(package_dir.join("data"))
+    .unwrap()
+    .to_string_lossy()
+    .to_string();
+  sh_map.insert("icon_path", &larger_icon_path);
 
   // initialize shell script template.
   let temp = HANDLEBARS.render("appimage", &sh_map)?;

@@ -1,5 +1,4 @@
 ---
-"api": patch
 "tauri": patch
 ---
 

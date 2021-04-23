@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use std::path::PathBuf;
+
 /// Runtime errors that can happen inside a Tauri application.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -60,6 +62,9 @@ pub enum Error {
   /// Error initializing plugin.
   #[error("failed to initialize plugin `{0}`: {1}")]
   PluginInitialization(String, String),
+  /// `default_path` provided to dialog API doesn't exist.
+  #[error("failed to setup dialog: provided default path `{0}` doesn't exist")]
+  DialogDefaultPathNotExists(PathBuf),
 }
 
 impl From<serde_json::Error> for Error {

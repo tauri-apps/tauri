@@ -144,6 +144,9 @@ fn set_default_path(
 pub fn open(options: OpenDialogOptions) -> crate::Result<InvokeResponse> {
   let mut dialog_builder = FileDialogBuilder::new();
   if let Some(default_path) = options.default_path {
+    if !default_path.exists() {
+      return Err(crate::Error::DialogDefaultPathNotExists(default_path));
+    }
     dialog_builder = set_default_path(dialog_builder, default_path);
   }
   for filter in options.filters {
@@ -165,6 +168,9 @@ pub fn open(options: OpenDialogOptions) -> crate::Result<InvokeResponse> {
 pub fn save(options: SaveDialogOptions) -> crate::Result<InvokeResponse> {
   let mut dialog_builder = FileDialogBuilder::new();
   if let Some(default_path) = options.default_path {
+    if !default_path.exists() {
+      return Err(crate::Error::DialogDefaultPathNotExists(default_path));
+    }
     dialog_builder = set_default_path(dialog_builder, default_path);
   }
   for filter in options.filters {

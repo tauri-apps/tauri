@@ -25,7 +25,6 @@ const argv = parseArgs(process.argv.slice(2), {
     h: 'help',
     l: 'log',
     c: 'config',
-    i: 'icon',
     t: 'target'
   },
   boolean: ['h', 'l']
@@ -35,14 +34,14 @@ if (argv.help) {
   console.log(`
   Description
     Create all the icons you need for your Tauri app.
+    The icon path is the source icon (png, 1240x1240 with transparency).
 
   Usage
-    $ tauri icon
+    $ tauri icon [ICON-PATH]
 
   Options
     --help, -h          Displays this message
     --log, l            Logging [boolean]
-    --icon, i           Source icon (png, 1240x1240 with transparency)
     --target, t         Target folder (default: 'src-tauri/icons')
     --compression, c    Compression type [pngquant|optipng|zopfli]
     `)
@@ -50,7 +49,7 @@ if (argv.help) {
 }
 
 tauricon
-  .make(argv.i, argv.t, argv.c || 'optipng')
+  .make(argv._[0], argv.t, argv.c || 'optipng')
   .then(() => {
     // TODO: use logger module for prettier output
     console.log('app:tauri (tauricon) Completed')

@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use serde_with::skip_serializing_none;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(untagged)]
@@ -43,10 +43,28 @@ pub struct MacConfig {
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WixConfig {
+  #[serde(default)]
+  pub fragment_paths: Vec<PathBuf>,
+  #[serde(default)]
+  pub component_group_refs: Vec<String>,
+  #[serde(default)]
+  pub component_refs: Vec<String>,
+  #[serde(default)]
+  pub feature_group_refs: Vec<String>,
+  #[serde(default)]
+  pub feature_refs: Vec<String>,
+  #[serde(default)]
+  pub merge_refs: Vec<String>,
+}
+
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WindowsConfig {
   pub digest_algorithm: Option<String>,
   pub certificate_thumbprint: Option<String>,
   pub timestamp_url: Option<String>,
+  pub wix: Option<WixConfig>,
 }
 
 #[skip_serializing_none]

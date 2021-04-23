@@ -90,7 +90,8 @@
           "windows": {
             "certificateThumbprint": null,
             "digestAlgorithm": null,
-            "timestampUrl": null
+            "timestampUrl": null,
+            "wix": null
           }
         },
         "updater": {
@@ -343,7 +344,8 @@
           "default": {
             "certificateThumbprint": null,
             "digestAlgorithm": null,
-            "timestampUrl": null
+            "timestampUrl": null,
+            "wix": null
           },
           "allOf": [
             {
@@ -909,7 +911,8 @@
             "windows": {
               "certificateThumbprint": null,
               "digestAlgorithm": null,
-              "timestampUrl": null
+              "timestampUrl": null,
+              "wix": null
             }
           },
           "allOf": [
@@ -1159,6 +1162,64 @@
             "string",
             "null"
           ]
+        },
+        "wix": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/WixConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "WixConfig": {
+      "type": "object",
+      "properties": {
+        "componentGroupRefs": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "componentRefs": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "featureGroupRefs": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "featureRefs": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fragmentPaths": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mergeRefs": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false

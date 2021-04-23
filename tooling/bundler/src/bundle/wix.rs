@@ -278,64 +278,12 @@ pub fn get_and_extract_wix(path: &Path) -> crate::Result<()> {
   extract_zip(&data, path)
 }
 
-// For if bundler needs DLL files.
-
-// fn run_heat_exe(
-//   wix_toolset_path: &Path,
-//   build_path: &Path,
-//   harvest_dir: &Path,
-//   platform: &str,
-// ) -> Result<(), String> {
-//   let mut args = vec!["dir"];
-
-//   let harvest_str = harvest_dir.display().to_string();
-
-//   args.push(&harvest_str);
-//   args.push("-platform");
-//   args.push(platform);
-//   args.push("-cg");
-//   args.push("AppFiles");
-//   args.push("-dr");
-//   args.push("APPLICATIONFOLDER");
-//   args.push("-gg");
-//   args.push("-srd");
-//   args.push("-out");
-//   args.push("appdir.wxs");
-//   args.push("-var");
-//   args.push("var.SourceDir");
-
-//   let heat_exe = wix_toolset_path.join("heat.exe");
-
-//   let mut cmd = Command::new(&heat_exe)
-//     .args(&args)
-//     .stdout(Stdio::piped())
-//     .current_dir(build_path)
-//     .spawn()
-//     .expect("error running heat.exe");
-
-//   {
-//     let stdout = cmd.stdout.as_mut().unwrap();
-//     let reader = BufReader::new(stdout);
-
-//     for line in reader.lines() {
-//       info!(logger, "{}", line.unwrap());
-//     }
-//   }
-
-//   let status = cmd.wait().unwrap();
-//   if status.success() {
-//     Ok(())
-//   } else {
-//     Err("error running heat.exe".to_string())
-//   }
-// }
-
 /// Runs the Candle.exe executable for Wix. Candle parses the wxs file and generates the code for building the installer.
 fn run_candle(
   settings: &Settings,
   wix_toolset_path: &Path,
-  build_path: &Path,
-  wxs_file_name: &str,
+  cwd: &Path,
+  wxs_file_path: &Path,
 ) -> crate::Result<()> {
   let arch = match settings.binary_arch() {
     "x86_64" => "x64",
@@ -357,7 +305,7 @@ fn run_candle(
   let args = vec![
     "-arch".to_string(),
     arch.to_string(),
-    wxs_file_name.to_string(),
+    wxs_file_path.to_string_lossy().to_string(),
     format!(
       "-dSourceDir={}",
       settings.binary_path(main_binary).display()
@@ -365,13 +313,13 @@ fn run_candle(
   ];
 
   let candle_exe = wix_toolset_path.join("candle.exe");
-  common::print_info(format!("running candle for {}", wxs_file_name).as_str())?;
+  common::print_info(format!("running candle for {:?}", wxs_file_path).as_str())?;
 
   let mut cmd = Command::new(&candle_exe);
   cmd
     .args(&args)
     .stdout(Stdio::piped())
-    .current_dir(build_path);
+    .current_dir(cwd);
 
   common::print_info("running candle.exe")?;
   common::execute_with_verbosity(&mut cmd, &settings).map_err(|_| {
@@ -532,6 +480,17 @@ pub fn build_wix_app_installer(
 
   data.insert("icon_path", to_json(icon_path));
 
+  let mut fragment_paths = Vec::new();
+
+  if let Some(wix) = &settings.windows().wix {
+    data.insert("component_group_refs", to_json(&wix.component_group_refs));
+    data.insert("component_refs", to_json(&wix.component_refs));
+    data.insert("feature_group_refs", to_json(&wix.feature_group_refs));
+    data.insert("feature_refs", to_json(&wix.feature_refs));
+    data.insert("merge_refs", to_json(&wix.merge_refs));
+    fragment_paths = wix.fragment_paths.clone();
+  }
+
   let temp = HANDLEBARS.render("main.wxs", &data)?;
 
   if output_path.exists() {
@@ -543,14 +502,18 @@ pub fn build_wix_app_installer(
   let main_wxs_path = output_path.join("main.wxs");
   write(&main_wxs_path, temp)?;
 
-  let input_basenames = vec!["main"];
+  let mut candle_inputs = vec!["main.wxs".into()];
 
-  for basename in &input_basenames {
-    let wxs = format!("{}.wxs", basename);
+  let current_dir = std::env::current_dir()?;
+  for fragment_path in fragment_paths {
+    candle_inputs.push(current_dir.join(fragment_path));
+  }
+
+  for wxs in &candle_inputs {
     run_candle(settings, &wix_toolset_path, &output_path, &wxs)?;
   }
 
-  let wixobjs = vec!["main.wixobj"];
+  let wixobjs = vec!["*.wixobj"];
   let target = run_light(
     &wix_toolset_path,
     &output_path,

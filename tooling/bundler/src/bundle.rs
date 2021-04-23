@@ -28,7 +28,7 @@ pub use self::{
   },
 };
 #[cfg(windows)]
-pub use settings::WindowsSettings;
+pub use settings::{WindowsSettings, WixSettings};
 
 use common::print_finished;
 

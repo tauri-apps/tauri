@@ -8,8 +8,8 @@ use std::path::PathBuf;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
   /// Failed to create webview.
-  #[error("failed to create webview")]
-  CreateWebview,
+  #[error("failed to create webview: {0}")]
+  CreateWebview(String),
   /// Failed to create window.
   #[error("failed to create window")]
   CreateWindow,

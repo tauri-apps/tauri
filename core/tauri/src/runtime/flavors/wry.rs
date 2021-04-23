@@ -292,7 +292,7 @@ impl Dispatch for WryDispatcher {
         custom_protocols.into_iter().map(|(_, p)| p).collect(),
         file_drop_handler,
       )
-      .map_err(|_| crate::Error::CreateWebview)?;
+      .map_err(|e| crate::Error::CreateWebview(e.to_string()))?;
 
     let dispatcher = WryDispatcher {
       window,
@@ -466,7 +466,7 @@ impl Runtime for Wry {
   type Dispatcher = WryDispatcher;
 
   fn new() -> crate::Result<Self> {
-    let app = wry::Application::new().map_err(|_| crate::Error::CreateWebview)?;
+    let app = wry::Application::new().map_err(|e| crate::Error::CreateWebview(e.to_string()))?;
     Ok(Self { inner: app })
   }
 
@@ -506,7 +506,7 @@ impl Runtime for Wry {
         custom_protocols.into_iter().map(|(_, p)| p).collect(),
         file_drop_handler,
       )
-      .map_err(|_| crate::Error::CreateWebview)?;
+      .map_err(|e| crate::Error::CreateWebview(e.to_string()))?;
 
     let dispatcher = WryDispatcher {
       window,

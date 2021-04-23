@@ -15,12 +15,12 @@ cd "{{app_name}}.AppDir"
 wget -q -4 -O AppRun https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-x86_64 || wget -q -4 -O AppRun https://github.com/AppImage/AppImageKit/releases/download/12/AppRun-aarch64
 chmod +x AppRun
 
-cp "usr/share/icons/hicolor/256x256/apps/{{app_name}}.png" "{{app_name}}.png"
+cp "{{icon_path}}" .DirIcon
+ln -s "{{icon_path}}" "{{app_name}}.png"
+
+ln -s "usr/share/applications/{{app_name}}.desktop" "{{app_name}}.desktop"
 
 cd ..
-
-cp "../appimage_deb/data/usr/share/applications/{{app_name}}.desktop" "{{app_name}}.AppDir/usr/share/applications/{{app_name}}.desktop"
-cp "../appimage_deb/data/usr/share/applications/{{app_name}}.desktop" "{{app_name}}.AppDir/{{app_name}}.desktop"
 
 mksquashfs "{{app_name}}.AppDir" "{{app_name}}.squashfs" -root-owned -noappend
 

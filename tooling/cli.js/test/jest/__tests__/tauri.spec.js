@@ -17,15 +17,6 @@ describe('[CLI] cli.js', () => {
     jest.clearAllMocks()
   })
 
-  it('will not run an unavailable command', async () => {
-    jest.spyOn(console, 'log')
-    tauri('foo')
-    expect(console.log.mock.calls[0][0].split('.')[0]).toBe(
-      'Invalid command foo'
-    )
-    jest.clearAllMocks()
-  })
-
   it('gets you help', async () => {
     jest.spyOn(console, 'log')
     const tests = ['--help', '-h', 'invalid command']

@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-const parseArgs = require("minimist");
-const inquirer = require("inquirer");
-const { resolve, join } = require("path");
+const parseArgs = require('minimist')
+const inquirer = require('inquirer')
+const { resolve, join } = require('path')
 const {
   recipeShortNames,
   recipeDescriptiveNames,
@@ -14,8 +14,8 @@ const {
   install,
   checkPackageManager,
   shell,
-  addTauriScript,
-} = require("../dist/");
+  addTauriScript
+} = require('../dist/')
 
 /**
  * @type {object}
@@ -35,41 +35,41 @@ const {
 const createTauriApp = async (cliArgs) => {
   const argv = parseArgs(cliArgs, {
     alias: {
-      h: "help",
-      v: "version",
-      f: "force",
-      l: "log",
-      m: "manager",
-      d: "directory",
-      b: "binary",
-      t: "tauri-path",
-      A: "app-name",
-      W: "window-title",
-      D: "dist-dir",
-      P: "dev-path",
-      r: "recipe",
+      h: 'help',
+      v: 'version',
+      f: 'force',
+      l: 'log',
+      m: 'manager',
+      d: 'directory',
+      b: 'binary',
+      t: 'tauri-path',
+      A: 'app-name',
+      W: 'window-title',
+      D: 'dist-dir',
+      P: 'dev-path',
+      r: 'recipe'
     },
-    boolean: ["h", "l", "ci"],
-  });
+    boolean: ['h', 'l', 'ci']
+  })
 
   if (argv.help) {
-    printUsage();
-    return 0;
+    printUsage()
+    return 0
   }
 
   if (argv.v) {
-    console.log(require("../package.json").version);
-    return false; // do this for node consumers and tests
+    console.log(require('../package.json').version)
+    return false // do this for node consumers and tests
   }
 
   if (argv.ci) {
-    return runInit(argv);
+    return runInit(argv)
   } else {
     return getOptionsInteractive(argv).then((responses) =>
       runInit(argv, responses)
-    );
+    )
   }
-};
+}
 
 function printUsage() {
   console.log(`
@@ -91,146 +91,146 @@ function printUsage() {
     --dist-dir, -D       Web assets location, relative to <project-dir>/src-tauri
     --dev-path, -P       Url of your dev server
     --recipe, -r         Add UI framework recipe. None by default.
-                         Supported recipes: [${recipeShortNames.join("|")}]
-    `);
+                         Supported recipes: [${recipeShortNames.join('|')}]
+    `)
 }
 
 const getOptionsInteractive = (argv) => {
-  let defaultAppName = argv.A || "tauri-app";
+  let defaultAppName = argv.A || 'tauri-app'
 
   return inquirer
     .prompt([
       {
-        type: "input",
-        name: "appName",
-        message: "What is your app name?",
+        type: 'input',
+        name: 'appName',
+        message: 'What is your app name?',
         default: defaultAppName,
-        when: !argv.A,
+        when: !argv.A
       },
       {
-        type: "input",
-        name: "tauri.window.title",
-        message: "What should the window title be?",
-        default: "Tauri App",
-        when: () => !argv.W,
+        type: 'input',
+        name: 'tauri.window.title',
+        message: 'What should the window title be?',
+        default: 'Tauri App',
+        when: () => !argv.W
       },
       {
-        type: "list",
-        name: "recipeName",
-        message: "Would you like to add a UI recipe?",
+        type: 'list',
+        name: 'recipeName',
+        message: 'Would you like to add a UI recipe?',
         choices: recipeDescriptiveNames,
-        default: "No recipe",
-        when: () => !argv.r,
-      },
+        default: 'No recipe',
+        when: () => !argv.r
+      }
     ])
     .catch((error) => {
       if (error.isTtyError) {
         // Prompt couldn't be rendered in the current environment
         console.log(
-          "It appears your terminal does not support interactive prompts. Using default values."
-        );
-        runInit();
+          'It appears your terminal does not support interactive prompts. Using default values.'
+        )
+        runInit()
       } else {
         // Something else went wrong
-        console.error("An unknown error occurred:", error);
+        console.error('An unknown error occurred:', error)
       }
-    });
-};
+    })
+}
 
 async function runInit(argv, config = {}) {
   const {
     appName,
     recipeName,
     tauri: {
-      window: { title },
-    },
-  } = config;
+      window: { title }
+    }
+  } = config
   // this little fun snippet pulled from vite determines the package manager the script was run from
-  const packageManager = /yarn/.test(process.env.npm_execpath) ? "yarn" : "npm";
+  const packageManager = /yarn/.test(process.env.npm_execpath) ? 'yarn' : 'npm'
 
-  let recipe;
+  let recipe
 
   if (recipeName !== undefined) {
-    recipe = recipeByDescriptiveName(recipeName);
+    recipe = recipeByDescriptiveName(recipeName)
   } else if (argv.r) {
-    recipe = recipeByShortName(argv.r);
+    recipe = recipeByShortName(argv.r)
   }
 
   let buildConfig = {
     distDir: argv.D,
-    devPath: argv.P,
-  };
-
-  if (recipe !== undefined) {
-    buildConfig = recipe.configUpdate({ buildConfig, packageManager });
+    devPath: argv.P
   }
 
-  const directory = argv.d || process.cwd();
+  if (recipe !== undefined) {
+    buildConfig = recipe.configUpdate({ buildConfig, packageManager })
+  }
+
+  const directory = argv.d || process.cwd()
   const cfg = {
     ...buildConfig,
     appName: appName || argv.A,
-    windowTitle: title || argv.w,
-  };
+    windowTitle: title || argv.w
+  }
 
   // note that our app directory is reliant on the appName and
   // generally there are issues if the path has spaces (see Windows)
   // future TODO prevent app names with spaces or escape here?
-  const appDirectory = join(directory, cfg.appName);
+  const appDirectory = join(directory, cfg.appName)
 
   // this throws an error if we can't run the package manager they requested
-  await checkPackageManager({ cwd: directory, packageManager });
+  await checkPackageManager({ cwd: directory, packageManager })
 
   if (recipe.preInit) {
-    console.log("===== running initial command(s) =====");
-    await recipe.preInit({ cwd: directory, cfg, packageManager });
+    console.log('===== running initial command(s) =====')
+    await recipe.preInit({ cwd: directory, cfg, packageManager })
   }
 
   const initArgs = [
-    ["--app-name", cfg.appName],
-    ["--window-title", cfg.windowTitle],
-    ["--dist-dir", cfg.distDir],
-    ["--dev-path", cfg.devPath],
+    ['--app-name', cfg.appName],
+    ['--window-title', cfg.windowTitle],
+    ['--dist-dir', cfg.distDir],
+    ['--dev-path', cfg.devPath]
   ].reduce((final, argSet) => {
     if (argSet[1]) {
-      return final.concat(argSet);
+      return final.concat(argSet)
     } else {
-      return final;
+      return final
     }
-  }, []);
+  }, [])
 
   // Vue CLI plugin automatically runs these
-  if (recipe.shortName !== "vuecli") {
-    console.log("===== installing any additional needed deps =====");
+  if (recipe.shortName !== 'vuecli') {
+    console.log('===== installing any additional needed deps =====')
     await install({
       appDir: appDirectory,
       dependencies: recipe.extraNpmDependencies,
-      devDependencies: ["@tauri-apps/cli", ...recipe.extraNpmDevDependencies],
-      packageManager,
-    });
+      devDependencies: ['@tauri-apps/cli', ...recipe.extraNpmDevDependencies],
+      packageManager
+    })
 
-    console.log("===== running tauri init =====");
-    addTauriScript(appDirectory);
+    console.log('===== running tauri init =====')
+    addTauriScript(appDirectory)
 
-    const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b);
+    const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b)
     const runTauriArgs =
-      packageManager === "npm" && !argv.b
-        ? ["run", "tauri", "--", "init"]
-        : ["tauri", "init"];
+      packageManager === 'npm' && !argv.b
+        ? ['run', 'tauri', '--', 'init']
+        : ['tauri', 'init']
     await shell(binary, [...runTauriArgs, ...initArgs], {
-      cwd: appDirectory,
-    });
+      cwd: appDirectory
+    })
   }
 
   if (recipe.postInit) {
-    console.log("===== running final command(s) =====");
+    console.log('===== running final command(s) =====')
     await recipe.postInit({
       cwd: appDirectory,
       cfg,
-      packageManager,
-    });
+      packageManager
+    })
   }
 }
 
 createTauriApp(process.argv.slice(2)).catch((err) => {
-  console.error(err);
-});
+  console.error(err)
+})

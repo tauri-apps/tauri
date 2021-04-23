@@ -9,6 +9,11 @@
 cd tooling/api
 yarn format
 yarn lint-fix
+
 cd ../cli.js
+yarn format
+yarn lint-fix
+
+cd ../create-tauri-app
 yarn format
 yarn lint-fix

@@ -9,6 +9,8 @@ on:
     paths:
       - '.github/workflows/js-lint.yml'
       - 'tooling/cli.js/**'
+      - 'tooling/api/**'
+      - 'tooling/create-tauri-app/**'
 
 jobs:
   eslint-check:
@@ -18,12 +20,32 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           node-version: '12'
-      - name: install deps via yarn
+      - name: install cli.js deps via yarn
         working-directory: ./tooling/cli.js/
         run: yarn
-      - name: run eslint
+      - name: run cli.js lint
         working-directory: ./tooling/cli.js/
         run: yarn lint
-      - name: run prettier
+      - name: run cli.js format
         working-directory: ./tooling/cli.js/
+        run: yarn format:check
+
+      - name: install api deps via yarn
+        working-directory: ./tooling/api/
+        run: yarn
+      - name: run api lint
+        working-directory: ./tooling/api/
+        run: yarn lint
+      - name: run api format
+        working-directory: ./tooling/api/
+        run: yarn format:check
+
+      - name: install create-tauri-app deps via yarn
+        working-directory: ./tooling/create-tauri-app/
+        run: yarn
+      - name: run create-tauri-app lint
+        working-directory: ./tooling/create-tauri-app/
+        run: yarn lint
+      - name: run create-tauri-app format
+        working-directory: ./tooling/create-tauri-app/
         run: yarn format:check

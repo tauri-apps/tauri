@@ -108,7 +108,7 @@ impl Cmd {
   }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", any(dialog_open, dialog_save)))]
 fn set_default_path(dialog_builder: FileDialogBuilder, default_path: PathBuf) -> FileDialogBuilder {
   if default_path.is_file() {
     dialog_builder.set_file_name(&default_path.to_string_lossy().to_string())
@@ -117,7 +117,7 @@ fn set_default_path(dialog_builder: FileDialogBuilder, default_path: PathBuf) ->
   }
 }
 
-#[cfg(any(windows, target_os = "macos"))]
+#[cfg(all(any(windows, target_os = "macos"), any(dialog_open, dialog_save)))]
 fn set_default_path(
   mut dialog_builder: FileDialogBuilder,
   default_path: PathBuf,

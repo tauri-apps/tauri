@@ -19,7 +19,7 @@ const cmd = process.argv[2]
  */
 const tauri = async function (command) {
   // notifying updates.
-  if (!(process.argv || []).some((arg) => arg === '--no-update-notifier')) {
+  if (!process.argv.some((arg) => arg === '--no-update-notifier')) {
     updateNotifier({
       pkg,
       updateCheckInterval: 0
@@ -42,7 +42,7 @@ const tauri = async function (command) {
         (process.argv || []).filter((v) => v !== '--no-update-notifier')
       )
     ).promise.then(() => {
-      if (command === 'init') {
+      if (command === 'init' && !process.argv.some((arg) => arg === '--ci')) {
         const {
           installDependencies
         } = require('../dist/api/dependency-manager')

@@ -72,9 +72,6 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
   let osx_archived = format!("{}.tar.gz", source_path.display());
   let osx_archived_path = PathBuf::from(&osx_archived);
 
-  // safe unwrap
-  //let tar_source = &source_path.parent().unwrap().to_path_buf();
-
   // Create our gzip file (need to send parent)
   // as we walk the source directory (source isnt added)
   create_tar(&source_path, &osx_archived_path)
@@ -220,11 +217,11 @@ fn create_tar_from_src<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
         continue;
       }
 
-      // todo(lemarier): better error catching
       // We add the .parent() because example if we send a path
       // /dev/src-tauri/target/debug/bundle/osx/app.app
       // We need a tar with app.app/<...> (source root folder should be included)
-      let dest_path = src_path.strip_prefix(&src_dir.parent().expect(""))?;
+      // safe to unwrap: the path has a parent
+      let dest_path = src_path.strip_prefix(&src_dir.parent().unwrap())?;
       if entry.file_type().is_dir() {
         tar_builder.append_dir(dest_path, src_path)?;
       } else {

@@ -522,6 +522,7 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Resu
 // Update server can provide a custom EXE (installer) who can run any task.
 
 #[cfg(target_os = "windows")]
+#[allow(clippy::unnecessary_wraps)]
 fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Result {
   let paths = read_dir(&tmp_dir).unwrap();
   // This consumes the TempDir without deleting directory on the filesystem,

@@ -26,7 +26,13 @@ impl FileDialogBuilder {
 
   /// Set starting directory of the dialog.
   pub fn set_directory<P: AsRef<Path>>(mut self, directory: P) -> Self {
-    self.0 = self.0.set_directory(&directory);
+    self.0 = self.0.set_directory(directory);
+    self
+  }
+
+  /// Set starting file name of the dialog.
+  pub fn set_file_name(mut self, file_name: &str) -> Self {
+    self.0 = self.0.set_file_name(file_name);
     self
   }
 

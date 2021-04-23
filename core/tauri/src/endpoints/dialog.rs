@@ -113,7 +113,11 @@ impl Cmd {
 pub fn open(options: OpenDialogOptions) -> crate::Result<InvokeResponse> {
   let mut dialog_builder = FileDialogBuilder::new();
   if let Some(default_path) = options.default_path {
-    dialog_builder = dialog_builder.set_directory(default_path);
+    if default_path.is_file() {
+      dialog_builder = dialog_builder.set_file_name(&default_path.to_string_lossy().to_string());
+    } else {
+      dialog_builder = dialog_builder.set_directory(default_path);
+    }
   }
   for filter in options.filters {
     let extensions: Vec<&str> = filter.extensions.iter().map(|s| &**s).collect();
@@ -134,7 +138,11 @@ pub fn open(options: OpenDialogOptions) -> crate::Result<InvokeResponse> {
 pub fn save(options: SaveDialogOptions) -> crate::Result<InvokeResponse> {
   let mut dialog_builder = FileDialogBuilder::new();
   if let Some(default_path) = options.default_path {
-    dialog_builder = dialog_builder.set_directory(default_path);
+    if default_path.is_file() {
+      dialog_builder = dialog_builder.set_file_name(&default_path.to_string_lossy().to_string());
+    } else {
+      dialog_builder = dialog_builder.set_directory(default_path);
+    }
   }
   for filter in options.filters {
     let extensions: Vec<&str> = filter.extensions.iter().map(|s| &**s).collect();

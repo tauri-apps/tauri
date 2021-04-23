@@ -165,6 +165,24 @@ pub struct MacOsSettings {
   pub entitlements: Option<String>,
 }
 
+#[cfg(windows)]
+#[derive(Clone, Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct WixSettings {
+  #[serde(default)]
+  pub fragment_paths: Vec<PathBuf>,
+  #[serde(default)]
+  pub component_group_refs: Vec<String>,
+  #[serde(default)]
+  pub component_refs: Vec<String>,
+  #[serde(default)]
+  pub feature_group_refs: Vec<String>,
+  #[serde(default)]
+  pub feature_refs: Vec<String>,
+  #[serde(default)]
+  pub merge_refs: Vec<String>,
+}
+
 /// The Windows bundle settings.
 #[cfg(windows)]
 #[derive(Clone, Debug, Deserialize, Default)]
@@ -172,6 +190,7 @@ pub struct WindowsSettings {
   pub digest_algorithm: Option<String>,
   pub certificate_thumbprint: Option<String>,
   pub timestamp_url: Option<String>,
+  pub wix: Option<WixSettings>,
 }
 
 /// The bundle settings of the BuildArtifact we're bundling.

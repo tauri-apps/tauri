@@ -352,6 +352,7 @@ fn tauri_config_to_bundle_settings(
       timestamp_url: config.windows.timestamp_url,
       digest_algorithm: config.windows.digest_algorithm,
       certificate_thumbprint: config.windows.certificate_thumbprint,
+      wix: config.windows.wix.map(|w| w.into()),
     },
     updater: Some(UpdaterSettings {
       active: updater_config.active,

@@ -12,6 +12,20 @@ use serde_json::Value as JsonValue;
 mod config_definition;
 pub use config_definition::*;
 
+#[cfg(windows)]
+impl From<WixConfig> for tauri_bundler::WixSettings {
+  fn from(config: WixConfig) -> tauri_bundler::WixSettings {
+    tauri_bundler::WixSettings {
+      fragment_paths: config.fragment_paths,
+      component_group_refs: config.component_group_refs,
+      component_refs: config.component_refs,
+      feature_group_refs: config.feature_group_refs,
+      feature_refs: config.feature_refs,
+      merge_refs: config.merge_refs,
+    }
+  }
+}
+
 use std::{
   env::set_var,
   fs::File,

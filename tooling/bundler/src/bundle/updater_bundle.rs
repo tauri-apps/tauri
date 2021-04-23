@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 use super::common;
-use libflate::gzip;
-use walkdir::WalkDir;
 
 #[cfg(target_os = "macos")]
 use super::macos_bundle;
@@ -159,7 +157,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
 }
 
 #[cfg(target_os = "windows")]
-pub fn create_zip(src_file: &PathBuf, dst_file: &PathBuf) -> crate::Result<PathBuf> {
+pub fn create_zip(src_file: &Path, dst_file: &Path) -> crate::Result<PathBuf> {
   let parent_dir = dst_file.parent().expect("No data in parent");
   fs::create_dir_all(parent_dir)?;
   let writer = common::create_file(dst_file)?;
@@ -186,7 +184,7 @@ pub fn create_zip(src_file: &PathBuf, dst_file: &PathBuf) -> crate::Result<PathB
 #[cfg(not(target_os = "windows"))]
 fn create_tar(src_dir: &Path, dest_path: &Path) -> crate::Result<PathBuf> {
   let dest_file = common::create_file(&dest_path)?;
-  let gzip_encoder = gzip::Encoder::new(dest_file)?;
+  let gzip_encoder = libflate::gzip::Encoder::new(dest_file)?;
 
   let gzip_encoder = create_tar_from_src(src_dir, gzip_encoder)?;
   let mut dest_file = gzip_encoder.finish().into_result()?;
@@ -210,7 +208,7 @@ fn create_tar_from_src<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
 
     tar_builder.append_file(file_name, &mut src_file)?;
   } else {
-    for entry in WalkDir::new(&src_dir) {
+    for entry in walkdir::WalkDir::new(&src_dir) {
       let entry = entry?;
       let src_path = entry.path();
       if src_path == src_dir {

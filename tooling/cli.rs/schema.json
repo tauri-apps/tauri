@@ -1224,6 +1224,12 @@
         "skipWebviewInstall": {
           "default": false,
           "type": "boolean"
+        },
+        "template": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

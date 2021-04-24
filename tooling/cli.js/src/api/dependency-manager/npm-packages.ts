@@ -40,14 +40,14 @@ async function manageDependencies(
 
   if (existsSync(resolve.app('package.json'))) {
     for (const dependency of dependencies) {
-      const currentVersion = await getNpmPackageVersion(dependency)
+      const currentVersion = getNpmPackageVersion(dependency)
       if (currentVersion === null) {
         log(`Installing ${dependency}...`)
         if (
           managementType === ManagementType.Install ||
           managementType === ManagementType.InstallDev
         ) {
-          const packageManager = (await useYarn()) ? 'YARN' : 'NPM'
+          const packageManager = useYarn ? 'YARN' : 'NPM'
           const inquired = (await inquirer.prompt([
             {
               type: 'confirm',
@@ -62,15 +62,15 @@ async function manageDependencies(
           ])) as { answer: boolean }
           if (inquired.answer) {
             if (managementType === ManagementType.Install) {
-              await installNpmPackage(dependency)
+              installNpmPackage(dependency)
             } else if (managementType === ManagementType.InstallDev) {
-              await installNpmDevPackage(dependency)
+              installNpmDevPackage(dependency)
             }
             installedDeps.push(dependency)
           }
         }
       } else if (managementType === ManagementType.Update) {
-        const latestVersion = await getNpmLatestVersion(dependency)
+        const latestVersion = getNpmLatestVersion(dependency)
         if (semverLt(currentVersion, latestVersion)) {
           const inquired = (await inquirer.prompt([
             {

@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use std::fmt::Display;
 use std::io;
 
@@ -10,36 +14,36 @@ pub const DEFAULT_WIDTH: u16 = 80;
 
 #[inline]
 pub fn is_a_terminal(_out: &Term) -> bool {
-    false
+  false
 }
 
 #[inline]
 pub fn is_a_color_terminal(_out: &Term) -> bool {
-    false
+  false
 }
 
 #[inline]
 pub fn terminal_size(_out: &Term) -> Option<(u16, u16)> {
-    None
+  None
 }
 
 pub fn read_secure() -> io::Result<String> {
-    Err(io::Error::new(
-        io::ErrorKind::Other,
-        "unsupported operation",
-    ))
+  Err(io::Error::new(
+    io::ErrorKind::Other,
+    "unsupported operation",
+  ))
 }
 
 pub fn read_single_key() -> io::Result<Key> {
-    Err(io::Error::new(
-        io::ErrorKind::Other,
-        "unsupported operation",
-    ))
+  Err(io::Error::new(
+    io::ErrorKind::Other,
+    "unsupported operation",
+  ))
 }
 
 #[inline]
 pub fn wants_emoji() -> bool {
-    false
+  false
 }
 
 pub fn set_title<T: Display>(_title: T) {}

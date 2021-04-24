@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 //! console is a library for Rust that provides access to various terminal
 //! features so you can build nicer looking command line interfaces.  It
 //! comes with various tools and utilities for working with Terminals and
@@ -76,14 +80,16 @@
 //!   for stripping and taking ansi escape codes into account for length
 //!   calculations).
 
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 pub use kb::Key;
-pub use term::{
-    user_attended, user_attended_stderr, Term, TermFamily, TermFeatures, TermTarget,
-};
+pub use term::{user_attended, user_attended_stderr, Term, TermFamily, TermFeatures, TermTarget};
 pub use utils::{
-    colors_enabled, colors_enabled_stderr, measure_text_width, pad_str, pad_str_with,
-    set_colors_enabled, set_colors_enabled_stderr, style, truncate_str, Alignment, Attribute,
-    Color, Emoji, Style, StyledObject,
+  colors_enabled, colors_enabled_stderr, measure_text_width, pad_str, pad_str_with,
+  set_colors_enabled, set_colors_enabled_stderr, style, truncate_str, Alignment, Attribute, Color,
+  Emoji, Style, StyledObject,
 };
 
 pub use ansi::{strip_ansi_codes, AnsiCodeIterator};

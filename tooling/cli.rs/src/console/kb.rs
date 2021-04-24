@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 /// Key mapping
 ///
 /// This is an incomplete mapping of keys that are supported for reading
@@ -5,24 +9,24 @@
 #[non_exhaustive]
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Key {
-    Unknown,
-    /// Unrecognized sequence containing Esc and a list of chars
-    UnknownEscSeq(Vec<char>),
-    ArrowLeft,
-    ArrowRight,
-    ArrowUp,
-    ArrowDown,
-    Enter,
-    Escape,
-    Backspace,
-    Home,
-    End,
-    Tab,
-    BackTab,
-    Del,
-    Shift,
-    Insert,
-    PageUp,
-    PageDown,
-    Char(char),
+  Unknown,
+  /// Unrecognized sequence containing Esc and a list of chars
+  UnknownEscSeq(Vec<char>),
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  ArrowDown,
+  Enter,
+  Escape,
+  Backspace,
+  Home,
+  End,
+  Tab,
+  BackTab,
+  Del,
+  Shift,
+  Insert,
+  PageUp,
+  PageDown,
+  Char(char),
 }

@@ -91,7 +91,7 @@ fn test_ansi_iter_re_vt100() {
 
 #[test]
 fn test_ansi_iter_re() {
-    use crate::style;
+    use super::style;
     let s = format!("Hello {}!", style("World").red().force_styling(true));
     let mut iter = AnsiCodeIterator::new(&s);
     assert_eq!(iter.next(), Some(("Hello ", false)));
@@ -114,7 +114,7 @@ fn test_ansi_iter_re() {
 
 #[test]
 fn test_ansi_iter_re_on_multi() {
-    use crate::style;
+    use super::style;
     let s = format!("{}", style("a").red().bold().force_styling(true));
     let mut iter = AnsiCodeIterator::new(&s);
     assert_eq!(iter.next(), Some(("\x1b[31m", true)));

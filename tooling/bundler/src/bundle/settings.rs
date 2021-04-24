@@ -172,19 +172,12 @@ pub struct WixSettings {
   /// By default, the bundler uses an internal template.
   /// This option allows you to define your own wix file.
   pub template: Option<PathBuf>,
-  #[serde(default)]
   pub fragment_paths: Vec<PathBuf>,
-  #[serde(default)]
   pub component_group_refs: Vec<String>,
-  #[serde(default)]
   pub component_refs: Vec<String>,
-  #[serde(default)]
   pub feature_group_refs: Vec<String>,
-  #[serde(default)]
   pub feature_refs: Vec<String>,
-  #[serde(default)]
   pub merge_refs: Vec<String>,
-  #[serde(default)]
   pub skip_webview_install: bool,
 }
 

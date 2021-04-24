@@ -1220,6 +1220,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "skipWebviewInstall": {
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false

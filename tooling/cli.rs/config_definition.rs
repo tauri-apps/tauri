@@ -56,6 +56,8 @@ pub struct WixConfig {
   pub feature_refs: Vec<String>,
   #[serde(default)]
   pub merge_refs: Vec<String>,
+  #[serde(default)]
+  pub skip_webview_install: bool,
 }
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]

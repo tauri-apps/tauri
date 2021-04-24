@@ -181,6 +181,8 @@ pub struct WixSettings {
   pub feature_refs: Vec<String>,
   #[serde(default)]
   pub merge_refs: Vec<String>,
+  #[serde(default)]
+  pub skip_webview_install: bool,
 }
 
 /// The Windows bundle settings.

@@ -13,6 +13,11 @@ mod info;
 mod init;
 mod sign;
 
+#[allow(dead_code)]
+mod console;
+#[allow(dead_code)]
+mod dialoguer;
+
 pub use helpers::Logger;
 
 macro_rules! value_or_prompt {

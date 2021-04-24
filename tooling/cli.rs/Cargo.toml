@@ -34,13 +34,21 @@ toml = "0.5.8"
 valico = "3.6"
 handlebars = "3.5"
 include_dir = "0.6"
-dialoguer = "0.8"
 minisign = "0.6"
 base64 = "0.13.0"
 ureq = "2.1"
 os_info = "3.0"
 semver = "0.11"
 regex = "1.4"
+
+# console
+lazy_static = "1"
+libc = "0.2"
+terminal_size = "0.1.14"
+unicode-width = "0.1"
+# dialoguer
+tempfile = "3"
+zeroize = "1.1.1"
 
 [build-dependencies]
 schemars = "0.8"

@@ -13,25 +13,29 @@ const modules = readdirSync('src').map((mod) => mod.replace('.ts', ''))
 if (!pkg.exports) {
   pkg.exports = {}
 }
-const outputPkg = Object.assign(
-  pkg.exports,
-  ...modules.map((mod) => {
-    let temp = {}
-    let key = `./${mod}`
-    if (mod === 'index') {
-      key = '.'
-    }
 
-    temp[key] = {
-      import: `./${mod}.js`,
-      require: `./${mod}.cjs`
-    }
-    return temp
-  }),
-  // if for some reason in the future we manually add something in the `exports` field
-  // this will ensure it doesn't get overwritten by the logic above
-  { ...pkg.exports }
-)
+const outputPkg = {
+  ...pkg,
+  exports: Object.assign(
+    {},
+    ...modules.map((mod) => {
+      let temp = {}
+      let key = `./${mod}`
+      if (mod === 'index') {
+        key = '.'
+      }
+
+      temp[key] = {
+        import: `./${mod}.js`,
+        require: `./${mod}.cjs`
+      }
+      return temp
+    }),
+    // if for some reason in the future we manually add something in the `exports` field
+    // this will ensure it doesn't get overwritten by the logic above
+    { ...pkg.exports }
+  )
+}
 writeFileSync('dist/package.json', JSON.stringify(outputPkg, undefined, 2))
 
 /**

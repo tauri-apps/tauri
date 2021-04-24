@@ -466,6 +466,7 @@ pub fn build_wix_app_installer(
   let mut fragment_paths = Vec::new();
   let mut handlebars = Handlebars::new();
   let mut has_custom_template = false;
+  let mut install_webview = true;
 
   if let Some(wix) = &settings.windows().wix {
     data.insert("component_group_refs", to_json(&wix.component_group_refs));
@@ -474,6 +475,7 @@ pub fn build_wix_app_installer(
     data.insert("feature_refs", to_json(&wix.feature_refs));
     data.insert("merge_refs", to_json(&wix.merge_refs));
     fragment_paths = wix.fragment_paths.clone();
+    install_webview = !wix.skip_webview_install;
 
     if let Some(temp_path) = &wix.template {
       let template = std::fs::read_to_string(temp_path)?;
@@ -490,7 +492,11 @@ pub fn build_wix_app_installer(
       .register_template_string("main.wxs", include_str!("templates/main.wxs"))
       .map_err(|e| e.to_string())
       .expect("Failed to setup handlebar template");
-  };
+  }
+
+  if install_webview {
+    data.insert("install_webview", to_json(true));
+  }
 
   if output_path.exists() {
     remove_dir_all(&output_path)?;

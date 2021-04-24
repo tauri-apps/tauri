@@ -23,6 +23,7 @@ impl From<WixConfig> for tauri_bundler::WixSettings {
       feature_group_refs: config.feature_group_refs,
       feature_refs: config.feature_refs,
       merge_refs: config.merge_refs,
+      skip_webview_install: config.skip_webview_install,
     }
   }
 }

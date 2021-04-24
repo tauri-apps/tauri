@@ -1221,6 +1221,10 @@
             "type": "string"
           }
         },
+        "skipWebviewInstall": {
+          "default": false,
+          "type": "boolean"
+        },
         "template": {
           "type": [
             "string",

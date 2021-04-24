@@ -175,6 +175,7 @@
             {{/each~}}
         </Feature>
 
+        {{#if install_webview}}
         <!-- WebView2 -->
         <Property Id="WVRTINSTALLED">
             <RegistrySearch Id="WVRTInstalled" Root="HKLM" Key="SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" Name="pv" Type="raw" Win64="no"/>
@@ -185,6 +186,7 @@
                 <![CDATA[NOT(REMOVE OR WVRTINSTALLED)]]>
             </Custom>
         </InstallExecuteSequence>
+        {{/if}}
 
         <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" After="CostFinalize"/>        
     </Product>

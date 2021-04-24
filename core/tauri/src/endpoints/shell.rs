@@ -2,25 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{
-  api::{
-    command::{Command, CommandChild, CommandEvent},
-    rpc::format_callback,
-  },
-  endpoints::InvokeResponse,
-  Params, Window,
-};
-use once_cell::sync::Lazy;
+use crate::{endpoints::InvokeResponse, Params, Window};
 use serde::Deserialize;
+
+#[cfg(shell_execute)]
 use std::{
   collections::HashMap,
   sync::{Arc, Mutex},
 };
 
 type ChildId = u32;
-type ChildStore = Arc<Mutex<HashMap<ChildId, CommandChild>>>;
+#[cfg(shell_execute)]
+type ChildStore = Arc<Mutex<HashMap<ChildId, crate::api::command::CommandChild>>>;
 
+#[cfg(shell_execute)]
 fn command_childs() -> &'static ChildStore {
+  use once_cell::sync::Lazy;
   static STORE: Lazy<ChildStore> = Lazy::new(Default::default);
   &STORE
 }
@@ -59,6 +56,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
+  #[allow(unused_variables)]
   pub fn run<M: Params>(self, window: Window<M>) -> crate::Result<InvokeResponse> {
     match self {
       Self::Execute {
@@ -70,9 +68,9 @@ impl Cmd {
         #[cfg(shell_execute)]
         {
           let mut command = if sidecar {
-            Command::new_sidecar(program)
+            crate::api::command::Command::new_sidecar(program)?
           } else {
-            Command::new(program)
+            crate::api::command::Command::new(program)
           };
           command = command.args(args);
           let (mut rx, child) = command.spawn()?;
@@ -82,10 +80,10 @@ impl Cmd {
 
           crate::async_runtime::spawn(async move {
             while let Some(event) = rx.recv().await {
-              if matches!(event, CommandEvent::Terminated(_)) {
+              if matches!(event, crate::api::command::CommandEvent::Terminated(_)) {
                 command_childs().lock().unwrap().remove(&pid);
               }
-              let js = format_callback(on_event_fn.clone(), &event)
+              let js = crate::api::rpc::format_callback(on_event_fn.clone(), &event)
                 .expect("unable to serialize CommandEvent");
 
               let _ = window.eval(js.as_str());

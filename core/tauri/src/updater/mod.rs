@@ -403,7 +403,7 @@ pub(crate) async fn check_update_with_dialog<M: Params>(
   // check updates
   match self::core::builder()
     .urls(&endpoints[..])
-    .current_version(package_info.version)
+    .current_version(&package_info.version)
     .build()
     .await
   {
@@ -414,7 +414,7 @@ pub(crate) async fn check_update_with_dialog<M: Params>(
       if updater.should_update && updater_config.dialog {
         let body = updater.body.clone().unwrap_or_else(|| String::from(""));
         let dialog =
-          prompt_for_install(&updater.clone(), package_info.name, &body.clone(), pubkey).await;
+          prompt_for_install(&updater.clone(), &package_info.name, &body.clone(), pubkey).await;
 
         if dialog.is_err() {
           send_status_update(
@@ -468,7 +468,7 @@ pub(crate) fn listener<M: Params>(
 
         match self::core::builder()
           .urls(&endpoints[..])
-          .current_version(package_info.version)
+          .current_version(&package_info.version)
           .build()
           .await
         {
@@ -510,13 +510,9 @@ pub(crate) fn listener<M: Params>(
                     // Linux we replace the AppImage by launching a new install, it start a new AppImage instance, so we're closing the previous. (the process stop here)
                     let update_result = updater.clone().download_and_install(pubkey.clone()).await;
 
-                    if update_result.is_err() {
+                    if let Err(err) = update_result {
                       // emit {"status": "ERROR", "error": "The error message"}
-                      send_status_update(
-                        window.clone(),
-                        EVENT_STATUS_ERROR,
-                        Some(update_result.err().unwrap().to_string()),
-                      );
+                      send_status_update(window.clone(), EVENT_STATUS_ERROR, Some(err.to_string()));
                     } else {
                       // emit {"status": "DONE"}
                       send_status_update(window.clone(), EVENT_STATUS_SUCCESS, None);

@@ -9,7 +9,6 @@ use super::{
 };
 
 use handlebars::{to_json, Handlebars};
-use lazy_static::lazy_static;
 use regex::Regex;
 use serde::Serialize;
 use sha2::Digest;
@@ -54,19 +53,6 @@ pub const WIX_SHA256: &str = "2c1888d5d1dba377fc7fa14444cf556963747ff9a0a289a359
 const UUID_NAMESPACE: [u8; 16] = [
   0xfd, 0x85, 0x95, 0xa8, 0x17, 0xa3, 0x47, 0x4e, 0xa6, 0x16, 0x76, 0x14, 0x8d, 0xfa, 0x0c, 0x7b,
 ];
-
-// setup for the main.wxs template file using handlebars. Dynamically changes the template on compilation based on the application metadata.
-lazy_static! {
-  static ref HANDLEBARS: Handlebars<'static> = {
-    let mut handlebars = Handlebars::new();
-
-    handlebars
-      .register_template_string("main.wxs", include_str!("templates/main.wxs"))
-      .or_else(|e| Err(e.to_string()))
-      .expect("Failed to setup handlebar template");
-    handlebars
-  };
-}
 
 /// Mapper between a resource directory name and its ResourceDirectory descriptor.
 type ResourceMap = BTreeMap<String, ResourceDirectory>;
@@ -143,7 +129,7 @@ impl ResourceDirectory {
       }
       directories.push_str(wix_string.as_str());
     }
-    let wix_string = if self.name == "" {
+    let wix_string = if self.name.is_empty() {
       format!("{}{}", files, directories)
     } else {
       format!(
@@ -278,64 +264,12 @@ pub fn get_and_extract_wix(path: &Path) -> crate::Result<()> {
   extract_zip(&data, path)
 }
 
-// For if bundler needs DLL files.
-
-// fn run_heat_exe(
-//   wix_toolset_path: &Path,
-//   build_path: &Path,
-//   harvest_dir: &Path,
-//   platform: &str,
-// ) -> Result<(), String> {
-//   let mut args = vec!["dir"];
-
-//   let harvest_str = harvest_dir.display().to_string();
-
-//   args.push(&harvest_str);
-//   args.push("-platform");
-//   args.push(platform);
-//   args.push("-cg");
-//   args.push("AppFiles");
-//   args.push("-dr");
-//   args.push("APPLICATIONFOLDER");
-//   args.push("-gg");
-//   args.push("-srd");
-//   args.push("-out");
-//   args.push("appdir.wxs");
-//   args.push("-var");
-//   args.push("var.SourceDir");
-
-//   let heat_exe = wix_toolset_path.join("heat.exe");
-
-//   let mut cmd = Command::new(&heat_exe)
-//     .args(&args)
-//     .stdout(Stdio::piped())
-//     .current_dir(build_path)
-//     .spawn()
-//     .expect("error running heat.exe");
-
-//   {
-//     let stdout = cmd.stdout.as_mut().unwrap();
-//     let reader = BufReader::new(stdout);
-
-//     for line in reader.lines() {
-//       info!(logger, "{}", line.unwrap());
-//     }
-//   }
-
-//   let status = cmd.wait().unwrap();
-//   if status.success() {
-//     Ok(())
-//   } else {
-//     Err("error running heat.exe".to_string())
-//   }
-// }
-
 /// Runs the Candle.exe executable for Wix. Candle parses the wxs file and generates the code for building the installer.
 fn run_candle(
   settings: &Settings,
   wix_toolset_path: &Path,
-  build_path: &Path,
-  wxs_file_name: &str,
+  cwd: &Path,
+  wxs_file_path: &Path,
 ) -> crate::Result<()> {
   let arch = match settings.binary_arch() {
     "x86_64" => "x64",
@@ -357,7 +291,7 @@ fn run_candle(
   let args = vec![
     "-arch".to_string(),
     arch.to_string(),
-    wxs_file_name.to_string(),
+    wxs_file_path.to_string_lossy().to_string(),
     format!(
       "-dSourceDir={}",
       settings.binary_path(main_binary).display()
@@ -365,13 +299,10 @@ fn run_candle(
   ];
 
   let candle_exe = wix_toolset_path.join("candle.exe");
-  common::print_info(format!("running candle for {}", wxs_file_name).as_str())?;
+  common::print_info(format!("running candle for {:?}", wxs_file_path).as_str())?;
 
   let mut cmd = Command::new(&candle_exe);
-  cmd
-    .args(&args)
-    .stdout(Stdio::piped())
-    .current_dir(build_path);
+  cmd.args(&args).stdout(Stdio::piped()).current_dir(cwd);
 
   common::print_info("running candle.exe")?;
   common::execute_with_verbosity(&mut cmd, &settings).map_err(|_| {
@@ -532,19 +463,33 @@ pub fn build_wix_app_installer(
 
   data.insert("icon_path", to_json(icon_path));
 
-  let temp = if let Some(temp_path) = &settings.windows().template {
-    let mut handlebars = Handlebars::new();
-    let temp_context = std::fs::read_to_string(temp_path)
-    .expect("failed to read custom handlebar tempalate path, maybe the path is wrong, here need a relative path.");
+  let mut fragment_paths = Vec::new();
+  let mut handlebars = Handlebars::new();
+  let mut has_custom_template = false;
 
+  if let Some(wix) = &settings.windows().wix {
+    data.insert("component_group_refs", to_json(&wix.component_group_refs));
+    data.insert("component_refs", to_json(&wix.component_refs));
+    data.insert("feature_group_refs", to_json(&wix.feature_group_refs));
+    data.insert("feature_refs", to_json(&wix.feature_refs));
+    data.insert("merge_refs", to_json(&wix.merge_refs));
+    fragment_paths = wix.fragment_paths.clone();
+
+    if let Some(temp_path) = &wix.template {
+      let template = std::fs::read_to_string(temp_path)?;
+      handlebars
+        .register_template_string("main.wxs", &template)
+        .or_else(|e| Err(e.to_string()))
+        .expect("Failed to setup custom handlebar template");
+      has_custom_template = true;
+    }
+  }
+
+  if !has_custom_template {
     handlebars
-      .register_template_string("main.wxs", &temp_context)
-      .or_else(|e| Err(e.to_string()))
-      .expect("Failed to setup custom handlebar template");
-
-    handlebars.render("main.wxs", &data)?
-  } else {
-    HANDLEBARS.render("main.wxs", &data)?
+      .register_template_string("main.wxs", include_str!("templates/main.wxs"))
+      .map_err(|e| e.to_string())
+      .expect("Failed to setup handlebar template");
   };
 
   if output_path.exists() {
@@ -554,16 +499,20 @@ pub fn build_wix_app_installer(
   create_dir_all(&output_path)?;
 
   let main_wxs_path = output_path.join("main.wxs");
-  write(&main_wxs_path, temp)?;
+  write(&main_wxs_path, handlebars.render("main.wxs", &data)?)?;
 
-  let input_basenames = vec!["main"];
+  let mut candle_inputs = vec!["main.wxs".into()];
 
-  for basename in &input_basenames {
-    let wxs = format!("{}.wxs", basename);
+  let current_dir = std::env::current_dir()?;
+  for fragment_path in fragment_paths {
+    candle_inputs.push(current_dir.join(fragment_path));
+  }
+
+  for wxs in &candle_inputs {
     run_candle(settings, &wix_toolset_path, &output_path, &wxs)?;
   }
 
-  let wixobjs = vec!["main.wixobj"];
+  let wixobjs = vec!["*.wixobj"];
   let target = run_light(
     &wix_toolset_path,
     &output_path,
@@ -613,12 +562,12 @@ fn locate_signtool() -> crate::Result<PathBuf> {
   let mut kit_bin_paths: Vec<PathBuf> = installed_kits
     .iter()
     .rev()
-    .map(|kit| kits_root_10_bin_path.join(kit).to_path_buf())
+    .map(|kit| kits_root_10_bin_path.join(kit))
     .collect();
 
   /* Add kits root bin path.
   For Windows SDK 10 versions earlier than v10.0.15063.468, signtool will be located there. */
-  kit_bin_paths.push(kits_root_10_bin_path.to_path_buf());
+  kit_bin_paths.push(kits_root_10_bin_path);
 
   // Choose which version of SignTool to use based on OS bitness
   let arch_dir = match bitness::os_bitness().expect("failed to get os bitness") {
@@ -635,7 +584,7 @@ fn locate_signtool() -> crate::Result<PathBuf> {
     /* Check if SignTool exists at this location. */
     if signtool_path.exists() {
       // SignTool found. Return it.
-      return Ok(signtool_path.to_path_buf());
+      return Ok(signtool_path);
     }
   }
 
@@ -843,11 +792,11 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
             .directories
             .iter()
             .position(|f| f.name == directory_name);
-          if index.is_some() {
+          if let Some(index) = index {
             // the directory entry is already a part of the chain
             let dir = directory_entry
               .directories
-              .get_mut(index.expect("Unable to get index"))
+              .get_mut(index)
               .expect("Unable to get directory");
             dir.add_file(resource_entry.clone());
           } else {

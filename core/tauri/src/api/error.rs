@@ -5,6 +5,9 @@
 /// The error types.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
+  /// Command error.
+  #[error("Command Error: {0}")]
+  Command(String),
   /// The extract archive error.
   #[error("Extract Error: {0}")]
   Extract(String),

@@ -64,14 +64,6 @@ impl Build {
     let config_guard = config.lock().unwrap();
     let config_ = config_guard.as_ref().unwrap();
 
-    let web_asset_path = PathBuf::from(&config_.build.dist_dir);
-    if !web_asset_path.exists() {
-      return Err(anyhow::anyhow!(
-        "Unable to find your web assets, did you forget to build your web app? Your distDir is set to \"{:?}\".",
-        web_asset_path
-      ));
-    }
-
     if let Some(before_build) = &config_.build.before_build_command {
       if !before_build.is_empty() {
         logger.log(format!("Running `{}`", before_build));
@@ -90,6 +82,14 @@ impl Build {
             .current_dir(app_dir()),
         )?;
       }
+    }
+
+    let web_asset_path = PathBuf::from(&config_.build.dist_dir);
+    if !web_asset_path.exists() {
+      return Err(anyhow::anyhow!(
+        "Unable to find your web assets, did you forget to build your web app? Your distDir is set to \"{:?}\".",
+        web_asset_path
+      ));
     }
 
     rust::build_project(self.debug)?;

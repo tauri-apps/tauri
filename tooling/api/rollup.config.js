@@ -34,14 +34,14 @@ export default [
     output: [
       {
         dir: 'dist/',
-        entryFileNames: '[name].js',
+        entryFileNames: '[name].cjs',
         format: 'cjs',
         exports: 'named',
         globals: {}
       },
       {
         dir: 'dist/',
-        entryFileNames: '[name].mjs',
+        entryFileNames: '[name].js',
         format: 'esm',
         exports: 'named',
         globals: {}

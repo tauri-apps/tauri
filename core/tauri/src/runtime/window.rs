@@ -4,9 +4,8 @@
 
 //! A layer between raw [`Runtime`] webview windows and Tauri.
 
-use crate::api::config::WindowConfig;
 use crate::{
-  api::config::WindowUrl,
+  api::config::{WindowConfig, WindowUrl},
   event::{Event, EventHandler},
   hooks::{InvokeMessage, InvokePayload, PageLoadPayload},
   runtime::{
@@ -162,7 +161,7 @@ pub(crate) mod export {
   impl<P: Params> Window<P> {
     /// Create a new window that is attached to the manager.
     pub(crate) fn new(manager: WindowManager<P>, window: DetachedWindow<P>) -> Self {
-      Self { manager, window }
+      Self { window, manager }
     }
 
     /// The current window's dispatcher.
@@ -222,6 +221,7 @@ pub(crate) mod export {
       self.emit_internal(event.clone(), payload)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn emit_others_internal<S: Serialize + Clone>(
       &self,
       event: String,

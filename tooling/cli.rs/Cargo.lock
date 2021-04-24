@@ -2005,7 +2005,6 @@ dependencies = [
  "hex",
  "icns",
  "image",
- "lazy_static",
  "libflate",
  "md5",
  "regex",

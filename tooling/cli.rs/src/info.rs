@@ -86,8 +86,8 @@ fn crate_latest_version(name: &str) -> Option<String> {
 }
 
 fn npm_latest_version(use_yarn: bool, name: &str) -> crate::Result<Option<String>> {
+  let mut cmd;
   if use_yarn {
-    let mut cmd;
     #[cfg(target_os = "windows")]
     {
       cmd = Command::new("cmd");
@@ -112,7 +112,6 @@ fn npm_latest_version(use_yarn: bool, name: &str) -> crate::Result<Option<String
       Ok(None)
     }
   } else {
-    let mut cmd;
     #[cfg(target_os = "windows")]
     {
       cmd = Command::new("cmd");
@@ -139,8 +138,8 @@ fn npm_package_version<P: AsRef<Path>>(
   name: &str,
   app_dir: P,
 ) -> crate::Result<Option<String>> {
+  let mut cmd;
   let output = if use_yarn {
-    let mut cmd;
     #[cfg(target_os = "windows")]
     {
       cmd = Command::new("cmd");
@@ -159,7 +158,6 @@ fn npm_package_version<P: AsRef<Path>>(
       .current_dir(app_dir)
       .output()?
   } else {
-    let mut cmd;
     #[cfg(target_os = "windows")]
     {
       cmd = Command::new("cmd");
@@ -180,7 +178,7 @@ fn npm_package_version<P: AsRef<Path>>(
   };
   if output.status.success() {
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let regex = regex::Regex::new("@([\\da-zA-Z\\.]+)").unwrap();
+    let regex = regex::Regex::new("@([\\da-zA-Z\\-\\.]+)").unwrap();
     Ok(
       regex
         .captures_iter(&stdout)

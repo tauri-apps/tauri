@@ -382,10 +382,23 @@ impl Default for BuildConfig {
   }
 }
 
+/// The package configuration.
+#[derive(Debug, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageConfig {
+  /// App name.
+  pub product_name: Option<String>,
+  /// App version.
+  pub version: Option<String>,
+}
+
 /// The tauri.conf.json mapper.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
+  /// Package settings.
+  #[serde(default)]
+  pub package: PackageConfig,
   /// The Tauri configuration.
   #[serde(default)]
   pub tauri: TauriConfig,
@@ -761,13 +774,23 @@ mod build {
     }
   }
 
+  impl ToTokens for PackageConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let product_name = opt_str_lit(self.product_name.as_ref());
+      let version = opt_str_lit(self.version.as_ref());
+
+      literal_struct!(tokens, PackageConfig, product_name, version);
+    }
+  }
+
   impl ToTokens for Config {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      let package = &self.package;
       let tauri = &self.tauri;
       let build = &self.build;
       let plugins = &self.plugins;
 
-      literal_struct!(tokens, Config, tauri, build, plugins);
+      literal_struct!(tokens, Config, package, tauri, build, plugins);
     }
   }
 }

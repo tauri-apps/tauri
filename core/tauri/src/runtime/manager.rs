@@ -6,6 +6,7 @@ use crate::{
   api::{
     assets::Assets,
     config::{Config, WindowUrl},
+    path::{resolve_path, BaseDirectory},
     PackageInfo,
   },
   event::{Event, EventHandler, Listeners},
@@ -27,6 +28,7 @@ use std::{
   borrow::Cow,
   collections::{HashMap, HashSet},
   convert::TryInto,
+  fs::create_dir_all,
   sync::{Arc, Mutex, MutexGuard},
 };
 use uuid::Uuid;
@@ -188,21 +190,14 @@ impl<P: Params> WindowManager<P> {
       attributes = attributes.custom_protocol("tauri", self.prepare_custom_protocol().handler);
     }
 
-    // If we are on windows use App Data Local as webview temp dir
-    // to prevent any bundled application to failed.
-    // Fix: https://github.com/tauri-apps/tauri/issues/1365
-    #[cfg(windows)]
-    {
-      // Should return a path similar to C:\Users\<User>\AppData\Local\<AppName>
-      let local_app_data = crate::api::path::resolve_path(
-        self.inner.package_info.name,
-        Some(crate::api::path::BaseDirectory::LocalData),
-      );
+    let local_app_data = resolve_path(
+      &self.inner.config.tauri.bundle.identifier,
+      Some(BaseDirectory::LocalData),
+    );
+    if let Ok(user_data_dir) = local_app_data {
       // Make sure the directory exist without panic
-      if let Ok(user_data_dir) = local_app_data {
-        if let Ok(()) = std::fs::create_dir_all(&user_data_dir) {
-          attributes = attributes.user_data_path(Some(user_data_dir));
-        }
+      if create_dir_all(&user_data_dir).is_ok() {
+        attributes = attributes.user_data_path(Some(user_data_dir));
       }
     }
 

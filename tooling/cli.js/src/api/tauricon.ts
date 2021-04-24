@@ -188,16 +188,19 @@ const tauricon = (exports.tauricon = {
     return version
   },
   make: async function (
-    src: string = path.resolve(appDir, 'app-icon.png'),
+    src: string | undefined,
     target: string = path.resolve(tauriDir, 'icons'),
     strategy: string,
     // TODO: proper type for options
     options: { [index: string]: any }
   ) {
+    if (!src) {
+      src = path.resolve(appDir, 'app-icon.png')
+    }
     const spinnerInterval = spinner()
     options = options || settings.options.tauri
+    progress(`Building Tauri icns and ico from "${src}"`)
     await this.validate(src, target)
-    progress('Building Tauri icns and ico')
     await this.icns(src, target, options, strategy)
     progress('Building Tauri png icons')
     await this.build(src, target, options)

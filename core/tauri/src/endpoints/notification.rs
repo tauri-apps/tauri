@@ -32,14 +32,13 @@ pub enum Cmd {
 }
 
 impl Cmd {
+  #[allow(unused_variables)]
   pub fn run(self, identifier: String) -> crate::Result<InvokeResponse> {
     match self {
-      Self::Notification { options } => {
-        #[cfg(notification_all)]
-        return send(options, identifier).map(Into::into);
-        #[cfg(not(notification_all))]
-        Err(crate::Error::ApiNotAllowlisted("notification".to_string()))
-      }
+      #[cfg(notification_all)]
+      Self::Notification { options } => send(options, identifier).map(Into::into),
+      #[cfg(not(notification_all))]
+      Self::Notification { .. } => Err(crate::Error::ApiNotAllowlisted("notification".to_string())),
       Self::IsNotificationPermissionGranted => {
         #[cfg(notification_all)]
         return is_permission_granted().map(Into::into);

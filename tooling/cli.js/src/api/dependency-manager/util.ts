@@ -8,17 +8,10 @@ import { appDir, resolve as appResolve } from '../../helpers/app-paths'
 import { existsSync } from 'fs'
 import semver from 'semver'
 
-async function useYarn(): Promise<boolean> {
-  const hasYarnLockfile = existsSync(appResolve.app('yarn.lock'))
-  if (hasYarnLockfile) {
-    return true
-  } else {
-    return await new Promise((resolve) => {
-      const child = crossSpawnSync('npm', ['--version'])
-      resolve(!!(child.status ?? child.error))
-    })
-  }
-}
+const useYarn = (): boolean =>
+  process.env.npm_execpath
+    ? process.env.npm_execpath.includes('yarn')
+    : existsSync(appResolve.app('yarn.lock'))
 
 function getCrateLatestVersion(crateName: string): string | null {
   const child = crossSpawnSync('cargo', ['search', crateName, '--limit', '1'])
@@ -32,8 +25,8 @@ function getCrateLatestVersion(crateName: string): string | null {
   }
 }
 
-async function getNpmLatestVersion(packageName: string): Promise<string> {
-  if (await useYarn()) {
+function getNpmLatestVersion(packageName: string): string {
+  if (useYarn()) {
     const child = crossSpawnSync(
       'yarn',
       ['info', packageName, 'versions', '--json'],
@@ -52,10 +45,8 @@ async function getNpmLatestVersion(packageName: string): Promise<string> {
   }
 }
 
-async function getNpmPackageVersion(
-  packageName: string
-): Promise<string | null> {
-  const child = (await useYarn())
+function getNpmPackageVersion(packageName: string): string | null {
+  const child = useYarn()
     ? crossSpawnSync(
         'yarn',
         ['list', '--pattern', packageName, '--depth', '0'],
@@ -76,16 +67,16 @@ async function getNpmPackageVersion(
   }
 }
 
-async function installNpmPackage(packageName: string): Promise<void> {
-  if (await useYarn()) {
+function installNpmPackage(packageName: string): void {
+  if (useYarn()) {
     spawnSync('yarn', ['add', packageName], appDir)
   } else {
     spawnSync('npm', ['install', packageName], appDir)
   }
 }
 
-async function installNpmDevPackage(packageName: string): Promise<void> {
-  if (await useYarn()) {
+function installNpmDevPackage(packageName: string): void {
+  if (useYarn()) {
     spawnSync('yarn', ['add', packageName, '--dev'], appDir)
   } else {
     spawnSync('npm', ['install', packageName, '--save-dev'], appDir)
@@ -93,8 +84,7 @@ async function installNpmDevPackage(packageName: string): Promise<void> {
 }
 
 function updateNpmPackage(packageName: string): void {
-  const usesYarn = existsSync(appResolve.app('yarn.lock'))
-  if (usesYarn) {
+  if (useYarn()) {
     spawnSync('yarn', ['upgrade', packageName, '--latest'], appDir)
   } else {
     spawnSync('npm', ['install', `${packageName}@latest`], appDir)

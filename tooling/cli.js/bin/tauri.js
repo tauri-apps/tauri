@@ -19,7 +19,7 @@ const cmd = process.argv[2]
  */
 const tauri = async function (command) {
   // notifying updates.
-  if (!(process.argv || []).some((arg) => arg === '--no-update-notifier')) {
+  if (!process.argv.some((arg) => arg === '--no-update-notifier')) {
     updateNotifier({
       pkg,
       updateCheckInterval: 0
@@ -31,32 +31,10 @@ const tauri = async function (command) {
     command = command[0]
   }
 
-  if (rustCliCmds.includes(command)) {
-    const { runOnRustCli } = require('../dist/helpers/rust-cli')
-    if (process.argv && !process.env.test) {
-      process.argv.splice(0, 3)
-    }
-    ;(
-      await runOnRustCli(
-        command,
-        (process.argv || []).filter((v) => v !== '--no-update-notifier')
-      )
-    ).promise.then(() => {
-      if (command === 'init') {
-        const {
-          installDependencies
-        } = require('../dist/api/dependency-manager')
-        return installDependencies()
-      }
-    })
-  } else {
-    if (
-      !command ||
-      command === '-h' ||
-      command === '--help' ||
-      command === 'help'
-    ) {
-      console.log(`
+  const help =
+    !command || command === '-h' || command === '--help' || command === 'help'
+  if (help) {
+    console.log(`
         ${chalk.cyan(`
       :oooodddoooo;     ;oddl,      ,ol,       ,oc,  ,ldoooooooc,    ,oc,
       ';;;cxOx:;;;'    ;xOxxko'     :kx:       lkd,  :xkl;;;;:okx:   lkd,
@@ -77,25 +55,36 @@ ${chalk.yellow('Options')}
 --version, -v  Displays the Tauri CLI version
       `)
 
-      process.exit(0)
-      // eslint-disable-next-line no-unreachable
-      return false // do this for node consumers and tests
+    process.exit(0)
+    // eslint-disable-next-line no-unreachable
+    return false // do this for node consumers and tests
+  } else if (command === '-v' || command === '--version') {
+    console.log(`${pkg.version}`)
+    return false // do this for node consumers and tests
+  } else if (cmds.includes(command)) {
+    if (process.argv && !process.env.test) {
+      process.argv.splice(2, 1)
     }
-
-    if (command === '-v' || command === '--version') {
-      console.log(`${pkg.version}`)
-      return false // do this for node consumers and tests
+    console.log(`[tauri]: running ${command}`)
+    require(`./tauri-${command}`)
+  } else {
+    const { runOnRustCli } = require('../dist/helpers/rust-cli')
+    if (process.argv && !process.env.test) {
+      process.argv.splice(0, 3)
     }
-
-    if (cmds.includes(command)) {
-      if (process.argv && !process.env.test) {
-        process.argv.splice(2, 1)
+    ;(
+      await runOnRustCli(
+        command,
+        (process.argv || []).filter((v) => v !== '--no-update-notifier')
+      )
+    ).promise.then(() => {
+      if (command === 'init' && !process.argv.some((arg) => arg === '--ci')) {
+        const {
+          installDependencies
+        } = require('../dist/api/dependency-manager')
+        return installDependencies()
       }
-      console.log(`[tauri]: running ${command}`)
-      require(`./tauri-${command}`)
-    } else {
-      console.log(`Invalid command ${command}. Use one of ${cmds.join(', ')}.`)
-    }
+    })
   }
 }
 

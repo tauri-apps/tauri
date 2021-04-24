@@ -157,6 +157,24 @@
             </Feature>
         </Feature>
 
+        <Feature Id="External" AllowAdvertise="no" Absent="disallow">
+            {{#each component_group_refs as |id| ~}}
+            <ComponentGroupRef Id="{{ id }}"/>
+            {{/each~}}
+            {{#each component_refs as |id| ~}}
+            <ComponentRef Id="{{ id }}"/>
+            {{/each~}}
+            {{#each feature_group_refs as |id| ~}}
+            <FeatureGroupRef Id="{{ id }}"/>
+            {{/each~}}
+            {{#each feature_refs as |id| ~}}
+            <FeatureRef Id="{{ id }}"/>
+            {{/each~}}
+            {{#each merge_refs as |id| ~}}
+            <MergeRef Id="{{ id }}"/>
+            {{/each~}}
+        </Feature>
+
         <!-- WebView2 -->
         <Property Id="WVRTINSTALLED">
             <RegistrySearch Id="WVRTInstalled" Root="HKLM" Key="SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" Name="pv" Type="raw" Win64="no"/>

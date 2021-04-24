@@ -1,3 +1,0 @@
-# using lld linker can make the compile time 30% of the default linker time.
-[build]
-rustflags = ["-C", "link-arg=-fuse-ld=lld"]

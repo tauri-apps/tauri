@@ -4,6 +4,9 @@
 
 name: updater test artifacts
 on:
+  push:
+    branches:
+      - dev
   pull_request:
     paths:
       - '.github/workflows/artifacts-updater.yml'
@@ -27,12 +30,65 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+
       - name: install webkit2gtk (ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0
-      - run: cargo install --path ./tooling/cli.rs --force
+        
+      - name: Get current date
+        run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+        if: matrix.platform == 'macos-latest' || matrix.platform == 'ubuntu-latest'
+
+      - name: Get current date
+        if: matrix.platform == 'windows-latest'
+        run: echo "CURRENT_DATE=$(Get-Date -Format "yyyy-MM-dd")" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Cache cargo registry
+        uses: actions/cache@v2.1.4
+        with:
+          path: ~/.cargo/registry
+          # Add date to the cache to keep it up to date
+          key: ${{ matrix.platform }}-stable-cargo-registry-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ${{ matrix.platform }}-stable-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
+            ${{ matrix.platform }}-stable-cargo-registry-
+
+      - name: Cache cargo index
+        uses: actions/cache@v2.1.4
+        with:
+          path: ~/.cargo/git
+          # Add date to the cache to keep it up to date
+          key: ${{ matrix.platform }}-stable-cargo-index-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ${{ matrix.platform }}-stable-cargo-index-${{ hashFiles('**/Cargo.toml') }}
+            ${{ matrix.platform }}-stable-cargo-index-
+
+      - name: Cache core cargo target
+        uses: actions/cache@v2
+        with:
+          path: target
+          # Add date to the cache to keep it up to date
+          key: ${{ matrix.platform }}-stable-cargo-core-${{ hashFiles('core/**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ${{ matrix.platform }}-stable-cargo-core-${{ hashFiles('core/**/Cargo.toml') }}
+            ${{ matrix.platform }}-stable-cargo-core-
+        
+      - name: Cache CLI cargo target
+        uses: actions/cache@v2
+        with:
+          path: tooling/cli.rs/target
+          # Add date to the cache to keep it up to date
+          key: ubuntu-latest-nightly-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}
+            ${{ matrix.platform }}-stable-cargo-cli-
+
       - name: install cli deps via yarn
         working-directory: ./tooling/cli.js
         run: yarn

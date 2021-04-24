@@ -12,6 +12,7 @@ export interface DialogFilter {
 export interface OpenDialogOptions {
   filters?: DialogFilter[]
   defaultPath?: string
+  fileName?: string
   multiple?: boolean
   directory?: boolean
 }

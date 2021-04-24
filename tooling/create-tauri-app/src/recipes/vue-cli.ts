@@ -2,43 +2,44 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { Recipe } from "..";
-import { join } from "path";
-import { shell } from "../shell";
+import { Recipe } from '..'
+import { join } from 'path'
+import { shell } from '../shell'
 
 const completeLogMsg = `
   Your installation completed.
   To start, run yarn tauri:serve
-`;
+`
 
 const vuecli: Recipe = {
-  descriptiveName: "Vue CLI",
-  shortName: "vuecli",
+  descriptiveName: 'Vue CLI',
+  shortName: 'vuecli',
   extraNpmDevDependencies: [],
   extraNpmDependencies: [],
   configUpdate: ({ cfg }) => cfg,
   preInit: async ({ cwd, cfg }) => {
     // Vue CLI creates the folder for you
-    await shell("npx", ["@vue/cli", "create", `${cfg.appName}`], { cwd });
+    await shell('npx', ['@vue/cli', 'create', `${cfg.appName}`], { cwd })
     await shell(
-      "npx",
+      'npx',
       [
-        "@vue/cli",
-        "add",
-        "tauri",
-        "--appName",
+        '@vue/cli',
+        'add',
+        'tauri',
+        '--appName',
         `${cfg.appName}`,
-        "--windowTitle",
-        `${cfg.windowTitle}`,
+        '--windowTitle',
+        `${cfg.windowTitle}`
       ],
       {
-        cwd: join(cwd, cfg.appName),
+        cwd: join(cwd, cfg.appName)
       }
-    );
+    )
   },
   postInit: async () => {
-    console.log(completeLogMsg);
-  },
-};
+    console.log(completeLogMsg)
+    return await Promise.resolve()
+  }
+}
 
-export { vuecli };
+export { vuecli }

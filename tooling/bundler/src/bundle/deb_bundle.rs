@@ -39,6 +39,14 @@ use std::{
   path::{Path, PathBuf},
 };
 
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+pub struct DebIcon {
+  pub width: u32,
+  pub height: u32,
+  pub is_high_density: bool,
+  pub path: PathBuf,
+}
+
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the DEB was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
@@ -63,7 +71,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }
   let package_path = base_dir.join(package_name);
 
-  let data_dir = generate_data(settings, &package_dir)
+  let (data_dir, _) = generate_data(settings, &package_dir)
     .with_context(|| "Failed to build data folders and files")?;
   // Generate control files.
   let control_dir = package_dir.join("control");
@@ -91,7 +99,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 }
 
 /// Generate the debian data folders and files.
-pub fn generate_data(settings: &Settings, package_dir: &Path) -> crate::Result<PathBuf> {
+pub fn generate_data(
+  settings: &Settings,
+  package_dir: &Path,
+) -> crate::Result<(PathBuf, BTreeSet<DebIcon>)> {
   // Generate data files.
   let data_dir = package_dir.join("data");
   let bin_dir = data_dir.join("usr/bin");
@@ -108,7 +119,8 @@ pub fn generate_data(settings: &Settings, package_dir: &Path) -> crate::Result<P
     .copy_binaries(&bin_dir)
     .with_context(|| "Failed to copy external binaries")?;
 
-  generate_icon_files(settings, &data_dir).with_context(|| "Failed to create icon files")?;
+  let icons =
+    generate_icon_files(settings, &data_dir).with_context(|| "Failed to create icon files")?;
   generate_desktop_file(settings, &data_dir).with_context(|| "Failed to create desktop file")?;
 
   let use_bootstrapper = settings.deb().use_bootstrapper.unwrap_or_default();
@@ -117,7 +129,7 @@ pub fn generate_data(settings: &Settings, package_dir: &Path) -> crate::Result<P
       .with_context(|| "Failed to generate bootstrap file")?;
   }
 
-  Ok(data_dir)
+  Ok((data_dir, icons))
 }
 
 /// Generates the bootstrap script file.
@@ -307,7 +319,7 @@ fn transfer_resource_files(settings: &Settings, data_dir: &Path) -> crate::Resul
 }
 
 /// Generate the icon files and store them under the `data_dir`.
-fn generate_icon_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
+fn generate_icon_files(settings: &Settings, data_dir: &Path) -> crate::Result<BTreeSet<DebIcon>> {
   let base_dir = data_dir.join("usr/share/icons/hicolor");
   let get_dest_path = |width: u32, height: u32, is_high_density: bool| {
     base_dir.join(format!(
@@ -318,7 +330,7 @@ fn generate_icon_files(settings: &Settings, data_dir: &Path) -> crate::Result<()
       settings.main_binary_name()
     ))
   };
-  let mut sizes = BTreeSet::new();
+  let mut icons = BTreeSet::new();
   // Prefer PNG files.
   for icon_path in settings.icon_files() {
     let icon_path = icon_path?;
@@ -329,10 +341,16 @@ fn generate_icon_files(settings: &Settings, data_dir: &Path) -> crate::Result<()
     let width = decoder.dimensions().0;
     let height = decoder.dimensions().1;
     let is_high_density = common::is_retina(&icon_path);
-    if !sizes.contains(&(width, height, is_high_density)) {
-      sizes.insert((width, height, is_high_density));
-      let dest_path = get_dest_path(width, height, is_high_density);
-      common::copy_file(&icon_path, &dest_path)?;
+    let dest_path = get_dest_path(width, height, is_high_density);
+    let deb_icon = DebIcon {
+      width,
+      height,
+      is_high_density,
+      path: dest_path,
+    };
+    if !icons.contains(&deb_icon) {
+      common::copy_file(&icon_path, &deb_icon.path)?;
+      icons.insert(deb_icon);
     }
   }
   // Fall back to non-PNG files for any missing sizes.
@@ -346,28 +364,40 @@ fn generate_icon_files(settings: &Settings, data_dir: &Path) -> crate::Result<()
         let width = icon_type.screen_width();
         let height = icon_type.screen_height();
         let is_high_density = icon_type.pixel_density() > 1;
-        if !sizes.contains(&(width, height, is_high_density)) {
-          sizes.insert((width, height, is_high_density));
-          let dest_path = get_dest_path(width, height, is_high_density);
+        let dest_path = get_dest_path(width, height, is_high_density);
+        let deb_icon = DebIcon {
+          width,
+          height,
+          is_high_density,
+          path: dest_path,
+        };
+        if !icons.contains(&deb_icon) {
           let icon = icon_family.get_icon_with_type(icon_type)?;
-          icon.write_png(common::create_file(&dest_path)?)?;
+          icon.write_png(common::create_file(&deb_icon.path)?)?;
+          icons.insert(deb_icon);
         }
       }
     } else {
       let icon = image::open(&icon_path)?;
       let (width, height) = icon.dimensions();
       let is_high_density = common::is_retina(&icon_path);
-      if !sizes.contains(&(width, height, is_high_density)) {
-        sizes.insert((width, height, is_high_density));
-        let dest_path = get_dest_path(width, height, is_high_density);
+      let dest_path = get_dest_path(width, height, is_high_density);
+      let deb_icon = DebIcon {
+        width,
+        height,
+        is_high_density,
+        path: dest_path,
+      };
+      if !icons.contains(&deb_icon) {
         icon.write_to(
-          &mut common::create_file(&dest_path)?,
+          &mut common::create_file(&deb_icon.path)?,
           image::ImageOutputFormat::Png,
         )?;
+        icons.insert(deb_icon);
       }
     }
   }
-  Ok(())
+  Ok(icons)
 }
 
 /// Create an empty file at the given path, creating any parent directories as

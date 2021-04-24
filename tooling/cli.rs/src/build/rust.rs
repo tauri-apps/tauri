@@ -337,6 +337,7 @@ fn tauri_config_to_bundle_settings(
     deb: DebianSettings {
       depends: config.deb.depends,
       use_bootstrapper: Some(config.deb.use_bootstrapper),
+      files: config.deb.files,
     },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,

@@ -6,14 +6,29 @@
 
 . "$(dirname "$0")/_/husky.sh"
 
-cd tooling/api
-yarn format
-yarn lint-fix
+if [ -z "$(git diff --name-only tooling/api)" ]; then
+  echo "skipping api - no changes detected"
+else
+  cd tooling/api
+  yarn format
+  yarn lint-fix
+  cd ../..
+fi
 
-cd ../cli.js
-yarn format
-yarn lint-fix
+if [ -z "$(git diff --name-only tooling/cli.js)" ]; then
+  echo "skipping cli.js - no changes detected"
+else
+  cd tooling/cli.js
+  yarn format
+  yarn lint-fix
+  cd ../..
+fi
 
-cd ../create-tauri-app
-yarn format
-yarn lint-fix
+if [ -z "$(git diff --name-only tooling/create-tauri-app)" ]; then
+  echo "skipping create-tauri-app - no changes detected"
+else
+  cd tooling/create-tauri-app
+  yarn format
+  yarn lint-fix
+  cd ../..
+fi

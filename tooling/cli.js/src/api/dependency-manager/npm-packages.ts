@@ -47,7 +47,7 @@ async function manageDependencies(
           managementType === ManagementType.Install ||
           managementType === ManagementType.InstallDev
         ) {
-          const packageManager = useYarn ? 'YARN' : 'NPM'
+          const packageManager = useYarn() ? 'YARN' : 'NPM'
           const inquired = (await inquirer.prompt([
             {
               type: 'confirm',

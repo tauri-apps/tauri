@@ -8,7 +8,10 @@ import { appDir, resolve as appResolve } from '../../helpers/app-paths'
 import { existsSync } from 'fs'
 import semver from 'semver'
 
-const useYarn = existsSync(appResolve.app('yarn.lock'))
+const useYarn = (): boolean =>
+  process.env.npm_execpath
+    ? process.env.npm_execpath.includes('yarn')
+    : existsSync(appResolve.app('yarn.lock'))
 
 function getCrateLatestVersion(crateName: string): string | null {
   const child = crossSpawnSync('cargo', ['search', crateName, '--limit', '1'])
@@ -23,7 +26,7 @@ function getCrateLatestVersion(crateName: string): string | null {
 }
 
 function getNpmLatestVersion(packageName: string): string {
-  if (useYarn) {
+  if (useYarn()) {
     const child = crossSpawnSync(
       'yarn',
       ['info', packageName, 'versions', '--json'],
@@ -43,7 +46,7 @@ function getNpmLatestVersion(packageName: string): string {
 }
 
 function getNpmPackageVersion(packageName: string): string | null {
-  const child = useYarn
+  const child = useYarn()
     ? crossSpawnSync(
         'yarn',
         ['list', '--pattern', packageName, '--depth', '0'],
@@ -65,7 +68,7 @@ function getNpmPackageVersion(packageName: string): string | null {
 }
 
 function installNpmPackage(packageName: string): void {
-  if (useYarn) {
+  if (useYarn()) {
     spawnSync('yarn', ['add', packageName], appDir)
   } else {
     spawnSync('npm', ['install', packageName], appDir)
@@ -73,7 +76,7 @@ function installNpmPackage(packageName: string): void {
 }
 
 function installNpmDevPackage(packageName: string): void {
-  if (useYarn) {
+  if (useYarn()) {
     spawnSync('yarn', ['add', packageName, '--dev'], appDir)
   } else {
     spawnSync('npm', ['install', packageName, '--save-dev'], appDir)
@@ -81,7 +84,7 @@ function installNpmDevPackage(packageName: string): void {
 }
 
 function updateNpmPackage(packageName: string): void {
-  if (useYarn) {
+  if (useYarn()) {
     spawnSync('yarn', ['upgrade', packageName, '--latest'], appDir)
   } else {
     spawnSync('npm', ['install', `${packageName}@latest`], appDir)

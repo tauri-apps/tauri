@@ -32,7 +32,6 @@ tar = "0.4"
 termcolor = "1.1.2"
 toml = "0.5.8"
 walkdir = "2"
-lazy_static = { version = "1.4" }
 handlebars = { version = "3.5" }
 zip = { version = "0.5" }
 tempfile = "3.2.0"

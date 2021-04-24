@@ -169,6 +169,9 @@ pub struct MacOsSettings {
 #[derive(Clone, Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct WixSettings {
+  /// By default, the bundler uses an internal template.
+  /// This option allows you to define your own wix file.
+  pub template: Option<PathBuf>,
   #[serde(default)]
   pub fragment_paths: Vec<PathBuf>,
   #[serde(default)]

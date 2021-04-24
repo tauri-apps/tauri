@@ -1220,6 +1220,12 @@
           "items": {
             "type": "string"
           }
+        },
+        "template": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

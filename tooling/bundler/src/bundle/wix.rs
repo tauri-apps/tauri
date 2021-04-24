@@ -9,7 +9,6 @@ use super::{
 };
 
 use handlebars::{to_json, Handlebars};
-use lazy_static::lazy_static;
 use regex::Regex;
 use serde::Serialize;
 use sha2::Digest;
@@ -54,19 +53,6 @@ pub const WIX_SHA256: &str = "2c1888d5d1dba377fc7fa14444cf556963747ff9a0a289a359
 const UUID_NAMESPACE: [u8; 16] = [
   0xfd, 0x85, 0x95, 0xa8, 0x17, 0xa3, 0x47, 0x4e, 0xa6, 0x16, 0x76, 0x14, 0x8d, 0xfa, 0x0c, 0x7b,
 ];
-
-// setup for the main.wxs template file using handlebars. Dynamically changes the template on compilation based on the application metadata.
-lazy_static! {
-  static ref HANDLEBARS: Handlebars<'static> = {
-    let mut handlebars = Handlebars::new();
-
-    handlebars
-      .register_template_string("main.wxs", include_str!("templates/main.wxs"))
-      .map_err(|e| e.to_string())
-      .expect("Failed to setup handlebar template");
-    handlebars
-  };
-}
 
 /// Mapper between a resource directory name and its ResourceDirectory descriptor.
 type ResourceMap = BTreeMap<String, ResourceDirectory>;
@@ -478,6 +464,8 @@ pub fn build_wix_app_installer(
   data.insert("icon_path", to_json(icon_path));
 
   let mut fragment_paths = Vec::new();
+  let mut handlebars = Handlebars::new();
+  let mut has_custom_template = false;
 
   if let Some(wix) = &settings.windows().wix {
     data.insert("component_group_refs", to_json(&wix.component_group_refs));
@@ -486,9 +474,23 @@ pub fn build_wix_app_installer(
     data.insert("feature_refs", to_json(&wix.feature_refs));
     data.insert("merge_refs", to_json(&wix.merge_refs));
     fragment_paths = wix.fragment_paths.clone();
+
+    if let Some(temp_path) = &wix.template {
+      let template = std::fs::read_to_string(temp_path)?;
+      handlebars
+        .register_template_string("main.wxs", &template)
+        .or_else(|e| Err(e.to_string()))
+        .expect("Failed to setup custom handlebar template");
+      has_custom_template = true;
+    }
   }
 
-  let temp = HANDLEBARS.render("main.wxs", &data)?;
+  if !has_custom_template {
+    handlebars
+      .register_template_string("main.wxs", include_str!("templates/main.wxs"))
+      .map_err(|e| e.to_string())
+      .expect("Failed to setup handlebar template");
+  };
 
   if output_path.exists() {
     remove_dir_all(&output_path)?;
@@ -497,7 +499,7 @@ pub fn build_wix_app_installer(
   create_dir_all(&output_path)?;
 
   let main_wxs_path = output_path.join("main.wxs");
-  write(&main_wxs_path, temp)?;
+  write(&main_wxs_path, handlebars.render("main.wxs", &data)?)?;
 
   let mut candle_inputs = vec!["main.wxs".into()];
 

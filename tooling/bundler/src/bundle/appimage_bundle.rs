@@ -6,7 +6,6 @@ use super::{common, deb_bundle, path_utils};
 use crate::Settings;
 
 use handlebars::Handlebars;
-use lazy_static::lazy_static;
 
 use std::{
   collections::BTreeMap,
@@ -14,18 +13,6 @@ use std::{
   path::PathBuf,
   process::{Command, Stdio},
 };
-
-// Create handlebars template for shell script
-lazy_static! {
-  static ref HANDLEBARS: Handlebars<'static> = {
-    let mut handlebars = Handlebars::new();
-
-    handlebars
-      .register_template_string("appimage", include_str!("templates/appimage"))
-      .expect("Failed to register template for handlebars");
-    handlebars
-  };
-}
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the AppImage was created.
@@ -86,7 +73,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   sh_map.insert("icon_path", &larger_icon_path);
 
   // initialize shell script template.
-  let temp = HANDLEBARS.render("appimage", &sh_map)?;
+  let mut handlebars = Handlebars::new();
+  handlebars
+    .register_template_string("appimage", include_str!("templates/appimage"))
+    .expect("Failed to register template for handlebars");
+  let temp = handlebars.render("appimage", &sh_map)?;
 
   // create the shell script file in the target/ folder.
   let sh_file = output_path.join("build_appimage.sh");

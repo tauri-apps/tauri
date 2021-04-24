@@ -128,10 +128,23 @@
     {
       "enabled": true,
       "paths": [
-        "api/**"
+        "tooling/api/**"
       ],
       "groupName": "Tauri API Definitions",
       "groupSlug": "allTauriAPIDefinitions",
+      "commitMessagePrefix": "chore(deps)",
+      "lockFileMaintenance": {
+        "enabled": true
+      },
+      "rebaseConflictedPrs": false
+    },
+    {
+      "enabled": true,
+      "paths": [
+        "tooling/create-tauri-app/**"
+      ],
+      "groupName": "create-tauri-app",
+      "groupSlug": "allCTA",
       "commitMessagePrefix": "chore(deps)",
       "lockFileMaintenance": {
         "enabled": true

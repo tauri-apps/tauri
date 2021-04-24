@@ -468,6 +468,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 
 [[package]]
+name = "encode_unicode"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a357d28ed41a50f9c765dbfe56cbc04a64e53e5fc58ba79fbc34c10ef3df831f"
+
+[[package]]
 name = "fake-simd"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1924,6 +1930,7 @@ dependencies = [
  "base64",
  "clap",
  "colored",
+ "encode_unicode",
  "handlebars",
  "heck",
  "include_dir",
@@ -1949,6 +1956,7 @@ dependencies = [
  "unicode-width",
  "ureq",
  "valico",
+ "winapi 0.3.9",
  "zeroize",
 ]
 

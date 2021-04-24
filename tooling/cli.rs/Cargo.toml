@@ -50,6 +50,11 @@ unicode-width = "0.1"
 tempfile = "3"
 zeroize = "1.1.1"
 
+# console
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["winbase", "winuser", "consoleapi", "processenv", "wincon"] }
+encode_unicode = "0.3"
+
 [build-dependencies]
 schemars = "0.8"
 serde = { version = "1.0", features = [ "derive" ] }

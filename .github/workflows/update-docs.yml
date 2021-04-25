@@ -37,7 +37,7 @@ jobs:
         working-directory: ./tauri/core/tauri
         run: cargo doc --no-deps
       - name: run rustdocusaurus
-        uses: tauri-apps/typedocusaurus@v1
+        uses: tauri-apps/rustdocusaurus/github-action@v1
         with:
           originPath: ./tauri/target/doc/
           targetPath: ./tauri-docs/docs/en/api/rust/
@@ -45,7 +45,7 @@ jobs:
           linksRoot: /docs/api/rust/
           cratesToProcess: "tauri"
       - name: run typedocusaurus
-        uses: tauri-apps/typedocusaurus/github-action@v1
+        uses: tauri-apps/typedocusaurus@v1
         with:
           originPath: ./tauri/tooling/api/
           sidebarFile: sidebars.json

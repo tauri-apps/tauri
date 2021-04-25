@@ -29,6 +29,7 @@ const {
  * @property {boolean} log
  * @property {boolean} d
  * @property {boolean} directory
+ * @property {boolean} dev
  * @property {string} r
  * @property {string} recipe
  */
@@ -41,7 +42,7 @@ const createTauriApp = async (cliArgs) => {
       l: 'log',
       m: 'manager',
       d: 'directory',
-      b: 'binary',
+      dev: 'dev',
       t: 'tauri-path',
       A: 'app-name',
       W: 'window-title',
@@ -49,7 +50,7 @@ const createTauriApp = async (cliArgs) => {
       P: 'dev-path',
       r: 'recipe'
     },
-    boolean: ['h', 'l', 'ci']
+    boolean: ['h', 'l', 'ci', 'dev']
   })
 
   if (argv.help) {
@@ -205,10 +206,21 @@ async function runInit(argv, config = {}) {
   // Vue CLI plugin automatically runs these
   if (recipe.shortName !== 'vuecli') {
     console.log('===== installing any additional needed deps =====')
+    if (argv.dev) {
+      await shell('yarn', ['link', '@tauri-apps/cli'], {
+        cwd: appDirectory
+      })
+      await shell('yarn', ['link', '@tauri-apps/api'], {
+        cwd: appDirectory
+      })
+    }
+
     await install({
       appDir: appDirectory,
       dependencies: recipe.extraNpmDependencies,
-      devDependencies: ['@tauri-apps/cli', ...recipe.extraNpmDevDependencies],
+      devDependencies: argv.dev
+        ? [...recipe.extraNpmDevDependencies]
+        : ['@tauri-apps/cli'].concat(recipe.extraNpmDevDependencies),
       packageManager
     })
 

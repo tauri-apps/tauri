@@ -73,6 +73,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let (data_dir, _) = generate_data(settings, &package_dir)
     .with_context(|| "Failed to build data folders and files")?;
+  copy_custom_files(settings, &data_dir).with_context(|| "Failed to copy custom files")?;
+
   // Generate control files.
   let control_dir = package_dir.join("control");
   generate_control_file(settings, arch, &control_dir, &data_dir)
@@ -113,7 +115,7 @@ pub fn generate_data(
       .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
   }
 
-  transfer_resource_files(settings, &data_dir).with_context(|| "Failed to copy resource files")?;
+  copy_resource_files(settings, &data_dir).with_context(|| "Failed to copy resource files")?;
 
   settings
     .copy_binaries(&bin_dir)
@@ -313,9 +315,33 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
 
 /// Copy the bundle's resource files into an appropriate directory under the
 /// `data_dir`.
-fn transfer_resource_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
+fn copy_resource_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
   let resource_dir = data_dir.join("usr/lib").join(settings.main_binary_name());
   settings.copy_resources(&resource_dir)
+}
+
+/// Copies user-defined files to the deb package.
+fn copy_custom_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
+  for (deb_path, path) in settings.deb().files.iter() {
+    let deb_path = if deb_path.is_absolute() {
+      deb_path.strip_prefix("/").unwrap()
+    } else {
+      deb_path
+    };
+    if path.is_file() {
+      common::copy_file(path, data_dir.join(deb_path))?;
+    } else {
+      let out_dir = data_dir.join(deb_path);
+      for entry in walkdir::WalkDir::new(&path) {
+        let entry_path = entry?.into_path();
+        if entry_path.is_file() {
+          let without_prefix = entry_path.strip_prefix(&path).unwrap();
+          common::copy_file(&entry_path, out_dir.join(without_prefix))?;
+        }
+      }
+    }
+  }
+  Ok(())
 }
 
 /// Generate the icon files and store them under the `data_dir`.

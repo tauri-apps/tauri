@@ -82,6 +82,7 @@
         "bundle": {
           "active": false,
           "deb": {
+            "files": {},
             "useBootstrapper": false
           },
           "macOS": {
@@ -263,6 +264,7 @@
         },
         "deb": {
           "default": {
+            "files": {},
             "useBootstrapper": false
           },
           "allOf": [
@@ -634,6 +636,13 @@
             "type": "string"
           }
         },
+        "files": {
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "useBootstrapper": {
           "default": false,
           "type": "boolean"
@@ -903,6 +912,7 @@
           "default": {
             "active": false,
             "deb": {
+              "files": {},
               "useBootstrapper": false
             },
             "macOS": {

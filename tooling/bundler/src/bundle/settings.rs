@@ -5,8 +5,6 @@
 use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
 
-use serde::Deserialize;
-
 use std::{
   collections::HashMap,
   path::{Path, PathBuf},
@@ -88,7 +86,7 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
 ];
 
 /// The package settings.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct PackageSettings {
   /// the package's product name.
   pub product_name: String,
@@ -105,7 +103,7 @@ pub struct PackageSettings {
 }
 
 /// The updater settings.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct UpdaterSettings {
   /// Whether the updater is active or not.
   pub active: bool,
@@ -118,7 +116,7 @@ pub struct UpdaterSettings {
 }
 
 /// The Linux debian bundle settings.
-#[derive(Clone, Debug, Deserialize, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct DebianSettings {
   // OS-specific settings:
   /// the list of debian dependencies.
@@ -129,10 +127,13 @@ pub struct DebianSettings {
   ///
   /// without it, you can't run some applications installed by the user.
   pub use_bootstrapper: Option<bool>,
+  /// List of custom files to add to the deb package.
+  /// Maps the path on the debian package to the path of the file to include (relative to the current working directory).
+  pub files: HashMap<PathBuf, PathBuf>,
 }
 
 /// The macOS bundle settings.
-#[derive(Clone, Debug, Deserialize, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct MacOsSettings {
   /// MacOS frameworks that need to be bundled with the app.
   ///
@@ -166,31 +167,23 @@ pub struct MacOsSettings {
 }
 
 #[cfg(windows)]
-#[derive(Clone, Debug, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Debug, Default)]
 pub struct WixSettings {
   /// By default, the bundler uses an internal template.
   /// This option allows you to define your own wix file.
   pub template: Option<PathBuf>,
-  #[serde(default)]
   pub fragment_paths: Vec<PathBuf>,
-  #[serde(default)]
   pub component_group_refs: Vec<String>,
-  #[serde(default)]
   pub component_refs: Vec<String>,
-  #[serde(default)]
   pub feature_group_refs: Vec<String>,
-  #[serde(default)]
   pub feature_refs: Vec<String>,
-  #[serde(default)]
   pub merge_refs: Vec<String>,
-  #[serde(default)]
   pub skip_webview_install: bool,
 }
 
 /// The Windows bundle settings.
 #[cfg(windows)]
-#[derive(Clone, Debug, Deserialize, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct WindowsSettings {
   pub digest_algorithm: Option<String>,
   pub certificate_thumbprint: Option<String>,
@@ -199,7 +192,7 @@ pub struct WindowsSettings {
 }
 
 /// The bundle settings of the BuildArtifact we're bundling.
-#[derive(Clone, Debug, Deserialize, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct BundleSettings {
   /// the app's identifier.
   pub identifier: Option<String>,

@@ -49,6 +49,8 @@ jobs:
           sudo apt-get install -y webkit2gtk-4.0
       - run: yarn
         working-directory: tooling/create-tauri-app
+      - run: yarn build
+        working-directory: tooling/create-tauri-app
       - run: yarn test
         working-directory: tooling/create-tauri-app
         env:
@@ -83,6 +85,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0
       - run: yarn
+        working-directory: tooling/create-tauri-app
+      - run: yarn build
         working-directory: tooling/create-tauri-app
       - run: yarn test
         working-directory: tooling/create-tauri-app

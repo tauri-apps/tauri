@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.0.0-beta-rc.1]
+
+- Fixes the Message `command` name value on plugin invoke handler.
+  - [422dd5e](https://www.github.com/tauri-apps/tauri/commit/422dd5e2a0a03bb1556915c78f110bfab092c874) fix(core): command name on plugin invoke handler ([#1577](https://www.github.com/tauri-apps/tauri/pull/1577)) on 2021-04-21
+  - [f575aaa](https://www.github.com/tauri-apps/tauri/commit/f575aaad71f23d44b2f89cf9ee5d84817dc3bb7a) fix: change files not referencing core packages ([#1619](https://www.github.com/tauri-apps/tauri/pull/1619)) on 2021-04-25
+
 ## \[1.0.0-beta-rc.0]
 
 - Update all code files to have our license header.

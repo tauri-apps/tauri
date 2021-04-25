@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.0.0-beta-rc.1]
+
+- The package info APIs now checks the `package` object on `tauri.conf.json`.
+  - [8fd1baf](https://www.github.com/tauri-apps/tauri/commit/8fd1baf69b14bb81d7be9d31605ed7f02058b392) fix(core): pull package info from tauri.conf.json if set ([#1581](https://www.github.com/tauri-apps/tauri/pull/1581)) on 2021-04-22
+  - [f575aaa](https://www.github.com/tauri-apps/tauri/commit/f575aaad71f23d44b2f89cf9ee5d84817dc3bb7a) fix: change files not referencing core packages ([#1619](https://www.github.com/tauri-apps/tauri/pull/1619)) on 2021-04-25
+
 ## \[1.0.0-beta-rc.0]
 
 - The Tauri files are now read on the app space instead of the `tauri` create.

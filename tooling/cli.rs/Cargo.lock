@@ -1923,7 +1923,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "1.0.0-beta-rc.3"
+version = "1.0.0-beta-rc.4"
 dependencies = [
  "anyhow",
  "base64",

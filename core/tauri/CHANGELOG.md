@@ -1,5 +1,9 @@
 # Changelog
 
+## \[1.0.0-beta-rc.4]
+
+- Update `tauri-macros` and `tauri-utils` to `1.0.0-beta-rc.1`.
+
 ## \[1.0.0-beta-rc.3]
 
 - `tauri::error::CreateWebview` now has the error string message attached.

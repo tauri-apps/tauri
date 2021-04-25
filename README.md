@@ -25,7 +25,7 @@ Tauri Apps
 | --------------------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------ | --- | --- | --- |
 | [**cli.rs**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli.rs)   | create, develop and build apps | [![](https://img.shields.io/crates/v/tauri-cli.svg)](https://crates.io/crates/tauri-cli)         | ✅   | ✅   | ✅   |
 | [**cli.js**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli.js)   | Node.js CLI wrapper for cli.rs | [![](https://img.shields.io/npm/v/@tauri-apps/cli.svg)](https://www.npmjs.com/package/@tauri-apps/cli)               | ✅   | ✅   | ✅   |
-| [**api.js**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli.js)   | JS API for interaction with Rust backend | [![](https://img.shields.io/npm/v/@tauri-apps/api.svg)](https://www.npmjs.com/package/@tauri-apps/api)               | ✅   | ✅   | ✅   |
+| [**api.js**](https://github.com/tauri-apps/tauri/tree/dev/tooling/api)      | JS API for interaction with Rust backend | [![](https://img.shields.io/npm/v/@tauri-apps/api.svg)](https://www.npmjs.com/package/@tauri-apps/api)               | ✅   | ✅   | ✅   |
 | [**core**](https://github.com/tauri-apps/tauri/tree/dev/core/tauri)         | runtime core                   | [![](https://img.shields.io/crates/v/tauri.svg)](https://crates.io/crates/tauri)                 | ✅   | ✅   | ✅   |
 | [**bundler**](https://github.com/tauri-apps/tauri/tree/dev/tooling/bundler) | manufacture the final binaries | [![](https://img.shields.io/crates/v/tauri-bundler.svg)](https://crates.io/crates/tauri-bundler) | ✅   | ✅   | ✅   |
 | [**utils**](https://github.com/tauri-apps/tauri/tree/dev/core/tauri-utils)  | common tools for tauri         | [![](https://img.shields.io/crates/v/tauri-utils.svg)](https://crates.io/crates/tauri-utils)     | ✅   | ✅   | ✅   |
@@ -34,7 +34,7 @@ Tauri Apps
 ## Introduction
 Tauri is a framework for building tiny, blazing fast binaries for all major desktop platforms. Developers can integrate any front-end framework that compiles to HTML, JS and CSS for building their user interface. The backend of the application is a rust-sourced binary with an API that the front-end can interact with.
 
-The user interface in Tauri apps currently leverages [`winit`](https://docs.rs/winit) as a WebView abstraction for all platforms via the **Tauri-team** incubated and maintained [wry](https://github.com/tauri-apps/wry), which creates a unified interface to these system webviews.
+The user interface in Tauri apps currently leverages [`winit`](https://docs.rs/winit) as a WebView abstraction for all platforms via the **Tauri-team** incubated and maintained [wry](https://github.com/tauri-apps/wry), which creates a unified interface to these system webviews using gtk on linux and leveraging wkwebkit (macOS), webview2 (windows) webkitgtk (linux).
 
 
 ## Get Started
@@ -138,9 +138,9 @@ Tauri is a system composed of a number of moving pieces:
 
 ### Major Languages
 - rust for the CLI
-- typescript bindings to the RUST Cli
-- typescript the JS-side of the API
+- ecmascript bindings to the RUST API, written in typescript
 - rust for bindings, rust side of the API, harnesses
+- rust plugins to tauri backend
 
 ### Operating systems
 Tauri core can be developed on Mac, Linux and Windows, but you are encouraged to use the latest possible operating systems and build tools for your OS.

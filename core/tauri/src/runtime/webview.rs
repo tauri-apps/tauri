@@ -92,11 +92,11 @@ pub trait Attributes: AttributesBase {
   /// Sets the webview url.
   fn url(self, url: String) -> Self;
 
-  /// Whether the custom protocol handler is defined or not.
-  fn has_custom_protocol(&self, name: &str) -> bool;
+  /// Whether the webview protocol handler is defined or not.
+  fn has_webview_protocol(&self, name: &str) -> bool;
 
-  /// Adds a custom protocol handler.
-  fn custom_protocol<
+  /// Registers a webview protocol handler.
+  fn register_webview_protocol<
     N: Into<String>,
     H: Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync + 'static,
   >(

@@ -124,8 +124,8 @@ where
   /// All passed plugins
   plugins: PluginStore<Args<E, L, A, R>>,
 
-  /// The custom protocols available to all windows.
-  custom_protocols: HashMap<String, Arc<CustomProtocol>>,
+  /// The webview protocols available to all windows.
+  webview_protocols: HashMap<String, Arc<CustomProtocol>>,
 }
 
 impl<E, L, A, R> Builder<E, L, A, R>
@@ -143,7 +143,7 @@ where
       on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
-      custom_protocols: Default::default(),
+      webview_protocols: Default::default(),
     }
   }
 
@@ -192,8 +192,8 @@ where
     self
   }
 
-  /// Adds a custom protocol available to all windows.
-  pub fn custom_protocol<
+  /// Registers a webview protocol available to all windows.
+  pub fn register_webview_protocol<
     N: Into<String>,
     H: Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync + 'static,
   >(
@@ -201,7 +201,7 @@ where
     name: N,
     handler: H,
   ) -> Self {
-    self.custom_protocols.insert(
+    self.webview_protocols.insert(
       name.into(),
       Arc::new(CustomProtocol {
         handler: Box::new(handler),
@@ -217,7 +217,7 @@ where
       self.plugins,
       self.invoke_handler,
       self.on_page_load,
-      self.custom_protocols,
+      self.webview_protocols,
     );
 
     // set up all the windows defined in the config

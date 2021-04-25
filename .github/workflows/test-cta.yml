@@ -20,7 +20,7 @@ env:
 
 jobs:
   create-recipe-with-npm:
-    name: with ${{ matrix.recipe }}
+    name: npm@${{ matrix.manager }} and node@${{ matrix.node }} with ${{ matrix.recipe }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -47,16 +47,16 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0
-      - run: npm ci
+      - run: yarn
         working-directory: tooling/create-tauri-app
-      - run: npm test
+      - run: yarn test
         working-directory: tooling/create-tauri-app
         env:
           TAURI_RECIPE: ${{ matrix.recipe }}
           TAURI_RUN_MANAGER: "npm"
 
   create-recipe-with-yarn:
-    name: with ${{ matrix.recipe }}
+    name: yarn and node@${{ matrix.node }} with ${{ matrix.recipe }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -82,9 +82,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0
-      - run: npm ci
+      - run: yarn
         working-directory: tooling/create-tauri-app
-      - run: npm test
+      - run: yarn test
         working-directory: tooling/create-tauri-app
         env:
           TAURI_RECIPE: ${{ matrix.recipe }}

@@ -13,6 +13,13 @@ mod info;
 mod init;
 mod sign;
 
+// temporary fork from https://github.com/mitsuhiko/console until 0.14.1+ release
+#[allow(dead_code)]
+mod console;
+// temporary fork from https://github.com/mitsuhiko/dialoguer until 0.8.0+ release
+#[allow(dead_code)]
+mod dialoguer;
+
 pub use helpers::Logger;
 
 macro_rules! value_or_prompt {

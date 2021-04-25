@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-beta-rc.4]
+
+- Manually set `tauri` script instead of using `npm set-script` for compatabilty with older npm versions
+  - [f708ff8](https://www.github.com/tauri-apps/tauri/commit/f708ff824e7933341536aecb49f6ee35eea621da) fix(CTA): [#1569](https://www.github.com/tauri-apps/tauri/pull/1569), manually set tauri script for compatability with older npm ([#1572](https://www.github.com/tauri-apps/tauri/pull/1572)) on 2021-04-22
+
 ## \[1.0.0-beta-rc.3]
 
 - Remove `lodash` dependency and replace with es6 builtins

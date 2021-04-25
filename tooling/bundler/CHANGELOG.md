@@ -1,5 +1,18 @@
 # Changelog
 
+## \[1.0.0-beta-rc.1]
+
+- Find best available icon for AppImage, follow `.DirIcon` spec.
+  - [fbf73f3](https://www.github.com/tauri-apps/tauri/commit/fbf73f3ab53387e68c8cbf9e788820bea0f2f111) fix(bundler): find icon for AppImage, define `.DirIcon`, closes [#749](https://www.github.com/tauri-apps/tauri/pull/749) ([#1594](https://www.github.com/tauri-apps/tauri/pull/1594)) on 2021-04-23
+- Allow including custom files on the debian package.
+  - [9e87fe6](https://www.github.com/tauri-apps/tauri/commit/9e87fe6a69a8f74c8e61221e36e15b7eb1d19432) feat(bundler): allow including custom files on debian package, fix [#1428](https://www.github.com/tauri-apps/tauri/pull/1428) ([#1613](https://www.github.com/tauri-apps/tauri/pull/1613)) on 2021-04-25
+- Adds support to custom WiX template.
+  - [ebe755a](https://www.github.com/tauri-apps/tauri/commit/ebe755ac5c37025bae0cf8860e9b04b507f71949) feat: [#1528](https://www.github.com/tauri-apps/tauri/pull/1528) wix supports custom templates ([#1529](https://www.github.com/tauri-apps/tauri/pull/1529)) on 2021-04-25
+- Adds support to `wix` fragments for custom .msi installer functionality.
+  - [69ea51e](https://www.github.com/tauri-apps/tauri/commit/69ea51ec93a6d4fa90f3482a51f0c6d20c97fa29) feat(bundler): implement wix fragments, closes [#1528](https://www.github.com/tauri-apps/tauri/pull/1528) ([#1601](https://www.github.com/tauri-apps/tauri/pull/1601)) on 2021-04-23
+- Adds `skip_webview_install` config under `windows > wix` to disable Webview2 runtime installation after the app install.
+  - [d13afec](https://www.github.com/tauri-apps/tauri/commit/d13afec20402b8ddbbf3ceb4349edb1956ed79bc) feat(bundler): add option to skip webview2 runtime installation, closes [#1606](https://www.github.com/tauri-apps/tauri/pull/1606) ([#1612](https://www.github.com/tauri-apps/tauri/pull/1612)) on 2021-04-24
+
 ## \[1.0.0-beta-rc.0]
 
 - Append app version and OS architecture on AppImage output filename.

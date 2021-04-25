@@ -120,22 +120,22 @@ mod test {
       if first.path.extension() == Some(OsStr::new("txt")) {
         // check the fields for the first DiskEntry
         assert_eq!(first.path, file_one);
-        assert_eq!(first.children.is_some(), false);
+        assert!(first.children.is_none());
         assert_eq!(first.name, name_from_path(file_one));
 
         // check the fields for the third DiskEntry
         assert_eq!(second.path, file_two);
-        assert_eq!(second.children.is_some(), false);
+        assert!(second.children.is_none());
         assert_eq!(second.name, name_from_path(file_two));
       } else {
         // check the fields for the second DiskEntry
         assert_eq!(first.path, file_two);
-        assert_eq!(first.children.is_some(), false);
+        assert!(first.children.is_none());
         assert_eq!(first.name, name_from_path(file_two));
 
         // check the fields for the third DiskEntry
         assert_eq!(second.path, file_one);
-        assert_eq!(second.children.is_some(), false);
+        assert!(second.children.is_none());
         assert_eq!(second.name, name_from_path(file_one));
       }
     }
@@ -165,22 +165,22 @@ mod test {
       if first.path.extension() == Some(OsStr::new("txt")) {
         // check the fields for the first DiskEntry
         assert_eq!(first.path, PathBuf::from("test/api/test.txt"));
-        assert_eq!(first.children.is_some(), false);
+        assert!(first.children.is_none());
         assert_eq!(first.name, Some("test.txt".to_string()));
 
         // check the fields for the second DiskEntry
         assert_eq!(second.path, PathBuf::from("test/api/test_binary"));
-        assert_eq!(second.children.is_some(), false);
+        assert!(second.children.is_none());
         assert_eq!(second.name, Some("test_binary".to_string()));
       } else {
         // check the fields for the first DiskEntry
         assert_eq!(second.path, PathBuf::from("test/api/test.txt"));
-        assert_eq!(second.children.is_some(), false);
+        assert!(second.children.is_none());
         assert_eq!(second.name, Some("test.txt".to_string()));
 
         // check the fields for the second DiskEntry
         assert_eq!(first.path, PathBuf::from("test/api/test_binary"));
-        assert_eq!(first.children.is_some(), false);
+        assert!(first.children.is_none());
         assert_eq!(first.name, Some("test_binary".to_string()));
       }
     }

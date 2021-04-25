@@ -49,7 +49,7 @@ use std::path::PathBuf;
 // Export types likely to be used by the application.
 pub use {
   api::config::WindowUrl,
-  hooks::{InvokeMessage, PageLoadPayload},
+  hooks::{InvokeHandler, InvokeMessage, OnPageLoad, PageLoadPayload, SetupHook},
   runtime::app::{App, Builder},
   runtime::webview::Attributes,
   runtime::window::export::Window,

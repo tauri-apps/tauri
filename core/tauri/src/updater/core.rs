@@ -790,10 +790,10 @@ mod test {
       .url(mockito::server_url())
       .build());
 
-    assert_eq!(check_update.is_ok(), true);
+    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
-    assert_eq!(updater.should_update, true);
+    assert!(updater.should_update);
   }
 
   #[test]
@@ -809,10 +809,10 @@ mod test {
       .url(mockito::server_url())
       .build());
 
-    assert_eq!(check_update.is_ok(), true);
+    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
-    assert_eq!(updater.should_update, true);
+    assert!(updater.should_update);
   }
 
   #[test]
@@ -829,10 +829,10 @@ mod test {
       .url(mockito::server_url())
       .build());
 
-    assert_eq!(check_update.is_ok(), true);
+    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
-    assert_eq!(updater.should_update, true);
+    assert!(updater.should_update);
     assert_eq!(updater.version, "2.0.0");
     assert_eq!(updater.signature, Some("dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUldUTE5QWWxkQnlZOVJHMWlvTzRUSlQzTHJOMm5waWpic0p0VVI2R0hUNGxhQVMxdzBPRndlbGpXQXJJakpTN0toRURtVzBkcm15R0VaNTJuS1lZRWdzMzZsWlNKUVAzZGdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNTkyOTE1NTIzCWZpbGU6RDpcYVx0YXVyaVx0YXVyaVx0YXVyaVxleGFtcGxlc1xjb21tdW5pY2F0aW9uXHNyYy10YXVyaVx0YXJnZXRcZGVidWdcYXBwLng2NC5tc2kuemlwCitXa1lQc3A2MCs1KzEwZnVhOGxyZ2dGMlZqbjBaVUplWEltYUdyZ255eUF6eVF1dldWZzFObStaVEQ3QU1RS1lzcjhDVU4wWFovQ1p1QjJXbW1YZUJ3PT0K".into()));
     assert_eq!(
@@ -854,10 +854,10 @@ mod test {
       .url(mockito::server_url())
       .build());
 
-    assert_eq!(check_update.is_ok(), true);
+    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
-    assert_eq!(updater.should_update, false);
+    assert!(!updater.should_update);
   }
 
   #[test]
@@ -880,10 +880,10 @@ mod test {
       ))
       .build());
 
-    assert_eq!(check_update.is_ok(), true);
+    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
-    assert_eq!(updater.should_update, true);
+    assert!(updater.should_update);
   }
 
   #[test]
@@ -906,10 +906,10 @@ mod test {
       ))
       .build());
 
-    assert_eq!(check_update.is_ok(), true);
+    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
-    assert_eq!(updater.should_update, false);
+    assert!(!updater.should_update);
   }
 
   #[test]
@@ -926,10 +926,10 @@ mod test {
       .current_version("0.0.1")
       .build());
 
-    assert_eq!(check_update.is_ok(), true);
+    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check remote update");
 
-    assert_eq!(updater.should_update, true);
+    assert!(updater.should_update);
   }
 
   #[test]
@@ -945,10 +945,10 @@ mod test {
       .current_version("0.0.1")
       .build());
 
-    assert_eq!(check_update.is_ok(), true);
+    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check remote update");
 
-    assert_eq!(updater.should_update, true);
+    assert!(updater.should_update);
   }
 
   #[test]
@@ -964,7 +964,7 @@ mod test {
       .current_version("0.0.1")
       .build());
 
-    assert_eq!(check_update.is_err(), true);
+    assert!(check_update.is_err());
   }
 
   // run complete process on mac only for now as we don't have

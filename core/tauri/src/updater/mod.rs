@@ -387,48 +387,37 @@ pub(crate) async fn check_update_with_dialog<M: Params>(
   package_info: crate::api::PackageInfo,
   window: Window<M>,
 ) {
-  if !updater_config.active || updater_config.endpoints.is_none() {
-    return;
-  }
+  if let Some(endpoints) = updater_config.endpoints.clone() {
+    // check updates
+    match self::core::builder()
+      .urls(&endpoints[..])
+      .current_version(&package_info.version)
+      .build()
+      .await
+    {
+      Ok(updater) => {
+        let pubkey = updater_config.pubkey.clone();
 
-  // prepare our endpoints
-  let endpoints = updater_config
-    .endpoints
-    .as_ref()
-    // this expect can lead to a panic
-    // we should have a better handling here
-    .expect("Something wrong with endpoints")
-    .clone();
+        // if dialog enabled only
+        if updater.should_update && updater_config.dialog {
+          let body = updater.body.clone().unwrap_or_else(|| String::from(""));
+          let dialog =
+            prompt_for_install(&updater.clone(), &package_info.name, &body.clone(), pubkey).await;
 
-  // check updates
-  match self::core::builder()
-    .urls(&endpoints[..])
-    .current_version(&package_info.version)
-    .build()
-    .await
-  {
-    Ok(updater) => {
-      let pubkey = updater_config.pubkey.clone();
+          if dialog.is_err() {
+            send_status_update(
+              window.clone(),
+              EVENT_STATUS_ERROR,
+              Some(dialog.err().unwrap().to_string()),
+            );
 
-      // if dialog enabled only
-      if updater.should_update && updater_config.dialog {
-        let body = updater.body.clone().unwrap_or_else(|| String::from(""));
-        let dialog =
-          prompt_for_install(&updater.clone(), &package_info.name, &body.clone(), pubkey).await;
-
-        if dialog.is_err() {
-          send_status_update(
-            window.clone(),
-            EVENT_STATUS_ERROR,
-            Some(dialog.err().unwrap().to_string()),
-          );
-
-          return;
+            return;
+          }
         }
       }
-    }
-    Err(e) => {
-      send_status_update(window.clone(), EVENT_STATUS_ERROR, Some(e.to_string()));
+      Err(e) => {
+        send_status_update(window.clone(), EVENT_STATUS_ERROR, Some(e.to_string()));
+      }
     }
   }
 }

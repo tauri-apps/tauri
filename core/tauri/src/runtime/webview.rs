@@ -92,17 +92,25 @@ pub trait Attributes: AttributesBase {
   /// Sets the webview url.
   fn url(self, url: String) -> Self;
 
-  /// Whether the custom protocol handler is defined or not.
-  fn has_custom_protocol(&self, name: &str) -> bool;
+  /// Whether the webview URI scheme protocol is defined or not.
+  fn has_uri_scheme_protocol(&self, name: &str) -> bool;
 
-  /// Adds a custom protocol handler.
-  fn custom_protocol<
+  /// Registers a webview protocol handler.
+  /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
+  /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
+  /// and [webkit-web-context-register-uri-scheme](https://webkitgtk.org/reference/webkit2gtk/stable/WebKitWebContext.html#webkit-web-context-register-uri-scheme) on Linux.
+  ///
+  /// # Arguments
+  ///
+  /// * `uri_scheme` The URI scheme to register, such as `example`.
+  /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
+  fn register_uri_scheme_protocol<
     N: Into<String>,
     H: Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync + 'static,
   >(
     self,
-    name: N,
-    handler: H,
+    uri_scheme: N,
+    protocol: H,
   ) -> Self;
 
   /// The full attributes.
@@ -117,10 +125,10 @@ pub struct RpcRequest {
   pub params: Option<JsonValue>,
 }
 
-/// Uses a custom handler to resolve file requests
+/// Uses a custom URI scheme handler to resolve file requests
 pub struct CustomProtocol {
   /// Handler for protocol
-  pub handler: Box<dyn Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync>,
+  pub protocol: Box<dyn Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync>,
 }
 
 /// The file drop event payload.

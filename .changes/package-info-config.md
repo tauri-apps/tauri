@@ -1,4 +1,6 @@
 ---
+"tauri-utils": patch
+"tauri-codegen": patch
 "tauri": patch
 ---
 

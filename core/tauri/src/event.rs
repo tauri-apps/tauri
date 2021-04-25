@@ -242,7 +242,7 @@ mod test {
       let l = listeners.inner.handlers.lock().unwrap();
 
       // check if the generated key is in the map
-      assert_eq!(l.contains_key(&key), true);
+      assert!(l.contains_key(&key));
     }
 
     // check to see if listen inputs a handler function properly into the LISTENERS map.

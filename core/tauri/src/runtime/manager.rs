@@ -52,7 +52,7 @@ pub struct InnerWindowManager<P: Params> {
   salts: Mutex<HashSet<Uuid>>,
   package_info: PackageInfo,
   /// The webview protocols protocols available to all windows.
-  webview_protocols: HashMap<String, std::sync::Arc<CustomProtocol>>,
+  uri_scheme_protocols: HashMap<String, std::sync::Arc<CustomProtocol>>,
 }
 
 /// A [Zero Sized Type] marker representing a full [`Params`].
@@ -104,7 +104,7 @@ impl<P: Params> WindowManager<P> {
     plugins: PluginStore<P>,
     invoke_handler: Box<InvokeHandler<P>>,
     on_page_load: Box<OnPageLoad<P>>,
-    webview_protocols: HashMap<String, std::sync::Arc<CustomProtocol>>,
+    uri_scheme_protocols: HashMap<String, std::sync::Arc<CustomProtocol>>,
   ) -> Self {
     Self {
       inner: Arc::new(InnerWindowManager {
@@ -118,7 +118,7 @@ impl<P: Params> WindowManager<P> {
         default_window_icon: context.default_window_icon,
         salts: Mutex::default(),
         package_info: context.package_info,
-        webview_protocols,
+        uri_scheme_protocols,
       }),
       _marker: Args::default(),
     }
@@ -179,17 +179,17 @@ impl<P: Params> WindowManager<P> {
       }
     }
 
-    for (name, protocol) in &self.inner.webview_protocols {
-      if !attributes.has_webview_protocol(name) {
+    for (uri_scheme, protocol) in &self.inner.uri_scheme_protocols {
+      if !attributes.has_uri_scheme_protocol(uri_scheme) {
         let protocol = protocol.clone();
-        attributes =
-          attributes.register_webview_protocol(name.clone(), move |p| (protocol.handler)(p));
+        attributes = attributes
+          .register_uri_scheme_protocol(uri_scheme.clone(), move |p| (protocol.protocol)(p));
       }
     }
 
-    if !attributes.has_webview_protocol("tauri") {
-      attributes =
-        attributes.register_webview_protocol("tauri", self.prepare_webview_protocol().handler);
+    if !attributes.has_uri_scheme_protocol("tauri") {
+      attributes = attributes
+        .register_uri_scheme_protocol("tauri", self.prepare_uri_scheme_protocol().protocol);
     }
 
     let local_app_data = resolve_path(
@@ -235,10 +235,10 @@ impl<P: Params> WindowManager<P> {
     })
   }
 
-  fn prepare_webview_protocol(&self) -> CustomProtocol {
+  fn prepare_uri_scheme_protocol(&self) -> CustomProtocol {
     let assets = self.inner.assets.clone();
     CustomProtocol {
-      handler: Box::new(move |path| {
+      protocol: Box::new(move |path| {
         let mut path = path
           .split('?')
           // ignore query string

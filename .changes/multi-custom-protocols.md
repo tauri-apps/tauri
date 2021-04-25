@@ -2,4 +2,4 @@
 "tauri": patch
 ---
 
-Adds APIs to determine global and window-specific custom protocol handlers.
+Adds APIs to determine global and webview-specific URI scheme handlers.

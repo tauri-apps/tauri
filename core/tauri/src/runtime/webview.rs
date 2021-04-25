@@ -92,8 +92,8 @@ pub trait Attributes: AttributesBase {
   /// Sets the webview url.
   fn url(self, url: String) -> Self;
 
-  /// Whether the webview protocol handler is defined or not.
-  fn has_webview_protocol(&self, name: &str) -> bool;
+  /// Whether the webview URI scheme protocol is defined or not.
+  fn has_uri_scheme_protocol(&self, name: &str) -> bool;
 
   /// Registers a webview protocol handler.
   /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
@@ -103,14 +103,14 @@ pub trait Attributes: AttributesBase {
   /// # Arguments
   ///
   /// * `uri_scheme` The URI scheme to register, such as `example`.
-  /// * `handler` the asset resolver for the given protocol. It's a function that takes the webview URL, such as `example://localhost/asset.css`.
-  fn register_webview_protocol<
+  /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
+  fn register_uri_scheme_protocol<
     N: Into<String>,
     H: Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync + 'static,
   >(
     self,
     uri_scheme: N,
-    handler: H,
+    protocol: H,
   ) -> Self;
 
   /// The full attributes.
@@ -125,10 +125,10 @@ pub struct RpcRequest {
   pub params: Option<JsonValue>,
 }
 
-/// Uses a custom handler to resolve file requests
+/// Uses a custom URI scheme handler to resolve file requests
 pub struct CustomProtocol {
   /// Handler for protocol
-  pub handler: Box<dyn Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync>,
+  pub protocol: Box<dyn Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync>,
 }
 
 /// The file drop event payload.

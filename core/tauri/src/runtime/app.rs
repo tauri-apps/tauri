@@ -125,7 +125,7 @@ where
   plugins: PluginStore<Args<E, L, A, R>>,
 
   /// The webview protocols available to all windows.
-  webview_protocols: HashMap<String, Arc<CustomProtocol>>,
+  uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
 }
 
 impl<E, L, A, R> Builder<E, L, A, R>
@@ -143,7 +143,7 @@ where
       on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
-      webview_protocols: Default::default(),
+      uri_scheme_protocols: Default::default(),
     }
   }
 
@@ -192,7 +192,7 @@ where
     self
   }
 
-  /// Registers a webview protocol available to all webviews.
+  /// Registers a URI scheme protocol available to all webviews.
   /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
   /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
   /// and [webkit-web-context-register-uri-scheme](https://webkitgtk.org/reference/webkit2gtk/stable/WebKitWebContext.html#webkit-web-context-register-uri-scheme) on Linux.
@@ -200,19 +200,19 @@ where
   /// # Arguments
   ///
   /// * `uri_scheme` The URI scheme to register, such as `example`.
-  /// * `handler` the asset resolver for the given protocol. It's a function that takes the webview URL, such as `example://localhost/asset.css`.
-  pub fn register_global_webview_protocol<
+  /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
+  pub fn register_global_uri_scheme_protocol<
     N: Into<String>,
     H: Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync + 'static,
   >(
     mut self,
     uri_scheme: N,
-    handler: H,
+    protocol: H,
   ) -> Self {
-    self.webview_protocols.insert(
+    self.uri_scheme_protocols.insert(
       uri_scheme.into(),
       Arc::new(CustomProtocol {
-        handler: Box::new(handler),
+        protocol: Box::new(protocol),
       }),
     );
     self
@@ -225,7 +225,7 @@ where
       self.plugins,
       self.invoke_handler,
       self.on_page_load,
-      self.webview_protocols,
+      self.uri_scheme_protocols,
     );
 
     // set up all the windows defined in the config

@@ -44,7 +44,7 @@ impl TryFrom<Icon> for WryIcon {
 #[derive(Default, Clone)]
 pub struct WryAttributes {
   attributes: wry::Attributes,
-  webview_protocols: Arc<Mutex<HashMap<String, wry::CustomProtocol>>>,
+  uri_scheme_protocols: Arc<Mutex<HashMap<String, wry::CustomProtocol>>>,
 }
 
 impl AttributesBase for WryAttributes {}
@@ -197,24 +197,24 @@ impl Attributes for WryAttributes {
     self
   }
 
-  fn has_webview_protocol(&self, name: &str) -> bool {
-    self.webview_protocols.lock().unwrap().contains_key(name)
+  fn has_uri_scheme_protocol(&self, name: &str) -> bool {
+    self.uri_scheme_protocols.lock().unwrap().contains_key(name)
   }
 
-  fn register_webview_protocol<
+  fn register_uri_scheme_protocol<
     N: Into<String>,
     H: Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync + 'static,
   >(
     self,
     uri_scheme: N,
-    handler: H,
+    protocol: H,
   ) -> Self {
     let uri_scheme = uri_scheme.into();
-    self.webview_protocols.lock().unwrap().insert(
+    self.uri_scheme_protocols.lock().unwrap().insert(
       uri_scheme.clone(),
       wry::CustomProtocol {
         name: uri_scheme,
-        handler: Box::new(move |data| (handler)(data).map_err(|_| wry::Error::InitScriptError)),
+        handler: Box::new(move |data| (protocol)(data).map_err(|_| wry::Error::InitScriptError)),
       },
     );
     self
@@ -276,9 +276,9 @@ impl Dispatch for WryDispatcher {
     let file_drop_handler = file_drop_handler
       .map(|handler| create_file_drop_handler(proxy.clone(), label.clone(), handler));
 
-    let webview_protocols = {
+    let uri_scheme_protocols = {
       let mut lock = attributes
-        .webview_protocols
+        .uri_scheme_protocols
         .lock()
         .expect("poisoned custom protocols");
       std::mem::take(&mut *lock)
@@ -289,7 +289,7 @@ impl Dispatch for WryDispatcher {
       .add_window_with_configs(
         attributes.attributes,
         rpc_handler,
-        webview_protocols.into_iter().map(|(_, p)| p).collect(),
+        uri_scheme_protocols.into_iter().map(|(_, p)| p).collect(),
         file_drop_handler,
       )
       .map_err(|e| crate::Error::CreateWebview(e.to_string()))?;
@@ -490,9 +490,9 @@ impl Runtime for Wry {
     let file_drop_handler = file_drop_handler
       .map(|handler| create_file_drop_handler(proxy.clone(), label.clone(), handler));
 
-    let webview_protocols = {
+    let uri_scheme_protocols = {
       let mut lock = attributes
-        .webview_protocols
+        .uri_scheme_protocols
         .lock()
         .expect("poisoned custom protocols");
       std::mem::take(&mut *lock)
@@ -503,7 +503,7 @@ impl Runtime for Wry {
       .add_window_with_configs(
         attributes.attributes,
         rpc_handler,
-        webview_protocols.into_iter().map(|(_, p)| p).collect(),
+        uri_scheme_protocols.into_iter().map(|(_, p)| p).collect(),
         file_drop_handler,
       )
       .map_err(|e| crate::Error::CreateWebview(e.to_string()))?;

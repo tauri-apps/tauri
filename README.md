@@ -57,7 +57,7 @@ If you are interested in making a tauri-app, please visit the [documentation web
 - [x] Self Updater
 - [x] App Signing
 - [x] Frameless Mode
-- [x] Transparent Mode]
+- [x] Transparent Mode
 - [x] Multiwindow Mode
 - [ ] deeplink RPC (in progress)
 - [ ] One-Time commands (coming soon)

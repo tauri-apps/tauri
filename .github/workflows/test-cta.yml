@@ -42,6 +42,7 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           npm-version: ${{ matrix.manager }}
+          yarn-version: 1.22.5
       - name: install webkit2gtk (ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
         run: |

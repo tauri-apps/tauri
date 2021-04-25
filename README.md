@@ -34,11 +34,18 @@ Tauri Apps
 ## Introduction
 Tauri is a framework for building tiny, blazing fast binaries for all major desktop platforms. Developers can integrate any front-end framework that compiles to HTML, JS and CSS for building their user interface. The backend of the application is a rust-sourced binary with an API that the front-end can interact with.
 
-The user interface in Tauri apps currently leverages [`winit`](https://docs.rs/winit) as a WebView abstraction for all platforms via the **Tauri-team** incubated and maintained [wry](https://github.com/tauri-apps/wry), which creates a unified interface to these system webviews using gtk on linux and leveraging wkwebkit (macOS), webview2 (windows) webkitgtk (linux).
+The user interface in Tauri apps is built by the **TAURI-TEAM** built and maintained [wry](https://github.com/tauri-apps/wry), which creates a unified interface to these system webviews using GTK on linux and leveraging wkwebkit (macOS), webview2 (windows) webkitgtk (linux) via [`winit`](https://docs.rs/winit).
 
 
 ## Get Started
 If you are interested in making a tauri-app, please visit the [documentation website](https://tauri.studio). This README is directed towards those who are interested in contributing to the core library. But if you just want a quick overview about where `tauri` is at in its development, here's a quick burndown:
+
+#### Platforms
+- [x] Windows 7,8,10
+- [x] Linux
+- [x] macOS
+- [ ] iOS (in progress)
+- [ ] android (soon)
 
 #### App Bundles
 - [x] App Icons
@@ -48,10 +55,10 @@ If you are interested in making a tauri-app, please visit the [documentation web
 - [x] Copy Buffer
 - [x] Device Notifications (toast)
 - [x] Self Updater
-- [x] App Signing (coming soon)
-- [x] Frameless Mode (coming soon)
-- [x] Transparent Mode (coming soon)
-- [x] Multiwindow Mode (coming soon)
+- [x] App Signing
+- [x] Frameless Mode]
+- [x] Transparent Mode]
+- [x] Multiwindow Mode
 - [ ] deeplink RPC (in progress)
 - [ ] One-Time commands (coming soon)
 - [ ] Tray (coming soon)
@@ -99,14 +106,14 @@ If you are interested in making a tauri-app, please visit the [documentation web
 | Installer Size Linux       | 3.1 MB | 52.1 MB              |
 | Memory Consumption Linux   | 180 MB | 462 MB               |
 | Launch Time Linux          | 0.39s  | .80s                 |
-| Interface Service Provider | Varies | Chromium             |
+| Interface Service Provider | WRY    | Chromium             |
 | Backend Binding            | Rust   | Node.js (ECMAScript) |
-| Underlying Engine          | C/C++  | V8 (C/C++)           |
+| Underlying Engine          | Rust   | V8 (C/C++)           |
 | FLOSS                      | Yes    | No                   |
 | Multithreading             | Yes    | Yes                  |
 | Bytecode Delivery          | Yes    | No                   |
-| Multiple Windows           | Soon   | Yes                  |
-| Auto Updater               | Soon   | Yes (1)              |
+| Multiple Windows           | Yes    | Yes                  |
+| Auto Updater               | Yes    | Yes (1)              |
 | Cross Platform             | Yes    | Yes                  |
 | Custom App Icon            | Yes    | Yes                  |
 | Windows Binary             | Yes    | Yes                  |
@@ -137,10 +144,10 @@ Tauri is a system composed of a number of moving pieces:
 - cargo for testing, running the dev service, building binaries and as the runtime harness for the webview
 
 ### Major Languages
-- rust for the CLI
-- ecmascript bindings to the RUST API, written in typescript
-- rust for bindings, rust side of the API, harnesses
-- rust plugins to tauri backend
+- Rust for the CLI
+- EcmaScript bindings to the Rust API, written in typescript
+- Rust for bindings, rust side of the API, harnesses
+- Rust plugins to Tauri backend
 
 ### Operating systems
 Tauri core can be developed on Mac, Linux and Windows, but you are encouraged to use the latest possible operating systems and build tools for your OS.

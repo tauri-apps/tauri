@@ -62,13 +62,9 @@ const createTauriApp = async (cliArgs) => {
     return false // do this for node consumers and tests
   }
 
-  if (argv.ci) {
-    return runInit(argv)
-  } else {
-    return getOptionsInteractive(argv).then((responses) =>
-      runInit(argv, responses)
-    )
-  }
+  return getOptionsInteractive(argv, !argv.ci).then((responses) =>
+    runInit(argv, responses)
+  )
 }
 
 function printUsage() {
@@ -95,8 +91,12 @@ function printUsage() {
     `)
 }
 
-const getOptionsInteractive = (argv) => {
-  let defaultAppName = argv.A || 'tauri-app'
+const getOptionsInteractive = (argv, ask) => {
+  const defaults = {
+    appName: argv.A || 'tauri-app',
+    tauri: { window: { title: 'Tauri App' } },
+    recipeName: argv.r || 'vanillajs'
+  }
 
   return inquirer
     .prompt([
@@ -104,29 +104,33 @@ const getOptionsInteractive = (argv) => {
         type: 'input',
         name: 'appName',
         message: 'What is your app name?',
-        default: defaultAppName,
-        when: !argv.A
+        default: defaults.appName,
+        when: ask && !argv.A
       },
       {
         type: 'input',
         name: 'tauri.window.title',
         message: 'What should the window title be?',
-        default: 'Tauri App',
-        when: () => !argv.W
+        default: defaults.tauri.window.title,
+        when: ask && !argv.W
       },
       {
         type: 'list',
         name: 'recipeName',
         message: 'Would you like to add a UI recipe?',
         choices: recipeDescriptiveNames,
-        default: 'No recipe',
-        when: () => !argv.r
+        default: defaults.recipeName,
+        when: ask && !argv.r
       }
     ])
+    .then((answers) => ({
+      ...defaults,
+      ...answers
+    }))
     .catch((error) => {
       if (error.isTtyError) {
         // Prompt couldn't be rendered in the current environment
-        console.log(
+        console.warn(
           'It appears your terminal does not support interactive prompts. Using default values.'
         )
         runInit()
@@ -150,10 +154,10 @@ async function runInit(argv, config = {}) {
 
   let recipe
 
-  if (recipeName !== undefined) {
-    recipe = recipeByDescriptiveName(recipeName)
-  } else if (argv.r) {
+  if (argv.r) {
     recipe = recipeByShortName(argv.r)
+  } else if (recipeName !== undefined) {
+    recipe = recipeByDescriptiveName(recipeName)
   }
 
   let buildConfig = {
@@ -216,7 +220,7 @@ async function runInit(argv, config = {}) {
       packageManager === 'npm' && !argv.b
         ? ['run', 'tauri', '--', 'init']
         : ['tauri', 'init']
-    await shell(binary, [...runTauriArgs, ...initArgs], {
+    await shell(binary, [...runTauriArgs, ...initArgs, '--ci'], {
       cwd: appDirectory
     })
   }

@@ -7,8 +7,9 @@
     "pretty": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "typeRoots": ["./types", "node_modules/@types"]
   },
   "include": ["src"],
-  "exclude": ["src/templates"]
+  "exclude": ["src/templates", "types", "test", "__fixtures__"]
 }

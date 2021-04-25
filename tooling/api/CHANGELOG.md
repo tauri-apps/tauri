@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.0.0-beta-rc.3]
+
+- Fixes distribution of the `@tauri-apps/api` package for older bundlers.
+  - [7f998d0](https://www.github.com/tauri-apps/tauri/commit/7f998d08e3ab8823c99190fa283bdfa2c4f2749b) fix(api): distribution ([#1582](https://www.github.com/tauri-apps/tauri/pull/1582)) on 2021-04-22
+- Update minimum Node.js version to v12.13.0
+  - [1f089fb](https://www.github.com/tauri-apps/tauri/commit/1f089fb4f964c673dcab5784bdf1da2833487a7c) chore: update minimum nodejs version to 12.13.0 ([#1562](https://www.github.com/tauri-apps/tauri/pull/1562)) on 2021-04-21
+
 ## \[1.0.0-beta-rc.2]
 
 - TS was wrongly re-exporting the module.

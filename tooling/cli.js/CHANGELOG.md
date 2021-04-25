@@ -2,7 +2,7 @@
 
 ## \[1.0.0-beta-rc.3]
 
-- Remove Rust CLI download file
+- Remove Rust CLI download file if the download fails or the prpocess is killed.
   - [8a32d0e](https://www.github.com/tauri-apps/tauri/commit/8a32d0ec39ea87383e286516ab3ee5ab7cdefc8e) fix(cli.js): remove cli file if the download fails or process is killed ([#1592](https://www.github.com/tauri-apps/tauri/pull/1592)) on 2021-04-22
 - The `tauri deps` command now properly detects `beta-rc` crate updates.
   - [07eb6ce](https://www.github.com/tauri-apps/tauri/commit/07eb6cec8b60420e034b56c80f5fdca4a5aeb3e3) fix(cli.js):  use `cargo search` on crate latest version detection ([#1563](https://www.github.com/tauri-apps/tauri/pull/1563)) on 2021-04-21

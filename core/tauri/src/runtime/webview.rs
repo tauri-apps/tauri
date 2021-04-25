@@ -96,12 +96,20 @@ pub trait Attributes: AttributesBase {
   fn has_webview_protocol(&self, name: &str) -> bool;
 
   /// Registers a webview protocol handler.
+  /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
+  /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
+  /// and [webkit-web-context-register-uri-scheme](https://webkitgtk.org/reference/webkit2gtk/stable/WebKitWebContext.html#webkit-web-context-register-uri-scheme) on Linux.
+  ///
+  /// # Arguments
+  ///
+  /// * `uri_scheme` The URI scheme to register, such as `example`.
+  /// * `handler` the asset resolver for the given protocol. It's a function that takes the webview URL, such as `example://localhost/asset.css`.
   fn register_webview_protocol<
     N: Into<String>,
     H: Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync + 'static,
   >(
     self,
-    name: N,
+    uri_scheme: N,
     handler: H,
   ) -> Self;
 

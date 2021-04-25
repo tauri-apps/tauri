@@ -206,14 +206,14 @@ impl Attributes for WryAttributes {
     H: Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync + 'static,
   >(
     self,
-    name: N,
+    uri_scheme: N,
     handler: H,
   ) -> Self {
-    let name = name.into();
+    let uri_scheme = uri_scheme.into();
     self.webview_protocols.lock().unwrap().insert(
-      name.clone(),
+      uri_scheme.clone(),
       wry::CustomProtocol {
-        name,
+        name: uri_scheme,
         handler: Box::new(move |data| (handler)(data).map_err(|_| wry::Error::InitScriptError)),
       },
     );

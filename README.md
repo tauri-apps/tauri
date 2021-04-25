@@ -56,7 +56,7 @@ If you are interested in making a tauri-app, please visit the [documentation web
 - [x] Device Notifications (toast)
 - [x] Self Updater
 - [x] App Signing
-- [x] Frameless Mode]
+- [x] Frameless Mode
 - [x] Transparent Mode]
 - [x] Multiwindow Mode
 - [ ] deeplink RPC (in progress)

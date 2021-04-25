@@ -187,7 +187,7 @@ impl<P: Params> WindowManager<P> {
       }
     }
 
-    if !attributes.has_webviewprotocol("tauri") {
+    if !attributes.has_webview_protocol("tauri") {
       attributes =
         attributes.register_webview_protocol("tauri", self.prepare_webview_protocol().handler);
     }

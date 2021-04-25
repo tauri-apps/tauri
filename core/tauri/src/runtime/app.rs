@@ -193,7 +193,7 @@ where
   }
 
   /// Registers a webview protocol available to all windows.
-  pub fn register_webview_protocol<
+  pub fn register_global_webview_protocol<
     N: Into<String>,
     H: Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync + 'static,
   >(

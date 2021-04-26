@@ -39,7 +39,7 @@ pub type SyncTask = Box<dyn FnOnce() + Send>;
 use crate::api::assets::Assets;
 use crate::api::config::Config;
 use crate::event::{Event, EventHandler};
-use crate::runtime::tag::Tag;
+use crate::runtime::tag::{Tag, TagRef};
 use crate::runtime::window::PendingWindow;
 use crate::runtime::{Dispatch, Runtime};
 use serde::Serialize;
@@ -56,6 +56,7 @@ pub use {
   runtime::window::export::Window,
 };
 
+use std::borrow::Borrow;
 /// Reads the config file at compile time and generates a [`Context`] based on its content.
 ///
 /// The default config file path is a `tauri.conf.json` file inside the Cargo manifest directory of
@@ -131,35 +132,39 @@ pub trait Params: sealed::ParamsBase {
 /// Manages a running application.
 ///
 /// TODO: expand these docs
-pub trait Manager<M: Params>: sealed::ManagerBase<M> {
+pub trait Manager<P: Params>: sealed::ManagerBase<P> {
   /// The [`Config`] the manager was created with.
   fn config(&self) -> &Config {
     self.manager().config()
   }
 
   /// Emits a event to all windows.
-  fn emit_all<E: Into<M::Event>, S: Serialize + Clone>(
-    &self,
-    event: E,
-    payload: Option<S>,
-  ) -> Result<()> {
+  fn emit_all<E, S>(&self, event: &E, payload: Option<S>) -> Result<()>
+  where
+    E: TagRef<P::Event> + ?Sized,
+    S: Serialize + Clone,
+  {
     self.manager().emit_filter(event, payload, |_| true)
   }
 
   /// Emits an event to a window with the specified label.
-  fn emit_to<E: Into<M::Event>, S: Serialize + Clone>(
+  fn emit_to<E, L, S: Serialize + Clone>(
     &self,
-    label: &M::Label,
-    event: E,
+    label: &L,
+    event: &E,
     payload: Option<S>,
-  ) -> Result<()> {
+  ) -> Result<()>
+  where
+    L: TagRef<P::Label> + ?Sized,
+    E: TagRef<P::Event> + ?Sized,
+  {
     self
       .manager()
-      .emit_filter(event, payload, |w| w.label() == label)
+      .emit_filter(event, payload, |w| label == w.label())
   }
 
   /// Creates a new [`Window`] on the [`Runtime`] and attaches it to the [`Manager`].
-  fn create_window(&mut self, pending: PendingWindow<M>) -> Result<Window<M>> {
+  fn create_window(&mut self, pending: PendingWindow<P>) -> Result<Window<P>> {
     use sealed::RuntimeOrDispatch::*;
 
     let labels = self.manager().labels().into_iter().collect::<Vec<_>>();
@@ -172,7 +177,7 @@ pub trait Manager<M: Params>: sealed::ManagerBase<M> {
   }
 
   /// Listen to a global event.
-  fn listen_global<E: Into<M::Event>, F>(&self, event: E, handler: F) -> EventHandler
+  fn listen_global<E: Into<P::Event>, F>(&self, event: E, handler: F) -> EventHandler
   where
     F: Fn(Event) + Send + 'static,
   {
@@ -180,7 +185,7 @@ pub trait Manager<M: Params>: sealed::ManagerBase<M> {
   }
 
   /// Listen to a global event only once.
-  fn once_global<E: Into<M::Event>, F>(&self, event: E, handler: F) -> EventHandler
+  fn once_global<E: Into<P::Event>, F>(&self, event: E, handler: F) -> EventHandler
   where
     F: Fn(Event) + Send + 'static,
   {
@@ -188,8 +193,12 @@ pub trait Manager<M: Params>: sealed::ManagerBase<M> {
   }
 
   /// Trigger a global event.
-  fn trigger_global<E: Into<M::Event>>(&self, event: E, data: Option<String>) {
-    self.manager().trigger(event.into(), None, data)
+  fn trigger_global<E>(&self, event: &E, data: Option<String>)
+  where
+    E: TagRef<P::Event> + ?Sized,
+    P::Event: Borrow<E>,
+  {
+    self.manager().trigger(event, None, data)
   }
 
   /// Remove an event listener.
@@ -198,12 +207,16 @@ pub trait Manager<M: Params>: sealed::ManagerBase<M> {
   }
 
   /// Fetch a single window from the manager.
-  fn get_window<L: Into<M::Label>>(&self, label: L) -> Option<Window<M>> {
-    self.manager().get_window(&label.into())
+  fn get_window<L>(&self, label: &L) -> Option<Window<P>>
+  where
+    L: TagRef<P::Label> + ?Sized,
+    P::Label: Borrow<L>,
+  {
+    self.manager().get_window(label)
   }
 
   /// Fetch all managed windows.
-  fn windows(&self) -> HashMap<M::Label, Window<M>> {
+  fn windows(&self) -> HashMap<P::Label, Window<P>> {
     self.manager().windows()
   }
 }

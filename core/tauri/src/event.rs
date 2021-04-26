@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::runtime::tag::Tag;
+use crate::runtime::tag::{Tag, TagRef};
 use std::{
+  borrow::Borrow,
   boxed::Box,
   collections::HashMap,
   fmt,
@@ -134,7 +135,7 @@ impl<Event: Tag, Window: Tag> Listeners<Event, Window> {
       match action {
         Pending::Unlisten(id) => self.unlisten(id),
         Pending::Listen(id, event, handler) => self.listen_(id, event, handler),
-        Pending::Trigger(event, window, payload) => self.trigger(event, window, payload),
+        Pending::Trigger(ref event, window, payload) => self.trigger(event, window, payload),
       }
     }
   }
@@ -191,12 +192,16 @@ impl<Event: Tag, Window: Tag> Listeners<Event, Window> {
   }
 
   /// Triggers the given global event with its payload.
-  pub(crate) fn trigger(&self, event: Event, window: Option<Window>, payload: Option<String>) {
+  pub(crate) fn trigger<E>(&self, event: &E, window: Option<Window>, payload: Option<String>)
+  where
+    E: TagRef<Event> + ?Sized,
+    Event: Borrow<E>,
+  {
     let mut maybe_pending = false;
     match self.inner.handlers.try_lock() {
-      Err(_) => self.insert_pending(Pending::Trigger(event, window, payload)),
+      Err(_) => self.insert_pending(Pending::Trigger(event.to_owned(), window, payload)),
       Ok(lock) => {
-        if let Some(handlers) = lock.get(&event) {
+        if let Some(handlers) = lock.get(event) {
           for (&id, handler) in handlers {
             if window.is_none() || window == handler.window {
               maybe_pending = true;
@@ -280,7 +285,7 @@ mod test {
       // call listen with e and the event_fn dummy func
       listeners.listen(e.clone(), None, event_fn);
       // call on event with e and d.
-      listeners.trigger(e, None, Some(d));
+      listeners.trigger(&e, None, Some(d));
 
       // lock the mutex
       let l = listeners.inner.handlers.lock().unwrap();

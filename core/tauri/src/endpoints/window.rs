@@ -124,13 +124,23 @@ impl Cmd {
           let url = options.url.clone();
           let pending =
             crate::runtime::window::PendingWindow::with_config(options, label.clone(), url);
-          window.create_window(pending)?.emit_others_internal(
-            "tauri://window-created".to_string(),
+
+          let raw_event = "tauri://window-created";
+          let event: M::Event = raw_event.parse().unwrap_or_else(|_| {
+            panic!(
+              "Window module failed to parse tauri event into Params::Event: {}",
+              raw_event,
+            )
+          });
+
+          window.create_window(pending)?.emit_others(
+            &event,
             Some(WindowCreatedEvent {
               label: label.to_string(),
             }),
           )?;
         }
+
         Self::SetResizable { resizable } => window.set_resizable(resizable)?,
         Self::SetTitle { title } => window.set_title(&title)?,
         Self::Maximize => window.maximize()?,

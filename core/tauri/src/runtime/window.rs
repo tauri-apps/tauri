@@ -9,7 +9,7 @@ use crate::{
   event::{Event, EventHandler},
   hooks::{InvokeMessage, InvokePayload, PageLoadPayload},
   runtime::{
-    tag::ToJavascript,
+    tag::ToJsString,
     webview::{FileDropHandler, WebviewRpcHandler},
     Dispatch, Runtime,
   },
@@ -107,7 +107,8 @@ impl<M: Params> PartialEq for DetachedWindow<M> {
 /// We want to export the runtime related window at the crate root, but not look like a re-export.
 pub(crate) mod export {
   use super::*;
-  use crate::runtime::manager::WindowManager;
+  use crate::runtime::{manager::WindowManager, tag::TagRef};
+  use std::borrow::Borrow;
 
   /// A webview window managed by Tauri.
   ///
@@ -195,11 +196,11 @@ pub(crate) mod export {
       &self.window.label
     }
 
-    pub(crate) fn emit_internal<E: ToJavascript, S: Serialize>(
-      &self,
-      event: E,
-      payload: Option<S>,
-    ) -> crate::Result<()> {
+    pub(crate) fn emit_internal<E, S>(&self, event: &E, payload: Option<S>) -> crate::Result<()>
+    where
+      E: TagRef<P::Event> + ?Sized,
+      S: Serialize,
+    {
       let js_payload = match payload {
         Some(payload_value) => serde_json::to_value(payload_value)?,
         None => JsonValue::Null,
@@ -208,7 +209,7 @@ pub(crate) mod export {
       self.eval(&format!(
         "window['{}']({{event: {}, payload: {}}}, '{}')",
         self.manager.event_emit_function_name(),
-        event.to_javascript()?,
+        event.to_js_string()?,
         js_payload,
         self.manager.generate_salt(),
       ))?;
@@ -217,34 +218,21 @@ pub(crate) mod export {
     }
 
     /// Emits an event to the current window.
-    pub fn emit<E: Into<P::Event>, S: Serialize>(
-      &self,
-      event: E,
-      payload: Option<S>,
-    ) -> crate::Result<()> {
-      self.emit_internal(event.into(), payload)
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn emit_others_internal<S: Serialize + Clone>(
-      &self,
-      event: String,
-      payload: Option<S>,
-    ) -> crate::Result<()> {
-      self
-        .manager
-        .emit_filter_internal(event, payload, |w| w != self)
+    pub fn emit<E, S>(&self, event: &E, payload: Option<S>) -> crate::Result<()>
+    where
+      E: TagRef<P::Event> + ?Sized,
+      S: Serialize,
+    {
+      self.emit_internal(event, payload)
     }
 
     /// Emits an event on all windows except this one.
-    pub fn emit_others<E: Into<P::Event>, S: Serialize + Clone>(
+    pub fn emit_others<E: TagRef<P::Event> + ?Sized, S: Serialize + Clone>(
       &self,
-      event: E,
+      event: &E,
       payload: Option<S>,
     ) -> crate::Result<()> {
-      self
-        .manager
-        .emit_filter(event.into(), payload, |w| w != self)
+      self.manager.emit_filter(event, payload, |w| w != self)
     }
 
     /// Listen to an event on this window.
@@ -266,9 +254,13 @@ pub(crate) mod export {
     }
 
     /// Triggers an event on this window.
-    pub fn trigger<E: Into<P::Event>>(&self, event: E, data: Option<String>) {
+    pub fn trigger<E>(&self, event: &E, data: Option<String>)
+    where
+      E: TagRef<P::Event> + ?Sized,
+      P::Event: Borrow<E>,
+    {
       let label = self.window.label.clone();
-      self.manager.trigger(event.into(), Some(label), data)
+      self.manager.trigger(event, Some(label), data)
     }
 
     /// Evaluates JavaScript on this window.

@@ -85,6 +85,20 @@ impl<T, E: Debug> Tag for T where
 {
 }
 
+/// A reference to a [`Tag`].
+///
+/// * [`Display`] so that we can still convert this tag to a JavaScript string.
+/// * [`ToOwned`] to make sure we can clone it into the owned tag in specific cases.
+/// * [`PartialEq`] so that we can compare refs to the owned tags easily.
+/// * [`Hash`] + [`Eq`] because we want to be able to use a ref as a key to internal hashmaps.
+pub trait TagRef<T: Tag>: Display + ToOwned<Owned = T> + PartialEq<T> + Eq + Hash {}
+
+/// Automatically implement [`TagRef`] for all types that fit the requirements.
+impl<T: Tag, R> TagRef<T> for R where
+  R: Display + ToOwned<Owned = T> + PartialEq<T> + Eq + Hash + ?Sized
+{
+}
+
 /// Private helper to turn [`Tag`] related things into JavaScript, safely.
 ///
 /// The main concern is string escaping, so we rely on [`serde_json`] to handle all serialization
@@ -93,13 +107,13 @@ impl<T, E: Debug> Tag for T where
 ///
 /// We don't want downstream users to implement this trait so that [`Tag`]s cannot be turned into
 /// invalid JavaScript - regardless of their content.
-pub(crate) trait ToJavascript {
-  fn to_javascript(&self) -> crate::Result<String>;
+pub(crate) trait ToJsString {
+  fn to_js_string(&self) -> crate::Result<String>;
 }
 
-impl<T: Tag> ToJavascript for T {
+impl<D: Display> ToJsString for D {
   /// Turn any [`Tag`] into the JavaScript representation of a string.
-  fn to_javascript(&self) -> crate::Result<String> {
+  fn to_js_string(&self) -> crate::Result<String> {
     Ok(serde_json::to_string(&self.to_string())?)
   }
 }

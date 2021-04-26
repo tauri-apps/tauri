@@ -7,7 +7,6 @@ use crate::Manager;
 use crate::{api::config::WindowConfig, endpoints::InvokeResponse, Params, Window};
 use serde::Deserialize;
 
-use crate::runtime::manager::tauri_event;
 use crate::Icon;
 use std::path::PathBuf;
 
@@ -127,7 +126,7 @@ impl Cmd {
             crate::runtime::window::PendingWindow::with_config(options, label.clone(), url);
 
           window.create_window(pending)?.emit_others(
-            &tauri_event::<P::Event>("tauri://window-created"),
+            &crate::runtime::manager::tauri_event::<P::Event>("tauri://window-created"),
             Some(WindowCreatedEvent {
               label: label.to_string(),
             }),

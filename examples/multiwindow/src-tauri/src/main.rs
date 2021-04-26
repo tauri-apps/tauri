@@ -7,7 +7,7 @@
   windows_subsystem = "windows"
 )]
 
-use tauri::WindowAttributes;
+use tauri::WindowBuilder;
 
 fn main() {
   tauri::Builder::default()

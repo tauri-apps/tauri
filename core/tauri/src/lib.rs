@@ -51,7 +51,7 @@ pub use {
   api::config::WindowUrl,
   hooks::{InvokeHandler, InvokeMessage, OnPageLoad, PageLoadPayload, SetupHook},
   runtime::app::{App, Builder},
-  runtime::webview::{WebviewAttributes, WindowAttributes},
+  runtime::webview::{WebviewAttributes, WindowBuilder},
   runtime::window::export::Window,
 };
 

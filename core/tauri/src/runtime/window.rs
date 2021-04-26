@@ -14,7 +14,7 @@ use crate::{
     Dispatch, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
-  Icon, Manager, Params, WindowAttributes,
+  Icon, Manager, Params, WindowBuilder,
 };
 use serde::Serialize;
 use serde_json::Value as JsonValue;
@@ -25,8 +25,8 @@ pub struct PendingWindow<M: Params> {
   /// The label that the window will be named.
   pub label: M::Label,
 
-  /// The [`WindowAttributes`] that the window will be created with.
-  pub window_attributes: <<M::Runtime as Runtime>::Dispatcher as Dispatch>::WindowAttributes,
+  /// The [`WindowBuilder`] that the window will be created with.
+  pub window_attributes: <<M::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
 
   /// The [`WebviewAttributes`] that the webview will be created with.
   pub webview_attributes: WebviewAttributes,
@@ -44,7 +44,7 @@ pub struct PendingWindow<M: Params> {
 impl<M: Params> PendingWindow<M> {
   /// Create a new [`PendingWindow`] with a label and starting url.
   pub fn new(
-    window_attributes: <<M::Runtime as Runtime>::Dispatcher as Dispatch>::WindowAttributes,
+    window_attributes: <<M::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
     webview_attributes: WebviewAttributes,
     label: M::Label,
   ) -> Self {
@@ -66,7 +66,7 @@ impl<M: Params> PendingWindow<M> {
   ) -> Self {
     Self {
       window_attributes:
-        <<<M::Runtime as Runtime>::Dispatcher as Dispatch>::WindowAttributes>::with_config(
+        <<<M::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder>::with_config(
           window_config,
         ),
       webview_attributes,

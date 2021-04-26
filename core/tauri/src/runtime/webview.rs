@@ -77,14 +77,14 @@ impl WebviewAttributes {
 
 /// Do **NOT** implement this trait except for use in a custom [`Runtime`](crate::runtime::Runtime).
 ///
-/// This trait is separate from [`WindowAttributes`] to prevent "accidental" implementation.
-pub trait WindowAttributesBase: Sized {}
+/// This trait is separate from [`WindowBuilder`] to prevent "accidental" implementation.
+pub trait WindowBuilderBase: Sized {}
 
 /// A builder for all attributes related to a single webview.
 ///
 /// This trait is only meant to be implemented by a custom [`Runtime`](crate::runtime::Runtime)
 /// and not by applications.
-pub trait WindowAttributes: WindowAttributesBase {
+pub trait WindowBuilder: WindowBuilderBase {
   /// Initializes a new window attributes builder.
   fn new() -> Self;
 

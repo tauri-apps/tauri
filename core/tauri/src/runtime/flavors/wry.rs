@@ -8,8 +8,8 @@ use crate::{
   api::config::WindowConfig,
   runtime::{
     webview::{
-      FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler, WindowAttributes,
-      WindowAttributesBase,
+      FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler, WindowBuilder,
+      WindowBuilderBase,
     },
     window::{DetachedWindow, PendingWindow},
     Dispatch, Params, Runtime,
@@ -23,7 +23,7 @@ use wry::{
     dpi::{LogicalPosition, LogicalSize, Size},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
-    window::{Fullscreen, Icon as WindowIcon, Window, WindowBuilder, WindowId},
+    window::{Fullscreen, Icon as WindowIcon, Window, WindowBuilder as WryWindowBuilder, WindowId},
   },
   webview::{
     FileDropEvent as WryFileDropEvent, RpcRequest as WryRpcRequest, RpcResponse, WebView,
@@ -71,10 +71,7 @@ impl TryFrom<Icon> for WryIcon {
     let (width, height) = image.dimensions();
     let mut rgba = Vec::with_capacity((width * height) as usize * PIXEL_SIZE);
     for (_, _, pixel) in image.pixels() {
-      #[cfg(target_os = "linux")]
       rgba.extend_from_slice(&pixel.to_rgba().0);
-      #[cfg(not(target_os = "linux"))]
-      rgba.extend_from_slice(&pixel.to_rgba().data);
     }
     let icon = WindowIcon::from_rgba(rgba, width, height)
       .map_err(|e| crate::Error::InvalidIcon(e.to_string()))?;
@@ -82,20 +79,14 @@ impl TryFrom<Icon> for WryIcon {
   }
 }
 
-/// Wry attributes.
-#[derive(Default, Clone)]
-pub struct WryWindowAttributes {
-  attributes: wry::application::window::WindowAttributes,
-}
-
-impl WindowAttributesBase for WryWindowAttributes {}
-impl WindowAttributes for WryWindowAttributes {
+impl WindowBuilderBase for WryWindowBuilder {}
+impl WindowBuilder for WryWindowBuilder {
   fn new() -> Self {
     Default::default()
   }
 
   fn with_config(config: WindowConfig) -> Self {
-    let mut webview = WryWindowAttributes::default()
+    let mut window = WryWindowBuilder::new()
       .title(config.title.to_string())
       .inner_size(config.width, config.height)
       .visible(config.visible)
@@ -107,97 +98,85 @@ impl WindowAttributes for WryWindowAttributes {
       .always_on_top(config.always_on_top);
 
     if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
-      webview = webview.min_inner_size(min_width, min_height);
+      window = window.min_inner_size(min_width, min_height);
     }
     if let (Some(max_width), Some(max_height)) = (config.max_width, config.max_height) {
-      webview = webview.max_inner_size(max_width, max_height);
+      window = window.max_inner_size(max_width, max_height);
     }
     if let Some(x) = config.x {
-      webview = webview.x(x);
+      window = window.x(x);
     }
     if let Some(y) = config.y {
-      webview = webview.y(y);
+      window = window.y(y);
     }
 
-    webview
+    window
   }
 
   fn x(self, _x: f64) -> Self {
-    // TODO self.attributes.x = Some(x);
+    // TODO self.with_x(Some(x))
     self
   }
 
   fn y(self, _y: f64) -> Self {
-    // TODO self.attributes.y = Some(y);
+    // TODO self.with_y(Some(y))
     self
   }
 
-  fn inner_size(mut self, width: f64, height: f64) -> Self {
-    self.attributes.inner_size = Some(Size::new(LogicalSize::new(width, height)));
-    self
+  fn inner_size(self, width: f64, height: f64) -> Self {
+    self.with_inner_size(Size::new(LogicalSize::new(width, height)))
   }
 
-  fn min_inner_size(mut self, min_width: f64, min_height: f64) -> Self {
-    self.attributes.min_inner_size = Some(Size::new(LogicalSize::new(min_width, min_height)));
-    self
+  fn min_inner_size(self, min_width: f64, min_height: f64) -> Self {
+    self.with_min_inner_size(Size::new(LogicalSize::new(min_width, min_height)))
   }
 
-  fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
-    self.attributes.max_inner_size = Some(Size::new(LogicalSize::new(max_width, max_height)));
-    self
+  fn max_inner_size(self, max_width: f64, max_height: f64) -> Self {
+    self.with_max_inner_size(Size::new(LogicalSize::new(max_width, max_height)))
   }
 
-  fn resizable(mut self, resizable: bool) -> Self {
-    self.attributes.resizable = resizable;
-    self
+  fn resizable(self, resizable: bool) -> Self {
+    self.with_resizable(resizable)
   }
 
-  fn title<S: Into<String>>(mut self, title: S) -> Self {
-    self.attributes.title = title.into();
-    self
+  fn title<S: Into<String>>(self, title: S) -> Self {
+    self.with_title(title.into())
   }
 
-  fn fullscreen(mut self, fullscreen: bool) -> Self {
+  fn fullscreen(self, fullscreen: bool) -> Self {
     if fullscreen {
-      self.attributes.fullscreen = Some(Fullscreen::Borderless(None));
+      self.with_fullscreen(Some(Fullscreen::Borderless(None)))
     } else {
-      self.attributes.fullscreen = None;
+      self.with_fullscreen(None)
     }
-    self
   }
 
-  fn maximized(mut self, maximized: bool) -> Self {
-    self.attributes.maximized = maximized;
-    self
+  fn maximized(self, maximized: bool) -> Self {
+    self.with_maximized(maximized)
   }
 
-  fn visible(mut self, visible: bool) -> Self {
-    self.attributes.visible = visible;
-    self
+  fn visible(self, visible: bool) -> Self {
+    self.with_visible(visible)
   }
 
-  fn transparent(mut self, transparent: bool) -> Self {
-    self.attributes.transparent = transparent;
-    self
+  fn transparent(self, transparent: bool) -> Self {
+    self.with_transparent(transparent)
   }
 
-  fn decorations(mut self, decorations: bool) -> Self {
-    self.attributes.decorations = decorations;
-    self
+  fn decorations(self, decorations: bool) -> Self {
+    self.with_decorations(decorations)
   }
 
-  fn always_on_top(mut self, always_on_top: bool) -> Self {
-    self.attributes.always_on_top = always_on_top;
-    self
+  fn always_on_top(self, always_on_top: bool) -> Self {
+    self.with_always_on_top(always_on_top)
   }
 
-  fn icon(mut self, icon: Icon) -> crate::Result<Self> {
-    self.attributes.window_icon = Some(WryIcon::try_from(icon)?.0);
-    Ok(self)
+  fn icon(self, icon: Icon) -> crate::Result<Self> {
+    Ok(self.with_window_icon(Some(WryIcon::try_from(icon)?.0)))
   }
 
   fn has_icon(&self) -> bool {
-    self.attributes.window_icon.is_some()
+    self.window.window_icon.is_some()
   }
 }
 
@@ -266,7 +245,7 @@ pub struct WryDispatcher {
 
 impl Dispatch for WryDispatcher {
   type Runtime = Wry;
-  type WindowAttributes = WryWindowAttributes;
+  type WindowBuilder = WryWindowBuilder;
 
   fn create_window<M: Params<Runtime = Self::Runtime>>(
     &mut self,
@@ -679,10 +658,7 @@ fn create_webview<M: Params<Runtime = Wry>>(
     ..
   } = pending;
 
-  let window_builder = WindowBuilder {
-    window: window_attributes.attributes,
-  };
-  let window = window_builder.build(event_loop).unwrap();
+  let window = window_attributes.build(event_loop).unwrap();
   let mut webview_builder = WebViewBuilder::new(window)
     .map_err(|e| crate::Error::CreateWebview(e.to_string()))?
     .with_url(&url)

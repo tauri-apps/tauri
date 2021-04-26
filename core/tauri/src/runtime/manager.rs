@@ -14,9 +14,7 @@ use crate::{
   plugin::PluginStore,
   runtime::{
     tag::{tags_to_javascript_array, Tag, ToJavascript},
-    webview::{
-      CustomProtocol, FileDropEvent, FileDropHandler, WebviewRpcHandler, WindowAttributes,
-    },
+    webview::{CustomProtocol, FileDropEvent, FileDropHandler, WebviewRpcHandler, WindowBuilder},
     window::{DetachedWindow, PendingWindow},
     Icon, Runtime,
   },

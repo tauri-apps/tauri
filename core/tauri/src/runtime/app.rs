@@ -10,7 +10,7 @@ use crate::{
     flavors::wry::Wry,
     manager::{Args, WindowManager},
     tag::Tag,
-    webview::{CustomProtocol, WebviewAttributes, WindowAttributes},
+    webview::{CustomProtocol, WebviewAttributes, WindowBuilder},
     window::PendingWindow,
     Dispatch, Runtime,
   },
@@ -184,15 +184,15 @@ where
   pub fn create_window<F>(mut self, label: L, url: WindowUrl, setup: F) -> Self
   where
     F: FnOnce(
-      <R::Dispatcher as Dispatch>::WindowAttributes,
+      <R::Dispatcher as Dispatch>::WindowBuilder,
       WebviewAttributes,
     ) -> (
-      <R::Dispatcher as Dispatch>::WindowAttributes,
+      <R::Dispatcher as Dispatch>::WindowBuilder,
       WebviewAttributes,
     ),
   {
     let (window_attributes, webview_attributes) = setup(
-      <R::Dispatcher as Dispatch>::WindowAttributes::new(),
+      <R::Dispatcher as Dispatch>::WindowBuilder::new(),
       WebviewAttributes::new(url),
     );
     self.pending_windows.push(PendingWindow::new(

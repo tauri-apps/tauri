@@ -6,7 +6,7 @@
 
 use crate::{
   runtime::window::{DetachedWindow, PendingWindow},
-  Icon, Params, WindowAttributes,
+  Icon, Params, WindowBuilder,
 };
 
 pub(crate) mod app;
@@ -40,7 +40,7 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   type Runtime: Runtime;
 
   /// The winoow builder type.
-  type WindowAttributes: WindowAttributes + Clone;
+  type WindowBuilder: WindowBuilder + Clone;
 
   /// Create a new webview window.
   fn create_window<P: Params<Runtime = Self::Runtime>>(

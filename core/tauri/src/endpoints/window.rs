@@ -7,9 +7,9 @@ use crate::Manager;
 use crate::{api::config::WindowConfig, endpoints::InvokeResponse, Params, Window};
 use serde::Deserialize;
 
+use crate::runtime::manager::tauri_event;
 use crate::Icon;
 use std::path::PathBuf;
-use crate::runtime::manager::tauri_event;
 
 #[derive(Deserialize)]
 #[serde(untagged)]

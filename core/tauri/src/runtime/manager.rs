@@ -486,17 +486,18 @@ impl<P: Params> WindowManager<P> {
       .filter(|&w| filter(w))
       .try_for_each(|window| window.emit_internal(event.clone(), payload.clone()))
   }
-  pub fn emit_filter<S: Serialize + Clone, F: Fn(&Window<P>) -> bool>(
+  pub fn emit_filter<E: Into<P::Event>, S: Serialize + Clone, F: Fn(&Window<P>) -> bool>(
     &self,
-    event: P::Event,
+    event: E,
     payload: Option<S>,
     filter: F,
   ) -> crate::Result<()> {
+    let event = event.into();
     self
       .windows_lock()
       .values()
       .filter(|&w| filter(w))
-      .try_for_each(|window| window.emit(&event, payload.clone()))
+      .try_for_each(|window| window.emit(event.clone(), payload.clone()))
   }
   pub fn labels(&self) -> HashSet<P::Label> {
     self.windows_lock().keys().cloned().collect()
@@ -563,9 +564,11 @@ impl<P: Params> WindowManager<P> {
       .expect("poisoned salt mutex")
       .remove(&uuid)
   }
+
   pub fn get_window(&self, label: &P::Label) -> Option<Window<P>> {
     self.windows_lock().get(label).cloned()
   }
+
   pub fn windows(&self) -> HashMap<P::Label, Window<P>> {
     self.windows_lock().clone()
   }

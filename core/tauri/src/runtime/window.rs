@@ -217,8 +217,12 @@ pub(crate) mod export {
     }
 
     /// Emits an event to the current window.
-    pub fn emit<S: Serialize>(&self, event: &P::Event, payload: Option<S>) -> crate::Result<()> {
-      self.emit_internal(event.clone(), payload)
+    pub fn emit<E: Into<P::Event>, S: Serialize>(
+      &self,
+      event: E,
+      payload: Option<S>,
+    ) -> crate::Result<()> {
+      self.emit_internal(event.into(), payload)
     }
 
     #[allow(dead_code)]
@@ -233,36 +237,38 @@ pub(crate) mod export {
     }
 
     /// Emits an event on all windows except this one.
-    pub fn emit_others<S: Serialize + Clone>(
+    pub fn emit_others<E: Into<P::Event>, S: Serialize + Clone>(
       &self,
-      event: P::Event,
+      event: E,
       payload: Option<S>,
     ) -> crate::Result<()> {
-      self.manager.emit_filter(event, payload, |w| w != self)
+      self
+        .manager
+        .emit_filter(event.into(), payload, |w| w != self)
     }
 
     /// Listen to an event on this window.
-    pub fn listen<F>(&self, event: P::Event, handler: F) -> EventHandler
+    pub fn listen<E: Into<P::Event>, F>(&self, event: E, handler: F) -> EventHandler
     where
       F: Fn(Event) + Send + 'static,
     {
       let label = self.window.label.clone();
-      self.manager.listen(event, Some(label), handler)
+      self.manager.listen(event.into(), Some(label), handler)
     }
 
     /// Listen to a an event on this window a single time.
-    pub fn once<F>(&self, event: P::Event, handler: F) -> EventHandler
+    pub fn once<E: Into<P::Event>, F>(&self, event: E, handler: F) -> EventHandler
     where
       F: Fn(Event) + Send + 'static,
     {
       let label = self.window.label.clone();
-      self.manager.once(event, Some(label), handler)
+      self.manager.once(event.into(), Some(label), handler)
     }
 
     /// Triggers an event on this window.
-    pub fn trigger(&self, event: P::Event, data: Option<String>) {
+    pub fn trigger<E: Into<P::Event>>(&self, event: E, data: Option<String>) {
       let label = self.window.label.clone();
-      self.manager.trigger(event, Some(label), data)
+      self.manager.trigger(event.into(), Some(label), data)
     }
 
     /// Evaluates JavaScript on this window.

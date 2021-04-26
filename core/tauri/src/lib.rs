@@ -51,6 +51,7 @@ pub use {
   api::config::WindowUrl,
   hooks::{InvokeHandler, InvokeMessage, OnPageLoad, PageLoadPayload, SetupHook},
   runtime::app::{App, Builder},
+  runtime::flavors::wry::Wry,
   runtime::webview::Attributes,
   runtime::window::export::Window,
 };
@@ -137,15 +138,19 @@ pub trait Manager<M: Params>: sealed::ManagerBase<M> {
   }
 
   /// Emits a event to all windows.
-  fn emit_all<S: Serialize + Clone>(&self, event: M::Event, payload: Option<S>) -> Result<()> {
+  fn emit_all<E: Into<M::Event>, S: Serialize + Clone>(
+    &self,
+    event: E,
+    payload: Option<S>,
+  ) -> Result<()> {
     self.manager().emit_filter(event, payload, |_| true)
   }
 
   /// Emits an event to a window with the specified label.
-  fn emit_to<S: Serialize + Clone>(
+  fn emit_to<E: Into<M::Event>, S: Serialize + Clone>(
     &self,
     label: &M::Label,
-    event: M::Event,
+    event: E,
     payload: Option<S>,
   ) -> Result<()> {
     self
@@ -167,24 +172,24 @@ pub trait Manager<M: Params>: sealed::ManagerBase<M> {
   }
 
   /// Listen to a global event.
-  fn listen_global<F>(&self, event: M::Event, handler: F) -> EventHandler
+  fn listen_global<E: Into<M::Event>, F>(&self, event: E, handler: F) -> EventHandler
   where
     F: Fn(Event) + Send + 'static,
   {
-    self.manager().listen(event, None, handler)
+    self.manager().listen(event.into(), None, handler)
   }
 
   /// Listen to a global event only once.
-  fn once_global<F>(&self, event: M::Event, handler: F) -> EventHandler
+  fn once_global<E: Into<M::Event>, F>(&self, event: E, handler: F) -> EventHandler
   where
     F: Fn(Event) + Send + 'static,
   {
-    self.manager().once(event, None, handler)
+    self.manager().once(event.into(), None, handler)
   }
 
   /// Trigger a global event.
-  fn trigger_global(&self, event: M::Event, data: Option<String>) {
-    self.manager().trigger(event, None, data)
+  fn trigger_global<E: Into<M::Event>>(&self, event: E, data: Option<String>) {
+    self.manager().trigger(event.into(), None, data)
   }
 
   /// Remove an event listener.
@@ -193,8 +198,8 @@ pub trait Manager<M: Params>: sealed::ManagerBase<M> {
   }
 
   /// Fetch a single window from the manager.
-  fn get_window(&self, label: &M::Label) -> Option<Window<M>> {
-    self.manager().get_window(label)
+  fn get_window<L: Into<M::Label>>(&self, label: L) -> Option<Window<M>> {
+    self.manager().get_window(&label.into())
   }
 
   /// Fetch all managed windows.

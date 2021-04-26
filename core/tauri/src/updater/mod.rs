@@ -434,7 +434,7 @@ pub(crate) fn listener<M: Params>(
   // Wait to receive the event `"tauri://update"`
   window.listen(
     EVENT_CHECK_UPDATE
-      .parse()
+      .parse::<M::Event>()
       .unwrap_or_else(|_| panic!("bad label")),
     move |_msg| {
       let window = isolated_window.clone();
@@ -468,8 +468,8 @@ pub(crate) fn listener<M: Params>(
 
               // Emit `tauri://update-available`
               let _ = window.emit(
-                &EVENT_UPDATE_AVAILABLE
-                  .parse()
+                EVENT_UPDATE_AVAILABLE
+                  .parse::<M::Event>()
                   .unwrap_or_else(|_| panic!("bad label")),
                 Some(UpdateManifest {
                   body,
@@ -481,7 +481,7 @@ pub(crate) fn listener<M: Params>(
               // Listen for `tauri://update-install`
               window.once(
                 EVENT_INSTALL_UPDATE
-                  .parse()
+                  .parse::<M::Event>()
                   .unwrap_or_else(|_| panic!("bad label")),
                 move |_msg| {
                   let window = window_isolation.clone();

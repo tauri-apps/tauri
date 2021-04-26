@@ -12,95 +12,65 @@ const ctaBinary = path.resolve('./bin/create-tauri-app.js')
 const clijs = path.resolve('../cli.js/')
 const api = path.resolve('../api/')
 
-const packageFile = (template: string): object => {
-  const packageFilesReturn: { [k: string]: object } = {
-    vanillajs: {
-      name: 'tauri-app',
-      scripts: {
-        tauri: 'tauri'
-      }
-    },
-    reactjs: {
-      name: 'tauri-app',
-      scripts: {
-        start: 'react-scripts start',
-        build: 'react-scripts build',
-        test: 'react-scripts test',
-        eject: 'react-scripts eject',
-        tauri: 'tauri'
-      }
-    },
-    reactts: {
-      name: 'tauri-app',
-      scripts: {
-        start: 'react-scripts start',
-        build: 'react-scripts build',
-        test: 'react-scripts test',
-        eject: 'react-scripts eject',
-        tauri: 'tauri'
-      }
-    }
-  }
-
-  return packageFilesReturn[template] ?? packageFilesReturn['vanillajs']
-}
-
 const manager = process.env.TAURI_RUN_MANAGER ?? 'npm'
 const recipes = process.env.TAURI_RECIPE
   ? [process.env.TAURI_RECIPE]
   : ['vanillajs', 'reactjs', 'reactts', 'vite', 'vuecli']
-const timeout3m = 180000
-const timeout3plusm = 200000
+const timeoutLong = 420000
+const timeoutLittleLonger = 450000
 const logOut = false ? 'inherit' : 'pipe'
 
 beforeAll(async () => {
   const installCLI = await execa('yarn', [], {
     stdio: logOut,
     cwd: clijs,
-    timeout: timeout3m
+    timeout: timeoutLong
   })
 
   const buildCLI = await execa('yarn', ['build-release'], {
     stdio: logOut,
     cwd: clijs,
-    timeout: timeout3m
+    timeout: timeoutLong
   })
 
   const linkCLI = await execa('yarn', ['link'], {
     stdio: logOut,
     cwd: clijs,
-    timeout: timeout3m
+    timeout: timeoutLong
   })
 
   const installAPI = await execa('yarn', [], {
     stdio: logOut,
     cwd: api,
-    timeout: timeout3m
+    timeout: timeoutLong
   })
 
   const buildAPI = await execa('yarn', ['build'], {
     stdio: logOut,
     cwd: api,
-    timeout: timeout3m
+    timeout: timeoutLong
   })
 
   const linkAPI = await execa('yarn', ['link'], {
     stdio: logOut,
     cwd: api,
-    timeout: timeout3m
+    timeout: timeoutLong
   })
-}, timeout3plusm)
+}, timeoutLittleLonger)
 
 describe('CTA', () => {
-  describe.each(recipes.map((recipe) => [recipe, packageFile(recipe)]))(
+  describe.each(recipes.map((recipe) => [recipe, 'tauri-app']))(
     `%s recipe`,
-    (recipe: any, packageFile: any) => {
+    (recipe: string, appName: string) => {
       it(
         'runs',
         async () => {
+          // creates a temp folder to run CTA within (this is our cwd)
           const folder = f.temp()
+          const appFolder = path.join(folder, appName)
 
-          const child = await execa(
+          // runs CTA with all args set to avoid any prompts
+          const cta = await execa(
             'node',
             [
               ctaBinary,
@@ -115,24 +85,80 @@ describe('CTA', () => {
               all: true,
               stdio: logOut,
               cwd: folder,
-              timeout: timeout3m
+              timeout: timeoutLong
             }
           )
+
+          // check to make certain it didn't fail anywhere
+          expect(cta.failed).toBe(false)
+          expect(cta.timedOut).toBe(false)
+          expect(cta.isCanceled).toBe(false)
+          expect(cta.killed).toBe(false)
+          expect(cta.signal).toBe(undefined)
+
+          // run a tauri build to check if what we produced
+          //  can actually create an app
+          //  TODO long term we will want to hook this up to a real test harness
+          //  and then run that test suite instead
+          let opts: string[] = []
+          if (manager === 'npm') {
+            opts = ['run', 'tauri', '--', 'build']
+          } else if (manager === 'yarn') {
+            opts = ['tauri', 'build']
+          }
+          const tauriBuild = await execa(manager, opts, {
+            all: true,
+            stdio: logOut,
+            cwd: appFolder,
+            timeout: timeoutLong
+          })
+
+          expect(tauriBuild.failed).toBe(false)
+          expect(tauriBuild.timedOut).toBe(false)
+          expect(tauriBuild.isCanceled).toBe(false)
+          expect(tauriBuild.killed).toBe(false)
+          expect(tauriBuild.signal).toBe(undefined)
 
           const packageFileOutput: {
             [k: string]: string | object
           } = JSON.parse(
             await fs.promises.readFile(
-              path.join(folder, 'tauri-app', 'package.json'),
+              path.join(appFolder, 'package.json'),
               'utf-8'
             )
           )
-          expect(packageFileOutput['name']).toBe(packageFile['name']!)
-          expect(packageFileOutput['scripts']).toMatchObject(
-            packageFile['scripts']!
-          )
+          expect(packageFileOutput['name']).toBe(appName)
+
+          const assertCustom: { [k: string]: Function } = {
+            vanillajs: () => {
+              expect(packageFileOutput['scripts']).toMatchObject({
+                tauri: 'tauri'
+              })
+            },
+            reactjs: () => {
+              expect(packageFileOutput['scripts']).toMatchObject({
+                start: 'react-scripts start',
+                build: 'react-scripts build',
+                test: 'react-scripts test',
+                eject: 'react-scripts eject',
+                tauri: 'tauri'
+              })
+            },
+            reactts: () => {
+              expect(packageFileOutput['scripts']).toMatchObject({
+                start: 'react-scripts start',
+                build: 'react-scripts build',
+                test: 'react-scripts test',
+                eject: 'react-scripts eject',
+                tauri: 'tauri'
+              })
+            }
+          }
+
+          const getCustomAsserts = assertCustom[recipe]
+          if (getCustomAsserts) getCustomAsserts()
         },
-        timeout3plusm
+        timeoutLittleLonger
       )
     }
   )

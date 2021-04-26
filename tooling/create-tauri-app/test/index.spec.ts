@@ -26,7 +26,7 @@ beforeAll(async () => {
     timeout: timeout15m
   })
 
-  const buildCLI = await execa('yarn', ['build'], {
+  const buildCLI = await execa('yarn', ['build-release'], {
     stdio: logOut,
     cwd: clijs,
     timeout: timeout15m

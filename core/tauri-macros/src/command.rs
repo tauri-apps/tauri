@@ -3,11 +3,13 @@
 // SPDX-License-Identifier: MIT
 
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 use syn::{
-  parse::Parser, punctuated::Punctuated, FnArg, Ident, ItemFn, Meta, NestedMeta, Pat, Path,
-  ReturnType, Token, Type,
+  parse::Parser, punctuated::Punctuated, FnArg, GenericArgument, Ident, ItemFn, Meta, NestedMeta,
+  Pat, Path, PathArguments, ReturnType, Token, Type, Visibility,
 };
+
+const ATTR_WITH_WINDOW: &str = "with_window";
 
 pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream {
   // Check if "with_window" attr was passed to macro
@@ -15,16 +17,82 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
     if let NestedMeta::Meta(Meta::Path(path)) = a {
       path
         .get_ident()
-        .map(|i| *i == "with_window")
+        .map(|i| *i == ATTR_WITH_WINDOW)
         .unwrap_or(false)
     } else {
       false
     }
   });
 
+  let mut params = quote!(::tauri::Params);
+  if with_window {
+    let window = match function.sig.inputs.first() {
+      Some(arg) => arg,
+      None => {
+        return err(
+          function,
+          "no function parameters found on function with #[command(with_window)] attribute",
+        )
+      }
+    };
+
+    let mut fail = true;
+    if let FnArg::Typed(pat) = window {
+      if let Type::Path(ty) = &*pat.ty {
+        let last = match ty.path.segments.last() {
+          Some(last) => last,
+          None => {
+            return err(
+              function,
+              "found a type path (expected to be window) without any segments (how?)",
+            )
+          }
+        };
+
+        let angle = match &last.arguments {
+          PathArguments::AngleBracketed(args) => args,
+          _ => {
+            return err(
+              function,
+              "type path (expected to be window) needs to have an angled generic argument",
+            )
+          }
+        };
+
+        if angle.args.len() != 1 {
+          return err(
+            function,
+            "type path (expected to be window) needs to have exactly one generic argument",
+          );
+        }
+
+        if let Some(GenericArgument::Type(Type::ImplTrait(ty))) = angle.args.first() {
+          if ty.bounds.len() > 1 {
+            return err(
+              function,
+              "only a single bound is allowed for the window in #[command(with_window)], ::tauri::Params"
+            );
+          }
+
+          if let Some(bound) = ty.bounds.first() {
+            params = bound.to_token_stream();
+            fail = false;
+          };
+        }
+      }
+    }
+
+    if fail {
+      return err(
+        function,
+        "only impl trait is supported for now... this should not have gotten merged",
+      );
+    }
+  }
+
   let fn_name = function.sig.ident.clone();
   let fn_name_str = fn_name.to_string();
-  let fn_wrapper = format_ident!("{}_wrapper", fn_name);
+  let (vis, fn_wrapper) = fn_wrapper(&function);
   let returns_result = match function.sig.output {
     ReturnType::Type(_, ref ty) => match &**ty {
       Type::Path(type_path) => {
@@ -97,7 +165,7 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
 
   quote! {
     #function
-    pub fn #fn_wrapper<P: ::tauri::Params>(message: ::tauri::InvokeMessage<P>) {
+    #vis fn #fn_wrapper<P: #params>(message: ::tauri::InvokeMessage<P>) {
       #[derive(::serde::Deserialize)]
       #[serde(rename_all = "camelCase")]
       struct ParsedArgs {
@@ -110,6 +178,25 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
         }),
         Err(e) => message.reject(::tauri::Error::InvalidArgs(#fn_name_str, e).to_string()),
       }
+    }
+  }
+}
+
+fn fn_wrapper(function: &ItemFn) -> (&Visibility, Ident) {
+  (
+    &function.vis,
+    format_ident!("{}_wrapper", function.sig.ident),
+  )
+}
+
+fn err(function: ItemFn, error_message: &str) -> TokenStream {
+  let (vis, wrap) = fn_wrapper(&function);
+  quote! {
+    #function
+
+    #vis fn #wrap<P: ::tauri::Params>(_message: ::tauri::InvokeMessage<P>) {
+      compile_error!(#error_message);
+      unimplemented!()
     }
   }
 }

@@ -4,10 +4,7 @@
 
 #[cfg(window_create)]
 use crate::Manager;
-use crate::{
-  api::config::WindowConfig, endpoints::InvokeResponse, runtime::webview::WebviewAttributes,
-  Params, Window,
-};
+use crate::{api::config::WindowConfig, endpoints::InvokeResponse, Params, Window};
 use serde::Deserialize;
 
 use crate::Icon;
@@ -127,7 +124,7 @@ impl Cmd {
           let url = options.url.clone();
           let pending = crate::runtime::window::PendingWindow::with_config(
             options,
-            WebviewAttributes::new(url),
+            crate::runtime::webview::WebviewAttributes::new(url),
             label.clone(),
           );
           window.create_window(pending)?.emit_others_internal(

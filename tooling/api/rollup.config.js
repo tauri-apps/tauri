@@ -36,6 +36,7 @@ export default [
         dir: 'dist/',
         entryFileNames: '[name].cjs',
         format: 'cjs',
+        chunkFileNames: '[name]-[hash].cjs',
         exports: 'named',
         globals: {}
       },

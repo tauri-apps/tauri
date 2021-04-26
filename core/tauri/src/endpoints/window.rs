@@ -9,6 +9,7 @@ use serde::Deserialize;
 
 use crate::Icon;
 use std::path::PathBuf;
+use crate::runtime::manager::tauri_event;
 
 #[derive(Deserialize)]
 #[serde(untagged)]
@@ -125,16 +126,8 @@ impl Cmd {
           let pending =
             crate::runtime::window::PendingWindow::with_config(options, label.clone(), url);
 
-          let raw_event = "tauri://window-created";
-          let event: M::Event = raw_event.parse().unwrap_or_else(|_| {
-            panic!(
-              "Window module failed to parse tauri event into Params::Event: {}",
-              raw_event,
-            )
-          });
-
           window.create_window(pending)?.emit_others(
-            &event,
+            &tauri_event("tauri://window-created"),
             Some(WindowCreatedEvent {
               label: label.to_string(),
             }),

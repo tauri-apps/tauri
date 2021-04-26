@@ -16,8 +16,8 @@ const manager = process.env.TAURI_RUN_MANAGER ?? 'npm'
 const recipes = process.env.TAURI_RECIPE
   ? [process.env.TAURI_RECIPE]
   : ['vanillajs', 'reactjs', 'reactts', 'vite', 'vuecli']
-const timeoutLong = 420000
-const timeoutLittleLonger = 450000
+const timeoutLong = 900000
+const timeoutLittleLonger = 930000
 const logOut = false ? 'inherit' : 'pipe'
 
 beforeAll(async () => {

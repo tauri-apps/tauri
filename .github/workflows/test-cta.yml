@@ -20,7 +20,7 @@ env:
 
 jobs:
   create-recipe-with-npm:
-    name: npm@${{ matrix.manager }} and node@${{ matrix.node }} with ${{ matrix.recipe }}
+    name: "node@${{ matrix.node }}|npm@${{ matrix.manager }}: ${{ matrix.recipe }}"
     runs-on: ubuntu-latest
 
     strategy:
@@ -59,7 +59,7 @@ jobs:
           TAURI_RUN_MANAGER: "npm"
 
   create-recipe-with-yarn:
-    name: yarn and node@${{ matrix.node }} with ${{ matrix.recipe }}
+    name: "node@${{ matrix.node }}|yarn@1: ${{ matrix.recipe }}"
     runs-on: ubuntu-latest
 
     strategy:

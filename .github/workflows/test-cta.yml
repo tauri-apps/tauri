@@ -25,8 +25,11 @@ jobs:
       fail-fast: false
       matrix:
         node: ["14", "16"]
-        manager: ["6", "7"] # TODO add yarn
+        manager: ["6", "7"]
         recipe: ["vanillajs", "reactjs", "reactts", "vite", "vuecli"]
+        exclude:
+          - node: "16"
+            manager: "6"
 
     steps:
       - uses: actions/checkout@v2

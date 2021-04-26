@@ -8,58 +8,96 @@ use crate::{
   api::config::WindowConfig,
   runtime::{
     webview::{
-      Attributes, AttributesBase, FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler,
+      FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler, WindowAttributes,
+      WindowAttributesBase,
     },
     window::{DetachedWindow, PendingWindow},
     Dispatch, Params, Runtime,
   },
   Icon,
 };
+
+use image::{GenericImageView, Pixel};
+use wry::{
+  application::{
+    dpi::{LogicalPosition, LogicalSize, Size},
+    event::{Event, WindowEvent},
+    event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
+    window::{Fullscreen, Icon as WindowIcon, Window, WindowBuilder, WindowId},
+  },
+  webview::{
+    FileDropEvent as WryFileDropEvent, RpcRequest as WryRpcRequest, RpcResponse, WebView,
+    WebViewBuilder,
+  },
+};
+
 use std::{
   collections::HashMap,
   convert::TryFrom,
-  path::PathBuf,
-  sync::{Arc, Mutex},
+  sync::{
+    mpsc::{channel, Sender},
+    Arc, Mutex,
+  },
 };
 
-/// Wrapper around a [`wry::Icon`] that can be created from an [`Icon`].
-pub struct WryIcon(wry::Icon);
+type CreateWebviewHandler =
+  Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> crate::Result<WebView> + Send>;
+
+#[repr(C)]
+#[derive(Debug)]
+struct PixelValue {
+  r: u8,
+  g: u8,
+  b: u8,
+  a: u8,
+}
+
+const PIXEL_SIZE: usize = std::mem::size_of::<PixelValue>();
+
+/// Wrapper around a [`wry::application::window::Icon`] that can be created from an [`Icon`].
+pub struct WryIcon(WindowIcon);
 
 impl TryFrom<Icon> for WryIcon {
   type Error = crate::Error;
   fn try_from(icon: Icon) -> Result<Self, Self::Error> {
-    let icon = match icon {
+    let image = match icon {
       Icon::File(path) => {
-        wry::Icon::from_file(path).map_err(|e| crate::Error::InvalidIcon(e.to_string()))?
+        image::open(path).map_err(|e| crate::Error::InvalidIcon(e.to_string()))?
       }
       Icon::Raw(raw) => {
-        wry::Icon::from_bytes(raw).map_err(|e| crate::Error::InvalidIcon(e.to_string()))?
+        image::load_from_memory(&raw).map_err(|e| crate::Error::InvalidIcon(e.to_string()))?
       }
     };
+    let (width, height) = image.dimensions();
+    let mut rgba = Vec::with_capacity((width * height) as usize * PIXEL_SIZE);
+    for (_, _, pixel) in image.pixels() {
+      #[cfg(target_os = "linux")]
+      rgba.extend_from_slice(&pixel.to_rgba().0);
+      #[cfg(not(target_os = "linux"))]
+      rgba.extend_from_slice(&pixel.to_rgba().data);
+    }
+    let icon = WindowIcon::from_rgba(rgba, width, height)
+      .map_err(|e| crate::Error::InvalidIcon(e.to_string()))?;
     Ok(Self(icon))
   }
 }
 
 /// Wry attributes.
 #[derive(Default, Clone)]
-pub struct WryAttributes {
-  attributes: wry::Attributes,
-  uri_scheme_protocols: Arc<Mutex<HashMap<String, wry::CustomProtocol>>>,
+pub struct WryWindowAttributes {
+  attributes: wry::application::window::WindowAttributes,
 }
 
-impl AttributesBase for WryAttributes {}
-impl Attributes for WryAttributes {
-  type Icon = WryIcon;
-
+impl WindowAttributesBase for WryWindowAttributes {}
+impl WindowAttributes for WryWindowAttributes {
   fn new() -> Self {
     Default::default()
   }
 
   fn with_config(config: WindowConfig) -> Self {
-    let mut webview = WryAttributes::default()
+    let mut webview = WryWindowAttributes::default()
       .title(config.title.to_string())
-      .width(config.width)
-      .height(config.height)
+      .inner_size(config.width, config.height)
       .visible(config.visible)
       .resizable(config.resizable)
       .decorations(config.decorations)
@@ -68,17 +106,11 @@ impl Attributes for WryAttributes {
       .transparent(config.transparent)
       .always_on_top(config.always_on_top);
 
-    if let Some(min_width) = config.min_width {
-      webview = webview.min_width(min_width);
+    if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
+      webview = webview.min_inner_size(min_width, min_height);
     }
-    if let Some(min_height) = config.min_height {
-      webview = webview.min_height(min_height);
-    }
-    if let Some(max_width) = config.max_width {
-      webview = webview.max_width(max_width);
-    }
-    if let Some(max_height) = config.max_height {
-      webview = webview.max_height(max_height);
+    if let (Some(max_width), Some(max_height)) = (config.max_width, config.max_height) {
+      webview = webview.max_inner_size(max_width, max_height);
     }
     if let Some(x) = config.x {
       webview = webview.x(x);
@@ -90,51 +122,28 @@ impl Attributes for WryAttributes {
     webview
   }
 
-  fn initialization_script(mut self, init: &str) -> Self {
-    self
-      .attributes
-      .initialization_scripts
-      .push(init.to_string());
+  fn x(self, _x: f64) -> Self {
+    // TODO self.attributes.x = Some(x);
     self
   }
 
-  fn x(mut self, x: f64) -> Self {
-    self.attributes.x = Some(x);
+  fn y(self, _y: f64) -> Self {
+    // TODO self.attributes.y = Some(y);
     self
   }
 
-  fn y(mut self, y: f64) -> Self {
-    self.attributes.y = Some(y);
+  fn inner_size(mut self, width: f64, height: f64) -> Self {
+    self.attributes.inner_size = Some(Size::new(LogicalSize::new(width, height)));
     self
   }
 
-  fn width(mut self, width: f64) -> Self {
-    self.attributes.width = width;
+  fn min_inner_size(mut self, min_width: f64, min_height: f64) -> Self {
+    self.attributes.min_inner_size = Some(Size::new(LogicalSize::new(min_width, min_height)));
     self
   }
 
-  fn height(mut self, height: f64) -> Self {
-    self.attributes.height = height;
-    self
-  }
-
-  fn min_width(mut self, min_width: f64) -> Self {
-    self.attributes.min_width = Some(min_width);
-    self
-  }
-
-  fn min_height(mut self, min_height: f64) -> Self {
-    self.attributes.min_height = Some(min_height);
-    self
-  }
-
-  fn max_width(mut self, max_width: f64) -> Self {
-    self.attributes.max_width = Some(max_width);
-    self
-  }
-
-  fn max_height(mut self, max_height: f64) -> Self {
-    self.attributes.max_height = Some(max_height);
+  fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
+    self.attributes.max_inner_size = Some(Size::new(LogicalSize::new(max_width, max_height)));
     self
   }
 
@@ -149,7 +158,11 @@ impl Attributes for WryAttributes {
   }
 
   fn fullscreen(mut self, fullscreen: bool) -> Self {
-    self.attributes.fullscreen = fullscreen;
+    if fullscreen {
+      self.attributes.fullscreen = Some(Fullscreen::Borderless(None));
+    } else {
+      self.attributes.fullscreen = None;
+    }
     self
   }
 
@@ -178,55 +191,18 @@ impl Attributes for WryAttributes {
     self
   }
 
-  fn icon(mut self, icon: Self::Icon) -> Self {
-    self.attributes.icon = Some(icon.0);
-    self
+  fn icon(mut self, icon: Icon) -> crate::Result<Self> {
+    self.attributes.window_icon = Some(WryIcon::try_from(icon)?.0);
+    Ok(self)
   }
 
   fn has_icon(&self) -> bool {
-    self.attributes.icon.is_some()
-  }
-
-  fn user_data_path(mut self, user_data_path: Option<PathBuf>) -> Self {
-    self.attributes.user_data_path = user_data_path;
-    self
-  }
-
-  fn url(mut self, url: String) -> Self {
-    self.attributes.url.replace(url);
-    self
-  }
-
-  fn has_uri_scheme_protocol(&self, name: &str) -> bool {
-    self.uri_scheme_protocols.lock().unwrap().contains_key(name)
-  }
-
-  fn register_uri_scheme_protocol<
-    N: Into<String>,
-    H: Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync + 'static,
-  >(
-    self,
-    uri_scheme: N,
-    protocol: H,
-  ) -> Self {
-    let uri_scheme = uri_scheme.into();
-    self.uri_scheme_protocols.lock().unwrap().insert(
-      uri_scheme.clone(),
-      wry::CustomProtocol {
-        name: uri_scheme,
-        handler: Box::new(move |data| (protocol)(data).map_err(|_| wry::Error::InitScriptError)),
-      },
-    );
-    self
-  }
-
-  fn build(self) -> Self {
-    self
+    self.attributes.window_icon.is_some()
   }
 }
 
-impl From<wry::RpcRequest> for RpcRequest {
-  fn from(request: wry::RpcRequest) -> Self {
+impl From<WryRpcRequest> for RpcRequest {
+  fn from(request: WryRpcRequest) -> Self {
     Self {
       command: request.method,
       params: request.params,
@@ -234,305 +210,520 @@ impl From<wry::RpcRequest> for RpcRequest {
   }
 }
 
-impl From<wry::FileDropEvent> for FileDropEvent {
-  fn from(event: wry::FileDropEvent) -> Self {
+impl From<WryFileDropEvent> for FileDropEvent {
+  fn from(event: WryFileDropEvent) -> Self {
     match event {
-      wry::FileDropEvent::Hovered(paths) => FileDropEvent::Hovered(paths),
-      wry::FileDropEvent::Dropped(paths) => FileDropEvent::Dropped(paths),
-      wry::FileDropEvent::Cancelled => FileDropEvent::Cancelled,
+      WryFileDropEvent::Hovered(paths) => FileDropEvent::Hovered(paths),
+      WryFileDropEvent::Dropped(paths) => FileDropEvent::Dropped(paths),
+      WryFileDropEvent::Cancelled => FileDropEvent::Cancelled,
     }
   }
+}
+
+#[derive(Debug, Clone)]
+enum WindowMessage {
+  SetResizable(bool),
+  SetTitle(String),
+  Maximize,
+  Unmaximize,
+  Minimize,
+  Unminimize,
+  Show,
+  Hide,
+  Close,
+  SetDecorations(bool),
+  SetAlwaysOnTop(bool),
+  SetWidth(f64),
+  SetHeight(f64),
+  Resize { width: f64, height: f64 },
+  SetMinSize { min_width: f64, min_height: f64 },
+  SetMaxSize { max_width: f64, max_height: f64 },
+  SetX(f64),
+  SetY(f64),
+  SetPosition { x: f64, y: f64 },
+  SetFullscreen(bool),
+  SetIcon(WindowIcon),
+}
+
+#[derive(Debug, Clone)]
+enum WebviewMessage {
+  EvaluateScript(String),
+}
+
+#[derive(Clone)]
+enum Message {
+  Window(WindowId, WindowMessage),
+  Webview(WindowId, WebviewMessage),
+  CreateWebview(Arc<Mutex<Option<CreateWebviewHandler>>>, Sender<WindowId>),
 }
 
 /// The Tauri [`Dispatch`] for [`Wry`].
 #[derive(Clone)]
 pub struct WryDispatcher {
-  window: wry::WindowProxy,
-  application: wry::ApplicationProxy,
+  window_id: WindowId,
+  proxy: EventLoopProxy<Message>,
 }
 
 impl Dispatch for WryDispatcher {
   type Runtime = Wry;
-  type Icon = WryIcon;
-  type Attributes = WryAttributes;
+  type WindowAttributes = WryWindowAttributes;
 
   fn create_window<M: Params<Runtime = Self::Runtime>>(
     &mut self,
     pending: PendingWindow<M>,
   ) -> crate::Result<DetachedWindow<M>> {
-    let PendingWindow {
-      attributes,
-      rpc_handler,
-      file_drop_handler,
-      label,
-      ..
-    } = pending;
-
-    let proxy = self.application.clone();
-
-    let rpc_handler =
-      rpc_handler.map(|handler| create_rpc_handler(proxy.clone(), label.clone(), handler));
-
-    let file_drop_handler = file_drop_handler
-      .map(|handler| create_file_drop_handler(proxy.clone(), label.clone(), handler));
-
-    let uri_scheme_protocols = {
-      let mut lock = attributes
-        .uri_scheme_protocols
-        .lock()
-        .expect("poisoned custom protocols");
-      std::mem::take(&mut *lock)
-    };
-
-    let window = self
-      .application
-      .add_window_with_configs(
-        attributes.attributes,
-        rpc_handler,
-        uri_scheme_protocols.into_iter().map(|(_, p)| p).collect(),
-        file_drop_handler,
-      )
-      .map_err(|e| crate::Error::CreateWebview(e.to_string()))?;
-
+    let (tx, rx) = channel();
+    let label = pending.label.clone();
+    let proxy = self.proxy.clone();
+    self
+      .proxy
+      .send_event(Message::CreateWebview(
+        Arc::new(Mutex::new(Some(Box::new(move |event_loop| {
+          create_webview(event_loop, proxy, pending)
+        })))),
+        tx,
+      ))
+      .map_err(|_| crate::Error::FailedToSendMessage)?;
+    let window_id = rx.recv().unwrap();
     let dispatcher = WryDispatcher {
-      window,
-      application: proxy,
+      window_id,
+      proxy: self.proxy.clone(),
     };
-
     Ok(DetachedWindow { label, dispatcher })
   }
 
   fn set_resizable(&self, resizable: bool) -> crate::Result<()> {
     self
-      .window
-      .set_resizable(resizable)
+      .proxy
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::SetResizable(resizable),
+      ))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn set_title<S: Into<String>>(&self, title: S) -> crate::Result<()> {
     self
-      .window
-      .set_title(title)
+      .proxy
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::SetTitle(title.into()),
+      ))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn maximize(&self) -> crate::Result<()> {
     self
-      .window
-      .maximize()
+      .proxy
+      .send_event(Message::Window(self.window_id, WindowMessage::Maximize))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn unmaximize(&self) -> crate::Result<()> {
     self
-      .window
-      .unmaximize()
+      .proxy
+      .send_event(Message::Window(self.window_id, WindowMessage::Unmaximize))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn minimize(&self) -> crate::Result<()> {
     self
-      .window
-      .minimize()
+      .proxy
+      .send_event(Message::Window(self.window_id, WindowMessage::Minimize))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn unminimize(&self) -> crate::Result<()> {
     self
-      .window
-      .unminimize()
+      .proxy
+      .send_event(Message::Window(self.window_id, WindowMessage::Unminimize))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn show(&self) -> crate::Result<()> {
     self
-      .window
-      .show()
+      .proxy
+      .send_event(Message::Window(self.window_id, WindowMessage::Show))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn hide(&self) -> crate::Result<()> {
     self
-      .window
-      .hide()
+      .proxy
+      .send_event(Message::Window(self.window_id, WindowMessage::Hide))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn close(&self) -> crate::Result<()> {
     self
-      .window
-      .close()
+      .proxy
+      .send_event(Message::Window(self.window_id, WindowMessage::Close))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn set_decorations(&self, decorations: bool) -> crate::Result<()> {
     self
-      .window
-      .set_decorations(decorations)
+      .proxy
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::SetDecorations(decorations),
+      ))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn set_always_on_top(&self, always_on_top: bool) -> crate::Result<()> {
     self
-      .window
-      .set_always_on_top(always_on_top)
+      .proxy
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::SetAlwaysOnTop(always_on_top),
+      ))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn set_width(&self, width: f64) -> crate::Result<()> {
     self
-      .window
-      .set_width(width)
+      .proxy
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::SetWidth(width),
+      ))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn set_height(&self, height: f64) -> crate::Result<()> {
     self
-      .window
-      .set_height(height)
+      .proxy
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::SetHeight(height),
+      ))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn resize(&self, width: f64, height: f64) -> crate::Result<()> {
     self
-      .window
-      .resize(width, height)
+      .proxy
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::Resize { width, height },
+      ))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn set_min_size(&self, min_width: f64, min_height: f64) -> crate::Result<()> {
     self
-      .window
-      .set_min_size(min_width, min_height)
+      .proxy
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::SetMinSize {
+          min_width,
+          min_height,
+        },
+      ))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn set_max_size(&self, max_width: f64, max_height: f64) -> crate::Result<()> {
     self
-      .window
-      .set_max_size(max_width, max_height)
+      .proxy
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::SetMaxSize {
+          max_width,
+          max_height,
+        },
+      ))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn set_x(&self, x: f64) -> crate::Result<()> {
     self
-      .window
-      .set_x(x)
+      .proxy
+      .send_event(Message::Window(self.window_id, WindowMessage::SetX(x)))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn set_y(&self, y: f64) -> crate::Result<()> {
     self
-      .window
-      .set_y(y)
+      .proxy
+      .send_event(Message::Window(self.window_id, WindowMessage::SetY(y)))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn set_position(&self, x: f64, y: f64) -> crate::Result<()> {
     self
-      .window
-      .set_position(x, y)
+      .proxy
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::SetPosition { x, y },
+      ))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn set_fullscreen(&self, fullscreen: bool) -> crate::Result<()> {
     self
-      .window
-      .set_fullscreen(fullscreen)
+      .proxy
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::SetFullscreen(fullscreen),
+      ))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
-  fn set_icon(&self, icon: Self::Icon) -> crate::Result<()> {
+  fn set_icon(&self, icon: Icon) -> crate::Result<()> {
     self
-      .window
-      .set_icon(icon.0)
+      .proxy
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::SetIcon(WryIcon::try_from(icon)?.0),
+      ))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn eval_script<S: Into<String>>(&self, script: S) -> crate::Result<()> {
     self
-      .window
-      .evaluate_script(script)
+      .proxy
+      .send_event(Message::Webview(
+        self.window_id,
+        WebviewMessage::EvaluateScript(script.into()),
+      ))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 }
 
 /// A Tauri [`Runtime`] wrapper around [`wry::Application`].
 pub struct Wry {
-  inner: wry::Application,
+  event_loop: EventLoop<Message>,
+  webviews: HashMap<WindowId, WebView>,
 }
 
 impl Runtime for Wry {
   type Dispatcher = WryDispatcher;
 
   fn new() -> crate::Result<Self> {
-    let app = wry::Application::new().map_err(|e| crate::Error::CreateWebview(e.to_string()))?;
-    Ok(Self { inner: app })
+    let event_loop = EventLoop::<Message>::with_user_event();
+    Ok(Self {
+      event_loop,
+      webviews: Default::default(),
+    })
   }
 
   fn create_window<M: Params<Runtime = Self>>(
     &mut self,
     pending: PendingWindow<M>,
   ) -> crate::Result<DetachedWindow<M>> {
-    let PendingWindow {
-      attributes,
-      rpc_handler,
-      file_drop_handler,
-      label,
-      ..
-    } = pending;
-
-    let proxy = self.inner.application_proxy();
-
-    let rpc_handler =
-      rpc_handler.map(|handler| create_rpc_handler(proxy.clone(), label.clone(), handler));
-
-    let file_drop_handler = file_drop_handler
-      .map(|handler| create_file_drop_handler(proxy.clone(), label.clone(), handler));
-
-    let uri_scheme_protocols = {
-      let mut lock = attributes
-        .uri_scheme_protocols
-        .lock()
-        .expect("poisoned custom protocols");
-      std::mem::take(&mut *lock)
-    };
-
-    let window = self
-      .inner
-      .add_window_with_configs(
-        attributes.attributes,
-        rpc_handler,
-        uri_scheme_protocols.into_iter().map(|(_, p)| p).collect(),
-        file_drop_handler,
-      )
-      .map_err(|e| crate::Error::CreateWebview(e.to_string()))?;
+    let label = pending.label.clone();
+    let proxy = self.event_loop.create_proxy();
+    let webview = create_webview(&self.event_loop, proxy.clone(), pending)?;
 
     let dispatcher = WryDispatcher {
-      window,
-      application: proxy,
+      window_id: webview.window().id(),
+      proxy,
     };
+
+    self.webviews.insert(webview.window().id(), webview);
 
     Ok(DetachedWindow { label, dispatcher })
   }
 
   fn run(self) {
-    wry::Application::run(self.inner)
+    let mut webviews = self.webviews;
+    self.event_loop.run(move |event, event_loop, control_flow| {
+      *control_flow = ControlFlow::Poll;
+
+      for (_, w) in webviews.iter() {
+        if let Err(e) = w.evaluate_script() {
+          eprintln!("{}", e);
+        }
+      }
+
+      match event {
+        Event::WindowEvent { event, window_id } => match event {
+          WindowEvent::CloseRequested => {
+            webviews.remove(&window_id);
+            println!("{:?}", webviews.len());
+            if webviews.is_empty() {
+              *control_flow = ControlFlow::Exit;
+            }
+          }
+          WindowEvent::Resized(_) => {
+            if let Err(e) = webviews[&window_id].resize() {
+              eprintln!("{}", e);
+            }
+          }
+          _ => {}
+        },
+        Event::UserEvent(message) => match message {
+          Message::Window(id, window_message) => {
+            if let Some(webview) = webviews.get_mut(&id) {
+              let window = webview.window();
+              match window_message {
+                WindowMessage::SetResizable(resizable) => window.set_resizable(resizable),
+                WindowMessage::SetTitle(title) => window.set_title(&title),
+                WindowMessage::Maximize => window.set_maximized(true),
+                WindowMessage::Unmaximize => window.set_maximized(false),
+                WindowMessage::Minimize => window.set_minimized(true),
+                WindowMessage::Unminimize => window.set_minimized(false),
+                WindowMessage::Show => window.set_visible(true),
+                WindowMessage::Hide => window.set_visible(false),
+                WindowMessage::Close => {
+                  webviews.remove(&id);
+                  if webviews.is_empty() {
+                    *control_flow = ControlFlow::Exit;
+                  }
+                }
+                WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
+                WindowMessage::SetAlwaysOnTop(always_on_top) => {
+                  window.set_always_on_top(always_on_top)
+                }
+                WindowMessage::SetWidth(width) => {
+                  let mut size = window.inner_size().to_logical(window.scale_factor());
+                  size.width = width;
+                  window.set_inner_size(size);
+                }
+                WindowMessage::SetHeight(height) => {
+                  let mut size = window.inner_size().to_logical(window.scale_factor());
+                  size.height = height;
+                  window.set_inner_size(size);
+                }
+                WindowMessage::Resize { width, height } => {
+                  window.set_inner_size(LogicalSize::new(width, height));
+                }
+                WindowMessage::SetMinSize {
+                  min_width,
+                  min_height,
+                } => {
+                  window.set_min_inner_size(Some(LogicalSize::new(min_width, min_height)));
+                }
+                WindowMessage::SetMaxSize {
+                  max_width,
+                  max_height,
+                } => {
+                  window.set_max_inner_size(Some(LogicalSize::new(max_width, max_height)));
+                }
+                WindowMessage::SetX(x) => {
+                  if let Ok(outer_position) = window.outer_position() {
+                    let mut outer_position = outer_position.to_logical(window.scale_factor());
+                    outer_position.x = x;
+                    window.set_outer_position(outer_position);
+                  }
+                }
+                WindowMessage::SetY(y) => {
+                  if let Ok(outer_position) = window.outer_position() {
+                    let mut outer_position = outer_position.to_logical(window.scale_factor());
+                    outer_position.y = y;
+                    window.set_outer_position(outer_position);
+                  }
+                }
+                WindowMessage::SetPosition { x, y } => {
+                  window.set_outer_position(LogicalPosition::new(x, y))
+                }
+                WindowMessage::SetFullscreen(fullscreen) => {
+                  if fullscreen {
+                    window.set_fullscreen(Some(Fullscreen::Borderless(None)))
+                  } else {
+                    window.set_fullscreen(None)
+                  }
+                }
+                WindowMessage::SetIcon(icon) => {
+                  window.set_window_icon(Some(icon));
+                }
+              }
+            }
+          }
+          Message::Webview(id, webview_message) => {
+            if let Some(webview) = webviews.get_mut(&id) {
+              match webview_message {
+                WebviewMessage::EvaluateScript(script) => {
+                  let _ = webview.dispatch_script(&script);
+                }
+              }
+            }
+          }
+          Message::CreateWebview(handler, sender) => {
+            let handler = {
+              let mut lock = handler.lock().expect("poisoned create webview handler");
+              std::mem::take(&mut *lock).unwrap()
+            };
+            match handler(event_loop) {
+              Ok(webview) => {
+                let window_id = webview.window().id();
+                webviews.insert(window_id, webview);
+                sender.send(window_id).unwrap();
+              }
+              Err(e) => {
+                eprintln!("{}", e);
+              }
+            }
+          }
+        },
+        _ => (),
+      }
+    })
   }
+}
+
+fn create_webview<M: Params<Runtime = Wry>>(
+  event_loop: &EventLoopWindowTarget<Message>,
+  proxy: EventLoopProxy<Message>,
+  pending: PendingWindow<M>,
+) -> crate::Result<WebView> {
+  let PendingWindow {
+    webview_attributes,
+    window_attributes,
+    rpc_handler,
+    file_drop_handler,
+    label,
+    url,
+    ..
+  } = pending;
+
+  let window_builder = WindowBuilder {
+    window: window_attributes.attributes,
+  };
+  let window = window_builder.build(event_loop).unwrap();
+  let mut webview_builder = WebViewBuilder::new(window)
+    .map_err(|e| crate::Error::CreateWebview(e.to_string()))?
+    .with_url(&url)
+    .unwrap(); // safe to unwrap because we validate the URL beforehand
+  if let Some(handler) = rpc_handler {
+    webview_builder =
+      webview_builder.with_rpc_handler(create_rpc_handler(proxy.clone(), label.clone(), handler));
+  }
+  if let Some(handler) = file_drop_handler {
+    webview_builder =
+      webview_builder.with_file_drop_handler(create_file_drop_handler(proxy, label, handler));
+  }
+  for (scheme, protocol) in webview_attributes.uri_scheme_protocols {
+    webview_builder = webview_builder.with_custom_protocol(scheme, move |_window, url| {
+      protocol(url).map_err(|_| wry::Error::InitScriptError)
+    });
+  }
+  if let Some(data_directory) = webview_attributes.data_directory {
+    webview_builder = webview_builder.with_data_directory(data_directory);
+  }
+  for script in webview_attributes.initialization_scripts {
+    webview_builder = webview_builder.with_initialization_script(&script);
+  }
+
+  webview_builder
+    .build()
+    .map_err(|e| crate::Error::CreateWebview(e.to_string()))
 }
 
 /// Create a wry rpc handler from a tauri rpc handler.
 fn create_rpc_handler<M: Params<Runtime = Wry>>(
-  app_proxy: wry::ApplicationProxy,
+  proxy: EventLoopProxy<Message>,
   label: M::Label,
   handler: WebviewRpcHandler<M>,
-) -> wry::WindowRpcHandler {
+) -> Box<dyn Fn(&Window, WryRpcRequest) -> Option<RpcResponse> + 'static> {
   Box::new(move |window, request| {
     handler(
       DetachedWindow {
         dispatcher: WryDispatcher {
-          window,
-          application: app_proxy.clone(),
+          window_id: window.id(),
+          proxy: proxy.clone(),
         },
         label: label.clone(),
       },
@@ -544,17 +735,17 @@ fn create_rpc_handler<M: Params<Runtime = Wry>>(
 
 /// Create a wry file drop handler from a tauri file drop handler.
 fn create_file_drop_handler<M: Params<Runtime = Wry>>(
-  app_proxy: wry::ApplicationProxy,
+  proxy: EventLoopProxy<Message>,
   label: M::Label,
   handler: FileDropHandler<M>,
-) -> wry::WindowFileDropHandler {
+) -> Box<dyn Fn(&Window, WryFileDropEvent) -> bool + 'static> {
   Box::new(move |window, event| {
     handler(
       event.into(),
       DetachedWindow {
         dispatcher: WryDispatcher {
-          window,
-          application: app_proxy.clone(),
+          window_id: window.id(),
+          proxy: proxy.clone(),
         },
         label: label.clone(),
       },

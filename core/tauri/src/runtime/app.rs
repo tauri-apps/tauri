@@ -10,7 +10,7 @@ use crate::{
     flavors::wry::Wry,
     manager::{Args, WindowManager},
     tag::Tag,
-    webview::{Attributes, CustomProtocol},
+    webview::{CustomProtocol, WebviewAttributes, WindowAttributes},
     window::PendingWindow,
     Dispatch, Runtime,
   },
@@ -183,12 +183,23 @@ where
   /// Creates a new webview.
   pub fn create_window<F>(mut self, label: L, url: WindowUrl, setup: F) -> Self
   where
-    F: FnOnce(<R::Dispatcher as Dispatch>::Attributes) -> <R::Dispatcher as Dispatch>::Attributes,
+    F: FnOnce(
+      <R::Dispatcher as Dispatch>::WindowAttributes,
+      WebviewAttributes,
+    ) -> (
+      <R::Dispatcher as Dispatch>::WindowAttributes,
+      WebviewAttributes,
+    ),
   {
-    let attributes = setup(<R::Dispatcher as Dispatch>::Attributes::new());
-    self
-      .pending_windows
-      .push(PendingWindow::new(attributes, label, url));
+    let (window_attributes, webview_attributes) = setup(
+      <R::Dispatcher as Dispatch>::WindowAttributes::new(),
+      WebviewAttributes::new(url),
+    );
+    self.pending_windows.push(PendingWindow::new(
+      window_attributes,
+      webview_attributes,
+      label,
+    ));
     self
   }
 
@@ -236,9 +247,11 @@ where
         .parse()
         .unwrap_or_else(|_| panic!("bad label found in config: {}", config.label));
 
-      self
-        .pending_windows
-        .push(PendingWindow::with_config(config, label, url));
+      self.pending_windows.push(PendingWindow::with_config(
+        config,
+        WebviewAttributes::new(url),
+        label,
+      ));
     }
 
     manager.initialize_plugins()?;

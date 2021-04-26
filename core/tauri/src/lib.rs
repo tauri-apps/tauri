@@ -51,7 +51,7 @@ pub use {
   api::config::WindowUrl,
   hooks::{InvokeHandler, InvokeMessage, OnPageLoad, PageLoadPayload, SetupHook},
   runtime::app::{App, Builder},
-  runtime::webview::Attributes,
+  runtime::webview::{WebviewAttributes, WindowAttributes},
   runtime::window::export::Window,
 };
 
@@ -90,6 +90,7 @@ macro_rules! tauri_build_context {
 }
 
 /// A icon definition.
+#[derive(Debug, Clone)]
 pub enum Icon {
   /// Icon from file path.
   File(PathBuf),

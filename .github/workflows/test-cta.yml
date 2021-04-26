@@ -9,8 +9,6 @@ on:
     inputs:
       branch:
         default: "dev"
-      test:
-        default: "false"
   pull_request:
     paths:
       - "tooling/create-tauri-app/**"
@@ -20,7 +18,7 @@ env:
 
 jobs:
   create-recipe-with-npm:
-    name: "node@${{ matrix.node }}|npm@${{ matrix.manager }}: ${{ matrix.recipe }}"
+    name: "node@${{ matrix.node }} + npm@${{ matrix.manager }}: ${{ matrix.recipe }}"
     runs-on: ubuntu-latest
 
     strategy:
@@ -59,7 +57,7 @@ jobs:
           TAURI_RUN_MANAGER: "npm"
 
   create-recipe-with-yarn:
-    name: "node@${{ matrix.node }}|yarn@1: ${{ matrix.recipe }}"
+    name: "node@${{ matrix.node }} + yarn@1: ${{ matrix.recipe }}"
     runs-on: ubuntu-latest
 
     strategy:

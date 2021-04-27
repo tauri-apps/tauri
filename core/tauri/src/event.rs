@@ -192,10 +192,10 @@ impl<Event: Tag, Window: Tag> Listeners<Event, Window> {
   }
 
   /// Triggers the given global event with its payload.
-  pub(crate) fn trigger<E>(&self, event: &E, window: Option<Window>, payload: Option<String>)
+  pub(crate) fn trigger<E: ?Sized>(&self, event: &E, window: Option<Window>, payload: Option<String>)
   where
-    E: TagRef<Event> + ?Sized,
     Event: Borrow<E>,
+    E: TagRef<Event>,
   {
     let mut maybe_pending = false;
     match self.inner.handlers.try_lock() {

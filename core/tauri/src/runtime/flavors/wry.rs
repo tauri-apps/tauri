@@ -521,7 +521,6 @@ impl Runtime for Wry {
         Event::WindowEvent { event, window_id } => match event {
           WindowEvent::CloseRequested => {
             webviews.remove(&window_id);
-            println!("{:?}", webviews.len());
             if webviews.is_empty() {
               *control_flow = ControlFlow::Exit;
             }

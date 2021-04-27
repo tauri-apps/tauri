@@ -222,6 +222,7 @@ enum WindowMessage {
   SetPosition { x: f64, y: f64 },
   SetFullscreen(bool),
   SetIcon(WindowIcon),
+  DragWindow,
 }
 
 #[derive(Debug, Clone)]
@@ -460,6 +461,13 @@ impl Dispatch for WryDispatcher {
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
+  fn start_dragging(&self) -> crate::Result<()> {
+    self
+      .proxy
+      .send_event(Message::Window(self.window_id, WindowMessage::DragWindow))
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
   fn eval_script<S: Into<String>>(&self, script: S) -> crate::Result<()> {
     self
       .proxy
@@ -606,6 +614,9 @@ impl Runtime for Wry {
                 }
                 WindowMessage::SetIcon(icon) => {
                   window.set_window_icon(Some(icon));
+                }
+                WindowMessage::DragWindow => {
+                  window.drag_window();
                 }
               }
             }

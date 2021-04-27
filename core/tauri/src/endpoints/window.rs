@@ -89,6 +89,7 @@ pub enum Cmd {
   SetIcon {
     icon: IconDto,
   },
+  StartDragging,
 }
 
 #[cfg(window_create)]
@@ -161,6 +162,7 @@ impl Cmd {
         Self::SetPosition { x, y } => window.set_position(x, y)?,
         Self::SetFullscreen { fullscreen } => window.set_fullscreen(fullscreen)?,
         Self::SetIcon { icon } => window.set_icon(icon.into())?,
+        Self::StartDragging => window.start_dragging()?,
       }
       Ok(().into())
     }

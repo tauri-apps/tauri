@@ -111,6 +111,9 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   /// Updates the window icon.
   fn set_icon(&self, icon: Icon) -> crate::Result<()>;
 
+  /// Starts dragging the window.
+  fn start_dragging(&self) -> crate::Result<()>;
+
   /// Executes javascript on the window this [`Dispatch`] represents.
   fn eval_script<S: Into<String>>(&self, script: S) -> crate::Result<()>;
 }

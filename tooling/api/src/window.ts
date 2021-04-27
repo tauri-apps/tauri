@@ -472,6 +472,15 @@ export class WindowManager {
       }
     })
   }
+
+  async startDragging(): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'startDragging'
+      }
+    })
+  }
 }
 
 const appWindow = new WindowManager()

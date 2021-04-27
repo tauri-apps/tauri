@@ -179,18 +179,21 @@ pub(crate) mod export {
     /// How to handle this window receiving an [`InvokeMessage`].
     pub(crate) fn on_message(self, command: String, payload: InvokePayload) -> crate::Result<()> {
       let manager = self.manager.clone();
-      if &command == "__initialized" {
-        let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
-        manager.run_on_page_load(self, payload);
-      } else {
-        let message = InvokeMessage::new(self, command.to_string(), payload);
-        if let Some(module) = &message.payload.tauri_module {
-          let module = module.to_string();
-          crate::endpoints::handle(module, message, manager.config(), manager.package_info());
-        } else if command.starts_with("plugin:") {
-          manager.extend_api(message);
-        } else {
-          manager.run_invoke_handler(message);
+      match command.as_str() {
+        "__initialized" => {
+          let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
+          manager.run_on_page_load(self, payload);
+        }
+        _ => {
+          let message = InvokeMessage::new(self, command.to_string(), payload);
+          if let Some(module) = &message.payload.tauri_module {
+            let module = module.to_string();
+            crate::endpoints::handle(module, message, manager.config(), manager.package_info());
+          } else if command.starts_with("plugin:") {
+            manager.extend_api(message);
+          } else {
+            manager.run_invoke_handler(message);
+          }
         }
       }
 
@@ -396,6 +399,11 @@ pub(crate) mod export {
     /// Sets this window' icon.
     pub fn set_icon(&self, icon: Icon) -> crate::Result<()> {
       self.window.dispatcher.set_icon(icon)
+    }
+
+    /// Starts dragging the window.
+    pub fn start_dragging(&self) -> crate::Result<()> {
+      self.window.dispatcher.start_dragging()
     }
 
     pub(crate) fn verify_salt(&self, salt: String) -> bool {

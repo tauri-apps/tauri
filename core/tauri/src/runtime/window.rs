@@ -196,9 +196,14 @@ pub(crate) mod export {
       &self.window.label
     }
 
-    pub(crate) fn emit_internal<E, S>(&self, event: &E, payload: Option<S>) -> crate::Result<()>
+    pub(crate) fn emit_internal<E: ?Sized, S>(
+      &self,
+      event: &E,
+      payload: Option<S>,
+    ) -> crate::Result<()>
     where
-      E: TagRef<P::Event> + ?Sized,
+      P::Event: Borrow<E>,
+      E: TagRef<P::Event>,
       S: Serialize,
     {
       let js_payload = match payload {
@@ -218,20 +223,22 @@ pub(crate) mod export {
     }
 
     /// Emits an event to the current window.
-    pub fn emit<E, S>(&self, event: &E, payload: Option<S>) -> crate::Result<()>
+    pub fn emit<E: ?Sized, S>(&self, event: &E, payload: Option<S>) -> crate::Result<()>
     where
-      E: TagRef<P::Event> + ?Sized,
+      P::Event: Borrow<E>,
+      E: TagRef<P::Event>,
       S: Serialize,
     {
       self.emit_internal(event, payload)
     }
 
     /// Emits an event on all windows except this one.
-    pub fn emit_others<E: TagRef<P::Event> + ?Sized, S: Serialize + Clone>(
-      &self,
-      event: &E,
-      payload: Option<S>,
-    ) -> crate::Result<()> {
+    pub fn emit_others<E: ?Sized, S>(&self, event: &E, payload: Option<S>) -> crate::Result<()>
+    where
+      P::Event: Borrow<E>,
+      E: TagRef<P::Event>,
+      S: Serialize + Clone,
+    {
       self.manager.emit_filter(event, payload, |w| w != self)
     }
 
@@ -254,10 +261,10 @@ pub(crate) mod export {
     }
 
     /// Triggers an event on this window.
-    pub fn trigger<E>(&self, event: &E, data: Option<String>)
+    pub fn trigger<E: ?Sized>(&self, event: &E, data: Option<String>)
     where
-      E: TagRef<P::Event> + ?Sized,
       P::Event: Borrow<E>,
+      E: TagRef<P::Event>,
     {
       let label = self.window.label.clone();
       self.manager.trigger(event, Some(label), data)

@@ -493,9 +493,15 @@ impl<P: Params> WindowManager<P> {
     window
   }
 
-  pub fn emit_filter<E, S, F>(&self, event: &E, payload: Option<S>, filter: F) -> crate::Result<()>
+  pub fn emit_filter<E: ?Sized, S, F>(
+    &self,
+    event: &E,
+    payload: Option<S>,
+    filter: F,
+  ) -> crate::Result<()>
   where
-    E: TagRef<P::Event> + ?Sized,
+    P::Event: Borrow<E>,
+    E: TagRef<P::Event>,
     S: Serialize + Clone,
     F: Fn(&Window<P>) -> bool,
   {
@@ -519,10 +525,10 @@ impl<P: Params> WindowManager<P> {
     self.inner.listeners.unlisten(handler_id)
   }
 
-  pub fn trigger<E>(&self, event: &E, window: Option<P::Label>, data: Option<String>)
+  pub fn trigger<E: ?Sized>(&self, event: &E, window: Option<P::Label>, data: Option<String>)
   where
-    E: TagRef<P::Event> + ?Sized,
     P::Event: Borrow<E>,
+    E: TagRef<P::Event>,
   {
     self.inner.listeners.trigger(event, window, data)
   }
@@ -578,10 +584,10 @@ impl<P: Params> WindowManager<P> {
       .remove(&uuid)
   }
 
-  pub fn get_window<L>(&self, label: &L) -> Option<Window<P>>
+  pub fn get_window<L: ?Sized>(&self, label: &L) -> Option<Window<P>>
   where
-    L: TagRef<P::Label> + ?Sized,
     P::Label: Borrow<L>,
+    L: TagRef<P::Label>,
   {
     self.windows_lock().get(label).cloned()
   }

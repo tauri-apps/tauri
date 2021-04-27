@@ -91,11 +91,17 @@ impl<T, E: Debug> Tag for T where
 /// * [`ToOwned`] to make sure we can clone it into the owned tag in specific cases.
 /// * [`PartialEq`] so that we can compare refs to the owned tags easily.
 /// * [`Hash`] + [`Eq`] because we want to be able to use a ref as a key to internal hashmaps.
-pub trait TagRef<T: Tag>: Display + ToOwned<Owned = T> + PartialEq<T> + Eq + Hash {}
+pub trait TagRef<T: Tag>: Display + ToOwned<Owned = T> + PartialEq<T> + Eq + Hash
+where
+  T: std::borrow::Borrow<Self>,
+{
+}
 
 /// Automatically implement [`TagRef`] for all types that fit the requirements.
-impl<T: Tag, R> TagRef<T> for R where
-  R: Display + ToOwned<Owned = T> + PartialEq<T> + Eq + Hash + ?Sized
+impl<T: Tag, R> TagRef<T> for R
+where
+  T: std::borrow::Borrow<R>,
+  R: Display + ToOwned<Owned = T> + PartialEq<T> + Eq + Hash + ?Sized,
 {
 }
 

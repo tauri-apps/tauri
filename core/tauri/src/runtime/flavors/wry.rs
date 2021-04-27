@@ -471,7 +471,7 @@ impl Dispatch for WryDispatcher {
   }
 }
 
-/// A Tauri [`Runtime`] wrapper around [`wry::Application`].
+/// A Tauri [`Runtime`] wrapper around wry.
 pub struct Wry {
   event_loop: EventLoop<Message>,
   webviews: HashMap<WindowId, WebView>,

@@ -136,22 +136,18 @@ describe('CTA', () => {
               })
             },
             reactjs: () => {
-              expect(packageFileOutput['scripts']).toMatchObject({
-                start: 'react-scripts start',
-                build: 'react-scripts build',
-                test: 'react-scripts test',
-                eject: 'react-scripts eject',
-                tauri: 'tauri'
-              })
+              expect(packageFileOutput['scripts']).toEqual(
+                expect.objectContaining({
+                  tauri: 'tauri'
+                })
+              )
             },
             reactts: () => {
-              expect(packageFileOutput['scripts']).toMatchObject({
-                start: 'react-scripts start',
-                build: 'react-scripts build',
-                test: 'react-scripts test',
-                eject: 'react-scripts eject',
-                tauri: 'tauri'
-              })
+              expect(packageFileOutput['scripts']).toEqual(
+                expect.objectContaining({
+                  tauri: 'tauri'
+                })
+              )
             }
           }
 

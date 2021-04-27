@@ -74,7 +74,7 @@ impl<M: Params> App<M> {
         // invoke the Event `tauri://update` from JS or rust side.
         main_window.listen(
           updater::EVENT_CHECK_UPDATE
-            .parse()
+            .parse::<M::Event>()
             .unwrap_or_else(|_| panic!("bad label")),
           move |_msg| {
             let window = event_window.clone();

@@ -20,14 +20,14 @@ fn main() {
   tauri::Builder::default()
     .on_page_load(|window, _| {
       let window_ = window.clone();
-      window.listen("js-event".into(), move |event| {
+      window.listen("js-event", move |event| {
         println!("got js-event with message '{:?}'", event.payload());
         let reply = Reply {
           data: "something else".to_string(),
         };
 
         window_
-          .emit(&"rust-event".into(), Some(reply))
+          .emit("rust-event", Some(reply))
           .expect("failed to emit");
       });
     })

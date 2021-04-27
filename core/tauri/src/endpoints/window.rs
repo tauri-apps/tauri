@@ -99,7 +99,7 @@ struct WindowCreatedEvent {
 
 impl Cmd {
   #[allow(dead_code)]
-  pub async fn run<M: Params>(self, window: Window<M>) -> crate::Result<InvokeResponse> {
+  pub async fn run<P: Params>(self, window: Window<P>) -> crate::Result<InvokeResponse> {
     if cfg!(not(window_all)) {
       Err(crate::Error::ApiNotAllowlisted("window > all".to_string()))
     } else {
@@ -114,7 +114,7 @@ impl Cmd {
         Self::CreateWebview { options } => {
           let mut window = window;
           // Panic if the user's `Tag` type decided to return an error while parsing.
-          let label: M::Label = options.label.parse().unwrap_or_else(|_| {
+          let label: P::Label = options.label.parse().unwrap_or_else(|_| {
             panic!(
               "Window module received unknown window label: {}",
               options.label
@@ -124,13 +124,15 @@ impl Cmd {
           let url = options.url.clone();
           let pending =
             crate::runtime::window::PendingWindow::with_config(options, label.clone(), url);
-          window.create_window(pending)?.emit_others_internal(
-            "tauri://window-created".to_string(),
+
+          window.create_window(pending)?.emit_others(
+            &crate::runtime::manager::tauri_event::<P::Event>("tauri://window-created"),
             Some(WindowCreatedEvent {
               label: label.to_string(),
             }),
           )?;
         }
+
         Self::SetResizable { resizable } => window.set_resizable(resizable)?,
         Self::SetTitle { title } => window.set_title(&title)?,
         Self::Maximize => window.maximize()?,

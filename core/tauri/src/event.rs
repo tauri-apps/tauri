@@ -192,8 +192,12 @@ impl<Event: Tag, Window: Tag> Listeners<Event, Window> {
   }
 
   /// Triggers the given global event with its payload.
-  pub(crate) fn trigger<E: ?Sized>(&self, event: &E, window: Option<Window>, payload: Option<String>)
-  where
+  pub(crate) fn trigger<E: ?Sized>(
+    &self,
+    event: &E,
+    window: Option<Window>,
+    payload: Option<String>,
+  ) where
     Event: Borrow<E>,
     E: TagRef<Event>,
   {

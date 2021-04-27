@@ -223,7 +223,7 @@ pub(crate) mod export {
     }
 
     /// Emits an event to the current window.
-    pub fn emit<E:?Sized, S>(&self, event: &E, payload: Option<S>) -> crate::Result<()>
+    pub fn emit<E: ?Sized, S>(&self, event: &E, payload: Option<S>) -> crate::Result<()>
     where
       P::Event: Borrow<E>,
       E: TagRef<P::Event>,
@@ -261,7 +261,7 @@ pub(crate) mod export {
     }
 
     /// Triggers an event on this window.
-    pub fn trigger<E:?Sized>(&self, event: &E, data: Option<String>)
+    pub fn trigger<E: ?Sized>(&self, event: &E, data: Option<String>)
     where
       P::Event: Borrow<E>,
       E: TagRef<P::Event>,

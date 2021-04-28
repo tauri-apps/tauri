@@ -89,6 +89,7 @@ pub enum Cmd {
   SetIcon {
     icon: IconDto,
   },
+  StartDragging,
 }
 
 #[cfg(window_create)]
@@ -122,9 +123,11 @@ impl Cmd {
           });
 
           let url = options.url.clone();
-          let pending =
-            crate::runtime::window::PendingWindow::with_config(options, label.clone(), url);
-
+          let pending = crate::runtime::window::PendingWindow::with_config(
+            options,
+            crate::runtime::webview::WebviewAttributes::new(url),
+            label.clone(),
+          );
           window.create_window(pending)?.emit_others(
             &crate::runtime::manager::tauri_event::<P::Event>("tauri://window-created"),
             Some(WindowCreatedEvent {
@@ -160,6 +163,7 @@ impl Cmd {
         Self::SetPosition { x, y } => window.set_position(x, y)?,
         Self::SetFullscreen { fullscreen } => window.set_fullscreen(fullscreen)?,
         Self::SetIcon { icon } => window.set_icon(icon.into())?,
+        Self::StartDragging => window.start_dragging()?,
       }
       Ok(().into())
     }

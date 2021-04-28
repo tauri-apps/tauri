@@ -5,68 +5,75 @@
 //! A layer between raw [`Runtime`] webview windows and Tauri.
 
 use crate::{
-  api::config::{WindowConfig, WindowUrl},
+  api::config::WindowConfig,
   event::{Event, EventHandler},
   hooks::{InvokeMessage, InvokePayload, PageLoadPayload},
   runtime::{
     tag::ToJsString,
-    webview::{FileDropHandler, WebviewRpcHandler},
+    webview::{FileDropHandler, WebviewAttributes, WebviewRpcHandler},
     Dispatch, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
-  Attributes, Icon, Manager, Params,
+  Icon, Manager, Params, WindowBuilder,
 };
 use serde::Serialize;
 use serde_json::Value as JsonValue;
-use std::{
-  convert::TryInto,
-  hash::{Hash, Hasher},
-};
+use std::hash::{Hash, Hasher};
 
 /// A webview window that has yet to be built.
 pub struct PendingWindow<M: Params> {
   /// The label that the window will be named.
   pub label: M::Label,
 
-  /// The url the window will open with.
-  pub url: WindowUrl,
+  /// The [`WindowBuilder`] that the window will be created with.
+  pub window_attributes: <<M::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
 
-  /// The [`Attributes`] that the webview window be created with.
-  pub attributes: <<M::Runtime as Runtime>::Dispatcher as Dispatch>::Attributes,
+  /// The [`WebviewAttributes`] that the webview will be created with.
+  pub webview_attributes: WebviewAttributes,
 
   /// How to handle RPC calls on the webview window.
   pub rpc_handler: Option<WebviewRpcHandler<M>>,
 
   /// How to handle a file dropping onto the webview window.
   pub file_drop_handler: Option<FileDropHandler<M>>,
+
+  /// The resolved URL to load on the webview.
+  pub url: String,
 }
 
 impl<M: Params> PendingWindow<M> {
   /// Create a new [`PendingWindow`] with a label and starting url.
   pub fn new(
-    attributes: <<M::Runtime as Runtime>::Dispatcher as Dispatch>::Attributes,
+    window_attributes: <<M::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
+    webview_attributes: WebviewAttributes,
     label: M::Label,
-    url: WindowUrl,
   ) -> Self {
     Self {
-      attributes,
+      window_attributes,
+      webview_attributes,
       label,
-      url,
       rpc_handler: None,
       file_drop_handler: None,
+      url: "tauri://localhost".to_string(),
     }
   }
 
   /// Create a new [`PendingWindow`] from a [`WindowConfig`] with a label and starting url.
-  pub fn with_config(window_config: WindowConfig, label: M::Label, url: WindowUrl) -> Self {
+  pub fn with_config(
+    window_config: WindowConfig,
+    webview_attributes: WebviewAttributes,
+    label: M::Label,
+  ) -> Self {
     Self {
-      attributes: <<<M::Runtime as Runtime>::Dispatcher as Dispatch>::Attributes>::with_config(
-        window_config,
-      ),
+      window_attributes:
+        <<<M::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder>::with_config(
+          window_config,
+        ),
+      webview_attributes,
       label,
-      url,
       rpc_handler: None,
       file_drop_handler: None,
+      url: "tauri://localhost".to_string(),
     }
   }
 }
@@ -173,18 +180,21 @@ pub(crate) mod export {
     /// How to handle this window receiving an [`InvokeMessage`].
     pub(crate) fn on_message(self, command: String, payload: InvokePayload) -> crate::Result<()> {
       let manager = self.manager.clone();
-      if &command == "__initialized" {
-        let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
-        manager.run_on_page_load(self, payload);
-      } else {
-        let message = InvokeMessage::new(self, command.to_string(), payload);
-        if let Some(module) = &message.payload.tauri_module {
-          let module = module.to_string();
-          crate::endpoints::handle(module, message, manager.config(), manager.package_info());
-        } else if command.starts_with("plugin:") {
-          manager.extend_api(message);
-        } else {
-          manager.run_invoke_handler(message);
+      match command.as_str() {
+        "__initialized" => {
+          let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
+          manager.run_on_page_load(self, payload);
+        }
+        _ => {
+          let message = InvokeMessage::new(self, command.to_string(), payload);
+          if let Some(module) = &message.payload.tauri_module {
+            let module = module.to_string();
+            crate::endpoints::handle(module, message, manager.config(), manager.package_info());
+          } else if command.starts_with("plugin:") {
+            manager.extend_api(message);
+          } else {
+            manager.run_invoke_handler(message);
+          }
         }
       }
 
@@ -393,7 +403,12 @@ pub(crate) mod export {
 
     /// Sets this window' icon.
     pub fn set_icon(&self, icon: Icon) -> crate::Result<()> {
-      self.window.dispatcher.set_icon(icon.try_into()?)
+      self.window.dispatcher.set_icon(icon)
+    }
+
+    /// Starts dragging the window.
+    pub fn start_dragging(&self) -> crate::Result<()> {
+      self.window.dispatcher.start_dragging()
     }
 
     pub(crate) fn verify_salt(&self, salt: String) -> bool {

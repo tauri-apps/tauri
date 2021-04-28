@@ -5,13 +5,9 @@
 //! Internal runtime between Tauri and the underlying webview runtime.
 
 use crate::{
-  runtime::{
-    webview::AttributesBase,
-    window::{DetachedWindow, PendingWindow},
-  },
-  Attributes, Icon, Params,
+  runtime::window::{DetachedWindow, PendingWindow},
+  Icon, Params, WindowBuilder,
 };
-use std::convert::TryFrom;
 
 pub(crate) mod app;
 pub mod flavors;
@@ -43,11 +39,8 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   /// The runtime this [`Dispatch`] runs under.
   type Runtime: Runtime;
 
-  /// Representation of a window icon.
-  type Icon: TryFrom<Icon, Error = crate::Error>;
-
-  /// The webview builder type.
-  type Attributes: Attributes<Icon = Self::Icon> + AttributesBase + Clone + Send;
+  /// The winoow builder type.
+  type WindowBuilder: WindowBuilder + Clone;
 
   /// Create a new webview window.
   fn create_window<P: Params<Runtime = Self::Runtime>>(
@@ -116,7 +109,10 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   fn set_fullscreen(&self, fullscreen: bool) -> crate::Result<()>;
 
   /// Updates the window icon.
-  fn set_icon(&self, icon: Self::Icon) -> crate::Result<()>;
+  fn set_icon(&self, icon: Icon) -> crate::Result<()>;
+
+  /// Starts dragging the window.
+  fn start_dragging(&self) -> crate::Result<()>;
 
   /// Executes javascript on the window this [`Dispatch`] represents.
   fn eval_script<S: Into<String>>(&self, script: S) -> crate::Result<()>;

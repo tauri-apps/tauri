@@ -24,7 +24,7 @@ thiserror = "1.0.24"
 once_cell = "1.7.2"
 tauri-macros = { version = "1.0.0-beta-rc.1", path = "../tauri-macros" }
 tauri-utils = { version = "1.0.0-beta-rc.1", path = "../tauri-utils" }
-wry = "0.8"
+wry = "0.9"
 rand = "0.8"
 reqwest = { version = "0.11", features = [ "json", "multipart" ] }
 tempfile = "3"
@@ -47,6 +47,7 @@ open = "1.7.0"
 shared_child = "0.3"
 os_pipe = "0.9"
 minisign-verify = "0.1.8"
+image = "0.23"
 
 [build-dependencies]
 cfg_aliases = "0.1.1"

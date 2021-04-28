@@ -187,6 +187,18 @@ if (!String.prototype.startsWith) {
     );
   }
 
+  // drag region
+  document.addEventListener('mousedown', (e) => {
+    if (e.target.classList.contains('drag-region') && e.buttons === 1) {
+      window.__TAURI__.invoke('tauri', {
+        __tauriModule: "Window",
+        message: {
+          cmd: "startDragging",
+        }
+      })
+    }
+  })
+
   window.__TAURI__.invoke('tauri', {
     __tauriModule: "Event",
     message: {

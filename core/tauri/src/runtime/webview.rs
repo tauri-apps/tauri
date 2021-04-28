@@ -91,11 +91,8 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Initializes a new webview builder from a [`WindowConfig`]
   fn with_config(config: WindowConfig) -> Self;
 
-  /// The horizontal position of the window's top left corner.
-  fn x(self, x: f64) -> Self;
-
-  /// The vertical position of the window's top left corner.
-  fn y(self, y: f64) -> Self;
+  /// The initial position of the window's.
+  fn position(self, x: f64, y: f64) -> Self;
 
   /// Window size.
   fn inner_size(self, min_width: f64, min_height: f64) -> Self;

@@ -103,28 +103,19 @@ impl WindowBuilder for WryWindowBuilder {
     if let (Some(max_width), Some(max_height)) = (config.max_width, config.max_height) {
       window = window.max_inner_size(max_width, max_height);
     }
-    if let Some(x) = config.x {
-      window = window.x(x);
-    }
-    if let Some(y) = config.y {
-      window = window.y(y);
+    if let (Some(x), Some(y)) = (config.x, config.y) {
+      window = window.position(x, y);
     }
 
     window
   }
 
-  fn x(self, _x: f64) -> Self {
-    // TODO self.with_x(Some(x))
-    self
-  }
-
-  fn y(self, _y: f64) -> Self {
-    // TODO self.with_y(Some(y))
-    self
+  fn position(self, x: f64, y: f64) -> Self {
+    self.with_position(LogicalPosition::new(x, y))
   }
 
   fn inner_size(self, width: f64, height: f64) -> Self {
-    self.with_inner_size(Size::new(LogicalSize::new(width, height)))
+    self.with_inner_size(LogicalSize::new(width, height))
   }
 
   fn min_inner_size(self, min_width: f64, min_height: f64) -> Self {

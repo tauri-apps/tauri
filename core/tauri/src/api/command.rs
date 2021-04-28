@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
+  collections::HashMap,
   io::{BufRead, BufReader, Write},
+  path::PathBuf,
   process::{Command as StdCommand, Stdio},
   sync::Arc,
 };
@@ -52,6 +54,13 @@ macro_rules! get_std_command {
     command.stdout(Stdio::piped());
     command.stdin(Stdio::piped());
     command.stderr(Stdio::piped());
+    if $self.env_clear {
+      command.env_clear();
+    }
+    command.envs($self.env);
+    if let Some(current_dir) = $self.current_dir {
+      command.current_dir(current_dir);
+    }
     #[cfg(windows)]
     command.creation_flags(CREATE_NO_WINDOW);
     command
@@ -62,6 +71,9 @@ macro_rules! get_std_command {
 pub struct Command {
   program: String,
   args: Vec<String>,
+  env_clear: bool,
+  env: HashMap<String, String>,
+  current_dir: Option<PathBuf>,
 }
 
 /// Child spawned.
@@ -76,6 +88,7 @@ impl CommandChild {
     self.stdin_writer.write_all(buf)?;
     Ok(())
   }
+
   /// Send a kill signal to the child.
   pub fn kill(self) -> crate::api::Result<()> {
     self.inner.kill()?;
@@ -118,6 +131,9 @@ impl Command {
     Self {
       program: program.into(),
       args: Default::default(),
+      env_clear: false,
+      env: Default::default(),
+      current_dir: None,
     }
   }
 
@@ -140,6 +156,24 @@ impl Command {
     for arg in args {
       self.args.push(arg.as_ref().to_string());
     }
+    self
+  }
+
+  /// Clears the entire environment map for the child process.
+  pub fn env_clear(mut self) -> Self {
+    self.env_clear = true;
+    self
+  }
+
+  /// Adds or updates multiple environment variable mappings.
+  pub fn envs(mut self, env: HashMap<String, String>) -> Self {
+    self.env = env;
+    self
+  }
+
+  /// Sets the working directory for the child process.
+  pub fn current_dir(mut self, current_dir: PathBuf) -> Self {
+    self.current_dir.replace(current_dir);
     self
   }
 

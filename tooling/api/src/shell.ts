@@ -6,9 +6,9 @@ import { invokeTauriCommand } from './helpers/tauri'
 import { transformCallback } from './tauri'
 
 interface SpawnOptions {
-  // Current working directory.
+  /** Current working directory. */
   cwd?: string
-  // Environment variables. set to `null` to clear the process env.
+  /** Environment variables. set to `null` to clear the process env. */
   env?: { [name: string]: string }
 }
 

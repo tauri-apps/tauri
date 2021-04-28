@@ -31,6 +31,7 @@ fn default_env() -> Option<HashMap<String, String>> {
   Some(Default::default())
 }
 
+#[allow(dead_code)]
 #[derive(Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CommandOptions {

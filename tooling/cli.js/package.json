@@ -105,7 +105,7 @@
     "toml-loader": "1.0.0",
     "ts-loader": "9.1.1",
     "typescript": "4.2.4",
-    "webpack": "5.36.0",
+    "webpack": "5.36.1",
     "webpack-cli": "4.6.0",
     "webpack-node-externals": "3.0.0"
   },

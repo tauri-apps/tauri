@@ -7,7 +7,7 @@ module.exports = {
   },
 
   parser: '@typescript-eslint/parser',
-
+  ignorePatterns: ['.eslintrc.js', 'jest.config.js', 'test/**/*'],
   extends: [
     'standard-with-typescript',
     'plugin:@typescript-eslint/recommended-requiring-type-checking',

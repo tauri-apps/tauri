@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::runtime::tag::TagRef;
 use crate::{
   api::{
     assets::Assets,
@@ -13,7 +14,7 @@ use crate::{
   hooks::{InvokeHandler, InvokeMessage, InvokePayload, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
   runtime::{
-    tag::{tags_to_javascript_array, Tag, ToJavascript},
+    tag::{tags_to_javascript_array, Tag, ToJsString},
     webview::{CustomProtocol, FileDropEvent, FileDropHandler, WebviewRpcHandler, WindowBuilder},
     window::{DetachedWindow, PendingWindow},
     Icon, Runtime,
@@ -23,6 +24,7 @@ use crate::{
 };
 use serde::Serialize;
 use serde_json::Value as JsonValue;
+use std::borrow::Borrow;
 use std::marker::PhantomData;
 use std::{
   borrow::Cow,
@@ -31,6 +33,20 @@ use std::{
   sync::{Arc, Mutex, MutexGuard},
 };
 use uuid::Uuid;
+
+/// Parse a string representing an internal tauri event into [`Params::Event`]
+///
+/// # Panics
+///
+/// This will panic if the `FromStr` implementation of [`Params::Event`] returns an error.
+pub(crate) fn tauri_event<Event: Tag>(tauri_event: &str) -> Event {
+  tauri_event.parse().unwrap_or_else(|_| {
+    panic!(
+      "failed to parse internal tauri event into Params::Event: {}",
+      tauri_event
+    )
+  })
+}
 
 pub struct InnerWindowManager<P: Params> {
   windows: Mutex<HashMap<P::Label, Window<P>>>,
@@ -165,7 +181,7 @@ impl<P: Params> WindowManager<P> {
               window.__TAURI__.__currentWindow = {{ label: {current_window_label} }}
             "#,
         window_labels_array = tags_to_javascript_array(pending_labels)?,
-        current_window_label = label.to_javascript()?,
+        current_window_label = label.to_js_string()?,
       ));
 
     if !pending.window_attributes.has_icon() {
@@ -279,14 +295,16 @@ impl<P: Params> WindowManager<P> {
         let window = manager.attach_window(window);
         let _ = match event {
           FileDropEvent::Hovered(paths) => {
-            window.emit_internal("tauri://file-drop".to_string(), Some(paths))
+            window.emit_internal(&tauri_event::<P::Event>("tauri://file-drop"), Some(paths))
           }
-          FileDropEvent::Dropped(paths) => {
-            window.emit_internal("tauri://file-drop-hover".to_string(), Some(paths))
-          }
-          FileDropEvent::Cancelled => {
-            window.emit_internal("tauri://file-drop-cancelled".to_string(), Some(()))
-          }
+          FileDropEvent::Dropped(paths) => window.emit_internal(
+            &tauri_event::<P::Event>("tauri://file-drop-hover"),
+            Some(paths),
+          ),
+          FileDropEvent::Cancelled => window.emit_internal(
+            &tauri_event::<P::Event>("tauri://file-drop-cancelled"),
+            Some(()),
+          ),
         };
       });
       true
@@ -470,30 +488,26 @@ impl<P: Params> WindowManager<P> {
 
     window
   }
-  pub fn emit_filter_internal<S: Serialize + Clone, F: Fn(&Window<P>) -> bool>(
+
+  pub fn emit_filter<E: ?Sized, S, F>(
     &self,
-    event: String,
+    event: &E,
     payload: Option<S>,
     filter: F,
-  ) -> crate::Result<()> {
+  ) -> crate::Result<()>
+  where
+    P::Event: Borrow<E>,
+    E: TagRef<P::Event>,
+    S: Serialize + Clone,
+    F: Fn(&Window<P>) -> bool,
+  {
     self
       .windows_lock()
       .values()
       .filter(|&w| filter(w))
-      .try_for_each(|window| window.emit_internal(event.clone(), payload.clone()))
+      .try_for_each(|window| window.emit(event, payload.clone()))
   }
-  pub fn emit_filter<S: Serialize + Clone, F: Fn(&Window<P>) -> bool>(
-    &self,
-    event: P::Event,
-    payload: Option<S>,
-    filter: F,
-  ) -> crate::Result<()> {
-    self
-      .windows_lock()
-      .values()
-      .filter(|&w| filter(w))
-      .try_for_each(|window| window.emit(&event, payload.clone()))
-  }
+
   pub fn labels(&self) -> HashSet<P::Label> {
     self.windows_lock().keys().cloned().collect()
   }
@@ -506,9 +520,15 @@ impl<P: Params> WindowManager<P> {
   pub fn unlisten(&self, handler_id: EventHandler) {
     self.inner.listeners.unlisten(handler_id)
   }
-  pub fn trigger(&self, event: P::Event, window: Option<P::Label>, data: Option<String>) {
+
+  pub fn trigger<E: ?Sized>(&self, event: &E, window: Option<P::Label>, data: Option<String>)
+  where
+    P::Event: Borrow<E>,
+    E: TagRef<P::Event>,
+  {
     self.inner.listeners.trigger(event, window, data)
   }
+
   pub fn listen<F: Fn(Event) + Send + 'static>(
     &self,
     event: P::Event,
@@ -559,9 +579,15 @@ impl<P: Params> WindowManager<P> {
       .expect("poisoned salt mutex")
       .remove(&uuid)
   }
-  pub fn get_window(&self, label: &P::Label) -> Option<Window<P>> {
+
+  pub fn get_window<L: ?Sized>(&self, label: &L) -> Option<Window<P>>
+  where
+    P::Label: Borrow<L>,
+    L: TagRef<P::Label>,
+  {
     self.windows_lock().get(label).cloned()
   }
+
   pub fn windows(&self) -> HashMap<P::Label, Window<P>> {
     self.windows_lock().clone()
   }

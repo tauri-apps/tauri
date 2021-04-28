@@ -39,7 +39,7 @@ pub type SyncTask = Box<dyn FnOnce() + Send>;
 use crate::api::assets::Assets;
 use crate::api::config::Config;
 use crate::event::{Event, EventHandler};
-use crate::runtime::tag::Tag;
+use crate::runtime::tag::{Tag, TagRef};
 use crate::runtime::window::PendingWindow;
 use crate::runtime::{Dispatch, Runtime};
 use serde::Serialize;
@@ -51,10 +51,12 @@ pub use {
   api::config::WindowUrl,
   hooks::{InvokeHandler, InvokeMessage, OnPageLoad, PageLoadPayload, SetupHook},
   runtime::app::{App, Builder},
+  runtime::flavors::wry::Wry,
   runtime::webview::{WebviewAttributes, WindowBuilder},
   runtime::window::export::Window,
 };
 
+use std::borrow::Borrow;
 /// Reads the config file at compile time and generates a [`Context`] based on its content.
 ///
 /// The default config file path is a `tauri.conf.json` file inside the Cargo manifest directory of
@@ -131,31 +133,42 @@ pub trait Params: sealed::ParamsBase {
 /// Manages a running application.
 ///
 /// TODO: expand these docs
-pub trait Manager<M: Params>: sealed::ManagerBase<M> {
+pub trait Manager<P: Params>: sealed::ManagerBase<P> {
   /// The [`Config`] the manager was created with.
   fn config(&self) -> &Config {
     self.manager().config()
   }
 
   /// Emits a event to all windows.
-  fn emit_all<S: Serialize + Clone>(&self, event: M::Event, payload: Option<S>) -> Result<()> {
+  fn emit_all<E: ?Sized, S>(&self, event: &E, payload: Option<S>) -> Result<()>
+  where
+    P::Event: Borrow<E>,
+    E: TagRef<P::Event>,
+    S: Serialize + Clone,
+  {
     self.manager().emit_filter(event, payload, |_| true)
   }
 
   /// Emits an event to a window with the specified label.
-  fn emit_to<S: Serialize + Clone>(
+  fn emit_to<E: ?Sized, L: ?Sized, S: Serialize + Clone>(
     &self,
-    label: &M::Label,
-    event: M::Event,
+    label: &L,
+    event: &E,
     payload: Option<S>,
-  ) -> Result<()> {
+  ) -> Result<()>
+  where
+    P::Label: Borrow<L>,
+    P::Event: Borrow<E>,
+    L: TagRef<P::Label>,
+    E: TagRef<P::Event>,
+  {
     self
       .manager()
-      .emit_filter(event, payload, |w| w.label() == label)
+      .emit_filter(event, payload, |w| label == w.label())
   }
 
   /// Creates a new [`Window`] on the [`Runtime`] and attaches it to the [`Manager`].
-  fn create_window(&mut self, pending: PendingWindow<M>) -> Result<Window<M>> {
+  fn create_window(&mut self, pending: PendingWindow<P>) -> Result<Window<P>> {
     use sealed::RuntimeOrDispatch::*;
 
     let labels = self.manager().labels().into_iter().collect::<Vec<_>>();
@@ -168,23 +181,27 @@ pub trait Manager<M: Params>: sealed::ManagerBase<M> {
   }
 
   /// Listen to a global event.
-  fn listen_global<F>(&self, event: M::Event, handler: F) -> EventHandler
+  fn listen_global<E: Into<P::Event>, F>(&self, event: E, handler: F) -> EventHandler
   where
     F: Fn(Event) + Send + 'static,
   {
-    self.manager().listen(event, None, handler)
+    self.manager().listen(event.into(), None, handler)
   }
 
   /// Listen to a global event only once.
-  fn once_global<F>(&self, event: M::Event, handler: F) -> EventHandler
+  fn once_global<E: Into<P::Event>, F>(&self, event: E, handler: F) -> EventHandler
   where
     F: Fn(Event) + Send + 'static,
   {
-    self.manager().once(event, None, handler)
+    self.manager().once(event.into(), None, handler)
   }
 
   /// Trigger a global event.
-  fn trigger_global(&self, event: M::Event, data: Option<String>) {
+  fn trigger_global<E: ?Sized>(&self, event: &E, data: Option<String>)
+  where
+    P::Event: Borrow<E>,
+    E: TagRef<P::Event>,
+  {
     self.manager().trigger(event, None, data)
   }
 
@@ -194,12 +211,16 @@ pub trait Manager<M: Params>: sealed::ManagerBase<M> {
   }
 
   /// Fetch a single window from the manager.
-  fn get_window(&self, label: &M::Label) -> Option<Window<M>> {
+  fn get_window<L: ?Sized>(&self, label: &L) -> Option<Window<P>>
+  where
+    P::Label: Borrow<L>,
+    L: TagRef<P::Label>,
+  {
     self.manager().get_window(label)
   }
 
   /// Fetch all managed windows.
-  fn windows(&self) -> HashMap<M::Label, Window<M>> {
+  fn windows(&self) -> HashMap<P::Label, Window<P>> {
     self.manager().windows()
   }
 }

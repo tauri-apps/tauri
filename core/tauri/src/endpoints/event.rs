@@ -52,12 +52,12 @@ impl Cmd {
         });
 
         // dispatch the event to Rust listeners
-        window.trigger(e.clone(), payload.clone());
+        window.trigger(&e, payload.clone());
 
         if let Some(target) = window_label {
-          window.emit_to(&target, e, payload)?;
+          window.emit_to(&target, &e, payload)?;
         } else {
-          window.emit_all(e, payload)?;
+          window.emit_all(&e, payload)?;
         }
         Ok(().into())
       }

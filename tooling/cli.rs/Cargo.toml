@@ -42,10 +42,10 @@ semver = "0.11"
 regex = "1.4"
 lazy_static = "1"
 libc = "0.2"
-terminal_size = "0.1.14"
+terminal_size = "0.1.16"
 unicode-width = "0.1"
 tempfile = "3"
-zeroize = "1.1.1"
+zeroize = "1.3.0"
 
 [target."cfg(windows)".dependencies]
 winapi = { version = "0.3", features = [ "winbase", "winuser", "consoleapi", "processenv", "wincon" ] }

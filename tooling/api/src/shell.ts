@@ -5,6 +5,24 @@
 import { invokeTauriCommand } from './helpers/tauri'
 import { transformCallback } from './tauri'
 
+interface SpawnOptions {
+  // Current working directory.
+  cwd?: string
+  // Environment variables. set to `null` to clear the process env.
+  env?: { [name: string]: string }
+}
+
+interface InternalSpawnOptions extends SpawnOptions {
+  sidecar?: boolean
+}
+
+interface ChildProcess {
+  code: number | null
+  signal: number | null
+  stdout: string
+  stderr: string
+}
+
 /**
  * Spawns a process.
  *
@@ -15,10 +33,10 @@ import { transformCallback } from './tauri'
  * @returns A promise resolving to the process id.
  */
 async function execute(
-  program: string,
-  sidecar: boolean,
   onEvent: (event: CommandEvent) => void,
-  args?: string | string[]
+  program: string,
+  args?: string | string[],
+  options?: InternalSpawnOptions
 ): Promise<number> {
   if (typeof args === 'object') {
     Object.freeze(args)
@@ -29,18 +47,11 @@ async function execute(
     message: {
       cmd: 'execute',
       program,
-      sidecar,
-      onEventFn: transformCallback(onEvent),
-      args: typeof args === 'string' ? [args] : args
+      args: typeof args === 'string' ? [args] : args,
+      options,
+      onEventFn: transformCallback(onEvent)
     }
   })
-}
-
-interface ChildProcess {
-  code: number | null
-  signal: number | null
-  stdout: string
-  stderr: string
 }
 
 class EventEmitter<E> {
@@ -107,15 +118,20 @@ class Child {
 class Command extends EventEmitter<'close' | 'error'> {
   program: string
   args: string[]
-  sidecar = false
+  options: InternalSpawnOptions
   stdout = new EventEmitter<'data'>()
   stderr = new EventEmitter<'data'>()
   pid: number | null = null
 
-  constructor(program: string, args: string | string[] = []) {
+  constructor(
+    program: string,
+    args: string | string[] = [],
+    options?: SpawnOptions
+  ) {
     super()
     this.program = program
     this.args = typeof args === 'string' ? [args] : args
+    this.options = options ?? {}
   }
 
   /**
@@ -126,14 +142,12 @@ class Command extends EventEmitter<'close' | 'error'> {
    */
   static sidecar(program: string, args: string | string[] = []): Command {
     const instance = new Command(program, args)
-    instance.sidecar = true
+    instance.options.sidecar = true
     return instance
   }
 
   async spawn(): Promise<Child> {
     return execute(
-      this.program,
-      this.sidecar,
       (event) => {
         switch (event.event) {
           case 'Error':
@@ -150,7 +164,9 @@ class Command extends EventEmitter<'close' | 'error'> {
             break
         }
       },
-      this.args
+      this.program,
+      this.args,
+      this.options
     ).then((pid) => new Child(pid))
   }
 
@@ -214,3 +230,4 @@ async function open(path: string, openWith?: string): Promise<void> {
 }
 
 export { Command, Child, open }
+export type { ChildProcess, SpawnOptions }

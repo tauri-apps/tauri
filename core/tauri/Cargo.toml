@@ -24,7 +24,7 @@ thiserror = "1.0.24"
 once_cell = "1.7.2"
 tauri-macros = { version = "1.0.0-beta-rc.1", path = "../tauri-macros" }
 tauri-utils = { version = "1.0.0-beta-rc.1", path = "../tauri-utils" }
-wry = { git = "https://github.com/tauri-apps/wry", rev = "2b3be7a4db2cbc1612c7105cb698c1f21a05da77" }
+wry = "0.9"
 rand = "0.8"
 reqwest = { version = "0.11", features = [ "json", "multipart" ] }
 tempfile = "3"

@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "strict": true,
-    "module": "commonjs",
+    "module": "esnext",
     "target": "es6",
     "allowJs": true,
     "pretty": true,
@@ -11,8 +11,6 @@
     "checkJs": false,
     "preserveSymlinks": true,
     "skipLibCheck": true,
-    "declaration": true,
-    "declarationMap": true,
     "typeRoots": ["types", "node_modules/@types"]
   },
   "include": ["src"],

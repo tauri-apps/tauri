@@ -4,7 +4,7 @@
 
 use super::{app_paths::tauri_dir, config::ConfigHandle};
 
-use toml_edit::{Array, Document, Value};
+use toml_edit::{Array, Document, InlineTable, Item, Value};
 
 use std::{
   fs::File,
@@ -23,30 +23,40 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<()> {
     .as_table_mut()
     .expect("manifest dependencies isn't a table");
 
-  let entry = dependencies.entry("tauri");
-  let tauri = entry.as_value_mut();
+  let tauri_entry = dependencies.entry("tauri");
 
   let config_guard = config.lock().unwrap();
   let config = config_guard.as_ref().unwrap();
 
-  if let Some(tauri) = tauri {
-    let allowlist_features = config.tauri.features();
-    let mut features = Array::default();
-    for feature in allowlist_features {
-      features.push(feature).unwrap();
-    }
-    if config.tauri.cli.is_some() {
-      features.push("cli").unwrap();
-    }
-    if config.tauri.updater.active {
-      features.push("updater").unwrap();
-    }
+  let allowlist_features = config.tauri.features();
+  let mut features = Array::default();
+  for feature in allowlist_features {
+    features.push(feature).unwrap();
+  }
+  if config.tauri.cli.is_some() {
+    features.push("cli").unwrap();
+  }
+  if config.tauri.updater.active {
+    features.push("updater").unwrap();
+  }
 
+  if let Some(tauri) = tauri_entry.as_table_mut() {
+    let manifest_features = tauri.entry("features");
+    *manifest_features = Item::Value(Value::Array(features));
+  } else if let Some(tauri) = tauri_entry.as_value_mut() {
     match tauri {
-      Value::InlineTable(tauri_def) => {
-        let manifest_features =
-          tauri_def.get_or_insert("features", Value::Array(Default::default()));
+      Value::InlineTable(table) => {
+        let manifest_features = table.get_or_insert("features", Value::Array(Default::default()));
         *manifest_features = Value::Array(features);
+      }
+      Value::String(version) => {
+        let mut def = InlineTable::default();
+        def.get_or_insert(
+          "version",
+          version.to_string().replace("\"", "").replace(" ", ""),
+        );
+        def.get_or_insert("features", Value::Array(features));
+        *tauri = Value::InlineTable(def);
       }
       _ => {
         return Err(anyhow::anyhow!(
@@ -54,16 +64,22 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<()> {
         ))
       }
     }
-
-    let mut manifest_file = File::create(&manifest_path)?;
-    manifest_file.write_all(
-      manifest
-        .to_string_in_original_order()
-        .replace(r#"" ,features =["#, r#"", features = ["#)
-        .as_bytes(),
-    )?;
-    manifest_file.flush()?;
+  } else {
+    return Ok(());
   }
+
+  let mut manifest_file = File::create(&manifest_path)?;
+  manifest_file.write_all(
+    manifest
+      .to_string_in_original_order()
+      // apply some formatting fixes
+      .replace(r#"" ,features =["#, r#"", features = ["#)
+      .replace("]}", "] }")
+      .replace("={", "= {")
+      .replace("=[", "= [")
+      .as_bytes(),
+  )?;
+  manifest_file.flush()?;
 
   Ok(())
 }

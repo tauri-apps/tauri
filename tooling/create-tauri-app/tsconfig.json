@@ -1,14 +1,19 @@
 {
   "compilerOptions": {
     "strict": true,
-    "module": "esnext",
+    "module": "commonjs",
     "target": "es6",
     "allowJs": true,
     "pretty": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "moduleResolution": "node",
-    "typeRoots": ["./types", "node_modules/@types"]
+    "checkJs": false,
+    "preserveSymlinks": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "declarationMap": true,
+    "typeRoots": ["types", "node_modules/@types"]
   },
   "include": ["src"],
   "exclude": ["src/templates", "types", "test", "__fixtures__"]

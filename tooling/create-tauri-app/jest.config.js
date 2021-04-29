@@ -6,8 +6,6 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   modulePathIgnorePatterns: ['__fixtures__'],
-  testMatch: ['<rootDir>/test/**/*.spec.ts'],
-  moduleFileExtensions: ['ts', 'js', 'json'],
   globals: {
     'ts-jest': {
       tsconfig: 'tsconfig.json'

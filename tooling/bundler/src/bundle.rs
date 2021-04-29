@@ -21,7 +21,6 @@ mod wix;
 
 pub use self::{
   category::AppCategory,
-  common::{create_file, print_error, print_info, print_signed_updater_archive},
   settings::{
     BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings, PackageType,
     Settings, SettingsBuilder, UpdaterSettings,

@@ -174,22 +174,6 @@ pub fn print_finished(bundles: &[crate::bundle::Bundle]) -> crate::Result<()> {
   Ok(())
 }
 
-/// Prints a message to stderr, in the same format that `cargo` uses,
-/// indicating that we have finished the the given signatures.
-pub fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
-  let pluralised = if output_paths.len() == 1 {
-    "updater archive"
-  } else {
-    "updater archives"
-  };
-  let msg = format!("{} {} at:", output_paths.len(), pluralised);
-  print_progress("Signed", &msg)?;
-  for path in output_paths {
-    println!("        {}", path.display());
-  }
-  Ok(())
-}
-
 /// Prints a formatted bundle progress to stderr.
 fn print_progress(step: &str, msg: &str) -> crate::Result<()> {
   let mut output = StandardStream::stderr(ColorChoice::Always);
@@ -221,26 +205,6 @@ pub fn print_info(message: &str) -> crate::Result<()> {
   writeln!(output, " {}", message)?;
   output.flush()?;
   Ok(())
-}
-
-/// Prints an error to stderr, in the same format that `cargo` uses.
-pub fn print_error(error: &anyhow::Error) -> crate::Result<()> {
-  let mut output = StandardStream::stderr(ColorChoice::Always);
-  let _ = output.set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_bold(true));
-  write!(output, "error:")?;
-  output.reset()?;
-  let _ = output.set_color(ColorSpec::new().set_bold(true));
-  writeln!(output, " {}", error)?;
-  output.reset()?;
-  for cause in error.chain().skip(1) {
-    writeln!(output, "  Caused by: {}", cause)?;
-  }
-  // Add Backtrace once its stable.
-  // if let Some(backtrace) = error.backtrace() {
-  //   writeln!(output, "{:?}", backtrace)?;
-  // }
-  output.flush()?;
-  std::process::exit(1)
 }
 
 pub fn execute_with_verbosity(cmd: &mut Command, settings: &Settings) -> crate::Result<()> {

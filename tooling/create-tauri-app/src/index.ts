@@ -122,7 +122,7 @@ export interface RecipeArgs {
   packageManager: PackageManager
   ci: boolean
   // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
-  answers?: void | Answers
+  answers?: undefined | void | Answers
 }
 export interface Recipe {
   descriptiveName: string

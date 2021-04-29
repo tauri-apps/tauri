@@ -121,6 +121,7 @@ export interface RecipeArgs {
   cfg: TauriBuildConfig
   packageManager: PackageManager
   ci: boolean
+  // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
   answers?: void | Answers
 }
 export interface Recipe {
@@ -153,7 +154,7 @@ const runInit = async (argv: Argv): Promise<void> => {
     recipeName: 'vanillajs'
   }
 
-  let answers = (await inquirer
+  const answers = (await inquirer
     .prompt([
       {
         type: 'input',
@@ -178,7 +179,7 @@ const runInit = async (argv: Argv): Promise<void> => {
         when: !argv.ci && !argv.r
       }
     ])
-    .catch(async (error: { isTtyError: boolean }) => {
+    .catch((error: { isTtyError: boolean }) => {
       if (error.isTtyError) {
         // Prompt couldn't be rendered in the current environment
         console.warn(
@@ -235,7 +236,7 @@ const runInit = async (argv: Argv): Promise<void> => {
           cwd: directory
         })
       )
-      .catch(async (error: { isTtyError: boolean }) => {
+      .catch((error: { isTtyError: boolean }) => {
         if (error.isTtyError) {
           // Prompt couldn't be rendered in the current environment
           console.warn(

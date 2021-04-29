@@ -8,7 +8,6 @@ import { readdirSync } from 'fs'
 // @ts-expect-error
 import scaffe from 'scaffe'
 import { shell } from '../shell'
-import inquirer from 'inquirer'
 
 const afterViteCA = async (
   cwd: string,
@@ -56,7 +55,7 @@ const vite: Recipe = {
   preInit: async ({ cwd, cfg, packageManager, answers }) => {
     let template = 'vue-ts'
     if (answers) {
-      template = answers.template
+      template = answers.template as string
     }
     // Vite creates the folder for you
     if (packageManager === 'yarn') {

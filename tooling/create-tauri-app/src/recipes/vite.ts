@@ -41,56 +41,49 @@ const vite: Recipe = {
   }),
   extraNpmDevDependencies: [],
   extraNpmDependencies: [],
-  preInit: async ({ cwd, cfg, packageManager }) => {
-    try {
-      const { template } = (await inquirer.prompt([
-        {
-          type: 'list',
-          name: 'template',
-          message: 'Which vite template would you like to use?',
-          choices: readdirSync(join(__dirname, '../src/templates/vite')),
-          default: 'vue'
-        }
-      ])) as { template: string }
-
-      // Vite creates the folder for you
-      if (packageManager === 'yarn') {
-        await shell(
-          'yarn',
-          [
-            'create',
-            '@vitejs/app',
-            `${cfg.appName}`,
-            '--template',
-            `${template}`
-          ],
-          {
-            cwd
-          }
-        )
-      } else {
-        await shell(
-          'npx',
-          ['@vitejs/create-app', `${cfg.appName}`, '--template', `${template}`],
-          {
-            cwd
-          }
-        )
+  extraQuestions: ({ ci }) => {
+    return [
+      {
+        type: 'list',
+        name: 'template',
+        message: 'Which vite template would you like to use?',
+        choices: readdirSync(join(__dirname, '../src/templates/vite')),
+        default: 'vue',
+        when: !ci
       }
-
-      await afterViteCA(cwd, cfg.appName, template)
-    } catch (error) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      if (error?.isTtyError) {
-        // Prompt couldn't be rendered in the current environment
-        console.log(
-          'It appears your terminal does not support interactive prompts. Using default values.'
-        )
-      } else {
-        // Something else went wrong
-        console.error('An unknown error occurred:', error)
-      }
+    ]
+  },
+  preInit: async ({ cwd, cfg, packageManager, answers }) => {
+    let template = 'vue-ts'
+    if (answers) {
+      template = answers.template
     }
+    // Vite creates the folder for you
+    if (packageManager === 'yarn') {
+      await shell(
+        'yarn',
+        [
+          'create',
+          '@vitejs/app',
+          `${cfg.appName}`,
+          '--template',
+          `${template}`
+        ],
+        {
+          cwd
+        }
+      )
+    } else {
+      await shell(
+        'npx',
+        ['@vitejs/create-app', `${cfg.appName}`, '--template', `${template}`],
+        {
+          cwd
+        }
+      )
+    }
+
+    await afterViteCA(cwd, cfg.appName, template)
   },
   postInit: async ({ packageManager }) => {
     console.log(`

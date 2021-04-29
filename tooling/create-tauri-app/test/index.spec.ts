@@ -148,6 +148,13 @@ describe('CTA', () => {
                   tauri: 'tauri'
                 })
               )
+            },
+            vite: () => {
+              expect(packageFileOutput['scripts']).toEqual(
+                expect.objectContaining({
+                  tauri: 'tauri'
+                })
+              )
             }
           }
 

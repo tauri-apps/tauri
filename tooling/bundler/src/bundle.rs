@@ -4,7 +4,7 @@
 
 mod appimage_bundle;
 mod category;
-pub mod common;
+mod common;
 mod deb_bundle;
 mod dmg_bundle;
 mod ios_bundle;
@@ -21,7 +21,7 @@ mod wix;
 
 pub use self::{
   category::AppCategory,
-  common::{print_error, print_info},
+  common::{create_file, print_error, print_info, print_signed_updater_archive},
   settings::{
     BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings, PackageType,
     Settings, SettingsBuilder, UpdaterSettings,
@@ -34,10 +34,11 @@ use common::print_finished;
 
 use std::path::PathBuf;
 
+/// Generated bundle metadata.
 pub struct Bundle {
-  // the package type
+  /// The package type.
   pub package_type: PackageType,
-  /// all paths for this package
+  /// All paths for this package.
   pub bundle_paths: Vec<PathBuf>,
 }
 

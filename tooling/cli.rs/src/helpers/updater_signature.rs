@@ -14,7 +14,7 @@ use std::{
   str,
   time::{SystemTime, UNIX_EPOCH},
 };
-use tauri_bundler::bundle::common::create_file;
+use tauri_bundler::bundle::create_file;
 
 /// A key pair (`PublicKey` and `SecretKey`).
 #[derive(Clone, Debug)]

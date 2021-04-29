@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use tauri_bundler::bundle::{
-  bundle_project, common::print_signed_updater_archive, PackageType, SettingsBuilder,
+  bundle_project, print_signed_updater_archive, PackageType, SettingsBuilder,
 };
 
 use crate::helpers::{

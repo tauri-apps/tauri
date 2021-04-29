@@ -162,7 +162,9 @@ pub struct MacOsSettings {
   ///
   /// This allows communication to the outside world e.g. a web server you're shipping.
   pub exception_domain: Option<String>,
+  /// Code signing identity.
   pub signing_identity: Option<String>,
+  /// Path to the entitlements.plist file.
   pub entitlements: Option<String>,
 }
 
@@ -228,13 +230,14 @@ pub struct BundleSettings {
   pub deb: DebianSettings,
   /// MacOS-specific settings.
   pub macos: MacOsSettings,
-  // Updater configuration
+  /// Updater configuration.
   pub updater: Option<UpdaterSettings>,
   /// Windows-specific settings.
   #[cfg(windows)]
   pub windows: WindowsSettings,
 }
 
+/// A binary to bundle.
 #[derive(Clone, Debug)]
 pub struct BundleBinary {
   name: String,
@@ -243,6 +246,7 @@ pub struct BundleBinary {
 }
 
 impl BundleBinary {
+  /// Creates a new bundle binary.
   pub fn new(name: String, main: bool) -> Self {
     Self {
       name: if cfg!(windows) {
@@ -255,30 +259,35 @@ impl BundleBinary {
     }
   }
 
+  /// Sets the src path of the binary.
   pub fn set_src_path(mut self, src_path: Option<String>) -> Self {
     self.src_path = src_path;
     self
   }
 
+  /// Mark the binary as the main executable.
   pub fn set_main(&mut self, main: bool) {
     self.main = main;
   }
 
+  /// Sets the binary name.
   pub fn set_name(&mut self, name: String) {
     self.name = name;
   }
 
+  /// Returns the binary name.
   pub fn name(&self) -> &str {
     &self.name
   }
 
-  #[cfg(windows)]
+  /// Returns the binary `main` flag.
   pub fn main(&self) -> bool {
     self.main
   }
 
-  pub fn src_path(&self) -> &Option<String> {
-    &self.src_path
+  /// Returns the binary source path.
+  pub fn src_path(&self) -> Option<&String> {
+    self.src_path.as_ref()
   }
 }
 
@@ -301,6 +310,7 @@ pub struct Settings {
   binaries: Vec<BundleBinary>,
 }
 
+/// A builder for [`Settings`].
 #[derive(Default)]
 pub struct SettingsBuilder {
   project_out_directory: Option<PathBuf>,
@@ -312,10 +322,12 @@ pub struct SettingsBuilder {
 }
 
 impl SettingsBuilder {
+  /// Creates the default settings builder.
   pub fn new() -> Self {
     Default::default()
   }
 
+  /// Sets the project output directory. It's used as current working directory.
   pub fn project_out_directory<P: AsRef<Path>>(mut self, path: P) -> Self {
     self
       .project_out_directory
@@ -323,26 +335,31 @@ impl SettingsBuilder {
     self
   }
 
+  /// Enables verbose output.
   pub fn verbose(mut self) -> Self {
     self.verbose = true;
     self
   }
 
+  /// Sets the package types to create.
   pub fn package_types(mut self, package_types: Vec<PackageType>) -> Self {
     self.package_types = Some(package_types);
     self
   }
 
+  /// Sets the package settings.
   pub fn package_settings(mut self, settings: PackageSettings) -> Self {
     self.package_settings.replace(settings);
     self
   }
 
+  /// Sets the bundle settings.
   pub fn bundle_settings(mut self, settings: BundleSettings) -> Self {
     self.bundle_settings = settings;
     self
   }
 
+  /// Sets the binaries to bundle.
   pub fn binaries(mut self, binaries: Vec<BundleBinary>) -> Self {
     self.binaries = binaries;
     self
@@ -398,6 +415,7 @@ impl Settings {
     path
   }
 
+  /// Returns the list of binaries to bundle.
   pub fn binaries(&self) -> &Vec<BundleBinary> {
     &self.binaries
   }

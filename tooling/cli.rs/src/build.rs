@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use tauri_bundler::bundle::{
-  bundle_project, common::print_signed_updater_archive, PackageType, SettingsBuilder,
-};
+use tauri_bundler::bundle::{bundle_project, PackageType, SettingsBuilder};
 
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
@@ -188,4 +186,19 @@ impl Build {
 
     Ok(())
   }
+}
+
+fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
+  let pluralised = if output_paths.len() == 1 {
+    "updater archive"
+  } else {
+    "updater archives"
+  };
+  let msg = format!("{} {} at:", output_paths.len(), pluralised);
+  let logger = Logger::new("Signed");
+  logger.log(&msg);
+  for path in output_paths {
+    println!("        {}", path.display());
+  }
+  Ok(())
 }

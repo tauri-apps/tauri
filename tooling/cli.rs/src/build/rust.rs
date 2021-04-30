@@ -201,7 +201,7 @@ impl AppSettings {
         let path = entry?.path();
         if let Some(name) = path.file_stem() {
           let bin_exists = binaries.iter().any(|bin| {
-            bin.name() == name || path.ends_with(bin.src_path().as_ref().unwrap_or(&"".to_string()))
+            bin.name() == name || path.ends_with(bin.src_path().unwrap_or(&"".to_string()))
           });
           if !bin_exists {
             binaries.push(BundleBinary::new(name.to_string_lossy().to_string(), false))

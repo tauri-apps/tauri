@@ -9,18 +9,25 @@ use minisign::{sign, KeyPair as KP, SecretKeyBox};
 use std::{
   env::var_os,
   fs::{self, File, OpenOptions},
-  io::{BufReader, Write},
+  io::{BufReader, BufWriter, Write},
   path::{Path, PathBuf},
   str,
   time::{SystemTime, UNIX_EPOCH},
 };
-use tauri_bundler::bundle::common::create_file;
 
 /// A key pair (`PublicKey` and `SecretKey`).
 #[derive(Clone, Debug)]
 pub struct KeyPair {
   pub pk: String,
   pub sk: String,
+}
+
+fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
+  if let Some(parent) = path.parent() {
+    fs::create_dir_all(&parent)?;
+  }
+  let file = File::create(path)?;
+  Ok(BufWriter::new(file))
 }
 
 /// Generate base64 encoded keypair

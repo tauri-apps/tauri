@@ -10,6 +10,11 @@ subcommands:
             about: Tauri dev.
             setting: TrailingVarArg
             args:
+                - runner:
+                    short: r
+                    long: runner
+                    about: binary to use to run the application
+                    takes_value: true
                 - config:
                     short: c
                     long: config
@@ -19,6 +24,11 @@ subcommands:
                     short: e
                     long: exit-on-panic
                     about: Exit on panic
+                - target:
+                    short: t
+                    long: target
+                    about: target triple to build against
+                    multiple: true
                 - args:
                     about: Args passed to the binary
                     index: 1
@@ -26,6 +36,11 @@ subcommands:
         - build:
             about: Tauri build.
             args:
+                - runner:
+                    short: r
+                    long: runner
+                    about: binary to use to build the application
+                    takes_value: true
                 - debug:
                     short: d
                     long: debug
@@ -34,10 +49,10 @@ subcommands:
                     short: v
                     long: verbose
                     about: Enables verbose logging
-                - target:
-                    short: t
-                    long: target
-                    about: list of target triples to build against
+                - bundle:
+                    short: b
+                    long: bundle
+                    about: list of bundles to package
                     takes_value: true
                     multiple: true
                 - config:
@@ -45,6 +60,11 @@ subcommands:
                     long: config
                     about: config JSON to merge with tauri.conf.json
                     takes_value: true
+                - target:
+                    short: t
+                    long: target
+                    about: target triple to build against
+                    multiple: true
         - sign:
             about: Tauri updates signer.
             args:

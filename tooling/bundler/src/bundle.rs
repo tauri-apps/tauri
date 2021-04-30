@@ -49,7 +49,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       #[cfg(target_os = "macos")]
       PackageType::IosBundle => macos::ios::bundle_project(&settings)?,
       #[cfg(target_os = "windows")]
-      PackageType::WindowsMsi => windows::msgi::bundle_project(&settings)?,
+      PackageType::WindowsMsi => windows::msi::bundle_project(&settings)?,
       #[cfg(target_os = "linux")]
       PackageType::Deb => linux::debian::bundle_project(&settings)?,
       #[cfg(target_os = "linux")]

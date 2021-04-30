@@ -21,7 +21,7 @@
 // Currently, cargo-bundle does not support Frameworks, nor does it support placing arbitrary
 // files into the `Contents` directory of the bundle.
 
-use super::common;
+use super::super::common;
 use crate::Settings;
 
 use anyhow::Context;

@@ -18,7 +18,6 @@ pub enum PackageType {
   /// The iOS app bundle.
   IosBundle,
   /// The Windows bundle (.msi).
-  #[cfg(target_os = "windows")]
   WindowsMsi,
   /// The Linux Debian package bundle (.deb).
   Deb,
@@ -40,7 +39,6 @@ impl PackageType {
     match name {
       "deb" => Some(PackageType::Deb),
       "ios" => Some(PackageType::IosBundle),
-      #[cfg(target_os = "windows")]
       "msi" => Some(PackageType::WindowsMsi),
       "app" => Some(PackageType::MacOsBundle),
       "rpm" => Some(PackageType::Rpm),
@@ -57,7 +55,6 @@ impl PackageType {
     match *self {
       PackageType::Deb => "deb",
       PackageType::IosBundle => "ios",
-      #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => "msi",
       PackageType::MacOsBundle => "app",
       PackageType::Rpm => "rpm",
@@ -74,13 +71,19 @@ impl PackageType {
 }
 
 const ALL_PACKAGE_TYPES: &[PackageType] = &[
+  #[cfg(target_os = "linux")]
   PackageType::Deb,
+  #[cfg(target_os = "macos")]
   PackageType::IosBundle,
   #[cfg(target_os = "windows")]
   PackageType::WindowsMsi,
+  #[cfg(target_os = "macos")]
   PackageType::MacOsBundle,
+  #[cfg(target_os = "linux")]
   PackageType::Rpm,
+  #[cfg(target_os = "macos")]
   PackageType::Dmg,
+  #[cfg(target_os = "linux")]
   PackageType::AppImage,
   PackageType::Updater,
 ];
@@ -168,28 +171,38 @@ pub struct MacOsSettings {
   pub entitlements: Option<String>,
 }
 
-#[cfg(windows)]
+/// Settings specific to the WiX implementation.
 #[derive(Clone, Debug, Default)]
 pub struct WixSettings {
   /// By default, the bundler uses an internal template.
   /// This option allows you to define your own wix file.
   pub template: Option<PathBuf>,
+  /// A list of paths to .wxs files with WiX fragments to use.
   pub fragment_paths: Vec<PathBuf>,
+  /// The ComponentGroup element ids you want to reference from the fragments.
   pub component_group_refs: Vec<String>,
+  /// The Component element ids you want to reference from the fragments.
   pub component_refs: Vec<String>,
+  /// The FeatureGroup element ids you want to reference from the fragments.
   pub feature_group_refs: Vec<String>,
+  /// The Feature element ids you want to reference from the fragments.
   pub feature_refs: Vec<String>,
+  /// The Merge element ids you want to reference from the fragments.
   pub merge_refs: Vec<String>,
+  /// Disables the Webview2 runtime installation after app install.
   pub skip_webview_install: bool,
 }
 
 /// The Windows bundle settings.
-#[cfg(windows)]
 #[derive(Clone, Debug, Default)]
 pub struct WindowsSettings {
+  /// The file digest algorithm to use for creating file signatures. Required for code signing. SHA-256 is recommended.
   pub digest_algorithm: Option<String>,
+  /// The SHA1 hash of the signing certificate.
   pub certificate_thumbprint: Option<String>,
+  /// Server to use during timestamping.
   pub timestamp_url: Option<String>,
+  /// WiX configuration.
   pub wix: Option<WixSettings>,
 }
 
@@ -233,7 +246,6 @@ pub struct BundleSettings {
   /// Updater configuration.
   pub updater: Option<UpdaterSettings>,
   /// Windows-specific settings.
-  #[cfg(windows)]
   pub windows: WindowsSettings,
 }
 
@@ -435,7 +447,6 @@ impl Settings {
       "macos" => vec![PackageType::MacOsBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
       "linux" => vec![PackageType::Deb, PackageType::AppImage],
-      #[cfg(target_os = "windows")]
       "windows" => vec![PackageType::WindowsMsi],
       os => {
         return Err(crate::Error::GenericError(format!(
@@ -596,7 +607,6 @@ impl Settings {
   }
 
   /// Returns the Windows settings.
-  #[cfg(windows)]
   pub fn windows(&self) -> &WindowsSettings {
     &self.bundle_settings.windows
   }

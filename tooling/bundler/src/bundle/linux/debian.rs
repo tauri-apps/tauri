@@ -22,7 +22,7 @@
 // metadata, as well as generating the md5sums file.  Currently we do not
 // generate postinst or prerm files.
 
-use super::common;
+use super::super::common;
 use crate::Settings;
 
 use anyhow::Context;

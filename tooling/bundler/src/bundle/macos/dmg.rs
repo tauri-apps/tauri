@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{common, macos_bundle};
+use super::{super::common, app};
 use crate::{bundle::Bundle, PackageType::MacOsBundle, Settings};
 
 use anyhow::Context;
@@ -24,7 +24,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     .count()
     == 0
   {
-    macos_bundle::bundle_project(settings)?;
+    app::bundle_project(settings)?;
   }
 
   // get the target path

@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{settings::Settings, wix};
+mod wix;
+
+use crate::Settings;
 
 use std::{self, path::PathBuf};
 

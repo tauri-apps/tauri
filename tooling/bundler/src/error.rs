@@ -80,23 +80,18 @@ pub enum Error {
   #[error("string is not UTF-8")]
   Utf8(#[from] std::str::Utf8Error),
   /// Windows SignTool not found.
-  #[cfg(target_os = "windows")]
   #[error("SignTool not found")]
   SignToolNotFound,
   /// Failed to open Windows registry.
-  #[cfg(target_os = "windows")]
   #[error("failed to open registry {0}")]
   OpenRegistry(String),
   /// Failed to get registry value.
-  #[cfg(target_os = "windows")]
   #[error("failed to get {0} value on registry")]
   GetRegistryValue(String),
   /// Unsupported OS bitness.
-  #[cfg(target_os = "windows")]
   #[error("unsupported OS bitness")]
   UnsupportedBitness,
   /// Failed to sign application.
-  #[cfg(target_os = "windows")]
   #[error("failed to sign app: {0}")]
   Sign(String),
 }

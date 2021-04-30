@@ -37,6 +37,7 @@ pub fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
 
 /// Makes a symbolic link to a directory.
 #[cfg(unix)]
+#[allow(dead_code)]
 fn symlink_dir(src: &Path, dst: &Path) -> io::Result<()> {
   std::os::unix::fs::symlink(src, dst)
 }
@@ -49,6 +50,7 @@ fn symlink_dir(src: &Path, dst: &Path) -> io::Result<()> {
 
 /// Makes a symbolic link to a file.
 #[cfg(unix)]
+#[allow(dead_code)]
 fn symlink_file(src: &Path, dst: &Path) -> io::Result<()> {
   std::os::unix::fs::symlink(src, dst)
 }
@@ -87,6 +89,7 @@ pub fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> crate::Result<
 /// parent directories of the destination path as necessary.  Fails if the
 /// source path is not a directory or doesn't exist, or if the destination path
 /// already exists.
+#[allow(dead_code)]
 pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
   if !from.exists() {
     return Err(crate::Error::GenericError(format!(
@@ -186,6 +189,7 @@ fn print_progress(step: &str, msg: &str) -> crate::Result<()> {
 }
 
 /// Prints a warning message to stderr, in the same format that `cargo` uses.
+#[allow(dead_code)]
 pub fn print_warning(message: &str) -> crate::Result<()> {
   let mut output = StandardStream::stderr(ColorChoice::Always);
   let _ = output.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)).set_bold(true));

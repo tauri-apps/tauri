@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{common, deb_bundle, path_utils};
+use super::{
+  super::{common, path_utils},
+  debian,
+};
 use crate::Settings;
 
 use handlebars::Handlebars;
@@ -34,8 +37,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let package_dir = settings.project_out_directory().join("bundle/appimage_deb");
 
   // generate deb_folder structure
-  let (_, icons) = deb_bundle::generate_data(settings, &package_dir)?;
-  let icons: Vec<deb_bundle::DebIcon> = icons.into_iter().collect();
+  let (_, icons) = debian::generate_data(settings, &package_dir)?;
+  let icons: Vec<debian::DebIcon> = icons.into_iter().collect();
 
   let output_path = settings.project_out_directory().join("bundle/appimage");
   if output_path.exists() {

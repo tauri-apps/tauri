@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{
+use crate::bundle::{
   common,
   path_utils::{copy_file, FileOpts},
   settings::Settings,

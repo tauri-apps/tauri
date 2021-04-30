@@ -39,7 +39,7 @@ pub enum Error {
   #[error("`{0}`")]
   ZipError(#[from] zip::result::ZipError),
   /// Hex error.
-  #[cfg(not(target_os = "linux"))]
+  #[cfg(target_os = "windows")]
   #[error("`{0}`")]
   HexError(#[from] hex::FromHexError),
   /// Handlebars template error.

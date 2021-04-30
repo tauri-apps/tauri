@@ -12,7 +12,7 @@
 // See https://developer.apple.com/go/?id=bundle-structure for a full
 // explanation.
 
-use super::common;
+use crate::bundle::common;
 use crate::Settings;
 
 use anyhow::Context;

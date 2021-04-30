@@ -200,7 +200,7 @@ where
   ///
   /// # Example
   ///
-  /// ```rust,no_run
+  /// ```rust,ignore
   /// use tauri::State;
   ///
   /// struct MyInt(isize);

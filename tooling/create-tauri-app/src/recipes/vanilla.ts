@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { Recipe } from '..'
 import { join } from 'path'
 // @ts-expect-error
 import scaffe from 'scaffe'
+import { Recipe } from '../types/recipe'
 
 export const vanillajs: Recipe = {
   descriptiveName: 'Vanilla.js',

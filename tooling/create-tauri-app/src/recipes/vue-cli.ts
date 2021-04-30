@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { Recipe } from '..'
 import { join } from 'path'
 import { shell } from '../shell'
+import { Recipe } from '../types/recipe'
 
 const completeLogMsg = `
   Your installation completed.

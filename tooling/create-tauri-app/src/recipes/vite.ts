@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { Recipe } from '..'
 import { join } from 'path'
 import { readdirSync } from 'fs'
 // @ts-expect-error
 import scaffe from 'scaffe'
 import { shell } from '../shell'
+import { Recipe } from '../types/recipe'
 
 const afterViteCA = async (
   cwd: string,

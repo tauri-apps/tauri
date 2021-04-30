@@ -3,22 +3,16 @@
 // SPDX-License-Identifier: MIT
 
 import minimist from 'minimist'
-import inquirer, { Answers, QuestionCollection } from 'inquirer'
+import inquirer from 'inquirer'
 import { resolve, join } from 'path'
-
-import { TauriBuildConfig } from './types/config'
 import { reactjs, reactts } from './recipes/react'
 import { vuecli } from './recipes/vue-cli'
 import { vanillajs } from './recipes/vanilla'
 import { vite } from './recipes/vite'
-import {
-  install,
-  checkPackageManager,
-  PackageManager
-} from './dependency-manager'
-
+import { install, checkPackageManager } from './dependency-manager'
 import { shell } from './shell'
 import { addTauriScript } from './helpers/add-tauri-script'
+import { Recipe } from './types/recipe'
 
 interface Argv {
   h: boolean
@@ -116,25 +110,6 @@ interface Responses {
   recipeName: string
 }
 
-export interface RecipeArgs {
-  cwd: string
-  cfg: TauriBuildConfig
-  packageManager: PackageManager
-  ci: boolean
-  // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
-  answers?: undefined | void | Answers
-}
-export interface Recipe {
-  descriptiveName: string
-  shortName: string
-  configUpdate?: (args: RecipeArgs) => TauriBuildConfig
-  extraNpmDependencies: string[]
-  extraNpmDevDependencies: string[]
-  extraQuestions?: (args: RecipeArgs) => QuestionCollection[]
-  preInit?: (args: RecipeArgs) => Promise<void>
-  postInit?: (args: RecipeArgs) => Promise<void>
-}
-
 const allRecipes: Recipe[] = [vanillajs, reactjs, reactts, vite, vuecli]
 
 const recipeByShortName = (name: string): Recipe | undefined =>
@@ -154,6 +129,7 @@ const runInit = async (argv: Argv): Promise<void> => {
     recipeName: 'vanillajs'
   }
 
+  // prompt initial questions
   const answers = (await inquirer
     .prompt([
       {
@@ -200,7 +176,6 @@ const runInit = async (argv: Argv): Promise<void> => {
   } = { ...defaults, ...answers }
 
   let recipe: Recipe | undefined
-
   if (argv.r) {
     recipe = recipeByShortName(argv.r)
   } else if (recipeName !== undefined) {
@@ -209,11 +184,11 @@ const runInit = async (argv: Argv): Promise<void> => {
 
   if (!recipe) throw new Error('Could not find the recipe specified.')
 
-  // this little fun snippet pulled from vite determines the package manager the script was run from
   const packageManager =
     argv.m === 'yarn' || argv.m === 'npm'
       ? argv.m
       : // @ts-expect-error
+      // this little fun snippet pulled from vite determines the package manager the script was run from
       /yarn/.test(process?.env?.npm_execpath)
       ? 'yarn'
       : 'npm'
@@ -227,7 +202,7 @@ const runInit = async (argv: Argv): Promise<void> => {
 
   const directory = argv.d || process.cwd()
 
-  // prompt recipe questions
+  // prompt additional recipe questions
   let recipeAnswers
   if (recipe.extraQuestions) {
     recipeAnswers = await inquirer

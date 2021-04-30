@@ -4,7 +4,7 @@
 
 import minimist from 'minimist'
 import inquirer from 'inquirer'
-import { bold, cyan, green } from 'chalk'
+import { bold, cyan, green, reset, yellow } from 'chalk'
 import { resolve, join } from 'path'
 import { reactjs, reactts } from './recipes/react'
 import { vuecli } from './recipes/vue-cli'
@@ -296,7 +296,7 @@ const runInit = async (argv: Argv): Promise<void> => {
       packageManager
     })
 
-    logStep('Running >> tauri init <<')
+    logStep(`Running: ${reset(yellow('tauri init'))}`)
     addTauriScript(appDirectory)
 
     const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b)

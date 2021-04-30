@@ -5,12 +5,12 @@ description = "A very simple Tauri Appplication"
 edition = "2018"
 
 [build-dependencies]
-tauri-build = { path = "../../../core/tauri-build", features = [ "codegen" ]}
+tauri-build = { path = "../../../core/tauri-build", features = [ "codegen" ] }
 
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
-tauri = { path = "../../../core/tauri", features =["api-all"]}
+tauri = { path = "../../../core/tauri", features = ["api-all"] }
 
 [features]
 default = [ "custom-protocol" ]

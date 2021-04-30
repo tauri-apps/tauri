@@ -19,9 +19,11 @@ mod rust;
 
 #[derive(Default)]
 pub struct Build {
+  runner: Option<String>,
   debug: bool,
   verbose: bool,
-  targets: Option<Vec<String>>,
+  target: Option<String>,
+  bundles: Option<Vec<String>>,
   config: Option<String>,
 }
 
@@ -40,8 +42,18 @@ impl Build {
     self
   }
 
-  pub fn targets(mut self, targets: Vec<String>) -> Self {
-    self.targets = Some(targets);
+  pub fn runner(mut self, runner: String) -> Self {
+    self.runner.replace(runner);
+    self
+  }
+
+  pub fn target(mut self, target: String) -> Self {
+    self.target.replace(target);
+    self
+  }
+
+  pub fn bundles(mut self, bundles: Vec<String>) -> Self {
+    self.bundles.replace(bundles);
     self
   }
 
@@ -90,7 +102,13 @@ impl Build {
       ));
     }
 
-    rust::build_project(self.debug)?;
+    let runner_from_config = config_.build.runner.clone();
+    let runner = self
+      .runner
+      .or(runner_from_config)
+      .unwrap_or_else(|| "cargo".to_string());
+
+    rust::build_project(runner, &self.target, self.debug)?;
 
     let app_settings = rust::AppSettings::new(&config_)?;
 
@@ -135,7 +153,7 @@ impl Build {
         settings_builder = settings_builder.verbose();
       }
 
-      if let Some(names) = self.targets {
+      if let Some(names) = self.bundles {
         let mut types = vec![];
         for name in names {
           if name == "none" {

@@ -17,11 +17,18 @@ const vuecli: Recipe = {
   extraNpmDevDependencies: [],
   extraNpmDependencies: [],
   configUpdate: ({ cfg }) => cfg,
-  preInit: async ({ cwd, cfg, ci }) => {
+  preInit: async ({ cwd, cfg, ci, packageManager }) => {
     // Vue CLI creates the folder for you
     await shell(
       'npx',
-      ['@vue/cli', 'create', `${cfg.appName}`, ci ? '--default' : ''],
+      [
+        '@vue/cli',
+        'create',
+        `${cfg.appName}`,
+        '--packageManager',
+        packageManager,
+        ci ? '--default' : ''
+      ],
       { cwd }
     )
     await shell(

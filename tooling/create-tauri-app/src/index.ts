@@ -210,10 +210,13 @@ const runInit = async (argv: Argv): Promise<void> => {
   if (!recipe) throw new Error('Could not find the recipe specified.')
 
   // this little fun snippet pulled from vite determines the package manager the script was run from
-  // @ts-expect-error
-  const packageManager = /yarn/.test(process?.env?.npm_execpath)
-    ? 'yarn'
-    : 'npm'
+  const packageManager =
+    argv.m === 'yarn' || argv.m === 'npm'
+      ? argv.m
+      : // @ts-expect-error
+      /yarn/.test(process?.env?.npm_execpath)
+      ? 'yarn'
+      : 'npm'
 
   const buildConfig = {
     distDir: argv.D,

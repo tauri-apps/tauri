@@ -53,6 +53,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let arch = match settings.binary_arch() {
     "x86" => "i386",
     "x86_64" => "amd64",
+    // ARM64 is detected differently, armel isn't supported, so armhf is the only reasonable choice here.
+    "arm" => "armhf",
     other => other,
   };
   let package_base_name = format!(

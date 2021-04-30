@@ -5,16 +5,16 @@
 use crate::{
   api::rpc::{format_callback, format_callback_result},
   runtime::app::App,
-  Params, Window,
+  Params, StateManager, Window,
 };
 use serde::{Deserialize, Serialize};
-use std::future::Future;
+use std::{future::Future, sync::Arc};
 
 /// A closure that is run when the Tauri application is setting up.
 pub type SetupHook<M> = Box<dyn Fn(&mut App<M>) -> Result<(), Box<dyn std::error::Error>> + Send>;
 
 /// A closure that is run everytime Tauri receives a message it doesn't explicitly handle.
-pub type InvokeHandler<M> = dyn Fn(InvokeMessage<M>) + Send + Sync + 'static;
+pub type InvokeHandler<M> = dyn Fn(InvokeMessage<M>, Arc<StateManager>) + Send + Sync + 'static;
 
 /// A closure that is run once every time a window is created and loaded.
 pub type OnPageLoad<M> = dyn Fn(Window<M>, PageLoadPayload) + Send + Sync + 'static;

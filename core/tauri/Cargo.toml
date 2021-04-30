@@ -48,6 +48,7 @@ shared_child = "0.3"
 os_pipe = "0.9"
 minisign-verify = "0.1.8"
 image = "0.23"
+state = "0.4"
 
 [build-dependencies]
 cfg_aliases = "0.1.1"

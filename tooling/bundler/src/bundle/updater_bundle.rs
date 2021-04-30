@@ -11,11 +11,9 @@ use super::macos::app;
 use super::linux::appimage;
 
 #[cfg(target_os = "windows")]
-use super::msi_bundle;
+use super::windows::msi;
 #[cfg(target_os = "windows")]
-use std::fs::File;
-#[cfg(target_os = "windows")]
-use std::io::prelude::*;
+use std::{fs::File, io::prelude::*};
 #[cfg(target_os = "windows")]
 use zip::write::FileOptions;
 
@@ -135,7 +133,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
         .find(|path| path.extension() == Some(OsStr::new("msi")))
     }) {
     Some(path) => vec![path.clone()],
-    None => msi_bundle::bundle_project(settings)?,
+    None => msi::bundle_project(settings)?,
   };
 
   // we expect our .msi to be on bundle_path[0]

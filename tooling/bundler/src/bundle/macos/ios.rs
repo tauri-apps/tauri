@@ -12,8 +12,7 @@
 // See https://developer.apple.com/go/?id=bundle-structure for a full
 // explanation.
 
-use crate::bundle::common;
-use crate::Settings;
+use crate::{bundle::common, Settings};
 
 use anyhow::Context;
 use image::{self, png::PngDecoder, GenericImageView, ImageDecoder};

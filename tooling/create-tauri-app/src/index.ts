@@ -4,6 +4,7 @@
 
 import minimist from 'minimist'
 import inquirer from 'inquirer'
+import { bold, cyan, green } from 'chalk'
 import { resolve, join } from 'path'
 import { reactjs, reactts } from './recipes/react'
 import { vuecli } from './recipes/vue-cli'
@@ -251,7 +252,7 @@ const runInit = async (argv: Argv): Promise<void> => {
   await checkPackageManager({ cwd: directory, packageManager })
 
   if (recipe.preInit) {
-    console.log('===== running initial command(s) =====')
+    logStep('Running initial command(s)')
     await recipe.preInit({
       cwd: directory,
       cfg,
@@ -276,7 +277,7 @@ const runInit = async (argv: Argv): Promise<void> => {
 
   // Vue CLI plugin automatically runs these
   if (recipe.shortName !== 'vuecli') {
-    console.log('===== installing any additional needed deps =====')
+    logStep('Installing any additional needed dependencies')
     if (argv.dev) {
       await shell('yarn', ['link', '@tauri-apps/cli'], {
         cwd: appDirectory
@@ -295,7 +296,7 @@ const runInit = async (argv: Argv): Promise<void> => {
       packageManager
     })
 
-    console.log('===== running tauri init =====')
+    logStep('Running >> tauri init <<')
     addTauriScript(appDirectory)
 
     const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b)
@@ -309,7 +310,7 @@ const runInit = async (argv: Argv): Promise<void> => {
   }
 
   if (recipe.postInit) {
-    console.log('===== running final command(s) =====')
+    logStep('Tunning final command(s)')
     await recipe.postInit({
       cwd: appDirectory,
       cfg,
@@ -318,4 +319,9 @@ const runInit = async (argv: Argv): Promise<void> => {
       answers: recipeAnswers
     })
   }
+}
+
+function logStep(msg: string): void {
+  const out = `${green('>>')} ${bold(cyan(msg))}`
+  console.log(out)
 }

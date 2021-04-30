@@ -49,7 +49,7 @@
     "@types/semver": "7.3.5",
     "@typescript-eslint/eslint-plugin": "4.22.0",
     "@typescript-eslint/parser": "4.22.0",
-    "chalk": "^4.1.1",
+    "chalk": "4.1.1",
     "eslint": "7.25.0",
     "eslint-config-prettier": "8.3.0",
     "eslint-config-standard-with-typescript": "20.0.0",

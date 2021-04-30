@@ -310,7 +310,7 @@ const runInit = async (argv: Argv): Promise<void> => {
   }
 
   if (recipe.postInit) {
-    logStep('Tunning final command(s)')
+    logStep('Running final command(s)')
     await recipe.postInit({
       cwd: appDirectory,
       cfg,

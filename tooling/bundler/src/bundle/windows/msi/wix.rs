@@ -489,7 +489,7 @@ pub fn build_wix_app_installer(
 
   if !has_custom_template {
     handlebars
-      .register_template_string("main.wxs", include_str!("templates/main.wxs"))
+      .register_template_string("main.wxs", include_str!("../templates/main.wxs"))
       .map_err(|e| e.to_string())
       .expect("Failed to setup handlebar template");
   }

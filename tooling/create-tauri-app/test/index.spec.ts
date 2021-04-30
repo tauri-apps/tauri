@@ -102,9 +102,12 @@ describe('CTA', () => {
           //  and then run that test suite instead
           let opts: string[] = []
           if (manager === 'npm') {
-            opts = ['run', 'tauri', '--', 'build']
+            opts =
+              recipe == 'vuecli'
+                ? ['run', 'tauri:build']
+                : ['run', 'tauri', '--', 'build']
           } else if (manager === 'yarn') {
-            opts = ['tauri', 'build']
+            opts = recipe == 'vuecli' ? ['tauri:build'] : ['tauri', 'build']
           }
           const tauriBuild = await execa(manager, opts, {
             all: true,
@@ -153,6 +156,14 @@ describe('CTA', () => {
               expect(packageFileOutput['scripts']).toEqual(
                 expect.objectContaining({
                   tauri: 'tauri'
+                })
+              )
+            },
+            vuecli: () => {
+              expect(packageFileOutput['scripts']).toEqual(
+                expect.objectContaining({
+                  'tauri:build': expect.anything(),
+                  'tauri:serve': expect.anything()
                 })
               )
             }

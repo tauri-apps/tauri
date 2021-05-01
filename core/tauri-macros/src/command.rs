@@ -79,7 +79,7 @@ pub fn generate_command(function: ItemFn) -> TokenStream {
     invoke_args.append_all(quote! {
       let #arg_name_ = match <#arg_type>::from_command(#fn_name_str, #arg_name_s, &message) {
         Ok(value) => value,
-        Err(e) => return message.reject(::tauri::Error::InvalidArgs(#fn_name_str, e).to_string())
+        Err(e) => return tauri::InvokeResponse::Err(::tauri::Error::InvalidArgs(#fn_name_str, e).to_string())
       };
     });
     invoke_arg_names.push(arg_name_.clone());
@@ -99,20 +99,22 @@ pub fn generate_command(function: ItemFn) -> TokenStream {
   let return_value = if returns_result {
     quote! {
       match #fn_name(#(#invoke_arg_names),*)#await_maybe {
-        Ok(value) => ::core::result::Result::Ok(value),
-        Err(e) => ::core::result::Result::Err(e),
+        Ok(value) => ::core::result::Result::Ok(value).into(),
+        Err(e) => ::core::result::Result::Err(e).into(),
       }
     }
   } else {
-    quote! { ::core::result::Result::<_, ()>::Ok(#fn_name(#(#invoke_arg_names),*)#await_maybe) }
+    quote! { ::core::result::Result::<_, ()>::Ok(#fn_name(#(#invoke_arg_names),*)#await_maybe).into() }
   };
 
   quote! {
     #function
-    #vis fn #fn_wrapper<P: ::tauri::Params>(message: ::tauri::InvokeMessage<P>) {
+    #vis fn #fn_wrapper<P: ::tauri::Params>(message: ::tauri::InvokeMessage<P>, resolver: ::tauri::InvokeResolver<P>) {
       use ::tauri::command::FromCommand;
-      #invoke_args
-      message.respond_async(async move { #return_value })
+      resolver.respond_async(async move {
+        #invoke_args
+        #return_value
+      })
     }
   }
 }
@@ -137,12 +139,12 @@ pub fn generate_handler(item: proc_macro::TokenStream) -> TokenStream {
   });
 
   quote! {
-    move |message| {
+    move |message, resolver| {
       let cmd = message.command().to_string();
       match cmd.as_str() {
-        #(stringify!(#fn_names) => #fn_wrappers(message),)*
+        #(stringify!(#fn_names) => #fn_wrappers(message, resolver),)*
         _ => {
-          message.reject(format!("command {} not found", cmd))
+          resolver.reject(format!("command {} not found", cmd))
         },
       }
     }

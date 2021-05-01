@@ -4,7 +4,7 @@
 
 use crate::{
   api::{config::Config, PackageInfo},
-  hooks::InvokeMessage,
+  hooks::{InvokeMessage, InvokeResolver},
   Params,
 };
 use serde::{Deserialize, Serialize};
@@ -52,75 +52,100 @@ enum Module {
 }
 
 impl Module {
-  fn run<M: Params>(self, message: InvokeMessage<M>, config: &Config, package_info: PackageInfo) {
+  fn run<M: Params>(
+    self,
+    message: InvokeMessage<M>,
+    resolver: InvokeResolver<M>,
+    config: &Config,
+    package_info: PackageInfo,
+  ) {
     let window = message.window();
     match self {
-      Self::App(cmd) => message.respond_async(async move {
+      Self::App(cmd) => resolver.respond_async(async move {
         cmd
           .run(package_info)
           .and_then(|r| r.json)
           .map_err(|e| e.to_string())
+          .into()
       }),
-      Self::Fs(cmd) => message
-        .respond_async(async move { cmd.run().and_then(|r| r.json).map_err(|e| e.to_string()) }),
-      Self::Window(cmd) => message.respond_async(async move {
+      Self::Fs(cmd) => resolver.respond_async(async move {
+        cmd
+          .run()
+          .and_then(|r| r.json)
+          .map_err(|e| e.to_string())
+          .into()
+      }),
+      Self::Window(cmd) => resolver.respond_async(async move {
         cmd
           .run(window)
           .await
           .and_then(|r| r.json)
           .map_err(|e| e.to_string())
+          .into()
       }),
-      Self::Shell(cmd) => message.respond_async(async move {
+      Self::Shell(cmd) => resolver.respond_async(async move {
         cmd
           .run(window)
           .and_then(|r| r.json)
           .map_err(|e| e.to_string())
+          .into()
       }),
-      Self::Event(cmd) => message.respond_async(async move {
+      Self::Event(cmd) => resolver.respond_async(async move {
         cmd
           .run(window)
           .and_then(|r| r.json)
           .map_err(|e| e.to_string())
+          .into()
       }),
-      Self::Internal(cmd) => message.respond_async(async move {
+      Self::Internal(cmd) => resolver.respond_async(async move {
         cmd
           .run(window)
           .and_then(|r| r.json)
           .map_err(|e| e.to_string())
+          .into()
       }),
-      Self::Dialog(cmd) => message
-        .respond_async(async move { cmd.run().and_then(|r| r.json).map_err(|e| e.to_string()) }),
+      Self::Dialog(cmd) => resolver.respond_async(async move {
+        cmd
+          .run()
+          .and_then(|r| r.json)
+          .map_err(|e| e.to_string())
+          .into()
+      }),
       Self::Cli(cmd) => {
         if let Some(cli_config) = config.tauri.cli.clone() {
-          message.respond_async(async move {
+          resolver.respond_async(async move {
             cmd
               .run(&cli_config)
               .and_then(|r| r.json)
               .map_err(|e| e.to_string())
+              .into()
           })
         }
       }
       Self::Notification(cmd) => {
         let identifier = config.tauri.bundle.identifier.clone();
-        message.respond_async(async move {
+        resolver.respond_async(async move {
           cmd
             .run(identifier)
             .and_then(|r| r.json)
             .map_err(|e| e.to_string())
+            .into()
         })
       }
-      Self::Http(cmd) => message.respond_async(async move {
+      Self::Http(cmd) => resolver.respond_async(async move {
         cmd
           .run()
           .await
           .and_then(|r| r.json)
           .map_err(|e| e.to_string())
+          .into()
       }),
-      Self::GlobalShortcut(cmd) => message.respond_async(async move {
+      Self::GlobalShortcut(cmd) => resolver.respond_async(async move {
         cmd
           .run(window)
           .and_then(|r| r.json)
           .map_err(|e| e.to_string())
+          .into()
       }),
     }
   }
@@ -129,6 +154,7 @@ impl Module {
 pub(crate) fn handle<M: Params>(
   module: String,
   message: InvokeMessage<M>,
+  resolver: InvokeResolver<M>,
   config: &Config,
   package_info: &PackageInfo,
 ) {
@@ -137,7 +163,7 @@ pub(crate) fn handle<M: Params>(
     obj.insert("module".to_string(), JsonValue::String(module));
   }
   match serde_json::from_value::<Module>(payload) {
-    Ok(module) => module.run(message, config, package_info.clone()),
-    Err(e) => message.reject(e.to_string()),
+    Ok(module) => module.run(message, resolver, config, package_info.clone()),
+    Err(e) => resolver.reject(e.to_string()),
   }
 }

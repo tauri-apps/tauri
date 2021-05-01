@@ -11,7 +11,9 @@ use crate::{
     PackageInfo,
   },
   event::{Event, EventHandler, Listeners},
-  hooks::{InvokeHandler, InvokeMessage, InvokePayload, OnPageLoad, PageLoadPayload},
+  hooks::{
+    InvokeHandler, InvokeMessage, InvokePayload, InvokeResolver, OnPageLoad, PageLoadPayload,
+  },
   plugin::PluginStore,
   runtime::{
     tag::{tags_to_javascript_array, Tag, ToJsString},
@@ -399,7 +401,7 @@ mod test {
     let manager: WindowManager<Args<String, String, _, Wry>> = WindowManager::with_handlers(
       context,
       PluginStore::default(),
-      Box::new(|_| ()),
+      Box::new(|_, _| ()),
       Box::new(|_, _| ()),
       Default::default(),
       StateManager::new(),
@@ -414,9 +416,10 @@ mod test {
 }
 
 impl<P: Params> WindowManager<P> {
-  pub fn run_invoke_handler(&self, message: InvokeMessage<P>) {
-    (self.inner.invoke_handler)(message);
+  pub fn run_invoke_handler(&self, message: InvokeMessage<P>, resolver: InvokeResolver<P>) {
+    (self.inner.invoke_handler)(message, resolver);
   }
+
   pub fn run_on_page_load(&self, window: Window<P>, payload: PageLoadPayload) {
     (self.inner.on_page_load)(window.clone(), payload.clone());
     self
@@ -426,14 +429,16 @@ impl<P: Params> WindowManager<P> {
       .expect("poisoned plugin store")
       .on_page_load(window, payload);
   }
-  pub fn extend_api(&self, message: InvokeMessage<P>) {
+
+  pub fn extend_api(&self, message: InvokeMessage<P>, resolver: InvokeResolver<P>) {
     self
       .inner
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .extend_api(message);
+      .extend_api(message, resolver);
   }
+
   pub fn initialize_plugins(&self) -> crate::Result<()> {
     self
       .inner

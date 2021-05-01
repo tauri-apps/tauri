@@ -14,7 +14,7 @@ use std::{future::Future, sync::Arc};
 pub type SetupHook<M> = Box<dyn Fn(&mut App<M>) -> Result<(), Box<dyn std::error::Error>> + Send>;
 
 /// A closure that is run everytime Tauri receives a message it doesn't explicitly handle.
-pub type InvokeHandler<M> = dyn Fn(InvokeMessage<M>) + Send + Sync + 'static;
+pub type InvokeHandler<M> = dyn Fn(InvokeMessage<M>, InvokeResolver<M>) + Send + Sync + 'static;
 
 /// A closure that is run once every time a window is created and loaded.
 pub type OnPageLoad<M> = dyn Fn(Window<M>, PageLoadPayload) + Send + Sync + 'static;
@@ -43,6 +43,137 @@ pub(crate) struct InvokePayload {
   pub(crate) main_thread: bool,
   #[serde(flatten)]
   pub(crate) inner: serde_json::Value,
+}
+
+/// Response from a [`InvokeMessage`] passed to the [`InvokeResolver`].
+pub enum InvokeResponse {
+  /// Resolve the promise.
+  Ok(String),
+  /// Reject the promise.
+  Err(String),
+}
+
+impl<T: Serialize, E: Serialize> From<Result<T, E>> for InvokeResponse {
+  fn from(result: Result<T, E>) -> Self {
+    match result {
+      Result::Ok(t) => Self::Ok(serde_json::to_string(&t).unwrap()),
+      Result::Err(e) => Self::Err(serde_json::to_string(&e).unwrap()),
+    }
+  }
+}
+
+/// Resolver of a invoke message.
+pub struct InvokeResolver<M: Params> {
+  window: Window<M>,
+  pub(crate) main_thread: bool,
+  pub(crate) callback: String,
+  pub(crate) error: String,
+}
+
+/*impl<P: Params> Clone for InvokeResolver<P> {
+  fn clone(&self) -> Self {
+    Self {
+      window: self.window.clone(),
+      main_thread: self.main_thread,
+      callback: self.callback.clone(),
+      error: self.error.clone(),
+    }
+  }
+}*/
+
+impl<M: Params> InvokeResolver<M> {
+  pub(crate) fn new(window: Window<M>, main_thread: bool, callback: String, error: String) -> Self {
+    Self {
+      window,
+      main_thread,
+      callback,
+      error,
+    }
+  }
+
+  /// Reply to the invoke promise with an async task.
+  pub fn respond_async<F: Future<Output = InvokeResponse> + Send + 'static>(self, task: F) {
+    if self.main_thread {
+      crate::async_runtime::block_on(async move {
+        Self::return_task(self.window, task, self.callback, self.error).await;
+      });
+    } else {
+      crate::async_runtime::spawn(async move {
+        Self::return_task(self.window, task, self.callback, self.error).await;
+      });
+    }
+  }
+
+  /// Reply to the invoke promise running the given closure.
+  pub fn respond_closure<F: FnOnce() -> InvokeResponse>(self, f: F) {
+    Self::return_closure(self.window, f, self.callback, self.error)
+  }
+
+  /// Resolve the invoke promise with a value.
+  pub fn resolve<S: Serialize>(self, value: S) {
+    Self::return_result(
+      self.window,
+      Result::<S, ()>::Ok(value).into(),
+      self.callback,
+      self.error,
+    )
+  }
+
+  /// Reject the invoke promise with a value.
+  pub fn reject<S: Serialize>(self, value: S) {
+    Self::return_result(
+      self.window,
+      Result::<(), S>::Err(value).into(),
+      self.callback,
+      self.error,
+    )
+  }
+
+  /// Asynchronously executes the given task
+  /// and evaluates its Result to the JS promise described by the `success_callback` and `error_callback` function names.
+  ///
+  /// If the Result `is_ok()`, the callback will be the `success_callback` function name and the argument will be the Ok value.
+  /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
+  pub async fn return_task<F: std::future::Future<Output = InvokeResponse> + Send + 'static>(
+    window: Window<M>,
+    task: F,
+    success_callback: String,
+    error_callback: String,
+  ) {
+    let result = task.await;
+    Self::return_closure(window, || result, success_callback, error_callback)
+  }
+
+  pub(crate) fn return_closure<F: FnOnce() -> InvokeResponse>(
+    window: Window<M>,
+    f: F,
+    success_callback: String,
+    error_callback: String,
+  ) {
+    Self::return_result(window, f(), success_callback, error_callback)
+  }
+
+  pub(crate) fn return_result(
+    window: Window<M>,
+    response: InvokeResponse,
+    success_callback: String,
+    error_callback: String,
+  ) {
+    let callback_string = match format_callback_result(
+      match response {
+        InvokeResponse::Ok(t) => std::result::Result::Ok(t),
+        InvokeResponse::Err(e) => std::result::Result::Err(e),
+      },
+      success_callback,
+      error_callback.clone(),
+    ) {
+      Ok(callback_string) => callback_string,
+      Err(e) => format_callback(error_callback, &e.to_string())
+        .expect("unable to serialize shortcut string to json"),
+    };
+
+    let _ = window.eval(&callback_string);
+  }
 }
 
 /// An invoke message.
@@ -84,94 +215,5 @@ impl<M: Params> InvokeMessage<M> {
   /// The window that received the invoke.
   pub fn window(&self) -> Window<M> {
     self.window.clone()
-  }
-
-  /// Reply to the invoke promise with an async task.
-  pub fn respond_async<
-    T: Serialize,
-    Err: Serialize,
-    F: Future<Output = Result<T, Err>> + Send + 'static,
-  >(
-    self,
-    task: F,
-  ) {
-    if self.payload.main_thread {
-      crate::async_runtime::block_on(async move {
-        Self::return_task(self.window, task, self.payload.callback, self.payload.error).await;
-      });
-    } else {
-      crate::async_runtime::spawn(async move {
-        Self::return_task(self.window, task, self.payload.callback, self.payload.error).await;
-      });
-    }
-  }
-
-  /// Reply to the invoke promise running the given closure.
-  pub fn respond_closure<T: Serialize, Err: Serialize, F: FnOnce() -> Result<T, Err>>(self, f: F) {
-    Self::return_closure(self.window, f, self.payload.callback, self.payload.error)
-  }
-
-  /// Resolve the invoke promise with a value.
-  pub fn resolve<S: Serialize>(self, value: S) {
-    Self::return_result(
-      self.window,
-      Result::<S, ()>::Ok(value),
-      self.payload.callback,
-      self.payload.error,
-    )
-  }
-
-  /// Reject the invoke promise with a value.
-  pub fn reject<S: Serialize>(self, value: S) {
-    Self::return_result(
-      self.window,
-      Result::<(), S>::Err(value),
-      self.payload.callback,
-      self.payload.error,
-    )
-  }
-
-  /// Asynchronously executes the given task
-  /// and evaluates its Result to the JS promise described by the `success_callback` and `error_callback` function names.
-  ///
-  /// If the Result `is_ok()`, the callback will be the `success_callback` function name and the argument will be the Ok value.
-  /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
-  pub async fn return_task<
-    T: Serialize,
-    Err: Serialize,
-    F: std::future::Future<Output = Result<T, Err>> + Send + 'static,
-  >(
-    window: Window<M>,
-    task: F,
-    success_callback: String,
-    error_callback: String,
-  ) {
-    let result = task.await;
-    Self::return_closure(window, || result, success_callback, error_callback)
-  }
-
-  pub(crate) fn return_closure<T: Serialize, Err: Serialize, F: FnOnce() -> Result<T, Err>>(
-    window: Window<M>,
-    f: F,
-    success_callback: String,
-    error_callback: String,
-  ) {
-    Self::return_result(window, f(), success_callback, error_callback)
-  }
-
-  pub(crate) fn return_result<T: Serialize, Err: Serialize>(
-    window: Window<M>,
-    result: Result<T, Err>,
-    success_callback: String,
-    error_callback: String,
-  ) {
-    let callback_string =
-      match format_callback_result(result, success_callback, error_callback.clone()) {
-        Ok(callback_string) => callback_string,
-        Err(e) => format_callback(error_callback, &e.to_string())
-          .expect("unable to serialize shortcut string to json"),
-      };
-
-    let _ = window.eval(&callback_string);
   }
 }

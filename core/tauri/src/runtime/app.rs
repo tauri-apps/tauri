@@ -4,7 +4,7 @@
 
 use crate::{
   api::{assets::Assets, config::WindowUrl},
-  hooks::{InvokeHandler, InvokeMessage, OnPageLoad, PageLoadPayload, SetupHook},
+  hooks::{InvokeHandler, InvokeMessage, InvokeResolver, OnPageLoad, PageLoadPayload, SetupHook},
   plugin::{Plugin, PluginStore},
   runtime::{
     flavors::wry::Wry,
@@ -142,7 +142,7 @@ where
   pub fn new() -> Self {
     Self {
       setup: Box::new(|_| Ok(())),
-      invoke_handler: Box::new(|_| ()),
+      invoke_handler: Box::new(|_, _| ()),
       on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
@@ -154,7 +154,8 @@ where
   /// Defines the JS message handler callback.
   pub fn invoke_handler<F>(mut self, invoke_handler: F) -> Self
   where
-    F: Fn(InvokeMessage<Args<E, L, A, R>>) + Send + Sync + 'static,
+    F:
+      Fn(InvokeMessage<Args<E, L, A, R>>, InvokeResolver<Args<E, L, A, R>>) + Send + Sync + 'static,
   {
     self.invoke_handler = Box::new(invoke_handler);
     self

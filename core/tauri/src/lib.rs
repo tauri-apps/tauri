@@ -53,7 +53,10 @@ use std::{borrow::Borrow, collections::HashMap, path::PathBuf};
 // Export types likely to be used by the application.
 pub use {
   self::api::config::WindowUrl,
-  self::hooks::{InvokeHandler, InvokeMessage, OnPageLoad, PageLoadPayload, SetupHook},
+  self::hooks::{
+    InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad, PageLoadPayload,
+    SetupHook,
+  },
   self::runtime::app::{App, Builder},
   self::runtime::flavors::wry::Wry,
   self::runtime::webview::{WebviewAttributes, WindowBuilder},

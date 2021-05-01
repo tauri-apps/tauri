@@ -230,6 +230,23 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
   fn windows(&self) -> HashMap<P::Label, Window<P>> {
     self.manager().windows()
   }
+
+  /// Add `state` to the state managed by the application.
+  /// See [`tauri::Builder#manage`] for instructions.
+  fn manage<T>(&self, state: T)
+  where
+    T: Send + Sync + 'static,
+  {
+    self.manager().state().set(state);
+  }
+
+  /// Gets the managed state for the type `T`.
+  fn state<T>(&self) -> State<'_, T>
+  where
+    T: Send + Sync + 'static,
+  {
+    self.manager().inner.state.get()
+  }
 }
 
 /// Prevent implementation details from leaking out of the [`Manager`] and [`Params`] traits.

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::runtime::tag::TagRef;
 use crate::{
   api::{
     assets::Assets,
@@ -16,13 +15,13 @@ use crate::{
   },
   plugin::PluginStore,
   runtime::{
-    tag::{tags_to_javascript_array, Tag, ToJsString},
+    tag::{tags_to_javascript_array, Tag, TagRef, ToJsString},
     webview::{CustomProtocol, FileDropEvent, FileDropHandler, WebviewRpcHandler, WindowBuilder},
     window::{DetachedWindow, PendingWindow},
     Icon, Runtime,
   },
   sealed::ParamsBase,
-  Context, Params, StateManager, Window,
+  App, Context, Params, StateManager, Window,
 };
 use serde::Serialize;
 use serde_json::Value as JsonValue;
@@ -54,7 +53,7 @@ pub struct InnerWindowManager<P: Params> {
   windows: Mutex<HashMap<P::Label, Window<P>>>,
   plugins: Mutex<PluginStore<P>>,
   listeners: Listeners<P::Event, P::Label>,
-  state: Arc<StateManager>,
+  pub(crate) state: Arc<StateManager>,
 
   /// The JS message handler.
   invoke_handler: Box<InvokeHandler<P>>,
@@ -439,13 +438,13 @@ impl<P: Params> WindowManager<P> {
       .extend_api(message, resolver);
   }
 
-  pub fn initialize_plugins(&self) -> crate::Result<()> {
+  pub fn initialize_plugins(&self, app: &App<P>) -> crate::Result<()> {
     self
       .inner
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .initialize(&self.inner.config.plugins)
+      .initialize(&app, &self.inner.config.plugins)
   }
 
   pub fn prepare_window(

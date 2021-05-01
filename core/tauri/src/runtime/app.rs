@@ -288,7 +288,6 @@ where
 
   /// Runs the configured Tauri application.
   pub fn run(mut self, context: Context<A>) -> crate::Result<()> {
-    self.state.0.freeze();
     let manager = WindowManager::with_handlers(
       context,
       self.plugins,
@@ -313,12 +312,12 @@ where
       ));
     }
 
-    manager.initialize_plugins()?;
-
     let mut app = App {
       runtime: R::new()?,
       manager,
     };
+
+    app.manager.initialize_plugins(&app)?;
 
     let pending_labels = self
       .pending_windows
@@ -343,6 +342,7 @@ where
     app.run_updater(main_window);
 
     (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e.to_string()))?;
+
     app.runtime.run();
     Ok(())
   }

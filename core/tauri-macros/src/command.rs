@@ -112,7 +112,8 @@ pub fn generate_command(function: ItemFn) -> TokenStream {
     #vis fn #fn_wrapper<P: ::tauri::Params>(message: ::tauri::InvokeMessage<P>) {
       use ::tauri::command::FromCommand;
       #invoke_args
-      message.respond_async(async move { #return_value })
+      let result = #return_value;
+      message.respond_async(::std::future::ready(result))
     }
   }
 }

@@ -268,9 +268,16 @@ impl<'de> Deserializer<'de> for KeyedValue<'de> {
   }
 }
 
-// todo
-#[allow(missing_docs)]
+/// Trait implemented by command arguments to derive a value from a [`InvokeMessage`].
+/// [`tauri::Window`], [`tauri::State`] and types that implements [`Deserialize`] automatically implements this trait.
 pub trait FromCommand<'de, P: Params>: Sized {
+  /// Derives an instance of `Self` from the [`InvokeMessage`].
+  /// If the derivation fails, the corresponding message will be rejected using [`InvokeMessage#reject`].
+  ///
+  /// # Arguments
+  /// - `command`: the command value passed to invoke, e.g. `initialize` on `invoke('initialize', {})`.
+  /// - `key`: The name of the variable in the command handler, e.g. `value` on `#[command] fn handler(value: u64)`
+  /// - `message`: The [`InvokeMessage`] instance.
   fn from_command(
     command: &'de str,
     key: &'de str,

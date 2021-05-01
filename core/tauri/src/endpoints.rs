@@ -5,7 +5,7 @@
 use crate::{
   api::{config::Config, PackageInfo},
   hooks::{InvokeMessage, InvokeResolver},
-  Params,
+  Params, Window,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -56,12 +56,11 @@ enum Module {
 impl Module {
   fn run<M: Params>(
     self,
-    message: InvokeMessage<M>,
+    window: Window<M>,
     resolver: InvokeResolver<M>,
     config: &Config,
     package_info: PackageInfo,
   ) {
-    let window = message.window();
     match self {
       Self::App(cmd) => resolver.respond_async(async move {
         cmd
@@ -167,12 +166,13 @@ pub(crate) fn handle<M: Params>(
   config: &Config,
   package_info: &PackageInfo,
 ) {
-  let mut payload = message.payload();
+  let mut payload = message.payload;
   if let JsonValue::Object(ref mut obj) = payload {
     obj.insert("module".to_string(), JsonValue::String(module));
   }
+  let window = message.window;
   match serde_json::from_value::<Module>(payload) {
-    Ok(module) => module.run(message, resolver, config, package_info.clone()),
+    Ok(module) => module.run(window, resolver, config, package_info.clone()),
     Err(e) => resolver.reject(e.to_string()),
   }
 }

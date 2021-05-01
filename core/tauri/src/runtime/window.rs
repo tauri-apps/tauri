@@ -7,10 +7,10 @@
 use crate::{
   api::config::WindowConfig,
   event::{Event, EventHandler},
-  hooks::{InvokeMessage, InvokePayload, InvokeResolver, PageLoadPayload},
+  hooks::{InvokeMessage, InvokeResolver, PageLoadPayload},
   runtime::{
     tag::ToJsString,
-    webview::{FileDropHandler, WebviewAttributes, WebviewRpcHandler},
+    webview::{FileDropHandler, InvokePayload, WebviewAttributes, WebviewRpcHandler},
     Dispatch, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
@@ -197,13 +197,15 @@ pub(crate) mod export {
           manager.run_on_page_load(self, payload);
         }
         _ => {
-          let main_thread = payload.main_thread;
-          let callback = payload.callback.clone();
-          let error = payload.error.clone();
-          let message =
-            InvokeMessage::new(self.clone(), manager.state(), command.to_string(), payload);
-          let resolver = InvokeResolver::new(self, main_thread, callback, error);
-          if let Some(module) = &message.payload.tauri_module {
+          let message = InvokeMessage::new(
+            self.clone(),
+            manager.state(),
+            command.to_string(),
+            payload.inner,
+          );
+          let resolver =
+            InvokeResolver::new(self, payload.main_thread, payload.callback, payload.error);
+          if let Some(module) = &payload.tauri_module {
             let module = module.to_string();
             crate::endpoints::handle(
               module,

@@ -33,19 +33,6 @@ impl PageLoadPayload {
   }
 }
 
-/// Payload from an invoke call.
-#[derive(Debug, Deserialize)]
-pub(crate) struct InvokePayload {
-  #[serde(rename = "__tauriModule")]
-  pub(crate) tauri_module: Option<String>,
-  pub(crate) callback: String,
-  pub(crate) error: String,
-  #[serde(rename = "mainThread", default)]
-  pub(crate) main_thread: bool,
-  #[serde(flatten)]
-  pub(crate) inner: JsonValue,
-}
-
 /// Response from a [`InvokeMessage`] passed to the [`InvokeResolver`].
 #[derive(Debug)]
 pub enum InvokeResponse {
@@ -193,12 +180,14 @@ impl<M: Params> InvokeResolver<M> {
 
 /// An invoke message.
 pub struct InvokeMessage<M: Params> {
-  window: Window<M>,
+  /// The window that received the invoke message.
+  pub(crate) window: Window<M>,
+  /// Application managed state.
   pub(crate) state: Arc<StateManager>,
+  /// The RPC command.
   pub(crate) command: String,
-
-  /// Allow our crate to access the payload without cloning it.
-  pub(crate) payload: InvokePayload,
+  /// The JSON argument passed on the invoke message.
+  pub(crate) payload: JsonValue,
 }
 
 impl<M: Params> InvokeMessage<M> {
@@ -207,7 +196,7 @@ impl<M: Params> InvokeMessage<M> {
     window: Window<M>,
     state: Arc<StateManager>,
     command: String,
-    payload: InvokePayload,
+    payload: JsonValue,
   ) -> Self {
     Self {
       window,
@@ -220,11 +209,6 @@ impl<M: Params> InvokeMessage<M> {
   /// The invoke command.
   pub fn command(&self) -> &str {
     &self.command
-  }
-
-  /// The invoke payload.
-  pub fn payload(&self) -> serde_json::Value {
-    self.payload.inner.clone()
   }
 
   /// The window that received the invoke.

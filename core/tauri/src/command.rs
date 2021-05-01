@@ -294,7 +294,7 @@ impl<'de, D: serde::Deserialize<'de>, P: Params> FromCommand<'de, P> for D {
     D::deserialize(KeyedValue {
       command,
       key,
-      value: &message.payload.inner,
+      value: &message.payload,
     })
   }
 }

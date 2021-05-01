@@ -134,6 +134,33 @@ impl CommandChild {
   }
 }
 
+/// Describes the result of a process after it has terminated.
+pub struct ExitStatus {
+  code: Option<i32>,
+}
+
+impl ExitStatus {
+  /// Returns the exit code of the process, if any.
+  pub fn code(&self) -> Option<i32> {
+    self.code
+  }
+
+  /// Was termination successful? Signal termination is not considered a success, and success is defined as a zero exit status.
+  pub fn success(&self) -> bool {
+    self.code == Some(0)
+  }
+}
+
+/// The output of a finished process.
+pub struct Output {
+  /// The status (exit code) of the process.
+  pub status: ExitStatus,
+  /// The data that the process wrote to stdout.
+  pub stdout: String,
+  /// The data that the process wrote to stderr.
+  pub stderr: String,
+}
+
 #[cfg(not(windows))]
 fn relative_command_path(command: String) -> crate::Result<String> {
   match std::env::current_exe()?.parent() {
@@ -280,6 +307,57 @@ impl Command {
         stdin_writer,
       },
     ))
+  }
+
+  /// Executes a command as a child process, waiting for it to finish and collecting its exit status.
+  /// Stdin, stdout and stderr are ignored.
+  pub fn status(self) -> crate::api::Result<ExitStatus> {
+    let (mut rx, _child) = self.spawn()?;
+    let code = crate::async_runtime::block_on(async move {
+      let mut code = None;
+      while let Some(event) = rx.recv().await {
+        if let CommandEvent::Terminated(payload) = event {
+          code = payload.code;
+        }
+      }
+      code
+    });
+    Ok(ExitStatus { code })
+  }
+
+  /// Executes the command as a child process, waiting for it to finish and collecting all of its output.
+  /// Stdin is ignored.
+  pub fn output(self) -> crate::api::Result<Output> {
+    let (mut rx, _child) = self.spawn()?;
+
+    let output = crate::async_runtime::block_on(async move {
+      let mut code = None;
+      let mut stdout = String::new();
+      let mut stderr = String::new();
+      while let Some(event) = rx.recv().await {
+        match event {
+          CommandEvent::Terminated(payload) => {
+            code = payload.code;
+          }
+          CommandEvent::Stdout(line) => {
+            stdout.push_str(line.as_str());
+            stdout.push('\n');
+          }
+          CommandEvent::Stderr(line) => {
+            stderr.push_str(line.as_str());
+            stderr.push('\n');
+          }
+          CommandEvent::Error(_) => {}
+        }
+      }
+      Output {
+        status: ExitStatus { code },
+        stdout,
+        stderr,
+      }
+    });
+
+    Ok(output)
   }
 }
 

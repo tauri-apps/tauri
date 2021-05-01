@@ -14,6 +14,7 @@ import { install, checkPackageManager } from './dependency-manager'
 import { shell } from './shell'
 import { addTauriScript } from './helpers/add-tauri-script'
 import { Recipe } from './types/recipe'
+import { updateTauriConf } from './helpers/update-tauri-conf'
 
 interface Argv {
   h: boolean
@@ -307,9 +308,10 @@ const runInit = async (argv: Argv): Promise<void> => {
       packageManager
     })
 
-    logStep(`Running: ${reset(yellow('tauri init'))}`)
+    logStep('Adding `tauri` script to package.json')
     addTauriScript(appDirectory)
 
+    logStep(`Running: ${reset(yellow('tauri init'))}`)
     const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b)
     const runTauriArgs =
       packageManager === 'npm' && !argv.b
@@ -318,6 +320,9 @@ const runInit = async (argv: Argv): Promise<void> => {
     await shell(binary, [...runTauriArgs, ...initArgs, '--ci'], {
       cwd: appDirectory
     })
+
+    logStep('Updating `tauri.conf.json`')
+    updateTauriConf(appDirectory, cfg)
   }
 
   if (recipe.postInit) {

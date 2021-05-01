@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use anyhow::Context;
 #[cfg(target_os = "linux")]
 use heck::KebabCase;
 use json_patch::merge;
@@ -52,7 +53,8 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
   let path = super::app_paths::tauri_dir().join("tauri.conf.json");
   let file = File::open(path)?;
   let buf = BufReader::new(file);
-  let mut config: JsonValue = serde_json::from_reader(buf)?;
+  let mut config: JsonValue =
+    serde_json::from_reader(buf).with_context(|| "failed to parse `tauri.conf.json`")?;
 
   let schema: JsonValue = serde_json::from_str(include_str!("../../schema.json"))?;
   let mut scope = valico::json_schema::Scope::new();
@@ -75,7 +77,8 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
   }
 
   if let Some(merge_config) = merge_config {
-    let merge_config: JsonValue = serde_json::from_str(&merge_config)?;
+    let merge_config: JsonValue =
+      serde_json::from_str(&merge_config).with_context(|| "failed to parse config to merge")?;
     merge(&mut config, &merge_config);
   }
 

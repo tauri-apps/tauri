@@ -10,6 +10,7 @@ use std::{
 };
 
 use crate::helpers::Logger;
+use anyhow::Context;
 use handlebars::{to_json, Handlebars};
 use include_dir::{include_dir, Dir};
 use serde::Deserialize;
@@ -142,7 +143,8 @@ impl Init {
         to_json(self.window_title.unwrap_or_else(|| "Tauri".to_string())),
       );
 
-      render_template(&handlebars, &data, &TEMPLATE_DIR, &self.directory)?;
+      render_template(&handlebars, &data, &TEMPLATE_DIR, &self.directory)
+        .with_context(|| "failed to render Tauri template")?;
     }
 
     Ok(())

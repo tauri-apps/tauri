@@ -10,6 +10,7 @@ use std::{
   str::FromStr,
 };
 
+use anyhow::Context;
 use serde::Deserialize;
 
 use crate::helpers::{app_paths::tauri_dir, config::Config};
@@ -70,9 +71,13 @@ impl CargoSettings {
   fn load(dir: &Path) -> crate::Result<Self> {
     let toml_path = dir.join("Cargo.toml");
     let mut toml_str = String::new();
-    let mut toml_file = File::open(toml_path)?;
-    toml_file.read_to_string(&mut toml_str)?;
-    toml::from_str(&toml_str).map_err(Into::into)
+    let mut toml_file = File::open(toml_path).with_context(|| "failed to open Cargo.toml")?;
+    toml_file
+      .read_to_string(&mut toml_str)
+      .with_context(|| "failed to read Cargo.toml")?;
+    toml::from_str(&toml_str)
+      .with_context(|| "failed to parse Cargo.toml")
+      .map_err(Into::into)
   }
 }
 
@@ -99,7 +104,10 @@ pub fn build_project(runner: String, target: &Option<String>, debug: bool) -> cr
     args.push("--release");
   }
 
-  let status = Command::new(&runner).args(args).status()?;
+  let status = Command::new(&runner)
+    .args(args)
+    .status()
+    .with_context(|| format!("failed to run {}", runner))?;
   if !status.success() {
     return Err(anyhow::anyhow!(format!(
       "Result of `{} build` operation was unsuccessful: {}",
@@ -118,7 +126,8 @@ pub struct AppSettings {
 
 impl AppSettings {
   pub fn new(config: &Config) -> crate::Result<Self> {
-    let cargo_settings = CargoSettings::load(&tauri_dir())?;
+    let cargo_settings =
+      CargoSettings::load(&tauri_dir()).with_context(|| "failed to load cargo settings")?;
     let cargo_package_settings = match &cargo_settings.package {
       Some(package_info) => package_info.clone(),
       None => {
@@ -268,9 +277,13 @@ fn get_target_dir(
         // if the path exists, parse it
         if cargo_config_path.exists() {
           let mut config_str = String::new();
-          let mut config_file = File::open(cargo_config_path)?;
-          config_file.read_to_string(&mut config_str)?;
-          let config: CargoConfig = toml::from_str(&config_str)?;
+          let mut config_file = File::open(&cargo_config_path)
+            .with_context(|| format!("failed to open {:?}", cargo_config_path))?;
+          config_file
+            .read_to_string(&mut config_str)
+            .with_context(|| "failed to read cargo config file")?;
+          let config: CargoConfig =
+            toml::from_str(&config_str).with_context(|| "failed to parse cargo config file")?;
           if let Some(build) = config.build {
             if let Some(target_dir) = build.target_dir {
               break Some(target_dir.into());

@@ -49,36 +49,4 @@ async function getTauriVersion(): Promise<string> {
   })
 }
 
-/**
- * Exits immediately with the given `exitCode`.
- *
- * @param exitCode The exit code to use
- * @returns
- */
-async function exit(exitCode: number = 0): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'App',
-    mainThread: true,
-    message: {
-      cmd: 'exit',
-      exitCode
-    }
-  })
-}
-
-/**
- * Exits the current instance of the app then relaunches it.
- *
- * @returns
- */
-async function relaunch(): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'App',
-    mainThread: true,
-    message: {
-      cmd: 'relaunch'
-    }
-  })
-}
-
-export { getName, getVersion, getTauriVersion, relaunch, exit }
+export { getName, getVersion, getTauriVersion }

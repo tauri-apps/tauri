@@ -79,7 +79,7 @@ pub fn generate_command(function: ItemFn) -> TokenStream {
     invoke_args.append_all(quote! {
       let #arg_name_ = match <#arg_type>::from_command(#fn_name_str, #arg_name_s, &message) {
         Ok(value) => value,
-        Err(e) => return tauri::InvokeResponse::Err(::tauri::Error::InvalidArgs(#fn_name_str, e).to_string())
+        Err(e) => return tauri::InvokeResponse::error(::tauri::Error::InvalidArgs(#fn_name_str, e).to_string())
       };
     });
     invoke_arg_names.push(arg_name_.clone());
@@ -99,8 +99,8 @@ pub fn generate_command(function: ItemFn) -> TokenStream {
   let return_value = if returns_result {
     quote! {
       match #fn_name(#(#invoke_arg_names),*)#await_maybe {
-        Ok(value) => ::core::result::Result::Ok(value).into(),
-        Err(e) => ::core::result::Result::Err(e).into(),
+        Ok(value) => ::core::result::Result::<_, ()>::Ok(value).into(),
+        Err(e) => ::core::result::Result::<(), _>::Err(e).into(),
       }
     }
   } else {

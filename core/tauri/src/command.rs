@@ -27,7 +27,7 @@ macro_rules! kv_value {
       Some(value) => value,
       None => {
         return Err(serde_json::Error::custom(format!(
-          "command {} missing required key {}",
+          "command {} missing required key `{}`",
           $s.command, $s.key
         )))
       }

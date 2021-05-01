@@ -8,6 +8,7 @@ use crate::{
   Params, StateManager, Window,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
 use std::{future::Future, sync::Arc};
 
 /// A closure that is run when the Tauri application is setting up.
@@ -42,22 +43,36 @@ pub(crate) struct InvokePayload {
   #[serde(rename = "mainThread", default)]
   pub(crate) main_thread: bool,
   #[serde(flatten)]
-  pub(crate) inner: serde_json::Value,
+  pub(crate) inner: JsonValue,
 }
 
 /// Response from a [`InvokeMessage`] passed to the [`InvokeResolver`].
+#[derive(Debug)]
 pub enum InvokeResponse {
   /// Resolve the promise.
-  Ok(String),
+  Ok(JsonValue),
   /// Reject the promise.
-  Err(String),
+  Err(JsonValue),
 }
 
 impl<T: Serialize, E: Serialize> From<Result<T, E>> for InvokeResponse {
   fn from(result: Result<T, E>) -> Self {
     match result {
-      Result::Ok(t) => Self::Ok(serde_json::to_string(&t).unwrap()),
-      Result::Err(e) => Self::Err(serde_json::to_string(&e).unwrap()),
+      Result::Ok(t) => match serde_json::to_value(t) {
+        Ok(v) => Self::Ok(v),
+        Err(e) => Self::Err(JsonValue::String(e.to_string())),
+      },
+      Result::Err(e) => Self::error(e),
+    }
+  }
+}
+
+impl InvokeResponse {
+  #[doc(hidden)]
+  pub fn error<T: Serialize>(value: T) -> Self {
+    match serde_json::to_value(value) {
+      Ok(v) => Self::Err(v),
+      Err(e) => Self::Err(JsonValue::String(e.to_string())),
     }
   }
 }

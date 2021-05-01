@@ -1,0 +1,17 @@
+[package]
+name = "commands"
+version = "0.1.0"
+description = "A simple Tauri Application showcasing the commands API"
+edition = "2018"
+
+[build-dependencies]
+tauri-build = { path = "../../../core/tauri-build", features = [ "codegen" ]}
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = [ "derive" ] }
+tauri = { path = "../../../core/tauri", features =["api-all"]}
+
+[features]
+default = [ "custom-protocol" ]
+custom-protocol = [ "tauri/custom-protocol" ]

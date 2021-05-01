@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 import { join } from 'path'
-import { readdirSync } from 'fs'
 // @ts-expect-error
 import scaffe from 'scaffe'
 import { shell } from '../shell'
@@ -46,8 +45,22 @@ const vite: Recipe = {
         type: 'list',
         name: 'template',
         message: 'Which vite template would you like to use?',
-        choices: readdirSync(join(__dirname, '../src/templates/vite')),
+        choices: [
+          'vanilla',
+          'vanilla-ts',
+          'vue',
+          'vue-ts',
+          'react',
+          'react-ts',
+          'preact',
+          'preact-ts',
+          'lit-element',
+          'lit-element-ts',
+          'svelte',
+          'svelte-ts'
+        ],
         default: 'vue',
+        loop: false,
         when: !ci
       }
     ]

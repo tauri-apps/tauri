@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { Recipe } from '..'
 import { join } from 'path'
 import { shell } from '../shell'
+import { Recipe } from '../types/recipe'
 
 const completeLogMsg = `
   Your installation completed.
@@ -17,9 +17,20 @@ const vuecli: Recipe = {
   extraNpmDevDependencies: [],
   extraNpmDependencies: [],
   configUpdate: ({ cfg }) => cfg,
-  preInit: async ({ cwd, cfg }) => {
+  preInit: async ({ cwd, cfg, ci, packageManager }) => {
     // Vue CLI creates the folder for you
-    await shell('npx', ['@vue/cli', 'create', `${cfg.appName}`], { cwd })
+    await shell(
+      'npx',
+      [
+        '@vue/cli',
+        'create',
+        `${cfg.appName}`,
+        '--packageManager',
+        packageManager,
+        ci ? '--default' : ''
+      ],
+      { cwd }
+    )
     await shell(
       'npx',
       [

@@ -4,21 +4,16 @@
 
 import minimist from 'minimist'
 import inquirer from 'inquirer'
+import { bold, cyan, green, reset, yellow } from 'chalk'
 import { resolve, join } from 'path'
-
-import { TauriBuildConfig } from './types/config'
 import { reactjs, reactts } from './recipes/react'
 import { vuecli } from './recipes/vue-cli'
 import { vanillajs } from './recipes/vanilla'
 import { vite } from './recipes/vite'
-import {
-  install,
-  checkPackageManager,
-  PackageManager
-} from './dependency-manager'
-
+import { install, checkPackageManager } from './dependency-manager'
 import { shell } from './shell'
 import { addTauriScript } from './helpers/add-tauri-script'
+import { Recipe } from './types/recipe'
 
 interface Argv {
   h: boolean
@@ -90,8 +85,7 @@ export const createTauriApp = async (cliArgs: string[]): Promise<any> => {
       P: 'dev-path',
       r: 'recipe'
     },
-    boolean: ['h', 'l', 'ci', 'dev'],
-    default: { A: 'tauri-app', r: 'vanillajs' }
+    boolean: ['h', 'l', 'ci', 'dev']
   }) as unknown) as Argv
 
   if (argv.help) {
@@ -108,100 +102,13 @@ export const createTauriApp = async (cliArgs: string[]): Promise<any> => {
     /* eslint-enable @typescript-eslint/no-unsafe-member-access */
   }
 
-  return await getOptionsInteractive(argv, !argv.ci).then(
-    async (responses) => await runInit(argv, responses)
-  )
+  return await runInit(argv)
 }
 
 interface Responses {
   appName: string
   tauri: { window: { title: string } }
   recipeName: string
-}
-
-const getOptionsInteractive = async (
-  argv: Argv,
-  ask: boolean
-): Promise<Responses> => {
-  const defaults = {
-    appName: argv.A,
-    tauri: { window: { title: 'Tauri App' } },
-    recipeName: argv.r
-  }
-
-  return (await inquirer
-    .prompt([
-      {
-        type: 'input',
-        name: 'appName',
-        message: 'What is your app name?',
-        default: defaults.appName,
-        when: ask && !argv.A
-      },
-      {
-        type: 'input',
-        name: 'tauri.window.title',
-        message: 'What should the window title be?',
-        default: defaults.tauri.window.title,
-        when: ask && !argv.W
-      },
-      {
-        type: 'list',
-        name: 'recipeName',
-        message: 'Would you like to add a UI recipe?',
-        choices: recipeDescriptiveNames,
-        default: defaults.recipeName,
-        when: ask && !argv.r
-      }
-    ])
-    .then((answers: Argv) => ({
-      ...defaults,
-      ...answers
-    }))
-    .catch(async (error: { isTtyError: boolean }) => {
-      if (error.isTtyError) {
-        // Prompt couldn't be rendered in the current environment
-        console.warn(
-          'It appears your terminal does not support interactive prompts. Using default values.'
-        )
-      } else {
-        // Something else went wrong
-        console.error('An unknown error occurred:', error)
-      }
-      return await runInit(argv, defaults)
-    })) as Responses
-}
-
-export interface Recipe {
-  descriptiveName: string
-  shortName: string
-  configUpdate?: ({
-    cfg,
-    packageManager
-  }: {
-    cfg: TauriBuildConfig
-    packageManager: PackageManager
-  }) => TauriBuildConfig
-  extraNpmDependencies: string[]
-  extraNpmDevDependencies: string[]
-  preInit?: ({
-    cwd,
-    cfg,
-    packageManager
-  }: {
-    cwd: string
-    cfg: TauriBuildConfig
-    packageManager: PackageManager
-  }) => Promise<void>
-  postInit?: ({
-    cwd,
-    cfg,
-    packageManager
-  }: {
-    cwd: string
-    cfg: TauriBuildConfig
-    packageManager: PackageManager
-  }) => Promise<void>
 }
 
 const allRecipes: Recipe[] = [vanillajs, reactjs, reactts, vite, vuecli]
@@ -216,22 +123,60 @@ const recipeShortNames = allRecipes.map((r) => r.shortName)
 
 const recipeDescriptiveNames = allRecipes.map((r) => r.descriptiveName)
 
-const runInit = async (argv: Argv, config: Responses): Promise<void> => {
+const runInit = async (argv: Argv): Promise<void> => {
+  const defaults = {
+    appName: 'tauri-app',
+    tauri: { window: { title: 'Tauri App' } },
+    recipeName: 'vanillajs'
+  }
+
+  // prompt initial questions
+  const answers = (await inquirer
+    .prompt([
+      {
+        type: 'input',
+        name: 'appName',
+        message: 'What is your app name?',
+        default: defaults.appName,
+        when: !argv.ci && !argv.A
+      },
+      {
+        type: 'input',
+        name: 'tauri.window.title',
+        message: 'What should the window title be?',
+        default: defaults.tauri.window.title,
+        when: !argv.ci && !argv.W
+      },
+      {
+        type: 'list',
+        name: 'recipeName',
+        message: 'Would you like to add a UI recipe?',
+        choices: recipeDescriptiveNames,
+        default: defaults.recipeName,
+        when: !argv.ci && !argv.r
+      }
+    ])
+    .catch((error: { isTtyError: boolean }) => {
+      if (error.isTtyError) {
+        // Prompt couldn't be rendered in the current environment
+        console.warn(
+          'It appears your terminal does not support interactive prompts. Using default values.'
+        )
+      } else {
+        // Something else went wrong
+        console.error('An unknown error occurred:', error)
+      }
+    })) as Responses
+
   const {
     appName,
     recipeName,
     tauri: {
       window: { title }
     }
-  } = config
-  // this little fun snippet pulled from vite determines the package manager the script was run from
-  // @ts-expect-error
-  const packageManager = /yarn/.test(process?.env?.npm_execpath)
-    ? 'yarn'
-    : 'npm'
+  } = { ...defaults, ...answers }
 
   let recipe: Recipe | undefined
-
   if (argv.r) {
     recipe = recipeByShortName(argv.r)
   } else if (recipeName !== undefined) {
@@ -239,6 +184,15 @@ const runInit = async (argv: Argv, config: Responses): Promise<void> => {
   }
 
   if (!recipe) throw new Error('Could not find the recipe specified.')
+
+  const packageManager =
+    argv.m === 'yarn' || argv.m === 'npm'
+      ? argv.m
+      : // @ts-expect-error
+      // this little fun snippet pulled from vite determines the package manager the script was run from
+      /yarn/.test(process?.env?.npm_execpath)
+      ? 'yarn'
+      : 'npm'
 
   const buildConfig = {
     distDir: argv.D,
@@ -248,11 +202,40 @@ const runInit = async (argv: Argv, config: Responses): Promise<void> => {
   }
 
   const directory = argv.d || process.cwd()
+
+  // prompt additional recipe questions
+  let recipeAnswers
+  if (recipe.extraQuestions) {
+    recipeAnswers = await inquirer
+      .prompt(
+        recipe.extraQuestions({
+          cfg: buildConfig,
+          packageManager,
+          ci: argv.ci,
+          cwd: directory
+        })
+      )
+      .catch((error: { isTtyError: boolean }) => {
+        if (error.isTtyError) {
+          // Prompt couldn't be rendered in the current environment
+          console.warn(
+            'It appears your terminal does not support interactive prompts. Using default values.'
+          )
+        } else {
+          // Something else went wrong
+          console.error('An unknown error occurred:', error)
+        }
+      })
+  }
+
   let updatedConfig
   if (recipe.configUpdate) {
     updatedConfig = recipe.configUpdate({
       cfg: buildConfig,
-      packageManager
+      packageManager,
+      ci: argv.ci,
+      cwd: directory,
+      answers: recipeAnswers
     })
   }
   const cfg = {
@@ -269,8 +252,14 @@ const runInit = async (argv: Argv, config: Responses): Promise<void> => {
   await checkPackageManager({ cwd: directory, packageManager })
 
   if (recipe.preInit) {
-    console.log('===== running initial command(s) =====')
-    await recipe.preInit({ cwd: directory, cfg, packageManager })
+    logStep('Running initial command(s)')
+    await recipe.preInit({
+      cwd: directory,
+      cfg,
+      packageManager,
+      ci: argv.ci,
+      answers: recipeAnswers
+    })
   }
 
   const initArgs = [
@@ -288,7 +277,7 @@ const runInit = async (argv: Argv, config: Responses): Promise<void> => {
 
   // Vue CLI plugin automatically runs these
   if (recipe.shortName !== 'vuecli') {
-    console.log('===== installing any additional needed deps =====')
+    logStep('Installing any additional needed dependencies')
     if (argv.dev) {
       await shell('yarn', ['link', '@tauri-apps/cli'], {
         cwd: appDirectory
@@ -307,7 +296,7 @@ const runInit = async (argv: Argv, config: Responses): Promise<void> => {
       packageManager
     })
 
-    console.log('===== running tauri init =====')
+    logStep(`Running: ${reset(yellow('tauri init'))}`)
     addTauriScript(appDirectory)
 
     const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b)
@@ -321,11 +310,18 @@ const runInit = async (argv: Argv, config: Responses): Promise<void> => {
   }
 
   if (recipe.postInit) {
-    console.log('===== running final command(s) =====')
+    logStep('Running final command(s)')
     await recipe.postInit({
       cwd: appDirectory,
       cfg,
-      packageManager
+      packageManager,
+      ci: argv.ci,
+      answers: recipeAnswers
     })
   }
+}
+
+function logStep(msg: string): void {
+  const out = `${green('>>')} ${bold(cyan(msg))}`
+  console.log(out)
 }

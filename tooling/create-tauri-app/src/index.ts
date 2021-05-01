@@ -301,7 +301,9 @@ const runInit = async (argv: Argv): Promise<void> => {
       dependencies: recipe.extraNpmDependencies,
       devDependencies: argv.dev
         ? [...recipe.extraNpmDevDependencies]
-        : ['@tauri-apps/cli'].concat(recipe.extraNpmDevDependencies),
+        : [argv.dev ? '@tauri-apps/cli' : ''].concat(
+            recipe.extraNpmDevDependencies
+          ),
       packageManager
     })
 

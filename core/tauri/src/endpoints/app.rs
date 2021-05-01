@@ -5,7 +5,7 @@
 use std::process::exit;
 
 use super::InvokeResponse;
-use crate::api::{app::restart_application, PackageInfo};
+use crate::api::{process::restart, PackageInfo};
 use serde::Deserialize;
 
 /// The API descriptor.
@@ -32,7 +32,7 @@ impl Cmd {
       Self::GetAppName => Ok(package_info.name.into()),
       Self::GetTauriVersion => Ok(env!("CARGO_PKG_VERSION").into()),
       Self::Relaunch => Ok({
-        restart_application(None);
+        restart();
         ().into()
       }),
       Self::Exit { exit_code } => {

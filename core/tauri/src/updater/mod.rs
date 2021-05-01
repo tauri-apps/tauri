@@ -342,9 +342,9 @@ pub use self::error::Error;
 use crate::runtime::manager::tauri_event;
 use crate::{
   api::{
-    app::restart_application,
     config::UpdaterConfig,
     dialog::{ask, AskResponse},
+    process::restart,
   },
   Params, Window,
 };
@@ -573,7 +573,7 @@ Release Notes:
       );
       match should_exit {
         AskResponse::Yes => {
-          restart_application(None);
+          restart();
           // safely exit even if the process
           // should be killed
           return Ok(());

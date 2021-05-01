@@ -87,18 +87,23 @@ struct CargoConfig {
   build: Option<CargoBuildConfig>,
 }
 
-pub fn build_project(debug: bool) -> crate::Result<()> {
+pub fn build_project(runner: String, target: &Option<String>, debug: bool) -> crate::Result<()> {
   let mut args = vec!["build", "--features=custom-protocol"];
+
+  if let Some(target) = target {
+    args.push("--target");
+    args.push(target);
+  }
 
   if !debug {
     args.push("--release");
   }
 
-  let status = Command::new("cargo").args(args).status()?;
+  let status = Command::new(&runner).args(args).status()?;
   if !status.success() {
     return Err(anyhow::anyhow!(format!(
-      "Result of `cargo build` operation was unsuccessful: {}",
-      status
+      "Result of `{} build` operation was unsuccessful: {}",
+      runner, status
     )));
   }
 

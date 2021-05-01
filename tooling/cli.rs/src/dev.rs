@@ -34,6 +34,8 @@ fn kill_before_dev_process() {
 
 #[derive(Default)]
 pub struct Dev {
+  runner: Option<String>,
+  target: Option<String>,
   exit_on_panic: bool,
   config: Option<String>,
   args: Vec<String>,
@@ -42,6 +44,16 @@ pub struct Dev {
 impl Dev {
   pub fn new() -> Self {
     Default::default()
+  }
+
+  pub fn runner(mut self, runner: String) -> Self {
+    self.runner.replace(runner);
+    self
+  }
+
+  pub fn target(mut self, target: String) -> Self {
+    self.target.replace(target);
+    self
   }
 
   pub fn config(mut self, config: String) -> Self {
@@ -101,13 +113,26 @@ impl Dev {
       .build
       .dev_path
       .to_string();
+    let runner_from_config = config
+      .lock()
+      .unwrap()
+      .as_ref()
+      .unwrap()
+      .build
+      .runner
+      .clone();
+    let runner = self
+      .runner
+      .clone()
+      .or(runner_from_config)
+      .unwrap_or_else(|| "cargo".to_string());
 
     rewrite_manifest(config.clone())?;
 
     let (child_wait_tx, child_wait_rx) = channel();
     let child_wait_rx = Arc::new(Mutex::new(child_wait_rx));
 
-    process = self.start_app(child_wait_rx.clone());
+    process = self.start_app(&runner, child_wait_rx.clone());
 
     let (tx, rx) = channel();
 
@@ -149,20 +174,24 @@ impl Dev {
             // So the app should only be started when a file other than tauri.conf.json is changed
             let _ = child_wait_tx.send(());
             process.kill()?;
-            process = self.start_app(child_wait_rx.clone());
+            process = self.start_app(&runner, child_wait_rx.clone());
           }
         }
       }
     }
   }
 
-  fn start_app(&self, child_wait_rx: Arc<Mutex<Receiver<()>>>) -> Arc<SharedChild> {
-    let mut command = Command::new("cargo");
+  fn start_app(&self, runner: &str, child_wait_rx: Arc<Mutex<Receiver<()>>>) -> Arc<SharedChild> {
+    let mut command = Command::new(runner);
     command.args(&["run", "--no-default-features"]);
+    if let Some(target) = &self.target {
+      command.args(&["--target", target]);
+    }
     if !self.args.is_empty() {
       command.arg("--").args(&self.args);
     }
-    let child = SharedChild::spawn(&mut command).expect("failed to run cargo");
+    let child =
+      SharedChild::spawn(&mut command).unwrap_or_else(|_| panic!("failed to run {}", runner));
     let child_arc = Arc::new(child);
 
     let child_clone = child_arc.clone();

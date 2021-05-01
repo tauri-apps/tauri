@@ -16,6 +16,7 @@ export type TauriModule =
   | 'Notification'
   | 'Http'
   | 'GlobalShortcut'
+  | 'Process'
 
 export interface TauriCommand {
   __tauriModule: TauriModule

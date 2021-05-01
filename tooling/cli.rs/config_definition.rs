@@ -583,6 +583,8 @@ fn default_dialog() -> Option<bool> {
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BuildConfig {
+  /// The binary used to build and run the application.
+  pub runner: Option<String>,
   /// the app's dev server URL, or the path to the directory containing an index.html file
   #[serde(default = "default_dev_path")]
   pub dev_path: String,
@@ -629,6 +631,7 @@ pub struct Config {
 
 fn default_build() -> BuildConfig {
   BuildConfig {
+    runner: None,
     dev_path: default_dev_path(),
     dist_dir: default_dist_dir(),
     before_dev_command: None,

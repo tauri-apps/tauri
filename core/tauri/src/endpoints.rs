@@ -19,6 +19,7 @@ mod global_shortcut;
 mod http;
 mod internal;
 mod notification;
+mod process;
 mod shell;
 mod window;
 
@@ -39,6 +40,7 @@ impl<T: Serialize> From<T> for InvokeResponse {
 #[serde(tag = "module", content = "message")]
 enum Module {
   App(app::Cmd),
+  Process(process::Cmd),
   Fs(file_system::Cmd),
   Window(Box<window::Cmd>),
   Shell(shell::Cmd),
@@ -61,6 +63,8 @@ impl Module {
           .and_then(|r| r.json)
           .map_err(|e| e.to_string())
       }),
+      Self::Process(cmd) => message
+        .respond_async(async move { cmd.run().and_then(|r| r.json).map_err(|e| e.to_string()) }),
       Self::Fs(cmd) => message
         .respond_async(async move { cmd.run().and_then(|r| r.json).map_err(|e| e.to_string()) }),
       Self::Window(cmd) => message.respond_async(async move {

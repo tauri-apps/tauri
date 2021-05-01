@@ -11,7 +11,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 type ChildId = u32;
 #[cfg(shell_execute)]
-type ChildStore = Arc<Mutex<HashMap<ChildId, crate::api::command::CommandChild>>>;
+type ChildStore = Arc<Mutex<HashMap<ChildId, crate::api::process::CommandChild>>>;
 
 #[cfg(shell_execute)]
 fn command_childs() -> &'static ChildStore {
@@ -83,9 +83,9 @@ impl Cmd {
         #[cfg(shell_execute)]
         {
           let mut command = if options.sidecar {
-            crate::api::command::Command::new_sidecar(program)?
+            crate::api::process::Command::new_sidecar(program)?
           } else {
-            crate::api::command::Command::new(program)
+            crate::api::process::Command::new(program)
           };
           command = command.args(args);
           if let Some(cwd) = options.cwd {
@@ -103,7 +103,7 @@ impl Cmd {
 
           crate::async_runtime::spawn(async move {
             while let Some(event) = rx.recv().await {
-              if matches!(event, crate::api::command::CommandEvent::Terminated(_)) {
+              if matches!(event, crate::api::process::CommandEvent::Terminated(_)) {
                 command_childs().lock().unwrap().remove(&pid);
               }
               let js = crate::api::rpc::format_callback(on_event_fn.clone(), &event)

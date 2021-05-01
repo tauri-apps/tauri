@@ -6,11 +6,7 @@
 #![warn(missing_docs)]
 // #![feature(const_int_pow)]
 
-/// The App API module allows you to manage application processes.
-pub mod app;
-/// The Command API module allows you to manage child processes.
-pub mod command;
-/// The Dialog API module allows you to show messages and prompt for file paths.
+/// A module for working with processes.
 pub mod dialog;
 /// The Dir module is a helper for file system directory management.
 pub mod dir;
@@ -20,6 +16,8 @@ pub mod file;
 pub mod http;
 /// The file system path operations API.
 pub mod path;
+/// The Command API module allows you to manage child processes.
+pub mod process;
 /// The RPC module includes utilities to send messages to the JS layer of the webview.
 pub mod rpc;
 /// The shell api.

@@ -114,6 +114,7 @@ impl<M: Params> PartialEq for DetachedWindow<M> {
 /// We want to export the runtime related window at the crate root, but not look like a re-export.
 pub(crate) mod export {
   use super::*;
+  use crate::command::FromCommand;
   use crate::runtime::{manager::WindowManager, tag::TagRef};
   use std::borrow::Borrow;
 
@@ -166,6 +167,16 @@ pub(crate) mod export {
     }
   }
 
+  impl<'de, P: Params> FromCommand<'de, P> for Window<P> {
+    fn from_command(
+      _: &'de str,
+      _: &'de str,
+      message: &'de InvokeMessage<P>,
+    ) -> Result<Self, serde_json::Error> {
+      Ok(message.window())
+    }
+  }
+
   impl<P: Params> Window<P> {
     /// Create a new window that is attached to the manager.
     pub(crate) fn new(manager: WindowManager<P>, window: DetachedWindow<P>) -> Self {
@@ -186,7 +197,7 @@ pub(crate) mod export {
           manager.run_on_page_load(self, payload);
         }
         _ => {
-          let message = InvokeMessage::new(self, command.to_string(), payload);
+          let message = InvokeMessage::new(self, manager.state(), command.to_string(), payload);
           if let Some(module) = &message.payload.tauri_module {
             let module = module.to_string();
             crate::endpoints::handle(module, message, manager.config(), manager.package_info());

@@ -14,7 +14,7 @@ use std::{future::Future, sync::Arc};
 pub type SetupHook<M> = Box<dyn Fn(&mut App<M>) -> Result<(), Box<dyn std::error::Error>> + Send>;
 
 /// A closure that is run everytime Tauri receives a message it doesn't explicitly handle.
-pub type InvokeHandler<M> = dyn Fn(InvokeMessage<M>, Arc<StateManager>) + Send + Sync + 'static;
+pub type InvokeHandler<M> = dyn Fn(InvokeMessage<M>) + Send + Sync + 'static;
 
 /// A closure that is run once every time a window is created and loaded.
 pub type OnPageLoad<M> = dyn Fn(Window<M>, PageLoadPayload) + Send + Sync + 'static;
@@ -48,6 +48,7 @@ pub(crate) struct InvokePayload {
 /// An invoke message.
 pub struct InvokeMessage<M: Params> {
   window: Window<M>,
+  pub(crate) state: Arc<StateManager>,
   pub(crate) command: String,
 
   /// Allow our crate to access the payload without cloning it.
@@ -56,9 +57,15 @@ pub struct InvokeMessage<M: Params> {
 
 impl<M: Params> InvokeMessage<M> {
   /// Create an new [`InvokeMessage`] from a payload send to a window.
-  pub(crate) fn new(window: Window<M>, command: String, payload: InvokePayload) -> Self {
+  pub(crate) fn new(
+    window: Window<M>,
+    state: Arc<StateManager>,
+    command: String,
+    payload: InvokePayload,
+  ) -> Self {
     Self {
       window,
+      state,
       command,
       payload,
     }

@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, TokenStreamExt};
 use syn::{
-  parse::Parser, punctuated::Punctuated, FnArg, GenericArgument, Ident, ItemFn, Meta, NestedMeta,
-  Pat, Path, PathArguments, ReturnType, Token, Type, Visibility,
+  parse::Parser, punctuated::Punctuated, FnArg, Ident, ItemFn, Pat, Path, ReturnType, Token, Type,
+  Visibility,
 };
 
 fn fn_wrapper(function: &ItemFn) -> (&Visibility, Ident) {
@@ -28,22 +28,10 @@ fn err(function: ItemFn, error_message: &str) -> TokenStream {
   }
 }
 
-pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream {
-  // Check if "with_window" attr was passed to macro
-  let with_window = attrs.iter().any(|a| {
-    if let NestedMeta::Meta(Meta::Path(path)) = a {
-      path
-        .get_ident()
-        .map(|i| *i == "with_window")
-        .unwrap_or(false)
-    } else {
-      false
-    }
-  });
-
+pub fn generate_command(function: ItemFn) -> TokenStream {
   let fn_name = function.sig.ident.clone();
   let fn_name_str = fn_name.to_string();
-  let fn_wrapper = format_ident!("{}_wrapper", fn_name);
+  let (vis, fn_wrapper) = fn_wrapper(&function);
   let returns_result = match function.sig.output {
     ReturnType::Type(_, ref ty) => match &**ty {
       Type::Path(type_path) => {
@@ -61,9 +49,9 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
 
   let mut invoke_arg_names: Vec<Ident> = Default::default();
   let mut invoke_arg_types: Vec<Path> = Default::default();
-  let mut call_arguments = Vec::new();
+  let mut invoke_args: TokenStream = Default::default();
 
-  for (i, param) in function.sig.inputs.clone().into_iter().enumerate() {
+  for param in &function.sig.inputs {
     let mut arg_name = None;
     let mut arg_type = None;
     if let FnArg::Typed(arg) = param {
@@ -75,37 +63,27 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
       }
     }
 
-    if i == 0 && with_window {
-      call_arguments.push(quote!(_window));
-      continue;
-    }
-
     let arg_name_ = arg_name.clone().unwrap();
-    let arg_type =
-      arg_type.unwrap_or_else(|| panic!("Invalid type for arg \"{}\"", arg_name.unwrap()));
+    let arg_name_s = arg_name_.to_string();
 
-    let mut path_as_string = String::new();
-    for segment in &arg_type.segments {
-      path_as_string.push_str(&segment.ident.to_string());
-      path_as_string.push_str("::");
-    }
-
-    if ["State::", "tauri::State::"].contains(&path_as_string.as_str()) {
-      let last_segment = match arg_type.segments.last() {
-        Some(last) => last,
-        None => return err(function, "found a type path without any segments (how?)"),
-      };
-      if let PathArguments::AngleBracketed(angle) = &last_segment.arguments {
-        if let Some(GenericArgument::Type(ty)) = angle.args.last() {
-          call_arguments.push(quote!(state_manager.get::<#ty>()));
-          continue;
-        }
+    let arg_type = match arg_type {
+      Some(arg_type) => arg_type,
+      None => {
+        return err(
+          function.clone(),
+          &format!("invalid type for arg: {}", arg_name_),
+        )
       }
-    }
+    };
 
+    invoke_args.append_all(quote! {
+      let #arg_name_ = match <#arg_type>::from_command(#fn_name_str, #arg_name_s, &message) {
+        Ok(value) => value,
+        Err(e) => return message.reject(::tauri::Error::InvalidArgs(#fn_name_str, e).to_string())
+      };
+    });
     invoke_arg_names.push(arg_name_.clone());
     invoke_arg_types.push(arg_type);
-    call_arguments.push(quote!(parsed_args.#arg_name_));
   }
 
   let await_maybe = if function.sig.asyncness.is_some() {
@@ -120,30 +98,21 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
   // note that all types must implement `serde::Serialize`.
   let return_value = if returns_result {
     quote! {
-      match #fn_name(#(#call_arguments),*)#await_maybe {
+      match #fn_name(#(#invoke_arg_names),*)#await_maybe {
         Ok(value) => ::core::result::Result::Ok(value),
         Err(e) => ::core::result::Result::Err(e),
       }
     }
   } else {
-    quote! { ::core::result::Result::<_, ()>::Ok(#fn_name(#(#call_arguments),*)#await_maybe) }
+    quote! { ::core::result::Result::<_, ()>::Ok(#fn_name(#(#invoke_arg_names),*)#await_maybe) }
   };
 
   quote! {
     #function
-    pub fn #fn_wrapper<P: ::tauri::Params>(message: ::tauri::InvokeMessage<P>, state_manager: ::std::sync::Arc<::tauri::StateManager>) {
-      #[derive(::serde::Deserialize)]
-      #[serde(rename_all = "camelCase")]
-      struct ParsedArgs {
-        #(#invoke_arg_names: #invoke_arg_types),*
-      }
-      let _window = message.window();
-      match ::serde_json::from_value::<ParsedArgs>(message.payload()) {
-        Ok(parsed_args) => message.respond_async(async move {
-          #return_value
-        }),
-        Err(e) => message.reject(::tauri::Error::InvalidArgs(#fn_name_str, e).to_string()),
-      }
+    #vis fn #fn_wrapper<P: ::tauri::Params>(message: ::tauri::InvokeMessage<P>) {
+      use ::tauri::command::FromCommand;
+      #invoke_args
+      message.respond_async(async move { #return_value })
     }
   }
 }
@@ -168,10 +137,10 @@ pub fn generate_handler(item: proc_macro::TokenStream) -> TokenStream {
   });
 
   quote! {
-    move |message, state_manager| {
+    move |message| {
       let cmd = message.command().to_string();
       match cmd.as_str() {
-        #(stringify!(#fn_names) => #fn_wrappers(message, state_manager),)*
+        #(stringify!(#fn_names) => #fn_wrappers(message),)*
         _ => {
           message.reject(format!("command {} not found", cmd))
         },

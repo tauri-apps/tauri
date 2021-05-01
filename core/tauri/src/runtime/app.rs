@@ -142,7 +142,7 @@ where
   pub fn new() -> Self {
     Self {
       setup: Box::new(|_| Ok(())),
-      invoke_handler: Box::new(|_, _| ()),
+      invoke_handler: Box::new(|_| ()),
       on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
@@ -154,7 +154,7 @@ where
   /// Defines the JS message handler callback.
   pub fn invoke_handler<F>(mut self, invoke_handler: F) -> Self
   where
-    F: Fn(InvokeMessage<Args<E, L, A, R>>, Arc<StateManager>) + Send + Sync + 'static,
+    F: Fn(InvokeMessage<Args<E, L, A, R>>) + Send + Sync + 'static,
   {
     self.invoke_handler = Box::new(invoke_handler);
     self

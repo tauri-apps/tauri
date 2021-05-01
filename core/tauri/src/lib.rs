@@ -12,13 +12,13 @@
 
 /// The Tauri error enum.
 pub use error::Error;
-use state::Container;
 pub use tauri_macros::{command, generate_handler};
 
 /// Core API.
 pub mod api;
 /// Async runtime.
 pub mod async_runtime;
+pub mod command;
 /// The Tauri API endpoints.
 mod endpoints;
 mod error;
@@ -28,6 +28,7 @@ pub mod plugin;
 pub mod runtime;
 /// The Tauri-specific settings for your runtime e.g. notification permission status.
 pub mod settings;
+mod state;
 #[cfg(feature = "updater")]
 pub mod updater;
 
@@ -51,59 +52,14 @@ use std::{borrow::Borrow, collections::HashMap, path::PathBuf};
 
 // Export types likely to be used by the application.
 pub use {
-  api::config::WindowUrl,
-  hooks::{InvokeHandler, InvokeMessage, OnPageLoad, PageLoadPayload, SetupHook},
-  runtime::app::{App, Builder},
-  runtime::flavors::wry::Wry,
-  runtime::webview::{WebviewAttributes, WindowBuilder},
-  runtime::window::export::Window,
+  self::api::config::WindowUrl,
+  self::hooks::{InvokeHandler, InvokeMessage, OnPageLoad, PageLoadPayload, SetupHook},
+  self::runtime::app::{App, Builder},
+  self::runtime::flavors::wry::Wry,
+  self::runtime::webview::{WebviewAttributes, WindowBuilder},
+  self::runtime::window::export::Window,
+  self::state::{State, StateManager},
 };
-
-/// A guard for a state value.
-pub struct State<'r, T>(&'r T);
-
-impl<'r, T: Send + Sync + 'static> State<'r, T> {
-  /// Retrieve a borrow to the underlying value with a lifetime of `'r`.
-  /// Using this method is typically unnecessary as `State` implements
-  /// [`Deref`] with a [`Deref::Target`] of `T`.
-  #[inline(always)]
-  pub fn inner(&self) -> &'r T {
-    self.0
-  }
-}
-
-impl<T: Send + Sync + 'static> std::ops::Deref for State<'_, T> {
-  type Target = T;
-
-  #[inline(always)]
-  fn deref(&self) -> &T {
-    self.0
-  }
-}
-
-impl<T: Send + Sync + 'static> Clone for State<'_, T> {
-  fn clone(&self) -> Self {
-    State(self.0)
-  }
-}
-
-/// The Tauri state manager.
-pub struct StateManager(pub(crate) Container);
-
-impl StateManager {
-  pub(crate) fn new() -> Self {
-    Self(Container::new())
-  }
-
-  pub(crate) fn set<T: Send + Sync + 'static>(&self, state: T) -> bool {
-    self.0.set(state)
-  }
-
-  /// Gets the state associated with the specified type.
-  pub fn get<T: Send + Sync + 'static>(&self) -> State<'_, T> {
-    State(self.0.get())
-  }
-}
 
 /// Reads the config file at compile time and generates a [`Context`] based on its content.
 ///

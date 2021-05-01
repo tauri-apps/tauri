@@ -147,6 +147,11 @@ impl<P: Params> WindowManager<P> {
     self.inner.windows.lock().expect("poisoned window manager")
   }
 
+  /// State managed by the application.
+  pub(crate) fn state(&self) -> Arc<StateManager> {
+    self.inner.state.clone()
+  }
+
   // setup content for dev-server
   #[cfg(dev)]
   fn get_url(&self) -> String {
@@ -394,7 +399,7 @@ mod test {
     let manager: WindowManager<Args<String, String, _, Wry>> = WindowManager::with_handlers(
       context,
       PluginStore::default(),
-      Box::new(|_, _| ()),
+      Box::new(|_| ()),
       Box::new(|_, _| ()),
       Default::default(),
       StateManager::new(),
@@ -410,7 +415,7 @@ mod test {
 
 impl<P: Params> WindowManager<P> {
   pub fn run_invoke_handler(&self, message: InvokeMessage<P>) {
-    (self.inner.invoke_handler)(message, self.inner.state.clone());
+    (self.inner.invoke_handler)(message);
   }
   pub fn run_on_page_load(&self, window: Window<P>, payload: PageLoadPayload) {
     (self.inner.on_page_load)(window.clone(), payload.clone());

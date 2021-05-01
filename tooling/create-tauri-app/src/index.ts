@@ -183,7 +183,16 @@ const runInit = async (argv: Argv): Promise<void> => {
     recipe = recipeByDescriptiveName(recipeName)
   }
 
-  if (!recipe) throw new Error('Could not find the recipe specified.')
+  if (!recipe) {
+    if (argv.ci) {
+      recipe = recipeByShortName('vanillajs')
+    }
+    // throw if recipe is not set
+    // if it fails to set in CI, throw as well
+    if (!recipe) {
+      throw new Error('Could not find the recipe specified.')
+    }
+  }
 
   const packageManager =
     argv.m === 'yarn' || argv.m === 'npm'
@@ -279,10 +288,10 @@ const runInit = async (argv: Argv): Promise<void> => {
   if (recipe.shortName !== 'vuecli') {
     logStep('Installing any additional needed dependencies')
     if (argv.dev) {
-      await shell('yarn', ['link', '@tauri-apps/cli'], {
+      await shell(packageManager, ['link', '@tauri-apps/cli'], {
         cwd: appDirectory
       })
-      await shell('yarn', ['link', '@tauri-apps/api'], {
+      await shell(packageManager, ['link', '@tauri-apps/api'], {
         cwd: appDirectory
       })
     }

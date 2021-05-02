@@ -18,6 +18,7 @@ pub use tauri_macros::{command, generate_handler};
 pub mod api;
 /// Async runtime.
 pub mod async_runtime;
+pub mod command;
 /// The Tauri API endpoints.
 mod endpoints;
 mod error;
@@ -27,6 +28,7 @@ pub mod plugin;
 pub mod runtime;
 /// The Tauri-specific settings for your runtime e.g. notification permission status.
 pub mod settings;
+mod state;
 #[cfg(feature = "updater")]
 pub mod updater;
 
@@ -36,27 +38,32 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// A task to run on the main thread.
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
-use crate::api::assets::Assets;
-use crate::api::config::Config;
-use crate::event::{Event, EventHandler};
-use crate::runtime::tag::{Tag, TagRef};
-use crate::runtime::window::PendingWindow;
-use crate::runtime::{Dispatch, Runtime};
+use crate::{
+  api::{assets::Assets, config::Config},
+  event::{Event, EventHandler},
+  runtime::{
+    tag::{Tag, TagRef},
+    window::PendingWindow,
+    Dispatch, Runtime,
+  },
+};
 use serde::Serialize;
-use std::collections::HashMap;
-use std::path::PathBuf;
+use std::{borrow::Borrow, collections::HashMap, path::PathBuf};
 
 // Export types likely to be used by the application.
 pub use {
-  api::config::WindowUrl,
-  hooks::{InvokeHandler, InvokeMessage, OnPageLoad, PageLoadPayload, SetupHook},
-  runtime::app::{App, Builder},
-  runtime::flavors::wry::Wry,
-  runtime::webview::{WebviewAttributes, WindowBuilder},
-  runtime::window::export::Window,
+  self::api::config::WindowUrl,
+  self::hooks::{
+    InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad, PageLoadPayload,
+    SetupHook,
+  },
+  self::runtime::app::{App, Builder},
+  self::runtime::flavors::wry::Wry,
+  self::runtime::webview::{WebviewAttributes, WindowBuilder},
+  self::runtime::window::export::Window,
+  self::state::{State, StateManager},
 };
 
-use std::borrow::Borrow;
 /// Reads the config file at compile time and generates a [`Context`] based on its content.
 ///
 /// The default config file path is a `tauri.conf.json` file inside the Cargo manifest directory of
@@ -222,6 +229,23 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
   /// Fetch all managed windows.
   fn windows(&self) -> HashMap<P::Label, Window<P>> {
     self.manager().windows()
+  }
+
+  /// Add `state` to the state managed by the application.
+  /// See [`tauri::Builder#manage`] for instructions.
+  fn manage<T>(&self, state: T)
+  where
+    T: Send + Sync + 'static,
+  {
+    self.manager().state().set(state);
+  }
+
+  /// Gets the managed state for the type `T`.
+  fn state<T>(&self) -> State<'_, T>
+  where
+    T: Send + Sync + 'static,
+  {
+    self.manager().inner.state.get()
   }
 }
 

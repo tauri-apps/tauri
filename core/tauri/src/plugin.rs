@@ -6,8 +6,8 @@
 
 use crate::{
   api::config::PluginConfig,
-  hooks::{InvokeMessage, PageLoadPayload},
-  Params, Window,
+  hooks::{InvokeMessage, InvokeResolver, PageLoadPayload},
+  App, Params, Window,
 };
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
@@ -22,7 +22,7 @@ pub trait Plugin<M: Params>: Send {
 
   /// Initialize the plugin.
   #[allow(unused_variables)]
-  fn initialize(&mut self, config: JsonValue) -> Result<()> {
+  fn initialize(&mut self, app: &App<M>, config: JsonValue) -> Result<()> {
     Ok(())
   }
 
@@ -45,7 +45,7 @@ pub trait Plugin<M: Params>: Send {
 
   /// Add invoke_handler API extension commands.
   #[allow(unused_variables)]
-  fn extend_api(&mut self, message: InvokeMessage<M>) {}
+  fn extend_api(&mut self, message: InvokeMessage<M>, resolver: InvokeResolver<M>) {}
 }
 
 /// Plugin collection type.
@@ -70,10 +70,13 @@ impl<M: Params> PluginStore<M> {
   }
 
   /// Initializes all plugins in the store.
-  pub(crate) fn initialize(&mut self, config: &PluginConfig) -> crate::Result<()> {
+  pub(crate) fn initialize(&mut self, app: &App<M>, config: &PluginConfig) -> crate::Result<()> {
     self.store.values_mut().try_for_each(|plugin| {
       plugin
-        .initialize(config.0.get(plugin.name()).cloned().unwrap_or_default())
+        .initialize(
+          &app,
+          config.0.get(plugin.name()).cloned().unwrap_or_default(),
+        )
         .map_err(|e| crate::Error::PluginInitialization(plugin.name().to_string(), e.to_string()))
     })
   }
@@ -105,7 +108,7 @@ impl<M: Params> PluginStore<M> {
       .for_each(|plugin| plugin.on_page_load(window.clone(), payload.clone()))
   }
 
-  pub(crate) fn extend_api(&mut self, mut message: InvokeMessage<M>) {
+  pub(crate) fn extend_api(&mut self, mut message: InvokeMessage<M>, resolver: InvokeResolver<M>) {
     let command = message.command.replace("plugin:", "");
     let mut tokens = command.split('|');
     // safe to unwrap: split always has a least one item
@@ -116,9 +119,9 @@ impl<M: Params> PluginStore<M> {
         .next()
         .map(|c| c.to_string())
         .unwrap_or_else(String::new);
-      plugin.extend_api(message);
+      plugin.extend_api(message, resolver);
     } else {
-      message.reject(format!("plugin {} not found", target));
+      resolver.reject(format!("plugin {} not found", target));
     }
   }
 }

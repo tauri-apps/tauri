@@ -3,28 +3,35 @@
 // SPDX-License-Identifier: MIT
 
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, TokenStreamExt};
 use syn::{
-  parse::Parser, punctuated::Punctuated, FnArg, Ident, ItemFn, Meta, NestedMeta, Pat, Path,
-  ReturnType, Token, Type,
+  parse::Parser, punctuated::Punctuated, FnArg, Ident, ItemFn, Pat, Path, ReturnType, Token, Type,
+  Visibility,
 };
 
-pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream {
-  // Check if "with_window" attr was passed to macro
-  let with_window = attrs.iter().any(|a| {
-    if let NestedMeta::Meta(Meta::Path(path)) = a {
-      path
-        .get_ident()
-        .map(|i| *i == "with_window")
-        .unwrap_or(false)
-    } else {
-      false
-    }
-  });
+fn fn_wrapper(function: &ItemFn) -> (&Visibility, Ident) {
+  (
+    &function.vis,
+    format_ident!("{}_wrapper", function.sig.ident),
+  )
+}
 
+fn err(function: ItemFn, error_message: &str) -> TokenStream {
+  let (vis, wrap) = fn_wrapper(&function);
+  quote! {
+    #function
+
+    #vis fn #wrap<P: ::tauri::Params>(_message: ::tauri::InvokeMessage<P>) {
+      compile_error!(#error_message);
+      unimplemented!()
+    }
+  }
+}
+
+pub fn generate_command(function: ItemFn) -> TokenStream {
   let fn_name = function.sig.ident.clone();
   let fn_name_str = fn_name.to_string();
-  let fn_wrapper = format_ident!("{}_wrapper", fn_name);
+  let (vis, fn_wrapper) = fn_wrapper(&function);
   let returns_result = match function.sig.output {
     ReturnType::Type(_, ref ty) => match &**ty {
       Type::Path(type_path) => {
@@ -40,40 +47,45 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
     ReturnType::Default => false,
   };
 
-  // Split function args into names and types
-  let (mut names, mut types): (Vec<Ident>, Vec<Path>) = function
-    .sig
-    .inputs
-    .iter()
-    .map(|param| {
-      let mut arg_name = None;
-      let mut arg_type = None;
-      if let FnArg::Typed(arg) = param {
-        if let Pat::Ident(ident) = arg.pat.as_ref() {
-          arg_name = Some(ident.ident.clone());
-        }
-        if let Type::Path(path) = arg.ty.as_ref() {
-          arg_type = Some(path.path.clone());
-        }
-      }
-      (
-        arg_name.clone().unwrap(),
-        arg_type.unwrap_or_else(|| panic!("Invalid type for arg \"{}\"", arg_name.unwrap())),
-      )
-    })
-    .unzip();
+  let mut invoke_arg_names: Vec<Ident> = Default::default();
+  let mut invoke_arg_types: Vec<Path> = Default::default();
+  let mut invoke_args: TokenStream = Default::default();
 
-  let window_arg_maybe = match types.first() {
-    Some(_) if with_window => {
-      // Remove window arg from list so it isn't expected as arg from JS
-      types.drain(0..1);
-      names.drain(0..1);
-      // Tell wrapper to pass `window` to original function
-      quote!(_window,)
+  for param in &function.sig.inputs {
+    let mut arg_name = None;
+    let mut arg_type = None;
+    if let FnArg::Typed(arg) = param {
+      if let Pat::Ident(ident) = arg.pat.as_ref() {
+        arg_name = Some(ident.ident.clone());
+      }
+      if let Type::Path(path) = arg.ty.as_ref() {
+        arg_type = Some(path.path.clone());
+      }
     }
-    // Tell wrapper not to pass `window` to original function
-    _ => quote!(),
-  };
+
+    let arg_name_ = arg_name.clone().unwrap();
+    let arg_name_s = arg_name_.to_string();
+
+    let arg_type = match arg_type {
+      Some(arg_type) => arg_type,
+      None => {
+        return err(
+          function.clone(),
+          &format!("invalid type for arg: {}", arg_name_),
+        )
+      }
+    };
+
+    invoke_args.append_all(quote! {
+      let #arg_name_ = match <#arg_type>::from_command(#fn_name_str, #arg_name_s, &message) {
+        Ok(value) => value,
+        Err(e) => return tauri::InvokeResponse::error(::tauri::Error::InvalidArgs(#fn_name_str, e).to_string())
+      };
+    });
+    invoke_arg_names.push(arg_name_.clone());
+    invoke_arg_types.push(arg_type);
+  }
+
   let await_maybe = if function.sig.asyncness.is_some() {
     quote!(.await)
   } else {
@@ -86,30 +98,23 @@ pub fn generate_command(attrs: Vec<NestedMeta>, function: ItemFn) -> TokenStream
   // note that all types must implement `serde::Serialize`.
   let return_value = if returns_result {
     quote! {
-      match #fn_name(#window_arg_maybe #(parsed_args.#names),*)#await_maybe {
-        Ok(value) => ::core::result::Result::Ok(value),
-        Err(e) => ::core::result::Result::Err(e),
+      match #fn_name(#(#invoke_arg_names),*)#await_maybe {
+        Ok(value) => ::core::result::Result::<_, ()>::Ok(value).into(),
+        Err(e) => ::core::result::Result::<(), _>::Err(e).into(),
       }
     }
   } else {
-    quote! { ::core::result::Result::<_, ()>::Ok(#fn_name(#window_arg_maybe #(parsed_args.#names),*)#await_maybe) }
+    quote! { ::core::result::Result::<_, ()>::Ok(#fn_name(#(#invoke_arg_names),*)#await_maybe).into() }
   };
 
   quote! {
     #function
-    pub fn #fn_wrapper<P: ::tauri::Params>(message: ::tauri::InvokeMessage<P>) {
-      #[derive(::serde::Deserialize)]
-      #[serde(rename_all = "camelCase")]
-      struct ParsedArgs {
-        #(#names: #types),*
-      }
-      let _window = message.window();
-      match ::serde_json::from_value::<ParsedArgs>(message.payload()) {
-        Ok(parsed_args) => message.respond_async(async move {
-          #return_value
-        }),
-        Err(e) => message.reject(::tauri::Error::InvalidArgs(#fn_name_str, e).to_string()),
-      }
+    #vis fn #fn_wrapper<P: ::tauri::Params>(message: ::tauri::InvokeMessage<P>, resolver: ::tauri::InvokeResolver<P>) {
+      use ::tauri::command::FromCommand;
+      resolver.respond_async(async move {
+        #invoke_args
+        #return_value
+      })
     }
   }
 }
@@ -134,12 +139,12 @@ pub fn generate_handler(item: proc_macro::TokenStream) -> TokenStream {
   });
 
   quote! {
-    move |message| {
+    move |message, resolver| {
       let cmd = message.command().to_string();
       match cmd.as_str() {
-        #(stringify!(#fn_names) => #fn_wrappers(message),)*
+        #(stringify!(#fn_names) => #fn_wrappers(message, resolver),)*
         _ => {
-          message.reject(format!("command {} not found", cmd))
+          resolver.reject(format!("command {} not found", cmd))
         },
       }
     }

@@ -7,10 +7,10 @@
 use crate::{
   api::config::WindowConfig,
   event::{Event, EventHandler},
-  hooks::{InvokeMessage, InvokePayload, PageLoadPayload},
+  hooks::{InvokeMessage, InvokeResolver, PageLoadPayload},
   runtime::{
     tag::ToJsString,
-    webview::{FileDropHandler, WebviewAttributes, WebviewRpcHandler},
+    webview::{FileDropHandler, InvokePayload, WebviewAttributes, WebviewRpcHandler},
     Dispatch, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
@@ -114,6 +114,7 @@ impl<M: Params> PartialEq for DetachedWindow<M> {
 /// We want to export the runtime related window at the crate root, but not look like a re-export.
 pub(crate) mod export {
   use super::*;
+  use crate::command::FromCommand;
   use crate::runtime::{manager::WindowManager, tag::TagRef};
   use std::borrow::Borrow;
 
@@ -166,6 +167,16 @@ pub(crate) mod export {
     }
   }
 
+  impl<'de, P: Params> FromCommand<'de, P> for Window<P> {
+    fn from_command(
+      _: &'de str,
+      _: &'de str,
+      message: &'de InvokeMessage<P>,
+    ) -> Result<Self, serde_json::Error> {
+      Ok(message.window())
+    }
+  }
+
   impl<P: Params> Window<P> {
     /// Create a new window that is attached to the manager.
     pub(crate) fn new(manager: WindowManager<P>, window: DetachedWindow<P>) -> Self {
@@ -186,14 +197,27 @@ pub(crate) mod export {
           manager.run_on_page_load(self, payload);
         }
         _ => {
-          let message = InvokeMessage::new(self, command.to_string(), payload);
-          if let Some(module) = &message.payload.tauri_module {
+          let message = InvokeMessage::new(
+            self.clone(),
+            manager.state(),
+            command.to_string(),
+            payload.inner,
+          );
+          let resolver =
+            InvokeResolver::new(self, payload.main_thread, payload.callback, payload.error);
+          if let Some(module) = &payload.tauri_module {
             let module = module.to_string();
-            crate::endpoints::handle(module, message, manager.config(), manager.package_info());
+            crate::endpoints::handle(
+              module,
+              message,
+              resolver,
+              manager.config(),
+              manager.package_info(),
+            );
           } else if command.starts_with("plugin:") {
-            manager.extend_api(message);
+            manager.extend_api(message, resolver);
           } else {
-            manager.run_invoke_handler(message);
+            manager.run_invoke_handler(message, resolver);
           }
         }
       }

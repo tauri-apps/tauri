@@ -4,7 +4,7 @@
 
 use crate::{
   api::{assets::Assets, config::WindowUrl},
-  hooks::{InvokeHandler, InvokeMessage, OnPageLoad, PageLoadPayload, SetupHook},
+  hooks::{InvokeHandler, InvokeMessage, InvokeResolver, OnPageLoad, PageLoadPayload, SetupHook},
   plugin::{Plugin, PluginStore},
   runtime::{
     flavors::wry::Wry,
@@ -15,7 +15,7 @@ use crate::{
     Dispatch, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
-  Context, Manager, Params, Window,
+  Context, Manager, Params, StateManager, Window,
 };
 
 use std::{collections::HashMap, sync::Arc};
@@ -126,6 +126,9 @@ where
 
   /// The webview protocols available to all windows.
   uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
+
+  /// App state.
+  state: StateManager,
 }
 
 impl<E, L, A, R> Builder<E, L, A, R>
@@ -139,18 +142,20 @@ where
   pub fn new() -> Self {
     Self {
       setup: Box::new(|_| Ok(())),
-      invoke_handler: Box::new(|_| ()),
+      invoke_handler: Box::new(|_, _| ()),
       on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
       uri_scheme_protocols: Default::default(),
+      state: StateManager::new(),
     }
   }
 
   /// Defines the JS message handler callback.
   pub fn invoke_handler<F>(mut self, invoke_handler: F) -> Self
   where
-    F: Fn(InvokeMessage<Args<E, L, A, R>>) + Send + Sync + 'static,
+    F:
+      Fn(InvokeMessage<Args<E, L, A, R>>, InvokeResolver<Args<E, L, A, R>>) + Send + Sync + 'static,
   {
     self.invoke_handler = Box::new(invoke_handler);
     self
@@ -177,6 +182,58 @@ where
   /// Adds a plugin to the runtime.
   pub fn plugin<P: Plugin<Args<E, L, A, R>> + 'static>(mut self, plugin: P) -> Self {
     self.plugins.register(plugin);
+    self
+  }
+
+  /// Add `state` to the state managed by the application.
+  ///
+  /// This method can be called any number of times as long as each call
+  /// refers to a different `T`.
+  ///
+  /// Managed state can be retrieved by any request handler via the
+  /// [`State`](crate::State) request guard. In particular, if a value of type `T`
+  /// is managed by Tauri, adding `State<T>` to the list of arguments in a
+  /// request handler instructs Tauri to retrieve the managed value.
+  ///
+  /// # Panics
+  ///
+  /// Panics if state of type `T` is already being managed.
+  ///
+  /// # Example
+  ///
+  /// ```rust,ignore
+  /// use tauri::State;
+  ///
+  /// struct MyInt(isize);
+  /// struct MyString(String);
+  ///
+  /// #[tauri::command]
+  /// fn int_command(state: State<'_, MyInt>) -> String {
+  ///     format!("The stateful int is: {}", state.0)
+  /// }
+  ///
+  /// #[tauri::command]
+  /// fn string_command<'r>(state: State<'r, MyString>) {
+  ///     println!("state: {}", state.inner().0);
+  /// }
+  ///
+  /// fn main() {
+  ///     tauri::Builder::default()
+  ///         .manage(MyInt(10))
+  ///         .manage(MyString("Hello, managed state!".to_string()))
+  ///         .run(tauri::generate_context!())
+  ///         .expect("error while running tauri application");
+  /// }
+  /// ```
+  pub fn manage<T>(self, state: T) -> Self
+  where
+    T: Send + Sync + 'static,
+  {
+    let type_name = std::any::type_name::<T>();
+    if !self.state.set(state) {
+      panic!("state for type '{}' is already being managed", type_name);
+    }
+
     self
   }
 
@@ -237,6 +294,7 @@ where
       self.invoke_handler,
       self.on_page_load,
       self.uri_scheme_protocols,
+      self.state,
     );
 
     // set up all the windows defined in the config
@@ -254,12 +312,12 @@ where
       ));
     }
 
-    manager.initialize_plugins()?;
-
     let mut app = App {
       runtime: R::new()?,
       manager,
     };
+
+    app.manager.initialize_plugins(&app)?;
 
     let pending_labels = self
       .pending_windows
@@ -284,6 +342,7 @@ where
     app.run_updater(main_window);
 
     (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e.to_string()))?;
+
     app.runtime.run();
     Ok(())
   }

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::runtime::tag::TagRef;
 use crate::{
   api::{
     assets::Assets,
@@ -11,16 +10,19 @@ use crate::{
     PackageInfo,
   },
   event::{Event, EventHandler, Listeners},
-  hooks::{InvokeHandler, InvokeMessage, InvokePayload, OnPageLoad, PageLoadPayload},
+  hooks::{InvokeHandler, InvokeMessage, InvokeResolver, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
   runtime::{
-    tag::{tags_to_javascript_array, Tag, ToJsString},
-    webview::{CustomProtocol, FileDropEvent, FileDropHandler, WebviewRpcHandler, WindowBuilder},
+    tag::{tags_to_javascript_array, Tag, TagRef, ToJsString},
+    webview::{
+      CustomProtocol, FileDropEvent, FileDropHandler, InvokePayload, WebviewRpcHandler,
+      WindowBuilder,
+    },
     window::{DetachedWindow, PendingWindow},
     Icon, Runtime,
   },
   sealed::ParamsBase,
-  Context, Params, Window,
+  App, Context, Params, StateManager, Window,
 };
 use serde::Serialize;
 use serde_json::Value as JsonValue;
@@ -52,6 +54,7 @@ pub struct InnerWindowManager<P: Params> {
   windows: Mutex<HashMap<P::Label, Window<P>>>,
   plugins: Mutex<PluginStore<P>>,
   listeners: Listeners<P::Event, P::Label>,
+  pub(crate) state: Arc<StateManager>,
 
   /// The JS message handler.
   invoke_handler: Box<InvokeHandler<P>>,
@@ -67,7 +70,7 @@ pub struct InnerWindowManager<P: Params> {
   salts: Mutex<HashSet<Uuid>>,
   package_info: PackageInfo,
   /// The webview protocols protocols available to all windows.
-  uri_scheme_protocols: HashMap<String, std::sync::Arc<CustomProtocol>>,
+  uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
 }
 
 /// A [Zero Sized Type] marker representing a full [`Params`].
@@ -119,13 +122,15 @@ impl<P: Params> WindowManager<P> {
     plugins: PluginStore<P>,
     invoke_handler: Box<InvokeHandler<P>>,
     on_page_load: Box<OnPageLoad<P>>,
-    uri_scheme_protocols: HashMap<String, std::sync::Arc<CustomProtocol>>,
+    uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
+    state: StateManager,
   ) -> Self {
     Self {
       inner: Arc::new(InnerWindowManager {
         windows: Mutex::default(),
         plugins: Mutex::new(plugins),
         listeners: Listeners::default(),
+        state: Arc::new(state),
         invoke_handler,
         on_page_load,
         config: context.config,
@@ -142,6 +147,11 @@ impl<P: Params> WindowManager<P> {
   /// Get a locked handle to the windows.
   pub(crate) fn windows_lock(&self) -> MutexGuard<'_, HashMap<P::Label, Window<P>>> {
     self.inner.windows.lock().expect("poisoned window manager")
+  }
+
+  /// State managed by the application.
+  pub(crate) fn state(&self) -> Arc<StateManager> {
+    self.inner.state.clone()
   }
 
   // setup content for dev-server
@@ -383,7 +393,7 @@ impl<P: Params> WindowManager<P> {
 #[cfg(test)]
 mod test {
   use super::{Args, WindowManager};
-  use crate::{generate_context, plugin::PluginStore, runtime::flavors::wry::Wry};
+  use crate::{generate_context, plugin::PluginStore, runtime::flavors::wry::Wry, StateManager};
 
   #[test]
   fn check_get_url() {
@@ -391,9 +401,10 @@ mod test {
     let manager: WindowManager<Args<String, String, _, Wry>> = WindowManager::with_handlers(
       context,
       PluginStore::default(),
-      Box::new(|_| ()),
+      Box::new(|_, _| ()),
       Box::new(|_, _| ()),
       Default::default(),
+      StateManager::new(),
     );
 
     #[cfg(custom_protocol)]
@@ -405,9 +416,10 @@ mod test {
 }
 
 impl<P: Params> WindowManager<P> {
-  pub fn run_invoke_handler(&self, message: InvokeMessage<P>) {
-    (self.inner.invoke_handler)(message);
+  pub fn run_invoke_handler(&self, message: InvokeMessage<P>, resolver: InvokeResolver<P>) {
+    (self.inner.invoke_handler)(message, resolver);
   }
+
   pub fn run_on_page_load(&self, window: Window<P>, payload: PageLoadPayload) {
     (self.inner.on_page_load)(window.clone(), payload.clone());
     self
@@ -417,21 +429,23 @@ impl<P: Params> WindowManager<P> {
       .expect("poisoned plugin store")
       .on_page_load(window, payload);
   }
-  pub fn extend_api(&self, message: InvokeMessage<P>) {
+
+  pub fn extend_api(&self, message: InvokeMessage<P>, resolver: InvokeResolver<P>) {
     self
       .inner
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .extend_api(message);
+      .extend_api(message, resolver);
   }
-  pub fn initialize_plugins(&self) -> crate::Result<()> {
+
+  pub fn initialize_plugins(&self, app: &App<P>) -> crate::Result<()> {
     self
       .inner
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .initialize(&self.inner.config.plugins)
+      .initialize(&app, &self.inner.config.plugins)
   }
 
   pub fn prepare_window(

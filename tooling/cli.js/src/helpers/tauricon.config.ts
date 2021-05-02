@@ -14,20 +14,10 @@ export const options = {
   minify: {
     batch: false,
     overwrite: true,
-    available: ['pngquant', 'optipng', 'zopfli'],
-    type: 'pngquant',
-    pngcrushOptions: {
-      reduce: true
-    },
-    pngquantOptions: {
-      quality: [0.6, 0.8],
-      floyd: 0.1, // 0.1 - 1
-      speed: 10 // 1 - 10
-    },
+    available: ['optipng', 'zopfli'],
+    type: 'optipng',
     optipngOptions: {
       optimizationLevel: 4,
-      bitDepthReduction: true,
-      colorTypeReduction: true,
       paletteReduction: true
     },
     zopfliOptions: {

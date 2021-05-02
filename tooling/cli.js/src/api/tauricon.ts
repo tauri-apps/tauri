@@ -21,7 +21,6 @@
 import { access, ensureDir, ensureFileSync, writeFileSync } from 'fs-extra'
 import imagemin, { Plugin } from 'imagemin'
 import optipng from 'imagemin-optipng'
-import pngquant, { Options as PngQuantOptions } from 'imagemin-pngquant'
 import zopfli from 'imagemin-zopfli'
 import isPng from 'is-png'
 import path from 'path'
@@ -70,7 +69,26 @@ const checkSrc = async (src: string): Promise<boolean | sharp.Sharp> => {
     } else {
       const buffer = await readChunk(src, 0, 8)
       if (isPng(buffer)) {
-        return (image = sharp(src))
+        image = sharp(src)
+        const meta = await image.metadata()
+        if (!meta.hasAlpha || meta.channels !== 4) {
+          // image = false
+          if (spinnerInterval) clearInterval(spinnerInterval)
+          warn('[ERROR] Source png for tauricon is not transparent')
+          process.exit(1)
+        }
+
+        // just because PNG is sneaky, lets look at the
+        // individual pixels for something weird
+        const stats = await image.stats()
+        if (stats.isOpaque) {
+          // image = false
+          if (spinnerInterval) clearInterval(spinnerInterval)
+          warn('[ERROR] Source png for tauricon could not be detected as transparent')
+          process.exit(1)
+        }
+
+        return image
       } else {
         image = false
         if (spinnerInterval) clearInterval(spinnerInterval)
@@ -403,10 +421,6 @@ const tauricon = (exports.tauricon = {
       strategy = minify.type
     }
     switch (strategy) {
-      case 'pngquant':
-        // TODO: is minify.pngquantOptions the proper format?
-        cmd = pngquant((minify.pngquantOptions as any) as PngQuantOptions)
-        break
       case 'optipng':
         cmd = optipng(minify.optipngOptions)
         break

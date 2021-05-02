@@ -58,7 +58,6 @@
     "got": "11.8.2",
     "imagemin": "8.0.0",
     "imagemin-optipng": "8.0.0",
-    "imagemin-pngquant": "9.0.2",
     "imagemin-zopfli": "7.0.0",
     "inquirer": "8.0.0",
     "is-png": "3.0.0",

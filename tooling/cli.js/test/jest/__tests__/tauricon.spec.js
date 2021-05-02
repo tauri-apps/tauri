@@ -56,9 +56,7 @@ describe('[CLI] tauri-icon builder', () => {
     )
     expect(valid).toBe(true)
   })
-})
 
-describe('[CLI] tauri-icon builder', () => {
   it('will not validate a non-file', async () => {
     try {
       await tauricon.make(
@@ -70,7 +68,6 @@ describe('[CLI] tauri-icon builder', () => {
       expect(e.message).toBe('Input file is missing')
     }
   })
-})
 
   it('makes a set of icons with optipng', async () => {
     const valid = await tauricon.make(
@@ -89,5 +86,4 @@ describe('[CLI] tauri-icon builder', () => {
     expect(valid).toBe(true)
   })
   */
-
 })

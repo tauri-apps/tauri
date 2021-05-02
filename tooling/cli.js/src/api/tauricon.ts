@@ -21,7 +21,6 @@
 import { access, ensureDir, ensureFileSync, writeFileSync } from 'fs-extra'
 import imagemin, { Plugin } from 'imagemin'
 import optipng from 'imagemin-optipng'
-import pngquant, { Options as PngQuantOptions } from 'imagemin-pngquant'
 import zopfli from 'imagemin-zopfli'
 import isPng from 'is-png'
 import path from 'path'
@@ -38,7 +37,7 @@ const log = logger('app:spawn')
 const warn = logger('app:spawn', chalk.red)
 
 let image: boolean | sharp.Sharp = false
-const spinnerInterval = false
+let spinnerInterval: NodeJS.Timeout | null = null
 
 const exists = async function (file: string | Buffer): Promise<boolean> {
   try {
@@ -70,7 +69,26 @@ const checkSrc = async (src: string): Promise<boolean | sharp.Sharp> => {
     } else {
       const buffer = await readChunk(src, 0, 8)
       if (isPng(buffer)) {
-        return (image = sharp(src))
+        image = sharp(src)
+        const meta = await image.metadata()
+        if (!meta.hasAlpha || meta.channels !== 4) {
+          if (spinnerInterval) clearInterval(spinnerInterval)
+          warn('[ERROR] Source png for tauricon is not transparent')
+          process.exit(1)
+        }
+
+        // just because PNG is sneaky, lets look at the
+        // individual pixels for something weird
+        const stats = await image.stats()
+        if (stats.isOpaque) {
+          if (spinnerInterval) clearInterval(spinnerInterval)
+          warn(
+            '[ERROR] Source png for tauricon could not be detected as transparent'
+          )
+          process.exit(1)
+        }
+
+        return image
       } else {
         image = false
         if (spinnerInterval) clearInterval(spinnerInterval)
@@ -164,7 +182,10 @@ const progress = (msg: string): void => {
  *     // later
  *     clearInterval(spinnerInterval)
  */
-const spinner = (): NodeJS.Timeout => {
+const spinner = (): NodeJS.Timeout | null => {
+  if ('CI' in process.env || process.argv.some((arg) => arg === '--ci')) {
+    return null
+  }
   return setInterval(() => {
     process.stdout.write('/ \r')
     setTimeout(() => {
@@ -197,7 +218,7 @@ const tauricon = (exports.tauricon = {
     if (!src) {
       src = path.resolve(appDir, 'app-icon.png')
     }
-    const spinnerInterval = spinner()
+    spinnerInterval = spinner()
     options = options || settings.options.tauri
     progress(`Building Tauri icns and ico from "${src}"`)
     await this.validate(src, target)
@@ -211,7 +232,7 @@ const tauricon = (exports.tauricon = {
       log('no minify strategy')
     }
     progress('Tauricon Finished')
-    clearInterval(spinnerInterval)
+    if (spinnerInterval) clearInterval(spinnerInterval)
     return true
   },
 
@@ -403,10 +424,6 @@ const tauricon = (exports.tauricon = {
       strategy = minify.type
     }
     switch (strategy) {
-      case 'pngquant':
-        // TODO: is minify.pngquantOptions the proper format?
-        cmd = pngquant((minify.pngquantOptions as any) as PngQuantOptions)
-        break
       case 'optipng':
         cmd = optipng(minify.optipngOptions)
         break

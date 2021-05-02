@@ -182,7 +182,10 @@ const progress = (msg: string): void => {
  *     // later
  *     clearInterval(spinnerInterval)
  */
-const spinner = (): NodeJS.Timeout => {
+const spinner = (): NodeJS.Timeout | null => {
+  if ('CI' in process.env || process.argv.some((arg) => arg === '--ci')) {
+    return null
+  }
   return setInterval(() => {
     process.stdout.write('/ \r')
     setTimeout(() => {
@@ -229,7 +232,7 @@ const tauricon = (exports.tauricon = {
       log('no minify strategy')
     }
     progress('Tauricon Finished')
-    clearInterval(spinnerInterval)
+    if (spinnerInterval) clearInterval(spinnerInterval)
     return true
   },
 

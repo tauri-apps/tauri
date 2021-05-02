@@ -8,6 +8,11 @@ use serde::Deserialize;
 #[cfg(notification_all)]
 use crate::api::notification::Notification;
 
+// `Granted` response from `request_permission`. Matches the Web API return value.
+const PERMISSION_GRANTED: &str = "granted";
+// `Denied` response from `request_permission`. Matches the Web API return value.
+const PERMISSION_DENIED: &str = "denied";
+
 /// The options for the notification API.
 #[derive(Deserialize)]
 pub struct NotificationOptions {
@@ -43,13 +48,13 @@ impl Cmd {
         #[cfg(notification_all)]
         return is_permission_granted().map(Into::into);
         #[cfg(not(notification_all))]
-        Err(crate::Error::ApiNotAllowlisted("notification".to_string()))
+        Ok(false.into())
       }
       Self::RequestNotificationPermission => {
         #[cfg(notification_all)]
         return request_permission().map(Into::into);
         #[cfg(not(notification_all))]
-        Err(crate::Error::ApiNotAllowlisted("notification".to_string()))
+        Ok(PERMISSION_DENIED.into())
       }
     }
   }
@@ -81,10 +86,12 @@ pub fn is_permission_granted() -> crate::Result<InvokeResponse> {
 #[cfg(notification_all)]
 pub fn request_permission() -> crate::Result<String> {
   let mut settings = crate::settings::read_settings()?;
-  let granted = "granted".to_string();
-  let denied = "denied".to_string();
   if let Some(allow_notification) = settings.allow_notification {
-    return Ok(if allow_notification { granted } else { denied });
+    return Ok(if allow_notification {
+      PERMISSION_GRANTED.to_string()
+    } else {
+      PERMISSION_DENIED.to_string()
+    });
   }
   let answer = crate::api::dialog::ask(
     "Permissions",
@@ -94,12 +101,12 @@ pub fn request_permission() -> crate::Result<String> {
     crate::api::dialog::AskResponse::Yes => {
       settings.allow_notification = Some(true);
       crate::settings::write_settings(settings)?;
-      Ok(granted)
+      Ok(PERMISSION_GRANTED.to_string())
     }
     crate::api::dialog::AskResponse::No => {
       settings.allow_notification = Some(false);
       crate::settings::write_settings(settings)?;
-      Ok(denied)
+      Ok(PERMISSION_DENIED.to_string())
     }
   }
 }

@@ -4,6 +4,7 @@
 
 use super::{app_paths::tauri_dir, config::ConfigHandle};
 
+use anyhow::Context;
 use toml_edit::{Array, Document, InlineTable, Item, Value};
 
 use std::{
@@ -14,9 +15,12 @@ use std::{
 pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<()> {
   let manifest_path = tauri_dir().join("Cargo.toml");
   let mut manifest_str = String::new();
-  let mut manifest_file = File::open(&manifest_path)?;
+  let mut manifest_file = File::open(&manifest_path)
+    .with_context(|| format!("failed to open `{:?}` file", manifest_path))?;
   manifest_file.read_to_string(&mut manifest_str)?;
-  let mut manifest: Document = manifest_str.parse::<Document>()?;
+  let mut manifest: Document = manifest_str
+    .parse::<Document>()
+    .with_context(|| "failed to parse Cargo.toml")?;
   let dependencies = manifest
     .as_table_mut()
     .entry("dependencies")
@@ -68,7 +72,8 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<()> {
     return Ok(());
   }
 
-  let mut manifest_file = File::create(&manifest_path)?;
+  let mut manifest_file =
+    File::create(&manifest_path).with_context(|| "failed to open Cargo.toml for rewrite")?;
   manifest_file.write_all(
     manifest
       .to_string_in_original_order()

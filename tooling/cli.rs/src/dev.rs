@@ -9,6 +9,7 @@ use crate::helpers::{
   Logger,
 };
 
+use anyhow::Context;
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
 use once_cell::sync::OnceCell;
 use shared_child::SharedChild;
@@ -74,7 +75,7 @@ impl Dev {
   pub fn run(self) -> crate::Result<()> {
     let logger = Logger::new("tauri:dev");
     let tauri_path = tauri_dir();
-    set_current_dir(&tauri_path)?;
+    set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
     let merge_config = self.config.clone();
     let config = get_config(merge_config.as_deref())?;
     let mut process: Arc<SharedChild>;
@@ -94,13 +95,15 @@ impl Dev {
           .arg("/C")
           .arg(before_dev)
           .current_dir(app_dir())
-          .spawn()?;
+          .spawn()
+          .with_context(|| format!("failed to run `{}` with `cmd /C`", before_dev))?;
         #[cfg(not(target_os = "windows"))]
         let child = Command::new("sh")
           .arg("-c")
           .arg(before_dev)
           .current_dir(app_dir())
-          .spawn()?;
+          .spawn()
+          .with_context(|| format!("failed to run `{}` with `sh -c`", before_dev))?;
         BEFORE_DEV.set(Mutex::new(child)).unwrap();
       }
     }
@@ -173,7 +176,9 @@ impl Dev {
             // which will trigger the watcher again
             // So the app should only be started when a file other than tauri.conf.json is changed
             let _ = child_wait_tx.send(());
-            process.kill()?;
+            process
+              .kill()
+              .with_context(|| "failed to kill app process")?;
             process = self.start_app(&runner, child_wait_rx.clone());
           }
         }

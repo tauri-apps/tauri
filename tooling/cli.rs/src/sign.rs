@@ -7,6 +7,8 @@ use crate::helpers::updater_signature::{
 };
 use std::path::{Path, PathBuf};
 
+use anyhow::Context;
+
 #[derive(Default)]
 pub struct Signer {
   private_key: Option<String>,
@@ -63,7 +65,8 @@ impl Signer {
       self.password.unwrap(),
       self.file.unwrap(),
       false,
-    )?;
+    )
+    .with_context(|| "failed to sign file")?;
 
     println!(
          "\nYour file was signed successfully, You can find the signature here:\n{}\n\nPublic signature:\n{}\n\nMake sure to include this into the signature field of your update server.",

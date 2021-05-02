@@ -9,6 +9,7 @@ use serde::Deserialize;
 use crate::api::notification::Notification;
 
 // `Granted` response from `request_permission`. Matches the Web API return value.
+#[cfg(notification_all)]
 const PERMISSION_GRANTED: &str = "granted";
 // `Denied` response from `request_permission`. Matches the Web API return value.
 const PERMISSION_DENIED: &str = "denied";

@@ -42,7 +42,7 @@ type Result<T> = std::result::Result<T, ()>;
 #[tauri::command]
 fn simple_command_with_result(argument: String) -> Result<String> {
   println!("{}", argument);
-  Ok(argument)
+  (!argument.is_empty()).then(|| argument).ok_or(())
 }
 
 #[tauri::command]
@@ -51,7 +51,7 @@ fn stateful_command_with_result(
   state: tauri::State<'_, MyState>,
 ) -> Result<String> {
   println!("{:?} {:?}", argument, state.inner());
-  Ok(argument.unwrap_or_else(|| "".to_string()))
+  argument.ok_or(())
 }
 
 // Async commands

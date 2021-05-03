@@ -4,297 +4,136 @@
 
 //! Useful items for custom commands.
 
+use crate::hooks::InvokeError;
 use crate::{InvokeMessage, Params};
 use serde::de::Visitor;
 use serde::Deserializer;
 
-/// A [`Deserializer`] wrapper around [`Value::get`].
-///
-/// If the key doesn't exist, an error will be returned if the deserialized type is not expecting
-/// an optional item. If the key does exist, the value will be called with [`Value`]'s
-/// [`Deserializer`] implementation.
-struct KeyedValue<'de> {
-  command: &'de str,
-  key: &'de str,
-  value: &'de serde_json::Value,
+/// Represents a custom command.
+pub struct CommandItem<'a, P: Params> {
+  /// The name of the command, e.g. `handler` on `#[command] fn handler(value: u64)`
+  pub name: &'static str,
+
+  /// The key of the command item, e.g. `value` on `#[command] fn handler(value: u64)`
+  pub key: &'static str,
+
+  /// The [`InvokeMessage`] that was passed to this command.
+  pub message: &'a InvokeMessage<P>,
 }
 
-macro_rules! kv_value {
-  ($s:ident) => {{
-    use serde::de::Error;
+/// Trait implemented by command arguments to derive a value from a [`CommandItem`].
+///
+/// # Command Arguments
+///
+/// A command argument is any type that represents an item parsable from a [`CommandItem`]. Most
+/// implementations will use the data stored in [`InvokeMessage`] since [`CommandItem`] is mostly a
+/// wrapper around it.
+///
+/// # Provided Implementations
+///
+/// Tauri implements [`CommandArg`] automatically for a number of types.
+/// * [`tauri::Window`]
+/// * [`tauri::State`]
+/// * `T where T: serde::Deserialize`
+///   * Any type that implements `Deserialize` can automatically be used as a [`CommandArg`].
+pub trait CommandArg<'de, P: Params>: Sized {
+  /// Derives an instance of `Self` from the [`CommandItem`].
+  ///
+  /// If the derivation fails, the corresponding message will be rejected using [`InvokeMessage#reject`].
+  fn from_command(command: CommandItem<'de, P>) -> Result<Self, InvokeError>;
+}
 
-    match $s.value.get($s.key) {
-      Some(value) => value,
-      None => {
-        return Err(serde_json::Error::custom(format!(
-          "command {} missing required key `{}`",
-          $s.command, $s.key
-        )))
+/// Automatically implement [`CommandArg`] for any type that can be deserialized.
+impl<'de, D: serde::Deserialize<'de>, P: Params> CommandArg<'de, P> for D {
+  fn from_command(command: CommandItem<'de, P>) -> Result<Self, InvokeError> {
+    let arg = command.key;
+    Self::deserialize(command).map_err(|e| crate::Error::InvalidArgs(arg, e).into())
+  }
+}
+
+/// Pass the result of [`serde_json::Value::get`] into [`serde_json::Value`]'s deserializer.
+///
+/// Returns an error if the [`CommandItem`]'s key does not exist in the value.
+macro_rules! pass {
+  ($fn:ident, $($arg:ident: $argt:ty),+) => {
+    fn $fn<V: Visitor<'de>>(self, $($arg: $argt),*) -> Result<V::Value, Self::Error> {
+      use serde::de::Error;
+
+      match self.message.payload.get(self.key) {
+        Some(value) => value.$fn($($arg),*),
+        None => {
+          Err(serde_json::Error::custom(format!(
+            "command {} missing required key {}",
+            self.name, self.key
+          )))
+        }
       }
     }
-  }};
+  }
 }
 
-impl<'de> Deserializer<'de> for KeyedValue<'de> {
+/// A [`Deserializer`] wrapper around [`CommandItem`].
+///
+/// If the key doesn't exist, an error will be returned if the deserialized type is not expecting
+/// an optional item. If the key does exist, the value will be called with
+/// [`Value`](serde_json::Value)'s [`Deserializer`] implementation.
+impl<'de, P: Params> Deserializer<'de> for CommandItem<'de, P> {
   type Error = serde_json::Error;
 
-  fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_any(visitor)
-  }
+  pass!(deserialize_any, visitor: V);
+  pass!(deserialize_bool, visitor: V);
+  pass!(deserialize_i8, visitor: V);
+  pass!(deserialize_i16, visitor: V);
+  pass!(deserialize_i32, visitor: V);
+  pass!(deserialize_i64, visitor: V);
+  pass!(deserialize_u8, visitor: V);
+  pass!(deserialize_u16, visitor: V);
+  pass!(deserialize_u32, visitor: V);
+  pass!(deserialize_u64, visitor: V);
+  pass!(deserialize_f32, visitor: V);
+  pass!(deserialize_f64, visitor: V);
+  pass!(deserialize_char, visitor: V);
+  pass!(deserialize_str, visitor: V);
+  pass!(deserialize_string, visitor: V);
+  pass!(deserialize_bytes, visitor: V);
+  pass!(deserialize_byte_buf, visitor: V);
 
-  fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_bool(visitor)
-  }
-
-  fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_i8(visitor)
-  }
-
-  fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_i16(visitor)
-  }
-
-  fn deserialize_i32<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_i32(visitor)
-  }
-
-  fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_i64(visitor)
-  }
-
-  fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_u8(visitor)
-  }
-
-  fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_u16(visitor)
-  }
-
-  fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_u32(visitor)
-  }
-
-  fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_u64(visitor)
-  }
-
-  fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_f32(visitor)
-  }
-
-  fn deserialize_f64<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_f64(visitor)
-  }
-
-  fn deserialize_char<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_char(visitor)
-  }
-
-  fn deserialize_str<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_str(visitor)
-  }
-
-  fn deserialize_string<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_string(visitor)
-  }
-
-  fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_bytes(visitor)
-  }
-
-  fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_byte_buf(visitor)
-  }
-
-  fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    match self.value.get(self.key) {
+  fn deserialize_option<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+    match self.message.payload.get(self.key) {
       Some(value) => value.deserialize_option(visitor),
       None => visitor.visit_none(),
     }
   }
 
-  fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_unit(visitor)
-  }
+  pass!(deserialize_unit, visitor: V);
+  pass!(deserialize_unit_struct, name: &'static str, visitor: V);
+  pass!(deserialize_newtype_struct, name: &'static str, visitor: V);
+  pass!(deserialize_seq, visitor: V);
+  pass!(deserialize_tuple, len: usize, visitor: V);
 
-  fn deserialize_unit_struct<V>(
-    self,
-    name: &'static str,
-    visitor: V,
-  ) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_unit_struct(name, visitor)
-  }
-
-  fn deserialize_newtype_struct<V>(
-    self,
-    name: &'static str,
-    visitor: V,
-  ) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_newtype_struct(name, visitor)
-  }
-
-  fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_seq(visitor)
-  }
-
-  fn deserialize_tuple<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_tuple(len, visitor)
-  }
-
-  fn deserialize_tuple_struct<V>(
-    self,
+  pass!(
+    deserialize_tuple_struct,
     name: &'static str,
     len: usize,
-    visitor: V,
-  ) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_tuple_struct(name, len, visitor)
-  }
+    visitor: V
+  );
 
-  fn deserialize_map<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_map(visitor)
-  }
+  pass!(deserialize_map, visitor: V);
 
-  fn deserialize_struct<V>(
-    self,
+  pass!(
+    deserialize_struct,
     name: &'static str,
     fields: &'static [&'static str],
-    visitor: V,
-  ) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_struct(name, fields, visitor)
-  }
+    visitor: V
+  );
 
-  fn deserialize_enum<V>(
-    self,
+  pass!(
+    deserialize_enum,
     name: &'static str,
-    variants: &'static [&'static str],
-    visitor: V,
-  ) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_enum(name, variants, visitor)
-  }
+    fields: &'static [&'static str],
+    visitor: V
+  );
 
-  fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_identifier(visitor)
-  }
-
-  fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-  where
-    V: Visitor<'de>,
-  {
-    kv_value!(self).deserialize_ignored_any(visitor)
-  }
-}
-
-/// Trait implemented by command arguments to derive a value from a [`InvokeMessage`].
-/// [`tauri::Window`], [`tauri::State`] and types that implements [`Deserialize`] automatically implements this trait.
-pub trait FromCommand<'de, P: Params>: Sized {
-  /// Derives an instance of `Self` from the [`InvokeMessage`].
-  /// If the derivation fails, the corresponding message will be rejected using [`InvokeMessage#reject`].
-  ///
-  /// # Arguments
-  /// - `command`: the command value passed to invoke, e.g. `initialize` on `invoke('initialize', {})`.
-  /// - `key`: The name of the variable in the command handler, e.g. `value` on `#[command] fn handler(value: u64)`
-  /// - `message`: The [`InvokeMessage`] instance.
-  fn from_command(
-    command: &'de str,
-    key: &'de str,
-    message: &'de InvokeMessage<P>,
-  ) -> ::core::result::Result<Self, serde_json::Error>;
-}
-
-impl<'de, D: serde::Deserialize<'de>, P: Params> FromCommand<'de, P> for D {
-  fn from_command(
-    command: &'de str,
-    key: &'de str,
-    message: &'de InvokeMessage<P>,
-  ) -> ::core::result::Result<Self, serde_json::Error> {
-    D::deserialize(KeyedValue {
-      command,
-      key,
-      value: &message.payload,
-    })
-  }
+  pass!(deserialize_identifier, visitor: V);
+  pass!(deserialize_ignored_any, visitor: V);
 }

@@ -7,7 +7,7 @@
 use crate::{
   api::config::PluginConfig,
   hooks::{InvokeMessage, InvokeResolver, PageLoadPayload},
-  App, Params, Window,
+  App, Invoke, Params, Window,
 };
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
@@ -16,13 +16,13 @@ use std::collections::HashMap;
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 /// The plugin interface.
-pub trait Plugin<M: Params>: Send {
+pub trait Plugin<P: Params>: Send {
   /// The plugin name. Used as key on the plugin config object.
   fn name(&self) -> &'static str;
 
   /// Initialize the plugin.
   #[allow(unused_variables)]
-  fn initialize(&mut self, app: &App<M>, config: JsonValue) -> Result<()> {
+  fn initialize(&mut self, app: &App<P>, config: JsonValue) -> Result<()> {
     Ok(())
   }
 
@@ -37,23 +37,23 @@ pub trait Plugin<M: Params>: Send {
 
   /// Callback invoked when the webview is created.
   #[allow(unused_variables)]
-  fn created(&mut self, window: Window<M>) {}
+  fn created(&mut self, window: Window<P>) {}
 
   /// Callback invoked when the webview performs a navigation.
   #[allow(unused_variables)]
-  fn on_page_load(&mut self, window: Window<M>, payload: PageLoadPayload) {}
+  fn on_page_load(&mut self, window: Window<P>, payload: PageLoadPayload) {}
 
   /// Add invoke_handler API extension commands.
   #[allow(unused_variables)]
-  fn extend_api(&mut self, message: InvokeMessage<M>, resolver: InvokeResolver<M>) {}
+  fn extend_api(&mut self, message: InvokeMessage<P>, resolver: InvokeResolver<P>) {}
 }
 
 /// Plugin collection type.
-pub(crate) struct PluginStore<M: Params> {
-  store: HashMap<&'static str, Box<dyn Plugin<M>>>,
+pub(crate) struct PluginStore<P: Params> {
+  store: HashMap<&'static str, Box<dyn Plugin<P>>>,
 }
 
-impl<M: Params> Default for PluginStore<M> {
+impl<P: Params> Default for PluginStore<P> {
   fn default() -> Self {
     Self {
       store: HashMap::new(),
@@ -61,16 +61,16 @@ impl<M: Params> Default for PluginStore<M> {
   }
 }
 
-impl<M: Params> PluginStore<M> {
+impl<P: Params> PluginStore<P> {
   /// Adds a plugin to the store.
   ///
   /// Returns `true` if a plugin with the same name is already in the store.
-  pub fn register<P: Plugin<M> + 'static>(&mut self, plugin: P) -> bool {
+  pub fn register<Plug: Plugin<P> + 'static>(&mut self, plugin: Plug) -> bool {
     self.store.insert(plugin.name(), Box::new(plugin)).is_some()
   }
 
   /// Initializes all plugins in the store.
-  pub(crate) fn initialize(&mut self, app: &App<M>, config: &PluginConfig) -> crate::Result<()> {
+  pub(crate) fn initialize(&mut self, app: &App<P>, config: &PluginConfig) -> crate::Result<()> {
     self.store.values_mut().try_for_each(|plugin| {
       plugin
         .initialize(
@@ -93,7 +93,7 @@ impl<M: Params> PluginStore<M> {
   }
 
   /// Runs the created hook for all plugins in the store.
-  pub(crate) fn created(&mut self, window: Window<M>) {
+  pub(crate) fn created(&mut self, window: Window<P>) {
     self
       .store
       .values_mut()
@@ -101,14 +101,18 @@ impl<M: Params> PluginStore<M> {
   }
 
   /// Runs the on_page_load hook for all plugins in the store.
-  pub(crate) fn on_page_load(&mut self, window: Window<M>, payload: PageLoadPayload) {
+  pub(crate) fn on_page_load(&mut self, window: Window<P>, payload: PageLoadPayload) {
     self
       .store
       .values_mut()
       .for_each(|plugin| plugin.on_page_load(window.clone(), payload.clone()))
   }
 
-  pub(crate) fn extend_api(&mut self, mut message: InvokeMessage<M>, resolver: InvokeResolver<M>) {
+  pub(crate) fn extend_api(&mut self, invoke: Invoke<P>) {
+    let Invoke {
+      mut message,
+      resolver,
+    } = invoke;
     let command = message.command.replace("plugin:", "");
     let mut tokens = command.split('|');
     // safe to unwrap: split always has a least one item

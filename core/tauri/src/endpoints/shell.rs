@@ -27,8 +27,9 @@ pub enum Buffer {
   Raw(Vec<u8>),
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn default_env() -> Option<HashMap<String, String>> {
-  Some(Default::default())
+  Some(HashMap::default())
 }
 
 #[allow(dead_code)]

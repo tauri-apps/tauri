@@ -15,6 +15,7 @@ mod codegen;
 pub use codegen::context::CodegenContext;
 
 /// Attributes used on Windows.
+#[allow(dead_code)]
 pub struct WindowsAttributes {
   window_icon_path: PathBuf,
 }

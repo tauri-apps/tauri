@@ -72,7 +72,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   // double braces are purposeful to force the code into a block expression
   Ok(quote!(#root::Context {
     config: #config,
-    assets: #assets,
+    assets: ::std::sync::Arc::new(#assets),
     default_window_icon: #default_window_icon,
     package_info: #root::api::PackageInfo {
       name: #package_name,

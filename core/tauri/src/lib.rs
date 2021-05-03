@@ -39,7 +39,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 use crate::{
-  api::{assets::Assets, config::Config},
   event::{Event, EventHandler},
   runtime::{
     tag::{Tag, TagRef},
@@ -48,11 +47,14 @@ use crate::{
   },
 };
 use serde::Serialize;
-use std::{borrow::Borrow, collections::HashMap, path::PathBuf};
+use std::{borrow::Borrow, collections::HashMap, path::PathBuf, sync::Arc};
 
 // Export types likely to be used by the application.
 pub use {
-  self::api::config::WindowUrl,
+  self::api::{
+    assets::Assets,
+    config::{Config, WindowUrl},
+  },
   self::hooks::{
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
     PageLoadPayload, SetupHook,
@@ -113,7 +115,7 @@ pub struct Context<A: Assets> {
   pub config: Config,
 
   /// The assets to be served directly by Tauri.
-  pub assets: A,
+  pub assets: Arc<A>,
 
   /// The default window icon Tauri should use when creating windows.
   pub default_window_icon: Option<Vec<u8>>,

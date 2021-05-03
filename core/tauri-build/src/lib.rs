@@ -14,13 +14,12 @@ mod codegen;
 #[cfg(feature = "codegen")]
 pub use codegen::context::CodegenContext;
 
-/// The attributes used on the build.
-pub struct Attributes {
-  #[allow(dead_code)]
+/// Attributes used on Windows.
+pub struct WindowsAttributes {
   window_icon_path: PathBuf,
 }
 
-impl Default for Attributes {
+impl Default for WindowsAttributes {
   fn default() -> Self {
     Self {
       window_icon_path: PathBuf::from("icons/icon.ico"),
@@ -28,7 +27,7 @@ impl Default for Attributes {
   }
 }
 
-impl Attributes {
+impl WindowsAttributes {
   /// Creates the default attribute set.
   pub fn new() -> Self {
     Self::default()
@@ -38,6 +37,26 @@ impl Attributes {
   /// It must be in `ico` format. Defaults to `icons/icon.ico`.
   pub fn window_icon_path<P: AsRef<Path>>(mut self, window_icon_path: P) -> Self {
     self.window_icon_path = window_icon_path.as_ref().into();
+    self
+  }
+}
+
+/// The attributes used on the build.
+#[derive(Default)]
+pub struct Attributes {
+  #[allow(dead_code)]
+  windows_attributes: WindowsAttributes,
+}
+
+impl Attributes {
+  /// Creates the default attribute set.
+  pub fn new() -> Self {
+    Self::default()
+  }
+
+  /// Sets the icon to use on the window. Currently only used on Windows.
+  pub fn windows_attributes(mut self, windows_attributes: WindowsAttributes) -> Self {
+    self.windows_attributes = windows_attributes;
     self
   }
 }
@@ -75,17 +94,26 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     use anyhow::{anyhow, Context};
     use winres::WindowsResource;
 
-    if attibutes.window_icon_path.exists() {
+    let icon_path_string = attributes
+      .windows_attributes
+      .window_icon_path
+      .to_string_lossy()
+      .into_owned();
+
+    if attributes.windows_attributes.window_icon_path.exists() {
       let mut res = WindowsResource::new();
-      res.set_icon_with_id(
-        attributes.window_icon_path.into_os_string().into_string(),
-        "32512",
-      );
+      res.set_icon_with_id(&icon_path_string, "32512");
       res.compile().with_context(|| {
-        "failed to compile icons/icon.ico into a Windows Resource file during tauri-build"
+        format!(
+          "failed to compile `{}` into a Windows Resource file during tauri-build",
+          icon_path_string
+        )
       })?;
     } else {
-      return Err(anyhow!("no icons/icon.ico file found; required for generating a Windows Resource file during tauri-build"));
+      return Err(anyhow!(format!(
+        "`{}` not found; required for generating a Windows Resource file during tauri-build",
+        icon_path_string
+      )));
     }
   }
 

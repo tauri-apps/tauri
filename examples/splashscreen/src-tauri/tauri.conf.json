@@ -26,16 +26,19 @@
     },
     "windows": [
       {
-        "label": "Main",
-        "title": "Tauri - Main",
+        "label": "main",
+        "title": "Tauri",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "visible": false
       },
       {
-        "label": "Secondary",
-        "title": "Tauri - Secondary",
-        "width": 600,
-        "height": 400
+        "label": "splashscreen",
+        "width": 400,
+        "height": 200,
+        "decorations": false,
+        "resizable": false,
+        "url": "splashscreen.html"
       }
     ],
     "security": {

@@ -1,0 +1,11 @@
+{
+  "name": "splashscreen-example",
+  "version": "1.0.0",
+  "description": "A Tauri example showcasing Tauri's multiwindow ability with a splashscreen",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "tauri": "node ../../tooling/cli.js/bin/tauri"
+  },
+  "private": true
+}

@@ -607,7 +607,7 @@ impl Runtime for Wry {
                   window.set_window_icon(Some(icon));
                 }
                 WindowMessage::DragWindow => {
-                  window.drag_window();
+                  let _ = window.drag_window();
                 }
               }
             }

@@ -84,7 +84,7 @@ ${chalk.yellow('Options')}
         } = require('../dist/api/dependency-manager')
         return installDependencies()
       }
-    })
+    }).catch(() => process.exit(1))
   }
 }
 

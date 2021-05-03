@@ -3,5 +3,5 @@
 // SPDX-License-Identifier: MIT
 
 fn main() {
-  tauri_build::build();
+  let _ = tauri_build::try_build();
 }

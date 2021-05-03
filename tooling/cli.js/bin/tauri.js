@@ -77,14 +77,16 @@ ${chalk.yellow('Options')}
         command,
         (process.argv || []).filter((v) => v !== '--no-update-notifier')
       )
-    ).promise.then(() => {
-      if (command === 'init' && !process.argv.some((arg) => arg === '--ci')) {
-        const {
-          installDependencies
-        } = require('../dist/api/dependency-manager')
-        return installDependencies()
-      }
-    }).catch(() => process.exit(1))
+    ).promise
+      .then(() => {
+        if (command === 'init' && !process.argv.some((arg) => arg === '--ci')) {
+          const {
+            installDependencies
+          } = require('../dist/api/dependency-manager')
+          return installDependencies()
+        }
+      })
+      .catch(() => process.exit(1))
   }
 }
 

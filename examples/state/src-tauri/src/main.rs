@@ -24,8 +24,7 @@ struct Database(Arc<Mutex<HashMap<String, String>>>);
 
 #[tauri::command]
 fn increment_counter(counter: State<'_, Counter>) -> usize {
-  let count = counter.0.fetch_add(1, Ordering::Relaxed) + 1;
-  count
+  counter.0.fetch_add(1, Ordering::Relaxed) + 1
 }
 
 #[tauri::command]

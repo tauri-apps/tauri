@@ -134,7 +134,7 @@ impl<P: Params> WindowManager<P> {
         invoke_handler,
         on_page_load,
         config: context.config,
-        assets: Arc::new(context.assets),
+        assets: context.assets,
         default_window_icon: context.default_window_icon,
         salts: Mutex::default(),
         package_info: context.package_info,

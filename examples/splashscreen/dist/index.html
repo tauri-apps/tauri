@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+  <h1>This is the main window!</h1>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // we delay here just so we can see the splashscreen for a while
+      setTimeout(() => {
+        window.__TAURI__.invoke('close_splashscreen')
+      }, 2000)
+    })
+  </script>
+</body>
+
+</html>

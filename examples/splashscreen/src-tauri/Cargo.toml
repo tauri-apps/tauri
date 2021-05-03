@@ -1,0 +1,17 @@
+[package]
+name = "splashscreen"
+version = "0.1.0"
+description = "An example Tauri Application with a splashscreen"
+edition = "2018"
+license = "Apache-2.0 OR MIT"
+
+[build-dependencies]
+tauri-build = { path = "../../../core/tauri-build" }
+
+[dependencies]
+tauri = { path = "../../../core/tauri", features = ["api-all"] }
+
+[features]
+default = [ "custom-protocol" ]
+custom-protocol = [ "tauri/custom-protocol" ]
+ui = []

@@ -12,6 +12,7 @@ members = [
   "examples/helloworld/src-tauri",
   "examples/multiwindow/src-tauri",
   "examples/commands/src-tauri",
+  "examples/splashscreen/src-tauri/",
   # used to build updater artifacts
   "examples/updater/src-tauri",
 ]

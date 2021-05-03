@@ -2,6 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+/**
+ * Invoke your custom commands.
+ * @packageDocumentation
+ */
+
+/** @ignore */
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Window {
@@ -11,6 +17,7 @@ declare global {
   }
 }
 
+/** @ignore */
 function uid(): string {
   const length = new Int8Array(1)
   window.crypto.getRandomValues(length)
@@ -19,6 +26,12 @@ function uid(): string {
   return array.join('')
 }
 
+/**
+ * Transforms a callback function to a string identifier that can be passed to the backend.
+ * The backend uses the identifier to `eval()` the callback.
+ *
+ * @return A unique identifier associated with the callback function.
+ */
 function transformCallback(
   callback?: (response: any) => void,
   once = false
@@ -40,16 +53,16 @@ function transformCallback(
   return identifier
 }
 
+/** Command arguments. */
 export interface InvokeArgs {
-  mainThread?: boolean
   [key: string]: unknown
 }
 
 /**
  * Sends a message to the backend.
  *
- * @param cmd
- * @param [args]
+ * @param cmd The command name.
+ * @param args The optional arguments to pass to the command.
  * @return A promise resolving or rejecting to the backend response.
  */
 async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {

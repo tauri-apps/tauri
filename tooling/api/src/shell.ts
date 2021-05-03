@@ -5,6 +5,12 @@
 import { invokeTauriCommand } from './helpers/tauri'
 import { transformCallback } from './tauri'
 
+/**
+ * Access the system shell.
+ * Allows you to spawn child processes and manage files and URLs using their default application.
+ * @packageDocumentation
+ */
+
 interface SpawnOptions {
   /** Current working directory. */
   cwd?: string
@@ -12,24 +18,30 @@ interface SpawnOptions {
   env?: { [name: string]: string }
 }
 
+/** @ignore */
 interface InternalSpawnOptions extends SpawnOptions {
   sidecar?: boolean
 }
 
 interface ChildProcess {
+  /** Exit code of the process. `null` if the process was terminated by a signal on Unix. */
   code: number | null
+  /** If the process was terminated by a signal, represents that signal. */
   signal: number | null
+  /** The data that the process wrote to `stdout`. */
   stdout: string
+  /** The data that the process wrote to `stderr`. */
   stderr: string
 }
 
 /**
  * Spawns a process.
  *
- * @param program The name of the program to execute e.g. 'mkdir' or 'node'
- * @param sidecar Whether the program is a sidecar or a system program
- * @param onEvent
- * @param [args] Command args
+ * @param program The name of the program to execute e.g. 'mkdir' or 'node'.
+ * @param sidecar Whether the program is a sidecar or a system program.
+ * @param onEvent Event handler.
+ * @param args Program arguments.
+ * @param options Configuration for the process spawn.
  * @returns A promise resolving to the process id.
  */
 async function execute(
@@ -80,6 +92,14 @@ class EventEmitter<E> {
     }
   }
 
+  /**
+   * Listen to an event from the child process.
+   *
+   * @param event The event name.
+   * @param handler The event handler.
+   *
+   * @return The `this` instance for chained calls.
+   */
   on(event: E, handler: (arg: any) => void): EventEmitter<E> {
     this.addEventListener(event as any, handler)
     return this
@@ -87,12 +107,20 @@ class EventEmitter<E> {
 }
 
 class Child {
+  /** The child process `pid`. */
   pid: number
 
   constructor(pid: number) {
     this.pid = pid
   }
 
+  /**
+   * Writes `data` to the `stdin`.
+   *
+   * @param data The message to write, either a string or a byte array.
+   *
+   * @return A promise indicating the success or failure of the operation.
+   */
   async write(data: string | number[]): Promise<void> {
     return invokeTauriCommand({
       __tauriModule: 'Shell',
@@ -104,6 +132,11 @@ class Child {
     })
   }
 
+  /**
+   * Kills the child process.
+   *
+   * @return A promise indicating the success or failure of the operation.
+   */
   async kill(): Promise<void> {
     return invokeTauriCommand({
       __tauriModule: 'Shell',
@@ -115,14 +148,31 @@ class Child {
   }
 }
 
+/**
+ * The entry point for spawning child processes.
+ * It emits the `close` and `error` events.
+ */
 class Command extends EventEmitter<'close' | 'error'> {
+  /** Program to execute. */
   program: string
+  /** Program arguments */
   args: string[]
+  /** Spawn options. */
   options: InternalSpawnOptions
+  /** Event emitter for the `stdout`. Emits the `data` event. */
   stdout = new EventEmitter<'data'>()
+  /** Event emitter for the `stderr`. Emits the `data` event. */
   stderr = new EventEmitter<'data'>()
+  /** Child process `pid`. */
   pid: number | null = null
 
+  /**
+   * Creates a new `Command` instance.
+   *
+   * @param program The program to execute.
+   * @param args Program arguments.
+   * @param options Spawn options.
+   */
   constructor(
     program: string,
     args: string | string[] = [],
@@ -135,17 +185,28 @@ class Command extends EventEmitter<'close' | 'error'> {
   }
 
   /**
-   * Creates a command to execute the given sidecar binary.
+   * Creates a command to execute the given sidecar program.
    *
-   * @param program Binary name
+   * @param program The program to execute.
+   * @param args Program arguments.
+   * @param options Spawn options.
    * @returns
    */
-  static sidecar(program: string, args: string | string[] = []): Command {
-    const instance = new Command(program, args)
+  static sidecar(
+    program: string,
+    args: string | string[] = [],
+    options?: SpawnOptions
+  ): Command {
+    const instance = new Command(program, args, options)
     instance.options.sidecar = true
     return instance
   }
 
+  /**
+   * Executes the command as a child process, returning a handle to it.
+   *
+   * @return A promise resolving to the child process handle.
+   */
   async spawn(): Promise<Child> {
     return execute(
       (event) => {
@@ -170,6 +231,11 @@ class Command extends EventEmitter<'close' | 'error'> {
     ).then((pid) => new Child(pid))
   }
 
+  /**
+   * Executes the command as a child process, waiting for it to finish and collecting all of its output.
+   *
+   * @return A promise resolving to the child process output.
+   */
   async execute(): Promise<ChildProcess> {
     return new Promise((resolve, reject) => {
       this.on('error', reject)
@@ -194,16 +260,25 @@ class Command extends EventEmitter<'close' | 'error'> {
   }
 }
 
+/**
+ * Describes the event message received from the command.
+ */
 interface Event<T, V> {
   event: T
   payload: V
 }
 
+/**
+ * Payload for the `Terminated` command event.
+ */
 interface TerminatedPayload {
+  /** Exit code of the process. `null` if the process was terminated by a signal on Unix. */
   code: number | null
+  /** If the process was terminated by a signal, represents that signal. */
   signal: number | null
 }
 
+/** Events emitted by the child process. */
 type CommandEvent =
   | Event<'Stdout', string>
   | Event<'Stderr', string>
@@ -214,8 +289,8 @@ type CommandEvent =
  * Opens a path or URL with the system's default app,
  * or the one specified with `openWith`.
  *
- * @param path the path or URL to open
- * @param [openWith] the app to open the file or URL with
+ * @param path The path or URL to open.
+ * @param openWith The app to open the file or URL with. Defaults to the system default application for the specified path type.
  * @returns
  */
 async function open(path: string, openWith?: string): Promise<void> {

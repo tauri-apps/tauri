@@ -2,15 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+/**
+ * Send notifications to your user. Can also be used with the Notification Web API.
+ * @packageDocumentation
+ */
+
 import { invokeTauriCommand } from './helpers/tauri'
 
+/**
+ * Options to send a notification.
+ */
 export interface Options {
+  /** Notification title. */
   title: string
+  /** Optional notification body. */
   body?: string
+  /** Optional notification icon. */
   icon?: string
 }
 
-export type PartialOptions = Omit<Options, 'title'>
+/** Possible permission values. */
 export type Permission = 'granted' | 'denied' | 'default'
 
 /**
@@ -42,8 +53,7 @@ async function requestPermission(): Promise<Permission> {
 /**
  * Sends a notification to the user.
  *
- * @param options Notification options
- * @returns
+ * @param options Notification options.
  */
 function sendNotification(options: Options | string): void {
   if (typeof options === 'string') {

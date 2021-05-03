@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+/**
+ * Parse arguments from your Command Line Interface.
+ * @packageDocumentation
+ */
+
 import { invokeTauriCommand } from './helpers/tauri'
 
 export interface ArgMatch {
@@ -28,9 +33,9 @@ export interface CliMatches {
 }
 
 /**
- * Gets the CLI matches.
+ * Parse the arguments provided to the current process and get the matches using the configuration defined `tauri.conf.json > tauri > cli`.
  *
- * @returns A promise resolving to cli matches.
+ * @returns A promise resolving to the parsed arguments.
  */
 async function getMatches(): Promise<CliMatches> {
   return invokeTauriCommand<CliMatches>({

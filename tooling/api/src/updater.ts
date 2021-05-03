@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+/**
+ * Customize the auto updater flow.
+ * @packageDocumentation
+ */
+
 import { once, listen, emit, UnlistenFn } from './event'
 
 export type UpdateStatus = 'PENDING' | 'ERROR' | 'DONE' | 'UPTODATE'
@@ -22,6 +27,11 @@ export interface UpdateResult {
   shouldUpdate: boolean
 }
 
+/**
+ * Install the update if there's one available.
+ *
+ * @return A promise indicating the success or failure of the operation.
+ */
 export async function installUpdate(): Promise<void> {
   let unlistenerFn: UnlistenFn | undefined
 
@@ -69,6 +79,11 @@ export async function installUpdate(): Promise<void> {
   })
 }
 
+/**
+ * Checks if an update is available.
+ *
+ * @return Promise resolving to the update status.
+ */
 export async function checkUpdate(): Promise<UpdateResult> {
   let unlistenerFn: UnlistenFn | undefined
 

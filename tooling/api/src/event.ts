@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+/**
+ * The event system allows you to emit events to the backend and listen to events from it.
+ * @packageDocumentation
+ */
+
 import { invokeTauriCommand } from './helpers/tauri'
 import { emit as emitEvent } from './helpers/event'
 import { transformCallback } from './tauri'

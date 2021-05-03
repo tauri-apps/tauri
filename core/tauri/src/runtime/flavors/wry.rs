@@ -508,7 +508,7 @@ impl Runtime for Wry {
   fn run(self) {
     let mut webviews = self.webviews;
     self.event_loop.run(move |event, event_loop, control_flow| {
-      *control_flow = ControlFlow::Poll;
+      *control_flow = ControlFlow::Wait;
 
       for (_, w) in webviews.iter() {
         if let Err(e) = w.evaluate_script() {

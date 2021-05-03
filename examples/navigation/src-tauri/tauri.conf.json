@@ -3,7 +3,8 @@
     "distDir": "../public",
     "devPath": "../public",
     "beforeDevCommand": "",
-    "beforeBuildCommand": ""
+    "beforeBuildCommand": "",
+    "withGlobalTauri": true
   },
   "tauri": {
     "bundle": {

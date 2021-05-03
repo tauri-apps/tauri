@@ -11,7 +11,6 @@ use std::{
 };
 use tauri_codegen::{context_codegen, ContextData};
 
-// TODO docs
 /// A builder for generating a Tauri application context during compile time.
 ///
 /// Meant to be used with [`tauri::include_codegen_context!`] inside your application code.

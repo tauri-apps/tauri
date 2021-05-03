@@ -19,7 +19,7 @@ describe('[CLI] cli.js', () => {
 
   it('gets you help', async () => {
     jest.spyOn(console, 'log')
-    const tests = ['--help', '-h', 'invalid command']
+    const tests = ['--help', '-h']
     for (const test of tests) {
       tauri([test])
       expect(!!console.log.mock.calls[0][0]).toBe(true)

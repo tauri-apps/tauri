@@ -63,7 +63,7 @@ pub fn generate_command(function: ItemFn) -> TokenStream {
       }
     }
 
-    let arg_name_ = format_ident!("_{}", arg_name.unwrap());
+    let arg_name_ = arg_name.unwrap();
     let arg_name_s = arg_name_.to_string();
 
     let arg_type = match arg_type {
@@ -79,11 +79,11 @@ pub fn generate_command(function: ItemFn) -> TokenStream {
     let item = quote!(::tauri::command::CommandItem {
       name: #fn_name_str,
       key: #arg_name_s,
-      message: &message,
+      message: &__message,
     });
 
     invoke_args.append_all(quote!(let #arg_name_ = <#arg_type>::from_command(#item)?;));
-    invoke_arg_names.push(arg_name_.clone());
+    invoke_arg_names.push(arg_name_);
     invoke_arg_types.push(arg_type);
   }
 
@@ -103,13 +103,14 @@ pub fn generate_command(function: ItemFn) -> TokenStream {
     quote! { ::core::result::Result::<_, ::tauri::InvokeError>::Ok(#fn_name(#(#invoke_arg_names),*)#await_maybe) }
   };
 
+  // double underscore prefix temporary until underlying scoping issue is fixed (planned)
   quote! {
     #function
 
     #vis fn #fn_wrapper<P: ::tauri::Params>(invoke: ::tauri::Invoke<P>) {
       use ::tauri::command::CommandArg;
-      let ::tauri::Invoke { message, resolver } = invoke;
-      resolver.respond_async(async move {
+      let ::tauri::Invoke { message: __message, resolver: __resolver } = invoke;
+      __resolver.respond_async(async move {
         #invoke_args
         #return_value
       })

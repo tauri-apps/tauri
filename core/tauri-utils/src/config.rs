@@ -848,6 +848,7 @@ mod test {
       }],
       bundle: BundleConfig {
         identifier: String::from(""),
+        icon: Vec::new(),
       },
       cli: None,
       updater: UpdaterConfig {

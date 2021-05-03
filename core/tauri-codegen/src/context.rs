@@ -50,7 +50,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       .icon
       .iter()
       .find(|i| i.ends_with(".ico"))
-      .map(|i| i.clone())
+      .cloned()
       .unwrap_or_else(|| "icons/icon.ico".to_string());
     let icon_path = config_parent.join(icon_path).display().to_string();
     quote!(Some(include_bytes!(#icon_path).to_vec()))

@@ -4,11 +4,7 @@
 
 //! Extend Tauri functionality.
 
-use crate::{
-  api::config::PluginConfig,
-  hooks::{InvokeMessage, InvokeResolver, PageLoadPayload},
-  App, Invoke, Params, Window,
-};
+use crate::{api::config::PluginConfig, App, Invoke, PageLoadPayload, Params, Window};
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 
@@ -45,7 +41,7 @@ pub trait Plugin<P: Params>: Send {
 
   /// Add invoke_handler API extension commands.
   #[allow(unused_variables)]
-  fn extend_api(&mut self, message: InvokeMessage<P>, resolver: InvokeResolver<P>) {}
+  fn extend_api(&mut self, invoke: Invoke<P>) {}
 }
 
 /// Plugin collection type.
@@ -108,24 +104,22 @@ impl<P: Params> PluginStore<P> {
       .for_each(|plugin| plugin.on_page_load(window.clone(), payload.clone()))
   }
 
-  pub(crate) fn extend_api(&mut self, invoke: Invoke<P>) {
-    let Invoke {
-      mut message,
-      resolver,
-    } = invoke;
-    let command = message.command.replace("plugin:", "");
+  pub(crate) fn extend_api(&mut self, mut invoke: Invoke<P>) {
+    let command = invoke.message.command.replace("plugin:", "");
     let mut tokens = command.split('|');
     // safe to unwrap: split always has a least one item
     let target = tokens.next().unwrap();
 
     if let Some(plugin) = self.store.get_mut(target) {
-      message.command = tokens
+      invoke.message.command = tokens
         .next()
         .map(|c| c.to_string())
         .unwrap_or_else(String::new);
-      plugin.extend_api(message, resolver);
+      plugin.extend_api(invoke);
     } else {
-      resolver.reject(format!("plugin {} not found", target));
+      invoke
+        .resolver
+        .reject(format!("plugin {} not found", target));
     }
   }
 }

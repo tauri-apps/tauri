@@ -4,4 +4,4 @@
 "tauri": patch
 ---
 
-The `assets` field on the `tauri::Context` struct is now a `Arc<impl Assets>`.
+**Breaking:** The `assets` field on the `tauri::Context` struct is now a `Arc<impl Assets>`.

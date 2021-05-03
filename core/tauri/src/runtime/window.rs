@@ -114,8 +114,9 @@ impl<M: Params> PartialEq for DetachedWindow<M> {
 /// We want to export the runtime related window at the crate root, but not look like a re-export.
 pub(crate) mod export {
   use super::*;
-  use crate::command::FromCommand;
+  use crate::command::{CommandArg, CommandItem};
   use crate::runtime::{manager::WindowManager, tag::TagRef};
+  use crate::{Invoke, InvokeError};
   use std::borrow::Borrow;
 
   /// A webview window managed by Tauri.
@@ -167,13 +168,10 @@ pub(crate) mod export {
     }
   }
 
-  impl<'de, P: Params> FromCommand<'de, P> for Window<P> {
-    fn from_command(
-      _: &'de str,
-      _: &'de str,
-      message: &'de InvokeMessage<P>,
-    ) -> Result<Self, serde_json::Error> {
-      Ok(message.window())
+  impl<'de, P: Params> CommandArg<'de, P> for Window<P> {
+    /// Grabs the [`Window`] from the [`CommandItem`]. This will never fail.
+    fn from_command(command: CommandItem<'de, P>) -> Result<Self, InvokeError> {
+      Ok(command.message.window())
     }
   }
 
@@ -205,19 +203,14 @@ pub(crate) mod export {
           );
           let resolver =
             InvokeResolver::new(self, payload.main_thread, payload.callback, payload.error);
+          let invoke = Invoke { message, resolver };
           if let Some(module) = &payload.tauri_module {
             let module = module.to_string();
-            crate::endpoints::handle(
-              module,
-              message,
-              resolver,
-              manager.config(),
-              manager.package_info(),
-            );
+            crate::endpoints::handle(module, invoke, manager.config(), manager.package_info());
           } else if command.starts_with("plugin:") {
-            manager.extend_api(message, resolver);
+            manager.extend_api(invoke);
           } else {
-            manager.run_invoke_handler(message, resolver);
+            manager.run_invoke_handler(invoke);
           }
         }
       }

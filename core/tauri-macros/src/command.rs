@@ -63,7 +63,7 @@ pub fn generate_command(function: ItemFn) -> TokenStream {
       }
     }
 
-    let arg_name_ = arg_name.clone().unwrap();
+    let arg_name_ = arg_name.unwrap();
     let arg_name_s = arg_name_.to_string();
 
     let arg_type = match arg_type {
@@ -76,13 +76,14 @@ pub fn generate_command(function: ItemFn) -> TokenStream {
       }
     };
 
-    invoke_args.append_all(quote! {
-      let #arg_name_ = match <#arg_type>::from_command(#fn_name_str, #arg_name_s, &message) {
-        Ok(value) => value,
-        Err(e) => return tauri::InvokeResponse::error(::tauri::Error::InvalidArgs(#fn_name_str, e).to_string())
-      };
+    let item = quote!(::tauri::command::CommandItem {
+      name: #fn_name_str,
+      key: #arg_name_s,
+      message: &__message,
     });
-    invoke_arg_names.push(arg_name_.clone());
+
+    invoke_args.append_all(quote!(let #arg_name_ = <#arg_type>::from_command(#item)?;));
+    invoke_arg_names.push(arg_name_);
     invoke_arg_types.push(arg_type);
   }
 
@@ -97,21 +98,19 @@ pub fn generate_command(function: ItemFn) -> TokenStream {
   // otherwise we wrap it with an `Ok()`, converting the return value to tauri::InvokeResponse
   // note that all types must implement `serde::Serialize`.
   let return_value = if returns_result {
-    quote! {
-      match #fn_name(#(#invoke_arg_names),*)#await_maybe {
-        Ok(value) => ::core::result::Result::<_, ()>::Ok(value).into(),
-        Err(e) => ::core::result::Result::<(), _>::Err(e).into(),
-      }
-    }
+    quote!(::core::result::Result::Ok(#fn_name(#(#invoke_arg_names),*)#await_maybe?))
   } else {
-    quote! { ::core::result::Result::<_, ()>::Ok(#fn_name(#(#invoke_arg_names),*)#await_maybe).into() }
+    quote! { ::core::result::Result::<_, ::tauri::InvokeError>::Ok(#fn_name(#(#invoke_arg_names),*)#await_maybe) }
   };
 
+  // double underscore prefix temporary until underlying scoping issue is fixed (planned)
   quote! {
     #function
-    #vis fn #fn_wrapper<P: ::tauri::Params>(message: ::tauri::InvokeMessage<P>, resolver: ::tauri::InvokeResolver<P>) {
-      use ::tauri::command::FromCommand;
-      resolver.respond_async(async move {
+
+    #vis fn #fn_wrapper<P: ::tauri::Params>(invoke: ::tauri::Invoke<P>) {
+      use ::tauri::command::CommandArg;
+      let ::tauri::Invoke { message: __message, resolver: __resolver } = invoke;
+      __resolver.respond_async(async move {
         #invoke_args
         #return_value
       })
@@ -139,12 +138,12 @@ pub fn generate_handler(item: proc_macro::TokenStream) -> TokenStream {
   });
 
   quote! {
-    move |message, resolver| {
-      let cmd = message.command().to_string();
-      match cmd.as_str() {
-        #(stringify!(#fn_names) => #fn_wrappers(message, resolver),)*
+    move |invoke| {
+      let cmd = invoke.message.command();
+      match cmd {
+        #(stringify!(#fn_names) => #fn_wrappers(invoke),)*
         _ => {
-          resolver.reject(format!("command {} not found", cmd))
+          invoke.resolver.reject(format!("command {} not found", cmd))
         },
       }
     }

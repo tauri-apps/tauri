@@ -54,8 +54,8 @@ use std::{borrow::Borrow, collections::HashMap, path::PathBuf};
 pub use {
   self::api::config::WindowUrl,
   self::hooks::{
-    InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad, PageLoadPayload,
-    SetupHook,
+    Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
+    PageLoadPayload, SetupHook,
   },
   self::runtime::app::{App, Builder},
   self::runtime::flavors::wry::Wry,

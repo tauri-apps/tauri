@@ -10,7 +10,7 @@ use crate::{
     PackageInfo,
   },
   event::{Event, EventHandler, Listeners},
-  hooks::{InvokeHandler, InvokeMessage, InvokeResolver, OnPageLoad, PageLoadPayload},
+  hooks::{InvokeHandler, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
   runtime::{
     tag::{tags_to_javascript_array, Tag, TagRef, ToJsString},
@@ -22,7 +22,7 @@ use crate::{
     Icon, Runtime,
   },
   sealed::ParamsBase,
-  App, Context, Params, StateManager, Window,
+  App, Context, Invoke, Params, StateManager, Window,
 };
 use serde::Serialize;
 use serde_json::Value as JsonValue;
@@ -401,7 +401,7 @@ mod test {
     let manager: WindowManager<Args<String, String, _, Wry>> = WindowManager::with_handlers(
       context,
       PluginStore::default(),
-      Box::new(|_, _| ()),
+      Box::new(|_| ()),
       Box::new(|_, _| ()),
       Default::default(),
       StateManager::new(),
@@ -416,8 +416,8 @@ mod test {
 }
 
 impl<P: Params> WindowManager<P> {
-  pub fn run_invoke_handler(&self, message: InvokeMessage<P>, resolver: InvokeResolver<P>) {
-    (self.inner.invoke_handler)(message, resolver);
+  pub fn run_invoke_handler(&self, invoke: Invoke<P>) {
+    (self.inner.invoke_handler)(invoke);
   }
 
   pub fn run_on_page_load(&self, window: Window<P>, payload: PageLoadPayload) {
@@ -430,13 +430,13 @@ impl<P: Params> WindowManager<P> {
       .on_page_load(window, payload);
   }
 
-  pub fn extend_api(&self, message: InvokeMessage<P>, resolver: InvokeResolver<P>) {
+  pub fn extend_api(&self, invoke: Invoke<P>) {
     self
       .inner
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .extend_api(message, resolver);
+      .extend_api(invoke);
   }
 
   pub fn initialize_plugins(&self, app: &App<P>) -> crate::Result<()> {

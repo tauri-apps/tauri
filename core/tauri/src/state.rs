@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::command::FromCommand;
-use crate::{InvokeMessage, Params};
+use crate::command::{CommandArg, CommandItem};
+use crate::{InvokeError, Params};
 use state::Container;
 
 /// A guard for a state value.
@@ -34,13 +34,10 @@ impl<T: Send + Sync + 'static> Clone for State<'_, T> {
   }
 }
 
-impl<'r, 'de: 'r, T: Send + Sync + 'static, P: Params> FromCommand<'de, P> for State<'r, T> {
-  fn from_command(
-    _: &'de str,
-    _: &'de str,
-    message: &'de InvokeMessage<P>,
-  ) -> Result<Self, serde_json::Error> {
-    Ok(message.state.get())
+impl<'r, 'de: 'r, T: Send + Sync + 'static, P: Params> CommandArg<'de, P> for State<'r, T> {
+  /// Grabs the [`State`] from the [`CommandItem`]. This will never fail.
+  fn from_command(command: CommandItem<'de, P>) -> Result<Self, InvokeError> {
+    Ok(command.message.state_ref().get())
   }
 }
 

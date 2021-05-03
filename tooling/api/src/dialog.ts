@@ -9,21 +9,37 @@
 
 import { invokeTauriCommand } from './helpers/tauri'
 
+/** Extension filters for the file dialog. */
 export interface DialogFilter {
+  /** Filter name. */
   name: string
+  /**
+   * Extensions to filter, without a `.` prefix.
+   * @example
+   * ```typescript
+   * extensions: ['svg', 'png']
+   * ```
+   */
   extensions: string[]
 }
 
+/** Options for the open dialog. */
 export interface OpenDialogOptions {
+  /** The filters of the dialog. */
   filters?: DialogFilter[]
+  /** Initial directory or file path. It must exist. */
   defaultPath?: string
-  fileName?: string
+  /** Whether the dialog allows multiple selection or not. */
   multiple?: boolean
+  /** Whether the dialog is a directory selection or not. */
   directory?: boolean
 }
 
+/** Options for the save dialog. */
 export interface SaveDialogOptions {
+  /** The filters of the dialog. */
   filters?: DialogFilter[]
+  /** Initial directory or file path. It must exist. */
   defaultPath?: string
 }
 

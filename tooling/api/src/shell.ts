@@ -37,6 +37,7 @@ interface ChildProcess {
 /**
  * Spawns a process.
  *
+ * @ignore
  * @param program The name of the program to execute e.g. 'mkdir' or 'node'.
  * @param sidecar Whether the program is a sidecar or a system program.
  * @param onEvent Event handler.
@@ -67,11 +68,13 @@ async function execute(
 }
 
 class EventEmitter<E> {
+  /** @ignore  */
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  eventListeners: { [key: string]: Array<(arg: any) => void> } = Object.create(
-    null
-  )
+  private eventListeners: {
+    [key: string]: Array<(arg: any) => void>
+  } = Object.create(null)
 
+  /** @ignore  */
   private addEventListener(event: string, handler: (arg: any) => void): void {
     if (event in this.eventListeners) {
       // eslint-disable-next-line security/detect-object-injection
@@ -82,6 +85,7 @@ class EventEmitter<E> {
     }
   }
 
+  /** @ignore  */
   _emit(event: E, payload: any): void {
     if (event in this.eventListeners) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -118,6 +122,13 @@ class Child {
    * Writes `data` to the `stdin`.
    *
    * @param data The message to write, either a string or a byte array.
+   * @example
+   * ```typescript
+   * const command = new Command('node')
+   * const child = await command.spawn()
+   * await child.write('message')
+   * await child.write([0, 1, 2, 3, 4, 5])
+   * ```
    *
    * @return A promise indicating the success or failure of the operation.
    */
@@ -151,20 +162,31 @@ class Child {
 /**
  * The entry point for spawning child processes.
  * It emits the `close` and `error` events.
+ * @example
+ * ```typescript
+ * const command = new Command('node')
+ * command.on('close', data => {
+ *   console.log(`command finished with code ${data.code} and signal ${data.signal}`)
+ * })
+ * command.on('error', error => console.error(`command error: "${error}"`))
+ * command.stdout.on('data', line => console.log(`command stdout: "${line}"`))
+ * command.stderr.on('data', line => console.log(`command stderr: "${line}"`))
+ *
+ * const child = await command.spawn()
+ * console.log('pid:', child.pid)
+ * ```
  */
 class Command extends EventEmitter<'close' | 'error'> {
-  /** Program to execute. */
-  program: string
-  /** Program arguments */
-  args: string[]
-  /** Spawn options. */
-  options: InternalSpawnOptions
+  /** @ignore Program to execute. */
+  private readonly program: string
+  /** @ignore Program arguments */
+  private readonly args: string[]
+  /** @ignore Spawn options. */
+  private readonly options: InternalSpawnOptions
   /** Event emitter for the `stdout`. Emits the `data` event. */
-  stdout = new EventEmitter<'data'>()
+  readonly stdout = new EventEmitter<'data'>()
   /** Event emitter for the `stderr`. Emits the `data` event. */
-  stderr = new EventEmitter<'data'>()
-  /** Child process `pid`. */
-  pid: number | null = null
+  readonly stderr = new EventEmitter<'data'>()
 
   /**
    * Creates a new `Command` instance.
@@ -186,6 +208,11 @@ class Command extends EventEmitter<'close' | 'error'> {
 
   /**
    * Creates a command to execute the given sidecar program.
+   * @example
+   * ```typescript
+   * const command = Command.sidecar('my-sidecar')
+   * const output = await command.execute()
+   * ```
    *
    * @param program The program to execute.
    * @param args Program arguments.
@@ -233,6 +260,14 @@ class Command extends EventEmitter<'close' | 'error'> {
 
   /**
    * Executes the command as a child process, waiting for it to finish and collecting all of its output.
+   * @example
+   * ```typescript
+   * const output = await new Command('echo', 'message').execute()
+   * assert(output.code === 0)
+   * assert(output.signal === null)
+   * assert(output.stdout === 'message')
+   * assert(output.stderr === '')
+   * ```
    *
    * @return A promise resolving to the child process output.
    */
@@ -288,6 +323,15 @@ type CommandEvent =
 /**
  * Opens a path or URL with the system's default app,
  * or the one specified with `openWith`.
+ * @example
+ * ```typescript
+ * // opens the given URL on the default browser:
+ * await open('https://github.com/tauri-apps/tauri')
+ * // opens the given URL using `firefox`:
+ * await open('https://github.com/tauri-apps/tauri', 'firefox')
+ * // opens a file using the default program:
+ * await open('/path/to/file')
+ * ```
  *
  * @param path The path or URL to open.
  * @param openWith The app to open the file or URL with. Defaults to the system default application for the specified path type.

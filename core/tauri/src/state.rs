@@ -31,8 +31,8 @@ impl<T: Send + Sync + 'static> std::ops::Deref for State<'_, T> {
 
 /// A guard for a state value that references [`Params`].
 pub struct StateP<'r, T: Send + Sync + 'static, P: Params> {
-  data: &'r T,
-  _marker: PhantomData<P>,
+  state: State<'r, T>,
+  _params: PhantomData<P>,
 }
 
 impl<'r, T: Send + Sync + 'static, P: Params> StateP<'r, T, P> {
@@ -41,7 +41,7 @@ impl<'r, T: Send + Sync + 'static, P: Params> StateP<'r, T, P> {
   /// [`Deref`] with a [`Deref::Target`] of `T`.
   #[inline(always)]
   pub fn inner(&self) -> &'r T {
-    self.data
+    self.state.inner()
   }
 }
 
@@ -50,7 +50,7 @@ impl<T: Send + Sync + 'static, P: Params> std::ops::Deref for StateP<'_, T, P> {
 
   #[inline(always)]
   fn deref(&self) -> &T {
-    self.data
+    self.state.deref()
   }
 }
 
@@ -94,8 +94,8 @@ impl StateManager {
   /// Gets the state associated with the specified type - while specifying [`Params`]
   pub fn with_params<T: Send + Sync + 'static, P: Params>(&self) -> StateP<'_, T, P> {
     StateP {
-      data: self.0.get(),
-      _marker: PhantomData,
+      state: State(self.0.get()),
+      _params: PhantomData,
     }
   }
 }

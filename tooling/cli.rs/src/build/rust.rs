@@ -14,11 +14,9 @@ use anyhow::Context;
 use serde::Deserialize;
 
 use crate::helpers::{app_paths::tauri_dir, config::Config};
-#[cfg(windows)]
-use tauri_bundler::WindowsSettings;
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
-  UpdaterSettings,
+  UpdaterSettings, WindowsSettings,
 };
 
 /// The `workspace` section of the app configuration (read from Cargo.toml).
@@ -337,6 +335,16 @@ fn tauri_config_to_bundle_settings(
   config: crate::helpers::config::BundleConfig,
   updater_config: crate::helpers::config::UpdaterConfig,
 ) -> crate::Result<BundleSettings> {
+  #[cfg(windows)]
+  let windows_icon_path = PathBuf::from(
+    config
+      .icon
+      .as_ref()
+      .and_then(|icons| icons.iter().find(|i| i.ends_with(".ico")).cloned())
+      .expect("the bundle config must have a `.ico` icon"),
+  );
+  #[cfg(not(windows))]
+  let windows_icon_path = PathBuf::from("");
   Ok(BundleSettings {
     identifier: config.identifier,
     icon: config.icon,
@@ -366,12 +374,12 @@ fn tauri_config_to_bundle_settings(
       signing_identity: config.macos.signing_identity,
       entitlements: config.macos.entitlements,
     },
-    #[cfg(windows)]
     windows: WindowsSettings {
       timestamp_url: config.windows.timestamp_url,
       digest_algorithm: config.windows.digest_algorithm,
       certificate_thumbprint: config.windows.certificate_thumbprint,
       wix: config.windows.wix.map(|w| w.into()),
+      icon_path: windows_icon_path,
     },
     updater: Some(UpdaterSettings {
       active: updater_config.active,

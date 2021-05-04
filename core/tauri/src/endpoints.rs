@@ -9,6 +9,9 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
+
+use std::sync::Arc;
+
 mod app;
 mod cli;
 mod dialog;
@@ -58,7 +61,7 @@ impl Module {
     self,
     window: Window<M>,
     resolver: InvokeResolver<M>,
-    config: &Config,
+    config: Arc<Config>,
     package_info: PackageInfo,
   ) {
     match self {
@@ -71,7 +74,7 @@ impl Module {
       Self::Process(cmd) => resolver
         .respond_async(async move { cmd.run().and_then(|r| r.json).map_err(InvokeError::from) }),
       Self::Fs(cmd) => resolver
-        .respond_async(async move { cmd.run().and_then(|r| r.json).map_err(InvokeError::from) }),
+        .respond_async(async move { cmd.run(config).and_then(|r| r.json).map_err(InvokeError::from) }),
       Self::Window(cmd) => resolver.respond_async(async move {
         cmd
           .run(window)
@@ -113,15 +116,12 @@ impl Module {
           })
         }
       }
-      Self::Notification(cmd) => {
-        let identifier = config.tauri.bundle.identifier.clone();
-        resolver.respond_async(async move {
-          cmd
-            .run(identifier)
-            .and_then(|r| r.json)
-            .map_err(InvokeError::from)
-        })
-      }
+      Self::Notification(cmd) => resolver.respond_closure(move || {
+        cmd
+          .run(config)
+          .and_then(|r| r.json)
+          .map_err(InvokeError::from)
+      }),
       Self::Http(cmd) => resolver.respond_async(async move {
         cmd
           .run()
@@ -142,7 +142,7 @@ impl Module {
 pub(crate) fn handle<P: Params>(
   module: String,
   invoke: Invoke<P>,
-  config: &Config,
+  config: Arc<Config>,
   package_info: &PackageInfo,
 ) {
   let Invoke { message, resolver } = invoke;

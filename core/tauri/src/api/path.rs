@@ -7,6 +7,8 @@ use std::{
   path::{Path, PathBuf},
 };
 
+use crate::Config;
+
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 /// A Base Directory to use.
@@ -52,7 +54,7 @@ pub enum BaseDirectory {
   /// The Resource directory.
   Resource,
   /// The default App config directory.
-  /// Resolves to ${CONFIG_DIR}/${APP_NAME}
+  /// Resolves to ${BaseDirectory::Config}/${config.tauri.bundle.identifier}
   App,
   /// The current working directory.
   Current,
@@ -68,6 +70,7 @@ pub enum BaseDirectory {
 /// // path is equal to "/home/${whoami}/.config/path/to/something" on Linux
 /// ```
 pub fn resolve_path<P: AsRef<Path>>(
+  config: &Config,
   path: P,
   dir: Option<BaseDirectory>,
 ) -> crate::api::Result<PathBuf> {
@@ -90,7 +93,7 @@ pub fn resolve_path<P: AsRef<Path>>(
       BaseDirectory::Template => template_dir(),
       BaseDirectory::Video => video_dir(),
       BaseDirectory::Resource => resource_dir(),
-      BaseDirectory::App => app_dir(),
+      BaseDirectory::App => app_dir(config),
       BaseDirectory::Current => Some(env::current_dir()?),
     };
     if let Some(mut base_dir_path_value) = base_dir_path {
@@ -193,24 +196,7 @@ pub fn resource_dir() -> Option<PathBuf> {
   crate::api::platform::resource_dir().ok()
 }
 
-fn app_name() -> crate::api::Result<String> {
-  let exe = std::env::current_exe()?;
-  let app_name = exe
-    .file_stem()
-    .expect("failed to get exe filename")
-    .to_string_lossy();
-
-  Ok(app_name.to_string())
-}
-
 /// Returns the path to the suggested directory for your app config files.
-pub fn app_dir() -> Option<PathBuf> {
-  dirs_next::config_dir().and_then(|mut dir| {
-    if let Ok(app_name) = app_name() {
-      dir.push(app_name);
-      Some(dir)
-    } else {
-      None
-    }
-  })
+pub fn app_dir(config: &Config) -> Option<PathBuf> {
+  dirs_next::config_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
 }

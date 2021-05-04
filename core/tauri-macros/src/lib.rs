@@ -5,6 +5,7 @@
 extern crate proc_macro;
 use crate::context::ContextItems;
 use proc_macro::TokenStream;
+use std::convert::TryFrom;
 use syn::{parse_macro_input, ItemFn};
 
 mod command;
@@ -15,14 +16,13 @@ mod context;
 #[proc_macro_attribute]
 pub fn command(_attrs: TokenStream, item: TokenStream) -> TokenStream {
   let function = parse_macro_input!(item as ItemFn);
-  let gen = command::generate_command(function);
-  gen.into()
+  let body = command::WrapperBody::try_from(&function);
+  command::Wrapper::new(function, body).into()
 }
 
 #[proc_macro]
 pub fn generate_handler(item: TokenStream) -> TokenStream {
-  let gen = command::generate_handler(item);
-  gen.into()
+  parse_macro_input!(item as command::Handler).into()
 }
 
 /// Reads a Tauri config file and generates a `::tauri::Context` based on the content.

@@ -397,7 +397,7 @@ pub struct PackageConfig {
 }
 
 /// The tauri.conf.json mapper.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, Default, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
   /// Package settings.

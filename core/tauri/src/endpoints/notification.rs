@@ -7,6 +7,9 @@ use serde::Deserialize;
 
 #[cfg(notification_all)]
 use crate::api::notification::Notification;
+use crate::Config;
+
+use std::sync::Arc;
 
 // `Granted` response from `request_permission`. Matches the Web API return value.
 #[cfg(notification_all)]
@@ -39,21 +42,21 @@ pub enum Cmd {
 
 impl Cmd {
   #[allow(unused_variables)]
-  pub fn run(self, identifier: String) -> crate::Result<InvokeResponse> {
+  pub fn run(self, config: Arc<Config>) -> crate::Result<InvokeResponse> {
     match self {
       #[cfg(notification_all)]
-      Self::Notification { options } => send(options, identifier).map(Into::into),
+      Self::Notification { options } => send(options, &config).map(Into::into),
       #[cfg(not(notification_all))]
       Self::Notification { .. } => Err(crate::Error::ApiNotAllowlisted("notification".to_string())),
       Self::IsNotificationPermissionGranted => {
         #[cfg(notification_all)]
-        return is_permission_granted().map(Into::into);
+        return is_permission_granted(&config).map(Into::into);
         #[cfg(not(notification_all))]
         Ok(false.into())
       }
       Self::RequestNotificationPermission => {
         #[cfg(notification_all)]
-        return request_permission().map(Into::into);
+        return request_permission(&config).map(Into::into);
         #[cfg(not(notification_all))]
         Ok(PERMISSION_DENIED.into())
       }
@@ -62,8 +65,9 @@ impl Cmd {
 }
 
 #[cfg(notification_all)]
-pub fn send(options: NotificationOptions, identifier: String) -> crate::Result<InvokeResponse> {
-  let mut notification = Notification::new(identifier).title(options.title);
+pub fn send(options: NotificationOptions, config: &Config) -> crate::Result<InvokeResponse> {
+  let mut notification =
+    Notification::new(config.tauri.bundle.identifier.clone()).title(options.title);
   if let Some(body) = options.body {
     notification = notification.body(body);
   }
@@ -75,8 +79,8 @@ pub fn send(options: NotificationOptions, identifier: String) -> crate::Result<I
 }
 
 #[cfg(notification_all)]
-pub fn is_permission_granted() -> crate::Result<InvokeResponse> {
-  let settings = crate::settings::read_settings()?;
+pub fn is_permission_granted(config: &Config) -> crate::Result<InvokeResponse> {
+  let settings = crate::settings::read_settings(config)?;
   if let Some(allow_notification) = settings.allow_notification {
     Ok(allow_notification.into())
   } else {
@@ -85,8 +89,8 @@ pub fn is_permission_granted() -> crate::Result<InvokeResponse> {
 }
 
 #[cfg(notification_all)]
-pub fn request_permission() -> crate::Result<String> {
-  let mut settings = crate::settings::read_settings()?;
+pub fn request_permission(config: &Config) -> crate::Result<String> {
+  let mut settings = crate::settings::read_settings(config)?;
   if let Some(allow_notification) = settings.allow_notification {
     return Ok(if allow_notification {
       PERMISSION_GRANTED.to_string()
@@ -101,12 +105,12 @@ pub fn request_permission() -> crate::Result<String> {
   match answer {
     crate::api::dialog::AskResponse::Yes => {
       settings.allow_notification = Some(true);
-      crate::settings::write_settings(settings)?;
+      crate::settings::write_settings(config, settings)?;
       Ok(PERMISSION_GRANTED.to_string())
     }
     crate::api::dialog::AskResponse::No => {
       settings.allow_notification = Some(false);
-      crate::settings::write_settings(settings)?;
+      crate::settings::write_settings(config, settings)?;
       Ok(PERMISSION_DENIED.to_string())
     }
   }

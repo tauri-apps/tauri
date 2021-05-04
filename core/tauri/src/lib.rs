@@ -144,7 +144,7 @@ pub trait Params: sealed::ParamsBase {
 /// TODO: expand these docs
 pub trait Manager<P: Params>: sealed::ManagerBase<P> {
   /// The [`Config`] the manager was created with.
-  fn config(&self) -> &Config {
+  fn config(&self) -> Arc<Config> {
     self.manager().config()
   }
 

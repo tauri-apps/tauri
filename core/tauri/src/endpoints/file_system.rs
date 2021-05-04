@@ -104,14 +104,18 @@ impl Cmd {
   pub fn run(self, config: Arc<Config>) -> crate::Result<InvokeResponse> {
     match self {
       #[cfg(fs_read_text_file)]
-      Self::ReadTextFile { path, options } => read_text_file(&config, path, options).map(Into::into),
+      Self::ReadTextFile { path, options } => {
+        read_text_file(&config, path, options).map(Into::into)
+      }
       #[cfg(not(fs_read_text_file))]
       Self::ReadTextFile { .. } => Err(crate::Error::ApiNotAllowlisted(
         "fs > readTextFile".to_string(),
       )),
 
       #[cfg(fs_read_binary_file)]
-      Self::ReadBinaryFile { path, options } => read_binary_file(&config, path, options).map(Into::into),
+      Self::ReadBinaryFile { path, options } => {
+        read_binary_file(&config, path, options).map(Into::into)
+      }
       #[cfg(not(fs_read_binary_file))]
       Self::ReadBinaryFile { .. } => Err(crate::Error::ApiNotAllowlisted(
         "readBinaryFile".to_string(),

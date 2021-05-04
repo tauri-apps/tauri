@@ -65,7 +65,8 @@ pub enum BaseDirectory {
 /// # Example
 /// ```
 /// use tauri::api::path::{resolve_path, BaseDirectory};
-/// let path = resolve_path("path/to/something", Some(BaseDirectory::Config))
+/// // we use the default config, but in an actual app you should get the Config created from tauri.conf.json
+/// let path = resolve_path(&Default::default(), "path/to/something", Some(BaseDirectory::Config))
 ///   .expect("failed to resolve path");
 /// // path is equal to "/home/${whoami}/.config/path/to/something" on Linux
 /// ```

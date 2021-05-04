@@ -21,13 +21,15 @@ Tauri Apps
 
 ## Current Releases
 
-| Component                                                                   | Description                    | Version                                                                                          | Lin | Win | Mac |
-| --------------------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------ | --- | --- | --- |
-| [**cli.rs**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli.rs)   | create, develop and build apps | [![](https://img.shields.io/crates/v/tauri-cli.svg)](https://crates.io/crates/tauri-cli)         | ✅   | ✅   | ✅   |
-| [**cli.js**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli.js)   | Node.js CLI wrapper for cli.rs | [![](https://img.shields.io/npm/v/@tauri-apps/cli.svg)](https://www.npmjs.com/package/@tauri-apps/cli)               | ✅   | ✅   | ✅   |
-| [**api.js**](https://github.com/tauri-apps/tauri/tree/dev/tooling/api)      | JS API for interaction with Rust backend | [![](https://img.shields.io/npm/v/@tauri-apps/api.svg)](https://www.npmjs.com/package/@tauri-apps/api)               | ✅   | ✅   | ✅   |
-| [**core**](https://github.com/tauri-apps/tauri/tree/dev/core/tauri)         | runtime core                   | [![](https://img.shields.io/crates/v/tauri.svg)](https://crates.io/crates/tauri)                 | ✅   | ✅   | ✅   |
-| [**bundler**](https://github.com/tauri-apps/tauri/tree/dev/tooling/bundler) | manufacture the final binaries | [![](https://img.shields.io/crates/v/tauri-bundler.svg)](https://crates.io/crates/tauri-bundler) | ✅   | ✅   | ✅   |
+| Component                                                                                     | Description                              | Version                                                                                                          | Lin | Win | Mac |
+| --------------------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | --- | --- | --- |
+| [**cli.rs**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli.rs)                     | create, develop and build apps           | [![](https://img.shields.io/crates/v/tauri-cli.svg)](https://crates.io/crates/tauri-cli)                         | ✅   | ✅   | ✅   |
+| [**cli.js**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli.js)                     | Node.js CLI wrapper for cli.rs           | [![](https://img.shields.io/npm/v/@tauri-apps/cli.svg)](https://www.npmjs.com/package/@tauri-apps/cli)           | ✅   | ✅   | ✅   |
+| [**api.js**](https://github.com/tauri-apps/tauri/tree/dev/tooling/api)                        | JS API for interaction with Rust backend | [![](https://img.shields.io/npm/v/@tauri-apps/api.svg)](https://www.npmjs.com/package/@tauri-apps/api)           | ✅   | ✅   | ✅   |
+| [**create-tauri-app**](https://github.com/tauri-apps/tauri/tree/dev/tooling/create-tauri-app) | Get started with your first Tauri app    | [![](https://img.shields.io/npm/v/create-tauri-app.svg)](https://www.npmjs.com/package/create-tauri-app)         | ✅   | ✅   | ✅   |
+| [**vue-cli-plugin-tauri**](https://github.com/tauri-apps/vue-cli-plugin-tauri/)               | Vue CLI plugin for Tauri                 | [![](https://img.shields.io/npm/v/vue-cli-plugin-tauri.svg)](https://www.npmjs.com/package/vue-cli-plugin-tauri) | ✅   | ✅   | ✅   |
+| [**core**](https://github.com/tauri-apps/tauri/tree/dev/core/tauri)                           | runtime core                             | [![](https://img.shields.io/crates/v/tauri.svg)](https://crates.io/crates/tauri)                                 | ✅   | ✅   | ✅   |
+| [**bundler**](https://github.com/tauri-apps/tauri/tree/dev/tooling/bundler)                   | manufacture the final binaries           | [![](https://img.shields.io/crates/v/tauri-bundler.svg)](https://crates.io/crates/tauri-bundler)                 | ✅   | ✅   | ✅   |
 
 ## Introduction
 Tauri is a framework for building tiny, blazing fast binaries for all major desktop platforms. Developers can integrate any front-end framework that compiles to HTML, JS and CSS for building their user interface. The backend of the application is a rust-sourced binary with an API that the front-end can interact with.

@@ -28,8 +28,6 @@ Tauri Apps
 | [**api.js**](https://github.com/tauri-apps/tauri/tree/dev/tooling/api)      | JS API for interaction with Rust backend | [![](https://img.shields.io/npm/v/@tauri-apps/api.svg)](https://www.npmjs.com/package/@tauri-apps/api)               | ✅   | ✅   | ✅   |
 | [**core**](https://github.com/tauri-apps/tauri/tree/dev/core/tauri)         | runtime core                   | [![](https://img.shields.io/crates/v/tauri.svg)](https://crates.io/crates/tauri)                 | ✅   | ✅   | ✅   |
 | [**bundler**](https://github.com/tauri-apps/tauri/tree/dev/tooling/bundler) | manufacture the final binaries | [![](https://img.shields.io/crates/v/tauri-bundler.svg)](https://crates.io/crates/tauri-bundler) | ✅   | ✅   | ✅   |
-| [**utils**](https://github.com/tauri-apps/tauri/tree/dev/core/tauri-utils)  | common tools for tauri         | [![](https://img.shields.io/crates/v/tauri-utils.svg)](https://crates.io/crates/tauri-utils)     | ✅   | ✅   | ✅   |
-
 
 ## Introduction
 Tauri is a framework for building tiny, blazing fast binaries for all major desktop platforms. Developers can integrate any front-end framework that compiles to HTML, JS and CSS for building their user interface. The backend of the application is a rust-sourced binary with an API that the front-end can interact with.

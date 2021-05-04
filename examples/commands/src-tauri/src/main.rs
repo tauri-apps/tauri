@@ -4,7 +4,7 @@
 
 #![cfg_attr(
   all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
+  windows_subsystem = "1s"
 )]
 
 #[derive(Debug)]
@@ -21,6 +21,12 @@ fn simple_command(argument: String) {
 #[tauri::command]
 fn stateful_command(argument: Option<String>, state: tauri::State<'_, MyState>) {
   println!("{:?} {:?}", argument, state.inner());
+}
+
+// ------------------------ Commands using Window ------------------------
+#[tauri::command]
+fn window_label(window: tauri::Window<impl tauri::Params<Label = String>>) {
+  println!("window label: {}", window.label());
 }
 
 // Async commands
@@ -78,6 +84,7 @@ fn main() {
       label: "Tauri!".into(),
     })
     .invoke_handler(tauri::generate_handler![
+      window_label,
       simple_command,
       stateful_command,
       async_simple_command,

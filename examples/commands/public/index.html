@@ -24,6 +24,7 @@
 
     const container = document.querySelector('#container')
     const commands = [
+      { name: 'window_label', required: true },
       { name: 'simple_command', required: true },
       { name: 'stateful_command', required: false },
       { name: 'async_simple_command', required: true },
@@ -34,7 +35,7 @@
       { name: 'async_stateful_command_with_result', required: false },
     ]
 
-    for (command of commands) {
+    for (const command of commands) {
       const { name, required } = command
       const button = document.createElement('button')
       button.innerHTML = `Run ${name}`;

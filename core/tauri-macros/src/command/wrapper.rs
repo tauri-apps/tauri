@@ -165,7 +165,7 @@ fn parse_arg(command: &Ident, arg: &FnArg) -> syn::Result<TokenStream> {
     err => {
       return Err(syn::Error::new(
         err.span(),
-        "command parameters expected to be a typed pattern",
+        "only named, wildcard, struct, and tuple struct arguments allowed",
       ))
     }
   };

@@ -30,6 +30,11 @@ static BEFORE_DEV: OnceCell<Mutex<Child>> = OnceCell::new();
 fn kill_before_dev_process() {
   if let Some(child) = BEFORE_DEV.get() {
     let mut child = child.lock().unwrap();
+    #[cfg(windows)]
+    let _ = Command::new("powershell")
+      .arg("-Command")
+      .arg(format!("function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid }}; Kill-Tree {}", child.id()))
+      .status();
     #[cfg(not(windows))]
     let _ = Command::new("pkill")
       .args(&["-TERM", "-P"])

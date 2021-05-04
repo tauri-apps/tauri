@@ -101,6 +101,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
+  #[allow(unused_variables)]
   pub fn run(self, config: Arc<Config>) -> crate::Result<InvokeResponse> {
     match self {
       #[cfg(fs_read_text_file)]

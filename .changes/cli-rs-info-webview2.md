@@ -2,4 +2,4 @@
 "cli.rs": patch
 ---
 
-Check Webview2 version on Windows
+Adds Webview2 version on `info` command.

@@ -212,14 +212,20 @@ fn get_version(command: &str, args: &[&str]) -> crate::Result<Option<String>> {
   Ok(version)
 }
 
-#[cfg(target_os = "windows")]
-fn get_webview2_ver() -> crate::Result<Option<String>> {
-  let output = Command::new("powershell").arg("-NoProfile").arg("-Command").arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}").output()?;
+#[cfg(windows)]
+fn webview2_version() -> crate::Result<Option<String>> {
+  let output = Command::new("powershell")
+    .args(&["-NoProfile", "-Command"])
+    .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
+    .output()?;
   let version = if output.status.success() {
     Some(String::from_utf8_lossy(&output.stdout).replace("\n", ""))
   } else {
     // check 32bit installation
-    let output = Command::new("powershell").arg("-NoProfile").arg("-Command").arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}").output()?;
+    let output = Command::new("powershell")
+      .args(&["-NoProfile", "-Command"])
+      .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
+      .output()?;
     if output.status.success() {
       Some(String::from_utf8_lossy(&output.stdout).replace("\n", ""))
     } else {
@@ -339,8 +345,8 @@ impl Info {
     }
     .display();
 
-    #[cfg(target_os = "windows")]
-    VersionBlock::new("Webview2", get_webview2_ver().unwrap_or_default()).display();
+    #[cfg(windows)]
+    VersionBlock::new("Webview2", webview2_version().unwrap_or_default()).display();
 
     let hook = panic::take_hook();
     panic::set_hook(Box::new(|_info| {

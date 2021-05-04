@@ -29,7 +29,13 @@ static BEFORE_DEV: OnceCell<Mutex<Child>> = OnceCell::new();
 
 fn kill_before_dev_process() {
   if let Some(child) = BEFORE_DEV.get() {
-    let _ = child.lock().unwrap().kill();
+    let mut child = child.lock().unwrap();
+    #[cfg(not(windows))]
+    let _ = Command::new("pkill")
+      .args(&["-TERM", "-P"])
+      .arg(child.id().to_string())
+      .status();
+    let _ = child.kill();
   }
 }
 

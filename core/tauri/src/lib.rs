@@ -63,7 +63,7 @@ pub use {
   self::runtime::flavors::wry::Wry,
   self::runtime::webview::{WebviewAttributes, WindowBuilder},
   self::runtime::window::export::Window,
-  self::state::{State, StateManager},
+  self::state::{State, StateManager, StateP},
 };
 
 /// Reads the config file at compile time and generates a [`Context`] based on its content.

@@ -44,7 +44,7 @@ mod rust {
 #[cfg(feature = "ui")]
 mod ui {
   use std::sync::{Arc, Mutex};
-  use tauri::{Manager, Params, State, Window};
+  use tauri::{Manager, Params, State, StateP, Window};
 
   // wrappers around each Window
   // we use a dedicated type because Tauri can only manage a single instance of a given type
@@ -53,7 +53,7 @@ mod ui {
 
   #[tauri::command]
   fn close_splashscreen<P: Params>(
-    splashscreen: State<'_, SplashscreenWindow<P>>,
+    splashscreen: StateP<'_, SplashscreenWindow<P>, P>,
     main: State<'_, MainWindow<P>>,
   ) {
     // Close splashscreen

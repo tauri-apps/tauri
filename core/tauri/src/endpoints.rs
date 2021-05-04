@@ -97,8 +97,12 @@ impl Module {
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
-      Self::Dialog(cmd) => resolver
-        .respond_async(async move { cmd.run().and_then(|r| r.json).map_err(InvokeError::from) }),
+      Self::Dialog(cmd) => {
+        let _ = window.run_on_main_thread(|| {
+          resolver
+            .respond_closure(move || cmd.run().and_then(|r| r.json).map_err(InvokeError::from))
+        });
+      }
       Self::Cli(cmd) => {
         if let Some(cli_config) = config.tauri.cli.clone() {
           resolver.respond_async(async move {

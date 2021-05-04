@@ -4,7 +4,7 @@
 
 use syn::{
   parse::{Parse, ParseBuffer},
-  Ident, Path, PathSegment, Token,
+  Ident, Path, Token,
 };
 
 /// The items parsed from [`generate_handle!`](crate::generate_handle).
@@ -23,7 +23,7 @@ impl Parse for Handler {
       .iter()
       .map(|path| {
         let mut wrapper = path.clone();
-        let last = path_to_command(&mut wrapper);
+        let last = super::path_to_command(&mut wrapper);
 
         // the name of the actual command function
         let command = last.ident.clone();
@@ -62,12 +62,4 @@ impl From<Handler> for proc_macro::TokenStream {
     })
     .into()
   }
-}
-
-/// This function will panic if the passed [`syn::Path`] does not have any segments.
-fn path_to_command(path: &mut Path) -> &mut PathSegment {
-  path
-    .segments
-    .last_mut()
-    .expect("parsed syn::Path has no segment")
 }

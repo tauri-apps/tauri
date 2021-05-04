@@ -146,8 +146,8 @@ impl ToTokens for WrapperBody {
 /// Transform a [`FnArg`] into a command argument. Expects borrowable binding `message` to exist.
 fn parse_arg(command: &Ident, arg: &FnArg) -> syn::Result<TokenStream> {
   // we have no use for self arguments
-  let arg = match arg {
-    FnArg::Typed(arg) => arg.pat.as_ref(),
+  let mut arg = match arg {
+    FnArg::Typed(arg) => arg.pat.as_ref().clone(),
     FnArg::Receiver(arg) => {
       return Err(syn::Error::new(
         arg.span(),
@@ -156,9 +156,12 @@ fn parse_arg(command: &Ident, arg: &FnArg) -> syn::Result<TokenStream> {
     }
   };
 
-  // we only have use for ident typed patterns
-  let arg = match arg {
-    Pat::Ident(arg) => &arg.ident,
+  // we only support patterns supported as arguments to a `ItemFn`.
+  let key = match &mut arg {
+    Pat::Ident(arg) => arg.ident.to_string(),
+    Pat::Wild(_) => "_".into(),
+    Pat::Struct(s) => super::path_to_command(&mut s.path).ident.to_string(),
+    Pat::TupleStruct(s) => super::path_to_command(&mut s.path).ident.to_string(),
     err => {
       return Err(syn::Error::new(
         err.span(),
@@ -168,9 +171,9 @@ fn parse_arg(command: &Ident, arg: &FnArg) -> syn::Result<TokenStream> {
   };
 
   // also catch self arguments that use FnArg::Typed syntax
-  if arg == "self" {
+  if key == "self" {
     return Err(syn::Error::new(
-      arg.span(),
+      key.span(),
       "unable to use self as a command function parameter",
     ));
   }
@@ -178,7 +181,7 @@ fn parse_arg(command: &Ident, arg: &FnArg) -> syn::Result<TokenStream> {
   Ok(quote!(::tauri::command::CommandArg::from_command(
     ::tauri::command::CommandItem {
       name: stringify!(#command),
-      key: stringify!(#arg),
+      key: #key,
       message: &message,
     }
   )))

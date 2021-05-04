@@ -13,7 +13,6 @@ import { invokeTauriCommand } from './helpers/tauri'
 async function exit(exitCode: number = 0): Promise<void> {
   return invokeTauriCommand({
     __tauriModule: 'Process',
-    mainThread: true,
     message: {
       cmd: 'exit',
       exitCode
@@ -29,7 +28,6 @@ async function exit(exitCode: number = 0): Promise<void> {
 async function relaunch(): Promise<void> {
   return invokeTauriCommand({
     __tauriModule: 'Process',
-    mainThread: true,
     message: {
       cmd: 'relaunch'
     }

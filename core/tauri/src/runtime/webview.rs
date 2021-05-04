@@ -174,8 +174,6 @@ pub(crate) struct InvokePayload {
   pub(crate) tauri_module: Option<String>,
   pub(crate) callback: String,
   pub(crate) error: String,
-  #[serde(rename = "mainThread", default)]
-  pub(crate) main_thread: bool,
   #[serde(flatten)]
   pub(crate) inner: JsonValue,
 }

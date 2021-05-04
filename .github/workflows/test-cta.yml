@@ -1,0 +1,97 @@
+# Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: test create-tauri-app
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        default: "dev"
+  pull_request:
+    paths:
+      - "tooling/create-tauri-app/**"
+
+env:
+  RUST_BACKTRACE: 1
+
+jobs:
+  create-recipe-with-npm:
+    name: "node@${{ matrix.node }} + npm@${{ matrix.manager }}: ${{ matrix.recipe }}"
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["14", "16"]
+        manager: ["6", "7"]
+        recipe: ["vanillajs", "reactjs", "reactts", "vite", "vuecli"]
+        exclude:
+          - node: "16"
+            manager: "6"
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.head_ref || github.event.inputs.branch }}
+      - name: install stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: volta-cli/action@v1
+        with:
+          node-version: ${{ matrix.node }}
+          npm-version: ${{ matrix.manager }}
+          yarn-version: 1.22.5
+      - name: install webkit2gtk (ubuntu only)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0
+      - run: yarn
+        working-directory: tooling/create-tauri-app
+      - run: yarn build
+        working-directory: tooling/create-tauri-app
+      - run: yarn test
+        working-directory: tooling/create-tauri-app
+        env:
+          TAURI_RECIPE: ${{ matrix.recipe }}
+          TAURI_RUN_MANAGER: "npm"
+
+  create-recipe-with-yarn:
+    name: "node@${{ matrix.node }} + yarn@1: ${{ matrix.recipe }}"
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["14", "16"]
+        recipe: ["vanillajs", "reactjs", "reactts", "vite", "vuecli"]
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.head_ref || github.event.inputs.branch }}
+      - name: install stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: volta-cli/action@v1
+        with:
+          node-version: ${{ matrix.node }}
+          yarn-version: 1.22.5
+      - name: install webkit2gtk (ubuntu only)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0
+      - run: yarn
+        working-directory: tooling/create-tauri-app
+      - run: yarn build
+        working-directory: tooling/create-tauri-app
+      - run: yarn test
+        working-directory: tooling/create-tauri-app
+        env:
+          TAURI_RECIPE: ${{ matrix.recipe }}
+          TAURI_RUN_MANAGER: "yarn"

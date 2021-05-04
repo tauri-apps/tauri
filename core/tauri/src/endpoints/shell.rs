@@ -6,14 +6,12 @@ use crate::{endpoints::InvokeResponse, Params, Window};
 use serde::Deserialize;
 
 #[cfg(shell_execute)]
-use std::{
-  collections::HashMap,
-  sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
+use std::{collections::HashMap, path::PathBuf};
 
 type ChildId = u32;
 #[cfg(shell_execute)]
-type ChildStore = Arc<Mutex<HashMap<ChildId, crate::api::command::CommandChild>>>;
+type ChildStore = Arc<Mutex<HashMap<ChildId, crate::api::process::CommandChild>>>;
 
 #[cfg(shell_execute)]
 fn command_childs() -> &'static ChildStore {
@@ -29,6 +27,24 @@ pub enum Buffer {
   Raw(Vec<u8>),
 }
 
+#[allow(clippy::unnecessary_wraps)]
+fn default_env() -> Option<HashMap<String, String>> {
+  Some(HashMap::default())
+}
+
+#[allow(dead_code)]
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommandOptions {
+  #[serde(default)]
+  sidecar: bool,
+  cwd: Option<PathBuf>,
+  // by default we don't add any env variables to the spawned process
+  // but the env is an `Option` so when it's `None` we clear the env.
+  #[serde(default = "default_env")]
+  env: Option<HashMap<String, String>>,
+}
+
 /// The API descriptor.
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
@@ -40,7 +56,7 @@ pub enum Cmd {
     args: Vec<String>,
     on_event_fn: String,
     #[serde(default)]
-    sidecar: bool,
+    options: CommandOptions,
   },
   StdinWrite {
     pid: ChildId,
@@ -63,16 +79,24 @@ impl Cmd {
         program,
         args,
         on_event_fn,
-        sidecar,
+        options,
       } => {
         #[cfg(shell_execute)]
         {
-          let mut command = if sidecar {
-            crate::api::command::Command::new_sidecar(program)?
+          let mut command = if options.sidecar {
+            crate::api::process::Command::new_sidecar(program)?
           } else {
-            crate::api::command::Command::new(program)
+            crate::api::process::Command::new(program)
           };
           command = command.args(args);
+          if let Some(cwd) = options.cwd {
+            command = command.current_dir(cwd);
+          }
+          if let Some(env) = options.env {
+            command = command.envs(env);
+          } else {
+            command = command.env_clear();
+          }
           let (mut rx, child) = command.spawn()?;
 
           let pid = child.pid();
@@ -80,7 +104,7 @@ impl Cmd {
 
           crate::async_runtime::spawn(async move {
             while let Some(event) = rx.recv().await {
-              if matches!(event, crate::api::command::CommandEvent::Terminated(_)) {
+              if matches!(event, crate::api::process::CommandEvent::Terminated(_)) {
                 command_childs().lock().unwrap().remove(&pid);
               }
               let js = crate::api::rpc::format_callback(on_event_fn.clone(), &event)

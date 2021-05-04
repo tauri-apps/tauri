@@ -339,11 +339,12 @@ mod error;
 
 pub use self::error::Error;
 
+use crate::runtime::manager::tauri_event;
 use crate::{
   api::{
-    app::restart_application,
     config::UpdaterConfig,
     dialog::{ask, AskResponse},
+    process::restart,
   },
   Params, Window,
 };
@@ -434,7 +435,7 @@ pub(crate) fn listener<M: Params>(
   // Wait to receive the event `"tauri://update"`
   window.listen(
     EVENT_CHECK_UPDATE
-      .parse()
+      .parse::<M::Event>()
       .unwrap_or_else(|_| panic!("bad label")),
     move |_msg| {
       let window = isolated_window.clone();
@@ -468,9 +469,7 @@ pub(crate) fn listener<M: Params>(
 
               // Emit `tauri://update-available`
               let _ = window.emit(
-                &EVENT_UPDATE_AVAILABLE
-                  .parse()
-                  .unwrap_or_else(|_| panic!("bad label")),
+                &tauri_event::<M::Event>(EVENT_UPDATE_AVAILABLE),
                 Some(UpdateManifest {
                   body,
                   date: updater.date.clone(),
@@ -481,7 +480,7 @@ pub(crate) fn listener<M: Params>(
               // Listen for `tauri://update-install`
               window.once(
                 EVENT_INSTALL_UPDATE
-                  .parse()
+                  .parse::<M::Event>()
                   .unwrap_or_else(|_| panic!("bad label")),
                 move |_msg| {
                   let window = window_isolation.clone();
@@ -524,8 +523,8 @@ pub(crate) fn listener<M: Params>(
 
 // Send a status update via `tauri://update-status` event.
 fn send_status_update<M: Params>(window: Window<M>, status: &str, error: Option<String>) {
-  let _ = window.emit_internal(
-    EVENT_STATUS_UPDATE.to_string(),
+  let _ = window.emit(
+    &tauri_event::<M::Event>(EVENT_STATUS_UPDATE),
     Some(StatusEvent {
       error,
       status: String::from(status),
@@ -574,7 +573,7 @@ Release Notes:
       );
       match should_exit {
         AskResponse::Yes => {
-          restart_application(None);
+          restart();
           // safely exit even if the process
           // should be killed
           return Ok(());

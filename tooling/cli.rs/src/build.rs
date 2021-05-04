@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use tauri_bundler::bundle::{
-  bundle_project, common::print_signed_updater_archive, PackageType, SettingsBuilder,
-};
+use anyhow::Context;
+use tauri_bundler::bundle::{bundle_project, PackageType, SettingsBuilder};
 
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
@@ -21,9 +20,11 @@ mod rust;
 
 #[derive(Default)]
 pub struct Build {
+  runner: Option<String>,
   debug: bool,
   verbose: bool,
-  targets: Option<Vec<String>>,
+  target: Option<String>,
+  bundles: Option<Vec<String>>,
   config: Option<String>,
 }
 
@@ -42,8 +43,18 @@ impl Build {
     self
   }
 
-  pub fn targets(mut self, targets: Vec<String>) -> Self {
-    self.targets = Some(targets);
+  pub fn runner(mut self, runner: String) -> Self {
+    self.runner.replace(runner);
+    self
+  }
+
+  pub fn target(mut self, target: String) -> Self {
+    self.target.replace(target);
+    self
+  }
+
+  pub fn bundles(mut self, bundles: Vec<String>) -> Self {
+    self.bundles.replace(bundles);
     self
   }
 
@@ -57,7 +68,7 @@ impl Build {
     let config = get_config(self.config.as_deref())?;
 
     let tauri_path = tauri_dir();
-    set_current_dir(&tauri_path)?;
+    set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
 
     rewrite_manifest(config.clone())?;
 
@@ -73,14 +84,16 @@ impl Build {
             .arg("/C")
             .arg(before_build)
             .current_dir(app_dir()),
-        )?;
+        )
+        .with_context(|| format!("failed to run `{}` with `cmd /C`", before_build))?;
         #[cfg(not(target_os = "windows"))]
         execute_with_output(
           &mut Command::new("sh")
             .arg("-c")
             .arg(before_build)
             .current_dir(app_dir()),
-        )?;
+        )
+        .with_context(|| format!("failed to run `{}` with `sh -c`", before_build))?;
       }
     }
 
@@ -92,11 +105,19 @@ impl Build {
       ));
     }
 
-    rust::build_project(self.debug)?;
+    let runner_from_config = config_.build.runner.clone();
+    let runner = self
+      .runner
+      .or(runner_from_config)
+      .unwrap_or_else(|| "cargo".to_string());
+
+    rust::build_project(runner, &self.target, self.debug).with_context(|| "failed to build app")?;
 
     let app_settings = rust::AppSettings::new(&config_)?;
 
-    let out_dir = app_settings.get_out_dir(self.debug)?;
+    let out_dir = app_settings
+      .get_out_dir(self.debug)
+      .with_context(|| "failed to get project out directory")?;
     if let Some(product_name) = config_.package.product_name.clone() {
       let bin_name = app_settings.cargo_package_settings().name.clone();
       #[cfg(windows)]
@@ -137,7 +158,7 @@ impl Build {
         settings_builder = settings_builder.verbose();
       }
 
-      if let Some(names) = self.targets {
+      if let Some(names) = self.bundles {
         let mut types = vec![];
         for name in names {
           if name == "none" {
@@ -160,9 +181,11 @@ impl Build {
       }
 
       // Bundle the project
-      let settings = settings_builder.build()?;
+      let settings = settings_builder
+        .build()
+        .with_context(|| "failed to build bundler settings")?;
 
-      let bundles = bundle_project(settings)?;
+      let bundles = bundle_project(settings).with_context(|| "failed to bundle project")?;
 
       // If updater is active and pubkey is available
       if config_.tauri.updater.active && config_.tauri.updater.pubkey.is_some() {
@@ -188,4 +211,19 @@ impl Build {
 
     Ok(())
   }
+}
+
+fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
+  let pluralised = if output_paths.len() == 1 {
+    "updater archive"
+  } else {
+    "updater archives"
+  };
+  let msg = format!("{} {} at:", output_paths.len(), pluralised);
+  let logger = Logger::new("Signed");
+  logger.log(&msg);
+  for path in output_paths {
+    println!("        {}", path.display());
+  }
+  Ok(())
 }

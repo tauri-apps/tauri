@@ -5,17 +5,15 @@
 use super::common;
 
 #[cfg(target_os = "macos")]
-use super::macos_bundle;
+use super::macos::app;
 
 #[cfg(target_os = "linux")]
-use super::appimage_bundle;
+use super::linux::appimage;
 
 #[cfg(target_os = "windows")]
-use super::msi_bundle;
+use super::windows::msi;
 #[cfg(target_os = "windows")]
-use std::fs::File;
-#[cfg(target_os = "windows")]
-use std::io::prelude::*;
+use std::{fs::File, io::prelude::*};
 #[cfg(target_os = "windows")]
 use zip::write::FileOptions;
 
@@ -56,7 +54,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
         .find(|path| path.extension() == Some(OsStr::new("app")))
     }) {
     Some(path) => vec![path.clone()],
-    None => macos_bundle::bundle_project(settings)?,
+    None => app::bundle_project(settings)?,
   };
 
   // we expect our .app to be on bundle_path[0]
@@ -96,7 +94,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
         .find(|path| path.extension() == Some(OsStr::new("AppImage")))
     }) {
     Some(path) => vec![path.clone()],
-    None => appimage_bundle::bundle_project(settings)?,
+    None => appimage::bundle_project(settings)?,
   };
 
   // we expect our .app to be on bundle[0]
@@ -135,7 +133,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
         .find(|path| path.extension() == Some(OsStr::new("msi")))
     }) {
     Some(path) => vec![path.clone()],
-    None => msi_bundle::bundle_project(settings)?,
+    None => msi::bundle_project(settings)?,
   };
 
   // we expect our .msi to be on bundle_path[0]

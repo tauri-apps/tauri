@@ -234,6 +234,13 @@
           "default": "../dist",
           "type": "string"
         },
+        "runner": {
+          "description": "The binary used to build and run the application.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "withGlobalTauri": {
           "description": "Whether we should inject the Tauri API on `window.__TAURI__` or not.",
           "default": false,

@@ -5,68 +5,75 @@
 //! A layer between raw [`Runtime`] webview windows and Tauri.
 
 use crate::{
-  api::config::{WindowConfig, WindowUrl},
+  api::config::WindowConfig,
   event::{Event, EventHandler},
-  hooks::{InvokeMessage, InvokePayload, PageLoadPayload},
+  hooks::{InvokeMessage, InvokeResolver, PageLoadPayload},
   runtime::{
-    tag::ToJavascript,
-    webview::{FileDropHandler, WebviewRpcHandler},
+    tag::ToJsString,
+    webview::{FileDropHandler, InvokePayload, WebviewAttributes, WebviewRpcHandler},
     Dispatch, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
-  Attributes, Icon, Manager, Params,
+  Icon, Manager, Params, WindowBuilder,
 };
 use serde::Serialize;
 use serde_json::Value as JsonValue;
-use std::{
-  convert::TryInto,
-  hash::{Hash, Hasher},
-};
+use std::hash::{Hash, Hasher};
 
 /// A webview window that has yet to be built.
 pub struct PendingWindow<M: Params> {
   /// The label that the window will be named.
   pub label: M::Label,
 
-  /// The url the window will open with.
-  pub url: WindowUrl,
+  /// The [`WindowBuilder`] that the window will be created with.
+  pub window_attributes: <<M::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
 
-  /// The [`Attributes`] that the webview window be created with.
-  pub attributes: <<M::Runtime as Runtime>::Dispatcher as Dispatch>::Attributes,
+  /// The [`WebviewAttributes`] that the webview will be created with.
+  pub webview_attributes: WebviewAttributes,
 
   /// How to handle RPC calls on the webview window.
   pub rpc_handler: Option<WebviewRpcHandler<M>>,
 
   /// How to handle a file dropping onto the webview window.
   pub file_drop_handler: Option<FileDropHandler<M>>,
+
+  /// The resolved URL to load on the webview.
+  pub url: String,
 }
 
 impl<M: Params> PendingWindow<M> {
   /// Create a new [`PendingWindow`] with a label and starting url.
   pub fn new(
-    attributes: <<M::Runtime as Runtime>::Dispatcher as Dispatch>::Attributes,
+    window_attributes: <<M::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
+    webview_attributes: WebviewAttributes,
     label: M::Label,
-    url: WindowUrl,
   ) -> Self {
     Self {
-      attributes,
+      window_attributes,
+      webview_attributes,
       label,
-      url,
       rpc_handler: None,
       file_drop_handler: None,
+      url: "tauri://localhost".to_string(),
     }
   }
 
   /// Create a new [`PendingWindow`] from a [`WindowConfig`] with a label and starting url.
-  pub fn with_config(window_config: WindowConfig, label: M::Label, url: WindowUrl) -> Self {
+  pub fn with_config(
+    window_config: WindowConfig,
+    webview_attributes: WebviewAttributes,
+    label: M::Label,
+  ) -> Self {
     Self {
-      attributes: <<<M::Runtime as Runtime>::Dispatcher as Dispatch>::Attributes>::with_config(
-        window_config,
-      ),
+      window_attributes:
+        <<<M::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder>::with_config(
+          window_config,
+        ),
+      webview_attributes,
       label,
-      url,
       rpc_handler: None,
       file_drop_handler: None,
+      url: "tauri://localhost".to_string(),
     }
   }
 }
@@ -107,7 +114,10 @@ impl<M: Params> PartialEq for DetachedWindow<M> {
 /// We want to export the runtime related window at the crate root, but not look like a re-export.
 pub(crate) mod export {
   use super::*;
-  use crate::runtime::manager::WindowManager;
+  use crate::command::{CommandArg, CommandItem};
+  use crate::runtime::{manager::WindowManager, tag::TagRef};
+  use crate::{Invoke, InvokeError};
+  use std::borrow::Borrow;
 
   /// A webview window managed by Tauri.
   ///
@@ -158,6 +168,13 @@ pub(crate) mod export {
     }
   }
 
+  impl<'de, P: Params> CommandArg<'de, P> for Window<P> {
+    /// Grabs the [`Window`] from the [`CommandItem`]. This will never fail.
+    fn from_command(command: CommandItem<'de, P>) -> Result<Self, InvokeError> {
+      Ok(command.message.window())
+    }
+  }
+
   impl<P: Params> Window<P> {
     /// Create a new window that is attached to the manager.
     pub(crate) fn new(manager: WindowManager<P>, window: DetachedWindow<P>) -> Self {
@@ -169,21 +186,38 @@ pub(crate) mod export {
       self.window.dispatcher.clone()
     }
 
+    pub(crate) fn run_on_main_thread<F: FnOnce() + Send + 'static>(
+      &self,
+      f: F,
+    ) -> crate::Result<()> {
+      self.window.dispatcher.run_on_main_thread(f)
+    }
+
     /// How to handle this window receiving an [`InvokeMessage`].
     pub(crate) fn on_message(self, command: String, payload: InvokePayload) -> crate::Result<()> {
       let manager = self.manager.clone();
-      if &command == "__initialized" {
-        let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
-        manager.run_on_page_load(self, payload);
-      } else {
-        let message = InvokeMessage::new(self, command.to_string(), payload);
-        if let Some(module) = &message.payload.tauri_module {
-          let module = module.to_string();
-          crate::endpoints::handle(module, message, manager.config(), manager.package_info());
-        } else if command.starts_with("plugin:") {
-          manager.extend_api(message);
-        } else {
-          manager.run_invoke_handler(message);
+      match command.as_str() {
+        "__initialized" => {
+          let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
+          manager.run_on_page_load(self, payload);
+        }
+        _ => {
+          let message = InvokeMessage::new(
+            self.clone(),
+            manager.state(),
+            command.to_string(),
+            payload.inner,
+          );
+          let resolver = InvokeResolver::new(self, payload.callback, payload.error);
+          let invoke = Invoke { message, resolver };
+          if let Some(module) = &payload.tauri_module {
+            let module = module.to_string();
+            crate::endpoints::handle(module, invoke, manager.config(), manager.package_info());
+          } else if command.starts_with("plugin:") {
+            manager.extend_api(invoke);
+          } else {
+            manager.run_invoke_handler(invoke);
+          }
         }
       }
 
@@ -195,11 +229,16 @@ pub(crate) mod export {
       &self.window.label
     }
 
-    pub(crate) fn emit_internal<E: ToJavascript, S: Serialize>(
+    pub(crate) fn emit_internal<E: ?Sized, S>(
       &self,
-      event: E,
+      event: &E,
       payload: Option<S>,
-    ) -> crate::Result<()> {
+    ) -> crate::Result<()>
+    where
+      P::Event: Borrow<E>,
+      E: TagRef<P::Event>,
+      S: Serialize,
+    {
       let js_payload = match payload {
         Some(payload_value) => serde_json::to_value(payload_value)?,
         None => JsonValue::Null,
@@ -208,7 +247,7 @@ pub(crate) mod export {
       self.eval(&format!(
         "window['{}']({{event: {}, payload: {}}}, '{}')",
         self.manager.event_emit_function_name(),
-        event.to_javascript()?,
+        event.to_js_string()?,
         js_payload,
         self.manager.generate_salt(),
       ))?;
@@ -217,50 +256,49 @@ pub(crate) mod export {
     }
 
     /// Emits an event to the current window.
-    pub fn emit<S: Serialize>(&self, event: &P::Event, payload: Option<S>) -> crate::Result<()> {
-      self.emit_internal(event.clone(), payload)
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn emit_others_internal<S: Serialize + Clone>(
-      &self,
-      event: String,
-      payload: Option<S>,
-    ) -> crate::Result<()> {
-      self
-        .manager
-        .emit_filter_internal(event, payload, |w| w != self)
+    pub fn emit<E: ?Sized, S>(&self, event: &E, payload: Option<S>) -> crate::Result<()>
+    where
+      P::Event: Borrow<E>,
+      E: TagRef<P::Event>,
+      S: Serialize,
+    {
+      self.emit_internal(event, payload)
     }
 
     /// Emits an event on all windows except this one.
-    pub fn emit_others<S: Serialize + Clone>(
-      &self,
-      event: P::Event,
-      payload: Option<S>,
-    ) -> crate::Result<()> {
+    pub fn emit_others<E: ?Sized, S>(&self, event: &E, payload: Option<S>) -> crate::Result<()>
+    where
+      P::Event: Borrow<E>,
+      E: TagRef<P::Event>,
+      S: Serialize + Clone,
+    {
       self.manager.emit_filter(event, payload, |w| w != self)
     }
 
     /// Listen to an event on this window.
-    pub fn listen<F>(&self, event: P::Event, handler: F) -> EventHandler
+    pub fn listen<E: Into<P::Event>, F>(&self, event: E, handler: F) -> EventHandler
     where
       F: Fn(Event) + Send + 'static,
     {
       let label = self.window.label.clone();
-      self.manager.listen(event, Some(label), handler)
+      self.manager.listen(event.into(), Some(label), handler)
     }
 
     /// Listen to a an event on this window a single time.
-    pub fn once<F>(&self, event: P::Event, handler: F) -> EventHandler
+    pub fn once<E: Into<P::Event>, F>(&self, event: E, handler: F) -> EventHandler
     where
       F: Fn(Event) + Send + 'static,
     {
       let label = self.window.label.clone();
-      self.manager.once(event, Some(label), handler)
+      self.manager.once(event.into(), Some(label), handler)
     }
 
     /// Triggers an event on this window.
-    pub fn trigger(&self, event: P::Event, data: Option<String>) {
+    pub fn trigger<E: ?Sized>(&self, event: &E, data: Option<String>)
+    where
+      P::Event: Borrow<E>,
+      E: TagRef<P::Event>,
+    {
       let label = self.window.label.clone();
       self.manager.trigger(event, Some(label), data)
     }
@@ -388,7 +426,12 @@ pub(crate) mod export {
 
     /// Sets this window' icon.
     pub fn set_icon(&self, icon: Icon) -> crate::Result<()> {
-      self.window.dispatcher.set_icon(icon.try_into()?)
+      self.window.dispatcher.set_icon(icon)
+    }
+
+    /// Starts dragging the window.
+    pub fn start_dragging(&self) -> crate::Result<()> {
+      self.window.dispatcher.start_dragging()
     }
 
     pub(crate) fn verify_salt(&self, salt: String) -> bool {

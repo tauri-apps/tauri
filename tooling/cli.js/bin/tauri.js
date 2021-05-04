@@ -62,14 +62,14 @@ ${chalk.yellow('Options')}
     console.log(`${pkg.version}`)
     return false // do this for node consumers and tests
   } else if (cmds.includes(command)) {
-    if (process.argv && !process.env.test) {
+    if (process.argv && process.env.NODE_ENV !== 'test') {
       process.argv.splice(2, 1)
     }
     console.log(`[tauri]: running ${command}`)
     require(`./tauri-${command}`)
   } else {
     const { runOnRustCli } = require('../dist/helpers/rust-cli')
-    if (process.argv && !process.env.test) {
+    if (process.argv && process.env.NODE_ENV !== 'test') {
       process.argv.splice(0, 3)
     }
     ;(
@@ -77,14 +77,16 @@ ${chalk.yellow('Options')}
         command,
         (process.argv || []).filter((v) => v !== '--no-update-notifier')
       )
-    ).promise.then(() => {
-      if (command === 'init' && !process.argv.some((arg) => arg === '--ci')) {
-        const {
-          installDependencies
-        } = require('../dist/api/dependency-manager')
-        return installDependencies()
-      }
-    })
+    ).promise
+      .then(() => {
+        if (command === 'init' && !process.argv.some((arg) => arg === '--ci')) {
+          const {
+            installDependencies
+          } = require('../dist/api/dependency-manager')
+          return installDependencies()
+        }
+      })
+      .catch(() => process.exit(1))
   }
 }
 
@@ -92,6 +94,9 @@ module.exports = {
   tauri
 }
 
-tauri(cmd).catch((e) => {
-  throw e
-})
+// on test we use the module.exports
+if (process.env.NODE_ENV !== 'test') {
+  tauri(cmd).catch((e) => {
+    throw e
+  })
+}

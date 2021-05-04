@@ -16,8 +16,6 @@ edition = "2018"
 
 [dependencies]
 ar = "0.8.0"
-chrono = "0.4"
-dirs-next = "2.0.0"
 glob = "0.3.0"
 icns = "0.3"
 image = "0.23.14"
@@ -35,18 +33,19 @@ walkdir = "2"
 handlebars = { version = "3.5" }
 zip = { version = "0.5" }
 tempfile = "3.2.0"
-regex = { version = "1" }
+regex = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]
-attohttpc = { version = "0.17.0" }
-regex = { version = "1" }
+attohttpc = "0.17"
 uuid = { version = "0.8", features = [ "v5" ] }
 bitness = "0.4"
 winreg = "0.8"
+sha2 = "0.9"
+hex = "0.4"
 
-[target."cfg(not(target_os = \"linux\"))".dependencies]
-sha2 = { version = "0.9" }
-hex = { version = "0.4" }
+[target."cfg(target_os = \"macos\")".dependencies]
+chrono = "0.4"
+dirs-next = "2.0"
 
 [lib]
 name = "tauri_bundler"

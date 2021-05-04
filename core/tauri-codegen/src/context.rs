@@ -44,7 +44,15 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 
   // handle default window icons for Windows targets
   let default_window_icon = if cfg!(windows) {
-    let icon_path = config_parent.join("icons/icon.ico").display().to_string();
+    let icon_path = config
+      .tauri
+      .bundle
+      .icon
+      .iter()
+      .find(|i| i.ends_with(".ico"))
+      .cloned()
+      .unwrap_or_else(|| "icons/icon.ico".to_string());
+    let icon_path = config_parent.join(icon_path).display().to_string();
     quote!(Some(include_bytes!(#icon_path).to_vec()))
   } else {
     quote!(None)
@@ -64,7 +72,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   // double braces are purposeful to force the code into a block expression
   Ok(quote!(#root::Context {
     config: #config,
-    assets: #assets,
+    assets: ::std::sync::Arc::new(#assets),
     default_window_icon: #default_window_icon,
     package_info: #root::api::PackageInfo {
       name: #package_name,

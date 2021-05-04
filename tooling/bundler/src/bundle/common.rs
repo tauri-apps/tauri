@@ -16,6 +16,7 @@ use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 /// "retina" icon.  Specifically, returns true the the file stem ends with
 /// "@2x" (a convention specified by the [Apple developer docs](
 /// https://developer.apple.com/library/mac/documentation/GraphicsAnimation/Conceptual/HighResolutionOSX/Optimizing/Optimizing.html)).
+#[allow(dead_code)]
 pub fn is_retina<P: AsRef<Path>>(path: P) -> bool {
   path
     .as_ref()
@@ -37,6 +38,7 @@ pub fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
 
 /// Makes a symbolic link to a directory.
 #[cfg(unix)]
+#[allow(dead_code)]
 fn symlink_dir(src: &Path, dst: &Path) -> io::Result<()> {
   std::os::unix::fs::symlink(src, dst)
 }
@@ -49,6 +51,7 @@ fn symlink_dir(src: &Path, dst: &Path) -> io::Result<()> {
 
 /// Makes a symbolic link to a file.
 #[cfg(unix)]
+#[allow(dead_code)]
 fn symlink_file(src: &Path, dst: &Path) -> io::Result<()> {
   std::os::unix::fs::symlink(src, dst)
 }
@@ -87,6 +90,7 @@ pub fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> crate::Result<
 /// parent directories of the destination path as necessary.  Fails if the
 /// source path is not a directory or doesn't exist, or if the destination path
 /// already exists.
+#[allow(dead_code)]
 pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
   if !from.exists() {
     return Err(crate::Error::GenericError(format!(
@@ -174,22 +178,6 @@ pub fn print_finished(bundles: &[crate::bundle::Bundle]) -> crate::Result<()> {
   Ok(())
 }
 
-/// Prints a message to stderr, in the same format that `cargo` uses,
-/// indicating that we have finished the the given signatures.
-pub fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
-  let pluralised = if output_paths.len() == 1 {
-    "updater archive"
-  } else {
-    "updater archives"
-  };
-  let msg = format!("{} {} at:", output_paths.len(), pluralised);
-  print_progress("Signed", &msg)?;
-  for path in output_paths {
-    println!("        {}", path.display());
-  }
-  Ok(())
-}
-
 /// Prints a formatted bundle progress to stderr.
 fn print_progress(step: &str, msg: &str) -> crate::Result<()> {
   let mut output = StandardStream::stderr(ColorChoice::Always);
@@ -202,6 +190,7 @@ fn print_progress(step: &str, msg: &str) -> crate::Result<()> {
 }
 
 /// Prints a warning message to stderr, in the same format that `cargo` uses.
+#[allow(dead_code)]
 pub fn print_warning(message: &str) -> crate::Result<()> {
   let mut output = StandardStream::stderr(ColorChoice::Always);
   let _ = output.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)).set_bold(true));
@@ -221,26 +210,6 @@ pub fn print_info(message: &str) -> crate::Result<()> {
   writeln!(output, " {}", message)?;
   output.flush()?;
   Ok(())
-}
-
-/// Prints an error to stderr, in the same format that `cargo` uses.
-pub fn print_error(error: &anyhow::Error) -> crate::Result<()> {
-  let mut output = StandardStream::stderr(ColorChoice::Always);
-  let _ = output.set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_bold(true));
-  write!(output, "error:")?;
-  output.reset()?;
-  let _ = output.set_color(ColorSpec::new().set_bold(true));
-  writeln!(output, " {}", error)?;
-  output.reset()?;
-  for cause in error.chain().skip(1) {
-    writeln!(output, "  Caused by: {}", cause)?;
-  }
-  // Add Backtrace once its stable.
-  // if let Some(backtrace) = error.backtrace() {
-  //   writeln!(output, "{:?}", backtrace)?;
-  // }
-  output.flush()?;
-  std::process::exit(1)
 }
 
 pub fn execute_with_verbosity(cmd: &mut Command, settings: &Settings) -> crate::Result<()> {

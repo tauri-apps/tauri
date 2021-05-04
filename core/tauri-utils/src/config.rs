@@ -306,12 +306,16 @@ impl CliConfig {
 pub struct BundleConfig {
   /// The bundle identifier.
   pub identifier: String,
+  /// The bundle icons.
+  #[serde(default)]
+  pub icon: Vec<String>,
 }
 
 impl Default for BundleConfig {
   fn default() -> Self {
     Self {
       identifier: String::from(""),
+      icon: Vec::default(),
     }
   }
 }
@@ -725,8 +729,9 @@ mod build {
   impl ToTokens for BundleConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let identifier = str_lit(&self.identifier);
+      let icon = vec_lit(&self.icon, str_lit);
 
-      literal_struct!(tokens, BundleConfig, identifier);
+      literal_struct!(tokens, BundleConfig, identifier, icon);
     }
   }
 
@@ -843,6 +848,7 @@ mod test {
       }],
       bundle: BundleConfig {
         identifier: String::from(""),
+        icon: Vec::new(),
       },
       cli: None,
       updater: UpdaterConfig {

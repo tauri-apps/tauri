@@ -27,7 +27,8 @@ export default [
       window: './src/window.ts',
       cli: './src/cli.ts',
       notification: './src/notification.ts',
-      globalShortcut: './src/globalShortcut.ts'
+      globalShortcut: './src/globalShortcut.ts',
+      process: './src/process.ts'
     },
     treeshake: true,
     perf: true,
@@ -36,6 +37,7 @@ export default [
         dir: 'dist/',
         entryFileNames: '[name].cjs',
         format: 'cjs',
+        chunkFileNames: '[name]-[hash].cjs',
         exports: 'named',
         globals: {}
       },

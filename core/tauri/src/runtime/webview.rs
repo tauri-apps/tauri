@@ -5,55 +5,104 @@
 //! Items specific to the [`Runtime`](crate::runtime::Runtime)'s webview.
 
 use crate::runtime::Icon;
-use crate::{api::config::WindowConfig, runtime::window::DetachedWindow};
+use crate::{
+  api::config::{WindowConfig, WindowUrl},
+  runtime::window::DetachedWindow,
+};
+use serde::Deserialize;
 use serde_json::Value as JsonValue;
-use std::{convert::TryFrom, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf};
+
+type UriSchemeProtocol = dyn Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync + 'static;
+
+/// The attributes used to create an webview.
+pub struct WebviewAttributes {
+  pub(crate) url: WindowUrl,
+  pub(crate) initialization_scripts: Vec<String>,
+  pub(crate) data_directory: Option<PathBuf>,
+  pub(crate) uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
+}
+
+impl WebviewAttributes {
+  /// Initializes the default attributes for a webview.
+  pub fn new(url: WindowUrl) -> Self {
+    Self {
+      url,
+      initialization_scripts: Vec::new(),
+      data_directory: None,
+      uri_scheme_protocols: Default::default(),
+    }
+  }
+
+  /// Sets the init script.
+  pub fn initialization_script(mut self, script: &str) -> Self {
+    self.initialization_scripts.push(script.to_string());
+    self
+  }
+
+  /// Data directory for the webview.
+  pub fn data_directory(mut self, data_directory: PathBuf) -> Self {
+    self.data_directory.replace(data_directory);
+    self
+  }
+
+  /// Whether the webview URI scheme protocol is defined or not.
+  pub fn has_uri_scheme_protocol(&self, name: &str) -> bool {
+    self.uri_scheme_protocols.contains_key(name)
+  }
+
+  /// Registers a webview protocol handler.
+  /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
+  /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
+  /// and [webkit-web-context-register-uri-scheme](https://webkitgtk.org/reference/webkit2gtk/stable/WebKitWebContext.html#webkit-web-context-register-uri-scheme) on Linux.
+  ///
+  /// # Arguments
+  ///
+  /// * `uri_scheme` The URI scheme to register, such as `example`.
+  /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
+  pub fn register_uri_scheme_protocol<
+    N: Into<String>,
+    H: Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync + 'static,
+  >(
+    mut self,
+    uri_scheme: N,
+    protocol: H,
+  ) -> Self {
+    let uri_scheme = uri_scheme.into();
+    self
+      .uri_scheme_protocols
+      .insert(uri_scheme, Box::new(move |data| (protocol)(data)));
+    self
+  }
+}
 
 /// Do **NOT** implement this trait except for use in a custom [`Runtime`](crate::runtime::Runtime).
 ///
-/// This trait is separate from [`Attributes`] to prevent "accidental" implementation.
-pub trait AttributesBase: Sized {}
+/// This trait is separate from [`WindowBuilder`] to prevent "accidental" implementation.
+pub trait WindowBuilderBase: Sized {}
 
 /// A builder for all attributes related to a single webview.
 ///
 /// This trait is only meant to be implemented by a custom [`Runtime`](crate::runtime::Runtime)
 /// and not by applications.
-pub trait Attributes: AttributesBase {
-  /// Expected icon format.
-  type Icon: TryFrom<Icon, Error = crate::Error>;
-
-  /// Initializes a new webview builder.
+pub trait WindowBuilder: WindowBuilderBase {
+  /// Initializes a new window attributes builder.
   fn new() -> Self;
 
   /// Initializes a new webview builder from a [`WindowConfig`]
   fn with_config(config: WindowConfig) -> Self;
 
-  /// Sets the init script.
-  fn initialization_script(self, init: &str) -> Self;
+  /// The initial position of the window's.
+  fn position(self, x: f64, y: f64) -> Self;
 
-  /// The horizontal position of the window's top left corner.
-  fn x(self, x: f64) -> Self;
+  /// Window size.
+  fn inner_size(self, min_width: f64, min_height: f64) -> Self;
 
-  /// The vertical position of the window's top left corner.
-  fn y(self, y: f64) -> Self;
+  /// Window min inner size.
+  fn min_inner_size(self, min_width: f64, min_height: f64) -> Self;
 
-  /// Window width.
-  fn width(self, width: f64) -> Self;
-
-  /// Window height.
-  fn height(self, height: f64) -> Self;
-
-  /// Window min width.
-  fn min_width(self, min_width: f64) -> Self;
-
-  /// Window min height.
-  fn min_height(self, min_height: f64) -> Self;
-
-  /// Window max width.
-  fn max_width(self, max_width: f64) -> Self;
-
-  /// Window max height.
-  fn max_height(self, max_height: f64) -> Self;
+  /// Window max inner size.
+  fn max_inner_size(self, min_width: f64, min_height: f64) -> Self;
 
   /// Whether the window is resizable or not.
   fn resizable(self, resizable: bool) -> Self;
@@ -81,40 +130,10 @@ pub trait Attributes: AttributesBase {
   fn always_on_top(self, always_on_top: bool) -> Self;
 
   /// Sets the window icon.
-  fn icon(self, icon: Self::Icon) -> Self;
+  fn icon(self, icon: Icon) -> crate::Result<Self>;
 
   /// Whether the icon was set or not.
   fn has_icon(&self) -> bool;
-
-  /// User data path for the webview. Actually only supported on Windows.
-  fn user_data_path(self, user_data_path: Option<PathBuf>) -> Self;
-
-  /// Sets the webview url.
-  fn url(self, url: String) -> Self;
-
-  /// Whether the webview URI scheme protocol is defined or not.
-  fn has_uri_scheme_protocol(&self, name: &str) -> bool;
-
-  /// Registers a webview protocol handler.
-  /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
-  /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
-  /// and [webkit-web-context-register-uri-scheme](https://webkitgtk.org/reference/webkit2gtk/stable/WebKitWebContext.html#webkit-web-context-register-uri-scheme) on Linux.
-  ///
-  /// # Arguments
-  ///
-  /// * `uri_scheme` The URI scheme to register, such as `example`.
-  /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
-  fn register_uri_scheme_protocol<
-    N: Into<String>,
-    H: Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync + 'static,
-  >(
-    self,
-    uri_scheme: N,
-    protocol: H,
-  ) -> Self;
-
-  /// The full attributes.
-  fn build(self) -> Self;
 }
 
 /// Rpc request.
@@ -148,3 +167,13 @@ pub(crate) type WebviewRpcHandler<M> = Box<dyn Fn(DetachedWindow<M>, RpcRequest)
 /// File drop handler callback
 /// Return `true` in the callback to block the OS' default behavior of handling a file drop.
 pub(crate) type FileDropHandler<M> = Box<dyn Fn(FileDropEvent, DetachedWindow<M>) -> bool + Send>;
+
+#[derive(Deserialize)]
+pub(crate) struct InvokePayload {
+  #[serde(rename = "__tauriModule")]
+  pub(crate) tauri_module: Option<String>,
+  pub(crate) callback: String,
+  pub(crate) error: String,
+  #[serde(flatten)]
+  pub(crate) inner: JsonValue,
+}

@@ -2,42 +2,37 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-mod appimage_bundle;
 mod category;
-pub mod common;
-mod deb_bundle;
-mod dmg_bundle;
-mod ios_bundle;
-mod macos_bundle;
-#[cfg(target_os = "windows")]
-mod msi_bundle;
+mod common;
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "macos")]
+mod macos;
 mod path_utils;
 mod platform;
-mod rpm_bundle;
 mod settings;
 mod updater_bundle;
 #[cfg(target_os = "windows")]
-mod wix;
+mod windows;
 
 pub use self::{
   category::AppCategory,
-  common::{print_error, print_info},
   settings::{
     BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings, PackageType,
     Settings, SettingsBuilder, UpdaterSettings,
   },
 };
-#[cfg(windows)]
 pub use settings::{WindowsSettings, WixSettings};
 
-use common::print_finished;
+use common::{print_finished, print_info};
 
 use std::path::PathBuf;
 
+/// Generated bundle metadata.
 pub struct Bundle {
-  // the package type
+  /// The package type.
   pub package_type: PackageType,
-  /// all paths for this package
+  /// All paths for this package.
   pub bundle_paths: Vec<PathBuf>,
 }
 
@@ -49,17 +44,27 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
 
   for package_type in &package_types {
     let bundle_paths = match package_type {
-      PackageType::MacOsBundle => macos_bundle::bundle_project(&settings)?,
-      PackageType::IosBundle => ios_bundle::bundle_project(&settings)?,
+      #[cfg(target_os = "macos")]
+      PackageType::MacOsBundle => macos::app::bundle_project(&settings)?,
+      #[cfg(target_os = "macos")]
+      PackageType::IosBundle => macos::ios::bundle_project(&settings)?,
       #[cfg(target_os = "windows")]
-      PackageType::WindowsMsi => msi_bundle::bundle_project(&settings)?,
-      PackageType::Deb => deb_bundle::bundle_project(&settings)?,
-      PackageType::Rpm => rpm_bundle::bundle_project(&settings)?,
-      PackageType::AppImage => appimage_bundle::bundle_project(&settings)?,
+      PackageType::WindowsMsi => windows::msi::bundle_project(&settings)?,
+      #[cfg(target_os = "linux")]
+      PackageType::Deb => linux::debian::bundle_project(&settings)?,
+      #[cfg(target_os = "linux")]
+      PackageType::Rpm => linux::rpm::bundle_project(&settings)?,
+      #[cfg(target_os = "linux")]
+      PackageType::AppImage => linux::appimage::bundle_project(&settings)?,
       // dmg is dependant of MacOsBundle, we send our bundles to prevent rebuilding
-      PackageType::Dmg => dmg_bundle::bundle_project(&settings, &bundles)?,
+      #[cfg(target_os = "macos")]
+      PackageType::Dmg => macos::dmg::bundle_project(&settings, &bundles)?,
       // updater is dependant of multiple bundle, we send our bundles to prevent rebuilding
       PackageType::Updater => updater_bundle::bundle_project(&settings, &bundles)?,
+      _ => {
+        print_info(&format!("ignoring {:?}", package_type))?;
+        continue;
+      }
     };
 
     bundles.push(Bundle {

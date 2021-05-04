@@ -12,7 +12,6 @@ import { invokeTauriCommand } from './helpers/tauri'
 async function getVersion(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'App',
-    mainThread: true,
     message: {
       cmd: 'getAppVersion'
     }
@@ -27,7 +26,6 @@ async function getVersion(): Promise<string> {
 async function getName(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'App',
-    mainThread: true,
     message: {
       cmd: 'getAppName'
     }
@@ -42,43 +40,10 @@ async function getName(): Promise<string> {
 async function getTauriVersion(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'App',
-    mainThread: true,
     message: {
       cmd: 'getTauriVersion'
     }
   })
 }
 
-/**
- * Exits immediately with the given `exitCode`.
- *
- * @param exitCode The exit code to use
- * @returns
- */
-async function exit(exitCode: number = 0): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'App',
-    mainThread: true,
-    message: {
-      cmd: 'exit',
-      exitCode
-    }
-  })
-}
-
-/**
- * Exits the current instance of the app then relaunches it.
- *
- * @returns
- */
-async function relaunch(): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'App',
-    mainThread: true,
-    message: {
-      cmd: 'relaunch'
-    }
-  })
-}
-
-export { getName, getVersion, getTauriVersion, relaunch, exit }
+export { getName, getVersion, getTauriVersion }

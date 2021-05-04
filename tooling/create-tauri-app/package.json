@@ -29,33 +29,40 @@
     "lint-fix": "eslint --fix --ext ts \"./src/**/*.ts\"",
     "lint:lockfile": "lockfile-lint --path yarn.lock --type yarn --validate-https --allowed-hosts npm yarn",
     "format": "prettier --write --end-of-line=auto \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
-    "format:check": "prettier --check --end-of-line=auto \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore"
+    "format:check": "prettier --check --end-of-line=auto \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
+    "test": "jest --runInBand"
   },
   "dependencies": {
     "execa": "^5.0.0",
     "inquirer": "^8.0.0",
     "minimist": "^1.2.5",
-    "scaffe": "1.0.0"
+    "scaffe": "1.0.1"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "18.0.0",
     "@rollup/plugin-node-resolve": "11.2.1",
     "@rollup/plugin-typescript": "8.2.1",
-    "@typescript-eslint/eslint-plugin": "4.22.0",
-    "@typescript-eslint/parser": "4.22.0",
     "@types/cross-spawn": "6.0.2",
     "@types/inquirer": "7.3.1",
-    "@types/semver": "7.3.4",
-    "eslint": "7.24.0",
-    "eslint-config-prettier": "8.2.0",
+    "@types/jest": "26.0.23",
+    "@types/minimist": "1.2.1",
+    "@types/semver": "7.3.5",
+    "@typescript-eslint/eslint-plugin": "4.22.0",
+    "@typescript-eslint/parser": "4.22.0",
+    "chalk": "4.1.1",
+    "eslint": "7.25.0",
+    "eslint-config-prettier": "8.3.0",
     "eslint-config-standard-with-typescript": "20.0.0",
     "eslint-plugin-import": "2.22.1",
     "eslint-plugin-lodash-template": "0.19.0",
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-promise": "5.1.0",
     "eslint-plugin-security": "1.4.0",
+    "fixturez": "1.1.0",
+    "jest": "26.6.3",
     "prettier": "2.2.1",
-    "rollup": "2.45.1",
+    "rollup": "2.45.2",
+    "ts-jest": "26.5.5",
     "tslib": "2.2.0",
     "typescript": "4.2.4"
   }

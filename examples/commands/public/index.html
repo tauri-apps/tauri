@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tauri</title>
+</head>
+
+<body>
+  <h1>Tauri Commands</h1>
+  <div id="response">Response:</div>
+  <div id="container"></div>
+  <script>
+    const responseDiv = document.querySelector('#response')
+    function runCommand(commandName, args) {
+      window.__TAURI__.invoke(commandName, args).then(response => {
+        responseDiv.innerHTML = `Response: Ok(${response})`
+      }).catch(error => {
+        responseDiv.innerHTML = `Response: Err(${error})`
+      })
+    }
+
+    const container = document.querySelector('#container')
+    const commands = [
+      { name: 'simple_command', required: true },
+      { name: 'stateful_command', required: false },
+      { name: 'async_simple_command', required: true },
+      { name: 'async_stateful_command', required: false },
+      { name: 'simple_command_with_result', required: true },
+      { name: 'stateful_command_with_result', required: false },
+      { name: 'async_simple_command_with_result', required: true },
+      { name: 'async_stateful_command_with_result', required: false },
+    ]
+
+    for (command of commands) {
+      const { name, required } = command
+      const button = document.createElement('button')
+      button.innerHTML = `Run ${name}`;
+      button.addEventListener("click", function () {
+        runCommand(name, { argument: 'value' })
+        if (!required) {
+          setTimeout(() => {
+            runCommand(name, {})
+          }, 1000)
+        }
+      });
+      container.appendChild(button);
+    }
+
+  </script>
+</body>
+
+</html>

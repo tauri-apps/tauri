@@ -1,0 +1,7 @@
+{
+  "name": "state",
+  "version": "1.0.0",
+  "scripts": {
+    "tauri": "node ../../tooling/cli.js/bin/tauri"
+  }
+}

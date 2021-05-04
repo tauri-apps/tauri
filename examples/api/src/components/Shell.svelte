@@ -7,12 +7,24 @@
   export let onMessage;
 
   let script = 'echo "hello world"'
+  let cwd = null
+  let env = 'SOMETHING=value ANOTHER=2'
   let stdin = ''
   let child
 
+  function _getEnv() {
+    return env.split(' ').reduce((env, clause) => {
+      let [key, value] = clause.split('=')
+      return {
+        ...env,
+        [key]: value
+      }
+    }, {})
+  }
+
   function spawn() {
     child = null
-    const command = new Command(cmd, [...args, script])
+    const command = new Command(cmd, [...args, script], { cwd: cwd || null, env: _getEnv() })
 
     command.on('close', data => {
       onMessage(`command finished with code ${data.code} and signal ${data.signal}`)
@@ -48,5 +60,9 @@
       <input placeholder="write to stdin" bind:value={stdin}>
       <button class="button" on:click={writeToStdin}>Write</button>
     {/if}
+  </div>
+  <div>
+    <input bind:value={cwd} placeholder="Working directory">
+    <input bind:value={env} placeholder="Environment variables" style="width: 300px">
   </div>
 </div>

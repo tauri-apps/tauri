@@ -7,7 +7,7 @@
   windows_subsystem = "windows"
 )]
 
-use tauri::Attributes;
+use tauri::WindowBuilder;
 
 fn main() {
   tauri::Builder::default()
@@ -20,7 +20,9 @@ fn main() {
     .create_window(
       "Rust".to_string(),
       tauri::WindowUrl::App("index.html".into()),
-      |attributes| attributes.title("Tauri - Rust"),
+      |window_attributes, webview_attributes| {
+        (window_attributes.title("Tauri - Rust"), webview_attributes)
+      },
     )
     .run(tauri::generate_context!())
     .expect("failed to run tauri application");

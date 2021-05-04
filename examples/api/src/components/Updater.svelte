@@ -7,7 +7,7 @@
 
   import { checkUpdate, installUpdate } from "@tauri-apps/api/updater";
   import { listen } from "@tauri-apps/api/event";
-  import { relaunch } from "@tauri-apps/api/app";
+  import { relaunch } from "@tauri-apps/api/process";
 
   export let onMessage;
   let unlisten;

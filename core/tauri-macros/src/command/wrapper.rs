@@ -38,36 +38,31 @@ impl Wrapper {
   }
 }
 
-impl ToTokens for Wrapper {
-  fn to_tokens(&self, tokens: &mut TokenStream) {
-    let Self {
+impl From<Wrapper> for proc_macro::TokenStream {
+  fn from(
+    Wrapper {
       function,
       maybe_export,
       wrapper,
       body,
       visibility,
-    } = self;
-
+    }: Wrapper,
+  ) -> Self {
     // either use the successful body or a `compile_error!` of the error occurred while parsing it.
-    let body = body.as_ref()
+    let body = body
+      .as_ref()
       .map(ToTokens::to_token_stream)
       .unwrap_or_else(syn::Error::to_compile_error);
 
     // we `use` the macro so that other modules can resolve the with the same path as the function.
     // this is dependent on rust 2018 edition.
-    tokens.append_all(quote!(
+    quote!(
       #function
       #maybe_export
       macro_rules! #wrapper { ($path:path, $invoke:ident) => {{ #body }}; }
       #visibility use #wrapper;
-    ))
-  }
-}
-
-impl From<Wrapper> for proc_macro::TokenStream {
-  #[inline(always)]
-  fn from(wrapper: Wrapper) -> Self {
-    wrapper.to_token_stream().into()
+    )
+    .into()
   }
 }
 

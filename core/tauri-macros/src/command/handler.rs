@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use proc_macro2::{Ident, TokenStream};
-use quote::{quote, ToTokens, TokenStreamExt};
 use syn::{
   parse::{Parse, ParseBuffer},
-  Path, PathSegment, Token,
+  Ident, Path, PathSegment, Token,
 };
 
-/// The items passed to [`generate_handle!`](crate::generate_handle).
+/// The items parsed from [`generate_handle!`](crate::generate_handle).
 pub struct Handler {
   paths: Vec<Path>,
   commands: Vec<Ident>,
@@ -45,15 +43,15 @@ impl Parse for Handler {
   }
 }
 
-impl ToTokens for Handler {
-  fn to_tokens(&self, tokens: &mut TokenStream) {
-    let Self {
+impl From<Handler> for proc_macro::TokenStream {
+  fn from(
+    Handler {
       paths,
       commands,
       wrappers,
-    } = self;
-
-    tokens.append_all(quote!(move |invoke| {
+    }: Handler,
+  ) -> Self {
+    quote::quote!(move |invoke| {
       let cmd = invoke.message.command();
       match cmd {
         #(stringify!(#commands) => #wrappers!(#paths, invoke),)*
@@ -61,14 +59,8 @@ impl ToTokens for Handler {
           invoke.resolver.reject(format!("command {} not found", cmd))
         },
       }
-    }));
-  }
-}
-
-impl From<Handler> for proc_macro::TokenStream {
-  #[inline(always)]
-  fn from(handler: Handler) -> Self {
-    handler.to_token_stream().into()
+    })
+    .into()
   }
 }
 

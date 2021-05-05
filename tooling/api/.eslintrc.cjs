@@ -11,6 +11,8 @@ module.exports = {
   extends: [
     'standard-with-typescript',
     'plugin:@typescript-eslint/recommended-requiring-type-checking',
+    // TODO: make this work with typescript
+    // 'plugin:node/recommended'
     'prettier'
   ],
 

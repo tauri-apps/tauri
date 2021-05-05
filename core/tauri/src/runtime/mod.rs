@@ -132,7 +132,7 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   fn set_always_on_top(&self, always_on_top: bool) -> crate::Result<()>;
 
   /// Resizes the window.
-  fn resize(&self, size: Size) -> crate::Result<()>;
+  fn set_size(&self, size: Size) -> crate::Result<()>;
 
   /// Updates the window min size.
   fn set_min_size(&self, size: Option<Size>) -> crate::Result<()>;

@@ -33,17 +33,13 @@ impl From<IconDto> for Icon {
 
 /// The API descriptor.
 #[derive(Deserialize)]
-#[serde(tag = "cmd", rename_all = "camelCase")]
+#[serde(tag = "cmd", content = "data", rename_all = "camelCase")]
 pub enum Cmd {
   CreateWebview {
     options: WindowConfig,
   },
-  SetResizable {
-    resizable: bool,
-  },
-  SetTitle {
-    title: String,
-  },
+  SetResizable(bool),
+  SetTitle(String),
   Maximize,
   Unmaximize,
   Minimize,
@@ -51,20 +47,14 @@ pub enum Cmd {
   Show,
   Hide,
   Close,
-  SetDecorations {
-    decorations: bool,
-  },
+  SetDecorations(bool),
   #[serde(rename_all = "camelCase")]
-  SetAlwaysOnTop {
-    always_on_top: bool,
-  },
-  Resize(Size),
+  SetAlwaysOnTop(bool),
+  SetSize(Size),
   SetMinSize(Option<Size>),
   SetMaxSize(Option<Size>),
   SetPosition(Position),
-  SetFullscreen {
-    fullscreen: bool,
-  },
+  SetFullscreen(bool),
   SetIcon {
     icon: IconDto,
   },
@@ -115,8 +105,8 @@ impl Cmd {
           )?;
         }
 
-        Self::SetResizable { resizable } => window.set_resizable(resizable)?,
-        Self::SetTitle { title } => window.set_title(&title)?,
+        Self::SetResizable(resizable) => window.set_resizable(resizable)?,
+        Self::SetTitle(title) => window.set_title(&title)?,
         Self::Maximize => window.maximize()?,
         Self::Unmaximize => window.unmaximize()?,
         Self::Minimize => window.minimize()?,
@@ -124,13 +114,13 @@ impl Cmd {
         Self::Show => window.show()?,
         Self::Hide => window.hide()?,
         Self::Close => window.close()?,
-        Self::SetDecorations { decorations } => window.set_decorations(decorations)?,
-        Self::SetAlwaysOnTop { always_on_top } => window.set_always_on_top(always_on_top)?,
-        Self::Resize(size) => window.resize(size)?,
+        Self::SetDecorations(decorations) => window.set_decorations(decorations)?,
+        Self::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top)?,
+        Self::SetSize(size) => window.set_size(size)?,
         Self::SetMinSize(size) => window.set_min_size(size)?,
         Self::SetMaxSize(size) => window.set_max_size(size)?,
         Self::SetPosition(position) => window.set_position(position)?,
-        Self::SetFullscreen { fullscreen } => window.set_fullscreen(fullscreen)?,
+        Self::SetFullscreen(fullscreen) => window.set_fullscreen(fullscreen)?,
         Self::SetIcon { icon } => window.set_icon(icon.into())?,
         Self::StartDragging => window.start_dragging()?,
       }

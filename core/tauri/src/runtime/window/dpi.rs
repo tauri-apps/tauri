@@ -61,6 +61,7 @@ impl Pixel for f32 {
 }
 
 impl Pixel for f64 {
+  #[allow(clippy::wrong_self_convention)]
   fn from_f64(f: f64) -> Self {
     f
   }
@@ -108,6 +109,7 @@ impl<T: Pixel> LogicalPosition<T> {
 
 /// A position that's either physical or logical.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", content = "data")]
 pub enum Position {
   /// Physical position.
   Physical(PhysicalPosition<i32>),
@@ -157,6 +159,7 @@ impl<T: Pixel> LogicalSize<T> {
 
 /// A size that's either physical or logical.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", content = "data")]
 pub enum Size {
   /// Physical size.
   Physical(PhysicalSize<u32>),

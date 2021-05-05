@@ -11,9 +11,52 @@ import { invokeTauriCommand } from './helpers/tauri'
 import { EventCallback, UnlistenFn, listen, once } from './event'
 import { emit } from './helpers/event'
 
-/** @ignore */
-interface WindowDef {
-  label: string
+/** A size represented in logical pixels. */
+class LogicalSize {
+  type = 'Logical'
+  width: number
+  height: number
+
+  constructor(width: number, height: number) {
+    this.width = width
+    this.height = height
+  }
+}
+
+/** A size represented in physical pixels. */
+class PhysicalSize {
+  type = 'Physical'
+  width: number
+  height: number
+
+  constructor(width: number, height: number) {
+    this.width = width
+    this.height = height
+  }
+}
+
+/** A position represented in logical pixels. */
+class LogicalPosition {
+  type = 'Logical'
+  x: number
+  y: number
+
+  constructor(x: number, y: number) {
+    this.x = x
+    this.y = y
+  }
+}
+
+/** A position represented in physical pixels. */
+class PhysicalPosition {
+  type = 'Physical'
+  x: number
+  y: number
+
+  constructor(x: number, y: number) {
+    this.x = x
+    this.y = y
+  }
 }
 
 /** @ignore */
@@ -168,9 +211,11 @@ class WebviewWindow extends WebviewWindowHandle {
       __tauriModule: 'Window',
       message: {
         cmd: 'createWebview',
-        options: {
-          label,
-          ...options
+        data: {
+          options: {
+            label,
+            ...options
+          }
         }
       }
     })
@@ -207,7 +252,7 @@ export class WindowManager {
       __tauriModule: 'Window',
       message: {
         cmd: 'setResizable',
-        resizable
+        data: resizable
       }
     })
   }
@@ -223,7 +268,7 @@ export class WindowManager {
       __tauriModule: 'Window',
       message: {
         cmd: 'setTitle',
-        title
+        data: title
       }
     })
   }
@@ -337,7 +382,7 @@ export class WindowManager {
       __tauriModule: 'Window',
       message: {
         cmd: 'setDecorations',
-        decorations
+        data: decorations
       }
     })
   }
@@ -353,39 +398,7 @@ export class WindowManager {
       __tauriModule: 'Window',
       message: {
         cmd: 'setAlwaysOnTop',
-        alwaysOnTop
-      }
-    })
-  }
-
-  /**
-   * Sets the window width.
-   *
-   * @param width The new window width.
-   * @returns A promise indicating the success or failure of the operation.
-   */
-  async setWidth(width: number): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
-      message: {
-        cmd: 'setWidth',
-        width
-      }
-    })
-  }
-
-  /**
-   * Sets the window height.
-   *
-   * @param height The new window height.
-   * @returns A promise indicating the success or failure of the operation.
-   */
-  async setHeight(height: number): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
-      message: {
-        cmd: 'setHeight',
-        height
+        data: alwaysOnTop
       }
     })
   }
@@ -393,17 +406,21 @@ export class WindowManager {
   /**
    * Resizes the window.
    *
-   * @param width The new window width.
-   * @param height The new window height.
+   * @param size The logical or physical size.
    * @returns A promise indicating the success or failure of the operation.
    */
-  async resize(width: number, height: number): Promise<void> {
+  async setSize(size: LogicalSize | PhysicalSize): Promise<void> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'resize',
-        width,
-        height
+        cmd: 'setSize',
+        data: {
+          type: size.type,
+          data: {
+            width: size.width,
+            height: size.height
+          }
+        }
       }
     })
   }
@@ -411,17 +428,25 @@ export class WindowManager {
   /**
    * Sets the window min size.
    *
-   * @param minWidth The new window min width.
-   * @param minHeight The new window min height.
+   * @param size The logical or physical size.
    * @returns A promise indicating the success or failure of the operation.
    */
-  async setMinSize(minWidth: number, minHeight: number): Promise<void> {
+  async setMinSize(
+    size: LogicalSize | PhysicalSize | undefined
+  ): Promise<void> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'setMinSize',
-        minWidth,
-        minHeight
+        data: size
+          ? {
+            type: size.type,
+            data: {
+              width: size.width,
+              height: size.height
+            }
+          }
+          : null
       }
     })
   }
@@ -429,49 +454,25 @@ export class WindowManager {
   /**
    * Sets the window max size.
    *
-   * @param maxWidth The new window max width.
-   * @param maxHeight The new window max height.
+   * @param size The logical or physical size.
    * @returns A promise indicating the success or failure of the operation.
    */
-  async setMaxSize(maxWidth: number, maxHeight: number): Promise<void> {
+  async setMaxSize(
+    size: LogicalSize | PhysicalSize | undefined
+  ): Promise<void> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'setMaxSize',
-        maxWidth,
-        maxHeight
-      }
-    })
-  }
-
-  /**
-   * Sets the window x position.
-   *
-   * @param x The new window x position.
-   * @returns A promise indicating the success or failure of the operation.
-   */
-  async setX(x: number): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
-      message: {
-        cmd: 'setX',
-        x
-      }
-    })
-  }
-
-  /**
-   * Sets the window y position.
-   *
-   * @param y The new window y position.
-   * @returns A promise indicating the success or failure of the operation.
-   */
-  async setY(y: number): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
-      message: {
-        cmd: 'setY',
-        y
+        data: size
+          ? {
+            type: size.type,
+            data: {
+              width: size.width,
+              height: size.height
+            }
+          }
+          : null
       }
     })
   }
@@ -479,17 +480,23 @@ export class WindowManager {
   /**
    * Sets the window position.
    *
-   * @param x The new window x position.
-   * @param y The new window y position.
+   * @param position The new position, in logical or physical pixels.
    * @returns A promise indicating the success or failure of the operation.
    */
-  async setPosition(x: number, y: number): Promise<void> {
+  async setPosition(
+    position: LogicalPosition | PhysicalPosition
+  ): Promise<void> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'setPosition',
-        x,
-        y
+        data: {
+          type: position.type,
+          data: {
+            x: position.x,
+            y: position.y
+          }
+        }
       }
     })
   }
@@ -505,7 +512,7 @@ export class WindowManager {
       __tauriModule: 'Window',
       message: {
         cmd: 'setFullscreen',
-        fullscreen
+        data: fullscreen
       }
     })
   }
@@ -521,7 +528,9 @@ export class WindowManager {
       __tauriModule: 'Window',
       message: {
         cmd: 'setIcon',
-        icon
+        data: {
+          icon
+        }
       }
     })
   }
@@ -582,4 +591,13 @@ export interface WindowOptions {
   alwaysOnTop?: boolean
 }
 
-export { WebviewWindow, getCurrent, getAll, appWindow }
+export {
+  WebviewWindow,
+  getCurrent,
+  getAll,
+  appWindow,
+  LogicalSize,
+  PhysicalSize,
+  LogicalPosition,
+  PhysicalPosition
+}

@@ -307,7 +307,7 @@ enum WindowMessage {
   Close,
   SetDecorations(bool),
   SetAlwaysOnTop(bool),
-  Resize(Size),
+  SetSize(Size),
   SetMinSize(Option<Size>),
   SetMaxSize(Option<Size>),
   SetPosition(Position),
@@ -539,10 +539,13 @@ impl Dispatch for WryDispatcher {
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
-  fn resize(&self, size: Size) -> crate::Result<()> {
+  fn set_size(&self, size: Size) -> crate::Result<()> {
     self
       .proxy
-      .send_event(Message::Window(self.window_id, WindowMessage::Resize(size)))
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::SetSize(size),
+      ))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
@@ -732,14 +735,14 @@ impl Runtime for Wry {
                 WindowMessage::SetAlwaysOnTop(always_on_top) => {
                   window.set_always_on_top(always_on_top)
                 }
-                WindowMessage::Resize(size) => {
+                WindowMessage::SetSize(size) => {
                   window.set_inner_size(WrySize::from(size));
                 }
                 WindowMessage::SetMinSize(size) => {
-                  window.set_min_inner_size(size.map(|s| WrySize::from(s)));
+                  window.set_min_inner_size(size.map(WrySize::from));
                 }
                 WindowMessage::SetMaxSize(size) => {
-                  window.set_max_inner_size(size.map(|s| WrySize::from(s)));
+                  window.set_max_inner_size(size.map(WrySize::from));
                 }
                 WindowMessage::SetPosition(position) => {
                   window.set_outer_position(WryPosition::from(position))

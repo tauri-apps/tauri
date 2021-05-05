@@ -433,8 +433,8 @@ pub(crate) mod export {
     }
 
     /// Resizes this window.
-    pub fn resize<S: Into<Size>>(&self, size: S) -> crate::Result<()> {
-      self.window.dispatcher.resize(size.into())
+    pub fn set_size<S: Into<Size>>(&self, size: S) -> crate::Result<()> {
+      self.window.dispatcher.set_size(size.into())
     }
 
     /// Sets this window's minimum size.

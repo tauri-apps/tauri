@@ -102,6 +102,7 @@ macro_rules! tauri_build_context {
 
 /// A icon definition.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum Icon {
   /// Icon from file path.
   File(PathBuf),

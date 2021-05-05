@@ -137,6 +137,7 @@ pub trait WindowBuilder: WindowBuilderBase {
 }
 
 /// Rpc request.
+#[non_exhaustive]
 pub struct RpcRequest {
   /// RPC command.
   pub command: String,
@@ -152,6 +153,7 @@ pub struct CustomProtocol {
 
 /// The file drop event payload.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum FileDropEvent {
   /// The file(s) have been dragged onto the window, but have not been dropped yet.
   Hovered(Vec<PathBuf>),

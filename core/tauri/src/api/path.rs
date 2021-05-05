@@ -18,6 +18,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 /// For more information, check the [dirs_next documentation](https://docs.rs/dirs_next/).
 #[derive(Serialize_repr, Deserialize_repr, Clone, Debug)]
 #[repr(u16)]
+#[non_exhaustive]
 pub enum BaseDirectory {
   /// The Audio directory.
   Audio = 1,

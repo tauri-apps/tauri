@@ -22,8 +22,6 @@ pub mod process;
 pub mod rpc;
 /// The shell api.
 pub mod shell;
-/// TCP ports access API.
-pub mod tcp;
 /// The semver API.
 pub mod version;
 

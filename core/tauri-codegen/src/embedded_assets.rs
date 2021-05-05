@@ -25,6 +25,7 @@ type Asset = (AssetKey, (PathBuf, PathBuf));
 
 /// All possible errors while reading and compressing an [`EmbeddedAssets`] directory
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum EmbeddedAssetsError {
   #[error("failed to read asset at {path} because {error}")]
   AssetRead {

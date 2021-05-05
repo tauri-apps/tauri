@@ -11,6 +11,7 @@ use url::Url;
 /// The window webview URL options.
 #[derive(PartialEq, Debug, Clone, Deserialize)]
 #[serde(untagged)]
+#[non_exhaustive]
 pub enum WindowUrl {
   /// An external URL.
   External(Url),

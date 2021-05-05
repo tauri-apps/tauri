@@ -468,6 +468,7 @@ impl<P: Params> WindowManager<P> {
         )
       }
       WindowUrl::External(url) => (url.as_str().starts_with("tauri://"), url.to_string()),
+      _ => unimplemented!(),
     };
 
     if is_local {

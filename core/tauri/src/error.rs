@@ -6,10 +6,11 @@ use std::path::PathBuf;
 
 /// Runtime errors that can happen inside a Tauri application.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum Error {
   /// Failed to create webview.
   #[error("failed to create webview: {0}")]
-  CreateWebview(String),
+  CreateWebview(Box<dyn std::error::Error>),
   /// Failed to create window.
   #[error("failed to create window")]
   CreateWindow,
@@ -39,7 +40,7 @@ pub enum Error {
   Base64Decode(#[from] base64::DecodeError),
   /// Failed to load window icon.
   #[error("invalid icon: {0}")]
-  InvalidIcon(String),
+  InvalidIcon(Box<dyn std::error::Error>),
   /// Client with specified ID not found.
   #[error("http client dropped or not initialized")]
   HttpClientNotInitialized,
@@ -54,7 +55,7 @@ pub enum Error {
   InvalidArgs(&'static str, serde_json::Error),
   /// Encountered an error in the setup hook,
   #[error("error encountered during setup hook: {0}")]
-  Setup(String),
+  Setup(Box<dyn std::error::Error>),
   /// Tauri updater error.
   #[cfg(feature = "updater")]
   #[error("Updater: {0}")]

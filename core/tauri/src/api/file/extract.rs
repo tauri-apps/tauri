@@ -8,6 +8,7 @@ use std::{fs, io, path};
 
 /// The supported archive formats.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[non_exhaustive]
 pub enum ArchiveFormat {
   /// Tar archive.
   Tar(Option<Compression>),
@@ -19,6 +20,7 @@ pub enum ArchiveFormat {
 
 /// The supported compression types.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[non_exhaustive]
 pub enum Compression {
   /// Gz compression (e.g. `.tar.gz` archives)
   Gz,

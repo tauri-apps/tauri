@@ -53,6 +53,7 @@ mod ui {
 
   #[tauri::command]
   fn close_splashscreen<P: Params>(
+    _: Window<P>, // force inference of P
     splashscreen: State<'_, SplashscreenWindow<P>>,
     main: State<'_, MainWindow<P>>,
   ) {

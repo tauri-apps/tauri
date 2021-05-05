@@ -24,6 +24,7 @@
 
     const container = document.querySelector('#container')
     const commands = [
+      { name: 'window_label', required: true },
       { name: 'simple_command', required: true },
       { name: 'stateful_command', required: false },
       { name: 'async_simple_command', required: true },
@@ -32,14 +33,18 @@
       { name: 'stateful_command_with_result', required: false },
       { name: 'async_simple_command_with_result', required: true },
       { name: 'async_stateful_command_with_result', required: false },
+      { name: 'command_arguments_wild', required: true },
+      { name: 'command_arguments_struct', required: true, args: { "Person": { "name": "ferris", age: 6 } } },
+      { name: 'command_arguments_tuple_struct', required: true, args: { "InlinePerson": [ "ferris", 6 ] } },
     ]
 
-    for (command of commands) {
+    for (const command of commands) {
       const { name, required } = command
+      const args = command.args ?? { argument: 'value' }
       const button = document.createElement('button')
       button.innerHTML = `Run ${name}`;
       button.addEventListener("click", function () {
-        runCommand(name, { argument: 'value' })
+        runCommand(name, args)
         if (!required) {
           setTimeout(() => {
             runCommand(name, {})

@@ -10,14 +10,12 @@ import { Recipe } from '../types/recipe'
 export const vanillajs: Recipe = {
   descriptiveName: 'Vanilla.js',
   shortName: 'vanillajs',
-  configUpdate: ({ cfg, packageManager }) => ({
+  configUpdate: ({ cfg }) => ({
     ...cfg,
     distDir: `../dist`,
     devPath: `../dist`,
-    beforeDevCommand: `${packageManager === 'yarn' ? 'yarn' : 'npm run'} start`,
-    beforeBuildCommand: `${
-      packageManager === 'yarn' ? 'yarn' : 'npm run'
-    } build`
+    beforeDevCommand: '',
+    beforeBuildCommand: ''
   }),
   extraNpmDevDependencies: [],
   extraNpmDependencies: [],

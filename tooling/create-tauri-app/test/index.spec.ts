@@ -53,7 +53,7 @@ beforeAll(async () => {
 
   const linkAPI = await execa('yarn', ['link'], {
     stdio: logOut,
-    cwd: api,
+    cwd: path.join(api, 'dist'),
     timeout: timeoutLong
   })
 }, timeoutLittleLonger)

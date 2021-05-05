@@ -1,5 +1,5 @@
 <script>
-  import { appWindow, WebviewWindow } from "@tauri-apps/api/window";
+  import { appWindow, WebviewWindow, LogicalSize, LogicalPosition } from "@tauri-apps/api/window";
   import { open as openDialog } from "@tauri-apps/api/dialog";
   import { open } from "@tauri-apps/api/shell";
 
@@ -14,14 +14,10 @@
     hide,
     setDecorations,
     setAlwaysOnTop,
-    setWidth,
-    setHeight,
-    // resize,
+    setSize,
     setMinSize,
     setMaxSize,
-    setX,
-    setY,
-    // setPosition,
+    setPosition,
     setFullscreen,
     setIcon,
   } = appWindow;
@@ -79,17 +75,14 @@
 
   $: setResizable(resizable);
   $: maximized ? maximize() : unmaximize();
-  //$: setTransparent(transparent)
   $: setDecorations(decorations);
   $: setAlwaysOnTop(alwaysOnTop);
   $: setFullscreen(fullscreen);
 
-  $: setWidth(width);
-  $: setHeight(height);
-  $: minWidth && minHeight && setMinSize(minWidth, minHeight);
-  $: maxWidth && maxHeight && setMaxSize(maxWidth, maxHeight);
-  $: setX(x);
-  $: setY(y);
+  $: setSize(new LogicalSize(width, height));
+  $: minWidth && minHeight ? setMinSize(new LogicalSize(minWidth, minHeight)) : setMinSize(null);
+  $: maxWidth && maxHeight ? setMaxSize(new LogicalSize(maxWidth, maxHeight)) : setMaxSize(null);
+  $: setPosition(new LogicalPosition(x, y));
 </script>
 
 <div class="flex col">

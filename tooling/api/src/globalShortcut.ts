@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+/**
+ * Register global shortcuts.
+ * @packageDocumentation
+ */
+
 import { invokeTauriCommand } from './helpers/tauri'
 import { transformCallback } from './tauri'
 

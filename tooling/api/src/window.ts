@@ -269,6 +269,7 @@ class WebviewWindow extends WebviewWindowHandle {
  */
 export class WindowManager {
   // Getters
+  /** The scale factor that can be used to map physical pixels to logical pixels. */
   async scaleFactor(): Promise<number> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
@@ -278,6 +279,7 @@ export class WindowManager {
     })
   }
 
+  /** The position of the top-left hand corner of the window's client area relative to the top-left hand corner of the desktop. */
   async innerPosition(): Promise<PhysicalPosition> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
@@ -287,6 +289,7 @@ export class WindowManager {
     })
   }
 
+  /** The position of the top-left hand corner of the window relative to the top-left hand corner of the desktop. */
   async outerPosition(): Promise<PhysicalPosition> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
@@ -296,6 +299,10 @@ export class WindowManager {
     })
   }
 
+  /**
+   * The physical size of the window's client area.
+   * The client area is the content of the window, excluding the title bar and borders.
+   */
   async innerSize(): Promise<PhysicalSize> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
@@ -305,6 +312,10 @@ export class WindowManager {
     })
   }
 
+  /**
+   * The physical size of the entire window.
+   * These dimensions include the title bar and borders. If you don't want that (and you usually don't), use inner_size instead.
+   */
   async outerSize(): Promise<PhysicalSize> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
@@ -314,6 +325,7 @@ export class WindowManager {
     })
   }
 
+  /** Gets the window's current fullscreen state. */
   async isFullscreen(): Promise<boolean> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
@@ -323,6 +335,7 @@ export class WindowManager {
     })
   }
 
+  /** Gets the window's current maximized state. */
   async isMaximized(): Promise<boolean> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
@@ -684,6 +697,10 @@ export interface WindowOptions {
   alwaysOnTop?: boolean
 }
 
+/**
+ * Returns the monitor on which the window currently resides.
+ * Returns `null` if current monitor can't be detected.
+ */
 async function currentMonitor(): Promise<Monitor | null> {
   return invokeTauriCommand({
     __tauriModule: 'Window',
@@ -693,6 +710,10 @@ async function currentMonitor(): Promise<Monitor | null> {
   })
 }
 
+/**
+ * Returns the primary monitor of the system.
+ * Returns `null` if it can't identify any monitor as a primary one.
+ */
 async function primaryMonitor(): Promise<Monitor | null> {
   return invokeTauriCommand({
     __tauriModule: 'Window',
@@ -702,6 +723,7 @@ async function primaryMonitor(): Promise<Monitor | null> {
   })
 }
 
+/** Returns the list of all the monitors available on the system. */
 async function availableMonitors(): Promise<Monitor[]> {
   return invokeTauriCommand({
     __tauriModule: 'Window',

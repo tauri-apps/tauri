@@ -194,7 +194,7 @@ pub struct WixSettings {
 }
 
 /// The Windows bundle settings.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct WindowsSettings {
   /// The file digest algorithm to use for creating file signatures. Required for code signing. SHA-256 is recommended.
   pub digest_algorithm: Option<String>,
@@ -204,6 +204,20 @@ pub struct WindowsSettings {
   pub timestamp_url: Option<String>,
   /// WiX configuration.
   pub wix: Option<WixSettings>,
+  /// The path to the application icon. Defaults to `./icons/icon.ico`.
+  pub icon_path: PathBuf,
+}
+
+impl Default for WindowsSettings {
+  fn default() -> Self {
+    Self {
+      digest_algorithm: None,
+      certificate_thumbprint: None,
+      timestamp_url: None,
+      wix: None,
+      icon_path: PathBuf::from("icons/icon.ico"),
+    }
+  }
 }
 
 /// The bundle settings of the BuildArtifact we're bundling.

@@ -212,6 +212,29 @@ fn get_version(command: &str, args: &[&str]) -> crate::Result<Option<String>> {
   Ok(version)
 }
 
+#[cfg(windows)]
+fn webview2_version() -> crate::Result<Option<String>> {
+  let output = Command::new("powershell")
+    .args(&["-NoProfile", "-Command"])
+    .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
+    .output()?;
+  let version = if output.status.success() {
+    Some(String::from_utf8_lossy(&output.stdout).replace("\n", ""))
+  } else {
+    // check 32bit installation
+    let output = Command::new("powershell")
+      .args(&["-NoProfile", "-Command"])
+      .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
+      .output()?;
+    if output.status.success() {
+      Some(String::from_utf8_lossy(&output.stdout).replace("\n", ""))
+    } else {
+      None
+    }
+  };
+  Ok(version)
+}
+
 struct InfoBlock {
   section: bool,
   key: &'static str,
@@ -289,7 +312,7 @@ impl VersionBlock {
     if let Some(version) = &self.version {
       print!(" - {}", version);
     } else {
-      print!(" Not installed");
+      print!(" - Not installed");
     }
     if let (Some(version), Some(target_version)) = (&self.version, &self.target_version) {
       let version = semver::Version::parse(version).unwrap();
@@ -321,6 +344,9 @@ impl Info {
       suffix: None,
     }
     .display();
+
+    #[cfg(windows)]
+    VersionBlock::new("Webview2", webview2_version().unwrap_or_default()).display();
 
     let hook = panic::take_hook();
     panic::set_hook(Box::new(|_info| {

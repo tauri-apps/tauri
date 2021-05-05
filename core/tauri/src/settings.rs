@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::api::{
-  file::read_string,
-  path::{resolve_path, BaseDirectory},
+use crate::{
+  api::{
+    file::read_string,
+    path::{resolve_path, BaseDirectory},
+  },
+  Config,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -22,14 +25,14 @@ pub struct Settings {
 }
 
 /// Gets the path to the settings file
-fn get_settings_path() -> crate::api::Result<PathBuf> {
-  resolve_path(".tauri-settings.json", Some(BaseDirectory::App))
+fn get_settings_path(config: &Config) -> crate::api::Result<PathBuf> {
+  resolve_path(config, ".tauri-settings.json", Some(BaseDirectory::App))
 }
 
 /// Write the settings to the file system.
 #[allow(dead_code)]
-pub(crate) fn write_settings(settings: Settings) -> crate::Result<()> {
-  let settings_path = get_settings_path()?;
+pub(crate) fn write_settings(config: &Config, settings: Settings) -> crate::Result<()> {
+  let settings_path = get_settings_path(config)?;
   let settings_folder = Path::new(&settings_path).parent().unwrap();
   if !settings_folder.exists() {
     std::fs::create_dir(settings_folder)?;
@@ -43,8 +46,8 @@ pub(crate) fn write_settings(settings: Settings) -> crate::Result<()> {
 }
 
 /// Reads the settings from the file system.
-pub fn read_settings() -> crate::Result<Settings> {
-  let settings_path = get_settings_path()?;
+pub fn read_settings(config: &Config) -> crate::Result<Settings> {
+  let settings_path = get_settings_path(config)?;
   if settings_path.exists() {
     read_string(settings_path)
       .and_then(|settings| serde_json::from_str(settings.as_str()).map_err(Into::into))

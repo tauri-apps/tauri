@@ -35,13 +35,14 @@ use std::{
   collections::HashMap,
   convert::TryFrom,
   sync::{
-    mpsc::{channel, Sender},
+    mpsc::{channel, Receiver, Sender},
     Arc, Mutex,
   },
 };
 
 type CreateWebviewHandler =
   Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> crate::Result<WebView> + Send>;
+type MainThreadTask = Box<dyn FnOnce() + Send>;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -233,11 +234,19 @@ enum Message {
 pub struct WryDispatcher {
   window_id: WindowId,
   proxy: EventLoopProxy<Message>,
+  task_tx: Sender<MainThreadTask>,
 }
 
 impl Dispatch for WryDispatcher {
   type Runtime = Wry;
   type WindowBuilder = WryWindowBuilder;
+
+  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
+    self
+      .task_tx
+      .send(Box::new(f))
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
 
   fn create_window<M: Params<Runtime = Self::Runtime>>(
     &mut self,
@@ -246,11 +255,12 @@ impl Dispatch for WryDispatcher {
     let (tx, rx) = channel();
     let label = pending.label.clone();
     let proxy = self.proxy.clone();
+    let task_tx = self.task_tx.clone();
     self
       .proxy
       .send_event(Message::CreateWebview(
         Arc::new(Mutex::new(Some(Box::new(move |event_loop| {
-          create_webview(event_loop, proxy, pending)
+          create_webview(event_loop, proxy, task_tx, pending)
         })))),
         tx,
       ))
@@ -259,6 +269,7 @@ impl Dispatch for WryDispatcher {
     let dispatcher = WryDispatcher {
       window_id,
       proxy: self.proxy.clone(),
+      task_tx: self.task_tx.clone(),
     };
     Ok(DetachedWindow { label, dispatcher })
   }
@@ -474,6 +485,8 @@ impl Dispatch for WryDispatcher {
 pub struct Wry {
   event_loop: EventLoop<Message>,
   webviews: HashMap<WindowId, WebView>,
+  task_tx: Sender<MainThreadTask>,
+  task_rx: Receiver<MainThreadTask>,
 }
 
 impl Runtime for Wry {
@@ -481,9 +494,12 @@ impl Runtime for Wry {
 
   fn new() -> crate::Result<Self> {
     let event_loop = EventLoop::<Message>::with_user_event();
+    let (task_tx, task_rx) = channel();
     Ok(Self {
       event_loop,
       webviews: Default::default(),
+      task_tx,
+      task_rx,
     })
   }
 
@@ -493,11 +509,17 @@ impl Runtime for Wry {
   ) -> crate::Result<DetachedWindow<M>> {
     let label = pending.label.clone();
     let proxy = self.event_loop.create_proxy();
-    let webview = create_webview(&self.event_loop, proxy.clone(), pending)?;
+    let webview = create_webview(
+      &self.event_loop,
+      proxy.clone(),
+      self.task_tx.clone(),
+      pending,
+    )?;
 
     let dispatcher = WryDispatcher {
       window_id: webview.window().id(),
       proxy,
+      task_tx: self.task_tx.clone(),
     };
 
     self.webviews.insert(webview.window().id(), webview);
@@ -507,6 +529,7 @@ impl Runtime for Wry {
 
   fn run(self) {
     let mut webviews = self.webviews;
+    let task_rx = self.task_rx;
     self.event_loop.run(move |event, event_loop, control_flow| {
       *control_flow = ControlFlow::Wait;
 
@@ -514,6 +537,10 @@ impl Runtime for Wry {
         if let Err(e) = w.evaluate_script() {
           eprintln!("{}", e);
         }
+      }
+
+      while let Ok(task) = task_rx.try_recv() {
+        task();
       }
 
       match event {
@@ -647,6 +674,7 @@ impl Runtime for Wry {
 fn create_webview<M: Params<Runtime = Wry>>(
   event_loop: &EventLoopWindowTarget<Message>,
   proxy: EventLoopProxy<Message>,
+  task_tx: Sender<MainThreadTask>,
   pending: PendingWindow<M>,
 ) -> crate::Result<WebView> {
   let PendingWindow {
@@ -665,12 +693,16 @@ fn create_webview<M: Params<Runtime = Wry>>(
     .with_url(&url)
     .unwrap(); // safe to unwrap because we validate the URL beforehand
   if let Some(handler) = rpc_handler {
-    webview_builder =
-      webview_builder.with_rpc_handler(create_rpc_handler(proxy.clone(), label.clone(), handler));
+    webview_builder = webview_builder.with_rpc_handler(create_rpc_handler(
+      proxy.clone(),
+      task_tx.clone(),
+      label.clone(),
+      handler,
+    ));
   }
   if let Some(handler) = file_drop_handler {
-    webview_builder =
-      webview_builder.with_file_drop_handler(create_file_drop_handler(proxy, label, handler));
+    webview_builder = webview_builder
+      .with_file_drop_handler(create_file_drop_handler(proxy, task_tx, label, handler));
   }
   for (scheme, protocol) in webview_attributes.uri_scheme_protocols {
     webview_builder = webview_builder.with_custom_protocol(scheme, move |_window, url| {
@@ -692,6 +724,7 @@ fn create_webview<M: Params<Runtime = Wry>>(
 /// Create a wry rpc handler from a tauri rpc handler.
 fn create_rpc_handler<M: Params<Runtime = Wry>>(
   proxy: EventLoopProxy<Message>,
+  task_tx: Sender<MainThreadTask>,
   label: M::Label,
   handler: WebviewRpcHandler<M>,
 ) -> Box<dyn Fn(&Window, WryRpcRequest) -> Option<RpcResponse> + 'static> {
@@ -701,6 +734,7 @@ fn create_rpc_handler<M: Params<Runtime = Wry>>(
         dispatcher: WryDispatcher {
           window_id: window.id(),
           proxy: proxy.clone(),
+          task_tx: task_tx.clone(),
         },
         label: label.clone(),
       },
@@ -713,6 +747,7 @@ fn create_rpc_handler<M: Params<Runtime = Wry>>(
 /// Create a wry file drop handler from a tauri file drop handler.
 fn create_file_drop_handler<M: Params<Runtime = Wry>>(
   proxy: EventLoopProxy<Message>,
+  task_tx: Sender<MainThreadTask>,
   label: M::Label,
   handler: FileDropHandler<M>,
 ) -> Box<dyn Fn(&Window, WryFileDropEvent) -> bool + 'static> {
@@ -723,6 +758,7 @@ fn create_file_drop_handler<M: Params<Runtime = Wry>>(
         dispatcher: WryDispatcher {
           window_id: window.id(),
           proxy: proxy.clone(),
+          task_tx: task_tx.clone(),
         },
         label: label.clone(),
       },

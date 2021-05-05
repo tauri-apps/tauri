@@ -186,6 +186,13 @@ pub(crate) mod export {
       self.window.dispatcher.clone()
     }
 
+    pub(crate) fn run_on_main_thread<F: FnOnce() + Send + 'static>(
+      &self,
+      f: F,
+    ) -> crate::Result<()> {
+      self.window.dispatcher.run_on_main_thread(f)
+    }
+
     /// How to handle this window receiving an [`InvokeMessage`].
     pub(crate) fn on_message(self, command: String, payload: InvokePayload) -> crate::Result<()> {
       let manager = self.manager.clone();
@@ -201,8 +208,7 @@ pub(crate) mod export {
             command.to_string(),
             payload.inner,
           );
-          let resolver =
-            InvokeResolver::new(self, payload.main_thread, payload.callback, payload.error);
+          let resolver = InvokeResolver::new(self, payload.callback, payload.error);
           let invoke = Invoke { message, resolver };
           if let Some(module) = &payload.tauri_module {
             let module = module.to_string();

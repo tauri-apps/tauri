@@ -42,6 +42,9 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   /// The winoow builder type.
   type WindowBuilder: WindowBuilder + Clone;
 
+  /// Run a task on the main thread.
+  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()>;
+
   /// Create a new webview window.
   fn create_window<P: Params<Runtime = Self::Runtime>>(
     &mut self,

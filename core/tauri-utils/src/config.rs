@@ -164,6 +164,14 @@ impl Default for UpdaterConfig {
   }
 }
 
+/// Security configuration.
+#[derive(PartialEq, Deserialize, Debug, Clone, Default)]
+#[serde(tag = "updater", rename_all = "camelCase")]
+pub struct SecurityConfig {
+  /// Content security policy to inject to HTML files with the custom protocol.
+  pub csp: Option<String>,
+}
+
 /// A CLI argument definition
 #[derive(PartialEq, Deserialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -340,6 +348,9 @@ pub struct TauriConfig {
   /// The updater configuration.
   #[serde(default)]
   pub updater: UpdaterConfig,
+  /// The security configuration.
+  #[serde(default)]
+  pub security: SecurityConfig,
 }
 
 impl Default for TauriConfig {
@@ -349,6 +360,7 @@ impl Default for TauriConfig {
       cli: None,
       bundle: BundleConfig::default(),
       updater: UpdaterConfig::default(),
+      security: SecurityConfig::default(),
     }
   }
 }
@@ -397,7 +409,7 @@ pub struct PackageConfig {
 }
 
 /// The tauri.conf.json mapper.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, Default, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
   /// Package settings.
@@ -756,14 +768,23 @@ mod build {
     }
   }
 
+  impl ToTokens for SecurityConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let csp = opt_str_lit(self.csp.as_ref());
+
+      literal_struct!(tokens, SecurityConfig, csp);
+    }
+  }
+
   impl ToTokens for TauriConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let windows = vec_lit(&self.windows, identity);
       let cli = opt_lit(self.cli.as_ref());
       let bundle = &self.bundle;
       let updater = &self.updater;
+      let security = &self.security;
 
-      literal_struct!(tokens, TauriConfig, windows, cli, bundle, updater);
+      literal_struct!(tokens, TauriConfig, windows, cli, bundle, updater, security);
     }
   }
 
@@ -857,6 +878,7 @@ mod test {
         pubkey: None,
         endpoints: None,
       },
+      security: SecurityConfig { csp: None },
     };
 
     // create a build config

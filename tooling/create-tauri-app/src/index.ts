@@ -14,6 +14,7 @@ import { install, checkPackageManager } from './dependency-manager'
 import { shell } from './shell'
 import { addTauriScript } from './helpers/add-tauri-script'
 import { Recipe } from './types/recipe'
+import { updateTauriConf } from './helpers/update-tauri-conf'
 
 interface Argv {
   h: boolean
@@ -183,7 +184,16 @@ const runInit = async (argv: Argv): Promise<void> => {
     recipe = recipeByDescriptiveName(recipeName)
   }
 
-  if (!recipe) throw new Error('Could not find the recipe specified.')
+  if (!recipe) {
+    if (argv.ci) {
+      recipe = recipeByShortName('vanillajs')
+    }
+    // throw if recipe is not set
+    // if it fails to set in CI, throw as well
+    if (!recipe) {
+      throw new Error('Could not find the recipe specified.')
+    }
+  }
 
   const packageManager =
     argv.m === 'yarn' || argv.m === 'npm'
@@ -279,10 +289,10 @@ const runInit = async (argv: Argv): Promise<void> => {
   if (recipe.shortName !== 'vuecli') {
     logStep('Installing any additional needed dependencies')
     if (argv.dev) {
-      await shell('yarn', ['link', '@tauri-apps/cli'], {
+      await shell(packageManager, ['link', '@tauri-apps/cli'], {
         cwd: appDirectory
       })
-      await shell('yarn', ['link', '@tauri-apps/api'], {
+      await shell(packageManager, ['link', '@tauri-apps/api'], {
         cwd: appDirectory
       })
     }
@@ -292,13 +302,16 @@ const runInit = async (argv: Argv): Promise<void> => {
       dependencies: recipe.extraNpmDependencies,
       devDependencies: argv.dev
         ? [...recipe.extraNpmDevDependencies]
-        : ['@tauri-apps/cli'].concat(recipe.extraNpmDevDependencies),
+        : [argv.dev ? '@tauri-apps/cli' : ''].concat(
+            recipe.extraNpmDevDependencies
+          ),
       packageManager
     })
 
-    logStep(`Running: ${reset(yellow('tauri init'))}`)
+    logStep('Adding `tauri` script to package.json')
     addTauriScript(appDirectory)
 
+    logStep(`Running: ${reset(yellow('tauri init'))}`)
     const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b)
     const runTauriArgs =
       packageManager === 'npm' && !argv.b
@@ -307,6 +320,9 @@ const runInit = async (argv: Argv): Promise<void> => {
     await shell(binary, [...runTauriArgs, ...initArgs, '--ci'], {
       cwd: appDirectory
     })
+
+    logStep('Updating `tauri.conf.json`')
+    updateTauriConf(appDirectory, cfg)
   }
 
   if (recipe.postInit) {

@@ -73,6 +73,7 @@ const vite: Recipe = {
           cwd
         }
       )
+      await shell('yarn', ['install'], { cwd })
     } else {
       await shell(
         'npx',
@@ -81,6 +82,7 @@ const vite: Recipe = {
           cwd
         }
       )
+      await shell('npm', ['install'], { cwd })
     }
 
     await afterViteCA(cwd, cfg.appName, template)

@@ -62,7 +62,7 @@ pub struct InnerWindowManager<P: Params> {
   /// The page load hook, invoked when the webview performs a navigation.
   on_page_load: Box<OnPageLoad<P>>,
 
-  config: Config,
+  config: Arc<Config>,
   assets: Arc<P::Assets>,
   default_window_icon: Option<Vec<u8>>,
 
@@ -133,7 +133,7 @@ impl<P: Params> WindowManager<P> {
         state: Arc::new(state),
         invoke_handler,
         on_page_load,
-        config: context.config,
+        config: Arc::new(context.config),
         assets: context.assets,
         default_window_icon: context.default_window_icon,
         salts: Mutex::default(),
@@ -215,6 +215,7 @@ impl<P: Params> WindowManager<P> {
     }
 
     let local_app_data = resolve_path(
+      &self.inner.config,
       &self.inner.config.tauri.bundle.identifier,
       Some(BaseDirectory::LocalData),
     );
@@ -525,12 +526,15 @@ impl<P: Params> WindowManager<P> {
   pub fn labels(&self) -> HashSet<P::Label> {
     self.windows_lock().keys().cloned().collect()
   }
-  pub fn config(&self) -> &Config {
-    &self.inner.config
+
+  pub fn config(&self) -> Arc<Config> {
+    self.inner.config.clone()
   }
+
   pub fn package_info(&self) -> &PackageInfo {
     &self.inner.package_info
   }
+
   pub fn unlisten(&self, handler_id: EventHandler) {
     self.inner.listeners.unlisten(handler_id)
   }

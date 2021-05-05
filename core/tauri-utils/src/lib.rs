@@ -9,6 +9,8 @@
 pub mod assets;
 /// Tauri config definition.
 pub mod config;
+/// Tauri HTML processing.
+pub mod html;
 /// Platform helpers
 pub mod platform;
 /// Process helpers

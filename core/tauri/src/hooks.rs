@@ -101,16 +101,14 @@ impl<T: Serialize> From<Result<T, InvokeError>> for InvokeResponse {
 /// Resolver of a invoke message.
 pub struct InvokeResolver<M: Params> {
   window: Window<M>,
-  pub(crate) main_thread: bool,
   pub(crate) callback: String,
   pub(crate) error: String,
 }
 
 impl<P: Params> InvokeResolver<P> {
-  pub(crate) fn new(window: Window<P>, main_thread: bool, callback: String, error: String) -> Self {
+  pub(crate) fn new(window: Window<P>, callback: String, error: String) -> Self {
     Self {
       window,
-      main_thread,
       callback,
       error,
     }
@@ -122,15 +120,9 @@ impl<P: Params> InvokeResolver<P> {
     T: Serialize,
     F: Future<Output = Result<T, InvokeError>> + Send + 'static,
   {
-    if self.main_thread {
-      crate::async_runtime::block_on(async move {
-        Self::return_task(self.window, task, self.callback, self.error).await;
-      });
-    } else {
-      crate::async_runtime::spawn(async move {
-        Self::return_task(self.window, task, self.callback, self.error).await;
-      });
-    }
+    crate::async_runtime::spawn(async move {
+      Self::return_task(self.window, task, self.callback, self.error).await;
+    });
   }
 
   /// Reply to the invoke promise running the given closure.

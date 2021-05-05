@@ -2,9 +2,11 @@
 /dist
 target/
 
-# Prebuilt rust CLI
+# Downloaded binaries
 bin/tauri-cli
 bin/tauri-cli.exe
+bin/rustup-init.sh
+bin/rustup-init.exe
 
 # Logs
 logs

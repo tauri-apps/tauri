@@ -13,7 +13,6 @@ use serde_json::Value as JsonValue;
 mod config_definition;
 pub use config_definition::*;
 
-#[cfg(windows)]
 impl From<WixConfig> for tauri_bundler::WixSettings {
   fn from(config: WixConfig) -> tauri_bundler::WixSettings {
     tauri_bundler::WixSettings {

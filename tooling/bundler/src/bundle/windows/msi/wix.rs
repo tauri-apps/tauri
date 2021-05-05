@@ -141,7 +141,7 @@ fn copy_icon(settings: &Settings) -> crate::Result<PathBuf> {
   std::fs::create_dir_all(&resource_dir)?;
   let icon_target_path = resource_dir.join("icon.ico");
 
-  let icon_path = std::env::current_dir()?.join("icons").join("icon.ico");
+  let icon_path = std::env::current_dir()?.join(&settings.windows().icon_path);
 
   copy_file(
     icon_path,

@@ -11,6 +11,18 @@ import { invokeTauriCommand } from './helpers/tauri'
 import { EventCallback, UnlistenFn, listen, once } from './event'
 import { emit } from './helpers/event'
 
+/** Allows you to retrieve information about a given monitor. */
+interface Monitor {
+  /** Human-readable name of the monitor */
+  name: string | null
+  /** The monitor's resolution. */
+  size: PhysicalSize
+  /** the Top-left corner position of the monitor relative to the larger full screen area. */
+  position: PhysicalPosition
+  /** The scale factor that can be used to map physical pixels to logical pixels. */
+  scaleFactor: number
+}
+
 /** A size represented in logical pixels. */
 class LogicalSize {
   type = 'Logical'
@@ -32,6 +44,11 @@ class PhysicalSize {
   constructor(width: number, height: number) {
     this.width = width
     this.height = height
+  }
+
+  /** Converts the physical size to a logical one. */
+  toLogical(scaleFactor: number): LogicalSize {
+    return new LogicalSize(this.width / scaleFactor, this.height / scaleFactor)
   }
 }
 
@@ -57,6 +74,16 @@ class PhysicalPosition {
     this.x = x
     this.y = y
   }
+
+  /** Converts the physical position to a logical one. */
+  toLogical(scaleFactor: number): LogicalPosition {
+    return new LogicalPosition(this.x / scaleFactor, this.y / scaleFactor)
+  }
+}
+
+/** @ignore */
+interface WindowDef {
+  label: string
 }
 
 /** @ignore */
@@ -241,6 +268,72 @@ class WebviewWindow extends WebviewWindowHandle {
  * Manage the current window object.
  */
 export class WindowManager {
+  // Getters
+  async scaleFactor(): Promise<number> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'scaleFactor'
+      }
+    })
+  }
+
+  async innerPosition(): Promise<PhysicalPosition> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'innerPosition'
+      }
+    })
+  }
+
+  async outerPosition(): Promise<PhysicalPosition> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'outerPosition'
+      }
+    })
+  }
+
+  async innerSize(): Promise<PhysicalSize> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'innerSize'
+      }
+    })
+  }
+
+  async outerSize(): Promise<PhysicalSize> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'outerSize'
+      }
+    })
+  }
+
+  async isFullscreen(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'isFullscreen'
+      }
+    })
+  }
+
+  async isMaximized(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'isMaximized'
+      }
+    })
+  }
+
+  // Setters
+
   /**
    * Updates the window resizable flag.
    *
@@ -440,12 +533,12 @@ export class WindowManager {
         cmd: 'setMinSize',
         data: size
           ? {
-            type: size.type,
-            data: {
-              width: size.width,
-              height: size.height
+              type: size.type,
+              data: {
+                width: size.width,
+                height: size.height
+              }
             }
-          }
           : null
       }
     })
@@ -466,12 +559,12 @@ export class WindowManager {
         cmd: 'setMaxSize',
         data: size
           ? {
-            type: size.type,
-            data: {
-              width: size.width,
-              height: size.height
+              type: size.type,
+              data: {
+                width: size.width,
+                height: size.height
+              }
             }
-          }
           : null
       }
     })
@@ -591,13 +684,44 @@ export interface WindowOptions {
   alwaysOnTop?: boolean
 }
 
+async function currentMonitor(): Promise<Monitor | null> {
+  return invokeTauriCommand({
+    __tauriModule: 'Window',
+    message: {
+      cmd: 'currentMonitor'
+    }
+  })
+}
+
+async function primaryMonitor(): Promise<Monitor | null> {
+  return invokeTauriCommand({
+    __tauriModule: 'Window',
+    message: {
+      cmd: 'primaryMonitor'
+    }
+  })
+}
+
+async function availableMonitors(): Promise<Monitor[]> {
+  return invokeTauriCommand({
+    __tauriModule: 'Window',
+    message: {
+      cmd: 'availableMonitors'
+    }
+  })
+}
+
 export {
   WebviewWindow,
   getCurrent,
   getAll,
   appWindow,
+  Monitor,
   LogicalSize,
   PhysicalSize,
   LogicalPosition,
-  PhysicalPosition
+  PhysicalPosition,
+  currentMonitor,
+  primaryMonitor,
+  availableMonitors
 }

@@ -7,6 +7,7 @@ use serde::Serialize;
 
 /// Monitor descriptor.
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Monitor {
   pub(crate) name: Option<String>,
   pub(crate) size: PhysicalSize<u32>,

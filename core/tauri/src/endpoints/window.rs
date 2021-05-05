@@ -38,6 +38,18 @@ pub enum Cmd {
   CreateWebview {
     options: WindowConfig,
   },
+  // Getters
+  ScaleFactor,
+  InnerPosition,
+  OuterPosition,
+  InnerSize,
+  OuterSize,
+  IsFullscreen,
+  IsMaximized,
+  CurrentMonitor,
+  PrimaryMonitor,
+  AvailableMonitors,
+  // Setters
   SetResizable(bool),
   SetTitle(String),
   Maximize,
@@ -104,7 +116,18 @@ impl Cmd {
             }),
           )?;
         }
-
+        // Getters
+        Self::ScaleFactor => return Ok(window.scale_factor()?.into()),
+        Self::InnerPosition => return Ok(window.inner_position()?.into()),
+        Self::OuterPosition => return Ok(window.outer_position()?.into()),
+        Self::InnerSize => return Ok(window.inner_size()?.into()),
+        Self::OuterSize => return Ok(window.outer_size()?.into()),
+        Self::IsFullscreen => return Ok(window.is_fullscreen()?.into()),
+        Self::IsMaximized => return Ok(window.is_maximized()?.into()),
+        Self::CurrentMonitor => return Ok(window.current_monitor()?.into()),
+        Self::PrimaryMonitor => return Ok(window.primary_monitor()?.into()),
+        Self::AvailableMonitors => return Ok(window.available_monitors()?.into()),
+        // Setters
         Self::SetResizable(resizable) => window.set_resizable(resizable)?,
         Self::SetTitle(title) => window.set_title(&title)?,
         Self::Maximize => window.maximize()?,

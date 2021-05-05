@@ -8,7 +8,7 @@ module.exports = {
     'api/dependency-manager': './src/api/dependency-manager/index.ts',
     'helpers/spawn': './src/helpers/spawn.ts',
     'helpers/rust-cli': './src/helpers/rust-cli.ts',
-    'helpers/download-cli': './src/helpers/download-cli.ts'
+    'helpers/download-binary': './src/helpers/download-binary.ts'
   },
   mode: process.env.NODE_ENV || 'development',
   devtool: 'source-map',

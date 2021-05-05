@@ -12,7 +12,7 @@ use crate::{
       WindowBuilderBase,
     },
     window::{DetachedWindow, PendingWindow},
-    Dispatch, Params, Runtime,
+    Dispatch, Monitor, Params, PhysicalPosition, PhysicalSize, Position, Runtime, Size,
   },
   Icon,
 };
@@ -20,7 +20,10 @@ use crate::{
 use image::{GenericImageView, Pixel};
 use wry::{
   application::{
-    dpi::{LogicalPosition, LogicalSize, Size},
+    dpi::{
+      LogicalPosition as WryLogicalPosition, LogicalSize as WryLogicalSize,
+      PhysicalPosition as WryPhysicalPosition, Position as WryPosition, Size as WrySize,
+    },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
     window::{Fullscreen, Icon as WindowIcon, Window, WindowBuilder as WryWindowBuilder, WindowId},
@@ -80,6 +83,27 @@ impl TryFrom<Icon> for WryIcon {
   }
 }
 
+impl<T> From<WryPhysicalPosition<T>> for PhysicalPosition<T> {
+  fn from(position: WryPhysicalPosition<T>) -> Self {
+    Self {
+      x: position.x,
+      y: position.y,
+    }
+  }
+}
+
+impl From<Size> for WrySize {
+  fn from(size: Size) -> Self {
+    unimplemented!()
+  }
+}
+
+impl From<Position> for WryPosition {
+  fn from(position: Position) -> Self {
+    unimplemented!()
+  }
+}
+
 impl WindowBuilderBase for WryWindowBuilder {}
 impl WindowBuilder for WryWindowBuilder {
   fn new() -> Self {
@@ -112,19 +136,19 @@ impl WindowBuilder for WryWindowBuilder {
   }
 
   fn position(self, x: f64, y: f64) -> Self {
-    self.with_position(LogicalPosition::new(x, y))
+    self.with_position(WryLogicalPosition::new(x, y))
   }
 
   fn inner_size(self, width: f64, height: f64) -> Self {
-    self.with_inner_size(LogicalSize::new(width, height))
+    self.with_inner_size(WryLogicalSize::new(width, height))
   }
 
   fn min_inner_size(self, min_width: f64, min_height: f64) -> Self {
-    self.with_min_inner_size(Size::new(LogicalSize::new(min_width, min_height)))
+    self.with_min_inner_size(WryLogicalSize::new(min_width, min_height))
   }
 
   fn max_inner_size(self, max_width: f64, max_height: f64) -> Self {
-    self.with_max_inner_size(Size::new(LogicalSize::new(max_width, max_height)))
+    self.with_max_inner_size(WryLogicalSize::new(max_width, max_height))
   }
 
   fn resizable(self, resizable: bool) -> Self {
@@ -193,6 +217,8 @@ impl From<WryFileDropEvent> for FileDropEvent {
 
 #[derive(Debug, Clone)]
 enum WindowMessage {
+  // Getters
+  InnerPosition(Sender<crate::Result<PhysicalPosition<i32>>>),
   SetResizable(bool),
   SetTitle(String),
   Maximize,
@@ -204,14 +230,10 @@ enum WindowMessage {
   Close,
   SetDecorations(bool),
   SetAlwaysOnTop(bool),
-  SetWidth(f64),
-  SetHeight(f64),
-  Resize { width: f64, height: f64 },
-  SetMinSize { min_width: f64, min_height: f64 },
-  SetMaxSize { max_width: f64, max_height: f64 },
-  SetX(f64),
-  SetY(f64),
-  SetPosition { x: f64, y: f64 },
+  Resize(Size),
+  SetMinSize(Option<Size>),
+  SetMaxSize(Option<Size>),
+  SetPosition(Position),
   SetFullscreen(bool),
   SetIcon(WindowIcon),
   DragWindow,
@@ -237,6 +259,30 @@ pub struct WryDispatcher {
   task_tx: Sender<MainThreadTask>,
 }
 
+macro_rules! dispatcher_getter {
+  ($self: ident, $message: expr) => {{
+    let (tx, rx) = channel();
+    $self
+      .proxy
+      .send_event(Message::Window($self.window_id, $message(tx)))
+      .map_err(|_| crate::Error::FailedToSendMessage)?;
+    rx.recv().unwrap()
+  }};
+}
+
+macro_rules! window_getter {
+  ($window: ident, $tx: ident, $call: ident) => {
+    $tx
+      .send(
+        $window
+          .$call()
+          .map(|v| v.into())
+          .map_err(|_| crate::Error::FailedToSendMessage),
+      )
+      .unwrap()
+  };
+}
+
 impl Dispatch for WryDispatcher {
   type Runtime = Wry;
   type WindowBuilder = WryWindowBuilder;
@@ -246,6 +292,48 @@ impl Dispatch for WryDispatcher {
       .task_tx
       .send(Box::new(f))
       .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  // GETTERS
+
+  fn scale_factor(&self) -> f64 {
+    unimplemented!()
+  }
+
+  fn inner_position(&self) -> crate::Result<PhysicalPosition<i32>> {
+    dispatcher_getter!(self, WindowMessage::InnerPosition)
+  }
+
+  fn outer_position(&self) -> crate::Result<PhysicalPosition<i32>> {
+    unimplemented!()
+  }
+
+  fn inner_size(&self) -> crate::Result<PhysicalSize<f64>> {
+    unimplemented!()
+  }
+
+  fn outer_size(&self) -> crate::Result<PhysicalSize<f64>> {
+    unimplemented!()
+  }
+
+  fn is_fullscreen(&self) -> bool {
+    unimplemented!()
+  }
+
+  fn is_maximized(&self) -> bool {
+    unimplemented!()
+  }
+
+  fn current_monitor(&self) -> Option<Monitor> {
+    unimplemented!()
+  }
+
+  fn primary_monitor(&self) -> Option<Monitor> {
+    unimplemented!()
+  }
+
+  fn available_monitors(&self) -> Vec<Monitor> {
+    unimplemented!()
   }
 
   fn create_window<M: Params<Runtime = Self::Runtime>>(
@@ -363,82 +451,39 @@ impl Dispatch for WryDispatcher {
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
-  fn set_width(&self, width: f64) -> crate::Result<()> {
+  fn resize(&self, size: Size) -> crate::Result<()> {
+    self
+      .proxy
+      .send_event(Message::Window(self.window_id, WindowMessage::Resize(size)))
+      .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn set_min_size(&self, size: Option<Size>) -> crate::Result<()> {
     self
       .proxy
       .send_event(Message::Window(
         self.window_id,
-        WindowMessage::SetWidth(width),
+        WindowMessage::SetMinSize(size),
       ))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
-  fn set_height(&self, height: f64) -> crate::Result<()> {
+  fn set_max_size(&self, size: Option<Size>) -> crate::Result<()> {
     self
       .proxy
       .send_event(Message::Window(
         self.window_id,
-        WindowMessage::SetHeight(height),
+        WindowMessage::SetMaxSize(size),
       ))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
-  fn resize(&self, width: f64, height: f64) -> crate::Result<()> {
+  fn set_position(&self, position: Position) -> crate::Result<()> {
     self
       .proxy
       .send_event(Message::Window(
         self.window_id,
-        WindowMessage::Resize { width, height },
-      ))
-      .map_err(|_| crate::Error::FailedToSendMessage)
-  }
-
-  fn set_min_size(&self, min_width: f64, min_height: f64) -> crate::Result<()> {
-    self
-      .proxy
-      .send_event(Message::Window(
-        self.window_id,
-        WindowMessage::SetMinSize {
-          min_width,
-          min_height,
-        },
-      ))
-      .map_err(|_| crate::Error::FailedToSendMessage)
-  }
-
-  fn set_max_size(&self, max_width: f64, max_height: f64) -> crate::Result<()> {
-    self
-      .proxy
-      .send_event(Message::Window(
-        self.window_id,
-        WindowMessage::SetMaxSize {
-          max_width,
-          max_height,
-        },
-      ))
-      .map_err(|_| crate::Error::FailedToSendMessage)
-  }
-
-  fn set_x(&self, x: f64) -> crate::Result<()> {
-    self
-      .proxy
-      .send_event(Message::Window(self.window_id, WindowMessage::SetX(x)))
-      .map_err(|_| crate::Error::FailedToSendMessage)
-  }
-
-  fn set_y(&self, y: f64) -> crate::Result<()> {
-    self
-      .proxy
-      .send_event(Message::Window(self.window_id, WindowMessage::SetY(y)))
-      .map_err(|_| crate::Error::FailedToSendMessage)
-  }
-
-  fn set_position(&self, x: f64, y: f64) -> crate::Result<()> {
-    self
-      .proxy
-      .send_event(Message::Window(
-        self.window_id,
-        WindowMessage::SetPosition { x, y },
+        WindowMessage::SetPosition(position),
       ))
       .map_err(|_| crate::Error::FailedToSendMessage)
   }
@@ -563,6 +608,8 @@ impl Runtime for Wry {
             if let Some(webview) = webviews.get_mut(&id) {
               let window = webview.window();
               match window_message {
+                // Getters
+                WindowMessage::InnerPosition(tx) => window_getter!(window, tx, inner_position),
                 WindowMessage::SetResizable(resizable) => window.set_resizable(resizable),
                 WindowMessage::SetTitle(title) => window.set_title(&title),
                 WindowMessage::Maximize => window.set_maximized(true),
@@ -581,48 +628,16 @@ impl Runtime for Wry {
                 WindowMessage::SetAlwaysOnTop(always_on_top) => {
                   window.set_always_on_top(always_on_top)
                 }
-                WindowMessage::SetWidth(width) => {
-                  let mut size = window.inner_size().to_logical(window.scale_factor());
-                  size.width = width;
-                  window.set_inner_size(size);
+                WindowMessage::Resize(size) => {
+                  window.set_inner_size(WrySize::from(size));
                 }
-                WindowMessage::SetHeight(height) => {
-                  let mut size = window.inner_size().to_logical(window.scale_factor());
-                  size.height = height;
-                  window.set_inner_size(size);
+                WindowMessage::SetMinSize(size) => {
+                  window.set_min_inner_size(size.map(|s| WrySize::from(s)));
                 }
-                WindowMessage::Resize { width, height } => {
-                  window.set_inner_size(LogicalSize::new(width, height));
+                WindowMessage::SetMaxSize(size) => {
+                  window.set_max_inner_size(size.map(|s| WrySize::from(s)));
                 }
-                WindowMessage::SetMinSize {
-                  min_width,
-                  min_height,
-                } => {
-                  window.set_min_inner_size(Some(LogicalSize::new(min_width, min_height)));
-                }
-                WindowMessage::SetMaxSize {
-                  max_width,
-                  max_height,
-                } => {
-                  window.set_max_inner_size(Some(LogicalSize::new(max_width, max_height)));
-                }
-                WindowMessage::SetX(x) => {
-                  if let Ok(outer_position) = window.outer_position() {
-                    let mut outer_position = outer_position.to_logical(window.scale_factor());
-                    outer_position.x = x;
-                    window.set_outer_position(outer_position);
-                  }
-                }
-                WindowMessage::SetY(y) => {
-                  if let Ok(outer_position) = window.outer_position() {
-                    let mut outer_position = outer_position.to_logical(window.scale_factor());
-                    outer_position.y = y;
-                    window.set_outer_position(outer_position);
-                  }
-                }
-                WindowMessage::SetPosition { x, y } => {
-                  window.set_outer_position(LogicalPosition::new(x, y))
-                }
+                WindowMessage::SetPosition(position) => window.set_outer_position(WryPosition::from(position)),
                 WindowMessage::SetFullscreen(fullscreen) => {
                   if fullscreen {
                     window.set_fullscreen(Some(Fullscreen::Borderless(None)))

@@ -11,7 +11,7 @@ use crate::{
   runtime::{
     tag::ToJsString,
     webview::{FileDropHandler, InvokePayload, WebviewAttributes, WebviewRpcHandler},
-    Dispatch, Runtime,
+    Dispatch, Position, Runtime, Size,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
   Icon, Manager, Params, WindowBuilder,
@@ -365,58 +365,24 @@ pub(crate) mod export {
       self.window.dispatcher.set_always_on_top(always_on_top)
     }
 
-    /// Sets this window's width.
-    pub fn set_width(&self, width: impl Into<f64>) -> crate::Result<()> {
-      self.window.dispatcher.set_width(width.into())
-    }
-
-    /// Sets this window's height.
-    pub fn set_height(&self, height: impl Into<f64>) -> crate::Result<()> {
-      self.window.dispatcher.set_height(height.into())
-    }
-
     /// Resizes this window.
-    pub fn resize(&self, width: impl Into<f64>, height: impl Into<f64>) -> crate::Result<()> {
-      self.window.dispatcher.resize(width.into(), height.into())
+    pub fn resize<S: Into<Size>>(&self, size: S) -> crate::Result<()> {
+      self.window.dispatcher.resize(size.into())
     }
 
     /// Sets this window's minimum size.
-    pub fn set_min_size(
-      &self,
-      min_width: impl Into<f64>,
-      min_height: impl Into<f64>,
-    ) -> crate::Result<()> {
-      self
-        .window
-        .dispatcher
-        .set_min_size(min_width.into(), min_height.into())
+    pub fn set_min_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
+      self.window.dispatcher.set_min_size(size.map(|s| s.into()))
     }
 
     /// Sets this window's maximum size.
-    pub fn set_max_size(
-      &self,
-      max_width: impl Into<f64>,
-      max_height: impl Into<f64>,
-    ) -> crate::Result<()> {
-      self
-        .window
-        .dispatcher
-        .set_max_size(max_width.into(), max_height.into())
-    }
-
-    /// Sets this window's x position.
-    pub fn set_x(&self, x: impl Into<f64>) -> crate::Result<()> {
-      self.window.dispatcher.set_x(x.into())
-    }
-
-    /// Sets this window's y position.
-    pub fn set_y(&self, y: impl Into<f64>) -> crate::Result<()> {
-      self.window.dispatcher.set_y(y.into())
+    pub fn set_max_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
+      self.window.dispatcher.set_max_size(size.map(|s| s.into()))
     }
 
     /// Sets this window's position.
-    pub fn set_position(&self, x: impl Into<f64>, y: impl Into<f64>) -> crate::Result<()> {
-      self.window.dispatcher.set_position(x.into(), y.into())
+    pub fn set_position<Pos: Into<Position>>(&self, position: Pos) -> crate::Result<()> {
+      self.window.dispatcher.set_position(position.into())
     }
 
     /// Determines if this window should be fullscreen.

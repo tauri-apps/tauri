@@ -4,7 +4,12 @@
 
 #[cfg(window_create)]
 use crate::Manager;
-use crate::{api::config::WindowConfig, endpoints::InvokeResponse, Params, Window};
+use crate::{
+  api::config::WindowConfig,
+  endpoints::InvokeResponse,
+  runtime::{Position, Size},
+  Params, Window,
+};
 use serde::Deserialize;
 
 use crate::Icon;
@@ -53,36 +58,10 @@ pub enum Cmd {
   SetAlwaysOnTop {
     always_on_top: bool,
   },
-  SetWidth {
-    width: f64,
-  },
-  SetHeight {
-    height: f64,
-  },
-  Resize {
-    width: f64,
-    height: f64,
-  },
-  #[serde(rename_all = "camelCase")]
-  SetMinSize {
-    min_width: f64,
-    min_height: f64,
-  },
-  #[serde(rename_all = "camelCase")]
-  SetMaxSize {
-    max_width: f64,
-    max_height: f64,
-  },
-  SetX {
-    x: f64,
-  },
-  SetY {
-    y: f64,
-  },
-  SetPosition {
-    x: f64,
-    y: f64,
-  },
+  Resize(Size),
+  SetMinSize(Option<Size>),
+  SetMaxSize(Option<Size>),
+  SetPosition(Position),
   SetFullscreen {
     fullscreen: bool,
   },
@@ -147,20 +126,10 @@ impl Cmd {
         Self::Close => window.close()?,
         Self::SetDecorations { decorations } => window.set_decorations(decorations)?,
         Self::SetAlwaysOnTop { always_on_top } => window.set_always_on_top(always_on_top)?,
-        Self::SetWidth { width } => window.set_width(width)?,
-        Self::SetHeight { height } => window.set_height(height)?,
-        Self::Resize { width, height } => window.resize(width, height)?,
-        Self::SetMinSize {
-          min_width,
-          min_height,
-        } => window.set_min_size(min_width, min_height)?,
-        Self::SetMaxSize {
-          max_width,
-          max_height,
-        } => window.set_max_size(max_width, max_height)?,
-        Self::SetX { x } => window.set_x(x)?,
-        Self::SetY { y } => window.set_y(y)?,
-        Self::SetPosition { x, y } => window.set_position(x, y)?,
+        Self::Resize(size) => window.resize(size)?,
+        Self::SetMinSize(size) => window.set_min_size(size)?,
+        Self::SetMaxSize(size) => window.set_max_size(size)?,
+        Self::SetPosition(position) => window.set_position(position)?,
         Self::SetFullscreen { fullscreen } => window.set_fullscreen(fullscreen)?,
         Self::SetIcon { icon } => window.set_icon(icon.into())?,
         Self::StartDragging => window.start_dragging()?,

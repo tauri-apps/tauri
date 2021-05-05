@@ -63,6 +63,7 @@ pub use {
   self::runtime::flavors::wry::Wry,
   self::runtime::webview::{WebviewAttributes, WindowBuilder},
   self::runtime::window::export::Window,
+  self::runtime::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   self::state::{State, StateManager},
 };
 

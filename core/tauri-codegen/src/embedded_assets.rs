@@ -6,10 +6,11 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use std::{
   collections::HashMap,
+  ffi::OsStr,
   fs::File,
   path::{Path, PathBuf},
 };
-use tauri_utils::assets::AssetKey;
+use tauri_utils::{assets::AssetKey, html::inject_csp};
 use thiserror::Error;
 use walkdir::WalkDir;
 
@@ -62,9 +63,28 @@ pub enum EmbeddedAssetsError {
 #[derive(Default)]
 pub struct EmbeddedAssets(HashMap<AssetKey, (PathBuf, PathBuf)>);
 
+/// Options used to embed assets.
+#[derive(Default)]
+pub struct AssetOptions {
+  csp: Option<String>,
+}
+
+impl AssetOptions {
+  /// Creates the default asset options.
+  pub fn new() -> Self {
+    Self::default()
+  }
+
+  /// Sets the content security policy to add to HTML files.
+  pub fn csp(mut self, csp: String) -> Self {
+    self.csp.replace(csp);
+    self
+  }
+}
+
 impl EmbeddedAssets {
   /// Compress a directory of assets, ready to be generated into a [`tauri_utils::assets::Assets`].
-  pub fn new(path: &Path) -> Result<Self, EmbeddedAssetsError> {
+  pub fn new(path: &Path, options: AssetOptions) -> Result<Self, EmbeddedAssetsError> {
     WalkDir::new(&path)
       .follow_links(true)
       .into_iter()
@@ -73,7 +93,7 @@ impl EmbeddedAssets {
         Ok(entry) if entry.file_type().is_dir() => None,
 
         // compress all files encountered
-        Ok(entry) => Some(Self::compress_file(path, entry.path())),
+        Ok(entry) => Some(Self::compress_file(path, entry.path(), &options)),
 
         // pass down error through filter to fail when encountering any error
         Err(error) => Some(Err(EmbeddedAssetsError::Walkdir {
@@ -96,11 +116,22 @@ impl EmbeddedAssets {
   }
 
   /// Compress a file and spit out the information in a [`HashMap`] friendly form.
-  fn compress_file(prefix: &Path, path: &Path) -> Result<Asset, EmbeddedAssetsError> {
-    let input = std::fs::read(path).map_err(|error| EmbeddedAssetsError::AssetRead {
+  fn compress_file(
+    prefix: &Path,
+    path: &Path,
+    options: &AssetOptions,
+  ) -> Result<Asset, EmbeddedAssetsError> {
+    let mut input = std::fs::read(path).map_err(|error| EmbeddedAssetsError::AssetRead {
       path: path.to_owned(),
       error,
     })?;
+    if let Some(csp) = &options.csp {
+      if path.extension() == Some(OsStr::new("html")) {
+        input = inject_csp(String::from_utf8_lossy(&input).into_owned(), csp)
+          .as_bytes()
+          .to_vec();
+      }
+    }
 
     // we must canonicalize the base of our paths to allow long paths on windows
     let out_dir = std::env::var("OUT_DIR")

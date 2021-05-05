@@ -7,23 +7,16 @@
   windows_subsystem = "windows"
 )]
 
+// we move some basic commands to a separate module just to show it works
+mod commands;
+
 use serde::Deserialize;
 use tauri::{command, Params, State, Window};
 
 #[derive(Debug)]
-struct MyState {
+pub struct MyState {
   value: u64,
   label: String,
-}
-
-#[command]
-fn simple_command(argument: String) {
-  println!("{}", argument);
-}
-
-#[command]
-fn stateful_command(argument: Option<String>, state: State<'_, MyState>) {
-  println!("{:?} {:?}", argument, state.inner());
 }
 
 // ------------------------ Commands using Window ------------------------
@@ -114,8 +107,8 @@ fn main() {
     })
     .invoke_handler(tauri::generate_handler![
       window_label,
-      simple_command,
-      stateful_command,
+      commands::simple_command,
+      commands::stateful_command,
       async_simple_command,
       async_stateful_command,
       command_arguments_wild,

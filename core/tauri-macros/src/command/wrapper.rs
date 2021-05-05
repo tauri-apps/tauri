@@ -91,14 +91,12 @@ impl TryFrom<&ItemFn> for WrapperBody {
     // todo: detect command return types automatically like params, removes parsing type name
     let returns_result = match function.sig.output {
       ReturnType::Type(_, ref ty) => match &**ty {
-        Type::Path(type_path) => {
-          type_path
-            .path
-            .segments
-            .first()
-            .map(|seg| seg.ident.to_string())
-            == Some("Result".to_string())
-        }
+        Type::Path(type_path) => type_path
+          .path
+          .segments
+          .first()
+          .map(|seg| seg.ident == "Result")
+          .unwrap_or_default(),
         _ => false,
       },
       ReturnType::Default => false,

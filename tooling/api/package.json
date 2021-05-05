@@ -54,13 +54,10 @@
     "eslint-config-prettier": "8.3.0",
     "eslint-config-standard-with-typescript": "20.0.0",
     "eslint-plugin-import": "2.22.1",
-    "eslint-plugin-lodash-template": "0.19.0",
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-promise": "5.1.0",
     "eslint-plugin-security": "1.4.0",
-    "fs-extra": "10.0.0",
     "lockfile-lint": "4.6.2",
-    "lodash": "4.17.21",
     "prettier": "2.2.1",
     "regenerator-runtime": "0.13.7",
     "rimraf": "3.0.2",
@@ -70,8 +67,5 @@
     "typedoc": "0.20.36",
     "typedoc-plugin-markdown": "3.7.2",
     "typescript": "4.2.4"
-  },
-  "resolutions": {
-    "**/lodash": ">=4.17.19"
   }
 }

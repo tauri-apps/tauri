@@ -7,7 +7,7 @@ use crate::Manager;
 use crate::{
   api::config::WindowConfig,
   endpoints::InvokeResponse,
-  runtime::{Position, Size},
+  runtime::window::dpi::{Position, Size},
   Params, Window,
 };
 use serde::Deserialize;

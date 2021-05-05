@@ -11,8 +11,11 @@ use crate::{
       FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler, WindowBuilder,
       WindowBuilderBase,
     },
-    window::{DetachedWindow, PendingWindow},
-    Dispatch, Monitor, Params, PhysicalPosition, PhysicalSize, Position, Runtime, Size,
+    window::{
+      dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
+      DetachedWindow, PendingWindow,
+    },
+    Dispatch, Monitor, Params, Runtime,
   },
   Icon,
 };
@@ -22,10 +25,12 @@ use wry::{
   application::{
     dpi::{
       LogicalPosition as WryLogicalPosition, LogicalSize as WryLogicalSize,
-      PhysicalPosition as WryPhysicalPosition, Position as WryPosition, Size as WrySize,
+      PhysicalPosition as WryPhysicalPosition, PhysicalSize as WryPhysicalSize,
+      Position as WryPosition, Size as WrySize,
     },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
+    monitor::MonitorHandle,
     window::{Fullscreen, Icon as WindowIcon, Window, WindowBuilder as WryWindowBuilder, WindowId},
   },
   webview::{
@@ -83,6 +88,17 @@ impl TryFrom<Icon> for WryIcon {
   }
 }
 
+impl From<MonitorHandle> for Monitor {
+  fn from(monitor: MonitorHandle) -> Monitor {
+    Self {
+      name: monitor.name(),
+      position: monitor.position().into(),
+      size: monitor.size().into(),
+      scale_factor: monitor.scale_factor(),
+    }
+  }
+}
+
 impl<T> From<WryPhysicalPosition<T>> for PhysicalPosition<T> {
   fn from(position: WryPhysicalPosition<T>) -> Self {
     Self {
@@ -92,15 +108,66 @@ impl<T> From<WryPhysicalPosition<T>> for PhysicalPosition<T> {
   }
 }
 
+impl<T> From<PhysicalPosition<T>> for WryPhysicalPosition<T> {
+  fn from(position: PhysicalPosition<T>) -> Self {
+    Self {
+      x: position.x,
+      y: position.y,
+    }
+  }
+}
+
+impl<T> From<LogicalPosition<T>> for WryLogicalPosition<T> {
+  fn from(position: LogicalPosition<T>) -> Self {
+    Self {
+      x: position.x,
+      y: position.y,
+    }
+  }
+}
+
+impl<T> From<WryPhysicalSize<T>> for PhysicalSize<T> {
+  fn from(size: WryPhysicalSize<T>) -> Self {
+    Self {
+      width: size.width,
+      height: size.height,
+    }
+  }
+}
+
+impl<T> From<PhysicalSize<T>> for WryPhysicalSize<T> {
+  fn from(size: PhysicalSize<T>) -> Self {
+    Self {
+      width: size.width,
+      height: size.height,
+    }
+  }
+}
+
+impl<T> From<LogicalSize<T>> for WryLogicalSize<T> {
+  fn from(size: LogicalSize<T>) -> Self {
+    Self {
+      width: size.width,
+      height: size.height,
+    }
+  }
+}
+
 impl From<Size> for WrySize {
   fn from(size: Size) -> Self {
-    unimplemented!()
+    match size {
+      Size::Logical(s) => Self::Logical(s.into()),
+      Size::Physical(s) => Self::Physical(s.into()),
+    }
   }
 }
 
 impl From<Position> for WryPosition {
   fn from(position: Position) -> Self {
-    unimplemented!()
+    match position {
+      Position::Logical(s) => Self::Logical(s.into()),
+      Position::Physical(s) => Self::Physical(s.into()),
+    }
   }
 }
 
@@ -218,7 +285,17 @@ impl From<WryFileDropEvent> for FileDropEvent {
 #[derive(Debug, Clone)]
 enum WindowMessage {
   // Getters
+  ScaleFactor(Sender<f64>),
   InnerPosition(Sender<crate::Result<PhysicalPosition<i32>>>),
+  OuterPosition(Sender<crate::Result<PhysicalPosition<i32>>>),
+  InnerSize(Sender<PhysicalSize<u32>>),
+  OuterSize(Sender<PhysicalSize<u32>>),
+  IsFullscreen(Sender<bool>),
+  IsMaximized(Sender<bool>),
+  CurrentMonitor(Sender<Option<MonitorHandle>>),
+  PrimaryMonitor(Sender<Option<MonitorHandle>>),
+  AvailableMonitors(Sender<Vec<MonitorHandle>>),
+  // Setters
   SetResizable(bool),
   SetTitle(String),
   Maximize,
@@ -270,16 +347,22 @@ macro_rules! dispatcher_getter {
   }};
 }
 
-macro_rules! window_getter {
+macro_rules! window_result_getter {
   ($window: ident, $tx: ident, $call: ident) => {
     $tx
       .send(
         $window
           .$call()
-          .map(|v| v.into())
+          .map(Into::into)
           .map_err(|_| crate::Error::FailedToSendMessage),
       )
       .unwrap()
+  };
+}
+
+macro_rules! window_getter {
+  ($window: ident, $tx: ident, $call: ident) => {
+    $tx.send($window.$call().into()).unwrap()
   };
 }
 
@@ -296,8 +379,8 @@ impl Dispatch for WryDispatcher {
 
   // GETTERS
 
-  fn scale_factor(&self) -> f64 {
-    unimplemented!()
+  fn scale_factor(&self) -> crate::Result<f64> {
+    Ok(dispatcher_getter!(self, WindowMessage::ScaleFactor))
   }
 
   fn inner_position(&self) -> crate::Result<PhysicalPosition<i32>> {
@@ -305,35 +388,40 @@ impl Dispatch for WryDispatcher {
   }
 
   fn outer_position(&self) -> crate::Result<PhysicalPosition<i32>> {
-    unimplemented!()
+    dispatcher_getter!(self, WindowMessage::OuterPosition)
   }
 
-  fn inner_size(&self) -> crate::Result<PhysicalSize<f64>> {
-    unimplemented!()
+  fn inner_size(&self) -> crate::Result<PhysicalSize<u32>> {
+    Ok(dispatcher_getter!(self, WindowMessage::InnerSize))
   }
 
-  fn outer_size(&self) -> crate::Result<PhysicalSize<f64>> {
-    unimplemented!()
+  fn outer_size(&self) -> crate::Result<PhysicalSize<u32>> {
+    Ok(dispatcher_getter!(self, WindowMessage::OuterSize))
   }
 
-  fn is_fullscreen(&self) -> bool {
-    unimplemented!()
+  fn is_fullscreen(&self) -> crate::Result<bool> {
+    Ok(dispatcher_getter!(self, WindowMessage::IsFullscreen))
   }
 
-  fn is_maximized(&self) -> bool {
-    unimplemented!()
+  fn is_maximized(&self) -> crate::Result<bool> {
+    Ok(dispatcher_getter!(self, WindowMessage::IsMaximized))
   }
 
-  fn current_monitor(&self) -> Option<Monitor> {
-    unimplemented!()
+  fn current_monitor(&self) -> crate::Result<Option<Monitor>> {
+    Ok(dispatcher_getter!(self, WindowMessage::CurrentMonitor).map(Into::into))
   }
 
-  fn primary_monitor(&self) -> Option<Monitor> {
-    unimplemented!()
+  fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
+    Ok(dispatcher_getter!(self, WindowMessage::PrimaryMonitor).map(Into::into))
   }
 
-  fn available_monitors(&self) -> Vec<Monitor> {
-    unimplemented!()
+  fn available_monitors(&self) -> crate::Result<Vec<Monitor>> {
+    Ok(
+      dispatcher_getter!(self, WindowMessage::AvailableMonitors)
+        .into_iter()
+        .map(Into::into)
+        .collect(),
+    )
   }
 
   fn create_window<M: Params<Runtime = Self::Runtime>>(
@@ -609,7 +697,23 @@ impl Runtime for Wry {
               let window = webview.window();
               match window_message {
                 // Getters
-                WindowMessage::InnerPosition(tx) => window_getter!(window, tx, inner_position),
+                WindowMessage::ScaleFactor(tx) => window_getter!(window, tx, scale_factor),
+                WindowMessage::InnerPosition(tx) => {
+                  window_result_getter!(window, tx, inner_position)
+                }
+                WindowMessage::OuterPosition(tx) => {
+                  window_result_getter!(window, tx, outer_position)
+                }
+                WindowMessage::InnerSize(tx) => window_getter!(window, tx, inner_size),
+                WindowMessage::OuterSize(tx) => window_getter!(window, tx, outer_size),
+                WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
+                WindowMessage::IsMaximized(tx) => window_getter!(window, tx, is_maximized),
+                WindowMessage::CurrentMonitor(tx) => window_getter!(window, tx, current_monitor),
+                WindowMessage::PrimaryMonitor(tx) => window_getter!(window, tx, primary_monitor),
+                WindowMessage::AvailableMonitors(tx) => {
+                  tx.send(window.available_monitors().collect()).unwrap()
+                }
+                // Setters
                 WindowMessage::SetResizable(resizable) => window.set_resizable(resizable),
                 WindowMessage::SetTitle(title) => window.set_title(&title),
                 WindowMessage::Maximize => window.set_maximized(true),
@@ -637,7 +741,9 @@ impl Runtime for Wry {
                 WindowMessage::SetMaxSize(size) => {
                   window.set_max_inner_size(size.map(|s| WrySize::from(s)));
                 }
-                WindowMessage::SetPosition(position) => window.set_outer_position(WryPosition::from(position)),
+                WindowMessage::SetPosition(position) => {
+                  window.set_outer_position(WryPosition::from(position))
+                }
                 WindowMessage::SetFullscreen(fullscreen) => {
                   if fullscreen {
                     window.set_fullscreen(Some(Fullscreen::Borderless(None)))

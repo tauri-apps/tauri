@@ -13,7 +13,7 @@ use crate::{
     },
     window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-      DetachedWindow, PendingWindow,
+      DetachedWindow, PendingWindow, WindowEvent,
     },
     Dispatch, Monitor, Params, Runtime,
   },
@@ -21,6 +21,7 @@ use crate::{
 };
 
 use image::{GenericImageView, Pixel};
+use uuid::Uuid;
 use wry::{
   application::{
     dpi::{
@@ -28,7 +29,7 @@ use wry::{
       PhysicalPosition as WryPhysicalPosition, PhysicalSize as WryPhysicalSize,
       Position as WryPosition, Size as WrySize,
     },
-    event::{Event, WindowEvent},
+    event::{Event, WindowEvent as WryWindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
     monitor::MonitorHandle,
     window::{Fullscreen, Icon as WindowIcon, Window, WindowBuilder as WryWindowBuilder, WindowId},
@@ -51,6 +52,8 @@ use std::{
 type CreateWebviewHandler =
   Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> crate::Result<WebView> + Send>;
 type MainThreadTask = Box<dyn FnOnce() + Send>;
+type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
+type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -85,6 +88,29 @@ impl TryFrom<Icon> for WryIcon {
     let icon = WindowIcon::from_rgba(rgba, width, height)
       .map_err(|e| crate::Error::InvalidIcon(e.to_string()))?;
     Ok(Self(icon))
+  }
+}
+
+struct WindowEventWrapper(Option<WindowEvent>);
+
+impl<'a> From<&WryWindowEvent<'a>> for WindowEventWrapper {
+  fn from(event: &WryWindowEvent<'a>) -> Self {
+    let event = match event {
+      WryWindowEvent::Resized(size) => WindowEvent::Resized((*size).into()),
+      WryWindowEvent::Moved(position) => WindowEvent::Moved((*position).into()),
+      WryWindowEvent::CloseRequested => WindowEvent::CloseRequested,
+      WryWindowEvent::Destroyed => WindowEvent::Destroyed,
+      WryWindowEvent::Focused(focused) => WindowEvent::Focused(*focused),
+      WryWindowEvent::ScaleFactorChanged {
+        scale_factor,
+        new_inner_size,
+      } => WindowEvent::ScaleFactorChanged {
+        scale_factor: *scale_factor,
+        new_inner_size: (**new_inner_size).into(),
+      },
+      _ => return Self(None),
+    };
+    Self(Some(event))
   }
 }
 
@@ -334,6 +360,7 @@ pub struct WryDispatcher {
   window_id: WindowId,
   proxy: EventLoopProxy<Message>,
   task_tx: Sender<MainThreadTask>,
+  window_event_listeners: WindowEventListeners,
 }
 
 macro_rules! dispatcher_getter {
@@ -375,6 +402,16 @@ impl Dispatch for WryDispatcher {
       .task_tx
       .send(Box::new(f))
       .map_err(|_| crate::Error::FailedToSendMessage)
+  }
+
+  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid {
+    let id = Uuid::new_v4();
+    self
+      .window_event_listeners
+      .lock()
+      .unwrap()
+      .insert(id, Box::new(f));
+    id
   }
 
   // GETTERS
@@ -432,11 +469,12 @@ impl Dispatch for WryDispatcher {
     let label = pending.label.clone();
     let proxy = self.proxy.clone();
     let task_tx = self.task_tx.clone();
+    let window_event_listeners = self.window_event_listeners.clone();
     self
       .proxy
       .send_event(Message::CreateWebview(
         Arc::new(Mutex::new(Some(Box::new(move |event_loop| {
-          create_webview(event_loop, proxy, task_tx, pending)
+          create_webview(event_loop, proxy, task_tx, window_event_listeners, pending)
         })))),
         tx,
       ))
@@ -446,6 +484,7 @@ impl Dispatch for WryDispatcher {
       window_id,
       proxy: self.proxy.clone(),
       task_tx: self.task_tx.clone(),
+      window_event_listeners: self.window_event_listeners.clone(),
     };
     Ok(DetachedWindow { label, dispatcher })
   }
@@ -622,6 +661,7 @@ pub struct Wry {
   event_loop: EventLoop<Message>,
   webviews: HashMap<WindowId, WebView>,
   task_tx: Sender<MainThreadTask>,
+  window_event_listeners: WindowEventListeners,
   task_rx: Receiver<MainThreadTask>,
 }
 
@@ -636,6 +676,7 @@ impl Runtime for Wry {
       webviews: Default::default(),
       task_tx,
       task_rx,
+      window_event_listeners: Default::default(),
     })
   }
 
@@ -649,6 +690,7 @@ impl Runtime for Wry {
       &self.event_loop,
       proxy.clone(),
       self.task_tx.clone(),
+      self.window_event_listeners.clone(),
       pending,
     )?;
 
@@ -656,6 +698,7 @@ impl Runtime for Wry {
       window_id: webview.window().id(),
       proxy,
       task_tx: self.task_tx.clone(),
+      window_event_listeners: self.window_event_listeners.clone(),
     };
 
     self.webviews.insert(webview.window().id(), webview);
@@ -666,6 +709,7 @@ impl Runtime for Wry {
   fn run(self) {
     let mut webviews = self.webviews;
     let task_rx = self.task_rx;
+    let window_event_listeners = self.window_event_listeners.clone();
     self.event_loop.run(move |event, event_loop, control_flow| {
       *control_flow = ControlFlow::Wait;
 
@@ -680,20 +724,27 @@ impl Runtime for Wry {
       }
 
       match event {
-        Event::WindowEvent { event, window_id } => match event {
-          WindowEvent::CloseRequested => {
-            webviews.remove(&window_id);
-            if webviews.is_empty() {
-              *control_flow = ControlFlow::Exit;
+        Event::WindowEvent { event, window_id } => {
+          if let Some(event) = WindowEventWrapper::from(&event).0 {
+            for handler in window_event_listeners.lock().unwrap().values() {
+              handler(&event);
             }
           }
-          WindowEvent::Resized(_) => {
-            if let Err(e) = webviews[&window_id].resize() {
-              eprintln!("{}", e);
+          match event {
+            WryWindowEvent::CloseRequested => {
+              webviews.remove(&window_id);
+              if webviews.is_empty() {
+                *control_flow = ControlFlow::Exit;
+              }
             }
+            WryWindowEvent::Resized(_) => {
+              if let Err(e) = webviews[&window_id].resize() {
+                eprintln!("{}", e);
+              }
+            }
+            _ => {}
           }
-          _ => {}
-        },
+        }
         Event::UserEvent(message) => match message {
           Message::Window(id, window_message) => {
             if let Some(webview) = webviews.get_mut(&id) {
@@ -799,6 +850,7 @@ fn create_webview<M: Params<Runtime = Wry>>(
   event_loop: &EventLoopWindowTarget<Message>,
   proxy: EventLoopProxy<Message>,
   task_tx: Sender<MainThreadTask>,
+  window_event_listeners: WindowEventListeners,
   pending: PendingWindow<M>,
 ) -> crate::Result<WebView> {
   let PendingWindow {
@@ -820,13 +872,19 @@ fn create_webview<M: Params<Runtime = Wry>>(
     webview_builder = webview_builder.with_rpc_handler(create_rpc_handler(
       proxy.clone(),
       task_tx.clone(),
+      window_event_listeners.clone(),
       label.clone(),
       handler,
     ));
   }
   if let Some(handler) = file_drop_handler {
-    webview_builder = webview_builder
-      .with_file_drop_handler(create_file_drop_handler(proxy, task_tx, label, handler));
+    webview_builder = webview_builder.with_file_drop_handler(create_file_drop_handler(
+      proxy,
+      task_tx,
+      window_event_listeners,
+      label,
+      handler,
+    ));
   }
   for (scheme, protocol) in webview_attributes.uri_scheme_protocols {
     webview_builder = webview_builder.with_custom_protocol(scheme, move |_window, url| {
@@ -849,6 +907,7 @@ fn create_webview<M: Params<Runtime = Wry>>(
 fn create_rpc_handler<M: Params<Runtime = Wry>>(
   proxy: EventLoopProxy<Message>,
   task_tx: Sender<MainThreadTask>,
+  window_event_listeners: WindowEventListeners,
   label: M::Label,
   handler: WebviewRpcHandler<M>,
 ) -> Box<dyn Fn(&Window, WryRpcRequest) -> Option<RpcResponse> + 'static> {
@@ -859,6 +918,7 @@ fn create_rpc_handler<M: Params<Runtime = Wry>>(
           window_id: window.id(),
           proxy: proxy.clone(),
           task_tx: task_tx.clone(),
+          window_event_listeners: window_event_listeners.clone(),
         },
         label: label.clone(),
       },
@@ -872,6 +932,7 @@ fn create_rpc_handler<M: Params<Runtime = Wry>>(
 fn create_file_drop_handler<M: Params<Runtime = Wry>>(
   proxy: EventLoopProxy<Message>,
   task_tx: Sender<MainThreadTask>,
+  window_event_listeners: WindowEventListeners,
   label: M::Label,
   handler: FileDropHandler<M>,
 ) -> Box<dyn Fn(&Window, WryFileDropEvent) -> bool + 'static> {
@@ -883,6 +944,7 @@ fn create_file_drop_handler<M: Params<Runtime = Wry>>(
           window_id: window.id(),
           proxy: proxy.clone(),
           task_tx: task_tx.clone(),
+          window_event_listeners: window_event_listeners.clone(),
         },
         label: label.clone(),
       },

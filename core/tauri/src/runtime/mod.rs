@@ -8,6 +8,7 @@ use crate::{
   runtime::window::{DetachedWindow, PendingWindow},
   Icon, Params, WindowBuilder,
 };
+use uuid::Uuid;
 
 pub(crate) mod app;
 pub mod flavors;
@@ -19,7 +20,10 @@ pub mod webview;
 pub mod window;
 
 use monitor::Monitor;
-use window::dpi::{PhysicalPosition, PhysicalSize, Position, Size};
+use window::{
+  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+  WindowEvent,
+};
 
 /// The webview runtime interface.
 pub trait Runtime: Sized + 'static {
@@ -49,6 +53,9 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
 
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()>;
+
+  /// Registers a window event handler.
+  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid;
 
   // GETTERS
 

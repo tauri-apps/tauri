@@ -20,7 +20,7 @@ function usage() {
 	version
 	echo "Creates a fancy DMG file."
 	echo "Usage:  $(basename $0) [options] <output_name.dmg> <source_folder>"
-	echo "All contents of source_folder will be copied into the disk image."
+	echo "All contents of <source_folder> will be copied into the disk image."
 	echo "Options:"
 	echo "  --volname name"
 	echo "      set volume name (displayed in the Finder sidebar and window title)"

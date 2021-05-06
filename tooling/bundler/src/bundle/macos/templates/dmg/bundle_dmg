@@ -262,6 +262,12 @@ fi
 # Add extra space for additional resources
 DISK_IMAGE_SIZE=$(expr $DISK_IMAGE_SIZE + 20)
 
+# Make sure target image size is within limits
+MIN_DISK_IMAGE_SIZE=$(hdiutil resize -limits "${DMG_TEMP_NAME}" | awk 'NR=1{print int($1/2048+1)}')
+if [ $MIN_DISK_IMAGE_SIZE -gt $DISK_IMAGE_SIZE ]; then
+  DISK_IMAGE_SIZE=$MIN_DISK_IMAGE_SIZE
+fi
+
 # Resize the image for the extra stuff
 hdiutil resize ${HDIUTIL_VERBOSITY} -size ${DISK_IMAGE_SIZE}m "${DMG_TEMP_NAME}"
 

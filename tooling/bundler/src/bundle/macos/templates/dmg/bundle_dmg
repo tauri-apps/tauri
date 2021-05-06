@@ -7,7 +7,7 @@
 # forked from https://github.com/andreyvit/create-dmg
 
 # Bail out on any unhandled errors
-set -eux;
+set -ex;
 
 function pure_version() {
 	echo '1.0.0.6'
@@ -243,7 +243,7 @@ if [[ -n "$DISK_IMAGE_SIZE" ]]; then
 fi
 
 if [ $SANDBOX_SAFE -eq 0 ]; then
-	hdiutil create ${HDIUTIL_VERBOSITY} -srcfolder "$SRC_FOLDER" -volname "${VOLUME_NAME}" -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDRW "${CUSTOM_SIZE}" "${DMG_TEMP_NAME}"
+	hdiutil create ${HDIUTIL_VERBOSITY} -srcfolder "$SRC_FOLDER" -volname "${VOLUME_NAME}" -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDRW ${CUSTOM_SIZE} "${DMG_TEMP_NAME}"
 else
 	hdiutil makehybrid ${HDIUTIL_VERBOSITY} -default-volume-name "${VOLUME_NAME}" -hfs -o "${DMG_TEMP_NAME}" "$SRC_FOLDER"
 	hdiutil convert -format UDRW -ov -o "${DMG_TEMP_NAME}" "${DMG_TEMP_NAME}"
@@ -411,7 +411,7 @@ unset unmounting_attempts
 
 # compress image
 echo "Compressing disk image..."
-hdiutil convert ${HDIUTIL_VERBOSITY} "${DMG_TEMP_NAME}" -format "${FORMAT}" "${IMAGEKEY}" -o "${DMG_DIR}/${DMG_NAME}"
+hdiutil convert ${HDIUTIL_VERBOSITY} "${DMG_TEMP_NAME}" -format "${FORMAT}" ${IMAGEKEY} -o "${DMG_DIR}/${DMG_NAME}"
 rm -f "${DMG_TEMP_NAME}"
 
 # adding EULA resources
@@ -432,9 +432,13 @@ if [[ -n "${EULA_RSRC}" && "${EULA_RSRC}" != "-null-" ]]; then
 		EULA_FORMAT='TEXT'
 	fi
 
+	# Encode the EULA to base64
+	# Replace 'openssl base64' with 'base64' if Mac OS X 10.6 support is no more needed
+	# EULA_DATA="$(base64 -b 52 "${EULA_RSRC}" | sed s$'/^\(.*\)$/\t\t\t\\1/')"
+	EULA_DATA="$(openssl base64 -in "${EULA_RSRC}" | tr -d '\n' | awk '{gsub(/.{52}/,"&\n")}1' | sed s$'/^\(.*\)$/\t\t\t\\1/')"
 	# Fill the template with the custom EULA contents
 	eval "cat > \"${EULA_RESOURCES_FILE}\" <<EOF                                                                                                                  
-	$(<"${AUX_PATH}"/eula-resources-template.xml)
+	$(<${AUX_PATH}/eula-resources-template.xml)
 	EOF
 	"
 	# Apply the resources

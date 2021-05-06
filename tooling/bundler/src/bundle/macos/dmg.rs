@@ -41,7 +41,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   let dmg_name = format!("{}.dmg", &package_base_name);
   let dmg_path = output_path.join(&dmg_name);
 
-  let product_name = &format!("{}.app", &package_base_name);
+  let product_name = &format!("{}.app", settings.main_binary_name());
   let bundle_dir = settings.project_out_directory().join("bundle/macos");
 
   let support_directory_path = output_path.join("support");

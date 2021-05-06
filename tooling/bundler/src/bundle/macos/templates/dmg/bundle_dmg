@@ -192,6 +192,13 @@ DMG_NAME="$(basename "$DMG_PATH")"
 DMG_TEMP_NAME="$DMG_DIR/rw.${DMG_NAME}"
 SRC_FOLDER="$(cd "$2" > /dev/null; pwd)"
 
+# Argument validation checks
+
+if [[ "${DMG_PATH: -4}" != ".dmg" ]]; then
+	echo "Output file name must end with a .dmg extension. Run 'create-dmg --help' for help."
+	exit 1
+fi
+
 [ -z ${VOLUME_NAME+x} ] && VOLUME_NAME="$(basename "$DMG_PATH" .dmg)"
 
 # brew formula will set this as 1 and embed the support scripts

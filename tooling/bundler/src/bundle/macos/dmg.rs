@@ -41,7 +41,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   let dmg_name = format!("{}.dmg", &package_base_name);
   let dmg_path = output_path.join(&dmg_name);
 
-  let product_name = &format!("{}.app", &package_base_name);
+  let product_name = &format!("{}.app", settings.main_binary_name());
   let bundle_dir = settings.project_out_directory().join("bundle/macos");
 
   let support_directory_path = output_path.join("support");
@@ -58,7 +58,6 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 
   // create paths for script
   let bundle_script_path = output_path.join("bundle_dmg.sh");
-  let license_script_path = support_directory_path.join("dmg-license.py");
 
   common::print_bundling(format!("{:?}", &dmg_path).as_str())?;
 
@@ -72,15 +71,14 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     include_str!("templates/dmg/template.applescript"),
   )?;
   write(
-    &license_script_path,
-    include_str!("templates/dmg/dmg-license.py"),
+    support_directory_path.join("eula-resources-template.xml"),
+    include_str!("templates/dmg/eula-resources-template.xml"),
   )?;
 
   // chmod script for execution
   Command::new("chmod")
     .arg("777")
     .arg(&bundle_script_path)
-    .arg(&license_script_path)
     .current_dir(output_path)
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
@@ -109,9 +107,15 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     &product_name,
   ];
 
+  #[allow(unused_assignments)]
+  let mut license_path_ref = "".to_string();
   if let Some(license_path) = &settings.macos().license {
     args.push("--eula");
-    args.push(license_path);
+    license_path_ref = env::current_dir()?
+      .join(license_path)
+      .to_string_lossy()
+      .to_string();
+    args.push(&license_path_ref);
   }
 
   // Issue #592 - Building MacOS dmg files on CI

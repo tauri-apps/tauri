@@ -59,7 +59,7 @@ function usage() {
 	echo "  --hdiutil-quiet"
 	echo "      execute hdiutil in quiet mode"
 	echo "  --sandbox-safe"
-	echo "      execute hdiutil with sandbox compatibility and do not bless"
+	echo "      execute hdiutil with sandbox compatibility, do not bless and do not execute the cosmetic AppleScript"
 	echo "  --version         show tool version number"
 	echo "  -h, --help        display this help"
 	exit 0

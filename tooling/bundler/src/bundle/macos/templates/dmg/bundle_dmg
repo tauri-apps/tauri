@@ -40,8 +40,6 @@ function usage() {
 	echo "      set position of the file's icon"
 	echo "  --hide-extension file_name"
 	echo "      hide the extension of file"
-	echo "  --custom-icon file_name custom_icon_or_sample_file x y"
-	echo "      set position and custom icon"
 	echo "  --app-drop-link x y"
 	echo "      make a drop link to Applications, at location x,y"
 	echo "  --ql-drop-link x y"
@@ -118,8 +116,6 @@ while [ ! -z ${1+x} ] && test "${1:0:1}" = "-"; do
 		HIDING_CLAUSE="${HIDING_CLAUSE}set the extension hidden of item \"$2\" to true
 		"
 		shift; shift;;
-	--custom-icon)
-		shift; shift; shift; shift; shift;;
 	-h | --help)
 		usage;;
 	--version)

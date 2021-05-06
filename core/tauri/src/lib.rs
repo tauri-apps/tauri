@@ -63,9 +63,12 @@ pub use {
   self::runtime::flavors::wry::Wry,
   self::runtime::monitor::Monitor,
   self::runtime::webview::{WebviewAttributes, WindowBuilder},
-  self::runtime::window::export::{
-    dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
-    Window,
+  self::runtime::window::{
+    export::{
+      dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
+      Window,
+    },
+    WindowEvent,
   },
   self::state::{State, StateManager},
 };

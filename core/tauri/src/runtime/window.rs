@@ -23,6 +23,38 @@ use std::hash::{Hash, Hasher};
 /// UI scaling utilities.
 pub mod dpi;
 
+/// An event from a window.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum WindowEvent {
+  /// The size of the window has changed. Contains the client area's new dimensions.
+  Resized(dpi::PhysicalSize<u32>),
+  /// The position of the window has changed. Contains the window's new position.
+  Moved(dpi::PhysicalPosition<i32>),
+  /// The window has been requested to close.
+  CloseRequested,
+  /// The window has been destroyed.
+  Destroyed,
+  /// The window gained or lost focus.
+  ///
+  /// The parameter is true if the window has gained focus, and false if it has lost focus.
+  Focused(bool),
+  ///The window's scale factor has changed.
+  ///
+  /// The following user actions can cause DPI changes:
+  ///
+  /// - Changing the display's resolution.
+  /// - Changing the display's scale factor (e.g. in Control Panel on Windows).
+  /// - Moving the window to a display with a different scale factor.
+  #[non_exhaustive]
+  ScaleFactorChanged {
+    /// The new scale factor.
+    scale_factor: f64,
+    /// The window inner size.
+    new_inner_size: dpi::PhysicalSize<u32>,
+  },
+}
+
 /// A webview window that has yet to be built.
 pub struct PendingWindow<M: Params> {
   /// The label that the window will be named.
@@ -311,6 +343,11 @@ pub(crate) mod export {
     /// Evaluates JavaScript on this window.
     pub fn eval(&self, js: &str) -> crate::Result<()> {
       self.window.dispatcher.eval_script(js)
+    }
+
+    /// Registers a window event listener.
+    pub fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) {
+      self.window.dispatcher.on_window_event(f);
     }
 
     // Getters

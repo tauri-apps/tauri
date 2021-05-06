@@ -358,6 +358,10 @@ if [ ! -z ${VOLUME_ICON_FILE+x} ]; then
 	SetFile -a C "$MOUNT_DIR"
 fi
 
+# Delete unnecessary file system events log
+echo "Deleting .fseventsd"
+rm -rf "${MOUNT_DIR}/.fseventsd"
+
 # unmount
 unmounting_attempts=0
 until

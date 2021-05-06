@@ -62,8 +62,6 @@ function usage() {
 	echo "      execute hdiutil in quiet mode"
 	echo "  --sandbox-safe"
 	echo "      execute hdiutil with sandbox compatibility and do not bless"
-	echo "  --rez rez_path"
-	echo "      use custom path to Rez tool"
 	echo "  --version         show tool version number"
 	echo "  -h, --help        display this help"
 	exit 0
@@ -166,9 +164,6 @@ while [ ! -z ${1+x} ] && test "${1:0:1}" = "-"; do
 	--sandbox-safe)
 		SANDBOX_SAFE=1
 		shift;;
-	--rez)
-		REZ_PATH=$2
-		shift; shift;;
 	--skip-jenkins)
 		SKIP_JENKINS=1
 		shift;;
@@ -388,18 +383,36 @@ rm -f "${DMG_TEMP_NAME}"
 # adding EULA resources
 if [ ! -z ${EULA_RSRC+x} ]; then
 	echo "adding EULA resources"
-
-	REZ_ARG=""
-	if [ ! -z ${REZ_PATH+x} ]; then
-		REZ_ARG="--rez ${REZ_PATH}"
-	fi
-	if [ $BREW_INSTALL -eq 0 ]; then
-		"${AUX_PATH}/dmg-license.py" "${DMG_DIR}/${DMG_NAME}" "${EULA_RSRC}" ${REZ_ARG}
+	#
+	# Use udifrez instead flatten/rez/unflatten
+	# https://github.com/create-dmg/create-dmg/issues/109
+	#
+	# Based on a thread from dawn2dusk & peterguy
+	# https://developer.apple.com/forums/thread/668084
+	#
+	EULA_RESOURCES_FILE=$(mktemp -t createdmg.tmp.XXXXXXXXXX)
+	EULA_FORMAT=$(file -b ${EULA_RSRC})
+	if [[ ${EULA_FORMAT} == 'Rich Text Format data'* ]] ; then
+		EULA_FORMAT='RTF '
 	else
-		python - "${DMG_DIR}/${DMG_NAME}" "${EULA_RSRC}" ${REZ_ARG} <<-'EOS'
-		# BREW_INLINE_LICENSE_PLACEHOLDER
-EOS
+		EULA_FORMAT='TEXT'
 	fi
+
+	# Encode the EULA to base64
+	# Replace 'openssl base64' with 'base64' if Mac OS X 10.6 support is no more needed
+	# EULA_DATA="$(base64 -b 52 "${EULA_RSRC}" | sed s$'/^\(.*\)$/\t\t\t\\1/')"
+	EULA_DATA="$(openssl base64 -in "${EULA_RSRC}" | tr -d '\n' | awk '{gsub(/.{52}/,"&\n")}1' | sed s$'/^\(.*\)$/\t\t\t\\1/')"
+	# Fill the template with the custom EULA contents
+	eval "cat > \"${EULA_RESOURCES_FILE}\" <<EOF                                                                                                                  
+	$(<${AUX_PATH}/eula-resources-template.xml)
+	EOF
+	"
+	# Apply the resources
+	hdiutil udifrez -xml "${EULA_RESOURCES_FILE}" '' -quiet "${DMG_DIR}/${DMG_NAME}" || {
+		echo "Failed to add the EULA license"
+		exit 1
+	}
+	echo "Successfully added the EULA license"
 fi
 
 if [ ! -z ${NOINTERNET+x} && -a "${NOINTERNET}" == 1 ]; then

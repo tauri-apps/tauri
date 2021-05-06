@@ -11,7 +11,7 @@ use crate::{
   runtime::{
     tag::ToJsString,
     webview::{FileDropHandler, InvokePayload, WebviewAttributes, WebviewRpcHandler},
-    Dispatch, Runtime,
+    Dispatch, Monitor, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
   Icon, Manager, Params, WindowBuilder,
@@ -19,6 +19,9 @@ use crate::{
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use std::hash::{Hash, Hasher};
+
+/// UI scaling utilities.
+pub mod dpi;
 
 /// A webview window that has yet to be built.
 pub struct PendingWindow<M: Params> {
@@ -113,10 +116,12 @@ impl<M: Params> PartialEq for DetachedWindow<M> {
 
 /// We want to export the runtime related window at the crate root, but not look like a re-export.
 pub(crate) mod export {
+  pub(crate) use super::dpi;
   use super::*;
   use crate::command::{CommandArg, CommandItem};
   use crate::runtime::{manager::WindowManager, tag::TagRef};
   use crate::{Invoke, InvokeError};
+  use dpi::{PhysicalPosition, PhysicalSize, Position, Size};
   use std::borrow::Borrow;
 
   /// A webview window managed by Tauri.
@@ -308,6 +313,68 @@ pub(crate) mod export {
       self.window.dispatcher.eval_script(js)
     }
 
+    // Getters
+
+    /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.
+    pub fn scale_factor(&self) -> crate::Result<f64> {
+      self.window.dispatcher.scale_factor()
+    }
+
+    /// Returns the position of the top-left hand corner of the window's client area relative to the top-left hand corner of the desktop.
+    pub fn inner_position(&self) -> crate::Result<PhysicalPosition<i32>> {
+      self.window.dispatcher.inner_position()
+    }
+
+    /// Returns the position of the top-left hand corner of the window relative to the top-left hand corner of the desktop.
+    pub fn outer_position(&self) -> crate::Result<PhysicalPosition<i32>> {
+      self.window.dispatcher.outer_position()
+    }
+
+    /// Returns the physical size of the window's client area.
+    ///
+    /// The client area is the content of the window, excluding the title bar and borders.
+    pub fn inner_size(&self) -> crate::Result<PhysicalSize<u32>> {
+      self.window.dispatcher.inner_size()
+    }
+
+    /// Returns the physical size of the entire window.
+    ///
+    /// These dimensions include the title bar and borders. If you don't want that (and you usually don't), use inner_size instead.
+    pub fn outer_size(&self) -> crate::Result<PhysicalSize<u32>> {
+      self.window.dispatcher.outer_size()
+    }
+
+    /// Gets the window's current fullscreen state.
+    pub fn is_fullscreen(&self) -> crate::Result<bool> {
+      self.window.dispatcher.is_fullscreen()
+    }
+
+    /// Gets the window's current maximized state.
+    pub fn is_maximized(&self) -> crate::Result<bool> {
+      self.window.dispatcher.is_maximized()
+    }
+
+    /// Returns the monitor on which the window currently resides.
+    ///
+    /// Returns None if current monitor can't be detected.
+    pub fn current_monitor(&self) -> crate::Result<Option<Monitor>> {
+      self.window.dispatcher.current_monitor()
+    }
+
+    /// Returns the primary monitor of the system.
+    ///
+    /// Returns None if it can't identify any monitor as a primary one.
+    pub fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
+      self.window.dispatcher.primary_monitor()
+    }
+
+    /// Returns the list of all the monitors available on the system.
+    pub fn available_monitors(&self) -> crate::Result<Vec<Monitor>> {
+      self.window.dispatcher.available_monitors()
+    }
+
+    // Setters
+
     /// Determines if this window should be resizable.
     pub fn set_resizable(&self, resizable: bool) -> crate::Result<()> {
       self.window.dispatcher.set_resizable(resizable)
@@ -365,58 +432,24 @@ pub(crate) mod export {
       self.window.dispatcher.set_always_on_top(always_on_top)
     }
 
-    /// Sets this window's width.
-    pub fn set_width(&self, width: impl Into<f64>) -> crate::Result<()> {
-      self.window.dispatcher.set_width(width.into())
-    }
-
-    /// Sets this window's height.
-    pub fn set_height(&self, height: impl Into<f64>) -> crate::Result<()> {
-      self.window.dispatcher.set_height(height.into())
-    }
-
     /// Resizes this window.
-    pub fn resize(&self, width: impl Into<f64>, height: impl Into<f64>) -> crate::Result<()> {
-      self.window.dispatcher.resize(width.into(), height.into())
+    pub fn set_size<S: Into<Size>>(&self, size: S) -> crate::Result<()> {
+      self.window.dispatcher.set_size(size.into())
     }
 
     /// Sets this window's minimum size.
-    pub fn set_min_size(
-      &self,
-      min_width: impl Into<f64>,
-      min_height: impl Into<f64>,
-    ) -> crate::Result<()> {
-      self
-        .window
-        .dispatcher
-        .set_min_size(min_width.into(), min_height.into())
+    pub fn set_min_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
+      self.window.dispatcher.set_min_size(size.map(|s| s.into()))
     }
 
     /// Sets this window's maximum size.
-    pub fn set_max_size(
-      &self,
-      max_width: impl Into<f64>,
-      max_height: impl Into<f64>,
-    ) -> crate::Result<()> {
-      self
-        .window
-        .dispatcher
-        .set_max_size(max_width.into(), max_height.into())
-    }
-
-    /// Sets this window's x position.
-    pub fn set_x(&self, x: impl Into<f64>) -> crate::Result<()> {
-      self.window.dispatcher.set_x(x.into())
-    }
-
-    /// Sets this window's y position.
-    pub fn set_y(&self, y: impl Into<f64>) -> crate::Result<()> {
-      self.window.dispatcher.set_y(y.into())
+    pub fn set_max_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
+      self.window.dispatcher.set_max_size(size.map(|s| s.into()))
     }
 
     /// Sets this window's position.
-    pub fn set_position(&self, x: impl Into<f64>, y: impl Into<f64>) -> crate::Result<()> {
-      self.window.dispatcher.set_position(x.into(), y.into())
+    pub fn set_position<Pos: Into<Position>>(&self, position: Pos) -> crate::Result<()> {
+      self.window.dispatcher.set_position(position.into())
     }
 
     /// Determines if this window should be fullscreen.

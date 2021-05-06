@@ -7,7 +7,7 @@
 use crate::hooks::InvokeError;
 use crate::{InvokeMessage, Params};
 use serde::de::Visitor;
-use serde::Deserializer;
+use serde::{Deserialize, Deserializer};
 
 /// Represents a custom command.
 pub struct CommandItem<'a, P: Params> {
@@ -44,7 +44,7 @@ pub trait CommandArg<'de, P: Params>: Sized {
 }
 
 /// Automatically implement [`CommandArg`] for any type that can be deserialized.
-impl<'de, D: serde::Deserialize<'de>, P: Params> CommandArg<'de, P> for D {
+impl<'de, D: Deserialize<'de>, P: Params> CommandArg<'de, P> for D {
   fn from_command(command: CommandItem<'de, P>) -> Result<Self, InvokeError> {
     let arg = command.key;
     Self::deserialize(command).map_err(|e| crate::Error::InvalidArgs(arg, e).into())
@@ -136,4 +136,111 @@ impl<'de, P: Params> Deserializer<'de> for CommandItem<'de, P> {
 
   pass!(deserialize_identifier, visitor: V);
   pass!(deserialize_ignored_any, visitor: V);
+}
+
+#[doc(hidden)]
+pub mod private {
+  use crate::InvokeError;
+  use futures::FutureExt;
+  use serde::Serialize;
+  use std::future::{ready, Future};
+
+  #[doc(hidden)]
+  pub struct CommandReturn<T, F>
+  where
+    T: Serialize,
+    F: Future<Output = Result<T, InvokeError>> + Send,
+  {
+    pub future: F,
+  }
+
+  impl<T, F> From<F> for CommandReturn<T, F>
+  where
+    T: Serialize,
+    F: Future<Output = Result<T, InvokeError>> + Send,
+  {
+    #[inline(always)]
+    fn from(future: F) -> Self {
+      Self { future }
+    }
+  }
+
+  pub struct SerializeReturnTag;
+  pub trait SerializeReturnKind {
+    #[inline(always)]
+    fn command_return_kind(&self) -> SerializeReturnTag {
+      SerializeReturnTag
+    }
+  }
+  impl<T: Serialize> SerializeReturnKind for &T {}
+  impl SerializeReturnTag {
+    #[inline(always)]
+    pub fn command_return<T: Serialize + Send>(
+      self,
+      value: T,
+    ) -> CommandReturn<T, impl Future<Output = Result<T, InvokeError>>> {
+      ready(Ok(value)).into()
+    }
+  }
+
+  pub struct ResultReturnTag;
+  pub trait ResultReturnKind {
+    #[inline(always)]
+    fn command_return_kind(&self) -> ResultReturnTag {
+      ResultReturnTag
+    }
+  }
+  impl<T: Serialize, E: Into<InvokeError>> ResultReturnKind for Result<T, E> {}
+  impl ResultReturnTag {
+    #[inline(always)]
+    pub fn command_return<T: Serialize + Send, E: Into<InvokeError>>(
+      self,
+      value: Result<T, E>,
+    ) -> CommandReturn<T, impl Future<Output = Result<T, InvokeError>>> {
+      ready(value.map_err(Into::into)).into()
+    }
+  }
+
+  pub struct SerializeFutureReturnTag;
+  pub trait SerializeFutureReturnKind {
+    #[inline(always)]
+    fn command_return_kind(&self) -> SerializeFutureReturnTag {
+      SerializeFutureReturnTag
+    }
+  }
+  impl<T: Serialize, F: Future<Output = T>> SerializeFutureReturnKind for &F {}
+  impl SerializeFutureReturnTag {
+    #[inline(always)]
+    pub fn command_return<T: Serialize, F: Future<Output = T> + Send>(
+      self,
+      f: F,
+    ) -> CommandReturn<T, impl Future<Output = Result<T, InvokeError>>> {
+      f.map(Ok).into()
+    }
+  }
+
+  pub struct ResultFutureReturnTag;
+  pub trait ResultFutureReturnKind {
+    #[inline(always)]
+    fn command_return_kind(&self) -> ResultFutureReturnTag {
+      ResultFutureReturnTag
+    }
+  }
+  impl<T: Serialize, E: Into<InvokeError>, F: Future<Output = Result<T, E>>> ResultFutureReturnKind
+    for F
+  {
+  }
+  impl ResultFutureReturnTag {
+    #[inline(always)]
+    pub fn command_return<
+      T: Serialize,
+      E: Into<InvokeError>,
+      F: Future<Output = Result<T, E>> + Send,
+    >(
+      self,
+      f: F,
+    ) -> CommandReturn<T, impl Future<Output = Result<T, InvokeError>>> {
+      f.map(move |value| value.map_err(Into::into)).into()
+    }
+  }
 }

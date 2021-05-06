@@ -37,29 +37,56 @@ async fn async_stateful_command(argument: Option<String>, state: State<'_, MySta
   println!("{:?} {:?}", argument, state.inner());
 }
 
-// ------------------------ Commands returning Result ------------------------
-
-type Result<T> = std::result::Result<T, ()>;
+// Raw future commands
+#[command]
+fn future_simple_command(argument: String) -> impl std::future::Future<Output = ()> {
+  println!("{}", argument);
+  std::future::ready(())
+}
 
 #[command]
-fn simple_command_with_result(argument: String) -> Result<String> {
+fn future_simple_command_with_return(
+  argument: String,
+) -> impl std::future::Future<Output = String> {
   println!("{}", argument);
-  (!argument.is_empty()).then(|| argument).ok_or(())
+  std::future::ready(argument)
+}
+
+#[command]
+fn future_simple_command_with_result(
+  argument: String,
+) -> impl std::future::Future<Output = Result<String, ()>> {
+  println!("{}", argument);
+  std::future::ready(Ok(argument))
+}
+
+// ------------------------ Commands returning Result ------------------------
+
+#[derive(Debug, serde::Serialize)]
+enum MyError {
+  FooError,
+}
+#[command]
+fn simple_command_with_result(argument: String) -> Result<String, MyError> {
+  println!("{}", argument);
+  (!argument.is_empty())
+    .then(|| argument)
+    .ok_or(MyError::FooError)
 }
 
 #[command]
 fn stateful_command_with_result(
   argument: Option<String>,
   state: State<'_, MyState>,
-) -> Result<String> {
+) -> Result<String, MyError> {
   println!("{:?} {:?}", argument, state.inner());
-  argument.ok_or(())
+  dbg!(argument.ok_or(MyError::FooError))
 }
 
 // Async commands
 
 #[command]
-async fn async_simple_command_with_result(argument: String) -> Result<String> {
+async fn async_simple_command_with_result(argument: String) -> Result<String, MyError> {
   println!("{}", argument);
   Ok(argument)
 }
@@ -68,7 +95,7 @@ async fn async_simple_command_with_result(argument: String) -> Result<String> {
 async fn async_stateful_command_with_result(
   argument: Option<String>,
   state: State<'_, MyState>,
-) -> Result<String> {
+) -> Result<String, MyError> {
   println!("{:?} {:?}", argument, state.inner());
   Ok(argument.unwrap_or_else(|| "".to_string()))
 }
@@ -110,6 +137,7 @@ fn main() {
       commands::simple_command,
       commands::stateful_command,
       async_simple_command,
+      future_simple_command,
       async_stateful_command,
       command_arguments_wild,
       command_arguments_struct,
@@ -117,6 +145,8 @@ fn main() {
       stateful_command_with_result,
       command_arguments_tuple_struct,
       async_simple_command_with_result,
+      future_simple_command_with_return,
+      future_simple_command_with_result,
       async_stateful_command_with_result,
     ])
     .run(tauri::generate_context!())

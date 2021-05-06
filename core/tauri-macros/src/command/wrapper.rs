@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens, TokenStreamExt};
+use quote::quote;
 use std::convert::TryFrom;
-use syn::{spanned::Spanned, FnArg, Ident, ItemFn, Pat, ReturnType, Type, Visibility};
+use syn::{spanned::Spanned, FnArg, Ident, ItemFn, Pat, Visibility};
 
 /// The command wrapper created for a function marked with `#[command]`.
 pub struct Wrapper {
@@ -18,7 +18,7 @@ pub struct Wrapper {
 
 impl Wrapper {
   /// Create a new [`Wrapper`] from the function and the generated code parsed from the function.
-  pub fn new(function: ItemFn, body: syn::Result<WrapperBody>) -> Self {
+  pub fn new(function: ItemFn) -> Self {
     // macros used with `pub use my_macro;` need to be exported with `#[macro_export]`
     let maybe_export = match &function.vis {
       Visibility::Public(_) => quote!(#[macro_export]),
@@ -27,6 +27,7 @@ impl Wrapper {
 
     let visibility = function.vis.clone();
     let wrapper = super::format_command_wrapper(&function.sig.ident);
+    let body = WrapperBody::try_from(&function);
 
     Self {
       function,
@@ -50,9 +51,8 @@ impl From<Wrapper> for proc_macro::TokenStream {
   ) -> Self {
     // either use the successful body or a `compile_error!` of the error occurred while parsing it.
     let body = body
-      .as_ref()
-      .map(ToTokens::to_token_stream)
-      .unwrap_or_else(syn::Error::to_compile_error);
+      .map(|b| b.0)
+      .unwrap_or_else(syn::Error::into_compile_error);
 
     // we `use` the macro so that other modules can resolve the with the same path as the function.
     // this is dependent on rust 2018 edition.
@@ -82,62 +82,23 @@ impl TryFrom<&ItemFn> for WrapperBody {
     // the name of the #[command] function is the name of the command to handle
     let command = function.sig.ident.clone();
 
-    // automatically append await when the #[command] function is async
-    let maybe_await = match function.sig.asyncness {
-      Some(_) => quote!(.await),
-      None => Default::default(),
-    };
-
-    // todo: detect command return types automatically like params, removes parsing type name
-    let returns_result = match function.sig.output {
-      ReturnType::Type(_, ref ty) => match &**ty {
-        Type::Path(type_path) => type_path
-          .path
-          .segments
-          .first()
-          .map(|seg| seg.ident == "Result")
-          .unwrap_or_default(),
-        _ => false,
-      },
-      ReturnType::Default => false,
-    };
-
     let mut args = Vec::new();
     for param in &function.sig.inputs {
       args.push(parse_arg(&command, param)?);
     }
 
-    // todo: change this to automatically detect result returns (see above result todo)
-    // if the command handler returns a Result,
-    // we just map the values to the ones expected by Tauri
-    // otherwise we wrap it with an `Ok()`, converting the return value to tauri::InvokeResponse
-    // note that all types must implement `serde::Serialize`.
-    let result = if returns_result {
-      quote! {
-        let result = $path(#(#args?),*);
-        ::core::result::Result::Ok(result #maybe_await?)
-      }
-    } else {
-      quote! {
-        let result = $path(#(#args?),*);
-        ::core::result::Result::<_, ::tauri::InvokeError>::Ok(result #maybe_await)
-      }
-    };
-
-    Ok(Self(result))
-  }
-}
-
-impl ToTokens for WrapperBody {
-  fn to_tokens(&self, tokens: &mut TokenStream) {
-    let body = &self.0;
-
     // we #[allow(unused_variables)] because a command with no arguments will not use message.
-    tokens.append_all(quote!(
+    Ok(Self(quote!(
+      use ::tauri::command::private::*;
+
       #[allow(unused_variables)]
       let ::tauri::Invoke { message, resolver } = $invoke;
-      resolver.respond_async(async move { #body });
-    ))
+
+      resolver.respond_async(async move {
+        let result = $path(#(#args?),*);
+        (&result).command_return_kind().command_return(result).future.await
+      });
+    )))
   }
 }
 

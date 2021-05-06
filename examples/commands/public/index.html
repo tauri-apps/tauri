@@ -10,46 +10,47 @@
 
 <body>
   <h1>Tauri Commands</h1>
-  <div id="response">Response:</div>
+  <div>Response: <span id="response"></span></div>
+  <div >Without Args: <span id="response-optional"></span></div>
   <div id="container"></div>
   <script>
-    const responseDiv = document.querySelector('#response')
-    function runCommand(commandName, args) {
+    function runCommand(commandName, args, optional) {
+      const id = optional ? "#response-optional" : "#response";
+      const result = document.querySelector(id)
       window.__TAURI__.invoke(commandName, args).then(response => {
-        responseDiv.innerHTML = `Response: Ok(${response})`
+        result.innerText = `Ok(${response})`
       }).catch(error => {
-        responseDiv.innerHTML = `Response: Err(${error})`
+        result.innerText = `Err(${error})`
       })
     }
 
     const container = document.querySelector('#container')
     const commands = [
-      { name: 'window_label', required: true },
-      { name: 'simple_command', required: true },
-      { name: 'stateful_command', required: false },
-      { name: 'async_simple_command', required: true },
-      { name: 'async_stateful_command', required: false },
-      { name: 'simple_command_with_result', required: true },
-      { name: 'stateful_command_with_result', required: false },
-      { name: 'async_simple_command_with_result', required: true },
-      { name: 'async_stateful_command_with_result', required: false },
-      { name: 'command_arguments_wild', required: true },
-      { name: 'command_arguments_struct', required: true, args: { "Person": { "name": "ferris", age: 6 } } },
-      { name: 'command_arguments_tuple_struct', required: true, args: { "InlinePerson": [ "ferris", 6 ] } },
+      { name: 'window_label' },
+      { name: 'simple_command' },
+      { name: 'stateful_command' },
+      { name: 'async_simple_command' },
+      { name: 'future_simple_command'},
+      { name: 'async_stateful_command' },
+      { name: 'simple_command_with_result' },
+      { name: 'stateful_command_with_result' },
+      { name: 'async_simple_command_with_result' },
+      { name: 'future_simple_command_with_return' },
+      { name: 'future_simple_command_with_result' },
+      { name: 'async_stateful_command_with_result' },
+      { name: 'command_arguments_wild' },
+      { name: 'command_arguments_struct', args: { "Person": { "name": "ferris", age: 6 } } },
+      { name: 'command_arguments_tuple_struct', args: { "InlinePerson": [ "ferris", 6 ] } },
     ]
 
     for (const command of commands) {
-      const { name, required } = command
+      const { name } = command
       const args = command.args ?? { argument: 'value' }
       const button = document.createElement('button')
       button.innerHTML = `Run ${name}`;
       button.addEventListener("click", function () {
-        runCommand(name, args)
-        if (!required) {
-          setTimeout(() => {
-            runCommand(name, {})
-          }, 1000)
-        }
+        runCommand(name, args, false)
+        runCommand(name, Object.create(null), true)
       });
       container.appendChild(button);
     }

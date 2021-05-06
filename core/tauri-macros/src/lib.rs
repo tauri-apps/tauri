@@ -5,7 +5,6 @@
 extern crate proc_macro;
 use crate::context::ContextItems;
 use proc_macro::TokenStream;
-use std::convert::TryFrom;
 use syn::{parse_macro_input, ItemFn};
 
 mod command;
@@ -16,8 +15,7 @@ mod context;
 #[proc_macro_attribute]
 pub fn command(_attrs: TokenStream, item: TokenStream) -> TokenStream {
   let function = parse_macro_input!(item as ItemFn);
-  let body = command::WrapperBody::try_from(&function);
-  command::Wrapper::new(function, body).into()
+  command::Wrapper::new(function).into()
 }
 
 #[proc_macro]

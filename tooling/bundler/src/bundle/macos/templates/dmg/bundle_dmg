@@ -286,7 +286,7 @@ DEV_NAME=$(hdiutil attach -readwrite -noverify -noautoopen "${DMG_TEMP_NAME}" | 
 echo "Device name:     $DEV_NAME"
 
 if [ ! -z ${BACKGROUND_FILE+x} ]; then
-	echo "Copying background file..."
+	echo "Copying background file '$BACKGROUND_FILE'..."
 	test -d "$MOUNT_DIR/.background" || mkdir "$MOUNT_DIR/.background"
 	cp "$BACKGROUND_FILE" "$MOUNT_DIR/.background/$BACKGROUND_FILE_NAME"
 fi

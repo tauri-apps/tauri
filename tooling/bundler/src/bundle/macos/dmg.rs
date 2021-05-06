@@ -111,7 +111,10 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   let mut license_path_ref = "".to_string();
   if let Some(license_path) = &settings.macos().license {
     args.push("--eula");
-    license_path_ref = env::current_dir()?.join(license_path).to_string_lossy().to_string();
+    license_path_ref = env::current_dir()?
+      .join(license_path)
+      .to_string_lossy()
+      .to_string();
     args.push(&license_path_ref);
   }
 

@@ -280,7 +280,7 @@ echo "Mounting disk image..."
 MOUNT_DIR="/Volumes/${VOLUME_NAME}"
 
 # Unmount leftover dmg if it was mounted previously (e.g. developer mounted dmg, installed app and forgot to unmount it)
-if [ test -d "${MOUNT_DIR}" ]; then
+if [[ -d "${MOUNT_DIR}" ]]; then
   echo "Unmounting previously mounted disk image..."
 	DEV_NAME=$(hdiutil info | egrep --color=never '^/dev/' | sed 1q | awk '{print $1}')
   hdiutil detach "${DEV_NAME}"

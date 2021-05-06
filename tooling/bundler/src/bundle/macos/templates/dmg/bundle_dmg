@@ -20,7 +20,7 @@ function version() {
 function usage() {
 	version
 	echo "Creates a fancy DMG file."
-	echo "Usage:  $(basename $0) [options] <output_name.dmg> <source_folder>"
+	echo "Usage:  $(basename "$0") [options] <output_name.dmg> <source_folder>"
 	echo "All contents of <source_folder> will be copied into the disk image."
 	echo "Options:"
 	echo "  --volname name"
@@ -83,7 +83,7 @@ MAXIMUM_UNMOUNTING_ATTEMPTS=3
 POSITION_CLAUSE=""
 HIDING_CLAUSE=""
 
-while [ ! -z ${1+x} ] && test "${1:0:1}" = "-"; do
+while [[ "${1:0:1}" = "-" ]]; do
 	case $1 in
 	--volname)
 		VOLUME_NAME="$2"
@@ -165,7 +165,7 @@ while [ ! -z ${1+x} ] && test "${1:0:1}" = "-"; do
 		SKIP_JENKINS=1
 		shift;;
 	-*)
-		echo "Unknown option $1. Run with --help for help."
+		echo "Unknown option: $1. Run with --help for help."
 		exit 1;;
 	esac
 	case $FORMAT in
@@ -176,10 +176,10 @@ while [ ! -z ${1+x} ] && test "${1:0:1}" = "-"; do
 	esac
 done
 
-[ -z ${2+x} ] && {
+if [[ -z "$2" ]]; then
 	echo "Not enough arguments. Invoke with --help for help."
 	exit 1
-}
+fi
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 DMG_PATH="$1"
@@ -196,7 +196,9 @@ if [[ "${DMG_PATH: -4}" != ".dmg" ]]; then
 	exit 1
 fi
 
-[ -z ${VOLUME_NAME+x} ] && VOLUME_NAME="$(basename "$DMG_PATH" .dmg)"
+if [[ -z "$VOLUME_NAME" ]]; then
+	VOLUME_NAME="$(basename "$DMG_PATH" .dmg)"
+fi
 
 # brew formula will set this as 1 and embed the support scripts
 BREW_INSTALL=0
@@ -210,14 +212,16 @@ if [ $BREW_INSTALL -eq 0 ]; then
 	}
 fi
 
-if [ -f "$SRC_FOLDER/.DS_Store" ]; then
+if [[ -f "$SRC_FOLDER/.DS_Store" ]]; then
 	echo "Deleting any .DS_Store in source folder"
 	rm "$SRC_FOLDER/.DS_Store"
 fi
 
 # Create the image
 echo "Creating disk image..."
-test -f "${DMG_TEMP_NAME}" && rm -f "${DMG_TEMP_NAME}"
+if [[ -f "${DMG_TEMP_NAME}" ]]; then
+	rm -f "${DMG_TEMP_NAME}"
+fi
 
 # Using Megabytes since hdiutil fails with very large Byte numbers
 function blocks_to_megabytes() {
@@ -228,18 +232,18 @@ function blocks_to_megabytes() {
 
 function get_size() {
 	# Get block size in disk
-	bytes_size=`du -s "$1" | sed -e 's/	.*//g'`
-	echo `blocks_to_megabytes $bytes_size`
+	bytes_size=$(du -s "$1" | sed -e 's/	.*//g')
+	echo $(blocks_to_megabytes "$bytes_size")
 }
 
 # Create the DMG with the specified size or the hdiutil estimation
 CUSTOM_SIZE=''
-if [ ! -z ${DISK_IMAGE_SIZE+x} ]; then
+if [[ -n "$DISK_IMAGE_SIZE" ]]; then
 	CUSTOM_SIZE="-size ${DISK_IMAGE_SIZE}m"
 fi
 
 if [ $SANDBOX_SAFE -eq 0 ]; then
-	hdiutil create ${HDIUTIL_VERBOSITY} -srcfolder "$SRC_FOLDER" -volname "${VOLUME_NAME}" -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDRW ${CUSTOM_SIZE} "${DMG_TEMP_NAME}"
+	hdiutil create ${HDIUTIL_VERBOSITY} -srcfolder "$SRC_FOLDER" -volname "${VOLUME_NAME}" -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDRW "${CUSTOM_SIZE}" "${DMG_TEMP_NAME}"
 else
 	hdiutil makehybrid ${HDIUTIL_VERBOSITY} -default-volume-name "${VOLUME_NAME}" -hfs -o "${DMG_TEMP_NAME}" "$SRC_FOLDER"
 	hdiutil convert -format UDRW -ov -o "${DMG_TEMP_NAME}" "${DMG_TEMP_NAME}"
@@ -247,18 +251,17 @@ else
 fi
 
 # Get the created DMG actual size
-DISK_IMAGE_SIZE=`get_size "${DMG_TEMP_NAME}"`
+DISK_IMAGE_SIZE=$(get_size "${DMG_TEMP_NAME}")
 
 # Use the custom size if bigger
-if [ $SANDBOX_SAFE -eq 1 ] && [ !  -z ${DISK_IMAGE_SIZE_CUSTOM+x} ] && [ $DISK_IMAGE_SIZE_CUSTOM -gt $DISK_IMAGE_SIZE ]; then
+if [[ $SANDBOX_SAFE -eq 1 ]] && [[ -n "$DISK_IMAGE_SIZE_CUSTOM" ]] && [[ $DISK_IMAGE_SIZE_CUSTOM -gt $DISK_IMAGE_SIZE ]]; then
 	DISK_IMAGE_SIZE=$DISK_IMAGE_SIZE_CUSTOM
 fi
 
-# Estimate the additional soruces size
-if [ ! -z ${ADD_FILE_SOURCES+x} ]; then
-	for i in "${!ADD_FILE_SOURCES[@]}"
-	do
-		SOURCE_SIZE=`get_size "${ADD_FILE_SOURCES[$i]}"`
+# Estimate the additional sources size
+if [[ -n "$ADD_FILE_SOURCES" ]]; then
+	for i in "${!ADD_FILE_SOURCES[@]}"; do
+		SOURCE_SIZE=$(get_size "${ADD_FILE_SOURCES[$i]}")
 		DISK_IMAGE_SIZE=$(expr $DISK_IMAGE_SIZE + $SOURCE_SIZE)
 	done
 fi
@@ -292,32 +295,31 @@ echo "Mount directory: $MOUNT_DIR"
 DEV_NAME=$(hdiutil attach -readwrite -noverify -noautoopen "${DMG_TEMP_NAME}" | egrep --color=never '^/dev/' | sed 1q | awk '{print $1}')
 echo "Device name:     $DEV_NAME"
 
-if [ ! -z ${BACKGROUND_FILE+x} ]; then
+if [[ -n "$BACKGROUND_FILE" ]]; then
 	echo "Copying background file '$BACKGROUND_FILE'..."
-	test -d "$MOUNT_DIR/.background" || mkdir "$MOUNT_DIR/.background"
+	[[ -d "$MOUNT_DIR/.background" ]] || mkdir "$MOUNT_DIR/.background"
 	cp "$BACKGROUND_FILE" "$MOUNT_DIR/.background/$BACKGROUND_FILE_NAME"
 fi
 
-if [ ! -z ${APPLICATION_LINK+x} ]; then
+if [[ -n "$APPLICATION_LINK" ]]; then
 	echo "making link to Applications dir"
 	test -d "$MOUNT_DIR/Applications" || ln -s /Applications "$MOUNT_DIR/Applications"
 fi
 
-if [ ! -z ${QL_LINK+x} ]; then
+if [[ -n "$QL_LINK" ]]; then
 	echo "making link to QuickLook install dir"
 	ln -s "/Library/QuickLook" "$MOUNT_DIR/QuickLook"
 fi
 
-if [ ! -z ${VOLUME_ICON_FILE+x} ]; then
+if [[ -n "$VOLUME_ICON_FILE" ]]; then
 	echo "Copying volume icon file '$VOLUME_ICON_FILE'..."
 	cp "$VOLUME_ICON_FILE" "$MOUNT_DIR/.VolumeIcon.icns"
 	SetFile -c icnC "$MOUNT_DIR/.VolumeIcon.icns"
 fi
 
-if [ ! -z ${ADD_FILE_SOURCES+x} ]; then
+if [[ -n "$ADD_FILE_SOURCES" ]]; then
 	echo "Copying custom files..."
-	for i in "${!ADD_FILE_SOURCES[@]}"
-	do
+	for i in "${!ADD_FILE_SOURCES[@]}"; do
 		echo "${ADD_FILE_SOURCES[$i]}"
 		cp -a "${ADD_FILE_SOURCES[$i]}" "$MOUNT_DIR/${ADD_FILE_TARGETS[$i]}"
 	done
@@ -372,7 +374,7 @@ chmod -Rf go-w "${MOUNT_DIR}" &> /dev/null || true
 echo "Done fixing permissions."
 
 # make the top window open itself on mount:
-if [ $SANDBOX_SAFE -eq 0 ]; then
+if [[ $SANDBOX_SAFE -eq 0 ]]; then
 	echo "Blessing started"
 	bless --folder "${MOUNT_DIR}" --openfolder "${MOUNT_DIR}"
 	echo "Blessing finished"
@@ -380,7 +382,7 @@ else
 	echo "Skipping blessing on sandbox"
 fi
 
-if [ ! -z ${VOLUME_ICON_FILE+x} ]; then
+if [[ -n "$VOLUME_ICON_FILE" ]]; then
 	# tell the volume that it has a special file attribute
 	SetFile -a C "$MOUNT_DIR"
 fi
@@ -409,11 +411,11 @@ unset unmounting_attempts
 
 # compress image
 echo "Compressing disk image..."
-hdiutil convert ${HDIUTIL_VERBOSITY} "${DMG_TEMP_NAME}" -format ${FORMAT} ${IMAGEKEY} -o "${DMG_DIR}/${DMG_NAME}"
+hdiutil convert ${HDIUTIL_VERBOSITY} "${DMG_TEMP_NAME}" -format "${FORMAT}" "${IMAGEKEY}" -o "${DMG_DIR}/${DMG_NAME}"
 rm -f "${DMG_TEMP_NAME}"
 
 # adding EULA resources
-if [ ! -z ${EULA_RSRC+x} ]; then
+if [[ -n "${EULA_RSRC}" && "${EULA_RSRC}" != "-null-" ]]; then
 	echo "adding EULA resources"
 	#
 	# Use udifrez instead flatten/rez/unflatten
@@ -423,20 +425,16 @@ if [ ! -z ${EULA_RSRC+x} ]; then
 	# https://developer.apple.com/forums/thread/668084
 	#
 	EULA_RESOURCES_FILE=$(mktemp -t createdmg.tmp.XXXXXXXXXX)
-	EULA_FORMAT=$(file -b ${EULA_RSRC})
+	EULA_FORMAT=$(file -b "${EULA_RSRC}")
 	if [[ ${EULA_FORMAT} == 'Rich Text Format data'* ]] ; then
 		EULA_FORMAT='RTF '
 	else
 		EULA_FORMAT='TEXT'
 	fi
 
-	# Encode the EULA to base64
-	# Replace 'openssl base64' with 'base64' if Mac OS X 10.6 support is no more needed
-	# EULA_DATA="$(base64 -b 52 "${EULA_RSRC}" | sed s$'/^\(.*\)$/\t\t\t\\1/')"
-	EULA_DATA="$(openssl base64 -in "${EULA_RSRC}" | tr -d '\n' | awk '{gsub(/.{52}/,"&\n")}1' | sed s$'/^\(.*\)$/\t\t\t\\1/')"
 	# Fill the template with the custom EULA contents
 	eval "cat > \"${EULA_RESOURCES_FILE}\" <<EOF                                                                                                                  
-	$(<${AUX_PATH}/eula-resources-template.xml)
+	$(<"${AUX_PATH}"/eula-resources-template.xml)
 	EOF
 	"
 	# Apply the resources
@@ -447,7 +445,7 @@ if [ ! -z ${EULA_RSRC+x} ]; then
 	echo "Successfully added the EULA license"
 fi
 
-if [ ! -z ${NOINTERNET+x} && -a "${NOINTERNET}" == 1 ]; then
+if [[ -n "${NOINTERNET}" && "${NOINTERNET}" == 1 ]]; then
 	echo "not setting 'internet-enable' on the dmg"
 else
 	# check if hdiutil supports internet-enable

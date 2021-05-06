@@ -17,6 +17,7 @@ pub mod embedded_assets;
 
 /// Represents all the errors that can happen while reading the config.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum ConfigError {
   #[error("unable to access current working directory: {0}")]
   CurrentDir(std::io::Error),

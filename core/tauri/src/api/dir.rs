@@ -14,6 +14,7 @@ use tempfile::{self, tempdir};
 /// A DiskEntry is either a file or a directory.
 /// The `children` Vec is always `Some` if the entry is a directory.
 #[derive(Debug, Serialize)]
+#[non_exhaustive]
 pub struct DiskEntry {
   /// The path to this entry.
   pub path: PathBuf,

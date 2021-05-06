@@ -37,6 +37,7 @@ pub struct TerminatedPayload {
 /// A event sent to the command callback.
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "event", content = "payload")]
+#[non_exhaustive]
 pub enum CommandEvent {
   /// Stderr line.
   Stderr(String),

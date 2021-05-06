@@ -13,14 +13,13 @@ pub mod config;
 pub mod html;
 /// Platform helpers
 pub mod platform;
-/// Process helpers
-pub mod process;
 
 /// Result type alias using the crate's error type.
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// The error types.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum Error {
   /// Target triple architecture error
   #[error("Unable to determine target-architecture")]

@@ -70,11 +70,9 @@ impl TryFrom<Icon> for WryIcon {
   type Error = crate::Error;
   fn try_from(icon: Icon) -> Result<Self, Self::Error> {
     let image = match icon {
-      Icon::File(path) => {
-        image::open(path).map_err(|e| crate::Error::InvalidIcon(e.to_string()))?
-      }
+      Icon::File(path) => image::open(path).map_err(|e| crate::Error::InvalidIcon(Box::new(e)))?,
       Icon::Raw(raw) => {
-        image::load_from_memory(&raw).map_err(|e| crate::Error::InvalidIcon(e.to_string()))?
+        image::load_from_memory(&raw).map_err(|e| crate::Error::InvalidIcon(Box::new(e)))?
       }
     };
     let (width, height) = image.dimensions();
@@ -83,7 +81,7 @@ impl TryFrom<Icon> for WryIcon {
       rgba.extend_from_slice(&pixel.to_rgba().0);
     }
     let icon = WindowIcon::from_rgba(rgba, width, height)
-      .map_err(|e| crate::Error::InvalidIcon(e.to_string()))?;
+      .map_err(|e| crate::Error::InvalidIcon(Box::new(e)))?;
     Ok(Self(icon))
   }
 }
@@ -813,7 +811,7 @@ fn create_webview<M: Params<Runtime = Wry>>(
 
   let window = window_attributes.build(event_loop).unwrap();
   let mut webview_builder = WebViewBuilder::new(window)
-    .map_err(|e| crate::Error::CreateWebview(e.to_string()))?
+    .map_err(|e| crate::Error::CreateWebview(Box::new(e)))?
     .with_url(&url)
     .unwrap(); // safe to unwrap because we validate the URL beforehand
   if let Some(handler) = rpc_handler {
@@ -842,7 +840,7 @@ fn create_webview<M: Params<Runtime = Wry>>(
 
   webview_builder
     .build()
-    .map_err(|e| crate::Error::CreateWebview(e.to_string()))
+    .map_err(|e| crate::Error::CreateWebview(Box::new(e)))
 }
 
 /// Create a wry rpc handler from a tauri rpc handler.

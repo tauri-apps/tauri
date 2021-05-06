@@ -7,6 +7,7 @@ use thiserror::Error as DeriveError;
 
 /// Errors returned by the bundler.
 #[derive(Debug, DeriveError)]
+#[non_exhaustive]
 pub enum Error {
   /// Bundler error.
   #[error("{0}")]

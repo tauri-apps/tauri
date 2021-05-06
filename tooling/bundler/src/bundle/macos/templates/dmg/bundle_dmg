@@ -320,8 +320,8 @@ if [ ! -z ${ADD_FILE_SOURCES+x} ]; then
 	done
 fi
 
-# run applescript
-APPLESCRIPT=$(mktemp -t createdmg.tmp.XXXXXXXXXX)
+# run AppleScript to do all the Finder cosmetic stuff
+APPLESCRIPT_FILE=$(mktemp -t createdmg.tmp.XXXXXXXXXX)
 
 function applescript_source() {
 	if [ $BREW_INSTALL -eq 0 ]; then
@@ -333,14 +333,34 @@ EOS
 	fi
 }
 
-if [ $SKIP_JENKINS -eq 0 ]; then
-	applescript_source | sed -e "s/WINX/$WINX/g" -e "s/WINY/$WINY/g" -e "s/WINW/$WINW/g" -e "s/WINH/$WINH/g" -e "s/BACKGROUND_CLAUSE/$BACKGROUND_CLAUSE/g" -e "s/REPOSITION_HIDDEN_FILES_CLAUSE/$REPOSITION_HIDDEN_FILES_CLAUSE/g" -e "s/ICON_SIZE/$ICON_SIZE/g" -e "s/TEXT_SIZE/$TEXT_SIZE/g" | perl -pe  "s/POSITION_CLAUSE/$POSITION_CLAUSE/g" | perl -pe "s/QL_CLAUSE/$QL_CLAUSE/g" | perl -pe "s/APPLICATION_CLAUSE/$APPLICATION_CLAUSE/g" | perl -pe "s/HIDING_CLAUSE/$HIDING_CLAUSE/" >"$APPLESCRIPT"
-	sleep 2 # pause to workaround occasional "Can’t get disk" (-1728) issues
-	echo "Running Applescript: /usr/bin/osascript \"${APPLESCRIPT}\" \"${VOLUME_NAME}\""
-	(/usr/bin/osascript "${APPLESCRIPT}" "${VOLUME_NAME}" || if [[ "$?" -ne 0 ]]; then echo "Failed running AppleScript"; hdiutil detach "${DEV_NAME}"; exit 64; fi)
-	echo "Done running the applescript..."
-	sleep 4
-	rm "$APPLESCRIPT"
+if [[ $SANDBOX_SAFE -eq 1 ]]; then
+	echo "Skipping Finder-prettifying AppleScript because we are in Sandbox..."
+else
+	if [[ $SKIP_JENKINS -eq 0 ]]; then
+		applescript_source \
+			| sed -e "s/WINX/$WINX/g" -e "s/WINY/$WINY/g" -e "s/WINW/$WINW/g" \
+					-e "s/WINH/$WINH/g" -e "s/BACKGROUND_CLAUSE/$BACKGROUND_CLAUSE/g" \
+					-e "s/REPOSITION_HIDDEN_FILES_CLAUSE/$REPOSITION_HIDDEN_FILES_CLAUSE/g" \
+					-e "s/ICON_SIZE/$ICON_SIZE/g" -e "s/TEXT_SIZE/$TEXT_SIZE/g" \
+			| perl -pe "s/POSITION_CLAUSE/$POSITION_CLAUSE/g" \
+			| perl -pe "s/QL_CLAUSE/$QL_CLAUSE/g" \
+			| perl -pe "s/APPLICATION_CLAUSE/$APPLICATION_CLAUSE/g" \
+			| perl -pe "s/HIDING_CLAUSE/$HIDING_CLAUSE/" \
+			> "$APPLESCRIPT_FILE"
+		sleep 2 # pause to workaround occasional "Can’t get disk" (-1728) issues  
+		echo "Running AppleScript to make Finder stuff pretty: /usr/bin/osascript \"${APPLESCRIPT_FILE}\" \"${VOLUME_NAME}\""
+		if /usr/bin/osascript "${APPLESCRIPT_FILE}" "${VOLUME_NAME}"; then
+			# Okay, we're cool
+			true
+		else
+			echo >&2 "Failed running AppleScript"
+			hdiutil detach "${DEV_NAME}"
+			exit 64
+		fi
+		echo "Done running the AppleScript..."
+		sleep 4
+		rm "$APPLESCRIPT_FILE"
+	fi
 fi
 
 # make sure it's not world writeable

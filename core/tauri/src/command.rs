@@ -138,6 +138,7 @@ impl<'de, P: Params> Deserializer<'de> for CommandItem<'de, P> {
   pass!(deserialize_ignored_any, visitor: V);
 }
 
+/// [Autoref-based stable specialization](https://github.com/dtolnay/case-studies/blob/master/autoref-specialization/README.md)
 #[doc(hidden)]
 pub mod private {
   use crate::InvokeError;

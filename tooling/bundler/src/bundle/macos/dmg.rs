@@ -58,7 +58,6 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 
   // create paths for script
   let bundle_script_path = output_path.join("bundle_dmg.sh");
-  let license_script_path = support_directory_path.join("dmg-license.py");
 
   common::print_bundling(format!("{:?}", &dmg_path).as_str())?;
 
@@ -72,15 +71,14 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     include_str!("templates/dmg/template.applescript"),
   )?;
   write(
-    &license_script_path,
-    include_str!("templates/dmg/dmg-license.py"),
+    support_directory_path.join("eula-resources-template.xml"),
+    include_str!("templates/dmg/eula-resources-template.xml"),
   )?;
 
   // chmod script for execution
   Command::new("chmod")
     .arg("777")
     .arg(&bundle_script_path)
-    .arg(&license_script_path)
     .current_dir(output_path)
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())

@@ -163,7 +163,9 @@ where
   /// Defines the setup hook.
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: Fn(&mut App<Args<E, L, A, R>>) -> Result<(), Box<dyn std::error::Error>> + Send + 'static,
+    F: Fn(&mut App<Args<E, L, A, R>>) -> Result<(), Box<dyn std::error::Error + Send>>
+      + Send
+      + 'static,
   {
     self.setup = Box::new(setup);
     self

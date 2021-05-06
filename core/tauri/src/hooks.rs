@@ -12,7 +12,8 @@ use serde_json::Value as JsonValue;
 use std::{future::Future, sync::Arc};
 
 /// A closure that is run when the Tauri application is setting up.
-pub type SetupHook<P> = Box<dyn Fn(&mut App<P>) -> Result<(), Box<dyn std::error::Error>> + Send>;
+pub type SetupHook<P> =
+  Box<dyn Fn(&mut App<P>) -> Result<(), Box<dyn std::error::Error + Send>> + Send>;
 
 /// A closure that is run everytime Tauri receives a message it doesn't explicitly handle.
 pub type InvokeHandler<P> = dyn Fn(Invoke<P>) + Send + Sync + 'static;

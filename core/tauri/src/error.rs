@@ -10,7 +10,7 @@ use std::path::PathBuf;
 pub enum Error {
   /// Failed to create webview.
   #[error("failed to create webview: {0}")]
-  CreateWebview(Box<dyn std::error::Error>),
+  CreateWebview(Box<dyn std::error::Error + Send>),
   /// Failed to create window.
   #[error("failed to create window")]
   CreateWindow,
@@ -40,7 +40,7 @@ pub enum Error {
   Base64Decode(#[from] base64::DecodeError),
   /// Failed to load window icon.
   #[error("invalid icon: {0}")]
-  InvalidIcon(Box<dyn std::error::Error>),
+  InvalidIcon(Box<dyn std::error::Error + Send>),
   /// Client with specified ID not found.
   #[error("http client dropped or not initialized")]
   HttpClientNotInitialized,
@@ -55,7 +55,7 @@ pub enum Error {
   InvalidArgs(&'static str, serde_json::Error),
   /// Encountered an error in the setup hook,
   #[error("error encountered during setup hook: {0}")]
-  Setup(Box<dyn std::error::Error>),
+  Setup(Box<dyn std::error::Error + Send>),
   /// Tauri updater error.
   #[cfg(feature = "updater")]
   #[error("Updater: {0}")]

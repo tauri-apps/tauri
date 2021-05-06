@@ -107,9 +107,12 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     &product_name,
   ];
 
+  #[allow(unused_assignments)]
+  let mut license_path_ref = "".to_string();
   if let Some(license_path) = &settings.macos().license {
     args.push("--eula");
-    args.push(license_path);
+    license_path_ref = env::current_dir()?.join(license_path).to_string_lossy().to_string();
+    args.push(&license_path_ref);
   }
 
   // Issue #592 - Building MacOS dmg files on CI

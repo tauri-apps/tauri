@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{super::common, app};
+use super::{super::common, app, icon::create_icns_file};
 use crate::{bundle::Bundle, PackageType::MacOsBundle, Settings};
 
 use anyhow::Context;
@@ -41,7 +41,8 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   let dmg_name = format!("{}.dmg", &package_base_name);
   let dmg_path = output_path.join(&dmg_name);
 
-  let product_name = &format!("{}.app", settings.main_binary_name());
+  let product_name = settings.main_binary_name();
+  let bundle_file_name = format!("{}.app", product_name);
   let bundle_dir = settings.project_out_directory().join("bundle/macos");
 
   let support_directory_path = output_path.join("support");
@@ -79,7 +80,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   Command::new("chmod")
     .arg("777")
     .arg(&bundle_script_path)
-    .current_dir(output_path)
+    .current_dir(&output_path)
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
     .output()
@@ -87,12 +88,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 
   let mut args = vec![
     "--volname",
-    &package_base_name,
-    // todo: volume icon
-    // make sure this is a valid path?
-
-    //"--volicon",
-    //"../../../../icons/icon.icns",
+    &product_name,
     "--icon",
     &product_name,
     "180",
@@ -104,8 +100,15 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     "660",
     "400",
     "--hide-extension",
-    &product_name,
+    &bundle_file_name,
   ];
+
+  let icns_icon_path =
+    create_icns_file(&output_path, &settings)?.map(|path| path.to_string_lossy().to_string());
+  if let Some(icon) = &icns_icon_path {
+    args.push("--volicon");
+    args.push(icon);
+  }
 
   #[allow(unused_assignments)]
   let mut license_path_ref = "".to_string();
@@ -131,7 +134,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   cmd
     .current_dir(bundle_dir.clone())
     .args(args)
-    .args(vec![dmg_name.as_str(), product_name.as_str()]);
+    .args(vec![dmg_name.as_str(), bundle_file_name.as_str()]);
 
   common::print_info("running bundle_dmg.sh")?;
   common::execute_with_verbosity(&mut cmd, &settings).map_err(|_| {

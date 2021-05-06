@@ -274,16 +274,18 @@ fi
 # Resize the image for the extra stuff
 hdiutil resize ${HDIUTIL_VERBOSITY} -size ${DISK_IMAGE_SIZE}m "${DMG_TEMP_NAME}"
 
-# mount it
+# mount the new DMG
 echo "Mounting disk image..."
 MOUNT_DIR="/Volumes/${VOLUME_NAME}"
 
-# try unmount dmg if it was mounted previously (e.g. developer mounted dmg, installed app and forgot to unmount it)
-DEV_NAME=$(hdiutil info | egrep --color=never '^/dev/' | sed 1q | awk '{print $1}')
+# Unmount leftover dmg if it was mounted previously (e.g. developer mounted dmg, installed app and forgot to unmount it)
 if [ test -d "${MOUNT_DIR}" ]; then
   echo "Unmounting previously mounted disk image..."
+	DEV_NAME=$(hdiutil info | egrep --color=never '^/dev/' | sed 1q | awk '{print $1}')
   hdiutil detach "${DEV_NAME}"
 fi
+
+echo "Mounting disk image..."
 
 echo "Mount directory: $MOUNT_DIR"
 DEV_NAME=$(hdiutil attach -readwrite -noverify -noautoopen "${DMG_TEMP_NAME}" | egrep --color=never '^/dev/' | sed 1q | awk '{print $1}')

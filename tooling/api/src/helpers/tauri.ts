@@ -22,7 +22,6 @@ export type TauriModule =
 
 export interface TauriCommand {
   __tauriModule: TauriModule
-  mainThread?: boolean
   [key: string]: unknown
 }
 

@@ -412,6 +412,13 @@ pub(crate) mod export {
 
     // Setters
 
+    /// Opens the dialog to prints the contents of the webview.
+    /// Currently only supported on macOS on `wry`.
+    /// `window.print()` works on all platforms.
+    pub fn print(&self) -> crate::Result<()> {
+      self.window.dispatcher.print()
+    }
+
     /// Determines if this window should be resizable.
     pub fn set_resizable(&self, resizable: bool) -> crate::Result<()> {
       self.window.dispatcher.set_resizable(resizable)

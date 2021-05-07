@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 import { join } from 'path'
-import { readdirSync } from 'fs'
 // @ts-expect-error
 import scaffe from 'scaffe'
 import { shell } from '../shell'
@@ -14,16 +13,18 @@ const afterViteCA = async (
   appName: string,
   template: string
 ): Promise<void> => {
-  const templateDir = join(__dirname, `../src/templates/vite/${template}`)
+  // template dir temp removed, will eventually add it back for APIs
+  // leaving this here until then
 
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-    await scaffe.generate(templateDir, join(cwd, appName), {
-      overwrite: true
-    })
-  } catch (err) {
-    console.log(err)
-  }
+  // const templateDir = join(__dirname, `../src/templates/vite/${template}`)
+
+  // try {
+  //   await scaffe.generate(templateDir, join(cwd, appName), {
+  //     overwrite: true
+  //   })
+  // } catch (err) {
+  //   console.log(err)
+  // }
 }
 
 const vite: Recipe = {
@@ -46,8 +47,22 @@ const vite: Recipe = {
         type: 'list',
         name: 'template',
         message: 'Which vite template would you like to use?',
-        choices: readdirSync(join(__dirname, '../src/templates/vite')),
+        choices: [
+          'vanilla',
+          'vanilla-ts',
+          'vue',
+          'vue-ts',
+          'react',
+          'react-ts',
+          'preact',
+          'preact-ts',
+          'lit-element',
+          'lit-element-ts',
+          'svelte',
+          'svelte-ts'
+        ],
         default: 'vue',
+        loop: false,
         when: !ci
       }
     ]

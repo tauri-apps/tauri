@@ -13,16 +13,18 @@ const afterViteCA = async (
   appName: string,
   template: string
 ): Promise<void> => {
-  const templateDir = join(__dirname, `../src/templates/vite/${template}`)
+  // template dir temp removed, will eventually add it back for APIs
+  // leaving this here until then
 
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-    await scaffe.generate(templateDir, join(cwd, appName), {
-      overwrite: true
-    })
-  } catch (err) {
-    console.log(err)
-  }
+  // const templateDir = join(__dirname, `../src/templates/vite/${template}`)
+
+  // try {
+  //   await scaffe.generate(templateDir, join(cwd, appName), {
+  //     overwrite: true
+  //   })
+  // } catch (err) {
+  //   console.log(err)
+  // }
 }
 
 const vite: Recipe = {

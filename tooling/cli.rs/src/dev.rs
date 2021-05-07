@@ -141,7 +141,17 @@ impl Dev {
       .or(runner_from_config)
       .unwrap_or_else(|| "cargo".to_string());
 
-    rewrite_manifest(config.clone())?;
+    {
+      let (tx, rx) = channel();
+      let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
+      watcher.watch(tauri_path.join("Cargo.toml"), RecursiveMode::Recursive)?;
+      rewrite_manifest(config.clone())?;
+      loop {
+        if let Ok(DebouncedEvent::NoticeWrite(_)) = rx.recv() {
+          break;
+        }
+      }
+    }
 
     let (child_wait_tx, child_wait_rx) = channel();
     let child_wait_rx = Arc::new(Mutex::new(child_wait_rx));

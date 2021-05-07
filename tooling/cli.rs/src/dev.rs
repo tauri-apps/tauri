@@ -119,14 +119,6 @@ impl Dev {
       }
     }
 
-    let dev_path = config
-      .lock()
-      .unwrap()
-      .as_ref()
-      .unwrap()
-      .build
-      .dev_path
-      .to_string();
     let runner_from_config = config
       .lock()
       .unwrap()
@@ -164,19 +156,6 @@ impl Dev {
     watcher.watch(tauri_path.join("src"), RecursiveMode::Recursive)?;
     watcher.watch(tauri_path.join("Cargo.toml"), RecursiveMode::Recursive)?;
     watcher.watch(tauri_path.join("tauri.conf.json"), RecursiveMode::Recursive)?;
-    if !dev_path.starts_with("http") {
-      watcher.watch(
-        config
-          .lock()
-          .unwrap()
-          .as_ref()
-          .unwrap()
-          .build
-          .dev_path
-          .to_string(),
-        RecursiveMode::Recursive,
-      )?;
-    }
 
     loop {
       if let Ok(event) = rx.recv() {
@@ -200,6 +179,12 @@ impl Dev {
             process
               .kill()
               .with_context(|| "failed to kill app process")?;
+            // wait for the process to exit
+            loop {
+              if let Ok(Some(_)) = process.try_wait() {
+                break;
+              }
+            }
             process = self.start_app(&runner, child_wait_rx.clone());
           }
         }

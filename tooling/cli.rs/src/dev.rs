@@ -147,7 +147,7 @@ impl Dev {
       watcher.watch(tauri_path.join("Cargo.toml"), RecursiveMode::Recursive)?;
       rewrite_manifest(config.clone())?;
       loop {
-        if let Ok(DebouncedEvent::NoticeWrite(event)) = rx.recv() {
+        if let Ok(DebouncedEvent::NoticeWrite(_)) = rx.recv() {
           break;
         }
       }

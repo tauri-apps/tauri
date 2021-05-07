@@ -14,9 +14,7 @@ const afterViteCA = async (
 ): Promise<void> => {
   // template dir temp removed, will eventually add it back for APIs
   // leaving this here until then
-
   // const templateDir = join(__dirname, `../src/templates/vite/${template}`)
-
   // try {
   //   await scaffe.generate(templateDir, join(cwd, appName), {
   //     overwrite: true

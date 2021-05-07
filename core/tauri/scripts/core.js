@@ -325,7 +325,7 @@ if (!String.prototype.startsWith) {
   };
 
   // window.print works on Linux/Windows; need to use the API on macOS
-  if (navigator.userAgent.contains('Mac')) {
+  if (navigator.userAgent.includes('Mac')) {
     window.print = function () {
       return window.__TAURI__.invoke('tauri', {
         __tauriModule: "Window",

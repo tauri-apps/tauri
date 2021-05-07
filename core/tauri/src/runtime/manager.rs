@@ -15,7 +15,7 @@ use crate::{
   runtime::{
     tag::{tags_to_javascript_array, Tag, TagRef, ToJsString},
     webview::{
-      CustomProtocol, FileDropEvent, FileDropHandler, InvokePayload, WebviewRpcHandler,
+      CustomProtocol, FileDropEvent, FileDropHandler, InvokePayload, Menu, WebviewRpcHandler,
       WindowBuilder,
     },
     window::{dpi::PhysicalSize, DetachedWindow, PendingWindow, WindowEvent},
@@ -79,6 +79,8 @@ pub struct InnerWindowManager<P: Params> {
   package_info: PackageInfo,
   /// The webview protocols protocols available to all windows.
   uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
+  /// The menu set to all windows.
+  menu: Vec<Menu>,
 }
 
 /// A [Zero Sized Type] marker representing a full [`Params`].
@@ -132,6 +134,7 @@ impl<P: Params> WindowManager<P> {
     on_page_load: Box<OnPageLoad<P>>,
     uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
     state: StateManager,
+    menu: Vec<Menu>,
   ) -> Self {
     Self {
       inner: Arc::new(InnerWindowManager {
@@ -147,6 +150,7 @@ impl<P: Params> WindowManager<P> {
         salts: Mutex::default(),
         package_info: context.package_info,
         uri_scheme_protocols,
+        menu,
       }),
       _marker: Args::default(),
     }
@@ -207,6 +211,10 @@ impl<P: Params> WindowManager<P> {
         let icon = Icon::Raw(default_window_icon.clone());
         pending.window_attributes = pending.window_attributes.icon(icon)?;
       }
+    }
+
+    if !pending.window_attributes.has_menu() {
+      pending.window_attributes = pending.window_attributes.menu(self.inner.menu.clone());
     }
 
     for (uri_scheme, protocol) in &self.inner.uri_scheme_protocols {

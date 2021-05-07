@@ -8,8 +8,8 @@ use crate::{
   api::config::WindowConfig,
   runtime::{
     webview::{
-      FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler, WindowBuilder,
-      WindowBuilderBase,
+      CustomMenuItem, FileDropEvent, FileDropHandler, Menu, MenuItem, RpcRequest,
+      WebviewRpcHandler, WindowBuilder, WindowBuilderBase,
     },
     window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
@@ -31,6 +31,9 @@ use wry::{
     },
     event::{Event, WindowEvent as WryWindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
+    menu::{
+      CustomMenu as WryCustomMenu, Menu as WryMenu, MenuId as WryMenuId, MenuItem as WryMenuItem,
+    },
     monitor::MonitorHandle,
     window::{Fullscreen, Icon as WindowIcon, Window, WindowBuilder as WryWindowBuilder, WindowId},
   },
@@ -195,6 +198,50 @@ impl From<Position> for WryPosition {
   }
 }
 
+impl From<CustomMenuItem> for WryCustomMenu {
+  fn from(item: CustomMenuItem) -> Self {
+    Self {
+      id: WryMenuId(item.id.0),
+      name: item.name,
+      keyboard_accelerators: item.keyboard_accelerators,
+    }
+  }
+}
+
+impl From<MenuItem> for WryMenuItem {
+  fn from(item: MenuItem) -> Self {
+    match item {
+      MenuItem::Custom(custom) => Self::Custom(custom.into()),
+      MenuItem::About(v) => Self::About(v),
+      MenuItem::Hide => Self::Hide,
+      MenuItem::Services => Self::Services,
+      MenuItem::HideOthers => Self::HideOthers,
+      MenuItem::ShowAll => Self::ShowAll,
+      MenuItem::CloseWindow => Self::CloseWindow,
+      MenuItem::Quit => Self::Quit,
+      MenuItem::Copy => Self::Copy,
+      MenuItem::Cut => Self::Cut,
+      MenuItem::Undo => Self::Undo,
+      MenuItem::Redo => Self::Redo,
+      MenuItem::SelectAll => Self::SelectAll,
+      MenuItem::Paste => Self::Paste,
+      MenuItem::EnterFullScreen => Self::EnterFullScreen,
+      MenuItem::Minimize => Self::Minimize,
+      MenuItem::Zoom => Self::Zoom,
+      MenuItem::Separator => Self::Separator,
+    }
+  }
+}
+
+impl From<Menu> for WryMenu {
+  fn from(menu: Menu) -> Self {
+    Self {
+      title: menu.title,
+      items: menu.items.into_iter().map(Into::into).collect(),
+    }
+  }
+}
+
 impl WindowBuilderBase for WryWindowBuilder {}
 impl WindowBuilder for WryWindowBuilder {
   fn new() -> Self {
@@ -224,6 +271,10 @@ impl WindowBuilder for WryWindowBuilder {
     }
 
     window
+  }
+
+  fn menu(self, menu: Vec<Menu>) -> Self {
+    self.with_menu(menu.into_iter().map(Into::into).collect::<Vec<WryMenu>>())
   }
 
   fn position(self, x: f64, y: f64) -> Self {
@@ -284,6 +335,10 @@ impl WindowBuilder for WryWindowBuilder {
 
   fn has_icon(&self) -> bool {
     self.window.window_icon.is_some()
+  }
+
+  fn has_menu(&self) -> bool {
+    self.window.window_menu.is_some()
   }
 }
 

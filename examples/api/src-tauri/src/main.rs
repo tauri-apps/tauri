@@ -8,6 +8,7 @@
 )]
 
 mod cmd;
+mod menu;
 
 use serde::Serialize;
 
@@ -31,6 +32,7 @@ fn main() {
           .expect("failed to emit");
       });
     })
+    .menu(menu::get_menu())
     .invoke_handler(tauri::generate_handler![
       cmd::log_operation,
       cmd::perform_request

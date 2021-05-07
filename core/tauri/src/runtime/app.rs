@@ -10,7 +10,7 @@ use crate::{
     flavors::wry::Wry,
     manager::{Args, WindowManager},
     tag::Tag,
-    webview::{CustomProtocol, WebviewAttributes, WindowBuilder},
+    webview::{CustomProtocol, Menu, WebviewAttributes, WindowBuilder},
     window::PendingWindow,
     Dispatch, Runtime,
   },
@@ -129,6 +129,9 @@ where
 
   /// App state.
   state: StateManager,
+
+  /// The menu set to all windows.
+  menu: Vec<Menu>,
 }
 
 impl<E, L, A, R> Builder<E, L, A, R>
@@ -148,6 +151,7 @@ where
       plugins: PluginStore::default(),
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
+      menu: Vec::new(),
     }
   }
 
@@ -261,6 +265,12 @@ where
     self
   }
 
+  /// Sets the menu to use on all windows.
+  pub fn menu(mut self, menu: Vec<Menu>) -> Self {
+    self.menu = menu;
+    self
+  }
+
   /// Registers a URI scheme protocol available to all webviews.
   /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
   /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
@@ -296,6 +306,7 @@ where
       self.on_page_load,
       self.uri_scheme_protocols,
       self.state,
+      self.menu,
     );
 
     // set up all the windows defined in the config

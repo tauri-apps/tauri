@@ -62,7 +62,9 @@ pub use {
   self::runtime::app::{App, Builder},
   self::runtime::flavors::wry::Wry,
   self::runtime::monitor::Monitor,
-  self::runtime::webview::{WebviewAttributes, WindowBuilder},
+  self::runtime::webview::{
+    CustomMenuItem, Menu, MenuItem, MenuItemId, MenuType, WebviewAttributes, WindowBuilder,
+  },
   self::runtime::window::{
     export::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},

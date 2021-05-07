@@ -4,7 +4,12 @@
 
 #[cfg(window_create)]
 use crate::Manager;
-use crate::{api::config::WindowConfig, endpoints::InvokeResponse, Params, Window};
+use crate::{
+  api::config::WindowConfig,
+  endpoints::InvokeResponse,
+  runtime::window::dpi::{Position, Size},
+  Params, Window,
+};
 use serde::Deserialize;
 
 use crate::Icon;
@@ -28,17 +33,25 @@ impl From<IconDto> for Icon {
 
 /// The API descriptor.
 #[derive(Deserialize)]
-#[serde(tag = "cmd", rename_all = "camelCase")]
+#[serde(tag = "cmd", content = "data", rename_all = "camelCase")]
 pub enum Cmd {
   CreateWebview {
     options: WindowConfig,
   },
-  SetResizable {
-    resizable: bool,
-  },
-  SetTitle {
-    title: String,
-  },
+  // Getters
+  ScaleFactor,
+  InnerPosition,
+  OuterPosition,
+  InnerSize,
+  OuterSize,
+  IsFullscreen,
+  IsMaximized,
+  CurrentMonitor,
+  PrimaryMonitor,
+  AvailableMonitors,
+  // Setters
+  SetResizable(bool),
+  SetTitle(String),
   Maximize,
   Unmaximize,
   Minimize,
@@ -46,50 +59,19 @@ pub enum Cmd {
   Show,
   Hide,
   Close,
-  SetDecorations {
-    decorations: bool,
-  },
+  SetDecorations(bool),
   #[serde(rename_all = "camelCase")]
-  SetAlwaysOnTop {
-    always_on_top: bool,
-  },
-  SetWidth {
-    width: f64,
-  },
-  SetHeight {
-    height: f64,
-  },
-  Resize {
-    width: f64,
-    height: f64,
-  },
-  #[serde(rename_all = "camelCase")]
-  SetMinSize {
-    min_width: f64,
-    min_height: f64,
-  },
-  #[serde(rename_all = "camelCase")]
-  SetMaxSize {
-    max_width: f64,
-    max_height: f64,
-  },
-  SetX {
-    x: f64,
-  },
-  SetY {
-    y: f64,
-  },
-  SetPosition {
-    x: f64,
-    y: f64,
-  },
-  SetFullscreen {
-    fullscreen: bool,
-  },
+  SetAlwaysOnTop(bool),
+  SetSize(Size),
+  SetMinSize(Option<Size>),
+  SetMaxSize(Option<Size>),
+  SetPosition(Position),
+  SetFullscreen(bool),
   SetIcon {
     icon: IconDto,
   },
   StartDragging,
+  Print,
 }
 
 #[cfg(window_create)]
@@ -135,9 +117,20 @@ impl Cmd {
             }),
           )?;
         }
-
-        Self::SetResizable { resizable } => window.set_resizable(resizable)?,
-        Self::SetTitle { title } => window.set_title(&title)?,
+        // Getters
+        Self::ScaleFactor => return Ok(window.scale_factor()?.into()),
+        Self::InnerPosition => return Ok(window.inner_position()?.into()),
+        Self::OuterPosition => return Ok(window.outer_position()?.into()),
+        Self::InnerSize => return Ok(window.inner_size()?.into()),
+        Self::OuterSize => return Ok(window.outer_size()?.into()),
+        Self::IsFullscreen => return Ok(window.is_fullscreen()?.into()),
+        Self::IsMaximized => return Ok(window.is_maximized()?.into()),
+        Self::CurrentMonitor => return Ok(window.current_monitor()?.into()),
+        Self::PrimaryMonitor => return Ok(window.primary_monitor()?.into()),
+        Self::AvailableMonitors => return Ok(window.available_monitors()?.into()),
+        // Setters
+        Self::SetResizable(resizable) => window.set_resizable(resizable)?,
+        Self::SetTitle(title) => window.set_title(&title)?,
         Self::Maximize => window.maximize()?,
         Self::Unmaximize => window.unmaximize()?,
         Self::Minimize => window.minimize()?,
@@ -145,25 +138,16 @@ impl Cmd {
         Self::Show => window.show()?,
         Self::Hide => window.hide()?,
         Self::Close => window.close()?,
-        Self::SetDecorations { decorations } => window.set_decorations(decorations)?,
-        Self::SetAlwaysOnTop { always_on_top } => window.set_always_on_top(always_on_top)?,
-        Self::SetWidth { width } => window.set_width(width)?,
-        Self::SetHeight { height } => window.set_height(height)?,
-        Self::Resize { width, height } => window.resize(width, height)?,
-        Self::SetMinSize {
-          min_width,
-          min_height,
-        } => window.set_min_size(min_width, min_height)?,
-        Self::SetMaxSize {
-          max_width,
-          max_height,
-        } => window.set_max_size(max_width, max_height)?,
-        Self::SetX { x } => window.set_x(x)?,
-        Self::SetY { y } => window.set_y(y)?,
-        Self::SetPosition { x, y } => window.set_position(x, y)?,
-        Self::SetFullscreen { fullscreen } => window.set_fullscreen(fullscreen)?,
+        Self::SetDecorations(decorations) => window.set_decorations(decorations)?,
+        Self::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top)?,
+        Self::SetSize(size) => window.set_size(size)?,
+        Self::SetMinSize(size) => window.set_min_size(size)?,
+        Self::SetMaxSize(size) => window.set_max_size(size)?,
+        Self::SetPosition(position) => window.set_position(position)?,
+        Self::SetFullscreen(fullscreen) => window.set_fullscreen(fullscreen)?,
         Self::SetIcon { icon } => window.set_icon(icon.into())?,
         Self::StartDragging => window.start_dragging()?,
+        Self::Print => window.print()?,
       }
       Ok(().into())
     }

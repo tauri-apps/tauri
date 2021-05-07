@@ -44,11 +44,10 @@ jobs:
           node-version: ${{ matrix.node }}
           npm-version: ${{ matrix.manager }}
           yarn-version: 1.22.5
-      - name: install webkit2gtk (ubuntu only)
-        if: matrix.platform == 'ubuntu-latest'
+      - name: install webkit2gtk
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.0
+          sudo apt-get install -y libgtk-3-dev libgtksourceview-3.0-dev webkit2gtk-4.0 libappindicator3-dev
       - run: yarn
         working-directory: tooling/create-tauri-app
       - run: yarn build
@@ -81,11 +80,10 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           yarn-version: 1.22.5
-      - name: install webkit2gtk (ubuntu only)
-        if: matrix.platform == 'ubuntu-latest'
+      - name: install webkit2gtk
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.0
+          sudo apt-get install -y libgtk-3-dev libgtksourceview-3.0-dev webkit2gtk-4.0 libappindicator3-dev
       - run: yarn
         working-directory: tooling/create-tauri-app
       - run: yarn build

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::embedded_assets::{EmbeddedAssets, EmbeddedAssetsError};
+use crate::embedded_assets::{AssetOptions, EmbeddedAssets, EmbeddedAssetsError};
 use proc_macro2::TokenStream;
 use quote::quote;
 use std::path::PathBuf;
@@ -37,7 +37,11 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 
   // generate the assets inside the dist dir into a perfect hash function
   let assets = if let Some(assets_path) = assets_path {
-    EmbeddedAssets::new(&assets_path)?
+    let mut options = AssetOptions::new();
+    if let Some(csp) = &config.tauri.security.csp {
+      options = options.csp(csp.clone());
+    }
+    EmbeddedAssets::new(&assets_path, options)?
   } else {
     Default::default()
   };

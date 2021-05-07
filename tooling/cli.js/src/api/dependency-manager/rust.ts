@@ -5,8 +5,9 @@
 import { ManagementType } from './types'
 import { spawnSync } from '../../helpers/spawn'
 import getScriptVersion from '../../helpers/get-script-version'
+import { downloadRustup } from '../../helpers/download-binary'
 import logger from '../../helpers/logger'
-import { createWriteStream, unlinkSync } from 'fs'
+import { createWriteStream, unlinkSync, existsSync } from 'fs'
 import { resolve } from 'path'
 import { platform } from 'os'
 import https from 'https'
@@ -32,25 +33,25 @@ async function download(url: string, dest: string): Promise<void> {
   })
 }
 
-function installRustup(): void {
-  if (platform() === 'win32') {
-    return spawnSync(
-      'powershell',
-      [resolve(__dirname, '../../scripts/rustup-init.exe')],
-      process.cwd()
-    )
+async function installRustup(): Promise<void> {
+  const assetName =
+    platform() === 'win32' ? 'rustup-init.exe' : 'rustup-init.sh'
+  const rustupPath = resolve(__dirname, `../../bin/${assetName}`)
+  if (!existsSync(rustupPath)) {
+    await downloadRustup()
   }
-  return spawnSync(
-    '/bin/sh',
-    [resolve(__dirname, '../../scripts/rustup-init.sh')],
-    process.cwd()
-  )
+  if (platform() === 'win32') {
+    return spawnSync('powershell', [rustupPath], process.cwd())
+  }
+  return spawnSync('/bin/sh', [rustupPath], process.cwd())
 }
 
-function manageDependencies(managementType: ManagementType): void {
+async function manageDependencies(
+  managementType: ManagementType
+): Promise<void> {
   if (getScriptVersion('rustup') === null) {
     log('Installing rustup...')
-    installRustup()
+    await installRustup()
   }
 
   if (managementType === ManagementType.Update) {
@@ -58,12 +59,12 @@ function manageDependencies(managementType: ManagementType): void {
   }
 }
 
-function install(): void {
-  return manageDependencies(ManagementType.Install)
+async function install(): Promise<void> {
+  return await manageDependencies(ManagementType.Install)
 }
 
-function update(): void {
-  return manageDependencies(ManagementType.Update)
+async function update(): Promise<void> {
+  return await manageDependencies(ManagementType.Update)
 }
 
 export { install, update }

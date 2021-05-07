@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+/** @ignore */ /** */
+
 import { invoke } from '../tauri'
 
 export type TauriModule =
@@ -20,7 +22,6 @@ export type TauriModule =
 
 export interface TauriCommand {
   __tauriModule: TauriModule
-  mainThread?: boolean
   [key: string]: unknown
 }
 

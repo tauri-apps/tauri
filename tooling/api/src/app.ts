@@ -2,12 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+/**
+ * Get application metadata.
+ * @packageDocumentation
+ */
+
 import { invokeTauriCommand } from './helpers/tauri'
 
 /**
  * Gets the application version.
  *
- * @returns A promise resolving to application version.
+ * @returns A promise resolving to the application version.
  */
 async function getVersion(): Promise<string> {
   return invokeTauriCommand<string>({

@@ -108,6 +108,7 @@
     "webpack-node-externals": "3.0.0"
   },
   "resolutions": {
-    "**/lodash": "4.17.21"
+    "**/lodash": "4.17.21",
+    "**/hosted-git-info": "2.8.9"
   }
 }

@@ -119,14 +119,6 @@ impl Dev {
       }
     }
 
-    let dev_path = config
-      .lock()
-      .unwrap()
-      .as_ref()
-      .unwrap()
-      .build
-      .dev_path
-      .to_string();
     let runner_from_config = config
       .lock()
       .unwrap()

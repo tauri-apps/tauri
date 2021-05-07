@@ -8,7 +8,7 @@
       "getPublishedVersion": "cargo search ${ pkgFile.pkg.package.name } --limit 1 | sed -nE \"s/^[^\\\"]*\\\"//; s/\\\".*//1p\"",
       "prepublish": [
         "sudo apt-get update",
-        "sudo apt-get install -y libgtk-3-dev libgtksourceview-3.0-dev webkit2gtk-4.0 libappindicator3-1",
+        "sudo apt-get install -y libgtk-3-dev libgtksourceview-3.0-dev webkit2gtk-4.0 libappindicator3-dev",
         "cargo install cargo-audit --features=fix",
         {
           "command": "cargo generate-lockfile",
@@ -217,29 +217,40 @@
     "tauri-codegen": {
       "path": "./core/tauri-codegen",
       "manager": "rust",
-      "dependencies": ["tauri-utils"]
+      "dependencies": [
+        "tauri-utils"
+      ]
     },
     "tauri-macros": {
       "path": "./core/tauri-macros",
       "manager": "rust",
-      "dependencies": ["tauri-codegen"]
+      "dependencies": [
+        "tauri-codegen"
+      ]
     },
     "tauri-build": {
       "path": "./core/tauri-build",
       "manager": "rust",
-      "dependencies": ["tauri-codegen"],
+      "dependencies": [
+        "tauri-codegen"
+      ],
       "postversion": "node ../../.scripts/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
     "tauri": {
       "path": "./core/tauri",
       "manager": "rust",
-      "dependencies": ["tauri-macros", "tauri-utils"],
+      "dependencies": [
+        "tauri-macros",
+        "tauri-utils"
+      ],
       "postversion": "node ../../.scripts/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
     "cli.js": {
       "path": "./tooling/cli.js",
       "manager": "javascript",
-      "dependencies": ["cli.rs"],
+      "dependencies": [
+        "cli.rs"
+      ],
       "postversion": "node ../../.scripts/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
       "assets": [
         {

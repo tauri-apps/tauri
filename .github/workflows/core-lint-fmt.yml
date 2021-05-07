@@ -24,7 +24,7 @@ jobs:
       - name: install webkit2gtk
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libgtksourceview-3.0-dev webkit2gtk-4.0 libappindicator3-1
+          sudo apt-get install -y libgtk-3-dev libgtksourceview-3.0-dev webkit2gtk-4.0 libappindicator3-dev
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -151,7 +151,7 @@ jobs:
       - name: install webkit2gtk
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libgtksourceview-3.0-dev webkit2gtk-4.0 libappindicator3-1
+          sudo apt-get install -y libgtk-3-dev libgtksourceview-3.0-dev webkit2gtk-4.0 libappindicator3-dev
 
       - uses: actions-rs/toolchain@v1
         with:

@@ -4,6 +4,7 @@
 
 /// The error types.
 #[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
 pub enum Error {
   /// Command error.
   #[error("Command Error: {0}")]

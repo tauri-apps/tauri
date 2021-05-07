@@ -18,7 +18,7 @@ use crate::{
       CustomProtocol, FileDropEvent, FileDropHandler, InvokePayload, WebviewRpcHandler,
       WindowBuilder,
     },
-    window::{DetachedWindow, PendingWindow},
+    window::{dpi::PhysicalSize, DetachedWindow, PendingWindow, WindowEvent},
     Icon, Runtime,
   },
   sealed::ParamsBase,
@@ -35,6 +35,14 @@ use std::{
   sync::{Arc, Mutex, MutexGuard},
 };
 use uuid::Uuid;
+
+const WINDOW_RESIZED_EVENT: &str = "tauri://resize";
+const WINDOW_MOVED_EVENT: &str = "tauri://move";
+const WINDOW_CLOSE_REQUESTED_EVENT: &str = "tauri://close-requested";
+const WINDOW_DESTROYED_EVENT: &str = "tauri://destroyed";
+const WINDOW_FOCUS_EVENT: &str = "tauri://focus";
+const WINDOW_BLUR_EVENT: &str = "tauri://blur";
+const WINDOW_SCALE_FACTOR_CHANGED_EVENT: &str = "tauri://scale-change";
 
 /// Parse a string representing an internal tauri event into [`Params::Event`]
 ///
@@ -468,6 +476,7 @@ impl<P: Params> WindowManager<P> {
         )
       }
       WindowUrl::External(url) => (url.as_str().starts_with("tauri://"), url.to_string()),
+      _ => unimplemented!(),
     };
 
     if is_local {
@@ -481,8 +490,14 @@ impl<P: Params> WindowManager<P> {
 
     Ok(pending)
   }
+
   pub fn attach_window(&self, window: DetachedWindow<P>) -> Window<P> {
     let window = Window::new(self.clone(), window);
+
+    let window_ = window.clone();
+    window.on_window_event(move |event| {
+      let _ = on_window_event(&window_, event);
+    });
 
     // insert the window into our manager
     {
@@ -609,4 +624,65 @@ impl<P: Params> WindowManager<P> {
   pub fn windows(&self) -> HashMap<P::Label, Window<P>> {
     self.windows_lock().clone()
   }
+}
+
+fn on_window_event<P: Params>(window: &Window<P>, event: &WindowEvent) -> crate::Result<()> {
+  match event {
+    WindowEvent::Resized(size) => window.emit(
+      &WINDOW_RESIZED_EVENT
+        .parse()
+        .unwrap_or_else(|_| panic!("unhandled event")),
+      Some(size),
+    )?,
+    WindowEvent::Moved(position) => window.emit(
+      &WINDOW_MOVED_EVENT
+        .parse()
+        .unwrap_or_else(|_| panic!("unhandled event")),
+      Some(position),
+    )?,
+    WindowEvent::CloseRequested => window.emit(
+      &WINDOW_CLOSE_REQUESTED_EVENT
+        .parse()
+        .unwrap_or_else(|_| panic!("unhandled event")),
+      Some(()),
+    )?,
+    WindowEvent::Destroyed => window.emit(
+      &WINDOW_DESTROYED_EVENT
+        .parse()
+        .unwrap_or_else(|_| panic!("unhandled event")),
+      Some(()),
+    )?,
+    WindowEvent::Focused(focused) => window.emit(
+      &if *focused {
+        WINDOW_FOCUS_EVENT
+          .parse()
+          .unwrap_or_else(|_| panic!("unhandled event"))
+      } else {
+        WINDOW_BLUR_EVENT
+          .parse()
+          .unwrap_or_else(|_| panic!("unhandled event"))
+      },
+      Some(()),
+    )?,
+    WindowEvent::ScaleFactorChanged {
+      scale_factor,
+      new_inner_size,
+    } => window.emit(
+      &WINDOW_SCALE_FACTOR_CHANGED_EVENT
+        .parse()
+        .unwrap_or_else(|_| panic!("unhandled event")),
+      Some(ScaleFactorChanged {
+        scale_factor: *scale_factor,
+        size: new_inner_size.clone(),
+      }),
+    )?,
+  }
+  Ok(())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ScaleFactorChanged {
+  scale_factor: f64,
+  size: PhysicalSize<u32>,
 }

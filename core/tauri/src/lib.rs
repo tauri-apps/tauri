@@ -61,8 +61,15 @@ pub use {
   },
   self::runtime::app::{App, Builder},
   self::runtime::flavors::wry::Wry,
+  self::runtime::monitor::Monitor,
   self::runtime::webview::{WebviewAttributes, WindowBuilder},
-  self::runtime::window::export::Window,
+  self::runtime::window::{
+    export::{
+      dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
+      Window,
+    },
+    WindowEvent,
+  },
   self::state::{State, StateManager},
 };
 
@@ -102,6 +109,7 @@ macro_rules! tauri_build_context {
 
 /// A icon definition.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum Icon {
   /// Icon from file path.
   File(PathBuf),

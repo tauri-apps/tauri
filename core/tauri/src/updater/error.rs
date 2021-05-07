@@ -6,6 +6,7 @@ use thiserror::Error;
 
 /// All errors that can occur while running the updater.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum Error {
   /// IO Errors.
   #[error("`{0}`")]

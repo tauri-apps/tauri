@@ -114,6 +114,7 @@ impl Client {
 
 #[derive(Serialize_repr, Deserialize_repr, Clone, Debug)]
 #[repr(u16)]
+#[non_exhaustive]
 /// The request's response type
 pub enum ResponseType {
   /// Read the response as JSON
@@ -127,6 +128,7 @@ pub enum ResponseType {
 /// FormBody data types.
 #[derive(Deserialize)]
 #[serde(untagged)]
+#[non_exhaustive]
 pub enum FormPart {
   /// A file path value.
   File(PathBuf),
@@ -150,6 +152,7 @@ impl FormBody {
 /// A body for the request.
 #[derive(Deserialize)]
 #[serde(tag = "type", content = "payload")]
+#[non_exhaustive]
 pub enum Body {
   /// A multipart formdata body.
   Form(FormBody),

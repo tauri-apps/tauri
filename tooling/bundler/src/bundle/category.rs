@@ -15,6 +15,7 @@ const MACOS_APP_CATEGORY_PREFIX: &str = "public.app-category.";
 /// Corresponds to `LSApplicationCategoryType` on macOS and the GNOME desktop categories on Debian.
 #[allow(missing_docs)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum AppCategory {
   Business,
   DeveloperTool,

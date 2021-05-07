@@ -18,6 +18,7 @@ use std::{
 
 /// Tauri Settings.
 #[derive(Default, Deserialize, Serialize)]
+#[non_exhaustive]
 pub struct Settings {
   /// Whether the user allows notifications or not.
   #[cfg(notification_all)]

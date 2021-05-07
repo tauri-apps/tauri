@@ -71,6 +71,7 @@ pub enum Cmd {
     icon: IconDto,
   },
   StartDragging,
+  Print,
 }
 
 #[cfg(window_create)]
@@ -146,6 +147,7 @@ impl Cmd {
         Self::SetFullscreen(fullscreen) => window.set_fullscreen(fullscreen)?,
         Self::SetIcon { icon } => window.set_icon(icon.into())?,
         Self::StartDragging => window.start_dragging()?,
+        Self::Print => window.print()?,
       }
       Ok(().into())
     }

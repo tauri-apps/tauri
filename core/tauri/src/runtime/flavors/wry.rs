@@ -343,6 +343,7 @@ enum WindowMessage {
 #[derive(Debug, Clone)]
 enum WebviewMessage {
   EvaluateScript(String),
+  Print,
 }
 
 #[derive(Clone)]
@@ -412,7 +413,7 @@ impl Dispatch for WryDispatcher {
     id
   }
 
-  // GETTERS
+  // Getters
 
   fn scale_factor(&self) -> crate::Result<f64> {
     Ok(dispatcher_getter!(self, WindowMessage::ScaleFactor))
@@ -457,6 +458,15 @@ impl Dispatch for WryDispatcher {
         .map(Into::into)
         .collect(),
     )
+  }
+
+  // Setters
+
+  fn print(&self) -> crate::Result<()> {
+    self
+      .proxy
+      .send_event(Message::Webview(self.window_id, WebviewMessage::Print))
+      .map_err(|_| crate::Error::FailedToSendMessage)
   }
 
   fn create_window<M: Params<Runtime = Self::Runtime>>(
@@ -817,6 +827,9 @@ impl Runtime for Wry {
               match webview_message {
                 WebviewMessage::EvaluateScript(script) => {
                   let _ = webview.dispatch_script(&script);
+                }
+                WebviewMessage::Print => {
+                  let _ = webview.print();
                 }
               }
             }

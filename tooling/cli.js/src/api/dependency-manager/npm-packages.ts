@@ -29,19 +29,21 @@ async function manageDependencies(
 
   const npmChild = crossSpawnSync('npm', ['--version'])
   const yarnChild = crossSpawnSync('yarn', ['--version'])
+  const pnpmChild = crossSpawnSync('pnpm', ['--version'])
   if (
     (npmChild.status ?? npmChild.error) &&
-    (yarnChild.status ?? yarnChild.error)
+    (yarnChild.status ?? yarnChild.error) &&
+    (pnpmChild.status ?? pnpmChild.error)
   ) {
     throw new Error(
-      'must have `npm` or `yarn` installed to manage dependenices'
+      'must have installed one of the following package managers `npm`, `yarn`, `pnpm` to manage dependenices'
     )
   }
 
   if (existsSync(resolve.app('package.json'))) {
     for (const dependency of dependencies) {
       const currentVersion = getNpmPackageVersion(dependency)
-      const packageManager = getManager().type
+      const packageManager = getManager().type.toUpperCase()
 
       if (currentVersion === null) {
         log(`Installing ${dependency}...`)

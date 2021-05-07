@@ -59,11 +59,11 @@ pub use {
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
     PageLoadPayload, SetupHook,
   },
-  self::runtime::app::{App, Builder},
+  self::runtime::app::{App, Builder, WindowMenuEvent},
   self::runtime::flavors::wry::Wry,
   self::runtime::monitor::Monitor,
   self::runtime::webview::{
-    CustomMenuItem, Menu, MenuItem, MenuItemId, MenuType, WebviewAttributes, WindowBuilder,
+    CustomMenuItem, Menu, MenuItem, MenuItemId, WebviewAttributes, WindowBuilder,
   },
   self::runtime::window::{
     export::{

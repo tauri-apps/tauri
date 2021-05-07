@@ -33,6 +33,9 @@ fn main() {
       });
     })
     .menu(menu::get_menu())
+    .on_menu_event(|event| {
+      println!("{:?}", event.menu_item_id());
+    })
     .invoke_handler(tauri::generate_handler![
       cmd::log_operation,
       cmd::perform_request

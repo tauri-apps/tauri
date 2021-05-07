@@ -8,12 +8,12 @@ use crate::{
   api::config::WindowConfig,
   runtime::{
     webview::{
-      CustomMenuItem, FileDropEvent, FileDropHandler, Menu, MenuItem, RpcRequest,
+      CustomMenuItem, FileDropEvent, FileDropHandler, Menu, MenuItem, MenuItemId, RpcRequest,
       WebviewRpcHandler, WindowBuilder, WindowBuilderBase,
     },
     window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-      DetachedWindow, PendingWindow, WindowEvent,
+      DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
     },
     Dispatch, Monitor, Params, Runtime,
   },
@@ -33,6 +33,7 @@ use wry::{
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
     menu::{
       CustomMenu as WryCustomMenu, Menu as WryMenu, MenuId as WryMenuId, MenuItem as WryMenuItem,
+      MenuType,
     },
     monitor::MonitorHandle,
     window::{Fullscreen, Icon as WindowIcon, Window, WindowBuilder as WryWindowBuilder, WindowId},
@@ -57,6 +58,8 @@ type CreateWebviewHandler =
 type MainThreadTask = Box<dyn FnOnce() + Send>;
 type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
+type MenuEventHandler = Box<dyn Fn(&MenuEvent) + Send>;
+type MenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -408,19 +411,26 @@ enum Message {
   CreateWebview(Arc<Mutex<Option<CreateWebviewHandler>>>, Sender<WindowId>),
 }
 
+#[derive(Clone)]
+struct DispatcherContext {
+  proxy: EventLoopProxy<Message>,
+  task_tx: Sender<MainThreadTask>,
+  window_event_listeners: WindowEventListeners,
+  menu_event_listeners: MenuEventListeners,
+}
+
 /// The Tauri [`Dispatch`] for [`Wry`].
 #[derive(Clone)]
 pub struct WryDispatcher {
   window_id: WindowId,
-  proxy: EventLoopProxy<Message>,
-  task_tx: Sender<MainThreadTask>,
-  window_event_listeners: WindowEventListeners,
+  context: DispatcherContext,
 }
 
 macro_rules! dispatcher_getter {
   ($self: ident, $message: expr) => {{
     let (tx, rx) = channel();
     $self
+      .context
       .proxy
       .send_event(Message::Window($self.window_id, $message(tx)))
       .map_err(|_| crate::Error::FailedToSendMessage)?;
@@ -453,6 +463,7 @@ impl Dispatch for WryDispatcher {
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
     self
+      .context
       .task_tx
       .send(Box::new(f))
       .map_err(|_| crate::Error::FailedToSendMessage)
@@ -461,7 +472,19 @@ impl Dispatch for WryDispatcher {
   fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid {
     let id = Uuid::new_v4();
     self
+      .context
       .window_event_listeners
+      .lock()
+      .unwrap()
+      .insert(id, Box::new(f));
+    id
+  }
+
+  fn on_menu_event<F: Fn(&MenuEvent) + Send + 'static>(&self, f: F) -> Uuid {
+    let id = Uuid::new_v4();
+    self
+      .context
+      .menu_event_listeners
       .lock()
       .unwrap()
       .insert(id, Box::new(f));
@@ -519,6 +542,7 @@ impl Dispatch for WryDispatcher {
 
   fn print(&self) -> crate::Result<()> {
     self
+      .context
       .proxy
       .send_event(Message::Webview(self.window_id, WebviewMessage::Print))
       .map_err(|_| crate::Error::FailedToSendMessage)
@@ -530,14 +554,13 @@ impl Dispatch for WryDispatcher {
   ) -> crate::Result<DetachedWindow<M>> {
     let (tx, rx) = channel();
     let label = pending.label.clone();
-    let proxy = self.proxy.clone();
-    let task_tx = self.task_tx.clone();
-    let window_event_listeners = self.window_event_listeners.clone();
+    let context = self.context.clone();
     self
+      .context
       .proxy
       .send_event(Message::CreateWebview(
         Arc::new(Mutex::new(Some(Box::new(move |event_loop| {
-          create_webview(event_loop, proxy, task_tx, window_event_listeners, pending)
+          create_webview(event_loop, context, pending)
         })))),
         tx,
       ))
@@ -545,15 +568,14 @@ impl Dispatch for WryDispatcher {
     let window_id = rx.recv().unwrap();
     let dispatcher = WryDispatcher {
       window_id,
-      proxy: self.proxy.clone(),
-      task_tx: self.task_tx.clone(),
-      window_event_listeners: self.window_event_listeners.clone(),
+      context: self.context.clone(),
     };
     Ok(DetachedWindow { label, dispatcher })
   }
 
   fn set_resizable(&self, resizable: bool) -> crate::Result<()> {
     self
+      .context
       .proxy
       .send_event(Message::Window(
         self.window_id,
@@ -564,6 +586,7 @@ impl Dispatch for WryDispatcher {
 
   fn set_title<S: Into<String>>(&self, title: S) -> crate::Result<()> {
     self
+      .context
       .proxy
       .send_event(Message::Window(
         self.window_id,
@@ -574,6 +597,7 @@ impl Dispatch for WryDispatcher {
 
   fn maximize(&self) -> crate::Result<()> {
     self
+      .context
       .proxy
       .send_event(Message::Window(self.window_id, WindowMessage::Maximize))
       .map_err(|_| crate::Error::FailedToSendMessage)
@@ -581,6 +605,7 @@ impl Dispatch for WryDispatcher {
 
   fn unmaximize(&self) -> crate::Result<()> {
     self
+      .context
       .proxy
       .send_event(Message::Window(self.window_id, WindowMessage::Unmaximize))
       .map_err(|_| crate::Error::FailedToSendMessage)
@@ -588,6 +613,7 @@ impl Dispatch for WryDispatcher {
 
   fn minimize(&self) -> crate::Result<()> {
     self
+      .context
       .proxy
       .send_event(Message::Window(self.window_id, WindowMessage::Minimize))
       .map_err(|_| crate::Error::FailedToSendMessage)
@@ -595,6 +621,7 @@ impl Dispatch for WryDispatcher {
 
   fn unminimize(&self) -> crate::Result<()> {
     self
+      .context
       .proxy
       .send_event(Message::Window(self.window_id, WindowMessage::Unminimize))
       .map_err(|_| crate::Error::FailedToSendMessage)
@@ -602,6 +629,7 @@ impl Dispatch for WryDispatcher {
 
   fn show(&self) -> crate::Result<()> {
     self
+      .context
       .proxy
       .send_event(Message::Window(self.window_id, WindowMessage::Show))
       .map_err(|_| crate::Error::FailedToSendMessage)
@@ -609,6 +637,7 @@ impl Dispatch for WryDispatcher {
 
   fn hide(&self) -> crate::Result<()> {
     self
+      .context
       .proxy
       .send_event(Message::Window(self.window_id, WindowMessage::Hide))
       .map_err(|_| crate::Error::FailedToSendMessage)
@@ -616,6 +645,7 @@ impl Dispatch for WryDispatcher {
 
   fn close(&self) -> crate::Result<()> {
     self
+      .context
       .proxy
       .send_event(Message::Window(self.window_id, WindowMessage::Close))
       .map_err(|_| crate::Error::FailedToSendMessage)
@@ -623,6 +653,7 @@ impl Dispatch for WryDispatcher {
 
   fn set_decorations(&self, decorations: bool) -> crate::Result<()> {
     self
+      .context
       .proxy
       .send_event(Message::Window(
         self.window_id,
@@ -633,6 +664,7 @@ impl Dispatch for WryDispatcher {
 
   fn set_always_on_top(&self, always_on_top: bool) -> crate::Result<()> {
     self
+      .context
       .proxy
       .send_event(Message::Window(
         self.window_id,
@@ -643,6 +675,7 @@ impl Dispatch for WryDispatcher {
 
   fn set_size(&self, size: Size) -> crate::Result<()> {
     self
+      .context
       .proxy
       .send_event(Message::Window(
         self.window_id,
@@ -653,6 +686,7 @@ impl Dispatch for WryDispatcher {
 
   fn set_min_size(&self, size: Option<Size>) -> crate::Result<()> {
     self
+      .context
       .proxy
       .send_event(Message::Window(
         self.window_id,
@@ -663,6 +697,7 @@ impl Dispatch for WryDispatcher {
 
   fn set_max_size(&self, size: Option<Size>) -> crate::Result<()> {
     self
+      .context
       .proxy
       .send_event(Message::Window(
         self.window_id,
@@ -673,6 +708,7 @@ impl Dispatch for WryDispatcher {
 
   fn set_position(&self, position: Position) -> crate::Result<()> {
     self
+      .context
       .proxy
       .send_event(Message::Window(
         self.window_id,
@@ -683,6 +719,7 @@ impl Dispatch for WryDispatcher {
 
   fn set_fullscreen(&self, fullscreen: bool) -> crate::Result<()> {
     self
+      .context
       .proxy
       .send_event(Message::Window(
         self.window_id,
@@ -693,6 +730,7 @@ impl Dispatch for WryDispatcher {
 
   fn set_icon(&self, icon: Icon) -> crate::Result<()> {
     self
+      .context
       .proxy
       .send_event(Message::Window(
         self.window_id,
@@ -703,6 +741,7 @@ impl Dispatch for WryDispatcher {
 
   fn start_dragging(&self) -> crate::Result<()> {
     self
+      .context
       .proxy
       .send_event(Message::Window(self.window_id, WindowMessage::DragWindow))
       .map_err(|_| crate::Error::FailedToSendMessage)
@@ -710,6 +749,7 @@ impl Dispatch for WryDispatcher {
 
   fn eval_script<S: Into<String>>(&self, script: S) -> crate::Result<()> {
     self
+      .context
       .proxy
       .send_event(Message::Webview(
         self.window_id,
@@ -725,6 +765,7 @@ pub struct Wry {
   webviews: HashMap<WindowId, WebView>,
   task_tx: Sender<MainThreadTask>,
   window_event_listeners: WindowEventListeners,
+  menu_event_listeners: MenuEventListeners,
   task_rx: Receiver<MainThreadTask>,
 }
 
@@ -740,6 +781,7 @@ impl Runtime for Wry {
       task_tx,
       task_rx,
       window_event_listeners: Default::default(),
+      menu_event_listeners: Default::default(),
     })
   }
 
@@ -751,17 +793,23 @@ impl Runtime for Wry {
     let proxy = self.event_loop.create_proxy();
     let webview = create_webview(
       &self.event_loop,
-      proxy.clone(),
-      self.task_tx.clone(),
-      self.window_event_listeners.clone(),
+      DispatcherContext {
+        proxy: proxy.clone(),
+        task_tx: self.task_tx.clone(),
+        window_event_listeners: self.window_event_listeners.clone(),
+        menu_event_listeners: self.menu_event_listeners.clone(),
+      },
       pending,
     )?;
 
     let dispatcher = WryDispatcher {
       window_id: webview.window().id(),
-      proxy,
-      task_tx: self.task_tx.clone(),
-      window_event_listeners: self.window_event_listeners.clone(),
+      context: DispatcherContext {
+        proxy,
+        task_tx: self.task_tx.clone(),
+        window_event_listeners: self.window_event_listeners.clone(),
+        menu_event_listeners: self.menu_event_listeners.clone(),
+      },
     };
 
     self.webviews.insert(webview.window().id(), webview);
@@ -773,6 +821,7 @@ impl Runtime for Wry {
     let mut webviews = self.webviews;
     let task_rx = self.task_rx;
     let window_event_listeners = self.window_event_listeners.clone();
+    let menu_event_listeners = self.menu_event_listeners.clone();
     self.event_loop.run(move |event, event_loop, control_flow| {
       *control_flow = ControlFlow::Wait;
 
@@ -787,6 +836,17 @@ impl Runtime for Wry {
       }
 
       match event {
+        Event::MenuEvent {
+          menu_id,
+          origin: MenuType::Menubar,
+        } => {
+          let event = MenuEvent {
+            menu_item_id: MenuItemId(menu_id.0),
+          };
+          for handler in menu_event_listeners.lock().unwrap().values() {
+            handler(&event);
+          }
+        }
         Event::WindowEvent { event, window_id } => {
           if let Some(event) = WindowEventWrapper::from(&event).0 {
             for handler in window_event_listeners.lock().unwrap().values() {
@@ -914,9 +974,7 @@ impl Runtime for Wry {
 
 fn create_webview<M: Params<Runtime = Wry>>(
   event_loop: &EventLoopWindowTarget<Message>,
-  proxy: EventLoopProxy<Message>,
-  task_tx: Sender<MainThreadTask>,
-  window_event_listeners: WindowEventListeners,
+  context: DispatcherContext,
   pending: PendingWindow<M>,
 ) -> crate::Result<WebView> {
   let PendingWindow {
@@ -935,22 +993,12 @@ fn create_webview<M: Params<Runtime = Wry>>(
     .with_url(&url)
     .unwrap(); // safe to unwrap because we validate the URL beforehand
   if let Some(handler) = rpc_handler {
-    webview_builder = webview_builder.with_rpc_handler(create_rpc_handler(
-      proxy.clone(),
-      task_tx.clone(),
-      window_event_listeners.clone(),
-      label.clone(),
-      handler,
-    ));
+    webview_builder =
+      webview_builder.with_rpc_handler(create_rpc_handler(context.clone(), label.clone(), handler));
   }
   if let Some(handler) = file_drop_handler {
-    webview_builder = webview_builder.with_file_drop_handler(create_file_drop_handler(
-      proxy,
-      task_tx,
-      window_event_listeners,
-      label,
-      handler,
-    ));
+    webview_builder =
+      webview_builder.with_file_drop_handler(create_file_drop_handler(context, label, handler));
   }
   for (scheme, protocol) in webview_attributes.uri_scheme_protocols {
     webview_builder = webview_builder.with_custom_protocol(scheme, move |_window, url| {
@@ -971,9 +1019,7 @@ fn create_webview<M: Params<Runtime = Wry>>(
 
 /// Create a wry rpc handler from a tauri rpc handler.
 fn create_rpc_handler<M: Params<Runtime = Wry>>(
-  proxy: EventLoopProxy<Message>,
-  task_tx: Sender<MainThreadTask>,
-  window_event_listeners: WindowEventListeners,
+  context: DispatcherContext,
   label: M::Label,
   handler: WebviewRpcHandler<M>,
 ) -> Box<dyn Fn(&Window, WryRpcRequest) -> Option<RpcResponse> + 'static> {
@@ -982,9 +1028,7 @@ fn create_rpc_handler<M: Params<Runtime = Wry>>(
       DetachedWindow {
         dispatcher: WryDispatcher {
           window_id: window.id(),
-          proxy: proxy.clone(),
-          task_tx: task_tx.clone(),
-          window_event_listeners: window_event_listeners.clone(),
+          context: context.clone(),
         },
         label: label.clone(),
       },
@@ -996,9 +1040,7 @@ fn create_rpc_handler<M: Params<Runtime = Wry>>(
 
 /// Create a wry file drop handler from a tauri file drop handler.
 fn create_file_drop_handler<M: Params<Runtime = Wry>>(
-  proxy: EventLoopProxy<Message>,
-  task_tx: Sender<MainThreadTask>,
-  window_event_listeners: WindowEventListeners,
+  context: DispatcherContext,
   label: M::Label,
   handler: FileDropHandler<M>,
 ) -> Box<dyn Fn(&Window, WryFileDropEvent) -> bool + 'static> {
@@ -1008,9 +1050,7 @@ fn create_file_drop_handler<M: Params<Runtime = Wry>>(
       DetachedWindow {
         dispatcher: WryDispatcher {
           window_id: window.id(),
-          proxy: proxy.clone(),
-          task_tx: task_tx.clone(),
-          window_event_listeners: window_event_listeners.clone(),
+          context: context.clone(),
         },
         label: label.clone(),
       },

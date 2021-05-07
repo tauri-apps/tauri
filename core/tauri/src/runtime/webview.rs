@@ -9,7 +9,7 @@ use crate::{
   api::config::{WindowConfig, WindowUrl},
   runtime::window::DetachedWindow,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::{
   collections::{hash_map::DefaultHasher, HashMap},
@@ -211,23 +211,13 @@ impl Menu {
 ///
 /// Whenever you receive an event arising from a particular menu, this event contains a `MenuId` which
 /// identifies its origin.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize)]
 pub struct MenuItemId(pub(crate) u32);
 
 impl MenuItemId {
   fn new<T: Into<String>>(menu_title: T) -> Self {
     Self(hash_string_to_u32(menu_title.into()))
   }
-}
-
-/// Type of menu the click is originating from.
-#[derive(Copy, Clone, Debug, PartialEq)]
-#[non_exhaustive]
-pub enum MenuType {
-  /// Menubar menu item.
-  Menubar,
-  /// Statusbar menu item.
-  Statusbar,
 }
 
 fn hash_string_to_u32(title: String) -> u32 {

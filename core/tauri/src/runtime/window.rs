@@ -10,7 +10,7 @@ use crate::{
   hooks::{InvokeMessage, InvokeResolver, PageLoadPayload},
   runtime::{
     tag::ToJsString,
-    webview::{FileDropHandler, InvokePayload, WebviewAttributes, WebviewRpcHandler},
+    webview::{FileDropHandler, InvokePayload, MenuItemId, WebviewAttributes, WebviewRpcHandler},
     Dispatch, Monitor, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
@@ -53,6 +53,20 @@ pub enum WindowEvent {
     /// The window inner size.
     new_inner_size: dpi::PhysicalSize<u32>,
   },
+}
+
+/// A menu event.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MenuEvent {
+  pub(crate) menu_item_id: MenuItemId,
+}
+
+impl MenuEvent {
+  /// Returns the id of the menu item that triggered the event.
+  pub fn item_id(&self) -> MenuItemId {
+    self.menu_item_id
+  }
 }
 
 /// A webview window that has yet to be built.
@@ -348,6 +362,11 @@ pub(crate) mod export {
     /// Registers a window event listener.
     pub fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) {
       self.window.dispatcher.on_window_event(f);
+    }
+
+    /// Registers a menu event listener.
+    pub fn on_menu_event<F: Fn(&MenuEvent) + Send + 'static>(&self, f: F) {
+      self.window.dispatcher.on_menu_event(f);
     }
 
     // Getters

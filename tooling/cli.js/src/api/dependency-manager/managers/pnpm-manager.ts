@@ -3,8 +3,8 @@ import { sync as crossSpawnSync } from 'cross-spawn'
 import { spawnSync } from '../../../helpers/spawn'
 import { appDir } from '../../../helpers/app-paths'
 
-export class NpmManager implements IManager {
-  type = 'npm'
+export class PnpmManager implements IManager {
+  type = 'pnpm'
 
   installPackage(packageName: string): void {
     spawnSync('pnpm', ['add', packageName], appDir)

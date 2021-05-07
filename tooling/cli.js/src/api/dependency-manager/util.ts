@@ -6,15 +6,21 @@ import { sync as crossSpawnSync } from 'cross-spawn'
 import { resolve as appResolve } from '../../helpers/app-paths'
 import { existsSync } from 'fs'
 import semver from 'semver'
-import { IManager, NpmManager, YarnManager } from './managers'
+import { IManager, NpmManager, YarnManager, PnpmManager } from './managers'
 
-const useYarn = (): boolean =>
-  process.env.npm_execpath
-    ? process.env.npm_execpath.includes('yarn')
-    : existsSync(appResolve.app('yarn.lock'))
+// const useYarn = (): boolean =>
+//   process.env.npm_execpath
+//     ? process.env.npm_execpath.includes('yarn')
+//     : existsSync(appResolve.app('yarn.lock'))
 
 const getManager = (): IManager => {
-  return useYarn() ? new YarnManager() : new NpmManager()
+  if (existsSync(appResolve.app('yarn.lock'))) {
+    return new YarnManager()
+  } else if (existsSync(appResolve.app('pnpm-lock.yaml'))) {
+    return new PnpmManager()
+  } else {
+    return new NpmManager()
+  }
 }
 
 function getCrateLatestVersion(crateName: string): string | null {
@@ -68,7 +74,6 @@ function semverLt(first: string, second: string): boolean {
 }
 
 export {
-  useYarn,
   getManager,
   getCrateLatestVersion,
   getNpmLatestVersion,

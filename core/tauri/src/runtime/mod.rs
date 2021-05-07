@@ -99,6 +99,9 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
 
   // SETTERS
 
+  /// Opens the dialog to prints the contents of the webview.
+  fn print(&self) -> crate::Result<()>;
+
   /// Create a new webview window.
   fn create_window<P: Params<Runtime = Self::Runtime>>(
     &mut self,

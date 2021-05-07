@@ -9,3 +9,6 @@ export enum ManagementType {
 }
 
 export type Result = Map<ManagementType, string[]>
+
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+export type Answer = { answer: boolean }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { ManagementType, Result } from './types'
+import { Answer, ManagementType, Result } from './types'
 import {
   getNpmLatestVersion,
   getNpmPackageVersion,
@@ -10,7 +10,7 @@ import {
   installNpmDevPackage,
   updateNpmPackage,
   semverLt,
-  useYarn
+  getManager
 } from './util'
 import logger from '../../helpers/logger'
 import { resolve } from '../../helpers/app-paths'
@@ -41,25 +41,28 @@ async function manageDependencies(
   if (existsSync(resolve.app('package.json'))) {
     for (const dependency of dependencies) {
       const currentVersion = getNpmPackageVersion(dependency)
+      const packageManager = getManager().type
+
       if (currentVersion === null) {
         log(`Installing ${dependency}...`)
         if (
           managementType === ManagementType.Install ||
           managementType === ManagementType.InstallDev
         ) {
-          const packageManager = useYarn() ? 'YARN' : 'NPM'
-          const inquired = (await inquirer.prompt([
+          const prefix =
+            managementType === ManagementType.InstallDev
+              ? ' as dev-dependency'
+              : ''
+
+          const inquired = await inquirer.prompt<Answer>([
             {
               type: 'confirm',
               name: 'answer',
-              message: `[${packageManager}]: "Do you want to install ${dependency} ${
-                managementType === ManagementType.InstallDev
-                  ? 'as dev-dependency'
-                  : ''
-              }?"`,
+              message: `[${packageManager}]: "Do you want to install ${dependency}${prefix}?"`,
               default: false
             }
-          ])) as { answer: boolean }
+          ])
+
           if (inquired.answer) {
             if (managementType === ManagementType.Install) {
               installNpmPackage(dependency)
@@ -71,15 +74,17 @@ async function manageDependencies(
         }
       } else if (managementType === ManagementType.Update) {
         const latestVersion = getNpmLatestVersion(dependency)
+
         if (semverLt(currentVersion, latestVersion)) {
-          const inquired = (await inquirer.prompt([
+          const inquired = await inquirer.prompt<Answer>([
             {
               type: 'confirm',
               name: 'answer',
-              message: `[NPM]: "${dependency}" latest version is ${latestVersion}. Do you want to update?`,
+              message: `[${packageManager}]: "${dependency}" latest version is ${latestVersion}. Do you want to update?`,
               default: false
             }
-          ])) as { answer: boolean }
+          ])
+
           if (inquired.answer) {
             log(`Updating ${dependency}...`)
             updateNpmPackage(dependency)

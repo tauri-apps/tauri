@@ -16,6 +16,7 @@ export default {
   external: [
     'fs',
     'path',
+    'os',
     ...Object.keys(pkg.dependencies || {}),
     ...Object.keys(pkg.peerDependencies || {})
   ],

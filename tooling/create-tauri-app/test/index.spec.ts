@@ -15,7 +15,7 @@ const api = path.resolve('../api/')
 const manager = process.env.TAURI_RUN_MANAGER ?? 'npm'
 const recipes = process.env.TAURI_RECIPE
   ? [process.env.TAURI_RECIPE]
-  : ['vanillajs', 'reactjs', 'reactts', 'vite', 'vuecli']
+  : ['vanillajs', 'cra', 'vite', 'vuecli']
 const timeoutLong = 900000
 const timeoutLittleLonger = 930000
 const logOut = false ? 'inherit' : 'pipe'
@@ -138,14 +138,7 @@ describe('CTA', () => {
                 tauri: 'tauri'
               })
             },
-            reactjs: () => {
-              expect(packageFileOutput['scripts']).toEqual(
-                expect.objectContaining({
-                  tauri: 'tauri'
-                })
-              )
-            },
-            reactts: () => {
+            cra: () => {
               expect(packageFileOutput['scripts']).toEqual(
                 expect.objectContaining({
                   tauri: 'tauri'

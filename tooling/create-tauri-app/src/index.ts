@@ -228,15 +228,9 @@ const runInit = async (argv: Argv): Promise<void> => {
     recipe = recipeByDescriptiveName(recipeName)
   }
 
+  // throw if recipe is not set
   if (!recipe) {
-    if (argv.ci) {
-      recipe = recipeByShortName('vanillajs')
-    }
-    // throw if recipe is not set
-    // if it fails to set in CI, throw as well
-    if (!recipe) {
-      throw new Error('Could not find the recipe specified.')
-    }
+    throw new Error('Could not find the recipe specified.')
   }
 
   const packageManager =

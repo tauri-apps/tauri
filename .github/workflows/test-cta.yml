@@ -26,7 +26,7 @@ jobs:
       matrix:
         node: ["14", "16"]
         manager: ["6", "7"]
-        recipe: ["vanillajs", "reactjs", "reactts", "vite", "vuecli"]
+        recipe: ["vanillajs", "cra", "vite", "vuecli"]
         exclude:
           - node: "16"
             manager: "6"
@@ -66,7 +66,7 @@ jobs:
       fail-fast: false
       matrix:
         node: ["14", "16"]
-        recipe: ["vanillajs", "reactjs", "reactts", "vite", "vuecli"]
+        recipe: ["vanillajs", "cra", "vite", "vuecli"]
 
     steps:
       - uses: actions/checkout@v2

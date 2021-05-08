@@ -1,6 +1,6 @@
 # Shorthand Commands
 
-<!-- 
+<!--
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
@@ -128,7 +128,7 @@ switch ($smoke_test_path.parent) {
 
 ## list
 
-### list smoke tests
+### list smoke-tests
 
 > List all available smoke tests
 

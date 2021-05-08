@@ -268,8 +268,8 @@ pub(crate) mod sealed {
 
   /// A running [`Runtime`] or a dispatcher to it.
   pub enum RuntimeOrDispatch<'r, P: Params> {
-    /// Mutable reference to the running [`Runtime`].
-    Runtime(&'r mut P::Runtime),
+    /// Reference to the running [`Runtime`].
+    Runtime(&'r P::Runtime),
 
     /// A dispatcher to the running [`Runtime`].
     Dispatch(<P::Runtime as Runtime>::Dispatcher),
@@ -280,18 +280,16 @@ pub(crate) mod sealed {
     /// The manager behind the [`Managed`] item.
     fn manager(&self) -> &WindowManager<P>;
 
-    /// The runtime or runtime dispatcher of the [`Managed`] item.
-    fn runtime(&mut self) -> RuntimeOrDispatch<'_, P>;
-
     /// Creates a new [`Window`] on the [`Runtime`] and attaches it to the [`Manager`].
     fn create_new_window(
-      &mut self,
+      &self,
+      runtime: RuntimeOrDispatch<'_, P>,
       pending: crate::PendingWindow<P>,
     ) -> crate::Result<crate::Window<P>> {
       use crate::runtime::Dispatch;
       let labels = self.manager().labels().into_iter().collect::<Vec<_>>();
       let pending = self.manager().prepare_window(pending, &labels)?;
-      match self.runtime() {
+      match runtime {
         RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
         RuntimeOrDispatch::Dispatch(mut dispatcher) => dispatcher.create_window(pending),
       }

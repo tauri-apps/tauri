@@ -48,7 +48,7 @@ pub trait Runtime: Sized + 'static {
 
   /// Create a new webview window.
   fn create_window<P: Params<Runtime = Self>>(
-    &mut self,
+    &self,
     pending: PendingWindow<P>,
   ) -> crate::Result<DetachedWindow<P>>;
 
@@ -65,7 +65,7 @@ pub trait Runtime: Sized + 'static {
   fn system_tray(&self, icon: Vec<u8>, menu: Vec<TrayMenuItem>) -> crate::Result<()>;
 
   /// Registers a system tray event handler.
-  fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: Box<F>) -> Uuid;
+  fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid;
 
   /// Run the webview runtime.
   fn run(self);

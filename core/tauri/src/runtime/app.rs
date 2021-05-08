@@ -26,7 +26,7 @@ use std::{collections::HashMap, sync::Arc};
 use crate::updater;
 
 pub(crate) type GlobalMenuEventListener<P> = Box<dyn Fn(WindowMenuEvent<P>) + Send + Sync>;
-type SystemTrayEventListener = Box<dyn Fn(&SystemTrayEvent) + Send + Sync>;
+type SystemTrayEventListener<P> = Box<dyn Fn(&AppHandle<P>, &SystemTrayEvent) + Send + Sync>;
 
 /// A menu event that was triggered on a window.
 pub struct WindowMenuEvent<P: Params> {
@@ -47,6 +47,18 @@ impl<P: Params> WindowMenuEvent<P> {
 }
 
 /// A handle to the currently running application.
+pub struct AppHandle<P: Params> {
+  manager: WindowManager<P>,
+}
+
+impl<P: Params> Manager<P> for AppHandle<P> {}
+impl<P: Params> ManagerBase<P> for AppHandle<P> {
+  fn manager(&self) -> &WindowManager<P> {
+    &self.manager
+  }
+}
+
+/// The instance of the currently running application.
 ///
 /// This type implements [`Manager`] which allows for manipulation of global application items.
 pub struct App<P: Params> {
@@ -58,10 +70,6 @@ impl<P: Params> Manager<P> for App<P> {}
 impl<P: Params> ManagerBase<P> for App<P> {
   fn manager(&self) -> &WindowManager<P> {
     &self.manager
-  }
-
-  fn runtime(&mut self) -> RuntimeOrDispatch<'_, P> {
-    RuntimeOrDispatch::Runtime(&mut self.runtime)
   }
 }
 
@@ -81,11 +89,10 @@ impl<P: Params> App<P> {
       <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder::new(),
       WebviewAttributes::new(url),
     );
-    self.create_new_window(PendingWindow::new(
-      window_attributes,
-      webview_attributes,
-      label,
-    ))?;
+    self.create_new_window(
+      RuntimeOrDispatch::Runtime(&self.runtime),
+      PendingWindow::new(window_attributes, webview_attributes, label),
+    )?;
     Ok(())
   }
 }
@@ -188,7 +195,7 @@ where
   system_tray: Vec<SystemTrayMenuItem>,
 
   /// System tray event handlers.
-  system_tray_event_listeners: Vec<SystemTrayEventListener>,
+  system_tray_event_listeners: Vec<SystemTrayEventListener<Args<E, L, A, R>>>,
 }
 
 impl<E, L, A, R> Builder<E, L, A, R>
@@ -347,7 +354,9 @@ where
   }
 
   /// Registers a system tray event handler.
-  pub fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + Sync + 'static>(
+  pub fn on_system_tray_event<
+    F: Fn(&AppHandle<Args<E, L, A, R>>, &SystemTrayEvent) + Send + Sync + 'static,
+  >(
     mut self,
     handler: F,
   ) -> Self {
@@ -450,7 +459,12 @@ where
         )
         .expect("failed to run tray");
       for listener in self.system_tray_event_listeners {
-        app.runtime.on_system_tray_event(Box::new(listener));
+        let app_handle = AppHandle {
+          manager: app.manager.clone(),
+        };
+        app.runtime.on_system_tray_event(move |event| {
+          listener(&app_handle, event);
+        });
       }
     }
 

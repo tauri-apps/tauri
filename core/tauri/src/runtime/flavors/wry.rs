@@ -774,7 +774,7 @@ impl Dispatch for WryDispatcher {
 /// A Tauri [`Runtime`] wrapper around wry.
 pub struct Wry {
   event_loop: EventLoop<Message>,
-  webviews: HashMap<WindowId, WebView>,
+  webviews: Mutex<HashMap<WindowId, WebView>>,
   task_tx: Sender<MainThreadTask>,
   window_event_listeners: WindowEventListeners,
   menu_event_listeners: MenuEventListeners,
@@ -800,7 +800,7 @@ impl Runtime for Wry {
   }
 
   fn create_window<M: Params<Runtime = Self>>(
-    &mut self,
+    &self,
     pending: PendingWindow<M>,
   ) -> crate::Result<DetachedWindow<M>> {
     let label = pending.label.clone();
@@ -826,7 +826,11 @@ impl Runtime for Wry {
       },
     };
 
-    self.webviews.insert(webview.window().id(), webview);
+    self
+      .webviews
+      .lock()
+      .unwrap()
+      .insert(webview.window().id(), webview);
 
     Ok(DetachedWindow { label, dispatcher })
   }
@@ -851,14 +855,17 @@ impl Runtime for Wry {
     Ok(())
   }
 
-  fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: Box<F>) -> Uuid {
+  fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid {
     let id = Uuid::new_v4();
-    self.system_tray_event_listeners.insert(id, f);
+    self.system_tray_event_listeners.insert(id, Box::new(f));
     id
   }
 
   fn run(self) {
-    let mut webviews = self.webviews;
+    let mut webviews = {
+      let mut lock = self.webviews.lock().expect("poisoned webview collection");
+      std::mem::take(&mut *lock)
+    };
     let task_rx = self.task_rx;
     let window_event_listeners = self.window_event_listeners.clone();
     let menu_event_listeners = self.menu_event_listeners.clone();

@@ -40,7 +40,7 @@ fn main() {
     .system_tray(vec![SystemTrayMenuItem::Custom(CustomMenuItem::new(
       "Tauri",
     ))])
-    .on_system_tray_event(|event| {
+    .on_system_tray_event(|_app, event| {
       println!("{:?}", event.menu_item_id());
     })
     .invoke_handler(tauri::generate_handler![

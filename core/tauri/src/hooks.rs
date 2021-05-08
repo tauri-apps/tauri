@@ -157,7 +157,12 @@ impl<P: Params> InvokeResolver<P> {
 
   /// Reject the invoke promise with an [`InvokeError`].
   pub fn invoke_error(self, value: InvokeError) {
-    Self::return_result(self.window, Result::<(), _>::Err(value), self.callback, self.error)
+    Self::return_result(
+      self.window,
+      Result::<(), _>::Err(value),
+      self.callback,
+      self.error,
+    )
   }
 
   /// Asynchronously executes the given task

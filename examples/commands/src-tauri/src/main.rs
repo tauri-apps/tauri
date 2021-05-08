@@ -35,7 +35,10 @@ async fn async_simple_command(argument: String) {
 /// todo: even with #[allow(unused)], the macro generates an unused warning
 #[allow(unused)]
 #[command]
-async fn async_stateful_command(argument: Option<String>, state: State<'_, MyState>) -> Result<(),()> {
+async fn async_stateful_command(
+  argument: Option<String>,
+  state: State<'_, MyState>,
+) -> Result<(), ()> {
   println!("{:?} {:?}", argument, state.inner());
   Ok(())
 }

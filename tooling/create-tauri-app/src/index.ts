@@ -207,8 +207,8 @@ const runInit = async (argv: Argv): Promise<void> => {
   const buildConfig = {
     distDir: argv.D,
     devPath: argv.P,
-    appName: appName,
-    windowTitle: title
+    appName: argv.A || appName,
+    windowTitle: argv.W || title
   }
 
   const directory = argv.d || process.cwd()

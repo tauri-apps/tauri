@@ -96,6 +96,16 @@ describe('CTA', () => {
           expect(cta.killed).toBe(false)
           expect(cta.signal).toBe(undefined)
 
+          const packageFileInitial: {
+            [k: string]: string | object
+          } = JSON.parse(
+            await fs.promises.readFile(
+              path.join(appFolder, 'package.json'),
+              'utf-8'
+            )
+          )
+          expect(packageFileInitial['name']).toBe(appName)
+
           // run a tauri build to check if what we produced
           //  can actually create an app
           //  TODO long term we will want to hook this up to a real test harness

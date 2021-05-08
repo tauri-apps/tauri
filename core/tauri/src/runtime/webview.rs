@@ -249,10 +249,10 @@ impl CustomMenuItem {
   }
 }
 
-/// Tray menu item.
+/// System tray menu item.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub enum TrayMenuItem {
+pub enum SystemTrayMenuItem {
   /// A custom menu item.
   Custom(CustomMenuItem),
   /// A separator.

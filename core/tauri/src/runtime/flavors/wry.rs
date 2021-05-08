@@ -9,13 +9,13 @@ use crate::{
   runtime::{
     webview::{
       CustomMenuItem, FileDropEvent, FileDropHandler, Menu, MenuItem, MenuItemId, RpcRequest,
-      TrayMenuItem, WebviewRpcHandler, WindowBuilder, WindowBuilderBase,
+      SystemTrayMenuItem, WebviewRpcHandler, WindowBuilder, WindowBuilderBase,
     },
     window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
       DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
     },
-    Dispatch, Monitor, Params, Runtime,
+    Dispatch, Monitor, Params, Runtime, SystemTrayEvent,
   },
   Icon,
 };
@@ -61,6 +61,8 @@ type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
 type MenuEventHandler = Box<dyn Fn(&MenuEvent) + Send>;
 type MenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
+type SystemTrayEventHandler = Box<dyn Fn(&SystemTrayEvent) + Send>;
+type SystemTrayEventListeners = HashMap<Uuid, SystemTrayEventHandler>;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -246,11 +248,11 @@ impl From<Menu> for WryMenu {
   }
 }
 
-impl From<TrayMenuItem> for WryMenuItem {
-  fn from(item: TrayMenuItem) -> Self {
+impl From<SystemTrayMenuItem> for WryMenuItem {
+  fn from(item: SystemTrayMenuItem) -> Self {
     match item {
-      TrayMenuItem::Custom(custom) => Self::Custom(custom.into()),
-      TrayMenuItem::Separator => Self::Separator,
+      SystemTrayMenuItem::Custom(custom) => Self::Custom(custom.into()),
+      SystemTrayMenuItem::Separator => Self::Separator,
     }
   }
 }
@@ -776,6 +778,7 @@ pub struct Wry {
   task_tx: Sender<MainThreadTask>,
   window_event_listeners: WindowEventListeners,
   menu_event_listeners: MenuEventListeners,
+  system_tray_event_listeners: SystemTrayEventListeners,
   task_rx: Receiver<MainThreadTask>,
 }
 
@@ -792,6 +795,7 @@ impl Runtime for Wry {
       task_rx,
       window_event_listeners: Default::default(),
       menu_event_listeners: Default::default(),
+      system_tray_event_listeners: HashMap::default(),
     })
   }
 
@@ -828,19 +832,29 @@ impl Runtime for Wry {
   }
 
   #[cfg(target_os = "linux")]
-  fn tray(&self, icon: std::path::PathBuf, menu: Vec<TrayMenuItem>) -> crate::Result<()> {
+  fn system_tray(
+    &self,
+    icon: std::path::PathBuf,
+    menu: Vec<SystemTrayMenuItem>,
+  ) -> crate::Result<()> {
+    SystemTrayBuilder::new(icon, menu.into_iter().map(Into::into).collect())
+      .build(&self.event_loop)
+      .map_err(|e| crate::Error::SystemTray(Box::new(e)))?;
+    Ok(())
+  }
+
+  #[cfg(not(target_os = "linux"))]
+  fn system_tray(&self, icon: Vec<u8>, menu: Vec<TrayMenuItem>) -> crate::Result<()> {
     SystemTrayBuilder::new(icon, menu.into_iter().map(Into::into).collect())
       .build(&self.event_loop)
       .map_err(|e| crate::Error::Tray(Box::new(e)))?;
     Ok(())
   }
 
-  #[cfg(not(target_os = "linux"))]
-  fn tray(&self, icon: Vec<u8>, menu: Vec<TrayMenuItem>) -> crate::Result<()> {
-    SystemTrayBuilder::new(icon, menu.into_iter().map(Into::into).collect())
-      .build(&self.event_loop)
-      .map_err(|e| crate::Error::Tray(Box::new(e)))?;
-    Ok(())
+  fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: Box<F>) -> Uuid {
+    let id = Uuid::new_v4();
+    self.system_tray_event_listeners.insert(id, f);
+    id
   }
 
   fn run(self) {
@@ -848,6 +862,7 @@ impl Runtime for Wry {
     let task_rx = self.task_rx;
     let window_event_listeners = self.window_event_listeners.clone();
     let menu_event_listeners = self.menu_event_listeners.clone();
+    let system_tray_event_listeners = self.system_tray_event_listeners;
     self.event_loop.run(move |event, event_loop, control_flow| {
       *control_flow = ControlFlow::Wait;
 
@@ -870,6 +885,17 @@ impl Runtime for Wry {
             menu_item_id: MenuItemId(menu_id.0),
           };
           for handler in menu_event_listeners.lock().unwrap().values() {
+            handler(&event);
+          }
+        }
+        Event::MenuEvent {
+          menu_id,
+          origin: MenuType::SystemTray,
+        } => {
+          let event = SystemTrayEvent {
+            menu_item_id: MenuItemId(menu_id.0),
+          };
+          for handler in system_tray_event_listeners.values() {
             handler(&event);
           }
         }

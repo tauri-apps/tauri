@@ -545,8 +545,8 @@ pub struct TauriConfig {
   /// The updater configuration.
   #[serde(default = "default_updater")]
   pub updater: UpdaterConfig,
-  /// Configuration for app tray icon.
-  pub tray: Option<TrayConfig>,
+  /// Configuration for app system tray.
+  pub system_tray: Option<SystemTrayConfig>,
 }
 
 impl TauriConfig {
@@ -575,7 +575,7 @@ pub struct UpdaterConfig {
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct TrayConfig {
+pub struct SystemTrayConfig {
   /// Path to the icon to use on the system tray.
   ///
   /// It is forced to be a `.png` file on Linux and macOS, and a `.ico` file on Windows.

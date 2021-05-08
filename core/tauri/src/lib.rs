@@ -63,7 +63,8 @@ pub use {
   self::runtime::flavors::wry::Wry,
   self::runtime::monitor::Monitor,
   self::runtime::webview::{
-    CustomMenuItem, Menu, MenuItem, MenuItemId, TrayMenuItem, WebviewAttributes, WindowBuilder,
+    CustomMenuItem, Menu, MenuItem, MenuItemId, SystemTrayMenuItem, WebviewAttributes,
+    WindowBuilder,
   },
   self::runtime::window::{
     export::{
@@ -133,11 +134,11 @@ pub struct Context<A: Assets> {
 
   /// The icon to use use on the system tray UI.
   #[cfg(target_os = "linux")]
-  pub tray_icon: Option<PathBuf>,
+  pub system_tray_icon: Option<PathBuf>,
 
   /// The icon to use use on the system tray UI.
   #[cfg(not(target_os = "linux"))]
-  pub tray_icon: Option<Vec<u8>>,
+  pub system_tray_icon: Option<Vec<u8>>,
 
   /// Package information.
   pub package_info: crate::api::PackageInfo,

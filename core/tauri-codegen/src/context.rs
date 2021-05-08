@@ -63,11 +63,11 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   };
 
   #[cfg(target_os = "linux")]
-  let tray_icon = if let Some(tray) = &config.tauri.tray {
-    let mut tray_icon_path = tray.icon_path.clone();
-    tray_icon_path.set_extension("png");
+  let system_tray_icon = if let Some(tray) = &config.tauri.system_tray {
+    let mut system_tray_icon_path = tray.icon_path.clone();
+    system_tray_icon_path.set_extension("png");
     if dev {
-      let tray_icon_file_name = tray_icon_path
+      let system_tray_icon_file_name = system_tray_icon_path
         .file_name()
         .expect("failed to get tray path file_name")
         .to_string_lossy()
@@ -76,23 +76,29 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         ::tauri::platform::resource_dir()
           .expect("failed to read resource dir")
           .join(
-            #tray_icon_file_name
+            #system_tray_icon_file_name
           )
       ))
     } else {
-      let tray_icon_path = config_parent.join(tray_icon_path).display().to_string();
-      quote!(Some(::std::path::PathBuf::from(#tray_icon_path)))
+      let system_tray_icon_path = config_parent
+        .join(system_tray_icon_path)
+        .display()
+        .to_string();
+      quote!(Some(::std::path::PathBuf::from(#system_tray_icon_path)))
     }
   } else {
     quote!(None)
   };
 
   #[cfg(not(target_os = "linux"))]
-  let tray_icon = if let Some(tray) = &config.tauri.tray {
-    let mut tray_icon_path = tray.icon_path.clone();
-    tray_icon_path.set_extension(if cfg!(windows) { "ico" } else { "png" });
-    let tray_icon_path = config_parent.join(tray_icon_path).display().to_string();
-    quote!(Some(include_bytes!(#tray_icon_path).to_vec()))
+  let system_tray_icon = if let Some(tray) = &config.tauri.system_tray {
+    let mut system_tray_icon_path = tray.icon_path.clone();
+    system_tray_icon_path.set_extension(if cfg!(windows) { "ico" } else { "png" });
+    let system_tray_icon_path = config_parent
+      .join(system_tray_icon_path)
+      .display()
+      .to_string();
+    quote!(Some(include_bytes!(#system_tray_icon_path).to_vec()))
   } else {
     quote!(None)
   };
@@ -113,7 +119,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     config: #config,
     assets: ::std::sync::Arc::new(#assets),
     default_window_icon: #default_window_icon,
-    tray_icon: #tray_icon,
+    system_tray_icon: #system_tray_icon,
     package_info: #root::api::PackageInfo {
       name: #package_name,
       version: #package_version,

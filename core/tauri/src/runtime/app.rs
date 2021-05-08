@@ -10,9 +10,11 @@ use crate::{
     flavors::wry::Wry,
     manager::{Args, WindowManager},
     tag::Tag,
-    webview::{CustomProtocol, Menu, MenuItemId, TrayMenuItem, WebviewAttributes, WindowBuilder},
+    webview::{
+      CustomProtocol, Menu, MenuItemId, SystemTrayMenuItem, WebviewAttributes, WindowBuilder,
+    },
     window::PendingWindow,
-    Dispatch, Runtime,
+    Dispatch, Runtime, SystemTrayEvent,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
   Context, Invoke, Manager, Params, StateManager, Window,
@@ -24,6 +26,7 @@ use std::{collections::HashMap, sync::Arc};
 use crate::updater;
 
 pub(crate) type GlobalMenuEventListener<P> = Box<dyn Fn(WindowMenuEvent<P>) + Send + Sync>;
+type SystemTrayEventListener = Box<dyn Fn(&SystemTrayEvent) + Send + Sync>;
 
 /// A menu event that was triggered on a window.
 pub struct WindowMenuEvent<P: Params> {
@@ -181,8 +184,11 @@ where
   /// Menu event handlers that listens to all windows.
   menu_event_listeners: Vec<GlobalMenuEventListener<Args<E, L, A, R>>>,
 
-  /// The app tray menu items.
-  tray: Vec<TrayMenuItem>,
+  /// The app system tray menu items.
+  system_tray: Vec<SystemTrayMenuItem>,
+
+  /// System tray event handlers.
+  system_tray_event_listeners: Vec<SystemTrayEventListener>,
 }
 
 impl<E, L, A, R> Builder<E, L, A, R>
@@ -204,7 +210,8 @@ where
       state: StateManager::new(),
       menu: Vec::new(),
       menu_event_listeners: Vec::new(),
-      tray: Vec::new(),
+      system_tray: Vec::new(),
+      system_tray_event_listeners: Vec::new(),
     }
   }
 
@@ -319,8 +326,8 @@ where
   }
 
   /// Adds the icon configured on `tauri.conf.json` to the system tray with the specified menu items.
-  pub fn tray(mut self, menu: Vec<TrayMenuItem>) -> Self {
-    self.tray = menu;
+  pub fn system_tray(mut self, items: Vec<SystemTrayMenuItem>) -> Self {
+    self.system_tray = items;
     self
   }
 
@@ -336,6 +343,15 @@ where
     handler: F,
   ) -> Self {
     self.menu_event_listeners.push(Box::new(handler));
+    self
+  }
+
+  /// Registers a system tray event handler.
+  pub fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + Sync + 'static>(
+    mut self,
+    handler: F,
+  ) -> Self {
+    self.system_tray_event_listeners.push(Box::new(handler));
     self
   }
 
@@ -367,7 +383,7 @@ where
 
   /// Runs the configured Tauri application.
   pub fn run(mut self, context: Context<A>) -> crate::Result<()> {
-    let tray_icon = context.tray_icon.clone();
+    let system_tray_icon = context.system_tray_icon.clone();
     let manager = WindowManager::with_handlers(
       context,
       self.plugins,
@@ -425,14 +441,17 @@ where
 
     (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e))?;
 
-    if !self.tray.is_empty() {
+    if !self.system_tray.is_empty() {
       app
         .runtime
-        .tray(
-          tray_icon.expect("tray icon not found; please configure it on tauri.conf.json"),
-          self.tray,
+        .system_tray(
+          system_tray_icon.expect("tray icon not found; please configure it on tauri.conf.json"),
+          self.system_tray,
         )
         .expect("failed to run tray");
+      for listener in self.system_tray_event_listeners {
+        app.runtime.on_system_tray_event(Box::new(listener));
+      }
     }
 
     app.runtime.run();

@@ -20,11 +20,23 @@ pub mod webview;
 pub mod window;
 
 use monitor::Monitor;
-use webview::TrayMenuItem;
+use webview::{MenuItemId, SystemTrayMenuItem};
 use window::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   MenuEvent, WindowEvent,
 };
+
+/// A system tray event.
+pub struct SystemTrayEvent {
+  menu_item_id: MenuItemId,
+}
+
+impl SystemTrayEvent {
+  /// Returns the id of the menu item that triggered the event.
+  pub fn menu_item_id(&self) -> MenuItemId {
+    self.menu_item_id
+  }
+}
 
 /// The webview runtime interface.
 pub trait Runtime: Sized + 'static {
@@ -42,11 +54,18 @@ pub trait Runtime: Sized + 'static {
 
   /// Adds the icon to the system tray with the specified menu items.
   #[cfg(target_os = "linux")]
-  fn tray(&self, icon: std::path::PathBuf, menu: Vec<TrayMenuItem>) -> crate::Result<()>;
+  fn system_tray(
+    &self,
+    icon: std::path::PathBuf,
+    menu: Vec<SystemTrayMenuItem>,
+  ) -> crate::Result<()>;
 
   /// Adds the icon to the system tray with the specified menu items.
   #[cfg(not(target_os = "linux"))]
-  fn tray(&self, icon: Vec<u8>, menu: Vec<TrayMenuItem>) -> crate::Result<()>;
+  fn system_tray(&self, icon: Vec<u8>, menu: Vec<TrayMenuItem>) -> crate::Result<()>;
+
+  /// Registers a system tray event handler.
+  fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: Box<F>) -> Uuid;
 
   /// Run the webview runtime.
   fn run(self);

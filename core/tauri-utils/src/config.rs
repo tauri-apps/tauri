@@ -173,11 +173,11 @@ pub struct SecurityConfig {
   pub csp: Option<String>,
 }
 
-/// Configuration for application tray icon.
+/// Configuration for application system tray icon.
 #[derive(PartialEq, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct TrayConfig {
-  /// Path to the icon to use on the tray.
+pub struct SystemTrayConfig {
+  /// Path to the icon to use on the system tray.
   /// Automatically set to be an `.png` on macOS and Linux, and `.ico` on Windows.
   pub icon_path: PathBuf,
 }
@@ -362,7 +362,7 @@ pub struct TauriConfig {
   #[serde(default)]
   pub security: SecurityConfig,
   /// System tray configuration.
-  pub tray: Option<TrayConfig>,
+  pub system_tray: Option<SystemTrayConfig>,
 }
 
 impl Default for TauriConfig {
@@ -373,7 +373,7 @@ impl Default for TauriConfig {
       bundle: BundleConfig::default(),
       updater: UpdaterConfig::default(),
       security: SecurityConfig::default(),
-      tray: None,
+      system_tray: None,
     }
   }
 }
@@ -789,11 +789,11 @@ mod build {
     }
   }
 
-  impl ToTokens for TrayConfig {
+  impl ToTokens for SystemTrayConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let icon_path = self.icon_path.to_string_lossy().to_string();
       let icon_path = quote! { ::std::path::PathBuf::from(#icon_path) };
-      literal_struct!(tokens, TrayConfig, icon_path);
+      literal_struct!(tokens, SystemTrayConfig, icon_path);
     }
   }
 
@@ -804,7 +804,7 @@ mod build {
       let bundle = &self.bundle;
       let updater = &self.updater;
       let security = &self.security;
-      let tray = opt_lit(self.tray.as_ref());
+      let system_tray = opt_lit(self.system_tray.as_ref());
 
       literal_struct!(
         tokens,
@@ -814,7 +814,7 @@ mod build {
         bundle,
         updater,
         security,
-        tray
+        system_tray
       );
     }
   }
@@ -910,7 +910,7 @@ mod test {
         endpoints: None,
       },
       security: SecurityConfig { csp: None },
-      tray: None,
+      system_tray: None,
     };
 
     // create a build config

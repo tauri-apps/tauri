@@ -5,10 +5,7 @@
 use proc_macro2::Ident;
 use syn::{Path, PathSegment};
 
-pub use self::{
-  handler::Handler,
-  wrapper::{Wrapper, WrapperBody},
-};
+pub use self::{handler::Handler, wrapper::Wrapper};
 
 mod handler;
 mod wrapper;

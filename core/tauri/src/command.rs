@@ -141,107 +141,102 @@ impl<'de, P: Params> Deserializer<'de> for CommandItem<'de, P> {
 /// [Autoref-based stable specialization](https://github.com/dtolnay/case-studies/blob/master/autoref-specialization/README.md)
 #[doc(hidden)]
 pub mod private {
-  use crate::InvokeError;
+  use crate::{InvokeError, InvokeResolver, Params};
   use futures::FutureExt;
   use serde::Serialize;
-  use std::future::{ready, Future};
+  use std::future::Future;
 
-  #[doc(hidden)]
-  pub struct CommandReturn<T, F>
-  where
-    T: Serialize,
-    F: Future<Output = Result<T, InvokeError>> + Send,
-  {
-    pub future: F,
-  }
+  // ===== Serialize =====
 
-  impl<T, F> From<F> for CommandReturn<T, F>
-  where
-    T: Serialize,
-    F: Future<Output = Result<T, InvokeError>> + Send,
-  {
+  pub struct BlockingTag;
+
+  pub trait BlockingKind {
     #[inline(always)]
-    fn from(future: F) -> Self {
-      Self { future }
+    fn blocking_kind(&self) -> BlockingTag {
+      BlockingTag
     }
   }
 
-  pub struct SerializeReturnTag;
-  pub trait SerializeReturnKind {
+  impl<T: Serialize> BlockingKind for &T {}
+
+  impl BlockingTag {
     #[inline(always)]
-    fn command_return_kind(&self) -> SerializeReturnTag {
-      SerializeReturnTag
-    }
-  }
-  impl<T: Serialize> SerializeReturnKind for &T {}
-  impl SerializeReturnTag {
-    #[inline(always)]
-    pub fn command_return<T: Serialize + Send>(
-      self,
-      value: T,
-    ) -> CommandReturn<T, impl Future<Output = Result<T, InvokeError>>> {
-      ready(Ok(value)).into()
+    pub fn respond<P, T>(self, value: T, resolver: InvokeResolver<P>)
+    where
+      P: Params,
+      T: Serialize,
+    {
+      resolver.respond(Ok(value))
     }
   }
 
-  pub struct ResultReturnTag;
-  pub trait ResultReturnKind {
+  // ===== Result<Serialize, Into<InvokeError>> =====
+
+  pub struct BlockingResultTag;
+
+  pub trait BlockingResultKind {
     #[inline(always)]
-    fn command_return_kind(&self) -> ResultReturnTag {
-      ResultReturnTag
-    }
-  }
-  impl<T: Serialize, E: Into<InvokeError>> ResultReturnKind for Result<T, E> {}
-  impl ResultReturnTag {
-    #[inline(always)]
-    pub fn command_return<T: Serialize + Send, E: Into<InvokeError>>(
-      self,
-      value: Result<T, E>,
-    ) -> CommandReturn<T, impl Future<Output = Result<T, InvokeError>>> {
-      ready(value.map_err(Into::into)).into()
+    fn blocking_kind(&self) -> BlockingResultTag {
+      BlockingResultTag
     }
   }
 
-  pub struct SerializeFutureReturnTag;
-  pub trait SerializeFutureReturnKind {
-    #[inline(always)]
-    fn command_return_kind(&self) -> SerializeFutureReturnTag {
-      SerializeFutureReturnTag
-    }
-  }
-  impl<T: Serialize, F: Future<Output = T>> SerializeFutureReturnKind for &F {}
-  impl SerializeFutureReturnTag {
-    #[inline(always)]
-    pub fn command_return<T: Serialize, F: Future<Output = T> + Send>(
-      self,
-      f: F,
-    ) -> CommandReturn<T, impl Future<Output = Result<T, InvokeError>>> {
-      f.map(Ok).into()
-    }
-  }
+  impl<T: Serialize, E: Into<InvokeError>> BlockingResultKind for Result<T, E> {}
 
-  pub struct ResultFutureReturnTag;
-  pub trait ResultFutureReturnKind {
+  impl BlockingResultTag {
     #[inline(always)]
-    fn command_return_kind(&self) -> ResultFutureReturnTag {
-      ResultFutureReturnTag
-    }
-  }
-  impl<T: Serialize, E: Into<InvokeError>, F: Future<Output = Result<T, E>>> ResultFutureReturnKind
-    for F
-  {
-  }
-  impl ResultFutureReturnTag {
-    #[inline(always)]
-    pub fn command_return<
+    pub fn respond<P, T, E>(self, value: Result<T, E>, resolver: InvokeResolver<P>)
+    where
+      P: Params,
       T: Serialize,
       E: Into<InvokeError>,
-      F: Future<Output = Result<T, E>> + Send,
-    >(
+    {
+      resolver.respond(value.map_err(Into::into))
+    }
+  }
+
+  // ===== Future<Serialize> =====
+
+  pub struct AsyncTag;
+
+  pub trait AsyncKind {
+    #[inline(always)]
+    fn async_kind(&self) -> AsyncTag {
+      AsyncTag
+    }
+  }
+  impl<T: Serialize, F: Future<Output = T>> AsyncKind for &F {}
+
+  impl AsyncTag {
+    #[inline(always)]
+    pub fn prepare<T: Serialize, F: Future<Output = T> + Send + 'static>(
       self,
       f: F,
-    ) -> CommandReturn<T, impl Future<Output = Result<T, InvokeError>>> {
-      f.map(move |value| value.map_err(Into::into)).into()
+    ) -> impl Future<Output = Result<T, InvokeError>> {
+      f.map(Ok)
+    }
+  }
+
+  // ===== Future<Result<Serialize, Into<InvokeError>>> =====
+
+  pub struct AsyncResultTag;
+
+  pub trait AsyncResultKind {
+    #[inline(always)]
+    fn async_kind(&self) -> AsyncResultTag {
+      AsyncResultTag
+    }
+  }
+
+  impl<T: Serialize, E: Into<InvokeError>, F: Future<Output = Result<T, E>>> AsyncResultKind for F {}
+
+  impl AsyncResultTag {
+    #[inline(always)]
+    pub fn prepare<T: Serialize, E: Into<InvokeError>, F: Future<Output = Result<T, E>> + Send>(
+      self,
+      f: F,
+    ) -> impl Future<Output = Result<T, InvokeError>> {
+      f.map(|value| value.map_err(Into::into))
     }
   }
 }

@@ -5,7 +5,7 @@
 extern crate proc_macro;
 use crate::context::ContextItems;
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, ItemFn};
+use syn::{parse_macro_input, AttributeArgs, ItemFn};
 
 mod command;
 
@@ -13,9 +13,13 @@ mod command;
 mod context;
 
 #[proc_macro_attribute]
-pub fn command(_attrs: TokenStream, item: TokenStream) -> TokenStream {
+pub fn command(attributes: TokenStream, item: TokenStream) -> TokenStream {
+  let attributes = parse_macro_input!(attributes as AttributeArgs);
   let function = parse_macro_input!(item as ItemFn);
-  command::Wrapper::new(function).into()
+  match command::Wrapper::new(function, attributes) {
+    Ok(wrapper) => wrapper.into(),
+    Err(error) => error.into_compile_error().into(),
+  }
 }
 
 #[proc_macro]

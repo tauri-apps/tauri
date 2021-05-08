@@ -5,7 +5,54 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 use std::convert::TryFrom;
-use syn::{spanned::Spanned, FnArg, Ident, ItemFn, Pat, Visibility};
+use syn::{
+  spanned::Spanned, AttributeArgs, FnArg, Ident, ItemFn, Meta, NestedMeta, Pat, Visibility,
+};
+
+enum Asyncness {
+  Blocking,
+  Async,
+}
+
+impl Default for Asyncness {
+  fn default() -> Self {
+    Self::Blocking
+  }
+}
+
+#[derive(Default)]
+pub struct Attributes {
+  asyncness: Asyncness,
+}
+
+impl TryFrom<AttributeArgs> for Attributes {
+  type Error = syn::Error;
+
+  fn try_from(attributes: AttributeArgs) -> Result<Self, Self::Error> {
+    if attributes.is_empty() {
+      return Ok(Self::default());
+    }
+
+    if attributes.len() == 1 {
+      if let NestedMeta::Meta(Meta::Path(path)) = &attributes[0] {
+        if path.segments.len() == 1 {
+          if let Some(segment) = path.segments.first() {
+            if segment.ident == "future" {
+              return Ok(Self {
+                asyncness: Asyncness::Async,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    Err(syn::Error::new(
+      attributes[0].span(),
+      "only a single item `async` is currently allowed",
+    ))
+  }
+}
 
 /// The command wrapper created for a function marked with `#[command]`.
 pub struct Wrapper {
@@ -13,29 +60,39 @@ pub struct Wrapper {
   visibility: Visibility,
   maybe_export: TokenStream,
   wrapper: Ident,
-  body: syn::Result<WrapperBody>,
+  body: syn::Result<TokenStream>,
 }
 
 impl Wrapper {
   /// Create a new [`Wrapper`] from the function and the generated code parsed from the function.
-  pub fn new(function: ItemFn) -> Self {
+  pub fn new(function: ItemFn, attributes: AttributeArgs) -> syn::Result<Self> {
     // macros used with `pub use my_macro;` need to be exported with `#[macro_export]`
     let maybe_export = match &function.vis {
       Visibility::Public(_) => quote!(#[macro_export]),
       _ => Default::default(),
     };
 
+    let mut attributes = Attributes::try_from(attributes)?;
+
+    // force the wrapper to be async if the function is async
+    if function.sig.asyncness.is_some() {
+      attributes.asyncness = Asyncness::Async
+    }
+
     let visibility = function.vis.clone();
     let wrapper = super::format_command_wrapper(&function.sig.ident);
-    let body = WrapperBody::try_from(&function);
+    let body = match attributes.asyncness {
+      Asyncness::Blocking => BlockingBody::try_from(&function).map(|b| b.0),
+      Asyncness::Async => AsyncBody::try_from(&function).map(|b| b.0),
+    };
 
-    Self {
+    Ok(Self {
       function,
       visibility,
       maybe_export,
       wrapper,
       body,
-    }
+    })
   }
 }
 
@@ -50,9 +107,7 @@ impl From<Wrapper> for proc_macro::TokenStream {
     }: Wrapper,
   ) -> Self {
     // either use the successful body or a `compile_error!` of the error occurred while parsing it.
-    let body = body
-      .map(|b| b.0)
-      .unwrap_or_else(syn::Error::into_compile_error);
+    let body = body.unwrap_or_else(syn::Error::into_compile_error);
 
     // we `use` the macro so that other modules can resolve the with the same path as the function.
     // this is dependent on rust 2018 edition.
@@ -66,16 +121,9 @@ impl From<Wrapper> for proc_macro::TokenStream {
   }
 }
 
-/// Body of the wrapper that maps the command parameters into callable arguments from [`Invoke`].
-///
-/// This is possible because we require the command parameters to be [`CommandArg`] and use type
-/// inference to put values generated from that trait into the arguments of the called command.
-///
-/// [`CommandArg`]: https://docs.rs/tauri/*/tauri/command/trait.CommandArg.html
-/// [`Invoke`]: https://docs.rs/tauri/*/tauri/struct.Invoke.html
-pub struct WrapperBody(TokenStream);
+struct AsyncBody(TokenStream);
 
-impl TryFrom<&ItemFn> for WrapperBody {
+impl TryFrom<&ItemFn> for AsyncBody {
   type Error = syn::Error;
 
   fn try_from(function: &ItemFn) -> syn::Result<Self> {
@@ -96,8 +144,49 @@ impl TryFrom<&ItemFn> for WrapperBody {
 
       resolver.respond_async(async move {
         let result = $path(#(#args?),*);
-        (&result).command_return_kind().command_return(result).future.await
+        (&result).async_kind().prepare(result).await
       });
+    )))
+  }
+}
+
+/// Body of the wrapper that maps the command parameters into callable arguments from [`Invoke`].
+///
+/// This is possible because we require the command parameters to be [`CommandArg`] and use type
+/// inference to put values generated from that trait into the arguments of the called command.
+///
+/// [`CommandArg`]: https://docs.rs/tauri/*/tauri/command/trait.CommandArg.html
+/// [`Invoke`]: https://docs.rs/tauri/*/tauri/struct.Invoke.html
+pub struct BlockingBody(TokenStream);
+
+impl TryFrom<&ItemFn> for BlockingBody {
+  type Error = syn::Error;
+
+  fn try_from(function: &ItemFn) -> syn::Result<Self> {
+    // the name of the #[command] function is the name of the command to handle
+    let command = function.sig.ident.clone();
+
+    let mut args = Vec::new();
+    for param in &function.sig.inputs {
+      args.push(parse_arg(&command, param)?);
+    }
+
+    // the body of a match to early return any argument that wasn't successful in parsing.
+    let early_return_error_body = quote!({
+      Ok(arg) => arg,
+      Err(err) => return resolver.invoke_error(err),
+    });
+
+    // we #[allow(unused_variables)] because a command with no arguments will not use message.
+    Ok(Self(quote!(
+      use ::tauri::command::private::*;
+
+      #[allow(unused_variables)]
+      let ::tauri::Invoke { message, resolver } = $invoke;
+      let message = ::std::sync::Arc::new(message);
+      let result = $path(#(match #args #early_return_error_body),*);
+
+      (&result).blocking_kind().respond(result, resolver);
     )))
   }
 }

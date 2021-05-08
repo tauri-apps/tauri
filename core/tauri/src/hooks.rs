@@ -135,6 +135,11 @@ impl<P: Params> InvokeResolver<P> {
     Self::return_closure(self.window, f, self.callback, self.error)
   }
 
+  /// Reply to the invoke promise running the given closure.
+  pub fn respond<T: Serialize>(self, value: Result<T, InvokeError>) {
+    Self::return_result(self.window, value, self.callback, self.error);
+  }
+
   /// Resolve the invoke promise with a value.
   pub fn resolve<S: Serialize>(self, value: S) {
     Self::return_result(self.window, Ok(value), self.callback, self.error)
@@ -148,6 +153,11 @@ impl<P: Params> InvokeResolver<P> {
       self.callback,
       self.error,
     )
+  }
+
+  /// Reject the invoke promise with an [`InvokeError`].
+  pub fn invoke_error(self, value: InvokeError) {
+    Self::return_result(self.window, Result::<(), _>::Err(value), self.callback, self.error)
   }
 
   /// Asynchronously executes the given task

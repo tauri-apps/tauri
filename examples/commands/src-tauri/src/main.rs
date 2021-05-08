@@ -32,19 +32,22 @@ async fn async_simple_command(argument: String) {
   println!("{}", argument);
 }
 
+/// todo: even with #[allow(unused)], the macro generates an unused warning
+#[allow(unused)]
 #[command]
-async fn async_stateful_command(argument: Option<String>, state: State<'_, MyState>) {
+async fn async_stateful_command(argument: Option<String>, state: State<'_, MyState>) -> Result<(),()> {
   println!("{:?} {:?}", argument, state.inner());
+  Ok(())
 }
 
 // Raw future commands
-#[command]
+#[command(future)]
 fn future_simple_command(argument: String) -> impl std::future::Future<Output = ()> {
   println!("{}", argument);
   std::future::ready(())
 }
 
-#[command]
+#[command(future)]
 fn future_simple_command_with_return(
   argument: String,
 ) -> impl std::future::Future<Output = String> {
@@ -52,7 +55,7 @@ fn future_simple_command_with_return(
   std::future::ready(argument)
 }
 
-#[command]
+#[command(future)]
 fn future_simple_command_with_result(
   argument: String,
 ) -> impl std::future::Future<Output = Result<String, ()>> {
@@ -126,6 +129,11 @@ fn command_arguments_tuple_struct(InlinePerson(name, age): InlinePerson) {
   println!("received person tuple with name: {} | age: {}", name, age)
 }
 
+#[command]
+fn borrow_cmd(argument: &str) -> &str {
+  argument
+}
+
 fn main() {
   tauri::Builder::default()
     .manage(MyState {
@@ -133,12 +141,14 @@ fn main() {
       label: "Tauri!".into(),
     })
     .invoke_handler(tauri::generate_handler![
+      borrow_cmd,
       window_label,
       commands::simple_command,
       commands::stateful_command,
       async_simple_command,
       future_simple_command,
-      async_stateful_command,
+      // Because `async` appends '_ onto the generated future, the state thinks it needs live for 'static
+      //async_stateful_command,
       command_arguments_wild,
       command_arguments_struct,
       simple_command_with_result,

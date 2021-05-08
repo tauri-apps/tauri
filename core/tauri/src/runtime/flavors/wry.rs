@@ -206,7 +206,7 @@ impl From<CustomMenuItem> for WryCustomMenu {
     Self {
       id: WryMenuId(item.id.0),
       name: item.name,
-      keyboard_accelerators: item.keyboard_accelerators,
+      keyboard_accelerators: None,
     }
   }
 }

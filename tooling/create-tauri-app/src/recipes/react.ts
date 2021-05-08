@@ -28,9 +28,12 @@ const afterCra = async (
   }
 }
 
-const reactjs: Recipe = {
-  descriptiveName: 'React.js',
-  shortName: 'reactjs',
+export const cra: Recipe = {
+  descriptiveName: {
+    name: 'create-react-app (https://create-react-app.dev/)',
+    value: 'create-react-app'
+  },
+  shortName: 'cra',
   configUpdate: ({ cfg, packageManager }) => ({
     ...cfg,
     distDir: `../build`,
@@ -42,39 +45,37 @@ const reactjs: Recipe = {
   }),
   extraNpmDevDependencies: [],
   extraNpmDependencies: [],
-  preInit: async ({ cwd, cfg, packageManager }) => {
-    // CRA creates the folder for you
-    if (packageManager === 'yarn') {
-      await shell('yarn', ['create', 'react-app', `${cfg.appName}`], {
-        cwd
-      })
-    } else {
-      await shell('npx', ['create-react-app', `${cfg.appName}`, '--use-npm'], {
-        cwd
-      })
-    }
-    await afterCra(cwd, cfg.appName)
+  extraQuestions: ({ ci }) => {
+    return [
+      {
+        type: 'list',
+        name: 'template',
+        message: 'Which vite template would you like to use?',
+        choices: [
+          { name: 'create-react-app (JavaScript)', value: 'cra.js' },
+          { name: 'create-react-app (Typescript)', value: 'cra.ts' }
+        ],
+        default: 'cra.js',
+        loop: false,
+        when: !ci
+      }
+    ]
   },
-  postInit: async ({ packageManager }) => {
-    console.log(`
-    Your installation completed.
-    To start, run ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri dev
-  `)
-    return await Promise.resolve()
-  }
-}
-
-const reactts: Recipe = {
-  ...reactjs,
-  descriptiveName: 'React with Typescript',
-  shortName: 'reactts',
-  extraNpmDependencies: [],
-  preInit: async ({ cwd, cfg, packageManager }) => {
+  preInit: async ({ cwd, cfg, packageManager, answers }) => {
+    let template = 'cra.js'
+    if (answers) {
+      template = answers.template ? (answers.template as string) : 'vue'
+    }
     // CRA creates the folder for you
     if (packageManager === 'yarn') {
       await shell(
         'yarn',
-        ['create', 'react-app', '--template', 'typescript', `${cfg.appName}`],
+        [
+          'create',
+          'react-app',
+          ...(template === 'cra.ts' ? ['--template', 'typescript'] : []),
+          `${cfg.appName}`
+        ],
         {
           cwd
         }
@@ -84,17 +85,16 @@ const reactts: Recipe = {
         'npx',
         [
           'create-react-app',
+          ...(template === 'cra.ts' ? ['--template', 'typescript'] : []),
           `${cfg.appName}`,
-          '--use-npm',
-          '--template',
-          'typescript'
+          '--use-npm'
         ],
         {
           cwd
         }
       )
     }
-    await afterCra(cwd, cfg.appName, true)
+    await afterCra(cwd, cfg.appName, template === 'cra.ts')
   },
   postInit: async ({ packageManager }) => {
     console.log(`
@@ -104,5 +104,3 @@ const reactts: Recipe = {
     return await Promise.resolve()
   }
 }
-
-export { reactjs, reactts }

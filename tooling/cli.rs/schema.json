@@ -959,6 +959,17 @@
             }
           ]
         },
+        "tray": {
+          "description": "Configuration for app tray icon.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/TrayConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "updater": {
           "description": "The updater configuration.",
           "default": {
@@ -978,6 +989,19 @@
           "items": {
             "$ref": "#/definitions/WindowConfig"
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    "TrayConfig": {
+      "type": "object",
+      "required": [
+        "iconPath"
+      ],
+      "properties": {
+        "iconPath": {
+          "description": "Path to the icon to use on the system tray.\n\nIt is forced to be a `.png` file on Linux and macOS, and a `.ico` file on Windows.",
+          "type": "string"
         }
       },
       "additionalProperties": false

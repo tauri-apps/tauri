@@ -190,7 +190,7 @@ pub(crate) struct InvokePayload {
   pub(crate) inner: JsonValue,
 }
 
-/// A window or system tray menu.
+/// A window menu.
 #[derive(Debug, Clone)]
 pub struct Menu {
   pub(crate) title: String,
@@ -198,7 +198,7 @@ pub struct Menu {
 }
 
 impl Menu {
-  /// Creates a new menu with the given title and items.
+  /// Creates a new window menu with the given title and items.
   pub fn new<T: Into<String>>(title: T, items: Vec<MenuItem>) -> Self {
     Self {
       title: title.into(),
@@ -261,13 +261,23 @@ impl CustomMenuItem {
   }
 }
 
+/// Tray menu item.
+#[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
+pub enum TrayMenuItem {
+  /// A custom menu item.
+  Custom(CustomMenuItem),
+  /// A separator.
+  Separator,
+}
+
 /// A menu item, bound to a pre-defined action or `Custom` emit an event. Note that status bar only
 /// supports `Custom` menu item variants. And on the menu bar, some platforms might not support some
 /// of the variants. Unsupported variant will be no-op on such platform.
 #[derive(Debug, Clone, Copy)]
 #[non_exhaustive]
 pub enum MenuItem {
-  /// A custom menu item emits an event inside the EventLoop.
+  /// A custom menu item..
   Custom(CustomMenuItem),
 
   /// Shows a standard "About" item

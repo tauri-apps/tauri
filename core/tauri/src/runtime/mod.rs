@@ -20,6 +20,7 @@ pub mod webview;
 pub mod window;
 
 use monitor::Monitor;
+use webview::TrayMenuItem;
 use window::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   MenuEvent, WindowEvent,
@@ -38,6 +39,14 @@ pub trait Runtime: Sized + 'static {
     &mut self,
     pending: PendingWindow<P>,
   ) -> crate::Result<DetachedWindow<P>>;
+
+  /// Adds the icon to the system tray with the specified menu items.
+  #[cfg(target_os = "linux")]
+  fn tray(&self, icon: std::path::PathBuf, menu: Vec<TrayMenuItem>) -> crate::Result<()>;
+
+  /// Adds the icon to the system tray with the specified menu items.
+  #[cfg(not(target_os = "linux"))]
+  fn tray(&self, icon: Vec<u8>, menu: Vec<TrayMenuItem>) -> crate::Result<()>;
 
   /// Run the webview runtime.
   fn run(self);

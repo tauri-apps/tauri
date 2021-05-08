@@ -66,6 +66,9 @@ pub enum Error {
   /// `default_path` provided to dialog API doesn't exist.
   #[error("failed to setup dialog: provided default path `{0}` doesn't exist")]
   DialogDefaultPathNotExists(PathBuf),
+  /// Encountered an error creating the app tray,
+  #[error("error encountered during tray setup: {0}")]
+  Tray(Box<dyn std::error::Error + Send>),
 }
 
 impl From<serde_json::Error> for Error {

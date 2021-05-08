@@ -10,7 +10,7 @@ use crate::{
     flavors::wry::Wry,
     manager::{Args, WindowManager},
     tag::Tag,
-    webview::{CustomProtocol, Menu, MenuItemId, WebviewAttributes, WindowBuilder},
+    webview::{CustomProtocol, Menu, MenuItemId, TrayMenuItem, WebviewAttributes, WindowBuilder},
     window::PendingWindow,
     Dispatch, Runtime,
   },
@@ -155,6 +155,9 @@ where
 
   /// Menu event handlers that listens to all windows.
   menu_event_listeners: Vec<GlobalMenuEventListener<Args<E, L, A, R>>>,
+
+  /// The app tray menu items.
+  tray: Vec<TrayMenuItem>,
 }
 
 impl<E, L, A, R> Builder<E, L, A, R>
@@ -176,6 +179,7 @@ where
       state: StateManager::new(),
       menu: Vec::new(),
       menu_event_listeners: Vec::new(),
+      tray: Vec::new(),
     }
   }
 
@@ -289,6 +293,12 @@ where
     self
   }
 
+  /// Adds the icon configured on `tauri.conf.json` to the system tray with the specified menu items.
+  pub fn tray(mut self, menu: Vec<TrayMenuItem>) -> Self {
+    self.tray = menu;
+    self
+  }
+
   /// Sets the menu to use on all windows.
   pub fn menu(mut self, menu: Vec<Menu>) -> Self {
     self.menu = menu;
@@ -332,6 +342,7 @@ where
 
   /// Runs the configured Tauri application.
   pub fn run(mut self, context: Context<A>) -> crate::Result<()> {
+    let tray_icon = context.tray_icon.clone();
     let manager = WindowManager::with_handlers(
       context,
       self.plugins,
@@ -388,6 +399,16 @@ where
     app.run_updater(main_window);
 
     (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e))?;
+
+    if !self.tray.is_empty() {
+      app
+        .runtime
+        .tray(
+          tray_icon.expect("tray icon not found; please configure it on tauri.conf.json"),
+          self.tray,
+        )
+        .expect("failed to run tray");
+    }
 
     app.runtime.run();
     Ok(())

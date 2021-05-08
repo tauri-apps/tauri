@@ -63,7 +63,7 @@ pub use {
   self::runtime::flavors::wry::Wry,
   self::runtime::monitor::Monitor,
   self::runtime::webview::{
-    CustomMenuItem, Menu, MenuItem, MenuItemId, WebviewAttributes, WindowBuilder,
+    CustomMenuItem, Menu, MenuItem, MenuItemId, TrayMenuItem, WebviewAttributes, WindowBuilder,
   },
   self::runtime::window::{
     export::{
@@ -73,6 +73,7 @@ pub use {
     WindowEvent,
   },
   self::state::{State, StateManager},
+  tauri_utils::platform,
 };
 
 /// Reads the config file at compile time and generates a [`Context`] based on its content.
@@ -129,6 +130,14 @@ pub struct Context<A: Assets> {
 
   /// The default window icon Tauri should use when creating windows.
   pub default_window_icon: Option<Vec<u8>>,
+
+  /// The icon to use use on the system tray UI.
+  #[cfg(target_os = "linux")]
+  pub tray_icon: Option<PathBuf>,
+
+  /// The icon to use use on the system tray UI.
+  #[cfg(not(target_os = "linux"))]
+  pub tray_icon: Option<Vec<u8>>,
 
   /// Package information.
   pub package_info: crate::api::PackageInfo,

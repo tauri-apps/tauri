@@ -11,6 +11,7 @@ mod cmd;
 mod menu;
 
 use serde::Serialize;
+use tauri::{CustomMenuItem, TrayMenuItem};
 
 #[derive(Serialize)]
 struct Reply {
@@ -36,6 +37,7 @@ fn main() {
     .on_menu_event(|event| {
       println!("{:?}", event.menu_item_id());
     })
+    .tray(vec![TrayMenuItem::Custom(CustomMenuItem::new("Tauri"))])
     .invoke_handler(tauri::generate_handler![
       cmd::log_operation,
       cmd::perform_request

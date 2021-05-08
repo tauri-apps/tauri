@@ -9,7 +9,7 @@ use crate::{
   runtime::{
     webview::{
       CustomMenuItem, FileDropEvent, FileDropHandler, Menu, MenuItem, MenuItemId, RpcRequest,
-      WebviewRpcHandler, WindowBuilder, WindowBuilderBase,
+      TrayMenuItem, WebviewRpcHandler, WindowBuilder, WindowBuilderBase,
     },
     window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
@@ -36,6 +36,7 @@ use wry::{
       MenuType,
     },
     monitor::MonitorHandle,
+    status_bar::StatusbarBuilder,
     window::{Fullscreen, Icon as WindowIcon, Window, WindowBuilder as WryWindowBuilder, WindowId},
   },
   webview::{
@@ -241,6 +242,15 @@ impl From<Menu> for WryMenu {
     Self {
       title: menu.title,
       items: menu.items.into_iter().map(Into::into).collect(),
+    }
+  }
+}
+
+impl From<TrayMenuItem> for WryMenuItem {
+  fn from(item: TrayMenuItem) -> Self {
+    match item {
+      TrayMenuItem::Custom(custom) => Self::Custom(custom.into()),
+      TrayMenuItem::Separator => Self::Separator,
     }
   }
 }
@@ -815,6 +825,22 @@ impl Runtime for Wry {
     self.webviews.insert(webview.window().id(), webview);
 
     Ok(DetachedWindow { label, dispatcher })
+  }
+
+  #[cfg(target_os = "linux")]
+  fn tray(&self, icon: std::path::PathBuf, menu: Vec<TrayMenuItem>) -> crate::Result<()> {
+    StatusbarBuilder::new(icon, menu.into_iter().map(Into::into).collect())
+      .build(&self.event_loop)
+      .map_err(|e| crate::Error::Tray(Box::new(e)))?;
+    Ok(())
+  }
+
+  #[cfg(not(target_os = "linux"))]
+  fn tray(&self, icon: Vec<u8>, menu: Vec<TrayMenuItem>) -> crate::Result<()> {
+    StatusbarBuilder::new(icon, menu.into_iter().map(Into::into).collect())
+      .build(&self.event_loop)
+      .map_err(|e| crate::Error::Tray(Box::new(e)))?;
+    Ok(())
   }
 
   fn run(self) {

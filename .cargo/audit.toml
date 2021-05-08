@@ -1,0 +1,4 @@
+[advisories]
+ignore = [
+  "RUSTSEC-2020-0095" # difference is unmaintained (used by `mockito`)
+]

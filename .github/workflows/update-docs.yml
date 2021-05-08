@@ -51,6 +51,20 @@ jobs:
           sidebarFile: sidebars.json
           targetPath: en/api/js
           docusaurusPath: ./tauri-docs/
+      - name: copy docs
+        working-directory: ./tauri
+        run: cp -r docs ../tauri-docs/docs/en
+      - name: meilisearch indexation
+        uses: tauri-apps/docusaurus-meilisearch-indexer@v1
+        with:
+          - version: ${{ github.event.release.tag_name }}
+          - docusaurusPath: ./tauri-docs
+          - host: https://search.tauri.studio
+          - apiKey: ${{ secrets.MEILISEARCH_APIKEY }}
+          - docs: "Getting started,Usage,API"
+      - name: set docs version
+        working-directory: ./tauri-docs
+        run: echo ${{ github.event.release.tag_name }} > version.txt
       - name: git config
         run: |
           git config --global user.name "${{ github.event.inputs.gitName }}"

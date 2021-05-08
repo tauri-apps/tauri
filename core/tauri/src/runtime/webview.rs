@@ -227,32 +227,20 @@ fn hash_string_to_u32(title: String) -> u32 {
 }
 
 /// A custom menu item.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct CustomMenuItem {
   pub(crate) id: MenuItemId,
-  pub(crate) name: &'static str,
-  pub(crate) keyboard_accelerators: Option<&'static str>,
+  pub(crate) name: String,
 }
 
 impl CustomMenuItem {
   /// Create new custom menu item.
-  pub fn new(title: &'static str) -> Self {
+  pub fn new<T: Into<String>>(title: T) -> Self {
+    let title = title.into();
     Self {
-      id: MenuItemId::new(title),
+      id: MenuItemId::new(&title),
       name: title,
-      keyboard_accelerators: None,
     }
-  }
-
-  /// Assign keyboard shortcut to the menu action.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  ///
-  pub fn with_accelerators(mut self, keyboard_accelerators: &'static str) -> Self {
-    self.keyboard_accelerators = Some(keyboard_accelerators);
-    self
   }
 
   /// Return unique menu ID. Works only with `MenuItem::Custom`.
@@ -262,7 +250,7 @@ impl CustomMenuItem {
 }
 
 /// Tray menu item.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum TrayMenuItem {
   /// A custom menu item.
@@ -274,7 +262,7 @@ pub enum TrayMenuItem {
 /// A menu item, bound to a pre-defined action or `Custom` emit an event. Note that status bar only
 /// supports `Custom` menu item variants. And on the menu bar, some platforms might not support some
 /// of the variants. Unsupported variant will be no-op on such platform.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum MenuItem {
   /// A custom menu item..
@@ -286,7 +274,7 @@ pub enum MenuItem {
   ///
   /// - **Windows / Android / iOS:** Unsupported
   ///
-  About(&'static str),
+  About(String),
 
   /// A standard "hide the app" menu item.
   ///

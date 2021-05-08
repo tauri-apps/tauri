@@ -5,7 +5,7 @@
 //! A layer between raw [`Runtime`] webview windows and Tauri.
 
 use crate::{
-  api::config::WindowConfig,
+  api::config::{WindowConfig, WindowUrl},
   event::{Event, EventHandler},
   hooks::{InvokeMessage, InvokeResolver, PageLoadPayload},
   runtime::{
@@ -230,6 +230,34 @@ pub(crate) mod export {
     /// Create a new window that is attached to the manager.
     pub(crate) fn new(manager: WindowManager<P>, window: DetachedWindow<P>) -> Self {
       Self { window, manager }
+    }
+
+    /// Creates a new webview window.
+    pub fn create_window<F>(
+      &mut self,
+      label: P::Label,
+      url: WindowUrl,
+      setup: F,
+    ) -> crate::Result<()>
+    where
+      F: FnOnce(
+        <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
+        WebviewAttributes,
+      ) -> (
+        <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
+        WebviewAttributes,
+      ),
+    {
+      let (window_attributes, webview_attributes) = setup(
+        <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder::new(),
+        WebviewAttributes::new(url),
+      );
+      self.create_new_window(PendingWindow::new(
+        window_attributes,
+        webview_attributes,
+        label,
+      ))?;
+      Ok(())
     }
 
     /// The current window's dispatcher.

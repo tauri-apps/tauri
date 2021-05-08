@@ -62,6 +62,31 @@ impl<P: Params> ManagerBase<P> for App<P> {
   }
 }
 
+impl<P: Params> App<P> {
+  /// Creates a new webview window.
+  pub fn create_window<F>(&mut self, label: P::Label, url: WindowUrl, setup: F) -> crate::Result<()>
+  where
+    F: FnOnce(
+      <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
+      WebviewAttributes,
+    ) -> (
+      <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
+      WebviewAttributes,
+    ),
+  {
+    let (window_attributes, webview_attributes) = setup(
+      <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder::new(),
+      WebviewAttributes::new(url),
+    );
+    self.create_new_window(PendingWindow::new(
+      window_attributes,
+      webview_attributes,
+      label,
+    ))?;
+    Ok(())
+  }
+}
+
 #[cfg(feature = "updater")]
 impl<M: Params> App<M> {
   /// Runs the updater hook with built-in dialog.
@@ -270,7 +295,7 @@ where
     self
   }
 
-  /// Creates a new webview.
+  /// Creates a new webview window.
   pub fn create_window<F>(mut self, label: L, url: WindowUrl, setup: F) -> Self
   where
     F: FnOnce(

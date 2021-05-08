@@ -1,10 +1,6 @@
 # Build output
 /dist
 
-# lock for libs
-/Cargo.lock
-/yarn.lock
-
 # Logs
 logs
 *.log

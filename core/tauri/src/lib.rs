@@ -43,7 +43,7 @@ use crate::{
   runtime::{
     tag::{Tag, TagRef},
     window::PendingWindow,
-    Dispatch, Runtime,
+    Runtime,
   },
 };
 use serde::Serialize;
@@ -195,19 +195,6 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
       .emit_filter(event, payload, |w| label == w.label())
   }
 
-  /// Creates a new [`Window`] on the [`Runtime`] and attaches it to the [`Manager`].
-  fn create_window(&mut self, pending: PendingWindow<P>) -> Result<Window<P>> {
-    use sealed::RuntimeOrDispatch::*;
-
-    let labels = self.manager().labels().into_iter().collect::<Vec<_>>();
-    let pending = self.manager().prepare_window(pending, &labels)?;
-    match self.runtime() {
-      Runtime(runtime) => runtime.create_window(pending),
-      Dispatch(mut dispatcher) => dispatcher.create_window(pending),
-    }
-    .map(|window| self.manager().attach_window(window))
-  }
-
   /// Listen to a global event.
   fn listen_global<E: Into<P::Event>, F>(&self, event: E, handler: F) -> EventHandler
   where
@@ -294,6 +281,21 @@ pub(crate) mod sealed {
 
     /// The runtime or runtime dispatcher of the [`Managed`] item.
     fn runtime(&mut self) -> RuntimeOrDispatch<'_, P>;
+
+    /// Creates a new [`Window`] on the [`Runtime`] and attaches it to the [`Manager`].
+    fn create_new_window(
+      &mut self,
+      pending: crate::PendingWindow<P>,
+    ) -> crate::Result<crate::Window<P>> {
+      use crate::runtime::Dispatch;
+      let labels = self.manager().labels().into_iter().collect::<Vec<_>>();
+      let pending = self.manager().prepare_window(pending, &labels)?;
+      match self.runtime() {
+        RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
+        RuntimeOrDispatch::Dispatch(mut dispatcher) => dispatcher.create_window(pending),
+      }
+      .map(|window| self.manager().attach_window(window))
+    }
   }
 }
 

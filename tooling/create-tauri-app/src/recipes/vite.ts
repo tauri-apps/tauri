@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { join } from 'path'
-// @ts-expect-error
-import scaffe from 'scaffe'
+/// import { join } from 'path'
+/// import scaffe from 'scaffe'
 import { shell } from '../shell'
 import { Recipe } from '../types/recipe'
 
@@ -15,9 +14,7 @@ const afterViteCA = async (
 ): Promise<void> => {
   // template dir temp removed, will eventually add it back for APIs
   // leaving this here until then
-
   // const templateDir = join(__dirname, `../src/templates/vite/${template}`)
-
   // try {
   //   await scaffe.generate(templateDir, join(cwd, appName), {
   //     overwrite: true

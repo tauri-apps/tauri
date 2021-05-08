@@ -36,7 +36,7 @@ use wry::{
       MenuType,
     },
     monitor::MonitorHandle,
-    status_bar::StatusbarBuilder,
+    platform::system_tray::SystemTrayBuilder,
     window::{Fullscreen, Icon as WindowIcon, Window, WindowBuilder as WryWindowBuilder, WindowId},
   },
   webview::{
@@ -207,7 +207,7 @@ impl From<CustomMenuItem> for WryCustomMenu {
     Self {
       id: WryMenuId(item.id.0),
       name: item.name,
-      keyboard_accelerators: item.keyboard_accelerators,
+      keyboard_accelerators: None,
     }
   }
 }
@@ -829,7 +829,7 @@ impl Runtime for Wry {
 
   #[cfg(target_os = "linux")]
   fn tray(&self, icon: std::path::PathBuf, menu: Vec<TrayMenuItem>) -> crate::Result<()> {
-    StatusbarBuilder::new(icon, menu.into_iter().map(Into::into).collect())
+    SystemTrayBuilder::new(icon, menu.into_iter().map(Into::into).collect())
       .build(&self.event_loop)
       .map_err(|e| crate::Error::Tray(Box::new(e)))?;
     Ok(())
@@ -837,7 +837,7 @@ impl Runtime for Wry {
 
   #[cfg(not(target_os = "linux"))]
   fn tray(&self, icon: Vec<u8>, menu: Vec<TrayMenuItem>) -> crate::Result<()> {
-    StatusbarBuilder::new(icon, menu.into_iter().map(Into::into).collect())
+    SystemTrayBuilder::new(icon, menu.into_iter().map(Into::into).collect())
       .build(&self.event_loop)
       .map_err(|e| crate::Error::Tray(Box::new(e)))?;
     Ok(())

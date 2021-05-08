@@ -13,12 +13,13 @@ use crate::{
   hooks::{InvokeHandler, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
   runtime::{
+    app::{GlobalMenuEventListener, WindowMenuEvent},
     tag::{tags_to_javascript_array, Tag, TagRef, ToJsString},
     webview::{
-      CustomProtocol, FileDropEvent, FileDropHandler, InvokePayload, WebviewRpcHandler,
+      CustomProtocol, FileDropEvent, FileDropHandler, InvokePayload, Menu, WebviewRpcHandler,
       WindowBuilder,
     },
-    window::{dpi::PhysicalSize, DetachedWindow, PendingWindow, WindowEvent},
+    window::{dpi::PhysicalSize, DetachedWindow, MenuEvent, PendingWindow, WindowEvent},
     Icon, Runtime,
   },
   sealed::ParamsBase,
@@ -43,6 +44,7 @@ const WINDOW_DESTROYED_EVENT: &str = "tauri://destroyed";
 const WINDOW_FOCUS_EVENT: &str = "tauri://focus";
 const WINDOW_BLUR_EVENT: &str = "tauri://blur";
 const WINDOW_SCALE_FACTOR_CHANGED_EVENT: &str = "tauri://scale-change";
+const MENU_EVENT: &str = "tauri://menu";
 
 /// Parse a string representing an internal tauri event into [`Params::Event`]
 ///
@@ -79,6 +81,10 @@ pub struct InnerWindowManager<P: Params> {
   package_info: PackageInfo,
   /// The webview protocols protocols available to all windows.
   uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
+  /// The menu set to all windows.
+  menu: Vec<Menu>,
+  /// Menu event listeners to all windows.
+  menu_event_listeners: Arc<Vec<GlobalMenuEventListener<P>>>,
 }
 
 /// A [Zero Sized Type] marker representing a full [`Params`].
@@ -125,6 +131,7 @@ impl<P: Params> Clone for WindowManager<P> {
 }
 
 impl<P: Params> WindowManager<P> {
+  #[allow(clippy::too_many_arguments)]
   pub(crate) fn with_handlers(
     context: Context<P::Assets>,
     plugins: PluginStore<P>,
@@ -132,6 +139,8 @@ impl<P: Params> WindowManager<P> {
     on_page_load: Box<OnPageLoad<P>>,
     uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
     state: StateManager,
+    menu: Vec<Menu>,
+    menu_event_listeners: Vec<GlobalMenuEventListener<P>>,
   ) -> Self {
     Self {
       inner: Arc::new(InnerWindowManager {
@@ -147,6 +156,8 @@ impl<P: Params> WindowManager<P> {
         salts: Mutex::default(),
         package_info: context.package_info,
         uri_scheme_protocols,
+        menu,
+        menu_event_listeners: Arc::new(menu_event_listeners),
       }),
       _marker: Args::default(),
     }
@@ -207,6 +218,10 @@ impl<P: Params> WindowManager<P> {
         let icon = Icon::Raw(default_window_icon.clone());
         pending.window_attributes = pending.window_attributes.icon(icon)?;
       }
+    }
+
+    if !pending.window_attributes.has_menu() {
+      pending.window_attributes = pending.window_attributes.menu(self.inner.menu.clone());
     }
 
     for (uri_scheme, protocol) in &self.inner.uri_scheme_protocols {
@@ -414,6 +429,8 @@ mod test {
       Box::new(|_, _| ()),
       Default::default(),
       StateManager::new(),
+      Vec::new(),
+      Default::default(),
     );
 
     #[cfg(custom_protocol)]
@@ -497,6 +514,17 @@ impl<P: Params> WindowManager<P> {
     let window_ = window.clone();
     window.on_window_event(move |event| {
       let _ = on_window_event(&window_, event);
+    });
+    let window_ = window.clone();
+    let menu_event_listeners = self.inner.menu_event_listeners.clone();
+    window.on_menu_event(move |event| {
+      let _ = on_menu_event(&window_, event);
+      for handler in menu_event_listeners.iter() {
+        handler(WindowMenuEvent {
+          window: window_.clone(),
+          menu_item_id: event.menu_item_id,
+        });
+      }
     });
 
     // insert the window into our manager
@@ -685,4 +713,13 @@ fn on_window_event<P: Params>(window: &Window<P>, event: &WindowEvent) -> crate:
 struct ScaleFactorChanged {
   scale_factor: f64,
   size: PhysicalSize<u32>,
+}
+
+fn on_menu_event<P: Params>(window: &Window<P>, event: &MenuEvent) -> crate::Result<()> {
+  window.emit(
+    &MENU_EVENT
+      .parse()
+      .unwrap_or_else(|_| panic!("unhandled event")),
+    Some(event),
+  )
 }

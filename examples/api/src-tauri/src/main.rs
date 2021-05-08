@@ -8,6 +8,7 @@
 )]
 
 mod cmd;
+mod menu;
 
 use serde::Serialize;
 
@@ -30,6 +31,10 @@ fn main() {
           .emit("rust-event", Some(reply))
           .expect("failed to emit");
       });
+    })
+    .menu(menu::get_menu())
+    .on_menu_event(|event| {
+      println!("{:?}", event.menu_item_id());
     })
     .invoke_handler(tauri::generate_handler![
       cmd::log_operation,

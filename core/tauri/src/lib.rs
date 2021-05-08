@@ -59,10 +59,12 @@ pub use {
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
     PageLoadPayload, SetupHook,
   },
-  self::runtime::app::{App, Builder},
+  self::runtime::app::{App, Builder, WindowMenuEvent},
   self::runtime::flavors::wry::Wry,
   self::runtime::monitor::Monitor,
-  self::runtime::webview::{WebviewAttributes, WindowBuilder},
+  self::runtime::webview::{
+    CustomMenuItem, Menu, MenuItem, MenuItemId, WebviewAttributes, WindowBuilder,
+  },
   self::runtime::window::{
     export::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},

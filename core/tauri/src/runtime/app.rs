@@ -10,7 +10,7 @@ use crate::{
     flavors::wry::Wry,
     manager::{Args, WindowManager},
     tag::Tag,
-    webview::{CustomProtocol, WebviewAttributes, WindowBuilder},
+    webview::{CustomProtocol, Menu, MenuItemId, WebviewAttributes, WindowBuilder},
     window::PendingWindow,
     Dispatch, Runtime,
   },
@@ -22,6 +22,26 @@ use std::{collections::HashMap, sync::Arc};
 
 #[cfg(feature = "updater")]
 use crate::updater;
+
+pub(crate) type GlobalMenuEventListener<P> = Box<dyn Fn(WindowMenuEvent<P>) + Send + Sync>;
+
+/// A menu event that was triggered on a window.
+pub struct WindowMenuEvent<P: Params> {
+  pub(crate) menu_item_id: MenuItemId,
+  pub(crate) window: Window<P>,
+}
+
+impl<P: Params> WindowMenuEvent<P> {
+  /// The menu item id.
+  pub fn menu_item_id(&self) -> MenuItemId {
+    self.menu_item_id
+  }
+
+  /// The window that the menu belongs to.
+  pub fn window(&self) -> &Window<P> {
+    &self.window
+  }
+}
 
 /// A handle to the currently running application.
 ///
@@ -154,6 +174,12 @@ where
 
   /// App state.
   state: StateManager,
+
+  /// The menu set to all windows.
+  menu: Vec<Menu>,
+
+  /// Menu event handlers that listens to all windows.
+  menu_event_listeners: Vec<GlobalMenuEventListener<Args<E, L, A, R>>>,
 }
 
 impl<E, L, A, R> Builder<E, L, A, R>
@@ -173,6 +199,8 @@ where
       plugins: PluginStore::default(),
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
+      menu: Vec::new(),
+      menu_event_listeners: Vec::new(),
     }
   }
 
@@ -286,6 +314,21 @@ where
     self
   }
 
+  /// Sets the menu to use on all windows.
+  pub fn menu(mut self, menu: Vec<Menu>) -> Self {
+    self.menu = menu;
+    self
+  }
+
+  /// Registers a menu event handler for all windows.
+  pub fn on_menu_event<F: Fn(WindowMenuEvent<Args<E, L, A, R>>) + Send + Sync + 'static>(
+    mut self,
+    handler: F,
+  ) -> Self {
+    self.menu_event_listeners.push(Box::new(handler));
+    self
+  }
+
   /// Registers a URI scheme protocol available to all webviews.
   /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
   /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
@@ -321,6 +364,8 @@ where
       self.on_page_load,
       self.uri_scheme_protocols,
       self.state,
+      self.menu,
+      self.menu_event_listeners,
     );
 
     // set up all the windows defined in the config

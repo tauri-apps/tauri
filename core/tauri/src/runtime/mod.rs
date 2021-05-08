@@ -22,7 +22,7 @@ pub mod window;
 use monitor::Monitor;
 use window::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-  WindowEvent,
+  MenuEvent, WindowEvent,
 };
 
 /// The webview runtime interface.
@@ -56,6 +56,9 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
 
   /// Registers a window event handler.
   fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid;
+
+  /// Registers a window event handler.
+  fn on_menu_event<F: Fn(&MenuEvent) + Send + 'static>(&self, f: F) -> Uuid;
 
   // GETTERS
 

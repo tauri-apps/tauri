@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 #[cfg(window_create)]
-use crate::Manager;
+use crate::sealed::ManagerBase;
+
 use crate::{
   api::config::WindowConfig,
   endpoints::InvokeResponse,
@@ -110,7 +111,7 @@ impl Cmd {
             crate::runtime::webview::WebviewAttributes::new(url),
             label.clone(),
           );
-          window.create_window(pending)?.emit_others(
+          window.create_new_window(pending)?.emit_others(
             &crate::runtime::manager::tauri_event::<P::Event>("tauri://window-created"),
             Some(WindowCreatedEvent {
               label: label.to_string(),

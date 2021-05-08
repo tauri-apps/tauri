@@ -32,8 +32,8 @@ async fn async_simple_command(argument: String) {
   println!("{}", argument);
 }
 
-/// todo: even with #[allow(unused)], the macro generates an unused warning
-#[allow(unused)]
+// todo: even with #[allow(unused)], the macro generates an unused warning - commented out to prevent clippy from yelling at me
+/*#[allow(unused)]
 #[command]
 async fn async_stateful_command(
   argument: Option<String>,
@@ -41,7 +41,7 @@ async fn async_stateful_command(
 ) -> Result<(), ()> {
   println!("{:?} {:?}", argument, state.inner());
   Ok(())
-}
+}*/
 
 // Raw future commands
 #[command(future)]

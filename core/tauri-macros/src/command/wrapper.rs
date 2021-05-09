@@ -100,8 +100,9 @@ fn body_async(function: &ItemFn) -> syn::Result<TokenStream2> {
     quote! {
       resolver.respond_async_serialized(async move {
         let result = $path(#(#args?),*);
-        (&result).async_kind().future(result).await
-      })
+        let kind = (&result).async_kind();
+        kind.future(result).await
+      });
     }
   })
 }
@@ -125,7 +126,8 @@ fn body_blocking(function: &ItemFn) -> syn::Result<TokenStream2> {
 
   Ok(quote! {
     let result = $path(#(match #args #match_body),*);
-    (&result).blocking_kind().block(result, resolver);
+    let kind = (&result).blocking_kind();
+    kind.block(result, resolver);
   })
 }
 

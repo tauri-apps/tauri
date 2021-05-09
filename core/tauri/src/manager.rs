@@ -453,7 +453,7 @@ impl<P: Params> WindowManager<P> {
 #[cfg(test)]
 mod test {
   use super::{Args, WindowManager};
-  use crate::{generate_context, plugin::PluginStore, runtime::flavors::wry::Wry, StateManager};
+  use crate::{generate_context, plugin::PluginStore, StateManager, Wry};
 
   #[test]
   fn check_get_url() {

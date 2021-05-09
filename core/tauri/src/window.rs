@@ -9,7 +9,7 @@ use crate::{
   manager::WindowManager,
   runtime::{
     menu::MenuId,
-    monitor::Monitor,
+    monitor::Monitor as RuntimeMonitor,
     tag::{TagRef, ToJsString},
     webview::{InvokePayload, WebviewAttributes, WindowBuilder},
     window::{
@@ -41,6 +41,50 @@ impl<I: MenuId> MenuEvent<I> {
   /// The menu item id.
   pub fn menu_item_id(&self) -> &I {
     &self.menu_item_id
+  }
+}
+
+/// Monitor descriptor.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Monitor {
+  pub(crate) name: Option<String>,
+  pub(crate) size: PhysicalSize<u32>,
+  pub(crate) position: PhysicalPosition<i32>,
+  pub(crate) scale_factor: f64,
+}
+
+impl From<RuntimeMonitor> for Monitor {
+  fn from(monitor: RuntimeMonitor) -> Self {
+    Self {
+      name: monitor.name,
+      size: monitor.size,
+      position: monitor.position,
+      scale_factor: monitor.scale_factor,
+    }
+  }
+}
+
+impl Monitor {
+  /// Returns a human-readable name of the monitor.
+  /// Returns None if the monitor doesn't exist anymore.
+  pub fn name(&self) -> Option<&String> {
+    self.name.as_ref()
+  }
+
+  /// Returns the monitor's resolution.
+  pub fn size(&self) -> &PhysicalSize<u32> {
+    &self.size
+  }
+
+  /// Returns the top-left corner position of the monitor relative to the larger full screen area.
+  pub fn position(&self) -> &PhysicalPosition<i32> {
+    &self.position
+  }
+
+  /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.
+  pub fn scale_factor(&self) -> f64 {
+    self.scale_factor
   }
 }
 
@@ -316,14 +360,24 @@ impl<P: Params> Window<P> {
   ///
   /// Returns None if current monitor can't be detected.
   pub fn current_monitor(&self) -> crate::Result<Option<Monitor>> {
-    self.window.dispatcher.current_monitor().map_err(Into::into)
+    self
+      .window
+      .dispatcher
+      .current_monitor()
+      .map(|m| m.map(Into::into))
+      .map_err(Into::into)
   }
 
   /// Returns the primary monitor of the system.
   ///
   /// Returns None if it can't identify any monitor as a primary one.
   pub fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
-    self.window.dispatcher.primary_monitor().map_err(Into::into)
+    self
+      .window
+      .dispatcher
+      .primary_monitor()
+      .map(|m| m.map(Into::into))
+      .map_err(Into::into)
   }
 
   /// Returns the list of all the monitors available on the system.
@@ -332,6 +386,7 @@ impl<P: Params> Window<P> {
       .window
       .dispatcher
       .available_monitors()
+      .map(|m| m.into_iter().map(Into::into).collect())
       .map_err(Into::into)
   }
 

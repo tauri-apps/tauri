@@ -9,7 +9,6 @@ use crate::{
   manager::{Args, WindowManager},
   plugin::{Plugin, PluginStore},
   runtime::{
-    flavors::wry::Wry,
     menu::{Menu, MenuId, SystemTrayMenuItem},
     tag::Tag,
     webview::{CustomProtocol, WebviewAttributes, WindowBuilder},
@@ -511,7 +510,15 @@ fn get_menu_ids<I: MenuId>(items: &[SystemTrayMenuItem<I>]) -> HashMap<u32, I> {
 }
 
 /// Make `Wry` the default `Runtime` for `Builder`
-impl<A: Assets> Default for Builder<String, String, String, String, A, Wry> {
+#[cfg(feature = "wry")]
+impl<A: Assets> Default for Builder<String, String, String, String, A, crate::Wry> {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
+#[cfg(not(feature = "wry"))]
+impl<A: Assets, R: Runtime> Default for Builder<String, String, String, String, A, R> {
   fn default() -> Self {
     Self::new()
   }

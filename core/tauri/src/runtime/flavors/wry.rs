@@ -849,10 +849,14 @@ impl Runtime for Wry {
   }
 
   #[cfg(not(target_os = "linux"))]
-  fn system_tray<I: MenuId>(&self, icon: Vec<u8>, menu: Vec<TrayMenuItem<I>>) -> crate::Result<()> {
+  fn system_tray<I: MenuId>(
+    &self,
+    icon: Vec<u8>,
+    menu: Vec<SystemTrayMenuItem<I>>,
+  ) -> crate::Result<()> {
     SystemTrayBuilder::new(icon, menu.into_iter().map(Into::into).collect())
       .build(&self.event_loop)
-      .map_err(|e| crate::Error::Tray(Box::new(e)))?;
+      .map_err(|e| crate::Error::SystemTray(Box::new(e)))?;
     Ok(())
   }
 

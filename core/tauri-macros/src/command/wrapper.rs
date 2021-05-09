@@ -5,7 +5,6 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use std::borrow::Cow;
 use syn::{
   parse::{Parse, ParseBuffer},
   parse_macro_input,

@@ -49,12 +49,14 @@ pub struct InvokeError(JsonValue);
 
 impl InvokeError {
   /// Create an [`InvokeError`] as a string of the [`serde_json::Error`] message.
+  #[inline(always)]
   pub fn from_serde_json(error: serde_json::Error) -> Self {
     Self(JsonValue::String(error.to_string()))
   }
 }
 
 impl<T: Serialize> From<T> for InvokeError {
+  #[inline]
   fn from(value: T) -> Self {
     serde_json::to_value(value)
       .map(Self)
@@ -63,6 +65,7 @@ impl<T: Serialize> From<T> for InvokeError {
 }
 
 impl From<crate::Error> for InvokeError {
+  #[inline(always)]
   fn from(error: crate::Error) -> Self {
     Self(JsonValue::String(error.to_string()))
   }
@@ -79,6 +82,7 @@ pub enum InvokeResponse {
 
 impl InvokeResponse {
   /// Turn a [`InvokeResponse`] back into a serializable result.
+  #[inline(always)]
   pub fn into_result(self) -> Result<JsonValue, JsonValue> {
     match self {
       Self::Ok(v) => Ok(v),
@@ -88,6 +92,7 @@ impl InvokeResponse {
 }
 
 impl<T: Serialize> From<Result<T, InvokeError>> for InvokeResponse {
+  #[inline]
   fn from(result: Result<T, InvokeError>) -> Self {
     match result {
       Ok(ok) => match serde_json::to_value(ok) {
@@ -99,9 +104,15 @@ impl<T: Serialize> From<Result<T, InvokeError>> for InvokeResponse {
   }
 }
 
+impl From<InvokeError> for InvokeResponse {
+  fn from(error: InvokeError) -> Self {
+    Self::Err(error)
+  }
+}
+
 /// Resolver of a invoke message.
-pub struct InvokeResolver<M: Params> {
-  window: Window<M>,
+pub struct InvokeResolver<P: Params> {
+  window: Window<P>,
   pub(crate) callback: String,
   pub(crate) error: String,
 }
@@ -126,6 +137,21 @@ impl<P: Params> InvokeResolver<P> {
     });
   }
 
+  /// Reply to the invoke promise with an async task which is already serialized.
+  pub fn respond_async_serialized<F>(self, task: F)
+  where
+    F: Future<Output = Result<JsonValue, InvokeError>> + Send + 'static,
+  {
+    crate::async_runtime::spawn(async move {
+      Self::return_result(self.window, task.await.into(), self.callback, self.error);
+    });
+  }
+
+  /// Reply to the invoke promise with a serializable value.
+  pub fn respond<T: Serialize>(self, value: Result<T, InvokeError>) {
+    Self::return_result(self.window, value.into(), self.callback, self.error)
+  }
+
   /// Reply to the invoke promise running the given closure.
   pub fn respond_closure<T, F>(self, f: F)
   where
@@ -136,18 +162,23 @@ impl<P: Params> InvokeResolver<P> {
   }
 
   /// Resolve the invoke promise with a value.
-  pub fn resolve<S: Serialize>(self, value: S) {
-    Self::return_result(self.window, Ok(value), self.callback, self.error)
+  pub fn resolve<T: Serialize>(self, value: T) {
+    Self::return_result(self.window, Ok(value).into(), self.callback, self.error)
   }
 
   /// Reject the invoke promise with a value.
-  pub fn reject<S: Serialize>(self, value: S) {
+  pub fn reject<T: Serialize>(self, value: T) {
     Self::return_result(
       self.window,
-      Result::<(), _>::Err(value.into()),
+      Result::<(), _>::Err(value.into()).into(),
       self.callback,
       self.error,
     )
+  }
+
+  /// Reject the invoke promise with an [`InvokeError`].
+  pub fn invoke_error(self, error: InvokeError) {
+    Self::return_result(self.window, error.into(), self.callback, self.error)
   }
 
   /// Asynchronously executes the given task
@@ -174,17 +205,17 @@ impl<P: Params> InvokeResolver<P> {
     success_callback: String,
     error_callback: String,
   ) {
-    Self::return_result(window, f(), success_callback, error_callback)
+    Self::return_result(window, f().into(), success_callback, error_callback)
   }
 
-  pub(crate) fn return_result<T: Serialize>(
+  pub(crate) fn return_result(
     window: Window<P>,
-    response: Result<T, InvokeError>,
+    response: InvokeResponse,
     success_callback: String,
     error_callback: String,
   ) {
     let callback_string = match format_callback_result(
-      InvokeResponse::from(response).into_result(),
+      response.into_result(),
       success_callback,
       error_callback.clone(),
     ) {

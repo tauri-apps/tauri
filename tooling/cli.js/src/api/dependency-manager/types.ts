@@ -9,3 +9,7 @@ export enum ManagementType {
 }
 
 export type Result = Map<ManagementType, string[]>
+
+export interface Answer {
+  answer: boolean
+}

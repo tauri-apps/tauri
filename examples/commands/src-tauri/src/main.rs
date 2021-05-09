@@ -19,6 +19,11 @@ pub struct MyState {
   label: String,
 }
 
+#[derive(Debug, serde::Serialize)]
+enum MyError {
+  FooError,
+}
+
 // ------------------------ Commands using Window ------------------------
 #[command]
 fn window_label(window: Window<impl Params<Label = String>>) {
@@ -33,33 +38,72 @@ async fn async_simple_command(argument: String) {
 }
 
 #[command]
-async fn async_stateful_command(argument: Option<String>, state: State<'_, MyState>) {
+async fn async_stateful_command(
+  argument: Option<String>,
+  state: State<'_, MyState>,
+) -> Result<(), ()> {
   println!("{:?} {:?}", argument, state.inner());
+  Ok(())
+}
+
+// Raw future commands
+#[command(async)]
+fn future_simple_command(argument: String) -> impl std::future::Future<Output = ()> {
+  println!("{}", argument);
+  std::future::ready(())
+}
+
+#[command(async)]
+fn future_simple_command_with_return(
+  argument: String,
+) -> impl std::future::Future<Output = String> {
+  println!("{}", argument);
+  std::future::ready(argument)
+}
+
+#[command(async)]
+fn future_simple_command_with_result(
+  argument: String,
+) -> impl std::future::Future<Output = Result<String, ()>> {
+  println!("{}", argument);
+  std::future::ready(Ok(argument))
+}
+
+#[command(async)]
+fn force_async(argument: String) -> String {
+  argument
+}
+
+#[command(async)]
+fn force_async_with_result(argument: &str) -> Result<&str, MyError> {
+  (!argument.is_empty())
+    .then(|| argument)
+    .ok_or(MyError::FooError)
 }
 
 // ------------------------ Commands returning Result ------------------------
 
-type Result<T> = std::result::Result<T, ()>;
-
 #[command]
-fn simple_command_with_result(argument: String) -> Result<String> {
+fn simple_command_with_result(argument: String) -> Result<String, MyError> {
   println!("{}", argument);
-  (!argument.is_empty()).then(|| argument).ok_or(())
+  (!argument.is_empty())
+    .then(|| argument)
+    .ok_or(MyError::FooError)
 }
 
 #[command]
 fn stateful_command_with_result(
   argument: Option<String>,
   state: State<'_, MyState>,
-) -> Result<String> {
+) -> Result<String, MyError> {
   println!("{:?} {:?}", argument, state.inner());
-  argument.ok_or(())
+  dbg!(argument.ok_or(MyError::FooError))
 }
 
 // Async commands
 
 #[command]
-async fn async_simple_command_with_result(argument: String) -> Result<String> {
+async fn async_simple_command_with_result(argument: String) -> Result<String, MyError> {
   println!("{}", argument);
   Ok(argument)
 }
@@ -68,7 +112,7 @@ async fn async_simple_command_with_result(argument: String) -> Result<String> {
 async fn async_stateful_command_with_result(
   argument: Option<String>,
   state: State<'_, MyState>,
-) -> Result<String> {
+) -> Result<String, MyError> {
   println!("{:?} {:?}", argument, state.inner());
   Ok(argument.unwrap_or_else(|| "".to_string()))
 }
@@ -99,6 +143,16 @@ fn command_arguments_tuple_struct(InlinePerson(name, age): InlinePerson) {
   println!("received person tuple with name: {} | age: {}", name, age)
 }
 
+#[command]
+fn borrow_cmd(argument: &str) -> &str {
+  argument
+}
+
+#[command]
+fn borrow_cmd_async(argument: &str) -> &str {
+  argument
+}
+
 fn main() {
   tauri::Builder::default()
     .manage(MyState {
@@ -106,10 +160,15 @@ fn main() {
       label: "Tauri!".into(),
     })
     .invoke_handler(tauri::generate_handler![
+      borrow_cmd,
+      borrow_cmd_async,
       window_label,
+      force_async,
+      force_async_with_result,
       commands::simple_command,
       commands::stateful_command,
       async_simple_command,
+      future_simple_command,
       async_stateful_command,
       command_arguments_wild,
       command_arguments_struct,
@@ -117,6 +176,8 @@ fn main() {
       stateful_command_with_result,
       command_arguments_tuple_struct,
       async_simple_command_with_result,
+      future_simple_command_with_return,
+      future_simple_command_with_result,
       async_stateful_command_with_result,
     ])
     .run(tauri::generate_context!())

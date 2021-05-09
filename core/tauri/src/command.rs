@@ -7,7 +7,7 @@
 use crate::hooks::InvokeError;
 use crate::{InvokeMessage, Params};
 use serde::de::Visitor;
-use serde::Deserializer;
+use serde::{Deserialize, Deserializer};
 
 /// Represents a custom command.
 pub struct CommandItem<'a, P: Params> {
@@ -44,7 +44,7 @@ pub trait CommandArg<'de, P: Params>: Sized {
 }
 
 /// Automatically implement [`CommandArg`] for any type that can be deserialized.
-impl<'de, D: serde::Deserialize<'de>, P: Params> CommandArg<'de, P> for D {
+impl<'de, D: Deserialize<'de>, P: Params> CommandArg<'de, P> for D {
   fn from_command(command: CommandItem<'de, P>) -> Result<Self, InvokeError> {
     let arg = command.key;
     Self::deserialize(command).map_err(|e| crate::Error::InvalidArgs(arg, e).into())
@@ -136,4 +136,147 @@ impl<'de, P: Params> Deserializer<'de> for CommandItem<'de, P> {
 
   pass!(deserialize_identifier, visitor: V);
   pass!(deserialize_ignored_any, visitor: V);
+}
+
+/// [Autoref-based stable specialization](https://github.com/dtolnay/case-studies/blob/master/autoref-specialization/README.md)
+#[doc(hidden)]
+pub mod private {
+  use crate::{InvokeError, InvokeResolver, Params};
+  use futures::{FutureExt, TryFutureExt};
+  use serde::Serialize;
+  use serde_json::Value;
+  use std::future::Future;
+
+  // ===== impl Serialize =====
+
+  pub struct SerializeTag;
+
+  pub trait SerializeKind {
+    #[inline(always)]
+    fn blocking_kind(&self) -> SerializeTag {
+      SerializeTag
+    }
+
+    #[inline(always)]
+    fn async_kind(&self) -> SerializeTag {
+      SerializeTag
+    }
+  }
+
+  impl<T: Serialize> SerializeKind for &T {}
+
+  impl SerializeTag {
+    #[inline(always)]
+    pub fn block<P, T>(self, value: T, resolver: InvokeResolver<P>)
+    where
+      P: Params,
+      T: Serialize,
+    {
+      resolver.respond(Ok(value))
+    }
+
+    #[inline(always)]
+    pub fn future<T>(self, value: T) -> impl Future<Output = Result<Value, InvokeError>>
+    where
+      T: Serialize,
+    {
+      std::future::ready(serde_json::to_value(value).map_err(InvokeError::from_serde_json))
+    }
+  }
+
+  // ===== Result<impl Serialize, impl Into<InvokeError>> =====
+
+  pub struct ResultTag;
+
+  pub trait ResultKind {
+    #[inline(always)]
+    fn blocking_kind(&self) -> ResultTag {
+      ResultTag
+    }
+
+    #[inline(always)]
+    fn async_kind(&self) -> ResultTag {
+      ResultTag
+    }
+  }
+
+  impl<T: Serialize, E: Into<InvokeError>> ResultKind for Result<T, E> {}
+
+  impl ResultTag {
+    #[inline(always)]
+    pub fn block<P, T, E>(self, value: Result<T, E>, resolver: InvokeResolver<P>)
+    where
+      P: Params,
+      T: Serialize,
+      E: Into<InvokeError>,
+    {
+      resolver.respond(value.map_err(Into::into))
+    }
+
+    #[inline(always)]
+    pub fn future<T, E>(
+      self,
+      value: Result<T, E>,
+    ) -> impl Future<Output = Result<Value, InvokeError>>
+    where
+      T: Serialize,
+      E: Into<InvokeError>,
+    {
+      std::future::ready(
+        value
+          .map_err(Into::into)
+          .and_then(|value| serde_json::to_value(value).map_err(InvokeError::from_serde_json)),
+      )
+    }
+  }
+
+  // ===== Future<Output = impl Serialize> =====
+
+  pub struct FutureTag;
+
+  pub trait FutureKind {
+    #[inline(always)]
+    fn async_kind(&self) -> FutureTag {
+      FutureTag
+    }
+  }
+  impl<T: Serialize, F: Future<Output = T>> FutureKind for &F {}
+
+  impl FutureTag {
+    #[inline(always)]
+    pub fn future<T, F>(self, value: F) -> impl Future<Output = Result<Value, InvokeError>>
+    where
+      T: Serialize,
+      F: Future<Output = T> + Send + 'static,
+    {
+      value.map(|value| serde_json::to_value(value).map_err(InvokeError::from_serde_json))
+    }
+  }
+
+  // ===== Future<Output = Result<impl Serialize, impl Into<InvokeError>>> =====
+
+  pub struct ResultFutureTag;
+
+  pub trait ResultFutureKind {
+    #[inline(always)]
+    fn async_kind(&self) -> ResultFutureTag {
+      ResultFutureTag
+    }
+  }
+
+  impl<T: Serialize, E: Into<InvokeError>, F: Future<Output = Result<T, E>>> ResultFutureKind for F {}
+
+  impl ResultFutureTag {
+    #[inline(always)]
+    pub fn future<T, E, F>(self, value: F) -> impl Future<Output = Result<Value, InvokeError>>
+    where
+      T: Serialize,
+      E: Into<InvokeError>,
+      F: Future<Output = Result<T, E>> + Send,
+    {
+      value.err_into().map(|result| {
+        result.and_then(|value| serde_json::to_value(value).map_err(InvokeError::from_serde_json))
+      })
+    }
+  }
 }

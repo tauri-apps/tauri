@@ -154,10 +154,10 @@ fn parse_arg(command: &Ident, arg: &FnArg) -> syn::Result<TokenStream2> {
     }
   };
 
-  // we only support patterns that allow us to extract some sort of keyed identifier.
+  // we only support patterns that allow us to extract some sort of keyed identifier
   let mut key = match &mut arg {
     Pat::Ident(arg) => arg.ident.to_string(),
-    Pat::Wild(_) => "_".into(), // we always convert to camelCase, so this will end up empty
+    Pat::Wild(_) => "".into(), // we always convert to camelCase, so "_" will end up empty anyways
     Pat::Struct(s) => super::path_to_command(&mut s.path).ident.to_string(),
     Pat::TupleStruct(s) => super::path_to_command(&mut s.path).ident.to_string(),
     err => {

@@ -3,7 +3,7 @@ members = [
   # core
   "core/tauri",
   "core/tauri-runtime",
-  "core/tauri-wry",
+  "core/tauri-runtime-wry",
   "core/tauri-macros",
   "core/tauri-utils",
   "core/tauri-build",

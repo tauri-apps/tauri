@@ -1,6 +1,6 @@
 ---
 "tauri": patch
-"tauri-wry": minor
+"tauri-runtime-wry": minor
 ---
 
-`tauri-wry` initial release.
+`tauri-runtime-wry` initial release.

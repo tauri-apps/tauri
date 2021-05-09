@@ -37,7 +37,7 @@ mod state;
 pub mod updater;
 
 #[cfg(feature = "wry")]
-pub use tauri_wry::Wry;
+pub use tauri_runtime_wry::Wry;
 
 /// `Result<T, ::tauri::Error>`
 pub type Result<T> = std::result::Result<T, Error>;

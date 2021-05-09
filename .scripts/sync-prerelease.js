@@ -19,12 +19,12 @@ let changelogPath
 
 if (packageNickname === 'tauri-runtime') {
   manifestPath = '../../core/tauri-runtime/Cargo.toml'
-  dependencyManifestPaths = ['../../core/tauri/Cargo.toml', '../../core/tauri-wry/Cargo.toml']
+  dependencyManifestPaths = ['../../core/tauri/Cargo.toml', '../../core/tauri-runtime-wry/Cargo.toml']
   changelogPath = '../../core/tauri-runtime/CHANGELOG.md'
-} else if (packageNickname === 'tauri-wry') {
-  manifestPath = '../../core/tauri-wry/Cargo.toml'
+} else if (packageNickname === 'tauri-runtime-wry') {
+  manifestPath = '../../core/tauri-runtime-wry/Cargo.toml'
   dependencyManifestPaths = ['../../core/tauri/Cargo.toml']
-  changelogPath = '../../core/tauri-wry/CHANGELOG.md'
+  changelogPath = '../../core/tauri-runtime-wry/CHANGELOG.md'
 } else {
   throw new Error(`Unexpected package ${packageNickname}`)
 }

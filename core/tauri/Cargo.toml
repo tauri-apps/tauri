@@ -25,7 +25,7 @@ once_cell = "1.7.2"
 tauri-runtime = { version = "0.0.0", path = "../tauri-runtime" }
 tauri-macros = { version = "1.0.0-beta-rc.1", path = "../tauri-macros" }
 tauri-utils = { version = "1.0.0-beta-rc.1", path = "../tauri-utils" }
-tauri-wry = { version = "0.0.0", path = "../tauri-wry", optional = true }
+tauri-runtime-wry = { version = "0.0.0", path = "../tauri-runtime-wry", optional = true }
 rand = "0.8"
 reqwest = { version = "0.11", features = [ "json", "multipart" ] }
 tempfile = "3"
@@ -66,7 +66,7 @@ mockito = "0.30"
 
 [features]
 default = ["wry"]
-wry = ["tauri-wry"]
+wry = ["tauri-runtime-wry"]
 cli = [ "clap" ]
 custom-protocol = [ "tauri-macros/custom-protocol" ]
 api-all = [ "notification-all", "global-shortcut-all", "updater" ]

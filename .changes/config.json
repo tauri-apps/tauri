@@ -222,8 +222,8 @@
       ],
       "postversion": "node ../../.scripts/sync-prerelease.js ${ pkg.pkg } ${ release.type }"
     },
-    "tauri-wry": {
-      "path": "./core/tauri-wry",
+    "tauri-runtime-wry": {
+      "path": "./core/tauri-runtime-wry",
       "manager": "rust",
       "dependencies": [
         "tauri-utils",
@@ -260,7 +260,7 @@
         "tauri-macros",
         "tauri-utils",
         "tauri-runtime",
-        "tauri-wry"
+        "tauri-runtime-wry"
       ],
       "postversion": "node ../../.scripts/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },

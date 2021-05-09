@@ -142,50 +142,69 @@ impl<'de, P: Params> Deserializer<'de> for CommandItem<'de, P> {
 #[doc(hidden)]
 pub mod private {
   use crate::{InvokeError, InvokeResolver, Params};
-  use futures::FutureExt;
+  use futures::{FutureExt, TryFutureExt};
   use serde::Serialize;
+  use serde_json::Value;
   use std::future::Future;
 
-  // ===== Serialize =====
+  // ===== impl Serialize =====
 
-  pub struct BlockingTag;
+  pub struct SerializeTag;
 
-  pub trait BlockingKind {
+  pub trait SerializeKind {
     #[inline(always)]
-    fn blocking_kind(&self) -> BlockingTag {
-      BlockingTag
+    fn blocking_kind(&self) -> SerializeTag {
+      SerializeTag
+    }
+
+    #[inline(always)]
+    fn async_kind(&self) -> SerializeTag {
+      SerializeTag
     }
   }
 
-  impl<T: Serialize> BlockingKind for &T {}
+  impl<T: Serialize> SerializeKind for &T {}
 
-  impl BlockingTag {
+  impl SerializeTag {
     #[inline(always)]
-    pub fn respond<P, T>(self, value: T, resolver: InvokeResolver<P>)
+    pub fn block<P, T>(self, value: T, resolver: InvokeResolver<P>)
     where
       P: Params,
       T: Serialize,
     {
       resolver.respond(Ok(value))
     }
-  }
 
-  // ===== Result<Serialize, Into<InvokeError>> =====
-
-  pub struct BlockingResultTag;
-
-  pub trait BlockingResultKind {
     #[inline(always)]
-    fn blocking_kind(&self) -> BlockingResultTag {
-      BlockingResultTag
+    pub fn future<T>(self, value: T) -> impl Future<Output = Result<Value, InvokeError>>
+    where
+      T: Serialize,
+    {
+      std::future::ready(serde_json::to_value(value).map_err(InvokeError::from_serde_json))
     }
   }
 
-  impl<T: Serialize, E: Into<InvokeError>> BlockingResultKind for Result<T, E> {}
+  // ===== Result<impl Serialize, impl Into<InvokeError>> =====
 
-  impl BlockingResultTag {
+  pub struct ResultTag;
+
+  pub trait ResultKind {
     #[inline(always)]
-    pub fn respond<P, T, E>(self, value: Result<T, E>, resolver: InvokeResolver<P>)
+    fn blocking_kind(&self) -> ResultTag {
+      ResultTag
+    }
+
+    #[inline(always)]
+    fn async_kind(&self) -> ResultTag {
+      ResultTag
+    }
+  }
+
+  impl<T: Serialize, E: Into<InvokeError>> ResultKind for Result<T, E> {}
+
+  impl ResultTag {
+    #[inline(always)]
+    pub fn block<P, T, E>(self, value: Result<T, E>, resolver: InvokeResolver<P>)
     where
       P: Params,
       T: Serialize,
@@ -193,50 +212,71 @@ pub mod private {
     {
       resolver.respond(value.map_err(Into::into))
     }
-  }
 
-  // ===== Future<Serialize> =====
-
-  pub struct AsyncTag;
-
-  pub trait AsyncKind {
     #[inline(always)]
-    fn async_kind(&self) -> AsyncTag {
-      AsyncTag
-    }
-  }
-  impl<T: Serialize, F: Future<Output = T>> AsyncKind for &F {}
-
-  impl AsyncTag {
-    #[inline(always)]
-    pub fn prepare<T: Serialize, F: Future<Output = T> + Send + 'static>(
+    pub fn future<T, E>(
       self,
-      f: F,
-    ) -> impl Future<Output = Result<T, InvokeError>> {
-      f.map(Ok)
+      value: Result<T, E>,
+    ) -> impl Future<Output = Result<Value, InvokeError>>
+    where
+      T: Serialize,
+      E: Into<InvokeError>,
+    {
+      std::future::ready(
+        value
+          .map_err(Into::into)
+          .and_then(|value| serde_json::to_value(value).map_err(InvokeError::from_serde_json)),
+      )
     }
   }
 
-  // ===== Future<Result<Serialize, Into<InvokeError>>> =====
+  // ===== Future<Output = impl Serialize> =====
 
-  pub struct AsyncResultTag;
+  pub struct FutureTag;
 
-  pub trait AsyncResultKind {
+  pub trait FutureKind {
     #[inline(always)]
-    fn async_kind(&self) -> AsyncResultTag {
-      AsyncResultTag
+    fn async_kind(&self) -> FutureTag {
+      FutureTag
+    }
+  }
+  impl<T: Serialize, F: Future<Output = T>> FutureKind for &F {}
+
+  impl FutureTag {
+    #[inline(always)]
+    pub fn future<T, F>(self, value: F) -> impl Future<Output = Result<Value, InvokeError>>
+    where
+      T: Serialize,
+      F: Future<Output = T> + Send + 'static,
+    {
+      value.map(|value| serde_json::to_value(value).map_err(InvokeError::from_serde_json))
     }
   }
 
-  impl<T: Serialize, E: Into<InvokeError>, F: Future<Output = Result<T, E>>> AsyncResultKind for F {}
+  // ===== Future<Output = Result<impl Serialize, impl Into<InvokeError>>> =====
 
-  impl AsyncResultTag {
+  pub struct ResultFutureTag;
+
+  pub trait ResultFutureKind {
     #[inline(always)]
-    pub fn prepare<T: Serialize, E: Into<InvokeError>, F: Future<Output = Result<T, E>> + Send>(
-      self,
-      f: F,
-    ) -> impl Future<Output = Result<T, InvokeError>> {
-      f.map(|value| value.map_err(Into::into))
+    fn async_kind(&self) -> ResultFutureTag {
+      ResultFutureTag
+    }
+  }
+
+  impl<T: Serialize, E: Into<InvokeError>, F: Future<Output = Result<T, E>>> ResultFutureKind for F {}
+
+  impl ResultFutureTag {
+    #[inline(always)]
+    pub fn future<T, E, F>(self, value: F) -> impl Future<Output = Result<Value, InvokeError>>
+    where
+      T: Serialize,
+      E: Into<InvokeError>,
+      F: Future<Output = Result<T, E>> + Send,
+    {
+      value.err_into().map(|result| {
+        result.and_then(|value| serde_json::to_value(value).map_err(InvokeError::from_serde_json))
+      })
     }
   }
 }

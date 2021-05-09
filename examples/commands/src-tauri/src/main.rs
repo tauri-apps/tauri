@@ -44,13 +44,13 @@ async fn async_stateful_command(
 }*/
 
 // Raw future commands
-#[command(future)]
+#[command(async)]
 fn future_simple_command(argument: String) -> impl std::future::Future<Output = ()> {
   println!("{}", argument);
   std::future::ready(())
 }
 
-#[command(future)]
+#[command(async)]
 fn future_simple_command_with_return(
   argument: String,
 ) -> impl std::future::Future<Output = String> {
@@ -58,12 +58,22 @@ fn future_simple_command_with_return(
   std::future::ready(argument)
 }
 
-#[command(future)]
+#[command(async)]
 fn future_simple_command_with_result(
   argument: String,
 ) -> impl std::future::Future<Output = Result<String, ()>> {
   println!("{}", argument);
   std::future::ready(Ok(argument))
+}
+
+#[command(async)]
+fn force_async(argument: String) -> String {
+  argument
+}
+
+#[command(async)]
+fn force_async_with_result(argument: &str) -> Result<&str, ()> {
+  Ok(argument)
 }
 
 // ------------------------ Commands returning Result ------------------------
@@ -146,6 +156,8 @@ fn main() {
     .invoke_handler(tauri::generate_handler![
       borrow_cmd,
       window_label,
+      force_async,
+      force_async_with_result,
       commands::simple_command,
       commands::stateful_command,
       async_simple_command,

@@ -365,6 +365,7 @@ impl Command {
 // tests for the commands functions.
 #[cfg(test)]
 mod test {
+  #[cfg(not(windows))]
   use super::*;
 
   #[cfg(not(windows))]

@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#[cfg(window_create)]
+use crate::runtime::{webview::WindowBuilder, Dispatch, Runtime};
 use crate::{
   api::config::WindowConfig,
   endpoints::InvokeResponse,
-  runtime::{
-    webview::WindowBuilder,
-    window::dpi::{Position, Size},
-    Dispatch, Runtime,
-  },
+  runtime::window::dpi::{Position, Size},
   Params, Window,
 };
 use serde::Deserialize;

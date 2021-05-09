@@ -579,7 +579,7 @@ pub struct SystemTrayConfig {
   /// Path to the icon to use on the system tray.
   ///
   /// It is forced to be a `.png` file on Linux and macOS, and a `.ico` file on Windows.
-  icon_path: PathBuf,
+  pub icon_path: PathBuf,
 }
 
 // We enable the unnecessary_wraps because we need

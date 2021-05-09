@@ -157,6 +157,7 @@ pub struct RpcRequest {
 /// Uses a custom URI scheme handler to resolve file requests
 pub struct CustomProtocol {
   /// Handler for protocol
+  #[allow(clippy::type_complexity)]
   pub protocol: Box<dyn Fn(&str) -> Result<Vec<u8>, Box<dyn std::error::Error>> + Send + Sync>,
 }
 

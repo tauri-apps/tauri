@@ -133,6 +133,7 @@ impl<E: Tag, L: Tag, MID: MenuId, TID: MenuId, A: Assets, R: Runtime> Params
 
 pub struct WindowManager<P: Params> {
   pub inner: Arc<InnerWindowManager<P>>,
+  #[allow(clippy::type_complexity)]
   _marker: Args<P::Event, P::Label, P::MenuId, P::SystemTrayMenuId, P::Assets, P::Runtime>,
 }
 
@@ -451,16 +452,17 @@ mod test {
   #[test]
   fn check_get_url() {
     let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
-    let manager: WindowManager<Args<String, String, _, Wry>> = WindowManager::with_handlers(
-      context,
-      PluginStore::default(),
-      Box::new(|_| ()),
-      Box::new(|_, _| ()),
-      Default::default(),
-      StateManager::new(),
-      Vec::new(),
-      Default::default(),
-    );
+    let manager: WindowManager<Args<String, String, String, String, _, Wry>> =
+      WindowManager::with_handlers(
+        context,
+        PluginStore::default(),
+        Box::new(|_| ()),
+        Box::new(|_, _| ()),
+        Default::default(),
+        StateManager::new(),
+        Vec::new(),
+        Default::default(),
+      );
 
     #[cfg(custom_protocol)]
     assert_eq!(manager.get_url(), "tauri://localhost");

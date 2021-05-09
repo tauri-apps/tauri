@@ -169,6 +169,7 @@ impl<M: Params> App<M> {
 }
 
 /// Builds a Tauri application.
+#[allow(clippy::type_complexity)]
 pub struct Builder<E, L, MID, TID, A, R>
 where
   E: Tag,

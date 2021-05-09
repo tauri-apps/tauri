@@ -195,8 +195,8 @@ fn snake_case_to_camel_case(key: &str) -> String {
   let mut camel = String::with_capacity(key.len());
   let mut to_upper = false;
 
-  for char in key.chars() {
-    match char {
+  for c in key.chars() {
+    match c {
       '_' => to_upper = true,
       c if std::mem::take(&mut to_upper) => camel.push(c.to_ascii_uppercase()),
       c => camel.push(c),

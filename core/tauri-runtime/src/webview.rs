@@ -147,7 +147,6 @@ pub trait WindowBuilder: WindowBuilderBase {
 }
 
 /// Rpc request.
-#[non_exhaustive]
 pub struct RpcRequest {
   /// RPC command.
   pub command: String,
@@ -181,7 +180,6 @@ pub type WebviewRpcHandler<M> = Box<dyn Fn(DetachedWindow<M>, RpcRequest) + Send
 pub type FileDropHandler<M> = Box<dyn Fn(FileDropEvent, DetachedWindow<M>) -> bool + Send>;
 
 #[derive(Deserialize)]
-#[non_exhaustive]
 pub struct InvokePayload {
   #[serde(rename = "__tauriModule")]
   pub tauri_module: Option<String>,

@@ -85,7 +85,6 @@ pub enum Icon {
 }
 
 /// A system tray event.
-#[non_exhaustive]
 pub struct SystemTrayEvent {
   pub menu_item_id: u32,
 }

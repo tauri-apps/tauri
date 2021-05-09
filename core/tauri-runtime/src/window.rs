@@ -51,7 +51,6 @@ pub enum WindowEvent {
 /// A menu event.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-#[non_exhaustive]
 pub struct MenuEvent {
   pub menu_item_id: u32,
 }

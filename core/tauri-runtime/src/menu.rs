@@ -15,7 +15,6 @@ impl<T> MenuId for T where T: Hash + Eq + Debug + Clone + Send + Sync + 'static 
 
 /// A window menu.
 #[derive(Debug, Clone)]
-#[non_exhaustive]
 pub struct Menu<I: MenuId> {
   pub title: String,
   pub items: Vec<MenuItem<I>>,
@@ -33,7 +32,6 @@ impl<I: MenuId> Menu<I> {
 
 /// A custom menu item.
 #[derive(Debug, Clone)]
-#[non_exhaustive]
 pub struct CustomMenuItem<I: MenuId> {
   pub id: I,
   pub name: String,

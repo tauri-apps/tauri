@@ -8,6 +8,9 @@ use std::path::PathBuf;
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
+  /// Runtime error.
+  #[error("runtime error: {0}")]
+  Runtime(#[from] tauri_runtime::Error),
   /// Failed to create webview.
   #[error("failed to create webview: {0}")]
   CreateWebview(Box<dyn std::error::Error + Send>),

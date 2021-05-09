@@ -214,6 +214,13 @@
       "path": "./core/tauri-utils",
       "manager": "rust"
     },
+    "tauri-runtime": {
+      "path": "./core/tauri-runtime",
+      "manager": "rust",
+      "dependencies": [
+        "tauri-utils"
+      ]
+    },
     "tauri-codegen": {
       "path": "./core/tauri-codegen",
       "manager": "rust",
@@ -241,7 +248,8 @@
       "manager": "rust",
       "dependencies": [
         "tauri-macros",
-        "tauri-utils"
+        "tauri-utils",
+        "tauri-runtime"
       ],
       "postversion": "node ../../.scripts/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },

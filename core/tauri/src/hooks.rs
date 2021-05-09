@@ -4,7 +4,7 @@
 
 use crate::{
   api::rpc::{format_callback, format_callback_result},
-  runtime::app::App,
+  app::App,
   Params, StateManager, Window,
 };
 use serde::{Deserialize, Serialize};

@@ -5,23 +5,19 @@
 //! The [`wry`] Tauri [`Runtime`].
 
 use crate::{
-  api::config::WindowConfig,
-  runtime::{
-    menu::{CustomMenuItem, Menu, MenuId, MenuItem, SystemTrayMenuItem},
-    webview::{
-      FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler, WindowBuilder,
-      WindowBuilderBase,
-    },
-    window::{
-      dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-      DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
-    },
-    Dispatch, Monitor, Params, Runtime, SystemTrayEvent,
+  menu::{CustomMenuItem, Menu, MenuId, MenuItem, SystemTrayMenuItem},
+  webview::{
+    FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler, WindowBuilder, WindowBuilderBase,
   },
-  Icon,
+  window::{
+    dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
+    DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
+  },
+  Dispatch, Icon, Monitor, Params, Runtime, SystemTrayEvent,
 };
 
 use image::{GenericImageView, Pixel};
+use tauri_utils::config::WindowConfig;
 use uuid::Uuid;
 use wry::{
   application::{

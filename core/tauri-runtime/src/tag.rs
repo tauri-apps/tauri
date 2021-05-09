@@ -113,7 +113,7 @@ where
 ///
 /// We don't want downstream users to implement this trait so that [`Tag`]s cannot be turned into
 /// invalid JavaScript - regardless of their content.
-pub(crate) trait ToJsString {
+pub trait ToJsString {
   fn to_js_string(&self) -> crate::Result<String>;
 }
 
@@ -125,7 +125,7 @@ impl<D: Display> ToJsString for D {
 }
 
 /// Turn any collection of [`Tag`]s into a JavaScript array of strings.
-pub(crate) fn tags_to_javascript_array(tags: &[impl Tag]) -> crate::Result<String> {
+pub fn tags_to_javascript_array(tags: &[impl Tag]) -> crate::Result<String> {
   let tags: Vec<String> = tags.iter().map(ToString::to_string).collect();
   Ok(serde_json::to_string(&tags)?)
 }

@@ -3,20 +3,21 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  api::{assets::Assets, config::WindowUrl},
+  api::assets::Assets,
+  api::config::WindowUrl,
   hooks::{InvokeHandler, OnPageLoad, PageLoadPayload, SetupHook},
+  manager::{Args, WindowManager},
   plugin::{Plugin, PluginStore},
   runtime::{
     flavors::wry::Wry,
-    manager::{Args, WindowManager},
     menu::{Menu, MenuId, SystemTrayMenuItem},
     tag::Tag,
     webview::{CustomProtocol, WebviewAttributes, WindowBuilder},
     window::PendingWindow,
-    Dispatch, Runtime,
+    Dispatch, Params, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
-  Context, Invoke, Manager, Params, StateManager, Window,
+  Context, Invoke, Manager, StateManager, Window,
 };
 
 use std::{collections::HashMap, sync::Arc};
@@ -394,7 +395,7 @@ where
   /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
   pub fn register_global_uri_scheme_protocol<
     N: Into<String>,
-    H: Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync + 'static,
+    H: Fn(&str) -> Result<Vec<u8>, Box<dyn std::error::Error>> + Send + Sync + 'static,
   >(
     mut self,
     uri_scheme: N,

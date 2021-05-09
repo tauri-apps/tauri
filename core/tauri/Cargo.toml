@@ -22,9 +22,9 @@ futures = "0.3"
 uuid = { version = "0.8.2", features = [ "v4" ] }
 thiserror = "1.0.24"
 once_cell = "1.7.2"
+tauri-runtime = { version = "0.0.0", path = "../tauri-runtime" }
 tauri-macros = { version = "1.0.0-beta-rc.1", path = "../tauri-macros" }
 tauri-utils = { version = "1.0.0-beta-rc.1", path = "../tauri-utils" }
-wry = { git = "https://github.com/tauri-apps/wry", rev = "6bc97aff525644b83a3a00537316c46d7afb985b" }
 rand = "0.8"
 reqwest = { version = "0.11", features = [ "json", "multipart" ] }
 tempfile = "3"

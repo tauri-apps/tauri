@@ -9,11 +9,11 @@ use crate::{
     path::{resolve_path, BaseDirectory},
     PackageInfo,
   },
+  app::{GlobalMenuEventListener, WindowMenuEvent},
   event::{Event, EventHandler, Listeners},
   hooks::{InvokeHandler, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
   runtime::{
-    app::{GlobalMenuEventListener, WindowMenuEvent},
     menu::{Menu, MenuId, MenuItem},
     tag::{tags_to_javascript_array, Tag, TagRef, ToJsString},
     webview::{
@@ -21,10 +21,9 @@ use crate::{
       WindowBuilder,
     },
     window::{dpi::PhysicalSize, DetachedWindow, MenuEvent, PendingWindow, WindowEvent},
-    Icon, Runtime,
+    Icon, Params, Runtime,
   },
-  sealed::ParamsBase,
-  App, Context, Invoke, Params, StateManager, Window,
+  App, Context, Invoke, StateManager, Window,
 };
 use serde::Serialize;
 use serde_json::Value as JsonValue;
@@ -116,10 +115,6 @@ impl<E: Tag, L: Tag, MID: MenuId, TID: MenuId, A: Assets, R: Runtime> Default
   }
 }
 
-impl<E: Tag, L: Tag, MID: MenuId, TID: MenuId, A: Assets, R: Runtime> ParamsBase
-  for Args<E, L, MID, TID, A, R>
-{
-}
 impl<E: Tag, L: Tag, MID: MenuId, TID: MenuId, A: Assets, R: Runtime> Params
   for Args<E, L, MID, TID, A, R>
 {
@@ -344,7 +339,7 @@ impl<P: Params> WindowManager<P> {
           Err(e) => {
             #[cfg(debug_assertions)]
             eprintln!("{:?}", e); // TODO log::error!
-            Err(e)
+            Err(Box::new(e))
           }
         }
       }),
@@ -369,6 +364,7 @@ impl<P: Params> WindowManager<P> {
             &tauri_event::<P::Event>("tauri://file-drop-cancelled"),
             Some(()),
           ),
+          _ => unimplemented!(),
         };
       });
       true
@@ -394,9 +390,9 @@ impl<P: Params> WindowManager<P> {
       }}
       {plugin_initialization_script}
     "#,
-      core_script = include_str!("../../scripts/core.js"),
+      core_script = include_str!("../scripts/core.js"),
       bundle_script = if with_global_tauri {
-        include_str!("../../scripts/bundle.js")
+        include_str!("../scripts/bundle.js")
       } else {
         ""
       },
@@ -727,6 +723,7 @@ fn on_window_event<P: Params>(window: &Window<P>, event: &WindowEvent) -> crate:
     WindowEvent::ScaleFactorChanged {
       scale_factor,
       new_inner_size,
+      ..
     } => window.emit(
       &WINDOW_SCALE_FACTOR_CHANGED_EVENT
         .parse()
@@ -736,6 +733,7 @@ fn on_window_event<P: Params>(window: &Window<P>, event: &WindowEvent) -> crate:
         size: new_inner_size.clone(),
       }),
     )?,
+    _ => unimplemented!(),
   }
   Ok(())
 }

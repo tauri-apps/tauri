@@ -8,7 +8,10 @@ import scaffe from 'scaffe'
 import { Recipe } from '../types/recipe'
 
 export const vanillajs: Recipe = {
-  descriptiveName: 'Vanilla.js',
+  descriptiveName: {
+    name: 'Vanilla.js (html, css, and js without the bundlers)',
+    value: 'Vanilla.js'
+  },
   shortName: 'vanillajs',
   configUpdate: ({ cfg }) => ({
     ...cfg,

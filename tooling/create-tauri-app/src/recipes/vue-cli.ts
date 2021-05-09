@@ -12,7 +12,10 @@ const completeLogMsg = `
 `
 
 const vuecli: Recipe = {
-  descriptiveName: 'Vue CLI',
+  descriptiveName: {
+    name: 'Vue CLI (https://cli.vuejs.org/)',
+    value: 'vue-cli'
+  },
   shortName: 'vuecli',
   extraNpmDevDependencies: [],
   extraNpmDependencies: [],

@@ -12,7 +12,7 @@ export interface RecipeArgs {
 }
 
 export interface Recipe {
-  descriptiveName: string
+  descriptiveName: { name: string; value: string }
   shortName: string
   configUpdate?: (args: RecipeArgs) => TauriBuildConfig
   extraNpmDependencies: string[]

@@ -5,8 +5,9 @@
 import minimist from 'minimist'
 import inquirer from 'inquirer'
 import { bold, cyan, green, reset, yellow } from 'chalk'
+import { platform } from 'os'
 import { resolve, join } from 'path'
-import { reactjs, reactts } from './recipes/react'
+import { cra } from './recipes/react'
 import { vuecli } from './recipes/vue-cli'
 import { vanillajs } from './recipes/vanilla'
 import { vite } from './recipes/vite'
@@ -112,19 +113,62 @@ interface Responses {
   recipeName: string
 }
 
-const allRecipes: Recipe[] = [vanillajs, reactjs, reactts, vite, vuecli]
+const allRecipes: Recipe[] = [vanillajs, cra, vite, vuecli]
 
 const recipeByShortName = (name: string): Recipe | undefined =>
   allRecipes.find((r) => r.shortName === name)
 
 const recipeByDescriptiveName = (name: string): Recipe | undefined =>
-  allRecipes.find((r) => r.descriptiveName === name)
+  allRecipes.find((r) => r.descriptiveName.value === name)
 
 const recipeShortNames = allRecipes.map((r) => r.shortName)
 
 const recipeDescriptiveNames = allRecipes.map((r) => r.descriptiveName)
 
+const keypress = async (skip: boolean): Promise<void> => {
+  if (skip) return
+  process.stdin.setRawMode(true)
+  return await new Promise((resolve, reject) => {
+    console.log('Press any key to continue...')
+    process.stdin.once('data', (data) => {
+      const byteArray = [...data]
+      if (byteArray.length > 0 && byteArray[0] === 3) {
+        console.log('^C')
+        process.exit(1)
+      }
+      process.stdin.setRawMode(false)
+      resolve()
+    })
+  })
+}
+
 const runInit = async (argv: Argv): Promise<void> => {
+  console.log(
+    `We hope to help you create something special with ${bold(
+      yellow('Tauri')
+    )}!`
+  )
+  console.log(
+    'You will have a choice of one of the UI frameworks supported by the greater web tech community.'
+  )
+  console.log(
+    `This should get you started. See our docs at https://tauri.studio/`
+  )
+
+  const setupLink =
+    platform() === 'win32'
+      ? 'https://tauri.studio/en/docs/getting-started/setup-windows/'
+      : platform() === 'darwin'
+      ? 'https://tauri.studio/en/docs/getting-started/setup-macos/'
+      : 'https://tauri.studio/en/docs/getting-started/setup-linux/'
+
+  console.log(
+    `If you haven't already, please take a moment to setup your system.`
+  )
+  console.log(`You may find the requirements here: ${setupLink}`)
+
+  await keypress(argv.ci)
+
   const defaults = {
     appName: 'tauri-app',
     tauri: { window: { title: 'Tauri App' } },
@@ -184,15 +228,9 @@ const runInit = async (argv: Argv): Promise<void> => {
     recipe = recipeByDescriptiveName(recipeName)
   }
 
+  // throw if recipe is not set
   if (!recipe) {
-    if (argv.ci) {
-      recipe = recipeByShortName('vanillajs')
-    }
-    // throw if recipe is not set
-    // if it fails to set in CI, throw as well
-    if (!recipe) {
-      throw new Error('Could not find the recipe specified.')
-    }
+    throw new Error('Could not find the recipe specified.')
   }
 
   const packageManager =

@@ -15,7 +15,7 @@ const api = path.resolve('../api/')
 const manager = process.env.TAURI_RUN_MANAGER ?? 'npm'
 const recipes = process.env.TAURI_RECIPE
   ? [process.env.TAURI_RECIPE]
-  : ['vanillajs', 'reactjs', 'reactts', 'vite', 'vuecli']
+  : ['vanillajs', 'cra', 'vite', 'vuecli']
 const timeoutLong = 900000
 const timeoutLittleLonger = 930000
 const logOut = false ? 'inherit' : 'pipe'
@@ -96,6 +96,16 @@ describe('CTA', () => {
           expect(cta.killed).toBe(false)
           expect(cta.signal).toBe(undefined)
 
+          const packageFileInitial: {
+            [k: string]: string | object
+          } = JSON.parse(
+            await fs.promises.readFile(
+              path.join(appFolder, 'package.json'),
+              'utf-8'
+            )
+          )
+          expect(packageFileInitial['name']).toBe(appName)
+
           // run a tauri build to check if what we produced
           //  can actually create an app
           //  TODO long term we will want to hook this up to a real test harness
@@ -138,14 +148,7 @@ describe('CTA', () => {
                 tauri: 'tauri'
               })
             },
-            reactjs: () => {
-              expect(packageFileOutput['scripts']).toEqual(
-                expect.objectContaining({
-                  tauri: 'tauri'
-                })
-              )
-            },
-            reactts: () => {
+            cra: () => {
               expect(packageFileOutput['scripts']).toEqual(
                 expect.objectContaining({
                   tauri: 'tauri'

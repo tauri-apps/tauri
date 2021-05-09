@@ -19,6 +19,11 @@ pub struct MyState {
   label: String,
 }
 
+#[derive(Debug, serde::Serialize)]
+enum MyError {
+  FooError,
+}
+
 // ------------------------ Commands using Window ------------------------
 #[command]
 fn window_label(window: Window<impl Params<Label = String>>) {
@@ -32,16 +37,15 @@ async fn async_simple_command(argument: String) {
   println!("{}", argument);
 }
 
-// todo: even with #[allow(unused)], the macro generates an unused warning - commented out to prevent clippy from yelling at me
-/*#[allow(unused)]
 #[command]
+#[allow(unused)] // temporarily disabled until I solve the lifetime issue
 async fn async_stateful_command(
   argument: Option<String>,
   state: State<'_, MyState>,
 ) -> Result<(), ()> {
   println!("{:?} {:?}", argument, state.inner());
   Ok(())
-}*/
+}
 
 // Raw future commands
 #[command(async)]
@@ -72,16 +76,14 @@ fn force_async(argument: String) -> String {
 }
 
 #[command(async)]
-fn force_async_with_result(argument: &str) -> Result<&str, ()> {
-  Ok(argument)
+fn force_async_with_result(argument: &str) -> Result<&str, MyError> {
+  (!argument.is_empty())
+    .then(|| argument)
+    .ok_or(MyError::FooError)
 }
 
 // ------------------------ Commands returning Result ------------------------
 
-#[derive(Debug, serde::Serialize)]
-enum MyError {
-  FooError,
-}
 #[command]
 fn simple_command_with_result(argument: String) -> Result<String, MyError> {
   println!("{}", argument);
@@ -147,6 +149,11 @@ fn borrow_cmd(argument: &str) -> &str {
   argument
 }
 
+#[command]
+fn borrow_cmd_async(argument: &str) -> &str {
+  argument
+}
+
 fn main() {
   tauri::Builder::default()
     .manage(MyState {
@@ -155,6 +162,7 @@ fn main() {
     })
     .invoke_handler(tauri::generate_handler![
       borrow_cmd,
+      borrow_cmd_async,
       window_label,
       force_async,
       force_async_with_result,

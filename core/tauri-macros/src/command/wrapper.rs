@@ -81,6 +81,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     }
 
     // allow the macro to be resolved with the same path as the command function
+    #[allow(unused_imports)]
     #visibility use #wrapper;
   )
   .into()

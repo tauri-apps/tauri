@@ -219,7 +219,8 @@
       "manager": "rust",
       "dependencies": [
         "tauri-utils"
-      ]
+      ],
+      "postversion": "node ../../.scripts/sync-prerelease.js ${ release.type }"
     },
     "tauri-codegen": {
       "path": "./core/tauri-codegen",

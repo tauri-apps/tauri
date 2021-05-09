@@ -1,6 +1,6 @@
 ---
 "tauri": patch
-"tauri-wry": patch
+"tauri-wry": minor
 ---
 
 `tauri-wry` initial release.

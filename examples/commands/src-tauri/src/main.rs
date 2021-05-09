@@ -38,7 +38,6 @@ async fn async_simple_command(argument: String) {
 }
 
 #[command]
-#[allow(unused)] // temporarily disabled until I solve the lifetime issue
 async fn async_stateful_command(
   argument: Option<String>,
   state: State<'_, MyState>,
@@ -170,8 +169,7 @@ fn main() {
       commands::stateful_command,
       async_simple_command,
       future_simple_command,
-      // Because `async` appends '_ onto the generated future, the state thinks it needs live for 'static
-      //async_stateful_command,
+      async_stateful_command,
       command_arguments_wild,
       command_arguments_struct,
       simple_command_with_result,

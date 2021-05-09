@@ -8,11 +8,6 @@ import { existsSync } from 'fs'
 import semver from 'semver'
 import { IManager, NpmManager, YarnManager, PnpmManager } from './managers'
 
-// const useYarn = (): boolean =>
-//   process.env.npm_execpath
-//     ? process.env.npm_execpath.includes('yarn')
-//     : existsSync(appResolve.app('yarn.lock'))
-
 const getManager = (): IManager => {
   if (existsSync(appResolve.app('yarn.lock'))) {
     return new YarnManager()
@@ -36,28 +31,23 @@ function getCrateLatestVersion(crateName: string): string | null {
 }
 
 function getNpmLatestVersion(packageName: string): string {
-  const manager = getManager()
-  return manager.getLatestVersion(packageName)
+  return getManager().getLatestVersion(packageName)
 }
 
 function getNpmPackageVersion(packageName: string): string | null {
-  const manager = getManager()
-  return manager.getPackageVersion(packageName)
+  return getManager().getPackageVersion(packageName)
 }
 
 function installNpmPackage(packageName: string): void {
-  const manager = getManager()
-  return manager.installPackage(packageName)
+  return getManager().installPackage(packageName)
 }
 
 function installNpmDevPackage(packageName: string): void {
-  const manager = getManager()
-  return manager.installDevPackage(packageName)
+  return getManager().installDevPackage(packageName)
 }
 
 function updateNpmPackage(packageName: string): void {
-  const manager = getManager()
-  return manager.updatePackage(packageName)
+  return getManager().updatePackage(packageName)
 }
 
 function padVersion(version: string): string {

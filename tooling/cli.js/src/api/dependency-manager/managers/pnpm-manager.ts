@@ -21,7 +21,7 @@ export class PnpmManager implements IManager {
   getPackageVersion(packageName: string): string | null {
     const child = crossSpawnSync(
       'pnpm',
-      ['list', '--filter', packageName, 'version', '--depth', '0'],
+      ['list', packageName, 'version', '--depth', '0'],
       {
         cwd: appDir
       }
@@ -29,7 +29,7 @@ export class PnpmManager implements IManager {
 
     const output = String(child.output[1])
     // eslint-disable-next-line security/detect-non-literal-regexp
-    const matches = new RegExp(packageName + '@(\\S+)', 'g').exec(output)
+    const matches = new RegExp(packageName + ' (\\S+)', 'g').exec(output)
 
     if (matches?.[1]) {
       return matches[1]

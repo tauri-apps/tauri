@@ -355,9 +355,10 @@ fn tauri_config_to_bundle_settings(
   let mut resources = config.resources.unwrap_or_default();
   #[cfg(target_os = "linux")]
   {
-    if let Some(mut system_tray_config) = system_tray_config.clone() {
-      system_tray_config.set_extension("png");
-      resources.push(system_tray_config.icon_path.to_string_lossy().to_string());
+    if let Some(system_tray_config) = &system_tray_config {
+      let mut icon_path = system_tray_config.icon_path.clone();
+      icon_path.set_extension("png");
+      resources.push(icon_path.to_string_lossy().to_string());
     }
   }
 

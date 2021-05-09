@@ -1039,7 +1039,7 @@ fn create_webview<M: Params<Runtime = Wry>>(
 ) -> crate::Result<WebView> {
   let PendingWindow {
     webview_attributes,
-    window_attributes,
+    window_builder,
     rpc_handler,
     file_drop_handler,
     label,
@@ -1047,7 +1047,7 @@ fn create_webview<M: Params<Runtime = Wry>>(
     ..
   } = pending;
 
-  let window = window_attributes.build(event_loop).unwrap();
+  let window = window_builder.build(event_loop).unwrap();
   let mut webview_builder = WebViewBuilder::new(window)
     .map_err(|e| crate::Error::CreateWebview(Box::new(e)))?
     .with_url(&url)

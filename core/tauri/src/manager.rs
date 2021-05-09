@@ -238,15 +238,15 @@ impl<P: Params> WindowManager<P> {
         current_window_label = label.to_js_string()?,
       ));
 
-    if !pending.window_attributes.has_icon() {
+    if !pending.window_builder.has_icon() {
       if let Some(default_window_icon) = &self.inner.default_window_icon {
         let icon = Icon::Raw(default_window_icon.clone());
-        pending.window_attributes = pending.window_attributes.icon(icon)?;
+        pending.window_builder = pending.window_builder.icon(icon)?;
       }
     }
 
-    if !pending.window_attributes.has_menu() {
-      pending.window_attributes = pending.window_attributes.menu(self.inner.menu.clone());
+    if !pending.window_builder.has_menu() {
+      pending.window_builder = pending.window_builder.menu(self.inner.menu.clone());
     }
 
     for (uri_scheme, protocol) in &self.inner.uri_scheme_protocols {

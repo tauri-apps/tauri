@@ -62,7 +62,7 @@ pub struct PendingWindow<M: Params> {
   pub label: M::Label,
 
   /// The [`WindowBuilder`] that the window will be created with.
-  pub window_attributes: <<M::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
+  pub window_builder: <<M::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
 
   /// The [`WebviewAttributes`] that the webview will be created with.
   pub webview_attributes: WebviewAttributes,
@@ -80,12 +80,12 @@ pub struct PendingWindow<M: Params> {
 impl<M: Params> PendingWindow<M> {
   /// Create a new [`PendingWindow`] with a label and starting url.
   pub fn new(
-    window_attributes: <<M::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
+    window_builder: <<M::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
     webview_attributes: WebviewAttributes,
     label: M::Label,
   ) -> Self {
     Self {
-      window_attributes,
+      window_builder,
       webview_attributes,
       label,
       rpc_handler: None,
@@ -101,7 +101,7 @@ impl<M: Params> PendingWindow<M> {
     label: M::Label,
   ) -> Self {
     Self {
-      window_attributes:
+      window_builder:
         <<<M::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder>::with_config(
           window_config,
         ),

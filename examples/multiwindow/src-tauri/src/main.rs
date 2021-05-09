@@ -20,8 +20,8 @@ fn main() {
     .create_window(
       "Rust".to_string(),
       tauri::WindowUrl::App("index.html".into()),
-      |window_attributes, webview_attributes| {
-        (window_attributes.title("Tauri - Rust"), webview_attributes)
+      |window_builder, webview_attributes| {
+        (window_builder.title("Tauri - Rust"), webview_attributes)
       },
     )
     .run(tauri::generate_context!())

@@ -104,13 +104,13 @@ impl<P: Params> Window<P> {
       WebviewAttributes,
     ),
   {
-    let (window_attributes, webview_attributes) = setup(
+    let (window_builder, webview_attributes) = setup(
       <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder::new(),
       WebviewAttributes::new(url),
     );
     self.create_new_window(
       RuntimeOrDispatch::Dispatch(self.dispatcher()),
-      PendingWindow::new(window_attributes, webview_attributes, label),
+      PendingWindow::new(window_builder, webview_attributes, label),
     )
   }
 

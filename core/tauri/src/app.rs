@@ -98,13 +98,13 @@ impl<P: Params> App<P> {
       WebviewAttributes,
     ),
   {
-    let (window_attributes, webview_attributes) = setup(
+    let (window_builder, webview_attributes) = setup(
       <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder::new(),
       WebviewAttributes::new(url),
     );
     self.create_new_window(
       RuntimeOrDispatch::Runtime(&self.runtime),
-      PendingWindow::new(window_attributes, webview_attributes, label),
+      PendingWindow::new(window_builder, webview_attributes, label),
     )?;
     Ok(())
   }
@@ -338,12 +338,12 @@ where
       WebviewAttributes,
     ),
   {
-    let (window_attributes, webview_attributes) = setup(
+    let (window_builder, webview_attributes) = setup(
       <R::Dispatcher as Dispatch>::WindowBuilder::new(),
       WebviewAttributes::new(url),
     );
     self.pending_windows.push(PendingWindow::new(
-      window_attributes,
+      window_builder,
       webview_attributes,
       label,
     ));

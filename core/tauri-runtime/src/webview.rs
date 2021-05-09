@@ -4,26 +4,27 @@
 
 //! Items specific to the [`Runtime`](crate::runtime::Runtime)'s webview.
 
-use crate::runtime::Icon;
 use crate::{
-  api::config::{WindowConfig, WindowUrl},
-  runtime::{
-    menu::{Menu, MenuId},
-    window::DetachedWindow,
-  },
+  menu::{Menu, MenuId},
+  window::DetachedWindow,
+  Icon,
 };
+
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
+use tauri_utils::config::{WindowConfig, WindowUrl};
+
 use std::{collections::HashMap, path::PathBuf};
 
-type UriSchemeProtocol = dyn Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync + 'static;
+type UriSchemeProtocol =
+  dyn Fn(&str) -> Result<Vec<u8>, Box<dyn std::error::Error>> + Send + Sync + 'static;
 
 /// The attributes used to create an webview.
 pub struct WebviewAttributes {
-  pub(crate) url: WindowUrl,
-  pub(crate) initialization_scripts: Vec<String>,
-  pub(crate) data_directory: Option<PathBuf>,
-  pub(crate) uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
+  pub url: WindowUrl,
+  pub initialization_scripts: Vec<String>,
+  pub data_directory: Option<PathBuf>,
+  pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
 }
 
 impl WebviewAttributes {
@@ -65,7 +66,7 @@ impl WebviewAttributes {
   /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
-    H: Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync + 'static,
+    H: Fn(&str) -> Result<Vec<u8>, Box<dyn std::error::Error>> + Send + Sync + 'static,
   >(
     mut self,
     uri_scheme: N,
@@ -146,7 +147,6 @@ pub trait WindowBuilder: WindowBuilderBase {
 }
 
 /// Rpc request.
-#[non_exhaustive]
 pub struct RpcRequest {
   /// RPC command.
   pub command: String,
@@ -157,7 +157,8 @@ pub struct RpcRequest {
 /// Uses a custom URI scheme handler to resolve file requests
 pub struct CustomProtocol {
   /// Handler for protocol
-  pub protocol: Box<dyn Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync>,
+  #[allow(clippy::type_complexity)]
+  pub protocol: Box<dyn Fn(&str) -> Result<Vec<u8>, Box<dyn std::error::Error>> + Send + Sync>,
 }
 
 /// The file drop event payload.
@@ -173,18 +174,18 @@ pub enum FileDropEvent {
 }
 
 /// Rpc handler.
-pub(crate) type WebviewRpcHandler<M> = Box<dyn Fn(DetachedWindow<M>, RpcRequest) + Send>;
+pub type WebviewRpcHandler<M> = Box<dyn Fn(DetachedWindow<M>, RpcRequest) + Send>;
 
 /// File drop handler callback
 /// Return `true` in the callback to block the OS' default behavior of handling a file drop.
-pub(crate) type FileDropHandler<M> = Box<dyn Fn(FileDropEvent, DetachedWindow<M>) -> bool + Send>;
+pub type FileDropHandler<M> = Box<dyn Fn(FileDropEvent, DetachedWindow<M>) -> bool + Send>;
 
 #[derive(Deserialize)]
-pub(crate) struct InvokePayload {
+pub struct InvokePayload {
   #[serde(rename = "__tauriModule")]
-  pub(crate) tauri_module: Option<String>,
-  pub(crate) callback: String,
-  pub(crate) error: String,
+  pub tauri_module: Option<String>,
+  pub callback: String,
+  pub error: String,
   #[serde(flatten)]
-  pub(crate) inner: JsonValue,
+  pub inner: JsonValue,
 }

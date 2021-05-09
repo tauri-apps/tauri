@@ -4,15 +4,12 @@
 
 //! Internal runtime between Tauri and the underlying webview runtime.
 
-use crate::{
-  runtime::window::{DetachedWindow, PendingWindow},
-  Icon, Params, WindowBuilder,
-};
+use std::path::PathBuf;
+
+use tauri_utils::assets::Assets;
 use uuid::Uuid;
 
-pub(crate) mod app;
 pub mod flavors;
-pub(crate) mod manager;
 /// Create window and system tray menus.
 pub mod menu;
 /// Types useful for interacting with a user's monitors.
@@ -23,14 +20,78 @@ pub mod window;
 
 use menu::{MenuId, SystemTrayMenuItem};
 use monitor::Monitor;
+use tag::Tag;
+use webview::WindowBuilder;
 use window::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-  MenuEvent, WindowEvent,
+  DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
 };
+
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum Error {
+  /// Failed to create webview.
+  #[error("failed to create webview: {0}")]
+  CreateWebview(Box<dyn std::error::Error + Send>),
+  /// Failed to create window.
+  #[error("failed to create window")]
+  CreateWindow,
+  /// Failed to send message to webview.
+  #[error("failed to send message to the webview")]
+  FailedToSendMessage,
+  /// Failed to serialize/deserialize.
+  #[error("JSON error: {0}")]
+  Json(#[from] serde_json::Error),
+  /// Encountered an error creating the app system tray,
+  #[error("error encountered during tray setup: {0}")]
+  SystemTray(Box<dyn std::error::Error + Send>),
+  /// Failed to load window icon.
+  #[error("invalid icon: {0}")]
+  InvalidIcon(Box<dyn std::error::Error + Send>),
+}
+
+/// Result type.
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[doc(hidden)]
+pub mod private {
+  pub trait ParamsBase {}
+}
+
+/// Types associated with the running Tauri application.
+pub trait Params: private::ParamsBase + 'static {
+  /// The event type used to create and listen to events.
+  type Event: Tag;
+
+  /// The type used to determine the name of windows.
+  type Label: Tag;
+
+  /// The type used to determine window menu ids.
+  type MenuId: MenuId;
+
+  /// The type used to determine system tray menu ids.
+  type SystemTrayMenuId: MenuId;
+
+  /// Assets that Tauri should serve from itself.
+  type Assets: Assets;
+
+  /// The underlying webview runtime used by the Tauri application.
+  type Runtime: Runtime;
+}
+
+/// A icon definition.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum Icon {
+  /// Icon from file path.
+  File(PathBuf),
+  /// Icon from raw bytes.
+  Raw(Vec<u8>),
+}
 
 /// A system tray event.
 pub struct SystemTrayEvent {
-  pub(crate) menu_item_id: u32,
+  pub menu_item_id: u32,
 }
 
 /// The webview runtime interface.

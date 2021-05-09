@@ -8,16 +8,18 @@ use std::{
   hash::{Hash, Hasher},
 };
 
-/// A type that can be derived into a menu id.
-pub trait MenuId: Hash + Eq + Debug + Clone + Send + Sync + 'static {}
+use serde::Serialize;
 
-impl<T> MenuId for T where T: Hash + Eq + Debug + Clone + Send + Sync + 'static {}
+/// A type that can be derived into a menu id.
+pub trait MenuId: Serialize + Hash + Eq + Debug + Clone + Send + Sync + 'static {}
+
+impl<T> MenuId for T where T: Serialize + Hash + Eq + Debug + Clone + Send + Sync + 'static {}
 
 /// A window menu.
 #[derive(Debug, Clone)]
 pub struct Menu<I: MenuId> {
-  pub(crate) title: String,
-  pub(crate) items: Vec<MenuItem<I>>,
+  pub title: String,
+  pub items: Vec<MenuItem<I>>,
 }
 
 impl<I: MenuId> Menu<I> {
@@ -29,11 +31,12 @@ impl<I: MenuId> Menu<I> {
     }
   }
 }
+
 /// A custom menu item.
 #[derive(Debug, Clone)]
 pub struct CustomMenuItem<I: MenuId> {
-  pub(crate) id: I,
-  pub(crate) name: String,
+  pub id: I,
+  pub name: String,
 }
 
 impl<I: MenuId> CustomMenuItem<I> {
@@ -43,7 +46,8 @@ impl<I: MenuId> CustomMenuItem<I> {
     Self { id, name: title }
   }
 
-  pub(crate) fn id_value(&self) -> u32 {
+  #[doc(hidden)]
+  pub fn id_value(&self) -> u32 {
     let mut s = DefaultHasher::new();
     self.id.hash(&mut s);
     s.finish() as u32

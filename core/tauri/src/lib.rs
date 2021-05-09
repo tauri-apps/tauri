@@ -16,6 +16,7 @@ pub use tauri_macros::{command, generate_handler};
 
 /// Core API.
 pub mod api;
+pub(crate) mod app;
 /// Async runtime.
 pub mod async_runtime;
 pub mod command;
@@ -24,8 +25,11 @@ mod endpoints;
 mod error;
 mod event;
 mod hooks;
+mod manager;
 pub mod plugin;
-pub mod runtime;
+/// Tauri window.
+pub mod window;
+use tauri_runtime as runtime;
 /// The Tauri-specific settings for your runtime e.g. notification permission status.
 pub mod settings;
 mod state;
@@ -40,38 +44,34 @@ pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 use crate::{
   event::{Event, EventHandler},
-  runtime::{
-    tag::{Tag, TagRef},
-    window::PendingWindow,
-    Runtime,
-  },
+  runtime::window::PendingWindow,
 };
 use serde::Serialize;
 use std::{borrow::Borrow, collections::HashMap, path::PathBuf, sync::Arc};
 
 // Export types likely to be used by the application.
 pub use {
-  self::api::{
-    assets::Assets,
-    config::{Config, WindowUrl},
-  },
+  self::api::assets::Assets,
+  self::api::config::{Config, WindowUrl},
+  self::app::{App, Builder, SystemTrayEvent, WindowMenuEvent},
   self::hooks::{
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
     PageLoadPayload, SetupHook,
   },
-  self::runtime::app::{App, Builder, SystemTrayEvent, WindowMenuEvent},
-  self::runtime::flavors::wry::Wry,
-  self::runtime::menu::{CustomMenuItem, Menu, MenuId, MenuItem, SystemTrayMenuItem},
-  self::runtime::monitor::Monitor,
-  self::runtime::webview::{WebviewAttributes, WindowBuilder},
-  self::runtime::window::{
-    export::{
+  self::runtime::{
+    flavors::wry::Wry,
+    menu::{CustomMenuItem, Menu, MenuId, MenuItem, SystemTrayMenuItem},
+    monitor::Monitor,
+    tag::{Tag, TagRef},
+    webview::{WebviewAttributes, WindowBuilder},
+    window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
-      Window,
+      WindowEvent,
     },
-    WindowEvent,
+    Params,
   },
   self::state::{State, StateManager},
+  self::window::{MenuEvent, Window},
   tauri_utils::platform,
 };
 
@@ -109,16 +109,6 @@ macro_rules! tauri_build_context {
   };
 }
 
-/// A icon definition.
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub enum Icon {
-  /// Icon from file path.
-  File(PathBuf),
-  /// Icon from raw bytes.
-  Raw(Vec<u8>),
-}
-
 /// User supplied data required inside of a Tauri application.
 pub struct Context<A: Assets> {
   /// The config the application was prepared with.
@@ -140,27 +130,6 @@ pub struct Context<A: Assets> {
 
   /// Package information.
   pub package_info: crate::api::PackageInfo,
-}
-
-/// Types associated with the running Tauri application.
-pub trait Params: sealed::ParamsBase {
-  /// The event type used to create and listen to events.
-  type Event: Tag;
-
-  /// The type used to determine the name of windows.
-  type Label: Tag;
-
-  /// The type used to determine window menu ids.
-  type MenuId: MenuId;
-
-  /// The type used to determine system tray menu ids.
-  type SystemTrayMenuId: MenuId;
-
-  /// Assets that Tauri should serve from itself.
-  type Assets: Assets;
-
-  /// The underlying webview runtime used by the Tauri application.
-  type Runtime: Runtime;
 }
 
 /// Manages a running application.
@@ -262,13 +231,10 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
   }
 }
 
-/// Prevent implementation details from leaking out of the [`Manager`] and [`Params`] traits.
+/// Prevent implementation details from leaking out of the [`Manager`] trait.
 pub(crate) mod sealed {
-  use super::Params;
-  use crate::runtime::{manager::WindowManager, Runtime};
-
-  /// No downstream implementations of [`Params`].
-  pub trait ParamsBase: 'static {}
+  use crate::manager::WindowManager;
+  use tauri_runtime::{Params, Runtime};
 
   /// A running [`Runtime`] or a dispatcher to it.
   pub enum RuntimeOrDispatch<'r, P: Params> {
@@ -294,8 +260,10 @@ pub(crate) mod sealed {
       let labels = self.manager().labels().into_iter().collect::<Vec<_>>();
       let pending = self.manager().prepare_window(pending, &labels)?;
       match runtime {
-        RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
-        RuntimeOrDispatch::Dispatch(mut dispatcher) => dispatcher.create_window(pending),
+        RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending).map_err(Into::into),
+        RuntimeOrDispatch::Dispatch(mut dispatcher) => {
+          dispatcher.create_window(pending).map_err(Into::into)
+        }
       }
       .map(|window| self.manager().attach_window(window))
     }

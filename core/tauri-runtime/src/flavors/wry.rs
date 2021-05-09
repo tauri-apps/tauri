@@ -5,23 +5,19 @@
 //! The [`wry`] Tauri [`Runtime`].
 
 use crate::{
-  api::config::WindowConfig,
-  runtime::{
-    menu::{CustomMenuItem, Menu, MenuId, MenuItem, SystemTrayMenuItem},
-    webview::{
-      FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler, WindowBuilder,
-      WindowBuilderBase,
-    },
-    window::{
-      dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-      DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
-    },
-    Dispatch, Monitor, Params, Runtime, SystemTrayEvent,
+  menu::{CustomMenuItem, Menu, MenuId, MenuItem, SystemTrayMenuItem},
+  webview::{
+    FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler, WindowBuilder, WindowBuilderBase,
   },
-  Icon,
+  window::{
+    dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
+    DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
+  },
+  Dispatch, Icon, Monitor, Params, Runtime, SystemTrayEvent,
 };
 
 use image::{GenericImageView, Pixel};
+use tauri_utils::config::WindowConfig;
 use uuid::Uuid;
 use wry::{
   application::{
@@ -1043,7 +1039,7 @@ fn create_webview<M: Params<Runtime = Wry>>(
 ) -> crate::Result<WebView> {
   let PendingWindow {
     webview_attributes,
-    window_attributes,
+    window_builder,
     rpc_handler,
     file_drop_handler,
     label,
@@ -1051,7 +1047,7 @@ fn create_webview<M: Params<Runtime = Wry>>(
     ..
   } = pending;
 
-  let window = window_attributes.build(event_loop).unwrap();
+  let window = window_builder.build(event_loop).unwrap();
   let mut webview_builder = WebViewBuilder::new(window)
     .map_err(|e| crate::Error::CreateWebview(Box::new(e)))?
     .with_url(&url)

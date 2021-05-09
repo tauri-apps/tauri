@@ -339,7 +339,7 @@ mod error;
 
 pub use self::error::Error;
 
-use crate::runtime::manager::tauri_event;
+use crate::manager::tauri_event;
 use crate::{
   api::{
     config::UpdaterConfig,

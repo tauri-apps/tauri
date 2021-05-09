@@ -12,7 +12,7 @@ use crate::{
 };
 use serde::Deserialize;
 
-use crate::Icon;
+use crate::runtime::Icon;
 use std::path::PathBuf;
 
 #[derive(Deserialize)]
@@ -115,7 +115,7 @@ impl Cmd {
               )
             })?
             .emit_others(
-              &crate::runtime::manager::tauri_event::<P::Event>("tauri://window-created"),
+              &crate::manager::tauri_event::<P::Event>("tauri://window-created"),
               Some(WindowCreatedEvent {
                 label: label.to_string(),
               }),

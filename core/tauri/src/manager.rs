@@ -9,22 +9,22 @@ use crate::{
     path::{resolve_path, BaseDirectory},
     PackageInfo,
   },
+  app::{GlobalMenuEventListener, WindowMenuEvent},
   event::{Event, EventHandler, Listeners},
   hooks::{InvokeHandler, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
   runtime::{
-    app::{GlobalMenuEventListener, WindowMenuEvent},
     menu::{Menu, MenuId, MenuItem},
+    private::ParamsBase,
     tag::{tags_to_javascript_array, Tag, TagRef, ToJsString},
     webview::{
       CustomProtocol, FileDropEvent, FileDropHandler, InvokePayload, WebviewRpcHandler,
       WindowBuilder,
     },
-    window::{dpi::PhysicalSize, DetachedWindow, MenuEvent, PendingWindow, WindowEvent},
-    Icon, Runtime,
+    window::{dpi::PhysicalSize, DetachedWindow, PendingWindow, WindowEvent},
+    Icon, Params, Runtime,
   },
-  sealed::ParamsBase,
-  App, Context, Invoke, Params, StateManager, Window,
+  App, Context, Invoke, MenuEvent, StateManager, Window,
 };
 use serde::Serialize;
 use serde_json::Value as JsonValue;
@@ -203,6 +203,11 @@ impl<P: Params> WindowManager<P> {
     self.inner.state.clone()
   }
 
+  /// Get the menu ids mapper.
+  pub(crate) fn menu_ids(&self) -> HashMap<u32, P::MenuId> {
+    self.inner.menu_ids.clone()
+  }
+
   // setup content for dev-server
   #[cfg(dev)]
   fn get_url(&self) -> String {
@@ -243,15 +248,15 @@ impl<P: Params> WindowManager<P> {
         current_window_label = label.to_js_string()?,
       ));
 
-    if !pending.window_attributes.has_icon() {
+    if !pending.window_builder.has_icon() {
       if let Some(default_window_icon) = &self.inner.default_window_icon {
         let icon = Icon::Raw(default_window_icon.clone());
-        pending.window_attributes = pending.window_attributes.icon(icon)?;
+        pending.window_builder = pending.window_builder.icon(icon)?;
       }
     }
 
-    if !pending.window_attributes.has_menu() {
-      pending.window_attributes = pending.window_attributes.menu(self.inner.menu.clone());
+    if !pending.window_builder.has_menu() {
+      pending.window_builder = pending.window_builder.menu(self.inner.menu.clone());
     }
 
     for (uri_scheme, protocol) in &self.inner.uri_scheme_protocols {
@@ -344,7 +349,7 @@ impl<P: Params> WindowManager<P> {
           Err(e) => {
             #[cfg(debug_assertions)]
             eprintln!("{:?}", e); // TODO log::error!
-            Err(e)
+            Err(Box::new(e))
           }
         }
       }),
@@ -369,6 +374,7 @@ impl<P: Params> WindowManager<P> {
             &tauri_event::<P::Event>("tauri://file-drop-cancelled"),
             Some(()),
           ),
+          _ => unimplemented!(),
         };
       });
       true
@@ -394,9 +400,9 @@ impl<P: Params> WindowManager<P> {
       }}
       {plugin_initialization_script}
     "#,
-      core_script = include_str!("../../scripts/core.js"),
+      core_script = include_str!("../scripts/core.js"),
       bundle_script = if with_global_tauri {
-        include_str!("../../scripts/bundle.js")
+        include_str!("../scripts/bundle.js")
       } else {
         ""
       },
@@ -548,13 +554,12 @@ impl<P: Params> WindowManager<P> {
     });
     let window_ = window.clone();
     let menu_event_listeners = self.inner.menu_event_listeners.clone();
-    let menu_ids = self.inner.menu_ids.clone();
     window.on_menu_event(move |event| {
-      let _ = on_menu_event(&window_, event);
+      let _ = on_menu_event(&window_, &event);
       for handler in menu_event_listeners.iter() {
         handler(WindowMenuEvent {
           window: window_.clone(),
-          menu_item_id: menu_ids.get(&event.menu_item_id).unwrap().clone(),
+          menu_item_id: event.menu_item_id.clone(),
         });
       }
     });
@@ -727,6 +732,7 @@ fn on_window_event<P: Params>(window: &Window<P>, event: &WindowEvent) -> crate:
     WindowEvent::ScaleFactorChanged {
       scale_factor,
       new_inner_size,
+      ..
     } => window.emit(
       &WINDOW_SCALE_FACTOR_CHANGED_EVENT
         .parse()
@@ -736,6 +742,7 @@ fn on_window_event<P: Params>(window: &Window<P>, event: &WindowEvent) -> crate:
         size: new_inner_size.clone(),
       }),
     )?,
+    _ => unimplemented!(),
   }
   Ok(())
 }
@@ -747,11 +754,11 @@ struct ScaleFactorChanged {
   size: PhysicalSize<u32>,
 }
 
-fn on_menu_event<P: Params>(window: &Window<P>, event: &MenuEvent) -> crate::Result<()> {
+fn on_menu_event<P: Params>(window: &Window<P>, event: &MenuEvent<P::MenuId>) -> crate::Result<()> {
   window.emit(
     &MENU_EVENT
       .parse()
       .unwrap_or_else(|_| panic!("unhandled event")),
-    Some(event),
+    Some(event.menu_item_id.clone()),
   )
 }

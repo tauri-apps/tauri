@@ -5,6 +5,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
+use std::borrow::Cow;
 use syn::{
   parse::{Parse, ParseBuffer},
   parse_macro_input,
@@ -176,6 +177,8 @@ fn parse_arg(command: &Ident, arg: &FnArg) -> syn::Result<TokenStream2> {
     ));
   }
 
+  let key = snake_case_to_camel_case(key);
+
   Ok(quote!(::tauri::command::CommandArg::from_command(
     ::tauri::command::CommandItem {
       name: stringify!(#command),
@@ -183,4 +186,25 @@ fn parse_arg(command: &Ident, arg: &FnArg) -> syn::Result<TokenStream2> {
       message: &message,
     }
   )))
+}
+
+fn snake_case_to_camel_case(s: String) -> String {
+  if s.as_str().contains('_') {
+    let mut camel = String::with_capacity(s.len());
+    let mut to_upper = false;
+    for c in s.chars() {
+      match c {
+        '_' => to_upper = true,
+        c if to_upper => {
+          camel.push(c.to_ascii_uppercase());
+          to_upper = false;
+        }
+        c => camel.push(c),
+      }
+    }
+
+    camel
+  } else {
+    s
+  }
 }

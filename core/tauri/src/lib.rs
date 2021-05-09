@@ -44,7 +44,7 @@ pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 use crate::{
   event::{Event, EventHandler},
-  runtime::{tag::TagRef, window::PendingWindow},
+  runtime::window::PendingWindow,
 };
 use serde::Serialize;
 use std::{borrow::Borrow, collections::HashMap, path::PathBuf, sync::Arc};
@@ -62,6 +62,7 @@ pub use {
     flavors::wry::Wry,
     menu::{CustomMenuItem, Menu, MenuId, MenuItem, SystemTrayMenuItem},
     monitor::Monitor,
+    tag::{Tag, TagRef},
     webview::{WebviewAttributes, WindowBuilder},
     window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},

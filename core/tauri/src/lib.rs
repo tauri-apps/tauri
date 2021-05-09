@@ -36,6 +36,9 @@ mod state;
 #[cfg(feature = "updater")]
 pub mod updater;
 
+#[cfg(feature = "wry")]
+pub use tauri_runtime_wry::Wry;
+
 /// `Result<T, ::tauri::Error>`
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -59,9 +62,7 @@ pub use {
     PageLoadPayload, SetupHook,
   },
   self::runtime::{
-    flavors::wry::Wry,
     menu::{CustomMenuItem, Menu, MenuId, MenuItem, SystemTrayMenuItem},
-    monitor::Monitor,
     tag::{Tag, TagRef},
     webview::{WebviewAttributes, WindowBuilder},
     window::{
@@ -71,7 +72,7 @@ pub use {
     Params,
   },
   self::state::{State, StateManager},
-  self::window::{MenuEvent, Window},
+  self::window::{MenuEvent, Monitor, Window},
   tauri_utils::platform,
 };
 

@@ -4,8 +4,9 @@
 
 //! The [`wry`] Tauri [`Runtime`].
 
-use crate::{
+use tauri_runtime::{
   menu::{CustomMenuItem, Menu, MenuId, MenuItem, SystemTrayMenuItem},
+  monitor::Monitor,
   webview::{
     FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler, WindowBuilder, WindowBuilderBase,
   },
@@ -13,7 +14,7 @@ use crate::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
   },
-  Dispatch, Icon, Monitor, Params, Runtime, SystemTrayEvent,
+  Dispatch, Error, Icon, Params, Result, Runtime, SystemTrayEvent,
 };
 
 use image::{GenericImageView, Pixel};
@@ -52,7 +53,7 @@ use std::{
 };
 
 type CreateWebviewHandler =
-  Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> crate::Result<WebView> + Send>;
+  Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> Result<WebView> + Send>;
 type MainThreadTask = Box<dyn FnOnce() + Send>;
 type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
@@ -76,21 +77,22 @@ const PIXEL_SIZE: usize = std::mem::size_of::<PixelValue>();
 pub struct WryIcon(WindowIcon);
 
 impl TryFrom<Icon> for WryIcon {
-  type Error = crate::Error;
-  fn try_from(icon: Icon) -> Result<Self, Self::Error> {
+  type Error = Error;
+  fn try_from(icon: Icon) -> std::result::Result<Self, Self::Error> {
     let image = match icon {
-      Icon::File(path) => image::open(path).map_err(|e| crate::Error::InvalidIcon(Box::new(e)))?,
+      Icon::File(path) => image::open(path).map_err(|e| Error::InvalidIcon(Box::new(e)))?,
       Icon::Raw(raw) => {
-        image::load_from_memory(&raw).map_err(|e| crate::Error::InvalidIcon(Box::new(e)))?
+        image::load_from_memory(&raw).map_err(|e| Error::InvalidIcon(Box::new(e)))?
       }
+      _ => unimplemented!(),
     };
     let (width, height) = image.dimensions();
     let mut rgba = Vec::with_capacity((width * height) as usize * PIXEL_SIZE);
     for (_, _, pixel) in image.pixels() {
       rgba.extend_from_slice(&pixel.to_rgba().0);
     }
-    let icon = WindowIcon::from_rgba(rgba, width, height)
-      .map_err(|e| crate::Error::InvalidIcon(Box::new(e)))?;
+    let icon =
+      WindowIcon::from_rgba(rgba, width, height).map_err(|e| Error::InvalidIcon(Box::new(e)))?;
     Ok(Self(icon))
   }
 }
@@ -100,8 +102,10 @@ struct WindowEventWrapper(Option<WindowEvent>);
 impl<'a> From<&WryWindowEvent<'a>> for WindowEventWrapper {
   fn from(event: &WryWindowEvent<'a>) -> Self {
     let event = match event {
-      WryWindowEvent::Resized(size) => WindowEvent::Resized((*size).into()),
-      WryWindowEvent::Moved(position) => WindowEvent::Moved((*position).into()),
+      WryWindowEvent::Resized(size) => WindowEvent::Resized(PhysicalSizeWrapper(*size).into()),
+      WryWindowEvent::Moved(position) => {
+        WindowEvent::Moved(PhysicalPositionWrapper(*position).into())
+      }
       WryWindowEvent::CloseRequested => WindowEvent::CloseRequested,
       WryWindowEvent::Destroyed => WindowEvent::Destroyed,
       WryWindowEvent::Focused(focused) => WindowEvent::Focused(*focused),
@@ -110,7 +114,7 @@ impl<'a> From<&WryWindowEvent<'a>> for WindowEventWrapper {
         new_inner_size,
       } => WindowEvent::ScaleFactorChanged {
         scale_factor: *scale_factor,
-        new_inner_size: (**new_inner_size).into(),
+        new_inner_size: PhysicalSizeWrapper(**new_inner_size).into(),
       },
       _ => return Self(None),
     };
@@ -118,150 +122,181 @@ impl<'a> From<&WryWindowEvent<'a>> for WindowEventWrapper {
   }
 }
 
-impl From<MonitorHandle> for Monitor {
-  fn from(monitor: MonitorHandle) -> Monitor {
+pub struct MonitorHandleWrapper(MonitorHandle);
+
+impl From<MonitorHandleWrapper> for Monitor {
+  fn from(monitor: MonitorHandleWrapper) -> Monitor {
     Self {
-      name: monitor.name(),
-      position: monitor.position().into(),
-      size: monitor.size().into(),
-      scale_factor: monitor.scale_factor(),
+      name: monitor.0.name(),
+      position: PhysicalPositionWrapper(monitor.0.position()).into(),
+      size: PhysicalSizeWrapper(monitor.0.size()).into(),
+      scale_factor: monitor.0.scale_factor(),
     }
   }
 }
 
-impl<T> From<WryPhysicalPosition<T>> for PhysicalPosition<T> {
-  fn from(position: WryPhysicalPosition<T>) -> Self {
+struct PhysicalPositionWrapper<T>(WryPhysicalPosition<T>);
+
+impl<T> From<PhysicalPositionWrapper<T>> for PhysicalPosition<T> {
+  fn from(position: PhysicalPositionWrapper<T>) -> Self {
     Self {
-      x: position.x,
-      y: position.y,
+      x: position.0.x,
+      y: position.0.y,
     }
   }
 }
 
-impl<T> From<PhysicalPosition<T>> for WryPhysicalPosition<T> {
+impl<T> From<PhysicalPosition<T>> for PhysicalPositionWrapper<T> {
   fn from(position: PhysicalPosition<T>) -> Self {
-    Self {
+    Self(WryPhysicalPosition {
       x: position.x,
       y: position.y,
-    }
+    })
   }
 }
 
-impl<T> From<LogicalPosition<T>> for WryLogicalPosition<T> {
+struct LogicalPositionWrapper<T>(WryLogicalPosition<T>);
+
+impl<T> From<LogicalPosition<T>> for LogicalPositionWrapper<T> {
   fn from(position: LogicalPosition<T>) -> Self {
-    Self {
+    Self(WryLogicalPosition {
       x: position.x,
       y: position.y,
-    }
+    })
   }
 }
 
-impl<T> From<WryPhysicalSize<T>> for PhysicalSize<T> {
-  fn from(size: WryPhysicalSize<T>) -> Self {
+struct PhysicalSizeWrapper<T>(WryPhysicalSize<T>);
+
+impl<T> From<PhysicalSizeWrapper<T>> for PhysicalSize<T> {
+  fn from(size: PhysicalSizeWrapper<T>) -> Self {
     Self {
-      width: size.width,
-      height: size.height,
+      width: size.0.width,
+      height: size.0.height,
     }
   }
 }
 
-impl<T> From<PhysicalSize<T>> for WryPhysicalSize<T> {
+impl<T> From<PhysicalSize<T>> for PhysicalSizeWrapper<T> {
   fn from(size: PhysicalSize<T>) -> Self {
-    Self {
+    Self(WryPhysicalSize {
       width: size.width,
       height: size.height,
-    }
+    })
   }
 }
 
-impl<T> From<LogicalSize<T>> for WryLogicalSize<T> {
+struct LogicalSizeWrapper<T>(WryLogicalSize<T>);
+
+impl<T> From<LogicalSize<T>> for LogicalSizeWrapper<T> {
   fn from(size: LogicalSize<T>) -> Self {
-    Self {
+    Self(WryLogicalSize {
       width: size.width,
       height: size.height,
-    }
+    })
   }
 }
 
-impl From<Size> for WrySize {
+struct SizeWrapper(WrySize);
+
+impl From<Size> for SizeWrapper {
   fn from(size: Size) -> Self {
     match size {
-      Size::Logical(s) => Self::Logical(s.into()),
-      Size::Physical(s) => Self::Physical(s.into()),
+      Size::Logical(s) => Self(WrySize::Logical(LogicalSizeWrapper::from(s).0)),
+      Size::Physical(s) => Self(WrySize::Physical(PhysicalSizeWrapper::from(s).0)),
     }
   }
 }
 
-impl From<Position> for WryPosition {
+struct PositionWrapper(WryPosition);
+
+impl From<Position> for PositionWrapper {
   fn from(position: Position) -> Self {
     match position {
-      Position::Logical(s) => Self::Logical(s.into()),
-      Position::Physical(s) => Self::Physical(s.into()),
+      Position::Logical(s) => Self(WryPosition::Logical(LogicalPositionWrapper::from(s).0)),
+      Position::Physical(s) => Self(WryPosition::Physical(PhysicalPositionWrapper::from(s).0)),
     }
   }
 }
 
-impl<I: MenuId> From<CustomMenuItem<I>> for WryCustomMenu {
+pub struct CustomMenuWrapper(WryCustomMenu);
+
+impl<I: MenuId> From<CustomMenuItem<I>> for CustomMenuWrapper {
   fn from(item: CustomMenuItem<I>) -> Self {
-    Self {
+    Self(WryCustomMenu {
       id: WryMenuId(item.id_value()),
       name: item.name,
       keyboard_accelerators: None,
-    }
+    })
   }
 }
 
-impl<I: MenuId> From<MenuItem<I>> for WryMenuItem {
+struct MenuItemWrapper(WryMenuItem);
+
+impl<I: MenuId> From<MenuItem<I>> for MenuItemWrapper {
   fn from(item: MenuItem<I>) -> Self {
     match item {
-      MenuItem::Custom(custom) => Self::Custom(custom.into()),
-      MenuItem::About(v) => Self::About(v),
-      MenuItem::Hide => Self::Hide,
-      MenuItem::Services => Self::Services,
-      MenuItem::HideOthers => Self::HideOthers,
-      MenuItem::ShowAll => Self::ShowAll,
-      MenuItem::CloseWindow => Self::CloseWindow,
-      MenuItem::Quit => Self::Quit,
-      MenuItem::Copy => Self::Copy,
-      MenuItem::Cut => Self::Cut,
-      MenuItem::Undo => Self::Undo,
-      MenuItem::Redo => Self::Redo,
-      MenuItem::SelectAll => Self::SelectAll,
-      MenuItem::Paste => Self::Paste,
-      MenuItem::EnterFullScreen => Self::EnterFullScreen,
-      MenuItem::Minimize => Self::Minimize,
-      MenuItem::Zoom => Self::Zoom,
-      MenuItem::Separator => Self::Separator,
+      MenuItem::Custom(custom) => Self(WryMenuItem::Custom(CustomMenuWrapper::from(custom).0)),
+      MenuItem::About(v) => Self(WryMenuItem::About(v)),
+      MenuItem::Hide => Self(WryMenuItem::Hide),
+      MenuItem::Services => Self(WryMenuItem::Services),
+      MenuItem::HideOthers => Self(WryMenuItem::HideOthers),
+      MenuItem::ShowAll => Self(WryMenuItem::ShowAll),
+      MenuItem::CloseWindow => Self(WryMenuItem::CloseWindow),
+      MenuItem::Quit => Self(WryMenuItem::Quit),
+      MenuItem::Copy => Self(WryMenuItem::Copy),
+      MenuItem::Cut => Self(WryMenuItem::Cut),
+      MenuItem::Undo => Self(WryMenuItem::Undo),
+      MenuItem::Redo => Self(WryMenuItem::Redo),
+      MenuItem::SelectAll => Self(WryMenuItem::SelectAll),
+      MenuItem::Paste => Self(WryMenuItem::Paste),
+      MenuItem::EnterFullScreen => Self(WryMenuItem::EnterFullScreen),
+      MenuItem::Minimize => Self(WryMenuItem::Minimize),
+      MenuItem::Zoom => Self(WryMenuItem::Zoom),
+      MenuItem::Separator => Self(WryMenuItem::Separator),
+      _ => unimplemented!(),
     }
   }
 }
 
-impl<I: MenuId> From<Menu<I>> for WryMenu {
+pub struct MenuWrapper(WryMenu);
+
+impl<I: MenuId> From<Menu<I>> for MenuWrapper {
   fn from(menu: Menu<I>) -> Self {
-    Self {
+    Self(WryMenu {
       title: menu.title,
-      items: menu.items.into_iter().map(Into::into).collect(),
-    }
+      items: menu
+        .items
+        .into_iter()
+        .map(|m| MenuItemWrapper::from(m).0)
+        .collect(),
+    })
   }
 }
 
-impl<I: MenuId> From<SystemTrayMenuItem<I>> for WryMenuItem {
+impl<I: MenuId> From<SystemTrayMenuItem<I>> for MenuItemWrapper {
   fn from(item: SystemTrayMenuItem<I>) -> Self {
     match item {
-      SystemTrayMenuItem::Custom(custom) => Self::Custom(custom.into()),
-      SystemTrayMenuItem::Separator => Self::Separator,
+      SystemTrayMenuItem::Custom(custom) => {
+        Self(WryMenuItem::Custom(CustomMenuWrapper::from(custom).0))
+      }
+      SystemTrayMenuItem::Separator => Self(WryMenuItem::Separator),
+      _ => unimplemented!(),
     }
   }
 }
 
-impl WindowBuilderBase for WryWindowBuilder {}
-impl WindowBuilder for WryWindowBuilder {
+#[derive(Debug, Clone, Default)]
+pub struct WindowBuilderWrapper(WryWindowBuilder);
+
+impl WindowBuilderBase for WindowBuilderWrapper {}
+impl WindowBuilder for WindowBuilderWrapper {
   fn new() -> Self {
     Default::default()
   }
 
   fn with_config(config: WindowConfig) -> Self {
-    let mut window = WryWindowBuilder::new()
+    let mut window = WindowBuilderWrapper::new()
       .title(config.title.to_string())
       .inner_size(config.width, config.height)
       .visible(config.visible)
@@ -286,86 +321,107 @@ impl WindowBuilder for WryWindowBuilder {
   }
 
   fn menu<I: MenuId>(self, menu: Vec<Menu<I>>) -> Self {
-    self.with_menu(menu.into_iter().map(Into::into).collect::<Vec<WryMenu>>())
+    Self(
+      self.0.with_menu(
+        menu
+          .into_iter()
+          .map(|m| MenuWrapper::from(m).0)
+          .collect::<Vec<WryMenu>>(),
+      ),
+    )
   }
 
   fn position(self, x: f64, y: f64) -> Self {
-    self.with_position(WryLogicalPosition::new(x, y))
+    Self(self.0.with_position(WryLogicalPosition::new(x, y)))
   }
 
   fn inner_size(self, width: f64, height: f64) -> Self {
-    self.with_inner_size(WryLogicalSize::new(width, height))
+    Self(self.0.with_inner_size(WryLogicalSize::new(width, height)))
   }
 
   fn min_inner_size(self, min_width: f64, min_height: f64) -> Self {
-    self.with_min_inner_size(WryLogicalSize::new(min_width, min_height))
+    Self(
+      self
+        .0
+        .with_min_inner_size(WryLogicalSize::new(min_width, min_height)),
+    )
   }
 
   fn max_inner_size(self, max_width: f64, max_height: f64) -> Self {
-    self.with_max_inner_size(WryLogicalSize::new(max_width, max_height))
+    Self(
+      self
+        .0
+        .with_max_inner_size(WryLogicalSize::new(max_width, max_height)),
+    )
   }
 
   fn resizable(self, resizable: bool) -> Self {
-    self.with_resizable(resizable)
+    Self(self.0.with_resizable(resizable))
   }
 
   fn title<S: Into<String>>(self, title: S) -> Self {
-    self.with_title(title.into())
+    Self(self.0.with_title(title.into()))
   }
 
   fn fullscreen(self, fullscreen: bool) -> Self {
     if fullscreen {
-      self.with_fullscreen(Some(Fullscreen::Borderless(None)))
+      Self(self.0.with_fullscreen(Some(Fullscreen::Borderless(None))))
     } else {
-      self.with_fullscreen(None)
+      Self(self.0.with_fullscreen(None))
     }
   }
 
   fn maximized(self, maximized: bool) -> Self {
-    self.with_maximized(maximized)
+    Self(self.0.with_maximized(maximized))
   }
 
   fn visible(self, visible: bool) -> Self {
-    self.with_visible(visible)
+    Self(self.0.with_visible(visible))
   }
 
   fn transparent(self, transparent: bool) -> Self {
-    self.with_transparent(transparent)
+    Self(self.0.with_transparent(transparent))
   }
 
   fn decorations(self, decorations: bool) -> Self {
-    self.with_decorations(decorations)
+    Self(self.0.with_decorations(decorations))
   }
 
   fn always_on_top(self, always_on_top: bool) -> Self {
-    self.with_always_on_top(always_on_top)
+    Self(self.0.with_always_on_top(always_on_top))
   }
 
-  fn icon(self, icon: Icon) -> crate::Result<Self> {
-    Ok(self.with_window_icon(Some(WryIcon::try_from(icon)?.0)))
+  fn icon(self, icon: Icon) -> Result<Self> {
+    Ok(Self(
+      self.0.with_window_icon(Some(WryIcon::try_from(icon)?.0)),
+    ))
   }
 
   fn has_icon(&self) -> bool {
-    self.window.window_icon.is_some()
+    self.0.window.window_icon.is_some()
   }
 
   fn has_menu(&self) -> bool {
-    self.window.window_menu.is_some()
+    self.0.window.window_menu.is_some()
   }
 }
 
-impl From<WryRpcRequest> for RpcRequest {
-  fn from(request: WryRpcRequest) -> Self {
+pub struct RpcRequestWrapper(WryRpcRequest);
+
+impl From<RpcRequestWrapper> for RpcRequest {
+  fn from(request: RpcRequestWrapper) -> Self {
     Self {
-      command: request.method,
-      params: request.params,
+      command: request.0.method,
+      params: request.0.params,
     }
   }
 }
 
-impl From<WryFileDropEvent> for FileDropEvent {
-  fn from(event: WryFileDropEvent) -> Self {
-    match event {
+pub struct FileDropEventWrapper(WryFileDropEvent);
+
+impl From<FileDropEventWrapper> for FileDropEvent {
+  fn from(event: FileDropEventWrapper) -> Self {
+    match event.0 {
       WryFileDropEvent::Hovered(paths) => FileDropEvent::Hovered(paths),
       WryFileDropEvent::Dropped(paths) => FileDropEvent::Dropped(paths),
       WryFileDropEvent::Cancelled => FileDropEvent::Cancelled,
@@ -377,8 +433,8 @@ impl From<WryFileDropEvent> for FileDropEvent {
 enum WindowMessage {
   // Getters
   ScaleFactor(Sender<f64>),
-  InnerPosition(Sender<crate::Result<PhysicalPosition<i32>>>),
-  OuterPosition(Sender<crate::Result<PhysicalPosition<i32>>>),
+  InnerPosition(Sender<Result<PhysicalPosition<i32>>>),
+  OuterPosition(Sender<Result<PhysicalPosition<i32>>>),
   InnerSize(Sender<PhysicalSize<u32>>),
   OuterSize(Sender<PhysicalSize<u32>>),
   IsFullscreen(Sender<bool>),
@@ -442,40 +498,21 @@ macro_rules! dispatcher_getter {
       .context
       .proxy
       .send_event(Message::Window($self.window_id, $message(tx)))
-      .map_err(|_| crate::Error::FailedToSendMessage)?;
+      .map_err(|_| Error::FailedToSendMessage)?;
     rx.recv().unwrap()
   }};
 }
 
-macro_rules! window_result_getter {
-  ($window: ident, $tx: ident, $call: ident) => {
-    $tx
-      .send(
-        $window
-          .$call()
-          .map(Into::into)
-          .map_err(|_| crate::Error::FailedToSendMessage),
-      )
-      .unwrap()
-  };
-}
-
-macro_rules! window_getter {
-  ($window: ident, $tx: ident, $call: ident) => {
-    $tx.send($window.$call().into()).unwrap()
-  };
-}
-
 impl Dispatch for WryDispatcher {
   type Runtime = Wry;
-  type WindowBuilder = WryWindowBuilder;
+  type WindowBuilder = WindowBuilderWrapper;
 
-  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
+  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
     self
       .context
       .task_tx
       .send(Box::new(f))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
   fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid {
@@ -502,65 +539,71 @@ impl Dispatch for WryDispatcher {
 
   // Getters
 
-  fn scale_factor(&self) -> crate::Result<f64> {
+  fn scale_factor(&self) -> Result<f64> {
     Ok(dispatcher_getter!(self, WindowMessage::ScaleFactor))
   }
 
-  fn inner_position(&self) -> crate::Result<PhysicalPosition<i32>> {
+  fn inner_position(&self) -> Result<PhysicalPosition<i32>> {
     dispatcher_getter!(self, WindowMessage::InnerPosition)
   }
 
-  fn outer_position(&self) -> crate::Result<PhysicalPosition<i32>> {
+  fn outer_position(&self) -> Result<PhysicalPosition<i32>> {
     dispatcher_getter!(self, WindowMessage::OuterPosition)
   }
 
-  fn inner_size(&self) -> crate::Result<PhysicalSize<u32>> {
+  fn inner_size(&self) -> Result<PhysicalSize<u32>> {
     Ok(dispatcher_getter!(self, WindowMessage::InnerSize))
   }
 
-  fn outer_size(&self) -> crate::Result<PhysicalSize<u32>> {
+  fn outer_size(&self) -> Result<PhysicalSize<u32>> {
     Ok(dispatcher_getter!(self, WindowMessage::OuterSize))
   }
 
-  fn is_fullscreen(&self) -> crate::Result<bool> {
+  fn is_fullscreen(&self) -> Result<bool> {
     Ok(dispatcher_getter!(self, WindowMessage::IsFullscreen))
   }
 
-  fn is_maximized(&self) -> crate::Result<bool> {
+  fn is_maximized(&self) -> Result<bool> {
     Ok(dispatcher_getter!(self, WindowMessage::IsMaximized))
   }
 
-  fn current_monitor(&self) -> crate::Result<Option<Monitor>> {
-    Ok(dispatcher_getter!(self, WindowMessage::CurrentMonitor).map(Into::into))
+  fn current_monitor(&self) -> Result<Option<Monitor>> {
+    Ok(
+      dispatcher_getter!(self, WindowMessage::CurrentMonitor)
+        .map(|m| MonitorHandleWrapper(m).into()),
+    )
   }
 
-  fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
-    Ok(dispatcher_getter!(self, WindowMessage::PrimaryMonitor).map(Into::into))
+  fn primary_monitor(&self) -> Result<Option<Monitor>> {
+    Ok(
+      dispatcher_getter!(self, WindowMessage::PrimaryMonitor)
+        .map(|m| MonitorHandleWrapper(m).into()),
+    )
   }
 
-  fn available_monitors(&self) -> crate::Result<Vec<Monitor>> {
+  fn available_monitors(&self) -> Result<Vec<Monitor>> {
     Ok(
       dispatcher_getter!(self, WindowMessage::AvailableMonitors)
         .into_iter()
-        .map(Into::into)
+        .map(|m| MonitorHandleWrapper(m).into())
         .collect(),
     )
   }
 
   // Setters
 
-  fn print(&self) -> crate::Result<()> {
+  fn print(&self) -> Result<()> {
     self
       .context
       .proxy
       .send_event(Message::Webview(self.window_id, WebviewMessage::Print))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
   fn create_window<M: Params<Runtime = Self::Runtime>>(
     &mut self,
     pending: PendingWindow<M>,
-  ) -> crate::Result<DetachedWindow<M>> {
+  ) -> Result<DetachedWindow<M>> {
     let (tx, rx) = channel();
     let label = pending.label.clone();
     let context = self.context.clone();
@@ -573,7 +616,7 @@ impl Dispatch for WryDispatcher {
         })))),
         tx,
       ))
-      .map_err(|_| crate::Error::FailedToSendMessage)?;
+      .map_err(|_| Error::FailedToSendMessage)?;
     let window_id = rx.recv().unwrap();
     let dispatcher = WryDispatcher {
       window_id,
@@ -582,7 +625,7 @@ impl Dispatch for WryDispatcher {
     Ok(DetachedWindow { label, dispatcher })
   }
 
-  fn set_resizable(&self, resizable: bool) -> crate::Result<()> {
+  fn set_resizable(&self, resizable: bool) -> Result<()> {
     self
       .context
       .proxy
@@ -590,10 +633,10 @@ impl Dispatch for WryDispatcher {
         self.window_id,
         WindowMessage::SetResizable(resizable),
       ))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
-  fn set_title<S: Into<String>>(&self, title: S) -> crate::Result<()> {
+  fn set_title<S: Into<String>>(&self, title: S) -> Result<()> {
     self
       .context
       .proxy
@@ -601,66 +644,66 @@ impl Dispatch for WryDispatcher {
         self.window_id,
         WindowMessage::SetTitle(title.into()),
       ))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
-  fn maximize(&self) -> crate::Result<()> {
+  fn maximize(&self) -> Result<()> {
     self
       .context
       .proxy
       .send_event(Message::Window(self.window_id, WindowMessage::Maximize))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
-  fn unmaximize(&self) -> crate::Result<()> {
+  fn unmaximize(&self) -> Result<()> {
     self
       .context
       .proxy
       .send_event(Message::Window(self.window_id, WindowMessage::Unmaximize))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
-  fn minimize(&self) -> crate::Result<()> {
+  fn minimize(&self) -> Result<()> {
     self
       .context
       .proxy
       .send_event(Message::Window(self.window_id, WindowMessage::Minimize))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
-  fn unminimize(&self) -> crate::Result<()> {
+  fn unminimize(&self) -> Result<()> {
     self
       .context
       .proxy
       .send_event(Message::Window(self.window_id, WindowMessage::Unminimize))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
-  fn show(&self) -> crate::Result<()> {
+  fn show(&self) -> Result<()> {
     self
       .context
       .proxy
       .send_event(Message::Window(self.window_id, WindowMessage::Show))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
-  fn hide(&self) -> crate::Result<()> {
+  fn hide(&self) -> Result<()> {
     self
       .context
       .proxy
       .send_event(Message::Window(self.window_id, WindowMessage::Hide))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
-  fn close(&self) -> crate::Result<()> {
+  fn close(&self) -> Result<()> {
     self
       .context
       .proxy
       .send_event(Message::Window(self.window_id, WindowMessage::Close))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
-  fn set_decorations(&self, decorations: bool) -> crate::Result<()> {
+  fn set_decorations(&self, decorations: bool) -> Result<()> {
     self
       .context
       .proxy
@@ -668,10 +711,10 @@ impl Dispatch for WryDispatcher {
         self.window_id,
         WindowMessage::SetDecorations(decorations),
       ))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
-  fn set_always_on_top(&self, always_on_top: bool) -> crate::Result<()> {
+  fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
     self
       .context
       .proxy
@@ -679,10 +722,10 @@ impl Dispatch for WryDispatcher {
         self.window_id,
         WindowMessage::SetAlwaysOnTop(always_on_top),
       ))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
-  fn set_size(&self, size: Size) -> crate::Result<()> {
+  fn set_size(&self, size: Size) -> Result<()> {
     self
       .context
       .proxy
@@ -690,10 +733,10 @@ impl Dispatch for WryDispatcher {
         self.window_id,
         WindowMessage::SetSize(size),
       ))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
-  fn set_min_size(&self, size: Option<Size>) -> crate::Result<()> {
+  fn set_min_size(&self, size: Option<Size>) -> Result<()> {
     self
       .context
       .proxy
@@ -701,10 +744,10 @@ impl Dispatch for WryDispatcher {
         self.window_id,
         WindowMessage::SetMinSize(size),
       ))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
-  fn set_max_size(&self, size: Option<Size>) -> crate::Result<()> {
+  fn set_max_size(&self, size: Option<Size>) -> Result<()> {
     self
       .context
       .proxy
@@ -712,10 +755,10 @@ impl Dispatch for WryDispatcher {
         self.window_id,
         WindowMessage::SetMaxSize(size),
       ))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
-  fn set_position(&self, position: Position) -> crate::Result<()> {
+  fn set_position(&self, position: Position) -> Result<()> {
     self
       .context
       .proxy
@@ -723,10 +766,10 @@ impl Dispatch for WryDispatcher {
         self.window_id,
         WindowMessage::SetPosition(position),
       ))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
-  fn set_fullscreen(&self, fullscreen: bool) -> crate::Result<()> {
+  fn set_fullscreen(&self, fullscreen: bool) -> Result<()> {
     self
       .context
       .proxy
@@ -734,10 +777,10 @@ impl Dispatch for WryDispatcher {
         self.window_id,
         WindowMessage::SetFullscreen(fullscreen),
       ))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
-  fn set_icon(&self, icon: Icon) -> crate::Result<()> {
+  fn set_icon(&self, icon: Icon) -> Result<()> {
     self
       .context
       .proxy
@@ -745,18 +788,18 @@ impl Dispatch for WryDispatcher {
         self.window_id,
         WindowMessage::SetIcon(WryIcon::try_from(icon)?.0),
       ))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
-  fn start_dragging(&self) -> crate::Result<()> {
+  fn start_dragging(&self) -> Result<()> {
     self
       .context
       .proxy
       .send_event(Message::Window(self.window_id, WindowMessage::DragWindow))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
-  fn eval_script<S: Into<String>>(&self, script: S) -> crate::Result<()> {
+  fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
     self
       .context
       .proxy
@@ -764,7 +807,7 @@ impl Dispatch for WryDispatcher {
         self.window_id,
         WebviewMessage::EvaluateScript(script.into()),
       ))
-      .map_err(|_| crate::Error::FailedToSendMessage)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 }
 
@@ -782,7 +825,7 @@ pub struct Wry {
 impl Runtime for Wry {
   type Dispatcher = WryDispatcher;
 
-  fn new() -> crate::Result<Self> {
+  fn new() -> Result<Self> {
     let event_loop = EventLoop::<Message>::with_user_event();
     let (task_tx, task_rx) = channel();
     Ok(Self {
@@ -799,7 +842,7 @@ impl Runtime for Wry {
   fn create_window<M: Params<Runtime = Self>>(
     &self,
     pending: PendingWindow<M>,
-  ) -> crate::Result<DetachedWindow<M>> {
+  ) -> Result<DetachedWindow<M>> {
     let label = pending.label.clone();
     let proxy = self.event_loop.create_proxy();
     let webview = create_webview(
@@ -836,11 +879,17 @@ impl Runtime for Wry {
   fn system_tray<I: MenuId>(
     &self,
     icon: std::path::PathBuf,
-    menu: Vec<SystemTrayMenuItem<I>>,
-  ) -> crate::Result<()> {
-    SystemTrayBuilder::new(icon, menu.into_iter().map(Into::into).collect())
-      .build(&self.event_loop)
-      .map_err(|e| crate::Error::SystemTray(Box::new(e)))?;
+    menu_items: Vec<SystemTrayMenuItem<I>>,
+  ) -> Result<()> {
+    SystemTrayBuilder::new(
+      icon,
+      menu_items
+        .into_iter()
+        .map(|m| MenuItemWrapper::from(m).0)
+        .collect(),
+    )
+    .build(&self.event_loop)
+    .map_err(|e| Error::SystemTray(Box::new(e)))?;
     Ok(())
   }
 
@@ -848,11 +897,17 @@ impl Runtime for Wry {
   fn system_tray<I: MenuId>(
     &self,
     icon: Vec<u8>,
-    menu: Vec<SystemTrayMenuItem<I>>,
-  ) -> crate::Result<()> {
-    SystemTrayBuilder::new(icon, menu.into_iter().map(Into::into).collect())
-      .build(&self.event_loop)
-      .map_err(|e| crate::Error::SystemTray(Box::new(e)))?;
+    menu_items: Vec<SystemTrayMenuItem<I>>,
+  ) -> Result<()> {
+    SystemTrayBuilder::new(
+      icon,
+      menu_items
+        .into_iter()
+        .map(|m| MenuItemWrapper::from(m).0)
+        .collect(),
+    )
+    .build(&self.event_loop)
+    .map_err(|e| Error::SystemTray(Box::new(e)))?;
     Ok(())
   }
 
@@ -934,19 +989,33 @@ impl Runtime for Wry {
               let window = webview.window();
               match window_message {
                 // Getters
-                WindowMessage::ScaleFactor(tx) => window_getter!(window, tx, scale_factor),
-                WindowMessage::InnerPosition(tx) => {
-                  window_result_getter!(window, tx, inner_position)
-                }
-                WindowMessage::OuterPosition(tx) => {
-                  window_result_getter!(window, tx, outer_position)
-                }
-                WindowMessage::InnerSize(tx) => window_getter!(window, tx, inner_size),
-                WindowMessage::OuterSize(tx) => window_getter!(window, tx, outer_size),
+                WindowMessage::ScaleFactor(tx) => tx.send(window.scale_factor()).unwrap(),
+                WindowMessage::InnerPosition(tx) => tx
+                  .send(
+                    window
+                      .inner_position()
+                      .map(|p| PhysicalPositionWrapper(p).into())
+                      .map_err(|_| Error::FailedToSendMessage),
+                  )
+                  .unwrap(),
+                WindowMessage::OuterPosition(tx) => tx
+                  .send(
+                    window
+                      .outer_position()
+                      .map(|p| PhysicalPositionWrapper(p).into())
+                      .map_err(|_| Error::FailedToSendMessage),
+                  )
+                  .unwrap(),
+                WindowMessage::InnerSize(tx) => tx
+                  .send(PhysicalSizeWrapper(window.inner_size()).into())
+                  .unwrap(),
+                WindowMessage::OuterSize(tx) => tx
+                  .send(PhysicalSizeWrapper(window.outer_size()).into())
+                  .unwrap(),
                 WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
-                WindowMessage::IsMaximized(tx) => window_getter!(window, tx, is_maximized),
-                WindowMessage::CurrentMonitor(tx) => window_getter!(window, tx, current_monitor),
-                WindowMessage::PrimaryMonitor(tx) => window_getter!(window, tx, primary_monitor),
+                WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
+                WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
+                WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
                 WindowMessage::AvailableMonitors(tx) => {
                   tx.send(window.available_monitors().collect()).unwrap()
                 }
@@ -970,16 +1039,16 @@ impl Runtime for Wry {
                   window.set_always_on_top(always_on_top)
                 }
                 WindowMessage::SetSize(size) => {
-                  window.set_inner_size(WrySize::from(size));
+                  window.set_inner_size(SizeWrapper::from(size).0);
                 }
                 WindowMessage::SetMinSize(size) => {
-                  window.set_min_inner_size(size.map(WrySize::from));
+                  window.set_min_inner_size(size.map(|s| SizeWrapper::from(s).0));
                 }
                 WindowMessage::SetMaxSize(size) => {
-                  window.set_max_inner_size(size.map(WrySize::from));
+                  window.set_max_inner_size(size.map(|s| SizeWrapper::from(s).0));
                 }
                 WindowMessage::SetPosition(position) => {
-                  window.set_outer_position(WryPosition::from(position))
+                  window.set_outer_position(PositionWrapper::from(position).0)
                 }
                 WindowMessage::SetFullscreen(fullscreen) => {
                   if fullscreen {
@@ -1036,7 +1105,7 @@ fn create_webview<M: Params<Runtime = Wry>>(
   event_loop: &EventLoopWindowTarget<Message>,
   context: DispatcherContext,
   pending: PendingWindow<M>,
-) -> crate::Result<WebView> {
+) -> Result<WebView> {
   let PendingWindow {
     webview_attributes,
     window_builder,
@@ -1047,9 +1116,9 @@ fn create_webview<M: Params<Runtime = Wry>>(
     ..
   } = pending;
 
-  let window = window_builder.build(event_loop).unwrap();
+  let window = window_builder.0.build(event_loop).unwrap();
   let mut webview_builder = WebViewBuilder::new(window)
-    .map_err(|e| crate::Error::CreateWebview(Box::new(e)))?
+    .map_err(|e| Error::CreateWebview(Box::new(e)))?
     .with_url(&url)
     .unwrap(); // safe to unwrap because we validate the URL beforehand
   if let Some(handler) = rpc_handler {
@@ -1074,7 +1143,7 @@ fn create_webview<M: Params<Runtime = Wry>>(
 
   webview_builder
     .build()
-    .map_err(|e| crate::Error::CreateWebview(Box::new(e)))
+    .map_err(|e| Error::CreateWebview(Box::new(e)))
 }
 
 /// Create a wry rpc handler from a tauri rpc handler.
@@ -1092,7 +1161,7 @@ fn create_rpc_handler<M: Params<Runtime = Wry>>(
         },
         label: label.clone(),
       },
-      request.into(),
+      RpcRequestWrapper(request).into(),
     );
     None
   })
@@ -1106,7 +1175,7 @@ fn create_file_drop_handler<M: Params<Runtime = Wry>>(
 ) -> Box<dyn Fn(&Window, WryFileDropEvent) -> bool + 'static> {
   Box::new(move |window, event| {
     handler(
-      event.into(),
+      FileDropEventWrapper(event).into(),
       DetachedWindow {
         dispatcher: WryDispatcher {
           window_id: window.id(),

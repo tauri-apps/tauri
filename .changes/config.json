@@ -220,7 +220,16 @@
       "dependencies": [
         "tauri-utils"
       ],
-      "postversion": "node ../../.scripts/sync-prerelease.js ${ release.type }"
+      "postversion": "node ../../.scripts/sync-prerelease.js ${ pkg.pkg } ${ release.type }"
+    },
+    "tauri-runtime-wry": {
+      "path": "./core/tauri-runtime-wry",
+      "manager": "rust",
+      "dependencies": [
+        "tauri-utils",
+        "tauri-runtime"
+      ],
+      "postversion": "node ../../.scripts/sync-prerelease.js ${ pkg.pkg } ${ release.type }"
     },
     "tauri-codegen": {
       "path": "./core/tauri-codegen",
@@ -250,7 +259,8 @@
       "dependencies": [
         "tauri-macros",
         "tauri-utils",
-        "tauri-runtime"
+        "tauri-runtime",
+        "tauri-runtime-wry"
       ],
       "postversion": "node ../../.scripts/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },

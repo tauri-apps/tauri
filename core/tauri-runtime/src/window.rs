@@ -39,7 +39,6 @@ pub enum WindowEvent {
   /// - Changing the display's resolution.
   /// - Changing the display's scale factor (e.g. in Control Panel on Windows).
   /// - Moving the window to a display with a different scale factor.
-  #[non_exhaustive]
   ScaleFactorChanged {
     /// The new scale factor.
     scale_factor: f64,

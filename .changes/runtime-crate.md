@@ -1,5 +1,5 @@
 ---
-"tauri-runtime": patch
+"tauri-runtime": minor
 "tauri": patch
 ---
 

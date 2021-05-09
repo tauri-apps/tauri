@@ -9,7 +9,6 @@ use std::path::PathBuf;
 use tauri_utils::assets::Assets;
 use uuid::Uuid;
 
-pub mod flavors;
 /// Create window and system tray menus.
 pub mod menu;
 /// Types useful for interacting with a user's monitors.

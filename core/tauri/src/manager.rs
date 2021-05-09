@@ -20,10 +20,10 @@ use crate::{
       CustomProtocol, FileDropEvent, FileDropHandler, InvokePayload, WebviewRpcHandler,
       WindowBuilder,
     },
-    window::{dpi::PhysicalSize, DetachedWindow, MenuEvent, PendingWindow, WindowEvent},
+    window::{dpi::PhysicalSize, DetachedWindow, PendingWindow, WindowEvent},
     Icon, Params, Runtime,
   },
-  App, Context, Invoke, StateManager, Window,
+  App, Context, Invoke, MenuEvent, StateManager, Window,
 };
 use serde::Serialize;
 use serde_json::Value as JsonValue;
@@ -196,6 +196,11 @@ impl<P: Params> WindowManager<P> {
   /// State managed by the application.
   pub(crate) fn state(&self) -> Arc<StateManager> {
     self.inner.state.clone()
+  }
+
+  /// Get the menu ids mapper.
+  pub(crate) fn menu_ids(&self) -> HashMap<u32, P::MenuId> {
+    self.inner.menu_ids.clone()
   }
 
   // setup content for dev-server
@@ -544,13 +549,12 @@ impl<P: Params> WindowManager<P> {
     });
     let window_ = window.clone();
     let menu_event_listeners = self.inner.menu_event_listeners.clone();
-    let menu_ids = self.inner.menu_ids.clone();
     window.on_menu_event(move |event| {
-      let _ = on_menu_event(&window_, event);
+      let _ = on_menu_event(&window_, &event);
       for handler in menu_event_listeners.iter() {
         handler(WindowMenuEvent {
           window: window_.clone(),
-          menu_item_id: menu_ids.get(&event.menu_item_id).unwrap().clone(),
+          menu_item_id: event.menu_item_id.clone(),
         });
       }
     });
@@ -745,11 +749,11 @@ struct ScaleFactorChanged {
   size: PhysicalSize<u32>,
 }
 
-fn on_menu_event<P: Params>(window: &Window<P>, event: &MenuEvent) -> crate::Result<()> {
+fn on_menu_event<P: Params>(window: &Window<P>, event: &MenuEvent<P::MenuId>) -> crate::Result<()> {
   window.emit(
     &MENU_EVENT
       .parse()
       .unwrap_or_else(|_| panic!("unhandled event")),
-    Some(event),
+    Some(event.menu_item_id.clone()),
   )
 }

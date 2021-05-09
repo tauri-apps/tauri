@@ -71,7 +71,7 @@ pub use {
     Params,
   },
   self::state::{State, StateManager},
-  self::window::Window,
+  self::window::{MenuEvent, Window},
   tauri_utils::platform,
 };
 

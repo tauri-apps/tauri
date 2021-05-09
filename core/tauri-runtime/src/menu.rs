@@ -8,10 +8,12 @@ use std::{
   hash::{Hash, Hasher},
 };
 
-/// A type that can be derived into a menu id.
-pub trait MenuId: Hash + Eq + Debug + Clone + Send + Sync + 'static {}
+use serde::Serialize;
 
-impl<T> MenuId for T where T: Hash + Eq + Debug + Clone + Send + Sync + 'static {}
+/// A type that can be derived into a menu id.
+pub trait MenuId: Serialize + Hash + Eq + Debug + Clone + Send + Sync + 'static {}
+
+impl<T> MenuId for T where T: Serialize + Hash + Eq + Debug + Clone + Send + Sync + 'static {}
 
 /// A window menu.
 #[derive(Debug, Clone)]

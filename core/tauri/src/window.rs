@@ -8,12 +8,13 @@ use crate::{
   event::{Event, EventHandler},
   manager::WindowManager,
   runtime::{
+    menu::MenuId,
     monitor::Monitor,
     tag::{TagRef, ToJsString},
     webview::{InvokePayload, WebviewAttributes, WindowBuilder},
     window::{
       dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-      DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
+      DetachedWindow, PendingWindow, WindowEvent,
     },
     Dispatch, Icon, Params, Runtime,
   },
@@ -29,6 +30,19 @@ use std::{
   borrow::Borrow,
   hash::{Hash, Hasher},
 };
+
+/// The window menu event.
+#[derive(Debug, Clone)]
+pub struct MenuEvent<I: MenuId> {
+  pub(crate) menu_item_id: I,
+}
+
+impl<I: MenuId> MenuEvent<I> {
+  /// The menu item id.
+  pub fn menu_item_id(&self) -> &I {
+    &self.menu_item_id
+  }
+}
 
 /// A webview window managed by Tauri.
 ///
@@ -248,8 +262,13 @@ impl<P: Params> Window<P> {
   }
 
   /// Registers a menu event listener.
-  pub fn on_menu_event<F: Fn(&MenuEvent) + Send + 'static>(&self, f: F) {
-    self.window.dispatcher.on_menu_event(f);
+  pub fn on_menu_event<F: Fn(MenuEvent<P::MenuId>) + Send + 'static>(&self, f: F) {
+    let menu_ids = self.manager.menu_ids();
+    self.window.dispatcher.on_menu_event(move |event| {
+      f(MenuEvent {
+        menu_item_id: menu_ids.get(&event.menu_item_id).unwrap().clone(),
+      })
+    });
   }
 
   // Getters

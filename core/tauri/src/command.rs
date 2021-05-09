@@ -59,6 +59,13 @@ macro_rules! pass {
     fn $fn<V: Visitor<'de>>(self, $($arg: $argt),*) -> Result<V::Value, Self::Error> {
       use serde::de::Error;
 
+      if self.key.is_empty() {
+        return Err(serde_json::Error::custom(format!(
+            "command {} has an argument with no name with a non-optional value",
+            self.name
+          )))
+      }
+
       match self.message.payload.get(self.key) {
         Some(value) => value.$fn($($arg),*),
         None => {

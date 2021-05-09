@@ -154,10 +154,10 @@ fn parse_arg(command: &Ident, arg: &FnArg) -> syn::Result<TokenStream2> {
     }
   };
 
-  // we only support patterns that allow us to extract some sort of keyed identifier.
-  let key = match &mut arg {
+  // we only support patterns that allow us to extract some sort of keyed identifier
+  let mut key = match &mut arg {
     Pat::Ident(arg) => arg.ident.to_string(),
-    Pat::Wild(_) => "_".into(),
+    Pat::Wild(_) => "".into(), // we always convert to camelCase, so "_" will end up empty anyways
     Pat::Struct(s) => super::path_to_command(&mut s.path).ident.to_string(),
     Pat::TupleStruct(s) => super::path_to_command(&mut s.path).ident.to_string(),
     err => {
@@ -176,7 +176,10 @@ fn parse_arg(command: &Ident, arg: &FnArg) -> syn::Result<TokenStream2> {
     ));
   }
 
-  let key = snake_case_to_camel_case(key);
+  // snake_case -> camelCase
+  if key.as_str().contains('_') {
+    key = snake_case_to_camel_case(key.as_str());
+  }
 
   Ok(quote!(::tauri::command::CommandArg::from_command(
     ::tauri::command::CommandItem {
@@ -187,23 +190,18 @@ fn parse_arg(command: &Ident, arg: &FnArg) -> syn::Result<TokenStream2> {
   )))
 }
 
-fn snake_case_to_camel_case(s: String) -> String {
-  if s.as_str().contains('_') {
-    let mut camel = String::with_capacity(s.len());
-    let mut to_upper = false;
-    for c in s.chars() {
-      match c {
-        '_' => to_upper = true,
-        c if to_upper => {
-          camel.push(c.to_ascii_uppercase());
-          to_upper = false;
-        }
-        c => camel.push(c),
-      }
-    }
+/// Convert a snake_case string into camelCase, no underscores will be left.
+fn snake_case_to_camel_case(key: &str) -> String {
+  let mut camel = String::with_capacity(key.len());
+  let mut to_upper = false;
 
-    camel
-  } else {
-    s
+  for c in key.chars() {
+    match c {
+      '_' => to_upper = true,
+      c if std::mem::take(&mut to_upper) => camel.push(c.to_ascii_uppercase()),
+      c => camel.push(c),
+    }
   }
+
+  camel
 }

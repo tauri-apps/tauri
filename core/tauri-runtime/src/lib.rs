@@ -53,8 +53,13 @@ pub enum Error {
 /// Result type.
 pub type Result<T> = std::result::Result<T, Error>;
 
+#[doc(hidden)]
+pub mod private {
+  pub trait ParamsBase {}
+}
+
 /// Types associated with the running Tauri application.
-pub trait Params: 'static {
+pub trait Params: private::ParamsBase + 'static {
   /// The event type used to create and listen to events.
   type Event: Tag;
 

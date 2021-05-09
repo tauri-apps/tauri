@@ -15,6 +15,7 @@ use crate::{
   plugin::PluginStore,
   runtime::{
     menu::{Menu, MenuId, MenuItem},
+    private::ParamsBase,
     tag::{tags_to_javascript_array, Tag, TagRef, ToJsString},
     webview::{
       CustomProtocol, FileDropEvent, FileDropHandler, InvokePayload, WebviewRpcHandler,
@@ -115,6 +116,10 @@ impl<E: Tag, L: Tag, MID: MenuId, TID: MenuId, A: Assets, R: Runtime> Default
   }
 }
 
+impl<E: Tag, L: Tag, MID: MenuId, TID: MenuId, A: Assets, R: Runtime> ParamsBase
+  for Args<E, L, MID, TID, A, R>
+{
+}
 impl<E: Tag, L: Tag, MID: MenuId, TID: MenuId, A: Assets, R: Runtime> Params
   for Args<E, L, MID, TID, A, R>
 {

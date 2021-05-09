@@ -59,13 +59,11 @@ pub use {
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
     PageLoadPayload, SetupHook,
   },
-  self::runtime::app::{App, Builder, WindowMenuEvent},
+  self::runtime::app::{App, Builder, SystemTrayEvent, WindowMenuEvent},
   self::runtime::flavors::wry::Wry,
+  self::runtime::menu::{CustomMenuItem, Menu, MenuId, MenuItem, SystemTrayMenuItem},
   self::runtime::monitor::Monitor,
-  self::runtime::webview::{
-    CustomMenuItem, Menu, MenuItem, MenuItemId, SystemTrayMenuItem, WebviewAttributes,
-    WindowBuilder,
-  },
+  self::runtime::webview::{WebviewAttributes, WindowBuilder},
   self::runtime::window::{
     export::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
@@ -151,6 +149,12 @@ pub trait Params: sealed::ParamsBase {
 
   /// The type used to determine the name of windows.
   type Label: Tag;
+
+  /// The type used to determine window menu ids.
+  type MenuId: MenuId;
+
+  /// The type used to determine system tray menu ids.
+  type SystemTrayMenuId: MenuId;
 
   /// Assets that Tauri should serve from itself.
   type Assets: Assets;

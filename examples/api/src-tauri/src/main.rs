@@ -11,7 +11,7 @@ mod cmd;
 mod menu;
 
 use serde::Serialize;
-use tauri::{CustomMenuItem, SystemTrayMenuItem};
+use tauri::{CustomMenuItem, Manager, SystemTrayMenuItem};
 
 #[derive(Serialize)]
 struct Reply {
@@ -38,10 +38,15 @@ fn main() {
       println!("{:?}", event.menu_item_id());
     })
     .system_tray(vec![SystemTrayMenuItem::Custom(CustomMenuItem::new(
-      "Tauri",
+      "toggle".into(),
+      "Toggle",
     ))])
-    .on_system_tray_event(|_app, event| {
-      println!("{:?}", event.menu_item_id());
+    .on_system_tray_event(|app, event| {
+      if event.menu_item_id() == "toggle" {
+        let window = app.get_window("main").unwrap();
+        // TODO: window.is_visible API
+        window.hide().unwrap();
+      }
     })
     .invoke_handler(tauri::generate_handler![
       cmd::log_operation,

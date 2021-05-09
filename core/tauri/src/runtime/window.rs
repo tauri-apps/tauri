@@ -10,7 +10,7 @@ use crate::{
   hooks::{InvokeMessage, InvokeResolver, PageLoadPayload},
   runtime::{
     tag::ToJsString,
-    webview::{FileDropHandler, InvokePayload, MenuItemId, WebviewAttributes, WebviewRpcHandler},
+    webview::{FileDropHandler, InvokePayload, WebviewAttributes, WebviewRpcHandler},
     Dispatch, Monitor, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
@@ -59,14 +59,7 @@ pub enum WindowEvent {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MenuEvent {
-  pub(crate) menu_item_id: MenuItemId,
-}
-
-impl MenuEvent {
-  /// Returns the id of the menu item that triggered the event.
-  pub fn item_id(&self) -> MenuItemId {
-    self.menu_item_id
-  }
+  pub(crate) menu_item_id: u32,
 }
 
 /// A webview window that has yet to be built.

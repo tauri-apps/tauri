@@ -7,9 +7,10 @@
 use crate::{
   api::config::WindowConfig,
   runtime::{
+    menu::{CustomMenuItem, Menu, MenuId, MenuItem, SystemTrayMenuItem},
     webview::{
-      CustomMenuItem, FileDropEvent, FileDropHandler, Menu, MenuItem, MenuItemId, RpcRequest,
-      SystemTrayMenuItem, WebviewRpcHandler, WindowBuilder, WindowBuilderBase,
+      FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler, WindowBuilder,
+      WindowBuilderBase,
     },
     window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
@@ -204,18 +205,18 @@ impl From<Position> for WryPosition {
   }
 }
 
-impl From<CustomMenuItem> for WryCustomMenu {
-  fn from(item: CustomMenuItem) -> Self {
+impl<I: MenuId> From<CustomMenuItem<I>> for WryCustomMenu {
+  fn from(item: CustomMenuItem<I>) -> Self {
     Self {
-      id: WryMenuId(item.id.0),
+      id: WryMenuId(item.id_value()),
       name: item.name,
       keyboard_accelerators: None,
     }
   }
 }
 
-impl From<MenuItem> for WryMenuItem {
-  fn from(item: MenuItem) -> Self {
+impl<I: MenuId> From<MenuItem<I>> for WryMenuItem {
+  fn from(item: MenuItem<I>) -> Self {
     match item {
       MenuItem::Custom(custom) => Self::Custom(custom.into()),
       MenuItem::About(v) => Self::About(v),
@@ -239,8 +240,8 @@ impl From<MenuItem> for WryMenuItem {
   }
 }
 
-impl From<Menu> for WryMenu {
-  fn from(menu: Menu) -> Self {
+impl<I: MenuId> From<Menu<I>> for WryMenu {
+  fn from(menu: Menu<I>) -> Self {
     Self {
       title: menu.title,
       items: menu.items.into_iter().map(Into::into).collect(),
@@ -248,8 +249,8 @@ impl From<Menu> for WryMenu {
   }
 }
 
-impl From<SystemTrayMenuItem> for WryMenuItem {
-  fn from(item: SystemTrayMenuItem) -> Self {
+impl<I: MenuId> From<SystemTrayMenuItem<I>> for WryMenuItem {
+  fn from(item: SystemTrayMenuItem<I>) -> Self {
     match item {
       SystemTrayMenuItem::Custom(custom) => Self::Custom(custom.into()),
       SystemTrayMenuItem::Separator => Self::Separator,
@@ -288,7 +289,7 @@ impl WindowBuilder for WryWindowBuilder {
     window
   }
 
-  fn menu(self, menu: Vec<Menu>) -> Self {
+  fn menu<I: MenuId>(self, menu: Vec<Menu<I>>) -> Self {
     self.with_menu(menu.into_iter().map(Into::into).collect::<Vec<WryMenu>>())
   }
 
@@ -836,10 +837,10 @@ impl Runtime for Wry {
   }
 
   #[cfg(target_os = "linux")]
-  fn system_tray(
+  fn system_tray<I: MenuId>(
     &self,
     icon: std::path::PathBuf,
-    menu: Vec<SystemTrayMenuItem>,
+    menu: Vec<SystemTrayMenuItem<I>>,
   ) -> crate::Result<()> {
     SystemTrayBuilder::new(icon, menu.into_iter().map(Into::into).collect())
       .build(&self.event_loop)
@@ -848,7 +849,7 @@ impl Runtime for Wry {
   }
 
   #[cfg(not(target_os = "linux"))]
-  fn system_tray(&self, icon: Vec<u8>, menu: Vec<TrayMenuItem>) -> crate::Result<()> {
+  fn system_tray<I: MenuId>(&self, icon: Vec<u8>, menu: Vec<TrayMenuItem<I>>) -> crate::Result<()> {
     SystemTrayBuilder::new(icon, menu.into_iter().map(Into::into).collect())
       .build(&self.event_loop)
       .map_err(|e| crate::Error::Tray(Box::new(e)))?;
@@ -889,7 +890,7 @@ impl Runtime for Wry {
           origin: MenuType::Menubar,
         } => {
           let event = MenuEvent {
-            menu_item_id: MenuItemId(menu_id.0),
+            menu_item_id: menu_id.0,
           };
           for handler in menu_event_listeners.lock().unwrap().values() {
             handler(&event);
@@ -900,7 +901,7 @@ impl Runtime for Wry {
           origin: MenuType::SystemTray,
         } => {
           let event = SystemTrayEvent {
-            menu_item_id: MenuItemId(menu_id.0),
+            menu_item_id: menu_id.0,
           };
           for handler in system_tray_event_listeners.values() {
             handler(&event);

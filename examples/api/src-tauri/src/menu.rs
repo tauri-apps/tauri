@@ -4,10 +4,10 @@
 
 use tauri::{CustomMenuItem, Menu, MenuItem};
 
-pub fn get_menu() -> Vec<Menu> {
-  let custom_print_menu = MenuItem::Custom(CustomMenuItem::new("Print"));
-  let other_test_menu = MenuItem::Custom(CustomMenuItem::new("Custom"));
-  let quit_menu = MenuItem::Custom(CustomMenuItem::new("Quit"));
+pub fn get_menu() -> Vec<Menu<String>> {
+  let custom_print_menu = MenuItem::Custom(CustomMenuItem::new("print".into(), "Print"));
+  let other_test_menu = MenuItem::Custom(CustomMenuItem::new("custom".into(), "Custom"));
+  let quit_menu = MenuItem::Custom(CustomMenuItem::new("quit".into(), "Quit"));
 
   // macOS require to have at least Copy, Paste, Select all etc..
   // to works fine. You should always add them.
@@ -55,7 +55,10 @@ pub fn get_menu() -> Vec<Menu> {
     Menu::new("Window", vec![MenuItem::Minimize, MenuItem::Zoom]),
     Menu::new(
       "Help",
-      vec![MenuItem::Custom(CustomMenuItem::new("Custom help"))],
+      vec![MenuItem::Custom(CustomMenuItem::new(
+        "help".into(),
+        "Custom help",
+      ))],
     ),
   ];
 

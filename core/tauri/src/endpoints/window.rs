@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 #[cfg(window_create)]
-use crate::sealed::ManagerBase;
-
+use crate::runtime::{webview::WindowBuilder, Dispatch, Runtime};
 use crate::{
   api::config::WindowConfig,
   endpoints::InvokeResponse,
@@ -106,17 +105,21 @@ impl Cmd {
           });
 
           let url = options.url.clone();
-          let pending = crate::runtime::window::PendingWindow::with_config(
-            options,
-            crate::runtime::webview::WebviewAttributes::new(url),
-            label.clone(),
-          );
-          window.create_new_window(pending)?.emit_others(
-            &crate::runtime::manager::tauri_event::<P::Event>("tauri://window-created"),
-            Some(WindowCreatedEvent {
-              label: label.to_string(),
-            }),
-          )?;
+          window
+            .create_window(label.clone(), url, |_, webview_attributes| {
+              (
+                <<<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder>::with_config(
+                  options,
+                ),
+                webview_attributes,
+              )
+            })?
+            .emit_others(
+              &crate::runtime::manager::tauri_event::<P::Event>("tauri://window-created"),
+              Some(WindowCreatedEvent {
+                label: label.to_string(),
+              }),
+            )?;
         }
         // Getters
         Self::ScaleFactor => return Ok(window.scale_factor()?.into()),

@@ -59,12 +59,11 @@ pub use {
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
     PageLoadPayload, SetupHook,
   },
-  self::runtime::app::{App, Builder, WindowMenuEvent},
+  self::runtime::app::{App, Builder, SystemTrayEvent, WindowMenuEvent},
   self::runtime::flavors::wry::Wry,
+  self::runtime::menu::{CustomMenuItem, Menu, MenuId, MenuItem, SystemTrayMenuItem},
   self::runtime::monitor::Monitor,
-  self::runtime::webview::{
-    CustomMenuItem, Menu, MenuItem, MenuItemId, WebviewAttributes, WindowBuilder,
-  },
+  self::runtime::webview::{WebviewAttributes, WindowBuilder},
   self::runtime::window::{
     export::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
@@ -73,6 +72,7 @@ pub use {
     WindowEvent,
   },
   self::state::{State, StateManager},
+  tauri_utils::platform,
 };
 
 /// Reads the config file at compile time and generates a [`Context`] based on its content.
@@ -130,6 +130,14 @@ pub struct Context<A: Assets> {
   /// The default window icon Tauri should use when creating windows.
   pub default_window_icon: Option<Vec<u8>>,
 
+  /// The icon to use use on the system tray UI.
+  #[cfg(target_os = "linux")]
+  pub system_tray_icon: Option<PathBuf>,
+
+  /// The icon to use use on the system tray UI.
+  #[cfg(not(target_os = "linux"))]
+  pub system_tray_icon: Option<Vec<u8>>,
+
   /// Package information.
   pub package_info: crate::api::PackageInfo,
 }
@@ -141,6 +149,12 @@ pub trait Params: sealed::ParamsBase {
 
   /// The type used to determine the name of windows.
   type Label: Tag;
+
+  /// The type used to determine window menu ids.
+  type MenuId: MenuId;
+
+  /// The type used to determine system tray menu ids.
+  type SystemTrayMenuId: MenuId;
 
   /// Assets that Tauri should serve from itself.
   type Assets: Assets;
@@ -258,8 +272,8 @@ pub(crate) mod sealed {
 
   /// A running [`Runtime`] or a dispatcher to it.
   pub enum RuntimeOrDispatch<'r, P: Params> {
-    /// Mutable reference to the running [`Runtime`].
-    Runtime(&'r mut P::Runtime),
+    /// Reference to the running [`Runtime`].
+    Runtime(&'r P::Runtime),
 
     /// A dispatcher to the running [`Runtime`].
     Dispatch(<P::Runtime as Runtime>::Dispatcher),
@@ -270,18 +284,16 @@ pub(crate) mod sealed {
     /// The manager behind the [`Managed`] item.
     fn manager(&self) -> &WindowManager<P>;
 
-    /// The runtime or runtime dispatcher of the [`Managed`] item.
-    fn runtime(&mut self) -> RuntimeOrDispatch<'_, P>;
-
     /// Creates a new [`Window`] on the [`Runtime`] and attaches it to the [`Manager`].
     fn create_new_window(
-      &mut self,
+      &self,
+      runtime: RuntimeOrDispatch<'_, P>,
       pending: crate::PendingWindow<P>,
     ) -> crate::Result<crate::Window<P>> {
       use crate::runtime::Dispatch;
       let labels = self.manager().labels().into_iter().collect::<Vec<_>>();
       let pending = self.manager().prepare_window(pending, &labels)?;
-      match self.runtime() {
+      match runtime {
         RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
         RuntimeOrDispatch::Dispatch(mut dispatcher) => dispatcher.create_window(pending),
       }

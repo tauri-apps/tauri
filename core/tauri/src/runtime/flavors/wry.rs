@@ -7,15 +7,16 @@
 use crate::{
   api::config::WindowConfig,
   runtime::{
+    menu::{CustomMenuItem, Menu, MenuId, MenuItem, SystemTrayMenuItem},
     webview::{
-      CustomMenuItem, FileDropEvent, FileDropHandler, Menu, MenuItem, MenuItemId, RpcRequest,
-      WebviewRpcHandler, WindowBuilder, WindowBuilderBase,
+      FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler, WindowBuilder,
+      WindowBuilderBase,
     },
     window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
       DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
     },
-    Dispatch, Monitor, Params, Runtime,
+    Dispatch, Monitor, Params, Runtime, SystemTrayEvent,
   },
   Icon,
 };
@@ -36,6 +37,7 @@ use wry::{
       MenuType,
     },
     monitor::MonitorHandle,
+    platform::system_tray::SystemTrayBuilder,
     window::{Fullscreen, Icon as WindowIcon, Window, WindowBuilder as WryWindowBuilder, WindowId},
   },
   webview::{
@@ -60,6 +62,8 @@ type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
 type MenuEventHandler = Box<dyn Fn(&MenuEvent) + Send>;
 type MenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
+type SystemTrayEventHandler = Box<dyn Fn(&SystemTrayEvent) + Send>;
+type SystemTrayEventListeners = HashMap<Uuid, SystemTrayEventHandler>;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -201,18 +205,18 @@ impl From<Position> for WryPosition {
   }
 }
 
-impl From<CustomMenuItem> for WryCustomMenu {
-  fn from(item: CustomMenuItem) -> Self {
+impl<I: MenuId> From<CustomMenuItem<I>> for WryCustomMenu {
+  fn from(item: CustomMenuItem<I>) -> Self {
     Self {
-      id: WryMenuId(item.id.0),
+      id: WryMenuId(item.id_value()),
       name: item.name,
       keyboard_accelerators: None,
     }
   }
 }
 
-impl From<MenuItem> for WryMenuItem {
-  fn from(item: MenuItem) -> Self {
+impl<I: MenuId> From<MenuItem<I>> for WryMenuItem {
+  fn from(item: MenuItem<I>) -> Self {
     match item {
       MenuItem::Custom(custom) => Self::Custom(custom.into()),
       MenuItem::About(v) => Self::About(v),
@@ -236,11 +240,20 @@ impl From<MenuItem> for WryMenuItem {
   }
 }
 
-impl From<Menu> for WryMenu {
-  fn from(menu: Menu) -> Self {
+impl<I: MenuId> From<Menu<I>> for WryMenu {
+  fn from(menu: Menu<I>) -> Self {
     Self {
       title: menu.title,
       items: menu.items.into_iter().map(Into::into).collect(),
+    }
+  }
+}
+
+impl<I: MenuId> From<SystemTrayMenuItem<I>> for WryMenuItem {
+  fn from(item: SystemTrayMenuItem<I>) -> Self {
+    match item {
+      SystemTrayMenuItem::Custom(custom) => Self::Custom(custom.into()),
+      SystemTrayMenuItem::Separator => Self::Separator,
     }
   }
 }
@@ -276,7 +289,7 @@ impl WindowBuilder for WryWindowBuilder {
     window
   }
 
-  fn menu(self, menu: Vec<Menu>) -> Self {
+  fn menu<I: MenuId>(self, menu: Vec<Menu<I>>) -> Self {
     self.with_menu(menu.into_iter().map(Into::into).collect::<Vec<WryMenu>>())
   }
 
@@ -762,10 +775,11 @@ impl Dispatch for WryDispatcher {
 /// A Tauri [`Runtime`] wrapper around wry.
 pub struct Wry {
   event_loop: EventLoop<Message>,
-  webviews: HashMap<WindowId, WebView>,
+  webviews: Mutex<HashMap<WindowId, WebView>>,
   task_tx: Sender<MainThreadTask>,
   window_event_listeners: WindowEventListeners,
   menu_event_listeners: MenuEventListeners,
+  system_tray_event_listeners: SystemTrayEventListeners,
   task_rx: Receiver<MainThreadTask>,
 }
 
@@ -782,11 +796,12 @@ impl Runtime for Wry {
       task_rx,
       window_event_listeners: Default::default(),
       menu_event_listeners: Default::default(),
+      system_tray_event_listeners: HashMap::default(),
     })
   }
 
   fn create_window<M: Params<Runtime = Self>>(
-    &mut self,
+    &self,
     pending: PendingWindow<M>,
   ) -> crate::Result<DetachedWindow<M>> {
     let label = pending.label.clone();
@@ -812,16 +827,54 @@ impl Runtime for Wry {
       },
     };
 
-    self.webviews.insert(webview.window().id(), webview);
+    self
+      .webviews
+      .lock()
+      .unwrap()
+      .insert(webview.window().id(), webview);
 
     Ok(DetachedWindow { label, dispatcher })
   }
 
+  #[cfg(target_os = "linux")]
+  fn system_tray<I: MenuId>(
+    &self,
+    icon: std::path::PathBuf,
+    menu: Vec<SystemTrayMenuItem<I>>,
+  ) -> crate::Result<()> {
+    SystemTrayBuilder::new(icon, menu.into_iter().map(Into::into).collect())
+      .build(&self.event_loop)
+      .map_err(|e| crate::Error::SystemTray(Box::new(e)))?;
+    Ok(())
+  }
+
+  #[cfg(not(target_os = "linux"))]
+  fn system_tray<I: MenuId>(
+    &self,
+    icon: Vec<u8>,
+    menu: Vec<SystemTrayMenuItem<I>>,
+  ) -> crate::Result<()> {
+    SystemTrayBuilder::new(icon, menu.into_iter().map(Into::into).collect())
+      .build(&self.event_loop)
+      .map_err(|e| crate::Error::SystemTray(Box::new(e)))?;
+    Ok(())
+  }
+
+  fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid {
+    let id = Uuid::new_v4();
+    self.system_tray_event_listeners.insert(id, Box::new(f));
+    id
+  }
+
   fn run(self) {
-    let mut webviews = self.webviews;
+    let mut webviews = {
+      let mut lock = self.webviews.lock().expect("poisoned webview collection");
+      std::mem::take(&mut *lock)
+    };
     let task_rx = self.task_rx;
     let window_event_listeners = self.window_event_listeners.clone();
     let menu_event_listeners = self.menu_event_listeners.clone();
+    let system_tray_event_listeners = self.system_tray_event_listeners;
     self.event_loop.run(move |event, event_loop, control_flow| {
       *control_flow = ControlFlow::Wait;
 
@@ -841,9 +894,20 @@ impl Runtime for Wry {
           origin: MenuType::Menubar,
         } => {
           let event = MenuEvent {
-            menu_item_id: MenuItemId(menu_id.0),
+            menu_item_id: menu_id.0,
           };
           for handler in menu_event_listeners.lock().unwrap().values() {
+            handler(&event);
+          }
+        }
+        Event::MenuEvent {
+          menu_id,
+          origin: MenuType::SystemTray,
+        } => {
+          let event = SystemTrayEvent {
+            menu_item_id: menu_id.0,
+          };
+          for handler in system_tray_event_listeners.values() {
             handler(&event);
           }
         }

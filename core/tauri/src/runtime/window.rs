@@ -10,7 +10,7 @@ use crate::{
   hooks::{InvokeMessage, InvokeResolver, PageLoadPayload},
   runtime::{
     tag::ToJsString,
-    webview::{FileDropHandler, InvokePayload, MenuItemId, WebviewAttributes, WebviewRpcHandler},
+    webview::{FileDropHandler, InvokePayload, WebviewAttributes, WebviewRpcHandler},
     Dispatch, Monitor, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
@@ -59,14 +59,7 @@ pub enum WindowEvent {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MenuEvent {
-  pub(crate) menu_item_id: MenuItemId,
-}
-
-impl MenuEvent {
-  /// Returns the id of the menu item that triggered the event.
-  pub fn item_id(&self) -> MenuItemId {
-    self.menu_item_id
-  }
+  pub(crate) menu_item_id: u32,
 }
 
 /// A webview window that has yet to be built.
@@ -213,10 +206,6 @@ pub(crate) mod export {
     fn manager(&self) -> &WindowManager<P> {
       &self.manager
     }
-
-    fn runtime(&mut self) -> RuntimeOrDispatch<'_, P> {
-      RuntimeOrDispatch::Dispatch(self.dispatcher())
-    }
   }
 
   impl<'de, P: Params> CommandArg<'de, P> for Window<P> {
@@ -238,7 +227,7 @@ pub(crate) mod export {
       label: P::Label,
       url: WindowUrl,
       setup: F,
-    ) -> crate::Result<()>
+    ) -> crate::Result<Window<P>>
     where
       F: FnOnce(
         <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
@@ -252,12 +241,10 @@ pub(crate) mod export {
         <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder::new(),
         WebviewAttributes::new(url),
       );
-      self.create_new_window(PendingWindow::new(
-        window_attributes,
-        webview_attributes,
-        label,
-      ))?;
-      Ok(())
+      self.create_new_window(
+        RuntimeOrDispatch::Dispatch(self.dispatcher()),
+        PendingWindow::new(window_attributes, webview_attributes, label),
+      )
     }
 
     /// The current window's dispatcher.

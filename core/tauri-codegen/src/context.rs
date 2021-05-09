@@ -62,6 +62,47 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     quote!(None)
   };
 
+  #[cfg(target_os = "linux")]
+  let system_tray_icon = if let Some(tray) = &config.tauri.system_tray {
+    let mut system_tray_icon_path = tray.icon_path.clone();
+    system_tray_icon_path.set_extension("png");
+    if dev {
+      let system_tray_icon_file_name = system_tray_icon_path
+        .file_name()
+        .expect("failed to get tray path file_name")
+        .to_string_lossy()
+        .to_string();
+      quote!(Some(
+        ::tauri::platform::resource_dir()
+          .expect("failed to read resource dir")
+          .join(
+            #system_tray_icon_file_name
+          )
+      ))
+    } else {
+      let system_tray_icon_path = config_parent
+        .join(system_tray_icon_path)
+        .display()
+        .to_string();
+      quote!(Some(::std::path::PathBuf::from(#system_tray_icon_path)))
+    }
+  } else {
+    quote!(None)
+  };
+
+  #[cfg(not(target_os = "linux"))]
+  let system_tray_icon = if let Some(tray) = &config.tauri.system_tray {
+    let mut system_tray_icon_path = tray.icon_path.clone();
+    system_tray_icon_path.set_extension(if cfg!(windows) { "ico" } else { "png" });
+    let system_tray_icon_path = config_parent
+      .join(system_tray_icon_path)
+      .display()
+      .to_string();
+    quote!(Some(include_bytes!(#system_tray_icon_path).to_vec()))
+  } else {
+    quote!(None)
+  };
+
   let package_name = if let Some(product_name) = &config.package.product_name {
     quote!(#product_name.to_string())
   } else {
@@ -78,6 +119,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     config: #config,
     assets: ::std::sync::Arc::new(#assets),
     default_window_icon: #default_window_icon,
+    system_tray_icon: #system_tray_icon,
     package_info: #root::api::PackageInfo {
       name: #package_name,
       version: #package_version,

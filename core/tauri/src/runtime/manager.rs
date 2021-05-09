@@ -14,9 +14,10 @@ use crate::{
   plugin::PluginStore,
   runtime::{
     app::{GlobalMenuEventListener, WindowMenuEvent},
+    menu::{Menu, MenuId, MenuItem},
     tag::{tags_to_javascript_array, Tag, TagRef, ToJsString},
     webview::{
-      CustomProtocol, FileDropEvent, FileDropHandler, InvokePayload, Menu, WebviewRpcHandler,
+      CustomProtocol, FileDropEvent, FileDropHandler, InvokePayload, WebviewRpcHandler,
       WindowBuilder,
     },
     window::{dpi::PhysicalSize, DetachedWindow, MenuEvent, PendingWindow, WindowEvent},
@@ -82,43 +83,58 @@ pub struct InnerWindowManager<P: Params> {
   /// The webview protocols protocols available to all windows.
   uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
   /// The menu set to all windows.
-  menu: Vec<Menu>,
+  menu: Vec<Menu<P::MenuId>>,
   /// Menu event listeners to all windows.
   menu_event_listeners: Arc<Vec<GlobalMenuEventListener<P>>>,
+  menu_ids: HashMap<u32, P::MenuId>,
 }
 
 /// A [Zero Sized Type] marker representing a full [`Params`].
 ///
 /// [Zero Sized Type]: https://doc.rust-lang.org/nomicon/exotic-sizes.html#zero-sized-types-zsts
-pub struct Args<E: Tag, L: Tag, A: Assets, R: Runtime> {
+pub struct Args<E: Tag, L: Tag, MID: MenuId, TID: MenuId, A: Assets, R: Runtime> {
   _event: PhantomData<fn() -> E>,
   _label: PhantomData<fn() -> L>,
+  _menu_id: PhantomData<fn() -> MID>,
+  _tray_menu_id: PhantomData<fn() -> TID>,
   _assets: PhantomData<fn() -> A>,
   _runtime: PhantomData<fn() -> R>,
 }
 
-impl<E: Tag, L: Tag, A: Assets, R: Runtime> Default for Args<E, L, A, R> {
+impl<E: Tag, L: Tag, MID: MenuId, TID: MenuId, A: Assets, R: Runtime> Default
+  for Args<E, L, MID, TID, A, R>
+{
   fn default() -> Self {
     Self {
       _event: PhantomData,
       _label: PhantomData,
+      _menu_id: PhantomData,
+      _tray_menu_id: PhantomData,
       _assets: PhantomData,
       _runtime: PhantomData,
     }
   }
 }
 
-impl<E: Tag, L: Tag, A: Assets, R: Runtime> ParamsBase for Args<E, L, A, R> {}
-impl<E: Tag, L: Tag, A: Assets, R: Runtime> Params for Args<E, L, A, R> {
+impl<E: Tag, L: Tag, MID: MenuId, TID: MenuId, A: Assets, R: Runtime> ParamsBase
+  for Args<E, L, MID, TID, A, R>
+{
+}
+impl<E: Tag, L: Tag, MID: MenuId, TID: MenuId, A: Assets, R: Runtime> Params
+  for Args<E, L, MID, TID, A, R>
+{
   type Event = E;
   type Label = L;
+  type MenuId = MID;
+  type SystemTrayMenuId = TID;
   type Assets = A;
   type Runtime = R;
 }
 
 pub struct WindowManager<P: Params> {
   pub inner: Arc<InnerWindowManager<P>>,
-  _marker: Args<P::Event, P::Label, P::Assets, P::Runtime>,
+  #[allow(clippy::type_complexity)]
+  _marker: Args<P::Event, P::Label, P::MenuId, P::SystemTrayMenuId, P::Assets, P::Runtime>,
 }
 
 impl<P: Params> Clone for WindowManager<P> {
@@ -130,6 +146,18 @@ impl<P: Params> Clone for WindowManager<P> {
   }
 }
 
+fn get_menu_ids<I: MenuId>(menu: &[Menu<I>]) -> HashMap<u32, I> {
+  let mut map = HashMap::new();
+  for m in menu {
+    for item in &m.items {
+      if let MenuItem::Custom(i) = item {
+        map.insert(i.id_value(), i.id.clone());
+      }
+    }
+  }
+  map
+}
+
 impl<P: Params> WindowManager<P> {
   #[allow(clippy::too_many_arguments)]
   pub(crate) fn with_handlers(
@@ -139,9 +167,10 @@ impl<P: Params> WindowManager<P> {
     on_page_load: Box<OnPageLoad<P>>,
     uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
     state: StateManager,
-    menu: Vec<Menu>,
+    menu: Vec<Menu<P::MenuId>>,
     menu_event_listeners: Vec<GlobalMenuEventListener<P>>,
   ) -> Self {
+    let menu_ids = get_menu_ids(&menu);
     Self {
       inner: Arc::new(InnerWindowManager {
         windows: Mutex::default(),
@@ -158,6 +187,7 @@ impl<P: Params> WindowManager<P> {
         uri_scheme_protocols,
         menu,
         menu_event_listeners: Arc::new(menu_event_listeners),
+        menu_ids,
       }),
       _marker: Args::default(),
     }
@@ -422,16 +452,17 @@ mod test {
   #[test]
   fn check_get_url() {
     let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
-    let manager: WindowManager<Args<String, String, _, Wry>> = WindowManager::with_handlers(
-      context,
-      PluginStore::default(),
-      Box::new(|_| ()),
-      Box::new(|_, _| ()),
-      Default::default(),
-      StateManager::new(),
-      Vec::new(),
-      Default::default(),
-    );
+    let manager: WindowManager<Args<String, String, String, String, _, Wry>> =
+      WindowManager::with_handlers(
+        context,
+        PluginStore::default(),
+        Box::new(|_| ()),
+        Box::new(|_, _| ()),
+        Default::default(),
+        StateManager::new(),
+        Vec::new(),
+        Default::default(),
+      );
 
     #[cfg(custom_protocol)]
     assert_eq!(manager.get_url(), "tauri://localhost");
@@ -517,12 +548,13 @@ impl<P: Params> WindowManager<P> {
     });
     let window_ = window.clone();
     let menu_event_listeners = self.inner.menu_event_listeners.clone();
+    let menu_ids = self.inner.menu_ids.clone();
     window.on_menu_event(move |event| {
       let _ = on_menu_event(&window_, event);
       for handler in menu_event_listeners.iter() {
         handler(WindowMenuEvent {
           window: window_.clone(),
-          menu_item_id: event.menu_item_id,
+          menu_item_id: menu_ids.get(&event.menu_item_id).unwrap().clone(),
         });
       }
     });

@@ -164,7 +164,11 @@ impl AppSettings {
   }
 
   pub fn get_bundle_settings(&self, config: &Config) -> crate::Result<BundleSettings> {
-    tauri_config_to_bundle_settings(config.tauri.bundle.clone(), config.tauri.updater.clone())
+    tauri_config_to_bundle_settings(
+      config.tauri.bundle.clone(),
+      config.tauri.system_tray.clone(),
+      config.tauri.updater.clone(),
+    )
   }
 
   pub fn get_out_dir(&self, debug: bool) -> crate::Result<PathBuf> {
@@ -333,6 +337,7 @@ pub fn get_workspace_dir(current_dir: &Path) -> PathBuf {
 
 fn tauri_config_to_bundle_settings(
   config: crate::helpers::config::BundleConfig,
+  system_tray_config: Option<crate::helpers::config::SystemTrayConfig>,
   updater_config: crate::helpers::config::UpdaterConfig,
 ) -> crate::Result<BundleSettings> {
   #[cfg(windows)]
@@ -345,10 +350,24 @@ fn tauri_config_to_bundle_settings(
   );
   #[cfg(not(windows))]
   let windows_icon_path = PathBuf::from("");
+
+  #[allow(unused_mut)]
+  let mut resources = config.resources.unwrap_or_default();
+  #[cfg(target_os = "linux")]
+  {
+    if let Some(system_tray_config) = &system_tray_config {
+      resources.push(system_tray_config.icon_path.to_string_lossy().to_string());
+    }
+  }
+
   Ok(BundleSettings {
     identifier: config.identifier,
     icon: config.icon,
-    resources: config.resources,
+    resources: if resources.is_empty() {
+      None
+    } else {
+      Some(resources)
+    },
     copyright: config.copyright,
     category: match config.category {
       Some(category) => Some(AppCategory::from_str(&category).map_err(|e| match e {

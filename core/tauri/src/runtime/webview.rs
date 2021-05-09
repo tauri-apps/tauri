@@ -7,15 +7,14 @@
 use crate::runtime::Icon;
 use crate::{
   api::config::{WindowConfig, WindowUrl},
-  runtime::window::DetachedWindow,
+  runtime::{
+    menu::{Menu, MenuId},
+    window::DetachedWindow,
+  },
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value as JsonValue;
-use std::{
-  collections::{hash_map::DefaultHasher, HashMap},
-  hash::{Hash, Hasher},
-  path::PathBuf,
-};
+use std::{collections::HashMap, path::PathBuf};
 
 type UriSchemeProtocol = dyn Fn(&str) -> crate::Result<Vec<u8>> + Send + Sync + 'static;
 
@@ -97,7 +96,7 @@ pub trait WindowBuilder: WindowBuilderBase {
   fn with_config(config: WindowConfig) -> Self;
 
   /// Sets the menu for the window.
-  fn menu(self, menu: Vec<Menu>) -> Self;
+  fn menu<I: MenuId>(self, menu: Vec<Menu<I>>) -> Self;
 
   /// The initial position of the window's.
   fn position(self, x: f64, y: f64) -> Self;
@@ -188,211 +187,4 @@ pub(crate) struct InvokePayload {
   pub(crate) error: String,
   #[serde(flatten)]
   pub(crate) inner: JsonValue,
-}
-
-/// A window or system tray menu.
-#[derive(Debug, Clone)]
-pub struct Menu {
-  pub(crate) title: String,
-  pub(crate) items: Vec<MenuItem>,
-}
-
-impl Menu {
-  /// Creates a new menu with the given title and items.
-  pub fn new<T: Into<String>>(title: T, items: Vec<MenuItem>) -> Self {
-    Self {
-      title: title.into(),
-      items,
-    }
-  }
-}
-
-/// Identifier of a custom menu item.
-///
-/// Whenever you receive an event arising from a particular menu, this event contains a `MenuId` which
-/// identifies its origin.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize)]
-pub struct MenuItemId(pub(crate) u32);
-
-impl MenuItemId {
-  fn new<T: Into<String>>(menu_title: T) -> Self {
-    Self(hash_string_to_u32(menu_title.into()))
-  }
-}
-
-fn hash_string_to_u32(title: String) -> u32 {
-  let mut s = DefaultHasher::new();
-  title.hash(&mut s);
-  s.finish() as u32
-}
-
-/// A custom menu item.
-#[derive(Debug, Clone)]
-pub struct CustomMenuItem {
-  pub(crate) id: MenuItemId,
-  pub(crate) name: String,
-}
-
-impl CustomMenuItem {
-  /// Create new custom menu item.
-  pub fn new<T: Into<String>>(title: T) -> Self {
-    let title = title.into();
-    Self {
-      id: MenuItemId::new(&title),
-      name: title,
-    }
-  }
-
-  /// Return unique menu ID. Works only with `MenuItem::Custom`.
-  pub fn id(self) -> MenuItemId {
-    self.id
-  }
-}
-
-/// A menu item, bound to a pre-defined action or `Custom` emit an event. Note that status bar only
-/// supports `Custom` menu item variants. And on the menu bar, some platforms might not support some
-/// of the variants. Unsupported variant will be no-op on such platform.
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub enum MenuItem {
-  /// A custom menu item emits an event inside the EventLoop.
-  Custom(CustomMenuItem),
-
-  /// Shows a standard "About" item
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  ///
-  About(String),
-
-  /// A standard "hide the app" menu item.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  ///
-  Hide,
-
-  /// A standard "Services" menu item.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported
-  ///
-  Services,
-
-  /// A "hide all other windows" menu item.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported
-  ///
-  HideOthers,
-
-  /// A menu item to show all the windows for this app.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported
-  ///
-  ShowAll,
-
-  /// Close the current window.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  ///
-  CloseWindow,
-
-  /// A "quit this app" menu icon.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  ///
-  Quit,
-
-  /// A menu item for enabling copying (often text) from responders.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  ///
-  Copy,
-
-  /// A menu item for enabling cutting (often text) from responders.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  ///
-  Cut,
-
-  /// An "undo" menu item; particularly useful for supporting the cut/copy/paste/undo lifecycle
-  /// of events.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported
-  ///
-  Undo,
-
-  /// An "redo" menu item; particularly useful for supporting the cut/copy/paste/undo lifecycle
-  /// of events.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported
-  ///
-  Redo,
-
-  /// A menu item for selecting all (often text) from responders.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  ///
-  SelectAll,
-
-  /// A menu item for pasting (often text) into responders.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  ///
-  Paste,
-
-  /// A standard "enter full screen" item.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported
-  ///
-  EnterFullScreen,
-
-  /// An item for minimizing the window with the standard system controls.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  ///
-  Minimize,
-
-  /// An item for instructing the app to zoom
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported
-  ///
-  Zoom,
-
-  /// Represents a Separator
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  ///
-  Separator,
 }

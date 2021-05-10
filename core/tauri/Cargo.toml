@@ -50,6 +50,7 @@ os_pipe = "0.9"
 minisign-verify = "0.1.8"
 image = "0.23"
 state = "0.4"
+bincode = "1.3"
 
 [build-dependencies]
 cfg_aliases = "0.1.1"

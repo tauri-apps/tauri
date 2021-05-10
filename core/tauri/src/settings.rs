@@ -4,7 +4,7 @@
 
 use crate::{
   api::{
-    file::read_string,
+    file::read_binary,
     path::{resolve_path, BaseDirectory},
   },
   Config,
@@ -27,7 +27,7 @@ pub struct Settings {
 
 /// Gets the path to the settings file
 fn get_settings_path(config: &Config) -> crate::api::Result<PathBuf> {
-  resolve_path(config, ".tauri-settings.json", Some(BaseDirectory::App))
+  resolve_path(config, ".tauri-settings", Some(BaseDirectory::App))
 }
 
 /// Write the settings to the file system.
@@ -41,19 +41,22 @@ pub(crate) fn write_settings(config: &Config, settings: Settings) -> crate::Resu
   File::create(settings_path)
     .map_err(Into::into)
     .and_then(|mut f| {
-      f.write_all(serde_json::to_string(&settings)?.as_bytes())
+      f.write_all(&bincode::serialize(&settings).map_err(crate::api::Error::Bincode)?)
         .map_err(Into::into)
     })
 }
 
 /// Reads the settings from the file system.
-pub fn read_settings(config: &Config) -> crate::Result<Settings> {
-  let settings_path = get_settings_path(config)?;
-  if settings_path.exists() {
-    read_string(settings_path)
-      .and_then(|settings| serde_json::from_str(settings.as_str()).map_err(Into::into))
-      .map_err(Into::into)
+pub fn read_settings(config: &Config) -> Settings {
+  if let Ok(settings_path) = get_settings_path(config) {
+    if settings_path.exists() {
+      read_binary(settings_path)
+        .and_then(|settings| bincode::deserialize(&settings).map_err(Into::into))
+        .unwrap_or_default()
+    } else {
+      Settings::default()
+    }
   } else {
-    Ok(Default::default())
+    Settings::default()
   }
 }

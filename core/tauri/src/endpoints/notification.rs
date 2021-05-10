@@ -80,7 +80,7 @@ pub fn send(options: NotificationOptions, config: &Config) -> crate::Result<Invo
 
 #[cfg(notification_all)]
 pub fn is_permission_granted(config: &Config) -> crate::Result<InvokeResponse> {
-  let settings = crate::settings::read_settings(config)?;
+  let settings = crate::settings::read_settings(config);
   if let Some(allow_notification) = settings.allow_notification {
     Ok(allow_notification.into())
   } else {
@@ -90,7 +90,7 @@ pub fn is_permission_granted(config: &Config) -> crate::Result<InvokeResponse> {
 
 #[cfg(notification_all)]
 pub fn request_permission(config: &Config) -> crate::Result<String> {
-  let mut settings = crate::settings::read_settings(config)?;
+  let mut settings = crate::settings::read_settings(config);
   if let Some(allow_notification) = settings.allow_notification {
     return Ok(if allow_notification {
       PERMISSION_GRANTED.to_string()

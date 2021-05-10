@@ -53,29 +53,38 @@ use serde::Serialize;
 use std::{borrow::Borrow, collections::HashMap, path::PathBuf, sync::Arc};
 
 // Export types likely to be used by the application.
+#[cfg(any(feature = "menu", feature = "system-tray"))]
+pub use runtime::menu::CustomMenuItem;
 pub use {
   self::api::assets::Assets,
   self::api::{
     config::{Config, WindowUrl},
     PackageInfo,
   },
-  self::app::{App, Builder, GlobalWindowEvent, SystemTrayEvent, WindowMenuEvent},
+  self::app::{App, Builder, GlobalWindowEvent},
   self::hooks::{
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
     PageLoadPayload, SetupHook,
   },
   self::runtime::{
-    menu::{CustomMenuItem, Menu, MenuId, MenuItem, SystemTrayMenuItem},
     tag::{Tag, TagRef},
     webview::{WebviewAttributes, WindowBuilder},
     window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       WindowEvent,
     },
-    Params,
+    MenuId, Params,
   },
   self::state::{State, StateManager},
-  self::window::{MenuEvent, Monitor, Window},
+  self::window::{Monitor, Window},
+};
+#[cfg(feature = "system-tray")]
+pub use {self::app::SystemTrayEvent, self::runtime::menu::SystemTrayMenuItem};
+#[cfg(feature = "menu")]
+pub use {
+  self::app::WindowMenuEvent,
+  self::runtime::menu::{Menu, MenuItem},
+  self::window::MenuEvent,
 };
 
 /// Reads the config file at compile time and generates a [`Context`] based on its content.

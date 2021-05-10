@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#[cfg(feature = "menu")]
+use crate::runtime::MenuId;
 use crate::{
   api::config::WindowUrl,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
   manager::WindowManager,
   runtime::{
-    menu::MenuId,
     monitor::Monitor as RuntimeMonitor,
     tag::{TagRef, ToJsString},
     webview::{InvokePayload, WebviewAttributes, WindowBuilder},
@@ -31,11 +32,13 @@ use std::{
 };
 
 /// The window menu event.
+#[cfg(feature = "menu")]
 #[derive(Debug, Clone)]
 pub struct MenuEvent<I: MenuId> {
   pub(crate) menu_item_id: I,
 }
 
+#[cfg(feature = "menu")]
 impl<I: MenuId> MenuEvent<I> {
   /// The menu item id.
   pub fn menu_item_id(&self) -> &I {
@@ -287,6 +290,7 @@ impl<P: Params> Window<P> {
   }
 
   /// Registers a menu event listener.
+  #[cfg(feature = "menu")]
   pub fn on_menu_event<F: Fn(MenuEvent<P::MenuId>) + Send + 'static>(&self, f: F) {
     let menu_ids = self.manager.menu_ids();
     self.window.dispatcher.on_menu_event(move |event| {

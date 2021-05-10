@@ -15,3 +15,8 @@ tauri-runtime = { version = "0.0.0", path = "../tauri-runtime" }
 tauri-utils = { version = "1.0.0-beta-rc.1", path = "../tauri-utils" }
 image = "0.23"
 uuid = { version = "0.8.2", features = [ "v4" ] }
+
+[features]
+menu = [ "wry/menu" ]
+system-tray = []
+# system-tray = [ "wry/tray" ]

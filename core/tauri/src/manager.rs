@@ -9,12 +9,11 @@ use crate::{
     path::{resolve_path, BaseDirectory},
     PackageInfo,
   },
-  app::{GlobalMenuEventListener, GlobalWindowEvent, GlobalWindowEventListener, WindowMenuEvent},
+  app::{GlobalWindowEvent, GlobalWindowEventListener},
   event::{Event, EventHandler, Listeners},
   hooks::{InvokeHandler, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
   runtime::{
-    menu::{Menu, MenuId, MenuItem},
     private::ParamsBase,
     tag::{tags_to_javascript_array, Tag, TagRef, ToJsString},
     webview::{
@@ -22,10 +21,20 @@ use crate::{
       WindowBuilder,
     },
     window::{dpi::PhysicalSize, DetachedWindow, PendingWindow, WindowEvent},
-    Icon, Params, Runtime,
+    Icon, MenuId, Params, Runtime,
   },
-  App, Context, Invoke, MenuEvent, StateManager, Window,
+  App, Context, Invoke, StateManager, Window,
 };
+
+#[cfg(feature = "menu")]
+use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
+
+#[cfg(feature = "menu")]
+use crate::{
+  runtime::menu::{Menu, MenuItem},
+  MenuEvent,
+};
+
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use std::borrow::Borrow;
@@ -45,6 +54,7 @@ const WINDOW_DESTROYED_EVENT: &str = "tauri://destroyed";
 const WINDOW_FOCUS_EVENT: &str = "tauri://focus";
 const WINDOW_BLUR_EVENT: &str = "tauri://blur";
 const WINDOW_SCALE_FACTOR_CHANGED_EVENT: &str = "tauri://scale-change";
+#[cfg(feature = "menu")]
 const MENU_EVENT: &str = "tauri://menu";
 
 /// Parse a string representing an internal tauri event into [`Params::Event`]
@@ -83,12 +93,16 @@ pub struct InnerWindowManager<P: Params> {
   /// The webview protocols protocols available to all windows.
   uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
   /// The menu set to all windows.
+  #[cfg(feature = "menu")]
   menu: Vec<Menu<P::MenuId>>,
+  /// Maps runtime id to a strongly typed menu id.
+  #[cfg(feature = "menu")]
+  menu_ids: HashMap<u32, P::MenuId>,
   /// Menu event listeners to all windows.
+  #[cfg(feature = "menu")]
   menu_event_listeners: Arc<Vec<GlobalMenuEventListener<P>>>,
   /// Window event listeners to all windows.
   window_event_listeners: Arc<Vec<GlobalWindowEventListener<P>>>,
-  menu_ids: HashMap<u32, P::MenuId>,
 }
 
 /// A [Zero Sized Type] marker representing a full [`Params`].
@@ -148,6 +162,7 @@ impl<P: Params> Clone for WindowManager<P> {
   }
 }
 
+#[cfg(feature = "menu")]
 fn get_menu_ids<I: MenuId>(menu: &[Menu<I>]) -> HashMap<u32, I> {
   let mut map = HashMap::new();
   for m in menu {
@@ -169,11 +184,12 @@ impl<P: Params> WindowManager<P> {
     on_page_load: Box<OnPageLoad<P>>,
     uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
     state: StateManager,
-    menu: Vec<Menu<P::MenuId>>,
-    menu_event_listeners: Vec<GlobalMenuEventListener<P>>,
     window_event_listeners: Vec<GlobalWindowEventListener<P>>,
+    #[cfg(feature = "menu")] (menu, menu_event_listeners): (
+      Vec<Menu<P::MenuId>>,
+      Vec<GlobalMenuEventListener<P>>,
+    ),
   ) -> Self {
-    let menu_ids = get_menu_ids(&menu);
     Self {
       inner: Arc::new(InnerWindowManager {
         windows: Mutex::default(),
@@ -188,10 +204,13 @@ impl<P: Params> WindowManager<P> {
         salts: Mutex::default(),
         package_info: context.package_info,
         uri_scheme_protocols,
+        #[cfg(feature = "menu")]
+        menu_ids: get_menu_ids(&menu),
+        #[cfg(feature = "menu")]
         menu,
+        #[cfg(feature = "menu")]
         menu_event_listeners: Arc::new(menu_event_listeners),
         window_event_listeners: Arc::new(window_event_listeners),
-        menu_ids,
       }),
       _marker: Args::default(),
     }
@@ -208,6 +227,7 @@ impl<P: Params> WindowManager<P> {
   }
 
   /// Get the menu ids mapper.
+  #[cfg(feature = "menu")]
   pub(crate) fn menu_ids(&self) -> HashMap<u32, P::MenuId> {
     self.inner.menu_ids.clone()
   }
@@ -259,6 +279,7 @@ impl<P: Params> WindowManager<P> {
       }
     }
 
+    #[cfg(feature = "menu")]
     if !pending.window_builder.has_menu() {
       pending.window_builder = pending.window_builder.menu(self.inner.menu.clone());
     }
@@ -471,8 +492,8 @@ mod test {
         Box::new(|_, _| ()),
         Default::default(),
         StateManager::new(),
-        Vec::new(),
         Default::default(),
+        #[cfg(feature = "menu")]
         Default::default(),
       );
 
@@ -565,17 +586,20 @@ impl<P: Params> WindowManager<P> {
         });
       }
     });
-    let window_ = window.clone();
-    let menu_event_listeners = self.inner.menu_event_listeners.clone();
-    window.on_menu_event(move |event| {
-      let _ = on_menu_event(&window_, &event);
-      for handler in menu_event_listeners.iter() {
-        handler(WindowMenuEvent {
-          window: window_.clone(),
-          menu_item_id: event.menu_item_id.clone(),
-        });
-      }
-    });
+    #[cfg(feature = "menu")]
+    {
+      let window_ = window.clone();
+      let menu_event_listeners = self.inner.menu_event_listeners.clone();
+      window.on_menu_event(move |event| {
+        let _ = on_menu_event(&window_, &event);
+        for handler in menu_event_listeners.iter() {
+          handler(WindowMenuEvent {
+            window: window_.clone(),
+            menu_item_id: event.menu_item_id.clone(),
+          });
+        }
+      });
+    }
 
     // insert the window into our manager
     {
@@ -762,6 +786,7 @@ struct ScaleFactorChanged {
   size: PhysicalSize<u32>,
 }
 
+#[cfg(feature = "menu")]
 fn on_menu_event<P: Params>(window: &Window<P>, event: &MenuEvent<P::MenuId>) -> crate::Result<()> {
   window.emit(
     &MENU_EVENT

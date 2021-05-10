@@ -15,3 +15,7 @@ serde_json = "1.0"
 thiserror = "1.0"
 tauri-utils = { version = "1.0.0-beta-rc.1", path = "../tauri-utils" }
 uuid = { version = "0.8.2", features = [ "v4" ] }
+
+[features]
+menu = []
+system-tray = []

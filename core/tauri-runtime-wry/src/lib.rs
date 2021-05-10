@@ -5,17 +5,23 @@
 //! The [`wry`] Tauri [`Runtime`].
 
 use tauri_runtime::{
-  menu::{CustomMenuItem, Menu, MenuId, MenuItem, SystemTrayMenuItem},
   monitor::Monitor,
   webview::{
     FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler, WindowBuilder, WindowBuilderBase,
   },
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-    DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
+    DetachedWindow, PendingWindow, WindowEvent,
   },
-  Dispatch, Error, Icon, Params, Result, Runtime, SystemTrayEvent,
+  Dispatch, Error, Icon, Params, Result, Runtime,
 };
+
+#[cfg(feature = "menu")]
+use tauri_runtime::window::MenuEvent;
+#[cfg(feature = "system-tray")]
+use tauri_runtime::SystemTrayEvent;
+#[cfg(feature = "system-tray")]
+use wry::application::platform::system_tray::SystemTrayBuilder;
 
 use image::{GenericImageView, Pixel};
 use tauri_utils::config::WindowConfig;
@@ -29,12 +35,7 @@ use wry::{
     },
     event::{Event, WindowEvent as WryWindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
-    menu::{
-      CustomMenu as WryCustomMenu, Menu as WryMenu, MenuId as WryMenuId, MenuItem as WryMenuItem,
-      MenuType,
-    },
     monitor::MonitorHandle,
-    platform::system_tray::SystemTrayBuilder,
     window::{Fullscreen, Icon as WindowIcon, Window, WindowBuilder as WryWindowBuilder, WindowId},
   },
   webview::{
@@ -52,15 +53,16 @@ use std::{
   },
 };
 
+#[cfg(any(feature = "menu", feature = "system-tray"))]
+mod menu;
+#[cfg(any(feature = "menu", feature = "system-tray"))]
+use menu::*;
+
 type CreateWebviewHandler =
   Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> Result<WebView> + Send>;
 type MainThreadTask = Box<dyn FnOnce() + Send>;
 type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
-type MenuEventHandler = Box<dyn Fn(&MenuEvent) + Send>;
-type MenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
-type SystemTrayEventHandler = Box<dyn Fn(&SystemTrayEvent) + Send>;
-type SystemTrayEventListeners = HashMap<Uuid, SystemTrayEventHandler>;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -219,73 +221,6 @@ impl From<Position> for PositionWrapper {
   }
 }
 
-pub struct CustomMenuWrapper(WryCustomMenu);
-
-impl<I: MenuId> From<CustomMenuItem<I>> for CustomMenuWrapper {
-  fn from(item: CustomMenuItem<I>) -> Self {
-    Self(WryCustomMenu {
-      id: WryMenuId(item.id_value()),
-      name: item.name,
-      keyboard_accelerators: None,
-    })
-  }
-}
-
-struct MenuItemWrapper(WryMenuItem);
-
-impl<I: MenuId> From<MenuItem<I>> for MenuItemWrapper {
-  fn from(item: MenuItem<I>) -> Self {
-    match item {
-      MenuItem::Custom(custom) => Self(WryMenuItem::Custom(CustomMenuWrapper::from(custom).0)),
-      MenuItem::About(v) => Self(WryMenuItem::About(v)),
-      MenuItem::Hide => Self(WryMenuItem::Hide),
-      MenuItem::Services => Self(WryMenuItem::Services),
-      MenuItem::HideOthers => Self(WryMenuItem::HideOthers),
-      MenuItem::ShowAll => Self(WryMenuItem::ShowAll),
-      MenuItem::CloseWindow => Self(WryMenuItem::CloseWindow),
-      MenuItem::Quit => Self(WryMenuItem::Quit),
-      MenuItem::Copy => Self(WryMenuItem::Copy),
-      MenuItem::Cut => Self(WryMenuItem::Cut),
-      MenuItem::Undo => Self(WryMenuItem::Undo),
-      MenuItem::Redo => Self(WryMenuItem::Redo),
-      MenuItem::SelectAll => Self(WryMenuItem::SelectAll),
-      MenuItem::Paste => Self(WryMenuItem::Paste),
-      MenuItem::EnterFullScreen => Self(WryMenuItem::EnterFullScreen),
-      MenuItem::Minimize => Self(WryMenuItem::Minimize),
-      MenuItem::Zoom => Self(WryMenuItem::Zoom),
-      MenuItem::Separator => Self(WryMenuItem::Separator),
-      _ => unimplemented!(),
-    }
-  }
-}
-
-pub struct MenuWrapper(WryMenu);
-
-impl<I: MenuId> From<Menu<I>> for MenuWrapper {
-  fn from(menu: Menu<I>) -> Self {
-    Self(WryMenu {
-      title: menu.title,
-      items: menu
-        .items
-        .into_iter()
-        .map(|m| MenuItemWrapper::from(m).0)
-        .collect(),
-    })
-  }
-}
-
-impl<I: MenuId> From<SystemTrayMenuItem<I>> for MenuItemWrapper {
-  fn from(item: SystemTrayMenuItem<I>) -> Self {
-    match item {
-      SystemTrayMenuItem::Custom(custom) => {
-        Self(WryMenuItem::Custom(CustomMenuWrapper::from(custom).0))
-      }
-      SystemTrayMenuItem::Separator => Self(WryMenuItem::Separator),
-      _ => unimplemented!(),
-    }
-  }
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct WindowBuilderWrapper(WryWindowBuilder);
 
@@ -320,6 +255,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     window
   }
 
+  #[cfg(feature = "menu")]
   fn menu<I: MenuId>(self, menu: Vec<Menu<I>>) -> Self {
     Self(
       self.0.with_menu(
@@ -401,6 +337,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     self.0.window.window_icon.is_some()
   }
 
+  #[cfg(feature = "menu")]
   fn has_menu(&self) -> bool {
     self.0.window.window_menu.is_some()
   }
@@ -481,6 +418,7 @@ struct DispatcherContext {
   proxy: EventLoopProxy<Message>,
   task_tx: Sender<MainThreadTask>,
   window_event_listeners: WindowEventListeners,
+  #[cfg(feature = "menu")]
   menu_event_listeners: MenuEventListeners,
 }
 
@@ -526,6 +464,7 @@ impl Dispatch for WryDispatcher {
     id
   }
 
+  #[cfg(feature = "menu")]
   fn on_menu_event<F: Fn(&MenuEvent) + Send + 'static>(&self, f: F) -> Uuid {
     let id = Uuid::new_v4();
     self
@@ -817,7 +756,9 @@ pub struct Wry {
   webviews: Mutex<HashMap<WindowId, WebView>>,
   task_tx: Sender<MainThreadTask>,
   window_event_listeners: WindowEventListeners,
+  #[cfg(feature = "menu")]
   menu_event_listeners: MenuEventListeners,
+  #[cfg(feature = "system-tray")]
   system_tray_event_listeners: SystemTrayEventListeners,
   task_rx: Receiver<MainThreadTask>,
 }
@@ -834,7 +775,9 @@ impl Runtime for Wry {
       task_tx,
       task_rx,
       window_event_listeners: Default::default(),
+      #[cfg(feature = "menu")]
       menu_event_listeners: Default::default(),
+      #[cfg(feature = "system-tray")]
       system_tray_event_listeners: HashMap::default(),
     })
   }
@@ -851,6 +794,7 @@ impl Runtime for Wry {
         proxy: proxy.clone(),
         task_tx: self.task_tx.clone(),
         window_event_listeners: self.window_event_listeners.clone(),
+        #[cfg(feature = "menu")]
         menu_event_listeners: self.menu_event_listeners.clone(),
       },
       pending,
@@ -862,6 +806,7 @@ impl Runtime for Wry {
         proxy,
         task_tx: self.task_tx.clone(),
         window_event_listeners: self.window_event_listeners.clone(),
+        #[cfg(feature = "menu")]
         menu_event_listeners: self.menu_event_listeners.clone(),
       },
     };
@@ -875,7 +820,7 @@ impl Runtime for Wry {
     Ok(DetachedWindow { label, dispatcher })
   }
 
-  #[cfg(target_os = "linux")]
+  #[cfg(all(feature = "system-tray", target_os = "linux"))]
   fn system_tray<I: MenuId>(
     &self,
     icon: std::path::PathBuf,
@@ -893,7 +838,7 @@ impl Runtime for Wry {
     Ok(())
   }
 
-  #[cfg(not(target_os = "linux"))]
+  #[cfg(all(feature = "system-tray", not(target_os = "linux")))]
   fn system_tray<I: MenuId>(
     &self,
     icon: Vec<u8>,
@@ -911,6 +856,7 @@ impl Runtime for Wry {
     Ok(())
   }
 
+  #[cfg(feature = "system-tray")]
   fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid {
     let id = Uuid::new_v4();
     self.system_tray_event_listeners.insert(id, Box::new(f));
@@ -924,8 +870,11 @@ impl Runtime for Wry {
     };
     let task_rx = self.task_rx;
     let window_event_listeners = self.window_event_listeners.clone();
+    #[cfg(feature = "menu")]
     let menu_event_listeners = self.menu_event_listeners.clone();
+    #[cfg(feature = "system-tray")]
     let system_tray_event_listeners = self.system_tray_event_listeners;
+
     self.event_loop.run(move |event, event_loop, control_flow| {
       *control_flow = ControlFlow::Wait;
 
@@ -940,6 +889,7 @@ impl Runtime for Wry {
       }
 
       match event {
+        #[cfg(feature = "menu")]
         Event::MenuEvent {
           menu_id,
           origin: MenuType::Menubar,
@@ -951,6 +901,7 @@ impl Runtime for Wry {
             handler(&event);
           }
         }
+        #[cfg(feature = "system-tray")]
         Event::MenuEvent {
           menu_id,
           origin: MenuType::SystemTray,

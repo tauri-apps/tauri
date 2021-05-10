@@ -66,12 +66,15 @@ tokio-test = "0.4.1"
 mockito = "0.30"
 
 [features]
-default = ["wry"]
-wry = ["tauri-runtime-wry"]
+default = [ "wry" ]
+wry = [ "tauri-runtime-wry" ]
 cli = [ "clap" ]
 custom-protocol = [ "tauri-macros/custom-protocol" ]
 api-all = [ "notification-all", "global-shortcut-all", "updater" ]
 updater = [ "reqwest/default-tls" ]
+menu = [ "tauri-runtime/menu", "tauri-runtime-wry/menu" ]
+system-tray = [ "tauri-runtime/system-tray", "tauri-runtime-wry/system-tray" ]
+# allowlist
 fs-all = [ ]
 fs-read-text-file = [ ]
 fs-read-binary-file = [ ]

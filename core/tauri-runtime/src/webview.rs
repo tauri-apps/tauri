@@ -4,11 +4,10 @@
 
 //! Items specific to the [`Runtime`](crate::runtime::Runtime)'s webview.
 
-use crate::{
-  menu::{Menu, MenuId},
-  window::DetachedWindow,
-  Icon,
-};
+use crate::{window::DetachedWindow, Icon};
+
+#[cfg(feature = "menu")]
+use crate::{menu::Menu, MenuId};
 
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
@@ -97,6 +96,7 @@ pub trait WindowBuilder: WindowBuilderBase {
   fn with_config(config: WindowConfig) -> Self;
 
   /// Sets the menu for the window.
+  #[cfg(feature = "menu")]
   fn menu<I: MenuId>(self, menu: Vec<Menu<I>>) -> Self;
 
   /// The initial position of the window's.
@@ -143,6 +143,7 @@ pub trait WindowBuilder: WindowBuilderBase {
   fn has_icon(&self) -> bool;
 
   /// Whether the menu was set or not.
+  #[cfg(feature = "menu")]
   fn has_menu(&self) -> bool;
 }
 

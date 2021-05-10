@@ -39,6 +39,7 @@ pub struct MenuEvent<I: MenuId> {
   pub(crate) menu_item_id: I,
 }
 
+#[cfg(feature = "menu")]
 impl<I: MenuId> MenuEvent<I> {
   /// The menu item id.
   pub fn menu_item_id(&self) -> &I {

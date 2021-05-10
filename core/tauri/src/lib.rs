@@ -145,7 +145,7 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
   }
 
   /// Emits a event to all windows.
-  fn emit_all<E: ?Sized, S>(&self, event: &E, payload: Option<S>) -> Result<()>
+  fn emit_all<E: ?Sized, S>(&self, event: &E, payload: S) -> Result<()>
   where
     P::Event: Borrow<E>,
     E: TagRef<P::Event>,
@@ -159,7 +159,7 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
     &self,
     label: &L,
     event: &E,
-    payload: Option<S>,
+    payload: S,
   ) -> Result<()>
   where
     P::Label: Borrow<L>,

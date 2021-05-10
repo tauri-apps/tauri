@@ -75,7 +75,7 @@ pub enum BaseDirectory {
 ///   },
 ///   "path/to/something",
 ///   Some(BaseDirectory::Config)
-//  ).expect("failed to resolve path");
+///  ).expect("failed to resolve path");
 /// // path is equal to "/home/${whoami}/.config/path/to/something" on Linux
 /// ```
 pub fn resolve_path<P: AsRef<Path>>(

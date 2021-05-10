@@ -37,6 +37,7 @@ type SystemTrayEventListener<P> =
 
 /// System tray event.
 #[cfg(feature = "system-tray")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub struct SystemTrayEvent<I: MenuId> {
   menu_item_id: I,
 }
@@ -51,6 +52,7 @@ impl<I: MenuId> SystemTrayEvent<I> {
 
 /// A menu event that was triggered on a window.
 #[cfg(feature = "menu")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
 pub struct WindowMenuEvent<P: Params> {
   pub(crate) menu_item_id: P::MenuId,
   pub(crate) window: Window<P>,
@@ -392,6 +394,7 @@ where
 
   /// Adds the icon configured on `tauri.conf.json` to the system tray with the specified menu items.
   #[cfg(feature = "system-tray")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   pub fn system_tray(mut self, items: Vec<SystemTrayMenuItem<TID>>) -> Self {
     self.system_tray = items;
     self
@@ -399,6 +402,7 @@ where
 
   /// Sets the menu to use on all windows.
   #[cfg(feature = "menu")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
   pub fn menu(mut self, menu: Vec<Menu<MID>>) -> Self {
     self.menu = menu;
     self
@@ -406,6 +410,7 @@ where
 
   /// Registers a menu event handler for all windows.
   #[cfg(feature = "menu")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
   pub fn on_menu_event<
     F: Fn(WindowMenuEvent<Args<E, L, MID, TID, A, R>>) + Send + Sync + 'static,
   >(
@@ -429,6 +434,7 @@ where
 
   /// Registers a system tray event handler.
   #[cfg(feature = "system-tray")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   pub fn on_system_tray_event<
     F: Fn(&AppHandle<Args<E, L, MID, TID, A, R>>, SystemTrayEvent<TID>) + Send + Sync + 'static,
   >(

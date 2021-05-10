@@ -80,6 +80,14 @@ The code for the bundler is located in `[Tauri repo root]/tooling/bundler`, and 
 
 The code for Tauri Core is located in `[Tauri repo root]/core/tauri`, and the Rust API, Macros, and Utils are in `[Tauri repo root]/core/tauri-(api/macros/utils)`. The easiest way to test your changes is to use the `[Tauri repo root]/examples/helloworld` app. It automatically rebuilds and uses your local copy of the Tauri core packages. Just run `yarn tauri build` or `yarn tauri dev` in the helloworld app directory after making changes to test them out. To use your local changes in another project, edit its `src-tauri/Cargo.toml` file so that the `tauri` key looks like `tauri = { path = "PATH", features = [ "api-all", "cli" ] }`, where `PATH` is the relative path to `[Tauri repo root]/core/tauri`. Then, your local copy of the Tauri core packages will be rebuilt and used whenever you build that project.
 
+#### Building the documentation locally
+
+You can build the Rust documentation locally running the following script:
+
+```bash
+$ RUSTDOCFLAGS="--cfg doc_cfg" cargo +nightly doc --all-features --open
+```
+
 ### Developing the JS API
 
 The JS API provides bindings between the developer's JS in the Webview and the builtin Tauri APIs, written in Rust. Its code is located in `[Tauri repo root]/tooling/api`. After making changes to the code, run `yarn build` to build it. To test your changes, we recommend using the API example app, located in `[Tauri repo root]/examples/api`. It will automatically use your local copy of the JS API and provides a helpful UI to test the various commands.

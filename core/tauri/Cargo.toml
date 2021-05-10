@@ -11,7 +11,14 @@ edition = "2018"
 exclude = [ "/test" ]
 
 [package.metadata.docs.rs]
-features = [ "api-all" ]
+all-features = true
+rustdoc-args = [ "--cfg", "doc_cfg" ]
+default-target = "x86_64-unknown-linux-gnu"
+targets = [
+  "x86_64-pc-windows-msvc",
+  "x86_64-unknown-linux-gnu",
+  "x86_64-apple-darwin"
+]
 
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
@@ -67,6 +74,7 @@ mockito = "0.30"
 
 [features]
 default = [ "wry" ]
+dox = [ "tauri-runtime-wry/dox" ]
 wry = [ "tauri-runtime-wry" ]
 cli = [ "clap" ]
 custom-protocol = [ "tauri-macros/custom-protocol" ]

@@ -13,10 +13,6 @@ use tauri_codegen::{context_codegen, ContextData};
 
 // TODO docs
 /// A builder for generating a Tauri application context during compile time.
-///
-/// Meant to be used with [`tauri::include_codegen_context!`] inside your application code.
-///
-/// [`tauri::include_codegen_context!`]: https://docs.rs/tauri/0.12/tauri/macro.include_codegen_context.html
 #[cfg_attr(doc_cfg, doc(cfg(feature = "codegen")))]
 #[derive(Debug)]
 pub struct CodegenContext {

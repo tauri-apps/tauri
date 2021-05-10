@@ -9,12 +9,12 @@
 //! The user interface in Tauri apps currently leverages Cocoa/WebKit on macOS, gtk-webkit2 on Linux and MSHTML (IE10/11) or Webkit via Edge on Windows.
 //! Tauri uses (and contributes to) the MIT licensed project that you can find at [webview](https://github.com/webview/webview).
 #![warn(missing_docs, rust_2018_idioms)]
+#![cfg_attr(doc_cfg, feature(doc_cfg))]
 
 /// The Tauri error enum.
 pub use error::Error;
 pub use tauri_macros::{command, generate_handler};
 
-/// Core API.
 pub mod api;
 pub(crate) mod app;
 /// Async runtime.
@@ -54,6 +54,7 @@ use std::{borrow::Borrow, collections::HashMap, path::PathBuf, sync::Arc};
 
 // Export types likely to be used by the application.
 #[cfg(any(feature = "menu", feature = "system-tray"))]
+#[cfg_attr(doc_cfg, doc(cfg(any(feature = "menu", feature = "system-tray"))))]
 pub use runtime::menu::CustomMenuItem;
 pub use {
   self::api::assets::Assets,
@@ -79,8 +80,10 @@ pub use {
   self::window::{Monitor, Window},
 };
 #[cfg(feature = "system-tray")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub use {self::app::SystemTrayEvent, self::runtime::menu::SystemTrayMenuItem};
 #[cfg(feature = "menu")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
 pub use {
   self::app::WindowMenuEvent,
   self::runtime::menu::{Menu, MenuItem},
@@ -226,7 +229,7 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
   }
 
   /// Add `state` to the state managed by the application.
-  /// See [`tauri::Builder#manage`] for instructions.
+  /// See [`crate::Builder#manage`] for instructions.
   fn manage<T>(&self, state: T)
   where
     T: Send + Sync + 'static,

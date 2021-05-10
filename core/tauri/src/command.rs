@@ -32,8 +32,8 @@ pub struct CommandItem<'a, P: Params> {
 /// # Provided Implementations
 ///
 /// Tauri implements [`CommandArg`] automatically for a number of types.
-/// * [`tauri::Window`]
-/// * [`tauri::State`]
+/// * [`crate::Window`]
+/// * [`crate::State`]
 /// * `T where T: serde::Deserialize`
 ///   * Any type that implements `Deserialize` can automatically be used as a [`CommandArg`].
 pub trait CommandArg<'de, P: Params>: Sized {

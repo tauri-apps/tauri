@@ -6,9 +6,9 @@
     "tauri": "./bin/tauri.js"
   },
   "files": [
-    "bin/**",
-    "dist/**",
-    "scripts/**"
+    "bin",
+    "dist",
+    "scripts"
   ],
   "funding": {
     "type": "opencollective",

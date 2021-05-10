@@ -33,7 +33,7 @@ impl PackageInfo {
       self.name.to_kebab_case()
     }
     #[cfg(not(target_os = "linux"))]
-    return self.name;
+    return self.name.clone();
   }
 }
 

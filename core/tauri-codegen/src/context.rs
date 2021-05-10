@@ -84,24 +84,22 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     let mut system_tray_icon_path = tray.icon_path.clone();
     system_tray_icon_path.set_extension("png");
     if dev {
-      let system_tray_icon_file_name = system_tray_icon_path
-        .file_name()
-        .expect("failed to get tray path file_name")
-        .to_string_lossy()
-        .to_string();
-      quote!(Some(
-        ::tauri::platform::resource_dir(&#package_info)
-          .expect("failed to read resource dir")
-          .join(
-            #system_tray_icon_file_name
-          )
-      ))
-    } else {
       let system_tray_icon_path = config_parent
         .join(system_tray_icon_path)
         .display()
         .to_string();
       quote!(Some(::std::path::PathBuf::from(#system_tray_icon_path)))
+    } else {
+      let system_tray_icon_file_path = system_tray_icon_path.to_string_lossy().to_string();
+      quote!(
+        Some(
+          #root::api::path::resolve_path(
+            &#config, &#package_info,
+            #system_tray_icon_file_path,
+            Some(#root::api::path::BaseDirectory::Resource)
+          ).expect("failed to resolve resource dir")
+        )
+      )
     }
   } else {
     quote!(None)
@@ -122,10 +120,10 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 
   // double braces are purposeful to force the code into a block expression
   Ok(quote!(#root::Context {
+    system_tray_icon: #system_tray_icon,
     config: #config,
     assets: ::std::sync::Arc::new(#assets),
     default_window_icon: #default_window_icon,
-    system_tray_icon: #system_tray_icon,
     package_info: #package_info,
   }))
 }

@@ -76,7 +76,6 @@ pub use {
   },
   self::state::{State, StateManager},
   self::window::{MenuEvent, Monitor, Window},
-  tauri_utils::platform,
 };
 
 /// Reads the config file at compile time and generates a [`Context`] based on its content.

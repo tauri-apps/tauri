@@ -4,7 +4,7 @@
 
 use std::{
   env,
-  path::{Path, PathBuf},
+  path::{Component, Path, PathBuf},
 };
 
 use crate::{Config, PackageInfo};
@@ -85,6 +85,7 @@ pub fn resolve_path<P: AsRef<Path>>(
   dir: Option<BaseDirectory>,
 ) -> crate::api::Result<PathBuf> {
   if let Some(base_dir) = dir {
+    let resolve_resource = matches!(base_dir, BaseDirectory::Resource);
     let base_dir_path = match base_dir {
       BaseDirectory::Audio => audio_dir(),
       BaseDirectory::Cache => cache_dir(),
@@ -107,7 +108,22 @@ pub fn resolve_path<P: AsRef<Path>>(
       BaseDirectory::Current => Some(env::current_dir()?),
     };
     if let Some(mut base_dir_path_value) = base_dir_path {
-      base_dir_path_value.push(path);
+      // use the same path resolution mechanism as the bundler's resource injection algorithm
+      if resolve_resource {
+        let mut resource_path = PathBuf::new();
+        for component in path.as_ref().components() {
+          match component {
+            Component::Prefix(_) => {}
+            Component::RootDir => resource_path.push("_root_"),
+            Component::CurDir => {}
+            Component::ParentDir => resource_path.push("_up_"),
+            Component::Normal(p) => resource_path.push(p),
+          }
+        }
+        base_dir_path_value.push(resource_path);
+      } else {
+        base_dir_path_value.push(path);
+      }
       Ok(base_dir_path_value)
     } else {
       Err(crate::api::Error::Path(

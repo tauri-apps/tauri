@@ -75,7 +75,7 @@ impl Module {
         .respond_async(async move { cmd.run().and_then(|r| r.json).map_err(InvokeError::from) }),
       Self::Fs(cmd) => resolver.respond_async(async move {
         cmd
-          .run(config)
+          .run(config, &package_info)
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
@@ -122,7 +122,7 @@ impl Module {
       }
       Self::Notification(cmd) => resolver.respond_closure(move || {
         cmd
-          .run(config)
+          .run(config, &package_info)
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),

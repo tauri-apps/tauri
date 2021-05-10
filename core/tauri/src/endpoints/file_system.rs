@@ -8,7 +8,7 @@ use crate::{
     dir, file,
     path::{resolve_path, BaseDirectory},
   },
-  Config,
+  Config, PackageInfo,
 };
 
 use serde::{Deserialize, Serialize};
@@ -102,11 +102,15 @@ pub enum Cmd {
 
 impl Cmd {
   #[allow(unused_variables)]
-  pub fn run(self, config: Arc<Config>) -> crate::Result<InvokeResponse> {
+  pub fn run(
+    self,
+    config: Arc<Config>,
+    package_info: &PackageInfo,
+  ) -> crate::Result<InvokeResponse> {
     match self {
       #[cfg(fs_read_text_file)]
       Self::ReadTextFile { path, options } => {
-        read_text_file(&config, path, options).map(Into::into)
+        read_text_file(&config, package_info, path, options).map(Into::into)
       }
       #[cfg(not(fs_read_text_file))]
       Self::ReadTextFile { .. } => Err(crate::Error::ApiNotAllowlisted(
@@ -115,7 +119,7 @@ impl Cmd {
 
       #[cfg(fs_read_binary_file)]
       Self::ReadBinaryFile { path, options } => {
-        read_binary_file(&config, path, options).map(Into::into)
+        read_binary_file(&config, package_info, path, options).map(Into::into)
       }
       #[cfg(not(fs_read_binary_file))]
       Self::ReadBinaryFile { .. } => Err(crate::Error::ApiNotAllowlisted(
@@ -127,7 +131,7 @@ impl Cmd {
         path,
         contents,
         options,
-      } => write_file(&config, path, contents, options).map(Into::into),
+      } => write_file(&config, package_info, path, contents, options).map(Into::into),
       #[cfg(not(fs_write_file))]
       Self::WriteFile { .. } => Err(crate::Error::ApiNotAllowlisted(
         "fs > writeFile".to_string(),
@@ -138,14 +142,16 @@ impl Cmd {
         path,
         contents,
         options,
-      } => write_binary_file(&config, path, contents, options).map(Into::into),
+      } => write_binary_file(&config, package_info, path, contents, options).map(Into::into),
       #[cfg(not(fs_write_binary_file))]
       Self::WriteBinaryFile { .. } => Err(crate::Error::ApiNotAllowlisted(
         "writeBinaryFile".to_string(),
       )),
 
       #[cfg(fs_read_dir)]
-      Self::ReadDir { path, options } => read_dir(&config, path, options).map(Into::into),
+      Self::ReadDir { path, options } => {
+        read_dir(&config, package_info, path, options).map(Into::into)
+      }
       #[cfg(not(fs_read_dir))]
       Self::ReadDir { .. } => Err(crate::Error::ApiNotAllowlisted("fs > readDir".to_string())),
 
@@ -154,26 +160,32 @@ impl Cmd {
         source,
         destination,
         options,
-      } => copy_file(&config, source, destination, options).map(Into::into),
+      } => copy_file(&config, package_info, source, destination, options).map(Into::into),
       #[cfg(not(fs_copy_file))]
       Self::CopyFile { .. } => Err(crate::Error::ApiNotAllowlisted("fs > copyFile".to_string())),
 
       #[cfg(fs_create_dir)]
-      Self::CreateDir { path, options } => create_dir(&config, path, options).map(Into::into),
+      Self::CreateDir { path, options } => {
+        create_dir(&config, package_info, path, options).map(Into::into)
+      }
       #[cfg(not(fs_create_dir))]
       Self::CreateDir { .. } => Err(crate::Error::ApiNotAllowlisted(
         "fs > createDir".to_string(),
       )),
 
       #[cfg(fs_remove_dir)]
-      Self::RemoveDir { path, options } => remove_dir(&config, path, options).map(Into::into),
+      Self::RemoveDir { path, options } => {
+        remove_dir(&config, package_info, path, options).map(Into::into)
+      }
       #[cfg(not(fs_remove_dir))]
       Self::RemoveDir { .. } => Err(crate::Error::ApiNotAllowlisted(
         "fs > removeDir".to_string(),
       )),
 
       #[cfg(fs_remove_file)]
-      Self::RemoveFile { path, options } => remove_file(&config, path, options).map(Into::into),
+      Self::RemoveFile { path, options } => {
+        remove_file(&config, package_info, path, options).map(Into::into)
+      }
       #[cfg(not(fs_remove_file))]
       Self::RemoveFile { .. } => Err(crate::Error::ApiNotAllowlisted(
         "fs > removeFile".to_string(),
@@ -184,7 +196,7 @@ impl Cmd {
         old_path,
         new_path,
         options,
-      } => rename_file(&config, old_path, new_path, options).map(Into::into),
+      } => rename_file(&config, package_info, old_path, new_path, options).map(Into::into),
       #[cfg(not(fs_rename_file))]
       Self::RenameFile { .. } => Err(crate::Error::ApiNotAllowlisted(
         "fs > renameFile".to_string(),
@@ -192,7 +204,7 @@ impl Cmd {
 
       #[cfg(fs_path)]
       Self::ResolvePath { path, directory } => {
-        resolve_path_handler(&config, path, directory).map(Into::into)
+        resolve_path_handler(&config, package_info, path, directory).map(Into::into)
       }
       #[cfg(not(fs_path))]
       Self::ResolvePath { .. } => Err(crate::Error::ApiNotAllowlisted("fs > pathApi".to_string())),
@@ -204,6 +216,7 @@ impl Cmd {
 #[cfg(fs_read_dir)]
 pub fn read_dir(
   config: &Config,
+  package_info: &PackageInfo,
   path: PathBuf,
   options: Option<DirOperationOptions>,
 ) -> crate::Result<Vec<dir::DiskEntry>> {
@@ -212,7 +225,7 @@ pub fn read_dir(
   } else {
     (false, None)
   };
-  dir::read_dir(resolve_path(config, path, dir)?, recursive)
+  dir::read_dir(resolve_path(config, package_info, path, dir)?, recursive)
     .map_err(crate::Error::FailedToExecuteApi)
 }
 
@@ -220,14 +233,15 @@ pub fn read_dir(
 #[cfg(fs_copy_file)]
 pub fn copy_file(
   config: &Config,
+  package_info: &PackageInfo,
   source: PathBuf,
   destination: PathBuf,
   options: Option<FileOperationOptions>,
 ) -> crate::Result<()> {
   let (src, dest) = match options.and_then(|o| o.dir) {
     Some(dir) => (
-      resolve_path(config, source, Some(dir.clone()))?,
-      resolve_path(config, destination, Some(dir))?,
+      resolve_path(config, package_info, source, Some(dir.clone()))?,
+      resolve_path(config, package_info, destination, Some(dir))?,
     ),
     None => (source, destination),
   };
@@ -239,6 +253,7 @@ pub fn copy_file(
 #[cfg(fs_create_dir)]
 pub fn create_dir(
   config: &Config,
+  package_info: &PackageInfo,
   path: PathBuf,
   options: Option<DirOperationOptions>,
 ) -> crate::Result<()> {
@@ -247,7 +262,7 @@ pub fn create_dir(
   } else {
     (false, None)
   };
-  let resolved_path = resolve_path(config, path, dir)?;
+  let resolved_path = resolve_path(config, package_info, path, dir)?;
   if recursive {
     fs::create_dir_all(resolved_path)?;
   } else {
@@ -261,6 +276,7 @@ pub fn create_dir(
 #[cfg(fs_remove_dir)]
 pub fn remove_dir(
   config: &Config,
+  package_info: &PackageInfo,
   path: PathBuf,
   options: Option<DirOperationOptions>,
 ) -> crate::Result<()> {
@@ -269,7 +285,7 @@ pub fn remove_dir(
   } else {
     (false, None)
   };
-  let resolved_path = resolve_path(config, path, dir)?;
+  let resolved_path = resolve_path(config, package_info, path, dir)?;
   if recursive {
     fs::remove_dir_all(resolved_path)?;
   } else {
@@ -283,10 +299,11 @@ pub fn remove_dir(
 #[cfg(fs_remove_file)]
 pub fn remove_file(
   config: &Config,
+  package_info: &PackageInfo,
   path: PathBuf,
   options: Option<FileOperationOptions>,
 ) -> crate::Result<()> {
-  let resolved_path = resolve_path(config, path, options.and_then(|o| o.dir))?;
+  let resolved_path = resolve_path(config, package_info, path, options.and_then(|o| o.dir))?;
   fs::remove_file(resolved_path)?;
   Ok(())
 }
@@ -295,14 +312,15 @@ pub fn remove_file(
 #[cfg(fs_rename_file)]
 pub fn rename_file(
   config: &Config,
+  package_info: &PackageInfo,
   old_path: PathBuf,
   new_path: PathBuf,
   options: Option<FileOperationOptions>,
 ) -> crate::Result<()> {
   let (old, new) = match options.and_then(|o| o.dir) {
     Some(dir) => (
-      resolve_path(config, old_path, Some(dir.clone()))?,
-      resolve_path(config, new_path, Some(dir))?,
+      resolve_path(config, package_info, old_path, Some(dir.clone()))?,
+      resolve_path(config, package_info, new_path, Some(dir))?,
     ),
     None => (old_path, new_path),
   };
@@ -313,13 +331,19 @@ pub fn rename_file(
 #[cfg(fs_write_file)]
 pub fn write_file(
   config: &Config,
+  package_info: &PackageInfo,
   path: PathBuf,
   contents: String,
   options: Option<FileOperationOptions>,
 ) -> crate::Result<()> {
-  File::create(resolve_path(config, path, options.and_then(|o| o.dir))?)
-    .map_err(crate::Error::Io)
-    .and_then(|mut f| f.write_all(contents.as_bytes()).map_err(|err| err.into()))?;
+  File::create(resolve_path(
+    config,
+    package_info,
+    path,
+    options.and_then(|o| o.dir),
+  )?)
+  .map_err(crate::Error::Io)
+  .and_then(|mut f| f.write_all(contents.as_bytes()).map_err(|err| err.into()))?;
   Ok(())
 }
 
@@ -327,6 +351,7 @@ pub fn write_file(
 #[cfg(fs_write_binary_file)]
 pub fn write_binary_file(
   config: &Config,
+  package_info: &PackageInfo,
   path: PathBuf,
   contents: String,
   options: Option<FileOperationOptions>,
@@ -334,9 +359,14 @@ pub fn write_binary_file(
   base64::decode(contents)
     .map_err(crate::Error::Base64Decode)
     .and_then(|c| {
-      File::create(resolve_path(config, path, options.and_then(|o| o.dir))?)
-        .map_err(Into::into)
-        .and_then(|mut f| f.write_all(&c).map_err(|err| err.into()))
+      File::create(resolve_path(
+        config,
+        package_info,
+        path,
+        options.and_then(|o| o.dir),
+      )?)
+      .map_err(Into::into)
+      .and_then(|mut f| f.write_all(&c).map_err(|err| err.into()))
     })?;
   Ok(())
 }
@@ -345,31 +375,44 @@ pub fn write_binary_file(
 #[cfg(fs_read_text_file)]
 pub fn read_text_file(
   config: &Config,
+  package_info: &PackageInfo,
   path: PathBuf,
   options: Option<FileOperationOptions>,
 ) -> crate::Result<String> {
-  file::read_string(resolve_path(config, path, options.and_then(|o| o.dir))?)
-    .map_err(crate::Error::FailedToExecuteApi)
+  file::read_string(resolve_path(
+    config,
+    package_info,
+    path,
+    options.and_then(|o| o.dir),
+  )?)
+  .map_err(crate::Error::FailedToExecuteApi)
 }
 
 /// Reads a binary file.
 #[cfg(fs_read_binary_file)]
 pub fn read_binary_file(
   config: &Config,
+  package_info: &PackageInfo,
   path: PathBuf,
   options: Option<FileOperationOptions>,
 ) -> crate::Result<Vec<u8>> {
-  file::read_binary(resolve_path(config, path, options.and_then(|o| o.dir))?)
-    .map_err(crate::Error::FailedToExecuteApi)
+  file::read_binary(resolve_path(
+    config,
+    package_info,
+    path,
+    options.and_then(|o| o.dir),
+  )?)
+  .map_err(crate::Error::FailedToExecuteApi)
 }
 
 #[cfg(fs_path)]
 pub fn resolve_path_handler(
   config: &Config,
+  package_info: &PackageInfo,
   path: String,
   directory: Option<BaseDirectory>,
 ) -> crate::Result<PathBuf> {
-  resolve_path(config, path, directory).map_err(Into::into)
+  resolve_path(config, package_info, path, directory).map_err(Into::into)
 }
 
 // test webview functionality.

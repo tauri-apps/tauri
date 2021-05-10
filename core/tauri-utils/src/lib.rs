@@ -14,6 +14,29 @@ pub mod html;
 /// Platform helpers
 pub mod platform;
 
+/// `App` package information.
+#[derive(Debug, Clone)]
+pub struct PackageInfo {
+  /// App name.
+  pub name: String,
+  /// App version.
+  pub version: String,
+}
+
+impl PackageInfo {
+  /// Returns the application package name.
+  /// On macOS and Windows it's the `name` field, and on Linux it's the `name` in `kebab-case`.
+  pub fn package_name(&self) -> String {
+    #[cfg(target_os = "linux")]
+    {
+      use heck::KebabCase;
+      self.name.to_kebab_case()
+    }
+    #[cfg(not(target_os = "linux"))]
+    return self.name.clone();
+  }
+}
+
 /// Result type alias using the crate's error type.
 pub type Result<T> = std::result::Result<T, Error>;
 

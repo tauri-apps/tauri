@@ -62,6 +62,23 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     quote!(None)
   };
 
+  let package_name = if let Some(product_name) = &config.package.product_name {
+    quote!(#product_name.to_string())
+  } else {
+    quote!(env!("CARGO_PKG_NAME").to_string())
+  };
+  let package_version = if let Some(version) = &config.package.version {
+    quote!(#version.to_string())
+  } else {
+    quote!(env!("CARGO_PKG_VERSION").to_string())
+  };
+  let package_info = quote!(
+    #root::api::PackageInfo {
+      name: #package_name,
+      version: #package_version,
+    }
+  );
+
   #[cfg(target_os = "linux")]
   let system_tray_icon = if let Some(tray) = &config.tauri.system_tray {
     let mut system_tray_icon_path = tray.icon_path.clone();
@@ -73,7 +90,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         .to_string_lossy()
         .to_string();
       quote!(Some(
-        ::tauri::platform::resource_dir()
+        ::tauri::platform::resource_dir(&#package_info)
           .expect("failed to read resource dir")
           .join(
             #system_tray_icon_file_name
@@ -103,26 +120,12 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     quote!(None)
   };
 
-  let package_name = if let Some(product_name) = &config.package.product_name {
-    quote!(#product_name.to_string())
-  } else {
-    quote!(env!("CARGO_PKG_NAME").to_string())
-  };
-  let package_version = if let Some(version) = &config.package.version {
-    quote!(#version.to_string())
-  } else {
-    quote!(env!("CARGO_PKG_VERSION").to_string())
-  };
-
   // double braces are purposeful to force the code into a block expression
   Ok(quote!(#root::Context {
     config: #config,
     assets: ::std::sync::Arc::new(#assets),
     default_window_icon: #default_window_icon,
     system_tray_icon: #system_tray_icon,
-    package_info: #root::api::PackageInfo {
-      name: #package_name,
-      version: #package_version,
-    },
+    package_info: #package_info,
   }))
 }

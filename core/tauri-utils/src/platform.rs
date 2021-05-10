@@ -7,6 +7,8 @@ use std::{
   path::{PathBuf, MAIN_SEPARATOR},
 };
 
+use crate::PackageInfo;
+
 /// Try to determine the current target triple.
 ///
 /// Returns a target triple (e.g. `x86_64-unknown-linux-gnu` or `i686-pc-windows-msvc`) or an
@@ -70,13 +72,9 @@ pub fn target_triple() -> crate::Result<String> {
 /// `${exe_dir}/../lib/${exe_name}`.
 ///
 /// On MacOS, it's `${exe_dir}../Resources` (inside .app).
-pub fn resource_dir() -> crate::Result<PathBuf> {
+pub fn resource_dir(package_info: &PackageInfo) -> crate::Result<PathBuf> {
   let exe = std::env::current_exe()?;
   let exe_dir = exe.parent().expect("failed to get exe directory");
-  let app_name = exe
-    .file_name()
-    .expect("failed to get exe filename")
-    .to_string_lossy();
   let curr_dir = exe_dir.display().to_string();
 
   if curr_dir.ends_with(format!("{S}target{S}debug", S = MAIN_SEPARATOR).as_str())
@@ -90,12 +88,19 @@ pub fn resource_dir() -> crate::Result<PathBuf> {
   if cfg!(target_os = "linux") {
     if curr_dir.ends_with("/data/usr/bin") {
       // running from the deb bundle dir
-      Ok(exe_dir.join(format!("../lib/{}", app_name)))
+      Ok(exe_dir.join(format!("../lib/{}", package_info.package_name())))
     } else if let Ok(appdir) = env::var("APPDIR") {
-      Ok(PathBuf::from(format!("{}/usr/lib/{}", appdir, app_name)))
+      Ok(PathBuf::from(format!(
+        "{}/usr/lib/{}",
+        appdir,
+        package_info.package_name()
+      )))
     } else {
       // running bundle
-      Ok(PathBuf::from(format!("/usr/lib/{}", app_name)))
+      Ok(PathBuf::from(format!(
+        "/usr/lib/{}",
+        package_info.package_name()
+      )))
     }
   } else if cfg!(target_os = "macos") {
     Ok(exe_dir.join("../Resources"))

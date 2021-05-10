@@ -7,7 +7,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use crate::Config;
+use crate::{Config, PackageInfo};
 
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -65,14 +65,22 @@ pub enum BaseDirectory {
 ///
 /// # Example
 /// ```
-/// use tauri::api::path::{resolve_path, BaseDirectory};
-/// // we use the default config, but in an actual app you should get the Config created from tauri.conf.json
-/// let path = resolve_path(&Default::default(), "path/to/something", Some(BaseDirectory::Config))
-///   .expect("failed to resolve path");
+/// use tauri::api::{path::{resolve_path, BaseDirectory}, PackageInfo};
+/// // we use the default config and a mock PackageInfo, but in an actual app you should get the Config created from tauri.conf.json and the app's PackageInfo instance
+/// let path = resolve_path(
+///   &Default::default(),
+///   &PackageInfo {
+///     name: "app".into(),
+///     version: "1.0.0".into(),
+///   },
+///   "path/to/something",
+///   Some(BaseDirectory::Config)
+///  ).expect("failed to resolve path");
 /// // path is equal to "/home/${whoami}/.config/path/to/something" on Linux
 /// ```
 pub fn resolve_path<P: AsRef<Path>>(
   config: &Config,
+  package_info: &PackageInfo,
   path: P,
   dir: Option<BaseDirectory>,
 ) -> crate::api::Result<PathBuf> {
@@ -94,7 +102,7 @@ pub fn resolve_path<P: AsRef<Path>>(
       BaseDirectory::Runtime => runtime_dir(),
       BaseDirectory::Template => template_dir(),
       BaseDirectory::Video => video_dir(),
-      BaseDirectory::Resource => resource_dir(),
+      BaseDirectory::Resource => resource_dir(package_info),
       BaseDirectory::App => app_dir(config),
       BaseDirectory::Current => Some(env::current_dir()?),
     };
@@ -194,8 +202,8 @@ pub fn video_dir() -> Option<PathBuf> {
 }
 
 /// Returns the path to the resource directory of this app.
-pub fn resource_dir() -> Option<PathBuf> {
-  crate::api::platform::resource_dir().ok()
+pub fn resource_dir(package_info: &PackageInfo) -> Option<PathBuf> {
+  crate::api::platform::resource_dir(package_info).ok()
 }
 
 /// Returns the path to the suggested directory for your app config files.

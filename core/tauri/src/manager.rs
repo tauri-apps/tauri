@@ -278,6 +278,7 @@ impl<P: Params> WindowManager<P> {
 
     let local_app_data = resolve_path(
       &self.inner.config,
+      &self.inner.package_info,
       &self.inner.config.tauri.bundle.identifier,
       Some(BaseDirectory::LocalData),
     );

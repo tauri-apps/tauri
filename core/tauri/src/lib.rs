@@ -5,9 +5,7 @@
 //! Tauri is a framework for building tiny, blazing fast binaries for all major desktop platforms.
 //! Developers can integrate any front-end framework that compiles to HTML, JS and CSS for building their user interface.
 //! The backend of the application is a rust-sourced binary with an API that the front-end can interact with.
-//!
-//! The user interface in Tauri apps currently leverages Cocoa/WebKit on macOS, gtk-webkit2 on Linux and MSHTML (IE10/11) or Webkit via Edge on Windows.
-//! Tauri uses (and contributes to) the MIT licensed project that you can find at [webview](https://github.com/webview/webview).
+
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
@@ -50,7 +48,7 @@ use crate::{
   runtime::window::PendingWindow,
 };
 use serde::Serialize;
-use std::{borrow::Borrow, collections::HashMap, path::PathBuf, sync::Arc};
+use std::{borrow::Borrow, collections::HashMap, sync::Arc};
 
 // Export types likely to be used by the application.
 #[cfg(any(feature = "menu", feature = "system-tray"))]
@@ -137,7 +135,7 @@ pub struct Context<A: Assets> {
 
   /// The icon to use use on the system tray UI.
   #[cfg(target_os = "linux")]
-  pub system_tray_icon: Option<PathBuf>,
+  pub system_tray_icon: Option<std::path::PathBuf>,
 
   /// The icon to use use on the system tray UI.
   #[cfg(not(target_os = "linux"))]

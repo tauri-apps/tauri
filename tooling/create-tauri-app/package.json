@@ -12,8 +12,7 @@
   },
   "homepage": "https://github.com/tauri-apps/tauri#readme",
   "contributors": [
-    "Tauri Team <team@tauri-apps.org> (https://tauri.studio)",
-    "Jacob Bolda <me@jacobbolda.com> (https://www.jacobbolda.com)"
+    "Tauri Programme within The Commons Conservancy"
   ],
   "main": "bin/create-tauri-app.js",
   "files": [

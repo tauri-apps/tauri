@@ -24,7 +24,6 @@ use crate::{
 };
 
 use serde::Serialize;
-use serde_json::Value as JsonValue;
 
 use std::{
   borrow::Borrow,
@@ -221,44 +220,26 @@ impl<P: Params> Window<P> {
     &self.window.label
   }
 
-  pub(crate) fn emit_internal<E: ?Sized, S>(
-    &self,
-    event: &E,
-    payload: Option<S>,
-  ) -> crate::Result<()>
+  /// Emits an event to the current window.
+  pub fn emit<E: ?Sized, S>(&self, event: &E, payload: S) -> crate::Result<()>
   where
     P::Event: Borrow<E>,
     E: TagRef<P::Event>,
     S: Serialize,
   {
-    let js_payload = match payload {
-      Some(payload_value) => serde_json::to_value(payload_value)?,
-      None => JsonValue::Null,
-    };
-
     self.eval(&format!(
       "window['{}']({{event: {}, payload: {}}}, '{}')",
       self.manager.event_emit_function_name(),
       event.to_js_string()?,
-      js_payload,
+      serde_json::to_value(payload)?,
       self.manager.generate_salt(),
     ))?;
 
     Ok(())
   }
 
-  /// Emits an event to the current window.
-  pub fn emit<E: ?Sized, S>(&self, event: &E, payload: Option<S>) -> crate::Result<()>
-  where
-    P::Event: Borrow<E>,
-    E: TagRef<P::Event>,
-    S: Serialize,
-  {
-    self.emit_internal(event, payload)
-  }
-
   /// Emits an event on all windows except this one.
-  pub fn emit_others<E: ?Sized, S>(&self, event: &E, payload: Option<S>) -> crate::Result<()>
+  pub fn emit_others<E: ?Sized, S>(&self, event: &E, payload: S) -> crate::Result<()>
   where
     P::Event: Borrow<E>,
     E: TagRef<P::Event>,

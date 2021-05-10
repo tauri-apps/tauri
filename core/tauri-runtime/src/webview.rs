@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! Items specific to the [`Runtime`](crate::runtime::Runtime)'s webview.
+//! Items specific to the [`Runtime`](crate::Runtime)'s webview.
 
-use crate::{
-  menu::{Menu, MenuId},
-  window::DetachedWindow,
-  Icon,
-};
+use crate::{window::DetachedWindow, Icon};
+
+#[cfg(feature = "menu")]
+use crate::{menu::Menu, MenuId};
 
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
@@ -80,14 +79,14 @@ impl WebviewAttributes {
   }
 }
 
-/// Do **NOT** implement this trait except for use in a custom [`Runtime`](crate::runtime::Runtime).
+/// Do **NOT** implement this trait except for use in a custom [`Runtime`](crate::Runtime).
 ///
 /// This trait is separate from [`WindowBuilder`] to prevent "accidental" implementation.
 pub trait WindowBuilderBase: Sized {}
 
 /// A builder for all attributes related to a single webview.
 ///
-/// This trait is only meant to be implemented by a custom [`Runtime`](crate::runtime::Runtime)
+/// This trait is only meant to be implemented by a custom [`Runtime`](crate::Runtime)
 /// and not by applications.
 pub trait WindowBuilder: WindowBuilderBase {
   /// Initializes a new window attributes builder.
@@ -97,6 +96,8 @@ pub trait WindowBuilder: WindowBuilderBase {
   fn with_config(config: WindowConfig) -> Self;
 
   /// Sets the menu for the window.
+  #[cfg(feature = "menu")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
   fn menu<I: MenuId>(self, menu: Vec<Menu<I>>) -> Self;
 
   /// The initial position of the window's.
@@ -143,6 +144,8 @@ pub trait WindowBuilder: WindowBuilderBase {
   fn has_icon(&self) -> bool;
 
   /// Whether the menu was set or not.
+  #[cfg(feature = "menu")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
   fn has_menu(&self) -> bool;
 }
 

@@ -43,6 +43,9 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<()> {
   if config.tauri.updater.active {
     features.push("updater").unwrap();
   }
+  if config.tauri.system_tray.is_some() {
+    features.push("system-tray").unwrap();
+  }
 
   if let Some(tauri) = tauri_entry.as_table_mut() {
     let manifest_features = tauri.entry("features");
@@ -51,6 +54,15 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<()> {
     match tauri {
       Value::InlineTable(table) => {
         let manifest_features = table.get_or_insert("features", Value::Array(Default::default()));
+        if let Value::Array(f) = &manifest_features {
+          for feat in f.iter() {
+            if let Value::String(feature) = feat {
+              if feature.value() == "menu" {
+                features.push("menu").unwrap();
+              }
+            }
+          }
+        }
         *manifest_features = Value::Array(features);
       }
       Value::String(version) => {

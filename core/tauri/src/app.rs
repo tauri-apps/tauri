@@ -9,11 +9,10 @@ use crate::{
   manager::{Args, WindowManager},
   plugin::{Plugin, PluginStore},
   runtime::{
-    menu::{Menu, MenuId, SystemTrayMenuItem},
     tag::Tag,
     webview::{CustomProtocol, WebviewAttributes, WindowBuilder},
     window::{PendingWindow, WindowEvent},
-    Dispatch, Params, Runtime,
+    Dispatch, MenuId, Params, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
   Context, Invoke, Manager, StateManager, Window,
@@ -21,19 +20,29 @@ use crate::{
 
 use std::{collections::HashMap, sync::Arc};
 
+#[cfg(feature = "menu")]
+use crate::runtime::menu::Menu;
+#[cfg(feature = "system-tray")]
+use crate::runtime::menu::SystemTrayMenuItem;
+
 #[cfg(feature = "updater")]
 use crate::updater;
 
+#[cfg(feature = "menu")]
 pub(crate) type GlobalMenuEventListener<P> = Box<dyn Fn(WindowMenuEvent<P>) + Send + Sync>;
 pub(crate) type GlobalWindowEventListener<P> = Box<dyn Fn(GlobalWindowEvent<P>) + Send + Sync>;
+#[cfg(feature = "system-tray")]
 type SystemTrayEventListener<P> =
   Box<dyn Fn(&AppHandle<P>, SystemTrayEvent<<P as Params>::SystemTrayMenuId>) + Send + Sync>;
 
 /// System tray event.
+#[cfg(feature = "system-tray")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub struct SystemTrayEvent<I: MenuId> {
   menu_item_id: I,
 }
 
+#[cfg(feature = "system-tray")]
 impl<I: MenuId> SystemTrayEvent<I> {
   /// The menu item id.
   pub fn menu_item_id(&self) -> &I {
@@ -42,11 +51,14 @@ impl<I: MenuId> SystemTrayEvent<I> {
 }
 
 /// A menu event that was triggered on a window.
+#[cfg(feature = "menu")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
 pub struct WindowMenuEvent<P: Params> {
   pub(crate) menu_item_id: P::MenuId,
   pub(crate) window: Window<P>,
 }
 
+#[cfg(feature = "menu")]
 impl<P: Params> WindowMenuEvent<P> {
   /// The menu item id.
   pub fn menu_item_id(&self) -> &P::MenuId {
@@ -220,18 +232,22 @@ where
   state: StateManager,
 
   /// The menu set to all windows.
+  #[cfg(feature = "menu")]
   menu: Vec<Menu<MID>>,
 
   /// Menu event handlers that listens to all windows.
+  #[cfg(feature = "menu")]
   menu_event_listeners: Vec<GlobalMenuEventListener<Args<E, L, MID, TID, A, R>>>,
 
   /// Window event handlers that listens to all windows.
   window_event_listeners: Vec<GlobalWindowEventListener<Args<E, L, MID, TID, A, R>>>,
 
   /// The app system tray menu items.
+  #[cfg(feature = "system-tray")]
   system_tray: Vec<SystemTrayMenuItem<TID>>,
 
   /// System tray event handlers.
+  #[cfg(feature = "system-tray")]
   system_tray_event_listeners: Vec<SystemTrayEventListener<Args<E, L, MID, TID, A, R>>>,
 }
 
@@ -254,10 +270,14 @@ where
       plugins: PluginStore::default(),
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
+      #[cfg(feature = "menu")]
       menu: Vec::new(),
+      #[cfg(feature = "menu")]
       menu_event_listeners: Vec::new(),
       window_event_listeners: Vec::new(),
+      #[cfg(feature = "system-tray")]
       system_tray: Vec::new(),
+      #[cfg(feature = "system-tray")]
       system_tray_event_listeners: Vec::new(),
     }
   }
@@ -373,18 +393,24 @@ where
   }
 
   /// Adds the icon configured on `tauri.conf.json` to the system tray with the specified menu items.
+  #[cfg(feature = "system-tray")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   pub fn system_tray(mut self, items: Vec<SystemTrayMenuItem<TID>>) -> Self {
     self.system_tray = items;
     self
   }
 
   /// Sets the menu to use on all windows.
+  #[cfg(feature = "menu")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
   pub fn menu(mut self, menu: Vec<Menu<MID>>) -> Self {
     self.menu = menu;
     self
   }
 
   /// Registers a menu event handler for all windows.
+  #[cfg(feature = "menu")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
   pub fn on_menu_event<
     F: Fn(WindowMenuEvent<Args<E, L, MID, TID, A, R>>) + Send + Sync + 'static,
   >(
@@ -407,6 +433,8 @@ where
   }
 
   /// Registers a system tray event handler.
+  #[cfg(feature = "system-tray")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   pub fn on_system_tray_event<
     F: Fn(&AppHandle<Args<E, L, MID, TID, A, R>>, SystemTrayEvent<TID>) + Send + Sync + 'static,
   >(
@@ -445,6 +473,7 @@ where
 
   /// Runs the configured Tauri application.
   pub fn run(mut self, context: Context<A>) -> crate::Result<()> {
+    #[cfg(feature = "system-tray")]
     let system_tray_icon = context.system_tray_icon.clone();
     let manager = WindowManager::with_handlers(
       context,
@@ -453,9 +482,9 @@ where
       self.on_page_load,
       self.uri_scheme_protocols,
       self.state,
-      self.menu,
-      self.menu_event_listeners,
       self.window_event_listeners,
+      #[cfg(feature = "menu")]
+      (self.menu, self.menu_event_listeners),
     );
 
     // set up all the windows defined in the config
@@ -504,6 +533,7 @@ where
 
     (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e))?;
 
+    #[cfg(feature = "system-tray")]
     if !self.system_tray.is_empty() {
       let ids = get_menu_ids(&self.system_tray);
       app
@@ -534,6 +564,7 @@ where
   }
 }
 
+#[cfg(feature = "system-tray")]
 fn get_menu_ids<I: MenuId>(items: &[SystemTrayMenuItem<I>]) -> HashMap<u32, I> {
   let mut map = HashMap::new();
   for item in items {

@@ -12,7 +12,7 @@ pub struct State<'r, T: Send + Sync + 'static>(&'r T);
 impl<'r, T: Send + Sync + 'static> State<'r, T> {
   /// Retrieve a borrow to the underlying value with a lifetime of `'r`.
   /// Using this method is typically unnecessary as `State` implements
-  /// [`Deref`] with a [`Deref::Target`] of `T`.
+  /// [`std::ops::Deref`] with a [`std::ops::Deref::Target`] of `T`.
   #[inline(always)]
   pub fn inner(&self) -> &'r T {
     self.0

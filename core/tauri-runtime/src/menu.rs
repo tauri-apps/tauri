@@ -2,18 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{
-  collections::hash_map::DefaultHasher,
-  fmt::Debug,
-  hash::{Hash, Hasher},
-};
+use std::{collections::hash_map::DefaultHasher, hash::Hasher};
 
-use serde::Serialize;
-
-/// A type that can be derived into a menu id.
-pub trait MenuId: Serialize + Hash + Eq + Debug + Clone + Send + Sync + 'static {}
-
-impl<T> MenuId for T where T: Serialize + Hash + Eq + Debug + Clone + Send + Sync + 'static {}
+use super::MenuId;
 
 /// A window menu.
 #[derive(Debug, Clone)]

@@ -117,7 +117,7 @@ pub struct DetachedWindow<M: Params> {
   /// Name of the window
   pub label: M::Label,
 
-  /// The [`Dispatch`](crate::runtime::Dispatch) associated with the window.
+  /// The [`Dispatch`](crate::Dispatch) associated with the window.
   pub dispatcher: <M::Runtime as Runtime>::Dispatcher,
 }
 

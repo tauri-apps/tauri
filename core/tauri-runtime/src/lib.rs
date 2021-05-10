@@ -4,12 +4,17 @@
 
 //! Internal runtime between Tauri and the underlying webview runtime.
 
-use std::path::PathBuf;
+#![cfg_attr(doc_cfg, feature(doc_cfg))]
 
+use std::{fmt::Debug, hash::Hash, path::PathBuf};
+
+use serde::Serialize;
 use tauri_utils::assets::Assets;
 use uuid::Uuid;
 
 /// Create window and system tray menus.
+#[cfg(any(feature = "menu", feature = "system-tray"))]
+#[cfg_attr(doc_cfg, doc(cfg(any(feature = "menu", feature = "system-tray"))))]
 pub mod menu;
 /// Types useful for interacting with a user's monitors.
 pub mod monitor;
@@ -17,14 +22,18 @@ pub mod tag;
 pub mod webview;
 pub mod window;
 
-use menu::{MenuId, SystemTrayMenuItem};
 use monitor::Monitor;
 use tag::Tag;
 use webview::WindowBuilder;
 use window::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-  DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
+  DetachedWindow, PendingWindow, WindowEvent,
 };
+
+/// A type that can be derived into a menu id.
+pub trait MenuId: Serialize + Hash + Eq + Debug + Clone + Send + Sync + 'static {}
+
+impl<T> MenuId for T where T: Serialize + Hash + Eq + Debug + Clone + Send + Sync + 'static {}
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -41,7 +50,9 @@ pub enum Error {
   /// Failed to serialize/deserialize.
   #[error("JSON error: {0}")]
   Json(#[from] serde_json::Error),
-  /// Encountered an error creating the app system tray,
+  /// Encountered an error creating the app system tray.
+  #[cfg(feature = "menu")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
   #[error("error encountered during tray setup: {0}")]
   SystemTray(Box<dyn std::error::Error + Send>),
   /// Failed to load window icon.
@@ -108,22 +119,29 @@ pub trait Runtime: Sized + 'static {
   ) -> crate::Result<DetachedWindow<P>>;
 
   /// Adds the icon to the system tray with the specified menu items.
-  #[cfg(target_os = "linux")]
+  #[cfg(all(feature = "system-tray", target_os = "linux"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(feature = "system-tray", target_os = "linux"))))]
   fn system_tray<I: MenuId>(
     &self,
     icon: std::path::PathBuf,
-    menu: Vec<SystemTrayMenuItem<I>>,
+    menu: Vec<menu::SystemTrayMenuItem<I>>,
   ) -> crate::Result<()>;
 
   /// Adds the icon to the system tray with the specified menu items.
-  #[cfg(not(target_os = "linux"))]
+  #[cfg(all(feature = "system-tray", not(target_os = "linux")))]
+  #[cfg_attr(
+    doc_cfg,
+    doc(cfg(all(feature = "system-tray", not(target_os = "linux"))))
+  )]
   fn system_tray<I: MenuId>(
     &self,
     icon: Vec<u8>,
-    menu: Vec<SystemTrayMenuItem<I>>,
+    menu: Vec<menu::SystemTrayMenuItem<I>>,
   ) -> crate::Result<()>;
 
   /// Registers a system tray event handler.
+  #[cfg(feature = "system-tray")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid;
 
   /// Run the webview runtime.
@@ -145,7 +163,9 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid;
 
   /// Registers a window event handler.
-  fn on_menu_event<F: Fn(&MenuEvent) + Send + 'static>(&self, f: F) -> Uuid;
+  #[cfg(feature = "menu")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
+  fn on_menu_event<F: Fn(&window::MenuEvent) + Send + 'static>(&self, f: F) -> Uuid;
 
   // GETTERS
 

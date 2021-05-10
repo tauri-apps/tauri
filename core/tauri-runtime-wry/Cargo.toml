@@ -10,8 +10,13 @@ description = "Wry bindings to the Tauri runtime"
 edition = "2018"
 
 [dependencies]
-wry = "0.9.1"
+wry = { version = "0.9.2", default-features = false, features = ["file-drop", "protocol", "win32"] }
 tauri-runtime = { version = "0.0.0", path = "../tauri-runtime" }
 tauri-utils = { version = "1.0.0-beta-rc.1", path = "../tauri-utils" }
 image = "0.23"
 uuid = { version = "0.8.2", features = [ "v4" ] }
+
+[features]
+dox = [ "wry/dox" ]
+menu = [ "wry/menu" ]
+system-tray = [ "wry/tray" ]

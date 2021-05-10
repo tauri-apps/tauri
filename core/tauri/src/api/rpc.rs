@@ -59,7 +59,7 @@ fn escape_json_parse(json: &RawValue) -> String {
 /// This will serialize primitive JSON types (e.g. booleans, strings, numbers, etc.) as JavaScript literals,
 /// but will serialize arrays and objects whose serialized JSON string is smaller than 1 GB and larger
 /// than 10 KiB with `JSON.parse('...')`.
-/// https://github.com/GoogleChromeLabs/json-parse-benchmark
+/// See [json-parse-benchmark](https://github.com/GoogleChromeLabs/json-parse-benchmark).
 ///
 /// # Examples
 /// ```

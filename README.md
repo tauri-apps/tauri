@@ -34,8 +34,9 @@ Tauri Apps
 ## Introduction
 Tauri is a framework for building tiny, blazing fast binaries for all major desktop platforms. Developers can integrate any front-end framework that compiles to HTML, JS and CSS for building their user interface. The backend of the application is a rust-sourced binary with an API that the front-end can interact with.
 
-The user interface in Tauri apps currently leverages [`winit`](https://docs.rs/winit) as a window handling library on macOS and Windows, and [`gtk`](https://gtk-rs.org/docs/gtk/) on Linux via the **Tauri-team** incubated and maintained [WRY](https://github.com/tauri-apps/wry), which creates a unified interface to the system webview, leveraging WebKit on macOS, WebView2 on Windows and WebKitGTK on Linux.
+The user interface in Tauri apps currently leverages [`tao`](https://docs.rs/tao) as a window handling library on macOS and Windows, and [`gtk`](https://gtk-rs.org/docs/gtk/) on Linux via the **Tauri-team** incubated and maintained [WRY](https://github.com/tauri-apps/wry), which creates a unified interface to the system webview (and other goodies like Menu and Taskbar), leveraging WebKit on macOS, WebView2 on Windows and WebKitGTK on Linux.
 
+To learn more about the details of how all of these pieces fit together, please consult this [ARCHITECTURE.md](https://github.com/tauri-apps/tauri/blob/dev/ARCHITECTURE.md) document.
 
 ## Get Started
 If you are interested in making a tauri-app, please visit the [documentation website](https://tauri.studio). This README is directed towards those who are interested in contributing to the core library. But if you just want a quick overview about where `tauri` is at in its development, here's a quick burndown:

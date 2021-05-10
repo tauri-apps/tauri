@@ -41,7 +41,7 @@ A typescript library that creates `cjs` and `esm` Javascript endpoints for you t
 The bundler is a library that builds a Tauri App for the platform triple it detects / is told. At the moment it currently supports macOS, Windows and Linux - but in the near future will support mobile platforms as well. May be used outside of Tauri projects.
 
 #### [cli.js](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli.js) [JS]
-Written in Typescript and packaged such that it can be used with `npm`, `pnpm`, and `yarn`, this library provides a node.js runner for common tasks when using Tauri, like `yarn tauri dev`. For the most part it is a wrapper around cli.rs.
+Written in Typescript and packaged such that it can be used with `npm`, `pnpm`, and `yarn`, this library provides a node.js runner for common tasks when using Tauri, like `yarn tauri dev`. For the most part it is a wrapper around [cli.rs](https://github.com/tauri-apps/tauri/blob/dev/tooling/cli.rs).
 
 #### [cli.rs](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli.rs) [RUST]
 This rust executable provides the full interface to all of the required activities for which the CLI is required. It will run on macOS, Windows, and Linux.

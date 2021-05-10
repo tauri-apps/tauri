@@ -52,15 +52,6 @@ pub use error::Error;
 /// Tauri API result type.
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// `App` package information.
-#[derive(Debug, Clone)]
-pub struct PackageInfo {
-  /// App name.
-  pub name: String,
-  /// App version.
-  pub version: String,
-}
-
 // Not public API
 #[doc(hidden)]
 pub mod private {

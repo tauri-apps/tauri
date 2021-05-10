@@ -55,7 +55,10 @@ use std::{borrow::Borrow, collections::HashMap, path::PathBuf, sync::Arc};
 // Export types likely to be used by the application.
 pub use {
   self::api::assets::Assets,
-  self::api::config::{Config, WindowUrl},
+  self::api::{
+    config::{Config, WindowUrl},
+    PackageInfo,
+  },
   self::app::{App, Builder, GlobalWindowEvent, SystemTrayEvent, WindowMenuEvent},
   self::hooks::{
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,

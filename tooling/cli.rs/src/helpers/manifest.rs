@@ -12,7 +12,21 @@ use std::{
   io::{Read, Write},
 };
 
-pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<()> {
+pub struct Manifest {
+  pub features: Vec<String>,
+}
+
+fn features_to_vec(features: &Array) -> Vec<String> {
+  let mut string_features = Vec::new();
+  for feat in features.iter() {
+    if let Value::String(feature) = feat {
+      string_features.push(feature.value().to_string());
+    }
+  }
+  string_features
+}
+
+pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
   let manifest_path = tauri_dir().join("Cargo.toml");
   let mut manifest_str = String::new();
   let mut manifest_file = File::open(&manifest_path)
@@ -49,7 +63,16 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<()> {
 
   if let Some(tauri) = tauri_entry.as_table_mut() {
     let manifest_features = tauri.entry("features");
-    *manifest_features = Item::Value(Value::Array(features));
+    if let Item::Value(Value::Array(f)) = &manifest_features {
+      for feat in f.iter() {
+        if let Value::String(feature) = feat {
+          if feature.value() == "menu" {
+            features.push("menu").unwrap();
+          }
+        }
+      }
+    }
+    *manifest_features = Item::Value(Value::Array(features.clone()));
   } else if let Some(tauri) = tauri_entry.as_value_mut() {
     match tauri {
       Value::InlineTable(table) => {
@@ -63,7 +86,7 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<()> {
             }
           }
         }
-        *manifest_features = Value::Array(features);
+        *manifest_features = Value::Array(features.clone());
       }
       Value::String(version) => {
         let mut def = InlineTable::default();
@@ -71,7 +94,7 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<()> {
           "version",
           version.to_string().replace("\"", "").replace(" ", ""),
         );
-        def.get_or_insert("features", Value::Array(features));
+        def.get_or_insert("features", Value::Array(features.clone()));
         *tauri = Value::InlineTable(def);
       }
       _ => {
@@ -81,7 +104,9 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<()> {
       }
     }
   } else {
-    return Ok(());
+    return Ok(Manifest {
+      features: features_to_vec(&features),
+    });
   }
 
   let mut manifest_file =
@@ -98,5 +123,7 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<()> {
   )?;
   manifest_file.flush()?;
 
-  Ok(())
+  Ok(Manifest {
+    features: features_to_vec(&features),
+  })
 }

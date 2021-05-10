@@ -13,7 +13,7 @@ use std::{
 use anyhow::Context;
 use serde::Deserialize;
 
-use crate::helpers::{app_paths::tauri_dir, config::Config};
+use crate::helpers::{app_paths::tauri_dir, config::Config, manifest::Manifest};
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
   UpdaterSettings, WindowsSettings,
@@ -163,8 +163,13 @@ impl AppSettings {
     &self.cargo_package_settings
   }
 
-  pub fn get_bundle_settings(&self, config: &Config) -> crate::Result<BundleSettings> {
+  pub fn get_bundle_settings(
+    &self,
+    config: &Config,
+    manifest: &Manifest,
+  ) -> crate::Result<BundleSettings> {
     tauri_config_to_bundle_settings(
+      manifest,
       config.tauri.bundle.clone(),
       config.tauri.system_tray.clone(),
       config.tauri.updater.clone(),
@@ -336,6 +341,7 @@ pub fn get_workspace_dir(current_dir: &Path) -> PathBuf {
 }
 
 fn tauri_config_to_bundle_settings(
+  manifest: &Manifest,
   config: crate::helpers::config::BundleConfig,
   system_tray_config: Option<crate::helpers::config::SystemTrayConfig>,
   updater_config: crate::helpers::config::UpdaterConfig,
@@ -353,12 +359,21 @@ fn tauri_config_to_bundle_settings(
 
   #[allow(unused_mut)]
   let mut resources = config.resources.unwrap_or_default();
+  #[allow(unused_mut)]
+  let mut depends = config.deb.depends.unwrap_or_default();
+
   #[cfg(target_os = "linux")]
   {
     if let Some(system_tray_config) = &system_tray_config {
       let mut icon_path = system_tray_config.icon_path.clone();
       icon_path.set_extension("png");
-      resources.push(icon_path.to_string_lossy().to_string());
+      depends.push("libappindicator3-1".to_string());
+    }
+
+    depends.push("libwebkit2gtk-4.0".to_string());
+    depends.push("libgtk-3-0".to_string());
+    if manifest.features.contains(&"menu".into()) || system_tray_config.is_some() {
+      depends.push("libgtksourceview-3.0-1".to_string());
     }
   }
 
@@ -382,7 +397,11 @@ fn tauri_config_to_bundle_settings(
     long_description: config.long_description,
     external_bin: config.external_bin,
     deb: DebianSettings {
-      depends: config.deb.depends,
+      depends: if depends.is_empty() {
+        None
+      } else {
+        Some(depends)
+      },
       use_bootstrapper: Some(config.deb.use_bootstrapper),
       files: config.deb.files,
     },

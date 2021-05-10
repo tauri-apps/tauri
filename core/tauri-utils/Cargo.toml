@@ -7,6 +7,8 @@ homepage = "https://tauri.studio"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Utilities for Tauri"
 edition = "2018"
+exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
+readme = "README.md"
 
 [dependencies]
 serde = { version = "1.0", features = [ "derive" ] }

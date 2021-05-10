@@ -1,4 +1,4 @@
-<h1 style="font-family:monospace, courier; font-size:3em"><img align="left" src="app-icon.png" height="52" width="52">&nbsp;TAURI</h2>
+<h1 style="font-family:monospace, courier; font-size:3em"><img align="left" src="https://github.com/tauri-apps/tauri/raw/dev/app-icon.png" height="52" width="52">&nbsp;TAURI</h2>
 
 [![status](https://img.shields.io/badge/Status-Beta-green.svg)](https://github.com/tauri-apps/tauri/tree/dev)
 [![License](https://img.shields.io/badge/License-MIT%20or%20Apache%202-green.svg)](https://opencollective.com/tauri)

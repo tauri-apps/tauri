@@ -105,11 +105,12 @@ impl Module {
           .map_err(InvokeError::from)
       }),
       // on macOS, the dialog must run on another thread: https://github.com/rust-windowing/winit/issues/1779
-      #[cfg(target_os = "macos")]
+      // we do the same on Windows just to stay consistent with `tao` (and it also improves UX because of the event loop)
+      #[cfg(not(target_os = "linux"))]
       Self::Dialog(cmd) => resolver
         .respond_async(async move { cmd.run().and_then(|r| r.json).map_err(InvokeError::from) }),
       // on Linux, the dialog must run on the main thread.
-      #[cfg(not(target_os = "macos"))]
+      #[cfg(target_os = "linux")]
       Self::Dialog(cmd) => {
         let _ = window.run_on_main_thread(|| {
           resolver

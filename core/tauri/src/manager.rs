@@ -9,7 +9,7 @@ use crate::{
     path::{resolve_path, BaseDirectory},
     PackageInfo,
   },
-  app::{GlobalMenuEventListener, WindowMenuEvent},
+  app::{GlobalMenuEventListener, GlobalWindowEvent, GlobalWindowEventListener, WindowMenuEvent},
   event::{Event, EventHandler, Listeners},
   hooks::{InvokeHandler, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
@@ -86,6 +86,8 @@ pub struct InnerWindowManager<P: Params> {
   menu: Vec<Menu<P::MenuId>>,
   /// Menu event listeners to all windows.
   menu_event_listeners: Arc<Vec<GlobalMenuEventListener<P>>>,
+  /// Window event listeners to all windows.
+  window_event_listeners: Arc<Vec<GlobalWindowEventListener<P>>>,
   menu_ids: HashMap<u32, P::MenuId>,
 }
 
@@ -169,6 +171,7 @@ impl<P: Params> WindowManager<P> {
     state: StateManager,
     menu: Vec<Menu<P::MenuId>>,
     menu_event_listeners: Vec<GlobalMenuEventListener<P>>,
+    window_event_listeners: Vec<GlobalWindowEventListener<P>>,
   ) -> Self {
     let menu_ids = get_menu_ids(&menu);
     Self {
@@ -187,6 +190,7 @@ impl<P: Params> WindowManager<P> {
         uri_scheme_protocols,
         menu,
         menu_event_listeners: Arc::new(menu_event_listeners),
+        window_event_listeners: Arc::new(window_event_listeners),
         menu_ids,
       }),
       _marker: Args::default(),
@@ -468,6 +472,7 @@ mod test {
         StateManager::new(),
         Vec::new(),
         Default::default(),
+        Default::default(),
       );
 
     #[cfg(custom_protocol)]
@@ -549,8 +554,15 @@ impl<P: Params> WindowManager<P> {
     let window = Window::new(self.clone(), window);
 
     let window_ = window.clone();
+    let window_event_listeners = self.inner.window_event_listeners.clone();
     window.on_window_event(move |event| {
       let _ = on_window_event(&window_, event);
+      for handler in window_event_listeners.iter() {
+        handler(GlobalWindowEvent {
+          window: window_.clone(),
+          event: event.clone(),
+        });
+      }
     });
     let window_ = window.clone();
     let menu_event_listeners = self.inner.menu_event_listeners.clone();

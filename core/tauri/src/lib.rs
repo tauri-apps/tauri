@@ -56,7 +56,7 @@ use std::{borrow::Borrow, collections::HashMap, path::PathBuf, sync::Arc};
 pub use {
   self::api::assets::Assets,
   self::api::config::{Config, WindowUrl},
-  self::app::{App, Builder, SystemTrayEvent, WindowMenuEvent},
+  self::app::{App, Builder, GlobalWindowEvent, SystemTrayEvent, WindowMenuEvent},
   self::hooks::{
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
     PageLoadPayload, SetupHook,

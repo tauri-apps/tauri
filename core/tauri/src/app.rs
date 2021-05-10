@@ -12,7 +12,7 @@ use crate::{
     menu::{Menu, MenuId, SystemTrayMenuItem},
     tag::Tag,
     webview::{CustomProtocol, WebviewAttributes, WindowBuilder},
-    window::PendingWindow,
+    window::{PendingWindow, WindowEvent},
     Dispatch, Params, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
@@ -25,6 +25,7 @@ use std::{collections::HashMap, sync::Arc};
 use crate::updater;
 
 pub(crate) type GlobalMenuEventListener<P> = Box<dyn Fn(WindowMenuEvent<P>) + Send + Sync>;
+pub(crate) type GlobalWindowEventListener<P> = Box<dyn Fn(GlobalWindowEvent<P>) + Send + Sync>;
 type SystemTrayEventListener<P> =
   Box<dyn Fn(&AppHandle<P>, SystemTrayEvent<<P as Params>::SystemTrayMenuId>) + Send + Sync>;
 
@@ -50,6 +51,24 @@ impl<P: Params> WindowMenuEvent<P> {
   /// The menu item id.
   pub fn menu_item_id(&self) -> &P::MenuId {
     &self.menu_item_id
+  }
+
+  /// The window that the menu belongs to.
+  pub fn window(&self) -> &Window<P> {
+    &self.window
+  }
+}
+
+/// A window event that was triggered on the specified window.
+pub struct GlobalWindowEvent<P: Params> {
+  pub(crate) event: WindowEvent,
+  pub(crate) window: Window<P>,
+}
+
+impl<P: Params> GlobalWindowEvent<P> {
+  /// The eventpayload.
+  pub fn event(&self) -> &WindowEvent {
+    &self.event
   }
 
   /// The window that the menu belongs to.
@@ -206,6 +225,9 @@ where
   /// Menu event handlers that listens to all windows.
   menu_event_listeners: Vec<GlobalMenuEventListener<Args<E, L, MID, TID, A, R>>>,
 
+  /// Window event handlers that listens to all windows.
+  window_event_listeners: Vec<GlobalWindowEventListener<Args<E, L, MID, TID, A, R>>>,
+
   /// The app system tray menu items.
   system_tray: Vec<SystemTrayMenuItem<TID>>,
 
@@ -234,6 +256,7 @@ where
       state: StateManager::new(),
       menu: Vec::new(),
       menu_event_listeners: Vec::new(),
+      window_event_listeners: Vec::new(),
       system_tray: Vec::new(),
       system_tray_event_listeners: Vec::new(),
     }
@@ -372,6 +395,17 @@ where
     self
   }
 
+  /// Registers a window event handler for all windows.
+  pub fn on_window_event<
+    F: Fn(GlobalWindowEvent<Args<E, L, MID, TID, A, R>>) + Send + Sync + 'static,
+  >(
+    mut self,
+    handler: F,
+  ) -> Self {
+    self.window_event_listeners.push(Box::new(handler));
+    self
+  }
+
   /// Registers a system tray event handler.
   pub fn on_system_tray_event<
     F: Fn(&AppHandle<Args<E, L, MID, TID, A, R>>, SystemTrayEvent<TID>) + Send + Sync + 'static,
@@ -421,6 +455,7 @@ where
       self.state,
       self.menu,
       self.menu_event_listeners,
+      self.window_event_listeners,
     );
 
     // set up all the windows defined in the config

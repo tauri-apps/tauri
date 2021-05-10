@@ -364,13 +364,13 @@ impl<P: Params> WindowManager<P> {
         let window = Window::new(manager.clone(), window);
         let _ = match event {
           FileDropEvent::Hovered(paths) => {
-            window.emit_internal(&tauri_event::<P::Event>("tauri://file-drop"), Some(paths))
+            window.emit(&tauri_event::<P::Event>("tauri://file-drop"), Some(paths))
           }
-          FileDropEvent::Dropped(paths) => window.emit_internal(
+          FileDropEvent::Dropped(paths) => window.emit(
             &tauri_event::<P::Event>("tauri://file-drop-hover"),
             Some(paths),
           ),
-          FileDropEvent::Cancelled => window.emit_internal(
+          FileDropEvent::Cancelled => window.emit(
             &tauri_event::<P::Event>("tauri://file-drop-cancelled"),
             Some(()),
           ),
@@ -584,12 +584,7 @@ impl<P: Params> WindowManager<P> {
     window
   }
 
-  pub fn emit_filter<E: ?Sized, S, F>(
-    &self,
-    event: &E,
-    payload: Option<S>,
-    filter: F,
-  ) -> crate::Result<()>
+  pub fn emit_filter<E: ?Sized, S, F>(&self, event: &E, payload: S, filter: F) -> crate::Result<()>
   where
     P::Event: Borrow<E>,
     E: TagRef<P::Event>,

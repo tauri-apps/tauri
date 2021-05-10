@@ -50,7 +50,7 @@ use crate::{
   runtime::window::PendingWindow,
 };
 use serde::Serialize;
-use std::{borrow::Borrow, collections::HashMap, path::PathBuf, sync::Arc};
+use std::{borrow::Borrow, collections::HashMap, sync::Arc};
 
 // Export types likely to be used by the application.
 #[cfg(any(feature = "menu", feature = "system-tray"))]
@@ -137,7 +137,7 @@ pub struct Context<A: Assets> {
 
   /// The icon to use use on the system tray UI.
   #[cfg(target_os = "linux")]
-  pub system_tray_icon: Option<PathBuf>,
+  pub system_tray_icon: Option<std::path::PathBuf>,
 
   /// The icon to use use on the system tray UI.
   #[cfg(not(target_os = "linux"))]

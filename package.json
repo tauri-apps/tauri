@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "license": "Apache-2.0 OR MIT",
   "private": true,
+  "contributors": [
+    "Tauri Programme within The Commons Conservancy"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/tauri-apps/tauri.git",

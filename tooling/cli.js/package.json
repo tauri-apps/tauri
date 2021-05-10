@@ -32,9 +32,7 @@
     "url": "git+https://github.com/tauri-apps/tauri.git"
   },
   "contributors": [
-    "Tauri Team <team@tauri-apps.org> (https://tauri.studio)",
-    "Daniel Thompson-Yvetot <denjell@sfosc.org>",
-    "Lucas Fernandes Gonçalves Nogueira <lucas@tauri.studio>"
+    "Tauri Team <team@tauri-apps.org> (https://tauri.studio)"
   ],
   "license": "Apache-2.0 OR MIT",
   "bugs": {

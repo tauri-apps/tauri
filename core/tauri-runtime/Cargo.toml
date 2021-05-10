@@ -9,6 +9,7 @@ repository = "https://github.com/tauri-apps/tauri"
 description = "Runtime for Tauri applications"
 edition = "2018"
 exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
+readme = "README.md"
 
 [package.metadata.docs.rs]
 all-features = true

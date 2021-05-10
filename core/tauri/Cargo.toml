@@ -9,7 +9,7 @@ repository = "https://github.com/tauri-apps/tauri"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 edition = "2018"
 exclude = [ "/test", "/.scripts", ".license_template", "CHANGELOG.md", "/target" ]
-
+readme = "README.md"
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = [ "--cfg", "doc_cfg" ]

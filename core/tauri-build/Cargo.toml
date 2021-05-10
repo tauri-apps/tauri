@@ -9,7 +9,7 @@ repository = "https://github.com/tauri-apps/tauri/tree/dev/core/tauri-build"
 description = "build time code to pair with https://crates.io/crates/tauri"
 edition = "2018"
 exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
-
+readme = "README.md"
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = [ "--cfg", "doc_cfg" ]

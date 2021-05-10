@@ -9,6 +9,7 @@ repository = "https://github.com/tauri-apps/tauri/tree/dev/core/tauri-codegen"
 description = "code generation meant to be consumed inside of `tauri` through `tauri-build` or `tauri-macros`"
 edition = "2018"
 exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
+readme = "README.md"
 
 [dependencies]
 blake3 = { version = "0.3", features = [ "rayon" ] }

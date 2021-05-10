@@ -9,6 +9,7 @@ repository = "https://github.com/tauri-apps/tauri"
 description = "Macros for the tauri crate."
 edition = "2018"
 exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
+readme = "README.md"
 
 [lib]
 proc-macro = true

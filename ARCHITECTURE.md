@@ -59,12 +59,10 @@ This is a toolkit that will enable engineering teams to rapidly scaffold out a n
 - **http**	The HTTP request API.
 - **notification**	The desktop notifications API module.
 - **path**	The file system path operations API.
-- **platform**	Platform helpers
 - **process**	Process helpers including the management of child processes.
 - **rpc**	The RPC module includes utilities to send messages to the JS layer of the webview.
 - **shell**	The shell api.
 - **shortcuts**	Global shortcuts interface.
-- **tcp**	TCP ports access API.
 - **version**	The semver API.
 
 
@@ -82,10 +80,10 @@ WRY is a cross-platform WebView rendering library in Rust that supports all majo
 ## [tauri-hotkey-rs](https://github.com/tauri-apps/tauri-hotkey-rs)
 We needed to fix hotkey to work on all platforms, because upstream was not being responsive.
 
+# Additional tooling
+
 ## [binary-releases](https://github.com/tauri-apps/binary-releases)
 This is the delivery mechanism for tauri prebuilt binaries: currently the cli.rs (used by cli.js) and rustup binaries (used by the deps install command of cli.js). These artifacts are automatically created on release.
-
-# Additional tooling
 
 ## [tauri-action](https://github.com/tauri-apps/tauri-action)
 This is a github workflow that builds tauri binaries for all platforms. It is not the fastest out there, but it gets the job done and is highly configurable. Even allowing you to create a (very basic) tauri app even if tauri is not setup.
@@ -107,7 +105,7 @@ Generally speaking, plugins are authored by third parties (even though there may
 3. It provides a JS API for interfacing with the rust code.
 
 Here are several examples of Tauri Plugins:
-- https://github.com/tauri-apps/tauri-plugin-log
+- https://github.com/tauri-apps/tauri-plugin-sql
 - https://github.com/tauri-apps/tauri-plugin-stronghold
 - https://github.com/tauri-apps/tauri-plugin-authenticator
 
@@ -153,7 +151,7 @@ yarn tauri info
 
 The release flow begins with proper configuration in the `tauri.conf.json` file. In this file, the developer can configure not only the basic behaviour of the application (like window size and decoration), they can also provide settings for signing and updating.
 
-Depending upon the operating system that the developer (or CI) is building the application on, there will be an app built for them for that system. (Cross compilation is not currently available, however there is an official [github action](https://github.com/tauri-apps/tauri-action) that can be used to build for all platforms.)
+Depending upon the operating system that the developer (or CI) is building the application on, there will be an app built for them for that system. (Cross compilation is not currently available, however there is an official [GitHub Action](https://github.com/tauri-apps/tauri-action) that can be used to build for all platforms.)
 
 To kick off this process, just:
 ```

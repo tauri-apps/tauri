@@ -292,7 +292,7 @@ impl<P: Params> WindowManager<P> {
   fn prepare_rpc_handler(&self) -> WebviewRpcHandler<P> {
     let manager = self.clone();
     Box::new(move |window, request| {
-      let window = manager.attach_window(window);
+      let window = Window::new(manager.clone(), window);
       let command = request.command.clone();
 
       let arg = request
@@ -361,7 +361,7 @@ impl<P: Params> WindowManager<P> {
     Box::new(move |event, window| {
       let manager = manager.clone();
       crate::async_runtime::block_on(async move {
-        let window = manager.attach_window(window);
+        let window = Window::new(manager.clone(), window);
         let _ = match event {
           FileDropEvent::Hovered(paths) => {
             window.emit_internal(&tauri_event::<P::Event>("tauri://file-drop"), Some(paths))

@@ -70,7 +70,7 @@ impl Build {
     let tauri_path = tauri_dir();
     set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
 
-    rewrite_manifest(config.clone())?;
+    let manifest = rewrite_manifest(config.clone())?;
 
     let config_guard = config.lock().unwrap();
     let config_ = config_guard.as_ref().unwrap();
@@ -150,7 +150,7 @@ impl Build {
       }
       let mut settings_builder = SettingsBuilder::new()
         .package_settings(app_settings.get_package_settings())
-        .bundle_settings(app_settings.get_bundle_settings(&config_)?)
+        .bundle_settings(app_settings.get_bundle_settings(&config_, &manifest)?)
         .binaries(app_settings.get_binaries(&config_)?)
         .project_out_directory(out_dir);
 

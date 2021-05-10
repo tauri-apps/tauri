@@ -180,6 +180,7 @@ impl<P: Params> Window<P> {
     self.window.dispatcher.clone()
   }
 
+  #[allow(dead_code)]
   pub(crate) fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
     self
       .window

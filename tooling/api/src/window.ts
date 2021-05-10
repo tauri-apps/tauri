@@ -687,6 +687,8 @@ export interface WindowOptions {
   title?: string
   /** Whether the window is in fullscreen mode or not. */
   fullscreen?: boolean
+  /** Whether the window is transparent or not. */
+  transparent?: boolean
   /** Whether the window should be maximized upon creation or not. */
   maximized?: boolean
   /** Whether the window should be immediately visible upon creation or not. */

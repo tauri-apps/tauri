@@ -14,14 +14,15 @@
 
 | Component | Version                                     |
 | --------- | ------------------------------------------- |
-| @tauri-apps/cli   | ![](https://img.shields.io/npm/v/@tauri-apps/cli.svg) |
+| @tauri-apps/api   | ![](https://img.shields.io/npm/v/@tauri-apps/api.svg) |
 
 ## About Tauri
 Tauri is a polyglot and generic system that is very composable and allows engineers to make a wide variety of applications.. It is used for building applications for Desktop Computers using a combination of Rust tools and HTML rendered in a Webview. Apps built with Tauri can ship with any number of pieces of an optional JS API / Rust API so that webviews can control the system via message passing. In fact, developers can extend the default API with their own functionality and bridge the Webview and Rust-based backend easily.
 
 Tauri apps can have custom menus and have tray-type interfaces. They can be updated, and are managed by the user's operating system as expected. They are very small, because they use the system's webview. They do not ship a runtime, since the final binary is compiled from rust. This makes the reversing of Tauri apps not a trivial task.
+
 ## This module
-Written in Typescript and packaged such that it can be used with `npm`, `pnpm`, and `yarn`, this library provides a node.js runner for common tasks when using Tauri, like `yarn tauri dev`. For the most part it is a wrapper around [cli.rs](https://github.com/tauri-apps/tauri/blob/dev/tooling/cli.rs).
+This is a typescript library that creates `cjs` and `esm` Javascript endpoints for you to import into your Frontend framework so that the Webview can call and listen to backend activity. We also ship the pure typescript, because for some frameworks this is more optimal. It uses the message passing of webviews to their hosts.
 
 To learn more about the details of how all of these pieces fit together, please consult this [ARCHITECTURE.md](https://github.com/tauri-apps/tauri/blob/dev/ARCHITECTURE.md) document.
 
@@ -30,8 +31,8 @@ To learn more about the details of how all of these pieces fit together, please 
 
 The preferred method is to install this module locally as a development dependency:
 ```
-$ npm install --save-dev @tauri-apps/cli
-$ yarn add --dev @tauri-apps/cli
+$ npm install --save @tauri-apps/api
+$ yarn add @tauri-apps/api
 ```
 
 ## Semver

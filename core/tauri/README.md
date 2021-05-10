@@ -1,4 +1,5 @@
-# @tauri-apps/cli
+# Tauri
+
  <img align="right" src="https://github.com/tauri-apps/tauri/raw/dev/app-icon.png" height="128" width="128">
 
 [![status](https://img.shields.io/badge/Status-Beta-green.svg)](https://github.com/tauri-apps/tauri)
@@ -14,25 +15,18 @@
 
 | Component | Version                                     |
 | --------- | ------------------------------------------- |
-| @tauri-apps/cli   | ![](https://img.shields.io/npm/v/@tauri-apps/cli.svg) |
+| tauri  | [![](https://img.shields.io/crates/v/tauri-cli?style=flat-square)](https://crates.io/crates/tauri) |
 
 ## About Tauri
 Tauri is a polyglot and generic system that is very composable and allows engineers to make a wide variety of applications.. It is used for building applications for Desktop Computers using a combination of Rust tools and HTML rendered in a Webview. Apps built with Tauri can ship with any number of pieces of an optional JS API / Rust API so that webviews can control the system via message passing. In fact, developers can extend the default API with their own functionality and bridge the Webview and Rust-based backend easily.
 
 Tauri apps can have custom menus and have tray-type interfaces. They can be updated, and are managed by the user's operating system as expected. They are very small, because they use the system's webview. They do not ship a runtime, since the final binary is compiled from rust. This makes the reversing of Tauri apps not a trivial task.
+
 ## This module
-Written in Typescript and packaged such that it can be used with `npm`, `pnpm`, and `yarn`, this library provides a node.js runner for common tasks when using Tauri, like `yarn tauri dev`. For the most part it is a wrapper around [cli.rs](https://github.com/tauri-apps/tauri/blob/dev/tooling/cli.rs).
+This is the glue crate that holds everything together. It brings the runtimes, macros, utilities and API into one final product. It reads the `tauri.conf.json` file at compile time in order to bring in features and undertake actual configuration of the app (and even the `Cargo.toml` file in the project's folder). It handles script injection (for polyfills / prototype revision) at runtime, hosts the API for systems interaction, and even manages updating.
 
 To learn more about the details of how all of these pieces fit together, please consult this [ARCHITECTURE.md](https://github.com/tauri-apps/tauri/blob/dev/ARCHITECTURE.md) document.
 
-
-## Installation
-
-The preferred method is to install this module locally as a development dependency:
-```
-$ npm install --save-dev @tauri-apps/cli
-$ yarn add --dev @tauri-apps/cli
-```
 
 ## Semver
 **tauri** is following [Semantic Versioning 2.0](https://semver.org/).

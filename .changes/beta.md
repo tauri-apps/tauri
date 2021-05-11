@@ -7,8 +7,10 @@
 "tauri-codegen": major
 "tauri-macros": major
 "tauri-build": major
+"tauri-runtime": minor
+"tauri-runtime-wry": minor
 "tauri": major
 "create-tauri-app": major
 ---
 
-The beta process has begun!
+Upgrade to beta!

@@ -105,6 +105,7 @@ pub struct InnerWindowManager<P: Params = DefaultArgs> {
   window_event_listeners: Arc<Vec<GlobalWindowEventListener<P>>>,
 }
 
+/// This type should always match `Builder::default()`, otherwise the default type is useless.
 pub(crate) type DefaultArgs =
   Args<String, String, String, String, crate::api::assets::EmbeddedAssets, crate::Wry>;
 

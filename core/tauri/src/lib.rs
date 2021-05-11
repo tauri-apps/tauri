@@ -123,6 +123,10 @@ macro_rules! tauri_build_context {
 }
 
 /// User supplied data required inside of a Tauri application.
+///
+/// # Stability
+/// This is the output of the `tauri::generate_context!` macro, and is not considered part of the stable API.
+/// Unless you know what you are doing and are prepared for this type to have breaking changes, do not create it yourself.
 pub struct Context<A: Assets> {
   /// The config the application was prepared with.
   pub config: Config,
@@ -145,9 +149,8 @@ pub struct Context<A: Assets> {
   pub package_info: crate::api::PackageInfo,
 }
 
+// TODO: expand these docs
 /// Manages a running application.
-///
-/// TODO: expand these docs
 pub trait Manager<P: Params>: sealed::ManagerBase<P> {
   /// The [`Config`] the manager was created with.
   fn config(&self) -> Arc<Config> {

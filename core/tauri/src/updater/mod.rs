@@ -3,9 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 //! # Tauri Updater
-//! ---
-//! > ⚠️ This project is a working project. Expect breaking changes.
-//! ---
 //!
 //! The updater is focused on making Tauri's application updates **as safe and transparent as updates to a website**.
 //!
@@ -101,7 +98,6 @@
 //! Event : `tauri://update`
 //!
 //! ### Rust
-//! todo: update this example to compile and run
 //! ```ignore
 //! dispatcher.emit("tauri://update", None);
 //! ```
@@ -124,7 +120,6 @@
 //! ```
 //!
 //! ### Rust
-//! todo: update this example to compile and run
 //! ```ignore
 //! dispatcher.listen("tauri://update-available", move |msg| {
 //!     println("New version available: {:?}", msg);
@@ -146,7 +141,6 @@
 //! Event : `tauri://update-install`
 //!
 //! ### Rust
-//! todo: update this example to compile and run
 //! ```ignore
 //! dispatcher.emit("tauri://update-install", None);
 //! ```
@@ -172,7 +166,6 @@
 //! ERROR is emitted when there is an error with the updater. We suggest to listen to this event even if the dialog is enabled.
 //!
 //! ### Rust
-//! todo: update this example to compile and run
 //! ```ignore
 //! dispatcher.listen("tauri://update-status", move |msg| {
 //!     println("New status: {:?}", msg);

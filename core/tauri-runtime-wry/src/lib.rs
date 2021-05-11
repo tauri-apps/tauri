@@ -845,7 +845,7 @@ impl Runtime for Wry {
       Icon::File(path) => {
         panic!("non-linux system menu icons must be bytes, not a file path",)
       }
-      _ => unreachable!()
+      _ => unreachable!(),
     };
 
     SystemTrayBuilder::new(

@@ -125,9 +125,8 @@ macro_rules! tauri_build_context {
 /// User supplied data required inside of a Tauri application.
 ///
 /// # Stability
-/// This is the output of the `tauri::generate_context` macro,
-/// and should not be created directly on normal applications.
-/// It may have breaking changes in the future.
+/// This is the output of the `tauri::generate_context!` macro, and is not considered part of the stable API.
+/// Unless you know what you are doing and are prepared for this type to have breaking changes, do not create it yourself.
 pub struct Context<A: Assets> {
   /// The config the application was prepared with.
   pub config: Config,

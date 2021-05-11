@@ -164,6 +164,7 @@ impl<A: Assets> Context<A> {
   }
 
   /// Create a new [`Context`] from the minimal required items.
+  #[inline(always)]
   pub fn new(
     config: Config,
     assets: Arc<A>,

@@ -232,7 +232,7 @@ class WebviewWindowHandle {
  * ```
  */
 class WebviewWindow extends WebviewWindowHandle {
-  constructor(label: string, options: WindowOptions = {}) {
+  private constructor(label: string, options: WindowOptions = {}) {
     super(label)
     invokeTauriCommand({
       __tauriModule: 'Window',
@@ -737,6 +737,7 @@ async function availableMonitors(): Promise<Monitor[]> {
 
 export {
   WebviewWindow,
+  WebviewWindowHandle,
   getCurrent,
   getAll,
   appWindow,

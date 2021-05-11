@@ -842,7 +842,7 @@ impl Runtime for Wry {
       }
 
       #[cfg(not(target_os = "linux"))]
-      Icon::File(path) => {
+      Icon::File(_) => {
         panic!("non-linux system menu icons must be bytes, not a file path",)
       }
       _ => unreachable!(),

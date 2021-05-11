@@ -8,7 +8,7 @@ use crate::{
   api::config::WindowUrl,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
-  manager::WindowManager,
+  manager::{DefaultArgs, WindowManager},
   runtime::{
     monitor::Monitor as RuntimeMonitor,
     tag::{TagRef, ToJsString},
@@ -96,7 +96,7 @@ impl Monitor {
 ///
 /// This type also implements [`Manager`] which allows you to manage other windows attached to
 /// the same application.
-pub struct Window<P: Params> {
+pub struct Window<P: Params = DefaultArgs> {
   /// The webview window created by the runtime.
   window: DetachedWindow<P>,
 

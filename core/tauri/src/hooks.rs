@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::manager::DefaultArgs;
 use crate::{
   api::rpc::{format_callback, format_callback_result},
   app::App,
@@ -35,7 +36,7 @@ impl PageLoadPayload {
 }
 
 /// The message and resolver given to a custom command.
-pub struct Invoke<P: Params> {
+pub struct Invoke<P: Params = DefaultArgs> {
   /// The message passed.
   pub message: InvokeMessage<P>,
 
@@ -111,7 +112,7 @@ impl From<InvokeError> for InvokeResponse {
 }
 
 /// Resolver of a invoke message.
-pub struct InvokeResolver<P: Params> {
+pub struct InvokeResolver<P: Params = DefaultArgs> {
   window: Window<P>,
   pub(crate) callback: String,
   pub(crate) error: String,
@@ -229,7 +230,7 @@ impl<P: Params> InvokeResolver<P> {
 }
 
 /// An invoke message.
-pub struct InvokeMessage<P: Params> {
+pub struct InvokeMessage<P: Params = DefaultArgs> {
   /// The window that received the invoke message.
   pub(crate) window: Window<P>,
   /// Application managed state.

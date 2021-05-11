@@ -71,7 +71,7 @@ pub(crate) fn tauri_event<Event: Tag>(tauri_event: &str) -> Event {
   })
 }
 
-pub struct InnerWindowManager<P: Params> {
+pub struct InnerWindowManager<P: Params = DefaultArgs> {
   windows: Mutex<HashMap<P::Label, Window<P>>>,
   plugins: Mutex<PluginStore<P>>,
   listeners: Listeners<P::Event, P::Label>,
@@ -104,6 +104,9 @@ pub struct InnerWindowManager<P: Params> {
   /// Window event listeners to all windows.
   window_event_listeners: Arc<Vec<GlobalWindowEventListener<P>>>,
 }
+
+pub(crate) type DefaultArgs =
+  Args<String, String, String, String, crate::api::assets::EmbeddedAssets, crate::Wry>;
 
 /// A [Zero Sized Type] marker representing a full [`Params`].
 ///
@@ -147,7 +150,7 @@ impl<E: Tag, L: Tag, MID: MenuId, TID: MenuId, A: Assets, R: Runtime> Params
   type Runtime = R;
 }
 
-pub struct WindowManager<P: Params> {
+pub struct WindowManager<P: Params = DefaultArgs> {
   pub inner: Arc<InnerWindowManager<P>>,
   #[allow(clippy::type_complexity)]
   _marker: Args<P::Event, P::Label, P::MenuId, P::SystemTrayMenuId, P::Assets, P::Runtime>,

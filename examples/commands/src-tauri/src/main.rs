@@ -26,7 +26,7 @@ enum MyError {
 
 // ------------------------ Commands using Window ------------------------
 #[command]
-fn window_label(window: Window<impl Params<Label = String>>) {
+fn window_label(window: Window) {
   println!("window label: {}", window.label());
 }
 

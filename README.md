@@ -64,27 +64,6 @@ If you are interested in making a tauri-app, please visit the [documentation web
 - [ ] One-Time commands (coming soon)
 - [ ] Tray (coming soon)
 
-#### API
-- [x] setTitle - set the window title
-- [x] command - make custom API interfaces
-- [x] execute - STDOUT Passthrough with command invocation
-- [x] open - open link in a browser
-- [x] event - two part api consisting of `emit` and `listen`
-- [x] httpRequest - command rust to make an http request
-- [x] openDialog - native file chooser dialog
-- [x] saveDialog - native file saver dialog
-- [x] readDir - list files in a directory
-- [x] createDir - create a directory
-- [x] removeDir - remove a directory
-- [x] removeFile - remove a file
-- [x] renameFile - rename a file
-- [x] copyFile - copy a file to a new destination
-- [x] writeFile - write file to local filesystem
-- [x] writeBinaryFile - write binary file to local filesystem
-- [x] readBinaryFile - read binary file from local filesystem
-- [x] readTextFile - read text file from local filesystem
-- [ ] channel - stream constant data to the webview
-
 ### Security Features
 - [x] localhost-free (:fire:)
 - [x] custom protocol for secure mode

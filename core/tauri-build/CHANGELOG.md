@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-beta.0]
+
+- The `try_build` method now has a `Attributes` argument to allow specifying the window icon path used on Windows.
+  - [c91105f](https://www.github.com/tauri-apps/tauri/commit/c91105ff965cceb2dfb402004c12799bf3b1c2f6) refactor(build): allow setting window icon path on `try_build` ([#1686](https://www.github.com/tauri-apps/tauri/pull/1686)) on 2021-05-03
+
 ## \[1.0.0-beta-rc.1]
 
 - The package info APIs now checks the `package` object on `tauri.conf.json`.

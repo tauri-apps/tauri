@@ -1,6 +1,6 @@
 [package]
 name = "tauri-build"
-version = "1.0.0-beta-rc.1"
+version = "1.0.0-beta.0"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -10,6 +10,7 @@ description = "build time code to pair with https://crates.io/crates/tauri"
 edition = "2018"
 exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
 readme = "README.md"
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = [ "--cfg", "doc_cfg" ]
@@ -18,7 +19,7 @@ rustdoc-args = [ "--cfg", "doc_cfg" ]
 anyhow = "1"
 proc-macro2 = "1"
 quote = "1"
-tauri-codegen = { version = "1.0.0-beta-rc.1", path = "../tauri-codegen", optional = true }
+tauri-codegen = { version = "1.0.0-beta.0", path = "../tauri-codegen", optional = true }
 
 [target."cfg(windows)".dependencies]
 winres = "0.1"

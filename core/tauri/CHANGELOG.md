@@ -1,5 +1,153 @@
 # Changelog
 
+## \[1.0.0-beta.0]
+
+- **Breaking:** `api::path::resolve_path()` and `api::path::app_dir()` now takes the config as first argument and the `PackageInfo` as second argument.
+  **Breaking:** `api::path::app_dir()` now resolves to `${configDir}/${config.tauri.bundle.identifier}`.
+  - [428d50a](https://www.github.com/tauri-apps/tauri/commit/428d50add4da937325d189434dbaf3a02d745187) refactor(core): use bundle identifier on app dir, closes [#1693](https://www.github.com/tauri-apps/tauri/pull/1693) ([#1703](https://www.github.com/tauri-apps/tauri/pull/1703)) on 2021-05-04
+  - [7bb7dda](https://www.github.com/tauri-apps/tauri/commit/7bb7dda7523bc1a81e890e0aeafffd35e3ed767f) refactor(core): resolve resource_dir using the package info ([#1762](https://www.github.com/tauri-apps/tauri/pull/1762)) on 2021-05-10
+
+- Adds `manage` API to the `Builder` struct, which manages app state.
+  - [8b6f3de](https://www.github.com/tauri-apps/tauri/commit/8b6f3de0ad47684e72a2ae5f884d8675acfaeeac) feat(core): add state management, closes [#1655](https://www.github.com/tauri-apps/tauri/pull/1655) ([#1665](https://www.github.com/tauri-apps/tauri/pull/1665)) on 2021-05-02
+
+- **Breaking:** The `assets` field on the `tauri::Context` struct is now a `Arc<impl Assets>`.
+  - [5110c70](https://www.github.com/tauri-apps/tauri/commit/5110c704be67e51d49fb83f3710afb593973dcf9) feat(core): allow users to access the Assets instance ([#1691](https://www.github.com/tauri-apps/tauri/pull/1691)) on 2021-05-03
+
+- Only commands with a `async fn` are executed on a separate task. `#[command] fn command_name` runs on the main thread.
+  - [bb8dafb](https://www.github.com/tauri-apps/tauri/commit/bb8dafbe1ea6edde7385631d41ac05e96a3309ef) feat(core): #\[command] return with autoref specialization workaround fix [#1672](https://www.github.com/tauri-apps/tauri/pull/1672) ([#1734](https://www.github.com/tauri-apps/tauri/pull/1734)) on 2021-05-09
+
+- Renamed the `command` API module to `process`.
+  - [b0bb796](https://www.github.com/tauri-apps/tauri/commit/b0bb796a42e2560233aea47ce6ced54ac238eb53) refactor: rename `command` mod to `process`, move restart_application ([#1667](https://www.github.com/tauri-apps/tauri/pull/1667)) on 2021-04-30
+
+- Adds `options` argument to the shell command API (`env` and `cwd` configuration).
+  - [721e98f](https://www.github.com/tauri-apps/tauri/commit/721e98f175567b360c86f30565ab1b9d08e7cf85) feat(core): add env, cwd to the command API, closes [#1634](https://www.github.com/tauri-apps/tauri/pull/1634) ([#1635](https://www.github.com/tauri-apps/tauri/pull/1635)) on 2021-04-28
+
+- Improves support for commands returning `Result`.
+  - [bb8dafb](https://www.github.com/tauri-apps/tauri/commit/bb8dafbe1ea6edde7385631d41ac05e96a3309ef) feat(core): #\[command] return with autoref specialization workaround fix [#1672](https://www.github.com/tauri-apps/tauri/pull/1672) ([#1734](https://www.github.com/tauri-apps/tauri/pull/1734)) on 2021-05-09
+
+- Adds `status` and `output` APIs to the `tauri::api::process::Command` struct.
+  - [d92fde7](https://www.github.com/tauri-apps/tauri/commit/d92fde75053d1f3fbac4f926c40a1e8cf29bf2a4) feat(core): add `output` and `status` APIs to the `Command` struct ([#1668](https://www.github.com/tauri-apps/tauri/pull/1668)) on 2021-05-02
+
+- The `create_window` API callback now takes two arguments: the `WindowBuilder` and the `WebviewAttributes` and must return a tuple containing both values.
+  - [c31f097](https://www.github.com/tauri-apps/tauri/commit/c31f0978c535f794fffb75a121e69a323e70b06e) refactor: update to wry 0.9 ([#1630](https://www.github.com/tauri-apps/tauri/pull/1630)) on 2021-04-28
+
+- Reintroduce `csp` injection, configured on `tauri.conf.json > tauri > security > csp`.
+  - [6132f3f](https://www.github.com/tauri-apps/tauri/commit/6132f3f4feb64488ef618f690a4f06adce864d91) feat(core): reintroduce CSP injection ([#1704](https://www.github.com/tauri-apps/tauri/pull/1704)) on 2021-05-04
+
+- Adds the default types used with `Builder::default()` to items that expose `Params` in their type. This allows you to
+  skip specifying a generic parameter to types like `Window<P>` if you use the default type.
+  - [27a7810](https://www.github.com/tauri-apps/tauri/commit/27a78107673b63b6dad42fcf2bc8b7acd90b6ec4) feat(core): add default Args to all types exposing Params ([#1777](https://www.github.com/tauri-apps/tauri/pull/1777)) on 2021-05-11
+
+- Change draggable region element detection from `drag-region` class to `data-tauri-drag-region` attribute.
+  - [4f1e87f](https://www.github.com/tauri-apps/tauri/commit/4f1e87f87bbd4e094116b83edff448847da178ea) refactor(core): change drag element detection to data attr, fixes [#1656](https://www.github.com/tauri-apps/tauri/pull/1656) ([#1659](https://www.github.com/tauri-apps/tauri/pull/1659)) on 2021-04-29
+
+- Emit `tauri://resize`, `tauri://move`, `tauri://close-requested`, `tauri://destroyed`, `tauri://focus`, `tauri://blur` and `tauri://scale-change` events to the window.
+  - [9c10ccf](https://www.github.com/tauri-apps/tauri/commit/9c10ccf8d30af92cb90044a732e904c53507771a) feat(core) window events, closes [#1523](https://www.github.com/tauri-apps/tauri/pull/1523) ([#1726](https://www.github.com/tauri-apps/tauri/pull/1726)) on 2021-05-06
+
+- The event `emit` function payload type is now `impl Serialize` instead of `Option<impl Serialize>`.
+  - [4687538](https://www.github.com/tauri-apps/tauri/commit/4687538987af7638e8625342f2e3d065771c12c7) refactor(core): drop `Option` payload type on `event::emit` ([#1760](https://www.github.com/tauri-apps/tauri/pull/1760)) on 2021-05-09
+
+- Update `tauri-hotkey` to v0.1.2, fixing a compilation issue on 32-bit platforms.
+  - [92a01a7](https://www.github.com/tauri-apps/tauri/commit/92a01a7cab6d55f368b60a0d6bcc96d2847b2a81) chore(deps): bump tauri-hotkey to 0.1.2 ([#1701](https://www.github.com/tauri-apps/tauri/pull/1701)) on 2021-05-04
+
+- Implemented window menus APIs.
+  - [41d5d6a](https://www.github.com/tauri-apps/tauri/commit/41d5d6aff29750beca7263a9c186bf209388b8ee) feat(core): window menus ([#1745](https://www.github.com/tauri-apps/tauri/pull/1745)) on 2021-05-08
+
+- Added the \`#\[non_exhaustive] attribute where appropriate.
+  - [e087f0f](https://www.github.com/tauri-apps/tauri/commit/e087f0f9374355ac4b4a48f94727ef8b26b1c4cf) feat: add `#[non_exhaustive]` attribute ([#1725](https://www.github.com/tauri-apps/tauri/pull/1725)) on 2021-05-05
+
+- `Notification.requestPermission()` now returns `"denied"` when not allowlisted.
+  `IsNotificationPermissionGranted` returns `false` when not allowlisted.
+  - [8941790](https://www.github.com/tauri-apps/tauri/commit/8941790f98206adce441d7bdc42374af39edc786) fix(core): notification permission check when !allowlisted, closes [#1666](https://www.github.com/tauri-apps/tauri/pull/1666) ([#1677](https://www.github.com/tauri-apps/tauri/pull/1677)) on 2021-05-02
+
+- Refactored the `Plugin` trait `initialize` and `extend_api` signatures.
+  `initialize` now takes the `App` as first argument, and `extend_api` takes an `Invoke` instead of `InvokeMessage`.
+  This adds support to managed state on plugins.
+  - [8b6f3de](https://www.github.com/tauri-apps/tauri/commit/8b6f3de0ad47684e72a2ae5f884d8675acfaeeac) feat(core): add state management, closes [#1655](https://www.github.com/tauri-apps/tauri/pull/1655) ([#1665](https://www.github.com/tauri-apps/tauri/pull/1665)) on 2021-05-02
+  - [1d6f418](https://www.github.com/tauri-apps/tauri/commit/1d6f41812925142eb40f1908d2498880ab4a6266) refactor(core): merge invoke items into single struct, allow ? ([#1683](https://www.github.com/tauri-apps/tauri/pull/1683)) on 2021-05-02
+
+- `window.print()` now works on all platforms.
+  - [56e74cc](https://www.github.com/tauri-apps/tauri/commit/56e74ccf748ef24075b1095170d764dcfda4ddeb) feat(core): ensure `window.print()`works on macOS ([#1738](https://www.github.com/tauri-apps/tauri/pull/1738)) on 2021-05-07
+
+- **Breaking:** `Context` fields are now private, and is expected to be created through `Context::new(...)`.
+  All fields previously available through `Context` are now public methods.
+  - [5542359](https://www.github.com/tauri-apps/tauri/commit/55423590ddbf560684dab6a0214acf95aadfa8d2) refactor(core): Context fields now private, Icon used on all platforms ([#1774](https://www.github.com/tauri-apps/tauri/pull/1774)) on 2021-05-11
+
+- `Settings` is now serialized using `bincode`.
+  - [455c550](https://www.github.com/tauri-apps/tauri/commit/455c550f347fe09581b4440bb868cacbbbbe2ad2) refactor(core): `Settings` serialization using `bincode` ([#1758](https://www.github.com/tauri-apps/tauri/pull/1758)) on 2021-05-09
+
+- The window management API was refactored: removed `setX`, `setY`, `setWidth`, `setHeight` APIs, renamed `resize` to `setSize` and the size and position APIs now allow defining both logical and physical values.
+  - [6bfac86](https://www.github.com/tauri-apps/tauri/commit/6bfac866a703f1499a64237fb29b2625703f4e22) refactor(core): add window getters, physical & logical sizes/positions ([#1723](https://www.github.com/tauri-apps/tauri/pull/1723)) on 2021-05-05
+
+- Removed the `tcp` module from `tauri::api`.
+  - [e087f0f](https://www.github.com/tauri-apps/tauri/commit/e087f0f9374355ac4b4a48f94727ef8b26b1c4cf) feat: add `#[non_exhaustive]` attribute ([#1725](https://www.github.com/tauri-apps/tauri/pull/1725)) on 2021-05-05
+
+- Removes the `with_window` attribute on the `command` macro. Tauri now infers it using the `CommandArg` trait.
+  - [8b6f3de](https://www.github.com/tauri-apps/tauri/commit/8b6f3de0ad47684e72a2ae5f884d8675acfaeeac) feat(core): add state management, closes [#1655](https://www.github.com/tauri-apps/tauri/pull/1655) ([#1665](https://www.github.com/tauri-apps/tauri/pull/1665)) on 2021-05-02
+  - [1d6f418](https://www.github.com/tauri-apps/tauri/commit/1d6f41812925142eb40f1908d2498880ab4a6266) refactor(core): merge invoke items into single struct, allow ? ([#1683](https://www.github.com/tauri-apps/tauri/pull/1683)) on 2021-05-02
+
+- Move `restart_application` API from `app` module to `process` module.
+  - [b0bb796](https://www.github.com/tauri-apps/tauri/commit/b0bb796a42e2560233aea47ce6ced54ac238eb53) refactor: rename `command` mod to `process`, move restart_application ([#1667](https://www.github.com/tauri-apps/tauri/pull/1667)) on 2021-04-30
+
+- `tauri-runtime` crate initial release.
+  - [665ec1d](https://www.github.com/tauri-apps/tauri/commit/665ec1d4a199ad06e369221da187dc838da71cbf) refactor: move runtime to `tauri-runtime` crate ([#1751](https://www.github.com/tauri-apps/tauri/pull/1751)) on 2021-05-09
+  - [45a7a11](https://www.github.com/tauri-apps/tauri/commit/45a7a111e0cf9d9956d713cc9a99fa7a5313eec7) feat(core): add `tauri-wry` crate ([#1756](https://www.github.com/tauri-apps/tauri/pull/1756)) on 2021-05-09
+
+- The `setup` Error type must be `Send`.
+  - [e087f0f](https://www.github.com/tauri-apps/tauri/commit/e087f0f9374355ac4b4a48f94727ef8b26b1c4cf) feat: add `#[non_exhaustive]` attribute ([#1725](https://www.github.com/tauri-apps/tauri/pull/1725)) on 2021-05-05
+
+- Simplify usage of app event and window label types. The following functions now
+  accept references the `Tag` can be borrowed as. This means an `&str` can now be
+  accepted for functions like `Window::emit`. This is a breaking change for the
+  following items, which now need to take a reference. Additionally, type inference
+  for `&"event".into()` will no longer work, but `&"event".to_string()` will. The
+  solution for this is to now just pass `"event"` because `Borrow<str>` is implemented
+  for the default event type `String`.
+
+- **Breaking:** `Window::emit` now accepts `Borrow` for the event.
+
+- **Breaking:** `Window::emit_others` now accepts `Borrow` for the event
+
+- **Breaking:** `Window::trigger` now accepts `Borrow` for the event.
+
+- **Breaking:** `Manager::emit_all` now accepts `Borrow` for the event.
+
+- **Breaking:** `Manager::emit_to` now accepts `Borrow` for both the event and window label.
+
+- **Breaking:** `Manager::trigger_global` now accepts `Borrow` for the event.
+
+- **Breaking:** `Manager::get_window` now accepts `Borrow` for the window label.
+
+- *(internal):* `trait tauri::runtime::tag::TagRef` helper for accepting tag references.
+  Any time you want to accept a tag reference, that trait will handle requiring the reference
+  to have all the necessary bounds, and generate errors when the exposed function doesn't
+  set a bound like `P::Event: Borrow<E>`.
+
+- [181e132](https://www.github.com/tauri-apps/tauri/commit/181e132aee895da23c1b63deb41a52e9910910cc) refactor(core): simplify usage of app event and window label types ([#1623](https://www.github.com/tauri-apps/tauri/pull/1623)) on 2021-04-27
+
+- [a755d23](https://www.github.com/tauri-apps/tauri/commit/a755d23e1bd0a3d6a2b6a85ff94feaf5a1a3a60d) refactor(core): more bounds for better errors from [#1623](https://www.github.com/tauri-apps/tauri/pull/1623) ([#1632](https://www.github.com/tauri-apps/tauri/pull/1632)) on 2021-04-27
+
+- `tauri-runtime-wry` initial release.
+  - [45a7a11](https://www.github.com/tauri-apps/tauri/commit/45a7a111e0cf9d9956d713cc9a99fa7a5313eec7) feat(core): add `tauri-wry` crate ([#1756](https://www.github.com/tauri-apps/tauri/pull/1756)) on 2021-05-09
+
+- Adds system tray support.
+  - [c090927](https://www.github.com/tauri-apps/tauri/commit/c0909270216983bed47453ddf5902abf5082fe42) feat(core): system tray, closes [#157](https://www.github.com/tauri-apps/tauri/pull/157) ([#1749](https://www.github.com/tauri-apps/tauri/pull/1749)) on 2021-05-09
+
+- Rename `Attributes` to `WindowBuilder`.
+  - [c31f097](https://www.github.com/tauri-apps/tauri/commit/c31f0978c535f794fffb75a121e69a323e70b06e) refactor: update to wry 0.9 ([#1630](https://www.github.com/tauri-apps/tauri/pull/1630)) on 2021-04-28
+
+- The `Window#create_window` API now has the same signature as `App#create_window`.
+  - [dbd9b07](https://www.github.com/tauri-apps/tauri/commit/dbd9b078aaa53663f61318153ba3d50c7e554ad8) refactor(core): `create_window` API signature on the Window struct ([#1746](https://www.github.com/tauri-apps/tauri/pull/1746)) on 2021-05-08
+
+- Adds `on_window_event` API to the `Window` struct.
+  - [9c10ccf](https://www.github.com/tauri-apps/tauri/commit/9c10ccf8d30af92cb90044a732e904c53507771a) feat(core) window events, closes [#1523](https://www.github.com/tauri-apps/tauri/pull/1523) ([#1726](https://www.github.com/tauri-apps/tauri/pull/1726)) on 2021-05-06
+
+- Adds window getters.
+  - [6bfac86](https://www.github.com/tauri-apps/tauri/commit/6bfac866a703f1499a64237fb29b2625703f4e22) refactor(core): add window getters, physical & logical sizes/positions ([#1723](https://www.github.com/tauri-apps/tauri/pull/1723)) on 2021-05-05
+
+- Update `wry` to v0.9.
+  - [c31f097](https://www.github.com/tauri-apps/tauri/commit/c31f0978c535f794fffb75a121e69a323e70b06e) refactor: update to wry 0.9 ([#1630](https://www.github.com/tauri-apps/tauri/pull/1630)) on 2021-04-28
+
 ## \[1.0.0-beta-rc.4]
 
 - Update `tauri-macros` and `tauri-utils` to `1.0.0-beta-rc.1`.

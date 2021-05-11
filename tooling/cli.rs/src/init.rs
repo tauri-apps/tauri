@@ -111,8 +111,8 @@ impl Init {
         )
       } else {
         (
-          format!(r#"{{ version = "{}" }}"#, metadata.tauri),
-          format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
+          format!(r#"{{ version = "={}" }}"#, metadata.tauri),
+          format!(r#"{{ version = "={}" }}"#, metadata.tauri_build),
         )
       };
 

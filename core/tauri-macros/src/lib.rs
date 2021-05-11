@@ -12,6 +12,12 @@ mod command;
 #[macro_use]
 mod context;
 
+/// Mark a function as a command handler. It creates a wrapper function with the necessary glue code.
+///
+/// # Stability
+/// The output of this macro is managed internally by Tauri,
+/// and should not be accessed directly on normal applications.
+/// It may have breaking changes in the future.
 #[proc_macro_attribute]
 pub fn command(attributes: TokenStream, item: TokenStream) -> TokenStream {
   command::wrapper(attributes, item)
@@ -23,6 +29,11 @@ pub fn generate_handler(item: TokenStream) -> TokenStream {
 }
 
 /// Reads a Tauri config file and generates a `::tauri::Context` based on the content.
+///
+/// # Stability
+/// The output of this macro is managed internally by Tauri,
+/// and should not be accessed directly on normal applications.
+/// It may have breaking changes in the future.
 #[proc_macro]
 pub fn generate_context(items: TokenStream) -> TokenStream {
   // this macro is exported from the context module

@@ -15,7 +15,7 @@ const { readFileSync, writeFileSync } = require("fs");
 const filePath = `../../tooling/cli.rs/metadata.json`;
 const packageNickname = process.argv[2];
 const bump = process.argv[3];
-if (bump !== "prerelease") {
+if (bump !== "prerelease" && bump !== "premajor") {
   throw new Error(
     `We don't handle anything except prerelease right now. Exiting.`
   );

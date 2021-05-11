@@ -27,6 +27,7 @@ use crate::runtime::menu::SystemTrayMenuItem;
 
 #[cfg(feature = "updater")]
 use crate::updater;
+use tauri_runtime::Icon;
 
 #[cfg(feature = "menu")]
 pub(crate) type GlobalMenuEventListener<P> = Box<dyn Fn(WindowMenuEvent<P>) + Send + Sync>;
@@ -474,7 +475,32 @@ where
   /// Runs the configured Tauri application.
   pub fn run(mut self, context: Context<A>) -> crate::Result<()> {
     #[cfg(feature = "system-tray")]
-    let system_tray_icon = context.system_tray_icon.clone();
+    let system_tray_icon = {
+      let icon = context.system_tray_icon.clone();
+
+      // check the icon format if the system tray is supposed to be ran
+      if !self.system_tray.is_empty() {
+        use std::io::{Error, ErrorKind};
+        #[cfg(target_os = "linux")]
+        if let Some(Icon::Raw(_)) = icon {
+          return Err(crate::Error::InvalidIcon(Box::new(Error::new(
+            ErrorKind::InvalidInput,
+            "system tray icons on linux must be a file path",
+          ))));
+        }
+
+        #[cfg(not(target_os = "linux"))]
+        if let Some(Icon::File(bytes)) = icon {
+          return Err(crate::Error::InvalidIcon(Box::new(Error::new(
+            ErrorKind::InvalidInput,
+            "system tray icons on non-linux platforms must be the raw bytes",
+          ))));
+        }
+      }
+
+      icon
+    };
+
     let manager = WindowManager::with_handlers(
       context,
       self.plugins,

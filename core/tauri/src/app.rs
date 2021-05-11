@@ -141,9 +141,9 @@ impl<P: Params> App<P> {
 }
 
 #[cfg(feature = "updater")]
-impl<M: Params> App<M> {
+impl<P: Params> App<P> {
   /// Runs the updater hook with built-in dialog.
-  fn run_updater_dialog(&self, window: Window<M>) {
+  fn run_updater_dialog(&self, window: Window<P>) {
     let updater_config = self.manager.config().tauri.updater.clone();
     let package_info = self.manager.package_info().clone();
     crate::async_runtime::spawn(async move {
@@ -152,12 +152,12 @@ impl<M: Params> App<M> {
   }
 
   /// Listen updater events when dialog are disabled.
-  fn listen_updater_events(&self, window: Window<M>) {
+  fn listen_updater_events(&self, window: Window<P>) {
     let updater_config = self.manager.config().tauri.updater.clone();
     updater::listener(updater_config, self.manager.package_info().clone(), &window);
   }
 
-  fn run_updater(&self, main_window: Option<Window<M>>) {
+  fn run_updater(&self, main_window: Option<Window<P>>) {
     if let Some(main_window) = main_window {
       let event_window = main_window.clone();
       let updater_config = self.manager.config().tauri.updater.clone();
@@ -172,7 +172,7 @@ impl<M: Params> App<M> {
         // invoke the Event `tauri://update` from JS or rust side.
         main_window.listen(
           updater::EVENT_CHECK_UPDATE
-            .parse::<M::Event>()
+            .parse::<P::Event>()
             .unwrap_or_else(|_| panic!("bad label")),
           move |_msg| {
             let window = event_window.clone();

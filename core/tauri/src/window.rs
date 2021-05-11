@@ -105,7 +105,7 @@ pub struct Window<P: Params> {
   manager: WindowManager<P>,
 }
 
-impl<M: Params> Clone for Window<M> {
+impl<P: Params> Clone for Window<P> {
   fn clone(&self) -> Self {
     Self {
       window: self.window.clone(),

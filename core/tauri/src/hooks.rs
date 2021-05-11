@@ -229,9 +229,9 @@ impl<P: Params> InvokeResolver<P> {
 }
 
 /// An invoke message.
-pub struct InvokeMessage<M: Params> {
+pub struct InvokeMessage<P: Params> {
   /// The window that received the invoke message.
-  pub(crate) window: Window<M>,
+  pub(crate) window: Window<P>,
   /// Application managed state.
   pub(crate) state: Arc<StateManager>,
   /// The RPC command.

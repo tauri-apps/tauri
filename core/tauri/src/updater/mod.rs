@@ -383,10 +383,10 @@ struct UpdateManifest {
 }
 
 /// Check if there is any new update with builtin dialog.
-pub(crate) async fn check_update_with_dialog<M: Params>(
+pub(crate) async fn check_update_with_dialog<P: Params>(
   updater_config: UpdaterConfig,
   package_info: crate::api::PackageInfo,
-  window: Window<M>,
+  window: Window<P>,
 ) {
   if let Some(endpoints) = updater_config.endpoints.clone() {
     // check updates
@@ -425,17 +425,17 @@ pub(crate) async fn check_update_with_dialog<M: Params>(
 
 /// Experimental listener
 /// This function should be run on the main thread once.
-pub(crate) fn listener<M: Params>(
+pub(crate) fn listener<P: Params>(
   updater_config: UpdaterConfig,
   package_info: crate::api::PackageInfo,
-  window: &Window<M>,
+  window: &Window<P>,
 ) {
   let isolated_window = window.clone();
 
   // Wait to receive the event `"tauri://update"`
   window.listen(
     EVENT_CHECK_UPDATE
-      .parse::<M::Event>()
+      .parse::<P::Event>()
       .unwrap_or_else(|_| panic!("bad label")),
     move |_msg| {
       let window = isolated_window.clone();
@@ -469,7 +469,7 @@ pub(crate) fn listener<M: Params>(
 
               // Emit `tauri://update-available`
               let _ = window.emit(
-                &tauri_event::<M::Event>(EVENT_UPDATE_AVAILABLE),
+                &tauri_event::<P::Event>(EVENT_UPDATE_AVAILABLE),
                 Some(UpdateManifest {
                   body,
                   date: updater.date.clone(),
@@ -480,7 +480,7 @@ pub(crate) fn listener<M: Params>(
               // Listen for `tauri://update-install`
               window.once(
                 EVENT_INSTALL_UPDATE
-                  .parse::<M::Event>()
+                  .parse::<P::Event>()
                   .unwrap_or_else(|_| panic!("bad label")),
                 move |_msg| {
                   let window = window_isolation.clone();
@@ -522,9 +522,9 @@ pub(crate) fn listener<M: Params>(
 }
 
 // Send a status update via `tauri://update-status` event.
-fn send_status_update<M: Params>(window: Window<M>, status: &str, error: Option<String>) {
+fn send_status_update<P: Params>(window: Window<P>, status: &str, error: Option<String>) {
   let _ = window.emit(
-    &tauri_event::<M::Event>(EVENT_STATUS_UPDATE),
+    &tauri_event::<P::Event>(EVENT_STATUS_UPDATE),
     Some(StatusEvent {
       error,
       status: String::from(status),

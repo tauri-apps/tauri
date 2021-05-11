@@ -73,7 +73,7 @@ pub enum Cmd {
 
 impl Cmd {
   #[allow(unused_variables)]
-  pub fn run<M: Params>(self, window: Window<M>) -> crate::Result<InvokeResponse> {
+  pub fn run<P: Params>(self, window: Window<P>) -> crate::Result<InvokeResponse> {
     match self {
       Self::Execute {
         program,

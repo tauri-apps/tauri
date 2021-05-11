@@ -72,11 +72,10 @@ pub use {
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       WindowEvent,
     },
-    MenuId, Params,
+    Icon, MenuId, Params,
   },
   self::state::{State, StateManager},
   self::window::{Monitor, Window},
-  tauri_runtime::Icon,
 };
 #[cfg(feature = "system-tray")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]

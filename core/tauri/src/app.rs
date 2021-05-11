@@ -23,11 +23,10 @@ use std::{collections::HashMap, sync::Arc};
 #[cfg(feature = "menu")]
 use crate::runtime::menu::Menu;
 #[cfg(feature = "system-tray")]
-use crate::runtime::menu::SystemTrayMenuItem;
+use crate::runtime::{menu::SystemTrayMenuItem, Icon};
 
 #[cfg(feature = "updater")]
 use crate::updater;
-use tauri_runtime::Icon;
 
 #[cfg(feature = "menu")]
 pub(crate) type GlobalMenuEventListener<P> = Box<dyn Fn(WindowMenuEvent<P>) + Send + Sync>;

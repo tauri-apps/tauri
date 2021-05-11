@@ -1,5 +1,17 @@
 # Changelog
 
+## \[1.0.0-beta.0]
+
+- Only commands with a `async fn` are executed on a separate task. `#[command] fn command_name` runs on the main thread.
+  - [bb8dafb](https://www.github.com/tauri-apps/tauri/commit/bb8dafbe1ea6edde7385631d41ac05e96a3309ef) feat(core): #\[command] return with autoref specialization workaround fix [#1672](https://www.github.com/tauri-apps/tauri/pull/1672) ([#1734](https://www.github.com/tauri-apps/tauri/pull/1734)) on 2021-05-09
+- `#[command]` now generates a macro instead of a function to allow passing through `Params` and other generics.
+  `generate_handler!` has been changed to consume the generated `#[command]` macro
+  - [1453d4b](https://www.github.com/tauri-apps/tauri/commit/1453d4bf842ed6891ec604e0635344c930282189) feat(core): support generics (especially Param) in #\[command] ([#1622](https://www.github.com/tauri-apps/tauri/pull/1622)) on 2021-05-05
+- Improves support for commands returning `Result`.
+  - [bb8dafb](https://www.github.com/tauri-apps/tauri/commit/bb8dafbe1ea6edde7385631d41ac05e96a3309ef) feat(core): #\[command] return with autoref specialization workaround fix [#1672](https://www.github.com/tauri-apps/tauri/pull/1672) ([#1734](https://www.github.com/tauri-apps/tauri/pull/1734)) on 2021-05-09
+- Adds support to command state, triggered when a command argument is `arg: State<'_, StateType>`.
+  - [8b6f3de](https://www.github.com/tauri-apps/tauri/commit/8b6f3de0ad47684e72a2ae5f884d8675acfaeeac) feat(core): add state management, closes [#1655](https://www.github.com/tauri-apps/tauri/pull/1655) ([#1665](https://www.github.com/tauri-apps/tauri/pull/1665)) on 2021-05-02
+
 ## \[1.0.0-beta-rc.1]
 
 - Fixes the Message `command` name value on plugin invoke handler.

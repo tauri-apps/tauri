@@ -1,5 +1,28 @@
 # Changelog
 
+## \[1.0.0-beta.0]
+
+- Fixes a cargo `target/` cache issue.
+  - [79feb6a](https://www.github.com/tauri-apps/tauri/commit/79feb6a918c2b40af771b5dccc94c8f6f4176986) fix(cli.rs): cargo build failed due to cache issue, closes [#1543](https://www.github.com/tauri-apps/tauri/pull/1543) ([#1741](https://www.github.com/tauri-apps/tauri/pull/1741)) on 2021-05-07
+- Improve error logging.
+  - [5cc4b11](https://www.github.com/tauri-apps/tauri/commit/5cc4b11f5d00a1e7e580e31785b31c491c06d8d7) feat(cli.rs): add context to errors ([#1674](https://www.github.com/tauri-apps/tauri/pull/1674)) on 2021-05-01
+- Adds Webview2 version on `info` command.
+  - [2b4e2b7](https://www.github.com/tauri-apps/tauri/commit/2b4e2b7560515b76002d0c724bcca1f470ed106f) feat(cli.rs/info): get webview2 version on windows ([#1669](https://www.github.com/tauri-apps/tauri/pull/1669)) on 2021-05-04
+- Adds `--runner [PROGRAM]` argument on the `dev` and `build` command, allowing using the specified program to run and build the application (example program: `cross`).
+  - [5c1fe52](https://www.github.com/tauri-apps/tauri/commit/5c1fe52c2bd74e2a8f6c99c2870af967e6309e8d) feat(cli.rs): allow using cross instead of cargo, add target triple arg ([#1664](https://www.github.com/tauri-apps/tauri/pull/1664)) on 2021-04-30
+- Adds `--target [TARGET_TRIPLE]` option to the `build` command (example: `--target arm-unknown-linux-gnueabihf`).
+  - [5c1fe52](https://www.github.com/tauri-apps/tauri/commit/5c1fe52c2bd74e2a8f6c99c2870af967e6309e8d) feat(cli.rs): allow using cross instead of cargo, add target triple arg ([#1664](https://www.github.com/tauri-apps/tauri/pull/1664)) on 2021-04-30
+- Rename `--target` option on the `build` command to `--bundle`.
+  - [5c1fe52](https://www.github.com/tauri-apps/tauri/commit/5c1fe52c2bd74e2a8f6c99c2870af967e6309e8d) feat(cli.rs): allow using cross instead of cargo, add target triple arg ([#1664](https://www.github.com/tauri-apps/tauri/pull/1664)) on 2021-04-30
+- Automatically add Tauri dependencies to the debian package `Depends` section.
+  - [72b8048](https://www.github.com/tauri-apps/tauri/commit/72b8048b5ada7a18d71b0fd8a4a0177109b43db7) feat(cli.rs): fill debian `depends` with tauri dependencies ([#1767](https://www.github.com/tauri-apps/tauri/pull/1767)) on 2021-05-10
+- Properly kill `beforeDevCommand` process.
+  - [ac2cbcb](https://www.github.com/tauri-apps/tauri/commit/ac2cbcb131819e01074e1ed8fb6808260c56a027) fix(cli.rs): `before dev` process kill, closes [#1626](https://www.github.com/tauri-apps/tauri/pull/1626) ([#1700](https://www.github.com/tauri-apps/tauri/pull/1700)) on 2021-05-04
+- Adds support to `tauri` dependency as string and table on `Cargo.toml`.
+  - [df8bdcf](https://www.github.com/tauri-apps/tauri/commit/df8bdcf0631fd4e1e7035eb20a954574da96de66) feat(cli.rs): add support to string and table dependency, closes [#1653](https://www.github.com/tauri-apps/tauri/pull/1653) ([#1654](https://www.github.com/tauri-apps/tauri/pull/1654)) on 2021-04-29
+- Show `framework` and `bundler` on the `info` command by reading the `package.json` file and matching known dependencies.
+  - [152c755](https://www.github.com/tauri-apps/tauri/commit/152c755c4787b323ca3469c45934cc1e4d368cfa) feat(cli.rs): `framework` and `bundler` on info cmd, closes [#1681](https://www.github.com/tauri-apps/tauri/pull/1681) ([#1682](https://www.github.com/tauri-apps/tauri/pull/1682)) on 2021-05-02
+
 ## \[1.0.0-beta-rc.4]
 
 - Fixes the Message `command` name value on plugin invoke handler.

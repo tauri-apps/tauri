@@ -1,5 +1,24 @@
 # Changelog
 
+## \[1.0.0-beta.0]
+
+- Fixes the `Installed-Size` value on the debian package.
+  - [8e0d4f6](https://www.github.com/tauri-apps/tauri/commit/8e0d4f666c2fbcc3452db9edf87aa726c9ebe4b8) fix(bundler): debian package `Installed-Size` value ([#1735](https://www.github.com/tauri-apps/tauri/pull/1735)) on 2021-05-07
+- Use `armhf` as Debian package architecture on `arm` CPUs.
+  - [894643c](https://www.github.com/tauri-apps/tauri/commit/894643cdcd7446f63c4a0ab157be3cb8c242952a) feat(bundler): use `armhf` as Debian package architecture on arm CPUs ([#1663](https://www.github.com/tauri-apps/tauri/pull/1663)) on 2021-04-30
+- Adds basic library documentation.
+  - [fcee4c2](https://www.github.com/tauri-apps/tauri/commit/fcee4c25fc2e83a587e096b26d9f7c374c3db057) refactor(bundler): finish initial documentation, reorganize modules ([#1662](https://www.github.com/tauri-apps/tauri/pull/1662)) on 2021-04-30
+- The `PackageTypes` enum now includes all options, including Windows packages.
+  - [fcee4c2](https://www.github.com/tauri-apps/tauri/commit/fcee4c25fc2e83a587e096b26d9f7c374c3db057) refactor(bundler): finish initial documentation, reorganize modules ([#1662](https://www.github.com/tauri-apps/tauri/pull/1662)) on 2021-04-30
+- Adds `icon_path` field to the `WindowsSettings` struct (defaults to `icons/icon.ico`).
+  - [314936e](https://www.github.com/tauri-apps/tauri/commit/314936efbeb3ecaece244da5a1a4a59341d4f76f) feat(bundler): add icon path config instead of enforcing icons/icon.ico ([#1698](https://www.github.com/tauri-apps/tauri/pull/1698)) on 2021-05-03
+- Pull latest changes from `create-dmg`, fixing unmount issue.
+  - [f1aa120](https://www.github.com/tauri-apps/tauri/commit/f1aa12075f9f649ff6baebc0f8e7a10f1e616cc6) fix(bundler): update create-dmg, fixes [#1571](https://www.github.com/tauri-apps/tauri/pull/1571) ([#1729](https://www.github.com/tauri-apps/tauri/pull/1729)) on 2021-05-06
+- Fixes DMG volume icon.
+  - [e37e187](https://www.github.com/tauri-apps/tauri/commit/e37e187d4a3c7568463c2546099d03dd5a314f40) fix(bundler): dmg volume icon ([#1730](https://www.github.com/tauri-apps/tauri/pull/1730)) on 2021-05-06
+- Added the \`#\[non_exhaustive] attribute where appropriate.
+  - [e087f0f](https://www.github.com/tauri-apps/tauri/commit/e087f0f9374355ac4b4a48f94727ef8b26b1c4cf) feat: add `#[non_exhaustive]` attribute ([#1725](https://www.github.com/tauri-apps/tauri/pull/1725)) on 2021-05-05
+
 ## \[1.0.0-beta-rc.1]
 
 - Find best available icon for AppImage, follow `.DirIcon` spec.

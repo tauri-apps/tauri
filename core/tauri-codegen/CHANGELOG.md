@@ -1,5 +1,14 @@
 # Changelog
 
+## \[1.0.0-beta.0]
+
+- **Breaking:** The `assets` field on the `tauri::Context` struct is now a `Arc<impl Assets>`.
+  - [5110c70](https://www.github.com/tauri-apps/tauri/commit/5110c704be67e51d49fb83f3710afb593973dcf9) feat(core): allow users to access the Assets instance ([#1691](https://www.github.com/tauri-apps/tauri/pull/1691)) on 2021-05-03
+- Reintroduce `csp` injection, configured on `tauri.conf.json > tauri > security > csp`.
+  - [6132f3f](https://www.github.com/tauri-apps/tauri/commit/6132f3f4feb64488ef618f690a4f06adce864d91) feat(core): reintroduce CSP injection ([#1704](https://www.github.com/tauri-apps/tauri/pull/1704)) on 2021-05-04
+- Added the \`#\[non_exhaustive] attribute where appropriate.
+  - [e087f0f](https://www.github.com/tauri-apps/tauri/commit/e087f0f9374355ac4b4a48f94727ef8b26b1c4cf) feat: add `#[non_exhaustive]` attribute ([#1725](https://www.github.com/tauri-apps/tauri/pull/1725)) on 2021-05-05
+
 ## \[1.0.0-beta-rc.1]
 
 - The package info APIs now checks the `package` object on `tauri.conf.json`.

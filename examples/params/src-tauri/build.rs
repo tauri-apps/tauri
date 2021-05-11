@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use tauri_build::{try_build, Attributes, WindowsAttributes};
+
 fn main() {
   if let Err(error) = try_build(
     Attributes::new()

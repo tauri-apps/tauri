@@ -119,7 +119,7 @@ fn build_command(matches: &ArgMatches) -> Result<()> {
   let target = matches.value_of("target");
   let debug = matches.is_present("debug");
   let verbose = matches.is_present("verbose");
-  let bundles = matches.values_of_lossy("bundles");
+  let bundles = matches.values_of_lossy("bundle");
   let config = matches.value_of("config");
 
   let mut build_runner = build::Build::new();

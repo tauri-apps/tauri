@@ -94,15 +94,14 @@ fn log_window_label(window: tauri::Window<impl Params>) {
 
 #[command]
 fn send_foo(window: tauri::Window<impl Params>) {
-  window.emit(&Event::Foo, ()).expect("couldn't send Event::Foo");
+  window
+    .emit(&Event::Foo, ())
+    .expect("couldn't send Event::Foo");
 }
 
 fn main() {
   tauri::Builder::<Event, Window, Menu, SystemMenu, _, Wry>::new()
-    .invoke_handler(tauri::generate_handler![
-      log_window_label,
-      send_foo
-    ])
+    .invoke_handler(tauri::generate_handler![log_window_label, send_foo])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

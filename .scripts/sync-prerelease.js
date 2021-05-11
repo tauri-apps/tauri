@@ -39,6 +39,6 @@ writeFileSync(changelogPath, changelog)
 
 for (const dependencyManifestPath of dependencyManifestPaths) {
   let dependencyManifest = readFileSync(dependencyManifestPath, "utf-8")
-  dependencyManifest = dependencyManifest.replace(/tauri-runtime = { version = "(\d+\.\d+\.\d+)-[^0-9\.]+\.0"/, 'tauri-runtime = { version = "$1"')
+  dependencyManifest = dependencyManifest.replace(new RegExp(packageNickname + ' = { version = "(\\d+\\.\\d+\.\\d+)-[^0-9\.]+\.0"'), `${packageNickname} = { version = "$1"`)
   writeFileSync(dependencyManifestPath, dependencyManifest)
 }

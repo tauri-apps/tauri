@@ -72,7 +72,7 @@ pub use {
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       WindowEvent,
     },
-    MenuId, Params,
+    Icon, MenuId, Params,
   },
   self::state::{State, StateManager},
   self::window::{Monitor, Window},
@@ -128,25 +128,61 @@ macro_rules! tauri_build_context {
 /// This is the output of the `tauri::generate_context!` macro, and is not considered part of the stable API.
 /// Unless you know what you are doing and are prepared for this type to have breaking changes, do not create it yourself.
 pub struct Context<A: Assets> {
+  pub(crate) config: Config,
+  pub(crate) assets: Arc<A>,
+  pub(crate) default_window_icon: Option<Vec<u8>>,
+  pub(crate) system_tray_icon: Option<Icon>,
+  pub(crate) package_info: crate::api::PackageInfo,
+}
+
+impl<A: Assets> Context<A> {
   /// The config the application was prepared with.
-  pub config: Config,
+  #[inline(always)]
+  pub fn config(&self) -> &Config {
+    &self.config
+  }
 
   /// The assets to be served directly by Tauri.
-  pub assets: Arc<A>,
+  #[inline(always)]
+  pub fn assets(&self) -> Arc<A> {
+    self.assets.clone()
+  }
 
   /// The default window icon Tauri should use when creating windows.
-  pub default_window_icon: Option<Vec<u8>>,
+  #[inline(always)]
+  pub fn default_window_icon(&self) -> Option<&[u8]> {
+    self.default_window_icon.as_deref()
+  }
 
   /// The icon to use use on the system tray UI.
-  #[cfg(target_os = "linux")]
-  pub system_tray_icon: Option<std::path::PathBuf>,
-
-  /// The icon to use use on the system tray UI.
-  #[cfg(not(target_os = "linux"))]
-  pub system_tray_icon: Option<Vec<u8>>,
+  #[inline(always)]
+  pub fn system_tray_icon(&self) -> Option<&Icon> {
+    self.system_tray_icon.as_ref()
+  }
 
   /// Package information.
-  pub package_info: crate::api::PackageInfo,
+  #[inline(always)]
+  pub fn package_info(&self) -> &crate::api::PackageInfo {
+    &self.package_info
+  }
+
+  /// Create a new [`Context`] from the minimal required items.
+  #[inline(always)]
+  pub fn new(
+    config: Config,
+    assets: Arc<A>,
+    default_window_icon: Option<Vec<u8>>,
+    system_tray_icon: Option<Icon>,
+    package_info: crate::api::PackageInfo,
+  ) -> Self {
+    Self {
+      config,
+      assets,
+      default_window_icon,
+      system_tray_icon,
+      package_info,
+    }
+  }
 }
 
 // TODO: expand these docs

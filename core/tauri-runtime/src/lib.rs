@@ -119,23 +119,11 @@ pub trait Runtime: Sized + 'static {
   ) -> crate::Result<DetachedWindow<P>>;
 
   /// Adds the icon to the system tray with the specified menu items.
-  #[cfg(all(feature = "system-tray", target_os = "linux"))]
-  #[cfg_attr(doc_cfg, doc(cfg(all(feature = "system-tray", target_os = "linux"))))]
+  #[cfg(feature = "system-tray")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   fn system_tray<I: MenuId>(
     &self,
-    icon: std::path::PathBuf,
-    menu: Vec<menu::SystemTrayMenuItem<I>>,
-  ) -> crate::Result<()>;
-
-  /// Adds the icon to the system tray with the specified menu items.
-  #[cfg(all(feature = "system-tray", not(target_os = "linux")))]
-  #[cfg_attr(
-    doc_cfg,
-    doc(cfg(all(feature = "system-tray", not(target_os = "linux"))))
-  )]
-  fn system_tray<I: MenuId>(
-    &self,
-    icon: Vec<u8>,
+    icon: Icon,
     menu: Vec<menu::SystemTrayMenuItem<I>>,
   ) -> crate::Result<()>;
 

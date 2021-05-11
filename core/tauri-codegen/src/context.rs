@@ -88,16 +88,18 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         .join(system_tray_icon_path)
         .display()
         .to_string();
-      quote!(Some(::std::path::PathBuf::from(#system_tray_icon_path)))
+      quote!(Some(#root::Icon::File(::std::path::PathBuf::from(#system_tray_icon_path))))
     } else {
       let system_tray_icon_file_path = system_tray_icon_path.to_string_lossy().to_string();
       quote!(
         Some(
-          #root::api::path::resolve_path(
-            &#config, &#package_info,
-            #system_tray_icon_file_path,
-            Some(#root::api::path::BaseDirectory::Resource)
-          ).expect("failed to resolve resource dir")
+          #root::Icon::File(
+            #root::api::path::resolve_path(
+              &#config, &#package_info,
+             #system_tray_icon_file_path,
+             Some(#root::api::path::BaseDirectory::Resource)
+            ).expect("failed to resolve resource dir")
+          )
         )
       )
     }
@@ -113,17 +115,17 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       .join(system_tray_icon_path)
       .display()
       .to_string();
-    quote!(Some(include_bytes!(#system_tray_icon_path).to_vec()))
+    quote!(Some(#root::Icon::Raw(include_bytes!(#system_tray_icon_path).to_vec())))
   } else {
     quote!(None)
   };
 
   // double braces are purposeful to force the code into a block expression
-  Ok(quote!(#root::Context {
-    system_tray_icon: #system_tray_icon,
-    config: #config,
-    assets: ::std::sync::Arc::new(#assets),
-    default_window_icon: #default_window_icon,
-    package_info: #package_info,
-  }))
+  Ok(quote!(#root::Context::new(
+    #config,
+    ::std::sync::Arc::new(#assets),
+    #default_window_icon,
+    #system_tray_icon,
+    #package_info,
+  )))
 }

@@ -820,30 +820,34 @@ impl Runtime for Wry {
     Ok(DetachedWindow { label, dispatcher })
   }
 
-  #[cfg(all(feature = "system-tray", target_os = "linux"))]
+  #[cfg(feature = "system-tray")]
   fn system_tray<I: MenuId>(
     &self,
-    icon: std::path::PathBuf,
+    icon: Icon,
     menu_items: Vec<SystemTrayMenuItem<I>>,
   ) -> Result<()> {
-    SystemTrayBuilder::new(
-      icon,
-      menu_items
-        .into_iter()
-        .map(|m| MenuItemWrapper::from(m).0)
-        .collect(),
-    )
-    .build(&self.event_loop)
-    .map_err(|e| Error::SystemTray(Box::new(e)))?;
-    Ok(())
-  }
+    // todo: fix this interface in Tao to an enum similar to Icon
 
-  #[cfg(all(feature = "system-tray", not(target_os = "linux")))]
-  fn system_tray<I: MenuId>(
-    &self,
-    icon: Vec<u8>,
-    menu_items: Vec<SystemTrayMenuItem<I>>,
-  ) -> Result<()> {
+    // we expect the code that passes the Icon enum to have already checked the platform.
+    let icon = match icon {
+      #[cfg(target_os = "linux")]
+      Icon::File(path) => path,
+
+      #[cfg(not(target_os = "linux"))]
+      Icon::Raw(bytes) => bytes,
+
+      #[cfg(target_os = "linux")]
+      Icon::Raw(_) => {
+        panic!("linux requires the system menu icon to be a file path, not bytes.")
+      }
+
+      #[cfg(not(target_os = "linux"))]
+      Icon::File(_) => {
+        panic!("non-linux system menu icons must be bytes, not a file path",)
+      }
+      _ => unreachable!(),
+    };
+
     SystemTrayBuilder::new(
       icon,
       menu_items

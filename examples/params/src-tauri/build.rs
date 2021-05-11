@@ -3,5 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 fn main() {
-  tauri_build::build();
+  if let Err(error) = try_build(
+    Attributes::new()
+      .windows_attributes(WindowsAttributes::new().window_icon_path("../../.icons/icon.ico")),
+  ) {
+    panic!("error found during tauri-build: {}", error);
+  }
 }

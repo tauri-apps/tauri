@@ -177,11 +177,11 @@ pub enum FileDropEvent {
 }
 
 /// Rpc handler.
-pub type WebviewRpcHandler<M> = Box<dyn Fn(DetachedWindow<M>, RpcRequest) + Send>;
+pub type WebviewRpcHandler<P> = Box<dyn Fn(DetachedWindow<P>, RpcRequest) + Send>;
 
 /// File drop handler callback
 /// Return `true` in the callback to block the OS' default behavior of handling a file drop.
-pub type FileDropHandler<M> = Box<dyn Fn(FileDropEvent, DetachedWindow<M>) -> bool + Send>;
+pub type FileDropHandler<P> = Box<dyn Fn(FileDropEvent, DetachedWindow<P>) -> bool + Send>;
 
 #[derive(Deserialize)]
 pub struct InvokePayload {

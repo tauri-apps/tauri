@@ -539,10 +539,10 @@ impl Dispatch for WryDispatcher {
       .map_err(|_| Error::FailedToSendMessage)
   }
 
-  fn create_window<M: Params<Runtime = Self::Runtime>>(
+  fn create_window<P: Params<Runtime = Self::Runtime>>(
     &mut self,
-    pending: PendingWindow<M>,
-  ) -> Result<DetachedWindow<M>> {
+    pending: PendingWindow<P>,
+  ) -> Result<DetachedWindow<P>> {
     let (tx, rx) = channel();
     let label = pending.label.clone();
     let context = self.context.clone();
@@ -782,10 +782,10 @@ impl Runtime for Wry {
     })
   }
 
-  fn create_window<M: Params<Runtime = Self>>(
+  fn create_window<P: Params<Runtime = Self>>(
     &self,
-    pending: PendingWindow<M>,
-  ) -> Result<DetachedWindow<M>> {
+    pending: PendingWindow<P>,
+  ) -> Result<DetachedWindow<P>> {
     let label = pending.label.clone();
     let proxy = self.event_loop.create_proxy();
     let webview = create_webview(
@@ -1052,10 +1052,10 @@ impl Runtime for Wry {
   }
 }
 
-fn create_webview<M: Params<Runtime = Wry>>(
+fn create_webview<P: Params<Runtime = Wry>>(
   event_loop: &EventLoopWindowTarget<Message>,
   context: DispatcherContext,
-  pending: PendingWindow<M>,
+  pending: PendingWindow<P>,
 ) -> Result<WebView> {
   let PendingWindow {
     webview_attributes,
@@ -1098,10 +1098,10 @@ fn create_webview<M: Params<Runtime = Wry>>(
 }
 
 /// Create a wry rpc handler from a tauri rpc handler.
-fn create_rpc_handler<M: Params<Runtime = Wry>>(
+fn create_rpc_handler<P: Params<Runtime = Wry>>(
   context: DispatcherContext,
-  label: M::Label,
-  handler: WebviewRpcHandler<M>,
+  label: P::Label,
+  handler: WebviewRpcHandler<P>,
 ) -> Box<dyn Fn(&Window, WryRpcRequest) -> Option<RpcResponse> + 'static> {
   Box::new(move |window, request| {
     handler(
@@ -1119,10 +1119,10 @@ fn create_rpc_handler<M: Params<Runtime = Wry>>(
 }
 
 /// Create a wry file drop handler from a tauri file drop handler.
-fn create_file_drop_handler<M: Params<Runtime = Wry>>(
+fn create_file_drop_handler<P: Params<Runtime = Wry>>(
   context: DispatcherContext,
-  label: M::Label,
-  handler: FileDropHandler<M>,
+  label: P::Label,
+  handler: FileDropHandler<P>,
 ) -> Box<dyn Fn(&Window, WryFileDropEvent) -> bool + 'static> {
   Box::new(move |window, event| {
     handler(

@@ -55,32 +55,32 @@ pub struct MenuEvent {
 }
 
 /// A webview window that has yet to be built.
-pub struct PendingWindow<M: Params> {
+pub struct PendingWindow<P: Params> {
   /// The label that the window will be named.
-  pub label: M::Label,
+  pub label: P::Label,
 
   /// The [`WindowBuilder`] that the window will be created with.
-  pub window_builder: <<M::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
+  pub window_builder: <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
 
   /// The [`WebviewAttributes`] that the webview will be created with.
   pub webview_attributes: WebviewAttributes,
 
   /// How to handle RPC calls on the webview window.
-  pub rpc_handler: Option<WebviewRpcHandler<M>>,
+  pub rpc_handler: Option<WebviewRpcHandler<P>>,
 
   /// How to handle a file dropping onto the webview window.
-  pub file_drop_handler: Option<FileDropHandler<M>>,
+  pub file_drop_handler: Option<FileDropHandler<P>>,
 
   /// The resolved URL to load on the webview.
   pub url: String,
 }
 
-impl<M: Params> PendingWindow<M> {
+impl<P: Params> PendingWindow<P> {
   /// Create a new [`PendingWindow`] with a label and starting url.
   pub fn new(
-    window_builder: <<M::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
+    window_builder: <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
     webview_attributes: WebviewAttributes,
-    label: M::Label,
+    label: P::Label,
   ) -> Self {
     Self {
       window_builder,
@@ -96,11 +96,11 @@ impl<M: Params> PendingWindow<M> {
   pub fn with_config(
     window_config: WindowConfig,
     webview_attributes: WebviewAttributes,
-    label: M::Label,
+    label: P::Label,
   ) -> Self {
     Self {
       window_builder:
-        <<<M::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder>::with_config(
+        <<<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder>::with_config(
           window_config,
         ),
       webview_attributes,
@@ -113,15 +113,15 @@ impl<M: Params> PendingWindow<M> {
 }
 
 /// A webview window that is not yet managed by Tauri.
-pub struct DetachedWindow<M: Params> {
+pub struct DetachedWindow<P: Params> {
   /// Name of the window
-  pub label: M::Label,
+  pub label: P::Label,
 
   /// The [`Dispatch`](crate::Dispatch) associated with the window.
-  pub dispatcher: <M::Runtime as Runtime>::Dispatcher,
+  pub dispatcher: <P::Runtime as Runtime>::Dispatcher,
 }
 
-impl<M: Params> Clone for DetachedWindow<M> {
+impl<P: Params> Clone for DetachedWindow<P> {
   fn clone(&self) -> Self {
     Self {
       label: self.label.clone(),
@@ -130,15 +130,15 @@ impl<M: Params> Clone for DetachedWindow<M> {
   }
 }
 
-impl<M: Params> Hash for DetachedWindow<M> {
+impl<P: Params> Hash for DetachedWindow<P> {
   /// Only use the [`DetachedWindow`]'s label to represent its hash.
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.label.hash(state)
   }
 }
 
-impl<M: Params> Eq for DetachedWindow<M> {}
-impl<M: Params> PartialEq for DetachedWindow<M> {
+impl<P: Params> Eq for DetachedWindow<P> {}
+impl<P: Params> PartialEq for DetachedWindow<P> {
   /// Only use the [`DetachedWindow`]'s label to compare equality.
   fn eq(&self, other: &Self) -> bool {
     self.label.eq(&other.label)

@@ -57,10 +57,10 @@ enum Module {
 }
 
 impl Module {
-  fn run<M: Params>(
+  fn run<P: Params>(
     self,
-    window: Window<M>,
-    resolver: InvokeResolver<M>,
+    window: Window<P>,
+    resolver: InvokeResolver<P>,
     config: Arc<Config>,
     package_info: PackageInfo,
   ) {

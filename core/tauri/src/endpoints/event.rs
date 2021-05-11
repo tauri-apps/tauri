@@ -25,7 +25,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub fn run<M: Params>(self, window: Window<M>) -> crate::Result<InvokeResponse> {
+  pub fn run<P: Params>(self, window: Window<P>) -> crate::Result<InvokeResponse> {
     match self {
       Self::Listen { event, handler } => {
         let event_id = rand::random();
@@ -42,11 +42,11 @@ impl Cmd {
         payload,
       } => {
         // Panic if the user's `Tag` type decided to return an error while parsing.
-        let e: M::Event = event
+        let e: P::Event = event
           .parse()
           .unwrap_or_else(|_| panic!("Event module received unhandled event: {}", event));
 
-        let window_label: Option<M::Label> = window_label.map(|l| {
+        let window_label: Option<P::Label> = window_label.map(|l| {
           l.parse()
             .unwrap_or_else(|_| panic!("Event module recieved unhandled window: {}", l))
         });
@@ -65,7 +65,7 @@ impl Cmd {
   }
 }
 
-pub fn unlisten_js<M: Params>(window: &Window<M>, event_id: u64) -> String {
+pub fn unlisten_js<P: Params>(window: &Window<P>, event_id: u64) -> String {
   format!(
     "
       for (var event in (window['{listeners}'] || {{}})) {{
@@ -80,8 +80,8 @@ pub fn unlisten_js<M: Params>(window: &Window<M>, event_id: u64) -> String {
   )
 }
 
-pub fn listen_js<M: Params>(
-  window: &Window<M>,
+pub fn listen_js<P: Params>(
+  window: &Window<P>,
   event: String,
   event_id: u64,
   handler: String,

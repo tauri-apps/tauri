@@ -21,7 +21,7 @@ env:
 jobs:
   create-recipe-with-npm:
     name: "node@${{ matrix.node }} + npm@${{ matrix.manager }}: ${{ matrix.recipe }}"
-    runs-on: ${{ github.event.inputs.branch | 'ubuntu' }}latest
+    runs-on: ${{ github.event.inputs.branch || 'ubuntu' }}-latest
 
     strategy:
       fail-fast: false
@@ -71,7 +71,7 @@ jobs:
 
   create-recipe-with-yarn:
     name: "node@${{ matrix.node }} + yarn@1: ${{ matrix.recipe }}"
-    runs-on: ${{ github.event.inputs.branch | 'ubuntu' }}latest
+    runs-on: ${{ github.event.inputs.branch || 'ubuntu' }}-latest
 
     strategy:
       fail-fast: false

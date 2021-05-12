@@ -25,7 +25,7 @@ const vuecli: Recipe = {
     await shell(
       'npx',
       [
-        '@vue/cli',
+        '@vue/cli@latest',
         'create',
         `${cfg.appName}`,
         '--packageManager',

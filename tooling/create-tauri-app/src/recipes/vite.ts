@@ -88,23 +88,34 @@ const vite: Recipe = {
           cwd
         }
       )
-      await shell('yarn', ['install'], { cwd })
     } else {
       await shell(
         'npx',
-        ['@vitejs/create-app', `${cfg.appName}`, '--template', `${template}`],
+        [
+          '@vitejs/create-app@latest',
+          `${cfg.appName}`,
+          '--template',
+          `${template}`
+        ],
         {
           cwd
         }
       )
-      await shell('npm', ['install'], { cwd })
     }
 
     await afterViteCA(cwd, cfg.appName, template)
   },
-  postInit: async ({ packageManager }) => {
+  postInit: async ({ cwd, packageManager }) => {
+    // we don't have a consistent way to rebuild and
+    // esbuild has hit all the bugs and struggles to install on the postinstall
+    await shell('node', ['./node_modules/esbuild/install.js'], { cwd })
+    if (packageManager === 'yarn') {
+      await shell('yarn', ['build'], { cwd })
+    } else {
+      await shell('npm', ['run', 'build'], { cwd })
+    }
     console.log(`
-    Your installation completed.
+    Your installation completed. Change directories to \`${cwd}\`.
     To start, run ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
       packageManager === 'npm' ? '--' : ''
     } dev

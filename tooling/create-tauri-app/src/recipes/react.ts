@@ -84,7 +84,7 @@ export const cra: Recipe = {
       await shell(
         'npx',
         [
-          'create-react-app',
+          'create-react-app@latest',
           ...(template === 'cra.ts' ? ['--template', 'typescript'] : []),
           `${cfg.appName}`,
           '--use-npm'

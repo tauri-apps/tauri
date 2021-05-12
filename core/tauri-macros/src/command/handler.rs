@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use quote::format_ident;
 use syn::{
   parse::{Parse, ParseBuffer},
   Ident, Path, Token,
@@ -51,12 +52,14 @@ impl From<Handler> for proc_macro::TokenStream {
       wrappers,
     }: Handler,
   ) -> Self {
-    quote::quote!(move |__tauri_invoke__| {
-      let __tauri_cmd__ = __tauri_invoke__.message.command();
-      match __tauri_cmd__ {
-        #(stringify!(#commands) => #wrappers!(#paths, __tauri_invoke__),)*
+    let cmd = format_ident!("__tauri_cmd__");
+    let invoke = format_ident!("__tauri_invoke__");
+    quote::quote!(move |#invoke| {
+      let #cmd = #invoke.message.command();
+      match #cmd {
+        #(stringify!(#commands) => #wrappers!(#paths, #invoke),)*
         _ => {
-          __tauri_invoke__.resolver.reject(format!("command {} not found", __tauri_cmd__))
+          #invoke.resolver.reject(format!("command {} not found", #cmd))
         },
       }
     })

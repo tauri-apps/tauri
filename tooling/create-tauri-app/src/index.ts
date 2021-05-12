@@ -6,7 +6,7 @@ import minimist from 'minimist'
 import inquirer from 'inquirer'
 import { bold, cyan, green, reset, yellow } from 'chalk'
 import { platform } from 'os'
-import { resolve, join } from 'path'
+import { resolve, join, relative } from 'path'
 import { cra } from './recipes/react'
 import { vuecli } from './recipes/vue-cli'
 import { vanillajs } from './recipes/vanilla'
@@ -323,26 +323,19 @@ const runInit = async (argv: Argv): Promise<void> => {
     }
   }, [])
 
+  const tauriCLIVersion = !argv.dev
+    ? 'latest'
+    : `file:${relative(appDirectory, join(__dirname, '../../cli.js'))}`
+
   // Vue CLI plugin automatically runs these
   if (recipe.shortName !== 'vuecli') {
     logStep('Installing any additional needed dependencies')
-    if (argv.dev) {
-      await shell(packageManager, ['link', '@tauri-apps/cli'], {
-        cwd: appDirectory
-      })
-      await shell(packageManager, ['link', '@tauri-apps/api'], {
-        cwd: appDirectory
-      })
-    }
-
     await install({
       appDir: appDirectory,
       dependencies: recipe.extraNpmDependencies,
-      devDependencies: argv.dev
-        ? [...recipe.extraNpmDevDependencies]
-        : [argv.dev ? '@tauri-apps/cli' : ''].concat(
-            recipe.extraNpmDevDependencies
-          ),
+      devDependencies: [`@tauri-apps/cli@${tauriCLIVersion}`].concat(
+        recipe.extraNpmDevDependencies
+      ),
       packageManager
     })
 

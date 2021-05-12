@@ -51,8 +51,8 @@ pub enum Error {
   #[error("JSON error: {0}")]
   Json(#[from] serde_json::Error),
   /// Encountered an error creating the app system tray.
-  #[cfg(feature = "menu")]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
+  #[cfg(feature = "system-tray")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   #[error("error encountered during tray setup: {0}")]
   SystemTray(Box<dyn std::error::Error + Send>),
   /// Failed to load window icon.

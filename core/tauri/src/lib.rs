@@ -142,6 +142,12 @@ impl<A: Assets> Context<A> {
     &self.config
   }
 
+  /// A mutable reference to the config the application was prepared with.
+  #[inline(always)]
+  pub fn config_mut(&mut self) -> &mut Config {
+    &mut self.config
+  }
+
   /// The assets to be served directly by Tauri.
   #[inline(always)]
   pub fn assets(&self) -> Arc<A> {

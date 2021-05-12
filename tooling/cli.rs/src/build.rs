@@ -202,7 +202,7 @@ impl Build {
             match sign_file_from_env_variables(path) {
               Ok((signature_path, _signature)) => signed_paths.append(&mut vec![signature_path]),
               Err(err) => println!("Updater signature error: {}", err)
-            }            
+            }
           }
         }
         if !signed_paths.is_empty() {

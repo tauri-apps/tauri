@@ -1071,11 +1071,13 @@ fn create_webview<P: Params<Runtime = Wry>>(
     ..
   } = pending;
 
+  let is_window_transparent = window_builder.0.window.transparent;
   let window = window_builder.0.build(event_loop).unwrap();
   let mut webview_builder = WebViewBuilder::new(window)
     .map_err(|e| Error::CreateWebview(Box::new(e)))?
     .with_url(&url)
-    .unwrap(); // safe to unwrap because we validate the URL beforehand
+    .unwrap() // safe to unwrap because we validate the URL beforehand
+    .with_transparent(is_window_transparent);
   if let Some(handler) = rpc_handler {
     webview_builder =
       webview_builder.with_rpc_handler(create_rpc_handler(context.clone(), label.clone(), handler));

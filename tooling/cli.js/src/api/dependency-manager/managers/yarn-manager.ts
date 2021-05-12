@@ -38,11 +38,11 @@ export class YarnManager implements IManager {
   getLatestVersion(packageName: string): string {
     const child = crossSpawnSync(
       'yarn',
-      ['info', packageName, 'versions', '--json'],
+      ['info', packageName, 'version', '--json'],
       { cwd: appDir }
     )
     const output = String(child.output[1])
-    const packageJson = JSON.parse(output) as { data: string[] }
-    return packageJson.data[packageJson.data.length - 1]
+    const packageJson = JSON.parse(output) as { data: string }
+    return packageJson.data
   }
 }

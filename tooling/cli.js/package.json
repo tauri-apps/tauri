@@ -68,8 +68,8 @@
     "update-notifier": "5.1.0"
   },
   "devDependencies": {
-    "@babel/core": "7.14.0",
-    "@babel/preset-env": "7.14.1",
+    "@babel/core": "7.14.2",
+    "@babel/preset-env": "7.14.2",
     "@babel/preset-typescript": "7.13.0",
     "@types/cross-spawn": "6.0.2",
     "@types/fs-extra": "9.0.11",

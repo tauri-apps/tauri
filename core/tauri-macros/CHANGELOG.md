@@ -1,5 +1,14 @@
 # Changelog
 
+## \[1.0.0-beta.1]
+
+- Fixes a name collision when the command function is named `invoke`.
+  - [7862ec5](https://www.github.com/tauri-apps/tauri/commit/7862ec562fa70e3733263ce1f690d6cd2943c0b4) fix(macros): change invoke binding in generate handler ([#1804](https://www.github.com/tauri-apps/tauri/pull/1804)) on 2021-05-12
+- Fixes a name collision when the command function is named `message` or `resolver`.
+  - [0b87532](https://www.github.com/tauri-apps/tauri/commit/0b875327067ca825ff6f6f26c9b2ce6fcb001e79) fix(macros): fix rest of command collisons ([#1805](https://www.github.com/tauri-apps/tauri/pull/1805)) on 2021-05-12
+- Fixes a name collision when the command function is named `cmd`.
+  - [d36b726](https://www.github.com/tauri-apps/tauri/commit/d36b7269261d329dd7d7fcd4d5098f3fca167364) fix(macros): collision when command is named `cmd` ([#1802](https://www.github.com/tauri-apps/tauri/pull/1802)) on 2021-05-12
+
 ## \[1.0.0-beta.0]
 
 - Only commands with a `async fn` are executed on a separate task. `#[command] fn command_name` runs on the main thread.

@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-beta.1]
+
+- Adds a mutable `config` getter on the `Context` struct.
+  - [144d6b9](https://www.github.com/tauri-apps/tauri/commit/144d6b9d4d327debae13392715103a3208ce8a45) feat(core): add mutable `config` getter on the `Context` struct ([#1803](https://www.github.com/tauri-apps/tauri/pull/1803)) on 2021-05-12
+
 ## \[1.0.0-beta.0]
 
 - **Breaking:** `api::path::resolve_path()` and `api::path::app_dir()` now takes the config as first argument and the `PackageInfo` as second argument.

@@ -1,5 +1,14 @@
 # Changelog
 
+## \[1.0.0-beta.1]
+
+- Add `'self'` to default CSP because otherwise no joy on macOS.
+  - Bumped due to a bump in cli.rs.
+  - [12268e6](https://www.github.com/tauri-apps/tauri/commit/12268e6e69dc9a7034652f50316d3545cac687c7) fix(csp): add 'self' ([#1794](https://www.github.com/tauri-apps/tauri/pull/1794)) on 2021-05-12
+- Fix a typo that would result in bundle arg being ignored.
+  - Bumped due to a bump in cli.rs.
+  - [71f6a5e](https://www.github.com/tauri-apps/tauri/commit/71f6a5ed442a43bf1008043c95a1a90effdd2f81) fix(cli.rs/build): fix typo getting bundle arg ([#1783](https://www.github.com/tauri-apps/tauri/pull/1783)) on 2021-05-12
+
 ## \[1.0.0-beta.0]
 
 - Fixes `UnhandledPromiseRejectionWarning` when the Rust CLI call fails.

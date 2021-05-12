@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-beta.1]
+
+- Work around bugs between esbuild and npm by installing directly at the end of the sequence. Also default to using the latest on all of the installs instead of npx's cache.
+  - [8a164d0](https://www.github.com/tauri-apps/tauri/commit/8a164d0a1f8eb69bdcec7ae4362d26b2f3c7ff55) fix: CTA cache and vite build ([#1806](https://www.github.com/tauri-apps/tauri/pull/1806)) on 2021-05-12
+
 ## \[1.0.0-beta.0]
 
 - Explicitly install deps after a vite recipe.

@@ -72,7 +72,7 @@ const printUsage = (): void => {
 }
 
 export const createTauriApp = async (cliArgs: string[]): Promise<any> => {
-  const argv = (minimist(cliArgs, {
+  const argv = minimist(cliArgs, {
     alias: {
       h: 'help',
       v: 'version',
@@ -88,7 +88,7 @@ export const createTauriApp = async (cliArgs: string[]): Promise<any> => {
       r: 'recipe'
     },
     boolean: ['h', 'l', 'ci', 'dev']
-  }) as unknown) as Argv
+  }) as unknown as Argv
 
   if (argv.help) {
     printUsage()

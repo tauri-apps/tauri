@@ -26,8 +26,7 @@ const afterViteCA = async (
 
 const vite: Recipe = {
   descriptiveName: {
-    name:
-      '@vitejs/create-app (https://vitejs.dev/guide/#scaffolding-your-first-vite-project)',
+    name: '@vitejs/create-app (https://vitejs.dev/guide/#scaffolding-your-first-vite-project)',
     value: 'vite-create-app'
   },
   shortName: 'vite',

@@ -23,7 +23,7 @@ const dependencies = ['tauri']
 function readToml<T>(tomlPath: string): T | null {
   if (existsSync(tomlPath)) {
     const manifest = readFileSync(tomlPath).toString()
-    return (toml.parse(manifest) as any) as T
+    return toml.parse(manifest) as any as T
   }
   return null
 }
@@ -87,9 +87,8 @@ async function manageDependencies(
         if (inquired.answer) {
           log(`Updating ${dependency}...`)
           // eslint-disable-next-line security/detect-object-injection
-          manifest.dependencies[dependency] = dependencyDefinition(
-            latestVersion
-          )
+          manifest.dependencies[dependency] =
+            dependencyDefinition(latestVersion)
           updatedDeps.push(dependency)
         }
       } else {

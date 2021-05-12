@@ -84,7 +84,6 @@ export const cra: Recipe = {
       await shell(
         'npx',
         [
-          '-y', // to avoid prompt to install
           'create-react-app@latest',
           ...(template === 'cra.ts' ? ['--template', 'typescript'] : []),
           `${cfg.appName}`,

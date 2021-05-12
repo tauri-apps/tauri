@@ -25,7 +25,6 @@ const vuecli: Recipe = {
     await shell(
       'npx',
       [
-        '-y', // to avoid prompt to install
         '@vue/cli@latest',
         'create',
         `${cfg.appName}`,

@@ -92,7 +92,6 @@ const vite: Recipe = {
       await shell(
         'npx',
         [
-          '-y', // to avoid prompt to install
           '@vitejs/create-app@latest',
           `${cfg.appName}`,
           '--template',

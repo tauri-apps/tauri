@@ -201,7 +201,7 @@ impl Build {
             // sign our path from environment variables
             match sign_file_from_env_variables(path) {
               Ok((signature_path, _signature)) => signed_paths.append(&mut vec![signature_path]),
-              Err(err) => println!("Updater signature error: {}", err)
+              Err(err) => println!("Updater signature error: {}", err),
             }
           }
         }

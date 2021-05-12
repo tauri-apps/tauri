@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-beta.1]
+
+- Adds `package.json` to the `exports` object.
+  - [ab1ea96](https://www.github.com/tauri-apps/tauri/commit/ab1ea964786e1781c922582b059c555b6072f1a0) chore(api): add `package.json` to the `exports` field ([#1807](https://www.github.com/tauri-apps/tauri/pull/1807)) on 2021-05-12
+
 ## \[1.0.0-beta.0]
 
 - CommonJS chunks are now properly exported with `.cjs` extension

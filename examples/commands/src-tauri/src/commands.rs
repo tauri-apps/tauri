@@ -8,6 +8,12 @@ use tauri::{command, State};
 pub fn cmd(_argument: String) {}
 
 #[command]
+pub fn message(_argument: String) {}
+
+#[command]
+pub fn resolver(_argument: String) {}
+
+#[command]
 pub fn simple_command(argument: String) {
   println!("{}", argument);
 }

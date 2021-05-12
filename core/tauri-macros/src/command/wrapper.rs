@@ -74,7 +74,10 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
 
           // prevent warnings when the body is a `compile_error!` or if the command has no arguments
           #[allow(unused_variables)]
-          let ::tauri::Invoke { message, resolver } = $invoke;
+          let ::tauri::Invoke {
+            message: __tauri_message__,
+            resolver: __tauri_resolver__
+          } = $invoke;
 
           #body
       }};
@@ -91,14 +94,14 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// See the [`tauri::command`] module for all the items and traits that make this possible.
 ///
-/// * Requires binding `message` and `resolver`.
+/// * Requires binding `__tauri_message__` and `__tauri_resolver__`.
 /// * Requires all the traits from `tauri::command::private` to be in scope.
 ///
 /// [`tauri::command`]: https://docs.rs/tauri/*/tauri/runtime/index.html
 fn body_async(function: &ItemFn) -> syn::Result<TokenStream2> {
   parse_args(function).map(|args| {
     quote! {
-      resolver.respond_async_serialized(async move {
+      __tauri_resolver__.respond_async_serialized(async move {
         let result = $path(#(#args?),*);
         let kind = (&result).async_kind();
         kind.future(result).await
@@ -111,7 +114,7 @@ fn body_async(function: &ItemFn) -> syn::Result<TokenStream2> {
 ///
 /// See the [`tauri::command`] module for all the items and traits that make this possible.
 ///
-/// * Requires binding `message` and `resolver`.
+/// * Requires binding `__tauri_message__` and `__tauri_resolver__`.
 /// * Requires all the traits from `tauri::command::private` to be in scope.
 ///
 /// [`tauri::command`]: https://docs.rs/tauri/*/tauri/runtime/index.html
@@ -121,13 +124,13 @@ fn body_blocking(function: &ItemFn) -> syn::Result<TokenStream2> {
   // the body of a `match` to early return any argument that wasn't successful in parsing.
   let match_body = quote!({
     Ok(arg) => arg,
-    Err(err) => return resolver.invoke_error(err),
+    Err(err) => return __tauri_resolver__.invoke_error(err),
   });
 
   Ok(quote! {
     let result = $path(#(match #args #match_body),*);
     let kind = (&result).blocking_kind();
-    kind.block(result, resolver);
+    kind.block(result, __tauri_resolver__);
   })
 }
 
@@ -143,7 +146,7 @@ fn parse_args(function: &ItemFn) -> syn::Result<Vec<TokenStream2>> {
 
 /// Transform a [`FnArg`] into a command argument.
 ///
-/// * Requires binding `message`.
+/// * Requires binding `__tauri_message__`.
 fn parse_arg(command: &Ident, arg: &FnArg) -> syn::Result<TokenStream2> {
   // we have no use for self arguments
   let mut arg = match arg {
@@ -187,7 +190,7 @@ fn parse_arg(command: &Ident, arg: &FnArg) -> syn::Result<TokenStream2> {
     ::tauri::command::CommandItem {
       name: stringify!(#command),
       key: #key,
-      message: &message,
+      message: &__tauri_message__,
     }
   )))
 }

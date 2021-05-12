@@ -154,22 +154,46 @@ impl<A: Assets> Context<A> {
     self.assets.clone()
   }
 
+  /// A mutable reference to the assets to be served directly by Tauri.
+  #[inline(always)]
+  pub fn assets_mut(&mut self) -> &mut Arc<A> {
+    &mut self.assets
+  }
+
   /// The default window icon Tauri should use when creating windows.
   #[inline(always)]
   pub fn default_window_icon(&self) -> Option<&[u8]> {
     self.default_window_icon.as_deref()
   }
 
-  /// The icon to use use on the system tray UI.
+  /// A mutable reference to the default window icon Tauri should use when creating windows.
+  #[inline(always)]
+  pub fn default_window_icon_mut(&mut self) -> &mut Option<Vec<u8>> {
+    &mut self.default_window_icon
+  }
+
+  /// The icon to use on the system tray UI.
   #[inline(always)]
   pub fn system_tray_icon(&self) -> Option<&Icon> {
     self.system_tray_icon.as_ref()
+  }
+
+  /// A mutable reference to the icon to use on the system tray UI.
+  #[inline(always)]
+  pub fn system_tray_icon_mut(&mut self) -> &mut Option<Icon> {
+    &mut self.system_tray_icon
   }
 
   /// Package information.
   #[inline(always)]
   pub fn package_info(&self) -> &crate::api::PackageInfo {
     &self.package_info
+  }
+
+  /// A mutable reference to the package information.
+  #[inline(always)]
+  pub fn package_info_mut(&mut self) -> &mut crate::api::PackageInfo {
+    &mut self.package_info
   }
 
   /// Create a new [`Context`] from the minimal required items.

@@ -9,6 +9,7 @@
 
 // we move some basic commands to a separate module just to show it works
 mod commands;
+use commands::cmd;
 
 use serde::Deserialize;
 use tauri::{command, Params, State, Window};
@@ -167,6 +168,7 @@ fn main() {
       force_async_with_result,
       commands::simple_command,
       commands::stateful_command,
+      cmd,
       async_simple_command,
       future_simple_command,
       async_stateful_command,

@@ -5,6 +5,9 @@
 use tauri::{command, State};
 
 #[command]
+pub fn cmd(_argument: String) {}
+
+#[command]
 pub fn simple_command(argument: String) {
   println!("{}", argument);
 }

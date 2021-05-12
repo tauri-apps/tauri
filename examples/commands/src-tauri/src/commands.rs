@@ -11,6 +11,12 @@ pub fn cmd(_argument: String) {}
 pub fn invoke(_argument: String) {}
 
 #[command]
+pub fn message(_argument: String) {}
+
+#[command]
+pub fn resolver(_argument: String) {}
+
+#[command]
 pub fn simple_command(argument: String) {
   println!("{}", argument);
 }

@@ -9,7 +9,7 @@
 
 // we move some basic commands to a separate module just to show it works
 mod commands;
-use commands::{cmd, invoke};
+use commands::{cmd, invoke, message, resolver};
 
 use serde::Deserialize;
 use tauri::{command, Params, State, Window};
@@ -170,6 +170,8 @@ fn main() {
       commands::stateful_command,
       cmd,
       invoke,
+      message,
+      resolver,
       async_simple_command,
       future_simple_command,
       async_stateful_command,

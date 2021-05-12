@@ -20,33 +20,10 @@ const timeoutLong = 900000
 const timeoutLittleLonger = 930000
 const logOut = false ? 'inherit' : 'pipe'
 
-beforeAll(async () => {
-  const installCLI = await execa('yarn', [], {
-    stdio: logOut,
-    cwd: clijs,
-    timeout: timeoutLong
-  })
-
-  const buildCLI = await execa('yarn', ['build'], {
-    stdio: logOut,
-    cwd: clijs,
-    timeout: timeoutLong
-  })
-
-  const installAPI = await execa('yarn', [], {
-    stdio: logOut,
-    cwd: api,
-    timeout: timeoutLong
-  })
-
-  const buildAPI = await execa('yarn', ['build'], {
-    stdio: logOut,
-    cwd: api,
-    timeout: timeoutLong
-  })
-}, timeoutLittleLonger)
-
 describe('CTA', () => {
+  console.warn(
+    'NOTE: You need to have installed and built cli.js and api before running the tests.'
+  )
   describe.each(recipes.map((recipe) => [recipe, 'tauri-app']))(
     `%s recipe`,
     (recipe: string, appName: string) => {

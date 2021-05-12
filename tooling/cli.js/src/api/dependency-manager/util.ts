@@ -5,7 +5,7 @@
 import { sync as crossSpawnSync } from 'cross-spawn'
 import { resolve as appResolve } from '../../helpers/app-paths'
 import { existsSync } from 'fs'
-import semver from 'semver'
+// import semver from 'semver'
 import { IManager, NpmManager, YarnManager, PnpmManager } from './managers'
 
 const getManager = (): IManager => {

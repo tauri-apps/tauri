@@ -21,7 +21,7 @@ env:
 jobs:
   create-recipe-with-npm:
     name: "node@${{ matrix.node }} + npm@${{ matrix.manager }}: ${{ matrix.recipe }}"
-    runs-on: windows-latest # ${{ github.event.inputs.branch | 'ubuntu' }}latest
+    runs-on: ${{ github.event.inputs.branch | 'ubuntu' }}latest
 
     strategy:
       fail-fast: false
@@ -47,7 +47,7 @@ jobs:
           npm-version: ${{ matrix.manager }}
           yarn-version: 1.22.5
       - name: install webkit2gtk
-        if: false # (github.event.inputs.branch || 'ubuntu') == 'ubuntu'
+        if: (github.event.inputs.branch || 'ubuntu') == 'ubuntu'
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libgtksourceview-3.0-dev webkit2gtk-4.0 libappindicator3-dev
@@ -71,7 +71,7 @@ jobs:
 
   create-recipe-with-yarn:
     name: "node@${{ matrix.node }} + yarn@1: ${{ matrix.recipe }}"
-    runs-on: windows-latest # ${{ github.event.inputs.branch | 'ubuntu' }}latest
+    runs-on: ${{ github.event.inputs.branch | 'ubuntu' }}latest
 
     strategy:
       fail-fast: false
@@ -92,7 +92,7 @@ jobs:
           node-version: ${{ matrix.node }}
           yarn-version: 1.22.5
       - name: install webkit2gtk
-        if: false # (github.event.inputs.branch || 'ubuntu') == 'ubuntu'
+        if: (github.event.inputs.branch || 'ubuntu') == 'ubuntu'
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libgtksourceview-3.0-dev webkit2gtk-4.0 libappindicator3-dev

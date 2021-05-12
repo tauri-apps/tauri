@@ -27,13 +27,7 @@ beforeAll(async () => {
     timeout: timeoutLong
   })
 
-  const buildCLI = await execa('yarn', ['build-release'], {
-    stdio: logOut,
-    cwd: clijs,
-    timeout: timeoutLong
-  })
-
-  const linkCLI = await execa('yarn', ['link'], {
+  const buildCLI = await execa('yarn', ['build'], {
     stdio: logOut,
     cwd: clijs,
     timeout: timeoutLong
@@ -48,12 +42,6 @@ beforeAll(async () => {
   const buildAPI = await execa('yarn', ['build'], {
     stdio: logOut,
     cwd: api,
-    timeout: timeoutLong
-  })
-
-  const linkAPI = await execa('yarn', ['link'], {
-    stdio: logOut,
-    cwd: path.join(api, 'dist'),
     timeout: timeoutLong
   })
 }, timeoutLittleLonger)

@@ -8,6 +8,9 @@ use tauri::{command, State};
 pub fn cmd(_argument: String) {}
 
 #[command]
+pub fn invoke(_argument: String) {}
+
+#[command]
 pub fn simple_command(argument: String) {
   println!("{}", argument);
 }

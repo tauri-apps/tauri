@@ -51,12 +51,12 @@ impl From<Handler> for proc_macro::TokenStream {
       wrappers,
     }: Handler,
   ) -> Self {
-    quote::quote!(move |invoke| {
-      let __tauri_cmd__ = invoke.message.command();
+    quote::quote!(move |__tauri_invoke__| {
+      let __tauri_cmd__ = __tauri_invoke__.message.command();
       match __tauri_cmd__ {
-        #(stringify!(#commands) => #wrappers!(#paths, invoke),)*
+        #(stringify!(#commands) => #wrappers!(#paths, __tauri_invoke__),)*
         _ => {
-          invoke.resolver.reject(format!("command {} not found", __tauri_cmd__))
+          __tauri_invoke__.resolver.reject(format!("command {} not found", __tauri_cmd__))
         },
       }
     })

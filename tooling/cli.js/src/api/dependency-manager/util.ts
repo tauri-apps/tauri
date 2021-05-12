@@ -61,7 +61,7 @@ function padVersion(version: string): string {
 
 function semverLt(first: string, second: string): boolean {
   return first !== second
-  // When version 1.0.0 is released this code should work again
+  // TODO: When version 1.0.0 is released this code should work again
   // return semver.lt(padVersion(first), padVersion(second))
 }
 

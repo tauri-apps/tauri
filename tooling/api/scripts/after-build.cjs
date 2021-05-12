@@ -17,7 +17,9 @@ if (!pkg.exports) {
 const outputPkg = {
   ...pkg,
   exports: Object.assign(
-    {},
+    {
+      './package.json': './package.json'
+    },
     ...modules.map((mod) => {
       let temp = {}
       let key = `./${mod}`

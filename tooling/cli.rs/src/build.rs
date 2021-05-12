@@ -199,8 +199,10 @@ impl Build {
           // another type of updater package who require multiple file signature
           for path in elem.bundle_paths.iter() {
             // sign our path from environment variables
-            let (signature_path, _signature) = sign_file_from_env_variables(path)?;
-            signed_paths.append(&mut vec![signature_path]);
+            match sign_file_from_env_variables(path) {
+              Ok((signature_path, _signature)) => signed_paths.append(&mut vec![signature_path]),
+              Err(err) => println!("Updater signature error: {}", err)
+            }            
           }
         }
         if !signed_paths.is_empty() {

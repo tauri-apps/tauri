@@ -20,5 +20,5 @@ uuid = { version = "0.8.2", features = [ "v4" ] }
 
 [features]
 dox = [ "wry/dox" ]
-menu = [ "wry/menu" ]
-system-tray = [ "wry/tray" ]
+menu = [ "wry/menu", "tauri-runtime/menu" ]
+system-tray = [ "wry/tray", "tauri-runtime/system-tray" ]

@@ -37,7 +37,7 @@ jobs:
         working-directory: ./tauri/core/tauri
         run: cargo doc --no-deps
       - name: run rustdocusaurus
-        uses: tauri-apps/rustdocusaurus/github-action@v1
+        uses: tauri-apps/rustdocusaurus/github-action@v1.0.3
         with:
           originPath: ./tauri/target/doc/
           targetPath: ./tauri-docs/docs/en/api/rust/

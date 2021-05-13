@@ -74,7 +74,6 @@ async function manageDependencies(
       installedDeps.push(dependency)
     } else if (managementType === ManagementType.Update) {
       const latestVersion = getCrateLatestVersion(dependency)
-      console.log(dependency, currentVersion, latestVersion)
       if (latestVersion !== null && semverLt(currentVersion, latestVersion)) {
         const inquired = (await inquirer.prompt([
           {

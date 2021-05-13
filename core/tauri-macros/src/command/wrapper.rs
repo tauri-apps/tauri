@@ -4,7 +4,7 @@
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::{
   parse::{Parse, ParseBuffer},
   parse_macro_input,
@@ -36,6 +36,12 @@ impl Parse for ExecutionContext {
   }
 }
 
+/// The bindings we attach to `tauri::Invoke`.
+struct Invoke {
+  message: Ident,
+  resolver: Ident,
+}
+
 /// Create a new [`Wrapper`] from the function and the generated code parsed from the function.
 pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
   let function = parse_macro_input!(item as ItemFn);
@@ -48,6 +54,11 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     _ => Default::default(),
   };
 
+  let invoke = Invoke {
+    message: format_ident!("__tauri_message__"),
+    resolver: format_ident!("__tauri_resolver__"),
+  };
+
   // body to the command wrapper or a `compile_error!` of an error occurred while parsing it.
   let body = syn::parse::<ExecutionContext>(attributes)
     .map(|context| match function.sig.asyncness {
@@ -55,10 +66,12 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
       None => context,
     })
     .and_then(|context| match context {
-      ExecutionContext::Async => body_async(&function),
-      ExecutionContext::Blocking => body_blocking(&function),
+      ExecutionContext::Async => body_async(&function, &invoke),
+      ExecutionContext::Blocking => body_blocking(&function, &invoke),
     })
     .unwrap_or_else(syn::Error::into_compile_error);
+
+  let Invoke { message, resolver } = invoke;
 
   // Rely on rust 2018 edition to allow importing a macro from a path.
   quote!(
@@ -68,16 +81,9 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     macro_rules! #wrapper {
         // double braces because the item is expected to be a block expression
         ($path:path, $invoke:ident) => {{
-          // import all the autoref specialization items
-          #[allow(unused_imports)]
-          use ::tauri::command::private::*;
-
           // prevent warnings when the body is a `compile_error!` or if the command has no arguments
           #[allow(unused_variables)]
-          let ::tauri::Invoke {
-            message: __tauri_message__,
-            resolver: __tauri_resolver__
-          } = $invoke;
+          let ::tauri::Invoke { message: #message, resolver: #resolver } = $invoke;
 
           #body
       }};
@@ -94,14 +100,15 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// See the [`tauri::command`] module for all the items and traits that make this possible.
 ///
-/// * Requires binding `__tauri_message__` and `__tauri_resolver__`.
-/// * Requires all the traits from `tauri::command::private` to be in scope.
-///
 /// [`tauri::command`]: https://docs.rs/tauri/*/tauri/runtime/index.html
-fn body_async(function: &ItemFn) -> syn::Result<TokenStream2> {
-  parse_args(function).map(|args| {
+fn body_async(function: &ItemFn, invoke: &Invoke) -> syn::Result<TokenStream2> {
+  let Invoke { message, resolver } = invoke;
+  parse_args(function, message).map(|args| {
     quote! {
-      __tauri_resolver__.respond_async_serialized(async move {
+      #[allow(unused_imports)]
+      use ::tauri::command::private::*;
+
+      #resolver.respond_async_serialized(async move {
         let result = $path(#(#args?),*);
         let kind = (&result).async_kind();
         kind.future(result).await
@@ -114,40 +121,39 @@ fn body_async(function: &ItemFn) -> syn::Result<TokenStream2> {
 ///
 /// See the [`tauri::command`] module for all the items and traits that make this possible.
 ///
-/// * Requires binding `__tauri_message__` and `__tauri_resolver__`.
-/// * Requires all the traits from `tauri::command::private` to be in scope.
-///
 /// [`tauri::command`]: https://docs.rs/tauri/*/tauri/runtime/index.html
-fn body_blocking(function: &ItemFn) -> syn::Result<TokenStream2> {
-  let args = parse_args(function)?;
+fn body_blocking(function: &ItemFn, invoke: &Invoke) -> syn::Result<TokenStream2> {
+  let Invoke { message, resolver } = invoke;
+  let args = parse_args(function, message)?;
 
   // the body of a `match` to early return any argument that wasn't successful in parsing.
   let match_body = quote!({
     Ok(arg) => arg,
-    Err(err) => return __tauri_resolver__.invoke_error(err),
+    Err(err) => return #resolver.invoke_error(err),
   });
 
   Ok(quote! {
+    #[allow(unused_imports)]
+    use ::tauri::command::private::*;
+
     let result = $path(#(match #args #match_body),*);
     let kind = (&result).blocking_kind();
-    kind.block(result, __tauri_resolver__);
+    kind.block(result, #resolver);
   })
 }
 
 /// Parse all arguments for the command wrapper to use from the signature of the command function.
-fn parse_args(function: &ItemFn) -> syn::Result<Vec<TokenStream2>> {
+fn parse_args(function: &ItemFn, message: &Ident) -> syn::Result<Vec<TokenStream2>> {
   function
     .sig
     .inputs
     .iter()
-    .map(|arg| parse_arg(&function.sig.ident, arg))
+    .map(|arg| parse_arg(&function.sig.ident, arg, message))
     .collect()
 }
 
 /// Transform a [`FnArg`] into a command argument.
-///
-/// * Requires binding `__tauri_message__`.
-fn parse_arg(command: &Ident, arg: &FnArg) -> syn::Result<TokenStream2> {
+fn parse_arg(command: &Ident, arg: &FnArg, message: &Ident) -> syn::Result<TokenStream2> {
   // we have no use for self arguments
   let mut arg = match arg {
     FnArg::Typed(arg) => arg.pat.as_ref().clone(),
@@ -190,7 +196,7 @@ fn parse_arg(command: &Ident, arg: &FnArg) -> syn::Result<TokenStream2> {
     ::tauri::command::CommandItem {
       name: stringify!(#command),
       key: #key,
-      message: &__tauri_message__,
+      message: &#message,
     }
   )))
 }

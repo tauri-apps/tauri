@@ -21,6 +21,7 @@
     ".changes/cli-target-triple.md",
     ".changes/cli-targets-refactor.md",
     ".changes/cli.js-error-propagation.md",
+    ".changes/cli.js-package-check.md",
     ".changes/cli.js-rustup.md",
     ".changes/cmd-invoke-binding.md",
     ".changes/cmd-touch-bindings.md",

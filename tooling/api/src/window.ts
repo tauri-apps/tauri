@@ -741,7 +741,6 @@ export {
   getCurrent,
   getAll,
   appWindow,
-  Monitor,
   LogicalSize,
   PhysicalSize,
   LogicalPosition,
@@ -749,4 +748,8 @@ export {
   currentMonitor,
   primaryMonitor,
   availableMonitors
+}
+
+export type {
+  Monitor
 }

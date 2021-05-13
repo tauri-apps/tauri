@@ -5,7 +5,7 @@
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
   config::{get as get_config, reload as reload_config},
-  manifest::rewrite_manifest,
+  manifest::{get_workspace_members, rewrite_manifest},
   Logger,
 };
 
@@ -156,6 +156,12 @@ impl Dev {
     watcher.watch(tauri_path.join("src"), RecursiveMode::Recursive)?;
     watcher.watch(tauri_path.join("Cargo.toml"), RecursiveMode::Recursive)?;
     watcher.watch(tauri_path.join("tauri.conf.json"), RecursiveMode::Recursive)?;
+
+    for member in get_workspace_members()? {
+      let workspace_path = tauri_path.join(member);
+      watcher.watch(workspace_path.join("src"), RecursiveMode::Recursive)?;
+      watcher.watch(workspace_path.join("Cargo.toml"), RecursiveMode::Recursive)?;
+    }
 
     loop {
       if let Ok(event) = rx.recv() {

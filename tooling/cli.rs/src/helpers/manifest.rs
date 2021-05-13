@@ -10,10 +10,25 @@ use toml_edit::{Array, Document, InlineTable, Item, Value};
 use std::{
   fs::File,
   io::{Read, Write},
+  path::Path,
 };
 
 pub struct Manifest {
   pub features: Vec<String>,
+}
+
+fn read_manifest(manifest_path: &Path) -> crate::Result<Document> {
+  let mut manifest_str = String::new();
+
+  let mut manifest_file = File::open(manifest_path)
+    .with_context(|| format!("failed to open `{:?}` file", manifest_path))?;
+  manifest_file.read_to_string(&mut manifest_str)?;
+
+  let manifest: Document = manifest_str
+    .parse::<Document>()
+    .with_context(|| "failed to parse Cargo.toml")?;
+
+  Ok(manifest)
 }
 
 fn features_to_vec(features: &Array) -> Vec<String> {
@@ -28,13 +43,7 @@ fn features_to_vec(features: &Array) -> Vec<String> {
 
 pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
   let manifest_path = tauri_dir().join("Cargo.toml");
-  let mut manifest_str = String::new();
-  let mut manifest_file = File::open(&manifest_path)
-    .with_context(|| format!("failed to open `{:?}` file", manifest_path))?;
-  manifest_file.read_to_string(&mut manifest_str)?;
-  let mut manifest: Document = manifest_str
-    .parse::<Document>()
-    .with_context(|| "failed to parse Cargo.toml")?;
+  let mut manifest = read_manifest(&manifest_path)?;
   let dependencies = manifest
     .as_table_mut()
     .entry("dependencies")
@@ -126,4 +135,25 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
   Ok(Manifest {
     features: features_to_vec(&features),
   })
+}
+
+pub fn get_workspace_members() -> crate::Result<Vec<String>> {
+  let mut manifest = read_manifest(&tauri_dir().join("Cargo.toml"))?;
+  let workspace = manifest.as_table_mut().entry("workspace").as_table_mut();
+
+  match workspace {
+    Some(workspace) => {
+      let members = workspace
+        .entry("members")
+        .as_array()
+        .expect("workspace members aren't an array");
+      Ok(
+        members
+          .iter()
+          .map(|v| v.as_str().unwrap().to_string())
+          .collect(),
+      )
+    }
+    None => Ok(vec![]),
+  }
 }

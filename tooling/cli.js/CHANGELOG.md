@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-beta.2]
+
+- Packages are checked with `!=` instead of `semver` for beta releases.
+  - [66b6136](https://www.github.com/tauri-apps/tauri/commit/66b6136e06053e839b936ab17051d61748fa4f4e) Disable version check with semver for now ([#1810](https://www.github.com/tauri-apps/tauri/pull/1810)) on 2021-05-13
+
 ## \[1.0.0-beta.1]
 
 - Add `'self'` to default CSP because otherwise no joy on macOS.

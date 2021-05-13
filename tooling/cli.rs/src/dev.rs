@@ -48,6 +48,7 @@ fn kill_before_dev_process() {
 pub struct Dev {
   runner: Option<String>,
   target: Option<String>,
+  features: Option<Vec<String>>,
   exit_on_panic: bool,
   config: Option<String>,
   args: Vec<String>,
@@ -65,6 +66,11 @@ impl Dev {
 
   pub fn target(mut self, target: String) -> Self {
     self.target.replace(target);
+    self
+  }
+
+  pub fn features(mut self, features: Vec<String>) -> Self {
+    self.features.replace(features);
     self
   }
 
@@ -145,14 +151,18 @@ impl Dev {
       }
     }
 
-    let cargo_features = config
+    let mut cargo_features = config
       .lock()
       .unwrap()
       .as_ref()
       .unwrap()
       .build
       .features
-      .clone();
+      .clone()
+      .unwrap_or_default();
+    if let Some(features) = &self.features {
+      cargo_features.extend(features.clone());
+    }
 
     let (child_wait_tx, child_wait_rx) = channel();
     let child_wait_rx = Arc::new(Mutex::new(child_wait_rx));
@@ -210,7 +220,7 @@ impl Dev {
   fn start_app(
     &self,
     runner: &str,
-    features: &Option<Vec<String>>,
+    features: &[String],
     child_wait_rx: Arc<Mutex<Receiver<()>>>,
   ) -> Arc<SharedChild> {
     let mut command = Command::new(runner);
@@ -220,7 +230,7 @@ impl Dev {
       command.args(&["--target", target]);
     }
 
-    if let Some(features) = features {
+    if !features.is_empty() {
       command.args(&["--features", &features.join(",")]);
     }
 

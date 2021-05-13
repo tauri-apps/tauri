@@ -24,6 +24,7 @@ pub struct Build {
   debug: bool,
   verbose: bool,
   target: Option<String>,
+  features: Option<Vec<String>>,
   bundles: Option<Vec<String>>,
   config: Option<String>,
 }
@@ -50,6 +51,11 @@ impl Build {
 
   pub fn target(mut self, target: String) -> Self {
     self.target.replace(target);
+    self
+  }
+
+  pub fn features(mut self, features: Vec<String>) -> Self {
+    self.features.replace(features);
     self
   }
 
@@ -111,7 +117,10 @@ impl Build {
       .or(runner_from_config)
       .unwrap_or_else(|| "cargo".to_string());
 
-    let cargo_features = &config_.build.features;
+    let mut cargo_features = config_.build.features.clone().unwrap_or_default();
+    if let Some(features) = self.features {
+      cargo_features.extend(features);
+    }
 
     rust::build_project(runner, &self.target, cargo_features, self.debug)
       .with_context(|| "failed to build app")?;

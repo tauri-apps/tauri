@@ -92,6 +92,10 @@ fn init_command(matches: &ArgMatches) -> Result<()> {
 fn dev_command(matches: &ArgMatches) -> Result<()> {
   let runner = matches.value_of("runner");
   let target = matches.value_of("target");
+  let features: Vec<String> = matches
+    .values_of("features")
+    .map(|a| a.into_iter().map(|v| v.to_string()).collect())
+    .unwrap_or_default();
   let exit_on_panic = matches.is_present("exit-on-panic");
   let config = matches.value_of("config");
   let args: Vec<String> = matches
@@ -99,7 +103,10 @@ fn dev_command(matches: &ArgMatches) -> Result<()> {
     .map(|a| a.into_iter().map(|v| v.to_string()).collect())
     .unwrap_or_default();
 
-  let mut dev_runner = dev::Dev::new().exit_on_panic(exit_on_panic).args(args);
+  let mut dev_runner = dev::Dev::new()
+    .exit_on_panic(exit_on_panic)
+    .args(args)
+    .features(features);
 
   if let Some(runner) = runner {
     dev_runner = dev_runner.runner(runner.to_string());
@@ -117,12 +124,16 @@ fn dev_command(matches: &ArgMatches) -> Result<()> {
 fn build_command(matches: &ArgMatches) -> Result<()> {
   let runner = matches.value_of("runner");
   let target = matches.value_of("target");
+  let features: Vec<String> = matches
+    .values_of("features")
+    .map(|a| a.into_iter().map(|v| v.to_string()).collect())
+    .unwrap_or_default();
   let debug = matches.is_present("debug");
   let verbose = matches.is_present("verbose");
   let bundles = matches.values_of_lossy("bundle");
   let config = matches.value_of("config");
 
-  let mut build_runner = build::Build::new();
+  let mut build_runner = build::Build::new().features(features);
   if let Some(runner) = runner {
     build_runner = build_runner.runner(runner.to_string());
   }

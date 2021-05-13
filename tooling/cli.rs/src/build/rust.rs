@@ -90,12 +90,26 @@ struct CargoConfig {
   build: Option<CargoBuildConfig>,
 }
 
-pub fn build_project(runner: String, target: &Option<String>, debug: bool) -> crate::Result<()> {
+pub fn build_project(
+  runner: String,
+  target: &Option<String>,
+  features: &Option<Vec<String>>,
+  debug: bool,
+) -> crate::Result<()> {
   let mut args = vec!["build", "--features=custom-protocol"];
 
   if let Some(target) = target {
     args.push("--target");
     args.push(target);
+  }
+
+  // newly created `String` needs to outlive `if` block, because args `Vec` borrows it
+  let features_string;
+
+  if let Some(features) = features {
+    features_string = features.join(",");
+    args.push("--features");
+    args.push(&features_string);
   }
 
   if !debug {

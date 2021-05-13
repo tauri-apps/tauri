@@ -145,10 +145,19 @@ impl Dev {
       }
     }
 
+    let cargo_features = config
+      .lock()
+      .unwrap()
+      .as_ref()
+      .unwrap()
+      .build
+      .features
+      .clone();
+
     let (child_wait_tx, child_wait_rx) = channel();
     let child_wait_rx = Arc::new(Mutex::new(child_wait_rx));
 
-    process = self.start_app(&runner, child_wait_rx.clone());
+    process = self.start_app(&runner, &cargo_features, child_wait_rx.clone());
 
     let (tx, rx) = channel();
 
@@ -191,22 +200,34 @@ impl Dev {
                 break;
               }
             }
-            process = self.start_app(&runner, child_wait_rx.clone());
+            process = self.start_app(&runner, &cargo_features, child_wait_rx.clone());
           }
         }
       }
     }
   }
 
-  fn start_app(&self, runner: &str, child_wait_rx: Arc<Mutex<Receiver<()>>>) -> Arc<SharedChild> {
+  fn start_app(
+    &self,
+    runner: &str,
+    features: &Option<Vec<String>>,
+    child_wait_rx: Arc<Mutex<Receiver<()>>>,
+  ) -> Arc<SharedChild> {
     let mut command = Command::new(runner);
     command.args(&["run", "--no-default-features"]);
+
     if let Some(target) = &self.target {
       command.args(&["--target", target]);
     }
+
+    if let Some(features) = features {
+      command.args(&["--features", &features.join(",")]);
+    }
+
     if !self.args.is_empty() {
       command.arg("--").args(&self.args);
     }
+
     let child =
       SharedChild::spawn(&mut command).unwrap_or_else(|_| panic!("failed to run {}", runner));
     let child_arc = Arc::new(child);

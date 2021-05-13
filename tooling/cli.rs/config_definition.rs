@@ -607,6 +607,8 @@ pub struct BuildConfig {
   pub before_dev_command: Option<String>,
   /// a shell command to run before `tauri build` kicks in
   pub before_build_command: Option<String>,
+  /// features passed to `cargo` commands
+  pub features: Option<Vec<String>>,
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
   #[serde(default)]
   pub with_global_tauri: bool,
@@ -648,6 +650,7 @@ fn default_build() -> BuildConfig {
     dist_dir: default_dist_dir(),
     before_dev_command: None,
     before_build_command: None,
+    features: None,
     with_global_tauri: false,
   }
 }

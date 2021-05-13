@@ -90,20 +90,30 @@ struct CargoConfig {
   build: Option<CargoBuildConfig>,
 }
 
-pub fn build_project(runner: String, target: &Option<String>, debug: bool) -> crate::Result<()> {
-  let mut args = vec!["build", "--features=custom-protocol"];
+pub fn build_project(
+  runner: String,
+  target: &Option<String>,
+  features: &Option<Vec<String>>,
+  debug: bool,
+) -> crate::Result<()> {
+  let mut command = Command::new(&runner);
+  command.args(["build", "--features=custom-protocol"]);
 
   if let Some(target) = target {
-    args.push("--target");
-    args.push(target);
+    command.arg("--target");
+    command.arg(target);
+  }
+
+  if let Some(features) = features {
+    command.arg("--features");
+    command.arg(features.join(","));
   }
 
   if !debug {
-    args.push("--release");
+    command.arg("--release");
   }
 
-  let status = Command::new(&runner)
-    .args(args)
+  let status = command
     .status()
     .with_context(|| format!("failed to run {}", runner))?;
   if !status.success() {

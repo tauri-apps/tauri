@@ -111,7 +111,10 @@ impl Build {
       .or(runner_from_config)
       .unwrap_or_else(|| "cargo".to_string());
 
-    rust::build_project(runner, &self.target, self.debug).with_context(|| "failed to build app")?;
+    let cargo_features = &config_.build.features;
+
+    rust::build_project(runner, &self.target, cargo_features, self.debug)
+      .with_context(|| "failed to build app")?;
 
     let app_settings = rust::AppSettings::new(&config_)?;
 

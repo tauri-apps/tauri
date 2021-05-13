@@ -234,6 +234,16 @@
           "default": "../dist",
           "type": "string"
         },
+        "features": {
+          "description": "features passed to `cargo` commands",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "runner": {
           "description": "The binary used to build and run the application.",
           "type": [

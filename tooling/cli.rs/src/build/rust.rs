@@ -96,28 +96,24 @@ pub fn build_project(
   features: &Option<Vec<String>>,
   debug: bool,
 ) -> crate::Result<()> {
-  let mut args = vec!["build", "--features=custom-protocol"];
+  let mut command = Command::new(&runner);
+  command.args(["build", "--features=custom-protocol"]);
 
   if let Some(target) = target {
-    args.push("--target");
-    args.push(target);
+    command.arg("--target");
+    command.arg(target);
   }
 
-  // newly created `String` needs to outlive `if` block, because args `Vec` borrows it
-  let features_string;
-
   if let Some(features) = features {
-    features_string = features.join(",");
-    args.push("--features");
-    args.push(&features_string);
+    command.arg("--features");
+    command.arg(features.join(","));
   }
 
   if !debug {
-    args.push("--release");
+    command.arg("--release");
   }
 
-  let status = Command::new(&runner)
-    .args(args)
+  let status = command
     .status()
     .with_context(|| format!("failed to run {}", runner))?;
   if !status.success() {

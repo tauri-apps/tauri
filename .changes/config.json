@@ -282,11 +282,7 @@
       "path": "./tooling/cli.rs",
       "manager": "rust",
       "dependencies": [
-        "api",
-        "tauri-bundler",
-        "tauri",
-        "tauri-build",
-        "cli.js"
+        "tauri-bundler"
       ],
       "postversion": "cargo check"
     },

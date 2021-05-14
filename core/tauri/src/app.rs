@@ -341,7 +341,7 @@ where
   /// struct MyString(String);
   ///
   /// #[tauri::command]
-  /// fn int_command(state: State<'_, MyInt>) -> String {
+  /// fn int_command(state: State<MyInt>) -> String {
   ///     format!("The stateful int is: {}", state.0)
   /// }
   ///

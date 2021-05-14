@@ -22,6 +22,6 @@ pub fn simple_command(argument: String) {
 }
 
 #[command]
-pub fn stateful_command(argument: Option<String>, state: State<'_, super::MyState>) {
+pub fn stateful_command(argument: Option<String>, state: State<super::MyState>) {
   println!("{:?} {:?}", argument, state.inner());
 }

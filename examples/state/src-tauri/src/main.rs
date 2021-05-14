@@ -23,17 +23,17 @@ struct Counter(AtomicUsize);
 struct Database(Arc<Mutex<HashMap<String, String>>>);
 
 #[tauri::command]
-fn increment_counter(counter: State<'_, Counter>) -> usize {
+fn increment_counter(counter: State<Counter>) -> usize {
   counter.0.fetch_add(1, Ordering::Relaxed) + 1
 }
 
 #[tauri::command]
-fn db_insert(key: String, value: String, db: State<'_, Database>) {
+fn db_insert(key: String, value: String, db: State<Database>) {
   db.0.lock().unwrap().insert(key, value);
 }
 
 #[tauri::command]
-fn db_read(key: String, db: State<'_, Database>) -> Option<String> {
+fn db_read(key: String, db: State<Database>) -> Option<String> {
   db.0.lock().unwrap().get(&key).cloned()
 }
 

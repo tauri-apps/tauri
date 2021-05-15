@@ -1,0 +1,23 @@
+workspace = { }
+
+[package]
+name = "tauri-driver"
+version = "0.1.0"
+authors = ["Tauri Programme within The Commons Conservancy"]
+categories = ["gui", "web-programming"]
+license = "Apache-2.0 OR MIT"
+homepage = "https://tauri.studio"
+repository = "https://github.com/tauri-apps/tauri"
+description = "Webdriver server for Tauri applications"
+readme = "README.md"
+exclude = [".license_template", "/target"]
+edition = "2018"
+
+[dependencies]
+anyhow = "1"
+hyper = { version = "0.14", features = [ "client", "http1", "runtime", "server", "stream", "tcp" ] }
+futures = "0.3"
+pico-args = "0.4"
+tokio = { version = "1", features = [ "macros" ] } # other required features enabled by hyper
+which = "4"
+

@@ -4,7 +4,23 @@
 
 /**
  * Provides APIs to create windows, communicate with other windows and manipulate the current window.
+ *
  * This package is also accessible with `window.__TAURI__.window` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ *
+ * The APIs must be allowlisted on `tauri.conf.json`:
+ * ```json
+ * {
+ *   "tauri": {
+ *     "allowlist": {
+ *       "window": {
+ *         "all": true, // enable all window APIs
+ *         "create": true // enable window creation
+ *       }
+ *     }
+ *   }
+ * }
+ * ```
+ * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
  * @packageDocumentation
  */
 

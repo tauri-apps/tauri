@@ -1,4 +1,4 @@
-# @tauri-apps/cli
+# @tauri-apps/api
  <img align="right" src="https://github.com/tauri-apps/tauri/raw/dev/app-icon.png" height="128" width="128">
 
 [![status](https://img.shields.io/badge/Status-Beta-green.svg)](https://github.com/tauri-apps/tauri)
@@ -12,9 +12,9 @@
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
 [![support](https://img.shields.io/badge/sponsor-Opencollective-blue.svg)](https://opencollective.com/tauri)
 
-| Component | Version                                     |
-| --------- | ------------------------------------------- |
-| @tauri-apps/api   | ![](https://img.shields.io/npm/v/@tauri-apps/api.svg) |
+| Component       | Version                                               |
+| --------------- | ----------------------------------------------------- |
+| @tauri-apps/api | ![](https://img.shields.io/npm/v/@tauri-apps/api.svg) |
 
 ## About Tauri
 Tauri is a polyglot and generic system that is very composable and allows engineers to make a wide variety of applications. It is used for building applications for Desktop Computers using a combination of Rust tools and HTML rendered in a Webview. Apps built with Tauri can ship with any number of pieces of an optional JS API / Rust API so that webviews can control the system via message passing. In fact, developers can extend the default API with their own functionality and bridge the Webview and Rust-based backend easily.

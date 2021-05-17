@@ -4,7 +4,32 @@
 
 /**
  * Access the file system.
+ *
  * This package is also accessible with `window.__TAURI__.fs` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ *
+ * The APIs must be allowlisted on `tauri.conf.json`:
+ * ```json
+ * {
+ *   "tauri": {
+ *     "allowlist": {
+ *       "fs": {
+ *         "all": true, // enable all FS APIs
+ *         "readTextFile": true,
+ *         "readBinaryFile": true,
+ *         "writeFile": true,
+ *         "writeBinaryFile": true,
+ *         "readDir": true,
+ *         "copyFile": true,
+ *         "createDir": true,
+ *         "removeDir": true,
+ *         "removeFile": true,
+ *         "renameFile": true
+ *       }
+ *     }
+ *   }
+ * }
+ * ```
+ * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
  * @packageDocumentation
  */
 

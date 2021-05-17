@@ -4,7 +4,24 @@
 
 /**
  * Native system dialogs for opening and saving files.
+ *
  * This package is also accessible with `window.__TAURI__.dialog` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ *
+ * The APIs must be allowlisted on `tauri.conf.json`:
+ * ```json
+ * {
+ *   "tauri": {
+ *     "allowlist": {
+ *       "dialog": {
+ *         "all": true, // enable all dialog APIs
+ *         "open": true, // enable file open API
+ *         "save": true // enable file save API
+ *       }
+ *     }
+ *   }
+ * }
+ * ```
+ * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
  * @packageDocumentation
  */
 

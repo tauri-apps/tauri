@@ -11,7 +11,7 @@ import { invokeTauriCommand } from './helpers/tauri'
 import { emit as emitEvent } from './helpers/event'
 import { transformCallback } from './tauri'
 
-export interface Event<T> {
+interface Event<T> {
   /** Event name */
   event: string
   /** Event identifier used to unlisten */
@@ -20,9 +20,9 @@ export interface Event<T> {
   payload: T
 }
 
-export type EventCallback<T> = (event: Event<T>) => void
+type EventCallback<T> = (event: Event<T>) => void
 
-export type UnlistenFn = () => void
+type UnlistenFn = () => void
 
 /**
  * Unregister the event listener associated with the given id.
@@ -91,5 +91,7 @@ async function once<T>(
 async function emit(event: string, payload?: string): Promise<void> {
   return emitEvent(event, undefined, payload)
 }
+
+export type { Event, EventCallback, UnlistenFn }
 
 export { listen, once, emit }

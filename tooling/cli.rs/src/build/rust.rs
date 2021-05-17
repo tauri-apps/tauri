@@ -380,7 +380,7 @@ fn tauri_config_to_bundle_settings(
       depends.push("libappindicator3-1".to_string());
     }
 
-    depends.push("libwebkit2gtk-4.0".to_string());
+    depends.push("libwebkit2gtk-4.0-37".to_string());
     depends.push("libgtk-3-0".to_string());
     if manifest.features.contains(&"menu".into()) || system_tray_config.is_some() {
       depends.push("libgtksourceview-3.0-1".to_string());

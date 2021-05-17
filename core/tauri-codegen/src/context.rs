@@ -6,7 +6,7 @@ use crate::embedded_assets::{AssetOptions, EmbeddedAssets, EmbeddedAssetsError};
 use proc_macro2::TokenStream;
 use quote::quote;
 use std::path::PathBuf;
-use tauri_utils::config::Config;
+use tauri_utils::config::{Config, WindowUrl};
 
 /// Necessary data needed by [`context_codegen`] to generate code for a Tauri application context.
 pub struct ContextData {
@@ -24,15 +24,31 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     config_parent,
     root,
   } = data;
-  let assets_path = if dev {
-    // if dev_path is a dev server, we don't have any assets to embed
-    if config.build.dev_path.starts_with("http") {
-      None
-    } else {
-      Some(config_parent.join(&config.build.dev_path))
-    }
+  let app_url = if dev {
+    &config.build.dev_path
   } else {
-    Some(config_parent.join(&config.build.dist_dir))
+    &config.build.dist_dir
+  };
+  let assets_path = match app_url {
+    WindowUrl::External(_) => None,
+    WindowUrl::App(path) => {
+      if path.components().count() == 0 {
+        panic!(
+          "The `{}` configuration cannot be empty",
+          if dev { "devPath" } else { "distDir" }
+        )
+      }
+      let assets_path = config_parent.join(path);
+      if !assets_path.exists() {
+        panic!(
+          "The `{}` configuration is set to `{:?}` but this path doesn't exist",
+          if dev { "devPath" } else { "distDir" },
+          path
+        )
+      }
+      Some(assets_path)
+    }
+    _ => unimplemented!(),
   };
 
   // generate the assets inside the dist dir into a perfect hash function

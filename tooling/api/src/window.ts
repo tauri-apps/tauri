@@ -511,11 +511,21 @@ export class WindowManager {
 
   /**
    * Resizes the window.
+   * @example
+   * ```typescript
+   * import { appWindow, LogicalSize } from '@tauri-apps/api/window'
+   * await appWindow.setSize(new LogicalSize(600, 500))
+   * ```
    *
    * @param size The logical or physical size.
    * @returns A promise indicating the success or failure of the operation.
    */
   async setSize(size: LogicalSize | PhysicalSize): Promise<void> {
+    if (!size || (size.type !== 'Logical' && size.type !== 'Physical')) {
+      throw new Error(
+        'the `size` argument must be either a LogicalSize or a PhysicalSize instance'
+      )
+    }
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
@@ -532,7 +542,12 @@ export class WindowManager {
   }
 
   /**
-   * Sets the window min size.
+   * Sets the window min size. If the `size` argument is not provided, the min size is unset.
+   * @example
+   * ```typescript
+   * import { appWindow, PhysicalSize } from '@tauri-apps/api/window'
+   * await appWindow.setMinSize(new PhysicalSize(600, 500))
+   * ```
    *
    * @param size The logical or physical size.
    * @returns A promise indicating the success or failure of the operation.
@@ -540,25 +555,35 @@ export class WindowManager {
   async setMinSize(
     size: LogicalSize | PhysicalSize | undefined
   ): Promise<void> {
+    if (size && size.type !== 'Logical' && size.type !== 'Physical') {
+      throw new Error(
+        'the `size` argument must be either a LogicalSize or a PhysicalSize instance'
+      )
+    }
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'setMinSize',
         data: size
           ? {
-              type: size.type,
-              data: {
-                width: size.width,
-                height: size.height
-              }
+            type: size.type,
+            data: {
+              width: size.width,
+              height: size.height
             }
+          }
           : null
       }
     })
   }
 
   /**
-   * Sets the window max size.
+   * Sets the window max size. If the `size` argument is undefined, the max size is unset.
+   * @example
+   * ```typescript
+   * import { appWindow, LogicalSize } from '@tauri-apps/api/window'
+   * await appWindow.setMaxSize(new LogicalSize(600, 500))
+   * ```
    *
    * @param size The logical or physical size.
    * @returns A promise indicating the success or failure of the operation.
@@ -566,18 +591,23 @@ export class WindowManager {
   async setMaxSize(
     size: LogicalSize | PhysicalSize | undefined
   ): Promise<void> {
+    if (size && size.type !== 'Logical' && size.type !== 'Physical') {
+      throw new Error(
+        'the `size` argument must be either a LogicalSize or a PhysicalSize instance'
+      )
+    }
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
         cmd: 'setMaxSize',
         data: size
           ? {
-              type: size.type,
-              data: {
-                width: size.width,
-                height: size.height
-              }
+            type: size.type,
+            data: {
+              width: size.width,
+              height: size.height
             }
+          }
           : null
       }
     })
@@ -585,6 +615,11 @@ export class WindowManager {
 
   /**
    * Sets the window position.
+   * @example
+   * ```typescript
+   * import { appWindow, LogicalPosition } from '@tauri-apps/api/window'
+   * await appWindow.setPosition(new LogicalPosition(600, 500))
+   * ```
    *
    * @param position The new position, in logical or physical pixels.
    * @returns A promise indicating the success or failure of the operation.
@@ -592,6 +627,14 @@ export class WindowManager {
   async setPosition(
     position: LogicalPosition | PhysicalPosition
   ): Promise<void> {
+    if (
+      !position ||
+      (position.type !== 'Logical' && position.type !== 'Physical')
+    ) {
+      throw new Error(
+        'the `position` argument must be either a LogicalPosition or a PhysicalPosition instance'
+      )
+    }
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
@@ -750,6 +793,4 @@ export {
   availableMonitors
 }
 
-export type {
-  Monitor
-}
+export type { Monitor }

@@ -54,7 +54,7 @@ function transformCallback(
 }
 
 /** Command arguments. */
-export interface InvokeArgs {
+interface InvokeArgs {
   [key: string]: unknown
 }
 
@@ -83,5 +83,7 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
     })
   })
 }
+
+export type { InvokeArgs }
 
 export { transformCallback, invoke }

@@ -267,7 +267,7 @@ class WebviewWindow extends WebviewWindowHandle {
 /**
  * Manage the current window object.
  */
-export class WindowManager {
+class WindowManager {
   // Getters
   /** The scale factor that can be used to map physical pixels to logical pixels. */
   async scaleFactor(): Promise<number> {
@@ -703,7 +703,7 @@ export class WindowManager {
 const appWindow = new WindowManager()
 
 /** Configuration for the window to create. */
-export interface WindowOptions {
+interface WindowOptions {
   /**
    * Remote URL or local file path to open, e.g. `https://github.com/tauri-apps` or `path/to/page.html`.
    */
@@ -781,6 +781,7 @@ async function availableMonitors(): Promise<Monitor[]> {
 export {
   WebviewWindow,
   WebviewWindowHandle,
+  WindowManager,
   getCurrent,
   getAll,
   appWindow,
@@ -793,4 +794,4 @@ export {
   availableMonitors
 }
 
-export type { Monitor }
+export type { Monitor, WindowOptions }

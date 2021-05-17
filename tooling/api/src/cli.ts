@@ -9,7 +9,7 @@
 
 import { invokeTauriCommand } from './helpers/tauri'
 
-export interface ArgMatch {
+interface ArgMatch {
   /**
    * string if takes value
    * boolean if flag
@@ -22,12 +22,12 @@ export interface ArgMatch {
   occurrences: number
 }
 
-export interface SubcommandMatch {
+interface SubcommandMatch {
   name: string
   matches: CliMatches
 }
 
-export interface CliMatches {
+interface CliMatches {
   args: { [name: string]: ArgMatch }
   subcommand: SubcommandMatch | null
 }
@@ -45,5 +45,7 @@ async function getMatches(): Promise<CliMatches> {
     }
   })
 }
+
+export type { ArgMatch, SubcommandMatch, CliMatches }
 
 export { getMatches }

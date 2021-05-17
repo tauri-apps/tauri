@@ -9,26 +9,26 @@
 
 import { invokeTauriCommand } from './helpers/tauri'
 
-export interface ClientOptions {
+interface ClientOptions {
   maxRedirections: number
   connectTimeout: number
 }
 
-export enum ResponseType {
+enum ResponseType {
   JSON = 1,
   Text = 2,
   Binary = 3
 }
 
-export type Part = 'string' | number[]
+type Part = 'string' | number[]
 
 /** The body object to be used on POST and PUT requests. */
-export class Body {
+class Body {
   type: string
   payload: unknown
 
   /** @ignore */
-  constructor(type: string, payload: unknown) {
+  private constructor(type: string, payload: unknown) {
     this.type = type
     this.payload = payload
   }
@@ -79,7 +79,7 @@ export class Body {
 }
 
 /** The request HTTP verb. */
-export type HttpVerb =
+type HttpVerb =
   | 'GET'
   | 'POST'
   | 'PUT'
@@ -91,7 +91,7 @@ export type HttpVerb =
   | 'TRACE'
 
 /** Options object sent to the backend. */
-export interface HttpOptions {
+interface HttpOptions {
   method: HttpVerb
   url: string
   headers?: Record<string, any>
@@ -102,12 +102,12 @@ export interface HttpOptions {
 }
 
 /** Request options. */
-export type RequestOptions = Omit<HttpOptions, 'method' | 'url'>
+type RequestOptions = Omit<HttpOptions, 'method' | 'url'>
 /** Options for the `fetch` API. */
-export type FetchOptions = Omit<HttpOptions, 'url'>
+type FetchOptions = Omit<HttpOptions, 'url'>
 
 /** Response object. */
-export interface Response<T> {
+interface Response<T> {
   /** The request URL. */
   url: string
   /** The response status code. */
@@ -118,7 +118,7 @@ export interface Response<T> {
   data: T
 }
 
-export class Client {
+class Client {
   id: number
   /** @ignore */
   constructor(id: number) {
@@ -286,4 +286,15 @@ async function fetch<T>(
   })
 }
 
-export { getClient, fetch }
+export type {
+  ClientOptions,
+  ResponseType,
+  Part,
+  HttpVerb,
+  HttpOptions,
+  RequestOptions,
+  FetchOptions,
+  Response
+}
+
+export { getClient, fetch, Body, Client }

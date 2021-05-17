@@ -12,7 +12,7 @@ import { invokeTauriCommand } from './helpers/tauri'
 /**
  * Options to send a notification.
  */
-export interface Options {
+interface Options {
   /** Notification title. */
   title: string
   /** Optional notification body. */
@@ -22,7 +22,7 @@ export interface Options {
 }
 
 /** Possible permission values. */
-export type Permission = 'granted' | 'denied' | 'default'
+type Permission = 'granted' | 'denied' | 'default'
 
 /**
  * Checks if the permission to send notifications is granted.
@@ -64,5 +64,7 @@ function sendNotification(options: Options | string): void {
     new window.Notification(options.title, options)
   }
 }
+
+export type { Options, Permission }
 
 export { sendNotification, requestPermission, isPermissionGranted }

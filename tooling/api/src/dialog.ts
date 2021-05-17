@@ -10,7 +10,7 @@
 import { invokeTauriCommand } from './helpers/tauri'
 
 /** Extension filters for the file dialog. */
-export interface DialogFilter {
+interface DialogFilter {
   /** Filter name. */
   name: string
   /**
@@ -24,7 +24,7 @@ export interface DialogFilter {
 }
 
 /** Options for the open dialog. */
-export interface OpenDialogOptions {
+interface OpenDialogOptions {
   /** The filters of the dialog. */
   filters?: DialogFilter[]
   /** Initial directory or file path. It must exist. */
@@ -36,7 +36,7 @@ export interface OpenDialogOptions {
 }
 
 /** Options for the save dialog. */
-export interface SaveDialogOptions {
+interface SaveDialogOptions {
   /** The filters of the dialog. */
   filters?: DialogFilter[]
   /** Initial directory or file path. It must exist. */
@@ -82,5 +82,7 @@ async function save(options: SaveDialogOptions = {}): Promise<string> {
     }
   })
 }
+
+export type { DialogFilter, OpenDialogOptions, SaveDialogOptions }
 
 export { open, save }

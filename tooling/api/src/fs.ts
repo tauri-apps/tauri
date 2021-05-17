@@ -31,26 +31,26 @@ export enum BaseDirectory {
   Current
 }
 
-export interface FsOptions {
+interface FsOptions {
   dir?: BaseDirectory
 }
 
-export interface FsDirOptions {
+interface FsDirOptions {
   dir?: BaseDirectory
   recursive?: boolean
 }
 
-export interface FsTextFileOption {
+interface FsTextFileOption {
   path: string
   contents: string
 }
 
-export interface FsBinaryFileOption {
+interface FsBinaryFileOption {
   path: string
   contents: ArrayBuffer
 }
 
-export interface FileEntry {
+interface FileEntry {
   path: string
   /**
    * Name of the directory/file
@@ -330,6 +330,14 @@ async function renameFile(
       options
     }
   })
+}
+
+export type {
+  FsOptions,
+  FsDirOptions,
+  FsTextFileOption,
+  FsBinaryFileOption,
+  FileEntry
 }
 
 export {

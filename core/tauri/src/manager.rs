@@ -239,16 +239,18 @@ impl<P: Params> WindowManager<P> {
   // setup content for dev-server
   #[cfg(dev)]
   fn get_url(&self) -> String {
-    if self.inner.config.build.dev_path.starts_with("http") {
-      self.inner.config.build.dev_path.clone()
-    } else {
-      "tauri://localhost".into()
+    match &self.inner.config.build.dev_path {
+      WindowUrl::External(url) => url.to_string(),
+      _ => "tauri://localhost".into(),
     }
   }
 
   #[cfg(custom_protocol)]
   fn get_url(&self) -> String {
-    "tauri://localhost".into()
+    match &self.inner.config.build.dist_dir {
+      WindowUrl::External(url) => url.to_string(),
+      _ => "tauri://localhost".into(),
+    }
   }
 
   fn prepare_pending_window(

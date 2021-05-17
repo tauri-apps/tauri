@@ -4,6 +4,7 @@
 
 /**
  * Access the HTTP client written in Rust.
+ * This package is also accessible with `window.__TAURI__.http` when `tauri.conf.json > build > withGlobalTauri` is set to true.
  * @packageDocumentation
  */
 

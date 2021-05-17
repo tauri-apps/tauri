@@ -8,6 +8,7 @@ import { transformCallback } from './tauri'
 /**
  * Access the system shell.
  * Allows you to spawn child processes and manage files and URLs using their default application.
+ * This package is also accessible with `window.__TAURI__.shell` when `tauri.conf.json > build > withGlobalTauri` is set to true.
  * @packageDocumentation
  */
 

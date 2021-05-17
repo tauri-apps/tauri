@@ -4,6 +4,7 @@
 
 /**
  * Parse arguments from your Command Line Interface.
+ * This package is also accessible with `window.__TAURI__.cli` when `tauri.conf.json > build > withGlobalTauri` is set to true.
  * @packageDocumentation
  */
 

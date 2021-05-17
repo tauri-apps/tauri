@@ -7,6 +7,7 @@ import { BaseDirectory } from './fs'
 
 /**
  * Read common system paths such as home, config and cache directories.
+ * This package is also accessible with `window.__TAURI__.path` when `tauri.conf.json > build > withGlobalTauri` is set to true.
  * @packageDocumentation
  */
 

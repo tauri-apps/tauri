@@ -9,28 +9,30 @@ import * as app from './app'
 import * as cli from './cli'
 import * as dialog from './dialog'
 import * as event from './event'
-import * as updater from './updater'
 import * as fs from './fs'
-import * as path from './path'
+import * as globalShortcut from './globalShortcut'
 import * as http from './http'
+import * as notification from './notification'
+import * as path from './path'
+import * as process from './process'
 import * as shell from './shell'
 import * as tauri from './tauri'
+import * as updater from './updater'
 import * as window from './window'
-import * as notification from './notification'
-import * as globalShortcut from './globalShortcut'
 
 export {
   app,
   cli,
   dialog,
   event,
-  updater,
   fs,
-  path,
+  globalShortcut,
   http,
+  notification,
+  path,
+  process,
   shell,
   tauri,
-  window,
-  notification,
-  globalShortcut
+  updater,
+  window
 }

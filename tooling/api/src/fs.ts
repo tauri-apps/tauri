@@ -4,6 +4,7 @@
 
 /**
  * Access the file system.
+ * This package is also accessible with `window.__TAURI__.fs` when `tauri.conf.json > build > withGlobalTauri` is set to true.
  * @packageDocumentation
  */
 

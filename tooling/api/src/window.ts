@@ -4,6 +4,7 @@
 
 /**
  * Provides APIs to create windows, communicate with other windows and manipulate the current window.
+ * This package is also accessible with `window.__TAURI__.window` when `tauri.conf.json > build > withGlobalTauri` is set to true.
  * @packageDocumentation
  */
 

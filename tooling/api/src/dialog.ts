@@ -4,6 +4,7 @@
 
 /**
  * Native system dialogs for opening and saving files.
+ * This package is also accessible with `window.__TAURI__.dialog` when `tauri.conf.json > build > withGlobalTauri` is set to true.
  * @packageDocumentation
  */
 

@@ -4,6 +4,7 @@
 
 /**
  * The event system allows you to emit events to the backend and listen to events from it.
+ * This package is also accessible with `window.__TAURI__.event` when `tauri.conf.json > build > withGlobalTauri` is set to true.
  * @packageDocumentation
  */
 

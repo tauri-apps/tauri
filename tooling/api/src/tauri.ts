@@ -4,6 +4,7 @@
 
 /**
  * Invoke your custom commands.
+ * This package is also accessible with `window.__TAURI__.tauri` when `tauri.conf.json > build > withGlobalTauri` is set to true.
  * @packageDocumentation
  */
 

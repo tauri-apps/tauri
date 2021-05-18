@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+// we re-export the default_args! macro as pub(crate) so we can use it easily from other modules
+#![allow(clippy::single_component_path_imports)]
+
 use crate::{
   api::{
     assets::Assets,
@@ -71,41 +74,82 @@ pub(crate) fn tauri_event<Event: Tag>(tauri_event: &str) -> Event {
   })
 }
 
-pub struct InnerWindowManager<P: Params = DefaultArgs> {
-  windows: Mutex<HashMap<P::Label, Window<P>>>,
-  plugins: Mutex<PluginStore<P>>,
-  listeners: Listeners<P::Event, P::Label>,
-  pub(crate) state: Arc<StateManager>,
+crate::manager::default_args! {
+  pub struct InnerWindowManager<P: Params> {
+    windows: Mutex<HashMap<P::Label, Window<P>>>,
+    plugins: Mutex<PluginStore<P>>,
+    listeners: Listeners<P::Event, P::Label>,
+    pub(crate) state: Arc<StateManager>,
 
-  /// The JS message handler.
-  invoke_handler: Box<InvokeHandler<P>>,
+    /// The JS message handler.
+    invoke_handler: Box<InvokeHandler<P>>,
 
-  /// The page load hook, invoked when the webview performs a navigation.
-  on_page_load: Box<OnPageLoad<P>>,
+    /// The page load hook, invoked when the webview performs a navigation.
+    on_page_load: Box<OnPageLoad<P>>,
 
-  config: Arc<Config>,
-  assets: Arc<P::Assets>,
-  default_window_icon: Option<Vec<u8>>,
+    config: Arc<Config>,
+    assets: Arc<P::Assets>,
+    default_window_icon: Option<Vec<u8>>,
 
-  /// A list of salts that are valid for the current application.
-  salts: Mutex<HashSet<Uuid>>,
-  package_info: PackageInfo,
-  /// The webview protocols protocols available to all windows.
-  uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
-  /// The menu set to all windows.
-  #[cfg(feature = "menu")]
-  menu: Vec<Menu<P::MenuId>>,
-  /// Maps runtime id to a strongly typed menu id.
-  #[cfg(feature = "menu")]
-  menu_ids: HashMap<u32, P::MenuId>,
-  /// Menu event listeners to all windows.
-  #[cfg(feature = "menu")]
-  menu_event_listeners: Arc<Vec<GlobalMenuEventListener<P>>>,
-  /// Window event listeners to all windows.
-  window_event_listeners: Arc<Vec<GlobalWindowEventListener<P>>>,
+    /// A list of salts that are valid for the current application.
+    salts: Mutex<HashSet<Uuid>>,
+    package_info: PackageInfo,
+    /// The webview protocols protocols available to all windows.
+    uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
+    /// The menu set to all windows.
+    #[cfg(feature = "menu")]
+    menu: Vec<Menu<P::MenuId>>,
+    /// Maps runtime id to a strongly typed menu id.
+    #[cfg(feature = "menu")]
+    menu_ids: HashMap<u32, P::MenuId>,
+    /// Menu event listeners to all windows.
+    #[cfg(feature = "menu")]
+    menu_event_listeners: Arc<Vec<GlobalMenuEventListener<P>>>,
+    /// Window event listeners to all windows.
+    window_event_listeners: Arc<Vec<GlobalWindowEventListener<P>>>,
+  }
 }
 
+/// struct declaration using params + default args which includes optional feature wry
+macro_rules! default_args {
+  (
+    $(#[$attrs_struct:meta])*
+    $vis_struct:vis struct $name:ident<$p:ident: $params:ident> {
+      $(
+        $(#[$attrs_field:meta])*
+        $vis_field:vis $field:ident: $field_type:ty,
+      )*
+    }
+  ) => {
+    $(#[$attrs_struct])*
+    #[cfg(feature = "wry")]
+    $vis_struct struct $name<$p: $params = crate::manager::DefaultArgs> {
+      $(
+        $(#[$attrs_field])*
+        $vis_field $field: $field_type,
+      )*
+    }
+
+    $(#[$attrs_struct])*
+    #[cfg(not(feature = "wry"))]
+    $vis_struct struct $name<$p: $params> {
+       $(
+        $(#[$attrs_field])*
+        $vis_field $field: $field_type,
+      )*
+    }
+  };
+}
+
+/*macro_rules! impl_default_args_struct {
+
+}*/
+
+// export it to allow use from other modules
+pub(crate) use default_args;
+
 /// This type should always match `Builder::default()`, otherwise the default type is useless.
+#[cfg(feature = "wry")]
 pub(crate) type DefaultArgs =
   Args<String, String, String, String, crate::api::assets::EmbeddedAssets, crate::Wry>;
 
@@ -151,10 +195,12 @@ impl<E: Tag, L: Tag, MID: MenuId, TID: MenuId, A: Assets, R: Runtime> Params
   type Runtime = R;
 }
 
-pub struct WindowManager<P: Params = DefaultArgs> {
-  pub inner: Arc<InnerWindowManager<P>>,
-  #[allow(clippy::type_complexity)]
-  _marker: Args<P::Event, P::Label, P::MenuId, P::SystemTrayMenuId, P::Assets, P::Runtime>,
+crate::manager::default_args! {
+  pub struct WindowManager<P: Params> {
+    pub inner: Arc<InnerWindowManager<P>>,
+    #[allow(clippy::type_complexity)]
+    _marker: Args<P::Event, P::Label, P::MenuId, P::SystemTrayMenuId, P::Assets, P::Runtime>,
+  }
 }
 
 impl<P: Params> Clone for WindowManager<P> {

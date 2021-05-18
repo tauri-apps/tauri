@@ -98,6 +98,15 @@ pub struct AppHandle<P: Params = DefaultArgs> {
   manager: WindowManager<P>,
 }
 
+impl<P: Params> Clone for AppHandle<P> {
+  fn clone(&self) -> Self {
+    Self {
+      runtime_handle: self.runtime_handle.clone(),
+      manager: self.manager.clone(),
+    }
+  }
+}
+
 impl<P: Params> Manager<P> for AppHandle<P> {}
 impl<P: Params> ManagerBase<P> for AppHandle<P> {
   fn manager(&self) -> &WindowManager<P> {
@@ -601,13 +610,14 @@ where
       for listener in self.system_tray_event_listeners {
         let app_handle = app.handle();
         let ids = ids.clone();
+        let listener = Arc::new(std::sync::Mutex::new(listener));
         app.runtime.on_system_tray_event(move |event| {
-          listener(
-            &app_handle,
-            SystemTrayEvent {
-              menu_item_id: ids.get(&event.menu_item_id).unwrap().clone(),
-            },
-          );
+          let app_handle = app_handle.clone();
+          let menu_item_id = ids.get(&event.menu_item_id).unwrap().clone();
+          let listener = listener.clone();
+          crate::async_runtime::spawn(async move {
+            listener.lock().unwrap()(&app_handle, SystemTrayEvent { menu_item_id });
+          });
         });
       }
     }

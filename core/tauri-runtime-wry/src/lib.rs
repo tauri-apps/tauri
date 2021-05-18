@@ -539,6 +539,8 @@ impl Dispatch for WryDispatcher {
       .map_err(|_| Error::FailedToSendMessage)
   }
 
+  // Creates a window by dispatching a message to the event loop.
+  // Note that this must be called from a separate thread, otherwise the channel will introduce a deadlock.
   fn create_window<P: Params<Runtime = Self::Runtime>>(
     &mut self,
     pending: PendingWindow<P>,
@@ -771,6 +773,9 @@ pub struct WryHandle {
 
 impl RuntimeHandle for WryHandle {
   type Runtime = Wry;
+
+  // Creates a window by dispatching a message to the event loop.
+  // Note that this must be called from a separate thread, otherwise the channel will introduce a deadlock.
   fn create_window<P: Params<Runtime = Self::Runtime>>(
     &self,
     pending: PendingWindow<P>,

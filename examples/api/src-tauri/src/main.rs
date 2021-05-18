@@ -11,7 +11,7 @@ mod cmd;
 mod menu;
 
 use serde::Serialize;
-use tauri::{CustomMenuItem, Manager, SystemTrayMenuItem, WindowUrl};
+use tauri::{CustomMenuItem, Manager, SystemTrayMenuItem, WindowBuilder, WindowUrl};
 
 #[derive(Serialize)]
 struct Reply {
@@ -52,7 +52,9 @@ fn main() {
           .create_window(
             "new".into(),
             WindowUrl::App("index.html".into()),
-            |window_builder, webview_attributes| (window_builder, webview_attributes),
+            |window_builder, webview_attributes| {
+              (window_builder.title("Tauri"), webview_attributes)
+            },
           )
           .unwrap(),
         _ => {}

@@ -104,13 +104,28 @@ pub struct SystemTrayEvent {
   pub menu_item_id: u32,
 }
 
+/// A [`Send`] handle to the runtime.
+pub trait RuntimeHandle: Send + Sized + Clone + 'static {
+  type Runtime: Runtime<Handle = Self>;
+  /// Create a new webview window.
+  fn create_window<P: Params<Runtime = Self::Runtime>>(
+    &self,
+    pending: PendingWindow<P>,
+  ) -> crate::Result<DetachedWindow<P>>;
+}
+
 /// The webview runtime interface.
 pub trait Runtime: Sized + 'static {
   /// The message dispatcher.
   type Dispatcher: Dispatch<Runtime = Self>;
+  /// The runtime handle type.
+  type Handle: RuntimeHandle<Runtime = Self>;
 
   /// Creates a new webview runtime.
   fn new() -> crate::Result<Self>;
+
+  /// Gets a runtime handle.
+  fn handle(&self) -> Self::Handle;
 
   /// Create a new webview window.
   fn create_window<P: Params<Runtime = Self>>(

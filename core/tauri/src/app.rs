@@ -91,7 +91,10 @@ impl<P: Params> GlobalWindowEvent<P> {
 }
 
 /// A handle to the currently running application.
+///
+/// This type implements [`Manager`] which allows for manipulation of global application items.
 pub struct AppHandle<P: Params = DefaultArgs> {
+  runtime_handle: <P::Runtime as Runtime>::Handle,
   manager: WindowManager<P>,
 }
 
@@ -99,6 +102,10 @@ impl<P: Params> Manager<P> for AppHandle<P> {}
 impl<P: Params> ManagerBase<P> for AppHandle<P> {
   fn manager(&self) -> &WindowManager<P> {
     &self.manager
+  }
+
+  fn runtime(&self) -> RuntimeOrDispatch<'_, P> {
+    RuntimeOrDispatch::RuntimeHandle(self.runtime_handle.clone())
   }
 }
 
@@ -115,29 +122,51 @@ impl<P: Params> ManagerBase<P> for App<P> {
   fn manager(&self) -> &WindowManager<P> {
     &self.manager
   }
+
+  fn runtime(&self) -> RuntimeOrDispatch<'_, P> {
+    RuntimeOrDispatch::Runtime(&self.runtime)
+  }
 }
 
+macro_rules! shared_app_impl {
+  ($app: ty) => {
+    impl<P: Params> $app {
+      /// Creates a new webview window.
+      pub fn create_window<F>(&self, label: P::Label, url: WindowUrl, setup: F) -> crate::Result<()>
+      where
+        F: FnOnce(
+          <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
+          WebviewAttributes,
+        ) -> (
+          <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
+          WebviewAttributes,
+        ),
+      {
+        let (window_builder, webview_attributes) = setup(
+          <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder::new(),
+          WebviewAttributes::new(url),
+        );
+        self.create_new_window(PendingWindow::new(
+          window_builder,
+          webview_attributes,
+          label,
+        ))?;
+        Ok(())
+      }
+    }
+  };
+}
+
+shared_app_impl!(App<P>);
+shared_app_impl!(AppHandle<P>);
+
 impl<P: Params> App<P> {
-  /// Creates a new webview window.
-  pub fn create_window<F>(&mut self, label: P::Label, url: WindowUrl, setup: F) -> crate::Result<()>
-  where
-    F: FnOnce(
-      <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
-      WebviewAttributes,
-    ) -> (
-      <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
-      WebviewAttributes,
-    ),
-  {
-    let (window_builder, webview_attributes) = setup(
-      <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder::new(),
-      WebviewAttributes::new(url),
-    );
-    self.create_new_window(
-      RuntimeOrDispatch::Runtime(&self.runtime),
-      PendingWindow::new(window_builder, webview_attributes, label),
-    )?;
-    Ok(())
+  /// Gets a handle to the application instance.
+  pub fn handle(&self) -> AppHandle<P> {
+    AppHandle {
+      runtime_handle: self.runtime.handle(),
+      manager: self.manager.clone(),
+    }
   }
 }
 
@@ -570,9 +599,7 @@ where
         )
         .expect("failed to run tray");
       for listener in self.system_tray_event_listeners {
-        let app_handle = AppHandle {
-          manager: app.manager.clone(),
-        };
+        let app_handle = app.handle();
         let ids = ids.clone();
         app.runtime.on_system_tray_event(move |event| {
           listener(

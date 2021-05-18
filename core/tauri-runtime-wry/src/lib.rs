@@ -13,7 +13,7 @@ use tauri_runtime::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     DetachedWindow, PendingWindow, WindowEvent,
   },
-  Dispatch, Error, Icon, Params, Result, Runtime,
+  Dispatch, Error, Icon, Params, Result, Runtime, RuntimeHandle,
 };
 
 #[cfg(feature = "menu")]
@@ -763,8 +763,43 @@ pub struct Wry {
   task_rx: Receiver<MainThreadTask>,
 }
 
+/// A handle to the Wry runtime.
+#[derive(Clone)]
+pub struct WryHandle {
+  dispatcher_context: DispatcherContext,
+}
+
+impl RuntimeHandle for WryHandle {
+  type Runtime = Wry;
+  fn create_window<P: Params<Runtime = Self::Runtime>>(
+    &self,
+    pending: PendingWindow<P>,
+  ) -> Result<DetachedWindow<P>> {
+    let (tx, rx) = channel();
+    let label = pending.label.clone();
+    let dispatcher_context = self.dispatcher_context.clone();
+    self
+      .dispatcher_context
+      .proxy
+      .send_event(Message::CreateWebview(
+        Arc::new(Mutex::new(Some(Box::new(move |event_loop| {
+          create_webview(event_loop, dispatcher_context, pending)
+        })))),
+        tx,
+      ))
+      .map_err(|_| Error::FailedToSendMessage)?;
+    let window_id = rx.recv().unwrap();
+    let dispatcher = WryDispatcher {
+      window_id,
+      context: self.dispatcher_context.clone(),
+    };
+    Ok(DetachedWindow { label, dispatcher })
+  }
+}
+
 impl Runtime for Wry {
   type Dispatcher = WryDispatcher;
+  type Handle = WryHandle;
 
   fn new() -> Result<Self> {
     let event_loop = EventLoop::<Message>::with_user_event();
@@ -780,6 +815,18 @@ impl Runtime for Wry {
       #[cfg(feature = "system-tray")]
       system_tray_event_listeners: HashMap::default(),
     })
+  }
+
+  fn handle(&self) -> Self::Handle {
+    WryHandle {
+      dispatcher_context: DispatcherContext {
+        proxy: self.event_loop.create_proxy(),
+        task_tx: self.task_tx.clone(),
+        window_event_listeners: self.window_event_listeners.clone(),
+        #[cfg(feature = "menu")]
+        menu_event_listeners: self.menu_event_listeners.clone(),
+      },
+    }
   }
 
   fn create_window<P: Params<Runtime = Self>>(

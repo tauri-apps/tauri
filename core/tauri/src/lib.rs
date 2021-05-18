@@ -60,7 +60,7 @@ pub use {
     config::{Config, WindowUrl},
     PackageInfo,
   },
-  self::app::{App, Builder, GlobalWindowEvent},
+  self::app::{App, AppHandle, Builder, GlobalWindowEvent},
   self::hooks::{
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
     PageLoadPayload, SetupHook,
@@ -316,12 +316,15 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
 /// Prevent implementation details from leaking out of the [`Manager`] trait.
 pub(crate) mod sealed {
   use crate::manager::WindowManager;
-  use tauri_runtime::{Params, Runtime};
+  use tauri_runtime::{Params, Runtime, RuntimeHandle};
 
   /// A running [`Runtime`] or a dispatcher to it.
   pub enum RuntimeOrDispatch<'r, P: Params> {
     /// Reference to the running [`Runtime`].
     Runtime(&'r P::Runtime),
+
+    /// Handle to the running [`Runtime`].
+    RuntimeHandle(<P::Runtime as Runtime>::Handle),
 
     /// A dispatcher to the running [`Runtime`].
     Dispatch(<P::Runtime as Runtime>::Dispatcher),
@@ -332,17 +335,21 @@ pub(crate) mod sealed {
     /// The manager behind the [`Managed`] item.
     fn manager(&self) -> &WindowManager<P>;
 
+    fn runtime(&self) -> RuntimeOrDispatch<'_, P>;
+
     /// Creates a new [`Window`] on the [`Runtime`] and attaches it to the [`Manager`].
     fn create_new_window(
       &self,
-      runtime: RuntimeOrDispatch<'_, P>,
       pending: crate::PendingWindow<P>,
     ) -> crate::Result<crate::Window<P>> {
       use crate::runtime::Dispatch;
       let labels = self.manager().labels().into_iter().collect::<Vec<_>>();
       let pending = self.manager().prepare_window(pending, &labels)?;
-      match runtime {
+      match self.runtime() {
         RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending).map_err(Into::into),
+        RuntimeOrDispatch::RuntimeHandle(handle) => {
+          handle.create_window(pending).map_err(Into::into)
+        }
         RuntimeOrDispatch::Dispatch(mut dispatcher) => {
           dispatcher.create_window(pending).map_err(Into::into)
         }

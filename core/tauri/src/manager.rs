@@ -141,10 +141,6 @@ macro_rules! default_args {
   };
 }
 
-/*macro_rules! impl_default_args_struct {
-
-}*/
-
 // export it to allow use from other modules
 pub(crate) use default_args;
 

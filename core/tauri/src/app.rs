@@ -25,7 +25,6 @@ use crate::runtime::menu::Menu;
 #[cfg(feature = "system-tray")]
 use crate::runtime::{menu::SystemTrayMenuItem, Icon};
 
-use crate::manager::DefaultArgs;
 #[cfg(feature = "updater")]
 use crate::updater;
 
@@ -51,12 +50,14 @@ impl<I: MenuId> SystemTrayEvent<I> {
   }
 }
 
-/// A menu event that was triggered on a window.
-#[cfg(feature = "menu")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-pub struct WindowMenuEvent<P: Params = DefaultArgs> {
-  pub(crate) menu_item_id: P::MenuId,
-  pub(crate) window: Window<P>,
+crate::manager::default_args! {
+  /// A menu event that was triggered on a window.
+  #[cfg(feature = "menu")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
+  pub struct WindowMenuEvent<P: Params> {
+    pub(crate) menu_item_id: P::MenuId,
+    pub(crate) window: Window<P>,
+  }
 }
 
 #[cfg(feature = "menu")]
@@ -72,10 +73,12 @@ impl<P: Params> WindowMenuEvent<P> {
   }
 }
 
-/// A window event that was triggered on the specified window.
-pub struct GlobalWindowEvent<P: Params = DefaultArgs> {
-  pub(crate) event: WindowEvent,
-  pub(crate) window: Window<P>,
+crate::manager::default_args! {
+  /// A window event that was triggered on the specified window.
+  pub struct GlobalWindowEvent<P: Params> {
+    pub(crate) event: WindowEvent,
+    pub(crate) window: Window<P>,
+  }
 }
 
 impl<P: Params> GlobalWindowEvent<P> {
@@ -90,12 +93,14 @@ impl<P: Params> GlobalWindowEvent<P> {
   }
 }
 
-/// A handle to the currently running application.
-///
-/// This type implements [`Manager`] which allows for manipulation of global application items.
-pub struct AppHandle<P: Params = DefaultArgs> {
-  runtime_handle: <P::Runtime as Runtime>::Handle,
-  manager: WindowManager<P>,
+crate::manager::default_args! {
+  /// A handle to the currently running application.
+  ///
+  /// This type implements [`Manager`] which allows for manipulation of global application items.
+  pub struct AppHandle<P: Params> {
+    runtime_handle: <P::Runtime as Runtime>::Handle,
+    manager: WindowManager<P>,
+  }
 }
 
 impl<P: Params> Clone for AppHandle<P> {
@@ -118,12 +123,14 @@ impl<P: Params> ManagerBase<P> for AppHandle<P> {
   }
 }
 
-/// The instance of the currently running application.
-///
-/// This type implements [`Manager`] which allows for manipulation of global application items.
-pub struct App<P: Params = DefaultArgs> {
-  runtime: P::Runtime,
-  manager: WindowManager<P>,
+crate::manager::default_args! {
+  /// The instance of the currently running application.
+  ///
+  /// This type implements [`Manager`] which allows for manipulation of global application items.
+  pub struct App<P: Params> {
+    runtime: P::Runtime,
+    manager: WindowManager<P>,
+  }
 }
 
 impl<P: Params> Manager<P> for App<P> {}

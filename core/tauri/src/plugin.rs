@@ -4,7 +4,6 @@
 
 //! Extend Tauri functionality.
 
-use crate::manager::DefaultArgs;
 use crate::{api::config::PluginConfig, App, Invoke, PageLoadPayload, Params, Window};
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
@@ -45,9 +44,11 @@ pub trait Plugin<P: Params>: Send {
   fn extend_api(&mut self, invoke: Invoke<P>) {}
 }
 
-/// Plugin collection type.
-pub(crate) struct PluginStore<P: Params = DefaultArgs> {
-  store: HashMap<&'static str, Box<dyn Plugin<P>>>,
+crate::manager::default_args! {
+  /// Plugin collection type.
+  pub(crate) struct PluginStore<P: Params> {
+    store: HashMap<&'static str, Box<dyn Plugin<P>>>,
+  }
 }
 
 impl<P: Params> Default for PluginStore<P> {

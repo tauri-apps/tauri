@@ -1,47 +1,117 @@
 use crate::cli::Args;
 use anyhow::Error;
 use futures::TryFutureExt;
+use hyper::header::CONTENT_LENGTH;
 use hyper::http::uri::Authority;
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Client, Method, Request, Response, Server, Uri};
-use std::convert::{Infallible, TryInto};
+use hyper::{Body, Client, Method, Request, Response, Server};
+use serde::Deserialize;
+use serde_json::Value;
+use std::convert::Infallible;
+use std::path::PathBuf;
 
 type HttpClient = Client<hyper::client::HttpConnector>;
 
+#[derive(Debug, Deserialize)]
+struct TauriOptions {
+  application: PathBuf,
+}
+
+impl TauriOptions {
+  #[cfg(target_os = "linux")]
+  fn into_native_object(self) -> (&'static str, Value) {
+    (
+      "webkitgtk:browserOptions",
+      serde_json::json!({"binary": self.application}),
+    )
+  }
+}
+
 async fn handle(
   client: HttpClient,
-  req: Request<Body>,
+  mut req: Request<Body>,
   args: Args,
 ) -> Result<Response<Body>, Error> {
-  match (req.method(), req.uri().path()) {
-    (&Method::POST, "/session") => {
-      println!("we saw a session post: {:#?}", req);
-    }
-    _ => {
-      println!("we saw a general request: {:#?}", req);
-    }
+  // manipulate a new session to convert options to the native driver format
+  if let (&Method::POST, "/session") = (req.method(), req.uri().path()) {
+    let (mut parts, body) = req.into_parts();
+
+    // get the body from the future stream and parse it as json
+    let body = hyper::body::to_bytes(body).await?;
+    let json: Value = serde_json::from_slice(&body)?;
+
+    // manipulate the json to convert from tauri option to native driver options
+    let json = map_capabilities(json);
+
+    // serialize json and update the content-length header to be accurate
+    let bytes = serde_json::to_vec(&json)?;
+    parts.headers.insert(CONTENT_LENGTH, bytes.len().into());
+
+    req = Request::from_parts(parts, bytes.into());
   }
 
-  let req = forward_to_native_driver(req, args)?;
-  dbg!(client.request(dbg!(req)).err_into().await)
+  client
+    .request(forward_to_native_driver(req, args)?)
+    .err_into()
+    .await
 }
 
 /// Transform the request to a request for the native webdriver server.
 fn forward_to_native_driver(mut req: Request<Body>, args: Args) -> Result<Request<Body>, Error> {
-  let headers = req.headers_mut();
-  headers.remove("host");
-  headers.insert("host", "localhost:4445".parse()?);
+  let host: Authority = {
+    let headers = req.headers_mut();
+    headers.remove("host").expect("hyper request has host")
+  }
+  .to_str()?
+  .parse()?;
+
+  let path = req
+    .uri()
+    .path_and_query()
+    .expect("hyper request has uri")
+    .clone();
+
+  let uri = format!(
+    "http://{}:{}{}",
+    host.host(),
+    args.native_port,
+    path.as_str()
+  );
+
   let (mut parts, body) = req.into_parts();
-  parts.uri = dbg!(map_uri_native_port(parts.uri, args)?);
+  parts.uri = uri.parse()?;
   Ok(Request::from_parts(parts, body))
 }
 
-/// Map a [`Uri`] port to the native webdriver port in [`Args`].
-fn map_uri_native_port(uri: Uri, args: Args) -> Result<Uri, Error> {
-  let mut parts = uri.into_parts();
-  parts.authority = Some("localhost:4445".parse()?);
-  parts.scheme = Some("http".parse()?);
-  Ok(parts.try_into()?)
+/// only happy path for now, no errors
+fn map_capabilities(mut json: Value) -> Value {
+  let mut native = None;
+  if let Some(capabilities) = json.get_mut("capabilities") {
+    if let Some(always_match) = capabilities.get_mut("alwaysMatch") {
+      if let Some(always_match) = always_match.as_object_mut() {
+        if let Some(tauri_options) = always_match.remove("tauri:options") {
+          if let Ok(options) = serde_json::from_value::<TauriOptions>(tauri_options) {
+            native = Some(options.into_native_object());
+          }
+        }
+
+        if let Some((key, value)) = &native {
+          always_match.insert(key.to_string(), value.clone());
+        }
+      }
+    }
+  }
+
+  if let Some((key, value)) = native {
+    if let Some(desired) = json.get_mut("desiredCapabilities") {
+      if let Some(desired) = desired.as_object_mut() {
+        desired.remove("tauri:options");
+        desired.insert(key.into(), value);
+      }
+    }
+  }
+
+  json
 }
 
 #[tokio::main(flavor = "current_thread")]

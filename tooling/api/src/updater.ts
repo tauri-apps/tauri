@@ -4,6 +4,7 @@
 
 /**
  * Customize the auto updater flow.
+ *
  * This package is also accessible with `window.__TAURI__.updater` when `tauri.conf.json > build > withGlobalTauri` is set to true.
  * @packageDocumentation
  */

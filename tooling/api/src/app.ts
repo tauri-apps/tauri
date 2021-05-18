@@ -4,6 +4,7 @@
 
 /**
  * Get application metadata.
+ *
  * This package is also accessible with `window.__TAURI__.app` when `tauri.conf.json > build > withGlobalTauri` is set to true.
  * @packageDocumentation
  */

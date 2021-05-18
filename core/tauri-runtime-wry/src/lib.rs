@@ -84,6 +84,7 @@ impl TryFrom<Icon> for WryIcon {
       .expect("could not determine icon extension")
       .extension();
     let (width, height, rgba) = match extension {
+      #[cfg(windows)]
       "ico" => {
         let icon_dir = ico::IconDir::read(Cursor::new(image_bytes)).map_err(icon_err)?;
         let entry = &icon_dir.entries()[0];
@@ -93,7 +94,10 @@ impl TryFrom<Icon> for WryIcon {
           entry.decode().map_err(icon_err)?.rgba_data().to_vec(),
         )
       }
-      _ => panic!("only .ico icons are supported; please file a Tauri feature request"),
+      _ => panic!(
+        "image `{}` extension not supported; please file a Tauri feature request",
+        extension
+      ),
     };
     let icon = WindowIcon::from_rgba(rgba, width, height).map_err(icon_err)?;
     Ok(Self(icon))

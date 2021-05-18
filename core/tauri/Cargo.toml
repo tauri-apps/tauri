@@ -62,7 +62,6 @@ open = "1.7.0"
 shared_child = "0.3"
 os_pipe = "0.9"
 minisign-verify = "0.1.8"
-image = "0.23"
 state = "0.4"
 bincode = "1.3"
 

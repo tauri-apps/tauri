@@ -23,7 +23,6 @@ use tauri_runtime::SystemTrayEvent;
 #[cfg(feature = "system-tray")]
 use wry::application::platform::system_tray::SystemTrayBuilder;
 
-use image::{GenericImageView, Pixel};
 use tauri_utils::config::WindowConfig;
 use uuid::Uuid;
 use wry::{
@@ -47,6 +46,7 @@ use wry::{
 use std::{
   collections::HashMap,
   convert::TryFrom,
+  fs::read,
   sync::{
     mpsc::{channel, Receiver, Sender},
     Arc, Mutex,
@@ -64,37 +64,22 @@ type MainThreadTask = Box<dyn FnOnce() + Send>;
 type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
 
-#[repr(C)]
-#[derive(Debug)]
-struct PixelValue {
-  r: u8,
-  g: u8,
-  b: u8,
-  a: u8,
-}
-
-const PIXEL_SIZE: usize = std::mem::size_of::<PixelValue>();
-
 /// Wrapper around a [`wry::application::window::Icon`] that can be created from an [`Icon`].
 pub struct WryIcon(WindowIcon);
 
 impl TryFrom<Icon> for WryIcon {
   type Error = Error;
   fn try_from(icon: Icon) -> std::result::Result<Self, Self::Error> {
-    let image = match icon {
-      Icon::File(path) => image::open(path).map_err(|e| Error::InvalidIcon(Box::new(e)))?,
+    let image_bytes = match icon {
+      Icon::File(path) => read(path).map_err(|e| Error::InvalidIcon(Box::new(e)))?,
       Icon::Raw(raw) => {
-        image::load_from_memory(&raw).map_err(|e| Error::InvalidIcon(Box::new(e)))?
+        raw
       }
       _ => unimplemented!(),
     };
-    let (width, height) = image.dimensions();
-    let mut rgba = Vec::with_capacity((width * height) as usize * PIXEL_SIZE);
-    for (_, _, pixel) in image.pixels() {
-      rgba.extend_from_slice(&pixel.to_rgba().0);
-    }
+    let (width, height) = (24, 24);
     let icon =
-      WindowIcon::from_rgba(rgba, width, height).map_err(|e| Error::InvalidIcon(Box::new(e)))?;
+      WindowIcon::from_rgba(image_bytes, width, height).map_err(|e| Error::InvalidIcon(Box::new(e)))?;
     Ok(Self(icon))
   }
 }

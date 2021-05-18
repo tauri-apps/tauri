@@ -47,7 +47,6 @@ use std::{
   collections::HashMap,
   convert::TryFrom,
   fs::read,
-  io::Cursor,
   sync::{
     mpsc::{channel, Receiver, Sender},
     Arc, Mutex,
@@ -83,24 +82,24 @@ impl TryFrom<Icon> for WryIcon {
     let extension = infer::get(&image_bytes)
       .expect("could not determine icon extension")
       .extension();
-    let (width, height, rgba) = match extension {
+    match extension {
       #[cfg(windows)]
       "ico" => {
-        let icon_dir = ico::IconDir::read(Cursor::new(image_bytes)).map_err(icon_err)?;
+        let icon_dir = ico::IconDir::read(std::io::Cursor::new(image_bytes)).map_err(icon_err)?;
         let entry = &icon_dir.entries()[0];
-        (
+        let icon = WindowIcon::from_rgba(
+          entry.decode().map_err(icon_err)?.rgba_data().to_vec(),
           entry.width(),
           entry.height(),
-          entry.decode().map_err(icon_err)?.rgba_data().to_vec(),
         )
+        .map_err(icon_err)?;
+        Ok(Self(icon))
       }
       _ => panic!(
         "image `{}` extension not supported; please file a Tauri feature request",
         extension
       ),
-    };
-    let icon = WindowIcon::from_rgba(rgba, width, height).map_err(icon_err)?;
-    Ok(Self(icon))
+    }
   }
 }
 

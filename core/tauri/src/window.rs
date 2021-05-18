@@ -136,6 +136,10 @@ impl<P: Params> ManagerBase<P> for Window<P> {
   fn manager(&self) -> &WindowManager<P> {
     &self.manager
   }
+
+  fn runtime(&self) -> RuntimeOrDispatch<'_, P> {
+    RuntimeOrDispatch::Dispatch(self.dispatcher())
+  }
 }
 
 impl<'de, P: Params> CommandArg<'de, P> for Window<P> {
@@ -171,10 +175,11 @@ impl<P: Params> Window<P> {
       <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder::new(),
       WebviewAttributes::new(url),
     );
-    self.create_new_window(
-      RuntimeOrDispatch::Dispatch(self.dispatcher()),
-      PendingWindow::new(window_builder, webview_attributes, label),
-    )
+    self.create_new_window(PendingWindow::new(
+      window_builder,
+      webview_attributes,
+      label,
+    ))
   }
 
   /// The current window's dispatcher.

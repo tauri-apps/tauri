@@ -47,6 +47,7 @@ use std::{
   collections::HashMap,
   convert::TryFrom,
   fs::read,
+  io::Cursor,
   sync::{
     mpsc::{channel, Receiver, Sender},
     Arc, Mutex,
@@ -67,19 +68,34 @@ type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
 /// Wrapper around a [`wry::application::window::Icon`] that can be created from an [`Icon`].
 pub struct WryIcon(WindowIcon);
 
+fn icon_err<E: std::error::Error + Send + 'static>(e: E) -> Error {
+  Error::InvalidIcon(Box::new(e))
+}
+
 impl TryFrom<Icon> for WryIcon {
   type Error = Error;
   fn try_from(icon: Icon) -> std::result::Result<Self, Self::Error> {
     let image_bytes = match icon {
-      Icon::File(path) => read(path).map_err(|e| Error::InvalidIcon(Box::new(e)))?,
-      Icon::Raw(raw) => {
-        raw
-      }
+      Icon::File(path) => read(path).map_err(icon_err)?,
+      Icon::Raw(raw) => raw,
       _ => unimplemented!(),
     };
-    let (width, height) = (24, 24);
-    let icon =
-      WindowIcon::from_rgba(image_bytes, width, height).map_err(|e| Error::InvalidIcon(Box::new(e)))?;
+    let extension = infer::get(&image_bytes)
+      .expect("could not determine icon extension")
+      .extension();
+    let (width, height, rgba) = match extension {
+      "ico" => {
+        let icon_dir = ico::IconDir::read(Cursor::new(image_bytes)).map_err(icon_err)?;
+        let entry = &icon_dir.entries()[0];
+        (
+          entry.width(),
+          entry.height(),
+          entry.decode().map_err(icon_err)?.rgba_data().to_vec(),
+        )
+      }
+      _ => panic!("only .ico icons are supported; please file a Tauri feature request"),
+    };
+    let icon = WindowIcon::from_rgba(rgba, width, height).map_err(icon_err)?;
     Ok(Self(icon))
   }
 }

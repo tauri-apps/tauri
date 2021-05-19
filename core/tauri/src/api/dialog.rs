@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#[cfg(any(dialog_open, dialog_save))]
 use std::path::{Path, PathBuf};
 
-use rfd::FileDialog;
 use tinyfiledialogs::{message_box_ok, message_box_yes_no, MessageBoxIcon, YesNo};
 
 /// The file dialog builder.
 /// Constructs file picker dialogs that can select single/multiple files or directories.
+#[cfg(any(dialog_open, dialog_save))]
 #[derive(Default)]
-pub struct FileDialogBuilder(FileDialog);
+pub struct FileDialogBuilder(rfd::FileDialog);
 
+#[cfg(any(dialog_open, dialog_save))]
 impl FileDialogBuilder {
   /// Gets the default file dialog builder.
   pub fn new() -> Self {

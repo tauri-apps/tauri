@@ -21,6 +21,7 @@ pub mod process;
 /// The RPC module includes utilities to send messages to the JS layer of the webview.
 pub mod rpc;
 /// The shell api.
+#[cfg(shell_open)]
 pub mod shell;
 /// The semver API.
 pub mod version;

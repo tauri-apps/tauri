@@ -1,0 +1,61 @@
+name: benches
+
+on: [pull_request]
+
+jobs:
+  bench:
+    strategy:
+      fail-fast: false
+      matrix:
+        rust_version: [stable]
+        platform:
+          - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
+
+    runs-on: ${{ matrix.platform.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: install stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.platform.target }}
+
+      - name: install webkit2gtk (ubuntu only)
+        if: matrix.platform.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0 libgtksourceview-3.0-dev libappindicator3-dev
+
+      - name: install xvfb and hyperfine
+        run: |
+          sudo apt-get install -y xvfb
+          wget https://github.com/sharkdp/hyperfine/releases/download/v1.11.0/hyperfine_1.11.0_amd64.deb
+          sudo dpkg -i hyperfine_1.11.0_amd64.deb
+
+      - name: build benchmarks
+        run: |
+          cargo build --release --bin "bench_*"
+          xvfb-run --auto-servernum cargo bench --bench tauri_bench
+
+      - name: clone current benchmarks
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.BENCH_PAT }}
+          path: gh-pages
+          repository: tauri-apps/benchmark_results
+
+      - name: post benchmarks
+        run: |
+          cargo run --bin build_benchmark_jsons
+          cd gh-pages
+          git config user.name "tauri-bench"
+          git config user.email "gh.tauribot@gmail.com"
+          git add .
+          git commit --message "Update Tauri benchmarks"
+          git push origin gh-pages
+
+      - name: Worker info
+        run: |
+          cat /proc/cpuinfo
+          cat /proc/meminfo

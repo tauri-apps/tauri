@@ -89,3 +89,6 @@ target
 
 # ignore frida handlers
 __handlers__/
+
+# benches
+gh-pages

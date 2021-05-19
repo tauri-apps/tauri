@@ -97,6 +97,8 @@ quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 tokio-test = "0.4.2"
 mockito = "0.30"
+anyhow = "1.0.40"
+chrono = "0.4.19"
 
 [features]
 default = [ "wry" ]
@@ -133,3 +135,8 @@ http-all = [ ]
 http-request = [ ]
 notification-all = [ "notify-rust" ]
 global-shortcut-all = [ "tauri-hotkey" ]
+
+[[bench]]
+name = "tauri_bench"
+harness = false
+path = "./bench/main.rs"

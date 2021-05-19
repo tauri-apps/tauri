@@ -8,6 +8,9 @@ members = [
   "core/tauri-utils",
   "core/tauri-build",
   "core/tauri-codegen",
+  # bench
+  "core/tauri/bench/tests/helloworld/src-tauri",
+  "core/tauri/bench/tools",
 
   # examples
   "examples/api/src-tauri",

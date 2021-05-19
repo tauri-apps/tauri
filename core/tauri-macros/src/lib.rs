@@ -23,6 +23,12 @@ pub fn command(attributes: TokenStream, item: TokenStream) -> TokenStream {
   command::wrapper(attributes, item)
 }
 
+/// Accepts a list of commands functions. Creates a handler that allows commands to be called from JS with invoke().
+///
+/// # Stability
+/// The output of this macro is managed internally by Tauri,
+/// and should not be accessed directly on normal applications.
+/// It may have breaking changes in the future.
 #[proc_macro]
 pub fn generate_handler(item: TokenStream) -> TokenStream {
   parse_macro_input!(item as command::Handler).into()

@@ -27,6 +27,9 @@ targets = [
   "x86_64-apple-darwin"
 ]
 
+[package.metadata.cargo-udeps.ignore]
+normal = ["attohttpc"] # we ignore attohttpc because we can't remove it based on `not(feature = "reqwest-client")`
+
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
 serde = { version = "1.0", features = [ "derive" ] }

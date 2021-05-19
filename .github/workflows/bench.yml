@@ -55,6 +55,7 @@ jobs:
         run: |
           cargo run --bin build_benchmark_jsons
           cd gh-pages
+          git pull
           git config user.name "tauri-bench"
           git config user.email "gh.tauribot@gmail.com"
           git add .

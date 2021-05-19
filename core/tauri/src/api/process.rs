@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  path::PathBuf,
   env,
+  path::PathBuf,
   process::{exit, Command as StdCommand},
 };
 

@@ -4,7 +4,12 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::HashMap, fs::File, io::BufReader, path::PathBuf};
+use std::{
+  collections::HashMap,
+  fs::File,
+  io::BufReader,
+  path::{Path, PathBuf},
+};
 
 fn target_dir() -> PathBuf {
   root_dir().join("target").join("release")
@@ -23,7 +28,7 @@ fn root_dir() -> PathBuf {
     .to_path_buf()
 }
 
-fn write_json(filename: &PathBuf, value: &Value) {
+fn write_json(filename: &Path, value: &Value) {
   let f = File::create(filename).expect("Unable to create file");
   serde_json::to_writer(f, value).expect("Unable to write json");
 }

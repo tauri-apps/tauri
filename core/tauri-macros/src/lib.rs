@@ -25,6 +25,13 @@ pub fn command(attributes: TokenStream, item: TokenStream) -> TokenStream {
 
 /// Accepts a list of commands functions. Creates a handler that allows commands to be called from JS with invoke().
 ///
+/// # Example
+/// ```
+/// tauri::Builder::default()
+/// .run(tauri::generate_context!())
+/// .invoke_handler(tauri::generate_handler![command_one, command_two])
+/// .expect("error while running tauri application");
+/// ```
 /// # Stability
 /// The output of this macro is managed internally by Tauri,
 /// and should not be accessed directly on normal applications.

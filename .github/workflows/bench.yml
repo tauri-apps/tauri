@@ -1,6 +1,6 @@
 name: benches
 
-on: [pull_request]
+on: [push, pull_request]
 
 jobs:
   bench:
@@ -40,12 +40,18 @@ jobs:
 
       - name: clone current benchmarks
         uses: actions/checkout@v2
+        if: |
+          github.repository == 'tauri-apps/tauri' &&
+          (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/feat/benches')
         with:
           token: ${{ secrets.BENCH_PAT }}
           path: gh-pages
           repository: tauri-apps/benchmark_results
 
       - name: post benchmarks
+        if: |
+          github.repository == 'tauri-apps/tauri' &&
+          (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/feat/benches')
         run: |
           cargo run --bin build_benchmark_jsons
           cd gh-pages

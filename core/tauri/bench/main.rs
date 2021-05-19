@@ -43,7 +43,7 @@ fn run_strace_benchmarks(new_data: &mut BenchResult) -> Result<()> {
 
   for (name, example_exe, _) in EXEC_TIME_BENCHMARKS {
     let mut file = tempfile::NamedTempFile::new()?;
-
+    // strace
     Command::new("strace")
       .args(&[
         "-c",

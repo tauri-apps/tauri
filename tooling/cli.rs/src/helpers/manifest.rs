@@ -2,19 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{app_paths::tauri_dir, config::ConfigHandle};
+use super::{
+  app_paths::tauri_dir,
+  config::{all_allowlist_features, ConfigHandle},
+};
 
 use anyhow::Context;
 use toml_edit::{Array, Document, InlineTable, Item, Value};
 
 use std::{
+  collections::HashSet,
   fs::File,
   io::{Read, Write},
   path::Path,
 };
 
 pub struct Manifest {
-  pub features: Vec<String>,
+  pub features: HashSet<String>,
 }
 
 fn read_manifest(manifest_path: &Path) -> crate::Result<Document> {
@@ -31,14 +35,14 @@ fn read_manifest(manifest_path: &Path) -> crate::Result<Document> {
   Ok(manifest)
 }
 
-fn features_to_vec(features: &Array) -> Vec<String> {
-  let mut string_features = Vec::new();
-  for feat in features.iter() {
-    if let Value::String(feature) = feat {
-      string_features.push(feature.value().to_string());
-    }
+fn toml_array(features: &HashSet<String>) -> Array {
+  let mut f = Array::default();
+  let mut features: Vec<String> = features.iter().map(|f| f.to_string()).collect();
+  features.sort();
+  for feature in features {
+    f.push(feature.as_str()).unwrap();
   }
-  string_features
+  f
 }
 
 pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
@@ -56,32 +60,35 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
   let config = config_guard.as_ref().unwrap();
 
   let allowlist_features = config.tauri.features();
-  let mut features = Array::default();
+  let mut features = HashSet::new();
   for feature in allowlist_features {
-    features.push(feature).unwrap();
+    features.insert(feature.to_string());
   }
   if config.tauri.cli.is_some() {
-    features.push("cli").unwrap();
+    features.insert("cli".to_string());
   }
   if config.tauri.updater.active {
-    features.push("updater").unwrap();
+    features.insert("updater".to_string());
   }
   if config.tauri.system_tray.is_some() {
-    features.push("system-tray").unwrap();
+    features.insert("system-tray".to_string());
   }
+
+  let mut cli_managed_features = all_allowlist_features();
+  cli_managed_features.extend(vec!["cli", "updater", "system-tray"]);
 
   if let Some(tauri) = tauri_entry.as_table_mut() {
     let manifest_features = tauri.entry("features");
     if let Item::Value(Value::Array(f)) = &manifest_features {
       for feat in f.iter() {
         if let Value::String(feature) = feat {
-          if feature.value() == "menu" {
-            features.push("menu").unwrap();
+          if !cli_managed_features.contains(&feature.value().as_str()) {
+            features.insert(feature.value().to_string());
           }
         }
       }
     }
-    *manifest_features = Item::Value(Value::Array(features.clone()));
+    *manifest_features = Item::Value(Value::Array(toml_array(&features)));
   } else if let Some(tauri) = tauri_entry.as_value_mut() {
     match tauri {
       Value::InlineTable(table) => {
@@ -89,13 +96,13 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
         if let Value::Array(f) = &manifest_features {
           for feat in f.iter() {
             if let Value::String(feature) = feat {
-              if feature.value() == "menu" {
-                features.push("menu").unwrap();
+              if !cli_managed_features.contains(&feature.value().as_str()) {
+                features.insert(feature.value().to_string());
               }
             }
           }
         }
-        *manifest_features = Value::Array(features.clone());
+        *manifest_features = Value::Array(toml_array(&features));
       }
       Value::String(version) => {
         let mut def = InlineTable::default();
@@ -103,7 +110,7 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
           "version",
           version.to_string().replace("\"", "").replace(" ", ""),
         );
-        def.get_or_insert("features", Value::Array(features.clone()));
+        def.get_or_insert("features", Value::Array(toml_array(&features)));
         *tauri = Value::InlineTable(def);
       }
       _ => {
@@ -113,9 +120,7 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
       }
     }
   } else {
-    return Ok(Manifest {
-      features: features_to_vec(&features),
-    });
+    return Ok(Manifest { features });
   }
 
   let mut manifest_file =
@@ -132,9 +137,7 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
   )?;
   manifest_file.flush()?;
 
-  Ok(Manifest {
-    features: features_to_vec(&features),
-  })
+  Ok(Manifest { features })
 }
 
 pub fn get_workspace_members() -> crate::Result<Vec<String>> {

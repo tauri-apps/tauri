@@ -300,7 +300,7 @@ pub struct SecurityConfig {
   pub csp: Option<String>,
 }
 
-trait Allowlist {
+pub trait Allowlist {
   fn to_features(&self) -> Vec<&str>;
 }
 
@@ -314,31 +314,31 @@ macro_rules! check_feature {
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct FsAllowlistConfig {
+pub struct FsAllowlistConfig {
   #[serde(default)]
-  all: bool,
+  pub all: bool,
   #[serde(default)]
-  read_text_file: bool,
+  pub read_text_file: bool,
   #[serde(default)]
-  read_binary_file: bool,
+  pub read_binary_file: bool,
   #[serde(default)]
-  write_file: bool,
+  pub write_file: bool,
   #[serde(default)]
-  write_binary_file: bool,
+  pub write_binary_file: bool,
   #[serde(default)]
-  read_dir: bool,
+  pub read_dir: bool,
   #[serde(default)]
-  copy_file: bool,
+  pub copy_file: bool,
   #[serde(default)]
-  create_dir: bool,
+  pub create_dir: bool,
   #[serde(default)]
-  remove_dir: bool,
+  pub remove_dir: bool,
   #[serde(default)]
-  remove_file: bool,
+  pub remove_file: bool,
   #[serde(default)]
-  rename_file: bool,
+  pub rename_file: bool,
   #[serde(default)]
-  path: bool,
+  pub path: bool,
 }
 
 impl Allowlist for FsAllowlistConfig {
@@ -365,11 +365,11 @@ impl Allowlist for FsAllowlistConfig {
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct WindowAllowlistConfig {
+pub struct WindowAllowlistConfig {
   #[serde(default)]
-  all: bool,
+  pub all: bool,
   #[serde(default)]
-  create: bool,
+  pub create: bool,
 }
 
 impl Allowlist for WindowAllowlistConfig {
@@ -386,13 +386,13 @@ impl Allowlist for WindowAllowlistConfig {
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct ShellAllowlistConfig {
+pub struct ShellAllowlistConfig {
   #[serde(default)]
-  all: bool,
+  pub all: bool,
   #[serde(default)]
-  execute: bool,
+  pub execute: bool,
   #[serde(default)]
-  open: bool,
+  pub open: bool,
 }
 
 impl Allowlist for ShellAllowlistConfig {
@@ -410,13 +410,13 @@ impl Allowlist for ShellAllowlistConfig {
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct DialogAllowlistConfig {
+pub struct DialogAllowlistConfig {
   #[serde(default)]
-  all: bool,
+  pub all: bool,
   #[serde(default)]
-  open: bool,
+  pub open: bool,
   #[serde(default)]
-  save: bool,
+  pub save: bool,
 }
 
 impl Allowlist for DialogAllowlistConfig {
@@ -434,11 +434,11 @@ impl Allowlist for DialogAllowlistConfig {
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct HttpAllowlistConfig {
+pub struct HttpAllowlistConfig {
   #[serde(default)]
-  all: bool,
+  pub all: bool,
   #[serde(default)]
-  request: bool,
+  pub request: bool,
 }
 
 impl Allowlist for HttpAllowlistConfig {
@@ -455,9 +455,9 @@ impl Allowlist for HttpAllowlistConfig {
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct NotificationAllowlistConfig {
+pub struct NotificationAllowlistConfig {
   #[serde(default)]
-  all: bool,
+  pub all: bool,
 }
 
 impl Allowlist for NotificationAllowlistConfig {
@@ -472,9 +472,9 @@ impl Allowlist for NotificationAllowlistConfig {
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct GlobalShortcutAllowlistConfig {
+pub struct GlobalShortcutAllowlistConfig {
   #[serde(default)]
-  all: bool,
+  pub all: bool,
 }
 
 impl Allowlist for GlobalShortcutAllowlistConfig {
@@ -489,23 +489,23 @@ impl Allowlist for GlobalShortcutAllowlistConfig {
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct AllowlistConfig {
+pub struct AllowlistConfig {
   #[serde(default)]
-  all: bool,
+  pub all: bool,
   #[serde(default)]
-  fs: FsAllowlistConfig,
+  pub fs: FsAllowlistConfig,
   #[serde(default)]
-  window: WindowAllowlistConfig,
+  pub window: WindowAllowlistConfig,
   #[serde(default)]
-  shell: ShellAllowlistConfig,
+  pub shell: ShellAllowlistConfig,
   #[serde(default)]
-  dialog: DialogAllowlistConfig,
+  pub dialog: DialogAllowlistConfig,
   #[serde(default)]
-  http: HttpAllowlistConfig,
+  pub http: HttpAllowlistConfig,
   #[serde(default)]
-  notification: NotificationAllowlistConfig,
+  pub notification: NotificationAllowlistConfig,
   #[serde(default)]
-  global_shortcut: GlobalShortcutAllowlistConfig,
+  pub global_shortcut: GlobalShortcutAllowlistConfig,
 }
 
 impl Allowlist for AllowlistConfig {

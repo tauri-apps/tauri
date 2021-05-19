@@ -535,7 +535,7 @@ where
         }
 
         #[cfg(not(target_os = "linux"))]
-        if let Some(Icon::File(bytes)) = icon {
+        if let Some(Icon::File(_)) = icon {
           return Err(crate::Error::InvalidIcon(Box::new(Error::new(
             ErrorKind::InvalidInput,
             "system tray icons on non-linux platforms must be the raw bytes",

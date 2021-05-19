@@ -5,16 +5,17 @@
 use super::error::{Error, Result};
 use crate::api::{file::Extract, version};
 use base64::decode;
+use http::StatusCode;
 use minisign_verify::{PublicKey, Signature};
-use reqwest::{self, header, StatusCode};
 use std::{
+  collections::HashMap,
   env,
   ffi::OsStr,
   fs::{read_dir, remove_file, File, OpenOptions},
   io::{prelude::*, BufReader, Read},
   path::{Path, PathBuf},
   str::from_utf8,
-  time::{Duration, SystemTime, UNIX_EPOCH},
+  time::{SystemTime, UNIX_EPOCH},
 };
 
 #[cfg(not(target_os = "macos"))]
@@ -22,6 +23,8 @@ use std::process::Command;
 
 #[cfg(target_os = "macos")]
 use crate::api::file::Move;
+
+use crate::api::http::{ClientBuilder, HttpRequestBuilder};
 
 #[cfg(target_os = "windows")]
 use std::process::exit;
@@ -271,31 +274,33 @@ impl<'a> UpdateBuilder<'a> {
       );
 
       // we want JSON only
-      let mut headers = header::HeaderMap::new();
-      headers.insert(header::ACCEPT, "application/json".parse().unwrap());
+      let mut headers = HashMap::new();
+      headers.insert("Accept".into(), "application/json".into());
 
-      let resp = reqwest::Client::new()
-        .get(&fixed_link)
-        .headers(headers)
-        // wait 20sec for the firewall
-        .timeout(Duration::from_secs(20))
-        .send()
+      let resp = ClientBuilder::new()
+        .build()?
+        .send(
+          HttpRequestBuilder::new("GET", &fixed_link)
+            .headers(headers)
+            // wait 20sec for the firewall
+            .timeout(20),
+        )
         .await;
 
       // If we got a success, we stop the loop
       // and we set our remote_release variable
-      if let Ok(ref res) = resp {
+      if let Ok(res) = resp {
+        let res = res.read().await?;
         // got status code 2XX
-        if res.status().is_success() {
+        if StatusCode::from_u16(res.status).unwrap().is_success() {
           // if we got 204
-          if StatusCode::NO_CONTENT == res.status() {
+          if StatusCode::NO_CONTENT.as_u16() == res.status {
             // return with `UpToDate` error
             // we should catch on the client
             return Err(Error::UpToDate);
           };
-          let json = resp?.json::<serde_json::Value>().await?;
           // Convert the remote result to our local struct
-          let built_release = RemoteRelease::from_release(&json, &target);
+          let built_release = RemoteRelease::from_release(&res.data, &target);
           // make sure all went well and the remote data is compatible
           // with what we need locally
           match built_release {
@@ -411,35 +416,32 @@ impl Update {
     let mut tmp_archive = File::create(&tmp_archive_path)?;
 
     // set our headers
-    let mut headers = header::HeaderMap::new();
-    headers.insert(header::ACCEPT, "application/octet-stream".parse().unwrap());
-
-    // make sure we have a valid agent
-    if !headers.contains_key(header::USER_AGENT) {
-      headers.insert(
-        header::USER_AGENT,
-        "tauri/updater".parse().expect("invalid user-agent"),
-      );
-    }
+    let mut headers = HashMap::new();
+    headers.insert("Accept".into(), "application/octet-stream".into());
+    headers.insert("User-Agent".into(), "tauri/updater".into());
 
     // Create our request
-    let resp = reqwest::Client::new()
-      .get(&url)
-      // wait 20sec for the firewall
-      .timeout(Duration::from_secs(20))
-      .headers(headers)
-      .send()
+    let resp = ClientBuilder::new()
+      .build()?
+      .send(
+        HttpRequestBuilder::new("GET", &url)
+          .headers(headers)
+          // wait 20sec for the firewall
+          .timeout(20),
+      )
+      .await?
+      .bytes()
       .await?;
 
     // make sure it's success
-    if !resp.status().is_success() {
+    if !StatusCode::from_u16(resp.status).unwrap().is_success() {
       return Err(Error::Network(format!(
         "Download request failed with status: {}",
-        resp.status()
+        resp.status
       )));
     }
 
-    tmp_archive.write_all(&resp.bytes().await?)?;
+    tmp_archive.write_all(&resp.data)?;
 
     // Validate signature ONLY if pubkey is available in tauri.conf.json
     if let Some(pub_key) = pub_key {

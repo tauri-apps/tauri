@@ -25,6 +25,11 @@ pub enum Error {
   #[error("user cancelled the dialog")]
   DialogCancelled,
   /// The network error.
+  #[cfg(not(feature = "reqwest-client"))]
+  #[error("Network Error: {0}")]
+  Network(#[from] attohttpc::Error),
+  /// The network error.
+  #[cfg(feature = "reqwest-client")]
   #[error("Network Error: {0}")]
   Network(#[from] reqwest::Error),
   /// HTTP method error.
@@ -32,10 +37,10 @@ pub enum Error {
   HttpMethod(#[from] http::method::InvalidMethod),
   /// Invalid HTTO header.
   #[error("{0}")]
-  HttpHeader(#[from] reqwest::header::InvalidHeaderName),
+  HttpHeader(#[from] http::header::InvalidHeaderName),
   /// Failed to serialize header value as string.
   #[error("failed to convert response header value to string")]
-  HttpHeaderToString(#[from] reqwest::header::ToStrError),
+  HttpHeaderToString(#[from] http::header::ToStrError),
   /// HTTP form to must be an object.
   #[error("http form must be an object")]
   InvalidHttpForm,

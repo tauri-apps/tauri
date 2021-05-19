@@ -6,11 +6,13 @@ use hyper::http::uri::Authority;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Client, Method, Request, Response, Server};
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{json, Map, Value};
 use std::convert::Infallible;
 use std::path::PathBuf;
 
 type HttpClient = Client<hyper::client::HttpConnector>;
+
+const TAURI_OPTIONS: &str = "tauri:options";
 
 #[derive(Debug, Deserialize)]
 struct TauriOptions {
@@ -19,11 +21,22 @@ struct TauriOptions {
 
 impl TauriOptions {
   #[cfg(target_os = "linux")]
-  fn into_native_object(self) -> (&'static str, Value) {
-    (
-      "webkitgtk:browserOptions",
-      serde_json::json!({"binary": self.application}),
-    )
+  fn into_native_object(self) -> Map<String, Value> {
+    let mut map = Map::new();
+    map.insert(
+      "webkitgtk:browserOptions".into(),
+      json!({"binary": self.application}),
+    );
+    map
+  }
+
+  #[cfg(target_os = "windows")]
+  fn into_native_object(self) -> Map<String, Value> {
+    let mut map = Map::new();
+    map.insert("ms:edgeChromium".into(), json!(true));
+    map.insert("browserName".into(), json!("webview2"));
+    map.insert("ms:edgeOptions".into(), json!({"binary": self.application}));
+    map
   }
 }
 
@@ -89,24 +102,24 @@ fn map_capabilities(mut json: Value) -> Value {
   if let Some(capabilities) = json.get_mut("capabilities") {
     if let Some(always_match) = capabilities.get_mut("alwaysMatch") {
       if let Some(always_match) = always_match.as_object_mut() {
-        if let Some(tauri_options) = always_match.remove("tauri:options") {
+        if let Some(tauri_options) = always_match.remove(TAURI_OPTIONS) {
           if let Ok(options) = serde_json::from_value::<TauriOptions>(tauri_options) {
             native = Some(options.into_native_object());
           }
         }
 
-        if let Some((key, value)) = &native {
-          always_match.insert(key.to_string(), value.clone());
+        if let Some(native) = native.clone() {
+          always_match.extend(native);
         }
       }
     }
   }
 
-  if let Some((key, value)) = native {
+  if let Some(native) = native {
     if let Some(desired) = json.get_mut("desiredCapabilities") {
       if let Some(desired) = desired.as_object_mut() {
-        desired.remove("tauri:options");
-        desired.insert(key.into(), value);
+        desired.remove(TAURI_OPTIONS);
+        desired.extend(native);
       }
     }
   }

@@ -5,8 +5,11 @@ use std::process::Command;
 #[cfg(target_os = "linux")]
 const DRIVER_BINARY: &str = "WebKitWebDriver";
 
+#[cfg(target_os = "windows")]
+const DRIVER_BINARY: &str = "./msedgedriver.exe";
+
 // a prepared command of the native driver with necessary arguments
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 fn prepare_native_driver(args: &Args) -> Command {
   let mut cmd = Command::new(DRIVER_BINARY);
   cmd.arg(format!("--port={}", args.native_port));

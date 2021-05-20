@@ -194,15 +194,15 @@ impl<P: Params> App<P> {
   ///     .build(tauri::generate_context!())
   ///     .expect("error while building tauri application");
   ///   loop {
-  ///     let iteration = app.run_return();
+  ///     let iteration = app.run_iteration();
   ///     if iteration.webview_count == 0 {
   ///       break;
   ///     }
   ///   }
   /// }
   #[cfg(any(target_os = "windows", target_os = "macos"))]
-  pub fn run_return(&mut self) -> crate::runtime::RunIteration {
-    self.runtime.run_return()
+  pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
+    self.runtime.run_iteration()
   }
 }
 

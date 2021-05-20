@@ -942,7 +942,7 @@ impl Runtime for Wry {
   }
 
   #[cfg(any(target_os = "windows", target_os = "macos"))]
-  fn run_return(&mut self) -> RunIteration {
+  fn run_iteration(&mut self) -> RunIteration {
     use wry::application::platform::run_return::EventLoopExtRunReturn;
     let webviews = self.webviews.clone();
     let task_rx = self.task_rx.clone();

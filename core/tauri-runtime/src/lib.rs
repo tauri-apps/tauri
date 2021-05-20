@@ -104,7 +104,7 @@ pub struct SystemTrayEvent {
   pub menu_item_id: u32,
 }
 
-/// Metadata for a runtime event loop iteration on `run_return`.
+/// Metadata for a runtime event loop iteration on `run_iteration`.
 #[derive(Debug, Clone, Default)]
 pub struct RunIteration {
   pub webview_count: usize,
@@ -155,7 +155,7 @@ pub trait Runtime: Sized + 'static {
 
   /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
   #[cfg(any(target_os = "windows", target_os = "macos"))]
-  fn run_return(&mut self) -> RunIteration;
+  fn run_iteration(&mut self) -> RunIteration;
 
   /// Run the webview runtime.
   fn run(self);

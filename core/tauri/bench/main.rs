@@ -18,7 +18,7 @@ mod utils;
 const EXEC_TIME_BENCHMARKS: &[(&str, &str)] = &[
   ("tauri_hello_world", "target/release/bench_helloworld"),
   ("tauri_cpu_intensive", "target/release/bench_cpu_intensive"),
-  ("tauri_3mb_transfer", "target/release/bench_files_transfer"),
+  // ("tauri_3mb_transfer", "target/release/bench_files_transfer"),
 ];
 
 // Another definition of `BenchResult` is found in

@@ -78,9 +78,7 @@ jobs:
           xvfb-run --auto-servernum cargo bench --bench tauri_bench
 
       - name: clone benchmarks_results
-        if: |
-          github.repository == 'tauri-apps/tauri' &&
-          (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/feat/benches')
+        # if:  github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
         uses: actions/checkout@v2
         with:
           token: ${{ secrets.BENCH_PAT }}
@@ -88,9 +86,7 @@ jobs:
           repository: tauri-apps/benchmark_results
 
       - name: push new benchmarks
-        if: |
-          github.repository == 'tauri-apps/tauri' &&
-          (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/feat/benches')
+        # if:  github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
         run: |
           cargo run --bin build_benchmark_jsons
           cd gh-pages

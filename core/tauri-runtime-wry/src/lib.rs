@@ -370,6 +370,11 @@ impl From<FileDropEventWrapper> for FileDropEvent {
   }
 }
 
+#[cfg(windows)]
+struct Hwnd(*mut std::ffi::c_void);
+#[cfg(windows)]
+unsafe impl Send for Hwnd {}
+
 #[derive(Debug, Clone)]
 enum WindowMessage {
   // Getters
@@ -383,6 +388,8 @@ enum WindowMessage {
   CurrentMonitor(Sender<Option<MonitorHandle>>),
   PrimaryMonitor(Sender<Option<MonitorHandle>>),
   AvailableMonitors(Sender<Vec<MonitorHandle>>),
+  #[cfg(windows)]
+  Hwnd(Sender<Hwnd>),
   // Setters
   SetResizable(bool),
   SetTitle(String),
@@ -531,6 +538,11 @@ impl Dispatch for WryDispatcher {
         .map(|m| MonitorHandleWrapper(m).into())
         .collect(),
     )
+  }
+
+  #[cfg(windows)]
+  fn hwnd(&self) -> Result<*mut std::ffi::c_void> {
+    Ok(dispatcher_getter!(self, WindowMessage::Hwnd).0)
   }
 
   // Setters
@@ -1029,6 +1041,11 @@ impl Runtime for Wry {
                 WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
                 WindowMessage::AvailableMonitors(tx) => {
                   tx.send(window.available_monitors().collect()).unwrap()
+                }
+                #[cfg(windows)]
+                WindowMessage::Hwnd(tx) => {
+                  use wry::application::platform::windows::WindowExtWindows;
+                  tx.send(Hwnd(window.hwnd())).unwrap()
                 }
                 // Setters
                 WindowMessage::SetResizable(resizable) => window.set_resizable(resizable),

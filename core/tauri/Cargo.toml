@@ -80,7 +80,8 @@ shared_child = { version = "0.3", optional = true }
 os_pipe = { version = "0.9", optional = true }
 
 # Dialogs
-rfd = { version = "0.3", optional = true }
+rfd = { path = "../../../rfd", optional = true }
+raw-window-handle = { version="0.3.3", optional = true }
 
 # Updater
 minisign-verify = { version = "0.1", optional = true }
@@ -127,8 +128,8 @@ shell-all = [ "shell-open", "shell-execute" ]
 shell-execute = [ "shared_child", "os_pipe" ]
 shell-open = [ "open" ]
 dialog-all = [ "dialog-open", "dialog-save" ]
-dialog-open = [ "rfd" ]
-dialog-save = [ "rfd" ]
+dialog-open = [ "rfd", "raw-window-handle" ]
+dialog-save = [ "rfd", "raw-window-handle" ]
 http-all = [ ]
 http-request = [ ]
 notification-all = [ "notify-rust" ]

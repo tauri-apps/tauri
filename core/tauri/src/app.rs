@@ -377,6 +377,40 @@ where
   ///
   /// Panics if state of type `T` is already being managed.
   ///
+  /// # Mutability
+  ///
+  /// Since the managed state is global and must be [`Send`] + [`Sync`], mutations can only happen through interior mutability:
+  ///
+  /// ```rust,ignore
+  /// use std::{collections::HashMap, sync::Mutex};
+  /// use tauri::State;
+  /// // here we use Mutex to achieve interior mutability
+  /// struct Storage(Mutex<HashMap<u64, String>>);
+  /// struct Connection;
+  /// struct DbConnection(Mutex<Option<Connection>>);
+  ///
+  /// #[tauri::command]
+  /// fn connect(connection: State<DbConnection>) {
+  ///   // initialize the connection, mutating the state with interior mutability
+  ///   *connection.0.lock().unwrap() = Some(Connection {});
+  /// }
+  ///
+  /// #[tauri::command]
+  /// fn storage_insert(key: u64, value: String, storage: State<Storage>) {
+  ///   // mutate the storage behind the Mutex
+  ///   storage.0.lock().unwrap().insert(key, value);
+  /// }
+  ///
+  /// fn main() {
+  ///   Builder::default()
+  ///     .manage(Storage(Default::default()))
+  ///     .manage(DbConnection(Default::default()))
+  ///     .invoke_handler(tauri::generate_handler![connect, storage_insert])
+  ///     .run(tauri::generate_context!())
+  ///     .expect("error while running tauri application");
+  /// }
+  /// ```
+  ///
   /// # Example
   ///
   /// ```rust,ignore
@@ -399,6 +433,7 @@ where
   ///     tauri::Builder::default()
   ///         .manage(MyInt(10))
   ///         .manage(MyString("Hello, managed state!".to_string()))
+  ///         .invoke_handler(tauri::generate_handler![int_command, string_command])
   ///         .run(tauri::generate_context!())
   ///         .expect("error while running tauri application");
   /// }

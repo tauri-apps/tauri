@@ -20,8 +20,12 @@ use tauri_runtime::{
 use tauri_runtime::window::MenuEvent;
 #[cfg(feature = "system-tray")]
 use tauri_runtime::SystemTrayEvent;
+#[cfg(windows)]
+use winapi::shared::windef::HWND;
 #[cfg(feature = "system-tray")]
 use wry::application::platform::system_tray::SystemTrayBuilder;
+#[cfg(windows)]
+use wry::application::platform::windows::WindowBuilderExtWindows;
 
 use tauri_utils::config::WindowConfig;
 use uuid::Uuid;
@@ -329,6 +333,16 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   fn always_on_top(self, always_on_top: bool) -> Self {
     Self(self.0.with_always_on_top(always_on_top))
+  }
+
+  #[cfg(windows)]
+  fn parent_window(self, parent: HWND) -> Self {
+    Self(self.0.with_parent_window(parent))
+  }
+
+  #[cfg(windows)]
+  fn owner_window(self, owner: HWND) -> Self {
+    Self(self.0.with_owner_window(owner))
   }
 
   fn icon(self, icon: Icon) -> Result<Self> {

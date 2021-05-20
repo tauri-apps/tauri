@@ -116,10 +116,11 @@ impl Module {
       // on Linux, the dialog must run on the main thread.
       #[cfg(target_os = "linux")]
       Self::Dialog(cmd) => {
-        let _ = window.run_on_main_thread(|| {
+        let window_ = window.clone();
+        let _ = window.run_on_main_thread(move || {
           resolver.respond_closure(move || {
             cmd
-              .run(window)
+              .run(window_)
               .and_then(|r| r.json)
               .map_err(InvokeError::from)
           })

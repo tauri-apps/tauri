@@ -388,11 +388,7 @@ impl<P: Params> Window<P> {
   /// Returns the native handle that is used by this window.
   #[cfg(windows)]
   pub fn hwnd(&self) -> crate::Result<*mut std::ffi::c_void> {
-    self
-      .window
-      .dispatcher
-      .hwnd()
-      .map_err(Into::into)
+    self.window.dispatcher.hwnd().map_err(Into::into)
   }
 
   // Setters

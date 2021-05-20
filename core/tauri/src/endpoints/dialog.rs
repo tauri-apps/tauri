@@ -159,13 +159,17 @@ unsafe impl raw_window_handle::HasRawWindowHandle for WindowParent {
 #[cfg(windows)]
 fn parent<P: Params>(window: Window<P>) -> crate::Result<WindowParent> {
   Ok(WindowParent {
-    hwnd: window.hwnd()?
+    hwnd: window.hwnd()?,
   })
 }
 
 /// Shows an open dialog.
 #[cfg(dialog_open)]
-pub fn open<P: Params>(window: Window<P>, options: OpenDialogOptions) -> crate::Result<InvokeResponse> {
+#[allow(unused_variables)]
+pub fn open<P: Params>(
+  window: Window<P>,
+  options: OpenDialogOptions,
+) -> crate::Result<InvokeResponse> {
   let mut dialog_builder = FileDialogBuilder::new();
   #[cfg(windows)]
   {
@@ -193,7 +197,11 @@ pub fn open<P: Params>(window: Window<P>, options: OpenDialogOptions) -> crate::
 
 /// Shows a save dialog.
 #[cfg(dialog_save)]
-pub fn save<P: Params>(window: Window<P>, options: SaveDialogOptions) -> crate::Result<InvokeResponse> {
+#[allow(unused_variables)]
+pub fn save<P: Params>(
+  window: Window<P>,
+  options: SaveDialogOptions,
+) -> crate::Result<InvokeResponse> {
   let mut dialog_builder = FileDialogBuilder::new();
   #[cfg(windows)]
   {

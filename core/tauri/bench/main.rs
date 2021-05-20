@@ -14,6 +14,32 @@ use std::{
 
 mod utils;
 
+/// The list of the examples of the benchmark name and binary relative path
+const EXEC_TIME_BENCHMARKS: &[(&str, &str)] = &[
+  ("tauri_hello_world", "target/release/bench_helloworld"),
+  (
+    "tauri_cpu_intensive",
+    "target/release/bench_cpu_intensive",
+  ),
+];
+
+// Another definition of `BenchResult` is found in 
+// ./tools/src/build_benchmark_jsons.rs
+// (used for the writer, maybe we should move it to a tauri crate once all set)
+// so it can be reused by other benches (wry etc...)
+#[derive(Default, Serialize, Debug)]
+struct BenchResult {
+  created_at: String,
+  sha1: String,
+
+  exec_time: HashMap<String, HashMap<String, f64>>,
+  binary_size: HashMap<String, u64>,
+  max_memory: HashMap<String, u64>,
+  thread_count: HashMap<String, u64>,
+  syscall_count: HashMap<String, u64>,
+  cargo_deps: HashMap<&'static str, usize>,
+}
+
 fn read_json(filename: &str) -> Result<Value> {
   let f = fs::File::open(filename)?;
   Ok(serde_json::from_reader(f)?)
@@ -25,23 +51,13 @@ fn write_json(filename: &str, value: &Value) -> Result<()> {
   Ok(())
 }
 
-/// The list of the examples of the benchmark name, arguments and return code
-const EXEC_TIME_BENCHMARKS: &[(&str, &str, Option<i32>)] = &[
-  ("tauri_hello_world", "target/release/bench_helloworld", None),
-  (
-    "tauri_cpu_intensive",
-    "target/release/bench_cpu_intensive",
-    None,
-  ),
-];
-
 fn run_strace_benchmarks(new_data: &mut BenchResult) -> Result<()> {
   use std::io::Read;
 
   let mut thread_count = HashMap::<String, u64>::new();
   let mut syscall_count = HashMap::<String, u64>::new();
 
-  for (name, example_exe, _) in EXEC_TIME_BENCHMARKS {
+  for (name, example_exe) in EXEC_TIME_BENCHMARKS {
     let mut file = tempfile::NamedTempFile::new()?;
     // strace
     Command::new("strace")
@@ -75,7 +91,7 @@ fn run_strace_benchmarks(new_data: &mut BenchResult) -> Result<()> {
 fn run_max_mem_benchmark() -> Result<HashMap<String, u64>> {
   let mut results = HashMap::<String, u64>::new();
 
-  for (name, example_exe, return_code) in EXEC_TIME_BENCHMARKS {
+  for (name, example_exe) in EXEC_TIME_BENCHMARKS {
     let proc = Command::new("time")
       .args(&["-v", utils::root_path().join(example_exe).to_str().unwrap()])
       .stdout(Stdio::null())
@@ -83,9 +99,12 @@ fn run_max_mem_benchmark() -> Result<HashMap<String, u64>> {
       .spawn()?;
 
     let proc_result = proc.wait_with_output()?;
+    /*
+    Validate status code
     if let Some(code) = return_code {
       assert_eq!(proc_result.status.code().unwrap(), *code);
     }
+    */
     let out = String::from_utf8(proc_result.stderr)?;
 
     results.insert(name.to_string(), utils::parse_max_mem(&out).unwrap());
@@ -124,7 +143,7 @@ fn get_binary_sizes(target_dir: &Path) -> Result<HashMap<String, u64>> {
   sizes.insert("wry_rlib".to_string(), wry_size);
 
   // add size for all EXEC_TIME_BENCHMARKS
-  for (name, example_exe, _) in EXEC_TIME_BENCHMARKS {
+  for (name, example_exe) in EXEC_TIME_BENCHMARKS {
     let meta = std::fs::metadata(example_exe).unwrap();
     sizes.insert(name.to_string(), meta.len());
   }
@@ -195,7 +214,7 @@ fn run_exec_time(target_dir: &Path) -> Result<HashMap<String, HashMap<String, f6
   .map(|s| s.to_string())
   .collect::<Vec<_>>();
 
-  for (_, example_exe, _return_code) in EXEC_TIME_BENCHMARKS {
+  for (_, example_exe) in EXEC_TIME_BENCHMARKS {
     command.push(
       utils::root_path()
         .join(example_exe)
@@ -209,7 +228,7 @@ fn run_exec_time(target_dir: &Path) -> Result<HashMap<String, HashMap<String, f6
 
   let mut results = HashMap::<String, HashMap<String, f64>>::new();
   let hyperfine_results = read_json(benchmark_file)?;
-  for ((name, _, _), data) in EXEC_TIME_BENCHMARKS.iter().zip(
+  for ((name, _), data) in EXEC_TIME_BENCHMARKS.iter().zip(
     hyperfine_results
       .as_object()
       .unwrap()
@@ -230,19 +249,6 @@ fn run_exec_time(target_dir: &Path) -> Result<HashMap<String, HashMap<String, f6
   }
 
   Ok(results)
-}
-
-#[derive(Default, Serialize, Debug)]
-struct BenchResult {
-  created_at: String,
-  sha1: String,
-
-  exec_time: HashMap<String, HashMap<String, f64>>,
-  binary_size: HashMap<String, u64>,
-  max_memory: HashMap<String, u64>,
-  thread_count: HashMap<String, u64>,
-  syscall_count: HashMap<String, u64>,
-  cargo_deps: HashMap<&'static str, usize>,
 }
 
 fn main() -> Result<()> {

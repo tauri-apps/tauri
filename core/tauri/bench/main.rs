@@ -18,6 +18,7 @@ mod utils;
 const EXEC_TIME_BENCHMARKS: &[(&str, &str)] = &[
   ("tauri_hello_world", "target/release/bench_helloworld"),
   ("tauri_cpu_intensive", "target/release/bench_cpu_intensive"),
+  ("tauri_3mb_transfer", "target/release/bench_files_transfer"),
 ];
 
 // Another definition of `BenchResult` is found in
@@ -253,7 +254,17 @@ fn main() -> Result<()> {
     return Ok(());
   }
 
-  println!("Starting tauri benchmark {:?}", &utils::root_path());
+  // download big files if not present
+  let json_3mb = utils::home_path().join(".tauri_3mb.json");
+
+  if !json_3mb.exists() {
+    utils::download_file(
+      "https://github.com/lemarier/tauri-test/releases/download/v2.0.0/json_3mb.json",
+      json_3mb,
+    );
+  }
+
+  println!("Starting tauri benchmark");
 
   let target_dir = utils::target_dir();
   env::set_current_dir(&utils::root_path())?;

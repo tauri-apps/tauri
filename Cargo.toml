@@ -11,6 +11,7 @@ members = [
   # bench
   "core/tauri/bench/tests/helloworld/src-tauri",
   "core/tauri/bench/tests/cpu_intensive/src-tauri",
+  "core/tauri/bench/tests/files_transfer/src-tauri",
   "core/tauri/bench/tools",
 
   # examples

@@ -43,7 +43,8 @@ jobs:
 
       - name: clone benchmarks_results
         if: |
-          github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
+          github.repository == 'tauri-apps/tauri' &&
+          (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/feat/benches')
         uses: actions/checkout@v2
         with:
           token: ${{ secrets.BENCH_PAT }}
@@ -52,7 +53,8 @@ jobs:
 
       - name: push new benchmarks
         if: |
-          github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
+          github.repository == 'tauri-apps/tauri' &&
+          (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/feat/benches')
         run: |
           cargo run --bin build_benchmark_jsons
           cd gh-pages

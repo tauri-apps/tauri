@@ -72,7 +72,7 @@ pub use {
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       WindowEvent,
     },
-    Icon, MenuId, Params,
+    Icon, MenuId, Params, RunIteration,
   },
   self::state::{State, StateManager},
   self::window::{Monitor, Window},

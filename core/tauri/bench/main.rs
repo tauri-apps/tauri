@@ -17,13 +17,10 @@ mod utils;
 /// The list of the examples of the benchmark name and binary relative path
 const EXEC_TIME_BENCHMARKS: &[(&str, &str)] = &[
   ("tauri_hello_world", "target/release/bench_helloworld"),
-  (
-    "tauri_cpu_intensive",
-    "target/release/bench_cpu_intensive",
-  ),
+  ("tauri_cpu_intensive", "target/release/bench_cpu_intensive"),
 ];
 
-// Another definition of `BenchResult` is found in 
+// Another definition of `BenchResult` is found in
 // ./tools/src/build_benchmark_jsons.rs
 // (used for the writer, maybe we should move it to a tauri crate once all set)
 // so it can be reused by other benches (wry etc...)

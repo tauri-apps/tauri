@@ -220,6 +220,10 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   /// Returns the list of all the monitors available on the system.
   fn available_monitors(&self) -> crate::Result<Vec<Monitor>>;
 
+  /// Returns the native handle that is used by this window.
+  #[cfg(windows)]
+  fn hwnd(&self) -> crate::Result<*mut std::ffi::c_void>;
+
   // SETTERS
 
   /// Opens the dialog to prints the contents of the webview.

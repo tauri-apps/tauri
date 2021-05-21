@@ -1,0 +1,11 @@
+[workspace]
+members = [
+  "./*/src-tauri/",
+]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+incremental = false
+opt-level = "s"

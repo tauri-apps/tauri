@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use serde::Serialize;
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::{
   collections::HashMap,
   fs,
@@ -10,25 +12,53 @@ use std::{
   process::{Command, Output, Stdio},
 };
 
+#[derive(Default, Clone, Serialize, Deserialize, Debug)]
+pub struct BenchResult {
+  pub created_at: String,
+  pub sha1: String,
+  pub exec_time: HashMap<String, HashMap<String, f64>>,
+  pub binary_size: HashMap<String, u64>,
+  pub max_memory: HashMap<String, u64>,
+  pub thread_count: HashMap<String, u64>,
+  pub syscall_count: HashMap<String, u64>,
+  pub cargo_deps: HashMap<String, usize>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize)]
+pub struct StraceOutput {
+  pub percent_time: f64,
+  pub seconds: f64,
+  pub usecs_per_call: Option<u64>,
+  pub calls: u64,
+  pub errors: u64,
+}
+
+pub fn get_target() -> &'static str {
+  #[cfg(target_os = "macos")]
+  return "x86_64-apple-darwin";
+  #[cfg(target_os = "linux")]
+  return "x86_64-unknown-linux-gnu";
+  #[cfg(target_os = "windows")]
+  return unimplemented!();
+}
+
 pub fn target_dir() -> PathBuf {
-  let current_exe = std::env::current_exe().unwrap();
-  let target_dir = current_exe.parent().unwrap().parent().unwrap();
+  let target_dir = bench_root_path()
+    .join("tests")
+    .join("target")
+    .join(get_target())
+    .join("release");
   target_dir.into()
 }
 
-pub fn tauri_root_path() -> PathBuf {
+pub fn bench_root_path() -> PathBuf {
   PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
-pub fn home_path() -> PathBuf {
-  #[cfg(any(target_os = "macos", target_os = "linux"))]
-  return PathBuf::from(env!("HOME"));
-  #[cfg(any(target_os = "windows"))]
-  return PathBuf::from(env!("HOMEPATH"));
-}
-
-pub fn root_path() -> PathBuf {
-  tauri_root_path()
+#[allow(dead_code)]
+pub fn tauri_root_path() -> PathBuf {
+  bench_root_path()
     .parent()
     .unwrap()
     .parent()
@@ -36,6 +66,7 @@ pub fn root_path() -> PathBuf {
     .to_path_buf()
 }
 
+#[allow(dead_code)]
 pub fn run_collect(cmd: &[&str]) -> (String, String) {
   let mut process_builder = Command::new(cmd[0]);
   process_builder
@@ -59,6 +90,7 @@ pub fn run_collect(cmd: &[&str]) -> (String, String) {
   (stdout, stderr)
 }
 
+#[allow(dead_code)]
 pub fn parse_max_mem(output: &str) -> Option<u64> {
   // Takes the output from "time -v" as input and extracts the 'maximum
   // resident set size' and returns it in bytes.
@@ -75,15 +107,7 @@ pub fn parse_max_mem(output: &str) -> Option<u64> {
   None
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct StraceOutput {
-  pub percent_time: f64,
-  pub seconds: f64,
-  pub usecs_per_call: Option<u64>,
-  pub calls: u64,
-  pub errors: u64,
-}
-
+#[allow(dead_code)]
 pub fn parse_strace_output(output: &str) -> HashMap<String, StraceOutput> {
   let mut summary = HashMap::new();
 
@@ -138,6 +162,7 @@ pub fn parse_strace_output(output: &str) -> HashMap<String, StraceOutput> {
   summary
 }
 
+#[allow(dead_code)]
 pub fn run(cmd: &[&str]) {
   let mut process_builder = Command::new(cmd[0]);
   process_builder.args(&cmd[1..]).stdin(Stdio::piped());
@@ -148,24 +173,15 @@ pub fn run(cmd: &[&str]) {
   }
 }
 
-pub fn download_file(url: &str, filename: PathBuf) {
-  if !url.starts_with("http:") && !url.starts_with("https:") {
-    fs::copy(url, filename).unwrap();
-    return;
-  }
+#[allow(dead_code)]
+pub fn read_json(filename: &str) -> Result<Value> {
+  let f = fs::File::open(filename)?;
+  Ok(serde_json::from_reader(f)?)
+}
 
-  // Downloading with curl this saves us from adding
-  // a Rust HTTP client dependency.
-  println!("Downloading {}", url);
-  let status = Command::new("curl")
-    .arg("-L")
-    .arg("-s")
-    .arg("-o")
-    .arg(&filename)
-    .arg(&url)
-    .status()
-    .unwrap();
-
-  assert!(status.success());
-  assert!(filename.exists());
+#[allow(dead_code)]
+pub fn write_json(filename: &str, value: &Value) -> Result<()> {
+  let f = fs::File::create(filename)?;
+  serde_json::to_writer(f, value)?;
+  Ok(())
 }

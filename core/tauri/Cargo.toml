@@ -135,8 +135,3 @@ http-all = [ ]
 http-request = [ ]
 notification-all = [ "notify-rust" ]
 global-shortcut-all = [ "tauri-hotkey" ]
-
-[[bench]]
-name = "tauri_bench"
-harness = false
-path = "./bench/main.rs"

@@ -71,11 +71,22 @@ jobs:
           restore-keys: |
             ${{ matrix.platform }}-stable-cargo-core-${{ hashFiles('core/**/Cargo.toml') }}
             ${{ matrix.platform }}-stable-cargo-core-
+
+      - name: cache cargo `tooling/bench/tests` target
+        uses: actions/cache@v2
+        with:
+          path: tooling/bench/tests/target
+          # Add date to the cache to keep it up to date
+          key: ubuntu-latest-nightly-cargo-benches-${{ hashFiles('tooling/bench/tests/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ${{ matrix.platform }}-stable-cargo-benches-${{ hashFiles('tooling/bench/tests/Cargo.lock') }}
+            ${{ matrix.platform }}-stable-cargo-benches-
  
       - name: run benchmarks
         run: |
-          cargo build --release --bin "bench_*"
-          xvfb-run --auto-servernum cargo bench --bench tauri_bench
+          cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort --target ${{ matrix.platform.target }} --manifest-path tooling/bench/tests/Cargo.toml
+          xvfb-run --auto-servernum cargo run --manifest-path tooling/bench/Cargo.toml --bin run_benchmark
 
       - name: clone benchmarks_results
         # if:  github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
@@ -88,7 +99,7 @@ jobs:
       - name: push new benchmarks
         # if:  github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
         run: |
-          cargo run --bin build_benchmark_jsons
+          cargo run --manifest-path tooling/bench/Cargo.toml --bin build_benchmark_jsons
           cd gh-pages
           git pull
           git config user.name "tauri-bench"

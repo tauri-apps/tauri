@@ -3,11 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Result;
-use serde::Serialize;
-use serde_json::Value;
 use std::{
   collections::{HashMap, HashSet},
-  env, fs,
+  env,
   path::Path,
   process::{Command, Stdio},
 };
@@ -15,56 +13,51 @@ use std::{
 mod utils;
 
 /// The list of the examples of the benchmark name and binary relative path
-const EXEC_TIME_BENCHMARKS: &[(&str, &str)] = &[
-  ("tauri_hello_world", "target/release/bench_helloworld"),
-  ("tauri_cpu_intensive", "target/release/bench_cpu_intensive"),
-  // ("tauri_3mb_transfer", "target/release/bench_files_transfer"),
-];
-
-// Another definition of `BenchResult` is found in
-// ./tools/src/build_benchmark_jsons.rs
-// (used for the writer, maybe we should move it to a tauri crate once all set)
-// so it can be reused by other benches (wry etc...)
-#[derive(Default, Serialize, Debug)]
-struct BenchResult {
-  created_at: String,
-  sha1: String,
-
-  exec_time: HashMap<String, HashMap<String, f64>>,
-  binary_size: HashMap<String, u64>,
-  max_memory: HashMap<String, u64>,
-  thread_count: HashMap<String, u64>,
-  syscall_count: HashMap<String, u64>,
-  cargo_deps: HashMap<&'static str, usize>,
+fn get_all_benchmarks() -> Vec<(String, String)> {
+  vec![
+    (
+      "tauri_hello_world".into(),
+      format!(
+        "tests/target/{}/release/bench_helloworld",
+        utils::get_target()
+      ),
+    ),
+    (
+      "tauri_cpu_intensive".into(),
+      format!(
+        "tests/target/{}/release/bench_cpu_intensive",
+        utils::get_target()
+      ),
+    ),
+    /*
+    FIXME: require next release of tao
+    (
+      "tauri_3mb_transfer".into(),
+      format!(
+        "tests/target/{}/release/tauri_3mb_transfer",
+        utils::get_target()
+      ),
+    ),
+    */
+  ]
 }
 
-fn read_json(filename: &str) -> Result<Value> {
-  let f = fs::File::open(filename)?;
-  Ok(serde_json::from_reader(f)?)
-}
-
-fn write_json(filename: &str, value: &Value) -> Result<()> {
-  let f = fs::File::create(filename)?;
-  serde_json::to_writer(f, value)?;
-  Ok(())
-}
-
-fn run_strace_benchmarks(new_data: &mut BenchResult) -> Result<()> {
+fn run_strace_benchmarks(new_data: &mut utils::BenchResult) -> Result<()> {
   use std::io::Read;
 
   let mut thread_count = HashMap::<String, u64>::new();
   let mut syscall_count = HashMap::<String, u64>::new();
 
-  for (name, example_exe) in EXEC_TIME_BENCHMARKS {
+  for (name, example_exe) in get_all_benchmarks() {
     let mut file = tempfile::NamedTempFile::new()?;
-    // strace
+
     Command::new("strace")
       .args(&[
         "-c",
         "-f",
         "-o",
         file.path().to_str().unwrap(),
-        utils::root_path().join(example_exe).to_str().unwrap(),
+        utils::bench_root_path().join(example_exe).to_str().unwrap(),
       ])
       .stdout(Stdio::inherit())
       .spawn()?
@@ -89,16 +82,19 @@ fn run_strace_benchmarks(new_data: &mut BenchResult) -> Result<()> {
 fn run_max_mem_benchmark() -> Result<HashMap<String, u64>> {
   let mut results = HashMap::<String, u64>::new();
 
-  for (name, example_exe) in EXEC_TIME_BENCHMARKS {
+  for (name, example_exe) in get_all_benchmarks() {
     let proc = Command::new("time")
-      .args(&["-v", utils::root_path().join(example_exe).to_str().unwrap()])
+      .args(&[
+        "-v",
+        utils::bench_root_path().join(example_exe).to_str().unwrap(),
+      ])
       .stdout(Stdio::null())
       .stderr(Stdio::piped())
       .spawn()?;
 
     let proc_result = proc.wait_with_output()?;
     /*
-    Validate status code
+    Validate process result code
     if let Some(code) = return_code {
       assert_eq!(proc_result.status.code().unwrap(), *code);
     }
@@ -114,6 +110,7 @@ fn run_max_mem_benchmark() -> Result<HashMap<String, u64>> {
 fn rlib_size(target_dir: &std::path::Path, prefix: &str) -> u64 {
   let mut size = 0;
   let mut seen = std::collections::HashSet::new();
+
   for entry in std::fs::read_dir(target_dir.join("deps")).unwrap() {
     let entry = entry.unwrap();
     let os_str = entry.file_name();
@@ -141,7 +138,7 @@ fn get_binary_sizes(target_dir: &Path) -> Result<HashMap<String, u64>> {
   sizes.insert("wry_rlib".to_string(), wry_size);
 
   // add size for all EXEC_TIME_BENCHMARKS
-  for (name, example_exe) in EXEC_TIME_BENCHMARKS {
+  for (name, example_exe) in get_all_benchmarks() {
     let meta = std::fs::metadata(example_exe).unwrap();
     sizes.insert(name.to_string(), meta.len());
   }
@@ -171,7 +168,7 @@ const TARGETS: &[(&str, &[&str])] = &[
   ("macOS", &["x86_64-apple-darwin", "aarch64-apple-darwin"]),
 ];
 
-fn cargo_deps() -> HashMap<&'static str, usize> {
+fn cargo_deps() -> HashMap<String, usize> {
   let mut results = HashMap::new();
   for (os, targets) in TARGETS {
     for target in *targets {
@@ -187,7 +184,7 @@ fn cargo_deps() -> HashMap<&'static str, usize> {
       let count = full_deps.lines().collect::<HashSet<_>>().len() - 1; // output includes wry itself
 
       // set the count to the highest count seen for this OS
-      let existing = results.entry(*os).or_default();
+      let existing = results.entry(os.to_string()).or_default();
       *existing = count.max(*existing);
       assert!(count > 10); // sanity check
     }
@@ -212,9 +209,9 @@ fn run_exec_time(target_dir: &Path) -> Result<HashMap<String, HashMap<String, f6
   .map(|s| s.to_string())
   .collect::<Vec<_>>();
 
-  for (_, example_exe) in EXEC_TIME_BENCHMARKS {
+  for (_, example_exe) in get_all_benchmarks() {
     command.push(
-      utils::root_path()
+      utils::bench_root_path()
         .join(example_exe)
         .to_str()
         .unwrap()
@@ -225,8 +222,8 @@ fn run_exec_time(target_dir: &Path) -> Result<HashMap<String, HashMap<String, f6
   utils::run(&command.iter().map(|s| s.as_ref()).collect::<Vec<_>>());
 
   let mut results = HashMap::<String, HashMap<String, f64>>::new();
-  let hyperfine_results = read_json(benchmark_file)?;
-  for ((name, _), data) in EXEC_TIME_BENCHMARKS.iter().zip(
+  let hyperfine_results = utils::read_json(benchmark_file)?;
+  for ((name, _), data) in get_all_benchmarks().iter().zip(
     hyperfine_results
       .as_object()
       .unwrap()
@@ -250,26 +247,13 @@ fn run_exec_time(target_dir: &Path) -> Result<HashMap<String, HashMap<String, f6
 }
 
 fn main() -> Result<()> {
-  if !env::args().any(|s| s == "--bench") {
-    return Ok(());
-  }
-
-  // download big files if not present
-  let json_3mb = utils::home_path().join(".tauri_3mb.json");
-
-  if !json_3mb.exists() {
-    utils::download_file(
-      "https://github.com/lemarier/tauri-test/releases/download/v2.0.0/json_3mb.json",
-      json_3mb,
-    );
-  }
-
   println!("Starting tauri benchmark");
 
   let target_dir = utils::target_dir();
-  env::set_current_dir(&utils::root_path())?;
 
-  let mut new_data = BenchResult {
+  env::set_current_dir(&utils::bench_root_path())?;
+
+  let mut new_data = utils::BenchResult {
     created_at: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
     sha1: utils::run_collect(&["git", "rev-parse", "HEAD"])
       .0
@@ -291,7 +275,7 @@ fn main() -> Result<()> {
   println!("\n===== </BENCHMARK RESULTS>");
 
   if let Some(filename) = target_dir.join("bench.json").to_str() {
-    write_json(filename, &serde_json::to_value(&new_data)?)?;
+    utils::write_json(filename, &serde_json::to_value(&new_data)?)?;
   } else {
     eprintln!("Cannot write bench.json, path is invalid");
   }

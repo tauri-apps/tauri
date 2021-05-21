@@ -11,11 +11,11 @@
       "targets": "all",
       "identifier": "com.tauri.dev",
       "icon": [
-        "../../../../../../examples/.icons/32x32.png",
-        "../../../../../../examples/.icons/128x128.png",
-        "../../../../../../examples/.icons/128x128@2x.png",
-        "../../../../../../examples/.icons/icon.icns",
-        "../../../../../../examples/.icons/icon.ico"
+        "../../../../../examples/.icons/32x32.png",
+        "../../../../../examples/.icons/128x128.png",
+        "../../../../../examples/.icons/128x128@2x.png",
+        "../../../../../examples/.icons/icon.icns",
+        "../../../../../examples/.icons/icon.ico"
       ],
       "resources": [],
       "externalBin": [],

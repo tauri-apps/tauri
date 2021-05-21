@@ -5,8 +5,6 @@
 #[cfg(any(dialog_open, dialog_save))]
 use std::path::{Path, PathBuf};
 
-use tinyfiledialogs::{message_box_ok, message_box_yes_no, MessageBoxIcon, YesNo};
-
 /// The file dialog builder.
 /// Constructs file picker dialogs that can select single/multiple files or directories.
 #[cfg(any(dialog_open, dialog_save))]
@@ -69,18 +67,24 @@ pub enum AskResponse {
 
 /// Displays a dialog with a message and an optional title with a "yes" and a "no" button
 pub fn ask(title: impl AsRef<str>, message: impl AsRef<str>) -> AskResponse {
-  match message_box_yes_no(
-    title.as_ref(),
-    message.as_ref(),
-    MessageBoxIcon::Question,
-    YesNo::No,
-  ) {
-    YesNo::Yes => AskResponse::Yes,
-    YesNo::No => AskResponse::No,
+  match rfd::MessageDialog::new()
+    .set_title(title.as_ref())
+    .set_description(message.as_ref())
+    .set_buttons(rfd::MessageButtons::YesNo)
+    .set_level(rfd::MessageLevel::Info)
+    .show()
+  {
+    true => AskResponse::Yes,
+    false => AskResponse::No,
   }
 }
 
 /// Displays a message dialog
 pub fn message(title: impl AsRef<str>, message: impl AsRef<str>) {
-  message_box_ok(title.as_ref(), message.as_ref(), MessageBoxIcon::Info);
+  rfd::MessageDialog::new()
+    .set_title(title.as_ref())
+    .set_description(message.as_ref())
+    .set_buttons(rfd::MessageButtons::Ok)
+    .set_level(rfd::MessageLevel::Info)
+    .show();
 }

@@ -43,7 +43,7 @@ regex = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 attohttpc = "0.17"
-uuid = { version = "0.8", features = [ "v5" ] }
+uuid = { version = "0.8", features = [ "v4", "v5" ] }
 bitness = "0.4"
 winreg = "0.8"
 sha2 = "0.9"

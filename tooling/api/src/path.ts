@@ -469,5 +469,6 @@ export {
   templateDir,
   videoDir,
   currentDir,
-  resolvePath
+  resolvePath,
+  BaseDirectory
 }

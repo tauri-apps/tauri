@@ -72,7 +72,7 @@
             </Component>
             {{#each binaries as |bin| ~}}
             <Component Id="{{ bin.id }}" Guid="{{bin.guid}}" Win64="$(var.Win64)">
-                <File Id="Path_{{ bin.id }}" Source="{{bin.path}}"  KeyPath="yes"/>
+                <File Id="Path_{{ bin.id }}" Source="{{bin.path}}" KeyPath="yes"/>
             </Component>
             {{/each~}}
             {{{resources}}}

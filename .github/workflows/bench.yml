@@ -23,10 +23,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: install stable
+      - name: install nightly
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
           target: ${{ matrix.platform.target }}
 
       - name: install depedencies
@@ -44,33 +44,33 @@ jobs:
         with:
           path: ~/.cargo/registry
           # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-stable-cargo-registry-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          key: ${{ matrix.platform }}-nightly-cargo-registry-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
-            ${{ matrix.platform }}-stable-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
-            ${{ matrix.platform }}-stable-cargo-registry-
+            ${{ matrix.platform }}-nightly-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
+            ${{ matrix.platform }}-nightly-cargo-registry-
 
       - name: Cache cargo index
         uses: actions/cache@v2.1.4
         with:
           path: ~/.cargo/git
           # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-stable-cargo-index-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          key: ${{ matrix.platform }}-nightly-cargo-index-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
-            ${{ matrix.platform }}-stable-cargo-index-${{ hashFiles('**/Cargo.toml') }}
-            ${{ matrix.platform }}-stable-cargo-index-
+            ${{ matrix.platform }}-nightly-cargo-index-${{ hashFiles('**/Cargo.toml') }}
+            ${{ matrix.platform }}-nightly-cargo-index-
 
       - name: Cache core cargo target
         uses: actions/cache@v2
         with:
           path: target
           # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-stable-cargo-core-${{ hashFiles('core/**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          key: ${{ matrix.platform }}-nightly-cargo-core-${{ hashFiles('core/**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
-            ${{ matrix.platform }}-stable-cargo-core-${{ hashFiles('core/**/Cargo.toml') }}
-            ${{ matrix.platform }}-stable-cargo-core-
+            ${{ matrix.platform }}-nightly-cargo-core-${{ hashFiles('core/**/Cargo.toml') }}
+            ${{ matrix.platform }}-nightly-cargo-core-
 
       - name: cache cargo `tooling/bench/tests` target
         uses: actions/cache@v2
@@ -80,8 +80,8 @@ jobs:
           key: ubuntu-latest-nightly-cargo-benches-${{ hashFiles('tooling/bench/tests/Cargo.lock') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
-            ${{ matrix.platform }}-stable-cargo-benches-${{ hashFiles('tooling/bench/tests/Cargo.lock') }}
-            ${{ matrix.platform }}-stable-cargo-benches-
+            ${{ matrix.platform }}-nightly-cargo-benches-${{ hashFiles('tooling/bench/tests/Cargo.lock') }}
+            ${{ matrix.platform }}-nightly-cargo-benches-
  
       - name: run benchmarks
         run: |

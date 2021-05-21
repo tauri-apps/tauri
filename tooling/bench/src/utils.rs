@@ -5,12 +5,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{
-  collections::HashMap,
-  fs,
-  path::PathBuf,
-  process::{Command, Output, Stdio},
-};
+use std::{collections::HashMap, fs, io::{BufRead, BufReader}, path::PathBuf, process::{Command, Output, Stdio}};
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug)]
 pub struct BenchResult {
@@ -91,17 +86,29 @@ pub fn run_collect(cmd: &[&str]) -> (String, String) {
 }
 
 #[allow(dead_code)]
-pub fn parse_max_mem(output: &str) -> Option<u64> {
-  // Takes the output from "time -v" as input and extracts the 'maximum
-  // resident set size' and returns it in bytes.
+pub fn parse_max_mem(file_path: &str) -> Option<u64> {
+  let file = fs::File::open(file_path).unwrap();
+  let output = BufReader::new(file);
+  let mut highest: u64 = 0;
+  // MEM 203.437500 1621617192.4123
   for line in output.lines() {
-    if line
-      .to_lowercase()
-      .contains("maximum resident set size (kbytes)")
-    {
-      let value = line.split(": ").nth(1).unwrap();
-      return Some(str::parse::<u64>(value).unwrap() * 1024);
+    if let Ok(line) = line {
+      // split line by space
+      let split = line.split(" ").collect::<Vec<_>>();
+      if split.len() == 3 {
+        // mprof generate result in MB
+        let current_bytes = str::parse::<f64>(split[1]).unwrap() as u64 * 1024 * 1024;
+        if current_bytes > highest {
+          highest = current_bytes;
+        }
+      }
     }
+  }
+
+  fs::remove_file(file_path).unwrap();
+
+  if highest > 0 {
+    return Some(highest);
   }
 
   None

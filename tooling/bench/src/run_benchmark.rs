@@ -83,9 +83,15 @@ fn run_max_mem_benchmark() -> Result<HashMap<String, u64>> {
   let mut results = HashMap::<String, u64>::new();
 
   for (name, example_exe) in get_all_benchmarks() {
-    let proc = Command::new("time")
+    let benchmark_file = utils::target_dir().join(format!("mprof{}_.dat", name));
+    let benchmark_file = benchmark_file.to_str().unwrap();
+
+    let proc = Command::new("mprof")
       .args(&[
-        "-v",
+        "run",
+        "-C",
+        "-o",
+        benchmark_file,
         utils::bench_root_path().join(example_exe).to_str().unwrap(),
       ])
       .stdout(Stdio::null())
@@ -93,15 +99,11 @@ fn run_max_mem_benchmark() -> Result<HashMap<String, u64>> {
       .spawn()?;
 
     let proc_result = proc.wait_with_output()?;
-    /*
-    Validate process result code
-    if let Some(code) = return_code {
-      assert_eq!(proc_result.status.code().unwrap(), *code);
-    }
-    */
-    let out = String::from_utf8(proc_result.stderr)?;
-
-    results.insert(name.to_string(), utils::parse_max_mem(&out).unwrap());
+    println!("{:?}", proc_result);
+    results.insert(
+      name.to_string(),
+      utils::parse_max_mem(&benchmark_file).unwrap(),
+    );
   }
 
   Ok(results)

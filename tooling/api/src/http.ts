@@ -2,48 +2,101 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+/**
+ * Access the HTTP client written in Rust.
+ *
+ * This package is also accessible with `window.__TAURI__.http` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ *
+ * The APIs must be allowlisted on `tauri.conf.json`:
+ * ```json
+ * {
+ *   "tauri": {
+ *     "allowlist": {
+ *       "http": {
+ *         "all": true, // enable all http APIs
+ *         "request": true // enable HTTP request API
+ *       }
+ *     }
+ *   }
+ * }
+ * ```
+ * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
+ * @packageDocumentation
+ */
+
 import { invokeTauriCommand } from './helpers/tauri'
 
-export interface ClientOptions {
+interface ClientOptions {
   maxRedirections: number
   connectTimeout: number
 }
 
-export enum ResponseType {
+enum ResponseType {
   JSON = 1,
   Text = 2,
   Binary = 3
 }
 
-export type Part = 'string' | number[]
+type Part = 'string' | number[]
 
-export class Body {
+/** The body object to be used on POST and PUT requests. */
+class Body {
   type: string
   payload: unknown
 
-  constructor(type: string, payload: unknown) {
+  /** @ignore */
+  private constructor(type: string, payload: unknown) {
     this.type = type
     this.payload = payload
   }
 
+  /**
+   * Creates a new form data body.
+   *
+   * @param data The body data.
+   *
+   * @return The body object ready to be used on the POST and PUT requests.
+   */
   static form(data: Record<string, Part>): Body {
     return new Body('Form', data)
   }
 
+  /**
+   * Creates a new JSON body.
+   *
+   * @param data The body JSON object.
+   *
+   * @return The body object ready to be used on the POST and PUT requests.
+   */
   static json(data: Record<any, any>): Body {
     return new Body('Json', data)
   }
 
+  /**
+   * Creates a new UTF-8 string body.
+   *
+   * @param data The body string.
+   *
+   * @return The body object ready to be used on the POST and PUT requests.
+   */
   static text(value: string): Body {
     return new Body('Text', value)
   }
 
+  /**
+   * Creates a new byte array body.
+   *
+   * @param data The body byte array.
+   *
+   * @return The body object ready to be used on the POST and PUT requests.
+   */
   static bytes(bytes: number[]): Body {
     return new Body('Bytes', bytes)
   }
 }
 
-export type HttpVerb =
+/** The request HTTP verb. */
+type HttpVerb =
   | 'GET'
   | 'POST'
   | 'PUT'
@@ -54,7 +107,8 @@ export type HttpVerb =
   | 'CONNECT'
   | 'TRACE'
 
-export interface HttpOptions {
+/** Options object sent to the backend. */
+interface HttpOptions {
   method: HttpVerb
   url: string
   headers?: Record<string, any>
@@ -64,18 +118,26 @@ export interface HttpOptions {
   responseType?: ResponseType
 }
 
-export type RequestOptions = Omit<HttpOptions, 'method' | 'url'>
-export type FetchOptions = Omit<HttpOptions, 'url'>
+/** Request options. */
+type RequestOptions = Omit<HttpOptions, 'method' | 'url'>
+/** Options for the `fetch` API. */
+type FetchOptions = Omit<HttpOptions, 'url'>
 
-export interface Response<T> {
+/** Response object. */
+interface Response<T> {
+  /** The request URL. */
   url: string
+  /** The response status code. */
   status: number
+  /** The response headers. */
   headers: Record<string, string>
+  /** The response data. */
   data: T
 }
 
-export class Client {
+class Client {
   id: number
+  /** @ignore */
   constructor(id: number) {
     this.id = id
   }
@@ -96,9 +158,9 @@ export class Client {
   }
 
   /**
-   * Makes a HTTP request.
+   * Makes an HTTP request.
    *
-   * @param options Request options
+   * @param options The request options.
    * @returns A promise resolving to the response.
    */
   async request<T>(options: HttpOptions): Promise<Response<T>> {
@@ -115,8 +177,8 @@ export class Client {
   /**
    * Makes a GET request.
    *
-   * @param url Request URL
-   * @param [options] Request options
+   * @param url The request URL.
+   * @param options The request options.
    * @returns A promise resolving to the response.
    */
   async get<T>(url: string, options?: RequestOptions): Promise<Response<T>> {
@@ -130,9 +192,9 @@ export class Client {
   /**
    * Makes a POST request.
    *
-   * @param url Request URL
-   * @param [body] Request body
-   * @param [options] Request options
+   * @param url The request URL.
+   * @param body The body of the request.
+   * @param options The request options.
    * @returns A promise resolving to the response.
    */
   async post<T>(
@@ -151,9 +213,9 @@ export class Client {
   /**
    * Makes a PUT request.
    *
-   * @param url Request URL
-   * @param [body] Request body
-   * @param [options] Request options
+   * @param url The request URL.
+   * @param body The body of the request.
+   * @param options Request options.
    * @returns A promise resolving to the response.
    */
   async put<T>(
@@ -172,8 +234,8 @@ export class Client {
   /**
    * Makes a PATCH request.
    *
-   * @param url Request URL
-   * @param options Request options
+   * @param url The request URL.
+   * @param options The request options.
    * @returns A promise resolving to the response.
    */
   async patch<T>(url: string, options?: RequestOptions): Promise<Response<T>> {
@@ -187,8 +249,8 @@ export class Client {
   /**
    * Makes a DELETE request.
    *
-   * @param  url Request URL
-   * @param  options Request options
+   * @param url The request URL.
+   * @param options The request options.
    * @returns A promise resolving to the response.
    */
   async delete<T>(url: string, options?: RequestOptions): Promise<Response<T>> {
@@ -200,6 +262,13 @@ export class Client {
   }
 }
 
+/**
+ * Creates a new client using the specified options.
+ *
+ * @param options Client configuration.
+ *
+ * @return A promise resolving to the client instance.
+ */
 async function getClient(options?: ClientOptions): Promise<Client> {
   return invokeTauriCommand<number>({
     __tauriModule: 'Http',
@@ -210,8 +279,16 @@ async function getClient(options?: ClientOptions): Promise<Client> {
   }).then((id) => new Client(id))
 }
 
+/** @ignore */
 let defaultClient: Client | null = null
 
+/**
+ * Perform an HTTP request using the default client.
+ *
+ * @param url The request URL.
+ * @param options The fetch options.
+ * @return The response object.
+ */
 async function fetch<T>(
   url: string,
   options?: FetchOptions
@@ -226,4 +303,15 @@ async function fetch<T>(
   })
 }
 
-export { getClient, fetch }
+export type {
+  ClientOptions,
+  ResponseType,
+  Part,
+  HttpVerb,
+  HttpOptions,
+  RequestOptions,
+  FetchOptions,
+  Response
+}
+
+export { getClient, fetch, Body, Client }

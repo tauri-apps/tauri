@@ -1,5 +1,5 @@
 #[tauri::command(with_window)]
-fn exit<M: tauri::Params>(window: tauri::Window<M>) {
+fn exit<M: tauri::Params>(window: tauri::Window<P>) {
   window.close().unwrap();
 }
 

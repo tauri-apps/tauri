@@ -81,6 +81,8 @@ struct ResourceFile {
 /// This data structure is needed because WIX requires each path to have its own `id` and `guid`.
 #[derive(Serialize)]
 struct ResourceDirectory {
+  /// the directory path.
+  path: String,
   /// the directory name of the described resource.
   name: String,
   /// the files of the described resource directory.
@@ -122,7 +124,8 @@ impl ResourceDirectory {
       format!("{}{}", files, directories)
     } else {
       format!(
-        r#"<Directory Id="{name}" Name="{name}">{contents}</Directory>"#,
+        r#"<Directory Id="{id}" Name="{name}">{contents}</Directory>"#,
+        id = format!("_{}", Uuid::new_v4().to_simple()),
         name = self.name,
         contents = format!("{}{}", files, directories)
       )
@@ -141,7 +144,7 @@ fn copy_icon(settings: &Settings) -> crate::Result<PathBuf> {
   std::fs::create_dir_all(&resource_dir)?;
   let icon_target_path = resource_dir.join("icon.ico");
 
-  let icon_path = std::env::current_dir()?.join("icons").join("icon.ico");
+  let icon_path = std::env::current_dir()?.join(&settings.windows().icon_path);
 
   copy_file(
     icon_path,
@@ -522,42 +525,31 @@ pub fn build_wix_app_installer(
 /// Generates the data required for the external binaries and extra binaries bundling.
 fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
   let mut binaries = Vec::new();
-  let regex = Regex::new(r"[^\w\d\.]")?;
   let cwd = std::env::current_dir()?;
   for src in settings.external_binaries() {
     let src = src?;
-    let filename = src
-      .file_name()
-      .expect("failed to extract external binary filename")
-      .to_os_string()
-      .into_string()
-      .expect("failed to convert external binary filename to string");
-
-    let guid = generate_guid(filename.as_bytes()).to_string();
 
     binaries.push(Binary {
-      guid,
+      guid: Uuid::new_v4().to_string(),
       path: cwd
         .join(src)
         .into_os_string()
         .into_string()
         .expect("failed to read external binary path"),
-      id: regex.replace_all(&filename, "").to_string(),
+      id: Uuid::new_v4().to_string(),
     });
   }
 
   for bin in settings.binaries() {
-    let filename = bin.name();
-    let guid = generate_guid(filename.as_bytes()).to_string();
     if !bin.main() {
       binaries.push(Binary {
-        guid,
+        guid: Uuid::new_v4().to_string(),
         path: settings
           .binary_path(bin)
           .into_os_string()
           .into_string()
           .expect("failed to read binary path"),
-        id: regex.replace_all(&filename, "").to_string(),
+        id: Uuid::new_v4().to_string(),
       })
     }
   }
@@ -600,7 +592,6 @@ fn get_merge_modules(settings: &Settings) -> crate::Result<Vec<MergeModule>> {
 /// Generates the data required for the resource bundling on wix
 fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
   let mut resources = ResourceMap::new();
-  let regex = Regex::new(r"[^\w\d\.]")?;
   let cwd = std::env::current_dir()?;
 
   let mut dlls = vec![];
@@ -613,22 +604,18 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       .as_str(),
   )? {
     let path = dll?;
-    let filename = path
-      .file_name()
-      .expect("failed to extract resource filename")
-      .to_os_string()
-      .into_string()
-      .expect("failed to convert resource filename to string");
+    let resource_path = path.to_string_lossy().to_string();
     dlls.push(ResourceFile {
-      guid: generate_guid(filename.as_bytes()).to_string(),
-      path: path.to_string_lossy().to_string(),
-      id: regex.replace_all(&filename, "").to_string(),
+      id: format!("_{}", Uuid::new_v4().to_simple()),
+      guid: Uuid::new_v4().to_string(),
+      path: resource_path,
     });
   }
   if !dlls.is_empty() {
     resources.insert(
       "".to_string(),
       ResourceDirectory {
+        path: "".to_string(),
         name: "".to_string(),
         directories: vec![],
         files: dlls,
@@ -639,13 +626,6 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
   for src in settings.resource_files() {
     let src = src?;
 
-    let filename = src
-      .file_name()
-      .expect("failed to extract resource filename")
-      .to_os_string()
-      .into_string()
-      .expect("failed to convert resource filename to string");
-
     let resource_path = cwd
       .join(src.clone())
       .into_os_string()
@@ -653,9 +633,9 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       .expect("failed to read resource path");
 
     let resource_entry = ResourceFile {
-      guid: generate_guid(filename.as_bytes()).to_string(),
+      id: format!("_{}", Uuid::new_v4().to_simple()),
+      guid: Uuid::new_v4().to_string(),
       path: resource_path,
-      id: regex.replace_all(&filename, "").to_string(),
     };
 
     // split the resource path directories
@@ -668,39 +648,53 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       .collect::<Vec<_>>();
     directories.truncate(directories.len() - 1);
     // transform the directory structure to a chained vec structure
-    for directory in directories {
+    let first_directory = directories
+      .first()
+      .map(|d| d.as_os_str().to_string_lossy().into_owned())
+      .unwrap_or_else(|| String::new());
+    let last_index = directories.len() - 1;
+    let mut path = String::new();
+    for (i, directory) in directories.into_iter().enumerate() {
       let directory_name = directory
         .as_os_str()
         .to_os_string()
         .into_string()
         .expect("failed to read resource folder name");
+      path.push_str(directory_name.as_str());
 
       // if the directory is already on the map
-      if resources.contains_key(&directory_name) {
+      if resources.contains_key(&first_directory) {
         let directory_entry = &mut resources
-          .get_mut(&directory_name)
+          .get_mut(&first_directory)
           .expect("Unable to handle resources");
-        if directory_entry.name == directory_name {
+        if last_index == 0 {
           // the directory entry is the root of the chain
           directory_entry.add_file(resource_entry.clone());
         } else {
           let index = directory_entry
             .directories
             .iter()
-            .position(|f| f.name == directory_name);
+            .position(|f| f.path == path);
           if let Some(index) = index {
             // the directory entry is already a part of the chain
-            let dir = directory_entry
-              .directories
-              .get_mut(index)
-              .expect("Unable to get directory");
-            dir.add_file(resource_entry.clone());
+            if i == last_index {
+              let dir = directory_entry
+                .directories
+                .get_mut(index)
+                .expect("Unable to get directory");
+              dir.add_file(resource_entry.clone());
+            }
           } else {
             // push it to the chain
             directory_entry.directories.push(ResourceDirectory {
+              path: path.clone(),
               name: directory_name.clone(),
               directories: vec![],
-              files: vec![resource_entry.clone()],
+              files: if i == last_index {
+                vec![resource_entry.clone()]
+              } else {
+                vec![]
+              },
             });
           }
         }
@@ -708,9 +702,14 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
         resources.insert(
           directory_name.clone(),
           ResourceDirectory {
+            path: path.clone(),
             name: directory_name.clone(),
             directories: vec![],
-            files: vec![resource_entry.clone()],
+            files: if i == last_index {
+              vec![resource_entry.clone()]
+            } else {
+              vec![]
+            },
           },
         );
       }

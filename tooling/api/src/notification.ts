@@ -2,16 +2,43 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+/**
+ * Send notifications to your user. Can also be used with the Notification Web API.
+ *
+ * This package is also accessible with `window.__TAURI__.notification` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ *
+ * The APIs must be allowlisted on `tauri.conf.json`:
+ * ```json
+ * {
+ *   "tauri": {
+ *     "allowlist": {
+ *       "notification": {
+ *         "all": true // enable all notification APIs
+ *       }
+ *     }
+ *   }
+ * }
+ * ```
+ * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
+ * @packageDocumentation
+ */
+
 import { invokeTauriCommand } from './helpers/tauri'
 
-export interface Options {
+/**
+ * Options to send a notification.
+ */
+interface Options {
+  /** Notification title. */
   title: string
+  /** Optional notification body. */
   body?: string
+  /** Optional notification icon. */
   icon?: string
 }
 
-export type PartialOptions = Omit<Options, 'title'>
-export type Permission = 'granted' | 'denied' | 'default'
+/** Possible permission values. */
+type Permission = 'granted' | 'denied' | 'default'
 
 /**
  * Checks if the permission to send notifications is granted.
@@ -42,8 +69,7 @@ async function requestPermission(): Promise<Permission> {
 /**
  * Sends a notification to the user.
  *
- * @param options Notification options
- * @returns
+ * @param options Notification options.
  */
 function sendNotification(options: Options | string): void {
   if (typeof options === 'string') {
@@ -54,5 +80,7 @@ function sendNotification(options: Options | string): void {
     new window.Notification(options.title, options)
   }
 }
+
+export type { Options, Permission }
 
 export { sendNotification, requestPermission, isPermissionGranted }

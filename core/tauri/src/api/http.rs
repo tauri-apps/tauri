@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use bytes::Bytes;
-use reqwest::{header::HeaderName, redirect::Policy, Method};
+use http::{header::HeaderName, Method};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -11,7 +10,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::{collections::HashMap, path::PathBuf, time::Duration};
 
 /// Client builder.
-#[derive(Default, Deserialize)]
+#[derive(Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientBuilder {
   /// Max number of redirections to follow
@@ -38,12 +37,19 @@ impl ClientBuilder {
     self
   }
 
-  /// Builds the ClientOptions.
+  /// Builds the Client.
+  #[cfg(not(feature = "reqwest-client"))]
+  pub fn build(self) -> crate::api::Result<Client> {
+    Ok(Client(self))
+  }
+
+  /// Builds the Client.
+  #[cfg(feature = "reqwest-client")]
   pub fn build(self) -> crate::api::Result<Client> {
     let mut client_builder = reqwest::Client::builder();
 
     if let Some(max_redirections) = self.max_redirections {
-      client_builder = client_builder.redirect(Policy::limited(max_redirections))
+      client_builder = client_builder.redirect(reqwest::redirect::Policy::limited(max_redirections))
     }
 
     if let Some(connect_timeout) = self.connect_timeout {
@@ -56,16 +62,80 @@ impl ClientBuilder {
 }
 
 /// The HTTP client.
+#[cfg(feature = "reqwest-client")]
 #[derive(Clone)]
 pub struct Client(reqwest::Client);
 
+/// The HTTP client.
+#[cfg(not(feature = "reqwest-client"))]
+#[derive(Clone)]
+pub struct Client(ClientBuilder);
+
+#[cfg(not(feature = "reqwest-client"))]
 impl Client {
   /// Executes an HTTP request
   ///
   /// The response will be transformed to String,
-  /// If reading the response as binary, the byte array will be serialized using serde_json
+  /// If reading the response as binary, the byte array will be serialized using serde_json.
   pub async fn send(&self, request: HttpRequestBuilder) -> crate::api::Result<Response> {
     let method = Method::from_bytes(request.method.to_uppercase().as_bytes())?;
+
+    let mut request_builder = attohttpc::RequestBuilder::try_new(method, &request.url)?;
+
+    if let Some(query) = request.query {
+      request_builder = request_builder.params(&query);
+    }
+
+    if let Some(headers) = request.headers {
+      for (header, header_value) in headers.iter() {
+        request_builder =
+          request_builder.header(HeaderName::from_bytes(header.as_bytes())?, header_value);
+      }
+    }
+
+    if let Some(timeout) = request.timeout {
+      request_builder = request_builder.timeout(Duration::from_secs(timeout));
+    }
+
+    let response = if let Some(body) = request.body {
+      match body {
+        Body::Bytes(data) => request_builder.body(attohttpc::body::Bytes(data)).send()?,
+        Body::Text(text) => request_builder.body(attohttpc::body::Bytes(text)).send()?,
+        Body::Json(json) => request_builder.json(&json)?.send()?,
+        Body::Form(form_body) => {
+          let mut form = Vec::new();
+          for (name, part) in form_body.0 {
+            match part {
+              FormPart::Bytes(bytes) => form.push((name, serde_json::to_string(&bytes)?)),
+              FormPart::File(file_path) => form.push((name, serde_json::to_string(&file_path)?)),
+              FormPart::Text(text) => form.push((name, text)),
+            }
+          }
+          request_builder.form(&form)?.send()?
+        }
+      }
+    } else {
+      request_builder.send()?
+    };
+
+    let response = response.error_for_status()?;
+    Ok(Response(
+      request.response_type.unwrap_or(ResponseType::Json),
+      response,
+      request.url,
+    ))
+  }
+}
+
+#[cfg(feature = "reqwest-client")]
+impl Client {
+  /// Executes an HTTP request
+  ///
+  /// The response will be transformed to String,
+  /// If reading the response as binary, the byte array will be serialized using serde_json.
+  pub async fn send(&self, request: HttpRequestBuilder) -> crate::api::Result<Response> {
+    let method = Method::from_bytes(request.method.to_uppercase().as_bytes())?;
+
     let mut request_builder = self.0.request(method, &request.url);
 
     if let Some(query) = request.query {
@@ -85,8 +155,18 @@ impl Client {
 
     let response = if let Some(body) = request.body {
       match body {
-        Body::Bytes(data) => request_builder.body(Bytes::from(data)).send().await?,
-        Body::Text(text) => request_builder.body(Bytes::from(text)).send().await?,
+        Body::Bytes(data) => {
+          request_builder
+            .body(bytes::Bytes::from(data))
+            .send()
+            .await?
+        }
+        Body::Text(text) => {
+          request_builder
+            .body(bytes::Bytes::from(text))
+            .send()
+            .await?
+        }
         Body::Json(json) => request_builder.json(&json).send().await?,
         Body::Form(form_body) => {
           let mut form = Vec::new();
@@ -114,6 +194,7 @@ impl Client {
 
 #[derive(Serialize_repr, Deserialize_repr, Clone, Debug)]
 #[repr(u16)]
+#[non_exhaustive]
 /// The request's response type
 pub enum ResponseType {
   /// Read the response as JSON
@@ -127,6 +208,7 @@ pub enum ResponseType {
 /// FormBody data types.
 #[derive(Deserialize)]
 #[serde(untagged)]
+#[non_exhaustive]
 pub enum FormPart {
   /// A file path value.
   File(PathBuf),
@@ -150,6 +232,7 @@ impl FormBody {
 /// A body for the request.
 #[derive(Deserialize)]
 #[serde(tag = "type", content = "payload")]
+#[non_exhaustive]
 pub enum Body {
   /// A multipart formdata body.
   Form(FormBody),
@@ -246,22 +329,48 @@ impl HttpRequestBuilder {
 }
 
 /// The HTTP response.
+#[cfg(feature = "reqwest-client")]
 pub struct Response(ResponseType, reqwest::Response);
+/// The HTTP response.
+#[cfg(not(feature = "reqwest-client"))]
+pub struct Response(ResponseType, attohttpc::Response, String);
 
 impl Response {
+  /// Reads the response as raw bytes.
+  pub async fn bytes(self) -> crate::api::Result<RawResponse> {
+    let status = self.1.status().as_u16();
+    #[cfg(feature = "reqwest-client")]
+    let data = self.1.bytes().await?.to_vec();
+    #[cfg(not(feature = "reqwest-client"))]
+    let data = self.1.bytes()?;
+    Ok(RawResponse { status, data })
+  }
+
   /// Reads the response and returns its info.
   pub async fn read(self) -> crate::api::Result<ResponseData> {
+    #[cfg(feature = "reqwest-client")]
     let url = self.1.url().to_string();
+    #[cfg(not(feature = "reqwest-client"))]
+    let url = self.2;
+
     let mut headers = HashMap::new();
     for (name, value) in self.1.headers() {
       headers.insert(name.as_str().to_string(), value.to_str()?.to_string());
     }
     let status = self.1.status().as_u16();
 
+    #[cfg(feature = "reqwest-client")]
     let data = match self.0 {
       ResponseType::Json => self.1.json().await?,
       ResponseType::Text => Value::String(self.1.text().await?),
       ResponseType::Binary => Value::String(serde_json::to_string(&self.1.bytes().await?)?),
+    };
+
+    #[cfg(not(feature = "reqwest-client"))]
+    let data = match self.0 {
+      ResponseType::Json => self.1.json()?,
+      ResponseType::Text => Value::String(self.1.text()?),
+      ResponseType::Binary => Value::String(serde_json::to_string(&self.1.bytes()?)?),
     };
 
     Ok(ResponseData {
@@ -273,12 +382,26 @@ impl Response {
   }
 }
 
+/// A response with raw bytes.
+#[non_exhaustive]
+pub struct RawResponse {
+  /// Response status code.
+  pub status: u16,
+  /// Response bytes.
+  pub data: Vec<u8>,
+}
+
 /// The response type.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[non_exhaustive]
 pub struct ResponseData {
-  url: String,
-  status: u16,
-  headers: HashMap<String, String>,
-  data: Value,
+  /// Response URL. Useful if it followed redirects.
+  pub url: String,
+  /// Response status code.
+  pub status: u16,
+  /// Response headers.
+  pub headers: HashMap<String, String>,
+  /// Response data.
+  pub data: Value,
 }

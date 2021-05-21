@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tauri</title>
+</head>
+
+<body>
+  <h3>Counter</h3>
+  <div>
+    <button id="increment-btn">Increment counter</button>
+  </div>
+  <h3>Database</h3>
+  <div>
+    <input id="store-input" placeholder="The value to store">
+    <button id="store-btn">Store</button>
+  </div>
+  <div>
+    <button id="read-btn">Read</button>
+  </div>
+  <div id="response"></div>
+
+  <script>
+    const KEY = 'db-key'
+    const storeBtn = document.querySelector('#store-btn')
+    const readBtn = document.querySelector('#read-btn')
+    const incrementBtn = document.querySelector('#increment-btn')
+    const storeInput = document.querySelector('#store-input')
+    const responseContainer = document.querySelector('#response')
+
+    function updateResponse(response) {
+      responseContainer.innerHTML = typeof response === "string" ? response : JSON.stringify(response)
+    }
+
+    incrementBtn.addEventListener('click', () => {
+      window.__TAURI__.invoke('increment_counter').then(updateResponse).catch(updateResponse)
+    })
+
+    storeBtn.addEventListener('click', () => {
+      window.__TAURI__.invoke('db_insert', {
+        key: KEY,
+        value: storeInput.value
+      }).then(updateResponse).catch(updateResponse)
+    })
+
+    readBtn.addEventListener('click', () => {
+      window.__TAURI__.invoke('db_read', {
+        key: KEY
+      }).then(updateResponse).catch(updateResponse)
+    })
+  </script>
+</body>
+
+</html>

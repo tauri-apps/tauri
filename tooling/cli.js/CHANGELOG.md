@@ -1,5 +1,44 @@
 # Changelog
 
+## \[1.0.0-beta.2]
+
+- Packages are checked with `!=` instead of `semver` for beta releases.
+  - [66b6136](https://www.github.com/tauri-apps/tauri/commit/66b6136e06053e839b936ab17051d61748fa4f4e) Disable version check with semver for now ([#1810](https://www.github.com/tauri-apps/tauri/pull/1810)) on 2021-05-13
+
+## \[1.0.0-beta.1]
+
+- Add `'self'` to default CSP because otherwise no joy on macOS.
+  - Bumped due to a bump in cli.rs.
+  - [12268e6](https://www.github.com/tauri-apps/tauri/commit/12268e6e69dc9a7034652f50316d3545cac687c7) fix(csp): add 'self' ([#1794](https://www.github.com/tauri-apps/tauri/pull/1794)) on 2021-05-12
+- Fix a typo that would result in bundle arg being ignored.
+  - Bumped due to a bump in cli.rs.
+  - [71f6a5e](https://www.github.com/tauri-apps/tauri/commit/71f6a5ed442a43bf1008043c95a1a90effdd2f81) fix(cli.rs/build): fix typo getting bundle arg ([#1783](https://www.github.com/tauri-apps/tauri/pull/1783)) on 2021-05-12
+
+## \[1.0.0-beta.0]
+
+- Fixes `UnhandledPromiseRejectionWarning` when the Rust CLI call fails.
+  - [8845487](https://www.github.com/tauri-apps/tauri/commit/8845487f9d2791a47b5368d08c152f65abe98835) fix(cli.js): handle cli.rs promise rejection ([#1689](https://www.github.com/tauri-apps/tauri/pull/1689)) on 2021-05-03
+
+- Download `rustup` script on runtime instead of shipping it.
+  - [862e33a](https://www.github.com/tauri-apps/tauri/commit/862e33a0f652cca1fa313f3749a0445e811b2e3b) refactor(cli.js): download rustup binary ([#1711](https://www.github.com/tauri-apps/tauri/pull/1711)) on 2021-05-05
+
+- Adds `pnpm` support.
+  - [908b703](https://www.github.com/tauri-apps/tauri/commit/908b703246ca9ed1959e8aac0c3df898b72d1e59) feat(cli.js): package managers interface, add pnpm support ([#1743](https://www.github.com/tauri-apps/tauri/pull/1743)) on 2021-05-09
+
+- Updates to `tauri icon`
+
+- detect if icon is NOT transparent via metadata
+
+- detect again on pixel level
+
+- remove pngquant as a waste of space
+
+- make optipng default
+
+- relax optipng settings
+
+- [82a580e](https://www.github.com/tauri-apps/tauri/commit/82a580ec4585e96ea31fe0f36f3238e34d46e599) feat(tauricon): fix transparency ([#1678](https://www.github.com/tauri-apps/tauri/pull/1678)) on 2021-05-03
+
 ## \[1.0.0-beta-rc.4]
 
 - Fixes the Message `command` name value on plugin invoke handler.

@@ -5,30 +5,37 @@
 //! Tauri is a framework for building tiny, blazing fast binaries for all major desktop platforms.
 //! Developers can integrate any front-end framework that compiles to HTML, JS and CSS for building their user interface.
 //! The backend of the application is a rust-sourced binary with an API that the front-end can interact with.
-//!
-//! The user interface in Tauri apps currently leverages Cocoa/WebKit on macOS, gtk-webkit2 on Linux and MSHTML (IE10/11) or Webkit via Edge on Windows.
-//! Tauri uses (and contributes to) the MIT licensed project that you can find at [webview](https://github.com/webview/webview).
+
 #![warn(missing_docs, rust_2018_idioms)]
+#![cfg_attr(doc_cfg, feature(doc_cfg))]
 
 /// The Tauri error enum.
 pub use error::Error;
 pub use tauri_macros::{command, generate_handler};
 
-/// Core API.
 pub mod api;
+pub(crate) mod app;
 /// Async runtime.
 pub mod async_runtime;
+pub mod command;
 /// The Tauri API endpoints.
 mod endpoints;
 mod error;
 mod event;
 mod hooks;
+mod manager;
 pub mod plugin;
-pub mod runtime;
+/// Tauri window.
+pub mod window;
+use tauri_runtime as runtime;
 /// The Tauri-specific settings for your runtime e.g. notification permission status.
 pub mod settings;
+mod state;
 #[cfg(feature = "updater")]
 pub mod updater;
+
+#[cfg(feature = "wry")]
+pub use tauri_runtime_wry::Wry;
 
 /// `Result<T, ::tauri::Error>`
 pub type Result<T> = std::result::Result<T, Error>;
@@ -36,27 +43,51 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// A task to run on the main thread.
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
-use crate::api::assets::Assets;
-use crate::api::config::Config;
-use crate::event::{Event, EventHandler};
-use crate::runtime::tag::{Tag, TagRef};
-use crate::runtime::window::PendingWindow;
-use crate::runtime::{Dispatch, Runtime};
+use crate::{
+  event::{Event, EventHandler},
+  runtime::window::PendingWindow,
+};
 use serde::Serialize;
-use std::collections::HashMap;
-use std::path::PathBuf;
+use std::{borrow::Borrow, collections::HashMap, sync::Arc};
 
 // Export types likely to be used by the application.
+#[cfg(any(feature = "menu", feature = "system-tray"))]
+#[cfg_attr(doc_cfg, doc(cfg(any(feature = "menu", feature = "system-tray"))))]
+pub use runtime::menu::CustomMenuItem;
 pub use {
-  api::config::WindowUrl,
-  hooks::{InvokeHandler, InvokeMessage, OnPageLoad, PageLoadPayload, SetupHook},
-  runtime::app::{App, Builder},
-  runtime::flavors::wry::Wry,
-  runtime::webview::{WebviewAttributes, WindowBuilder},
-  runtime::window::export::Window,
+  self::api::assets::Assets,
+  self::api::{
+    config::{Config, WindowUrl},
+    PackageInfo,
+  },
+  self::app::{App, AppHandle, Builder, GlobalWindowEvent},
+  self::hooks::{
+    Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
+    PageLoadPayload, SetupHook,
+  },
+  self::runtime::{
+    tag::{Tag, TagRef},
+    webview::{WebviewAttributes, WindowBuilder},
+    window::{
+      dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
+      WindowEvent,
+    },
+    Icon, MenuId, Params,
+  },
+  self::state::{State, StateManager},
+  self::window::{Monitor, Window},
+};
+#[cfg(feature = "system-tray")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
+pub use {self::app::SystemTrayEvent, self::runtime::menu::SystemTrayMenuItem};
+#[cfg(feature = "menu")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
+pub use {
+  self::app::WindowMenuEvent,
+  self::runtime::menu::{Menu, MenuItem},
+  self::window::MenuEvent,
 };
 
-use std::borrow::Borrow;
 /// Reads the config file at compile time and generates a [`Context`] based on its content.
 ///
 /// The default config file path is a `tauri.conf.json` file inside the Cargo manifest directory of
@@ -91,56 +122,109 @@ macro_rules! tauri_build_context {
   };
 }
 
-/// A icon definition.
-#[derive(Debug, Clone)]
-pub enum Icon {
-  /// Icon from file path.
-  File(PathBuf),
-  /// Icon from raw bytes.
-  Raw(Vec<u8>),
+/// User supplied data required inside of a Tauri application.
+///
+/// # Stability
+/// This is the output of the `tauri::generate_context!` macro, and is not considered part of the stable API.
+/// Unless you know what you are doing and are prepared for this type to have breaking changes, do not create it yourself.
+pub struct Context<A: Assets> {
+  pub(crate) config: Config,
+  pub(crate) assets: Arc<A>,
+  pub(crate) default_window_icon: Option<Vec<u8>>,
+  pub(crate) system_tray_icon: Option<Icon>,
+  pub(crate) package_info: crate::api::PackageInfo,
 }
 
-/// User supplied data required inside of a Tauri application.
-pub struct Context<A: Assets> {
+impl<A: Assets> Context<A> {
   /// The config the application was prepared with.
-  pub config: Config,
+  #[inline(always)]
+  pub fn config(&self) -> &Config {
+    &self.config
+  }
+
+  /// A mutable reference to the config the application was prepared with.
+  #[inline(always)]
+  pub fn config_mut(&mut self) -> &mut Config {
+    &mut self.config
+  }
 
   /// The assets to be served directly by Tauri.
-  pub assets: A,
+  #[inline(always)]
+  pub fn assets(&self) -> Arc<A> {
+    self.assets.clone()
+  }
+
+  /// A mutable reference to the assets to be served directly by Tauri.
+  #[inline(always)]
+  pub fn assets_mut(&mut self) -> &mut Arc<A> {
+    &mut self.assets
+  }
 
   /// The default window icon Tauri should use when creating windows.
-  pub default_window_icon: Option<Vec<u8>>,
+  #[inline(always)]
+  pub fn default_window_icon(&self) -> Option<&[u8]> {
+    self.default_window_icon.as_deref()
+  }
+
+  /// A mutable reference to the default window icon Tauri should use when creating windows.
+  #[inline(always)]
+  pub fn default_window_icon_mut(&mut self) -> &mut Option<Vec<u8>> {
+    &mut self.default_window_icon
+  }
+
+  /// The icon to use on the system tray UI.
+  #[inline(always)]
+  pub fn system_tray_icon(&self) -> Option<&Icon> {
+    self.system_tray_icon.as_ref()
+  }
+
+  /// A mutable reference to the icon to use on the system tray UI.
+  #[inline(always)]
+  pub fn system_tray_icon_mut(&mut self) -> &mut Option<Icon> {
+    &mut self.system_tray_icon
+  }
 
   /// Package information.
-  pub package_info: crate::api::PackageInfo,
+  #[inline(always)]
+  pub fn package_info(&self) -> &crate::api::PackageInfo {
+    &self.package_info
+  }
+
+  /// A mutable reference to the package information.
+  #[inline(always)]
+  pub fn package_info_mut(&mut self) -> &mut crate::api::PackageInfo {
+    &mut self.package_info
+  }
+
+  /// Create a new [`Context`] from the minimal required items.
+  #[inline(always)]
+  pub fn new(
+    config: Config,
+    assets: Arc<A>,
+    default_window_icon: Option<Vec<u8>>,
+    system_tray_icon: Option<Icon>,
+    package_info: crate::api::PackageInfo,
+  ) -> Self {
+    Self {
+      config,
+      assets,
+      default_window_icon,
+      system_tray_icon,
+      package_info,
+    }
+  }
 }
 
-/// Types associated with the running Tauri application.
-pub trait Params: sealed::ParamsBase {
-  /// The event type used to create and listen to events.
-  type Event: Tag;
-
-  /// The type used to determine the name of windows.
-  type Label: Tag;
-
-  /// Assets that Tauri should serve from itself.
-  type Assets: Assets;
-
-  /// The underlying webview runtime used by the Tauri application.
-  type Runtime: Runtime;
-}
-
+// TODO: expand these docs
 /// Manages a running application.
-///
-/// TODO: expand these docs
 pub trait Manager<P: Params>: sealed::ManagerBase<P> {
   /// The [`Config`] the manager was created with.
-  fn config(&self) -> &Config {
+  fn config(&self) -> Arc<Config> {
     self.manager().config()
   }
 
   /// Emits a event to all windows.
-  fn emit_all<E: ?Sized, S>(&self, event: &E, payload: Option<S>) -> Result<()>
+  fn emit_all<E: ?Sized, S>(&self, event: &E, payload: S) -> Result<()>
   where
     P::Event: Borrow<E>,
     E: TagRef<P::Event>,
@@ -154,7 +238,7 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
     &self,
     label: &L,
     event: &E,
-    payload: Option<S>,
+    payload: S,
   ) -> Result<()>
   where
     P::Label: Borrow<L>,
@@ -165,19 +249,6 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
     self
       .manager()
       .emit_filter(event, payload, |w| label == w.label())
-  }
-
-  /// Creates a new [`Window`] on the [`Runtime`] and attaches it to the [`Manager`].
-  fn create_window(&mut self, pending: PendingWindow<P>) -> Result<Window<P>> {
-    use sealed::RuntimeOrDispatch::*;
-
-    let labels = self.manager().labels().into_iter().collect::<Vec<_>>();
-    let pending = self.manager().prepare_window(pending, &labels)?;
-    match self.runtime() {
-      Runtime(runtime) => runtime.create_window(pending),
-      Dispatch(mut dispatcher) => dispatcher.create_window(pending),
-    }
-    .map(|window| self.manager().attach_window(window))
   }
 
   /// Listen to a global event.
@@ -223,20 +294,37 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
   fn windows(&self) -> HashMap<P::Label, Window<P>> {
     self.manager().windows()
   }
+
+  /// Add `state` to the state managed by the application.
+  /// See [`crate::Builder#manage`] for instructions.
+  fn manage<T>(&self, state: T)
+  where
+    T: Send + Sync + 'static,
+  {
+    self.manager().state().set(state);
+  }
+
+  /// Gets the managed state for the type `T`.
+  fn state<T>(&self) -> State<'_, T>
+  where
+    T: Send + Sync + 'static,
+  {
+    self.manager().inner.state.get()
+  }
 }
 
-/// Prevent implementation details from leaking out of the [`Manager`] and [`Params`] traits.
+/// Prevent implementation details from leaking out of the [`Manager`] trait.
 pub(crate) mod sealed {
-  use super::Params;
-  use crate::runtime::{manager::WindowManager, Runtime};
-
-  /// No downstream implementations of [`Params`].
-  pub trait ParamsBase: 'static {}
+  use crate::manager::WindowManager;
+  use tauri_runtime::{Params, Runtime, RuntimeHandle};
 
   /// A running [`Runtime`] or a dispatcher to it.
   pub enum RuntimeOrDispatch<'r, P: Params> {
-    /// Mutable reference to the running [`Runtime`].
-    Runtime(&'r mut P::Runtime),
+    /// Reference to the running [`Runtime`].
+    Runtime(&'r P::Runtime),
+
+    /// Handle to the running [`Runtime`].
+    RuntimeHandle(<P::Runtime as Runtime>::Handle),
 
     /// A dispatcher to the running [`Runtime`].
     Dispatch(<P::Runtime as Runtime>::Dispatcher),
@@ -247,8 +335,27 @@ pub(crate) mod sealed {
     /// The manager behind the [`Managed`] item.
     fn manager(&self) -> &WindowManager<P>;
 
-    /// The runtime or runtime dispatcher of the [`Managed`] item.
-    fn runtime(&mut self) -> RuntimeOrDispatch<'_, P>;
+    fn runtime(&self) -> RuntimeOrDispatch<'_, P>;
+
+    /// Creates a new [`Window`] on the [`Runtime`] and attaches it to the [`Manager`].
+    fn create_new_window(
+      &self,
+      pending: crate::PendingWindow<P>,
+    ) -> crate::Result<crate::Window<P>> {
+      use crate::runtime::Dispatch;
+      let labels = self.manager().labels().into_iter().collect::<Vec<_>>();
+      let pending = self.manager().prepare_window(pending, &labels)?;
+      match self.runtime() {
+        RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending).map_err(Into::into),
+        RuntimeOrDispatch::RuntimeHandle(handle) => {
+          handle.create_window(pending).map_err(Into::into)
+        }
+        RuntimeOrDispatch::Dispatch(mut dispatcher) => {
+          dispatcher.create_window(pending).map_err(Into::into)
+        }
+      }
+      .map(|window| self.manager().attach_window(window))
+    }
   }
 }
 

@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+/** @ignore */ /** */
+
 import { invoke } from '../tauri'
 
-export type TauriModule =
+type TauriModule =
   | 'App'
   | 'Fs'
   | 'Window'
@@ -18,12 +20,15 @@ export type TauriModule =
   | 'GlobalShortcut'
   | 'Process'
 
-export interface TauriCommand {
+interface TauriCommand {
   __tauriModule: TauriModule
-  mainThread?: boolean
   [key: string]: unknown
 }
 
-export async function invokeTauriCommand<T>(command: TauriCommand): Promise<T> {
+async function invokeTauriCommand<T>(command: TauriCommand): Promise<T> {
   return invoke('tauri', command)
 }
+
+export type { TauriModule, TauriCommand }
+
+export { invokeTauriCommand }

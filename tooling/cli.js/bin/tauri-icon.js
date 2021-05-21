@@ -43,7 +43,8 @@ if (argv.help) {
     --help, -h          Displays this message
     --log, l            Logging [boolean]
     --target, t         Target folder (default: 'src-tauri/icons')
-    --compression, c    Compression type [pngquant|optipng|zopfli]
+    --compression, c    Compression type [optipng|zopfli]
+    --ci                Runs the script in CI mode     
     `)
   process.exit(0)
 }

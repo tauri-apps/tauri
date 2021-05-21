@@ -13,12 +13,10 @@ use std::{
 use anyhow::Context;
 use serde::Deserialize;
 
-use crate::helpers::{app_paths::tauri_dir, config::Config};
-#[cfg(windows)]
-use tauri_bundler::WindowsSettings;
+use crate::helpers::{app_paths::tauri_dir, config::Config, manifest::Manifest};
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
-  UpdaterSettings,
+  UpdaterSettings, WindowsSettings,
 };
 
 /// The `workspace` section of the app configuration (read from Cargo.toml).
@@ -92,20 +90,30 @@ struct CargoConfig {
   build: Option<CargoBuildConfig>,
 }
 
-pub fn build_project(runner: String, target: &Option<String>, debug: bool) -> crate::Result<()> {
-  let mut args = vec!["build", "--features=custom-protocol"];
+pub fn build_project(
+  runner: String,
+  target: &Option<String>,
+  features: Vec<String>,
+  debug: bool,
+) -> crate::Result<()> {
+  let mut command = Command::new(&runner);
+  command.args(&["build", "--features=custom-protocol"]);
 
   if let Some(target) = target {
-    args.push("--target");
-    args.push(target);
+    command.arg("--target");
+    command.arg(target);
+  }
+
+  if !features.is_empty() {
+    command.arg("--features");
+    command.arg(features.join(","));
   }
 
   if !debug {
-    args.push("--release");
+    command.arg("--release");
   }
 
-  let status = Command::new(&runner)
-    .args(args)
+  let status = command
     .status()
     .with_context(|| format!("failed to run {}", runner))?;
   if !status.success() {
@@ -165,8 +173,17 @@ impl AppSettings {
     &self.cargo_package_settings
   }
 
-  pub fn get_bundle_settings(&self, config: &Config) -> crate::Result<BundleSettings> {
-    tauri_config_to_bundle_settings(config.tauri.bundle.clone(), config.tauri.updater.clone())
+  pub fn get_bundle_settings(
+    &self,
+    config: &Config,
+    manifest: &Manifest,
+  ) -> crate::Result<BundleSettings> {
+    tauri_config_to_bundle_settings(
+      manifest,
+      config.tauri.bundle.clone(),
+      config.tauri.system_tray.clone(),
+      config.tauri.updater.clone(),
+    )
   }
 
   pub fn get_out_dir(&self, debug: bool) -> crate::Result<PathBuf> {
@@ -334,13 +351,51 @@ pub fn get_workspace_dir(current_dir: &Path) -> PathBuf {
 }
 
 fn tauri_config_to_bundle_settings(
+  manifest: &Manifest,
   config: crate::helpers::config::BundleConfig,
+  system_tray_config: Option<crate::helpers::config::SystemTrayConfig>,
   updater_config: crate::helpers::config::UpdaterConfig,
 ) -> crate::Result<BundleSettings> {
+  #[cfg(windows)]
+  let windows_icon_path = PathBuf::from(
+    config
+      .icon
+      .as_ref()
+      .and_then(|icons| icons.iter().find(|i| i.ends_with(".ico")).cloned())
+      .expect("the bundle config must have a `.ico` icon"),
+  );
+  #[cfg(not(windows))]
+  let windows_icon_path = PathBuf::from("");
+
+  #[allow(unused_mut)]
+  let mut resources = config.resources.unwrap_or_default();
+  #[allow(unused_mut)]
+  let mut depends = config.deb.depends.unwrap_or_default();
+
+  #[cfg(target_os = "linux")]
+  {
+    if let Some(system_tray_config) = &system_tray_config {
+      let mut icon_path = system_tray_config.icon_path.clone();
+      icon_path.set_extension("png");
+      depends.push("libappindicator3-1".to_string());
+    }
+
+    // provides `libwebkit2gtk-4.0.so.37` and all `4.0` versions have the -37 package name
+    depends.push("libwebkit2gtk-4.0-37".to_string());
+    depends.push("libgtk-3-0".to_string());
+    if manifest.features.contains("menu") || system_tray_config.is_some() {
+      depends.push("libgtksourceview-3.0-1".to_string());
+    }
+  }
+
   Ok(BundleSettings {
     identifier: config.identifier,
     icon: config.icon,
-    resources: config.resources,
+    resources: if resources.is_empty() {
+      None
+    } else {
+      Some(resources)
+    },
     copyright: config.copyright,
     category: match config.category {
       Some(category) => Some(AppCategory::from_str(&category).map_err(|e| match e {
@@ -353,7 +408,11 @@ fn tauri_config_to_bundle_settings(
     long_description: config.long_description,
     external_bin: config.external_bin,
     deb: DebianSettings {
-      depends: config.deb.depends,
+      depends: if depends.is_empty() {
+        None
+      } else {
+        Some(depends)
+      },
       use_bootstrapper: Some(config.deb.use_bootstrapper),
       files: config.deb.files,
     },
@@ -366,12 +425,12 @@ fn tauri_config_to_bundle_settings(
       signing_identity: config.macos.signing_identity,
       entitlements: config.macos.entitlements,
     },
-    #[cfg(windows)]
     windows: WindowsSettings {
       timestamp_url: config.windows.timestamp_url,
       digest_algorithm: config.windows.digest_algorithm,
       certificate_thumbprint: config.windows.certificate_thumbprint,
       wix: config.windows.wix.map(|w| w.into()),
+      icon_path: windows_icon_path,
     },
     updater: Some(UpdaterSettings {
       active: updater_config.active,

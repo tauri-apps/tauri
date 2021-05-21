@@ -5,8 +5,9 @@
 import minimist from 'minimist'
 import inquirer from 'inquirer'
 import { bold, cyan, green, reset, yellow } from 'chalk'
-import { resolve, join } from 'path'
-import { reactjs, reactts } from './recipes/react'
+import { platform } from 'os'
+import { resolve, join, relative } from 'path'
+import { cra } from './recipes/react'
 import { vuecli } from './recipes/vue-cli'
 import { vanillajs } from './recipes/vanilla'
 import { vite } from './recipes/vite'
@@ -14,6 +15,7 @@ import { install, checkPackageManager } from './dependency-manager'
 import { shell } from './shell'
 import { addTauriScript } from './helpers/add-tauri-script'
 import { Recipe } from './types/recipe'
+import { updateTauriConf } from './helpers/update-tauri-conf'
 
 interface Argv {
   h: boolean
@@ -70,7 +72,7 @@ const printUsage = (): void => {
 }
 
 export const createTauriApp = async (cliArgs: string[]): Promise<any> => {
-  const argv = (minimist(cliArgs, {
+  const argv = minimist(cliArgs, {
     alias: {
       h: 'help',
       v: 'version',
@@ -86,7 +88,7 @@ export const createTauriApp = async (cliArgs: string[]): Promise<any> => {
       r: 'recipe'
     },
     boolean: ['h', 'l', 'ci', 'dev']
-  }) as unknown) as Argv
+  }) as unknown as Argv
 
   if (argv.help) {
     printUsage()
@@ -111,19 +113,62 @@ interface Responses {
   recipeName: string
 }
 
-const allRecipes: Recipe[] = [vanillajs, reactjs, reactts, vite, vuecli]
+const allRecipes: Recipe[] = [vanillajs, cra, vite, vuecli]
 
 const recipeByShortName = (name: string): Recipe | undefined =>
   allRecipes.find((r) => r.shortName === name)
 
 const recipeByDescriptiveName = (name: string): Recipe | undefined =>
-  allRecipes.find((r) => r.descriptiveName === name)
+  allRecipes.find((r) => r.descriptiveName.value === name)
 
 const recipeShortNames = allRecipes.map((r) => r.shortName)
 
 const recipeDescriptiveNames = allRecipes.map((r) => r.descriptiveName)
 
+const keypress = async (skip: boolean): Promise<void> => {
+  if (skip) return
+  process.stdin.setRawMode(true)
+  return await new Promise((resolve, reject) => {
+    console.log('Press any key to continue...')
+    process.stdin.once('data', (data) => {
+      const byteArray = [...data]
+      if (byteArray.length > 0 && byteArray[0] === 3) {
+        console.log('^C')
+        process.exit(1)
+      }
+      process.stdin.setRawMode(false)
+      resolve()
+    })
+  })
+}
+
 const runInit = async (argv: Argv): Promise<void> => {
+  console.log(
+    `We hope to help you create something special with ${bold(
+      yellow('Tauri')
+    )}!`
+  )
+  console.log(
+    'You will have a choice of one of the UI frameworks supported by the greater web tech community.'
+  )
+  console.log(
+    `This should get you started. See our docs at https://tauri.studio/`
+  )
+
+  const setupLink =
+    platform() === 'win32'
+      ? 'https://tauri.studio/en/docs/getting-started/setup-windows/'
+      : platform() === 'darwin'
+      ? 'https://tauri.studio/en/docs/getting-started/setup-macos/'
+      : 'https://tauri.studio/en/docs/getting-started/setup-linux/'
+
+  console.log(
+    `If you haven't already, please take a moment to setup your system.`
+  )
+  console.log(`You may find the requirements here: ${setupLink}`)
+
+  await keypress(argv.ci)
+
   const defaults = {
     appName: 'tauri-app',
     tauri: { window: { title: 'Tauri App' } },
@@ -183,7 +228,10 @@ const runInit = async (argv: Argv): Promise<void> => {
     recipe = recipeByDescriptiveName(recipeName)
   }
 
-  if (!recipe) throw new Error('Could not find the recipe specified.')
+  // throw if recipe is not set
+  if (!recipe) {
+    throw new Error('Could not find the recipe specified.')
+  }
 
   const packageManager =
     argv.m === 'yarn' || argv.m === 'npm'
@@ -197,8 +245,8 @@ const runInit = async (argv: Argv): Promise<void> => {
   const buildConfig = {
     distDir: argv.D,
     devPath: argv.P,
-    appName: appName,
-    windowTitle: title
+    appName: argv.A || appName,
+    windowTitle: argv.W || title
   }
 
   const directory = argv.d || process.cwd()
@@ -275,30 +323,26 @@ const runInit = async (argv: Argv): Promise<void> => {
     }
   }, [])
 
+  const tauriCLIVersion = !argv.dev
+    ? 'latest'
+    : `file:${relative(appDirectory, join(__dirname, '../../cli.js'))}`
+
   // Vue CLI plugin automatically runs these
   if (recipe.shortName !== 'vuecli') {
     logStep('Installing any additional needed dependencies')
-    if (argv.dev) {
-      await shell('yarn', ['link', '@tauri-apps/cli'], {
-        cwd: appDirectory
-      })
-      await shell('yarn', ['link', '@tauri-apps/api'], {
-        cwd: appDirectory
-      })
-    }
-
     await install({
       appDir: appDirectory,
       dependencies: recipe.extraNpmDependencies,
-      devDependencies: argv.dev
-        ? [...recipe.extraNpmDevDependencies]
-        : ['@tauri-apps/cli'].concat(recipe.extraNpmDevDependencies),
+      devDependencies: [`@tauri-apps/cli@${tauriCLIVersion}`].concat(
+        recipe.extraNpmDevDependencies
+      ),
       packageManager
     })
 
-    logStep(`Running: ${reset(yellow('tauri init'))}`)
+    logStep('Adding `tauri` script to package.json')
     addTauriScript(appDirectory)
 
+    logStep(`Running: ${reset(yellow('tauri init'))}`)
     const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b)
     const runTauriArgs =
       packageManager === 'npm' && !argv.b
@@ -307,6 +351,9 @@ const runInit = async (argv: Argv): Promise<void> => {
     await shell(binary, [...runTauriArgs, ...initArgs, '--ci'], {
       cwd: appDirectory
     })
+
+    logStep('Updating `tauri.conf.json`')
+    updateTauriConf(appDirectory, cfg)
   }
 
   if (recipe.postInit) {

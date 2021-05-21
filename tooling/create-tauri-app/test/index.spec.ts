@@ -15,50 +15,15 @@ const api = path.resolve('../api/')
 const manager = process.env.TAURI_RUN_MANAGER ?? 'npm'
 const recipes = process.env.TAURI_RECIPE
   ? [process.env.TAURI_RECIPE]
-  : ['vanillajs', 'reactjs', 'reactts', 'vite', 'vuecli']
+  : ['vanillajs', 'cra', 'vite', 'vuecli']
 const timeoutLong = 900000
 const timeoutLittleLonger = 930000
 const logOut = false ? 'inherit' : 'pipe'
 
-beforeAll(async () => {
-  const installCLI = await execa('yarn', [], {
-    stdio: logOut,
-    cwd: clijs,
-    timeout: timeoutLong
-  })
-
-  const buildCLI = await execa('yarn', ['build-release'], {
-    stdio: logOut,
-    cwd: clijs,
-    timeout: timeoutLong
-  })
-
-  const linkCLI = await execa('yarn', ['link'], {
-    stdio: logOut,
-    cwd: clijs,
-    timeout: timeoutLong
-  })
-
-  const installAPI = await execa('yarn', [], {
-    stdio: logOut,
-    cwd: api,
-    timeout: timeoutLong
-  })
-
-  const buildAPI = await execa('yarn', ['build'], {
-    stdio: logOut,
-    cwd: api,
-    timeout: timeoutLong
-  })
-
-  const linkAPI = await execa('yarn', ['link'], {
-    stdio: logOut,
-    cwd: api,
-    timeout: timeoutLong
-  })
-}, timeoutLittleLonger)
-
 describe('CTA', () => {
+  console.warn(
+    'NOTE: You need to have installed and built cli.js and api before running the tests.'
+  )
   describe.each(recipes.map((recipe) => [recipe, 'tauri-app']))(
     `%s recipe`,
     (recipe: string, appName: string) => {
@@ -95,6 +60,16 @@ describe('CTA', () => {
           expect(cta.isCanceled).toBe(false)
           expect(cta.killed).toBe(false)
           expect(cta.signal).toBe(undefined)
+
+          const packageFileInitial: {
+            [k: string]: string | object
+          } = JSON.parse(
+            await fs.promises.readFile(
+              path.join(appFolder, 'package.json'),
+              'utf-8'
+            )
+          )
+          expect(packageFileInitial['name']).toBe(appName)
 
           // run a tauri build to check if what we produced
           //  can actually create an app
@@ -138,14 +113,7 @@ describe('CTA', () => {
                 tauri: 'tauri'
               })
             },
-            reactjs: () => {
-              expect(packageFileOutput['scripts']).toEqual(
-                expect.objectContaining({
-                  tauri: 'tauri'
-                })
-              )
-            },
-            reactts: () => {
+            cra: () => {
               expect(packageFileOutput['scripts']).toEqual(
                 expect.objectContaining({
                   tauri: 'tauri'

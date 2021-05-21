@@ -2,9 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::api::{
-  file::read_string,
-  path::{resolve_path, BaseDirectory},
+use crate::{
+  api::{
+    file::read_binary,
+    path::{resolve_path, BaseDirectory},
+    PackageInfo,
+  },
+  Config,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -15,6 +19,7 @@ use std::{
 
 /// Tauri Settings.
 #[derive(Default, Deserialize, Serialize)]
+#[non_exhaustive]
 pub struct Settings {
   /// Whether the user allows notifications or not.
   #[cfg(notification_all)]
@@ -22,14 +27,23 @@ pub struct Settings {
 }
 
 /// Gets the path to the settings file
-fn get_settings_path() -> crate::api::Result<PathBuf> {
-  resolve_path(".tauri-settings.json", Some(BaseDirectory::App))
+fn get_settings_path(config: &Config, package_info: &PackageInfo) -> crate::api::Result<PathBuf> {
+  resolve_path(
+    config,
+    package_info,
+    ".tauri-settings",
+    Some(BaseDirectory::App),
+  )
 }
 
 /// Write the settings to the file system.
 #[allow(dead_code)]
-pub(crate) fn write_settings(settings: Settings) -> crate::Result<()> {
-  let settings_path = get_settings_path()?;
+pub(crate) fn write_settings(
+  config: &Config,
+  package_info: &PackageInfo,
+  settings: Settings,
+) -> crate::Result<()> {
+  let settings_path = get_settings_path(config, package_info)?;
   let settings_folder = Path::new(&settings_path).parent().unwrap();
   if !settings_folder.exists() {
     std::fs::create_dir(settings_folder)?;
@@ -37,19 +51,22 @@ pub(crate) fn write_settings(settings: Settings) -> crate::Result<()> {
   File::create(settings_path)
     .map_err(Into::into)
     .and_then(|mut f| {
-      f.write_all(serde_json::to_string(&settings)?.as_bytes())
+      f.write_all(&bincode::serialize(&settings).map_err(crate::api::Error::Bincode)?)
         .map_err(Into::into)
     })
 }
 
 /// Reads the settings from the file system.
-pub fn read_settings() -> crate::Result<Settings> {
-  let settings_path = get_settings_path()?;
-  if settings_path.exists() {
-    read_string(settings_path)
-      .and_then(|settings| serde_json::from_str(settings.as_str()).map_err(Into::into))
-      .map_err(Into::into)
+pub fn read_settings(config: &Config, package_info: &PackageInfo) -> Settings {
+  if let Ok(settings_path) = get_settings_path(config, package_info) {
+    if settings_path.exists() {
+      read_binary(settings_path)
+        .and_then(|settings| bincode::deserialize(&settings).map_err(Into::into))
+        .unwrap_or_default()
+    } else {
+      Settings::default()
+    }
   } else {
-    Ok(Default::default())
+    Settings::default()
   }
 }

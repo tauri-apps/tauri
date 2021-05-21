@@ -5,28 +5,55 @@
 extern crate proc_macro;
 use crate::context::ContextItems;
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, AttributeArgs, ItemFn};
+use syn::parse_macro_input;
 
 mod command;
 
 #[macro_use]
 mod context;
 
+/// Mark a function as a command handler. It creates a wrapper function with the necessary glue code.
+///
+/// # Stability
+/// The output of this macro is managed internally by Tauri,
+/// and should not be accessed directly on normal applications.
+/// It may have breaking changes in the future.
 #[proc_macro_attribute]
-pub fn command(attrs: TokenStream, item: TokenStream) -> TokenStream {
-  let function = parse_macro_input!(item as ItemFn);
-  let attrs = parse_macro_input!(attrs as AttributeArgs);
-  let gen = command::generate_command(attrs, function);
-  gen.into()
+pub fn command(attributes: TokenStream, item: TokenStream) -> TokenStream {
+  command::wrapper(attributes, item)
 }
 
+/// Accepts a list of commands functions. Creates a handler that allows commands to be called from JS with invoke().
+///
+/// # Example
+/// ```rust,ignore
+/// use tauri::command;
+/// #[command]
+/// fn command_one() {}
+/// #[command]
+/// fn command_two() {}
+/// fn main() {
+///   tauri::Builder::default()
+///     .invoke_handler(tauri::generate_handler![command_one, command_two])
+///     .run(tauri::generate_context!())
+///     .expect("error while running tauri application");
+/// }
+/// ```
+/// # Stability
+/// The output of this macro is managed internally by Tauri,
+/// and should not be accessed directly on normal applications.
+/// It may have breaking changes in the future.
 #[proc_macro]
 pub fn generate_handler(item: TokenStream) -> TokenStream {
-  let gen = command::generate_handler(item);
-  gen.into()
+  parse_macro_input!(item as command::Handler).into()
 }
 
 /// Reads a Tauri config file and generates a `::tauri::Context` based on the content.
+///
+/// # Stability
+/// The output of this macro is managed internally by Tauri,
+/// and should not be accessed directly on normal applications.
+/// It may have breaking changes in the future.
 #[proc_macro]
 pub fn generate_context(items: TokenStream) -> TokenStream {
   // this macro is exported from the context module

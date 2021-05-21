@@ -2,23 +2,62 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+/**
+ * Native system dialogs for opening and saving files.
+ *
+ * This package is also accessible with `window.__TAURI__.dialog` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ *
+ * The APIs must be allowlisted on `tauri.conf.json`:
+ * ```json
+ * {
+ *   "tauri": {
+ *     "allowlist": {
+ *       "dialog": {
+ *         "all": true, // enable all dialog APIs
+ *         "open": true, // enable file open API
+ *         "save": true // enable file save API
+ *       }
+ *     }
+ *   }
+ * }
+ * ```
+ * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
+ * @packageDocumentation
+ */
+
 import { invokeTauriCommand } from './helpers/tauri'
 
-export interface DialogFilter {
+/** Extension filters for the file dialog. */
+interface DialogFilter {
+  /** Filter name. */
   name: string
+  /**
+   * Extensions to filter, without a `.` prefix.
+   * @example
+   * ```typescript
+   * extensions: ['svg', 'png']
+   * ```
+   */
   extensions: string[]
 }
 
-export interface OpenDialogOptions {
+/** Options for the open dialog. */
+interface OpenDialogOptions {
+  /** The filters of the dialog. */
   filters?: DialogFilter[]
+  /** Initial directory or file path. It must exist. */
   defaultPath?: string
-  fileName?: string
+  /** Whether the dialog allows multiple selection or not. */
   multiple?: boolean
+  /** Whether the dialog is a directory selection or not. */
   directory?: boolean
 }
 
-export interface SaveDialogOptions {
+/** Options for the save dialog. */
+interface SaveDialogOptions {
+  /** The filters of the dialog. */
   filters?: DialogFilter[]
+  /** Initial directory or file path. It must exist. */
   defaultPath?: string
 }
 
@@ -36,7 +75,6 @@ async function open(
 
   return invokeTauriCommand<string | string[]>({
     __tauriModule: 'Dialog',
-    mainThread: true,
     message: {
       cmd: 'openDialog',
       options
@@ -56,12 +94,13 @@ async function save(options: SaveDialogOptions = {}): Promise<string> {
 
   return invokeTauriCommand<string>({
     __tauriModule: 'Dialog',
-    mainThread: true,
     message: {
       cmd: 'saveDialog',
       options
     }
   })
 }
+
+export type { DialogFilter, OpenDialogOptions, SaveDialogOptions }
 
 export { open, save }

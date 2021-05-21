@@ -2,6 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! The Tauri configuration used at runtime.
+//! It is pulled from a `tauri.conf.json` file and the [`Config`] struct is generated at compile time.
+//!
+//! # Stability
+//! This is a core functionality that is not considered part of the stable API.
+//! If you use it, note that it may include breaking changes in the future.
+
 use std::{collections::HashMap, path::PathBuf};
 
 use serde::Deserialize;
@@ -11,6 +18,7 @@ use url::Url;
 /// The window webview URL options.
 #[derive(PartialEq, Debug, Clone, Deserialize)]
 #[serde(untagged)]
+#[non_exhaustive]
 pub enum WindowUrl {
   /// An external URL.
   External(Url),
@@ -133,7 +141,7 @@ impl Default for WindowConfig {
 
 /// The Updater configuration object.
 #[derive(PartialEq, Deserialize, Debug, Clone)]
-#[serde(tag = "updater", rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 pub struct UpdaterConfig {
   /// Whether the updater is active or not.
   #[serde(default)]
@@ -162,6 +170,23 @@ impl Default for UpdaterConfig {
       pubkey: None,
     }
   }
+}
+
+/// Security configuration.
+#[derive(PartialEq, Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct SecurityConfig {
+  /// Content security policy to inject to HTML files with the custom protocol.
+  pub csp: Option<String>,
+}
+
+/// Configuration for application system tray icon.
+#[derive(PartialEq, Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct SystemTrayConfig {
+  /// Path to the icon to use on the system tray.
+  /// Automatically set to be an `.png` on macOS and Linux, and `.ico` on Windows.
+  pub icon_path: PathBuf,
 }
 
 /// A CLI argument definition
@@ -253,7 +278,7 @@ pub struct CliArg {
 
 /// The CLI root command definition.
 #[derive(PartialEq, Deserialize, Debug, Clone)]
-#[serde(tag = "cli", rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 #[allow(missing_docs)] // TODO
 pub struct CliConfig {
   pub description: Option<String>,
@@ -302,16 +327,20 @@ impl CliConfig {
 
 /// The bundler configuration object.
 #[derive(PartialEq, Deserialize, Debug)]
-#[serde(tag = "bundle", rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 pub struct BundleConfig {
   /// The bundle identifier.
   pub identifier: String,
+  /// The bundle icons.
+  #[serde(default)]
+  pub icon: Vec<String>,
 }
 
 impl Default for BundleConfig {
   fn default() -> Self {
     Self {
       identifier: String::from(""),
+      icon: Vec::default(),
     }
   }
 }
@@ -322,7 +351,7 @@ fn default_window_config() -> Vec<WindowConfig> {
 
 /// The Tauri configuration object.
 #[derive(PartialEq, Deserialize, Debug)]
-#[serde(tag = "tauri", rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 pub struct TauriConfig {
   /// The window configuration.
   #[serde(default = "default_window_config")]
@@ -336,6 +365,11 @@ pub struct TauriConfig {
   /// The updater configuration.
   #[serde(default)]
   pub updater: UpdaterConfig,
+  /// The security configuration.
+  #[serde(default)]
+  pub security: SecurityConfig,
+  /// System tray configuration.
+  pub system_tray: Option<SystemTrayConfig>,
 }
 
 impl Default for TauriConfig {
@@ -345,31 +379,33 @@ impl Default for TauriConfig {
       cli: None,
       bundle: BundleConfig::default(),
       updater: UpdaterConfig::default(),
+      security: SecurityConfig::default(),
+      system_tray: None,
     }
   }
 }
 
 /// The Build configuration object.
 #[derive(PartialEq, Deserialize, Debug)]
-#[serde(tag = "build", rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 pub struct BuildConfig {
   /// the devPath config.
   #[serde(default = "default_dev_path")]
-  pub dev_path: String,
+  pub dev_path: WindowUrl,
   /// the dist config.
   #[serde(default = "default_dist_path")]
-  pub dist_dir: String,
+  pub dist_dir: WindowUrl,
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
   #[serde(default)]
   pub with_global_tauri: bool,
 }
 
-fn default_dev_path() -> String {
-  "http://localhost:8080".to_string()
+fn default_dev_path() -> WindowUrl {
+  WindowUrl::External(Url::parse("http://localhost:8080").unwrap())
 }
 
-fn default_dist_path() -> String {
-  "../dist".to_string()
+fn default_dist_path() -> WindowUrl {
+  WindowUrl::App("../dist".into())
 }
 
 impl Default for BuildConfig {
@@ -393,7 +429,7 @@ pub struct PackageConfig {
 }
 
 /// The tauri.conf.json mapper.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, Default, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
   /// Package settings.
@@ -725,15 +761,16 @@ mod build {
   impl ToTokens for BundleConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let identifier = str_lit(&self.identifier);
+      let icon = vec_lit(&self.icon, str_lit);
 
-      literal_struct!(tokens, BundleConfig, identifier);
+      literal_struct!(tokens, BundleConfig, identifier, icon);
     }
   }
 
   impl ToTokens for BuildConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let dev_path = str_lit(&self.dev_path);
-      let dist_dir = str_lit(&self.dist_dir);
+      let dev_path = &self.dev_path;
+      let dist_dir = &self.dist_dir;
       let with_global_tauri = self.with_global_tauri;
 
       literal_struct!(tokens, BuildConfig, dev_path, dist_dir, with_global_tauri);
@@ -751,14 +788,41 @@ mod build {
     }
   }
 
+  impl ToTokens for SecurityConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let csp = opt_str_lit(self.csp.as_ref());
+
+      literal_struct!(tokens, SecurityConfig, csp);
+    }
+  }
+
+  impl ToTokens for SystemTrayConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let icon_path = self.icon_path.to_string_lossy().to_string();
+      let icon_path = quote! { ::std::path::PathBuf::from(#icon_path) };
+      literal_struct!(tokens, SystemTrayConfig, icon_path);
+    }
+  }
+
   impl ToTokens for TauriConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let windows = vec_lit(&self.windows, identity);
       let cli = opt_lit(self.cli.as_ref());
       let bundle = &self.bundle;
       let updater = &self.updater;
+      let security = &self.security;
+      let system_tray = opt_lit(self.system_tray.as_ref());
 
-      literal_struct!(tokens, TauriConfig, windows, cli, bundle, updater);
+      literal_struct!(
+        tokens,
+        TauriConfig,
+        windows,
+        cli,
+        bundle,
+        updater,
+        security,
+        system_tray
+      );
     }
   }
 
@@ -843,6 +907,7 @@ mod test {
       }],
       bundle: BundleConfig {
         identifier: String::from(""),
+        icon: Vec::new(),
       },
       cli: None,
       updater: UpdaterConfig {
@@ -851,12 +916,14 @@ mod test {
         pubkey: None,
         endpoints: None,
       },
+      security: SecurityConfig { csp: None },
+      system_tray: None,
     };
 
     // create a build config
     let build = BuildConfig {
-      dev_path: String::from("http://localhost:8080"),
-      dist_dir: String::from("../dist"),
+      dev_path: WindowUrl::External(Url::parse("http://localhost:8080").unwrap()),
+      dist_dir: WindowUrl::App("../dist".into()),
       with_global_tauri: false,
     };
 
@@ -865,7 +932,10 @@ mod test {
     assert_eq!(b_config, build);
     assert_eq!(d_bundle, tauri.bundle);
     assert_eq!(d_updater, tauri.updater);
-    assert_eq!(d_path, String::from("http://localhost:8080"));
+    assert_eq!(
+      d_path,
+      WindowUrl::External(Url::parse("http://localhost:8080").unwrap())
+    );
     assert_eq!(d_title, tauri.windows[0].title);
     assert_eq!(d_windows, tauri.windows);
   }

@@ -16,6 +16,7 @@ mod macros;
 
 /// The resolution of a arg match.
 #[derive(Default, Debug, Serialize)]
+#[non_exhaustive]
 pub struct ArgData {
   /// The value of the arg.
   /// - Value::Bool if it's a flag,
@@ -30,6 +31,7 @@ pub struct ArgData {
 
 /// The matched subcommand.
 #[derive(Default, Debug, Serialize)]
+#[non_exhaustive]
 pub struct SubcommandMatches {
   /// The subcommand name.
   pub name: String,
@@ -39,6 +41,7 @@ pub struct SubcommandMatches {
 
 /// The arg matches of a command.
 #[derive(Default, Debug, Serialize)]
+#[non_exhaustive]
 pub struct Matches {
   /// Data structure mapping each found arg with its resolution.
   pub args: HashMap<String, ArgData>,

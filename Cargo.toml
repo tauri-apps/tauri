@@ -2,6 +2,8 @@
 members = [
   # core
   "core/tauri",
+  "core/tauri-runtime",
+  "core/tauri-runtime-wry",
   "core/tauri-macros",
   "core/tauri-utils",
   "core/tauri-build",
@@ -9,8 +11,13 @@ members = [
 
   # examples
   "examples/api/src-tauri",
+  "examples/commands/src-tauri",
   "examples/helloworld/src-tauri",
   "examples/multiwindow/src-tauri",
+  "examples/navigation/src-tauri",
+  "examples/params/src-tauri",
+  "examples/splashscreen/src-tauri",
+  "examples/state/src-tauri",
   # used to build updater artifacts
   "examples/updater/src-tauri",
 ]

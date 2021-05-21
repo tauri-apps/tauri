@@ -6,11 +6,13 @@ import { existsSync } from 'fs'
 import { resolve, join } from 'path'
 import { spawnSync, spawn } from './spawn'
 import { CargoManifest } from '../types/cargo'
-import { downloadCli } from './download-cli'
+import { downloadCli } from './download-binary'
 
 const currentTauriCliVersion = (): string => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
-  const tauriCliManifest = require('../../../cli.rs/Cargo.toml') as CargoManifest
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+  const tauriCliManifest =
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    require('../../../cli.rs/Cargo.toml') as CargoManifest
   return tauriCliManifest.package.version
 }
 

@@ -27,8 +27,9 @@ pub enum Buffer {
   Raw(Vec<u8>),
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn default_env() -> Option<HashMap<String, String>> {
-  Some(Default::default())
+  Some(HashMap::default())
 }
 
 #[allow(dead_code)]
@@ -72,7 +73,7 @@ pub enum Cmd {
 
 impl Cmd {
   #[allow(unused_variables)]
-  pub fn run<M: Params>(self, window: Window<M>) -> crate::Result<InvokeResponse> {
+  pub fn run<P: Params>(self, window: Window<P>) -> crate::Result<InvokeResponse> {
     match self {
       Self::Execute {
         program,

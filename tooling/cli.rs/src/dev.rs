@@ -5,7 +5,7 @@
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
   config::{get as get_config, reload as reload_config},
-  manifest::rewrite_manifest,
+  manifest::{get_workspace_members, rewrite_manifest},
   Logger,
 };
 
@@ -29,7 +29,18 @@ static BEFORE_DEV: OnceCell<Mutex<Child>> = OnceCell::new();
 
 fn kill_before_dev_process() {
   if let Some(child) = BEFORE_DEV.get() {
-    let _ = child.lock().unwrap().kill();
+    let mut child = child.lock().unwrap();
+    #[cfg(windows)]
+    let _ = Command::new("powershell")
+      .arg("-Command")
+      .arg(format!("function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid }}; Kill-Tree {}", child.id()))
+      .status();
+    #[cfg(not(windows))]
+    let _ = Command::new("pkill")
+      .args(&["-TERM", "-P"])
+      .arg(child.id().to_string())
+      .status();
+    let _ = child.kill();
   }
 }
 
@@ -37,6 +48,7 @@ fn kill_before_dev_process() {
 pub struct Dev {
   runner: Option<String>,
   target: Option<String>,
+  features: Option<Vec<String>>,
   exit_on_panic: bool,
   config: Option<String>,
   args: Vec<String>,
@@ -54,6 +66,11 @@ impl Dev {
 
   pub fn target(mut self, target: String) -> Self {
     self.target.replace(target);
+    self
+  }
+
+  pub fn features(mut self, features: Vec<String>) -> Self {
+    self.features.replace(features);
     self
   }
 
@@ -108,14 +125,6 @@ impl Dev {
       }
     }
 
-    let dev_path = config
-      .lock()
-      .unwrap()
-      .as_ref()
-      .unwrap()
-      .build
-      .dev_path
-      .to_string();
     let runner_from_config = config
       .lock()
       .unwrap()
@@ -130,12 +139,35 @@ impl Dev {
       .or(runner_from_config)
       .unwrap_or_else(|| "cargo".to_string());
 
-    rewrite_manifest(config.clone())?;
+    {
+      let (tx, rx) = channel();
+      let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
+      watcher.watch(tauri_path.join("Cargo.toml"), RecursiveMode::Recursive)?;
+      rewrite_manifest(config.clone())?;
+      loop {
+        if let Ok(DebouncedEvent::NoticeWrite(_)) = rx.recv() {
+          break;
+        }
+      }
+    }
+
+    let mut cargo_features = config
+      .lock()
+      .unwrap()
+      .as_ref()
+      .unwrap()
+      .build
+      .features
+      .clone()
+      .unwrap_or_default();
+    if let Some(features) = &self.features {
+      cargo_features.extend(features.clone());
+    }
 
     let (child_wait_tx, child_wait_rx) = channel();
     let child_wait_rx = Arc::new(Mutex::new(child_wait_rx));
 
-    process = self.start_app(&runner, child_wait_rx.clone());
+    process = self.start_app(&runner, &cargo_features, child_wait_rx.clone());
 
     let (tx, rx) = channel();
 
@@ -143,18 +175,11 @@ impl Dev {
     watcher.watch(tauri_path.join("src"), RecursiveMode::Recursive)?;
     watcher.watch(tauri_path.join("Cargo.toml"), RecursiveMode::Recursive)?;
     watcher.watch(tauri_path.join("tauri.conf.json"), RecursiveMode::Recursive)?;
-    if !dev_path.starts_with("http") {
-      watcher.watch(
-        config
-          .lock()
-          .unwrap()
-          .as_ref()
-          .unwrap()
-          .build
-          .dev_path
-          .to_string(),
-        RecursiveMode::Recursive,
-      )?;
+
+    for member in get_workspace_members()? {
+      let workspace_path = tauri_path.join(member);
+      watcher.watch(workspace_path.join("src"), RecursiveMode::Recursive)?;
+      watcher.watch(workspace_path.join("Cargo.toml"), RecursiveMode::Recursive)?;
     }
 
     loop {
@@ -179,22 +204,40 @@ impl Dev {
             process
               .kill()
               .with_context(|| "failed to kill app process")?;
-            process = self.start_app(&runner, child_wait_rx.clone());
+            // wait for the process to exit
+            loop {
+              if let Ok(Some(_)) = process.try_wait() {
+                break;
+              }
+            }
+            process = self.start_app(&runner, &cargo_features, child_wait_rx.clone());
           }
         }
       }
     }
   }
 
-  fn start_app(&self, runner: &str, child_wait_rx: Arc<Mutex<Receiver<()>>>) -> Arc<SharedChild> {
+  fn start_app(
+    &self,
+    runner: &str,
+    features: &[String],
+    child_wait_rx: Arc<Mutex<Receiver<()>>>,
+  ) -> Arc<SharedChild> {
     let mut command = Command::new(runner);
     command.args(&["run", "--no-default-features"]);
+
     if let Some(target) = &self.target {
       command.args(&["--target", target]);
     }
+
+    if !features.is_empty() {
+      command.args(&["--features", &features.join(",")]);
+    }
+
     if !self.args.is_empty() {
       command.arg("--").args(&self.args);
     }
+
     let child =
       SharedChild::spawn(&mut command).unwrap_or_else(|_| panic!("failed to run {}", runner));
     let child_arc = Arc::new(child);

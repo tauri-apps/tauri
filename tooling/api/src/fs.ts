@@ -2,6 +2,37 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+/**
+ * Access the file system.
+ *
+ * This package is also accessible with `window.__TAURI__.fs` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ *
+ * The APIs must be allowlisted on `tauri.conf.json`:
+ * ```json
+ * {
+ *   "tauri": {
+ *     "allowlist": {
+ *       "fs": {
+ *         "all": true, // enable all FS APIs
+ *         "readTextFile": true,
+ *         "readBinaryFile": true,
+ *         "writeFile": true,
+ *         "writeBinaryFile": true,
+ *         "readDir": true,
+ *         "copyFile": true,
+ *         "createDir": true,
+ *         "removeDir": true,
+ *         "removeFile": true,
+ *         "renameFile": true
+ *       }
+ *     }
+ *   }
+ * }
+ * ```
+ * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
+ * @packageDocumentation
+ */
+
 import { invokeTauriCommand } from './helpers/tauri'
 
 export enum BaseDirectory {
@@ -26,26 +57,26 @@ export enum BaseDirectory {
   Current
 }
 
-export interface FsOptions {
+interface FsOptions {
   dir?: BaseDirectory
 }
 
-export interface FsDirOptions {
+interface FsDirOptions {
   dir?: BaseDirectory
   recursive?: boolean
 }
 
-export interface FsTextFileOption {
+interface FsTextFileOption {
   path: string
   contents: string
 }
 
-export interface FsBinaryFileOption {
+interface FsBinaryFileOption {
   path: string
   contents: ArrayBuffer
 }
 
-export interface FileEntry {
+interface FileEntry {
   path: string
   /**
    * Name of the directory/file
@@ -57,11 +88,11 @@ export interface FileEntry {
 }
 
 /**
- * Reads a file as text.
+ * Reads a file as UTF-8 encoded string.
  *
- * @param filePath Path to the file
- * @param [options]
- * @returns A promise resolving to a string of the file content.
+ * @param filePath Path to the file.
+ * @param options Configuration object.
+ * @returns A promise resolving to the file content as a UTF-8 encoded string.
  */
 async function readTextFile(
   filePath: string,
@@ -78,11 +109,11 @@ async function readTextFile(
 }
 
 /**
- * Reads a file as binary.
+ * Reads a file as byte array.
  *
- * @param filePath Path to the file
- * @param [options]
- * @returns A promise resolving to an array of the file bytes.
+ * @param filePath Path to the file.
+ * @param options Configuration object.
+ * @returns A promise resolving to the file bytes array.
  */
 async function readBinaryFile(
   filePath: string,
@@ -101,9 +132,9 @@ async function readBinaryFile(
 /**
  * Writes a text file.
  *
- * @param file File configuration object
- * @param [options]
- * @returns
+ * @param file File configuration object.
+ * @param options Configuration object.
+ * @returns A promise indicating the success or failure of the operation.
  */
 async function writeFile(
   file: FsTextFileOption,
@@ -127,11 +158,13 @@ async function writeFile(
   })
 }
 
+/** @ignore */
 const CHUNK_SIZE = 65536
 
 /**
  * Convert an Uint8Array to ascii string.
  *
+ * @ignore
  * @param arr
  * @returns An ASCII string.
  */
@@ -152,6 +185,7 @@ function uint8ArrayToString(arr: Uint8Array): string {
 /**
  * Convert an ArrayBuffer to base64 encoded string.
  *
+ * @ignore
  * @param buffer
  * @returns A base64 encoded string.
  */
@@ -161,11 +195,11 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 /**
- * Writes a binary file
+ * Writes a binary file.
  *
- * @param file File configuration object
- * @param [options]
- * @returns
+ * @param file Write configuration object.
+ * @param options Configuration object.
+ * @returns A promise indicating the success or failure of the operation.
  */
 async function writeBinaryFile(
   file: FsBinaryFileOption,
@@ -192,9 +226,9 @@ async function writeBinaryFile(
 /**
  * List directory files.
  *
- * @param dir Path to the directory to read
- * @param [options] Configuration object
- * @returns
+ * @param dir Path to the directory to read.
+ * @param options Configuration object.
+ * @returns A promise resolving to the directory entries.
  */
 async function readDir(
   dir: string,
@@ -213,11 +247,11 @@ async function readDir(
 /**
  * Creates a directory.
  * If one of the path's parent components doesn't exist
- * and the `recursive` option isn't set to true, it will be rejected.
+ * and the `recursive` option isn't set to true, the promise will be rejected.
  *
- * @param dir Path to the directory to create
- * @param [options] Configuration object
- * @returns
+ * @param dir Path to the directory to create.
+ * @param options Configuration object.
+ * @returns A promise indicating the success or failure of the operation.
  */
 async function createDir(
   dir: string,
@@ -235,11 +269,11 @@ async function createDir(
 
 /**
  * Removes a directory.
- * If the directory is not empty and the `recursive` option isn't set to true, it will be rejected.
+ * If the directory is not empty and the `recursive` option isn't set to true, the promise will be rejected.
  *
- * @param dir Path to the directory to remove
- * @param [options] Configuration object
- * @returns
+ * @param dir Path to the directory to remove.
+ * @param options Configuration object.
+ * @returns A promise indicating the success or failure of the operation.
  */
 async function removeDir(
   dir: string,
@@ -258,10 +292,10 @@ async function removeDir(
 /**
  * Copys a file to a destination.
  *
- * @param source A path of the file to copy
- * @param destination A path for the destination file
- * @param [options] Configuration object
- * @returns
+ * @param source A path of the file to copy.
+ * @param destination A path for the destination file.
+ * @param options Configuration object.
+ * @returns A promise indicating the success or failure of the operation.
  */
 async function copyFile(
   source: string,
@@ -282,9 +316,9 @@ async function copyFile(
 /**
  * Removes a file.
  *
- * @param file Path to the file to remove
- * @param [options] Configuration object
- * @returns
+ * @param file Path to the file to remove.
+ * @param options Configuration object.
+ * @returns A promise indicating the success or failure of the operation.
  */
 async function removeFile(
   file: string,
@@ -301,12 +335,12 @@ async function removeFile(
 }
 
 /**
- * Renames a file
+ * Renames a file.
  *
- * @param oldPath A path of the file to rename
- * @param newPath A path of the new file name
- * @param [options] Configuration object
- * @returns
+ * @param oldPath A path of the file to rename.
+ * @param newPath A path of the new file name.
+ * @param options Configuration object.
+ * @returns A promise indicating the success or failure of the operation.
  */
 async function renameFile(
   oldPath: string,
@@ -322,6 +356,14 @@ async function renameFile(
       options
     }
   })
+}
+
+export type {
+  FsOptions,
+  FsDirOptions,
+  FsTextFileOption,
+  FsBinaryFileOption,
+  FileEntry
 }
 
 export {

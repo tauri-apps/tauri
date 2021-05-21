@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { join } from 'path'
-import { readdirSync } from 'fs'
-// @ts-expect-error
-import scaffe from 'scaffe'
+/// import { join } from 'path'
+/// import scaffe from 'scaffe'
 import { shell } from '../shell'
 import { Recipe } from '../types/recipe'
 
@@ -14,20 +12,23 @@ const afterViteCA = async (
   appName: string,
   template: string
 ): Promise<void> => {
-  const templateDir = join(__dirname, `../src/templates/vite/${template}`)
-
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-    await scaffe.generate(templateDir, join(cwd, appName), {
-      overwrite: true
-    })
-  } catch (err) {
-    console.log(err)
-  }
+  // template dir temp removed, will eventually add it back for APIs
+  // leaving this here until then
+  // const templateDir = join(__dirname, `../src/templates/vite/${template}`)
+  // try {
+  //   await scaffe.generate(templateDir, join(cwd, appName), {
+  //     overwrite: true
+  //   })
+  // } catch (err) {
+  //   console.log(err)
+  // }
 }
 
 const vite: Recipe = {
-  descriptiveName: 'Vite backed recipe',
+  descriptiveName: {
+    name: '@vitejs/create-app (https://vitejs.dev/guide/#scaffolding-your-first-vite-project)',
+    value: 'vite-create-app'
+  },
   shortName: 'vite',
   configUpdate: ({ cfg, packageManager }) => ({
     ...cfg,
@@ -46,8 +47,22 @@ const vite: Recipe = {
         type: 'list',
         name: 'template',
         message: 'Which vite template would you like to use?',
-        choices: readdirSync(join(__dirname, '../src/templates/vite')),
+        choices: [
+          'vanilla',
+          'vanilla-ts',
+          'vue',
+          'vue-ts',
+          'react',
+          'react-ts',
+          'preact',
+          'preact-ts',
+          'lit-element',
+          'lit-element-ts',
+          'svelte',
+          'svelte-ts'
+        ],
         default: 'vue',
+        loop: false,
         when: !ci
       }
     ]
@@ -76,7 +91,12 @@ const vite: Recipe = {
     } else {
       await shell(
         'npx',
-        ['@vitejs/create-app', `${cfg.appName}`, '--template', `${template}`],
+        [
+          '@vitejs/create-app@latest',
+          `${cfg.appName}`,
+          '--template',
+          `${template}`
+        ],
         {
           cwd
         }
@@ -85,9 +105,17 @@ const vite: Recipe = {
 
     await afterViteCA(cwd, cfg.appName, template)
   },
-  postInit: async ({ packageManager }) => {
+  postInit: async ({ cwd, packageManager }) => {
+    // we don't have a consistent way to rebuild and
+    // esbuild has hit all the bugs and struggles to install on the postinstall
+    await shell('node', ['./node_modules/esbuild/install.js'], { cwd })
+    if (packageManager === 'yarn') {
+      await shell('yarn', ['build'], { cwd })
+    } else {
+      await shell('npm', ['run', 'build'], { cwd })
+    }
     console.log(`
-    Your installation completed.
+    Your installation completed. Change directories to \`${cwd}\`.
     To start, run ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
       packageManager === 'npm' ? '--' : ''
     } dev

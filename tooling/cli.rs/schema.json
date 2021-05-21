@@ -234,6 +234,16 @@
           "default": "../dist",
           "type": "string"
         },
+        "features": {
+          "description": "features passed to `cargo` commands",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "runner": {
           "description": "The binary used to build and run the application.",
           "type": [
@@ -862,6 +872,19 @@
       },
       "additionalProperties": false
     },
+    "SystemTrayConfig": {
+      "type": "object",
+      "required": [
+        "iconPath"
+      ],
+      "properties": {
+        "iconPath": {
+          "description": "Path to the icon to use on the system tray.\n\nIt is forced to be a `.png` file on Linux and macOS, and a `.ico` file on Windows.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
     "TauriConfig": {
       "description": "The Tauri configuration object.",
       "type": "object",
@@ -953,6 +976,17 @@
           "anyOf": [
             {
               "$ref": "#/definitions/SecurityConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "systemTray": {
+          "description": "Configuration for app system tray.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SystemTrayConfig"
             },
             {
               "type": "null"

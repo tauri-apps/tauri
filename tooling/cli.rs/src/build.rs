@@ -24,6 +24,7 @@ pub struct Build {
   debug: bool,
   verbose: bool,
   target: Option<String>,
+  features: Option<Vec<String>>,
   bundles: Option<Vec<String>>,
   config: Option<String>,
 }
@@ -53,6 +54,11 @@ impl Build {
     self
   }
 
+  pub fn features(mut self, features: Vec<String>) -> Self {
+    self.features.replace(features);
+    self
+  }
+
   pub fn bundles(mut self, bundles: Vec<String>) -> Self {
     self.bundles.replace(bundles);
     self
@@ -70,7 +76,7 @@ impl Build {
     let tauri_path = tauri_dir();
     set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
 
-    rewrite_manifest(config.clone())?;
+    let manifest = rewrite_manifest(config.clone())?;
 
     let config_guard = config.lock().unwrap();
     let config_ = config_guard.as_ref().unwrap();
@@ -111,7 +117,13 @@ impl Build {
       .or(runner_from_config)
       .unwrap_or_else(|| "cargo".to_string());
 
-    rust::build_project(runner, &self.target, self.debug).with_context(|| "failed to build app")?;
+    let mut cargo_features = config_.build.features.clone().unwrap_or_default();
+    if let Some(features) = self.features {
+      cargo_features.extend(features);
+    }
+
+    rust::build_project(runner, &self.target, cargo_features, self.debug)
+      .with_context(|| "failed to build app")?;
 
     let app_settings = rust::AppSettings::new(&config_)?;
 
@@ -150,7 +162,7 @@ impl Build {
       }
       let mut settings_builder = SettingsBuilder::new()
         .package_settings(app_settings.get_package_settings())
-        .bundle_settings(app_settings.get_bundle_settings(&config_)?)
+        .bundle_settings(app_settings.get_bundle_settings(&config_, &manifest)?)
         .binaries(app_settings.get_binaries(&config_)?)
         .project_out_directory(out_dir);
 

@@ -4,8 +4,10 @@
 
 use std::{
   env,
-  path::{Path, PathBuf},
+  path::{Component, Path, PathBuf},
 };
+
+use crate::{Config, PackageInfo};
 
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -16,6 +18,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 /// For more information, check the [dirs_next documentation](https://docs.rs/dirs_next/).
 #[derive(Serialize_repr, Deserialize_repr, Clone, Debug)]
 #[repr(u16)]
+#[non_exhaustive]
 pub enum BaseDirectory {
   /// The Audio directory.
   Audio = 1,
@@ -52,7 +55,7 @@ pub enum BaseDirectory {
   /// The Resource directory.
   Resource,
   /// The default App config directory.
-  /// Resolves to ${CONFIG_DIR}/${APP_NAME}
+  /// Resolves to ${BaseDirectory::Config}/${config.tauri.bundle.identifier}
   App,
   /// The current working directory.
   Current,
@@ -62,16 +65,27 @@ pub enum BaseDirectory {
 ///
 /// # Example
 /// ```
-/// use tauri::api::path::{resolve_path, BaseDirectory};
-/// let path = resolve_path("path/to/something", Some(BaseDirectory::Config))
-///   .expect("failed to resolve path");
+/// use tauri::api::{path::{resolve_path, BaseDirectory}, PackageInfo};
+/// // we use the default config and a mock PackageInfo, but in an actual app you should get the Config created from tauri.conf.json and the app's PackageInfo instance
+/// let path = resolve_path(
+///   &Default::default(),
+///   &PackageInfo {
+///     name: "app".into(),
+///     version: "1.0.0".into(),
+///   },
+///   "path/to/something",
+///   Some(BaseDirectory::Config)
+///  ).expect("failed to resolve path");
 /// // path is equal to "/home/${whoami}/.config/path/to/something" on Linux
 /// ```
 pub fn resolve_path<P: AsRef<Path>>(
+  config: &Config,
+  package_info: &PackageInfo,
   path: P,
   dir: Option<BaseDirectory>,
 ) -> crate::api::Result<PathBuf> {
   if let Some(base_dir) = dir {
+    let resolve_resource = matches!(base_dir, BaseDirectory::Resource);
     let base_dir_path = match base_dir {
       BaseDirectory::Audio => audio_dir(),
       BaseDirectory::Cache => cache_dir(),
@@ -89,12 +103,27 @@ pub fn resolve_path<P: AsRef<Path>>(
       BaseDirectory::Runtime => runtime_dir(),
       BaseDirectory::Template => template_dir(),
       BaseDirectory::Video => video_dir(),
-      BaseDirectory::Resource => resource_dir(),
-      BaseDirectory::App => app_dir(),
+      BaseDirectory::Resource => resource_dir(package_info),
+      BaseDirectory::App => app_dir(config),
       BaseDirectory::Current => Some(env::current_dir()?),
     };
     if let Some(mut base_dir_path_value) = base_dir_path {
-      base_dir_path_value.push(path);
+      // use the same path resolution mechanism as the bundler's resource injection algorithm
+      if resolve_resource {
+        let mut resource_path = PathBuf::new();
+        for component in path.as_ref().components() {
+          match component {
+            Component::Prefix(_) => {}
+            Component::RootDir => resource_path.push("_root_"),
+            Component::CurDir => {}
+            Component::ParentDir => resource_path.push("_up_"),
+            Component::Normal(p) => resource_path.push(p),
+          }
+        }
+        base_dir_path_value.push(resource_path);
+      } else {
+        base_dir_path_value.push(path);
+      }
       Ok(base_dir_path_value)
     } else {
       Err(crate::api::Error::Path(
@@ -189,28 +218,11 @@ pub fn video_dir() -> Option<PathBuf> {
 }
 
 /// Returns the path to the resource directory of this app.
-pub fn resource_dir() -> Option<PathBuf> {
-  crate::api::platform::resource_dir().ok()
-}
-
-fn app_name() -> crate::api::Result<String> {
-  let exe = std::env::current_exe()?;
-  let app_name = exe
-    .file_stem()
-    .expect("failed to get exe filename")
-    .to_string_lossy();
-
-  Ok(app_name.to_string())
+pub fn resource_dir(package_info: &PackageInfo) -> Option<PathBuf> {
+  crate::api::platform::resource_dir(package_info).ok()
 }
 
 /// Returns the path to the suggested directory for your app config files.
-pub fn app_dir() -> Option<PathBuf> {
-  dirs_next::config_dir().and_then(|mut dir| {
-    if let Ok(app_name) = app_name() {
-      dir.push(app_name);
-      Some(dir)
-    } else {
-      None
-    }
-  })
+pub fn app_dir(config: &Config) -> Option<PathBuf> {
+  dirs_next::config_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
 }

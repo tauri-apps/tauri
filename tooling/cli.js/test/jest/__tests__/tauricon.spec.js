@@ -27,6 +27,17 @@ describe('[CLI] tauri-icon internals', () => {
     expect(process.exit.mock.calls[0][0]).toBe(1)
     jest.clearAllMocks()
   })
+
+  it('should fail if PNG does not have transparency', async () => {
+    jest.spyOn(process, 'exit').mockImplementation(() => true)
+    await tauricon.validate(
+      'test/jest/fixtures/no-alpha.png',
+      'test/jest/fixtures/'
+    )
+    expect(process.exit.mock.calls[0][0]).toBe(1)
+    jest.clearAllMocks()
+  })
+
   it('can validate an image as PNG', async () => {
     const valid = await tauricon.validate(
       'test/jest/fixtures/tauri-logo.png',
@@ -45,30 +56,17 @@ describe('[CLI] tauri-icon builder', () => {
     )
     expect(valid).toBe(true)
   })
-})
 
-describe('[CLI] tauri-icon builder', () => {
   it('will not validate a non-file', async () => {
     try {
       await tauricon.make(
         'test/jest/fixtures/tauri-foo-not-found.png',
-        'test/jest/tmp/pngquant',
-        'pngquant'
+        'test/jest/tmp/optipng',
+        'optipng'
       )
     } catch (e) {
       expect(e.message).toBe('Input file is missing')
     }
-  })
-})
-
-describe('[CLI] tauri-icon builder', () => {
-  it('makes a set of icons with pngquant', async () => {
-    const valid = await tauricon.make(
-      'test/jest/fixtures/tauri-logo.png',
-      'test/jest/tmp/pngquant',
-      'pngquant'
-    )
-    expect(valid).toBe(true)
   })
 
   it('makes a set of icons with optipng', async () => {

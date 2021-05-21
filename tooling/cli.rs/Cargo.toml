@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-cli"
-version = "1.0.0-beta-rc.4"
+version = "1.0.0-beta.1"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2018"
 categories = [ "gui", "web-programming" ]
@@ -19,18 +19,18 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "3.0.0-beta.2", features = [ "yaml" ] }
 anyhow = "1.0"
-tauri-bundler = { version = "1.0.0-beta-rc.1", path = "../bundler" }
+tauri-bundler = { version = "1.0.0-beta.0", path = "../bundler" }
 colored = "2.0"
 once_cell = "1.7"
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
-serde_with = "1.8"
+serde_with = "1.9"
 notify = "4.0"
 shared_child = "0.3"
 toml_edit = "0.2"
 json-patch = "0.2"
 schemars = "0.8"
-toml = "0.5.8"
+toml = "0.5"
 valico = "3.6"
 handlebars = "3.5"
 include_dir = "0.6"
@@ -39,13 +39,13 @@ base64 = "0.13.0"
 ureq = "2.1"
 os_info = "3.0"
 semver = "0.11"
-regex = "1.4"
+regex = "1.5"
 lazy_static = "1"
 libc = "0.2"
-terminal_size = "0.1.16"
+terminal_size = "0.1"
 unicode-width = "0.1"
 tempfile = "3"
-zeroize = "1.3.0"
+zeroize = "1.3"
 
 [target."cfg(windows)".dependencies]
 winapi = { version = "0.3", features = [ "winbase", "winuser", "consoleapi", "processenv", "wincon" ] }
@@ -58,4 +58,4 @@ heck = "0.3"
 schemars = "0.8"
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
-serde_with = "1.8"
+serde_with = "1.9"

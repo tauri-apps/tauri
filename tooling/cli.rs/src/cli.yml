@@ -29,6 +29,11 @@ subcommands:
                     long: target
                     about: target triple to build against
                     multiple: true
+                - features:
+                    short: f
+                    long: features
+                    about: list of cargo features to activate
+                    multiple: true
                 - args:
                     about: Args passed to the binary
                     index: 1
@@ -64,6 +69,11 @@ subcommands:
                     short: t
                     long: target
                     about: target triple to build against
+                    multiple: true
+                - features:
+                    short: f
+                    long: features
+                    about: list of cargo features to activate
                     multiple: true
         - sign:
             about: Tauri updates signer.

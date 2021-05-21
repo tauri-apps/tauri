@@ -2,27 +2,39 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+/**
+ * Customize the auto updater flow.
+ *
+ * This package is also accessible with `window.__TAURI__.updater` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ * @packageDocumentation
+ */
+
 import { once, listen, emit, UnlistenFn } from './event'
 
-export type UpdateStatus = 'PENDING' | 'ERROR' | 'DONE' | 'UPTODATE'
+type UpdateStatus = 'PENDING' | 'ERROR' | 'DONE' | 'UPTODATE'
 
-export interface UpdateStatusResult {
+interface UpdateStatusResult {
   error?: string
   status: UpdateStatus
 }
 
-export interface UpdateManifest {
+interface UpdateManifest {
   version: string
   date: string
   body: string
 }
 
-export interface UpdateResult {
+interface UpdateResult {
   manifest?: UpdateManifest
   shouldUpdate: boolean
 }
 
-export async function installUpdate(): Promise<void> {
+/**
+ * Install the update if there's one available.
+ *
+ * @return A promise indicating the success or failure of the operation.
+ */
+async function installUpdate(): Promise<void> {
   let unlistenerFn: UnlistenFn | undefined
 
   function cleanListener(): void {
@@ -69,7 +81,12 @@ export async function installUpdate(): Promise<void> {
   })
 }
 
-export async function checkUpdate(): Promise<UpdateResult> {
+/**
+ * Checks if an update is available.
+ *
+ * @return Promise resolving to the update status.
+ */
+async function checkUpdate(): Promise<UpdateResult> {
   let unlistenerFn: UnlistenFn | undefined
 
   function cleanListener(): void {
@@ -132,3 +149,7 @@ export async function checkUpdate(): Promise<UpdateResult> {
     })
   })
 }
+
+export type { UpdateStatus, UpdateStatusResult, UpdateManifest, UpdateResult }
+
+export { installUpdate, checkUpdate }

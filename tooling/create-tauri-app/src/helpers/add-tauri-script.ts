@@ -9,12 +9,10 @@ export function addTauriScript(appDirectory: string): void {
   const pkgPath = join(appDirectory, 'package.json')
   const pkgString = readFileSync(pkgPath, 'utf8')
   const pkg = JSON.parse(pkgString) as {
-    scripts: {
-      tauri: string
-    }
+    scripts: {}
   }
 
-  const outputPkg = {
+  const outputPkg: { scripts: { tauri: string } } = {
     ...pkg,
     scripts: {
       ...pkg.scripts,

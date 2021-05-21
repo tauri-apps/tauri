@@ -6,10 +6,14 @@ use std::path::PathBuf;
 
 /// Runtime errors that can happen inside a Tauri application.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum Error {
+  /// Runtime error.
+  #[error("runtime error: {0}")]
+  Runtime(#[from] tauri_runtime::Error),
   /// Failed to create webview.
   #[error("failed to create webview: {0}")]
-  CreateWebview(String),
+  CreateWebview(Box<dyn std::error::Error + Send>),
   /// Failed to create window.
   #[error("failed to create window")]
   CreateWindow,
@@ -35,11 +39,12 @@ pub enum Error {
   #[error("{0}")]
   Io(#[from] std::io::Error),
   /// Failed to decode base64.
+  #[cfg(any(fs_write_binary_file, feature = "updater"))]
   #[error("Failed to decode base64 string: {0}")]
   Base64Decode(#[from] base64::DecodeError),
   /// Failed to load window icon.
   #[error("invalid icon: {0}")]
-  InvalidIcon(String),
+  InvalidIcon(Box<dyn std::error::Error + Send>),
   /// Client with specified ID not found.
   #[error("http client dropped or not initialized")]
   HttpClientNotInitialized,
@@ -54,7 +59,7 @@ pub enum Error {
   InvalidArgs(&'static str, serde_json::Error),
   /// Encountered an error in the setup hook,
   #[error("error encountered during setup hook: {0}")]
-  Setup(String),
+  Setup(Box<dyn std::error::Error + Send>),
   /// Tauri updater error.
   #[cfg(feature = "updater")]
   #[error("Updater: {0}")]
@@ -65,6 +70,9 @@ pub enum Error {
   /// `default_path` provided to dialog API doesn't exist.
   #[error("failed to setup dialog: provided default path `{0}` doesn't exist")]
   DialogDefaultPathNotExists(PathBuf),
+  /// Encountered an error creating the app system tray,
+  #[error("error encountered during tray setup: {0}")]
+  SystemTray(Box<dyn std::error::Error + Send>),
 }
 
 impl From<serde_json::Error> for Error {

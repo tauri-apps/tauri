@@ -2,6 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+/**
+ * Register global shortcuts.
+ *
+ * This package is also accessible with `window.__TAURI__.globalShortcut` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ *
+ * The APIs must be allowlisted on `tauri.conf.json`:
+ * ```json
+ * {
+ *   "tauri": {
+ *     "allowlist": {
+ *       "globalShortcut": {
+ *         "all": true // enable all global shortcut APIs
+ *       }
+ *     }
+ *   }
+ * }
+ * ```
+ * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
+ * @packageDocumentation
+ */
+
 import { invokeTauriCommand } from './helpers/tauri'
 import { transformCallback } from './tauri'
 

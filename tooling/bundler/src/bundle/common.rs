@@ -6,7 +6,7 @@ use crate::Settings;
 use std::{
   ffi::OsStr,
   fs::{self, File},
-  io::{self, BufRead, BufReader, BufWriter, Write},
+  io::{self, BufWriter, Write},
   path::{Component, Path, PathBuf},
   process::{Command, Stdio},
 };
@@ -16,6 +16,7 @@ use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 /// "retina" icon.  Specifically, returns true the the file stem ends with
 /// "@2x" (a convention specified by the [Apple developer docs](
 /// https://developer.apple.com/library/mac/documentation/GraphicsAnimation/Conceptual/HighResolutionOSX/Optimizing/Optimizing.html)).
+#[allow(dead_code)]
 pub fn is_retina<P: AsRef<Path>>(path: P) -> bool {
   path
     .as_ref()
@@ -213,25 +214,16 @@ pub fn print_info(message: &str) -> crate::Result<()> {
 
 pub fn execute_with_verbosity(cmd: &mut Command, settings: &Settings) -> crate::Result<()> {
   let stdio_config = if settings.is_verbose() {
-    Stdio::piped
+    Stdio::inherit
   } else {
     Stdio::null
   };
-  let mut child = cmd
+  let status = cmd
     .stdout(stdio_config())
     .stderr(stdio_config())
-    .spawn()
+    .status()
     .expect("failed to spawn command");
-  if settings.is_verbose() {
-    let stdout = child.stdout.as_mut().expect("Failed to get stdout handle");
-    let reader = BufReader::new(stdout);
 
-    for line in reader.lines() {
-      println!("{}", line.expect("Failed to get line"));
-    }
-  }
-
-  let status = child.wait()?;
   if status.success() {
     Ok(())
   } else {

@@ -239,7 +239,6 @@ if (!String.prototype.startsWith) {
     return window.__TAURI__
       .invoke('tauri', {
         __tauriModule: "Notification",
-        mainThread: true,
         message: {
           cmd: "requestNotificationPermission",
         },
@@ -308,7 +307,6 @@ if (!String.prototype.startsWith) {
   window.alert = function (message) {
     window.__TAURI__.invoke('tauri', {
       __tauriModule: "Dialog",
-      mainThread: true,
       message: {
         cmd: "messageDialog",
         message: message,
@@ -319,11 +317,22 @@ if (!String.prototype.startsWith) {
   window.confirm = function (message) {
     return window.__TAURI__.invoke('tauri', {
       __tauriModule: "Dialog",
-      mainThread: true,
       message: {
         cmd: "askDialog",
         message: message,
       },
     });
   };
+
+  // window.print works on Linux/Windows; need to use the API on macOS
+  if (navigator.userAgent.includes('Mac')) {
+    window.print = function () {
+      return window.__TAURI__.invoke('tauri', {
+        __tauriModule: "Window",
+        message: {
+          cmd: "print"
+        },
+      });
+    }
+  }
 })();

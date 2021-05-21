@@ -13,7 +13,6 @@ use serde_json::Value as JsonValue;
 mod config_definition;
 pub use config_definition::*;
 
-#[cfg(windows)]
 impl From<WixConfig> for tauri_bundler::WixSettings {
   fn from(config: WixConfig) -> tauri_bundler::WixSettings {
     tauri_bundler::WixSettings {
@@ -101,4 +100,45 @@ pub fn get(merge_config: Option<&str>) -> crate::Result<ConfigHandle> {
 pub fn reload(merge_config: Option<&str>) -> crate::Result<()> {
   get_internal(merge_config, true)?;
   Ok(())
+}
+
+pub fn all_allowlist_features() -> Vec<&'static str> {
+  AllowlistConfig {
+    all: true,
+    fs: FsAllowlistConfig {
+      all: true,
+      read_text_file: true,
+      read_binary_file: true,
+      write_file: true,
+      write_binary_file: true,
+      read_dir: true,
+      copy_file: true,
+      create_dir: true,
+      remove_dir: true,
+      remove_file: true,
+      rename_file: true,
+      path: true,
+    },
+    window: WindowAllowlistConfig {
+      all: true,
+      create: true,
+    },
+    shell: ShellAllowlistConfig {
+      all: true,
+      execute: true,
+      open: true,
+    },
+    dialog: DialogAllowlistConfig {
+      all: true,
+      open: true,
+      save: true,
+    },
+    http: HttpAllowlistConfig {
+      all: true,
+      request: true,
+    },
+    notification: NotificationAllowlistConfig { all: true },
+    global_shortcut: GlobalShortcutAllowlistConfig { all: true },
+  }
+  .to_features()
 }

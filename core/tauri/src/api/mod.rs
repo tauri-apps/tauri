@@ -21,9 +21,8 @@ pub mod process;
 /// The RPC module includes utilities to send messages to the JS layer of the webview.
 pub mod rpc;
 /// The shell api.
+#[cfg(shell_open)]
 pub mod shell;
-/// TCP ports access API.
-pub mod tcp;
 /// The semver API.
 pub mod version;
 
@@ -53,15 +52,6 @@ mod error;
 pub use error::Error;
 /// Tauri API result type.
 pub type Result<T> = std::result::Result<T, Error>;
-
-/// `App` package information.
-#[derive(Debug, Clone)]
-pub struct PackageInfo {
-  /// App name.
-  pub name: String,
-  /// App version.
-  pub version: String,
-}
 
 // Not public API
 #[doc(hidden)]

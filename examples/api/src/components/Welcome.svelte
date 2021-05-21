@@ -1,5 +1,6 @@
 <script>
-  import { getName, getVersion, getTauriVersion, relaunch, exit } from "@tauri-apps/api/app";
+  import { getName, getVersion, getTauriVersion } from "@tauri-apps/api/app";
+  import { relaunch, exit } from "@tauri-apps/api/process";
   let version = 0.0;
   let tauriVersion = 0.0;
   let appName = 'Unknown';

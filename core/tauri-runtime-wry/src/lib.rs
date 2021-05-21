@@ -13,15 +13,19 @@ use tauri_runtime::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     DetachedWindow, PendingWindow, WindowEvent,
   },
-  Dispatch, Error, Icon, Params, Result, Runtime, RuntimeHandle,
+  Dispatch, Error, Icon, Params, Result, RunIteration, Runtime, RuntimeHandle,
 };
 
 #[cfg(feature = "menu")]
 use tauri_runtime::window::MenuEvent;
 #[cfg(feature = "system-tray")]
 use tauri_runtime::SystemTrayEvent;
+#[cfg(windows)]
+use winapi::shared::windef::HWND;
 #[cfg(feature = "system-tray")]
 use wry::application::platform::system_tray::SystemTrayBuilder;
+#[cfg(windows)]
+use wry::application::platform::windows::WindowBuilderExtWindows;
 
 use tauri_utils::config::WindowConfig;
 use uuid::Uuid;
@@ -49,7 +53,7 @@ use std::{
   fs::read,
   sync::{
     mpsc::{channel, Receiver, Sender},
-    Arc, Mutex,
+    Arc, Mutex, MutexGuard,
   },
 };
 
@@ -329,6 +333,16 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   fn always_on_top(self, always_on_top: bool) -> Self {
     Self(self.0.with_always_on_top(always_on_top))
+  }
+
+  #[cfg(windows)]
+  fn parent_window(self, parent: HWND) -> Self {
+    Self(self.0.with_parent_window(parent))
+  }
+
+  #[cfg(windows)]
+  fn owner_window(self, owner: HWND) -> Self {
+    Self(self.0.with_owner_window(owner))
   }
 
   fn icon(self, icon: Icon) -> Result<Self> {
@@ -759,14 +773,14 @@ impl Dispatch for WryDispatcher {
 /// A Tauri [`Runtime`] wrapper around wry.
 pub struct Wry {
   event_loop: EventLoop<Message>,
-  webviews: Mutex<HashMap<WindowId, WebView>>,
+  webviews: Arc<Mutex<HashMap<WindowId, WebView>>>,
   task_tx: Sender<MainThreadTask>,
   window_event_listeners: WindowEventListeners,
   #[cfg(feature = "menu")]
   menu_event_listeners: MenuEventListeners,
   #[cfg(feature = "system-tray")]
   system_tray_event_listeners: SystemTrayEventListeners,
-  task_rx: Receiver<MainThreadTask>,
+  task_rx: Arc<Receiver<MainThreadTask>>,
 }
 
 /// A handle to the Wry runtime.
@@ -817,12 +831,12 @@ impl Runtime for Wry {
       event_loop,
       webviews: Default::default(),
       task_tx,
-      task_rx,
+      task_rx: Arc::new(task_rx),
       window_event_listeners: Default::default(),
       #[cfg(feature = "menu")]
       menu_event_listeners: Default::default(),
       #[cfg(feature = "system-tray")]
-      system_tray_event_listeners: HashMap::default(),
+      system_tray_event_listeners: Default::default(),
     })
   }
 
@@ -919,15 +933,54 @@ impl Runtime for Wry {
   #[cfg(feature = "system-tray")]
   fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid {
     let id = Uuid::new_v4();
-    self.system_tray_event_listeners.insert(id, Box::new(f));
+    self
+      .system_tray_event_listeners
+      .lock()
+      .unwrap()
+      .insert(id, Box::new(f));
     id
   }
 
+  #[cfg(any(target_os = "windows", target_os = "macos"))]
+  fn run_iteration(&mut self) -> RunIteration {
+    use wry::application::platform::run_return::EventLoopExtRunReturn;
+    let webviews = self.webviews.clone();
+    let task_rx = self.task_rx.clone();
+    let window_event_listeners = self.window_event_listeners.clone();
+    #[cfg(feature = "menu")]
+    let menu_event_listeners = self.menu_event_listeners.clone();
+    #[cfg(feature = "system-tray")]
+    let system_tray_event_listeners = self.system_tray_event_listeners.clone();
+
+    let mut iteration = RunIteration::default();
+
+    self
+      .event_loop
+      .run_return(|event, event_loop, control_flow| {
+        if let Event::MainEventsCleared = &event {
+          *control_flow = ControlFlow::Exit;
+        }
+        iteration = handle_event_loop(
+          event,
+          event_loop,
+          control_flow,
+          EventLoopIterationContext {
+            webviews: webviews.lock().expect("poisoned webview collection"),
+            task_rx: task_rx.clone(),
+            window_event_listeners: window_event_listeners.clone(),
+            #[cfg(feature = "menu")]
+            menu_event_listeners: menu_event_listeners.clone(),
+            #[cfg(feature = "system-tray")]
+            system_tray_event_listeners: system_tray_event_listeners.clone(),
+          },
+        );
+      });
+
+    iteration
+  }
+
   fn run(self) {
-    let mut webviews = {
-      let mut lock = self.webviews.lock().expect("poisoned webview collection");
-      std::mem::take(&mut *lock)
-    };
+    let webviews = self.webviews.clone();
     let task_rx = self.task_rx;
     let window_event_listeners = self.window_event_listeners.clone();
     #[cfg(feature = "menu")]
@@ -936,179 +989,222 @@ impl Runtime for Wry {
     let system_tray_event_listeners = self.system_tray_event_listeners;
 
     self.event_loop.run(move |event, event_loop, control_flow| {
-      *control_flow = ControlFlow::Wait;
+      handle_event_loop(
+        event,
+        event_loop,
+        control_flow,
+        EventLoopIterationContext {
+          webviews: webviews.lock().expect("poisoned webview collection"),
+          task_rx: task_rx.clone(),
+          window_event_listeners: window_event_listeners.clone(),
+          #[cfg(feature = "menu")]
+          menu_event_listeners: menu_event_listeners.clone(),
+          #[cfg(feature = "system-tray")]
+          system_tray_event_listeners: system_tray_event_listeners.clone(),
+        },
+      );
+    })
+  }
+}
 
-      for (_, w) in webviews.iter() {
-        if let Err(e) = w.evaluate_script() {
-          eprintln!("{}", e);
+struct EventLoopIterationContext<'a> {
+  webviews: MutexGuard<'a, HashMap<WindowId, WebView>>,
+  task_rx: Arc<Receiver<MainThreadTask>>,
+  window_event_listeners: WindowEventListeners,
+  #[cfg(feature = "menu")]
+  menu_event_listeners: MenuEventListeners,
+  #[cfg(feature = "system-tray")]
+  system_tray_event_listeners: SystemTrayEventListeners,
+}
+
+fn handle_event_loop(
+  event: Event<Message>,
+  event_loop: &EventLoopWindowTarget<Message>,
+  control_flow: &mut ControlFlow,
+  context: EventLoopIterationContext<'_>,
+) -> RunIteration {
+  let EventLoopIterationContext {
+    mut webviews,
+    task_rx,
+    window_event_listeners,
+    #[cfg(feature = "menu")]
+    menu_event_listeners,
+    #[cfg(feature = "system-tray")]
+    system_tray_event_listeners,
+  } = context;
+  *control_flow = ControlFlow::Wait;
+
+  for (_, w) in webviews.iter() {
+    if let Err(e) = w.evaluate_script() {
+      eprintln!("{}", e);
+    }
+  }
+
+  while let Ok(task) = task_rx.try_recv() {
+    task();
+  }
+
+  match event {
+    #[cfg(feature = "menu")]
+    Event::MenuEvent {
+      menu_id,
+      origin: MenuType::Menubar,
+    } => {
+      let event = MenuEvent {
+        menu_item_id: menu_id.0,
+      };
+      for handler in menu_event_listeners.lock().unwrap().values() {
+        handler(&event);
+      }
+    }
+    #[cfg(feature = "system-tray")]
+    Event::MenuEvent {
+      menu_id,
+      origin: MenuType::SystemTray,
+    } => {
+      let event = SystemTrayEvent {
+        menu_item_id: menu_id.0,
+      };
+      for handler in system_tray_event_listeners.lock().unwrap().values() {
+        handler(&event);
+      }
+    }
+    Event::WindowEvent { event, window_id } => {
+      if let Some(event) = WindowEventWrapper::from(&event).0 {
+        for handler in window_event_listeners.lock().unwrap().values() {
+          handler(&event);
         }
       }
-
-      while let Ok(task) = task_rx.try_recv() {
-        task();
-      }
-
       match event {
-        #[cfg(feature = "menu")]
-        Event::MenuEvent {
-          menu_id,
-          origin: MenuType::Menubar,
-        } => {
-          let event = MenuEvent {
-            menu_item_id: menu_id.0,
-          };
-          for handler in menu_event_listeners.lock().unwrap().values() {
-            handler(&event);
+        WryWindowEvent::CloseRequested => {
+          webviews.remove(&window_id);
+          if webviews.is_empty() {
+            *control_flow = ControlFlow::Exit;
           }
         }
-        #[cfg(feature = "system-tray")]
-        Event::MenuEvent {
-          menu_id,
-          origin: MenuType::SystemTray,
-        } => {
-          let event = SystemTrayEvent {
-            menu_item_id: menu_id.0,
-          };
-          for handler in system_tray_event_listeners.values() {
-            handler(&event);
+        WryWindowEvent::Resized(_) => {
+          if let Err(e) = webviews[&window_id].resize() {
+            eprintln!("{}", e);
           }
         }
-        Event::WindowEvent { event, window_id } => {
-          if let Some(event) = WindowEventWrapper::from(&event).0 {
-            for handler in window_event_listeners.lock().unwrap().values() {
-              handler(&event);
+        _ => {}
+      }
+    }
+    Event::UserEvent(message) => match message {
+      Message::Window(id, window_message) => {
+        if let Some(webview) = webviews.get_mut(&id) {
+          let window = webview.window();
+          match window_message {
+            // Getters
+            WindowMessage::ScaleFactor(tx) => tx.send(window.scale_factor()).unwrap(),
+            WindowMessage::InnerPosition(tx) => tx
+              .send(
+                window
+                  .inner_position()
+                  .map(|p| PhysicalPositionWrapper(p).into())
+                  .map_err(|_| Error::FailedToSendMessage),
+              )
+              .unwrap(),
+            WindowMessage::OuterPosition(tx) => tx
+              .send(
+                window
+                  .outer_position()
+                  .map(|p| PhysicalPositionWrapper(p).into())
+                  .map_err(|_| Error::FailedToSendMessage),
+              )
+              .unwrap(),
+            WindowMessage::InnerSize(tx) => tx
+              .send(PhysicalSizeWrapper(window.inner_size()).into())
+              .unwrap(),
+            WindowMessage::OuterSize(tx) => tx
+              .send(PhysicalSizeWrapper(window.outer_size()).into())
+              .unwrap(),
+            WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
+            WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
+            WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
+            WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
+            WindowMessage::AvailableMonitors(tx) => {
+              tx.send(window.available_monitors().collect()).unwrap()
             }
-          }
-          match event {
-            WryWindowEvent::CloseRequested => {
-              webviews.remove(&window_id);
+            // Setters
+            WindowMessage::SetResizable(resizable) => window.set_resizable(resizable),
+            WindowMessage::SetTitle(title) => window.set_title(&title),
+            WindowMessage::Maximize => window.set_maximized(true),
+            WindowMessage::Unmaximize => window.set_maximized(false),
+            WindowMessage::Minimize => window.set_minimized(true),
+            WindowMessage::Unminimize => window.set_minimized(false),
+            WindowMessage::Show => window.set_visible(true),
+            WindowMessage::Hide => window.set_visible(false),
+            WindowMessage::Close => {
+              webviews.remove(&id);
               if webviews.is_empty() {
                 *control_flow = ControlFlow::Exit;
               }
             }
-            WryWindowEvent::Resized(_) => {
-              if let Err(e) = webviews[&window_id].resize() {
-                eprintln!("{}", e);
+            WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
+            WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),
+            WindowMessage::SetSize(size) => {
+              window.set_inner_size(SizeWrapper::from(size).0);
+            }
+            WindowMessage::SetMinSize(size) => {
+              window.set_min_inner_size(size.map(|s| SizeWrapper::from(s).0));
+            }
+            WindowMessage::SetMaxSize(size) => {
+              window.set_max_inner_size(size.map(|s| SizeWrapper::from(s).0));
+            }
+            WindowMessage::SetPosition(position) => {
+              window.set_outer_position(PositionWrapper::from(position).0)
+            }
+            WindowMessage::SetFullscreen(fullscreen) => {
+              if fullscreen {
+                window.set_fullscreen(Some(Fullscreen::Borderless(None)))
+              } else {
+                window.set_fullscreen(None)
               }
             }
-            _ => {}
+            WindowMessage::SetIcon(icon) => {
+              window.set_window_icon(Some(icon));
+            }
+            WindowMessage::DragWindow => {
+              let _ = window.drag_window();
+            }
           }
         }
-        Event::UserEvent(message) => match message {
-          Message::Window(id, window_message) => {
-            if let Some(webview) = webviews.get_mut(&id) {
-              let window = webview.window();
-              match window_message {
-                // Getters
-                WindowMessage::ScaleFactor(tx) => tx.send(window.scale_factor()).unwrap(),
-                WindowMessage::InnerPosition(tx) => tx
-                  .send(
-                    window
-                      .inner_position()
-                      .map(|p| PhysicalPositionWrapper(p).into())
-                      .map_err(|_| Error::FailedToSendMessage),
-                  )
-                  .unwrap(),
-                WindowMessage::OuterPosition(tx) => tx
-                  .send(
-                    window
-                      .outer_position()
-                      .map(|p| PhysicalPositionWrapper(p).into())
-                      .map_err(|_| Error::FailedToSendMessage),
-                  )
-                  .unwrap(),
-                WindowMessage::InnerSize(tx) => tx
-                  .send(PhysicalSizeWrapper(window.inner_size()).into())
-                  .unwrap(),
-                WindowMessage::OuterSize(tx) => tx
-                  .send(PhysicalSizeWrapper(window.outer_size()).into())
-                  .unwrap(),
-                WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
-                WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
-                WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
-                WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
-                WindowMessage::AvailableMonitors(tx) => {
-                  tx.send(window.available_monitors().collect()).unwrap()
-                }
-                // Setters
-                WindowMessage::SetResizable(resizable) => window.set_resizable(resizable),
-                WindowMessage::SetTitle(title) => window.set_title(&title),
-                WindowMessage::Maximize => window.set_maximized(true),
-                WindowMessage::Unmaximize => window.set_maximized(false),
-                WindowMessage::Minimize => window.set_minimized(true),
-                WindowMessage::Unminimize => window.set_minimized(false),
-                WindowMessage::Show => window.set_visible(true),
-                WindowMessage::Hide => window.set_visible(false),
-                WindowMessage::Close => {
-                  webviews.remove(&id);
-                  if webviews.is_empty() {
-                    *control_flow = ControlFlow::Exit;
-                  }
-                }
-                WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
-                WindowMessage::SetAlwaysOnTop(always_on_top) => {
-                  window.set_always_on_top(always_on_top)
-                }
-                WindowMessage::SetSize(size) => {
-                  window.set_inner_size(SizeWrapper::from(size).0);
-                }
-                WindowMessage::SetMinSize(size) => {
-                  window.set_min_inner_size(size.map(|s| SizeWrapper::from(s).0));
-                }
-                WindowMessage::SetMaxSize(size) => {
-                  window.set_max_inner_size(size.map(|s| SizeWrapper::from(s).0));
-                }
-                WindowMessage::SetPosition(position) => {
-                  window.set_outer_position(PositionWrapper::from(position).0)
-                }
-                WindowMessage::SetFullscreen(fullscreen) => {
-                  if fullscreen {
-                    window.set_fullscreen(Some(Fullscreen::Borderless(None)))
-                  } else {
-                    window.set_fullscreen(None)
-                  }
-                }
-                WindowMessage::SetIcon(icon) => {
-                  window.set_window_icon(Some(icon));
-                }
-                WindowMessage::DragWindow => {
-                  let _ = window.drag_window();
-                }
-              }
-            }
-          }
-          Message::Webview(id, webview_message) => {
-            if let Some(webview) = webviews.get_mut(&id) {
-              match webview_message {
-                WebviewMessage::EvaluateScript(script) => {
-                  let _ = webview.dispatch_script(&script);
-                }
-                WebviewMessage::Print => {
-                  let _ = webview.print();
-                }
-              }
-            }
-          }
-          Message::CreateWebview(handler, sender) => {
-            let handler = {
-              let mut lock = handler.lock().expect("poisoned create webview handler");
-              std::mem::take(&mut *lock).unwrap()
-            };
-            match handler(event_loop) {
-              Ok(webview) => {
-                let window_id = webview.window().id();
-                webviews.insert(window_id, webview);
-                sender.send(window_id).unwrap();
-              }
-              Err(e) => {
-                eprintln!("{}", e);
-              }
-            }
-          }
-        },
-        _ => (),
       }
-    })
+      Message::Webview(id, webview_message) => {
+        if let Some(webview) = webviews.get_mut(&id) {
+          match webview_message {
+            WebviewMessage::EvaluateScript(script) => {
+              let _ = webview.dispatch_script(&script);
+            }
+            WebviewMessage::Print => {
+              let _ = webview.print();
+            }
+          }
+        }
+      }
+      Message::CreateWebview(handler, sender) => {
+        let handler = {
+          let mut lock = handler.lock().expect("poisoned create webview handler");
+          std::mem::take(&mut *lock).unwrap()
+        };
+        match handler(event_loop) {
+          Ok(webview) => {
+            let window_id = webview.window().id();
+            webviews.insert(window_id, webview);
+            sender.send(window_id).unwrap();
+          }
+          Err(e) => {
+            eprintln!("{}", e);
+          }
+        }
+      }
+    },
+    _ => (),
+  }
+
+  RunIteration {
+    webview_count: webviews.len(),
   }
 }
 

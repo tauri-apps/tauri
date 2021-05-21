@@ -22,7 +22,7 @@ use std::{
 pub type MenuEventHandler = Box<dyn Fn(&MenuEvent) + Send>;
 pub type MenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
 pub type SystemTrayEventHandler = Box<dyn Fn(&SystemTrayEvent) + Send>;
-pub type SystemTrayEventListeners = HashMap<Uuid, SystemTrayEventHandler>;
+pub type SystemTrayEventListeners = Arc<Mutex<HashMap<Uuid, SystemTrayEventHandler>>>;
 
 pub struct CustomMenuWrapper(pub WryCustomMenu);
 

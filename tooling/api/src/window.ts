@@ -249,7 +249,7 @@ class WebviewWindowHandle {
  * ```
  */
 class WebviewWindow extends WebviewWindowHandle {
-  private constructor(label: string, options: WindowOptions = {}) {
+  constructor(label: string, options: WindowOptions = {}) {
     super(label)
     invokeTauriCommand({
       __tauriModule: 'Window',

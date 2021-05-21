@@ -1,14 +1,10 @@
 name: benches
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - dev
-  pull_request:
-    paths:
-      - '.github/workflows/bench.yml'
-      - 'core/tauri/**'
+  workflow_dispatch:
 
 jobs:
   bench:

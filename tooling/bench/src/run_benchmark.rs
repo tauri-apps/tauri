@@ -178,6 +178,7 @@ fn cargo_deps() -> HashMap<String, usize> {
       cmd.args(&["--edges", "normal"]);
       cmd.args(&["--prefix", "none"]);
       cmd.args(&["--target", target]);
+      cmd.current_dir(&utils::tauri_root_path());
 
       let full_deps = cmd.output().expect("failed to run cargo tree").stdout;
       let full_deps = String::from_utf8(full_deps).expect("cargo tree output not utf-8");

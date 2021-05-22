@@ -157,6 +157,10 @@ before making a pull request.
 
 Thank you to all the people who already contributed to Tauri!
 
+## Contributor over time
+
+[![Contributor over time](https://contributor-graph-api.apiseven.com/contributors-svg?chart=contributorOverTime&repo=tauri-apps/tauri)](https://www.apiseven.com/en/contributor-graph?chart=contributorOverTime&repo=tauri-apps/tauri)
+
 ## Semver
 **tauri** is following [Semantic Versioning 2.0](https://semver.org/).
 

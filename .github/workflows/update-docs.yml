@@ -41,19 +41,22 @@ jobs:
         with:
           originPath: ./tauri/target/doc/
           targetPath: ./tauri-docs/docs/en/api/rust/
-          sidebarPath: ./tauri-docs/sidebars.json
+          sidebarPath: ./tauri-docs/sidebars/rustdoc.json
           linksRoot: /docs/api/rust/
           cratesToProcess: "tauri"
       - name: run typedocusaurus
         uses: tauri-apps/typedocusaurus@v1
         with:
           originPath: ./tauri/tooling/api/
-          sidebarFile: sidebars.json
+          sidebarFile: sidebars/typedoc.json
           targetPath: en/api/js
           docusaurusPath: ./tauri-docs/
       - name: copy docs
         working-directory: ./tauri
-        run: cp -r docs ../tauri-docs/docs/en
+        run: cp -r docs ../tauri-docs/docs/en && mv ../tauri-docs/docs/en/sidebar.json ../tauri-docs/sidebars/core.json
+      - name: set docs version
+        working-directory: ./tauri-docs
+        run: echo ${{ github.event.release.tag_name }} > version.txt
       - name: meilisearch indexation
         uses: tauri-apps/docusaurus-meilisearch-indexer@v1
         with:
@@ -62,9 +65,6 @@ jobs:
           - host: https://search.tauri.studio
           - apiKey: ${{ secrets.MEILISEARCH_APIKEY }}
           - docs: "Getting started,Usage,API"
-      - name: set docs version
-        working-directory: ./tauri-docs
-        run: echo ${{ github.event.release.tag_name }} > version.txt
       - name: git config
         run: |
           git config --global user.name "${{ github.event.inputs.gitName }}"

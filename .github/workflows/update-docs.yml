@@ -42,18 +42,18 @@ jobs:
           originPath: ./tauri/target/doc/
           targetPath: ./tauri-docs/docs/en/api/rust/
           sidebarPath: ./tauri-docs/sidebars/rustdoc.json
-          linksRoot: /docs/api/rust/
+          linksRoot: ""
           cratesToProcess: "tauri"
       - name: run typedocusaurus
         uses: tauri-apps/typedocusaurus@v1
         with:
           originPath: ./tauri/tooling/api/
-          sidebarFile: sidebars/typedoc.json
-          targetPath: en/api/js
+          sidebarFile: ./tauri-docs/sidebars/typedoc.json
+          targetPath: ./tauri-docs/en/api/js/
           docusaurusPath: ./tauri-docs/
       - name: copy docs
         working-directory: ./tauri
-        run: cp -r docs ../tauri-docs/docs/en && mv ../tauri-docs/docs/en/sidebar.json ../tauri-docs/sidebars/core.json
+        run: mv docs/sidebar.json ../tauri-docs/sidebars/core.json && cp -r docs ../tauri-docs/docs/en
       - name: set docs version
         working-directory: ./tauri-docs
         run: echo ${{ github.event.release.tag_name }} > version.txt

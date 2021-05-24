@@ -11,34 +11,37 @@
 
     <script>
       window.addEventListener("DOMContentLoaded", (event) => {
-        window.__TAURI__.invoke("tauri", {
-          __tauriModule: "Fs",
-          message: {
-            cmd: "readBinaryFile",
-            path: ".tauri_3mb.json",
-            options: {
-              // home folder
-              dir: 11
-            }
-          },
-        }).then((_data) => {
-          window.__TAURI__.invoke("tauri", {
-            __tauriModule: "Process",
+        window.__TAURI__
+          .invoke("tauri", {
+            __tauriModule: "Fs",
             message: {
-              cmd: "exit",
-              exitCode: 0,
+              cmd: "readBinaryFile",
+              path: ".tauri_3mb.json",
+              options: {
+                // home folder
+                dir: 11,
+              },
             },
+          })
+          .then((_data) => {
+            window.__TAURI__.invoke("tauri", {
+              __tauriModule: "Process",
+              message: {
+                cmd: "exit",
+                exitCode: 0,
+              },
+            });
+          })
+          .catch((_error) => {
+            // error
+            window.__TAURI__.invoke("tauri", {
+              __tauriModule: "Process",
+              message: {
+                cmd: "exit",
+                exitCode: 1,
+              },
+            });
           });
-        }).catch((_error) => {
-          // error
-          window.__TAURI__.invoke("tauri", {
-            __tauriModule: "Process",
-            message: {
-              cmd: "exit",
-              exitCode: 1,
-            },
-          });
-        });
       });
     </script>
   </body>

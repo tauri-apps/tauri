@@ -52,6 +52,14 @@ pub fn bench_root_path() -> PathBuf {
 }
 
 #[allow(dead_code)]
+pub fn home_path() -> PathBuf {
+  #[cfg(any(target_os = "macos", target_os = "linux"))]
+  return PathBuf::from(env!("HOME"));
+  #[cfg(any(target_os = "windows"))]
+  return PathBuf::from(env!("HOMEPATH"));
+}
+
+#[allow(dead_code)]
 pub fn tauri_root_path() -> PathBuf {
   bench_root_path()
     .parent()
@@ -191,4 +199,27 @@ pub fn write_json(filename: &str, value: &Value) -> Result<()> {
   let f = fs::File::create(filename)?;
   serde_json::to_writer(f, value)?;
   Ok(())
+}
+
+#[allow(dead_code)]
+pub fn download_file(url: &str, filename: PathBuf) {
+  if !url.starts_with("http:") && !url.starts_with("https:") {
+    fs::copy(url, filename).unwrap();
+    return;
+  }
+
+  // Downloading with curl this saves us from adding
+  // a Rust HTTP client dependency.
+  println!("Downloading {}", url);
+  let status = Command::new("curl")
+    .arg("-L")
+    .arg("-s")
+    .arg("-o")
+    .arg(&filename)
+    .arg(&url)
+    .status()
+    .unwrap();
+
+  assert!(status.success());
+  assert!(filename.exists());
 }

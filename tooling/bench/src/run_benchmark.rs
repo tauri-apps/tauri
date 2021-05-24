@@ -247,7 +247,6 @@ fn run_exec_time(target_dir: &Path) -> Result<HashMap<String, HashMap<String, f6
 }
 
 fn main() -> Result<()> {
-  
   // download big files if not present
   let json_3mb = utils::home_path().join(".tauri_3mb.json");
 
@@ -257,7 +256,7 @@ fn main() -> Result<()> {
       json_3mb,
     );
   }
-  
+
   println!("Starting tauri benchmark");
 
   let target_dir = utils::target_dir();

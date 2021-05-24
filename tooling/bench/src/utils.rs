@@ -5,7 +5,13 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::HashMap, fs, io::{BufRead, BufReader}, path::PathBuf, process::{Command, Output, Stdio}};
+use std::{
+  collections::HashMap,
+  fs,
+  io::{BufRead, BufReader},
+  path::PathBuf,
+  process::{Command, Output, Stdio},
+};
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug)]
 pub struct BenchResult {

@@ -45,7 +45,7 @@ regex = "1"
 attohttpc = "0.17"
 uuid = { version = "0.8", features = [ "v4", "v5" ] }
 bitness = "0.4"
-winreg = "0.8"
+winreg = "0.9"
 sha2 = "0.9"
 hex = "0.4"
 

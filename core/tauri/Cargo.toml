@@ -44,7 +44,7 @@ tauri-utils = { version = "1.0.0-beta.0", path = "../tauri-utils" }
 tauri-runtime-wry = { version = "0.1.1", path = "../tauri-runtime-wry", optional = true }
 rand = "0.8"
 tempfile = "3"
-semver = "0.11"
+semver = "1.0"
 serde_repr = "0.1"
 zip = "0.5"
 ignore = "0.4"

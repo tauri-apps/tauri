@@ -11,7 +11,7 @@ import Link from '@docusaurus/Link'
   You must have completed all the steps required for setting up the development environment on your machine. If you haven't done this yet, please see the <a href="/docs/getting-started/intro#setting-up-your-environment"> setup page for your operating system</a>.
 </Alert>
 
-### 1. Install Tauri JS Package as a Dependency:
+### 1. Install Tauri CLI Package as a Dev Dependency:
 
 ```bash
 cd project-folder
@@ -21,9 +21,9 @@ cd project-folder
 # OR
 # npm init
 
-yarn add @tauri-apps/cli
+yarn add -D @tauri-apps/cli
 # OR
-npm install @tauri-apps/cli
+npm install -D @tauri-apps/cli
 ```
 
 <Alert title="Note">

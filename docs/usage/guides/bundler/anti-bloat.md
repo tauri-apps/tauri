@@ -19,7 +19,44 @@ Add this to your `src-tauri/Cargo.toml`
     codegen-units = 1
     lto = true
     incremental = false
-    opt-level = "z"
+    opt-level = "s"
+
+<Alert title="Note">
+
+There is also `opt-level = "z"` available to try and squeeze some more size out of the resulting binary. `"s"` and `"z"` can sometimes be smaller than the other, so test it with your own application!
+
+We've seen better binary sizes from `"s"` for tauri example applications, but real world applications can always differ.
+</Alert>
+
+#### Unstable Rust Compression Features
+
+<Alert type="warning" title="Warning" icon="alert">
+The following suggestions are all unstable features and require a nightly toolchain. See the <a href="https://doc.rust-lang.org/cargo/reference/unstable.html#unstable-features">Unstable Features</a> documentation for more information of what this entails.
+</Alert>
+
+The following methods involve using unstable compiler features and require having a rust nightly toolchain installed. If you don't have the nightly toolchain + `rust-src` nightly component added, try the following:
+
+    $ rustup toolchain install nightly
+    $ rustup component add rust-src --toolchain nightly
+
+The Rust Standard Library comes precompiled. You can instead apply the optimization options used for the rest of your binary + dependencies to the std with an unstable flag. This flag requires specifying your target, so know the target triple that you are targeting.
+
+    $ cargo +nightly build --release -Z build-std --target x86_64-unknown-linux-gnu
+
+If you are using `panic = "abort"` in your release profile optimizations, then you need to make sure the `panic_abort` crate is compiled with std. Additionally, an extra std feature can be used to remove some additional binary size. The following applies both:
+
+    $ cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort --target x86_64-unknown-linux-gnu
+
+See the unstable documentation for more details about [`-Z build-std`](https://doc.rust-lang.org/cargo/reference/unstable.html#build-std) and [`-Z build-std-features`](https://doc.rust-lang.org/cargo/reference/unstable.html#build-std-features).
+
+### Stripping
+
+Binary sized can easily be reduced by stripping out debugging information from binaries that ship to end users. This is not good for debuggable builds, but means good binary size savings for end user binaries. The easiest way is to use the famous `strip` utility to remove this debugging information.
+
+    $ strip target/release/my_application
+
+See your local `strip` manpage for more information and flags that can be used to specify what information gets stripped out from the binary.
+
 
 ### UPX
 

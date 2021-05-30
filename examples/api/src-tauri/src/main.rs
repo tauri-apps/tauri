@@ -41,27 +41,23 @@ fn main() {
       SystemTrayMenuItem::Custom(CustomMenuItem::new("toggle".into(), "Toggle")),
       SystemTrayMenuItem::Custom(CustomMenuItem::new("new".into(), "New window")),
     ])
-    .on_system_tray_event(|app, event| {
-      match event.menu_item_id().as_str() {
-        "toggle" => {
-          let window = app.get_window("main").unwrap();
-          if window.is_visible().unwrap() {
-            window.hide().unwrap();
-          } else {
-            window.show().unwrap();
-          }
+    .on_system_tray_event(|app, event| match event.menu_item_id().as_str() {
+      "toggle" => {
+        let window = app.get_window("main").unwrap();
+        if window.is_visible().unwrap() {
+          window.hide().unwrap();
+        } else {
+          window.show().unwrap();
         }
-        "new" => app
-          .create_window(
-            "new".into(),
-            WindowUrl::App("index.html".into()),
-            |window_builder, webview_attributes| {
-              (window_builder.title("Tauri"), webview_attributes)
-            },
-          )
-          .unwrap(),
-        _ => {}
       }
+      "new" => app
+        .create_window(
+          "new".into(),
+          WindowUrl::App("index.html".into()),
+          |window_builder, webview_attributes| (window_builder.title("Tauri"), webview_attributes),
+        )
+        .unwrap(),
+      _ => {}
     })
     .invoke_handler(tauri::generate_handler![
       cmd::log_operation,

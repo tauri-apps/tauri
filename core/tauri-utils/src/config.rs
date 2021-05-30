@@ -87,6 +87,9 @@ pub struct WindowConfig {
   /// Whether the window should always be on top of other windows.
   #[serde(default)]
   pub always_on_top: bool,
+  /// Whether or not the window icon should be added to the taskbar.
+  #[serde(default)]
+  pub skip_taskbar: bool,
 }
 
 fn default_window_label() -> String {
@@ -139,6 +142,7 @@ impl Default for WindowConfig {
       visible: default_visible(),
       decorations: default_decorations(),
       always_on_top: false,
+      skip_taskbar: false,
     }
   }
 }
@@ -640,6 +644,7 @@ mod build {
       let visible = self.visible;
       let decorations = self.decorations;
       let always_on_top = self.always_on_top;
+      let skip_taskbar = self.skip_taskbar;
 
       literal_struct!(
         tokens,
@@ -662,7 +667,8 @@ mod build {
         maximized,
         visible,
         decorations,
-        always_on_top
+        always_on_top,
+        skip_taskbar
       );
     }
   }
@@ -911,6 +917,7 @@ mod test {
         visible: true,
         decorations: true,
         always_on_top: false,
+        skip_taskbar: false,
       }],
       bundle: BundleConfig {
         identifier: String::from(""),

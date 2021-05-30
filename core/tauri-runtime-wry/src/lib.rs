@@ -248,7 +248,8 @@ impl WindowBuilder for WindowBuilderWrapper {
       .maximized(config.maximized)
       .fullscreen(config.fullscreen)
       .transparent(config.transparent)
-      .always_on_top(config.always_on_top);
+      .always_on_top(config.always_on_top)
+      .skip_taskbar(config.skip_taskbar);
 
     if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
       window = window.min_inner_size(min_width, min_height);
@@ -258,6 +259,10 @@ impl WindowBuilder for WindowBuilderWrapper {
     }
     if let (Some(x), Some(y)) = (config.x, config.y) {
       window = window.position(x, y);
+    }
+
+    if config.focus {
+      window = window.focus();
     }
 
     window
@@ -353,6 +358,10 @@ impl WindowBuilder for WindowBuilderWrapper {
     Ok(Self(
       self.0.with_window_icon(Some(WryIcon::try_from(icon)?.0)),
     ))
+  }
+
+  fn skip_taskbar(self, skip: bool) -> Self {
+    Self(self.0.with_skip_taskbar(skip))
   }
 
   fn has_icon(&self) -> bool {

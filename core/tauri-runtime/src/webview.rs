@@ -146,6 +146,9 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Sets the window icon.
   fn icon(self, icon: Icon) -> crate::Result<Self>;
 
+  /// Sets whether or not the window icon should be added to the taskbar.
+  fn skip_taskbar(self, skip: bool) -> Self;
+
   /// Sets a parent to the window to be created.
   ///
   /// A child window has the WS_CHILD style and is confined to the client area of its parent window.

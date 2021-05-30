@@ -803,6 +803,8 @@ interface WindowOptions {
   decorations?: boolean
   /** Whether the window should always be on top of other windows or not. */
   alwaysOnTop?: boolean
+  /** Whether or not the window icon should be added to the taskbar. */
+  skipTaskbar?: boolean
 }
 
 /**

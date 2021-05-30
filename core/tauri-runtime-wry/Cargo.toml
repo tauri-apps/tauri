@@ -20,6 +20,7 @@ infer = "0.4"
 
 [target."cfg(windows)".dependencies]
 ico = "0.1"
+winapi = "0.3"
 
 [features]
 dox = [ "wry/dox" ]

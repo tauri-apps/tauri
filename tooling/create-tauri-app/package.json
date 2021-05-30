@@ -58,10 +58,10 @@
     "eslint-plugin-promise": "5.1.0",
     "eslint-plugin-security": "1.4.0",
     "fixturez": "1.1.0",
-    "jest": "26.6.3",
+    "jest": "27.0.1",
     "prettier": "2.3.0",
     "rollup": "2.48.0",
-    "ts-jest": "26.5.6",
+    "ts-jest": "27.0.1",
     "tslib": "2.2.0",
     "typescript": "4.2.4"
   }

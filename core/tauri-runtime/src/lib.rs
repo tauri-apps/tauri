@@ -104,6 +104,12 @@ pub struct SystemTrayEvent {
   pub menu_item_id: u32,
 }
 
+/// Metadata for a runtime event loop iteration on `run_iteration`.
+#[derive(Debug, Clone, Default)]
+pub struct RunIteration {
+  pub webview_count: usize,
+}
+
 /// A [`Send`] handle to the runtime.
 pub trait RuntimeHandle: Send + Sized + Clone + 'static {
   type Runtime: Runtime<Handle = Self>;
@@ -146,6 +152,10 @@ pub trait Runtime: Sized + 'static {
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid;
+
+  /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
+  #[cfg(any(target_os = "windows", target_os = "macos"))]
+  fn run_iteration(&mut self) -> RunIteration;
 
   /// Run the webview runtime.
   fn run(self);
@@ -209,6 +219,10 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
 
   /// Returns the list of all the monitors available on the system.
   fn available_monitors(&self) -> crate::Result<Vec<Monitor>>;
+
+  /// Returns the native handle that is used by this window.
+  #[cfg(windows)]
+  fn hwnd(&self) -> crate::Result<*mut std::ffi::c_void>;
 
   // SETTERS
 

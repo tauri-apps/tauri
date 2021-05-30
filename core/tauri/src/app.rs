@@ -184,6 +184,26 @@ impl<P: Params> App<P> {
       manager: self.manager.clone(),
     }
   }
+
+  /// Runs a iteration of the runtime event loop and immediately return.
+  ///
+  /// # Example
+  /// ```rust,ignore
+  /// fn main() {
+  ///   let mut app = tauri::Builder::default()
+  ///     .build(tauri::generate_context!())
+  ///     .expect("error while building tauri application");
+  ///   loop {
+  ///     let iteration = app.run_iteration();
+  ///     if iteration.webview_count == 0 {
+  ///       break;
+  ///     }
+  ///   }
+  /// }
+  #[cfg(any(target_os = "windows", target_os = "macos"))]
+  pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
+    self.runtime.run_iteration()
+  }
 }
 
 #[cfg(feature = "updater")]
@@ -552,8 +572,9 @@ where
     self
   }
 
-  /// Runs the configured Tauri application.
-  pub fn run(mut self, context: Context<A>) -> crate::Result<()> {
+  /// Builds the application.
+  #[allow(clippy::type_complexity)]
+  pub fn build(mut self, context: Context<A>) -> crate::Result<App<Args<E, L, MID, TID, A, R>>> {
     #[cfg(feature = "system-tray")]
     let system_tray_icon = {
       let icon = context.system_tray_icon.clone();
@@ -664,7 +685,12 @@ where
       }
     }
 
-    app.runtime.run();
+    Ok(app)
+  }
+
+  /// Runs the configured Tauri application.
+  pub fn run(self, context: Context<A>) -> crate::Result<()> {
+    self.build(context)?.runtime.run();
     Ok(())
   }
 }

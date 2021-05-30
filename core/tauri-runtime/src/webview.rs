@@ -13,6 +13,9 @@ use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use tauri_utils::config::{WindowConfig, WindowUrl};
 
+#[cfg(windows)]
+use winapi::shared::windef::HWND;
+
 use std::{collections::HashMap, path::PathBuf};
 
 type UriSchemeProtocol =
@@ -139,6 +142,25 @@ pub trait WindowBuilder: WindowBuilderBase {
 
   /// Sets the window icon.
   fn icon(self, icon: Icon) -> crate::Result<Self>;
+
+  /// Sets a parent to the window to be created.
+  ///
+  /// A child window has the WS_CHILD style and is confined to the client area of its parent window.
+  ///
+  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#child-windows>
+  #[cfg(windows)]
+  fn parent_window(self, parent: HWND) -> Self;
+
+  /// Set an owner to the window to be created.
+  ///
+  /// From MSDN:
+  /// - An owned window is always above its owner in the z-order.
+  /// - The system automatically destroys an owned window when its owner is destroyed.
+  /// - An owned window is hidden when its owner is minimized.
+  ///
+  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
+  #[cfg(windows)]
+  fn owner_window(self, owner: HWND) -> Self;
 
   /// Whether the icon was set or not.
   fn has_icon(&self) -> bool;

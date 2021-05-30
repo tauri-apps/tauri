@@ -385,6 +385,12 @@ impl<P: Params> Window<P> {
       .map_err(Into::into)
   }
 
+  /// Returns the native handle that is used by this window.
+  #[cfg(windows)]
+  pub fn hwnd(&self) -> crate::Result<*mut std::ffi::c_void> {
+    self.window.dispatcher.hwnd().map_err(Into::into)
+  }
+
   // Setters
 
   /// Opens the dialog to prints the contents of the webview.

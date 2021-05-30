@@ -356,6 +356,11 @@ impl<P: Params> Window<P> {
     self.window.dispatcher.is_decorated().map_err(Into::into)
   }
 
+  /// Gets the window’s current resizable state.
+  pub fn is_resizable(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_resizable().map_err(Into::into)
+  }
+
   /// Returns the monitor on which the window currently resides.
   ///
   /// Returns None if current monitor can't be detected.

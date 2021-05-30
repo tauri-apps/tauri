@@ -61,6 +61,8 @@ jobs:
           sidebarFile: ./tauri-docs/sidebars/typedoc.json
           targetPath: ./tauri-docs/en/api/js/
           docusaurusPath: ./tauri-docs/
+
+      # Moving docs for Indexation
       - name: copy docs
         working-directory: ./tauri
         run: mv docs/sidebar.json ../tauri-docs/sidebars/core.json && cp -r docs ../tauri-docs/docs/en
@@ -83,7 +85,7 @@ jobs:
         working-directory: ./tauri-search-bot
         uses: iamsauravsharma/create-dotenv@v1.1.0
         env:
-          ENV_KEY_DISCORD_BOT_SECRET: ${{secrets.DISCORD_BOT_SECRET}}
+          ENV_KEY_DISCORD_BOT_SECRET: ${{ secrets.DISCORD_BOT_SECRET }}
           ENV_KEY_PREFIX: !
           ENV_KEY_SITE: tauri.studio
           ENV_KEY_ICON: https://i.imgur.com/UzDERvw.png
@@ -100,7 +102,7 @@ jobs:
           username: ${{ secrets.DISCORD_BOT_SSH_USER }}
           key: ${{ secrets.DISCORD_BOT_SSH_KEY }}
           source: "."
-          target: "~"
+          target: "~/tauri-search-bot"
       - name: restart the bot
         uses: appleboy/ssh-action@master
         with:

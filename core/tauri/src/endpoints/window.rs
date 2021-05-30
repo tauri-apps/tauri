@@ -69,6 +69,7 @@ pub enum Cmd {
   SetMaxSize(Option<Size>),
   SetPosition(Position),
   SetFullscreen(bool),
+  SetFocus,
   SetIcon {
     icon: IconDto,
   },
@@ -153,6 +154,7 @@ impl Cmd {
         Self::SetMaxSize(size) => window.set_max_size(size)?,
         Self::SetPosition(position) => window.set_position(position)?,
         Self::SetFullscreen(fullscreen) => window.set_fullscreen(fullscreen)?,
+        Self::SetFocus => window.set_focus()?,
         Self::SetIcon { icon } => window.set_icon(icon.into())?,
         Self::StartDragging => window.start_dragging()?,
         Self::Print => window.print()?,

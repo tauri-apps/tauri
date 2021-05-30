@@ -289,6 +289,9 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   /// Updates the window fullscreen state.
   fn set_fullscreen(&self, fullscreen: bool) -> crate::Result<()>;
 
+  /// Bring the window to front and focus.
+  fn set_focus(&self) -> crate::Result<()>;
+
   /// Updates the window icon.
   fn set_icon(&self, icon: Icon) -> crate::Result<()>;
 

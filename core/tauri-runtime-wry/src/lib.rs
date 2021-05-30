@@ -423,6 +423,7 @@ enum WindowMessage {
   SetMaxSize(Option<Size>),
   SetPosition(Position),
   SetFullscreen(bool),
+  SetFocus,
   SetIcon(WindowIcon),
   DragWindow,
 }
@@ -760,6 +761,14 @@ impl Dispatch for WryDispatcher {
         self.window_id,
         WindowMessage::SetFullscreen(fullscreen),
       ))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+
+  fn set_focus(&self) -> Result<()> {
+    self
+      .context
+      .proxy
+      .send_event(Message::Window(self.window_id, WindowMessage::SetFocus))
       .map_err(|_| Error::FailedToSendMessage)
   }
 
@@ -1192,6 +1201,9 @@ fn handle_event_loop(
               } else {
                 window.set_fullscreen(None)
               }
+            }
+            WindowMessage::SetFocus => {
+              window.set_focus();
             }
             WindowMessage::SetIcon(icon) => {
               window.set_window_icon(Some(icon));

@@ -528,6 +528,11 @@ impl<P: Params> Window<P> {
       .map_err(Into::into)
   }
 
+  /// Bring the window to front and focus.
+  pub fn set_focus(&self) -> crate::Result<()> {
+    self.window.dispatcher.set_focus().map_err(Into::into)
+  }
+
   /// Sets this window' icon.
   pub fn set_icon(&self, icon: Icon) -> crate::Result<()> {
     self.window.dispatcher.set_icon(icon).map_err(Into::into)

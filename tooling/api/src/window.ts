@@ -593,12 +593,12 @@ class WindowManager {
         cmd: 'setMinSize',
         data: size
           ? {
-              type: size.type,
-              data: {
-                width: size.width,
-                height: size.height
-              }
+            type: size.type,
+            data: {
+              width: size.width,
+              height: size.height
             }
+          }
           : null
       }
     })
@@ -629,12 +629,12 @@ class WindowManager {
         cmd: 'setMaxSize',
         data: size
           ? {
-              type: size.type,
-              data: {
-                width: size.width,
-                height: size.height
-              }
+            type: size.type,
+            data: {
+              width: size.width,
+              height: size.height
             }
+          }
           : null
       }
     })
@@ -689,6 +689,20 @@ class WindowManager {
       message: {
         cmd: 'setFullscreen',
         data: fullscreen
+      }
+    })
+  }
+
+  /**
+   * Bring the window to front and focus.
+   * 
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setFocus(): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'setFocus'
       }
     })
   }

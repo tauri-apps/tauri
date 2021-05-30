@@ -399,6 +399,7 @@ enum WindowMessage {
   OuterSize(Sender<PhysicalSize<u32>>),
   IsFullscreen(Sender<bool>),
   IsMaximized(Sender<bool>),
+  IsDecorated(Sender<bool>),
   CurrentMonitor(Sender<Option<MonitorHandle>>),
   PrimaryMonitor(Sender<Option<MonitorHandle>>),
   AvailableMonitors(Sender<Vec<MonitorHandle>>),
@@ -529,6 +530,11 @@ impl Dispatch for WryDispatcher {
 
   fn is_maximized(&self) -> Result<bool> {
     Ok(dispatcher_getter!(self, WindowMessage::IsMaximized))
+  }
+
+  /// Gets the window’s current decoration state.
+  fn is_decorated(&self) -> Result<bool> {
+    Ok(dispatcher_getter!(self, WindowMessage::IsDecorated))
   }
 
   fn current_monitor(&self) -> Result<Option<Monitor>> {
@@ -1133,6 +1139,7 @@ fn handle_event_loop(
               .unwrap(),
             WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
             WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
+            WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
             WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
             WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
             WindowMessage::AvailableMonitors(tx) => {

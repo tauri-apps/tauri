@@ -362,6 +362,16 @@ class WindowManager {
     })
   }
 
+  /** Gets the window's current decorated state. */
+  async isDecorated(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'isDecorated'
+      }
+    })
+  }
+
   // Setters
 
   /**

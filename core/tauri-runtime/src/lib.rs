@@ -207,6 +207,9 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   /// Gets the window's current maximized state.
   fn is_maximized(&self) -> crate::Result<bool>;
 
+  /// Gets the window’s current decoration state.
+  fn is_decorated(&self) -> crate::Result<bool>;
+
   /// Returns the monitor on which the window currently resides.
   ///
   /// Returns None if current monitor can't be detected.

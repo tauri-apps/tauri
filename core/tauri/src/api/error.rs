@@ -46,7 +46,7 @@ pub enum Error {
   InvalidHttpForm,
   /// Semver error.
   #[error("{0}")]
-  Semver(#[from] semver::SemVerError),
+  Semver(#[from] semver::Error),
   /// JSON error.
   #[error("{0}")]
   Json(#[from] serde_json::Error),

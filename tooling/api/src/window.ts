@@ -746,6 +746,22 @@ class WindowManager {
   }
 
   /**
+   * Whether to show the window icon in the task bar or not.
+   *
+   * @param skip true to hide window icon, false to show it.
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setSkipTaskbar(skip: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'setSkipTaskbar',
+        data: skip
+      }
+    })
+  }
+
+  /**
    * Starts dragging the window.
    *
    * @return A promise indicating the success or failure of the operation.

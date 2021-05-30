@@ -74,6 +74,7 @@ pub enum Cmd {
   SetIcon {
     icon: IconDto,
   },
+  SetSkipTaskbar(bool),
   StartDragging,
   Print,
 }
@@ -158,6 +159,7 @@ impl Cmd {
         Self::SetFullscreen(fullscreen) => window.set_fullscreen(fullscreen)?,
         Self::SetFocus => window.set_focus()?,
         Self::SetIcon { icon } => window.set_icon(icon.into())?,
+        Self::SetSkipTaskbar(skip) => window.set_skip_taskbar(skip)?,
         Self::StartDragging => window.start_dragging()?,
         Self::Print => window.print()?,
       }

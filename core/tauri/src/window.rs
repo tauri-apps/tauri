@@ -543,6 +543,15 @@ impl<P: Params> Window<P> {
     self.window.dispatcher.set_icon(icon).map_err(Into::into)
   }
 
+  /// Whether to show the window icon in the task bar or not.
+  pub fn set_skip_taskbar(&self, skip: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_skip_taskbar(skip)
+      .map_err(Into::into)
+  }
+
   /// Starts dragging the window.
   pub fn start_dragging(&self) -> crate::Result<()> {
     self.window.dispatcher.start_dragging().map_err(Into::into)

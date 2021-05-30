@@ -439,6 +439,7 @@ enum WindowMessage {
   SetFullscreen(bool),
   SetFocus,
   SetIcon(WindowIcon),
+  SetSkipTaskbar(bool),
   DragWindow,
 }
 
@@ -797,6 +798,17 @@ impl Dispatch for WryDispatcher {
       .send_event(Message::Window(
         self.window_id,
         WindowMessage::SetIcon(WryIcon::try_from(icon)?.0),
+      ))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+
+  fn set_skip_taskbar(&self, skip: bool) -> Result<()> {
+    self
+      .context
+      .proxy
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::SetSkipTaskbar(skip),
       ))
       .map_err(|_| Error::FailedToSendMessage)
   }
@@ -1226,6 +1238,9 @@ fn handle_event_loop(
             }
             WindowMessage::SetIcon(icon) => {
               window.set_window_icon(Some(icon));
+            }
+            WindowMessage::SetSkipTaskbar(skip) => {
+              window.set_skip_taskbar(skip);
             }
             WindowMessage::DragWindow => {
               let _ = window.drag_window();

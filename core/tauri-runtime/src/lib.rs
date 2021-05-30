@@ -298,6 +298,9 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   /// Updates the window icon.
   fn set_icon(&self, icon: Icon) -> crate::Result<()>;
 
+  /// Whether to show the window icon in the task bar or not.
+  fn set_skip_taskbar(&self, skip: bool) -> crate::Result<()>;
+
   /// Starts dragging the window.
   fn start_dragging(&self) -> crate::Result<()>;
 

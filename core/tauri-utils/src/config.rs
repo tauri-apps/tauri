@@ -69,6 +69,9 @@ pub struct WindowConfig {
   /// Whether the window starts as fullscreen or not.
   #[serde(default)]
   pub fullscreen: bool,
+  /// Whether the window will be initially hidden or focused.
+  #[serde(default)]
+  pub focus: bool,
   /// Whether the window is transparent or not.
   #[serde(default)]
   pub transparent: bool,
@@ -130,6 +133,7 @@ impl Default for WindowConfig {
       resizable: default_resizable(),
       title: default_title(),
       fullscreen: false,
+      focus: false,
       transparent: false,
       maximized: false,
       visible: default_visible(),
@@ -630,6 +634,7 @@ mod build {
       let resizable = self.resizable;
       let title = str_lit(&self.title);
       let fullscreen = self.fullscreen;
+      let focus = self.focus;
       let transparent = self.transparent;
       let maximized = self.maximized;
       let visible = self.visible;
@@ -652,6 +657,7 @@ mod build {
         resizable,
         title,
         fullscreen,
+        focus,
         transparent,
         maximized,
         visible,
@@ -899,6 +905,7 @@ mod test {
         resizable: true,
         title: String::from("Tauri App"),
         fullscreen: false,
+        focus: false,
         transparent: false,
         maximized: false,
         visible: true,

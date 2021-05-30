@@ -593,12 +593,12 @@ class WindowManager {
         cmd: 'setMinSize',
         data: size
           ? {
-            type: size.type,
-            data: {
-              width: size.width,
-              height: size.height
+              type: size.type,
+              data: {
+                width: size.width,
+                height: size.height
+              }
             }
-          }
           : null
       }
     })
@@ -629,12 +629,12 @@ class WindowManager {
         cmd: 'setMaxSize',
         data: size
           ? {
-            type: size.type,
-            data: {
-              width: size.width,
-              height: size.height
+              type: size.type,
+              data: {
+                width: size.width,
+                height: size.height
+              }
             }
-          }
           : null
       }
     })
@@ -695,7 +695,7 @@ class WindowManager {
 
   /**
    * Bring the window to front and focus.
-   * 
+   *
    * @returns A promise indicating the success or failure of the operation.
    */
   async setFocus(): Promise<void> {
@@ -771,6 +771,8 @@ interface WindowOptions {
   title?: string
   /** Whether the window is in fullscreen mode or not. */
   fullscreen?: boolean
+  /** Whether the window will be initially hidden or focused. */
+  focus?: boolean
   /** Whether the window is transparent or not. */
   transparent?: boolean
   /** Whether the window should be maximized upon creation or not. */

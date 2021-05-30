@@ -315,6 +315,10 @@ impl WindowBuilder for WindowBuilderWrapper {
     }
   }
 
+  fn focus(self) -> Self {
+    Self(self.0.with_focus())
+  }
+
   fn maximized(self, maximized: bool) -> Self {
     Self(self.0.with_maximized(maximized))
   }

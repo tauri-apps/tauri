@@ -124,6 +124,9 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Whether to start the window in fullscreen or not.
   fn fullscreen(self, fullscreen: bool) -> Self;
 
+  /// Whether the window will be initially hidden or focused.
+  fn focus(self) -> Self;
+
   /// Whether the window should be maximized upon creation.
   fn maximized(self, maximized: bool) -> Self;
 

@@ -45,8 +45,11 @@ fn main() {
       match event.menu_item_id().as_str() {
         "toggle" => {
           let window = app.get_window("main").unwrap();
-          // TODO: window.is_visible API
-          window.hide().unwrap();
+          if window.is_visible().unwrap() {
+            window.hide().unwrap();
+          } else {
+            window.show().unwrap();
+          }
         }
         "new" => app
           .create_window(

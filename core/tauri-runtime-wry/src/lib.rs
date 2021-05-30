@@ -405,6 +405,7 @@ enum WindowMessage {
   IsMaximized(Sender<bool>),
   IsDecorated(Sender<bool>),
   IsResizable(Sender<bool>),
+  IsVisible(Sender<bool>),
   CurrentMonitor(Sender<Option<MonitorHandle>>),
   PrimaryMonitor(Sender<Option<MonitorHandle>>),
   AvailableMonitors(Sender<Vec<MonitorHandle>>),
@@ -546,6 +547,10 @@ impl Dispatch for WryDispatcher {
   /// Gets the window’s current resizable state.
   fn is_resizable(&self) -> Result<bool> {
     Ok(dispatcher_getter!(self, WindowMessage::IsResizable))
+  }
+
+  fn is_visible(&self) -> Result<bool> {
+    Ok(dispatcher_getter!(self, WindowMessage::IsVisible))
   }
 
   fn current_monitor(&self) -> Result<Option<Monitor>> {
@@ -1160,6 +1165,7 @@ fn handle_event_loop(
             WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
             WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
             WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),
+            WindowMessage::IsVisible(tx) => tx.send(window.is_visible()).unwrap(),
             WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
             WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
             WindowMessage::AvailableMonitors(tx) => {

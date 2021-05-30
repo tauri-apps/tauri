@@ -372,6 +372,26 @@ class WindowManager {
     })
   }
 
+  /** Gets the window's current resizable state. */
+  async isResizable(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'isResizable'
+      }
+    })
+  }
+
+  /** Gets the window's current visible state. */
+  async isVisible(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'isVisible'
+      }
+    })
+  }
+
   // Setters
 
   /**

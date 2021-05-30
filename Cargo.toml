@@ -22,6 +22,9 @@ members = [
   "examples/updater/src-tauri",
 ]
 
+[patch.crates-io]
+tao = { git = "https://github.com/tauri-apps/tao", rev = "a3f533232df25dc30998809094ed5431b449489c" }
+
 # default to small, optimized workspace release binaries
 [profile.release]
 panic = "abort"

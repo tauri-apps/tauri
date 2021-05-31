@@ -29,6 +29,7 @@ impl<'a> Logger<'a> {
     );
   }
 
+  #[allow(dead_code)]
   pub fn error(&self, message: impl AsRef<str>) {
     println!(
       "{} {}",

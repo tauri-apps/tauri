@@ -4,6 +4,7 @@
 
 use std::{
   collections::BTreeMap,
+  env::current_dir,
   fs::{create_dir_all, remove_dir_all, File},
   io::Write,
   path::{Path, PathBuf},
@@ -38,7 +39,7 @@ impl Default for Init {
   fn default() -> Self {
     Self {
       force: false,
-      directory: std::env::current_dir().expect("failed to read cwd"),
+      directory: current_dir().expect("failed to read cwd"),
       tauri_path: None,
       app_name: None,
       window_title: None,

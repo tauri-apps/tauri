@@ -124,6 +124,9 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Whether to start the window in fullscreen or not.
   fn fullscreen(self, fullscreen: bool) -> Self;
 
+  /// Whether the window will be initially hidden or focused.
+  fn focus(self) -> Self;
+
   /// Whether the window should be maximized upon creation.
   fn maximized(self, maximized: bool) -> Self;
 
@@ -142,6 +145,9 @@ pub trait WindowBuilder: WindowBuilderBase {
 
   /// Sets the window icon.
   fn icon(self, icon: Icon) -> crate::Result<Self>;
+
+  /// Sets whether or not the window icon should be added to the taskbar.
+  fn skip_taskbar(self, skip: bool) -> Self;
 
   /// Sets a parent to the window to be created.
   ///

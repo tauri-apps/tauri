@@ -362,6 +362,36 @@ class WindowManager {
     })
   }
 
+  /** Gets the window's current decorated state. */
+  async isDecorated(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'isDecorated'
+      }
+    })
+  }
+
+  /** Gets the window's current resizable state. */
+  async isResizable(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'isResizable'
+      }
+    })
+  }
+
+  /** Gets the window's current visible state. */
+  async isVisible(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'isVisible'
+      }
+    })
+  }
+
   // Setters
 
   /**
@@ -684,6 +714,20 @@ class WindowManager {
   }
 
   /**
+   * Bring the window to front and focus.
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setFocus(): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'setFocus'
+      }
+    })
+  }
+
+  /**
    * Sets the window icon.
    *
    * @param icon Icon bytes or path to the icon file.
@@ -697,6 +741,22 @@ class WindowManager {
         data: {
           icon
         }
+      }
+    })
+  }
+
+  /**
+   * Whether to show the window icon in the task bar or not.
+   *
+   * @param skip true to hide window icon, false to show it.
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setSkipTaskbar(skip: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'setSkipTaskbar',
+        data: skip
       }
     })
   }
@@ -747,6 +807,8 @@ interface WindowOptions {
   title?: string
   /** Whether the window is in fullscreen mode or not. */
   fullscreen?: boolean
+  /** Whether the window will be initially hidden or focused. */
+  focus?: boolean
   /** Whether the window is transparent or not. */
   transparent?: boolean
   /** Whether the window should be maximized upon creation or not. */
@@ -757,6 +819,8 @@ interface WindowOptions {
   decorations?: boolean
   /** Whether the window should always be on top of other windows or not. */
   alwaysOnTop?: boolean
+  /** Whether or not the window icon should be added to the taskbar. */
+  skipTaskbar?: boolean
 }
 
 /**

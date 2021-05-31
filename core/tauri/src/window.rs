@@ -351,6 +351,21 @@ impl<P: Params> Window<P> {
     self.window.dispatcher.is_maximized().map_err(Into::into)
   }
 
+  /// Gets the window’s current decoration state.
+  pub fn is_decorated(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_decorated().map_err(Into::into)
+  }
+
+  /// Gets the window’s current resizable state.
+  pub fn is_resizable(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_resizable().map_err(Into::into)
+  }
+
+  /// Gets the window's current vibility state.
+  pub fn is_visible(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_visible().map_err(Into::into)
+  }
+
   /// Returns the monitor on which the window currently resides.
   ///
   /// Returns None if current monitor can't be detected.
@@ -518,9 +533,23 @@ impl<P: Params> Window<P> {
       .map_err(Into::into)
   }
 
+  /// Bring the window to front and focus.
+  pub fn set_focus(&self) -> crate::Result<()> {
+    self.window.dispatcher.set_focus().map_err(Into::into)
+  }
+
   /// Sets this window' icon.
   pub fn set_icon(&self, icon: Icon) -> crate::Result<()> {
     self.window.dispatcher.set_icon(icon).map_err(Into::into)
+  }
+
+  /// Whether to show the window icon in the task bar or not.
+  pub fn set_skip_taskbar(&self, skip: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_skip_taskbar(skip)
+      .map_err(Into::into)
   }
 
   /// Starts dragging the window.

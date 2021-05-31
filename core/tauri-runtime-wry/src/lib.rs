@@ -248,7 +248,8 @@ impl WindowBuilder for WindowBuilderWrapper {
       .maximized(config.maximized)
       .fullscreen(config.fullscreen)
       .transparent(config.transparent)
-      .always_on_top(config.always_on_top);
+      .always_on_top(config.always_on_top)
+      .skip_taskbar(config.skip_taskbar);
 
     if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
       window = window.min_inner_size(min_width, min_height);
@@ -258,6 +259,10 @@ impl WindowBuilder for WindowBuilderWrapper {
     }
     if let (Some(x), Some(y)) = (config.x, config.y) {
       window = window.position(x, y);
+    }
+
+    if config.focus {
+      window = window.focus();
     }
 
     window
@@ -315,6 +320,10 @@ impl WindowBuilder for WindowBuilderWrapper {
     }
   }
 
+  fn focus(self) -> Self {
+    Self(self.0.with_focus())
+  }
+
   fn maximized(self, maximized: bool) -> Self {
     Self(self.0.with_maximized(maximized))
   }
@@ -349,6 +358,10 @@ impl WindowBuilder for WindowBuilderWrapper {
     Ok(Self(
       self.0.with_window_icon(Some(WryIcon::try_from(icon)?.0)),
     ))
+  }
+
+  fn skip_taskbar(self, skip: bool) -> Self {
+    Self(self.0.with_skip_taskbar(skip))
   }
 
   fn has_icon(&self) -> bool {
@@ -399,6 +412,9 @@ enum WindowMessage {
   OuterSize(Sender<PhysicalSize<u32>>),
   IsFullscreen(Sender<bool>),
   IsMaximized(Sender<bool>),
+  IsDecorated(Sender<bool>),
+  IsResizable(Sender<bool>),
+  IsVisible(Sender<bool>),
   CurrentMonitor(Sender<Option<MonitorHandle>>),
   PrimaryMonitor(Sender<Option<MonitorHandle>>),
   AvailableMonitors(Sender<Vec<MonitorHandle>>),
@@ -421,7 +437,9 @@ enum WindowMessage {
   SetMaxSize(Option<Size>),
   SetPosition(Position),
   SetFullscreen(bool),
+  SetFocus,
   SetIcon(WindowIcon),
+  SetSkipTaskbar(bool),
   DragWindow,
 }
 
@@ -529,6 +547,20 @@ impl Dispatch for WryDispatcher {
 
   fn is_maximized(&self) -> Result<bool> {
     Ok(dispatcher_getter!(self, WindowMessage::IsMaximized))
+  }
+
+  /// Gets the window’s current decoration state.
+  fn is_decorated(&self) -> Result<bool> {
+    Ok(dispatcher_getter!(self, WindowMessage::IsDecorated))
+  }
+
+  /// Gets the window’s current resizable state.
+  fn is_resizable(&self) -> Result<bool> {
+    Ok(dispatcher_getter!(self, WindowMessage::IsResizable))
+  }
+
+  fn is_visible(&self) -> Result<bool> {
+    Ok(dispatcher_getter!(self, WindowMessage::IsVisible))
   }
 
   fn current_monitor(&self) -> Result<Option<Monitor>> {
@@ -751,6 +783,14 @@ impl Dispatch for WryDispatcher {
       .map_err(|_| Error::FailedToSendMessage)
   }
 
+  fn set_focus(&self) -> Result<()> {
+    self
+      .context
+      .proxy
+      .send_event(Message::Window(self.window_id, WindowMessage::SetFocus))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+
   fn set_icon(&self, icon: Icon) -> Result<()> {
     self
       .context
@@ -758,6 +798,17 @@ impl Dispatch for WryDispatcher {
       .send_event(Message::Window(
         self.window_id,
         WindowMessage::SetIcon(WryIcon::try_from(icon)?.0),
+      ))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+
+  fn set_skip_taskbar(&self, skip: bool) -> Result<()> {
+    self
+      .context
+      .proxy
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::SetSkipTaskbar(skip),
       ))
       .map_err(|_| Error::FailedToSendMessage)
   }
@@ -1133,6 +1184,9 @@ fn handle_event_loop(
               .unwrap(),
             WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
             WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
+            WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
+            WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),
+            WindowMessage::IsVisible(tx) => tx.send(window.is_visible()).unwrap(),
             WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
             WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
             WindowMessage::AvailableMonitors(tx) => {
@@ -1179,8 +1233,14 @@ fn handle_event_loop(
                 window.set_fullscreen(None)
               }
             }
+            WindowMessage::SetFocus => {
+              window.set_focus();
+            }
             WindowMessage::SetIcon(icon) => {
               window.set_window_icon(Some(icon));
+            }
+            WindowMessage::SetSkipTaskbar(skip) => {
+              window.set_skip_taskbar(skip);
             }
             WindowMessage::DragWindow => {
               let _ = window.drag_window();

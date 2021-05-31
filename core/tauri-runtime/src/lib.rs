@@ -207,6 +207,15 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   /// Gets the window's current maximized state.
   fn is_maximized(&self) -> crate::Result<bool>;
 
+  /// Gets the window’s current decoration state.
+  fn is_decorated(&self) -> crate::Result<bool>;
+
+  /// Gets the window’s current resizable state.
+  fn is_resizable(&self) -> crate::Result<bool>;
+
+  /// Gets the window's current vibility state.
+  fn is_visible(&self) -> crate::Result<bool>;
+
   /// Returns the monitor on which the window currently resides.
   ///
   /// Returns None if current monitor can't be detected.
@@ -283,8 +292,14 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   /// Updates the window fullscreen state.
   fn set_fullscreen(&self, fullscreen: bool) -> crate::Result<()>;
 
+  /// Bring the window to front and focus.
+  fn set_focus(&self) -> crate::Result<()>;
+
   /// Updates the window icon.
   fn set_icon(&self, icon: Icon) -> crate::Result<()>;
+
+  /// Whether to show the window icon in the task bar or not.
+  fn set_skip_taskbar(&self, skip: bool) -> crate::Result<()>;
 
   /// Starts dragging the window.
   fn start_dragging(&self) -> crate::Result<()>;

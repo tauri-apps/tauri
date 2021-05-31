@@ -69,6 +69,9 @@ pub struct WindowConfig {
   /// Whether the window starts as fullscreen or not.
   #[serde(default)]
   pub fullscreen: bool,
+  /// Whether the window will be initially hidden or focused.
+  #[serde(default)]
+  pub focus: bool,
   /// Whether the window is transparent or not.
   #[serde(default)]
   pub transparent: bool,
@@ -84,6 +87,9 @@ pub struct WindowConfig {
   /// Whether the window should always be on top of other windows.
   #[serde(default)]
   pub always_on_top: bool,
+  /// Whether or not the window icon should be added to the taskbar.
+  #[serde(default)]
+  pub skip_taskbar: bool,
 }
 
 fn default_window_label() -> String {
@@ -130,11 +136,13 @@ impl Default for WindowConfig {
       resizable: default_resizable(),
       title: default_title(),
       fullscreen: false,
+      focus: false,
       transparent: false,
       maximized: false,
       visible: default_visible(),
       decorations: default_decorations(),
       always_on_top: false,
+      skip_taskbar: false,
     }
   }
 }
@@ -630,11 +638,13 @@ mod build {
       let resizable = self.resizable;
       let title = str_lit(&self.title);
       let fullscreen = self.fullscreen;
+      let focus = self.focus;
       let transparent = self.transparent;
       let maximized = self.maximized;
       let visible = self.visible;
       let decorations = self.decorations;
       let always_on_top = self.always_on_top;
+      let skip_taskbar = self.skip_taskbar;
 
       literal_struct!(
         tokens,
@@ -652,11 +662,13 @@ mod build {
         resizable,
         title,
         fullscreen,
+        focus,
         transparent,
         maximized,
         visible,
         decorations,
-        always_on_top
+        always_on_top,
+        skip_taskbar
       );
     }
   }
@@ -899,11 +911,13 @@ mod test {
         resizable: true,
         title: String::from("Tauri App"),
         fullscreen: false,
+        focus: false,
         transparent: false,
         maximized: false,
         visible: true,
         decorations: true,
         always_on_top: false,
+        skip_taskbar: false,
       }],
       bundle: BundleConfig {
         identifier: String::from(""),

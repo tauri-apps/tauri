@@ -590,6 +590,25 @@ fn default_dialog() -> Option<bool> {
   Some(true)
 }
 
+/// The `dev_path` and `dist_dir` options.
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(untagged, deny_unknown_fields)]
+pub enum AppUrl {
+  /// The app's external URL, or the path to the directory containing the app assets.
+  Url(String),
+  /// An array of files to embed on the app.
+  Files(Vec<PathBuf>),
+}
+
+impl std::fmt::Display for AppUrl {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::Url(url) => write!(f, "{}", url),
+      Self::Files(files) => write!(f, "{}", serde_json::to_string(files).unwrap()),
+    }
+  }
+}
+
 /// The Build configuration object.
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
@@ -597,12 +616,12 @@ fn default_dialog() -> Option<bool> {
 pub struct BuildConfig {
   /// The binary used to build and run the application.
   pub runner: Option<String>,
-  /// the app's dev server URL, or the path to the directory containing an index.html file
+  /// The path or URL to use on development.
   #[serde(default = "default_dev_path")]
-  pub dev_path: String,
+  pub dev_path: AppUrl,
   /// the path to the app's dist dir. This path must contain your index.html file.
   #[serde(default = "default_dist_dir")]
-  pub dist_dir: String,
+  pub dist_dir: AppUrl,
   /// a shell command to run before `tauri dev` kicks in
   pub before_dev_command: Option<String>,
   /// a shell command to run before `tauri build` kicks in
@@ -614,12 +633,12 @@ pub struct BuildConfig {
   pub with_global_tauri: bool,
 }
 
-fn default_dev_path() -> String {
-  "".to_string()
+fn default_dev_path() -> AppUrl {
+  AppUrl::Url("".to_string())
 }
 
-fn default_dist_dir() -> String {
-  "../dist".to_string()
+fn default_dist_dir() -> AppUrl {
+  AppUrl::Url("../dist".to_string())
 }
 
 type JsonObject = HashMap<String, JsonValue>;

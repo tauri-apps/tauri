@@ -7,7 +7,7 @@ use tauri_bundler::bundle::{bundle_project, PackageType, SettingsBuilder};
 
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
-  config::get as get_config,
+  config::{get as get_config, AppUrl},
   execute_with_output,
   manifest::rewrite_manifest,
   updater_signature::sign_file_from_env_variables,
@@ -103,12 +103,14 @@ impl Build {
       }
     }
 
-    let web_asset_path = PathBuf::from(&config_.build.dist_dir);
-    if !web_asset_path.exists() {
-      return Err(anyhow::anyhow!(
-        "Unable to find your web assets, did you forget to build your web app? Your distDir is set to \"{:?}\".",
-        web_asset_path
-      ));
+    if let AppUrl::Url(url) = &config_.build.dist_dir {
+      let web_asset_path = PathBuf::from(url);
+      if !web_asset_path.exists() {
+        return Err(anyhow::anyhow!(
+          "Unable to find your web assets, did you forget to build your web app? Your distDir is set to \"{:?}\".",
+          web_asset_path
+        ));
+      }
     }
 
     let runner_from_config = config_.build.runner.clone();

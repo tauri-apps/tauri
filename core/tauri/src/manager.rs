@@ -8,7 +8,7 @@
 use crate::{
   api::{
     assets::Assets,
-    config::{Config, WindowUrl},
+    config::{AppUrl, Config, WindowUrl},
     path::{resolve_path, BaseDirectory},
     PackageInfo,
   },
@@ -282,7 +282,7 @@ impl<P: Params> WindowManager<P> {
   #[cfg(dev)]
   fn get_url(&self) -> String {
     match &self.inner.config.build.dev_path {
-      WindowUrl::External(url) => url.to_string(),
+      AppUrl::Url(WindowUrl::External(url)) => url.to_string(),
       _ => "tauri://localhost".into(),
     }
   }
@@ -290,7 +290,7 @@ impl<P: Params> WindowManager<P> {
   #[cfg(custom_protocol)]
   fn get_url(&self) -> String {
     match &self.inner.config.build.dist_dir {
-      WindowUrl::External(url) => url.to_string(),
+      AppUrl::Url(WindowUrl::External(url)) => url.to_string(),
       _ => "tauri://localhost".into(),
     }
   }

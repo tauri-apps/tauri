@@ -530,24 +530,24 @@ impl Info {
       if let Ok(config) = get_config(None) {
         let config_guard = config.lock().unwrap();
         let config = config_guard.as_ref().unwrap();
-        InfoBlock::new("build-type")
+        InfoBlock::new("  build-type")
           .value(if config.tauri.bundle.active {
             "bundle".to_string()
           } else {
             "build".to_string()
           })
           .display();
-        InfoBlock::new("CSP")
+        InfoBlock::new("  CSP")
           .value(if let Some(security) = &config.tauri.security {
             security.csp.clone().unwrap_or_else(|| "unset".to_string())
           } else {
             "unset".to_string()
           })
           .display();
-        InfoBlock::new("distDir")
+        InfoBlock::new("  distDir")
           .value(config.build.dist_dir.to_string())
           .display();
-        InfoBlock::new("devPath")
+        InfoBlock::new("  devPath")
           .value(config.build.dev_path.to_string())
           .display();
       }
@@ -580,10 +580,10 @@ impl Info {
           .or(framework_bundler);
 
         if let Some(framework) = framework {
-          InfoBlock::new("framework").value(framework).display();
+          InfoBlock::new("  framework").value(framework).display();
         }
         if let Some(bundler) = bundler {
-          InfoBlock::new("bundler").value(bundler).display();
+          InfoBlock::new("  bundler").value(bundler).display();
         }
       } else {
         println!("package.json not found");

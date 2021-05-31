@@ -393,27 +393,40 @@ impl Default for TauriConfig {
   }
 }
 
+/// The `dev_path` and `dist_dir` options.
+#[derive(PartialEq, Debug, Clone, Deserialize)]
+#[serde(untagged)]
+#[non_exhaustive]
+pub enum AppUrl {
+  /// A url or file path.
+  Url(WindowUrl),
+  /// An array of files.
+  Files(Vec<PathBuf>),
+}
+
 /// The Build configuration object.
 #[derive(PartialEq, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildConfig {
   /// the devPath config.
   #[serde(default = "default_dev_path")]
-  pub dev_path: WindowUrl,
+  pub dev_path: AppUrl,
   /// the dist config.
   #[serde(default = "default_dist_path")]
-  pub dist_dir: WindowUrl,
+  pub dist_dir: AppUrl,
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
   #[serde(default)]
   pub with_global_tauri: bool,
 }
 
-fn default_dev_path() -> WindowUrl {
-  WindowUrl::External(Url::parse("http://localhost:8080").unwrap())
+fn default_dev_path() -> AppUrl {
+  AppUrl::Url(WindowUrl::External(
+    Url::parse("http://localhost:8080").unwrap(),
+  ))
 }
 
-fn default_dist_path() -> WindowUrl {
-  WindowUrl::App("../dist".into())
+fn default_dist_path() -> AppUrl {
+  AppUrl::Url(WindowUrl::App("../dist".into()))
 }
 
 impl Default for BuildConfig {
@@ -465,7 +478,7 @@ pub struct PluginConfig(pub HashMap<String, JsonValue>);
 /// application using tauri while only parsing it once (in the build script).
 #[cfg(feature = "build")]
 mod build {
-  use std::convert::identity;
+  use std::{convert::identity, path::Path};
 
   use proc_macro2::TokenStream;
   use quote::{quote, ToTokens, TokenStreamExt};
@@ -509,6 +522,15 @@ mod build {
   {
     let items = list.into_iter().map(map);
     quote! { vec![#(#items),*] }
+  }
+
+  /// Create a `PathBuf` constructor `TokenStream`.
+  ///
+  /// e.g. `"Hello World" -> String::from("Hello World").
+  /// This takes a `&String` to reduce casting all the `&String` -> `&str` manually.
+  fn path_buf_lit(s: impl AsRef<Path>) -> TokenStream {
+    let s = s.as_ref().to_string_lossy().into_owned();
+    quote! { ::std::path::PathBuf::from(#s) }
   }
 
   /// Create a map constructor, mapping keys and values with other `TokenStream`s.
@@ -612,8 +634,8 @@ mod build {
 
       tokens.append_all(match self {
         Self::App(path) => {
-          let path = path.to_string_lossy().to_string();
-          quote! { #prefix::App(::std::path::PathBuf::from(#path)) }
+          let path = path_buf_lit(&path);
+          quote! { #prefix::App(#path) }
         }
         Self::External(url) => {
           let url = url.as_str();
@@ -779,6 +801,22 @@ mod build {
     }
   }
 
+  impl ToTokens for AppUrl {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::api::config::AppUrl };
+
+      tokens.append_all(match self {
+        Self::Url(url) => {
+          quote! { #prefix::Url(#url) }
+        }
+        Self::Files(files) => {
+          let files = vec_lit(files, path_buf_lit);
+          quote! { #prefix::Files(#files) }
+        }
+      })
+    }
+  }
+
   impl ToTokens for BuildConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let dev_path = &self.dev_path;
@@ -810,8 +848,7 @@ mod build {
 
   impl ToTokens for SystemTrayConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let icon_path = self.icon_path.to_string_lossy().to_string();
-      let icon_path = quote! { ::std::path::PathBuf::from(#icon_path) };
+      let icon_path = path_buf_lit(&self.icon_path);
       literal_struct!(tokens, SystemTrayConfig, icon_path);
     }
   }
@@ -936,8 +973,10 @@ mod test {
 
     // create a build config
     let build = BuildConfig {
-      dev_path: WindowUrl::External(Url::parse("http://localhost:8080").unwrap()),
-      dist_dir: WindowUrl::App("../dist".into()),
+      dev_path: AppUrl::Url(WindowUrl::External(
+        Url::parse("http://localhost:8080").unwrap(),
+      )),
+      dist_dir: AppUrl::Url(WindowUrl::App("../dist".into())),
       with_global_tauri: false,
     };
 
@@ -948,7 +987,9 @@ mod test {
     assert_eq!(d_updater, tauri.updater);
     assert_eq!(
       d_path,
-      WindowUrl::External(Url::parse("http://localhost:8080").unwrap())
+      AppUrl::Url(WindowUrl::External(
+        Url::parse("http://localhost:8080").unwrap()
+      ))
     );
     assert_eq!(d_title, tauri.windows[0].title);
     assert_eq!(d_windows, tauri.windows);

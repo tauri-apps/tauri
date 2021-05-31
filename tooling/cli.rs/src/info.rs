@@ -545,10 +545,10 @@ impl Info {
           })
           .display();
         InfoBlock::new("distDir")
-          .value(config.build.dist_dir.clone())
+          .value(config.build.dist_dir.to_string())
           .display();
         InfoBlock::new("devPath")
-          .value(config.build.dev_path.clone())
+          .value(config.build.dev_path.to_string())
           .display();
       }
       if let Ok(package_json) = read_to_string(app_dir.join("package.json")) {

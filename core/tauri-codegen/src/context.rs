@@ -6,7 +6,7 @@ use crate::embedded_assets::{AssetOptions, EmbeddedAssets, EmbeddedAssetsError};
 use proc_macro2::TokenStream;
 use quote::quote;
 use std::path::PathBuf;
-use tauri_utils::config::{Config, WindowUrl};
+use tauri_utils::config::{AppUrl, Config, WindowUrl};
 
 /// Necessary data needed by [`context_codegen`] to generate code for a Tauri application context.
 pub struct ContextData {
@@ -24,42 +24,45 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     config_parent,
     root,
   } = data;
+
+  let mut options = AssetOptions::new();
+  if let Some(csp) = &config.tauri.security.csp {
+    options = options.csp(csp.clone());
+  }
+
   let app_url = if dev {
     &config.build.dev_path
   } else {
     &config.build.dist_dir
   };
-  let assets_path = match app_url {
-    WindowUrl::External(_) => None,
-    WindowUrl::App(path) => {
-      if path.components().count() == 0 {
-        panic!(
-          "The `{}` configuration cannot be empty",
-          if dev { "devPath" } else { "distDir" }
-        )
-      }
-      let assets_path = config_parent.join(path);
-      if !assets_path.exists() {
-        panic!(
-          "The `{}` configuration is set to `{:?}` but this path doesn't exist",
-          if dev { "devPath" } else { "distDir" },
-          path
-        )
-      }
-      Some(assets_path)
-    }
-    _ => unimplemented!(),
-  };
 
-  // generate the assets inside the dist dir into a perfect hash function
-  let assets = if let Some(assets_path) = assets_path {
-    let mut options = AssetOptions::new();
-    if let Some(csp) = &config.tauri.security.csp {
-      options = options.csp(csp.clone());
-    }
-    EmbeddedAssets::new(&assets_path, options)?
-  } else {
-    Default::default()
+  let assets = match app_url {
+    AppUrl::Url(url) => match url {
+      WindowUrl::External(_) => Default::default(),
+      WindowUrl::App(path) => {
+        if path.components().count() == 0 {
+          panic!(
+            "The `{}` configuration cannot be empty",
+            if dev { "devPath" } else { "distDir" }
+          )
+        }
+        let assets_path = config_parent.join(path);
+        if !assets_path.exists() {
+          panic!(
+            "The `{}` configuration is set to `{:?}` but this path doesn't exist",
+            if dev { "devPath" } else { "distDir" },
+            path
+          )
+        }
+        EmbeddedAssets::new(&assets_path, options)?
+      }
+      _ => unimplemented!(),
+    },
+    AppUrl::Files(files) => EmbeddedAssets::load_paths(
+      files.iter().map(|p| config_parent.join(p)).collect(),
+      options,
+    )?,
+    _ => unimplemented!(),
   };
 
   // handle default window icons for Windows targets

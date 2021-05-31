@@ -3,7 +3,6 @@
     "distDir": "../dist",
     "devPath": "http://localhost:4000"
   },
-  "ctx": {},
   "tauri": {
     "bundle": {
       "identifier": "studio.tauri.example",

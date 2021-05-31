@@ -34,7 +34,7 @@ const vite: Recipe = {
     ...cfg,
     distDir: `../dist`,
     devPath: 'http://localhost:3000',
-    beforeDevCommand: `${packageManager === 'yarn' ? 'yarn' : 'npm run'} start`,
+    beforeDevCommand: `${packageManager === 'yarn' ? 'yarn' : 'npm run'} dev`,
     beforeBuildCommand: `${
       packageManager === 'yarn' ? 'yarn' : 'npm run'
     } build`

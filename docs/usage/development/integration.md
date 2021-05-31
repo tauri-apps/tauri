@@ -86,32 +86,32 @@ Which should return something like:
 Operating System - Darwin(16.7.0) - darwin/x64
 
 Node.js environment
-  Node.js - 12.14.0
-  tauri.js - 0.2.1
-
-Rust environment
-  rustc - 1.40.0
-  cargo - 1.40.0
-  tauri-cli - 0.1.2
+  Node.js - 12.16.3
+  @tauri-apps/cli - 1.0.0-beta.2
+  @tauri-apps/api - 1.0.0-beta.1
 
 Global packages
-  NPM - 6.13.4
-  yarn - 1.21.1
+  npm - 6.14.4
+  yarn - 1.22.4
+
+Rust environment
+  rustc - 1.52.1
+  cargo - 1.52.0
 
 App directory structure
-/.quasar
-/build-tauri
-/dist
 /node_modules
+/src-tauri
 /src
+/public
 
 App
-  tauri - 0.3.0
+  tauri.rs - 1.0.0-beta.1
   build-type - bundle
-  CSP - default-src data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'
-  Windows - Edge
-  distDir - ../dist/spa
-  devPath - http://localhost:7334
+  CSP - default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'
+  distDir - ../public
+  devPath - ../public
+  framework - Svelte
+  bundler - Rollup
 ```
 
 This information can be very helpful when triaging problems.

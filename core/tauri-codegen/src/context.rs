@@ -38,7 +38,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 
   let assets = match app_url {
     AppUrl::Url(url) => match url {
-      WindowUrl::External(_) => None,
+      WindowUrl::External(_) => Default::default(),
       WindowUrl::App(path) => {
         if path.components().count() == 0 {
           panic!(
@@ -54,14 +54,14 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
             path
           )
         }
-        Some(EmbeddedAssets::new(&assets_path, options)?)
+        EmbeddedAssets::new(&assets_path, options)?
       }
       _ => unimplemented!(),
     },
-    AppUrl::Files(files) => Some(EmbeddedAssets::load_paths(
+    AppUrl::Files(files) => EmbeddedAssets::load_paths(
       files.iter().map(|p| config_parent.join(p)).collect(),
       options,
-    )?),
+    )?,
     _ => unimplemented!(),
   };
 

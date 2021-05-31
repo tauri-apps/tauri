@@ -634,8 +634,8 @@ mod build {
 
       tokens.append_all(match self {
         Self::App(path) => {
-          let path = path.to_string_lossy().to_string();
-          quote! { #prefix::App(::std::path::PathBuf::from(#path)) }
+          let path = path_buf_lit(&path);
+          quote! { #prefix::App(#path) }
         }
         Self::External(url) => {
           let url = url.as_str();
@@ -848,8 +848,7 @@ mod build {
 
   impl ToTokens for SystemTrayConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let icon_path = self.icon_path.to_string_lossy().to_string();
-      let icon_path = quote! { ::std::path::PathBuf::from(#icon_path) };
+      let icon_path = path_buf_lit(&self.icon_path);
       literal_struct!(tokens, SystemTrayConfig, icon_path);
     }
   }

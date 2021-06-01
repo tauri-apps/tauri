@@ -5,7 +5,7 @@
 use crate::embedded_assets::{AssetOptions, EmbeddedAssets, EmbeddedAssetsError};
 use proc_macro2::TokenStream;
 use quote::quote;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri_utils::config::{AppUrl, Config, WindowUrl};
 
 /// Necessary data needed by [`context_codegen`] to generate code for a Tauri application context.
@@ -67,15 +67,20 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 
   // handle default window icons for Windows targets
   let default_window_icon = if cfg!(windows) {
-    let icon_path = config
-      .tauri
-      .bundle
-      .icon
-      .iter()
-      .find(|i| i.ends_with(".ico"))
-      .cloned()
-      .unwrap_or_else(|| "icons/icon.ico".to_string());
-    let icon_path = config_parent.join(icon_path).display().to_string();
+    let icon_path = find_icon(
+      &config,
+      &config_parent,
+      |i| i.ends_with(".ico"),
+      "icons/icon.ico",
+    );
+    quote!(Some(include_bytes!(#icon_path).to_vec()))
+  } else if cfg!(target_os = "linux") {
+    let icon_path = find_icon(
+      &config,
+      &config_parent,
+      |i| i.ends_with(".png"),
+      "icons/icon.png",
+    );
     quote!(Some(include_bytes!(#icon_path).to_vec()))
   } else {
     quote!(None)
@@ -147,4 +152,21 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     #system_tray_icon,
     #package_info,
   )))
+}
+
+fn find_icon<F: Fn(&&String) -> bool>(
+  config: &Config,
+  config_parent: &Path,
+  predicate: F,
+  default: &str,
+) -> String {
+  let icon_path = config
+    .tauri
+    .bundle
+    .icon
+    .iter()
+    .find(|i| predicate(i))
+    .cloned()
+    .unwrap_or_else(|| default.to_string());
+  config_parent.join(icon_path).display().to_string()
 }

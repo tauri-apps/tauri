@@ -22,6 +22,9 @@ infer = "0.4"
 ico = "0.1"
 winapi = "0.3"
 
+[target."cfg(target_os = \"linux\")".dependencies]
+png = "0.16"
+
 [features]
 dox = [ "wry/dox" ]
 menu = [ "wry/menu", "tauri-runtime/menu" ]

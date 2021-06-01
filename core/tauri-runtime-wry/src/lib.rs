@@ -99,6 +99,17 @@ impl TryFrom<Icon> for WryIcon {
         .map_err(icon_err)?;
         Ok(Self(icon))
       }
+      #[cfg(target_os = "linux")]
+      "png" => {
+        let decoder = png::Decoder::new(std::io::Cursor::new(image_bytes));
+        let (info, mut reader) = decoder.read_info().map_err(icon_err)?;
+        let mut buffer = Vec::new();
+        while let Ok(Some(row)) = reader.next_row() {
+          buffer.extend(row);
+        }
+        let icon = WindowIcon::from_rgba(buffer, info.width, info.height).map_err(icon_err)?;
+        Ok(Self(icon))
+      }
       _ => panic!(
         "image `{}` extension not supported; please file a Tauri feature request",
         extension

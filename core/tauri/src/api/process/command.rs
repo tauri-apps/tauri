@@ -7,7 +7,7 @@ use std::{
   io::{BufRead, BufReader, Write},
   path::PathBuf,
   process::{Command as StdCommand, Stdio},
-  sync::Arc,
+  sync::{Arc, Mutex},
 };
 
 #[cfg(unix)]
@@ -23,6 +23,22 @@ use os_pipe::{pipe, PipeWriter};
 use serde::Serialize;
 use shared_child::SharedChild;
 use tauri_utils::platform;
+
+type ChildStore = Arc<Mutex<HashMap<u32, Arc<SharedChild>>>>;
+
+fn commands() -> &'static ChildStore {
+  use once_cell::sync::Lazy;
+  static STORE: Lazy<ChildStore> = Lazy::new(Default::default);
+  &STORE
+}
+
+/// Kill all child process created with [`Command`].
+/// By default it's called before the [`crate::App`] exits.
+pub fn kill_children() {
+  for child in commands().lock().unwrap().values() {
+    let _ = child.kill();
+  }
+}
 
 /// Payload for the `Terminated` command event.
 #[derive(Debug, Clone, Serialize)]
@@ -220,6 +236,8 @@ impl Command {
     let child_ = child.clone();
     let guard = Arc::new(RwLock::new(()));
 
+    commands().lock().unwrap().insert(child.id(), child.clone());
+
     let (tx, rx) = channel(1);
 
     let tx_ = tx.clone();
@@ -252,6 +270,7 @@ impl Command {
       let _ = match child_.wait() {
         Ok(status) => {
           guard.write().await;
+          commands().lock().unwrap().remove(&child_.id());
           tx.send(CommandEvent::Terminated(TerminatedPayload {
             code: status.code(),
             #[cfg(windows)]

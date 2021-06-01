@@ -55,6 +55,7 @@ http = "0.2"
 state = "0.4"
 bincode = "1.3"
 dirs-next = "2.0"
+percent-encoding = "2.1"
 
 # FS
 base64 = { version = "0.13", optional = true } # also used on the updater

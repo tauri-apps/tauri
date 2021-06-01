@@ -215,7 +215,7 @@ impl<P: Params> App<P> {
   /// }
   #[cfg(any(target_os = "windows", target_os = "macos"))]
   pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
-    self.runtime.run_iteration()
+    self.runtime.as_mut().unwrap().run_iteration()
   }
 }
 

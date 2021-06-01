@@ -81,7 +81,7 @@
 
 <main>
   <div class="flex row noselect just-around" style="margin=1em;" data-tauri-drag-region>
-    <img src="tauri.png" height="60" on:click={onLogoClick} alt="logo" />
+    <img src="tauri logo.png" height="60" on:click={onLogoClick} alt="logo" />
     <div>
       <a class="dark-link" target="_blank" href="https://tauri.studio/en/docs/getting-started/intro">
         Documentation

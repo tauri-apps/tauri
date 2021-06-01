@@ -35,6 +35,40 @@ pub trait MenuId: Serialize + Hash + Eq + Debug + Clone + Send + Sync + 'static 
 
 impl<T> MenuId for T where T: Serialize + Hash + Eq + Debug + Clone + Send + Sync + 'static {}
 
+#[cfg(feature = "system-tray")]
+pub struct SystemTray<I: MenuId> {
+  menu: Option<menu::SystemTrayMenu<I>>,
+}
+
+#[cfg(feature = "system-tray")]
+impl<I: MenuId> Default for SystemTray<I> {
+  fn default() -> Self {
+    Self { menu: None }
+  }
+}
+
+#[cfg(feature = "system-tray")]
+impl<I: MenuId> SystemTray<I> {
+  /// Creates a new system tray that only renders an icon.
+  pub fn new() -> Self {
+    Default::default()
+  }
+
+  pub fn menu(&self) -> Option<&menu::SystemTrayMenu<I>> {
+    self.menu.as_ref()
+  }
+
+  pub fn take(self) -> Option<menu::SystemTrayMenu<I>> {
+    self.menu
+  }
+
+  /// Sets the menu to show when the system tray is right clicked.
+  pub fn with_menu(mut self, menu: menu::SystemTrayMenu<I>) -> Self {
+    self.menu.replace(menu);
+    self
+  }
+}
+
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
@@ -142,11 +176,7 @@ pub trait Runtime: Sized + 'static {
   /// Adds the icon to the system tray with the specified menu items.
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  fn system_tray<I: MenuId>(
-    &self,
-    icon: Icon,
-    menu: Vec<menu::SystemTrayMenuItem<I>>,
-  ) -> crate::Result<()>;
+  fn system_tray<I: MenuId>(&self, icon: Icon, system_tray: SystemTray<I>) -> crate::Result<()>;
 
   /// Registers a system tray event handler.
   #[cfg(feature = "system-tray")]

@@ -98,7 +98,7 @@ crate::manager::default_args! {
     uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
     /// The menu set to all windows.
     #[cfg(feature = "menu")]
-    menu: Vec<Menu<P::MenuId>>,
+    menu: Option<Menu<P::MenuId>>,
     /// Maps runtime id to a strongly typed menu id.
     #[cfg(feature = "menu")]
     menu_ids: HashMap<u32, P::MenuId>,
@@ -209,13 +209,11 @@ impl<P: Params> Clone for WindowManager<P> {
 }
 
 #[cfg(feature = "menu")]
-fn get_menu_ids<I: MenuId>(menu: &[Menu<I>]) -> HashMap<u32, I> {
+fn get_menu_ids<I: MenuId>(menu: &Menu<I>) -> HashMap<u32, I> {
   let mut map = HashMap::new();
-  for m in menu {
-    for item in &m.items {
-      if let MenuItem::Custom(i) = item {
-        map.insert(i.id_value(), i.id.clone());
-      }
+  for item in &menu.items {
+    if let MenuItem::Custom(i) = item {
+      map.insert(i.id_value(), i.id.clone());
     }
   }
   map
@@ -232,7 +230,7 @@ impl<P: Params> WindowManager<P> {
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<P>>,
     #[cfg(feature = "menu")] (menu, menu_event_listeners): (
-      Vec<Menu<P::MenuId>>,
+      Option<Menu<P::MenuId>>,
       Vec<GlobalMenuEventListener<P>>,
     ),
   ) -> Self {
@@ -251,7 +249,11 @@ impl<P: Params> WindowManager<P> {
         package_info: context.package_info,
         uri_scheme_protocols,
         #[cfg(feature = "menu")]
-        menu_ids: get_menu_ids(&menu),
+        menu_ids: if let Some(menu) = &menu {
+          get_menu_ids(menu)
+        } else {
+          Default::default()
+        },
         #[cfg(feature = "menu")]
         menu,
         #[cfg(feature = "menu")]
@@ -329,7 +331,9 @@ impl<P: Params> WindowManager<P> {
 
     #[cfg(feature = "menu")]
     if !pending.window_builder.has_menu() {
-      pending.window_builder = pending.window_builder.menu(self.inner.menu.clone());
+      if let Some(menu) = &self.inner.menu {
+        pending.window_builder = pending.window_builder.menu(menu.clone());
+      }
     }
 
     for (uri_scheme, protocol) in &self.inner.uri_scheme_protocols {

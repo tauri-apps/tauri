@@ -90,7 +90,13 @@ pub use {
 };
 #[cfg(feature = "system-tray")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-pub use {self::app::SystemTrayEvent, self::runtime::menu::SystemTrayMenuItem};
+pub use {
+  self::app::SystemTrayEvent,
+  self::runtime::{
+    menu::{SystemTrayMenu, SystemTrayMenuItem},
+    SystemTray,
+  },
+};
 #[cfg(feature = "menu")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
 pub use {

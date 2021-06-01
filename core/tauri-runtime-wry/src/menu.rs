@@ -3,13 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 pub use tauri_runtime::{
-  menu::{CustomMenuItem, Menu, MenuItem, SystemTrayMenuItem},
+  menu::{CustomMenuItem, Menu, MenuItem, SystemTrayMenu, SystemTrayMenuItem},
   window::MenuEvent,
   MenuId, SystemTrayEvent,
 };
 pub use wry::application::menu::{
-  CustomMenu as WryCustomMenu, Menu as WryMenu, MenuId as WryMenuId, MenuItem as WryMenuItem,
-  MenuType,
+  ContextMenu as WryContextMenu, MenuBar, MenuId as WryMenuId, MenuItem as WryMenuItem, MenuType,
 };
 
 use uuid::Uuid;
@@ -24,24 +23,18 @@ pub type MenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
 pub type SystemTrayEventHandler = Box<dyn Fn(&SystemTrayEvent) + Send>;
 pub type SystemTrayEventListeners = Arc<Mutex<HashMap<Uuid, SystemTrayEventHandler>>>;
 
-pub struct CustomMenuWrapper(pub WryCustomMenu);
-
-impl<I: MenuId> From<CustomMenuItem<I>> for CustomMenuWrapper {
-  fn from(item: CustomMenuItem<I>) -> Self {
-    Self(WryCustomMenu {
-      id: WryMenuId(item.id_value()),
-      name: item.name,
-      keyboard_accelerators: None,
-    })
-  }
-}
-
 pub struct MenuItemWrapper(pub WryMenuItem);
 
 impl<I: MenuId> From<MenuItem<I>> for MenuItemWrapper {
   fn from(item: MenuItem<I>) -> Self {
     match item {
-      MenuItem::Custom(custom) => Self(WryMenuItem::Custom(CustomMenuWrapper::from(custom).0)),
+      MenuItem::Custom(custom) => Self(WryMenuItem::Custom {
+        menu_id: WryMenuId(custom.id_value()),
+        text: custom.name,
+        enabled: true,
+        keyboard_accelerator: None,
+        selected: false,
+      }),
       MenuItem::About(v) => Self(WryMenuItem::About(v)),
       MenuItem::Hide => Self(WryMenuItem::Hide),
       MenuItem::Services => Self(WryMenuItem::Services),
@@ -64,27 +57,16 @@ impl<I: MenuId> From<MenuItem<I>> for MenuItemWrapper {
   }
 }
 
-pub struct MenuWrapper(pub WryMenu);
-
-impl<I: MenuId> From<Menu<I>> for MenuWrapper {
-  fn from(menu: Menu<I>) -> Self {
-    Self(WryMenu {
-      title: menu.title,
-      items: menu
-        .items
-        .into_iter()
-        .map(|m| MenuItemWrapper::from(m).0)
-        .collect(),
-    })
-  }
-}
-
 impl<I: MenuId> From<SystemTrayMenuItem<I>> for MenuItemWrapper {
   fn from(item: SystemTrayMenuItem<I>) -> Self {
     match item {
-      SystemTrayMenuItem::Custom(custom) => {
-        Self(WryMenuItem::Custom(CustomMenuWrapper::from(custom).0))
-      }
+      SystemTrayMenuItem::Custom(custom) => Self(WryMenuItem::Custom {
+        menu_id: WryMenuId(custom.id_value()),
+        text: custom.name,
+        enabled: true,
+        keyboard_accelerator: None,
+        selected: false,
+      }),
       SystemTrayMenuItem::Separator => Self(WryMenuItem::Separator),
       _ => unimplemented!(),
     }

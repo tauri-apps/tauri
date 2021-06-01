@@ -9,17 +9,13 @@ use super::MenuId;
 /// A window menu.
 #[derive(Debug, Clone)]
 pub struct Menu<I: MenuId> {
-  pub title: String,
   pub items: Vec<MenuItem<I>>,
 }
 
 impl<I: MenuId> Menu<I> {
   /// Creates a new window menu with the given title and items.
-  pub fn new<T: Into<String>>(title: T, items: Vec<MenuItem<I>>) -> Self {
-    Self {
-      title: title.into(),
-      items,
-    }
+  pub fn new(items: Vec<MenuItem<I>>) -> Self {
+    Self { items }
   }
 }
 
@@ -42,6 +38,19 @@ impl<I: MenuId> CustomMenuItem<I> {
     let mut s = DefaultHasher::new();
     self.id.hash(&mut s);
     s.finish() as u32
+  }
+}
+
+/// A system tray menu.
+#[derive(Debug, Clone)]
+pub struct SystemTrayMenu<I: MenuId> {
+  pub items: Vec<SystemTrayMenuItem<I>>,
+}
+
+impl<I: MenuId> SystemTrayMenu<I> {
+  /// Creates a new window menu with the given title and items.
+  pub fn new(items: Vec<SystemTrayMenuItem<I>>) -> Self {
+    Self { items }
   }
 }
 

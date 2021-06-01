@@ -23,7 +23,10 @@ use std::{collections::HashMap, sync::Arc};
 #[cfg(feature = "menu")]
 use crate::runtime::menu::Menu;
 #[cfg(feature = "system-tray")]
-use crate::runtime::{menu::SystemTrayMenuItem, Icon};
+use crate::runtime::{
+  menu::{SystemTrayMenu, SystemTrayMenuItem},
+  Icon, SystemTray,
+};
 
 #[cfg(feature = "updater")]
 use crate::updater;
@@ -312,7 +315,7 @@ where
 
   /// The menu set to all windows.
   #[cfg(feature = "menu")]
-  menu: Vec<Menu<MID>>,
+  menu: Option<Menu<MID>>,
 
   /// Menu event handlers that listens to all windows.
   #[cfg(feature = "menu")]
@@ -321,9 +324,9 @@ where
   /// Window event handlers that listens to all windows.
   window_event_listeners: Vec<GlobalWindowEventListener<Args<E, L, MID, TID, A, R>>>,
 
-  /// The app system tray menu items.
+  /// The app system tray.
   #[cfg(feature = "system-tray")]
-  system_tray: Vec<SystemTrayMenuItem<TID>>,
+  system_tray: Option<SystemTray<TID>>,
 
   /// System tray event handlers.
   #[cfg(feature = "system-tray")]
@@ -353,12 +356,12 @@ where
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
       #[cfg(feature = "menu")]
-      menu: Vec::new(),
+      menu: None,
       #[cfg(feature = "menu")]
       menu_event_listeners: Vec::new(),
       window_event_listeners: Vec::new(),
       #[cfg(feature = "system-tray")]
-      system_tray: Vec::new(),
+      system_tray: None,
       #[cfg(feature = "system-tray")]
       system_tray_event_listeners: Vec::new(),
       #[cfg(shell_execute)]
@@ -514,16 +517,16 @@ where
   /// Adds the icon configured on `tauri.conf.json` to the system tray with the specified menu items.
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  pub fn system_tray(mut self, items: Vec<SystemTrayMenuItem<TID>>) -> Self {
-    self.system_tray = items;
+  pub fn system_tray(mut self, system_tray: SystemTray<TID>) -> Self {
+    self.system_tray.replace(system_tray);
     self
   }
 
   /// Sets the menu to use on all windows.
   #[cfg(feature = "menu")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-  pub fn menu(mut self, menu: Vec<Menu<MID>>) -> Self {
-    self.menu = menu;
+  pub fn menu(mut self, menu: Menu<MID>) -> Self {
+    self.menu.replace(menu);
     self
   }
 
@@ -606,8 +609,8 @@ where
     let system_tray_icon = {
       let icon = context.system_tray_icon.clone();
 
-      // check the icon format if the system tray is supposed to be ran
-      if !self.system_tray.is_empty() {
+      // check the icon format if the system tray is configured
+      if self.system_tray.is_some() {
         use std::io::{Error, ErrorKind};
         #[cfg(target_os = "linux")]
         if let Some(Icon::Raw(_)) = icon {
@@ -690,15 +693,19 @@ where
     (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e))?;
 
     #[cfg(feature = "system-tray")]
-    if !self.system_tray.is_empty() {
-      let ids = get_menu_ids(&self.system_tray);
+    if let Some(system_tray) = self.system_tray {
+      let ids = if let Some(menu) = system_tray.menu() {
+        get_menu_ids(menu)
+      } else {
+        Default::default()
+      };
       app
         .runtime
         .as_ref()
         .unwrap()
         .system_tray(
           system_tray_icon.expect("tray icon not found; please configure it on tauri.conf.json"),
-          self.system_tray,
+          system_tray,
         )
         .expect("failed to run tray");
       for listener in self.system_tray_event_listeners {
@@ -732,9 +739,9 @@ where
 }
 
 #[cfg(feature = "system-tray")]
-fn get_menu_ids<I: MenuId>(items: &[SystemTrayMenuItem<I>]) -> HashMap<u32, I> {
+fn get_menu_ids<I: MenuId>(menu: &SystemTrayMenu<I>) -> HashMap<u32, I> {
   let mut map = HashMap::new();
-  for item in items {
+  for item in &menu.items {
     if let SystemTrayMenuItem::Custom(i) = item {
       map.insert(i.id_value(), i.id.clone());
     }

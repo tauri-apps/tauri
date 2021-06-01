@@ -19,7 +19,7 @@ use tauri_runtime::{
 #[cfg(feature = "menu")]
 use tauri_runtime::window::MenuEvent;
 #[cfg(feature = "system-tray")]
-use tauri_runtime::SystemTrayEvent;
+use tauri_runtime::{SystemTray, SystemTrayEvent};
 #[cfg(windows)]
 use winapi::shared::windef::HWND;
 #[cfg(feature = "system-tray")]
@@ -280,15 +280,12 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   #[cfg(feature = "menu")]
-  fn menu<I: MenuId>(self, menu: Vec<Menu<I>>) -> Self {
-    Self(
-      self.0.with_menu(
-        menu
-          .into_iter()
-          .map(|m| MenuWrapper::from(m).0)
-          .collect::<Vec<WryMenu>>(),
-      ),
-    )
+  fn menu<I: MenuId>(self, menu: Menu<I>) -> Self {
+    let mut wry_menu = MenuBar::new();
+    for i in menu.items {
+      wry_menu.add_item(MenuItemWrapper::from(i).0);
+    }
+    Self(self.0.with_menu(wry_menu))
   }
 
   fn position(self, x: f64, y: f64) -> Self {
@@ -965,13 +962,7 @@ impl Runtime for Wry {
   }
 
   #[cfg(feature = "system-tray")]
-  fn system_tray<I: MenuId>(
-    &self,
-    icon: Icon,
-    menu_items: Vec<SystemTrayMenuItem<I>>,
-  ) -> Result<()> {
-    // todo: fix this interface in Tao to an enum similar to Icon
-
+  fn system_tray<I: MenuId>(&self, icon: Icon, system_tray: SystemTray<I>) -> Result<()> {
     // we expect the code that passes the Icon enum to have already checked the platform.
     let icon = match icon {
       #[cfg(target_os = "linux")]
@@ -987,20 +978,24 @@ impl Runtime for Wry {
 
       #[cfg(not(target_os = "linux"))]
       Icon::File(_) => {
-        panic!("non-linux system menu icons must be bytes, not a file path",)
+        panic!("non-linux system menu icons must be bytes, not a file path")
       }
       _ => unreachable!(),
     };
 
-    SystemTrayBuilder::new(
-      icon,
-      menu_items
-        .into_iter()
-        .map(|m| MenuItemWrapper::from(m).0)
-        .collect(),
-    )
-    .build(&self.event_loop)
-    .map_err(|e| Error::SystemTray(Box::new(e)))?;
+    let tray_menu = if let Some(menu) = system_tray.take() {
+      let mut tray_menu = WryContextMenu::new();
+      for i in menu.items {
+        tray_menu.add_item(MenuItemWrapper::from(i).0);
+      }
+      Some(tray_menu)
+    } else {
+      None
+    };
+    SystemTrayBuilder::new(icon, tray_menu)
+      .build(&self.event_loop)
+      .map_err(|e| Error::SystemTray(Box::new(e)))?;
+
     Ok(())
   }
 
@@ -1122,7 +1117,7 @@ fn handle_event_loop(
     #[cfg(feature = "menu")]
     Event::MenuEvent {
       menu_id,
-      origin: MenuType::Menubar,
+      origin: MenuType::MenuBar,
     } => {
       let event = MenuEvent {
         menu_item_id: menu_id.0,
@@ -1134,7 +1129,7 @@ fn handle_event_loop(
     #[cfg(feature = "system-tray")]
     Event::MenuEvent {
       menu_id,
-      origin: MenuType::SystemTray,
+      origin: MenuType::ContextMenu,
     } => {
       let event = SystemTrayEvent {
         menu_item_id: menu_id.0,

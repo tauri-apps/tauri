@@ -4,7 +4,7 @@
 
 use tauri::{CustomMenuItem, Menu, MenuItem};
 
-pub fn get_menu() -> Vec<Menu<String>> {
+pub fn get_menu() -> Menu<String>> {
   let other_test_menu = MenuItem::Custom(CustomMenuItem::new("custom".into(), "Custom"));
   let quit_menu = MenuItem::Custom(CustomMenuItem::new("quit".into(), "Quit"));
 

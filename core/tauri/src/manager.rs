@@ -406,6 +406,9 @@ impl<P: Params> WindowManager<P> {
         if path.ends_with('/') {
           path.pop();
         }
+        path = percent_encoding::percent_decode(path.as_bytes())
+          .decode_utf8_lossy()
+          .to_string();
         let path = if path.is_empty() {
           // if the url is `tauri://localhost`, we should load `index.html`
           "index.html".to_string()

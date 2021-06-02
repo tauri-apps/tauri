@@ -56,7 +56,7 @@ jobs:
       # TypeScript
       - name: install API deps
         working-directory: ./tauri/tooling/api
-        run: yarn build
+        run: yarn
       - name: run typedocusaurus
         uses: tauri-apps/typedocusaurus@v1
         with:

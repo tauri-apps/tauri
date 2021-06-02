@@ -1071,35 +1071,32 @@ fn create_webview<P: Params<Runtime = Wry>>(
     ..
   } = pending;
 
+  let application = wry::application::Application::new(webview_attributes.data_directory);
   let is_window_transparent = window_builder.0.window.transparent;
   let window = window_builder.0.build(event_loop).unwrap();
-  let mut webview_builder = WebViewBuilder::new(window)
-    .map_err(|e| Error::CreateWebview(Box::new(e)))?
-    .with_url(&url)
+  let mut webview_builder = wry::Builder::with_window(&event_loop, window)
+    .url(&url)
     .unwrap() // safe to unwrap because we validate the URL beforehand
-    .with_transparent(is_window_transparent);
+    .transparent(is_window_transparent);
   if let Some(handler) = rpc_handler {
     webview_builder =
-      webview_builder.with_rpc_handler(create_rpc_handler(context.clone(), label.clone(), handler));
+      webview_builder.rpc_handler(create_rpc_handler(context.clone(), label.clone(), handler));
   }
   if let Some(handler) = file_drop_handler {
     webview_builder =
-      webview_builder.with_file_drop_handler(create_file_drop_handler(context, label, handler));
+      webview_builder.file_drop_handler(create_file_drop_handler(context, label, handler));
   }
   for (scheme, protocol) in webview_attributes.uri_scheme_protocols {
-    webview_builder = webview_builder.with_custom_protocol(scheme, move |_window, url| {
+    webview_builder = webview_builder.custom_protocol(scheme, move |_window, url| {
       protocol(url).map_err(|_| wry::Error::InitScriptError)
     });
   }
-  if let Some(data_directory) = webview_attributes.data_directory {
-    webview_builder = webview_builder.with_data_directory(data_directory);
-  }
   for script in webview_attributes.initialization_scripts {
-    webview_builder = webview_builder.with_initialization_script(&script);
+    webview_builder = webview_builder.initialization_script(&script);
   }
 
   webview_builder
-    .build()
+    .build(&application)
     .map_err(|e| Error::CreateWebview(Box::new(e)))
 }
 

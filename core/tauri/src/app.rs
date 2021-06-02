@@ -25,7 +25,8 @@ use crate::runtime::menu::Menu;
 #[cfg(feature = "system-tray")]
 use crate::runtime::{
   menu::{SystemTrayMenu, SystemTrayMenuEntry},
-  Icon, SystemTray,
+  window::dpi::{PhysicalPosition, PhysicalSize},
+  Icon, SystemTray, SystemTrayEvent as RuntimeSystemTrayEvent,
 };
 
 #[cfg(feature = "updater")]
@@ -41,16 +42,52 @@ type SystemTrayEventListener<P> =
 /// System tray event.
 #[cfg(feature = "system-tray")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-pub struct SystemTrayEvent<I: MenuId> {
-  menu_item_id: I,
-}
-
-#[cfg(feature = "system-tray")]
-impl<I: MenuId> SystemTrayEvent<I> {
-  /// The menu item id.
-  pub fn menu_item_id(&self) -> &I {
-    &self.menu_item_id
-  }
+#[non_exhaustive]
+pub enum SystemTrayEvent<I: MenuId> {
+  /// Tray context menu item was clicked.
+  #[non_exhaustive]
+  MenuItemClick {
+    /// The id of the menu item.
+    id: I,
+  },
+  /// Tray icon received a left click.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** Unsupported
+  #[non_exhaustive]
+  LeftClick {
+    /// The position of the tray icon.
+    position: PhysicalPosition<f64>,
+    /// The size of the tray icon.
+    size: PhysicalSize<f64>,
+  },
+  /// Tray icon received a right click.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** Unsupported
+  /// - **macOS:** `Ctrl` + `Left click` fire this event.
+  #[non_exhaustive]
+  RightClick {
+    /// The position of the tray icon.
+    position: PhysicalPosition<f64>,
+    /// The size of the tray icon.
+    size: PhysicalSize<f64>,
+  },
+  /// Fired when a menu item receive a `Double click`
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / Linux:** Unsupported
+  ///
+  #[non_exhaustive]
+  DoubleClick {
+    /// The position of the tray icon.
+    position: PhysicalPosition<f64>,
+    /// The size of the tray icon.
+    size: PhysicalSize<f64>,
+  },
 }
 
 crate::manager::default_args! {
@@ -717,10 +754,30 @@ where
           .unwrap()
           .on_system_tray_event(move |event| {
             let app_handle = app_handle.clone();
-            let menu_item_id = ids.get(&event.menu_item_id).unwrap().clone();
+            let event = match event {
+              RuntimeSystemTrayEvent::MenuItemClick(id) => SystemTrayEvent::MenuItemClick {
+                id: ids.get(&id).unwrap().clone(),
+              },
+              RuntimeSystemTrayEvent::LeftClick { position, size } => SystemTrayEvent::LeftClick {
+                position: *position,
+                size: *size,
+              },
+              RuntimeSystemTrayEvent::RightClick { position, size } => {
+                SystemTrayEvent::RightClick {
+                  position: *position,
+                  size: *size,
+                }
+              }
+              RuntimeSystemTrayEvent::DoubleClick { position, size } => {
+                SystemTrayEvent::DoubleClick {
+                  position: *position,
+                  size: *size,
+                }
+              }
+            };
             let listener = listener.clone();
             crate::async_runtime::spawn(async move {
-              listener.lock().unwrap()(&app_handle, SystemTrayEvent { menu_item_id });
+              listener.lock().unwrap()(&app_handle, event);
             });
           });
       }

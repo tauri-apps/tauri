@@ -830,7 +830,7 @@ fn on_window_event<P: Params>(window: &Window<P>, event: &WindowEvent) -> crate:
         .unwrap_or_else(|_| panic!("unhandled event")),
       Some(ScaleFactorChanged {
         scale_factor: *scale_factor,
-        size: new_inner_size.clone(),
+        size: *new_inner_size,
       }),
     )?,
     _ => unimplemented!(),

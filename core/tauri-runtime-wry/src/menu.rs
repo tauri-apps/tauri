@@ -10,9 +10,12 @@ pub use tauri_runtime::{
   window::MenuEvent,
   MenuId, SystemTrayEvent,
 };
-pub use wry::application::menu::{
-  ContextMenu as WryContextMenu, CustomMenuItem as WryCustomMenuItem, MenuBar, MenuId as WryMenuId,
-  MenuItem as WryMenuItem, MenuType,
+pub use wry::application::{
+  event::TrayEvent,
+  menu::{
+    ContextMenu as WryContextMenu, CustomMenuItem as WryCustomMenuItem, MenuBar,
+    MenuId as WryMenuId, MenuItem as WryMenuItem, MenuType,
+  },
 };
 
 use uuid::Uuid;

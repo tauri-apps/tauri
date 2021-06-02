@@ -68,7 +68,7 @@ impl Pixel for f64 {
 }
 
 /// A position represented in physical pixels.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash, Serialize, Deserialize)]
 pub struct PhysicalPosition<P> {
   /// Vertical axis value.
   pub x: P,
@@ -79,7 +79,7 @@ pub struct PhysicalPosition<P> {
 impl<P: Pixel> PhysicalPosition<P> {
   /// Converts the physical position to a logical one, using the scale factor.
   #[inline]
-  pub fn to_logical<X: Pixel>(&self, scale_factor: f64) -> LogicalPosition<X> {
+  pub fn to_logical<X: Pixel>(self, scale_factor: f64) -> LogicalPosition<X> {
     assert!(validate_scale_factor(scale_factor));
     let x = self.x.into() / scale_factor;
     let y = self.y.into() / scale_factor;
@@ -88,7 +88,7 @@ impl<P: Pixel> PhysicalPosition<P> {
 }
 
 /// A position represented in logical pixels.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash, Serialize, Deserialize)]
 pub struct LogicalPosition<P> {
   /// Vertical axis value.
   pub x: P,
@@ -108,7 +108,7 @@ impl<T: Pixel> LogicalPosition<T> {
 }
 
 /// A position that's either physical or logical.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
 pub enum Position {
   /// Physical position.
@@ -118,7 +118,7 @@ pub enum Position {
 }
 
 /// A size represented in physical pixels.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash, Serialize, Deserialize)]
 pub struct PhysicalSize<T> {
   /// Width.
   pub width: T,
@@ -129,7 +129,7 @@ pub struct PhysicalSize<T> {
 impl<T: Pixel> PhysicalSize<T> {
   /// Converts the physical size to a logical one, applying the scale factor.
   #[inline]
-  pub fn to_logical<X: Pixel>(&self, scale_factor: f64) -> LogicalSize<X> {
+  pub fn to_logical<X: Pixel>(self, scale_factor: f64) -> LogicalSize<X> {
     assert!(validate_scale_factor(scale_factor));
     let width = self.width.into() / scale_factor;
     let height = self.height.into() / scale_factor;
@@ -138,7 +138,7 @@ impl<T: Pixel> PhysicalSize<T> {
 }
 
 /// A size represented in logical pixels.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash, Serialize, Deserialize)]
 pub struct LogicalSize<T> {
   /// Width.
   pub width: T,
@@ -158,7 +158,7 @@ impl<T: Pixel> LogicalSize<T> {
 }
 
 /// A size that's either physical or logical.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
 pub enum Size {
   /// Physical size.

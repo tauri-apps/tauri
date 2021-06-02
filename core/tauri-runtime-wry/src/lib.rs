@@ -1118,8 +1118,25 @@ fn handle_event_loop(
       menu_id,
       origin: MenuType::ContextMenu,
     } => {
-      let event = SystemTrayEvent {
-        menu_item_id: menu_id.0,
+      let event = SystemTrayEvent::MenuItemClick(menu_id.0);
+      for handler in system_tray_event_listeners.lock().unwrap().values() {
+        handler(&event);
+      }
+    }
+    #[cfg(feature = "system-tray")]
+    Event::TrayEvent {
+      bounds,
+      event,
+      position: _cursor_position,
+    } => {
+      let (position, size) = (
+        PhysicalPositionWrapper(bounds.position).into(),
+        PhysicalSizeWrapper(bounds.size).into(),
+      );
+      let event = match event {
+        TrayEvent::LeftClick => SystemTrayEvent::LeftClick { position, size },
+        TrayEvent::RightClick => SystemTrayEvent::RightClick { position, size },
+        TrayEvent::DoubleClick => SystemTrayEvent::DoubleClick { position, size },
       };
       for handler in system_tray_event_listeners.lock().unwrap().values() {
         handler(&event);

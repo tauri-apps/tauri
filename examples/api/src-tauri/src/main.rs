@@ -11,7 +11,9 @@ mod cmd;
 mod menu;
 
 use serde::Serialize;
-use tauri::{CustomMenuItem, Manager, SystemTray, SystemTrayMenu, WindowBuilder, WindowUrl};
+use tauri::{
+  CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder, WindowUrl,
+};
 
 #[derive(Serialize)]
 struct Reply {
@@ -44,22 +46,36 @@ fn main() {
           .add_item(CustomMenuItem::new("new".into(), "New window")),
       ),
     )
-    .on_system_tray_event(|app, event| match event.menu_item_id().as_str() {
-      "toggle" => {
+    .on_system_tray_event(|app, event| match event {
+      SystemTrayEvent::LeftClick {
+        position: _,
+        size: _,
+        ..
+      } => {
         let window = app.get_window("main").unwrap();
-        if window.is_visible().unwrap() {
-          window.hide().unwrap();
-        } else {
-          window.show().unwrap();
-        }
+        window.show().unwrap();
+        window.set_focus().unwrap();
       }
-      "new" => app
-        .create_window(
-          "new".into(),
-          WindowUrl::App("index.html".into()),
-          |window_builder, webview_attributes| (window_builder.title("Tauri"), webview_attributes),
-        )
-        .unwrap(),
+      SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
+        "toggle" => {
+          let window = app.get_window("main").unwrap();
+          if window.is_visible().unwrap() {
+            window.hide().unwrap();
+          } else {
+            window.show().unwrap();
+          }
+        }
+        "new" => app
+          .create_window(
+            "new".into(),
+            WindowUrl::App("index.html".into()),
+            |window_builder, webview_attributes| {
+              (window_builder.title("Tauri"), webview_attributes)
+            },
+          )
+          .unwrap(),
+        _ => {}
+      },
       _ => {}
     })
     .invoke_handler(tauri::generate_handler![

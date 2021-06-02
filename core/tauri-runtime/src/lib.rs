@@ -134,8 +134,20 @@ pub enum Icon {
 }
 
 /// A system tray event.
-pub struct SystemTrayEvent {
-  pub menu_item_id: u32,
+pub enum SystemTrayEvent {
+  MenuItemClick(u32),
+  LeftClick {
+    position: PhysicalPosition<f64>,
+    size: PhysicalSize<f64>,
+  },
+  RightClick {
+    position: PhysicalPosition<f64>,
+    size: PhysicalSize<f64>,
+  },
+  DoubleClick {
+    position: PhysicalPosition<f64>,
+    size: PhysicalSize<f64>,
+  },
 }
 
 /// Metadata for a runtime event loop iteration on `run_iteration`.

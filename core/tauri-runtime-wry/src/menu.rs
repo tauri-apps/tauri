@@ -3,12 +3,16 @@
 // SPDX-License-Identifier: MIT
 
 pub use tauri_runtime::{
-  menu::{CustomMenuItem, Menu, MenuItem, SystemTrayMenu, SystemTrayMenuItem},
+  menu::{
+    CustomMenuItem, Menu, MenuEntry, MenuItem, SystemTrayMenu, SystemTrayMenuEntry,
+    SystemTrayMenuItem,
+  },
   window::MenuEvent,
   MenuId, SystemTrayEvent,
 };
 pub use wry::application::menu::{
-  ContextMenu as WryContextMenu, MenuBar, MenuId as WryMenuId, MenuItem as WryMenuItem, MenuType,
+  ContextMenu as WryContextMenu, CustomMenuItem as WryCustomMenuItem, MenuBar, MenuId as WryMenuId,
+  MenuItem as WryMenuItem, MenuType,
 };
 
 use uuid::Uuid;
@@ -25,16 +29,9 @@ pub type SystemTrayEventListeners = Arc<Mutex<HashMap<Uuid, SystemTrayEventHandl
 
 pub struct MenuItemWrapper(pub WryMenuItem);
 
-impl<I: MenuId> From<MenuItem<I>> for MenuItemWrapper {
-  fn from(item: MenuItem<I>) -> Self {
+impl From<MenuItem> for MenuItemWrapper {
+  fn from(item: MenuItem) -> Self {
     match item {
-      MenuItem::Custom(custom) => Self(WryMenuItem::Custom {
-        menu_id: WryMenuId(custom.id_value()),
-        text: custom.name,
-        enabled: true,
-        keyboard_accelerator: None,
-        selected: false,
-      }),
       MenuItem::About(v) => Self(WryMenuItem::About(v)),
       MenuItem::Hide => Self(WryMenuItem::Hide),
       MenuItem::Services => Self(WryMenuItem::Services),
@@ -57,18 +54,69 @@ impl<I: MenuId> From<MenuItem<I>> for MenuItemWrapper {
   }
 }
 
-impl<I: MenuId> From<SystemTrayMenuItem<I>> for MenuItemWrapper {
-  fn from(item: SystemTrayMenuItem<I>) -> Self {
+impl From<SystemTrayMenuItem> for MenuItemWrapper {
+  fn from(item: SystemTrayMenuItem) -> Self {
     match item {
-      SystemTrayMenuItem::Custom(custom) => Self(WryMenuItem::Custom {
-        menu_id: WryMenuId(custom.id_value()),
-        text: custom.name,
-        enabled: true,
-        keyboard_accelerator: None,
-        selected: false,
-      }),
       SystemTrayMenuItem::Separator => Self(WryMenuItem::Separator),
       _ => unimplemented!(),
     }
   }
+}
+
+#[cfg(feature = "menu")]
+pub fn to_wry_menu<I: MenuId>(menu: Menu<I>) -> MenuBar {
+  let mut wry_menu = MenuBar::new();
+  for item in menu.items {
+    match item {
+      MenuEntry::CustomItem(c) => {
+        wry_menu.add_item(
+          WryCustomMenuItem::new(
+            &c.title,
+            c.keyboard_accelerator.as_deref(),
+            c.enabled,
+            c.selected,
+          )
+          .with_id(WryMenuId(c.id_value())),
+        );
+      }
+      MenuEntry::NativeItem(i) => {
+        wry_menu.add_native_item(MenuItemWrapper::from(i).0);
+      }
+      MenuEntry::Submenu(submenu) => {
+        wry_menu.add_submenu(&submenu.title, submenu.enabled, to_wry_menu(submenu.inner));
+      }
+    }
+  }
+  wry_menu
+}
+
+#[cfg(feature = "system-tray")]
+pub fn to_wry_context_menu<I: MenuId>(menu: SystemTrayMenu<I>) -> WryContextMenu {
+  let mut tray_menu = WryContextMenu::new();
+  for item in menu.items {
+    match item {
+      SystemTrayMenuEntry::CustomItem(c) => {
+        tray_menu.add_item(
+          WryCustomMenuItem::new(
+            &c.title,
+            c.keyboard_accelerator.as_deref(),
+            c.enabled,
+            c.selected,
+          )
+          .with_id(WryMenuId(c.id_value())),
+        );
+      }
+      SystemTrayMenuEntry::NativeItem(i) => {
+        tray_menu.add_native_item(MenuItemWrapper::from(i).0);
+      }
+      SystemTrayMenuEntry::Submenu(submenu) => {
+        tray_menu.add_submenu(
+          &submenu.title,
+          submenu.enabled,
+          to_wry_context_menu(submenu.inner),
+        );
+      }
+    }
+  }
+  tray_menu
 }

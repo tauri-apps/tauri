@@ -34,7 +34,7 @@ use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
 
 #[cfg(feature = "menu")]
 use crate::{
-  runtime::menu::{Menu, MenuItem},
+  runtime::menu::{Menu, MenuEntry},
   MenuEvent,
 };
 
@@ -209,14 +209,16 @@ impl<P: Params> Clone for WindowManager<P> {
 }
 
 #[cfg(feature = "menu")]
-fn get_menu_ids<I: MenuId>(menu: &Menu<I>) -> HashMap<u32, I> {
-  let mut map = HashMap::new();
+fn get_menu_ids<I: MenuId>(map: &mut HashMap<u32, I>, menu: &Menu<I>) {
   for item in &menu.items {
-    if let MenuItem::Custom(i) = item {
-      map.insert(i.id_value(), i.id.clone());
+    match item {
+      MenuEntry::CustomItem(c) => {
+        map.insert(c.id_value(), c.id.clone());
+      }
+      MenuEntry::Submenu(s) => get_menu_ids(map, &s.inner),
+      _ => {}
     }
   }
-  map
 }
 
 impl<P: Params> WindowManager<P> {
@@ -249,10 +251,12 @@ impl<P: Params> WindowManager<P> {
         package_info: context.package_info,
         uri_scheme_protocols,
         #[cfg(feature = "menu")]
-        menu_ids: if let Some(menu) = &menu {
-          get_menu_ids(menu)
-        } else {
-          Default::default()
+        menu_ids: {
+          let mut map = HashMap::new();
+          if let Some(menu) = &menu {
+            get_menu_ids(&mut map, menu)
+          }
+          map
         },
         #[cfg(feature = "menu")]
         menu,

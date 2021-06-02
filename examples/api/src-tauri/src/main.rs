@@ -8,12 +8,10 @@
 )]
 
 mod cmd;
-// mod menu;
+mod menu;
 
 use serde::Serialize;
-use tauri::{
-  CustomMenuItem, Manager, SystemTray, SystemTrayMenu, SystemTrayMenuItem, WindowBuilder, WindowUrl,
-};
+use tauri::{CustomMenuItem, Manager, SystemTray, SystemTrayMenu, WindowBuilder, WindowUrl};
 
 #[derive(Serialize)]
 struct Reply {
@@ -35,14 +33,17 @@ fn main() {
           .expect("failed to emit");
       });
     })
-    // .menu(menu::get_menu())
+    .menu(menu::get_menu())
     .on_menu_event(|event| {
       println!("{:?}", event.menu_item_id());
     })
-    .system_tray(SystemTray::new().with_menu(SystemTrayMenu::new(vec![
-      SystemTrayMenuItem::Custom(CustomMenuItem::new("toggle".into(), "Toggle")),
-      SystemTrayMenuItem::Custom(CustomMenuItem::new("new".into(), "New window")),
-    ])))
+    .system_tray(
+      SystemTray::new().with_menu(
+        SystemTrayMenu::new()
+          .add_item(CustomMenuItem::new("toggle".into(), "Toggle"))
+          .add_item(CustomMenuItem::new("new".into(), "New window")),
+      ),
+    )
     .on_system_tray_event(|app, event| match event.menu_item_id().as_str() {
       "toggle" => {
         let window = app.get_window("main").unwrap();

@@ -8,29 +8,82 @@ use super::MenuId;
 
 /// A window menu.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct Menu<I: MenuId> {
-  pub items: Vec<MenuItem<I>>,
+  pub items: Vec<MenuEntry<I>>,
+}
+
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub struct Submenu<I: MenuId> {
+  pub title: String,
+  pub enabled: bool,
+  pub inner: Menu<I>,
+}
+
+impl<I: MenuId> Submenu<I> {
+  /// Creates a new submenu with the given title and menu items.
+  pub fn new<S: Into<String>>(title: S, menu: Menu<I>) -> Self {
+    Self {
+      title: title.into(),
+      enabled: true,
+      inner: menu,
+    }
+  }
+}
+
+impl<I: MenuId> Default for Menu<I> {
+  fn default() -> Self {
+    Self { items: Vec::new() }
+  }
 }
 
 impl<I: MenuId> Menu<I> {
-  /// Creates a new window menu with the given title and items.
-  pub fn new(items: Vec<MenuItem<I>>) -> Self {
-    Self { items }
+  /// Creates a new window menu.
+  pub fn new() -> Self {
+    Default::default()
+  }
+
+  /// Adds the custom menu item to the menu.
+  pub fn add_item(mut self, item: CustomMenuItem<I>) -> Self {
+    self.items.push(MenuEntry::CustomItem(item));
+    self
+  }
+
+  /// Adds a native item to the menu.
+  pub fn add_native_item(mut self, item: MenuItem) -> Self {
+    self.items.push(MenuEntry::NativeItem(item));
+    self
+  }
+
+  /// Adds an entry with submenu.
+  pub fn add_submenu(mut self, submenu: Submenu<I>) -> Self {
+    self.items.push(MenuEntry::Submenu(submenu));
+    self
   }
 }
 
 /// A custom menu item.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct CustomMenuItem<I: MenuId> {
   pub id: I,
-  pub name: String,
+  pub title: String,
+  pub keyboard_accelerator: Option<String>,
+  pub enabled: bool,
+  pub selected: bool,
 }
 
 impl<I: MenuId> CustomMenuItem<I> {
   /// Create new custom menu item.
   pub fn new<T: Into<String>>(id: I, title: T) -> Self {
-    let title = title.into();
-    Self { id, name: title }
+    Self {
+      id,
+      title: title.into(),
+      keyboard_accelerator: None,
+      enabled: true,
+      selected: false,
+    }
   }
 
   #[doc(hidden)]
@@ -43,25 +96,89 @@ impl<I: MenuId> CustomMenuItem<I> {
 
 /// A system tray menu.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct SystemTrayMenu<I: MenuId> {
-  pub items: Vec<SystemTrayMenuItem<I>>,
+  pub items: Vec<SystemTrayMenuEntry<I>>,
+}
+
+impl<I: MenuId> Default for SystemTrayMenu<I> {
+  fn default() -> Self {
+    Self { items: Vec::new() }
+  }
+}
+
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub struct SystemTraySubmenu<I: MenuId> {
+  pub title: String,
+  pub enabled: bool,
+  pub inner: SystemTrayMenu<I>,
+}
+
+impl<I: MenuId> SystemTraySubmenu<I> {
+  /// Creates a new submenu with the given title and menu items.
+  pub fn new<S: Into<String>>(title: S, menu: SystemTrayMenu<I>) -> Self {
+    Self {
+      title: title.into(),
+      enabled: true,
+      inner: menu,
+    }
+  }
 }
 
 impl<I: MenuId> SystemTrayMenu<I> {
-  /// Creates a new window menu with the given title and items.
-  pub fn new(items: Vec<SystemTrayMenuItem<I>>) -> Self {
-    Self { items }
+  /// Creates a new system tray menu.
+  pub fn new() -> Self {
+    Default::default()
   }
+
+  /// Adds the custom menu item to the system tray menu.
+  pub fn add_item(mut self, item: CustomMenuItem<I>) -> Self {
+    self.items.push(SystemTrayMenuEntry::CustomItem(item));
+    self
+  }
+
+  /// Adds a native item to the system tray menu.
+  pub fn add_native_item(mut self, item: SystemTrayMenuItem) -> Self {
+    self.items.push(SystemTrayMenuEntry::NativeItem(item));
+    self
+  }
+
+  /// Adds an entry with submenu.
+  pub fn add_submenu(mut self, submenu: SystemTraySubmenu<I>) -> Self {
+    self.items.push(SystemTrayMenuEntry::Submenu(submenu));
+    self
+  }
+}
+
+/// An entry on the system tray menu.
+#[derive(Debug, Clone)]
+pub enum SystemTrayMenuEntry<I: MenuId> {
+  /// A custom item.
+  CustomItem(CustomMenuItem<I>),
+  /// A native item.
+  NativeItem(SystemTrayMenuItem),
+  /// An entry with submenu.
+  Submenu(SystemTraySubmenu<I>),
 }
 
 /// System tray menu item.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub enum SystemTrayMenuItem<I: MenuId> {
-  /// A custom menu item.
-  Custom(CustomMenuItem<I>),
+pub enum SystemTrayMenuItem {
   /// A separator.
   Separator,
+}
+
+/// An entry on the system tray menu.
+#[derive(Debug, Clone)]
+pub enum MenuEntry<I: MenuId> {
+  /// A custom item.
+  CustomItem(CustomMenuItem<I>),
+  /// A native item.
+  NativeItem(MenuItem),
+  /// An entry with submenu.
+  Submenu(Submenu<I>),
 }
 
 /// A menu item, bound to a pre-defined action or `Custom` emit an event. Note that status bar only
@@ -69,10 +186,7 @@ pub enum SystemTrayMenuItem<I: MenuId> {
 /// of the variants. Unsupported variant will be no-op on such platform.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub enum MenuItem<I: MenuId> {
-  /// A custom menu item..
-  Custom(CustomMenuItem<I>),
-
+pub enum MenuItem {
   /// Shows a standard "About" item
   ///
   /// ## Platform-specific

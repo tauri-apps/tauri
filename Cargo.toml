@@ -23,7 +23,7 @@ members = [
 ]
 
 [patch.crates-io]
-tao = { git = "https://github.com/tauri-apps/tao", rev = "8c57171bbc5b46a72cae414e6ed48790a40f6553" }
+tao = { git = "https://github.com/tauri-apps/tao", rev = "ce6c45513bbc3f67b0f80cd4fa8c14e37a81d980" }
 
 # default to small, optimized workspace release binaries
 [profile.release]

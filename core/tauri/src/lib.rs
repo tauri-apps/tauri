@@ -93,7 +93,7 @@ pub use {
 pub use {
   self::app::SystemTrayEvent,
   self::runtime::{
-    menu::{SystemTrayMenu, SystemTrayMenuItem},
+    menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
     SystemTray,
   },
 };
@@ -101,7 +101,7 @@ pub use {
 #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
 pub use {
   self::app::WindowMenuEvent,
-  self::runtime::menu::{Menu, MenuItem},
+  self::runtime::menu::{Menu, MenuItem, Submenu},
   self::window::MenuEvent,
 };
 

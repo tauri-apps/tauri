@@ -24,7 +24,7 @@ use std::{collections::HashMap, sync::Arc};
 use crate::runtime::menu::Menu;
 #[cfg(feature = "system-tray")]
 use crate::runtime::{
-  menu::{SystemTrayMenu, SystemTrayMenuItem},
+  menu::{SystemTrayMenu, SystemTrayMenuEntry},
   Icon, SystemTray,
 };
 
@@ -694,11 +694,10 @@ where
 
     #[cfg(feature = "system-tray")]
     if let Some(system_tray) = self.system_tray {
-      let ids = if let Some(menu) = system_tray.menu() {
-        get_menu_ids(menu)
-      } else {
-        Default::default()
-      };
+      let mut ids = HashMap::new();
+      if let Some(menu) = system_tray.menu() {
+        get_menu_ids(&mut ids, menu);
+      }
       app
         .runtime
         .as_ref()
@@ -739,14 +738,16 @@ where
 }
 
 #[cfg(feature = "system-tray")]
-fn get_menu_ids<I: MenuId>(menu: &SystemTrayMenu<I>) -> HashMap<u32, I> {
-  let mut map = HashMap::new();
+fn get_menu_ids<I: MenuId>(map: &mut HashMap<u32, I>, menu: &SystemTrayMenu<I>) {
   for item in &menu.items {
-    if let SystemTrayMenuItem::Custom(i) = item {
-      map.insert(i.id_value(), i.id.clone());
+    match item {
+      SystemTrayMenuEntry::CustomItem(c) => {
+        map.insert(c.id_value(), c.id.clone());
+      }
+      SystemTrayMenuEntry::Submenu(s) => get_menu_ids(map, &s.inner),
+      _ => {}
     }
   }
-  map
 }
 
 /// Make `Wry` the default `Runtime` for `Builder`

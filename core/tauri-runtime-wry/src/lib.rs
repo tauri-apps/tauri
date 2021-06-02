@@ -22,10 +22,10 @@ use tauri_runtime::window::MenuEvent;
 use tauri_runtime::{SystemTray, SystemTrayEvent};
 #[cfg(windows)]
 use winapi::shared::windef::HWND;
-#[cfg(feature = "system-tray")]
-use wry::application::platform::system_tray::SystemTrayBuilder;
 #[cfg(windows)]
 use wry::application::platform::windows::WindowBuilderExtWindows;
+#[cfg(feature = "system-tray")]
+use wry::application::system_tray::SystemTrayBuilder;
 
 use tauri_utils::config::WindowConfig;
 use uuid::Uuid;
@@ -281,11 +281,7 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[cfg(feature = "menu")]
   fn menu<I: MenuId>(self, menu: Menu<I>) -> Self {
-    let mut wry_menu = MenuBar::new();
-    for i in menu.items {
-      wry_menu.add_item(MenuItemWrapper::from(i).0);
-    }
-    Self(self.0.with_menu(wry_menu))
+    Self(self.0.with_menu(to_wry_menu(menu)))
   }
 
   fn position(self, x: f64, y: f64) -> Self {
@@ -983,16 +979,7 @@ impl Runtime for Wry {
       _ => unreachable!(),
     };
 
-    let tray_menu = if let Some(menu) = system_tray.take() {
-      let mut tray_menu = WryContextMenu::new();
-      for i in menu.items {
-        tray_menu.add_item(MenuItemWrapper::from(i).0);
-      }
-      Some(tray_menu)
-    } else {
-      None
-    };
-    SystemTrayBuilder::new(icon, tray_menu)
+    SystemTrayBuilder::new(icon, system_tray.take().map(to_wry_context_menu))
       .build(&self.event_loop)
       .map_err(|e| Error::SystemTray(Box::new(e)))?;
 

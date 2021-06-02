@@ -54,6 +54,9 @@ jobs:
           cratesToProcess: "tauri"
 
       # TypeScript
+      - name: install API deps
+        working-directory: ./tauri/tooling/api
+        run: yarn build
       - name: run typedocusaurus
         uses: tauri-apps/typedocusaurus@v1
         with:

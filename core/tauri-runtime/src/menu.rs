@@ -86,6 +86,18 @@ impl<I: MenuId> CustomMenuItem<I> {
     }
   }
 
+  /// Mark the item as disabled.
+  pub fn disabled(mut self) -> Self {
+    self.enabled = false;
+    self
+  }
+
+  /// Mark the item as selected.
+  pub fn selected(mut self) -> Self {
+    self.selected = true;
+    self
+  }
+
   #[doc(hidden)]
   pub fn id_value(&self) -> u32 {
     let mut s = DefaultHasher::new();

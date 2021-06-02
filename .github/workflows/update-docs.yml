@@ -82,7 +82,6 @@ jobs:
         working-directory: ./tauri-docs
         run: echo ${{ github.event.release.tag_name }} > version.txt
       - name: set bot's Tauri version
-        working-directory: ./tauri-search-bot
         uses: iamsauravsharma/create-dotenv@v1.1.0
         env:
           ENV_KEY_DISCORD_BOT_SECRET: ${{ secrets.DISCORD_BOT_SECRET }}
@@ -92,6 +91,8 @@ jobs:
           ENV_KEY_LIMIT: 5
           ENV_KEY_SEARCH_INDEX: ${{ github.event.release.tag_name }}
           ENV_KEY_MEILISEARCH_PUBLIC_KEY: ea0105f56bb5a2111ed28c7a0c637fc0bed07273f571dc7cb1f73900e44f8e7f
+      - name: move bot's dotenv
+        run: mv .env ./tauri-search-bot
 
       # Bot Deployment
       - name: scp bot

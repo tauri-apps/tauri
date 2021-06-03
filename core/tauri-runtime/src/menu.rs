@@ -6,6 +6,20 @@ use std::{collections::hash_map::DefaultHasher, hash::Hasher};
 
 use super::MenuId;
 
+#[derive(Debug, Clone)]
+pub enum MenuUpdate {
+  /// Modifies the enabled state of the menu item.
+  SetEnabled(bool),
+  /// Modifies the title (label) of the menu item.
+  SetTitle(String),
+  /// Modifies the selected state of the menu item.
+  SetSelected(bool),
+}
+
+pub trait MenuUpdater {
+  fn update_item(&self, id: u32, update: MenuUpdate);
+}
+
 /// A window menu.
 #[derive(Debug, Clone)]
 #[non_exhaustive]

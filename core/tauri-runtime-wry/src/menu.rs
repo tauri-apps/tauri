@@ -4,17 +4,18 @@
 
 pub use tauri_runtime::{
   menu::{
-    CustomMenuItem, Menu, MenuEntry, MenuItem, SystemTrayMenu, SystemTrayMenuEntry,
-    SystemTrayMenuItem,
+    CustomMenuItem, Menu, MenuEntry, MenuItem, MenuUpdate, MenuUpdater, SystemTrayMenu,
+    SystemTrayMenuEntry, SystemTrayMenuItem,
   },
   window::MenuEvent,
   MenuId, SystemTrayEvent,
 };
 pub use wry::application::{
   event::TrayEvent,
+  event_loop::EventLoopProxy,
   menu::{
-    ContextMenu as WryContextMenu, CustomMenuItem as WryCustomMenuItem, MenuBar,
-    MenuId as WryMenuId, MenuItem as WryMenuItem, MenuType,
+    ContextMenu as WryContextMenu, CustomMenuItem as WryCustomMenuItem, CustomMenuItemHandle,
+    MenuBar, MenuId as WryMenuId, MenuItem as WryMenuItem, MenuType,
   },
 };
 
@@ -29,6 +30,22 @@ pub type MenuEventHandler = Box<dyn Fn(&MenuEvent) + Send>;
 pub type MenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
 pub type SystemTrayEventHandler = Box<dyn Fn(&SystemTrayEvent) + Send>;
 pub type SystemTrayEventListeners = Arc<Mutex<HashMap<Uuid, SystemTrayEventHandler>>>;
+pub type SystemTrays = Arc<Mutex<HashMap<u32, HashMap<u32, CustomMenuItemHandle>>>>;
+
+pub struct MenuHandle {
+  pub(crate) id: u32,
+  pub(crate) proxy: EventLoopProxy<super::Message>,
+}
+
+unsafe impl Send for MenuHandle {}
+
+impl MenuUpdater for MenuHandle {
+  fn update_item(&self, id: u32, update: MenuUpdate) {
+    let _ = self
+      .proxy
+      .send_event(super::Message::UpdateTrayItem(self.id, id, update));
+  }
+}
 
 pub struct MenuItemWrapper(pub WryMenuItem);
 
@@ -94,12 +111,15 @@ pub fn to_wry_menu<I: MenuId>(menu: Menu<I>) -> MenuBar {
 }
 
 #[cfg(feature = "system-tray")]
-pub fn to_wry_context_menu<I: MenuId>(menu: SystemTrayMenu<I>) -> WryContextMenu {
+pub fn to_wry_context_menu<I: MenuId>(
+  custom_menu_items: &mut HashMap<u32, CustomMenuItemHandle>,
+  menu: SystemTrayMenu<I>,
+) -> WryContextMenu {
   let mut tray_menu = WryContextMenu::new();
   for item in menu.items {
     match item {
       SystemTrayMenuEntry::CustomItem(c) => {
-        tray_menu.add_item(
+        let item = tray_menu.add_item(
           WryCustomMenuItem::new(
             &c.title,
             c.keyboard_accelerator.as_deref(),
@@ -108,6 +128,7 @@ pub fn to_wry_context_menu<I: MenuId>(menu: SystemTrayMenu<I>) -> WryContextMenu
           )
           .with_id(WryMenuId(c.id_value())),
         );
+        custom_menu_items.insert(c.id_value(), item);
       }
       SystemTrayMenuEntry::NativeItem(i) => {
         tray_menu.add_native_item(MenuItemWrapper::from(i).0);
@@ -116,7 +137,7 @@ pub fn to_wry_context_menu<I: MenuId>(menu: SystemTrayMenu<I>) -> WryContextMenu
         tray_menu.add_submenu(
           &submenu.title,
           submenu.enabled,
-          to_wry_context_menu(submenu.inner),
+          to_wry_context_menu(custom_menu_items, submenu.inner),
         );
       }
     }

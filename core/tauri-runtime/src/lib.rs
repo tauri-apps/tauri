@@ -172,6 +172,9 @@ pub trait Runtime: Sized + 'static {
   type Dispatcher: Dispatch<Runtime = Self>;
   /// The runtime handle type.
   type Handle: RuntimeHandle<Runtime = Self>;
+  /// The tray handler type.
+  #[cfg(feature = "system-tray")]
+  type TrayHandler: menu::MenuUpdater + Send;
 
   /// Creates a new webview runtime.
   fn new() -> crate::Result<Self>;
@@ -188,7 +191,11 @@ pub trait Runtime: Sized + 'static {
   /// Adds the icon to the system tray with the specified menu items.
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  fn system_tray<I: MenuId>(&self, icon: Icon, system_tray: SystemTray<I>) -> crate::Result<()>;
+  fn system_tray<I: MenuId>(
+    &self,
+    icon: Icon,
+    system_tray: SystemTray<I>,
+  ) -> crate::Result<Self::TrayHandler>;
 
   /// Registers a system tray event handler.
   #[cfg(feature = "system-tray")]

@@ -17,6 +17,7 @@ tauri-runtime = { version = "0.1.1", path = "../tauri-runtime" }
 tauri-utils = { version = "1.0.0-beta.0", path = "../tauri-utils" }
 uuid = { version = "0.8.2", features = [ "v4" ] }
 infer = "0.4"
+rand = "0.8"
 
 [target."cfg(windows)".dependencies]
 ico = "0.1"

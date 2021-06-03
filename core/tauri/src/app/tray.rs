@@ -152,4 +152,13 @@ impl<P: Params> SystemTrayMenuItemHandle<P> {
       .update_item(self.id, MenuUpdate::SetSelected(selected))
       .map_err(Into::into)
   }
+
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  pub fn set_native_image(&self, image: crate::NativeImage) -> crate::Result<()> {
+    self
+      .tray_handler
+      .update_item(self.id, MenuUpdate::SetNativeImage(image))
+      .map_err(Into::into)
+  }
 }

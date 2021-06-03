@@ -27,7 +27,7 @@ describe('[CLI] cli.js template', () => {
     const manifestFile = readFileSync(manifestPath).toString()
     writeFileSync(
       manifestPath,
-      `workspace = { }\n[patch.crates-io]\ntao = { git = "https://github.com/tauri-apps/tao", rev = "a3f533232df25dc30998809094ed5431b449489c" }\n\n${manifestFile}`
+      `workspace = { }\n[patch.crates-io]\ntao = { git = "https://github.com/tauri-apps/tao", rev = "7546dbd157b5387249337c5166849e2868c0ab7c" }\n\n${manifestFile}`
     )
 
     const { promise: buildPromise } = await build({

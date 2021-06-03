@@ -1348,6 +1348,10 @@ fn handle_event_loop(
                 MenuUpdate::SetEnabled(enabled) => item.set_enabled(enabled),
                 MenuUpdate::SetTitle(title) => item.set_title(&title),
                 MenuUpdate::SetSelected(selected) => item.set_selected(selected),
+                #[cfg(target_os = "macos")]
+                MenuUpdate::SetNativeImage(image) => {
+                  item.set_native_image(NativeImageWrapper::from(image).0)
+                }
               }
             }
           }
@@ -1390,6 +1394,10 @@ fn handle_event_loop(
             MenuUpdate::SetEnabled(enabled) => item.set_enabled(enabled),
             MenuUpdate::SetTitle(title) => item.set_title(&title),
             MenuUpdate::SetSelected(selected) => item.set_selected(selected),
+            #[cfg(target_os = "macos")]
+            MenuUpdate::SetNativeImage(image) => {
+              item.set_native_image(NativeImageWrapper::from(image).0)
+            }
           }
         }
         TrayMessage::UpdateIcon(icon) => {

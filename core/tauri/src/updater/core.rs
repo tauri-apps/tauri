@@ -1020,7 +1020,7 @@ mod test {
       .prefix("tauri_updater_test")
       .tempdir_in(parent_path);
 
-    assert_eq!(tmp_dir.is_ok(), true);
+    assert!(tmp_dir.is_ok());
     let tmp_dir_unwrap = tmp_dir.expect("Can't find tmp_dir");
     let tmp_dir_path = tmp_dir_unwrap.path();
 
@@ -1035,24 +1035,24 @@ mod test {
       .build());
 
     // make sure the process worked
-    assert_eq!(check_update.is_ok(), true);
+    assert!(check_update.is_ok());
 
     // unwrap our results
     let updater = check_update.expect("Can't check remote update");
 
     // make sure we need to update
-    assert_eq!(updater.should_update, true);
+    assert!(updater.should_update);
     // make sure we can read announced version
     assert_eq!(updater.version, "2.0.1");
 
     // download, install and validate signature
     let install_process = block!(updater.download_and_install(Some(pubkey)));
-    assert_eq!(install_process.is_ok(), true);
+    assert!(install_process.is_ok());
 
     // make sure the extraction went well (it should have skipped the main app.app folder)
     // as we can't extract in /Applications directly
     let bin_file = tmp_dir_path.join("Contents").join("MacOS").join("app");
     let bin_file_exist = Path::new(&bin_file).exists();
-    assert_eq!(bin_file_exist, true);
+    assert!(bin_file_exist);
   }
 }

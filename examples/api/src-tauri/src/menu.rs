@@ -5,9 +5,18 @@
 use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
 
 pub fn get_menu() -> Menu<String> {
+  #[allow(unused_mut)]
+  let mut disable_item = CustomMenuItem::new("disable-menu".into(), "Disable menu");
+  #[allow(unused_mut)]
+  let mut test_item = CustomMenuItem::new("test".into(), "Test");
+  #[cfg(target_os = "macos")]
+  {
+    disable_item = disable_item.native_image(tauri::NativeImage::MenuOnState);
+    test_item = test_item.native_image(tauri::NativeImage::Add);
+  }
+
   // create a submenu
-  let my_sub_menu =
-    Menu::new().add_item(CustomMenuItem::new("disable-menu".into(), "Disable menu"));
+  let my_sub_menu = Menu::new().add_item(disable_item);
 
   let my_app_menu = Menu::new()
     .add_native_item(MenuItem::Copy)
@@ -19,7 +28,7 @@ pub fn get_menu() -> Menu<String> {
       "Selected and disabled",
     ))
     .add_native_item(MenuItem::Separator)
-    .add_item(CustomMenuItem::new("test".into(), "Test"));
+    .add_item(test_item);
 
   // add all our childs to the menu (order is how they'll appear)
   Menu::new()

@@ -65,6 +65,14 @@ use std::{borrow::Borrow, collections::HashMap, sync::Arc};
 #[cfg(any(feature = "menu", feature = "system-tray"))]
 #[cfg_attr(doc_cfg, doc(cfg(any(feature = "menu", feature = "system-tray"))))]
 pub use runtime::menu::CustomMenuItem;
+
+#[cfg(all(target_os = "macos", any(feature = "menu", feature = "system-tray")))]
+#[cfg_attr(
+  doc_cfg,
+  doc(cfg(all(target_os = "macos", any(feature = "menu", feature = "system-tray"))))
+)]
+pub use runtime::menu::NativeImage;
+
 pub use {
   self::api::assets::Assets,
   self::api::{

@@ -1406,7 +1406,7 @@ fn handle_event_loop(
           }
         }
         #[cfg(windows)]
-        Message::Remove => {
+        TrayMessage::Remove => {
           if let Some(tray) = tray_context.tray.lock().unwrap().as_ref() {
             use wry::application::platform::windows::SystemTrayExtWindows;
             tray.lock().unwrap().remove();

@@ -714,7 +714,7 @@ where
         .expect("failed to run tray");
       let tray_handle = tray::SystemTrayHandle {
         ids: Arc::new(ids.clone()),
-        inner: Arc::new(std::sync::Mutex::new(tray_handler)),
+        inner: tray_handler,
       };
       app.tray_handle.replace(tray_handle.clone());
       app.handle.tray_handle.replace(tray_handle);

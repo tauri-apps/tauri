@@ -35,6 +35,7 @@ pub type SystemTrayEventHandler = Box<dyn Fn(&SystemTrayEvent) + Send>;
 pub type SystemTrayEventListeners = Arc<Mutex<HashMap<Uuid, SystemTrayEventHandler>>>;
 pub type SystemTrayItems = Arc<Mutex<HashMap<u32, WryCustomMenuItem>>>;
 
+#[derive(Clone)]
 pub struct SystemTrayHandle {
   pub(crate) proxy: EventLoopProxy<super::Message>,
 }

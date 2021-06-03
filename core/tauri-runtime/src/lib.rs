@@ -211,7 +211,7 @@ pub trait Runtime: Sized + 'static {
   type Handle: RuntimeHandle<Runtime = Self>;
   /// The tray handler type.
   #[cfg(feature = "system-tray")]
-  type TrayHandler: menu::TrayHandle + Send;
+  type TrayHandler: menu::TrayHandle + Clone + Send;
 
   /// Creates a new webview runtime.
   fn new() -> crate::Result<Self>;

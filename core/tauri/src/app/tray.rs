@@ -11,10 +11,7 @@ pub use crate::{
   Params,
 };
 
-use std::{
-  collections::HashMap,
-  sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, sync::Arc};
 
 pub(crate) fn get_menu_ids<I: MenuId>(map: &mut HashMap<u32, I>, menu: &SystemTrayMenu<I>) {
   for item in &menu.items {
@@ -82,7 +79,7 @@ crate::manager::default_args! {
   /// A handle to a system tray. Allows updating the context menu items.
   pub struct SystemTrayHandle<P: Params> {
     pub(crate) ids: Arc<HashMap<u32, P::SystemTrayMenuId>>,
-    pub(crate) inner: Arc<Mutex<<P::Runtime as Runtime>::TrayHandler>>,
+    pub(crate) inner: <P::Runtime as Runtime>::TrayHandler,
   }
 }
 
@@ -99,7 +96,7 @@ crate::manager::default_args! {
   /// A handle to a system tray menu item.
   pub struct SystemTrayMenuItemHandle<P: Params> {
     id: u32,
-    tray_handler: Arc<Mutex<<P::Runtime as Runtime>::TrayHandler>>,
+    tray_handler: <P::Runtime as Runtime>::TrayHandler,
   }
 }
 
@@ -127,12 +124,7 @@ impl<P: Params> SystemTrayHandle<P> {
 
   /// Updates the tray icon. Must be a [`Icon::File`] on Linux and a [`Icon::Raw`] on Windows and macOS.
   pub fn set_icon(&self, icon: Icon) -> crate::Result<()> {
-    self
-      .inner
-      .lock()
-      .unwrap()
-      .set_icon(icon)
-      .map_err(Into::into)
+    self.inner.set_icon(icon).map_err(Into::into)
   }
 }
 
@@ -141,8 +133,6 @@ impl<P: Params> SystemTrayMenuItemHandle<P> {
   pub fn set_enabled(&self, enabled: bool) -> crate::Result<()> {
     self
       .tray_handler
-      .lock()
-      .unwrap()
       .update_item(self.id, MenuUpdate::SetEnabled(enabled))
       .map_err(Into::into)
   }
@@ -151,8 +141,6 @@ impl<P: Params> SystemTrayMenuItemHandle<P> {
   pub fn set_title<S: Into<String>>(&self, title: S) -> crate::Result<()> {
     self
       .tray_handler
-      .lock()
-      .unwrap()
       .update_item(self.id, MenuUpdate::SetTitle(title.into()))
       .map_err(Into::into)
   }
@@ -161,8 +149,6 @@ impl<P: Params> SystemTrayMenuItemHandle<P> {
   pub fn set_selected(&self, selected: bool) -> crate::Result<()> {
     self
       .tray_handler
-      .lock()
-      .unwrap()
       .update_item(self.id, MenuUpdate::SetSelected(selected))
       .map_err(Into::into)
   }

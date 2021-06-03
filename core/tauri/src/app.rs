@@ -757,13 +757,14 @@ where
   /// Runs the configured Tauri application.
   pub fn run(self, context: Context<A>) -> crate::Result<()> {
     let mut app = self.build(context)?;
+    #[cfg(all(windows, feature = "system-tray"))]
     let app_handle = app.handle();
     app.runtime.take().unwrap().run(move || {
       #[cfg(shell_execute)]
       {
         crate::api::process::kill_children();
       }
-      #[cfg(feature = "system-tray")]
+      #[cfg(all(windows, feature = "system-tray"))]
       {
         let _ = app_handle.remove_system_tray();
       }

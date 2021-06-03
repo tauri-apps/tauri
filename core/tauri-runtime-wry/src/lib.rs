@@ -244,7 +244,7 @@ impl From<Position> for PositionWrapper {
 pub struct WindowBuilderWrapper {
   inner: WryWindowBuilder,
   #[cfg(feature = "menu")]
-  menu_items: HashMap<u32, CustomMenuItemHandle>,
+  menu_items: HashMap<u32, WryCustomMenuItem>,
 }
 
 // safe since `menu_items` are read only here
@@ -891,7 +891,7 @@ struct TrayContext {
 struct WebviewWrapper {
   inner: WebView,
   #[cfg(feature = "menu")]
-  menu_items: HashMap<u32, CustomMenuItemHandle>,
+  menu_items: HashMap<u32, WryCustomMenuItem>,
 }
 
 /// A Tauri [`Runtime`] wrapper around wry.

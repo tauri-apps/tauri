@@ -695,13 +695,21 @@ where
       if let Some(menu) = system_tray.menu() {
         tray::get_menu_ids(&mut ids, menu);
       }
+      let mut tray = tray::SystemTray::new();
+      if let Some(menu) = system_tray.menu {
+        tray = tray.with_menu(menu);
+      }
       let tray_handler = app
         .runtime
         .as_ref()
         .unwrap()
         .system_tray(
-          system_tray_icon.expect("tray icon not found; please configure it on tauri.conf.json"),
-          system_tray,
+          tray.with_icon(
+            system_tray
+              .icon
+              .or(system_tray_icon)
+              .expect("tray icon not found; please configure it on tauri.conf.json"),
+          ),
         )
         .expect("failed to run tray");
       let tray_handle = tray::SystemTrayHandle {

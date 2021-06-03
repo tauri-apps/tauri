@@ -1029,13 +1029,9 @@ impl Runtime for Wry {
   }
 
   #[cfg(feature = "system-tray")]
-  fn system_tray<I: MenuId>(
-    &self,
-    icon: Icon,
-    system_tray: SystemTray<I>,
-  ) -> Result<Self::TrayHandler> {
+  fn system_tray<I: MenuId>(&self, system_tray: SystemTray<I>) -> Result<Self::TrayHandler> {
     // we expect the code that passes the Icon enum to have already checked the platform.
-    let icon = match icon {
+    let icon = match system_tray.icon.expect("tray icon not set") {
       #[cfg(target_os = "linux")]
       Icon::File(path) => path,
 
@@ -1059,7 +1055,7 @@ impl Runtime for Wry {
     let tray = SystemTrayBuilder::new(
       icon,
       system_tray
-        .take()
+        .menu
         .map(|menu| to_wry_context_menu(&mut items, menu)),
     )
     .build(&self.event_loop)

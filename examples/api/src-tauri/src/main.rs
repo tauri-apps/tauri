@@ -68,7 +68,7 @@ fn main() {
               window.show().unwrap();
               "Hide"
             };
-            item_handle.set_title(new_title);
+            item_handle.set_title(new_title).unwrap();
           }
           "new" => app
             .create_window(

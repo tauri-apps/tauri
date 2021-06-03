@@ -4,9 +4,9 @@
 
 pub use crate::{
   runtime::{
-    menu::{MenuUpdate, MenuUpdater, SystemTrayMenu, SystemTrayMenuEntry},
+    menu::{MenuUpdate, SystemTrayMenu, SystemTrayMenuEntry, TrayHandle},
     window::dpi::{PhysicalPosition, PhysicalSize},
-    MenuId, Runtime, SystemTray,
+    Icon, MenuId, Runtime, SystemTray,
   },
   Params,
 };
@@ -124,33 +124,46 @@ impl<P: Params> SystemTrayHandle<P> {
     }
     panic!("item id not found")
   }
+
+  /// Updates the tray icon. Must be a [`Icon::File`] on Linux and a [`Icon::Raw`] on Windows and macOS.
+  pub fn set_icon(&self, icon: Icon) -> crate::Result<()> {
+    self
+      .inner
+      .lock()
+      .unwrap()
+      .set_icon(icon)
+      .map_err(Into::into)
+  }
 }
 
 impl<P: Params> SystemTrayMenuItemHandle<P> {
   /// Modifies the enabled state of the menu item.
-  pub fn set_enabled(&self, enabled: bool) {
+  pub fn set_enabled(&self, enabled: bool) -> crate::Result<()> {
     self
       .tray_handler
       .lock()
       .unwrap()
       .update_item(self.id, MenuUpdate::SetEnabled(enabled))
+      .map_err(Into::into)
   }
 
   /// Modifies the title (label) of the menu item.
-  pub fn set_title<S: Into<String>>(&self, title: S) {
+  pub fn set_title<S: Into<String>>(&self, title: S) -> crate::Result<()> {
     self
       .tray_handler
       .lock()
       .unwrap()
       .update_item(self.id, MenuUpdate::SetTitle(title.into()))
+      .map_err(Into::into)
   }
 
   /// Modifies the selected state of the menu item.
-  pub fn set_selected(&self, selected: bool) {
+  pub fn set_selected(&self, selected: bool) -> crate::Result<()> {
     self
       .tray_handler
       .lock()
       .unwrap()
       .update_item(self.id, MenuUpdate::SetSelected(selected))
+      .map_err(Into::into)
   }
 }

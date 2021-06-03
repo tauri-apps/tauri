@@ -4,11 +4,11 @@
 
 pub use tauri_runtime::{
   menu::{
-    CustomMenuItem, Menu, MenuEntry, MenuItem, MenuUpdate, MenuUpdater, SystemTrayMenu,
-    SystemTrayMenuEntry, SystemTrayMenuItem,
+    CustomMenuItem, Menu, MenuEntry, MenuItem, MenuUpdate, SystemTrayMenu, SystemTrayMenuEntry,
+    SystemTrayMenuItem, TrayHandle,
   },
   window::MenuEvent,
-  MenuId, SystemTrayEvent,
+  Icon, MenuId, SystemTrayEvent,
 };
 pub use wry::application::{
   event::TrayEvent,
@@ -19,6 +19,8 @@ pub use wry::application::{
     MenuType,
   },
 };
+
+use crate::{Error, Message, Result, TrayMessage};
 
 use uuid::Uuid;
 
@@ -33,17 +35,22 @@ pub type SystemTrayEventHandler = Box<dyn Fn(&SystemTrayEvent) + Send>;
 pub type SystemTrayEventListeners = Arc<Mutex<HashMap<Uuid, SystemTrayEventHandler>>>;
 pub type SystemTrayItems = Arc<Mutex<HashMap<u32, WryCustomMenuItem>>>;
 
-pub struct MenuHandle {
+pub struct SystemTrayHandle {
   pub(crate) proxy: EventLoopProxy<super::Message>,
 }
 
-unsafe impl Send for MenuHandle {}
-
-impl MenuUpdater for MenuHandle {
-  fn update_item(&self, id: u32, update: MenuUpdate) {
-    let _ = self
+impl TrayHandle for SystemTrayHandle {
+  fn set_icon(&self, icon: Icon) -> Result<()> {
+    self
       .proxy
-      .send_event(super::Message::UpdateTrayItem(id, update));
+      .send_event(Message::Tray(TrayMessage::UpdateIcon(icon)))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+  fn update_item(&self, id: u32, update: MenuUpdate) -> Result<()> {
+    self
+      .proxy
+      .send_event(Message::Tray(TrayMessage::UpdateItem(id, update)))
+      .map_err(|_| Error::FailedToSendMessage)
   }
 }
 

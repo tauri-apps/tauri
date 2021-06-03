@@ -16,8 +16,9 @@ pub enum MenuUpdate {
   SetSelected(bool),
 }
 
-pub trait MenuUpdater {
-  fn update_item(&self, id: u32, update: MenuUpdate);
+pub trait TrayHandle {
+  fn set_icon(&self, icon: crate::Icon) -> crate::Result<()>;
+  fn update_item(&self, id: u32, update: MenuUpdate) -> crate::Result<()>;
 }
 
 /// A window menu.

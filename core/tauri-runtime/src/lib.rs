@@ -140,6 +140,32 @@ pub enum Icon {
   Raw(Vec<u8>),
 }
 
+impl Icon {
+  /// Converts the icon to a the expected system tray format.
+  /// We expect the code that passes the Icon enum to have already checked the platform.
+  #[cfg(target_os = "linux")]
+  pub fn into_tray_icon(self) -> PathBuf {
+    match self {
+      Icon::File(path) => path,
+      Icon::Raw(_) => {
+        panic!("linux requires the system menu icon to be a file path, not bytes.")
+      }
+    }
+  }
+
+  /// Converts the icon to a the expected system tray format.
+  /// We expect the code that passes the Icon enum to have already checked the platform.
+  #[cfg(not(target_os = "linux"))]
+  pub fn into_tray_icon(self) -> Vec<u8> {
+    match self {
+      Icon::Raw(bytes) => bytes,
+      Icon::File(_) => {
+        panic!("non-linux system menu icons must be bytes, not a file path.")
+      }
+    }
+  }
+}
+
 /// A system tray event.
 pub enum SystemTrayEvent {
   MenuItemClick(u32),
@@ -185,7 +211,7 @@ pub trait Runtime: Sized + 'static {
   type Handle: RuntimeHandle<Runtime = Self>;
   /// The tray handler type.
   #[cfg(feature = "system-tray")]
-  type TrayHandler: menu::MenuUpdater + Send;
+  type TrayHandler: menu::TrayHandle + Send;
 
   /// Creates a new webview runtime.
   fn new() -> crate::Result<Self>;

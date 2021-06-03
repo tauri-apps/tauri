@@ -483,15 +483,22 @@ enum WebviewMessage {
   Print,
 }
 
+#[cfg(feature = "system-tray")]
+#[derive(Clone)]
+pub(crate) enum TrayMessage {
+  UpdateItem(u32, menu::MenuUpdate),
+  UpdateIcon(Icon),
+  #[cfg(windows)]
+  Remove,
+}
+
 #[derive(Clone)]
 pub(crate) enum Message {
   Window(WindowId, WindowMessage),
   Webview(WindowId, WebviewMessage),
-  CreateWebview(Arc<Mutex<Option<CreateWebviewHandler>>>, Sender<WindowId>),
   #[cfg(feature = "system-tray")]
-  UpdateTrayItem(u32, menu::MenuUpdate),
-  #[cfg(windows)]
-  RemoveTray,
+  Tray(TrayMessage),
+  CreateWebview(Arc<Mutex<Option<CreateWebviewHandler>>>, Sender<WindowId>),
 }
 
 #[derive(Clone)]
@@ -951,7 +958,7 @@ impl RuntimeHandle for WryHandle {
     self
       .dispatcher_context
       .proxy
-      .send_event(Message::RemoveTray)
+      .send_event(Message::Tray(TrayMessage::Remove))
       .map_err(|_| Error::FailedToSendMessage)
   }
 }
@@ -960,7 +967,7 @@ impl Runtime for Wry {
   type Dispatcher = WryDispatcher;
   type Handle = WryHandle;
   #[cfg(feature = "system-tray")]
-  type TrayHandler = MenuHandle;
+  type TrayHandler = SystemTrayHandle;
 
   fn new() -> Result<Self> {
     let event_loop = EventLoop::<Message>::with_user_event();
@@ -1030,25 +1037,10 @@ impl Runtime for Wry {
 
   #[cfg(feature = "system-tray")]
   fn system_tray<I: MenuId>(&self, system_tray: SystemTray<I>) -> Result<Self::TrayHandler> {
-    // we expect the code that passes the Icon enum to have already checked the platform.
-    let icon = match system_tray.icon.expect("tray icon not set") {
-      #[cfg(target_os = "linux")]
-      Icon::File(path) => path,
-
-      #[cfg(not(target_os = "linux"))]
-      Icon::Raw(bytes) => bytes,
-
-      #[cfg(target_os = "linux")]
-      Icon::Raw(_) => {
-        panic!("linux requires the system menu icon to be a file path, not bytes.")
-      }
-
-      #[cfg(not(target_os = "linux"))]
-      Icon::File(_) => {
-        panic!("non-linux system menu icons must be bytes, not a file path")
-      }
-      _ => unreachable!(),
-    };
+    let icon = system_tray
+      .icon
+      .expect("tray icon not set")
+      .into_tray_icon();
 
     let mut items = HashMap::new();
 
@@ -1064,7 +1056,7 @@ impl Runtime for Wry {
     *self.tray_context.items.lock().unwrap() = items;
     *self.tray_context.tray.lock().unwrap() = Some(Arc::new(Mutex::new(tray)));
 
-    Ok(MenuHandle {
+    Ok(SystemTrayHandle {
       proxy: self.event_loop.create_proxy(),
     })
   }
@@ -1390,22 +1382,29 @@ fn handle_event_loop(
         }
       }
       #[cfg(feature = "system-tray")]
-      Message::UpdateTrayItem(menu_id, update) => {
-        let mut tray = tray_context.items.as_ref().lock().unwrap();
-        let item = tray.get_mut(&menu_id).expect("menu item not found");
-        match update {
-          MenuUpdate::SetEnabled(enabled) => item.set_enabled(enabled),
-          MenuUpdate::SetTitle(title) => item.set_title(&title),
-          MenuUpdate::SetSelected(selected) => item.set_selected(selected),
+      Message::Tray(tray_message) => match tray_message {
+        TrayMessage::UpdateItem(menu_id, update) => {
+          let mut tray = tray_context.items.as_ref().lock().unwrap();
+          let item = tray.get_mut(&menu_id).expect("menu item not found");
+          match update {
+            MenuUpdate::SetEnabled(enabled) => item.set_enabled(enabled),
+            MenuUpdate::SetTitle(title) => item.set_title(&title),
+            MenuUpdate::SetSelected(selected) => item.set_selected(selected),
+          }
         }
-      }
-      #[cfg(windows)]
-      Message::RemoveTray => {
-        if let Some(tray) = tray_context.tray.lock().unwrap().as_ref() {
-          use wry::application::platform::windows::SystemTrayExtWindows;
-          tray.lock().unwrap().remove();
+        TrayMessage::UpdateIcon(icon) => {
+          if let Some(tray) = &*tray_context.tray.lock().unwrap() {
+            tray.lock().unwrap().set_icon(icon.into_tray_icon());
+          }
         }
-      }
+        #[cfg(windows)]
+        Message::Remove => {
+          if let Some(tray) = tray_context.tray.lock().unwrap().as_ref() {
+            use wry::application::platform::windows::SystemTrayExtWindows;
+            tray.lock().unwrap().remove();
+          }
+        }
+      },
     },
     _ => (),
   }

@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#[cfg(feature = "system-tray")]
+pub(crate) mod tray;
+
 use crate::{
   api::assets::Assets,
   api::config::WindowUrl,
@@ -22,14 +25,9 @@ use std::{collections::HashMap, sync::Arc};
 
 #[cfg(feature = "menu")]
 use crate::runtime::menu::Menu;
+
 #[cfg(feature = "system-tray")]
-use crate::runtime::{
-  menu::{MenuUpdate, MenuUpdater, SystemTrayMenu, SystemTrayMenuEntry},
-  window::dpi::{PhysicalPosition, PhysicalSize},
-  Icon, SystemTray, SystemTrayEvent as RuntimeSystemTrayEvent,
-};
-#[cfg(feature = "system-tray")]
-use std::sync::Mutex;
+use crate::runtime::{Icon, SystemTrayEvent as RuntimeSystemTrayEvent};
 
 #[cfg(feature = "updater")]
 use crate::updater;
@@ -39,58 +37,7 @@ pub(crate) type GlobalMenuEventListener<P> = Box<dyn Fn(WindowMenuEvent<P>) + Se
 pub(crate) type GlobalWindowEventListener<P> = Box<dyn Fn(GlobalWindowEvent<P>) + Send + Sync>;
 #[cfg(feature = "system-tray")]
 type SystemTrayEventListener<P> =
-  Box<dyn Fn(&AppHandle<P>, SystemTrayEvent<<P as Params>::SystemTrayMenuId>) + Send + Sync>;
-
-/// System tray event.
-#[cfg(feature = "system-tray")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-#[non_exhaustive]
-pub enum SystemTrayEvent<I: MenuId> {
-  /// Tray context menu item was clicked.
-  #[non_exhaustive]
-  MenuItemClick {
-    /// The id of the menu item.
-    id: I,
-  },
-  /// Tray icon received a left click.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux:** Unsupported
-  #[non_exhaustive]
-  LeftClick {
-    /// The position of the tray icon.
-    position: PhysicalPosition<f64>,
-    /// The size of the tray icon.
-    size: PhysicalSize<f64>,
-  },
-  /// Tray icon received a right click.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux:** Unsupported
-  /// - **macOS:** `Ctrl` + `Left click` fire this event.
-  #[non_exhaustive]
-  RightClick {
-    /// The position of the tray icon.
-    position: PhysicalPosition<f64>,
-    /// The size of the tray icon.
-    size: PhysicalSize<f64>,
-  },
-  /// Fired when a menu item receive a `Double click`
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **macOS / Linux:** Unsupported
-  ///
-  #[non_exhaustive]
-  DoubleClick {
-    /// The position of the tray icon.
-    position: PhysicalPosition<f64>,
-    /// The size of the tray icon.
-    size: PhysicalSize<f64>,
-  },
-}
+  Box<dyn Fn(&AppHandle<P>, tray::SystemTrayEvent<<P as Params>::SystemTrayMenuId>) + Send + Sync>;
 
 crate::manager::default_args! {
   /// A menu event that was triggered on a window.
@@ -143,90 +90,7 @@ crate::manager::default_args! {
     runtime_handle: <P::Runtime as Runtime>::Handle,
     manager: WindowManager<P>,
     #[cfg(feature = "system-tray")]
-    tray_handle: Option<SystemTrayHandle<P>>,
-  }
-}
-
-#[cfg(feature = "system-tray")]
-crate::manager::default_args! {
-  /// A handle to a system tray. Allows updating the context menu items.
-  pub struct SystemTrayHandle<P: Params> {
-    ids: Arc<HashMap<u32, P::SystemTrayMenuId>>,
-    inner: Arc<Mutex<<P::Runtime as Runtime>::TrayHandler>>,
-  }
-}
-
-#[cfg(feature = "system-tray")]
-impl<P: Params> Clone for SystemTrayHandle<P> {
-  fn clone(&self) -> Self {
-    Self {
-      ids: self.ids.clone(),
-      inner: self.inner.clone(),
-    }
-  }
-}
-
-#[cfg(feature = "system-tray")]
-crate::manager::default_args! {
-  /// A handle to a system tray menu item.
-  pub struct SystemTrayMenuItemHandle<P: Params> {
-    id: u32,
-    tray_handler: Arc<Mutex<<P::Runtime as Runtime>::TrayHandler>>,
-  }
-}
-
-#[cfg(feature = "system-tray")]
-impl<P: Params> Clone for SystemTrayMenuItemHandle<P> {
-  fn clone(&self) -> Self {
-    Self {
-      id: self.id,
-      tray_handler: self.tray_handler.clone(),
-    }
-  }
-}
-
-#[cfg(feature = "system-tray")]
-impl<P: Params> SystemTrayHandle<P> {
-  pub fn get_item(&self, id: &P::SystemTrayMenuId) -> SystemTrayMenuItemHandle<P> {
-    for (raw, item_id) in self.ids.iter() {
-      if item_id == id {
-        return SystemTrayMenuItemHandle {
-          id: *raw,
-          tray_handler: self.inner.clone(),
-        };
-      }
-    }
-    panic!("item id not found")
-  }
-}
-
-#[cfg(feature = "system-tray")]
-impl<P: Params> SystemTrayMenuItemHandle<P> {
-  /// Modifies the enabled state of the menu item.
-  pub fn set_enabled(&self, enabled: bool) {
-    self
-      .tray_handler
-      .lock()
-      .unwrap()
-      .update_item(self.id, MenuUpdate::SetEnabled(enabled))
-  }
-
-  /// Modifies the title (label) of the menu item.
-  pub fn set_title<S: Into<String>>(&self, title: S) {
-    self
-      .tray_handler
-      .lock()
-      .unwrap()
-      .update_item(self.id, MenuUpdate::SetTitle(title.into()))
-  }
-
-  /// Modifies the selected state of the menu item.
-  pub fn set_selected(&self, selected: bool) {
-    self
-      .tray_handler
-      .lock()
-      .unwrap()
-      .update_item(self.id, MenuUpdate::SetSelected(selected))
+    tray_handle: Option<tray::SystemTrayHandle<P>>,
   }
 }
 
@@ -261,7 +125,7 @@ crate::manager::default_args! {
     #[cfg(shell_execute)]
     cleanup_on_drop: bool,
     #[cfg(feature = "system-tray")]
-    tray_handle: Option<SystemTrayHandle<P>>,
+    tray_handle: Option<tray::SystemTrayHandle<P>>,
   }
 }
 
@@ -316,7 +180,7 @@ macro_rules! shared_app_impl {
       #[cfg(feature = "system-tray")]
       #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
       /// Gets a handle handle to the system tray.
-      pub fn tray_handle(&self) -> SystemTrayHandle<P> {
+      pub fn tray_handle(&self) -> tray::SystemTrayHandle<P> {
         self
           .tray_handle
           .clone()
@@ -465,7 +329,7 @@ where
 
   /// The app system tray.
   #[cfg(feature = "system-tray")]
-  system_tray: Option<SystemTray<TID>>,
+  system_tray: Option<tray::SystemTray<TID>>,
 
   /// System tray event handlers.
   #[cfg(feature = "system-tray")]
@@ -656,7 +520,7 @@ where
   /// Adds the icon configured on `tauri.conf.json` to the system tray with the specified menu items.
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  pub fn system_tray(mut self, system_tray: SystemTray<TID>) -> Self {
+  pub fn system_tray(mut self, system_tray: tray::SystemTray<TID>) -> Self {
     self.system_tray.replace(system_tray);
     self
   }
@@ -697,7 +561,7 @@ where
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   pub fn on_system_tray_event<
-    F: Fn(&AppHandle<Args<E, L, MID, TID, A, R>>, SystemTrayEvent<TID>) + Send + Sync + 'static,
+    F: Fn(&AppHandle<Args<E, L, MID, TID, A, R>>, tray::SystemTrayEvent<TID>) + Send + Sync + 'static,
   >(
     mut self,
     handler: F,
@@ -837,7 +701,7 @@ where
     if let Some(system_tray) = self.system_tray {
       let mut ids = HashMap::new();
       if let Some(menu) = system_tray.menu() {
-        get_menu_ids(&mut ids, menu);
+        tray::get_menu_ids(&mut ids, menu);
       }
       let tray_handler = app
         .runtime
@@ -848,14 +712,14 @@ where
           system_tray,
         )
         .expect("failed to run tray");
-      app.tray_handle.replace(SystemTrayHandle {
+      app.tray_handle.replace(tray::SystemTrayHandle {
         ids: Arc::new(ids.clone()),
-        inner: Arc::new(Mutex::new(tray_handler)),
+        inner: Arc::new(std::sync::Mutex::new(tray_handler)),
       });
       for listener in self.system_tray_event_listeners {
         let app_handle = app.handle();
         let ids = ids.clone();
-        let listener = Arc::new(Mutex::new(listener));
+        let listener = Arc::new(std::sync::Mutex::new(listener));
         app
           .runtime
           .as_mut()
@@ -863,21 +727,23 @@ where
           .on_system_tray_event(move |event| {
             let app_handle = app_handle.clone();
             let event = match event {
-              RuntimeSystemTrayEvent::MenuItemClick(id) => SystemTrayEvent::MenuItemClick {
+              RuntimeSystemTrayEvent::MenuItemClick(id) => tray::SystemTrayEvent::MenuItemClick {
                 id: ids.get(&id).unwrap().clone(),
               },
-              RuntimeSystemTrayEvent::LeftClick { position, size } => SystemTrayEvent::LeftClick {
-                position: *position,
-                size: *size,
-              },
+              RuntimeSystemTrayEvent::LeftClick { position, size } => {
+                tray::SystemTrayEvent::LeftClick {
+                  position: *position,
+                  size: *size,
+                }
+              }
               RuntimeSystemTrayEvent::RightClick { position, size } => {
-                SystemTrayEvent::RightClick {
+                tray::SystemTrayEvent::RightClick {
                   position: *position,
                   size: *size,
                 }
               }
               RuntimeSystemTrayEvent::DoubleClick { position, size } => {
-                SystemTrayEvent::DoubleClick {
+                tray::SystemTrayEvent::DoubleClick {
                   position: *position,
                   size: *size,
                 }
@@ -899,19 +765,6 @@ where
     let mut app = self.build(context)?;
     app.runtime.take().unwrap().run();
     Ok(())
-  }
-}
-
-#[cfg(feature = "system-tray")]
-fn get_menu_ids<I: MenuId>(map: &mut HashMap<u32, I>, menu: &SystemTrayMenu<I>) {
-  for item in &menu.items {
-    match item {
-      SystemTrayMenuEntry::CustomItem(c) => {
-        map.insert(c.id_value(), c.id.clone());
-      }
-      SystemTrayMenuEntry::Submenu(s) => get_menu_ids(map, &s.inner),
-      _ => {}
-    }
   }
 }
 

@@ -459,7 +459,7 @@ pub(crate) enum Message {
   Webview(WindowId, WebviewMessage),
   CreateWebview(Arc<Mutex<Option<CreateWebviewHandler>>>, Sender<WindowId>),
   #[cfg(feature = "system-tray")]
-  UpdateTrayItem(u32, u32, menu::MenuUpdate),
+  UpdateTrayItem(u32, menu::MenuUpdate),
 }
 
 #[derive(Clone)]
@@ -839,6 +839,13 @@ impl Dispatch for WryDispatcher {
   }
 }
 
+#[cfg(feature = "system-tray")]
+#[derive(Clone, Default)]
+struct TrayContext {
+  listeners: SystemTrayEventListeners,
+  items: SystemTrayItems,
+}
+
 /// A Tauri [`Runtime`] wrapper around wry.
 pub struct Wry {
   event_loop: EventLoop<Message>,
@@ -847,11 +854,9 @@ pub struct Wry {
   window_event_listeners: WindowEventListeners,
   #[cfg(feature = "menu")]
   menu_event_listeners: MenuEventListeners,
-  #[cfg(feature = "system-tray")]
-  system_tray_event_listeners: SystemTrayEventListeners,
   task_rx: Arc<Receiver<MainThreadTask>>,
   #[cfg(feature = "system-tray")]
-  system_trays: SystemTrays,
+  tray_context: TrayContext,
 }
 
 /// A handle to the Wry runtime.
@@ -909,9 +914,7 @@ impl Runtime for Wry {
       #[cfg(feature = "menu")]
       menu_event_listeners: Default::default(),
       #[cfg(feature = "system-tray")]
-      system_tray_event_listeners: Default::default(),
-      #[cfg(feature = "system-tray")]
-      system_trays: Default::default(),
+      tray_context: Default::default(),
     })
   }
 
@@ -1002,11 +1005,9 @@ impl Runtime for Wry {
     .build(&self.event_loop)
     .map_err(|e| Error::SystemTray(Box::new(e)))?;
 
-    let tray_id = rand::random::<u32>();
-    self.system_trays.lock().unwrap().insert(tray_id, items);
+    *self.tray_context.items.lock().unwrap() = items;
 
     Ok(MenuHandle {
-      id: tray_id,
       proxy: self.event_loop.create_proxy(),
     })
   }
@@ -1015,7 +1016,8 @@ impl Runtime for Wry {
   fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid {
     let id = Uuid::new_v4();
     self
-      .system_tray_event_listeners
+      .tray_context
+      .listeners
       .lock()
       .unwrap()
       .insert(id, Box::new(f));
@@ -1031,9 +1033,7 @@ impl Runtime for Wry {
     #[cfg(feature = "menu")]
     let menu_event_listeners = self.menu_event_listeners.clone();
     #[cfg(feature = "system-tray")]
-    let system_tray_event_listeners = self.system_tray_event_listeners.clone();
-    #[cfg(feature = "system-tray")]
-    let system_trays = self.system_trays.clone();
+    let tray_context = self.tray_context.clone();
 
     let mut iteration = RunIteration::default();
 
@@ -1054,9 +1054,7 @@ impl Runtime for Wry {
             #[cfg(feature = "menu")]
             menu_event_listeners: menu_event_listeners.clone(),
             #[cfg(feature = "system-tray")]
-            system_tray_event_listeners: system_tray_event_listeners.clone(),
-            #[cfg(feature = "system-tray")]
-            system_trays: system_trays.clone(),
+            tray_context: tray_context.clone(),
           },
         );
       });
@@ -1071,9 +1069,7 @@ impl Runtime for Wry {
     #[cfg(feature = "menu")]
     let menu_event_listeners = self.menu_event_listeners.clone();
     #[cfg(feature = "system-tray")]
-    let system_tray_event_listeners = self.system_tray_event_listeners;
-    #[cfg(feature = "system-tray")]
-    let system_trays = self.system_trays;
+    let tray_context = self.tray_context;
 
     self.event_loop.run(move |event, event_loop, control_flow| {
       handle_event_loop(
@@ -1087,9 +1083,7 @@ impl Runtime for Wry {
           #[cfg(feature = "menu")]
           menu_event_listeners: menu_event_listeners.clone(),
           #[cfg(feature = "system-tray")]
-          system_tray_event_listeners: system_tray_event_listeners.clone(),
-          #[cfg(feature = "system-tray")]
-          system_trays: system_trays.clone(),
+          tray_context: tray_context.clone(),
         },
       );
     })
@@ -1103,9 +1097,7 @@ struct EventLoopIterationContext<'a> {
   #[cfg(feature = "menu")]
   menu_event_listeners: MenuEventListeners,
   #[cfg(feature = "system-tray")]
-  system_tray_event_listeners: SystemTrayEventListeners,
-  #[cfg(feature = "system-tray")]
-  system_trays: SystemTrays,
+  tray_context: TrayContext,
 }
 
 fn handle_event_loop(
@@ -1121,9 +1113,7 @@ fn handle_event_loop(
     #[cfg(feature = "menu")]
     menu_event_listeners,
     #[cfg(feature = "system-tray")]
-    system_tray_event_listeners,
-    #[cfg(feature = "system-tray")]
-    system_trays,
+    tray_context,
   } = context;
   *control_flow = ControlFlow::Wait;
 
@@ -1156,7 +1146,7 @@ fn handle_event_loop(
       origin: MenuType::ContextMenu,
     } => {
       let event = SystemTrayEvent::MenuItemClick(menu_id.0);
-      for handler in system_tray_event_listeners.lock().unwrap().values() {
+      for handler in tray_context.listeners.lock().unwrap().values() {
         handler(&event);
       }
     }
@@ -1175,7 +1165,7 @@ fn handle_event_loop(
         TrayEvent::RightClick => SystemTrayEvent::RightClick { position, size },
         TrayEvent::DoubleClick => SystemTrayEvent::DoubleClick { position, size },
       };
-      for handler in system_tray_event_listeners.lock().unwrap().values() {
+      for handler in tray_context.listeners.lock().unwrap().values() {
         handler(&event);
       }
     }
@@ -1323,9 +1313,8 @@ fn handle_event_loop(
           }
         }
       }
-      Message::UpdateTrayItem(tray_id, menu_id, update) => {
-        let mut system_trays = system_trays.lock().unwrap();
-        let tray = system_trays.get_mut(&tray_id).expect("tray not found");
+      Message::UpdateTrayItem(menu_id, update) => {
+        let mut tray = tray_context.items.as_ref().lock().unwrap();
         let item = tray.get_mut(&menu_id).expect("menu item not found");
         match update {
           MenuUpdate::SetEnabled(enabled) => item.set_enabled(enabled),

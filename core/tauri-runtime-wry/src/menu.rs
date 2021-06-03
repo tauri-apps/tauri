@@ -30,10 +30,9 @@ pub type MenuEventHandler = Box<dyn Fn(&MenuEvent) + Send>;
 pub type MenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
 pub type SystemTrayEventHandler = Box<dyn Fn(&SystemTrayEvent) + Send>;
 pub type SystemTrayEventListeners = Arc<Mutex<HashMap<Uuid, SystemTrayEventHandler>>>;
-pub type SystemTrays = Arc<Mutex<HashMap<u32, HashMap<u32, CustomMenuItemHandle>>>>;
+pub type SystemTrayItems = Arc<Mutex<HashMap<u32, CustomMenuItemHandle>>>;
 
 pub struct MenuHandle {
-  pub(crate) id: u32,
   pub(crate) proxy: EventLoopProxy<super::Message>,
 }
 
@@ -43,7 +42,7 @@ impl MenuUpdater for MenuHandle {
   fn update_item(&self, id: u32, update: MenuUpdate) {
     let _ = self
       .proxy
-      .send_event(super::Message::UpdateTrayItem(self.id, id, update));
+      .send_event(super::Message::UpdateTrayItem(id, update));
   }
 }
 

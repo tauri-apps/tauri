@@ -27,6 +27,8 @@ use std::{collections::HashMap, sync::Arc};
 #[cfg(feature = "menu")]
 use crate::runtime::menu::Menu;
 
+#[cfg(all(windows, feature = "system-tray"))]
+use crate::runtime::RuntimeHandle;
 #[cfg(feature = "system-tray")]
 use crate::runtime::{Icon, SystemTrayEvent as RuntimeSystemTrayEvent};
 
@@ -105,6 +107,15 @@ impl<P: Params> Clone for AppHandle<P> {
   }
 }
 
+impl<P: Params> AppHandle<P> {
+  /// Removes the system tray.
+  #[cfg(all(windows, feature = "system-tray"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
+  fn remove_system_tray(&self) -> crate::Result<()> {
+    self.runtime_handle.remove_system_tray().map_err(Into::into)
+  }
+}
+
 impl<P: Params> Manager<P> for AppHandle<P> {}
 impl<P: Params> ManagerBase<P> for AppHandle<P> {
   fn manager(&self) -> &WindowManager<P> {
@@ -123,21 +134,9 @@ crate::manager::default_args! {
   pub struct App<P: Params> {
     runtime: Option<P::Runtime>,
     manager: WindowManager<P>,
-    #[cfg(shell_execute)]
-    cleanup_on_drop: bool,
     #[cfg(feature = "system-tray")]
     tray_handle: Option<tray::SystemTrayHandle<P>>,
-  }
-}
-
-impl<P: Params> Drop for App<P> {
-  fn drop(&mut self) {
-    #[cfg(shell_execute)]
-    {
-      if self.cleanup_on_drop {
-        crate::api::process::kill_children();
-      }
-    }
+    handle: AppHandle<P>,
   }
 }
 
@@ -197,15 +196,14 @@ shared_app_impl!(AppHandle<P>);
 impl<P: Params> App<P> {
   /// Gets a handle to the application instance.
   pub fn handle(&self) -> AppHandle<P> {
-    AppHandle {
-      runtime_handle: self.runtime.as_ref().unwrap().handle(),
-      manager: self.manager.clone(),
-      #[cfg(feature = "system-tray")]
-      tray_handle: self.tray_handle.clone(),
-    }
+    self.handle.clone()
   }
 
   /// Runs a iteration of the runtime event loop and immediately return.
+  ///
+  /// Note that when using this API, app cleanup is not automatically done.
+  /// The cleanup calls [`crate::api::process::kill_children`] so you may want to call that function before exiting the application.
+  /// Additionally, the cleanup calls [AppHandle#remove_system_tray](`AppHandle#method.remove_system_tray`) (Windows only).
   ///
   /// # Example
   /// ```rust,ignore
@@ -335,9 +333,6 @@ where
   /// System tray event handlers.
   #[cfg(feature = "system-tray")]
   system_tray_event_listeners: Vec<SystemTrayEventListener<Args<E, L, MID, TID, A, R>>>,
-
-  #[cfg(shell_execute)]
-  cleanup_on_drop: bool,
 }
 
 impl<E, L, MID, TID, A, R> Builder<E, L, MID, TID, A, R>
@@ -368,8 +363,6 @@ where
       system_tray: None,
       #[cfg(feature = "system-tray")]
       system_tray_event_listeners: Vec::new(),
-      #[cfg(shell_execute)]
-      cleanup_on_drop: true,
     }
   }
 
@@ -597,15 +590,6 @@ where
     self
   }
 
-  /// Skips Tauri cleanup on [`App`] drop. Useful if your application has multiple [`App`] instances.
-  ///
-  /// The cleanup calls [`crate::api::process::kill_children`] so you may want to call that function before exiting the application.
-  #[cfg(shell_execute)]
-  pub fn skip_cleanup_on_drop(mut self) -> Self {
-    self.cleanup_on_drop = false;
-    self
-  }
-
   /// Builds the application.
   #[allow(clippy::type_complexity)]
   pub fn build(mut self, context: Context<A>) -> crate::Result<App<Args<E, L, MID, TID, A, R>>> {
@@ -663,13 +647,20 @@ where
       ));
     }
 
+    let runtime = R::new()?;
+    let runtime_handle = runtime.handle();
+
     let mut app = App {
-      runtime: Some(R::new()?),
-      manager,
-      #[cfg(shell_execute)]
-      cleanup_on_drop: self.cleanup_on_drop,
+      runtime: Some(runtime),
+      manager: manager.clone(),
       #[cfg(feature = "system-tray")]
       tray_handle: None,
+      handle: AppHandle {
+        runtime_handle,
+        manager,
+        #[cfg(feature = "system-tray")]
+        tray_handle: None,
+      },
     };
 
     app.manager.initialize_plugins(&app)?;
@@ -713,10 +704,12 @@ where
           system_tray,
         )
         .expect("failed to run tray");
-      app.tray_handle.replace(tray::SystemTrayHandle {
+      let tray_handle = tray::SystemTrayHandle {
         ids: Arc::new(ids.clone()),
         inner: Arc::new(std::sync::Mutex::new(tray_handler)),
-      });
+      };
+      app.tray_handle.replace(tray_handle.clone());
+      app.handle.tray_handle.replace(tray_handle);
       for listener in self.system_tray_event_listeners {
         let app_handle = app.handle();
         let ids = ids.clone();
@@ -764,7 +757,17 @@ where
   /// Runs the configured Tauri application.
   pub fn run(self, context: Context<A>) -> crate::Result<()> {
     let mut app = self.build(context)?;
-    app.runtime.take().unwrap().run();
+    let app_handle = app.handle();
+    app.runtime.take().unwrap().run(move || {
+      #[cfg(shell_execute)]
+      {
+        crate::api::process::kill_children();
+      }
+      #[cfg(feature = "system-tray")]
+      {
+        let _ = app_handle.remove_system_tray();
+      }
+    });
     Ok(())
   }
 }

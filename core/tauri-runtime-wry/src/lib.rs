@@ -25,7 +25,7 @@ use winapi::shared::windef::HWND;
 #[cfg(windows)]
 use wry::application::platform::windows::WindowBuilderExtWindows;
 #[cfg(feature = "system-tray")]
-use wry::application::system_tray::SystemTrayBuilder;
+use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
 
 use tauri_utils::config::WindowConfig;
 use uuid::Uuid;
@@ -490,6 +490,8 @@ pub(crate) enum Message {
   CreateWebview(Arc<Mutex<Option<CreateWebviewHandler>>>, Sender<WindowId>),
   #[cfg(feature = "system-tray")]
   UpdateTrayItem(u32, menu::MenuUpdate),
+  #[cfg(windows)]
+  RemoveTray,
 }
 
 #[derive(Clone)]
@@ -884,6 +886,7 @@ impl Dispatch for WryDispatcher {
 #[cfg(feature = "system-tray")]
 #[derive(Clone, Default)]
 struct TrayContext {
+  tray: Arc<Mutex<Option<Arc<Mutex<WrySystemTray>>>>>,
   listeners: SystemTrayEventListeners,
   items: SystemTrayItems,
 }
@@ -941,6 +944,15 @@ impl RuntimeHandle for WryHandle {
       context: self.dispatcher_context.clone(),
     };
     Ok(DetachedWindow { label, dispatcher })
+  }
+
+  #[cfg(all(windows, feature = "system-tray"))]
+  fn remove_system_tray(&self) -> Result<()> {
+    self
+      .dispatcher_context
+      .proxy
+      .send_event(Message::RemoveTray)
+      .map_err(|_| Error::FailedToSendMessage)
   }
 }
 
@@ -1044,7 +1056,7 @@ impl Runtime for Wry {
 
     let mut items = HashMap::new();
 
-    SystemTrayBuilder::new(
+    let tray = SystemTrayBuilder::new(
       icon,
       system_tray
         .take()
@@ -1054,6 +1066,7 @@ impl Runtime for Wry {
     .map_err(|e| Error::SystemTray(Box::new(e)))?;
 
     *self.tray_context.items.lock().unwrap() = items;
+    *self.tray_context.tray.lock().unwrap() = Some(Arc::new(Mutex::new(tray)));
 
     Ok(MenuHandle {
       proxy: self.event_loop.create_proxy(),
@@ -1096,6 +1109,7 @@ impl Runtime for Wry {
           event_loop,
           control_flow,
           EventLoopIterationContext {
+            callback: None,
             webviews: webviews.lock().expect("poisoned webview collection"),
             task_rx: task_rx.clone(),
             window_event_listeners: window_event_listeners.clone(),
@@ -1110,7 +1124,7 @@ impl Runtime for Wry {
     iteration
   }
 
-  fn run(self) {
+  fn run<F: Fn() + 'static>(self, callback: F) {
     let webviews = self.webviews.clone();
     let task_rx = self.task_rx;
     let window_event_listeners = self.window_event_listeners.clone();
@@ -1125,6 +1139,7 @@ impl Runtime for Wry {
         event_loop,
         control_flow,
         EventLoopIterationContext {
+          callback: Some(&callback),
           webviews: webviews.lock().expect("poisoned webview collection"),
           task_rx: task_rx.clone(),
           window_event_listeners: window_event_listeners.clone(),
@@ -1139,6 +1154,7 @@ impl Runtime for Wry {
 }
 
 struct EventLoopIterationContext<'a> {
+  callback: Option<&'a (dyn Fn() + 'static)>,
   webviews: MutexGuard<'a, HashMap<WindowId, WebviewWrapper>>,
   task_rx: Arc<Receiver<MainThreadTask>>,
   window_event_listeners: WindowEventListeners,
@@ -1155,6 +1171,7 @@ fn handle_event_loop(
   context: EventLoopIterationContext<'_>,
 ) -> RunIteration {
   let EventLoopIterationContext {
+    callback,
     mut webviews,
     task_rx,
     window_event_listeners,
@@ -1228,6 +1245,9 @@ fn handle_event_loop(
           webviews.remove(&window_id);
           if webviews.is_empty() {
             *control_flow = ControlFlow::Exit;
+            if let Some(callback) = callback {
+              callback();
+            }
           }
         }
         WryWindowEvent::Resized(_) => {
@@ -1373,6 +1393,7 @@ fn handle_event_loop(
           }
         }
       }
+      #[cfg(feature = "system-tray")]
       Message::UpdateTrayItem(menu_id, update) => {
         let mut tray = tray_context.items.as_ref().lock().unwrap();
         let item = tray.get_mut(&menu_id).expect("menu item not found");
@@ -1380,6 +1401,13 @@ fn handle_event_loop(
           MenuUpdate::SetEnabled(enabled) => item.set_enabled(enabled),
           MenuUpdate::SetTitle(title) => item.set_title(&title),
           MenuUpdate::SetSelected(selected) => item.set_selected(selected),
+        }
+      }
+      #[cfg(windows)]
+      Message::RemoveTray => {
+        if let Some(tray) = tray_context.tray.lock().unwrap().as_ref() {
+          use wry::application::platform::windows::SystemTrayExtWindows;
+          tray.lock().unwrap().remove();
         }
       }
     },

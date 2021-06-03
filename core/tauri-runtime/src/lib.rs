@@ -164,6 +164,10 @@ pub trait RuntimeHandle: Send + Sized + Clone + 'static {
     &self,
     pending: PendingWindow<P>,
   ) -> crate::Result<DetachedWindow<P>>;
+
+  #[cfg(all(windows, feature = "system-tray"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
+  fn remove_system_tray(&self) -> crate::Result<()>;
 }
 
 /// The webview runtime interface.
@@ -207,7 +211,7 @@ pub trait Runtime: Sized + 'static {
   fn run_iteration(&mut self) -> RunIteration;
 
   /// Run the webview runtime.
-  fn run(self);
+  fn run<F: Fn() + 'static>(self, callback: F);
 }
 
 /// Webview dispatcher. A thread-safe handle to the webview API.

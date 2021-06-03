@@ -65,6 +65,7 @@ impl TrayHandle for SystemTrayHandle {
 #[cfg(target_os = "macos")]
 pub struct NativeImageWrapper(pub WryNativeImage);
 
+#[cfg(target_os = "macos")]
 impl From<NativeImage> for NativeImageWrapper {
   fn from(image: NativeImage) -> NativeImageWrapper {
     let wry_image = match image {

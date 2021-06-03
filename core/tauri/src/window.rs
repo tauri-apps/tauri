@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 #[cfg(feature = "menu")]
-use crate::runtime::MenuId;
+#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
+pub(crate) mod menu;
+
 use crate::{
   api::config::WindowUrl,
   command::{CommandArg, CommandItem},
@@ -30,22 +32,6 @@ use std::{
   borrow::Borrow,
   hash::{Hash, Hasher},
 };
-
-/// The window menu event.
-#[cfg(feature = "menu")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-#[derive(Debug, Clone)]
-pub struct MenuEvent<I: MenuId> {
-  pub(crate) menu_item_id: I,
-}
-
-#[cfg(feature = "menu")]
-impl<I: MenuId> MenuEvent<I> {
-  /// The menu item id.
-  pub fn menu_item_id(&self) -> &I {
-    &self.menu_item_id
-  }
-}
 
 /// Monitor descriptor.
 #[derive(Debug, Clone, Serialize)]
@@ -301,16 +287,25 @@ impl<P: Params> Window<P> {
   /// Registers a menu event listener.
   #[cfg(feature = "menu")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-  pub fn on_menu_event<F: Fn(MenuEvent<P::MenuId>) + Send + 'static>(&self, f: F) {
+  pub fn on_menu_event<F: Fn(menu::MenuEvent<P::MenuId>) + Send + 'static>(&self, f: F) {
     let menu_ids = self.manager.menu_ids();
     self.window.dispatcher.on_menu_event(move |event| {
-      f(MenuEvent {
+      f(menu::MenuEvent {
         menu_item_id: menu_ids.get(&event.menu_item_id).unwrap().clone(),
       })
     });
   }
 
   // Getters
+
+  /// Gets a handle to the window menu.
+  #[cfg(feature = "menu")]
+  pub fn menu_handle(&self) -> menu::MenuHandle<P> {
+    menu::MenuHandle {
+      ids: self.manager.menu_ids(),
+      dispatcher: self.dispatcher(),
+    }
+  }
 
   /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.
   pub fn scale_factor(&self) -> crate::Result<f64> {

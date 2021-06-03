@@ -102,7 +102,7 @@ pub use {
 pub use {
   self::app::WindowMenuEvent,
   self::runtime::menu::{Menu, MenuItem, Submenu},
-  self::window::MenuEvent,
+  self::window::menu::MenuEvent,
 };
 
 /// Reads the config file at compile time and generates a [`Context`] based on its content.

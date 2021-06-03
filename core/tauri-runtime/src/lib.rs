@@ -355,4 +355,8 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
 
   /// Executes javascript on the window this [`Dispatch`] represents.
   fn eval_script<S: Into<String>>(&self, script: S) -> crate::Result<()>;
+
+  /// Applies the specified `update` to the menu item associated with the given `id`.
+  #[cfg(feature = "menu")]
+  fn update_menu_item(&self, id: u32, update: menu::MenuUpdate) -> crate::Result<()>;
 }

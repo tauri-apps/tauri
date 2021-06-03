@@ -29,7 +29,6 @@ pub(crate) fn get_menu_ids<I: MenuId>(map: &mut HashMap<u32, I>, menu: &SystemTr
 }
 
 /// System tray event.
-#[cfg(feature = "system-tray")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 #[non_exhaustive]
 pub enum SystemTrayEvent<I: MenuId> {

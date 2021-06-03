@@ -63,7 +63,7 @@ mod menu;
 use menu::*;
 
 type CreateWebviewHandler =
-  Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> Result<WebView> + Send>;
+  Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> Result<WebviewWrapper> + Send>;
 type MainThreadTask = Box<dyn FnOnce() + Send>;
 type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
@@ -241,7 +241,14 @@ impl From<Position> for PositionWrapper {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct WindowBuilderWrapper(WryWindowBuilder);
+pub struct WindowBuilderWrapper {
+  inner: WryWindowBuilder,
+  #[cfg(feature = "menu")]
+  menu_items: HashMap<u32, CustomMenuItemHandle>,
+}
+
+// safe since `menu_items` are read only here
+unsafe impl Send for WindowBuilderWrapper {}
 
 impl WindowBuilderBase for WindowBuilderWrapper {}
 impl WindowBuilder for WindowBuilderWrapper {
@@ -280,101 +287,122 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   #[cfg(feature = "menu")]
-  fn menu<I: MenuId>(self, menu: Menu<I>) -> Self {
-    Self(self.0.with_menu(to_wry_menu(menu)))
+  fn menu<I: MenuId>(mut self, menu: Menu<I>) -> Self {
+    let mut items = HashMap::new();
+    let window_menu = to_wry_menu(&mut items, menu);
+    self.menu_items = items;
+    self.inner = self.inner.with_menu(window_menu);
+    self
   }
 
-  fn position(self, x: f64, y: f64) -> Self {
-    Self(self.0.with_position(WryLogicalPosition::new(x, y)))
+  fn position(mut self, x: f64, y: f64) -> Self {
+    self.inner = self.inner.with_position(WryLogicalPosition::new(x, y));
+    self
   }
 
-  fn inner_size(self, width: f64, height: f64) -> Self {
-    Self(self.0.with_inner_size(WryLogicalSize::new(width, height)))
+  fn inner_size(mut self, width: f64, height: f64) -> Self {
+    self.inner = self
+      .inner
+      .with_inner_size(WryLogicalSize::new(width, height));
+    self
   }
 
-  fn min_inner_size(self, min_width: f64, min_height: f64) -> Self {
-    Self(
+  fn min_inner_size(mut self, min_width: f64, min_height: f64) -> Self {
+    self.inner = self
+      .inner
+      .with_min_inner_size(WryLogicalSize::new(min_width, min_height));
+    self
+  }
+
+  fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
+    self.inner = self
+      .inner
+      .with_max_inner_size(WryLogicalSize::new(max_width, max_height));
+    self
+  }
+
+  fn resizable(mut self, resizable: bool) -> Self {
+    self.inner = self.inner.with_resizable(resizable);
+    self
+  }
+
+  fn title<S: Into<String>>(mut self, title: S) -> Self {
+    self.inner = self.inner.with_title(title.into());
+    self
+  }
+
+  fn fullscreen(mut self, fullscreen: bool) -> Self {
+    self.inner = if fullscreen {
       self
-        .0
-        .with_min_inner_size(WryLogicalSize::new(min_width, min_height)),
-    )
-  }
-
-  fn max_inner_size(self, max_width: f64, max_height: f64) -> Self {
-    Self(
-      self
-        .0
-        .with_max_inner_size(WryLogicalSize::new(max_width, max_height)),
-    )
-  }
-
-  fn resizable(self, resizable: bool) -> Self {
-    Self(self.0.with_resizable(resizable))
-  }
-
-  fn title<S: Into<String>>(self, title: S) -> Self {
-    Self(self.0.with_title(title.into()))
-  }
-
-  fn fullscreen(self, fullscreen: bool) -> Self {
-    if fullscreen {
-      Self(self.0.with_fullscreen(Some(Fullscreen::Borderless(None))))
+        .inner
+        .with_fullscreen(Some(Fullscreen::Borderless(None)))
     } else {
-      Self(self.0.with_fullscreen(None))
-    }
+      self.inner.with_fullscreen(None)
+    };
+    self
   }
 
-  fn focus(self) -> Self {
-    Self(self.0.with_focus())
+  fn focus(mut self) -> Self {
+    self.inner = self.inner.with_focus();
+    self
   }
 
-  fn maximized(self, maximized: bool) -> Self {
-    Self(self.0.with_maximized(maximized))
+  fn maximized(mut self, maximized: bool) -> Self {
+    self.inner = self.inner.with_maximized(maximized);
+    self
   }
 
-  fn visible(self, visible: bool) -> Self {
-    Self(self.0.with_visible(visible))
+  fn visible(mut self, visible: bool) -> Self {
+    self.inner = self.inner.with_visible(visible);
+    self
   }
 
-  fn transparent(self, transparent: bool) -> Self {
-    Self(self.0.with_transparent(transparent))
+  fn transparent(mut self, transparent: bool) -> Self {
+    self.inner = self.inner.with_transparent(transparent);
+    self
   }
 
-  fn decorations(self, decorations: bool) -> Self {
-    Self(self.0.with_decorations(decorations))
+  fn decorations(mut self, decorations: bool) -> Self {
+    self.inner = self.inner.with_decorations(decorations);
+    self
   }
 
-  fn always_on_top(self, always_on_top: bool) -> Self {
-    Self(self.0.with_always_on_top(always_on_top))
+  fn always_on_top(mut self, always_on_top: bool) -> Self {
+    self.inner = self.inner.with_always_on_top(always_on_top);
+    self
   }
 
   #[cfg(windows)]
-  fn parent_window(self, parent: HWND) -> Self {
-    Self(self.0.with_parent_window(parent))
+  fn parent_window(mut self, parent: HWND) -> Self {
+    self.inner = self.inner.with_parent_window(parent);
+    self
   }
 
   #[cfg(windows)]
-  fn owner_window(self, owner: HWND) -> Self {
-    Self(self.0.with_owner_window(owner))
+  fn owner_window(mut self, owner: HWND) -> Self {
+    self.inner = self.inner.with_owner_window(owner);
+    self
   }
 
-  fn icon(self, icon: Icon) -> Result<Self> {
-    Ok(Self(
-      self.0.with_window_icon(Some(WryIcon::try_from(icon)?.0)),
-    ))
+  fn icon(mut self, icon: Icon) -> Result<Self> {
+    self.inner = self
+      .inner
+      .with_window_icon(Some(WryIcon::try_from(icon)?.0));
+    Ok(self)
   }
 
-  fn skip_taskbar(self, skip: bool) -> Self {
-    Self(self.0.with_skip_taskbar(skip))
+  fn skip_taskbar(mut self, skip: bool) -> Self {
+    self.inner = self.inner.with_skip_taskbar(skip);
+    self
   }
 
   fn has_icon(&self) -> bool {
-    self.0.window.window_icon.is_some()
+    self.inner.window.window_icon.is_some()
   }
 
   #[cfg(feature = "menu")]
   fn has_menu(&self) -> bool {
-    self.0.window.window_menu.is_some()
+    self.inner.window.window_menu.is_some()
   }
 }
 
@@ -445,6 +473,8 @@ enum WindowMessage {
   SetIcon(WindowIcon),
   SetSkipTaskbar(bool),
   DragWindow,
+  #[cfg(feature = "menu")]
+  UpdateMenuItem(u32, menu::MenuUpdate),
 }
 
 #[derive(Debug, Clone)]
@@ -837,6 +867,18 @@ impl Dispatch for WryDispatcher {
       ))
       .map_err(|_| Error::FailedToSendMessage)
   }
+
+  #[cfg(feature = "menu")]
+  fn update_menu_item(&self, id: u32, update: menu::MenuUpdate) -> Result<()> {
+    self
+      .context
+      .proxy
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::UpdateMenuItem(id, update),
+      ))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
 }
 
 #[cfg(feature = "system-tray")]
@@ -846,10 +888,16 @@ struct TrayContext {
   items: SystemTrayItems,
 }
 
+struct WebviewWrapper {
+  inner: WebView,
+  #[cfg(feature = "menu")]
+  menu_items: HashMap<u32, CustomMenuItemHandle>,
+}
+
 /// A Tauri [`Runtime`] wrapper around wry.
 pub struct Wry {
   event_loop: EventLoop<Message>,
-  webviews: Arc<Mutex<HashMap<WindowId, WebView>>>,
+  webviews: Arc<Mutex<HashMap<WindowId, WebviewWrapper>>>,
   task_tx: Sender<MainThreadTask>,
   window_event_listeners: WindowEventListeners,
   #[cfg(feature = "menu")]
@@ -949,7 +997,7 @@ impl Runtime for Wry {
     )?;
 
     let dispatcher = WryDispatcher {
-      window_id: webview.window().id(),
+      window_id: webview.inner.window().id(),
       context: DispatcherContext {
         proxy,
         task_tx: self.task_tx.clone(),
@@ -963,7 +1011,7 @@ impl Runtime for Wry {
       .webviews
       .lock()
       .unwrap()
-      .insert(webview.window().id(), webview);
+      .insert(webview.inner.window().id(), webview);
 
     Ok(DetachedWindow { label, dispatcher })
   }
@@ -1091,7 +1139,7 @@ impl Runtime for Wry {
 }
 
 struct EventLoopIterationContext<'a> {
-  webviews: MutexGuard<'a, HashMap<WindowId, WebView>>,
+  webviews: MutexGuard<'a, HashMap<WindowId, WebviewWrapper>>,
   task_rx: Arc<Receiver<MainThreadTask>>,
   window_event_listeners: WindowEventListeners,
   #[cfg(feature = "menu")]
@@ -1118,7 +1166,7 @@ fn handle_event_loop(
   *control_flow = ControlFlow::Wait;
 
   for (_, w) in webviews.iter() {
-    if let Err(e) = w.evaluate_script() {
+    if let Err(e) = w.inner.evaluate_script() {
       eprintln!("{}", e);
     }
   }
@@ -1183,7 +1231,7 @@ fn handle_event_loop(
           }
         }
         WryWindowEvent::Resized(_) => {
-          if let Err(e) = webviews[&window_id].resize() {
+          if let Err(e) = webviews[&window_id].inner.resize() {
             eprintln!("{}", e);
           }
         }
@@ -1193,7 +1241,7 @@ fn handle_event_loop(
     Event::UserEvent(message) => match message {
       Message::Window(id, window_message) => {
         if let Some(webview) = webviews.get_mut(&id) {
-          let window = webview.window();
+          let window = webview.inner.window();
           match window_message {
             // Getters
             WindowMessage::ScaleFactor(tx) => tx.send(window.scale_factor()).unwrap(),
@@ -1282,6 +1330,18 @@ fn handle_event_loop(
             WindowMessage::DragWindow => {
               let _ = window.drag_window();
             }
+            #[cfg(feature = "menu")]
+            WindowMessage::UpdateMenuItem(id, update) => {
+              let item = webview
+                .menu_items
+                .get_mut(&id)
+                .expect("menu item not found");
+              match update {
+                MenuUpdate::SetEnabled(enabled) => item.set_enabled(enabled),
+                MenuUpdate::SetTitle(title) => item.set_title(&title),
+                MenuUpdate::SetSelected(selected) => item.set_selected(selected),
+              }
+            }
           }
         }
       }
@@ -1289,10 +1349,10 @@ fn handle_event_loop(
         if let Some(webview) = webviews.get_mut(&id) {
           match webview_message {
             WebviewMessage::EvaluateScript(script) => {
-              let _ = webview.dispatch_script(&script);
+              let _ = webview.inner.dispatch_script(&script);
             }
             WebviewMessage::Print => {
-              let _ = webview.print();
+              let _ = webview.inner.print();
             }
           }
         }
@@ -1304,7 +1364,7 @@ fn handle_event_loop(
         };
         match handler(event_loop) {
           Ok(webview) => {
-            let window_id = webview.window().id();
+            let window_id = webview.inner.window().id();
             webviews.insert(window_id, webview);
             sender.send(window_id).unwrap();
           }
@@ -1335,7 +1395,7 @@ fn create_webview<P: Params<Runtime = Wry>>(
   event_loop: &EventLoopWindowTarget<Message>,
   context: DispatcherContext,
   pending: PendingWindow<P>,
-) -> Result<WebView> {
+) -> Result<WebviewWrapper> {
   let PendingWindow {
     webview_attributes,
     window_builder,
@@ -1346,8 +1406,10 @@ fn create_webview<P: Params<Runtime = Wry>>(
     ..
   } = pending;
 
-  let is_window_transparent = window_builder.0.window.transparent;
-  let window = window_builder.0.build(event_loop).unwrap();
+  let is_window_transparent = window_builder.inner.window.transparent;
+  #[cfg(feature = "menu")]
+  let menu_items = window_builder.menu_items;
+  let window = window_builder.inner.build(event_loop).unwrap();
   let mut webview_builder = WebViewBuilder::new(window)
     .map_err(|e| Error::CreateWebview(Box::new(e)))?
     .with_url(&url)
@@ -1373,9 +1435,15 @@ fn create_webview<P: Params<Runtime = Wry>>(
     webview_builder = webview_builder.with_initialization_script(&script);
   }
 
-  webview_builder
+  let webview = webview_builder
     .build()
-    .map_err(|e| Error::CreateWebview(Box::new(e)))
+    .map_err(|e| Error::CreateWebview(Box::new(e)))?;
+
+  Ok(WebviewWrapper {
+    inner: webview,
+    #[cfg(feature = "menu")]
+    menu_items,
+  })
 }
 
 /// Create a wry rpc handler from a tauri rpc handler.

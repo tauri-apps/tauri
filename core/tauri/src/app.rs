@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 #[cfg(feature = "system-tray")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub(crate) mod tray;
 
 use crate::{

@@ -83,12 +83,15 @@ impl From<SystemTrayMenuItem> for MenuItemWrapper {
 }
 
 #[cfg(feature = "menu")]
-pub fn to_wry_menu<I: MenuId>(menu: Menu<I>) -> MenuBar {
+pub fn to_wry_menu<I: MenuId>(
+  custom_menu_items: &mut HashMap<u32, CustomMenuItemHandle>,
+  menu: Menu<I>,
+) -> MenuBar {
   let mut wry_menu = MenuBar::new();
   for item in menu.items {
     match item {
       MenuEntry::CustomItem(c) => {
-        wry_menu.add_item(
+        let item = wry_menu.add_item(
           WryCustomMenuItem::new(
             &c.title,
             c.keyboard_accelerator.as_deref(),
@@ -97,12 +100,17 @@ pub fn to_wry_menu<I: MenuId>(menu: Menu<I>) -> MenuBar {
           )
           .with_id(WryMenuId(c.id_value())),
         );
+        custom_menu_items.insert(c.id_value(), item);
       }
       MenuEntry::NativeItem(i) => {
         wry_menu.add_native_item(MenuItemWrapper::from(i).0);
       }
       MenuEntry::Submenu(submenu) => {
-        wry_menu.add_submenu(&submenu.title, submenu.enabled, to_wry_menu(submenu.inner));
+        wry_menu.add_submenu(
+          &submenu.title,
+          submenu.enabled,
+          to_wry_menu(custom_menu_items, submenu.inner),
+        );
       }
     }
   }

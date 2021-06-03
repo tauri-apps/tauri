@@ -377,6 +377,7 @@ fn tauri_config_to_bundle_settings(
     if let Some(system_tray_config) = &system_tray_config {
       let mut icon_path = system_tray_config.icon_path.clone();
       icon_path.set_extension("png");
+      resources.push(icon_path.display().to_string());
       depends.push("libappindicator3-1".to_string());
     }
 

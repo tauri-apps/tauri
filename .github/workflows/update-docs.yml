@@ -92,7 +92,7 @@ jobs:
         uses: iamsauravsharma/create-dotenv@v1.1.0
         with:
           env-prefix: "ENV_KEY_"
-          env-file: "${{ github.workspace }}/tauri-search-bot/.env"
+          directory: "${{ github.workspace }}/tauri-search-bot"
         env:
           ENV_KEY_DISCORD_BOT_SECRET: ${{ secrets.DISCORD_BOT_SECRET }}
           ENV_KEY_PREFIX: "!"

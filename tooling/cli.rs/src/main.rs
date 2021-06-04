@@ -12,6 +12,7 @@ mod dev;
 mod helpers;
 mod info;
 mod init;
+mod interface;
 mod sign;
 
 // temporary fork from https://github.com/mitsuhiko/console until 0.14.1+ release

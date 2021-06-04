@@ -39,8 +39,8 @@ use wry::{
     window::{Fullscreen, Icon as WindowIcon, Window, WindowBuilder as WryWindowBuilder, WindowId},
   },
   webview::{
-    FileDropEvent as WryFileDropEvent, RpcRequest as WryRpcRequest, RpcResponse, WebView,
-    WebViewBuilder,
+    FileDropEvent as WryFileDropEvent, RpcRequest as WryRpcRequest, RpcResponse, WebContext,
+    WebView, WebViewBuilder,
   },
 };
 
@@ -59,7 +59,7 @@ mod menu;
 use menu::*;
 
 type CreateWebviewHandler =
-  Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> Result<WebView> + Send>;
+  Box<dyn FnOnce(&EventLoopWindowTarget<Message>, &WebContext) -> Result<WebView> + Send>;
 type MainThreadTask = Box<dyn FnOnce() + Send>;
 type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
@@ -550,9 +550,9 @@ impl Dispatch for WryDispatcher {
       .context
       .proxy
       .send_event(Message::CreateWebview(
-        Arc::new(Mutex::new(Some(Box::new(move |event_loop| {
-          create_webview(event_loop, context, pending)
-        })))),
+        Arc::new(Mutex::new(Some(Box::new(
+          move |event_loop, web_context| create_webview(event_loop, web_context, context, pending),
+        )))),
         tx,
       ))
       .map_err(|_| Error::FailedToSendMessage)?;
@@ -753,6 +753,7 @@ impl Dispatch for WryDispatcher {
 /// A Tauri [`Runtime`] wrapper around wry.
 pub struct Wry {
   event_loop: EventLoop<Message>,
+  web_context: WebContext,
   webviews: Mutex<HashMap<WindowId, WebView>>,
   task_tx: Sender<MainThreadTask>,
   window_event_listeners: WindowEventListeners,
@@ -771,6 +772,9 @@ impl Runtime for Wry {
     let (task_tx, task_rx) = channel();
     Ok(Self {
       event_loop,
+      // todo: how should we handle data directories? tauri expects each webview can have a different one
+      // but wry wants to expect the same per web context.
+      web_context: Default::default(),
       webviews: Default::default(),
       task_tx,
       task_rx,
@@ -790,6 +794,7 @@ impl Runtime for Wry {
     let proxy = self.event_loop.create_proxy();
     let webview = create_webview(
       &self.event_loop,
+      &self.web_context,
       DispatcherContext {
         proxy: proxy.clone(),
         task_tx: self.task_tx.clone(),
@@ -878,6 +883,7 @@ impl Runtime for Wry {
     let menu_event_listeners = self.menu_event_listeners.clone();
     #[cfg(feature = "system-tray")]
     let system_tray_event_listeners = self.system_tray_event_listeners;
+    let web_context = self.web_context;
 
     self.event_loop.run(move |event, event_loop, control_flow| {
       *control_flow = ControlFlow::Wait;
@@ -1038,7 +1044,7 @@ impl Runtime for Wry {
               let mut lock = handler.lock().expect("poisoned create webview handler");
               std::mem::take(&mut *lock).unwrap()
             };
-            match handler(event_loop) {
+            match handler(event_loop, &web_context) {
               Ok(webview) => {
                 let window_id = webview.window().id();
                 webviews.insert(window_id, webview);
@@ -1058,6 +1064,7 @@ impl Runtime for Wry {
 
 fn create_webview<P: Params<Runtime = Wry>>(
   event_loop: &EventLoopWindowTarget<Message>,
+  web_context: &WebContext,
   context: DispatcherContext,
   pending: PendingWindow<P>,
 ) -> Result<WebView> {
@@ -1071,32 +1078,32 @@ fn create_webview<P: Params<Runtime = Wry>>(
     ..
   } = pending;
 
-  let application = wry::application::Application::new(webview_attributes.data_directory);
   let is_window_transparent = window_builder.0.window.transparent;
   let window = window_builder.0.build(event_loop).unwrap();
-  let mut webview_builder = wry::Builder::with_window(&event_loop, window)
-    .url(&url)
+  let mut webview_builder = WebViewBuilder::new(window)
+    .map_err(|e| Error::CreateWebview(Box::new(e)))?
+    .with_url(&url)
     .unwrap() // safe to unwrap because we validate the URL beforehand
-    .transparent(is_window_transparent);
+    .with_transparent(is_window_transparent);
   if let Some(handler) = rpc_handler {
     webview_builder =
-      webview_builder.rpc_handler(create_rpc_handler(context.clone(), label.clone(), handler));
+      webview_builder.with_rpc_handler(create_rpc_handler(context.clone(), label.clone(), handler));
   }
   if let Some(handler) = file_drop_handler {
     webview_builder =
-      webview_builder.file_drop_handler(create_file_drop_handler(context, label, handler));
+      webview_builder.with_file_drop_handler(create_file_drop_handler(context, label, handler));
   }
   for (scheme, protocol) in webview_attributes.uri_scheme_protocols {
-    webview_builder = webview_builder.custom_protocol(scheme, move |_window, url| {
+    webview_builder = webview_builder.with_custom_protocol(scheme, move |_window, url| {
       protocol(url).map_err(|_| wry::Error::InitScriptError)
     });
   }
   for script in webview_attributes.initialization_scripts {
-    webview_builder = webview_builder.initialization_script(&script);
+    webview_builder = webview_builder.with_initialization_script(&script);
   }
 
   webview_builder
-    .build(&application)
+    .build(web_context)
     .map_err(|e| Error::CreateWebview(Box::new(e)))
 }
 

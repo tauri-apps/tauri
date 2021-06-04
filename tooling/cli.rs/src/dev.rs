@@ -97,6 +97,27 @@ impl Dev {
     let config = get_config(merge_config.as_deref())?;
     let mut process: Arc<SharedChild>;
 
+    let (settings, out_dir) = {
+      let config_guard = config.lock().unwrap();
+      let config_ = config_guard.as_ref().unwrap();
+      let app_settings = crate::interface::rust::AppSettings::new(&config_)?;
+      let out_dir = app_settings
+        .get_out_dir(true)
+        .with_context(|| "failed to get project out directory")?;
+      let settings = crate::interface::get_bundler_settings(
+        app_settings,
+        &Default::default(),
+        &config_,
+        &out_dir,
+        false,
+        None,
+      )
+      .with_context(|| "failed to build bundler settings")?;
+      (settings, out_dir)
+    };
+    settings.copy_resources(&out_dir)?;
+    settings.copy_binaries(&out_dir)?;
+
     if let Some(before_dev) = &config
       .lock()
       .unwrap()

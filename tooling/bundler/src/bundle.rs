@@ -73,9 +73,6 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
     });
   }
 
-  settings.copy_resources(settings.project_out_directory())?;
-  settings.copy_binaries(settings.project_out_directory())?;
-
   print_finished(&bundles)?;
 
   Ok(bundles)

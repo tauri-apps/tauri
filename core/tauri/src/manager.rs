@@ -405,7 +405,7 @@ impl<P: Params> WindowManager<P> {
     CustomProtocol {
       protocol: Box::new(move |path| {
         let mut path = path
-          .split('?')
+          .split(&['?', '#'][..])
           // ignore query string
           .next()
           .unwrap()

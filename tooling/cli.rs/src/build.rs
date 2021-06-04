@@ -192,6 +192,25 @@ impl Build {
         }
 
         settings_builder = settings_builder.package_types(types);
+      } else if let Some(targets) = &config_.tauri.bundle.targets {
+        let mut types = vec![];
+        let targets = targets.to_vec();
+        if !targets.contains(&"all".into()) {
+          for name in targets {
+            match PackageType::from_short_name(&name) {
+              Some(package_type) => {
+                types.push(package_type);
+              }
+              None => {
+                return Err(anyhow::anyhow!(format!(
+                  "Unsupported bundle format: {}",
+                  name
+                )));
+              }
+            }
+          }
+          settings_builder = settings_builder.package_types(types);
+        }
       }
 
       // Bundle the project

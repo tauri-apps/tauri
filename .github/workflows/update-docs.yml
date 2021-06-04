@@ -76,7 +76,7 @@ jobs:
         uses: tauri-apps/docusaurus-meilisearch-indexer@v1
         with:
           version: ${{ github.event.release.tag_name }}
-          docusaurusPath: ./tauri-docs
+          docusaurusPath: "${{ github.workspace }}/tauri-docs"
           host: https://search.tauri.studio
           apiKey: ${{ secrets.MEILISEARCH_APIKEY }}
           docs: "Getting started,Usage,API"
@@ -105,7 +105,7 @@ jobs:
           host: ${{ secrets.DISCORD_BOT_HOST }}
           username: ${{ secrets.DISCORD_BOT_SSH_USER }}
           key: ${{ secrets.DISCORD_BOT_SSH_KEY }}
-          source: "./tauri-search-bot"
+          source: "${{ github.workspace }}/tauri-search-bot"
           target: "~/tauri-search-bot"
       - name: restart the bot
         uses: appleboy/ssh-action@master

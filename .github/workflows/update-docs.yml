@@ -50,7 +50,7 @@ jobs:
         with:
           originPath: ./tauri/target/doc/
           targetPath: ./tauri-docs/docs/en/api/rust/
-          sidebarPath: $GITHUB_WORKSPACE/tauri-docs/sidebars/rustdoc.json
+          sidebarPath: "$GITHUB_WORKSPACE/tauri-docs/sidebars/rustdoc.json"
           linksRoot: ""
           cratesToProcess: "tauri"
 
@@ -62,7 +62,7 @@ jobs:
         uses: tauri-apps/typedocusaurus@v1
         with:
           originPath: ./tauri/tooling/api/
-          sidebarFile: $GITHUB_WORKSPACE/tauri-docs/sidebars/typedoc.json
+          sidebarFile: "$GITHUB_WORKSPACE/tauri-docs/sidebars/typedoc.json"
           targetPath: ./tauri-docs/en/api/js/
           docusaurusPath: ./tauri-docs/
 

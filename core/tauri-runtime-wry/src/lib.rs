@@ -62,6 +62,7 @@ mod menu;
 #[cfg(any(feature = "menu", feature = "system-tray"))]
 use menu::*;
 
+type MainTask = Arc<Mutex<Option<Box<dyn FnOnce() + Send>>>>;
 type CreateWebviewHandler =
   Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> Result<WebviewWrapper> + Send>;
 type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
@@ -493,7 +494,7 @@ pub(crate) enum TrayMessage {
 
 #[derive(Clone)]
 pub(crate) enum Message {
-  Task(Arc<Mutex<Option<Box<dyn FnOnce() + Send>>>>),
+  Task(MainTask),
   Window(WindowId, WindowMessage),
   Webview(WindowId, WebviewMessage),
   #[cfg(feature = "system-tray")]
@@ -1229,11 +1230,9 @@ fn handle_event_loop(
     }
     Event::UserEvent(message) => match message {
       Message::Task(task) => {
-        let task = {
-          let mut lock = task.lock().expect("poisoned pending event queue");
-          std::mem::take(&mut *lock)
-        }.expect("task already taken");
-        task();
+        if let Some(task) = task.lock().unwrap().take() {
+          task();
+        }
       }
       Message::Window(id, window_message) => {
         if let Some(webview) = webviews.get_mut(&id) {

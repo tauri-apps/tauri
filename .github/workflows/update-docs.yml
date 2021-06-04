@@ -117,7 +117,7 @@ jobs:
           host: ${{ secrets.DISCORD_BOT_HOST }}
           username: ${{ secrets.DISCORD_BOT_SSH_USER }}
           key: ${{ secrets.DISCORD_BOT_SSH_KEY }}
-          script: cd ~/tauri-search-bot && yarn && forever stopall && forever start ./src/index.js
+          script: cd ~/tauri-search-bot/github/workspace/tauri-search-bot && yarn && forever stopall && forever start ./src/index.js
 
       # # tauri-docs PR
       # - name: git config

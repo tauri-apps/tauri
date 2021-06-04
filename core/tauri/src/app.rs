@@ -102,6 +102,7 @@ impl<P: Params> Clone for AppHandle<P> {
     Self {
       runtime_handle: self.runtime_handle.clone(),
       manager: self.manager.clone(),
+      #[cfg(feature = "system-tray")]
       tray_handle: self.tray_handle.clone(),
     }
   }

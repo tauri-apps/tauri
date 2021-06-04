@@ -27,6 +27,7 @@ pub use wry::application::platform::macos::{
   CustomMenuItemExtMacOS, NativeImage as WryNativeImage,
 };
 
+#[cfg(feature = "system-tray")]
 use crate::{Error, Message, Result, TrayMessage};
 
 use uuid::Uuid;
@@ -38,15 +39,21 @@ use std::{
 
 pub type MenuEventHandler = Box<dyn Fn(&MenuEvent) + Send>;
 pub type MenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
+
+#[cfg(feature = "system-tray")]
 pub type SystemTrayEventHandler = Box<dyn Fn(&SystemTrayEvent) + Send>;
+#[cfg(feature = "system-tray")]
 pub type SystemTrayEventListeners = Arc<Mutex<HashMap<Uuid, SystemTrayEventHandler>>>;
+#[cfg(feature = "system-tray")]
 pub type SystemTrayItems = Arc<Mutex<HashMap<u32, WryCustomMenuItem>>>;
 
+#[cfg(feature = "system-tray")]
 #[derive(Clone)]
 pub struct SystemTrayHandle {
   pub(crate) proxy: EventLoopProxy<super::Message>,
 }
 
+#[cfg(feature = "system-tray")]
 impl TrayHandle for SystemTrayHandle {
   fn set_icon(&self, icon: Icon) -> Result<()> {
     self

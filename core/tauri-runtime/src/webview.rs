@@ -101,7 +101,7 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Sets the menu for the window.
   #[cfg(feature = "menu")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-  fn menu<I: MenuId>(self, menu: Vec<Menu<I>>) -> Self;
+  fn menu<I: MenuId>(self, menu: Menu<I>) -> Self;
 
   /// The initial position of the window's.
   fn position(self, x: f64, y: f64) -> Self;

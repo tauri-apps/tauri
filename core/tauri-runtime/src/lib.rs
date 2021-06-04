@@ -35,6 +35,47 @@ pub trait MenuId: Serialize + Hash + Eq + Debug + Clone + Send + Sync + 'static 
 
 impl<T> MenuId for T where T: Serialize + Hash + Eq + Debug + Clone + Send + Sync + 'static {}
 
+#[cfg(feature = "system-tray")]
+#[non_exhaustive]
+pub struct SystemTray<I: MenuId> {
+  pub icon: Option<Icon>,
+  pub menu: Option<menu::SystemTrayMenu<I>>,
+}
+
+#[cfg(feature = "system-tray")]
+impl<I: MenuId> Default for SystemTray<I> {
+  fn default() -> Self {
+    Self {
+      icon: None,
+      menu: None,
+    }
+  }
+}
+
+#[cfg(feature = "system-tray")]
+impl<I: MenuId> SystemTray<I> {
+  /// Creates a new system tray that only renders an icon.
+  pub fn new() -> Self {
+    Default::default()
+  }
+
+  pub fn menu(&self) -> Option<&menu::SystemTrayMenu<I>> {
+    self.menu.as_ref()
+  }
+
+  /// Sets the tray icon. Must be a [`Icon::File`] on Linux and a [`Icon::Raw`] on Windows and macOS.
+  pub fn with_icon(mut self, icon: Icon) -> Self {
+    self.icon.replace(icon);
+    self
+  }
+
+  /// Sets the menu to show when the system tray is right clicked.
+  pub fn with_menu(mut self, menu: menu::SystemTrayMenu<I>) -> Self {
+    self.menu.replace(menu);
+    self
+  }
+}
+
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
@@ -99,9 +140,47 @@ pub enum Icon {
   Raw(Vec<u8>),
 }
 
+impl Icon {
+  /// Converts the icon to a the expected system tray format.
+  /// We expect the code that passes the Icon enum to have already checked the platform.
+  #[cfg(target_os = "linux")]
+  pub fn into_tray_icon(self) -> PathBuf {
+    match self {
+      Icon::File(path) => path,
+      Icon::Raw(_) => {
+        panic!("linux requires the system menu icon to be a file path, not bytes.")
+      }
+    }
+  }
+
+  /// Converts the icon to a the expected system tray format.
+  /// We expect the code that passes the Icon enum to have already checked the platform.
+  #[cfg(not(target_os = "linux"))]
+  pub fn into_tray_icon(self) -> Vec<u8> {
+    match self {
+      Icon::Raw(bytes) => bytes,
+      Icon::File(_) => {
+        panic!("non-linux system menu icons must be bytes, not a file path.")
+      }
+    }
+  }
+}
+
 /// A system tray event.
-pub struct SystemTrayEvent {
-  pub menu_item_id: u32,
+pub enum SystemTrayEvent {
+  MenuItemClick(u32),
+  LeftClick {
+    position: PhysicalPosition<f64>,
+    size: PhysicalSize<f64>,
+  },
+  RightClick {
+    position: PhysicalPosition<f64>,
+    size: PhysicalSize<f64>,
+  },
+  DoubleClick {
+    position: PhysicalPosition<f64>,
+    size: PhysicalSize<f64>,
+  },
 }
 
 /// Metadata for a runtime event loop iteration on `run_iteration`.
@@ -118,6 +197,10 @@ pub trait RuntimeHandle: Send + Sized + Clone + 'static {
     &self,
     pending: PendingWindow<P>,
   ) -> crate::Result<DetachedWindow<P>>;
+
+  #[cfg(all(windows, feature = "system-tray"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
+  fn remove_system_tray(&self) -> crate::Result<()>;
 }
 
 /// The webview runtime interface.
@@ -126,6 +209,9 @@ pub trait Runtime: Sized + 'static {
   type Dispatcher: Dispatch<Runtime = Self>;
   /// The runtime handle type.
   type Handle: RuntimeHandle<Runtime = Self>;
+  /// The tray handler type.
+  #[cfg(feature = "system-tray")]
+  type TrayHandler: menu::TrayHandle + Clone + Send;
 
   /// Creates a new webview runtime.
   fn new() -> crate::Result<Self>;
@@ -142,11 +228,7 @@ pub trait Runtime: Sized + 'static {
   /// Adds the icon to the system tray with the specified menu items.
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  fn system_tray<I: MenuId>(
-    &self,
-    icon: Icon,
-    menu: Vec<menu::SystemTrayMenuItem<I>>,
-  ) -> crate::Result<()>;
+  fn system_tray<I: MenuId>(&self, system_tray: SystemTray<I>) -> crate::Result<Self::TrayHandler>;
 
   /// Registers a system tray event handler.
   #[cfg(feature = "system-tray")]
@@ -158,7 +240,7 @@ pub trait Runtime: Sized + 'static {
   fn run_iteration(&mut self) -> RunIteration;
 
   /// Run the webview runtime.
-  fn run(self);
+  fn run<F: Fn() + 'static>(self, callback: F);
 }
 
 /// Webview dispatcher. A thread-safe handle to the webview API.
@@ -306,4 +388,8 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
 
   /// Executes javascript on the window this [`Dispatch`] represents.
   fn eval_script<S: Into<String>>(&self, script: S) -> crate::Result<()>;
+
+  /// Applies the specified `update` to the menu item associated with the given `id`.
+  #[cfg(feature = "menu")]
+  fn update_menu_item(&self, id: u32, update: menu::MenuUpdate) -> crate::Result<()>;
 }

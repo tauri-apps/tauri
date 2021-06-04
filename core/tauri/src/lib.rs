@@ -65,6 +65,14 @@ use std::{borrow::Borrow, collections::HashMap, sync::Arc};
 #[cfg(any(feature = "menu", feature = "system-tray"))]
 #[cfg_attr(doc_cfg, doc(cfg(any(feature = "menu", feature = "system-tray"))))]
 pub use runtime::menu::CustomMenuItem;
+
+#[cfg(all(target_os = "macos", any(feature = "menu", feature = "system-tray")))]
+#[cfg_attr(
+  doc_cfg,
+  doc(cfg(all(target_os = "macos", any(feature = "menu", feature = "system-tray"))))
+)]
+pub use runtime::menu::NativeImage;
+
 pub use {
   self::api::assets::Assets,
   self::api::{
@@ -90,13 +98,19 @@ pub use {
 };
 #[cfg(feature = "system-tray")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-pub use {self::app::SystemTrayEvent, self::runtime::menu::SystemTrayMenuItem};
+pub use {
+  self::app::tray::SystemTrayEvent,
+  self::runtime::{
+    menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
+    SystemTray,
+  },
+};
 #[cfg(feature = "menu")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
 pub use {
   self::app::WindowMenuEvent,
-  self::runtime::menu::{Menu, MenuItem},
-  self::window::MenuEvent,
+  self::runtime::menu::{Menu, MenuItem, Submenu},
+  self::window::menu::MenuEvent,
 };
 
 /// Reads the config file at compile time and generates a [`Context`] based on its content.

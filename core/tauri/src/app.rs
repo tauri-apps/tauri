@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#[cfg(feature = "system-tray")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
+pub(crate) mod tray;
+
 use crate::{
   api::assets::Assets,
   api::config::WindowUrl,
@@ -22,8 +26,11 @@ use std::{collections::HashMap, sync::Arc};
 
 #[cfg(feature = "menu")]
 use crate::runtime::menu::Menu;
+
+#[cfg(all(windows, feature = "system-tray"))]
+use crate::runtime::RuntimeHandle;
 #[cfg(feature = "system-tray")]
-use crate::runtime::{menu::SystemTrayMenuItem, Icon};
+use crate::runtime::{Icon, SystemTrayEvent as RuntimeSystemTrayEvent};
 
 #[cfg(feature = "updater")]
 use crate::updater;
@@ -33,22 +40,7 @@ pub(crate) type GlobalMenuEventListener<P> = Box<dyn Fn(WindowMenuEvent<P>) + Se
 pub(crate) type GlobalWindowEventListener<P> = Box<dyn Fn(GlobalWindowEvent<P>) + Send + Sync>;
 #[cfg(feature = "system-tray")]
 type SystemTrayEventListener<P> =
-  Box<dyn Fn(&AppHandle<P>, SystemTrayEvent<<P as Params>::SystemTrayMenuId>) + Send + Sync>;
-
-/// System tray event.
-#[cfg(feature = "system-tray")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-pub struct SystemTrayEvent<I: MenuId> {
-  menu_item_id: I,
-}
-
-#[cfg(feature = "system-tray")]
-impl<I: MenuId> SystemTrayEvent<I> {
-  /// The menu item id.
-  pub fn menu_item_id(&self) -> &I {
-    &self.menu_item_id
-  }
-}
+  Box<dyn Fn(&AppHandle<P>, tray::SystemTrayEvent<<P as Params>::SystemTrayMenuId>) + Send + Sync>;
 
 crate::manager::default_args! {
   /// A menu event that was triggered on a window.
@@ -100,6 +92,8 @@ crate::manager::default_args! {
   pub struct AppHandle<P: Params> {
     runtime_handle: <P::Runtime as Runtime>::Handle,
     manager: WindowManager<P>,
+    #[cfg(feature = "system-tray")]
+    tray_handle: Option<tray::SystemTrayHandle<P>>,
   }
 }
 
@@ -108,7 +102,18 @@ impl<P: Params> Clone for AppHandle<P> {
     Self {
       runtime_handle: self.runtime_handle.clone(),
       manager: self.manager.clone(),
+      #[cfg(feature = "system-tray")]
+      tray_handle: self.tray_handle.clone(),
     }
+  }
+}
+
+impl<P: Params> AppHandle<P> {
+  /// Removes the system tray.
+  #[cfg(all(windows, feature = "system-tray"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
+  fn remove_system_tray(&self) -> crate::Result<()> {
+    self.runtime_handle.remove_system_tray().map_err(Into::into)
   }
 }
 
@@ -130,19 +135,9 @@ crate::manager::default_args! {
   pub struct App<P: Params> {
     runtime: Option<P::Runtime>,
     manager: WindowManager<P>,
-    #[cfg(shell_execute)]
-    cleanup_on_drop: bool,
-  }
-}
-
-impl<P: Params> Drop for App<P> {
-  fn drop(&mut self) {
-    #[cfg(shell_execute)]
-    {
-      if self.cleanup_on_drop {
-        crate::api::process::kill_children();
-      }
-    }
+    #[cfg(feature = "system-tray")]
+    tray_handle: Option<tray::SystemTrayHandle<P>>,
+    handle: AppHandle<P>,
   }
 }
 
@@ -182,6 +177,16 @@ macro_rules! shared_app_impl {
         ))?;
         Ok(())
       }
+
+      #[cfg(feature = "system-tray")]
+      #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
+      /// Gets a handle handle to the system tray.
+      pub fn tray_handle(&self) -> tray::SystemTrayHandle<P> {
+        self
+          .tray_handle
+          .clone()
+          .expect("tray not configured; use the `Builder#system_tray` API first.")
+      }
     }
   };
 }
@@ -192,13 +197,14 @@ shared_app_impl!(AppHandle<P>);
 impl<P: Params> App<P> {
   /// Gets a handle to the application instance.
   pub fn handle(&self) -> AppHandle<P> {
-    AppHandle {
-      runtime_handle: self.runtime.as_ref().unwrap().handle(),
-      manager: self.manager.clone(),
-    }
+    self.handle.clone()
   }
 
   /// Runs a iteration of the runtime event loop and immediately return.
+  ///
+  /// Note that when using this API, app cleanup is not automatically done.
+  /// The cleanup calls [`crate::api::process::kill_children`] so you may want to call that function before exiting the application.
+  /// Additionally, the cleanup calls [AppHandle#remove_system_tray](`AppHandle#method.remove_system_tray`) (Windows only).
   ///
   /// # Example
   /// ```rust,ignore
@@ -312,7 +318,7 @@ where
 
   /// The menu set to all windows.
   #[cfg(feature = "menu")]
-  menu: Vec<Menu<MID>>,
+  menu: Option<Menu<MID>>,
 
   /// Menu event handlers that listens to all windows.
   #[cfg(feature = "menu")]
@@ -321,16 +327,13 @@ where
   /// Window event handlers that listens to all windows.
   window_event_listeners: Vec<GlobalWindowEventListener<Args<E, L, MID, TID, A, R>>>,
 
-  /// The app system tray menu items.
+  /// The app system tray.
   #[cfg(feature = "system-tray")]
-  system_tray: Vec<SystemTrayMenuItem<TID>>,
+  system_tray: Option<tray::SystemTray<TID>>,
 
   /// System tray event handlers.
   #[cfg(feature = "system-tray")]
   system_tray_event_listeners: Vec<SystemTrayEventListener<Args<E, L, MID, TID, A, R>>>,
-
-  #[cfg(shell_execute)]
-  cleanup_on_drop: bool,
 }
 
 impl<E, L, MID, TID, A, R> Builder<E, L, MID, TID, A, R>
@@ -353,16 +356,14 @@ where
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
       #[cfg(feature = "menu")]
-      menu: Vec::new(),
+      menu: None,
       #[cfg(feature = "menu")]
       menu_event_listeners: Vec::new(),
       window_event_listeners: Vec::new(),
       #[cfg(feature = "system-tray")]
-      system_tray: Vec::new(),
+      system_tray: None,
       #[cfg(feature = "system-tray")]
       system_tray_event_listeners: Vec::new(),
-      #[cfg(shell_execute)]
-      cleanup_on_drop: true,
     }
   }
 
@@ -514,16 +515,16 @@ where
   /// Adds the icon configured on `tauri.conf.json` to the system tray with the specified menu items.
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  pub fn system_tray(mut self, items: Vec<SystemTrayMenuItem<TID>>) -> Self {
-    self.system_tray = items;
+  pub fn system_tray(mut self, system_tray: tray::SystemTray<TID>) -> Self {
+    self.system_tray.replace(system_tray);
     self
   }
 
   /// Sets the menu to use on all windows.
   #[cfg(feature = "menu")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-  pub fn menu(mut self, menu: Vec<Menu<MID>>) -> Self {
-    self.menu = menu;
+  pub fn menu(mut self, menu: Menu<MID>) -> Self {
+    self.menu.replace(menu);
     self
   }
 
@@ -555,7 +556,7 @@ where
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   pub fn on_system_tray_event<
-    F: Fn(&AppHandle<Args<E, L, MID, TID, A, R>>, SystemTrayEvent<TID>) + Send + Sync + 'static,
+    F: Fn(&AppHandle<Args<E, L, MID, TID, A, R>>, tray::SystemTrayEvent<TID>) + Send + Sync + 'static,
   >(
     mut self,
     handler: F,
@@ -590,15 +591,6 @@ where
     self
   }
 
-  /// Skips Tauri cleanup on [`App`] drop. Useful if your application has multiple [`App`] instances.
-  ///
-  /// The cleanup calls [`crate::api::process::kill_children`] so you may want to call that function before exiting the application.
-  #[cfg(shell_execute)]
-  pub fn skip_cleanup_on_drop(mut self) -> Self {
-    self.cleanup_on_drop = false;
-    self
-  }
-
   /// Builds the application.
   #[allow(clippy::type_complexity)]
   pub fn build(mut self, context: Context<A>) -> crate::Result<App<Args<E, L, MID, TID, A, R>>> {
@@ -606,8 +598,8 @@ where
     let system_tray_icon = {
       let icon = context.system_tray_icon.clone();
 
-      // check the icon format if the system tray is supposed to be ran
-      if !self.system_tray.is_empty() {
+      // check the icon format if the system tray is configured
+      if self.system_tray.is_some() {
         use std::io::{Error, ErrorKind};
         #[cfg(target_os = "linux")]
         if let Some(Icon::Raw(_)) = icon {
@@ -656,11 +648,20 @@ where
       ));
     }
 
+    let runtime = R::new()?;
+    let runtime_handle = runtime.handle();
+
     let mut app = App {
-      runtime: Some(R::new()?),
-      manager,
-      #[cfg(shell_execute)]
-      cleanup_on_drop: self.cleanup_on_drop,
+      runtime: Some(runtime),
+      manager: manager.clone(),
+      #[cfg(feature = "system-tray")]
+      tray_handle: None,
+      handle: AppHandle {
+        runtime_handle,
+        manager,
+        #[cfg(feature = "system-tray")]
+        tray_handle: None,
+      },
     };
 
     app.manager.initialize_plugins(&app)?;
@@ -690,17 +691,34 @@ where
     (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e))?;
 
     #[cfg(feature = "system-tray")]
-    if !self.system_tray.is_empty() {
-      let ids = get_menu_ids(&self.system_tray);
-      app
+    if let Some(system_tray) = self.system_tray {
+      let mut ids = HashMap::new();
+      if let Some(menu) = system_tray.menu() {
+        tray::get_menu_ids(&mut ids, menu);
+      }
+      let mut tray = tray::SystemTray::new();
+      if let Some(menu) = system_tray.menu {
+        tray = tray.with_menu(menu);
+      }
+      let tray_handler = app
         .runtime
         .as_ref()
         .unwrap()
         .system_tray(
-          system_tray_icon.expect("tray icon not found; please configure it on tauri.conf.json"),
-          self.system_tray,
+          tray.with_icon(
+            system_tray
+              .icon
+              .or(system_tray_icon)
+              .expect("tray icon not found; please configure it on tauri.conf.json"),
+          ),
         )
         .expect("failed to run tray");
+      let tray_handle = tray::SystemTrayHandle {
+        ids: Arc::new(ids.clone()),
+        inner: tray_handler,
+      };
+      app.tray_handle.replace(tray_handle.clone());
+      app.handle.tray_handle.replace(tray_handle);
       for listener in self.system_tray_event_listeners {
         let app_handle = app.handle();
         let ids = ids.clone();
@@ -711,10 +729,32 @@ where
           .unwrap()
           .on_system_tray_event(move |event| {
             let app_handle = app_handle.clone();
-            let menu_item_id = ids.get(&event.menu_item_id).unwrap().clone();
+            let event = match event {
+              RuntimeSystemTrayEvent::MenuItemClick(id) => tray::SystemTrayEvent::MenuItemClick {
+                id: ids.get(&id).unwrap().clone(),
+              },
+              RuntimeSystemTrayEvent::LeftClick { position, size } => {
+                tray::SystemTrayEvent::LeftClick {
+                  position: *position,
+                  size: *size,
+                }
+              }
+              RuntimeSystemTrayEvent::RightClick { position, size } => {
+                tray::SystemTrayEvent::RightClick {
+                  position: *position,
+                  size: *size,
+                }
+              }
+              RuntimeSystemTrayEvent::DoubleClick { position, size } => {
+                tray::SystemTrayEvent::DoubleClick {
+                  position: *position,
+                  size: *size,
+                }
+              }
+            };
             let listener = listener.clone();
             crate::async_runtime::spawn(async move {
-              listener.lock().unwrap()(&app_handle, SystemTrayEvent { menu_item_id });
+              listener.lock().unwrap()(&app_handle, event);
             });
           });
       }
@@ -726,20 +766,20 @@ where
   /// Runs the configured Tauri application.
   pub fn run(self, context: Context<A>) -> crate::Result<()> {
     let mut app = self.build(context)?;
-    app.runtime.take().unwrap().run();
+    #[cfg(all(windows, feature = "system-tray"))]
+    let app_handle = app.handle();
+    app.runtime.take().unwrap().run(move || {
+      #[cfg(shell_execute)]
+      {
+        crate::api::process::kill_children();
+      }
+      #[cfg(all(windows, feature = "system-tray"))]
+      {
+        let _ = app_handle.remove_system_tray();
+      }
+    });
     Ok(())
   }
-}
-
-#[cfg(feature = "system-tray")]
-fn get_menu_ids<I: MenuId>(items: &[SystemTrayMenuItem<I>]) -> HashMap<u32, I> {
-  let mut map = HashMap::new();
-  for item in items {
-    if let SystemTrayMenuItem::Custom(i) = item {
-      map.insert(i.id_value(), i.id.clone());
-    }
-  }
-  map
 }
 
 /// Make `Wry` the default `Runtime` for `Builder`

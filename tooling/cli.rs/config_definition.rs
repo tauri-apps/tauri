@@ -18,6 +18,16 @@ pub enum BundleTarget {
   One(String),
 }
 
+impl BundleTarget {
+  #[allow(dead_code)]
+  pub fn to_vec(&self) -> Vec<String> {
+    match self {
+      Self::All(list) => list.clone(),
+      Self::One(i) => vec![i.clone()],
+    }
+  }
+}
+
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

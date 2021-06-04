@@ -69,7 +69,7 @@ jobs:
       # Moving docs for Indexation
       - name: copy docs
         working-directory: ./tauri
-        run: mv docs/sidebar.json ../tauri-docs/sidebars/core.json && cp -r docs ../tauri-docs/docs/en
+        run: mv docs/sidebar.json ${{ github.workspace }}/tauri-docs/sidebars/core.json && cp -r docs ${{ github.workspace }}/tauri-docs/docs/en
 
       # Indexing
       - name: meilisearch indexation

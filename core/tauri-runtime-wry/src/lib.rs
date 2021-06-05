@@ -1540,7 +1540,7 @@ fn create_webview<P: Params<Runtime = Wry>>(
     #[cfg(feature = "menu")]
     menu_items,
     #[cfg(feature = "menu")]
-    is_menu_visible: Default::default(),
+    is_menu_visible: AtomicBool::new(true),
   })
 }
 

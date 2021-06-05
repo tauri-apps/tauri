@@ -287,6 +287,11 @@ has@^1.0.3:
   dependencies:
     function-bind "^1.1.1"
 
+hotkeys-js@^3.8.5:
+  version "3.8.5"
+  resolved "https://registry.yarnpkg.com/hotkeys-js/-/hotkeys-js-3.8.5.tgz#a66030c48b75ceb2f3fc48fd39e7a0b3473a4b19"
+  integrity sha512-beJJ2Y4J6XkSlXlLPOG29BRKxZx3bV0gVi3eUpYdjrecN1i25iqndM/+X1eIDPSeG0XdqSv7Ksek43j5tQrmPQ==
+
 inflight@^1.0.4:
   version "1.0.6"
   resolved "https://registry.yarnpkg.com/inflight/-/inflight-1.0.6.tgz#49bd6331d7d02d0c09bc910a1075ba8165b56df9"

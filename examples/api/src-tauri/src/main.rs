@@ -21,7 +21,7 @@ struct Reply {
 }
 
 #[tauri::command]
-fn menu_toggle(window: tauri::Window) {
+async fn menu_toggle(window: tauri::Window) {
   window.menu_handle().toggle().unwrap();
 }
 

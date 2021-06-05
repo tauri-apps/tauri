@@ -20,6 +20,11 @@ struct Reply {
   data: String,
 }
 
+#[tauri::command]
+fn menu_toggle(window: tauri::Window) {
+  window.menu_handle().toggle().unwrap();
+}
+
 fn main() {
   tauri::Builder::default()
     .on_page_load(|window, _| {
@@ -86,7 +91,8 @@ fn main() {
     })
     .invoke_handler(tauri::generate_handler![
       cmd::log_operation,
-      cmd::perform_request
+      cmd::perform_request,
+      menu_toggle,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

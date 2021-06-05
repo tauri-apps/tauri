@@ -1,7 +1,7 @@
 ---
 "tauri-runtime": patch
 "tauri-runtime-wry": patch
-"tauri-runtime": patch
+"tauri": patch
 ---
 
-Adds `Window#center` API.
+Adds `Window#center` and `WindowBuilder#center` APIs.

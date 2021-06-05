@@ -628,12 +628,12 @@ class WindowManager {
         cmd: 'setMinSize',
         data: size
           ? {
-            type: size.type,
-            data: {
-              width: size.width,
-              height: size.height
+              type: size.type,
+              data: {
+                width: size.width,
+                height: size.height
+              }
             }
-          }
           : null
       }
     })
@@ -664,12 +664,12 @@ class WindowManager {
         cmd: 'setMaxSize',
         data: size
           ? {
-            type: size.type,
-            data: {
-              width: size.width,
-              height: size.height
+              type: size.type,
+              data: {
+                width: size.width,
+                height: size.height
+              }
             }
-          }
           : null
       }
     })

@@ -23,6 +23,8 @@ tauri-codegen = { version = "1.0.0-beta.0", path = "../tauri-codegen", optional 
 
 [target."cfg(windows)".dependencies]
 winres = "0.1"
+serde_json = "1.0"
+tauri-utils = { version = "1.0.0-beta.0", path = "../tauri-utils", features = [ "build" ] }
 
 [features]
 codegen = [ "tauri-codegen" ]

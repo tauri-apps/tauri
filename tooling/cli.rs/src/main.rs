@@ -268,15 +268,15 @@ fn main() -> Result<()> {
   let matches = app_matches.subcommand_matches("tauri").unwrap();
 
   if let Some(matches) = matches.subcommand_matches("init") {
-    init_command(&matches)?;
+    init_command(matches)?;
   } else if let Some(matches) = matches.subcommand_matches("dev") {
-    dev_command(&matches)?;
+    dev_command(matches)?;
   } else if let Some(matches) = matches.subcommand_matches("build") {
-    build_command(&matches)?;
+    build_command(matches)?;
   } else if matches.subcommand_matches("info").is_some() {
     info_command()?;
   } else if let Some(matches) = matches.subcommand_matches("sign") {
-    sign_command(&matches)?;
+    sign_command(matches)?;
   }
 
   Ok(())

@@ -297,7 +297,7 @@ fn run_candle(
   cmd.args(&args).stdout(Stdio::piped()).current_dir(cwd);
 
   common::print_info("running candle.exe")?;
-  common::execute_with_verbosity(&mut cmd, &settings).map_err(|_| {
+  common::execute_with_verbosity(&mut cmd, settings).map_err(|_| {
     crate::Error::ShellScriptError(format!(
       "error running candle.exe{}",
       if settings.is_verbose() {
@@ -337,7 +337,7 @@ fn run_light(
     .current_dir(build_path);
 
   common::print_info(format!("running light to produce {}", output_path.display()).as_str())?;
-  common::execute_with_verbosity(&mut cmd, &settings)
+  common::execute_with_verbosity(&mut cmd, settings)
     .map(|_| output_path.to_path_buf())
     .map_err(|_| {
       crate::Error::ShellScriptError(format!(
@@ -393,10 +393,11 @@ pub fn build_wix_app_installer(
           .map(|algorithm| algorithm.to_string())
           .unwrap_or_else(|| "sha256".to_string()),
         certificate_thumbprint: certificate_thumbprint.to_string(),
-        timestamp_url: match &settings.windows().timestamp_url {
-          Some(url) => Some(url.to_string()),
-          None => None,
-        },
+        timestamp_url: settings
+          .windows()
+          .timestamp_url
+          .as_ref()
+          .map(|url| url.to_string()),
       },
     )?;
   }
@@ -426,12 +427,12 @@ pub fn build_wix_app_installer(
   let app_exe_name = settings.main_binary_name().to_string();
   data.insert("app_exe_name", to_json(&app_exe_name));
 
-  let binaries = generate_binaries_data(&settings)?;
+  let binaries = generate_binaries_data(settings)?;
 
   let binaries_json = to_json(&binaries);
   data.insert("binaries", binaries_json);
 
-  let resources = generate_resource_data(&settings)?;
+  let resources = generate_resource_data(settings)?;
   let mut resources_wix_string = String::from("");
   let mut files_ids = Vec::new();
   for (_, dir) in resources {
@@ -445,13 +446,13 @@ pub fn build_wix_app_installer(
   data.insert("resources", to_json(resources_wix_string));
   data.insert("resource_file_ids", to_json(files_ids));
 
-  let merge_modules = get_merge_modules(&settings)?;
+  let merge_modules = get_merge_modules(settings)?;
   data.insert("merge_modules", to_json(merge_modules));
 
   data.insert("app_exe_source", to_json(&app_exe_source));
 
   // copy icon from $CWD/icons/icon.ico folder to resource folder near msi
-  let icon_path = copy_icon(&settings)?;
+  let icon_path = copy_icon(settings)?;
 
   data.insert("icon_path", to_json(icon_path));
 
@@ -473,7 +474,7 @@ pub fn build_wix_app_installer(
       let template = std::fs::read_to_string(temp_path)?;
       handlebars
         .register_template_string("main.wxs", &template)
-        .or_else(|e| Err(e.to_string()))
+        .map_err(|e| e.to_string())
         .expect("Failed to setup custom handlebar template");
       has_custom_template = true;
     }
@@ -507,16 +508,16 @@ pub fn build_wix_app_installer(
   }
 
   for wxs in &candle_inputs {
-    run_candle(settings, &wix_toolset_path, &output_path, &wxs)?;
+    run_candle(settings, wix_toolset_path, &output_path, wxs)?;
   }
 
   let wixobjs = vec!["*.wixobj"];
   let target = run_light(
-    &wix_toolset_path,
+    wix_toolset_path,
     &output_path,
     &wixobjs,
-    &app_installer_dir(&settings)?,
-    &settings,
+    &app_installer_dir(settings)?,
+    settings,
   )?;
 
   Ok(target)
@@ -651,7 +652,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     let first_directory = directories
       .first()
       .map(|d| d.as_os_str().to_string_lossy().into_owned())
-      .unwrap_or_else(|| String::new());
+      .unwrap_or_else(String::new);
     let last_index = directories.len() - 1;
     let mut path = String::new();
     for (i, directory) in directories.into_iter().enumerate() {

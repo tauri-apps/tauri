@@ -147,7 +147,7 @@ impl<'a, I: MenuId> From<&'a CustomMenuItem<I>> for MenuItemAttributesWrapper<'a
       .with_selected(item.selected)
       .with_id(WryMenuId(item.id_value()));
     if let Some(accelerator) = item.keyboard_accelerator.as_ref() {
-      attributes = attributes.with_accelerators(&accelerator);
+      attributes = attributes.with_accelerators(accelerator);
     }
     Self(attributes)
   }

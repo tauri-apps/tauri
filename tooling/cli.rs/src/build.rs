@@ -125,7 +125,7 @@ impl Build {
     crate::interface::rust::build_project(runner, &self.target, cargo_features, self.debug)
       .with_context(|| "failed to build app")?;
 
-    let app_settings = crate::interface::rust::AppSettings::new(&config_)?;
+    let app_settings = crate::interface::rust::AppSettings::new(config_)?;
 
     let out_dir = app_settings
       .get_out_dir(self.debug)
@@ -208,7 +208,7 @@ impl Build {
       let settings = crate::interface::get_bundler_settings(
         app_settings,
         &manifest,
-        &config_,
+        config_,
         &out_dir,
         self.verbose,
         package_types,

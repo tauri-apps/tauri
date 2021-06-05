@@ -731,7 +731,7 @@ where
             let app_handle = app_handle.clone();
             let event = match event {
               RuntimeSystemTrayEvent::MenuItemClick(id) => tray::SystemTrayEvent::MenuItemClick {
-                id: ids.get(&id).unwrap().clone(),
+                id: ids.get(id).unwrap().clone(),
               },
               RuntimeSystemTrayEvent::LeftClick { position, size } => {
                 tray::SystemTrayEvent::LeftClick {

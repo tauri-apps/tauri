@@ -77,7 +77,7 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
 
   if let Some(merge_config) = merge_config {
     let merge_config: JsonValue =
-      serde_json::from_str(&merge_config).with_context(|| "failed to parse config to merge")?;
+      serde_json::from_str(merge_config).with_context(|| "failed to parse config to merge")?;
     merge(&mut config, &merge_config);
   }
 

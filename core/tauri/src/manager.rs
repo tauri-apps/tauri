@@ -594,7 +594,7 @@ impl<P: Params> WindowManager<P> {
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .initialize(&app, &self.inner.config.plugins)
+      .initialize(app, &self.inner.config.plugins)
   }
 
   pub fn prepare_window(

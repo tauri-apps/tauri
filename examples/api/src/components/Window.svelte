@@ -20,6 +20,7 @@
     setPosition,
     setFullscreen,
     setIcon,
+    center,
   } = appWindow;
 
   export let onMessage;
@@ -95,6 +96,9 @@
       <input type="checkbox" bind:checked={maximized} />
       Maximize
     </label>
+    <button title="Unminimizes after 2 seconds" on:click={center}>
+      Center
+    </button>
     <button title="Unminimizes after 2 seconds" on:click={minimize_}>
       Minimize
     </button>

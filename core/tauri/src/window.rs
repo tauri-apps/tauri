@@ -403,6 +403,11 @@ impl<P: Params> Window<P> {
 
   // Setters
 
+  /// Centers the window.
+  pub fn center(&self) -> crate::Result<()> {
+    self.window.dispatcher.center().map_err(Into::into)
+  }
+
   /// Opens the dialog to prints the contents of the webview.
   /// Currently only supported on macOS on `wry`.
   /// `window.print()` works on all platforms.

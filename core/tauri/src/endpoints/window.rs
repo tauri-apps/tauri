@@ -53,6 +53,7 @@ pub enum Cmd {
   PrimaryMonitor,
   AvailableMonitors,
   // Setters
+  Center,
   SetResizable(bool),
   SetTitle(String),
   Maximize,
@@ -141,6 +142,7 @@ impl Cmd {
         Self::PrimaryMonitor => return Ok(window.primary_monitor()?.into()),
         Self::AvailableMonitors => return Ok(window.available_monitors()?.into()),
         // Setters
+        Self::Center => window.center()?,
         Self::SetResizable(resizable) => window.set_resizable(resizable)?,
         Self::SetTitle(title) => window.set_title(&title)?,
         Self::Maximize => window.maximize()?,

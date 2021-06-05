@@ -103,6 +103,9 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
   fn menu<I: MenuId>(self, menu: Menu<I>) -> Self;
 
+  /// Show window in the center of the screen.
+  fn center(self) -> Self;
+
   /// The initial position of the window's.
   fn position(self, x: f64, y: f64) -> Self;
 

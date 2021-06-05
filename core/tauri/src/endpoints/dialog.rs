@@ -52,6 +52,7 @@ pub struct SaveDialogOptions {
 /// The API descriptor.
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
+#[allow(clippy::enum_variant_names)]
 pub enum Cmd {
   /// The open dialog API.
   OpenDialog {

@@ -27,7 +27,6 @@ $ sudo apt update && sudo apt install libwebkit2gtk-4.0-dev \
     curl \
     wget \
     libssl-dev \
-    appmenu-gtk3-module \
     libgtk-3-dev \
     squashfs-tools
 ```

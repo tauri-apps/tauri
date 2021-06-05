@@ -350,6 +350,7 @@ pub fn get_workspace_dir(current_dir: &Path) -> PathBuf {
   current_dir.to_path_buf()
 }
 
+#[allow(unused_variables)]
 fn tauri_config_to_bundle_settings(
   manifest: &Manifest,
   config: crate::helpers::config::BundleConfig,

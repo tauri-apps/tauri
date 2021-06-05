@@ -17,7 +17,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     wix::get_and_extract_wix(&wix_path)?;
   }
 
-  let msi_path = wix::build_wix_app_installer(&settings, &wix_path)?;
+  let msi_path = wix::build_wix_app_installer(settings, &wix_path)?;
 
   Ok(vec![msi_path])
 }

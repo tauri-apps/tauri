@@ -148,7 +148,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
   let msi_archived_path = PathBuf::from(&msi_archived);
 
   // Create our gzip file
-  create_zip(&source_path, &msi_archived_path).with_context(|| "Failed to zip update MSI")?;
+  create_zip(source_path, &msi_archived_path).with_context(|| "Failed to zip update MSI")?;
 
   common::print_bundling(format!("{:?}", &msi_archived_path).as_str())?;
   Ok(vec![msi_archived_path])

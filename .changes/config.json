@@ -249,7 +249,8 @@
       "path": "./core/tauri-build",
       "manager": "rust",
       "dependencies": [
-        "tauri-codegen"
+        "tauri-codegen",
+        "tauri-utils"
       ],
       "postversion": "node ../../.scripts/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },

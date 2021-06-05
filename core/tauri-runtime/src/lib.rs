@@ -99,6 +99,9 @@ pub enum Error {
   /// Failed to load window icon.
   #[error("invalid icon: {0}")]
   InvalidIcon(Box<dyn std::error::Error + Send>),
+  /// Failed to get monitor on window operation.
+  #[error("failed to get monitor")]
+  FailedToGetMonitor,
 }
 
 /// Result type.
@@ -316,6 +319,9 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   fn hwnd(&self) -> crate::Result<*mut std::ffi::c_void>;
 
   // SETTERS
+
+  /// Centers the window.
+  fn center(&self) -> crate::Result<()>;
 
   /// Opens the dialog to prints the contents of the webview.
   fn print(&self) -> crate::Result<()>;

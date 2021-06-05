@@ -42,6 +42,9 @@ pub struct WindowConfig {
   /// The window webview URL.
   #[serde(default)]
   pub url: WindowUrl,
+  /// Center the window.
+  #[serde(default)]
+  pub center: bool,
   /// The horizontal position of the window's top left corner
   pub x: Option<f64>,
   /// The vertical position of the window's top left corner
@@ -125,6 +128,7 @@ impl Default for WindowConfig {
     Self {
       label: default_window_label(),
       url: WindowUrl::default(),
+      center: false,
       x: None,
       y: None,
       width: default_width(),
@@ -649,6 +653,7 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let label = str_lit(&self.label);
       let url = &self.url;
+      let center = self.center;
       let x = opt_lit(self.x.as_ref());
       let y = opt_lit(self.y.as_ref());
       let width = self.width;
@@ -673,6 +678,7 @@ mod build {
         WindowConfig,
         label,
         url,
+        center,
         x,
         y,
         width,
@@ -937,6 +943,7 @@ mod test {
       windows: vec![WindowConfig {
         label: "main".to_string(),
         url: WindowUrl::default(),
+        center: false,
         x: None,
         y: None,
         width: 800f64,

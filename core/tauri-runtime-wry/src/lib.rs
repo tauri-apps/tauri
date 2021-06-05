@@ -243,6 +243,7 @@ impl From<Position> for PositionWrapper {
 #[derive(Debug, Clone, Default)]
 pub struct WindowBuilderWrapper {
   inner: WryWindowBuilder,
+  center: bool,
   #[cfg(feature = "menu")]
   menu_items: HashMap<u32, WryCustomMenuItem>,
 }
@@ -292,6 +293,11 @@ impl WindowBuilder for WindowBuilderWrapper {
     let window_menu = to_wry_menu(&mut items, menu);
     self.menu_items = items;
     self.inner = self.inner.with_menu(window_menu);
+    self
+  }
+
+  fn center(mut self) -> Self {
+    self.center = true;
     self
   }
 
@@ -453,6 +459,7 @@ enum WindowMessage {
   #[cfg(windows)]
   Hwnd(Sender<Hwnd>),
   // Setters
+  Center(Sender<Result<()>>),
   SetResizable(bool),
   SetTitle(String),
   Maximize,
@@ -637,6 +644,10 @@ impl Dispatch for WryDispatcher {
   }
 
   // Setters
+
+  fn center(&self) -> Result<()> {
+    dispatcher_getter!(self, WindowMessage::Center)
+  }
 
   fn print(&self) -> Result<()> {
     self
@@ -1278,6 +1289,9 @@ fn handle_event_loop(
               tx.send(Hwnd(window.hwnd())).unwrap()
             }
             // Setters
+            WindowMessage::Center(tx) => {
+              tx.send(center_window(window)).unwrap();
+            }
             WindowMessage::SetResizable(resizable) => window.set_resizable(resizable),
             WindowMessage::SetTitle(title) => window.set_title(&title),
             WindowMessage::Maximize => window.set_maximized(true),
@@ -1409,6 +1423,19 @@ fn handle_event_loop(
   }
 }
 
+fn center_window(window: &Window) -> Result<()> {
+  if let Some(monitor) = window.current_monitor() {
+    let screen_size = monitor.size();
+    let window_size = window.inner_size();
+    let x = (screen_size.width - window_size.width) / 2;
+    let y = (screen_size.height - window_size.height) / 2;
+    window.set_outer_position(WryPhysicalPosition::new(x, y));
+    Ok(())
+  } else {
+    Err(Error::FailedToGetMonitor)
+  }
+}
+
 fn create_webview<P: Params<Runtime = Wry>>(
   event_loop: &EventLoopWindowTarget<Message>,
   context: DispatcherContext,
@@ -1428,6 +1455,9 @@ fn create_webview<P: Params<Runtime = Wry>>(
   #[cfg(feature = "menu")]
   let menu_items = window_builder.menu_items;
   let window = window_builder.inner.build(event_loop).unwrap();
+  if window_builder.center {
+    let _ = center_window(&window);
+  }
   let mut webview_builder = WebViewBuilder::new(window)
     .map_err(|e| Error::CreateWebview(Box::new(e)))?
     .with_url(&url)

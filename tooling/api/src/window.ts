@@ -395,6 +395,21 @@ class WindowManager {
   // Setters
 
   /**
+   * Centers the window.
+   *
+   * @param resizable
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async center(): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'center'
+      }
+    })
+  }
+
+  /**
    * Updates the window resizable flag.
    *
    * @param resizable
@@ -785,6 +800,8 @@ interface WindowOptions {
    * Remote URL or local file path to open, e.g. `https://github.com/tauri-apps` or `path/to/page.html`.
    */
   url?: string
+  /** Show window in the center of the screen.. */
+  center?: boolean
   /** The initial vertical position. Only applies if `y` is also set. */
   x?: number
   /** The initial horizontal position. Only applies if `x` is also set. */

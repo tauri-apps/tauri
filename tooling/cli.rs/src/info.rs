@@ -206,7 +206,11 @@ fn get_version(command: &str, args: &[&str]) -> crate::Result<Option<String>> {
 
   let output = cmd.args(args).arg("--version").output()?;
   let version = if output.status.success() {
-    Some(String::from_utf8_lossy(&output.stdout).replace("\n", ""))
+    Some(
+      String::from_utf8_lossy(&output.stdout)
+        .replace("\n", "")
+        .replace("\r", ""),
+    )
   } else {
     None
   };

@@ -52,7 +52,7 @@ use std::{
   convert::TryFrom,
   fs::read,
   sync::{
-    mpsc::{channel, Receiver, Sender},
+    mpsc::{channel, Sender},
     Arc, Mutex, MutexGuard,
   },
 };
@@ -62,9 +62,9 @@ mod menu;
 #[cfg(any(feature = "menu", feature = "system-tray"))]
 use menu::*;
 
+type MainTask = Arc<Mutex<Option<Box<dyn FnOnce() + Send>>>>;
 type CreateWebviewHandler =
   Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> Result<WebviewWrapper> + Send>;
-type MainThreadTask = Box<dyn FnOnce() + Send>;
 type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
 
@@ -494,6 +494,7 @@ pub(crate) enum TrayMessage {
 
 #[derive(Clone)]
 pub(crate) enum Message {
+  Task(MainTask),
   Window(WindowId, WindowMessage),
   Webview(WindowId, WebviewMessage),
   #[cfg(feature = "system-tray")]
@@ -504,7 +505,6 @@ pub(crate) enum Message {
 #[derive(Clone)]
 struct DispatcherContext {
   proxy: EventLoopProxy<Message>,
-  task_tx: Sender<MainThreadTask>,
   window_event_listeners: WindowEventListeners,
   #[cfg(feature = "menu")]
   menu_event_listeners: MenuEventListeners,
@@ -536,8 +536,8 @@ impl Dispatch for WryDispatcher {
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
     self
       .context
-      .task_tx
-      .send(Box::new(f))
+      .proxy
+      .send_event(Message::Task(Arc::new(Mutex::new(Some(Box::new(f))))))
       .map_err(|_| Error::FailedToSendMessage)
   }
 
@@ -908,11 +908,9 @@ struct WebviewWrapper {
 pub struct Wry {
   event_loop: EventLoop<Message>,
   webviews: Arc<Mutex<HashMap<WindowId, WebviewWrapper>>>,
-  task_tx: Sender<MainThreadTask>,
   window_event_listeners: WindowEventListeners,
   #[cfg(feature = "menu")]
   menu_event_listeners: MenuEventListeners,
-  task_rx: Arc<Receiver<MainThreadTask>>,
   #[cfg(feature = "system-tray")]
   tray_context: TrayContext,
 }
@@ -971,12 +969,9 @@ impl Runtime for Wry {
 
   fn new() -> Result<Self> {
     let event_loop = EventLoop::<Message>::with_user_event();
-    let (task_tx, task_rx) = channel();
     Ok(Self {
       event_loop,
       webviews: Default::default(),
-      task_tx,
-      task_rx: Arc::new(task_rx),
       window_event_listeners: Default::default(),
       #[cfg(feature = "menu")]
       menu_event_listeners: Default::default(),
@@ -989,7 +984,6 @@ impl Runtime for Wry {
     WryHandle {
       dispatcher_context: DispatcherContext {
         proxy: self.event_loop.create_proxy(),
-        task_tx: self.task_tx.clone(),
         window_event_listeners: self.window_event_listeners.clone(),
         #[cfg(feature = "menu")]
         menu_event_listeners: self.menu_event_listeners.clone(),
@@ -1007,7 +1001,6 @@ impl Runtime for Wry {
       &self.event_loop,
       DispatcherContext {
         proxy: proxy.clone(),
-        task_tx: self.task_tx.clone(),
         window_event_listeners: self.window_event_listeners.clone(),
         #[cfg(feature = "menu")]
         menu_event_listeners: self.menu_event_listeners.clone(),
@@ -1019,7 +1012,6 @@ impl Runtime for Wry {
       window_id: webview.inner.window().id(),
       context: DispatcherContext {
         proxy,
-        task_tx: self.task_tx.clone(),
         window_event_listeners: self.window_event_listeners.clone(),
         #[cfg(feature = "menu")]
         menu_event_listeners: self.menu_event_listeners.clone(),
@@ -1077,7 +1069,6 @@ impl Runtime for Wry {
   fn run_iteration(&mut self) -> RunIteration {
     use wry::application::platform::run_return::EventLoopExtRunReturn;
     let webviews = self.webviews.clone();
-    let task_rx = self.task_rx.clone();
     let window_event_listeners = self.window_event_listeners.clone();
     #[cfg(feature = "menu")]
     let menu_event_listeners = self.menu_event_listeners.clone();
@@ -1099,7 +1090,6 @@ impl Runtime for Wry {
           EventLoopIterationContext {
             callback: None,
             webviews: webviews.lock().expect("poisoned webview collection"),
-            task_rx: task_rx.clone(),
             window_event_listeners: window_event_listeners.clone(),
             #[cfg(feature = "menu")]
             menu_event_listeners: menu_event_listeners.clone(),
@@ -1114,7 +1104,6 @@ impl Runtime for Wry {
 
   fn run<F: Fn() + 'static>(self, callback: F) {
     let webviews = self.webviews.clone();
-    let task_rx = self.task_rx;
     let window_event_listeners = self.window_event_listeners.clone();
     #[cfg(feature = "menu")]
     let menu_event_listeners = self.menu_event_listeners.clone();
@@ -1129,7 +1118,6 @@ impl Runtime for Wry {
         EventLoopIterationContext {
           callback: Some(&callback),
           webviews: webviews.lock().expect("poisoned webview collection"),
-          task_rx: task_rx.clone(),
           window_event_listeners: window_event_listeners.clone(),
           #[cfg(feature = "menu")]
           menu_event_listeners: menu_event_listeners.clone(),
@@ -1144,7 +1132,6 @@ impl Runtime for Wry {
 struct EventLoopIterationContext<'a> {
   callback: Option<&'a (dyn Fn() + 'static)>,
   webviews: MutexGuard<'a, HashMap<WindowId, WebviewWrapper>>,
-  task_rx: Arc<Receiver<MainThreadTask>>,
   window_event_listeners: WindowEventListeners,
   #[cfg(feature = "menu")]
   menu_event_listeners: MenuEventListeners,
@@ -1161,7 +1148,6 @@ fn handle_event_loop(
   let EventLoopIterationContext {
     callback,
     mut webviews,
-    task_rx,
     window_event_listeners,
     #[cfg(feature = "menu")]
     menu_event_listeners,
@@ -1174,10 +1160,6 @@ fn handle_event_loop(
     if let Err(e) = w.inner.evaluate_script() {
       eprintln!("{}", e);
     }
-  }
-
-  while let Ok(task) = task_rx.try_recv() {
-    task();
   }
 
   match event {
@@ -1247,6 +1229,11 @@ fn handle_event_loop(
       }
     }
     Event::UserEvent(message) => match message {
+      Message::Task(task) => {
+        if let Some(task) = task.lock().unwrap().take() {
+          task();
+        }
+      }
       Message::Window(id, window_message) => {
         if let Some(webview) = webviews.get_mut(&id) {
           let window = webview.inner.window();

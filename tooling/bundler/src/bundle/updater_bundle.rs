@@ -109,7 +109,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
   let appimage_archived_path = PathBuf::from(&appimage_archived);
 
   // Create our gzip file
-  create_tar(&source_path, &appimage_archived_path)
+  create_tar(source_path, &appimage_archived_path)
     .with_context(|| "Failed to tar.gz update directory")?;
 
   common::print_bundling(format!("{:?}", &appimage_archived_path).as_str())?;
@@ -181,7 +181,7 @@ pub fn create_zip(src_file: &Path, dst_file: &Path) -> crate::Result<PathBuf> {
 
 #[cfg(not(target_os = "windows"))]
 fn create_tar(src_dir: &Path, dest_path: &Path) -> crate::Result<PathBuf> {
-  let dest_file = common::create_file(&dest_path)?;
+  let dest_file = common::create_file(dest_path)?;
   let gzip_encoder = libflate::gzip::Encoder::new(dest_file)?;
 
   let gzip_encoder = create_tar_from_src(src_dir, gzip_encoder)?;

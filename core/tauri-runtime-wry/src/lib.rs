@@ -1363,6 +1363,9 @@ fn handle_event_loop(
           match webview_message {
             WebviewMessage::EvaluateScript(script) => {
               let _ = webview.inner.dispatch_script(&script);
+              if let Err(e) = webview.inner.evaluate_script() {
+                eprintln!("{}", e);
+              }
             }
             WebviewMessage::Print => {
               let _ = webview.inner.print();

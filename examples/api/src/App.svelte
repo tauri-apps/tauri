@@ -121,6 +121,6 @@
         responses = [];
         }}>clear</a>
     </p>
-    {response}
+    {@html response}
   </div>
 </main>

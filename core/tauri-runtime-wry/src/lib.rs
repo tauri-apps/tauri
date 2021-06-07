@@ -1167,12 +1167,6 @@ fn handle_event_loop(
   } = context;
   *control_flow = ControlFlow::Wait;
 
-  for (_, w) in webviews.iter() {
-    if let Err(e) = w.inner.evaluate_script() {
-      eprintln!("{}", e);
-    }
-  }
-
   match event {
     #[cfg(feature = "menu")]
     Event::MenuEvent {
@@ -1362,7 +1356,9 @@ fn handle_event_loop(
         if let Some(webview) = webviews.get_mut(&id) {
           match webview_message {
             WebviewMessage::EvaluateScript(script) => {
-              let _ = webview.inner.dispatch_script(&script);
+              if let Err(e) = webview.inner.evaluate_script(&script) {
+                eprintln!("{}", e);
+              }
             }
             WebviewMessage::Print => {
               let _ = webview.inner.print();

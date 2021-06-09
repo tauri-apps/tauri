@@ -4,6 +4,7 @@
 
 //! Assets handled by Tauri during compile time and runtime.
 
+#[doc(hidden)]
 pub use phf;
 use std::{
   borrow::Cow,

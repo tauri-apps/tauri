@@ -1381,7 +1381,7 @@ fn handle_event_loop(
           let mut lock = handler.lock().expect("poisoned create webview handler");
           std::mem::take(&mut *lock).unwrap()
         };
-        match handler(event_loop, &web_context) {
+        match handler(event_loop, web_context) {
           Ok(webview) => {
             let window_id = webview.inner.window().id();
             webviews.insert(window_id, webview);

@@ -3,12 +3,14 @@
 // SPDX-License-Identifier: MIT
 
 #[cfg(feature = "menu")]
-use crate::runtime::MenuId;
+#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
+pub(crate) mod menu;
+
 use crate::{
   api::config::WindowUrl,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
-  manager::{DefaultArgs, WindowManager},
+  manager::WindowManager,
   runtime::{
     monitor::Monitor as RuntimeMonitor,
     tag::{TagRef, ToJsString},
@@ -30,22 +32,6 @@ use std::{
   borrow::Borrow,
   hash::{Hash, Hasher},
 };
-
-/// The window menu event.
-#[cfg(feature = "menu")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-#[derive(Debug, Clone)]
-pub struct MenuEvent<I: MenuId> {
-  pub(crate) menu_item_id: I,
-}
-
-#[cfg(feature = "menu")]
-impl<I: MenuId> MenuEvent<I> {
-  /// The menu item id.
-  pub fn menu_item_id(&self) -> &I {
-    &self.menu_item_id
-  }
-}
 
 /// Monitor descriptor.
 #[derive(Debug, Clone, Serialize)]
@@ -92,16 +78,19 @@ impl Monitor {
 }
 
 // TODO: expand these docs since this is a pretty important type
-/// A webview window managed by Tauri.
-///
-/// This type also implements [`Manager`] which allows you to manage other windows attached to
-/// the same application.
-pub struct Window<P: Params = DefaultArgs> {
-  /// The webview window created by the runtime.
-  window: DetachedWindow<P>,
+crate::manager::default_args! {
+  /// A webview window managed by Tauri.
+  ///
+  /// This type also implements [`Manager`] which allows you to manage other windows attached to
+  /// the same application.
+  pub struct Window<P: Params> {
+    /// The webview window created by the runtime.
+    /// ok
+    window: DetachedWindow<P>,
 
-  /// The manager to associate this webview window with.
-  manager: WindowManager<P>,
+    /// The manager to associate this webview window with.
+    manager: WindowManager<P>,
+  }
 }
 
 impl<P: Params> Clone for Window<P> {
@@ -132,6 +121,10 @@ impl<P: Params> Manager<P> for Window<P> {}
 impl<P: Params> ManagerBase<P> for Window<P> {
   fn manager(&self) -> &WindowManager<P> {
     &self.manager
+  }
+
+  fn runtime(&self) -> RuntimeOrDispatch<'_, P> {
+    RuntimeOrDispatch::Dispatch(self.dispatcher())
   }
 }
 
@@ -168,10 +161,11 @@ impl<P: Params> Window<P> {
       <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder::new(),
       WebviewAttributes::new(url),
     );
-    self.create_new_window(
-      RuntimeOrDispatch::Dispatch(self.dispatcher()),
-      PendingWindow::new(window_builder, webview_attributes, label),
-    )
+    self.create_new_window(PendingWindow::new(
+      window_builder,
+      webview_attributes,
+      label,
+    ))
   }
 
   /// The current window's dispatcher.
@@ -293,16 +287,25 @@ impl<P: Params> Window<P> {
   /// Registers a menu event listener.
   #[cfg(feature = "menu")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-  pub fn on_menu_event<F: Fn(MenuEvent<P::MenuId>) + Send + 'static>(&self, f: F) {
+  pub fn on_menu_event<F: Fn(menu::MenuEvent<P::MenuId>) + Send + 'static>(&self, f: F) {
     let menu_ids = self.manager.menu_ids();
     self.window.dispatcher.on_menu_event(move |event| {
-      f(MenuEvent {
+      f(menu::MenuEvent {
         menu_item_id: menu_ids.get(&event.menu_item_id).unwrap().clone(),
       })
     });
   }
 
   // Getters
+
+  /// Gets a handle to the window menu.
+  #[cfg(feature = "menu")]
+  pub fn menu_handle(&self) -> menu::MenuHandle<P> {
+    menu::MenuHandle {
+      ids: self.manager.menu_ids(),
+      dispatcher: self.dispatcher(),
+    }
+  }
 
   /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.
   pub fn scale_factor(&self) -> crate::Result<f64> {
@@ -343,6 +346,21 @@ impl<P: Params> Window<P> {
     self.window.dispatcher.is_maximized().map_err(Into::into)
   }
 
+  /// Gets the window’s current decoration state.
+  pub fn is_decorated(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_decorated().map_err(Into::into)
+  }
+
+  /// Gets the window’s current resizable state.
+  pub fn is_resizable(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_resizable().map_err(Into::into)
+  }
+
+  /// Gets the window's current vibility state.
+  pub fn is_visible(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_visible().map_err(Into::into)
+  }
+
   /// Returns the monitor on which the window currently resides.
   ///
   /// Returns None if current monitor can't be detected.
@@ -377,7 +395,18 @@ impl<P: Params> Window<P> {
       .map_err(Into::into)
   }
 
+  /// Returns the native handle that is used by this window.
+  #[cfg(windows)]
+  pub fn hwnd(&self) -> crate::Result<*mut std::ffi::c_void> {
+    self.window.dispatcher.hwnd().map_err(Into::into)
+  }
+
   // Setters
+
+  /// Centers the window.
+  pub fn center(&self) -> crate::Result<()> {
+    self.window.dispatcher.center().map_err(Into::into)
+  }
 
   /// Opens the dialog to prints the contents of the webview.
   /// Currently only supported on macOS on `wry`.
@@ -504,9 +533,23 @@ impl<P: Params> Window<P> {
       .map_err(Into::into)
   }
 
+  /// Bring the window to front and focus.
+  pub fn set_focus(&self) -> crate::Result<()> {
+    self.window.dispatcher.set_focus().map_err(Into::into)
+  }
+
   /// Sets this window' icon.
   pub fn set_icon(&self, icon: Icon) -> crate::Result<()> {
     self.window.dispatcher.set_icon(icon).map_err(Into::into)
+  }
+
+  /// Whether to show the window icon in the task bar or not.
+  pub fn set_skip_taskbar(&self, skip: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_skip_taskbar(skip)
+      .map_err(Into::into)
   }
 
   /// Starts dragging the window.

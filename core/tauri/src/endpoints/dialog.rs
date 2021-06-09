@@ -5,7 +5,10 @@
 use super::InvokeResponse;
 #[cfg(any(dialog_open, dialog_save))]
 use crate::api::dialog::FileDialogBuilder;
-use crate::api::dialog::{ask as ask_dialog, message as message_dialog, AskResponse};
+use crate::{
+  api::dialog::{ask as ask_dialog, message as message_dialog, AskResponse},
+  Params, Window,
+};
 use serde::Deserialize;
 
 use std::path::PathBuf;
@@ -49,6 +52,7 @@ pub struct SaveDialogOptions {
 /// The API descriptor.
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
+#[allow(clippy::enum_variant_names)]
 pub enum Cmd {
   /// The open dialog API.
   OpenDialog {
@@ -68,15 +72,16 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub fn run(self) -> crate::Result<InvokeResponse> {
+  #[allow(unused_variables)]
+  pub fn run<P: Params>(self, window: Window<P>) -> crate::Result<InvokeResponse> {
     match self {
       #[cfg(dialog_open)]
-      Self::OpenDialog { options } => open(options),
+      Self::OpenDialog { options } => open(window, options),
       #[cfg(not(dialog_open))]
       Self::OpenDialog { .. } => Err(crate::Error::ApiNotAllowlisted("dialog > open".to_string())),
 
       #[cfg(dialog_save)]
-      Self::SaveDialog { options } => save(options),
+      Self::SaveDialog { options } => save(window, options),
       #[cfg(not(dialog_save))]
       Self::SaveDialog { .. } => Err(crate::Error::ApiNotAllowlisted("dialog > save".to_string())),
 
@@ -139,10 +144,39 @@ fn set_default_path(
   }
 }
 
+#[cfg(windows)]
+struct WindowParent {
+  hwnd: *mut std::ffi::c_void,
+}
+
+#[cfg(windows)]
+unsafe impl raw_window_handle::HasRawWindowHandle for WindowParent {
+  fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
+    let mut handle = raw_window_handle::windows::WindowsHandle::empty();
+    handle.hwnd = self.hwnd;
+    raw_window_handle::RawWindowHandle::Windows(handle)
+  }
+}
+
+#[cfg(windows)]
+fn parent<P: Params>(window: Window<P>) -> crate::Result<WindowParent> {
+  Ok(WindowParent {
+    hwnd: window.hwnd()?,
+  })
+}
+
 /// Shows an open dialog.
 #[cfg(dialog_open)]
-pub fn open(options: OpenDialogOptions) -> crate::Result<InvokeResponse> {
+#[allow(unused_variables)]
+pub fn open<P: Params>(
+  window: Window<P>,
+  options: OpenDialogOptions,
+) -> crate::Result<InvokeResponse> {
   let mut dialog_builder = FileDialogBuilder::new();
+  #[cfg(windows)]
+  {
+    dialog_builder = dialog_builder.set_parent(&parent(window)?);
+  }
   if let Some(default_path) = options.default_path {
     if !default_path.exists() {
       return Err(crate::Error::DialogDefaultPathNotExists(default_path));
@@ -165,8 +199,16 @@ pub fn open(options: OpenDialogOptions) -> crate::Result<InvokeResponse> {
 
 /// Shows a save dialog.
 #[cfg(dialog_save)]
-pub fn save(options: SaveDialogOptions) -> crate::Result<InvokeResponse> {
+#[allow(unused_variables)]
+pub fn save<P: Params>(
+  window: Window<P>,
+  options: SaveDialogOptions,
+) -> crate::Result<InvokeResponse> {
   let mut dialog_builder = FileDialogBuilder::new();
+  #[cfg(windows)]
+  {
+    dialog_builder = dialog_builder.set_parent(&parent(window)?);
+  }
   if let Some(default_path) = options.default_path {
     if !default_path.exists() {
       return Err(crate::Error::DialogDefaultPathNotExists(default_path));

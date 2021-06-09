@@ -4,6 +4,23 @@
 
 /**
  * Provides APIs to create windows, communicate with other windows and manipulate the current window.
+ *
+ * This package is also accessible with `window.__TAURI__.window` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ *
+ * The APIs must be allowlisted on `tauri.conf.json`:
+ * ```json
+ * {
+ *   "tauri": {
+ *     "allowlist": {
+ *       "window": {
+ *         "all": true, // enable all window APIs
+ *         "create": true // enable window creation
+ *       }
+ *     }
+ *   }
+ * }
+ * ```
+ * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
  * @packageDocumentation
  */
 
@@ -232,7 +249,7 @@ class WebviewWindowHandle {
  * ```
  */
 class WebviewWindow extends WebviewWindowHandle {
-  private constructor(label: string, options: WindowOptions = {}) {
+  constructor(label: string, options: WindowOptions = {}) {
     super(label)
     invokeTauriCommand({
       __tauriModule: 'Window',
@@ -267,7 +284,7 @@ class WebviewWindow extends WebviewWindowHandle {
 /**
  * Manage the current window object.
  */
-export class WindowManager {
+class WindowManager {
   // Getters
   /** The scale factor that can be used to map physical pixels to logical pixels. */
   async scaleFactor(): Promise<number> {
@@ -345,7 +362,52 @@ export class WindowManager {
     })
   }
 
+  /** Gets the window's current decorated state. */
+  async isDecorated(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'isDecorated'
+      }
+    })
+  }
+
+  /** Gets the window's current resizable state. */
+  async isResizable(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'isResizable'
+      }
+    })
+  }
+
+  /** Gets the window's current visible state. */
+  async isVisible(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'isVisible'
+      }
+    })
+  }
+
   // Setters
+
+  /**
+   * Centers the window.
+   *
+   * @param resizable
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async center(): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'center'
+      }
+    })
+  }
 
   /**
    * Updates the window resizable flag.
@@ -511,11 +573,21 @@ export class WindowManager {
 
   /**
    * Resizes the window.
+   * @example
+   * ```typescript
+   * import { appWindow, LogicalSize } from '@tauri-apps/api/window'
+   * await appWindow.setSize(new LogicalSize(600, 500))
+   * ```
    *
    * @param size The logical or physical size.
    * @returns A promise indicating the success or failure of the operation.
    */
   async setSize(size: LogicalSize | PhysicalSize): Promise<void> {
+    if (!size || (size.type !== 'Logical' && size.type !== 'Physical')) {
+      throw new Error(
+        'the `size` argument must be either a LogicalSize or a PhysicalSize instance'
+      )
+    }
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
@@ -532,7 +604,12 @@ export class WindowManager {
   }
 
   /**
-   * Sets the window min size.
+   * Sets the window min size. If the `size` argument is not provided, the min size is unset.
+   * @example
+   * ```typescript
+   * import { appWindow, PhysicalSize } from '@tauri-apps/api/window'
+   * await appWindow.setMinSize(new PhysicalSize(600, 500))
+   * ```
    *
    * @param size The logical or physical size.
    * @returns A promise indicating the success or failure of the operation.
@@ -540,6 +617,11 @@ export class WindowManager {
   async setMinSize(
     size: LogicalSize | PhysicalSize | undefined
   ): Promise<void> {
+    if (size && size.type !== 'Logical' && size.type !== 'Physical') {
+      throw new Error(
+        'the `size` argument must be either a LogicalSize or a PhysicalSize instance'
+      )
+    }
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
@@ -558,7 +640,12 @@ export class WindowManager {
   }
 
   /**
-   * Sets the window max size.
+   * Sets the window max size. If the `size` argument is undefined, the max size is unset.
+   * @example
+   * ```typescript
+   * import { appWindow, LogicalSize } from '@tauri-apps/api/window'
+   * await appWindow.setMaxSize(new LogicalSize(600, 500))
+   * ```
    *
    * @param size The logical or physical size.
    * @returns A promise indicating the success or failure of the operation.
@@ -566,6 +653,11 @@ export class WindowManager {
   async setMaxSize(
     size: LogicalSize | PhysicalSize | undefined
   ): Promise<void> {
+    if (size && size.type !== 'Logical' && size.type !== 'Physical') {
+      throw new Error(
+        'the `size` argument must be either a LogicalSize or a PhysicalSize instance'
+      )
+    }
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
@@ -585,6 +677,11 @@ export class WindowManager {
 
   /**
    * Sets the window position.
+   * @example
+   * ```typescript
+   * import { appWindow, LogicalPosition } from '@tauri-apps/api/window'
+   * await appWindow.setPosition(new LogicalPosition(600, 500))
+   * ```
    *
    * @param position The new position, in logical or physical pixels.
    * @returns A promise indicating the success or failure of the operation.
@@ -592,6 +689,14 @@ export class WindowManager {
   async setPosition(
     position: LogicalPosition | PhysicalPosition
   ): Promise<void> {
+    if (
+      !position ||
+      (position.type !== 'Logical' && position.type !== 'Physical')
+    ) {
+      throw new Error(
+        'the `position` argument must be either a LogicalPosition or a PhysicalPosition instance'
+      )
+    }
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
@@ -624,6 +729,20 @@ export class WindowManager {
   }
 
   /**
+   * Bring the window to front and focus.
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setFocus(): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'setFocus'
+      }
+    })
+  }
+
+  /**
    * Sets the window icon.
    *
    * @param icon Icon bytes or path to the icon file.
@@ -637,6 +756,22 @@ export class WindowManager {
         data: {
           icon
         }
+      }
+    })
+  }
+
+  /**
+   * Whether to show the window icon in the task bar or not.
+   *
+   * @param skip true to hide window icon, false to show it.
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setSkipTaskbar(skip: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'setSkipTaskbar',
+        data: skip
       }
     })
   }
@@ -660,11 +795,13 @@ export class WindowManager {
 const appWindow = new WindowManager()
 
 /** Configuration for the window to create. */
-export interface WindowOptions {
+interface WindowOptions {
   /**
    * Remote URL or local file path to open, e.g. `https://github.com/tauri-apps` or `path/to/page.html`.
    */
   url?: string
+  /** Show window in the center of the screen.. */
+  center?: boolean
   /** The initial vertical position. Only applies if `y` is also set. */
   x?: number
   /** The initial horizontal position. Only applies if `x` is also set. */
@@ -687,6 +824,8 @@ export interface WindowOptions {
   title?: string
   /** Whether the window is in fullscreen mode or not. */
   fullscreen?: boolean
+  /** Whether the window will be initially hidden or focused. */
+  focus?: boolean
   /** Whether the window is transparent or not. */
   transparent?: boolean
   /** Whether the window should be maximized upon creation or not. */
@@ -697,6 +836,8 @@ export interface WindowOptions {
   decorations?: boolean
   /** Whether the window should always be on top of other windows or not. */
   alwaysOnTop?: boolean
+  /** Whether or not the window icon should be added to the taskbar. */
+  skipTaskbar?: boolean
 }
 
 /**
@@ -738,6 +879,7 @@ async function availableMonitors(): Promise<Monitor[]> {
 export {
   WebviewWindow,
   WebviewWindowHandle,
+  WindowManager,
   getCurrent,
   getAll,
   appWindow,
@@ -750,6 +892,4 @@ export {
   availableMonitors
 }
 
-export type {
-  Monitor
-}
+export type { Monitor, WindowOptions }

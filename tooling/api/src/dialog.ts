@@ -4,13 +4,31 @@
 
 /**
  * Native system dialogs for opening and saving files.
+ *
+ * This package is also accessible with `window.__TAURI__.dialog` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ *
+ * The APIs must be allowlisted on `tauri.conf.json`:
+ * ```json
+ * {
+ *   "tauri": {
+ *     "allowlist": {
+ *       "dialog": {
+ *         "all": true, // enable all dialog APIs
+ *         "open": true, // enable file open API
+ *         "save": true // enable file save API
+ *       }
+ *     }
+ *   }
+ * }
+ * ```
+ * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
  * @packageDocumentation
  */
 
 import { invokeTauriCommand } from './helpers/tauri'
 
 /** Extension filters for the file dialog. */
-export interface DialogFilter {
+interface DialogFilter {
   /** Filter name. */
   name: string
   /**
@@ -24,7 +42,7 @@ export interface DialogFilter {
 }
 
 /** Options for the open dialog. */
-export interface OpenDialogOptions {
+interface OpenDialogOptions {
   /** The filters of the dialog. */
   filters?: DialogFilter[]
   /** Initial directory or file path. It must exist. */
@@ -36,7 +54,7 @@ export interface OpenDialogOptions {
 }
 
 /** Options for the save dialog. */
-export interface SaveDialogOptions {
+interface SaveDialogOptions {
   /** The filters of the dialog. */
   filters?: DialogFilter[]
   /** Initial directory or file path. It must exist. */
@@ -82,5 +100,7 @@ async function save(options: SaveDialogOptions = {}): Promise<string> {
     }
   })
 }
+
+export type { DialogFilter, OpenDialogOptions, SaveDialogOptions }
 
 export { open, save }

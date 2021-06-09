@@ -5,8 +5,8 @@
 use crate::embedded_assets::{AssetOptions, EmbeddedAssets, EmbeddedAssetsError};
 use proc_macro2::TokenStream;
 use quote::quote;
-use std::path::PathBuf;
-use tauri_utils::config::Config;
+use std::path::{Path, PathBuf};
+use tauri_utils::config::{AppUrl, Config, WindowUrl};
 
 /// Necessary data needed by [`context_codegen`] to generate code for a Tauri application context.
 pub struct ContextData {
@@ -24,39 +24,63 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     config_parent,
     root,
   } = data;
-  let assets_path = if dev {
-    // if dev_path is a dev server, we don't have any assets to embed
-    if config.build.dev_path.starts_with("http") {
-      None
-    } else {
-      Some(config_parent.join(&config.build.dev_path))
-    }
+
+  let mut options = AssetOptions::new();
+  if let Some(csp) = &config.tauri.security.csp {
+    options = options.csp(csp.clone());
+  }
+
+  let app_url = if dev {
+    &config.build.dev_path
   } else {
-    Some(config_parent.join(&config.build.dist_dir))
+    &config.build.dist_dir
   };
 
-  // generate the assets inside the dist dir into a perfect hash function
-  let assets = if let Some(assets_path) = assets_path {
-    let mut options = AssetOptions::new();
-    if let Some(csp) = &config.tauri.security.csp {
-      options = options.csp(csp.clone());
-    }
-    EmbeddedAssets::new(&assets_path, options)?
-  } else {
-    Default::default()
+  let assets = match app_url {
+    AppUrl::Url(url) => match url {
+      WindowUrl::External(_) => Default::default(),
+      WindowUrl::App(path) => {
+        if path.components().count() == 0 {
+          panic!(
+            "The `{}` configuration cannot be empty",
+            if dev { "devPath" } else { "distDir" }
+          )
+        }
+        let assets_path = config_parent.join(path);
+        if !assets_path.exists() {
+          panic!(
+            "The `{}` configuration is set to `{:?}` but this path doesn't exist",
+            if dev { "devPath" } else { "distDir" },
+            path
+          )
+        }
+        EmbeddedAssets::new(&assets_path, options)?
+      }
+      _ => unimplemented!(),
+    },
+    AppUrl::Files(files) => EmbeddedAssets::load_paths(
+      files.iter().map(|p| config_parent.join(p)).collect(),
+      options,
+    )?,
+    _ => unimplemented!(),
   };
 
   // handle default window icons for Windows targets
   let default_window_icon = if cfg!(windows) {
-    let icon_path = config
-      .tauri
-      .bundle
-      .icon
-      .iter()
-      .find(|i| i.ends_with(".ico"))
-      .cloned()
-      .unwrap_or_else(|| "icons/icon.ico".to_string());
-    let icon_path = config_parent.join(icon_path).display().to_string();
+    let icon_path = find_icon(
+      &config,
+      &config_parent,
+      |i| i.ends_with(".ico"),
+      "icons/icon.ico",
+    );
+    quote!(Some(include_bytes!(#icon_path).to_vec()))
+  } else if cfg!(target_os = "linux") {
+    let icon_path = find_icon(
+      &config,
+      &config_parent,
+      |i| i.ends_with(".png"),
+      "icons/icon.png",
+    );
     quote!(Some(include_bytes!(#icon_path).to_vec()))
   } else {
     quote!(None)
@@ -128,4 +152,21 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     #system_tray_icon,
     #package_info,
   )))
+}
+
+fn find_icon<F: Fn(&&String) -> bool>(
+  config: &Config,
+  config_parent: &Path,
+  predicate: F,
+  default: &str,
+) -> String {
+  let icon_path = config
+    .tauri
+    .bundle
+    .icon
+    .iter()
+    .find(|i| predicate(i))
+    .cloned()
+    .unwrap_or_else(|| default.to_string());
+  config_parent.join(icon_path).display().to_string()
 }

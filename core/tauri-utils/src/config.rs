@@ -2,6 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! The Tauri configuration used at runtime.
+//! It is pulled from a `tauri.conf.json` file and the [`config::Config`] struct is generated at compile time.
+//!
+//! # Stability
+//! This is a core functionality that is not considered part of the stable API.
+//! If you use it, note that it may include breaking changes in the future.
+
 use std::{collections::HashMap, path::PathBuf};
 
 use serde::Deserialize;
@@ -35,6 +42,9 @@ pub struct WindowConfig {
   /// The window webview URL.
   #[serde(default)]
   pub url: WindowUrl,
+  /// Center the window.
+  #[serde(default)]
+  pub center: bool,
   /// The horizontal position of the window's top left corner
   pub x: Option<f64>,
   /// The vertical position of the window's top left corner
@@ -62,6 +72,9 @@ pub struct WindowConfig {
   /// Whether the window starts as fullscreen or not.
   #[serde(default)]
   pub fullscreen: bool,
+  /// Whether the window will be initially hidden or focused.
+  #[serde(default)]
+  pub focus: bool,
   /// Whether the window is transparent or not.
   #[serde(default)]
   pub transparent: bool,
@@ -77,6 +90,9 @@ pub struct WindowConfig {
   /// Whether the window should always be on top of other windows.
   #[serde(default)]
   pub always_on_top: bool,
+  /// Whether or not the window icon should be added to the taskbar.
+  #[serde(default)]
+  pub skip_taskbar: bool,
 }
 
 fn default_window_label() -> String {
@@ -112,6 +128,7 @@ impl Default for WindowConfig {
     Self {
       label: default_window_label(),
       url: WindowUrl::default(),
+      center: false,
       x: None,
       y: None,
       width: default_width(),
@@ -123,11 +140,13 @@ impl Default for WindowConfig {
       resizable: default_resizable(),
       title: default_title(),
       fullscreen: false,
+      focus: false,
       transparent: false,
       maximized: false,
       visible: default_visible(),
       decorations: default_decorations(),
       always_on_top: false,
+      skip_taskbar: false,
     }
   }
 }
@@ -378,27 +397,40 @@ impl Default for TauriConfig {
   }
 }
 
+/// The `dev_path` and `dist_dir` options.
+#[derive(PartialEq, Debug, Clone, Deserialize)]
+#[serde(untagged)]
+#[non_exhaustive]
+pub enum AppUrl {
+  /// A url or file path.
+  Url(WindowUrl),
+  /// An array of files.
+  Files(Vec<PathBuf>),
+}
+
 /// The Build configuration object.
 #[derive(PartialEq, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildConfig {
   /// the devPath config.
   #[serde(default = "default_dev_path")]
-  pub dev_path: String,
+  pub dev_path: AppUrl,
   /// the dist config.
   #[serde(default = "default_dist_path")]
-  pub dist_dir: String,
+  pub dist_dir: AppUrl,
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
   #[serde(default)]
   pub with_global_tauri: bool,
 }
 
-fn default_dev_path() -> String {
-  "http://localhost:8080".to_string()
+fn default_dev_path() -> AppUrl {
+  AppUrl::Url(WindowUrl::External(
+    Url::parse("http://localhost:8080").unwrap(),
+  ))
 }
 
-fn default_dist_path() -> String {
-  "../dist".to_string()
+fn default_dist_path() -> AppUrl {
+  AppUrl::Url(WindowUrl::App("../dist".into()))
 }
 
 impl Default for BuildConfig {
@@ -450,7 +482,7 @@ pub struct PluginConfig(pub HashMap<String, JsonValue>);
 /// application using tauri while only parsing it once (in the build script).
 #[cfg(feature = "build")]
 mod build {
-  use std::convert::identity;
+  use std::{convert::identity, path::Path};
 
   use proc_macro2::TokenStream;
   use quote::{quote, ToTokens, TokenStreamExt};
@@ -494,6 +526,15 @@ mod build {
   {
     let items = list.into_iter().map(map);
     quote! { vec![#(#items),*] }
+  }
+
+  /// Create a `PathBuf` constructor `TokenStream`.
+  ///
+  /// e.g. `"Hello World" -> String::from("Hello World").
+  /// This takes a `&String` to reduce casting all the `&String` -> `&str` manually.
+  fn path_buf_lit(s: impl AsRef<Path>) -> TokenStream {
+    let s = s.as_ref().to_string_lossy().into_owned();
+    quote! { ::std::path::PathBuf::from(#s) }
   }
 
   /// Create a map constructor, mapping keys and values with other `TokenStream`s.
@@ -597,8 +638,8 @@ mod build {
 
       tokens.append_all(match self {
         Self::App(path) => {
-          let path = path.to_string_lossy().to_string();
-          quote! { #prefix::App(::std::path::PathBuf::from(#path)) }
+          let path = path_buf_lit(&path);
+          quote! { #prefix::App(#path) }
         }
         Self::External(url) => {
           let url = url.as_str();
@@ -612,6 +653,7 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let label = str_lit(&self.label);
       let url = &self.url;
+      let center = self.center;
       let x = opt_lit(self.x.as_ref());
       let y = opt_lit(self.y.as_ref());
       let width = self.width;
@@ -623,17 +665,20 @@ mod build {
       let resizable = self.resizable;
       let title = str_lit(&self.title);
       let fullscreen = self.fullscreen;
+      let focus = self.focus;
       let transparent = self.transparent;
       let maximized = self.maximized;
       let visible = self.visible;
       let decorations = self.decorations;
       let always_on_top = self.always_on_top;
+      let skip_taskbar = self.skip_taskbar;
 
       literal_struct!(
         tokens,
         WindowConfig,
         label,
         url,
+        center,
         x,
         y,
         width,
@@ -645,11 +690,13 @@ mod build {
         resizable,
         title,
         fullscreen,
+        focus,
         transparent,
         maximized,
         visible,
         decorations,
-        always_on_top
+        always_on_top,
+        skip_taskbar
       );
     }
   }
@@ -760,10 +807,26 @@ mod build {
     }
   }
 
+  impl ToTokens for AppUrl {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::api::config::AppUrl };
+
+      tokens.append_all(match self {
+        Self::Url(url) => {
+          quote! { #prefix::Url(#url) }
+        }
+        Self::Files(files) => {
+          let files = vec_lit(files, path_buf_lit);
+          quote! { #prefix::Files(#files) }
+        }
+      })
+    }
+  }
+
   impl ToTokens for BuildConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let dev_path = str_lit(&self.dev_path);
-      let dist_dir = str_lit(&self.dist_dir);
+      let dev_path = &self.dev_path;
+      let dist_dir = &self.dist_dir;
       let with_global_tauri = self.with_global_tauri;
 
       literal_struct!(tokens, BuildConfig, dev_path, dist_dir, with_global_tauri);
@@ -791,8 +854,7 @@ mod build {
 
   impl ToTokens for SystemTrayConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let icon_path = self.icon_path.to_string_lossy().to_string();
-      let icon_path = quote! { ::std::path::PathBuf::from(#icon_path) };
+      let icon_path = path_buf_lit(&self.icon_path);
       literal_struct!(tokens, SystemTrayConfig, icon_path);
     }
   }
@@ -881,6 +943,7 @@ mod test {
       windows: vec![WindowConfig {
         label: "main".to_string(),
         url: WindowUrl::default(),
+        center: false,
         x: None,
         y: None,
         width: 800f64,
@@ -892,11 +955,13 @@ mod test {
         resizable: true,
         title: String::from("Tauri App"),
         fullscreen: false,
+        focus: false,
         transparent: false,
         maximized: false,
         visible: true,
         decorations: true,
         always_on_top: false,
+        skip_taskbar: false,
       }],
       bundle: BundleConfig {
         identifier: String::from(""),
@@ -915,8 +980,10 @@ mod test {
 
     // create a build config
     let build = BuildConfig {
-      dev_path: String::from("http://localhost:8080"),
-      dist_dir: String::from("../dist"),
+      dev_path: AppUrl::Url(WindowUrl::External(
+        Url::parse("http://localhost:8080").unwrap(),
+      )),
+      dist_dir: AppUrl::Url(WindowUrl::App("../dist".into())),
       with_global_tauri: false,
     };
 
@@ -925,7 +992,12 @@ mod test {
     assert_eq!(b_config, build);
     assert_eq!(d_bundle, tauri.bundle);
     assert_eq!(d_updater, tauri.updater);
-    assert_eq!(d_path, String::from("http://localhost:8080"));
+    assert_eq!(
+      d_path,
+      AppUrl::Url(WindowUrl::External(
+        Url::parse("http://localhost:8080").unwrap()
+      ))
+    );
     assert_eq!(d_title, tauri.windows[0].title);
     assert_eq!(d_windows, tauri.windows);
   }

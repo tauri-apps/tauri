@@ -190,7 +190,7 @@ if (!String.prototype.startsWith) {
   // drag region
   document.addEventListener('mousedown', (e) => {
     // start dragging if the element has a `tauri-drag-region` data attribute
-    if (e.target.dataset.tauriDragRegion === '' && e.buttons === 1) {
+    if (e.target.hasAttribute('data-tauri-drag-region') && e.buttons === 1) {
       window.__TAURI__.invoke('tauri', {
         __tauriModule: "Window",
         message: {

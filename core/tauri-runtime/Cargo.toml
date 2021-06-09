@@ -28,6 +28,9 @@ thiserror = "1.0"
 tauri-utils = { version = "1.0.0-beta.0", path = "../tauri-utils" }
 uuid = { version = "0.8.2", features = [ "v4" ] }
 
+[target."cfg(windows)".dependencies]
+winapi = "0.3"
+
 [features]
 menu = [ ]
 system-tray = [ ]

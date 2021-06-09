@@ -206,6 +206,22 @@
       },
       "additionalProperties": false
     },
+    "AppUrl": {
+      "description": "The `dev_path` and `dist_dir` options.",
+      "anyOf": [
+        {
+          "description": "The app's external URL, or the path to the directory containing the app assets.",
+          "type": "string"
+        },
+        {
+          "description": "An array of files to embed on the app.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "BuildConfig": {
       "description": "The Build configuration object.",
       "type": "object",
@@ -225,14 +241,22 @@
           ]
         },
         "devPath": {
-          "description": "the app's dev server URL, or the path to the directory containing an index.html file",
+          "description": "The path or URL to use on development.",
           "default": "",
-          "type": "string"
+          "allOf": [
+            {
+              "$ref": "#/definitions/AppUrl"
+            }
+          ]
         },
         "distDir": {
           "description": "the path to the app's dist dir. This path must contain your index.html file.",
           "default": "../dist",
-          "type": "string"
+          "allOf": [
+            {
+              "$ref": "#/definitions/AppUrl"
+            }
+          ]
         },
         "features": {
           "description": "features passed to `cargo` commands",

@@ -4,6 +4,8 @@
 
 /**
  * Invoke your custom commands.
+ *
+ * This package is also accessible with `window.__TAURI__.tauri` when `tauri.conf.json > build > withGlobalTauri` is set to true.
  * @packageDocumentation
  */
 
@@ -54,7 +56,7 @@ function transformCallback(
 }
 
 /** Command arguments. */
-export interface InvokeArgs {
+interface InvokeArgs {
   [key: string]: unknown
 }
 
@@ -83,5 +85,7 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
     })
   })
 }
+
+export type { InvokeArgs }
 
 export { transformCallback, invoke }

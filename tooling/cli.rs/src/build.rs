@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
-use tauri_bundler::bundle::{bundle_project, PackageType, SettingsBuilder};
+use tauri_bundler::bundle::{bundle_project, PackageType};
 
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
-  config::get as get_config,
+  config::{get as get_config, AppUrl},
   execute_with_output,
   manifest::rewrite_manifest,
   updater_signature::sign_file_from_env_variables,
@@ -15,8 +15,6 @@ use crate::helpers::{
 };
 
 use std::{env::set_current_dir, fs::rename, path::PathBuf, process::Command};
-
-mod rust;
 
 #[derive(Default)]
 pub struct Build {
@@ -103,12 +101,14 @@ impl Build {
       }
     }
 
-    let web_asset_path = PathBuf::from(&config_.build.dist_dir);
-    if !web_asset_path.exists() {
-      return Err(anyhow::anyhow!(
-        "Unable to find your web assets, did you forget to build your web app? Your distDir is set to \"{:?}\".",
-        web_asset_path
-      ));
+    if let AppUrl::Url(url) = &config_.build.dist_dir {
+      let web_asset_path = PathBuf::from(url);
+      if !web_asset_path.exists() {
+        return Err(anyhow::anyhow!(
+          "Unable to find your web assets, did you forget to build your web app? Your distDir is set to \"{:?}\".",
+          web_asset_path
+        ));
+      }
     }
 
     let runner_from_config = config_.build.runner.clone();
@@ -122,10 +122,10 @@ impl Build {
       cargo_features.extend(features);
     }
 
-    rust::build_project(runner, &self.target, cargo_features, self.debug)
+    crate::interface::rust::build_project(runner, &self.target, cargo_features, self.debug)
       .with_context(|| "failed to build app")?;
 
-    let app_settings = rust::AppSettings::new(&config_)?;
+    let app_settings = crate::interface::rust::AppSettings::new(config_)?;
 
     let out_dir = app_settings
       .get_out_dir(self.debug)
@@ -160,17 +160,8 @@ impl Build {
         };
         std::fs::write(out_dir.join(filename), vcruntime_msm)?;
       }
-      let mut settings_builder = SettingsBuilder::new()
-        .package_settings(app_settings.get_package_settings())
-        .bundle_settings(app_settings.get_bundle_settings(&config_, &manifest)?)
-        .binaries(app_settings.get_binaries(&config_)?)
-        .project_out_directory(out_dir);
 
-      if self.verbose {
-        settings_builder = settings_builder.verbose();
-      }
-
-      if let Some(names) = self.bundles {
+      let package_types = if let Some(names) = self.bundles {
         let mut types = vec![];
         for name in names {
           if name == "none" {
@@ -188,14 +179,44 @@ impl Build {
             }
           }
         }
+        Some(types)
+      } else if let Some(targets) = &config_.tauri.bundle.targets {
+        let mut types = vec![];
+        let targets = targets.to_vec();
+        if !targets.contains(&"all".into()) {
+          for name in targets {
+            match PackageType::from_short_name(&name) {
+              Some(package_type) => {
+                types.push(package_type);
+              }
+              None => {
+                return Err(anyhow::anyhow!(format!(
+                  "Unsupported bundle format: {}",
+                  name
+                )));
+              }
+            }
+          }
+          Some(types)
+        } else {
+          None
+        }
+      } else {
+        None
+      };
 
-        settings_builder = settings_builder.package_types(types);
-      }
+      let settings = crate::interface::get_bundler_settings(
+        app_settings,
+        &manifest,
+        config_,
+        &out_dir,
+        self.verbose,
+        package_types,
+      )
+      .with_context(|| "failed to build bundler settings")?;
 
-      // Bundle the project
-      let settings = settings_builder
-        .build()
-        .with_context(|| "failed to build bundler settings")?;
+      settings.copy_resources(&out_dir)?;
+      settings.copy_binaries(&out_dir)?;
 
       let bundles = bundle_project(settings).with_context(|| "failed to bundle project")?;
 

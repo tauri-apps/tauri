@@ -18,6 +18,16 @@ pub enum BundleTarget {
   One(String),
 }
 
+impl BundleTarget {
+  #[allow(dead_code)]
+  pub fn to_vec(&self) -> Vec<String> {
+    match self {
+      Self::All(list) => list.clone(),
+      Self::One(i) => vec![i.clone()],
+    }
+  }
+}
+
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -300,7 +310,7 @@ pub struct SecurityConfig {
   pub csp: Option<String>,
 }
 
-trait Allowlist {
+pub trait Allowlist {
   fn to_features(&self) -> Vec<&str>;
 }
 
@@ -314,31 +324,31 @@ macro_rules! check_feature {
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct FsAllowlistConfig {
+pub struct FsAllowlistConfig {
   #[serde(default)]
-  all: bool,
+  pub all: bool,
   #[serde(default)]
-  read_text_file: bool,
+  pub read_text_file: bool,
   #[serde(default)]
-  read_binary_file: bool,
+  pub read_binary_file: bool,
   #[serde(default)]
-  write_file: bool,
+  pub write_file: bool,
   #[serde(default)]
-  write_binary_file: bool,
+  pub write_binary_file: bool,
   #[serde(default)]
-  read_dir: bool,
+  pub read_dir: bool,
   #[serde(default)]
-  copy_file: bool,
+  pub copy_file: bool,
   #[serde(default)]
-  create_dir: bool,
+  pub create_dir: bool,
   #[serde(default)]
-  remove_dir: bool,
+  pub remove_dir: bool,
   #[serde(default)]
-  remove_file: bool,
+  pub remove_file: bool,
   #[serde(default)]
-  rename_file: bool,
+  pub rename_file: bool,
   #[serde(default)]
-  path: bool,
+  pub path: bool,
 }
 
 impl Allowlist for FsAllowlistConfig {
@@ -365,11 +375,11 @@ impl Allowlist for FsAllowlistConfig {
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct WindowAllowlistConfig {
+pub struct WindowAllowlistConfig {
   #[serde(default)]
-  all: bool,
+  pub all: bool,
   #[serde(default)]
-  create: bool,
+  pub create: bool,
 }
 
 impl Allowlist for WindowAllowlistConfig {
@@ -386,13 +396,13 @@ impl Allowlist for WindowAllowlistConfig {
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct ShellAllowlistConfig {
+pub struct ShellAllowlistConfig {
   #[serde(default)]
-  all: bool,
+  pub all: bool,
   #[serde(default)]
-  execute: bool,
+  pub execute: bool,
   #[serde(default)]
-  open: bool,
+  pub open: bool,
 }
 
 impl Allowlist for ShellAllowlistConfig {
@@ -410,13 +420,13 @@ impl Allowlist for ShellAllowlistConfig {
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct DialogAllowlistConfig {
+pub struct DialogAllowlistConfig {
   #[serde(default)]
-  all: bool,
+  pub all: bool,
   #[serde(default)]
-  open: bool,
+  pub open: bool,
   #[serde(default)]
-  save: bool,
+  pub save: bool,
 }
 
 impl Allowlist for DialogAllowlistConfig {
@@ -434,11 +444,11 @@ impl Allowlist for DialogAllowlistConfig {
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct HttpAllowlistConfig {
+pub struct HttpAllowlistConfig {
   #[serde(default)]
-  all: bool,
+  pub all: bool,
   #[serde(default)]
-  request: bool,
+  pub request: bool,
 }
 
 impl Allowlist for HttpAllowlistConfig {
@@ -455,9 +465,9 @@ impl Allowlist for HttpAllowlistConfig {
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct NotificationAllowlistConfig {
+pub struct NotificationAllowlistConfig {
   #[serde(default)]
-  all: bool,
+  pub all: bool,
 }
 
 impl Allowlist for NotificationAllowlistConfig {
@@ -472,9 +482,9 @@ impl Allowlist for NotificationAllowlistConfig {
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct GlobalShortcutAllowlistConfig {
+pub struct GlobalShortcutAllowlistConfig {
   #[serde(default)]
-  all: bool,
+  pub all: bool,
 }
 
 impl Allowlist for GlobalShortcutAllowlistConfig {
@@ -489,23 +499,23 @@ impl Allowlist for GlobalShortcutAllowlistConfig {
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct AllowlistConfig {
+pub struct AllowlistConfig {
   #[serde(default)]
-  all: bool,
+  pub all: bool,
   #[serde(default)]
-  fs: FsAllowlistConfig,
+  pub fs: FsAllowlistConfig,
   #[serde(default)]
-  window: WindowAllowlistConfig,
+  pub window: WindowAllowlistConfig,
   #[serde(default)]
-  shell: ShellAllowlistConfig,
+  pub shell: ShellAllowlistConfig,
   #[serde(default)]
-  dialog: DialogAllowlistConfig,
+  pub dialog: DialogAllowlistConfig,
   #[serde(default)]
-  http: HttpAllowlistConfig,
+  pub http: HttpAllowlistConfig,
   #[serde(default)]
-  notification: NotificationAllowlistConfig,
+  pub notification: NotificationAllowlistConfig,
   #[serde(default)]
-  global_shortcut: GlobalShortcutAllowlistConfig,
+  pub global_shortcut: GlobalShortcutAllowlistConfig,
 }
 
 impl Allowlist for AllowlistConfig {
@@ -590,6 +600,25 @@ fn default_dialog() -> Option<bool> {
   Some(true)
 }
 
+/// The `dev_path` and `dist_dir` options.
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(untagged, deny_unknown_fields)]
+pub enum AppUrl {
+  /// The app's external URL, or the path to the directory containing the app assets.
+  Url(String),
+  /// An array of files to embed on the app.
+  Files(Vec<PathBuf>),
+}
+
+impl std::fmt::Display for AppUrl {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::Url(url) => write!(f, "{}", url),
+      Self::Files(files) => write!(f, "{}", serde_json::to_string(files).unwrap()),
+    }
+  }
+}
+
 /// The Build configuration object.
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
@@ -597,12 +626,12 @@ fn default_dialog() -> Option<bool> {
 pub struct BuildConfig {
   /// The binary used to build and run the application.
   pub runner: Option<String>,
-  /// the app's dev server URL, or the path to the directory containing an index.html file
+  /// The path or URL to use on development.
   #[serde(default = "default_dev_path")]
-  pub dev_path: String,
+  pub dev_path: AppUrl,
   /// the path to the app's dist dir. This path must contain your index.html file.
   #[serde(default = "default_dist_dir")]
-  pub dist_dir: String,
+  pub dist_dir: AppUrl,
   /// a shell command to run before `tauri dev` kicks in
   pub before_dev_command: Option<String>,
   /// a shell command to run before `tauri build` kicks in
@@ -614,12 +643,12 @@ pub struct BuildConfig {
   pub with_global_tauri: bool,
 }
 
-fn default_dev_path() -> String {
-  "".to_string()
+fn default_dev_path() -> AppUrl {
+  AppUrl::Url("".to_string())
 }
 
-fn default_dist_dir() -> String {
-  "../dist".to_string()
+fn default_dist_dir() -> AppUrl {
+  AppUrl::Url("../dist".to_string())
 }
 
 type JsonObject = HashMap<String, JsonValue>;

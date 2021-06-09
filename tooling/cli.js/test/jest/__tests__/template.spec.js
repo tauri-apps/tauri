@@ -25,17 +25,12 @@ describe('[CLI] cli.js template', () => {
 
     const manifestPath = resolve(tauriFixturePath, 'Cargo.toml')
     const manifestFile = readFileSync(manifestPath).toString()
-    writeFileSync(manifestPath, `workspace = { }\n\n${manifestFile}`)
+    writeFileSync(
+      manifestPath,
+      `workspace = { }\n[patch.crates-io]\ntao = { git = "https://github.com/tauri-apps/tao", rev = "5be88eb9488e3ad27194b5eff2ea31a473128f9c" }\n\n${manifestFile}`
+    )
 
-    const { promise: buildPromise } = await build({
-      config: {
-        tauri: {
-          bundle: {
-            targets: ['deb', 'app', 'msi', 'appimage'] // we can't bundle dmg on CI so we remove it here
-          }
-        }
-      }
-    })
+    const { promise: buildPromise } = await build()
     await buildPromise
     process.chdir(cwd)
   })

@@ -7,6 +7,23 @@ import { BaseDirectory } from './fs'
 
 /**
  * Read common system paths such as home, config and cache directories.
+ *
+ * This package is also accessible with `window.__TAURI__.path` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ *
+ * The APIs must be allowlisted on `tauri.conf.json`:
+ * ```json
+ * {
+ *   "tauri": {
+ *     "allowlist": {
+ *       "fs": {
+ *         "all": true, // enable all FS APIs
+ *         "path": true // enable path APIs
+ *       }
+ *     }
+ *   }
+ * }
+ * ```
+ * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
  * @packageDocumentation
  */
 
@@ -452,5 +469,6 @@ export {
   templateDir,
   videoDir,
   currentDir,
-  resolvePath
+  resolvePath,
+  BaseDirectory
 }

@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+// we re-export the default_args! macro as pub(crate) so we can use it easily from other modules
+#![allow(clippy::single_component_path_imports)]
+
 use crate::{
   api::{
     assets::Assets,
-    config::{Config, WindowUrl},
+    config::{AppUrl, Config, WindowUrl},
     path::{resolve_path, BaseDirectory},
     PackageInfo,
   },
@@ -31,7 +34,7 @@ use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
 
 #[cfg(feature = "menu")]
 use crate::{
-  runtime::menu::{Menu, MenuItem},
+  runtime::menu::{Menu, MenuEntry},
   MenuEvent,
 };
 
@@ -71,41 +74,78 @@ pub(crate) fn tauri_event<Event: Tag>(tauri_event: &str) -> Event {
   })
 }
 
-pub struct InnerWindowManager<P: Params = DefaultArgs> {
-  windows: Mutex<HashMap<P::Label, Window<P>>>,
-  plugins: Mutex<PluginStore<P>>,
-  listeners: Listeners<P::Event, P::Label>,
-  pub(crate) state: Arc<StateManager>,
+crate::manager::default_args! {
+  pub struct InnerWindowManager<P: Params> {
+    windows: Mutex<HashMap<P::Label, Window<P>>>,
+    plugins: Mutex<PluginStore<P>>,
+    listeners: Listeners<P::Event, P::Label>,
+    pub(crate) state: Arc<StateManager>,
 
-  /// The JS message handler.
-  invoke_handler: Box<InvokeHandler<P>>,
+    /// The JS message handler.
+    invoke_handler: Box<InvokeHandler<P>>,
 
-  /// The page load hook, invoked when the webview performs a navigation.
-  on_page_load: Box<OnPageLoad<P>>,
+    /// The page load hook, invoked when the webview performs a navigation.
+    on_page_load: Box<OnPageLoad<P>>,
 
-  config: Arc<Config>,
-  assets: Arc<P::Assets>,
-  default_window_icon: Option<Vec<u8>>,
+    config: Arc<Config>,
+    assets: Arc<P::Assets>,
+    default_window_icon: Option<Vec<u8>>,
 
-  /// A list of salts that are valid for the current application.
-  salts: Mutex<HashSet<Uuid>>,
-  package_info: PackageInfo,
-  /// The webview protocols protocols available to all windows.
-  uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
-  /// The menu set to all windows.
-  #[cfg(feature = "menu")]
-  menu: Vec<Menu<P::MenuId>>,
-  /// Maps runtime id to a strongly typed menu id.
-  #[cfg(feature = "menu")]
-  menu_ids: HashMap<u32, P::MenuId>,
-  /// Menu event listeners to all windows.
-  #[cfg(feature = "menu")]
-  menu_event_listeners: Arc<Vec<GlobalMenuEventListener<P>>>,
-  /// Window event listeners to all windows.
-  window_event_listeners: Arc<Vec<GlobalWindowEventListener<P>>>,
+    /// A list of salts that are valid for the current application.
+    salts: Mutex<HashSet<Uuid>>,
+    package_info: PackageInfo,
+    /// The webview protocols protocols available to all windows.
+    uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
+    /// The menu set to all windows.
+    #[cfg(feature = "menu")]
+    menu: Option<Menu<P::MenuId>>,
+    /// Maps runtime id to a strongly typed menu id.
+    #[cfg(feature = "menu")]
+    menu_ids: HashMap<u32, P::MenuId>,
+    /// Menu event listeners to all windows.
+    #[cfg(feature = "menu")]
+    menu_event_listeners: Arc<Vec<GlobalMenuEventListener<P>>>,
+    /// Window event listeners to all windows.
+    window_event_listeners: Arc<Vec<GlobalWindowEventListener<P>>>,
+  }
 }
 
+/// struct declaration using params + default args which includes optional feature wry
+macro_rules! default_args {
+  (
+    $(#[$attrs_struct:meta])*
+    $vis_struct:vis struct $name:ident<$p:ident: $params:ident> {
+      $(
+        $(#[$attrs_field:meta])*
+        $vis_field:vis $field:ident: $field_type:ty,
+      )*
+    }
+  ) => {
+    $(#[$attrs_struct])*
+    #[cfg(feature = "wry")]
+    $vis_struct struct $name<$p: $params = crate::manager::DefaultArgs> {
+      $(
+        $(#[$attrs_field])*
+        $vis_field $field: $field_type,
+      )*
+    }
+
+    $(#[$attrs_struct])*
+    #[cfg(not(feature = "wry"))]
+    $vis_struct struct $name<$p: $params> {
+       $(
+        $(#[$attrs_field])*
+        $vis_field $field: $field_type,
+      )*
+    }
+  };
+}
+
+// export it to allow use from other modules
+pub(crate) use default_args;
+
 /// This type should always match `Builder::default()`, otherwise the default type is useless.
+#[cfg(feature = "wry")]
 pub(crate) type DefaultArgs =
   Args<String, String, String, String, crate::api::assets::EmbeddedAssets, crate::Wry>;
 
@@ -151,10 +191,12 @@ impl<E: Tag, L: Tag, MID: MenuId, TID: MenuId, A: Assets, R: Runtime> Params
   type Runtime = R;
 }
 
-pub struct WindowManager<P: Params = DefaultArgs> {
-  pub inner: Arc<InnerWindowManager<P>>,
-  #[allow(clippy::type_complexity)]
-  _marker: Args<P::Event, P::Label, P::MenuId, P::SystemTrayMenuId, P::Assets, P::Runtime>,
+crate::manager::default_args! {
+  pub struct WindowManager<P: Params> {
+    pub inner: Arc<InnerWindowManager<P>>,
+    #[allow(clippy::type_complexity)]
+    _marker: Args<P::Event, P::Label, P::MenuId, P::SystemTrayMenuId, P::Assets, P::Runtime>,
+  }
 }
 
 impl<P: Params> Clone for WindowManager<P> {
@@ -167,16 +209,16 @@ impl<P: Params> Clone for WindowManager<P> {
 }
 
 #[cfg(feature = "menu")]
-fn get_menu_ids<I: MenuId>(menu: &[Menu<I>]) -> HashMap<u32, I> {
-  let mut map = HashMap::new();
-  for m in menu {
-    for item in &m.items {
-      if let MenuItem::Custom(i) = item {
-        map.insert(i.id_value(), i.id.clone());
+fn get_menu_ids<I: MenuId>(map: &mut HashMap<u32, I>, menu: &Menu<I>) {
+  for item in &menu.items {
+    match item {
+      MenuEntry::CustomItem(c) => {
+        map.insert(c.id_value(), c.id.clone());
       }
+      MenuEntry::Submenu(s) => get_menu_ids(map, &s.inner),
+      _ => {}
     }
   }
-  map
 }
 
 impl<P: Params> WindowManager<P> {
@@ -190,7 +232,7 @@ impl<P: Params> WindowManager<P> {
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<P>>,
     #[cfg(feature = "menu")] (menu, menu_event_listeners): (
-      Vec<Menu<P::MenuId>>,
+      Option<Menu<P::MenuId>>,
       Vec<GlobalMenuEventListener<P>>,
     ),
   ) -> Self {
@@ -209,7 +251,13 @@ impl<P: Params> WindowManager<P> {
         package_info: context.package_info,
         uri_scheme_protocols,
         #[cfg(feature = "menu")]
-        menu_ids: get_menu_ids(&menu),
+        menu_ids: {
+          let mut map = HashMap::new();
+          if let Some(menu) = &menu {
+            get_menu_ids(&mut map, menu)
+          }
+          map
+        },
         #[cfg(feature = "menu")]
         menu,
         #[cfg(feature = "menu")]
@@ -239,16 +287,18 @@ impl<P: Params> WindowManager<P> {
   // setup content for dev-server
   #[cfg(dev)]
   fn get_url(&self) -> String {
-    if self.inner.config.build.dev_path.starts_with("http") {
-      self.inner.config.build.dev_path.clone()
-    } else {
-      "tauri://localhost".into()
+    match &self.inner.config.build.dev_path {
+      AppUrl::Url(WindowUrl::External(url)) => url.to_string(),
+      _ => "tauri://localhost".into(),
     }
   }
 
   #[cfg(custom_protocol)]
   fn get_url(&self) -> String {
-    "tauri://localhost".into()
+    match &self.inner.config.build.dist_dir {
+      AppUrl::Url(WindowUrl::External(url)) => url.to_string(),
+      _ => "tauri://localhost".into(),
+    }
   }
 
   fn prepare_pending_window(
@@ -285,7 +335,9 @@ impl<P: Params> WindowManager<P> {
 
     #[cfg(feature = "menu")]
     if !pending.window_builder.has_menu() {
-      pending.window_builder = pending.window_builder.menu(self.inner.menu.clone());
+      if let Some(menu) = &self.inner.menu {
+        pending.window_builder = pending.window_builder.menu(menu.clone());
+      }
     }
 
     for (uri_scheme, protocol) in &self.inner.uri_scheme_protocols {
@@ -353,7 +405,7 @@ impl<P: Params> WindowManager<P> {
     CustomProtocol {
       protocol: Box::new(move |path| {
         let mut path = path
-          .split('?')
+          .split(&['?', '#'][..])
           // ignore query string
           .next()
           .unwrap()
@@ -362,6 +414,9 @@ impl<P: Params> WindowManager<P> {
         if path.ends_with('/') {
           path.pop();
         }
+        path = percent_encoding::percent_decode(path.as_bytes())
+          .decode_utf8_lossy()
+          .to_string();
         let path = if path.is_empty() {
           // if the url is `tauri://localhost`, we should load `index.html`
           "index.html".to_string()
@@ -505,7 +560,7 @@ mod test {
     assert_eq!(manager.get_url(), "tauri://localhost");
 
     #[cfg(dev)]
-    assert_eq!(manager.get_url(), manager.config().build.dev_path);
+    assert_eq!(manager.get_url(), "http://localhost:4000/");
   }
 }
 
@@ -539,7 +594,7 @@ impl<P: Params> WindowManager<P> {
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .initialize(&app, &self.inner.config.plugins)
+      .initialize(app, &self.inner.config.plugins)
   }
 
   pub fn prepare_window(
@@ -775,7 +830,7 @@ fn on_window_event<P: Params>(window: &Window<P>, event: &WindowEvent) -> crate:
         .unwrap_or_else(|_| panic!("unhandled event")),
       Some(ScaleFactorChanged {
         scale_factor: *scale_factor,
-        size: new_inner_size.clone(),
+        size: *new_inner_size,
       }),
     )?,
     _ => unimplemented!(),

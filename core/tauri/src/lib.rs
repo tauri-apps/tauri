@@ -5,6 +5,17 @@
 //! Tauri is a framework for building tiny, blazing fast binaries for all major desktop platforms.
 //! Developers can integrate any front-end framework that compiles to HTML, JS and CSS for building their user interface.
 //! The backend of the application is a rust-sourced binary with an API that the front-end can interact with.
+//!
+//! # Cargo features
+//!
+//! The following are a list of Cargo features that can be enabled or disabled:
+//!
+//! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
+//! - **menu**: Enables application menus support.
+//! - **reqwest-client**: Uses `reqwest` as HTTP client on the `http` APIs. Improves performance, but increases the bundle size.
+//! - **cli**: Enables usage of `clap` for CLI argument parsing. Enabled by default if the `cli` config is defined on the `tauri.conf.json` file.
+//! - **system-tray**: Enables application system tray API. Enabled by default if the `systemTray` config is defined on the `tauri.conf.json` file.
+//! - **updater**: Enables the application auto updater. Enabled by default if the `updater` config is defined on the `tauri.conf.json` file.
 
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
@@ -54,13 +65,21 @@ use std::{borrow::Borrow, collections::HashMap, sync::Arc};
 #[cfg(any(feature = "menu", feature = "system-tray"))]
 #[cfg_attr(doc_cfg, doc(cfg(any(feature = "menu", feature = "system-tray"))))]
 pub use runtime::menu::CustomMenuItem;
+
+#[cfg(all(target_os = "macos", any(feature = "menu", feature = "system-tray")))]
+#[cfg_attr(
+  doc_cfg,
+  doc(cfg(all(target_os = "macos", any(feature = "menu", feature = "system-tray"))))
+)]
+pub use runtime::menu::NativeImage;
+
 pub use {
   self::api::assets::Assets,
   self::api::{
     config::{Config, WindowUrl},
     PackageInfo,
   },
-  self::app::{App, Builder, GlobalWindowEvent},
+  self::app::{App, AppHandle, Builder, GlobalWindowEvent},
   self::hooks::{
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
     PageLoadPayload, SetupHook,
@@ -72,20 +91,26 @@ pub use {
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       WindowEvent,
     },
-    Icon, MenuId, Params,
+    Icon, MenuId, Params, RunIteration,
   },
   self::state::{State, StateManager},
   self::window::{Monitor, Window},
 };
 #[cfg(feature = "system-tray")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-pub use {self::app::SystemTrayEvent, self::runtime::menu::SystemTrayMenuItem};
+pub use {
+  self::app::tray::SystemTrayEvent,
+  self::runtime::{
+    menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
+    SystemTray,
+  },
+};
 #[cfg(feature = "menu")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
 pub use {
   self::app::WindowMenuEvent,
-  self::runtime::menu::{Menu, MenuItem},
-  self::window::MenuEvent,
+  self::runtime::menu::{Menu, MenuItem, Submenu},
+  self::window::menu::MenuEvent,
 };
 
 /// Reads the config file at compile time and generates a [`Context`] based on its content.
@@ -316,12 +341,15 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
 /// Prevent implementation details from leaking out of the [`Manager`] trait.
 pub(crate) mod sealed {
   use crate::manager::WindowManager;
-  use tauri_runtime::{Params, Runtime};
+  use tauri_runtime::{Params, Runtime, RuntimeHandle};
 
   /// A running [`Runtime`] or a dispatcher to it.
   pub enum RuntimeOrDispatch<'r, P: Params> {
     /// Reference to the running [`Runtime`].
     Runtime(&'r P::Runtime),
+
+    /// Handle to the running [`Runtime`].
+    RuntimeHandle(<P::Runtime as Runtime>::Handle),
 
     /// A dispatcher to the running [`Runtime`].
     Dispatch(<P::Runtime as Runtime>::Dispatcher),
@@ -332,17 +360,21 @@ pub(crate) mod sealed {
     /// The manager behind the [`Managed`] item.
     fn manager(&self) -> &WindowManager<P>;
 
+    fn runtime(&self) -> RuntimeOrDispatch<'_, P>;
+
     /// Creates a new [`Window`] on the [`Runtime`] and attaches it to the [`Manager`].
     fn create_new_window(
       &self,
-      runtime: RuntimeOrDispatch<'_, P>,
       pending: crate::PendingWindow<P>,
     ) -> crate::Result<crate::Window<P>> {
       use crate::runtime::Dispatch;
       let labels = self.manager().labels().into_iter().collect::<Vec<_>>();
       let pending = self.manager().prepare_window(pending, &labels)?;
-      match runtime {
+      match self.runtime() {
         RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending).map_err(Into::into),
+        RuntimeOrDispatch::RuntimeHandle(handle) => {
+          handle.create_window(pending).map_err(Into::into)
+        }
         RuntimeOrDispatch::Dispatch(mut dispatcher) => {
           dispatcher.create_window(pending).map_err(Into::into)
         }

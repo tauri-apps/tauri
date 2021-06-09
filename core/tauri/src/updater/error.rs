@@ -11,12 +11,9 @@ pub enum Error {
   /// IO Errors.
   #[error("`{0}`")]
   Io(#[from] std::io::Error),
-  /// Reqwest Errors.
-  #[error("Request error: {0}")]
-  Reqwest(#[from] reqwest::Error),
   /// Semver Errors.
   #[error("Unable to compare version: {0}")]
-  Semver(#[from] semver::SemVerError),
+  Semver(#[from] semver::Error),
   /// JSON (Serde) Errors.
   #[error("JSON error: {0}")]
   SerdeJson(#[from] serde_json::Error),

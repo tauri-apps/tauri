@@ -5,16 +5,17 @@
 use super::error::{Error, Result};
 use crate::api::{file::Extract, version};
 use base64::decode;
+use http::StatusCode;
 use minisign_verify::{PublicKey, Signature};
-use reqwest::{self, header, StatusCode};
 use std::{
+  collections::HashMap,
   env,
   ffi::OsStr,
   fs::{read_dir, remove_file, File, OpenOptions},
   io::{prelude::*, BufReader, Read},
   path::{Path, PathBuf},
   str::from_utf8,
-  time::{Duration, SystemTime, UNIX_EPOCH},
+  time::{SystemTime, UNIX_EPOCH},
 };
 
 #[cfg(not(target_os = "macos"))]
@@ -22,6 +23,8 @@ use std::process::Command;
 
 #[cfg(target_os = "macos")]
 use crate::api::file::Move;
+
+use crate::api::http::{ClientBuilder, HttpRequestBuilder};
 
 #[cfg(target_os = "windows")]
 use std::process::exit;
@@ -265,37 +268,39 @@ impl<'a> UpdateBuilder<'a> {
       // The main objective is if the update URL is defined via the Cargo.toml
       // the URL will be generated dynamicly
       let fixed_link = str::replace(
-        &str::replace(url, "{{current_version}}", &current_version),
+        &str::replace(url, "{{current_version}}", current_version),
         "{{target}}",
         &target,
       );
 
       // we want JSON only
-      let mut headers = header::HeaderMap::new();
-      headers.insert(header::ACCEPT, "application/json".parse().unwrap());
+      let mut headers = HashMap::new();
+      headers.insert("Accept".into(), "application/json".into());
 
-      let resp = reqwest::Client::new()
-        .get(&fixed_link)
-        .headers(headers)
-        // wait 20sec for the firewall
-        .timeout(Duration::from_secs(20))
-        .send()
+      let resp = ClientBuilder::new()
+        .build()?
+        .send(
+          HttpRequestBuilder::new("GET", &fixed_link)
+            .headers(headers)
+            // wait 20sec for the firewall
+            .timeout(20),
+        )
         .await;
 
       // If we got a success, we stop the loop
       // and we set our remote_release variable
-      if let Ok(ref res) = resp {
+      if let Ok(res) = resp {
+        let res = res.read().await?;
         // got status code 2XX
-        if res.status().is_success() {
+        if StatusCode::from_u16(res.status).unwrap().is_success() {
           // if we got 204
-          if StatusCode::NO_CONTENT == res.status() {
+          if StatusCode::NO_CONTENT.as_u16() == res.status {
             // return with `UpToDate` error
             // we should catch on the client
             return Err(Error::UpToDate);
           };
-          let json = resp?.json::<serde_json::Value>().await?;
           // Convert the remote result to our local struct
-          let built_release = RemoteRelease::from_release(&json, &target);
+          let built_release = RemoteRelease::from_release(&res.data, &target);
           // make sure all went well and the remote data is compatible
           // with what we need locally
           match built_release {
@@ -323,7 +328,7 @@ impl<'a> UpdateBuilder<'a> {
 
     // did the announced version is greated than our current one?
     let should_update =
-      version::is_greater(&current_version, &final_release.version).unwrap_or(false);
+      version::is_greater(current_version, &final_release.version).unwrap_or(false);
 
     // create our new updater
     Ok(Update {
@@ -411,35 +416,32 @@ impl Update {
     let mut tmp_archive = File::create(&tmp_archive_path)?;
 
     // set our headers
-    let mut headers = header::HeaderMap::new();
-    headers.insert(header::ACCEPT, "application/octet-stream".parse().unwrap());
-
-    // make sure we have a valid agent
-    if !headers.contains_key(header::USER_AGENT) {
-      headers.insert(
-        header::USER_AGENT,
-        "tauri/updater".parse().expect("invalid user-agent"),
-      );
-    }
+    let mut headers = HashMap::new();
+    headers.insert("Accept".into(), "application/octet-stream".into());
+    headers.insert("User-Agent".into(), "tauri/updater".into());
 
     // Create our request
-    let resp = reqwest::Client::new()
-      .get(&url)
-      // wait 20sec for the firewall
-      .timeout(Duration::from_secs(20))
-      .headers(headers)
-      .send()
+    let resp = ClientBuilder::new()
+      .build()?
+      .send(
+        HttpRequestBuilder::new("GET", &url)
+          .headers(headers)
+          // wait 20sec for the firewall
+          .timeout(20),
+      )
+      .await?
+      .bytes()
       .await?;
 
     // make sure it's success
-    if !resp.status().is_success() {
+    if !StatusCode::from_u16(resp.status).unwrap().is_success() {
       return Err(Error::Network(format!(
         "Download request failed with status: {}",
-        resp.status()
+        resp.status
       )));
     }
 
-    tmp_archive.write_all(&resp.bytes().await?)?;
+    tmp_archive.write_all(&resp.data)?;
 
     // Validate signature ONLY if pubkey is available in tauri.conf.json
     if let Some(pub_key) = pub_key {
@@ -455,7 +457,7 @@ impl Update {
       }
     }
     // extract using tauri api inside a tmp path
-    Extract::from_source(&tmp_archive_path).extract_into(&tmp_dir.path())?;
+    Extract::from_source(&tmp_archive_path).extract_into(tmp_dir.path())?;
     // Remove archive (not needed anymore)
     remove_file(&tmp_archive_path)?;
     // we copy the files depending of the operating system
@@ -672,7 +674,7 @@ fn default_archive_name_by_os() -> String {
 // Convert base64 to string and prevent failing
 fn base64_to_string(base64_string: &str) -> Result<String> {
   let decoded_string = &decode(base64_string.to_owned())?;
-  let result = from_utf8(&decoded_string)?.to_string();
+  let result = from_utf8(decoded_string)?.to_string();
   Ok(result)
 }
 
@@ -1018,7 +1020,7 @@ mod test {
       .prefix("tauri_updater_test")
       .tempdir_in(parent_path);
 
-    assert_eq!(tmp_dir.is_ok(), true);
+    assert!(tmp_dir.is_ok());
     let tmp_dir_unwrap = tmp_dir.expect("Can't find tmp_dir");
     let tmp_dir_path = tmp_dir_unwrap.path();
 
@@ -1033,24 +1035,24 @@ mod test {
       .build());
 
     // make sure the process worked
-    assert_eq!(check_update.is_ok(), true);
+    assert!(check_update.is_ok());
 
     // unwrap our results
     let updater = check_update.expect("Can't check remote update");
 
     // make sure we need to update
-    assert_eq!(updater.should_update, true);
+    assert!(updater.should_update);
     // make sure we can read announced version
     assert_eq!(updater.version, "2.0.1");
 
     // download, install and validate signature
     let install_process = block!(updater.download_and_install(Some(pubkey)));
-    assert_eq!(install_process.is_ok(), true);
+    assert!(install_process.is_ok());
 
     // make sure the extraction went well (it should have skipped the main app.app folder)
     // as we can't extract in /Applications directly
     let bin_file = tmp_dir_path.join("Contents").join("MacOS").join("app");
     let bin_file_exist = Path::new(&bin_file).exists();
-    assert_eq!(bin_file_exist, true);
+    assert!(bin_file_exist);
   }
 }

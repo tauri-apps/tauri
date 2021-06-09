@@ -13,17 +13,20 @@ use tauri_runtime::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     DetachedWindow, PendingWindow, WindowEvent,
   },
-  Dispatch, Error, Icon, Params, Result, Runtime,
+  Dispatch, Error, Icon, Params, Result, RunIteration, Runtime, RuntimeHandle,
 };
 
 #[cfg(feature = "menu")]
 use tauri_runtime::window::MenuEvent;
 #[cfg(feature = "system-tray")]
-use tauri_runtime::SystemTrayEvent;
+use tauri_runtime::{SystemTray, SystemTrayEvent};
+#[cfg(windows)]
+use winapi::shared::windef::HWND;
+#[cfg(windows)]
+use wry::application::platform::windows::WindowBuilderExtWindows;
 #[cfg(feature = "system-tray")]
-use wry::application::platform::system_tray::SystemTrayBuilder;
+use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
 
-use image::{GenericImageView, Pixel};
 use tauri_utils::config::WindowConfig;
 use uuid::Uuid;
 use wry::{
@@ -47,9 +50,10 @@ use wry::{
 use std::{
   collections::HashMap,
   convert::TryFrom,
+  fs::read,
   sync::{
-    mpsc::{channel, Receiver, Sender},
-    Arc, Mutex,
+    mpsc::{channel, Sender},
+    Arc, Mutex, MutexGuard,
   },
 };
 
@@ -58,44 +62,59 @@ mod menu;
 #[cfg(any(feature = "menu", feature = "system-tray"))]
 use menu::*;
 
+type MainTask = Arc<Mutex<Option<Box<dyn FnOnce() + Send>>>>;
 type CreateWebviewHandler =
-  Box<dyn FnOnce(&EventLoopWindowTarget<Message>, &WebContext) -> Result<WebView> + Send>;
-type MainThreadTask = Box<dyn FnOnce() + Send>;
+  Box<dyn FnOnce(&EventLoopWindowTarget<Message>, &WebContext) -> Result<WebviewWrapper> + Send>;
 type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
-
-#[repr(C)]
-#[derive(Debug)]
-struct PixelValue {
-  r: u8,
-  g: u8,
-  b: u8,
-  a: u8,
-}
-
-const PIXEL_SIZE: usize = std::mem::size_of::<PixelValue>();
 
 /// Wrapper around a [`wry::application::window::Icon`] that can be created from an [`Icon`].
 pub struct WryIcon(WindowIcon);
 
+fn icon_err<E: std::error::Error + Send + 'static>(e: E) -> Error {
+  Error::InvalidIcon(Box::new(e))
+}
+
 impl TryFrom<Icon> for WryIcon {
   type Error = Error;
   fn try_from(icon: Icon) -> std::result::Result<Self, Self::Error> {
-    let image = match icon {
-      Icon::File(path) => image::open(path).map_err(|e| Error::InvalidIcon(Box::new(e)))?,
-      Icon::Raw(raw) => {
-        image::load_from_memory(&raw).map_err(|e| Error::InvalidIcon(Box::new(e)))?
-      }
+    let image_bytes = match icon {
+      Icon::File(path) => read(path).map_err(icon_err)?,
+      Icon::Raw(raw) => raw,
       _ => unimplemented!(),
     };
-    let (width, height) = image.dimensions();
-    let mut rgba = Vec::with_capacity((width * height) as usize * PIXEL_SIZE);
-    for (_, _, pixel) in image.pixels() {
-      rgba.extend_from_slice(&pixel.to_rgba().0);
+    let extension = infer::get(&image_bytes)
+      .expect("could not determine icon extension")
+      .extension();
+    match extension {
+      #[cfg(windows)]
+      "ico" => {
+        let icon_dir = ico::IconDir::read(std::io::Cursor::new(image_bytes)).map_err(icon_err)?;
+        let entry = &icon_dir.entries()[0];
+        let icon = WindowIcon::from_rgba(
+          entry.decode().map_err(icon_err)?.rgba_data().to_vec(),
+          entry.width(),
+          entry.height(),
+        )
+        .map_err(icon_err)?;
+        Ok(Self(icon))
+      }
+      #[cfg(target_os = "linux")]
+      "png" => {
+        let decoder = png::Decoder::new(std::io::Cursor::new(image_bytes));
+        let (info, mut reader) = decoder.read_info().map_err(icon_err)?;
+        let mut buffer = Vec::new();
+        while let Ok(Some(row)) = reader.next_row() {
+          buffer.extend(row);
+        }
+        let icon = WindowIcon::from_rgba(buffer, info.width, info.height).map_err(icon_err)?;
+        Ok(Self(icon))
+      }
+      _ => panic!(
+        "image `{}` extension not supported; please file a Tauri feature request",
+        extension
+      ),
     }
-    let icon =
-      WindowIcon::from_rgba(rgba, width, height).map_err(|e| Error::InvalidIcon(Box::new(e)))?;
-    Ok(Self(icon))
   }
 }
 
@@ -222,7 +241,15 @@ impl From<Position> for PositionWrapper {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct WindowBuilderWrapper(WryWindowBuilder);
+pub struct WindowBuilderWrapper {
+  inner: WryWindowBuilder,
+  center: bool,
+  #[cfg(feature = "menu")]
+  menu_items: HashMap<u32, WryCustomMenuItem>,
+}
+
+// safe since `menu_items` are read only here
+unsafe impl Send for WindowBuilderWrapper {}
 
 impl WindowBuilderBase for WindowBuilderWrapper {}
 impl WindowBuilder for WindowBuilderWrapper {
@@ -240,7 +267,8 @@ impl WindowBuilder for WindowBuilderWrapper {
       .maximized(config.maximized)
       .fullscreen(config.fullscreen)
       .transparent(config.transparent)
-      .always_on_top(config.always_on_top);
+      .always_on_top(config.always_on_top)
+      .skip_taskbar(config.skip_taskbar);
 
     if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
       window = window.min_inner_size(min_width, min_height);
@@ -252,94 +280,135 @@ impl WindowBuilder for WindowBuilderWrapper {
       window = window.position(x, y);
     }
 
+    if config.focus {
+      window = window.focus();
+    }
+
     window
   }
 
   #[cfg(feature = "menu")]
-  fn menu<I: MenuId>(self, menu: Vec<Menu<I>>) -> Self {
-    Self(
-      self.0.with_menu(
-        menu
-          .into_iter()
-          .map(|m| MenuWrapper::from(m).0)
-          .collect::<Vec<WryMenu>>(),
-      ),
-    )
+  fn menu<I: MenuId>(mut self, menu: Menu<I>) -> Self {
+    let mut items = HashMap::new();
+    let window_menu = to_wry_menu(&mut items, menu);
+    self.menu_items = items;
+    self.inner = self.inner.with_menu(window_menu);
+    self
   }
 
-  fn position(self, x: f64, y: f64) -> Self {
-    Self(self.0.with_position(WryLogicalPosition::new(x, y)))
+  fn center(mut self) -> Self {
+    self.center = true;
+    self
   }
 
-  fn inner_size(self, width: f64, height: f64) -> Self {
-    Self(self.0.with_inner_size(WryLogicalSize::new(width, height)))
+  fn position(mut self, x: f64, y: f64) -> Self {
+    self.inner = self.inner.with_position(WryLogicalPosition::new(x, y));
+    self
   }
 
-  fn min_inner_size(self, min_width: f64, min_height: f64) -> Self {
-    Self(
+  fn inner_size(mut self, width: f64, height: f64) -> Self {
+    self.inner = self
+      .inner
+      .with_inner_size(WryLogicalSize::new(width, height));
+    self
+  }
+
+  fn min_inner_size(mut self, min_width: f64, min_height: f64) -> Self {
+    self.inner = self
+      .inner
+      .with_min_inner_size(WryLogicalSize::new(min_width, min_height));
+    self
+  }
+
+  fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
+    self.inner = self
+      .inner
+      .with_max_inner_size(WryLogicalSize::new(max_width, max_height));
+    self
+  }
+
+  fn resizable(mut self, resizable: bool) -> Self {
+    self.inner = self.inner.with_resizable(resizable);
+    self
+  }
+
+  fn title<S: Into<String>>(mut self, title: S) -> Self {
+    self.inner = self.inner.with_title(title.into());
+    self
+  }
+
+  fn fullscreen(mut self, fullscreen: bool) -> Self {
+    self.inner = if fullscreen {
       self
-        .0
-        .with_min_inner_size(WryLogicalSize::new(min_width, min_height)),
-    )
-  }
-
-  fn max_inner_size(self, max_width: f64, max_height: f64) -> Self {
-    Self(
-      self
-        .0
-        .with_max_inner_size(WryLogicalSize::new(max_width, max_height)),
-    )
-  }
-
-  fn resizable(self, resizable: bool) -> Self {
-    Self(self.0.with_resizable(resizable))
-  }
-
-  fn title<S: Into<String>>(self, title: S) -> Self {
-    Self(self.0.with_title(title.into()))
-  }
-
-  fn fullscreen(self, fullscreen: bool) -> Self {
-    if fullscreen {
-      Self(self.0.with_fullscreen(Some(Fullscreen::Borderless(None))))
+        .inner
+        .with_fullscreen(Some(Fullscreen::Borderless(None)))
     } else {
-      Self(self.0.with_fullscreen(None))
-    }
+      self.inner.with_fullscreen(None)
+    };
+    self
   }
 
-  fn maximized(self, maximized: bool) -> Self {
-    Self(self.0.with_maximized(maximized))
+  fn focus(mut self) -> Self {
+    self.inner = self.inner.with_focus();
+    self
   }
 
-  fn visible(self, visible: bool) -> Self {
-    Self(self.0.with_visible(visible))
+  fn maximized(mut self, maximized: bool) -> Self {
+    self.inner = self.inner.with_maximized(maximized);
+    self
   }
 
-  fn transparent(self, transparent: bool) -> Self {
-    Self(self.0.with_transparent(transparent))
+  fn visible(mut self, visible: bool) -> Self {
+    self.inner = self.inner.with_visible(visible);
+    self
   }
 
-  fn decorations(self, decorations: bool) -> Self {
-    Self(self.0.with_decorations(decorations))
+  fn transparent(mut self, transparent: bool) -> Self {
+    self.inner = self.inner.with_transparent(transparent);
+    self
   }
 
-  fn always_on_top(self, always_on_top: bool) -> Self {
-    Self(self.0.with_always_on_top(always_on_top))
+  fn decorations(mut self, decorations: bool) -> Self {
+    self.inner = self.inner.with_decorations(decorations);
+    self
   }
 
-  fn icon(self, icon: Icon) -> Result<Self> {
-    Ok(Self(
-      self.0.with_window_icon(Some(WryIcon::try_from(icon)?.0)),
-    ))
+  fn always_on_top(mut self, always_on_top: bool) -> Self {
+    self.inner = self.inner.with_always_on_top(always_on_top);
+    self
+  }
+
+  #[cfg(windows)]
+  fn parent_window(mut self, parent: HWND) -> Self {
+    self.inner = self.inner.with_parent_window(parent);
+    self
+  }
+
+  #[cfg(windows)]
+  fn owner_window(mut self, owner: HWND) -> Self {
+    self.inner = self.inner.with_owner_window(owner);
+    self
+  }
+
+  fn icon(mut self, icon: Icon) -> Result<Self> {
+    self.inner = self
+      .inner
+      .with_window_icon(Some(WryIcon::try_from(icon)?.0));
+    Ok(self)
+  }
+
+  fn skip_taskbar(mut self, skip: bool) -> Self {
+    self.inner = self.inner.with_skip_taskbar(skip);
+    self
   }
 
   fn has_icon(&self) -> bool {
-    self.0.window.window_icon.is_some()
+    self.inner.window.window_icon.is_some()
   }
 
   #[cfg(feature = "menu")]
   fn has_menu(&self) -> bool {
-    self.0.window.window_menu.is_some()
+    self.inner.window.window_menu.is_some()
   }
 }
 
@@ -366,6 +435,11 @@ impl From<FileDropEventWrapper> for FileDropEvent {
   }
 }
 
+#[cfg(windows)]
+struct Hwnd(*mut std::ffi::c_void);
+#[cfg(windows)]
+unsafe impl Send for Hwnd {}
+
 #[derive(Debug, Clone)]
 enum WindowMessage {
   // Getters
@@ -376,10 +450,16 @@ enum WindowMessage {
   OuterSize(Sender<PhysicalSize<u32>>),
   IsFullscreen(Sender<bool>),
   IsMaximized(Sender<bool>),
+  IsDecorated(Sender<bool>),
+  IsResizable(Sender<bool>),
+  IsVisible(Sender<bool>),
   CurrentMonitor(Sender<Option<MonitorHandle>>),
   PrimaryMonitor(Sender<Option<MonitorHandle>>),
   AvailableMonitors(Sender<Vec<MonitorHandle>>),
+  #[cfg(windows)]
+  Hwnd(Sender<Hwnd>),
   // Setters
+  Center(Sender<Result<()>>),
   SetResizable(bool),
   SetTitle(String),
   Maximize,
@@ -396,8 +476,12 @@ enum WindowMessage {
   SetMaxSize(Option<Size>),
   SetPosition(Position),
   SetFullscreen(bool),
+  SetFocus,
   SetIcon(WindowIcon),
+  SetSkipTaskbar(bool),
   DragWindow,
+  #[cfg(feature = "menu")]
+  UpdateMenuItem(u32, menu::MenuUpdate),
 }
 
 #[derive(Debug, Clone)]
@@ -406,17 +490,28 @@ enum WebviewMessage {
   Print,
 }
 
+#[cfg(feature = "system-tray")]
 #[derive(Clone)]
-enum Message {
+pub(crate) enum TrayMessage {
+  UpdateItem(u32, menu::MenuUpdate),
+  UpdateIcon(Icon),
+  #[cfg(windows)]
+  Remove,
+}
+
+#[derive(Clone)]
+pub(crate) enum Message {
+  Task(MainTask),
   Window(WindowId, WindowMessage),
   Webview(WindowId, WebviewMessage),
+  #[cfg(feature = "system-tray")]
+  Tray(TrayMessage),
   CreateWebview(Arc<Mutex<Option<CreateWebviewHandler>>>, Sender<WindowId>),
 }
 
 #[derive(Clone)]
 struct DispatcherContext {
   proxy: EventLoopProxy<Message>,
-  task_tx: Sender<MainThreadTask>,
   window_event_listeners: WindowEventListeners,
   #[cfg(feature = "menu")]
   menu_event_listeners: MenuEventListeners,
@@ -448,8 +543,8 @@ impl Dispatch for WryDispatcher {
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
     self
       .context
-      .task_tx
-      .send(Box::new(f))
+      .proxy
+      .send_event(Message::Task(Arc::new(Mutex::new(Some(Box::new(f))))))
       .map_err(|_| Error::FailedToSendMessage)
   }
 
@@ -506,6 +601,20 @@ impl Dispatch for WryDispatcher {
     Ok(dispatcher_getter!(self, WindowMessage::IsMaximized))
   }
 
+  /// Gets the window’s current decoration state.
+  fn is_decorated(&self) -> Result<bool> {
+    Ok(dispatcher_getter!(self, WindowMessage::IsDecorated))
+  }
+
+  /// Gets the window’s current resizable state.
+  fn is_resizable(&self) -> Result<bool> {
+    Ok(dispatcher_getter!(self, WindowMessage::IsResizable))
+  }
+
+  fn is_visible(&self) -> Result<bool> {
+    Ok(dispatcher_getter!(self, WindowMessage::IsVisible))
+  }
+
   fn current_monitor(&self) -> Result<Option<Monitor>> {
     Ok(
       dispatcher_getter!(self, WindowMessage::CurrentMonitor)
@@ -529,7 +638,16 @@ impl Dispatch for WryDispatcher {
     )
   }
 
+  #[cfg(windows)]
+  fn hwnd(&self) -> Result<*mut std::ffi::c_void> {
+    Ok(dispatcher_getter!(self, WindowMessage::Hwnd).0)
+  }
+
   // Setters
+
+  fn center(&self) -> Result<()> {
+    dispatcher_getter!(self, WindowMessage::Center)
+  }
 
   fn print(&self) -> Result<()> {
     self
@@ -539,6 +657,8 @@ impl Dispatch for WryDispatcher {
       .map_err(|_| Error::FailedToSendMessage)
   }
 
+  // Creates a window by dispatching a message to the event loop.
+  // Note that this must be called from a separate thread, otherwise the channel will introduce a deadlock.
   fn create_window<P: Params<Runtime = Self::Runtime>>(
     &mut self,
     pending: PendingWindow<P>,
@@ -719,6 +839,14 @@ impl Dispatch for WryDispatcher {
       .map_err(|_| Error::FailedToSendMessage)
   }
 
+  fn set_focus(&self) -> Result<()> {
+    self
+      .context
+      .proxy
+      .send_event(Message::Window(self.window_id, WindowMessage::SetFocus))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+
   fn set_icon(&self, icon: Icon) -> Result<()> {
     self
       .context
@@ -726,6 +854,17 @@ impl Dispatch for WryDispatcher {
       .send_event(Message::Window(
         self.window_id,
         WindowMessage::SetIcon(WryIcon::try_from(icon)?.0),
+      ))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+
+  fn set_skip_taskbar(&self, skip: bool) -> Result<()> {
+    self
+      .context
+      .proxy
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::SetSkipTaskbar(skip),
       ))
       .map_err(|_| Error::FailedToSendMessage)
   }
@@ -748,42 +887,123 @@ impl Dispatch for WryDispatcher {
       ))
       .map_err(|_| Error::FailedToSendMessage)
   }
+
+  #[cfg(feature = "menu")]
+  fn update_menu_item(&self, id: u32, update: menu::MenuUpdate) -> Result<()> {
+    self
+      .context
+      .proxy
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::UpdateMenuItem(id, update),
+      ))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+}
+
+#[cfg(feature = "system-tray")]
+#[derive(Clone, Default)]
+struct TrayContext {
+  tray: Arc<Mutex<Option<Arc<Mutex<WrySystemTray>>>>>,
+  listeners: SystemTrayEventListeners,
+  items: SystemTrayItems,
+}
+
+struct WebviewWrapper {
+  inner: WebView,
+  #[cfg(feature = "menu")]
+  menu_items: HashMap<u32, WryCustomMenuItem>,
 }
 
 /// A Tauri [`Runtime`] wrapper around wry.
 pub struct Wry {
   event_loop: EventLoop<Message>,
   web_context: WebContext,
-  webviews: Mutex<HashMap<WindowId, WebView>>,
-  task_tx: Sender<MainThreadTask>,
+  webviews: Arc<Mutex<HashMap<WindowId, WebviewWrapper>>>,
   window_event_listeners: WindowEventListeners,
   #[cfg(feature = "menu")]
   menu_event_listeners: MenuEventListeners,
   #[cfg(feature = "system-tray")]
-  system_tray_event_listeners: SystemTrayEventListeners,
-  task_rx: Receiver<MainThreadTask>,
+  tray_context: TrayContext,
+}
+
+/// A handle to the Wry runtime.
+#[derive(Clone)]
+pub struct WryHandle {
+  dispatcher_context: DispatcherContext,
+}
+
+impl RuntimeHandle for WryHandle {
+  type Runtime = Wry;
+
+  // Creates a window by dispatching a message to the event loop.
+  // Note that this must be called from a separate thread, otherwise the channel will introduce a deadlock.
+  fn create_window<P: Params<Runtime = Self::Runtime>>(
+    &self,
+    pending: PendingWindow<P>,
+  ) -> Result<DetachedWindow<P>> {
+    let (tx, rx) = channel();
+    let label = pending.label.clone();
+    let dispatcher_context = self.dispatcher_context.clone();
+    self
+      .dispatcher_context
+      .proxy
+      .send_event(Message::CreateWebview(
+        Arc::new(Mutex::new(Some(Box::new(
+          move |event_loop, web_context| create_webview(event_loop, web_context, dispatcher_context, pending),
+        )))),
+        tx,
+      ))
+      .map_err(|_| Error::FailedToSendMessage)?;
+    let window_id = rx.recv().unwrap();
+    let dispatcher = WryDispatcher {
+      window_id,
+      context: self.dispatcher_context.clone(),
+    };
+    Ok(DetachedWindow { label, dispatcher })
+  }
+
+  #[cfg(all(windows, feature = "system-tray"))]
+  fn remove_system_tray(&self) -> Result<()> {
+    self
+      .dispatcher_context
+      .proxy
+      .send_event(Message::Tray(TrayMessage::Remove))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
 }
 
 impl Runtime for Wry {
   type Dispatcher = WryDispatcher;
+  type Handle = WryHandle;
+  #[cfg(feature = "system-tray")]
+  type TrayHandler = SystemTrayHandle;
 
   fn new() -> Result<Self> {
     let event_loop = EventLoop::<Message>::with_user_event();
-    let (task_tx, task_rx) = channel();
     Ok(Self {
       event_loop,
       // todo: how should we handle data directories? tauri expects each webview can have a different one
       // but wry wants to expect the same per web context.
       web_context: Default::default(),
       webviews: Default::default(),
-      task_tx,
-      task_rx,
       window_event_listeners: Default::default(),
       #[cfg(feature = "menu")]
       menu_event_listeners: Default::default(),
       #[cfg(feature = "system-tray")]
-      system_tray_event_listeners: HashMap::default(),
+      tray_context: Default::default(),
     })
+  }
+
+  fn handle(&self) -> Self::Handle {
+    WryHandle {
+      dispatcher_context: DispatcherContext {
+        proxy: self.event_loop.create_proxy(),
+        window_event_listeners: self.window_event_listeners.clone(),
+        #[cfg(feature = "menu")]
+        menu_event_listeners: self.menu_event_listeners.clone(),
+      },
+    }
   }
 
   fn create_window<P: Params<Runtime = Self>>(
@@ -797,7 +1017,6 @@ impl Runtime for Wry {
       &self.web_context,
       DispatcherContext {
         proxy: proxy.clone(),
-        task_tx: self.task_tx.clone(),
         window_event_listeners: self.window_event_listeners.clone(),
         #[cfg(feature = "menu")]
         menu_event_listeners: self.menu_event_listeners.clone(),
@@ -806,10 +1025,9 @@ impl Runtime for Wry {
     )?;
 
     let dispatcher = WryDispatcher {
-      window_id: webview.window().id(),
+      window_id: webview.inner.window().id(),
       context: DispatcherContext {
         proxy,
-        task_tx: self.task_tx.clone(),
         window_event_listeners: self.window_event_listeners.clone(),
         #[cfg(feature = "menu")]
         menu_event_listeners: self.menu_event_listeners.clone(),
@@ -820,245 +1038,412 @@ impl Runtime for Wry {
       .webviews
       .lock()
       .unwrap()
-      .insert(webview.window().id(), webview);
+      .insert(webview.inner.window().id(), webview);
 
     Ok(DetachedWindow { label, dispatcher })
   }
 
   #[cfg(feature = "system-tray")]
-  fn system_tray<I: MenuId>(
-    &self,
-    icon: Icon,
-    menu_items: Vec<SystemTrayMenuItem<I>>,
-  ) -> Result<()> {
-    // todo: fix this interface in Tao to an enum similar to Icon
+  fn system_tray<I: MenuId>(&self, system_tray: SystemTray<I>) -> Result<Self::TrayHandler> {
+    let icon = system_tray
+      .icon
+      .expect("tray icon not set")
+      .into_tray_icon();
 
-    // we expect the code that passes the Icon enum to have already checked the platform.
-    let icon = match icon {
-      #[cfg(target_os = "linux")]
-      Icon::File(path) => path,
+    let mut items = HashMap::new();
 
-      #[cfg(not(target_os = "linux"))]
-      Icon::Raw(bytes) => bytes,
-
-      #[cfg(target_os = "linux")]
-      Icon::Raw(_) => {
-        panic!("linux requires the system menu icon to be a file path, not bytes.")
-      }
-
-      #[cfg(not(target_os = "linux"))]
-      Icon::File(_) => {
-        panic!("non-linux system menu icons must be bytes, not a file path",)
-      }
-      _ => unreachable!(),
-    };
-
-    SystemTrayBuilder::new(
+    let tray = SystemTrayBuilder::new(
       icon,
-      menu_items
-        .into_iter()
-        .map(|m| MenuItemWrapper::from(m).0)
-        .collect(),
+      system_tray
+        .menu
+        .map(|menu| to_wry_context_menu(&mut items, menu)),
     )
     .build(&self.event_loop)
     .map_err(|e| Error::SystemTray(Box::new(e)))?;
-    Ok(())
+
+    *self.tray_context.items.lock().unwrap() = items;
+    *self.tray_context.tray.lock().unwrap() = Some(Arc::new(Mutex::new(tray)));
+
+    Ok(SystemTrayHandle {
+      proxy: self.event_loop.create_proxy(),
+    })
   }
 
   #[cfg(feature = "system-tray")]
   fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid {
     let id = Uuid::new_v4();
-    self.system_tray_event_listeners.insert(id, Box::new(f));
+    self
+      .tray_context
+      .listeners
+      .lock()
+      .unwrap()
+      .insert(id, Box::new(f));
     id
   }
 
-  fn run(self) {
-    let mut webviews = {
-      let mut lock = self.webviews.lock().expect("poisoned webview collection");
-      std::mem::take(&mut *lock)
-    };
-    let task_rx = self.task_rx;
+  #[cfg(any(target_os = "windows", target_os = "macos"))]
+  fn run_iteration(&mut self) -> RunIteration {
+    use wry::application::platform::run_return::EventLoopExtRunReturn;
+    let webviews = self.webviews.clone();
+    let web_context = &self.web_context;
     let window_event_listeners = self.window_event_listeners.clone();
     #[cfg(feature = "menu")]
     let menu_event_listeners = self.menu_event_listeners.clone();
     #[cfg(feature = "system-tray")]
-    let system_tray_event_listeners = self.system_tray_event_listeners;
+    let tray_context = self.tray_context.clone();
+
+    let mut iteration = RunIteration::default();
+
+    self
+      .event_loop
+      .run_return(|event, event_loop, control_flow| {
+        if let Event::MainEventsCleared = &event {
+          *control_flow = ControlFlow::Exit;
+        }
+        iteration = handle_event_loop(
+          event,
+          event_loop,
+          control_flow,
+          EventLoopIterationContext {
+            callback: None,
+            webviews: webviews.lock().expect("poisoned webview collection"),
+            window_event_listeners: window_event_listeners.clone(),
+            #[cfg(feature = "menu")]
+            menu_event_listeners: menu_event_listeners.clone(),
+            #[cfg(feature = "system-tray")]
+            tray_context: tray_context.clone(),
+          },
+          web_context
+        );
+      });
+
+    iteration
+  }
+
+  fn run<F: Fn() + 'static>(self, callback: F) {
+    let webviews = self.webviews.clone();
     let web_context = self.web_context;
+    let window_event_listeners = self.window_event_listeners.clone();
+    #[cfg(feature = "menu")]
+    let menu_event_listeners = self.menu_event_listeners.clone();
+    #[cfg(feature = "system-tray")]
+    let tray_context = self.tray_context;
 
     self.event_loop.run(move |event, event_loop, control_flow| {
-      *control_flow = ControlFlow::Wait;
+      handle_event_loop(
+        event,
+        event_loop,
+        control_flow,
+        EventLoopIterationContext {
+          callback: Some(&callback),
+          webviews: webviews.lock().expect("poisoned webview collection"),
+          window_event_listeners: window_event_listeners.clone(),
+          #[cfg(feature = "menu")]
+          menu_event_listeners: menu_event_listeners.clone(),
+          #[cfg(feature = "system-tray")]
+          tray_context: tray_context.clone(),
+        },
+        &web_context
+      );
+    })
+  }
+}
 
-      for (_, w) in webviews.iter() {
-        if let Err(e) = w.evaluate_script() {
-          eprintln!("{}", e);
+struct EventLoopIterationContext<'a> {
+  callback: Option<&'a (dyn Fn() + 'static)>,
+  webviews: MutexGuard<'a, HashMap<WindowId, WebviewWrapper>>,
+  window_event_listeners: WindowEventListeners,
+  #[cfg(feature = "menu")]
+  menu_event_listeners: MenuEventListeners,
+  #[cfg(feature = "system-tray")]
+  tray_context: TrayContext,
+}
+
+fn handle_event_loop(
+  event: Event<Message>,
+  event_loop: &EventLoopWindowTarget<Message>,
+  control_flow: &mut ControlFlow,
+  context: EventLoopIterationContext<'_>,
+  web_context: &WebContext
+) -> RunIteration {
+  let EventLoopIterationContext {
+    callback,
+    mut webviews,
+    window_event_listeners,
+    #[cfg(feature = "menu")]
+    menu_event_listeners,
+    #[cfg(feature = "system-tray")]
+    tray_context,
+  } = context;
+  *control_flow = ControlFlow::Wait;
+
+  for (_, w) in webviews.iter() {
+    if let Err(e) = w.inner.evaluate_script() {
+      eprintln!("{}", e);
+    }
+  }
+
+  match event {
+    #[cfg(feature = "menu")]
+    Event::MenuEvent {
+      menu_id,
+      origin: MenuType::MenuBar,
+    } => {
+      let event = MenuEvent {
+        menu_item_id: menu_id.0,
+      };
+      for handler in menu_event_listeners.lock().unwrap().values() {
+        handler(&event);
+      }
+    }
+    #[cfg(feature = "system-tray")]
+    Event::MenuEvent {
+      menu_id,
+      origin: MenuType::ContextMenu,
+    } => {
+      let event = SystemTrayEvent::MenuItemClick(menu_id.0);
+      for handler in tray_context.listeners.lock().unwrap().values() {
+        handler(&event);
+      }
+    }
+    #[cfg(feature = "system-tray")]
+    Event::TrayEvent {
+      bounds,
+      event,
+      position: _cursor_position,
+    } => {
+      let (position, size) = (
+        PhysicalPositionWrapper(bounds.position).into(),
+        PhysicalSizeWrapper(bounds.size).into(),
+      );
+      let event = match event {
+        TrayEvent::LeftClick => SystemTrayEvent::LeftClick { position, size },
+        TrayEvent::RightClick => SystemTrayEvent::RightClick { position, size },
+        TrayEvent::DoubleClick => SystemTrayEvent::DoubleClick { position, size },
+      };
+      for handler in tray_context.listeners.lock().unwrap().values() {
+        handler(&event);
+      }
+    }
+    Event::WindowEvent { event, window_id } => {
+      if let Some(event) = WindowEventWrapper::from(&event).0 {
+        for handler in window_event_listeners.lock().unwrap().values() {
+          handler(&event);
         }
       }
-
-      while let Ok(task) = task_rx.try_recv() {
-        task();
-      }
-
       match event {
-        #[cfg(feature = "menu")]
-        Event::MenuEvent {
-          menu_id,
-          origin: MenuType::Menubar,
-        } => {
-          let event = MenuEvent {
-            menu_item_id: menu_id.0,
-          };
-          for handler in menu_event_listeners.lock().unwrap().values() {
-            handler(&event);
-          }
-        }
-        #[cfg(feature = "system-tray")]
-        Event::MenuEvent {
-          menu_id,
-          origin: MenuType::SystemTray,
-        } => {
-          let event = SystemTrayEvent {
-            menu_item_id: menu_id.0,
-          };
-          for handler in system_tray_event_listeners.values() {
-            handler(&event);
-          }
-        }
-        Event::WindowEvent { event, window_id } => {
-          if let Some(event) = WindowEventWrapper::from(&event).0 {
-            for handler in window_event_listeners.lock().unwrap().values() {
-              handler(&event);
+        WryWindowEvent::CloseRequested => {
+          webviews.remove(&window_id);
+          if webviews.is_empty() {
+            *control_flow = ControlFlow::Exit;
+            if let Some(callback) = callback {
+              callback();
             }
           }
-          match event {
-            WryWindowEvent::CloseRequested => {
-              webviews.remove(&window_id);
+        }
+        WryWindowEvent::Resized(_) => {
+          if let Err(e) = webviews[&window_id].inner.resize() {
+            eprintln!("{}", e);
+          }
+        }
+        _ => {}
+      }
+    }
+    Event::UserEvent(message) => match message {
+      Message::Task(task) => {
+        if let Some(task) = task.lock().unwrap().take() {
+          task();
+        }
+      }
+      Message::Window(id, window_message) => {
+        if let Some(webview) = webviews.get_mut(&id) {
+          let window = webview.inner.window();
+          match window_message {
+            // Getters
+            WindowMessage::ScaleFactor(tx) => tx.send(window.scale_factor()).unwrap(),
+            WindowMessage::InnerPosition(tx) => tx
+              .send(
+                window
+                  .inner_position()
+                  .map(|p| PhysicalPositionWrapper(p).into())
+                  .map_err(|_| Error::FailedToSendMessage),
+              )
+              .unwrap(),
+            WindowMessage::OuterPosition(tx) => tx
+              .send(
+                window
+                  .outer_position()
+                  .map(|p| PhysicalPositionWrapper(p).into())
+                  .map_err(|_| Error::FailedToSendMessage),
+              )
+              .unwrap(),
+            WindowMessage::InnerSize(tx) => tx
+              .send(PhysicalSizeWrapper(window.inner_size()).into())
+              .unwrap(),
+            WindowMessage::OuterSize(tx) => tx
+              .send(PhysicalSizeWrapper(window.outer_size()).into())
+              .unwrap(),
+            WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
+            WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
+            WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
+            WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),
+            WindowMessage::IsVisible(tx) => tx.send(window.is_visible()).unwrap(),
+            WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
+            WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
+            WindowMessage::AvailableMonitors(tx) => {
+              tx.send(window.available_monitors().collect()).unwrap()
+            }
+            #[cfg(windows)]
+            WindowMessage::Hwnd(tx) => {
+              use wry::application::platform::windows::WindowExtWindows;
+              tx.send(Hwnd(window.hwnd())).unwrap()
+            }
+            // Setters
+            WindowMessage::Center(tx) => {
+              tx.send(center_window(window)).unwrap();
+            }
+            WindowMessage::SetResizable(resizable) => window.set_resizable(resizable),
+            WindowMessage::SetTitle(title) => window.set_title(&title),
+            WindowMessage::Maximize => window.set_maximized(true),
+            WindowMessage::Unmaximize => window.set_maximized(false),
+            WindowMessage::Minimize => window.set_minimized(true),
+            WindowMessage::Unminimize => window.set_minimized(false),
+            WindowMessage::Show => window.set_visible(true),
+            WindowMessage::Hide => window.set_visible(false),
+            WindowMessage::Close => {
+              webviews.remove(&id);
               if webviews.is_empty() {
                 *control_flow = ControlFlow::Exit;
               }
             }
-            WryWindowEvent::Resized(_) => {
-              if let Err(e) = webviews[&window_id].resize() {
-                eprintln!("{}", e);
+            WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
+            WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),
+            WindowMessage::SetSize(size) => {
+              window.set_inner_size(SizeWrapper::from(size).0);
+            }
+            WindowMessage::SetMinSize(size) => {
+              window.set_min_inner_size(size.map(|s| SizeWrapper::from(s).0));
+            }
+            WindowMessage::SetMaxSize(size) => {
+              window.set_max_inner_size(size.map(|s| SizeWrapper::from(s).0));
+            }
+            WindowMessage::SetPosition(position) => {
+              window.set_outer_position(PositionWrapper::from(position).0)
+            }
+            WindowMessage::SetFullscreen(fullscreen) => {
+              if fullscreen {
+                window.set_fullscreen(Some(Fullscreen::Borderless(None)))
+              } else {
+                window.set_fullscreen(None)
               }
             }
-            _ => {}
+            WindowMessage::SetFocus => {
+              window.set_focus();
+            }
+            WindowMessage::SetIcon(icon) => {
+              window.set_window_icon(Some(icon));
+            }
+            WindowMessage::SetSkipTaskbar(skip) => {
+              window.set_skip_taskbar(skip);
+            }
+            WindowMessage::DragWindow => {
+              let _ = window.drag_window();
+            }
+            #[cfg(feature = "menu")]
+            WindowMessage::UpdateMenuItem(id, update) => {
+              let item = webview
+                .menu_items
+                .get_mut(&id)
+                .expect("menu item not found");
+              match update {
+                MenuUpdate::SetEnabled(enabled) => item.set_enabled(enabled),
+                MenuUpdate::SetTitle(title) => item.set_title(&title),
+                MenuUpdate::SetSelected(selected) => item.set_selected(selected),
+                #[cfg(target_os = "macos")]
+                MenuUpdate::SetNativeImage(image) => {
+                  item.set_native_image(NativeImageWrapper::from(image).0)
+                }
+              }
+            }
           }
         }
-        Event::UserEvent(message) => match message {
-          Message::Window(id, window_message) => {
-            if let Some(webview) = webviews.get_mut(&id) {
-              let window = webview.window();
-              match window_message {
-                // Getters
-                WindowMessage::ScaleFactor(tx) => tx.send(window.scale_factor()).unwrap(),
-                WindowMessage::InnerPosition(tx) => tx
-                  .send(
-                    window
-                      .inner_position()
-                      .map(|p| PhysicalPositionWrapper(p).into())
-                      .map_err(|_| Error::FailedToSendMessage),
-                  )
-                  .unwrap(),
-                WindowMessage::OuterPosition(tx) => tx
-                  .send(
-                    window
-                      .outer_position()
-                      .map(|p| PhysicalPositionWrapper(p).into())
-                      .map_err(|_| Error::FailedToSendMessage),
-                  )
-                  .unwrap(),
-                WindowMessage::InnerSize(tx) => tx
-                  .send(PhysicalSizeWrapper(window.inner_size()).into())
-                  .unwrap(),
-                WindowMessage::OuterSize(tx) => tx
-                  .send(PhysicalSizeWrapper(window.outer_size()).into())
-                  .unwrap(),
-                WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
-                WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
-                WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
-                WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
-                WindowMessage::AvailableMonitors(tx) => {
-                  tx.send(window.available_monitors().collect()).unwrap()
-                }
-                // Setters
-                WindowMessage::SetResizable(resizable) => window.set_resizable(resizable),
-                WindowMessage::SetTitle(title) => window.set_title(&title),
-                WindowMessage::Maximize => window.set_maximized(true),
-                WindowMessage::Unmaximize => window.set_maximized(false),
-                WindowMessage::Minimize => window.set_minimized(true),
-                WindowMessage::Unminimize => window.set_minimized(false),
-                WindowMessage::Show => window.set_visible(true),
-                WindowMessage::Hide => window.set_visible(false),
-                WindowMessage::Close => {
-                  webviews.remove(&id);
-                  if webviews.is_empty() {
-                    *control_flow = ControlFlow::Exit;
-                  }
-                }
-                WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
-                WindowMessage::SetAlwaysOnTop(always_on_top) => {
-                  window.set_always_on_top(always_on_top)
-                }
-                WindowMessage::SetSize(size) => {
-                  window.set_inner_size(SizeWrapper::from(size).0);
-                }
-                WindowMessage::SetMinSize(size) => {
-                  window.set_min_inner_size(size.map(|s| SizeWrapper::from(s).0));
-                }
-                WindowMessage::SetMaxSize(size) => {
-                  window.set_max_inner_size(size.map(|s| SizeWrapper::from(s).0));
-                }
-                WindowMessage::SetPosition(position) => {
-                  window.set_outer_position(PositionWrapper::from(position).0)
-                }
-                WindowMessage::SetFullscreen(fullscreen) => {
-                  if fullscreen {
-                    window.set_fullscreen(Some(Fullscreen::Borderless(None)))
-                  } else {
-                    window.set_fullscreen(None)
-                  }
-                }
-                WindowMessage::SetIcon(icon) => {
-                  window.set_window_icon(Some(icon));
-                }
-                WindowMessage::DragWindow => {
-                  let _ = window.drag_window();
-                }
-              }
-            }
-          }
-          Message::Webview(id, webview_message) => {
-            if let Some(webview) = webviews.get_mut(&id) {
-              match webview_message {
-                WebviewMessage::EvaluateScript(script) => {
-                  let _ = webview.dispatch_script(&script);
-                }
-                WebviewMessage::Print => {
-                  let _ = webview.print();
-                }
-              }
-            }
-          }
-          Message::CreateWebview(handler, sender) => {
-            let handler = {
-              let mut lock = handler.lock().expect("poisoned create webview handler");
-              std::mem::take(&mut *lock).unwrap()
-            };
-            match handler(event_loop, &web_context) {
-              Ok(webview) => {
-                let window_id = webview.window().id();
-                webviews.insert(window_id, webview);
-                sender.send(window_id).unwrap();
-              }
-              Err(e) => {
-                eprintln!("{}", e);
-              }
-            }
-          }
-        },
-        _ => (),
       }
-    })
+      Message::CreateWebview(handler, sender) => {
+        let handler = {
+          let mut lock = handler.lock().expect("poisoned create webview handler");
+          std::mem::take(&mut *lock).unwrap()
+        };
+        match handler(event_loop, &web_context) {
+          Ok(webview) => {
+            let window_id = webview.inner.window().id();
+            webviews.insert(window_id, webview);
+            sender.send(window_id).unwrap();
+          }
+          Err(e) => {
+            eprintln!("{}", e);
+          }
+        }
+      }
+      Message::Webview(id, webview_message) => {
+        if let Some(webview) = webviews.get_mut(&id) {
+          match webview_message {
+            WebviewMessage::EvaluateScript(script) => {
+              let _ = webview.inner.dispatch_script(&script);
+            }
+            WebviewMessage::Print => {
+              let _ = webview.inner.print();
+            }
+          }
+        }
+      }
+
+      #[cfg(feature = "system-tray")]
+      Message::Tray(tray_message) => match tray_message {
+        TrayMessage::UpdateItem(menu_id, update) => {
+          let mut tray = tray_context.items.as_ref().lock().unwrap();
+          let item = tray.get_mut(&menu_id).expect("menu item not found");
+          match update {
+            MenuUpdate::SetEnabled(enabled) => item.set_enabled(enabled),
+            MenuUpdate::SetTitle(title) => item.set_title(&title),
+            MenuUpdate::SetSelected(selected) => item.set_selected(selected),
+            #[cfg(target_os = "macos")]
+            MenuUpdate::SetNativeImage(image) => {
+              item.set_native_image(NativeImageWrapper::from(image).0)
+            }
+          }
+        }
+        TrayMessage::UpdateIcon(icon) => {
+          if let Some(tray) = &*tray_context.tray.lock().unwrap() {
+            tray.lock().unwrap().set_icon(icon.into_tray_icon());
+          }
+        }
+        #[cfg(windows)]
+        TrayMessage::Remove => {
+          if let Some(tray) = tray_context.tray.lock().unwrap().as_ref() {
+            use wry::application::platform::windows::SystemTrayExtWindows;
+            tray.lock().unwrap().remove();
+          }
+        }
+      },
+    },
+    _ => (),
+  }
+
+  RunIteration {
+    webview_count: webviews.len(),
+  }
+}
+
+fn center_window(window: &Window) -> Result<()> {
+  if let Some(monitor) = window.current_monitor() {
+    let screen_size = monitor.size();
+    let window_size = window.inner_size();
+    let x = (screen_size.width - window_size.width) / 2;
+    let y = (screen_size.height - window_size.height) / 2;
+    window.set_outer_position(WryPhysicalPosition::new(x, y));
+    Ok(())
+  } else {
+    Err(Error::FailedToGetMonitor)
   }
 }
 
@@ -1067,7 +1452,7 @@ fn create_webview<P: Params<Runtime = Wry>>(
   web_context: &WebContext,
   context: DispatcherContext,
   pending: PendingWindow<P>,
-) -> Result<WebView> {
+) -> Result<WebviewWrapper> {
   let PendingWindow {
     webview_attributes,
     window_builder,
@@ -1078,8 +1463,13 @@ fn create_webview<P: Params<Runtime = Wry>>(
     ..
   } = pending;
 
-  let is_window_transparent = window_builder.0.window.transparent;
-  let window = window_builder.0.build(event_loop).unwrap();
+  let is_window_transparent = window_builder.inner.window.transparent;
+  #[cfg(feature = "menu")]
+  let menu_items = window_builder.menu_items;
+  let window = window_builder.inner.build(event_loop).unwrap();
+  if window_builder.center {
+    let _ = center_window(&window);
+  }
   let mut webview_builder = WebViewBuilder::new(window)
     .map_err(|e| Error::CreateWebview(Box::new(e)))?
     .with_url(&url)
@@ -1102,9 +1492,15 @@ fn create_webview<P: Params<Runtime = Wry>>(
     webview_builder = webview_builder.with_initialization_script(&script);
   }
 
-  webview_builder
+  let webview = webview_builder
     .build(web_context)
-    .map_err(|e| Error::CreateWebview(Box::new(e)))
+    .map_err(|e| Error::CreateWebview(Box::new(e)))?;
+
+  Ok(WebviewWrapper {
+    inner: webview,
+    #[cfg(feature = "menu")]
+    menu_items,
+  })
 }
 
 /// Create a wry rpc handler from a tauri rpc handler.

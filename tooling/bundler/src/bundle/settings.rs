@@ -589,7 +589,7 @@ impl Settings {
 
   /// Returns the package's homepage URL, defaulting to "" if not defined.
   pub fn homepage_url(&self) -> &str {
-    &self.package.homepage.as_deref().unwrap_or("")
+    self.package.homepage.as_deref().unwrap_or("")
   }
 
   /// Returns the app's category.

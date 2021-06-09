@@ -162,13 +162,13 @@ fn get_app<'a>(name: &str, about: Option<&'a String>, config: &'a CliConfig) -> 
   if let Some(args) = config.args() {
     for arg in args {
       let arg_name = arg.name.as_ref();
-      app = app.arg(get_arg(arg_name, &arg));
+      app = app.arg(get_arg(arg_name, arg));
     }
   }
 
   if let Some(subcommands) = config.subcommands() {
     for (subcommand_name, subcommand) in subcommands {
-      let clap_subcommand = get_app(&subcommand_name, subcommand.description(), subcommand);
+      let clap_subcommand = get_app(subcommand_name, subcommand.description(), subcommand);
       app = app.subcommand(clap_subcommand);
     }
   }

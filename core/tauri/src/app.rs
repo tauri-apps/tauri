@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#[cfg(feature = "system-tray")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
+pub(crate) mod tray;
+
 use crate::{
   api::assets::Assets,
   api::config::WindowUrl,
@@ -22,10 +26,12 @@ use std::{collections::HashMap, sync::Arc};
 
 #[cfg(feature = "menu")]
 use crate::runtime::menu::Menu;
-#[cfg(feature = "system-tray")]
-use crate::runtime::{menu::SystemTrayMenuItem, Icon};
 
-use crate::manager::DefaultArgs;
+#[cfg(all(windows, feature = "system-tray"))]
+use crate::runtime::RuntimeHandle;
+#[cfg(feature = "system-tray")]
+use crate::runtime::{Icon, SystemTrayEvent as RuntimeSystemTrayEvent};
+
 #[cfg(feature = "updater")]
 use crate::updater;
 
@@ -34,29 +40,16 @@ pub(crate) type GlobalMenuEventListener<P> = Box<dyn Fn(WindowMenuEvent<P>) + Se
 pub(crate) type GlobalWindowEventListener<P> = Box<dyn Fn(GlobalWindowEvent<P>) + Send + Sync>;
 #[cfg(feature = "system-tray")]
 type SystemTrayEventListener<P> =
-  Box<dyn Fn(&AppHandle<P>, SystemTrayEvent<<P as Params>::SystemTrayMenuId>) + Send + Sync>;
+  Box<dyn Fn(&AppHandle<P>, tray::SystemTrayEvent<<P as Params>::SystemTrayMenuId>) + Send + Sync>;
 
-/// System tray event.
-#[cfg(feature = "system-tray")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-pub struct SystemTrayEvent<I: MenuId> {
-  menu_item_id: I,
-}
-
-#[cfg(feature = "system-tray")]
-impl<I: MenuId> SystemTrayEvent<I> {
-  /// The menu item id.
-  pub fn menu_item_id(&self) -> &I {
-    &self.menu_item_id
+crate::manager::default_args! {
+  /// A menu event that was triggered on a window.
+  #[cfg(feature = "menu")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
+  pub struct WindowMenuEvent<P: Params> {
+    pub(crate) menu_item_id: P::MenuId,
+    pub(crate) window: Window<P>,
   }
-}
-
-/// A menu event that was triggered on a window.
-#[cfg(feature = "menu")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-pub struct WindowMenuEvent<P: Params = DefaultArgs> {
-  pub(crate) menu_item_id: P::MenuId,
-  pub(crate) window: Window<P>,
 }
 
 #[cfg(feature = "menu")]
@@ -72,10 +65,12 @@ impl<P: Params> WindowMenuEvent<P> {
   }
 }
 
-/// A window event that was triggered on the specified window.
-pub struct GlobalWindowEvent<P: Params = DefaultArgs> {
-  pub(crate) event: WindowEvent,
-  pub(crate) window: Window<P>,
+crate::manager::default_args! {
+  /// A window event that was triggered on the specified window.
+  pub struct GlobalWindowEvent<P: Params> {
+    pub(crate) event: WindowEvent,
+    pub(crate) window: Window<P>,
+  }
 }
 
 impl<P: Params> GlobalWindowEvent<P> {
@@ -90,9 +85,36 @@ impl<P: Params> GlobalWindowEvent<P> {
   }
 }
 
-/// A handle to the currently running application.
-pub struct AppHandle<P: Params = DefaultArgs> {
-  manager: WindowManager<P>,
+crate::manager::default_args! {
+  /// A handle to the currently running application.
+  ///
+  /// This type implements [`Manager`] which allows for manipulation of global application items.
+  pub struct AppHandle<P: Params> {
+    runtime_handle: <P::Runtime as Runtime>::Handle,
+    manager: WindowManager<P>,
+    #[cfg(feature = "system-tray")]
+    tray_handle: Option<tray::SystemTrayHandle<P>>,
+  }
+}
+
+impl<P: Params> Clone for AppHandle<P> {
+  fn clone(&self) -> Self {
+    Self {
+      runtime_handle: self.runtime_handle.clone(),
+      manager: self.manager.clone(),
+      #[cfg(feature = "system-tray")]
+      tray_handle: self.tray_handle.clone(),
+    }
+  }
+}
+
+impl<P: Params> AppHandle<P> {
+  /// Removes the system tray.
+  #[cfg(all(windows, feature = "system-tray"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
+  fn remove_system_tray(&self) -> crate::Result<()> {
+    self.runtime_handle.remove_system_tray().map_err(Into::into)
+  }
 }
 
 impl<P: Params> Manager<P> for AppHandle<P> {}
@@ -100,14 +122,23 @@ impl<P: Params> ManagerBase<P> for AppHandle<P> {
   fn manager(&self) -> &WindowManager<P> {
     &self.manager
   }
+
+  fn runtime(&self) -> RuntimeOrDispatch<'_, P> {
+    RuntimeOrDispatch::RuntimeHandle(self.runtime_handle.clone())
+  }
 }
 
-/// The instance of the currently running application.
-///
-/// This type implements [`Manager`] which allows for manipulation of global application items.
-pub struct App<P: Params = DefaultArgs> {
-  runtime: P::Runtime,
-  manager: WindowManager<P>,
+crate::manager::default_args! {
+  /// The instance of the currently running application.
+  ///
+  /// This type implements [`Manager`] which allows for manipulation of global application items.
+  pub struct App<P: Params> {
+    runtime: Option<P::Runtime>,
+    manager: WindowManager<P>,
+    #[cfg(feature = "system-tray")]
+    tray_handle: Option<tray::SystemTrayHandle<P>>,
+    handle: AppHandle<P>,
+  }
 }
 
 impl<P: Params> Manager<P> for App<P> {}
@@ -115,29 +146,82 @@ impl<P: Params> ManagerBase<P> for App<P> {
   fn manager(&self) -> &WindowManager<P> {
     &self.manager
   }
+
+  fn runtime(&self) -> RuntimeOrDispatch<'_, P> {
+    RuntimeOrDispatch::Runtime(self.runtime.as_ref().unwrap())
+  }
 }
 
+macro_rules! shared_app_impl {
+  ($app: ty) => {
+    impl<P: Params> $app {
+      /// Creates a new webview window.
+      pub fn create_window<F>(&self, label: P::Label, url: WindowUrl, setup: F) -> crate::Result<()>
+      where
+        F: FnOnce(
+          <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
+          WebviewAttributes,
+        ) -> (
+          <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
+          WebviewAttributes,
+        ),
+      {
+        let (window_builder, webview_attributes) = setup(
+          <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder::new(),
+          WebviewAttributes::new(url),
+        );
+        self.create_new_window(PendingWindow::new(
+          window_builder,
+          webview_attributes,
+          label,
+        ))?;
+        Ok(())
+      }
+
+      #[cfg(feature = "system-tray")]
+      #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
+      /// Gets a handle handle to the system tray.
+      pub fn tray_handle(&self) -> tray::SystemTrayHandle<P> {
+        self
+          .tray_handle
+          .clone()
+          .expect("tray not configured; use the `Builder#system_tray` API first.")
+      }
+    }
+  };
+}
+
+shared_app_impl!(App<P>);
+shared_app_impl!(AppHandle<P>);
+
 impl<P: Params> App<P> {
-  /// Creates a new webview window.
-  pub fn create_window<F>(&mut self, label: P::Label, url: WindowUrl, setup: F) -> crate::Result<()>
-  where
-    F: FnOnce(
-      <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
-      WebviewAttributes,
-    ) -> (
-      <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
-      WebviewAttributes,
-    ),
-  {
-    let (window_builder, webview_attributes) = setup(
-      <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder::new(),
-      WebviewAttributes::new(url),
-    );
-    self.create_new_window(
-      RuntimeOrDispatch::Runtime(&self.runtime),
-      PendingWindow::new(window_builder, webview_attributes, label),
-    )?;
-    Ok(())
+  /// Gets a handle to the application instance.
+  pub fn handle(&self) -> AppHandle<P> {
+    self.handle.clone()
+  }
+
+  /// Runs a iteration of the runtime event loop and immediately return.
+  ///
+  /// Note that when using this API, app cleanup is not automatically done.
+  /// The cleanup calls [`crate::api::process::kill_children`] so you may want to call that function before exiting the application.
+  /// Additionally, the cleanup calls [AppHandle#remove_system_tray](`AppHandle#method.remove_system_tray`) (Windows only).
+  ///
+  /// # Example
+  /// ```rust,ignore
+  /// fn main() {
+  ///   let mut app = tauri::Builder::default()
+  ///     .build(tauri::generate_context!())
+  ///     .expect("error while building tauri application");
+  ///   loop {
+  ///     let iteration = app.run_iteration();
+  ///     if iteration.webview_count == 0 {
+  ///       break;
+  ///     }
+  ///   }
+  /// }
+  #[cfg(any(target_os = "windows", target_os = "macos"))]
+  pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
+    self.runtime.as_mut().unwrap().run_iteration()
   }
 }
 
@@ -234,7 +318,7 @@ where
 
   /// The menu set to all windows.
   #[cfg(feature = "menu")]
-  menu: Vec<Menu<MID>>,
+  menu: Option<Menu<MID>>,
 
   /// Menu event handlers that listens to all windows.
   #[cfg(feature = "menu")]
@@ -243,9 +327,9 @@ where
   /// Window event handlers that listens to all windows.
   window_event_listeners: Vec<GlobalWindowEventListener<Args<E, L, MID, TID, A, R>>>,
 
-  /// The app system tray menu items.
+  /// The app system tray.
   #[cfg(feature = "system-tray")]
-  system_tray: Vec<SystemTrayMenuItem<TID>>,
+  system_tray: Option<tray::SystemTray<TID>>,
 
   /// System tray event handlers.
   #[cfg(feature = "system-tray")]
@@ -272,12 +356,12 @@ where
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
       #[cfg(feature = "menu")]
-      menu: Vec::new(),
+      menu: None,
       #[cfg(feature = "menu")]
       menu_event_listeners: Vec::new(),
       window_event_listeners: Vec::new(),
       #[cfg(feature = "system-tray")]
-      system_tray: Vec::new(),
+      system_tray: None,
       #[cfg(feature = "system-tray")]
       system_tray_event_listeners: Vec::new(),
     }
@@ -332,6 +416,40 @@ where
   ///
   /// Panics if state of type `T` is already being managed.
   ///
+  /// # Mutability
+  ///
+  /// Since the managed state is global and must be [`Send`] + [`Sync`], mutations can only happen through interior mutability:
+  ///
+  /// ```rust,ignore
+  /// use std::{collections::HashMap, sync::Mutex};
+  /// use tauri::State;
+  /// // here we use Mutex to achieve interior mutability
+  /// struct Storage(Mutex<HashMap<u64, String>>);
+  /// struct Connection;
+  /// struct DbConnection(Mutex<Option<Connection>>);
+  ///
+  /// #[tauri::command]
+  /// fn connect(connection: State<DbConnection>) {
+  ///   // initialize the connection, mutating the state with interior mutability
+  ///   *connection.0.lock().unwrap() = Some(Connection {});
+  /// }
+  ///
+  /// #[tauri::command]
+  /// fn storage_insert(key: u64, value: String, storage: State<Storage>) {
+  ///   // mutate the storage behind the Mutex
+  ///   storage.0.lock().unwrap().insert(key, value);
+  /// }
+  ///
+  /// fn main() {
+  ///   Builder::default()
+  ///     .manage(Storage(Default::default()))
+  ///     .manage(DbConnection(Default::default()))
+  ///     .invoke_handler(tauri::generate_handler![connect, storage_insert])
+  ///     .run(tauri::generate_context!())
+  ///     .expect("error while running tauri application");
+  /// }
+  /// ```
+  ///
   /// # Example
   ///
   /// ```rust,ignore
@@ -341,7 +459,7 @@ where
   /// struct MyString(String);
   ///
   /// #[tauri::command]
-  /// fn int_command(state: State<'_, MyInt>) -> String {
+  /// fn int_command(state: State<MyInt>) -> String {
   ///     format!("The stateful int is: {}", state.0)
   /// }
   ///
@@ -354,6 +472,7 @@ where
   ///     tauri::Builder::default()
   ///         .manage(MyInt(10))
   ///         .manage(MyString("Hello, managed state!".to_string()))
+  ///         .invoke_handler(tauri::generate_handler![int_command, string_command])
   ///         .run(tauri::generate_context!())
   ///         .expect("error while running tauri application");
   /// }
@@ -396,16 +515,16 @@ where
   /// Adds the icon configured on `tauri.conf.json` to the system tray with the specified menu items.
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  pub fn system_tray(mut self, items: Vec<SystemTrayMenuItem<TID>>) -> Self {
-    self.system_tray = items;
+  pub fn system_tray(mut self, system_tray: tray::SystemTray<TID>) -> Self {
+    self.system_tray.replace(system_tray);
     self
   }
 
   /// Sets the menu to use on all windows.
   #[cfg(feature = "menu")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-  pub fn menu(mut self, menu: Vec<Menu<MID>>) -> Self {
-    self.menu = menu;
+  pub fn menu(mut self, menu: Menu<MID>) -> Self {
+    self.menu.replace(menu);
     self
   }
 
@@ -437,7 +556,7 @@ where
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   pub fn on_system_tray_event<
-    F: Fn(&AppHandle<Args<E, L, MID, TID, A, R>>, SystemTrayEvent<TID>) + Send + Sync + 'static,
+    F: Fn(&AppHandle<Args<E, L, MID, TID, A, R>>, tray::SystemTrayEvent<TID>) + Send + Sync + 'static,
   >(
     mut self,
     handler: F,
@@ -472,14 +591,15 @@ where
     self
   }
 
-  /// Runs the configured Tauri application.
-  pub fn run(mut self, context: Context<A>) -> crate::Result<()> {
+  /// Builds the application.
+  #[allow(clippy::type_complexity)]
+  pub fn build(mut self, context: Context<A>) -> crate::Result<App<Args<E, L, MID, TID, A, R>>> {
     #[cfg(feature = "system-tray")]
     let system_tray_icon = {
       let icon = context.system_tray_icon.clone();
 
-      // check the icon format if the system tray is supposed to be ran
-      if !self.system_tray.is_empty() {
+      // check the icon format if the system tray is configured
+      if self.system_tray.is_some() {
         use std::io::{Error, ErrorKind};
         #[cfg(target_os = "linux")]
         if let Some(Icon::Raw(_)) = icon {
@@ -490,7 +610,7 @@ where
         }
 
         #[cfg(not(target_os = "linux"))]
-        if let Some(Icon::File(bytes)) = icon {
+        if let Some(Icon::File(_)) = icon {
           return Err(crate::Error::InvalidIcon(Box::new(Error::new(
             ErrorKind::InvalidInput,
             "system tray icons on non-linux platforms must be the raw bytes",
@@ -528,9 +648,20 @@ where
       ));
     }
 
+    let runtime = R::new()?;
+    let runtime_handle = runtime.handle();
+
     let mut app = App {
-      runtime: R::new()?,
-      manager,
+      runtime: Some(runtime),
+      manager: manager.clone(),
+      #[cfg(feature = "system-tray")]
+      tray_handle: None,
+      handle: AppHandle {
+        runtime_handle,
+        manager,
+        #[cfg(feature = "system-tray")]
+        tray_handle: None,
+      },
     };
 
     app.manager.initialize_plugins(&app)?;
@@ -546,7 +677,7 @@ where
 
     for pending in self.pending_windows {
       let pending = app.manager.prepare_window(pending, &pending_labels)?;
-      let detached = app.runtime.create_window(pending)?;
+      let detached = app.runtime.as_ref().unwrap().create_window(pending)?;
       let _window = app.manager.attach_window(detached);
       #[cfg(feature = "updater")]
       if main_window.is_none() {
@@ -560,45 +691,95 @@ where
     (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e))?;
 
     #[cfg(feature = "system-tray")]
-    if !self.system_tray.is_empty() {
-      let ids = get_menu_ids(&self.system_tray);
-      app
+    if let Some(system_tray) = self.system_tray {
+      let mut ids = HashMap::new();
+      if let Some(menu) = system_tray.menu() {
+        tray::get_menu_ids(&mut ids, menu);
+      }
+      let mut tray = tray::SystemTray::new();
+      if let Some(menu) = system_tray.menu {
+        tray = tray.with_menu(menu);
+      }
+      let tray_handler = app
         .runtime
+        .as_ref()
+        .unwrap()
         .system_tray(
-          system_tray_icon.expect("tray icon not found; please configure it on tauri.conf.json"),
-          self.system_tray,
+          tray.with_icon(
+            system_tray
+              .icon
+              .or(system_tray_icon)
+              .expect("tray icon not found; please configure it on tauri.conf.json"),
+          ),
         )
         .expect("failed to run tray");
+      let tray_handle = tray::SystemTrayHandle {
+        ids: Arc::new(ids.clone()),
+        inner: tray_handler,
+      };
+      app.tray_handle.replace(tray_handle.clone());
+      app.handle.tray_handle.replace(tray_handle);
       for listener in self.system_tray_event_listeners {
-        let app_handle = AppHandle {
-          manager: app.manager.clone(),
-        };
+        let app_handle = app.handle();
         let ids = ids.clone();
-        app.runtime.on_system_tray_event(move |event| {
-          listener(
-            &app_handle,
-            SystemTrayEvent {
-              menu_item_id: ids.get(&event.menu_item_id).unwrap().clone(),
-            },
-          );
-        });
+        let listener = Arc::new(std::sync::Mutex::new(listener));
+        app
+          .runtime
+          .as_mut()
+          .unwrap()
+          .on_system_tray_event(move |event| {
+            let app_handle = app_handle.clone();
+            let event = match event {
+              RuntimeSystemTrayEvent::MenuItemClick(id) => tray::SystemTrayEvent::MenuItemClick {
+                id: ids.get(id).unwrap().clone(),
+              },
+              RuntimeSystemTrayEvent::LeftClick { position, size } => {
+                tray::SystemTrayEvent::LeftClick {
+                  position: *position,
+                  size: *size,
+                }
+              }
+              RuntimeSystemTrayEvent::RightClick { position, size } => {
+                tray::SystemTrayEvent::RightClick {
+                  position: *position,
+                  size: *size,
+                }
+              }
+              RuntimeSystemTrayEvent::DoubleClick { position, size } => {
+                tray::SystemTrayEvent::DoubleClick {
+                  position: *position,
+                  size: *size,
+                }
+              }
+            };
+            let listener = listener.clone();
+            crate::async_runtime::spawn(async move {
+              listener.lock().unwrap()(&app_handle, event);
+            });
+          });
       }
     }
 
-    app.runtime.run();
+    Ok(app)
+  }
+
+  /// Runs the configured Tauri application.
+  pub fn run(self, context: Context<A>) -> crate::Result<()> {
+    let mut app = self.build(context)?;
+    #[cfg(all(windows, feature = "system-tray"))]
+    let app_handle = app.handle();
+    app.runtime.take().unwrap().run(move || {
+      #[cfg(shell_execute)]
+      {
+        crate::api::process::kill_children();
+      }
+      #[cfg(all(windows, feature = "system-tray"))]
+      {
+        let _ = app_handle.remove_system_tray();
+      }
+    });
     Ok(())
   }
-}
-
-#[cfg(feature = "system-tray")]
-fn get_menu_ids<I: MenuId>(items: &[SystemTrayMenuItem<I>]) -> HashMap<u32, I> {
-  let mut map = HashMap::new();
-  for item in items {
-    if let SystemTrayMenuItem::Custom(i) = item {
-      map.insert(i.id_value(), i.id.clone());
-    }
-  }
-  map
 }
 
 /// Make `Wry` the default `Runtime` for `Builder`

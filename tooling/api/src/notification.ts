@@ -4,6 +4,22 @@
 
 /**
  * Send notifications to your user. Can also be used with the Notification Web API.
+ *
+ * This package is also accessible with `window.__TAURI__.notification` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ *
+ * The APIs must be allowlisted on `tauri.conf.json`:
+ * ```json
+ * {
+ *   "tauri": {
+ *     "allowlist": {
+ *       "notification": {
+ *         "all": true // enable all notification APIs
+ *       }
+ *     }
+ *   }
+ * }
+ * ```
+ * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
  * @packageDocumentation
  */
 
@@ -12,7 +28,7 @@ import { invokeTauriCommand } from './helpers/tauri'
 /**
  * Options to send a notification.
  */
-export interface Options {
+interface Options {
   /** Notification title. */
   title: string
   /** Optional notification body. */
@@ -22,7 +38,7 @@ export interface Options {
 }
 
 /** Possible permission values. */
-export type Permission = 'granted' | 'denied' | 'default'
+type Permission = 'granted' | 'denied' | 'default'
 
 /**
  * Checks if the permission to send notifications is granted.
@@ -64,5 +80,7 @@ function sendNotification(options: Options | string): void {
     new window.Notification(options.title, options)
   }
 }
+
+export type { Options, Permission }
 
 export { sendNotification, requestPermission, isPermissionGranted }

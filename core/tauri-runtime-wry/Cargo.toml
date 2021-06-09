@@ -15,8 +15,15 @@ readme = "README.md"
 wry = { git = "https://github.com/tauri-apps/wry", branch = "feat/webdriver", default-features = false, features = [ "file-drop", "protocol", "win32" ] }
 tauri-runtime = { version = "0.1.1", path = "../tauri-runtime" }
 tauri-utils = { version = "1.0.0-beta.0", path = "../tauri-utils" }
-image = "0.23"
 uuid = { version = "0.8.2", features = [ "v4" ] }
+infer = "0.4"
+
+[target."cfg(windows)".dependencies]
+ico = "0.1"
+winapi = "0.3"
+
+[target."cfg(target_os = \"linux\")".dependencies]
+png = "0.16"
 
 [features]
 dox = [ "wry/dox" ]

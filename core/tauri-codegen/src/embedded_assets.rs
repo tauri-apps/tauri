@@ -106,6 +106,50 @@ impl EmbeddedAssets {
       .map(Self)
   }
 
+  /// Compress a list of files and directories.
+  pub fn load_paths(
+    paths: Vec<PathBuf>,
+    options: AssetOptions,
+  ) -> Result<Self, EmbeddedAssetsError> {
+    Ok(Self(
+      paths
+        .iter()
+        .map(|path| {
+          let is_file = path.is_file();
+          WalkDir::new(&path)
+            .follow_links(true)
+            .into_iter()
+            .filter_map(|entry| {
+              match entry {
+                // we only serve files, not directory listings
+                Ok(entry) if entry.file_type().is_dir() => None,
+
+                // compress all files encountered
+                Ok(entry) => Some(Self::compress_file(
+                  if is_file {
+                    path.parent().unwrap()
+                  } else {
+                    path
+                  },
+                  entry.path(),
+                  &options,
+                )),
+
+                // pass down error through filter to fail when encountering any error
+                Err(error) => Some(Err(EmbeddedAssetsError::Walkdir {
+                  path: path.to_path_buf(),
+                  error,
+                })),
+              }
+            })
+            .collect::<Result<Vec<Asset>, _>>()
+        })
+        .flatten()
+        .flatten()
+        .collect::<_>(),
+    ))
+  }
+
   /// Use highest compression level for release, the fastest one for everything else
   fn compression_level() -> i32 {
     let levels = zstd::compression_level_range();

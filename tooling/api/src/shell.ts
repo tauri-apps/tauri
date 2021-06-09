@@ -8,6 +8,24 @@ import { transformCallback } from './tauri'
 /**
  * Access the system shell.
  * Allows you to spawn child processes and manage files and URLs using their default application.
+ *
+ * This package is also accessible with `window.__TAURI__.shell` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ *
+ * The APIs must be allowlisted on `tauri.conf.json`:
+ * ```json
+ * {
+ *   "tauri": {
+ *     "allowlist": {
+ *       "shell": {
+ *         "all": true, // enable all shell APIs
+ *         "execute": true, // enable process spawn APIs
+ *         "open": true // enable opening files/URLs using the default program
+ *       }
+ *     }
+ *   }
+ * }
+ * ```
+ * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
  * @packageDocumentation
  */
 

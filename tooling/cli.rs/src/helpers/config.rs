@@ -77,7 +77,7 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
 
   if let Some(merge_config) = merge_config {
     let merge_config: JsonValue =
-      serde_json::from_str(&merge_config).with_context(|| "failed to parse config to merge")?;
+      serde_json::from_str(merge_config).with_context(|| "failed to parse config to merge")?;
     merge(&mut config, &merge_config);
   }
 
@@ -100,4 +100,45 @@ pub fn get(merge_config: Option<&str>) -> crate::Result<ConfigHandle> {
 pub fn reload(merge_config: Option<&str>) -> crate::Result<()> {
   get_internal(merge_config, true)?;
   Ok(())
+}
+
+pub fn all_allowlist_features() -> Vec<&'static str> {
+  AllowlistConfig {
+    all: true,
+    fs: FsAllowlistConfig {
+      all: true,
+      read_text_file: true,
+      read_binary_file: true,
+      write_file: true,
+      write_binary_file: true,
+      read_dir: true,
+      copy_file: true,
+      create_dir: true,
+      remove_dir: true,
+      remove_file: true,
+      rename_file: true,
+      path: true,
+    },
+    window: WindowAllowlistConfig {
+      all: true,
+      create: true,
+    },
+    shell: ShellAllowlistConfig {
+      all: true,
+      execute: true,
+      open: true,
+    },
+    dialog: DialogAllowlistConfig {
+      all: true,
+      open: true,
+      save: true,
+    },
+    http: HttpAllowlistConfig {
+      all: true,
+      request: true,
+    },
+    notification: NotificationAllowlistConfig { all: true },
+    global_shortcut: GlobalShortcutAllowlistConfig { all: true },
+  }
+  .to_features()
 }

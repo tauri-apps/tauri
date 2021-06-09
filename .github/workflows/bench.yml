@@ -1,0 +1,120 @@
+name: benches
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+jobs:
+  bench:
+    strategy:
+      fail-fast: false
+      matrix:
+        rust_version: [stable]
+        platform:
+          - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
+
+    runs-on: ${{ matrix.platform.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: install nightly
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          components: rust-src
+          target: ${{ matrix.platform.target }}
+
+      - name: setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.x"
+          architecture: x64
+
+      - name: install depedencies
+        run: |
+          python -m pip install --upgrade pip
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0 libgtksourceview-3.0-dev libappindicator3-dev xvfb
+          wget https://github.com/sharkdp/hyperfine/releases/download/v1.11.0/hyperfine_1.11.0_amd64.deb
+          sudo dpkg -i hyperfine_1.11.0_amd64.deb
+          pip install memory_profiler
+
+      - name: Get current date
+        run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+
+      - name: Cache cargo registry
+        uses: actions/cache@v2.1.4
+        with:
+          path: ~/.cargo/registry
+          # Add date to the cache to keep it up to date
+          key: ${{ matrix.platform }}-nightly-cargo-registry-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ${{ matrix.platform }}-nightly-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
+            ${{ matrix.platform }}-nightly-cargo-registry-
+
+      - name: Cache cargo index
+        uses: actions/cache@v2.1.4
+        with:
+          path: ~/.cargo/git
+          # Add date to the cache to keep it up to date
+          key: ${{ matrix.platform }}-nightly-cargo-index-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ${{ matrix.platform }}-nightly-cargo-index-${{ hashFiles('**/Cargo.toml') }}
+            ${{ matrix.platform }}-nightly-cargo-index-
+
+      - name: Cache core cargo target
+        uses: actions/cache@v2
+        with:
+          path: target
+          # Add date to the cache to keep it up to date
+          key: ${{ matrix.platform }}-nightly-cargo-core-${{ hashFiles('core/**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ${{ matrix.platform }}-nightly-cargo-core-${{ hashFiles('core/**/Cargo.toml') }}
+            ${{ matrix.platform }}-nightly-cargo-core-
+
+      - name: cache cargo `tooling/bench/tests` target
+        uses: actions/cache@v2
+        with:
+          path: tooling/bench/tests/target
+          # Add date to the cache to keep it up to date
+          key: ubuntu-latest-nightly-cargo-benches-${{ hashFiles('tooling/bench/tests/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ${{ matrix.platform }}-nightly-cargo-benches-${{ hashFiles('tooling/bench/tests/Cargo.lock') }}
+            ${{ matrix.platform }}-nightly-cargo-benches-
+ 
+      - name: run benchmarks
+        run: |
+          cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort --target ${{ matrix.platform.target }} --manifest-path tooling/bench/tests/Cargo.toml
+          xvfb-run --auto-servernum cargo run --manifest-path tooling/bench/Cargo.toml --bin run_benchmark
+
+      - name: clone benchmarks_results
+        if:  github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.BENCH_PAT }}
+          path: gh-pages
+          repository: tauri-apps/benchmark_results
+
+      - name: push new benchmarks
+        if:  github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
+        run: |
+          cargo run --manifest-path tooling/bench/Cargo.toml --bin build_benchmark_jsons
+          cd gh-pages
+          git pull
+          git config user.name "tauri-bench"
+          git config user.email "gh.tauribot@gmail.com"
+          git add .
+          git commit --message "Update Tauri benchmarks"
+          git push origin gh-pages
+
+      - name: Worker info
+        run: |
+          cat /proc/cpuinfo
+          cat /proc/meminfo

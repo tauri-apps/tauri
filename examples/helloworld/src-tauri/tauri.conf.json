@@ -1,7 +1,7 @@
 {
   "build": {
-    "distDir": "../public",
-    "devPath": "../public",
+    "distDir": ["../index.html"],
+    "devPath": ["../index.html"],
     "beforeDevCommand": "",
     "beforeBuildCommand": ""
   },
@@ -35,7 +35,7 @@
       }
     },
     "allowlist": {
-      "all": true
+      "all": false
     },
     "windows": [
       {

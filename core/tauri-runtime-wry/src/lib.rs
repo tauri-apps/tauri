@@ -950,7 +950,9 @@ impl RuntimeHandle for WryHandle {
       .proxy
       .send_event(Message::CreateWebview(
         Arc::new(Mutex::new(Some(Box::new(
-          move |event_loop, web_context| create_webview(event_loop, web_context, dispatcher_context, pending),
+          move |event_loop, web_context| {
+            create_webview(event_loop, web_context, dispatcher_context, pending)
+          },
         )))),
         tx,
       ))
@@ -1113,7 +1115,7 @@ impl Runtime for Wry {
             #[cfg(feature = "system-tray")]
             tray_context: tray_context.clone(),
           },
-          web_context
+          web_context,
         );
       });
 
@@ -1143,7 +1145,7 @@ impl Runtime for Wry {
           #[cfg(feature = "system-tray")]
           tray_context: tray_context.clone(),
         },
-        &web_context
+        &web_context,
       );
     })
   }
@@ -1164,7 +1166,7 @@ fn handle_event_loop(
   event_loop: &EventLoopWindowTarget<Message>,
   control_flow: &mut ControlFlow,
   context: EventLoopIterationContext<'_>,
-  web_context: &WebContext
+  web_context: &WebContext,
 ) -> RunIteration {
   let EventLoopIterationContext {
     callback,
@@ -1368,6 +1370,18 @@ fn handle_event_loop(
           }
         }
       }
+      Message::Webview(id, webview_message) => {
+        if let Some(webview) = webviews.get_mut(&id) {
+          match webview_message {
+            WebviewMessage::EvaluateScript(script) => {
+              let _ = webview.inner.dispatch_script(&script);
+            }
+            WebviewMessage::Print => {
+              let _ = webview.inner.print();
+            }
+          }
+        }
+      }
       Message::CreateWebview(handler, sender) => {
         let handler = {
           let mut lock = handler.lock().expect("poisoned create webview handler");
@@ -1381,18 +1395,6 @@ fn handle_event_loop(
           }
           Err(e) => {
             eprintln!("{}", e);
-          }
-        }
-      }
-      Message::Webview(id, webview_message) => {
-        if let Some(webview) = webviews.get_mut(&id) {
-          match webview_message {
-            WebviewMessage::EvaluateScript(script) => {
-              let _ = webview.inner.dispatch_script(&script);
-            }
-            WebviewMessage::Print => {
-              let _ = webview.inner.print();
-            }
           }
         }
       }

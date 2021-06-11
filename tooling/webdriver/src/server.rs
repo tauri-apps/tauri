@@ -129,7 +129,8 @@ fn map_capabilities(mut json: Value) -> Value {
 
 #[tokio::main(flavor = "current_thread")]
 pub async fn run(args: Args) {
-  let address = std::net::SocketAddr::from(([127, 0, 0, 1], args.port));
+  let port = args.port.clone();
+  let address = std::net::SocketAddr::from(([127, 0, 0, 1], port));
 
   // the client we use to proxy requests to the native webdriver
   let client = Client::builder()
@@ -142,9 +143,10 @@ pub async fn run(args: Args) {
   // pass a copy of the client to the http request handler
   let service = make_service_fn(move |_| {
     let client = client.clone();
+    let args = args.clone();
     async move {
       Ok::<_, Infallible>(service_fn(move |request| {
-        handle(client.clone(), request, args)
+        handle(client.clone(), request, args.clone())
       }))
     }
   });

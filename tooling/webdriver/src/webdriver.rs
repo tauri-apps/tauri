@@ -27,7 +27,5 @@ pub fn native(args: &Args) -> Command {
     std::process::exit(1);
   }
 
-  let mut cmd = prepare_native_driver(args);
-  cmd.env("TAURI_AUTOMATION_MODE", "TRUE");
-  cmd
+  prepare_native_driver(args)
 }

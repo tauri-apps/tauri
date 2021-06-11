@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 const HELP: &str = "\
 USAGE: tauri-driver [FLAGS] [OPTIONS]
 
@@ -6,13 +8,15 @@ FLAGS:
 
 OPTIONS:
   --port NUMBER           Sets the tauri-driver intermediary port
-  --native-port NUMBER    Sets the port of the underlying webdriver
+  --native-port NUMBER    Sets the port of the underlying WebDriver
+  --native-driver PATH    Sets the path to the native WebDriver binary
 ";
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct Args {
   pub port: u16,
   pub native_port: u16,
+  pub native_driver: Option<PathBuf>
 }
 
 impl From<pico_args::Arguments> for Args {
@@ -23,9 +27,18 @@ impl From<pico_args::Arguments> for Args {
       std::process::exit(0);
     }
 
+    let native_driver = match args.opt_value_from_str("--native-port") {
+      Ok(native_driver) => native_driver,
+      Err(e) => {
+        eprintln!("Error while parsing option --native-driver: {}", e);
+        std::process::exit(1);
+      }
+    };
+
     let parsed = Args {
       port: args.value_from_str("--port").unwrap_or(4444),
       native_port: args.value_from_str("--native-port").unwrap_or(4445),
+      native_driver
     };
 
     // be strict about accepting args, error for anything extraneous

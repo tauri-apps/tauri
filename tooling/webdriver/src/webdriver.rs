@@ -1,31 +1,46 @@
 use crate::cli::Args;
-use std::process::Command;
+use std::{env::current_dir, process::Command};
 
 // the name of the binary to find in $PATH
 #[cfg(target_os = "linux")]
 const DRIVER_BINARY: &str = "WebKitWebDriver";
 
 #[cfg(target_os = "windows")]
-const DRIVER_BINARY: &str = "./msedgedriver.exe";
-
-// a prepared command of the native driver with necessary arguments
-#[cfg(any(target_os = "linux", target_os = "windows"))]
-fn prepare_native_driver(args: &Args) -> Command {
-  let mut cmd = Command::new(DRIVER_BINARY);
-  cmd.arg(format!("--port={}", args.native_port));
-  cmd
-}
+const DRIVER_BINARY: &str = "msedgedriver.exe";
 
 /// Find the native driver binary in the PATH, or exits the process with an error.
 pub fn native(args: &Args) -> Command {
-  if let Err(error) = which::which(DRIVER_BINARY) {
-    eprintln!(
-      "can not find binary {} in the PATH. This is currently required",
-      DRIVER_BINARY
-    );
-    eprintln!("{:?}", error);
-    std::process::exit(1);
-  }
+  let native_binary = match args.native_driver.as_deref() {
+    Some(custom) => {
+      if custom.exists() {
+        custom.to_owned()
+      } else {
+        eprintln!(
+          "can not find the supplied binary path {}. This is currently required.",
+          custom.display()
+        );
+        match current_dir() {
+          Ok(cwd) => eprintln!("current working directory: {}", cwd.display()),
+          Err(error) => eprintln!("can not find current working directory: {}", error),
+        }
+        std::process::exit(1);
+      }
+    }
+    None => match which::which(DRIVER_BINARY) {
+      Ok(binary) => binary,
+      Err(error) => {
+        eprintln!(
+          "can not find binary {} in the PATH. This is currently required.\
+          You can also pass a custom path with --native-driver",
+          DRIVER_BINARY
+        );
+        eprintln!("{:?}", error);
+        std::process::exit(1);
+      }
+    },
+  };
 
-  prepare_native_driver(args)
+  let mut cmd = Command::new(native_binary);
+  cmd.arg(format!("--port={}", args.native_port));
+  cmd
 }

@@ -96,11 +96,6 @@ jobs:
             override: true
             components: rustfmt, clippy
 
-      - name: install webkit2gtk (ubuntu only)
-        if: matrix.platform == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libgtksourceview-3.0-dev webkit2gtk-4.0 libappindicator3-dev
       - name: clippy check
         uses: actions-rs/clippy-check@v1
         with:

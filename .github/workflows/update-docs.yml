@@ -71,11 +71,11 @@ jobs:
       - name: meilisearch indexation
         uses: tauri-apps/docusaurus-meilisearch-indexer@v1
         with:
-          - version: ${{ github.event.release.tag_name }}
-          - docusaurusPath: ./tauri-docs
-          - host: https://search.tauri.studio
-          - apiKey: ${{ secrets.MEILISEARCH_APIKEY }}
-          - docs: "Getting started,Usage,API"
+          version: ${{ github.event.release.tag_name }}
+          docusaurusPath: ./tauri-docs
+          host: https://search.tauri.studio
+          apiKey: ${{ secrets.MEILISEARCH_APIKEY }}
+          docs: "Getting started,Usage,API"
 
       # Applying Version
       - name: set docs' Tauri version

@@ -8,7 +8,7 @@
 //! For command handlers, it's recommended to use a plain `async fn` command.
 
 use once_cell::sync::OnceCell;
-use tokio::runtime::Runtime;
+use tokio::runtime::{Handle, Runtime};
 pub use tokio::sync::{
   mpsc::{channel, Receiver, Sender},
   Mutex, RwLock,
@@ -32,4 +32,10 @@ where
 {
   let runtime = RUNTIME.get_or_init(|| Runtime::new().unwrap());
   runtime.spawn(task);
+}
+
+/// Return a handle to the runtime.
+pub fn handle() -> &'static Handle {
+  let runtime = RUNTIME.get_or_init(|| Runtime::new().unwrap());
+  runtime.handle()
 }

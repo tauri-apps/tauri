@@ -159,6 +159,31 @@ fn main() {
 }
 ```
 
+## Creating Multiple Commands
+
+The `tauri::generate_handler!` macro takes an array of commands. To register
+multiple commands, you cannot call invoke_handler multiple times. Only the last
+call will be used. You must pass each command to a single call of
+`tauri::generate_handler!`.
+
+```rust
+#[tauri::command]
+fn cmd_a() -> String {
+	"Command a"
+}
+#[tauri::command]
+fn cmd_b() -> String {
+	"Command b"
+}
+
+fn main() {
+  tauri::Builder::default()
+    .invoke_handler(tauri::generate_handler![cmd_a, cmd_b])
+    .run(tauri::generate_context!())
+    .expect("error while running tauri application");
+}
+```
+
 ## Complete Example
 
 Any or all of the above features can be combined:

@@ -344,7 +344,6 @@ fn run_light(
     .stdout(Stdio::piped())
     .current_dir(build_path);
 
-  common::print_info(format!("running light to produce {}", output_path.display()).as_str())?;
   common::execute_with_verbosity(&mut cmd, settings).map_err(|_| {
     crate::Error::ShellScriptError(format!(
       "error running light.exe{}",
@@ -545,6 +544,11 @@ pub fn build_wix_app_installer(
     "*.wixobj".into(),
   ];
   let msi_output_path = output_path.join("output.msi");
+  let msi_path = app_installer_dir(settings)?;
+  create_dir_all(msi_path.parent().unwrap())?;
+
+  common::print_info(format!("running light to produce {}", msi_path.display()).as_str())?;
+
   run_light(
     wix_toolset_path,
     &output_path,
@@ -552,7 +556,6 @@ pub fn build_wix_app_installer(
     &msi_output_path,
     settings,
   )?;
-  let msi_path = app_installer_dir(settings)?;
   rename(&msi_output_path, &msi_path)?;
 
   Ok(msi_path)

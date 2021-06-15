@@ -13,18 +13,18 @@
             Id="*"
             Name="{{{product_name}}}"
             UpgradeCode="{{{upgrade_code}}}"
-            Language="1033"
-            Codepage="1252"
+            Language="{{language_id}}"
+            Codepage="{{ascii_codepage}}"
             Manufacturer="{{{manufacturer}}}"
             Version="{{{version}}}">
 
         <Package Id="*"
                  Keywords="Installer"
                  InstallerVersion="450"
-                 Languages="1033"
+                 Languages="{{language_id}}"
                  Compressed="yes"
                  InstallScope="perMachine"
-                 SummaryCodepage="1252"/>
+                 SummaryCodepage="{{ascii_codepage}}"/>
 
          <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed."
                   MigrateFeatures="yes" />

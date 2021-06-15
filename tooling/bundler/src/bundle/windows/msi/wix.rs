@@ -11,13 +11,13 @@ use crate::bundle::{
 
 use handlebars::{to_json, Handlebars};
 use regex::Regex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use uuid::Uuid;
 use zip::ZipArchive;
 
 use std::{
-  collections::BTreeMap,
+  collections::{BTreeMap, HashMap},
   fs::{create_dir_all, remove_dir_all, write, File},
   io::{Cursor, Read, Write},
   path::{Path, PathBuf},
@@ -51,6 +51,14 @@ const UUID_NAMESPACE: [u8; 16] = [
 
 /// Mapper between a resource directory name and its ResourceDirectory descriptor.
 type ResourceMap = BTreeMap<String, ResourceDirectory>;
+
+#[derive(Debug, Deserialize)]
+struct LanguageMetadata {
+  #[serde(rename = "asciiCode")]
+  ascii_code: usize,
+  #[serde(rename = "langId")]
+  lang_id: usize,
+}
 
 /// A binary to bundle with WIX.
 /// External binaries or additional project binaries are represented with this data structure.
@@ -316,10 +324,12 @@ fn run_light(
   wixobjs: &[&str],
   output_path: &Path,
   settings: &Settings,
+  language: String,
 ) -> crate::Result<PathBuf> {
   let light_exe = wix_toolset_path.join("light.exe");
 
   let mut args: Vec<String> = vec![
+    format!("-cultures:{}", language.to_lowercase()),
     "-ext".to_string(),
     "WixUIExtension".to_string(),
     "-o".to_string(),
@@ -405,6 +415,29 @@ pub fn build_wix_app_installer(
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
   let mut data = BTreeMap::new();
+
+  let language_map: HashMap<String, LanguageMetadata> =
+    serde_json::from_str(include_str!("./languages.json")).unwrap();
+
+  let (language, language_metadata) = if let Some(wix) = &settings.windows().wix {
+    let metadata = language_map.get(&wix.language).unwrap_or_else(|| {
+      panic!(
+        "Language {} not found. It must be one of {}",
+        wix.language,
+        language_map
+          .keys()
+          .cloned()
+          .collect::<Vec<String>>()
+          .join(", ")
+      )
+    });
+    (wix.language.clone(), metadata)
+  } else {
+    common::print_info("Wix settings not found. Using `en-US` as language.")?;
+    ("en-US".into(), language_map.get("en-US").unwrap())
+  };
+  data.insert("language_id", to_json(language_metadata.lang_id));
+  data.insert("ascii_codepage", to_json(language_metadata.ascii_code));
 
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("version", to_json(settings.version_string()));
@@ -518,6 +551,7 @@ pub fn build_wix_app_installer(
     &wixobjs,
     &app_installer_dir(settings)?,
     settings,
+    language,
   )?;
 
   Ok(target)

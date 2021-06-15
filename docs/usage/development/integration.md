@@ -107,7 +107,7 @@ App directory structure
 App
   tauri.rs - 1.0.0-beta.1
   build-type - bundle
-  CSP - default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'
+  CSP - default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'
   distDir - ../public
   devPath - ../public
   framework - Svelte

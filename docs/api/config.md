@@ -358,7 +358,7 @@ Instead of launching the app directly, we configure the bundled app to run a scr
     "fullscreen": false
   }],
   "security": {
-    "csp": "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
+    "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self'"
   }
 }
 ```

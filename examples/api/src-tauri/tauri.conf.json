@@ -74,7 +74,8 @@
     },
     "windows": [
       {
-        "title": "Tauri API Validation"
+        "title": "Tauri API Validation",
+        "transparent": true
       }
     ],
     "security": {

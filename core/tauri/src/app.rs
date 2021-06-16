@@ -92,6 +92,7 @@ crate::manager::default_args! {
   pub struct AppHandle<P: Params> {
     runtime_handle: <P::Runtime as Runtime>::Handle,
     manager: WindowManager<P>,
+    global_shortcut_manager: <P::Runtime as Runtime>::GlobalShortcutManager,
     #[cfg(feature = "system-tray")]
     tray_handle: Option<tray::SystemTrayHandle<P>>,
   }
@@ -102,6 +103,7 @@ impl<P: Params> Clone for AppHandle<P> {
     Self {
       runtime_handle: self.runtime_handle.clone(),
       manager: self.manager.clone(),
+      global_shortcut_manager: self.global_shortcut_manager.clone(),
       #[cfg(feature = "system-tray")]
       tray_handle: self.tray_handle.clone(),
     }
@@ -126,6 +128,10 @@ impl<P: Params> ManagerBase<P> for AppHandle<P> {
   fn runtime(&self) -> RuntimeOrDispatch<'_, P> {
     RuntimeOrDispatch::RuntimeHandle(self.runtime_handle.clone())
   }
+
+  fn app_handle(&self) -> AppHandle<P> {
+    self.clone()
+  }
 }
 
 crate::manager::default_args! {
@@ -135,6 +141,7 @@ crate::manager::default_args! {
   pub struct App<P: Params> {
     runtime: Option<P::Runtime>,
     manager: WindowManager<P>,
+    global_shortcut_manager: <P::Runtime as Runtime>::GlobalShortcutManager,
     #[cfg(feature = "system-tray")]
     tray_handle: Option<tray::SystemTrayHandle<P>>,
     handle: AppHandle<P>,
@@ -149,6 +156,10 @@ impl<P: Params> ManagerBase<P> for App<P> {
 
   fn runtime(&self) -> RuntimeOrDispatch<'_, P> {
     RuntimeOrDispatch::Runtime(self.runtime.as_ref().unwrap())
+  }
+
+  fn app_handle(&self) -> AppHandle<P> {
+    self.handle()
   }
 }
 
@@ -186,6 +197,11 @@ macro_rules! shared_app_impl {
           .tray_handle
           .clone()
           .expect("tray not configured; use the `Builder#system_tray` API first.")
+      }
+
+      /// Gets a copy of the global shortcut manager instance.
+      pub fn global_shortcut_manager(&self) -> <P::Runtime as Runtime>::GlobalShortcutManager {
+        self.global_shortcut_manager.clone()
       }
     }
   };
@@ -650,15 +666,18 @@ where
 
     let runtime = R::new()?;
     let runtime_handle = runtime.handle();
+    let global_shortcut_manager = runtime.global_shortcut_manager();
 
     let mut app = App {
       runtime: Some(runtime),
       manager: manager.clone(),
+      global_shortcut_manager: global_shortcut_manager.clone(),
       #[cfg(feature = "system-tray")]
       tray_handle: None,
       handle: AppHandle {
         runtime_handle,
         manager,
+        global_shortcut_manager,
         #[cfg(feature = "system-tray")]
         tray_handle: None,
       },
@@ -676,9 +695,11 @@ where
     let mut main_window = None;
 
     for pending in self.pending_windows {
-      let pending = app.manager.prepare_window(pending, &pending_labels)?;
+      let pending = app
+        .manager
+        .prepare_window(app.handle.clone(), pending, &pending_labels)?;
       let detached = app.runtime.as_ref().unwrap().create_window(pending)?;
-      let _window = app.manager.attach_window(detached);
+      let _window = app.manager.attach_window(app.handle(), detached);
       #[cfg(feature = "updater")]
       if main_window.is_none() {
         main_window = Some(_window);

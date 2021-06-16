@@ -73,10 +73,6 @@ pub enum Error {
   #[cfg(feature = "cli")]
   #[error("failed to parse CLI arguments: {0}")]
   ParseCliArguments(#[from] clap::Error),
-  /// Shortcut error.
-  #[cfg(global_shortcut_all)]
-  #[error("shortcut error: {0}")]
-  Shortcut(#[from] tauri_hotkey::Error),
   /// Shell error.
   #[error("shell error: {0}")]
   Shell(String),

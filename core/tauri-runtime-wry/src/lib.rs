@@ -13,7 +13,8 @@ use tauri_runtime::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     DetachedWindow, PendingWindow, WindowEvent,
   },
-  Dispatch, Error, Icon, Params, Result, RunIteration, Runtime, RuntimeHandle,
+  Dispatch, Error, GlobalShortcutManager, Icon, Params, Result, RunIteration, Runtime,
+  RuntimeHandle,
 };
 
 #[cfg(feature = "menu")]
@@ -31,6 +32,7 @@ use tauri_utils::config::WindowConfig;
 use uuid::Uuid;
 use wry::{
   application::{
+    accelerator::{Accelerator, AcceleratorId},
     dpi::{
       LogicalPosition as WryLogicalPosition, LogicalSize as WryLogicalSize,
       PhysicalPosition as WryPhysicalPosition, PhysicalSize as WryPhysicalSize,
@@ -39,6 +41,7 @@ use wry::{
     event::{Event, WindowEvent as WryWindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
     monitor::MonitorHandle,
+    platform::global_shortcut::{GlobalShortcut, ShortcutManager as WryShortcutManager},
     window::{Fullscreen, Icon as WindowIcon, Window, WindowBuilder as WryWindowBuilder, WindowId},
   },
   webview::{
@@ -72,6 +75,71 @@ type CreateWebviewHandler =
   Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> Result<WebviewWrapper> + Send>;
 type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
+type GlobalShortcutListeners = Arc<Mutex<Vec<(AcceleratorId, Box<dyn Fn() + Send>)>>>;
+
+/// Wrapper around [`WryShortcutManager`].
+#[derive(Clone)]
+pub struct GlobalShortcutManagerWrapper {
+  inner: Arc<Mutex<WryShortcutManager>>,
+  shortcuts: HashMap<String, (AcceleratorId, GlobalShortcut)>,
+  listeners: GlobalShortcutListeners,
+}
+
+impl GlobalShortcutManager for GlobalShortcutManagerWrapper {
+  fn is_registered(&self, accelerator: &str) -> bool {
+    self
+      .inner
+      .lock()
+      .unwrap()
+      .is_registered(&accelerator.parse().expect("invalid accelerator"))
+  }
+
+  fn register<F: Fn() + Send + 'static>(&mut self, accelerator: &str, handler: F) -> Result<()> {
+    let mut wry_accelerator: Accelerator = accelerator.parse().expect("invalid accelerator");
+    let id = AcceleratorId(rand::random());
+    wry_accelerator = wry_accelerator.with_id(id);
+    let shortcut = self
+      .inner
+      .lock()
+      .unwrap()
+      .register(wry_accelerator.clone())
+      .map_err(|e| Error::GlobalShortcut(Box::new(e)))?;
+
+    self.listeners.lock().unwrap().push((id, Box::new(handler)));
+    self.shortcuts.insert(accelerator.into(), (id, shortcut));
+
+    Ok(())
+  }
+
+  fn unregister_all(&mut self) -> Result<()> {
+    self
+      .inner
+      .lock()
+      .unwrap()
+      .unregister_all()
+      .map_err(|e| Error::GlobalShortcut(Box::new(e)))?;
+    self.listeners.lock().unwrap().clear();
+    self.shortcuts.clear();
+    Ok(())
+  }
+
+  fn unregister(&mut self, accelerator: &str) -> crate::Result<()> {
+    if let Some((accelerator_id, shortcut)) = self.shortcuts.remove(accelerator) {
+      self
+        .inner
+        .lock()
+        .unwrap()
+        .unregister(shortcut)
+        .map_err(|e| Error::GlobalShortcut(Box::new(e)))?;
+      self
+        .listeners
+        .lock()
+        .unwrap()
+        .retain(|(id, _)| id != &accelerator_id);
+    }
+    Ok(())
+  }
+}
 
 /// Wrapper around a [`wry::application::window::Icon`] that can be created from an [`Icon`].
 pub struct WryIcon(WindowIcon);
@@ -250,7 +318,7 @@ pub struct WindowBuilderWrapper {
   inner: WryWindowBuilder,
   center: bool,
   #[cfg(feature = "menu")]
-  menu_items: HashMap<u32, WryCustomMenuItem>,
+  menu_items: HashMap<u16, WryCustomMenuItem>,
 }
 
 // safe since `menu_items` are read only here
@@ -492,7 +560,7 @@ enum WindowMessage {
   SetSkipTaskbar(bool),
   DragWindow,
   #[cfg(feature = "menu")]
-  UpdateMenuItem(u32, menu::MenuUpdate),
+  UpdateMenuItem(u16, menu::MenuUpdate),
 }
 
 #[derive(Debug, Clone)]
@@ -504,7 +572,7 @@ enum WebviewMessage {
 #[cfg(feature = "system-tray")]
 #[derive(Clone)]
 pub(crate) enum TrayMessage {
-  UpdateItem(u32, menu::MenuUpdate),
+  UpdateItem(u16, menu::MenuUpdate),
   UpdateIcon(Icon),
   #[cfg(windows)]
   Remove,
@@ -930,7 +998,7 @@ impl Dispatch for WryDispatcher {
   }
 
   #[cfg(feature = "menu")]
-  fn update_menu_item(&self, id: u32, update: menu::MenuUpdate) -> Result<()> {
+  fn update_menu_item(&self, id: u16, update: menu::MenuUpdate) -> Result<()> {
     self
       .context
       .proxy
@@ -953,7 +1021,7 @@ struct TrayContext {
 struct WebviewWrapper {
   inner: WebView,
   #[cfg(feature = "menu")]
-  menu_items: HashMap<u32, WryCustomMenuItem>,
+  menu_items: HashMap<u16, WryCustomMenuItem>,
   #[cfg(feature = "menu")]
   is_menu_visible: AtomicBool,
 }
@@ -961,6 +1029,7 @@ struct WebviewWrapper {
 /// A Tauri [`Runtime`] wrapper around wry.
 pub struct Wry {
   main_thread_id: ThreadId,
+  global_shortcut_manager: GlobalShortcutManagerWrapper,
   is_event_loop_running: Arc<AtomicBool>,
   event_loop: EventLoop<Message>,
   webviews: Arc<Mutex<HashMap<WindowId, WebviewWrapper>>>,
@@ -1020,13 +1089,21 @@ impl RuntimeHandle for WryHandle {
 impl Runtime for Wry {
   type Dispatcher = WryDispatcher;
   type Handle = WryHandle;
+  type GlobalShortcutManager = GlobalShortcutManagerWrapper;
   #[cfg(feature = "system-tray")]
   type TrayHandler = SystemTrayHandle;
 
   fn new() -> Result<Self> {
     let event_loop = EventLoop::<Message>::with_user_event();
+    let global_shortcut_manager = WryShortcutManager::new(&event_loop);
+    let global_shortcut_listeners = GlobalShortcutListeners::default();
     Ok(Self {
       main_thread_id: current_thread().id(),
+      global_shortcut_manager: GlobalShortcutManagerWrapper {
+        inner: Arc::new(Mutex::new(global_shortcut_manager)),
+        shortcuts: Default::default(),
+        listeners: global_shortcut_listeners,
+      },
       is_event_loop_running: Default::default(),
       event_loop,
       webviews: Default::default(),
@@ -1049,6 +1126,10 @@ impl Runtime for Wry {
         menu_event_listeners: self.menu_event_listeners.clone(),
       },
     }
+  }
+
+  fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager {
+    self.global_shortcut_manager.clone()
   }
 
   fn create_window<P: Params<Runtime = Self>>(
@@ -1138,6 +1219,7 @@ impl Runtime for Wry {
     let menu_event_listeners = self.menu_event_listeners.clone();
     #[cfg(feature = "system-tray")]
     let tray_context = self.tray_context.clone();
+    let global_shortcut_manager = global_shortcut_manager.clone();
 
     let mut iteration = RunIteration::default();
 
@@ -1156,6 +1238,7 @@ impl Runtime for Wry {
             callback: None,
             webviews: webviews.lock().expect("poisoned webview collection"),
             window_event_listeners: window_event_listeners.clone(),
+            global_shortcut_manager: global_shortcut_manager.clone(),
             #[cfg(feature = "menu")]
             menu_event_listeners: menu_event_listeners.clone(),
             #[cfg(feature = "system-tray")]
@@ -1176,6 +1259,7 @@ impl Runtime for Wry {
     let menu_event_listeners = self.menu_event_listeners.clone();
     #[cfg(feature = "system-tray")]
     let tray_context = self.tray_context;
+    let global_shortcut_manager = self.global_shortcut_manager.clone();
 
     self.event_loop.run(move |event, event_loop, control_flow| {
       handle_event_loop(
@@ -1186,6 +1270,7 @@ impl Runtime for Wry {
           callback: Some(&callback),
           webviews: webviews.lock().expect("poisoned webview collection"),
           window_event_listeners: window_event_listeners.clone(),
+          global_shortcut_manager: global_shortcut_manager.clone(),
           #[cfg(feature = "menu")]
           menu_event_listeners: menu_event_listeners.clone(),
           #[cfg(feature = "system-tray")]
@@ -1200,6 +1285,7 @@ struct EventLoopIterationContext<'a> {
   callback: Option<&'a (dyn Fn() + 'static)>,
   webviews: MutexGuard<'a, HashMap<WindowId, WebviewWrapper>>,
   window_event_listeners: WindowEventListeners,
+  global_shortcut_manager: GlobalShortcutManagerWrapper,
   #[cfg(feature = "menu")]
   menu_event_listeners: MenuEventListeners,
   #[cfg(feature = "system-tray")]
@@ -1216,6 +1302,7 @@ fn handle_event_loop(
     callback,
     mut webviews,
     window_event_listeners,
+    global_shortcut_manager,
     #[cfg(feature = "menu")]
     menu_event_listeners,
     #[cfg(feature = "system-tray")]
@@ -1224,6 +1311,13 @@ fn handle_event_loop(
   *control_flow = ControlFlow::Wait;
 
   match event {
+    Event::GlobalShortcutEvent(accelerator_id) => {
+      for (id, handler) in &*global_shortcut_manager.listeners.lock().unwrap() {
+        if accelerator_id == *id {
+          handler();
+        }
+      }
+    }
     #[cfg(feature = "menu")]
     Event::MenuEvent {
       menu_id,

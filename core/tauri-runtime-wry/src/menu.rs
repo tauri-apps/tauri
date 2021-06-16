@@ -45,7 +45,7 @@ pub type SystemTrayEventHandler = Box<dyn Fn(&SystemTrayEvent) + Send>;
 #[cfg(feature = "system-tray")]
 pub type SystemTrayEventListeners = Arc<Mutex<HashMap<Uuid, SystemTrayEventHandler>>>;
 #[cfg(feature = "system-tray")]
-pub type SystemTrayItems = Arc<Mutex<HashMap<u32, WryCustomMenuItem>>>;
+pub type SystemTrayItems = Arc<Mutex<HashMap<u16, WryCustomMenuItem>>>;
 
 #[cfg(feature = "system-tray")]
 #[derive(Clone)]
@@ -61,7 +61,7 @@ impl TrayHandle for SystemTrayHandle {
       .send_event(Message::Tray(TrayMessage::UpdateIcon(icon)))
       .map_err(|_| Error::FailedToSendMessage)
   }
-  fn update_item(&self, id: u32, update: MenuUpdate) -> Result<()> {
+  fn update_item(&self, id: u16, update: MenuUpdate) -> Result<()> {
     self
       .proxy
       .send_event(Message::Tray(TrayMessage::UpdateItem(id, update)))
@@ -147,7 +147,7 @@ impl<'a, I: MenuId> From<&'a CustomMenuItem<I>> for MenuItemAttributesWrapper<'a
       .with_selected(item.selected)
       .with_id(WryMenuId(item.id_value()));
     if let Some(accelerator) = item.keyboard_accelerator.as_ref() {
-      attributes = attributes.with_accelerators(accelerator);
+      attributes = attributes.with_accelerators(&accelerator.parse().expect("invalid accelerator"));
     }
     Self(attributes)
   }
@@ -191,7 +191,7 @@ impl From<SystemTrayMenuItem> for MenuItemWrapper {
 
 #[cfg(feature = "menu")]
 pub fn to_wry_menu<I: MenuId>(
-  custom_menu_items: &mut HashMap<u32, WryCustomMenuItem>,
+  custom_menu_items: &mut HashMap<u16, WryCustomMenuItem>,
   menu: Menu<I>,
 ) -> MenuBar {
   let mut wry_menu = MenuBar::new();
@@ -224,7 +224,7 @@ pub fn to_wry_menu<I: MenuId>(
 
 #[cfg(feature = "system-tray")]
 pub fn to_wry_context_menu<I: MenuId>(
-  custom_menu_items: &mut HashMap<u32, WryCustomMenuItem>,
+  custom_menu_items: &mut HashMap<u16, WryCustomMenuItem>,
   menu: SystemTrayMenu<I>,
 ) -> WryContextMenu {
   let mut tray_menu = WryContextMenu::new();

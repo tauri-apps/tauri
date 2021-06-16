@@ -102,6 +102,9 @@ pub enum Error {
   /// Failed to get monitor on window operation.
   #[error("failed to get monitor")]
   FailedToGetMonitor,
+  /// Global shortcut error.
+  #[error(transparent)]
+  GlobalShortcut(Box<dyn std::error::Error + Send>),
 }
 
 /// Result type.
@@ -171,7 +174,7 @@ impl Icon {
 
 /// A system tray event.
 pub enum SystemTrayEvent {
-  MenuItemClick(u32),
+  MenuItemClick(u16),
   LeftClick {
     position: PhysicalPosition<f64>,
     size: PhysicalSize<f64>,
@@ -206,12 +209,30 @@ pub trait RuntimeHandle: Send + Sized + Clone + 'static {
   fn remove_system_tray(&self) -> crate::Result<()>;
 }
 
+/// A global shortcut manager.
+pub trait GlobalShortcutManager {
+  /// Whether the application has registered the given `accelerator`.
+  fn is_registered(&self, accelerator: &str) -> bool;
+  /// Register a global shortcut of `accelerator`.
+  fn register<F: Fn() + Send + 'static>(
+    &mut self,
+    accelerator: &str,
+    handler: F,
+  ) -> crate::Result<()>;
+  /// Unregister all accelerators registered by the manager instance.
+  fn unregister_all(&mut self) -> crate::Result<()>;
+  /// Unregister the provided `accelerator`.
+  fn unregister(&mut self, accelerator: &str) -> crate::Result<()>;
+}
+
 /// The webview runtime interface.
 pub trait Runtime: Sized + 'static {
   /// The message dispatcher.
   type Dispatcher: Dispatch<Runtime = Self>;
   /// The runtime handle type.
   type Handle: RuntimeHandle<Runtime = Self>;
+  /// The global shortcut manager type.
+  type GlobalShortcutManager: GlobalShortcutManager + Clone + Send;
   /// The tray handler type.
   #[cfg(feature = "system-tray")]
   type TrayHandler: menu::TrayHandle + Clone + Send;
@@ -221,6 +242,9 @@ pub trait Runtime: Sized + 'static {
 
   /// Gets a runtime handle.
   fn handle(&self) -> Self::Handle;
+
+  /// Gets the global shortcut manager.
+  fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager;
 
   /// Create a new webview window.
   fn create_window<P: Params<Runtime = Self>>(
@@ -409,5 +433,5 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
 
   /// Applies the specified `update` to the menu item associated with the given `id`.
   #[cfg(feature = "menu")]
-  fn update_menu_item(&self, id: u32, update: menu::MenuUpdate) -> crate::Result<()>;
+  fn update_menu_item(&self, id: u16, update: menu::MenuUpdate) -> crate::Result<()>;
 }

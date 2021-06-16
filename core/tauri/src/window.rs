@@ -308,16 +308,31 @@ impl<P: Params> Window<P> {
   }
 
   /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn scale_factor(&self) -> crate::Result<f64> {
     self.window.dispatcher.scale_factor().map_err(Into::into)
   }
 
   /// Returns the position of the top-left hand corner of the window's client area relative to the top-left hand corner of the desktop.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn inner_position(&self) -> crate::Result<PhysicalPosition<i32>> {
     self.window.dispatcher.inner_position().map_err(Into::into)
   }
 
   /// Returns the position of the top-left hand corner of the window relative to the top-left hand corner of the desktop.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn outer_position(&self) -> crate::Result<PhysicalPosition<i32>> {
     self.window.dispatcher.outer_position().map_err(Into::into)
   }
@@ -325,6 +340,11 @@ impl<P: Params> Window<P> {
   /// Returns the physical size of the window's client area.
   ///
   /// The client area is the content of the window, excluding the title bar and borders.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn inner_size(&self) -> crate::Result<PhysicalSize<u32>> {
     self.window.dispatcher.inner_size().map_err(Into::into)
   }
@@ -332,31 +352,61 @@ impl<P: Params> Window<P> {
   /// Returns the physical size of the entire window.
   ///
   /// These dimensions include the title bar and borders. If you don't want that (and you usually don't), use inner_size instead.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn outer_size(&self) -> crate::Result<PhysicalSize<u32>> {
     self.window.dispatcher.outer_size().map_err(Into::into)
   }
 
   /// Gets the window's current fullscreen state.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn is_fullscreen(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_fullscreen().map_err(Into::into)
   }
 
   /// Gets the window's current maximized state.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn is_maximized(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_maximized().map_err(Into::into)
   }
 
   /// Gets the window’s current decoration state.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn is_decorated(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_decorated().map_err(Into::into)
   }
 
   /// Gets the window’s current resizable state.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn is_resizable(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_resizable().map_err(Into::into)
   }
 
   /// Gets the window's current vibility state.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn is_visible(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_visible().map_err(Into::into)
   }
@@ -364,6 +414,15 @@ impl<P: Params> Window<P> {
   /// Returns the monitor on which the window currently resides.
   ///
   /// Returns None if current monitor can't be detected.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** Unsupported
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn current_monitor(&self) -> crate::Result<Option<Monitor>> {
     self
       .window
@@ -376,6 +435,15 @@ impl<P: Params> Window<P> {
   /// Returns the primary monitor of the system.
   ///
   /// Returns None if it can't identify any monitor as a primary one.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** Unsupported
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
     self
       .window
@@ -386,6 +454,15 @@ impl<P: Params> Window<P> {
   }
 
   /// Returns the list of all the monitors available on the system.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** Unsupported
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn available_monitors(&self) -> crate::Result<Vec<Monitor>> {
     self
       .window
@@ -396,6 +473,11 @@ impl<P: Params> Window<P> {
   }
 
   /// Returns the native handle that is used by this window.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   #[cfg(windows)]
   pub fn hwnd(&self) -> crate::Result<*mut std::ffi::c_void> {
     self.window.dispatcher.hwnd().map_err(Into::into)

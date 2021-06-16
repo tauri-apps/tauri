@@ -42,8 +42,8 @@ use wry::{
     window::{Fullscreen, Icon as WindowIcon, Window, WindowBuilder as WryWindowBuilder, WindowId},
   },
   webview::{
-    FileDropEvent as WryFileDropEvent, RpcRequest as WryRpcRequest, RpcResponse, WebView,
-    WebViewBuilder,
+    FileDropEvent as WryFileDropEvent, RpcRequest as WryRpcRequest, RpcResponse, WebContext,
+    WebView, WebViewBuilder,
   },
 };
 
@@ -57,10 +57,16 @@ use std::{
   },
 };
 
+#[cfg(feature = "menu")]
+use std::sync::atomic::{AtomicBool, Ordering};
+
 #[cfg(any(feature = "menu", feature = "system-tray"))]
 mod menu;
 #[cfg(any(feature = "menu", feature = "system-tray"))]
 use menu::*;
+
+mod mime_type;
+use mime_type::MimeType;
 
 type MainTask = Arc<Mutex<Option<Box<dyn FnOnce() + Send>>>>;
 type CreateWebviewHandler =
@@ -453,6 +459,8 @@ enum WindowMessage {
   IsDecorated(Sender<bool>),
   IsResizable(Sender<bool>),
   IsVisible(Sender<bool>),
+  #[cfg(feature = "menu")]
+  IsMenuVisible(Sender<bool>),
   CurrentMonitor(Sender<Option<MonitorHandle>>),
   PrimaryMonitor(Sender<Option<MonitorHandle>>),
   AvailableMonitors(Sender<Vec<MonitorHandle>>),
@@ -466,6 +474,10 @@ enum WindowMessage {
   Unmaximize,
   Minimize,
   Unminimize,
+  #[cfg(feature = "menu")]
+  ShowMenu,
+  #[cfg(feature = "menu")]
+  HideMenu,
   Show,
   Hide,
   Close,
@@ -615,6 +627,11 @@ impl Dispatch for WryDispatcher {
     Ok(dispatcher_getter!(self, WindowMessage::IsVisible))
   }
 
+  #[cfg(feature = "menu")]
+  fn is_menu_visible(&self) -> Result<bool> {
+    Ok(dispatcher_getter!(self, WindowMessage::IsMenuVisible))
+  }
+
   fn current_monitor(&self) -> Result<Option<Monitor>> {
     Ok(
       dispatcher_getter!(self, WindowMessage::CurrentMonitor)
@@ -735,6 +752,24 @@ impl Dispatch for WryDispatcher {
       .context
       .proxy
       .send_event(Message::Window(self.window_id, WindowMessage::Unminimize))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+
+  #[cfg(feature = "menu")]
+  fn show_menu(&self) -> Result<()> {
+    self
+      .context
+      .proxy
+      .send_event(Message::Window(self.window_id, WindowMessage::ShowMenu))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+
+  #[cfg(feature = "menu")]
+  fn hide_menu(&self) -> Result<()> {
+    self
+      .context
+      .proxy
+      .send_event(Message::Window(self.window_id, WindowMessage::HideMenu))
       .map_err(|_| Error::FailedToSendMessage)
   }
 
@@ -913,6 +948,8 @@ struct WebviewWrapper {
   inner: WebView,
   #[cfg(feature = "menu")]
   menu_items: HashMap<u32, WryCustomMenuItem>,
+  #[cfg(feature = "menu")]
+  is_menu_visible: AtomicBool,
 }
 
 /// A Tauri [`Runtime`] wrapper around wry.
@@ -1167,12 +1204,6 @@ fn handle_event_loop(
   } = context;
   *control_flow = ControlFlow::Wait;
 
-  for (_, w) in webviews.iter() {
-    if let Err(e) = w.inner.evaluate_script() {
-      eprintln!("{}", e);
-    }
-  }
-
   match event {
     #[cfg(feature = "menu")]
     Event::MenuEvent {
@@ -1278,6 +1309,10 @@ fn handle_event_loop(
             WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
             WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),
             WindowMessage::IsVisible(tx) => tx.send(window.is_visible()).unwrap(),
+            #[cfg(feature = "menu")]
+            WindowMessage::IsMenuVisible(tx) => tx
+              .send(webview.is_menu_visible.load(Ordering::Relaxed))
+              .unwrap(),
             WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
             WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
             WindowMessage::AvailableMonitors(tx) => {
@@ -1298,6 +1333,16 @@ fn handle_event_loop(
             WindowMessage::Unmaximize => window.set_maximized(false),
             WindowMessage::Minimize => window.set_minimized(true),
             WindowMessage::Unminimize => window.set_minimized(false),
+            #[cfg(feature = "menu")]
+            WindowMessage::ShowMenu => {
+              window.show_menu();
+              webview.is_menu_visible.store(true, Ordering::Relaxed);
+            }
+            #[cfg(feature = "menu")]
+            WindowMessage::HideMenu => {
+              window.hide_menu();
+              webview.is_menu_visible.store(false, Ordering::Relaxed);
+            }
             WindowMessage::Show => window.set_visible(true),
             WindowMessage::Hide => window.set_visible(false),
             WindowMessage::Close => {
@@ -1362,7 +1407,9 @@ fn handle_event_loop(
         if let Some(webview) = webviews.get_mut(&id) {
           match webview_message {
             WebviewMessage::EvaluateScript(script) => {
-              let _ = webview.inner.dispatch_script(&script);
+              if let Err(e) = webview.inner.evaluate_script(&script) {
+                eprintln!("{}", e);
+              }
             }
             WebviewMessage::Print => {
               let _ = webview.inner.print();
@@ -1473,12 +1520,16 @@ fn create_webview<P: Params<Runtime = Wry>>(
   }
   for (scheme, protocol) in webview_attributes.uri_scheme_protocols {
     webview_builder = webview_builder.with_custom_protocol(scheme, move |_window, url| {
-      protocol(url).map_err(|_| wry::Error::InitScriptError)
+      protocol(url)
+        .map(|data| {
+          let mime_type = MimeType::parse(&data, url);
+          (data, mime_type)
+        })
+        .map_err(|_| wry::Error::InitScriptError)
     });
   }
-  if let Some(data_directory) = webview_attributes.data_directory {
-    webview_builder = webview_builder.with_data_directory(data_directory);
-  }
+  let context = WebContext::new(webview_attributes.data_directory);
+  webview_builder = webview_builder.with_web_context(&context);
   for script in webview_attributes.initialization_scripts {
     webview_builder = webview_builder.with_initialization_script(&script);
   }
@@ -1491,6 +1542,8 @@ fn create_webview<P: Params<Runtime = Wry>>(
     inner: webview,
     #[cfg(feature = "menu")]
     menu_items,
+    #[cfg(feature = "menu")]
+    is_menu_visible: AtomicBool::new(true),
   })
 }
 

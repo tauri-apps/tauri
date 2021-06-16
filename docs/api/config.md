@@ -160,6 +160,7 @@ It's composed of the following properties:
         { property: "certificateThumbprint", optional: true, type: "string[]", description: `Specifies the SHA1 hash of the signing certificate.` },
         { property: "timestampUrl", optional: true, type: "string[]", description: `Server to use during timestamping.` },
         { property: "wix", optional: true, type: "object", child: <Properties anchorRoot="tauri.bundle.windows.wix" rows={[
+          { property: "language", optional: true, type: "string", description: `The installer language. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.` },
           { property: "template", optional: true, type: "string", description: `A custom .wxs template to use.` },
           { property: "fragmentPaths", optional: true, type: "string[]", description: `A list of paths to .wxs files with WiX fragments to use.` },
           { property: "componentGroupRefs", optional: true, type: "string[]", description: `The ComponentGroup element ids you want to reference from the fragments.` },
@@ -358,7 +359,7 @@ Instead of launching the app directly, we configure the bundled app to run a scr
     "fullscreen": false
   }],
   "security": {
-    "csp": "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline'"
+    "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self'"
   }
 }
 ```

@@ -53,9 +53,16 @@ pub struct MacConfig {
   pub entitlements: Option<String>,
 }
 
+fn default_language() -> String {
+  "en-US".into()
+}
+
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WixConfig {
+  /// App language. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.
+  #[serde(default = "default_language")]
+  pub language: String,
   pub template: Option<PathBuf>,
   #[serde(default)]
   pub fragment_paths: Vec<PathBuf>,

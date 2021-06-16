@@ -301,6 +301,10 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   /// Gets the window's current vibility state.
   fn is_visible(&self) -> crate::Result<bool>;
 
+  /// Gets the window menu current visibility state.
+  #[cfg(feature = "menu")]
+  fn is_menu_visible(&self) -> crate::Result<bool>;
+
   /// Returns the monitor on which the window currently resides.
   ///
   /// Returns None if current monitor can't be detected.
@@ -349,6 +353,14 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
 
   /// Unminimizes the window.
   fn unminimize(&self) -> crate::Result<()>;
+
+  /// Shows the window menu.
+  #[cfg(feature = "menu")]
+  fn show_menu(&self) -> crate::Result<()>;
+
+  /// Hides the window menu.
+  #[cfg(feature = "menu")]
+  fn hide_menu(&self) -> crate::Result<()>;
 
   /// Shows the window.
   fn show(&self) -> crate::Result<()>;

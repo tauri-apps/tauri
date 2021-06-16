@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@tauri-apps/api": "link:../../tooling/api/dist",
+    "hotkeys-js": "^3.8.5",
     "sirv-cli": "1.0.11"
   }
 }

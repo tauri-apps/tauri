@@ -36,10 +36,10 @@ export const spawn = (
     }
 
     // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
-    onClose && onClose(code ?? 0, runner.pid)
+    onClose && onClose(code ?? 0, runner.pid ?? 0)
   })
 
-  return runner.pid
+  return runner.pid ?? 0
 }
 
 /*

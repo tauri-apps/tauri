@@ -107,6 +107,8 @@
   },
   "resolutions": {
     "**/lodash": "4.17.21",
-    "**/hosted-git-info": "4.0.2"
+    "**/hosted-git-info": "4.0.2",
+    "**/normalize-url": "6.0.1",
+    "**/trim-newlines": "3.0.1"
   }
 }

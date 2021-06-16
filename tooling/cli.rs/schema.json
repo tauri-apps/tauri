@@ -1289,6 +1289,11 @@
             "type": "string"
           }
         },
+        "language": {
+          "description": "App language. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.",
+          "default": "en-US",
+          "type": "string"
+        },
         "mergeRefs": {
           "default": [],
           "type": "array",

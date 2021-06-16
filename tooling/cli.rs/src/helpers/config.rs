@@ -16,6 +16,7 @@ pub use config_definition::*;
 impl From<WixConfig> for tauri_bundler::WixSettings {
   fn from(config: WixConfig) -> tauri_bundler::WixSettings {
     tauri_bundler::WixSettings {
+      language: config.language,
       template: config.template,
       fragment_paths: config.fragment_paths,
       component_group_refs: config.component_group_refs,

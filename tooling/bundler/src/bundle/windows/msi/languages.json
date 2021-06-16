@@ -1,0 +1,154 @@
+{
+  "ar-SA": {
+    "langId": 1025,
+    "asciiCode": 1256
+  },
+  "ca-ES": {
+    "langId": 1027,
+    "asciiCode": 1252
+  },
+  "zh-TW": {
+    "langId": 1028,
+    "asciiCode": 950
+  },
+  "zh-CN": {
+    "langId": 2052,
+    "asciiCode": 936
+  },
+  "cs-CZ": {
+    "langId": 1029,
+    "asciiCode": 1250
+  },
+  "da-DK": {
+    "langId": 1030,
+    "asciiCode": 1252
+  },
+  "de-DE": {
+    "langId": 1031,
+    "asciiCode": 1252
+  },
+  "el-GR": {
+    "langId": 1032,
+    "asciiCode": 1253
+  },
+  "en-US": {
+    "langId": 1033,
+    "asciiCode": 1252
+  },
+  "es-ES": {
+    "langId": 3082,
+    "asciiCode": 1252
+  },
+  "et-EE": {
+    "langId": 1061,
+    "asciiCode": 1257
+  },
+  "fi-FI": {
+    "langId": 1035,
+    "asciiCode": 1252
+  },
+  "fr-FR": {
+    "langId": 1036,
+    "asciiCode": 1252
+  },
+  "he-IL": {
+    "langId": 1037,
+    "asciiCode": 1255
+  },
+  "hu-HU": {
+    "langId": 1038,
+    "asciiCode": 1250
+  },
+  "it-IT": {
+    "langId": 1040,
+    "asciiCode": 1252
+  },
+  "jp-JP": {
+    "langId": 1041,
+    "asciiCode": 932
+  },
+  "ko-KO": {
+    "langId": 1042,
+    "asciiCode": 949
+  },
+  "lt-LT": {
+    "langId": 1063,
+    "asciiCode": 1257
+  },
+  "lv-LV": {
+    "langId": 1062,
+    "asciiCode": 1257
+  },
+  "nl-NL": {
+    "langId": 1043,
+    "asciiCode": 1252
+  },
+  "nb-NO": {
+    "langId": 1044,
+    "asciiCode": 1252
+  },
+  "pl-PL": {
+    "langId": 1045,
+    "asciiCode": 1250
+  },
+  "pt-BR": {
+    "langId": 1046,
+    "asciiCode": 1252
+  },
+  "pt-PT": {
+    "langId": 2070,
+    "asciiCode": 1252
+  },
+  "ro-RO": {
+    "langId": 1048,
+    "asciiCode": 1250
+  },
+  "ru-RU": {
+    "langId": 1049,
+    "asciiCode": 1251
+  },
+  "hr-HR": {
+    "langId": 1050,
+    "asciiCode": 1250
+  },
+  "sk-SK": {
+    "langId": 1051,
+    "asciiCode": 1250
+  },
+  "sv-SE": {
+    "langId": 1053,
+    "asciiCode": 1252
+  },
+  "th-TH": {
+    "langId": 1054,
+    "asciiCode": 874
+  },
+  "tr-TR": {
+    "langId": 1055,
+    "asciiCode": 1254
+  },
+  "sl-SI": {
+    "langId": 1060,
+    "asciiCode": 1250
+  },
+  "vi-VN": {
+    "langId": 1066,
+    "asciiCode": 1258
+  },
+  "eu-ES": {
+    "langId": 1069,
+    "asciiCode": 1252
+  },
+  "bg-BG": {
+    "langId": 1026,
+    "asciiCode": 1251
+  },
+  "uk-UA": {
+    "langId": 1058,
+    "asciiCode": 1251
+  },
+  "sr-Latn-CS": {
+    "langId": 2074,
+    "asciiCode": 1250
+  }
+}

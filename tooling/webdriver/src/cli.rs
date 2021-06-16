@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use std::path::PathBuf;
 
 const HELP: &str = "\
@@ -16,7 +20,7 @@ OPTIONS:
 pub struct Args {
   pub port: u16,
   pub native_port: u16,
-  pub native_driver: Option<PathBuf>
+  pub native_driver: Option<PathBuf>,
 }
 
 impl From<pico_args::Arguments> for Args {
@@ -38,7 +42,7 @@ impl From<pico_args::Arguments> for Args {
     let parsed = Args {
       port: args.value_from_str("--port").unwrap_or(4444),
       native_port: args.value_from_str("--native-port").unwrap_or(4445),
-      native_driver
+      native_driver,
     };
 
     // be strict about accepting args, error for anything extraneous

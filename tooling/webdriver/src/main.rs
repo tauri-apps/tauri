@@ -1,6 +1,10 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 mod cli;
-mod webdriver;
 mod server;
+mod webdriver;
 
 fn main() {
   let args = pico_args::Arguments::from_env().into();

@@ -52,14 +52,12 @@ use std::{
   convert::TryFrom,
   fs::read,
   sync::{
+    atomic::{AtomicBool, Ordering},
     mpsc::{channel, Sender},
     Arc, Mutex, MutexGuard,
   },
   thread::{current as current_thread, ThreadId},
 };
-
-#[cfg(feature = "menu")]
-use std::sync::atomic::{AtomicBool, Ordering};
 
 #[cfg(any(feature = "menu", feature = "system-tray"))]
 mod menu;

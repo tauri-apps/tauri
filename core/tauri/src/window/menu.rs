@@ -70,6 +70,30 @@ impl<P: Params> MenuHandle<P> {
     }
     panic!("item id not found")
   }
+
+  /// Shows the menu.
+  pub fn show(&self) -> crate::Result<()> {
+    self.dispatcher.show_menu().map_err(Into::into)
+  }
+
+  /// Hides the menu.
+  pub fn hide(&self) -> crate::Result<()> {
+    self.dispatcher.hide_menu().map_err(Into::into)
+  }
+
+  /// Whether the menu is visible or not.
+  pub fn is_visible(&self) -> crate::Result<bool> {
+    self.dispatcher.is_menu_visible().map_err(Into::into)
+  }
+
+  /// Toggles the menu visibility.
+  pub fn toggle(&self) -> crate::Result<()> {
+    if self.is_visible()? {
+      self.hide()
+    } else {
+      self.show()
+    }
+  }
 }
 
 impl<P: Params> MenuItemHandle<P> {

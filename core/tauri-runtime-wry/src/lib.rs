@@ -42,8 +42,8 @@ use wry::{
     window::{Fullscreen, Icon as WindowIcon, Window, WindowBuilder as WryWindowBuilder, WindowId},
   },
   webview::{
-    FileDropEvent as WryFileDropEvent, RpcRequest as WryRpcRequest, RpcResponse, WebView,
-    WebViewBuilder,
+    FileDropEvent as WryFileDropEvent, RpcRequest as WryRpcRequest, RpcResponse, WebContext,
+    WebView, WebViewBuilder,
   },
 };
 
@@ -61,6 +61,9 @@ use std::{
 mod menu;
 #[cfg(any(feature = "menu", feature = "system-tray"))]
 use menu::*;
+
+mod mime_type;
+use mime_type::MimeType;
 
 type MainTask = Arc<Mutex<Option<Box<dyn FnOnce() + Send>>>>;
 type CreateWebviewHandler =
@@ -1167,12 +1170,6 @@ fn handle_event_loop(
   } = context;
   *control_flow = ControlFlow::Wait;
 
-  for (_, w) in webviews.iter() {
-    if let Err(e) = w.inner.evaluate_script() {
-      eprintln!("{}", e);
-    }
-  }
-
   match event {
     #[cfg(feature = "menu")]
     Event::MenuEvent {
@@ -1362,7 +1359,9 @@ fn handle_event_loop(
         if let Some(webview) = webviews.get_mut(&id) {
           match webview_message {
             WebviewMessage::EvaluateScript(script) => {
-              let _ = webview.inner.dispatch_script(&script);
+              if let Err(e) = webview.inner.evaluate_script(&script) {
+                eprintln!("{}", e);
+              }
             }
             WebviewMessage::Print => {
               let _ = webview.inner.print();
@@ -1473,12 +1472,16 @@ fn create_webview<P: Params<Runtime = Wry>>(
   }
   for (scheme, protocol) in webview_attributes.uri_scheme_protocols {
     webview_builder = webview_builder.with_custom_protocol(scheme, move |_window, url| {
-      protocol(url).map_err(|_| wry::Error::InitScriptError)
+      protocol(url)
+        .map(|data| {
+          let mime_type = MimeType::parse(&data, url);
+          (data, mime_type)
+        })
+        .map_err(|_| wry::Error::InitScriptError)
     });
   }
-  if let Some(data_directory) = webview_attributes.data_directory {
-    webview_builder = webview_builder.with_data_directory(data_directory);
-  }
+  let context = WebContext::new(webview_attributes.data_directory);
+  webview_builder = webview_builder.with_web_context(&context);
   for script in webview_attributes.initialization_scripts {
     webview_builder = webview_builder.with_initialization_script(&script);
   }

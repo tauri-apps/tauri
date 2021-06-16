@@ -55,6 +55,7 @@ use std::{
     mpsc::{channel, Sender},
     Arc, Mutex, MutexGuard,
   },
+  thread::{current as current_thread, ThreadId},
 };
 
 #[cfg(feature = "menu")]
@@ -523,6 +524,8 @@ pub(crate) enum Message {
 
 #[derive(Clone)]
 struct DispatcherContext {
+  main_thread_id: ThreadId,
+  is_event_loop_running: Arc<AtomicBool>,
   proxy: EventLoopProxy<Message>,
   window_event_listeners: WindowEventListeners,
   #[cfg(feature = "menu")]
@@ -538,6 +541,11 @@ pub struct WryDispatcher {
 
 macro_rules! dispatcher_getter {
   ($self: ident, $message: expr) => {{
+    if current_thread().id() == $self.context.main_thread_id
+      && !$self.context.is_event_loop_running.load(Ordering::Relaxed)
+    {
+      panic!("This API cannot be called when the event loop is not running");
+    }
     let (tx, rx) = channel();
     $self
       .context
@@ -954,6 +962,8 @@ struct WebviewWrapper {
 
 /// A Tauri [`Runtime`] wrapper around wry.
 pub struct Wry {
+  main_thread_id: ThreadId,
+  is_event_loop_running: Arc<AtomicBool>,
   event_loop: EventLoop<Message>,
   webviews: Arc<Mutex<HashMap<WindowId, WebviewWrapper>>>,
   window_event_listeners: WindowEventListeners,
@@ -1018,6 +1028,8 @@ impl Runtime for Wry {
   fn new() -> Result<Self> {
     let event_loop = EventLoop::<Message>::with_user_event();
     Ok(Self {
+      main_thread_id: current_thread().id(),
+      is_event_loop_running: Default::default(),
       event_loop,
       webviews: Default::default(),
       window_event_listeners: Default::default(),
@@ -1031,6 +1043,8 @@ impl Runtime for Wry {
   fn handle(&self) -> Self::Handle {
     WryHandle {
       dispatcher_context: DispatcherContext {
+        main_thread_id: self.main_thread_id,
+        is_event_loop_running: self.is_event_loop_running.clone(),
         proxy: self.event_loop.create_proxy(),
         window_event_listeners: self.window_event_listeners.clone(),
         #[cfg(feature = "menu")]
@@ -1048,6 +1062,8 @@ impl Runtime for Wry {
     let webview = create_webview(
       &self.event_loop,
       DispatcherContext {
+        main_thread_id: self.main_thread_id,
+        is_event_loop_running: self.is_event_loop_running.clone(),
         proxy: proxy.clone(),
         window_event_listeners: self.window_event_listeners.clone(),
         #[cfg(feature = "menu")]
@@ -1059,6 +1075,8 @@ impl Runtime for Wry {
     let dispatcher = WryDispatcher {
       window_id: webview.inner.window().id(),
       context: DispatcherContext {
+        main_thread_id: self.main_thread_id,
+        is_event_loop_running: self.is_event_loop_running.clone(),
         proxy,
         window_event_listeners: self.window_event_listeners.clone(),
         #[cfg(feature = "menu")]
@@ -1125,6 +1143,7 @@ impl Runtime for Wry {
 
     let mut iteration = RunIteration::default();
 
+    self.is_event_loop_running.store(true, Ordering::Relaxed);
     self
       .event_loop
       .run_return(|event, event_loop, control_flow| {
@@ -1146,11 +1165,13 @@ impl Runtime for Wry {
           },
         );
       });
+    self.is_event_loop_running.store(false, Ordering::Relaxed);
 
     iteration
   }
 
   fn run<F: Fn() + 'static>(self, callback: F) {
+    self.is_event_loop_running.store(true, Ordering::Relaxed);
     let webviews = self.webviews.clone();
     let window_event_listeners = self.window_event_listeners.clone();
     #[cfg(feature = "menu")]

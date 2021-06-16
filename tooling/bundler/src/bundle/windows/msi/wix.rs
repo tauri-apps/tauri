@@ -11,14 +11,14 @@ use crate::bundle::{
 
 use handlebars::{to_json, Handlebars};
 use regex::Regex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use uuid::Uuid;
 use zip::ZipArchive;
 
 use std::{
-  collections::BTreeMap,
-  fs::{create_dir_all, remove_dir_all, write, File},
+  collections::{BTreeMap, HashMap},
+  fs::{create_dir_all, remove_dir_all, rename, write, File},
   io::{Cursor, Read, Write},
   path::{Path, PathBuf},
   process::{Command, Stdio},
@@ -51,6 +51,14 @@ const UUID_NAMESPACE: [u8; 16] = [
 
 /// Mapper between a resource directory name and its ResourceDirectory descriptor.
 type ResourceMap = BTreeMap<String, ResourceDirectory>;
+
+#[derive(Debug, Deserialize)]
+struct LanguageMetadata {
+  #[serde(rename = "asciiCode")]
+  ascii_code: usize,
+  #[serde(rename = "langId")]
+  lang_id: usize,
+}
 
 /// A binary to bundle with WIX.
 /// External binaries or additional project binaries are represented with this data structure.
@@ -313,10 +321,10 @@ fn run_candle(
 fn run_light(
   wix_toolset_path: &Path,
   build_path: &Path,
-  wixobjs: &[&str],
+  arguments: Vec<String>,
   output_path: &Path,
   settings: &Settings,
-) -> crate::Result<PathBuf> {
+) -> crate::Result<()> {
   let light_exe = wix_toolset_path.join("light.exe");
 
   let mut args: Vec<String> = vec![
@@ -326,8 +334,8 @@ fn run_light(
     output_path.display().to_string(),
   ];
 
-  for p in wixobjs {
-    args.push((*p).to_string());
+  for p in arguments {
+    args.push(p);
   }
 
   let mut cmd = Command::new(&light_exe);
@@ -336,19 +344,16 @@ fn run_light(
     .stdout(Stdio::piped())
     .current_dir(build_path);
 
-  common::print_info(format!("running light to produce {}", output_path.display()).as_str())?;
-  common::execute_with_verbosity(&mut cmd, settings)
-    .map(|_| output_path.to_path_buf())
-    .map_err(|_| {
-      crate::Error::ShellScriptError(format!(
-        "error running light.exe{}",
-        if settings.is_verbose() {
-          ""
-        } else {
-          ", try running with --verbose to see command output"
-        }
-      ))
-    })
+  common::execute_with_verbosity(&mut cmd, settings).map_err(|_| {
+    crate::Error::ShellScriptError(format!(
+      "error running light.exe{}",
+      if settings.is_verbose() {
+        ""
+      } else {
+        ", try running with --verbose to see command output"
+      }
+    ))
+  })
 }
 
 // fn get_icon_data() -> crate::Result<()> {
@@ -405,6 +410,29 @@ pub fn build_wix_app_installer(
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
   let mut data = BTreeMap::new();
+
+  let language_map: HashMap<String, LanguageMetadata> =
+    serde_json::from_str(include_str!("./languages.json")).unwrap();
+
+  let (language, language_metadata) = if let Some(wix) = &settings.windows().wix {
+    let metadata = language_map.get(&wix.language).unwrap_or_else(|| {
+      panic!(
+        "Language {} not found. It must be one of {}",
+        wix.language,
+        language_map
+          .keys()
+          .cloned()
+          .collect::<Vec<String>>()
+          .join(", ")
+      )
+    });
+    (wix.language.clone(), metadata)
+  } else {
+    common::print_info("Wix settings not found. Using `en-US` as language.")?;
+    ("en-US".into(), language_map.get("en-US").unwrap())
+  };
+  data.insert("language_id", to_json(language_metadata.lang_id));
+  data.insert("ascii_codepage", to_json(language_metadata.ascii_code));
 
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("version", to_json(settings.version_string()));
@@ -511,16 +539,26 @@ pub fn build_wix_app_installer(
     run_candle(settings, wix_toolset_path, &output_path, wxs)?;
   }
 
-  let wixobjs = vec!["*.wixobj"];
-  let target = run_light(
+  let arguments = vec![
+    format!("-cultures:{}", language.to_lowercase()),
+    "*.wixobj".into(),
+  ];
+  let msi_output_path = output_path.join("output.msi");
+  let msi_path = app_installer_dir(settings)?;
+  create_dir_all(msi_path.parent().unwrap())?;
+
+  common::print_info(format!("running light to produce {}", msi_path.display()).as_str())?;
+
+  run_light(
     wix_toolset_path,
     &output_path,
-    &wixobjs,
-    &app_installer_dir(settings)?,
+    arguments,
+    &msi_output_path,
     settings,
   )?;
+  rename(&msi_output_path, &msi_path)?;
 
-  Ok(target)
+  Ok(msi_path)
 }
 
 /// Generates the data required for the external binaries and extra binaries bundling.

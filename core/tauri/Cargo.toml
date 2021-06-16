@@ -33,11 +33,11 @@ normal = ["attohttpc"] # we ignore attohttpc because we can't remove it based on
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
 serde = { version = "1.0", features = [ "derive" ] }
-tokio = { version = "1.6", features = [ "rt", "rt-multi-thread", "sync" ] }
+tokio = { version = "1.7", features = [ "rt", "rt-multi-thread", "sync" ] }
 futures = "0.3"
 uuid = { version = "0.8", features = [ "v4" ] }
 thiserror = "1.0"
-once_cell = "1.7"
+once_cell = "1.8"
 tauri-runtime = { version = "0.1.1", path = "../tauri-runtime" }
 tauri-macros = { version = "1.0.0-beta.1", path = "../tauri-macros" }
 tauri-utils = { version = "1.0.0-beta.0", path = "../tauri-utils" }
@@ -52,7 +52,7 @@ either = "1.6"
 tar = "0.4"
 flate2 = "1.0"
 http = "0.2"
-state = "0.4"
+state = "0.5"
 bincode = "1.3"
 dirs-next = "2.0"
 percent-encoding = "2.1"

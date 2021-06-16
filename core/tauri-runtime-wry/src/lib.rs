@@ -1567,7 +1567,7 @@ fn create_webview<P: Params<Runtime = Wry>>(
   }
 
   let webview = webview_builder
-    .with_web_context(&web_context)
+    .with_web_context(web_context)
     .build()
     .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 

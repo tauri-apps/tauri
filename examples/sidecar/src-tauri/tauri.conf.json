@@ -6,8 +6,9 @@
     "devPath": [
       "../index.html"
     ],
-    "beforeDevCommand": "",
-    "beforeBuildCommand": ""
+    "beforeDevCommand": "yarn package",
+    "beforeBuildCommand": "yarn package",
+    "withGlobalTauri": true
   },
   "tauri": {
     "bundle": {
@@ -22,7 +23,7 @@
         "../../.icons/icon.ico"
       ],
       "resources": [],
-      "externalBin": [],
+      "externalBin": ["binaries/app"],
       "copyright": "",
       "category": "DeveloperTool",
       "shortDescription": "",
@@ -39,11 +40,14 @@
       }
     },
     "allowlist": {
-      "all": false
+      "all": false,
+      "shell": {
+        "execute": true
+      }
     },
     "windows": [
       {
-        "title": "Welcome to Tauri!",
+        "title": "Sidecar",
         "width": 800,
         "height": 600,
         "resizable": true,

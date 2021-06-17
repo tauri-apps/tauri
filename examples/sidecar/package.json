@@ -1,0 +1,17 @@
+{
+  "name": "sidecar",
+  "version": "1.0.0",
+  "bin": "src/index.js",
+  "pkg": {
+    "assets": [
+      "src/**/*"
+    ]
+  },
+  "scripts": {
+    "tauri": "node ../../tooling/cli.js/bin/tauri",
+    "package": "pkg package.json --output src-tauri/binaries/app && node scripts/move-binary.js"
+  },
+  "devDependencies": {
+    "pkg": "5.2.1"
+  }
+}

@@ -85,6 +85,9 @@ pub struct GlobalShortcutManagerWrapper {
   listeners: GlobalShortcutListeners,
 }
 
+#[cfg(target_os = "macos")]
+unsafe impl Send for GlobalShortcutManagerWrapper {}
+
 impl GlobalShortcutManager for GlobalShortcutManagerWrapper {
   fn is_registered(&self, accelerator: &str) -> bool {
     self

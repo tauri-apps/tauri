@@ -75,7 +75,7 @@ type CreateWebviewHandler =
   Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> Result<WebviewWrapper> + Send>;
 type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
-type GlobalShortcutListeners = Arc<Mutex<Vec<(AcceleratorId, Box<dyn Fn() + Send>)>>>;
+type GlobalShortcutListeners = Arc<Mutex<HashMap<AcceleratorId, Box<dyn Fn() + Send>>>>;
 
 /// Wrapper around [`WryShortcutManager`].
 #[derive(Clone)]
@@ -95,17 +95,16 @@ impl GlobalShortcutManager for GlobalShortcutManagerWrapper {
   }
 
   fn register<F: Fn() + Send + 'static>(&mut self, accelerator: &str, handler: F) -> Result<()> {
-    let mut wry_accelerator: Accelerator = accelerator.parse().expect("invalid accelerator");
-    let id = AcceleratorId(rand::random());
-    wry_accelerator = wry_accelerator.with_id(id);
+    let wry_accelerator: Accelerator = accelerator.parse().expect("invalid accelerator");
+    let id = wry_accelerator.clone().id();
     let shortcut = self
       .inner
       .lock()
       .unwrap()
-      .register(wry_accelerator.clone())
+      .register(wry_accelerator)
       .map_err(|e| Error::GlobalShortcut(Box::new(e)))?;
 
-    self.listeners.lock().unwrap().push((id, Box::new(handler)));
+    self.listeners.lock().unwrap().insert(id, Box::new(handler));
     self.shortcuts.insert(accelerator.into(), (id, shortcut));
 
     Ok(())
@@ -131,11 +130,7 @@ impl GlobalShortcutManager for GlobalShortcutManagerWrapper {
         .unwrap()
         .unregister(shortcut)
         .map_err(|e| Error::GlobalShortcut(Box::new(e)))?;
-      self
-        .listeners
-        .lock()
-        .unwrap()
-        .retain(|(id, _)| id != &accelerator_id);
+      self.listeners.lock().unwrap().remove(&accelerator_id);
     }
     Ok(())
   }

@@ -212,16 +212,39 @@ pub trait RuntimeHandle: Send + Sized + Clone + 'static {
 /// A global shortcut manager.
 pub trait GlobalShortcutManager {
   /// Whether the application has registered the given `accelerator`.
-  fn is_registered(&self, accelerator: &str) -> bool;
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
+  fn is_registered(&self, accelerator: &str) -> crate::Result<bool>;
+
   /// Register a global shortcut of `accelerator`.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
   fn register<F: Fn() + Send + 'static>(
     &mut self,
     accelerator: &str,
     handler: F,
   ) -> crate::Result<()>;
+
   /// Unregister all accelerators registered by the manager instance.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
   fn unregister_all(&mut self) -> crate::Result<()>;
+
   /// Unregister the provided `accelerator`.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
   fn unregister(&mut self, accelerator: &str) -> crate::Result<()>;
 }
 

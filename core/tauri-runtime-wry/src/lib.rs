@@ -77,35 +77,76 @@ type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
 type GlobalShortcutListeners = Arc<Mutex<HashMap<AcceleratorId, Box<dyn Fn() + Send>>>>;
 
+macro_rules! dispatcher_getter {
+  ($self: ident, $message: expr) => {{
+    if current_thread().id() == $self.context.main_thread_id
+      && !$self.context.is_event_loop_running.load(Ordering::Relaxed)
+    {
+      panic!("This API cannot be called when the event loop is not running");
+    }
+    let (tx, rx) = channel();
+    $self
+      .context
+      .proxy
+      .send_event(Message::Window($self.window_id, $message(tx)))
+      .map_err(|_| Error::FailedToSendMessage)?;
+    rx.recv().unwrap()
+  }};
+}
+
+macro_rules! shortcut_getter {
+  ($self: ident, $rx: expr, $message: expr) => {{
+    if current_thread().id() == $self.context.main_thread_id
+      && !$self.context.is_event_loop_running.load(Ordering::Relaxed)
+    {
+      panic!("This API cannot be called when the event loop is not running");
+    }
+    $self
+      .context
+      .proxy
+      .send_event($message)
+      .map_err(|_| Error::FailedToSendMessage)?;
+    $rx.recv().unwrap()
+  }};
+}
+
+#[derive(Clone)]
+struct GlobalShortcutManagerContext {
+  main_thread_id: ThreadId,
+  is_event_loop_running: Arc<AtomicBool>,
+  proxy: EventLoopProxy<Message>,
+}
+
 /// Wrapper around [`WryShortcutManager`].
 #[derive(Clone)]
-pub struct GlobalShortcutManagerWrapper {
-  inner: Arc<Mutex<WryShortcutManager>>,
+pub struct GlobalShortcutManagerHandle {
+  context: GlobalShortcutManagerContext,
   shortcuts: HashMap<String, (AcceleratorId, GlobalShortcut)>,
   listeners: GlobalShortcutListeners,
 }
 
-#[cfg(target_os = "macos")]
-unsafe impl Send for GlobalShortcutManagerWrapper {}
-
-impl GlobalShortcutManager for GlobalShortcutManagerWrapper {
-  fn is_registered(&self, accelerator: &str) -> bool {
-    self
-      .inner
-      .lock()
-      .unwrap()
-      .is_registered(&accelerator.parse().expect("invalid accelerator"))
+impl GlobalShortcutManager for GlobalShortcutManagerHandle {
+  fn is_registered(&self, accelerator: &str) -> Result<bool> {
+    let (tx, rx) = channel();
+    Ok(shortcut_getter!(
+      self,
+      rx,
+      Message::GlobalShortcut(GlobalShortcutMessage::IsRegistered(
+        accelerator.parse().expect("invalid accelerator"),
+        tx
+      ))
+    ))
   }
 
   fn register<F: Fn() + Send + 'static>(&mut self, accelerator: &str, handler: F) -> Result<()> {
     let wry_accelerator: Accelerator = accelerator.parse().expect("invalid accelerator");
     let id = wry_accelerator.clone().id();
-    let shortcut = self
-      .inner
-      .lock()
-      .unwrap()
-      .register(wry_accelerator)
-      .map_err(|e| Error::GlobalShortcut(Box::new(e)))?;
+    let (tx, rx) = channel();
+    let shortcut = shortcut_getter!(
+      self,
+      rx,
+      Message::GlobalShortcut(GlobalShortcutMessage::Register(wry_accelerator, tx))
+    )?;
 
     self.listeners.lock().unwrap().insert(id, Box::new(handler));
     self.shortcuts.insert(accelerator.into(), (id, shortcut));
@@ -114,25 +155,25 @@ impl GlobalShortcutManager for GlobalShortcutManagerWrapper {
   }
 
   fn unregister_all(&mut self) -> Result<()> {
-    self
-      .inner
-      .lock()
-      .unwrap()
-      .unregister_all()
-      .map_err(|e| Error::GlobalShortcut(Box::new(e)))?;
+    let (tx, rx) = channel();
+    shortcut_getter!(
+      self,
+      rx,
+      Message::GlobalShortcut(GlobalShortcutMessage::UnregisterAll(tx))
+    )?;
     self.listeners.lock().unwrap().clear();
     self.shortcuts.clear();
     Ok(())
   }
 
-  fn unregister(&mut self, accelerator: &str) -> crate::Result<()> {
+  fn unregister(&mut self, accelerator: &str) -> Result<()> {
     if let Some((accelerator_id, shortcut)) = self.shortcuts.remove(accelerator) {
-      self
-        .inner
-        .lock()
-        .unwrap()
-        .unregister(shortcut)
-        .map_err(|e| Error::GlobalShortcut(Box::new(e)))?;
+      let (tx, rx) = channel();
+      shortcut_getter!(
+        self,
+        rx,
+        Message::GlobalShortcut(GlobalShortcutMessage::Unregister(shortcut, tx))
+      )?;
       self.listeners.lock().unwrap().remove(&accelerator_id);
     }
     Ok(())
@@ -577,6 +618,14 @@ pub(crate) enum TrayMessage {
 }
 
 #[derive(Clone)]
+pub(crate) enum GlobalShortcutMessage {
+  IsRegistered(Accelerator, Sender<bool>),
+  Register(Accelerator, Sender<Result<GlobalShortcut>>),
+  Unregister(GlobalShortcut, Sender<Result<()>>),
+  UnregisterAll(Sender<Result<()>>),
+}
+
+#[derive(Clone)]
 pub(crate) enum Message {
   Task(MainTask),
   Window(WindowId, WindowMessage),
@@ -584,6 +633,7 @@ pub(crate) enum Message {
   #[cfg(feature = "system-tray")]
   Tray(TrayMessage),
   CreateWebview(Arc<Mutex<Option<CreateWebviewHandler>>>, Sender<WindowId>),
+  GlobalShortcut(GlobalShortcutMessage),
 }
 
 #[derive(Clone)]
@@ -601,23 +651,6 @@ struct DispatcherContext {
 pub struct WryDispatcher {
   window_id: WindowId,
   context: DispatcherContext,
-}
-
-macro_rules! dispatcher_getter {
-  ($self: ident, $message: expr) => {{
-    if current_thread().id() == $self.context.main_thread_id
-      && !$self.context.is_event_loop_running.load(Ordering::Relaxed)
-    {
-      panic!("This API cannot be called when the event loop is not running");
-    }
-    let (tx, rx) = channel();
-    $self
-      .context
-      .proxy
-      .send_event(Message::Window($self.window_id, $message(tx)))
-      .map_err(|_| Error::FailedToSendMessage)?;
-    rx.recv().unwrap()
-  }};
 }
 
 impl Dispatch for WryDispatcher {
@@ -1027,7 +1060,8 @@ struct WebviewWrapper {
 /// A Tauri [`Runtime`] wrapper around wry.
 pub struct Wry {
   main_thread_id: ThreadId,
-  global_shortcut_manager: GlobalShortcutManagerWrapper,
+  global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
+  global_shortcut_manager_handle: GlobalShortcutManagerHandle,
   is_event_loop_running: Arc<AtomicBool>,
   event_loop: EventLoop<Message>,
   webviews: Arc<Mutex<HashMap<WindowId, WebviewWrapper>>>,
@@ -1087,7 +1121,7 @@ impl RuntimeHandle for WryHandle {
 impl Runtime for Wry {
   type Dispatcher = WryDispatcher;
   type Handle = WryHandle;
-  type GlobalShortcutManager = GlobalShortcutManagerWrapper;
+  type GlobalShortcutManager = GlobalShortcutManagerHandle;
   #[cfg(feature = "system-tray")]
   type TrayHandler = SystemTrayHandle;
 
@@ -1095,14 +1129,22 @@ impl Runtime for Wry {
     let event_loop = EventLoop::<Message>::with_user_event();
     let global_shortcut_manager = WryShortcutManager::new(&event_loop);
     let global_shortcut_listeners = GlobalShortcutListeners::default();
+    let proxy = event_loop.create_proxy();
+    let main_thread_id = current_thread().id();
+    let is_event_loop_running = Arc::new(AtomicBool::default());
     Ok(Self {
-      main_thread_id: current_thread().id(),
-      global_shortcut_manager: GlobalShortcutManagerWrapper {
-        inner: Arc::new(Mutex::new(global_shortcut_manager)),
+      main_thread_id,
+      global_shortcut_manager: Arc::new(Mutex::new(global_shortcut_manager)),
+      global_shortcut_manager_handle: GlobalShortcutManagerHandle {
+        context: GlobalShortcutManagerContext {
+          main_thread_id,
+          is_event_loop_running: is_event_loop_running.clone(),
+          proxy,
+        },
         shortcuts: Default::default(),
         listeners: global_shortcut_listeners,
       },
-      is_event_loop_running: Default::default(),
+      is_event_loop_running,
       event_loop,
       webviews: Default::default(),
       window_event_listeners: Default::default(),
@@ -1127,7 +1169,7 @@ impl Runtime for Wry {
   }
 
   fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager {
-    self.global_shortcut_manager.clone()
+    self.global_shortcut_manager_handle.clone()
   }
 
   fn create_window<P: Params<Runtime = Self>>(
@@ -1218,6 +1260,7 @@ impl Runtime for Wry {
     #[cfg(feature = "system-tray")]
     let tray_context = self.tray_context.clone();
     let global_shortcut_manager = self.global_shortcut_manager.clone();
+    let global_shortcut_manager_handle = self.global_shortcut_manager_handle.clone();
 
     let mut iteration = RunIteration::default();
 
@@ -1237,6 +1280,7 @@ impl Runtime for Wry {
             webviews: webviews.lock().expect("poisoned webview collection"),
             window_event_listeners: window_event_listeners.clone(),
             global_shortcut_manager: global_shortcut_manager.clone(),
+            global_shortcut_manager_handle: global_shortcut_manager_handle.clone(),
             #[cfg(feature = "menu")]
             menu_event_listeners: menu_event_listeners.clone(),
             #[cfg(feature = "system-tray")]
@@ -1258,6 +1302,7 @@ impl Runtime for Wry {
     #[cfg(feature = "system-tray")]
     let tray_context = self.tray_context;
     let global_shortcut_manager = self.global_shortcut_manager.clone();
+    let global_shortcut_manager_handle = self.global_shortcut_manager_handle.clone();
 
     self.event_loop.run(move |event, event_loop, control_flow| {
       handle_event_loop(
@@ -1269,6 +1314,7 @@ impl Runtime for Wry {
           webviews: webviews.lock().expect("poisoned webview collection"),
           window_event_listeners: window_event_listeners.clone(),
           global_shortcut_manager: global_shortcut_manager.clone(),
+          global_shortcut_manager_handle: global_shortcut_manager_handle.clone(),
           #[cfg(feature = "menu")]
           menu_event_listeners: menu_event_listeners.clone(),
           #[cfg(feature = "system-tray")]
@@ -1283,7 +1329,8 @@ struct EventLoopIterationContext<'a> {
   callback: Option<&'a (dyn Fn() + 'static)>,
   webviews: MutexGuard<'a, HashMap<WindowId, WebviewWrapper>>,
   window_event_listeners: WindowEventListeners,
-  global_shortcut_manager: GlobalShortcutManagerWrapper,
+  global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
+  global_shortcut_manager_handle: GlobalShortcutManagerHandle,
   #[cfg(feature = "menu")]
   menu_event_listeners: MenuEventListeners,
   #[cfg(feature = "system-tray")]
@@ -1301,6 +1348,7 @@ fn handle_event_loop(
     mut webviews,
     window_event_listeners,
     global_shortcut_manager,
+    global_shortcut_manager_handle,
     #[cfg(feature = "menu")]
     menu_event_listeners,
     #[cfg(feature = "system-tray")]
@@ -1310,7 +1358,7 @@ fn handle_event_loop(
 
   match event {
     Event::GlobalShortcutEvent(accelerator_id) => {
-      for (id, handler) in &*global_shortcut_manager.listeners.lock().unwrap() {
+      for (id, handler) in &*global_shortcut_manager_handle.listeners.lock().unwrap() {
         if accelerator_id == *id {
           handler();
         }
@@ -1571,6 +1619,43 @@ fn handle_event_loop(
             tray.lock().unwrap().remove();
           }
         }
+      },
+      Message::GlobalShortcut(message) => match message {
+        GlobalShortcutMessage::IsRegistered(accelerator, tx) => tx
+          .send(
+            global_shortcut_manager
+              .lock()
+              .unwrap()
+              .is_registered(&accelerator),
+          )
+          .unwrap(),
+        GlobalShortcutMessage::Register(accelerator, tx) => tx
+          .send(
+            global_shortcut_manager
+              .lock()
+              .unwrap()
+              .register(accelerator)
+              .map_err(|e| Error::GlobalShortcut(Box::new(e))),
+          )
+          .unwrap(),
+        GlobalShortcutMessage::Unregister(accelerator, tx) => tx
+          .send(
+            global_shortcut_manager
+              .lock()
+              .unwrap()
+              .unregister(accelerator)
+              .map_err(|e| Error::GlobalShortcut(Box::new(e))),
+          )
+          .unwrap(),
+        GlobalShortcutMessage::UnregisterAll(tx) => tx
+          .send(
+            global_shortcut_manager
+              .lock()
+              .unwrap()
+              .unregister_all()
+              .map_err(|e| Error::GlobalShortcut(Box::new(e))),
+          )
+          .unwrap(),
       },
     },
     _ => (),

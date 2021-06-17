@@ -87,7 +87,7 @@ impl Cmd {
         window
           .app_handle
           .global_shortcut_manager()
-          .is_registered(&shortcut)
+          .is_registered(&shortcut)?
           .into(),
       ),
     }

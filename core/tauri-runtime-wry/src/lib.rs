@@ -1219,7 +1219,7 @@ impl Runtime for Wry {
     let menu_event_listeners = self.menu_event_listeners.clone();
     #[cfg(feature = "system-tray")]
     let tray_context = self.tray_context.clone();
-    let global_shortcut_manager = global_shortcut_manager.clone();
+    let global_shortcut_manager = self.global_shortcut_manager.clone();
 
     let mut iteration = RunIteration::default();
 

@@ -14,6 +14,7 @@ use std::sync::Arc;
 
 mod app;
 mod cli;
+mod clipboard;
 mod dialog;
 mod event;
 #[allow(unused_imports)]
@@ -54,6 +55,7 @@ enum Module {
   Notification(notification::Cmd),
   Http(http::Cmd),
   GlobalShortcut(global_shortcut::Cmd),
+  Clipboard(clipboard::Cmd),
 }
 
 impl Module {
@@ -150,6 +152,12 @@ impl Module {
           .map_err(InvokeError::from)
       }),
       Self::GlobalShortcut(cmd) => resolver.respond_async(async move {
+        cmd
+          .run(window)
+          .and_then(|r| r.json)
+          .map_err(InvokeError::from)
+      }),
+      Self::Clipboard(cmd) => resolver.respond_async(async move {
         cmd
           .run(window)
           .and_then(|r| r.json)

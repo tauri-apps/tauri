@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { readFileSync, writeFileSync } from 'fs'
+import { readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { TauriBuildConfig } from '../types/config'
 
@@ -10,7 +10,10 @@ export function updateTauriConf(
   appDirectory: string,
   cfg: TauriBuildConfig
 ): void {
-  const tauriConfPath = join(appDirectory, 'src-tauri', 'tauri.conf.json')
+  const tauriConfDir = join(appDirectory, 'src-tauri')
+  mkdirSync(tauriConfDir, { recursive: true });
+
+  const tauriConfPath = join(tauriConfDir, 'tauri.conf.json')
   const tauriConfString = readFileSync(tauriConfPath, 'utf8')
   const tauriConf = JSON.parse(tauriConfString) as {
     build: TauriBuildConfig
@@ -24,6 +27,7 @@ export function updateTauriConf(
       beforeDevCommand: cfg.beforeDevCommand
     }
   }
+
 
   writeFileSync(tauriConfPath, JSON.stringify(outputPkg, undefined, 2))
 }

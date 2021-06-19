@@ -8,7 +8,7 @@ pub(crate) mod tray;
 
 use crate::{
   api::assets::Assets,
-  api::config::WindowUrl,
+  api::config::{Config, WindowUrl},
   hooks::{InvokeHandler, OnPageLoad, PageLoadPayload, SetupHook},
   manager::{Args, WindowManager},
   plugin::{Plugin, PluginStore},
@@ -22,7 +22,9 @@ use crate::{
   Context, Invoke, Manager, StateManager, Window,
 };
 
-use std::{collections::HashMap, sync::Arc};
+use tauri_utils::PackageInfo;
+
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 #[cfg(feature = "menu")]
 use crate::runtime::menu::Menu;
@@ -82,6 +84,25 @@ impl<P: Params> GlobalWindowEvent<P> {
   /// The window that the menu belongs to.
   pub fn window(&self) -> &Window<P> {
     &self.window
+  }
+}
+
+/// The path resolver is a helper for the application-specific [`crate::api::path`] APIs.
+#[derive(Debug, Clone)]
+pub struct PathResolver {
+  config: Arc<Config>,
+  package_info: PackageInfo,
+}
+
+impl PathResolver {
+  /// Returns the path to the resource directory of this app.
+  pub fn resource_dir(&self) -> Option<PathBuf> {
+    crate::api::path::resource_dir(&self.package_info)
+  }
+
+  /// Returns the path to the suggested directory for your app config files.
+  pub fn app_dir(&self) -> Option<PathBuf> {
+    crate::api::path::app_dir(&self.config)
   }
 }
 
@@ -186,6 +207,14 @@ macro_rules! shared_app_impl {
           .tray_handle
           .clone()
           .expect("tray not configured; use the `Builder#system_tray` API first.")
+      }
+
+      /// The path resolver for the application.
+      pub fn path_resolver(&self) -> PathResolver {
+        PathResolver {
+          config: self.manager.config(),
+          package_info: self.manager.package_info().clone(),
+        }
       }
     }
   };

@@ -117,14 +117,17 @@ impl Module {
       #[cfg(target_os = "linux")]
       Self::Dialog(cmd) => {
         let window_ = window.clone();
-        let _ = window.run_on_main_thread(move || {
+        let context = glib::MainContext::new();
+        context.push_thread_default();
+        context.invoke(move || {
           resolver.respond_closure(move || {
             cmd
               .run(window_)
               .and_then(|r| r.json)
               .map_err(InvokeError::from)
-          })
+          });
         });
+        context.pop_thread_default();
       }
       Self::Cli(cmd) => {
         if let Some(cli_config) = config.tauri.cli.clone() {

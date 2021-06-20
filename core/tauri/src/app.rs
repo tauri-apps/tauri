@@ -16,7 +16,7 @@ use crate::{
     tag::Tag,
     webview::{CustomProtocol, WebviewAttributes, WindowBuilder},
     window::{PendingWindow, WindowEvent},
-    Dispatch, MenuId, Params, Runtime,
+    Dispatch, MenuId, Params, RunEvent, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
   Context, Invoke, Manager, StateManager, Window,
@@ -260,7 +260,12 @@ impl<P: Params> App<P> {
   /// }
   #[cfg(any(target_os = "windows", target_os = "macos"))]
   pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
-    self.runtime.as_mut().unwrap().run_iteration()
+    let manager = self.manager.clone();
+    self
+      .runtime
+      .as_mut()
+      .unwrap()
+      .run_iteration(move |event| on_event_loop_event(event, &manager))
   }
 }
 
@@ -807,17 +812,27 @@ where
     let mut app = self.build(context)?;
     #[cfg(all(windows, feature = "system-tray"))]
     let app_handle = app.handle();
-    app.runtime.take().unwrap().run(move || {
-      #[cfg(shell_execute)]
-      {
-        crate::api::process::kill_children();
+    let manager = app.manager.clone();
+    app.runtime.take().unwrap().run(move |event| match event {
+      RunEvent::Exit => {
+        #[cfg(shell_execute)]
+        {
+          crate::api::process::kill_children();
+        }
+        #[cfg(all(windows, feature = "system-tray"))]
+        {
+          let _ = app_handle.remove_system_tray();
+        }
       }
-      #[cfg(all(windows, feature = "system-tray"))]
-      {
-        let _ = app_handle.remove_system_tray();
-      }
+      _ => on_event_loop_event(event, &manager),
     });
     Ok(())
+  }
+}
+
+fn on_event_loop_event<P: Params>(event: RunEvent, manager: &WindowManager<P>) {
+  if let RunEvent::WindowClose(label) = event {
+    manager.on_window_close(label);
   }
 }
 

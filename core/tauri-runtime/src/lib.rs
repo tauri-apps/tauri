@@ -169,6 +169,14 @@ impl Icon {
   }
 }
 
+/// Event triggered on the event loop run.
+pub enum RunEvent {
+  /// Event loop is exiting.
+  Exit,
+  /// Window closed.
+  WindowClose(String),
+}
+
 /// A system tray event.
 pub enum SystemTrayEvent {
   MenuItemClick(u32),
@@ -240,10 +248,10 @@ pub trait Runtime: Sized + 'static {
 
   /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
   #[cfg(any(target_os = "windows", target_os = "macos"))]
-  fn run_iteration(&mut self) -> RunIteration;
+  fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration;
 
   /// Run the webview runtime.
-  fn run<F: Fn() + 'static>(self, callback: F);
+  fn run<F: Fn(RunEvent) + 'static>(self, callback: F);
 }
 
 /// Webview dispatcher. A thread-safe handle to the webview API.

@@ -685,6 +685,12 @@ impl<P: Params> WindowManager<P> {
     window
   }
 
+  pub(crate) fn on_window_close(&self, label: String) {
+    self
+      .windows_lock()
+      .remove(&label.parse().unwrap_or_else(|_| panic!("bad label")));
+  }
+
   pub fn emit_filter<E: ?Sized, S, F>(&self, event: &E, payload: S, filter: F) -> crate::Result<()>
   where
     P::Event: Borrow<E>,

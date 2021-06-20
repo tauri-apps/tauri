@@ -831,11 +831,8 @@ where
 }
 
 fn on_event_loop_event<P: Params>(event: RunEvent, manager: &WindowManager<P>) {
-  match event {
-    RunEvent::WindowClose(label) => {
-      manager.on_window_close(label);
-    }
-    _ => {}
+  if let RunEvent::WindowClose(label) = event {
+    manager.on_window_close(label);
   }
 }
 

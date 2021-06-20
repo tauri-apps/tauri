@@ -113,7 +113,7 @@ impl Module {
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
-      // on Linux, the dialog must run on the main thread.
+      // on Linux, the dialog must run on the rpc task.
       #[cfg(target_os = "linux")]
       Self::Dialog(cmd) => {
         resolver.respond_closure(move || {

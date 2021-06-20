@@ -216,6 +216,16 @@ macro_rules! shared_app_impl {
           package_info: self.manager.package_info().clone(),
         }
       }
+
+      /// Gets the app's configuration, defined on the `tauri.conf.json` file.
+      pub fn config(&self) -> Arc<Config> {
+        self.manager.config()
+      }
+
+      /// Gets the app's package information.
+      pub fn package_info(&self) -> &PackageInfo {
+        self.manager.package_info()
+      }
     }
   };
 }

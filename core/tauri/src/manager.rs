@@ -427,6 +427,11 @@ impl<P: Params> WindowManager<P> {
 
         let asset_response = assets
           .get(&path)
+          .or_else(|| {
+            #[cfg(debug_assertions)]
+            eprintln!("Asset `{}` not found; fallback to index.html", path); // TODO log::error!
+            assets.get("index.html")
+          })
           .ok_or(crate::Error::AssetNotFound(path))
           .map(Cow::into_owned);
         match asset_response {

@@ -113,6 +113,11 @@ macro_rules! shortcut_getter {
   }};
 }
 
+#[derive(Debug, Clone)]
+struct GlobalShortcutWrapper(GlobalShortcut);
+
+unsafe impl Send for GlobalShortcutWrapper {}
+
 #[derive(Clone)]
 struct GlobalShortcutManagerContext {
   main_thread_id: ThreadId,
@@ -124,7 +129,7 @@ struct GlobalShortcutManagerContext {
 #[derive(Clone)]
 pub struct GlobalShortcutManagerHandle {
   context: GlobalShortcutManagerContext,
-  shortcuts: HashMap<String, (AcceleratorId, GlobalShortcut)>,
+  shortcuts: HashMap<String, (AcceleratorId, GlobalShortcutWrapper)>,
   listeners: GlobalShortcutListeners,
 }
 
@@ -175,7 +180,10 @@ impl GlobalShortcutManager for GlobalShortcutManagerHandle {
       shortcut_getter!(
         self,
         rx,
-        Message::GlobalShortcut(GlobalShortcutMessage::Unregister(shortcut, tx))
+        Message::GlobalShortcut(GlobalShortcutMessage::Unregister(
+          GlobalShortcutWrapper(shortcut.0),
+          tx
+        ))
       )?;
       self.listeners.lock().unwrap().remove(&accelerator_id);
     }
@@ -637,8 +645,8 @@ pub(crate) enum TrayMessage {
 #[derive(Clone)]
 pub(crate) enum GlobalShortcutMessage {
   IsRegistered(Accelerator, Sender<bool>),
-  Register(Accelerator, Sender<Result<GlobalShortcut>>),
-  Unregister(GlobalShortcut, Sender<Result<()>>),
+  Register(Accelerator, Sender<Result<GlobalShortcutWrapper>>),
+  Unregister(GlobalShortcutWrapper, Sender<Result<()>>),
   UnregisterAll(Sender<Result<()>>),
 }
 
@@ -1658,15 +1666,16 @@ fn handle_event_loop(
               .lock()
               .unwrap()
               .register(accelerator)
+              .map(GlobalShortcutWrapper)
               .map_err(|e| Error::GlobalShortcut(Box::new(e))),
           )
           .unwrap(),
-        GlobalShortcutMessage::Unregister(accelerator, tx) => tx
+        GlobalShortcutMessage::Unregister(shortcut, tx) => tx
           .send(
             global_shortcut_manager
               .lock()
               .unwrap()
-              .unregister(accelerator)
+              .unregister(shortcut.0)
               .map_err(|e| Error::GlobalShortcut(Box::new(e))),
           )
           .unwrap(),

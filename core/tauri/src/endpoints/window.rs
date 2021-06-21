@@ -3,11 +3,14 @@
 // SPDX-License-Identifier: MIT
 
 #[cfg(window_create)]
-use crate::runtime::{webview::WindowBuilder, Dispatch, Runtime, UserAttentionType};
+use crate::runtime::{webview::WindowBuilder, Dispatch, Runtime};
 use crate::{
   api::config::WindowConfig,
   endpoints::InvokeResponse,
-  runtime::window::dpi::{Position, Size},
+  runtime::{
+    window::dpi::{Position, Size},
+    UserAttentionType,
+  },
   Params, Window,
 };
 use serde::Deserialize;

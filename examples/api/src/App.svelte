@@ -16,6 +16,7 @@
   import Shortcuts from "./components/Shortcuts.svelte";
   import Shell from "./components/Shell.svelte";
   import Updater from "./components/Updater.svelte";
+  import Clipboard from "./components/Clipboard.svelte";
 
   const MENU_TOGGLE_HOTKEY = 'ctrl+b';
 
@@ -69,7 +70,11 @@
     {
       label: "Updater",
       component: Updater,
-    },    
+    },
+    {
+      label: "Clipboard",
+      component: Clipboard,
+    }
   ];
 
   let selected = views[0];

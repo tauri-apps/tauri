@@ -114,6 +114,7 @@ crate::manager::default_args! {
     runtime_handle: <P::Runtime as Runtime>::Handle,
     manager: WindowManager<P>,
     global_shortcut_manager: <P::Runtime as Runtime>::GlobalShortcutManager,
+    clipboard_manager: <P::Runtime as Runtime>::ClipboardManager,
     #[cfg(feature = "system-tray")]
     tray_handle: Option<tray::SystemTrayHandle<P>>,
   }
@@ -125,6 +126,7 @@ impl<P: Params> Clone for AppHandle<P> {
       runtime_handle: self.runtime_handle.clone(),
       manager: self.manager.clone(),
       global_shortcut_manager: self.global_shortcut_manager.clone(),
+      clipboard_manager: self.clipboard_manager.clone(),
       #[cfg(feature = "system-tray")]
       tray_handle: self.tray_handle.clone(),
     }
@@ -163,6 +165,7 @@ crate::manager::default_args! {
     runtime: Option<P::Runtime>,
     manager: WindowManager<P>,
     global_shortcut_manager: <P::Runtime as Runtime>::GlobalShortcutManager,
+    clipboard_manager: <P::Runtime as Runtime>::ClipboardManager,
     #[cfg(feature = "system-tray")]
     tray_handle: Option<tray::SystemTrayHandle<P>>,
     handle: AppHandle<P>,
@@ -220,17 +223,22 @@ macro_rules! shared_app_impl {
           .expect("tray not configured; use the `Builder#system_tray` API first.")
       }
 
-      /// Gets a copy of the global shortcut manager instance.
-      pub fn global_shortcut_manager(&self) -> <P::Runtime as Runtime>::GlobalShortcutManager {
-        self.global_shortcut_manager.clone()
-      }
-
       /// The path resolver for the application.
       pub fn path_resolver(&self) -> PathResolver {
         PathResolver {
           config: self.manager.config(),
           package_info: self.manager.package_info().clone(),
         }
+      }
+
+      /// Gets a copy of the global shortcut manager instance.
+      pub fn global_shortcut_manager(&self) -> <P::Runtime as Runtime>::GlobalShortcutManager {
+        self.global_shortcut_manager.clone()
+      }
+
+      /// Gets a copy of the clipboard manager instance.
+      pub fn clipboard_manager(&self) -> <P::Runtime as Runtime>::ClipboardManager {
+        self.clipboard_manager.clone()
       }
 
       /// Gets the app's configuration, defined on the `tauri.conf.json` file.
@@ -717,17 +725,20 @@ where
     let runtime = R::new()?;
     let runtime_handle = runtime.handle();
     let global_shortcut_manager = runtime.global_shortcut_manager();
+    let clipboard_manager = runtime.clipboard_manager();
 
     let mut app = App {
       runtime: Some(runtime),
       manager: manager.clone(),
       global_shortcut_manager: global_shortcut_manager.clone(),
+      clipboard_manager: clipboard_manager.clone(),
       #[cfg(feature = "system-tray")]
       tray_handle: None,
       handle: AppHandle {
         runtime_handle,
         manager,
         global_shortcut_manager,
+        clipboard_manager,
         #[cfg(feature = "system-tray")]
         tray_handle: None,
       },

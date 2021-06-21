@@ -270,6 +270,25 @@ pub trait GlobalShortcutManager {
   fn unregister(&mut self, accelerator: &str) -> crate::Result<()>;
 }
 
+/// Clipboard manager.
+pub trait ClipboardManager {
+  /// Writes the text into the clipboard as plain text.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
+
+  fn write_text<T: Into<String>>(&mut self, text: T) -> Result<()>;
+  /// Read the content in the clipboard as plain text.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
+  fn read_text(&self) -> Result<Option<String>>;
+}
+
 /// The webview runtime interface.
 pub trait Runtime: Sized + 'static {
   /// The message dispatcher.
@@ -278,6 +297,8 @@ pub trait Runtime: Sized + 'static {
   type Handle: RuntimeHandle<Runtime = Self>;
   /// The global shortcut manager type.
   type GlobalShortcutManager: GlobalShortcutManager + Clone + Send;
+  /// The clipboard manager type.
+  type ClipboardManager: ClipboardManager + Clone + Send;
   /// The tray handler type.
   #[cfg(feature = "system-tray")]
   type TrayHandler: menu::TrayHandle + Clone + Send;
@@ -290,6 +311,9 @@ pub trait Runtime: Sized + 'static {
 
   /// Gets the global shortcut manager.
   fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager;
+
+  /// Gets the clipboard manager.
+  fn clipboard_manager(&self) -> Self::ClipboardManager;
 
   /// Create a new webview window.
   fn create_window<P: Params<Runtime = Self>>(

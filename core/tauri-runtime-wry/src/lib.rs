@@ -1346,6 +1346,7 @@ impl Runtime for Wry {
     let tray_context = self.tray_context.clone();
     let global_shortcut_manager = self.global_shortcut_manager.clone();
     let global_shortcut_manager_handle = self.global_shortcut_manager_handle.clone();
+    let clipboard_manager = self.clipboard_manager.clone();
 
     let mut iteration = RunIteration::default();
 
@@ -1366,6 +1367,7 @@ impl Runtime for Wry {
             window_event_listeners: window_event_listeners.clone(),
             global_shortcut_manager: global_shortcut_manager.clone(),
             global_shortcut_manager_handle: global_shortcut_manager_handle.clone(),
+            clipboard_manager: clipboard_manager.clone(),
             #[cfg(feature = "menu")]
             menu_event_listeners: menu_event_listeners.clone(),
             #[cfg(feature = "system-tray")]

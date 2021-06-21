@@ -228,6 +228,8 @@ pub struct InvokePayload {
   pub tauri_module: Option<String>,
   pub callback: String,
   pub error: String,
+  #[serde(rename = "__invokeKey")]
+  pub key: u32,
   #[serde(flatten)]
   pub inner: JsonValue,
 }

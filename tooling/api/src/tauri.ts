@@ -79,6 +79,8 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
     }, true)
 
     window.rpc.notify(cmd, {
+      // @ts-expect-error the `__TAURI_INVOKE_KEY__` variable is injected at runtime by Tauri
+      __invokeKey: __TAURI_INVOKE_KEY__,
       callback,
       error,
       ...args

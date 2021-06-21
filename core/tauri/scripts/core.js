@@ -92,7 +92,7 @@ if (!String.prototype.startsWith) {
     return identifier;
   };
 
-  window.__TAURI__.invoke = function invoke(cmd, args = {}) {
+  window.__TAURI__.invoke = function invoke(cmd, args = {}, key = null) {
     return new Promise(function (resolve, reject) {
       var callback = window.__TAURI__.transformCallback(function (r) {
         resolve(r);
@@ -118,6 +118,7 @@ if (!String.prototype.startsWith) {
             {
               callback: callback,
               error: error,
+              __invokeKey: key || __TAURI_INVOKE_KEY__,
             },
             args
           )
@@ -130,6 +131,7 @@ if (!String.prototype.startsWith) {
               {
                 callback: callback,
                 error: error,
+                __invokeKey: key || __TAURI_INVOKE_KEY__,
               },
               args
             )
@@ -160,7 +162,7 @@ if (!String.prototype.startsWith) {
                   cmd: "open",
                   path: target.href,
                 },
-              });
+              }, _KEY_VALUE_);
               e.preventDefault();
             }
             break;
@@ -196,7 +198,7 @@ if (!String.prototype.startsWith) {
         message: {
           cmd: "startDragging",
         }
-      })
+      }, _KEY_VALUE_)
     }
   })
 
@@ -212,7 +214,7 @@ if (!String.prototype.startsWith) {
         }
       }),
     },
-  });
+  }, _KEY_VALUE_);
 
   let permissionSettable = false;
   let permissionValue = "default";
@@ -226,7 +228,7 @@ if (!String.prototype.startsWith) {
       message: {
         cmd: "isNotificationPermissionGranted",
       },
-    });
+    }, _KEY_VALUE_);
   }
 
   function setNotificationPermission(value) {
@@ -242,7 +244,7 @@ if (!String.prototype.startsWith) {
         message: {
           cmd: "requestNotificationPermission",
         },
-      })
+      }, _KEY_VALUE_)
       .then(function (permission) {
         setNotificationPermission(permission);
         return permission;
@@ -267,7 +269,7 @@ if (!String.prototype.startsWith) {
                   }
                 : options,
           },
-        });
+        }, _KEY_VALUE_);
       }
     });
   }
@@ -311,7 +313,7 @@ if (!String.prototype.startsWith) {
         cmd: "messageDialog",
         message: message,
       },
-    });
+    }, _KEY_VALUE_);
   };
 
   window.confirm = function (message) {
@@ -321,7 +323,7 @@ if (!String.prototype.startsWith) {
         cmd: "askDialog",
         message: message,
       },
-    });
+    }, _KEY_VALUE_);
   };
 
   // window.print works on Linux/Windows; need to use the API on macOS
@@ -332,7 +334,7 @@ if (!String.prototype.startsWith) {
         message: {
           cmd: "print"
         },
-      });
+      }, _KEY_VALUE_);
     }
   }
 })();

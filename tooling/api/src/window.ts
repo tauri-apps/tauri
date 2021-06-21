@@ -113,6 +113,22 @@ declare global {
   }
 }
 
+/** Attention type to request on a window. */
+enum UserAttentionType {
+  /**
+   * ## Platform-specific
+   *  - **macOS:** Bounces the dock icon until the application is in focus.
+   * - **Windows:** Flashes both the window and the taskbar button until the application is in focus.
+   */
+  Critical = 1,
+  /**
+   * ## Platform-specific
+   * - **macOS:** Bounces the dock icon once.
+   * - **Windows:** Flashes the taskbar button until the application is in focus.
+   */
+  Informational,
+}
+
 /**
  * Get a handle to the current webview window. Allows emitting and listening to events from the backend that are tied to the window.
  *
@@ -405,6 +421,39 @@ class WindowManager {
       __tauriModule: 'Window',
       message: {
         cmd: 'center'
+      }
+    })
+  }
+
+  /**
+   *  Requests user attention to the window, this has no effect if the application
+   * is already focused. How requesting for user attention manifests is platform dependent,
+   * see `UserAttentionType` for details.
+   *
+   * Providing `null` will unset the request for user attention. Unsetting the request for
+   * user attention might not be done automatically by the WM when the window receives input.
+   *
+   * ## Platform-specific
+   *
+   * - **macOS:** `null` has no effect.
+   *
+   * @param resizable
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async requestUserAttention(requestType: UserAttentionType | null): Promise<void> {
+    let requestType_ = null
+    if (requestType) {
+      if (requestType as UserAttentionType === UserAttentionType.Critical) {
+        requestType_ = { type: 'Critical' }
+      } else {
+        requestType_ = { type: 'Informational' }
+      }
+    }
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'requestUserAttention',
+        data: requestType_
       }
     })
   }
@@ -887,6 +936,7 @@ export {
   PhysicalSize,
   LogicalPosition,
   PhysicalPosition,
+  UserAttentionType,
   currentMonitor,
   primaryMonitor,
   availableMonitors

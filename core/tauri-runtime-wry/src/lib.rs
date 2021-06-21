@@ -14,6 +14,7 @@ use tauri_runtime::{
     DetachedWindow, PendingWindow, WindowEvent,
   },
   Dispatch, Error, Icon, Params, Result, RunEvent, RunIteration, Runtime, RuntimeHandle,
+  UserAttentionType,
 };
 
 #[cfg(feature = "menu")]
@@ -39,7 +40,10 @@ use wry::{
     event::{Event, WindowEvent as WryWindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
     monitor::MonitorHandle,
-    window::{Fullscreen, Icon as WindowIcon, Window, WindowBuilder as WryWindowBuilder, WindowId},
+    window::{
+      Fullscreen, Icon as WindowIcon, UserAttentionType as WryUserAttentionType, Window,
+      WindowBuilder as WryWindowBuilder, WindowId,
+    },
   },
   webview::{
     FileDropEvent as WryFileDropEvent, RpcRequest as WryRpcRequest, RpcResponse, WebContext,
@@ -242,6 +246,19 @@ impl From<Position> for PositionWrapper {
       Position::Logical(s) => Self(WryPosition::Logical(LogicalPositionWrapper::from(s).0)),
       Position::Physical(s) => Self(WryPosition::Physical(PhysicalPositionWrapper::from(s).0)),
     }
+  }
+}
+
+#[derive(Debug, Clone)]
+struct UserAttentionTypeWrapper(WryUserAttentionType);
+
+impl From<UserAttentionType> for UserAttentionTypeWrapper {
+  fn from(request_type: UserAttentionType) -> UserAttentionTypeWrapper {
+    let o = match request_type {
+      UserAttentionType::Critical => WryUserAttentionType::Critical,
+      UserAttentionType::Informational => WryUserAttentionType::Informational,
+    };
+    Self(o)
   }
 }
 
@@ -467,6 +484,7 @@ enum WindowMessage {
   Hwnd(Sender<Hwnd>),
   // Setters
   Center(Sender<Result<()>>),
+  RequestUserAttention(Option<UserAttentionTypeWrapper>),
   SetResizable(bool),
   SetTitle(String),
   Maximize,
@@ -677,6 +695,17 @@ impl Dispatch for WryDispatcher {
       .context
       .proxy
       .send_event(Message::Webview(self.window_id, WebviewMessage::Print))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+
+  fn request_user_attention(&self, request_type: Option<UserAttentionType>) -> Result<()> {
+    self
+      .context
+      .proxy
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::RequestUserAttention(request_type.map(Into::into)),
+      ))
       .map_err(|_| Error::FailedToSendMessage)
   }
 
@@ -1340,6 +1369,9 @@ fn handle_event_loop(
             // Setters
             WindowMessage::Center(tx) => {
               tx.send(center_window(window)).unwrap();
+            }
+            WindowMessage::RequestUserAttention(request_type) => {
+              window.request_user_attention(request_type.map(|r| r.0));
             }
             WindowMessage::SetResizable(resizable) => window.set_resizable(resizable),
             WindowMessage::SetTitle(title) => window.set_title(&title),

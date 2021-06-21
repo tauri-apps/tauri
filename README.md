@@ -60,9 +60,9 @@ If you are interested in making a tauri-app, please visit the [documentation web
 - [x] Frameless Mode
 - [x] Transparent Mode
 - [x] Multiwindow Mode
+- [x] Tray
 - [ ] deeplink RPC (in progress)
 - [ ] One-Time commands (coming soon)
-- [ ] Tray (coming soon)
 
 ### Security Features
 - [x] localhost-free (:fire:)
@@ -101,7 +101,7 @@ If you are interested in making a tauri-app, please visit the [documentation web
 | Linux Binary               | Yes    | Yes                  |
 | iOS Binary                 | Soon   | No                   |
 | Android Binary             | Soon   | No                   |
-| Desktop Tray               | Soon   | Yes                  |
+| Desktop Tray               | Yes    | Yes                  |
 | Sidecar Binaries           | Yes    | No                   |
 
 #### Notes

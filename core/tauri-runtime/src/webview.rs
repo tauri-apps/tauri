@@ -27,6 +27,7 @@ pub struct WebviewAttributes {
   pub initialization_scripts: Vec<String>,
   pub data_directory: Option<PathBuf>,
   pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
+  pub file_drop_handler_enabled: bool,
 }
 
 impl WebviewAttributes {
@@ -37,6 +38,7 @@ impl WebviewAttributes {
       initialization_scripts: Vec::new(),
       data_directory: None,
       uri_scheme_protocols: Default::default(),
+      file_drop_handler_enabled: true,
     }
   }
 
@@ -78,6 +80,12 @@ impl WebviewAttributes {
     self
       .uri_scheme_protocols
       .insert(uri_scheme, Box::new(move |data| (protocol)(data)));
+    self
+  }
+
+  /// Disables the file drop handler. This is required to use drag and drop APIs on the front end on Windows.
+  pub fn disable_file_drop_handler(mut self) -> Self {
+    self.file_drop_handler_enabled = false;
     self
   }
 }

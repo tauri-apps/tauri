@@ -38,7 +38,11 @@ pub enum Error {
   /// HTTP method error.
   #[error("{0}")]
   HttpMethod(#[from] http::method::InvalidMethod),
-  /// Invalid HTTO header.
+  /// Invalid HTTP header value.
+  #[cfg(feature = "reqwest-client")]
+  #[error("{0}")]
+  HttpHeaderValue(#[from] http::header::InvalidHeaderValue),
+  /// Invalid HTTP header value.
   #[error("{0}")]
   HttpHeader(#[from] http::header::InvalidHeaderName),
   /// Failed to serialize header value as string.

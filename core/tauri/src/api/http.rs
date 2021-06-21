@@ -148,32 +148,15 @@ impl Client {
       request_builder = request_builder.query(&query);
     }
 
-    if let Some(headers) = request.headers {
-      for (header, header_value) in headers.iter() {
-        request_builder =
-          request_builder.header(HeaderName::from_bytes(header.as_bytes())?, header_value);
-      }
-    }
-
     if let Some(timeout) = request.timeout {
       request_builder = request_builder.timeout(Duration::from_secs(timeout));
     }
 
-    let response = if let Some(body) = request.body {
-      match body {
-        Body::Bytes(data) => {
-          request_builder
-            .body(bytes::Bytes::from(data))
-            .send()
-            .await?
-        }
-        Body::Text(text) => {
-          request_builder
-            .body(bytes::Bytes::from(text))
-            .send()
-            .await?
-        }
-        Body::Json(json) => request_builder.json(&json).send().await?,
+    if let Some(body) = request.body {
+      request_builder = match body {
+        Body::Bytes(data) => request_builder.body(bytes::Bytes::from(data)),
+        Body::Text(text) => request_builder.body(bytes::Bytes::from(text)),
+        Body::Json(json) => request_builder.json(&json),
         Body::Form(form_body) => {
           let mut form = Vec::new();
           for (name, part) in form_body.0 {
@@ -183,12 +166,22 @@ impl Client {
               FormPart::Text(text) => form.push((name, text)),
             }
           }
-          request_builder.form(&form).send().await?
+          request_builder.form(&form)
         }
+      };
+    }
+
+    let mut http_request = request_builder.build()?;
+    if let Some(headers) = request.headers {
+      for (header, value) in headers.iter() {
+        http_request.headers_mut().insert(
+          HeaderName::from_bytes(header.as_bytes())?,
+          http::header::HeaderValue::from_str(value)?,
+        );
       }
-    } else {
-      request_builder.send().await?
-    };
+    }
+
+    let response = self.0.execute(http_request).await?;
 
     if response.status().is_success() {
       Ok(Response(

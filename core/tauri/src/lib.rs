@@ -340,7 +340,7 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
 
 /// Prevent implementation details from leaking out of the [`Manager`] trait.
 pub(crate) mod sealed {
-  use crate::manager::WindowManager;
+  use crate::{app::AppHandle, manager::WindowManager};
   use tauri_runtime::{Params, Runtime, RuntimeHandle};
 
   /// A running [`Runtime`] or a dispatcher to it.
@@ -361,6 +361,7 @@ pub(crate) mod sealed {
     fn manager(&self) -> &WindowManager<P>;
 
     fn runtime(&self) -> RuntimeOrDispatch<'_, P>;
+    fn app_handle(&self) -> AppHandle<P>;
 
     /// Creates a new [`Window`] on the [`Runtime`] and attaches it to the [`Manager`].
     fn create_new_window(
@@ -369,7 +370,9 @@ pub(crate) mod sealed {
     ) -> crate::Result<crate::Window<P>> {
       use crate::runtime::Dispatch;
       let labels = self.manager().labels().into_iter().collect::<Vec<_>>();
-      let pending = self.manager().prepare_window(pending, &labels)?;
+      let pending = self
+        .manager()
+        .prepare_window(self.app_handle(), pending, &labels)?;
       match self.runtime() {
         RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending).map_err(Into::into),
         RuntimeOrDispatch::RuntimeHandle(handle) => {
@@ -379,7 +382,7 @@ pub(crate) mod sealed {
           dispatcher.create_window(pending).map_err(Into::into)
         }
       }
-      .map(|window| self.manager().attach_window(window))
+      .map(|window| self.manager().attach_window(self.app_handle(), window))
     }
   }
 }

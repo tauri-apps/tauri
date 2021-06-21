@@ -142,7 +142,7 @@ pub enum MenuUpdate {
 
 pub trait TrayHandle {
   fn set_icon(&self, icon: crate::Icon) -> crate::Result<()>;
-  fn update_item(&self, id: u32, update: MenuUpdate) -> crate::Result<()>;
+  fn update_item(&self, id: u16, update: MenuUpdate) -> crate::Result<()>;
 }
 
 /// A window menu.
@@ -248,10 +248,10 @@ impl<I: MenuId> CustomMenuItem<I> {
   }
 
   #[doc(hidden)]
-  pub fn id_value(&self) -> u32 {
+  pub fn id_value(&self) -> u16 {
     let mut s = DefaultHasher::new();
     self.id.hash(&mut s);
-    s.finish() as u32
+    s.finish() as u16
   }
 }
 

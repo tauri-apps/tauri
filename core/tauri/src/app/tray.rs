@@ -13,7 +13,7 @@ pub use crate::{
 
 use std::{collections::HashMap, sync::Arc};
 
-pub(crate) fn get_menu_ids<I: MenuId>(map: &mut HashMap<u32, I>, menu: &SystemTrayMenu<I>) {
+pub(crate) fn get_menu_ids<I: MenuId>(map: &mut HashMap<u16, I>, menu: &SystemTrayMenu<I>) {
   for item in &menu.items {
     match item {
       SystemTrayMenuEntry::CustomItem(c) => {
@@ -78,7 +78,7 @@ pub enum SystemTrayEvent<I: MenuId> {
 crate::manager::default_args! {
   /// A handle to a system tray. Allows updating the context menu items.
   pub struct SystemTrayHandle<P: Params> {
-    pub(crate) ids: Arc<HashMap<u32, P::SystemTrayMenuId>>,
+    pub(crate) ids: Arc<HashMap<u16, P::SystemTrayMenuId>>,
     pub(crate) inner: <P::Runtime as Runtime>::TrayHandler,
   }
 }
@@ -95,7 +95,7 @@ impl<P: Params> Clone for SystemTrayHandle<P> {
 crate::manager::default_args! {
   /// A handle to a system tray menu item.
   pub struct SystemTrayMenuItemHandle<P: Params> {
-    id: u32,
+    id: u16,
     tray_handler: <P::Runtime as Runtime>::TrayHandler,
   }
 }

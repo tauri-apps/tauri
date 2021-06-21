@@ -8,6 +8,7 @@ pub(crate) mod menu;
 
 use crate::{
   api::config::WindowUrl,
+  app::AppHandle,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
   manager::WindowManager,
@@ -85,11 +86,10 @@ crate::manager::default_args! {
   /// the same application.
   pub struct Window<P: Params> {
     /// The webview window created by the runtime.
-    /// ok
     window: DetachedWindow<P>,
-
     /// The manager to associate this webview window with.
     manager: WindowManager<P>,
+    pub(crate) app_handle: AppHandle<P>,
   }
 }
 
@@ -98,6 +98,7 @@ impl<P: Params> Clone for Window<P> {
     Self {
       window: self.window.clone(),
       manager: self.manager.clone(),
+      app_handle: self.app_handle.clone(),
     }
   }
 }
@@ -123,6 +124,10 @@ impl<P: Params> ManagerBase<P> for Window<P> {
     &self.manager
   }
 
+  fn app_handle(&self) -> AppHandle<P> {
+    self.app_handle.clone()
+  }
+
   fn runtime(&self) -> RuntimeOrDispatch<'_, P> {
     RuntimeOrDispatch::Dispatch(self.dispatcher())
   }
@@ -137,8 +142,16 @@ impl<'de, P: Params> CommandArg<'de, P> for Window<P> {
 
 impl<P: Params> Window<P> {
   /// Create a new window that is attached to the manager.
-  pub(crate) fn new(manager: WindowManager<P>, window: DetachedWindow<P>) -> Self {
-    Self { window, manager }
+  pub(crate) fn new(
+    manager: WindowManager<P>,
+    window: DetachedWindow<P>,
+    app_handle: AppHandle<P>,
+  ) -> Self {
+    Self {
+      window,
+      manager,
+      app_handle,
+    }
   }
 
   /// Creates a new webview window.

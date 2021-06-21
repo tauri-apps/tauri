@@ -66,9 +66,6 @@ clap = { version = "=3.0.0-beta.2", optional = true }
 # Notifications
 notify-rust = { version = "4.5", optional = true }
 
-# Global shortcut
-tauri-hotkey = { version = "0.1.2", optional = true }
-
 # HTTP
 reqwest = { version = "0.11", features = [ "json", "multipart" ], optional = true }
 bytes = { version = "1", features = [ "serde" ], optional = true }
@@ -133,4 +130,4 @@ dialog-save = [ "raw-window-handle" ]
 http-all = [ ]
 http-request = [ ]
 notification-all = [ "notify-rust" ]
-global-shortcut-all = [ "tauri-hotkey" ]
+global-shortcut-all = [ ]

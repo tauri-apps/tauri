@@ -83,7 +83,7 @@ impl WebviewAttributes {
     self
   }
 
-  /// Disables the file drop handler. This is required to use drag and drop APIs on the front end.
+  /// Disables the file drop handler. This is required to use drag and drop APIs on the front end on Windows.
   pub fn disable_file_drop_handler(mut self) -> Self {
     self.file_drop_handler_enabled = false;
     self

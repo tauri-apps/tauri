@@ -44,7 +44,7 @@ pub struct WindowConfig {
   pub url: WindowUrl,
   /// Whether the file drop is enabled or not on the webview. By default it is enabled.
   ///
-  /// Disabling it is required to use drag and drop on the frontend.
+  /// Disabling it is required to use drag and drop on the frontend on Windows.
   #[serde(default = "default_file_drop_enabled")]
   pub file_drop_enabled: bool,
   /// Center the window.

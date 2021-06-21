@@ -251,6 +251,7 @@ It's composed of the following properties:
       <Properties anchorRoot="tauri.windows" rows={[
         { property: "label", type: "string", description: `Window id to reference on the codebase.` },
         { property: "url", type: "string", description: `URL to load on the webview.` },
+        { property: "fileDropEnabled", type: "boolean", description: `Whether the file drop handler is enabled or not on the webview. Disabling it is required to use drag and drop on the frontend.` },
         { property: "center", type: "boolean", description: `Show window in the center of the screen.` },
         { property: "x", type: "number", description: `The horizontal position of the window's top left corner.` },
         { property: "y", type: "number", description: `The vertical position of the window's top left corner.` },

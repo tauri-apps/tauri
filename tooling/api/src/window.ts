@@ -126,7 +126,7 @@ enum UserAttentionType {
    * - **macOS:** Bounces the dock icon once.
    * - **Windows:** Flashes the taskbar button until the application is in focus.
    */
-  Informational,
+  Informational
 }
 
 /**
@@ -440,10 +440,12 @@ class WindowManager {
    * @param resizable
    * @returns A promise indicating the success or failure of the operation.
    */
-  async requestUserAttention(requestType: UserAttentionType | null): Promise<void> {
+  async requestUserAttention(
+    requestType: UserAttentionType | null
+  ): Promise<void> {
     let requestType_ = null
     if (requestType) {
-      if (requestType as UserAttentionType === UserAttentionType.Critical) {
+      if (requestType === UserAttentionType.Critical) {
         requestType_ = { type: 'Critical' }
       } else {
         requestType_ = { type: 'Informational' }

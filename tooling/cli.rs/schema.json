@@ -1294,6 +1294,13 @@
           "default": "en-US",
           "type": "string"
         },
+        "license": {
+          "description": "Path to the license file.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "mergeRefs": {
           "default": [],
           "type": "array",

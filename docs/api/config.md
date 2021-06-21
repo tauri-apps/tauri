@@ -168,7 +168,8 @@ It's composed of the following properties:
           { property: "featureGroupRefs", optional: true, type: "string[]", description: `The FeatureGroup element ids you want to reference from the fragments.` },
           { property: "featureRefs", optional: true, type: "string[]", description: `The Feature element ids you want to reference from the fragments.` },
           { property: "mergeRefs", optional: true, type: "string[]", description: `The Merge element ids you want to reference from the fragments.` },
-          { property: "skipWebviewInstall", optional: true, type: "boolean", description: `Disables the Webview2 runtime installation after app install.` }]} />
+          { property: "skipWebviewInstall", optional: true, type: "boolean", description: `Disables the Webview2 runtime installation after app install.` },
+          { property: "license", optional: true, type: "string", description: `The path to the license file to render on the installer. Must be an RTF file, so if a different extension is provided, we convert it to the RTF format.` }]} />
         }
         ]} />
       },

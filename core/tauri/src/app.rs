@@ -240,6 +240,16 @@ macro_rules! shared_app_impl {
       pub fn clipboard_manager(&self) -> <P::Runtime as Runtime>::ClipboardManager {
         self.clipboard_manager.clone()
       }
+
+      /// Gets the app's configuration, defined on the `tauri.conf.json` file.
+      pub fn config(&self) -> Arc<Config> {
+        self.manager.config()
+      }
+
+      /// Gets the app's package information.
+      pub fn package_info(&self) -> &PackageInfo {
+        self.manager.package_info()
+      }
     }
   };
 }

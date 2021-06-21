@@ -8,7 +8,7 @@
 
 use std::{fmt::Debug, hash::Hash, path::PathBuf};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri_utils::assets::Assets;
 use uuid::Uuid;
 
@@ -74,6 +74,20 @@ impl<I: MenuId> SystemTray<I> {
     self.menu.replace(menu);
     self
   }
+}
+
+/// Type of user attention requested on a window.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(tag = "type")]
+pub enum UserAttentionType {
+  /// ## Platform-specific
+  /// - **macOS:** Bounces the dock icon until the application is in focus.
+  /// - **Windows:** Flashes both the window and the taskbar button until the application is in focus.
+  Critical,
+  /// ## Platform-specific
+  /// - **macOS:** Bounces the dock icon once.
+  /// - **Windows:** Flashes the taskbar button until the application is in focus.
+  Informational,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -337,6 +351,11 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
 
   /// Opens the dialog to prints the contents of the webview.
   fn print(&self) -> crate::Result<()>;
+
+  /// Requests user attention to the window.
+  ///
+  /// Providing `None` will unset the request for user attention.
+  fn request_user_attention(&self, request_type: Option<UserAttentionType>) -> crate::Result<()>;
 
   /// Create a new webview window.
   fn create_window<P: Params<Runtime = Self::Runtime>>(

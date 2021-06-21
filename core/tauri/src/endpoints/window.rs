@@ -7,7 +7,10 @@ use crate::runtime::{webview::WindowBuilder, Dispatch, Runtime};
 use crate::{
   api::config::WindowConfig,
   endpoints::InvokeResponse,
-  runtime::window::dpi::{Position, Size},
+  runtime::{
+    window::dpi::{Position, Size},
+    UserAttentionType,
+  },
   Params, Window,
 };
 use serde::Deserialize;
@@ -54,6 +57,7 @@ pub enum Cmd {
   AvailableMonitors,
   // Setters
   Center,
+  RequestUserAttention(Option<UserAttentionType>),
   SetResizable(bool),
   SetTitle(String),
   Maximize,
@@ -143,6 +147,7 @@ impl Cmd {
         Self::AvailableMonitors => return Ok(window.available_monitors()?.into()),
         // Setters
         Self::Center => window.center()?,
+        Self::RequestUserAttention(request_type) => window.request_user_attention(request_type)?,
         Self::SetResizable(resizable) => window.set_resizable(resizable)?,
         Self::SetTitle(title) => window.set_title(&title)?,
         Self::Maximize => window.maximize()?,

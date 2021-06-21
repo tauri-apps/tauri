@@ -696,14 +696,20 @@ where
     // set up all the windows defined in the config
     for config in manager.config().tauri.windows.clone() {
       let url = config.url.clone();
+      let file_drop_enabled = config.file_drop_enabled;
       let label = config
         .label
         .parse()
         .unwrap_or_else(|_| panic!("bad label found in config: {}", config.label));
 
+      let mut webview_attributes = WebviewAttributes::new(url);
+      if !file_drop_enabled {
+        webview_attributes = webview_attributes.disable_file_drop_handler();
+      }
+
       self.pending_windows.push(PendingWindow::with_config(
         config,
-        WebviewAttributes::new(url),
+        webview_attributes,
         label,
       ));
     }

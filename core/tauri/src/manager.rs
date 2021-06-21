@@ -632,7 +632,9 @@ impl<P: Params> WindowManager<P> {
       pending.rpc_handler = Some(self.prepare_rpc_handler(app_handle.clone()));
     }
 
-    pending.file_drop_handler = Some(self.prepare_file_drop(app_handle));
+    if pending.webview_attributes.file_drop_handler_enabled {
+      pending.file_drop_handler = Some(self.prepare_file_drop(app_handle));
+    }
     pending.url = url;
 
     Ok(pending)

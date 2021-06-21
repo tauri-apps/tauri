@@ -6,6 +6,11 @@
 const execa = require('execa')
 const fs = require('fs')
 
+let extension = ''
+if (process.platform === 'win32') {
+  extension = '.exe'
+}
+
 async function main() {
   const rustTargetInfo = JSON.parse(
     (
@@ -22,8 +27,8 @@ async function main() {
   )
   const platformPostfix = rustTargetInfo['llvm-target']
   fs.renameSync(
-    'src-tauri/binaries/app',
-    `src-tauri/binaries/app-${platformPostfix}`
+    `src-tauri/binaries/app${extension}`,
+    `src-tauri/binaries/app-${platformPostfix}${extension}`
   )
 }
 

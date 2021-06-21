@@ -133,7 +133,7 @@ impl ResourceDirectory {
     } else {
       format!(
         r#"<Directory Id="{id}" Name="{name}">{contents}</Directory>"#,
-        id = format!("_{}", Uuid::new_v4().to_simple()),
+        id = format!("I{}", Uuid::new_v4().to_simple()),
         name = self.name,
         contents = format!("{}{}", files, directories)
       )
@@ -575,7 +575,7 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
         .into_os_string()
         .into_string()
         .expect("failed to read external binary path"),
-      id: Uuid::new_v4().to_string(),
+      id: format!("I{}", Uuid::new_v4().to_simple()),
     });
   }
 
@@ -588,7 +588,7 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
           .into_os_string()
           .into_string()
           .expect("failed to read binary path"),
-        id: Uuid::new_v4().to_string(),
+        id: format!("I{}", Uuid::new_v4().to_simple()),
       })
     }
   }
@@ -645,7 +645,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     let path = dll?;
     let resource_path = path.to_string_lossy().to_string();
     dlls.push(ResourceFile {
-      id: format!("_{}", Uuid::new_v4().to_simple()),
+      id: format!("I{}", Uuid::new_v4().to_simple()),
       guid: Uuid::new_v4().to_string(),
       path: resource_path,
     });
@@ -672,7 +672,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       .expect("failed to read resource path");
 
     let resource_entry = ResourceFile {
-      id: format!("_{}", Uuid::new_v4().to_simple()),
+      id: format!("I{}", Uuid::new_v4().to_simple()),
       guid: Uuid::new_v4().to_string(),
       path: resource_path,
     };

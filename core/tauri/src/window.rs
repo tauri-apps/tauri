@@ -20,7 +20,7 @@ use crate::{
       dpi::{PhysicalPosition, PhysicalSize, Position, Size},
       DetachedWindow, PendingWindow, WindowEvent,
     },
-    Dispatch, Icon, Params, Runtime,
+    Dispatch, Icon, Params, Runtime, UserAttentionType,
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
@@ -501,6 +501,27 @@ impl<P: Params> Window<P> {
   /// Centers the window.
   pub fn center(&self) -> crate::Result<()> {
     self.window.dispatcher.center().map_err(Into::into)
+  }
+
+  /// Requests user attention to the window, this has no effect if the application
+  /// is already focused. How requesting for user attention manifests is platform dependent,
+  /// see `UserAttentionType` for details.
+  ///
+  /// Providing `None` will unset the request for user attention. Unsetting the request for
+  /// user attention might not be done automatically by the WM when the window receives input.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** `None` has no effect.
+  pub fn request_user_attention(
+    &self,
+    request_type: Option<UserAttentionType>,
+  ) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .request_user_attention(request_type)
+      .map_err(Into::into)
   }
 
   /// Opens the dialog to prints the contents of the webview.

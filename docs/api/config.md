@@ -168,7 +168,8 @@ It's composed of the following properties:
           { property: "featureGroupRefs", optional: true, type: "string[]", description: `The FeatureGroup element ids you want to reference from the fragments.` },
           { property: "featureRefs", optional: true, type: "string[]", description: `The Feature element ids you want to reference from the fragments.` },
           { property: "mergeRefs", optional: true, type: "string[]", description: `The Merge element ids you want to reference from the fragments.` },
-          { property: "skipWebviewInstall", optional: true, type: "boolean", description: `Disables the Webview2 runtime installation after app install.` }]} />
+          { property: "skipWebviewInstall", optional: true, type: "boolean", description: `Disables the Webview2 runtime installation after app install.` },
+          { property: "license", optional: true, type: "string", description: `The path to the license file to render on the installer. Must be an RTF file, so if a different extension is provided, we convert it to the RTF format.` }]} />
         }
         ]} />
       },
@@ -259,15 +260,17 @@ It's composed of the following properties:
         { property: "minWidth", type: "number", description: `The minimum window width.` },
         { property: "minHeight", type: "number", description: `The minimum window height.` },
         { property: "maxWidth", type: "number", description: `The maximum window width.` },
-        { property: "minHeight", type: "number", description: `The minimum window height.` },
+        { property: "maxHeight", type: "number", description: `The maximum window height.` },
         { property: "resizable", optional: true, type: "boolean", description: `Whether the window is resizable or not..` },
         { property: "title", type: "string", description: `Window title.` },
         { property: "fullscreen", optional: true, type: "boolean", description: `Whether the window starts as fullscreen or not.` },
+        { property: "focus", optional: true, type: "boolean", description: `Whether the window will be initially hidden or focused.` },
         { property: "transparent", optional: true, type: "boolean", description: `Whether the window is transparent or not.` },
         { property: "maximized", optional: true, type: "boolean", description: `Whether the window is maximized or not.` },
         { property: "visible", optional: true, type: "boolean", description: `Whether the window is visible or not.` },
         { property: "decorations", optional: true, type: "boolean", description: `Whether the window should have borders and bars.` },
         { property: "alwaysOnTop", optional: true, type: "boolean", description: `Whether the window should always be on top of other windows.` },
+        { property: "skipTaskbar", optional: true, type: "boolean", description: `Whether or not the window icon should be added to the taskbar.` },
       ]}/>
     </Array>
   },

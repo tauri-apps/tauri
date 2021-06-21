@@ -78,6 +78,8 @@ pub struct WixConfig {
   pub merge_refs: Vec<String>,
   #[serde(default)]
   pub skip_webview_install: bool,
+  /// Path to the license file.
+  pub license: Option<String>,
 }
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]

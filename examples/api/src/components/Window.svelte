@@ -1,5 +1,5 @@
 <script>
-  import { appWindow, WebviewWindow, LogicalSize, LogicalPosition } from "@tauri-apps/api/window";
+  import { appWindow, WebviewWindow, LogicalSize, LogicalPosition, UserAttentionType } from "@tauri-apps/api/window";
   import { open as openDialog } from "@tauri-apps/api/dialog";
   import { open } from "@tauri-apps/api/shell";
 
@@ -21,7 +21,10 @@
     setFullscreen,
     setIcon,
     center,
+    requestUserAttention,
   } = appWindow;
+  window.app = appWindow;
+  window.UserAttentionType = UserAttentionType;
 
   export let onMessage;
 
@@ -72,6 +75,13 @@
     webview.once('tauri://error', function () {
       onMessage("Error creating new webview")
     })
+  }
+
+  async function requestUserAttention_() {
+    await minimize();
+    await requestUserAttention(UserAttentionType.Critical);
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    await requestUserAttention(null);
   }
 
   $: setResizable(resizable);
@@ -179,6 +189,7 @@
   <input id="url" bind:value={urlValue} />
   <button class="button" id="open-url"> Open URL </button>
 </form>
+<button class="button" on:click={requestUserAttention_} title="Minimizes the window, requests attention for 3s and then resets it">Request attention</button>
 <button class="button" on:click={createWindow}>New window</button>
 
 <style>

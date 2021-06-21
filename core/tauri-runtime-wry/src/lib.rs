@@ -13,8 +13,8 @@ use tauri_runtime::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     DetachedWindow, PendingWindow, WindowEvent,
   },
-  Dispatch, Error, GlobalShortcutManager, Icon, Params, Result, RunIteration, Runtime,
-  RuntimeHandle,
+  Dispatch, Error, GlobalShortcutManager, Icon, Params, Result, RunEvent, RunIteration, Runtime,
+  RuntimeHandle, UserAttentionType,
 };
 
 #[cfg(feature = "menu")]
@@ -42,7 +42,10 @@ use wry::{
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
     monitor::MonitorHandle,
     platform::global_shortcut::{GlobalShortcut, ShortcutManager as WryShortcutManager},
-    window::{Fullscreen, Icon as WindowIcon, Window, WindowBuilder as WryWindowBuilder, WindowId},
+    window::{
+      Fullscreen, Icon as WindowIcon, UserAttentionType as WryUserAttentionType, Window,
+      WindowBuilder as WryWindowBuilder, WindowId,
+    },
   },
   webview::{
     FileDropEvent as WryFileDropEvent, RpcRequest as WryRpcRequest, RpcResponse, WebContext,
@@ -352,6 +355,19 @@ impl From<Position> for PositionWrapper {
   }
 }
 
+#[derive(Debug, Clone)]
+struct UserAttentionTypeWrapper(WryUserAttentionType);
+
+impl From<UserAttentionType> for UserAttentionTypeWrapper {
+  fn from(request_type: UserAttentionType) -> UserAttentionTypeWrapper {
+    let o = match request_type {
+      UserAttentionType::Critical => WryUserAttentionType::Critical,
+      UserAttentionType::Informational => WryUserAttentionType::Informational,
+    };
+    Self(o)
+  }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct WindowBuilderWrapper {
   inner: WryWindowBuilder,
@@ -574,6 +590,7 @@ enum WindowMessage {
   Hwnd(Sender<Hwnd>),
   // Setters
   Center(Sender<Result<()>>),
+  RequestUserAttention(Option<UserAttentionTypeWrapper>),
   SetResizable(bool),
   SetTitle(String),
   Maximize,
@@ -776,6 +793,17 @@ impl Dispatch for WryDispatcher {
       .context
       .proxy
       .send_event(Message::Webview(self.window_id, WebviewMessage::Print))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+
+  fn request_user_attention(&self, request_type: Option<UserAttentionType>) -> Result<()> {
+    self
+      .context
+      .proxy
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::RequestUserAttention(request_type.map(Into::into)),
+      ))
       .map_err(|_| Error::FailedToSendMessage)
   }
 
@@ -1050,6 +1078,7 @@ struct TrayContext {
 }
 
 struct WebviewWrapper {
+  label: String,
   inner: WebView,
   #[cfg(feature = "menu")]
   menu_items: HashMap<u16, WryCustomMenuItem>,
@@ -1251,7 +1280,7 @@ impl Runtime for Wry {
   }
 
   #[cfg(any(target_os = "windows", target_os = "macos"))]
-  fn run_iteration(&mut self) -> RunIteration {
+  fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration {
     use wry::application::platform::run_return::EventLoopExtRunReturn;
     let webviews = self.webviews.clone();
     let window_event_listeners = self.window_event_listeners.clone();
@@ -1276,7 +1305,7 @@ impl Runtime for Wry {
           event_loop,
           control_flow,
           EventLoopIterationContext {
-            callback: None,
+            callback: &callback,
             webviews: webviews.lock().expect("poisoned webview collection"),
             window_event_listeners: window_event_listeners.clone(),
             global_shortcut_manager: global_shortcut_manager.clone(),
@@ -1293,7 +1322,7 @@ impl Runtime for Wry {
     iteration
   }
 
-  fn run<F: Fn() + 'static>(self, callback: F) {
+  fn run<F: Fn(RunEvent) + 'static>(self, callback: F) {
     self.is_event_loop_running.store(true, Ordering::Relaxed);
     let webviews = self.webviews.clone();
     let window_event_listeners = self.window_event_listeners.clone();
@@ -1310,7 +1339,7 @@ impl Runtime for Wry {
         event_loop,
         control_flow,
         EventLoopIterationContext {
-          callback: Some(&callback),
+          callback: &callback,
           webviews: webviews.lock().expect("poisoned webview collection"),
           window_event_listeners: window_event_listeners.clone(),
           global_shortcut_manager: global_shortcut_manager.clone(),
@@ -1326,7 +1355,7 @@ impl Runtime for Wry {
 }
 
 struct EventLoopIterationContext<'a> {
-  callback: Option<&'a (dyn Fn() + 'static)>,
+  callback: &'a (dyn Fn(RunEvent) + 'static),
   webviews: MutexGuard<'a, HashMap<WindowId, WebviewWrapper>>,
   window_event_listeners: WindowEventListeners,
   global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
@@ -1413,13 +1442,7 @@ fn handle_event_loop(
       }
       match event {
         WryWindowEvent::CloseRequested => {
-          webviews.remove(&window_id);
-          if webviews.is_empty() {
-            *control_flow = ControlFlow::Exit;
-            if let Some(callback) = callback {
-              callback();
-            }
-          }
+          on_window_close(callback, window_id, &mut webviews, control_flow);
         }
         WryWindowEvent::Resized(_) => {
           if let Err(e) = webviews[&window_id].inner.resize() {
@@ -1486,6 +1509,9 @@ fn handle_event_loop(
             WindowMessage::Center(tx) => {
               tx.send(center_window(window)).unwrap();
             }
+            WindowMessage::RequestUserAttention(request_type) => {
+              window.request_user_attention(request_type.map(|r| r.0));
+            }
             WindowMessage::SetResizable(resizable) => window.set_resizable(resizable),
             WindowMessage::SetTitle(title) => window.set_title(&title),
             WindowMessage::Maximize => window.set_maximized(true),
@@ -1505,10 +1531,7 @@ fn handle_event_loop(
             WindowMessage::Show => window.set_visible(true),
             WindowMessage::Hide => window.set_visible(false),
             WindowMessage::Close => {
-              webviews.remove(&id);
-              if webviews.is_empty() {
-                *control_flow = ControlFlow::Exit;
-              }
+              on_window_close(callback, id, &mut webviews, control_flow);
             }
             WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
             WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),
@@ -1666,6 +1689,21 @@ fn handle_event_loop(
   }
 }
 
+fn on_window_close<'a>(
+  callback: &'a (dyn Fn(RunEvent) + 'static),
+  window_id: WindowId,
+  webviews: &mut MutexGuard<'a, HashMap<WindowId, WebviewWrapper>>,
+  control_flow: &mut ControlFlow,
+) {
+  if let Some(webview) = webviews.remove(&window_id) {
+    callback(RunEvent::WindowClose(webview.label));
+  }
+  if webviews.is_empty() {
+    *control_flow = ControlFlow::Exit;
+    callback(RunEvent::Exit);
+  }
+}
+
 fn center_window(window: &Window) -> Result<()> {
   if let Some(monitor) = window.current_monitor() {
     let screen_size = monitor.size();
@@ -1711,8 +1749,11 @@ fn create_webview<P: Params<Runtime = Wry>>(
       webview_builder.with_rpc_handler(create_rpc_handler(context.clone(), label.clone(), handler));
   }
   if let Some(handler) = file_drop_handler {
-    webview_builder =
-      webview_builder.with_file_drop_handler(create_file_drop_handler(context, label, handler));
+    webview_builder = webview_builder.with_file_drop_handler(create_file_drop_handler(
+      context,
+      label.clone(),
+      handler,
+    ));
   }
   for (scheme, protocol) in webview_attributes.uri_scheme_protocols {
     webview_builder = webview_builder.with_custom_protocol(scheme, move |_window, url| {
@@ -1735,6 +1776,7 @@ fn create_webview<P: Params<Runtime = Wry>>(
     .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
   Ok(WebviewWrapper {
+    label: format!("{}", label),
     inner: webview,
     #[cfg(feature = "menu")]
     menu_items,

@@ -32,6 +32,9 @@ pub enum Error {
   #[cfg(feature = "reqwest-client")]
   #[error("Network Error: {0}")]
   Network(#[from] reqwest::Error),
+  /// HTTP request error. First parameter is the response status code, and the second is the response text.
+  #[error("HTTP Error: status code {0} and response `{1}`")]
+  Http(u16, String),
   /// HTTP method error.
   #[error("{0}")]
   HttpMethod(#[from] http::method::InvalidMethod),

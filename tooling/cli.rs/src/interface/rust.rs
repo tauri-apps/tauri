@@ -16,7 +16,7 @@ use serde::Deserialize;
 use crate::helpers::{app_paths::tauri_dir, config::Config, manifest::Manifest};
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
-  UpdaterSettings, WindowsSettings,
+  UpdaterSettings, WindowsSettings, WixSettings,
 };
 
 /// The `workspace` section of the app configuration (read from Cargo.toml).
@@ -431,7 +431,11 @@ fn tauri_config_to_bundle_settings(
       timestamp_url: config.windows.timestamp_url,
       digest_algorithm: config.windows.digest_algorithm,
       certificate_thumbprint: config.windows.certificate_thumbprint,
-      wix: config.windows.wix.map(|w| w.into()),
+      wix: config.windows.wix.map(|w| {
+        let mut wix = WixSettings::from(w);
+        wix.license = wix.license.map(|l| tauri_dir().join(l).to_string_lossy().into_owned());
+        wix
+      }),
       icon_path: windows_icon_path,
     },
     updater: Some(UpdaterSettings {

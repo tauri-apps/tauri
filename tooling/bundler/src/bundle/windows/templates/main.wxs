@@ -33,6 +33,9 @@
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
         
         <WixVariable Id="WixUIBannerBmp" Value="{{{icon_path}}}" />
+        {{#if license}}
+        <WixVariable Id="WixUILicenseRtf" Value="{{{license}}}" />
+        {{/if}}
         
         <Icon Id="ProductIcon" SourceFile="{{{icon_path}}}"/>
         <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
@@ -42,6 +45,7 @@
         <UI>
             <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
 
+            {{#unless license}}
             <!-- Skip license dialog -->
             <Publish Dialog="WelcomeDlg"
                      Control="Next"
@@ -53,6 +57,7 @@
                      Event="NewDialog"
                      Value="WelcomeDlg"
                      Order="2">1</Publish>
+            {{/unless}}
         </UI>
 
         <UIRef Id="WixUI_InstallDir" />

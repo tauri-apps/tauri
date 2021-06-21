@@ -414,6 +414,31 @@ pub fn build_wix_app_installer(
   let language_map: HashMap<String, LanguageMetadata> =
     serde_json::from_str(include_str!("./languages.json")).unwrap();
 
+  if let Some(wix) = &settings.windows().wix {
+    if let Some(license) = &wix.license {
+      if license.ends_with(".rtf") {
+        data.insert("license", to_json(license));
+      } else {
+        let license_path = PathBuf::from(license);
+        let license_contents = std::fs::read_to_string(&license_path)?;
+        let license_rtf = format!(
+          r#"{{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033{{\fonttbl{{\f0\fnil\fcharset0 Calibri;}}}}
+{{\*\generator Riched20 10.0.18362}}\viewkind4\uc1 
+\pard\sa200\sl276\slmult1\f0\fs22\lang9 {}\par
+}}
+ "#,
+          license_contents.replace("\n", "\\par ")
+        );
+        let rtf_output_path = settings
+          .project_out_directory()
+          .join("wix")
+          .join("LICENSE.rtf");
+        std::fs::write(&rtf_output_path, license_rtf)?;
+        data.insert("license", to_json(rtf_output_path));
+      }
+    }
+  }
+
   let (language, language_metadata) = if let Some(wix) = &settings.windows().wix {
     let metadata = language_map.get(&wix.language).unwrap_or_else(|| {
       panic!(

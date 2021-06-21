@@ -194,6 +194,8 @@ pub struct WixSettings {
   pub merge_refs: Vec<String>,
   /// Disables the Webview2 runtime installation after app install.
   pub skip_webview_install: bool,
+  /// The path to the LICENSE file.
+  pub license: Option<String>,
 }
 
 /// The Windows bundle settings.

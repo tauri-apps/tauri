@@ -7,9 +7,9 @@ import Alert from '@theme/Alert'
 
 You may need to embed depending binaries in order to make your application work or to prevent users having to install additional dependencies (e.g. Node.js, Python, etc).
 
-To bundle the binaries of your choice, you can add the `externalBin` property to the `tauri` namespace in your `tauri.conf.json`.
+To bundle the binaries of your choice, you can add the `externalBin` property to the `tauri > bundle` object in your `tauri.conf.json`.
 
-See more about tauri.conf.json configuration <a href="/docs/api/config#build">here</a>.
+See more about tauri.conf.json configuration <a href="/docs/api/config#tauri.bundle">here</a>.
 
 `externalBin` expects a list of strings targeting binaries either with absolute or relative paths.
 
@@ -19,21 +19,87 @@ Here is a sample to illustrate the configuration, this is not a complete `tauri.
 {
   "tauri": {
     "bundle": {
-      "externalBin": ["/absolute/path/to/bin1", "relative/path/to/bin2"]
+      "externalBin": ["/absolute/path/to/app", "relative/path/to/binary", "bin/python"]
     }
   }
 }
 ```
 
-This way, you may [execute commands with Rust](https://doc.rust-lang.org/std/process/struct.Command.html) in your Tauri application.
+A binary with the same name and a `-$TARGET_TRIPLE` suffix must exist on the specified path. For instance, `"externalBin": ["bin/python"]` requires a `src-tauri/bin/python-x86_64-unknown-linux-gnu` executable on Linux. You can find the current platform's target triple running the following command:
 
-<Alert title="Note">
-Tauri provides some functions to handle standard cases (like loading platform specific binaries), such as:
+```bash
+RUSTC_BOOTSTRAP=1 rustc -Z unstable-options --print target-spec-json
+```
 
-- `tauri::api::command::binary_command`, which will append the current environment triplet to the input (useful for cross-environments). If you're creating your own binary, you'll _have to_ provide a binary **for each platform you're targeting** by specifying the target triplets, e.g. "binaryname-x86_64-apple-darwin".
+Here's a Node.js script to append the target triple to a binary:
 
-Target triplets can be found by executing the `rustup target list` command.
+```javascript
+const execa = require('execa')
+const fs = require('fs')
 
-- `tauri::api::command::relative_command` that will relatively resolve the path to the binary.
+async function main() {
+  const rustTargetInfo = JSON.parse(
+    (
+      await execa(
+        'rustc',
+        ['-Z', 'unstable-options', '--print', 'target-spec-json'],
+        {
+          env: {
+            RUSTC_BOOTSTRAP: 1
+          }
+        }
+      )
+    ).stdout
+  )
+  const platformPostfix = rustTargetInfo['llvm-target']
+  fs.renameSync(
+    'src-tauri/binaries/app',
+    `src-tauri/binaries/app-${platformPostfix}`
+  )
+}
 
-</Alert>
+main().catch((e) => {
+  throw e
+})
+```
+
+## Running the sidecar binary on JavaScript
+
+On the JavaScript code, import the `Command` class on the `shell` module and use the `sidecar` static method:
+
+```javascript
+import { Command } from '@tauri-apps/api/shell'
+// alternatively, use `window.__TAURI__.shell.Command`
+// `my-sidecar` is the value specified on `tauri.conf.json > tauri > bundle > externalBin`
+const command = Command.sidecar('my-sidecar')
+const output = await command.execute()
+```
+
+## Running the sidecar binary on Rust
+
+On the Rust code, import the `Command` struct from the `tauri::api::process` module:
+
+```rust
+let (mut rx, mut child) = Command::new_sidecar("my-sidecar")
+  .expect("failed to create `my-sidecar` binary command")
+  .spawn()
+  .expect("Failed to spawn sidecar");
+
+tauri::async_runtime::spawn(async move {
+  // read events such as stdout
+  while let Some(event) = rx.recv().await {
+    if let CommandEvent::Stdout(line) = event {
+      window
+        .emit("message", Some(format!("'{}'", line)))
+        .expect("failed to emit event");
+      // write to stdin
+      child.write("message from Rust\n".as_bytes()).unwrap();
+    }
+  }
+});
+```
+
+## Using Node.js on a sidecar
+
+The Tauri [sidecar example](https://github.com/tauri-apps/tauri/tree/dev/examples/sidecar) demonstrates how to use the sidecar API to run a Node.js application on Tauri.
+It compiles the Node.js code using [pkg](https://github.com/vercel/pkg) and uses the scripts above to run it.

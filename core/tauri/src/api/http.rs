@@ -118,12 +118,18 @@ impl Client {
       request_builder.send()?
     };
 
-    let response = response.error_for_status()?;
-    Ok(Response(
-      request.response_type.unwrap_or(ResponseType::Json),
-      response,
-      request.url,
-    ))
+    if response.is_success() {
+      Ok(Response(
+        request.response_type.unwrap_or(ResponseType::Json),
+        response,
+        request.url,
+      ))
+    } else {
+      Err(super::Error::Http(
+        response.status().as_u16(),
+        response.text()?,
+      ))
+    }
   }
 }
 
@@ -184,11 +190,17 @@ impl Client {
       request_builder.send().await?
     };
 
-    let response = response.error_for_status()?;
-    Ok(Response(
-      request.response_type.unwrap_or(ResponseType::Json),
-      response,
-    ))
+    if response.status().is_success() {
+      Ok(Response(
+        request.response_type.unwrap_or(ResponseType::Json),
+        response,
+      ))
+    } else {
+      Err(super::Error::Http(
+        response.status().as_u16(),
+        response.text().await?,
+      ))
+    }
   }
 }
 

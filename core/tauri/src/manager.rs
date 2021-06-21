@@ -427,6 +427,11 @@ impl<P: Params> WindowManager<P> {
 
         let asset_response = assets
           .get(&path)
+          .or_else(|| {
+            #[cfg(debug_assertions)]
+            eprintln!("Asset `{}` not found; fallback to index.html", path); // TODO log::error!
+            assets.get("index.html")
+          })
           .ok_or(crate::Error::AssetNotFound(path))
           .map(Cow::into_owned);
         match asset_response {
@@ -627,7 +632,9 @@ impl<P: Params> WindowManager<P> {
       pending.rpc_handler = Some(self.prepare_rpc_handler(app_handle.clone()));
     }
 
-    pending.file_drop_handler = Some(self.prepare_file_drop(app_handle));
+    if pending.webview_attributes.file_drop_handler_enabled {
+      pending.file_drop_handler = Some(self.prepare_file_drop(app_handle));
+    }
     pending.url = url;
 
     Ok(pending)
@@ -680,6 +687,12 @@ impl<P: Params> WindowManager<P> {
     }
 
     window
+  }
+
+  pub(crate) fn on_window_close(&self, label: String) {
+    self
+      .windows_lock()
+      .remove(&label.parse().unwrap_or_else(|_| panic!("bad label")));
   }
 
   pub fn emit_filter<E: ?Sized, S, F>(&self, event: &E, payload: S, filter: F) -> crate::Result<()>

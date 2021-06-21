@@ -81,7 +81,11 @@ impl Notification {
         notification.app_id(&self.identifier);
       }
     }
-    notification.show()?;
+
+    crate::async_runtime::spawn(async move {
+      notification.show().expect("failed to show notification");
+    });
+
     Ok(())
   }
 }

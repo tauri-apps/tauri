@@ -40,5 +40,4 @@ async function readText(): Promise<string | null> {
   })
 }
 
-
 export { writeText, readText }

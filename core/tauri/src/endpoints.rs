@@ -115,17 +115,14 @@ impl Module {
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
-      // on Linux, the dialog must run on the main thread.
+      // on Linux, the dialog must run on the rpc task.
       #[cfg(target_os = "linux")]
       Self::Dialog(cmd) => {
-        let window_ = window.clone();
-        let _ = window.run_on_main_thread(move || {
-          resolver.respond_closure(move || {
-            cmd
-              .run(window_)
-              .and_then(|r| r.json)
-              .map_err(InvokeError::from)
-          })
+        resolver.respond_closure(move || {
+          cmd
+            .run(window)
+            .and_then(|r| r.json)
+            .map_err(InvokeError::from)
         });
       }
       Self::Cli(cmd) => {

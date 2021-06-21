@@ -9,6 +9,7 @@ pub(crate) mod tray;
 use crate::{
   api::assets::Assets,
   api::config::{Config, WindowUrl},
+  command::{CommandArg, CommandItem},
   hooks::{InvokeHandler, OnPageLoad, PageLoadPayload, SetupHook},
   manager::{Args, WindowManager},
   plugin::{Plugin, PluginStore},
@@ -19,7 +20,7 @@ use crate::{
     Dispatch, MenuId, Params, RunEvent, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
-  Context, Invoke, Manager, StateManager, Window,
+  Context, Invoke, InvokeError, Manager, StateManager, Window,
 };
 
 use tauri_utils::PackageInfo;
@@ -130,6 +131,13 @@ impl<P: Params> Clone for AppHandle<P> {
       #[cfg(feature = "system-tray")]
       tray_handle: self.tray_handle.clone(),
     }
+  }
+}
+
+impl<'de, P: Params> CommandArg<'de, P> for AppHandle<P> {
+  /// Grabs the [`Window`] from the [`CommandItem`] and returns the associated [`AppHandle`]. This will never fail.
+  fn from_command(command: CommandItem<'de, P>) -> Result<Self, InvokeError> {
+    Ok(command.message.window().app_handle)
   }
 }
 

@@ -137,6 +137,19 @@ async fn my_custom_command(window: tauri::Window) {
 }
 ```
 
+## Accessing an AppHandle in Commands
+
+Commands can access an `AppHandle` instance:
+
+```rust
+#[tauri::command]
+async fn my_custom_command(app_handle: tauri::AppHandle) {
+  let app_dir = app_handle.path_resolver().app_dir();
+  use tauri::GlobalShortcutManager;
+  app_handle.global_shortcut_manager().register("CTRL + U", move || {});
+}
+```
+
 ## Accessing managed state
 
 Tauri can manage state using the `manage` function on `tauri::Builder`.

@@ -1865,14 +1865,8 @@ fn create_webview<P: Params<Runtime = Wry>>(
   let web_context = match web_context.entry(webview_attributes.data_directory) {
     Occupied(occupied) => occupied.into_mut(),
     Vacant(vacant) => {
-      let web_context = WebContext::new(vacant.key().clone());
-
-      #[cfg(target_os = "linux")]
-      if is_first_context {
-        // todo: wry v0.10.1 should include wry::webview::WebContext::set_allows_automation
-        // set automation mode
-      }
-
+      let mut web_context = WebContext::new(vacant.key().clone());
+      web_context.set_allows_automation(is_first_context);
       vacant.insert(web_context)
     }
   };

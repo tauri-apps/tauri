@@ -528,14 +528,17 @@ impl<P: Params> WindowManager<P> {
     let key = self.generate_invoke_key();
     format!(
       r#"
-      {bundle_script}
+      (function () {{
+        const __TAURI_INVOKE_KEY__ = {key};
+        {bundle_script}
+      }})()
       {core_script}
       {event_initialization_script}
       if (window.rpc) {{
-        window.__TAURI__.invoke("__initialized", {{ url: window.location.href }}, {key})
+        window.__TAURI__._invoke("__initialized", {{ url: window.location.href }}, {key})
       }} else {{
         window.addEventListener('DOMContentLoaded', function () {{
-          window.__TAURI__.invoke("__initialized", {{ url: window.location.href }}, {key})
+          window.__TAURI__._invoke("__initialized", {{ url: window.location.href }}, {key})
         }})
       }}
       {plugin_initialization_script}
@@ -566,7 +569,7 @@ impl<P: Params> WindowManager<P> {
       }}
 
       if (listeners.length > 0) {{
-        window.__TAURI__.invoke('tauri', {{
+        window.__TAURI__._invoke('tauri', {{
           __tauriModule: 'Internal',
           message: {{
             cmd: 'validateSalt',

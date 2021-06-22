@@ -405,7 +405,7 @@ pub struct WindowBuilderWrapper {
   inner: WryWindowBuilder,
   center: bool,
   #[cfg(feature = "menu")]
-  menu_items: HashMap<u16, WryCustomMenuItem>,
+  menu: Menu<u16>,
 }
 
 // safe since `menu_items` are read only here
@@ -449,10 +449,7 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[cfg(feature = "menu")]
   fn menu<I: MenuId>(mut self, menu: Menu<I>) -> Self {
-    let mut items = HashMap::new();
-    let window_menu = to_wry_menu(&mut items, menu);
-    self.menu_items = items;
-    self.inner = self.inner.with_menu(window_menu);
+    self.menu = convert_menu_id(Menu::new(), menu);
     self
   }
 
@@ -1794,9 +1791,10 @@ fn create_webview<P: Params<Runtime = Wry>>(
   context: DispatcherContext,
   pending: PendingWindow<P>,
 ) -> Result<WebviewWrapper> {
+  #[allow(unused_mut)]
   let PendingWindow {
     webview_attributes,
-    window_builder,
+    mut window_builder,
     rpc_handler,
     file_drop_handler,
     label,
@@ -1806,7 +1804,12 @@ fn create_webview<P: Params<Runtime = Wry>>(
 
   let is_window_transparent = window_builder.inner.window.transparent;
   #[cfg(feature = "menu")]
-  let menu_items = window_builder.menu_items;
+  let menu_items = {
+    let mut menu_items = HashMap::new();
+    let menu = to_wry_menu(&mut menu_items, window_builder.menu);
+    window_builder.inner = window_builder.inner.with_menu(menu);
+    menu_items
+  };
   let window = window_builder.inner.build(event_loop).unwrap();
   if window_builder.center {
     let _ = center_window(&window);

@@ -48,9 +48,13 @@ use wry::{
 };
 
 use std::{
-  collections::HashMap,
+  collections::{
+    hash_map::Entry::{Occupied, Vacant},
+    HashMap,
+  },
   convert::TryFrom,
   fs::read,
+  path::PathBuf,
   sync::{
     atomic::{AtomicBool, Ordering},
     mpsc::{channel, Sender},
@@ -68,8 +72,10 @@ mod mime_type;
 use mime_type::MimeType;
 
 type MainTask = Arc<Mutex<Option<Box<dyn FnOnce() + Send>>>>;
-type CreateWebviewHandler =
-  Box<dyn FnOnce(&EventLoopWindowTarget<Message>, &WebContext) -> Result<WebviewWrapper> + Send>;
+type WebContextStore = Mutex<HashMap<Option<PathBuf>, WebContext>>;
+type CreateWebviewHandler = Box<
+  dyn FnOnce(&EventLoopWindowTarget<Message>, &WebContextStore) -> Result<WebviewWrapper> + Send,
+>;
 type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
 
@@ -963,7 +969,7 @@ pub struct Wry {
   main_thread_id: ThreadId,
   is_event_loop_running: Arc<AtomicBool>,
   event_loop: EventLoop<Message>,
-  web_context: WebContext,
+  web_context: WebContextStore,
   webviews: Arc<Mutex<HashMap<WindowId, WebviewWrapper>>>,
   window_event_listeners: WindowEventListeners,
   #[cfg(feature = "menu")]
@@ -1032,8 +1038,6 @@ impl Runtime for Wry {
       main_thread_id: current_thread().id(),
       is_event_loop_running: Default::default(),
       event_loop,
-      // todo: how should we handle data directories? tauri expects each webview can have a different one
-      // but wry wants to expect the same per web context.
       web_context: Default::default(),
       webviews: Default::default(),
       window_event_listeners: Default::default(),
@@ -1222,7 +1226,7 @@ fn handle_event_loop(
   event_loop: &EventLoopWindowTarget<Message>,
   control_flow: &mut ControlFlow,
   context: EventLoopIterationContext<'_>,
-  web_context: &WebContext,
+  web_context: &WebContextStore,
 ) -> RunIteration {
   let EventLoopIterationContext {
     callback,
@@ -1517,7 +1521,7 @@ fn center_window(window: &Window) -> Result<()> {
 
 fn create_webview<P: Params<Runtime = Wry>>(
   event_loop: &EventLoopWindowTarget<Message>,
-  web_context: &WebContext,
+  web_context: &WebContextStore,
   context: DispatcherContext,
   pending: PendingWindow<P>,
 ) -> Result<WebviewWrapper> {
@@ -1565,6 +1569,23 @@ fn create_webview<P: Params<Runtime = Wry>>(
   for script in webview_attributes.initialization_scripts {
     webview_builder = webview_builder.with_initialization_script(&script);
   }
+
+  let mut web_context = web_context.lock().expect("poisoned WebContext store");
+  let is_first_context = web_context.is_empty();
+  let web_context = match web_context.entry(webview_attributes.data_directory) {
+    Occupied(occupied) => occupied.into_mut(),
+    Vacant(vacant) => {
+      let web_context = WebContext::new(vacant.key().clone());
+
+      #[cfg(target_os = "linux")]
+      if is_first_context {
+        // todo: wry v0.10.1 should include wry::webview::WebContext::set_allows_automation
+        // set automation mode
+      }
+
+      vacant.insert(web_context)
+    }
+  };
 
   let webview = webview_builder
     .with_web_context(web_context)

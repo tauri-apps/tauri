@@ -17,6 +17,7 @@ use std::{
   path::Path,
 };
 
+#[derive(Default)]
 pub struct Manifest {
   pub features: HashSet<String>,
 }

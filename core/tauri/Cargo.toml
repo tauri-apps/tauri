@@ -33,18 +33,18 @@ normal = ["attohttpc"] # we ignore attohttpc because we can't remove it based on
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
 serde = { version = "1.0", features = [ "derive" ] }
-tokio = { version = "1.6", features = [ "rt", "rt-multi-thread", "sync" ] }
+tokio = { version = "1.7", features = [ "rt", "rt-multi-thread", "sync" ] }
 futures = "0.3"
 uuid = { version = "0.8", features = [ "v4" ] }
 thiserror = "1.0"
-once_cell = "1.7"
+once_cell = "1.8"
 tauri-runtime = { version = "0.1.1", path = "../tauri-runtime" }
 tauri-macros = { version = "1.0.0-beta.1", path = "../tauri-macros" }
 tauri-utils = { version = "1.0.0-beta.0", path = "../tauri-utils" }
 tauri-runtime-wry = { version = "0.1.1", path = "../tauri-runtime-wry", optional = true }
 rand = "0.8"
 tempfile = "3"
-semver = "0.11"
+semver = "1.0"
 serde_repr = "0.1"
 zip = "0.5"
 ignore = "0.4"
@@ -52,9 +52,10 @@ either = "1.6"
 tar = "0.4"
 flate2 = "1.0"
 http = "0.2"
-state = "0.4"
+state = "0.5"
 bincode = "1.3"
 dirs-next = "2.0"
+percent-encoding = "2.1"
 
 # FS
 base64 = { version = "0.13", optional = true } # also used on the updater
@@ -64,9 +65,6 @@ clap = { version = "=3.0.0-beta.2", optional = true }
 
 # Notifications
 notify-rust = { version = "4.5", optional = true }
-
-# Global shortcut
-tauri-hotkey = { version = "0.1.2", optional = true }
 
 # HTTP
 reqwest = { version = "0.11", features = [ "json", "multipart" ], optional = true }
@@ -132,4 +130,4 @@ dialog-save = [ "raw-window-handle" ]
 http-all = [ ]
 http-request = [ ]
 notification-all = [ "notify-rust" ]
-global-shortcut-all = [ "tauri-hotkey" ]
+global-shortcut-all = [ ]

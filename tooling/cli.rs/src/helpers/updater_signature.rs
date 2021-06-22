@@ -82,11 +82,11 @@ where
     std::fs::remove_file(&pk_path)?;
   }
 
-  let mut sk_writer = create_file(&sk_path)?;
+  let mut sk_writer = create_file(sk_path)?;
   write!(sk_writer, "{:}", key)?;
   sk_writer.flush()?;
 
-  let mut pk_writer = create_file(&pk_path)?;
+  let mut pk_writer = create_file(pk_path)?;
   write!(pk_writer, "{:}", pubkey)?;
   pk_writer.flush()?;
 
@@ -119,7 +119,7 @@ where
   let signature_path_string = format!("{}.sig", bin_path.as_ref().display());
   let signature_path = Path::new(&signature_path_string);
 
-  let mut signature_box_writer = create_file(&signature_path)?;
+  let mut signature_box_writer = create_file(signature_path)?;
 
   let trusted_comment = format!(
     "timestamp:{}\tfile:{}",
@@ -139,7 +139,7 @@ where
   )?;
 
   let encoded_signature = encode(&signature_box.to_string());
-  signature_box_writer.write_all(&encoded_signature.as_bytes())?;
+  signature_box_writer.write_all(encoded_signature.as_bytes())?;
   signature_box_writer.flush()?;
   Ok((fs::canonicalize(&signature_path)?, encoded_signature))
 }

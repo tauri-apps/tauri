@@ -42,11 +42,11 @@ impl<'r, 'de: 'r, T: Send + Sync + 'static, P: Params> CommandArg<'de, P> for St
 }
 
 /// The Tauri state manager.
-pub struct StateManager(pub(crate) Container);
+pub struct StateManager(pub(crate) Container![Send + Sync]);
 
 impl StateManager {
   pub(crate) fn new() -> Self {
-    Self(Container::new())
+    Self(<Container![Send + Sync]>::new())
   }
 
   pub(crate) fn set<T: Send + Sync + 'static>(&self, state: T) -> bool {

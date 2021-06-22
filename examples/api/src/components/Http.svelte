@@ -1,7 +1,7 @@
 <script>
   import { getClient, Body } from "@tauri-apps/api/http";
   let httpMethod = "GET";
-  let httpUrl = "";
+  let httpUrl = "https://jsonplaceholder.typicode.com/todos/1";
   let httpBody = "";
 
   export let onMessage;

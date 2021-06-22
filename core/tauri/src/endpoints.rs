@@ -14,6 +14,7 @@ use std::sync::Arc;
 
 mod app;
 mod cli;
+mod clipboard;
 mod dialog;
 mod event;
 #[allow(unused_imports)]
@@ -54,6 +55,7 @@ enum Module {
   Notification(notification::Cmd),
   Http(http::Cmd),
   GlobalShortcut(global_shortcut::Cmd),
+  Clipboard(clipboard::Cmd),
 }
 
 impl Module {
@@ -113,17 +115,14 @@ impl Module {
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
-      // on Linux, the dialog must run on the main thread.
+      // on Linux, the dialog must run on the rpc task.
       #[cfg(target_os = "linux")]
       Self::Dialog(cmd) => {
-        let window_ = window.clone();
-        let _ = window.run_on_main_thread(move || {
-          resolver.respond_closure(move || {
-            cmd
-              .run(window_)
-              .and_then(|r| r.json)
-              .map_err(InvokeError::from)
-          })
+        resolver.respond_closure(move || {
+          cmd
+            .run(window)
+            .and_then(|r| r.json)
+            .map_err(InvokeError::from)
         });
       }
       Self::Cli(cmd) => {
@@ -150,6 +149,12 @@ impl Module {
           .map_err(InvokeError::from)
       }),
       Self::GlobalShortcut(cmd) => resolver.respond_async(async move {
+        cmd
+          .run(window)
+          .and_then(|r| r.json)
+          .map_err(InvokeError::from)
+      }),
+      Self::Clipboard(cmd) => resolver.respond_async(async move {
         cmd
           .run(window)
           .and_then(|r| r.json)

@@ -13,18 +13,18 @@
             Id="*"
             Name="{{{product_name}}}"
             UpgradeCode="{{{upgrade_code}}}"
-            Language="1033"
-            Codepage="1252"
+            Language="{{language_id}}"
+            Codepage="{{ascii_codepage}}"
             Manufacturer="{{{manufacturer}}}"
             Version="{{{version}}}">
 
         <Package Id="*"
                  Keywords="Installer"
                  InstallerVersion="450"
-                 Languages="1033"
+                 Languages="{{language_id}}"
                  Compressed="yes"
                  InstallScope="perMachine"
-                 SummaryCodepage="1252"/>
+                 SummaryCodepage="{{ascii_codepage}}"/>
 
          <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed."
                   MigrateFeatures="yes" />
@@ -33,6 +33,9 @@
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
         
         <WixVariable Id="WixUIBannerBmp" Value="{{{icon_path}}}" />
+        {{#if license}}
+        <WixVariable Id="WixUILicenseRtf" Value="{{{license}}}" />
+        {{/if}}
         
         <Icon Id="ProductIcon" SourceFile="{{{icon_path}}}"/>
         <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
@@ -42,6 +45,7 @@
         <UI>
             <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
 
+            {{#unless license}}
             <!-- Skip license dialog -->
             <Publish Dialog="WelcomeDlg"
                      Control="Next"
@@ -53,6 +57,7 @@
                      Event="NewDialog"
                      Value="WelcomeDlg"
                      Order="2">1</Publish>
+            {{/unless}}
         </UI>
 
         <UIRef Id="WixUI_InstallDir" />

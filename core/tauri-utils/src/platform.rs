@@ -25,6 +25,8 @@ pub fn target_triple() -> crate::Result<String> {
     "x86_64"
   } else if cfg!(target_arch = "arm") {
     "armv7"
+  } else if cfg!(target_arch = "aarch64") {
+    "aarch64"
   } else {
     return Err(crate::Error::Architecture);
   };

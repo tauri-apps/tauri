@@ -51,7 +51,7 @@ pub enum WindowEvent {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MenuEvent {
-  pub menu_item_id: u32,
+  pub menu_item_id: u16,
 }
 
 /// A webview window that has yet to be built.

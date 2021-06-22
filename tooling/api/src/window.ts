@@ -113,6 +113,22 @@ declare global {
   }
 }
 
+/** Attention type to request on a window. */
+enum UserAttentionType {
+  /**
+   * ## Platform-specific
+   *  - **macOS:** Bounces the dock icon until the application is in focus.
+   * - **Windows:** Flashes both the window and the taskbar button until the application is in focus.
+   */
+  Critical = 1,
+  /**
+   * ## Platform-specific
+   * - **macOS:** Bounces the dock icon once.
+   * - **Windows:** Flashes the taskbar button until the application is in focus.
+   */
+  Informational
+}
+
 /**
  * Get a handle to the current webview window. Allows emitting and listening to events from the backend that are tied to the window.
  *
@@ -362,7 +378,87 @@ class WindowManager {
     })
   }
 
+  /** Gets the window's current decorated state. */
+  async isDecorated(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'isDecorated'
+      }
+    })
+  }
+
+  /** Gets the window's current resizable state. */
+  async isResizable(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'isResizable'
+      }
+    })
+  }
+
+  /** Gets the window's current visible state. */
+  async isVisible(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'isVisible'
+      }
+    })
+  }
+
   // Setters
+
+  /**
+   * Centers the window.
+   *
+   * @param resizable
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async center(): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'center'
+      }
+    })
+  }
+
+  /**
+   *  Requests user attention to the window, this has no effect if the application
+   * is already focused. How requesting for user attention manifests is platform dependent,
+   * see `UserAttentionType` for details.
+   *
+   * Providing `null` will unset the request for user attention. Unsetting the request for
+   * user attention might not be done automatically by the WM when the window receives input.
+   *
+   * ## Platform-specific
+   *
+   * - **macOS:** `null` has no effect.
+   *
+   * @param resizable
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async requestUserAttention(
+    requestType: UserAttentionType | null
+  ): Promise<void> {
+    let requestType_ = null
+    if (requestType) {
+      if (requestType === UserAttentionType.Critical) {
+        requestType_ = { type: 'Critical' }
+      } else {
+        requestType_ = { type: 'Informational' }
+      }
+    }
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'requestUserAttention',
+        data: requestType_
+      }
+    })
+  }
 
   /**
    * Updates the window resizable flag.
@@ -684,6 +780,20 @@ class WindowManager {
   }
 
   /**
+   * Bring the window to front and focus.
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setFocus(): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'setFocus'
+      }
+    })
+  }
+
+  /**
    * Sets the window icon.
    *
    * @param icon Icon bytes or path to the icon file.
@@ -697,6 +807,22 @@ class WindowManager {
         data: {
           icon
         }
+      }
+    })
+  }
+
+  /**
+   * Whether to show the window icon in the task bar or not.
+   *
+   * @param skip true to hide window icon, false to show it.
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setSkipTaskbar(skip: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'setSkipTaskbar',
+        data: skip
       }
     })
   }
@@ -725,6 +851,8 @@ interface WindowOptions {
    * Remote URL or local file path to open, e.g. `https://github.com/tauri-apps` or `path/to/page.html`.
    */
   url?: string
+  /** Show window in the center of the screen.. */
+  center?: boolean
   /** The initial vertical position. Only applies if `y` is also set. */
   x?: number
   /** The initial horizontal position. Only applies if `x` is also set. */
@@ -747,6 +875,8 @@ interface WindowOptions {
   title?: string
   /** Whether the window is in fullscreen mode or not. */
   fullscreen?: boolean
+  /** Whether the window will be initially hidden or focused. */
+  focus?: boolean
   /** Whether the window is transparent or not. */
   transparent?: boolean
   /** Whether the window should be maximized upon creation or not. */
@@ -757,6 +887,8 @@ interface WindowOptions {
   decorations?: boolean
   /** Whether the window should always be on top of other windows or not. */
   alwaysOnTop?: boolean
+  /** Whether or not the window icon should be added to the taskbar. */
+  skipTaskbar?: boolean
 }
 
 /**
@@ -806,6 +938,7 @@ export {
   PhysicalSize,
   LogicalPosition,
   PhysicalPosition,
+  UserAttentionType,
   currentMonitor,
   primaryMonitor,
   availableMonitors

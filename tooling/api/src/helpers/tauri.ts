@@ -19,6 +19,7 @@ type TauriModule =
   | 'Http'
   | 'GlobalShortcut'
   | 'Process'
+  | 'Clipboard'
 
 interface TauriCommand {
   __tauriModule: TauriModule

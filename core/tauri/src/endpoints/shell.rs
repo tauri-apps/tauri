@@ -102,8 +102,9 @@ impl Cmd {
           let pid = child.pid();
           command_childs().lock().unwrap().insert(pid, child);
 
-          crate::async_runtime::spawn(async move {
-            while let Some(event) = rx.recv().await {
+          // TODO: for some reason using `crate::async_runtime::spawn` and `rx.recv().await` doesn't work here, see issue #1935
+          std::thread::spawn(move || {
+            while let Some(event) = rx.blocking_recv() {
               if matches!(event, crate::api::process::CommandEvent::Terminated(_)) {
                 command_childs().lock().unwrap().remove(&pid);
               }

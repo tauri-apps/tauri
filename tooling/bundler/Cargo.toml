@@ -36,7 +36,7 @@ tar = "0.4"
 termcolor = "1.1.2"
 toml = "0.5.8"
 walkdir = "2"
-handlebars = { version = "3.5" }
+handlebars = { version = "4.0" }
 zip = { version = "0.5" }
 tempfile = "3.2.0"
 regex = "1"
@@ -45,7 +45,7 @@ regex = "1"
 attohttpc = "0.17"
 uuid = { version = "0.8", features = [ "v4", "v5" ] }
 bitness = "0.4"
-winreg = "0.8"
+winreg = "0.9"
 sha2 = "0.9"
 hex = "0.4"
 

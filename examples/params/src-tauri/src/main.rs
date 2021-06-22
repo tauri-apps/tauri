@@ -33,7 +33,7 @@ impl fmt::Display for Event {
     f.write_str(match self {
       Self::Foo => "foo",
       Self::Bar => "bar",
-      Self::Unknown(s) => &s,
+      Self::Unknown(s) => s,
     })
   }
 }

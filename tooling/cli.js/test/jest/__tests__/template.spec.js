@@ -25,17 +25,9 @@ describe('[CLI] cli.js template', () => {
 
     const manifestPath = resolve(tauriFixturePath, 'Cargo.toml')
     const manifestFile = readFileSync(manifestPath).toString()
-    writeFileSync(manifestPath, `workspace = { }\n\n${manifestFile}`)
+    writeFileSync(manifestPath, `workspace = { }\n${manifestFile}`)
 
-    const { promise: buildPromise } = await build({
-      config: {
-        tauri: {
-          bundle: {
-            targets: ['deb', 'app', 'msi', 'appimage'] // we can't bundle dmg on CI so we remove it here
-          }
-        }
-      }
-    })
+    const { promise: buildPromise } = await build()
     await buildPromise
     process.chdir(cwd)
   })

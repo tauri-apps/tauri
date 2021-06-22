@@ -8,11 +8,11 @@
 use crate::{
   api::{
     assets::Assets,
-    config::{Config, WindowUrl},
+    config::{AppUrl, Config, WindowUrl},
     path::{resolve_path, BaseDirectory},
     PackageInfo,
   },
-  app::{GlobalWindowEvent, GlobalWindowEventListener},
+  app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
   event::{Event, EventHandler, Listeners},
   hooks::{InvokeHandler, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
@@ -34,7 +34,7 @@ use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
 
 #[cfg(feature = "menu")]
 use crate::{
-  runtime::menu::{Menu, MenuItem},
+  runtime::menu::{Menu, MenuEntry},
   MenuEvent,
 };
 
@@ -98,10 +98,10 @@ crate::manager::default_args! {
     uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
     /// The menu set to all windows.
     #[cfg(feature = "menu")]
-    menu: Vec<Menu<P::MenuId>>,
+    menu: Option<Menu<P::MenuId>>,
     /// Maps runtime id to a strongly typed menu id.
     #[cfg(feature = "menu")]
-    menu_ids: HashMap<u32, P::MenuId>,
+    menu_ids: HashMap<u16, P::MenuId>,
     /// Menu event listeners to all windows.
     #[cfg(feature = "menu")]
     menu_event_listeners: Arc<Vec<GlobalMenuEventListener<P>>>,
@@ -209,16 +209,16 @@ impl<P: Params> Clone for WindowManager<P> {
 }
 
 #[cfg(feature = "menu")]
-fn get_menu_ids<I: MenuId>(menu: &[Menu<I>]) -> HashMap<u32, I> {
-  let mut map = HashMap::new();
-  for m in menu {
-    for item in &m.items {
-      if let MenuItem::Custom(i) = item {
-        map.insert(i.id_value(), i.id.clone());
+fn get_menu_ids<I: MenuId>(map: &mut HashMap<u16, I>, menu: &Menu<I>) {
+  for item in &menu.items {
+    match item {
+      MenuEntry::CustomItem(c) => {
+        map.insert(c.id_value(), c.id.clone());
       }
+      MenuEntry::Submenu(s) => get_menu_ids(map, &s.inner),
+      _ => {}
     }
   }
-  map
 }
 
 impl<P: Params> WindowManager<P> {
@@ -232,7 +232,7 @@ impl<P: Params> WindowManager<P> {
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<P>>,
     #[cfg(feature = "menu")] (menu, menu_event_listeners): (
-      Vec<Menu<P::MenuId>>,
+      Option<Menu<P::MenuId>>,
       Vec<GlobalMenuEventListener<P>>,
     ),
   ) -> Self {
@@ -251,7 +251,13 @@ impl<P: Params> WindowManager<P> {
         package_info: context.package_info,
         uri_scheme_protocols,
         #[cfg(feature = "menu")]
-        menu_ids: get_menu_ids(&menu),
+        menu_ids: {
+          let mut map = HashMap::new();
+          if let Some(menu) = &menu {
+            get_menu_ids(&mut map, menu)
+          }
+          map
+        },
         #[cfg(feature = "menu")]
         menu,
         #[cfg(feature = "menu")]
@@ -274,7 +280,7 @@ impl<P: Params> WindowManager<P> {
 
   /// Get the menu ids mapper.
   #[cfg(feature = "menu")]
-  pub(crate) fn menu_ids(&self) -> HashMap<u32, P::MenuId> {
+  pub(crate) fn menu_ids(&self) -> HashMap<u16, P::MenuId> {
     self.inner.menu_ids.clone()
   }
 
@@ -282,7 +288,7 @@ impl<P: Params> WindowManager<P> {
   #[cfg(dev)]
   fn get_url(&self) -> String {
     match &self.inner.config.build.dev_path {
-      WindowUrl::External(url) => url.to_string(),
+      AppUrl::Url(WindowUrl::External(url)) => url.to_string(),
       _ => "tauri://localhost".into(),
     }
   }
@@ -290,7 +296,7 @@ impl<P: Params> WindowManager<P> {
   #[cfg(custom_protocol)]
   fn get_url(&self) -> String {
     match &self.inner.config.build.dist_dir {
-      WindowUrl::External(url) => url.to_string(),
+      AppUrl::Url(WindowUrl::External(url)) => url.to_string(),
       _ => "tauri://localhost".into(),
     }
   }
@@ -329,7 +335,9 @@ impl<P: Params> WindowManager<P> {
 
     #[cfg(feature = "menu")]
     if !pending.window_builder.has_menu() {
-      pending.window_builder = pending.window_builder.menu(self.inner.menu.clone());
+      if let Some(menu) = &self.inner.menu {
+        pending.window_builder = pending.window_builder.menu(menu.clone());
+      }
     }
 
     for (uri_scheme, protocol) in &self.inner.uri_scheme_protocols {
@@ -363,10 +371,10 @@ impl<P: Params> WindowManager<P> {
     Ok(pending)
   }
 
-  fn prepare_rpc_handler(&self) -> WebviewRpcHandler<P> {
+  fn prepare_rpc_handler(&self, app_handle: AppHandle<P>) -> WebviewRpcHandler<P> {
     let manager = self.clone();
     Box::new(move |window, request| {
-      let window = Window::new(manager.clone(), window);
+      let window = Window::new(manager.clone(), window, app_handle.clone());
       let command = request.command.clone();
 
       let arg = request
@@ -397,7 +405,7 @@ impl<P: Params> WindowManager<P> {
     CustomProtocol {
       protocol: Box::new(move |path| {
         let mut path = path
-          .split('?')
+          .split(&['?', '#'][..])
           // ignore query string
           .next()
           .unwrap()
@@ -406,6 +414,9 @@ impl<P: Params> WindowManager<P> {
         if path.ends_with('/') {
           path.pop();
         }
+        path = percent_encoding::percent_decode(path.as_bytes())
+          .decode_utf8_lossy()
+          .to_string();
         let path = if path.is_empty() {
           // if the url is `tauri://localhost`, we should load `index.html`
           "index.html".to_string()
@@ -416,6 +427,11 @@ impl<P: Params> WindowManager<P> {
 
         let asset_response = assets
           .get(&path)
+          .or_else(|| {
+            #[cfg(debug_assertions)]
+            eprintln!("Asset `{}` not found; fallback to index.html", path); // TODO log::error!
+            assets.get("index.html")
+          })
           .ok_or(crate::Error::AssetNotFound(path))
           .map(Cow::into_owned);
         match asset_response {
@@ -430,12 +446,13 @@ impl<P: Params> WindowManager<P> {
     }
   }
 
-  fn prepare_file_drop(&self) -> FileDropHandler<P> {
+  fn prepare_file_drop(&self, app_handle: AppHandle<P>) -> FileDropHandler<P> {
     let manager = self.clone();
     Box::new(move |event, window| {
       let manager = manager.clone();
+      let app_handle = app_handle.clone();
       crate::async_runtime::block_on(async move {
-        let window = Window::new(manager.clone(), window);
+        let window = Window::new(manager.clone(), window, app_handle);
         let _ = match event {
           FileDropEvent::Hovered(paths) => {
             window.emit(&tauri_event::<P::Event>("tauri://file-drop"), Some(paths))
@@ -583,11 +600,12 @@ impl<P: Params> WindowManager<P> {
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .initialize(&app, &self.inner.config.plugins)
+      .initialize(app, &self.inner.config.plugins)
   }
 
   pub fn prepare_window(
     &self,
+    app_handle: AppHandle<P>,
     mut pending: PendingWindow<P>,
     pending_labels: &[P::Label],
   ) -> crate::Result<PendingWindow<P>> {
@@ -611,17 +629,19 @@ impl<P: Params> WindowManager<P> {
     if is_local {
       let label = pending.label.clone();
       pending = self.prepare_pending_window(pending, label, pending_labels)?;
-      pending.rpc_handler = Some(self.prepare_rpc_handler());
+      pending.rpc_handler = Some(self.prepare_rpc_handler(app_handle.clone()));
     }
 
-    pending.file_drop_handler = Some(self.prepare_file_drop());
+    if pending.webview_attributes.file_drop_handler_enabled {
+      pending.file_drop_handler = Some(self.prepare_file_drop(app_handle));
+    }
     pending.url = url;
 
     Ok(pending)
   }
 
-  pub fn attach_window(&self, window: DetachedWindow<P>) -> Window<P> {
-    let window = Window::new(self.clone(), window);
+  pub fn attach_window(&self, app_handle: AppHandle<P>, window: DetachedWindow<P>) -> Window<P> {
+    let window = Window::new(self.clone(), window, app_handle);
 
     let window_ = window.clone();
     let window_event_listeners = self.inner.window_event_listeners.clone();
@@ -667,6 +687,12 @@ impl<P: Params> WindowManager<P> {
     }
 
     window
+  }
+
+  pub(crate) fn on_window_close(&self, label: String) {
+    self
+      .windows_lock()
+      .remove(&label.parse().unwrap_or_else(|_| panic!("bad label")));
   }
 
   pub fn emit_filter<E: ?Sized, S, F>(&self, event: &E, payload: S, filter: F) -> crate::Result<()>
@@ -819,7 +845,7 @@ fn on_window_event<P: Params>(window: &Window<P>, event: &WindowEvent) -> crate:
         .unwrap_or_else(|_| panic!("unhandled event")),
       Some(ScaleFactorChanged {
         scale_factor: *scale_factor,
-        size: new_inner_size.clone(),
+        size: *new_inner_size,
       }),
     )?,
     _ => unimplemented!(),

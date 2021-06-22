@@ -9,6 +9,7 @@ use serde::Deserialize;
 /// The API descriptor.
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
+#[allow(clippy::enum_variant_names)]
 pub enum Cmd {
   /// Get Application Version
   GetAppVersion,

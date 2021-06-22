@@ -3,9 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 #[cfg(feature = "menu")]
-use crate::runtime::MenuId;
+#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
+pub(crate) mod menu;
+
 use crate::{
   api::config::WindowUrl,
+  app::AppHandle,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
   manager::WindowManager,
@@ -17,7 +20,7 @@ use crate::{
       dpi::{PhysicalPosition, PhysicalSize, Position, Size},
       DetachedWindow, PendingWindow, WindowEvent,
     },
-    Dispatch, Icon, Params, Runtime,
+    Dispatch, Icon, Params, Runtime, UserAttentionType,
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
@@ -30,22 +33,6 @@ use std::{
   borrow::Borrow,
   hash::{Hash, Hasher},
 };
-
-/// The window menu event.
-#[cfg(feature = "menu")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-#[derive(Debug, Clone)]
-pub struct MenuEvent<I: MenuId> {
-  pub(crate) menu_item_id: I,
-}
-
-#[cfg(feature = "menu")]
-impl<I: MenuId> MenuEvent<I> {
-  /// The menu item id.
-  pub fn menu_item_id(&self) -> &I {
-    &self.menu_item_id
-  }
-}
 
 /// Monitor descriptor.
 #[derive(Debug, Clone, Serialize)]
@@ -99,11 +86,10 @@ crate::manager::default_args! {
   /// the same application.
   pub struct Window<P: Params> {
     /// The webview window created by the runtime.
-    /// ok
     window: DetachedWindow<P>,
-
     /// The manager to associate this webview window with.
     manager: WindowManager<P>,
+    pub(crate) app_handle: AppHandle<P>,
   }
 }
 
@@ -112,6 +98,7 @@ impl<P: Params> Clone for Window<P> {
     Self {
       window: self.window.clone(),
       manager: self.manager.clone(),
+      app_handle: self.app_handle.clone(),
     }
   }
 }
@@ -137,6 +124,10 @@ impl<P: Params> ManagerBase<P> for Window<P> {
     &self.manager
   }
 
+  fn app_handle(&self) -> AppHandle<P> {
+    self.app_handle.clone()
+  }
+
   fn runtime(&self) -> RuntimeOrDispatch<'_, P> {
     RuntimeOrDispatch::Dispatch(self.dispatcher())
   }
@@ -151,8 +142,16 @@ impl<'de, P: Params> CommandArg<'de, P> for Window<P> {
 
 impl<P: Params> Window<P> {
   /// Create a new window that is attached to the manager.
-  pub(crate) fn new(manager: WindowManager<P>, window: DetachedWindow<P>) -> Self {
-    Self { window, manager }
+  pub(crate) fn new(
+    manager: WindowManager<P>,
+    window: DetachedWindow<P>,
+    app_handle: AppHandle<P>,
+  ) -> Self {
+    Self {
+      window,
+      manager,
+      app_handle,
+    }
   }
 
   /// Creates a new webview window.
@@ -301,28 +300,55 @@ impl<P: Params> Window<P> {
   /// Registers a menu event listener.
   #[cfg(feature = "menu")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-  pub fn on_menu_event<F: Fn(MenuEvent<P::MenuId>) + Send + 'static>(&self, f: F) {
+  pub fn on_menu_event<F: Fn(menu::MenuEvent<P::MenuId>) + Send + 'static>(
+    &self,
+    f: F,
+  ) -> uuid::Uuid {
     let menu_ids = self.manager.menu_ids();
     self.window.dispatcher.on_menu_event(move |event| {
-      f(MenuEvent {
+      f(menu::MenuEvent {
         menu_item_id: menu_ids.get(&event.menu_item_id).unwrap().clone(),
       })
-    });
+    })
   }
 
   // Getters
 
+  /// Gets a handle to the window menu.
+  #[cfg(feature = "menu")]
+  pub fn menu_handle(&self) -> menu::MenuHandle<P> {
+    menu::MenuHandle {
+      ids: self.manager.menu_ids(),
+      dispatcher: self.dispatcher(),
+    }
+  }
+
   /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn scale_factor(&self) -> crate::Result<f64> {
     self.window.dispatcher.scale_factor().map_err(Into::into)
   }
 
   /// Returns the position of the top-left hand corner of the window's client area relative to the top-left hand corner of the desktop.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn inner_position(&self) -> crate::Result<PhysicalPosition<i32>> {
     self.window.dispatcher.inner_position().map_err(Into::into)
   }
 
   /// Returns the position of the top-left hand corner of the window relative to the top-left hand corner of the desktop.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn outer_position(&self) -> crate::Result<PhysicalPosition<i32>> {
     self.window.dispatcher.outer_position().map_err(Into::into)
   }
@@ -330,6 +356,11 @@ impl<P: Params> Window<P> {
   /// Returns the physical size of the window's client area.
   ///
   /// The client area is the content of the window, excluding the title bar and borders.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn inner_size(&self) -> crate::Result<PhysicalSize<u32>> {
     self.window.dispatcher.inner_size().map_err(Into::into)
   }
@@ -337,23 +368,77 @@ impl<P: Params> Window<P> {
   /// Returns the physical size of the entire window.
   ///
   /// These dimensions include the title bar and borders. If you don't want that (and you usually don't), use inner_size instead.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn outer_size(&self) -> crate::Result<PhysicalSize<u32>> {
     self.window.dispatcher.outer_size().map_err(Into::into)
   }
 
   /// Gets the window's current fullscreen state.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn is_fullscreen(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_fullscreen().map_err(Into::into)
   }
 
   /// Gets the window's current maximized state.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn is_maximized(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_maximized().map_err(Into::into)
+  }
+
+  /// Gets the window’s current decoration state.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
+  pub fn is_decorated(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_decorated().map_err(Into::into)
+  }
+
+  /// Gets the window’s current resizable state.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
+  pub fn is_resizable(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_resizable().map_err(Into::into)
+  }
+
+  /// Gets the window's current vibility state.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
+  pub fn is_visible(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_visible().map_err(Into::into)
   }
 
   /// Returns the monitor on which the window currently resides.
   ///
   /// Returns None if current monitor can't be detected.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** Unsupported
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn current_monitor(&self) -> crate::Result<Option<Monitor>> {
     self
       .window
@@ -366,6 +451,15 @@ impl<P: Params> Window<P> {
   /// Returns the primary monitor of the system.
   ///
   /// Returns None if it can't identify any monitor as a primary one.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** Unsupported
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
     self
       .window
@@ -376,6 +470,15 @@ impl<P: Params> Window<P> {
   }
 
   /// Returns the list of all the monitors available on the system.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** Unsupported
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   pub fn available_monitors(&self) -> crate::Result<Vec<Monitor>> {
     self
       .window
@@ -386,12 +489,43 @@ impl<P: Params> Window<P> {
   }
 
   /// Returns the native handle that is used by this window.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   #[cfg(windows)]
   pub fn hwnd(&self) -> crate::Result<*mut std::ffi::c_void> {
     self.window.dispatcher.hwnd().map_err(Into::into)
   }
 
   // Setters
+
+  /// Centers the window.
+  pub fn center(&self) -> crate::Result<()> {
+    self.window.dispatcher.center().map_err(Into::into)
+  }
+
+  /// Requests user attention to the window, this has no effect if the application
+  /// is already focused. How requesting for user attention manifests is platform dependent,
+  /// see `UserAttentionType` for details.
+  ///
+  /// Providing `None` will unset the request for user attention. Unsetting the request for
+  /// user attention might not be done automatically by the WM when the window receives input.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** `None` has no effect.
+  pub fn request_user_attention(
+    &self,
+    request_type: Option<UserAttentionType>,
+  ) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .request_user_attention(request_type)
+      .map_err(Into::into)
+  }
 
   /// Opens the dialog to prints the contents of the webview.
   /// Currently only supported on macOS on `wry`.
@@ -518,9 +652,23 @@ impl<P: Params> Window<P> {
       .map_err(Into::into)
   }
 
+  /// Bring the window to front and focus.
+  pub fn set_focus(&self) -> crate::Result<()> {
+    self.window.dispatcher.set_focus().map_err(Into::into)
+  }
+
   /// Sets this window' icon.
   pub fn set_icon(&self, icon: Icon) -> crate::Result<()> {
     self.window.dispatcher.set_icon(icon).map_err(Into::into)
+  }
+
+  /// Whether to show the window icon in the task bar or not.
+  pub fn set_skip_taskbar(&self, skip: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_skip_taskbar(skip)
+      .map_err(Into::into)
   }
 
   /// Starts dragging the window.

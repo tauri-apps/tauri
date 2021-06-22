@@ -5,6 +5,7 @@
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
   config::get as get_config,
+  framework::infer_from_package_json as infer_framework,
 };
 use serde::Deserialize;
 
@@ -205,7 +206,11 @@ fn get_version(command: &str, args: &[&str]) -> crate::Result<Option<String>> {
 
   let output = cmd.args(args).arg("--version").output()?;
   let version = if output.status.success() {
-    Some(String::from_utf8_lossy(&output.stdout).replace("\n", ""))
+    Some(
+      String::from_utf8_lossy(&output.stdout)
+        .replace("\n", "")
+        .replace("\r", ""),
+    )
   } else {
     None
   };
@@ -530,60 +535,38 @@ impl Info {
       if let Ok(config) = get_config(None) {
         let config_guard = config.lock().unwrap();
         let config = config_guard.as_ref().unwrap();
-        InfoBlock::new("build-type")
+        InfoBlock::new("  build-type")
           .value(if config.tauri.bundle.active {
             "bundle".to_string()
           } else {
             "build".to_string()
           })
           .display();
-        InfoBlock::new("CSP")
+        InfoBlock::new("  CSP")
           .value(if let Some(security) = &config.tauri.security {
             security.csp.clone().unwrap_or_else(|| "unset".to_string())
           } else {
             "unset".to_string()
           })
           .display();
-        InfoBlock::new("distDir")
-          .value(config.build.dist_dir.clone())
+        InfoBlock::new("  distDir")
+          .value(config.build.dist_dir.to_string())
           .display();
-        InfoBlock::new("devPath")
-          .value(config.build.dev_path.clone())
+        InfoBlock::new("  devPath")
+          .value(config.build.dev_path.to_string())
           .display();
       }
       if let Ok(package_json) = read_to_string(app_dir.join("package.json")) {
-        let framework_map = [
-          ("svelte", "Svelte", None),
-          ("@angular", "Angular", Some("Webpack")),
-          (r#""next""#, "React (Next.js)", Some("Webpack")),
-          ("gatsby", "React (Gatsby)", Some("Webpack")),
-          ("react", "React", None),
-          ("nuxt", "Vue.js (Nuxt)", Some("Webpack")),
-          ("quasar", "Vue.js (Quasar)", Some("Webpack")),
-          ("@vue/cli", "Vue.js (Vue CLI)", Some("Webpack")),
-          ("vue", "Vue.js", None),
-        ];
-        let bundler_map = [("webpack", "Webpack"), ("rollup", "Rollup")];
-
-        let (framework, framework_bundler) = framework_map
-          .iter()
-          .find(|(keyword, _, _)| package_json.contains(keyword))
-          .map(|(_, framework, bundler)| {
-            (Some(framework.to_string()), bundler.map(|b| b.to_string()))
-          })
-          .unwrap_or((None, None));
-
-        let bundler = bundler_map
-          .iter()
-          .find(|(keyword, _)| package_json.contains(keyword))
-          .map(|(_, bundler)| bundler.to_string())
-          .or(framework_bundler);
-
+        let (framework, bundler) = infer_framework(&package_json);
         if let Some(framework) = framework {
-          InfoBlock::new("framework").value(framework).display();
+          InfoBlock::new("  framework")
+            .value(framework.to_string())
+            .display();
         }
         if let Some(bundler) = bundler {
-          InfoBlock::new("bundler").value(bundler).display();
+          InfoBlock::new("  bundler")
+            .value(bundler.to_string())
+            .display();
         }
       } else {
         println!("package.json not found");

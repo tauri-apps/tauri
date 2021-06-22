@@ -43,7 +43,7 @@
   }
 
   function kill() {
-    child.kill().then(() => onMessage('killed child process')).error(onMessage)
+    child.kill().then(() => onMessage('killed child process')).catch(onMessage)
   }
 
   function writeToStdin() {

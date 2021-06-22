@@ -175,6 +175,8 @@ pub struct MacOsSettings {
 /// Settings specific to the WiX implementation.
 #[derive(Clone, Debug, Default)]
 pub struct WixSettings {
+  /// The app language. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.
+  pub language: String,
   /// By default, the bundler uses an internal template.
   /// This option allows you to define your own wix file.
   pub template: Option<PathBuf>,
@@ -192,6 +194,8 @@ pub struct WixSettings {
   pub merge_refs: Vec<String>,
   /// Disables the Webview2 runtime installation after app install.
   pub skip_webview_install: bool,
+  /// The path to the LICENSE file.
+  pub license: Option<String>,
 }
 
 /// The Windows bundle settings.
@@ -589,7 +593,7 @@ impl Settings {
 
   /// Returns the package's homepage URL, defaulting to "" if not defined.
   pub fn homepage_url(&self) -> &str {
-    &self.package.homepage.as_deref().unwrap_or("")
+    self.package.homepage.as_deref().unwrap_or("")
   }
 
   /// Returns the app's category.

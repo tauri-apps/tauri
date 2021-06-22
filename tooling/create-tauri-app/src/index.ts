@@ -339,7 +339,7 @@ const runInit = async (argv: Argv): Promise<void> => {
       packageManager
     })
 
-    logStep('Adding `tauri` script to package.json')
+    logStep(`Adding ${reset(yellow('"tauri"'))} script to package.json`)
     addTauriScript(appDirectory)
 
     logStep(`Running: ${reset(yellow('tauri init'))}`)
@@ -352,7 +352,7 @@ const runInit = async (argv: Argv): Promise<void> => {
       cwd: appDirectory
     })
 
-    logStep('Updating `tauri.conf.json`')
+    logStep(`Updating ${reset(yellow('"tauri.conf.json"'))}`)
     updateTauriConf(appDirectory, cfg)
   }
 

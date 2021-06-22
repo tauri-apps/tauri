@@ -13,7 +13,7 @@ pub enum Error {
   Io(#[from] std::io::Error),
   /// Semver Errors.
   #[error("Unable to compare version: {0}")]
-  Semver(#[from] semver::SemVerError),
+  Semver(#[from] semver::Error),
   /// JSON (Serde) Errors.
   #[error("JSON error: {0}")]
   SerdeJson(#[from] serde_json::Error),

@@ -72,7 +72,7 @@ impl<P: Params> PluginStore<P> {
     self.store.values_mut().try_for_each(|plugin| {
       plugin
         .initialize(
-          &app,
+          app,
           config.0.get(plugin.name()).cloned().unwrap_or_default(),
         )
         .map_err(|e| crate::Error::PluginInitialization(plugin.name().to_string(), e.to_string()))

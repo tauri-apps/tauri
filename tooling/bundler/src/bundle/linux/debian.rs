@@ -491,7 +491,7 @@ fn tar_and_gzip_dir<P: AsRef<Path>>(src_dir: P) -> crate::Result<PathBuf> {
 /// Creates an `ar` archive from the given source files and writes it to the
 /// given destination path.
 fn create_archive(srcs: Vec<PathBuf>, dest: &Path) -> crate::Result<()> {
-  let mut builder = ar::Builder::new(common::create_file(&dest)?);
+  let mut builder = ar::Builder::new(common::create_file(dest)?);
   for path in &srcs {
     builder.append_path(path)?;
   }

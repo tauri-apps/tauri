@@ -268,7 +268,7 @@ impl<'a> UpdateBuilder<'a> {
       // The main objective is if the update URL is defined via the Cargo.toml
       // the URL will be generated dynamicly
       let fixed_link = str::replace(
-        &str::replace(url, "{{current_version}}", &current_version),
+        &str::replace(url, "{{current_version}}", current_version),
         "{{target}}",
         &target,
       );
@@ -328,7 +328,7 @@ impl<'a> UpdateBuilder<'a> {
 
     // did the announced version is greated than our current one?
     let should_update =
-      version::is_greater(&current_version, &final_release.version).unwrap_or(false);
+      version::is_greater(current_version, &final_release.version).unwrap_or(false);
 
     // create our new updater
     Ok(Update {
@@ -457,7 +457,7 @@ impl Update {
       }
     }
     // extract using tauri api inside a tmp path
-    Extract::from_source(&tmp_archive_path).extract_into(&tmp_dir.path())?;
+    Extract::from_source(&tmp_archive_path).extract_into(tmp_dir.path())?;
     // Remove archive (not needed anymore)
     remove_file(&tmp_archive_path)?;
     // we copy the files depending of the operating system
@@ -674,7 +674,7 @@ fn default_archive_name_by_os() -> String {
 // Convert base64 to string and prevent failing
 fn base64_to_string(base64_string: &str) -> Result<String> {
   let decoded_string = &decode(base64_string.to_owned())?;
-  let result = from_utf8(&decoded_string)?.to_string();
+  let result = from_utf8(decoded_string)?.to_string();
   Ok(result)
 }
 
@@ -1020,7 +1020,7 @@ mod test {
       .prefix("tauri_updater_test")
       .tempdir_in(parent_path);
 
-    assert_eq!(tmp_dir.is_ok(), true);
+    assert!(tmp_dir.is_ok());
     let tmp_dir_unwrap = tmp_dir.expect("Can't find tmp_dir");
     let tmp_dir_path = tmp_dir_unwrap.path();
 
@@ -1035,24 +1035,24 @@ mod test {
       .build());
 
     // make sure the process worked
-    assert_eq!(check_update.is_ok(), true);
+    assert!(check_update.is_ok());
 
     // unwrap our results
     let updater = check_update.expect("Can't check remote update");
 
     // make sure we need to update
-    assert_eq!(updater.should_update, true);
+    assert!(updater.should_update);
     // make sure we can read announced version
     assert_eq!(updater.version, "2.0.1");
 
     // download, install and validate signature
     let install_process = block!(updater.download_and_install(Some(pubkey)));
-    assert_eq!(install_process.is_ok(), true);
+    assert!(install_process.is_ok());
 
     // make sure the extraction went well (it should have skipped the main app.app folder)
     // as we can't extract in /Applications directly
     let bin_file = tmp_dir_path.join("Contents").join("MacOS").join("app");
     let bin_file_exist = Path::new(&bin_file).exists();
-    assert_eq!(bin_file_exist, true);
+    assert!(bin_file_exist);
   }
 }

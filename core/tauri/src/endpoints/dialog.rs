@@ -52,6 +52,7 @@ pub struct SaveDialogOptions {
 /// The API descriptor.
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
+#[allow(clippy::enum_variant_names)]
 pub enum Cmd {
   /// The open dialog API.
   OpenDialog {
@@ -143,12 +144,12 @@ fn set_default_path(
   }
 }
 
-#[cfg(windows)]
+#[cfg(all(windows, any(dialog_open, dialog_save)))]
 struct WindowParent {
   hwnd: *mut std::ffi::c_void,
 }
 
-#[cfg(windows)]
+#[cfg(all(windows, any(dialog_open, dialog_save)))]
 unsafe impl raw_window_handle::HasRawWindowHandle for WindowParent {
   fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
     let mut handle = raw_window_handle::windows::WindowsHandle::empty();
@@ -157,7 +158,7 @@ unsafe impl raw_window_handle::HasRawWindowHandle for WindowParent {
   }
 }
 
-#[cfg(windows)]
+#[cfg(all(windows, any(dialog_open, dialog_save)))]
 fn parent<P: Params>(window: Window<P>) -> crate::Result<WindowParent> {
   Ok(WindowParent {
     hwnd: window.hwnd()?,

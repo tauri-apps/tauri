@@ -11,11 +11,18 @@ mod cmd;
 mod menu;
 
 use serde::Serialize;
-use tauri::{CustomMenuItem, Manager, SystemTrayMenuItem, WindowBuilder, WindowUrl};
+use tauri::{
+  CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder, WindowUrl,
+};
 
 #[derive(Serialize)]
 struct Reply {
   data: String,
+}
+
+#[tauri::command]
+async fn menu_toggle(window: tauri::Window) {
+  window.menu_handle().toggle().unwrap();
 }
 
 fn main() {
@@ -37,32 +44,55 @@ fn main() {
     .on_menu_event(|event| {
       println!("{:?}", event.menu_item_id());
     })
-    .system_tray(vec![
-      SystemTrayMenuItem::Custom(CustomMenuItem::new("toggle".into(), "Toggle")),
-      SystemTrayMenuItem::Custom(CustomMenuItem::new("new".into(), "New window")),
-    ])
-    .on_system_tray_event(|app, event| {
-      match event.menu_item_id().as_str() {
-        "toggle" => {
-          let window = app.get_window("main").unwrap();
-          // TODO: window.is_visible API
-          window.hide().unwrap();
-        }
-        "new" => app
-          .create_window(
-            "new".into(),
-            WindowUrl::App("index.html".into()),
-            |window_builder, webview_attributes| {
-              (window_builder.title("Tauri"), webview_attributes)
-            },
-          )
-          .unwrap(),
-        _ => {}
+    .system_tray(
+      SystemTray::new().with_menu(
+        SystemTrayMenu::new()
+          .add_item(CustomMenuItem::new("toggle".into(), "Toggle"))
+          .add_item(CustomMenuItem::new("new".into(), "New window")),
+      ),
+    )
+    .on_system_tray_event(|app, event| match event {
+      SystemTrayEvent::LeftClick {
+        position: _,
+        size: _,
+        ..
+      } => {
+        let window = app.get_window("main").unwrap();
+        window.show().unwrap();
+        window.set_focus().unwrap();
       }
+      SystemTrayEvent::MenuItemClick { id, .. } => {
+        let item_handle = app.tray_handle().get_item(&id);
+        match id.as_str() {
+          "toggle" => {
+            let window = app.get_window("main").unwrap();
+            let new_title = if window.is_visible().unwrap() {
+              window.hide().unwrap();
+              "Show"
+            } else {
+              window.show().unwrap();
+              "Hide"
+            };
+            item_handle.set_title(new_title).unwrap();
+          }
+          "new" => app
+            .create_window(
+              "new".into(),
+              WindowUrl::App("index.html".into()),
+              |window_builder, webview_attributes| {
+                (window_builder.title("Tauri"), webview_attributes)
+              },
+            )
+            .unwrap(),
+          _ => {}
+        }
+      }
+      _ => {}
     })
     .invoke_handler(tauri::generate_handler![
       cmd::log_operation,
-      cmd::perform_request
+      cmd::perform_request,
+      menu_toggle,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

@@ -4,8 +4,8 @@
 
 pub use tauri_runtime::{
   menu::{
-    CustomMenuItem, Menu, MenuEntry, MenuItem, MenuUpdate, SystemTrayMenu, SystemTrayMenuEntry,
-    SystemTrayMenuItem, TrayHandle,
+    CustomMenuItem, Menu, MenuEntry, MenuItem, MenuUpdate, Submenu, SystemTrayMenu,
+    SystemTrayMenuEntry, SystemTrayMenuItem, TrayHandle,
   },
   window::MenuEvent,
   Icon, MenuId, SystemTrayEvent,
@@ -190,22 +190,53 @@ impl From<SystemTrayMenuItem> for MenuItemWrapper {
 }
 
 #[cfg(feature = "menu")]
-pub fn to_wry_menu<I: MenuId>(
+pub fn convert_menu_id<I: MenuId>(mut new_menu: Menu<u16>, menu: Menu<I>) -> Menu<u16> {
+  for item in menu.items {
+    match item {
+      MenuEntry::CustomItem(c) => {
+        let mut item = CustomMenuItem::new(c.id_value(), c.title);
+        #[cfg(target_os = "macos")]
+        if let Some(native_image) = c.native_image {
+          item = item.native_image(native_image);
+        }
+        if !c.enabled {
+          item = item.disabled();
+        }
+        if c.selected {
+          item = item.selected();
+        }
+        new_menu = new_menu.add_item(item);
+      }
+      MenuEntry::NativeItem(i) => {
+        new_menu = new_menu.add_native_item(i);
+      }
+      MenuEntry::Submenu(submenu) => {
+        let new_submenu = convert_menu_id(Menu::new(), submenu.inner);
+        new_menu = new_menu.add_submenu(Submenu::new(submenu.title, new_submenu));
+      }
+    }
+  }
+  new_menu
+}
+
+#[cfg(feature = "menu")]
+pub fn to_wry_menu(
   custom_menu_items: &mut HashMap<u16, WryCustomMenuItem>,
-  menu: Menu<I>,
+  menu: Menu<u16>,
 ) -> MenuBar {
   let mut wry_menu = MenuBar::new();
   for item in menu.items {
     match item {
       MenuEntry::CustomItem(c) => {
+        let mut attributes = MenuItemAttributesWrapper::from(&c).0;
+        attributes = attributes.with_id(WryMenuId(c.id));
         #[allow(unused_mut)]
-        let mut item = wry_menu.add_item(MenuItemAttributesWrapper::from(&c).0);
-        let id = c.id_value();
+        let mut item = wry_menu.add_item(attributes);
         #[cfg(target_os = "macos")]
         if let Some(native_image) = c.native_image {
           item.set_native_image(NativeImageWrapper::from(native_image).0);
         }
-        custom_menu_items.insert(id, item);
+        custom_menu_items.insert(c.id, item);
       }
       MenuEntry::NativeItem(i) => {
         wry_menu.add_native_item(MenuItemWrapper::from(i).0);

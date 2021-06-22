@@ -11,10 +11,13 @@ fn main() {
 
   // start the native webdriver on the port specified in args
   let mut driver = webdriver::native(&args);
-  driver
+  let driver = driver
     .spawn()
     .expect("error while running native webdriver");
 
   // start our webdriver intermediary node
-  server::run(args);
+  if let Err(e) = server::run(args, driver) {
+    eprintln!("error while running server: {}", e);
+    std::process::exit(1);
+  }
 }

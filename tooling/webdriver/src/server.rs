@@ -4,15 +4,18 @@
 
 use crate::cli::Args;
 use anyhow::Error;
-use futures::TryFutureExt;
+use futures::{StreamExt, TryFutureExt};
 use hyper::header::CONTENT_LENGTH;
 use hyper::http::uri::Authority;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Client, Method, Request, Response, Server};
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
+use signal_hook::consts::signal::*;
+use signal_hook_tokio::Signals;
 use std::convert::Infallible;
 use std::path::PathBuf;
+use std::process::Child;
 
 type HttpClient = Client<hyper::client::HttpConnector>;
 
@@ -132,7 +135,25 @@ fn map_capabilities(mut json: Value) -> Value {
 }
 
 #[tokio::main(flavor = "current_thread")]
-pub async fn run(args: Args) {
+pub async fn run(args: Args, mut driver: Child) -> Result<(), Error> {
+  let signals = Signals::new(&[SIGTERM, SIGINT, SIGQUIT])?;
+
+  let signals_handle = signals.handle();
+  let signals_task = tokio::spawn(async move {
+    let mut signals = signals.fuse();
+    while let Some(signal) = signals.next().await {
+      match signal {
+        SIGTERM | SIGINT | SIGQUIT => {
+          driver
+            .kill()
+            .expect("unable to kill native webdriver server");
+          std::process::exit(0);
+        }
+        _ => unreachable!(),
+      }
+    }
+  });
+
   let address = std::net::SocketAddr::from(([127, 0, 0, 1], args.port));
 
   // the client we use to proxy requests to the native webdriver
@@ -155,13 +176,13 @@ pub async fn run(args: Args) {
   });
 
   // set up a http1 server that uses the service we just created
-  let server = Server::bind(&address)
+  Server::bind(&address)
     .http1_title_case_headers(true)
     .http1_preserve_header_case(true)
     .http1_only(true)
-    .serve(service);
+    .serve(service)
+    .await?;
 
-  if let Err(e) = server.await {
-    eprintln!("tauri-driver http server error: {}", e);
-  }
+  signals_handle.close();
+  Ok(signals_task.await?)
 }

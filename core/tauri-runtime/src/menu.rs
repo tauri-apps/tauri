@@ -229,7 +229,15 @@ impl<I: MenuId> CustomMenuItem<I> {
     }
   }
 
+  /// Assign a keyboard shortcut to the menu action.
+  pub fn accelerator<T: Into<String>>(mut self, accelerator: T) -> Self {
+    self.keyboard_accelerator.replace(accelerator.into());
+    self
+  }
+
   #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  /// A native image do render on the menu item.
   pub fn native_image(mut self, image: NativeImage) -> Self {
     self.native_image.replace(image);
     self

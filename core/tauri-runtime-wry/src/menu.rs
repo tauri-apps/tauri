@@ -199,6 +199,9 @@ pub fn convert_menu_id<I: MenuId>(mut new_menu: Menu<u16>, menu: Menu<I>) -> Men
         if let Some(native_image) = c.native_image {
           item = item.native_image(native_image);
         }
+        if let Some(accelerator) = c.keyboard_accelerator {
+          item = item.accelerator(accelerator);
+        }
         if !c.enabled {
           item = item.disabled();
         }

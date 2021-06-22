@@ -305,9 +305,7 @@ impl<P: Params> WindowManager<P> {
   }
 
   fn generate_invoke_key(&self) -> u32 {
-    let mut b = [0u8; 256];
-    crypto::utils::rand::fill(&mut b).expect("failed to generate invoke key");
-    let key = b.iter().fold(0, |s, i| s + *i as u32);
+    let key = rand::random();
     self.invoke_keys.lock().unwrap().push(key);
     key
   }

@@ -23,7 +23,7 @@ It's composed of the following properties:
 {property: "devPath", type: "string", description: `Can be a path—either absolute or relative—to a folder or a URL (like a live reload server).`},
 {property: "beforeDevCommand", optional: true, type: "string", description: `A command to run before starting Tauri in dev mode.`},
 {property: "beforeBuildCommand", optional: true, type: "string", description: `A command to run before starting Tauri in build mode.`},
-{property: "withGlobalTauri", optional: true, type: "boolean", description: "Enables the API injection to the window.__TAURI__ object. Useful if you're using Vanilla JS instead of importing the API using Rollup or Webpack."}
+{property: "withGlobalTauri", optional: true, type: "boolean", description: "Enables the API injection to the window.__TAURI__ object. Useful if you're using Vanilla JS instead of importing the API using Rollup or Webpack. Reduces the command security since any external code can access it, so be careful with XSS attacks."}
 ]}/>
 
 ```js title=Example

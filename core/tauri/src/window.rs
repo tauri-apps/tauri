@@ -300,13 +300,16 @@ impl<P: Params> Window<P> {
   /// Registers a menu event listener.
   #[cfg(feature = "menu")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-  pub fn on_menu_event<F: Fn(menu::MenuEvent<P::MenuId>) + Send + 'static>(&self, f: F) {
+  pub fn on_menu_event<F: Fn(menu::MenuEvent<P::MenuId>) + Send + 'static>(
+    &self,
+    f: F,
+  ) -> uuid::Uuid {
     let menu_ids = self.manager.menu_ids();
     self.window.dispatcher.on_menu_event(move |event| {
       f(menu::MenuEvent {
         menu_item_id: menu_ids.get(&event.menu_item_id).unwrap().clone(),
       })
-    });
+    })
   }
 
   // Getters

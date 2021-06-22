@@ -19,6 +19,7 @@ use std::os::windows::process::CommandExt;
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 use crate::async_runtime::{channel, spawn, Receiver, RwLock};
+use futures::{future, FutureExt};
 use os_pipe::{pipe, PipeWriter};
 use serde::Serialize;
 use shared_child::SharedChild;
@@ -242,7 +243,7 @@ impl Command {
 
     let tx_ = tx.clone();
     let guard_ = guard.clone();
-    spawn(async move {
+    let stdout_task = async move {
       let _lock = guard_.read().await;
       let reader = BufReader::new(stdout_reader);
       for line in reader.lines() {
@@ -251,11 +252,11 @@ impl Command {
           Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
         };
       }
-    });
+    };
 
     let tx_ = tx.clone();
     let guard_ = guard.clone();
-    spawn(async move {
+    let stderr_task = async move {
       let _lock = guard_.read().await;
       let reader = BufReader::new(stderr_reader);
       for line in reader.lines() {
@@ -264,9 +265,9 @@ impl Command {
           Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
         };
       }
-    });
+    };
 
-    spawn(async move {
+    let terminated_task = async move {
       let _ = match child_.wait() {
         Ok(status) => {
           guard.write().await;
@@ -285,7 +286,13 @@ impl Command {
           tx.send(CommandEvent::Error(e.to_string())).await
         }
       };
-    });
+    };
+
+    spawn(future::join_all(vec![
+      stdout_task.boxed(),
+      stderr_task.boxed(),
+      terminated_task.boxed(),
+    ]));
 
     Ok((
       rx,

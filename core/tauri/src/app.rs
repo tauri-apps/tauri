@@ -8,7 +8,8 @@ pub(crate) mod tray;
 
 use crate::{
   api::assets::Assets,
-  api::config::WindowUrl,
+  api::config::{Config, WindowUrl},
+  command::{CommandArg, CommandItem},
   hooks::{InvokeHandler, OnPageLoad, PageLoadPayload, SetupHook},
   manager::{Args, WindowManager},
   plugin::{Plugin, PluginStore},
@@ -16,13 +17,15 @@ use crate::{
     tag::Tag,
     webview::{CustomProtocol, WebviewAttributes, WindowBuilder},
     window::{PendingWindow, WindowEvent},
-    Dispatch, MenuId, Params, Runtime,
+    Dispatch, MenuId, Params, RunEvent, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
-  Context, Invoke, Manager, StateManager, Window,
+  Context, Invoke, InvokeError, Manager, StateManager, Window,
 };
 
-use std::{collections::HashMap, sync::Arc};
+use tauri_utils::PackageInfo;
+
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 #[cfg(feature = "menu")]
 use crate::runtime::menu::Menu;
@@ -85,6 +88,25 @@ impl<P: Params> GlobalWindowEvent<P> {
   }
 }
 
+/// The path resolver is a helper for the application-specific [`crate::api::path`] APIs.
+#[derive(Debug, Clone)]
+pub struct PathResolver {
+  config: Arc<Config>,
+  package_info: PackageInfo,
+}
+
+impl PathResolver {
+  /// Returns the path to the resource directory of this app.
+  pub fn resource_dir(&self) -> Option<PathBuf> {
+    crate::api::path::resource_dir(&self.package_info)
+  }
+
+  /// Returns the path to the suggested directory for your app config files.
+  pub fn app_dir(&self) -> Option<PathBuf> {
+    crate::api::path::app_dir(&self.config)
+  }
+}
+
 crate::manager::default_args! {
   /// A handle to the currently running application.
   ///
@@ -92,6 +114,8 @@ crate::manager::default_args! {
   pub struct AppHandle<P: Params> {
     runtime_handle: <P::Runtime as Runtime>::Handle,
     manager: WindowManager<P>,
+    global_shortcut_manager: <P::Runtime as Runtime>::GlobalShortcutManager,
+    clipboard_manager: <P::Runtime as Runtime>::ClipboardManager,
     #[cfg(feature = "system-tray")]
     tray_handle: Option<tray::SystemTrayHandle<P>>,
   }
@@ -102,9 +126,18 @@ impl<P: Params> Clone for AppHandle<P> {
     Self {
       runtime_handle: self.runtime_handle.clone(),
       manager: self.manager.clone(),
+      global_shortcut_manager: self.global_shortcut_manager.clone(),
+      clipboard_manager: self.clipboard_manager.clone(),
       #[cfg(feature = "system-tray")]
       tray_handle: self.tray_handle.clone(),
     }
+  }
+}
+
+impl<'de, P: Params> CommandArg<'de, P> for AppHandle<P> {
+  /// Grabs the [`Window`] from the [`CommandItem`] and returns the associated [`AppHandle`]. This will never fail.
+  fn from_command(command: CommandItem<'de, P>) -> Result<Self, InvokeError> {
+    Ok(command.message.window().app_handle)
   }
 }
 
@@ -126,6 +159,10 @@ impl<P: Params> ManagerBase<P> for AppHandle<P> {
   fn runtime(&self) -> RuntimeOrDispatch<'_, P> {
     RuntimeOrDispatch::RuntimeHandle(self.runtime_handle.clone())
   }
+
+  fn app_handle(&self) -> AppHandle<P> {
+    self.clone()
+  }
 }
 
 crate::manager::default_args! {
@@ -135,6 +172,8 @@ crate::manager::default_args! {
   pub struct App<P: Params> {
     runtime: Option<P::Runtime>,
     manager: WindowManager<P>,
+    global_shortcut_manager: <P::Runtime as Runtime>::GlobalShortcutManager,
+    clipboard_manager: <P::Runtime as Runtime>::ClipboardManager,
     #[cfg(feature = "system-tray")]
     tray_handle: Option<tray::SystemTrayHandle<P>>,
     handle: AppHandle<P>,
@@ -149,6 +188,10 @@ impl<P: Params> ManagerBase<P> for App<P> {
 
   fn runtime(&self) -> RuntimeOrDispatch<'_, P> {
     RuntimeOrDispatch::Runtime(self.runtime.as_ref().unwrap())
+  }
+
+  fn app_handle(&self) -> AppHandle<P> {
+    self.handle()
   }
 }
 
@@ -187,6 +230,34 @@ macro_rules! shared_app_impl {
           .clone()
           .expect("tray not configured; use the `Builder#system_tray` API first.")
       }
+
+      /// The path resolver for the application.
+      pub fn path_resolver(&self) -> PathResolver {
+        PathResolver {
+          config: self.manager.config(),
+          package_info: self.manager.package_info().clone(),
+        }
+      }
+
+      /// Gets a copy of the global shortcut manager instance.
+      pub fn global_shortcut_manager(&self) -> <P::Runtime as Runtime>::GlobalShortcutManager {
+        self.global_shortcut_manager.clone()
+      }
+
+      /// Gets a copy of the clipboard manager instance.
+      pub fn clipboard_manager(&self) -> <P::Runtime as Runtime>::ClipboardManager {
+        self.clipboard_manager.clone()
+      }
+
+      /// Gets the app's configuration, defined on the `tauri.conf.json` file.
+      pub fn config(&self) -> Arc<Config> {
+        self.manager.config()
+      }
+
+      /// Gets the app's package information.
+      pub fn package_info(&self) -> &PackageInfo {
+        self.manager.package_info()
+      }
     }
   };
 }
@@ -221,7 +292,12 @@ impl<P: Params> App<P> {
   /// }
   #[cfg(any(target_os = "windows", target_os = "macos"))]
   pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
-    self.runtime.as_mut().unwrap().run_iteration()
+    let manager = self.manager.clone();
+    self
+      .runtime
+      .as_mut()
+      .unwrap()
+      .run_iteration(move |event| on_event_loop_event(event, &manager))
   }
 }
 
@@ -636,29 +712,41 @@ where
     // set up all the windows defined in the config
     for config in manager.config().tauri.windows.clone() {
       let url = config.url.clone();
+      let file_drop_enabled = config.file_drop_enabled;
       let label = config
         .label
         .parse()
         .unwrap_or_else(|_| panic!("bad label found in config: {}", config.label));
 
+      let mut webview_attributes = WebviewAttributes::new(url);
+      if !file_drop_enabled {
+        webview_attributes = webview_attributes.disable_file_drop_handler();
+      }
+
       self.pending_windows.push(PendingWindow::with_config(
         config,
-        WebviewAttributes::new(url),
+        webview_attributes,
         label,
       ));
     }
 
     let runtime = R::new()?;
     let runtime_handle = runtime.handle();
+    let global_shortcut_manager = runtime.global_shortcut_manager();
+    let clipboard_manager = runtime.clipboard_manager();
 
     let mut app = App {
       runtime: Some(runtime),
       manager: manager.clone(),
+      global_shortcut_manager: global_shortcut_manager.clone(),
+      clipboard_manager: clipboard_manager.clone(),
       #[cfg(feature = "system-tray")]
       tray_handle: None,
       handle: AppHandle {
         runtime_handle,
         manager,
+        global_shortcut_manager,
+        clipboard_manager,
         #[cfg(feature = "system-tray")]
         tray_handle: None,
       },
@@ -676,9 +764,11 @@ where
     let mut main_window = None;
 
     for pending in self.pending_windows {
-      let pending = app.manager.prepare_window(pending, &pending_labels)?;
+      let pending = app
+        .manager
+        .prepare_window(app.handle.clone(), pending, &pending_labels)?;
       let detached = app.runtime.as_ref().unwrap().create_window(pending)?;
-      let _window = app.manager.attach_window(detached);
+      let _window = app.manager.attach_window(app.handle(), detached);
       #[cfg(feature = "updater")]
       if main_window.is_none() {
         main_window = Some(_window);
@@ -768,17 +858,27 @@ where
     let mut app = self.build(context)?;
     #[cfg(all(windows, feature = "system-tray"))]
     let app_handle = app.handle();
-    app.runtime.take().unwrap().run(move || {
-      #[cfg(shell_execute)]
-      {
-        crate::api::process::kill_children();
+    let manager = app.manager.clone();
+    app.runtime.take().unwrap().run(move |event| match event {
+      RunEvent::Exit => {
+        #[cfg(shell_execute)]
+        {
+          crate::api::process::kill_children();
+        }
+        #[cfg(all(windows, feature = "system-tray"))]
+        {
+          let _ = app_handle.remove_system_tray();
+        }
       }
-      #[cfg(all(windows, feature = "system-tray"))]
-      {
-        let _ = app_handle.remove_system_tray();
-      }
+      _ => on_event_loop_event(event, &manager),
     });
     Ok(())
+  }
+}
+
+fn on_event_loop_event<P: Params>(event: RunEvent, manager: &WindowManager<P>) {
+  if let RunEvent::WindowClose(label) = event {
+    manager.on_window_close(label);
   }
 }
 

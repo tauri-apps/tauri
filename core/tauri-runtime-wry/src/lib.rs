@@ -13,7 +13,8 @@ use tauri_runtime::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     DetachedWindow, PendingWindow, WindowEvent,
   },
-  Dispatch, Error, Icon, Params, Result, RunIteration, Runtime, RuntimeHandle,
+  ClipboardManager, Dispatch, Error, GlobalShortcutManager, Icon, Params, Result, RunEvent,
+  RunIteration, Runtime, RuntimeHandle, UserAttentionType,
 };
 
 #[cfg(feature = "menu")]
@@ -31,6 +32,8 @@ use tauri_utils::config::WindowConfig;
 use uuid::Uuid;
 use wry::{
   application::{
+    accelerator::{Accelerator, AcceleratorId},
+    clipboard::Clipboard,
     dpi::{
       LogicalPosition as WryLogicalPosition, LogicalSize as WryLogicalSize,
       PhysicalPosition as WryPhysicalPosition, PhysicalSize as WryPhysicalSize,
@@ -39,7 +42,11 @@ use wry::{
     event::{Event, WindowEvent as WryWindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
     monitor::MonitorHandle,
-    window::{Fullscreen, Icon as WindowIcon, Window, WindowBuilder as WryWindowBuilder, WindowId},
+    platform::global_shortcut::{GlobalShortcut, ShortcutManager as WryShortcutManager},
+    window::{
+      Fullscreen, Icon as WindowIcon, UserAttentionType as WryUserAttentionType, Window,
+      WindowBuilder as WryWindowBuilder, WindowId,
+    },
   },
   webview::{
     FileDropEvent as WryFileDropEvent, RpcRequest as WryRpcRequest, RpcResponse, WebContext,
@@ -78,6 +85,141 @@ type CreateWebviewHandler = Box<
 >;
 type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
+type GlobalShortcutListeners = Arc<Mutex<HashMap<AcceleratorId, Box<dyn Fn() + Send>>>>;
+
+macro_rules! dispatcher_getter {
+  ($self: ident, $message: expr) => {{
+    if current_thread().id() == $self.context.main_thread_id
+      && !$self.context.is_event_loop_running.load(Ordering::Relaxed)
+    {
+      panic!("This API cannot be called when the event loop is not running");
+    }
+    let (tx, rx) = channel();
+    $self
+      .context
+      .proxy
+      .send_event(Message::Window($self.window_id, $message(tx)))
+      .map_err(|_| Error::FailedToSendMessage)?;
+    rx.recv().unwrap()
+  }};
+}
+
+macro_rules! getter {
+  ($self: ident, $rx: expr, $message: expr) => {{
+    if current_thread().id() == $self.context.main_thread_id
+      && !$self.context.is_event_loop_running.load(Ordering::Relaxed)
+    {
+      panic!("This API cannot be called when the event loop is not running");
+    }
+    $self
+      .context
+      .proxy
+      .send_event($message)
+      .map_err(|_| Error::FailedToSendMessage)?;
+    $rx.recv().unwrap()
+  }};
+}
+
+#[derive(Clone)]
+struct EventLoopContext {
+  main_thread_id: ThreadId,
+  is_event_loop_running: Arc<AtomicBool>,
+  proxy: EventLoopProxy<Message>,
+}
+
+#[derive(Debug, Clone)]
+struct GlobalShortcutWrapper(GlobalShortcut);
+
+unsafe impl Send for GlobalShortcutWrapper {}
+
+/// Wrapper around [`WryShortcutManager`].
+#[derive(Clone)]
+pub struct GlobalShortcutManagerHandle {
+  context: EventLoopContext,
+  shortcuts: HashMap<String, (AcceleratorId, GlobalShortcutWrapper)>,
+  listeners: GlobalShortcutListeners,
+}
+
+impl GlobalShortcutManager for GlobalShortcutManagerHandle {
+  fn is_registered(&self, accelerator: &str) -> Result<bool> {
+    let (tx, rx) = channel();
+    Ok(getter!(
+      self,
+      rx,
+      Message::GlobalShortcut(GlobalShortcutMessage::IsRegistered(
+        accelerator.parse().expect("invalid accelerator"),
+        tx
+      ))
+    ))
+  }
+
+  fn register<F: Fn() + Send + 'static>(&mut self, accelerator: &str, handler: F) -> Result<()> {
+    let wry_accelerator: Accelerator = accelerator.parse().expect("invalid accelerator");
+    let id = wry_accelerator.clone().id();
+    let (tx, rx) = channel();
+    let shortcut = getter!(
+      self,
+      rx,
+      Message::GlobalShortcut(GlobalShortcutMessage::Register(wry_accelerator, tx))
+    )?;
+
+    self.listeners.lock().unwrap().insert(id, Box::new(handler));
+    self.shortcuts.insert(accelerator.into(), (id, shortcut));
+
+    Ok(())
+  }
+
+  fn unregister_all(&mut self) -> Result<()> {
+    let (tx, rx) = channel();
+    getter!(
+      self,
+      rx,
+      Message::GlobalShortcut(GlobalShortcutMessage::UnregisterAll(tx))
+    )?;
+    self.listeners.lock().unwrap().clear();
+    self.shortcuts.clear();
+    Ok(())
+  }
+
+  fn unregister(&mut self, accelerator: &str) -> Result<()> {
+    if let Some((accelerator_id, shortcut)) = self.shortcuts.remove(accelerator) {
+      let (tx, rx) = channel();
+      getter!(
+        self,
+        rx,
+        Message::GlobalShortcut(GlobalShortcutMessage::Unregister(shortcut, tx))
+      )?;
+      self.listeners.lock().unwrap().remove(&accelerator_id);
+    }
+    Ok(())
+  }
+}
+
+#[derive(Clone)]
+pub struct ClipboardManagerWrapper {
+  context: EventLoopContext,
+}
+
+impl ClipboardManager for ClipboardManagerWrapper {
+  fn read_text(&self) -> Result<Option<String>> {
+    let (tx, rx) = channel();
+    Ok(getter!(
+      self,
+      rx,
+      Message::Clipboard(ClipboardMessage::ReadText(tx))
+    ))
+  }
+
+  fn write_text<T: Into<String>>(&mut self, text: T) -> Result<()> {
+    let (tx, rx) = channel();
+    getter!(
+      self,
+      rx,
+      Message::Clipboard(ClipboardMessage::WriteText(text.into(), tx))
+    );
+    Ok(())
+  }
+}
 
 /// Wrapper around a [`wry::application::window::Icon`] that can be created from an [`Icon`].
 pub struct WryIcon(WindowIcon);
@@ -251,12 +393,25 @@ impl From<Position> for PositionWrapper {
   }
 }
 
+#[derive(Debug, Clone)]
+struct UserAttentionTypeWrapper(WryUserAttentionType);
+
+impl From<UserAttentionType> for UserAttentionTypeWrapper {
+  fn from(request_type: UserAttentionType) -> UserAttentionTypeWrapper {
+    let o = match request_type {
+      UserAttentionType::Critical => WryUserAttentionType::Critical,
+      UserAttentionType::Informational => WryUserAttentionType::Informational,
+    };
+    Self(o)
+  }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct WindowBuilderWrapper {
   inner: WryWindowBuilder,
   center: bool,
   #[cfg(feature = "menu")]
-  menu_items: HashMap<u32, WryCustomMenuItem>,
+  menu_items: HashMap<u16, WryCustomMenuItem>,
 }
 
 // safe since `menu_items` are read only here
@@ -473,6 +628,7 @@ enum WindowMessage {
   Hwnd(Sender<Hwnd>),
   // Setters
   Center(Sender<Result<()>>),
+  RequestUserAttention(Option<UserAttentionTypeWrapper>),
   SetResizable(bool),
   SetTitle(String),
   Maximize,
@@ -498,7 +654,7 @@ enum WindowMessage {
   SetSkipTaskbar(bool),
   DragWindow,
   #[cfg(feature = "menu")]
-  UpdateMenuItem(u32, menu::MenuUpdate),
+  UpdateMenuItem(u16, menu::MenuUpdate),
 }
 
 #[derive(Debug, Clone)]
@@ -510,10 +666,24 @@ enum WebviewMessage {
 #[cfg(feature = "system-tray")]
 #[derive(Clone)]
 pub(crate) enum TrayMessage {
-  UpdateItem(u32, menu::MenuUpdate),
+  UpdateItem(u16, menu::MenuUpdate),
   UpdateIcon(Icon),
   #[cfg(windows)]
   Remove,
+}
+
+#[derive(Clone)]
+pub(crate) enum GlobalShortcutMessage {
+  IsRegistered(Accelerator, Sender<bool>),
+  Register(Accelerator, Sender<Result<GlobalShortcutWrapper>>),
+  Unregister(GlobalShortcutWrapper, Sender<Result<()>>),
+  UnregisterAll(Sender<Result<()>>),
+}
+
+#[derive(Clone)]
+pub(crate) enum ClipboardMessage {
+  WriteText(String, Sender<()>),
+  ReadText(Sender<Option<String>>),
 }
 
 #[derive(Clone)]
@@ -524,6 +694,8 @@ pub(crate) enum Message {
   #[cfg(feature = "system-tray")]
   Tray(TrayMessage),
   CreateWebview(Arc<Mutex<Option<CreateWebviewHandler>>>, Sender<WindowId>),
+  GlobalShortcut(GlobalShortcutMessage),
+  Clipboard(ClipboardMessage),
 }
 
 #[derive(Clone)]
@@ -541,23 +713,6 @@ struct DispatcherContext {
 pub struct WryDispatcher {
   window_id: WindowId,
   context: DispatcherContext,
-}
-
-macro_rules! dispatcher_getter {
-  ($self: ident, $message: expr) => {{
-    if current_thread().id() == $self.context.main_thread_id
-      && !$self.context.is_event_loop_running.load(Ordering::Relaxed)
-    {
-      panic!("This API cannot be called when the event loop is not running");
-    }
-    let (tx, rx) = channel();
-    $self
-      .context
-      .proxy
-      .send_event(Message::Window($self.window_id, $message(tx)))
-      .map_err(|_| Error::FailedToSendMessage)?;
-    rx.recv().unwrap()
-  }};
 }
 
 impl Dispatch for WryDispatcher {
@@ -683,6 +838,17 @@ impl Dispatch for WryDispatcher {
       .context
       .proxy
       .send_event(Message::Webview(self.window_id, WebviewMessage::Print))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+
+  fn request_user_attention(&self, request_type: Option<UserAttentionType>) -> Result<()> {
+    self
+      .context
+      .proxy
+      .send_event(Message::Window(
+        self.window_id,
+        WindowMessage::RequestUserAttention(request_type.map(Into::into)),
+      ))
       .map_err(|_| Error::FailedToSendMessage)
   }
 
@@ -936,7 +1102,7 @@ impl Dispatch for WryDispatcher {
   }
 
   #[cfg(feature = "menu")]
-  fn update_menu_item(&self, id: u32, update: menu::MenuUpdate) -> Result<()> {
+  fn update_menu_item(&self, id: u16, update: menu::MenuUpdate) -> Result<()> {
     self
       .context
       .proxy
@@ -957,9 +1123,10 @@ struct TrayContext {
 }
 
 struct WebviewWrapper {
+  label: String,
   inner: WebView,
   #[cfg(feature = "menu")]
-  menu_items: HashMap<u32, WryCustomMenuItem>,
+  menu_items: HashMap<u16, WryCustomMenuItem>,
   #[cfg(feature = "menu")]
   is_menu_visible: AtomicBool,
 }
@@ -967,6 +1134,10 @@ struct WebviewWrapper {
 /// A Tauri [`Runtime`] wrapper around wry.
 pub struct Wry {
   main_thread_id: ThreadId,
+  global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
+  global_shortcut_manager_handle: GlobalShortcutManagerHandle,
+  clipboard_manager: Arc<Mutex<Clipboard>>,
+  clipboard_manager_handle: ClipboardManagerWrapper,
   is_event_loop_running: Arc<AtomicBool>,
   event_loop: EventLoop<Message>,
   web_context: WebContextStore,
@@ -1029,14 +1200,41 @@ impl RuntimeHandle for WryHandle {
 impl Runtime for Wry {
   type Dispatcher = WryDispatcher;
   type Handle = WryHandle;
+  type GlobalShortcutManager = GlobalShortcutManagerHandle;
+  type ClipboardManager = ClipboardManagerWrapper;
   #[cfg(feature = "system-tray")]
   type TrayHandler = SystemTrayHandle;
 
   fn new() -> Result<Self> {
     let event_loop = EventLoop::<Message>::with_user_event();
+    let proxy = event_loop.create_proxy();
+    let main_thread_id = current_thread().id();
+    let is_event_loop_running = Arc::new(AtomicBool::default());
+
+    let event_loop_context = EventLoopContext {
+      main_thread_id,
+      is_event_loop_running: is_event_loop_running.clone(),
+      proxy,
+    };
+
+    let global_shortcut_manager = WryShortcutManager::new(&event_loop);
+    let global_shortcut_listeners = GlobalShortcutListeners::default();
+    let clipboard_manager = Clipboard::new();
+    let clipboard_manager_handle = ClipboardManagerWrapper {
+      context: event_loop_context.clone(),
+    };
+
     Ok(Self {
-      main_thread_id: current_thread().id(),
-      is_event_loop_running: Default::default(),
+      main_thread_id,
+      global_shortcut_manager: Arc::new(Mutex::new(global_shortcut_manager)),
+      global_shortcut_manager_handle: GlobalShortcutManagerHandle {
+        context: event_loop_context,
+        shortcuts: Default::default(),
+        listeners: global_shortcut_listeners,
+      },
+      clipboard_manager: Arc::new(Mutex::new(clipboard_manager)),
+      clipboard_manager_handle,
+      is_event_loop_running,
       event_loop,
       web_context: Default::default(),
       webviews: Default::default(),
@@ -1059,6 +1257,14 @@ impl Runtime for Wry {
         menu_event_listeners: self.menu_event_listeners.clone(),
       },
     }
+  }
+
+  fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager {
+    self.global_shortcut_manager_handle.clone()
+  }
+
+  fn clipboard_manager(&self) -> Self::ClipboardManager {
+    self.clipboard_manager_handle.clone()
   }
 
   fn create_window<P: Params<Runtime = Self>>(
@@ -1141,7 +1347,7 @@ impl Runtime for Wry {
   }
 
   #[cfg(any(target_os = "windows", target_os = "macos"))]
-  fn run_iteration(&mut self) -> RunIteration {
+  fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration {
     use wry::application::platform::run_return::EventLoopExtRunReturn;
     let webviews = self.webviews.clone();
     let web_context = &self.web_context;
@@ -1150,6 +1356,9 @@ impl Runtime for Wry {
     let menu_event_listeners = self.menu_event_listeners.clone();
     #[cfg(feature = "system-tray")]
     let tray_context = self.tray_context.clone();
+    let global_shortcut_manager = self.global_shortcut_manager.clone();
+    let global_shortcut_manager_handle = self.global_shortcut_manager_handle.clone();
+    let clipboard_manager = self.clipboard_manager.clone();
 
     let mut iteration = RunIteration::default();
 
@@ -1165,9 +1374,12 @@ impl Runtime for Wry {
           event_loop,
           control_flow,
           EventLoopIterationContext {
-            callback: None,
+            callback: &callback,
             webviews: webviews.lock().expect("poisoned webview collection"),
             window_event_listeners: window_event_listeners.clone(),
+            global_shortcut_manager: global_shortcut_manager.clone(),
+            global_shortcut_manager_handle: global_shortcut_manager_handle.clone(),
+            clipboard_manager: clipboard_manager.clone(),
             #[cfg(feature = "menu")]
             menu_event_listeners: menu_event_listeners.clone(),
             #[cfg(feature = "system-tray")]
@@ -1181,7 +1393,7 @@ impl Runtime for Wry {
     iteration
   }
 
-  fn run<F: Fn() + 'static>(self, callback: F) {
+  fn run<F: Fn(RunEvent) + 'static>(self, callback: F) {
     self.is_event_loop_running.store(true, Ordering::Relaxed);
     let webviews = self.webviews.clone();
     let web_context = self.web_context;
@@ -1190,6 +1402,9 @@ impl Runtime for Wry {
     let menu_event_listeners = self.menu_event_listeners.clone();
     #[cfg(feature = "system-tray")]
     let tray_context = self.tray_context;
+    let global_shortcut_manager = self.global_shortcut_manager.clone();
+    let global_shortcut_manager_handle = self.global_shortcut_manager_handle.clone();
+    let clipboard_manager = self.clipboard_manager.clone();
 
     self.event_loop.run(move |event, event_loop, control_flow| {
       handle_event_loop(
@@ -1197,9 +1412,12 @@ impl Runtime for Wry {
         event_loop,
         control_flow,
         EventLoopIterationContext {
-          callback: Some(&callback),
+          callback: &callback,
           webviews: webviews.lock().expect("poisoned webview collection"),
           window_event_listeners: window_event_listeners.clone(),
+          global_shortcut_manager: global_shortcut_manager.clone(),
+          global_shortcut_manager_handle: global_shortcut_manager_handle.clone(),
+          clipboard_manager: clipboard_manager.clone(),
           #[cfg(feature = "menu")]
           menu_event_listeners: menu_event_listeners.clone(),
           #[cfg(feature = "system-tray")]
@@ -1212,9 +1430,12 @@ impl Runtime for Wry {
 }
 
 struct EventLoopIterationContext<'a> {
-  callback: Option<&'a (dyn Fn() + 'static)>,
+  callback: &'a (dyn Fn(RunEvent) + 'static),
   webviews: MutexGuard<'a, HashMap<WindowId, WebviewWrapper>>,
   window_event_listeners: WindowEventListeners,
+  global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
+  global_shortcut_manager_handle: GlobalShortcutManagerHandle,
+  clipboard_manager: Arc<Mutex<Clipboard>>,
   #[cfg(feature = "menu")]
   menu_event_listeners: MenuEventListeners,
   #[cfg(feature = "system-tray")]
@@ -1232,6 +1453,9 @@ fn handle_event_loop(
     callback,
     mut webviews,
     window_event_listeners,
+    global_shortcut_manager,
+    global_shortcut_manager_handle,
+    clipboard_manager,
     #[cfg(feature = "menu")]
     menu_event_listeners,
     #[cfg(feature = "system-tray")]
@@ -1240,6 +1464,13 @@ fn handle_event_loop(
   *control_flow = ControlFlow::Wait;
 
   match event {
+    Event::GlobalShortcutEvent(accelerator_id) => {
+      for (id, handler) in &*global_shortcut_manager_handle.listeners.lock().unwrap() {
+        if accelerator_id == *id {
+          handler();
+        }
+      }
+    }
     #[cfg(feature = "menu")]
     Event::MenuEvent {
       menu_id,
@@ -1289,13 +1520,7 @@ fn handle_event_loop(
       }
       match event {
         WryWindowEvent::CloseRequested => {
-          webviews.remove(&window_id);
-          if webviews.is_empty() {
-            *control_flow = ControlFlow::Exit;
-            if let Some(callback) = callback {
-              callback();
-            }
-          }
+          on_window_close(callback, window_id, &mut webviews, control_flow);
         }
         WryWindowEvent::Resized(_) => {
           if let Err(e) = webviews[&window_id].inner.resize() {
@@ -1362,6 +1587,9 @@ fn handle_event_loop(
             WindowMessage::Center(tx) => {
               tx.send(center_window(window)).unwrap();
             }
+            WindowMessage::RequestUserAttention(request_type) => {
+              window.request_user_attention(request_type.map(|r| r.0));
+            }
             WindowMessage::SetResizable(resizable) => window.set_resizable(resizable),
             WindowMessage::SetTitle(title) => window.set_title(&title),
             WindowMessage::Maximize => window.set_maximized(true),
@@ -1381,10 +1609,7 @@ fn handle_event_loop(
             WindowMessage::Show => window.set_visible(true),
             WindowMessage::Hide => window.set_visible(false),
             WindowMessage::Close => {
-              webviews.remove(&id);
-              if webviews.is_empty() {
-                *control_flow = ControlFlow::Exit;
-              }
+              on_window_close(callback, id, &mut webviews, control_flow);
             }
             WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
             WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),
@@ -1497,12 +1722,74 @@ fn handle_event_loop(
           }
         }
       },
+      Message::GlobalShortcut(message) => match message {
+        GlobalShortcutMessage::IsRegistered(accelerator, tx) => tx
+          .send(
+            global_shortcut_manager
+              .lock()
+              .unwrap()
+              .is_registered(&accelerator),
+          )
+          .unwrap(),
+        GlobalShortcutMessage::Register(accelerator, tx) => tx
+          .send(
+            global_shortcut_manager
+              .lock()
+              .unwrap()
+              .register(accelerator)
+              .map(GlobalShortcutWrapper)
+              .map_err(|e| Error::GlobalShortcut(Box::new(e))),
+          )
+          .unwrap(),
+        GlobalShortcutMessage::Unregister(shortcut, tx) => tx
+          .send(
+            global_shortcut_manager
+              .lock()
+              .unwrap()
+              .unregister(shortcut.0)
+              .map_err(|e| Error::GlobalShortcut(Box::new(e))),
+          )
+          .unwrap(),
+        GlobalShortcutMessage::UnregisterAll(tx) => tx
+          .send(
+            global_shortcut_manager
+              .lock()
+              .unwrap()
+              .unregister_all()
+              .map_err(|e| Error::GlobalShortcut(Box::new(e))),
+          )
+          .unwrap(),
+      },
+      Message::Clipboard(message) => match message {
+        ClipboardMessage::WriteText(text, tx) => {
+          clipboard_manager.lock().unwrap().write_text(text);
+          tx.send(()).unwrap();
+        }
+        ClipboardMessage::ReadText(tx) => tx
+          .send(clipboard_manager.lock().unwrap().read_text())
+          .unwrap(),
+      },
     },
     _ => (),
   }
 
   RunIteration {
     webview_count: webviews.len(),
+  }
+}
+
+fn on_window_close<'a>(
+  callback: &'a (dyn Fn(RunEvent) + 'static),
+  window_id: WindowId,
+  webviews: &mut MutexGuard<'a, HashMap<WindowId, WebviewWrapper>>,
+  control_flow: &mut ControlFlow,
+) {
+  if let Some(webview) = webviews.remove(&window_id) {
+    callback(RunEvent::WindowClose(webview.label));
+  }
+  if webviews.is_empty() {
+    *control_flow = ControlFlow::Exit;
+    callback(RunEvent::Exit);
   }
 }
 
@@ -1552,8 +1839,11 @@ fn create_webview<P: Params<Runtime = Wry>>(
       webview_builder.with_rpc_handler(create_rpc_handler(context.clone(), label.clone(), handler));
   }
   if let Some(handler) = file_drop_handler {
-    webview_builder =
-      webview_builder.with_file_drop_handler(create_file_drop_handler(context, label, handler));
+    webview_builder = webview_builder.with_file_drop_handler(create_file_drop_handler(
+      context,
+      label.clone(),
+      handler,
+    ));
   }
   for (scheme, protocol) in webview_attributes.uri_scheme_protocols {
     webview_builder = webview_builder.with_custom_protocol(scheme, move |_window, url| {
@@ -1593,6 +1883,7 @@ fn create_webview<P: Params<Runtime = Wry>>(
     .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
   Ok(WebviewWrapper {
+    label: format!("{}", label),
     inner: webview,
     #[cfg(feature = "menu")]
     menu_items,

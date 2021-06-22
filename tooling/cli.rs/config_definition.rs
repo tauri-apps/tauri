@@ -78,6 +78,8 @@ pub struct WixConfig {
   pub merge_refs: Vec<String>,
   #[serde(default)]
   pub skip_webview_install: bool,
+  /// Path to the license file.
+  pub license: Option<String>,
 }
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
@@ -261,6 +263,11 @@ pub struct WindowConfig {
   pub label: Option<String>,
   /// The window webview URL.
   pub url: Option<String>,
+  /// Whether the file drop is enabled or not on the webview. By default it is enabled.
+  ///
+  /// Disabling it is required to use drag and drop on the frontend on Windows.
+  #[serde(default = "default_file_drop_enabled")]
+  pub file_drop_enabled: bool,
   /// The horizontal position of the window's top left corner
   pub x: Option<f64>,
   /// The vertical position of the window's top left corner
@@ -307,6 +314,10 @@ fn default_visible() -> bool {
 }
 
 fn default_decorations() -> bool {
+  true
+}
+
+fn default_file_drop_enabled() -> bool {
   true
 }
 

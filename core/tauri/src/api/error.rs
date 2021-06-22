@@ -32,10 +32,17 @@ pub enum Error {
   #[cfg(feature = "reqwest-client")]
   #[error("Network Error: {0}")]
   Network(#[from] reqwest::Error),
+  /// HTTP request error. First parameter is the response status code, and the second is the response text.
+  #[error("HTTP Error: status code {0} and response `{1}`")]
+  Http(u16, String),
   /// HTTP method error.
   #[error("{0}")]
   HttpMethod(#[from] http::method::InvalidMethod),
-  /// Invalid HTTO header.
+  /// Invalid HTTP header value.
+  #[cfg(feature = "reqwest-client")]
+  #[error("{0}")]
+  HttpHeaderValue(#[from] http::header::InvalidHeaderValue),
+  /// Invalid HTTP header value.
   #[error("{0}")]
   HttpHeader(#[from] http::header::InvalidHeaderName),
   /// Failed to serialize header value as string.
@@ -73,10 +80,6 @@ pub enum Error {
   #[cfg(feature = "cli")]
   #[error("failed to parse CLI arguments: {0}")]
   ParseCliArguments(#[from] clap::Error),
-  /// Shortcut error.
-  #[cfg(global_shortcut_all)]
-  #[error("shortcut error: {0}")]
-  Shortcut(#[from] tauri_hotkey::Error),
   /// Shell error.
   #[error("shell error: {0}")]
   Shell(String),

@@ -28,7 +28,8 @@ export default [
       cli: './src/cli.ts',
       notification: './src/notification.ts',
       globalShortcut: './src/globalShortcut.ts',
-      process: './src/process.ts'
+      process: './src/process.ts',
+      clipboard: './src/clipboard.ts'
     },
     treeshake: true,
     perf: true,

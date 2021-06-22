@@ -8,7 +8,7 @@
 
 use std::{fmt::Debug, hash::Hash, path::PathBuf};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri_utils::assets::Assets;
 use uuid::Uuid;
 
@@ -76,6 +76,20 @@ impl<I: MenuId> SystemTray<I> {
   }
 }
 
+/// Type of user attention requested on a window.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(tag = "type")]
+pub enum UserAttentionType {
+  /// ## Platform-specific
+  /// - **macOS:** Bounces the dock icon until the application is in focus.
+  /// - **Windows:** Flashes both the window and the taskbar button until the application is in focus.
+  Critical,
+  /// ## Platform-specific
+  /// - **macOS:** Bounces the dock icon once.
+  /// - **Windows:** Flashes the taskbar button until the application is in focus.
+  Informational,
+}
+
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
@@ -102,6 +116,9 @@ pub enum Error {
   /// Failed to get monitor on window operation.
   #[error("failed to get monitor")]
   FailedToGetMonitor,
+  /// Global shortcut error.
+  #[error(transparent)]
+  GlobalShortcut(Box<dyn std::error::Error + Send>),
 }
 
 /// Result type.
@@ -169,9 +186,17 @@ impl Icon {
   }
 }
 
+/// Event triggered on the event loop run.
+pub enum RunEvent {
+  /// Event loop is exiting.
+  Exit,
+  /// Window closed.
+  WindowClose(String),
+}
+
 /// A system tray event.
 pub enum SystemTrayEvent {
-  MenuItemClick(u32),
+  MenuItemClick(u16),
   LeftClick {
     position: PhysicalPosition<f64>,
     size: PhysicalSize<f64>,
@@ -206,12 +231,74 @@ pub trait RuntimeHandle: Send + Sized + Clone + 'static {
   fn remove_system_tray(&self) -> crate::Result<()>;
 }
 
+/// A global shortcut manager.
+pub trait GlobalShortcutManager {
+  /// Whether the application has registered the given `accelerator`.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
+  fn is_registered(&self, accelerator: &str) -> crate::Result<bool>;
+
+  /// Register a global shortcut of `accelerator`.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
+  fn register<F: Fn() + Send + 'static>(
+    &mut self,
+    accelerator: &str,
+    handler: F,
+  ) -> crate::Result<()>;
+
+  /// Unregister all accelerators registered by the manager instance.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
+  fn unregister_all(&mut self) -> crate::Result<()>;
+
+  /// Unregister the provided `accelerator`.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
+  fn unregister(&mut self, accelerator: &str) -> crate::Result<()>;
+}
+
+/// Clipboard manager.
+pub trait ClipboardManager {
+  /// Writes the text into the clipboard as plain text.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
+
+  fn write_text<T: Into<String>>(&mut self, text: T) -> Result<()>;
+  /// Read the content in the clipboard as plain text.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
+  fn read_text(&self) -> Result<Option<String>>;
+}
+
 /// The webview runtime interface.
 pub trait Runtime: Sized + 'static {
   /// The message dispatcher.
   type Dispatcher: Dispatch<Runtime = Self>;
   /// The runtime handle type.
   type Handle: RuntimeHandle<Runtime = Self>;
+  /// The global shortcut manager type.
+  type GlobalShortcutManager: GlobalShortcutManager + Clone + Send;
+  /// The clipboard manager type.
+  type ClipboardManager: ClipboardManager + Clone + Send;
   /// The tray handler type.
   #[cfg(feature = "system-tray")]
   type TrayHandler: menu::TrayHandle + Clone + Send;
@@ -221,6 +308,12 @@ pub trait Runtime: Sized + 'static {
 
   /// Gets a runtime handle.
   fn handle(&self) -> Self::Handle;
+
+  /// Gets the global shortcut manager.
+  fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager;
+
+  /// Gets the clipboard manager.
+  fn clipboard_manager(&self) -> Self::ClipboardManager;
 
   /// Create a new webview window.
   fn create_window<P: Params<Runtime = Self>>(
@@ -240,10 +333,10 @@ pub trait Runtime: Sized + 'static {
 
   /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
   #[cfg(any(target_os = "windows", target_os = "macos"))]
-  fn run_iteration(&mut self) -> RunIteration;
+  fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration;
 
   /// Run the webview runtime.
-  fn run<F: Fn() + 'static>(self, callback: F);
+  fn run<F: Fn(RunEvent) + 'static>(self, callback: F);
 }
 
 /// Webview dispatcher. A thread-safe handle to the webview API.
@@ -330,6 +423,11 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   /// Opens the dialog to prints the contents of the webview.
   fn print(&self) -> crate::Result<()>;
 
+  /// Requests user attention to the window.
+  ///
+  /// Providing `None` will unset the request for user attention.
+  fn request_user_attention(&self, request_type: Option<UserAttentionType>) -> crate::Result<()>;
+
   /// Create a new webview window.
   fn create_window<P: Params<Runtime = Self::Runtime>>(
     &mut self,
@@ -409,5 +507,5 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
 
   /// Applies the specified `update` to the menu item associated with the given `id`.
   #[cfg(feature = "menu")]
-  fn update_menu_item(&self, id: u32, update: menu::MenuUpdate) -> crate::Result<()>;
+  fn update_menu_item(&self, id: u16, update: menu::MenuUpdate) -> crate::Result<()>;
 }

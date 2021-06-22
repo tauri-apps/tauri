@@ -8,6 +8,7 @@ pub(crate) mod menu;
 
 use crate::{
   api::config::WindowUrl,
+  app::AppHandle,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
   manager::WindowManager,
@@ -19,7 +20,7 @@ use crate::{
       dpi::{PhysicalPosition, PhysicalSize, Position, Size},
       DetachedWindow, PendingWindow, WindowEvent,
     },
-    Dispatch, Icon, Params, Runtime,
+    Dispatch, Icon, Params, Runtime, UserAttentionType,
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
@@ -85,11 +86,10 @@ crate::manager::default_args! {
   /// the same application.
   pub struct Window<P: Params> {
     /// The webview window created by the runtime.
-    /// ok
     window: DetachedWindow<P>,
-
     /// The manager to associate this webview window with.
     manager: WindowManager<P>,
+    pub(crate) app_handle: AppHandle<P>,
   }
 }
 
@@ -98,6 +98,7 @@ impl<P: Params> Clone for Window<P> {
     Self {
       window: self.window.clone(),
       manager: self.manager.clone(),
+      app_handle: self.app_handle.clone(),
     }
   }
 }
@@ -123,6 +124,10 @@ impl<P: Params> ManagerBase<P> for Window<P> {
     &self.manager
   }
 
+  fn app_handle(&self) -> AppHandle<P> {
+    self.app_handle.clone()
+  }
+
   fn runtime(&self) -> RuntimeOrDispatch<'_, P> {
     RuntimeOrDispatch::Dispatch(self.dispatcher())
   }
@@ -137,8 +142,16 @@ impl<'de, P: Params> CommandArg<'de, P> for Window<P> {
 
 impl<P: Params> Window<P> {
   /// Create a new window that is attached to the manager.
-  pub(crate) fn new(manager: WindowManager<P>, window: DetachedWindow<P>) -> Self {
-    Self { window, manager }
+  pub(crate) fn new(
+    manager: WindowManager<P>,
+    window: DetachedWindow<P>,
+    app_handle: AppHandle<P>,
+  ) -> Self {
+    Self {
+      window,
+      manager,
+      app_handle,
+    }
   }
 
   /// Creates a new webview window.
@@ -488,6 +501,27 @@ impl<P: Params> Window<P> {
   /// Centers the window.
   pub fn center(&self) -> crate::Result<()> {
     self.window.dispatcher.center().map_err(Into::into)
+  }
+
+  /// Requests user attention to the window, this has no effect if the application
+  /// is already focused. How requesting for user attention manifests is platform dependent,
+  /// see `UserAttentionType` for details.
+  ///
+  /// Providing `None` will unset the request for user attention. Unsetting the request for
+  /// user attention might not be done automatically by the WM when the window receives input.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** `None` has no effect.
+  pub fn request_user_attention(
+    &self,
+    request_type: Option<UserAttentionType>,
+  ) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .request_user_attention(request_type)
+      .map_err(Into::into)
   }
 
   /// Opens the dialog to prints the contents of the webview.

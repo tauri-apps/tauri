@@ -12,7 +12,7 @@ use crate::{
     path::{resolve_path, BaseDirectory},
     PackageInfo,
   },
-  app::{GlobalWindowEvent, GlobalWindowEventListener},
+  app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
   event::{Event, EventHandler, Listeners},
   hooks::{InvokeHandler, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
@@ -101,7 +101,7 @@ crate::manager::default_args! {
     menu: Option<Menu<P::MenuId>>,
     /// Maps runtime id to a strongly typed menu id.
     #[cfg(feature = "menu")]
-    menu_ids: HashMap<u32, P::MenuId>,
+    menu_ids: HashMap<u16, P::MenuId>,
     /// Menu event listeners to all windows.
     #[cfg(feature = "menu")]
     menu_event_listeners: Arc<Vec<GlobalMenuEventListener<P>>>,
@@ -209,7 +209,7 @@ impl<P: Params> Clone for WindowManager<P> {
 }
 
 #[cfg(feature = "menu")]
-fn get_menu_ids<I: MenuId>(map: &mut HashMap<u32, I>, menu: &Menu<I>) {
+fn get_menu_ids<I: MenuId>(map: &mut HashMap<u16, I>, menu: &Menu<I>) {
   for item in &menu.items {
     match item {
       MenuEntry::CustomItem(c) => {
@@ -280,7 +280,7 @@ impl<P: Params> WindowManager<P> {
 
   /// Get the menu ids mapper.
   #[cfg(feature = "menu")]
-  pub(crate) fn menu_ids(&self) -> HashMap<u32, P::MenuId> {
+  pub(crate) fn menu_ids(&self) -> HashMap<u16, P::MenuId> {
     self.inner.menu_ids.clone()
   }
 
@@ -371,10 +371,10 @@ impl<P: Params> WindowManager<P> {
     Ok(pending)
   }
 
-  fn prepare_rpc_handler(&self) -> WebviewRpcHandler<P> {
+  fn prepare_rpc_handler(&self, app_handle: AppHandle<P>) -> WebviewRpcHandler<P> {
     let manager = self.clone();
     Box::new(move |window, request| {
-      let window = Window::new(manager.clone(), window);
+      let window = Window::new(manager.clone(), window, app_handle.clone());
       let command = request.command.clone();
 
       let arg = request
@@ -427,6 +427,11 @@ impl<P: Params> WindowManager<P> {
 
         let asset_response = assets
           .get(&path)
+          .or_else(|| {
+            #[cfg(debug_assertions)]
+            eprintln!("Asset `{}` not found; fallback to index.html", path); // TODO log::error!
+            assets.get("index.html")
+          })
           .ok_or(crate::Error::AssetNotFound(path))
           .map(Cow::into_owned);
         match asset_response {
@@ -441,12 +446,13 @@ impl<P: Params> WindowManager<P> {
     }
   }
 
-  fn prepare_file_drop(&self) -> FileDropHandler<P> {
+  fn prepare_file_drop(&self, app_handle: AppHandle<P>) -> FileDropHandler<P> {
     let manager = self.clone();
     Box::new(move |event, window| {
       let manager = manager.clone();
+      let app_handle = app_handle.clone();
       crate::async_runtime::block_on(async move {
-        let window = Window::new(manager.clone(), window);
+        let window = Window::new(manager.clone(), window, app_handle);
         let _ = match event {
           FileDropEvent::Hovered(paths) => {
             window.emit(&tauri_event::<P::Event>("tauri://file-drop"), Some(paths))
@@ -599,6 +605,7 @@ impl<P: Params> WindowManager<P> {
 
   pub fn prepare_window(
     &self,
+    app_handle: AppHandle<P>,
     mut pending: PendingWindow<P>,
     pending_labels: &[P::Label],
   ) -> crate::Result<PendingWindow<P>> {
@@ -622,17 +629,19 @@ impl<P: Params> WindowManager<P> {
     if is_local {
       let label = pending.label.clone();
       pending = self.prepare_pending_window(pending, label, pending_labels)?;
-      pending.rpc_handler = Some(self.prepare_rpc_handler());
+      pending.rpc_handler = Some(self.prepare_rpc_handler(app_handle.clone()));
     }
 
-    pending.file_drop_handler = Some(self.prepare_file_drop());
+    if pending.webview_attributes.file_drop_handler_enabled {
+      pending.file_drop_handler = Some(self.prepare_file_drop(app_handle));
+    }
     pending.url = url;
 
     Ok(pending)
   }
 
-  pub fn attach_window(&self, window: DetachedWindow<P>) -> Window<P> {
-    let window = Window::new(self.clone(), window);
+  pub fn attach_window(&self, app_handle: AppHandle<P>, window: DetachedWindow<P>) -> Window<P> {
+    let window = Window::new(self.clone(), window, app_handle);
 
     let window_ = window.clone();
     let window_event_listeners = self.inner.window_event_listeners.clone();
@@ -678,6 +687,12 @@ impl<P: Params> WindowManager<P> {
     }
 
     window
+  }
+
+  pub(crate) fn on_window_close(&self, label: String) {
+    self
+      .windows_lock()
+      .remove(&label.parse().unwrap_or_else(|_| panic!("bad label")));
   }
 
   pub fn emit_filter<E: ?Sized, S, F>(&self, event: &E, payload: S, filter: F) -> crate::Result<()>

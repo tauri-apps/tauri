@@ -25,10 +25,7 @@ describe('[CLI] cli.js template', () => {
 
     const manifestPath = resolve(tauriFixturePath, 'Cargo.toml')
     const manifestFile = readFileSync(manifestPath).toString()
-    writeFileSync(
-      manifestPath,
-      `workspace = { }\n${manifestFile}`
-    )
+    writeFileSync(manifestPath, `workspace = { }\n${manifestFile}`)
 
     const { promise: buildPromise } = await build()
     await buildPromise

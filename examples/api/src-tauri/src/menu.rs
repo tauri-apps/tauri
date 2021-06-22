@@ -6,9 +6,10 @@ use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
 
 pub fn get_menu() -> Menu<String> {
   #[allow(unused_mut)]
-  let mut disable_item = CustomMenuItem::new("disable-menu".into(), "Disable menu");
+  let mut disable_item =
+    CustomMenuItem::new("disable-menu".into(), "Disable menu").accelerator("CmdOrControl+D");
   #[allow(unused_mut)]
-  let mut test_item = CustomMenuItem::new("test".into(), "Test");
+  let mut test_item = CustomMenuItem::new("test".into(), "Test").accelerator("CmdOrControl+T");
   #[cfg(target_os = "macos")]
   {
     disable_item = disable_item.native_image(tauri::NativeImage::MenuOnState);

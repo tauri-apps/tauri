@@ -212,13 +212,20 @@ impl<P: Params> Window<P> {
         );
         let resolver = InvokeResolver::new(self, payload.callback, payload.error);
         let invoke = Invoke { message, resolver };
-        if let Some(module) = &payload.tauri_module {
-          let module = module.to_string();
-          crate::endpoints::handle(module, invoke, manager.config(), manager.package_info());
-        } else if command.starts_with("plugin:") {
-          manager.extend_api(invoke);
+        if manager.verify_invoke_key(payload.key) {
+          if let Some(module) = &payload.tauri_module {
+            let module = module.to_string();
+            crate::endpoints::handle(module, invoke, manager.config(), manager.package_info());
+          } else if command.starts_with("plugin:") {
+            manager.extend_api(invoke);
+          } else {
+            manager.run_invoke_handler(invoke);
+          }
         } else {
-          manager.run_invoke_handler(invoke);
+          panic!(
+            r#"The invoke key "{}" is invalid. This means that an external, possible malicious script is trying to access the system interface."#,
+            payload.key
+          );
         }
       }
     }
@@ -300,13 +307,16 @@ impl<P: Params> Window<P> {
   /// Registers a menu event listener.
   #[cfg(feature = "menu")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-  pub fn on_menu_event<F: Fn(menu::MenuEvent<P::MenuId>) + Send + 'static>(&self, f: F) {
+  pub fn on_menu_event<F: Fn(menu::MenuEvent<P::MenuId>) + Send + 'static>(
+    &self,
+    f: F,
+  ) -> uuid::Uuid {
     let menu_ids = self.manager.menu_ids();
     self.window.dispatcher.on_menu_event(move |event| {
       f(menu::MenuEvent {
         menu_item_id: menu_ids.get(&event.menu_item_id).unwrap().clone(),
       })
-    });
+    })
   }
 
   // Getters

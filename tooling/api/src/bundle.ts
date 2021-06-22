@@ -19,6 +19,7 @@ import * as shell from './shell'
 import * as tauri from './tauri'
 import * as updater from './updater'
 import * as window from './window'
+const invoke = tauri.invoke
 
 export {
   app,
@@ -34,5 +35,6 @@ export {
   shell,
   tauri,
   updater,
-  window
+  window,
+  invoke
 }

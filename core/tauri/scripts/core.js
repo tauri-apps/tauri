@@ -92,7 +92,7 @@ if (!String.prototype.startsWith) {
     return identifier;
   };
 
-  window.__TAURI__.invoke = function invoke(cmd, args = {}) {
+  window.__TAURI__._invoke = function invoke(cmd, args = {}, key = null) {
     return new Promise(function (resolve, reject) {
       var callback = window.__TAURI__.transformCallback(function (r) {
         resolve(r);
@@ -118,6 +118,7 @@ if (!String.prototype.startsWith) {
             {
               callback: callback,
               error: error,
+              __invokeKey: key || __TAURI_INVOKE_KEY__,
             },
             args
           )
@@ -130,6 +131,7 @@ if (!String.prototype.startsWith) {
               {
                 callback: callback,
                 error: error,
+                __invokeKey: key || __TAURI_INVOKE_KEY__,
               },
               args
             )
@@ -154,13 +156,13 @@ if (!String.prototype.startsWith) {
               target.href.startsWith("http") &&
               target.target === "_blank"
             ) {
-              window.__TAURI__.invoke('tauri', {
+              window.__TAURI__._invoke('tauri', {
                 __tauriModule: "Shell",
                 message: {
                   cmd: "open",
                   path: target.href,
                 },
-              });
+              }, _KEY_VALUE_);
               e.preventDefault();
             }
             break;
@@ -191,16 +193,16 @@ if (!String.prototype.startsWith) {
   document.addEventListener('mousedown', (e) => {
     // start dragging if the element has a `tauri-drag-region` data attribute
     if (e.target.hasAttribute('data-tauri-drag-region') && e.buttons === 1) {
-      window.__TAURI__.invoke('tauri', {
+      window.__TAURI__._invoke('tauri', {
         __tauriModule: "Window",
         message: {
           cmd: "startDragging",
         }
-      })
+      }, _KEY_VALUE_)
     }
   })
 
-  window.__TAURI__.invoke('tauri', {
+  window.__TAURI__._invoke('tauri', {
     __tauriModule: "Event",
     message: {
       cmd: "listen",
@@ -212,7 +214,7 @@ if (!String.prototype.startsWith) {
         }
       }),
     },
-  });
+  }, _KEY_VALUE_);
 
   let permissionSettable = false;
   let permissionValue = "default";
@@ -221,12 +223,12 @@ if (!String.prototype.startsWith) {
     if (window.Notification.permission !== "default") {
       return Promise.resolve(window.Notification.permission === "granted");
     }
-    return window.__TAURI__.invoke('tauri', {
+    return window.__TAURI__._invoke('tauri', {
       __tauriModule: "Notification",
       message: {
         cmd: "isNotificationPermissionGranted",
       },
-    });
+    }, _KEY_VALUE_);
   }
 
   function setNotificationPermission(value) {
@@ -242,7 +244,7 @@ if (!String.prototype.startsWith) {
         message: {
           cmd: "requestNotificationPermission",
         },
-      })
+      }, _KEY_VALUE_)
       .then(function (permission) {
         setNotificationPermission(permission);
         return permission;
@@ -256,7 +258,7 @@ if (!String.prototype.startsWith) {
 
     isPermissionGranted().then(function (permission) {
       if (permission) {
-        return window.__TAURI__.invoke('tauri', {
+        return window.__TAURI__._invoke('tauri', {
           __tauriModule: "Notification",
           message: {
             cmd: "notification",
@@ -267,7 +269,7 @@ if (!String.prototype.startsWith) {
                   }
                 : options,
           },
-        });
+        }, _KEY_VALUE_);
       }
     });
   }
@@ -305,34 +307,34 @@ if (!String.prototype.startsWith) {
   });
 
   window.alert = function (message) {
-    window.__TAURI__.invoke('tauri', {
+    window.__TAURI__._invoke('tauri', {
       __tauriModule: "Dialog",
       message: {
         cmd: "messageDialog",
         message: message,
       },
-    });
+    }, _KEY_VALUE_);
   };
 
   window.confirm = function (message) {
-    return window.__TAURI__.invoke('tauri', {
+    return window.__TAURI__._invoke('tauri', {
       __tauriModule: "Dialog",
       message: {
         cmd: "askDialog",
         message: message,
       },
-    });
+    }, _KEY_VALUE_);
   };
 
   // window.print works on Linux/Windows; need to use the API on macOS
   if (navigator.userAgent.includes('Mac')) {
     window.print = function () {
-      return window.__TAURI__.invoke('tauri', {
+      return window.__TAURI__._invoke('tauri', {
         __tauriModule: "Window",
         message: {
           cmd: "print"
         },
-      });
+      }, _KEY_VALUE_);
     }
   }
 })();

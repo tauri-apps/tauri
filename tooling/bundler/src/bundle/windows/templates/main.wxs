@@ -63,6 +63,13 @@
         <UIRef Id="WixUI_InstallDir" />
 
         <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="DesktopFolder" Name="Desktop">
+                <Component Id="ApplicationShortcutDesktop" Guid="*">
+                    <Shortcut Id="ApplicationDesktopShortcut" Name="{{{product_name}}}" Description="Runs {{{product_name}}}" Target="[!Path]" WorkingDirectory="INSTALLDIR" />
+                    <RemoveFolder Id="DesktopFolder" On="uninstall" />
+                    <RegistryValue Root="HKCU" Key="Software\{{{product_name}}}" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+                </Component>
+            </Directory>
             <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">
                 <Directory Id="INSTALLDIR" Name="{{{product_name}}}"/>
             </Directory>
@@ -147,6 +154,7 @@
                 <ComponentRef Id="Path"/>
                 <ComponentRef Id="CMP_ReadFileShortcut" />
                 <ComponentRef Id="ApplicationShortcut" />
+                <ComponentRef Id="ApplicationShortcutDesktop" />
             </Feature>
 
             <Feature

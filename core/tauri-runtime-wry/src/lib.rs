@@ -84,7 +84,8 @@ type CreateWebviewHandler = Box<
   dyn FnOnce(&EventLoopWindowTarget<Message>, &WebContextStore) -> Result<WebviewWrapper> + Send,
 >;
 type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
-type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
+type WindowEventListenersMap = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
+type WindowEventListeners = Arc<Mutex<HashMap<WindowId, WindowEventListenersMap>>>;
 type GlobalShortcutListeners = Arc<Mutex<HashMap<AcceleratorId, Box<dyn Fn() + Send>>>>;
 
 macro_rules! dispatcher_getter {
@@ -729,6 +730,10 @@ impl Dispatch for WryDispatcher {
     self
       .context
       .window_event_listeners
+      .lock()
+      .unwrap()
+      .get(&self.window_id)
+      .unwrap()
       .lock()
       .unwrap()
       .insert(id, Box::new(f));
@@ -1523,7 +1528,15 @@ fn handle_event_loop(
     }
     Event::WindowEvent { event, window_id } => {
       if let Some(event) = WindowEventWrapper::from(&event).0 {
-        for handler in window_event_listeners.lock().unwrap().values() {
+        for handler in window_event_listeners
+          .lock()
+          .unwrap()
+          .get(&window_id)
+          .unwrap()
+          .lock()
+          .unwrap()
+          .values()
+        {
           handler(&event);
         }
       }
@@ -1625,6 +1638,17 @@ fn handle_event_loop(
             WindowMessage::Show => window.set_visible(true),
             WindowMessage::Hide => window.set_visible(false),
             WindowMessage::Close => {
+              for handler in window_event_listeners
+                .lock()
+                .unwrap()
+                .get(&window.id())
+                .unwrap()
+                .lock()
+                .unwrap()
+                .values()
+              {
+                handler(&WindowEvent::CloseRequested);
+              }
               on_window_close(
                 callback,
                 id,
@@ -1858,6 +1882,12 @@ fn create_webview<P: Params<Runtime = Wry>>(
     menu_items
   };
   let window = window_builder.inner.build(event_loop).unwrap();
+
+  context
+    .window_event_listeners
+    .lock()
+    .unwrap()
+    .insert(window.id(), WindowEventListenersMap::default());
 
   #[cfg(feature = "menu")]
   context

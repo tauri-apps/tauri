@@ -118,18 +118,11 @@ impl Client {
       request_builder.send()?
     };
 
-    if response.is_success() {
-      Ok(Response(
-        request.response_type.unwrap_or(ResponseType::Json),
-        response,
-        request.url,
-      ))
-    } else {
-      Err(super::Error::Http(
-        response.status().as_u16(),
-        response.text()?,
-      ))
-    }
+    Ok(Response(
+      request.response_type.unwrap_or(ResponseType::Json),
+      response,
+      request.url,
+    ))
   }
 }
 
@@ -183,17 +176,10 @@ impl Client {
 
     let response = self.0.execute(http_request).await?;
 
-    if response.status().is_success() {
-      Ok(Response(
-        request.response_type.unwrap_or(ResponseType::Json),
-        response,
-      ))
-    } else {
-      Err(super::Error::Http(
-        response.status().as_u16(),
-        response.text().await?,
-      ))
-    }
+    Ok(Response(
+      request.response_type.unwrap_or(ResponseType::Json),
+      response,
+    ))
   }
 }
 

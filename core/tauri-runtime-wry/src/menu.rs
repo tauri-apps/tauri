@@ -38,8 +38,11 @@ use std::{
   sync::{Arc, Mutex},
 };
 
+#[cfg(feature = "menu")]
 pub type MenuEventHandler = Box<dyn Fn(&MenuEvent) + Send>;
+#[cfg(feature = "menu")]
 pub type MenuEventListeners = Arc<Mutex<HashMap<WindowId, WindowMenuEventListeners>>>;
+#[cfg(feature = "menu")]
 pub type WindowMenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
 
 #[cfg(feature = "system-tray")]

@@ -697,8 +697,9 @@ impl<P: Params> WindowManager<P> {
 
     let window_ = window.clone();
     let window_event_listeners = self.inner.window_event_listeners.clone();
+    let manager = self.clone();
     window.on_window_event(move |event| {
-      let _ = on_window_event(&window_, event);
+      let _ = on_window_event(&window_, &manager, event);
       for handler in window_event_listeners.iter() {
         handler(GlobalWindowEvent {
           window: window_.clone(),
@@ -849,7 +850,11 @@ impl<P: Params> WindowManager<P> {
   }
 }
 
-fn on_window_event<P: Params>(window: &Window<P>, event: &WindowEvent) -> crate::Result<()> {
+fn on_window_event<P: Params>(
+  window: &Window<P>,
+  manager: &WindowManager<P>,
+  event: &WindowEvent,
+) -> crate::Result<()> {
   match event {
     WindowEvent::Resized(size) => window.emit(
       &WINDOW_RESIZED_EVENT
@@ -863,12 +868,21 @@ fn on_window_event<P: Params>(window: &Window<P>, event: &WindowEvent) -> crate:
         .unwrap_or_else(|_| panic!("unhandled event")),
       Some(position),
     )?,
-    WindowEvent::CloseRequested => window.emit(
-      &WINDOW_CLOSE_REQUESTED_EVENT
-        .parse()
-        .unwrap_or_else(|_| panic!("unhandled event")),
-      Some(()),
-    )?,
+    WindowEvent::CloseRequested => {
+      window.emit(
+        &WINDOW_CLOSE_REQUESTED_EVENT
+          .parse()
+          .unwrap_or_else(|_| panic!("unhandled event")),
+        Some(()),
+      )?;
+      let label = window.label();
+      for window in manager.inner.windows.lock().unwrap().values() {
+        window.eval(&format!(
+          r#"window.__TAURI__.__windows = window.__TAURI__.__windows.filter(w => w.label !== "{}");"#,
+          label
+        ))?;
+      }
+    }
     WindowEvent::Destroyed => window.emit(
       &WINDOW_DESTROYED_EVENT
         .parse()

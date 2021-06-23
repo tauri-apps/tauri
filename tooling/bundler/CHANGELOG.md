@@ -1,5 +1,18 @@
 # Changelog
 
+## \[1.0.0-beta.1]
+
+- The process of copying binaries and resources to `project_out_directory` was moved to the Tauri CLI.
+  - [8f29a260](https://www.github.com/tauri-apps/tauri/commit/8f29a260e67aa111f6aeb262bd846a46d2858ce9) fix(cli.rs): copy resources and binaries on dev, closes [#1298](https://www.github.com/tauri-apps/tauri/pull/1298) ([#1946](https://www.github.com/tauri-apps/tauri/pull/1946)) on 2021-06-04
+- Allow setting a path to a license file for the Windows Installer (`tauri.conf.json > bundle > windows > wix > license`).
+  - [b769c7f7](https://www.github.com/tauri-apps/tauri/commit/b769c7f7da4064b6133bf39a82127863d0d35531) feat(bundler): windows installer license, closes [#2009](https://www.github.com/tauri-apps/tauri/pull/2009) ([#2027](https://www.github.com/tauri-apps/tauri/pull/2027)) on 2021-06-21
+- Configure app shortcut on the Windows Installer.
+  - [f0603fcc](https://www.github.com/tauri-apps/tauri/commit/f0603fccb389620e105a5927a9e4b84b5e6853f4) feat(bundler): desktop shortcut on Windows ([#2052](https://www.github.com/tauri-apps/tauri/pull/2052)) on 2021-06-23
+- Allow setting the Windows installer language and using project names that contains non-Unicode characters.
+  - [47919619](https://www.github.com/tauri-apps/tauri/commit/47919619815900fc3af47ec5873e31afb778b0ad) feat(bundler): allow setting wix language, closes [#1976](https://www.github.com/tauri-apps/tauri/pull/1976) ([#1988](https://www.github.com/tauri-apps/tauri/pull/1988)) on 2021-06-15
+- Fixes resource bundling on Windows when there is nested resource folders.
+  - [35a20527](https://www.github.com/tauri-apps/tauri/commit/35a2052771fc0897064ed146d9557527a0a76453) fix(bundler): windows resources bundling with nested folders ([#1878](https://www.github.com/tauri-apps/tauri/pull/1878)) on 2021-05-21
+
 ## \[1.0.0-beta.0]
 
 - Fixes the `Installed-Size` value on the debian package.

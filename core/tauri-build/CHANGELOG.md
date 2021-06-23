@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-beta.1]
+
+- Pull Windows resource information (`FileVersion`, `ProductVersion`, `ProductName` and `FileDescription`) from `tauri.conf.json > package` configuration.
+  - [dc6b0d85](https://www.github.com/tauri-apps/tauri/commit/dc6b0d8522ca9f0962aa7c6fe446743889470b8c) feat(core): set .rc values from tauri.conf.json, closes [#1849](https://www.github.com/tauri-apps/tauri/pull/1849) ([#1951](https://www.github.com/tauri-apps/tauri/pull/1951)) on 2021-06-05
+
 ## \[1.0.0-beta.0]
 
 - The `try_build` method now has a `Attributes` argument to allow specifying the window icon path used on Windows.

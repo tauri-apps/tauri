@@ -1,5 +1,173 @@
 # Changelog
 
+## \[1.0.0-beta.2]
+
+- Remove anonymous lifetimes on examples.
+  - [c1f8e113](https://www.github.com/tauri-apps/tauri/commit/c1f8e11342941b846479d73bf50cb0a328ac3574) chore: remove unnecessary anonymous lifetimes ([#1829](https://www.github.com/tauri-apps/tauri/pull/1829)) on 2021-05-14
+
+- Moves `shell`, `dialog::FileDialogBuilder` and `process::Command` APIs behind their allowlist feature flags.
+  - [aab3e1f1](https://www.github.com/tauri-apps/tauri/commit/aab3e1f18b74efd63fdc227e84382ee6e9e63817) refactor(core): move api modules behind allowlist feature flags ([#1864](https://www.github.com/tauri-apps/tauri/pull/1864)) on 2021-05-19
+
+- Adds `create_window` API to the `AppHandle` struct.
+  - [95d518af](https://www.github.com/tauri-apps/tauri/commit/95d518afa14fe613302d7091622b4b115543e1f2) feat(core): expose `AppHandle`, add `create_window` API ([#1855](https://www.github.com/tauri-apps/tauri/pull/1855)) on 2021-05-18
+
+- Adds a `handle` function to the `App` struct, which returns a `Send` handle to the app instance.
+  - [95d518af](https://www.github.com/tauri-apps/tauri/commit/95d518afa14fe613302d7091622b4b115543e1f2) feat(core): expose `AppHandle`, add `create_window` API ([#1855](https://www.github.com/tauri-apps/tauri/pull/1855)) on 2021-05-18
+
+- Use `attohttpc` on the HTTP API by default for bundle size optimization. `reqwest` is implemented behind the `reqwest-client` feature flag.
+  - [17c7c439](https://www.github.com/tauri-apps/tauri/commit/17c7c4396ff2d5e13fc8726c2965b4e810fad6b9) refactor(core): use `attohttpc` by default ([#1861](https://www.github.com/tauri-apps/tauri/pull/1861)) on 2021-05-19
+
+- Kill child processes spawned with `tauri::api::process::Command` on `tauri::App` drop. Can be skipped with `tauri::Builder#skip_cleanup_on_drop`.
+  - [4bdc4066](https://www.github.com/tauri-apps/tauri/commit/4bdc406679363f460e39079cb26319c39ab8cac8) feat(core): kill sidecar child processes on App drop, closes [#1896](https://www.github.com/tauri-apps/tauri/pull/1896) ([#1932](https://www.github.com/tauri-apps/tauri/pull/1932)) on 2021-06-01
+
+- Adds `clipboard` APIs (write and read text).
+  - [285bf64b](https://www.github.com/tauri-apps/tauri/commit/285bf64bf9569efb2df904c69c6df405ff0d62e2) feat(core): add clipboard writeText and readText APIs ([#2035](https://www.github.com/tauri-apps/tauri/pull/2035)) on 2021-06-21
+  - [fbd0e848](https://www.github.com/tauri-apps/tauri/commit/fbd0e848576b4d85076cc71e7f2fd89a53777ee1) fix runtime/runtime-wry bumps on 2021-06-23
+
+- Allow accessing an `AppHandle` instance on a command through dependency injection.
+  - [59784c7e](https://www.github.com/tauri-apps/tauri/commit/59784c7e5587ff10d7f0c37ac414499da42d0707) feat(core): implement `CommandArg` for `AppHandle` ([#2037](https://www.github.com/tauri-apps/tauri/pull/2037)) on 2021-06-21
+
+- Fixes child processes messages not arriving until the subprocess is terminated.
+  - [df21ffc6](https://www.github.com/tauri-apps/tauri/commit/df21ffc61f42ffb4dfde50c74a01c07a59a76e3e) fix(core): command mpsc usage, closes [#1935](https://www.github.com/tauri-apps/tauri/pull/1935) ([#1936](https://www.github.com/tauri-apps/tauri/pull/1936)) on 2021-06-01
+
+- Adds `config` and `package_info` getters to the `App` and `AppHandle` structs.
+  - [70fc87a7](https://www.github.com/tauri-apps/tauri/commit/70fc87a7ff5a149c0cb22c13afdf90f25ddafde8) feat(core): add `config` and `package_info` getters on App and AppHandle ([#2016](https://www.github.com/tauri-apps/tauri/pull/2016)) on 2021-06-20
+
+- Expose mutable getters for the rest of the public `Context` getters.
+
+- `pub fn assets_mut(&mut self) -> &mut Arc<A>`
+
+- `pub fn default_window_icon_mut(&mut self) -> &mut Option<Vec<u8>>`
+
+- `pub fn system_tray_icon_mut(&mut self) -> &mut Option<Icon>`
+
+- `pub fn package_info_mut(&mut self) -> &mut tauri::api::PackageInfo`
+
+- [754c2e76](https://www.github.com/tauri-apps/tauri/commit/754c2e766abe25da053236ce311318aa1410d106) feat(core): finish mutable getters for `Context` ([#1814](https://www.github.com/tauri-apps/tauri/pull/1814)) on 2021-05-13
+
+- Adds `request_user_attention` API to the `Window` struct.
+  - [7dcca6e9](https://www.github.com/tauri-apps/tauri/commit/7dcca6e9281182b11ad3d4a79871f09b30b9b419) feat(core): add `request_user_attention` API, closes [#2023](https://www.github.com/tauri-apps/tauri/pull/2023) ([#2026](https://www.github.com/tauri-apps/tauri/pull/2026)) on 2021-06-20
+
+- Adds `show`, `hide`, `is_visible` and `toggle` APIs to the `MenuHandle`.
+  - [954460c5](https://www.github.com/tauri-apps/tauri/commit/954460c5205d57444ef4b1412051fbedf3e38676) feat(core): MenuHandle `show`, `hide`, `is_visible` and `toggle` APIs ([#1958](https://www.github.com/tauri-apps/tauri/pull/1958)) on 2021-06-15
+
+- Allow `dev_path` and `dist_dir` to be an array of root files and directories to embed.
+  - [6ec54c53](https://www.github.com/tauri-apps/tauri/commit/6ec54c53b504eec3873d326b1a45e450227d46ed) feat(core): allow `dev_path`, `dist_dir` as array of paths, fixes [#1897](https://www.github.com/tauri-apps/tauri/pull/1897) ([#1926](https://www.github.com/tauri-apps/tauri/pull/1926)) on 2021-05-31
+
+- Validate `tauri.conf.json > build > devPath` and `tauri.conf.json > build > distDir` values.
+  - [e97846aa](https://www.github.com/tauri-apps/tauri/commit/e97846aae933cad5cba284a2a133ae7aaee1107c) feat(core): validate `devPath` and `distDir` values ([#1848](https://www.github.com/tauri-apps/tauri/pull/1848)) on 2021-05-17
+
+- Set the Tauri window as parent for dialogs.
+  - [abf78c58](https://www.github.com/tauri-apps/tauri/commit/abf78c5860cdc52fbfd2bc5dbca29a864e2da8f9) fix(core): set parent window handle on dialogs, closes [#1876](https://www.github.com/tauri-apps/tauri/pull/1876) ([#1889](https://www.github.com/tauri-apps/tauri/pull/1889)) on 2021-05-21
+
+- Fallback to `index.html` on asset loading so router with history mode works.
+  - [8a7921e5](https://www.github.com/tauri-apps/tauri/commit/8a7921e5cbcbecea16d4ad4a29ef05d984ad3110) fix(core): fallback to index.html on asset loading, closes [#2020](https://www.github.com/tauri-apps/tauri/pull/2020) [#2021](https://www.github.com/tauri-apps/tauri/pull/2021) ([#2022](https://www.github.com/tauri-apps/tauri/pull/2022)) on 2021-06-20
+
+- Fixes custom protocol asset loader not decoding the percent-encoded path.
+  - [c021968e](https://www.github.com/tauri-apps/tauri/commit/c021968eb81f541599a3ce08eebb44e92604e39a) fix(core): asset loading not decoding percent-encoded path, closes [#1879](https://www.github.com/tauri-apps/tauri/pull/1879) ([#1938](https://www.github.com/tauri-apps/tauri/pull/1938)) on 2021-06-01
+
+- As some frameworks automatically add "true" as the value of the attribute, we need to check if it exists instead.
+  - [23707764](https://www.github.com/tauri-apps/tauri/commit/23707764dc54037e9aaba3023f2509459e3a9a8d) Drag region attribute check ([#1907](https://www.github.com/tauri-apps/tauri/pull/1907)) on 2021-05-30
+
+- Fixes build without the dialog Cargo features.
+  - [49fb3b72](https://www.github.com/tauri-apps/tauri/commit/49fb3b72255993ea6f92e8d475021adac0c914a7) fix(core): build without dialog Cargo features ([#1973](https://www.github.com/tauri-apps/tauri/pull/1973)) on 2021-06-09
+
+- Allow disabling the webview file drop handler (required to use drag and drop on the frontend on Windows) using the `tauri.conf.json > tauri > windows > fileDropEnabled` flag or the `WebviewAttributes#disable_file_drop_handler` method.
+  - [9cd10df4](https://www.github.com/tauri-apps/tauri/commit/9cd10df4d520de12f3b13fe88cc1c1a1b4bd48bf) feat(core): allow disabling file drop handler, closes [#2014](https://www.github.com/tauri-apps/tauri/pull/2014) ([#2030](https://www.github.com/tauri-apps/tauri/pull/2030)) on 2021-06-21
+
+- Fixes the HTTP API binary response serialization.
+  - [47f75584](https://www.github.com/tauri-apps/tauri/commit/47f7558417cc654bdb1d018127e8900bc4eac622) fix(core): resolve HTTP API on non-ok status code, fix binary response, closes [#2046](https://www.github.com/tauri-apps/tauri/pull/2046) ([#2053](https://www.github.com/tauri-apps/tauri/pull/2053)) on 2021-06-23
+
+- The `http` APIs now resolve the returned promise when the API call finishes with an error status code.
+  - [47f75584](https://www.github.com/tauri-apps/tauri/commit/47f7558417cc654bdb1d018127e8900bc4eac622) fix(core): resolve HTTP API on non-ok status code, fix binary response, closes [#2046](https://www.github.com/tauri-apps/tauri/pull/2046) ([#2053](https://www.github.com/tauri-apps/tauri/pull/2053)) on 2021-06-23
+
+- Run the `notification.show()` method on a dedicated async task to prevent a panic on Windows.
+  - [86d0aaa0](https://www.github.com/tauri-apps/tauri/commit/86d0aaa021f146529a65228de9e07d5f4df5b099) fix(core): notification panic on Windows, closes [#917](https://www.github.com/tauri-apps/tauri/pull/917) ([#2011](https://www.github.com/tauri-apps/tauri/pull/2011)) on 2021-06-19
+
+- Fixes HTTP API headers being overwritten when using the `reqwest` client.
+  - [1006c1cf](https://www.github.com/tauri-apps/tauri/commit/1006c1cf3be9be054d0650f0d9787b5aee045f5a) fix(core): HTTP headers being overwritten by reqwest, closes [#2032](https://www.github.com/tauri-apps/tauri/pull/2032) ([#2036](https://www.github.com/tauri-apps/tauri/pull/2036)) on 2021-06-21
+
+- Panic on window getters usage on the main thread when the event loop is not running and document it.
+  - [ab3eb44b](https://www.github.com/tauri-apps/tauri/commit/ab3eb44bac7a3bf73a4985df38ccc2b87a913be7) fix(core): deadlock on window getters, fixes [#1893](https://www.github.com/tauri-apps/tauri/pull/1893) ([#1998](https://www.github.com/tauri-apps/tauri/pull/1998)) on 2021-06-16
+
+- Adds `focus` API to the WindowBuilder.
+  - [5f351622](https://www.github.com/tauri-apps/tauri/commit/5f351622c7812ad1bb56ddb37364ccaa4124c24b) feat(core): add focus API to the WindowBuilder and WindowOptions, [#1737](https://www.github.com/tauri-apps/tauri/pull/1737) on 2021-05-30
+  - [fbd0e848](https://www.github.com/tauri-apps/tauri/commit/fbd0e848576b4d85076cc71e7f2fd89a53777ee1) fix runtime/runtime-wry bumps on 2021-06-23
+
+- **Breaking change**: The global shortcut API is now managed by `tao` so it cannot be accessed globally, the manager is now exposed on the `App` and `AppHandle` structs.
+  - [3280c4aa](https://www.github.com/tauri-apps/tauri/commit/3280c4aa91e50a8ccdd561a8b48a12a4a13ea8d5) refactor(core): global shortcut is now provided by `tao` ([#2031](https://www.github.com/tauri-apps/tauri/pull/2031)) on 2021-06-21
+
+- Hide `phf` crate export (not public API).
+  - [cd1a299a](https://www.github.com/tauri-apps/tauri/commit/cd1a299a7d5a9bd164063a32c87a27762b71e9a8) chore(core): hide phf, closes [#1961](https://www.github.com/tauri-apps/tauri/pull/1961) ([#1964](https://www.github.com/tauri-apps/tauri/pull/1964)) on 2021-06-09
+
+- (internal): allow `wry` dependency to be optional again while keeping default args.
+  code that wishes to expose a struct with a default arg should use the `crate::manager::default_args!` macro to declare
+  the struct, so that it can automatically feature-gate `DefaultArgs` behind using `wry`.
+  - [3d8dcbbf](https://www.github.com/tauri-apps/tauri/commit/3d8dcbbf8188b9e96d6b03dc984ca022eebf53e4) fix(core): allow wry to be an optional dep again (fix [#1841](https://www.github.com/tauri-apps/tauri/pull/1841)) ([#1854](https://www.github.com/tauri-apps/tauri/pull/1854)) on 2021-05-17
+
+- Adds `is_decorated` getter on Window.
+  - [f58a2114](https://www.github.com/tauri-apps/tauri/commit/f58a2114fbfd5307c349f05c88f2e08fd8baa8aa) feat(core): add `is_decorated` Window getter on 2021-05-30
+  - [fbd0e848](https://www.github.com/tauri-apps/tauri/commit/fbd0e848576b4d85076cc71e7f2fd89a53777ee1) fix runtime/runtime-wry bumps on 2021-06-23
+
+- Adds `is_resizable` getter on Window.
+  - [1e8af280](https://www.github.com/tauri-apps/tauri/commit/1e8af280c27f381828d6209722b10e889082fa00) feat(core): add `is_resizable` Window getter on 2021-05-30
+  - [fbd0e848](https://www.github.com/tauri-apps/tauri/commit/fbd0e848576b4d85076cc71e7f2fd89a53777ee1) fix runtime/runtime-wry bumps on 2021-06-23
+
+- Adds `is_visible` getter on Window.
+  - [36506c96](https://www.github.com/tauri-apps/tauri/commit/36506c967de82bc7ff453d11e6104ecf66d7a588) feat(core): add `is_visible` API on 2021-05-30
+  - [fbd0e848](https://www.github.com/tauri-apps/tauri/commit/fbd0e848576b4d85076cc71e7f2fd89a53777ee1) fix runtime/runtime-wry bumps on 2021-06-23
+
+- Read `tauri.conf.json > tauri > bundle > icons` and use the first `.png` icon as window icon on Linux. Defaults to `icon/icon.png` if a PNG icon is not configured.
+  - [40b717ed](https://www.github.com/tauri-apps/tauri/commit/40b717edc57288a1393fad0529390e101ab903c1) feat(core): set window icon on Linux, closes [#1922](https://www.github.com/tauri-apps/tauri/pull/1922) ([#1937](https://www.github.com/tauri-apps/tauri/pull/1937)) on 2021-06-01
+
+- Adds `accelerator` method to the `CustomMenuItem` struct to define a keyboard shortcut for the menu item.
+  - [034c2601](https://www.github.com/tauri-apps/tauri/commit/034c26013bce0c7bbe6db067ea7fd24a53a5c998) feat(core): add `accelerator` method to `CustomMenuItem` ([#2043](https://www.github.com/tauri-apps/tauri/pull/2043)) on 2021-06-22
+
+- **Breaking change**: The `menu` API was not designed to have all the new features: submenus, item updates, disabled state... so we broke it before going to stable.
+  - [f7e9fe8f](https://www.github.com/tauri-apps/tauri/commit/f7e9fe8f3f7c83532713be6cc4ef84e8b127c208) refactor(core): new system tray and window menu APIs, closes [#1898](https://www.github.com/tauri-apps/tauri/pull/1898) ([#1944](https://www.github.com/tauri-apps/tauri/pull/1944)) on 2021-06-04
+
+- Adds a `PathResolver` struct to simplify the usage of the `tauri::api::path::{app_dir, resource_dir}` APIs, accessible through the `App` and `AppHandle` `path_resolver` methods.
+  - [5ca462f6](https://www.github.com/tauri-apps/tauri/commit/5ca462f6ccc6c970a6f2c8c6c1bc0e3343a52bfb) feat(core): add path resolver API to the App and AppHandle structs ([#2015](https://www.github.com/tauri-apps/tauri/pull/2015)) on 2021-06-19
+
+- Removes `image` dependency. For now only `.ico` icons on Windows are supported, and we'll implement other types on demand to optimize bundle size.
+  - [1be37a3f](https://www.github.com/tauri-apps/tauri/commit/1be37a3f30ff789d9396ec9009f9c0dd0bb928a7) refactor(core): remove `image` dependency ([#1859](https://www.github.com/tauri-apps/tauri/pull/1859)) on 2021-05-18
+
+- Remove window object from the `Manager` internal `HashMap` on close. This fixes the behavior of using `[App|AppHandle|Window]#get_window` after the window is closed (now correctly returns `None`).
+  - [08c161c5](https://www.github.com/tauri-apps/tauri/commit/08c161c5e85d9f6392be55723b573030fa70637b) fix(core): remove window from HashMap on close ([#2024](https://www.github.com/tauri-apps/tauri/pull/2024)) on 2021-06-20
+
+- Improve RPC security by requiring a numeric code to invoke commands. The codes are generated by the Rust side and injected into the app's code using a closure, so external scripts can't access the backend. This change doesn't protect `withGlobalTauri` (`window.__TAURI__`) usage.
+  - [160fb052](https://www.github.com/tauri-apps/tauri/commit/160fb0529fd31d755574ae30fbdf01fa221a2acb) feat(core): improve RPC security, closes [#814](https://www.github.com/tauri-apps/tauri/pull/814) ([#2047](https://www.github.com/tauri-apps/tauri/pull/2047)) on 2021-06-22
+
+- Adds `run_iteration` API to the `App` and return the app instance on the `build` method of the `Builder`. The `run_iteration` method runs the window event loop step by step, allowing Tauri to be run along other applications.
+  - [8c0d0739](https://www.github.com/tauri-apps/tauri/commit/8c0d0739eebf7286b64a5380e922746411eb52c6) feat(core): add `run_iteration`, `parent_window` and `owner_window` APIs, closes [#1872](https://www.github.com/tauri-apps/tauri/pull/1872) ([#1874](https://www.github.com/tauri-apps/tauri/pull/1874)) on 2021-05-21
+
+- The `run_on_main_thread` API now uses WRY's UserEvent, so it wakes the event loop.
+  - [9bf82f0d](https://www.github.com/tauri-apps/tauri/commit/9bf82f0d9261808f58bdb5b5dbd6a255e5dcd333) fix(core): `run_on_main_thread` now wakes the event loop ([#1949](https://www.github.com/tauri-apps/tauri/pull/1949)) on 2021-06-04
+
+- Adds `set_focus` API on Window.
+  - [bb6992f8](https://www.github.com/tauri-apps/tauri/commit/bb6992f888196ca7c87bb2fe74ad2bd8bf393e05) feat(core): add `set_focus` window API, fixes [#1737](https://www.github.com/tauri-apps/tauri/pull/1737) on 2021-05-30
+  - [fbd0e848](https://www.github.com/tauri-apps/tauri/commit/fbd0e848576b4d85076cc71e7f2fd89a53777ee1) fix runtime/runtime-wry bumps on 2021-06-23
+
+- Adds `set_skip_taskbar` API on Window.
+  - [e06aa277](https://www.github.com/tauri-apps/tauri/commit/e06aa277384450cfef617c0e57b0d5d403bb1e7f) feat(core): add `set_skip_taskbar` API on 2021-05-30
+  - [fbd0e848](https://www.github.com/tauri-apps/tauri/commit/fbd0e848576b4d85076cc71e7f2fd89a53777ee1) fix runtime/runtime-wry bumps on 2021-06-23
+
+- Adds `skip_taskbar` API to the WindowBuilder.
+  - [5525b03a](https://www.github.com/tauri-apps/tauri/commit/5525b03a78a2232c650043fbd9894ce1553cad41) feat(core): add `skip_taskbar` API to the WindowBuilder/WindowOptions on 2021-05-30
+  - [fbd0e848](https://www.github.com/tauri-apps/tauri/commit/fbd0e848576b4d85076cc71e7f2fd89a53777ee1) fix runtime/runtime-wry bumps on 2021-06-23
+
+- **Breaking change**: The `system_tray` and `on_system_tray_event` APIs were not designed to have all the new features: submenus, item updates, click events, positioning... so we broke it before going to stable.
+  - [f7e9fe8f](https://www.github.com/tauri-apps/tauri/commit/f7e9fe8f3f7c83532713be6cc4ef84e8b127c208) refactor(core): new system tray and window menu APIs, closes [#1898](https://www.github.com/tauri-apps/tauri/pull/1898) ([#1944](https://www.github.com/tauri-apps/tauri/pull/1944)) on 2021-06-04
+
+- Fix loading url containing URI fragment
+  - [07fd9a92](https://www.github.com/tauri-apps/tauri/commit/07fd9a92dea695fc8178d34bb71e0745f21cd634) fix(core): add hash symbol in uri parse, closes [#1943](https://www.github.com/tauri-apps/tauri/pull/1943) ([#1947](https://www.github.com/tauri-apps/tauri/pull/1947)) on 2021-06-05
+
+- Adds `Window#center` and `WindowBuilder#center` APIs.
+  - [5cba6eb4](https://www.github.com/tauri-apps/tauri/commit/5cba6eb4d28d53f06855d60d4d0eae6b95233ccf) feat(core): add window `center` API, closes [#1822](https://www.github.com/tauri-apps/tauri/pull/1822) ([#1954](https://www.github.com/tauri-apps/tauri/pull/1954)) on 2021-06-05
+
+- Adds window native handle getter (HWND on Windows).
+  - [abf78c58](https://www.github.com/tauri-apps/tauri/commit/abf78c5860cdc52fbfd2bc5dbca29a864e2da8f9) fix(core): set parent window handle on dialogs, closes [#1876](https://www.github.com/tauri-apps/tauri/pull/1876) ([#1889](https://www.github.com/tauri-apps/tauri/pull/1889)) on 2021-05-21
+
 ## \[1.0.0-beta.1]
 
 - Adds a mutable `config` getter on the `Context` struct.

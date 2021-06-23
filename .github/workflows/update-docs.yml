@@ -91,17 +91,19 @@ jobs:
         working-directory: ./tauri-docs
         run: echo ${{ github.event.inputs.version || github.event.release.tag_name }} > version.txt
       - name: set bot's Tauri version
-        uses: iamsauravsharma/create-dotenv@v1.1.0
+        working-directory: ./tauri-search-bot
+        run: echo ${{ github.event.inputs.version || github.event.release.tag_name }} > version.txt
+
+      - uses: iamsauravsharma/create-dotenv@v1.1.0
         with:
-          env-prefix: "ENV_KEY_"
-          directory: "${{ github.workspace }}/tauri-search-bot"
+          directory: './tauri-search-bot'
         env:
           ENV_KEY_DISCORD_BOT_SECRET: ${{ secrets.DISCORD_BOT_SECRET }}
-          ENV_KEY_PREFIX: "!"
+          ENV_KEY_PREFIX: !
           ENV_KEY_SITE: tauri.studio
           ENV_KEY_ICON: https://i.imgur.com/UzDERvw.png
-          ENV_KEY_LIMIT: 8
-          ENV_KEY_SEARCH_INDEX: ${{ github.event.inputs.version || github.event.release.tag_name }}
+          ENV_KEY_LIMIT: 5
+          ENV_KEY_SEARCH_INDEX: ${{ github.event.release.tag_name }}
           ENV_KEY_MEILISEARCH_PUBLIC_KEY: ea0105f56bb5a2111ed28c7a0c637fc0bed07273f571dc7cb1f73900e44f8e7f
 
       # Bot Deployment
@@ -111,7 +113,7 @@ jobs:
           host: ${{ secrets.DISCORD_BOT_HOST }}
           username: ${{ secrets.DISCORD_BOT_SSH_USER }}
           key: ${{ secrets.DISCORD_BOT_SSH_KEY }}
-          source: "${{ github.workspace }}/tauri-search-bot"
+          source: "./tauri-search-bot"
           target: "~/tauri-search-bot"
       - name: restart the bot
         uses: appleboy/ssh-action@master
@@ -119,7 +121,7 @@ jobs:
           host: ${{ secrets.DISCORD_BOT_HOST }}
           username: ${{ secrets.DISCORD_BOT_SSH_USER }}
           key: ${{ secrets.DISCORD_BOT_SSH_KEY }}
-          script: cd ~/tauri-search-bot/github/workspace/tauri-search-bot && yarn && forever stopall && forever start ./src/index.js
+          script: cd ~/tauri-search-bot && yarn && forever stopall && forever start ./src/index.js
 
       # tauri-docs PR
       - name: git config

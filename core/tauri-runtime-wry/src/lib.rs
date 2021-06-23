@@ -1789,8 +1789,7 @@ fn on_window_close<'a>(
   window_id: WindowId,
   webviews: &mut MutexGuard<'a, HashMap<WindowId, WebviewWrapper>>,
   control_flow: &mut ControlFlow,
-  #[cfg(feature = "menu")]
-  menu_event_listeners: MenuEventListeners,
+  #[cfg(feature = "menu")] menu_event_listeners: MenuEventListeners,
 ) {
   if let Some(webview) = webviews.remove(&window_id) {
     #[cfg(feature = "menu")]

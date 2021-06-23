@@ -36,7 +36,10 @@
       }
     },
     "allowlist": {
-      "all": false
+      "all": false,
+      "fs": {
+        "readBinaryFile": true
+      }
     },
     "windows": [
       {

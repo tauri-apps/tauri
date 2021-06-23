@@ -109,11 +109,11 @@ jobs:
       - name: meilisearch indexation
         uses: tauri-apps/docusaurus-meilisearch-indexer@v1
         with:
-          - version: ${{ github.event.release.tag_name }}
-          - docusaurusPath: ./tauri-docs
-          - host: https://search.tauri.studio
-          - apiKey: ${{ secrets.MEILISEARCH_APIKEY }}
-          - docs: "Getting started,Usage,API"
+          version: ${{ github.event.release.tag_name }}
+          docusaurusPath: ./tauri-docs
+          host: https://search.tauri.studio
+          apiKey: ${{ secrets.MEILISEARCH_APIKEY }}
+          docs: "Getting started,Usage,API"
 
       # Applying Version
       - name: set docs' Tauri version
@@ -121,10 +121,14 @@ jobs:
         run: echo ${{ github.event.release.tag_name }} > version.txt
       - name: set bot's Tauri version
         working-directory: ./tauri-search-bot
-        uses: iamsauravsharma/create-dotenv@v1.1.0
+        run: echo ${{ github.event.release.tag_name }} > version.txt
+
+      - uses: iamsauravsharma/create-dotenv@v1.1.0
+        with:
+          directory: './tauri-search-bot'
         env:
           ENV_KEY_DISCORD_BOT_SECRET: ${{ secrets.DISCORD_BOT_SECRET }}
-          ENV_KEY_PREFIX: !
+          ENV_KEY_PREFIX: \!
           ENV_KEY_SITE: tauri.studio
           ENV_KEY_ICON: https://i.imgur.com/UzDERvw.png
           ENV_KEY_LIMIT: 5
@@ -133,13 +137,12 @@ jobs:
 
       # Bot Deployment
       - name: scp bot
-        working-directory: ./tauri-search-bot
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.DISCORD_BOT_HOST }}
           username: ${{ secrets.DISCORD_BOT_SSH_USER }}
           key: ${{ secrets.DISCORD_BOT_SSH_KEY }}
-          source: "."
+          source: "./tauri-search-bot"
           target: "~/tauri-search-bot"
       - name: restart the bot
         uses: appleboy/ssh-action@master

@@ -14,7 +14,7 @@ readme = "README.md"
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
 thiserror = "1.0.25"
-phf = { version = "0.8", features = [ "macros" ] }
+phf = { version = "0.9", features = [ "macros" ] }
 zstd = "0.9"
 url = { version = "2.2", features = [ "serde" ] }
 kuchiki = "0.8"

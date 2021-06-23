@@ -1809,6 +1809,7 @@ fn on_window_close<'a>(
   #[cfg(feature = "menu")] menu_event_listeners: MenuEventListeners,
 ) {
   if let Some(webview) = webviews.remove(&window_id) {
+    #[cfg(feature = "menu")]
     menu_event_listeners.lock().unwrap().remove(&window_id);
     callback(RunEvent::WindowClose(webview.label));
   }

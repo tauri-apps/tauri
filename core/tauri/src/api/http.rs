@@ -354,14 +354,14 @@ impl Response {
     let data = match self.0 {
       ResponseType::Json => self.1.json().await?,
       ResponseType::Text => Value::String(self.1.text().await?),
-      ResponseType::Binary => Value::String(serde_json::to_string(&self.1.bytes().await?)?),
+      ResponseType::Binary => serde_json::to_value(&self.1.bytes().await?)?,
     };
 
     #[cfg(not(feature = "reqwest-client"))]
     let data = match self.0 {
       ResponseType::Json => self.1.json()?,
       ResponseType::Text => Value::String(self.1.text()?),
-      ResponseType::Binary => Value::String(serde_json::to_string(&self.1.bytes()?)?),
+      ResponseType::Binary => serde_json::to_value(&self.1.bytes()?)?,
     };
 
     Ok(ResponseData {

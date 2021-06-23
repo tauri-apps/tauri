@@ -55,9 +55,13 @@ use wry::{
 };
 
 use std::{
-  collections::HashMap,
+  collections::{
+    hash_map::Entry::{Occupied, Vacant},
+    HashMap,
+  },
   convert::TryFrom,
   fs::read,
+  path::PathBuf,
   sync::{
     atomic::{AtomicBool, Ordering},
     mpsc::{channel, Sender},
@@ -75,8 +79,10 @@ mod mime_type;
 use mime_type::MimeType;
 
 type MainTask = Arc<Mutex<Option<Box<dyn FnOnce() + Send>>>>;
-type CreateWebviewHandler =
-  Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> Result<WebviewWrapper> + Send>;
+type WebContextStore = Mutex<HashMap<Option<PathBuf>, WebContext>>;
+type CreateWebviewHandler = Box<
+  dyn FnOnce(&EventLoopWindowTarget<Message>, &WebContextStore) -> Result<WebviewWrapper> + Send,
+>;
 type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
 type GlobalShortcutListeners = Arc<Mutex<HashMap<AcceleratorId, Box<dyn Fn() + Send>>>>;
@@ -861,9 +867,9 @@ impl Dispatch for WryDispatcher {
       .context
       .proxy
       .send_event(Message::CreateWebview(
-        Arc::new(Mutex::new(Some(Box::new(move |event_loop| {
-          create_webview(event_loop, context, pending)
-        })))),
+        Arc::new(Mutex::new(Some(Box::new(
+          move |event_loop, web_context| create_webview(event_loop, web_context, context, pending),
+        )))),
         tx,
       ))
       .map_err(|_| Error::FailedToSendMessage)?;
@@ -1137,6 +1143,7 @@ pub struct Wry {
   clipboard_manager_handle: ClipboardManagerWrapper,
   is_event_loop_running: Arc<AtomicBool>,
   event_loop: EventLoop<Message>,
+  web_context: WebContextStore,
   webviews: Arc<Mutex<HashMap<WindowId, WebviewWrapper>>>,
   window_event_listeners: WindowEventListeners,
   #[cfg(feature = "menu")]
@@ -1167,9 +1174,11 @@ impl RuntimeHandle for WryHandle {
       .dispatcher_context
       .proxy
       .send_event(Message::CreateWebview(
-        Arc::new(Mutex::new(Some(Box::new(move |event_loop| {
-          create_webview(event_loop, dispatcher_context, pending)
-        })))),
+        Arc::new(Mutex::new(Some(Box::new(
+          move |event_loop, web_context| {
+            create_webview(event_loop, web_context, dispatcher_context, pending)
+          },
+        )))),
         tx,
       ))
       .map_err(|_| Error::FailedToSendMessage)?;
@@ -1231,6 +1240,7 @@ impl Runtime for Wry {
       clipboard_manager_handle,
       is_event_loop_running,
       event_loop,
+      web_context: Default::default(),
       webviews: Default::default(),
       window_event_listeners: Default::default(),
       #[cfg(feature = "menu")]
@@ -1269,6 +1279,7 @@ impl Runtime for Wry {
     let proxy = self.event_loop.create_proxy();
     let webview = create_webview(
       &self.event_loop,
+      &self.web_context,
       DispatcherContext {
         main_thread_id: self.main_thread_id,
         is_event_loop_running: self.is_event_loop_running.clone(),
@@ -1343,6 +1354,7 @@ impl Runtime for Wry {
   fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration {
     use wry::application::platform::run_return::EventLoopExtRunReturn;
     let webviews = self.webviews.clone();
+    let web_context = &self.web_context;
     let window_event_listeners = self.window_event_listeners.clone();
     #[cfg(feature = "menu")]
     let menu_event_listeners = self.menu_event_listeners.clone();
@@ -1377,6 +1389,7 @@ impl Runtime for Wry {
             #[cfg(feature = "system-tray")]
             tray_context: tray_context.clone(),
           },
+          web_context,
         );
       });
     self.is_event_loop_running.store(false, Ordering::Relaxed);
@@ -1387,6 +1400,7 @@ impl Runtime for Wry {
   fn run<F: Fn(RunEvent) + 'static>(self, callback: F) {
     self.is_event_loop_running.store(true, Ordering::Relaxed);
     let webviews = self.webviews.clone();
+    let web_context = self.web_context;
     let window_event_listeners = self.window_event_listeners.clone();
     #[cfg(feature = "menu")]
     let menu_event_listeners = self.menu_event_listeners.clone();
@@ -1413,6 +1427,7 @@ impl Runtime for Wry {
           #[cfg(feature = "system-tray")]
           tray_context: tray_context.clone(),
         },
+        &web_context,
       );
     })
   }
@@ -1436,6 +1451,7 @@ fn handle_event_loop(
   event_loop: &EventLoopWindowTarget<Message>,
   control_flow: &mut ControlFlow,
   context: EventLoopIterationContext<'_>,
+  web_context: &WebContextStore,
 ) -> RunIteration {
   let EventLoopIterationContext {
     callback,
@@ -1689,7 +1705,7 @@ fn handle_event_loop(
           let mut lock = handler.lock().expect("poisoned create webview handler");
           std::mem::take(&mut *lock).unwrap()
         };
-        match handler(event_loop) {
+        match handler(event_loop, web_context) {
           Ok(webview) => {
             let window_id = webview.inner.window().id();
             webviews.insert(window_id, webview);
@@ -1700,6 +1716,7 @@ fn handle_event_loop(
           }
         }
       }
+
       #[cfg(feature = "system-tray")]
       Message::Tray(tray_message) => match tray_message {
         TrayMessage::UpdateItem(menu_id, update) => {
@@ -1817,6 +1834,7 @@ fn center_window(window: &Window) -> Result<()> {
 
 fn create_webview<P: Params<Runtime = Wry>>(
   event_loop: &EventLoopWindowTarget<Message>,
+  web_context: &WebContextStore,
   context: DispatcherContext,
   pending: PendingWindow<P>,
 ) -> Result<WebviewWrapper> {
@@ -1877,13 +1895,27 @@ fn create_webview<P: Params<Runtime = Wry>>(
         .map_err(|_| wry::Error::InitScriptError)
     });
   }
-  let context = WebContext::new(webview_attributes.data_directory);
-  webview_builder = webview_builder.with_web_context(&context);
+
   for script in webview_attributes.initialization_scripts {
     webview_builder = webview_builder.with_initialization_script(&script);
   }
 
+  let mut web_context = web_context.lock().expect("poisoned WebContext store");
+  let is_first_context = web_context.is_empty();
+  let web_context = match web_context.entry(webview_attributes.data_directory) {
+    Occupied(occupied) => occupied.into_mut(),
+    Vacant(vacant) => {
+      let mut web_context = WebContext::new(vacant.key().clone());
+      web_context.set_allows_automation(match std::env::var("TAURI_AUTOMATION").as_deref() {
+        Ok("true") => is_first_context,
+        _ => false,
+      });
+      vacant.insert(web_context)
+    }
+  };
+
   let webview = webview_builder
+    .with_web_context(web_context)
     .build()
     .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 

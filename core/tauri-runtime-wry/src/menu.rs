@@ -18,6 +18,7 @@ pub use wry::application::{
     MenuId as WryMenuId, MenuItem as WryMenuItem, MenuItemAttributes as WryMenuItemAttributes,
     MenuType,
   },
+  window::WindowId,
 };
 
 #[cfg(target_os = "macos")]
@@ -37,8 +38,12 @@ use std::{
   sync::{Arc, Mutex},
 };
 
+#[cfg(feature = "menu")]
 pub type MenuEventHandler = Box<dyn Fn(&MenuEvent) + Send>;
-pub type MenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
+#[cfg(feature = "menu")]
+pub type MenuEventListeners = Arc<Mutex<HashMap<WindowId, WindowMenuEventListeners>>>;
+#[cfg(feature = "menu")]
+pub type WindowMenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
 
 #[cfg(feature = "system-tray")]
 pub type SystemTrayEventHandler = Box<dyn Fn(&SystemTrayEvent) + Send>;

@@ -5,7 +5,7 @@
 
 /*
 This script is solely intended to be run as part of the `covector version` step to
-keep the `tauri-release` crate version without the `beta` or `beta-rc` suffix.
+keep the `tauri-runtime`, `tauri-runtime-wry` and `tauri-driver` crates version without the `beta` or `beta-rc` suffix.
 */
 
 const { readFileSync, writeFileSync } = require("fs")
@@ -25,6 +25,10 @@ if (packageNickname === 'tauri-runtime') {
   manifestPath = '../../core/tauri-runtime-wry/Cargo.toml'
   dependencyManifestPaths = ['../../core/tauri/Cargo.toml']
   changelogPath = '../../core/tauri-runtime-wry/CHANGELOG.md'
+} else if (packageNickname === 'tauri-driver') {
+  manifestPath = '../../tooling/webdriver/Cargo.toml'
+  dependencyManifestPaths = []
+  changelogPath = '../../tooling/webdriver/CHANGELOG.md'
 } else {
   throw new Error(`Unexpected package ${packageNickname}`)
 }

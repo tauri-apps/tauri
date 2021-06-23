@@ -292,7 +292,7 @@
       "manager": "javascript"
     },
     "tauri-driver": {
-      "path": "./core/tauri-driver",
+      "path": "./tooling/webdriver",
       "manager": "rust"
     }
   }

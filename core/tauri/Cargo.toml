@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.2"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -28,7 +28,7 @@ targets = [
 ]
 
 [package.metadata.cargo-udeps.ignore]
-normal = ["attohttpc"] # we ignore attohttpc because we can't remove it based on `not(feature = "reqwest-client")`
+normal = [ "attohttpc" ]
 
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
@@ -38,10 +38,10 @@ futures = "0.3"
 uuid = { version = "0.8", features = [ "v4" ] }
 thiserror = "1.0"
 once_cell = "1.8"
-tauri-runtime = { version = "0.1.1", path = "../tauri-runtime" }
-tauri-macros = { version = "1.0.0-beta.1", path = "../tauri-macros" }
-tauri-utils = { version = "1.0.0-beta.0", path = "../tauri-utils" }
-tauri-runtime-wry = { version = "0.1.1", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime = { version = "0.1.2", path = "../tauri-runtime" }
+tauri-macros = { version = "1.0.0-beta.2", path = "../tauri-macros" }
+tauri-utils = { version = "1.0.0-beta.1", path = "../tauri-utils" }
+tauri-runtime-wry = { version = "0.1.2", path = "../tauri-runtime-wry", optional = true }
 rand = "0.8"
 tempfile = "3"
 semver = "1.0"
@@ -56,31 +56,17 @@ state = "0.5"
 bincode = "1.3"
 dirs-next = "2.0"
 percent-encoding = "2.1"
-
-# FS
-base64 = { version = "0.13", optional = true } # also used on the updater
-
-# CLI
+base64 = { version = "0.13", optional = true }
 clap = { version = "=3.0.0-beta.2", optional = true }
-
-# Notifications
 notify-rust = { version = "4.5", optional = true }
-
-# HTTP
 reqwest = { version = "0.11", features = [ "json", "multipart" ], optional = true }
 bytes = { version = "1", features = [ "serde" ], optional = true }
 attohttpc = { version = "0.17", features = [ "json", "form" ] }
-
-# Shell
 open = { version = "1.7", optional = true }
 shared_child = { version = "0.3", optional = true }
 os_pipe = { version = "0.9", optional = true }
-
-# Dialogs
 rfd = "0.4"
-raw-window-handle = { version="0.3.3", optional = true }
-
-# Updater
+raw-window-handle = { version = "0.3.3", optional = true }
 minisign-verify = { version = "0.1", optional = true }
 
 [build-dependencies]
@@ -102,10 +88,16 @@ dox = [ "tauri-runtime-wry/dox" ]
 wry = [ "tauri-runtime-wry" ]
 cli = [ "clap" ]
 custom-protocol = [ "tauri-macros/custom-protocol" ]
-api-all = [ "notification-all", "global-shortcut-all", "shell-all", "dialog-all", "updater" ]
+api-all = [
+  "notification-all",
+  "global-shortcut-all",
+  "shell-all",
+  "dialog-all",
+  "updater"
+]
 updater = [ "minisign-verify", "base64" ]
 menu = [ "tauri-runtime/menu", "tauri-runtime-wry/menu" ]
-system-tray = [ "tauri-runtime/system-tray", "tauri-runtime-wry/system-tray"]
+system-tray = [ "tauri-runtime/system-tray", "tauri-runtime-wry/system-tray" ]
 reqwest-client = [ "reqwest", "bytes" ]
 fs-all = [ ]
 fs-read-text-file = [ ]

@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-beta.3]
+
+- Allow empty argument when running `cli.rs`.
+  - [8be35ced](https://www.github.com/tauri-apps/tauri/commit/8be35ced78658de732360e3b20d7d70108c9b32d) fix(cli.rs): `tauri.conf.json > tauri > bundle > targets` being ignored ([#1945](https://www.github.com/tauri-apps/tauri/pull/1945)) on 2021-06-04
+
 ## \[1.0.0-beta.2]
 
 - Packages are checked with `!=` instead of `semver` for beta releases.

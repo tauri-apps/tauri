@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-beta.2]
+
+- internal: Refactor all macro code that expects specific bindings to be passed Idents
+  - [39f8f269](https://www.github.com/tauri-apps/tauri/commit/39f8f269164d2fda3d5b614a193b12bb266e4b4b) refactor(macros): explicitly pass idents ([#1812](https://www.github.com/tauri-apps/tauri/pull/1812)) on 2021-05-13
+
 ## \[1.0.0-beta.1]
 
 - Fixes a name collision when the command function is named `invoke`.

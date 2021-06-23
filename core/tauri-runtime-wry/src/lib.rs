@@ -1517,7 +1517,14 @@ fn handle_event_loop(
       }
       match event {
         WryWindowEvent::CloseRequested => {
-          on_window_close(callback, window_id, &mut webviews, control_flow);
+          on_window_close(
+            callback,
+            window_id,
+            &mut webviews,
+            control_flow,
+            #[cfg(feature = "menu")]
+            menu_event_listeners.clone(),
+          );
         }
         WryWindowEvent::Resized(_) => {
           if let Err(e) = webviews[&window_id].inner.resize() {
@@ -1606,7 +1613,14 @@ fn handle_event_loop(
             WindowMessage::Show => window.set_visible(true),
             WindowMessage::Hide => window.set_visible(false),
             WindowMessage::Close => {
-              on_window_close(callback, id, &mut webviews, control_flow);
+              on_window_close(
+                callback,
+                id,
+                &mut webviews,
+                control_flow,
+                #[cfg(feature = "menu")]
+                menu_event_listeners.clone(),
+              );
             }
             WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
             WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),
@@ -1780,8 +1794,11 @@ fn on_window_close<'a>(
   window_id: WindowId,
   webviews: &mut MutexGuard<'a, HashMap<WindowId, WebviewWrapper>>,
   control_flow: &mut ControlFlow,
+  #[cfg(feature = "menu")] menu_event_listeners: MenuEventListeners,
 ) {
   if let Some(webview) = webviews.remove(&window_id) {
+    #[cfg(feature = "menu")]
+    menu_event_listeners.lock().unwrap().remove(&window_id);
     callback(RunEvent::WindowClose(webview.label));
   }
   if webviews.is_empty() {

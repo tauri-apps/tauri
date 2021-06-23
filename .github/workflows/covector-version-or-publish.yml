@@ -53,7 +53,6 @@ jobs:
           commit-message: "apply version updates"
           labels: "version updates"
           body: ${{ steps.covector.outputs.change }}
-          base: ${{ github.head_ref }}
 
   update-docs:
     needs: version-or-publish

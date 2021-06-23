@@ -46,7 +46,10 @@ use std::{
   borrow::Cow,
   collections::{HashMap, HashSet},
   fs::create_dir_all,
-  sync::{Arc, Mutex, MutexGuard},
+  sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex, MutexGuard,
+  },
 };
 use uuid::Uuid;
 
@@ -195,6 +198,7 @@ crate::manager::default_args! {
   pub struct WindowManager<P: Params> {
     pub inner: Arc<InnerWindowManager<P>>,
     invoke_keys: Arc<Mutex<Vec<u32>>>,
+    registered_tauri_protocol: Arc<AtomicBool>,
     #[allow(clippy::type_complexity)]
     _marker: Args<P::Event, P::Label, P::MenuId, P::SystemTrayMenuId, P::Assets, P::Runtime>,
   }
@@ -205,6 +209,7 @@ impl<P: Params> Clone for WindowManager<P> {
     Self {
       inner: self.inner.clone(),
       invoke_keys: self.invoke_keys.clone(),
+      registered_tauri_protocol: self.registered_tauri_protocol.clone(),
       _marker: Args::default(),
     }
   }
@@ -267,6 +272,7 @@ impl<P: Params> WindowManager<P> {
         window_event_listeners: Arc::new(window_event_listeners),
       }),
       invoke_keys: Default::default(),
+      registered_tauri_protocol: Default::default(),
       _marker: Args::default(),
     }
   }
@@ -373,9 +379,14 @@ impl<P: Params> WindowManager<P> {
       }
     }
 
-    if !webview_attributes.has_uri_scheme_protocol("tauri") {
+    if !webview_attributes.has_uri_scheme_protocol("tauri")
+      && !self.registered_tauri_protocol.load(Ordering::Relaxed)
+    {
       webview_attributes = webview_attributes
         .register_uri_scheme_protocol("tauri", self.prepare_uri_scheme_protocol().protocol);
+      self
+        .registered_tauri_protocol
+        .store(true, Ordering::Relaxed);
     }
 
     let local_app_data = resolve_path(

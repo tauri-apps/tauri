@@ -648,7 +648,7 @@ where
   ///
   /// # Arguments
   ///
-  /// * `uri_scheme` The URI scheme to register, such as `example`.
+  /// * `uri_scheme` The URI scheme to register, such as `example`. It must be unique.
   /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
   pub fn register_global_uri_scheme_protocol<
     N: Into<String>,

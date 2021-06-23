@@ -290,11 +290,6 @@
     "create-tauri-app": {
       "path": "./tooling/create-tauri-app",
       "manager": "javascript"
-    },
-    "tauri-driver": {
-      "path": "./tooling/webdriver",
-      "manager": "rust",
-      "postversion": "node ../../.scripts/sync-prerelease.js ${ pkg.pkg } ${ release.type }"
     }
   }
 }

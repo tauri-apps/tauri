@@ -118,18 +118,11 @@ impl Client {
       request_builder.send()?
     };
 
-    if response.is_success() {
-      Ok(Response(
-        request.response_type.unwrap_or(ResponseType::Json),
-        response,
-        request.url,
-      ))
-    } else {
-      Err(super::Error::Http(
-        response.status().as_u16(),
-        response.text()?,
-      ))
-    }
+    Ok(Response(
+      request.response_type.unwrap_or(ResponseType::Json),
+      response,
+      request.url,
+    ))
   }
 }
 
@@ -183,17 +176,10 @@ impl Client {
 
     let response = self.0.execute(http_request).await?;
 
-    if response.status().is_success() {
-      Ok(Response(
-        request.response_type.unwrap_or(ResponseType::Json),
-        response,
-      ))
-    } else {
-      Err(super::Error::Http(
-        response.status().as_u16(),
-        response.text().await?,
-      ))
-    }
+    Ok(Response(
+      request.response_type.unwrap_or(ResponseType::Json),
+      response,
+    ))
   }
 }
 
@@ -368,14 +354,14 @@ impl Response {
     let data = match self.0 {
       ResponseType::Json => self.1.json().await?,
       ResponseType::Text => Value::String(self.1.text().await?),
-      ResponseType::Binary => Value::String(serde_json::to_string(&self.1.bytes().await?)?),
+      ResponseType::Binary => serde_json::to_value(&self.1.bytes().await?)?,
     };
 
     #[cfg(not(feature = "reqwest-client"))]
     let data = match self.0 {
       ResponseType::Json => self.1.json()?,
       ResponseType::Text => Value::String(self.1.text()?),
-      ResponseType::Binary => Value::String(serde_json::to_string(&self.1.bytes()?)?),
+      ResponseType::Binary => serde_json::to_value(&self.1.bytes()?)?,
     };
 
     Ok(ResponseData {

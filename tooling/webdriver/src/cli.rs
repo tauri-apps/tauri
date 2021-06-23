@@ -31,7 +31,7 @@ impl From<pico_args::Arguments> for Args {
       std::process::exit(0);
     }
 
-    let native_driver = match args.opt_value_from_str("--native-port") {
+    let native_driver = match args.opt_value_from_str("--native-driver") {
       Ok(native_driver) => native_driver,
       Err(e) => {
         eprintln!("Error while parsing option --native-driver: {}", e);

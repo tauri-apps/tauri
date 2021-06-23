@@ -110,11 +110,11 @@ jobs:
       - name: meilisearch indexation
         uses: tauri-apps/docusaurus-meilisearch-indexer@v1
         with:
-          - version: ${{ github.event.release.tag_name }}
-          - docusaurusPath: ./tauri-docs
-          - host: https://search.tauri.studio
-          - apiKey: ${{ secrets.MEILISEARCH_APIKEY }}
-          - docs: "Getting started,Usage,API"
+          version: ${{ github.event.release.tag_name }}
+          docusaurusPath: ./tauri-docs
+          host: https://search.tauri.studio
+          apiKey: ${{ secrets.MEILISEARCH_APIKEY }}
+          docs: "Getting started,Usage,API"
 
       # Applying Version
       - name: set docs' Tauri version
@@ -129,7 +129,7 @@ jobs:
           directory: './tauri-search-bot'
         env:
           ENV_KEY_DISCORD_BOT_SECRET: ${{ secrets.DISCORD_BOT_SECRET }}
-          ENV_KEY_PREFIX: !
+          ENV_KEY_PREFIX: \!
           ENV_KEY_SITE: tauri.studio
           ENV_KEY_ICON: https://i.imgur.com/UzDERvw.png
           ENV_KEY_LIMIT: 5

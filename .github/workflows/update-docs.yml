@@ -99,7 +99,7 @@ jobs:
           directory: './tauri-search-bot'
         env:
           ENV_KEY_DISCORD_BOT_SECRET: ${{ secrets.DISCORD_BOT_SECRET }}
-          ENV_KEY_PREFIX: !
+          ENV_KEY_PREFIX: \!
           ENV_KEY_SITE: tauri.studio
           ENV_KEY_ICON: https://i.imgur.com/UzDERvw.png
           ENV_KEY_LIMIT: 5

@@ -1903,7 +1903,10 @@ fn create_webview<P: Params<Runtime = Wry>>(
     Occupied(occupied) => occupied.into_mut(),
     Vacant(vacant) => {
       let mut web_context = WebContext::new(vacant.key().clone());
-      web_context.set_allows_automation(is_first_context);
+      web_context.set_allows_automation(match std::env::var("TAURI_AUTOMATION").as_deref() {
+        Ok("true") => is_first_context,
+        _ => false,
+      });
       vacant.insert(web_context)
     }
   };

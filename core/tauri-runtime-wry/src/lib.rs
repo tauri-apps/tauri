@@ -743,10 +743,6 @@ impl Dispatch for WryDispatcher {
       .menu_event_listeners
       .lock()
       .unwrap()
-      .get(&self.window_id)
-      .unwrap()
-      .lock()
-      .unwrap()
       .insert(id, Box::new(f));
     id
   }
@@ -862,7 +858,6 @@ impl Dispatch for WryDispatcher {
     let (tx, rx) = channel();
     let label = pending.label.clone();
     let context = self.context.clone();
-
     self
       .context
       .proxy
@@ -874,7 +869,6 @@ impl Dispatch for WryDispatcher {
       ))
       .map_err(|_| Error::FailedToSendMessage)?;
     let window_id = rx.recv().unwrap();
-
     let dispatcher = WryDispatcher {
       window_id,
       context: self.context.clone(),
@@ -1183,7 +1177,6 @@ impl RuntimeHandle for WryHandle {
       ))
       .map_err(|_| Error::FailedToSendMessage)?;
     let window_id = rx.recv().unwrap();
-
     let dispatcher = WryDispatcher {
       window_id,
       context: self.dispatcher_context.clone(),
@@ -1477,23 +1470,18 @@ fn handle_event_loop(
     }
     #[cfg(feature = "menu")]
     Event::MenuEvent {
-      window_id,
       menu_id,
       origin: MenuType::MenuBar,
     } => {
-      let window_id = window_id.unwrap(); // always Some on MenuBar event
       let event = MenuEvent {
         menu_item_id: menu_id.0,
       };
-      let listeners = menu_event_listeners.lock().unwrap();
-      let window_menu_event_listeners = listeners.get(&window_id).cloned().unwrap_or_default();
-      for handler in window_menu_event_listeners.lock().unwrap().values() {
+      for handler in menu_event_listeners.lock().unwrap().values() {
         handler(&event);
       }
     }
     #[cfg(feature = "system-tray")]
     Event::MenuEvent {
-      window_id: _,
       menu_id,
       origin: MenuType::ContextMenu,
     } => {
@@ -1529,13 +1517,7 @@ fn handle_event_loop(
       }
       match event {
         WryWindowEvent::CloseRequested => {
-          on_window_close(
-            callback,
-            window_id,
-            &mut webviews,
-            menu_event_listeners.clone(),
-            control_flow,
-          );
+          on_window_close(callback, window_id, &mut webviews, control_flow);
         }
         WryWindowEvent::Resized(_) => {
           if let Err(e) = webviews[&window_id].inner.resize() {
@@ -1624,13 +1606,7 @@ fn handle_event_loop(
             WindowMessage::Show => window.set_visible(true),
             WindowMessage::Hide => window.set_visible(false),
             WindowMessage::Close => {
-              on_window_close(
-                callback,
-                id,
-                &mut webviews,
-                menu_event_listeners.clone(),
-                control_flow,
-              );
+              on_window_close(callback, id, &mut webviews, control_flow);
             }
             WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
             WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),
@@ -1803,11 +1779,9 @@ fn on_window_close<'a>(
   callback: &'a (dyn Fn(RunEvent) + 'static),
   window_id: WindowId,
   webviews: &mut MutexGuard<'a, HashMap<WindowId, WebviewWrapper>>,
-  menu_event_listeners: MenuEventListeners,
   control_flow: &mut ControlFlow,
 ) {
   if let Some(webview) = webviews.remove(&window_id) {
-    menu_event_listeners.lock().unwrap().remove(&window_id);
     callback(RunEvent::WindowClose(webview.label));
   }
   if webviews.is_empty() {
@@ -1855,14 +1829,6 @@ fn create_webview<P: Params<Runtime = Wry>>(
     menu_items
   };
   let window = window_builder.inner.build(event_loop).unwrap();
-
-  #[cfg(feature = "menu")]
-  context
-    .menu_event_listeners
-    .lock()
-    .unwrap()
-    .insert(window.id(), WindowMenuEventListeners::default());
-
   if window_builder.center {
     let _ = center_window(&window);
   }

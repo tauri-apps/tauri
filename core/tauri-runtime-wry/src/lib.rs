@@ -1900,24 +1900,25 @@ fn create_webview<P: Params<Runtime = Wry>>(
     webview_builder = webview_builder.with_initialization_script(&script);
   }
 
-  let mut web_context = web_context.lock().expect("poisoned WebContext store");
-  let is_first_context = web_context.is_empty();
-  let web_context = match web_context.entry(webview_attributes.data_directory) {
-    Occupied(occupied) => occupied.into_mut(),
-    Vacant(vacant) => {
-      let mut web_context = WebContext::new(vacant.key().clone());
-      web_context.set_allows_automation(match std::env::var("TAURI_AUTOMATION").as_deref() {
-        Ok("true") => is_first_context,
-        _ => false,
-      });
-      vacant.insert(web_context)
-    }
-  };
-
-  let webview = webview_builder
-    .with_web_context(web_context)
-    .build()
-    .map_err(|e| Error::CreateWebview(Box::new(e)))?;
+  let automation_enabled = std::env::var("TAURI_AUTOMATION").as_deref() == Ok("true");
+  let webview = if automation_enabled {
+    let mut web_context = web_context.lock().expect("poisoned WebContext store");
+    let is_first_context = web_context.is_empty();
+    let web_context = match web_context.entry(webview_attributes.data_directory) {
+      Occupied(occupied) => occupied.into_mut(),
+      Vacant(vacant) => {
+        let mut web_context = WebContext::new(vacant.key().clone());
+        web_context.set_allows_automation(is_first_context);
+        vacant.insert(web_context)
+      }
+    };
+    webview_builder.with_web_context(web_context).build()
+  } else {
+    webview_builder
+      .with_web_context(&WebContext::new(webview_attributes.data_directory))
+      .build()
+  }
+  .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
   Ok(WebviewWrapper {
     label: format!("{}", label),

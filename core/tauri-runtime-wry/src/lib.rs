@@ -1803,8 +1803,8 @@ fn on_window_close<'a>(
   callback: &'a (dyn Fn(RunEvent) + 'static),
   window_id: WindowId,
   webviews: &mut MutexGuard<'a, HashMap<WindowId, WebviewWrapper>>,
-  menu_event_listeners: MenuEventListeners,
   control_flow: &mut ControlFlow,
+  #[cfg(feature = "menu")] menu_event_listeners: MenuEventListeners,
 ) {
   if let Some(webview) = webviews.remove(&window_id) {
     menu_event_listeners.lock().unwrap().remove(&window_id);

@@ -1533,8 +1533,9 @@ fn handle_event_loop(
             callback,
             window_id,
             &mut webviews,
-            menu_event_listeners.clone(),
             control_flow,
+            #[cfg(feature = "menu")]
+            menu_event_listeners.clone(),
           );
         }
         WryWindowEvent::Resized(_) => {
@@ -1628,8 +1629,9 @@ fn handle_event_loop(
                 callback,
                 id,
                 &mut webviews,
-                menu_event_listeners.clone(),
                 control_flow,
+                #[cfg(feature = "menu")]
+                menu_event_listeners.clone(),
               );
             }
             WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),

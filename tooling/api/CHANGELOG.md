@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-beta.3]
+
+- Export `Response` and `ResponseType` as value instead of type.
+  - [394b6e05](https://www.github.com/tauri-apps/tauri/commit/394b6e0572e7a0a92e103e462a7f603f7d569319) fix(api): http  `ResponseType` export type error ([#2065](https://www.github.com/tauri-apps/tauri/pull/2065)) on 2021-06-24
+
 ## \[1.0.0-beta.2]
 
 - Export `BaseDirectory` in `path` module

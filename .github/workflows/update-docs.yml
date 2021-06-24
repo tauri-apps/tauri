@@ -25,6 +25,11 @@ jobs:
   update-docs:
     runs-on: ubuntu-latest
     steps:
+      - name: Start SSH session
+        uses: luchihoratiu/debug-via-ssh@main
+        with:
+          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+          SSH_PASS: ${{ secrets.UPDATE_DOCS_SSH_PASS }}
       # Setup
       - name: checkout tauri
         uses: actions/checkout@v2

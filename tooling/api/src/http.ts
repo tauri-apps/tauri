@@ -352,8 +352,7 @@ export type {
   HttpVerb,
   HttpOptions,
   RequestOptions,
-  FetchOptions,
-  Response
+  FetchOptions
 }
 
-export { getClient, fetch, Body, Client, ResponseType }
+export { getClient, fetch, Body, Client, Response, ResponseType }

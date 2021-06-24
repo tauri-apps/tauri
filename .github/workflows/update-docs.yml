@@ -25,11 +25,6 @@ jobs:
   update-docs:
     runs-on: ubuntu-latest
     steps:
-      - name: Start SSH session
-        uses: luchihoratiu/debug-via-ssh@main
-        with:
-          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
-          SSH_PASS: ${{ secrets.UPDATE_DOCS_SSH_PASS }}
       # Setup
       - name: checkout tauri
         uses: actions/checkout@v2
@@ -81,6 +76,11 @@ jobs:
         working-directory: ./tauri
         run: mv docs/sidebar.json ${{ github.workspace }}/tauri-docs/sidebars/core.json && cp -r docs/* ${{ github.workspace }}/tauri-docs/docs/en
 
+      - name: Start SSH session
+        uses: luchihoratiu/debug-via-ssh@main
+        with:
+          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+          SSH_PASS: ${{ secrets.UPDATE_DOCS_SSH_PASS }}
       # Indexing
       - name: meilisearch indexation
         uses: tauri-apps/docusaurus-meilisearch-indexer@v1

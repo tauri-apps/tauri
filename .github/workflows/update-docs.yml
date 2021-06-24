@@ -73,7 +73,7 @@ jobs:
         with:
           originPath: ./tauri/tooling/api/
           sidebarFile: "${{ github.workspace }}/tauri-docs/sidebars/typedoc.json"
-          targetPath: ./tauri-docs/en/api/js
+          targetPath: ${{ github.workspace }}/tauri-docs/en/api/js
           docusaurusPath: ./tauri-docs/
 
       # Moving docs for Indexation

@@ -7,6 +7,11 @@ name: update-docs
 on:
   release:
     types: [published]
+    paths:
+      - '!README.md'
+      - '!LICENSE'
+      - '!.gitignore'
+
   workflow_dispatch:
     inputs:
       gitName:

@@ -19,7 +19,7 @@ use std::os::windows::process::CommandExt;
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 use crate::async_runtime::{channel, spawn, Receiver, RwLock};
-use futures::{future, FutureExt};
+use futures::{stream::FuturesUnordered, FutureExt, StreamExt};
 use os_pipe::{pipe, PipeWriter};
 use serde::Serialize;
 use shared_child::SharedChild;
@@ -288,11 +288,15 @@ impl Command {
       };
     };
 
-    spawn(future::join_all(vec![
-      stdout_task.boxed(),
-      stderr_task.boxed(),
-      terminated_task.boxed(),
-    ]));
+    let mut f = FuturesUnordered::new();
+    f.push(stdout_task.boxed());
+    f.push(stderr_task.boxed());
+    f.push(terminated_task.boxed());
+    spawn(async move {
+      loop {
+        f.next().await;
+      }
+    });
 
     Ok((
       rx,

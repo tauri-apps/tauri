@@ -207,7 +207,7 @@ impl Cmd {
         resolve_path_handler(&config, package_info, path, directory).map(Into::into)
       }
       #[cfg(not(fs_path))]
-      Self::ResolvePath { .. } => Err(crate::Error::ApiNotAllowlisted("fs > pathApi".to_string())),
+      Self::ResolvePath { .. } => Err(crate::Error::ApiNotAllowlisted("fs > path".to_string())),
     }
   }
 }

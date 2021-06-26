@@ -112,7 +112,7 @@ jobs:
           host: ${{ secrets.DISCORD_BOT_HOST }}
           username: ${{ secrets.DISCORD_BOT_SSH_USER }}
           key: ${{ secrets.DISCORD_BOT_SSH_KEY }}
-          source: "./tauri-search-bot"
+          source: "${{ github.workspace }}/tauri-search-bot"
           target: "~/tauri-search-bot"
       - name: restart the bot
         uses: appleboy/ssh-action@master

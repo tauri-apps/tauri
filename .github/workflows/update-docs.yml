@@ -35,7 +35,6 @@ jobs:
         with:
           repository: tauri-apps/tauri-docs
           path: tauri-docs
-          ref: feat/core-docs-sidebar
       - name: checkout tauri-search-bot
         uses: actions/checkout@v2
         with:

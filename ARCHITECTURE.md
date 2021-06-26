@@ -75,7 +75,8 @@ Cross-platform application window creation library in Rust that supports all maj
 
 
 ## [WRY](https://github.com/tauri-apps/wry)
-WRY is a cross-platform WebView rendering library in Rust that supports all major desktop platforms like Windows, macOS, and Linux. 
+WRY is a cross-platform WebView rendering library in Rust that supports all major desktop platforms like Windows, macOS, and Linux.
+Tauri uses WRY as the abstract layer responsible to determine which webview is used (and how interactions are made).
 
 ## [tauri-hotkey-rs](https://github.com/tauri-apps/tauri-hotkey-rs)
 We needed to fix hotkey to work on all platforms, because upstream was not being responsive.

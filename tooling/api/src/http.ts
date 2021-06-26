@@ -348,13 +348,11 @@ async function fetch<T>(
 
 export type {
   ClientOptions,
-  ResponseType,
   Part,
   HttpVerb,
   HttpOptions,
   RequestOptions,
-  FetchOptions,
-  Response
+  FetchOptions
 }
 
-export { getClient, fetch, Body, Client }
+export { getClient, fetch, Body, Client, Response, ResponseType }

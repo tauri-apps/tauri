@@ -5,6 +5,7 @@
     ".changes/api-cjs-chunks.md",
     ".changes/api-export-BaseDirectory.md",
     ".changes/api-export-package-json.md",
+    ".changes/api-export-type-fix.md",
     ".changes/api-export-type.md",
     ".changes/api-feature-flags.md",
     ".changes/api-focus.md",

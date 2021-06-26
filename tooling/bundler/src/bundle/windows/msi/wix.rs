@@ -486,6 +486,7 @@ pub fn build_wix_app_installer(
   data.insert("binaries", binaries_json);
 
   let resources = generate_resource_data(settings)?;
+  println!("{:?}", serde_json::to_string(&resources).unwrap());
   let mut resources_wix_string = String::from("");
   let mut files_ids = Vec::new();
   for (_, dir) in resources {
@@ -703,19 +704,35 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     };
 
     // split the resource path directories
-    let mut directories = src
+    let directories = src
       .components()
       .filter(|component| {
         let comp = component.as_os_str();
         comp != "." && comp != ".."
       })
       .collect::<Vec<_>>();
-    directories.truncate(directories.len() - 1);
     // transform the directory structure to a chained vec structure
     let first_directory = directories
       .first()
       .map(|d| d.as_os_str().to_string_lossy().into_owned())
       .unwrap_or_else(String::new);
+
+    if !resources.contains_key(&first_directory) {
+      resources.insert(
+        first_directory.clone(),
+        ResourceDirectory {
+          path: first_directory.clone(),
+          name: first_directory.clone(),
+          directories: vec![],
+          files: vec![],
+        },
+      );
+    }
+
+    let mut directory_entry = resources
+      .get_mut(&first_directory)
+      .expect("Unable to handle resources");
+
     let last_index = directories.len() - 1;
     let mut path = String::new();
     for (i, directory) in directories.into_iter().enumerate() {
@@ -725,57 +742,30 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
         .into_string()
         .expect("failed to read resource folder name");
       path.push_str(directory_name.as_str());
+      path.push(std::path::MAIN_SEPARATOR);
 
-      // if the directory is already on the map
-      if resources.contains_key(&first_directory) {
-        let directory_entry = &mut resources
-          .get_mut(&first_directory)
-          .expect("Unable to handle resources");
-        if last_index == 0 {
-          // the directory entry is the root of the chain
-          directory_entry.add_file(resource_entry.clone());
-        } else {
-          let index = directory_entry
-            .directories
-            .iter()
-            .position(|f| f.path == path);
-          if let Some(index) = index {
-            // the directory entry is already a part of the chain
-            if i == last_index {
-              let dir = directory_entry
-                .directories
-                .get_mut(index)
-                .expect("Unable to get directory");
-              dir.add_file(resource_entry.clone());
-            }
-          } else {
-            // push it to the chain
+      if i == last_index {
+        directory_entry.add_file(resource_entry);
+        break;
+      } else if i == 0 {
+        continue;
+      } else {
+        let index = directory_entry
+          .directories
+          .iter()
+          .position(|f| f.path == path);
+        match index {
+          Some(i) => directory_entry = directory_entry.directories.iter_mut().nth(i).unwrap(),
+          None => {
             directory_entry.directories.push(ResourceDirectory {
               path: path.clone(),
-              name: directory_name.clone(),
+              name: directory_name,
               directories: vec![],
-              files: if i == last_index {
-                vec![resource_entry.clone()]
-              } else {
-                vec![]
-              },
+              files: vec![],
             });
+            directory_entry = directory_entry.directories.iter_mut().last().unwrap();
           }
         }
-      } else {
-        resources.insert(
-          directory_name.clone(),
-          ResourceDirectory {
-            path: path.clone(),
-            name: directory_name.clone(),
-            directories: vec![],
-            files: if i == last_index {
-              vec![resource_entry.clone()]
-            } else {
-              vec![]
-            },
-          },
-        );
       }
     }
   }

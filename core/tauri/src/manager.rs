@@ -467,13 +467,10 @@ impl<P: Params> WindowManager<P> {
             if is_javascript {
               let js = String::from_utf8_lossy(&asset).into_owned();
               Ok(
-                format!(
-                  r#"(function () {{
-                    const __TAURI_INVOKE_KEY__ = {};
-                    {}
-                  }})()"#,
-                  manager.generate_invoke_key(),
-                  js
+                js.replacen(
+                  "__TAURI__INVOKE_KEY_TOKEN__",
+                  &manager.generate_invoke_key().to_string(),
+                  1,
                 )
                 .as_bytes()
                 .to_vec(),

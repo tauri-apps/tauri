@@ -177,6 +177,38 @@ impl EmbeddedAssets {
           .to_vec();
       }
     }
+    let is_javascript = ["js", "cjs", "mjs"]
+      .iter()
+      .any(|e| path.extension() == Some(OsStr::new(e)));
+    if is_javascript {
+      let js = String::from_utf8_lossy(&input).into_owned();
+      input = if [
+        "import{", "import*", "import ", "export{", "export*", "export ",
+      ]
+      .iter()
+      .any(|t| js.contains(t))
+      {
+        format!(
+          r#"
+            const __TAURI_INVOKE_KEY__ = __TAURI__INVOKE_KEY_TOKEN__;
+            {}
+          "#,
+          js
+        )
+        .as_bytes()
+        .to_vec()
+      } else {
+        format!(
+          r#"(function () {{
+            const __TAURI_INVOKE_KEY__ = __TAURI__INVOKE_KEY_TOKEN__;
+            {}
+          }})()"#,
+          js
+        )
+        .as_bytes()
+        .to_vec()
+      };
+    }
 
     // we must canonicalize the base of our paths to allow long paths on windows
     let out_dir = std::env::var("OUT_DIR")

@@ -367,3 +367,5 @@ Instead of launching the app directly, we configure the bundled app to run a scr
   }
 }
 ```
+### `CSP`
+:::info - Add info regarding Doc [Issue #249](https://github.com/tauri-apps/tauri-docs/issues/249) For context why, see [comment](https://github.com/tauri-apps/tauri/issues/2089#issuecomment-869054772) from @nothingismagick 

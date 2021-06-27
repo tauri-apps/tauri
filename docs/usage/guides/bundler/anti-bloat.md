@@ -43,7 +43,7 @@ The Rust Standard Library comes precompiled. You can instead apply the optimizat
 
     $ cargo +nightly build --release -Z build-std --target x86_64-unknown-linux-gnu
 
-If you are using `panic = "abort"` in your release profile optimizations, then you need to make sure the `panic_abort` crate is compiled with std. Additionally, an extra std feature can be used to reduce the binary size. The following applies both:
+If you are using `panic = "abort"` in your release profile optimizations, then you need to make sure the `panic_abort` crate is compiled with std. Additionally, an extra std feature can be used to further reduce the binary size. The following applies both:
 
     $ cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort --target x86_64-unknown-linux-gnu
 

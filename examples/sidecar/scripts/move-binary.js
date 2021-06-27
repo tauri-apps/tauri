@@ -12,23 +12,14 @@ if (process.platform === 'win32') {
 }
 
 async function main() {
-  const rustTargetInfo = JSON.parse(
-    (
-      await execa(
-        'rustc',
-        ['-Z', 'unstable-options', '--print', 'target-spec-json'],
-        {
-          env: {
-            RUSTC_BOOTSTRAP: 1
-          }
-        }
-      )
-    ).stdout
-  )
-  const platformPostfix = rustTargetInfo['llvm-target']
+  const rustInfo = (await execa('rustc', ['-vV'])).stdout
+  const targetTriple = /host: (\S+)/g.exec(rustInfo)[1]
+  if (!targetTriple) {
+    console.error('Failed to determine platform target triple')
+  }
   fs.renameSync(
     `src-tauri/binaries/app${extension}`,
-    `src-tauri/binaries/app-${platformPostfix}${extension}`
+    `src-tauri/binaries/app-${targetTriple}${extension}`
   )
 }
 

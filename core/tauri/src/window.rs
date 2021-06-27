@@ -503,7 +503,12 @@ impl<P: Params> Window<P> {
   /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   #[cfg(windows)]
   pub fn hwnd(&self) -> crate::Result<*mut std::ffi::c_void> {
-    self.window.dispatcher.hwnd().map_err(Into::into)
+    self
+      .window
+      .dispatcher
+      .hwnd()
+      .map(|hwnd| hwnd as *mut _)
+      .map_err(Into::into)
   }
 
   // Setters

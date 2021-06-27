@@ -594,7 +594,7 @@ impl From<FileDropEventWrapper> for FileDropEvent {
 }
 
 #[cfg(windows)]
-struct Hwnd(*mut std::ffi::c_void);
+struct Hwnd(HWND);
 #[cfg(windows)]
 unsafe impl Send for Hwnd {}
 
@@ -823,7 +823,7 @@ impl Dispatch for WryDispatcher {
   }
 
   #[cfg(windows)]
-  fn hwnd(&self) -> Result<*mut std::ffi::c_void> {
+  fn hwnd(&self) -> Result<HWND> {
     Ok(dispatcher_getter!(self, WindowMessage::Hwnd).0)
   }
 
@@ -1594,7 +1594,7 @@ fn handle_event_loop(
             #[cfg(windows)]
             WindowMessage::Hwnd(tx) => {
               use wry::application::platform::windows::WindowExtWindows;
-              tx.send(Hwnd(window.hwnd())).unwrap()
+              tx.send(Hwnd(window.hwnd() as HWND)).unwrap()
             }
             // Setters
             WindowMessage::Center(tx) => {

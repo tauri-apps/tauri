@@ -182,9 +182,11 @@ impl EmbeddedAssets {
       .any(|e| path.extension() == Some(OsStr::new(e)));
     if is_javascript {
       let js = String::from_utf8_lossy(&input).into_owned();
-      input = if ["import{", "import {", "export{", "export {"]
-        .iter()
-        .any(|t| js.contains(t))
+      input = if [
+        "import{", "import*", "import ", "export{", "export*", "export ",
+      ]
+      .iter()
+      .any(|t| js.contains(t))
       {
         format!(
           r#"

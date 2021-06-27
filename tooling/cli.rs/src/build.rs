@@ -128,7 +128,7 @@ impl Build {
     let app_settings = crate::interface::rust::AppSettings::new(config_)?;
 
     let out_dir = app_settings
-      .get_out_dir(self.debug)
+      .get_out_dir(self.target.clone(), self.debug)
       .with_context(|| "failed to get project out directory")?;
     if let Some(product_name) = config_.package.product_name.clone() {
       let bin_name = app_settings.cargo_package_settings().name.clone();

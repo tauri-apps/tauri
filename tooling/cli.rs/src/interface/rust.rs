@@ -186,10 +186,10 @@ impl AppSettings {
     )
   }
 
-  pub fn get_out_dir(&self, debug: bool) -> crate::Result<PathBuf> {
+  pub fn get_out_dir(&self, target: Option<String>, debug: bool) -> crate::Result<PathBuf> {
     let tauri_dir = tauri_dir();
     let workspace_dir = get_workspace_dir(&tauri_dir);
-    get_target_dir(&workspace_dir, None, !debug)
+    get_target_dir(&workspace_dir, target, !debug)
   }
 
   pub fn get_package_settings(&self) -> PackageSettings {

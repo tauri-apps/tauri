@@ -23,15 +23,15 @@ Add this to your `src-tauri/Cargo.toml`
 
 <Alert title="Note">
 
-There is also `opt-level = "z"` available to try and squeeze some more size out of the resulting binary. `"s"` and `"z"` can sometimes be smaller than the other, so test it with your own application!
+There is also `opt-level = "z"` available to try to reduce the resulting binary size. `"s"` and `"z"` can sometimes be smaller than the other, so test it with your own application!
 
-We've seen better binary sizes from `"s"` for tauri example applications, but real world applications can always differ.
+We've seen smaller binary sizes from `"s"` for Tauri example applications, but real world applications can always differ.
 </Alert>
 
 #### Unstable Rust Compression Features
 
 <Alert type="warning" title="Warning" icon="alert">
-The following suggestions are all unstable features and require a nightly toolchain. See the <a href="https://doc.rust-lang.org/cargo/reference/unstable.html#unstable-features">Unstable Features</a> documentation for more information of what this entails.
+The following suggestions are all unstable features and require a nightly toolchain. See the <a href="https://doc.rust-lang.org/cargo/reference/unstable.html#unstable-features">Unstable Features</a> documentation for more information of what this involves.
 </Alert>
 
 The following methods involve using unstable compiler features and require having a rust nightly toolchain installed. If you don't have the nightly toolchain + `rust-src` nightly component added, try the following:
@@ -43,7 +43,7 @@ The Rust Standard Library comes precompiled. You can instead apply the optimizat
 
     $ cargo +nightly build --release -Z build-std --target x86_64-unknown-linux-gnu
 
-If you are using `panic = "abort"` in your release profile optimizations, then you need to make sure the `panic_abort` crate is compiled with std. Additionally, an extra std feature can be used to remove some additional binary size. The following applies both:
+If you are using `panic = "abort"` in your release profile optimizations, then you need to make sure the `panic_abort` crate is compiled with std. Additionally, an extra std feature can be used to further reduce the binary size. The following applies both:
 
     $ cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort --target x86_64-unknown-linux-gnu
 
@@ -51,7 +51,7 @@ See the unstable documentation for more details about [`-Z build-std`](https://d
 
 ### Stripping
 
-Binary sized can easily be reduced by stripping out debugging information from binaries that ship to end users. This is not good for debuggable builds, but means good binary size savings for end user binaries. The easiest way is to use the famous `strip` utility to remove this debugging information.
+Binary size can easily be reduced by stripping out debugging information from binaries that ship to end users. This is not good for debuggable builds, but means good binary size savings for end user binaries. The easiest way is to use the famous `strip` utility to remove this debugging information.
 
     $ strip target/release/my_application
 
@@ -65,7 +65,7 @@ UPX, **Ultimate Packer for eXecutables**, is a dinosaur amongst the binary packe
 Basically it compresses the binary and decompresses it at runtime. It should work for pretty much any binary type out there. Read more: https://github.com/upx/upx
 
 <Alert type="warning" title="Warning" icon="alert">
-You should know that this technique might flag your binary as a virus on Windows and macOS - so use at your own discretion, and as always validate with Frida and do real distribution testing!
+You should know that this technique might flag your binary as a virus on Windows and macOS - so use at your own discretion, and as always validate with [Frida](https://frida.re/docs/home/) and do real distribution testing!
 </Alert>
 
 #### Usage on macOS

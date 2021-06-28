@@ -57,6 +57,17 @@ Binary size can easily be reduced by stripping out debugging information from bi
 
 See your local `strip` manpage for more information and flags that can be used to specify what information gets stripped out from the binary.
 
+### Allowlist config
+
+You can also reduce the size with the `allowlist` config, and only enabling what you need.  Sometimes this is useful with Tauri's [Bridge-Pattern](/docs/usage/patterns/bridge) or others, depending on needs.
+For example in `tauri.conf.json` file:
+
+    "allowlist": {
+      "all": false,
+      "event": true,
+      "open": true,
+      "openDialog": true
+    }
 
 ### UPX
 

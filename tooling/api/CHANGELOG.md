@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-beta.4]
+
+- Add asset custom protocol to access local file system.
+  - [ee60e424](https://www.github.com/tauri-apps/tauri/commit/ee60e424221559d3d725716b0003c5566ef2b5cd) feat: asset custom protocol to access local file system ([#2104](https://www.github.com/tauri-apps/tauri/pull/2104)) on 2021-06-28
+
 ## \[1.0.0-beta.3]
 
 - Export `Response` and `ResponseType` as value instead of type.

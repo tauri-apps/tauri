@@ -1,5 +1,14 @@
 # Changelog
 
+## \[1.0.0-beta.2]
+
+- Detect ESM scripts and inject the invoke key directly instead of using an IIFE.
+  - Bumped due to a bump in tauri-codegen.
+  - [7765c7fa](https://www.github.com/tauri-apps/tauri/commit/7765c7fa281853ddfb26b6b17534df95eaede804) fix(core): invoke key injection on ES module, improve performance ([#2094](https://www.github.com/tauri-apps/tauri/pull/2094)) on 2021-06-27
+- Improve invoke key code injection performance time rewriting code at compile time.
+  - Bumped due to a bump in tauri-codegen.
+  - [7765c7fa](https://www.github.com/tauri-apps/tauri/commit/7765c7fa281853ddfb26b6b17534df95eaede804) fix(core): invoke key injection on ES module, improve performance ([#2094](https://www.github.com/tauri-apps/tauri/pull/2094)) on 2021-06-27
+
 ## \[1.0.0-beta.1]
 
 - Pull Windows resource information (`FileVersion`, `ProductVersion`, `ProductName` and `FileDescription`) from `tauri.conf.json > package` configuration.

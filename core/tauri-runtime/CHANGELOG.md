@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.1.3]
+
+- `Window` is now `Send + Sync` on Windows.
+  - [fe32afcc](https://www.github.com/tauri-apps/tauri/commit/fe32afcc933920d6282ae1d63b041b182278a031) fix(core): `Window` must be `Send + Sync` on Windows, closes [#2078](https://www.github.com/tauri-apps/tauri/pull/2078) ([#2093](https://www.github.com/tauri-apps/tauri/pull/2093)) on 2021-06-27
+
 ## \[0.1.2]
 
 - Adds `clipboard` APIs (write and read text).

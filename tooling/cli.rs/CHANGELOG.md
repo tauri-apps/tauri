@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.0.0-beta.3]
+
+- Properly detect target platform's architecture.
+  - [628a53eb](https://www.github.com/tauri-apps/tauri/commit/628a53eb6176f811d22d7730f08a99e5c370dbf4) fix(cli): properly detect target architecture, closes [#2040](https://www.github.com/tauri-apps/tauri/pull/2040) ([#2102](https://www.github.com/tauri-apps/tauri/pull/2102)) on 2021-06-28
+- Fixes `build` command when the `target` arg is set.
+  - [8e238701](https://www.github.com/tauri-apps/tauri/commit/8e2387018940e9e1421948d74a82156661ce2e4b) fix(cli.rs): fix out dir detection when target arg is set, closes [#2040](https://www.github.com/tauri-apps/tauri/pull/2040) ([#2098](https://www.github.com/tauri-apps/tauri/pull/2098)) on 2021-06-27
+
 ## \[1.0.0-beta.2]
 
 - Support `cargo tauri build` on Apple M1 chip.

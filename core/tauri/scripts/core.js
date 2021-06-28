@@ -191,14 +191,29 @@ if (!String.prototype.startsWith) {
 
   // drag region
   document.addEventListener('mousedown', (e) => {
-    // start dragging if the element has a `tauri-drag-region` data attribute
-    if (e.target.hasAttribute('data-tauri-drag-region') && e.buttons === 1) {
-      window.__TAURI__._invoke('tauri', {
-        __tauriModule: "Window",
-        message: {
-          cmd: "startDragging",
-        }
-      }, _KEY_VALUE_)
+    if (e.target.hasAttribute("data-tauri-drag-region") && e.buttons === 1) {
+      // start dragging if the element has a `tauri-drag-region` data attribute and maximize on double-clicking it
+      e.detail === 2
+      ? window.__TAURI__._invoke(
+        "tauri",
+        {
+          __tauriModule: "Window",
+          message: {
+            cmd: "toggleMaximize",
+          },
+        },
+        _KEY_VALUE_
+          )
+        : window.__TAURI__._invoke(
+            "tauri",
+            {
+              __tauriModule: "Window",
+              message: {
+                cmd: "startDragging",
+              },
+            },
+            _KEY_VALUE_
+          );
     }
   })
 

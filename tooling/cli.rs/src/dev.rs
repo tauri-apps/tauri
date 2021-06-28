@@ -102,7 +102,7 @@ impl Dev {
       let config_ = config_guard.as_ref().unwrap();
       let app_settings = crate::interface::rust::AppSettings::new(config_)?;
       let out_dir = app_settings
-        .get_out_dir(true)
+        .get_out_dir(self.target.clone(), true)
         .with_context(|| "failed to get project out directory")?;
       let settings = crate::interface::get_bundler_settings(
         app_settings,

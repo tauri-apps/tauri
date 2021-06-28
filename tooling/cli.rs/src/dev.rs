@@ -106,6 +106,7 @@ impl Dev {
         .with_context(|| "failed to get project out directory")?;
       let settings = crate::interface::get_bundler_settings(
         app_settings,
+        self.target.clone(),
         &Default::default(),
         config_,
         &out_dir,

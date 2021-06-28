@@ -145,7 +145,24 @@ impl Build {
       // move merge modules to the out dir so the bundler can load it
       #[cfg(windows)]
       {
-        let (filename, vcruntime_msm) = if cfg!(target_arch = "x86") {
+        let arch = if let Some(t) = &self.target {
+          if t.starts_with("x86_64") {
+            "x86_64"
+          } else if t.starts_with('i') {
+            "x86"
+          } else if t.starts_with("arm") {
+            "arm"
+          } else if t.starts_with("aarch64") {
+            "aarch64"
+          } else {
+            panic!("Unexpected target triple {}", t)
+          }
+        } else if cfg!(target_arch = "x86") {
+          "x86"
+        } else {
+          "x86_64"
+        };
+        let (filename, vcruntime_msm) = if arch == "x86" {
           let _ = std::fs::remove_file(out_dir.join("Microsoft_VC142_CRT_x64.msm"));
           (
             "Microsoft_VC142_CRT_x86.msm",
@@ -207,6 +224,7 @@ impl Build {
 
       let settings = crate::interface::get_bundler_settings(
         app_settings,
+        self.target.clone(),
         &manifest,
         config_,
         &out_dir,

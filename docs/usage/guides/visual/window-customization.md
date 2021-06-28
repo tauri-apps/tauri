@@ -51,7 +51,7 @@ You'll need to add some CSS for the titlebar to keep it at the top of the screen
 Now, you'll need to add the HTML for the titlebar. Put this at the top of your `<body>` tag:
 
 ```html
-<div class="drag-region titlebar">
+<div data-tauri-drag-region class="titlebar">
   <div class="titlebar-button" id="titlebar-minimize">
     <img
       src="https://api.iconify.design/mdi:window-minimize.svg"

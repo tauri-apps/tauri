@@ -1,5 +1,18 @@
 # Changelog
 
+## \[1.0.0-beta.3]
+
+- Fixes `api::process::Command` events not firing consistently.
+  - [8c13344f](https://www.github.com/tauri-apps/tauri/commit/8c13344f8f97bc67b8fcde68ce14da438f7c66ba) fix(core): command events not firing consistently ([#2082](https://www.github.com/tauri-apps/tauri/pull/2082)) on 2021-06-27
+- Detect ESM scripts and inject the invoke key directly instead of using an IIFE.
+  - [7765c7fa](https://www.github.com/tauri-apps/tauri/commit/7765c7fa281853ddfb26b6b17534df95eaede804) fix(core): invoke key injection on ES module, improve performance ([#2094](https://www.github.com/tauri-apps/tauri/pull/2094)) on 2021-06-27
+- Improve invoke key code injection performance time rewriting code at compile time.
+  - [7765c7fa](https://www.github.com/tauri-apps/tauri/commit/7765c7fa281853ddfb26b6b17534df95eaede804) fix(core): invoke key injection on ES module, improve performance ([#2094](https://www.github.com/tauri-apps/tauri/pull/2094)) on 2021-06-27
+- Enfore uniqueness of window label.
+  - [d18b5367](https://www.github.com/tauri-apps/tauri/commit/d18b5367a91fd53d408510b456897630c70abcca) feat(core): enfore label uniqueness, closes [#2067](https://www.github.com/tauri-apps/tauri/pull/2067) ([#2097](https://www.github.com/tauri-apps/tauri/pull/2097)) on 2021-06-27
+- `Window` is now `Send + Sync` on Windows.
+  - [fe32afcc](https://www.github.com/tauri-apps/tauri/commit/fe32afcc933920d6282ae1d63b041b182278a031) fix(core): `Window` must be `Send + Sync` on Windows, closes [#2078](https://www.github.com/tauri-apps/tauri/pull/2078) ([#2093](https://www.github.com/tauri-apps/tauri/pull/2093)) on 2021-06-27
+
 ## \[1.0.0-beta.2]
 
 - Remove anonymous lifetimes on examples.

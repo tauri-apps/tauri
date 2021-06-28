@@ -658,6 +658,11 @@ impl<P: Params> WindowManager<P> {
     mut pending: PendingWindow<P>,
     pending_labels: &[P::Label],
   ) -> crate::Result<PendingWindow<P>> {
+    if self.windows_lock().contains_key(&pending.label) {
+      return Err(crate::Error::WindowLabelAlreadyExists(
+        pending.label.to_string(),
+      ));
+    }
     let (is_local, url) = match &pending.webview_attributes.url {
       WindowUrl::App(path) => {
         let url = self.get_url();

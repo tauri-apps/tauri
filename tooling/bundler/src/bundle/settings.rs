@@ -442,7 +442,7 @@ impl Settings {
   pub fn binary_arch(&self) -> &str {
     if self.target.starts_with("x86_64") {
       "x86_64"
-    } else if self.target.starts_with("i") {
+    } else if self.target.starts_with('i') {
       "x86"
     } else if self.target.starts_with("arm") {
       "arm"

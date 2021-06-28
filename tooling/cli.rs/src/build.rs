@@ -148,7 +148,7 @@ impl Build {
         let arch = if let Some(t) = &self.target {
           if t.starts_with("x86_64") {
             "x86_64"
-          } else if t.starts_with("i") {
+          } else if t.starts_with('i') {
             "x86"
           } else if t.starts_with("arm") {
             "arm"
@@ -157,12 +157,10 @@ impl Build {
           } else {
             panic!("Unexpected target triple {}", t)
           }
+        } else if cfg!(target_arch = "x86") {
+          "x86"
         } else {
-          if cfg!(target_arch = "x86") {
-            "x86"
-          } else {
-            "x86_64"
-          }
+          "x86_64"
         };
         let (filename, vcruntime_msm) = if arch == "x86" {
           let _ = std::fs::remove_file(out_dir.join("Microsoft_VC142_CRT_x64.msm"));

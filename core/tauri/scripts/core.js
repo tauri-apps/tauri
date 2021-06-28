@@ -199,7 +199,7 @@ if (!String.prototype.startsWith) {
         {
           __tauriModule: "Window",
           message: {
-            cmd: "maximize",
+            cmd: "toggleMaximize",
           },
         },
         _KEY_VALUE_

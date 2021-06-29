@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-beta.4]
+
+- Improve error message when the product name is invalid.
+  - [1a41e9f0](https://www.github.com/tauri-apps/tauri/commit/1a41e9f040cfa18b6cc1380dfe21251d56e3f973) feat(cli.rs): improve error message on app rename, closes [#2101](https://www.github.com/tauri-apps/tauri/pull/2101) ([#2114](https://www.github.com/tauri-apps/tauri/pull/2114)) on 2021-06-28
+
 ## \[1.0.0-beta.3]
 
 - Properly detect target platform's architecture.

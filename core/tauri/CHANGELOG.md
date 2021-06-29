@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.0.0-beta.4]
+
+- Double clicking a `data-tauri-drag-region` element will toggle the window maximized state.
+  - [8b7ac1ad](https://www.github.com/tauri-apps/tauri/commit/8b7ac1ad1432db1fb1b85b3f72d336b303414554) feat: double-click tauri-drag-region to maximize, closes [#1839](https://www.github.com/tauri-apps/tauri/pull/1839) ([#2106](https://www.github.com/tauri-apps/tauri/pull/2106)) on 2021-06-29
+- Fixes `asset` protocol crashing application.
+  - [99d96084](https://www.github.com/tauri-apps/tauri/commit/99d960841c4411c3805219d07640185b1d04c37a) fix(core): custom protocol regression ([#2115](https://www.github.com/tauri-apps/tauri/pull/2115)) on 2021-06-28
+
 ## \[1.0.0-beta.3]
 
 - Fixes `api::process::Command` events not firing consistently.

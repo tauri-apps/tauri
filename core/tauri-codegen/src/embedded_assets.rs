@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use kuchiki::traits::*;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use std::{
@@ -10,7 +11,10 @@ use std::{
   fs::File,
   path::{Path, PathBuf},
 };
-use tauri_utils::{assets::AssetKey, html::inject_csp};
+use tauri_utils::{
+  assets::AssetKey,
+  html::{inject_csp, inject_invoke_key_token},
+};
 use thiserror::Error;
 use walkdir::WalkDir;
 
@@ -170,44 +174,46 @@ impl EmbeddedAssets {
       path: path.to_owned(),
       error,
     })?;
-    if let Some(csp) = &options.csp {
-      if path.extension() == Some(OsStr::new("html")) {
-        input = inject_csp(String::from_utf8_lossy(&input).into_owned(), csp)
-          .as_bytes()
-          .to_vec();
+    if path.extension() == Some(OsStr::new("html")) {
+      let mut document = kuchiki::parse_html().one(String::from_utf8_lossy(&input).into_owned());
+      if let Some(csp) = &options.csp {
+        inject_csp(&mut document, csp);
       }
-    }
-    let is_javascript = ["js", "cjs", "mjs"]
-      .iter()
-      .any(|e| path.extension() == Some(OsStr::new(e)));
-    if is_javascript {
-      let js = String::from_utf8_lossy(&input).into_owned();
-      input = if [
-        "import{", "import*", "import ", "export{", "export*", "export ",
-      ]
-      .iter()
-      .any(|t| js.contains(t))
-      {
-        format!(
-          r#"
-            const __TAURI_INVOKE_KEY__ = __TAURI__INVOKE_KEY_TOKEN__;
-            {}
-          "#,
-          js
-        )
-        .as_bytes()
-        .to_vec()
-      } else {
-        format!(
-          r#"(function () {{
-            const __TAURI_INVOKE_KEY__ = __TAURI__INVOKE_KEY_TOKEN__;
-            {}
-          }})()"#,
-          js
-        )
-        .as_bytes()
-        .to_vec()
-      };
+      inject_invoke_key_token(&mut document);
+      input = document.to_string().as_bytes().to_vec();
+    } else {
+      let is_javascript = ["js", "cjs", "mjs"]
+        .iter()
+        .any(|e| path.extension() == Some(OsStr::new(e)));
+      if is_javascript {
+        let js = String::from_utf8_lossy(&input).into_owned();
+        input = if [
+          "import{", "import*", "import ", "export{", "export*", "export ",
+        ]
+        .iter()
+        .any(|t| js.contains(t))
+        {
+          format!(
+            r#"
+              const __TAURI_INVOKE_KEY__ = __TAURI__INVOKE_KEY_TOKEN__;
+              {}
+            "#,
+            js
+          )
+          .as_bytes()
+          .to_vec()
+        } else {
+          format!(
+            r#"(function () {{
+              const __TAURI_INVOKE_KEY__ = __TAURI__INVOKE_KEY_TOKEN__;
+              {}
+            }})()"#,
+            js
+          )
+          .as_bytes()
+          .to_vec()
+        };
+      }
     }
 
     // we must canonicalize the base of our paths to allow long paths on windows

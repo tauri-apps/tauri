@@ -2,17 +2,55 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use html5ever::{
-  interface::QualName,
-  namespace_url, ns,
-  tendril::{fmt::UTF8, NonAtomic, Tendril},
-  LocalName,
-};
-use kuchiki::{traits::*, Attribute, ExpandedName, NodeRef};
+use html5ever::{interface::QualName, namespace_url, ns, LocalName};
+use kuchiki::{Attribute, ExpandedName, NodeRef};
+
+/// Injects the invoke key token to each script on the document.
+///
+/// The invoke key token is replaced at runtime with the actual invoke key value.
+pub fn inject_invoke_key_token(document: &mut NodeRef) {
+  let mut targets = vec![];
+  if let Ok(scripts) = document.select("script") {
+    for target in scripts {
+      targets.push(target);
+    }
+    for target in targets {
+      let node = target.as_node();
+      let element = node.as_element().unwrap();
+
+      let attrs = element.attributes.borrow();
+      // if the script is external (has `src`) or its type is not "module", we won't inject the token
+      if attrs.get("src").is_some() || attrs.get("type") != Some("module") {
+        continue;
+      }
+
+      let replacement_node = NodeRef::new_element(
+        QualName::new(None, ns!(html), "script".into()),
+        element
+          .attributes
+          .borrow()
+          .clone()
+          .map
+          .into_iter()
+          .collect::<Vec<_>>(),
+      );
+      let script = node.text_contents();
+      replacement_node.append(NodeRef::new_text(format!(
+        r#"
+          const __TAURI_INVOKE_KEY__ = __TAURI__INVOKE_KEY_TOKEN__;
+          {}
+        "#,
+        script
+      )));
+
+      node.insert_after(replacement_node);
+      node.detach();
+    }
+  }
+}
 
 /// Injects a content security policy to the HTML.
-pub fn inject_csp<H: Into<Tendril<UTF8, NonAtomic>>>(html: H, csp: &str) -> String {
-  let document = kuchiki::parse_html().one(html);
+pub fn inject_csp(document: &mut NodeRef, csp: &str) {
   if let Ok(ref head) = document.select_first("head") {
     head.as_node().append(create_csp_meta_tag(csp));
   } else {
@@ -23,7 +61,6 @@ pub fn inject_csp<H: Into<Tendril<UTF8, NonAtomic>>>(html: H, csp: &str) -> Stri
     head.append(create_csp_meta_tag(csp));
     document.prepend(head);
   }
-  document.to_string()
 }
 
 fn create_csp_meta_tag(csp: &str) -> NodeRef {
@@ -50,6 +87,7 @@ fn create_csp_meta_tag(csp: &str) -> NodeRef {
 
 #[cfg(test)]
 mod tests {
+  use kuchiki::traits::*;
   #[test]
   fn csp() {
     let htmls = vec![
@@ -57,10 +95,11 @@ mod tests {
       "<html></html>".to_string(),
     ];
     for html in htmls {
+      let mut document = kuchiki::parse_html().one(html);
       let csp = "default-src 'self'; img-src https://*; child-src 'none';";
-      let new = super::inject_csp(html, csp);
+      super::inject_csp(&mut document, csp);
       assert_eq!(
-        new,
+        document.to_string(),
         format!(
           r#"<html><head><meta content="{}" http-equiv="Content-Security-Policy"></head><body></body></html>"#,
           csp

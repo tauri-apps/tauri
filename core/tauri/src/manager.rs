@@ -459,6 +459,7 @@ impl<P: Params> WindowManager<P> {
         };
         let is_javascript =
           path.ends_with(".js") || path.ends_with(".cjs") || path.ends_with(".mjs");
+        let is_html = path.ends_with(".html");
 
         let asset_response = assets
           .get(&path)
@@ -471,16 +472,17 @@ impl<P: Params> WindowManager<P> {
           .map(Cow::into_owned);
         match asset_response {
           Ok(asset) => {
-            if is_javascript {
-              let js = String::from_utf8_lossy(&asset).into_owned();
+            if is_javascript || is_html {
+              let contents = String::from_utf8_lossy(&asset).into_owned();
               Ok(
-                js.replacen(
-                  "__TAURI__INVOKE_KEY_TOKEN__",
-                  &manager.generate_invoke_key().to_string(),
-                  1,
-                )
-                .as_bytes()
-                .to_vec(),
+                contents
+                  .replacen(
+                    "__TAURI__INVOKE_KEY_TOKEN__",
+                    &manager.generate_invoke_key().to_string(),
+                    1,
+                  )
+                  .as_bytes()
+                  .to_vec(),
               )
             } else {
               Ok(asset)

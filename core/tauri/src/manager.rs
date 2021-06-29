@@ -343,15 +343,6 @@ impl<P: Params> WindowManager<P> {
         current_window_label = label.to_js_string()?,
       ));
 
-    webview_attributes.uri_scheme_protocols.insert(
-      "asset".into(),
-      Box::new(move |url| {
-        let path = url.replace("asset://", "");
-        let data = crate::async_runtime::block_on(async move { tokio::fs::read(path).await })?;
-        Ok(data)
-      }),
-    );
-
     #[cfg(dev)]
     {
       webview_attributes = webview_attributes.initialization_script(&format!(
@@ -385,6 +376,13 @@ impl<P: Params> WindowManager<P> {
     if !webview_attributes.has_uri_scheme_protocol("tauri") {
       webview_attributes = webview_attributes
         .register_uri_scheme_protocol("tauri", self.prepare_uri_scheme_protocol().protocol);
+    }
+    if !webview_attributes.has_uri_scheme_protocol("asset") {
+      webview_attributes = webview_attributes.register_uri_scheme_protocol("asset", move |url| {
+        let path = url.replace("asset://", "");
+        let data = crate::async_runtime::block_on(async move { tokio::fs::read(path).await })?;
+        Ok(data)
+      });
     }
 
     let local_app_data = resolve_path(

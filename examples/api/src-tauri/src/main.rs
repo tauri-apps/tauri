@@ -100,7 +100,8 @@ fn main() {
     .run(|app_handle, e| {
       if let Event::CloseRequested { label, api, .. } = e {
         api.prevent_close();
-        app_handle.get_window(&label).unwrap().close().unwrap();
+        let window = app_handle.get_window(&label).unwrap();
+        window.emit("close-requested", ()).unwrap();
       }
     })
 }

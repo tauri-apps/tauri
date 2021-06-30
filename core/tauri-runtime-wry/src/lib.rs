@@ -1531,20 +1531,22 @@ fn handle_event_loop(
       match event {
         WryWindowEvent::CloseRequested => {
           let (tx, rx) = channel();
-          callback(RunEvent::CloseRequested {
-            label: webviews.get(&window_id).unwrap().label.clone(),
-            signal_tx: tx,
-          });
-          if let Ok(true) = rx.try_recv() {
-          } else {
-            on_window_close(
-              callback,
-              window_id,
-              &mut webviews,
-              control_flow,
-              #[cfg(feature = "menu")]
-              menu_event_listeners.clone(),
-            );
+          if let Some(w) = webviews.get(&window_id) {
+            callback(RunEvent::CloseRequested {
+              label: w.label.clone(),
+              signal_tx: tx,
+            });
+            if let Ok(true) = rx.try_recv() {
+            } else {
+              on_window_close(
+                callback,
+                window_id,
+                &mut webviews,
+                control_flow,
+                #[cfg(feature = "menu")]
+                menu_event_listeners.clone(),
+              );
+            }
           }
         }
         WryWindowEvent::Resized(_) => {

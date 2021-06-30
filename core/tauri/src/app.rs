@@ -320,17 +320,20 @@ impl<P: Params> App<P> {
       }
       _ => {
         on_event_loop_event(&event, &manager);
-        callback(&app_handle, match event {
-          RunEvent::Exit => Event::Exit,
-          RunEvent::CloseRequested { label, signal_tx } => Event::CloseRequested {
-            label: label.parse().unwrap_or_else(|_| unreachable!()),
-            api: CloseRequestApi(signal_tx),
+        callback(
+          &app_handle,
+          match event {
+            RunEvent::Exit => Event::Exit,
+            RunEvent::CloseRequested { label, signal_tx } => Event::CloseRequested {
+              label: label.parse().unwrap_or_else(|_| unreachable!()),
+              api: CloseRequestApi(signal_tx),
+            },
+            RunEvent::WindowClose(label) => {
+              Event::WindowClosed(label.parse().unwrap_or_else(|_| unreachable!()))
+            }
+            _ => unimplemented!(),
           },
-          RunEvent::WindowClose(label) => {
-            Event::WindowClosed(label.parse().unwrap_or_else(|_| unreachable!()))
-          }
-          _ => unimplemented!(),
-        });
+        );
       }
     });
   }

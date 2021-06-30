@@ -74,7 +74,6 @@ Note that you may need to move the rest of your content down so that the titleba
 
 Finally, you'll need to make the buttons work:
 
-TODO: TOGGLE MAXIMIZE
 
 ```js
 import { appWindow } from '@tauri-apps/api/window'

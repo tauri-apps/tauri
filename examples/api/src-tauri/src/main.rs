@@ -97,9 +97,10 @@ fn main() {
     ])
     .build(tauri::generate_context!())
     .expect("error while building tauri application")
-    .run(|e| {
-      if let Event::CloseRequested { label: _, api, .. } = e {
+    .run(|app_handle, e| {
+      if let Event::CloseRequested { label, api, .. } = e {
         api.prevent_close();
+        app_handle.get_window(&label).unwrap().close().unwrap();
       }
     })
 }

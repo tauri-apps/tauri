@@ -303,8 +303,7 @@ impl<P: Params> App<P> {
   }
 
   /// Runs the application.
-  pub fn run<F: Fn(Event<P>) + 'static>(mut self, callback: F) {
-    #[cfg(all(windows, feature = "system-tray"))]
+  pub fn run<F: Fn(&AppHandle<P>, Event<P>) + 'static>(mut self, callback: F) {
     let app_handle = self.handle();
     let manager = self.manager.clone();
     self.runtime.take().unwrap().run(move |event| match event {
@@ -317,11 +316,11 @@ impl<P: Params> App<P> {
         {
           let _ = app_handle.remove_system_tray();
         }
-        callback(Event::Exit);
+        callback(&app_handle, Event::Exit);
       }
       _ => {
         on_event_loop_event(&event, &manager);
-        callback(match event {
+        callback(&app_handle, match event {
           RunEvent::Exit => Event::Exit,
           RunEvent::CloseRequested { label, signal_tx } => Event::CloseRequested {
             label: label.parse().unwrap_or_else(|_| unreachable!()),
@@ -920,7 +919,7 @@ where
 
   /// Runs the configured Tauri application.
   pub fn run(self, context: Context<A>) -> crate::Result<()> {
-    self.build(context)?.run(|_| {});
+    self.build(context)?.run(|_, _| {});
     Ok(())
   }
 }

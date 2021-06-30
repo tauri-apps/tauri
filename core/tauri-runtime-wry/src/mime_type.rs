@@ -63,16 +63,18 @@ impl MimeType {
 
   /// infer mimetype from content (or) URI if needed.
   pub fn parse(content: &[u8], uri: &str) -> String {
-    let mime = match infer::get(content) {
-      Some(info) => info.mime_type(),
-      None => MIMETYPE_PLAIN,
+    let mime = if uri.ends_with(".svg") {
+      // when reading svg, we can't use `infer`
+      None
+    } else {
+      infer::get(content).map(|info| info.mime_type())
     };
 
-    if mime == MIMETYPE_PLAIN {
-      return Self::parse_from_uri(uri).to_string();
+    match mime {
+      Some(mime) if mime == MIMETYPE_PLAIN => Self::parse_from_uri(uri).to_string(),
+      None => Self::parse_from_uri(uri).to_string(),
+      Some(mime) => mime.to_string(),
     }
-
-    mime.to_string()
   }
 }
 

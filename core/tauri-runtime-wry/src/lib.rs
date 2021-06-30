@@ -1530,14 +1530,22 @@ fn handle_event_loop(
       }
       match event {
         WryWindowEvent::CloseRequested => {
-          on_window_close(
-            callback,
-            window_id,
-            &mut webviews,
-            control_flow,
-            #[cfg(feature = "menu")]
-            menu_event_listeners.clone(),
-          );
+          let (tx, rx) = channel();
+          callback(RunEvent::CloseRequested {
+            label: webviews.get(&window_id).unwrap().label.clone(),
+            signal_tx: tx,
+          });
+          if let Ok(true) = rx.try_recv() {
+          } else {
+            on_window_close(
+              callback,
+              window_id,
+              &mut webviews,
+              control_flow,
+              #[cfg(feature = "menu")]
+              menu_event_listeners.clone(),
+            );
+          }
         }
         WryWindowEvent::Resized(_) => {
           if let Err(e) = webviews[&window_id].inner.resize() {

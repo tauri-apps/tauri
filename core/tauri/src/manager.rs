@@ -753,7 +753,7 @@ impl<P: Params> WindowManager<P> {
     window
   }
 
-  pub(crate) fn on_window_close(&self, label: String) {
+  pub(crate) fn on_window_close(&self, label: &str) {
     self
       .windows_lock()
       .remove(&label.parse().unwrap_or_else(|_| panic!("bad label")));

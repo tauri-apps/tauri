@@ -25,7 +25,11 @@ use crate::{
 
 use tauri_utils::PackageInfo;
 
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{
+  collections::HashMap,
+  path::PathBuf,
+  sync::{mpsc::Sender, Arc},
+};
 
 #[cfg(feature = "menu")]
 use crate::runtime::menu::Menu;
@@ -44,6 +48,33 @@ pub(crate) type GlobalWindowEventListener<P> = Box<dyn Fn(GlobalWindowEvent<P>) 
 #[cfg(feature = "system-tray")]
 type SystemTrayEventListener<P> =
   Box<dyn Fn(&AppHandle<P>, tray::SystemTrayEvent<<P as Params>::SystemTrayMenuId>) + Send + Sync>;
+
+/// Api exposed on the `CloseRequested` event.
+pub struct CloseRequestApi(Sender<bool>);
+
+impl CloseRequestApi {
+  /// Prevents the window from being closed.
+  pub fn prevent_close(&self) {
+    self.0.send(true).unwrap();
+  }
+}
+
+/// An application event, triggered from the event loop.
+#[non_exhaustive]
+pub enum Event<P: Params> {
+  /// Event loop is exiting.
+  Exit,
+  /// Window close was requested by the user.
+  #[non_exhaustive]
+  CloseRequested {
+    /// The window label.
+    label: P::Label,
+    /// Event API.
+    api: CloseRequestApi,
+  },
+  /// Window closed.
+  WindowClosed(P::Label),
+}
 
 crate::manager::default_args! {
   /// A menu event that was triggered on a window.
@@ -271,6 +302,40 @@ impl<P: Params> App<P> {
     self.handle.clone()
   }
 
+  /// Runs the application.
+  pub fn run<F: Fn(Event<P>) + 'static>(mut self, callback: F) {
+    #[cfg(all(windows, feature = "system-tray"))]
+    let app_handle = self.handle();
+    let manager = self.manager.clone();
+    self.runtime.take().unwrap().run(move |event| match event {
+      RunEvent::Exit => {
+        #[cfg(shell_execute)]
+        {
+          crate::api::process::kill_children();
+        }
+        #[cfg(all(windows, feature = "system-tray"))]
+        {
+          let _ = app_handle.remove_system_tray();
+        }
+        callback(Event::Exit);
+      }
+      _ => {
+        on_event_loop_event(&event, &manager);
+        callback(match event {
+          RunEvent::Exit => Event::Exit,
+          RunEvent::CloseRequested { label, signal_tx } => Event::CloseRequested {
+            label: label.parse().unwrap_or_else(|_| unreachable!()),
+            api: CloseRequestApi(signal_tx),
+          },
+          RunEvent::WindowClose(label) => {
+            Event::WindowClosed(label.parse().unwrap_or_else(|_| unreachable!()))
+          }
+          _ => unimplemented!(),
+        });
+      }
+    });
+  }
+
   /// Runs a iteration of the runtime event loop and immediately return.
   ///
   /// Note that when using this API, app cleanup is not automatically done.
@@ -297,7 +362,7 @@ impl<P: Params> App<P> {
       .runtime
       .as_mut()
       .unwrap()
-      .run_iteration(move |event| on_event_loop_event(event, &manager))
+      .run_iteration(move |event| on_event_loop_event(&event, &manager))
   }
 }
 
@@ -855,28 +920,12 @@ where
 
   /// Runs the configured Tauri application.
   pub fn run(self, context: Context<A>) -> crate::Result<()> {
-    let mut app = self.build(context)?;
-    #[cfg(all(windows, feature = "system-tray"))]
-    let app_handle = app.handle();
-    let manager = app.manager.clone();
-    app.runtime.take().unwrap().run(move |event| match event {
-      RunEvent::Exit => {
-        #[cfg(shell_execute)]
-        {
-          crate::api::process::kill_children();
-        }
-        #[cfg(all(windows, feature = "system-tray"))]
-        {
-          let _ = app_handle.remove_system_tray();
-        }
-      }
-      _ => on_event_loop_event(event, &manager),
-    });
+    self.build(context)?.run(|_| {});
     Ok(())
   }
 }
 
-fn on_event_loop_event<P: Params>(event: RunEvent, manager: &WindowManager<P>) {
+fn on_event_loop_event<P: Params>(event: &RunEvent, manager: &WindowManager<P>) {
   if let RunEvent::WindowClose(label) = event {
     manager.on_window_close(label);
   }

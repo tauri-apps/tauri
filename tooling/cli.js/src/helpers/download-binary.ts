@@ -43,9 +43,8 @@ async function downloadBinaryRelease(
     try {
       // eslint-disable-next-line security/detect-non-literal-fs-filename
       fs.unlinkSync(outPath)
-    } finally {
-      throw e
-    }
+    } catch {}
+    throw e
   })
   // eslint-disable-next-line security/detect-object-injection
   downloads[url] = true

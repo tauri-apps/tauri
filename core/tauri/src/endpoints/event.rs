@@ -48,7 +48,7 @@ impl Cmd {
 
         let window_label: Option<P::Label> = window_label.map(|l| {
           l.parse()
-            .unwrap_or_else(|_| panic!("Event module recieved unhandled window: {}", l))
+            .unwrap_or_else(|_| panic!("Event module received unhandled window: {}", l))
         });
 
         // dispatch the event to Rust listeners

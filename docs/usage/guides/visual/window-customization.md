@@ -82,7 +82,7 @@ document
   .addEventListener('click', () => appWindow.minimize())
 document
   .getElementById('titlebar-maximize')
-  .addEventListener('click', () => appWindow.isMaximized() ? appWindow.unmaximmize() : appWindow.maximize())
+  .addEventListener('click', async () => await appWindow.isMaximized() ? appWindow.unmaximmize() : appWindow.maximize())
 document
   .getElementById('titlebar-close')
   .addEventListener('click', () => appWindow.close())

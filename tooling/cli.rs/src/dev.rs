@@ -32,6 +32,7 @@ fn kill_before_dev_process() {
     let mut child = child.lock().unwrap();
     #[cfg(windows)]
     let _ = Command::new("powershell")
+      .arg("-NoProfile")
       .arg("-Command")
       .arg(format!("function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid }}; Kill-Tree {}", child.id()))
       .status();

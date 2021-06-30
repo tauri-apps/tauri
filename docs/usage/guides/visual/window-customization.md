@@ -10,7 +10,7 @@ There are three ways to change the window configuration:
 
 - [Through tauri.conf.json](https://tauri.studio/en/docs/api/config/#tauri.windows)
 - [Through the JS API](https://tauri.studio/en/docs/api/js/classes/window.windowmanager)
-- [Through the Window in Rust](https://tauri.studio/en/docs/api/js/classes/window.windowmanager)
+- [Through the Window in Rust](https://tauri.studio/en/docs/api/rust/tauri/window/struct.window)
 
 ## Creating a Custom Titlebar
 

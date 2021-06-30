@@ -1373,14 +1373,14 @@ impl Runtime for Wry {
           EventLoopIterationContext {
             callback: &callback,
             webviews: webviews.lock().expect("poisoned webview collection"),
-            window_event_listeners: window_event_listeners.clone(),
+            window_event_listeners: &window_event_listeners,
             global_shortcut_manager: global_shortcut_manager.clone(),
-            global_shortcut_manager_handle: global_shortcut_manager_handle.clone(),
+            global_shortcut_manager_handle: &global_shortcut_manager_handle,
             clipboard_manager: clipboard_manager.clone(),
             #[cfg(feature = "menu")]
-            menu_event_listeners: menu_event_listeners.clone(),
+            menu_event_listeners: &menu_event_listeners,
             #[cfg(feature = "system-tray")]
-            tray_context: tray_context.clone(),
+            tray_context: &tray_context,
           },
         );
       });
@@ -1409,14 +1409,14 @@ impl Runtime for Wry {
         EventLoopIterationContext {
           callback: &callback,
           webviews: webviews.lock().expect("poisoned webview collection"),
-          window_event_listeners: window_event_listeners.clone(),
+          window_event_listeners: &window_event_listeners,
           global_shortcut_manager: global_shortcut_manager.clone(),
-          global_shortcut_manager_handle: global_shortcut_manager_handle.clone(),
+          global_shortcut_manager_handle: &global_shortcut_manager_handle,
           clipboard_manager: clipboard_manager.clone(),
           #[cfg(feature = "menu")]
-          menu_event_listeners: menu_event_listeners.clone(),
+          menu_event_listeners: &menu_event_listeners,
           #[cfg(feature = "system-tray")]
-          tray_context: tray_context.clone(),
+          tray_context: &tray_context,
         },
       );
     })
@@ -1426,14 +1426,14 @@ impl Runtime for Wry {
 struct EventLoopIterationContext<'a> {
   callback: &'a (dyn Fn(RunEvent) + 'static),
   webviews: MutexGuard<'a, HashMap<WindowId, WebviewWrapper>>,
-  window_event_listeners: WindowEventListeners,
+  window_event_listeners: &'a WindowEventListeners,
   global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
-  global_shortcut_manager_handle: GlobalShortcutManagerHandle,
+  global_shortcut_manager_handle: &'a GlobalShortcutManagerHandle,
   clipboard_manager: Arc<Mutex<Clipboard>>,
   #[cfg(feature = "menu")]
-  menu_event_listeners: MenuEventListeners,
+  menu_event_listeners: &'a MenuEventListeners,
   #[cfg(feature = "system-tray")]
-  tray_context: TrayContext,
+  tray_context: &'a TrayContext,
 }
 
 fn handle_event_loop(

@@ -131,7 +131,7 @@ unsafe impl Send for GlobalShortcutWrapper {}
 #[derive(Clone)]
 pub struct GlobalShortcutManagerHandle {
   context: EventLoopContext,
-  shortcuts: HashMap<String, (AcceleratorId, GlobalShortcutWrapper)>,
+  shortcuts: Arc<Mutex<HashMap<String, (AcceleratorId, GlobalShortcutWrapper)>>>,
   listeners: GlobalShortcutListeners,
 }
 
@@ -159,7 +159,11 @@ impl GlobalShortcutManager for GlobalShortcutManagerHandle {
     )?;
 
     self.listeners.lock().unwrap().insert(id, Box::new(handler));
-    self.shortcuts.insert(accelerator.into(), (id, shortcut));
+    self
+      .shortcuts
+      .lock()
+      .unwrap()
+      .insert(accelerator.into(), (id, shortcut));
 
     Ok(())
   }
@@ -172,12 +176,12 @@ impl GlobalShortcutManager for GlobalShortcutManagerHandle {
       Message::GlobalShortcut(GlobalShortcutMessage::UnregisterAll(tx))
     )?;
     self.listeners.lock().unwrap().clear();
-    self.shortcuts.clear();
+    self.shortcuts.lock().unwrap().clear();
     Ok(())
   }
 
   fn unregister(&mut self, accelerator: &str) -> Result<()> {
-    if let Some((accelerator_id, shortcut)) = self.shortcuts.remove(accelerator) {
+    if let Some((accelerator_id, shortcut)) = self.shortcuts.lock().unwrap().remove(accelerator) {
       let (tx, rx) = channel();
       getter!(
         self,

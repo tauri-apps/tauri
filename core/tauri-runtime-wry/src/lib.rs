@@ -74,7 +74,6 @@ use menu::*;
 mod mime_type;
 use mime_type::MimeType;
 
-type MainTask = Arc<Mutex<Option<Box<dyn FnOnce() + Send>>>>;
 type CreateWebviewHandler =
   Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> Result<WebviewWrapper> + Send>;
 type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
@@ -682,9 +681,8 @@ pub(crate) enum ClipboardMessage {
   ReadText(Sender<Option<String>>),
 }
 
-#[derive(Clone)]
 pub(crate) enum Message {
-  Task(MainTask),
+  Task(Box<dyn FnOnce() + Send>),
   Window(WindowId, WindowMessage),
   Webview(WindowId, WebviewMessage),
   #[cfg(feature = "system-tray")]
@@ -719,7 +717,7 @@ impl Dispatch for WryDispatcher {
     self
       .context
       .proxy
-      .send_event(Message::Task(Arc::new(Mutex::new(Some(Box::new(f))))))
+      .send_event(Message::Task(Box::new(f)))
       .map_err(|_| Error::FailedToSendMessage)
   }
 
@@ -1548,11 +1546,7 @@ fn handle_event_loop(
       }
     }
     Event::UserEvent(message) => match message {
-      Message::Task(task) => {
-        if let Some(task) = task.lock().unwrap().take() {
-          task();
-        }
-      }
+      Message::Task(task) => task(),
       Message::Window(id, window_message) => {
         if let Some(webview) = webviews.get_mut(&id) {
           let window = webview.inner.window();

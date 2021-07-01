@@ -88,6 +88,18 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
   })
 }
 
+/**
+ * Convert a device file path to an URL that can be loaded by the webview.
+ * Note that `asset:` must be allowed on the `csp` value configured on `tauri.conf.json`.
+ *
+ * @param  filePath the file path
+ *
+ * @return the URL that can be used as source on the webview
+ */
+function convertFileSrc(filePath: string): string {
+  return navigator.userAgent.includes('Windows') ? `https://custom.protocol.asset_${filePath}` : `asset://${filePath}`
+}
+
 export type { InvokeArgs }
 
-export { transformCallback, invoke }
+export { transformCallback, invoke, convertFileSrc }

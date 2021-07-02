@@ -1,9 +1,11 @@
 <script>
   import { readBinaryFile, readDir, Dir } from "@tauri-apps/api/fs";
+  import { convertFileSrc } from "@tauri-apps/api/tauri";
 
   export let onMessage;
 
   let pathToRead = "";
+  let img;
 
   function getDir() {
     const dirSelect = document.getElementById("dir");
@@ -71,6 +73,10 @@
       })
       .catch(onMessage);
   }
+
+  function setSrc() {
+    img.src = convertFileSrc(pathToRead)
+  }
 </script>
 
 <form on:submit|preventDefault={read}>
@@ -86,4 +92,7 @@
     bind:value={pathToRead}
   />
   <button class="button" id="read">Read</button>
+  <button class="button" type="button" on:click={setSrc}>Use as img src</button>
+
+  <img alt="file" bind:this={img}>
 </form>

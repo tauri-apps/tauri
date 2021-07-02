@@ -5,6 +5,7 @@
 use kuchiki::traits::*;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
+use regex::RegexSet;
 use std::{
   collections::HashMap,
   ffi::OsStr,
@@ -187,11 +188,24 @@ impl EmbeddedAssets {
         .any(|e| path.extension() == Some(OsStr::new(e)));
       if is_javascript {
         let js = String::from_utf8_lossy(&input).into_owned();
-        input = if [
-          "import{", "import*", "import ", "export{", "export*", "export ",
-        ]
-        .iter()
-        .any(|t| js.contains(t))
+        input = if RegexSet::new(&[
+          // import keywords
+          "import\\{",
+          "import \\{",
+          "import\\*",
+          "import \\*",
+          "import (\"|');?$",
+          "import\\(",
+          "import (.|\n)+ from (\"|')([A-Za-z\\-]+)(\"|')",
+          // export keywords
+          "export\\{",
+          "export \\{",
+          "export\\*",
+          "export \\*",
+          "export (default|class|let|const|function)",
+        ])
+        .unwrap()
+        .is_match(&js)
         {
           format!(
             r#"

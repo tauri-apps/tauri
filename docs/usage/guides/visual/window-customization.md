@@ -8,11 +8,9 @@ Tauri provides lots of options for customizing the look and feel of your app's w
 
 There are three ways to change the window configuration:
 
-TODO: LINKS
-
 - [Through tauri.conf.json](https://tauri.studio/en/docs/api/config/#tauri.windows)
-- [Through the JS API]
-- [Through the Window in Rust]
+- [Through the JS API](https://tauri.studio/en/docs/api/js/classes/window.windowmanager)
+- [Through the Window in Rust](https://tauri.studio/en/docs/api/rust/tauri/window/struct.window)
 
 ## Creating a Custom Titlebar
 
@@ -76,7 +74,6 @@ Note that you may need to move the rest of your content down so that the titleba
 
 Finally, you'll need to make the buttons work:
 
-TODO: TOGGLE MAXIMIZE
 
 ```js
 import { appWindow } from '@tauri-apps/api/window'
@@ -85,7 +82,7 @@ document
   .addEventListener('click', () => appWindow.minimize())
 document
   .getElementById('titlebar-maximize')
-  .addEventListener('click', () => appWindow.maximize())
+  .addEventListener('click', async () => await appWindow.isMaximized() ? appWindow.unmaximmize() : appWindow.maximize())
 document
   .getElementById('titlebar-close')
   .addEventListener('click', () => appWindow.close())

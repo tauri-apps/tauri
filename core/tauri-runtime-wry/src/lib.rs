@@ -74,9 +74,6 @@ use menu::*;
 mod mime_type;
 use mime_type::MimeType;
 
-type MainTask = Arc<Mutex<Option<Box<dyn FnOnce() + Send>>>>;
-type CreateWebviewHandler =
-  Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> Result<WebviewWrapper> + Send>;
 type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListenersMap = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
 type WindowEventListeners = Arc<Mutex<HashMap<WindowId, WindowEventListenersMap>>>;
@@ -682,14 +679,16 @@ pub(crate) enum ClipboardMessage {
   ReadText(Sender<Option<String>>),
 }
 
-#[derive(Clone)]
 pub(crate) enum Message {
-  Task(MainTask),
+  Task(Box<dyn FnOnce() + Send>),
   Window(WindowId, WindowMessage),
   Webview(WindowId, WebviewMessage),
   #[cfg(feature = "system-tray")]
   Tray(TrayMessage),
-  CreateWebview(Arc<Mutex<Option<CreateWebviewHandler>>>, Sender<WindowId>),
+  CreateWebview(
+    Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> Result<WebviewWrapper> + Send>,
+    Sender<WindowId>,
+  ),
   GlobalShortcut(GlobalShortcutMessage),
   Clipboard(ClipboardMessage),
 }
@@ -719,7 +718,7 @@ impl Dispatch for WryDispatcher {
     self
       .context
       .proxy
-      .send_event(Message::Task(Arc::new(Mutex::new(Some(Box::new(f))))))
+      .send_event(Message::Task(Box::new(f)))
       .map_err(|_| Error::FailedToSendMessage)
   }
 
@@ -870,9 +869,7 @@ impl Dispatch for WryDispatcher {
       .context
       .proxy
       .send_event(Message::CreateWebview(
-        Arc::new(Mutex::new(Some(Box::new(move |event_loop| {
-          create_webview(event_loop, context, pending)
-        })))),
+        Box::new(move |event_loop| create_webview(event_loop, context, pending)),
         tx,
       ))
       .map_err(|_| Error::FailedToSendMessage)?;
@@ -1176,9 +1173,7 @@ impl RuntimeHandle for WryHandle {
       .dispatcher_context
       .proxy
       .send_event(Message::CreateWebview(
-        Arc::new(Mutex::new(Some(Box::new(move |event_loop| {
-          create_webview(event_loop, dispatcher_context, pending)
-        })))),
+        Box::new(move |event_loop| create_webview(event_loop, dispatcher_context, pending)),
         tx,
       ))
       .map_err(|_| Error::FailedToSendMessage)?;
@@ -1549,11 +1544,7 @@ fn handle_event_loop(
       }
     }
     Event::UserEvent(message) => match message {
-      Message::Task(task) => {
-        if let Some(task) = task.lock().unwrap().take() {
-          task();
-        }
-      }
+      Message::Task(task) => task(),
       Message::Window(id, window_message) => {
         if let Some(webview) = webviews.get_mut(&id) {
           let window = webview.inner.window();
@@ -1713,22 +1704,16 @@ fn handle_event_loop(
           }
         }
       }
-      Message::CreateWebview(handler, sender) => {
-        let handler = {
-          let mut lock = handler.lock().expect("poisoned create webview handler");
-          std::mem::take(&mut *lock).unwrap()
-        };
-        match handler(event_loop) {
-          Ok(webview) => {
-            let window_id = webview.inner.window().id();
-            webviews.insert(window_id, webview);
-            sender.send(window_id).unwrap();
-          }
-          Err(e) => {
-            eprintln!("{}", e);
-          }
+      Message::CreateWebview(handler, sender) => match handler(event_loop) {
+        Ok(webview) => {
+          let window_id = webview.inner.window().id();
+          webviews.insert(window_id, webview);
+          sender.send(window_id).unwrap();
         }
-      }
+        Err(e) => {
+          eprintln!("{}", e);
+        }
+      },
       #[cfg(feature = "system-tray")]
       Message::Tray(tray_message) => match tray_message {
         TrayMessage::UpdateItem(menu_id, update) => {

@@ -685,7 +685,10 @@ pub(crate) enum Message {
   Webview(WindowId, WebviewMessage),
   #[cfg(feature = "system-tray")]
   Tray(TrayMessage),
-  CreateWebview(Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> Result<WebviewWrapper> + Send>, Sender<WindowId>),
+  CreateWebview(
+    Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> Result<WebviewWrapper> + Send>,
+    Sender<WindowId>,
+  ),
   GlobalShortcut(GlobalShortcutMessage),
   Clipboard(ClipboardMessage),
 }
@@ -866,9 +869,7 @@ impl Dispatch for WryDispatcher {
       .context
       .proxy
       .send_event(Message::CreateWebview(
-        Box::new(move |event_loop| {
-          create_webview(event_loop, context, pending)
-        }),
+        Box::new(move |event_loop| create_webview(event_loop, context, pending)),
         tx,
       ))
       .map_err(|_| Error::FailedToSendMessage)?;
@@ -1172,9 +1173,7 @@ impl RuntimeHandle for WryHandle {
       .dispatcher_context
       .proxy
       .send_event(Message::CreateWebview(
-        Box::new(move |event_loop| {
-          create_webview(event_loop, dispatcher_context, pending)
-        }),
+        Box::new(move |event_loop| create_webview(event_loop, dispatcher_context, pending)),
         tx,
       ))
       .map_err(|_| Error::FailedToSendMessage)?;
@@ -1704,18 +1703,16 @@ fn handle_event_loop(
           }
         }
       }
-      Message::CreateWebview(handler, sender) => {
-        match handler(event_loop) {
-          Ok(webview) => {
-            let window_id = webview.inner.window().id();
-            webviews.insert(window_id, webview);
-            sender.send(window_id).unwrap();
-          }
-          Err(e) => {
-            eprintln!("{}", e);
-          }
+      Message::CreateWebview(handler, sender) => match handler(event_loop) {
+        Ok(webview) => {
+          let window_id = webview.inner.window().id();
+          webviews.insert(window_id, webview);
+          sender.send(window_id).unwrap();
         }
-      }
+        Err(e) => {
+          eprintln!("{}", e);
+        }
+      },
       #[cfg(feature = "system-tray")]
       Message::Tray(tray_message) => match tray_message {
         TrayMessage::UpdateItem(menu_id, update) => {

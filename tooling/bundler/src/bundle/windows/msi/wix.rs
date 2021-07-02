@@ -423,7 +423,7 @@ pub fn build_wix_app_installer(
         let license_contents = std::fs::read_to_string(&license_path)?;
         let license_rtf = format!(
           r#"{{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033{{\fonttbl{{\f0\fnil\fcharset0 Calibri;}}}}
-{{\*\generator Riched20 10.0.18362}}\viewkind4\uc1 
+{{\*\generator Riched20 10.0.18362}}\viewkind4\uc1
 \pard\sa200\sl276\slmult1\f0\fs22\lang9 {}\par
 }}
  "#,
@@ -514,6 +514,7 @@ pub fn build_wix_app_installer(
   let mut handlebars = Handlebars::new();
   let mut has_custom_template = false;
   let mut install_webview = true;
+  let mut enable_elevated_update_task = false;
 
   if let Some(wix) = &settings.windows().wix {
     data.insert("component_group_refs", to_json(&wix.component_group_refs));
@@ -523,6 +524,7 @@ pub fn build_wix_app_installer(
     data.insert("merge_refs", to_json(&wix.merge_refs));
     fragment_paths = wix.fragment_paths.clone();
     install_webview = !wix.skip_webview_install;
+    enable_elevated_update_task = wix.enable_elevated_update_task;
 
     if let Some(temp_path) = &wix.template {
       let template = std::fs::read_to_string(temp_path)?;
@@ -543,6 +545,10 @@ pub fn build_wix_app_installer(
 
   if install_webview {
     data.insert("install_webview", to_json(true));
+  }
+
+  if enable_elevated_update_task {
+    data.insert("enable_elevated_update_task", to_json(true));
   }
 
   if output_path.exists() {

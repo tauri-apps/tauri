@@ -542,6 +542,8 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
 
       exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
+      // TODO(euphbriggs): Check if the user has "enable_elevated_update_task"
+
       // restart should be handled by WIX as we exit the process
       Command::new("msiexec.exe")
         .arg("/i")

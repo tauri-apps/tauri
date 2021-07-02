@@ -201,6 +201,30 @@
         </InstallExecuteSequence>
         {{/if}}
 
+        {{#if enable_elevated_update_task}}
+        <!-- Install an elevated update task within Windows Task Scheduler -->
+        <!-- TODO(euphbriggs) -->
+        <CustomAction
+            Id="CreateUpdateTask"
+            Return="check"
+            Directory="INSTALLDIR"
+            ExeCommand="&quot;[SystemFolder]SCHTASKS.EXE&quot; /CREATE /XML update.xml /TN &quot;Update [Product Name]&quot;" />
+        <InstallExecuteSequence>
+            <Custom Action='CreateUpdateTask' Before='InstallFinalize' />
+        </InstallExecuteSequence>
+        <!-- Remove elevated update task -->
+        <CustomAction
+            Id="DeleteUpdateTask"
+            Return="check"
+            Directory="INSTALLDIR"
+            ExeCommand="&quot;[SystemFolder]SCHTASKS.EXE&quot; /DELETE /TN &quot;Update [Product Name]&quot; /F" />
+        <InstallExecuteSequence>
+            <Custom Action="DeleteUpdateTask" After='InstallFinalize'>
+                (REMOVE = "ALL") AND NOT UPGRADINGPRODUCTCODE
+            </Custom>
+        </InstallExecuteSequence>
+        {{/if}}
+
         <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" After="CostFinalize"/>        
     </Product>
 </Wix>

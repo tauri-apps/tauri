@@ -62,6 +62,7 @@ pub enum Cmd {
   SetTitle(String),
   Maximize,
   Unmaximize,
+  ToggleMaximize,
   Minimize,
   Unminimize,
   Show,
@@ -152,6 +153,10 @@ impl Cmd {
         Self::SetTitle(title) => window.set_title(&title)?,
         Self::Maximize => window.maximize()?,
         Self::Unmaximize => window.unmaximize()?,
+        Self::ToggleMaximize => match window.is_maximized()? {
+          true => window.unmaximize()?,
+          false => window.maximize()?,
+        },
         Self::Minimize => window.minimize()?,
         Self::Unminimize => window.unminimize()?,
         Self::Show => window.show()?,

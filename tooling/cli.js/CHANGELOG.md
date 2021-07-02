@@ -1,5 +1,20 @@
 # Changelog
 
+## \[1.0.0-beta.5]
+
+- Improve error message when the product name is invalid.
+  - Bumped due to a bump in cli.rs.
+  - [1a41e9f0](https://www.github.com/tauri-apps/tauri/commit/1a41e9f040cfa18b6cc1380dfe21251d56e3f973) feat(cli.rs): improve error message on app rename, closes [#2101](https://www.github.com/tauri-apps/tauri/pull/2101) ([#2114](https://www.github.com/tauri-apps/tauri/pull/2114)) on 2021-06-28
+
+## \[1.0.0-beta.4]
+
+- Properly detect target platform's architecture.
+  - Bumped due to a bump in cli.rs.
+  - [628a53eb](https://www.github.com/tauri-apps/tauri/commit/628a53eb6176f811d22d7730f08a99e5c370dbf4) fix(cli): properly detect target architecture, closes [#2040](https://www.github.com/tauri-apps/tauri/pull/2040) ([#2102](https://www.github.com/tauri-apps/tauri/pull/2102)) on 2021-06-28
+- Fixes `build` command when the `target` arg is set.
+  - Bumped due to a bump in cli.rs.
+  - [8e238701](https://www.github.com/tauri-apps/tauri/commit/8e2387018940e9e1421948d74a82156661ce2e4b) fix(cli.rs): fix out dir detection when target arg is set, closes [#2040](https://www.github.com/tauri-apps/tauri/pull/2040) ([#2098](https://www.github.com/tauri-apps/tauri/pull/2098)) on 2021-06-27
+
 ## \[1.0.0-beta.3]
 
 - Allow empty argument when running `cli.rs`.

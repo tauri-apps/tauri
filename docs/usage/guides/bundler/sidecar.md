@@ -37,30 +37,27 @@ Here's a Node.js script to append the target triple to a binary:
 const execa = require('execa')
 const fs = require('fs')
 
+let extension = ''
+if (process.platform === 'win32') {
+  extension = '.exe'
+}
+
 async function main() {
-  const rustTargetInfo = JSON.parse(
-    (
-      await execa(
-        'rustc',
-        ['-Z', 'unstable-options', '--print', 'target-spec-json'],
-        {
-          env: {
-            RUSTC_BOOTSTRAP: 1
-          }
-        }
-      )
-    ).stdout
-  )
-  const platformPostfix = rustTargetInfo['llvm-target']
+  const rustInfo = (await execa('rustc', ['-vV'])).stdout
+  const targetTriple = /host: (\S+)/g.exec(rustInfo)[1]
+  if (!targetTriple) {
+    console.error('Failed to determine platform target triple')
+  }
   fs.renameSync(
-    'src-tauri/binaries/app',
-    `src-tauri/binaries/app-${platformPostfix}`
+    `src-tauri/binaries/app${extension}`,
+    `src-tauri/binaries/app-${targetTriple}${extension}`
   )
 }
 
 main().catch((e) => {
   throw e
 })
+
 ```
 
 ## Running the sidecar binary on JavaScript

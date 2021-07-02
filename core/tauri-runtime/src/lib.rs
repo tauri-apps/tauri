@@ -11,6 +11,8 @@ use std::{fmt::Debug, hash::Hash, path::PathBuf};
 use serde::{Deserialize, Serialize};
 use tauri_utils::assets::Assets;
 use uuid::Uuid;
+#[cfg(windows)]
+use winapi::shared::windef::HWND;
 
 /// Create window and system tray menus.
 #[cfg(any(feature = "menu", feature = "system-tray"))]
@@ -413,7 +415,17 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
 
   /// Returns the native handle that is used by this window.
   #[cfg(windows)]
-  fn hwnd(&self) -> crate::Result<*mut std::ffi::c_void>;
+  fn hwnd(&self) -> crate::Result<HWND>;
+
+  /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn gtk_window(&self) -> crate::Result<gtk::ApplicationWindow>;
 
   // SETTERS
 

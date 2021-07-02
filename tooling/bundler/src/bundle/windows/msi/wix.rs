@@ -486,7 +486,6 @@ pub fn build_wix_app_installer(
   data.insert("binaries", binaries_json);
 
   let resources = generate_resource_data(settings)?;
-  println!("{:?}", serde_json::to_string(&resources).unwrap());
   let mut resources_wix_string = String::from("");
   let mut files_ids = Vec::new();
   for (_, dir) in resources {
@@ -761,7 +760,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
           .iter()
           .position(|f| f.path == path);
         match index {
-          Some(i) => directory_entry = directory_entry.directories.iter_mut().nth(i).unwrap(),
+          Some(i) => directory_entry = directory_entry.directories.get_mut(i).unwrap(),
           None => {
             directory_entry.directories.push(ResourceDirectory {
               path: path.clone(),

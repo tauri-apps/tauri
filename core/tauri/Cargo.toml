@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.4"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -33,15 +33,15 @@ normal = [ "attohttpc" ]
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
 serde = { version = "1.0", features = [ "derive" ] }
-tokio = { version = "1.7", features = [ "rt", "rt-multi-thread", "sync" ] }
+tokio = { version = "1.7", features = [ "rt", "rt-multi-thread", "sync", "fs" ] }
 futures = "0.3"
 uuid = { version = "0.8", features = [ "v4" ] }
 thiserror = "1.0"
 once_cell = "1.8"
-tauri-runtime = { version = "0.1.2", path = "../tauri-runtime" }
-tauri-macros = { version = "1.0.0-beta.2", path = "../tauri-macros" }
+tauri-runtime = { version = "0.1.3", path = "../tauri-runtime" }
+tauri-macros = { version = "1.0.0-beta.3", path = "../tauri-macros" }
 tauri-utils = { version = "1.0.0-beta.1", path = "../tauri-utils" }
-tauri-runtime-wry = { version = "0.1.2", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime-wry = { version = "0.1.3", path = "../tauri-runtime-wry", optional = true }
 rand = "0.8"
 tempfile = "3"
 semver = "1.0"
@@ -68,6 +68,9 @@ os_pipe = { version = "0.9", optional = true }
 rfd = "0.4"
 raw-window-handle = { version = "0.3.3", optional = true }
 minisign-verify = { version = "0.1", optional = true }
+
+[target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
+gtk = { version = "0.9", features = [ "v3_16" ] }
 
 [build-dependencies]
 cfg_aliases = "0.1.1"

@@ -503,7 +503,26 @@ impl<P: Params> Window<P> {
   /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   #[cfg(windows)]
   pub fn hwnd(&self) -> crate::Result<*mut std::ffi::c_void> {
-    self.window.dispatcher.hwnd().map_err(Into::into)
+    self
+      .window
+      .dispatcher
+      .hwnd()
+      .map(|hwnd| hwnd as *mut _)
+      .map_err(Into::into)
+  }
+
+  /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
+  ///
+  /// Note that this can only be used on the main thread.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub fn gtk_window(&self) -> crate::Result<gtk::ApplicationWindow> {
+    self.window.dispatcher.gtk_window().map_err(Into::into)
   }
 
   // Setters

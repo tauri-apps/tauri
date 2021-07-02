@@ -13,6 +13,7 @@ If you are introducing a new binding, you must reference an issue where this bin
 
 - [ ] Bugfix
 - [ ] Feature
+- [ ] Docs
 - [ ] New Binding Issue #___
 - [ ] Code style update
 - [ ] Refactor

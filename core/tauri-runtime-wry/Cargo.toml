@@ -22,8 +22,9 @@ infer = "0.4"
 ico = "0.1"
 winapi = "0.3"
 
-[target."cfg(target_os = \"linux\")".dependencies]
+[target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 png = "0.16"
+gtk = { version = "0.9", features = [ "v3_16" ] }
 
 [features]
 dox = [ "wry/dox" ]

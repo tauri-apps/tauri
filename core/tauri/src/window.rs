@@ -521,7 +521,7 @@ impl<P: Params> Window<P> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  pub fn gtk_window<'a>(&self) -> crate::Result<&'a gtk::ApplicationWindow> {
+  pub fn gtk_window(&self) -> crate::Result<gtk::ApplicationWindow> {
     self.window.dispatcher.gtk_window().map_err(Into::into)
   }
 

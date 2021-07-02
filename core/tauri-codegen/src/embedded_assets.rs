@@ -2,15 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use kuchiki::traits::*;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
+use regex::RegexSet;
 use std::{
   collections::HashMap,
   ffi::OsStr,
   fs::File,
   path::{Path, PathBuf},
 };
-use tauri_utils::{assets::AssetKey, html::inject_csp};
+use tauri_utils::{
+  assets::AssetKey,
+  html::{inject_csp, inject_invoke_key_token},
+};
 use thiserror::Error;
 use walkdir::WalkDir;
 
@@ -170,11 +175,58 @@ impl EmbeddedAssets {
       path: path.to_owned(),
       error,
     })?;
-    if let Some(csp) = &options.csp {
-      if path.extension() == Some(OsStr::new("html")) {
-        input = inject_csp(String::from_utf8_lossy(&input).into_owned(), csp)
+    if path.extension() == Some(OsStr::new("html")) {
+      let mut document = kuchiki::parse_html().one(String::from_utf8_lossy(&input).into_owned());
+      if let Some(csp) = &options.csp {
+        inject_csp(&mut document, csp);
+      }
+      inject_invoke_key_token(&mut document);
+      input = document.to_string().as_bytes().to_vec();
+    } else {
+      let is_javascript = ["js", "cjs", "mjs"]
+        .iter()
+        .any(|e| path.extension() == Some(OsStr::new(e)));
+      if is_javascript {
+        let js = String::from_utf8_lossy(&input).into_owned();
+        input = if RegexSet::new(&[
+          // import keywords
+          "import\\{",
+          "import \\{",
+          "import\\*",
+          "import \\*",
+          "import (\"|');?$",
+          "import\\(",
+          "import (.|\n)+ from (\"|')([A-Za-z\\-]+)(\"|')",
+          // export keywords
+          "export\\{",
+          "export \\{",
+          "export\\*",
+          "export \\*",
+          "export (default|class|let|const|function)",
+        ])
+        .unwrap()
+        .is_match(&js)
+        {
+          format!(
+            r#"
+              const __TAURI_INVOKE_KEY__ = __TAURI__INVOKE_KEY_TOKEN__;
+              {}
+            "#,
+            js
+          )
           .as_bytes()
-          .to_vec();
+          .to_vec()
+        } else {
+          format!(
+            r#"(function () {{
+              const __TAURI_INVOKE_KEY__ = __TAURI__INVOKE_KEY_TOKEN__;
+              {}
+            }})()"#,
+            js
+          )
+          .as_bytes()
+          .to_vec()
+        };
       }
     }
 

@@ -11,6 +11,7 @@ use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 
 pub fn get_bundler_settings(
   app_settings: rust::AppSettings,
+  target: Option<String>,
   manifest: &Manifest,
   config: &Config,
   out_dir: &Path,
@@ -29,6 +30,10 @@ pub fn get_bundler_settings(
 
   if let Some(types) = package_types {
     settings_builder = settings_builder.package_types(types);
+  }
+
+  if let Some(target) = target {
+    settings_builder = settings_builder.target(target);
   }
 
   settings_builder.build().map_err(Into::into)

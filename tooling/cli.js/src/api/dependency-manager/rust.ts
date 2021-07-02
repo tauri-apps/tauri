@@ -41,7 +41,7 @@ async function installRustup(): Promise<void> {
     await downloadRustup()
   }
   if (platform() === 'win32') {
-    return spawnSync('powershell', [rustupPath], process.cwd())
+    return spawnSync('powershell', ['-NoProfile', rustupPath], process.cwd())
   }
   return spawnSync('/bin/sh', [rustupPath], process.cwd())
 }

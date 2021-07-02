@@ -377,6 +377,13 @@ impl<P: Params> WindowManager<P> {
       webview_attributes = webview_attributes
         .register_uri_scheme_protocol("tauri", self.prepare_uri_scheme_protocol().protocol);
     }
+    if !webview_attributes.has_uri_scheme_protocol("asset") {
+      webview_attributes = webview_attributes.register_uri_scheme_protocol("asset", move |url| {
+        let path = url.replace("asset://", "");
+        let data = crate::async_runtime::block_on(async move { tokio::fs::read(path).await })?;
+        Ok(data)
+      });
+    }
 
     let local_app_data = resolve_path(
       &self.inner.config,
@@ -452,6 +459,7 @@ impl<P: Params> WindowManager<P> {
         };
         let is_javascript =
           path.ends_with(".js") || path.ends_with(".cjs") || path.ends_with(".mjs");
+        let is_html = path.ends_with(".html");
 
         let asset_response = assets
           .get(&path)
@@ -464,19 +472,17 @@ impl<P: Params> WindowManager<P> {
           .map(Cow::into_owned);
         match asset_response {
           Ok(asset) => {
-            if is_javascript {
-              let js = String::from_utf8_lossy(&asset).into_owned();
+            if is_javascript || is_html {
+              let contents = String::from_utf8_lossy(&asset).into_owned();
               Ok(
-                format!(
-                  r#"(function () {{
-                    const __TAURI_INVOKE_KEY__ = {};
-                    {}
-                  }})()"#,
-                  manager.generate_invoke_key(),
-                  js
-                )
-                .as_bytes()
-                .to_vec(),
+                contents
+                  .replacen(
+                    "__TAURI__INVOKE_KEY_TOKEN__",
+                    &manager.generate_invoke_key().to_string(),
+                    1,
+                  )
+                  .as_bytes()
+                  .to_vec(),
               )
             } else {
               Ok(asset)
@@ -661,6 +667,11 @@ impl<P: Params> WindowManager<P> {
     mut pending: PendingWindow<P>,
     pending_labels: &[P::Label],
   ) -> crate::Result<PendingWindow<P>> {
+    if self.windows_lock().contains_key(&pending.label) {
+      return Err(crate::Error::WindowLabelAlreadyExists(
+        pending.label.to_string(),
+      ));
+    }
     let (is_local, url) = match &pending.webview_attributes.url {
       WindowUrl::App(path) => {
         let url = self.get_url();

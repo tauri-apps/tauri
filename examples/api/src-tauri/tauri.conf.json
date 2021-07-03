@@ -24,11 +24,7 @@
           "name": "theme",
           "takesValue": true,
           "description": "App theme",
-          "possibleValues": [
-            "light",
-            "dark",
-            "system"
-          ]
+          "possibleValues": ["light", "dark", "system"]
         },
         {
           "short": "v",

@@ -10,15 +10,15 @@
     <h1>Welcome to Tauri!</h1>
 
     <script>
-      window.addEventListener("DOMContentLoaded", (event) => {
-        window.__TAURI__.invoke("tauri", {
-          __tauriModule: "Process",
+      window.addEventListener('DOMContentLoaded', (event) => {
+        window.__TAURI__.invoke('tauri', {
+          __tauriModule: 'Process',
           message: {
-            cmd: "exit",
-            exitCode: 0,
-          },
-        });
-      });
+            cmd: 'exit',
+            exitCode: 0
+          }
+        })
+      })
     </script>
   </body>
 </html>

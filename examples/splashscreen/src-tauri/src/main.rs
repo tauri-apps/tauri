@@ -6,6 +6,10 @@
   all(not(debug_assertions), target_os = "windows"),
   windows_subsystem = "windows"
 )]
+#![allow(
+    // Clippy bug: https://github.com/rust-lang/rust-clippy/issues/7422
+    clippy::nonstandard_macro_braces,
+)]
 
 // Application code for a splashscreen system that waits on a Rust initialization script
 #[cfg(not(feature = "ui"))]

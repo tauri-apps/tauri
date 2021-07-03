@@ -547,6 +547,16 @@ pub fn build_wix_app_installer(
   }
 
   if enable_elevated_update_task {
+    let mut skip_uac_task = Handlebars::new();
+    let xml = include_str!("../templates/update-task.xml");
+    skip_uac_task
+      .register_template_string("update.xml", xml)
+      .map_err(|e| e.to_string())
+      .expect("Failed to setup Update Task handlebars");
+    let temp_xml_path = ""; // TODO(euphbriggs): Where should this be written to?
+    let content = skip_uac_task.render("update.xml", &data)?;
+    write(&temp_xml_path, content)?;
+
     data.insert("enable_elevated_update_task", to_json(true));
   }
 

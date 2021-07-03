@@ -8,7 +8,7 @@ module.exports = {
       terminal: false
     })
 
-    rl.on('line', function(line){
+    rl.on('line', function (line) {
       cb(line)
     })
   },

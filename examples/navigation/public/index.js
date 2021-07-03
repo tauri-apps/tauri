@@ -8,7 +8,7 @@ routeSelect.addEventListener('change', (event) => {
 })
 
 document.querySelector('#go').addEventListener('click', () => {
-  window.location.href = (window.location.origin + '/' + routeSelect.value)
+  window.location.href = window.location.origin + '/' + routeSelect.value
 })
 
 document.querySelector('#open-window').addEventListener('click', () => {

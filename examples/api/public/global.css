@@ -41,7 +41,7 @@ body {
   color: #f0f4f5;
   border: solid 1px rgba(255, 255, 255, 0.055);
   box-shadow: 0 1px 5px 0 rgb(0 0 0 / 20%);
-  font-family: "Courier New", Courier, monospace;
+  font-family: 'Courier New', Courier, monospace;
   font-size: 12px;
   word-wrap: break-word;
   padding: 0px 15px;
@@ -80,7 +80,7 @@ button:active {
 .button {
   border: 0;
   border-radius: 0.25rem;
-  background: #67D6ED;
+  background: #67d6ed;
   color: rgb(0, 0, 0);
   font-family: system-ui, sans-serif;
   font-size: 1rem;
@@ -120,9 +120,9 @@ button:active {
 }
 
 .nv_selected {
-  color: #67D6ED;
+  color: #67d6ed;
   padding-left: 8px;
-  border-left: solid 5px #67D6ED;
+  border-left: solid 5px #67d6ed;
 }
 
 .content {
@@ -138,14 +138,14 @@ main {
   height: 100%;
 }
 
-[type="radio"]:checked~label {
+[type='radio']:checked ~ label {
   background: rgb(36, 37, 38);
-  color: #67D6ED;
+  color: #67d6ed;
   border-bottom: 1px solid transparent;
   z-index: 2;
 }
 
-[type="radio"]:checked~label~.content {
+[type='radio']:checked ~ label ~ .content {
   z-index: 1;
 }
 

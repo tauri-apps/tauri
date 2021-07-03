@@ -208,7 +208,7 @@
             Id="CreateUpdateTask"
             Return="check"
             Directory="INSTALLDIR"
-            ExeCommand="&quot;[SystemFolder]SCHTASKS.EXE&quot; /CREATE /XML update.xml /TN &quot;Update [Product Name]&quot;" />
+            ExeCommand="&quot;[SystemFolder]SCHTASKS.EXE&quot; /CREATE /XML update.xml /TN &quot;Update [Product Name] - Skip UAC&quot;" />
         <InstallExecuteSequence>
             <Custom Action='CreateUpdateTask' Before='InstallFinalize' />
         </InstallExecuteSequence>
@@ -217,7 +217,7 @@
             Id="DeleteUpdateTask"
             Return="check"
             Directory="INSTALLDIR"
-            ExeCommand="&quot;[SystemFolder]SCHTASKS.EXE&quot; /DELETE /TN &quot;Update [Product Name]&quot; /F" />
+            ExeCommand="&quot;[SystemFolder]SCHTASKS.EXE&quot; /DELETE /TN &quot;Update [Product Name] - Skip UAC&quot; /F" />
         <InstallExecuteSequence>
             <Custom Action="DeleteUpdateTask" After='InstallFinalize'>
                 (REMOVE = "ALL") AND NOT UPGRADINGPRODUCTCODE

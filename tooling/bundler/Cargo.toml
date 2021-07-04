@@ -48,7 +48,6 @@ bitness = "0.4"
 winreg = "0.9"
 sha2 = "0.9"
 hex = "0.4"
-widestring = "0.4"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 chrono = "0.4"

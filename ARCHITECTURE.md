@@ -9,7 +9,7 @@ Tauri apps can have custom menus and have tray-type interfaces. They can be upda
 
 ## What Tauri is NOT
 - Tauri is not a lightweight kernel wrapper...instead it directly uses WRY and TAO to do the heavy-lifting in making system calls to the OS.
-- Tauri is not a VM or virtualized environment...instead it is an application toolkit that allows making Webview native OS applications.
+- Tauri is not a VM or virtualized environment...instead it is an application toolkit that allows making Webview OS applications.
 
 ## Major Components
 The following section briefly describes the roles of the various parts of Tauri.

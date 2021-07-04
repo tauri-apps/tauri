@@ -1327,6 +1327,10 @@
             "string",
             "null"
           ]
+        },
+        "enableElevatedUpdateTask": {
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false

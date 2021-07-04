@@ -53,7 +53,7 @@ This rust executable provides the full interface to all of the required activiti
 #### [create-tauri-app](https://github.com/tauri-apps/tauri/tree/dev/tooling/create-tauri-app) [JS]
 This is a toolkit that will enable engineering teams to rapidly scaffold out a new tauri-apps project using the frontend framework of their choice (as long as it has been configured).
 
-## TARUI RUST API
+## TAURI RUST API
 - **app**	The App API module allows you to manage application processes.
 - **assets**	The Assets module allows you to read files that have been bundled by tauri Assets handled by Tauri during compile time and runtime.
 - **config**	The Tauri config definition.

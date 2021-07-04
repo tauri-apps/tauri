@@ -3,6 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 #![warn(missing_docs, rust_2018_idioms)]
+#![allow(
+    // Clippy bug: https://github.com/rust-lang/rust-clippy/issues/7422
+    clippy::nonstandard_macro_braces,
+)]
 
 //! The Tauri bundler is a tool that generates installers or app bundles for executables.
 //! It supports auto updating through [tauri](https://docs.rs/tauri).

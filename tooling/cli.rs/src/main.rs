@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(
+    // Clippy bug: https://github.com/rust-lang/rust-clippy/issues/7422
+    clippy::nonstandard_macro_braces,
+)]
+
 pub use anyhow::Result;
 use clap::{crate_version, load_yaml, App, AppSettings, ArgMatches};
 use dialoguer::Input;

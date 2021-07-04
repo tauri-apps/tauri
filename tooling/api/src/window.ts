@@ -298,66 +298,6 @@ class WebviewWindowHandle {
 }
 
 /**
- * Create new webview windows and get a handle to existing ones.
- * @example
- * ```typescript
- * // loading embedded asset:
- * const webview = new WebviewWindow('theUniqueLabel', {
- *   url: 'path/to/page.html'
- * })
- * // alternatively, load a remote URL:
- * const webview = new WebviewWindow('theUniqueLabel', {
- *   url: 'https://github.com/tauri-apps/tauri'
- * })
- *
- * webview.once('tauri://created', function () {
- *  // webview window successfully created
- * })
- * webview.once('tauri://error', function (e) {
- *  // an error happened creating the webview window
- * })
- *
- * // emit an event to the backend
- * await webview.emit("some event", "data")
- * // listen to an event from the backend
- * const unlisten = await webview.listen("event name", e => {})
- * unlisten()
- * ```
- */
-class WebviewWindow extends WebviewWindowHandle {
-  constructor(label: string, options: WindowOptions = {}) {
-    super(label)
-    invokeTauriCommand({
-      __tauriModule: 'Window',
-      message: {
-        cmd: 'createWebview',
-        data: {
-          options: {
-            label,
-            ...options
-          }
-        }
-      }
-    })
-      .then(async () => this.emit('tauri://created'))
-      .catch(async (e) => this.emit('tauri://error', e))
-  }
-
-  /**
-   * Gets the WebviewWindow handle for the webview associated with the given label.
-   *
-   * @param label The webview window label.
-   * @returns The handle to communicate with the webview or null if the webview doesn't exist.
-   */
-  static getByLabel(label: string): WebviewWindowHandle | null {
-    if (getAll().some((w) => w.label === label)) {
-      return new WebviewWindowHandle(label)
-    }
-    return null
-  }
-}
-
-/**
  * Manage the current window object.
  */
 class WindowManager extends WebviewWindowHandle {
@@ -367,7 +307,13 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'scaleFactor'
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'scaleFactor'
+          }
+        }
       }
     })
   }
@@ -377,7 +323,13 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'innerPosition'
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'innerPosition'
+          }
+        }
       }
     })
   }
@@ -387,7 +339,13 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'outerPosition'
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'outerPosition'
+          }
+        }
       }
     })
   }
@@ -400,7 +358,13 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'innerSize'
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'innerSize'
+          }
+        }
       }
     })
   }
@@ -413,7 +377,13 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'outerSize'
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'outerSize'
+          }
+        }
       }
     })
   }
@@ -423,7 +393,13 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'isFullscreen'
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isFullscreen'
+          }
+        }
       }
     })
   }
@@ -433,7 +409,13 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'isMaximized'
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isMaximized'
+          }
+        }
       }
     })
   }
@@ -443,7 +425,13 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'isDecorated'
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isDecorated'
+          }
+        }
       }
     })
   }
@@ -453,7 +441,13 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'isResizable'
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isResizable'
+          }
+        }
       }
     })
   }
@@ -463,7 +457,13 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'isVisible'
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isVisible'
+          }
+        }
       }
     })
   }
@@ -480,7 +480,13 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'center'
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'center'
+          }
+        }
       }
     })
   }
@@ -514,8 +520,14 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'requestUserAttention',
-        data: requestType_
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'requestUserAttention',
+            payload: requestType_
+          }
+        }
       }
     })
   }
@@ -530,8 +542,14 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'setResizable',
-        data: resizable
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setResizable',
+            payload: resizable
+          }
+        }
       }
     })
   }
@@ -546,8 +564,14 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'setTitle',
-        data: title
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setTitle',
+            payload: title
+          }
+        }
       }
     })
   }
@@ -561,7 +585,13 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'maximize'
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'maximize'
+          }
+        }
       }
     })
   }
@@ -575,7 +605,13 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'unmaximize'
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'unmaximize'
+          }
+        }
       }
     })
   }
@@ -589,7 +625,13 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'minimize'
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'minimize'
+          }
+        }
       }
     })
   }
@@ -603,7 +645,13 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'unminimize'
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'unminimize'
+          }
+        }
       }
     })
   }
@@ -617,7 +665,13 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'show'
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'show'
+          }
+        }
       }
     })
   }
@@ -631,7 +685,13 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'hide'
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'hide'
+          }
+        }
       }
     })
   }
@@ -645,7 +705,13 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'close'
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'close'
+          }
+        }
       }
     })
   }
@@ -660,8 +726,14 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'setDecorations',
-        data: decorations
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setDecorations',
+            payload: decorations
+          }
+        }
       }
     })
   }
@@ -676,8 +748,14 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'setAlwaysOnTop',
-        data: alwaysOnTop
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setAlwaysOnTop',
+            payload: alwaysOnTop
+          }
+        }
       }
     })
   }
@@ -702,12 +780,18 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'setSize',
+        cmd: 'manage',
         data: {
-          type: size.type,
-          data: {
-            width: size.width,
-            height: size.height
+          label: this.label,
+          cmd: {
+            type: 'setSize',
+            payload: {
+              type: size.type,
+              data: {
+                width: size.width,
+                height: size.height
+              }
+            }
           }
         }
       }
@@ -736,16 +820,22 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'setMinSize',
-        data: size
-          ? {
-              type: size.type,
-              data: {
-                width: size.width,
-                height: size.height
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setMinSize',
+            payload: size
+              ? {
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
+                }
               }
-            }
-          : null
+              : null
+          }
+        }
       }
     })
   }
@@ -772,16 +862,22 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'setMaxSize',
-        data: size
-          ? {
-              type: size.type,
-              data: {
-                width: size.width,
-                height: size.height
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setMaxSize',
+            payload: size
+              ? {
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
+                }
               }
-            }
-          : null
+              : null
+          }
+        }
       }
     })
   }
@@ -811,12 +907,18 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'setPosition',
+        cmd: 'manage',
         data: {
-          type: position.type,
-          data: {
-            x: position.x,
-            y: position.y
+          label: this.label,
+          cmd: {
+            type: 'setPosition',
+            payload: {
+              type: position.type,
+              data: {
+                x: position.x,
+                y: position.y
+              }
+            }
           }
         }
       }
@@ -833,8 +935,14 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'setFullscreen',
-        data: fullscreen
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setFullscreen',
+            payload: fullscreen
+          }
+        }
       }
     })
   }
@@ -848,7 +956,13 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'setFocus'
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setFocus'
+          }
+        }
       }
     })
   }
@@ -863,9 +977,15 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'setIcon',
+        cmd: 'manage',
         data: {
-          icon
+          label: this.label,
+          cmd: {
+            type: 'setIcon',
+            payload: {
+              icon
+            }
+          }
         }
       }
     })
@@ -881,8 +1001,14 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'setSkipTaskbar',
-        data: skip
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setSkipTaskbar',
+            payload: skip
+          }
+        }
       }
     })
   }
@@ -896,9 +1022,75 @@ class WindowManager extends WebviewWindowHandle {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
-        cmd: 'startDragging'
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'startDragging'
+          }
+        }
       }
     })
+  }
+}
+
+/**
+ * Create new webview windows and get a handle to existing ones.
+ * @example
+ * ```typescript
+ * // loading embedded asset:
+ * const webview = new WebviewWindow('theUniqueLabel', {
+ *   url: 'path/to/page.html'
+ * })
+ * // alternatively, load a remote URL:
+ * const webview = new WebviewWindow('theUniqueLabel', {
+ *   url: 'https://github.com/tauri-apps/tauri'
+ * })
+ *
+ * webview.once('tauri://created', function () {
+ *  // webview window successfully created
+ * })
+ * webview.once('tauri://error', function (e) {
+ *  // an error happened creating the webview window
+ * })
+ *
+ * // emit an event to the backend
+ * await webview.emit("some event", "data")
+ * // listen to an event from the backend
+ * const unlisten = await webview.listen("event name", e => {})
+ * unlisten()
+ * ```
+ */
+class WebviewWindow extends WindowManager {
+  constructor(label: string, options: WindowOptions = {}) {
+    super(label)
+    invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'createWebview',
+        data: {
+          options: {
+            label,
+            ...options
+          }
+        }
+      }
+    })
+      .then(async () => this.emit('tauri://created'))
+      .catch(async (e) => this.emit('tauri://error', e))
+  }
+
+  /**
+   * Gets the WebviewWindow handle for the webview associated with the given label.
+   *
+   * @param label The webview window label.
+   * @returns The handle to communicate with the webview or null if the webview doesn't exist.
+   */
+  static getByLabel(label: string): WebviewWindowHandle | null {
+    if (getAll().some((w) => w.label === label)) {
+      return new WebviewWindowHandle(label)
+    }
+    return null
   }
 }
 

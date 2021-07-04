@@ -1,62 +1,68 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tauri</title>
+  </head>
 
-<head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tauri</title>
-</head>
+  <body>
+    <h1>Tauri Commands</h1>
+    <div>Response: <span id="response"></span></div>
+    <div>Without Args: <span id="response-optional"></span></div>
+    <div id="container"></div>
+    <script>
+      function runCommand(commandName, args, optional) {
+        const id = optional ? '#response-optional' : '#response'
+        const result = document.querySelector(id)
+        window.__TAURI__
+          .invoke(commandName, args)
+          .then((response) => {
+            result.innerText = `Ok(${response})`
+          })
+          .catch((error) => {
+            result.innerText = `Err(${error})`
+          })
+      }
 
-<body>
-  <h1>Tauri Commands</h1>
-  <div>Response: <span id="response"></span></div>
-  <div >Without Args: <span id="response-optional"></span></div>
-  <div id="container"></div>
-  <script>
-    function runCommand(commandName, args, optional) {
-      const id = optional ? "#response-optional" : "#response";
-      const result = document.querySelector(id)
-      window.__TAURI__.invoke(commandName, args).then(response => {
-        result.innerText = `Ok(${response})`
-      }).catch(error => {
-        result.innerText = `Err(${error})`
-      })
-    }
+      const container = document.querySelector('#container')
+      const commands = [
+        { name: 'borrow_cmd' },
+        { name: 'window_label' },
+        { name: 'simple_command' },
+        { name: 'stateful_command' },
+        { name: 'async_simple_command' },
+        { name: 'future_simple_command' },
+        { name: 'async_stateful_command' },
+        { name: 'simple_command_with_result' },
+        { name: 'stateful_command_with_result' },
+        { name: 'async_simple_command_with_result' },
+        { name: 'future_simple_command_with_return' },
+        { name: 'future_simple_command_with_result' },
+        { name: 'async_stateful_command_with_result' },
+        { name: 'command_arguments_wild' },
+        {
+          name: 'command_arguments_struct',
+          args: { Person: { name: 'ferris', age: 6 } }
+        },
+        {
+          name: 'command_arguments_tuple_struct',
+          args: { InlinePerson: ['ferris', 6] }
+        }
+      ]
 
-    const container = document.querySelector('#container')
-    const commands = [
-      { name: 'borrow_cmd' },
-      { name: 'window_label' },
-      { name: 'simple_command' },
-      { name: 'stateful_command' },
-      { name: 'async_simple_command' },
-      { name: 'future_simple_command'},
-      { name: 'async_stateful_command' },
-      { name: 'simple_command_with_result' },
-      { name: 'stateful_command_with_result' },
-      { name: 'async_simple_command_with_result' },
-      { name: 'future_simple_command_with_return' },
-      { name: 'future_simple_command_with_result' },
-      { name: 'async_stateful_command_with_result' },
-      { name: 'command_arguments_wild' },
-      { name: 'command_arguments_struct', args: { "Person": { "name": "ferris", age: 6 } } },
-      { name: 'command_arguments_tuple_struct', args: { "InlinePerson": [ "ferris", 6 ] } },
-    ]
-
-    for (const command of commands) {
-      const { name } = command
-      const args = command.args ?? { argument: 'value' }
-      const button = document.createElement('button')
-      button.innerHTML = `Run ${name}`;
-      button.addEventListener("click", function () {
-        runCommand(name, args, false)
-        runCommand(name, Object.create(null), true)
-      });
-      container.appendChild(button);
-    }
-
-  </script>
-</body>
-
+      for (const command of commands) {
+        const { name } = command
+        const args = command.args ?? { argument: 'value' }
+        const button = document.createElement('button')
+        button.innerHTML = `Run ${name}`
+        button.addEventListener('click', function () {
+          runCommand(name, args, false)
+          runCommand(name, Object.create(null), true)
+        })
+        container.appendChild(button)
+      }
+    </script>
+  </body>
 </html>

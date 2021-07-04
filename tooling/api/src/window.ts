@@ -21,11 +21,71 @@
  * }
  * ```
  * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
+ *
+ * # Window events
+ *
+ * Events can be listened using `appWindow.listen`:
+ * ```typescript
+ * import { appWindow } from '@tauri-apps/api/window'
+ * appWindow.listen('tauri://move', ({ event, payload }) => {
+ *   const { x, y } = payload // payload here is a `PhysicalPosition`
+ * })
+ * ```
+ *
+ * Window-specific events emitted by the backend:
+ *
+ * #### 'tauri://resize'
+ * Emitted when the size of the window has changed.
+ * *EventPayload*:
+ * ```typescript
+ * type ResizePayload = PhysicalSize
+ * ```
+ *
+ * #### 'tauri://move'
+ * Emitted when the position of the window has changed.
+ * *EventPayload*:
+ * ```typescript
+ * type MovePayload = PhysicalPosition
+ * ```
+ *
+ * #### 'tauri://close-requested'
+ * Emitted when the user requests the window to be closed.
+ *
+ * #### 'tauri://destroyed'
+ * Emitted after the window is closed.
+ *
+ * #### 'tauri://focus'
+ * Emitted when the window gains focus.
+ *
+ * #### 'tauri://blur'
+ * Emitted when the window loses focus.
+ *
+ * #### 'tauri://scale-change'
+ * Emitted when the window's scale factor has changed.
+ * The following user actions can cause DPI changes:
+ * - Changing the display's resolution.
+ * - Changing the display's scale factor (e.g. in Control Panel on Windows).
+ * - Moving the window to a display with a different scale factor.
+ * *Event payload*:
+ * ```typescript
+ * interface ScaleFactorChanged {
+ *   scaleFactor: number
+ *   size: PhysicalSize
+ * }
+ * ```
+ *
+ * #### 'tauri://menu'
+ * Emitted when a menu item is clicked.
+ * *EventPayload*:
+ * ```typescript
+ * type MenuClicked = string
+ * ```
+ *
  * @packageDocumentation
  */
 
 import { invokeTauriCommand } from './helpers/tauri'
-import { EventCallback, UnlistenFn, listen, once } from './event'
+import { EventName, EventCallback, UnlistenFn, listen, once } from './event'
 import { emit } from './helpers/event'
 
 /** Allows you to retrieve information about a given monitor. */
@@ -174,7 +234,7 @@ class WebviewWindowHandle {
    * @returns A promise resolving to a function to unlisten to the event.
    */
   async listen<T>(
-    event: string,
+    event: EventName,
     handler: EventCallback<T>
   ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
@@ -300,7 +360,7 @@ class WebviewWindow extends WebviewWindowHandle {
 /**
  * Manage the current window object.
  */
-class WindowManager {
+class WindowManager extends WebviewWindowHandle {
   // Getters
   /** The scale factor that can be used to map physical pixels to logical pixels. */
   async scaleFactor(): Promise<number> {
@@ -842,8 +902,8 @@ class WindowManager {
   }
 }
 
-/** The manager for the current window. Allows you to manipulate the window object. */
-const appWindow = new WindowManager()
+/** The manager for the current window. Allows you to manipulate the window object, listen and emit events. */
+const appWindow = new WindowManager(window.__TAURI__.__currentWindow.label)
 
 /** Configuration for the window to create. */
 interface WindowOptions {

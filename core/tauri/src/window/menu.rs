@@ -59,6 +59,7 @@ impl<P: Params> Clone for MenuItemHandle<P> {
 }
 
 impl<P: Params> MenuHandle<P> {
+  /// Gets a handle to the menu item that has the specified `id`.
   pub fn get_item(&self, id: &P::MenuId) -> MenuItemHandle<P> {
     for (raw, item_id) in self.ids.iter() {
       if item_id == id {

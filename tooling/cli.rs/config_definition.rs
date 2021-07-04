@@ -309,6 +309,9 @@ pub struct WindowConfig {
   /// Whether the window should always be on top of other windows.
   #[serde(default)]
   pub always_on_top: bool,
+  /// Whether or not the window icon should be added to the taskbar.
+  #[serde(default)]
+  pub skip_taskbar: bool,
 }
 
 fn default_visible() -> bool {

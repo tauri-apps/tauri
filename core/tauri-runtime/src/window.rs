@@ -32,7 +32,7 @@ pub enum WindowEvent {
   ///
   /// The parameter is true if the window has gained focus, and false if it has lost focus.
   Focused(bool),
-  ///The window's scale factor has changed.
+  /// The window's scale factor has changed.
   ///
   /// The following user actions can cause DPI changes:
   ///

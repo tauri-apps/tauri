@@ -22,6 +22,24 @@ interface Event<T> {
   payload: T
 }
 
+type EventName =
+  | 'tauri://update'
+  | 'tauri://update-available'
+  | 'tauri://update-install'
+  | 'tauri://update-status'
+  | 'tauri://resize'
+  | 'tauri://move'
+  | 'tauri://close-requested'
+  | 'tauri://destroyed'
+  | 'tauri://focus'
+  | 'tauri://blur'
+  | 'tauri://scale-change'
+  | 'tauri://menu'
+  | 'tauri://file-drop'
+  | 'tauri://file-drop-hover'
+  | 'tauri://file-drop-cancelled'
+  | string
+
 type EventCallback<T> = (event: Event<T>) => void
 
 type UnlistenFn = () => void
@@ -51,7 +69,7 @@ async function _unlisten(eventId: number): Promise<void> {
  * @return A promise resolving to a function to unlisten to the event.
  */
 async function listen<T>(
-  event: string,
+  event: EventName,
   handler: EventCallback<T>
 ): Promise<UnlistenFn> {
   return invokeTauriCommand<number>({
@@ -74,7 +92,7 @@ async function listen<T>(
  * @returns A promise resolving to a function to unlisten to the event.
  */
 async function once<T>(
-  event: string,
+  event: EventName,
   handler: EventCallback<T>
 ): Promise<UnlistenFn> {
   return listen<T>(event, (eventData) => {
@@ -94,6 +112,6 @@ async function emit(event: string, payload?: string): Promise<void> {
   return emitEvent(event, undefined, payload)
 }
 
-export type { Event, EventCallback, UnlistenFn }
+export type { Event, EventName, EventCallback, UnlistenFn }
 
 export { listen, once, emit }

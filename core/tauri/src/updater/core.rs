@@ -526,10 +526,12 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Resu
 #[cfg(target_os = "windows")]
 #[allow(clippy::unnecessary_wraps)]
 fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Result {
+  use crate::api::file::Move;
+
   let paths = read_dir(&tmp_dir).unwrap();
   // This consumes the TempDir without deleting directory on the filesystem,
   // meaning that the directory will no longer be automatically deleted.
-  tmp_dir.into_path();
+  let tmp_path = tmp_dir.into_path();
   for path in paths {
     let found_path = path.expect("Unable to extract").path();
     // we support 2 type of files exe & msi for now
@@ -542,7 +544,43 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
 
       exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
-      // TODO(euphbriggs): Check if the user has "enable_elevated_update_task"
+      if let Some(bin_name) = std::env::current_exe()
+        .ok()
+        .and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
+        .and_then(|s| s.into_string().ok())
+      {
+        let product_name = bin_name.replace(".exe", "");
+        let update_task_name = format!("Update {} - Skip UAC", product_name);
+        if let Ok(status) = Command::new("schtasks")
+          .arg("/QUERY")
+          .arg("/TN")
+          .arg(update_task_name.clone())
+          .status()
+        {
+          if status.success() {
+            let update_msi = tmp_path.with_file_name(bin_name).with_extension("msi");
+            println!("Copying from '{:?}' to '{:?}'", found_path, update_msi);
+            Move::from_source(&found_path)
+              .to_dest(&update_msi)
+              .expect("Unable to move update MSI");
+            match Command::new("schtasks")
+              .arg("/RUN")
+              .arg("/TN")
+              .arg(update_task_name)
+              .status()
+            {
+              Ok(exit_status) => {
+                if exit_status.success() {
+                  exit(0);
+                }
+              }
+              Err(err) => println!("Error while attempting to run update task: {}", err),
+            }
+          }
+
+          println!("Failed to run update task. Following UAC Path");
+        }
+      }
 
       // restart should be handled by WIX as we exit the process
       Command::new("msiexec.exe")

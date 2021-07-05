@@ -190,21 +190,27 @@ enum UserAttentionType {
 }
 
 /**
- * Get a handle to the current webview window. Allows emitting and listening to events from the backend that are tied to the window.
+ * Get an instance of `WebviewWindow` for the current webview window.
  *
- * @return The current window handle.
+ * @return The current WebviewWindow.
  */
-function getCurrent(): WebviewWindowHandle {
-  return new WebviewWindowHandle(window.__TAURI__.__currentWindow.label)
+function getCurrent(): WebviewWindow {
+  // @ts-expect-error
+  return new WebviewWindow(window.__TAURI__.__currentWindow.label, {
+    skip: true
+  })
 }
 
 /**
- * Gets metadata for all available webview windows.
+ * Gets an instance of `WebviewWindow` for all available webview windows.
  *
- * @return The list of webview handles.
+ * @return The list of WebviewWindow.
  */
-function getAll(): WindowDef[] {
-  return window.__TAURI__.__windows
+function getAll(): WebviewWindow[] {
+  // @ts-expect-error
+  return window.__TAURI__.__windows.map(
+    (w) => new WebviewWindow(w, { skip: true })
+  )
 }
 
 /** @ignore */
@@ -1064,38 +1070,43 @@ class WindowManager extends WebviewWindowHandle {
 class WebviewWindow extends WindowManager {
   constructor(label: string, options: WindowOptions = {}) {
     super(label)
-    invokeTauriCommand({
-      __tauriModule: 'Window',
-      message: {
-        cmd: 'createWebview',
-        data: {
-          options: {
-            label,
-            ...options
+    // @ts-expect-error
+    if (!options?.skip) {
+      invokeTauriCommand({
+        __tauriModule: 'Window',
+        message: {
+          cmd: 'createWebview',
+          data: {
+            options: {
+              label,
+              ...options
+            }
           }
         }
-      }
-    })
-      .then(async () => this.emit('tauri://created'))
-      .catch(async (e) => this.emit('tauri://error', e))
+      })
+        .then(async () => this.emit('tauri://created'))
+        .catch(async (e) => this.emit('tauri://error', e))
+    }
   }
 
   /**
-   * Gets the WebviewWindow handle for the webview associated with the given label.
+   * Gets the WebviewWindow for the webview associated with the given label.
    *
    * @param label The webview window label.
-   * @returns The handle to communicate with the webview or null if the webview doesn't exist.
+   * @returns The WebviewWindow instance to communicate with the webview or null if the webview doesn't exist.
    */
-  static getByLabel(label: string): WebviewWindowHandle | null {
+  static getByLabel(label: string): WebviewWindow | null {
     if (getAll().some((w) => w.label === label)) {
-      return new WebviewWindowHandle(label)
+      // @ts-expect-error
+      return new WebviewWindow(label, { skip: true })
     }
     return null
   }
 }
 
-/** The manager for the current window. Allows you to manipulate the window object, listen and emit events. */
-const appWindow = new WindowManager(window.__TAURI__.__currentWindow.label)
+/** The WebviewWindow for the current window. */
+// @ts-expect-error
+const appWindow = new WebviewWindow()
 
 /** Configuration for the window to create. */
 interface WindowOptions {

@@ -336,9 +336,9 @@ impl<P: Params> WindowManager<P> {
       .initialization_script(&self.initialization_script(&plugin_init, is_init_global))
       .initialization_script(&format!(
         r#"
-              window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
-              window.__TAURI__.__currentWindow = {{ label: {current_window_label} }}
-            "#,
+          window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
+          window.__TAURI__.__currentWindow = {{ label: {current_window_label} }}
+        "#,
         window_labels_array = tags_to_javascript_array(pending_labels)?,
         current_window_label = label.to_js_string()?,
       ));

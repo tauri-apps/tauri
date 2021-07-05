@@ -90,7 +90,7 @@ pub enum Cmd {
     options: WindowConfig,
   },
   Manage {
-    label: String,
+    label: Option<String>,
     cmd: WindowManagerCmd,
   },
 }
@@ -140,9 +140,13 @@ impl Cmd {
           )?;
       }
       Self::Manage { label, cmd } => {
-        let window = window
-          .get_window(&label.parse().unwrap_or_else(|_| panic!("invalid label")))
-          .ok_or(crate::Error::WebviewNotFound)?;
+        let window = if let Some(l) = label {
+          window
+            .get_window(&l.parse().unwrap_or_else(|_| panic!("invalid label")))
+            .ok_or(crate::Error::WebviewNotFound)?
+        } else {
+          window
+        };
         match cmd {
           // Getters
           WindowManagerCmd::ScaleFactor => return Ok(window.scale_factor()?.into()),

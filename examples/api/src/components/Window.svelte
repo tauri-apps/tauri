@@ -39,18 +39,18 @@
 
   function hide_() {
     windowMap[selectedWindow].hide();
-    setTimeout(() => windowMap[selectedWindow].show(), 2000);
+    setTimeout(windowMap[selectedWindow].show, 2000);
   }
 
   function minimize_() {
     windowMap[selectedWindow].minimize();
-    setTimeout(() => windowMap[selectedWindow].unminimize(), 2000);
+    setTimeout(windowMap[selectedWindow].unminimize, 2000);
   }
 
   function getIcon() {
     openDialog({
       multiple: false,
-    }).then(setIcon);
+    }).then(windowMap[selectedWindow].setIcon);
   }
 
   function createWindow() {

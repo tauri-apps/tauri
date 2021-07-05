@@ -1453,6 +1453,11 @@ fn handle_event_loop(
     #[cfg(feature = "system-tray")]
     tray_context,
   } = context;
+  if *control_flow == ControlFlow::Exit {
+    return RunIteration {
+      webview_count: webviews.len(),
+    };
+  }
   *control_flow = ControlFlow::Wait;
 
   match event {
@@ -1538,6 +1543,8 @@ fn handle_event_loop(
                 window_id,
                 &mut webviews,
                 control_flow,
+                #[cfg(target_os = "linux")]
+                window_event_listeners,
                 #[cfg(feature = "menu")]
                 menu_event_listeners.clone(),
               );
@@ -1628,22 +1635,13 @@ fn handle_event_loop(
             WindowMessage::Show => window.set_visible(true),
             WindowMessage::Hide => window.set_visible(false),
             WindowMessage::Close => {
-              for handler in window_event_listeners
-                .lock()
-                .unwrap()
-                .get(&window.id())
-                .unwrap()
-                .lock()
-                .unwrap()
-                .values()
-              {
-                handler(&WindowEvent::CloseRequested);
-              }
               on_window_close(
                 callback,
                 id,
                 &mut webviews,
                 control_flow,
+                #[cfg(target_os = "linux")]
+                window_event_listeners,
                 #[cfg(feature = "menu")]
                 menu_event_listeners.clone(),
               );
@@ -1813,6 +1811,7 @@ fn on_window_close<'a>(
   window_id: WindowId,
   webviews: &mut MutexGuard<'a, HashMap<WindowId, WebviewWrapper>>,
   control_flow: &mut ControlFlow,
+  #[cfg(target_os = "linux")] window_event_listeners: &WindowEventListeners,
   #[cfg(feature = "menu")] menu_event_listeners: MenuEventListeners,
 ) {
   if let Some(webview) = webviews.remove(&window_id) {
@@ -1823,6 +1822,21 @@ fn on_window_close<'a>(
   if webviews.is_empty() {
     *control_flow = ControlFlow::Exit;
     callback(RunEvent::Exit);
+  }
+  // TODO: tao does not fire the destroyed event properly
+  #[cfg(target_os = "linux")]
+  {
+    for handler in window_event_listeners
+      .lock()
+      .unwrap()
+      .get(&window_id)
+      .unwrap()
+      .lock()
+      .unwrap()
+      .values()
+    {
+      handler(&WindowEvent::Destroyed);
+    }
   }
 }
 

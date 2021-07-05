@@ -6,6 +6,10 @@
 #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
 pub(crate) mod menu;
 
+#[cfg(feature = "menu")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
+pub use menu::{MenuEvent, MenuHandle};
+
 use crate::{
   api::config::WindowUrl,
   app::AppHandle,
@@ -307,13 +311,10 @@ impl<P: Params> Window<P> {
   /// Registers a menu event listener.
   #[cfg(feature = "menu")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-  pub fn on_menu_event<F: Fn(menu::MenuEvent<P::MenuId>) + Send + 'static>(
-    &self,
-    f: F,
-  ) -> uuid::Uuid {
+  pub fn on_menu_event<F: Fn(MenuEvent<P::MenuId>) + Send + 'static>(&self, f: F) -> uuid::Uuid {
     let menu_ids = self.manager.menu_ids();
     self.window.dispatcher.on_menu_event(move |event| {
-      f(menu::MenuEvent {
+      f(MenuEvent {
         menu_item_id: menu_ids.get(&event.menu_item_id).unwrap().clone(),
       })
     })
@@ -323,8 +324,8 @@ impl<P: Params> Window<P> {
 
   /// Gets a handle to the window menu.
   #[cfg(feature = "menu")]
-  pub fn menu_handle(&self) -> menu::MenuHandle<P> {
-    menu::MenuHandle {
+  pub fn menu_handle(&self) -> MenuHandle<P> {
+    MenuHandle {
       ids: self.manager.menu_ids(),
       dispatcher: self.dispatcher(),
     }
@@ -509,6 +510,20 @@ impl<P: Params> Window<P> {
       .hwnd()
       .map(|hwnd| hwnd as *mut _)
       .map_err(Into::into)
+  }
+
+  /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
+  ///
+  /// Note that this can only be used on the main thread.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub fn gtk_window(&self) -> crate::Result<gtk::ApplicationWindow> {
+    self.window.dispatcher.gtk_window().map_err(Into::into)
   }
 
   // Setters

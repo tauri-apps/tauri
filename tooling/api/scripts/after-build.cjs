@@ -41,9 +41,7 @@ writeFileSync('dist/package.json', JSON.stringify(outputPkg, undefined, 2))
 /**
  * copy necessary files like `CHANGELOG.md` and Licenses to `./dist`
  */
-const files = readdirSync('.').filter(
-  (f) => f.startsWith('LICENSE')
-)
+const files = readdirSync('.').filter((f) => f.startsWith('LICENSE'))
 files.forEach((f) => copyFileSync(f, `dist/${f}`))
 
 /**

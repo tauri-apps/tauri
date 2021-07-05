@@ -425,6 +425,16 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   #[cfg(windows)]
   fn hwnd(&self) -> crate::Result<HWND>;
 
+  /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn gtk_window(&self) -> crate::Result<gtk::ApplicationWindow>;
+
   // SETTERS
 
   /// Centers the window.

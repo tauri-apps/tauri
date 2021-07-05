@@ -1171,6 +1171,11 @@
           "default": false,
           "type": "boolean"
         },
+        "skipTaskbar": {
+          "description": "Whether or not the window icon should be added to the taskbar.",
+          "default": false,
+          "type": "boolean"
+        },
         "title": {
           "description": "The window title.",
           "type": [

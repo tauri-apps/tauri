@@ -599,6 +599,23 @@ struct Hwnd(HWND);
 #[cfg(windows)]
 unsafe impl Send for Hwnd {}
 
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+struct GtkWindow(gtk::ApplicationWindow);
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+unsafe impl Send for GtkWindow {}
+
 #[derive(Debug, Clone)]
 enum WindowMessage {
   // Getters
@@ -619,6 +636,14 @@ enum WindowMessage {
   AvailableMonitors(Sender<Vec<MonitorHandle>>),
   #[cfg(windows)]
   Hwnd(Sender<Hwnd>),
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  GtkWindow(Sender<GtkWindow>),
   // Setters
   Center(Sender<Result<()>>),
   RequestUserAttention(Option<UserAttentionTypeWrapper>),
@@ -828,6 +853,18 @@ impl Dispatch for WryDispatcher {
   #[cfg(windows)]
   fn hwnd(&self) -> Result<HWND> {
     Ok(dispatcher_getter!(self, WindowMessage::Hwnd).0)
+  }
+
+  /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn gtk_window(&self) -> Result<gtk::ApplicationWindow> {
+    Ok(dispatcher_getter!(self, WindowMessage::GtkWindow).0)
   }
 
   // Setters
@@ -1608,6 +1645,17 @@ fn handle_event_loop(
             WindowMessage::Hwnd(tx) => {
               use wry::application::platform::windows::WindowExtWindows;
               tx.send(Hwnd(window.hwnd() as HWND)).unwrap()
+            }
+            #[cfg(any(
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd"
+            ))]
+            WindowMessage::GtkWindow(tx) => {
+              use wry::application::platform::unix::WindowExtUnix;
+              tx.send(GtkWindow(window.gtk_window().clone())).unwrap()
             }
             // Setters
             WindowMessage::Center(tx) => {

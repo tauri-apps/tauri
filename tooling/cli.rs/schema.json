@@ -1278,6 +1278,10 @@
             "type": "string"
           }
         },
+        "enableElevatedUpdateTask": {
+          "default": false,
+          "type": "boolean"
+        },
         "featureGroupRefs": {
           "default": [],
           "type": "array",
@@ -1327,10 +1331,6 @@
             "string",
             "null"
           ]
-        },
-        "enableElevatedUpdateTask": {
-          "default": false,
-          "type": "boolean"
         }
       },
       "additionalProperties": false

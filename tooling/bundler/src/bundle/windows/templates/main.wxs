@@ -212,28 +212,31 @@
 
         {{#if enable_elevated_update_task}}
         <!-- Install an elevated update task within Windows Task Scheduler -->
-        <!-- TODO(euphbriggs) -->
         <CustomAction
             Id="CreateUpdateTask"
             Return="check"
             Directory="INSTALLDIR"
-            ExeCommand="schtasks /CREATE /XML &quot;C:\Program Files\tauri-uac\update.xml&quot; /TN &quot;Update {{{product_name}}} - Skip UAC&quot; >&quot;C:\Program Files\tauri-uac\out.txt&quot; 2>&amp;1" />
+            Execute="deferred"
+            Impersonate="no"
+            ExeCommand="powershell.exe -windowstyle hidden &quot;schtasks /CREATE /XML update.xml /RU 'NT AUTHORITY\SYSTEM' /TN 'Update {{{product_name}}} - Skip UAC'&quot;" />
         <InstallExecuteSequence>
             <Custom Action='CreateUpdateTask' Before='InstallFinalize'>
-                <![CDATA[NOT(REMOVE OR WVRTINSTALLED)]]>
+                NOT(REMOVE)
             </Custom>
         </InstallExecuteSequence>
-        <!-- Remove elevated update task -->
-        <!-- <CustomAction
+        <!-- Remove elevated update task during uninstall -->
+        <CustomAction
             Id="DeleteUpdateTask"
             Return="check"
             Directory="INSTALLDIR"
-            ExeCommand="schtasks /DELETE /TN &quot;Update {{{product_name}}} - Skip UAC&quot; /F" />
+            Execute="deferred"
+            Impersonate="no"
+            ExeCommand="powershell.exe -windowstyle hidden &quot;schtasks /DELETE /TN 'Update {{{product_name}}} - Skip UAC' /F&quot;" />
         <InstallExecuteSequence>
-            <Custom Action="DeleteUpdateTask" After='InstallFinalize'>
+            <Custom Action="DeleteUpdateTask" Before='InstallFinalize'>
                 (REMOVE = "ALL") AND NOT UPGRADINGPRODUCTCODE
             </Custom>
-        </InstallExecuteSequence> -->
+        </InstallExecuteSequence>
         {{/if}}
 
         <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" After="CostFinalize"/>

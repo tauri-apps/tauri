@@ -87,6 +87,11 @@
                 <File Id="Path_{{ bin.id }}" Source="{{bin.path}}" KeyPath="yes"/>
             </Component>
             {{/each~}}
+            {{#if enable_elevated_update_task}}
+            <Component Id="UpdateTask" Guid="C492327D-9720-4CD5-8DB8-F09082AF44BE" Win64="$(var.Win64)">
+                <File Id="UpdateTask" Source="update.xml" KeyPath="yes" Checksum="yes"/>
+            </Component>
+            {{/if}}
             {{{resources}}}
             <Component Id="CMP_ReadFileShortcut"
                 Guid="1AF06B42-CD42-4AED-959F-36DB5E512046">
@@ -148,6 +153,10 @@
                 <ComponentRef Id="{{ resource_file_id }}"/>
             {{/each~}}
 
+            {{#if enable_elevated_update_task}}
+                <ComponentRef Id="UpdateTask" />
+            {{/if}}
+
             <Feature Id="ShortcutsFeature"
                 Title="Shortcuts"
                 Level="1">
@@ -208,23 +217,25 @@
             Id="CreateUpdateTask"
             Return="check"
             Directory="INSTALLDIR"
-            ExeCommand="&quot;[SystemFolder]SCHTASKS.EXE&quot; /CREATE /XML update.xml /TN &quot;Update [Product Name] - Skip UAC&quot;" />
+            ExeCommand="schtasks /CREATE /XML &quot;C:\Program Files\tauri-uac\update.xml&quot; /TN &quot;Update {{{product_name}}} - Skip UAC&quot; >&quot;C:\Program Files\tauri-uac\out.txt&quot; 2>&amp;1" />
         <InstallExecuteSequence>
-            <Custom Action='CreateUpdateTask' Before='InstallFinalize' />
+            <Custom Action='CreateUpdateTask' Before='InstallFinalize'>
+                <![CDATA[NOT(REMOVE OR WVRTINSTALLED)]]>
+            </Custom>
         </InstallExecuteSequence>
         <!-- Remove elevated update task -->
-        <CustomAction
+        <!-- <CustomAction
             Id="DeleteUpdateTask"
             Return="check"
             Directory="INSTALLDIR"
-            ExeCommand="&quot;[SystemFolder]SCHTASKS.EXE&quot; /DELETE /TN &quot;Update [Product Name] - Skip UAC&quot; /F" />
+            ExeCommand="schtasks /DELETE /TN &quot;Update {{{product_name}}} - Skip UAC&quot; /F" />
         <InstallExecuteSequence>
             <Custom Action="DeleteUpdateTask" After='InstallFinalize'>
                 (REMOVE = "ALL") AND NOT UPGRADINGPRODUCTCODE
             </Custom>
-        </InstallExecuteSequence>
+        </InstallExecuteSequence> -->
         {{/if}}
 
-        <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" After="CostFinalize"/>        
+        <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" After="CostFinalize"/>
     </Product>
 </Wix>

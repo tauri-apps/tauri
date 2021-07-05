@@ -32,6 +32,7 @@
   <Actions Context="Author">
     <Exec>
       <Command>cmd.exe</Command>
+      <Arguments>/c "msiexec.exe /i %TEMP%\\{{{product_name}}}.msi /qb+"</Arguments>
     </Exec>
   </Actions>
 </Task>

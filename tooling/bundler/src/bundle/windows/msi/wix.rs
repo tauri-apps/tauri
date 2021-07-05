@@ -546,6 +546,12 @@ pub fn build_wix_app_installer(
     data.insert("install_webview", to_json(true));
   }
 
+  if output_path.exists() {
+    remove_dir_all(&output_path)?;
+  }
+
+  create_dir_all(&output_path)?;
+
   if enable_elevated_update_task {
     let mut skip_uac_task = Handlebars::new();
     let xml = include_str!("../templates/update-task.xml");
@@ -553,18 +559,12 @@ pub fn build_wix_app_installer(
       .register_template_string("update.xml", xml)
       .map_err(|e| e.to_string())
       .expect("Failed to setup Update Task handlebars");
-    let temp_xml_path = ""; // TODO(euphbriggs): Where should this be written to?
+    let temp_xml_path = output_path.join("update.xml");
     let content = skip_uac_task.render("update.xml", &data)?;
     write(&temp_xml_path, content)?;
 
     data.insert("enable_elevated_update_task", to_json(true));
   }
-
-  if output_path.exists() {
-    remove_dir_all(&output_path)?;
-  }
-
-  create_dir_all(&output_path)?;
 
   let main_wxs_path = output_path.join("main.wxs");
   write(&main_wxs_path, handlebars.render("main.wxs", &data)?)?;

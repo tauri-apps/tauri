@@ -65,6 +65,7 @@ impl FileDialogBuilder {
 }
 
 /// Response for the ask dialog
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AskResponse {
   /// User confirmed.
   Yes,

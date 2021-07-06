@@ -16,7 +16,8 @@ mod menu;
 
 use serde::Serialize;
 use tauri::{
-  CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder, WindowUrl,
+  CustomMenuItem, Event, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder,
+  WindowUrl,
 };
 
 #[derive(Serialize)]
@@ -98,6 +99,13 @@ fn main() {
       cmd::perform_request,
       menu_toggle,
     ])
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    .build(tauri::generate_context!())
+    .expect("error while building tauri application")
+    .run(|app_handle, e| {
+      if let Event::CloseRequested { label, api, .. } = e {
+        api.prevent_close();
+        let window = app_handle.get_window(&label).unwrap();
+        window.emit("close-requested", ()).unwrap();
+      }
+    })
 }

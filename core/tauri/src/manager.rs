@@ -753,7 +753,7 @@ impl<P: Params> WindowManager<P> {
     window
   }
 
-  pub(crate) fn on_window_close(&self, label: String) {
+  pub(crate) fn on_window_close(&self, label: &str) {
     self
       .windows_lock()
       .remove(&label.parse().unwrap_or_else(|_| panic!("bad label")));
@@ -886,6 +886,14 @@ fn on_window_event<P: Params>(
           .unwrap_or_else(|_| panic!("unhandled event")),
         Some(()),
       )?;
+    }
+    WindowEvent::Destroyed => {
+      window.emit(
+        &WINDOW_DESTROYED_EVENT
+          .parse()
+          .unwrap_or_else(|_| panic!("unhandled event")),
+        Some(()),
+      )?;
       let label = window.label();
       for window in manager.inner.windows.lock().unwrap().values() {
         window.eval(&format!(
@@ -894,12 +902,6 @@ fn on_window_event<P: Params>(
         ))?;
       }
     }
-    WindowEvent::Destroyed => window.emit(
-      &WINDOW_DESTROYED_EVENT
-        .parse()
-        .unwrap_or_else(|_| panic!("unhandled event")),
-      Some(()),
-    )?,
     WindowEvent::Focused(focused) => window.emit(
       &if *focused {
         WINDOW_FOCUS_EVENT

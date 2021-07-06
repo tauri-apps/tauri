@@ -6,7 +6,7 @@
 
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
-use std::{fmt::Debug, hash::Hash, path::PathBuf};
+use std::{fmt::Debug, hash::Hash, path::PathBuf, sync::mpsc::Sender};
 
 use serde::{Deserialize, Serialize};
 use tauri_utils::assets::Assets;
@@ -189,9 +189,17 @@ impl Icon {
 }
 
 /// Event triggered on the event loop run.
+#[non_exhaustive]
 pub enum RunEvent {
   /// Event loop is exiting.
   Exit,
+  /// Window close was requested by the user.
+  CloseRequested {
+    /// The window label.
+    label: String,
+    /// A signal sender. If a `true` value is emitted, the window won't be closed.
+    signal_tx: Sender<bool>,
+  },
   /// Window closed.
   WindowClose(String),
 }

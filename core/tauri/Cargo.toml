@@ -33,7 +33,7 @@ normal = [ "attohttpc" ]
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
 serde = { version = "1.0", features = [ "derive" ] }
-tokio = { version = "1.7", features = [ "rt", "rt-multi-thread", "sync", "fs" ] }
+tokio = { version = "1.8", features = [ "rt", "rt-multi-thread", "sync", "fs" ] }
 futures = "0.3"
 uuid = { version = "0.8", features = [ "v4" ] }
 thiserror = "1.0"
@@ -70,7 +70,7 @@ raw-window-handle = { version = "0.3.3", optional = true }
 minisign-verify = { version = "0.1", optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { version = "0.9", features = [ "v3_16" ] }
+gtk = { version = "0.14", features = [ "v3_16" ] }
 
 [build-dependencies]
 cfg_aliases = "0.1.1"

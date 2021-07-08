@@ -529,23 +529,22 @@ impl<P: Params> WindowManager<P> {
 #[cfg(test)]
 mod test {
   use super::{Args, WindowManager};
-  use crate::{generate_context, plugin::PluginStore, StateManager, Wry};
+  use crate::{generate_context, plugin::PluginStore, StateManager};
 
   #[test]
   fn check_get_url() {
     let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
-    let manager: WindowManager<Args<String, String, String, String, _, Wry>> =
-      WindowManager::with_handlers(
-        context,
-        PluginStore::default(),
-        Box::new(|_| ()),
-        Box::new(|_, _| ()),
-        Default::default(),
-        StateManager::new(),
-        Default::default(),
-        #[cfg(feature = "menu")]
-        Default::default(),
-      );
+    let manager: WindowManager<Args> = WindowManager::with_handlers(
+      context,
+      PluginStore::default(),
+      Box::new(|_| ()),
+      Box::new(|_, _| ()),
+      Default::default(),
+      StateManager::new(),
+      Default::default(),
+      #[cfg(feature = "menu")]
+      Default::default(),
+    );
 
     #[cfg(custom_protocol)]
     assert_eq!(manager.get_url(), "tauri://localhost");

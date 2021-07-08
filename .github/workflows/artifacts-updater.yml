@@ -118,4 +118,4 @@ jobs:
         if: matrix.platform == 'macos-latest'
         with:
           name: macos-updater-artifacts
-          path: ./target/release/bundle/macos/updater-example_*.app.tar.*
+          path: ./target/release/bundle/macos/updater-example.app.tar.*

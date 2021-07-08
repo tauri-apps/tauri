@@ -15,7 +15,7 @@ use crate::{
   app::AppHandle,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
-  manager::WindowManager,
+  manager::{Args, WindowManager},
   runtime::{
     monitor::Monitor as RuntimeMonitor,
     tag::{TagRef, ToJsString},
@@ -83,18 +83,16 @@ impl Monitor {
 }
 
 // TODO: expand these docs since this is a pretty important type
-crate::manager::default_args! {
-  /// A webview window managed by Tauri.
-  ///
-  /// This type also implements [`Manager`] which allows you to manage other windows attached to
-  /// the same application.
-  pub struct Window<P: Params> {
-    /// The webview window created by the runtime.
-    window: DetachedWindow<P>,
-    /// The manager to associate this webview window with.
-    manager: WindowManager<P>,
-    pub(crate) app_handle: AppHandle<P>,
-  }
+/// A webview window managed by Tauri.
+///
+/// This type also implements [`Manager`] which allows you to manage other windows attached to
+/// the same application.
+pub struct Window<P: Params = Args> {
+  /// The webview window created by the runtime.
+  window: DetachedWindow<P>,
+  /// The manager to associate this webview window with.
+  manager: WindowManager<P>,
+  pub(crate) app_handle: AppHandle<P>,
 }
 
 impl<P: Params> Clone for Window<P> {

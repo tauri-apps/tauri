@@ -24,12 +24,10 @@ impl<I: MenuId> MenuEvent<I> {
   }
 }
 
-crate::manager::default_args! {
-  /// A handle to a system tray. Allows updating the context menu items.
-  pub struct MenuHandle<P: Params> {
-    pub(crate) ids: HashMap<u16, P::MenuId>,
-    pub(crate) dispatcher: <P::Runtime as Runtime>::Dispatcher,
-  }
+/// A handle to a system tray. Allows updating the context menu items.
+pub struct MenuHandle<P: Params> {
+  pub(crate) ids: HashMap<u16, P::MenuId>,
+  pub(crate) dispatcher: <P::Runtime as Runtime>::Dispatcher,
 }
 
 impl<P: Params> Clone for MenuHandle<P> {
@@ -41,12 +39,10 @@ impl<P: Params> Clone for MenuHandle<P> {
   }
 }
 
-crate::manager::default_args! {
-  /// A handle to a system tray menu item.
-  pub struct MenuItemHandle<P: Params> {
-    id: u16,
-    dispatcher: <P::Runtime as Runtime>::Dispatcher,
-  }
+/// A handle to a system tray menu item.
+pub struct MenuItemHandle<P: Params> {
+  id: u16,
+  dispatcher: <P::Runtime as Runtime>::Dispatcher,
 }
 
 impl<P: Params> Clone for MenuItemHandle<P> {

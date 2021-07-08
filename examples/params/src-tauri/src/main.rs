@@ -14,16 +14,7 @@
 use serde::Serialize;
 use std::fmt;
 use std::str::FromStr;
-use tauri::{command, Wry};
-
-trait Params:
-  tauri::Params<Event = Event, Label = Window, MenuId = Menu, SystemTrayMenuId = SystemMenu>
-{
-}
-impl<P> Params for P where
-  P: tauri::Params<Event = Event, Label = Window, MenuId = Menu, SystemTrayMenuId = SystemMenu>
-{
-}
+use tauri::{api::assets::EmbeddedAssets, command, Params, Wry};
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum Event {
@@ -92,19 +83,30 @@ pub enum SystemMenu {
 }
 
 #[command]
-fn log_window_label(window: tauri::Window<impl Params>) {
+fn log_window_label(window: tauri::Window<CustomArgs>) {
   dbg!(window.label());
 }
 
 #[command]
-fn send_foo(window: tauri::Window<impl Params>) {
+fn send_foo(window: tauri::Window<CustomArgs>) {
   window
     .emit(&Event::Foo, ())
     .expect("couldn't send Event::Foo");
 }
 
+pub struct CustomArgs {}
+
+impl Params for CustomArgs {
+  type Event = Event;
+  type Label = Window;
+  type MenuId = Menu;
+  type SystemTrayMenuId = SystemMenu;
+  type Assets = EmbeddedAssets;
+  type Runtime = Wry;
+}
+
 fn main() {
-  tauri::Builder::<Event, Window, Menu, SystemMenu, _, Wry>::new()
+  tauri::Builder::<CustomArgs>::new()
     .invoke_handler(tauri::generate_handler![log_window_label, send_foo])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

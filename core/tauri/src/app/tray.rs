@@ -75,12 +75,10 @@ pub enum SystemTrayEvent<I: MenuId> {
   },
 }
 
-crate::manager::default_args! {
-  /// A handle to a system tray. Allows updating the context menu items.
-  pub struct SystemTrayHandle<P: Params> {
-    pub(crate) ids: Arc<HashMap<u16, P::SystemTrayMenuId>>,
-    pub(crate) inner: <P::Runtime as Runtime>::TrayHandler,
-  }
+/// A handle to a system tray. Allows updating the context menu items.
+pub struct SystemTrayHandle<P: Params> {
+  pub(crate) ids: Arc<HashMap<u16, P::SystemTrayMenuId>>,
+  pub(crate) inner: <P::Runtime as Runtime>::TrayHandler,
 }
 
 impl<P: Params> Clone for SystemTrayHandle<P> {
@@ -92,12 +90,10 @@ impl<P: Params> Clone for SystemTrayHandle<P> {
   }
 }
 
-crate::manager::default_args! {
-  /// A handle to a system tray menu item.
-  pub struct SystemTrayMenuItemHandle<P: Params> {
-    id: u16,
-    tray_handler: <P::Runtime as Runtime>::TrayHandler,
-  }
+/// A handle to a system tray menu item.
+pub struct SystemTrayMenuItemHandle<P: Params> {
+  id: u16,
+  tray_handler: <P::Runtime as Runtime>::TrayHandler,
 }
 
 impl<P: Params> Clone for SystemTrayMenuItemHandle<P> {

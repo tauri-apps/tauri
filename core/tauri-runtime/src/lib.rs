@@ -132,7 +132,7 @@ pub mod private {
 }
 
 /// Types associated with the running Tauri application.
-pub trait Params: private::ParamsBase + 'static {
+pub trait Params: 'static {
   /// The event type used to create and listen to events.
   type Event: Tag;
 

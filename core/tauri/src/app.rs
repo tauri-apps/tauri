@@ -76,14 +76,12 @@ pub enum Event<P: Params> {
   WindowClosed(P::Label),
 }
 
-crate::manager::default_args! {
-  /// A menu event that was triggered on a window.
-  #[cfg(feature = "menu")]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-  pub struct WindowMenuEvent<P: Params> {
-    pub(crate) menu_item_id: P::MenuId,
-    pub(crate) window: Window<P>,
-  }
+/// A menu event that was triggered on a window.
+#[cfg(feature = "menu")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
+pub struct WindowMenuEvent<P: Params> {
+  pub(crate) menu_item_id: P::MenuId,
+  pub(crate) window: Window<P>,
 }
 
 #[cfg(feature = "menu")]
@@ -99,12 +97,10 @@ impl<P: Params> WindowMenuEvent<P> {
   }
 }
 
-crate::manager::default_args! {
-  /// A window event that was triggered on the specified window.
-  pub struct GlobalWindowEvent<P: Params> {
-    pub(crate) event: WindowEvent,
-    pub(crate) window: Window<P>,
-  }
+/// A window event that was triggered on the specified window.
+pub struct GlobalWindowEvent<P: Params> {
+  pub(crate) event: WindowEvent,
+  pub(crate) window: Window<P>,
 }
 
 impl<P: Params> GlobalWindowEvent<P> {
@@ -138,18 +134,16 @@ impl PathResolver {
   }
 }
 
-crate::manager::default_args! {
-  /// A handle to the currently running application.
-  ///
-  /// This type implements [`Manager`] which allows for manipulation of global application items.
-  pub struct AppHandle<P: Params> {
-    runtime_handle: <P::Runtime as Runtime>::Handle,
-    manager: WindowManager<P>,
-    global_shortcut_manager: <P::Runtime as Runtime>::GlobalShortcutManager,
-    clipboard_manager: <P::Runtime as Runtime>::ClipboardManager,
-    #[cfg(feature = "system-tray")]
-    tray_handle: Option<tray::SystemTrayHandle<P>>,
-  }
+/// A handle to the currently running application.
+///
+/// This type implements [`Manager`] which allows for manipulation of global application items.
+pub struct AppHandle<P: Params> {
+  runtime_handle: <P::Runtime as Runtime>::Handle,
+  manager: WindowManager<P>,
+  global_shortcut_manager: <P::Runtime as Runtime>::GlobalShortcutManager,
+  clipboard_manager: <P::Runtime as Runtime>::ClipboardManager,
+  #[cfg(feature = "system-tray")]
+  tray_handle: Option<tray::SystemTrayHandle<P>>,
 }
 
 impl<P: Params> Clone for AppHandle<P> {
@@ -196,19 +190,17 @@ impl<P: Params> ManagerBase<P> for AppHandle<P> {
   }
 }
 
-crate::manager::default_args! {
-  /// The instance of the currently running application.
-  ///
-  /// This type implements [`Manager`] which allows for manipulation of global application items.
-  pub struct App<P: Params> {
-    runtime: Option<P::Runtime>,
-    manager: WindowManager<P>,
-    global_shortcut_manager: <P::Runtime as Runtime>::GlobalShortcutManager,
-    clipboard_manager: <P::Runtime as Runtime>::ClipboardManager,
-    #[cfg(feature = "system-tray")]
-    tray_handle: Option<tray::SystemTrayHandle<P>>,
-    handle: AppHandle<P>,
-  }
+/// The instance of the currently running application.
+///
+/// This type implements [`Manager`] which allows for manipulation of global application items.
+pub struct App<P: Params> {
+  runtime: Option<P::Runtime>,
+  manager: WindowManager<P>,
+  global_shortcut_manager: <P::Runtime as Runtime>::GlobalShortcutManager,
+  clipboard_manager: <P::Runtime as Runtime>::ClipboardManager,
+  #[cfg(feature = "system-tray")]
+  tray_handle: Option<tray::SystemTrayHandle<P>>,
+  handle: AppHandle<P>,
 }
 
 impl<P: Params> Manager<P> for App<P> {}
@@ -428,30 +420,21 @@ impl<P: Params> App<P> {
 }
 
 /// Builds a Tauri application.
-#[allow(clippy::type_complexity)]
-pub struct Builder<E, L, MID, TID, A, R>
-where
-  E: Tag,
-  L: Tag,
-  MID: MenuId,
-  TID: MenuId,
-  A: Assets,
-  R: Runtime,
-{
+pub struct Builder<P: Params = Args> {
   /// The JS message handler.
-  invoke_handler: Box<InvokeHandler<Args<E, L, MID, TID, A, R>>>,
+  invoke_handler: Box<InvokeHandler<P>>,
 
   /// The setup hook.
-  setup: SetupHook<Args<E, L, MID, TID, A, R>>,
+  setup: SetupHook<P>,
 
   /// Page load hook.
-  on_page_load: Box<OnPageLoad<Args<E, L, MID, TID, A, R>>>,
+  on_page_load: Box<OnPageLoad<P>>,
 
   /// windows to create when starting up.
-  pending_windows: Vec<PendingWindow<Args<E, L, MID, TID, A, R>>>,
+  pending_windows: Vec<PendingWindow<P>>,
 
   /// All passed plugins
-  plugins: PluginStore<Args<E, L, MID, TID, A, R>>,
+  plugins: PluginStore<P>,
 
   /// The webview protocols available to all windows.
   uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
@@ -461,33 +444,25 @@ where
 
   /// The menu set to all windows.
   #[cfg(feature = "menu")]
-  menu: Option<Menu<MID>>,
+  menu: Option<Menu<P::MenuId>>,
 
   /// Menu event handlers that listens to all windows.
   #[cfg(feature = "menu")]
-  menu_event_listeners: Vec<GlobalMenuEventListener<Args<E, L, MID, TID, A, R>>>,
+  menu_event_listeners: Vec<GlobalMenuEventListener<P>>,
 
   /// Window event handlers that listens to all windows.
-  window_event_listeners: Vec<GlobalWindowEventListener<Args<E, L, MID, TID, A, R>>>,
+  window_event_listeners: Vec<GlobalWindowEventListener<P>>,
 
   /// The app system tray.
   #[cfg(feature = "system-tray")]
-  system_tray: Option<tray::SystemTray<TID>>,
+  system_tray: Option<tray::SystemTray<P::SystemTrayMenuId>>,
 
   /// System tray event handlers.
   #[cfg(feature = "system-tray")]
-  system_tray_event_listeners: Vec<SystemTrayEventListener<Args<E, L, MID, TID, A, R>>>,
+  system_tray_event_listeners: Vec<SystemTrayEventListener<P>>,
 }
 
-impl<E, L, MID, TID, A, R> Builder<E, L, MID, TID, A, R>
-where
-  E: Tag,
-  L: Tag,
-  MID: MenuId,
-  TID: MenuId,
-  A: Assets,
-  R: Runtime,
-{
+impl<P: Params> Builder<P> {
   /// Creates a new App builder.
   pub fn new() -> Self {
     Self {
@@ -513,7 +488,7 @@ where
   /// Defines the JS message handler callback.
   pub fn invoke_handler<F>(mut self, invoke_handler: F) -> Self
   where
-    F: Fn(Invoke<Args<E, L, MID, TID, A, R>>) + Send + Sync + 'static,
+    F: Fn(Invoke<P>) + Send + Sync + 'static,
   {
     self.invoke_handler = Box::new(invoke_handler);
     self
@@ -522,9 +497,7 @@ where
   /// Defines the setup hook.
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: Fn(&mut App<Args<E, L, MID, TID, A, R>>) -> Result<(), Box<dyn std::error::Error + Send>>
-      + Send
-      + 'static,
+    F: Fn(&mut App<P>) -> Result<(), Box<dyn std::error::Error + Send>> + Send + 'static,
   {
     self.setup = Box::new(setup);
     self
@@ -533,14 +506,14 @@ where
   /// Defines the page load hook.
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
-    F: Fn(Window<Args<E, L, MID, TID, A, R>>, PageLoadPayload) + Send + Sync + 'static,
+    F: Fn(Window<P>, PageLoadPayload) + Send + Sync + 'static,
   {
     self.on_page_load = Box::new(on_page_load);
     self
   }
 
   /// Adds a plugin to the runtime.
-  pub fn plugin<P: Plugin<Args<E, L, MID, TID, A, R>> + 'static>(mut self, plugin: P) -> Self {
+  pub fn plugin<PL: Plugin<P> + 'static>(mut self, plugin: PL) -> Self {
     self.plugins.register(plugin);
     self
   }
@@ -633,18 +606,18 @@ where
   }
 
   /// Creates a new webview window.
-  pub fn create_window<F>(mut self, label: L, url: WindowUrl, setup: F) -> Self
+  pub fn create_window<F>(mut self, label: P::Label, url: WindowUrl, setup: F) -> Self
   where
     F: FnOnce(
-      <R::Dispatcher as Dispatch>::WindowBuilder,
+      <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
       WebviewAttributes,
     ) -> (
-      <R::Dispatcher as Dispatch>::WindowBuilder,
+      <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
       WebviewAttributes,
     ),
   {
     let (window_builder, webview_attributes) = setup(
-      <R::Dispatcher as Dispatch>::WindowBuilder::new(),
+      <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder::new(),
       WebviewAttributes::new(url),
     );
     self.pending_windows.push(PendingWindow::new(
@@ -658,7 +631,7 @@ where
   /// Adds the icon configured on `tauri.conf.json` to the system tray with the specified menu items.
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  pub fn system_tray(mut self, system_tray: tray::SystemTray<TID>) -> Self {
+  pub fn system_tray(mut self, system_tray: tray::SystemTray<P::SystemTrayMenuId>) -> Self {
     self.system_tray.replace(system_tray);
     self
   }
@@ -666,7 +639,7 @@ where
   /// Sets the menu to use on all windows.
   #[cfg(feature = "menu")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-  pub fn menu(mut self, menu: Menu<MID>) -> Self {
+  pub fn menu(mut self, menu: Menu<P::MenuId>) -> Self {
     self.menu.replace(menu);
     self
   }
@@ -674,9 +647,7 @@ where
   /// Registers a menu event handler for all windows.
   #[cfg(feature = "menu")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-  pub fn on_menu_event<
-    F: Fn(WindowMenuEvent<Args<E, L, MID, TID, A, R>>) + Send + Sync + 'static,
-  >(
+  pub fn on_menu_event<F: Fn(WindowMenuEvent<P>) + Send + Sync + 'static>(
     mut self,
     handler: F,
   ) -> Self {
@@ -685,9 +656,7 @@ where
   }
 
   /// Registers a window event handler for all windows.
-  pub fn on_window_event<
-    F: Fn(GlobalWindowEvent<Args<E, L, MID, TID, A, R>>) + Send + Sync + 'static,
-  >(
+  pub fn on_window_event<F: Fn(GlobalWindowEvent<P>) + Send + Sync + 'static>(
     mut self,
     handler: F,
   ) -> Self {
@@ -699,7 +668,7 @@ where
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   pub fn on_system_tray_event<
-    F: Fn(&AppHandle<Args<E, L, MID, TID, A, R>>, tray::SystemTrayEvent<TID>) + Send + Sync + 'static,
+    F: Fn(&AppHandle<P>, tray::SystemTrayEvent<P::SystemTrayMenuId>) + Send + Sync + 'static,
   >(
     mut self,
     handler: F,
@@ -736,7 +705,7 @@ where
 
   /// Builds the application.
   #[allow(clippy::type_complexity)]
-  pub fn build(mut self, context: Context<A>) -> crate::Result<App<Args<E, L, MID, TID, A, R>>> {
+  pub fn build(mut self, context: Context<P::Assets>) -> crate::Result<App<P>> {
     #[cfg(feature = "system-tray")]
     let system_tray_icon = {
       let icon = context.system_tray_icon.clone();
@@ -797,7 +766,7 @@ where
       ));
     }
 
-    let runtime = R::new()?;
+    let runtime = P::Runtime::new()?;
     let runtime_handle = runtime.handle();
     let global_shortcut_manager = runtime.global_shortcut_manager();
     let clipboard_manager = runtime.clipboard_manager();
@@ -921,7 +890,7 @@ where
   }
 
   /// Runs the configured Tauri application.
-  pub fn run(self, context: Context<A>) -> crate::Result<()> {
+  pub fn run(self, context: Context<P::Assets>) -> crate::Result<()> {
     self.build(context)?.run(|_, _| {});
     Ok(())
   }
@@ -935,14 +904,7 @@ fn on_event_loop_event<P: Params>(event: &RunEvent, manager: &WindowManager<P>) 
 
 /// Make `Wry` the default `Runtime` for `Builder`
 #[cfg(feature = "wry")]
-impl<A: Assets> Default for Builder<String, String, String, String, A, crate::Wry> {
-  fn default() -> Self {
-    Self::new()
-  }
-}
-
-#[cfg(not(feature = "wry"))]
-impl<A: Assets, R: Runtime> Default for Builder<String, String, String, String, A, R> {
+impl Default for Builder<Args> {
   fn default() -> Self {
     Self::new()
   }

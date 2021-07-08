@@ -16,8 +16,8 @@ mod menu;
 
 use serde::Serialize;
 use tauri::{
-  CustomMenuItem, Event, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder,
-  WindowUrl,
+  CustomMenuItem, Event, Manager, Params, SystemTray, SystemTrayEvent, SystemTrayMenu,
+  WindowBuilder, WindowUrl,
 };
 
 #[derive(Serialize)]

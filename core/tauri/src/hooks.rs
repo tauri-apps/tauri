@@ -34,15 +34,13 @@ impl PageLoadPayload {
   }
 }
 
-crate::manager::default_args! {
-  /// The message and resolver given to a custom command.
-  pub struct Invoke<P: Params> {
-    /// The message passed.
-    pub message: InvokeMessage<P>,
+/// The message and resolver given to a custom command.
+pub struct Invoke<P: Params> {
+  /// The message passed.
+  pub message: InvokeMessage<P>,
 
-    /// The resolver of the message.
-    pub resolver: InvokeResolver<P>,
-  }
+  /// The resolver of the message.
+  pub resolver: InvokeResolver<P>,
 }
 
 /// Error response from an [`InvokeMessage`].
@@ -112,13 +110,11 @@ impl From<InvokeError> for InvokeResponse {
   }
 }
 
-crate::manager::default_args! {
-  /// Resolver of a invoke message.
-  pub struct InvokeResolver<P: Params> {
-    window: Window<P>,
-    pub(crate) callback: String,
-    pub(crate) error: String,
-  }
+/// Resolver of a invoke message.
+pub struct InvokeResolver<P: Params> {
+  window: Window<P>,
+  pub(crate) callback: String,
+  pub(crate) error: String,
 }
 
 impl<P: Params> InvokeResolver<P> {
@@ -232,18 +228,16 @@ impl<P: Params> InvokeResolver<P> {
   }
 }
 
-crate::manager::default_args! {
-  /// An invoke message.
-  pub struct InvokeMessage<P: Params> {
-    /// The window that received the invoke message.
-    pub(crate) window: Window<P>,
-    /// Application managed state.
-    pub(crate) state: Arc<StateManager>,
-    /// The RPC command.
-    pub(crate) command: String,
-    /// The JSON argument passed on the invoke message.
-    pub(crate) payload: JsonValue,
-  }
+/// An invoke message.
+pub struct InvokeMessage<P: Params> {
+  /// The window that received the invoke message.
+  pub(crate) window: Window<P>,
+  /// Application managed state.
+  pub(crate) state: Arc<StateManager>,
+  /// The RPC command.
+  pub(crate) command: String,
+  /// The JSON argument passed on the invoke message.
+  pub(crate) payload: JsonValue,
 }
 
 impl<P: Params> InvokeMessage<P> {

@@ -21,7 +21,7 @@ use crate::{
       WindowBuilder,
     },
     window::{dpi::PhysicalSize, DetachedWindow, PendingWindow, WindowEvent},
-    Icon, MenuId, Params,
+    Icon, Params,
   },
   App, Context, Invoke, StateManager, Window,
 };
@@ -138,7 +138,7 @@ impl<P: Params> Clone for WindowManager<P> {
 }
 
 #[cfg(feature = "menu")]
-fn get_menu_ids<I: MenuId>(map: &mut HashMap<u16, I>, menu: &Menu<I>) {
+fn get_menu_ids<I: crate::MenuId>(map: &mut HashMap<u16, I>, menu: &Menu<I>) {
   for item in &menu.items {
     match item {
       MenuEntry::CustomItem(c) => {

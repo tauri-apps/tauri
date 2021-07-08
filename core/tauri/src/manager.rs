@@ -21,7 +21,7 @@ use crate::{
       WindowBuilder,
     },
     window::{dpi::PhysicalSize, DetachedWindow, PendingWindow, WindowEvent},
-    Icon, MenuId, Params, Runtime,
+    Icon, MenuId, Params,
   },
   App, Context, Invoke, StateManager, Window,
 };

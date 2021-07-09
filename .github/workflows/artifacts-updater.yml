@@ -101,10 +101,13 @@ jobs:
           yarn install
           node ../../tooling/cli.js/bin/tauri build
         env:
-          # Notarization
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          # Apple code signing
+          # Notarization (disabled)
+          # FIXME: enable only on `dev` push maybe? as it take some times...
+          #
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+
+          # Apple code signing testing
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           # Updater signature

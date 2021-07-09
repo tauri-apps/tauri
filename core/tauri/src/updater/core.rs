@@ -721,20 +721,16 @@ pub fn verify_signature(
   let public_key = PublicKey::decode(pub_key_decoded)?;
   let signature_base64_decoded = base64_to_string(&release_signature)?;
 
-  let signature =
-    Signature::decode(&signature_base64_decoded)?;
+  let signature = Signature::decode(&signature_base64_decoded)?;
 
   // We need to open the file and extract the datas to make sure its not corrupted
-  let file_open = OpenOptions::new()
-    .read(true)
-    .open(&archive_path)?;
+  let file_open = OpenOptions::new().read(true).open(&archive_path)?;
 
   let mut file_buff: BufReader<File> = BufReader::new(file_open);
 
   // read all bytes since EOF in the buffer
   let mut data = vec![];
-  file_buff
-    .read_to_end(&mut data)?;
+  file_buff.read_to_end(&mut data)?;
 
   // Validate signature or bail out
   public_key.verify(&data, &signature)?;

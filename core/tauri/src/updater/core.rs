@@ -232,7 +232,7 @@ impl<'a> UpdateBuilder<'a> {
     } else {
       // we expect it to fail if we can't find the executable path
       // without this path we can't continue the update process.
-      env::current_exe().expect("Can't access current executable path.")
+      env::current_exe()?
     };
 
     // Did the target is provided by the config?
@@ -481,17 +481,16 @@ impl Update {
 // We should have an AppImage already installed to be able to copy and install
 // the extract_path is the current AppImage path
 // tmp_dir is where our new AppImage is found
-
 #[cfg(target_os = "linux")]
 fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Result {
   // we delete our current AppImage (we'll create a new one later)
   remove_file(&extract_path)?;
 
   // In our tempdir we expect 1 directory (should be the <app>.app)
-  let paths = read_dir(&tmp_dir).unwrap();
+  let paths = read_dir(&tmp_dir)?;
 
   for path in paths {
-    let found_path = path.expect("Unable to extract").path();
+    let found_path = path?.path();
     // make sure it's our .AppImage
     if found_path.extension() == Some(OsStr::new("AppImage")) {
       // Simply overwrite our AppImage (we use the command)
@@ -524,16 +523,15 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Resu
 
 // ## EXE
 // Update server can provide a custom EXE (installer) who can run any task.
-
 #[cfg(target_os = "windows")]
 #[allow(clippy::unnecessary_wraps)]
 fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Result {
-  let paths = read_dir(&tmp_dir).unwrap();
+  let paths = read_dir(&tmp_dir)?;
   // This consumes the TempDir without deleting directory on the filesystem,
   // meaning that the directory will no longer be automatically deleted.
   tmp_dir.into_path();
   for path in paths {
-    let found_path = path.expect("Unable to extract").path();
+    let found_path = path?.path();
     // we support 2 type of files exe & msi for now
     // If it's an `exe` we expect an installer not a runtime.
     if found_path.extension() == Some(OsStr::new("exe")) {
@@ -581,13 +579,13 @@ fn macos_app_name_in_path(extract_path: &PathBuf) -> String {
 #[cfg(target_os = "macos")]
 fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Result {
   // In our tempdir we expect 1 directory (should be the <app>.app)
-  let paths = read_dir(&tmp_dir).unwrap();
+  let paths = read_dir(&tmp_dir)?;
 
   // current app name in /Applications/<app>.app
   let app_name = macos_app_name_in_path(&extract_path);
 
   for path in paths {
-    let mut found_path = path.expect("Unable to extract").path();
+    let mut found_path = path?.path();
     // make sure it's our .app
     if found_path.extension() == Some(OsStr::new("app")) {
       let found_app_name = macos_app_name_in_path(&found_path);
@@ -596,7 +594,7 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Resu
         // we need to replace the app name in the updater archive to match
         // installed app name
         let new_path = found_path.parent().unwrap().join(app_name);
-        rename(&found_path, &new_path).expect("Unable to rename application");
+        rename(&found_path, &new_path)?;
 
         found_path = new_path;
       }
@@ -724,21 +722,19 @@ pub fn verify_signature(
   let signature_base64_decoded = base64_to_string(&release_signature)?;
 
   let signature =
-    Signature::decode(&signature_base64_decoded).expect("Something wrong with the signature");
+    Signature::decode(&signature_base64_decoded)?;
 
   // We need to open the file and extract the datas to make sure its not corrupted
   let file_open = OpenOptions::new()
     .read(true)
-    .open(&archive_path)
-    .expect("Can't open our archive to validate signature");
+    .open(&archive_path)?;
 
   let mut file_buff: BufReader<File> = BufReader::new(file_open);
 
   // read all bytes since EOF in the buffer
   let mut data = vec![];
   file_buff
-    .read_to_end(&mut data)
-    .expect("Can't read buffer to validate signature");
+    .read_to_end(&mut data)?;
 
   // Validate signature or bail out
   public_key.verify(&data, &signature)?;

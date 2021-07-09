@@ -11,13 +11,15 @@ use std::{
   collections::HashMap,
   env,
   ffi::OsStr,
-  fs::{read_dir, remove_file, rename, File, OpenOptions},
+  fs::{read_dir, remove_file, File, OpenOptions},
   io::{prelude::*, BufReader, Read},
   path::{Path, PathBuf},
   str::from_utf8,
   time::{SystemTime, UNIX_EPOCH},
 };
 
+#[cfg(target_os = "macos")]
+use std::fs::rename;
 #[cfg(not(target_os = "macos"))]
 use std::process::Command;
 

@@ -4,7 +4,7 @@
 
 use super::InvokeResponse;
 use crate::{
-  runtime::{ClipboardManager, Params},
+  runtime::{ClipboardManager, Runtime},
   window::Window,
 };
 use serde::Deserialize;
@@ -20,7 +20,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub fn run<P: Params>(self, window: Window<P>) -> crate::Result<InvokeResponse> {
+  pub fn run<R: Runtime>(self, window: Window<R>) -> crate::Result<InvokeResponse> {
     let mut clipboard = window.app_handle.clipboard_manager();
     match self {
       Self::WriteText(text) => Ok(clipboard.write_text(text)?.into()),

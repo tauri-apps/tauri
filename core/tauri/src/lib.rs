@@ -60,10 +60,10 @@ pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 use crate::{
   event::{Event as EmittedEvent, EventHandler},
-  runtime::window::PendingWindow,
+  runtime::{window::PendingWindow},
 };
 use serde::Serialize;
-use std::{borrow::Borrow, collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 // Export types likely to be used by the application.
 #[cfg(any(feature = "menu", feature = "system-tray"))]
@@ -89,13 +89,13 @@ pub use {
     PageLoadPayload, SetupHook,
   },
   self::runtime::{
-    tag::{Tag, TagRef},
     webview::{WebviewAttributes, WindowBuilder},
     window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       WindowEvent,
     },
-    Icon, MenuId, Params, RunIteration, UserAttentionType,
+    Icon, RunIteration, UserAttentionType,
+    Runtime
   },
   self::state::{State, StateManager},
   self::window::{Monitor, Window},
@@ -246,42 +246,26 @@ impl<A: Assets> Context<A> {
 
 // TODO: expand these docs
 /// Manages a running application.
-pub trait Manager<P: Params>: sealed::ManagerBase<P> {
+pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// The [`Config`] the manager was created with.
   fn config(&self) -> Arc<Config> {
     self.manager().config()
   }
 
   /// Emits a event to all windows.
-  fn emit_all<E: ?Sized, S>(&self, event: &E, payload: S) -> Result<()>
-  where
-    P::Event: Borrow<E>,
-    E: TagRef<P::Event>,
-    S: Serialize + Clone,
-  {
+  fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
     self.manager().emit_filter(event, payload, |_| true)
   }
 
   /// Emits an event to a window with the specified label.
-  fn emit_to<E: ?Sized, L: ?Sized, S: Serialize + Clone>(
-    &self,
-    label: &L,
-    event: &E,
-    payload: S,
-  ) -> Result<()>
-  where
-    P::Label: Borrow<L>,
-    P::Event: Borrow<E>,
-    L: TagRef<P::Label>,
-    E: TagRef<P::Event>,
-  {
+  fn emit_to<S: Serialize + Clone>(&self, label: &str, event: &str, payload: S) -> Result<()> {
     self
       .manager()
       .emit_filter(event, payload, |w| label == w.label())
   }
 
   /// Listen to a global event.
-  fn listen_global<E: Into<P::Event>, F>(&self, event: E, handler: F) -> EventHandler
+  fn listen_global<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
     F: Fn(EmittedEvent) + Send + 'static,
   {
@@ -289,7 +273,7 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
   }
 
   /// Listen to a global event only once.
-  fn once_global<E: Into<P::Event>, F>(&self, event: E, handler: F) -> EventHandler
+  fn once_global<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
     F: Fn(EmittedEvent) + Send + 'static,
   {
@@ -297,11 +281,7 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
   }
 
   /// Trigger a global event.
-  fn trigger_global<E: ?Sized>(&self, event: &E, data: Option<String>)
-  where
-    P::Event: Borrow<E>,
-    E: TagRef<P::Event>,
-  {
+  fn trigger_global(&self, event: &str, data: Option<String>) {
     self.manager().trigger(event, None, data)
   }
 
@@ -311,16 +291,12 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
   }
 
   /// Fetch a single window from the manager.
-  fn get_window<L: ?Sized>(&self, label: &L) -> Option<Window<P>>
-  where
-    P::Label: Borrow<L>,
-    L: TagRef<P::Label>,
-  {
+  fn get_window(&self, label: &str) -> Option<Window<R>> {
     self.manager().get_window(label)
   }
 
   /// Fetch all managed windows.
-  fn windows(&self) -> HashMap<P::Label, Window<P>> {
+  fn windows(&self) -> HashMap<String, Window<R>> {
     self.manager().windows()
   }
 
@@ -345,33 +321,33 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
 /// Prevent implementation details from leaking out of the [`Manager`] trait.
 pub(crate) mod sealed {
   use crate::{app::AppHandle, manager::WindowManager};
-  use tauri_runtime::{Params, Runtime, RuntimeHandle};
+  use tauri_runtime::{Runtime, RuntimeHandle};
 
   /// A running [`Runtime`] or a dispatcher to it.
-  pub enum RuntimeOrDispatch<'r, P: Params> {
+  pub enum RuntimeOrDispatch<'r, R: Runtime> {
     /// Reference to the running [`Runtime`].
-    Runtime(&'r P::Runtime),
+    Runtime(&'r R),
 
     /// Handle to the running [`Runtime`].
-    RuntimeHandle(<P::Runtime as Runtime>::Handle),
+    RuntimeHandle(R::Handle),
 
     /// A dispatcher to the running [`Runtime`].
-    Dispatch(<P::Runtime as Runtime>::Dispatcher),
+    Dispatch(R::Dispatcher),
   }
 
   /// Managed handle to the application runtime.
-  pub trait ManagerBase<P: Params> {
+  pub trait ManagerBase<R: Runtime> {
     /// The manager behind the [`Managed`] item.
-    fn manager(&self) -> &WindowManager<P>;
+    fn manager(&self) -> &WindowManager<R>;
 
-    fn runtime(&self) -> RuntimeOrDispatch<'_, P>;
-    fn app_handle(&self) -> AppHandle<P>;
+    fn runtime(&self) -> RuntimeOrDispatch<'_, R>;
+    fn app_handle(&self) -> AppHandle<R>;
 
     /// Creates a new [`Window`] on the [`Runtime`] and attaches it to the [`Manager`].
     fn create_new_window(
       &self,
-      pending: crate::PendingWindow<P>,
-    ) -> crate::Result<crate::Window<P>> {
+      pending: crate::PendingWindow<R>,
+    ) -> crate::Result<crate::Window<R>> {
       use crate::runtime::Dispatch;
       let labels = self.manager().labels().into_iter().collect::<Vec<_>>();
       let pending = self

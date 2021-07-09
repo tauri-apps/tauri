@@ -18,13 +18,12 @@ use crate::{
   manager::WindowManager,
   runtime::{
     monitor::Monitor as RuntimeMonitor,
-    tag::{TagRef, ToJsString},
     webview::{InvokePayload, WebviewAttributes, WindowBuilder},
     window::{
       dpi::{PhysicalPosition, PhysicalSize, Position, Size},
       DetachedWindow, PendingWindow, WindowEvent,
     },
-    Dispatch, Icon, Params, Runtime, UserAttentionType,
+    Dispatch, Icon, Runtime, UserAttentionType,
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
@@ -33,8 +32,9 @@ use crate::{
 
 use serde::Serialize;
 
+use tauri_macros::default_runtime_wry;
+
 use std::{
-  borrow::Borrow,
   hash::{Hash, Hasher},
 };
 
@@ -83,21 +83,20 @@ impl Monitor {
 }
 
 // TODO: expand these docs since this is a pretty important type
-crate::manager::default_args! {
-  /// A webview window managed by Tauri.
-  ///
-  /// This type also implements [`Manager`] which allows you to manage other windows attached to
-  /// the same application.
-  pub struct Window<P: Params> {
-    /// The webview window created by the runtime.
-    window: DetachedWindow<P>,
-    /// The manager to associate this webview window with.
-    manager: WindowManager<P>,
-    pub(crate) app_handle: AppHandle<P>,
-  }
+/// A webview window managed by Tauri.
+///
+/// This type also implements [`Manager`] which allows you to manage other windows attached to
+/// the same application.
+#[default_runtime_wry]
+pub struct Window<R: Runtime> {
+  /// The webview window created by the runtime.
+  window: DetachedWindow<R>,
+  /// The manager to associate this webview window with.
+  manager: WindowManager<R>,
+  pub(crate) app_handle: AppHandle<R>,
 }
 
-impl<P: Params> Clone for Window<P> {
+impl<R: Runtime> Clone for Window<R> {
   fn clone(&self) -> Self {
     Self {
       window: self.window.clone(),
@@ -107,49 +106,49 @@ impl<P: Params> Clone for Window<P> {
   }
 }
 
-impl<P: Params> Hash for Window<P> {
+impl<R: Runtime> Hash for Window<R> {
   /// Only use the [`Window`]'s label to represent its hash.
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.window.label.hash(state)
   }
 }
 
-impl<P: Params> Eq for Window<P> {}
-impl<P: Params> PartialEq for Window<P> {
+impl<R: Runtime> Eq for Window<R> {}
+impl<R: Runtime> PartialEq for Window<R> {
   /// Only use the [`Window`]'s label to compare equality.
   fn eq(&self, other: &Self) -> bool {
     self.window.label.eq(&other.window.label)
   }
 }
 
-impl<P: Params> Manager<P> for Window<P> {}
-impl<P: Params> ManagerBase<P> for Window<P> {
-  fn manager(&self) -> &WindowManager<P> {
+impl<R: Runtime> Manager<R> for Window<R> {}
+impl<R: Runtime> ManagerBase<R> for Window<R> {
+  fn manager(&self) -> &WindowManager<R> {
     &self.manager
   }
 
-  fn app_handle(&self) -> AppHandle<P> {
-    self.app_handle.clone()
+  fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
+    RuntimeOrDispatch::Dispatch(self.dispatcher())
   }
 
-  fn runtime(&self) -> RuntimeOrDispatch<'_, P> {
-    RuntimeOrDispatch::Dispatch(self.dispatcher())
+  fn app_handle(&self) -> AppHandle<R> {
+    self.app_handle.clone()
   }
 }
 
-impl<'de, P: Params> CommandArg<'de, P> for Window<P> {
+impl<'de, R: Runtime> CommandArg<'de, R> for Window<R> {
   /// Grabs the [`Window`] from the [`CommandItem`]. This will never fail.
-  fn from_command(command: CommandItem<'de, P>) -> Result<Self, InvokeError> {
+  fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
     Ok(command.message.window())
   }
 }
 
-impl<P: Params> Window<P> {
+impl<R: Runtime> Window<R> {
   /// Create a new window that is attached to the manager.
   pub(crate) fn new(
-    manager: WindowManager<P>,
-    window: DetachedWindow<P>,
-    app_handle: AppHandle<P>,
+    manager: WindowManager<R>,
+    window: DetachedWindow<R>,
+    app_handle: AppHandle<R>,
   ) -> Self {
     Self {
       window,
@@ -161,21 +160,21 @@ impl<P: Params> Window<P> {
   /// Creates a new webview window.
   pub fn create_window<F>(
     &mut self,
-    label: P::Label,
+    label: String,
     url: WindowUrl,
     setup: F,
-  ) -> crate::Result<Window<P>>
+  ) -> crate::Result<Window<R>>
   where
     F: FnOnce(
-      <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
+      <R::Dispatcher as Dispatch>::WindowBuilder,
       WebviewAttributes,
     ) -> (
-      <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
+      <R::Dispatcher as Dispatch>::WindowBuilder,
       WebviewAttributes,
     ),
   {
     let (window_builder, webview_attributes) = setup(
-      <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder::new(),
+      <R::Dispatcher as Dispatch>::WindowBuilder::new(),
       WebviewAttributes::new(url),
     );
     self.create_new_window(PendingWindow::new(
@@ -186,7 +185,7 @@ impl<P: Params> Window<P> {
   }
 
   /// The current window's dispatcher.
-  pub(crate) fn dispatcher(&self) -> <P::Runtime as Runtime>::Dispatcher {
+  pub(crate) fn dispatcher(&self) -> R::Dispatcher {
     self.window.dispatcher.clone()
   }
 
@@ -238,21 +237,16 @@ impl<P: Params> Window<P> {
   }
 
   /// The label of this window.
-  pub fn label(&self) -> &P::Label {
+  pub fn label(&self) -> &str {
     &self.window.label
   }
 
   /// Emits an event to the current window.
-  pub fn emit<E: ?Sized, S>(&self, event: &E, payload: S) -> crate::Result<()>
-  where
-    P::Event: Borrow<E>,
-    E: TagRef<P::Event>,
-    S: Serialize,
-  {
+  pub fn emit<S: Serialize>(&self, event: &str, payload: S) -> crate::Result<()> {
     self.eval(&format!(
       "window['{}']({{event: {}, payload: {}}}, '{}')",
       self.manager.event_emit_function_name(),
-      event.to_js_string()?,
+      serde_json::to_string(event)?,
       serde_json::to_value(payload)?,
       self.manager.generate_salt(),
     ))?;
@@ -261,17 +255,12 @@ impl<P: Params> Window<P> {
   }
 
   /// Emits an event on all windows except this one.
-  pub fn emit_others<E: ?Sized, S>(&self, event: &E, payload: S) -> crate::Result<()>
-  where
-    P::Event: Borrow<E>,
-    E: TagRef<P::Event>,
-    S: Serialize + Clone,
-  {
+  pub fn emit_others<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
     self.manager.emit_filter(event, payload, |w| w != self)
   }
 
   /// Listen to an event on this window.
-  pub fn listen<E: Into<P::Event>, F>(&self, event: E, handler: F) -> EventHandler
+  pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
     F: Fn(Event) + Send + 'static,
   {
@@ -280,7 +269,7 @@ impl<P: Params> Window<P> {
   }
 
   /// Listen to a an event on this window a single time.
-  pub fn once<E: Into<P::Event>, F>(&self, event: E, handler: F) -> EventHandler
+  pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
     F: Fn(Event) + Send + 'static,
   {
@@ -289,11 +278,7 @@ impl<P: Params> Window<P> {
   }
 
   /// Triggers an event on this window.
-  pub fn trigger<E: ?Sized>(&self, event: &E, data: Option<String>)
-  where
-    P::Event: Borrow<E>,
-    E: TagRef<P::Event>,
-  {
+  pub fn trigger(&self, event: &str, data: Option<String>) {
     let label = self.window.label.clone();
     self.manager.trigger(event, Some(label), data)
   }
@@ -311,7 +296,7 @@ impl<P: Params> Window<P> {
   /// Registers a menu event listener.
   #[cfg(feature = "menu")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-  pub fn on_menu_event<F: Fn(MenuEvent<P::MenuId>) + Send + 'static>(&self, f: F) -> uuid::Uuid {
+  pub fn on_menu_event<F: Fn(MenuEvent) + Send + 'static>(&self, f: F) -> uuid::Uuid {
     let menu_ids = self.manager.menu_ids();
     self.window.dispatcher.on_menu_event(move |event| {
       f(MenuEvent {
@@ -324,7 +309,7 @@ impl<P: Params> Window<P> {
 
   /// Gets a handle to the window menu.
   #[cfg(feature = "menu")]
-  pub fn menu_handle(&self) -> MenuHandle<P> {
+  pub fn menu_handle(&self) -> MenuHandle<R> {
     MenuHandle {
       ids: self.manager.menu_ids(),
       dispatcher: self.dispatcher(),

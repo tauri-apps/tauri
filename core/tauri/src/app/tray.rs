@@ -2,22 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-pub use crate::{
-  runtime::{
-    menu::{MenuUpdate, SystemTrayMenu, SystemTrayMenuEntry, TrayHandle},
-    window::dpi::{PhysicalPosition, PhysicalSize},
-    Icon, MenuId, Runtime, SystemTray,
+pub use crate::runtime::{
+  menu::{
+    MenuHash, MenuId, MenuIdRef, MenuUpdate, SystemTrayMenu, SystemTrayMenuEntry, TrayHandle,
   },
-  Params,
+  window::dpi::{PhysicalPosition, PhysicalSize},
+  Icon, Runtime, SystemTray,
 };
+
+use tauri_macros::default_runtime_wry;
 
 use std::{collections::HashMap, sync::Arc};
 
-pub(crate) fn get_menu_ids<I: MenuId>(map: &mut HashMap<u16, I>, menu: &SystemTrayMenu<I>) {
+pub(crate) fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &SystemTrayMenu) {
   for item in &menu.items {
     match item {
       SystemTrayMenuEntry::CustomItem(c) => {
-        map.insert(c.id_value(), c.id.clone());
+        map.insert(c.id, c.id_str.clone());
       }
       SystemTrayMenuEntry::Submenu(s) => get_menu_ids(map, &s.inner),
       _ => {}
@@ -28,12 +29,12 @@ pub(crate) fn get_menu_ids<I: MenuId>(map: &mut HashMap<u16, I>, menu: &SystemTr
 /// System tray event.
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 #[non_exhaustive]
-pub enum SystemTrayEvent<I: MenuId> {
+pub enum SystemTrayEvent {
   /// Tray context menu item was clicked.
   #[non_exhaustive]
   MenuItemClick {
     /// The id of the menu item.
-    id: I,
+    id: MenuId,
   },
   /// Tray icon received a left click.
   ///
@@ -75,15 +76,14 @@ pub enum SystemTrayEvent<I: MenuId> {
   },
 }
 
-crate::manager::default_args! {
-  /// A handle to a system tray. Allows updating the context menu items.
-  pub struct SystemTrayHandle<P: Params> {
-    pub(crate) ids: Arc<HashMap<u16, P::SystemTrayMenuId>>,
-    pub(crate) inner: <P::Runtime as Runtime>::TrayHandler,
-  }
+/// A handle to a system tray. Allows updating the context menu items.
+#[default_runtime_wry]
+pub struct SystemTrayHandle<R: Runtime> {
+  pub(crate) ids: Arc<HashMap<MenuHash, MenuId>>,
+  pub(crate) inner: R::TrayHandler,
 }
 
-impl<P: Params> Clone for SystemTrayHandle<P> {
+impl<R: Runtime> Clone for SystemTrayHandle<R> {
   fn clone(&self) -> Self {
     Self {
       ids: self.ids.clone(),
@@ -92,15 +92,14 @@ impl<P: Params> Clone for SystemTrayHandle<P> {
   }
 }
 
-crate::manager::default_args! {
-  /// A handle to a system tray menu item.
-  pub struct SystemTrayMenuItemHandle<P: Params> {
-    id: u16,
-    tray_handler: <P::Runtime as Runtime>::TrayHandler,
-  }
+/// A handle to a system tray menu item.
+#[default_runtime_wry]
+pub struct SystemTrayMenuItemHandle<R: Runtime> {
+  id: MenuHash,
+  tray_handler: R::TrayHandler,
 }
 
-impl<P: Params> Clone for SystemTrayMenuItemHandle<P> {
+impl<R: Runtime> Clone for SystemTrayMenuItemHandle<R> {
   fn clone(&self) -> Self {
     Self {
       id: self.id,
@@ -109,8 +108,8 @@ impl<P: Params> Clone for SystemTrayMenuItemHandle<P> {
   }
 }
 
-impl<P: Params> SystemTrayHandle<P> {
-  pub fn get_item(&self, id: &P::SystemTrayMenuId) -> SystemTrayMenuItemHandle<P> {
+impl<R: Runtime> SystemTrayHandle<R> {
+  pub fn get_item(&self, id: MenuIdRef<'_>) -> SystemTrayMenuItemHandle<R> {
     for (raw, item_id) in self.ids.iter() {
       if item_id == id {
         return SystemTrayMenuItemHandle {
@@ -128,7 +127,7 @@ impl<P: Params> SystemTrayHandle<P> {
   }
 }
 
-impl<P: Params> SystemTrayMenuItemHandle<P> {
+impl<R: Runtime> SystemTrayMenuItemHandle<R> {
   /// Modifies the enabled state of the menu item.
   pub fn set_enabled(&self, enabled: bool) -> crate::Result<()> {
     self

@@ -5,12 +5,13 @@
 //! Useful items for custom commands.
 
 use crate::hooks::InvokeError;
-use crate::{InvokeMessage, Params};
+use crate::runtime::Runtime;
+use crate::InvokeMessage;
 use serde::de::Visitor;
 use serde::{Deserialize, Deserializer};
 
 /// Represents a custom command.
-pub struct CommandItem<'a, P: Params> {
+pub struct CommandItem<'a, R: Runtime> {
   /// The name of the command, e.g. `handler` on `#[command] fn handler(value: u64)`
   pub name: &'static str,
 
@@ -18,7 +19,7 @@ pub struct CommandItem<'a, P: Params> {
   pub key: &'static str,
 
   /// The [`InvokeMessage`] that was passed to this command.
-  pub message: &'a InvokeMessage<P>,
+  pub message: &'a InvokeMessage<R>,
 }
 
 /// Trait implemented by command arguments to derive a value from a [`CommandItem`].
@@ -36,16 +37,16 @@ pub struct CommandItem<'a, P: Params> {
 /// * [`crate::State`]
 /// * `T where T: serde::Deserialize`
 ///   * Any type that implements `Deserialize` can automatically be used as a [`CommandArg`].
-pub trait CommandArg<'de, P: Params>: Sized {
+pub trait CommandArg<'de, R: Runtime>: Sized {
   /// Derives an instance of `Self` from the [`CommandItem`].
   ///
   /// If the derivation fails, the corresponding message will be rejected using [`InvokeMessage#reject`].
-  fn from_command(command: CommandItem<'de, P>) -> Result<Self, InvokeError>;
+  fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError>;
 }
 
 /// Automatically implement [`CommandArg`] for any type that can be deserialized.
-impl<'de, D: Deserialize<'de>, P: Params> CommandArg<'de, P> for D {
-  fn from_command(command: CommandItem<'de, P>) -> Result<Self, InvokeError> {
+impl<'de, D: Deserialize<'de>, R: Runtime> CommandArg<'de, R> for D {
+  fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
     let arg = command.key;
     Self::deserialize(command).map_err(|e| crate::Error::InvalidArgs(arg, e).into())
   }
@@ -84,7 +85,7 @@ macro_rules! pass {
 /// If the key doesn't exist, an error will be returned if the deserialized type is not expecting
 /// an optional item. If the key does exist, the value will be called with
 /// [`Value`](serde_json::Value)'s [`Deserializer`] implementation.
-impl<'de, P: Params> Deserializer<'de> for CommandItem<'de, P> {
+impl<'de, R: Runtime> Deserializer<'de> for CommandItem<'de, R> {
   type Error = serde_json::Error;
 
   pass!(deserialize_any, visitor: V);
@@ -146,9 +147,11 @@ impl<'de, P: Params> Deserializer<'de> for CommandItem<'de, P> {
 }
 
 /// [Autoref-based stable specialization](https://github.com/dtolnay/case-studies/blob/master/autoref-specialization/README.md)
+///
+/// Nothing in this module is considered stable.
 #[doc(hidden)]
 pub mod private {
-  use crate::{InvokeError, InvokeResolver, Params};
+  use crate::{runtime::Runtime, InvokeError, InvokeResolver};
   use futures::{FutureExt, TryFutureExt};
   use serde::Serialize;
   use serde_json::Value;
@@ -174,9 +177,9 @@ pub mod private {
 
   impl SerializeTag {
     #[inline(always)]
-    pub fn block<P, T>(self, value: T, resolver: InvokeResolver<P>)
+    pub fn block<R, T>(self, value: T, resolver: InvokeResolver<R>)
     where
-      P: Params,
+      R: Runtime,
       T: Serialize,
     {
       resolver.respond(Ok(value))
@@ -211,9 +214,9 @@ pub mod private {
 
   impl ResultTag {
     #[inline(always)]
-    pub fn block<P, T, E>(self, value: Result<T, E>, resolver: InvokeResolver<P>)
+    pub fn block<R, T, E>(self, value: Result<T, E>, resolver: InvokeResolver<R>)
     where
-      P: Params,
+      R: Runtime,
       T: Serialize,
       E: Into<InvokeError>,
     {

@@ -86,7 +86,7 @@ tokio-test = "0.4.2"
 mockito = "0.30"
 
 [features]
-default = [ "wry" ]
+default = [ "wry", "menu" ]
 dox = [ "tauri-runtime-wry/dox" ]
 wry = [ "tauri-runtime-wry" ]
 cli = [ "clap" ]

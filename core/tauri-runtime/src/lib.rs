@@ -6,11 +6,10 @@
 
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
-use std::{fmt::Debug, hash::Hash, path::PathBuf, sync::mpsc::Sender};
-
-use serde::{Deserialize, Serialize};
-use tauri_utils::assets::Assets;
+use serde::Deserialize;
+use std::{fmt::Debug, path::PathBuf, sync::mpsc::Sender};
 use uuid::Uuid;
+
 #[cfg(windows)]
 use winapi::shared::windef::HWND;
 
@@ -20,32 +19,25 @@ use winapi::shared::windef::HWND;
 pub mod menu;
 /// Types useful for interacting with a user's monitors.
 pub mod monitor;
-pub mod tag;
 pub mod webview;
 pub mod window;
 
 use monitor::Monitor;
-use tag::Tag;
 use webview::WindowBuilder;
 use window::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   DetachedWindow, PendingWindow, WindowEvent,
 };
 
-/// A type that can be derived into a menu id.
-pub trait MenuId: Serialize + Hash + Eq + Debug + Clone + Send + Sync + 'static {}
-
-impl<T> MenuId for T where T: Serialize + Hash + Eq + Debug + Clone + Send + Sync + 'static {}
-
 #[cfg(feature = "system-tray")]
 #[non_exhaustive]
-pub struct SystemTray<I: MenuId> {
+pub struct SystemTray {
   pub icon: Option<Icon>,
-  pub menu: Option<menu::SystemTrayMenu<I>>,
+  pub menu: Option<menu::SystemTrayMenu>,
 }
 
 #[cfg(feature = "system-tray")]
-impl<I: MenuId> Default for SystemTray<I> {
+impl Default for SystemTray {
   fn default() -> Self {
     Self {
       icon: None,
@@ -55,13 +47,13 @@ impl<I: MenuId> Default for SystemTray<I> {
 }
 
 #[cfg(feature = "system-tray")]
-impl<I: MenuId> SystemTray<I> {
+impl SystemTray {
   /// Creates a new system tray that only renders an icon.
   pub fn new() -> Self {
     Default::default()
   }
 
-  pub fn menu(&self) -> Option<&menu::SystemTrayMenu<I>> {
+  pub fn menu(&self) -> Option<&menu::SystemTrayMenu> {
     self.menu.as_ref()
   }
 
@@ -72,7 +64,7 @@ impl<I: MenuId> SystemTray<I> {
   }
 
   /// Sets the menu to show when the system tray is right clicked.
-  pub fn with_menu(mut self, menu: menu::SystemTrayMenu<I>) -> Self {
+  pub fn with_menu(mut self, menu: menu::SystemTrayMenu) -> Self {
     self.menu.replace(menu);
     self
   }
@@ -125,32 +117,6 @@ pub enum Error {
 
 /// Result type.
 pub type Result<T> = std::result::Result<T, Error>;
-
-#[doc(hidden)]
-pub mod private {
-  pub trait ParamsBase {}
-}
-
-/// Types associated with the running Tauri application.
-pub trait Params: private::ParamsBase + 'static {
-  /// The event type used to create and listen to events.
-  type Event: Tag;
-
-  /// The type used to determine the name of windows.
-  type Label: Tag;
-
-  /// The type used to determine window menu ids.
-  type MenuId: MenuId;
-
-  /// The type used to determine system tray menu ids.
-  type SystemTrayMenuId: MenuId;
-
-  /// Assets that Tauri should serve from itself.
-  type Assets: Assets;
-
-  /// The underlying webview runtime used by the Tauri application.
-  type Runtime: Runtime;
-}
 
 /// A icon definition.
 #[derive(Debug, Clone)]
@@ -231,10 +197,10 @@ pub struct RunIteration {
 pub trait RuntimeHandle: Send + Sized + Clone + 'static {
   type Runtime: Runtime<Handle = Self>;
   /// Create a new webview window.
-  fn create_window<P: Params<Runtime = Self::Runtime>>(
+  fn create_window(
     &self,
-    pending: PendingWindow<P>,
-  ) -> crate::Result<DetachedWindow<P>>;
+    pending: PendingWindow<Self::Runtime>,
+  ) -> crate::Result<DetachedWindow<Self::Runtime>>;
 
   #[cfg(all(windows, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
@@ -326,15 +292,12 @@ pub trait Runtime: Sized + 'static {
   fn clipboard_manager(&self) -> Self::ClipboardManager;
 
   /// Create a new webview window.
-  fn create_window<P: Params<Runtime = Self>>(
-    &self,
-    pending: PendingWindow<P>,
-  ) -> crate::Result<DetachedWindow<P>>;
+  fn create_window(&self, pending: PendingWindow<Self>) -> crate::Result<DetachedWindow<Self>>;
 
   /// Adds the icon to the system tray with the specified menu items.
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  fn system_tray<I: MenuId>(&self, system_tray: SystemTray<I>) -> crate::Result<Self::TrayHandler>;
+  fn system_tray(&self, system_tray: SystemTray) -> crate::Result<Self::TrayHandler>;
 
   /// Registers a system tray event handler.
   #[cfg(feature = "system-tray")]
@@ -449,10 +412,10 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   fn request_user_attention(&self, request_type: Option<UserAttentionType>) -> crate::Result<()>;
 
   /// Create a new webview window.
-  fn create_window<P: Params<Runtime = Self::Runtime>>(
+  fn create_window(
     &mut self,
-    pending: PendingWindow<P>,
-  ) -> crate::Result<DetachedWindow<P>>;
+    pending: PendingWindow<Self::Runtime>,
+  ) -> crate::Result<DetachedWindow<Self::Runtime>>;
 
   /// Updates the window resizable flag.
   fn set_resizable(&self, resizable: bool) -> crate::Result<()>;

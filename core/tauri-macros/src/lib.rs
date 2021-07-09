@@ -5,7 +5,7 @@
 extern crate proc_macro;
 use crate::context::ContextItems;
 use proc_macro::TokenStream;
-use syn::parse_macro_input;
+use syn::{parse_macro_input, parse_quote, DeriveInput, GenericParam, TypeParam};
 
 mod command;
 
@@ -59,4 +59,45 @@ pub fn generate_context(items: TokenStream) -> TokenStream {
   // this macro is exported from the context module
   let path = parse_macro_input!(items as ContextItems);
   context::generate_context(path).into()
+}
+
+/// Adds a default value `crate::Wry` to the last generic item of a struct/enum
+#[doc(hidden)]
+#[proc_macro_attribute]
+pub fn default_runtime_wry(_attrs: TokenStream, input: TokenStream) -> TokenStream {
+  let input = parse_macro_input!(input as DeriveInput);
+
+  // create a new copy to manipulate for the wry feature flag
+  let mut wry = input.clone();
+  let wry_runtime = wry
+    .generics
+    .params
+    .last_mut()
+    .expect("DefaultRuntime requires at least 1 generic parameter");
+
+  // set the default value of the last generic parameter to crate::wry
+  match wry_runtime {
+    GenericParam::Type(
+      param @ TypeParam {
+        eq_token: None,
+        default: None,
+        ..
+      },
+    ) => {
+      param.eq_token = Some(parse_quote!(=));
+      param.default = Some(parse_quote!(crate::Wry));
+    }
+    _ => {
+      panic!("DefaultRuntime requires the last parameter to not have a default value")
+    }
+  };
+
+  quote::quote!(
+    #[cfg(feature = "wry")]
+    #wry
+
+    #[cfg(not(feature = "wry"))]
+    #input
+  )
+  .into()
 }

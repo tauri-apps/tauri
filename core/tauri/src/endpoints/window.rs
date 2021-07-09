@@ -3,15 +3,15 @@
 // SPDX-License-Identifier: MIT
 
 #[cfg(window_create)]
-use crate::runtime::{webview::WindowBuilder, Dispatch, Runtime};
+use crate::runtime::{webview::WindowBuilder, Dispatch};
 use crate::{
   api::config::WindowConfig,
   endpoints::InvokeResponse,
   runtime::{
     window::dpi::{Position, Size},
-    UserAttentionType,
+    Runtime, UserAttentionType,
   },
-  Manager, Params, Window,
+  Manager, Window,
 };
 use serde::Deserialize;
 
@@ -103,7 +103,7 @@ struct WindowCreatedEvent {
 
 impl Cmd {
   #[allow(dead_code)]
-  pub async fn run<P: Params>(self, window: Window<P>) -> crate::Result<InvokeResponse> {
+  pub async fn run<R: Runtime>(self, window: Window<R>) -> crate::Result<InvokeResponse> {
     match self {
       #[cfg(not(window_create))]
       Self::CreateWebview { .. } => {
@@ -114,36 +114,21 @@ impl Cmd {
       #[cfg(window_create)]
       Self::CreateWebview { options } => {
         let mut window = window;
-        // Panic if the user's `Tag` type decided to return an error while parsing.
-        let label: P::Label = options.label.parse().unwrap_or_else(|_| {
-          panic!(
-            "Window module received unknown window label: {}",
-            options.label
-          )
-        });
-
+        let label = options.label.clone();
         let url = options.url.clone();
+
         window
           .create_window(label.clone(), url, |_, webview_attributes| {
             (
-              <<<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder>::with_config(
-                options,
-              ),
+              <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(options),
               webview_attributes,
             )
           })?
-          .emit_others(
-            &crate::manager::tauri_event::<P::Event>("tauri://window-created"),
-            Some(WindowCreatedEvent {
-              label: label.to_string(),
-            }),
-          )?;
+          .emit_others("tauri://window-created", Some(WindowCreatedEvent { label }))?;
       }
       Self::Manage { label, cmd } => {
         let window = if let Some(l) = label {
-          window
-            .get_window(&l.parse().unwrap_or_else(|_| panic!("invalid label")))
-            .ok_or(crate::Error::WebviewNotFound)?
+          window.get_window(&l).ok_or(crate::Error::WebviewNotFound)?
         } else {
           window
         };

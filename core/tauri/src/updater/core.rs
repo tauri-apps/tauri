@@ -11,7 +11,7 @@ use std::{
   collections::HashMap,
   env,
   ffi::OsStr,
-  fs::{read_dir, remove_file, File, OpenOptions, rename},
+  fs::{read_dir, remove_file, rename, File, OpenOptions},
   io::{prelude::*, BufReader, Read},
   path::{Path, PathBuf},
   str::from_utf8,
@@ -599,24 +599,15 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Resu
         found_path = new_path;
       }
 
-      // check apple code signing status
-      let current_signed_app = extract_path.join("Contents").join("_CodeSignature").exists();
-      let new_signed_app = found_path.join("Contents").join("_CodeSignature").exists();
+      let sandbox_app_path = tempfile::Builder::new()
+        .prefix("tauri_current_app_sandbox")
+        .tempdir()?;
 
-      // current app is signed but new one is not
-      // macOS prevent updating an already signed app
-      // to a new not-signed app without a whole re-installation
-      if current_signed_app & !new_signed_app {
-        return Err(Error::RemoteMetadata("Current application is code-signed but new one is not. You need to ask user to re-install or ship a code-signed update.".into()));
-      }
-
-      // copy the whole app
-      let found_path = found_path.parent().unwrap();
-      let extract_path = extract_path.parent().unwrap();
-
-      // Replace the whole application to make sure the 
+      // Replace the whole application to make sure the
       // code signature is following
-      Move::from_source(&found_path).walk_to_dest(&extract_path)?;
+      Move::from_source(&found_path)
+        .replace_using_temp(sandbox_app_path.path())
+        .to_dest(&extract_path)?;
 
       // early finish we have everything we need here
       return Ok(());
@@ -821,7 +812,9 @@ mod test {
   #[cfg(target_os = "macos")]
   #[test]
   fn test_app_name_in_path() {
-    let executable = extract_path_from_executable(Path::new("/Applications/updater-example.app/Contents/MacOS/updater-example"));
+    let executable = extract_path_from_executable(Path::new(
+      "/Applications/updater-example.app/Contents/MacOS/updater-example",
+    ));
     let app_name = macos_app_name_in_path(&executable);
     assert!(executable.ends_with("updater-example.app"));
     assert_eq!(app_name, "updater-example.app".to_string());

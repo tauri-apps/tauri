@@ -3,6 +3,7 @@
 "tauri-runtime": patch
 "tauri-runtime-wry": patch
 "tauri-macros": patch
+"tauri-utils": patch
 ---
 
 `Params` has been removed, along with all the associated types on it. Functions that previously accepted those
@@ -30,3 +31,8 @@ explicit type and let the compiler infer it instead.
 
 * See `Params` note
 * **TODO** was there more?
+
+`tauri-utils`:
+
+* `Assets::get` signature has changed to take a `&AssetKey` instead of `impl Into<AssetKey>` to become trait object
+  safe.

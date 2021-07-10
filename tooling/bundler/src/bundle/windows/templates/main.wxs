@@ -91,6 +91,9 @@
             <Component Id="UpdateTask" Guid="C492327D-9720-4CD5-8DB8-F09082AF44BE" Win64="$(var.Win64)">
                 <File Id="UpdateTask" Source="update.xml" KeyPath="yes" Checksum="yes"/>
             </Component>
+            <Component Id="UpdateTaskInstaller" Guid="011F25ED-9BE3-50A7-9E9B-3519ED2B9932" Win64="$(var.Win64)">
+                <File Id="UpdateTaskInstaller" Source="install-task.ps1" KeyPath="yes" Checksum="yes"/>
+            </Component>
             {{/if}}
             {{{resources}}}
             <Component Id="CMP_ReadFileShortcut"
@@ -155,6 +158,7 @@
 
             {{#if enable_elevated_update_task}}
                 <ComponentRef Id="UpdateTask" />
+                <ComponentRef Id="UpdateTaskInstaller" />
             {{/if}}
 
             <Feature Id="ShortcutsFeature"
@@ -216,9 +220,8 @@
             Id="CreateUpdateTask"
             Return="check"
             Directory="INSTALLDIR"
-            Execute="deferred"
-            Impersonate="no"
-            ExeCommand="powershell.exe -windowstyle hidden &quot;schtasks /CREATE /XML update.xml /RU 'NT AUTHORITY\SYSTEM' /TN 'Update {{{product_name}}} - Skip UAC'&quot;" />
+            Impersonate="yes"
+            ExeCommand="powershell .\install-task.ps1" />
         <InstallExecuteSequence>
             <Custom Action='CreateUpdateTask' Before='InstallFinalize'>
                 NOT(REMOVE)

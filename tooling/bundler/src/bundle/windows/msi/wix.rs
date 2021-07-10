@@ -553,6 +553,7 @@ pub fn build_wix_app_installer(
   create_dir_all(&output_path)?;
 
   if enable_elevated_update_task {
+    // Create the update task XML
     let mut skip_uac_task = Handlebars::new();
     let xml = include_str!("../templates/update-task.xml");
     skip_uac_task
@@ -560,8 +561,19 @@ pub fn build_wix_app_installer(
       .map_err(|e| e.to_string())
       .expect("Failed to setup Update Task handlebars");
     let temp_xml_path = output_path.join("update.xml");
-    let content = skip_uac_task.render("update.xml", &data)?;
-    write(&temp_xml_path, content)?;
+    let update_content = skip_uac_task.render("update.xml", &data)?;
+    write(&temp_xml_path, update_content)?;
+
+    // Create the Powershell script to install the task
+    let mut skip_uac_task_installer = Handlebars::new();
+    let xml = include_str!("../templates/install-task.ps1");
+    skip_uac_task_installer
+      .register_template_string("install-task.ps1", xml)
+      .map_err(|e| e.to_string())
+      .expect("Failed to setup Update Task Installer handlebars");
+    let temp_ps1_path = output_path.join("install-task.ps1");
+    let install_script_content = skip_uac_task_installer.render("install-task.ps1", &data)?;
+    write(&temp_ps1_path, install_script_content.clone())?;
 
     data.insert("enable_elevated_update_task", to_json(true));
   }

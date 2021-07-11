@@ -59,7 +59,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 use crate::{
-  event::{Event, EventHandler},
+  event::{Event as EmittedEvent, EventHandler},
   runtime::window::PendingWindow,
 };
 use serde::Serialize;
@@ -83,7 +83,7 @@ pub use {
     config::{Config, WindowUrl},
     PackageInfo,
   },
-  self::app::{App, AppHandle, Builder, GlobalWindowEvent},
+  self::app::{App, AppHandle, Builder, CloseRequestApi, Event, GlobalWindowEvent},
   self::hooks::{
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
     PageLoadPayload, SetupHook,
@@ -283,7 +283,7 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
   /// Listen to a global event.
   fn listen_global<E: Into<P::Event>, F>(&self, event: E, handler: F) -> EventHandler
   where
-    F: Fn(Event) + Send + 'static,
+    F: Fn(EmittedEvent) + Send + 'static,
   {
     self.manager().listen(event.into(), None, handler)
   }
@@ -291,7 +291,7 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
   /// Listen to a global event only once.
   fn once_global<E: Into<P::Event>, F>(&self, event: E, handler: F) -> EventHandler
   where
-    F: Fn(Event) + Send + 'static,
+    F: Fn(EmittedEvent) + Send + 'static,
   {
     self.manager().once(event.into(), None, handler)
   }

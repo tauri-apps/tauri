@@ -4,6 +4,7 @@
   import hotkeys from "hotkeys-js";
   import { open } from "@tauri-apps/api/shell";
   import { invoke } from "@tauri-apps/api/tauri";
+  import { appWindow, getCurrent } from "@tauri-apps/api/window";
 
   import Welcome from "./components/Welcome.svelte";
   import Cli from "./components/Cli.svelte";
@@ -24,6 +25,12 @@
     hotkeys(MENU_TOGGLE_HOTKEY, () => {
       invoke('menu_toggle');
     });
+
+    getCurrent().listen('close-requested', async () => {
+      if (await confirm('Are you sure?')) {
+        await appWindow.close()
+      }
+    })
   });
 
   const views = [

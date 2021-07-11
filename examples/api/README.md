@@ -18,6 +18,7 @@ go to root of the tauri repo and run
 
 Linux / Mac:
 ```
+# choose to install node cli (1)
 sh .scripts/setup.sh
 ```
 

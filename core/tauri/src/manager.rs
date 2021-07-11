@@ -336,9 +336,9 @@ impl<P: Params> WindowManager<P> {
       .initialization_script(&self.initialization_script(&plugin_init, is_init_global))
       .initialization_script(&format!(
         r#"
-              window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
-              window.__TAURI__.__currentWindow = {{ label: {current_window_label} }}
-            "#,
+          window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
+          window.__TAURI__.__currentWindow = {{ label: {current_window_label} }}
+        "#,
         window_labels_array = tags_to_javascript_array(pending_labels)?,
         current_window_label = label.to_js_string()?,
       ));
@@ -753,7 +753,7 @@ impl<P: Params> WindowManager<P> {
     window
   }
 
-  pub(crate) fn on_window_close(&self, label: String) {
+  pub(crate) fn on_window_close(&self, label: &str) {
     self
       .windows_lock()
       .remove(&label.parse().unwrap_or_else(|_| panic!("bad label")));
@@ -886,6 +886,14 @@ fn on_window_event<P: Params>(
           .unwrap_or_else(|_| panic!("unhandled event")),
         Some(()),
       )?;
+    }
+    WindowEvent::Destroyed => {
+      window.emit(
+        &WINDOW_DESTROYED_EVENT
+          .parse()
+          .unwrap_or_else(|_| panic!("unhandled event")),
+        Some(()),
+      )?;
       let label = window.label();
       for window in manager.inner.windows.lock().unwrap().values() {
         window.eval(&format!(
@@ -894,12 +902,6 @@ fn on_window_event<P: Params>(
         ))?;
       }
     }
-    WindowEvent::Destroyed => window.emit(
-      &WINDOW_DESTROYED_EVENT
-        .parse()
-        .unwrap_or_else(|_| panic!("unhandled event")),
-      Some(()),
-    )?,
     WindowEvent::Focused(focused) => window.emit(
       &if *focused {
         WINDOW_FOCUS_EVENT

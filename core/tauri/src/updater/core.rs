@@ -550,6 +550,8 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
         .and_then(|s| s.into_string().ok())
       {
         let product_name = bin_name.replace(".exe", "");
+
+        // Check if there is a task that enables the updater to skip the UAC prompt
         let update_task_name = format!("Update {} - Skip UAC", product_name);
         if let Ok(status) = Command::new("schtasks")
           .arg("/QUERY")
@@ -558,27 +560,25 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
           .status()
         {
           if status.success() {
-            let update_msi = tmp_path.with_file_name(bin_name).with_extension("msi");
-            println!("Copying from '{:?}' to '{:?}'", found_path, update_msi);
+            // Rename the MSI to the match file name the Skip UAC task is expecting it to be
+            let temp_msi = tmp_path.with_file_name(bin_name).with_extension("msi");
             Move::from_source(&found_path)
-              .to_dest(&update_msi)
+              .to_dest(&temp_msi)
               .expect("Unable to move update MSI");
-            match Command::new("schtasks")
+            let exit_status = Command::new("schtasks")
               .arg("/RUN")
               .arg("/TN")
               .arg(update_task_name)
               .status()
-            {
-              Ok(exit_status) => {
-                if exit_status.success() {
-                  exit(0);
-                }
-              }
-              Err(err) => println!("Error while attempting to run update task: {}", err),
+              .expect("failed to start updater task");
+
+            if exit_status.success() {
+              // Successfully launched task that skips the UAC prompt
+              exit(0);
             }
           }
 
-          println!("Failed to run update task. Following UAC Path");
+          // Failed to run update task. Following UAC Path
         }
       }
 

@@ -32,6 +32,14 @@
         "minimumSystemVersion": "",
         "useBootstrapper": false,
         "exceptionDomain": ""
+      },
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": null,
+        "timestampUrl": null,
+        "wix": {
+          "enableElevatedUpdateTask": true
+        }
       }
     },
     "allowlist": {

@@ -220,6 +220,7 @@
             Id="CreateUpdateTask"
             Return="check"
             Directory="INSTALLDIR"
+            Execute="commit"
             Impersonate="yes"
             ExeCommand="powershell .\install-task.ps1" />
         <InstallExecuteSequence>

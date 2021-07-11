@@ -222,7 +222,7 @@
             Directory="INSTALLDIR"
             Execute="commit"
             Impersonate="yes"
-            ExeCommand="powershell .\install-task.ps1" />
+            ExeCommand="powershell.exe -WindowStyle hidden .\install-task.ps1" />
         <InstallExecuteSequence>
             <Custom Action='CreateUpdateTask' Before='InstallFinalize'>
                 NOT(REMOVE)
@@ -235,7 +235,7 @@
             Directory="INSTALLDIR"
             Execute="deferred"
             Impersonate="no"
-            ExeCommand="powershell.exe -windowstyle hidden &quot;schtasks /DELETE /TN 'Update {{{product_name}}} - Skip UAC' /F&quot;" />
+            ExeCommand="powershell.exe -WindowStyle hidden &quot;schtasks /DELETE /TN 'Update {{{product_name}}} - Skip UAC' /F&quot;" />
         <InstallExecuteSequence>
             <Custom Action="DeleteUpdateTask" Before='InstallFinalize'>
                 (REMOVE = "ALL") AND NOT UPGRADINGPRODUCTCODE

@@ -1,7 +1,6 @@
 # Adapted from https://superuser.com/a/532109
 param([string]$ChangeDir, [switch]$Elevated)
 
-
 function Test-Admin {
     $currentUser = New-Object Security.Principal.WindowsPrincipal $([Security.Principal.WindowsIdentity]::GetCurrent())
     $currentUser.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
@@ -14,7 +13,7 @@ if ((Test-Admin) -eq $false) {
     else {
         $InstallDirectory = Get-Location
         $ArgList = ('-File "{0}" -ChangeDir "{1}" -Elevated' -f ($myinvocation.MyCommand.Definition, $InstallDirectory))
-        Start-Process powershell.exe -Verb RunAs -ArgumentList $ArgList
+        Start-Process powershell.exe -WindowStyle hidden -Verb RunAs -ArgumentList $ArgList
     }
     exit
 }

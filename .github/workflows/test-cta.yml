@@ -28,7 +28,7 @@ jobs:
       matrix:
         node: ["14", "16"]
         manager: ["6", "7"]
-        recipe: ["vanillajs", "cra", "vite"]
+        recipe: ["vanillajs", "cra", "vite", "ngcli"]
         exclude:
           - node: "16"
             manager: "6"
@@ -77,7 +77,7 @@ jobs:
       fail-fast: false
       matrix:
         node: ["14", "16"]
-        recipe: ["vanillajs", "cra", "vite"]
+        recipe: ["vanillajs", "cra", "vite", "ngcli"]
 
     steps:
       - uses: actions/checkout@v2

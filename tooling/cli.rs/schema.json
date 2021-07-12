@@ -1116,7 +1116,7 @@
         },
         "focus": {
           "description": "Whether the window will be initially hidden or focused.",
-          "default": false,
+          "default": true,
           "type": "boolean"
         },
         "fullscreen": {

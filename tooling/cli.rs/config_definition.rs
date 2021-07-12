@@ -296,7 +296,7 @@ pub struct WindowConfig {
   #[serde(default)]
   pub fullscreen: bool,
   /// Whether the window will be initially hidden or focused.
-  #[serde(default)]
+  #[serde(default = "default_focus")]
   pub focus: bool,
   /// Whether the window is transparent or not.
   #[serde(default)]
@@ -316,6 +316,10 @@ pub struct WindowConfig {
   /// Whether or not the window icon should be added to the taskbar.
   #[serde(default)]
   pub skip_taskbar: bool,
+}
+
+fn default_focus() -> bool {
+  true
 }
 
 fn default_visible() -> bool {

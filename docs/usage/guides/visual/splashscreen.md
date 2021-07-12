@@ -38,15 +38,16 @@ Now, your main window will be hidden and the splashscreen window will show when 
 If you are waiting for your web code, you'll want to create a `close_splashscreen` [command](../command.md).
 
 ```rust title=src-tauri/main.rs
+use tauri::Manager;
 // Create the command:
-#[tauri::command(with_window)]
-fn close_splashscreen<M: Params>(window: tauri::Window<M>) {
+#[tauri::command]
+fn close_splashscreen(window: tauri::Window) {
   // Close splashscreen
-  if let Ok(splashscreen) = window.get_webview("splashscreen") {
+  if let Some(splashscreen) = window.get_window("splashscreen") {
     splashscreen.close().unwrap();
   }
   // Show main window
-  window.get_webview("main").unwrap().show().unwrap();
+  window.get_window("main").unwrap().show().unwrap();
 }
 
 // Register the command:

@@ -202,7 +202,12 @@ if (!String.prototype.startsWith) {
         {
           __tauriModule: 'Window',
           message: {
-            cmd: e.detail === 2 ? 'toggleMaximize' : 'startDragging'
+            cmd: 'manage',
+            data: {
+              cmd: {
+                type: e.detail === 2 ? 'toggleMaximize' : 'startDragging'
+              }
+            }
           }
         },
         _KEY_VALUE_

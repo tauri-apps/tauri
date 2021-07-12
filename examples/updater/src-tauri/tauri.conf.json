@@ -28,6 +28,8 @@
         "useBootstrapper": false
       },
       "macOS": {
+        "signingIdentity": "Developer ID Application: David Lemarier (3KF8V3679C)",
+        "entitlements": "../entitlements.plist",
         "frameworks": [],
         "minimumSystemVersion": "",
         "useBootstrapper": false,

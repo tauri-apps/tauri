@@ -147,11 +147,13 @@ fn dev_command(matches: &ArgMatches) -> Result<()> {
     .values_of("args")
     .map(|a| a.into_iter().map(|v| v.to_string()).collect())
     .unwrap_or_default();
+  let release_mode = matches.is_present("release");
 
   let mut dev_runner = dev::Dev::new()
     .exit_on_panic(exit_on_panic)
     .args(args)
-    .features(features);
+    .features(features)
+    .release_mode(release_mode);
 
   if let Some(runner) = runner {
     dev_runner = dev_runner.runner(runner.to_string());

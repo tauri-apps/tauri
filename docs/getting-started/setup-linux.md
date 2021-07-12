@@ -42,7 +42,8 @@ $ sudo pacman -Syy && sudo pacman -S  webkit2gtk \
     openssl \
     appmenu-gtk-module \
     gtk3 \
-    squashfs-tools
+    squashfs-tools \
+    libvips
 ```
 
 </TabItem>

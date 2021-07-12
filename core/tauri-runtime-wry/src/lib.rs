@@ -442,6 +442,10 @@ impl WindowBuilder for WindowBuilderWrapper {
       window = window.position(x, y);
     }
 
+    if config.center {
+      window = window.center();
+    }
+
     if config.focus {
       window = window.focus();
     }

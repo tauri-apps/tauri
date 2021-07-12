@@ -268,6 +268,9 @@ pub struct WindowConfig {
   /// Disabling it is required to use drag and drop on the frontend on Windows.
   #[serde(default = "default_file_drop_enabled")]
   pub file_drop_enabled: bool,
+  /// Whether or not the window starts centered or not.
+  #[serde(default)]
+  pub center: bool,
   /// The horizontal position of the window's top left corner
   pub x: Option<f64>,
   /// The vertical position of the window's top left corner
@@ -292,6 +295,9 @@ pub struct WindowConfig {
   /// Whether the window starts as fullscreen or not.
   #[serde(default)]
   pub fullscreen: bool,
+  /// Whether the window will be initially hidden or focused.
+  #[serde(default)]
+  pub focus: bool,
   /// Whether the window is transparent or not.
   #[serde(default)]
   pub transparent: bool,

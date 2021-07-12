@@ -11,7 +11,7 @@ import { cra } from './recipes/react'
 import { vuecli } from './recipes/vue-cli'
 import { vanillajs } from './recipes/vanilla'
 import { vite } from './recipes/vite'
-import { ngcli } from './recipes/ng-cli';
+import { ngcli } from './recipes/ng-cli'
 import { install, checkPackageManager } from './dependency-manager'
 import { shell } from './shell'
 import { addTauriScript } from './helpers/add-tauri-script'

@@ -5,13 +5,19 @@ import { Recipe } from '../types/recipe'
 const addAdditionalPackage = async (
   packageManager: PackageManager,
   cwd: string,
-  projectName: string,
+  appName: string,
   packageName: string
-) => {
+): Promise<void> => {
+  const ngCommand = ['ng', 'add', packageName, '--skip-confirmation']
+
   if (packageManager === 'yarn') {
-    await shell('yarn', ['ng', 'add', packageName], {cwd: `${cwd}/${projectName}`});
+    await shell('yarn', ngCommand, {
+      cwd: `${cwd}/${appName}`
+    })
   } else {
-    await shell('npm', ['run', '--prefix', `${cwd}`, 'ng', 'add', packageName]);
+    await shell('npm', ['run', ...ngCommand], {
+      cwd: `${cwd}/${appName}`
+    })
   }
 }
 
@@ -34,9 +40,8 @@ const ngcli: Recipe = {
         type: 'confirm',
         name: 'material',
         message: 'Add Angular Material (https://material.angular.io/)?',
-        default: 'No',
-        validate: async (input) => {
-          return input.toLowerCase === 'yes'
+        validate: (input: string) => {
+          return input.toLowerCase() === 'yes'
         },
         loop: false,
         when: !ci
@@ -46,38 +51,55 @@ const ngcli: Recipe = {
         name: 'eslint',
         message:
           'Add Angular ESLint (https://github.com/angular-eslint/angular-eslint)?',
-        default: 'No',
-        validate: async (input) => {
-          return input.toLowerCase === 'yes'
+        validate: (input: string) => {
+          return input.toLowerCase() === 'yes'
         },
         loop: false,
         when: !ci
       }
     ]
   },
-  preInit: async ({ cwd, cfg }) => {
+  preInit: async ({ cwd, cfg, answers, packageManager }) => {
     // Angular CLI creates the folder for you
-    await shell('npx', ['-p', '@angular/cli', 'ng', 'new', `${cfg.appName}`], {
-      cwd
-    })
-  },
-  postInit: async ({ cwd, cfg, packageManager, answers }) => {
+    await shell(
+      'npx',
+      [
+        '-p',
+        '@angular/cli',
+        'ng',
+        'new',
+        `${cfg.appName}`,
+        `--package-manager=${packageManager}`
+      ],
+      {
+        cwd
+      }
+    )
+
     if (answers) {
       if (answers.material) {
-        await addAdditionalPackage(packageManager, cwd, cfg.appName, '@angular/material')
+        await addAdditionalPackage(
+          packageManager,
+          cwd,
+          cfg.appName,
+          '@angular/material'
+        )
       }
 
       if (answers.eslint) {
-        await addAdditionalPackage(packageManager, cwd, cfg.appName, '@angular-eslint/schematics')
+        await addAdditionalPackage(
+          packageManager,
+          cwd,
+          cfg.appName,
+          '@angular-eslint/schematics'
+        )
       }
     }
-
+  },
+  postInit: async ({ cwd }) => {
     console.log(`
-      Your installation completed. Change directory to \`${cwd}\`.
-      To start, run ${packageManager} start and ${
-      packageManager === 'yarn' ? 'yarn' : 'npm run'
-    } tauri dev
-    `);
+      Your installation completed. Change directory to \`${cwd}\` and happy coding.
+    `)
 
     return await Promise.resolve()
   }

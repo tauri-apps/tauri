@@ -1592,8 +1592,7 @@ fn handle_event_loop(
             }
           }
         }
-        // we also resize the webview on `Moved` to fix https://github.com/tauri-apps/tauri/issues/1911
-        WryWindowEvent::Resized(_) | WryWindowEvent::Moved(_) => {
+        WryWindowEvent::Resized(_) => {
           if let Err(e) = webviews[&window_id].inner.resize() {
             eprintln!("{}", e);
           }

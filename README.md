@@ -85,7 +85,7 @@ If you are interested in making a tauri-app, please visit the [documentation web
 | -------------------------- | ------ | -------------------- |
 | Installer Size Linux       | 3.1 MB | 52.1 MB              |
 | Memory Consumption Linux   | 180 MB | 462 MB               |
-| Launch Time Linux          | 0.39s  | .80s                 |
+| Launch Time Linux          | 0.39s  | 0.80s                 |
 | Interface Service Provider | WRY    | Chromium             |
 | Backend Binding            | Rust   | Node.js (ECMAScript) |
 | Underlying Engine          | Rust   | V8 (C/C++)           |

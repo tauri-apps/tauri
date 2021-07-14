@@ -594,6 +594,7 @@ impl From<FileDropEventWrapper> for FileDropEvent {
       WryFileDropEvent::Hovered(paths) => FileDropEvent::Hovered(paths),
       WryFileDropEvent::Dropped(paths) => FileDropEvent::Dropped(paths),
       WryFileDropEvent::Cancelled => FileDropEvent::Cancelled,
+      _ => unimplemented!(),
     }
   }
 }

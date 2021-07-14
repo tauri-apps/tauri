@@ -7,8 +7,6 @@ name: test create-tauri-app
 on:
   workflow_dispatch:
     inputs:
-      branch:
-        default: "dev"
       platform:
         default: "ubuntu"
   pull_request:
@@ -28,15 +26,13 @@ jobs:
       matrix:
         node: ["14", "16"]
         manager: ["6", "7"]
-        recipe: ["vanillajs", "cra", "vite"]
+        recipe: ["vanillajs", "cra", "vite", "ngcli"]
         exclude:
           - node: "16"
             manager: "6"
 
     steps:
       - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.head_ref || github.event.inputs.branch }}
       - name: install stable
         uses: actions-rs/toolchain@v1
         with:
@@ -71,18 +67,16 @@ jobs:
 
   create-recipe-with-yarn:
     name: "node@${{ matrix.node }} + yarn@1: ${{ matrix.recipe }}"
-    runs-on: ${{ github.event.inputs.branch || 'ubuntu' }}-latest
+    runs-on: ${{ github.event.inputs.platform || 'ubuntu' }}-latest
 
     strategy:
       fail-fast: false
       matrix:
         node: ["14", "16"]
-        recipe: ["vanillajs", "cra", "vite"]
+        recipe: ["vanillajs", "cra", "vite", "ngcli"]
 
     steps:
       - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.head_ref || github.event.inputs.branch }}
       - name: install stable
         uses: actions-rs/toolchain@v1
         with:
@@ -92,7 +86,7 @@ jobs:
           node-version: ${{ matrix.node }}
           yarn-version: 1.22.5
       - name: install webkit2gtk
-        if: (github.event.inputs.branch || 'ubuntu') == 'ubuntu'
+        if: (github.event.inputs.platform || 'ubuntu') == 'ubuntu'
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libgtksourceview-3.0-dev webkit2gtk-4.0 libappindicator3-dev

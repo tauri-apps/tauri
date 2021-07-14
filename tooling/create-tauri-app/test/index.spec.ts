@@ -134,6 +134,14 @@ describe('CTA', () => {
                   'tauri:serve': expect.anything()
                 })
               )
+            },
+            ngcli: () => {
+              expect(packageFileOutput['scripts']).toEqual(
+                expect.objectContaining({
+                  ng: 'ng',
+                  tauri: 'tauri'
+                })
+              )
             }
           }
 

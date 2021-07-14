@@ -53,6 +53,7 @@ pub struct Dev {
   exit_on_panic: bool,
   config: Option<String>,
   args: Vec<String>,
+  release_mode: bool,
 }
 
 impl Dev {
@@ -87,6 +88,11 @@ impl Dev {
 
   pub fn args(mut self, args: Vec<String>) -> Self {
     self.args = args;
+    self
+  }
+
+  pub fn release_mode(mut self, release_mode: bool) -> Self {
+    self.release_mode = release_mode;
     self
   }
 
@@ -248,6 +254,10 @@ impl Dev {
   ) -> Arc<SharedChild> {
     let mut command = Command::new(runner);
     command.args(&["run", "--no-default-features"]);
+
+    if self.release_mode {
+      command.args(&["--release"]);
+    }
 
     if let Some(target) = &self.target {
       command.args(&["--target", target]);

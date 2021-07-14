@@ -1099,6 +1099,11 @@
           "default": false,
           "type": "boolean"
         },
+        "center": {
+          "description": "Whether or not the window starts centered or not.",
+          "default": false,
+          "type": "boolean"
+        },
         "decorations": {
           "description": "Whether the window should have borders and bars.",
           "default": true,
@@ -1106,6 +1111,11 @@
         },
         "fileDropEnabled": {
           "description": "Whether the file drop is enabled or not on the webview. By default it is enabled.\n\nDisabling it is required to use drag and drop on the frontend on Windows.",
+          "default": true,
+          "type": "boolean"
+        },
+        "focus": {
+          "description": "Whether the window will be initially hidden or focused.",
           "default": true,
           "type": "boolean"
         },

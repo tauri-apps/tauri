@@ -38,6 +38,9 @@ subcommands:
                     about: Args passed to the binary
                     index: 1
                     multiple: true
+                - release:
+                    long: release
+                    about: Run the code in release mode
         - build:
             about: Tauri build.
             args:

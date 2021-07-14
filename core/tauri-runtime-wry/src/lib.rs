@@ -560,11 +560,14 @@ impl WindowBuilder for WindowBuilderWrapper {
     Ok(self)
   }
 
+  #[cfg(any(target_os = "windows", target_os = "linux"))]
+  fn skip_taskbar(mut self, skip: bool) -> Self {
+    self.inner = self.inner.with_skip_taskbar(skip);
+    self
+  }
+  
+  #[cfg(target_os = "macos")]
   fn skip_taskbar(self, _skip: bool) -> Self {
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
-    {
-      self.inner = self.inner.with_skip_taskbar(_skip);
-    }
     self
   }
 

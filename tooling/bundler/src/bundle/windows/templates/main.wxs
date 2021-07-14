@@ -88,8 +88,7 @@
             </Component>
             {{/each~}}
             {{{resources}}}
-            <Component Id="CMP_ReadFileShortcut"
-                Guid="1AF06B42-CD42-4AED-959F-36DB5E512046">
+            <Component Id="CMP_UninstallShortcut" Guid="*">
 
                 <Shortcut Id="UninstallShortcut"
 						  Name="Uninstall {{{product_name}}}"
@@ -110,7 +109,7 @@
         </DirectoryRef>
 
         <DirectoryRef Id="ApplicationProgramsFolder">
-            <Component Id="ApplicationShortcut" Guid="81ccebd8-b769-4bed-bdbd-0340f9f7cad1">
+            <Component Id="ApplicationShortcut" Guid="*">
                 <Shortcut Id="ApplicationStartMenuShortcut"
                     Name="{{{product_name}}}"
                     Description="Runs {{{product_name}}}"
@@ -152,7 +151,7 @@
                 Title="Shortcuts"
                 Level="1">
                 <ComponentRef Id="Path"/>
-                <ComponentRef Id="CMP_ReadFileShortcut" />
+                <ComponentRef Id="CMP_UninstallShortcut" />
                 <ComponentRef Id="ApplicationShortcut" />
                 <ComponentRef Id="ApplicationShortcutDesktop" />
             </Feature>

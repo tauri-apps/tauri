@@ -31,12 +31,18 @@ explicit type and let the compiler infer it instead.
 `tauri-runtime`:
 
 * See `Params` note
-* **TODO** was there more?
+* Removed `Params`, `MenuId`, `Tag`, `TagRef`.
+* Added `menu::{MenuHash, MenuId, MenuIdRef}` as type aliases for the internal type that menu types now use.
+  * All previous menu items that had a `MenuId` generic now use the underlying `MenuId` type without a generic.
+* `Runtime`, `RuntimeHandle`, and `Dispatch` have no more generic parameter on `create_window(...)` and instead use the
+  `Runtime` type directly
+  `Runtime::system_tray` has no more `MenuId` generic and uses the string based `SystemTray` type directly.
+* (internal) `CustomMenuItem::id_value()` is now hashed on creation and exposed as the `id` field with type `MenuHash`.
 
 `tauri-runtime-wry`:
 
 * See `Params` note
-* **TODO** was there more?
+* update menu and runtime related types to the ones changed in `tauri-runtime`.
 
 `tauri-utils`:
 

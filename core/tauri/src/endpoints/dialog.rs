@@ -160,7 +160,7 @@ unsafe impl raw_window_handle::HasRawWindowHandle for WindowParent {
 }
 
 #[cfg(all(windows, any(dialog_open, dialog_save)))]
-fn parent<P: Params>(window: Window<P>) -> crate::Result<WindowParent> {
+fn parent<R: Runtime>(window: Window<R>) -> crate::Result<WindowParent> {
   Ok(WindowParent {
     hwnd: window.hwnd()?,
   })

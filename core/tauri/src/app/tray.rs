@@ -10,7 +10,7 @@ pub use crate::runtime::{
   Icon, Runtime, SystemTray,
 };
 
-use tauri_macros::default_runtime_wry;
+use tauri_macros::default_runtime;
 
 use std::{collections::HashMap, sync::Arc};
 
@@ -77,7 +77,7 @@ pub enum SystemTrayEvent {
 }
 
 /// A handle to a system tray. Allows updating the context menu items.
-#[default_runtime_wry]
+#[default_runtime(crate::Wry, wry)]
 pub struct SystemTrayHandle<R: Runtime> {
   pub(crate) ids: Arc<HashMap<MenuHash, MenuId>>,
   pub(crate) inner: R::TrayHandler,
@@ -93,7 +93,7 @@ impl<R: Runtime> Clone for SystemTrayHandle<R> {
 }
 
 /// A handle to a system tray menu item.
-#[default_runtime_wry]
+#[default_runtime(crate::Wry, wry)]
 pub struct SystemTrayMenuItemHandle<R: Runtime> {
   id: MenuHash,
   tray_handler: R::TrayHandler,

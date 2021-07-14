@@ -41,7 +41,7 @@ use std::{
   fs::create_dir_all,
   sync::{Arc, Mutex, MutexGuard},
 };
-use tauri_macros::default_runtime_wry;
+use tauri_macros::default_runtime;
 use uuid::Uuid;
 
 const WINDOW_RESIZED_EVENT: &str = "tauri://resize";
@@ -54,7 +54,7 @@ const WINDOW_SCALE_FACTOR_CHANGED_EVENT: &str = "tauri://scale-change";
 #[cfg(feature = "menu")]
 const MENU_EVENT: &str = "tauri://menu";
 
-#[default_runtime_wry]
+#[default_runtime(crate::Wry, wry)]
 pub struct InnerWindowManager<R: Runtime> {
   windows: Mutex<HashMap<String, Window<R>>>,
   plugins: Mutex<PluginStore<R>>,
@@ -89,7 +89,7 @@ pub struct InnerWindowManager<R: Runtime> {
   window_event_listeners: Arc<Vec<GlobalWindowEventListener<R>>>,
 }
 
-#[default_runtime_wry]
+#[default_runtime(crate::Wry, wry)]
 pub struct WindowManager<R: Runtime> {
   pub inner: Arc<InnerWindowManager<R>>,
   invoke_keys: Arc<Mutex<Vec<u32>>>,
@@ -552,9 +552,7 @@ impl<R: Runtime> WindowManager<R> {
     pending_labels: &[String],
   ) -> crate::Result<PendingWindow<R>> {
     if self.windows_lock().contains_key(&pending.label) {
-      return Err(crate::Error::WindowLabelAlreadyExists(
-        pending.label,
-      ));
+      return Err(crate::Error::WindowLabelAlreadyExists(pending.label));
     }
     let (is_local, url) = match &pending.webview_attributes.url {
       WindowUrl::App(path) => {

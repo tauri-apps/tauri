@@ -22,7 +22,7 @@ use crate::{
   Context, Invoke, InvokeError, Manager, StateManager, Window,
 };
 
-use tauri_macros::default_runtime_wry;
+use tauri_macros::default_runtime;
 use tauri_utils::PackageInfo;
 
 use std::{
@@ -78,7 +78,7 @@ pub enum Event {
 /// A menu event that was triggered on a window.
 #[cfg(feature = "menu")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-#[default_runtime_wry]
+#[default_runtime(crate::Wry, wry)]
 pub struct WindowMenuEvent<R: Runtime> {
   pub(crate) menu_item_id: MenuId,
   pub(crate) window: Window<R>,
@@ -98,7 +98,7 @@ impl<R: Runtime> WindowMenuEvent<R> {
 }
 
 /// A window event that was triggered on the specified window.
-#[default_runtime_wry]
+#[default_runtime(crate::Wry, wry)]
 pub struct GlobalWindowEvent<R: Runtime> {
   pub(crate) event: WindowEvent,
   pub(crate) window: Window<R>,
@@ -138,7 +138,7 @@ impl PathResolver {
 /// A handle to the currently running application.
 ///
 /// This type implements [`Manager`] which allows for manipulation of global application items.
-#[default_runtime_wry]
+#[default_runtime(crate::Wry, wry)]
 pub struct AppHandle<R: Runtime> {
   runtime_handle: R::Handle,
   manager: WindowManager<R>,
@@ -195,7 +195,7 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
 /// The instance of the currently running application.
 ///
 /// This type implements [`Manager`] which allows for manipulation of global application items.
-#[default_runtime_wry]
+#[default_runtime(crate::Wry, wry)]
 pub struct App<R: Runtime> {
   runtime: Option<R>,
   manager: WindowManager<R>,

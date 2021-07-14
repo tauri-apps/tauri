@@ -7,7 +7,7 @@
 use crate::{window::DetachedWindow, Icon};
 
 #[cfg(feature = "menu")]
-use crate::{menu::Menu};
+use crate::menu::Menu;
 
 use serde::Deserialize;
 use serde_json::Value as JsonValue;

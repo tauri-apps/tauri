@@ -60,7 +60,7 @@ pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 use crate::{
   event::{Event as EmittedEvent, EventHandler},
-  runtime::{window::PendingWindow},
+  runtime::window::PendingWindow,
 };
 use serde::Serialize;
 use std::{collections::HashMap, sync::Arc};
@@ -94,8 +94,7 @@ pub use {
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       WindowEvent,
     },
-    Icon, RunIteration, UserAttentionType,
-    Runtime
+    Icon, RunIteration, Runtime, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::window::{Monitor, Window},

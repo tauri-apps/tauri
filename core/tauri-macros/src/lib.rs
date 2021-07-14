@@ -5,9 +5,10 @@
 extern crate proc_macro;
 use crate::context::ContextItems;
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, parse_quote, DeriveInput, GenericParam, TypeParam};
+use syn::{parse_macro_input, DeriveInput};
 
 mod command;
+mod runtime;
 
 #[macro_use]
 mod context;
@@ -61,43 +62,15 @@ pub fn generate_context(items: TokenStream) -> TokenStream {
   context::generate_context(path).into()
 }
 
-/// Adds a default value `crate::Wry` to the last generic item of a struct/enum
+/// Adds the default type for the last parameter (assumed to be runtime) for a specific feature.
+///
+/// e.g. To default the runtime generic to type `crate::Wry` when the `wry` feature is enabled, the
+/// syntax would look like `#[default_runtime(crate::Wry, wry)`. This is **always** set for the last
+/// generic, so make sure the last generic is the runtime when using this macro.
 #[doc(hidden)]
 #[proc_macro_attribute]
-pub fn default_runtime_wry(_attrs: TokenStream, input: TokenStream) -> TokenStream {
+pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStream {
+  let attributes = parse_macro_input!(attributes as runtime::Attributes);
   let input = parse_macro_input!(input as DeriveInput);
-
-  // create a new copy to manipulate for the wry feature flag
-  let mut wry = input.clone();
-  let wry_runtime = wry
-    .generics
-    .params
-    .last_mut()
-    .expect("DefaultRuntime requires at least 1 generic parameter");
-
-  // set the default value of the last generic parameter to crate::wry
-  match wry_runtime {
-    GenericParam::Type(
-      param @ TypeParam {
-        eq_token: None,
-        default: None,
-        ..
-      },
-    ) => {
-      param.eq_token = Some(parse_quote!(=));
-      param.default = Some(parse_quote!(crate::Wry));
-    }
-    _ => {
-      panic!("DefaultRuntime requires the last parameter to not have a default value")
-    }
-  };
-
-  quote::quote!(
-    #[cfg(feature = "wry")]
-    #wry
-
-    #[cfg(not(feature = "wry"))]
-    #input
-  )
-  .into()
+  runtime::default_runtime(attributes, input).into()
 }

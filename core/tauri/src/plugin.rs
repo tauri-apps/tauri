@@ -8,7 +8,7 @@ use crate::{api::config::PluginConfig, runtime::Runtime, App, Invoke, PageLoadPa
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 
-use tauri_macros::default_runtime_wry;
+use tauri_macros::default_runtime;
 
 /// The plugin result type.
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -47,7 +47,7 @@ pub trait Plugin<R: Runtime>: Send {
 }
 
 /// Plugin collection type.
-#[default_runtime_wry]
+#[default_runtime(crate::Wry, wry)]
 pub(crate) struct PluginStore<R: Runtime> {
   store: HashMap<&'static str, Box<dyn Plugin<R>>>,
 }

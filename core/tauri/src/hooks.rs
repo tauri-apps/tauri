@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::{future::Future, sync::Arc};
 
-use tauri_macros::default_runtime_wry;
+use tauri_macros::default_runtime;
 
 /// A closure that is run when the Tauri application is setting up.
 pub type SetupHook<R> =
@@ -38,7 +38,7 @@ impl PageLoadPayload {
 }
 
 /// The message and resolver given to a custom command.
-#[default_runtime_wry]
+#[default_runtime(crate::Wry, wry)]
 pub struct Invoke<R: Runtime> {
   /// The message passed.
   pub message: InvokeMessage<R>,
@@ -115,7 +115,7 @@ impl From<InvokeError> for InvokeResponse {
 }
 
 /// Resolver of a invoke message.
-#[default_runtime_wry]
+#[default_runtime(crate::Wry, wry)]
 pub struct InvokeResolver<R: Runtime> {
   window: Window<R>,
   pub(crate) callback: String,
@@ -234,7 +234,7 @@ impl<R: Runtime> InvokeResolver<R> {
 }
 
 /// An invoke message.
-#[default_runtime_wry]
+#[default_runtime(crate::Wry, wry)]
 pub struct InvokeMessage<R: Runtime> {
   /// The window that received the invoke message.
   pub(crate) window: Window<R>,

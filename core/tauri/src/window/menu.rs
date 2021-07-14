@@ -7,7 +7,7 @@ use crate::runtime::{
   Dispatch, Runtime,
 };
 
-use tauri_macros::default_runtime_wry;
+use tauri_macros::default_runtime;
 
 use std::collections::HashMap;
 
@@ -27,7 +27,7 @@ impl MenuEvent {
 }
 
 /// A handle to a system tray. Allows updating the context menu items.
-#[default_runtime_wry]
+#[default_runtime(crate::Wry, wry)]
 pub struct MenuHandle<R: Runtime> {
   pub(crate) ids: HashMap<MenuHash, MenuId>,
   pub(crate) dispatcher: R::Dispatcher,
@@ -43,7 +43,7 @@ impl<R: Runtime> Clone for MenuHandle<R> {
 }
 
 /// A handle to a system tray menu item.
-#[default_runtime_wry]
+#[default_runtime(crate::Wry, wry)]
 pub struct MenuItemHandle<R: Runtime> {
   id: u16,
   dispatcher: R::Dispatcher,

@@ -32,11 +32,9 @@ use crate::{
 
 use serde::Serialize;
 
-use tauri_macros::default_runtime_wry;
+use tauri_macros::default_runtime;
 
-use std::{
-  hash::{Hash, Hasher},
-};
+use std::hash::{Hash, Hasher};
 
 /// Monitor descriptor.
 #[derive(Debug, Clone, Serialize)]
@@ -87,7 +85,7 @@ impl Monitor {
 ///
 /// This type also implements [`Manager`] which allows you to manage other windows attached to
 /// the same application.
-#[default_runtime_wry]
+#[default_runtime(crate::Wry, wry)]
 pub struct Window<R: Runtime> {
   /// The webview window created by the runtime.
   window: DetachedWindow<R>,

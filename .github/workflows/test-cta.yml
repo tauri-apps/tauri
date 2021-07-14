@@ -7,8 +7,6 @@ name: test create-tauri-app
 on:
   workflow_dispatch:
     inputs:
-      branch:
-        default: "dev"
       platform:
         default: "ubuntu"
   pull_request:
@@ -35,8 +33,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.head_ref || github.event.inputs.branch }}
       - name: install stable
         uses: actions-rs/toolchain@v1
         with:

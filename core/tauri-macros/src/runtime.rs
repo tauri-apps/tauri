@@ -55,5 +55,4 @@ pub(crate) fn default_runtime(attributes: Attributes, input: DeriveInput) -> Tok
     #[cfg(not(feature = #feature))]
     #input
   )
-  .into()
 }

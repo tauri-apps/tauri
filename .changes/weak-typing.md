@@ -14,8 +14,6 @@ explicit type and let the compiler infer it instead.
 `tauri`:
 
 * See `Params` note
-* **TODO** should we change all the `&str` to `AsRef<str>`?
-* **TODO** (probably list all the methods/functions that changed)
 
 `tauri-macros`:
 

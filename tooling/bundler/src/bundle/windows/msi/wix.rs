@@ -423,7 +423,7 @@ pub fn build_wix_app_installer(
         let license_contents = std::fs::read_to_string(&license_path)?;
         let license_rtf = format!(
           r#"{{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033{{\fonttbl{{\f0\fnil\fcharset0 Calibri;}}}}
-{{\*\generator Riched20 10.0.18362}}\viewkind4\uc1 
+{{\*\generator Riched20 10.0.18362}}\viewkind4\uc1
 \pard\sa200\sl276\slmult1\f0\fs22\lang9 {}\par
 }}
  "#,
@@ -513,6 +513,7 @@ pub fn build_wix_app_installer(
   let mut handlebars = Handlebars::new();
   let mut has_custom_template = false;
   let mut install_webview = true;
+  let mut enable_elevated_update_task = false;
 
   if let Some(wix) = &settings.windows().wix {
     data.insert("component_group_refs", to_json(&wix.component_group_refs));
@@ -522,6 +523,7 @@ pub fn build_wix_app_installer(
     data.insert("merge_refs", to_json(&wix.merge_refs));
     fragment_paths = wix.fragment_paths.clone();
     install_webview = !wix.skip_webview_install;
+    enable_elevated_update_task = wix.enable_elevated_update_task;
 
     if let Some(temp_path) = &wix.template {
       let template = std::fs::read_to_string(temp_path)?;
@@ -549,6 +551,32 @@ pub fn build_wix_app_installer(
   }
 
   create_dir_all(&output_path)?;
+
+  if enable_elevated_update_task {
+    // Create the update task XML
+    let mut skip_uac_task = Handlebars::new();
+    let xml = include_str!("../templates/update-task.xml");
+    skip_uac_task
+      .register_template_string("update.xml", xml)
+      .map_err(|e| e.to_string())
+      .expect("Failed to setup Update Task handlebars");
+    let temp_xml_path = output_path.join("update.xml");
+    let update_content = skip_uac_task.render("update.xml", &data)?;
+    write(&temp_xml_path, update_content)?;
+
+    // Create the Powershell script to install the task
+    let mut skip_uac_task_installer = Handlebars::new();
+    let xml = include_str!("../templates/install-task.ps1");
+    skip_uac_task_installer
+      .register_template_string("install-task.ps1", xml)
+      .map_err(|e| e.to_string())
+      .expect("Failed to setup Update Task Installer handlebars");
+    let temp_ps1_path = output_path.join("install-task.ps1");
+    let install_script_content = skip_uac_task_installer.render("install-task.ps1", &data)?;
+    write(&temp_ps1_path, install_script_content.clone())?;
+
+    data.insert("enable_elevated_update_task", to_json(true));
+  }
 
   let main_wxs_path = output_path.join("main.wxs");
   write(&main_wxs_path, handlebars.render("main.wxs", &data)?)?;

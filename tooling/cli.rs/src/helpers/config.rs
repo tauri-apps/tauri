@@ -26,6 +26,7 @@ impl From<WixConfig> for tauri_bundler::WixSettings {
       merge_refs: config.merge_refs,
       skip_webview_install: config.skip_webview_install,
       license: config.license,
+      enable_elevated_update_task: config.enable_elevated_update_task,
     }
   }
 }

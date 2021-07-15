@@ -80,6 +80,8 @@ pub struct WixConfig {
   pub skip_webview_install: bool,
   /// Path to the license file.
   pub license: Option<String>,
+  #[serde(default)]
+  pub enable_elevated_update_task: bool,
 }
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]

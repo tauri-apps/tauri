@@ -1288,6 +1288,10 @@
             "type": "string"
           }
         },
+        "enableElevatedUpdateTask": {
+          "default": false,
+          "type": "boolean"
+        },
         "featureGroupRefs": {
           "default": [],
           "type": "array",

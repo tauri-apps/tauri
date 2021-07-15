@@ -526,10 +526,12 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Resu
 #[cfg(target_os = "windows")]
 #[allow(clippy::unnecessary_wraps)]
 fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Result {
+  use crate::api::file::Move;
+
   let paths = read_dir(&tmp_dir)?;
   // This consumes the TempDir without deleting directory on the filesystem,
   // meaning that the directory will no longer be automatically deleted.
-  tmp_dir.into_path();
+  let tmp_path = tmp_dir.into_path();
   for path in paths {
     let found_path = path?.path();
     // we support 2 type of files exe & msi for now
@@ -542,6 +544,44 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
 
       exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
+      if let Some(bin_name) = std::env::current_exe()
+        .ok()
+        .and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
+        .and_then(|s| s.into_string().ok())
+      {
+        let product_name = bin_name.replace(".exe", "");
+
+        // Check if there is a task that enables the updater to skip the UAC prompt
+        let update_task_name = format!("Update {} - Skip UAC", product_name);
+        if let Ok(status) = Command::new("schtasks")
+          .arg("/QUERY")
+          .arg("/TN")
+          .arg(update_task_name.clone())
+          .status()
+        {
+          if status.success() {
+            // Rename the MSI to the match file name the Skip UAC task is expecting it to be
+            let temp_msi = tmp_path.with_file_name(bin_name).with_extension("msi");
+            Move::from_source(&found_path)
+              .to_dest(&temp_msi)
+              .expect("Unable to move update MSI");
+            let exit_status = Command::new("schtasks")
+              .arg("/RUN")
+              .arg("/TN")
+              .arg(update_task_name)
+              .status()
+              .expect("failed to start updater task");
+
+            if exit_status.success() {
+              // Successfully launched task that skips the UAC prompt
+              exit(0);
+            }
+          }
+
+          // Failed to run update task. Following UAC Path
+        }
+      }
+
       // restart should be handled by WIX as we exit the process
       Command::new("msiexec.exe")
         .arg("/i")

@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="UTF-16"?>
+<!-- Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+SPDX-License-Identifier: Apache-2.0
+SPDX-License-Identifier: MIT
+-->
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
     <URI>\Update {{{product_name}}} - Skip UAC</URI>

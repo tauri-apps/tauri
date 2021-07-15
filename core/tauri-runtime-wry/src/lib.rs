@@ -565,7 +565,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     self.inner = self.inner.with_skip_taskbar(skip);
     self
   }
-  
+
   #[cfg(target_os = "macos")]
   fn skip_taskbar(self, _skip: bool) -> Self {
     self

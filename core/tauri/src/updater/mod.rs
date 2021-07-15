@@ -332,14 +332,14 @@ mod error;
 
 pub use self::error::Error;
 
-use crate::manager::tauri_event;
 use crate::{
   api::{
     config::UpdaterConfig,
     dialog::{ask, AskResponse},
     process::restart,
   },
-  Params, Window,
+  runtime::Runtime,
+  Window,
 };
 
 /// Check for new updates
@@ -376,10 +376,10 @@ struct UpdateManifest {
 }
 
 /// Check if there is any new update with builtin dialog.
-pub(crate) async fn check_update_with_dialog<P: Params>(
+pub(crate) async fn check_update_with_dialog<R: Runtime>(
   updater_config: UpdaterConfig,
   package_info: crate::api::PackageInfo,
-  window: Window<P>,
+  window: Window<R>,
 ) {
   if let Some(endpoints) = updater_config.endpoints.clone() {
     // check updates
@@ -418,106 +418,96 @@ pub(crate) async fn check_update_with_dialog<P: Params>(
 
 /// Experimental listener
 /// This function should be run on the main thread once.
-pub(crate) fn listener<P: Params>(
+pub(crate) fn listener<R: Runtime>(
   updater_config: UpdaterConfig,
   package_info: crate::api::PackageInfo,
-  window: &Window<P>,
+  window: &Window<R>,
 ) {
   let isolated_window = window.clone();
 
   // Wait to receive the event `"tauri://update"`
-  window.listen(
-    EVENT_CHECK_UPDATE
-      .parse::<P::Event>()
-      .unwrap_or_else(|_| panic!("bad label")),
-    move |_msg| {
-      let window = isolated_window.clone();
-      let package_info = package_info.clone();
+  window.listen(EVENT_CHECK_UPDATE, move |_msg| {
+    let window = isolated_window.clone();
+    let package_info = package_info.clone();
 
-      // prepare our endpoints
-      let endpoints = updater_config
-        .endpoints
-        .as_ref()
-        .expect("Something wrong with endpoints")
-        .clone();
+    // prepare our endpoints
+    let endpoints = updater_config
+      .endpoints
+      .as_ref()
+      .expect("Something wrong with endpoints")
+      .clone();
 
-      let pubkey = updater_config.pubkey.clone();
+    let pubkey = updater_config.pubkey.clone();
 
-      // check updates
-      crate::async_runtime::spawn(async move {
-        let window = window.clone();
-        let window_isolation = window.clone();
-        let pubkey = pubkey.clone();
+    // check updates
+    crate::async_runtime::spawn(async move {
+      let window = window.clone();
+      let window_isolation = window.clone();
+      let pubkey = pubkey.clone();
 
-        match self::core::builder()
-          .urls(&endpoints[..])
-          .current_version(&package_info.version)
-          .build()
-          .await
-        {
-          Ok(updater) => {
-            // send notification if we need to update
-            if updater.should_update {
-              let body = updater.body.clone().unwrap_or_else(|| String::from(""));
+      match self::core::builder()
+        .urls(&endpoints[..])
+        .current_version(&package_info.version)
+        .build()
+        .await
+      {
+        Ok(updater) => {
+          // send notification if we need to update
+          if updater.should_update {
+            let body = updater.body.clone().unwrap_or_else(|| String::from(""));
 
-              // Emit `tauri://update-available`
-              let _ = window.emit(
-                &tauri_event::<P::Event>(EVENT_UPDATE_AVAILABLE),
-                Some(UpdateManifest {
-                  body,
-                  date: updater.date.clone(),
-                  version: updater.version.clone(),
-                }),
-              );
+            // Emit `tauri://update-available`
+            let _ = window.emit(
+              EVENT_UPDATE_AVAILABLE,
+              Some(UpdateManifest {
+                body,
+                date: updater.date.clone(),
+                version: updater.version.clone(),
+              }),
+            );
 
-              // Listen for `tauri://update-install`
-              window.once(
-                EVENT_INSTALL_UPDATE
-                  .parse::<P::Event>()
-                  .unwrap_or_else(|_| panic!("bad label")),
-                move |_msg| {
-                  let window = window_isolation.clone();
-                  let updater = updater.clone();
-                  let pubkey = pubkey.clone();
+            // Listen for `tauri://update-install`
+            window.once(EVENT_INSTALL_UPDATE, move |_msg| {
+              let window = window_isolation.clone();
+              let updater = updater.clone();
+              let pubkey = pubkey.clone();
 
-                  // Start installation
-                  crate::async_runtime::spawn(async move {
-                    // emit {"status": "PENDING"}
-                    send_status_update(window.clone(), EVENT_STATUS_PENDING, None);
+              // Start installation
+              crate::async_runtime::spawn(async move {
+                // emit {"status": "PENDING"}
+                send_status_update(window.clone(), EVENT_STATUS_PENDING, None);
 
-                    // Launch updater download process
-                    // macOS we display the `Ready to restart dialog` asking to restart
-                    // Windows is closing the current App and launch the downloaded MSI when ready (the process stop here)
-                    // Linux we replace the AppImage by launching a new install, it start a new AppImage instance, so we're closing the previous. (the process stop here)
-                    let update_result = updater.clone().download_and_install(pubkey.clone()).await;
+                // Launch updater download process
+                // macOS we display the `Ready to restart dialog` asking to restart
+                // Windows is closing the current App and launch the downloaded MSI when ready (the process stop here)
+                // Linux we replace the AppImage by launching a new install, it start a new AppImage instance, so we're closing the previous. (the process stop here)
+                let update_result = updater.clone().download_and_install(pubkey.clone()).await;
 
-                    if let Err(err) = update_result {
-                      // emit {"status": "ERROR", "error": "The error message"}
-                      send_status_update(window.clone(), EVENT_STATUS_ERROR, Some(err.to_string()));
-                    } else {
-                      // emit {"status": "DONE"}
-                      send_status_update(window.clone(), EVENT_STATUS_SUCCESS, None);
-                    }
-                  })
-                },
-              );
-            } else {
-              send_status_update(window.clone(), EVENT_STATUS_UPTODATE, None);
-            }
-          }
-          Err(e) => {
-            send_status_update(window.clone(), EVENT_STATUS_ERROR, Some(e.to_string()));
+                if let Err(err) = update_result {
+                  // emit {"status": "ERROR", "error": "The error message"}
+                  send_status_update(window.clone(), EVENT_STATUS_ERROR, Some(err.to_string()));
+                } else {
+                  // emit {"status": "DONE"}
+                  send_status_update(window.clone(), EVENT_STATUS_SUCCESS, None);
+                }
+              })
+            });
+          } else {
+            send_status_update(window.clone(), EVENT_STATUS_UPTODATE, None);
           }
         }
-      })
-    },
-  );
+        Err(e) => {
+          send_status_update(window.clone(), EVENT_STATUS_ERROR, Some(e.to_string()));
+        }
+      }
+    })
+  });
 }
 
 // Send a status update via `tauri://update-status` event.
-fn send_status_update<P: Params>(window: Window<P>, status: &str, error: Option<String>) {
+fn send_status_update<R: Runtime>(window: Window<R>, status: &str, error: Option<String>) {
   let _ = window.emit(
-    &tauri_event::<P::Event>(EVENT_STATUS_UPDATE),
+    EVENT_STATUS_UPDATE,
     Some(StatusEvent {
       error,
       status: String::from(status),

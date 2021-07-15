@@ -2,37 +2,38 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{
-  runtime::{menu::MenuUpdate, Dispatch, MenuId, Runtime},
-  Params,
+use crate::runtime::{
+  menu::{MenuHash, MenuId, MenuIdRef, MenuUpdate},
+  Dispatch, Runtime,
 };
+
+use tauri_macros::default_runtime;
 
 use std::collections::HashMap;
 
 /// The window menu event.
 #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
 #[derive(Debug, Clone)]
-pub struct MenuEvent<I: MenuId> {
-  pub(crate) menu_item_id: I,
+pub struct MenuEvent {
+  pub(crate) menu_item_id: MenuId,
 }
 
 #[cfg(feature = "menu")]
-impl<I: MenuId> MenuEvent<I> {
+impl MenuEvent {
   /// The menu item id.
-  pub fn menu_item_id(&self) -> &I {
+  pub fn menu_item_id(&self) -> MenuIdRef<'_> {
     &self.menu_item_id
   }
 }
 
-crate::manager::default_args! {
-  /// A handle to a system tray. Allows updating the context menu items.
-  pub struct MenuHandle<P: Params> {
-    pub(crate) ids: HashMap<u16, P::MenuId>,
-    pub(crate) dispatcher: <P::Runtime as Runtime>::Dispatcher,
-  }
+/// A handle to a system tray. Allows updating the context menu items.
+#[default_runtime(crate::Wry, wry)]
+pub struct MenuHandle<R: Runtime> {
+  pub(crate) ids: HashMap<MenuHash, MenuId>,
+  pub(crate) dispatcher: R::Dispatcher,
 }
 
-impl<P: Params> Clone for MenuHandle<P> {
+impl<R: Runtime> Clone for MenuHandle<R> {
   fn clone(&self) -> Self {
     Self {
       ids: self.ids.clone(),
@@ -41,15 +42,14 @@ impl<P: Params> Clone for MenuHandle<P> {
   }
 }
 
-crate::manager::default_args! {
-  /// A handle to a system tray menu item.
-  pub struct MenuItemHandle<P: Params> {
-    id: u16,
-    dispatcher: <P::Runtime as Runtime>::Dispatcher,
-  }
+/// A handle to a system tray menu item.
+#[default_runtime(crate::Wry, wry)]
+pub struct MenuItemHandle<R: Runtime> {
+  id: u16,
+  dispatcher: R::Dispatcher,
 }
 
-impl<P: Params> Clone for MenuItemHandle<P> {
+impl<R: Runtime> Clone for MenuItemHandle<R> {
   fn clone(&self) -> Self {
     Self {
       id: self.id,
@@ -58,9 +58,9 @@ impl<P: Params> Clone for MenuItemHandle<P> {
   }
 }
 
-impl<P: Params> MenuHandle<P> {
+impl<R: Runtime> MenuHandle<R> {
   /// Gets a handle to the menu item that has the specified `id`.
-  pub fn get_item(&self, id: &P::MenuId) -> MenuItemHandle<P> {
+  pub fn get_item(&self, id: MenuIdRef<'_>) -> MenuItemHandle<R> {
     for (raw, item_id) in self.ids.iter() {
       if item_id == id {
         return MenuItemHandle {
@@ -107,7 +107,7 @@ impl<P: Params> MenuHandle<P> {
   }
 }
 
-impl<P: Params> MenuItemHandle<P> {
+impl<R: Runtime> MenuItemHandle<R> {
   /// Modifies the enabled state of the menu item.
   pub fn set_enabled(&self, enabled: bool) -> crate::Result<()> {
     self

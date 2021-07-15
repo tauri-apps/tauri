@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-// we re-export the default_args! macro as pub(crate) so we can use it easily from other modules
-#![allow(clippy::single_component_path_imports)]
-
 use crate::{
   api::{
     assets::Assets,
@@ -17,14 +14,12 @@ use crate::{
   hooks::{InvokeHandler, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
   runtime::{
-    private::ParamsBase,
-    tag::{tags_to_javascript_array, Tag, TagRef, ToJsString},
     webview::{
       CustomProtocol, FileDropEvent, FileDropHandler, InvokePayload, WebviewRpcHandler,
       WindowBuilder,
     },
     window::{dpi::PhysicalSize, DetachedWindow, PendingWindow, WindowEvent},
-    Icon, MenuId, Params, Runtime,
+    Icon, Runtime,
   },
   App, Context, Invoke, StateManager, Window,
 };
@@ -34,20 +29,19 @@ use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
 
 #[cfg(feature = "menu")]
 use crate::{
-  runtime::menu::{Menu, MenuEntry},
+  runtime::menu::{Menu, MenuEntry, MenuHash, MenuId},
   MenuEvent,
 };
 
 use serde::Serialize;
 use serde_json::Value as JsonValue;
-use std::borrow::Borrow;
-use std::marker::PhantomData;
 use std::{
   borrow::Cow,
   collections::{HashMap, HashSet},
   fs::create_dir_all,
   sync::{Arc, Mutex, MutexGuard},
 };
+use tauri_macros::default_runtime;
 use uuid::Uuid;
 
 const WINDOW_RESIZED_EVENT: &str = "tauri://resize";
@@ -60,162 +54,62 @@ const WINDOW_SCALE_FACTOR_CHANGED_EVENT: &str = "tauri://scale-change";
 #[cfg(feature = "menu")]
 const MENU_EVENT: &str = "tauri://menu";
 
-/// Parse a string representing an internal tauri event into [`Params::Event`]
-///
-/// # Panics
-///
-/// This will panic if the `FromStr` implementation of [`Params::Event`] returns an error.
-pub(crate) fn tauri_event<Event: Tag>(tauri_event: &str) -> Event {
-  tauri_event.parse().unwrap_or_else(|_| {
-    panic!(
-      "failed to parse internal tauri event into Params::Event: {}",
-      tauri_event
-    )
-  })
+#[default_runtime(crate::Wry, wry)]
+pub struct InnerWindowManager<R: Runtime> {
+  windows: Mutex<HashMap<String, Window<R>>>,
+  plugins: Mutex<PluginStore<R>>,
+  listeners: Listeners,
+  pub(crate) state: Arc<StateManager>,
+
+  /// The JS message handler.
+  invoke_handler: Box<InvokeHandler<R>>,
+
+  /// The page load hook, invoked when the webview performs a navigation.
+  on_page_load: Box<OnPageLoad<R>>,
+
+  config: Arc<Config>,
+  assets: Arc<dyn Assets>,
+  default_window_icon: Option<Vec<u8>>,
+
+  /// A list of salts that are valid for the current application.
+  salts: Mutex<HashSet<Uuid>>,
+  package_info: PackageInfo,
+  /// The webview protocols protocols available to all windows.
+  uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
+  /// The menu set to all windows.
+  #[cfg(feature = "menu")]
+  menu: Option<Menu>,
+  /// Maps runtime id to a strongly typed menu id.
+  #[cfg(feature = "menu")]
+  menu_ids: HashMap<MenuHash, MenuId>,
+  /// Menu event listeners to all windows.
+  #[cfg(feature = "menu")]
+  menu_event_listeners: Arc<Vec<GlobalMenuEventListener<R>>>,
+  /// Window event listeners to all windows.
+  window_event_listeners: Arc<Vec<GlobalWindowEventListener<R>>>,
 }
 
-crate::manager::default_args! {
-  pub struct InnerWindowManager<P: Params> {
-    windows: Mutex<HashMap<P::Label, Window<P>>>,
-    plugins: Mutex<PluginStore<P>>,
-    listeners: Listeners<P::Event, P::Label>,
-    pub(crate) state: Arc<StateManager>,
-
-    /// The JS message handler.
-    invoke_handler: Box<InvokeHandler<P>>,
-
-    /// The page load hook, invoked when the webview performs a navigation.
-    on_page_load: Box<OnPageLoad<P>>,
-
-    config: Arc<Config>,
-    assets: Arc<P::Assets>,
-    default_window_icon: Option<Vec<u8>>,
-
-    /// A list of salts that are valid for the current application.
-    salts: Mutex<HashSet<Uuid>>,
-    package_info: PackageInfo,
-    /// The webview protocols protocols available to all windows.
-    uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
-    /// The menu set to all windows.
-    #[cfg(feature = "menu")]
-    menu: Option<Menu<P::MenuId>>,
-    /// Maps runtime id to a strongly typed menu id.
-    #[cfg(feature = "menu")]
-    menu_ids: HashMap<u16, P::MenuId>,
-    /// Menu event listeners to all windows.
-    #[cfg(feature = "menu")]
-    menu_event_listeners: Arc<Vec<GlobalMenuEventListener<P>>>,
-    /// Window event listeners to all windows.
-    window_event_listeners: Arc<Vec<GlobalWindowEventListener<P>>>,
-  }
+#[default_runtime(crate::Wry, wry)]
+pub struct WindowManager<R: Runtime> {
+  pub inner: Arc<InnerWindowManager<R>>,
+  invoke_keys: Arc<Mutex<Vec<u32>>>,
 }
 
-/// struct declaration using params + default args which includes optional feature wry
-macro_rules! default_args {
-  (
-    $(#[$attrs_struct:meta])*
-    $vis_struct:vis struct $name:ident<$p:ident: $params:ident> {
-      $(
-        $(#[$attrs_field:meta])*
-        $vis_field:vis $field:ident: $field_type:ty,
-      )*
-    }
-  ) => {
-    $(#[$attrs_struct])*
-    #[cfg(feature = "wry")]
-    $vis_struct struct $name<$p: $params = crate::manager::DefaultArgs> {
-      $(
-        $(#[$attrs_field])*
-        $vis_field $field: $field_type,
-      )*
-    }
-
-    $(#[$attrs_struct])*
-    #[cfg(not(feature = "wry"))]
-    $vis_struct struct $name<$p: $params> {
-       $(
-        $(#[$attrs_field])*
-        $vis_field $field: $field_type,
-      )*
-    }
-  };
-}
-
-// export it to allow use from other modules
-pub(crate) use default_args;
-
-/// This type should always match `Builder::default()`, otherwise the default type is useless.
-#[cfg(feature = "wry")]
-pub(crate) type DefaultArgs =
-  Args<String, String, String, String, crate::api::assets::EmbeddedAssets, crate::Wry>;
-
-/// A [Zero Sized Type] marker representing a full [`Params`].
-///
-/// [Zero Sized Type]: https://doc.rust-lang.org/nomicon/exotic-sizes.html#zero-sized-types-zsts
-pub struct Args<E: Tag, L: Tag, MID: MenuId, TID: MenuId, A: Assets, R: Runtime> {
-  _event: PhantomData<fn() -> E>,
-  _label: PhantomData<fn() -> L>,
-  _menu_id: PhantomData<fn() -> MID>,
-  _tray_menu_id: PhantomData<fn() -> TID>,
-  _assets: PhantomData<fn() -> A>,
-  _runtime: PhantomData<fn() -> R>,
-}
-
-impl<E: Tag, L: Tag, MID: MenuId, TID: MenuId, A: Assets, R: Runtime> Default
-  for Args<E, L, MID, TID, A, R>
-{
-  fn default() -> Self {
-    Self {
-      _event: PhantomData,
-      _label: PhantomData,
-      _menu_id: PhantomData,
-      _tray_menu_id: PhantomData,
-      _assets: PhantomData,
-      _runtime: PhantomData,
-    }
-  }
-}
-
-impl<E: Tag, L: Tag, MID: MenuId, TID: MenuId, A: Assets, R: Runtime> ParamsBase
-  for Args<E, L, MID, TID, A, R>
-{
-}
-impl<E: Tag, L: Tag, MID: MenuId, TID: MenuId, A: Assets, R: Runtime> Params
-  for Args<E, L, MID, TID, A, R>
-{
-  type Event = E;
-  type Label = L;
-  type MenuId = MID;
-  type SystemTrayMenuId = TID;
-  type Assets = A;
-  type Runtime = R;
-}
-
-crate::manager::default_args! {
-  pub struct WindowManager<P: Params> {
-    pub inner: Arc<InnerWindowManager<P>>,
-    invoke_keys: Arc<Mutex<Vec<u32>>>,
-    #[allow(clippy::type_complexity)]
-    _marker: Args<P::Event, P::Label, P::MenuId, P::SystemTrayMenuId, P::Assets, P::Runtime>,
-  }
-}
-
-impl<P: Params> Clone for WindowManager<P> {
+impl<R: Runtime> Clone for WindowManager<R> {
   fn clone(&self) -> Self {
     Self {
       inner: self.inner.clone(),
       invoke_keys: self.invoke_keys.clone(),
-      _marker: Args::default(),
     }
   }
 }
 
 #[cfg(feature = "menu")]
-fn get_menu_ids<I: MenuId>(map: &mut HashMap<u16, I>, menu: &Menu<I>) {
+fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &Menu) {
   for item in &menu.items {
     match item {
       MenuEntry::CustomItem(c) => {
-        map.insert(c.id_value(), c.id.clone());
+        map.insert(c.id, c.id_str.clone());
       }
       MenuEntry::Submenu(s) => get_menu_ids(map, &s.inner),
       _ => {}
@@ -223,19 +117,19 @@ fn get_menu_ids<I: MenuId>(map: &mut HashMap<u16, I>, menu: &Menu<I>) {
   }
 }
 
-impl<P: Params> WindowManager<P> {
+impl<R: Runtime> WindowManager<R> {
   #[allow(clippy::too_many_arguments)]
   pub(crate) fn with_handlers(
-    context: Context<P::Assets>,
-    plugins: PluginStore<P>,
-    invoke_handler: Box<InvokeHandler<P>>,
-    on_page_load: Box<OnPageLoad<P>>,
+    context: Context<impl Assets>,
+    plugins: PluginStore<R>,
+    invoke_handler: Box<InvokeHandler<R>>,
+    on_page_load: Box<OnPageLoad<R>>,
     uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
     state: StateManager,
-    window_event_listeners: Vec<GlobalWindowEventListener<P>>,
+    window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     #[cfg(feature = "menu")] (menu, menu_event_listeners): (
-      Option<Menu<P::MenuId>>,
-      Vec<GlobalMenuEventListener<P>>,
+      Option<Menu>,
+      Vec<GlobalMenuEventListener<R>>,
     ),
   ) -> Self {
     Self {
@@ -267,12 +161,11 @@ impl<P: Params> WindowManager<P> {
         window_event_listeners: Arc::new(window_event_listeners),
       }),
       invoke_keys: Default::default(),
-      _marker: Args::default(),
     }
   }
 
   /// Get a locked handle to the windows.
-  pub(crate) fn windows_lock(&self) -> MutexGuard<'_, HashMap<P::Label, Window<P>>> {
+  pub(crate) fn windows_lock(&self) -> MutexGuard<'_, HashMap<String, Window<R>>> {
     self.inner.windows.lock().expect("poisoned window manager")
   }
 
@@ -283,7 +176,7 @@ impl<P: Params> WindowManager<P> {
 
   /// Get the menu ids mapper.
   #[cfg(feature = "menu")]
-  pub(crate) fn menu_ids(&self) -> HashMap<u16, P::MenuId> {
+  pub(crate) fn menu_ids(&self) -> HashMap<MenuHash, MenuId> {
     self.inner.menu_ids.clone()
   }
 
@@ -319,10 +212,10 @@ impl<P: Params> WindowManager<P> {
 
   fn prepare_pending_window(
     &self,
-    mut pending: PendingWindow<P>,
-    label: P::Label,
-    pending_labels: &[P::Label],
-  ) -> crate::Result<PendingWindow<P>> {
+    mut pending: PendingWindow<R>,
+    label: &str,
+    pending_labels: &[String],
+  ) -> crate::Result<PendingWindow<R>> {
     let is_init_global = self.inner.config.build.with_global_tauri;
     let plugin_init = self
       .inner
@@ -339,8 +232,8 @@ impl<P: Params> WindowManager<P> {
           window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
           window.__TAURI__.__currentWindow = {{ label: {current_window_label} }}
         "#,
-        window_labels_array = tags_to_javascript_array(pending_labels)?,
-        current_window_label = label.to_js_string()?,
+        window_labels_array = serde_json::to_string(pending_labels)?,
+        current_window_label = serde_json::to_string(&label)?,
       ));
 
     #[cfg(dev)]
@@ -403,7 +296,7 @@ impl<P: Params> WindowManager<P> {
     Ok(pending)
   }
 
-  fn prepare_rpc_handler(&self, app_handle: AppHandle<P>) -> WebviewRpcHandler<P> {
+  fn prepare_rpc_handler(&self, app_handle: AppHandle<R>) -> WebviewRpcHandler<R> {
     let manager = self.clone();
     Box::new(move |window, request| {
       let window = Window::new(manager.clone(), window, app_handle.clone());
@@ -462,11 +355,11 @@ impl<P: Params> WindowManager<P> {
         let is_html = path.ends_with(".html");
 
         let asset_response = assets
-          .get(&path)
+          .get(&path.as_str().into())
           .or_else(|| {
             #[cfg(debug_assertions)]
             eprintln!("Asset `{}` not found; fallback to index.html", path); // TODO log::error!
-            assets.get("index.html")
+            assets.get(&"index.html".into())
           })
           .ok_or(crate::Error::AssetNotFound(path))
           .map(Cow::into_owned);
@@ -498,7 +391,7 @@ impl<P: Params> WindowManager<P> {
     }
   }
 
-  fn prepare_file_drop(&self, app_handle: AppHandle<P>) -> FileDropHandler<P> {
+  fn prepare_file_drop(&self, app_handle: AppHandle<R>) -> FileDropHandler<R> {
     let manager = self.clone();
     Box::new(move |event, window| {
       let manager = manager.clone();
@@ -506,17 +399,9 @@ impl<P: Params> WindowManager<P> {
       crate::async_runtime::block_on(async move {
         let window = Window::new(manager.clone(), window, app_handle);
         let _ = match event {
-          FileDropEvent::Hovered(paths) => {
-            window.emit(&tauri_event::<P::Event>("tauri://file-drop"), Some(paths))
-          }
-          FileDropEvent::Dropped(paths) => window.emit(
-            &tauri_event::<P::Event>("tauri://file-drop-hover"),
-            Some(paths),
-          ),
-          FileDropEvent::Cancelled => window.emit(
-            &tauri_event::<P::Event>("tauri://file-drop-cancelled"),
-            Some(()),
-          ),
+          FileDropEvent::Hovered(paths) => window.emit("tauri://file-drop", Some(paths)),
+          FileDropEvent::Dropped(paths) => window.emit("tauri://file-drop-hover", Some(paths)),
+          FileDropEvent::Cancelled => window.emit("tauri://file-drop-cancelled", Some(())),
           _ => unimplemented!(),
         };
       });
@@ -601,24 +486,23 @@ impl<P: Params> WindowManager<P> {
 
 #[cfg(test)]
 mod test {
-  use super::{Args, WindowManager};
+  use super::WindowManager;
   use crate::{generate_context, plugin::PluginStore, StateManager, Wry};
 
   #[test]
   fn check_get_url() {
     let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
-    let manager: WindowManager<Args<String, String, String, String, _, Wry>> =
-      WindowManager::with_handlers(
-        context,
-        PluginStore::default(),
-        Box::new(|_| ()),
-        Box::new(|_, _| ()),
-        Default::default(),
-        StateManager::new(),
-        Default::default(),
-        #[cfg(feature = "menu")]
-        Default::default(),
-      );
+    let manager: WindowManager<Wry> = WindowManager::with_handlers(
+      context,
+      PluginStore::default(),
+      Box::new(|_| ()),
+      Box::new(|_, _| ()),
+      Default::default(),
+      StateManager::new(),
+      Default::default(),
+      #[cfg(feature = "menu")]
+      Default::default(),
+    );
 
     #[cfg(custom_protocol)]
     assert_eq!(manager.get_url(), "tauri://localhost");
@@ -628,12 +512,12 @@ mod test {
   }
 }
 
-impl<P: Params> WindowManager<P> {
-  pub fn run_invoke_handler(&self, invoke: Invoke<P>) {
+impl<R: Runtime> WindowManager<R> {
+  pub fn run_invoke_handler(&self, invoke: Invoke<R>) {
     (self.inner.invoke_handler)(invoke);
   }
 
-  pub fn run_on_page_load(&self, window: Window<P>, payload: PageLoadPayload) {
+  pub fn run_on_page_load(&self, window: Window<R>, payload: PageLoadPayload) {
     (self.inner.on_page_load)(window.clone(), payload.clone());
     self
       .inner
@@ -643,7 +527,7 @@ impl<P: Params> WindowManager<P> {
       .on_page_load(window, payload);
   }
 
-  pub fn extend_api(&self, invoke: Invoke<P>) {
+  pub fn extend_api(&self, invoke: Invoke<R>) {
     self
       .inner
       .plugins
@@ -652,7 +536,7 @@ impl<P: Params> WindowManager<P> {
       .extend_api(invoke);
   }
 
-  pub fn initialize_plugins(&self, app: &App<P>) -> crate::Result<()> {
+  pub fn initialize_plugins(&self, app: &App<R>) -> crate::Result<()> {
     self
       .inner
       .plugins
@@ -663,14 +547,12 @@ impl<P: Params> WindowManager<P> {
 
   pub fn prepare_window(
     &self,
-    app_handle: AppHandle<P>,
-    mut pending: PendingWindow<P>,
-    pending_labels: &[P::Label],
-  ) -> crate::Result<PendingWindow<P>> {
+    app_handle: AppHandle<R>,
+    mut pending: PendingWindow<R>,
+    pending_labels: &[String],
+  ) -> crate::Result<PendingWindow<R>> {
     if self.windows_lock().contains_key(&pending.label) {
-      return Err(crate::Error::WindowLabelAlreadyExists(
-        pending.label.to_string(),
-      ));
+      return Err(crate::Error::WindowLabelAlreadyExists(pending.label));
     }
     let (is_local, url) = match &pending.webview_attributes.url {
       WindowUrl::App(path) => {
@@ -691,7 +573,7 @@ impl<P: Params> WindowManager<P> {
 
     if is_local {
       let label = pending.label.clone();
-      pending = self.prepare_pending_window(pending, label, pending_labels)?;
+      pending = self.prepare_pending_window(pending, &label, pending_labels)?;
       pending.rpc_handler = Some(self.prepare_rpc_handler(app_handle.clone()));
     }
 
@@ -703,7 +585,7 @@ impl<P: Params> WindowManager<P> {
     Ok(pending)
   }
 
-  pub fn attach_window(&self, app_handle: AppHandle<P>, window: DetachedWindow<P>) -> Window<P> {
+  pub fn attach_window(&self, app_handle: AppHandle<R>, window: DetachedWindow<R>) -> Window<R> {
     let window = Window::new(self.clone(), window, app_handle);
 
     let window_ = window.clone();
@@ -737,7 +619,7 @@ impl<P: Params> WindowManager<P> {
     {
       self
         .windows_lock()
-        .insert(window.label().clone(), window.clone());
+        .insert(window.label().to_string(), window.clone());
     }
 
     // let plugins know that a new window has been added to the manager
@@ -754,17 +636,13 @@ impl<P: Params> WindowManager<P> {
   }
 
   pub(crate) fn on_window_close(&self, label: &str) {
-    self
-      .windows_lock()
-      .remove(&label.parse().unwrap_or_else(|_| panic!("bad label")));
+    self.windows_lock().remove(label);
   }
 
-  pub fn emit_filter<E: ?Sized, S, F>(&self, event: &E, payload: S, filter: F) -> crate::Result<()>
+  pub fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
   where
-    P::Event: Borrow<E>,
-    E: TagRef<P::Event>,
     S: Serialize + Clone,
-    F: Fn(&Window<P>) -> bool,
+    F: Fn(&Window<R>) -> bool,
   {
     self
       .windows_lock()
@@ -773,7 +651,7 @@ impl<P: Params> WindowManager<P> {
       .try_for_each(|window| window.emit(event, payload.clone()))
   }
 
-  pub fn labels(&self) -> HashSet<P::Label> {
+  pub fn labels(&self) -> HashSet<String> {
     self.windows_lock().keys().cloned().collect()
   }
 
@@ -789,26 +667,22 @@ impl<P: Params> WindowManager<P> {
     self.inner.listeners.unlisten(handler_id)
   }
 
-  pub fn trigger<E: ?Sized>(&self, event: &E, window: Option<P::Label>, data: Option<String>)
-  where
-    P::Event: Borrow<E>,
-    E: TagRef<P::Event>,
-  {
+  pub fn trigger(&self, event: &str, window: Option<String>, data: Option<String>) {
     self.inner.listeners.trigger(event, window, data)
   }
 
   pub fn listen<F: Fn(Event) + Send + 'static>(
     &self,
-    event: P::Event,
-    window: Option<P::Label>,
+    event: String,
+    window: Option<String>,
     handler: F,
   ) -> EventHandler {
     self.inner.listeners.listen(event, window, handler)
   }
   pub fn once<F: Fn(Event) + Send + 'static>(
     &self,
-    event: P::Event,
-    window: Option<P::Label>,
+    event: String,
+    window: Option<String>,
     handler: F,
   ) -> EventHandler {
     self.inner.listeners.once(event, window, handler)
@@ -848,52 +722,28 @@ impl<P: Params> WindowManager<P> {
       .remove(&uuid)
   }
 
-  pub fn get_window<L: ?Sized>(&self, label: &L) -> Option<Window<P>>
-  where
-    P::Label: Borrow<L>,
-    L: TagRef<P::Label>,
-  {
+  pub fn get_window(&self, label: &str) -> Option<Window<R>> {
     self.windows_lock().get(label).cloned()
   }
 
-  pub fn windows(&self) -> HashMap<P::Label, Window<P>> {
+  pub fn windows(&self) -> HashMap<String, Window<R>> {
     self.windows_lock().clone()
   }
 }
 
-fn on_window_event<P: Params>(
-  window: &Window<P>,
-  manager: &WindowManager<P>,
+fn on_window_event<R: Runtime>(
+  window: &Window<R>,
+  manager: &WindowManager<R>,
   event: &WindowEvent,
 ) -> crate::Result<()> {
   match event {
-    WindowEvent::Resized(size) => window.emit(
-      &WINDOW_RESIZED_EVENT
-        .parse()
-        .unwrap_or_else(|_| panic!("unhandled event")),
-      Some(size),
-    )?,
-    WindowEvent::Moved(position) => window.emit(
-      &WINDOW_MOVED_EVENT
-        .parse()
-        .unwrap_or_else(|_| panic!("unhandled event")),
-      Some(position),
-    )?,
+    WindowEvent::Resized(size) => window.emit(WINDOW_RESIZED_EVENT, Some(size))?,
+    WindowEvent::Moved(position) => window.emit(WINDOW_MOVED_EVENT, Some(position))?,
     WindowEvent::CloseRequested => {
-      window.emit(
-        &WINDOW_CLOSE_REQUESTED_EVENT
-          .parse()
-          .unwrap_or_else(|_| panic!("unhandled event")),
-        Some(()),
-      )?;
+      window.emit(WINDOW_CLOSE_REQUESTED_EVENT, Some(()))?;
     }
     WindowEvent::Destroyed => {
-      window.emit(
-        &WINDOW_DESTROYED_EVENT
-          .parse()
-          .unwrap_or_else(|_| panic!("unhandled event")),
-        Some(()),
-      )?;
+      window.emit(WINDOW_DESTROYED_EVENT, Some(()))?;
       let label = window.label();
       for window in manager.inner.windows.lock().unwrap().values() {
         window.eval(&format!(
@@ -903,14 +753,10 @@ fn on_window_event<P: Params>(
       }
     }
     WindowEvent::Focused(focused) => window.emit(
-      &if *focused {
+      if *focused {
         WINDOW_FOCUS_EVENT
-          .parse()
-          .unwrap_or_else(|_| panic!("unhandled event"))
       } else {
         WINDOW_BLUR_EVENT
-          .parse()
-          .unwrap_or_else(|_| panic!("unhandled event"))
       },
       Some(()),
     )?,
@@ -919,9 +765,7 @@ fn on_window_event<P: Params>(
       new_inner_size,
       ..
     } => window.emit(
-      &WINDOW_SCALE_FACTOR_CHANGED_EVENT
-        .parse()
-        .unwrap_or_else(|_| panic!("unhandled event")),
+      WINDOW_SCALE_FACTOR_CHANGED_EVENT,
       Some(ScaleFactorChanged {
         scale_factor: *scale_factor,
         size: *new_inner_size,
@@ -940,11 +784,6 @@ struct ScaleFactorChanged {
 }
 
 #[cfg(feature = "menu")]
-fn on_menu_event<P: Params>(window: &Window<P>, event: &MenuEvent<P::MenuId>) -> crate::Result<()> {
-  window.emit(
-    &MENU_EVENT
-      .parse()
-      .unwrap_or_else(|_| panic!("unhandled event")),
-    Some(event.menu_item_id.clone()),
-  )
+fn on_menu_event<R: Runtime>(window: &Window<R>, event: &MenuEvent) -> crate::Result<()> {
+  window.emit(MENU_EVENT, Some(event.menu_item_id.clone()))
 }

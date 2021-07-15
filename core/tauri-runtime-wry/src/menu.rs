@@ -8,7 +8,7 @@ pub use tauri_runtime::{
     SystemTrayMenuEntry, SystemTrayMenuItem, TrayHandle,
   },
   window::MenuEvent,
-  Icon, MenuId, SystemTrayEvent,
+  Icon, SystemTrayEvent,
 };
 pub use wry::application::{
   event::TrayEvent,
@@ -30,6 +30,9 @@ pub use wry::application::platform::macos::{
 
 #[cfg(feature = "system-tray")]
 use crate::{Error, Message, Result, TrayMessage};
+
+#[cfg(feature = "menu")]
+use tauri_runtime::menu::MenuHash;
 
 use uuid::Uuid;
 
@@ -145,12 +148,12 @@ impl From<NativeImage> for NativeImageWrapper {
 
 pub struct MenuItemAttributesWrapper<'a>(pub WryMenuItemAttributes<'a>);
 
-impl<'a, I: MenuId> From<&'a CustomMenuItem<I>> for MenuItemAttributesWrapper<'a> {
-  fn from(item: &'a CustomMenuItem<I>) -> Self {
+impl<'a> From<&'a CustomMenuItem> for MenuItemAttributesWrapper<'a> {
+  fn from(item: &'a CustomMenuItem) -> Self {
     let mut attributes = WryMenuItemAttributes::new(&item.title)
       .with_enabled(item.enabled)
       .with_selected(item.selected)
-      .with_id(WryMenuId(item.id_value()));
+      .with_id(WryMenuId(item.id));
     if let Some(accelerator) = item.keyboard_accelerator.as_ref() {
       attributes = attributes.with_accelerators(&accelerator.parse().expect("invalid accelerator"));
     }
@@ -195,11 +198,11 @@ impl From<SystemTrayMenuItem> for MenuItemWrapper {
 }
 
 #[cfg(feature = "menu")]
-pub fn convert_menu_id<I: MenuId>(mut new_menu: Menu<u16>, menu: Menu<I>) -> Menu<u16> {
+pub fn convert_menu_id(mut new_menu: Menu, menu: Menu) -> Menu {
   for item in menu.items {
     match item {
       MenuEntry::CustomItem(c) => {
-        let mut item = CustomMenuItem::new(c.id_value(), c.title);
+        let mut item = CustomMenuItem::new(c.id_str, c.title);
         #[cfg(target_os = "macos")]
         if let Some(native_image) = c.native_image {
           item = item.native_image(native_image);
@@ -229,8 +232,8 @@ pub fn convert_menu_id<I: MenuId>(mut new_menu: Menu<u16>, menu: Menu<I>) -> Men
 
 #[cfg(feature = "menu")]
 pub fn to_wry_menu(
-  custom_menu_items: &mut HashMap<u16, WryCustomMenuItem>,
-  menu: Menu<u16>,
+  custom_menu_items: &mut HashMap<MenuHash, WryCustomMenuItem>,
+  menu: Menu,
 ) -> MenuBar {
   let mut wry_menu = MenuBar::new();
   for item in menu.items {
@@ -262,9 +265,9 @@ pub fn to_wry_menu(
 }
 
 #[cfg(feature = "system-tray")]
-pub fn to_wry_context_menu<I: MenuId>(
-  custom_menu_items: &mut HashMap<u16, WryCustomMenuItem>,
-  menu: SystemTrayMenu<I>,
+pub fn to_wry_context_menu(
+  custom_menu_items: &mut HashMap<MenuHash, WryCustomMenuItem>,
+  menu: SystemTrayMenu,
 ) -> WryContextMenu {
   let mut tray_menu = WryContextMenu::new();
   for item in menu.items {
@@ -272,12 +275,11 @@ pub fn to_wry_context_menu<I: MenuId>(
       SystemTrayMenuEntry::CustomItem(c) => {
         #[allow(unused_mut)]
         let mut item = tray_menu.add_item(MenuItemAttributesWrapper::from(&c).0);
-        let id = c.id_value();
         #[cfg(target_os = "macos")]
         if let Some(native_image) = c.native_image {
           item.set_native_image(NativeImageWrapper::from(native_image).0);
         }
-        custom_menu_items.insert(id, item);
+        custom_menu_items.insert(c.id, item);
       }
       SystemTrayMenuEntry::NativeItem(i) => {
         tray_menu.add_native_item(MenuItemWrapper::from(i).0);

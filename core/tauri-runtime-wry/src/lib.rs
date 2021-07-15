@@ -13,8 +13,8 @@ use tauri_runtime::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     DetachedWindow, PendingWindow, WindowEvent,
   },
-  ClipboardManager, Dispatch, Error, GlobalShortcutManager, Icon, Params, Result, RunEvent,
-  RunIteration, Runtime, RuntimeHandle, UserAttentionType,
+  ClipboardManager, Dispatch, Error, GlobalShortcutManager, Icon, Result, RunEvent, RunIteration,
+  Runtime, RuntimeHandle, UserAttentionType,
 };
 
 #[cfg(feature = "menu")]
@@ -407,7 +407,7 @@ pub struct WindowBuilderWrapper {
   inner: WryWindowBuilder,
   center: bool,
   #[cfg(feature = "menu")]
-  menu: Menu<u16>,
+  menu: Menu,
 }
 
 // safe since `menu_items` are read only here
@@ -454,7 +454,7 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   #[cfg(feature = "menu")]
-  fn menu<I: MenuId>(mut self, menu: Menu<I>) -> Self {
+  fn menu(mut self, menu: Menu) -> Self {
     self.menu = convert_menu_id(Menu::new(), menu);
     self
   }
@@ -898,10 +898,10 @@ impl Dispatch for WryDispatcher {
 
   // Creates a window by dispatching a message to the event loop.
   // Note that this must be called from a separate thread, otherwise the channel will introduce a deadlock.
-  fn create_window<P: Params<Runtime = Self::Runtime>>(
+  fn create_window(
     &mut self,
-    pending: PendingWindow<P>,
-  ) -> Result<DetachedWindow<P>> {
+    pending: PendingWindow<Self::Runtime>,
+  ) -> Result<DetachedWindow<Self::Runtime>> {
     let (tx, rx) = channel();
     let label = pending.label.clone();
     let context = self.context.clone();
@@ -1203,10 +1203,10 @@ impl RuntimeHandle for WryHandle {
 
   // Creates a window by dispatching a message to the event loop.
   // Note that this must be called from a separate thread, otherwise the channel will introduce a deadlock.
-  fn create_window<P: Params<Runtime = Self::Runtime>>(
+  fn create_window(
     &self,
-    pending: PendingWindow<P>,
-  ) -> Result<DetachedWindow<P>> {
+    pending: PendingWindow<Self::Runtime>,
+  ) -> Result<DetachedWindow<Self::Runtime>> {
     let (tx, rx) = channel();
     let label = pending.label.clone();
     let dispatcher_context = self.dispatcher_context.clone();
@@ -1306,10 +1306,7 @@ impl Runtime for Wry {
     self.clipboard_manager_handle.clone()
   }
 
-  fn create_window<P: Params<Runtime = Self>>(
-    &self,
-    pending: PendingWindow<P>,
-  ) -> Result<DetachedWindow<P>> {
+  fn create_window(&self, pending: PendingWindow<Self>) -> Result<DetachedWindow<Self>> {
     let label = pending.label.clone();
     let proxy = self.event_loop.create_proxy();
     let webview = create_webview(
@@ -1347,7 +1344,7 @@ impl Runtime for Wry {
   }
 
   #[cfg(feature = "system-tray")]
-  fn system_tray<I: MenuId>(&self, system_tray: SystemTray<I>) -> Result<Self::TrayHandler> {
+  fn system_tray(&self, system_tray: SystemTray) -> Result<Self::TrayHandler> {
     let icon = system_tray
       .icon
       .expect("tray icon not set")
@@ -1904,10 +1901,10 @@ fn center_window(window: &Window) -> Result<()> {
   }
 }
 
-fn create_webview<P: Params<Runtime = Wry>>(
+fn create_webview(
   event_loop: &EventLoopWindowTarget<Message>,
   context: DispatcherContext,
-  pending: PendingWindow<P>,
+  pending: PendingWindow<Wry>,
 ) -> Result<WebviewWrapper> {
   #[allow(unused_mut)]
   let PendingWindow {
@@ -1983,7 +1980,7 @@ fn create_webview<P: Params<Runtime = Wry>>(
     .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
   Ok(WebviewWrapper {
-    label: format!("{}", label),
+    label,
     inner: webview,
     #[cfg(feature = "menu")]
     menu_items,
@@ -1993,10 +1990,10 @@ fn create_webview<P: Params<Runtime = Wry>>(
 }
 
 /// Create a wry rpc handler from a tauri rpc handler.
-fn create_rpc_handler<P: Params<Runtime = Wry>>(
+fn create_rpc_handler(
   context: DispatcherContext,
-  label: P::Label,
-  handler: WebviewRpcHandler<P>,
+  label: String,
+  handler: WebviewRpcHandler<Wry>,
 ) -> Box<dyn Fn(&Window, WryRpcRequest) -> Option<RpcResponse> + 'static> {
   Box::new(move |window, request| {
     handler(
@@ -2014,10 +2011,10 @@ fn create_rpc_handler<P: Params<Runtime = Wry>>(
 }
 
 /// Create a wry file drop handler from a tauri file drop handler.
-fn create_file_drop_handler<P: Params<Runtime = Wry>>(
+fn create_file_drop_handler(
   context: DispatcherContext,
-  label: P::Label,
-  handler: FileDropHandler<P>,
+  label: String,
+  handler: FileDropHandler<Wry>,
 ) -> Box<dyn Fn(&Window, WryFileDropEvent) -> bool + 'static> {
   Box::new(move |window, event| {
     handler(

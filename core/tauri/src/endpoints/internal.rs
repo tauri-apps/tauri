@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::InvokeResponse;
-use crate::{Params, Window};
+use crate::{runtime::Runtime, Window};
 use serde::Deserialize;
 
 /// The API descriptor.
@@ -14,7 +14,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub fn run<P: Params>(self, window: Window<P>) -> crate::Result<InvokeResponse> {
+  pub fn run<R: Runtime>(self, window: Window<R>) -> crate::Result<InvokeResponse> {
     match self {
       Self::ValidateSalt { salt } => Ok(window.verify_salt(salt).into()),
     }

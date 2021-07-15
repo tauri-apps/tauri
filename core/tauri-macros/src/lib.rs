@@ -5,9 +5,10 @@
 extern crate proc_macro;
 use crate::context::ContextItems;
 use proc_macro::TokenStream;
-use syn::parse_macro_input;
+use syn::{parse_macro_input, DeriveInput};
 
 mod command;
+mod runtime;
 
 #[macro_use]
 mod context;
@@ -59,4 +60,17 @@ pub fn generate_context(items: TokenStream) -> TokenStream {
   // this macro is exported from the context module
   let path = parse_macro_input!(items as ContextItems);
   context::generate_context(path).into()
+}
+
+/// Adds the default type for the last parameter (assumed to be runtime) for a specific feature.
+///
+/// e.g. To default the runtime generic to type `crate::Wry` when the `wry` feature is enabled, the
+/// syntax would look like `#[default_runtime(crate::Wry, wry)`. This is **always** set for the last
+/// generic, so make sure the last generic is the runtime when using this macro.
+#[doc(hidden)]
+#[proc_macro_attribute]
+pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStream {
+  let attributes = parse_macro_input!(attributes as runtime::Attributes);
+  let input = parse_macro_input!(input as DeriveInput);
+  runtime::default_runtime(attributes, input).into()
 }

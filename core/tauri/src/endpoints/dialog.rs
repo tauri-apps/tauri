@@ -7,7 +7,8 @@ use super::InvokeResponse;
 use crate::api::dialog::FileDialogBuilder;
 use crate::{
   api::dialog::{ask as ask_dialog, message as message_dialog, AskResponse},
-  Params, Window,
+  runtime::Runtime,
+  Window,
 };
 use serde::Deserialize;
 
@@ -73,7 +74,7 @@ pub enum Cmd {
 
 impl Cmd {
   #[allow(unused_variables)]
-  pub fn run<P: Params>(self, window: Window<P>) -> crate::Result<InvokeResponse> {
+  pub fn run<R: Runtime>(self, window: Window<R>) -> crate::Result<InvokeResponse> {
     match self {
       #[cfg(dialog_open)]
       Self::OpenDialog { options } => open(window, options),
@@ -159,7 +160,7 @@ unsafe impl raw_window_handle::HasRawWindowHandle for WindowParent {
 }
 
 #[cfg(all(windows, any(dialog_open, dialog_save)))]
-fn parent<P: Params>(window: Window<P>) -> crate::Result<WindowParent> {
+fn parent<R: Runtime>(window: Window<R>) -> crate::Result<WindowParent> {
   Ok(WindowParent {
     hwnd: window.hwnd()?,
   })
@@ -168,8 +169,8 @@ fn parent<P: Params>(window: Window<P>) -> crate::Result<WindowParent> {
 /// Shows an open dialog.
 #[cfg(dialog_open)]
 #[allow(unused_variables)]
-pub fn open<P: Params>(
-  window: Window<P>,
+pub fn open<R: Runtime>(
+  window: Window<R>,
   options: OpenDialogOptions,
 ) -> crate::Result<InvokeResponse> {
   let mut dialog_builder = FileDialogBuilder::new();
@@ -200,8 +201,8 @@ pub fn open<P: Params>(
 /// Shows a save dialog.
 #[cfg(dialog_save)]
 #[allow(unused_variables)]
-pub fn save<P: Params>(
-  window: Window<P>,
+pub fn save<R: Runtime>(
+  window: Window<R>,
   options: SaveDialogOptions,
 ) -> crate::Result<InvokeResponse> {
   let mut dialog_builder = FileDialogBuilder::new();

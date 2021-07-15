@@ -48,18 +48,18 @@ mod rust {
 #[cfg(feature = "ui")]
 mod ui {
   use std::sync::{Arc, Mutex};
-  use tauri::{Manager, Params, State, Window};
+  use tauri::{Manager, State, Window};
 
   // wrappers around each Window
   // we use a dedicated type because Tauri can only manage a single instance of a given type
-  struct SplashscreenWindow<P: Params>(Arc<Mutex<Window<P>>>);
-  struct MainWindow<P: Params>(Arc<Mutex<Window<P>>>);
+  struct SplashscreenWindow(Arc<Mutex<Window>>);
+  struct MainWindow(Arc<Mutex<Window>>);
 
   #[tauri::command]
-  fn close_splashscreen<P: Params>(
-    _: Window<P>, // force inference of P
-    splashscreen: State<SplashscreenWindow<P>>,
-    main: State<MainWindow<P>>,
+  fn close_splashscreen(
+    _: Window, // force inference of P
+    splashscreen: State<SplashscreenWindow>,
+    main: State<MainWindow>,
   ) {
     // Close splashscreen
     splashscreen.0.lock().unwrap().close().unwrap();

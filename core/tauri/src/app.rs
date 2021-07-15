@@ -11,18 +11,18 @@ use crate::{
   api::config::{Config, WindowUrl},
   command::{CommandArg, CommandItem},
   hooks::{InvokeHandler, OnPageLoad, PageLoadPayload, SetupHook},
-  manager::{Args, WindowManager},
+  manager::WindowManager,
   plugin::{Plugin, PluginStore},
   runtime::{
-    tag::Tag,
     webview::{CustomProtocol, WebviewAttributes, WindowBuilder},
     window::{PendingWindow, WindowEvent},
-    Dispatch, MenuId, Params, RunEvent, Runtime,
+    Dispatch, RunEvent, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
   Context, Invoke, InvokeError, Manager, StateManager, Window,
 };
 
+use tauri_macros::default_runtime;
 use tauri_utils::PackageInfo;
 
 use std::{
@@ -32,7 +32,7 @@ use std::{
 };
 
 #[cfg(feature = "menu")]
-use crate::runtime::menu::Menu;
+use crate::runtime::menu::{Menu, MenuId, MenuIdRef};
 
 #[cfg(all(windows, feature = "system-tray"))]
 use crate::runtime::RuntimeHandle;
@@ -43,11 +43,10 @@ use crate::runtime::{Icon, SystemTrayEvent as RuntimeSystemTrayEvent};
 use crate::updater;
 
 #[cfg(feature = "menu")]
-pub(crate) type GlobalMenuEventListener<P> = Box<dyn Fn(WindowMenuEvent<P>) + Send + Sync>;
-pub(crate) type GlobalWindowEventListener<P> = Box<dyn Fn(GlobalWindowEvent<P>) + Send + Sync>;
+pub(crate) type GlobalMenuEventListener<R> = Box<dyn Fn(WindowMenuEvent<R>) + Send + Sync>;
+pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) + Send + Sync>;
 #[cfg(feature = "system-tray")]
-type SystemTrayEventListener<P> =
-  Box<dyn Fn(&AppHandle<P>, tray::SystemTrayEvent<<P as Params>::SystemTrayMenuId>) + Send + Sync>;
+type SystemTrayEventListener<R> = Box<dyn Fn(&AppHandle<R>, tray::SystemTrayEvent) + Send + Sync>;
 
 /// Api exposed on the `CloseRequested` event.
 pub struct CloseRequestApi(Sender<bool>);
@@ -61,60 +60,58 @@ impl CloseRequestApi {
 
 /// An application event, triggered from the event loop.
 #[non_exhaustive]
-pub enum Event<P: Params> {
+pub enum Event {
   /// Event loop is exiting.
   Exit,
   /// Window close was requested by the user.
   #[non_exhaustive]
   CloseRequested {
     /// The window label.
-    label: P::Label,
+    label: String,
     /// Event API.
     api: CloseRequestApi,
   },
   /// Window closed.
-  WindowClosed(P::Label),
+  WindowClosed(String),
 }
 
-crate::manager::default_args! {
-  /// A menu event that was triggered on a window.
-  #[cfg(feature = "menu")]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-  pub struct WindowMenuEvent<P: Params> {
-    pub(crate) menu_item_id: P::MenuId,
-    pub(crate) window: Window<P>,
-  }
+/// A menu event that was triggered on a window.
+#[cfg(feature = "menu")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
+#[default_runtime(crate::Wry, wry)]
+pub struct WindowMenuEvent<R: Runtime> {
+  pub(crate) menu_item_id: MenuId,
+  pub(crate) window: Window<R>,
 }
 
 #[cfg(feature = "menu")]
-impl<P: Params> WindowMenuEvent<P> {
+impl<R: Runtime> WindowMenuEvent<R> {
   /// The menu item id.
-  pub fn menu_item_id(&self) -> &P::MenuId {
+  pub fn menu_item_id(&self) -> MenuIdRef<'_> {
     &self.menu_item_id
   }
 
   /// The window that the menu belongs to.
-  pub fn window(&self) -> &Window<P> {
+  pub fn window(&self) -> &Window<R> {
     &self.window
   }
 }
 
-crate::manager::default_args! {
-  /// A window event that was triggered on the specified window.
-  pub struct GlobalWindowEvent<P: Params> {
-    pub(crate) event: WindowEvent,
-    pub(crate) window: Window<P>,
-  }
+/// A window event that was triggered on the specified window.
+#[default_runtime(crate::Wry, wry)]
+pub struct GlobalWindowEvent<R: Runtime> {
+  pub(crate) event: WindowEvent,
+  pub(crate) window: Window<R>,
 }
 
-impl<P: Params> GlobalWindowEvent<P> {
-  /// The eventpayload.
+impl<R: Runtime> GlobalWindowEvent<R> {
+  /// The event payload.
   pub fn event(&self) -> &WindowEvent {
     &self.event
   }
 
   /// The window that the menu belongs to.
-  pub fn window(&self) -> &Window<P> {
+  pub fn window(&self) -> &Window<R> {
     &self.window
   }
 }
@@ -138,21 +135,20 @@ impl PathResolver {
   }
 }
 
-crate::manager::default_args! {
-  /// A handle to the currently running application.
-  ///
-  /// This type implements [`Manager`] which allows for manipulation of global application items.
-  pub struct AppHandle<P: Params> {
-    runtime_handle: <P::Runtime as Runtime>::Handle,
-    manager: WindowManager<P>,
-    global_shortcut_manager: <P::Runtime as Runtime>::GlobalShortcutManager,
-    clipboard_manager: <P::Runtime as Runtime>::ClipboardManager,
-    #[cfg(feature = "system-tray")]
-    tray_handle: Option<tray::SystemTrayHandle<P>>,
-  }
+/// A handle to the currently running application.
+///
+/// This type implements [`Manager`] which allows for manipulation of global application items.
+#[default_runtime(crate::Wry, wry)]
+pub struct AppHandle<R: Runtime> {
+  runtime_handle: R::Handle,
+  manager: WindowManager<R>,
+  global_shortcut_manager: R::GlobalShortcutManager,
+  clipboard_manager: R::ClipboardManager,
+  #[cfg(feature = "system-tray")]
+  tray_handle: Option<tray::SystemTrayHandle<R>>,
 }
 
-impl<P: Params> Clone for AppHandle<P> {
+impl<R: Runtime> Clone for AppHandle<R> {
   fn clone(&self) -> Self {
     Self {
       runtime_handle: self.runtime_handle.clone(),
@@ -165,14 +161,14 @@ impl<P: Params> Clone for AppHandle<P> {
   }
 }
 
-impl<'de, P: Params> CommandArg<'de, P> for AppHandle<P> {
+impl<'de, R: Runtime> CommandArg<'de, R> for AppHandle<R> {
   /// Grabs the [`Window`] from the [`CommandItem`] and returns the associated [`AppHandle`]. This will never fail.
-  fn from_command(command: CommandItem<'de, P>) -> Result<Self, InvokeError> {
+  fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
     Ok(command.message.window().app_handle)
   }
 }
 
-impl<P: Params> AppHandle<P> {
+impl<R: Runtime> AppHandle<R> {
   /// Removes the system tray.
   #[cfg(all(windows, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
@@ -181,67 +177,66 @@ impl<P: Params> AppHandle<P> {
   }
 }
 
-impl<P: Params> Manager<P> for AppHandle<P> {}
-impl<P: Params> ManagerBase<P> for AppHandle<P> {
-  fn manager(&self) -> &WindowManager<P> {
+impl<R: Runtime> Manager<R> for AppHandle<R> {}
+impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
+  fn manager(&self) -> &WindowManager<R> {
     &self.manager
   }
 
-  fn runtime(&self) -> RuntimeOrDispatch<'_, P> {
+  fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
     RuntimeOrDispatch::RuntimeHandle(self.runtime_handle.clone())
   }
 
-  fn app_handle(&self) -> AppHandle<P> {
+  fn app_handle(&self) -> AppHandle<R> {
     self.clone()
   }
 }
 
-crate::manager::default_args! {
-  /// The instance of the currently running application.
-  ///
-  /// This type implements [`Manager`] which allows for manipulation of global application items.
-  pub struct App<P: Params> {
-    runtime: Option<P::Runtime>,
-    manager: WindowManager<P>,
-    global_shortcut_manager: <P::Runtime as Runtime>::GlobalShortcutManager,
-    clipboard_manager: <P::Runtime as Runtime>::ClipboardManager,
-    #[cfg(feature = "system-tray")]
-    tray_handle: Option<tray::SystemTrayHandle<P>>,
-    handle: AppHandle<P>,
-  }
+/// The instance of the currently running application.
+///
+/// This type implements [`Manager`] which allows for manipulation of global application items.
+#[default_runtime(crate::Wry, wry)]
+pub struct App<R: Runtime> {
+  runtime: Option<R>,
+  manager: WindowManager<R>,
+  global_shortcut_manager: R::GlobalShortcutManager,
+  clipboard_manager: R::ClipboardManager,
+  #[cfg(feature = "system-tray")]
+  tray_handle: Option<tray::SystemTrayHandle<R>>,
+  handle: AppHandle<R>,
 }
 
-impl<P: Params> Manager<P> for App<P> {}
-impl<P: Params> ManagerBase<P> for App<P> {
-  fn manager(&self) -> &WindowManager<P> {
+impl<R: Runtime> Manager<R> for App<R> {}
+impl<R: Runtime> ManagerBase<R> for App<R> {
+  fn manager(&self) -> &WindowManager<R> {
     &self.manager
   }
 
-  fn runtime(&self) -> RuntimeOrDispatch<'_, P> {
+  fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
     RuntimeOrDispatch::Runtime(self.runtime.as_ref().unwrap())
   }
 
-  fn app_handle(&self) -> AppHandle<P> {
+  fn app_handle(&self) -> AppHandle<R> {
     self.handle()
   }
 }
 
 macro_rules! shared_app_impl {
   ($app: ty) => {
-    impl<P: Params> $app {
+    impl<R: Runtime> $app {
       /// Creates a new webview window.
-      pub fn create_window<F>(&self, label: P::Label, url: WindowUrl, setup: F) -> crate::Result<()>
+      pub fn create_window<F>(&self, label: String, url: WindowUrl, setup: F) -> crate::Result<()>
       where
         F: FnOnce(
-          <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
+          <R::Dispatcher as Dispatch>::WindowBuilder,
           WebviewAttributes,
         ) -> (
-          <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
+          <R::Dispatcher as Dispatch>::WindowBuilder,
           WebviewAttributes,
         ),
       {
         let (window_builder, webview_attributes) = setup(
-          <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder::new(),
+          <R::Dispatcher as Dispatch>::WindowBuilder::new(),
           WebviewAttributes::new(url),
         );
         self.create_new_window(PendingWindow::new(
@@ -255,7 +250,7 @@ macro_rules! shared_app_impl {
       #[cfg(feature = "system-tray")]
       #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
       /// Gets a handle handle to the system tray.
-      pub fn tray_handle(&self) -> tray::SystemTrayHandle<P> {
+      pub fn tray_handle(&self) -> tray::SystemTrayHandle<R> {
         self
           .tray_handle
           .clone()
@@ -271,12 +266,12 @@ macro_rules! shared_app_impl {
       }
 
       /// Gets a copy of the global shortcut manager instance.
-      pub fn global_shortcut_manager(&self) -> <P::Runtime as Runtime>::GlobalShortcutManager {
+      pub fn global_shortcut_manager(&self) -> R::GlobalShortcutManager {
         self.global_shortcut_manager.clone()
       }
 
       /// Gets a copy of the clipboard manager instance.
-      pub fn clipboard_manager(&self) -> <P::Runtime as Runtime>::ClipboardManager {
+      pub fn clipboard_manager(&self) -> R::ClipboardManager {
         self.clipboard_manager.clone()
       }
 
@@ -293,17 +288,17 @@ macro_rules! shared_app_impl {
   };
 }
 
-shared_app_impl!(App<P>);
-shared_app_impl!(AppHandle<P>);
+shared_app_impl!(App<R>);
+shared_app_impl!(AppHandle<R>);
 
-impl<P: Params> App<P> {
+impl<R: Runtime> App<R> {
   /// Gets a handle to the application instance.
-  pub fn handle(&self) -> AppHandle<P> {
+  pub fn handle(&self) -> AppHandle<R> {
     self.handle.clone()
   }
 
   /// Runs the application.
-  pub fn run<F: Fn(&AppHandle<P>, Event<P>) + 'static>(mut self, callback: F) {
+  pub fn run<F: Fn(&AppHandle<R>, Event) + 'static>(mut self, callback: F) {
     let app_handle = self.handle();
     let manager = self.manager.clone();
     self.runtime.take().unwrap().run(move |event| match event {
@@ -369,9 +364,9 @@ impl<P: Params> App<P> {
 }
 
 #[cfg(feature = "updater")]
-impl<P: Params> App<P> {
+impl<R: Runtime> App<R> {
   /// Runs the updater hook with built-in dialog.
-  fn run_updater_dialog(&self, window: Window<P>) {
+  fn run_updater_dialog(&self, window: Window<R>) {
     let updater_config = self.manager.config().tauri.updater.clone();
     let package_info = self.manager.package_info().clone();
     crate::async_runtime::spawn(async move {
@@ -380,12 +375,12 @@ impl<P: Params> App<P> {
   }
 
   /// Listen updater events when dialog are disabled.
-  fn listen_updater_events(&self, window: Window<P>) {
+  fn listen_updater_events(&self, window: Window<R>) {
     let updater_config = self.manager.config().tauri.updater.clone();
     updater::listener(updater_config, self.manager.package_info().clone(), &window);
   }
 
-  fn run_updater(&self, main_window: Option<Window<P>>) {
+  fn run_updater(&self, main_window: Option<Window<R>>) {
     if let Some(main_window) = main_window {
       let event_window = main_window.clone();
       let updater_config = self.manager.config().tauri.updater.clone();
@@ -398,23 +393,18 @@ impl<P: Params> App<P> {
         // When dialog is enabled, if user want to recheck
         // if an update is available after first start
         // invoke the Event `tauri://update` from JS or rust side.
-        main_window.listen(
-          updater::EVENT_CHECK_UPDATE
-            .parse::<P::Event>()
-            .unwrap_or_else(|_| panic!("bad label")),
-          move |_msg| {
-            let window = event_window.clone();
-            let package_info = package_info.clone();
-            let config = config.clone();
-            // re-spawn task inside tokyo to launch the download
-            // we don't need to emit anything as everything is handled
-            // by the process (user is asked to restart at the end)
-            // and it's handled by the updater
-            crate::async_runtime::spawn(async move {
-              updater::check_update_with_dialog(config, package_info, window).await
-            });
-          },
-        );
+        main_window.listen(updater::EVENT_CHECK_UPDATE, move |_msg| {
+          let window = event_window.clone();
+          let package_info = package_info.clone();
+          let config = config.clone();
+          // re-spawn task inside tokyo to launch the download
+          // we don't need to emit anything as everything is handled
+          // by the process (user is asked to restart at the end)
+          // and it's handled by the updater
+          crate::async_runtime::spawn(async move {
+            updater::check_update_with_dialog(config, package_info, window).await
+          });
+        });
       } else if updater_config.active {
         // we only listen for `tauri://update`
         // once we receive the call, we check if an update is available or not
@@ -429,29 +419,21 @@ impl<P: Params> App<P> {
 
 /// Builds a Tauri application.
 #[allow(clippy::type_complexity)]
-pub struct Builder<E, L, MID, TID, A, R>
-where
-  E: Tag,
-  L: Tag,
-  MID: MenuId,
-  TID: MenuId,
-  A: Assets,
-  R: Runtime,
-{
+pub struct Builder<R: Runtime> {
   /// The JS message handler.
-  invoke_handler: Box<InvokeHandler<Args<E, L, MID, TID, A, R>>>,
+  invoke_handler: Box<InvokeHandler<R>>,
 
   /// The setup hook.
-  setup: SetupHook<Args<E, L, MID, TID, A, R>>,
+  setup: SetupHook<R>,
 
   /// Page load hook.
-  on_page_load: Box<OnPageLoad<Args<E, L, MID, TID, A, R>>>,
+  on_page_load: Box<OnPageLoad<R>>,
 
   /// windows to create when starting up.
-  pending_windows: Vec<PendingWindow<Args<E, L, MID, TID, A, R>>>,
+  pending_windows: Vec<PendingWindow<R>>,
 
   /// All passed plugins
-  plugins: PluginStore<Args<E, L, MID, TID, A, R>>,
+  plugins: PluginStore<R>,
 
   /// The webview protocols available to all windows.
   uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
@@ -461,33 +443,25 @@ where
 
   /// The menu set to all windows.
   #[cfg(feature = "menu")]
-  menu: Option<Menu<MID>>,
+  menu: Option<Menu>,
 
   /// Menu event handlers that listens to all windows.
   #[cfg(feature = "menu")]
-  menu_event_listeners: Vec<GlobalMenuEventListener<Args<E, L, MID, TID, A, R>>>,
+  menu_event_listeners: Vec<GlobalMenuEventListener<R>>,
 
   /// Window event handlers that listens to all windows.
-  window_event_listeners: Vec<GlobalWindowEventListener<Args<E, L, MID, TID, A, R>>>,
+  window_event_listeners: Vec<GlobalWindowEventListener<R>>,
 
   /// The app system tray.
   #[cfg(feature = "system-tray")]
-  system_tray: Option<tray::SystemTray<TID>>,
+  system_tray: Option<tray::SystemTray>,
 
   /// System tray event handlers.
   #[cfg(feature = "system-tray")]
-  system_tray_event_listeners: Vec<SystemTrayEventListener<Args<E, L, MID, TID, A, R>>>,
+  system_tray_event_listeners: Vec<SystemTrayEventListener<R>>,
 }
 
-impl<E, L, MID, TID, A, R> Builder<E, L, MID, TID, A, R>
-where
-  E: Tag,
-  L: Tag,
-  MID: MenuId,
-  TID: MenuId,
-  A: Assets,
-  R: Runtime,
-{
+impl<R: Runtime> Builder<R> {
   /// Creates a new App builder.
   pub fn new() -> Self {
     Self {
@@ -513,7 +487,7 @@ where
   /// Defines the JS message handler callback.
   pub fn invoke_handler<F>(mut self, invoke_handler: F) -> Self
   where
-    F: Fn(Invoke<Args<E, L, MID, TID, A, R>>) + Send + Sync + 'static,
+    F: Fn(Invoke<R>) + Send + Sync + 'static,
   {
     self.invoke_handler = Box::new(invoke_handler);
     self
@@ -522,9 +496,7 @@ where
   /// Defines the setup hook.
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: Fn(&mut App<Args<E, L, MID, TID, A, R>>) -> Result<(), Box<dyn std::error::Error + Send>>
-      + Send
-      + 'static,
+    F: Fn(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send>> + Send + 'static,
   {
     self.setup = Box::new(setup);
     self
@@ -533,14 +505,14 @@ where
   /// Defines the page load hook.
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
-    F: Fn(Window<Args<E, L, MID, TID, A, R>>, PageLoadPayload) + Send + Sync + 'static,
+    F: Fn(Window<R>, PageLoadPayload) + Send + Sync + 'static,
   {
     self.on_page_load = Box::new(on_page_load);
     self
   }
 
   /// Adds a plugin to the runtime.
-  pub fn plugin<P: Plugin<Args<E, L, MID, TID, A, R>> + 'static>(mut self, plugin: P) -> Self {
+  pub fn plugin<P: Plugin<R> + 'static>(mut self, plugin: P) -> Self {
     self.plugins.register(plugin);
     self
   }
@@ -633,7 +605,7 @@ where
   }
 
   /// Creates a new webview window.
-  pub fn create_window<F>(mut self, label: L, url: WindowUrl, setup: F) -> Self
+  pub fn create_window<F>(mut self, label: impl Into<String>, url: WindowUrl, setup: F) -> Self
   where
     F: FnOnce(
       <R::Dispatcher as Dispatch>::WindowBuilder,
@@ -658,7 +630,7 @@ where
   /// Adds the icon configured on `tauri.conf.json` to the system tray with the specified menu items.
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  pub fn system_tray(mut self, system_tray: tray::SystemTray<TID>) -> Self {
+  pub fn system_tray(mut self, system_tray: tray::SystemTray) -> Self {
     self.system_tray.replace(system_tray);
     self
   }
@@ -666,7 +638,7 @@ where
   /// Sets the menu to use on all windows.
   #[cfg(feature = "menu")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-  pub fn menu(mut self, menu: Menu<MID>) -> Self {
+  pub fn menu(mut self, menu: Menu) -> Self {
     self.menu.replace(menu);
     self
   }
@@ -674,9 +646,7 @@ where
   /// Registers a menu event handler for all windows.
   #[cfg(feature = "menu")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-  pub fn on_menu_event<
-    F: Fn(WindowMenuEvent<Args<E, L, MID, TID, A, R>>) + Send + Sync + 'static,
-  >(
+  pub fn on_menu_event<F: Fn(WindowMenuEvent<R>) + Send + Sync + 'static>(
     mut self,
     handler: F,
   ) -> Self {
@@ -685,9 +655,7 @@ where
   }
 
   /// Registers a window event handler for all windows.
-  pub fn on_window_event<
-    F: Fn(GlobalWindowEvent<Args<E, L, MID, TID, A, R>>) + Send + Sync + 'static,
-  >(
+  pub fn on_window_event<F: Fn(GlobalWindowEvent<R>) + Send + Sync + 'static>(
     mut self,
     handler: F,
   ) -> Self {
@@ -699,7 +667,7 @@ where
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   pub fn on_system_tray_event<
-    F: Fn(&AppHandle<Args<E, L, MID, TID, A, R>>, tray::SystemTrayEvent<TID>) + Send + Sync + 'static,
+    F: Fn(&AppHandle<R>, tray::SystemTrayEvent) + Send + Sync + 'static,
   >(
     mut self,
     handler: F,
@@ -736,7 +704,7 @@ where
 
   /// Builds the application.
   #[allow(clippy::type_complexity)]
-  pub fn build(mut self, context: Context<A>) -> crate::Result<App<Args<E, L, MID, TID, A, R>>> {
+  pub fn build<A: Assets>(mut self, context: Context<A>) -> crate::Result<App<R>> {
     #[cfg(feature = "system-tray")]
     let system_tray_icon = {
       let icon = context.system_tray_icon.clone();
@@ -779,11 +747,8 @@ where
     // set up all the windows defined in the config
     for config in manager.config().tauri.windows.clone() {
       let url = config.url.clone();
+      let label = config.label.clone();
       let file_drop_enabled = config.file_drop_enabled;
-      let label = config
-        .label
-        .parse()
-        .unwrap_or_else(|_| panic!("bad label found in config: {}", config.label));
 
       let mut webview_attributes = WebviewAttributes::new(url);
       if !file_drop_enabled {
@@ -921,13 +886,13 @@ where
   }
 
   /// Runs the configured Tauri application.
-  pub fn run(self, context: Context<A>) -> crate::Result<()> {
+  pub fn run<A: Assets>(self, context: Context<A>) -> crate::Result<()> {
     self.build(context)?.run(|_, _| {});
     Ok(())
   }
 }
 
-fn on_event_loop_event<P: Params>(event: &RunEvent, manager: &WindowManager<P>) {
+fn on_event_loop_event<R: Runtime>(event: &RunEvent, manager: &WindowManager<R>) {
   if let RunEvent::WindowClose(label) = event {
     manager.on_window_close(label);
   }
@@ -935,14 +900,7 @@ fn on_event_loop_event<P: Params>(event: &RunEvent, manager: &WindowManager<P>) 
 
 /// Make `Wry` the default `Runtime` for `Builder`
 #[cfg(feature = "wry")]
-impl<A: Assets> Default for Builder<String, String, String, String, A, crate::Wry> {
-  fn default() -> Self {
-    Self::new()
-  }
-}
-
-#[cfg(not(feature = "wry"))]
-impl<A: Assets, R: Runtime> Default for Builder<String, String, String, String, A, R> {
+impl Default for Builder<crate::Wry> {
   fn default() -> Self {
     Self::new()
   }

@@ -16,7 +16,7 @@ mod commands;
 use commands::{cmd, invoke, message, resolver};
 
 use serde::Deserialize;
-use tauri::{command, Params, State, Window};
+use tauri::{command, State, Window};
 
 #[derive(Debug)]
 pub struct MyState {
@@ -125,7 +125,7 @@ async fn async_stateful_command_with_result(
 // Non-Ident command function arguments
 
 #[command]
-fn command_arguments_wild<P: Params>(_: Window<P>) {
+fn command_arguments_wild(_: Window) {
   println!("we saw the wildcard!")
 }
 

@@ -52,8 +52,8 @@ fn main() {
     .system_tray(
       SystemTray::new().with_menu(
         SystemTrayMenu::new()
-          .add_item(CustomMenuItem::new("toggle".into(), "Toggle"))
-          .add_item(CustomMenuItem::new("new".into(), "New window")),
+          .add_item(CustomMenuItem::new("toggle", "Toggle"))
+          .add_item(CustomMenuItem::new("new", "New window")),
       ),
     )
     .on_system_tray_event(|app, event| match event {

@@ -2,9 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{collections::hash_map::DefaultHasher, hash::Hasher};
+use std::{
+  collections::hash_map::DefaultHasher,
+  hash::{Hash, Hasher},
+};
 
-use super::MenuId;
+pub type MenuHash = u16;
+pub type MenuId = String;
+pub type MenuIdRef<'a> = &'a str;
 
 /// Named images defined by the system.
 #[cfg(target_os = "macos")]
@@ -148,21 +153,21 @@ pub trait TrayHandle {
 /// A window menu.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub struct Menu<I: MenuId> {
-  pub items: Vec<MenuEntry<I>>,
+pub struct Menu {
+  pub items: Vec<MenuEntry>,
 }
 
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub struct Submenu<I: MenuId> {
+pub struct Submenu {
   pub title: String,
   pub enabled: bool,
-  pub inner: Menu<I>,
+  pub inner: Menu,
 }
 
-impl<I: MenuId> Submenu<I> {
+impl Submenu {
   /// Creates a new submenu with the given title and menu items.
-  pub fn new<S: Into<String>>(title: S, menu: Menu<I>) -> Self {
+  pub fn new<S: Into<String>>(title: S, menu: Menu) -> Self {
     Self {
       title: title.into(),
       enabled: true,
@@ -171,20 +176,20 @@ impl<I: MenuId> Submenu<I> {
   }
 }
 
-impl<I: MenuId> Default for Menu<I> {
+impl Default for Menu {
   fn default() -> Self {
     Self { items: Vec::new() }
   }
 }
 
-impl<I: MenuId> Menu<I> {
+impl Menu {
   /// Creates a new window menu.
   pub fn new() -> Self {
     Default::default()
   }
 
   /// Adds the custom menu item to the menu.
-  pub fn add_item(mut self, item: CustomMenuItem<I>) -> Self {
+  pub fn add_item(mut self, item: CustomMenuItem) -> Self {
     self.items.push(MenuEntry::CustomItem(item));
     self
   }
@@ -196,7 +201,7 @@ impl<I: MenuId> Menu<I> {
   }
 
   /// Adds an entry with submenu.
-  pub fn add_submenu(mut self, submenu: Submenu<I>) -> Self {
+  pub fn add_submenu(mut self, submenu: Submenu) -> Self {
     self.items.push(MenuEntry::Submenu(submenu));
     self
   }
@@ -205,8 +210,9 @@ impl<I: MenuId> Menu<I> {
 /// A custom menu item.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub struct CustomMenuItem<I: MenuId> {
-  pub id: I,
+pub struct CustomMenuItem {
+  pub id: MenuHash,
+  pub id_str: MenuId,
   pub title: String,
   pub keyboard_accelerator: Option<String>,
   pub enabled: bool,
@@ -215,11 +221,13 @@ pub struct CustomMenuItem<I: MenuId> {
   pub native_image: Option<NativeImage>,
 }
 
-impl<I: MenuId> CustomMenuItem<I> {
+impl CustomMenuItem {
   /// Create new custom menu item.
-  pub fn new<T: Into<String>>(id: I, title: T) -> Self {
+  pub fn new<I: Into<String>, T: Into<String>>(id: I, title: T) -> Self {
+    let id_str = id.into();
     Self {
-      id,
+      id: Self::hash(&id_str),
+      id_str,
       title: title.into(),
       keyboard_accelerator: None,
       enabled: true,
@@ -255,22 +263,21 @@ impl<I: MenuId> CustomMenuItem<I> {
     self
   }
 
-  #[doc(hidden)]
-  pub fn id_value(&self) -> u16 {
-    let mut s = DefaultHasher::new();
-    self.id.hash(&mut s);
-    s.finish() as u16
+  fn hash(id: &str) -> MenuHash {
+    let mut hasher = DefaultHasher::new();
+    id.hash(&mut hasher);
+    hasher.finish() as MenuHash
   }
 }
 
 /// A system tray menu.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub struct SystemTrayMenu<I: MenuId> {
-  pub items: Vec<SystemTrayMenuEntry<I>>,
+pub struct SystemTrayMenu {
+  pub items: Vec<SystemTrayMenuEntry>,
 }
 
-impl<I: MenuId> Default for SystemTrayMenu<I> {
+impl Default for SystemTrayMenu {
   fn default() -> Self {
     Self { items: Vec::new() }
   }
@@ -278,15 +285,15 @@ impl<I: MenuId> Default for SystemTrayMenu<I> {
 
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub struct SystemTraySubmenu<I: MenuId> {
+pub struct SystemTraySubmenu {
   pub title: String,
   pub enabled: bool,
-  pub inner: SystemTrayMenu<I>,
+  pub inner: SystemTrayMenu,
 }
 
-impl<I: MenuId> SystemTraySubmenu<I> {
+impl SystemTraySubmenu {
   /// Creates a new submenu with the given title and menu items.
-  pub fn new<S: Into<String>>(title: S, menu: SystemTrayMenu<I>) -> Self {
+  pub fn new<S: Into<String>>(title: S, menu: SystemTrayMenu) -> Self {
     Self {
       title: title.into(),
       enabled: true,
@@ -295,14 +302,14 @@ impl<I: MenuId> SystemTraySubmenu<I> {
   }
 }
 
-impl<I: MenuId> SystemTrayMenu<I> {
+impl SystemTrayMenu {
   /// Creates a new system tray menu.
   pub fn new() -> Self {
     Default::default()
   }
 
   /// Adds the custom menu item to the system tray menu.
-  pub fn add_item(mut self, item: CustomMenuItem<I>) -> Self {
+  pub fn add_item(mut self, item: CustomMenuItem) -> Self {
     self.items.push(SystemTrayMenuEntry::CustomItem(item));
     self
   }
@@ -314,7 +321,7 @@ impl<I: MenuId> SystemTrayMenu<I> {
   }
 
   /// Adds an entry with submenu.
-  pub fn add_submenu(mut self, submenu: SystemTraySubmenu<I>) -> Self {
+  pub fn add_submenu(mut self, submenu: SystemTraySubmenu) -> Self {
     self.items.push(SystemTrayMenuEntry::Submenu(submenu));
     self
   }
@@ -322,13 +329,13 @@ impl<I: MenuId> SystemTrayMenu<I> {
 
 /// An entry on the system tray menu.
 #[derive(Debug, Clone)]
-pub enum SystemTrayMenuEntry<I: MenuId> {
+pub enum SystemTrayMenuEntry {
   /// A custom item.
-  CustomItem(CustomMenuItem<I>),
+  CustomItem(CustomMenuItem),
   /// A native item.
   NativeItem(SystemTrayMenuItem),
   /// An entry with submenu.
-  Submenu(SystemTraySubmenu<I>),
+  Submenu(SystemTraySubmenu),
 }
 
 /// System tray menu item.
@@ -341,13 +348,13 @@ pub enum SystemTrayMenuItem {
 
 /// An entry on the system tray menu.
 #[derive(Debug, Clone)]
-pub enum MenuEntry<I: MenuId> {
+pub enum MenuEntry {
   /// A custom item.
-  CustomItem(CustomMenuItem<I>),
+  CustomItem(CustomMenuItem),
   /// A native item.
   NativeItem(MenuItem),
   /// An entry with submenu.
-  Submenu(Submenu<I>),
+  Submenu(Submenu),
 }
 
 /// A menu item, bound to a pre-defined action or `Custom` emit an event. Note that status bar only

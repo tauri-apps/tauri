@@ -7,7 +7,7 @@
 use crate::{window::DetachedWindow, Icon};
 
 #[cfg(feature = "menu")]
-use crate::{menu::Menu, MenuId};
+use crate::menu::Menu;
 
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
@@ -109,7 +109,7 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Sets the menu for the window.
   #[cfg(feature = "menu")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
-  fn menu<I: MenuId>(self, menu: Menu<I>) -> Self;
+  fn menu(self, menu: Menu) -> Self;
 
   /// Show window in the center of the screen.
   fn center(self) -> Self;
@@ -216,11 +216,11 @@ pub enum FileDropEvent {
 }
 
 /// Rpc handler.
-pub type WebviewRpcHandler<P> = Box<dyn Fn(DetachedWindow<P>, RpcRequest) + Send>;
+pub type WebviewRpcHandler<R> = Box<dyn Fn(DetachedWindow<R>, RpcRequest) + Send>;
 
 /// File drop handler callback
 /// Return `true` in the callback to block the OS' default behavior of handling a file drop.
-pub type FileDropHandler<P> = Box<dyn Fn(FileDropEvent, DetachedWindow<P>) -> bool + Send>;
+pub type FileDropHandler<R> = Box<dyn Fn(FileDropEvent, DetachedWindow<R>) -> bool + Send>;
 
 #[derive(Deserialize)]
 pub struct InvokePayload {

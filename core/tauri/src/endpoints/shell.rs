@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{endpoints::InvokeResponse, Params, Window};
+use crate::{endpoints::InvokeResponse, runtime::Runtime, Window};
 use serde::Deserialize;
 
 #[cfg(shell_execute)]
@@ -73,7 +73,7 @@ pub enum Cmd {
 
 impl Cmd {
   #[allow(unused_variables)]
-  pub fn run<P: Params>(self, window: Window<P>) -> crate::Result<InvokeResponse> {
+  pub fn run<R: Runtime>(self, window: Window<R>) -> crate::Result<InvokeResponse> {
     match self {
       Self::Execute {
         program,

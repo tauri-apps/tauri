@@ -5,7 +5,8 @@
 use crate::{
   api::{config::Config, PackageInfo},
   hooks::{InvokeError, InvokeMessage, InvokeResolver},
-  Invoke, Params, Window,
+  runtime::Runtime,
+  Invoke, Window,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -59,10 +60,10 @@ enum Module {
 }
 
 impl Module {
-  fn run<P: Params>(
+  fn run<R: Runtime>(
     self,
-    window: Window<P>,
-    resolver: InvokeResolver<P>,
+    window: Window<R>,
+    resolver: InvokeResolver<R>,
     config: Arc<Config>,
     package_info: PackageInfo,
   ) {
@@ -164,9 +165,9 @@ impl Module {
   }
 }
 
-pub(crate) fn handle<P: Params>(
+pub(crate) fn handle<R: Runtime>(
   module: String,
-  invoke: Invoke<P>,
+  invoke: Invoke<R>,
   config: Arc<Config>,
   package_info: &PackageInfo,
 ) {

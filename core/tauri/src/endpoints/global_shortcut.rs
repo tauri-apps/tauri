@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 use super::InvokeResponse;
-use crate::{Params, Window};
+use crate::{Runtime, Window};
 use serde::Deserialize;
 
 #[cfg(global_shortcut_all)]
-use crate::runtime::{GlobalShortcutManager, Runtime};
+use crate::runtime::GlobalShortcutManager;
 
 /// The API descriptor.
 #[derive(Deserialize)]
@@ -29,9 +29,9 @@ pub enum Cmd {
 }
 
 #[cfg(global_shortcut_all)]
-fn register_shortcut<P: Params>(
-  window: Window<P>,
-  manager: &mut <P::Runtime as Runtime>::GlobalShortcutManager,
+fn register_shortcut<R: Runtime>(
+  window: Window<R>,
+  manager: &mut R::GlobalShortcutManager,
   shortcut: String,
   handler: String,
 ) -> crate::Result<()> {
@@ -46,7 +46,7 @@ fn register_shortcut<P: Params>(
 
 #[cfg(not(global_shortcut_all))]
 impl Cmd {
-  pub fn run<P: Params>(self, _window: Window<P>) -> crate::Result<InvokeResponse> {
+  pub fn run<R: Runtime>(self, _window: Window<R>) -> crate::Result<InvokeResponse> {
     Err(crate::Error::ApiNotAllowlisted(
       "globalShortcut > all".to_string(),
     ))
@@ -55,7 +55,7 @@ impl Cmd {
 
 #[cfg(global_shortcut_all)]
 impl Cmd {
-  pub fn run<P: Params>(self, window: Window<P>) -> crate::Result<InvokeResponse> {
+  pub fn run<R: Runtime>(self, window: Window<R>) -> crate::Result<InvokeResponse> {
     match self {
       Self::Register { shortcut, handler } => {
         let mut manager = window.app_handle.global_shortcut_manager();

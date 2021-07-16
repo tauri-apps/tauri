@@ -14,7 +14,7 @@ import { vite } from './recipes/vite'
 import { ngcli } from './recipes/ng-cli'
 import { install, checkPackageManager } from './dependency-manager'
 import { shell } from './shell'
-import { addTauriScript } from './helpers/add-tauri-script'
+import { updatePackageJson } from './helpers/update-package-json'
 import { Recipe } from './types/recipe'
 import { updateTauriConf } from './helpers/update-tauri-conf'
 
@@ -340,8 +340,8 @@ const runInit = async (argv: Argv): Promise<void> => {
       packageManager
     })
 
-    logStep(`Adding ${reset(yellow('"tauri"'))} script to package.json`)
-    addTauriScript(appDirectory)
+    logStep(`Updating ${reset(yellow('"package.json"'))}`)
+    updatePackageJson(appDirectory, appName)
 
     logStep(`Running: ${reset(yellow('tauri init'))}`)
     const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b)

@@ -15,7 +15,7 @@ const api = path.resolve('../api/')
 const manager = process.env.TAURI_RUN_MANAGER ?? 'npm'
 const recipes = process.env.TAURI_RECIPE
   ? [process.env.TAURI_RECIPE]
-  : ['vanillajs', 'cra', 'vite', 'vuecli']
+  : ['vanillajs', 'cra', 'vite', 'vuecli', 'ngcli']
 const timeoutLong = 900000
 const timeoutLittleLonger = 930000
 const logOut = false ? 'inherit' : 'pipe'

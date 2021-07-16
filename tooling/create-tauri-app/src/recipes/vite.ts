@@ -77,13 +77,7 @@ const vite: Recipe = {
     if (packageManager === 'yarn') {
       await shell(
         'yarn',
-        [
-          'create',
-          'vite',
-          `${cfg.appName}`,
-          '--template',
-          `${template}`
-        ],
+        ['create', 'vite', `${cfg.appName}`, '--template', `${template}`],
         {
           cwd
         }
@@ -91,12 +85,7 @@ const vite: Recipe = {
     } else {
       await shell(
         'npx',
-        [
-          'create-vite@latest',
-          `${cfg.appName}`,
-          '--template',
-          `${template}`
-        ],
+        ['create-vite@latest', `${cfg.appName}`, '--template', `${template}`],
         {
           cwd
         }

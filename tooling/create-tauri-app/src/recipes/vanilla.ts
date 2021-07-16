@@ -41,21 +41,14 @@ export const vanillajs: Recipe = {
   },
   postInit: async ({ cfg, packageManager }) => {
     const setApp =
-      packageManager === 'npm'
-        ? `
-set tauri script once
-  $ npm set-script tauri tauri
-    `
-        : ''
+      packageManager === 'npm' ? '$ npm set-script tauri tauri' : ''
 
     console.log(`
-change directory:
-  $ cd ${cfg.appName}
-${setApp}
-install dependencies:
-  $ ${packageManager} install
+    Your installation completed.
 
-run the app:
+  $ cd ${cfg.appName}
+  ${setApp}
+  $ ${packageManager} install
   $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
       packageManager === 'npm' ? '-- ' : ''
     }dev

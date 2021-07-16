@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-beta.3]
+
+- Added Angular CLI recipe.
+  - [489fad55](https://www.github.com/tauri-apps/tauri/commit/489fad55242b3489c7c551fdfdd031ebad2d9b9c) Angular create tauri app \[[#1934](https://www.github.com/tauri-apps/tauri/pull/1934)] ([#2203](https://www.github.com/tauri-apps/tauri/pull/2203)) on 2021-07-14
+
 ## \[1.0.0-beta.2]
 
 - Fixes the `beforeDevCommand` on vite recipe.

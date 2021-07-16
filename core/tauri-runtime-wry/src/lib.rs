@@ -23,8 +23,11 @@ use tauri_runtime::window::MenuEvent;
 use tauri_runtime::{SystemTray, SystemTrayEvent};
 #[cfg(windows)]
 use winapi::shared::windef::HWND;
+#[cfg(target_os = "linux")]
+use wry::application::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
-use wry::application::platform::windows::WindowBuilderExtWindows;
+use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
+
 #[cfg(feature = "system-tray")]
 use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
 
@@ -446,10 +449,6 @@ impl WindowBuilder for WindowBuilderWrapper {
       window = window.center();
     }
 
-    if config.focus {
-      window = window.focus();
-    }
-
     window
   }
 
@@ -511,8 +510,9 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  fn focus(mut self) -> Self {
-    self.inner = self.inner.with_focus();
+  /// Deprecated since 0.1.4 (noop)
+  /// Windows is automatically focused when created.
+  fn focus(self) -> Self {
     self
   }
 
@@ -560,8 +560,14 @@ impl WindowBuilder for WindowBuilderWrapper {
     Ok(self)
   }
 
+  #[cfg(any(target_os = "windows", target_os = "linux"))]
   fn skip_taskbar(mut self, skip: bool) -> Self {
     self.inner = self.inner.with_skip_taskbar(skip);
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn skip_taskbar(self, _skip: bool) -> Self {
     self
   }
 
@@ -593,7 +599,9 @@ impl From<FileDropEventWrapper> for FileDropEvent {
     match event.0 {
       WryFileDropEvent::Hovered(paths) => FileDropEvent::Hovered(paths),
       WryFileDropEvent::Dropped(paths) => FileDropEvent::Dropped(paths),
-      WryFileDropEvent::Cancelled => FileDropEvent::Cancelled,
+      // default to cancelled
+      // FIXME(maybe): Add `FileDropEvent::Unknown` event?
+      _ => FileDropEvent::Cancelled,
     }
   }
 }
@@ -1511,6 +1519,7 @@ fn handle_event_loop(
       window_id,
       menu_id,
       origin: MenuType::MenuBar,
+      ..
     } => {
       let window_id = window_id.unwrap(); // always Some on MenuBar event
       let event = MenuEvent {
@@ -1527,6 +1536,7 @@ fn handle_event_loop(
       window_id: _,
       menu_id,
       origin: MenuType::ContextMenu,
+      ..
     } => {
       let event = SystemTrayEvent::MenuItemClick(menu_id.0);
       for handler in tray_context.listeners.lock().unwrap().values() {
@@ -1538,21 +1548,25 @@ fn handle_event_loop(
       bounds,
       event,
       position: _cursor_position,
+      ..
     } => {
       let (position, size) = (
         PhysicalPositionWrapper(bounds.position).into(),
         PhysicalSizeWrapper(bounds.size).into(),
       );
       let event = match event {
-        TrayEvent::LeftClick => SystemTrayEvent::LeftClick { position, size },
         TrayEvent::RightClick => SystemTrayEvent::RightClick { position, size },
         TrayEvent::DoubleClick => SystemTrayEvent::DoubleClick { position, size },
+        // default to left click
+        _ => SystemTrayEvent::LeftClick { position, size },
       };
       for handler in tray_context.listeners.lock().unwrap().values() {
         handler(&event);
       }
     }
-    Event::WindowEvent { event, window_id } => {
+    Event::WindowEvent {
+      event, window_id, ..
+    } => {
       if let Some(event) = WindowEventWrapper::from(&event).0 {
         for handler in window_event_listeners
           .lock()
@@ -1642,10 +1656,7 @@ fn handle_event_loop(
               tx.send(window.available_monitors().collect()).unwrap()
             }
             #[cfg(windows)]
-            WindowMessage::Hwnd(tx) => {
-              use wry::application::platform::windows::WindowExtWindows;
-              tx.send(Hwnd(window.hwnd() as HWND)).unwrap()
-            }
+            WindowMessage::Hwnd(tx) => tx.send(Hwnd(window.hwnd() as HWND)).unwrap(),
             #[cfg(any(
               target_os = "linux",
               target_os = "dragonfly",
@@ -1654,7 +1665,6 @@ fn handle_event_loop(
               target_os = "openbsd"
             ))]
             WindowMessage::GtkWindow(tx) => {
-              use wry::application::platform::unix::WindowExtUnix;
               tx.send(GtkWindow(window.gtk_window().clone())).unwrap()
             }
             // Setters
@@ -1721,8 +1731,9 @@ fn handle_event_loop(
             WindowMessage::SetIcon(icon) => {
               window.set_window_icon(Some(icon));
             }
-            WindowMessage::SetSkipTaskbar(skip) => {
-              window.set_skip_taskbar(skip);
+            WindowMessage::SetSkipTaskbar(_skip) => {
+              #[cfg(any(target_os = "windows", target_os = "linux"))]
+              window.set_skip_taskbar(_skip);
             }
             WindowMessage::DragWindow => {
               let _ = window.drag_window();

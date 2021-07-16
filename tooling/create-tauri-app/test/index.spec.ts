@@ -142,6 +142,13 @@ describe('CTA', () => {
                   tauri: 'tauri'
                 })
               )
+            },
+            dominator: () => {
+              expect(packageFileOutput['scripts']).toEqual(
+                expect.objectContaining({
+                  tauri: 'tauri'
+                })
+              )
             }
           }
 

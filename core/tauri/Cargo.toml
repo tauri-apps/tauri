@@ -71,6 +71,7 @@ minisign-verify = { version = "0.1", optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.9", features = [ "v3_16" ] }
+glib = "0.10"
 
 [build-dependencies]
 cfg_aliases = "0.1.1"

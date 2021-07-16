@@ -79,7 +79,7 @@ const vite: Recipe = {
         'yarn',
         [
           'create',
-          '@vitejs/app',
+          'vite',
           `${cfg.appName}`,
           '--template',
           `${template}`
@@ -92,7 +92,7 @@ const vite: Recipe = {
       await shell(
         'npx',
         [
-          '@vitejs/create-app@latest',
+          'create-vite@latest',
           `${cfg.appName}`,
           '--template',
           `${template}`

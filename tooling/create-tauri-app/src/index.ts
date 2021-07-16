@@ -196,7 +196,7 @@ const runInit = async (argv: Argv): Promise<void> => {
       {
         type: 'list',
         name: 'recipeName',
-        message: 'Would you like to add a UI recipe?',
+        message: 'What UI recipe would you like to add?',
         choices: recipeDescriptiveNames,
         default: defaults.recipeName,
         when: !argv.ci && !argv.r

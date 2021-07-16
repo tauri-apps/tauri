@@ -94,6 +94,9 @@
             <Component Id="UpdateTaskInstaller" Guid="011F25ED-9BE3-50A7-9E9B-3519ED2B9932" Win64="$(var.Win64)">
                 <File Id="UpdateTaskInstaller" Source="install-task.ps1" KeyPath="yes" Checksum="yes"/>
             </Component>
+            <Component Id="UpdateTaskUninstaller" Guid="D4F6CC3F-32DC-5FD0-95E8-782FFD7BBCE1" Win64="$(var.Win64)">
+                <File Id="UpdateTaskUninstaller" Source="uninstall-task.ps1" KeyPath="yes" Checksum="yes"/>
+            </Component>
             {{/if}}
             {{{resources}}}
             <Component Id="CMP_UninstallShortcut" Guid="*">
@@ -158,6 +161,7 @@
             {{#if enable_elevated_update_task}}
                 <ComponentRef Id="UpdateTask" />
                 <ComponentRef Id="UpdateTaskInstaller" />
+                <ComponentRef Id="UpdateTaskUninstaller" />
             {{/if}}
 
             <Feature Id="ShortcutsFeature"
@@ -232,9 +236,9 @@
             Id="DeleteUpdateTask"
             Return="check"
             Directory="INSTALLDIR"
-            Execute="deferred"
-            Impersonate="no"
-            ExeCommand="powershell.exe -WindowStyle hidden &quot;schtasks /DELETE /TN 'Update {{{product_name}}} - Skip UAC' /F&quot;" />
+            Execute="commit"
+            Impersonate="yes"
+            ExeCommand="powershell.exe -WindowStyle hidden .\remove-task.ps1" />
         <InstallExecuteSequence>
             <Custom Action="DeleteUpdateTask" Before='InstallFinalize'>
                 (REMOVE = "ALL") AND NOT UPGRADINGPRODUCTCODE

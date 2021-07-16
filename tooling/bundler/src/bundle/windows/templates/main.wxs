@@ -236,8 +236,6 @@
             Id="DeleteUpdateTask"
             Return="check"
             Directory="INSTALLDIR"
-            Execute="commit"
-            Impersonate="yes"
             ExeCommand="powershell.exe -WindowStyle hidden .\uninstall-task.ps1" />
         <InstallExecuteSequence>
             <Custom Action="DeleteUpdateTask" Before='InstallFinalize'>

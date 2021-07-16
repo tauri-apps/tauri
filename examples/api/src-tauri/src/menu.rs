@@ -2,76 +2,37 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use tauri::{CustomMenuItem, Menu, MenuItem};
+use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
 
-pub fn get_menu() -> Vec<Menu<String>> {
-  let other_test_menu = MenuItem::Custom(CustomMenuItem::new("custom".into(), "Custom"));
-  let quit_menu = MenuItem::Custom(CustomMenuItem::new("quit".into(), "Quit"));
+pub fn get_menu() -> Menu {
+  #[allow(unused_mut)]
+  let mut disable_item =
+    CustomMenuItem::new("disable-menu", "Disable menu").accelerator("CmdOrControl+D");
+  #[allow(unused_mut)]
+  let mut test_item = CustomMenuItem::new("test", "Test").accelerator("CmdOrControl+T");
+  #[cfg(target_os = "macos")]
+  {
+    disable_item = disable_item.native_image(tauri::NativeImage::MenuOnState);
+    test_item = test_item.native_image(tauri::NativeImage::Add);
+  }
 
-  // macOS require to have at least Copy, Paste, Select all etc..
-  // to works fine. You should always add them.
-  #[cfg(any(target_os = "linux", target_os = "macos"))]
-  let menu = {
-    let custom_print_menu = MenuItem::Custom(CustomMenuItem::new("print".into(), "Print"));
-    vec![
-      Menu::new(
-        // on macOS first menu is always app name
-        "Tauri API",
-        vec![
-          // All's non-custom menu, do NOT return event's
-          // they are handled by the system automatically
-          MenuItem::About("Tauri".to_string()),
-          MenuItem::Services,
-          MenuItem::Separator,
-          MenuItem::Hide,
-          MenuItem::HideOthers,
-          MenuItem::ShowAll,
-          MenuItem::Separator,
-          quit_menu,
-        ],
-      ),
-      Menu::new(
-        "File",
-        vec![
-          custom_print_menu,
-          MenuItem::Separator,
-          other_test_menu,
-          MenuItem::CloseWindow,
-        ],
-      ),
-      Menu::new(
-        "Edit",
-        vec![
-          MenuItem::Undo,
-          MenuItem::Redo,
-          MenuItem::Separator,
-          MenuItem::Cut,
-          MenuItem::Copy,
-          MenuItem::Paste,
-          MenuItem::Separator,
-          MenuItem::SelectAll,
-        ],
-      ),
-      Menu::new("View", vec![MenuItem::EnterFullScreen]),
-      Menu::new("Window", vec![MenuItem::Minimize, MenuItem::Zoom]),
-      Menu::new(
-        "Help",
-        vec![MenuItem::Custom(CustomMenuItem::new(
-          "help".into(),
-          "Custom help",
-        ))],
-      ),
-    ]
-  };
+  // create a submenu
+  let my_sub_menu = Menu::new().add_item(disable_item);
 
-  // Attention, Windows only support custom menu for now.
-  // If we add any `MenuItem::*` they'll not render
-  // We need to use custom menu with `Menu::new()` and catch
-  // the events in the EventLoop.
-  #[cfg(target_os = "windows")]
-  let menu = vec![
-    Menu::new("File", vec![other_test_menu]),
-    Menu::new("Other menu", vec![quit_menu]),
-  ];
-  menu
+  let my_app_menu = Menu::new()
+    .add_native_item(MenuItem::Copy)
+    .add_submenu(Submenu::new("Sub menu", my_sub_menu));
+
+  let test_menu = Menu::new()
+    .add_item(CustomMenuItem::new(
+      "selected/disabled",
+      "Selected and disabled",
+    ))
+    .add_native_item(MenuItem::Separator)
+    .add_item(test_item);
+
+  // add all our childs to the menu (order is how they'll appear)
+  Menu::new()
+    .add_submenu(Submenu::new("My app", my_app_menu))
+    .add_submenu(Submenu::new("Other menu", test_menu))
 }

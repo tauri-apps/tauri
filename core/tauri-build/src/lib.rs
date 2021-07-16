@@ -93,7 +93,14 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   #[cfg(windows)]
   {
     use anyhow::{anyhow, Context};
+    use std::fs::read_to_string;
+    use tauri_utils::config::Config;
     use winres::WindowsResource;
+
+    let config: Config = serde_json::from_str(
+      &read_to_string("tauri.conf.json").expect("failed to read tauri.conf.json"),
+    )
+    .expect("failed to parse tauri.conf.json");
 
     let icon_path_string = attributes
       .windows_attributes
@@ -103,6 +110,14 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
     if attributes.windows_attributes.window_icon_path.exists() {
       let mut res = WindowsResource::new();
+      if let Some(version) = &config.package.version {
+        res.set("FileVersion", version);
+        res.set("ProductVersion", version);
+      }
+      if let Some(product_name) = &config.package.product_name {
+        res.set("ProductName", product_name);
+        res.set("FileDescription", product_name);
+      }
       res.set_icon_with_id(&icon_path_string, "32512");
       res.compile().with_context(|| {
         format!(

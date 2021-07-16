@@ -4,6 +4,7 @@
 
 //! Assets handled by Tauri during compile time and runtime.
 
+#[doc(hidden)]
 pub use phf;
 use std::{
   borrow::Cow,
@@ -75,7 +76,7 @@ impl<P: AsRef<Path>> From<P> for AssetKey {
 /// Represents a container of file assets that are retrievable during runtime.
 pub trait Assets: Send + Sync + 'static {
   /// Get the content of the passed [`AssetKey`].
-  fn get<Key: Into<AssetKey>>(&self, key: Key) -> Option<Cow<'_, [u8]>>;
+  fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>>;
 }
 
 /// [`Assets`] implementation that only contains compile-time compressed and embedded assets.
@@ -91,10 +92,10 @@ impl EmbeddedAssets {
 }
 
 impl Assets for EmbeddedAssets {
-  fn get<Key: Into<AssetKey>>(&self, key: Key) -> Option<Cow<'_, [u8]>> {
+  fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
     self
       .0
-      .get(key.into().as_ref())
+      .get(key.as_ref())
       .copied()
       .map(zstd::decode_all)
       .and_then(Result::ok)

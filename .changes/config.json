@@ -217,40 +217,29 @@
     "tauri-runtime": {
       "path": "./core/tauri-runtime",
       "manager": "rust",
-      "dependencies": [
-        "tauri-utils"
-      ],
+      "dependencies": ["tauri-utils"],
       "postversion": "node ../../.scripts/sync-prerelease.js ${ pkg.pkg } ${ release.type }"
     },
     "tauri-runtime-wry": {
       "path": "./core/tauri-runtime-wry",
       "manager": "rust",
-      "dependencies": [
-        "tauri-utils",
-        "tauri-runtime"
-      ],
+      "dependencies": ["tauri-utils", "tauri-runtime"],
       "postversion": "node ../../.scripts/sync-prerelease.js ${ pkg.pkg } ${ release.type }"
     },
     "tauri-codegen": {
       "path": "./core/tauri-codegen",
       "manager": "rust",
-      "dependencies": [
-        "tauri-utils"
-      ]
+      "dependencies": ["tauri-utils"]
     },
     "tauri-macros": {
       "path": "./core/tauri-macros",
       "manager": "rust",
-      "dependencies": [
-        "tauri-codegen"
-      ]
+      "dependencies": ["tauri-codegen"]
     },
     "tauri-build": {
       "path": "./core/tauri-build",
       "manager": "rust",
-      "dependencies": [
-        "tauri-codegen"
-      ],
+      "dependencies": ["tauri-codegen", "tauri-utils"],
       "postversion": "node ../../.scripts/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
     "tauri": {
@@ -267,9 +256,7 @@
     "cli.js": {
       "path": "./tooling/cli.js",
       "manager": "javascript",
-      "dependencies": [
-        "cli.rs"
-      ],
+      "dependencies": ["cli.rs"],
       "postversion": "node ../../.scripts/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
       "assets": [
         {
@@ -281,9 +268,7 @@
     "cli.rs": {
       "path": "./tooling/cli.rs",
       "manager": "rust",
-      "dependencies": [
-        "tauri-bundler"
-      ],
+      "dependencies": ["tauri-bundler"],
       "postversion": "cargo check"
     },
     "create-tauri-app": {

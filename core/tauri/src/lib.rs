@@ -5,7 +5,22 @@
 //! Tauri is a framework for building tiny, blazing fast binaries for all major desktop platforms.
 //! Developers can integrate any front-end framework that compiles to HTML, JS and CSS for building their user interface.
 //! The backend of the application is a rust-sourced binary with an API that the front-end can interact with.
+//!
+//! # Cargo features
+//!
+//! The following are a list of Cargo features that can be enabled or disabled:
+//!
+//! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
+//! - **menu**: Enables application menus support.
+//! - **reqwest-client**: Uses `reqwest` as HTTP client on the `http` APIs. Improves performance, but increases the bundle size.
+//! - **cli**: Enables usage of `clap` for CLI argument parsing. Enabled by default if the `cli` config is defined on the `tauri.conf.json` file.
+//! - **system-tray**: Enables application system tray API. Enabled by default if the `systemTray` config is defined on the `tauri.conf.json` file.
+//! - **updater**: Enables the application auto updater. Enabled by default if the `updater` config is defined on the `tauri.conf.json` file.
 
+#![allow(
+    // Clippy bug: https://github.com/rust-lang/rust-clippy/issues/7422
+    clippy::nonstandard_macro_braces,
+)]
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
@@ -44,48 +59,61 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 use crate::{
-  event::{Event, EventHandler},
+  event::{Event as EmittedEvent, EventHandler},
   runtime::window::PendingWindow,
 };
 use serde::Serialize;
-use std::{borrow::Borrow, collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 // Export types likely to be used by the application.
 #[cfg(any(feature = "menu", feature = "system-tray"))]
 #[cfg_attr(doc_cfg, doc(cfg(any(feature = "menu", feature = "system-tray"))))]
 pub use runtime::menu::CustomMenuItem;
+
+#[cfg(all(target_os = "macos", any(feature = "menu", feature = "system-tray")))]
+#[cfg_attr(
+  doc_cfg,
+  doc(cfg(all(target_os = "macos", any(feature = "menu", feature = "system-tray"))))
+)]
+pub use runtime::menu::NativeImage;
+
 pub use {
   self::api::assets::Assets,
   self::api::{
     config::{Config, WindowUrl},
     PackageInfo,
   },
-  self::app::{App, AppHandle, Builder, GlobalWindowEvent},
+  self::app::{App, AppHandle, Builder, CloseRequestApi, Event, GlobalWindowEvent},
   self::hooks::{
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
     PageLoadPayload, SetupHook,
   },
   self::runtime::{
-    tag::{Tag, TagRef},
     webview::{WebviewAttributes, WindowBuilder},
     window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       WindowEvent,
     },
-    Icon, MenuId, Params, RunIteration,
+    Icon, RunIteration, Runtime, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::window::{Monitor, Window},
 };
 #[cfg(feature = "system-tray")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-pub use {self::app::SystemTrayEvent, self::runtime::menu::SystemTrayMenuItem};
+pub use {
+  self::app::tray::SystemTrayEvent,
+  self::runtime::{
+    menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
+    SystemTray,
+  },
+};
 #[cfg(feature = "menu")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
 pub use {
   self::app::WindowMenuEvent,
-  self::runtime::menu::{Menu, MenuItem},
-  self::window::MenuEvent,
+  self::runtime::menu::{Menu, MenuItem, Submenu},
+  self::window::menu::MenuEvent,
 };
 
 /// Reads the config file at compile time and generates a [`Context`] based on its content.
@@ -217,62 +245,42 @@ impl<A: Assets> Context<A> {
 
 // TODO: expand these docs
 /// Manages a running application.
-pub trait Manager<P: Params>: sealed::ManagerBase<P> {
+pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// The [`Config`] the manager was created with.
   fn config(&self) -> Arc<Config> {
     self.manager().config()
   }
 
   /// Emits a event to all windows.
-  fn emit_all<E: ?Sized, S>(&self, event: &E, payload: S) -> Result<()>
-  where
-    P::Event: Borrow<E>,
-    E: TagRef<P::Event>,
-    S: Serialize + Clone,
-  {
+  fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
     self.manager().emit_filter(event, payload, |_| true)
   }
 
   /// Emits an event to a window with the specified label.
-  fn emit_to<E: ?Sized, L: ?Sized, S: Serialize + Clone>(
-    &self,
-    label: &L,
-    event: &E,
-    payload: S,
-  ) -> Result<()>
-  where
-    P::Label: Borrow<L>,
-    P::Event: Borrow<E>,
-    L: TagRef<P::Label>,
-    E: TagRef<P::Event>,
-  {
+  fn emit_to<S: Serialize + Clone>(&self, label: &str, event: &str, payload: S) -> Result<()> {
     self
       .manager()
       .emit_filter(event, payload, |w| label == w.label())
   }
 
   /// Listen to a global event.
-  fn listen_global<E: Into<P::Event>, F>(&self, event: E, handler: F) -> EventHandler
+  fn listen_global<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
-    F: Fn(Event) + Send + 'static,
+    F: Fn(EmittedEvent) + Send + 'static,
   {
     self.manager().listen(event.into(), None, handler)
   }
 
   /// Listen to a global event only once.
-  fn once_global<E: Into<P::Event>, F>(&self, event: E, handler: F) -> EventHandler
+  fn once_global<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
-    F: Fn(Event) + Send + 'static,
+    F: Fn(EmittedEvent) + Send + 'static,
   {
     self.manager().once(event.into(), None, handler)
   }
 
   /// Trigger a global event.
-  fn trigger_global<E: ?Sized>(&self, event: &E, data: Option<String>)
-  where
-    P::Event: Borrow<E>,
-    E: TagRef<P::Event>,
-  {
+  fn trigger_global(&self, event: &str, data: Option<String>) {
     self.manager().trigger(event, None, data)
   }
 
@@ -282,16 +290,12 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
   }
 
   /// Fetch a single window from the manager.
-  fn get_window<L: ?Sized>(&self, label: &L) -> Option<Window<P>>
-  where
-    P::Label: Borrow<L>,
-    L: TagRef<P::Label>,
-  {
+  fn get_window(&self, label: &str) -> Option<Window<R>> {
     self.manager().get_window(label)
   }
 
   /// Fetch all managed windows.
-  fn windows(&self) -> HashMap<P::Label, Window<P>> {
+  fn windows(&self) -> HashMap<String, Window<R>> {
     self.manager().windows()
   }
 
@@ -315,36 +319,39 @@ pub trait Manager<P: Params>: sealed::ManagerBase<P> {
 
 /// Prevent implementation details from leaking out of the [`Manager`] trait.
 pub(crate) mod sealed {
-  use crate::manager::WindowManager;
-  use tauri_runtime::{Params, Runtime, RuntimeHandle};
+  use crate::{app::AppHandle, manager::WindowManager};
+  use tauri_runtime::{Runtime, RuntimeHandle};
 
   /// A running [`Runtime`] or a dispatcher to it.
-  pub enum RuntimeOrDispatch<'r, P: Params> {
+  pub enum RuntimeOrDispatch<'r, R: Runtime> {
     /// Reference to the running [`Runtime`].
-    Runtime(&'r P::Runtime),
+    Runtime(&'r R),
 
     /// Handle to the running [`Runtime`].
-    RuntimeHandle(<P::Runtime as Runtime>::Handle),
+    RuntimeHandle(R::Handle),
 
     /// A dispatcher to the running [`Runtime`].
-    Dispatch(<P::Runtime as Runtime>::Dispatcher),
+    Dispatch(R::Dispatcher),
   }
 
   /// Managed handle to the application runtime.
-  pub trait ManagerBase<P: Params> {
+  pub trait ManagerBase<R: Runtime> {
     /// The manager behind the [`Managed`] item.
-    fn manager(&self) -> &WindowManager<P>;
+    fn manager(&self) -> &WindowManager<R>;
 
-    fn runtime(&self) -> RuntimeOrDispatch<'_, P>;
+    fn runtime(&self) -> RuntimeOrDispatch<'_, R>;
+    fn app_handle(&self) -> AppHandle<R>;
 
     /// Creates a new [`Window`] on the [`Runtime`] and attaches it to the [`Manager`].
     fn create_new_window(
       &self,
-      pending: crate::PendingWindow<P>,
-    ) -> crate::Result<crate::Window<P>> {
+      pending: crate::PendingWindow<R>,
+    ) -> crate::Result<crate::Window<R>> {
       use crate::runtime::Dispatch;
       let labels = self.manager().labels().into_iter().collect::<Vec<_>>();
-      let pending = self.manager().prepare_window(pending, &labels)?;
+      let pending = self
+        .manager()
+        .prepare_window(self.app_handle(), pending, &labels)?;
       match self.runtime() {
         RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending).map_err(Into::into),
         RuntimeOrDispatch::RuntimeHandle(handle) => {
@@ -354,7 +361,7 @@ pub(crate) mod sealed {
           dispatcher.create_window(pending).map_err(Into::into)
         }
       }
-      .map(|window| self.manager().attach_window(window))
+      .map(|window| self.manager().attach_window(self.app_handle(), window))
     }
   }
 }

@@ -12,6 +12,7 @@ import { vuecli } from './recipes/vue-cli'
 import { vanillajs } from './recipes/vanilla'
 import { vite } from './recipes/vite'
 import { dominator } from './recipes/dominator'
+import { ngcli } from './recipes/ng-cli'
 import { install, checkPackageManager } from './dependency-manager'
 import { shell } from './shell'
 import { addTauriScript } from './helpers/add-tauri-script'
@@ -114,7 +115,7 @@ interface Responses {
   recipeName: string
 }
 
-const allRecipes: Recipe[] = [vanillajs, cra, vite, vuecli, dominator]
+const allRecipes: Recipe[] = [vanillajs, cra, vite, vuecli, ngcli, dominator]
 
 const recipeByShortName = (name: string): Recipe | undefined =>
   allRecipes.find((r) => r.shortName === name)
@@ -340,7 +341,7 @@ const runInit = async (argv: Argv): Promise<void> => {
       packageManager
     })
 
-    logStep('Adding `tauri` script to package.json')
+    logStep(`Adding ${reset(yellow('"tauri"'))} script to package.json`)
     addTauriScript(appDirectory)
 
     logStep(`Running: ${reset(yellow('tauri init'))}`)
@@ -353,7 +354,7 @@ const runInit = async (argv: Argv): Promise<void> => {
       cwd: appDirectory
     })
 
-    logStep('Updating `tauri.conf.json`')
+    logStep(`Updating ${reset(yellow('"tauri.conf.json"'))}`)
     updateTauriConf(appDirectory, cfg)
   }
 

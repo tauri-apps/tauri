@@ -6,7 +6,7 @@
 
 use crate::{
   webview::{FileDropHandler, WebviewAttributes, WebviewRpcHandler},
-  Dispatch, Params, Runtime, WindowBuilder,
+  Dispatch, Runtime, WindowBuilder,
 };
 use serde::Serialize;
 use tauri_utils::config::WindowConfig;
@@ -32,7 +32,7 @@ pub enum WindowEvent {
   ///
   /// The parameter is true if the window has gained focus, and false if it has lost focus.
   Focused(bool),
-  ///The window's scale factor has changed.
+  /// The window's scale factor has changed.
   ///
   /// The following user actions can cause DPI changes:
   ///
@@ -51,41 +51,41 @@ pub enum WindowEvent {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MenuEvent {
-  pub menu_item_id: u32,
+  pub menu_item_id: u16,
 }
 
 /// A webview window that has yet to be built.
-pub struct PendingWindow<P: Params> {
+pub struct PendingWindow<R: Runtime> {
   /// The label that the window will be named.
-  pub label: P::Label,
+  pub label: String,
 
   /// The [`WindowBuilder`] that the window will be created with.
-  pub window_builder: <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
+  pub window_builder: <R::Dispatcher as Dispatch>::WindowBuilder,
 
   /// The [`WebviewAttributes`] that the webview will be created with.
   pub webview_attributes: WebviewAttributes,
 
   /// How to handle RPC calls on the webview window.
-  pub rpc_handler: Option<WebviewRpcHandler<P>>,
+  pub rpc_handler: Option<WebviewRpcHandler<R>>,
 
   /// How to handle a file dropping onto the webview window.
-  pub file_drop_handler: Option<FileDropHandler<P>>,
+  pub file_drop_handler: Option<FileDropHandler<R>>,
 
   /// The resolved URL to load on the webview.
   pub url: String,
 }
 
-impl<P: Params> PendingWindow<P> {
+impl<R: Runtime> PendingWindow<R> {
   /// Create a new [`PendingWindow`] with a label and starting url.
   pub fn new(
-    window_builder: <<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder,
+    window_builder: <R::Dispatcher as Dispatch>::WindowBuilder,
     webview_attributes: WebviewAttributes,
-    label: P::Label,
+    label: impl Into<String>,
   ) -> Self {
     Self {
       window_builder,
       webview_attributes,
-      label,
+      label: label.into(),
       rpc_handler: None,
       file_drop_handler: None,
       url: "tauri://localhost".to_string(),
@@ -96,15 +96,12 @@ impl<P: Params> PendingWindow<P> {
   pub fn with_config(
     window_config: WindowConfig,
     webview_attributes: WebviewAttributes,
-    label: P::Label,
+    label: impl Into<String>,
   ) -> Self {
     Self {
-      window_builder:
-        <<<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder>::with_config(
-          window_config,
-        ),
+      window_builder: <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(window_config),
       webview_attributes,
-      label,
+      label: label.into(),
       rpc_handler: None,
       file_drop_handler: None,
       url: "tauri://localhost".to_string(),
@@ -113,15 +110,15 @@ impl<P: Params> PendingWindow<P> {
 }
 
 /// A webview window that is not yet managed by Tauri.
-pub struct DetachedWindow<P: Params> {
+pub struct DetachedWindow<R: Runtime> {
   /// Name of the window
-  pub label: P::Label,
+  pub label: String,
 
   /// The [`Dispatch`](crate::Dispatch) associated with the window.
-  pub dispatcher: <P::Runtime as Runtime>::Dispatcher,
+  pub dispatcher: R::Dispatcher,
 }
 
-impl<P: Params> Clone for DetachedWindow<P> {
+impl<R: Runtime> Clone for DetachedWindow<R> {
   fn clone(&self) -> Self {
     Self {
       label: self.label.clone(),
@@ -130,15 +127,15 @@ impl<P: Params> Clone for DetachedWindow<P> {
   }
 }
 
-impl<P: Params> Hash for DetachedWindow<P> {
+impl<R: Runtime> Hash for DetachedWindow<R> {
   /// Only use the [`DetachedWindow`]'s label to represent its hash.
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.label.hash(state)
   }
 }
 
-impl<P: Params> Eq for DetachedWindow<P> {}
-impl<P: Params> PartialEq for DetachedWindow<P> {
+impl<R: Runtime> Eq for DetachedWindow<R> {}
+impl<R: Runtime> PartialEq for DetachedWindow<R> {
   /// Only use the [`DetachedWindow`]'s label to compare equality.
   fn eq(&self, other: &Self) -> bool {
     self.label.eq(&other.label)

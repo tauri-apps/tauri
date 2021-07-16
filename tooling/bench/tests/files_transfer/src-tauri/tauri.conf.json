@@ -3,7 +3,8 @@
     "distDir": "../public",
     "devPath": "../public",
     "beforeDevCommand": "",
-    "beforeBuildCommand": ""
+    "beforeBuildCommand": "",
+    "withGlobalTauri": true
   },
   "tauri": {
     "bundle": {
@@ -35,7 +36,10 @@
       }
     },
     "allowlist": {
-      "all": false
+      "all": false,
+      "fs": {
+        "readBinaryFile": true
+      }
     },
     "windows": [
       {
@@ -47,7 +51,7 @@
       }
     ],
     "security": {
-      "csp": "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline' 'self'"
+      "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self'"
     },
     "updater": {
       "active": false

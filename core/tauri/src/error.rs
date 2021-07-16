@@ -17,6 +17,9 @@ pub enum Error {
   /// Failed to create window.
   #[error("failed to create window")]
   CreateWindow,
+  /// Window label must be unique.
+  #[error("a window with label `{0}` already exists")]
+  WindowLabelAlreadyExists(String),
   /// Can't access webview dispatcher because the webview was closed or not found.
   #[error("webview not found: invalid label or it was closed")]
   WebviewNotFound,

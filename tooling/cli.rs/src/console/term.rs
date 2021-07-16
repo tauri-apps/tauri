@@ -87,7 +87,7 @@ impl<'a> TermFeatures<'a> {
   pub fn is_msys_tty(&self) -> bool {
     #[cfg(windows)]
     {
-      msys_tty_on(&self.0)
+      msys_tty_on(self.0)
     }
     #[cfg(not(windows))]
     {

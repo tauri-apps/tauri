@@ -1,5 +1,19 @@
 # Changelog
 
+## \[1.0.0-beta.3]
+
+- Detect ESM scripts and inject the invoke key directly instead of using an IIFE.
+  - Bumped due to a bump in tauri-codegen.
+  - [7765c7fa](https://www.github.com/tauri-apps/tauri/commit/7765c7fa281853ddfb26b6b17534df95eaede804) fix(core): invoke key injection on ES module, improve performance ([#2094](https://www.github.com/tauri-apps/tauri/pull/2094)) on 2021-06-27
+- Improve invoke key code injection performance time rewriting code at compile time.
+  - Bumped due to a bump in tauri-codegen.
+  - [7765c7fa](https://www.github.com/tauri-apps/tauri/commit/7765c7fa281853ddfb26b6b17534df95eaede804) fix(core): invoke key injection on ES module, improve performance ([#2094](https://www.github.com/tauri-apps/tauri/pull/2094)) on 2021-06-27
+
+## \[1.0.0-beta.2]
+
+- internal: Refactor all macro code that expects specific bindings to be passed Idents
+  - [39f8f269](https://www.github.com/tauri-apps/tauri/commit/39f8f269164d2fda3d5b614a193b12bb266e4b4b) refactor(macros): explicitly pass idents ([#1812](https://www.github.com/tauri-apps/tauri/pull/1812)) on 2021-05-13
+
 ## \[1.0.0-beta.1]
 
 - Fixes a name collision when the command function is named `invoke`.

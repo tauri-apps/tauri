@@ -84,7 +84,7 @@ impl<'a> Extract<'a> {
     let source = fs::File::open(self.source)?;
     let archive = self
       .archive_format
-      .unwrap_or_else(|| detect_archive_type(&self.source));
+      .unwrap_or_else(|| detect_archive_type(self.source));
 
     match archive {
       ArchiveFormat::Plain(compression) | ArchiveFormat::Tar(compression) => {
@@ -140,7 +140,7 @@ impl<'a> Extract<'a> {
     let source = fs::File::open(self.source)?;
     let archive = self
       .archive_format
-      .unwrap_or_else(|| detect_archive_type(&self.source));
+      .unwrap_or_else(|| detect_archive_type(self.source));
 
     match archive {
       ArchiveFormat::Plain(compression) | ArchiveFormat::Tar(compression) => {

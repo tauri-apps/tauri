@@ -39,7 +39,9 @@ fn main() {
 
   // write json's
   utils::write_json(
-    tauri_data.to_str().expect("Something wrong with tauri_data"),
+    tauri_data
+      .to_str()
+      .expect("Something wrong with tauri_data"),
     &serde_json::to_value(&all_data).expect("Unable to build final json (alls)"),
   )
   .expect(format!("Unable to write {:?}", tauri_data).as_str());

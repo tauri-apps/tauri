@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 /**
- * Send notifications to your user. Can also be used with the Notification Web API.
+ * Send toast notifications (brief auto-expiring OS window element) to your user.
+ * Can also be used with the Notification Web API.
  *
  * This package is also accessible with `window.__TAURI__.notification` when `tauri.conf.json > build > withGlobalTauri` is set to true.
  *

@@ -18,6 +18,8 @@ use std::{
   time::{SystemTime, UNIX_EPOCH},
 };
 
+#[cfg(target_os = "macos")]
+use std::fs::rename;
 #[cfg(not(target_os = "macos"))]
 use std::process::Command;
 
@@ -230,7 +232,7 @@ impl<'a> UpdateBuilder<'a> {
     } else {
       // we expect it to fail if we can't find the executable path
       // without this path we can't continue the update process.
-      env::current_exe().expect("Can't access current executable path.")
+      env::current_exe()?
     };
 
     // Did the target is provided by the config?
@@ -268,7 +270,7 @@ impl<'a> UpdateBuilder<'a> {
       // The main objective is if the update URL is defined via the Cargo.toml
       // the URL will be generated dynamicly
       let fixed_link = str::replace(
-        &str::replace(url, "{{current_version}}", &current_version),
+        &str::replace(url, "{{current_version}}", current_version),
         "{{target}}",
         &target,
       );
@@ -328,7 +330,7 @@ impl<'a> UpdateBuilder<'a> {
 
     // did the announced version is greated than our current one?
     let should_update =
-      version::is_greater(&current_version, &final_release.version).unwrap_or(false);
+      version::is_greater(current_version, &final_release.version).unwrap_or(false);
 
     // create our new updater
     Ok(Update {
@@ -457,7 +459,7 @@ impl Update {
       }
     }
     // extract using tauri api inside a tmp path
-    Extract::from_source(&tmp_archive_path).extract_into(&tmp_dir.path())?;
+    Extract::from_source(&tmp_archive_path).extract_into(tmp_dir.path())?;
     // Remove archive (not needed anymore)
     remove_file(&tmp_archive_path)?;
     // we copy the files depending of the operating system
@@ -479,17 +481,16 @@ impl Update {
 // We should have an AppImage already installed to be able to copy and install
 // the extract_path is the current AppImage path
 // tmp_dir is where our new AppImage is found
-
 #[cfg(target_os = "linux")]
 fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Result {
   // we delete our current AppImage (we'll create a new one later)
   remove_file(&extract_path)?;
 
   // In our tempdir we expect 1 directory (should be the <app>.app)
-  let paths = read_dir(&tmp_dir).unwrap();
+  let paths = read_dir(&tmp_dir)?;
 
   for path in paths {
-    let found_path = path.expect("Unable to extract").path();
+    let found_path = path?.path();
     // make sure it's our .AppImage
     if found_path.extension() == Some(OsStr::new("AppImage")) {
       // Simply overwrite our AppImage (we use the command)
@@ -522,16 +523,17 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Resu
 
 // ## EXE
 // Update server can provide a custom EXE (installer) who can run any task.
-
 #[cfg(target_os = "windows")]
 #[allow(clippy::unnecessary_wraps)]
 fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Result {
-  let paths = read_dir(&tmp_dir).unwrap();
+  use crate::api::file::Move;
+
+  let paths = read_dir(&tmp_dir)?;
   // This consumes the TempDir without deleting directory on the filesystem,
   // meaning that the directory will no longer be automatically deleted.
-  tmp_dir.into_path();
+  let tmp_path = tmp_dir.into_path();
   for path in paths {
-    let found_path = path.expect("Unable to extract").path();
+    let found_path = path?.path();
     // we support 2 type of files exe & msi for now
     // If it's an `exe` we expect an installer not a runtime.
     if found_path.extension() == Some(OsStr::new("exe")) {
@@ -542,6 +544,44 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
 
       exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
+      if let Some(bin_name) = std::env::current_exe()
+        .ok()
+        .and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
+        .and_then(|s| s.into_string().ok())
+      {
+        let product_name = bin_name.replace(".exe", "");
+
+        // Check if there is a task that enables the updater to skip the UAC prompt
+        let update_task_name = format!("Update {} - Skip UAC", product_name);
+        if let Ok(status) = Command::new("schtasks")
+          .arg("/QUERY")
+          .arg("/TN")
+          .arg(update_task_name.clone())
+          .status()
+        {
+          if status.success() {
+            // Rename the MSI to the match file name the Skip UAC task is expecting it to be
+            let temp_msi = tmp_path.with_file_name(bin_name).with_extension("msi");
+            Move::from_source(&found_path)
+              .to_dest(&temp_msi)
+              .expect("Unable to move update MSI");
+            let exit_status = Command::new("schtasks")
+              .arg("/RUN")
+              .arg("/TN")
+              .arg(update_task_name)
+              .status()
+              .expect("failed to start updater task");
+
+            if exit_status.success() {
+              // Successfully launched task that skips the UAC prompt
+              exit(0);
+            }
+          }
+
+          // Failed to run update task. Following UAC Path
+        }
+      }
+
       // restart should be handled by WIX as we exit the process
       Command::new("msiexec.exe")
         .arg("/i")
@@ -558,27 +598,57 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
   Ok(())
 }
 
-// MacOS
+// Get the current app name in the path
+// Example; `/Applications/updater-example.app/Contents/MacOS/updater-example`
+// Should return; `updater-example.app`
+#[cfg(target_os = "macos")]
+fn macos_app_name_in_path(extract_path: &PathBuf) -> String {
+  let components = extract_path.components();
+  let app_name = components.last().unwrap();
+  let app_name = app_name.as_os_str().to_str().unwrap();
+  app_name.to_string()
+}
 
+// MacOS
 // ### Expected structure:
 // ├── [AppName]_[version]_x64.app.tar.gz       # GZ generated by tauri-bundler
 // │   └──[AppName].app                         # Main application
 // │      └── Contents                          # Application contents...
 // │          └── ...
 // └── ...
-
 #[cfg(target_os = "macos")]
 fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Result {
   // In our tempdir we expect 1 directory (should be the <app>.app)
-  let paths = read_dir(&tmp_dir).unwrap();
+  let paths = read_dir(&tmp_dir)?;
+
+  // current app name in /Applications/<app>.app
+  let app_name = macos_app_name_in_path(&extract_path);
 
   for path in paths {
-    let found_path = path.expect("Unable to extract").path();
+    let mut found_path = path?.path();
     // make sure it's our .app
     if found_path.extension() == Some(OsStr::new("app")) {
-      // Walk the temp dir and copy all files by replacing existing files only
-      // and creating directories if needed
-      Move::from_source(&found_path).walk_to_dest(&extract_path)?;
+      let found_app_name = macos_app_name_in_path(&found_path);
+      // make sure the app name in the archive matche the installed app name on path
+      if found_app_name != app_name {
+        // we need to replace the app name in the updater archive to match
+        // installed app name
+        let new_path = found_path.parent().unwrap().join(app_name);
+        rename(&found_path, &new_path)?;
+
+        found_path = new_path;
+      }
+
+      let sandbox_app_path = tempfile::Builder::new()
+        .prefix("tauri_current_app_sandbox")
+        .tempdir()?;
+
+      // Replace the whole application to make sure the
+      // code signature is following
+      Move::from_source(&found_path)
+        .replace_using_temp(sandbox_app_path.path())
+        .to_dest(&extract_path)?;
+
       // early finish we have everything we need here
       return Ok(());
     }
@@ -619,7 +689,7 @@ pub fn extract_path_from_executable(executable_path: &Path) -> PathBuf {
     .expect("Can't determine extract path");
 
   // MacOS example binary is in /Applications/TestApp.app/Contents/MacOS/myApp
-  // We need to get /Applications/TestApp.app
+  // We need to get /Applications/<app>.app
   // todo(lemarier): Need a better way here
   // Maybe we could search for <*.app> to get the right path
   #[cfg(target_os = "macos")]
@@ -674,7 +744,7 @@ fn default_archive_name_by_os() -> String {
 // Convert base64 to string and prevent failing
 fn base64_to_string(base64_string: &str) -> Result<String> {
   let decoded_string = &decode(base64_string.to_owned())?;
-  let result = from_utf8(&decoded_string)?.to_string();
+  let result = from_utf8(decoded_string)?.to_string();
   Ok(result)
 }
 
@@ -691,22 +761,16 @@ pub fn verify_signature(
   let public_key = PublicKey::decode(pub_key_decoded)?;
   let signature_base64_decoded = base64_to_string(&release_signature)?;
 
-  let signature =
-    Signature::decode(&signature_base64_decoded).expect("Something wrong with the signature");
+  let signature = Signature::decode(&signature_base64_decoded)?;
 
   // We need to open the file and extract the datas to make sure its not corrupted
-  let file_open = OpenOptions::new()
-    .read(true)
-    .open(&archive_path)
-    .expect("Can't open our archive to validate signature");
+  let file_open = OpenOptions::new().read(true).open(&archive_path)?;
 
   let mut file_buff: BufReader<File> = BufReader::new(file_open);
 
   // read all bytes since EOF in the buffer
   let mut data = vec![];
-  file_buff
-    .read_to_end(&mut data)
-    .expect("Can't read buffer to validate signature");
+  file_buff.read_to_end(&mut data)?;
 
   // Validate signature or bail out
   public_key.verify(&data, &signature)?;
@@ -777,6 +841,17 @@ mod test {
       "date": "2020-02-20T15:41:00Z",
       "download_link": "https://github.com/lemarier/tauri-test/releases/download/v0.0.1/update3.tar.gz"
     }"#.into()
+  }
+
+  #[cfg(target_os = "macos")]
+  #[test]
+  fn test_app_name_in_path() {
+    let executable = extract_path_from_executable(Path::new(
+      "/Applications/updater-example.app/Contents/MacOS/updater-example",
+    ));
+    let app_name = macos_app_name_in_path(&executable);
+    assert!(executable.ends_with("updater-example.app"));
+    assert_eq!(app_name, "updater-example.app".to_string());
   }
 
   #[test]
@@ -1020,7 +1095,7 @@ mod test {
       .prefix("tauri_updater_test")
       .tempdir_in(parent_path);
 
-    assert_eq!(tmp_dir.is_ok(), true);
+    assert!(tmp_dir.is_ok());
     let tmp_dir_unwrap = tmp_dir.expect("Can't find tmp_dir");
     let tmp_dir_path = tmp_dir_unwrap.path();
 
@@ -1035,24 +1110,24 @@ mod test {
       .build());
 
     // make sure the process worked
-    assert_eq!(check_update.is_ok(), true);
+    assert!(check_update.is_ok());
 
     // unwrap our results
     let updater = check_update.expect("Can't check remote update");
 
     // make sure we need to update
-    assert_eq!(updater.should_update, true);
+    assert!(updater.should_update);
     // make sure we can read announced version
     assert_eq!(updater.version, "2.0.1");
 
     // download, install and validate signature
     let install_process = block!(updater.download_and_install(Some(pubkey)));
-    assert_eq!(install_process.is_ok(), true);
+    assert!(install_process.is_ok());
 
     // make sure the extraction went well (it should have skipped the main app.app folder)
     // as we can't extract in /Applications directly
     let bin_file = tmp_dir_path.join("Contents").join("MacOS").join("app");
     let bin_file_exist = Path::new(&bin_file).exists();
-    assert_eq!(bin_file_exist, true);
+    assert!(bin_file_exist);
   }
 }

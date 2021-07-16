@@ -12,7 +12,7 @@
     "directory": "tooling/cli.js"
   },
   "scripts": {
-    "format": "prettier --write --end-of-line=auto \"./**/*.{js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
+    "format": "prettier --write --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
     "postinstall": "husky install"
   },
   "devDependencies": {

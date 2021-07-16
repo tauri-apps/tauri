@@ -79,6 +79,8 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
     }, true)
 
     window.rpc.notify(cmd, {
+      // @ts-expect-error the `__TAURI_INVOKE_KEY__` variable is injected at runtime by Tauri
+      __invokeKey: __TAURI_INVOKE_KEY__,
       callback,
       error,
       ...args
@@ -86,6 +88,20 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
   })
 }
 
+/**
+ * Convert a device file path to an URL that can be loaded by the webview.
+ * Note that `asset:` must be allowed on the `csp` value configured on `tauri.conf.json`.
+ *
+ * @param  filePath the file path. On Windows, the drive name must be omitted, i.e. using `/Users/user/file.png` instead of `C:/Users/user/file.png`.
+ *
+ * @return the URL that can be used as source on the webview
+ */
+function convertFileSrc(filePath: string): string {
+  return navigator.userAgent.includes('Windows')
+    ? `https://custom.protocol.asset_${filePath}`
+    : `asset://${filePath}`
+}
+
 export type { InvokeArgs }
 
-export { transformCallback, invoke }
+export { transformCallback, invoke, convertFileSrc }

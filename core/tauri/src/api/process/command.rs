@@ -7,7 +7,8 @@ use std::{
   io::{BufRead, BufReader, Write},
   path::PathBuf,
   process::{Command as StdCommand, Stdio},
-  sync::Arc,
+  sync::{Arc, Mutex, RwLock},
+  thread::spawn,
 };
 
 #[cfg(unix)]
@@ -18,11 +19,27 @@ use std::os::windows::process::CommandExt;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-use crate::async_runtime::{channel, spawn, Receiver, RwLock};
+use crate::async_runtime::{channel, spawn as spawn_task, Receiver};
 use os_pipe::{pipe, PipeWriter};
 use serde::Serialize;
 use shared_child::SharedChild;
 use tauri_utils::platform;
+
+type ChildStore = Arc<Mutex<HashMap<u32, Arc<SharedChild>>>>;
+
+fn commands() -> &'static ChildStore {
+  use once_cell::sync::Lazy;
+  static STORE: Lazy<ChildStore> = Lazy::new(Default::default);
+  &STORE
+}
+
+/// Kill all child process created with [`Command`].
+/// By default it's called before the [`crate::App`] exits.
+pub fn kill_children() {
+  for child in commands().lock().unwrap().values() {
+    let _ = child.kill();
+  }
+}
 
 /// Payload for the `Terminated` command event.
 #[derive(Debug, Clone, Serialize)]
@@ -220,50 +237,61 @@ impl Command {
     let child_ = child.clone();
     let guard = Arc::new(RwLock::new(()));
 
+    commands().lock().unwrap().insert(child.id(), child.clone());
+
     let (tx, rx) = channel(1);
 
     let tx_ = tx.clone();
     let guard_ = guard.clone();
-    spawn(async move {
-      let _lock = guard_.read().await;
+    spawn(move || {
+      let _lock = guard_.read().unwrap();
       let reader = BufReader::new(stdout_reader);
       for line in reader.lines() {
-        let _ = match line {
-          Ok(line) => tx_.send(CommandEvent::Stdout(line)).await,
-          Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
-        };
+        let tx_ = tx_.clone();
+        spawn_task(async move {
+          let _ = match line {
+            Ok(line) => tx_.send(CommandEvent::Stdout(line)).await,
+            Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
+          };
+        });
       }
     });
 
     let tx_ = tx.clone();
     let guard_ = guard.clone();
-    spawn(async move {
-      let _lock = guard_.read().await;
+    spawn(move || {
+      let _lock = guard_.read().unwrap();
       let reader = BufReader::new(stderr_reader);
       for line in reader.lines() {
-        let _ = match line {
-          Ok(line) => tx_.send(CommandEvent::Stderr(line)).await,
-          Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
-        };
+        let tx_ = tx_.clone();
+        spawn_task(async move {
+          let _ = match line {
+            Ok(line) => tx_.send(CommandEvent::Stderr(line)).await,
+            Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
+          };
+        });
       }
     });
 
-    spawn(async move {
+    spawn(move || {
       let _ = match child_.wait() {
         Ok(status) => {
-          guard.write().await;
-          tx.send(CommandEvent::Terminated(TerminatedPayload {
-            code: status.code(),
-            #[cfg(windows)]
-            signal: None,
-            #[cfg(unix)]
-            signal: status.signal(),
-          }))
-          .await
+          let _l = guard.write().unwrap();
+          commands().lock().unwrap().remove(&child_.id());
+          spawn_task(async move {
+            tx.send(CommandEvent::Terminated(TerminatedPayload {
+              code: status.code(),
+              #[cfg(windows)]
+              signal: None,
+              #[cfg(unix)]
+              signal: status.signal(),
+            }))
+            .await
+          });
         }
         Err(e) => {
-          guard.write().await;
-          tx.send(CommandEvent::Error(e.to_string())).await
+          let _l = guard.write().unwrap();
+          spawn_task(async move { tx.send(CommandEvent::Error(e.to_string())).await });
         }
       };
     });

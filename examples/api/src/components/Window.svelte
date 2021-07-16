@@ -1,26 +1,13 @@
 <script>
-  import { appWindow, WebviewWindow, LogicalSize, LogicalPosition } from "@tauri-apps/api/window";
+  import { appWindow, WebviewWindow, LogicalSize, LogicalPosition, UserAttentionType, getCurrent } from "@tauri-apps/api/window";
   import { open as openDialog } from "@tauri-apps/api/dialog";
   import { open } from "@tauri-apps/api/shell";
 
-  const {
-    setResizable,
-    setTitle,
-    maximize,
-    unmaximize,
-    minimize,
-    unminimize,
-    show,
-    hide,
-    setDecorations,
-    setAlwaysOnTop,
-    setSize,
-    setMinSize,
-    setMaxSize,
-    setPosition,
-    setFullscreen,
-    setIcon,
-  } = appWindow;
+  window.UserAttentionType = UserAttentionType;
+  let selectedWindow = getCurrent().label;
+  const windowMap = {
+    [selectedWindow]: appWindow
+  }
 
   export let onMessage;
 
@@ -47,45 +34,59 @@
   }
 
   function setTitle_() {
-    setTitle(windowTitle);
+    windowMap[selectedWindow].setTitle(windowTitle);
   }
 
   function hide_() {
-    hide();
-    setTimeout(show, 2000);
+    windowMap[selectedWindow].hide();
+    setTimeout(windowMap[selectedWindow].show, 2000);
   }
 
   function minimize_() {
-    minimize();
-    setTimeout(unminimize, 2000);
+    windowMap[selectedWindow].minimize();
+    setTimeout(windowMap[selectedWindow].unminimize, 2000);
   }
 
   function getIcon() {
     openDialog({
       multiple: false,
-    }).then(setIcon);
+    }).then(windowMap[selectedWindow].setIcon);
   }
 
   function createWindow() {
-    const webview = new WebviewWindow(Math.random().toString());
+    const label = Math.random().toString();
+    const webview = new WebviewWindow(label);
+    windowMap[label] = webview;
     webview.once('tauri://error', function () {
       onMessage("Error creating new webview")
     })
   }
 
-  $: setResizable(resizable);
-  $: maximized ? maximize() : unmaximize();
-  $: setDecorations(decorations);
-  $: setAlwaysOnTop(alwaysOnTop);
-  $: setFullscreen(fullscreen);
+  async function requestUserAttention_() {
+    await windowMap[selectedWindow].minimize();
+    await windowMap[selectedWindow].requestUserAttention(UserAttentionType.Critical);
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    await windowMap[selectedWindow].requestUserAttention(null);
+  }
 
-  $: setSize(new LogicalSize(width, height));
-  $: minWidth && minHeight ? setMinSize(new LogicalSize(minWidth, minHeight)) : setMinSize(null);
-  $: maxWidth && maxHeight ? setMaxSize(new LogicalSize(maxWidth, maxHeight)) : setMaxSize(null);
-  $: setPosition(new LogicalPosition(x, y));
+  $: windowMap[selectedWindow].setResizable(resizable);
+  $: maximized ? windowMap[selectedWindow].maximize() : windowMap[selectedWindow].unmaximize();
+  $: windowMap[selectedWindow].setDecorations(decorations);
+  $: windowMap[selectedWindow].setAlwaysOnTop(alwaysOnTop);
+  $: windowMap[selectedWindow].setFullscreen(fullscreen);
+
+  $: windowMap[selectedWindow].setSize(new LogicalSize(width, height));
+  $: minWidth && minHeight ? windowMap[selectedWindow].setMinSize(new LogicalSize(minWidth, minHeight)) : windowMap[selectedWindow].setMinSize(null);
+  $: maxWidth && maxHeight ? windowMap[selectedWindow].setMaxSize(new LogicalSize(maxWidth, maxHeight)) : windowMap[selectedWindow].setMaxSize(null);
+  $: windowMap[selectedWindow].setPosition(new LogicalPosition(x, y));
 </script>
 
 <div class="flex col">
+  <select class="button" bind:value={selectedWindow}>
+      {#each Object.keys(windowMap) as label}
+        <option value={label}>{label}</option>
+      {/each}
+  </select>
   <div>
     <label>
       <input type="checkbox" bind:checked={resizable} />
@@ -95,6 +96,9 @@
       <input type="checkbox" bind:checked={maximized} />
       Maximize
     </label>
+    <button title="Unminimizes after 2 seconds" on:click={() => windowMap[selectedWindow].center()}>
+      Center
+    </button>
     <button title="Unminimizes after 2 seconds" on:click={minimize_}>
       Minimize
     </button>
@@ -175,6 +179,7 @@
   <input id="url" bind:value={urlValue} />
   <button class="button" id="open-url"> Open URL </button>
 </form>
+<button class="button" on:click={requestUserAttention_} title="Minimizes the window, requests attention for 3s and then resets it">Request attention</button>
 <button class="button" on:click={createWindow}>New window</button>
 
 <style>

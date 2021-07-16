@@ -2,15 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(
+    // Clippy bug: https://github.com/rust-lang/rust-clippy/issues/7422
+    clippy::nonstandard_macro_braces,
+)]
+
 pub use anyhow::Result;
 use clap::{crate_version, load_yaml, App, AppSettings, ArgMatches};
 use dialoguer::Input;
+use serde::Deserialize;
 
 mod build;
 mod dev;
 mod helpers;
 mod info;
 mod init;
+mod interface;
 mod sign;
 
 // temporary fork from https://github.com/mitsuhiko/console until 0.14.1+ release
@@ -20,17 +27,34 @@ mod console;
 #[allow(dead_code)]
 mod dialoguer;
 
-pub use helpers::Logger;
+use helpers::framework::{infer_from_package_json as infer_framework, Framework};
+
+use std::{env::current_dir, fs::read_to_string, path::PathBuf};
+
+#[derive(Deserialize)]
+struct PackageJson {
+  name: Option<String>,
+  product_name: Option<String>,
+}
+
+#[derive(Default)]
+struct InitDefaults {
+  app_name: Option<String>,
+  framework: Option<Framework>,
+}
 
 macro_rules! value_or_prompt {
-  ($init_runner: ident, $setter_fn: ident, $value: ident, $ci: ident, $prompt_message: expr) => {{
+  ($init_runner: ident, $setter_fn: ident, $value: ident, $ci: ident, $prompt_message: expr, $prompt_default: expr) => {{
     let mut init_runner = $init_runner;
     if let Some(value) = $value {
       init_runner = init_runner.$setter_fn(value);
     } else if !$ci {
-      let input = Input::<String>::new()
-        .with_prompt($prompt_message)
-        .interact_text()?;
+      let mut builder = Input::<String>::new();
+      builder.with_prompt($prompt_message);
+      if let Some(default) = $prompt_default {
+        builder.default(default);
+      }
+      let input = builder.interact_text()?;
       init_runner = init_runner.$setter_fn(input);
     }
     init_runner
@@ -51,39 +75,60 @@ fn init_command(matches: &ArgMatches) -> Result<()> {
   if force {
     init_runner = init_runner.force();
   }
-  if let Some(directory) = directory {
+  let base_directory = if let Some(directory) = directory {
     init_runner = init_runner.directory(directory);
-  }
+    PathBuf::from(directory)
+  } else {
+    current_dir().expect("failed to read cwd")
+  };
   if let Some(tauri_path) = tauri_path {
     init_runner = init_runner.tauri_path(tauri_path);
   }
+
+  let package_json_path = base_directory.join("package.json");
+  let init_defaults = if package_json_path.exists() {
+    let package_json_text = read_to_string(package_json_path)?;
+    let package_json: PackageJson = serde_json::from_str(&package_json_text)?;
+    let (framework, _) = infer_framework(&package_json_text);
+    InitDefaults {
+      app_name: package_json.product_name.or(package_json.name),
+      framework,
+    }
+  } else {
+    Default::default()
+  };
+
   init_runner = value_or_prompt!(
     init_runner,
     app_name,
     app_name,
     ci,
-    "What is your app name?"
+    "What is your app name?",
+    init_defaults.app_name.clone()
   );
   init_runner = value_or_prompt!(
     init_runner,
     window_title,
     window_title,
     ci,
-    "What should the window title be?"
+    "What should the window title be?",
+    init_defaults.app_name.clone()
   );
   init_runner = value_or_prompt!(
     init_runner,
     dist_dir,
     dist_dir,
     ci,
-    r#"Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri" folder that will be created?"#
+    r#"Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri" folder that will be created?"#,
+    init_defaults.framework.as_ref().map(|f| f.dist_dir())
   );
   init_runner = value_or_prompt!(
     init_runner,
     dev_path,
     dev_path,
     ci,
-    "What is the url of your dev server?"
+    "What is the url of your dev server?",
+    init_defaults.framework.map(|f| f.dev_path())
   );
 
   init_runner.run()
@@ -102,11 +147,13 @@ fn dev_command(matches: &ArgMatches) -> Result<()> {
     .values_of("args")
     .map(|a| a.into_iter().map(|v| v.to_string()).collect())
     .unwrap_or_default();
+  let release_mode = matches.is_present("release");
 
   let mut dev_runner = dev::Dev::new()
     .exit_on_panic(exit_on_panic)
     .args(args)
-    .features(features);
+    .features(features)
+    .release_mode(release_mode);
 
   if let Some(runner) = runner {
     dev_runner = dev_runner.runner(runner.to_string());
@@ -228,15 +275,15 @@ fn main() -> Result<()> {
   let matches = app_matches.subcommand_matches("tauri").unwrap();
 
   if let Some(matches) = matches.subcommand_matches("init") {
-    init_command(&matches)?;
+    init_command(matches)?;
   } else if let Some(matches) = matches.subcommand_matches("dev") {
-    dev_command(&matches)?;
+    dev_command(matches)?;
   } else if let Some(matches) = matches.subcommand_matches("build") {
-    build_command(&matches)?;
+    build_command(matches)?;
   } else if matches.subcommand_matches("info").is_some() {
     info_command()?;
   } else if let Some(matches) = matches.subcommand_matches("sign") {
-    sign_command(&matches)?;
+    sign_command(matches)?;
   }
 
   Ok(())

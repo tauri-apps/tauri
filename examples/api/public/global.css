@@ -5,16 +5,16 @@
 }
 
 body {
-  background: #18191a;
+  background: rgb(24, 25, 26, 0.8);
 }
 
 .noselect {
   -webkit-touch-callout: none;
-    -webkit-user-select: none;
-     -khtml-user-select: none;
-       -moz-user-select: none;
-        -ms-user-select: none;
-            user-select: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 .logo-container {
@@ -30,24 +30,18 @@ body {
 }
 
 .logo {
-  width: 32px;
-  height: 32px;
   cursor: pointer;
-  position: fixed;
-  z-index: 10;
-  top: 7px;
-  right: 10px;
 }
 
 #response {
-  height:100%;
+  height: 100%;
   max-height: 100%;
   margin-top: 1em;
-  background: rgb(36, 37, 38);
+  background: rgb(36, 37, 38, 0.8);
   color: #f0f4f5;
   border: solid 1px rgba(255, 255, 255, 0.055);
   box-shadow: 0 1px 5px 0 rgb(0 0 0 / 20%);
-  font-family: "Courier New", Courier, monospace;
+  font-family: 'Courier New', Courier, monospace;
   font-size: 12px;
   word-wrap: break-word;
   padding: 0px 15px;
@@ -55,8 +49,9 @@ body {
 }
 
 input,
-select, textarea {
-  background: rgb(53, 53, 53);
+select,
+textarea {
+  background: rgb(53, 53, 53, 0.9);
   color: #fff;
   font-family: system-ui, sans-serif;
   border: none !important;
@@ -85,7 +80,7 @@ button:active {
 .button {
   border: 0;
   border-radius: 0.25rem;
-  background: #67D6ED;
+  background: #67d6ed;
   color: rgb(0, 0, 0);
   font-family: system-ui, sans-serif;
   font-size: 1rem;
@@ -98,17 +93,6 @@ button:active {
   transition: 0.2s ease;
 }
 
-.bottom {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  text-align: center;
-  width: 100%;
-  padding: 5px;
-  background: #333;
-  color: #eef;
-}
-
 .dark-link {
   color: white;
   text-decoration: none !important;
@@ -119,30 +103,30 @@ button:active {
   box-shadow: 0 1px 5px 0 rgb(0 0 0 / 20%);
 }
 
-.dark-link:hover{
+.dark-link:hover {
   background: #3d392a;
 }
 
-.nv{
+.nv {
   color: #fff;
   cursor: pointer;
   transition: 0.25s ease;
 }
 
-.nv:hover{
+.nv:hover {
   color: #ffe07a;
   padding-left: 8px;
   border-left: solid 5px #ffe07a;
 }
 
-.nv_selected{
-  color: #67D6ED;
+.nv_selected {
+  color: #67d6ed;
   padding-left: 8px;
-  border-left: solid 5px #67D6ED;
+  border-left: solid 5px #67d6ed;
 }
 
 .content {
-  background: rgb(36, 37, 38);
+  background: rgb(36, 37, 38, 0.5);
   color: #f0f4f5;
   padding: 20px;
   width: 100%;
@@ -150,18 +134,18 @@ button:active {
   box-shadow: 0 1px 5px 0 rgb(0 0 0 / 20%);
 }
 
-main{
+main {
   height: 100%;
 }
 
-[type="radio"]:checked ~ label {
+[type='radio']:checked ~ label {
   background: rgb(36, 37, 38);
-  color: #67D6ED;
+  color: #67d6ed;
   border-bottom: 1px solid transparent;
   z-index: 2;
 }
 
-[type="radio"]:checked ~ label ~ .content {
+[type='radio']:checked ~ label ~ .content {
   z-index: 1;
 }
 
@@ -177,7 +161,7 @@ main{
   flex-direction: column;
 }
 
-.just-around{
+.just-around {
   justify-content: space-between;
 }
 

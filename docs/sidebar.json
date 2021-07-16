@@ -1,0 +1,106 @@
+[
+  {
+    "label": "Getting started",
+    "type": "category",
+    "items": [
+      "getting-started/intro",
+      "getting-started/setup-linux",
+      "getting-started/setup-macos",
+      "getting-started/setup-windows"
+    ]
+  },
+  {
+    "label": "Usage",
+    "type": "category",
+    "items": [
+      "usage/intro",
+      {
+        "label": "Development",
+        "type": "category",
+        "items": [
+          "usage/development/integration",
+          "usage/development/development",
+          "usage/development/debugging",
+          "usage/development/publishing",
+          "usage/development/updating"
+        ]
+      },
+      {
+        "label": "Patterns",
+        "type": "category",
+        "items": [
+          "usage/patterns/about-patterns",
+          "usage/patterns/hermit",
+          "usage/patterns/bridge",
+          "usage/patterns/cloudish",
+          "usage/patterns/cloudbridge",
+          "usage/patterns/lockdown",
+          "usage/patterns/multiwin",
+          "usage/patterns/glui"
+        ]
+      },
+      {
+        "label": "Guides",
+        "type": "category",
+        "items": [
+          "usage/guides/migration",
+          {
+            "label": "Bundler",
+            "type": "category",
+            "items": [
+              "usage/guides/bundler/introduction",
+              "usage/guides/bundler/anti-bloat",
+              "usage/guides/bundler/sidecar",
+              "usage/guides/bundler/debian"
+            ]
+          },
+          "usage/guides/cli",
+          "usage/guides/command",
+          "usage/guides/events",
+          "usage/guides/plugin",
+          "usage/guides/updater",
+          {
+            "label": "Visual",
+            "type": "category",
+            "items": [
+              "usage/guides/visual/icons",
+              "usage/guides/visual/splashscreen",
+              "usage/guides/visual/window-customization",
+              "usage/guides/visual/menu",
+              "usage/guides/visual/system-tray"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "CI/CD",
+        "type": "category",
+        "items": ["usage/ci-cd/workflow", "usage/ci-cd/cross-platform"]
+      },
+      "usage/contributor-guide"
+    ]
+  },
+  {
+    "label": "Tips",
+    "type": "category",
+    "items": []
+  },
+  {
+    "label": "API",
+    "type": "category",
+    "items": [
+      "api/config",
+      "api/cli",
+      {
+        "label": "Rust",
+        "type": "category",
+        "items": []
+      },
+      {
+        "label": "JavaScript",
+        "type": "category",
+        "items": []
+      }
+    ]
+  }
+]

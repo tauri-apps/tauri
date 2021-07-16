@@ -29,16 +29,13 @@ fn get_all_benchmarks() -> Vec<(String, String)> {
         utils::get_target()
       ),
     ),
-    /*
-    FIXME: require next release of tao
     (
       "tauri_3mb_transfer".into(),
       format!(
-        "tests/target/{}/release/tauri_3mb_transfer",
+        "tests/target/{}/release/bench_files_transfer",
         utils::get_target()
       ),
     ),
-    */
   ]
 }
 
@@ -250,6 +247,16 @@ fn run_exec_time(target_dir: &Path) -> Result<HashMap<String, HashMap<String, f6
 }
 
 fn main() -> Result<()> {
+  // download big files if not present
+  let json_3mb = utils::home_path().join(".tauri_3mb.json");
+
+  if !json_3mb.exists() {
+    utils::download_file(
+      "https://github.com/lemarier/tauri-test/releases/download/v2.0.0/json_3mb.json",
+      json_3mb,
+    );
+  }
+
   println!("Starting tauri benchmark");
 
   let target_dir = utils::target_dir();

@@ -13,27 +13,30 @@
             Id="*"
             Name="{{{product_name}}}"
             UpgradeCode="{{{upgrade_code}}}"
-            Language="1033"
-            Codepage="1252"
+            Language="{{language_id}}"
+            Codepage="{{ascii_codepage}}"
             Manufacturer="{{{manufacturer}}}"
             Version="{{{version}}}">
 
         <Package Id="*"
                  Keywords="Installer"
                  InstallerVersion="450"
-                 Languages="1033"
+                 Languages="{{language_id}}"
                  Compressed="yes"
                  InstallScope="perMachine"
-                 SummaryCodepage="1252"/>
+                 SummaryCodepage="{{ascii_codepage}}"/>
 
          <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed."
                   MigrateFeatures="yes" />
 
 
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
-        
+
         <WixVariable Id="WixUIBannerBmp" Value="{{{icon_path}}}" />
-        
+        {{#if license}}
+        <WixVariable Id="WixUILicenseRtf" Value="{{{license}}}" />
+        {{/if}}
+
         <Icon Id="ProductIcon" SourceFile="{{{icon_path}}}"/>
         <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
         <Property Id="ARPNOREPAIR" Value="yes" Secure="yes" />      <!-- Remove repair -->
@@ -42,6 +45,7 @@
         <UI>
             <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
 
+            {{#unless license}}
             <!-- Skip license dialog -->
             <Publish Dialog="WelcomeDlg"
                      Control="Next"
@@ -53,11 +57,19 @@
                      Event="NewDialog"
                      Value="WelcomeDlg"
                      Order="2">1</Publish>
+            {{/unless}}
         </UI>
 
         <UIRef Id="WixUI_InstallDir" />
 
         <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="DesktopFolder" Name="Desktop">
+                <Component Id="ApplicationShortcutDesktop" Guid="*">
+                    <Shortcut Id="ApplicationDesktopShortcut" Name="{{{product_name}}}" Description="Runs {{{product_name}}}" Target="[!Path]" WorkingDirectory="INSTALLDIR" />
+                    <RemoveFolder Id="DesktopFolder" On="uninstall" />
+                    <RegistryValue Root="HKCU" Key="Software\{{{product_name}}}" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+                </Component>
+            </Directory>
             <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">
                 <Directory Id="INSTALLDIR" Name="{{{product_name}}}"/>
             </Directory>
@@ -75,9 +87,16 @@
                 <File Id="Path_{{ bin.id }}" Source="{{bin.path}}" KeyPath="yes"/>
             </Component>
             {{/each~}}
+            {{#if enable_elevated_update_task}}
+            <Component Id="UpdateTask" Guid="C492327D-9720-4CD5-8DB8-F09082AF44BE" Win64="$(var.Win64)">
+                <File Id="UpdateTask" Source="update.xml" KeyPath="yes" Checksum="yes"/>
+            </Component>
+            <Component Id="UpdateTaskInstaller" Guid="011F25ED-9BE3-50A7-9E9B-3519ED2B9932" Win64="$(var.Win64)">
+                <File Id="UpdateTaskInstaller" Source="install-task.ps1" KeyPath="yes" Checksum="yes"/>
+            </Component>
+            {{/if}}
             {{{resources}}}
-            <Component Id="CMP_ReadFileShortcut"
-                Guid="1AF06B42-CD42-4AED-959F-36DB5E512046">
+            <Component Id="CMP_UninstallShortcut" Guid="*">
 
                 <Shortcut Id="UninstallShortcut"
 						  Name="Uninstall {{{product_name}}}"
@@ -98,8 +117,8 @@
         </DirectoryRef>
 
         <DirectoryRef Id="ApplicationProgramsFolder">
-            <Component Id="ApplicationShortcut" Guid="81ccebd8-b769-4bed-bdbd-0340f9f7cad1">
-                <Shortcut Id="ApplicationStartMenuShortcut" 
+            <Component Id="ApplicationShortcut" Guid="*">
+                <Shortcut Id="ApplicationStartMenuShortcut"
                     Name="{{{product_name}}}"
                     Description="Runs {{{product_name}}}"
                     Target="[!Path]"
@@ -136,12 +155,18 @@
                 <ComponentRef Id="{{ resource_file_id }}"/>
             {{/each~}}
 
+            {{#if enable_elevated_update_task}}
+                <ComponentRef Id="UpdateTask" />
+                <ComponentRef Id="UpdateTaskInstaller" />
+            {{/if}}
+
             <Feature Id="ShortcutsFeature"
                 Title="Shortcuts"
                 Level="1">
                 <ComponentRef Id="Path"/>
-                <ComponentRef Id="CMP_ReadFileShortcut" />
+                <ComponentRef Id="CMP_UninstallShortcut" />
                 <ComponentRef Id="ApplicationShortcut" />
+                <ComponentRef Id="ApplicationShortcutDesktop" />
             </Feature>
 
             <Feature
@@ -180,7 +205,7 @@
         <Property Id="WVRTINSTALLED">
             <RegistrySearch Id="WVRTInstalled" Root="HKLM" Key="SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" Name="pv" Type="raw" Win64="no"/>
         </Property>
-        <CustomAction Id='DownloadAndInvokeBootstrapper' Directory="INSTALLDIR" Execute="deferred" ExeCommand='powershell.exe -windowstyle hidden Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "$env:TEMP\MicrosoftEdgeWebview2Setup.exe" ; &amp; $env:TEMP\MicrosoftEdgeWebview2Setup.exe /install' Return='check'/>
+        <CustomAction Id='DownloadAndInvokeBootstrapper' Directory="INSTALLDIR" Execute="deferred" ExeCommand='powershell.exe -NoProfile -windowstyle hidden Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "$env:TEMP\MicrosoftEdgeWebview2Setup.exe" ; &amp; $env:TEMP\MicrosoftEdgeWebview2Setup.exe /install' Return='check'/>
         <InstallExecuteSequence>
             <Custom Action='DownloadAndInvokeBootstrapper' Before='InstallFinalize'>
                 <![CDATA[NOT(REMOVE OR WVRTINSTALLED)]]>
@@ -188,6 +213,35 @@
         </InstallExecuteSequence>
         {{/if}}
 
-        <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" After="CostFinalize"/>        
+        {{#if enable_elevated_update_task}}
+        <!-- Install an elevated update task within Windows Task Scheduler -->
+        <CustomAction
+            Id="CreateUpdateTask"
+            Return="check"
+            Directory="INSTALLDIR"
+            Execute="commit"
+            Impersonate="yes"
+            ExeCommand="powershell.exe -WindowStyle hidden .\install-task.ps1" />
+        <InstallExecuteSequence>
+            <Custom Action='CreateUpdateTask' Before='InstallFinalize'>
+                NOT(REMOVE)
+            </Custom>
+        </InstallExecuteSequence>
+        <!-- Remove elevated update task during uninstall -->
+        <CustomAction
+            Id="DeleteUpdateTask"
+            Return="check"
+            Directory="INSTALLDIR"
+            Execute="deferred"
+            Impersonate="no"
+            ExeCommand="powershell.exe -WindowStyle hidden &quot;schtasks /DELETE /TN 'Update {{{product_name}}} - Skip UAC' /F&quot;" />
+        <InstallExecuteSequence>
+            <Custom Action="DeleteUpdateTask" Before='InstallFinalize'>
+                (REMOVE = "ALL") AND NOT UPGRADINGPRODUCTCODE
+            </Custom>
+        </InstallExecuteSequence>
+        {{/if}}
+
+        <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" After="CostFinalize"/>
     </Product>
 </Wix>

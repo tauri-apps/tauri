@@ -16,6 +16,7 @@ pub use config_definition::*;
 impl From<WixConfig> for tauri_bundler::WixSettings {
   fn from(config: WixConfig) -> tauri_bundler::WixSettings {
     tauri_bundler::WixSettings {
+      language: config.language,
       template: config.template,
       fragment_paths: config.fragment_paths,
       component_group_refs: config.component_group_refs,
@@ -24,6 +25,8 @@ impl From<WixConfig> for tauri_bundler::WixSettings {
       feature_refs: config.feature_refs,
       merge_refs: config.merge_refs,
       skip_webview_install: config.skip_webview_install,
+      license: config.license,
+      enable_elevated_update_task: config.enable_elevated_update_task,
     }
   }
 }
@@ -77,7 +80,7 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
 
   if let Some(merge_config) = merge_config {
     let merge_config: JsonValue =
-      serde_json::from_str(&merge_config).with_context(|| "failed to parse config to merge")?;
+      serde_json::from_str(merge_config).with_context(|| "failed to parse config to merge")?;
     merge(&mut config, &merge_config);
   }
 

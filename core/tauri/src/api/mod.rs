@@ -36,10 +36,6 @@ pub mod cli;
 #[cfg(feature = "cli")]
 pub use clap;
 
-/// Global shortcuts interface.
-#[cfg(global_shortcut_all)]
-pub mod shortcuts;
-
 /// The desktop notifications API module.
 #[cfg(notification_all)]
 pub mod notification;

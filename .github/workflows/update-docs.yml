@@ -5,6 +5,8 @@
 name: update-docs
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       gitName:
@@ -15,11 +17,15 @@ on:
         description: "git email for PR"
         required: false
         default: "tauri-bot@tauri.studio"
+      version:
+        description: "Tauri version"
+        required: true
 
 jobs:
   update-docs:
     runs-on: ubuntu-latest
     steps:
+      # Setup
       - name: checkout tauri
         uses: actions/checkout@v2
         with:
@@ -29,28 +35,94 @@ jobs:
         with:
           repository: tauri-apps/tauri-docs
           path: tauri-docs
+      - name: checkout tauri-search-bot
+        uses: actions/checkout@v2
+        with:
+          repository: tauri-apps/tauri-search-bot
+          path: tauri-search-bot
       - name: install webkit2gtk
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libgtksourceview-3.0-dev webkit2gtk-4.0 libappindicator3-dev
+
+      # Rust
       - name: generate rust docs
         working-directory: ./tauri/core/tauri
         run: cargo doc --no-deps
       - name: run rustdocusaurus
-        uses: tauri-apps/rustdocusaurus/github-action@v1.0.3
+        uses: tauri-apps/rustdocusaurus/github-action@v1
         with:
           originPath: ./tauri/target/doc/
           targetPath: ./tauri-docs/docs/en/api/rust/
-          sidebarPath: ./tauri-docs/sidebars.json
-          linksRoot: /docs/api/rust/
+          sidebarPath: "${{ github.workspace }}/tauri-docs/sidebars/rustdoc.json"
+          linksRoot: ""
           cratesToProcess: "tauri"
+
+      # TypeScript
+      - name: install API deps
+        working-directory: ./tauri/tooling/api
+        run: yarn && yarn add typescript@4.2
       - name: run typedocusaurus
         uses: tauri-apps/typedocusaurus@v1
         with:
           originPath: ./tauri/tooling/api/
-          sidebarFile: sidebars.json
-          targetPath: en/api/js
+          sidebarFile: "${{ github.workspace }}/tauri-docs/sidebars/typedoc.json"
+          targetPath: ${{ github.workspace }}/tauri-docs/docs/en/api/js
           docusaurusPath: ./tauri-docs/
+
+      # Moving docs for Indexation
+      - name: copy docs
+        working-directory: ./tauri
+        run: mv docs/sidebar.json ${{ github.workspace }}/tauri-docs/sidebars/core.json && cp -r docs/* ${{ github.workspace }}/tauri-docs/docs/en
+
+      # Indexing
+      - name: meilisearch indexation
+        uses: tauri-apps/docusaurus-meilisearch-indexer@v1
+        with:
+          version: ${{ github.event.inputs.version || github.event.release.tag_name }}
+          docusaurusPath: "${{ github.workspace }}/tauri-docs"
+          host: https://search.tauri.studio
+          apiKey: ${{ secrets.MEILISEARCH_APIKEY }}
+          docs: "Getting started,Usage,API"
+
+      # Applying Version
+      - name: set docs' Tauri version
+        working-directory: ./tauri-docs
+        run: echo ${{ github.event.inputs.version || github.event.release.tag_name }} > version.txt
+      - name: set bot's Tauri version
+        working-directory: ./tauri-search-bot
+        run: echo ${{ github.event.inputs.version || github.event.release.tag_name }} > version.txt
+
+      - uses: iamsauravsharma/create-dotenv@v1.1.0
+        with:
+          directory: './tauri-search-bot'
+        env:
+          ENV_KEY_DISCORD_BOT_SECRET: ${{ secrets.DISCORD_BOT_SECRET }}
+          ENV_KEY_PREFIX: \!
+          ENV_KEY_SITE: tauri.studio
+          ENV_KEY_ICON: https://i.imgur.com/UzDERvw.png
+          ENV_KEY_LIMIT: 5
+          ENV_KEY_SEARCH_INDEX: ${{ github.event.release.tag_name }}
+          ENV_KEY_MEILISEARCH_PUBLIC_KEY: ea0105f56bb5a2111ed28c7a0c637fc0bed07273f571dc7cb1f73900e44f8e7f
+
+      # Bot Deployment
+      - name: scp bot
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.DISCORD_BOT_HOST }}
+          username: ${{ secrets.DISCORD_BOT_SSH_USER }}
+          key: ${{ secrets.DISCORD_BOT_SSH_KEY }}
+          source: "${{ github.workspace }}/tauri-search-bot"
+          target: "~/tauri-search-bot"
+      - name: restart the bot
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DISCORD_BOT_HOST }}
+          username: ${{ secrets.DISCORD_BOT_SSH_USER }}
+          key: ${{ secrets.DISCORD_BOT_SSH_KEY }}
+          script: cd ~/tauri-search-bot/github/workspace/tauri-search-bot/ && yarn && forever stopall && forever start ./src/index.js
+
+      # tauri-docs PR
       - name: git config
         run: |
           git config --global user.name "${{ github.event.inputs.gitName }}"

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{endpoints::InvokeResponse, sealed::ManagerBase, Manager, Params, Window};
+use crate::{endpoints::InvokeResponse, runtime::Runtime, sealed::ManagerBase, Manager, Window};
 use serde::Deserialize;
 
 /// The API descriptor.
@@ -25,7 +25,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub fn run<P: Params>(self, window: Window<P>) -> crate::Result<InvokeResponse> {
+  pub fn run<R: Runtime>(self, window: Window<R>) -> crate::Result<InvokeResponse> {
     match self {
       Self::Listen { event, handler } => {
         let event_id = rand::random();
@@ -41,23 +41,13 @@ impl Cmd {
         window_label,
         payload,
       } => {
-        // Panic if the user's `Tag` type decided to return an error while parsing.
-        let e: P::Event = event
-          .parse()
-          .unwrap_or_else(|_| panic!("Event module received unhandled event: {}", event));
-
-        let window_label: Option<P::Label> = window_label.map(|l| {
-          l.parse()
-            .unwrap_or_else(|_| panic!("Event module recieved unhandled window: {}", l))
-        });
-
         // dispatch the event to Rust listeners
-        window.trigger(&e, payload.clone());
+        window.trigger(&event, payload.clone());
 
         if let Some(target) = window_label {
-          window.emit_to(&target, &e, payload)?;
+          window.emit_to(&target, &event, payload)?;
         } else {
-          window.emit_all(&e, payload)?;
+          window.emit_all(&event, payload)?;
         }
         Ok(().into())
       }
@@ -65,7 +55,7 @@ impl Cmd {
   }
 }
 
-pub fn unlisten_js<P: Params>(window: &Window<P>, event_id: u64) -> String {
+pub fn unlisten_js<R: Runtime>(window: &Window<R>, event_id: u64) -> String {
   format!(
     "
       for (var event in (window['{listeners}'] || {{}})) {{
@@ -80,8 +70,8 @@ pub fn unlisten_js<P: Params>(window: &Window<P>, event_id: u64) -> String {
   )
 }
 
-pub fn listen_js<P: Params>(
-  window: &Window<P>,
+pub fn listen_js<R: Runtime>(
+  window: &Window<R>,
   event: String,
   event_id: u64,
   handler: String,

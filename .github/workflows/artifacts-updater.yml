@@ -95,27 +95,47 @@ jobs:
       - name: build cli
         working-directory: ./tooling/cli.js
         run: yarn build
+      # run only on tauri-apps/tauri repo (require secrets)
+      - name: build sample artifacts + code signing (updater)
+        if: github.repository == 'tauri-apps/tauri'
+        working-directory: ./examples/updater
+        run: |
+          yarn install
+          node ../../tooling/cli.js/bin/tauri build
+        env:
+          # Notarization (disabled)
+          # FIXME: enable only on `dev` push maybe? as it take some times...
+          #
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+
+          # Apple code signing testing
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          # Updater signature is exposed here to make sure it works in PR's
+          TAURI_PRIVATE_KEY: dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5YTBGV3JiTy9lRDZVd3NkL0RoQ1htZmExNDd3RmJaNmRMT1ZGVjczWTBKZ0FBQkFBQUFBQUFBQUFBQUlBQUFBQWdMekUzVkE4K0tWQ1hjeGt1Vkx2QnRUR3pzQjVuV0ZpM2czWXNkRm9hVUxrVnB6TUN3K1NheHJMREhQbUVWVFZRK3NIL1VsMDBHNW5ET1EzQno0UStSb21nRW4vZlpTaXIwZFh5ZmRlL1lSN0dKcHdyOUVPclVvdzFhVkxDVnZrbHM2T1o4Tk1NWEU9Cg==
+      # run on PRs and forks
       - name: build sample artifacts (updater)
+        if: github.repository != 'tauri-apps/tauri'
         working-directory: ./examples/updater
         run: |
           yarn install
           node ../../tooling/cli.js/bin/tauri build
         env:
           TAURI_PRIVATE_KEY: dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5YTBGV3JiTy9lRDZVd3NkL0RoQ1htZmExNDd3RmJaNmRMT1ZGVjczWTBKZ0FBQkFBQUFBQUFBQUFBQUlBQUFBQWdMekUzVkE4K0tWQ1hjeGt1Vkx2QnRUR3pzQjVuV0ZpM2czWXNkRm9hVUxrVnB6TUN3K1NheHJMREhQbUVWVFZRK3NIL1VsMDBHNW5ET1EzQno0UStSb21nRW4vZlpTaXIwZFh5ZmRlL1lSN0dKcHdyOUVPclVvdzFhVkxDVnZrbHM2T1o4Tk1NWEU9Cg==
+      # upload assets
       - uses: actions/upload-artifact@v2
         if: matrix.platform == 'ubuntu-latest'
         with:
           name: linux-updater-artifacts
           path: ./target/release/bundle/appimage/updater-example_*.AppImage.*
-
       - uses: actions/upload-artifact@v2
         if: matrix.platform == 'windows-latest'
         with:
           name: windows-updater-artifacts
           path: ./target/release/bundle/msi/*
-
       - uses: actions/upload-artifact@v2
         if: matrix.platform == 'macos-latest'
         with:
           name: macos-updater-artifacts
-          path: ./target/release/bundle/macos/updater-example_*.app.tar.*
+          path: ./target/release/bundle/macos/updater-example.app.tar.*

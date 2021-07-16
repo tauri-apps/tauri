@@ -5,21 +5,24 @@
 use crate::{
   api::rpc::{format_callback, format_callback_result},
   app::App,
-  Params, StateManager, Window,
+  runtime::Runtime,
+  StateManager, Window,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::{future::Future, sync::Arc};
 
+use tauri_macros::default_runtime;
+
 /// A closure that is run when the Tauri application is setting up.
-pub type SetupHook<P> =
-  Box<dyn Fn(&mut App<P>) -> Result<(), Box<dyn std::error::Error + Send>> + Send>;
+pub type SetupHook<R> =
+  Box<dyn Fn(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send>> + Send>;
 
 /// A closure that is run everytime Tauri receives a message it doesn't explicitly handle.
-pub type InvokeHandler<P> = dyn Fn(Invoke<P>) + Send + Sync + 'static;
+pub type InvokeHandler<R> = dyn Fn(Invoke<R>) + Send + Sync + 'static;
 
 /// A closure that is run once every time a window is created and loaded.
-pub type OnPageLoad<P> = dyn Fn(Window<P>, PageLoadPayload) + Send + Sync + 'static;
+pub type OnPageLoad<R> = dyn Fn(Window<R>, PageLoadPayload) + Send + Sync + 'static;
 
 /// The payload for the [`OnPageLoad`] hook.
 #[derive(Debug, Clone, Deserialize)]
@@ -34,15 +37,14 @@ impl PageLoadPayload {
   }
 }
 
-crate::manager::default_args! {
-  /// The message and resolver given to a custom command.
-  pub struct Invoke<P: Params> {
-    /// The message passed.
-    pub message: InvokeMessage<P>,
+/// The message and resolver given to a custom command.
+#[default_runtime(crate::Wry, wry)]
+pub struct Invoke<R: Runtime> {
+  /// The message passed.
+  pub message: InvokeMessage<R>,
 
-    /// The resolver of the message.
-    pub resolver: InvokeResolver<P>,
-  }
+  /// The resolver of the message.
+  pub resolver: InvokeResolver<R>,
 }
 
 /// Error response from an [`InvokeMessage`].
@@ -112,17 +114,16 @@ impl From<InvokeError> for InvokeResponse {
   }
 }
 
-crate::manager::default_args! {
-  /// Resolver of a invoke message.
-  pub struct InvokeResolver<P: Params> {
-    window: Window<P>,
-    pub(crate) callback: String,
-    pub(crate) error: String,
-  }
+/// Resolver of a invoke message.
+#[default_runtime(crate::Wry, wry)]
+pub struct InvokeResolver<R: Runtime> {
+  window: Window<R>,
+  pub(crate) callback: String,
+  pub(crate) error: String,
 }
 
-impl<P: Params> InvokeResolver<P> {
-  pub(crate) fn new(window: Window<P>, callback: String, error: String) -> Self {
+impl<R: Runtime> InvokeResolver<R> {
+  pub(crate) fn new(window: Window<R>, callback: String, error: String) -> Self {
     Self {
       window,
       callback,
@@ -191,7 +192,7 @@ impl<P: Params> InvokeResolver<P> {
   /// If the Result `is_ok()`, the callback will be the `success_callback` function name and the argument will be the Ok value.
   /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
   pub async fn return_task<T, F>(
-    window: Window<P>,
+    window: Window<R>,
     task: F,
     success_callback: String,
     error_callback: String,
@@ -204,7 +205,7 @@ impl<P: Params> InvokeResolver<P> {
   }
 
   pub(crate) fn return_closure<T: Serialize, F: FnOnce() -> Result<T, InvokeError>>(
-    window: Window<P>,
+    window: Window<R>,
     f: F,
     success_callback: String,
     error_callback: String,
@@ -213,7 +214,7 @@ impl<P: Params> InvokeResolver<P> {
   }
 
   pub(crate) fn return_result(
-    window: Window<P>,
+    window: Window<R>,
     response: InvokeResponse,
     success_callback: String,
     error_callback: String,
@@ -232,24 +233,23 @@ impl<P: Params> InvokeResolver<P> {
   }
 }
 
-crate::manager::default_args! {
-  /// An invoke message.
-  pub struct InvokeMessage<P: Params> {
-    /// The window that received the invoke message.
-    pub(crate) window: Window<P>,
-    /// Application managed state.
-    pub(crate) state: Arc<StateManager>,
-    /// The RPC command.
-    pub(crate) command: String,
-    /// The JSON argument passed on the invoke message.
-    pub(crate) payload: JsonValue,
-  }
+/// An invoke message.
+#[default_runtime(crate::Wry, wry)]
+pub struct InvokeMessage<R: Runtime> {
+  /// The window that received the invoke message.
+  pub(crate) window: Window<R>,
+  /// Application managed state.
+  pub(crate) state: Arc<StateManager>,
+  /// The RPC command.
+  pub(crate) command: String,
+  /// The JSON argument passed on the invoke message.
+  pub(crate) payload: JsonValue,
 }
 
-impl<P: Params> InvokeMessage<P> {
+impl<R: Runtime> InvokeMessage<R> {
   /// Create an new [`InvokeMessage`] from a payload send to a window.
   pub(crate) fn new(
-    window: Window<P>,
+    window: Window<R>,
     state: Arc<StateManager>,
     command: String,
     payload: JsonValue,
@@ -270,13 +270,13 @@ impl<P: Params> InvokeMessage<P> {
 
   /// The window that received the invoke.
   #[inline(always)]
-  pub fn window(&self) -> Window<P> {
+  pub fn window(&self) -> Window<R> {
     self.window.clone()
   }
 
   /// A reference to window that received the invoke.
   #[inline(always)]
-  pub fn window_ref(&self) -> &Window<P> {
+  pub fn window_ref(&self) -> &Window<R> {
     &self.window
   }
 

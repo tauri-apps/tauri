@@ -32,6 +32,7 @@ fn kill_before_dev_process() {
     let mut child = child.lock().unwrap();
     #[cfg(windows)]
     let _ = Command::new("powershell")
+      .arg("-NoProfile")
       .arg("-Command")
       .arg(format!("function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid }}; Kill-Tree {}", child.id()))
       .status();
@@ -52,6 +53,7 @@ pub struct Dev {
   exit_on_panic: bool,
   config: Option<String>,
   args: Vec<String>,
+  release_mode: bool,
 }
 
 impl Dev {
@@ -89,6 +91,11 @@ impl Dev {
     self
   }
 
+  pub fn release_mode(mut self, release_mode: bool) -> Self {
+    self.release_mode = release_mode;
+    self
+  }
+
   pub fn run(self) -> crate::Result<()> {
     let logger = Logger::new("tauri:dev");
     let tauri_path = tauri_dir();
@@ -96,6 +103,28 @@ impl Dev {
     let merge_config = self.config.clone();
     let config = get_config(merge_config.as_deref())?;
     let mut process: Arc<SharedChild>;
+
+    let (settings, out_dir) = {
+      let config_guard = config.lock().unwrap();
+      let config_ = config_guard.as_ref().unwrap();
+      let app_settings = crate::interface::rust::AppSettings::new(config_)?;
+      let out_dir = app_settings
+        .get_out_dir(self.target.clone(), true)
+        .with_context(|| "failed to get project out directory")?;
+      let settings = crate::interface::get_bundler_settings(
+        app_settings,
+        self.target.clone(),
+        &Default::default(),
+        config_,
+        &out_dir,
+        false,
+        None,
+      )
+      .with_context(|| "failed to build bundler settings")?;
+      (settings, out_dir)
+    };
+    settings.copy_resources(&out_dir)?;
+    settings.copy_binaries(&out_dir)?;
 
     if let Some(before_dev) = &config
       .lock()
@@ -225,6 +254,10 @@ impl Dev {
   ) -> Arc<SharedChild> {
     let mut command = Command::new(runner);
     command.args(&["run", "--no-default-features"]);
+
+    if self.release_mode {
+      command.args(&["--release"]);
+    }
 
     if let Some(target) = &self.target {
       command.args(&["--target", target]);

@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
-use tauri_bundler::bundle::{bundle_project, PackageType, SettingsBuilder};
+use tauri_bundler::bundle::{bundle_project, PackageType};
 
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
-  config::get as get_config,
+  config::{get as get_config, AppUrl},
   execute_with_output,
   manifest::rewrite_manifest,
   updater_signature::sign_file_from_env_variables,
@@ -15,8 +15,6 @@ use crate::helpers::{
 };
 
 use std::{env::set_current_dir, fs::rename, path::PathBuf, process::Command};
-
-mod rust;
 
 #[derive(Default)]
 pub struct Build {
@@ -103,12 +101,14 @@ impl Build {
       }
     }
 
-    let web_asset_path = PathBuf::from(&config_.build.dist_dir);
-    if !web_asset_path.exists() {
-      return Err(anyhow::anyhow!(
-        "Unable to find your web assets, did you forget to build your web app? Your distDir is set to \"{:?}\".",
-        web_asset_path
-      ));
+    if let AppUrl::Url(url) = &config_.build.dist_dir {
+      let web_asset_path = PathBuf::from(url);
+      if !web_asset_path.exists() {
+        return Err(anyhow::anyhow!(
+          "Unable to find your web assets, did you forget to build your web app? Your distDir is set to \"{:?}\".",
+          web_asset_path
+        ));
+      }
     }
 
     let runner_from_config = config_.build.runner.clone();
@@ -122,30 +122,56 @@ impl Build {
       cargo_features.extend(features);
     }
 
-    rust::build_project(runner, &self.target, cargo_features, self.debug)
+    crate::interface::rust::build_project(runner, &self.target, cargo_features, self.debug)
       .with_context(|| "failed to build app")?;
 
-    let app_settings = rust::AppSettings::new(&config_)?;
+    let app_settings = crate::interface::rust::AppSettings::new(config_)?;
 
     let out_dir = app_settings
-      .get_out_dir(self.debug)
+      .get_out_dir(self.target.clone(), self.debug)
       .with_context(|| "failed to get project out directory")?;
     if let Some(product_name) = config_.package.product_name.clone() {
       let bin_name = app_settings.cargo_package_settings().name.clone();
       #[cfg(windows)]
-      rename(
-        out_dir.join(format!("{}.exe", bin_name)),
-        out_dir.join(format!("{}.exe", product_name)),
-      )?;
+      let (bin_path, product_path) = {
+        (
+          out_dir.join(format!("{}.exe", bin_name)),
+          out_dir.join(format!("{}.exe", product_name)),
+        )
+      };
       #[cfg(not(windows))]
-      rename(out_dir.join(bin_name), out_dir.join(product_name))?;
+      let (bin_path, product_path) = { (out_dir.join(bin_name), out_dir.join(product_name)) };
+      rename(&bin_path, &product_path).with_context(|| {
+        format!(
+          "failed to rename `{}` to `{}`",
+          bin_path.display(),
+          product_path.display(),
+        )
+      })?;
     }
 
     if config_.tauri.bundle.active {
       // move merge modules to the out dir so the bundler can load it
       #[cfg(windows)]
       {
-        let (filename, vcruntime_msm) = if cfg!(target_arch = "x86") {
+        let arch = if let Some(t) = &self.target {
+          if t.starts_with("x86_64") {
+            "x86_64"
+          } else if t.starts_with('i') {
+            "x86"
+          } else if t.starts_with("arm") {
+            "arm"
+          } else if t.starts_with("aarch64") {
+            "aarch64"
+          } else {
+            panic!("Unexpected target triple {}", t)
+          }
+        } else if cfg!(target_arch = "x86") {
+          "x86"
+        } else {
+          "x86_64"
+        };
+        let (filename, vcruntime_msm) = if arch == "x86" {
           let _ = std::fs::remove_file(out_dir.join("Microsoft_VC142_CRT_x64.msm"));
           (
             "Microsoft_VC142_CRT_x86.msm",
@@ -160,17 +186,8 @@ impl Build {
         };
         std::fs::write(out_dir.join(filename), vcruntime_msm)?;
       }
-      let mut settings_builder = SettingsBuilder::new()
-        .package_settings(app_settings.get_package_settings())
-        .bundle_settings(app_settings.get_bundle_settings(&config_, &manifest)?)
-        .binaries(app_settings.get_binaries(&config_)?)
-        .project_out_directory(out_dir);
 
-      if self.verbose {
-        settings_builder = settings_builder.verbose();
-      }
-
-      if let Some(names) = self.bundles {
+      let package_types = if let Some(names) = self.bundles {
         let mut types = vec![];
         for name in names {
           if name == "none" {
@@ -188,14 +205,45 @@ impl Build {
             }
           }
         }
+        Some(types)
+      } else if let Some(targets) = &config_.tauri.bundle.targets {
+        let mut types = vec![];
+        let targets = targets.to_vec();
+        if !targets.contains(&"all".into()) {
+          for name in targets {
+            match PackageType::from_short_name(&name) {
+              Some(package_type) => {
+                types.push(package_type);
+              }
+              None => {
+                return Err(anyhow::anyhow!(format!(
+                  "Unsupported bundle format: {}",
+                  name
+                )));
+              }
+            }
+          }
+          Some(types)
+        } else {
+          None
+        }
+      } else {
+        None
+      };
 
-        settings_builder = settings_builder.package_types(types);
-      }
+      let settings = crate::interface::get_bundler_settings(
+        app_settings,
+        self.target.clone(),
+        &manifest,
+        config_,
+        &out_dir,
+        self.verbose,
+        package_types,
+      )
+      .with_context(|| "failed to build bundler settings")?;
 
-      // Bundle the project
-      let settings = settings_builder
-        .build()
-        .with_context(|| "failed to build bundler settings")?;
+      settings.copy_resources(&out_dir)?;
+      settings.copy_binaries(&out_dir)?;
 
       let bundles = bundle_project(settings).with_context(|| "failed to bundle project")?;
 

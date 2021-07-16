@@ -93,7 +93,7 @@ impl<'a> Password<'a> {
       let password = Zeroizing::new(self.prompt_password(&mut render, &self.prompt)?);
 
       if let Some((ref prompt, ref err)) = self.confirmation_prompt {
-        let pw2 = Zeroizing::new(self.prompt_password(&mut render, &prompt)?);
+        let pw2 = Zeroizing::new(self.prompt_password(&mut render, prompt)?);
 
         if *password == *pw2 {
           render.clear()?;

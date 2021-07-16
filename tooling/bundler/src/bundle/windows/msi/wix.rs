@@ -11,14 +11,14 @@ use crate::bundle::{
 
 use handlebars::{to_json, Handlebars};
 use regex::Regex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use uuid::Uuid;
 use zip::ZipArchive;
 
 use std::{
-  collections::BTreeMap,
-  fs::{create_dir_all, remove_dir_all, write, File},
+  collections::{BTreeMap, HashMap},
+  fs::{create_dir_all, remove_dir_all, rename, write, File},
   io::{Cursor, Read, Write},
   path::{Path, PathBuf},
   process::{Command, Stdio},
@@ -51,6 +51,14 @@ const UUID_NAMESPACE: [u8; 16] = [
 
 /// Mapper between a resource directory name and its ResourceDirectory descriptor.
 type ResourceMap = BTreeMap<String, ResourceDirectory>;
+
+#[derive(Debug, Deserialize)]
+struct LanguageMetadata {
+  #[serde(rename = "asciiCode")]
+  ascii_code: usize,
+  #[serde(rename = "langId")]
+  lang_id: usize,
+}
 
 /// A binary to bundle with WIX.
 /// External binaries or additional project binaries are represented with this data structure.
@@ -125,7 +133,7 @@ impl ResourceDirectory {
     } else {
       format!(
         r#"<Directory Id="{id}" Name="{name}">{contents}</Directory>"#,
-        id = format!("_{}", Uuid::new_v4().to_simple()),
+        id = format!("I{}", Uuid::new_v4().to_simple()),
         name = self.name,
         contents = format!("{}{}", files, directories)
       )
@@ -297,7 +305,7 @@ fn run_candle(
   cmd.args(&args).stdout(Stdio::piped()).current_dir(cwd);
 
   common::print_info("running candle.exe")?;
-  common::execute_with_verbosity(&mut cmd, &settings).map_err(|_| {
+  common::execute_with_verbosity(&mut cmd, settings).map_err(|_| {
     crate::Error::ShellScriptError(format!(
       "error running candle.exe{}",
       if settings.is_verbose() {
@@ -313,10 +321,10 @@ fn run_candle(
 fn run_light(
   wix_toolset_path: &Path,
   build_path: &Path,
-  wixobjs: &[&str],
+  arguments: Vec<String>,
   output_path: &Path,
   settings: &Settings,
-) -> crate::Result<PathBuf> {
+) -> crate::Result<()> {
   let light_exe = wix_toolset_path.join("light.exe");
 
   let mut args: Vec<String> = vec![
@@ -326,8 +334,8 @@ fn run_light(
     output_path.display().to_string(),
   ];
 
-  for p in wixobjs {
-    args.push((*p).to_string());
+  for p in arguments {
+    args.push(p);
   }
 
   let mut cmd = Command::new(&light_exe);
@@ -336,19 +344,16 @@ fn run_light(
     .stdout(Stdio::piped())
     .current_dir(build_path);
 
-  common::print_info(format!("running light to produce {}", output_path.display()).as_str())?;
-  common::execute_with_verbosity(&mut cmd, &settings)
-    .map(|_| output_path.to_path_buf())
-    .map_err(|_| {
-      crate::Error::ShellScriptError(format!(
-        "error running light.exe{}",
-        if settings.is_verbose() {
-          ""
-        } else {
-          ", try running with --verbose to see command output"
-        }
-      ))
-    })
+  common::execute_with_verbosity(&mut cmd, settings).map_err(|_| {
+    crate::Error::ShellScriptError(format!(
+      "error running light.exe{}",
+      if settings.is_verbose() {
+        ""
+      } else {
+        ", try running with --verbose to see command output"
+      }
+    ))
+  })
 }
 
 // fn get_icon_data() -> crate::Result<()> {
@@ -393,10 +398,11 @@ pub fn build_wix_app_installer(
           .map(|algorithm| algorithm.to_string())
           .unwrap_or_else(|| "sha256".to_string()),
         certificate_thumbprint: certificate_thumbprint.to_string(),
-        timestamp_url: match &settings.windows().timestamp_url {
-          Some(url) => Some(url.to_string()),
-          None => None,
-        },
+        timestamp_url: settings
+          .windows()
+          .timestamp_url
+          .as_ref()
+          .map(|url| url.to_string()),
       },
     )?;
   }
@@ -404,6 +410,54 @@ pub fn build_wix_app_installer(
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
   let mut data = BTreeMap::new();
+
+  let language_map: HashMap<String, LanguageMetadata> =
+    serde_json::from_str(include_str!("./languages.json")).unwrap();
+
+  if let Some(wix) = &settings.windows().wix {
+    if let Some(license) = &wix.license {
+      if license.ends_with(".rtf") {
+        data.insert("license", to_json(license));
+      } else {
+        let license_path = PathBuf::from(license);
+        let license_contents = std::fs::read_to_string(&license_path)?;
+        let license_rtf = format!(
+          r#"{{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033{{\fonttbl{{\f0\fnil\fcharset0 Calibri;}}}}
+{{\*\generator Riched20 10.0.18362}}\viewkind4\uc1
+\pard\sa200\sl276\slmult1\f0\fs22\lang9 {}\par
+}}
+ "#,
+          license_contents.replace("\n", "\\par ")
+        );
+        let rtf_output_path = settings
+          .project_out_directory()
+          .join("wix")
+          .join("LICENSE.rtf");
+        std::fs::write(&rtf_output_path, license_rtf)?;
+        data.insert("license", to_json(rtf_output_path));
+      }
+    }
+  }
+
+  let (language, language_metadata) = if let Some(wix) = &settings.windows().wix {
+    let metadata = language_map.get(&wix.language).unwrap_or_else(|| {
+      panic!(
+        "Language {} not found. It must be one of {}",
+        wix.language,
+        language_map
+          .keys()
+          .cloned()
+          .collect::<Vec<String>>()
+          .join(", ")
+      )
+    });
+    (wix.language.clone(), metadata)
+  } else {
+    common::print_info("Wix settings not found. Using `en-US` as language.")?;
+    ("en-US".into(), language_map.get("en-US").unwrap())
+  };
+  data.insert("language_id", to_json(language_metadata.lang_id));
+  data.insert("ascii_codepage", to_json(language_metadata.ascii_code));
 
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("version", to_json(settings.version_string()));
@@ -426,12 +480,12 @@ pub fn build_wix_app_installer(
   let app_exe_name = settings.main_binary_name().to_string();
   data.insert("app_exe_name", to_json(&app_exe_name));
 
-  let binaries = generate_binaries_data(&settings)?;
+  let binaries = generate_binaries_data(settings)?;
 
   let binaries_json = to_json(&binaries);
   data.insert("binaries", binaries_json);
 
-  let resources = generate_resource_data(&settings)?;
+  let resources = generate_resource_data(settings)?;
   let mut resources_wix_string = String::from("");
   let mut files_ids = Vec::new();
   for (_, dir) in resources {
@@ -445,13 +499,13 @@ pub fn build_wix_app_installer(
   data.insert("resources", to_json(resources_wix_string));
   data.insert("resource_file_ids", to_json(files_ids));
 
-  let merge_modules = get_merge_modules(&settings)?;
+  let merge_modules = get_merge_modules(settings)?;
   data.insert("merge_modules", to_json(merge_modules));
 
   data.insert("app_exe_source", to_json(&app_exe_source));
 
   // copy icon from $CWD/icons/icon.ico folder to resource folder near msi
-  let icon_path = copy_icon(&settings)?;
+  let icon_path = copy_icon(settings)?;
 
   data.insert("icon_path", to_json(icon_path));
 
@@ -459,6 +513,7 @@ pub fn build_wix_app_installer(
   let mut handlebars = Handlebars::new();
   let mut has_custom_template = false;
   let mut install_webview = true;
+  let mut enable_elevated_update_task = false;
 
   if let Some(wix) = &settings.windows().wix {
     data.insert("component_group_refs", to_json(&wix.component_group_refs));
@@ -468,12 +523,13 @@ pub fn build_wix_app_installer(
     data.insert("merge_refs", to_json(&wix.merge_refs));
     fragment_paths = wix.fragment_paths.clone();
     install_webview = !wix.skip_webview_install;
+    enable_elevated_update_task = wix.enable_elevated_update_task;
 
     if let Some(temp_path) = &wix.template {
       let template = std::fs::read_to_string(temp_path)?;
       handlebars
         .register_template_string("main.wxs", &template)
-        .or_else(|e| Err(e.to_string()))
+        .map_err(|e| e.to_string())
         .expect("Failed to setup custom handlebar template");
       has_custom_template = true;
     }
@@ -496,6 +552,32 @@ pub fn build_wix_app_installer(
 
   create_dir_all(&output_path)?;
 
+  if enable_elevated_update_task {
+    // Create the update task XML
+    let mut skip_uac_task = Handlebars::new();
+    let xml = include_str!("../templates/update-task.xml");
+    skip_uac_task
+      .register_template_string("update.xml", xml)
+      .map_err(|e| e.to_string())
+      .expect("Failed to setup Update Task handlebars");
+    let temp_xml_path = output_path.join("update.xml");
+    let update_content = skip_uac_task.render("update.xml", &data)?;
+    write(&temp_xml_path, update_content)?;
+
+    // Create the Powershell script to install the task
+    let mut skip_uac_task_installer = Handlebars::new();
+    let xml = include_str!("../templates/install-task.ps1");
+    skip_uac_task_installer
+      .register_template_string("install-task.ps1", xml)
+      .map_err(|e| e.to_string())
+      .expect("Failed to setup Update Task Installer handlebars");
+    let temp_ps1_path = output_path.join("install-task.ps1");
+    let install_script_content = skip_uac_task_installer.render("install-task.ps1", &data)?;
+    write(&temp_ps1_path, install_script_content.clone())?;
+
+    data.insert("enable_elevated_update_task", to_json(true));
+  }
+
   let main_wxs_path = output_path.join("main.wxs");
   write(&main_wxs_path, handlebars.render("main.wxs", &data)?)?;
 
@@ -507,19 +589,29 @@ pub fn build_wix_app_installer(
   }
 
   for wxs in &candle_inputs {
-    run_candle(settings, &wix_toolset_path, &output_path, &wxs)?;
+    run_candle(settings, wix_toolset_path, &output_path, wxs)?;
   }
 
-  let wixobjs = vec!["*.wixobj"];
-  let target = run_light(
-    &wix_toolset_path,
-    &output_path,
-    &wixobjs,
-    &app_installer_dir(&settings)?,
-    &settings,
-  )?;
+  let arguments = vec![
+    format!("-cultures:{}", language.to_lowercase()),
+    "*.wixobj".into(),
+  ];
+  let msi_output_path = output_path.join("output.msi");
+  let msi_path = app_installer_dir(settings)?;
+  create_dir_all(msi_path.parent().unwrap())?;
 
-  Ok(target)
+  common::print_info(format!("running light to produce {}", msi_path.display()).as_str())?;
+
+  run_light(
+    wix_toolset_path,
+    &output_path,
+    arguments,
+    &msi_output_path,
+    settings,
+  )?;
+  rename(&msi_output_path, &msi_path)?;
+
+  Ok(msi_path)
 }
 
 /// Generates the data required for the external binaries and extra binaries bundling.
@@ -536,7 +628,7 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
         .into_os_string()
         .into_string()
         .expect("failed to read external binary path"),
-      id: Uuid::new_v4().to_string(),
+      id: format!("I{}", Uuid::new_v4().to_simple()),
     });
   }
 
@@ -549,7 +641,7 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
           .into_os_string()
           .into_string()
           .expect("failed to read binary path"),
-        id: Uuid::new_v4().to_string(),
+        id: format!("I{}", Uuid::new_v4().to_simple()),
       })
     }
   }
@@ -606,7 +698,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     let path = dll?;
     let resource_path = path.to_string_lossy().to_string();
     dlls.push(ResourceFile {
-      id: format!("_{}", Uuid::new_v4().to_simple()),
+      id: format!("I{}", Uuid::new_v4().to_simple()),
       guid: Uuid::new_v4().to_string(),
       path: resource_path,
     });
@@ -633,25 +725,41 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       .expect("failed to read resource path");
 
     let resource_entry = ResourceFile {
-      id: format!("_{}", Uuid::new_v4().to_simple()),
+      id: format!("I{}", Uuid::new_v4().to_simple()),
       guid: Uuid::new_v4().to_string(),
       path: resource_path,
     };
 
     // split the resource path directories
-    let mut directories = src
+    let directories = src
       .components()
       .filter(|component| {
         let comp = component.as_os_str();
         comp != "." && comp != ".."
       })
       .collect::<Vec<_>>();
-    directories.truncate(directories.len() - 1);
     // transform the directory structure to a chained vec structure
     let first_directory = directories
       .first()
       .map(|d| d.as_os_str().to_string_lossy().into_owned())
-      .unwrap_or_else(|| String::new());
+      .unwrap_or_else(String::new);
+
+    if !resources.contains_key(&first_directory) {
+      resources.insert(
+        first_directory.clone(),
+        ResourceDirectory {
+          path: first_directory.clone(),
+          name: first_directory.clone(),
+          directories: vec![],
+          files: vec![],
+        },
+      );
+    }
+
+    let mut directory_entry = resources
+      .get_mut(&first_directory)
+      .expect("Unable to handle resources");
+
     let last_index = directories.len() - 1;
     let mut path = String::new();
     for (i, directory) in directories.into_iter().enumerate() {
@@ -661,57 +769,30 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
         .into_string()
         .expect("failed to read resource folder name");
       path.push_str(directory_name.as_str());
+      path.push(std::path::MAIN_SEPARATOR);
 
-      // if the directory is already on the map
-      if resources.contains_key(&first_directory) {
-        let directory_entry = &mut resources
-          .get_mut(&first_directory)
-          .expect("Unable to handle resources");
-        if last_index == 0 {
-          // the directory entry is the root of the chain
-          directory_entry.add_file(resource_entry.clone());
-        } else {
-          let index = directory_entry
-            .directories
-            .iter()
-            .position(|f| f.path == path);
-          if let Some(index) = index {
-            // the directory entry is already a part of the chain
-            if i == last_index {
-              let dir = directory_entry
-                .directories
-                .get_mut(index)
-                .expect("Unable to get directory");
-              dir.add_file(resource_entry.clone());
-            }
-          } else {
-            // push it to the chain
+      if i == last_index {
+        directory_entry.add_file(resource_entry);
+        break;
+      } else if i == 0 {
+        continue;
+      } else {
+        let index = directory_entry
+          .directories
+          .iter()
+          .position(|f| f.path == path);
+        match index {
+          Some(i) => directory_entry = directory_entry.directories.get_mut(i).unwrap(),
+          None => {
             directory_entry.directories.push(ResourceDirectory {
               path: path.clone(),
-              name: directory_name.clone(),
+              name: directory_name,
               directories: vec![],
-              files: if i == last_index {
-                vec![resource_entry.clone()]
-              } else {
-                vec![]
-              },
+              files: vec![],
             });
+            directory_entry = directory_entry.directories.iter_mut().last().unwrap();
           }
         }
-      } else {
-        resources.insert(
-          directory_name.clone(),
-          ResourceDirectory {
-            path: path.clone(),
-            name: directory_name.clone(),
-            directories: vec![],
-            files: if i == last_index {
-              vec![resource_entry.clone()]
-            } else {
-              vec![]
-            },
-          },
-        );
       }
     }
   }

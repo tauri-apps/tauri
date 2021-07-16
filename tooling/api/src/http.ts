@@ -123,16 +123,35 @@ type RequestOptions = Omit<HttpOptions, 'method' | 'url'>
 /** Options for the `fetch` API. */
 type FetchOptions = Omit<HttpOptions, 'url'>
 
+/** @ignore */
+interface IResponse<T> {
+  url: string
+  status: number
+  headers: Record<string, string>
+  data: T
+}
+
 /** Response object. */
-interface Response<T> {
+class Response<T> {
   /** The request URL. */
   url: string
   /** The response status code. */
   status: number
+  /** A boolean indicating whether the response was successful (status in the range 200–299) or not. */
+  ok: boolean
   /** The response headers. */
   headers: Record<string, string>
   /** The response data. */
   data: T
+
+  /** @ignore */
+  constructor(response: IResponse<T>) {
+    this.url = response.url
+    this.status = response.status
+    this.ok = this.status >= 200 && this.status < 300
+    this.headers = response.headers
+    this.data = response.data
+  }
 }
 
 class Client {
@@ -164,13 +183,37 @@ class Client {
    * @returns A promise resolving to the response.
    */
   async request<T>(options: HttpOptions): Promise<Response<T>> {
-    return invokeTauriCommand({
+    const jsonResponse =
+      !options.responseType || options.responseType === ResponseType.JSON
+    if (jsonResponse) {
+      options.responseType = ResponseType.Text
+    }
+    return invokeTauriCommand<IResponse<T>>({
       __tauriModule: 'Http',
       message: {
         cmd: 'httpRequest',
         client: this.id,
         options
       }
+    }).then((res) => {
+      const response = new Response(res)
+      if (jsonResponse) {
+        /* eslint-disable */
+        try {
+          // @ts-expect-error
+          response.data = JSON.parse(response.data as string)
+        } catch (e) {
+          if (response.ok) {
+            throw Error(
+              `Failed to parse response \`${response.data}\` as JSON: ${e};
+              try setting the \`responseType\` option to \`ResponseType.Text\` or \`ResponseType.Binary\` if the API does not return a JSON response.`
+            )
+          }
+        }
+        /* eslint-enable */
+        return response
+      }
+      return response
     })
   }
 
@@ -305,13 +348,11 @@ async function fetch<T>(
 
 export type {
   ClientOptions,
-  ResponseType,
   Part,
   HttpVerb,
   HttpOptions,
   RequestOptions,
-  FetchOptions,
-  Response
+  FetchOptions
 }
 
-export { getClient, fetch, Body, Client }
+export { getClient, fetch, Body, Client, Response, ResponseType }

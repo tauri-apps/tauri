@@ -10,36 +10,39 @@
     <h1>Welcome to Tauri!</h1>
 
     <script>
-      window.addEventListener("DOMContentLoaded", (event) => {
-        window.__TAURI__.invoke("tauri", {
-          __tauriModule: "Fs",
-          message: {
-            cmd: "readBinaryFile",
-            path: ".tauri_3mb.json",
-            options: {
-              // home folder
-              dir: 11
+      window.addEventListener('DOMContentLoaded', (event) => {
+        window.__TAURI__
+          .invoke('tauri', {
+            __tauriModule: 'Fs',
+            message: {
+              cmd: 'readBinaryFile',
+              path: '.tauri_3mb.json',
+              options: {
+                // home folder
+                dir: 11
+              }
             }
-          },
-        }).then((_data) => {
-          window.__TAURI__.invoke("tauri", {
-            __tauriModule: "Process",
-            message: {
-              cmd: "exit",
-              exitCode: 0,
-            },
-          });
-        }).catch((_error) => {
-          // error
-          window.__TAURI__.invoke("tauri", {
-            __tauriModule: "Process",
-            message: {
-              cmd: "exit",
-              exitCode: 1,
-            },
-          });
-        });
-      });
+          })
+          .then((_data) => {
+            window.__TAURI__.invoke('tauri', {
+              __tauriModule: 'Process',
+              message: {
+                cmd: 'exit',
+                exitCode: 0
+              }
+            })
+          })
+          .catch((_error) => {
+            // error
+            window.__TAURI__.invoke('tauri', {
+              __tauriModule: 'Process',
+              message: {
+                cmd: 'exit',
+                exitCode: 1
+              }
+            })
+          })
+      })
     </script>
   </body>
 </html>

@@ -1,7 +1,7 @@
 {
   "build": {
-    "distDir": "../public",
-    "devPath": "../public",
+    "distDir": ["../index.html"],
+    "devPath": ["../index.html"],
     "beforeDevCommand": "",
     "beforeBuildCommand": ""
   },
@@ -28,10 +28,20 @@
         "useBootstrapper": false
       },
       "macOS": {
+        "signingIdentity": "Developer ID Application: David Lemarier (3KF8V3679C)",
+        "entitlements": "../entitlements.plist",
         "frameworks": [],
         "minimumSystemVersion": "",
         "useBootstrapper": false,
         "exceptionDomain": ""
+      },
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": null,
+        "timestampUrl": null,
+        "wix": {
+          "enableElevatedUpdateTask": true
+        }
       }
     },
     "allowlist": {
@@ -47,7 +57,7 @@
       }
     ],
     "security": {
-      "csp": "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline' 'self'"
+      "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self'"
     },
     "updater": {
       "active": true,

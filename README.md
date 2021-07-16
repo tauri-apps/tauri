@@ -60,9 +60,9 @@ If you are interested in making a tauri-app, please visit the [documentation web
 - [x] Frameless Mode
 - [x] Transparent Mode
 - [x] Multiwindow Mode
+- [x] Tray
 - [ ] deeplink RPC (in progress)
 - [ ] One-Time commands (coming soon)
-- [ ] Tray (coming soon)
 
 ### Security Features
 - [x] localhost-free (:fire:)
@@ -85,7 +85,7 @@ If you are interested in making a tauri-app, please visit the [documentation web
 | -------------------------- | ------ | -------------------- |
 | Installer Size Linux       | 3.1 MB | 52.1 MB              |
 | Memory Consumption Linux   | 180 MB | 462 MB               |
-| Launch Time Linux          | 0.39s  | .80s                 |
+| Launch Time Linux          | 0.39s  | 0.80s                 |
 | Interface Service Provider | WRY    | Chromium             |
 | Backend Binding            | Rust   | Node.js (ECMAScript) |
 | Underlying Engine          | Rust   | V8 (C/C++)           |
@@ -101,7 +101,7 @@ If you are interested in making a tauri-app, please visit the [documentation web
 | Linux Binary               | Yes    | Yes                  |
 | iOS Binary                 | Soon   | No                   |
 | Android Binary             | Soon   | No                   |
-| Desktop Tray               | Soon   | Yes                  |
+| Desktop Tray               | Yes    | Yes                  |
 | Sidecar Binaries           | Yes    | No                   |
 
 #### Notes

@@ -1,6 +1,10 @@
 <script>
   import { onMount } from "svelte";
+  import { writable } from "svelte/store";
+  import hotkeys from "hotkeys-js";
   import { open } from "@tauri-apps/api/shell";
+  import { invoke } from "@tauri-apps/api/tauri";
+  import { appWindow, getCurrent } from "@tauri-apps/api/window";
 
   import Welcome from "./components/Welcome.svelte";
   import Cli from "./components/Cli.svelte";
@@ -13,6 +17,21 @@
   import Shortcuts from "./components/Shortcuts.svelte";
   import Shell from "./components/Shell.svelte";
   import Updater from "./components/Updater.svelte";
+  import Clipboard from "./components/Clipboard.svelte";
+
+  const MENU_TOGGLE_HOTKEY = 'ctrl+b';
+
+  onMount(() => {
+    hotkeys(MENU_TOGGLE_HOTKEY, () => {
+      invoke('menu_toggle');
+    });
+
+    getCurrent().listen('close-requested', async () => {
+      if (await confirm('Are you sure?')) {
+        await appWindow.close()
+      }
+    })
+  });
 
   const views = [
     {
@@ -58,30 +77,40 @@
     {
       label: "Updater",
       component: Updater,
-    },    
+    },
+    {
+      label: "Clipboard",
+      component: Clipboard,
+    }
   ];
 
   let selected = views[0];
 
-  let responses = [""];
+  let responses = writable([]);
+  let response = ''
 
   function select(view) {
     selected = view;
   }
 
   function onMessage(value) {
-    responses += typeof value === "string" ? value : JSON.stringify(value);
-    responses += "\n";
+    responses.update(r => [`[${new Date().toLocaleTimeString()}]` + ': ' + (typeof value === "string" ? value : JSON.stringify(value)), ...r])
   }
 
   function onLogoClick() {
     open("https://tauri.studio/");
   }
+
+  onMount(() => {
+    responses.subscribe(r => {
+      response = r.join('\n')
+    })
+  })
 </script>
 
 <main>
   <div class="flex row noselect just-around" style="margin=1em;" data-tauri-drag-region>
-    <img src="tauri.png" height="60" on:click={onLogoClick} alt="logo" />
+    <img class="logo" src="tauri logo.png" height="60" on:click={onLogoClick} alt="logo" />
     <div>
       <a class="dark-link" target="_blank" href="https://tauri.studio/en/docs/getting-started/intro">
         Documentation
@@ -111,9 +140,9 @@
     <p class="flex row just-around">
       <strong>Tauri Console</strong>
       <a class="nv" on:click={()=> {
-        responses = [""];
+        responses.update(() => []);
         }}>clear</a>
     </p>
-    {responses}
+    {@html response}
   </div>
 </main>

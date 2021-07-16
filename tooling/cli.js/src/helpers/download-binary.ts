@@ -40,7 +40,10 @@ async function downloadBinaryRelease(
   // TODO: Check hash of download
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, security/detect-non-literal-fs-filename
   await pipeline(got.stream(url), fs.createWriteStream(outPath)).catch((e) => {
-    removeDownloadedCliIfNeeded()
+    try {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      fs.unlinkSync(outPath)
+    } catch {}
     throw e
   })
   // eslint-disable-next-line security/detect-object-injection

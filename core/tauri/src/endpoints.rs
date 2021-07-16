@@ -5,7 +5,8 @@
 use crate::{
   api::{config::Config, PackageInfo},
   hooks::{InvokeError, InvokeMessage, InvokeResolver},
-  Invoke, Params, Window,
+  runtime::Runtime,
+  Invoke, Window,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -14,6 +15,7 @@ use std::sync::Arc;
 
 mod app;
 mod cli;
+mod clipboard;
 mod dialog;
 mod event;
 #[allow(unused_imports)]
@@ -54,13 +56,14 @@ enum Module {
   Notification(notification::Cmd),
   Http(http::Cmd),
   GlobalShortcut(global_shortcut::Cmd),
+  Clipboard(clipboard::Cmd),
 }
 
 impl Module {
-  fn run<P: Params>(
+  fn run<R: Runtime>(
     self,
-    window: Window<P>,
-    resolver: InvokeResolver<P>,
+    window: Window<R>,
+    resolver: InvokeResolver<R>,
     config: Arc<Config>,
     package_info: PackageInfo,
   ) {
@@ -113,17 +116,14 @@ impl Module {
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
-      // on Linux, the dialog must run on the main thread.
+      // on Linux, the dialog must run on the rpc task.
       #[cfg(target_os = "linux")]
       Self::Dialog(cmd) => {
-        let window_ = window.clone();
-        let _ = window.run_on_main_thread(move || {
-          resolver.respond_closure(move || {
-            cmd
-              .run(window_)
-              .and_then(|r| r.json)
-              .map_err(InvokeError::from)
-          })
+        resolver.respond_closure(move || {
+          cmd
+            .run(window)
+            .and_then(|r| r.json)
+            .map_err(InvokeError::from)
         });
       }
       Self::Cli(cmd) => {
@@ -155,13 +155,19 @@ impl Module {
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
+      Self::Clipboard(cmd) => resolver.respond_async(async move {
+        cmd
+          .run(window)
+          .and_then(|r| r.json)
+          .map_err(InvokeError::from)
+      }),
     }
   }
 }
 
-pub(crate) fn handle<P: Params>(
+pub(crate) fn handle<R: Runtime>(
   module: String,
-  invoke: Invoke<P>,
+  invoke: Invoke<R>,
   config: Arc<Config>,
   package_info: &PackageInfo,
 ) {

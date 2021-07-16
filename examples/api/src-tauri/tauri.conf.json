@@ -24,11 +24,7 @@
           "name": "theme",
           "takesValue": true,
           "description": "App theme",
-          "possibleValues": [
-            "light",
-            "dark",
-            "system"
-          ]
+          "possibleValues": ["light", "dark", "system"]
         },
         {
           "short": "v",
@@ -74,11 +70,12 @@
     },
     "windows": [
       {
-        "title": "Tauri API Validation"
+        "title": "Tauri API Validation",
+        "transparent": true
       }
     ],
     "security": {
-      "csp": "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'"
+      "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: asset: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'"
     },
     "systemTray": {
       "iconPath": "../../.icons/icon.png"

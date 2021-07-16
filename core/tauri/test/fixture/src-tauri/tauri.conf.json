@@ -3,7 +3,6 @@
     "distDir": "../dist",
     "devPath": "http://localhost:4000"
   },
-  "ctx": {},
   "tauri": {
     "bundle": {
       "identifier": "studio.tauri.example",
@@ -18,7 +17,7 @@
       }
     ],
     "security": {
-      "csp": "default-src blob: data: filesystem: ws: http: https: 'unsafe-eval' 'unsafe-inline' 'self'"
+      "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self'"
     },
     "updater": {
       "active": false

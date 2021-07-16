@@ -175,6 +175,8 @@ pub struct MacOsSettings {
 /// Settings specific to the WiX implementation.
 #[derive(Clone, Debug, Default)]
 pub struct WixSettings {
+  /// The app language. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.
+  pub language: String,
   /// By default, the bundler uses an internal template.
   /// This option allows you to define your own wix file.
   pub template: Option<PathBuf>,
@@ -192,6 +194,10 @@ pub struct WixSettings {
   pub merge_refs: Vec<String>,
   /// Disables the Webview2 runtime installation after app install.
   pub skip_webview_install: bool,
+  /// The path to the LICENSE file.
+  pub license: Option<String>,
+  /// Create an elevated update task within Windows Task Scheduler
+  pub enable_elevated_update_task: bool,
 }
 
 /// The Windows bundle settings.
@@ -335,6 +341,8 @@ pub struct Settings {
   bundle_settings: BundleSettings,
   /// the binaries to bundle.
   binaries: Vec<BundleBinary>,
+  /// The target triple.
+  target: String,
 }
 
 /// A builder for [`Settings`].
@@ -346,6 +354,7 @@ pub struct SettingsBuilder {
   package_settings: Option<PackageSettings>,
   bundle_settings: BundleSettings,
   binaries: Vec<BundleBinary>,
+  target: Option<String>,
 }
 
 impl SettingsBuilder {
@@ -392,13 +401,24 @@ impl SettingsBuilder {
     self
   }
 
+  /// Sets the target triple.
+  pub fn target(mut self, target: String) -> Self {
+    self.target.replace(target);
+    self
+  }
+
   /// Builds a Settings from the CLI args.
   ///
   /// Package settings will be read from Cargo.toml.
   ///
   /// Bundle settings will be read from from $TAURI_DIR/tauri.conf.json if it exists and fallback to Cargo.toml's [package.metadata.bundle].
   pub fn build(self) -> crate::Result<Settings> {
-    let bundle_settings = parse_external_bin(self.bundle_settings)?;
+    let target = if let Some(t) = self.target {
+      t
+    } else {
+      target_triple()?
+    };
+    let bundle_settings = parse_external_bin(&target, self.bundle_settings)?;
 
     Ok(Settings {
       package: self.package_settings.expect("package settings is required"),
@@ -409,6 +429,7 @@ impl SettingsBuilder {
         .expect("out directory is required"),
       binaries: self.binaries,
       bundle_settings,
+      target,
     })
   }
 }
@@ -421,7 +442,17 @@ impl Settings {
 
   /// Returns the architecture for the binary being bundled (e.g. "arm", "x86" or "x86_64").
   pub fn binary_arch(&self) -> &str {
-    std::env::consts::ARCH
+    if self.target.starts_with("x86_64") {
+      "x86_64"
+    } else if self.target.starts_with('i') {
+      "x86"
+    } else if self.target.starts_with("arm") {
+      "arm"
+    } else if self.target.starts_with("aarch64") {
+      "aarch64"
+    } else {
+      panic!("Unexpected target triple {}", self.target)
+    }
   }
 
   /// Returns the file name of the binary being bundled.
@@ -589,7 +620,7 @@ impl Settings {
 
   /// Returns the package's homepage URL, defaulting to "" if not defined.
   pub fn homepage_url(&self) -> &str {
-    &self.package.homepage.as_deref().unwrap_or("")
+    self.package.homepage.as_deref().unwrap_or("")
   }
 
   /// Returns the app's category.
@@ -656,8 +687,10 @@ impl Settings {
 }
 
 /// Parses the external binaries to bundle, adding the target triple suffix to each of them.
-fn parse_external_bin(bundle_settings: BundleSettings) -> crate::Result<BundleSettings> {
-  let target_triple = target_triple()?;
+fn parse_external_bin(
+  target_triple: &str,
+  bundle_settings: BundleSettings,
+) -> crate::Result<BundleSettings> {
   let mut win_paths = Vec::new();
   let external_bin = match bundle_settings.external_bin {
     Some(paths) => {

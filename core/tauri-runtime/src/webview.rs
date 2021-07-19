@@ -124,7 +124,7 @@ pub trait WindowBuilder: WindowBuilderBase {
   fn min_inner_size(self, min_width: f64, min_height: f64) -> Self;
 
   /// Window max inner size.
-  fn max_inner_size(self, min_width: f64, min_height: f64) -> Self;
+  fn max_inner_size(self, max_width: f64, max_height: f64) -> Self;
 
   /// Whether the window is resizable or not.
   fn resizable(self, resizable: bool) -> Self;

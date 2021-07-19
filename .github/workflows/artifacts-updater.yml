@@ -95,9 +95,16 @@ jobs:
       - name: build cli
         working-directory: ./tooling/cli.js
         run: yarn build
+      - name: Check whether code signing should be enabled
+        id: enablecodesigning
+        env:
+            ENABLE_CODE_SIGNING: ${{ secrets.APPLE_CERTIFICATE }}
+        run: |
+            echo "Enable code signing: ${{ env.ENABLE_CODE_SIGNING != '' }}"
+            echo "::set-output name=enabled::${{ env.ENABLE_CODE_SIGNING != '' }}"
       # run only on tauri-apps/tauri repo (require secrets)
       - name: build sample artifacts + code signing (updater)
-        if: github.repository == 'tauri-apps/tauri'
+        if: steps.enablecodesigning.output.enabled == 'true'
         working-directory: ./examples/updater
         run: |
           yarn install
@@ -116,7 +123,7 @@ jobs:
           TAURI_PRIVATE_KEY: dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5YTBGV3JiTy9lRDZVd3NkL0RoQ1htZmExNDd3RmJaNmRMT1ZGVjczWTBKZ0FBQkFBQUFBQUFBQUFBQUlBQUFBQWdMekUzVkE4K0tWQ1hjeGt1Vkx2QnRUR3pzQjVuV0ZpM2czWXNkRm9hVUxrVnB6TUN3K1NheHJMREhQbUVWVFZRK3NIL1VsMDBHNW5ET1EzQno0UStSb21nRW4vZlpTaXIwZFh5ZmRlL1lSN0dKcHdyOUVPclVvdzFhVkxDVnZrbHM2T1o4Tk1NWEU9Cg==
       # run on PRs and forks
       - name: build sample artifacts (updater)
-        if: github.repository != 'tauri-apps/tauri'
+        if: steps.enablecodesigning.output.enabled != 'true'
         working-directory: ./examples/updater
         run: |
           yarn install

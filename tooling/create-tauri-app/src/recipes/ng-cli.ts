@@ -40,10 +40,6 @@ const ngcli: Recipe = {
         type: 'confirm',
         name: 'material',
         message: 'Add Angular Material (https://material.angular.io/)?',
-        validate: (input: string) => {
-          return input.toLowerCase() === 'yes'
-        },
-        loop: false,
         when: !ci
       },
       {
@@ -51,10 +47,6 @@ const ngcli: Recipe = {
         name: 'eslint',
         message:
           'Add Angular ESLint (https://github.com/angular-eslint/angular-eslint)?',
-        validate: (input: string) => {
-          return input.toLowerCase() === 'yes'
-        },
-        loop: false,
         when: !ci
       }
     ]

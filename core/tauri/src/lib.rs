@@ -94,7 +94,7 @@ pub use {
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       WindowEvent,
     },
-    Icon, RunIteration, Runtime, UserAttentionType,
+    ClipboardManager, GlobalShortcutManager, Icon, RunIteration, Runtime, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::window::{Monitor, Window},

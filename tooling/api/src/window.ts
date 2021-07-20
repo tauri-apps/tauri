@@ -81,7 +81,7 @@
  * type MenuClicked = string
  * ```
  *
- * @packageDocumentation
+ * @module
  */
 
 import { invokeTauriCommand } from './helpers/tauri'

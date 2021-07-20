@@ -8,7 +8,7 @@ import { invokeTauriCommand } from './helpers/tauri'
  * Perform operations on the current process.
  *
  * This package is also accessible with `window.__TAURI__.process` when `tauri.conf.json > build > withGlobalTauri` is set to true.
- * @packageDocumentation
+ * @module
  */
 
 /**

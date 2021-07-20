@@ -16,8 +16,8 @@ mod menu;
 
 use serde::Serialize;
 use tauri::{
-  CustomMenuItem, Event, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder,
-  WindowUrl,
+  CustomMenuItem, Event, GlobalShortcutManager, Manager, SystemTray, SystemTrayEvent,
+  SystemTrayMenu, WindowBuilder, WindowUrl,
 };
 
 #[derive(Serialize)]
@@ -32,6 +32,17 @@ async fn menu_toggle(window: tauri::Window) {
 
 fn main() {
   tauri::Builder::default()
+    .on_app_ready(|handler| {
+      let handler = handler.clone();
+      handler
+        .global_shortcut_manager()
+        .register("Ctrl+1", move || {
+          let handler = handler.clone();
+          let window = handler.get_window("main").unwrap();
+          window.set_title("New title!").unwrap();
+        })
+        .unwrap();
+    })
     .on_page_load(|window, _| {
       let window_ = window.clone();
       window.listen("js-event", move |event| {

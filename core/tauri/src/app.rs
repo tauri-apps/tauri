@@ -520,7 +520,8 @@ impl<R: Runtime> Builder<R> {
   /// Defines a callback emitted once the event loop is ready.
   pub fn on_app_ready<F>(mut self, handler: F) -> Self
   where
-    F: Fn(&AppHandle<R>) + Send + Sync + 'static  {
+    F: Fn(&AppHandle<R>) + Send + Sync + 'static,
+  {
     self.app_ready_listeners.push(Box::new(handler));
     self
   }

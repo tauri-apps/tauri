@@ -45,6 +45,7 @@ use crate::updater;
 #[cfg(feature = "menu")]
 pub(crate) type GlobalMenuEventListener<R> = Box<dyn Fn(WindowMenuEvent<R>) + Send + Sync>;
 pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) + Send + Sync>;
+pub(crate) type GlobalAppReadyEventListener<R> = Box<dyn Fn(&AppHandle<R>) + Send + Sync>;
 #[cfg(feature = "system-tray")]
 type SystemTrayEventListener<R> = Box<dyn Fn(&AppHandle<R>, tray::SystemTrayEvent) + Send + Sync>;
 
@@ -469,6 +470,9 @@ pub struct Builder<R: Runtime> {
   /// System tray event handlers.
   #[cfg(feature = "system-tray")]
   system_tray_event_listeners: Vec<SystemTrayEventListener<R>>,
+
+  /// App handlers that listens the event loop state.
+  app_ready_listeners: Vec<GlobalAppReadyEventListener<R>>,
 }
 
 impl<R: Runtime> Builder<R> {
@@ -491,6 +495,7 @@ impl<R: Runtime> Builder<R> {
       system_tray: None,
       #[cfg(feature = "system-tray")]
       system_tray_event_listeners: Vec::new(),
+      app_ready_listeners: Vec::new(),
     }
   }
 
@@ -509,6 +514,14 @@ impl<R: Runtime> Builder<R> {
     F: Fn(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send>> + Send + 'static,
   {
     self.setup = Box::new(setup);
+    self
+  }
+
+  /// Defines a callback emitted once the event loop is ready.
+  pub fn on_app_ready<F>(mut self, handler: F) -> Self
+  where
+    F: Fn(&AppHandle<R>) + Send + Sync + 'static  {
+    self.app_ready_listeners.push(Box::new(handler));
     self
   }
 
@@ -887,6 +900,19 @@ impl<R: Runtime> Builder<R> {
             });
           });
       }
+    }
+
+    // on_app_ready listeners
+    for listener in self.app_ready_listeners {
+      let listener = Arc::new(std::sync::Mutex::new(listener));
+      let app_handle = app.handle();
+      app.runtime.as_mut().unwrap().on_app_ready(move || {
+        let listener = listener.clone();
+        let app_handle = app_handle.clone();
+        crate::async_runtime::spawn(async move {
+          listener.lock().unwrap()(&app_handle);
+        });
+      });
     }
 
     #[cfg(feature = "updater")]

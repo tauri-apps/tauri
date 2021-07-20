@@ -42,7 +42,7 @@ use wry::{
       PhysicalPosition as WryPhysicalPosition, PhysicalSize as WryPhysicalSize,
       Position as WryPosition, Size as WrySize,
     },
-    event::{Event, WindowEvent as WryWindowEvent},
+    event::{Event, StartCause, WindowEvent as WryWindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
     monitor::MonitorHandle,
     platform::global_shortcut::{GlobalShortcut, ShortcutManager as WryShortcutManager},
@@ -81,6 +81,9 @@ type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListenersMap = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
 type WindowEventListeners = Arc<Mutex<HashMap<WindowId, WindowEventListenersMap>>>;
 type GlobalShortcutListeners = Arc<Mutex<HashMap<AcceleratorId, Box<dyn Fn() + Send>>>>;
+
+type GlobalAppReadyEventHandler = Box<dyn Fn() + Send>;
+type GlobalAppReadyEventListeners = Arc<Mutex<HashMap<Uuid, GlobalAppReadyEventHandler>>>;
 
 macro_rules! dispatcher_getter {
   ($self: ident, $message: expr) => {{
@@ -732,6 +735,7 @@ pub(crate) enum Message {
 
 #[derive(Clone)]
 struct DispatcherContext {
+  app_ready_listeners: GlobalAppReadyEventListeners,
   main_thread_id: ThreadId,
   is_event_loop_running: Arc<AtomicBool>,
   proxy: EventLoopProxy<Message>,
@@ -1185,6 +1189,7 @@ struct WebviewWrapper {
 
 /// A Tauri [`Runtime`] wrapper around wry.
 pub struct Wry {
+  app_ready_listeners: GlobalAppReadyEventListeners,
   main_thread_id: ThreadId,
   global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
   global_shortcut_manager_handle: GlobalShortcutManagerHandle,
@@ -1290,6 +1295,7 @@ impl Runtime for Wry {
       menu_event_listeners: Default::default(),
       #[cfg(feature = "system-tray")]
       tray_context: Default::default(),
+      app_ready_listeners: Default::default(),
     })
   }
 
@@ -1302,6 +1308,7 @@ impl Runtime for Wry {
         window_event_listeners: self.window_event_listeners.clone(),
         #[cfg(feature = "menu")]
         menu_event_listeners: self.menu_event_listeners.clone(),
+        app_ready_listeners: self.app_ready_listeners.clone(),
       },
     }
   }
@@ -1326,6 +1333,7 @@ impl Runtime for Wry {
         window_event_listeners: self.window_event_listeners.clone(),
         #[cfg(feature = "menu")]
         menu_event_listeners: self.menu_event_listeners.clone(),
+        app_ready_listeners: self.app_ready_listeners.clone(),
       },
       pending,
     )?;
@@ -1339,6 +1347,7 @@ impl Runtime for Wry {
         window_event_listeners: self.window_event_listeners.clone(),
         #[cfg(feature = "menu")]
         menu_event_listeners: self.menu_event_listeners.clone(),
+        app_ready_listeners: self.app_ready_listeners.clone(),
       },
     };
 
@@ -1377,6 +1386,16 @@ impl Runtime for Wry {
     })
   }
 
+  fn on_app_ready<F: Fn() + Send + 'static>(&self, f: F) -> Uuid {
+    let id = Uuid::new_v4();
+    self
+      .app_ready_listeners
+      .lock()
+      .unwrap()
+      .insert(id, Box::new(f));
+    id
+  }
+
   #[cfg(feature = "system-tray")]
   fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid {
     let id = Uuid::new_v4();
@@ -1401,6 +1420,7 @@ impl Runtime for Wry {
     let global_shortcut_manager = self.global_shortcut_manager.clone();
     let global_shortcut_manager_handle = self.global_shortcut_manager_handle.clone();
     let clipboard_manager = self.clipboard_manager.clone();
+    let app_ready_listeners = self.app_ready_listeners.clone();
 
     let mut iteration = RunIteration::default();
 
@@ -1426,6 +1446,7 @@ impl Runtime for Wry {
             menu_event_listeners: &menu_event_listeners,
             #[cfg(feature = "system-tray")]
             tray_context: &tray_context,
+            app_ready_listeners: &app_ready_listeners,
           },
         );
       });
@@ -1445,6 +1466,7 @@ impl Runtime for Wry {
     let global_shortcut_manager = self.global_shortcut_manager.clone();
     let global_shortcut_manager_handle = self.global_shortcut_manager_handle.clone();
     let clipboard_manager = self.clipboard_manager.clone();
+    let app_ready_listeners = self.app_ready_listeners.clone();
 
     self.event_loop.run(move |event, event_loop, control_flow| {
       handle_event_loop(
@@ -1462,6 +1484,7 @@ impl Runtime for Wry {
           menu_event_listeners: &menu_event_listeners,
           #[cfg(feature = "system-tray")]
           tray_context: &tray_context,
+          app_ready_listeners: &app_ready_listeners,
         },
       );
     })
@@ -1479,6 +1502,7 @@ struct EventLoopIterationContext<'a> {
   menu_event_listeners: &'a MenuEventListeners,
   #[cfg(feature = "system-tray")]
   tray_context: &'a TrayContext,
+  app_ready_listeners: &'a GlobalAppReadyEventListeners,
 }
 
 fn handle_event_loop(
@@ -1498,6 +1522,7 @@ fn handle_event_loop(
     menu_event_listeners,
     #[cfg(feature = "system-tray")]
     tray_context,
+    app_ready_listeners,
   } = context;
   if *control_flow == ControlFlow::Exit {
     return RunIteration {
@@ -1507,6 +1532,11 @@ fn handle_event_loop(
   *control_flow = ControlFlow::Wait;
 
   match event {
+    Event::NewEvents(StartCause::Init) => {
+      for handler in app_ready_listeners.lock().unwrap().values() {
+        handler();
+      }
+    }
     Event::GlobalShortcutEvent(accelerator_id) => {
       for (id, handler) in &*global_shortcut_manager_handle.listeners.lock().unwrap() {
         if accelerator_id == *id {

@@ -304,6 +304,9 @@ pub trait Runtime: Sized + 'static {
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid;
 
+  /// Registers a event loop ready handler.
+  fn on_app_ready<F: Fn() + Send + 'static>(&self, f: F) -> Uuid;
+
   /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
   #[cfg(any(target_os = "windows", target_os = "macos"))]
   fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration;

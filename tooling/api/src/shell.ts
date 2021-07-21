@@ -26,7 +26,7 @@ import { transformCallback } from './tauri'
  * }
  * ```
  * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
- * @packageDocumentation
+ * @module
  */
 
 interface SpawnOptions {

@@ -561,7 +561,14 @@ impl<R: Runtime> WindowManager<R> {
           true,
           // ignore "index.html" just to simplify the url
           if path.to_str() != Some("index.html") {
-            format!("{}/{}", url, path.to_string_lossy())
+            // If the base URL has a trailing slash, we don't need to put an additional slash
+            // between the base URL and the path.
+            let separator = match url.ends_with("/") {
+              true => "",
+              false => "/",
+            };
+
+            format!("{}{}{}", url, separator, path.to_string_lossy())
           } else {
             url
           },

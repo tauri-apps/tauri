@@ -31,7 +31,7 @@ pub use wry::application::platform::macos::{
 #[cfg(feature = "system-tray")]
 use crate::{Error, Message, Result, TrayMessage};
 
-#[cfg(feature = "menu")]
+#[cfg(any(feature = "menu", feature = "system-tray"))]
 use tauri_runtime::menu::MenuHash;
 
 use uuid::Uuid;

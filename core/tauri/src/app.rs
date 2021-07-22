@@ -369,9 +369,19 @@ impl<R: Runtime> App<R> {
   fn run_updater_dialog(&self, window: Window<R>) {
     let updater_config = self.manager.config().tauri.updater.clone();
     let package_info = self.manager.package_info().clone();
+
+    #[cfg(not(target_os = "linux"))]
     crate::async_runtime::spawn(async move {
       updater::check_update_with_dialog(updater_config, package_info, window).await
     });
+
+    #[cfg(target_os = "linux")]
+    {
+      let context = glib::MainContext::default();
+      context.spawn_with_priority(glib::PRIORITY_HIGH, async move {
+        updater::check_update_with_dialog(updater_config, package_info, window).await
+      });
+    }
   }
 
   /// Listen updater events when dialog are disabled.
@@ -807,9 +817,6 @@ impl<R: Runtime> Builder<R> {
       }
     }
 
-    #[cfg(feature = "updater")]
-    app.run_updater(main_window);
-
     (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e))?;
 
     #[cfg(feature = "system-tray")]
@@ -881,6 +888,9 @@ impl<R: Runtime> Builder<R> {
           });
       }
     }
+
+    #[cfg(feature = "updater")]
+    app.run_updater(main_window);
 
     Ok(app)
   }

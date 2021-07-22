@@ -30,7 +30,9 @@ const svelte: Recipe = {
     distDir: `../public`,
     devPath: 'http://localhost:5000',
     beforeDevCommand: `${packageManager === 'yarn' ? 'yarn' : 'npm run'} dev`,
-    beforeBuildCommand: `${packageManager === 'yarn' ? 'yarn' : 'npm run'} build`
+    beforeBuildCommand: `${
+      packageManager === 'yarn' ? 'yarn' : 'npm run'
+    } build`
   }),
   preInit: async ({ cwd, cfg, answers }) => {
     let typescript = false
@@ -38,37 +40,26 @@ const svelte: Recipe = {
       typescript = !!answers.typescript
     }
 
-    await shell(
-      'npx',
-      [
-        'degit',
-        'sveltejs/template',
-        `${cfg.appName}`,
-      ],
-      { cwd }
-    )
+    await shell('npx', ['degit', 'sveltejs/template', `${cfg.appName}`], {
+      cwd
+    })
 
     // Add Typescript
     if (typescript) {
-      await shell(
-        'node',
-        [
-          'scripts/setupTypeScript.js',
-        ],
-        { cwd: join(cwd, cfg.appName) }
-      )
+      await shell('node', ['scripts/setupTypeScript.js'], {
+        cwd: join(cwd, cfg.appName)
+      })
     }
-
   },
   postInit: async ({ cfg, packageManager }) => {
-
-
     console.log(`
       Your installation completed.
       To start, run the dev script:
 
       $ cd ${cfg.appName}
-      $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${packageManager === 'npm' ? '-- ' : ''}dev
+      $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
+      packageManager === 'npm' ? '-- ' : ''
+    }dev
     `)
 
     return await Promise.resolve()

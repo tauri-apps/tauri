@@ -53,7 +53,7 @@ use wry::{
   },
   webview::{
     FileDropEvent as WryFileDropEvent, RpcRequest as WryRpcRequest, RpcResponse, WebContext,
-    WebView, WebViewBuilder,
+    WebView, WebViewBuilder, WebviewExtWindows,
   },
 };
 
@@ -281,7 +281,6 @@ impl<'a> From<&WryWindowEvent<'a>> for WindowEventWrapper {
       }
       WryWindowEvent::CloseRequested => WindowEvent::CloseRequested,
       WryWindowEvent::Destroyed => WindowEvent::Destroyed,
-      WryWindowEvent::Focused(focused) => WindowEvent::Focused(*focused),
       WryWindowEvent::ScaleFactorChanged {
         scale_factor,
         new_inner_size,
@@ -290,6 +289,15 @@ impl<'a> From<&WryWindowEvent<'a>> for WindowEventWrapper {
         new_inner_size: PhysicalSizeWrapper(**new_inner_size).into(),
       },
       _ => return Self(None),
+    };
+    Self(Some(event))
+  }
+}
+
+impl From<&WebviewEvent> for WindowEventWrapper {
+  fn from(event: &WebviewEvent) -> Self {
+    let event = match event {
+      WebviewEvent::Focused(focused) => WindowEvent::Focused(*focused),
     };
     Self(Some(event))
   }
@@ -690,7 +698,13 @@ enum WindowMessage {
 #[derive(Debug, Clone)]
 enum WebviewMessage {
   EvaluateScript(String),
+  WebviewEvent(WebviewEvent),
   Print,
+}
+
+#[derive(Debug, Clone)]
+enum WebviewEvent {
+  Focused(bool),
 }
 
 #[cfg(feature = "system-tray")]
@@ -1330,6 +1344,33 @@ impl Runtime for Wry {
       pending,
     )?;
 
+    #[cfg(target_os = "windows")]
+    {
+      let id = webview.inner.window().id();
+      if let Some(controller) = webview.inner.controller() {
+        let proxy = self.event_loop.create_proxy();
+        controller
+          .add_got_focus(move |_| {
+            let _ = proxy.send_event(Message::Webview(
+              id,
+              WebviewMessage::WebviewEvent(WebviewEvent::Focused(true)),
+            ));
+            Ok(())
+          })
+          .unwrap();
+        let proxy = self.event_loop.create_proxy();
+        controller
+          .add_lost_focus(move |_| {
+            let _ = proxy.send_event(Message::Webview(
+              id,
+              WebviewMessage::WebviewEvent(WebviewEvent::Focused(false)),
+            ));
+            Ok(())
+          })
+          .unwrap();
+      };
+    }
+
     let dispatcher = WryDispatcher {
       window_id: webview.inner.window().id(),
       context: DispatcherContext {
@@ -1567,6 +1608,12 @@ fn handle_event_loop(
     Event::WindowEvent {
       event, window_id, ..
     } => {
+      if event == WryWindowEvent::Focused(true) {
+        if let Some(webview) = webviews.get(&window_id) {
+          webview.inner.focus();
+        };
+      }
+
       if let Some(event) = WindowEventWrapper::from(&event).0 {
         for handler in window_event_listeners
           .lock()
@@ -1767,6 +1814,21 @@ fn handle_event_loop(
             }
             WebviewMessage::Print => {
               let _ = webview.inner.print();
+            }
+            WebviewMessage::WebviewEvent(event) => {
+              if let Some(event) = WindowEventWrapper::from(&event).0 {
+                for handler in window_event_listeners
+                  .lock()
+                  .unwrap()
+                  .get(&id)
+                  .unwrap()
+                  .lock()
+                  .unwrap()
+                  .values()
+                {
+                  handler(&event);
+                }
+              }
             }
           }
         }

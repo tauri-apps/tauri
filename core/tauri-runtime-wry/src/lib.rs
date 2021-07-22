@@ -53,9 +53,12 @@ use wry::{
   },
   webview::{
     FileDropEvent as WryFileDropEvent, RpcRequest as WryRpcRequest, RpcResponse, WebContext,
-    WebView, WebViewBuilder, WebviewExtWindows,
+    WebView, WebViewBuilder,
   },
 };
+
+#[cfg(target_os = "windows")]
+use wry::webview::WebviewExtWindows;
 
 use std::{
   collections::HashMap,

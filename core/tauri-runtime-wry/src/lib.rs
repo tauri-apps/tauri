@@ -701,10 +701,12 @@ enum WindowMessage {
 #[derive(Debug, Clone)]
 enum WebviewMessage {
   EvaluateScript(String),
+  #[allow(dead_code)]
   WebviewEvent(WebviewEvent),
   Print,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum WebviewEvent {
   Focused(bool),

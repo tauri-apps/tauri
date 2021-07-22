@@ -48,7 +48,7 @@ export const vanillajs: Recipe = {
   $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
       packageManager === 'npm' ? '-- ' : ''
     }dev
-            `)
+  `)
     return await Promise.resolve()
   }
 }

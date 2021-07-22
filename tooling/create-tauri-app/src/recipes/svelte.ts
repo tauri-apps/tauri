@@ -53,13 +53,13 @@ const svelte: Recipe = {
   },
   postInit: async ({ cfg, packageManager }) => {
     console.log(`
-      Your installation completed.
-      To start, run the dev script:
+    Your installation completed.
 
-      $ cd ${cfg.appName}
-      $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
-      packageManager === 'npm' ? '-- ' : ''
-    }dev
+    $ cd ${cfg.appName}.
+    $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
+      packageManager === 'npm' ? '--' : ''
+    } dev
+
     `)
 
     return await Promise.resolve()

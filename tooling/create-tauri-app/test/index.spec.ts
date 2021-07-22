@@ -142,8 +142,8 @@ describe('CTA', () => {
                   tauri: 'tauri'
                 })
               )
-            }
-            svelte: ()=>{
+            },
+            svelte: () => {
               expect(packageFileOutput['scripts']).toEqual(
                 expect.objectContaining({
                   tauri: 'tauri'

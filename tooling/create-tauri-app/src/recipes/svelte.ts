@@ -6,14 +6,9 @@ import { join } from 'path'
 import { shell } from '../shell'
 import { Recipe } from '../types/recipe'
 
-const completeLogMsg = `
-  Your installation completed.
-  To start, run \`yarn dev\` and \`yarn tauri dev\`
-`
-
 const svelte: Recipe = {
   descriptiveName: {
-    name: 'Svelte (https://svelte.dev/)',
+    name: 'Svelte (https://github.com/sveltejs/template)',
     value: 'svelte'
   },
   shortName: 'svelte',
@@ -30,10 +25,12 @@ const svelte: Recipe = {
       }
     ]
   },
-  configUpdate: ({ cfg }) => ({
+  configUpdate: ({ cfg, packageManager }) => ({
     ...cfg,
     distDir: `../public`,
     devPath: 'http://localhost:5000',
+    beforeDevCommand: `${packageManager === 'yarn' ? 'yarn' : 'npm run'} dev`,
+    beforeBuildCommand: `${packageManager === 'yarn' ? 'yarn' : 'npm run'} build`
   }),
   preInit: async ({ cwd, cfg, answers }) => {
     let typescript = false
@@ -63,8 +60,15 @@ const svelte: Recipe = {
     }
 
   },
-  postInit: async () => {
-    console.log(completeLogMsg)
+  postInit: async ({ cfg, packageManager }) => {
+    console.log(`
+      Your installation completed.
+      To start, run the dev script:
+
+      $ cd ${cfg.appName}
+      $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri dev
+    `)
+
     return await Promise.resolve()
   }
 }

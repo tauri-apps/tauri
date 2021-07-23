@@ -571,7 +571,7 @@ impl<R: Runtime> WindowManager<R> {
           if path.to_str() != Some("index.html") {
             url
               .join(&*path.to_string_lossy())
-              .map_err(|e| crate::Error::InvalidUrl(e))?
+              .map_err(crate::Error::InvalidUrl)?
               .to_string()
           } else {
             url.to_string()

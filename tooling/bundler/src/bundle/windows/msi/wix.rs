@@ -575,6 +575,17 @@ pub fn build_wix_app_installer(
     let install_script_content = skip_uac_task_installer.render("install-task.ps1", &data)?;
     write(&temp_ps1_path, install_script_content.clone())?;
 
+    // Create the Powershell script to uninstall the task
+    let mut skip_uac_task_uninstaller = Handlebars::new();
+    let xml = include_str!("../templates/uninstall-task.ps1");
+    skip_uac_task_uninstaller
+      .register_template_string("uninstall-task.ps1", xml)
+      .map_err(|e| e.to_string())
+      .expect("Failed to setup Update Task Uninstaller handlebars");
+    let temp_ps1_path = output_path.join("uninstall-task.ps1");
+    let install_script_content = skip_uac_task_uninstaller.render("uninstall-task.ps1", &data)?;
+    write(&temp_ps1_path, install_script_content.clone())?;
+
     data.insert("enable_elevated_update_task", to_json(true));
   }
 

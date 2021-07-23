@@ -1108,8 +1108,10 @@ class WebviewWindow extends WindowManager {
 }
 
 /** The WebviewWindow for the current window. */
-// @ts-expect-error
-const appWindow = new WebviewWindow()
+const appWindow = new WebviewWindow(window.__TAURI__.__currentWindow.label, {
+  // @ts-expect-error
+  skip: true
+})
 
 /** Configuration for the window to create. */
 interface WindowOptions {

@@ -6,7 +6,6 @@ use crate::{
   api::{
     assets::Assets,
     config::{AppUrl, Config, WindowUrl},
-    path::{resolve_path, BaseDirectory},
     PackageInfo,
   },
   app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
@@ -23,6 +22,9 @@ use crate::{
   },
   App, Context, Invoke, StateManager, Window,
 };
+
+#[cfg(target_os = "windows")]
+use crate::api::path::{resolve_path, BaseDirectory};
 
 #[cfg(feature = "menu")]
 use crate::app::{GlobalMenuEventListener, WindowMenuEvent};

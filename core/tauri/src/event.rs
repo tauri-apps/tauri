@@ -194,7 +194,7 @@ impl Listeners {
       Ok(lock) => {
         if let Some(handlers) = lock.get(event) {
           for (&id, handler) in handlers {
-            if window.is_none() || window == handler.window {
+            if handler.window.is_none() || window == handler.window {
               maybe_pending = true;
               (handler.callback)(self::Event {
                 id,

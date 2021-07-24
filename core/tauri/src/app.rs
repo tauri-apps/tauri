@@ -195,6 +195,23 @@ impl<R: Runtime> AppHandle<R> {
   fn remove_system_tray(&self) -> crate::Result<()> {
     self.runtime_handle.remove_system_tray().map_err(Into::into)
   }
+
+  /// Exits the app
+  pub fn exit(&self, exit_code: i32) {
+    std::process::exit(exit_code);
+  }
+
+  /// Runs necessary cleanup tasks before exiting the process
+  fn cleanup_before_exit(&self) {
+    #[cfg(shell_execute)]
+    {
+      crate::api::process::kill_children();
+    }
+    #[cfg(all(windows, feature = "system-tray"))]
+    {
+      let _ = self.remove_system_tray();
+    }
+  }
 }
 
 impl<R: Runtime> Manager<R> for AppHandle<R> {}
@@ -323,14 +340,7 @@ impl<R: Runtime> App<R> {
     let manager = self.manager.clone();
     self.runtime.take().unwrap().run(move |event| match event {
       RunEvent::Exit => {
-        #[cfg(shell_execute)]
-        {
-          crate::api::process::kill_children();
-        }
-        #[cfg(all(windows, feature = "system-tray"))]
-        {
-          let _ = app_handle.remove_system_tray();
-        }
+        app_handle.cleanup_before_exit();
         callback(&app_handle, Event::Exit);
       }
       _ => {

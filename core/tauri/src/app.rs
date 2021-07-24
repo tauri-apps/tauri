@@ -16,7 +16,7 @@ use crate::{
   runtime::{
     webview::{CustomProtocol, WebviewAttributes, WindowBuilder},
     window::{PendingWindow, WindowEvent},
-    Dispatch, RunEvent, Runtime,
+    Dispatch, ExitRequestedEventAction, RunEvent, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
   Context, Invoke, InvokeError, Manager, StateManager, Window,
@@ -41,7 +41,6 @@ use crate::runtime::{Icon, SystemTrayEvent as RuntimeSystemTrayEvent};
 
 #[cfg(feature = "updater")]
 use crate::updater;
-use tauri_runtime::ExitRequestedEventAction;
 
 #[cfg(feature = "menu")]
 pub(crate) type GlobalMenuEventListener<R> = Box<dyn Fn(WindowMenuEvent<R>) + Send + Sync>;

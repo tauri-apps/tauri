@@ -2,4 +2,4 @@
 "tauri": major
 ---
 
-Fix `App.create_window()` to accept any `Into<String>` type instead of only `String` itself.
+Change `App.create_window()` and `AppHandle.create_window()` to accept an `Into<String>` type instead of `String`.

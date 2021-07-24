@@ -159,6 +159,10 @@ impl Icon {
 pub enum RunEvent {
   /// Event loop is exiting.
   Exit,
+  /// Event loop is about to exit
+  ExitRequested {
+    tx: Sender<ExitRequestedEventAction>,
+  },
   /// Window close was requested by the user.
   CloseRequested {
     /// The window label.
@@ -168,6 +172,13 @@ pub enum RunEvent {
   },
   /// Window closed.
   WindowClose(String),
+}
+
+/// Action to take when the event loop is about to exit
+#[derive(Debug)]
+pub enum ExitRequestedEventAction {
+  /// Prevent the event loop from exiting
+  Prevent,
 }
 
 /// A system tray event.

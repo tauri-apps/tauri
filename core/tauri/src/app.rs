@@ -41,6 +41,7 @@ use crate::runtime::{Icon, SystemTrayEvent as RuntimeSystemTrayEvent};
 
 #[cfg(feature = "updater")]
 use crate::updater;
+use tauri_runtime::ExitRequestedEventAction;
 
 #[cfg(feature = "menu")]
 pub(crate) type GlobalMenuEventListener<R> = Box<dyn Fn(WindowMenuEvent<R>) + Send + Sync>;
@@ -48,7 +49,19 @@ pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) 
 #[cfg(feature = "system-tray")]
 type SystemTrayEventListener<R> = Box<dyn Fn(&AppHandle<R>, tray::SystemTrayEvent) + Send + Sync>;
 
+/// Api exposed on the `ExitRequested` event.
+#[derive(Debug)]
+pub struct ExitRequestApi(Sender<ExitRequestedEventAction>);
+
+impl ExitRequestApi {
+  /// Prevents the app from exiting
+  pub fn prevent_exit(&self) {
+    self.0.send(ExitRequestedEventAction::Prevent).unwrap();
+  }
+}
+
 /// Api exposed on the `CloseRequested` event.
+#[derive(Debug)]
 pub struct CloseRequestApi(Sender<bool>);
 
 impl CloseRequestApi {
@@ -59,10 +72,17 @@ impl CloseRequestApi {
 }
 
 /// An application event, triggered from the event loop.
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum Event {
   /// Event loop is exiting.
   Exit,
+  /// The app is about to exit
+  #[non_exhaustive]
+  ExitRequested {
+    /// Event API
+    api: ExitRequestApi,
+  },
   /// Window close was requested by the user.
   #[non_exhaustive]
   CloseRequested {
@@ -319,6 +339,9 @@ impl<R: Runtime> App<R> {
           &app_handle,
           match event {
             RunEvent::Exit => Event::Exit,
+            RunEvent::ExitRequested { tx } => Event::ExitRequested {
+              api: ExitRequestApi(tx),
+            },
             RunEvent::CloseRequested { label, signal_tx } => Event::CloseRequested {
               label: label.parse().unwrap_or_else(|_| unreachable!()),
               api: CloseRequestApi(signal_tx),

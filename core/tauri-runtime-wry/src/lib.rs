@@ -1950,9 +1950,7 @@ fn on_window_close<'a>(
     callback(RunEvent::ExitRequested { tx });
 
     let recv = rx.try_recv();
-    println!("recv: {:?}", recv);
     let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
-    println!("Should prevent? {}", should_prevent);
 
     if !should_prevent {
       *control_flow = ControlFlow::Exit;

@@ -82,7 +82,7 @@ fn main() {
           }
           "new" => app
             .create_window(
-              "new".into(),
+              "new",
               WindowUrl::App("index.html".into()),
               |window_builder, webview_attributes| {
                 (window_builder.title("Tauri"), webview_attributes)

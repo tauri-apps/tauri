@@ -225,7 +225,12 @@ macro_rules! shared_app_impl {
   ($app: ty) => {
     impl<R: Runtime> $app {
       /// Creates a new webview window.
-      pub fn create_window<F>(&self, label: String, url: WindowUrl, setup: F) -> crate::Result<()>
+      pub fn create_window<F>(
+        &self,
+        label: impl Into<String>,
+        url: WindowUrl,
+        setup: F,
+      ) -> crate::Result<()>
       where
         F: FnOnce(
           <R::Dispatcher as Dispatch>::WindowBuilder,

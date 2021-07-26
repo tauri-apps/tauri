@@ -672,7 +672,7 @@ mod build {
       let min_width = opt_lit(self.min_width.as_ref());
       let min_height = opt_lit(self.min_height.as_ref());
       let max_width = opt_lit(self.max_width.as_ref());
-      let max_height = opt_lit(self.min_height.as_ref());
+      let max_height = opt_lit(self.max_height.as_ref());
       let resizable = self.resizable;
       let title = str_lit(&self.title);
       let fullscreen = self.fullscreen;

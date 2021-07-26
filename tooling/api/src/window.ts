@@ -81,7 +81,7 @@
  * type MenuClicked = string
  * ```
  *
- * @packageDocumentation
+ * @module
  */
 
 import { invokeTauriCommand } from './helpers/tauri'
@@ -195,8 +195,8 @@ enum UserAttentionType {
  * @return The current WebviewWindow.
  */
 function getCurrent(): WebviewWindow {
-  // @ts-expect-error
   return new WebviewWindow(window.__TAURI__.__currentWindow.label, {
+    // @ts-expect-error
     skip: true
   })
 }
@@ -207,9 +207,12 @@ function getCurrent(): WebviewWindow {
  * @return The list of WebviewWindow.
  */
 function getAll(): WebviewWindow[] {
-  // @ts-expect-error
   return window.__TAURI__.__windows.map(
-    (w) => new WebviewWindow(w, { skip: true })
+    (w) =>
+      new WebviewWindow(w.label, {
+        // @ts-expect-error
+        skip: true
+      })
   )
 }
 
@@ -1105,8 +1108,10 @@ class WebviewWindow extends WindowManager {
 }
 
 /** The WebviewWindow for the current window. */
-// @ts-expect-error
-const appWindow = new WebviewWindow()
+const appWindow = new WebviewWindow(window.__TAURI__.__currentWindow.label, {
+  // @ts-expect-error
+  skip: true
+})
 
 /** Configuration for the window to create. */
 interface WindowOptions {

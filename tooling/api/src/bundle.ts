@@ -7,6 +7,7 @@
 import 'regenerator-runtime/runtime'
 import * as app from './app'
 import * as cli from './cli'
+import * as clipboard from './clipboard'
 import * as dialog from './dialog'
 import * as event from './event'
 import * as fs from './fs'
@@ -24,6 +25,7 @@ const invoke = tauri.invoke
 export {
   app,
   cli,
+  clipboard,
   dialog,
   event,
   fs,

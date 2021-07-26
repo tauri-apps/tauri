@@ -119,7 +119,7 @@ fn init_command(matches: &ArgMatches) -> Result<()> {
     dist_dir,
     dist_dir,
     ci,
-    r#"Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri" folder that will be created?"#,
+    r#"Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri/tauri.conf.json" file that will be created?"#,
     init_defaults.framework.as_ref().map(|f| f.dist_dir())
   );
   init_runner = value_or_prompt!(

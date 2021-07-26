@@ -46,7 +46,7 @@ use wry::{
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
     monitor::MonitorHandle,
     platform::global_shortcut::{GlobalShortcut, ShortcutManager as WryShortcutManager},
-    window::{Fullscreen, Icon as WindowIcon, UserAttentionType as WryUserAttentionType, Window},
+    window::{Fullscreen, Icon as WindowIcon, UserAttentionType as WryUserAttentionType, WindowId},
   },
   webview::{
     FileDropEvent as WryFileDropEvent, RpcRequest as WryRpcRequest, RpcResponse, WebContext,
@@ -54,7 +54,7 @@ use wry::{
   },
 };
 
-pub use wry::application::window::{WindowBuilder as WryWindowBuilder, WindowId};
+pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder};
 
 #[cfg(target_os = "windows")]
 use wry::webview::WebviewExtWindows;
@@ -745,8 +745,8 @@ pub(crate) enum Message {
     Sender<WindowId>,
   ),
   CreateWindow(
-    Box<dyn FnOnce() -> Result<(String, WryWindowBuilder)> + Send>,
-    Sender<Result<WindowId>>,
+    Box<dyn FnOnce() -> (String, WryWindowBuilder) + Send>,
+    Sender<Result<Arc<Window>>>,
   ),
   GlobalShortcut(GlobalShortcutMessage),
   Clipboard(ClipboardMessage),
@@ -1198,7 +1198,7 @@ struct TrayContext {
 
 enum WindowHandle {
   Webview(WebView),
-  Window(Window),
+  Window(Arc<Window>),
 }
 
 impl WindowHandle {
@@ -1244,10 +1244,10 @@ pub struct WryHandle {
 
 impl WryHandle {
   /// Creates a new tao window using a callback, and returns its window id.
-  pub fn create_tao_window<F: FnOnce() -> Result<(String, WryWindowBuilder)> + Send + 'static>(
+  pub fn create_tao_window<F: FnOnce() -> (String, WryWindowBuilder) + Send + 'static>(
     &self,
     f: F,
-  ) -> Result<WindowId> {
+  ) -> Result<Arc<Window>> {
     let (tx, rx) = channel();
     self
       .dispatcher_context
@@ -1883,30 +1883,42 @@ fn handle_event_loop(
           eprintln!("{}", e);
         }
       },
-      Message::CreateWindow(handler, sender) => match handler() {
-        Ok((label, builder)) => {
-          if let Ok(window) = builder.build(event_loop) {
-            let window_id = window.id();
-            windows.insert(
-              window_id,
-              WindowWrapper {
-                label,
-                inner: WindowHandle::Window(window),
-                #[cfg(feature = "menu")]
-                menu_items: Default::default(),
-                #[cfg(feature = "menu")]
-                is_menu_visible: AtomicBool::new(true),
-              },
-            );
-            sender.send(Ok(window_id)).unwrap();
-          } else {
-            sender.send(Err(Error::CreateWindow)).unwrap();
-          }
+      Message::CreateWindow(handler, sender) => {
+        let (label, builder) = handler();
+        if let Ok(window) = builder.build(event_loop) {
+          let window_id = window.id();
+
+          context
+            .window_event_listeners
+            .lock()
+            .unwrap()
+            .insert(window.id(), WindowEventListenersMap::default());
+
+          #[cfg(feature = "menu")]
+          context
+            .menu_event_listeners
+            .lock()
+            .unwrap()
+            .insert(window.id(), WindowMenuEventListeners::default());
+
+          let w = Arc::new(window);
+
+          windows.insert(
+            window_id,
+            WindowWrapper {
+              label,
+              inner: WindowHandle::Window(w.clone()),
+              #[cfg(feature = "menu")]
+              menu_items: Default::default(),
+              #[cfg(feature = "menu")]
+              is_menu_visible: AtomicBool::new(true),
+            },
+          );
+          sender.send(Ok(w)).unwrap();
+        } else {
+          sender.send(Err(Error::CreateWindow)).unwrap();
         }
-        Err(e) => {
-          eprintln!("{}", e);
-        }
-      },
+      }
       #[cfg(feature = "system-tray")]
       Message::Tray(tray_message) => match tray_message {
         TrayMessage::UpdateItem(menu_id, update) => {

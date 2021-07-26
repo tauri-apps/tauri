@@ -148,6 +148,21 @@ pub struct AppHandle<R: Runtime> {
   tray_handle: Option<tray::SystemTrayHandle<R>>,
 }
 
+#[cfg(feature = "wry")]
+impl AppHandle<crate::Wry> {
+  /// Create a new tao window using a callback. The event loop must be running at this point.
+  pub fn create_tao_window<
+    F: FnOnce() -> tauri_runtime::Result<(String, tauri_runtime_wry::WryWindowBuilder)>
+      + Send
+      + 'static,
+  >(
+    &self,
+    f: F,
+  ) -> crate::Result<tauri_runtime_wry::WindowId> {
+    self.runtime_handle.create_tao_window(f).map_err(Into::into)
+  }
+}
+
 impl<R: Runtime> Clone for AppHandle<R> {
   fn clone(&self) -> Self {
     Self {

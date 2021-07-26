@@ -190,7 +190,7 @@ pub enum SystemTrayEvent {
 /// Metadata for a runtime event loop iteration on `run_iteration`.
 #[derive(Debug, Clone, Default)]
 pub struct RunIteration {
-  pub webview_count: usize,
+  pub window_count: usize,
 }
 
 /// A [`Send`] handle to the runtime.

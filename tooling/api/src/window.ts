@@ -225,11 +225,11 @@ const localTauriEvents = ['tauri://created', 'tauri://error']
  */
 class WebviewWindowHandle {
   /** Window label. */
-  label: string
+  label: string | null
   /** Local event listeners. */
   listeners: { [key: string]: Array<EventCallback<any>> }
 
-  constructor(label: string) {
+  constructor(label: string | null) {
     this.label = label
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.listeners = Object.create(null)
@@ -1071,7 +1071,7 @@ class WindowManager extends WebviewWindowHandle {
  * ```
  */
 class WebviewWindow extends WindowManager {
-  constructor(label: string, options: WindowOptions = {}) {
+  constructor(label: string | null, options: WindowOptions = {}) {
     super(label)
     // @ts-expect-error
     if (!options?.skip) {
@@ -1108,7 +1108,7 @@ class WebviewWindow extends WindowManager {
 }
 
 /** The WebviewWindow for the current window. */
-const appWindow = new WebviewWindow(window.__TAURI__.__currentWindow.label, {
+const appWindow = new WebviewWindow(null, {
   // @ts-expect-error
   skip: true
 })

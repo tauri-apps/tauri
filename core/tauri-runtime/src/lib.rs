@@ -388,6 +388,10 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   #[cfg(windows)]
   fn hwnd(&self) -> crate::Result<HWND>;
 
+  /// Returns the native handle that is used by this window.
+  #[cfg(target_os = "macos")]
+  fn ns_window(&self) -> crate::Result<*mut std::ffi::c_void>;
+
   /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
   #[cfg(any(
     target_os = "linux",

@@ -27,6 +27,8 @@ use winapi::shared::windef::HWND;
 use wry::application::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
+#[cfg(target_os = "macos")]
+use wry::application::platform::macos::WindowExtMacOS;
 
 #[cfg(feature = "system-tray")]
 use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
@@ -616,6 +618,11 @@ impl From<FileDropEventWrapper> for FileDropEvent {
   }
 }
 
+#[cfg(target_os = "macos")]
+struct NSWindow(*mut std::ffi::c_void);
+#[cfg(target_os = "macos")]
+unsafe impl Send for NSWindow {}
+
 #[cfg(windows)]
 struct Hwnd(HWND);
 #[cfg(windows)]
@@ -656,6 +663,8 @@ enum WindowMessage {
   CurrentMonitor(Sender<Option<MonitorHandle>>),
   PrimaryMonitor(Sender<Option<MonitorHandle>>),
   AvailableMonitors(Sender<Vec<MonitorHandle>>),
+  #[cfg(target_os = "macos")]
+  NSWindow(Sender<NSWindow>),
   #[cfg(windows)]
   Hwnd(Sender<Hwnd>),
   #[cfg(any(
@@ -882,6 +891,11 @@ impl Dispatch for WryDispatcher {
         .map(|m| MonitorHandleWrapper(m).into())
         .collect(),
     )
+  }
+
+  #[cfg(target_os = "macos")]
+  fn ns_window(&self) -> Result<*mut std::ffi::c_void> {
+    Ok(dispatcher_getter!(self, WindowMessage::NSWindow).0)
   }
 
   #[cfg(windows)]
@@ -1742,6 +1756,8 @@ fn handle_event_loop(
             WindowMessage::AvailableMonitors(tx) => {
               tx.send(window.available_monitors().collect()).unwrap()
             }
+            #[cfg(target_os = "macos")]
+            WindowMessage::NSWindow(tx) => tx.send(NSWindow(window.ns_window())).unwrap(),
             #[cfg(windows)]
             WindowMessage::Hwnd(tx) => tx.send(Hwnd(window.hwnd() as HWND)).unwrap(),
             #[cfg(any(

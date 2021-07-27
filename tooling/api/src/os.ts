@@ -54,7 +54,7 @@ async function version(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Os',
     message: {
-      cmd: 'platform'
+      cmd: 'version'
     }
   })
 }

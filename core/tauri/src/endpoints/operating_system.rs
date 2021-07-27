@@ -23,7 +23,7 @@ impl Cmd {
     #[cfg(os_all)]
     return Ok(match self {
       Self::Platform => std::env::consts::OS.into(),
-      Self::Version => os_info::get().version().into(),
+      Self::Version => os_info::get().version().to_string().into(),
       #[cfg(target_os = "linux")]
       Self::Type => "Linux".into(),
       #[cfg(target_os = "windows")]

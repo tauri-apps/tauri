@@ -23,12 +23,12 @@ use tauri_runtime::window::MenuEvent;
 use tauri_runtime::{SystemTray, SystemTrayEvent};
 #[cfg(windows)]
 use winapi::shared::windef::HWND;
+#[cfg(target_os = "macos")]
+use wry::application::platform::macos::WindowExtMacOS;
 #[cfg(target_os = "linux")]
 use wry::application::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
-#[cfg(target_os = "macos")]
-use wry::application::platform::macos::WindowExtMacOS;
 
 #[cfg(feature = "system-tray")]
 use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
@@ -1399,28 +1399,30 @@ impl Runtime for Wry {
     #[cfg(target_os = "windows")]
     {
       let id = webview.inner.window().id();
-      if let Some(controller) = webview.inner.controller() {
-        let proxy = self.event_loop.create_proxy();
-        controller
-          .add_got_focus(move |_| {
-            let _ = proxy.send_event(Message::Webview(
-              id,
-              WebviewMessage::WebviewEvent(WebviewEvent::Focused(true)),
-            ));
-            Ok(())
-          })
-          .unwrap();
-        let proxy = self.event_loop.create_proxy();
-        controller
-          .add_lost_focus(move |_| {
-            let _ = proxy.send_event(Message::Webview(
-              id,
-              WebviewMessage::WebviewEvent(WebviewEvent::Focused(false)),
-            ));
-            Ok(())
-          })
-          .unwrap();
-      };
+      if let WindowHandle::Webview(ref webview) = webview.inner {
+        if let Some(controller) = webview.controller() {
+          let proxy = self.event_loop.create_proxy();
+          controller
+            .add_got_focus(move |_| {
+              let _ = proxy.send_event(Message::Webview(
+                id,
+                WebviewMessage::WebviewEvent(WebviewEvent::Focused(true)),
+              ));
+              Ok(())
+            })
+            .unwrap();
+          let proxy = self.event_loop.create_proxy();
+          controller
+            .add_lost_focus(move |_| {
+              let _ = proxy.send_event(Message::Webview(
+                id,
+                WebviewMessage::WebviewEvent(WebviewEvent::Focused(false)),
+              ));
+              Ok(())
+            })
+            .unwrap();
+        }
+      }
     }
 
     let dispatcher = WryDispatcher {

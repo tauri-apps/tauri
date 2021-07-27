@@ -487,11 +487,7 @@ impl<R: Runtime> Window<R> {
   /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
   #[cfg(target_os = "macos")]
   pub fn ns_window(&self) -> crate::Result<*mut std::ffi::c_void> {
-    self
-      .window
-      .dispatcher
-      .ns_window()
-      .map_err(Into::into)
+    self.window.dispatcher.ns_window().map_err(Into::into)
   }
   /// Returns the native handle that is used by this window.
   ///

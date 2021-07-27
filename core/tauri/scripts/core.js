@@ -371,7 +371,12 @@ if (!String.prototype.startsWith) {
         {
           __tauriModule: 'Window',
           message: {
-            cmd: 'print'
+            cmd: 'manage',
+            data: {
+              cmd: {
+                type: 'print'
+              }
+            }
           }
         },
         _KEY_VALUE_

@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 use super::InvokeResponse;
-use os_info;
 use serde::Deserialize;
 
 /// The API descriptor.

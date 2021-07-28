@@ -4,9 +4,10 @@
 
 import { invokeTauriCommand } from './helpers/tauri'
 import { BaseDirectory } from './fs'
+import { isWindows } from './helpers/os-check'
 
 /**
- * Read common system paths such as home, config and cache directories.
+ * The path module provides utilities for working with file and directory paths.
  *
  * This package is also accessible with `window.__TAURI__.path` when `tauri.conf.json > build > withGlobalTauri` is set to true.
  *
@@ -15,9 +16,8 @@ import { BaseDirectory } from './fs'
  * {
  *   "tauri": {
  *     "allowlist": {
- *       "fs": {
- *         "all": true, // enable all FS APIs
- *         "path": true // enable path APIs
+ *       "path": {
+ *         "all": true, // enable all Path APIs
  *       }
  *     }
  *   }
@@ -431,6 +431,8 @@ async function currentDir(): Promise<string> {
 /**
  * Resolves the path with the optional base directory.
  *
+ * @deprecated use `resolve` instead.
+ *
  * @param path A path to resolve
  * @param directory A base directory to use when resolving the given path
  * @returns A path resolved to the given base directory.
@@ -439,12 +441,110 @@ async function resolvePath(
   path: string,
   directory: BaseDirectory
 ): Promise<string> {
+  console.warn('"resolvePath" is deprecated, use "resolve" instead')
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path,
       directory
+    }
+  })
+}
+
+/**
+ * Provides the platform-specific path segment separator:
+ * - `\` on Windows
+ * - `/` on POSIX
+ */
+const sep = isWindows() ? '\\' : '/'
+
+/**
+ * Provides the platform-specific path segment delimiter:
+ * - `;` on Windows
+ * - `:` on POSIX
+ */
+const delimiter = isWindows() ? ';' : ':'
+
+/**
+ * Resolves a sequence of `paths` or `path` segments into an absolute path.
+ *
+ * @param paths A sequence of paths or path segments.
+ */
+async function resolve(...paths: string[]): Promise<string> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Path',
+    message: {
+      cmd: 'resolve',
+      paths
+    }
+  })
+}
+
+/**
+ * Normalizes the given `path`, resolving `'..'` and `'.'` segments and resolve symolic links.
+ */
+async function normalize(path: string): Promise<string> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Path',
+    message: {
+      cmd: 'normalize',
+      path
+    }
+  })
+}
+
+/**
+ *  Joins all given `path` segments together using the platform-specific separator as a delimiter, then normalizes the resulting path.
+ *
+ * @param paths A sequence of path segments.
+ */
+async function join(...paths: string[]): Promise<string> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Path',
+    message: {
+      cmd: 'join',
+      paths
+    }
+  })
+}
+
+/**
+ * Returns the directory name of a `path`. Trailing directory separators are ignored.
+ */
+async function dirname(path: string): Promise<string> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Path',
+    message: {
+      cmd: 'dirname',
+      path
+    }
+  })
+}
+
+/**
+ * Returns the extension of the `path`.
+ */
+async function extname(path: string): Promise<string> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Path',
+    message: {
+      cmd: 'extname',
+      path
+    }
+  })
+}
+
+/**
+ *  Returns the last portion of a `path`. Trailing directory separators are ignored.
+ */
+async function basename(path: string, ext?: string): Promise<string> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Path',
+    message: {
+      cmd: 'basename',
+      path,
+      ext
     }
   })
 }
@@ -470,5 +570,13 @@ export {
   videoDir,
   currentDir,
   resolvePath,
-  BaseDirectory
+  BaseDirectory,
+  sep,
+  delimiter,
+  resolve,
+  normalize,
+  join,
+  dirname,
+  extname,
+  basename
 }

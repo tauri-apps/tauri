@@ -20,6 +20,7 @@ import * as shell from './shell'
 import * as tauri from './tauri'
 import * as updater from './updater'
 import * as window from './window'
+import * as os from './os'
 const invoke = tauri.invoke
 
 export {
@@ -38,5 +39,6 @@ export {
   tauri,
   updater,
   window,
+  os,
   invoke
 }

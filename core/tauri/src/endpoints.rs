@@ -24,6 +24,7 @@ mod global_shortcut;
 mod http;
 mod internal;
 mod notification;
+mod operating_system;
 mod process;
 mod shell;
 mod window;
@@ -47,6 +48,7 @@ enum Module {
   App(app::Cmd),
   Process(process::Cmd),
   Fs(file_system::Cmd),
+  Os(operating_system::Cmd),
   Window(Box<window::Cmd>),
   Shell(shell::Cmd),
   Event(event::Cmd),
@@ -82,6 +84,8 @@ impl Module {
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
+      Self::Os(cmd) => resolver
+        .respond_async(async move { cmd.run().and_then(|r| r.json).map_err(InvokeError::from) }),
       Self::Window(cmd) => resolver.respond_async(async move {
         cmd
           .run(window)

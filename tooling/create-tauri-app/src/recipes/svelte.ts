@@ -14,14 +14,15 @@ const svelte: Recipe = {
   shortName: 'svelte',
   extraNpmDevDependencies: [],
   extraNpmDependencies: [],
-  extraQuestions: () => {
+  extraQuestions: ({ ci }) => {
     return [
       {
         type: 'confirm',
         name: 'typescript',
         message: 'Enable Typescript?',
         default: true,
-        loop: false
+        loop: false,
+        when: !ci
       }
     ]
   },

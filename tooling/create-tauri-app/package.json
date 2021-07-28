@@ -29,7 +29,7 @@
     "lint:lockfile": "lockfile-lint --path yarn.lock --type yarn --validate-https --allowed-hosts npm yarn",
     "format": "prettier --write --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
     "format:check": "prettier --check --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
-    "test": "jest --runInBand"
+    "test": "node ./test/spawn.test.mjs"
   },
   "dependencies": {
     "chalk": "4.1.1",
@@ -39,16 +39,17 @@
     "scaffe": "1.1.0"
   },
   "devDependencies": {
+    "@effection/process": "^2.0.0-beta.4",
     "@rollup/plugin-commonjs": "19.0.0",
     "@rollup/plugin-node-resolve": "13.0.0",
     "@rollup/plugin-typescript": "8.2.1",
     "@types/cross-spawn": "6.0.2",
     "@types/inquirer": "7.3.1",
-    "@types/jest": "26.0.23",
     "@types/minimist": "1.2.1",
     "@types/semver": "7.3.6",
     "@typescript-eslint/eslint-plugin": "4.25.0",
     "@typescript-eslint/parser": "4.25.0",
+    "effection": "^2.0.0-beta.4",
     "eslint": "7.27.0",
     "eslint-config-prettier": "8.3.0",
     "eslint-config-standard-with-typescript": "20.0.0",
@@ -57,11 +58,9 @@
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-promise": "5.1.0",
     "eslint-plugin-security": "1.4.0",
-    "fixturez": "1.1.0",
-    "jest": "27.0.3",
     "prettier": "2.3.0",
     "rollup": "2.50.4",
-    "ts-jest": "27.0.1",
+    "temp-dir": "^2.0.0",
     "tslib": "2.2.0",
     "typescript": "4.3.2"
   }

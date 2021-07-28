@@ -15,8 +15,8 @@ export function updatePackageJson(appDirectory: string, appName: string): void {
   const pkgString = readFileSync(pkgPath, 'utf8')
   const pkg = JSON.parse(pkgString) as Package
   const outputPkg = {
-    name: appName,
     ...pkg,
+    name: appName,
     scripts: {
       ...pkg.scripts,
       tauri: 'tauri'

@@ -84,6 +84,21 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
     merge(&mut config, &merge_config);
   }
 
+  let platform_config_filename = if cfg!(target_os = "macos") {
+    "tauri.macos.conf.json"
+  } else if cfg!(windows) {
+    "tauri.windows.conf.json"
+  } else {
+    "tauri.linux.conf.json"
+  };
+  let platform_config_path = super::app_paths::tauri_dir().join(platform_config_filename);
+  if platform_config_path.exists() {
+    let platform_config_file = File::open(platform_config_path)?;
+    let platform_config: JsonValue = serde_json::from_reader(BufReader::new(platform_config_file))
+      .with_context(|| format!("failed to parse `{}`", platform_config_filename))?;
+    merge(&mut config, &platform_config);
+  }
+
   #[allow(unused_mut)]
   let mut config: Config = serde_json::from_value(config)?;
   #[cfg(target_os = "linux")]

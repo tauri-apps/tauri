@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-/** @ignore */ /** */
+/** @ignore */ 
 
 function isLinux(): boolean {
   return navigator.appVersion.includes('Linux')

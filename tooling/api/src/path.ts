@@ -537,6 +537,8 @@ async function extname(path: string): Promise<string> {
 
 /**
  *  Returns the last portion of a `path`. Trailing directory separators are ignored.
+ *
+ * @param ext An optional file extension to be removed from the returned path.
  */
 async function basename(path: string, ext?: string): Promise<string> {
   return invokeTauriCommand<string>({

@@ -83,7 +83,7 @@ pub use {
     config::{Config, WindowUrl},
     PackageInfo,
   },
-  self::app::{App, AppHandle, Builder, CloseRequestApi, Event, GlobalWindowEvent},
+  self::app::{App, AppHandle, Builder, CloseRequestApi, Event, GlobalWindowEvent, PathResolver},
   self::hooks::{
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
     PageLoadPayload, SetupHook,
@@ -102,7 +102,7 @@ pub use {
 #[cfg(feature = "system-tray")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub use {
-  self::app::tray::SystemTrayEvent,
+  self::app::tray::{SystemTrayEvent, SystemTrayHandle},
   self::runtime::{
     menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
     SystemTray,

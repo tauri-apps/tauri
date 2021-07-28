@@ -51,5 +51,8 @@ fn main() {
 
     // global shortcut
     global_shortcut_all: { any(api_all, feature = "global_shortcut-all") },
+
+    // os
+    os_all: { any(api_all, feature = "os-all") },
   }
 }

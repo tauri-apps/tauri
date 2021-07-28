@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 #[cfg(feature = "system-tray")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub(crate) mod tray;
 
 use crate::{
@@ -835,8 +834,6 @@ impl<R: Runtime> Builder<R> {
       }
     }
 
-    (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e))?;
-
     #[cfg(feature = "system-tray")]
     if let Some(system_tray) = self.system_tray {
       let mut ids = HashMap::new();
@@ -906,6 +903,8 @@ impl<R: Runtime> Builder<R> {
           });
       }
     }
+
+    (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e))?;
 
     #[cfg(feature = "updater")]
     app.run_updater(main_window);

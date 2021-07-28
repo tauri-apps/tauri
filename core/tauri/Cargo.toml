@@ -69,6 +69,7 @@ os_pipe = { version = "0.9", optional = true }
 rfd = "0.4"
 raw-window-handle = { version = "0.3.3", optional = true }
 minisign-verify = { version = "0.1", optional = true }
+os_info = { version = "3.0.6", optional = true}
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.9", features = [ "v3_16" ] }
@@ -97,6 +98,7 @@ api-all = [
   "notification-all",
   "global-shortcut-all",
   "shell-all",
+  "os-all",
   "dialog-all",
   "updater"
 ]
@@ -128,3 +130,4 @@ http-all = [ ]
 http-request = [ ]
 notification-all = [ "notify-rust" ]
 global-shortcut-all = [ ]
+os-all = [ "os_info" ]

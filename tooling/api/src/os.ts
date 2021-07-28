@@ -13,8 +13,7 @@
  *   "tauri": {
  *     "allowlist": {
  *       "os": {
- *         "all": true, // enable all FS APIs
- *         "platform": true,
+ *         "all": true, // enable all Os APIs
  *       }
  *     }
  *   }

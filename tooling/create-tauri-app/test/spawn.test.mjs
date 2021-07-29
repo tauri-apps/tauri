@@ -33,6 +33,7 @@ main(function* start() {
       console.log(`::group::recipe ${recipe}`)
       console.log(`------------------ ${recipe} started -------------------`)
       const recipeFolder = path.join(tauriTemp, recipe)
+      const appFolder = path.join(recipeFolder, appName)
       yield fs.mkdir(recipeFolder, { recursive: true })
       console.log(`${recipeFolder} created.`)
 
@@ -47,6 +48,9 @@ main(function* start() {
         output[recipe] = { cta: yield spawn(cta.join()) }
       }
 
+      // now it is finished, assert on some things
+      yield assertCTAState()
+
       let opts = []
       if (manager === 'npm') {
         opts =
@@ -57,18 +61,18 @@ main(function* start() {
         opts = recipe == 'vuecli' ? ['tauri:build'] : ['tauri', 'build']
       }
 
-      // now it is finished, assert on some things
-      yield assertCTAState()
-
       const tauriBuild = yield exec(manager, {
         arguments: opts,
-        cwd: recipeFolder
+        cwd: appFolder
       })
       if (!parallelize) yield streamLogs(tauriBuild)
       else {
         console.log('running recipe tauri build in parallel')
         output[recipe].tauriBuild = yield spawn(tauriBuild.join())
       }
+
+      // build is complete, assert on some things
+      yield assertTauriBuildState()
 
       console.log(`------------------ ${recipe} complete -------------------`)
       console.log('::endgroup::')
@@ -93,9 +97,6 @@ main(function* start() {
         console.log('::endgroup::')
       }
     }
-
-    // build is complete, assert on some things
-    yield assertTauriBuildState()
   } catch (e) {
     console.error(e)
   } finally {

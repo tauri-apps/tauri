@@ -145,7 +145,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   };
   #[cfg(not(target_os = "macos"))]
   let system_tray_icon_as_template = false;
-  
+
   #[cfg(target_os = "macos")]
   let system_tray_icon_as_template = if let Some(tray) = &config.tauri.system_tray {
     tray.icon_as_template

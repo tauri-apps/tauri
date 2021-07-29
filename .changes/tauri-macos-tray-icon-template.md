@@ -1,6 +1,5 @@
 ---
 "tauri": patch
-"tauri-codegen": patch
 "tauri-runtime": patch
 "tauri-runtime-wry": patch
 ---

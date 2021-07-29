@@ -143,15 +143,6 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   } else {
     quote!(None)
   };
-  #[cfg(not(target_os = "macos"))]
-  let system_tray_icon_as_template = false;
-
-  #[cfg(target_os = "macos")]
-  let system_tray_icon_as_template = if let Some(tray) = &config.tauri.system_tray {
-    tray.icon_as_template
-  } else {
-    false
-  };
 
   // double braces are purposeful to force the code into a block expression
   Ok(quote!(#root::Context::new(
@@ -160,7 +151,6 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     #default_window_icon,
     #system_tray_icon,
     #package_info,
-    #system_tray_icon_as_template,
   )))
 }
 

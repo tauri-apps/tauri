@@ -760,7 +760,13 @@ impl<R: Runtime> Builder<R> {
     };
 
     #[cfg(all(feature = "system-tray", target_os = "macos"))]
-    let system_tray_icon_as_template = context.system_tray_icon_as_template().clone();
+    let system_tray_icon_as_template = context
+      .config
+      .tauri
+      .system_tray
+      .as_ref()
+      .map(|t| t.icon_as_template)
+      .unwrap_or_default();
 
     let manager = WindowManager::with_handlers(
       context,

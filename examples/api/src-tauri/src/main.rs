@@ -134,7 +134,7 @@ fn main() {
           "icon_1" => app
             .tray_handle()
             .set_icon(tauri::Icon::Raw(
-              include_bytes!("../../../.icons/icon.ico").to_vec(),
+              include_bytes!("../../../.icons/tray_icon_with_transparency.ico").to_vec(),
             ))
             .unwrap(),
           #[cfg(target_os = "windows")]

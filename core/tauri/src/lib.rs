@@ -248,8 +248,7 @@ impl<A: Assets> Context<A> {
     default_window_icon: Option<Vec<u8>>,
     system_tray_icon: Option<Icon>,
     package_info: crate::api::PackageInfo,
-    #[cfg(target_os = "macos")]
-    system_tray_icon_as_template: bool,
+    _system_tray_icon_as_template: bool,
   ) -> Self {
     Self {
       config,
@@ -258,7 +257,7 @@ impl<A: Assets> Context<A> {
       system_tray_icon,
       package_info,
       #[cfg(target_os = "macos")]
-      system_tray_icon_as_template,
+      system_tray_icon_as_template: _system_tray_icon_as_template,
     }
   }
 }

@@ -1299,7 +1299,9 @@ impl RuntimeHandle for WryHandle {
 
   #[cfg(all(windows, feature = "system-tray"))]
   /// Deprecated. (not needed anymore)
-  fn remove_system_tray(&self) -> Result<()> {}
+  fn remove_system_tray(&self) -> Result<()> {
+    Ok(())
+  }
 }
 
 impl Runtime for Wry {

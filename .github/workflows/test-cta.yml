@@ -5,7 +5,7 @@
 name: test create-tauri-app
 env:
   RUST_BACKTRACE: 1
-  TAURI_RECIPE: "vanillajs,cra,vite,vuecli,ngcli"
+  TAURI_RECIPE: "vanillajs,cra,vite,ngcli"
 
 on:
   workflow_dispatch:

@@ -16,7 +16,7 @@ const api = path.resolve('../api/')
 const manager = process.env.TAURI_RUN_MANAGER || 'yarn'
 const recipes = process.env.TAURI_RECIPE
   ? process.env.TAURI_RECIPE.split(',')
-  : ['vanillajs', 'cra', 'vite', 'vuecli']
+  : ['vanillajs', 'cra', 'vite', 'vuecli', 'ngcli']
 const parallelize = process.env.TAURI_RECIPE_PARALLELIZE || false
 
 main(function* start() {

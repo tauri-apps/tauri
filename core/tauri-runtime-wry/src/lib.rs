@@ -725,8 +725,6 @@ enum WebviewEvent {
 pub(crate) enum TrayMessage {
   UpdateItem(u16, menu::MenuUpdate),
   UpdateIcon(Icon),
-  #[cfg(windows)]
-  Remove,
 }
 
 #[derive(Clone)]
@@ -1300,13 +1298,8 @@ impl RuntimeHandle for WryHandle {
   }
 
   #[cfg(all(windows, feature = "system-tray"))]
-  fn remove_system_tray(&self) -> Result<()> {
-    self
-      .dispatcher_context
-      .proxy
-      .send_event(Message::Tray(TrayMessage::Remove))
-      .map_err(|_| Error::FailedToSendMessage)
-  }
+  /// Deprecated. (not needed anymore)
+  fn remove_system_tray(&self) -> Result<()> {}
 }
 
 impl Runtime for Wry {

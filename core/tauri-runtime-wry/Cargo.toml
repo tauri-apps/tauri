@@ -29,5 +29,5 @@ gtk = { version = "0.9", features = [ "v3_16" ] }
 
 [features]
 dox = [ "wry/dox" ]
-menu = [ ]
+menu = [ "tauri-runtime/menu"]
 system-tray = [ "wry/tray", "tauri-runtime/system-tray" ]

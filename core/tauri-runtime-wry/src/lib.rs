@@ -1918,8 +1918,6 @@ fn handle_event_loop(
               inner: WindowHandle::Window(w.clone()),
               #[cfg(feature = "menu")]
               menu_items: Default::default(),
-              #[cfg(feature = "menu")]
-              is_menu_visible: AtomicBool::new(true),
             },
           );
           sender.send(Ok(w)).unwrap();

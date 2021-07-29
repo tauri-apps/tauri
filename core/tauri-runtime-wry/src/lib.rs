@@ -46,8 +46,8 @@ use wry::{
     },
     event::{Event, WindowEvent as WryWindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
-    monitor::MonitorHandle,
     global_shortcut::{GlobalShortcut, ShortcutManager as WryShortcutManager},
+    monitor::MonitorHandle,
     window::{Fullscreen, Icon as WindowIcon, UserAttentionType as WryUserAttentionType, WindowId},
   },
   webview::{

@@ -190,7 +190,7 @@ pub enum SystemTrayEvent {
 /// Metadata for a runtime event loop iteration on `run_iteration`.
 #[derive(Debug, Clone, Default)]
 pub struct RunIteration {
-  pub webview_count: usize,
+  pub window_count: usize,
 }
 
 /// A [`Send`] handle to the runtime.
@@ -387,6 +387,10 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   /// Returns the native handle that is used by this window.
   #[cfg(windows)]
   fn hwnd(&self) -> crate::Result<HWND>;
+
+  /// Returns the native handle that is used by this window.
+  #[cfg(target_os = "macos")]
+  fn ns_window(&self) -> crate::Result<*mut std::ffi::c_void>;
 
   /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
   #[cfg(any(

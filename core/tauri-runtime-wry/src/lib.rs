@@ -23,6 +23,8 @@ use tauri_runtime::window::MenuEvent;
 use tauri_runtime::{SystemTray, SystemTrayEvent};
 #[cfg(windows)]
 use winapi::shared::windef::HWND;
+#[cfg(target_os = "macos")]
+use wry::application::platform::macos::WindowExtMacOS;
 #[cfg(target_os = "linux")]
 use wry::application::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
@@ -44,18 +46,17 @@ use wry::{
     },
     event::{Event, WindowEvent as WryWindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
+    global_shortcut::{GlobalShortcut, ShortcutManager as WryShortcutManager},
     monitor::MonitorHandle,
-    platform::global_shortcut::{GlobalShortcut, ShortcutManager as WryShortcutManager},
-    window::{
-      Fullscreen, Icon as WindowIcon, UserAttentionType as WryUserAttentionType, Window,
-      WindowBuilder as WryWindowBuilder, WindowId,
-    },
+    window::{Fullscreen, Icon as WindowIcon, UserAttentionType as WryUserAttentionType, WindowId},
   },
   webview::{
     FileDropEvent as WryFileDropEvent, RpcRequest as WryRpcRequest, RpcResponse, WebContext,
     WebView, WebViewBuilder,
   },
 };
+
+pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder};
 
 #[cfg(target_os = "windows")]
 use wry::webview::WebviewExtWindows;
@@ -617,6 +618,11 @@ impl From<FileDropEventWrapper> for FileDropEvent {
   }
 }
 
+#[cfg(target_os = "macos")]
+struct NSWindow(*mut std::ffi::c_void);
+#[cfg(target_os = "macos")]
+unsafe impl Send for NSWindow {}
+
 #[cfg(windows)]
 struct Hwnd(HWND);
 #[cfg(windows)]
@@ -657,6 +663,8 @@ enum WindowMessage {
   CurrentMonitor(Sender<Option<MonitorHandle>>),
   PrimaryMonitor(Sender<Option<MonitorHandle>>),
   AvailableMonitors(Sender<Vec<MonitorHandle>>),
+  #[cfg(target_os = "macos")]
+  NSWindow(Sender<NSWindow>),
   #[cfg(windows)]
   Hwnd(Sender<Hwnd>),
   #[cfg(any(
@@ -717,8 +725,6 @@ enum WebviewEvent {
 pub(crate) enum TrayMessage {
   UpdateItem(u16, menu::MenuUpdate),
   UpdateIcon(Icon),
-  #[cfg(windows)]
-  Remove,
 }
 
 #[derive(Clone)]
@@ -742,8 +748,12 @@ pub(crate) enum Message {
   #[cfg(feature = "system-tray")]
   Tray(TrayMessage),
   CreateWebview(
-    Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> Result<WebviewWrapper> + Send>,
+    Box<dyn FnOnce(&EventLoopWindowTarget<Message>) -> Result<WindowWrapper> + Send>,
     Sender<WindowId>,
+  ),
+  CreateWindow(
+    Box<dyn FnOnce() -> (String, WryWindowBuilder) + Send>,
+    Sender<Result<Arc<Window>>>,
   ),
   GlobalShortcut(GlobalShortcutMessage),
   Clipboard(ClipboardMessage),
@@ -879,6 +889,11 @@ impl Dispatch for WryDispatcher {
         .map(|m| MonitorHandleWrapper(m).into())
         .collect(),
     )
+  }
+
+  #[cfg(target_os = "macos")]
+  fn ns_window(&self) -> Result<*mut std::ffi::c_void> {
+    Ok(dispatcher_getter!(self, WindowMessage::NSWindow).0)
   }
 
   #[cfg(windows)]
@@ -1193,9 +1208,23 @@ struct TrayContext {
   items: SystemTrayItems,
 }
 
-struct WebviewWrapper {
+enum WindowHandle {
+  Webview(WebView),
+  Window(Arc<Window>),
+}
+
+impl WindowHandle {
+  fn window(&self) -> &Window {
+    match self {
+      Self::Webview(w) => w.window(),
+      Self::Window(w) => w,
+    }
+  }
+}
+
+struct WindowWrapper {
   label: String,
-  inner: WebView,
+  inner: WindowHandle,
   #[cfg(feature = "menu")]
   menu_items: HashMap<u16, WryCustomMenuItem>,
 }
@@ -1209,7 +1238,7 @@ pub struct Wry {
   clipboard_manager_handle: ClipboardManagerWrapper,
   is_event_loop_running: Arc<AtomicBool>,
   event_loop: EventLoop<Message>,
-  webviews: Arc<Mutex<HashMap<WindowId, WebviewWrapper>>>,
+  windows: Arc<Mutex<HashMap<WindowId, WindowWrapper>>>,
   window_event_listeners: WindowEventListeners,
   #[cfg(feature = "menu")]
   menu_event_listeners: MenuEventListeners,
@@ -1221,6 +1250,22 @@ pub struct Wry {
 #[derive(Clone)]
 pub struct WryHandle {
   dispatcher_context: DispatcherContext,
+}
+
+impl WryHandle {
+  /// Creates a new tao window using a callback, and returns its window id.
+  pub fn create_tao_window<F: FnOnce() -> (String, WryWindowBuilder) + Send + 'static>(
+    &self,
+    f: F,
+  ) -> Result<Arc<Window>> {
+    let (tx, rx) = channel();
+    self
+      .dispatcher_context
+      .proxy
+      .send_event(Message::CreateWindow(Box::new(f), tx))
+      .map_err(|_| Error::FailedToSendMessage)?;
+    rx.recv().unwrap()
+  }
 }
 
 impl RuntimeHandle for WryHandle {
@@ -1253,12 +1298,9 @@ impl RuntimeHandle for WryHandle {
   }
 
   #[cfg(all(windows, feature = "system-tray"))]
+  /// Deprecated. (not needed anymore)
   fn remove_system_tray(&self) -> Result<()> {
-    self
-      .dispatcher_context
-      .proxy
-      .send_event(Message::Tray(TrayMessage::Remove))
-      .map_err(|_| Error::FailedToSendMessage)
+    Ok(())
   }
 }
 
@@ -1301,7 +1343,7 @@ impl Runtime for Wry {
       clipboard_manager_handle,
       is_event_loop_running,
       event_loop,
-      webviews: Default::default(),
+      windows: Default::default(),
       window_event_listeners: Default::default(),
       #[cfg(feature = "menu")]
       menu_event_listeners: Default::default(),
@@ -1350,28 +1392,30 @@ impl Runtime for Wry {
     #[cfg(target_os = "windows")]
     {
       let id = webview.inner.window().id();
-      if let Some(controller) = webview.inner.controller() {
-        let proxy = self.event_loop.create_proxy();
-        controller
-          .add_got_focus(move |_| {
-            let _ = proxy.send_event(Message::Webview(
-              id,
-              WebviewMessage::WebviewEvent(WebviewEvent::Focused(true)),
-            ));
-            Ok(())
-          })
-          .unwrap();
-        let proxy = self.event_loop.create_proxy();
-        controller
-          .add_lost_focus(move |_| {
-            let _ = proxy.send_event(Message::Webview(
-              id,
-              WebviewMessage::WebviewEvent(WebviewEvent::Focused(false)),
-            ));
-            Ok(())
-          })
-          .unwrap();
-      };
+      if let WindowHandle::Webview(ref webview) = webview.inner {
+        if let Some(controller) = webview.controller() {
+          let proxy = self.event_loop.create_proxy();
+          controller
+            .add_got_focus(move |_| {
+              let _ = proxy.send_event(Message::Webview(
+                id,
+                WebviewMessage::WebviewEvent(WebviewEvent::Focused(true)),
+              ));
+              Ok(())
+            })
+            .unwrap();
+          let proxy = self.event_loop.create_proxy();
+          controller
+            .add_lost_focus(move |_| {
+              let _ = proxy.send_event(Message::Webview(
+                id,
+                WebviewMessage::WebviewEvent(WebviewEvent::Focused(false)),
+              ));
+              Ok(())
+            })
+            .unwrap();
+        }
+      }
     }
 
     let dispatcher = WryDispatcher {
@@ -1387,7 +1431,7 @@ impl Runtime for Wry {
     };
 
     self
-      .webviews
+      .windows
       .lock()
       .unwrap()
       .insert(webview.inner.window().id(), webview);
@@ -1436,7 +1480,7 @@ impl Runtime for Wry {
   #[cfg(any(target_os = "windows", target_os = "macos"))]
   fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration {
     use wry::application::platform::run_return::EventLoopExtRunReturn;
-    let webviews = self.webviews.clone();
+    let windows = self.windows.clone();
     let window_event_listeners = self.window_event_listeners.clone();
     #[cfg(feature = "menu")]
     let menu_event_listeners = self.menu_event_listeners.clone();
@@ -1461,7 +1505,7 @@ impl Runtime for Wry {
           control_flow,
           EventLoopIterationContext {
             callback: &callback,
-            webviews: webviews.lock().expect("poisoned webview collection"),
+            windows: windows.lock().expect("poisoned webview collection"),
             window_event_listeners: &window_event_listeners,
             global_shortcut_manager: global_shortcut_manager.clone(),
             global_shortcut_manager_handle: &global_shortcut_manager_handle,
@@ -1480,7 +1524,7 @@ impl Runtime for Wry {
 
   fn run<F: Fn(RunEvent) + 'static>(self, callback: F) {
     self.is_event_loop_running.store(true, Ordering::Relaxed);
-    let webviews = self.webviews.clone();
+    let windows = self.windows.clone();
     let window_event_listeners = self.window_event_listeners.clone();
     #[cfg(feature = "menu")]
     let menu_event_listeners = self.menu_event_listeners.clone();
@@ -1497,7 +1541,7 @@ impl Runtime for Wry {
         control_flow,
         EventLoopIterationContext {
           callback: &callback,
-          webviews: webviews.lock().expect("poisoned webview collection"),
+          windows: windows.lock().expect("poisoned webview collection"),
           window_event_listeners: &window_event_listeners,
           global_shortcut_manager: global_shortcut_manager.clone(),
           global_shortcut_manager_handle: &global_shortcut_manager_handle,
@@ -1514,7 +1558,7 @@ impl Runtime for Wry {
 
 struct EventLoopIterationContext<'a> {
   callback: &'a (dyn Fn(RunEvent) + 'static),
-  webviews: MutexGuard<'a, HashMap<WindowId, WebviewWrapper>>,
+  windows: MutexGuard<'a, HashMap<WindowId, WindowWrapper>>,
   window_event_listeners: &'a WindowEventListeners,
   global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
   global_shortcut_manager_handle: &'a GlobalShortcutManagerHandle,
@@ -1533,7 +1577,7 @@ fn handle_event_loop(
 ) -> RunIteration {
   let EventLoopIterationContext {
     callback,
-    mut webviews,
+    mut windows,
     window_event_listeners,
     global_shortcut_manager,
     global_shortcut_manager_handle,
@@ -1545,7 +1589,7 @@ fn handle_event_loop(
   } = context;
   if *control_flow == ControlFlow::Exit {
     return RunIteration {
-      webview_count: webviews.len(),
+      window_count: windows.len(),
     };
   }
   *control_flow = ControlFlow::Wait;
@@ -1612,9 +1656,9 @@ fn handle_event_loop(
       event, window_id, ..
     } => {
       if event == WryWindowEvent::Focused(true) {
-        if let Some(webview) = webviews.get(&window_id) {
-          webview.inner.focus();
-        };
+        if let Some(WindowHandle::Webview(webview)) = windows.get(&window_id).map(|w| &w.inner) {
+          webview.focus();
+        }
       }
 
       if let Some(event) = WindowEventWrapper::from(&event).0 {
@@ -1633,7 +1677,7 @@ fn handle_event_loop(
       match event {
         WryWindowEvent::CloseRequested => {
           let (tx, rx) = channel();
-          if let Some(w) = webviews.get(&window_id) {
+          if let Some(w) = windows.get(&window_id) {
             callback(RunEvent::CloseRequested {
               label: w.label.clone(),
               signal_tx: tx,
@@ -1643,7 +1687,7 @@ fn handle_event_loop(
               on_window_close(
                 callback,
                 window_id,
-                &mut webviews,
+                &mut windows,
                 control_flow,
                 #[cfg(target_os = "linux")]
                 window_event_listeners,
@@ -1654,8 +1698,10 @@ fn handle_event_loop(
           }
         }
         WryWindowEvent::Resized(_) => {
-          if let Err(e) = webviews[&window_id].inner.resize() {
-            eprintln!("{}", e);
+          if let Some(WindowHandle::Webview(webview)) = windows.get(&window_id).map(|w| &w.inner) {
+            if let Err(e) = webview.resize() {
+              eprintln!("{}", e);
+            }
           }
         }
         _ => {}
@@ -1664,7 +1710,7 @@ fn handle_event_loop(
     Event::UserEvent(message) => match message {
       Message::Task(task) => task(),
       Message::Window(id, window_message) => {
-        if let Some(webview) = webviews.get_mut(&id) {
+        if let Some(webview) = windows.get_mut(&id) {
           let window = webview.inner.window();
           match window_message {
             // Getters
@@ -1703,6 +1749,8 @@ fn handle_event_loop(
             WindowMessage::AvailableMonitors(tx) => {
               tx.send(window.available_monitors().collect()).unwrap()
             }
+            #[cfg(target_os = "macos")]
+            WindowMessage::NSWindow(tx) => tx.send(NSWindow(window.ns_window())).unwrap(),
             #[cfg(windows)]
             WindowMessage::Hwnd(tx) => tx.send(Hwnd(window.hwnd() as HWND)).unwrap(),
             #[cfg(any(
@@ -1738,7 +1786,7 @@ fn handle_event_loop(
               on_window_close(
                 callback,
                 id,
-                &mut webviews,
+                &mut windows,
                 control_flow,
                 #[cfg(target_os = "linux")]
                 window_event_listeners,
@@ -1800,15 +1848,15 @@ fn handle_event_loop(
         }
       }
       Message::Webview(id, webview_message) => {
-        if let Some(webview) = webviews.get_mut(&id) {
+        if let Some(WindowHandle::Webview(webview)) = windows.get(&id).map(|w| &w.inner) {
           match webview_message {
             WebviewMessage::EvaluateScript(script) => {
-              if let Err(e) = webview.inner.evaluate_script(&script) {
+              if let Err(e) = webview.evaluate_script(&script) {
                 eprintln!("{}", e);
               }
             }
             WebviewMessage::Print => {
-              let _ = webview.inner.print();
+              let _ = webview.print();
             }
             WebviewMessage::WebviewEvent(event) => {
               if let Some(event) = WindowEventWrapper::from(&event).0 {
@@ -1831,13 +1879,47 @@ fn handle_event_loop(
       Message::CreateWebview(handler, sender) => match handler(event_loop) {
         Ok(webview) => {
           let window_id = webview.inner.window().id();
-          webviews.insert(window_id, webview);
+          windows.insert(window_id, webview);
           sender.send(window_id).unwrap();
         }
         Err(e) => {
           eprintln!("{}", e);
         }
       },
+      Message::CreateWindow(handler, sender) => {
+        let (label, builder) = handler();
+        if let Ok(window) = builder.build(event_loop) {
+          let window_id = window.id();
+
+          context
+            .window_event_listeners
+            .lock()
+            .unwrap()
+            .insert(window.id(), WindowEventListenersMap::default());
+
+          #[cfg(feature = "menu")]
+          context
+            .menu_event_listeners
+            .lock()
+            .unwrap()
+            .insert(window.id(), WindowMenuEventListeners::default());
+
+          let w = Arc::new(window);
+
+          windows.insert(
+            window_id,
+            WindowWrapper {
+              label,
+              inner: WindowHandle::Window(w.clone()),
+              #[cfg(feature = "menu")]
+              menu_items: Default::default(),
+            },
+          );
+          sender.send(Ok(w)).unwrap();
+        } else {
+          sender.send(Err(Error::CreateWindow)).unwrap();
+        }
+      }
       #[cfg(feature = "system-tray")]
       Message::Tray(tray_message) => match tray_message {
         TrayMessage::UpdateItem(menu_id, update) => {
@@ -1856,13 +1938,6 @@ fn handle_event_loop(
         TrayMessage::UpdateIcon(icon) => {
           if let Some(tray) = &*tray_context.tray.lock().unwrap() {
             tray.lock().unwrap().set_icon(icon.into_tray_icon());
-          }
-        }
-        #[cfg(windows)]
-        TrayMessage::Remove => {
-          if let Some(tray) = tray_context.tray.lock().unwrap().as_ref() {
-            use wry::application::platform::windows::SystemTrayExtWindows;
-            tray.lock().unwrap().remove();
           }
         }
       },
@@ -1918,24 +1993,24 @@ fn handle_event_loop(
   }
 
   RunIteration {
-    webview_count: webviews.len(),
+    window_count: windows.len(),
   }
 }
 
 fn on_window_close<'a>(
   callback: &'a (dyn Fn(RunEvent) + 'static),
   window_id: WindowId,
-  webviews: &mut MutexGuard<'a, HashMap<WindowId, WebviewWrapper>>,
+  windows: &mut MutexGuard<'a, HashMap<WindowId, WindowWrapper>>,
   control_flow: &mut ControlFlow,
   #[cfg(target_os = "linux")] window_event_listeners: &WindowEventListeners,
   #[cfg(feature = "menu")] menu_event_listeners: MenuEventListeners,
 ) {
-  if let Some(webview) = webviews.remove(&window_id) {
+  if let Some(webview) = windows.remove(&window_id) {
     #[cfg(feature = "menu")]
     menu_event_listeners.lock().unwrap().remove(&window_id);
     callback(RunEvent::WindowClose(webview.label));
   }
-  if webviews.is_empty() {
+  if windows.is_empty() {
     *control_flow = ControlFlow::Exit;
     callback(RunEvent::Exit);
   }
@@ -1973,7 +2048,7 @@ fn create_webview(
   event_loop: &EventLoopWindowTarget<Message>,
   context: DispatcherContext,
   pending: PendingWindow<Wry>,
-) -> Result<WebviewWrapper> {
+) -> Result<WindowWrapper> {
   #[allow(unused_mut)]
   let PendingWindow {
     webview_attributes,
@@ -2028,7 +2103,7 @@ fn create_webview(
     ));
   }
   for (scheme, protocol) in webview_attributes.uri_scheme_protocols {
-    webview_builder = webview_builder.with_custom_protocol(scheme, move |_window, url| {
+    webview_builder = webview_builder.with_custom_protocol(scheme, move |url| {
       protocol(url)
         .map(|data| {
           let mime_type = MimeType::parse(&data, url);
@@ -2037,8 +2112,8 @@ fn create_webview(
         .map_err(|_| wry::Error::InitScriptError)
     });
   }
-  let context = WebContext::new(webview_attributes.data_directory);
-  webview_builder = webview_builder.with_web_context(&context);
+  let mut context = WebContext::new(webview_attributes.data_directory);
+  webview_builder = webview_builder.with_web_context(&mut context);
   for script in webview_attributes.initialization_scripts {
     webview_builder = webview_builder.with_initialization_script(&script);
   }
@@ -2047,9 +2122,9 @@ fn create_webview(
     .build()
     .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
-  Ok(WebviewWrapper {
+  Ok(WindowWrapper {
     label,
-    inner: webview,
+    inner: WindowHandle::Webview(webview),
     #[cfg(feature = "menu")]
     menu_items,
   })

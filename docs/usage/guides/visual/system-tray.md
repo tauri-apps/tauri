@@ -12,13 +12,17 @@ Configure the `systemTray` object on `tauri.conf.json`:
 {
   "tauri": {
     "systemTray": {
-      "iconPath": "icons/icon.png"
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true,
     }
   }
 }
 ```
 
 The `iconPath` is pointed to a PNG file on macOS and Linux, and a `.ico` file must exist for Windows support.
+
+The `iconAsTemplate` is a boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
+
 
 ### Creating a system tray
 

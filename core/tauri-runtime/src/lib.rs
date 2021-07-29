@@ -34,6 +34,8 @@ use window::{
 pub struct SystemTray {
   pub icon: Option<Icon>,
   pub menu: Option<menu::SystemTrayMenu>,
+  #[cfg(target_os = "macos")]
+  pub icon_as_template: bool,
 }
 
 #[cfg(feature = "system-tray")]
@@ -42,6 +44,8 @@ impl Default for SystemTray {
     Self {
       icon: None,
       menu: None,
+      #[cfg(target_os = "macos")]
+      icon_as_template: false,
     }
   }
 }
@@ -60,6 +64,13 @@ impl SystemTray {
   /// Sets the tray icon. Must be a [`Icon::File`] on Linux and a [`Icon::Raw`] on Windows and macOS.
   pub fn with_icon(mut self, icon: Icon) -> Self {
     self.icon.replace(icon);
+    self
+  }
+
+  /// Sets the tray icon as template.
+  #[cfg(target_os = "macos")]
+  pub fn with_icon_as_template(mut self, is_template: bool) -> Self {
+    self.icon_as_template = is_template;
     self
   }
 

@@ -160,8 +160,9 @@ pub struct Context<A: Assets> {
   pub(crate) assets: Arc<A>,
   pub(crate) default_window_icon: Option<Vec<u8>>,
   pub(crate) system_tray_icon: Option<Icon>,
-  pub(crate) system_tray_icon_as_template: bool,
   pub(crate) package_info: crate::api::PackageInfo,
+  #[cfg(target_os = "macos")]
+  pub(crate) system_tray_icon_as_template: bool,
 }
 
 impl<A: Assets> Context<A> {
@@ -246,16 +247,18 @@ impl<A: Assets> Context<A> {
     assets: Arc<A>,
     default_window_icon: Option<Vec<u8>>,
     system_tray_icon: Option<Icon>,
-    system_tray_icon_as_template: bool,
     package_info: crate::api::PackageInfo,
+    #[cfg(target_os = "macos")]
+    system_tray_icon_as_template: bool,
   ) -> Self {
     Self {
       config,
       assets,
       default_window_icon,
       system_tray_icon,
-      system_tray_icon_as_template,
       package_info,
+      #[cfg(target_os = "macos")]
+      system_tray_icon_as_template,
     }
   }
 }

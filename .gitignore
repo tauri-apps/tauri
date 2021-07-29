@@ -79,6 +79,7 @@ target
 
 # lock for libs
 /Cargo.lock
+/tooling/bench/tests/Cargo.lock
 /yarn.lock
 
 /tooling/cli.js/test/jest/tmp

@@ -174,7 +174,8 @@ const runInit = async (argv: Argv): Promise<void> => {
   const defaults = {
     appName: 'tauri-app',
     tauri: { window: { title: 'Tauri App' } },
-    recipeName: 'vanillajs'
+    recipeName: 'vanillajs',
+    installApi: true
   }
 
   // prompt initial questions
@@ -206,6 +207,7 @@ const runInit = async (argv: Argv): Promise<void> => {
         type: 'confirm',
         name: 'installApi',
         message: 'Add "@tauri-apps/api" npm package?',
+        default: true,
         when: !argv.ci
       }
     ])

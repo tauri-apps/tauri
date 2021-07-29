@@ -109,6 +109,7 @@ impl<R: Runtime> Clone for SystemTrayMenuItemHandle<R> {
 }
 
 impl<R: Runtime> SystemTrayHandle<R> {
+  /// Gets a handle to the menu item that has the specified `id`.
   pub fn get_item(&self, id: MenuIdRef<'_>) -> SystemTrayMenuItemHandle<R> {
     for (raw, item_id) in self.ids.iter() {
       if item_id == id {

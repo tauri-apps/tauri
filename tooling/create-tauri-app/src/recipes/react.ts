@@ -96,10 +96,14 @@ export const cra: Recipe = {
     }
     await afterCra(cwd, cfg.appName, template === 'cra.ts')
   },
-  postInit: async ({ packageManager }) => {
+  postInit: async ({ packageManager, cfg }) => {
     console.log(`
     Your installation completed.
-    To start, run ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri dev
+
+    $ cd ${cfg.appName}
+    $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
+      packageManager === 'npm' ? '--' : ''
+    } dev
   `)
     return await Promise.resolve()
   }

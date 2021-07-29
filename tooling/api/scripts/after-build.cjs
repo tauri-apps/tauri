@@ -5,14 +5,11 @@
 const { readFileSync, readdirSync, writeFileSync, copyFileSync } = require('fs')
 const { copySync } = require('fs-extra')
 
-/**
- * append our api modules to `exports` in `package.json` then write it to `./dist`
- */
+// append our api modules to `exports` in `package.json` then write it to `./dist`
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
-const modules = readdirSync('src').map((mod) => mod.replace('.ts', ''))
-if (!pkg.exports) {
-  pkg.exports = {}
-}
+const modules = readdirSync('src')
+  .filter((e) => e !== 'helpers')
+  .map((mod) => mod.replace('.ts', ''))
 
 const outputPkg = {
   ...pkg,
@@ -33,14 +30,12 @@ const outputPkg = {
     }),
     // if for some reason in the future we manually add something in the `exports` field
     // this will ensure it doesn't get overwritten by the logic above
-    { ...pkg.exports }
+    { ...(pkg.exports || {}) }
   )
 }
 writeFileSync('dist/package.json', JSON.stringify(outputPkg, undefined, 2))
 
-/**
- * copy necessary files like `CHANGELOG.md` , `README.md` and Licenses to `./dist`
- */
+// copy necessary files like `CHANGELOG.md` , `README.md` and Licenses to `./dist`
 const dir = readdirSync('.')
 const files = [
   ...dir.filter((f) => f.startsWith('LICENSE')),
@@ -48,7 +43,5 @@ const files = [
 ]
 files.forEach((f) => copyFileSync(f, `dist/${f}`))
 
-/**
- * copy typescript src files to `./dist`
- */
+// copy typescript src files to `./dist`
 copySync('src', 'dist')

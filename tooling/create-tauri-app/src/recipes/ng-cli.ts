@@ -29,10 +29,14 @@ const ngcli: Recipe = {
   shortName: 'ngcli',
   extraNpmDependencies: [],
   extraNpmDevDependencies: [],
-  configUpdate: ({ cfg }) => ({
+  configUpdate: ({ cfg, packageManager }) => ({
     ...cfg,
     distDir: `../dist/${cfg.appName}`,
-    devPath: 'http://localhost:4200'
+    devPath: 'http://localhost:4200',
+    beforeDevCommand: `${packageManager === 'yarn' ? 'yarn' : 'npm run'} start`,
+    beforeBuildCommand: `${
+      packageManager === 'yarn' ? 'yarn' : 'npm run'
+    } build`
   }),
   extraQuestions: ({ ci }) => {
     return [
@@ -96,9 +100,14 @@ const ngcli: Recipe = {
       }
     }
   },
-  postInit: async ({ cwd }) => {
+  postInit: async ({ packageManager, cfg }) => {
     console.log(`
-      Your installation completed. Change directory to \`${cwd}\` and happy coding.
+      Your installation completed.
+
+      $ cd ${cfg.appName}
+      $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
+      packageManager === 'npm' ? '--' : ''
+    } dev
     `)
 
     return await Promise.resolve()

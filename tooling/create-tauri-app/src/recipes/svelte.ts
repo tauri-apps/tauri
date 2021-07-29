@@ -14,14 +14,15 @@ const svelte: Recipe = {
   shortName: 'svelte',
   extraNpmDevDependencies: [],
   extraNpmDependencies: [],
-  extraQuestions: () => {
+  extraQuestions: ({ ci }) => {
     return [
       {
         type: 'confirm',
         name: 'typescript',
         message: 'Enable Typescript?',
         default: true,
-        loop: false
+        loop: false,
+        when: !ci
       }
     ]
   },
@@ -53,13 +54,13 @@ const svelte: Recipe = {
   },
   postInit: async ({ cfg, packageManager }) => {
     console.log(`
-      Your installation completed.
-      To start, run the dev script:
+    Your installation completed.
 
-      $ cd ${cfg.appName}
-      $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
-      packageManager === 'npm' ? '-- ' : ''
-    }dev
+    $ cd ${cfg.appName}.
+    $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
+      packageManager === 'npm' ? '--' : ''
+    } dev
+
     `)
 
     return await Promise.resolve()

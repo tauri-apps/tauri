@@ -753,7 +753,9 @@ pub(crate) enum Message {
   #[cfg(feature = "system-tray")]
   Tray(TrayMessage),
   CreateWebview(
-    Box<dyn FnOnce(&EventLoopWindowTarget<Message>, &WebContextStore) -> Result<WindowWrapper> + Send>,
+    Box<
+      dyn FnOnce(&EventLoopWindowTarget<Message>, &WebContextStore) -> Result<WindowWrapper> + Send,
+    >,
     Sender<WindowId>,
   ),
   CreateWindow(
@@ -957,9 +959,9 @@ impl Dispatch for WryDispatcher {
       .context
       .proxy
       .send_event(Message::CreateWebview(
-        Box::new(
-          move |event_loop, web_context| create_webview(event_loop, web_context, context, pending),
-        ),
+        Box::new(move |event_loop, web_context| {
+          create_webview(event_loop, web_context, context, pending)
+        }),
         tx,
       ))
       .map_err(|_| Error::FailedToSendMessage)?;
@@ -1292,12 +1294,9 @@ impl RuntimeHandle for WryHandle {
       .dispatcher_context
       .proxy
       .send_event(Message::CreateWebview(
-
-        Box::new(
-          move |event_loop, web_context| {
-            create_webview(event_loop, web_context, dispatcher_context, pending)
-          },
-        ),
+        Box::new(move |event_loop, web_context| {
+          create_webview(event_loop, web_context, dispatcher_context, pending)
+        }),
         tx,
       ))
       .map_err(|_| Error::FailedToSendMessage)?;

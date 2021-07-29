@@ -209,6 +209,9 @@ pub struct SystemTrayConfig {
   /// Path to the icon to use on the system tray.
   /// Automatically set to be an `.png` on macOS and Linux, and `.ico` on Windows.
   pub icon_path: PathBuf,
+  /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
+  #[serde(default)]
+  pub icon_as_template: bool,
 }
 
 /// A CLI argument definition
@@ -391,6 +394,7 @@ pub struct TauriConfig {
   #[serde(default)]
   pub security: SecurityConfig,
   /// System tray configuration.
+  #[serde(default)]
   pub system_tray: Option<SystemTrayConfig>,
 }
 
@@ -866,8 +870,9 @@ mod build {
 
   impl ToTokens for SystemTrayConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      let icon_as_template = self.icon_as_template;
       let icon_path = path_buf_lit(&self.icon_path);
-      literal_struct!(tokens, SystemTrayConfig, icon_path);
+      literal_struct!(tokens, SystemTrayConfig, icon_path, icon_as_template);
     }
   }
 

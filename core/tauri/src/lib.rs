@@ -160,6 +160,7 @@ pub struct Context<A: Assets> {
   pub(crate) assets: Arc<A>,
   pub(crate) default_window_icon: Option<Vec<u8>>,
   pub(crate) system_tray_icon: Option<Icon>,
+  pub(crate) system_tray_icon_as_template: bool,
   pub(crate) package_info: crate::api::PackageInfo,
 }
 
@@ -212,6 +213,20 @@ impl<A: Assets> Context<A> {
     &mut self.system_tray_icon
   }
 
+  /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image.
+  #[inline(always)]
+  #[cfg(target_os = "macos")]
+  pub fn system_tray_icon_as_template(&self) -> bool {
+    self.system_tray_icon_as_template
+  }
+
+  /// A mutable reference to the value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image.
+  #[inline(always)]
+  #[cfg(target_os = "macos")]
+  pub fn system_tray_icon_as_template_mut(&mut self) -> &mut bool {
+    &mut self.system_tray_icon_as_template
+  }
+
   /// Package information.
   #[inline(always)]
   pub fn package_info(&self) -> &crate::api::PackageInfo {
@@ -231,6 +246,7 @@ impl<A: Assets> Context<A> {
     assets: Arc<A>,
     default_window_icon: Option<Vec<u8>>,
     system_tray_icon: Option<Icon>,
+    system_tray_icon_as_template: bool,
     package_info: crate::api::PackageInfo,
   ) -> Self {
     Self {
@@ -238,6 +254,7 @@ impl<A: Assets> Context<A> {
       assets,
       default_window_icon,
       system_tray_icon,
+      system_tray_icon_as_template,
       package_info,
     }
   }

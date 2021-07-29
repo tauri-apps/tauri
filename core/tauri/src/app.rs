@@ -759,6 +759,9 @@ impl<R: Runtime> Builder<R> {
       icon
     };
 
+    #[cfg(all(feature = "system-tray", target_os = "macos"))]
+    let system_tray_icon_as_template = context.system_tray_icon_as_template().clone();
+
     let manager = WindowManager::with_handlers(
       context,
       self.plugins,
@@ -844,6 +847,8 @@ impl<R: Runtime> Builder<R> {
       if let Some(menu) = system_tray.menu {
         tray = tray.with_menu(menu);
       }
+
+      #[cfg(not(target_os = "macos"))]
       let tray_handler = app
         .runtime
         .as_ref()
@@ -857,6 +862,24 @@ impl<R: Runtime> Builder<R> {
           ),
         )
         .expect("failed to run tray");
+
+      #[cfg(target_os = "macos")]
+      let tray_handler = app
+        .runtime
+        .as_ref()
+        .unwrap()
+        .system_tray(
+          tray
+            .with_icon(
+              system_tray
+                .icon
+                .or(system_tray_icon)
+                .expect("tray icon not found; please configure it on tauri.conf.json"),
+            )
+            .with_icon_as_template(system_tray_icon_as_template),
+        )
+        .expect("failed to run tray");
+
       let tray_handle = tray::SystemTrayHandle {
         ids: Arc::new(ids.clone()),
         inner: tray_handler,

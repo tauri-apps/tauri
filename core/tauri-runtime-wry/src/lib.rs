@@ -47,7 +47,7 @@ use wry::{
     event::{Event, WindowEvent as WryWindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
     monitor::MonitorHandle,
-    platform::global_shortcut::{GlobalShortcut, ShortcutManager as WryShortcutManager},
+    global_shortcut::{GlobalShortcut, ShortcutManager as WryShortcutManager},
     window::{Fullscreen, Icon as WindowIcon, UserAttentionType as WryUserAttentionType, WindowId},
   },
   webview::{
@@ -2127,7 +2127,7 @@ fn create_webview(
     ));
   }
   for (scheme, protocol) in webview_attributes.uri_scheme_protocols {
-    webview_builder = webview_builder.with_custom_protocol(scheme, move |_window, url| {
+    webview_builder = webview_builder.with_custom_protocol(scheme, move |url| {
       protocol(url)
         .map(|data| {
           let mime_type = MimeType::parse(&data, url);
@@ -2136,8 +2136,8 @@ fn create_webview(
         .map_err(|_| wry::Error::InitScriptError)
     });
   }
-  let context = WebContext::new(webview_attributes.data_directory);
-  webview_builder = webview_builder.with_web_context(&context);
+  let mut context = WebContext::new(webview_attributes.data_directory);
+  webview_builder = webview_builder.with_web_context(&mut context);
   for script in webview_attributes.initialization_scripts {
     webview_builder = webview_builder.with_initialization_script(&script);
   }

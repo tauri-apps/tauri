@@ -1229,8 +1229,6 @@ struct WindowWrapper {
   inner: WindowHandle,
   #[cfg(feature = "menu")]
   menu_items: HashMap<u16, WryCustomMenuItem>,
-  #[cfg(feature = "menu")]
-  is_menu_visible: AtomicBool,
 }
 
 /// A Tauri [`Runtime`] wrapper around wry.
@@ -1750,9 +1748,7 @@ fn handle_event_loop(
             WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),
             WindowMessage::IsVisible(tx) => tx.send(window.is_visible()).unwrap(),
             #[cfg(feature = "menu")]
-            WindowMessage::IsMenuVisible(tx) => tx
-              .send(webview.is_menu_visible.load(Ordering::Relaxed))
-              .unwrap(),
+            WindowMessage::IsMenuVisible(tx) => tx.send(window.is_menu_visible()).unwrap(),
             WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
             WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
             WindowMessage::AvailableMonitors(tx) => {
@@ -1786,15 +1782,9 @@ fn handle_event_loop(
             WindowMessage::Minimize => window.set_minimized(true),
             WindowMessage::Unminimize => window.set_minimized(false),
             #[cfg(feature = "menu")]
-            WindowMessage::ShowMenu => {
-              window.show_menu();
-              webview.is_menu_visible.store(true, Ordering::Relaxed);
-            }
+            WindowMessage::ShowMenu => window.show_menu(),
             #[cfg(feature = "menu")]
-            WindowMessage::HideMenu => {
-              window.hide_menu();
-              webview.is_menu_visible.store(false, Ordering::Relaxed);
-            }
+            WindowMessage::HideMenu => window.hide_menu(),
             WindowMessage::Show => window.set_visible(true),
             WindowMessage::Hide => window.set_visible(false),
             WindowMessage::Close => {
@@ -2151,8 +2141,6 @@ fn create_webview(
     inner: WindowHandle::Webview(webview),
     #[cfg(feature = "menu")]
     menu_items,
-    #[cfg(feature = "menu")]
-    is_menu_visible: AtomicBool::new(true),
   })
 }
 

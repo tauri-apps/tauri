@@ -1945,13 +1945,6 @@ fn handle_event_loop(
             tray.lock().unwrap().set_icon(icon.into_tray_icon());
           }
         }
-        #[cfg(windows)]
-        TrayMessage::Remove => {
-          if let Some(tray) = tray_context.tray.lock().unwrap().as_ref() {
-            use wry::application::platform::windows::SystemTrayExtWindows;
-            tray.lock().unwrap().remove();
-          }
-        }
       },
       Message::GlobalShortcut(message) => match message {
         GlobalShortcutMessage::IsRegistered(accelerator, tx) => tx

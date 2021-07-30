@@ -25,6 +25,8 @@ use tauri_runtime::{SystemTray, SystemTrayEvent};
 use winapi::shared::windef::HWND;
 #[cfg(target_os = "macos")]
 use wry::application::platform::macos::WindowExtMacOS;
+#[cfg(all(feature = "system-tray", target_os = "macos"))]
+use wry::application::platform::macos::{SystemTrayBuilderExtMacOS, SystemTrayExtMacOS};
 #[cfg(target_os = "linux")]
 use wry::application::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
@@ -730,6 +732,8 @@ enum WebviewEvent {
 pub(crate) enum TrayMessage {
   UpdateItem(u16, menu::MenuUpdate),
   UpdateIcon(Icon),
+  #[cfg(target_os = "macos")]
+  UpdateIconAsTemplate(bool),
 }
 
 #[derive(Clone)]
@@ -1462,6 +1466,18 @@ impl Runtime for Wry {
 
     let mut items = HashMap::new();
 
+    #[cfg(target_os = "macos")]
+    let tray = SystemTrayBuilder::new(
+      icon,
+      system_tray
+        .menu
+        .map(|menu| to_wry_context_menu(&mut items, menu)),
+    )
+    .with_icon_as_template(system_tray.icon_as_template)
+    .build(&self.event_loop)
+    .map_err(|e| Error::SystemTray(Box::new(e)))?;
+
+    #[cfg(not(target_os = "macos"))]
     let tray = SystemTrayBuilder::new(
       icon,
       system_tray
@@ -1958,6 +1974,12 @@ fn handle_event_loop(
         TrayMessage::UpdateIcon(icon) => {
           if let Some(tray) = &*tray_context.tray.lock().unwrap() {
             tray.lock().unwrap().set_icon(icon.into_tray_icon());
+          }
+        }
+        #[cfg(target_os = "macos")]
+        TrayMessage::UpdateIconAsTemplate(is_template) => {
+          if let Some(tray) = &*tray_context.tray.lock().unwrap() {
+            tray.lock().unwrap().set_icon_as_template(is_template);
           }
         }
       },

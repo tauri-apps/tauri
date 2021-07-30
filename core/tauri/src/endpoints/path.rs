@@ -39,6 +39,9 @@ pub enum Cmd {
     path: String,
     ext: Option<String>,
   },
+  IsAbsolute {
+    path: String,
+  },
 }
 
 impl Cmd {
@@ -59,6 +62,7 @@ impl Cmd {
       Cmd::Dirname { path } => dirname(path).map(Into::into),
       Cmd::Extname { path } => extname(path).map(Into::into),
       Cmd::Basename { path, ext } => basename(path, ext).map(Into::into),
+      Cmd::IsAbsolute { path } => Ok(Path::new(&path).is_absolute()).map(Into::into),
     };
     #[cfg(not(path_all))]
     Err(crate::Error::ApiNotAllowlisted("path".into()))

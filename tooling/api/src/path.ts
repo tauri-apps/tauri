@@ -551,6 +551,16 @@ async function basename(path: string, ext?: string): Promise<string> {
   })
 }
 
+async function isAbsolute(path: string): Promise<boolean> {
+  return invokeTauriCommand<boolean>({
+    __tauriModule: 'Path',
+    message: {
+      cmd: 'isAbsolute',
+      path
+    }
+  })
+}
+
 export {
   appDir,
   audioDir,
@@ -580,5 +590,6 @@ export {
   join,
   dirname,
   extname,
-  basename
+  basename,
+  isAbsolute
 }

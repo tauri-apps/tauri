@@ -5,13 +5,9 @@
 use super::InvokeResponse;
 use crate::{api::path::BaseDirectory, Config, PackageInfo};
 use serde::Deserialize;
-
-#[cfg(path_all)]
-use crate::api::path::resolve_path;
 #[cfg(path_all)]
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-
 /// The API descriptor.
 #[derive(Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
@@ -76,11 +72,11 @@ pub fn resolve_path_handler(
   path: String,
   directory: Option<BaseDirectory>,
 ) -> crate::Result<PathBuf> {
-  resolve_path(config, package_info, path, directory).map_err(Into::into)
+  crate::api::path::resolve_path(config, package_info, path, directory).map_err(Into::into)
 }
 
 #[cfg(path_all)]
-pub fn resolve(paths: Vec<String>) -> crate::Result<String> {
+fn resolve(paths: Vec<String>) -> crate::Result<String> {
   // start with the current directory
   let mut resolved_path = PathBuf::new().join(".");
 
@@ -99,7 +95,7 @@ pub fn resolve(paths: Vec<String>) -> crate::Result<String> {
 }
 
 #[cfg(path_all)]
-pub fn normalize(path: String) -> crate::Result<String> {
+fn normalize(path: String) -> crate::Result<String> {
   let path = std::fs::canonicalize(path)?;
   let path = path.to_string_lossy().to_string();
 
@@ -111,7 +107,7 @@ pub fn normalize(path: String) -> crate::Result<String> {
 }
 
 #[cfg(path_all)]
-pub fn join(paths: Vec<String>) -> crate::Result<String> {
+fn join(paths: Vec<String>) -> crate::Result<String> {
   let mut joined_path = PathBuf::new();
   for path in paths {
     joined_path = joined_path.join(path);
@@ -120,7 +116,7 @@ pub fn join(paths: Vec<String>) -> crate::Result<String> {
 }
 
 #[cfg(path_all)]
-pub fn dirname(path: String) -> crate::Result<String> {
+fn dirname(path: String) -> crate::Result<String> {
   match Path::new(&path).parent() {
     Some(path) => Ok(path.to_string_lossy().to_string()),
     None => Err(crate::Error::FailedToExecuteApi(crate::api::Error::Path(
@@ -130,7 +126,7 @@ pub fn dirname(path: String) -> crate::Result<String> {
 }
 
 #[cfg(path_all)]
-pub fn extname(path: String) -> crate::Result<String> {
+fn extname(path: String) -> crate::Result<String> {
   match Path::new(&path)
     .extension()
     .and_then(std::ffi::OsStr::to_str)
@@ -143,7 +139,7 @@ pub fn extname(path: String) -> crate::Result<String> {
 }
 
 #[cfg(path_all)]
-pub fn basename(path: String, ext: Option<String>) -> crate::Result<String> {
+fn basename(path: String, ext: Option<String>) -> crate::Result<String> {
   match Path::new(&path)
     .file_name()
     .and_then(std::ffi::OsStr::to_str)

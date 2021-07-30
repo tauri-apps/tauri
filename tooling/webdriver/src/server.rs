@@ -4,15 +4,13 @@
 
 use crate::cli::Args;
 use anyhow::Error;
-use futures::{StreamExt, TryFutureExt};
+use futures::{TryFutureExt};
 use hyper::header::CONTENT_LENGTH;
 use hyper::http::uri::Authority;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Client, Method, Request, Response, Server};
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
-use signal_hook::consts::signal::*;
-use signal_hook_tokio::Signals;
 use std::convert::Infallible;
 use std::path::PathBuf;
 use std::process::Child;
@@ -135,24 +133,30 @@ fn map_capabilities(mut json: Value) -> Value {
 }
 
 #[tokio::main(flavor = "current_thread")]
-pub async fn run(args: Args, mut driver: Child) -> Result<(), Error> {
-  let signals = Signals::new(&[SIGTERM, SIGINT, SIGQUIT])?;
+pub async fn run(args: Args, mut _driver: Child) -> Result<(), Error> {
+  #[cfg(unix)]
+  let (signals_handle, signals_task) = {
+    use futures::StreamExt;
+    use signal_hook::consts::signal::*;
 
-  let signals_handle = signals.handle();
-  let signals_task = tokio::spawn(async move {
-    let mut signals = signals.fuse();
-    while let Some(signal) = signals.next().await {
-      match signal {
-        SIGTERM | SIGINT | SIGQUIT => {
-          driver
-            .kill()
-            .expect("unable to kill native webdriver server");
-          std::process::exit(0);
+    let signals = signal_hook_tokio::Signals::new(&[SIGTERM, SIGINT, SIGQUIT])?;
+    let signals_handle = signals.handle();
+    let signals_task = tokio::spawn(async move {
+      let mut signals = signals.fuse();
+      while let Some(signal) = signals.next().await {
+        match signal {
+          SIGTERM | SIGINT | SIGQUIT => {
+            _driver
+              .kill()
+              .expect("unable to kill native webdriver server");
+            std::process::exit(0);
+          }
+          _ => unreachable!(),
         }
-        _ => unreachable!(),
       }
-    }
-  });
+    });
+    (signals_handle, signals_task)
+  };
 
   let address = std::net::SocketAddr::from(([127, 0, 0, 1], args.port));
 
@@ -161,7 +165,6 @@ pub async fn run(args: Args, mut driver: Child) -> Result<(), Error> {
     .http1_preserve_header_case(true)
     .http1_title_case_headers(true)
     .retry_canceled_requests(false)
-    //.set_host(false)
     .build_http();
 
   // pass a copy of the client to the http request handler
@@ -183,6 +186,11 @@ pub async fn run(args: Args, mut driver: Child) -> Result<(), Error> {
     .serve(service)
     .await?;
 
-  signals_handle.close();
-  Ok(signals_task.await?)
+  #[cfg(unix)]
+  {
+    signals_handle.close();
+    signals_task.await?;
+  }
+
+  Ok(())
 }

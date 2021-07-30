@@ -43,26 +43,16 @@ export const dominator: Recipe = {
     }
   },
   postInit: async ({ cfg, packageManager }) => {
-    const setApp =
-      packageManager === 'npm'
-        ? `
-set tauri script once
-  $ npm set-script tauri tauri
-    `
-        : ''
-
     console.log(`
-change directory:
-  $ cd ${cfg.appName}
-${setApp}
-install dependencies:
-  $ ${packageManager} install
+    Your installation completed.
 
-run the app:
-  $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
-      packageManager === 'npm' ? '-- ' : ''
-    }dev
-            `)
+    $ cd ${cfg.appName}.
+    $ ${packageManager} install
+    $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
+      packageManager === 'npm' ? '--' : ''
+    } dev
+
+    `)
     return await Promise.resolve()
   }
 }

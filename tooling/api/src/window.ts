@@ -1188,7 +1188,12 @@ async function currentMonitor(): Promise<Monitor | null> {
   return invokeTauriCommand({
     __tauriModule: 'Window',
     message: {
-      cmd: 'currentMonitor'
+      cmd: 'manage',
+      data: {
+        cmd: {
+          type: 'currentMonitor'
+        }
+      }
     }
   })
 }
@@ -1201,7 +1206,12 @@ async function primaryMonitor(): Promise<Monitor | null> {
   return invokeTauriCommand({
     __tauriModule: 'Window',
     message: {
-      cmd: 'primaryMonitor'
+      cmd: 'manage',
+      data: {
+        cmd: {
+          type: 'primaryMonitor'
+        }
+      }
     }
   })
 }
@@ -1211,7 +1221,12 @@ async function availableMonitors(): Promise<Monitor[]> {
   return invokeTauriCommand({
     __tauriModule: 'Window',
     message: {
-      cmd: 'availableMonitors'
+      cmd: 'manage',
+      data: {
+        cmd: {
+          type: 'availableMonitors'
+        }
+      }
     }
   })
 }

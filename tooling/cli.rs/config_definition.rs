@@ -660,6 +660,9 @@ pub struct SystemTrayConfig {
   ///
   /// It is forced to be a `.png` file on Linux and macOS, and a `.ico` file on Windows.
   pub icon_path: PathBuf,
+  /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
+  #[serde(default)]
+  pub icon_as_template: bool,
 }
 
 // We enable the unnecessary_wraps because we need

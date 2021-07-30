@@ -147,6 +147,19 @@ pub struct AppHandle<R: Runtime> {
   tray_handle: Option<tray::SystemTrayHandle<R>>,
 }
 
+#[cfg(feature = "wry")]
+impl AppHandle<crate::Wry> {
+  /// Create a new tao window using a callback. The event loop must be running at this point.
+  pub fn create_tao_window<
+    F: FnOnce() -> (String, tauri_runtime_wry::WryWindowBuilder) + Send + 'static,
+  >(
+    &self,
+    f: F,
+  ) -> crate::Result<Arc<tauri_runtime_wry::Window>> {
+    self.runtime_handle.create_tao_window(f).map_err(Into::into)
+  }
+}
+
 impl<R: Runtime> Clone for AppHandle<R> {
   fn clone(&self) -> Self {
     Self {
@@ -746,6 +759,15 @@ impl<R: Runtime> Builder<R> {
       icon
     };
 
+    #[cfg(all(feature = "system-tray", target_os = "macos"))]
+    let system_tray_icon_as_template = context
+      .config
+      .tauri
+      .system_tray
+      .as_ref()
+      .map(|t| t.icon_as_template)
+      .unwrap_or_default();
+
     let manager = WindowManager::with_handlers(
       context,
       self.plugins,
@@ -831,6 +853,8 @@ impl<R: Runtime> Builder<R> {
       if let Some(menu) = system_tray.menu {
         tray = tray.with_menu(menu);
       }
+
+      #[cfg(not(target_os = "macos"))]
       let tray_handler = app
         .runtime
         .as_ref()
@@ -844,6 +868,24 @@ impl<R: Runtime> Builder<R> {
           ),
         )
         .expect("failed to run tray");
+
+      #[cfg(target_os = "macos")]
+      let tray_handler = app
+        .runtime
+        .as_ref()
+        .unwrap()
+        .system_tray(
+          tray
+            .with_icon(
+              system_tray
+                .icon
+                .or(system_tray_icon)
+                .expect("tray icon not found; please configure it on tauri.conf.json"),
+            )
+            .with_icon_as_template(system_tray_icon_as_template),
+        )
+        .expect("failed to run tray");
+
       let tray_handle = tray::SystemTrayHandle {
         ids: Arc::new(ids.clone()),
         inner: tray_handler,

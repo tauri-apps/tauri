@@ -31,7 +31,7 @@ pub use wry::application::platform::macos::{
 #[cfg(feature = "system-tray")]
 use crate::{Error, Message, Result, TrayMessage};
 
-#[cfg(feature = "menu")]
+#[cfg(any(feature = "menu", feature = "system-tray"))]
 use tauri_runtime::menu::MenuHash;
 
 use uuid::Uuid;
@@ -73,6 +73,15 @@ impl TrayHandle for SystemTrayHandle {
     self
       .proxy
       .send_event(Message::Tray(TrayMessage::UpdateItem(id, update)))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+  #[cfg(target_os = "macos")]
+  fn set_icon_as_template(&self, is_template: bool) -> tauri_runtime::Result<()> {
+    self
+      .proxy
+      .send_event(Message::Tray(TrayMessage::UpdateIconAsTemplate(
+        is_template,
+      )))
       .map_err(|_| Error::FailedToSendMessage)
   }
 }

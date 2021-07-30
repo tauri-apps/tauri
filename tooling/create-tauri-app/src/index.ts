@@ -13,9 +13,10 @@ import { vanillajs } from './recipes/vanilla'
 import { vite } from './recipes/vite'
 import { dominator } from './recipes/dominator'
 import { ngcli } from './recipes/ng-cli'
+import { svelte } from './recipes/svelte'
 import { install, checkPackageManager } from './dependency-manager'
 import { shell } from './shell'
-import { addTauriScript } from './helpers/add-tauri-script'
+import { updatePackageJson } from './helpers/update-package-json'
 import { Recipe } from './types/recipe'
 import { updateTauriConf } from './helpers/update-tauri-conf'
 
@@ -113,9 +114,10 @@ interface Responses {
   appName: string
   tauri: { window: { title: string } }
   recipeName: string
+  installApi: boolean
 }
 
-const allRecipes: Recipe[] = [vanillajs, cra, vite, vuecli, ngcli, dominator]
+const allRecipes: Recipe[] = [vanillajs, cra, vite, vuecli, ngcli, svelte, dominator]
 
 const recipeByShortName = (name: string): Recipe | undefined =>
   allRecipes.find((r) => r.shortName === name)
@@ -174,7 +176,8 @@ const runInit = async (argv: Argv): Promise<void> => {
   const defaults = {
     appName: 'tauri-app',
     tauri: { window: { title: 'Tauri App' } },
-    recipeName: 'vanillajs'
+    recipeName: 'vanillajs',
+    installApi: true
   }
 
   // prompt initial questions
@@ -197,10 +200,17 @@ const runInit = async (argv: Argv): Promise<void> => {
       {
         type: 'list',
         name: 'recipeName',
-        message: 'Would you like to add a UI recipe?',
+        message: 'What UI recipe would you like to add?',
         choices: recipeDescriptiveNames,
         default: defaults.recipeName,
         when: !argv.ci && !argv.r
+      },
+      {
+        type: 'confirm',
+        name: 'installApi',
+        message: 'Add "@tauri-apps/api" npm package?',
+        default: true,
+        when: !argv.ci
       }
     ])
     .catch((error: { isTtyError: boolean }) => {
@@ -218,6 +228,7 @@ const runInit = async (argv: Argv): Promise<void> => {
   const {
     appName,
     recipeName,
+    installApi,
     tauri: {
       window: { title }
     }
@@ -334,15 +345,17 @@ const runInit = async (argv: Argv): Promise<void> => {
     logStep('Installing any additional needed dependencies')
     await install({
       appDir: appDirectory,
-      dependencies: recipe.extraNpmDependencies,
+      dependencies: [installApi ? '@tauri-apps/api@latest' : ''].concat(
+        recipe.extraNpmDependencies
+      ),
       devDependencies: [`@tauri-apps/cli@${tauriCLIVersion}`].concat(
         recipe.extraNpmDevDependencies
       ),
       packageManager
     })
 
-    logStep(`Adding ${reset(yellow('"tauri"'))} script to package.json`)
-    addTauriScript(appDirectory)
+    logStep(`Updating ${reset(yellow('"package.json"'))}`)
+    updatePackageJson(appDirectory, appName)
 
     logStep(`Running: ${reset(yellow('tauri init'))}`)
     const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b)

@@ -26,8 +26,8 @@ const afterViteCA = async (
 
 const vite: Recipe = {
   descriptiveName: {
-    name: '@vitejs/create-app (https://vitejs.dev/guide/#scaffolding-your-first-vite-project)',
-    value: 'vite-create-app'
+    name: 'create-vite (https://vitejs.dev/guide/#scaffolding-your-first-vite-project)',
+    value: 'create-vite'
   },
   shortName: 'vite',
   configUpdate: ({ cfg, packageManager }) => ({
@@ -77,13 +77,7 @@ const vite: Recipe = {
     if (packageManager === 'yarn') {
       await shell(
         'yarn',
-        [
-          'create',
-          '@vitejs/app',
-          `${cfg.appName}`,
-          '--template',
-          `${template}`
-        ],
+        ['create', 'vite', `${cfg.appName}`, '--template', `${template}`],
         {
           cwd
         }
@@ -91,12 +85,7 @@ const vite: Recipe = {
     } else {
       await shell(
         'npx',
-        [
-          '@vitejs/create-app@latest',
-          `${cfg.appName}`,
-          '--template',
-          `${template}`
-        ],
+        ['create-vite@latest', `${cfg.appName}`, '--template', `${template}`],
         {
           cwd
         }
@@ -105,7 +94,7 @@ const vite: Recipe = {
 
     await afterViteCA(cwd, cfg.appName, template)
   },
-  postInit: async ({ cwd, packageManager }) => {
+  postInit: async ({ cwd, packageManager, cfg }) => {
     // we don't have a consistent way to rebuild and
     // esbuild has hit all the bugs and struggles to install on the postinstall
     await shell('node', ['./node_modules/esbuild/install.js'], { cwd })
@@ -115,8 +104,10 @@ const vite: Recipe = {
       await shell('npm', ['run', 'build'], { cwd })
     }
     console.log(`
-    Your installation completed. Change directories to \`${cwd}\`.
-    To start, run ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
+    Your installation completed.
+
+    $ cd ${cfg.appName}.
+    $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
       packageManager === 'npm' ? '--' : ''
     } dev
   `)

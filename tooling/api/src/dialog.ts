@@ -22,7 +22,7 @@
  * }
  * ```
  * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
- * @packageDocumentation
+ * @module
  */
 
 import { invokeTauriCommand } from './helpers/tauri'

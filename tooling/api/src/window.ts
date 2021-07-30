@@ -81,7 +81,7 @@
  * type MenuClicked = string
  * ```
  *
- * @packageDocumentation
+ * @module
  */
 
 import { invokeTauriCommand } from './helpers/tauri'
@@ -195,8 +195,8 @@ enum UserAttentionType {
  * @return The current WebviewWindow.
  */
 function getCurrent(): WebviewWindow {
-  // @ts-expect-error
   return new WebviewWindow(window.__TAURI__.__currentWindow.label, {
+    // @ts-expect-error
     skip: true
   })
 }
@@ -207,9 +207,12 @@ function getCurrent(): WebviewWindow {
  * @return The list of WebviewWindow.
  */
 function getAll(): WebviewWindow[] {
-  // @ts-expect-error
   return window.__TAURI__.__windows.map(
-    (w) => new WebviewWindow(w, { skip: true })
+    (w) =>
+      new WebviewWindow(w.label, {
+        // @ts-expect-error
+        skip: true
+      })
   )
 }
 
@@ -222,11 +225,11 @@ const localTauriEvents = ['tauri://created', 'tauri://error']
  */
 class WebviewWindowHandle {
   /** Window label. */
-  label: string
+  label: string | null
   /** Local event listeners. */
   listeners: { [key: string]: Array<EventCallback<any>> }
 
-  constructor(label: string) {
+  constructor(label: string | null) {
     this.label = label
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.listeners = Object.create(null)
@@ -1068,7 +1071,7 @@ class WindowManager extends WebviewWindowHandle {
  * ```
  */
 class WebviewWindow extends WindowManager {
-  constructor(label: string, options: WindowOptions = {}) {
+  constructor(label: string | null, options: WindowOptions = {}) {
     super(label)
     // @ts-expect-error
     if (!options?.skip) {
@@ -1105,8 +1108,10 @@ class WebviewWindow extends WindowManager {
 }
 
 /** The WebviewWindow for the current window. */
-// @ts-expect-error
-const appWindow = new WebviewWindow()
+const appWindow = new WebviewWindow(null, {
+  // @ts-expect-error
+  skip: true
+})
 
 /** Configuration for the window to create. */
 interface WindowOptions {
@@ -1162,7 +1167,12 @@ async function currentMonitor(): Promise<Monitor | null> {
   return invokeTauriCommand({
     __tauriModule: 'Window',
     message: {
-      cmd: 'currentMonitor'
+      cmd: 'manage',
+      data: {
+        cmd: {
+          type: 'currentMonitor'
+        }
+      }
     }
   })
 }
@@ -1175,7 +1185,12 @@ async function primaryMonitor(): Promise<Monitor | null> {
   return invokeTauriCommand({
     __tauriModule: 'Window',
     message: {
-      cmd: 'primaryMonitor'
+      cmd: 'manage',
+      data: {
+        cmd: {
+          type: 'primaryMonitor'
+        }
+      }
     }
   })
 }
@@ -1185,7 +1200,12 @@ async function availableMonitors(): Promise<Monitor[]> {
   return invokeTauriCommand({
     __tauriModule: 'Window',
     message: {
-      cmd: 'availableMonitors'
+      cmd: 'manage',
+      data: {
+        cmd: {
+          type: 'availableMonitors'
+        }
+      }
     }
   })
 }

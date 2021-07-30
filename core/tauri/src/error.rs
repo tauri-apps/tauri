@@ -76,6 +76,10 @@ pub enum Error {
   /// Encountered an error creating the app system tray,
   #[error("error encountered during tray setup: {0}")]
   SystemTray(Box<dyn std::error::Error + Send>),
+  /// A part of the URL is malformed or invalid. This may occur when parsing and combining
+  /// user-provided URLs and paths.
+  #[error("invalid url: {0}")]
+  InvalidUrl(url::ParseError),
 }
 
 impl From<serde_json::Error> for Error {

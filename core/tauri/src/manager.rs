@@ -6,7 +6,6 @@ use crate::{
   api::{
     assets::Assets,
     config::{AppUrl, Config, WindowUrl},
-    path::{resolve_path, BaseDirectory},
     PackageInfo,
   },
   app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
@@ -23,6 +22,9 @@ use crate::{
   },
   App, Context, Invoke, StateManager, Window,
 };
+
+#[cfg(target_os = "windows")]
+use crate::api::path::{resolve_path, BaseDirectory};
 
 #[cfg(feature = "menu")]
 use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
@@ -42,6 +44,7 @@ use std::{
   sync::{Arc, Mutex, MutexGuard},
 };
 use tauri_macros::default_runtime;
+use url::Url;
 use uuid::Uuid;
 
 const WINDOW_RESIZED_EVENT: &str = "tauri://resize";
@@ -180,20 +183,27 @@ impl<R: Runtime> WindowManager<R> {
     self.inner.menu_ids.clone()
   }
 
-  // setup content for dev-server
-  #[cfg(dev)]
-  fn get_url(&self) -> String {
-    match &self.inner.config.build.dev_path {
-      AppUrl::Url(WindowUrl::External(url)) => url.to_string(),
-      _ => "tauri://localhost".into(),
-    }
+  /// Get the base path to serve data from.
+  ///
+  /// * In dev mode, this will be based on the `devPath` configuration value.
+  /// * Otherwise, this will be based on the `distDir` configuration value.
+  #[cfg(custom_protocol)]
+  fn base_path(&self) -> &AppUrl {
+    &self.inner.config.build.dist_dir
   }
 
-  #[cfg(custom_protocol)]
-  fn get_url(&self) -> String {
-    match &self.inner.config.build.dist_dir {
-      AppUrl::Url(WindowUrl::External(url)) => url.to_string(),
-      _ => "tauri://localhost".into(),
+  #[cfg(dev)]
+  fn base_path(&self) -> &AppUrl {
+    &self.inner.config.build.dev_path
+  }
+
+  /// Get the base URL to use for webview requests.
+  ///
+  /// In dev mode, this will be based on the `devPath` configuration value.
+  fn get_url(&self) -> Cow<'_, Url> {
+    match self.base_path() {
+      AppUrl::Url(WindowUrl::External(url)) => Cow::Borrowed(url),
+      _ => Cow::Owned(Url::parse("tauri://localhost").unwrap()),
     }
   }
 
@@ -276,19 +286,6 @@ impl<R: Runtime> WindowManager<R> {
         let data = crate::async_runtime::block_on(async move { tokio::fs::read(path).await })?;
         Ok(data)
       });
-    }
-
-    let local_app_data = resolve_path(
-      &self.inner.config,
-      &self.inner.package_info,
-      &self.inner.config.tauri.bundle.identifier,
-      Some(BaseDirectory::LocalData),
-    );
-    if let Ok(user_data_dir) = local_app_data {
-      // Make sure the directory exist without panic
-      if create_dir_all(&user_data_dir).is_ok() {
-        webview_attributes = webview_attributes.data_directory(user_data_dir);
-      }
     }
 
     pending.webview_attributes = webview_attributes;
@@ -505,10 +502,10 @@ mod test {
     );
 
     #[cfg(custom_protocol)]
-    assert_eq!(manager.get_url(), "tauri://localhost");
+    assert_eq!(manager.get_url().to_string(), "tauri://localhost");
 
     #[cfg(dev)]
-    assert_eq!(manager.get_url(), "http://localhost:4000/");
+    assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");
   }
 }
 
@@ -561,13 +558,16 @@ impl<R: Runtime> WindowManager<R> {
           true,
           // ignore "index.html" just to simplify the url
           if path.to_str() != Some("index.html") {
-            format!("{}/{}", url, path.to_string_lossy())
-          } else {
             url
+              .join(&*path.to_string_lossy())
+              .map_err(crate::Error::InvalidUrl)?
+              .to_string()
+          } else {
+            url.to_string()
           },
         )
       }
-      WindowUrl::External(url) => (url.as_str().starts_with("tauri://"), url.to_string()),
+      WindowUrl::External(url) => (url.scheme() == "tauri", url.to_string()),
       _ => unimplemented!(),
     };
 
@@ -580,7 +580,30 @@ impl<R: Runtime> WindowManager<R> {
     if pending.webview_attributes.file_drop_handler_enabled {
       pending.file_drop_handler = Some(self.prepare_file_drop(app_handle));
     }
+
     pending.url = url;
+
+    // in `Windows`, we need to force a data_directory
+    // but we do respect user-specification
+    #[cfg(target_os = "windows")]
+    if pending.webview_attributes.data_directory.is_none() {
+      let local_app_data = resolve_path(
+        &self.inner.config,
+        &self.inner.package_info,
+        &self.inner.config.tauri.bundle.identifier,
+        Some(BaseDirectory::LocalData),
+      );
+      if let Ok(user_data_dir) = local_app_data {
+        pending.webview_attributes.data_directory = Some(user_data_dir);
+      }
+    }
+
+    // make sure the directory is created and available to prevent a panic
+    if let Some(user_data_dir) = &pending.webview_attributes.data_directory {
+      if !user_data_dir.exists() {
+        create_dir_all(user_data_dir)?;
+      }
+    }
 
     Ok(pending)
   }

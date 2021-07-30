@@ -1,5 +1,73 @@
 # Changelog
 
+## \[1.0.0-beta.5]
+
+- Allow preventing window close when the user requests it.
+  - [8157a68a](https://www.github.com/tauri-apps/tauri/commit/8157a68af1d94de1b90a14aa44139bb123b3436b) feat(core): allow listening to event loop events & prevent window close ([#2131](https://www.github.com/tauri-apps/tauri/pull/2131)) on 2021-07-06
+- Add `App#run` method with callback argument (event loop event handler).
+  - [8157a68a](https://www.github.com/tauri-apps/tauri/commit/8157a68af1d94de1b90a14aa44139bb123b3436b) feat(core): allow listening to event loop events & prevent window close ([#2131](https://www.github.com/tauri-apps/tauri/pull/2131)) on 2021-07-06
+- Fixes `data-tauri-drag-region` not firing its events.
+  - [578610a2](https://www.github.com/tauri-apps/tauri/commit/578610a29d5cefb8df070606b7587318b14c397a) fix(core): fix drag-region not sending its events correctly ([#2196](https://www.github.com/tauri-apps/tauri/pull/2196)) on 2021-07-12
+- Fix macOS `EXC_BAD_ACCESS` panic when app is code-signed.
+  - [456a94f6](https://www.github.com/tauri-apps/tauri/commit/456a94f6637746800b9b85fc3922e82871603402) fix(macOS): updater `EXC_BAD_ACCESS` ([#2181](https://www.github.com/tauri-apps/tauri/pull/2181)) on 2021-07-12
+- Fixes SVG loading on custom protocol.
+  - [e663bdd5](https://www.github.com/tauri-apps/tauri/commit/e663bdd5938830ab4eba961e69c3985191b499dd) fix(core): svg mime type ([#2129](https://www.github.com/tauri-apps/tauri/pull/2129)) on 2021-06-30
+- Expose `gtk_window` getter.
+  - [e0a8e09c](https://www.github.com/tauri-apps/tauri/commit/e0a8e09cab6799eeb9ec524b5f7780d1e5a84299) feat(core): expose `gtk_window`, closes [#2083](https://www.github.com/tauri-apps/tauri/pull/2083) ([#2141](https://www.github.com/tauri-apps/tauri/pull/2141)) on 2021-07-02
+- Inject invoke key on `script` tags with `type="module"`.
+  - [f03eea9c](https://www.github.com/tauri-apps/tauri/commit/f03eea9c9b964709532afbc4d1dd343b3fd96081) feat(core): inject invoke key on `<script type="module">` ([#2120](https://www.github.com/tauri-apps/tauri/pull/2120)) on 2021-06-29
+- Fix macOS high CPU usage.
+  - [a280ee90](https://www.github.com/tauri-apps/tauri/commit/a280ee90af0749ce18d6d0b00939b06473717bc9) Fix high cpu usage on mac, fix [#2074](https://www.github.com/tauri-apps/tauri/pull/2074) ([#2125](https://www.github.com/tauri-apps/tauri/pull/2125)) on 2021-06-30
+- Export `MenuHandle` and `MenuEvent` types on `tauri::window`.
+  - [acb88929](https://www.github.com/tauri-apps/tauri/commit/acb88929c4dd1bd2ac94f7896a1e54afb9417768) fix(core): export `MenuHandle` and `MenuEvent` ([#2148](https://www.github.com/tauri-apps/tauri/pull/2148)) on 2021-07-03
+- Use glib context for linux updater to prevent GTK panic.
+  - [3389bd81](https://www.github.com/tauri-apps/tauri/commit/3389bd8180ed79d0f6778f7f41a88ad6d4598932) fix(linux): use glib main context for the updater on linux ([#2222](https://www.github.com/tauri-apps/tauri/pull/2222)) on 2021-07-16
+- Bump `wry` 0.11 and fix focus integration to make it compatible with tao 0.4.
+  - [f0a8db62](https://www.github.com/tauri-apps/tauri/commit/f0a8db62e445dbbc5770e7addf0390ce3844c1ea) core(deps): bump `wry` to `0.11` ([#2210](https://www.github.com/tauri-apps/tauri/pull/2210)) on 2021-07-15
+- `Params` has been removed, along with all the associated types on it. Functions that previously accepted those
+  associated types now accept strings instead. Type that used a generic parameter `Params` now use `Runtime` instead. If
+  you use the `wry` feature, then types with a `Runtime` generic parameter should default to `Wry`, letting you omit the
+  explicit type and let the compiler infer it instead.
+
+`tauri`:
+
+- See `Params` note
+- If you were using `Params` inside a function parameter or definition, all references to it have been replaced with a
+  simple runtime that defaults to `Wry`. If you are not using a custom runtime, just remove `Params` from the definition
+  of functions/items that previously took it. If you are using a custom runtime, you *may* need to pass the runtime type
+  to these functions.
+- If you were using custom types for `Params` (uncommon and if you don't understand you probably were not using it), all
+  methods that were previously taking the custom type now takes an `Into<String>` or a `&str`. The types were already
+  required to be string-able, so just make sure to convert it into a string before passing it in if this breaking change
+  affects you.
+
+`tauri-macros`:
+
+- (internal) Added private `default_runtime` proc macro to allow us to give item definitions a custom runtime only when
+  the specified feature is enabled.
+
+`tauri-runtime`:
+
+- See `Params` note
+- Removed `Params`, `MenuId`, `Tag`, `TagRef`.
+- Added `menu::{MenuHash, MenuId, MenuIdRef}` as type aliases for the internal type that menu types now use.
+  - All previous menu items that had a `MenuId` generic now use the underlying `MenuId` type without a generic.
+- `Runtime`, `RuntimeHandle`, and `Dispatch` have no more generic parameter on `create_window(...)` and instead use the
+  `Runtime` type directly
+- `Runtime::system_tray` has no more `MenuId` generic and uses the string based `SystemTray` type directly.
+- (internal) `CustomMenuItem::id_value()` is now hashed on creation and exposed as the `id` field with type `MenuHash`.
+
+`tauri-runtime-wry`:
+
+- See `Params` note
+- update menu and runtime related types to the ones changed in `tauri-runtime`.
+
+`tauri-utils`:
+
+- `Assets::get` signature has changed to take a `&AssetKey` instead of `impl Into<AssetKey>` to become trait object
+  safe.
+- [fd8fab50](https://www.github.com/tauri-apps/tauri/commit/fd8fab507c8fa1b113b841af14c6693eb3955f6b) refactor(core): remove `Params` and replace with strings ([#2191](https://www.github.com/tauri-apps/tauri/pull/2191)) on 2021-07-15
+
 ## \[1.0.0-beta.4]
 
 - Double clicking a `data-tauri-drag-region` element will toggle the window maximized state.

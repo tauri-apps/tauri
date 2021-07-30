@@ -6,7 +6,7 @@
  * Read and write to the system clipboard.
  *
  * This package is also accessible with `window.__TAURI__.clipboard` when `tauri.conf.json > build > withGlobalTauri` is set to true.
- * @packageDocumentation
+ * @module
  */
 
 import { invokeTauriCommand } from './helpers/tauri'

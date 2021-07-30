@@ -4,7 +4,7 @@
 
 use crate::cli::Args;
 use anyhow::Error;
-use futures::{TryFutureExt};
+use futures::TryFutureExt;
 use hyper::header::CONTENT_LENGTH;
 use hyper::http::uri::Authority;
 use hyper::service::{make_service_fn, service_fn};

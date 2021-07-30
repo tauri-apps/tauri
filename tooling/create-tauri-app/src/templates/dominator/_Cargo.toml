@@ -11,6 +11,9 @@ lto = true
 crate-type = ["cdylib"]
 
 [workspace]
+members = [
+  "src-tauri"
+]
 
 [dependencies]
 console_error_panic_hook = "0.1.6"

@@ -117,7 +117,15 @@ interface Responses {
   installApi: boolean
 }
 
-const allRecipes: Recipe[] = [vanillajs, cra, vite, vuecli, ngcli, svelte, dominator]
+const allRecipes: Recipe[] = [
+  vanillajs,
+  cra,
+  vite,
+  vuecli,
+  ngcli,
+  svelte,
+  dominator
+]
 
 const recipeByShortName = (name: string): Recipe | undefined =>
   allRecipes.find((r) => r.shortName === name)

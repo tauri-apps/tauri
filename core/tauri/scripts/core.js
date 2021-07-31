@@ -260,7 +260,7 @@ if (!String.prototype.startsWith) {
 
   function requestPermission() {
     return window.__TAURI__
-      .invoke(
+      ._invoke(
         'tauri',
         {
           __tauriModule: 'Notification',

@@ -353,6 +353,7 @@ impl<R: Runtime> WindowManager<R> {
 
         let asset_response = assets
           .get(&path.as_str().into())
+          .or_else(|| assets.get(&format!("{}/index.html", path.as_str()).into()))
           .or_else(|| {
             #[cfg(debug_assertions)]
             eprintln!("Asset `{}` not found; fallback to index.html", path); // TODO log::error!

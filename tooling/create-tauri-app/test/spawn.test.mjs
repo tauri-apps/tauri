@@ -8,7 +8,14 @@ import fs from 'fs/promises'
 import path from 'path'
 import crypto from 'crypto'
 import tempDirectory from 'temp-dir'
-import assert from 'assert/strict'
+
+let assert
+const nodeVersion = process.versions.node.split('.')[0]
+if (nodeVersion === '14') {
+  assert = await import('assert')
+} else {
+  assert = await import('assert/strict')
+}
 
 const ctaBinary = path.resolve('./bin/create-tauri-app.js')
 const clijs = path.resolve('../cli.js/')
@@ -100,6 +107,7 @@ main(function* start() {
     }
   } catch (e) {
     console.error(e)
+    throw Error(e)
   } finally {
     console.log('\nstopping process...')
     // wait a tick for file locks to be release

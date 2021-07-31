@@ -8,6 +8,7 @@ import fs from 'fs/promises'
 import path from 'path'
 import crypto from 'crypto'
 import tempDirectory from 'temp-dir'
+import assert from 'assert/strict'
 
 const ctaBinary = path.resolve('./bin/create-tauri-app.js')
 const clijs = path.resolve('../cli.js/')
@@ -49,7 +50,7 @@ main(function* start() {
       }
 
       // now it is finished, assert on some things
-      yield assertCTAState()
+      yield assertCTAState({ appFolder, appName })
 
       let opts = []
       if (manager === 'npm') {
@@ -72,7 +73,7 @@ main(function* start() {
       }
 
       // build is complete, assert on some things
-      yield assertTauriBuildState()
+      yield assertTauriBuildState({ appFolder, appName })
 
       console.log(`------------------ ${recipe} complete -------------------`)
       console.log('::endgroup::')
@@ -103,7 +104,7 @@ main(function* start() {
     console.log('\nstopping process...')
     // wait a tick for file locks to be release
     yield sleep(5000)
-    yield fs.rm(tauriTemp, { recursive: true, force: true })
+    // yield fs.rm(tauriTemp, { recursive: true, force: true })
     console.log(`${tauriTemp} deleted.`)
   }
 })
@@ -117,10 +118,32 @@ function* streamLogs(child) {
   })
 }
 
-function* assertCTAState() {
-  console.log('TODO: assert on state of fs after CTA runs')
+function* assertCTAState({ appFolder, appName }) {
+  const packageFileInitial = JSON.parse(
+    yield fs.readFile(path.join(appFolder, 'package.json'), 'utf-8')
+  )
+  assert.strictEqual(packageFileInitial.name, appName)
+  assert.strictEqual(packageFileInitial.scripts.tauri, 'tauri')
 }
 
-function* assertTauriBuildState() {
-  console.log('TODO: assert on state of fs after Tauri Build runs')
+function* assertTauriBuildState({ appFolder, appName }) {
+  const packageFileOutput = JSON.parse(
+    yield fs.readFile(path.join(appFolder, 'package.json'), 'utf-8')
+  )
+  assert.strictEqual(packageFileOutput.name, appName)
+  assert.strictEqual(packageFileOutput.scripts.tauri, 'tauri')
+
+  const cargoFileOutput = yield fs.readFile(
+    path.join(appFolder, 'src-tauri', 'Cargo.toml'),
+    'utf-8'
+  )
+  assert.strictEqual(
+    cargoFileOutput.startsWith(`[package]\nname = "app"`),
+    true
+  )
+
+  const tauriTarget = yield fs.readdir(
+    path.join(appFolder, 'src-tauri', 'target')
+  )
+  assert.strictEqual(tauriTarget.includes('release'), true)
 }

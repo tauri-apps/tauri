@@ -30,7 +30,7 @@ function App() {
           Learn React
         </a>
         <p>
-          Edit <code>src/App.js</code> and save to reload.
+          Edit <code>src/App.tsx</code> and save to reload.
         </p>
       </header>
     </div>

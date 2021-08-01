@@ -112,7 +112,7 @@ main(function* start() {
     console.log('\nstopping process...')
     // wait a tick for file locks to be release
     yield sleep(5000)
-    // yield fs.rm(tauriTemp, { recursive: true, force: true })
+    yield fs.rm(tauriTemp, { recursive: true, force: true })
     console.log(`${tauriTemp} deleted.`)
   }
 })
@@ -130,16 +130,32 @@ function* assertCTAState({ appFolder, appName }) {
   const packageFileInitial = JSON.parse(
     yield fs.readFile(path.join(appFolder, 'package.json'), 'utf-8')
   )
-  assert.strictEqual(packageFileInitial.name, appName)
-  assert.strictEqual(packageFileInitial.scripts.tauri, 'tauri')
+  assert.strictEqual(
+    packageFileInitial.name,
+    appName,
+    `The package.json did not have the name "${appName}".`
+  )
+  assert.strictEqual(
+    packageFileInitial.scripts.tauri,
+    'tauri',
+    `The package.json did not have the tauri script.`
+  )
 }
 
 function* assertTauriBuildState({ appFolder, appName }) {
   const packageFileOutput = JSON.parse(
     yield fs.readFile(path.join(appFolder, 'package.json'), 'utf-8')
   )
-  assert.strictEqual(packageFileOutput.name, appName)
-  assert.strictEqual(packageFileOutput.scripts.tauri, 'tauri')
+  assert.strictEqual(
+    packageFileOutput.name,
+    appName,
+    `The package.json did not have the name "${appName}".`
+  )
+  assert.strictEqual(
+    packageFileOutput.scripts.tauri,
+    'tauri',
+    `The package.json did not have the tauri script.`
+  )
 
   const cargoFileOutput = yield fs.readFile(
     path.join(appFolder, 'src-tauri', 'Cargo.toml'),
@@ -147,11 +163,16 @@ function* assertTauriBuildState({ appFolder, appName }) {
   )
   assert.strictEqual(
     cargoFileOutput.startsWith(`[package]\nname = "app"`),
-    true
+    true,
+    `The Cargo.toml did not have the name "app".`
   )
 
   const tauriTarget = yield fs.readdir(
     path.join(appFolder, 'src-tauri', 'target')
   )
-  assert.strictEqual(tauriTarget.includes('release'), true)
+  assert.strictEqual(
+    tauriTarget.includes('release'),
+    true,
+    `The Tauri build does not have a target/release directory.`
+  )
 }

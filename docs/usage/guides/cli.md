@@ -142,7 +142,8 @@ fn main() {
   ...
   
   tauri::Builder::default()
-  .run(context);
+  .run(context)
+  .expect("error while running tauri application");
 }
 
 

@@ -139,8 +139,6 @@ fn main() {
     Err(_) => {}
   };
   
-  ...
-  
   tauri::Builder::default()
   .run(context)
   .expect("error while running tauri application");

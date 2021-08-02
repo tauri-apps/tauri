@@ -2,4 +2,4 @@
 "api": patch
 ---
 
-Add `toggleMaximize()`
+Add `toggleMaximize()` function to the `WebviewWindow` class.

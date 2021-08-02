@@ -205,7 +205,7 @@ if (!String.prototype.startsWith) {
             cmd: 'manage',
             data: {
               cmd: {
-                type: e.detail === 2 ? 'toggleMaximize' : 'startDragging'
+                type: e.detail === 2 ? '__toggleMaximize' : 'startDragging'
               }
             }
           }

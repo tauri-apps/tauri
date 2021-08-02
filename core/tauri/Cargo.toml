@@ -100,7 +100,8 @@ api-all = [
   "shell-all",
   "os-all",
   "dialog-all",
-  "updater"
+  "updater",
+  "path-all"
 ]
 updater = [ "minisign-verify", "base64" ]
 menu = [ "tauri-runtime/menu", "tauri-runtime-wry/menu" ]
@@ -117,7 +118,7 @@ fs-create-dir = [ ]
 fs-remove-dir = [ ]
 fs-remove-file = [ ]
 fs-rename-file = [ ]
-fs-path = [ ]
+path-all = [ ]
 window-all = [ ]
 window-create = [ ]
 shell-all = [ "shell-open", "shell-execute" ]

@@ -135,7 +135,6 @@ pub fn all_allowlist_features() -> Vec<&'static str> {
       remove_dir: true,
       remove_file: true,
       rename_file: true,
-      path: true,
     },
     window: WindowAllowlistConfig {
       all: true,
@@ -157,6 +156,8 @@ pub fn all_allowlist_features() -> Vec<&'static str> {
     },
     notification: NotificationAllowlistConfig { all: true },
     global_shortcut: GlobalShortcutAllowlistConfig { all: true },
+    os: OsAllowlistConfig { all: true },
+    path: PathAllowlistConfig { all: true },
   }
   .to_features()
 }

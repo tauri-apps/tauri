@@ -9,6 +9,7 @@ import { invoke } from '../tauri'
 type TauriModule =
   | 'App'
   | 'Fs'
+  | 'Path'
   | 'Os'
   | 'Window'
   | 'Shell'

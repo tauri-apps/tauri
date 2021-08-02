@@ -315,6 +315,17 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   {
     self.manager().inner.state.get()
   }
+
+  /// Adds a plugin to the runtime.
+  fn plugin<P: plugin::Plugin<R> + 'static>(&self, plugin: P) {
+    self
+      .manager()
+      .inner
+      .plugins
+      .lock()
+      .unwrap()
+      .register(plugin);
+  }
 }
 
 /// Prevent implementation details from leaking out of the [`Manager`] trait.

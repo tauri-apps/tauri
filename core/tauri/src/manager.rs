@@ -60,7 +60,7 @@ const MENU_EVENT: &str = "tauri://menu";
 #[default_runtime(crate::Wry, wry)]
 pub struct InnerWindowManager<R: Runtime> {
   windows: Mutex<HashMap<String, Window<R>>>,
-  plugins: Mutex<PluginStore<R>>,
+  pub(crate) plugins: Mutex<PluginStore<R>>,
   listeners: Listeners,
   pub(crate) state: Arc<StateManager>,
 

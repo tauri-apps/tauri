@@ -429,30 +429,6 @@ async function currentDir(): Promise<string> {
 }
 
 /**
- * Resolves the path with the optional base directory.
- *
- * @deprecated use `resolve` instead.
- *
- * @param path A path to resolve
- * @param directory A base directory to use when resolving the given path
- * @returns A path resolved to the given base directory.
- */
-async function resolvePath(
-  path: string,
-  directory: BaseDirectory
-): Promise<string> {
-  console.warn('"resolvePath" is deprecated, use "resolve" instead')
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
-    message: {
-      cmd: 'resolvePath',
-      path,
-      directory
-    }
-  })
-}
-
-/**
  * Provides the platform-specific path segment separator:
  * - `\` on Windows
  * - `/` on POSIX
@@ -581,7 +557,6 @@ export {
   templateDir,
   videoDir,
   currentDir,
-  resolvePath,
   BaseDirectory,
   sep,
   delimiter,

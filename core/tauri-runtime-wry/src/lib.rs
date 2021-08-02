@@ -50,7 +50,7 @@ use wry::{
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
     global_shortcut::{GlobalShortcut, ShortcutManager as WryShortcutManager},
     monitor::MonitorHandle,
-    window::{Fullscreen, Icon as WindowIcon, UserAttentionType as WryUserAttentionType, WindowId},
+    window::{Fullscreen, Icon as WindowIcon, UserAttentionType as WryUserAttentionType},
   },
   webview::{
     FileDropEvent as WryFileDropEvent, RpcRequest as WryRpcRequest, RpcResponse, WebContext,
@@ -58,7 +58,7 @@ use wry::{
   },
 };
 
-pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder};
+pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder, WindowId};
 
 #[cfg(target_os = "windows")]
 use wry::webview::WebviewExtWindows;
@@ -134,7 +134,7 @@ struct EventLoopContext {
 }
 
 #[derive(Debug, Clone)]
-struct GlobalShortcutWrapper(GlobalShortcut);
+pub struct GlobalShortcutWrapper(GlobalShortcut);
 
 unsafe impl Send for GlobalShortcutWrapper {}
 
@@ -412,7 +412,7 @@ impl From<Position> for PositionWrapper {
 }
 
 #[derive(Debug, Clone)]
-struct UserAttentionTypeWrapper(WryUserAttentionType);
+pub struct UserAttentionTypeWrapper(WryUserAttentionType);
 
 impl From<UserAttentionType> for UserAttentionTypeWrapper {
   fn from(request_type: UserAttentionType) -> UserAttentionTypeWrapper {
@@ -642,7 +642,7 @@ unsafe impl Send for Hwnd {}
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-struct GtkWindow(gtk::ApplicationWindow);
+pub struct GtkWindow(gtk::ApplicationWindow);
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -653,7 +653,7 @@ struct GtkWindow(gtk::ApplicationWindow);
 unsafe impl Send for GtkWindow {}
 
 #[derive(Debug, Clone)]
-enum WindowMessage {
+pub enum WindowMessage {
   // Getters
   ScaleFactor(Sender<f64>),
   InnerPosition(Sender<Result<PhysicalPosition<i32>>>),
@@ -714,7 +714,7 @@ enum WindowMessage {
 }
 
 #[derive(Debug, Clone)]
-enum WebviewMessage {
+pub enum WebviewMessage {
   EvaluateScript(String),
   #[allow(dead_code)]
   WebviewEvent(WebviewEvent),
@@ -723,13 +723,13 @@ enum WebviewMessage {
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-enum WebviewEvent {
+pub enum WebviewEvent {
   Focused(bool),
 }
 
 #[cfg(feature = "system-tray")]
 #[derive(Clone)]
-pub(crate) enum TrayMessage {
+pub enum TrayMessage {
   UpdateItem(u16, menu::MenuUpdate),
   UpdateIcon(Icon),
   #[cfg(target_os = "macos")]
@@ -737,7 +737,7 @@ pub(crate) enum TrayMessage {
 }
 
 #[derive(Clone)]
-pub(crate) enum GlobalShortcutMessage {
+pub enum GlobalShortcutMessage {
   IsRegistered(Accelerator, Sender<bool>),
   Register(Accelerator, Sender<Result<GlobalShortcutWrapper>>),
   Unregister(GlobalShortcutWrapper, Sender<Result<()>>),
@@ -745,12 +745,12 @@ pub(crate) enum GlobalShortcutMessage {
 }
 
 #[derive(Clone)]
-pub(crate) enum ClipboardMessage {
+pub enum ClipboardMessage {
   WriteText(String, Sender<()>),
   ReadText(Sender<Option<String>>),
 }
 
-pub(crate) enum Message {
+pub enum Message {
   Task(Box<dyn FnOnce() + Send>),
   Window(WindowId, WindowMessage),
   Webview(WindowId, WebviewMessage),
@@ -1235,7 +1235,7 @@ impl WindowHandle {
   }
 }
 
-struct WindowWrapper {
+pub struct WindowWrapper {
   label: String,
   inner: WindowHandle,
   #[cfg(feature = "menu")]
@@ -1279,6 +1279,16 @@ impl WryHandle {
       .send_event(Message::CreateWindow(Box::new(f), tx))
       .map_err(|_| Error::FailedToSendMessage)?;
     rx.recv().unwrap()
+  }
+
+  /// Send a message to the event loop.
+  pub fn send_event(&self, message: Message) -> Result<()> {
+    self
+      .dispatcher_context
+      .proxy
+      .send_event(message)
+      .map_err(|_| Error::FailedToSendMessage)?;
+    Ok(())
   }
 }
 

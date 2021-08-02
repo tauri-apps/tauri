@@ -1140,13 +1140,13 @@
     is-module "^1.0.0"
     resolve "^1.19.0"
 
-"@rollup/plugin-sucrase@3.1.0":
-  version "3.1.0"
-  resolved "https://registry.yarnpkg.com/@rollup/plugin-sucrase/-/plugin-sucrase-3.1.0.tgz#0645fd900e61a1b30d8a733e38438f2976da2b4f"
-  integrity sha512-PZ70LDNgIj8rL+3pKwKwTBOQ2c9JofXeLbWz+2V4/nCt4LqwYTNqxJJf1riTJsVARVzJdA0woIzUzjKZvL8TfA==
+"@rollup/plugin-sucrase@4.0.0":
+  version "4.0.0"
+  resolved "https://registry.yarnpkg.com/@rollup/plugin-sucrase/-/plugin-sucrase-4.0.0.tgz#8b803438611dcb5f05bf148f6190b436dd9fd45a"
+  integrity sha512-+GQMrkkA1WaEIwpW0PWnDTC8ZoP/DUDQd6ipsAh63Dq65y2rhe1r8YQ/SIQvqd+09t35wRDkY7Xd7O2yQGEOCQ==
   dependencies:
-    "@rollup/pluginutils" "^3.0.1"
-    sucrase "^3.10.1"
+    "@rollup/pluginutils" "^4.1.1"
+    sucrase "^3.20.0"
 
 "@rollup/plugin-typescript@8.2.1":
   version "8.2.1"
@@ -1156,13 +1156,21 @@
     "@rollup/pluginutils" "^3.1.0"
     resolve "^1.17.0"
 
-"@rollup/pluginutils@^3.0.1", "@rollup/pluginutils@^3.1.0":
+"@rollup/pluginutils@^3.1.0":
   version "3.1.0"
   resolved "https://registry.yarnpkg.com/@rollup/pluginutils/-/pluginutils-3.1.0.tgz#706b4524ee6dc8b103b3c995533e5ad680c02b9b"
   integrity sha512-GksZ6pr6TpIjHm8h9lSQ8pi8BE9VeubNT0OMJ3B5uZJ8pz73NPiqOtCog/x2/QzM1ENChPKxMDhiQuRHsqc+lg==
   dependencies:
     "@types/estree" "0.0.39"
     estree-walker "^1.0.1"
+    picomatch "^2.2.2"
+
+"@rollup/pluginutils@^4.1.1":
+  version "4.1.1"
+  resolved "https://registry.yarnpkg.com/@rollup/pluginutils/-/pluginutils-4.1.1.tgz#1d4da86dd4eded15656a57d933fda2b9a08d47ec"
+  integrity sha512-clDjivHqWGXi7u+0d2r2sBi4Ie6VLEAzWMIkvJLnDmxoOhBYOTfzGbOQBA32THHm11/LiJbd01tJUpJsbshSWQ==
+  dependencies:
+    estree-walker "^2.0.1"
     picomatch "^2.2.2"
 
 "@types/estree@*":
@@ -3114,10 +3122,10 @@ strip-json-comments@^3.1.0, strip-json-comments@^3.1.1:
   resolved "https://registry.yarnpkg.com/strip-json-comments/-/strip-json-comments-3.1.1.tgz#31f1281b3832630434831c310c01cccda8cbe006"
   integrity sha512-6fPc+R4ihwqP6N/aIv2f1gMH8lOVtWQHoqC4yK6oSDVVocumAsfCqjkXnqiYMhmMwS/mEHLp7Vehlt3ql6lEig==
 
-sucrase@^3.10.1:
-  version "3.18.1"
-  resolved "https://registry.yarnpkg.com/sucrase/-/sucrase-3.18.1.tgz#7c699d5148734b1105542ca4ea2aa69bcab7f728"
-  integrity sha512-TRyO38wwOPhLLlM8QLOG3TgMj0FKk+arlTrS9pRAanF8cAcHvgRPKIYWGO25mPSp/Rj87zMMTjFfkqIZGI6ZdA==
+sucrase@^3.20.0:
+  version "3.20.0"
+  resolved "https://registry.yarnpkg.com/sucrase/-/sucrase-3.20.0.tgz#a80e865830e27d66a912c938491d474164b06205"
+  integrity sha512-Rsp+BX7DRuCleJvBAHN7gQ3ddk7U0rJev19XlIBF6dAq9vX4Tr5mHk4E7+ig/I7BM3DLYotCmm20lfBElT2XtQ==
   dependencies:
     commander "^4.0.0"
     glob "7.1.6"

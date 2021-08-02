@@ -626,12 +626,12 @@ impl From<FileDropEventWrapper> for FileDropEvent {
 }
 
 #[cfg(target_os = "macos")]
-struct NSWindow(*mut std::ffi::c_void);
+pub struct NSWindow(*mut std::ffi::c_void);
 #[cfg(target_os = "macos")]
 unsafe impl Send for NSWindow {}
 
 #[cfg(windows)]
-struct Hwnd(HWND);
+pub struct Hwnd(HWND);
 #[cfg(windows)]
 unsafe impl Send for Hwnd {}
 

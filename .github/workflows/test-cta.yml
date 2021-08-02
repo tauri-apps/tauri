@@ -26,7 +26,7 @@ jobs:
       matrix:
         node: ["14", "16"]
         manager: ["6", "7"]
-        recipe: ["vanillajs", "cra", "vite", "ngcli", "svelte"]
+        recipe: ["vanillajs", "cra", "vite", "ngcli", "svelte", "dominator"]
         exclude:
           - node: "16"
             manager: "6"

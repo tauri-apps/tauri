@@ -5,7 +5,8 @@
 name: test create-tauri-app
 env:
   RUST_BACKTRACE: 1
-  TAURI_RECIPE: "vanillajs,cra,vite,ngcli"
+  TAURI_RECIPE: 'vanillajs,cra,vite,ngcli'
+  TAURI_RECIPE_PARALLELIZE: true
 
 on:
   workflow_dispatch:

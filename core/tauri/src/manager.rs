@@ -20,7 +20,7 @@ use crate::{
     window::{dpi::PhysicalSize, DetachedWindow, PendingWindow, WindowEvent},
     Icon, Runtime,
   },
-  App, Context, Invoke, StateManager, Window,
+  Context, Invoke, StateManager, Window,
 };
 
 #[cfg(target_os = "windows")]
@@ -534,13 +534,13 @@ impl<R: Runtime> WindowManager<R> {
       .extend_api(invoke);
   }
 
-  pub fn initialize_plugins(&self, app: &App<R>) -> crate::Result<()> {
+  pub fn initialize_plugins(&self, app: &AppHandle<R>) -> crate::Result<()> {
     self
       .inner
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .initialize(app, &self.inner.config.plugins)
+      .initialize(&app, &self.inner.config.plugins)
   }
 
   pub fn prepare_window(

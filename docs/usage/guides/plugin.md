@@ -17,7 +17,7 @@ Plugins allow you to hook into the Tauri application lifecycle and introduce new
 To write a plugin you just need to implement the `tauri::plugin::Plugin` trait:
 
 ```rust
-use tauri::{plugin::{Plugin, Result as PluginResult}, Runtime, PageLoadPayload, Window, Invoke, App};
+use tauri::{plugin::{Plugin, Result as PluginResult}, Runtime, PageLoadPayload, Window, Invoke, AppHandle};
 
 struct MyAwesomePlugin<R: Runtime> {
   invoke_handler: Box<dyn Fn(Invoke<R>) + Send + Sync>,
@@ -59,7 +59,7 @@ impl<R: Runtime> Plugin<R> for MyAwesomePlugin<R> {
   }
 
   /// initialize plugin with the config provided on `tauri.conf.json > plugins > $yourPluginName` or the default value.
-  fn initialize(&mut self, app: &App<R>, config: serde_json::Value) -> PluginResult<()> {
+  fn initialize(&mut self, app: &AppHandle<R>, config: serde_json::Value) -> PluginResult<()> {
     Ok(())
   }
 

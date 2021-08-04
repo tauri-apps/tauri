@@ -63,7 +63,7 @@ const printUsage = (): void => {
     --ci                 Skip prompts
     --force, -f          Force init to overwrite [conf|template|all]
     --log, -l            Logging [boolean]
-    --manager, -d        Set package manager to use [npm|yarn]
+    --manager, -m        Set package manager to use [npm|yarn|pnpm]
     --directory, -d      Set target directory for init
     --app-name, -A       Name of your Tauri application
     --window-title, -W   Window title of your Tauri application
@@ -255,12 +255,15 @@ const runInit = async (argv: Argv): Promise<void> => {
   }
 
   const packageManager =
-    argv.m === 'yarn' || argv.m === 'npm'
+    argv.m === 'yarn' || argv.m === 'npm' || argv.m === 'pnpm'
       ? argv.m
       : // @ts-expect-error
       // this little fun snippet pulled from vite determines the package manager the script was run from
       /yarn/.test(process?.env?.npm_execpath)
       ? 'yarn'
+      : // @ts-expect-error
+      /pnpm/.test(process?.env?.npm_execpath)
+      ? 'pnpm'
       : 'npm'
 
   const buildConfig = {
@@ -368,7 +371,7 @@ const runInit = async (argv: Argv): Promise<void> => {
     logStep(`Running: ${reset(yellow('tauri init'))}`)
     const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b)
     const runTauriArgs =
-      packageManager === 'npm' && !argv.b
+      (packageManager === 'npm' || packageManager === 'pnpm') && !argv.b
         ? ['run', 'tauri', '--', 'init']
         : ['tauri', 'init']
     await shell(binary, [...runTauriArgs, ...initArgs, '--ci'], {

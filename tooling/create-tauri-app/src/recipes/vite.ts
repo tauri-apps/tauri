@@ -7,23 +7,6 @@
 import { shell } from '../shell'
 import { Recipe } from '../types/recipe'
 
-const afterViteCA = async (
-  cwd: string,
-  appName: string,
-  template: string
-): Promise<void> => {
-  // template dir temp removed, will eventually add it back for APIs
-  // leaving this here until then
-  // const templateDir = join(__dirname, `../src/templates/vite/${template}`)
-  // try {
-  //   await scaffe.generate(templateDir, join(cwd, appName), {
-  //     overwrite: true
-  //   })
-  // } catch (err) {
-  //   console.log(err)
-  // }
-}
-
 const vite: Recipe = {
   descriptiveName: {
     name: 'create-vite (https://vitejs.dev/guide/#scaffolding-your-first-vite-project)',
@@ -34,9 +17,11 @@ const vite: Recipe = {
     ...cfg,
     distDir: `../dist`,
     devPath: 'http://localhost:3000',
-    beforeDevCommand: `${packageManager === 'yarn' ? 'yarn' : 'npm run'} dev`,
+    beforeDevCommand: `${
+      packageManager === 'npm' ? 'npm run' : packageManager
+    } dev`,
     beforeBuildCommand: `${
-      packageManager === 'yarn' ? 'yarn' : 'npm run'
+      packageManager === 'npm' ? 'npm run' : packageManager
     } build`
   }),
   extraNpmDevDependencies: [],
@@ -84,33 +69,32 @@ const vite: Recipe = {
       )
     } else {
       await shell(
-        'npx',
+        packageManager === 'pnpm' ? 'pnpx' : 'npx',
         ['create-vite@latest', `${cfg.appName}`, '--template', `${template}`],
         {
           cwd
         }
       )
     }
-
-    await afterViteCA(cwd, cfg.appName, template)
   },
   postInit: async ({ cwd, packageManager, cfg }) => {
     // we don't have a consistent way to rebuild and
     // esbuild has hit all the bugs and struggles to install on the postinstall
     await shell('node', ['./node_modules/esbuild/install.js'], { cwd })
-    if (packageManager === 'yarn') {
-      await shell('yarn', ['build'], { cwd })
-    } else {
+    if (packageManager === 'npm') {
       await shell('npm', ['run', 'build'], { cwd })
+    } else {
+      await shell(packageManager, ['build'], { cwd })
     }
+
     console.log(`
     Your installation completed.
 
-    $ cd ${cfg.appName}.
-    $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
+    $ cd ${cfg.appName}
+    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri ${
       packageManager === 'npm' ? '--' : ''
     } dev
-  `)
+    `)
     return await Promise.resolve()
   }
 }

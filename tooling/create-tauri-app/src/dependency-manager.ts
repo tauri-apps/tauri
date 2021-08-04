@@ -5,7 +5,7 @@
 import { ManagementType, Result } from './types/deps'
 import { shell } from './shell'
 
-export type PackageManager = 'npm' | 'yarn'
+export type PackageManager = 'npm' | 'yarn' | 'pnpm'
 
 export async function install({
   appDir,
@@ -50,16 +50,18 @@ async function installNpmPackage(
   packageManager: PackageManager,
   appDir: string
 ): Promise<void> {
-  if (packageNames.length === 0) return
-  console.log(`Installing ${packageNames.join(', ')}...`)
-  if (packageManager === 'yarn') {
-    await shell('yarn', ['add', packageNames.join(' ')], {
-      cwd: appDir
-    })
-  } else {
-    await shell('npm', ['install', packageNames.join(' ')], {
-      cwd: appDir
-    })
+  const packages = packageNames.filter((p) => p !== '')
+  if (packages.length !== 0) {
+    console.log(`- Installing ${packages.join(', ')}...`)
+    if (packageManager === 'yarn' || packageManager === 'pnpm') {
+      await shell(packageManager, ['add', packageNames.join(' ')], {
+        cwd: appDir
+      })
+    } else {
+      await shell('npm', ['install', packageNames.join(' ')], {
+        cwd: appDir
+      })
+    }
   }
 }
 
@@ -68,23 +70,25 @@ async function installNpmDevPackage(
   packageManager: PackageManager,
   appDir: string
 ): Promise<void> {
-  if (packageNames.length === 0) return
-  console.log(`Installing ${packageNames.join(', ')}...`)
-  if (packageManager === 'yarn') {
-    await shell(
-      'yarn',
-      ['add', '--dev', '--ignore-scripts', packageNames.join(' ')],
-      {
-        cwd: appDir
-      }
-    )
-  } else {
-    await shell(
-      'npm',
-      ['install', '--save-dev', '--ignore-scripts', packageNames.join(' ')],
-      {
-        cwd: appDir
-      }
-    )
+  const packages = packageNames.filter((p) => p !== '')
+  if (packages.length !== 0) {
+    console.log(`- Installing ${packages.join(', ')}...`)
+    if (packageManager === 'yarn' || packageManager === 'pnpm') {
+      await shell(
+        packageManager,
+        ['add', '-D', '--ignore-scripts', packageNames.join(' ')],
+        {
+          cwd: appDir
+        }
+      )
+    } else {
+      await shell(
+        'npm',
+        ['install', '--save-dev', '--ignore-scripts', packageNames.join(' ')],
+        {
+          cwd: appDir
+        }
+      )
+    }
   }
 }

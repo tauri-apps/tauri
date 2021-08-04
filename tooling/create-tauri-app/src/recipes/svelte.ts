@@ -30,9 +30,11 @@ const svelte: Recipe = {
     ...cfg,
     distDir: `../public`,
     devPath: 'http://localhost:5000',
-    beforeDevCommand: `${packageManager === 'yarn' ? 'yarn' : 'npm run'} dev`,
+    beforeDevCommand: `${
+      packageManager === 'yarn' ? 'npm run' : packageManager
+    } dev`,
     beforeBuildCommand: `${
-      packageManager === 'yarn' ? 'yarn' : 'npm run'
+      packageManager === 'yarn' ? 'npm run' : packageManager
     } build`
   }),
   preInit: async ({ cwd, cfg, answers }) => {
@@ -56,11 +58,11 @@ const svelte: Recipe = {
     console.log(`
     Your installation completed.
 
-    $ cd ${cfg.appName}.
-    $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
+    $ cd ${cfg.appName}
+    $ ${packageManager} install
+    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri ${
       packageManager === 'npm' ? '--' : ''
     } dev
-
     `)
 
     return await Promise.resolve()

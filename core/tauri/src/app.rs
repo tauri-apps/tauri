@@ -199,6 +199,30 @@ impl<R: Runtime> AppHandle<R> {
   fn remove_system_tray(&self) -> crate::Result<()> {
     self.runtime_handle.remove_system_tray().map_err(Into::into)
   }
+
+  /// Adds a plugin to the runtime.
+  pub fn plugin<P: Plugin<R> + 'static>(&self, mut plugin: P) -> crate::Result<()> {
+    plugin
+      .initialize(
+        self,
+        self
+          .config()
+          .plugins
+          .0
+          .get(plugin.name())
+          .cloned()
+          .unwrap_or_default(),
+      )
+      .map_err(|e| crate::Error::PluginInitialization(plugin.name().to_string(), e.to_string()))?;
+    self
+      .manager()
+      .inner
+      .plugins
+      .lock()
+      .unwrap()
+      .register(plugin);
+    Ok(())
+  }
 }
 
 impl<R: Runtime> Manager<R> for AppHandle<R> {}
@@ -832,7 +856,7 @@ impl<R: Runtime> Builder<R> {
       },
     };
 
-    app.manager.initialize_plugins(&app)?;
+    app.manager.initialize_plugins(&app.handle())?;
 
     let pending_labels = self
       .pending_windows

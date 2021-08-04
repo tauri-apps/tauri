@@ -20,7 +20,7 @@ use crate::{
     window::{dpi::PhysicalSize, DetachedWindow, PendingWindow, WindowEvent},
     Icon, Runtime,
   },
-  App, Context, Invoke, StateManager, Window,
+  Context, Invoke, StateManager, Window,
 };
 
 #[cfg(target_os = "windows")]
@@ -534,7 +534,7 @@ impl<R: Runtime> WindowManager<R> {
       .extend_api(invoke);
   }
 
-  pub fn initialize_plugins(&self, app: &App<R>) -> crate::Result<()> {
+  pub fn initialize_plugins(&self, app: &AppHandle<R>) -> crate::Result<()> {
     self
       .inner
       .plugins

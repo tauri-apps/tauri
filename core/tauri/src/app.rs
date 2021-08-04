@@ -204,7 +204,7 @@ impl<R: Runtime> AppHandle<R> {
   pub fn plugin<P: Plugin<R> + 'static>(&self, mut plugin: P) -> crate::Result<()> {
     plugin
       .initialize(
-        &self,
+        self,
         self
           .config()
           .plugins

@@ -122,7 +122,7 @@ export const cra: Recipe = {
     $ cd ${cfg.appName}
     $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri ${
       packageManager === 'npm' ? '--' : ''
-    } dev
+    }dev
     `)
     return await Promise.resolve()
   }

@@ -62,7 +62,7 @@ const svelte: Recipe = {
     $ ${packageManager} install
     $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri ${
       packageManager === 'npm' ? '--' : ''
-    } dev
+    }dev
     `)
 
     return await Promise.resolve()

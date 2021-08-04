@@ -43,6 +43,9 @@ pub struct RemoteRelease {
   pub body: Option<String>,
   /// Optional signature for the current platform
   pub signature: Option<String>,
+  #[cfg(target_os = "windows")]
+  /// Optional: Windows only try to use elevated task
+  pub with_elevated_task: bool,
 }
 
 impl RemoteRelease {
@@ -86,6 +89,8 @@ impl RemoteRelease {
       .map(|signature| signature.as_str().unwrap_or("").to_string());
 
     let download_url;
+    #[cfg(target_os = "windows")]
+    let mut with_elevated_task = false;
 
     match release.get("platforms") {
       //
@@ -118,6 +123,13 @@ impl RemoteRelease {
               Error::RemoteMetadata("Unable to extract `url` from remote server`".into())
             })?
             .to_string();
+          #[cfg(target_os = "windows")]
+          {
+            with_elevated_task = match current_target_data.get("with_elevated_task") {
+              Some(with_elevated_task) => with_elevated_task.as_bool().unwrap_or(false),
+              None => false,
+            };
+          }
         } else {
           // make sure we have an available platform from the static
           return Err(Error::RemoteMetadata("Platform not available".into()));
@@ -134,6 +146,13 @@ impl RemoteRelease {
             Error::RemoteMetadata("Unable to extract `url` from remote server`".into())
           })?
           .to_string();
+        #[cfg(target_os = "windows")]
+        {
+          with_elevated_task = match release.get("with_elevated_task") {
+            Some(with_elevated_task) => with_elevated_task.as_bool().unwrap_or(false),
+            None => false,
+          };
+        }
       }
     }
     // Return our formatted release
@@ -143,6 +162,8 @@ impl RemoteRelease {
       download_url,
       body,
       signature,
+      #[cfg(target_os = "windows")]
+      with_elevated_task,
     })
   }
 }
@@ -343,6 +364,8 @@ impl<'a> UpdateBuilder<'a> {
       download_url: final_release.download_url,
       body: final_release.body,
       signature: final_release.signature,
+      #[cfg(target_os = "windows")]
+      with_elevated_task: final_release.with_elevated_task,
     })
   }
 }
@@ -371,6 +394,10 @@ pub struct Update {
   download_url: String,
   /// Signature announced
   signature: Option<String>,
+  #[cfg(target_os = "windows")]
+  /// Optional: Windows only try to use elevated task
+  /// Default to false
+  with_elevated_task: bool,
 }
 
 impl Update {
@@ -465,6 +492,9 @@ impl Update {
     // we copy the files depending of the operating system
     // we run the setup, appimage re-install or overwrite the
     // macos .app
+    #[cfg(target_os = "windows")]
+    copy_files_and_run(tmp_dir, extract_path, self.with_elevated_task)?;
+    #[cfg(not(target_os = "windows"))]
     copy_files_and_run(tmp_dir, extract_path)?;
     // We are done!
     Ok(())
@@ -525,7 +555,11 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Resu
 // Update server can provide a custom EXE (installer) who can run any task.
 #[cfg(target_os = "windows")]
 #[allow(clippy::unnecessary_wraps)]
-fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Result {
+fn copy_files_and_run(
+  tmp_dir: tempfile::TempDir,
+  _extract_path: PathBuf,
+  with_elevated_task: bool,
+) -> Result {
   use crate::api::file::Move;
 
   let paths = read_dir(&tmp_dir)?;
@@ -544,41 +578,42 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
 
       exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
-      if let Some(bin_name) = std::env::current_exe()
-        .ok()
-        .and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
-        .and_then(|s| s.into_string().ok())
-      {
-        let product_name = bin_name.replace(".exe", "");
-
-        // Check if there is a task that enables the updater to skip the UAC prompt
-        let update_task_name = format!("Update {} - Skip UAC", product_name);
-        if let Ok(status) = Command::new("schtasks")
-          .arg("/QUERY")
-          .arg("/TN")
-          .arg(update_task_name.clone())
-          .status()
+      if with_elevated_task {
+        if let Some(bin_name) = std::env::current_exe()
+          .ok()
+          .and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
+          .and_then(|s| s.into_string().ok())
         {
-          if status.success() {
-            // Rename the MSI to the match file name the Skip UAC task is expecting it to be
-            let temp_msi = tmp_path.with_file_name(bin_name).with_extension("msi");
-            Move::from_source(&found_path)
-              .to_dest(&temp_msi)
-              .expect("Unable to move update MSI");
-            let exit_status = Command::new("schtasks")
-              .arg("/RUN")
-              .arg("/TN")
-              .arg(update_task_name)
-              .status()
-              .expect("failed to start updater task");
+          let product_name = bin_name.replace(".exe", "");
 
-            if exit_status.success() {
-              // Successfully launched task that skips the UAC prompt
-              exit(0);
+          // Check if there is a task that enables the updater to skip the UAC prompt
+          let update_task_name = format!("Update {} - Skip UAC", product_name);
+          if let Ok(status) = Command::new("schtasks")
+            .arg("/QUERY")
+            .arg("/TN")
+            .arg(update_task_name.clone())
+            .status()
+          {
+            if status.success() {
+              // Rename the MSI to the match file name the Skip UAC task is expecting it to be
+              let temp_msi = tmp_path.with_file_name(bin_name).with_extension("msi");
+              Move::from_source(&found_path)
+                .to_dest(&temp_msi)
+                .expect("Unable to move update MSI");
+              let exit_status = Command::new("schtasks")
+                .arg("/RUN")
+                .arg("/TN")
+                .arg(update_task_name)
+                .status()
+                .expect("failed to start updater task");
+
+              if exit_status.success() {
+                // Successfully launched task that skips the UAC prompt
+                exit(0);
+              }
             }
+            // Failed to run update task. Following UAC Path
           }
-
-          // Failed to run update task. Following UAC Path
         }
       }
 
@@ -834,6 +869,27 @@ mod test {
     )
   }
 
+  fn generate_sample_with_elevated_task_platform_json(
+    version: &str,
+    public_signature: &str,
+    download_url: &str,
+    with_elevated_task: bool,
+  ) -> String {
+    format!(
+      r#"
+        {{
+          "name": "v{}",
+          "notes": "This is the latest version! Once updated you shouldn't see this prompt.",
+          "pub_date": "2020-06-25T14:14:19Z",
+          "signature": "{}",
+          "url": "{}",
+          "with_elevated_task": "{}"
+        }}
+      "#,
+      version, public_signature, download_url, with_elevated_task
+    )
+  }
+
   fn generate_sample_bad_json() -> String {
     r#"{
       "version": "v0.0.3",
@@ -953,6 +1009,33 @@ mod test {
       .current_version("1.0.0")
       .url(format!(
         "{}/darwin/{{{{current_version}}}}",
+        mockito::server_url()
+      ))
+      .build());
+
+    assert!(check_update.is_ok());
+    let updater = check_update.expect("Can't check update");
+
+    assert!(updater.should_update);
+  }
+
+  #[test]
+  fn simple_http_updater_with_elevated_task() {
+    let _m = mockito::mock("GET", "/win64/1.0.0")
+      .with_status(200)
+      .with_header("content-type", "application/json")
+      .with_body(generate_sample_with_elevated_task_platform_json(
+        "2.0.0",
+        "SampleTauriKey",
+        "https://tauri.studio",
+        true,
+      ))
+      .create();
+
+    let check_update = block!(builder()
+      .current_version("1.0.0")
+      .url(format!(
+        "{}/win64/{{{{current_version}}}}",
         mockito::server_url()
       ))
       .build());

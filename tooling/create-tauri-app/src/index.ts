@@ -370,10 +370,13 @@ const runInit = async (argv: Argv): Promise<void> => {
 
     logStep(`Running: ${reset(yellow('tauri init'))}`)
     const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b)
+    // pnpm is equivalent to yarn and can run srcipts without using "run" but due to this bug https://github.com/pnpm/pnpm/issues/2764
+    // we need to pass "--" to pnpm or arguments won't be parsed correctly so for this command only we are gonna treat pnpm as npm equivalent/
     const runTauriArgs =
-      (packageManager === 'npm' || packageManager === 'pnpm') && !argv.b
-        ? ['run', 'tauri', '--', 'init']
-        : ['tauri', 'init']
+      packageManager === 'yarn' || argv.b
+        ? ['tauri', 'init']
+        : ['run', 'tauri', '--', 'init']
+
     await shell(binary, [...runTauriArgs, ...initArgs, '--ci'], {
       cwd: appDirectory
     })

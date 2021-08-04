@@ -53,12 +53,12 @@ async function installNpmPackage(
   const packages = packageNames.filter((p) => p !== '')
   if (packages.length !== 0) {
     console.log(`- Installing ${packages.join(', ')}...`)
-    if (packageManager === 'yarn' || packageManager === 'pnpm') {
-      await shell(packageManager, ['add', packageNames.join(' ')], {
+    if (packageManager === 'npm') {
+      await shell('npm', ['install', packageNames.join(' ')], {
         cwd: appDir
       })
     } else {
-      await shell('npm', ['install', packageNames.join(' ')], {
+      await shell(packageManager, ['add', packageNames.join(' ')], {
         cwd: appDir
       })
     }
@@ -73,18 +73,18 @@ async function installNpmDevPackage(
   const packages = packageNames.filter((p) => p !== '')
   if (packages.length !== 0) {
     console.log(`- Installing ${packages.join(', ')}...`)
-    if (packageManager === 'yarn' || packageManager === 'pnpm') {
+    if (packageManager === 'npm') {
       await shell(
-        packageManager,
-        ['add', '-D', '--ignore-scripts', packageNames.join(' ')],
+        'npm',
+        ['install', '--save-dev', '--ignore-scripts', packageNames.join(' ')],
         {
           cwd: appDir
         }
       )
     } else {
       await shell(
-        'npm',
-        ['install', '--save-dev', '--ignore-scripts', packageNames.join(' ')],
+        packageManager,
+        ['add', '-D', '--ignore-scripts', packageNames.join(' ')],
         {
           cwd: appDir
         }

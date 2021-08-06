@@ -66,14 +66,14 @@ attohttpc = { version = "0.17", features = [ "json", "form" ] }
 open = { version = "1.7", optional = true }
 shared_child = { version = "0.3", optional = true }
 os_pipe = { version = "0.9", optional = true }
-rfd = "0.4"
+rfd = "0.4.1"
 raw-window-handle = { version = "0.3.3", optional = true }
 minisign-verify = { version = "0.1", optional = true }
 os_info = { version = "3.0.6", optional = true}
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { version = "0.9", features = [ "v3_16" ] }
-glib = "0.10"
+gtk = { version = "0.14", features = [ "v3_20" ] }
+glib = "0.14"
 
 [build-dependencies]
 cfg_aliases = "0.1.1"

@@ -12,7 +12,7 @@ export const shell = async (
 ): Promise<execa.ExecaReturnValue> => {
   try {
     if (options && options.shell === true) {
-      const stringCommand = [command, ...(!args ? [] : args)].join(' ')
+      const stringCommand = [command, ...(args ?? [])].join(' ')
       if (log) console.log(`[running]: ${stringCommand}`)
       return await execa(stringCommand, {
         stdio: 'inherit',

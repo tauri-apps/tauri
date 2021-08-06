@@ -1,6 +1,7 @@
 import { PackageManager } from '../dependency-manager'
 import { shell } from '../shell'
 import { Recipe } from '../types/recipe'
+import { join } from 'path'
 
 const addAdditionalPackage = async (
   packageManager: PackageManager,
@@ -10,13 +11,13 @@ const addAdditionalPackage = async (
 ): Promise<void> => {
   const ngCommand = ['ng', 'add', packageName, '--skip-confirmation']
 
-  if (packageManager === 'yarn') {
-    await shell('yarn', ngCommand, {
-      cwd: `${cwd}/${appName}`
+  if (packageManager === 'npm') {
+    await shell('npm', ['run', ...ngCommand], {
+      cwd: join(cwd, appName)
     })
   } else {
-    await shell('npm', ['run', ...ngCommand], {
-      cwd: `${cwd}/${appName}`
+    await shell(packageManager, ngCommand, {
+      cwd: join(cwd, appName)
     })
   }
 }
@@ -33,9 +34,11 @@ const ngcli: Recipe = {
     ...cfg,
     distDir: `../dist/${cfg.appName}`,
     devPath: 'http://localhost:4200',
-    beforeDevCommand: `${packageManager === 'yarn' ? 'yarn' : 'npm run'} start`,
+    beforeDevCommand: `${
+      packageManager === 'npm' ? 'npm run' : packageManager
+    } start`,
     beforeBuildCommand: `${
-      packageManager === 'yarn' ? 'yarn' : 'npm run'
+      packageManager === 'npm' ? 'npm run' : packageManager
     } build`
   }),
   extraQuestions: ({ ci }) => {
@@ -94,12 +97,12 @@ const ngcli: Recipe = {
   },
   postInit: async ({ packageManager, cfg }) => {
     console.log(`
-      Your installation completed.
+    Your installation completed.
 
-      $ cd ${cfg.appName}
-      $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
+    $ cd ${cfg.appName}
+    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri ${
       packageManager === 'npm' ? '--' : ''
-    } dev
+    }dev
     `)
 
     return await Promise.resolve()

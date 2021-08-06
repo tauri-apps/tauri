@@ -17,9 +17,11 @@ export const dominator: Recipe = {
     ...cfg,
     distDir: `../dist`,
     devPath: 'http://localhost:10001/',
-    beforeDevCommand: `${packageManager === 'yarn' ? 'yarn' : 'npm run'} start`,
+    beforeDevCommand: `${
+      packageManager === 'npm' ? 'npm run' : packageManager
+    } start`,
     beforeBuildCommand: `${
-      packageManager === 'yarn' ? 'yarn' : 'npm run'
+      packageManager === 'npm' ? 'npm run' : packageManager
     } build`
   }),
   extraNpmDevDependencies: [],
@@ -46,12 +48,11 @@ export const dominator: Recipe = {
     console.log(`
     Your installation completed.
 
-    $ cd ${cfg.appName}.
+    $ cd ${cfg.appName}
     $ ${packageManager} install
-    $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
+    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri ${
       packageManager === 'npm' ? '--' : ''
-    } dev
-
+    }dev
     `)
     return await Promise.resolve()
   }

@@ -7,6 +7,7 @@ import { join } from 'path'
 import scaffe from 'scaffe'
 import { shell } from '../shell'
 import { Recipe } from '../types/recipe'
+import { rmSync, existsSync } from 'fs'
 
 const afterCra = async (
   cwd: string,
@@ -38,9 +39,11 @@ export const cra: Recipe = {
     ...cfg,
     distDir: `../build`,
     devPath: 'http://localhost:3000',
-    beforeDevCommand: `${packageManager === 'yarn' ? 'yarn' : 'npm run'} start`,
+    beforeDevCommand: `${
+      packageManager === 'npm' ? 'npm run' : packageManager
+    } start`,
     beforeBuildCommand: `${
-      packageManager === 'yarn' ? 'yarn' : 'npm run'
+      packageManager === 'npm' ? 'npm run' : packageManager
     } build`
   }),
   extraNpmDevDependencies: [],
@@ -50,7 +53,7 @@ export const cra: Recipe = {
       {
         type: 'list',
         name: 'template',
-        message: 'Which vite template would you like to use?',
+        message: 'Which create-react-app template would you like to use?',
         choices: [
           { name: 'create-react-app (JavaScript)', value: 'cra.js' },
           { name: 'create-react-app (Typescript)', value: 'cra.ts' }
@@ -94,6 +97,22 @@ export const cra: Recipe = {
         }
       )
     }
+
+    // create-react-app doesn't support pnpm, so we remove `node_modules` and any lock files then install them again using pnpm
+    if (packageManager === 'pnpm') {
+      const npmLock = join(cwd, cfg.appName, 'package-lock.json')
+      const yarnLock = join(cwd, cfg.appName, 'yarn.lock')
+      const nodeModules = join(cwd, cfg.appName, 'node_modules')
+      if (existsSync(npmLock)) rmSync(npmLock)
+      if (existsSync(yarnLock)) rmSync(yarnLock)
+      if (existsSync(nodeModules))
+        rmSync(nodeModules, {
+          recursive: true,
+          force: true
+        })
+      await shell('pnpm', ['install'], { cwd })
+    }
+
     await afterCra(cwd, cfg.appName, template === 'cra.ts')
   },
   postInit: async ({ packageManager, cfg }) => {
@@ -101,10 +120,10 @@ export const cra: Recipe = {
     Your installation completed.
 
     $ cd ${cfg.appName}
-    $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
+    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri ${
       packageManager === 'npm' ? '--' : ''
-    } dev
-  `)
+    }dev
+    `)
     return await Promise.resolve()
   }
 }

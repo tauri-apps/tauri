@@ -50,7 +50,7 @@ const vuecli: Recipe = {
     Your installation completed.
 
     $ cd ${cfg.appName}
-    $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri:serve
+    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri:serve
     `)
     return await Promise.resolve()
   }

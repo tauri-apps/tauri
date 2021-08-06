@@ -24,7 +24,7 @@ const api = path.resolve('../api/')
 const manager = process.env.TAURI_RUN_MANAGER || 'yarn'
 const recipes = process.env.TAURI_RECIPE
   ? process.env.TAURI_RECIPE.split(',')
-  : ['vanillajs', 'cra', 'vite', 'vuecli', 'ngcli']
+  : ['vanillajs', 'cra', 'vite', 'ngcli']
 const parallelize = process.env.TAURI_RECIPE_PARALLELIZE || false
 
 main(function* start() {
@@ -49,16 +49,6 @@ main(function* start() {
       const run = `node '${ctaBinary}' --manager ${manager} --recipe ${recipe} --ci --dev`
       console.log(`[running] ${run}`)
 
-      const cta = yield exec(run, { cwd: recipeFolder })
-      if (!parallelize) yield streamLogs(cta)
-      else {
-        console.log('running CTA recipe in parallel')
-        output[recipe] = { cta: yield spawn(cta.join()) }
-      }
-
-      // now it is finished, assert on some things
-      yield assertCTAState({ appFolder, appName })
-
       let opts = []
       if (manager === 'npm') {
         opts =
@@ -69,18 +59,32 @@ main(function* start() {
         opts = recipe == 'vuecli' ? ['tauri:build'] : ['tauri', 'build']
       }
 
-      const tauriBuild = yield exec(manager, {
-        arguments: opts,
-        cwd: appFolder
-      })
-      if (!parallelize) yield streamLogs(tauriBuild)
-      else {
-        console.log('running recipe tauri build in parallel')
-        output[recipe].tauriBuild = yield spawn(tauriBuild.join())
-      }
+      if (!parallelize) {
+        const cta = yield exec(run, { cwd: recipeFolder })
+        yield streamLogs(cta)
+        // now it is finished, assert on some things
+        yield assertCTAState({ appFolder, appName })
 
-      // build is complete, assert on some things
-      yield assertTauriBuildState({ appFolder, appName })
+        const tauriBuild = yield exec(manager, {
+          arguments: opts,
+          cwd: appFolder
+        })
+        yield streamLogs(tauriBuild)
+        // build is complete, assert on some things
+        yield assertTauriBuildState({ appFolder, appName })
+      } else {
+        console.log('running CTA recipe in parallel')
+        output[recipe] = yield spawn(function* () {
+          const childCTA = yield exec(run, { cwd: recipeFolder })
+          const cta = yield captureLogs(childCTA)
+          const childTauriBuild = yield exec(manager, {
+            arguments: opts,
+            cwd: appFolder
+          })
+          const tauriBuild = yield captureLogs(childTauriBuild)
+          return { cta, tauriBuild }
+        })
+      }
 
       console.log(`------------------ ${recipe} complete -------------------`)
       console.log('::endgroup::')
@@ -96,9 +100,9 @@ main(function* start() {
         console.log(
           `------------------ ${recipe} output start -------------------`
         )
-        const ctaOutput = yield output[recipe].cta
-        console.log(ctaOutput)
-        yield output[recipe].tauriBuild
+        const out = yield output[recipe]
+        console.log(out.cta)
+        console.log(out.tauriBuild)
         console.log(
           `------------------ ${recipe} output end -------------------`
         )
@@ -124,6 +128,18 @@ function* streamLogs(child) {
   yield child.stderr.forEach((data) => {
     process.stderr.write(data)
   })
+}
+
+function* captureLogs(child) {
+  let log = ''
+  yield child.stdout.forEach((data) => {
+    log += data
+  })
+  yield child.stderr.forEach((data) => {
+    log += data
+  })
+
+  return log
 }
 
 function* assertCTAState({ appFolder, appName }) {

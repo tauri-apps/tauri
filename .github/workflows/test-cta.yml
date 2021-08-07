@@ -6,7 +6,6 @@ name: test create-tauri-app
 env:
   RUST_BACKTRACE: 1
   TAURI_RECIPE: 'vanillajs,cra,vite,ngcli'
-  TAURI_RECIPE_PARALLELIZE: true
 
 on:
   workflow_dispatch:
@@ -64,35 +63,35 @@ jobs:
         env:
           TAURI_RUN_MANAGER: "npm"
 
-  create-recipe-with-yarn:
-    name: "node@${{ matrix.node }} + yarn@1"
-    runs-on: ${{ github.event.inputs.platform || 'ubuntu' }}-latest
+  # create-recipe-with-yarn:
+  #   name: "node@${{ matrix.node }} + yarn@1"
+  #   runs-on: ${{ github.event.inputs.platform || 'ubuntu' }}-latest
 
-    strategy:
-      fail-fast: false
-      matrix:
-        node: ["14", "16"]
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       node: ["14", "16"]
 
-    steps:
-      - uses: actions/checkout@v2
-      - name: install stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-      - uses: volta-cli/action@v1
-        with:
-          node-version: ${{ matrix.node }}
-          yarn-version: 1.22.5
-      - name: install webkit2gtk
-        if: (github.event.inputs.platform || 'ubuntu') == 'ubuntu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libgtksourceview-3.0-dev webkit2gtk-4.0 libappindicator3-dev
-      - run: yarn
-        working-directory: tooling/create-tauri-app
-      - run: yarn build
-        working-directory: tooling/create-tauri-app
-      - run: yarn test
-        working-directory: tooling/create-tauri-app
-        env:
-          TAURI_RUN_MANAGER: "yarn"
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: install stable
+  #       uses: actions-rs/toolchain@v1
+  #       with:
+  #         toolchain: stable
+  #     - uses: volta-cli/action@v1
+  #       with:
+  #         node-version: ${{ matrix.node }}
+  #         yarn-version: 1.22.5
+  #     - name: install webkit2gtk
+  #       if: (github.event.inputs.platform || 'ubuntu') == 'ubuntu'
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y libgtk-3-dev libgtksourceview-3.0-dev webkit2gtk-4.0 libappindicator3-dev
+  #     - run: yarn
+  #       working-directory: tooling/create-tauri-app
+  #     - run: yarn build
+  #       working-directory: tooling/create-tauri-app
+  #     - run: yarn test
+  #       working-directory: tooling/create-tauri-app
+  #       env:
+  #         TAURI_RUN_MANAGER: "yarn"

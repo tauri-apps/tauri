@@ -2,6 +2,7 @@
   "compilerOptions": {
     "strict": true,
     "allowJs": true,
+    "target": "es6",
     "esModuleInterop": true,
     "baseUrl": ".",
     "paths": {

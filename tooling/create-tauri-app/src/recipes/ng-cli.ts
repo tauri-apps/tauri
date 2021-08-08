@@ -1,6 +1,7 @@
 import { PackageManager } from '../dependency-manager'
 import { shell } from '../shell'
 import { Recipe } from '../types/recipe'
+import { join } from 'path'
 
 const addAdditionalPackage = async (
   packageManager: PackageManager,
@@ -10,13 +11,13 @@ const addAdditionalPackage = async (
 ): Promise<void> => {
   const ngCommand = ['ng', 'add', packageName, '--skip-confirmation']
 
-  if (packageManager === 'yarn') {
-    await shell('yarn', ngCommand, {
-      cwd: `${cwd}/${appName}`
+  if (packageManager === 'npm') {
+    await shell('npm', ['run', ...ngCommand], {
+      cwd: join(cwd, appName)
     })
   } else {
-    await shell('npm', ['run', ...ngCommand], {
-      cwd: `${cwd}/${appName}`
+    await shell(packageManager, ngCommand, {
+      cwd: join(cwd, appName)
     })
   }
 }
@@ -29,10 +30,16 @@ const ngcli: Recipe = {
   shortName: 'ngcli',
   extraNpmDependencies: [],
   extraNpmDevDependencies: [],
-  configUpdate: ({ cfg }) => ({
+  configUpdate: ({ cfg, packageManager }) => ({
     ...cfg,
     distDir: `../dist/${cfg.appName}`,
-    devPath: 'http://localhost:4200'
+    devPath: 'http://localhost:4200',
+    beforeDevCommand: `${
+      packageManager === 'npm' ? 'npm run' : packageManager
+    } start`,
+    beforeBuildCommand: `${
+      packageManager === 'npm' ? 'npm run' : packageManager
+    } build`
   }),
   extraQuestions: ({ ci }) => {
     return [
@@ -40,10 +47,6 @@ const ngcli: Recipe = {
         type: 'confirm',
         name: 'material',
         message: 'Add Angular Material (https://material.angular.io/)?',
-        validate: (input: string) => {
-          return input.toLowerCase() === 'yes'
-        },
-        loop: false,
         when: !ci
       },
       {
@@ -51,10 +54,6 @@ const ngcli: Recipe = {
         name: 'eslint',
         message:
           'Add Angular ESLint (https://github.com/angular-eslint/angular-eslint)?',
-        validate: (input: string) => {
-          return input.toLowerCase() === 'yes'
-        },
-        loop: false,
         when: !ci
       }
     ]
@@ -96,9 +95,14 @@ const ngcli: Recipe = {
       }
     }
   },
-  postInit: async ({ cwd }) => {
+  postInit: async ({ packageManager, cfg }) => {
     console.log(`
-      Your installation completed. Change directory to \`${cwd}\` and happy coding.
+    Your installation completed.
+
+    $ cd ${cfg.appName}
+    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri ${
+      packageManager === 'npm' ? '--' : ''
+    }dev
     `)
 
     return await Promise.resolve()

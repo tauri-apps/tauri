@@ -4,7 +4,9 @@
 
 //! Extend Tauri functionality.
 
-use crate::{api::config::PluginConfig, runtime::Runtime, App, Invoke, PageLoadPayload, Window};
+use crate::{
+  api::config::PluginConfig, runtime::Runtime, AppHandle, Invoke, PageLoadPayload, Window,
+};
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 
@@ -20,7 +22,7 @@ pub trait Plugin<R: Runtime>: Send {
 
   /// Initialize the plugin.
   #[allow(unused_variables)]
-  fn initialize(&mut self, app: &App<R>, config: JsonValue) -> Result<()> {
+  fn initialize(&mut self, app: &AppHandle<R>, config: JsonValue) -> Result<()> {
     Ok(())
   }
 
@@ -69,7 +71,11 @@ impl<R: Runtime> PluginStore<R> {
   }
 
   /// Initializes all plugins in the store.
-  pub(crate) fn initialize(&mut self, app: &App<R>, config: &PluginConfig) -> crate::Result<()> {
+  pub(crate) fn initialize(
+    &mut self,
+    app: &AppHandle<R>,
+    config: &PluginConfig,
+  ) -> crate::Result<()> {
     self.store.values_mut().try_for_each(|plugin| {
       plugin
         .initialize(

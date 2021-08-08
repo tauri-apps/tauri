@@ -75,6 +75,15 @@ impl TrayHandle for SystemTrayHandle {
       .send_event(Message::Tray(TrayMessage::UpdateItem(id, update)))
       .map_err(|_| Error::FailedToSendMessage)
   }
+  #[cfg(target_os = "macos")]
+  fn set_icon_as_template(&self, is_template: bool) -> tauri_runtime::Result<()> {
+    self
+      .proxy
+      .send_event(Message::Tray(TrayMessage::UpdateIconAsTemplate(
+        is_template,
+      )))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
 }
 
 #[cfg(target_os = "macos")]

@@ -6,11 +6,6 @@ import { join } from 'path'
 import { shell } from '../shell'
 import { Recipe } from '../types/recipe'
 
-const completeLogMsg = `
-  Your installation completed.
-  To start, run yarn tauri:serve
-`
-
 const vuecli: Recipe = {
   descriptiveName: {
     name: 'Vue CLI (https://cli.vuejs.org/)',
@@ -50,8 +45,13 @@ const vuecli: Recipe = {
       }
     )
   },
-  postInit: async () => {
-    console.log(completeLogMsg)
+  postInit: async ({ cfg, packageManager }) => {
+    console.log(`
+    Your installation completed.
+
+    $ cd ${cfg.appName}
+    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri:serve
+    `)
     return await Promise.resolve()
   }
 }

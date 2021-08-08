@@ -57,8 +57,8 @@ export async function runOnRustCli(
       onClose
     )
   } else {
-    if (existsSync(resolve(targetPath, '../bundler'))) {
-      // running local CLI
+    if (existsSync(resolve(targetPath, 'test'))) {
+      // running local CLI since test directory exists
       const cliPath = resolve(targetPath, '../cli.rs')
       spawnSync('cargo', ['build', '--release'], cliPath)
       const localCliPath = resolve(

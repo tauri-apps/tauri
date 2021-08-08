@@ -2,6 +2,7 @@
   "compilerOptions": {
     "strict": true,
     "allowJs": true,
+    "target": "es2021",
     "esModuleInterop": true,
     "baseUrl": ".",
     "paths": {

@@ -61,7 +61,7 @@ pub fn unlisten_js<R: Runtime>(window: &Window<R>, event_id: u64) -> String {
       for (var event in (window['{listeners}'] || {{}})) {{
         var listeners = (window['{listeners}'] || {{}})[event]
         if (listeners) {{
-          window['{listeners}'][event] = window['{listeners}'][event].filter(function (e) {{ e.id !== {event_id} }})
+          window['{listeners}'][event] = window['{listeners}'][event].filter(function (e) {{ return e.id !== {event_id} }})
         }}
       }}
     ",

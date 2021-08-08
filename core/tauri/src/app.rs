@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 #[cfg(feature = "system-tray")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub(crate) mod tray;
 
 use crate::{
@@ -167,6 +166,31 @@ pub struct AppHandle<R: Runtime> {
   tray_handle: Option<tray::SystemTrayHandle<R>>,
 }
 
+#[cfg(feature = "wry")]
+impl AppHandle<crate::Wry> {
+  /// Create a new tao window using a callback. The event loop must be running at this point.
+  pub fn create_tao_window<
+    F: FnOnce() -> (String, tauri_runtime_wry::WryWindowBuilder) + Send + 'static,
+  >(
+    &self,
+    f: F,
+  ) -> crate::Result<Arc<tauri_runtime_wry::Window>> {
+    self.runtime_handle.create_tao_window(f).map_err(Into::into)
+  }
+
+  /// Sends a window message to the event loop.
+  pub fn send_tao_window_event(
+    &self,
+    window_id: tauri_runtime_wry::WindowId,
+    message: tauri_runtime_wry::WindowMessage,
+  ) -> crate::Result<()> {
+    self
+      .runtime_handle
+      .send_event(tauri_runtime_wry::Message::Window(window_id, message))
+      .map_err(Into::into)
+  }
+}
+
 impl<R: Runtime> Clone for AppHandle<R> {
   fn clone(&self) -> Self {
     Self {
@@ -193,6 +217,30 @@ impl<R: Runtime> AppHandle<R> {
   #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
   fn remove_system_tray(&self) -> crate::Result<()> {
     self.runtime_handle.remove_system_tray().map_err(Into::into)
+  }
+
+  /// Adds a plugin to the runtime.
+  pub fn plugin<P: Plugin<R> + 'static>(&self, mut plugin: P) -> crate::Result<()> {
+    plugin
+      .initialize(
+        self,
+        self
+          .config()
+          .plugins
+          .0
+          .get(plugin.name())
+          .cloned()
+          .unwrap_or_default(),
+      )
+      .map_err(|e| crate::Error::PluginInitialization(plugin.name().to_string(), e.to_string()))?;
+    self
+      .manager()
+      .inner
+      .plugins
+      .lock()
+      .unwrap()
+      .register(plugin);
+    Ok(())
   }
 
   /// Exits the app
@@ -261,7 +309,12 @@ macro_rules! shared_app_impl {
   ($app: ty) => {
     impl<R: Runtime> $app {
       /// Creates a new webview window.
-      pub fn create_window<F>(&self, label: String, url: WindowUrl, setup: F) -> crate::Result<()>
+      pub fn create_window<F>(
+        &self,
+        label: impl Into<String>,
+        url: WindowUrl,
+        setup: F,
+      ) -> crate::Result<()>
       where
         F: FnOnce(
           <R::Dispatcher as Dispatch>::WindowBuilder,
@@ -774,6 +827,15 @@ impl<R: Runtime> Builder<R> {
       icon
     };
 
+    #[cfg(all(feature = "system-tray", target_os = "macos"))]
+    let system_tray_icon_as_template = context
+      .config
+      .tauri
+      .system_tray
+      .as_ref()
+      .map(|t| t.icon_as_template)
+      .unwrap_or_default();
+
     let manager = WindowManager::with_handlers(
       context,
       self.plugins,
@@ -826,7 +888,7 @@ impl<R: Runtime> Builder<R> {
       },
     };
 
-    app.manager.initialize_plugins(&app)?;
+    app.manager.initialize_plugins(&app.handle())?;
 
     let pending_labels = self
       .pending_windows
@@ -849,8 +911,6 @@ impl<R: Runtime> Builder<R> {
       }
     }
 
-    (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e))?;
-
     #[cfg(feature = "system-tray")]
     if let Some(system_tray) = self.system_tray {
       let mut ids = HashMap::new();
@@ -861,6 +921,8 @@ impl<R: Runtime> Builder<R> {
       if let Some(menu) = system_tray.menu {
         tray = tray.with_menu(menu);
       }
+
+      #[cfg(not(target_os = "macos"))]
       let tray_handler = app
         .runtime
         .as_ref()
@@ -874,6 +936,24 @@ impl<R: Runtime> Builder<R> {
           ),
         )
         .expect("failed to run tray");
+
+      #[cfg(target_os = "macos")]
+      let tray_handler = app
+        .runtime
+        .as_ref()
+        .unwrap()
+        .system_tray(
+          tray
+            .with_icon(
+              system_tray
+                .icon
+                .or(system_tray_icon)
+                .expect("tray icon not found; please configure it on tauri.conf.json"),
+            )
+            .with_icon_as_template(system_tray_icon_as_template),
+        )
+        .expect("failed to run tray");
+
       let tray_handle = tray::SystemTrayHandle {
         ids: Arc::new(ids.clone()),
         inner: tray_handler,
@@ -920,6 +1000,8 @@ impl<R: Runtime> Builder<R> {
           });
       }
     }
+
+    (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e))?;
 
     #[cfg(feature = "updater")]
     app.run_updater(main_window);

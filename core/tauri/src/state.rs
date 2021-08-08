@@ -60,4 +60,9 @@ impl StateManager {
   pub fn get<T: Send + Sync + 'static>(&self) -> State<'_, T> {
     State(self.0.get())
   }
+
+  /// Gets the state associated with the specified type.
+  pub fn try_get<T: Send + Sync + 'static>(&self) -> Option<State<'_, T>> {
+    self.0.try_get().map(State)
+  }
 }

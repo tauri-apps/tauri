@@ -14,6 +14,9 @@
 mod cmd;
 mod menu;
 
+#[cfg(target_os = "linux")]
+use std::path::PathBuf;
+
 use serde::Serialize;
 use tauri::{
   CustomMenuItem, Event, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder,
@@ -53,7 +56,9 @@ fn main() {
       SystemTray::new().with_menu(
         SystemTrayMenu::new()
           .add_item(CustomMenuItem::new("toggle", "Toggle"))
-          .add_item(CustomMenuItem::new("new", "New window")),
+          .add_item(CustomMenuItem::new("new", "New window"))
+          .add_item(CustomMenuItem::new("icon_1", "Tray Icon 1"))
+          .add_item(CustomMenuItem::new("icon_2", "Tray Icon 2")),
       ),
     )
     .on_system_tray_event(|app, event| match event {
@@ -82,12 +87,62 @@ fn main() {
           }
           "new" => app
             .create_window(
-              "new".into(),
+              "new",
               WindowUrl::App("index.html".into()),
               |window_builder, webview_attributes| {
                 (window_builder.title("Tauri"), webview_attributes)
               },
             )
+            .unwrap(),
+          #[cfg(target_os = "macos")]
+          "icon_1" => {
+            app.tray_handle().set_icon_as_template(true).unwrap();
+
+            app
+              .tray_handle()
+              .set_icon(tauri::Icon::Raw(
+                include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec(),
+              ))
+              .unwrap();
+          }
+          #[cfg(target_os = "macos")]
+          "icon_2" => {
+            app.tray_handle().set_icon_as_template(true).unwrap();
+
+            app
+              .tray_handle()
+              .set_icon(tauri::Icon::Raw(
+                include_bytes!("../../../.icons/tray_icon.png").to_vec(),
+              ))
+              .unwrap();
+          }
+          #[cfg(target_os = "linux")]
+          "icon_1" => app
+            .tray_handle()
+            .set_icon(tauri::Icon::File(PathBuf::from(
+              "../../../.icons/tray_icon_with_transparency.png",
+            )))
+            .unwrap(),
+          #[cfg(target_os = "linux")]
+          "icon_2" => app
+            .tray_handle()
+            .set_icon(tauri::Icon::File(PathBuf::from(
+              "../../../.icons/tray_icon.png",
+            )))
+            .unwrap(),
+          #[cfg(target_os = "windows")]
+          "icon_1" => app
+            .tray_handle()
+            .set_icon(tauri::Icon::Raw(
+              include_bytes!("../../../.icons/tray_icon_with_transparency.ico").to_vec(),
+            ))
+            .unwrap(),
+          #[cfg(target_os = "windows")]
+          "icon_2" => app
+            .tray_handle()
+            .set_icon(tauri::Icon::Raw(
+              include_bytes!("../../../.icons/icon.ico").to_vec(),
+            ))
             .unwrap(),
           _ => {}
         }

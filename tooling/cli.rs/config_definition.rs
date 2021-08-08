@@ -380,8 +380,6 @@ pub struct FsAllowlistConfig {
   pub remove_file: bool,
   #[serde(default)]
   pub rename_file: bool,
-  #[serde(default)]
-  pub path: bool,
 }
 
 impl Allowlist for FsAllowlistConfig {
@@ -400,7 +398,6 @@ impl Allowlist for FsAllowlistConfig {
       check_feature!(self, features, remove_dir, "fs-remove-dir");
       check_feature!(self, features, remove_file, "fs-remove-file");
       check_feature!(self, features, rename_file, "fs-rename-file");
-      check_feature!(self, features, path, "fs-path");
       features
     }
   }
@@ -532,6 +529,40 @@ impl Allowlist for GlobalShortcutAllowlistConfig {
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OsAllowlistConfig {
+  #[serde(default)]
+  pub all: bool,
+}
+
+impl Allowlist for OsAllowlistConfig {
+  fn to_features(&self) -> Vec<&str> {
+    if self.all {
+      vec!["os-all"]
+    } else {
+      vec![]
+    }
+  }
+}
+
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PathAllowlistConfig {
+  #[serde(default)]
+  pub all: bool,
+}
+
+impl Allowlist for PathAllowlistConfig {
+  fn to_features(&self) -> Vec<&str> {
+    if self.all {
+      vec!["path-all"]
+    } else {
+      vec![]
+    }
+  }
+}
+
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AllowlistConfig {
   #[serde(default)]
   pub all: bool,
@@ -549,6 +580,10 @@ pub struct AllowlistConfig {
   pub notification: NotificationAllowlistConfig,
   #[serde(default)]
   pub global_shortcut: GlobalShortcutAllowlistConfig,
+  #[serde(default)]
+  pub os: OsAllowlistConfig,
+  #[serde(default)]
+  pub path: PathAllowlistConfig,
 }
 
 impl Allowlist for AllowlistConfig {
@@ -564,6 +599,8 @@ impl Allowlist for AllowlistConfig {
       features.extend(self.http.to_features());
       features.extend(self.notification.to_features());
       features.extend(self.global_shortcut.to_features());
+      features.extend(self.os.to_features());
+      features.extend(self.path.to_features());
       features
     }
   }
@@ -623,6 +660,9 @@ pub struct SystemTrayConfig {
   ///
   /// It is forced to be a `.png` file on Linux and macOS, and a `.ico` file on Windows.
   pub icon_path: PathBuf,
+  /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
+  #[serde(default)]
+  pub icon_as_template: bool,
 }
 
 // We enable the unnecessary_wraps because we need

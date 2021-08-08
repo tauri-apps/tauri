@@ -11,11 +11,12 @@ import { cra } from './recipes/react'
 import { vuecli } from './recipes/vue-cli'
 import { vanillajs } from './recipes/vanilla'
 import { vite } from './recipes/vite'
+import { dominator } from './recipes/dominator'
 import { ngcli } from './recipes/ng-cli'
 import { svelte } from './recipes/svelte'
 import { install, checkPackageManager } from './dependency-manager'
 import { shell } from './shell'
-import { addTauriScript } from './helpers/add-tauri-script'
+import { updatePackageJson } from './helpers/update-package-json'
 import { Recipe } from './types/recipe'
 import { updateTauriConf } from './helpers/update-tauri-conf'
 
@@ -62,7 +63,7 @@ const printUsage = (): void => {
     --ci                 Skip prompts
     --force, -f          Force init to overwrite [conf|template|all]
     --log, -l            Logging [boolean]
-    --manager, -d        Set package manager to use [npm|yarn]
+    --manager, -m        Set package manager to use [npm|yarn|pnpm]
     --directory, -d      Set target directory for init
     --app-name, -A       Name of your Tauri application
     --window-title, -W   Window title of your Tauri application
@@ -113,9 +114,18 @@ interface Responses {
   appName: string
   tauri: { window: { title: string } }
   recipeName: string
+  installApi: boolean
 }
 
-const allRecipes: Recipe[] = [vanillajs, cra, vite, vuecli, ngcli, svelte]
+const allRecipes: Recipe[] = [
+  vanillajs,
+  cra,
+  vite,
+  vuecli,
+  ngcli,
+  svelte,
+  dominator
+]
 
 const recipeByShortName = (name: string): Recipe | undefined =>
   allRecipes.find((r) => r.shortName === name)
@@ -174,7 +184,8 @@ const runInit = async (argv: Argv): Promise<void> => {
   const defaults = {
     appName: 'tauri-app',
     tauri: { window: { title: 'Tauri App' } },
-    recipeName: 'vanillajs'
+    recipeName: 'vanillajs',
+    installApi: true
   }
 
   // prompt initial questions
@@ -197,10 +208,17 @@ const runInit = async (argv: Argv): Promise<void> => {
       {
         type: 'list',
         name: 'recipeName',
-        message: 'Would you like to add a UI recipe?',
+        message: 'What UI recipe would you like to add?',
         choices: recipeDescriptiveNames,
         default: defaults.recipeName,
         when: !argv.ci && !argv.r
+      },
+      {
+        type: 'confirm',
+        name: 'installApi',
+        message: 'Add "@tauri-apps/api" npm package?',
+        default: true,
+        when: !argv.ci
       }
     ])
     .catch((error: { isTtyError: boolean }) => {
@@ -218,6 +236,7 @@ const runInit = async (argv: Argv): Promise<void> => {
   const {
     appName,
     recipeName,
+    installApi,
     tauri: {
       window: { title }
     }
@@ -236,12 +255,15 @@ const runInit = async (argv: Argv): Promise<void> => {
   }
 
   const packageManager =
-    argv.m === 'yarn' || argv.m === 'npm'
+    argv.m === 'yarn' || argv.m === 'npm' || argv.m === 'pnpm'
       ? argv.m
       : // @ts-expect-error
       // this little fun snippet pulled from vite determines the package manager the script was run from
       /yarn/.test(process?.env?.npm_execpath)
       ? 'yarn'
+      : // @ts-expect-error
+      /pnpm/.test(process?.env?.npm_execpath)
+      ? 'pnpm'
       : 'npm'
 
   const buildConfig = {
@@ -334,22 +356,27 @@ const runInit = async (argv: Argv): Promise<void> => {
     logStep('Installing any additional needed dependencies')
     await install({
       appDir: appDirectory,
-      dependencies: recipe.extraNpmDependencies,
+      dependencies: [installApi ? '@tauri-apps/api@latest' : ''].concat(
+        recipe.extraNpmDependencies
+      ),
       devDependencies: [`@tauri-apps/cli@${tauriCLIVersion}`].concat(
         recipe.extraNpmDevDependencies
       ),
       packageManager
     })
 
-    logStep(`Adding ${reset(yellow('"tauri"'))} script to package.json`)
-    addTauriScript(appDirectory)
+    logStep(`Updating ${reset(yellow('"package.json"'))}`)
+    updatePackageJson(appDirectory, appName)
 
-    logStep(`Running: ${reset(yellow('tauri init'))}`)
+    logStep(`Running ${reset(yellow('"tauri init"'))}`)
     const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b)
+    // pnpm is equivalent to yarn and can run srcipts without using "run" but due to this bug https://github.com/pnpm/pnpm/issues/2764
+    // we need to pass "--" to pnpm or arguments won't be parsed correctly so for this command only we are gonna treat pnpm as npm equivalent/
     const runTauriArgs =
-      packageManager === 'npm' && !argv.b
-        ? ['run', 'tauri', '--', 'init']
-        : ['tauri', 'init']
+      packageManager === 'yarn' || argv.b
+        ? ['tauri', 'init']
+        : ['run', 'tauri', '--', 'init']
+
     await shell(binary, [...runTauriArgs, ...initArgs, '--ci'], {
       cwd: appDirectory
     })

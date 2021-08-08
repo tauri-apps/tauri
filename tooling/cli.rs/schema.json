@@ -49,7 +49,6 @@
             "all": false,
             "copyFile": false,
             "createDir": false,
-            "path": false,
             "readBinaryFile": false,
             "readDir": false,
             "readTextFile": false,
@@ -67,6 +66,12 @@
             "request": false
           },
           "notification": {
+            "all": false
+          },
+          "os": {
+            "all": false
+          },
+          "path": {
             "all": false
           },
           "shell": {
@@ -133,7 +138,6 @@
             "all": false,
             "copyFile": false,
             "createDir": false,
-            "path": false,
             "readBinaryFile": false,
             "readDir": false,
             "readTextFile": false,
@@ -177,6 +181,26 @@
           "allOf": [
             {
               "$ref": "#/definitions/NotificationAllowlistConfig"
+            }
+          ]
+        },
+        "os": {
+          "default": {
+            "all": false
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/OsAllowlistConfig"
+            }
+          ]
+        },
+        "path": {
+          "default": {
+            "all": false
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/PathAllowlistConfig"
             }
           ]
         },
@@ -724,10 +748,6 @@
           "default": false,
           "type": "boolean"
         },
-        "path": {
-          "default": false,
-          "type": "boolean"
-        },
         "readBinaryFile": {
           "default": false,
           "type": "boolean"
@@ -846,6 +866,16 @@
       },
       "additionalProperties": false
     },
+    "OsAllowlistConfig": {
+      "type": "object",
+      "properties": {
+        "all": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
     "PackageConfig": {
       "type": "object",
       "properties": {
@@ -862,6 +892,16 @@
             "string",
             "null"
           ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "PathAllowlistConfig": {
+      "type": "object",
+      "properties": {
+        "all": {
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -902,6 +942,11 @@
         "iconPath"
       ],
       "properties": {
+        "iconAsTemplate": {
+          "description": "A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.",
+          "default": false,
+          "type": "boolean"
+        },
         "iconPath": {
           "description": "Path to the icon to use on the system tray.\n\nIt is forced to be a `.png` file on Linux and macOS, and a `.ico` file on Windows.",
           "type": "string"
@@ -925,7 +970,6 @@
               "all": false,
               "copyFile": false,
               "createDir": false,
-              "path": false,
               "readBinaryFile": false,
               "readDir": false,
               "readTextFile": false,
@@ -943,6 +987,12 @@
               "request": false
             },
             "notification": {
+              "all": false
+            },
+            "os": {
+              "all": false
+            },
+            "path": {
               "all": false
             },
             "shell": {

@@ -19,29 +19,54 @@ pub fn inject_invoke_key_token(document: &mut NodeRef) {
       let element = node.as_element().unwrap();
 
       let attrs = element.attributes.borrow();
-      // if the script is external (has `src`) or its type is not "module", we won't inject the token
-      if attrs.get("src").is_some() || attrs.get("type") != Some("module") {
+      // if the script is external (has `src`), we won't inject the token
+      if attrs.get("src").is_some() {
         continue;
       }
 
-      let replacement_node = NodeRef::new_element(
-        QualName::new(None, ns!(html), "script".into()),
-        element
-          .attributes
-          .borrow()
-          .clone()
-          .map
-          .into_iter()
-          .collect::<Vec<_>>(),
-      );
-      let script = node.text_contents();
-      replacement_node.append(NodeRef::new_text(format!(
-        r#"
+      let replacement_node = match attrs.get("type") {
+        Some("module") | Some("application/ecmascript") => {
+          let replacement_node = NodeRef::new_element(
+            QualName::new(None, ns!(html), "script".into()),
+            element
+              .attributes
+              .borrow()
+              .clone()
+              .map
+              .into_iter()
+              .collect::<Vec<_>>(),
+          );
+          let script = node.text_contents();
+          replacement_node.append(NodeRef::new_text(format!(
+            r#"
           const __TAURI_INVOKE_KEY__ = __TAURI__INVOKE_KEY_TOKEN__;
           {}
         "#,
-        script
-      )));
+            script
+          )));
+          replacement_node
+        }
+        Some("application/javascript") | None => {
+          let replacement_node = NodeRef::new_element(
+            QualName::new(None, ns!(html), "script".into()),
+            element
+              .attributes
+              .borrow()
+              .clone()
+              .map
+              .into_iter()
+              .collect::<Vec<_>>(),
+          );
+          let script = node.text_contents();
+          replacement_node.append(NodeRef::new_text(
+            script.replace("__TAURI_INVOKE_KEY__", "__TAURI__INVOKE_KEY_TOKEN__"),
+          ));
+          replacement_node
+        }
+        _ => {
+          continue;
+        }
+      };
 
       node.insert_after(replacement_node);
       node.detach();

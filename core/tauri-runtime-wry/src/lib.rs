@@ -2062,7 +2062,7 @@ fn on_window_close<'a>(
     menu_event_listeners.lock().unwrap().remove(&window_id);
     callback(RunEvent::WindowClose(webview.label));
   }
-  if webviews.is_empty() {
+  if windows.is_empty() {
     let (tx, rx) = channel();
     callback(RunEvent::ExitRequested { tx });
 

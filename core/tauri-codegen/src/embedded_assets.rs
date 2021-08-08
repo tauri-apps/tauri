@@ -246,7 +246,7 @@ impl EmbeddedAssets {
       if input.len() < MULTI_HASH_SIZE_LIMIT {
         hasher.update(&input);
       } else {
-        hasher.update_with_join::<blake3::join::RayonJoin>(&input);
+        hasher.update_rayon(&input);
       }
       hasher.finalize().to_hex()
     };

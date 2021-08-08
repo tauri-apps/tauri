@@ -368,7 +368,7 @@ const runInit = async (argv: Argv): Promise<void> => {
     logStep(`Updating ${reset(yellow('"package.json"'))}`)
     updatePackageJson(appDirectory, appName)
 
-    logStep(`Running: ${reset(yellow('tauri init'))}`)
+    logStep(`Running ${reset(yellow('"tauri init"'))}`)
     const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b)
     // pnpm is equivalent to yarn and can run srcipts without using "run" but due to this bug https://github.com/pnpm/pnpm/issues/2764
     // we need to pass "--" to pnpm or arguments won't be parsed correctly so for this command only we are gonna treat pnpm as npm equivalent/

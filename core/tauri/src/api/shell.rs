@@ -10,18 +10,7 @@ pub fn open(path: String, with: Option<String>) -> crate::api::Result<()> {
     } else {
       open::that(&path)
     };
-    match exit_status {
-      Ok(status) => {
-        if status.success() {
-          Ok(())
-        } else {
-          Err(crate::api::Error::Shell("open command failed".into()))
-        }
-      }
-      Err(err) => Err(crate::api::Error::Shell(format!(
-        "failed to open: {}",
-        err.to_string()
-      ))),
-    }
+    exit_status
+      .map_err(|err| crate::api::Error::Shell(format!("failed to open: {}", err.to_string())))
   }
 }

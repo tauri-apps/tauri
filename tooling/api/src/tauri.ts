@@ -21,7 +21,7 @@ declare global {
 
 // the `__TAURI_INVOKE_KEY__` variable is injected at runtime by Tauri
 // eslint-disable-next-line @typescript-eslint/naming-convention
-declare let __TAURI_INVOKE_KEY__: number;
+declare let __TAURI_INVOKE_KEY__: number
 
 /** @ignore */
 function uid(): string {

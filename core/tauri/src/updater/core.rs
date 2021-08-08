@@ -73,10 +73,11 @@ impl RemoteRelease {
     };
 
     // pub_date is required default is: `N/A` if not provided by the remote JSON
-    let date = match release.get("pub_date") {
-      Some(pub_date) => pub_date.as_str().unwrap_or("N/A").to_string(),
-      None => "N/A".to_string(),
-    };
+    let date = release
+      .get("pub_date")
+      .and_then(|v| v.as_str())
+      .unwrap_or("N/A")
+      .to_string();
 
     // body is optional to build our update
     let body = release
@@ -125,10 +126,10 @@ impl RemoteRelease {
             .to_string();
           #[cfg(target_os = "windows")]
           {
-            with_elevated_task = match current_target_data.get("with_elevated_task") {
-              Some(with_elevated_task) => with_elevated_task.as_bool().unwrap_or(false),
-              None => false,
-            };
+            with_elevated_task = current_target_data
+              .get("with_elevated_task")
+              .and_then(|v| v.as_bool())
+              .unwrap_or_default();
           }
         } else {
           // make sure we have an available platform from the static

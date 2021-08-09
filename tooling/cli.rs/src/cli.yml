@@ -1,6 +1,6 @@
 name: cargo-tauri
 bin_name: cargo tauri
-author: Lucas Nogueira <lucas@tauri.studio>
+author: Tauri Programme within The Commons Conservancy.
 about: The Tauri command line interface.
 subcommands:
   - dev:

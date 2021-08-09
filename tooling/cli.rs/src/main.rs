@@ -270,9 +270,9 @@ fn main() -> Result<()> {
     .version(crate_version!())
     .setting(AppSettings::ArgRequiredElseHelp)
     .setting(AppSettings::GlobalVersion)
-    .setting(AppSettings::SubcommandRequired);
-  let app_matches = app.get_matches();
-  let matches = app_matches.subcommand_matches("tauri").unwrap();
+    .setting(AppSettings::SubcommandRequired)
+    .arg(clap::Arg::new("cargo").hidden(true).possible_value("tauri"));
+  let matches = app.get_matches();
 
   if let Some(matches) = matches.subcommand_matches("init") {
     init_command(matches)?;

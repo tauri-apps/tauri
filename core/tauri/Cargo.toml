@@ -33,7 +33,7 @@ normal = [ "attohttpc" ]
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
 serde = { version = "1.0", features = [ "derive" ] }
-tokio = { version = "1.7", features = [ "rt", "rt-multi-thread", "sync", "fs" ] }
+tokio = { version = "1.9", features = [ "rt", "rt-multi-thread", "sync", "fs" ] }
 futures = "0.3"
 uuid = { version = "0.8", features = [ "v4" ] }
 url = { version = "2.2" }

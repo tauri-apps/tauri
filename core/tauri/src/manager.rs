@@ -445,15 +445,8 @@ impl<R: Runtime> WindowManager<R> {
   fn event_initialization_script(&self, key: u32) -> String {
     return format!(
       "
-      window['{queue}'] = [];
-      window['{function}'] = function (eventData, salt, ignoreQueue) {{
+      window['{function}'] = function (eventData, salt) {{
       const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
-      if (!ignoreQueue && listeners.length === 0) {{
-        window['{queue}'].push({{
-          eventData: eventData,
-          salt: salt
-        }})
-      }}
 
       if (listeners.length > 0) {{
         window.__TAURI__._invoke('tauri', {{
@@ -476,7 +469,6 @@ impl<R: Runtime> WindowManager<R> {
     ",
       key = key,
       function = self.inner.listeners.function_name(),
-      queue = self.inner.listeners.queue_object_name(),
       listeners = self.inner.listeners.listeners_object_name()
     );
   }
@@ -713,9 +705,6 @@ impl<R: Runtime> WindowManager<R> {
   }
   pub fn event_listeners_object_name(&self) -> String {
     self.inner.listeners.listeners_object_name()
-  }
-  pub fn event_queue_object_name(&self) -> String {
-    self.inner.listeners.queue_object_name()
   }
   pub fn event_emit_function_name(&self) -> String {
     self.inner.listeners.function_name()

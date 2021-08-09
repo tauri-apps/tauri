@@ -115,9 +115,13 @@ impl Cmd {
 }
 
 #[cfg(all(target_os = "linux", any(dialog_open, dialog_save)))]
-fn set_default_path(dialog_builder: FileDialogBuilder, default_path: PathBuf) -> FileDialogBuilder {
-  if default_path.is_file() {
-    dialog_builder.set_file_name(&default_path.to_string_lossy().to_string())
+fn set_default_path(
+  mut dialog_builder: FileDialogBuilder,
+  default_path: PathBuf,
+) -> FileDialogBuilder {
+  if default_path.is_file() || !default_path.exists() {
+    dialog_builder = dialog_builder.set_file_name(&default_path.to_string_lossy().to_string());
+    dialog_builder.set_directory(default_path.parent().unwrap())
   } else {
     dialog_builder.set_directory(default_path)
   }
@@ -211,9 +215,6 @@ pub fn save<R: Runtime>(
     dialog_builder = dialog_builder.set_parent(&parent(window)?);
   }
   if let Some(default_path) = options.default_path {
-    if !default_path.exists() {
-      return Err(crate::Error::DialogDefaultPathNotExists(default_path));
-    }
     dialog_builder = set_default_path(dialog_builder, default_path);
   }
   for filter in options.filters {
